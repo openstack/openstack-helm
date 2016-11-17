@@ -65,15 +65,27 @@ export osd_cluster_network=10.32.0.0/12
 export osd_public_network=10.32.0.0/12
 ```
 
+### Label your storage nodes
+
+You must label your storage nodes in order to run Ceph pods on them.
+
+```
+kubectl label node <nodename> node-type=storage
+```
+
+If you want all nodes in your Kubernetes cluster to be a part of your Ceph cluster, label them all.
+
+```
+kubectl label nodes node-type=storage --all
+```
 
 ### Quickstart
 
-You will need to generate ceph keys and configuration.  There is a simple to use utility that can do this quickly:
+You will need to generate ceph keys and configuration.  There is a simple to use utility that can do this quickly.  Please note the generator utility (per ceph-docker) requires the sigil template framework: (https://github.com/gliderlabs/sigil) to be installed and on the current path.
 
 ```
-
 cd ceph/utils/generator
-./generate_secrets.sh `./generate_secrets.sh fsid
+./generate_secrets.sh `./generate_secrets.sh fsid`
 cd ../../..
 ```
 
