@@ -1,0 +1,39 @@
+kind: Deployment
+apiVersion: extensions/v1beta1
+metadata:
+  name: rabbitmq
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        name: rabbitmq
+    spec:
+      nodeSelector:
+        {{.Values.global.label.control_node}}: enabled
+      volumes:
+        - name: rabbitmq-emptydir
+          emptyDir: {}
+        - name: start-rabbitmq
+          configMap:
+            name: start-rabbitmq
+      containers:
+        - name: rabbitmq
+          image: rabbitmq:3-management
+          command:
+            - bash
+            - /tmp/start_rabbitmq.sh
+          livenessProbe:
+            tcpSocket:
+              port: {{.Values.global.rabbitmq_port_public}}
+            initialDelaySeconds: 60
+            timeoutSeconds: 5
+          ports:
+            - name: rabbitmq
+              containerPort: {{.Values.global.rabbitmq_port_public}}
+          volumeMounts:
+            - name: rabbitmq-emptydir
+              mountPath: /var/lib/rabbitmq
+            - mountPath: /tmp/start_rabbitmq.sh
+              name: start-rabbitmq
+              subPath: start_rabbitmq.sh
