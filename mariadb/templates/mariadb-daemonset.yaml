@@ -1,0 +1,133 @@
+apiVersion: extensions/v1beta1
+kind: DaemonSet
+metadata:
+  name: mariadb
+spec:
+  selector:
+    matchLabels:
+      galera: enabled
+  template:
+    metadata:
+      labels:
+        app: mariadb
+        galera: enabled
+    spec:
+      nodeSelector:
+        {{ .Values.deployment.control_node_label }}: enabled
+      # TODO(DTadrzak): it must be removed in the future
+      securityContext:
+        runAsUser: 0
+      containers:
+        - name: mariadb
+          image: {{ .Values.deployment.image }}
+          imagePullPolicy: Always
+          env:
+            - name: INTERFACE_NAME
+              value: "eth0"
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: COMMAND
+              value: "bash /tmp/start.sh"
+            - name: DEPENDENCY_CONFIG
+              value: "/etc/my.cnf.d/wsrep.cnf"
+          ports:
+            - containerPort: {{ .Values.network.port.mariadb }}
+          readinessProbe:
+            exec:
+              command:
+                - python
+                - /mariadb-readiness.py
+          volumeMounts:
+            - name: mycnfd
+              mountPath: /etc/my.cnf.d
+            - name: startsh
+              mountPath: /tmp/start.sh
+              subPath: start.sh
+            - name: bootstrapdb
+              mountPath: /tmp/bootstrap-db.sh
+              subPath: bootstrap-db.sh
+            - name: peer-finder
+              mountPath: /tmp/peer-finder.py
+              subPath: peer-finder.py
+            - name: charsets
+              mountPath: /etc/my.cnf.d/charsets.cnf 
+              subPath: charsets.cnf
+            - name: engine
+              mountPath: /etc/my.cnf.d/engine.cnf
+              subPath: engine.cnf
+            - name: log
+              mountPath: /etc/my.cnf.d/log.cnf 
+              subPath: log.cnf
+            - name: mycnf
+              mountPath: /etc/my.cnf 
+              subPath: my.cnf
+            - name: networking
+              mountPath: /etc/my.cnf.d/networking.cnf  
+              subPath: networking.cnf
+            - name: pid
+              mountPath: /etc/my.cnf.d/pid.cnf
+              subPath: pid.cnf
+            - name: tuning
+              mountPath: /etc/my.cnf.d/tuning.cnf
+              subPath: tuning.cnf
+            - name: wsrep
+              mountPath: /configmaps/wsrep.cnf
+            - name: mysql
+              mountPath: /var/lib/mysql
+            - name: replicas
+              mountPath: /tmp/replicas.py
+              subPath: replicas.py
+            - name: readiness
+              mountPath: /mariadb-readiness.py
+              subPath: mariadb-readiness.py
+      volumes:
+        - name: mycnfd
+          emptyDir: {}
+        - name: startsh
+          configMap:
+            name: mariadb-startsh
+        - name: bootstrapdb
+          configMap:
+            name: bootstrap-db
+        - name: peer-finder
+          configMap:
+            name: mariadb-peer-finder
+        - name: charsets
+          configMap:
+            name: mariadb-charsets
+        - name: engine
+          configMap:
+            name: mariadb-engine
+        - name: log
+          configMap:
+            name: mariadb-log
+        - name: mycnf
+          configMap:
+            name: mariadb-mycnf
+        - name: networking
+          configMap:
+            name: mariadb-networking
+        - name: pid
+          configMap:
+            name: mariadb-pid
+        - name: tuning
+          configMap:
+            name: mariadb-tuning
+        - name: wsrep
+          configMap:
+            name: mariadb-wsrep
+        - name: replicas
+          configMap:
+            name: mariadb-replicas
+        - name: readiness
+          configMap:
+            name: mariadb-readiness
+        - name: mysql
+          hostPath:
+            path: /var/lib/mysql-openstack-{{ .Values.database.cluster_name }}
