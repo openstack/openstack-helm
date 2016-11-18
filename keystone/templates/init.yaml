@@ -1,0 +1,37 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: keystone-init
+spec:
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: keystone-init
+          image: {{ .Values.global.deployment.image.init }}
+          imagePullPolicy: Always
+          env:
+            - name: INTERFACE_NAME
+              value: "eth0"
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: COMMAND
+              value: "bash /tmp/init.sh"
+            - name: DEPENDENCY_JOBS
+              value: "mariadb-seed"
+            - name: DEPENDENCY_SERVICE
+              value: "mariadb"
+          volumeMounts:
+            - name: initsh
+              mountPath: /tmp/init.sh
+              subPath: init.sh
+      volumes:
+        - name: initsh
+          configMap:
+            name: keystone-initsh
