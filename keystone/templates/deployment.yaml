@@ -1,0 +1,70 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: keystone-api
+spec:
+  replicas: {{ .Values.global.deployment.replicas }}
+  template:
+    metadata:
+      labels:
+        app: keystone-api
+    spec:
+      nodeSelector:
+        {{ .Values.global.deployment.control_node_label }}: enabled
+      containers:
+        - name: keystone-api
+          image: {{ .Values.global.deployment.image.api }}
+          env:
+            - name: INTERFACE_NAME
+              value: "eth0"
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: COMMAND
+              value: "bash /tmp/start.sh"
+            - name: DEPENDENCY_JOBS
+              value: "keystone-init,keystone-db-sync,mariadb-seed"
+            - name: DEPENDENCY_SERVICE
+              value: "mariadb,rabbitmq"
+            - name: DEPENDENCY_CONFIG
+              value: "/etc/apache2/conf-enabled/wsgi-keystone.conf"
+          ports:
+            - containerPort: {{ .Values.global.network.port.public }}
+            - containerPort: {{ .Values.global.network.port.admin }}
+          readinessProbe:
+            tcpSocket:
+              port: {{ .Values.global.network.port.public }}
+          volumeMounts:
+            - name: keystoneconf
+              mountPath: /etc/keystone/keystone.conf
+              subPath: keystone.conf
+            - name: wsgikeystone
+              mountPath: /configmaps/wsgi-keystone.conf
+            - name: mpmeventconf
+              mountPath: /etc/apache2/mods-available/mpm_event.conf
+              subPath: mpm_event.conf
+            - name: startsh
+              mountPath: /tmp/start.sh
+              subPath: start.sh
+      volumes:
+        - name: keystoneconf
+          configMap:
+            name: keystone-keystoneconf
+        - name: wsgikeystone
+          configMap:
+            name: keystone-wsgikeystone
+        - name: mpmeventconf
+          configMap:
+            name: keystone-mpmeventconf
+            # https://github.com/kubernetes/kubernetes/issues/23722
+            items:
+            - key: mpm-event.conf
+              path: mpm_event.conf
+        - name: startsh
+          configMap:
+            name: keystone-startsh
