@@ -1,42 +1,94 @@
-apiVersion: extensions/v1beta1
-kind: DaemonSet
+---
+apiVersion: v1
+kind: Service
 metadata:
-  name: mariadb
+  name: infra-db
 spec:
+  ports:
+    - name: db
+      port: {{ .Values.network.port.mariadb }}
   selector:
-    matchLabels:
-      galera: enabled
+    app: mariadb
+    {{- $root := . -}}
+{{ range $k, $v := until (atoi .Values.replicas) }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: infra-db-{{$v}}
+  labels:
+    release: {{ $root.Release.Name | quote }}
+    chart: "{{ $root.Chart.Name }}-{{ $root.Chart.Version }}"
+spec:
+  ports:
+    - name: db
+      port: {{ $root.Values.network.port.mariadb }}
+    - name: wsrep
+      port: {{ $root.Values.network.port.wsrep }}
+  selector:
+    app: mariadb
+    server-id: "{{$v}}"
+---
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: mariadb-{{$v}}
+  annotations:
+    volume.beta.kubernetes.io/storage-class: "general"  
+spec:
+  accessModes: [ "ReadWriteOnce" ]
+  resources:
+    requests:
+      storage: {{ $root.Values.volume.size }}  
+---
+kind: Deployment
+apiVersion: extensions/v1beta1
+metadata:
+  labels:
+    app: mariadb
+    galera: enabled
+    server-id: "{{$v}}"
+  name: mariadb-{{$v}}
+spec:
+  replicas: 1
   template:
+    securityContext:
+      runAsUser: 0      
     metadata:
+      name: mariadb-{{$v}}
       labels:
         app: mariadb
         galera: enabled
+        server-id: "{{$v}}"
       annotations:
-        pod.beta.kubernetes.io/init-containers: '[
+        pod.beta.kubernetes.io/hostname: mariadb-{{$v}}
+        helm.sh/created: {{ $root.Release.Time.Seconds | quote }}
+        # alanmeadows: this soft requirement allows single
+        # host deployments to spawn several mariadb containers
+        # but in a larger environment, would attempt to spread
+        # them out
+        scheduler.alpha.kubernetes.io/affinity: >
           {
-            "name": "init",
-            "image": "quay.io/stackanetes/kubernetes-entrypoint:v0.1.0",
-            "env": [
-              {
-                "name": "DEPENDENCY_JOBS",
-                "value": "mariadb-seed"
-              },
-              {
-                "name": "COMMAND",
-                "value": "echo Done"
-              }
-            ]
-          }
-        ]'
+            "podAntiAffinity": {
+              "preferredDuringSchedulingIgnoredDuringExecution": [{
+                "labelSelector": {
+                  "matchExpressions": [{
+                    "key": "app",
+                    "operator": "In",
+                    "values":["mariadb"]
+                  }]
+                },
+              "topologyKey": "kubernetes.io/hostname",
+              "weight": 10
+              }]
+            }
+          }        
     spec:
       nodeSelector:
-        {{ .Values.deployment.control_node_label }}: enabled
-      # TODO(DTadrzak): it must be removed in the future
-      securityContext:
-        runAsUser: 0
+        {{ $root.Values.labels.control_node_label }}: enabled
       containers:
-        - name: mariadb
-          image: {{ .Values.deployment.image }}
+        - name: mariadb-{{$v}}
+          image: {{ $root.Values.images.mariadb }}
           imagePullPolicy: Always
           env:
             - name: INTERFACE_NAME
@@ -54,7 +106,8 @@ spec:
             - name: DEPENDENCY_CONFIG
               value: "/etc/my.cnf.d/wsrep.cnf"
           ports:
-            - containerPort: {{ .Values.network.port.mariadb }}
+            - containerPort: {{ $root.Values.network.port.mariadb }}
+            - containerPort: {{ $root.Values.network.port.wsrep }}
           readinessProbe:
             exec:
               command:
@@ -95,14 +148,14 @@ spec:
               subPath: tuning.cnf
             - name: wsrep
               mountPath: /configmaps/wsrep.cnf
-            - name: mysql
-              mountPath: /var/lib/mysql
             - name: replicas
               mountPath: /tmp/replicas.py
               subPath: replicas.py
             - name: readiness
               mountPath: /mariadb-readiness.py
               subPath: mariadb-readiness.py
+            - name: mysql-data
+              mountPath: /var/lib/mysql              
       volumes:
         - name: mycnfd
           emptyDir: {}
@@ -145,6 +198,9 @@ spec:
         - name: readiness
           configMap:
             name: mariadb-readiness
-        - name: mysql
-          hostPath:
-            path: /var/lib/mysql-openstack-{{ .Values.database.cluster_name }}
+        - name: mysql-data
+          persistentVolumeClaim:
+            matchLabels:
+              server-id: "{{$v}}"
+            claimName: mariadb-{{$v}}
+  {{ end }}

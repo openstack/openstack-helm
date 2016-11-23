@@ -1,12 +1,18 @@
-.PHONY: ceph all clean base64
+.PHONY: ceph mariadb all clean base64
 
-B64_DIRS := ceph/secrets
-B64_EXCLUDE := $(wildcard ceph/secrets/*.b64)
+B64_DIRS := utils/secrets
+B64_EXCLUDE := $(wildcard utils/secrets/*.b64)
 
-all: base64 ceph 
+all: base64 utils ceph mariadb openstack
+
+utils: build-utils
 
 ceph: build-ceph
 
+mariadb: build-mariadb
+
+openstack: build-openstack
+	
 clean:  
 	$(shell find . -name '*.b64' -exec rm {} \;)
 	$(shell find . -name '_partials.tpl' -exec rm {} \;)

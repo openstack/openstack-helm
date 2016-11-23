@@ -11,7 +11,7 @@ data:
     import sys
     import urllib2
 
-    URL = ('https://kubernetes.default.svc.{{ .Values.network.dns.kubernetes_domain }}/apis/extensions/v1beta1/daemonsets')
+    URL = ('https://kubernetes.default.svc.{{ .Values.network.dns.kubernetes_domain }}/apis/extensions/v1beta1/deployments')
     TOKEN_FILE = '/var/run/secrets/kubernetes.io/serviceaccount/token'
 
     def create_ctx():
@@ -20,7 +20,7 @@ data:
        ctx.verify_mode = ssl.CERT_NONE
        return ctx
 
-    def get_daemonsets():
+    def get_deployments():
        url = URL.format()
        try:
            token = file(TOKEN_FILE, 'r').read()
@@ -36,11 +36,11 @@ data:
        return output
 
     def main():
-       reply = get_daemonsets()
+       reply = get_deployments()
        name = "mariadb"
        namespace = "default" if not os.environ["NAMESPACE"] else os.environ["NAMESPACE"]
-       mariadb = filter(lambda d: d["metadata"]["namespace"] == namespace and d["metadata"]["name"] == name, reply["items"])
-       print mariadb[0]["status"]['desiredNumberScheduled']
+       mariadb = filter(lambda d: d["metadata"]["namespace"] == namespace and d["metadata"]["name"].startswith(name), reply["items"])
+       print len(mariadb)
 
     if __name__ == "__main__":
        main()
