@@ -4,12 +4,38 @@ metadata:
   name: keystone-db-sync
 spec:
   template:
+    metadata:
+      annotations:
+        pod.beta.kubernetes.io/init-containers: '[
+          {
+            "name": "init",
+            "image": "quay.io/stackanetes/kubernetes-entrypoint:v0.1.0",
+            "env": [
+              {
+                "name": "DEPENDENCY_SERVICE",
+                "value": "mariadb"
+              },
+              {
+                "name": "DEPENDENCY_JOBS",
+                "value": "mariadb-seed,keystone-init"
+              },
+              {
+                "name": "COMMAND",
+                "value": "echo done"
+              }
+            ]
+          }
+        ]'
+ 
     spec:
       restartPolicy: OnFailure
       containers:
         - name: keystone-init
           image: {{ .Values.global.deployment.image.db_sync }}
           imagePullPolicy: Always
+          command:
+          - bash
+          - /tmp/db-sync.sh
           env:
             - name: INTERFACE_NAME
               value: "eth0"
