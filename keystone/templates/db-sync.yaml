@@ -12,6 +12,10 @@ spec:
             "image": "quay.io/stackanetes/kubernetes-entrypoint:v0.1.0",
             "env": [
               {
+                "name": "NAMESPACE",
+                "value": "{{ .Release.Namespace }}"
+              },            
+              {
                 "name": "DEPENDENCY_SERVICE",
                 "value": "mariadb"
               },
@@ -26,33 +30,15 @@ spec:
             ]
           }
         ]'
- 
     spec:
       restartPolicy: OnFailure
       containers:
-        - name: keystone-init
-          image: {{ .Values.global.deployment.image.db_sync }}
+        - name: keystone-db-sync
+          image: {{ .Values.images.db_sync }}
           imagePullPolicy: Always
           command:
-          - bash
-          - /tmp/db-sync.sh
-          env:
-            - name: INTERFACE_NAME
-              value: "eth0"
-            - name: POD_NAME
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.name
-            - name: NAMESPACE
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.namespace
-            - name: COMMAND
-              value: "bash /tmp/db-sync.sh"
-            - name: DEPENDENCY_JOBS
-              value: "keystone-init,mariadb-seed"
-            - name: DEPENDENCY_SERVICE
-              value: "mariadb"
+            - bash
+            - /tmp/db-sync.sh
           volumeMounts:
             - name: keystoneconf
               mountPath: /etc/keystone/keystone.conf

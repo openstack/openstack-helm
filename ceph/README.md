@@ -84,7 +84,7 @@ kubectl label nodes node-type=storage --all
 You will need to generate ceph keys and configuration.  There is a simple to use utility that can do this quickly.  Please note the generator utility (per ceph-docker) requires the sigil template framework: (https://github.com/gliderlabs/sigil) to be installed and on the current path.
 
 ```
-cd utils/utils/generator
+cd openstack-base/utils/secret-generator
 ./generate_secrets.sh all `./generate_secrets.sh fsid`
 cd ../../..
 ```

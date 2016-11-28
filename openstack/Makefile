@@ -1,4 +1,4 @@
-EXCLUDE := templates/* charts/* Chart.yaml requirement* values.yaml Makefile utils/*
+EXCLUDE := templates/* charts/* Chart.yaml requirement* values.yaml Makefile openstack-base/Chart.yaml
 FILES := $(shell find * -type f $(foreach e,$(EXCLUDE), -not -path "$(e)") )
 
 templates/_partials.tpl: Makefile $(FILES)

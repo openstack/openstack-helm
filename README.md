@@ -57,7 +57,7 @@ make
 # generate secrets (ceph, etc.)
 export osd_cluster_network=10.32.0.0/12
 export osd_public_network=10.32.0.0/12
-cd utils/utils/generator
+cd openstack-base/utils/secret-generator
 ./generate_secrets.sh all `./generate_secrets.sh fsid`
 cd ../../..
 

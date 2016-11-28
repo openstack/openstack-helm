@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: keystone-api
 spec:
-  replicas: {{ .Values.global.deployment.replicas }}
+  replicas: {{ .Values.replicas }}
   template:
     metadata:
       labels:
@@ -15,54 +15,43 @@ spec:
             "image": "quay.io/stackanetes/kubernetes-entrypoint:v0.1.0",
             "env": [
               {
+                "name": "NAMESPACE",
+                "value": "{{ .Release.Namespace }}"
+              },
+              {
                 "name": "DEPENDENCY_SERVICE",
-                "value": "mariadb"
+                "value": "mariadb,rabbitmq"
               },
               {
                 "name": "DEPENDENCY_JOBS",
-                "value": "mariadb-seed,nova-db-sync"
+                "value": "mariadb-seed"
+              },
+              {
+                "name": "DEPENDENCY_CONFIG",
+                "value": "/etc/apache2/conf-enabled/wsgi-keystone.conf"
               },
               {
                 "name": "COMMAND",
                 "value": "echo done"
-              }
+              }              
             ]
           }
         ]'
     spec:
       nodeSelector:
-        {{ .Values.global.deployment.control_node_label }}: enabled
+        {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
       containers:
         - name: keystone-api
-          image: {{ .Values.global.deployment.image.api }}
+          image: {{ .Values.images.api }}
           command:
-          - bash 
-          - /tmp/start.sh
-          env:
-            - name: INTERFACE_NAME
-              value: "eth0"
-            - name: POD_NAME
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.name
-            - name: NAMESPACE
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.namespace
-            - name: COMMAND
-              value: "bash /tmp/start.sh"
-            - name: DEPENDENCY_JOBS
-              value: "keystone-init,keystone-db-sync,mariadb-seed"
-            - name: DEPENDENCY_SERVICE
-              value: "mariadb,rabbitmq"
-            - name: DEPENDENCY_CONFIG
-              value: "/etc/apache2/conf-enabled/wsgi-keystone.conf"
+            - bash
+            - /tmp/start.sh
           ports:
-            - containerPort: {{ .Values.global.network.port.public }}
-            - containerPort: {{ .Values.global.network.port.admin }}
+            - containerPort: {{ .Values.network.port.public }}
+            - containerPort: {{ .Values.network.port.admin }}
           readinessProbe:
             tcpSocket:
-              port: {{ .Values.global.network.port.public }}
+              port: {{ .Values.network.port.public }}
           volumeMounts:
             - name: keystoneconf
               mountPath: /etc/keystone/keystone.conf

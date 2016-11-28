@@ -16,7 +16,7 @@ spec:
         daemon: mds
     spec:
       nodeSelector:
-        node-type: storage
+        {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
       serviceAccount: default
       volumes:
         - name: ceph-conf
@@ -33,7 +33,7 @@ spec:
             secretName: ceph-bootstrap-rgw-keyring
       containers:
         - name: ceph-mon
-          image: {{ .Values.image_ceph_daemon }}
+          image: {{ .Values.images.daemon }}
           ports:
             - containerPort: 6800
           env:
@@ -103,7 +103,7 @@ spec:
             secretName: ceph-bootstrap-rgw-keyring
       containers:
         - name: ceph-mon
-          image: {{ .Values.image_ceph_daemon }}
+          image: {{ .Values.images.daemon }}
           imagePullPolicy: Always
           ports:
             - containerPort: 6789
@@ -185,7 +185,7 @@ spec:
             secretName: ceph-bootstrap-rgw-keyring
       containers:
         - name: ceph-mon
-          image: {{ .Values.image_ceph_daemon }}
+          image: {{ .Values.images.daemon }}
 #          imagePullPolicy: Always
           lifecycle:
             preStop:
@@ -248,7 +248,7 @@ spec:
     spec:
       hostNetwork: true
       nodeSelector:
-        node-type: storage
+        {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
       serviceAccount: default
       volumes:
         - name: ceph-conf
@@ -265,12 +265,12 @@ spec:
             secretName: ceph-bootstrap-rgw-keyring
       containers:
         - name: ceph-rgw
-          image: {{ .Values.image_ceph_daemon }}
+          image: {{ .Values.images.daemon }}
           ports:
-            - containerPort: {{ .Values.ceph_rgw_target_port }}
+            - containerPort: {{ .Values.network.port.rgw_target }}
           env:
             - name: RGW_CIVETWEB_PORT
-              value: "{{ .Values.ceph_rgw_target_port }}"
+              value: "{{ .Values.network.port.rgw_target }}"
             - name: CEPH_DAEMON
               value: RGW
             - name: KV_TYPE
@@ -289,13 +289,13 @@ spec:
           livenessProbe:
               httpGet:
                 path: /
-                port: {{ .Values.ceph_rgw_target_port }}
+                port: {{ .Values.network.port.rgw_target }}
               initialDelaySeconds: 120
               timeoutSeconds: 5
           readinessProbe:
               httpGet:
                 path: /
-                port: {{ .Values.ceph_rgw_target_port }}
+                port: {{ .Values.network.port.rgw_target }}
               timeoutSeconds: 5
           resources:
             requests:

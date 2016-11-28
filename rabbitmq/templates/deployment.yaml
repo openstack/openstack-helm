@@ -3,14 +3,14 @@ apiVersion: extensions/v1beta1
 metadata:
   name: rabbitmq
 spec:
-  replicas: 1
+  replicas: {{ .Values.replicas }}
   template:
     metadata:
       labels:
         app: rabbitmq
     spec:
       nodeSelector:
-        {{.Values.global.label.control_node}}: enabled
+        {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
       volumes:
         - name: rabbitmq-emptydir
           emptyDir: {}
@@ -19,18 +19,20 @@ spec:
             name: start-rabbitmq
       containers:
         - name: rabbitmq
-          image: rabbitmq:3-management
+          image: {{ .Values.images.rabbitmq }}
           command:
             - bash
             - /tmp/start_rabbitmq.sh
           livenessProbe:
             tcpSocket:
-              port: {{.Values.global.rabbitmq_port_public}}
+              port: {{.Values.network.port.public}}
             initialDelaySeconds: 60
             timeoutSeconds: 5
           ports:
             - name: rabbitmq
-              containerPort: {{.Values.global.rabbitmq_port_public}}
+              containerPort: {{.Values.network.port.public}}
+            - name: management
+              containerPort: {{.Values.network.port.management}}
           volumeMounts:
             - name: rabbitmq-emptydir
               mountPath: /var/lib/rabbitmq
