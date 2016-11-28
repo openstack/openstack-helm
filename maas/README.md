@@ -2,7 +2,6 @@
 
 This chart installs a working version of MaaS on kubernetes.
 
-
 ### Quickstart
 
 To deploy your MaaS chart:
