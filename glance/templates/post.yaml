@@ -1,0 +1,49 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: glance-post
+spec:
+  template:
+    metadata:
+      annotations:
+        pod.beta.kubernetes.io/init-containers: '[
+          {
+            "name": "init",
+            "image": "quay.io/stackanetes/kubernetes-entrypoint:v0.1.0",
+            "env": [
+              {
+                "name": "NAMESPACE",
+                "value": "{{ .Release.Namespace }}"
+              },            
+              {
+                "name": "DEPENDENCY_SERVICE",
+                "value": "{{  include "joinListWithColon" .Values.dependencies.post.service }}"
+              },
+              {
+                "name": "DEPENDENCY_JOBS",
+                "value": "{{  include "joinListWithColon" .Values.dependencies.post.jobs }}"
+              },
+              {
+                "name": "COMMAND",
+                "value": "echo done"
+              }
+            ]
+          }
+        ]'
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: glance-post
+          image: {{ .Values.images.post }}
+          imagePullPolicy: Always
+          command:
+            - bash
+            - /tmp/post.sh
+          volumeMounts:
+            - name: postsh
+              mountPath: /tmp/post.sh
+              subPath: post.sh
+      volumes:
+        - name: postsh
+          configMap:
+            name: glance-postsh
