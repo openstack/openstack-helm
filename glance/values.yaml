@@ -1,0 +1,99 @@
+# Default values for keystone.
+# This is a YAML-formatted file.
+# Declare name/value pairs to be passed into your templates.
+# name: value
+
+replicas: 1
+
+labels:
+  node_selector_key: openstack-control-plane
+  node_selector_value: enabled
+
+images:
+  db_sync: quay.io/stackanetes/stackanetes-glance-api:newton
+  api: quay.io/stackanetes/stackanetes-glance-api:newton
+  init: quay.io/stackanetes/stackanetes-kolla-toolbox:newton
+  registry: quay.io/stackanetes/stackanetes-glance-registry:newton
+  post: quay.io/stackanetes/stackanetes-kolla-toolbox:newton
+
+keystone:
+  auth_uri: "http://keystone-api:5000"
+  auth_url: "http://keystone-api:35357"
+  admin_user: "admin"
+  admin_password: "password"
+  admin_project_name: "admin"
+  admin_region_name: "RegionOne"
+
+  glance_user: "glance"
+  glance_password: "password"
+  glance_region_name: "RegionOne"
+
+network:
+  port:
+    api: 9292
+    registry: 9191
+  ip_address: "{{ .IP }}"
+
+database:
+  address: mariadb
+  port: 3306
+  root_user: root
+  root_password: password
+  glance_database_name: glance
+  glance_password: password
+  glance_user: glance
+
+ceph:
+  enabled: true
+  monitors: []
+  glance_user: "glance"
+  glance_pool: "images"
+  glance_keyring: ""
+
+misc:
+  workers: 8
+  debug: false
+
+dependencies:
+  api:
+    jobs:
+    - glance-init
+    - glance-db-sync
+    - keystone-db-sync
+    service:
+    - keystone-api
+    - mariadb
+  registry:
+    jobs:
+    - glance-init
+    - glance-db-sync
+    - keystone-db-sync
+    service:
+    - keystone-api
+    - mariadb
+    - glance-api
+  db_sync:
+    jobs:
+    - keystone-init
+    - keystone-db-sync
+    - glance-init
+    - mariadb-seed
+    service:
+    - mariadb
+  init:
+    jobs:
+    - mariadb-seed
+    service:
+    - mariadb
+  post:
+    jobs:
+    - glance-init
+    - glance-db-sync
+    - keystone-db-sync
+    - keystone-init
+    - mariadb-init
+    service:
+    - mariadb
+    - keystone-api
+    - glance-api
+    - glance-registry
