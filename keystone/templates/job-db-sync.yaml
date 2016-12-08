@@ -1,7 +1,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: keystone-init
+  name: keystone-db-sync
 spec:
   template:
     metadata:
@@ -9,19 +9,19 @@ spec:
         pod.beta.kubernetes.io/init-containers: '[
           {
             "name": "init",
-            "image": "quay.io/stackanetes/kubernetes-entrypoint:v0.1.0",
+            "image": "{{ .Values.images.entrypoint }}",
             "env": [
               {
                 "name": "NAMESPACE",
                 "value": "{{ .Release.Namespace }}"
-              },
+              },            
               {
                 "name": "DEPENDENCY_SERVICE",
                 "value": "mariadb"
               },
               {
                 "name": "DEPENDENCY_JOBS",
-                "value": "mariadb-seed"
+                "value": "mariadb-seed,keystone-init"
               },
               {
                 "name": "COMMAND",
@@ -33,14 +33,23 @@ spec:
     spec:
       restartPolicy: OnFailure
       containers:
-        - name: keystone-init
-          image: {{ .Values.images.init }}
+        - name: keystone-db-sync
+          image: {{ .Values.images.db_sync }}
           imagePullPolicy: Always
+          command:
+            - bash
+            - /tmp/db-sync.sh
           volumeMounts:
-            - name: initsh
-              mountPath: /tmp/init.sh
-              subPath: init.sh
+            - name: keystoneconf
+              mountPath: /etc/keystone/keystone.conf
+              subPath: keystone.conf
+            - name: keystone-bin
+              mountPath: /tmp/db-sync.sh
+              subPath: db-sync.sh
       volumes:
-        - name: initsh
+        - name: keystoneconf
           configMap:
-            name: keystone-initsh
+            name: keystone-etc
+        - name: keystone-bin
+          configMap:
+            name: keystone-bin

@@ -12,11 +12,15 @@ spec:
         pod.beta.kubernetes.io/init-containers: '[
           {
             "name": "init",
-            "image": "quay.io/stackanetes/kubernetes-entrypoint:v0.1.0",
+            "image": "{{ .Values.images.entrypoint }}",
             "env": [
               {
                 "name": "NAMESPACE",
                 "value": "{{ .Release.Namespace }}"
+              },
+              {
+                "name": "INTERFACE_NAME",
+                "value": "eth0"
               },
               {
                 "name": "DEPENDENCY_SERVICE",
@@ -24,11 +28,7 @@ spec:
               },
               {
                 "name": "DEPENDENCY_JOBS",
-                "value": "mariadb-seed"
-              },
-              {
-                "name": "DEPENDENCY_CONFIG",
-                "value": "/etc/apache2/conf-enabled/wsgi-keystone.conf"
+                "value": "mariadb-seed,keystone-db-sync"
               },
               {
                 "name": "COMMAND",
@@ -58,6 +58,7 @@ spec:
               subPath: keystone.conf
             - name: wsgikeystone
               mountPath: /configmaps/wsgi-keystone.conf
+              subPath: wsgi_keystone.conf
             - name: mpmeventconf
               mountPath: /etc/apache2/mods-available/mpm_event.conf
               subPath: mpm_event.conf
@@ -67,17 +68,22 @@ spec:
       volumes:
         - name: keystoneconf
           configMap:
-            name: keystone-keystoneconf
+            name: keystone-etc
+            items:
+            - key: keystone.conf
+              path: keystone.conf
         - name: wsgikeystone
           configMap:
-            name: keystone-wsgikeystone
+            name: keystone-etc
+            items:
+            - key: wsgi-keystone.conf
+              path: wsgi_keystone.conf
         - name: mpmeventconf
           configMap:
-            name: keystone-mpmeventconf
-            # https://github.com/kubernetes/kubernetes/issues/23722
+            name: keystone-etc
             items:
             - key: mpm-event.conf
               path: mpm_event.conf
         - name: startsh
           configMap:
-            name: keystone-startsh
+            name: keystone-bin
