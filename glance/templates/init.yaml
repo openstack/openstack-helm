@@ -1,7 +1,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: keystone-init
+  name: glance-init
 spec:
   template:
     metadata:
@@ -9,7 +9,7 @@ spec:
         pod.beta.kubernetes.io/init-containers: '[
           {
             "name": "init",
-            "image": "{{ .Values.images.entrypoint }}",
+            "image": "quay.io/stackanetes/kubernetes-entrypoint:v0.1.0",
             "env": [
               {
                 "name": "NAMESPACE",
@@ -33,17 +33,20 @@ spec:
     spec:
       restartPolicy: OnFailure
       containers:
-        - name: keystone-init
+        - name: glance-init
           image: {{ .Values.images.init }}
           imagePullPolicy: Always
+          env:
+          - name: ANSIBLE_LIBRARY
+            value: /usr/share/ansible/
           command:
             - bash
             - /tmp/init.sh
           volumeMounts:
-            - name: keystone-bin
+            - name: initsh
               mountPath: /tmp/init.sh
               subPath: init.sh
       volumes:
-        - name: keystone-bin
+        - name: initsh
           configMap:
-            name: keystone-bin
+            name: glance-initsh

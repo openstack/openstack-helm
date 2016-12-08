@@ -1,7 +1,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: keystone-db-sync
+  name: glance-db-sync
 spec:
   template:
     metadata:
@@ -9,7 +9,7 @@ spec:
         pod.beta.kubernetes.io/init-containers: '[
           {
             "name": "init",
-            "image": "{{ .Values.images.entrypoint }}",
+            "image": "quay.io/stackanetes/kubernetes-entrypoint:v0.1.0",
             "env": [
               {
                 "name": "NAMESPACE",
@@ -33,23 +33,23 @@ spec:
     spec:
       restartPolicy: OnFailure
       containers:
-        - name: keystone-db-sync
+        - name: glance-db-sync
           image: {{ .Values.images.db_sync }}
           imagePullPolicy: Always
           command:
             - bash
             - /tmp/db-sync.sh
           volumeMounts:
-            - name: keystoneconf
-              mountPath: /etc/keystone/keystone.conf
-              subPath: keystone.conf
-            - name: keystone-bin
+            - name: glanceapiconf
+              mountPath: /etc/glance/glance-api.conf
+              subPath: glance-api.conf
+            - name: dbsyncsh
               mountPath: /tmp/db-sync.sh
               subPath: db-sync.sh
       volumes:
-        - name: keystoneconf
+        - name: glanceapiconf
           configMap:
-            name: keystone-etc
-        - name: keystone-bin
+            name: glance-glanceapiconf
+        - name: dbsyncsh
           configMap:
-            name: keystone-bin
+            name: glance-dbsyncsh

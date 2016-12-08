@@ -1,7 +1,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: keystone-init
+  name: glance-post
 spec:
   template:
     metadata:
@@ -9,19 +9,19 @@ spec:
         pod.beta.kubernetes.io/init-containers: '[
           {
             "name": "init",
-            "image": "{{ .Values.images.entrypoint }}",
+            "image": "quay.io/stackanetes/kubernetes-entrypoint:v0.1.0",
             "env": [
               {
                 "name": "NAMESPACE",
                 "value": "{{ .Release.Namespace }}"
-              },
+              },            
               {
                 "name": "DEPENDENCY_SERVICE",
-                "value": "{{  include "joinListWithColon" .Values.dependencies.init.service }}"
+                "value": "{{  include "joinListWithColon" .Values.dependencies.post.service }}"
               },
               {
                 "name": "DEPENDENCY_JOBS",
-                "value": "{{  include "joinListWithColon" .Values.dependencies.init.jobs }}"
+                "value": "{{  include "joinListWithColon" .Values.dependencies.post.jobs }}"
               },
               {
                 "name": "COMMAND",
@@ -33,17 +33,17 @@ spec:
     spec:
       restartPolicy: OnFailure
       containers:
-        - name: keystone-init
-          image: {{ .Values.images.init }}
+        - name: glance-post
+          image: {{ .Values.images.post }}
           imagePullPolicy: Always
           command:
             - bash
-            - /tmp/init.sh
+            - /tmp/post.sh
           volumeMounts:
-            - name: keystone-bin
-              mountPath: /tmp/init.sh
-              subPath: init.sh
+            - name: postsh
+              mountPath: /tmp/post.sh
+              subPath: post.sh
       volumes:
-        - name: keystone-bin
+        - name: postsh
           configMap:
-            name: keystone-bin
+            name: glance-postsh

@@ -1,0 +1,80 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: glance-api
+spec:
+  replicas: {{ .Values.replicas }}
+  template:
+    metadata:
+      labels:
+        app: glance-api
+      annotations:
+        pod.beta.kubernetes.io/init-containers: '[
+          {
+            "name": "init",
+            "image": "quay.io/stackanetes/kubernetes-entrypoint:v0.1.0",
+            "env": [
+              {
+                "name": "NAMESPACE",
+                "value": "{{ .Release.Namespace }}"
+              },
+              {
+                "name": "DEPENDENCY_SERVICE",
+                "value": "{{  include "joinListWithColon" .Values.dependencies.api.service }}"
+              },
+              {
+                "name": "DEPENDENCY_JOBS",
+                "value": "{{  include "joinListWithColon" .Values.dependencies.api.jobs }}"
+              },
+              {
+                "name": "COMMAND",
+                "value": "echo done"
+              }
+            ]
+          }
+        ]'
+    spec:
+      nodeSelector:
+        {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
+      containers:
+        - name: glance-api
+          image: {{ .Values.images.api }}
+          imagePullPolicy: Always
+          command:
+          - bash
+          - /tmp/start.sh
+          ports:
+            - containerPort: {{ .Values.network.port.api }}
+          readinessProbe:
+            tcpSocket:
+              port: {{ .Values.network.port.api }}
+          volumeMounts:
+            - name: glanceapiconf
+              mountPath: /etc/glance/glance-api.conf
+              subPath: glance-api.conf
+            - name: startsh
+              mountPath: /tmp/start.sh
+              subPath: start.sh
+            - name: etcglance
+              mountPath: /etc/glance
+            - name: cephconf
+              mountPath: /etc/ceph/ceph.conf
+              subPath: ceph.conf
+            - name: cephclientglancekeyring
+              mountPath: /etc/ceph/ceph.client.{{ .Values.ceph.glance_user }}.keyring
+              subPath: ceph.client.{{ .Values.ceph.glance_user }}.keyring
+      volumes:
+        - name: glanceapiconf
+          configMap:
+            name: glance-glanceapiconf
+        - name: startsh
+          configMap:
+            name: glance-startsh
+        - name: cephconf
+          configMap:
+            name: glance-cephconf
+        - name: cephclientglancekeyring
+          configMap:
+            name: glance-cephclientglancekeyring
+        - name: etcglance
+          emptyDir: {}
