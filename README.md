@@ -30,7 +30,7 @@ Note that in addition to Kubernetes 1.5.0-beta.1, you will need to replace the k
 
 The kubelet should pick up the change and restart the container.
 
-Finally, for the kube-controller-manager to be able to talk to the ceph-mon instances, ensure it can resolve ceph-mon.ceph (assuming you install the ceph chart into the ceph namespace).  This is done by ensuring that both the baremetal host running the kubelet process and the kube-controller-manager container have the SkyDNS address and the appropriate search string in /etc/resolv.conf.  This is covered in more detail in the [ceph](ceph/README.md) but a typical resolv.conf would look like this:
+For the kube-controller-manager to be able to talk to the ceph-mon instances, ensure it can resolve ceph-mon.ceph (assuming you install the ceph chart into the ceph namespace).  This is done by ensuring that both the baremetal host running the kubelet process and the kube-controller-manager container have the SkyDNS address and the appropriate search string in /etc/resolv.conf.  This is covered in more detail in the [ceph](ceph/README.md) but a typical resolv.conf would look like this:
 
 ```
 nameserver 10.32.0.2 ### skydns instance ip
@@ -38,6 +38,13 @@ nameserver 8.8.8.8
 nameserver 8.8.4.4
 search svc.cluster.local
 ```
+
+Finally, you need to install Sigil to help in the generation of Ceph Secrets. You can do this by running the following command as root:
+
+```
+curl -L https://github.com/gliderlabs/sigil/releases/download/v0.4.0/sigil_0.4.0_Linux_x86_64.tgz | tar -zxC /usr/local/bin
+```
+
 ## QuickStart
 
 You can start aic-helm fairly quickly.  Assuming the above requirements are met, you can install the charts in a layered approach.  Today, the openstack chart is only tied to the mariadb sub-chart.  We will continue to add other OpenStack components into the openstack parent chart as they are validated.
@@ -49,10 +56,8 @@ Note that the openstack parent chart should always be used as it does some prepa
 kubectl label nodes node-type=storage --all
 kubectl label nodes openstack-control-plane=enabled --all
 
-# build aic-helm
+# move into the aic-helm directory
 cd aic-helm
-helm serve . &
-make
 
 # generate secrets (ceph, etc.)
 export osd_cluster_network=10.32.0.0/12
@@ -60,6 +65,10 @@ export osd_public_network=10.32.0.0/12
 cd common/utils/secret-generator
 ./generate_secrets.sh all `./generate_secrets.sh fsid`
 cd ../../..
+
+# now you are ready to build aic-helm
+helm serve . &
+make
 
 # install
 helm install local/chef --namespace=ceph
