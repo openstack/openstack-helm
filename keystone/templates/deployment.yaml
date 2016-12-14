@@ -44,8 +44,8 @@ spec:
         - name: keystone-api
           image: {{ .Values.images.api }}
           command:
-            - bash
-            - /tmp/start.sh
+            - apache2
+            - -DFOREGROUND
           ports:
             - containerPort: {{ .Values.network.port.public }}
             - containerPort: {{ .Values.network.port.admin }}
@@ -57,14 +57,11 @@ spec:
               mountPath: /etc/keystone/keystone.conf
               subPath: keystone.conf
             - name: wsgikeystone
-              mountPath: /configmaps/wsgi-keystone.conf
+              mountPath: /etc/apache2/conf-enabled/wsgi-keystone.conf
               subPath: wsgi_keystone.conf
             - name: mpmeventconf
               mountPath: /etc/apache2/mods-available/mpm_event.conf
               subPath: mpm_event.conf
-            - name: startsh
-              mountPath: /tmp/start.sh
-              subPath: start.sh
       volumes:
         - name: keystoneconf
           configMap:
@@ -84,6 +81,3 @@ spec:
             items:
             - key: mpm-event.conf
               path: mpm_event.conf
-        - name: startsh
-          configMap:
-            name: keystone-bin
