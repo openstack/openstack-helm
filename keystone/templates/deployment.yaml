@@ -13,6 +13,7 @@ spec:
           {
             "name": "init",
             "image": "{{ .Values.images.entrypoint }}",
+            "imagePullPolicy": "{{ .Values.images.pull_policy }}",
             "env": [
               {
                 "name": "NAMESPACE",
@@ -43,9 +44,10 @@ spec:
       containers:
         - name: keystone-api
           image: {{ .Values.images.api }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
           command:
-            - apache2
-            - -DFOREGROUND
+            - bash
+            - /tmp/start.sh
           ports:
             - containerPort: {{ .Values.network.port.public }}
             - containerPort: {{ .Values.network.port.admin }}
@@ -58,26 +60,23 @@ spec:
               subPath: keystone.conf
             - name: wsgikeystone
               mountPath: /etc/apache2/conf-enabled/wsgi-keystone.conf
-              subPath: wsgi_keystone.conf
+              subPath: wsgi-keystone.conf
             - name: mpmeventconf
               mountPath: /etc/apache2/mods-available/mpm_event.conf
               subPath: mpm_event.conf
+            - name: startsh
+              mountPath: /tmp/start.sh
+              subPath: start.sh
       volumes:
         - name: keystoneconf
           configMap:
             name: keystone-etc
-            items:
-            - key: keystone.conf
-              path: keystone.conf
         - name: wsgikeystone
           configMap:
             name: keystone-etc
-            items:
-            - key: wsgi-keystone.conf
-              path: wsgi_keystone.conf
         - name: mpmeventconf
           configMap:
             name: keystone-etc
-            items:
-            - key: mpm-event.conf
-              path: mpm_event.conf
+        - name: startsh
+          configMap:
+            name: keystone-bin
