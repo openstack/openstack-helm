@@ -79,18 +79,18 @@ def parse_args():
     ap.add_argument('-d', '--debug', action='store_true',
                     default=False, help='Enable debugging')
     ap.add_argument('-y', '--yaml', action='store',
-                    help='Path to Master YAML File')
+                    required=True, help='Path to Master YAML File')
     return ap.parse_args()
 
+
 def setup_logging(args):
-    level = logging.INFO
-    if args.debug:
-        level = logging.DEBUG
+    level = logging.DEBUG if args.debug else logging.INFO
     logging.basicConfig(level=level, format=LOG_FORMAT, date_fmt=LOG_DATE)
     handler = SysLogHandler(address='/dev/log')
     syslog_formatter = logging.Formatter('%(name)s: %(levelname)s %(message)s')
     handler.setFormatter(syslog_formatter)
     LOG.addHandler(handler)
+
 
 def is_path_creatable(pathname):
     '''
@@ -102,6 +102,7 @@ def is_path_creatable(pathname):
     dirname = os.path.dirname(pathname) or os.getcwd()
     return os.access(dirname, os.W_OK)
 
+
 def process_yaml(yaml_path):
     '''
     Processes YAML file and generates breakdown of top level
@@ -111,6 +112,7 @@ def process_yaml(yaml_path):
     # perform some basic validation
     if not os.path.isfile(yaml_path):
         LOG.exception("The path %s does not point to a valid file", yaml_path)
+        sys.exit(1)
 
     tmp_dir = tempfile.mkdtemp(prefix='helm', dir='/tmp')
 
@@ -131,12 +133,12 @@ def process_yaml(yaml_path):
         else:
             LOG.exception("Unable to create path %s based on top level key in %s" % (top_level_path, yaml_path))
 
+
 def run(args):
 
-    if args.yaml:
+    LOG.info("Processing YAML file %s", args.yaml)
+    process_yaml(args.yaml)
 
-        LOG.info("Processing YAML file %s", args.yaml)
-        process_yaml(args.yaml)
 
 if __name__ == '__main__':
 
@@ -149,3 +151,4 @@ if __name__ == '__main__':
     except Exception as err:
         LOG.exception(err)
         sys.exit(1)
+
