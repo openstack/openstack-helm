@@ -6,7 +6,7 @@ B64_EXCLUDE := $(wildcard common/secrets/*.b64)
 CHARTS := ceph mariadb rabbitmq memcached keystone openstack
 COMMON_TPL := common/templates/_globals.tpl
 
-all: common bootstrap mariadb rabbitmq memcached keystone openstack
+all: common bootstrap mariadb rabbitmq memcached keystone horizon openstack
 
 common: build-common
 
@@ -17,6 +17,8 @@ bootstrap: build-bootstrap
 mariadb: build-mariadb
 
 keystone: build-keystone
+
+horizon: build-horizon
 
 rabbitmq: build-rabbitmq
 
