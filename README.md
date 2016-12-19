@@ -68,6 +68,7 @@ cd ../../..
 
 # now you are ready to build aic-helm
 helm serve . &
+helm repo add local http://localhost:8879/charts
 make
 
 # install
