@@ -15,3 +15,4 @@ rm -rf /tmp/_tmp_.secret_key_store.lock /tmp/.secret_key_store
 chown -R horizon /var/lib/kolla/venv/lib/python2.7/site-packages/openstack_dashboard/local/
 
 apache2 -DFOREGROUND
+

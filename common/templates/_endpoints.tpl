@@ -6,3 +6,4 @@
 	{{.scheme}}://{{.hosts.internal | default .hosts.default}}:{{.port.public}}{{.path}}
 {{- end -}}
 {{- end -}}
+
