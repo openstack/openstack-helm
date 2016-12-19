@@ -1,6 +1,6 @@
 # fqdn
-{{- define "dns_region"}}cluster{{- end}}
-{{- define "dns_tld"}}local{{- end}}
+{{- define "region"}}cluster{{- end}}
+{{- define "tld"}}local{{- end}}
 
 #-----------------------------------------
 # hosts
