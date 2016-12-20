@@ -1,57 +1,17 @@
-{{- $root := . -}}
-{{ range $k, $v := until (atoi .Values.replicas) }}
 ---
-apiVersion: v1
-kind: Service
+apiVersion: apps/v1beta1
+kind: StatefulSet
 metadata:
-  name: mariadb-{{$v}}
-  labels:
-    release: {{ $root.Release.Name | quote }}
-    chart: "{{ $root.Chart.Name }}-{{ $root.Chart.Version }}"
+  name: {{ .Values.service_name }}
 spec:
-  ports:
-    - name: db
-      port: {{ $root.Values.network.port.mariadb }}
-    - name: wsrep
-      port: {{ $root.Values.network.port.wsrep }}
-  selector:
-    app: mariadb
-    server-id: "{{$v}}"
----
-kind: PersistentVolumeClaim
-apiVersion: v1
-metadata:
-  name: mariadb-{{$v}}
-  annotations:
-    {{ $root.Values.volume.class_path }}: {{ $root.Values.volume.class_name }}  
-spec:
-  accessModes: [ "ReadWriteOnce" ]
-  resources:
-    requests:
-      storage: {{ $root.Values.volume.size }}  
----
-kind: Deployment
-apiVersion: extensions/v1beta1
-metadata:
-  labels:
-    app: mariadb
-    galera: enabled
-    server-id: "{{$v}}"
-  name: mariadb-{{$v}}
-spec:
-  replicas: 1
+  serviceName: "{{ .Values.service_name }}"
+  replicas: 3
   template:
-    securityContext:
-      runAsUser: 0      
     metadata:
-      name: mariadb-{{$v}}
       labels:
-        app: mariadb
+        app: {{ .Values.service_name }}
         galera: enabled
-        server-id: "{{$v}}"
       annotations:
-        pod.beta.kubernetes.io/hostname: mariadb-{{$v}}
-        helm.sh/created: {{ $root.Release.Time.Seconds | quote }}
         # alanmeadows: this soft requirement allows single
         # host deployments to spawn several mariadb containers
         # but in a larger environment, would attempt to spread
@@ -71,13 +31,13 @@ spec:
               "weight": 10
               }]
             }
-          }        
+          }
     spec:
       nodeSelector:
-        {{ $root.Values.labels.node_selector_key }}: {{ $root.Values.labels.node_selector_value }}
+        {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
       containers:
-        - name: mariadb-{{$v}}
-          image: {{ $root.Values.images.mariadb }}
+        - name: {{ .Values.service_name }}
+          image: {{ .Values.images.mariadb }}
           imagePullPolicy: Always
           env:
             - name: INTERFACE_NAME
@@ -86,22 +46,30 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
             - name: NAMESPACE
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
             - name: COMMAND
               value: "bash /tmp/start.sh"
-            - name: DEPENDENCY_CONFIG
-              value: "/etc/my.cnf.d/wsrep.cnf"
           ports:
-            - containerPort: {{ $root.Values.network.port.mariadb }}
-            - containerPort: {{ $root.Values.network.port.wsrep }}
+            - containerPort: {{ .Values.network.port.mariadb }}
+            - containerPort: {{ .Values.network.port.wsrep }}
+            - containerPort: {{ .Values.network.port.ist }}
+          # a readinessprobe is a much more complex affair with
+          # statefulsets, as the container must be "live"
+          # before the next stateful member is created
+          # and with galera this is problematic
           readinessProbe:
             exec:
               command:
                 - python
                 - /mariadb-readiness.py
+            initialDelaySeconds: 60
           volumeMounts:
             - name: mycnfd
               mountPath: /etc/my.cnf.d
@@ -111,9 +79,12 @@ spec:
             - name: bootstrapdb
               mountPath: /tmp/bootstrap-db.sh
               subPath: bootstrap-db.sh
-            - name: peer-finder
+            - name: peerfinder
               mountPath: /tmp/peer-finder.py
               subPath: peer-finder.py
+            - name: readiness
+              mountPath: /mariadb-readiness.py
+              subPath: readiness.py
             - name: charsets
               mountPath: /etc/my.cnf.d/charsets.cnf 
               subPath: charsets.cnf
@@ -136,60 +107,56 @@ spec:
               mountPath: /etc/my.cnf.d/tuning.cnf
               subPath: tuning.cnf
             - name: wsrep
-              mountPath: /configmaps/wsrep.cnf
-            - name: replicas
-              mountPath: /tmp/replicas.py
-              subPath: replicas.py
-            - name: readiness
-              mountPath: /mariadb-readiness.py
-              subPath: mariadb-readiness.py
+              mountPath: /etc/my.cnf.d/wsrep.cnf
+              subPath: wsrep.cnf
             - name: mysql-data
-              mountPath: /var/lib/mysql              
+              mountPath: /var/lib/mysql                            
       volumes:
         - name: mycnfd
           emptyDir: {}
         - name: startsh
           configMap:
-            name: mariadb-startsh
+            name: mariadb-bin
         - name: bootstrapdb
           configMap:
-            name: bootstrap-db
-        - name: peer-finder
+            name: mariadb-bin
+        - name: peerfinder
           configMap:
-            name: mariadb-peer-finder
-        - name: charsets
-          configMap:
-            name: mariadb-charsets
-        - name: engine
-          configMap:
-            name: mariadb-engine
-        - name: log
-          configMap:
-            name: mariadb-log
-        - name: mycnf
-          configMap:
-            name: mariadb-mycnf
-        - name: networking
-          configMap:
-            name: mariadb-networking
-        - name: pid
-          configMap:
-            name: mariadb-pid
-        - name: tuning
-          configMap:
-            name: mariadb-tuning
-        - name: wsrep
-          configMap:
-            name: mariadb-wsrep
-        - name: replicas
-          configMap:
-            name: mariadb-replicas
+            name: mariadb-bin
         - name: readiness
           configMap:
-            name: mariadb-readiness
-        - name: mysql-data
-          persistentVolumeClaim:
-            matchLabels:
-              server-id: "{{$v}}"
-            claimName: mariadb-{{$v}}
-  {{ end }}
+            name: mariadb-bin
+        - name: charsets
+          configMap:
+            name: mariadb-etc
+        - name: engine
+          configMap:
+            name: mariadb-etc
+        - name: log
+          configMap:
+            name: mariadb-etc
+        - name: mycnf
+          configMap:
+            name: mariadb-etc
+        - name: networking
+          configMap:
+            name: mariadb-etc
+        - name: pid
+          configMap:
+            name: mariadb-etc
+        - name: tuning
+          configMap:
+            name: mariadb-etc
+        - name: wsrep
+          configMap:
+            name: mariadb-etc  
+  volumeClaimTemplates:
+  - metadata:
+      name: mysql-data
+      annotations:
+        {{ .Values.volume.class_path }}: {{ .Values.volume.class_name }}
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: {{ .Values.volume.size }}
