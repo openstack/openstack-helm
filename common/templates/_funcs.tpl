@@ -1,3 +1,7 @@
+{{- define "joinListWithColon" -}}
+{{ range $k, $v := . }}{{ if $k }},{{ end }}{{ $v }}{{ end }}
+{{- end -}}
+
 {{- define "template" -}}
 {{- $name := index . 0 -}}
 {{- $context := index . 1 -}}
