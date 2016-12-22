@@ -4,7 +4,7 @@ Openstack-Helm is a fully self-contained Helm-based OpenStack deployment on Kube
 
 # Mission
 
-The goal for Openstack-Helm is to provide an incredibly flexible framework for operators and developers alike. It will provide a highly customizable *framework* to deploy a fully functioning Openstack deployment, for both simple and complex environments. Administrators or developers can either deploy all or individual Openstack components along with their required dependancies. It heavily borrows concepts from [Stackanetes](https://github.com/stackanetes/stackanetes) and [other complex Helm application deployments](https://github.com/sapcc/openstack-helm). This project is meant to be a collaborative project that brings Openstack applications into a [Cloud-Native](https://www.cncf.io/about/charter) model.
+The goal for Openstack-Helm is to provide an incredibly customizable *framework* for operators and developers alike. This framework will enable end-users to deploy, maintain, and upgrade a fully functioning Openstack environment for both simple and complex environments. Administrators or developers can either deploy all or individual Openstack components along with their required dependancies. It heavily borrows concepts from [Stackanetes](https://github.com/stackanetes/stackanetes) and [other complex Helm application deployments](https://github.com/sapcc/openstack-helm). This project is meant to be a collaborative project that brings Openstack applications into a [Cloud-Native](https://www.cncf.io/about/charter) model.
 
 # Open Releases
 
