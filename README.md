@@ -1,6 +1,6 @@
 # Openstack-Helm
 
-Openstack-Helm is a fully self-contained Helm-based OpenStack deployment on Kubernetes. It will provide baremetal provisioning, persistent storage, full-stack resiliency, and a development pipeline (using Jenkins). This project, along with the tools used within are community-based and open sourced.
+Openstack-Helm is a fully self-contained Helm-based OpenStack deployment on Kubernetes. It will provide baremetal provisioning, persistent storage, full-stack resiliency, scalability, and an optional development pipeline (using Jenkins). This project, along with the tools used within are community-based and open sourced.
 
 # Mission
 
