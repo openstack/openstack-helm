@@ -182,7 +182,6 @@ Make sure sigil is installed to perform the ceph secret generation, as noted in 
 
 ```
 # label all known nodes as candidates for pods
-kubectl label nodes node-type=storage --all
 kubectl label nodes openstack-control-plane=enabled --all
 kubectl label nodes ceph-storage=enabled --all
 
