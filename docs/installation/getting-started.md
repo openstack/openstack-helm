@@ -95,24 +95,9 @@ Until the following [Kubernetes Pull Request](https://github.com/kubernetes/kube
 
 First, find out what the IP Address of your `kube-dns` deployment is:
 ```
-admin@kubenode01:~$ kubectl describe svc kube-dns -n kube-system
-Name:			kube-dns
-Namespace:		kube-system
-Labels:			component=kube-dns
-			k8s-app=kube-dns
-			kubernetes.io/cluster-service=true
-			kubernetes.io/name=KubeDNS
-			name=kube-dns
-			tier=node
-Selector:		name=kube-dns
-Type:			ClusterIP
-IP:			10.96.0.10
-Port:			dns	53/UDP
-Endpoints:		10.25.162.193:53
-Port:			dns-tcp	53/TCP
-Endpoints:		10.25.162.193:53
-Session Affinity:	None
-No events.
+admin@kubenode01:~$ kubectl get svc kube-dns --namespace=kube-system
+NAME       CLUSTER-IP   EXTERNAL-IP   PORT(S)         AGE
+kube-dns   10.96.0.10   <none>        53/UDP,53/TCP   1d
 admin@kubenode01:~$
 ```
 
