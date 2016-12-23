@@ -164,7 +164,7 @@ PING kubernetes-dashboard.kube-system.svc.cluster.local (10.110.207.144) 56(84) 
 ...
 bjozsa@kubenode01:~$
 ```
-(Note: This host example above has `iputils` installed)
+(Note: This host example above has `iputils-ping` installed)
 
 Now we can continue with the deployment.
 
