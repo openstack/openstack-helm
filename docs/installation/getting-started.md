@@ -190,9 +190,9 @@ cd aic-helm
 
 # set your network cidr--these values are only
 # appropriate for calico and may be different in your
-# environment
-export osd_cluster_network=10.32.0.0/12
-export osd_public_network=10.32.0.0/12
+# environment: using example above = 10.25.0.0/16 (avoiding 192.168.0.0/16 overlap)
+export osd_cluster_network=10.25.0.0/16
+export osd_public_network=10.25.0.0/16
 
 # on every node that will receive ceph instances, 
 # create some local directories used as nodeDirs
