@@ -71,6 +71,15 @@ It is important to call out that the Self Hosted Calico manifest for v2.0 (above
 ## Preparing Persistent Storage
 Persistant storage is improving. Please check our current and/or resolved [issues](https://github.com/att-comdev/openstack-helm/issues?utf8=✓&q=ceph) to find out how we're working with the community to improve persistent storage for our project. For now, a few preparations need to be completed.
 
+### Installing Ceph Host Requirements
+At some future point, we want to ensure that our solution is cloud-native, allowing installation on any host system without a package manager and only a container runtime (i.e. CoreOS). Until this happens, we will need to ensure that `ceph-common` is installed on each of our hosts. Using our Ubuntu example:
+
+```
+admin@kubenode01:~$ sudo apt-get install ceph-common -y
+```
+
+We will always attempt to keep host-specific requirements to a minimum, and we are working with the Ceph team (Sébastien Han) to quickly address this Ceph requirement.
+
 ### Kubernetes Controller Manager
 
 Before deploying Ceph, you will need to re-deploy a custom Kubernetes Controller with the necessary [RDB](http://docs.ceph.com/docs/jewel/rbd/rbd/) utilities. For your convenience, we are maintaining this along with the Openstack-Helm project. If you would like to check the current [tags](https://quay.io/repository/attcomdev/kube-controller-manager?tab=tags) or the [security](https://quay.io/repository/attcomdev/kube-controller-manager/image/eedc2bf21cca5647a26e348ee3427917da8b17c25ead38e832e1ed7c2ef1b1fd?tab=vulnerabilities) of these pre-built containers, you may view them at [our public Quay container registry](https://quay.io/repository/attcomdev/kube-controller-manager?tab=tags). If you would prefer to build this container yourself, or add any additional packages, you are free to use our GitHub [dockerfiles](https://github.com/att-comdev/dockerfiles/tree/master/kube-controller-manager) repository to do so.
