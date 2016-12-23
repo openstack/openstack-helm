@@ -197,7 +197,7 @@ export osd_public_network=10.32.0.0/12
 # on every node that will receive ceph instances, 
 # create some local directories used as nodeDirs
 # for persistent storage
-mkdir -p /var/lib/aic-helm/ceph
+mkdir -p /var/lib/openstack-helm/ceph
 
 # generate secrets (ceph, etc.)
 cd common/utils/secret-generator
