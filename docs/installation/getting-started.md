@@ -176,7 +176,7 @@ You can start openstack-helm fairly quickly.  Assuming the above requirements ar
 
 Note that the ```bootstrap``` chart is meant to be installed in every namespace you plan to use.  It helps install required secrets.
 
-If any helm install step fails, you can back it out with ```helm delete <releaseName> --purge```
+If any helm install step fails, you can back it out with ```helm delete --purge <releaseName>```
 
 Make sure sigil is installed to perform the ceph secret generation, as noted in the [Requirements](Requirements).
 
