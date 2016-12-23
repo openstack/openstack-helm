@@ -194,8 +194,8 @@ Make sure sigil is installed to perform the ceph secret generation, as noted in 
 kubectl label nodes openstack-control-plane=enabled --all
 kubectl label nodes ceph-storage=enabled --all
 
-# move into the aic-helm directory
-cd aic-helm
+# move into the openstack-helm directory
+cd openstack-helm
 
 # set your network cidr--these values are only
 # appropriate for calico and may be different in your
@@ -213,7 +213,7 @@ cd common/utils/secret-generator
 ./generate_secrets.sh all `./generate_secrets.sh fsid`
 cd ../../..
 
-# now you are ready to build aic-helm
+# now you are ready to build openstack-helm
 helm serve . &
 helm repo add local http://localhost:8879/charts
 make
