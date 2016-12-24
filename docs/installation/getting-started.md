@@ -1,5 +1,5 @@
 # Overview
-In order to drive towards a production-ready Openstack solution, our goal is to provide containerized, yet stable [persistent volumes](http://kubernetes.io/docs/user-guide/persistent-volumes/) that Kubernetes can use to schedule applications that require state, such as MariaDB (Galera). Although we make an assumption that the project should provide a “batteries included” approach towards persistent storage, we want to allow operators to define their own solution as well. Examples of this work will be documented in another section, however evidence of this is found throughout the project. If you have any questions or comments, please create an [issue](https://github.com/att-comdev/openstack-helm/issues).
+In order to drive towards a production-ready Openstack solution, our goal is to provide containerized, yet stable [persistent volumes](http://kubernetes.io/docs/user-guide/persistent-volumes/) that Kubernetes can use to schedule applications that require state, such as MariaDB (Galera). Although we assume that the project should provide a “batteries included” approach towards persistent storage, we want to allow operators to define their own solution as well. Examples of this work will be documented in another section, however evidence of this is found throughout the project. If you have any questions or comments, please create an [issue](https://github.com/att-comdev/openstack-helm/issues).
 
 **IMPORTANT**: Please see the latest published information about our application versions.
 
@@ -13,10 +13,10 @@ In order to drive towards a production-ready Openstack solution, our goal is to 
 
 Other versions and considerations (such as other CNI SDN providers), config map data, and value overrides will be included in other documentation as we explore these options further.
 
-The installation proceedures below, will take an administrator from a new `kubeadm` installation to Openstack-Helm deployment.
+The installation procedures below, will take an administrator from a new `kubeadm` installation to Openstack-Helm deployment.
 
 # Kubernetes Preparation
-This walkthrough will help you set up a bare metal environment with 5 nodes, using `kubeadm` on Ubuntu 16.04. The assumption is that you have a working `kubeadm` environment and that your environment is at a working state, ***prior*** to deploying a CNI-SDN. This deployment proceedure is opinionated *only to standardize the deployment process for users and developers*, and to limit questions to a known working deployment. Instructions will expand as the project becomes more mature.
+This walkthrough will help you set up a bare metal environment with 5 nodes, using `kubeadm` on Ubuntu 16.04. The assumption is that you have a working `kubeadm` environment and that your environment is at a working state, ***prior*** to deploying a CNI-SDN. This deployment procedure is opinionated *only to standardize the deployment process for users and developers*, and to limit questions to a known working deployment. Instructions will expand as the project becomes more mature.
 
 If you’re environment looks like this, you are ready to continue:
 ```
@@ -70,7 +70,7 @@ admin@kubenode01:~$
 It is important to call out that the Self Hosted Calico manifest for v2.0 (above) supports `nodetonode` mesh, and `nat-outgoing` by default. This is a change from version 1.6.
 
 ## Preparing Persistent Storage
-Persistant storage is improving. Please check our current and/or resolved [issues](https://github.com/att-comdev/openstack-helm/issues?utf8=✓&q=ceph) to find out how we're working with the community to improve persistent storage for our project. For now, a few preparations need to be completed.
+Persistent storage is improving. Please check our current and/or resolved [issues](https://github.com/att-comdev/openstack-helm/issues?utf8=✓&q=ceph) to find out how we're working with the community to improve persistent storage for our project. For now, a few preparations need to be completed.
 
 ### Installing Ceph Host Requirements
 At some future point, we want to ensure that our solution is cloud-native, allowing installation on any host system without a package manager and only a container runtime (i.e. CoreOS). Until this happens, we will need to ensure that `ceph-common` is installed on each of our hosts. Using our Ubuntu example:
@@ -102,7 +102,7 @@ Now you will want to `restart` your Kubernetes master server to continue.
 
 ### Kube Controller Manager DNS Resolution
 
-Until the following [Kubernetes Pull Request](https://github.com/kubernetes/kubernetes/issues/17406) is merged, you will need to allow the Kubernetes Controller to use the internal container `skydns` endpoint as a DNS server, and add the Kubernetes search suffix into the controller's resolv.conf. As of now, the Kuberenetes controller only mirrors the host's `resolv.conf`. This is is not sufficent if you want the controller to know how to correctly resolve container service endpoints (in the case of DaemonSets).
+Until the following [Kubernetes Pull Request](https://github.com/kubernetes/kubernetes/issues/17406) is merged, you will need to allow the Kubernetes Controller to use the internal container `skydns` endpoint as a DNS server, and add the Kubernetes search suffix into the controller's resolv.conf. As of now, the Kubernetes controller only mirrors the host's `resolv.conf`. This is not sufficient if you want the controller to know how to correctly resolve container service endpoints (in the case of DaemonSets).
 
 First, find out what the IP Address of your `kube-dns` deployment is:
 ```
@@ -185,12 +185,12 @@ Now we are ready to continue with the Openstack-Helm installation.
 
 # Openstack-Helm Preparation
 
-Please ensure that you have verified and completed the steps above to prevent issues with your deployment. Since our goal is to provide a Kubernetes environment with reliable persisent storage, we will provide some helpful verification steps to ensure you are able to proceed to the next step.
+Please ensure that you have verified and completed the steps above to prevent issues with your deployment. Since our goal is to provide a Kubernetes environment with reliable, persistent storage, we will provide some helpful verification steps to ensure you are able to proceed to the next step.
 
-Although Ceph is mentioned throughout this guide, our deployment is flexible to allow you the option of bringing any type of persisent storage. Although most of these verification steps are the same, if not very similar, we will use Ceph as our example throughout this guide.
+Although Ceph is mentioned throughout this guide, our deployment is flexible to allow you the option of bringing any type of persistent storage. Although most of these verification steps are the same, if not very similar, we will use Ceph as our example throughout this guide.
 
 ## Node Labels
-First, we must lablem our nodes according to their role. Although we are labeling `all` nodes, you are free to label only the nodes you wish. You must have at least one, although a minimum of three are recommended.
+First, we must label our nodes according to their role. Although we are labeling `all` nodes, you are free to label only the nodes you wish. You must have at least one, although a minimum of three are recommended.
 
 ```
 admin@kubenode01:~$ kubectl label nodes openstack-control-plane=enabled --all
@@ -205,7 +205,7 @@ admin@kubenode01:~$ cd openstack-helm
 ```
 
 ## Ceph Preparation and Installation
-Ceph must be aware of the OSX cluster and public networks. These CIDR ranges are the exact same ranges you used ealier in your Calico deployment yaml (our example was 10.25.0.0/16 due to our 192.168.0.0/16 overlap). Explore this variable to your deployment environment by issuing the following commands:
+Ceph must be aware of the OSX cluster and public networks. These CIDR ranges are the exact same ranges you used earlier in your Calico deployment yaml (our example was 10.25.0.0/16 due to our 192.168.0.0/16 overlap). Explore this variable to your deployment environment by issuing the following commands:
 ```
 admin@kubenode01:~$ export osd_cluster_network=10.25.0.0/16
 admin@kubenode01:~$ export osd_public_network=10.25.0.0/16
@@ -219,7 +219,7 @@ admin@kubenode01:~$ mkdir -p /var/lib/openstack-helm/ceph
 *Repeat this step for each node labeled: `ceph-storage`*
 
 ## Ceph Secrets Generation
-Although you can bring your own secrets, we have conviniently created a secret generation tool for you (for greenfield deployments). You can create secrets for your project by issuing the following:
+Although you can bring your own secrets, we have conveniently created a secret generation tool for you (for greenfield deployments). You can create secrets for your project by issuing the following:
 ```
 admin@kubenode01:~$ cd common/utils/secret-generator
 admin@kubenode01:~$ ./generate_secrets.sh all `./generate_secrets.sh fsid`
@@ -242,7 +242,7 @@ Now we are ready to deploy, and verify our Openstack-Helm installation. The firs
 admin@kubenode01:~$ make
 ```
 
-**Helpful Note:** If you need to make any changes to the deployment, you may run `make` again, delete your helm-deployed chart, and redeploy the chart (upadate). If you need to delete a chart for any reason, do the following:
+**Helpful Note:** If you need to make any changes to the deployment, you may run `make` again, delete your helm-deployed chart, and redeploy the chart (update). If you need to delete a chart for any reason, do the following:
 ```
 admin@kubenode01:~$ helm list
 NAME          	REVISION	UPDATED                 	STATUS  	CHART
@@ -367,7 +367,7 @@ admin@kubenode01:~/projects/openstack-helm$ kubectl exec mariadb-0 -it -n openst
 +--------------------+
 admin@kubenode01:~/projects/openstack-helm$
 ```
-Now you can see that MariaDB is loaded, with databases intact! If you're at this point, the rest of the installation is easy. You can run the following to check on galera:
+Now you can see that MariaDB is loaded, with databases intact! If you're at this point, the rest of the installation is easy. You can run the following to check on Galera:
 ```
 admin@kubenode01:~/projects/openstack-helm$ kubectl describe po/mariadb-0 -n openstack
 Name:       mariadb-0
@@ -393,7 +393,7 @@ Controllers:    StatefulSet/mariadb
 So you can see that galera is enabled.
 
 ## Installation of Other Services
-Now you can easily intall the other services, simply by going in order:
+Now you can easily install the other services simply by going in order:
 
 **Install Memcached/RabbitMQ:**
 ```
