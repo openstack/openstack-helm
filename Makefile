@@ -30,16 +30,16 @@ memcached: build-memcached
 openstack: build-openstack
 
 clean:
-        $(shell rm -rf common/secrets/*.b64)
-        $(shell rm -rf */templates/_partials.tpl)
-        $(shell rm -rf */templates/_globals.tpl)
-        echo "Removed all .b64, _partials.tpl, and _globals.tpl files"
+	$(shell rm -rf common/secrets/*.b64)
+	$(shell rm -rf */templates/_partials.tpl)
+	$(shell rm -rf */templates/_globals.tpl)
+	echo "Removed all .b64, _partials.tpl, and _globals.tpl files"
 
 build-%:
-        if [ -f $*/Makefile ]; then make -C $*; fi
-        if [ -f $*/requirements.yaml ]; then helm dep up $*; fi
-        helm lint $*
-        helm package $*
+	if [ -f $*/Makefile ]; then make -C $*; fi
+	if [ -f $*/requirements.yaml ]; then helm dep up $*; fi
+	helm lint $*
+	helm package $*
 
 ## this is required for some charts which cannot pass a lint, namely
 ## those which use .Release.Namespace in a default pipe capacity
