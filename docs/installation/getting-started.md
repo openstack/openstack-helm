@@ -262,7 +262,7 @@ Please ensure that you use ``--purge`` whenever deleting a project.
 ## Ceph Installation and Verification
 Install the first service, which is Ceph. If all instructions have been followed as mentioned above, this installation should go smoothly. Use the following command to install Ceph:
 ```
-admin@kubenode01:~$ helm install --name=bootstrap-ceph local/ceph --namespace=ceph
+admin@kubenode01:~$ helm install --name=ceph local/ceph --namespace=ceph
 ```
 
 ## Bootstrap Installation
