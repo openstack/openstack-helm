@@ -262,13 +262,14 @@ Please ensure that you use ``--purge`` whenever deleting a project.
 ## Ceph Installation and Verification
 Install the first service, which is Ceph. If all instructions have been followed as mentioned above, this installation should go smoothly. Use the following command to install Ceph:
 ```
-admin@kubenode01:~$ helm install --name=ceph local/ceph --namespace=ceph
+admin@kubenode01:~$ helm install --name=bootstrap-ceph local/ceph --namespace=ceph
 ```
 
 ## Bootstrap Installation
-At this time (before verification) we will also want to install our bootstrap chart. The bootstrap chart is what installs the secrets for our Ceph installation and general StorageClass. Do this next by issuing the following:
+At this time (and before verification of Ceph) you'll need to install the `bootstrap` chart. The `bootstrap` chart will install secrets for both the `ceph` and `openstack` namespaces for the general StorageClass:
 ```
-admin@kubenode01:~$ helm install --name=bootstrap local/bootstrap --namespace=openstack
+admin@kubenode01:~$ helm install --name=bootstrap-ceph local/bootstrap --namespace=ceph
+admin@kubenode01:~$ helm install --name=bootstrap-openstack local/bootstrap --namespace=openstack
 ```
 
 You may want to validate that Ceph is deployed successfully. Here are a couple of recommendations for this.
