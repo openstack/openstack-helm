@@ -5,7 +5,11 @@ trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM EXIT
 sudo chown mysql: /var/lib/mysql
 rm -rf /var/lib/mysql/lost+found
 
+{{- if .Values.development.enabled }}
+REPLICAS=1
+{{- else }}
 REPLICAS={{ .Values.replicas }}
+{{- end }}
 PETSET_NAME={{ printf "%s" .Values.service_name }}
 INIT_MARKER="/var/lib/mysql/init_done"
 

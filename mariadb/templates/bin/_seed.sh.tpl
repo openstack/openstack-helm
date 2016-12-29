@@ -57,7 +57,11 @@ function wait_for_cluster {
 # the implementation will be switched to Deployment
 # (using anti-affinity feature).
 
+{{- if .Values.development.enabled }}
+REPLICAS=1
+{{- else }}
 REPLICAS={{ .Values.replicas }}
+{{- end }}
 
 if [ "$REPLICAS" -eq 1 ] ; then
     echo "Requested to build one-instance MariaDB cluster. There is no need to run seed. Exiting."

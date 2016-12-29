@@ -5,7 +5,11 @@ metadata:
   name: {{ .Values.service_name }}
 spec:
   serviceName: "{{ .Values.service_name }}"
-  replicas: 3
+{{- if .Values.development.enabled }}
+  replicas: 1
+{{- else }}
+  replicas: {{ .Values.replicas }}
+{{- end }}
   template:
     metadata:
       labels:
@@ -149,7 +153,12 @@ spec:
             name: mariadb-etc
         - name: wsrep
           configMap:
-            name: mariadb-etc  
+            name: mariadb-etc
+{{- if .Values.development.enabled }}
+        - name: mysql-data
+          hostPath:
+            path: {{ .Values.developer.storage_path }}
+{{- else }}
   volumeClaimTemplates:
   - metadata:
       name: mysql-data
@@ -160,3 +169,4 @@ spec:
       resources:
         requests:
           storage: {{ .Values.volume.size }}
+{{- end }}
