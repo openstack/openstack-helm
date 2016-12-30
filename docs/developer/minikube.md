@@ -129,6 +129,7 @@ So we recommend creating one for MariaDB like shown below.
 $ sudo mkdir -p /data/openstack-helm/mariadb
 ```
 
+### Label Minikube Node
 Next, label your minikube node according to the documentation in our installation guide (this remains exactly the same).
 
 ```
@@ -137,6 +138,8 @@ $ kubectl label nodes openstack-control-plane=enabled --all --namespace=openstac
 ```
 ***NOTE:*** *You do not need to label your minikube cluster for `ceph-storage`, since development mode uses hostPath.*
 
+
+### Deploy MariaDB
 Now you can deploy the first recommended chart (required by all other child charts), MariaDB.
 
 ```
@@ -144,6 +147,8 @@ $ helm install --name mariadb --set development.enabled=true local/mariadb --nam
 ```
 ***IMPORTANT:*** *MariaDB seeding tasks run for quite a while. This is expected behavior. Please wait for a few minutes for these jobs to complete.*
 
+
+### Deploy Remaining Charts
 Once MariaDB is deployed fulfilled, you can deploy other charts as needed.
 
 ```
