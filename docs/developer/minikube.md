@@ -54,14 +54,14 @@ Next, initialize [Helm](https://github.com/kubernetes/helm/blob/master/docs/inst
 
 ```
 $ helm init
-Creating /Users/bj916b/.helm
-Creating /Users/bj916b/.helm/repository
-Creating /Users/bj916b/.helm/repository/cache
-Creating /Users/bj916b/.helm/repository/local
-Creating /Users/bj916b/.helm/plugins
-Creating /Users/bj916b/.helm/starters
-Creating /Users/bj916b/.helm/repository/repositories.yaml
-Creating /Users/bj916b/.helm/repository/local/index.yaml
+Creating /Users/admin/.helm
+Creating /Users/admin/.helm/repository
+Creating /Users/admin/.helm/repository/cache
+Creating /Users/admin/.helm/repository/local
+Creating /Users/admin/.helm/plugins
+Creating /Users/admin/.helm/starters
+Creating /Users/admin/.helm/repository/repositories.yaml
+Creating /Users/admin/.helm/repository/local/index.yaml
 $HELM_HOME has been configured at $HOME/.helm.
 
 Tiller (the helm server side component) has been installed into your Kubernetes Cluster.
