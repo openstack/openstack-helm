@@ -14,6 +14,8 @@ Until a 1.0.0 release, this collection is a work in progress and components will
 
 This project is under heavy development. We encourage anyone who is interested in Openstack-Helm to review our [Getting Started](https://github.com/att-comdev/openstack-helm/blob/master/docs/installation/getting-started.md) documentation, complete with verification procedures. Feel free to ask questions or check out our current [Issues](https://github.com/att-comdev/openstack-helm/issues), [Project Plan](https://github.com/att-comdev/openstack-helm/projects/1) or submit a [Pull Request](https://github.com/att-comdev/openstack-helm/pulls).
 
+**UPDATED:** Please see our new [developer documentation](https://github.com/att-comdev/openstack-helm/blob/master/docs/developer/minikube.md) for Minikube.
+
 # Additional Details
 
 For additional details, and instructions on how to use this project, please see the [wiki](https://github.com/att-comdev/openstack-helm/wiki) for more details.
