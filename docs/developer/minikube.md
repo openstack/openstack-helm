@@ -169,7 +169,7 @@ In order to protect your general sanity, we've included a currated list of verif
 To verify the state of MariaDB, use the following command:
 
 ```
-$ kubectl exec mariadb-0 -it -- mysql -uroot -ppassword -e 'show databases;'
+$ kubectl exec mariadb-0 -it -n openstack -- mysql -uroot -ppassword -e 'show databases;'
 +--------------------+
 | Database           |
 +--------------------+
