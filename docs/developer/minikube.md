@@ -5,9 +5,11 @@ Community Development is extremely important to us. As developers, we want devel
 # Requirements
 There's really only a few prerequisites in order to get started. The first is getting a recent version of Helm.
 
-Ensure you have [Minikube Installed](http://kubernetes.io/docs/getting-started-guides/minikube/).
+**Kubernetes Minikube:**
+Ensure that you have installed a recent version of [Kubernetes/Minikube](http://kubernetes.io/docs/getting-started-guides/minikube/).
 
-Installing a recent version of [Helm](https://github.com/kubernetes/helm):
+**Kubernetes Helm:**
+Install a recent version of [Kubernetes/Helm](https://github.com/kubernetes/helm):
 
 ```
 $ curl https://raw.githubusercontent.com/kubernetes/helm/master/scripts/get > get_helm.sh
