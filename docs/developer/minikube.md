@@ -161,6 +161,43 @@ $ helm install --name=glance local/nova --namespace=openstack
 $ helm install --name=glance local/neutron --namespace=openstack
 ```
 
+# Horizon Management
+Now that each Chart has been deployed, the last thing required (in the case of Minikube development) is to change our typical service for Horizon to a `nodePort` endpoint. You can use the `kubectl` command to edit this service manually.
+
+```
+$ kubectl edit svc horizon -n openstack
+```
+
+Once you have the live manifest in edit mode, you can enable `nodePort` by replicating some of the fields below (specifically, the `nodePort` lines). 
+
+```
+apiVersion: v1
+kind: Service
+metadata:
+  creationTimestamp: 2016-12-30T03:05:55Z
+  name: horizon
+  namespace: openstack
+  resourceVersion: "2458"
+  selfLink: /api/v1/namespaces/openstack/services/horizon
+  uid: e18011bb-ce3c-11e6-8cd6-6249d6214f72
+spec:
+  clusterIP: 10.0.0.80
+  ports:
+  - nodePort: 31537
+    port: 80
+    protocol: TCP
+    targetPort: 80
+  selector:
+    app: horizon
+  sessionAffinity: None
+  type: NodePort
+status:
+  loadBalancer: {}
+```
+
+Now you're ready to manage Openstack!
+
+If you have any questions, comments, or find any bugs, please submit an issue so we can quickly address it.
 
 # Troubleshooting
 In order to protect your general sanity, we've included a currated list of verification and troubleshooting steps that may help you avoid some potential issues while developing Openstack-Helm.
