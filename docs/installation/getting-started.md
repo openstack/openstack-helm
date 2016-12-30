@@ -7,7 +7,7 @@ In order to drive towards a production-ready Openstack solution, our goal is to 
 | | Version | Notes |
 |--- |--- |--- |
 | **Kubernetes** | [v1.5.1](https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG.md#v151) | [Custom Controller for RDB tools](https://quay.io/repository/attcomdev/kube-controller-manager?tab=tags) |
-| **Helm** | [v2.1.2](https://github.com/kubernetes/helm/wiki/Roadmap#210-decided) | Planning for [v2.2.0](https://github.com/kubernetes/helm/wiki/Roadmap#220-open-for-small-additions) |
+| **Helm** | [v2.1.3](https://github.com/kubernetes/helm/wiki/Roadmap#210-decided) | Planning for [v2.2.0](https://github.com/kubernetes/helm/wiki/Roadmap#220-open-for-small-additions) |
 | **Calico** | [v2.0](http://docs.projectcalico.org/v2.0/releases/) | [`calicoctl` v1.0](https://github.com/projectcalico/calicoctl/releases) |
 | **Docker** | [v1.12.1](https://github.com/docker/docker/releases/tag/v1.12.1) | [Per kubeadm Instructions](http://kubernetes.io/docs/getting-started-guides/kubeadm/) | |
 
