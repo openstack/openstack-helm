@@ -1,6 +1,6 @@
 # Development of Openstack-Helm
 
-Community Development is extremely important to us. As developers, we want development of Openstack-Helm to be an easy, painless experience. Please evaluate, make recommendations, and feel welcome to contribute to this project! Below, are some instrcutions and suggestions to help you get started.
+Community Development is extremely important to us. As developers, we want development of Openstack-Helm to be an easy, painless experience. Please evaluate, make recommendations, and feel welcome to contribute to this project! Below, are some instructions and suggestions to help you get started.
 
 # Requirements
 There's really only a few prerequisites in order to get started. The first is getting a recent version of Helm.
