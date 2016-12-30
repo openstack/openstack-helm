@@ -160,8 +160,8 @@ $ helm install --name=rabbitmq local/rabbitmq --namespace=openstack
 $ helm install --name=keystone local/keystone --namespace=openstack
 $ helm install --name=horizon local/horizon --namespace=openstack
 $ helm install --name=glance local/glance --namespace=openstack
-$ helm install --name=glance local/nova --namespace=openstack
-$ helm install --name=glance local/neutron --namespace=openstack
+$ helm install --name=nova local/nova --namespace=openstack
+$ helm install --name=neutron local/neutron --namespace=openstack
 ```
 
 # Horizon Management
