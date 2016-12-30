@@ -1,9 +1,9 @@
 # Development of Openstack-Helm
 
-Community Development is extremely important to us. As developers, we want development of Openstack-Helm to be an easy, painless experience. Please evaluate, make recommendations, and feel welcome to contribute to this project! Below, are some instructions and suggestions to help you get started.
+Community development is extremely important to us. As an open source development team, we want the development of Openstack-Helm to be an easy experience. Please evaluate, and make recommendations. We want developers to feel welcomed to contribute to this project. Below are some instructions and suggestions to help you get started.
 
 # Requirements
-There's really only a few prerequisites in order to get started. The first is getting a recent version of Helm.
+We've tried to minimize the amount of prerequisites required in order to get started. The main prerequisite is to install the most recent versions of Minikube and Helm.
 
 **Kubernetes Minikube:**
 Ensure that you have installed a recent version of [Kubernetes/Minikube](http://kubernetes.io/docs/getting-started-guides/minikube/).
@@ -22,7 +22,7 @@ $ ./get_helm.sh
 
 # Getting Started
 
-After installing Minikube, start it with the flags listed below. Ensure that you have supplied enough disk, memory, and the current version of Kubernetes during `minikube start`. More information can be found [HERE](https://github.com/kubernetes/minikube/blob/master/docs/minikube_start.md).
+After installation, start Minikube with the flags listed below. Ensure that you have supplied enough disk, memory, and the current version flag for Kubernetes during `minikube start`. More information can be found [HERE](https://github.com/kubernetes/minikube/blob/master/docs/minikube_start.md).
 
 ```
 $ minikube start \
@@ -31,7 +31,7 @@ $ minikube start \
     --disk-size 40g
 ```
 
-Next deploy the [Calico](http://docs.projectcalico.org/master/getting-started/kubernetes/installation/hosted/hosted) manifest. This is not a requirement in cases where you want to use your own SDN, however you are doing so at your own experience. Note, which versions of Calico are recommended in our [Installation Guide](https://github.com/att-comdev/openstack-helm/blob/master/docs/installation/getting-started.md#overview).
+Next, deploy the [Calico](http://docs.projectcalico.org/master/getting-started/kubernetes/installation/hosted/hosted) manifest. This is not a requirement in cases where you want to use your own CNI-enabled SDN, however you are doing so at your own experience. Note which versions of Calico are recommended for the project in our [Installation Guide](https://github.com/att-comdev/openstack-helm/blob/master/docs/installation/getting-started.md#overview).
 
 ```
 $ kubectl create -f http://docs.projectcalico.org/v2.0/getting-started/kubernetes/installation/hosted/calico.yaml
@@ -71,7 +71,7 @@ $ kubectl get pods -o wide --all-namespaces | grep tiller
 kube-system   tiller-deploy-3299276078-n98ct              1/1       Running   0          39s       192.168.120.66   minikube
 ```
 
-With Helm now installed, you will need to start a local [Helm server](https://github.com/kubernetes/helm/blob/7a15ad381eae794a36494084972e350306e498fd/docs/helm/helm_serve.md#helm-serve) (in the background), and point to a locally provided Helm [repository](https://github.com/kubernetes/helm/blob/7a15ad381eae794a36494084972e350306e498fd/docs/helm/helm_repo_index.md#helm-repo-index):
+With Helm installed, you will need to start a local [Helm server](https://github.com/kubernetes/helm/blob/7a15ad381eae794a36494084972e350306e498fd/docs/helm/helm_serve.md#helm-serve) (in the background), and point to a locally configured Helm [repository](https://github.com/kubernetes/helm/blob/7a15ad381eae794a36494084972e350306e498fd/docs/helm/helm_repo_index.md#helm-repo-index):
 
 ```
 $ helm serve . &
@@ -79,7 +79,7 @@ $ helm repo add local http://localhost:8879/charts
 "local" has been added to your repositories
 ```
 
-Verify that the local repository is working correctly:
+Verify that the local repository is configured correctly:
 
 ```
 $ helm repo list
@@ -88,34 +88,34 @@ stable	https://kubernetes-charts.storage.googleapis.com/
 local 	http://localhost:8879/charts
 ```
 
-Now you will want to download the latest release of the project, preferably from `master` since you are following the "developer" instructions.
+Download the latest release of the project, preferably from `master` since you are following the "developer" instructions.
 
 ```
 $ git clone https://github.com/att-comdev/openstack-helm.git
 ```
 
-Next, build in the git repo you have just cloned, and push the charts to your new local repository:
+Run `make` against the newly cloned project, which will automatically build secrets for the deployment and push the charts to your new local Helm repository:
 
 ```
 $ cd openstack-helm
 $ make
 ```
 
-Perfect! You’re ready to install, deploy, develop, destroy, repeat!
+Perfect! You’re ready to install, develop, deploy, destroy, and repeat (when necessary)!
 
 
 # Installation and Testing
 
-After following the instructions above, you are in a state where you can develop for the project. If you need to make any changes to a chart, all you need to do is run `make` again. The charts will be updated in your local repository.
+After following the instructions above you're environment is in a state where you can enhance the current charts, or develop new charts for the project. If you need to make changes to a chart, simply re-run `make` against the project in the top-tier directory. The charts will be updated and automatically re-pushed to your local repository.
 
 
-To deploy the Charts, you will want to make some important considerations:
-* Persistent Storage for "Development" Mode is `hostPath`.
-* Make sure to note `values.yaml` for the MariaDB chart. You will will want to have the `hostPath` directory created prior to deploying MariaDB.
-* Do *not* install the `common` `ceph` or `bootstrap` charts. These charts are required for deploying Ceph PVC's.
-* If Ceph development is required, you will need to follow the quickstart guide rather than this Development mode documentation.
+Consider the following when using Minikube and development mode:
+* Persistent Storage used for Minikube development mode is `hostPath`. The Ceph PVC's included with this project are not intended to work with Minikube.
+* There is *no need* to install the `common` `ceph` or `bootstrap` charts. These charts are required for deploying Ceph PVC's.
+* Familiarize yourself wtih `values.yaml` included wtih the MariaDB chart. You will will want to have the `hostPath` directory created prior to deploying MariaDB.
+* If Ceph development is required, you will need to follow the [getting started guide](https://github.com/att-comdev/openstack-helm/blob/master/docs/installation/getting-started.md) rather than this development mode documentation.
 
-To deploy Openstack-Helm in "development” mode, first ensure that you have created a minikube-approved hostPath volume. Minikube is very specific about what is expected for hostPath volumes. The following volumes are acceptable for minikube deployments:
+To deploy Openstack-Helm in development mode, ensure you've created a minikube-approved `hostPath` volume. Minikube is very specific about what is expected for `hostPath` volumes. The following volumes are acceptable for minikube deployments:
 
 ```
 /data
@@ -123,14 +123,15 @@ To deploy Openstack-Helm in "development” mode, first ensure that you have cre
 /var/lib/docker
 ```
 
-So we recommend creating one for MariaDB like shown below.
+As a result of this guidence, we recommend creating the following for MariaDB like shown below.
 
 ```
 $ sudo mkdir -p /data/openstack-helm/mariadb
 ```
 
 ### Label Minikube Node
-Next, label your minikube node according to the documentation in our installation guide (this remains exactly the same).
+
+Be sure to label your minikube node according to the documentation in our installation guide (this remains exactly the same).
 
 ```
 $ kubectl label nodes openstack-control-plane=enabled --all --namespace=openstack
@@ -140,16 +141,18 @@ $ kubectl label nodes openstack-control-plane=enabled --all --namespace=openstac
 
 
 ### Deploy MariaDB
-Now you can deploy the first recommended chart (required by all other child charts), MariaDB.
+
+Now you can deploy the MariaDB chart, which is required by all other child charts.
 
 ```
 $ helm install --name mariadb --set development.enabled=true local/mariadb --namespace=openstack
 ```
-***IMPORTANT:*** *MariaDB seeding tasks run for quite a while. This is expected behavior. Please wait for a few minutes for these jobs to complete.*
+***IMPORTANT:*** *MariaDB seeding tasks run for quite a while. This is expected behavior, as several checks are completed prior to completion. Please wait for a few minutes for these jobs to finish.*
 
 
 ### Deploy Remaining Charts
-Once MariaDB is deployed fulfilled, you can deploy other charts as needed.
+
+Once MariaDB is deployed complete, deploy the other charts as needed.
 
 ```
 $ helm install --name=memcached local/memcached --namespace=openstack
@@ -162,13 +165,14 @@ $ helm install --name=glance local/neutron --namespace=openstack
 ```
 
 # Horizon Management
-Now that each Chart has been deployed, the last thing required (in the case of Minikube development) is to change our typical service for Horizon to a `nodePort` endpoint. You can use the `kubectl` command to edit this service manually.
+
+After each of the chart is deployed, you may wish to change the typical service endpoint for Horizon to a `nodePort` service endpoint (this is unique to Minikube deployments). Use the `kubectl edit` command to edit this service manually.
 
 ```
 $ kubectl edit svc horizon -n openstack
 ```
 
-Once you have the live manifest in edit mode, you can enable `nodePort` by replicating some of the fields below (specifically, the `nodePort` lines). 
+With the deployed manifest in edit mode, you can enable `nodePort` by replicating some of the fields below (specifically, the `nodePort` lines). 
 
 ```
 apiVersion: v1
@@ -197,12 +201,13 @@ status:
 
 Now you're ready to manage Openstack!
 
-If you have any questions, comments, or find any bugs, please submit an issue so we can quickly address it.
+If you have any questions, comments, or find any bugs, please submit an issue so we can quickly address them.
 
 # Troubleshooting
+
 In order to protect your general sanity, we've included a currated list of verification and troubleshooting steps that may help you avoid some potential issues while developing Openstack-Helm.
 
-**MariaDB**
+**MariaDB**<br>
 To verify the state of MariaDB, use the following command:
 
 ```
@@ -217,7 +222,7 @@ $ kubectl exec mariadb-0 -it -n openstack -- mysql -uroot -ppassword -e 'show da
 $ 
 ```
 
-**Helm Server/Repository**
+**Helm Server/Repository**<br>
 Sometimes you will run into Helm server or repository issues. For our purposes, it's mostly safe to whack these. If you are developing charts for other projects, use at your own risk (you most likely know how to resolve these issues already).
 
 To check for a running instance of Helm Server:
