@@ -169,7 +169,7 @@ $ helm install --name=neutron local/neutron --namespace=openstack
 After each of the chart is deployed, you may wish to change the typical service endpoint for Horizon to a `nodePort` service endpoint (this is unique to Minikube deployments). Use the `kubectl edit` command to edit this service manually.
 
 ```
-$ kubectl edit svc horizon -n openstack
+$ sudo kubectl edit svc horizon -n openstack
 ```
 
 With the deployed manifest in edit mode, you can enable `nodePort` by replicating some of the fields below (specifically, the `nodePort` lines). 
@@ -199,7 +199,10 @@ status:
   loadBalancer: {}
 ```
 
-Now you're ready to manage Openstack!
+Now you're ready to manage Openstack! Point your browser to:
+http://192.168.99.100:31537/
+User: admin
+Pass: password
 
 If you have any questions, comments, or find any bugs, please submit an issue so we can quickly address them.
 
