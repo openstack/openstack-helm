@@ -199,10 +199,11 @@ status:
   loadBalancer: {}
 ```
 
-Now you're ready to manage Openstack! Point your browser to:
-http://192.168.99.100:31537/
-User: admin
-Pass: password
+**Accessing Horizon:**<br>
+Now you're ready to manage Openstack! Point your browser to:<br>
+***URL:*** http://192.168.99.100:31537/<br>
+***User:*** admin<br>
+***Pass:*** password<br>
 
 If you have any questions, comments, or find any bugs, please submit an issue so we can quickly address them.
 
