@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: memcached
 spec:
-  replicas: 1
+  replicas: {{ .Values.resources.memcached.replicas }}
   template:
     metadata:
       labels:
@@ -14,20 +14,15 @@ spec:
       containers:
         - name: memcached
           image: {{ .Values.images.memcached }}
-          imagePullPolicy: Always
-          env:
-            - name: INTERFACE_NAME
-              value: "eth0"
-            - name: POD_NAME
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.name
-            - name: NAMESPACE
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.namespace
-            - name: COMMAND
-              value: "memcached -v -p {{ .Values.network.port }} -U 0 -c 8192 -m 1024"
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+          command: ["sh", "-xec"]
+          args:
+            - |
+              exec memcached -v \
+                -p {{ .Values.network.port }} \
+                -U 0 \
+                -c {{ .Values.memcached.max_connections }} \
+                -m {{ .Values.memcached.memory }};
           ports:
             - containerPort: {{ .Values.network.port }}
           readinessProbe:
