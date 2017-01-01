@@ -1,0 +1,48 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: heat-ks-service
+spec:
+  template:
+    metadata:
+      annotations:
+        pod.beta.kubernetes.io/init-containers: '[
+          {
+            "name": "init",
+            "image": {{ .Values.images.dep_check | quote }},
+            "imagePullPolicy": {{ .Values.images.pull_policy | quote }},
+            "env": [
+              {
+                "name": "NAMESPACE",
+                "value": "{{ .Release.Namespace }}"
+              },
+              {
+                "name": "DEPENDENCY_SERVICE",
+                "value": "{{ include "joinListWithColon" .Values.dependencies.ks_service.service }}"
+              },
+              {
+                "name": "COMMAND",
+                "value": "echo done"
+              }
+            ]
+          }
+        ]'
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: heat-ks-service-orchestration
+{{ include "container_ks_service" . | indent 10 }}
+            - name: OS_SERVICE_NAME
+              value: "heat"
+            - name: OS_SERVICE_TYPE
+              value: "orchestration"
+        - name: heat-ks-service-cloudformation
+{{ include "container_ks_service" . | indent 10 }}
+            - name: OS_SERVICE_NAME
+              value: "heat-cfn"
+            - name: OS_SERVICE_TYPE
+              value: "cloudformation"
+      volumes:
+        - name: ks-service-sh
+          configMap:
+            name: heat-ks-service-sh
