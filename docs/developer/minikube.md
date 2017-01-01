@@ -29,6 +29,7 @@ $ minikube start \
     --network-plugin=cni \
     --kubernetes-version v1.5.1 \
     --disk-size 40g
+    --memory 4048
 ```
 
 Next, deploy the [Calico](http://docs.projectcalico.org/master/getting-started/kubernetes/installation/hosted/hosted) manifest. This is not a requirement in cases where you want to use your own CNI-enabled SDN, however you are doing so at your own experience. Note which versions of Calico are recommended for the project in our [Installation Guide](https://github.com/att-comdev/openstack-helm/blob/master/docs/installation/getting-started.md#overview).
