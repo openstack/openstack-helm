@@ -1,0 +1,110 @@
+# Default values for keystone.
+# This is a YAML-formatted file.
+# Declare name/value pairs to be passed into your templates.
+# name: value
+
+replicas: 1
+
+labels:
+  node_selector_key: openstack-control-plane
+  node_selector_value: enabled
+
+images:
+  dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.1.0
+  db_init: quay.io/stackanetes/stackanetes-kolla-toolbox:newton
+  db_sync: quay.io/stackanetes/stackanetes-cinder-api:newton
+  ks_user: quay.io/stackanetes/stackanetes-kolla-toolbox:newton
+  ks_service: quay.io/stackanetes/stackanetes-kolla-toolbox:newton
+  ks_endpoints: quay.io/stackanetes/stackanetes-kolla-toolbox:newton
+  api: quay.io/stackanetes/stackanetes-cinder-api:newton
+  pull_policy: "IfNotPresent"
+
+keystone:
+  auth_uri: "http://keystone-api:5000"
+  auth_url: "http://keystone-api:35357"
+  admin_user: "admin"
+  admin_user_domain: "default"
+  admin_password: "password"
+  admin_project_name: "admin"
+  admin_project_domain: "default"
+  admin_region_name: "RegionOne"
+
+  cinder_user: "cinder"
+  cinder_user_domain: "default"
+  cinder_user_role: "admin"
+  cinder_password: "password"
+  cinder_project_name: "service"
+  cinder_project_domain: "default"
+  cinder_region_name: "RegionOne"
+
+service:
+  api:
+    name: "cinder-api"
+    port: 8776
+    proto: "http"
+
+database:
+  address: mariadb
+  port: 3306
+  root_user: root
+  root_password: password
+  cinder_database_name: cinder
+  cinder_password: password
+  cinder_user: cinder
+
+backends:
+  enabled:
+  - rbd1
+  rbd1:
+    secret: ""
+    user: "cinder"
+    pool: "volumes"
+
+glance:
+  proto: "http"
+  host: "glance-api"
+  port: 9292
+  version: 2
+
+messaging:
+  hosts: rabbitmq
+  user: rabbitmq
+  password: password
+
+
+api:
+  workers: 8
+
+misc:
+  debug: false
+
+dependencies:
+  db_init:
+    jobs:
+    - mariadb-seed
+    service:
+    - mariadb
+  db_sync:
+    jobs:
+    - cinder-db-init
+    service:
+    - mariadb
+  ks_user:
+    service:
+    - keystone-api
+  ks_service:
+    service:
+    - keystone-api
+  ks_endpoints:
+    jobs:
+    - cinder-ks-service
+    service:
+    - keystone-api
+  api:
+    jobs:
+    - cinder-db-sync
+    - cinder-ks-user
+    - cinder-ks-endpoints
+    service:
+    - mariadb
+    - keystone-api

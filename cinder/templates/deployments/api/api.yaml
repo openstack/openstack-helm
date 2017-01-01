@@ -1,0 +1,138 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: cinder-api
+spec:
+  replicas: {{ .Values.replicas }}
+  template:
+    metadata:
+      labels:
+        app: cinder-api
+      annotations:
+        pod.beta.kubernetes.io/init-containers: '[
+          {
+            "name": "init",
+            "image": {{ .Values.images.dep_check | quote }},
+            "imagePullPolicy": {{ .Values.images.pull_policy | quote }},
+            "env": [
+              {
+                "name": "NAMESPACE",
+                "value": "{{ .Release.Namespace }}"
+              },
+              {
+                "name": "DEPENDENCY_SERVICE",
+                "value": "{{  include "joinListWithColon" .Values.dependencies.api.service }}"
+              },
+              {
+                "name": "DEPENDENCY_JOBS",
+                "value": "{{  include "joinListWithColon" .Values.dependencies.api.jobs }}"
+              },
+              {
+                "name": "COMMAND",
+                "value": "echo done"
+              }
+            ]
+          }
+        ]'
+    spec:
+      nodeSelector:
+        {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
+      containers:
+        - name: cinder-api
+          image: {{ .Values.images.api }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+          command:
+          - bash
+          - /tmp/start.sh
+          ports:
+            - containerPort: {{ .Values.service.api.port }}
+          readinessProbe:
+            tcpSocket:
+              port: {{ .Values.service.api.port }}
+          volumeMounts:
+            - name: cinder-api-sh
+              mountPath: /tmp/start.sh
+              subPath: start.sh
+              readOnly: true
+            - name: pod-etc-cinder
+              mountPath: /etc/cinder
+            - name: pod-var-lib-cinder-tmp
+              mountPath: /var/lib/cinder/tmp
+            - name: cinder-ini-api-paste
+              mountPath: /etc/cinder/api-paste.ini
+              subPath: api-paste.ini
+              readOnly: true
+            - name: cinder-conf-api
+              mountPath: /etc/cinder/conf/cinder-api.conf
+              subPath: cinder-api.conf
+              readOnly: true
+            - name: cinder-conf-backends
+              mountPath: /etc/cinder/conf/cinder-backends.conf
+              subPath: cinder-backends.conf
+              readOnly: true
+            - name: cinder-conf-backend-rbd1
+              mountPath: /etc/cinder/conf/cinder-backend-rbd1.conf
+              subPath: cinder-backend-rbd1.conf
+              readOnly: true
+            - name: cinder-conf-concurrency
+              mountPath: /etc/cinder/conf/cinder-concurrency.conf
+              subPath: cinder-concurrency.conf
+              readOnly: true
+            - name: cinder-conf-db
+              mountPath: /etc/cinder/conf/cinder-db.conf
+              subPath: cinder-db.conf
+              readOnly: true
+            - name: cinder-conf-glance
+              mountPath: /etc/cinder/conf/cinder-glance.conf
+              subPath: cinder-glance.conf
+              readOnly: true
+            - name: cinder-conf-keystone
+              mountPath: /etc/cinder/conf/cinder-keystone.conf
+              subPath: cinder-keystone.conf
+              readOnly: true
+            - name: cinder-conf-log
+              mountPath: /etc/cinder/conf/cinder-log.conf
+              subPath: cinder-log.conf
+              readOnly: true
+            - name: cinder-conf-messaging
+              mountPath: /etc/cinder/conf/cinder-messaging.conf
+              subPath: cinder-messaging.conf
+              readOnly: true
+      volumes:
+        - name: cinder-api-sh
+          configMap:
+            name: cinder-api-sh
+        - name: pod-etc-cinder
+          emptyDir: {}
+        - name: pod-var-lib-cinder-tmp
+          emptyDir: {}
+        - name: cinder-ini-api-paste
+          configMap:
+            name: cinder-ini-api-paste
+        - name: cinder-conf-api
+          configMap:
+            name: cinder-conf-api
+        - name: cinder-conf-backends
+          configMap:
+            name: cinder-conf-backends
+        - name: cinder-conf-backend-rbd1
+          configMap:
+            name: cinder-conf-backend-rbd1
+        - name: cinder-conf-concurrency
+          configMap:
+            name: cinder-conf-concurrency
+        - name: cinder-conf-db
+          secret:
+            secretName: cinder-conf-db
+        - name: cinder-conf-glance
+          configMap:
+            name: cinder-conf-glance
+        - name: cinder-conf-keystone
+          secret:
+            secretName: cinder-conf-keystone
+        - name: cinder-conf-log
+          configMap:
+            name: cinder-conf-log
+        - name: cinder-conf-messaging
+          secret:
+            secretName: cinder-conf-messaging

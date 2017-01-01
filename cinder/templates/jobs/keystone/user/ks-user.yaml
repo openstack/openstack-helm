@@ -1,0 +1,82 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: cinder-ks-user
+spec:
+  template:
+    metadata:
+      annotations:
+        pod.beta.kubernetes.io/init-containers: '[
+          {
+            "name": "init",
+            "image": {{ .Values.images.dep_check | quote }},
+            "imagePullPolicy": {{ .Values.images.pull_policy | quote }},
+            "env": [
+              {
+                "name": "NAMESPACE",
+                "value": "{{ .Release.Namespace }}"
+              },
+              {
+                "name": "DEPENDENCY_SERVICE",
+                "value": "{{  include "joinListWithColon" .Values.dependencies.ks_user.service }}"
+              },
+              {
+                "name": "COMMAND",
+                "value": "echo done"
+              }
+            ]
+          }
+        ]'
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: cinder-ks-user
+          image: {{ .Values.images.ks_user }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+          command:
+            - bash
+            - /tmp/ks-user.sh
+          volumeMounts:
+            - name: ks-user-sh
+              mountPath: /tmp/ks-user.sh
+              subPath: ks-user.sh
+          env:
+{{ include "env_admin_openrc" . | indent 12 }}
+            - name: SERVICE_OS_SERVICE_NAME
+              value: "cinder"
+            - name: SERVICE_OS_REGION_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: cinder-conf-keystone
+                  key: OS_REGION_NAME
+            - name: SERVICE_OS_PROJECT_DOMAIN_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: cinder-conf-keystone
+                  key: OS_PROJECT_DOMAIN_NAME
+            - name: SERVICE_OS_PROJECT_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: cinder-conf-keystone
+                  key: OS_PROJECT_NAME
+            - name: SERVICE_OS_USER_DOMAIN_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: cinder-conf-keystone
+                  key: OS_USER_DOMAIN_NAME
+            - name: SERVICE_OS_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: cinder-conf-keystone
+                  key: OS_USERNAME
+            - name: SERVICE_OS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: cinder-conf-keystone
+                  key: OS_PASSWORD
+            - name: SERVICE_OS_ROLE
+              value: {{ .Values.keystone.cinder_user_role | quote }}
+      volumes:
+        - name: ks-user-sh
+          configMap:
+            name: cinder-ks-user-sh

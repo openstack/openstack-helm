@@ -1,0 +1,69 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: cinder-db-sync
+spec:
+  template:
+    metadata:
+      annotations:
+        pod.beta.kubernetes.io/init-containers: '[
+          {
+            "name": "init",
+            "image": {{ .Values.images.dep_check | quote }},
+            "imagePullPolicy": {{ .Values.images.pull_policy | quote }},
+            "env": [
+              {
+                "name": "NAMESPACE",
+                "value": "{{ .Release.Namespace }}"
+              },
+              {
+                "name": "DEPENDENCY_SERVICE",
+                "value": "{{  include "joinListWithColon" .Values.dependencies.db_sync.service }}"
+              },
+              {
+                "name": "DEPENDENCY_JOBS",
+                "value": "{{  include "joinListWithColon" .Values.dependencies.db_sync.jobs }}"
+              },
+              {
+                "name": "COMMAND",
+                "value": "echo done"
+              }
+            ]
+          }
+        ]'
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: cinder-db-sync
+          image: {{ .Values.images.db_sync }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+          command:
+            - bash
+            - /tmp/db-sync.sh
+          volumeMounts:
+            - name: db-sync-sh
+              mountPath: /tmp/db-sync.sh
+              subPath: db-sync.sh
+              readOnly: true
+            - name: pod-etc-cinder
+              mountPath: /etc/cinder
+            - name: cinder-conf-db
+              mountPath: /etc/cinder/conf/cinder-db.conf
+              subPath: cinder-db.conf
+              readOnly: true
+            - name: cinder-conf-log
+              mountPath: /etc/cinder/conf/cinder-log.conf
+              subPath: cinder-log.conf
+              readOnly: true
+      volumes:
+        - name: db-sync-sh
+          configMap:
+            name: cinder-db-sync-sh
+        - name: pod-etc-cinder
+          emptyDir: {}
+        - name: cinder-conf-db
+          secret:
+            secretName: cinder-conf-db
+        - name: cinder-conf-log
+          configMap:
+            name: cinder-conf-log

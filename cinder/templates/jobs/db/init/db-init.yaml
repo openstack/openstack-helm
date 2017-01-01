@@ -1,0 +1,54 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: cinder-db-init
+spec:
+  template:
+    metadata:
+      annotations:
+        pod.beta.kubernetes.io/init-containers: '[
+          {
+            "name": "init",
+            "image": {{ .Values.images.dep_check | quote }},
+            "imagePullPolicy": {{ .Values.images.pull_policy | quote }},
+            "env": [
+              {
+                "name": "NAMESPACE",
+                "value": "{{ .Release.Namespace }}"
+              },
+              {
+                "name": "DEPENDENCY_SERVICE",
+                "value": "{{  include "joinListWithColon" .Values.dependencies.db_init.service }}"
+              },
+              {
+                "name": "DEPENDENCY_JOBS",
+                "value": "{{  include "joinListWithColon" .Values.dependencies.db_init.jobs }}"
+              },
+              {
+                "name": "COMMAND",
+                "value": "echo done"
+              }
+            ]
+          }
+        ]'
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: cinder-db-init
+          image: {{ .Values.images.db_init | quote }}
+          imagePullPolicy: {{ .Values.images.pull_policy | quote }}
+          env:
+          - name: ANSIBLE_LIBRARY
+            value: /usr/share/ansible/
+          command:
+            - bash
+            - /tmp/init.sh
+          volumeMounts:
+            - name: db-init-sh
+              mountPath: /tmp/init.sh
+              subPath: init.sh
+              readOnly: true
+      volumes:
+        - name: db-init-sh
+          configMap:
+            name: cinder-db-init-sh
