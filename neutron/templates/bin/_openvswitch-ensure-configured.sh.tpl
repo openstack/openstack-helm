@@ -4,12 +4,9 @@ set -x
 bridge=$1
 port=$2
 
-# one time deal
-ovs-vsctl --no-wait --if-exists del-port physnet1 enp11s0f0
-ovs-vsctl --no-wait --if-exists del-br physnet1
-
 # note that only "br-ex" is definable right now
-
+# and br-int and br-tun are assumed and handled
+# by the agent
 ovs-vsctl --no-wait --may-exist add-br $bridge
 ovs-vsctl --no-wait --may-exist add-port $bridge $port
 
