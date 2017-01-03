@@ -9,11 +9,11 @@ connection = mysql+pymysql://{{ .Values.database.keystone_user }}:{{ .Values.dat
 max_retries = -1
 
 [memcache]
-servers = {{ include "memcached_host" . }}
+servers = {{ include "memcached_host" . }}:11211
 
 [cache]
 backend = dogpile.cache.memcached
-memcache_servers = {{ include "memcached_host" . }}
+memcache_servers = {{ include "memcached_host" . }}:11211
 config_prefix = cache.keystone
-distributed_lock = True
 enabled = True
+
