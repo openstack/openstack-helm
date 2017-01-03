@@ -28,7 +28,7 @@ After installation, start Minikube with the flags listed below. Ensure that you 
 $ minikube start \
     --network-plugin=cni \
     --kubernetes-version v1.5.1 \
-    --disk-size 40g
+    --disk-size 40g \
     --memory 4048
 ```
 
