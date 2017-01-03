@@ -1,0 +1,43 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: neutron-db-sync
+spec:
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: neutron-db-sync
+          image: {{ .Values.images.db_sync }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+          env:
+            - name: INTERFACE_NAME
+              value: "eth0"
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: COMMAND
+              value: "neutron-db-manage --config-file /etc/neutron/neutron.conf --config-file /etc/neutron/plugins/ml2/ml2-conf.ini upgrade head"
+            - name: DEPENDENCY_JOBS
+              value: "{{  include "joinListWithColon" .Values.dependencies.db_sync.jobs }}"
+            - name: DEPENDENCY_SERVICE
+              value: "{{  include "joinListWithColon" .Values.dependencies.db_sync.service }}"
+          volumeMounts:
+            - name: neutronconf
+              mountPath: /etc/neutron/neutron.conf
+              subPath: neutron.conf
+            - name: ml2confini
+              mountPath: /etc/neutron/plugins/ml2/ml2-conf.ini
+              subPath: ml2-conf.ini
+      volumes:
+        - name: neutronconf
+          configMap:
+            name: neutron-etc
+        - name: ml2confini
+          configMap:
+            name: neutron-etc
