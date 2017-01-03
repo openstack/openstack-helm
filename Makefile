@@ -25,7 +25,7 @@ rabbitmq: build-rabbitmq
 
 glance: build-glance
 
-glance: build-neutron
+neutron: build-neutron
 
 memcached: build-memcached
 
