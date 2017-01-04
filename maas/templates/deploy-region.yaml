@@ -1,12 +1,55 @@
-apiVersion: extensions/v1beta1
-kind: Deployment
+apiVersion: apps/v1beta1
+kind: StatefulSet
 metadata:
   name: maas-region
 spec:
+  serviceName: "{{ .Values.service_name }}"
   template:
     metadata:
       labels:
         app: maas-region
+      annotations:
+        pod.beta.kubernetes.io/init-containers: '[
+          {
+            "name": "init",
+            "image": "{{ .Values.images.maas_region }}",
+            "imagePullPolicy": "Always",
+            "command": [
+                    "/bin/bash", "-c"
+            ],
+            "args": [
+                    "chmod +x /tmp/start.sh; /tmp/start.sh"
+            ],
+            "volumeMounts": [
+                {
+                    "name": "maas-config",
+                    "mountPath": "/etc/maas/"
+                },
+                {
+                    "name": "postgresql-config",
+                    "mountPath": "/etc/postgresql"
+                },
+                {
+                    "name": "postgresql-data",
+                    "mountPath": "/var/lib/postgresql"
+                },
+                {
+                    "name": "postgresql-run",
+                    "mountPath": "/var/run/postgresql"
+                },
+                {
+                    "name": "startsh",
+                    "mountPath": "/tmp/start.sh",
+                    "subPath": "start.sh"
+                },
+                {
+                    "name": "maasregionpostinst",
+                    "mountPath": "/var/lib/dpkg/info/maas-region-controller.postinst",
+                    "subPath": "maas-region-controller.postinst"
+                }
+            ]
+          }
+        ]'
     spec:
       nodeSelector:
         {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
@@ -18,3 +61,45 @@ spec:
         - containerPort: {{ .Values.network.port.region_container }}
         securityContext:
           privileged: true
+        volumeMounts:
+        - name: postgresql-data
+          mountPath: /var/lib/postgresql
+        - name: postgresql-run
+          mountPath: /var/run/postgresql
+        - name: maas-lib
+          mountPath: /var/lib/maas
+        - name: maas-region-secret
+          mountPath: /var/lib/maas/secret
+          subPath: secret
+        - name: postgresql-config
+          mountPath: /etc/postgresql
+        - name: maas-dns-config
+          mountPath: /etc/bind/named.conf.options
+          subPath: named.conf.options
+        - name: maas-config
+          mountPath: /etc/maas/regiond.conf
+          subPath: regiond.conf
+      volumes:
+        - name: postgresql-data
+          hostPath:
+            path: /var/lib/postgresql
+        - name: postgresql-run
+          emptyDir: {}
+        - name: postgresql-config
+          emptyDir: {}
+        - name: maas-lib
+          emptyDir: {}
+        - name: maas-region-secret
+          configMap:
+            name: maas-region-var
+        - name: maas-config
+          emptyDir: {}
+        - name: maas-dns-config
+          configMap:
+            name: maas-region-etc
+        - name: startsh
+          configMap:
+            name: maas-region-bin
+        - name: maasregionpostinst
+          configMap:
+            name: maas-region-var

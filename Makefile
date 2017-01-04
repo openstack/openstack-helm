@@ -1,12 +1,12 @@
-.PHONY: ceph bootstrap mariadb keystone memcached rabbitmq common openstack neutron all clean
+.PHONY: ceph bootstrap mariadb keystone memcached rabbitmq common openstack neutron maas all clean
 
 B64_DIRS := common/secrets
 B64_EXCLUDE := $(wildcard common/secrets/*.b64)
 
-CHARTS := ceph mariadb rabbitmq GLANCE memcached keystone glance horizon neutron openstack
+CHARTS := ceph mariadb rabbitmq GLANCE memcached keystone glance horizon neutron maas openstack
 COMMON_TPL := common/templates/_globals.tpl
 
-all: common ceph bootstrap mariadb rabbitmq memcached keystone glance horizon neutron openstack
+all: common ceph bootstrap mariadb rabbitmq memcached keystone glance horizon neutron maas openstack
 
 common: build-common
 
@@ -26,6 +26,8 @@ rabbitmq: build-rabbitmq
 glance: build-glance
 
 neutron: build-neutron
+
+maas: build-maas
 
 memcached: build-memcached
 
