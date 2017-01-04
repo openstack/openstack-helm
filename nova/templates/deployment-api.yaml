@@ -1,0 +1,70 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: nova-api
+spec:
+  replicas: {{ .Values.control_replicas }}
+  template:
+    metadata:
+      labels:
+        app: nova-api
+      annotations:
+        pod.beta.kubernetes.io/init-containers: '[
+          {
+            "name": "init",
+            "image": "{{ .Values.image.entrypoint }}",
+            "imagePullPolicy": "{{ .Values.image.pull_policy }}",            
+            "env": [
+              {
+                "name": "NAMESPACE",
+                "value": "{{ .Release.Namespace }}"
+              },
+              {
+                "name": "INTERFACE_NAME",
+                "value": "eth0"
+              },
+              {
+                "name": "DEPENDENCY_SERVICE",
+                "value": "{{  include "joinListWithColon" .Values.dependencies.api.service }}"
+              },
+              {
+                "name": "DEPENDENCY_JOBS",
+                "value": "{{  include "joinListWithColon" .Values.dependencies.api.jobs }}"
+              },
+              {
+                "name": "COMMAND",
+                "value": "echo done"
+              }              
+            ]
+          }
+        ]'
+    spec:
+      nodeSelector:
+        {{ .Values.labels.control_node_selector_key }}: {{ .Values.labels.control_node_selector_value }}
+      containers:
+        - name: nova-api
+          image: {{ .Values.image.api }}
+          # https://bugs.launchpad.net/kolla-mesos/+bug/1546007
+          securityContext:
+            privileged: true
+          command:
+            - nova-api
+            - --config-file
+            - /etc/nova/nova.conf
+          ports:
+            - containerPort: {{ .Values.network.port.api }}
+            - containerPort: {{ .Values.network.port.metadata }}
+          readinessProbe:
+            tcpSocket:
+              port: {{ .Values.network.port.api }}
+          volumeMounts:
+            - name: novaconf
+              mountPath: /etc/nova/nova.conf
+              subPath: nova.conf
+      volumes:
+        - name: novaconf
+          configMap:
+            name: nova-etc
+            items:
+            - key: nova.conf
+              path: nova.conf

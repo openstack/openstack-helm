@@ -1,0 +1,138 @@
+apiVersion: extensions/v1beta1
+kind: DaemonSet
+metadata:
+  name: nova-compute
+spec:
+  template:
+    metadata:
+      labels:
+        app: nova-compute
+      annotations:
+        pod.beta.kubernetes.io/init-containers: '[
+          {
+            "name": "init",
+            "image": "{{ .Values.image.entrypoint }}",
+            "imagePullPolicy": "{{ .Values.image.pull_policy }}",            
+            "env": [
+              {
+                "name": "NAMESPACE",
+                "value": "{{ .Release.Namespace }}"
+              },
+              {
+                "name": "INTERFACE_NAME",
+                "value": "eth0"
+              },
+              {
+                "name": "DEPENDENCY_SERVICE",
+                "value": "{{  include "joinListWithColon" .Values.dependencies.compute.service }}"
+              },
+              {
+                "name": "DEPENDENCY_JOBS",
+                "value": "{{  include "joinListWithColon" .Values.dependencies.compute.jobs }}"
+              },
+              {
+                "name": "DEPENDENCY_DAEMONSET",
+                "value": "{{  include "joinListWithColon" .Values.dependencies.compute.daemonset }}"
+              },
+              {
+                "name": "COMMAND",
+                "value": "echo done"
+              }
+            ]
+          }
+        ]'
+    spec:
+      nodeSelector:
+        {{ .Values.labels.compute_node_selector_key }}: {{ .Values.labels.compute_node_selector_value }}
+      securityContext:
+        runAsUser: 0
+      hostNetwork: true
+      hostPID: true
+      dnsPolicy: ClusterFirst
+      containers:
+        - name: nova-compute
+          image: {{ .Values.image.compute }}
+          imagePullPolicy: Always
+          securityContext:
+            privileged: true
+          command:
+            - nova-compute
+            - --config-file
+            - /etc/nova/nova.conf
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          volumeMounts:
+            - name: novaconf
+              mountPath: /etc/nova/nova.conf
+              subPath: nova.conf
+            - mountPath: /lib/modules
+              name: libmodules
+              readOnly: true
+            - mountPath: /var/lib/nova
+              name: varlibnova
+            - mountPath: /var/lib/libvirt
+              name: varliblibvirt
+            - mountPath: /run
+              name: run
+            - mountPath: /sys/fs/cgroup
+              name: cgroup
+            - mountPath: /etc/resolv.conf
+              name: resolvconf
+              subPath: resolv.conf
+            {{- if .Values.ceph.enabled }}
+            - name: cephconf
+              mountPath: /etc/ceph/ceph.conf
+              subPath: ceph.conf
+            - name: cephclientcinderkeyring
+              mountPath: /etc/ceph/ceph.client.{{ .Values.ceph.cinder_user }}.keyring
+              subPath: ceph.client.{{ .Values.ceph.cinder_user }}.keyring
+            {{- end }}
+      volumes:
+        - name: novaconf
+          configMap:
+            name: nova-etc
+            items:
+            - key: nova.conf
+              path: nova.conf
+        - name: resolvconf
+          configMap:
+            name: nova-etc
+            items:
+            - key: resolv.conf
+              path: resolv.conf
+        - name: libmodules
+          hostPath:
+            path: /lib/modules
+        - name: varlibnova
+          hostPath:
+            path: /var/lib/nova
+        - name: varliblibvirt
+          hostPath:
+            path: /var/lib/libvirt
+        - name: run
+          hostPath:
+            path: /run
+        - name: cgroup
+          hostPath:
+            path: /sys/fs/cgroup
+        {{- if .Values.ceph.enabled }}            
+        - name: cephconf
+          configMap:
+            name: nova-etc
+            items:
+            - key: ceph.conf
+              path: ceph.conf
+        - name: cephclientcinderkeyring
+          configMap:
+            name: nova-etc
+            items:
+            - key: ceph.client.cinder.keyring.yaml
+              path: ceph.client.cinder.keyring.yaml     
+        {{- end }}       

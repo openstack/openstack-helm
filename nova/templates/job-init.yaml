@@ -1,0 +1,50 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: nova-init
+spec:
+  template:
+    metadata:
+      annotations:
+        pod.beta.kubernetes.io/init-containers: '[
+          {
+            "name": "init",
+            "image": "{{ .Values.image.entrypoint }}",
+            "imagePullPolicy": "{{ .Values.image.pull_policy }}",            
+            "env": [
+              {
+                "name": "NAMESPACE",
+                "value": "{{ .Release.Namespace }}"
+              },
+              {
+                "name": "DEPENDENCY_SERVICE",
+                "value": "{{  include "joinListWithColon" .Values.dependencies.init.service }}"
+              },
+              {
+                "name": "DEPENDENCY_JOBS",
+                "value": "{{  include "joinListWithColon" .Values.dependencies.init.jobs }}"
+              },
+              {
+                "name": "COMMAND",
+                "value": "echo done"
+              }
+            ]
+          }
+        ]'
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: nova-init
+          image: {{ .Values.image.init }}
+          imagePullPolicy: Always
+          command:
+            - bash
+            - /tmp/init.sh
+          volumeMounts:
+            - name: nova-bin
+              mountPath: /tmp/init.sh
+              subPath: init.sh
+      volumes:
+        - name: nova-bin
+          configMap:
+            name: nova-bin

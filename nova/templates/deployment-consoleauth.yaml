@@ -1,0 +1,61 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: nova-consoleauth
+spec:
+  replicas: {{ .Values.control_replicas }}
+  template:
+    metadata:
+      labels:
+        app: nova-consoleauth
+      annotations:
+        pod.beta.kubernetes.io/init-containers: '[
+          {
+            "name": "init",
+            "image": "{{ .Values.image.entrypoint }}",
+            "imagePullPolicy": "{{ .Values.image.pull_policy }}",            
+            "env": [
+              {
+                "name": "NAMESPACE",
+                "value": "{{ .Release.Namespace }}"
+              },
+              {
+                "name": "INTERFACE_NAME",
+                "value": "eth0"
+              },
+              {
+                "name": "DEPENDENCY_SERVICE",
+                "value": "{{  include "joinListWithColon" .Values.dependencies.consoleauth.service }}"
+              },
+              {
+                "name": "DEPENDENCY_JOBS",
+                "value": "{{  include "joinListWithColon" .Values.dependencies.consoleauth.jobs }}"
+              },
+              {
+                "name": "COMMAND",
+                "value": "echo done"
+              }              
+            ]
+          }
+        ]'
+    spec:
+      nodeSelector:
+        {{ .Values.labels.control_node_selector_key }}: {{ .Values.labels.control_node_selector_value }}
+      containers:
+        - name: nova-consoleauth
+          image: {{ .Values.image.consoleauth }}
+          command:
+            - nova-consoleauth
+            - --config-file
+            - /etc/nova/nova.conf
+          volumeMounts:
+            - name: novaconf
+              mountPath: /etc/nova/nova.conf
+              subPath: nova.conf
+      volumes:
+        - name: novaconf
+          configMap:
+            name: nova-etc
+            items:
+            - key: nova.conf
+              path: nova.conf

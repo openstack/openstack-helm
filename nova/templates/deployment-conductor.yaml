@@ -1,0 +1,61 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: nova-conductor
+spec:
+  replicas: {{ .Values.control_replicas }}
+  template:
+    metadata:
+      labels:
+        app: nova-conductor
+      annotations:
+        pod.beta.kubernetes.io/init-containers: '[
+          {
+            "name": "init",
+            "image": "{{ .Values.image.entrypoint }}",
+            "imagePullPolicy": "{{ .Values.image.pull_policy }}",            
+            "env": [
+              {
+                "name": "NAMESPACE",
+                "value": "{{ .Release.Namespace }}"
+              },
+              {
+                "name": "INTERFACE_NAME",
+                "value": "eth0"
+              },
+              {
+                "name": "DEPENDENCY_SERVICE",
+                "value": "{{  include "joinListWithColon" .Values.dependencies.conductor.service }}"
+              },
+              {
+                "name": "DEPENDENCY_JOBS",
+                "value": "{{  include "joinListWithColon" .Values.dependencies.conductor.jobs }}"
+              },
+              {
+                "name": "COMMAND",
+                "value": "echo done"
+              }              
+            ]
+          }
+        ]'
+    spec:
+      nodeSelector:
+        {{ .Values.labels.control_node_selector_key }}: {{ .Values.labels.control_node_selector_value }}
+      containers:
+        - name: nova-conductor
+          image: {{ .Values.image.conductor }}
+          command:
+            - nova-conductor
+            - --config-file
+            - /etc/nova/nova.conf
+          volumeMounts:
+            - name: novaconf
+              mountPath: /etc/nova/nova.conf
+              subPath: nova.conf
+      volumes:
+        - name: novaconf
+          configMap:
+            name: nova-etc
+            items:
+            - key: nova.conf
+              path: nova.conf

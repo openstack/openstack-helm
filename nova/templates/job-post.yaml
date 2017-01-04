@@ -1,0 +1,59 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: nova-post
+spec:
+  template:
+    metadata:
+      annotations:
+        pod.beta.kubernetes.io/init-containers: '[
+          {
+            "name": "init",
+            "image": "{{ .Values.image.entrypoint }}",
+            "imagePullPolicy": "{{ .Values.image.pull_policy }}",            
+            "env": [
+              {
+                "name": "NAMESPACE",
+                "value": "{{ .Release.Namespace }}"
+              },            
+              {
+                "name": "DEPENDENCY_SERVICE",
+                "value": "{{  include "joinListWithColon" .Values.dependencies.post.service }}"
+              },
+              {
+                "name": "DEPENDENCY_JOBS",
+                "value": "{{  include "joinListWithColon" .Values.dependencies.post.jobs }}"
+              },
+              {
+                "name": "COMMAND",
+                "value": "echo done"
+              }
+            ]
+          }
+        ]'
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: nova-post
+          image: {{ .Values.image.post }}
+          imagePullPolicy: Always
+          command:
+            - bash
+            - /tmp/post.sh
+          env:
+            - name: ANSIBLE_LIBRARY
+              value: /usr/share/ansible/
+          volumeMounts:
+            - name: novaconf
+              mountPath: /etc/nova/nova.conf
+              subPath: nova.conf
+            - name: nova-bin
+              mountPath: /tmp/post.sh
+              subPath: post.sh
+      volumes:
+        - name: novaconf
+          configMap:
+            name: nova-etc
+        - name: nova-bin
+          configMap:
+            name: nova-bin
