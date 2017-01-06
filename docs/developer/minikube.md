@@ -113,7 +113,7 @@ After following the instructions above your environment is in a state where you 
 Consider the following when using Minikube and development mode:
 * Persistent Storage used for Minikube development mode is `hostPath`. The Ceph PVC's included with this project are not intended to work with Minikube.
 * There is *no need* to install the `common` `ceph` or `bootstrap` charts. These charts are required for deploying Ceph PVC's.
-* Familiarize yourself wtih `values.yaml` included wtih the MariaDB chart. You will want to have the `hostPath` directory created prior to deploying MariaDB.
+* Familiarize yourself with `values.yaml` included wtih the MariaDB chart. You will want to have the `hostPath` directory created prior to deploying MariaDB.
 * If Ceph development is required, you will need to follow the [getting started guide](https://github.com/att-comdev/openstack-helm/blob/master/docs/installation/getting-started.md) rather than this development mode documentation.
 
 To deploy Openstack-Helm in development mode, ensure you've created a minikube-approved `hostPath` volume. Minikube is very specific about what is expected for `hostPath` volumes. The following volumes are acceptable for minikube deployments:
@@ -167,7 +167,7 @@ $ helm install --name=neutron local/neutron --namespace=openstack
 
 # Horizon Management
 
-After each of the charts is deployed, you may wish to change the typical service endpoint for Horizon to a `nodePort` service endpoint (this is unique to Minikube deployments). Use the `kubectl edit` command to edit this service manually.
+After each chart is deployed, you may wish to change the typical service endpoint for Horizon to a `nodePort` service endpoint (this is unique to Minikube deployments). Use the `kubectl edit` command to edit this service manually.
 
 ```
 $ sudo kubectl edit svc horizon -n openstack
