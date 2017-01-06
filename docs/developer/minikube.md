@@ -1,9 +1,9 @@
 # Development of Openstack-Helm
 
-Community development is extremely important to us. As an open source development team, we want the development of Openstack-Helm to be an easy experience. Please evaluate, and make recommendations. We want developers to feel welcomed to contribute to this project. Below are some instructions and suggestions to help you get started.
+Community development is extremely important to us. As an open source development team, we want the development of Openstack-Helm to be an easy experience. Please evaluate, and make recommendations. We want developers to feel welcome to contribute to this project. Below are some instructions and suggestions to help you get started.
 
 # Requirements
-We've tried to minimize the amount of prerequisites required in order to get started. The main prerequisite is to install the most recent versions of Minikube and Helm.
+We've tried to minimize the number of prerequisites required in order to get started. The main prerequisite is to install the most recent versions of Minikube and Helm.
 
 **Kubernetes Minikube:**
 Ensure that you have installed a recent version of [Kubernetes/Minikube](http://kubernetes.io/docs/getting-started-guides/minikube/).
@@ -75,7 +75,7 @@ kube-system   tiller-deploy-3299276078-n98ct              1/1       Running   0 
 With Helm installed, you will need to start a local [Helm server](https://github.com/kubernetes/helm/blob/7a15ad381eae794a36494084972e350306e498fd/docs/helm/helm_serve.md#helm-serve) (in the background), and point to a locally configured Helm [repository](https://github.com/kubernetes/helm/blob/7a15ad381eae794a36494084972e350306e498fd/docs/helm/helm_repo_index.md#helm-repo-index):
 
 ```
-$ helm serve . &
+$ helm serve &
 $ helm repo add local http://localhost:8879/charts
 "local" has been added to your repositories
 ```
@@ -107,13 +107,13 @@ Perfect! You’re ready to install, develop, deploy, destroy, and repeat (when n
 
 # Installation and Testing
 
-After following the instructions above you're environment is in a state where you can enhance the current charts, or develop new charts for the project. If you need to make changes to a chart, simply re-run `make` against the project in the top-tier directory. The charts will be updated and automatically re-pushed to your local repository.
+After following the instructions above your environment is in a state where you can enhance the current charts, or develop new charts for the project. If you need to make changes to a chart, simply re-run `make` against the project in the top-tier directory. The charts will be updated and automatically re-pushed to your local repository.
 
 
 Consider the following when using Minikube and development mode:
 * Persistent Storage used for Minikube development mode is `hostPath`. The Ceph PVC's included with this project are not intended to work with Minikube.
 * There is *no need* to install the `common` `ceph` or `bootstrap` charts. These charts are required for deploying Ceph PVC's.
-* Familiarize yourself wtih `values.yaml` included wtih the MariaDB chart. You will will want to have the `hostPath` directory created prior to deploying MariaDB.
+* Familiarize yourself with `values.yaml` included with the MariaDB chart. You will want to have the `hostPath` directory created prior to deploying MariaDB.
 * If Ceph development is required, you will need to follow the [getting started guide](https://github.com/att-comdev/openstack-helm/blob/master/docs/installation/getting-started.md) rather than this development mode documentation.
 
 To deploy Openstack-Helm in development mode, ensure you've created a minikube-approved `hostPath` volume. Minikube is very specific about what is expected for `hostPath` volumes. The following volumes are acceptable for minikube deployments:
@@ -167,7 +167,7 @@ $ helm install --name=neutron local/neutron --namespace=openstack
 
 # Horizon Management
 
-After each of the chart is deployed, you may wish to change the typical service endpoint for Horizon to a `nodePort` service endpoint (this is unique to Minikube deployments). Use the `kubectl edit` command to edit this service manually.
+After each chart is deployed, you may wish to change the typical service endpoint for Horizon to a `nodePort` service endpoint (this is unique to Minikube deployments). Use the `kubectl edit` command to edit this service manually.
 
 ```
 $ sudo kubectl edit svc horizon -n openstack
@@ -201,7 +201,7 @@ status:
 ```
 
 **Accessing Horizon:**<br>
-*Now you're ready to manage Openstack! Point your browser to the following:*<br>
+*Now you're ready to manage OpenStack! Point your browser to the following:*<br>
 ***URL:*** *http://192.168.99.100:31537/* <br>
 ***User:*** *admin* <br>
 ***Pass:*** *password* <br>
@@ -210,7 +210,7 @@ If you have any questions, comments, or find any bugs, please submit an issue so
 
 # Troubleshooting
 
-In order to protect your general sanity, we've included a currated list of verification and troubleshooting steps that may help you avoid some potential issues while developing Openstack-Helm.
+In order to protect your general sanity, we've included a curated list of verification and troubleshooting steps that may help you avoid some potential issues while developing Openstack-Helm.
 
 **MariaDB**<br>
 To verify the state of MariaDB, use the following command:
