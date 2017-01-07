@@ -1,0 +1,65 @@
+apiVersion: apps/v1beta1
+kind: StatefulSet
+metadata:
+  name: heat-engine
+spec:
+  serviceName: heat-engine
+  replicas: {{ .Values.replicas }}
+  template:
+    metadata:
+      labels:
+        app: heat-engine
+      annotations:
+        pod.beta.kubernetes.io/init-containers: '[
+          {
+            "name": "init",
+            "image": {{ .Values.images.dep_check | quote }},
+            "imagePullPolicy": {{ .Values.images.pull_policy | quote }},
+            "env": [
+              {
+                "name": "NAMESPACE",
+                "value": "{{ .Release.Namespace }}"
+              },
+              {
+                "name": "DEPENDENCY_SERVICE",
+                "value": "{{  include "joinListWithColon" .Values.dependencies.engine.service }}"
+              },
+              {
+                "name": "DEPENDENCY_JOBS",
+                "value": "{{  include "joinListWithColon" .Values.dependencies.engine.jobs }}"
+              },
+              {
+                "name": "COMMAND",
+                "value": "echo done"
+              }
+            ]
+          }
+        ]'
+    spec:
+      nodeSelector:
+        {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
+      containers:
+        - name: heat-engine
+          image: {{ .Values.images.engine }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+          command:
+            - heat-engine
+            - --config-dir
+            - /etc/heat/conf
+          volumeMounts:
+            - name: pod-etc-heat
+              mountPath: /etc/heat
+            - name: pod-var-cache-heat
+              mountPath: /var/cache/heat
+            - name: heatconf
+              mountPath: /etc/heat/conf/heat.conf
+              subPath: heat.conf
+              readOnly: true
+      volumes:
+        - name: pod-etc-heat
+          emptyDir: {}
+        - name: pod-var-cache-heat
+          emptyDir: {}
+        - name: heatconf
+          configMap:
+            name: heat-etc

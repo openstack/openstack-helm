@@ -1,0 +1,83 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: heat-cloudwatch
+spec:
+  replicas: {{ .Values.replicas }}
+  template:
+    metadata:
+      labels:
+        app: heat-cloudwatch
+      annotations:
+        pod.beta.kubernetes.io/init-containers: '[
+          {
+            "name": "init",
+            "image": {{ .Values.images.dep_check | quote }},
+            "imagePullPolicy": {{ .Values.images.pull_policy | quote }},
+            "env": [
+              {
+                "name": "NAMESPACE",
+                "value": "{{ .Release.Namespace }}"
+              },
+              {
+                "name": "DEPENDENCY_SERVICE",
+                "value": "{{  include "joinListWithColon" .Values.dependencies.cloudwatch.service }}"
+              },
+              {
+                "name": "DEPENDENCY_JOBS",
+                "value": "{{  include "joinListWithColon" .Values.dependencies.cloudwatch.jobs }}"
+              },
+              {
+                "name": "COMMAND",
+                "value": "echo done"
+              }
+            ]
+          }
+        ]'
+    spec:
+      nodeSelector:
+        {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
+      containers:
+        - name: heat-cloudwatch
+          image: {{ .Values.images.cloudwatch }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+          command:
+            - heat-api-cloudwatch
+            - --config-dir
+            - /etc/heat/conf
+          ports:
+            - containerPort: {{ .Values.service.cloudwatch.port }}
+          readinessProbe:
+            tcpSocket:
+              port: {{ .Values.service.cloudwatch.port }}
+          volumeMounts:
+            - name: pod-etc-heat
+              mountPath: /etc/heat
+            - name: pod-var-cache-heat
+              mountPath: /var/cache/heat
+            - name: heatconf
+              mountPath: /etc/heat/conf/heat.conf
+              subPath: heat.conf
+              readOnly: true
+            - name: heatpaste
+              mountPath: /etc/heat/api-paste.ini
+              subPath: api-paste.ini
+              readOnly: true
+            - name: heatpolicy
+              mountPath: /etc/heat/policy.json
+              subPath: policy.json
+              readOnly: true
+      volumes:
+        - name: pod-etc-heat
+          emptyDir: {}
+        - name: pod-var-cache-heat
+          emptyDir: {}
+        - name: heatconf
+          configMap:
+            name: heat-etc
+        - name: heatpaste
+          configMap:
+            name: heat-etc
+        - name: heatpolicy
+          configMap:
+            name: heat-etc
