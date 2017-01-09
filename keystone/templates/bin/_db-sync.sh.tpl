@@ -15,7 +15,8 @@ set -ex
 keystone-manage db_sync
 kolla_keystone_bootstrap {{ .Values.keystone.admin_user }} {{ .Values.keystone.admin_password }} \
   {{ .Values.keystone.admin_project_name }} admin \
-  {{ .Values.keystone.scheme }}://{{ include "keystone_api_endpoint_host_admin" . }}:{{ .Values.network.port.admin }}/{{ .Values.keystone.version }} \
-  {{ .Values.keystone.scheme }}://{{ include "keystone_api_endpoint_host_internal" . }}:{{ .Values.network.port.public }}/{{ .Values.keystone.version }} \
-  {{ .Values.keystone.scheme }}://{{ include "keystone_api_endpoint_host_public" . }}:{{ .Values.network.port.public }}/{{ .Values.keystone.version }} \
+  {{ include "endpoint_keystone_admin" . }} \
+  {{ include "endpoint_keystone_internal" . }} \
+  {{ include "endpoint_keystone_internal" . }} \
   {{ .Values.keystone.admin_region_name }}
+

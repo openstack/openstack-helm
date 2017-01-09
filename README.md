@@ -14,6 +14,30 @@ Until a 1.0.0 release, this collection is a work in progress and components will
 
 This project is under heavy development. We encourage anyone who is interested in Openstack-Helm to review our [Getting Started](https://github.com/att-comdev/openstack-helm/blob/master/docs/installation/getting-started.md) documentation, complete with verification procedures. Feel free to ask questions or check out our current [Issues](https://github.com/att-comdev/openstack-helm/issues), [Project Plan](https://github.com/att-comdev/openstack-helm/projects/1) or submit a [Pull Request](https://github.com/att-comdev/openstack-helm/pulls).
 
+Openstack-Helm is intended to be packaged and served from your own Helm [repository](https://github.com/kubernetes/helm/blob/master/docs/chart_repository.md). However, for quick installation, evaluation, and convenience, you can use our online Helm repository. After you've configured your environment for [Minikube](https://github.com/att-comdev/openstack-helm/blob/master/docs/developer/minikube.md) (for hostPath) or [Bare Metal](https://github.com/att-comdev/openstack-helm/blob/master/docs/installation/getting-started.md) (for PVC support), you can add our most recent repository by using the following command:
+
+```
+$ helm repo add openstack-helm https://att-comdev.github.io/openstack-helm/charts/
+```
+
+To verify your Helm chart version, once the repository has been added, issue the following:
+
+```
+$ helm search | grep openstack-helm
+local/bootstrap         	0.1.0  	openstack-helm namespace bootstrap
+openstack-helm/bootstrap	0.1.0  	openstack-helm namespace bootstrap
+openstack-helm/ceph     	0.1.0  	A Helm chart for Kubernetes
+openstack-helm/common   	0.1.0  	A base chart for all openstack charts
+openstack-helm/glance   	0.1.0  	A Helm chart for glance
+openstack-helm/horizon  	0.1.0  	A Helm chart for horizon
+openstack-helm/keystone 	0.1.0  	A Helm chart for keystone
+openstack-helm/mariadb  	0.1.0  	A helm chart for mariadb
+openstack-helm/memcached	0.1.0  	Chart for memcached
+openstack-helm/openstack	0.1.0  	A Helm chart for Kubernetes
+openstack-helm/rabbitmq 	0.1.0  	A Helm chart for Kubernetes
+$
+```
+
 **UPDATED:** Please see our new [developer documentation](https://github.com/att-comdev/openstack-helm/blob/master/docs/developer/minikube.md) for Minikube.
 
 # Additional Details
