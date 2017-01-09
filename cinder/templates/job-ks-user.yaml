@@ -1,3 +1,5 @@
+{{- $ksAdminSecret := .Values.keystone.admin_secret | default "cinder-env-keystone-admin" }}
+{{- $ksUserSecret := .Values.keystone.user_secret | default "cinder-env-keystone-user" }}
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -18,7 +20,7 @@ spec:
               },
               {
                 "name": "DEPENDENCY_SERVICE",
-                "value": "{{  include "joinListWithColon" .Values.dependencies.ks_user.service }}"
+                "value": "{{ include "joinListWithColon" .Values.dependencies.ks_user.service }}"
               },
               {
                 "name": "COMMAND",
@@ -40,43 +42,19 @@ spec:
             - name: ks-user-sh
               mountPath: /tmp/ks-user.sh
               subPath: ks-user.sh
+              readOnly: true
           env:
-{{ include "env_admin_openrc" . | indent 12 }}
+{{- with $env := dict "ksUserSecret" $ksAdminSecret }}
+{{- include "env_ks_openrc_tpl" $env | indent 12 }}
+{{- end }}
             - name: SERVICE_OS_SERVICE_NAME
               value: "cinder"
-            - name: SERVICE_OS_REGION_NAME
-              valueFrom:
-                secretKeyRef:
-                  name: cinder-conf-keystone
-                  key: OS_REGION_NAME
-            - name: SERVICE_OS_PROJECT_DOMAIN_NAME
-              valueFrom:
-                secretKeyRef:
-                  name: cinder-conf-keystone
-                  key: OS_PROJECT_DOMAIN_NAME
-            - name: SERVICE_OS_PROJECT_NAME
-              valueFrom:
-                secretKeyRef:
-                  name: cinder-conf-keystone
-                  key: OS_PROJECT_NAME
-            - name: SERVICE_OS_USER_DOMAIN_NAME
-              valueFrom:
-                secretKeyRef:
-                  name: cinder-conf-keystone
-                  key: OS_USER_DOMAIN_NAME
-            - name: SERVICE_OS_USERNAME
-              valueFrom:
-                secretKeyRef:
-                  name: cinder-conf-keystone
-                  key: OS_USERNAME
-            - name: SERVICE_OS_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: cinder-conf-keystone
-                  key: OS_PASSWORD
+{{- with $env := dict "ksUserSecret" $ksUserSecret }}
+{{- include "env_ks_user_create_openrc_tpl" $env | indent 12 }}
+{{- end }}
             - name: SERVICE_OS_ROLE
               value: {{ .Values.keystone.cinder_user_role | quote }}
       volumes:
         - name: ks-user-sh
           configMap:
-            name: cinder-ks-user-sh
+            name: cinder-bin

@@ -1,7 +1,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: cinder-db-init
+  name: cinder-db-sync
 spec:
   template:
     metadata:
@@ -18,11 +18,11 @@ spec:
               },
               {
                 "name": "DEPENDENCY_SERVICE",
-                "value": "{{  include "joinListWithColon" .Values.dependencies.db_init.service }}"
+                "value": "{{  include "joinListWithColon" .Values.dependencies.db_sync.service }}"
               },
               {
                 "name": "DEPENDENCY_JOBS",
-                "value": "{{  include "joinListWithColon" .Values.dependencies.db_init.jobs }}"
+                "value": "{{  include "joinListWithColon" .Values.dependencies.db_sync.jobs }}"
               },
               {
                 "name": "COMMAND",
@@ -34,21 +34,26 @@ spec:
     spec:
       restartPolicy: OnFailure
       containers:
-        - name: cinder-db-init
-          image: {{ .Values.images.db_init | quote }}
-          imagePullPolicy: {{ .Values.images.pull_policy | quote }}
-          env:
-          - name: ANSIBLE_LIBRARY
-            value: /usr/share/ansible/
+        - name: cinder-db-sync
+          image: {{ .Values.images.db_sync }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
           command:
-            - bash
-            - /tmp/init.sh
+            - cinder-manage
+          args:
+            - --config-dir
+            - /etc/cinder/conf
+            - db
+            - sync
           volumeMounts:
-            - name: db-init-sh
-              mountPath: /tmp/init.sh
-              subPath: init.sh
+            - name: pod-etc-cinder
+              mountPath: /etc/cinder
+            - name: cinderconf
+              mountPath: /etc/cinder/conf/cinder.conf
+              subPath: cinder.conf
               readOnly: true
       volumes:
-        - name: db-init-sh
+        - name: pod-etc-cinder
+          emptyDir: {}
+        - name: cinderconf
           configMap:
-            name: cinder-db-init-sh
+            name: cinder-etc

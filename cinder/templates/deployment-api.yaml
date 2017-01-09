@@ -1,0 +1,76 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: cinder-api
+spec:
+  replicas: {{ .Values.replicas }}
+  template:
+    metadata:
+      labels:
+        app: cinder-api
+      annotations:
+        pod.beta.kubernetes.io/init-containers: '[
+          {
+            "name": "init",
+            "image": {{ .Values.images.dep_check | quote }},
+            "imagePullPolicy": {{ .Values.images.pull_policy | quote }},
+            "env": [
+              {
+                "name": "NAMESPACE",
+                "value": "{{ .Release.Namespace }}"
+              },
+              {
+                "name": "DEPENDENCY_SERVICE",
+                "value": "{{  include "joinListWithColon" .Values.dependencies.api.service }}"
+              },
+              {
+                "name": "DEPENDENCY_JOBS",
+                "value": "{{  include "joinListWithColon" .Values.dependencies.api.jobs }}"
+              },
+              {
+                "name": "COMMAND",
+                "value": "echo done"
+              }
+            ]
+          }
+        ]'
+    spec:
+      nodeSelector:
+        {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
+      containers:
+        - name: cinder-api
+          image: {{ .Values.images.api }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+          command:
+          - cinder-api
+          - --config-dir
+          - /etc/cinder/conf
+          ports:
+            - containerPort: {{ .Values.service.api.port }}
+          readinessProbe:
+            tcpSocket:
+              port: {{ .Values.service.api.port }}
+          volumeMounts:
+            - name: pod-etc-cinder
+              mountPath: /etc/cinder
+            - name: pod-var-cache-cinder
+              mountPath: /var/cache/cinder
+            - name: cinderconf
+              mountPath: /etc/cinder/conf/cinder.conf
+              subPath: cinder.conf
+              readOnly: true
+            - name: cinderpaste
+              mountPath: /etc/cinder/api-paste.ini
+              subPath: api-paste.ini
+              readOnly: true
+      volumes:
+        - name: pod-etc-cinder
+          emptyDir: {}
+        - name: pod-var-cache-cinder
+          emptyDir: {}
+        - name: cinderconf
+          configMap:
+            name: cinder-etc
+        - name: cinderpaste
+          configMap:
+            name: cinder-etc
