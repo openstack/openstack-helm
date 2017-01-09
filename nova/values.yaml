@@ -13,16 +13,16 @@ control_replicas: 1
 compute_replicas: 1
 
 image:
-  init: quay.io/stackanetes/stackanetes-kolla-toolbox:barcelona
-  db_sync: quay.io/stackanetes/stackanetes-nova-api:barcelona
-  api: quay.io/stackanetes/stackanetes-nova-api:barcelona
-  conductor: quay.io/stackanetes/stackanetes-nova-conductor:barcelona
-  scheduler: quay.io/stackanetes/stackanetes-nova-scheduler:barcelona
-  novncproxy: quay.io/stackanetes/stackanetes-nova-novncproxy:barcelona
-  consoleauth: quay.io/stackanetes/stackanetes-nova-consoleauth:barcelona
-  compute: quay.io/stackanetes/stackanetes-nova-compute:barcelona
-  libvirt: quay.io/stackanetes/stackanetes-nova-libvirt:barcelona
-  post: quay.io/stackanetes/stackanetes-kolla-toolbox:barcelona
+  init: quay.io/stackanetes/stackanetes-kolla-toolbox:newton
+  db_sync: quay.io/stackanetes/stackanetes-nova-api:newton
+  api: quay.io/stackanetes/stackanetes-nova-api:newton
+  conductor: quay.io/stackanetes/stackanetes-nova-conductor:newton
+  scheduler: quay.io/stackanetes/stackanetes-nova-scheduler:newton
+  novncproxy: quay.io/stackanetes/stackanetes-nova-novncproxy:newton
+  consoleauth: quay.io/stackanetes/stackanetes-nova-consoleauth:newton
+  compute: quay.io/stackanetes/stackanetes-nova-compute:newton
+  libvirt: quay.io/stackanetes/stackanetes-nova-libvirt:newton
+  post: quay.io/stackanetes/stackanetes-kolla-toolbox:newton
   entrypoint: quay.io/stackanetes/kubernetes-entrypoint:v0.1.0
   pull_policy: "IfNotPresent"
 
@@ -40,7 +40,7 @@ network:
     other_domains: ""
 
   port:
-    api: 8774
+    osapi: 8774
     metadata: 8775
     novncproxy: 6080
 
@@ -51,7 +51,6 @@ nova:
     metadata_workers: 8
     conductor_workers: 8
     force_config_drive: True
-  drain_timeout: 60
 
 database:
   address: "mariadb"
@@ -103,7 +102,6 @@ memcached:
 dependencies:
   api:
     jobs: 
-    - mariadb-seed
     - keystone-db-sync
     - nova-init
     - nova-db-sync
@@ -121,6 +119,7 @@ dependencies:
     - nova-init
     - keystone-init
     - mariadb-seed
+    - keystone-db-sync
     service:
     - mariadb
   post:
@@ -130,7 +129,7 @@ dependencies:
     - mariadb-seed
     service:
     - mariadb
-    - nova-api
+    - keystone-api
   init:
     jobs:
     - mariadb-seed
@@ -138,9 +137,7 @@ dependencies:
     - mariadb
   compute:
     jobs:
-    - nova-init
     - nova-post
-    - nova-db-sync
     service:
     - keystone-api
     - nova-api
@@ -164,17 +161,11 @@ dependencies:
     - mariadb
   scheduler:
     jobs:
-    - mariadb-seed
-    - keystone-db-sync
-    - nova-init
     - nova-db-sync
     service:
     - mariadb
   conductor:
     jobs:
-    - mariadb-seed
-    - keystone-db-sync
-    - nova-init
     - nova-db-sync
     service:
     - mariadb

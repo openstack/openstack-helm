@@ -1,0 +1,75 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: nova-osapi
+spec:
+  replicas: {{ .Values.control_replicas }}
+  template:
+    metadata:
+      labels:
+        app: nova-osapi
+      annotations:
+        pod.beta.kubernetes.io/init-containers: '[
+          {
+            "name": "init",
+            "image": "{{ .Values.image.entrypoint }}",
+            "imagePullPolicy": "{{ .Values.image.pull_policy }}",            
+            "env": [
+              {
+                "name": "NAMESPACE",
+                "value": "{{ .Release.Namespace }}"
+              },
+              {
+                "name": "INTERFACE_NAME",
+                "value": "eth0"
+              },
+              {
+                "name": "DEPENDENCY_SERVICE",
+                "value": "{{  include "joinListWithColon" .Values.dependencies.api.service }}"
+              },
+              {
+                "name": "DEPENDENCY_JOBS",
+                "value": "{{  include "joinListWithColon" .Values.dependencies.api.jobs }}"
+              },
+              {
+                "name": "COMMAND",
+                "value": "echo done"
+              }              
+            ]
+          }
+        ]'
+    spec:
+      nodeSelector:
+        {{ .Values.labels.control_node_selector_key }}: {{ .Values.labels.control_node_selector_value }}
+      containers:
+        - name: nova-osapi
+          image: {{ .Values.image.api }}
+          command:
+            - bash
+            - /tmp/start-osapi.sh
+          ports:
+            - containerPort: {{ .Values.network.port.osapi }}
+          readinessProbe:
+            tcpSocket:
+              port: {{ .Values.network.port.osapi }}
+          volumeMounts:
+            - name: novaconf
+              mountPath: /etc/nova/nova.conf
+              subPath: nova.conf
+          volumeMounts:
+            - name: startsh
+              mountPath: /tmp/start-osapi.sh
+              subPath: start-osapi.sh
+      volumes:
+        - name: novaconf
+          configMap:
+            name: nova-etc
+            items:
+            - key: nova.conf
+              path: nova.conf
+        - name: startsh
+          configMap:
+            name: nova-bin
+            items:
+            - key: start-osapi.sh
+              path: start-osapi.sh

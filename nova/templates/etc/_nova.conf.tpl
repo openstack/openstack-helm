@@ -9,7 +9,7 @@ force_config_drive = {{ .Values.nova.default.force_config_drive }}
 state_path = /var/lib/nova
 
 osapi_compute_listen = {{ .Values.network.ip_address }}
-osapi_compute_listen_port = {{ .Values.network.port.api }}
+osapi_compute_listen_port = {{ .Values.network.port.osapi }}
 osapi_compute_workers = {{ .Values.nova.default.osapi_workers }}
 
 workers = {{ .Values.nova.default.osapi_workers }}
