@@ -1,4 +1,6 @@
-#!/bin/sh
+#!/bin/bash
+set -ex 
+
 #
 # start nova-api-osapi service
 #
