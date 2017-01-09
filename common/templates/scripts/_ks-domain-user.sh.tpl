@@ -1,3 +1,4 @@
+{{- define "common_keystone_domain_user" }}
 #!/bin/bash
 
 # Copyright 2017 Pete Birley
@@ -53,3 +54,4 @@ openstack role assignment list \
           --role="${SERVICE_OS_ROLE_ID}" \
           --user-domain="${SERVICE_OS_DOMAIN_ID}" \
           --user="${SERVICE_OS_USERID}"
+{{- end }}
