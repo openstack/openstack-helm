@@ -1,3 +1,4 @@
+{{- $envAll := . }}
 {{- $ksAdminSecret := .Values.keystone.admin_secret | default "heat-env-keystone-admin" }}
 apiVersion: batch/v1
 kind: Job
@@ -31,9 +32,10 @@ spec:
     spec:
       restartPolicy: OnFailure
       containers:
-        - name: heat-ks-service-orchestration
-          image: {{ .Values.images.ks_service }}
-          imagePullPolicy: {{ .Values.images.pull_policy }}
+{{- range $key1, $osServiceName := tuple "heat" "heat-cfn" }}
+        - name: {{ $osServiceName }}-ks-service-registration
+          image: {{ $envAll.Values.images.ks_service }}
+          imagePullPolicy: {{ $envAll.Values.images.pull_policy }}
           command:
             - bash
             - /tmp/ks-service.sh
@@ -47,28 +49,10 @@ spec:
 {{- include "env_ks_openrc_tpl" $env | indent 12 }}
 {{- end }}
             - name: OS_SERVICE_NAME
-              value: "heat"
+              value: {{ $osServiceName }}
             - name: OS_SERVICE_TYPE
-              value: "orchestration"
-        - name: heat-ks-service-cloudformation
-          image: {{ .Values.images.ks_service }}
-          imagePullPolicy: {{ .Values.images.pull_policy }}
-          command:
-            - bash
-            - /tmp/ks-service.sh
-          volumeMounts:
-            - name: ks-service-sh
-              mountPath: /tmp/ks-service.sh
-              subPath: ks-service.sh
-              readOnly: true
-          env:
-{{- with $env := dict "ksUserSecret" $ksAdminSecret }}
-{{- include "env_ks_openrc_tpl" $env | indent 12 }}
+              value: {{ tuple $osServiceName $envAll | include "endpoint_type_lookup" }}
 {{- end }}
-            - name: OS_SERVICE_NAME
-              value: "heat-cfn"
-            - name: OS_SERVICE_TYPE
-              value: "cloudformation"
       volumes:
         - name: ks-service-sh
           configMap:
