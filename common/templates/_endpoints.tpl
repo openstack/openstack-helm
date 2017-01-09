@@ -2,32 +2,6 @@
 # endpoints
 #-----------------------------------------
 
-# this function returns the endpoint uri for a service, it takes an tuple
-# input in ther form: service-name, endpoint-class, port-name. eg:
-# { tuple "heat" "public" "api" . | include "endpoint_addr_lookup" }
-# will return the appropriate URI
-
-{{- define "endpoint_addr_lookup" -}}
-{{- $name := index . 0 -}}
-{{- $endpoint := index . 1 -}}
-{{- $port := index . 2 -}}
-{{- $context := index . 3 -}}
-{{- $nameNorm := $name | replace "-" "_" }}
-{{- $endpointMap := index $context.Values.endpoints $nameNorm }}
-{{- $endpointScheme := index $endpointMap "scheme" }}
-{{- $endpointPath := index $endpointMap "path" }}
-{{- $fqdn := $context.Release.Namespace -}}
-{{- if $context.Values.endpoints.fqdn -}}
-{{- $fqdn := $context.Values.endpoints.fqdn -}}
-{{- end -}}
-{{- with $endpointMap -}}
-{{- $endpointHost := index .hosts $endpoint | default .hosts.default}}
-{{- $endpointPort := index .port $port }}
-{{- printf "%s://%s.%s:%1.f%s" $endpointScheme $endpointHost $fqdn $endpointPort $endpointPath  | quote -}}
-{{- end -}}
-{{- end -}}
-
-
 # this should be a generic function leveraging a tuple
 # for input, e.g. { endpoint keystone internal . }
 # however, constructing this appears to be a
@@ -113,6 +87,31 @@
 {{- end -}}
 {{- end -}}
 
+# this function returns the endpoint uri for a service, it takes an tuple
+# input in the form: service-name, endpoint-class, port-name. eg:
+# { tuple "heat" "public" "api" . | include "endpoint_addr_lookup" }
+# will return the appropriate URI. Once merged this should phase out the above.
+
+{{- define "endpoint_addr_lookup" -}}
+{{- $name := index . 0 -}}
+{{- $endpoint := index . 1 -}}
+{{- $port := index . 2 -}}
+{{- $context := index . 3 -}}
+{{- $nameNorm := $name | replace "-" "_" }}
+{{- $endpointMap := index $context.Values.endpoints $nameNorm }}
+{{- $fqdn := $context.Release.Namespace -}}
+{{- if $context.Values.endpoints.fqdn -}}
+{{- $fqdn := $context.Values.endpoints.fqdn -}}
+{{- end -}}
+{{- with $endpointMap -}}
+{{- $endpointScheme := .scheme }}
+{{- $endpointHost := index .hosts $endpoint | default .hosts.default}}
+{{- $endpointPort := index .port $port }}
+{{- $endpointPath := .path }}
+{{- printf "%s://%s.%s:%1.f%s" $endpointScheme $endpointHost $fqdn $endpointPort $endpointPath  | quote -}}
+{{- end -}}
+{{- end -}}
+
 
 #-------------------------------
 # endpoint type lookup
@@ -131,7 +130,6 @@
 {{- $endpointType := index $endpointMap "type" }}
 {{- $endpointType | quote -}}
 {{- end -}}
-
 
 #-------------------------------
 # kolla helpers

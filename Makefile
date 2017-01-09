@@ -1,12 +1,12 @@
-.PHONY: ceph bootstrap mariadb keystone heat memcached rabbitmq common openstack all clean
+.PHONY: ceph bootstrap mariadb keystone memcached rabbitmq common openstack neutron heat maas all clean
 
 B64_DIRS := common/secrets
 B64_EXCLUDE := $(wildcard common/secrets/*.b64)
 
-CHARTS := ceph mariadb rabbitmq GLANCE memcached keystone glance horizon heat openstack
+CHARTS := ceph mariadb rabbitmq GLANCE memcached keystone glance horizon neutron heat maas openstack
 COMMON_TPL := common/templates/_globals.tpl
 
-all: common ceph bootstrap mariadb rabbitmq memcached keystone glance horizon heat openstack
+all: common ceph bootstrap mariadb rabbitmq memcached keystone glance horizon neutron heat maas openstack
 
 common: build-common
 
@@ -19,13 +19,17 @@ mariadb: build-mariadb
 
 keystone: build-keystone
 
-heat: build-heat
-
 horizon: build-horizon
 
 rabbitmq: build-rabbitmq
 
 glance: build-glance
+
+neutron: build-neutron
+
+heat: build-heat
+
+maas: build-maas
 
 memcached: build-memcached
 
@@ -42,10 +46,3 @@ build-%:
 	if [ -f $*/requirements.yaml ]; then helm dep up $*; fi
 	helm lint $*
 	helm package $*
-
-## this is required for some charts which cannot pass a lint, namely
-## those which use .Release.Namespace in a default pipe capacity
-#nolint-build-%:
-#       if [ -f $*/Makefile ]; then make -C $*; fi
-#       if [ -f $*/requirements.yaml ]; then helm dep up $*; fi
-#       helm package $*
