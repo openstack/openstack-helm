@@ -18,4 +18,4 @@ cp -p /tmp/iptables /sbin/iptables
 cp -p /tmp/iptables /sbin/iptables-restore
 cp -p /tmp/iptables /sbin/iptables-save
 
-exec nova-api--config-file /etc/nova/nova.conf
+exec nova-api --config-file /etc/nova/nova.conf
