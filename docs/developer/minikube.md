@@ -163,6 +163,7 @@ $ helm install --name=horizon local/horizon --namespace=openstack
 $ helm install --name=glance local/glance --namespace=openstack
 $ helm install --name=nova local/nova --namespace=openstack
 $ helm install --name=neutron local/neutron --namespace=openstack
+$ helm install --name=heat local/heat --namespace=openstack
 ```
 
 # Horizon Management
@@ -173,7 +174,7 @@ After each chart is deployed, you may wish to change the typical service endpoin
 $ sudo kubectl edit svc horizon -n openstack
 ```
 
-With the deployed manifest in edit mode, you can enable `nodePort` by replicating some of the fields below (specifically, the `nodePort` lines). 
+With the deployed manifest in edit mode, you can enable `nodePort` by replicating some of the fields below (specifically, the `nodePort` lines).
 
 ```
 apiVersion: v1
@@ -224,7 +225,7 @@ $ kubectl exec mariadb-0 -it -n openstack -- mysql -uroot -ppassword -e 'show da
 | mysql              |
 | performance_schema |
 +--------------------+
-$ 
+$
 ```
 
 **Helm Server/Repository**<br>
@@ -251,7 +252,7 @@ $ helm repo list
 NAME  	URL
 stable	https://kubernetes-charts.storage.googleapis.com/
 local 	http://localhost:8879/charts
-$ 
+$
 $ helm repo remove local
 ```
 
