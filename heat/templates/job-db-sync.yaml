@@ -1,0 +1,58 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: heat-db-sync
+spec:
+  template:
+    metadata:
+      annotations:
+        pod.beta.kubernetes.io/init-containers: '[
+          {
+            "name": "init",
+            "image": {{ .Values.images.dep_check | quote }},
+            "imagePullPolicy": {{ .Values.images.pull_policy | quote }},
+            "env": [
+              {
+                "name": "NAMESPACE",
+                "value": "{{ .Release.Namespace }}"
+              },
+              {
+                "name": "DEPENDENCY_SERVICE",
+                "value": "{{  include "joinListWithColon" .Values.dependencies.db_sync.service }}"
+              },
+              {
+                "name": "DEPENDENCY_JOBS",
+                "value": "{{  include "joinListWithColon" .Values.dependencies.db_sync.jobs }}"
+              },
+              {
+                "name": "COMMAND",
+                "value": "echo done"
+              }
+            ]
+          }
+        ]'
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: heat-db-sync
+          image: {{ .Values.images.db_sync }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+          command:
+            - heat-manage
+          args:
+            - --config-dir
+            - /etc/heat/conf
+            - db_sync
+          volumeMounts:
+            - name: pod-etc-heat
+              mountPath: /etc/heat
+            - name: heatconf
+              mountPath: /etc/heat/conf/heat.conf
+              subPath: heat.conf
+              readOnly: true
+      volumes:
+        - name: pod-etc-heat
+          emptyDir: {}
+        - name: heatconf
+          configMap:
+            name: heat-etc

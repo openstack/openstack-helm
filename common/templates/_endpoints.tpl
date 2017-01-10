@@ -87,8 +87,51 @@
 {{- end -}}
 {{- end -}}
 
+# this function returns the endpoint uri for a service, it takes an tuple
+# input in the form: service-name, endpoint-class, port-name. eg:
+# { tuple "heat" "public" "api" . | include "endpoint_addr_lookup" }
+# will return the appropriate URI. Once merged this should phase out the above.
+
+{{- define "endpoint_addr_lookup" -}}
+{{- $name := index . 0 -}}
+{{- $endpoint := index . 1 -}}
+{{- $port := index . 2 -}}
+{{- $context := index . 3 -}}
+{{- $nameNorm := $name | replace "-" "_" }}
+{{- $endpointMap := index $context.Values.endpoints $nameNorm }}
+{{- $fqdn := $context.Release.Namespace -}}
+{{- if $context.Values.endpoints.fqdn -}}
+{{- $fqdn := $context.Values.endpoints.fqdn -}}
+{{- end -}}
+{{- with $endpointMap -}}
+{{- $endpointScheme := .scheme }}
+{{- $endpointHost := index .hosts $endpoint | default .hosts.default}}
+{{- $endpointPort := index .port $port }}
+{{- $endpointPath := .path }}
+{{- printf "%s://%s.%s:%1.f%s" $endpointScheme $endpointHost $fqdn $endpointPort $endpointPath  | quote -}}
+{{- end -}}
+{{- end -}}
+
+
+#-------------------------------
+# endpoint type lookup
+#-------------------------------
+
+# this function is used in endpoint management templates
+# it returns the service type for an openstack service eg:
+# { tuple heat . | include "ks_endpoint_type" }
+# will return "orchestration"
+
+{{- define "endpoint_type_lookup" -}}
+{{- $name := index . 0 -}}
+{{- $context := index . 1 -}}
+{{- $nameNorm := $name | replace "-" "_" }}
+{{- $endpointMap := index $context.Values.endpoints $nameNorm }}
+{{- $endpointType := index $endpointMap "type" }}
+{{- $endpointType | quote -}}
+{{- end -}}
+
 #-------------------------------
 # kolla helpers
 #-------------------------------
 {{ define "keystone_auth" }}{'auth_url':'{{ include "endpoint_keystone_internal" . }}', 'username':'{{ .Values.keystone.admin_user }}','password':'{{ .Values.keystone.admin_password }}','project_name':'{{ .Values.keystone.admin_project_name }}','domain_name':'default'}{{end}}
-

@@ -21,4 +21,3 @@
 {{- $wtf := $context.Template.Name | replace $last $name -}}
 {{- include $wtf $context | sha256sum | quote -}}
 {{- end -}}
-
