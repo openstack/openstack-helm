@@ -1,0 +1,88 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: cinder-scheduler
+spec:
+  replicas: {{ .Values.replicas.scheduler }}
+  revisionHistoryLimit: {{ .Values.upgrades.revision_history }}
+  strategy:
+    type: {{ .Values.upgrades.pod_replacement_strategy }}
+    {{ if eq .Values.upgrades.pod_replacement_strategy "RollingUpdate" }}
+    rollingUpdate:
+      maxUnavailable: {{ .Values.upgrades.rolling_update.max_unavailable }}
+      maxSurge: {{ .Values.upgrades.rolling_update.max_surge }}
+    {{ end }}
+  template:
+    metadata:
+      labels:
+        app: cinder-scheduler
+      annotations:
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "hash" }}
+        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "hash" }}
+        pod.beta.kubernetes.io/init-containers: '[
+          {
+            "name": "init",
+            "image": {{ .Values.images.dep_check | quote }},
+            "imagePullPolicy": {{ .Values.images.pull_policy | quote }},
+            "env": [
+              {
+                "name": "NAMESPACE",
+                "value": "{{ .Release.Namespace }}"
+              },
+              {
+                "name": "DEPENDENCY_SERVICE",
+                "value": "{{  include "joinListWithColon" .Values.dependencies.scheduler.service }}"
+              },
+              {
+                "name": "DEPENDENCY_JOBS",
+                "value": "{{  include "joinListWithColon" .Values.dependencies.scheduler.jobs }}"
+              },
+              {
+                "name": "COMMAND",
+                "value": "echo done"
+              }
+            ]
+          }
+        ]'
+    spec:
+      nodeSelector:
+        {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
+      containers:
+        - name: cinder-scheduler
+          image: {{ .Values.images.scheduler }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+          command:
+          - cinder-scheduler
+          - --config-dir
+          - /etc/cinder/conf
+          volumeMounts:
+            - name: pod-etc-cinder
+              mountPath: /etc/cinder
+            - name: pod-var-cache-cinder
+              mountPath: /var/cache/cinder
+            - name: cinderconf
+              mountPath: /etc/cinder/conf/cinder.conf
+              subPath: cinder.conf
+              readOnly: true
+            - name: cinderpaste
+              mountPath: /etc/cinder/api-paste.ini
+              subPath: api-paste.ini
+              readOnly: true
+            - name: cinderpolicy
+              mountPath: /etc/cinder/policy.json
+              subPath: policy.json
+              readOnly: true
+      volumes:
+        - name: pod-etc-cinder
+          emptyDir: {}
+        - name: pod-var-cache-cinder
+          emptyDir: {}
+        - name: cinderconf
+          configMap:
+            name: cinder-etc
+        - name: cinderpaste
+          configMap:
+            name: cinder-etc
+        - name: cinderpolicy
+          configMap:
+            name: cinder-etc

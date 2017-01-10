@@ -20,6 +20,10 @@ enabled_backends = {{  include "joinListWithColon" .Values.backends.enabled }}
 auth_strategy = keystone
 os_region_name = {{ .Values.keystone.cinder_region_name }}
 
+# ensures that our volume worker service-list doesn't
+# explode with dead agents from terminated containers
+# by pinning the agent identifier
+host=cinder-volume-worker
 
 [database]
 connection = mysql+pymysql://{{ .Values.database.cinder_user }}:{{ .Values.database.cinder_password }}@{{ .Values.database.address }}:{{ .Values.database.port }}/{{ .Values.database.cinder_database_name }}
@@ -51,6 +55,10 @@ rbd_flatten_volume_from_snapshot = false
 rbd_max_clone_depth = 5
 rbd_store_chunk_size = 4
 rados_connect_timeout = -1
+{{- if .Values.backends.rbd1.secret }}
 rbd_user = {{ .Values.backends.rbd1.user }}
+{{- else }}
+rbd_secret_uuid = {{- include "secrets/ceph-client-key" . -}}
+{{- end }}
 rbd_secret_uuid = {{ .Values.backends.rbd1.secret }}
 report_discard_supported = True

@@ -6,6 +6,7 @@
 replicas:
   api: 1
   volume: 1
+  scheduler: 1
 
 labels:
   node_selector_key: openstack-control-plane
@@ -19,6 +20,7 @@ images:
   ks_service: quay.io/stackanetes/stackanetes-kolla-toolbox:newton
   ks_endpoints: quay.io/stackanetes/stackanetes-kolla-toolbox:newton
   api: quay.io/stackanetes/stackanetes-cinder-api:newton
+  scheduler: quay.io/stackanetes/stackanetes-cinder-scheduler:newton
   volume: quay.io/stackanetes/stackanetes-cinder-volume:newton
   pull_policy: "IfNotPresent"
 
@@ -66,7 +68,6 @@ ceph:
   enabled: true
   monitors: []
   cinder_user: "admin"
-  cinder_pool: "volumes"
   # a null value for the keyring will
   # attempt to use the key from
   # common/secrets/ceph-client-key
@@ -76,8 +77,8 @@ backends:
   enabled:
   - rbd1
   rbd1:
-    secret: ""
-    user: "cinder"
+    secret: null
+    user: "admin"
     pool: "volumes"
 
 glance:
@@ -129,6 +130,10 @@ dependencies:
     - mariadb
     - keystone-api
   volume:
+    service:
+    - keystone-api
+    - cinder-api
+  scheduler:
     service:
     - keystone-api
     - cinder-api
