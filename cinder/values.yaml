@@ -52,6 +52,16 @@ database:
   cinder_password: password
   cinder_user: cinder
 
+ceph:
+  enabled: true
+  monitors: []
+  cinder_user: "admin"
+  cinder_pool: "volumes"
+  # a null value for the keyring will
+  # attempt to use the key from
+  # common/secrets/ceph-client-key
+  cinder_keyring: null
+
 backends:
   enabled:
   - rbd1
@@ -108,40 +118,45 @@ dependencies:
     service:
     - mariadb
     - keystone-api
+  volume:
+    service:
+    - keystone-api
+    - cinder-api
 
+# We use a different layout of the endpoints here to account for versioning
+# this swaps the service name and type, and should be rolled out to other
+# services.
 endpoints:
-  keystone:
+  identity:
+    name: keystone
     hosts:
       default: keystone-api
     path: /v3
-    type: identity
     scheme: 'http'
     port:
         admin: 35357
         public: 5000
-  cinder:
+  volume:
+    name: cinder
     hosts:
       default: cinder-api
     path: '/v1/%(tenant_id)s'
-    type: volume
     scheme: 'http'
     port:
       api: 8776
-  cinderv2:
+  volumev2:
     name: cinder
     hosts:
       default: cinder-api
     path: '/v2/%(tenant_id)s'
-    type: volumev2
     scheme: 'http'
     port:
       api: 8776
-  cinderv3:
+  volumev3:
     name: cinder
     hosts:
       default: cinder-api
     path: '/v3/%(tenant_id)s'
-    type: volumev3
     scheme: 'http'
     port:
       api: 8776
