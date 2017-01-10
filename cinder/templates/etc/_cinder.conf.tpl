@@ -26,7 +26,7 @@ connection = mysql+pymysql://{{ .Values.database.cinder_user }}:{{ .Values.datab
 max_retries = -1
 
 [keystone_authtoken]
-auth_url = {{ include "endpoint_keystone_internal" . }}
+auth_url = {{ .Values.keystone.auth_url }}
 auth_type = password
 project_domain_name = {{ .Values.keystone.cinder_project_domain }}
 user_domain_name = {{ .Values.keystone.cinder_user_domain }}
