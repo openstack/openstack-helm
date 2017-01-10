@@ -1,0 +1,59 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: cinder-db-sync
+spec:
+  template:
+    metadata:
+      annotations:
+        pod.beta.kubernetes.io/init-containers: '[
+          {
+            "name": "init",
+            "image": {{ .Values.images.dep_check | quote }},
+            "imagePullPolicy": {{ .Values.images.pull_policy | quote }},
+            "env": [
+              {
+                "name": "NAMESPACE",
+                "value": "{{ .Release.Namespace }}"
+              },
+              {
+                "name": "DEPENDENCY_SERVICE",
+                "value": "{{  include "joinListWithColon" .Values.dependencies.db_sync.service }}"
+              },
+              {
+                "name": "DEPENDENCY_JOBS",
+                "value": "{{  include "joinListWithColon" .Values.dependencies.db_sync.jobs }}"
+              },
+              {
+                "name": "COMMAND",
+                "value": "echo done"
+              }
+            ]
+          }
+        ]'
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: cinder-db-sync
+          image: {{ .Values.images.db_sync }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+          command:
+            - cinder-manage
+          args:
+            - --config-dir
+            - /etc/cinder/conf
+            - db
+            - sync
+          volumeMounts:
+            - name: pod-etc-cinder
+              mountPath: /etc/cinder
+            - name: cinderconf
+              mountPath: /etc/cinder/conf/cinder.conf
+              subPath: cinder.conf
+              readOnly: true
+      volumes:
+        - name: pod-etc-cinder
+          emptyDir: {}
+        - name: cinderconf
+          configMap:
+            name: cinder-etc
