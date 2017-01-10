@@ -7,16 +7,16 @@ replicas:
   server: 1
 
 images:
-  init: quay.io/stackanetes/stackanetes-kolla-toolbox:barcelona
-  db_sync: quay.io/stackanetes/stackanetes-neutron-server:barcelona
-  server: quay.io/stackanetes/stackanetes-neutron-server:barcelona
-  dhcp: quay.io/stackanetes/stackanetes-neutron-dhcp-agent:barcelona
-  metadata: quay.io/stackanetes/stackanetes-neutron-metadata-agent:barcelona
-  l3: quay.io/stackanetes/stackanetes-neutron-l3-agent:barcelona
-  neutron_openvswitch_agent: quay.io/stackanetes/stackanetes-neutron-openvswitch-agent:barcelona
+  init: quay.io/stackanetes/stackanetes-kolla-toolbox:newton
+  db_sync: quay.io/stackanetes/stackanetes-neutron-server:newton
+  server: quay.io/stackanetes/stackanetes-neutron-server:newton
+  dhcp: quay.io/stackanetes/stackanetes-neutron-dhcp-agent:newton
+  metadata: quay.io/stackanetes/stackanetes-neutron-metadata-agent:newton
+  l3: quay.io/stackanetes/stackanetes-neutron-l3-agent:newton
+  neutron_openvswitch_agent: quay.io/stackanetes/stackanetes-neutron-openvswitch-agent:newton
   openvswitch_db_server: quay.io/attcomdev/openvswitch-vswitchd:latest
   openvswitch_vswitchd: quay.io/attcomdev/openvswitch-vswitchd:latest
-  post: quay.io/stackanetes/stackanetes-kolla-toolbox:barcelona
+  post: quay.io/stackanetes/stackanetes-kolla-toolbox:newton
   entrypoint: quay.io/stackanetes/kubernetes-entrypoint:v0.1.0
   pull_policy: "IfNotPresent"
 
@@ -133,7 +133,6 @@ dependencies:
   server:
     jobs:
     - neutron-db-sync
-    - mariadb-seed
     service:
     - rabbitmq
     - mariadb
@@ -148,18 +147,17 @@ dependencies:
     - neutron-init
     - nova-post
     daemonset:
-    - neutron-openvswitch
+    - ovs-agent
   metadata:
+    service:
+    - rabbitmq
+    - nova-api
     jobs:
     - neutron-init
     - nova-post
-    service:
-    - neutron-server
-    - rabbitmq
-    - nova-api
     daemonset:
-    - neutron-openvswitch
-  openvswitchagent:
+    - ovs-agent
+  ovs_agent:
     jobs:
     - neutron-post
     - nova-post
@@ -167,24 +165,20 @@ dependencies:
     - keystone-api
     - rabbitmq
     - neutron-server
-    container:
-    - openvswitch-db-server
-    - openvswitch-vswitchd
   l3:
-    jobs:
-    - nova-init
-    - neutron-init
-    - nova-post
     service:
     - neutron-server
     - rabbitmq
     - nova-api
+    jobs:
+    - nova-init
+    - neutron-init
+    - nova-post
     daemonset:
-    - neutron-openvswitch    
+    - ovs-agent
   db_sync:
     jobs:
     - neutron-init
-    - mariadb-seed
     service:
     - mariadb
   init:
@@ -193,11 +187,10 @@ dependencies:
     service:
     - mariadb
   post:
-    jobs:
-    - neutron-db-sync
     service:
     - keystone-api
-    - neutron-server
+    jobs:
+    - neutron-db-sync
 
 # typically overriden by environmental 
 # values, but should include all endpoints

@@ -1,0 +1,62 @@
+apiVersion: extensions/v1beta1
+kind: DaemonSet
+metadata:
+  name: ovs-db
+spec:
+  template:
+    metadata:
+      labels:
+        app: ovs-db
+    spec:
+      nodeSelector:
+        {{ .Values.labels.ovs.node_selector_key }}: {{ .Values.labels.ovs.node_selector_value }}    
+      securityContext:
+        runAsUser: 0
+      dnsPolicy: ClusterFirst
+      hostNetwork: true
+      containers:
+        - name: ovs-db
+          image: {{ .Values.images.openvswitch_db_server }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+          securityContext:
+            privileged: true
+          env:
+            - name: INTERFACE_NAME
+              value: {{ .Values.network.interface.openvswitch | default .Values.network.interface.default }}
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: COMMAND
+              value: "bash /tmp/openvswitch-db-server.sh"
+          volumeMounts:
+            - name: openvswitchdbserversh
+              mountPath: /tmp/openvswitch-db-server.sh
+              subPath: openvswitch-db-server.sh
+            - mountPath: /etc/resolv.conf
+              name: resolvconf
+              subPath: resolv.conf
+            - name: varlibopenvswitch
+              mountPath: /var/lib/openvswitch/
+            - name: run
+              mountPath: /run
+      volumes:
+        - name: openvswitchdbserversh
+          configMap:
+            name: neutron-bin
+        - name: varlibopenvswitch
+          emptyDir: {}
+        - name: resolvconf
+          configMap:
+            name: neutron-etc
+        - name: libmodules
+          hostPath:
+            path: /lib/modules
+        - name: run
+          hostPath:
+            path: /run
+
