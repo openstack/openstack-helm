@@ -18,36 +18,9 @@ spec:
         app: keystone-api
       annotations:
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "hash" }}
-        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "hash" }}        
-        pod.beta.kubernetes.io/init-containers: '[
-          {
-            "name": "init",
-            "image": "{{ .Values.images.entrypoint }}",
-            "imagePullPolicy": "{{ .Values.images.pull_policy }}",
-            "env": [
-              {
-                "name": "NAMESPACE",
-                "value": "{{ .Release.Namespace }}"
-              },
-              {
-                "name": "INTERFACE_NAME",
-                "value": "eth0"
-              },
-              {
-                "name": "DEPENDENCY_SERVICE",
-                "value": "{{  include "joinListWithColon" .Values.dependencies.api.service }}"
-              },
-              {
-                "name": "DEPENDENCY_JOBS",
-                "value": "{{  include "joinListWithColon" .Values.dependencies.api.jobs }}"
-              },
-              {
-                "name": "COMMAND",
-                "value": "echo done"
-              }              
-            ]
-          }
-        ]'
+        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "hash" }}
+      {{  include "init-containers-header" . }}
+      {{  include "init-containers-footer" .Values.dependencies.api }}
     spec:
       nodeSelector:
         {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}

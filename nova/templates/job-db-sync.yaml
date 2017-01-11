@@ -6,39 +6,16 @@ spec:
   template:
     metadata:
       annotations:
-        pod.beta.kubernetes.io/init-containers: '[
-          {
-            "name": "init",
-            "image": "{{ .Values.image.entrypoint }}",
-            "imagePullPolicy": "{{ .Values.image.pull_policy }}",        
-            "env": [
-              {
-                "name": "NAMESPACE",
-                "value": "{{ .Release.Namespace }}"
-              },            
-              {
-                "name": "DEPENDENCY_SERVICE",
-                "value": "{{  include "joinListWithColon" .Values.dependencies.db_sync.service }}"
-              },
-              {
-                "name": "DEPENDENCY_JOBS",
-                "value": "{{  include "joinListWithColon" .Values.dependencies.db_sync.jobs }}"
-              },
-              {
-                "name": "COMMAND",
-                "value": "echo done"
-              }
-            ]
-          }
-        ]'
+      {{  include "init-containers-header" . }}
+      {{  include "init-containers-footer" .Values.dependencies.db_sync }}
     spec:
       restartPolicy: OnFailure
       nodeSelector:
         {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
       containers:
         - name: nova-db-sync
-          image: {{ .Values.image.db_sync }}
-          imagePullPolicy: {{ .Values.image.pull_policy }}
+          image: {{ .Values.images.db_sync }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
           command:
             - bash
             - /tmp/db-sync.sh

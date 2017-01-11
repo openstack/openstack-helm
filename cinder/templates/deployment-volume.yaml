@@ -19,31 +19,8 @@ spec:
       annotations:
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "hash" }}
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "hash" }}
-        pod.beta.kubernetes.io/init-containers: '[
-          {
-            "name": "init",
-            "image": {{ .Values.images.dep_check | quote }},
-            "imagePullPolicy": {{ .Values.images.pull_policy | quote }},
-            "env": [
-              {
-                "name": "NAMESPACE",
-                "value": "{{ .Release.Namespace }}"
-              },
-              {
-                "name": "DEPENDENCY_SERVICE",
-                "value": "{{  include "joinListWithColon" .Values.dependencies.volume.service }}"
-              },
-              {
-                "name": "DEPENDENCY_JOBS",
-                "value": "{{  include "joinListWithColon" .Values.dependencies.volume.jobs }}"
-              },
-              {
-                "name": "COMMAND",
-                "value": "echo done"
-              }
-            ]
-          }
-        ]'
+      {{  include "init-containers-header" . }}
+      {{  include "init-containers-footer" .Values.dependencies.volume }}
     spec:
       nodeSelector:
         {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}

@@ -19,42 +19,15 @@ spec:
       annotations:
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "hash" }}
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "hash" }}        
-        pod.beta.kubernetes.io/init-containers: '[
-          {
-            "name": "init",
-            "image": "{{ .Values.image.entrypoint }}",
-            "imagePullPolicy": "{{ .Values.image.pull_policy }}",            
-            "env": [
-              {
-                "name": "NAMESPACE",
-                "value": "{{ .Release.Namespace }}"
-              },
-              {
-                "name": "INTERFACE_NAME",
-                "value": "eth0"
-              },
-              {
-                "name": "DEPENDENCY_SERVICE",
-                "value": "{{  include "joinListWithColon" .Values.dependencies.api.service }}"
-              },
-              {
-                "name": "DEPENDENCY_JOBS",
-                "value": "{{  include "joinListWithColon" .Values.dependencies.api.jobs }}"
-              },
-              {
-                "name": "COMMAND",
-                "value": "echo done"
-              }              
-            ]
-          }
-        ]'
+      {{  include "init-containers-header" . }}
+      {{  include "init-containers-footer" .Values.dependencies.api }}
     spec:
       nodeSelector:
         {{ .Values.labels.control_node_selector_key }}: {{ .Values.labels.control_node_selector_value }}
       containers:
-        - name: nova-api-metadata
-          image: {{ .Values.image.api }}
-          imagePullPolicy: {{ .Values.image.pull_policy }}
+        - name: nova-api
+          image: {{ .Values.images.api }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
           # https://bugs.launchpad.net/kolla-mesos/+bug/1546007
           securityContext:
             capabilities:
