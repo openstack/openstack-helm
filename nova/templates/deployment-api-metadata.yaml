@@ -1,7 +1,7 @@
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
-  name: nova-api
+  name: nova-api-metadata
 spec:
   replicas: {{ .Values.control_replicas }}
   revisionHistoryLimit: {{ .Values.upgrades.revision_history }}
@@ -15,7 +15,7 @@ spec:
   template:
     metadata:
       labels:
-        app: nova-api
+        app: nova-api-metadata
       annotations:
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "hash" }}
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "hash" }}        
@@ -52,20 +52,22 @@ spec:
       nodeSelector:
         {{ .Values.labels.control_node_selector_key }}: {{ .Values.labels.control_node_selector_value }}
       containers:
-        - name: nova-api
+        - name: nova-api-metadata
           image: {{ .Values.image.api }}
+          imagePullPolicy: {{ .Values.image.pull_policy }}
           # https://bugs.launchpad.net/kolla-mesos/+bug/1546007
           securityContext:
             capabilities:
               add:
                 - NET_ADMIN
           command:
-            - nova-api-metadata --config-file=/etc/nova/nova.conf
+            - nova-api-metadata
+            - --config-file=/etc/nova/nova.conf
           ports:
             - containerPort: {{ .Values.network.port.metadata }}
           readinessProbe:
             tcpSocket:
-              port: {{ .Values.network.port.osapi }}
+              port: {{ .Values.network.port.metadata }}
           volumeMounts:
             - name: novaconf
               mountPath: /etc/nova/nova.conf

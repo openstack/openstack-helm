@@ -1,7 +1,7 @@
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
-  name: nova-osapi
+  name: nova-api-osapi
 spec:
   replicas: {{ .Values.control_replicas }}
   revisionHistoryLimit: {{ .Values.upgrades.revision_history }}
@@ -52,11 +52,16 @@ spec:
       nodeSelector:
         {{ .Values.labels.control_node_selector_key }}: {{ .Values.labels.control_node_selector_value }}
       containers:
-        - name: nova-osapi
+        - name: nova-api-osapi
           image: {{ .Values.image.api }}
+          imagePullPolicy: {{ .Values.image.pull_policy }}
+          securityContext:
+            capabilities:
+              add:
+                - NET_ADMIN
           command:
-            - bash
-            - /tmp/start-osapi.sh
+            - nova-api
+            - --config-file=/etc/nova/nova.conf
           ports:
             - containerPort: {{ .Values.network.port.osapi }}
           readinessProbe:
@@ -66,10 +71,6 @@ spec:
             - name: novaconf
               mountPath: /etc/nova/nova.conf
               subPath: nova.conf
-          volumeMounts:
-            - name: startsh
-              mountPath: /tmp/start-osapi.sh
-              subPath: start-osapi.sh
       volumes:
         - name: novaconf
           configMap:
@@ -77,9 +78,3 @@ spec:
             items:
             - key: nova.conf
               path: nova.conf
-        - name: startsh
-          configMap:
-            name: nova-bin
-            items:
-            - key: start-osapi.sh
-              path: start-osapi.sh
