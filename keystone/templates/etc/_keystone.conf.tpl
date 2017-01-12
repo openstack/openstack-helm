@@ -2,7 +2,6 @@
 debug = {{ .Values.misc.debug }}
 use_syslog = False
 use_stderr = True
-workers = {{ .Values.misc.workers }}
 
 [database]
 connection = mysql+pymysql://{{ .Values.database.keystone_user }}:{{ .Values.database.keystone_password }}@{{ include "keystone_db_host" . }}/{{ .Values.database.keystone_database_name }}
