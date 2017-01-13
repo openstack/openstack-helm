@@ -1,13 +1,10 @@
-apiVersion: extensions/v1beta1
-kind: Deployment
+apiVersion: batch/v1
+kind: Job
 metadata:
-  name: glance-registry
+  name: glance-init
 spec:
-  replicas: {{ .Values.replicas }}
   template:
     metadata:
-      labels:
-        app: glance-registry
       annotations:
         pod.beta.kubernetes.io/init-containers: '[
           {
@@ -21,11 +18,11 @@ spec:
               },
               {
                 "name": "DEPENDENCY_SERVICE",
-                "value": "{{  include "joinListWithColon" .Values.dependencies.registry.service }}"
+                "value": "{{  include "joinListWithColon" .Values.dependencies.init.service }}"
               },
               {
                 "name": "DEPENDENCY_JOBS",
-                "value": "{{  include "joinListWithColon" .Values.dependencies.registry.jobs }}"
+                "value": "{{  include "joinListWithColon" .Values.dependencies.init.jobs }}"
               },
               {
                 "name": "COMMAND",
@@ -35,24 +32,24 @@ spec:
           }
         ]'
     spec:
+      restartPolicy: OnFailure
       nodeSelector:
         {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
       containers:
-        - name: glance-registry
-          image: {{ .Values.images.registry }}
+        - name: glance-init
+          image: {{ .Values.images.init }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
+          env:
+          - name: ANSIBLE_LIBRARY
+            value: /usr/share/ansible/
           command:
-          - glance-registry
-          ports:
-            - containerPort: {{ .Values.network.port.registry }}
-          readinessProbe:
-            tcpSocket:
-              port: {{ .Values.network.port.registry }}
+            - bash
+            - /tmp/init.sh
           volumeMounts:
-            - name: glanceregistryconf
-              mountPath: /etc/glance/glance-registry.conf
-              subPath: glance-registry.conf
+            - name: initsh
+              mountPath: /tmp/init.sh
+              subPath: init.sh
       volumes:
-        - name: glanceregistryconf
+        - name: initsh
           configMap:
-            name: glance-glanceregistryconf
+            name: glance-bin

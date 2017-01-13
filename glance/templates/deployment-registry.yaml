@@ -1,10 +1,17 @@
-apiVersion: batch/v1
-kind: Job
+apiVersion: extensions/v1beta1
+kind: Deployment
 metadata:
-  name: glance-post
+  name: glance-registry
 spec:
+{{- if .Values.development.enabled }}
+  replicas: 1
+{{- else }}
+  replicas: {{ .Values.replicas.registry }}
+{{- end }}
   template:
     metadata:
+      labels:
+        app: glance-registry
       annotations:
         pod.beta.kubernetes.io/init-containers: '[
           {
@@ -15,14 +22,14 @@ spec:
               {
                 "name": "NAMESPACE",
                 "value": "{{ .Release.Namespace }}"
-              },            
+              },
               {
                 "name": "DEPENDENCY_SERVICE",
-                "value": "{{  include "joinListWithColon" .Values.dependencies.post.service }}"
+                "value": "{{  include "joinListWithColon" .Values.dependencies.registry.service }}"
               },
               {
                 "name": "DEPENDENCY_JOBS",
-                "value": "{{  include "joinListWithColon" .Values.dependencies.post.jobs }}"
+                "value": "{{  include "joinListWithColon" .Values.dependencies.registry.jobs }}"
               },
               {
                 "name": "COMMAND",
@@ -34,23 +41,22 @@ spec:
     spec:
       nodeSelector:
         {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
-      restartPolicy: OnFailure
       containers:
-        - name: glance-post
-          image: {{ .Values.images.post }}
+        - name: glance-registry
+          image: {{ .Values.images.registry }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
           command:
-            - bash
-            - /tmp/post.sh
+          - glance-registry
+          ports:
+            - containerPort: {{ .Values.network.port.registry }}
+          readinessProbe:
+            tcpSocket:
+              port: {{ .Values.network.port.registry }}
           volumeMounts:
-            - name: postsh
-              mountPath: /tmp/post.sh
-              subPath: post.sh
-          env:
-          - name: ANSIBLE_LIBRARY
-            value: /usr/share/ansible/
+            - name: glanceregistryconf
+              mountPath: /etc/glance/glance-registry.conf
+              subPath: glance-registry.conf
       volumes:
-        - name: postsh
+        - name: glanceregistryconf
           configMap:
-            name: glance-postsh
-
+            name: glance-etc
