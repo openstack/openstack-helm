@@ -22,17 +22,17 @@
 {{- include $wtf $context | sha256sum | quote -}}
 {{- end -}}
 
-{{- define "init-containers-header"}}
-        pod.beta.kubernetes.io/init-containers: '[
-          {
-            "name": "init",
-            "image": {{ .Values.images.dep_check | default "quay.io/stackanetes/kubernetes-entrypoint:v0.1.0" | quote }},
-            "imagePullPolicy": {{ .Values.images.pull_policy | default "IfNotPresent" | quote }},
-            "env": [
-              {
-                "name": "NAMESPACE",
-                "value": "{{ .Release.Namespace }}"
-              },
+{{- define "dep-check-init-cont-header"}}
+pod.beta.kubernetes.io/init-containers: '[
+  {
+    "name": "init",
+    "image": {{ .Values.images.dep_check | default "quay.io/stackanetes/kubernetes-entrypoint:v0.1.0" | quote }},
+    "imagePullPolicy": {{ .Values.images.pull_policy | default "IfNotPresent" | quote }},
+    "env": [
+      {
+        "name": "NAMESPACE",
+        "value": "{{ .Release.Namespace }}"
+      },
 {{- end -}}
 
 {{- define "init-containers-footer" }}
