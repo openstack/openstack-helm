@@ -1,6 +1,9 @@
 Listen {{ .Values.network.ip_address }}:{{ .Values.network.port.public }}
 Listen {{ .Values.network.ip_address }}:{{ .Values.network.port.admin }}
 
+LogFormat "%h %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\"" combined
+LogFormat "%{X-Forwarded-For}i %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\"" proxy
+
 <VirtualHost *:{{ .Values.network.port.public }}>
     WSGIDaemonProcess keystone-public processes=16 threads=6 user=keystone group=keystone display-name=%{GROUP}
     WSGIProcessGroup keystone-public
@@ -10,8 +13,11 @@ Listen {{ .Values.network.ip_address }}:{{ .Values.network.port.admin }}
     <IfVersion >= 2.4>
       ErrorLogFormat "%{cu}t %M"
     </IfVersion>
-    ErrorLog "|$/bin/cat 1>&2"
-    CustomLog "|/bin/cat" combined
+    ErrorLog /dev/stderr
+
+    SetEnvIf X-Forwarded-For "^.*\..*\..*\..*" forwarded
+    CustomLog /dev/stdout combined env=!forwarded
+    CustomLog /dev/stdout proxy env=forwarded
 </VirtualHost>
 
 <VirtualHost *:{{ .Values.network.port.admin }}>
@@ -23,6 +29,9 @@ Listen {{ .Values.network.ip_address }}:{{ .Values.network.port.admin }}
     <IfVersion >= 2.4>
       ErrorLogFormat "%{cu}t %M"
     </IfVersion>
-    ErrorLog "|$/bin/cat 1>&2"
-    CustomLog "|/bin/cat" combined
+    ErrorLog /dev/stderr
+
+    SetEnvIf X-Forwarded-For "^.*\..*\..*\..*" forwarded
+    CustomLog /dev/stdout combined env=!forwarded
+    CustomLog /dev/stdout proxy env=forwarded
 </VirtualHost>
