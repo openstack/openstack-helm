@@ -22,7 +22,7 @@
 {{- include $wtf $context | sha256sum | quote -}}
 {{- end -}}
 
-{{- define "dep-check-init-cont-header"}}
+{{- define "dep-check-init-cont-header" -}}
 pod.beta.kubernetes.io/init-containers: '[
   {
     "name": "init",
@@ -35,24 +35,24 @@ pod.beta.kubernetes.io/init-containers: '[
       },
 {{- end -}}
 
-{{- define "init-containers-footer" }}
-              {
-                "name": "INTERFACE_NAME",
-                "value": "eth0"
-              },
-              {
-                "name": "DEPENDENCY_SERVICE",
-                "value": "{{  include "joinListWithColon"  .service }}"
-              },
-              {
-                "name": "DEPENDENCY_JOBS",
-                "value": "{{  include "joinListWithColon" .jobs }}"
-              },
-              {
-                "name": "COMMAND",
-                "value": "echo done"
-              }
-            ]
-          }
-        ]'
+{{- define "dep-check-init-cont-footer" }}
+      {
+        "name": "INTERFACE_NAME",
+        "value": "eth0"
+      },
+      {
+        "name": "DEPENDENCY_SERVICE",
+        "value": "{{  include "joinListWithColon"  .service }}"
+      },
+      {
+        "name": "DEPENDENCY_JOBS",
+        "value": "{{  include "joinListWithColon" .jobs }}"
+      },
+      {
+        "name": "COMMAND",
+        "value": "echo done"
+      }
+    ]
+  }
+]'
 {{- end -}}
