@@ -1,0 +1,208 @@
+# Default values for keystone.
+# This is a YAML-formatted file.
+# Declare name/value pairs to be passed into your templates.
+# name: value
+
+
+replicas:
+  api: 1
+  cfn: 1
+  cloudwatch: 1
+  engine: 1
+
+labels:
+  node_selector_key: openstack-control-plane
+  node_selector_value: enabled
+
+images:
+  dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.1.0
+  db_init: quay.io/stackanetes/stackanetes-kolla-toolbox:newton
+  db_sync: docker.io/kolla/ubuntu-source-heat-api:3.0.1
+  ks_user: quay.io/stackanetes/stackanetes-kolla-toolbox:newton
+  ks_service: quay.io/stackanetes/stackanetes-kolla-toolbox:newton
+  ks_endpoints: quay.io/stackanetes/stackanetes-kolla-toolbox:newton
+  api: docker.io/kolla/ubuntu-source-heat-api:3.0.1
+  cfn: docker.io/kolla/ubuntu-source-heat-api:3.0.1
+  cloudwatch: docker.io/kolla/ubuntu-source-heat-api:3.0.1
+  engine: docker.io/kolla/ubuntu-source-heat-engine:3.0.1
+  pull_policy: "IfNotPresent"
+
+keystone_secrets:
+  admin: "heat-env-keystone-admin"
+  user: "heat-env-keystone-user"
+  trustee: "heat-env-keystone-trustee"
+  stack: "heat-env-keystone-stack-user"
+
+keystone:
+  auth_uri: "http://keystone-api:5000"
+  auth_url: "http://keystone-api:35357"
+  admin_user: "admin"
+  admin_user_domain: "default"
+  admin_password: "password"
+  admin_project_name: "admin"
+  admin_project_domain: "default"
+  admin_region_name: "RegionOne"
+
+  heat_user: "heat"
+  heat_user_domain: "default"
+  heat_user_role: "admin"
+  heat_password: "password"
+  heat_project_name: "service"
+  heat_project_domain: "default"
+  heat_region_name: "RegionOne"
+
+  heat_trustee_user: "heat-trust"
+  heat_trustee_user_domain: "default"
+  heat_trustee_role: "admin"
+  heat_trustee_password: "password"
+  heat_trustee_project_name: "service"
+  heat_trustee_project_domain: "default"
+  heat_trustee_region_name: "RegionOne"
+
+  heat_stack_user: "heat-domain"
+  heat_stack_domain: "heat"
+  heat_stack_user_role: "admin"
+  heat_stack_password: "password"
+  heat_stack_region_name: "RegionOne"
+
+service:
+  api:
+    name: "heat-api"
+    port: 8004
+    proto: "http"
+  cfn:
+    name: "heat-cfn"
+    port: 8000
+    proto: "http"
+  cloudwatch:
+    name: "heat-cloudwatch"
+    port: 8003
+    proto: "http"
+
+database:
+  address: mariadb
+  port: 3306
+  root_user: root
+  root_password: password
+  heat_database_name: heat
+  heat_password: password
+  heat_user: heat
+
+messaging:
+  hosts: rabbitmq
+  user: rabbitmq
+  password: password
+
+memcached:
+  host: memcached
+  port: 11211
+
+resources:
+  api:
+    workers: 8
+  cfn:
+    workers: 8
+  cloudwatch:
+    workers: 8
+  engine:
+    workers: 8
+
+misc:
+  debug: false
+
+secrets:
+  keystone_admin:
+
+dependencies:
+  db_init:
+    jobs:
+    - mariadb-seed
+    service:
+    - mariadb
+  db_sync:
+    jobs:
+    - heat-db-init
+    service:
+    - mariadb
+  ks_user:
+    service:
+    - keystone-api
+  ks_service:
+    service:
+    - keystone-api
+  ks_endpoints:
+    jobs:
+    - heat-ks-service
+    service:
+    - keystone-api
+  api:
+    jobs:
+    - heat-db-sync
+    - heat-ks-user
+    - heat-ks-endpoints
+    service:
+    - keystone-api
+    - mariadb
+  cfn:
+    jobs:
+    - heat-db-sync
+    - heat-ks-user
+    - heat-ks-endpoints
+    service:
+    - keystone-api
+    - mariadb
+  cloudwatch:
+    jobs:
+    - heat-db-sync
+    - heat-ks-user
+    - heat-ks-endpoints
+    service:
+    - keystone-api
+    - mariadb
+  engine:
+    jobs:
+    - heat-db-sync
+    - heat-ks-user
+    - heat-ks-endpoints
+    service:
+    - keystone-api
+    - mariadb
+
+# typically overriden by environmental
+# values, but should include all endpoints
+# required by this chart
+endpoints:
+  keystone:
+    hosts:
+      default: keystone-api
+    path: /v3
+    type: identity
+    scheme: 'http'
+    port:
+        admin: 35357
+        public: 5000
+  heat:
+    hosts:
+      default: heat-api
+    path: '/v1/%(project_id)s'
+    type: orchestration
+    scheme: 'http'
+    port:
+      api: 8004
+  heat_cfn:
+    hosts:
+      default: heat-cfn
+    path: /v1
+    type: cloudformation
+    scheme: 'http'
+    port:
+      api: 8000
+# Cloudwatch does not get an entry in the keystone service catalog
+  heat_cloudwatch:
+    hosts:
+      default: heat-cloudwatch
+    path: null
+    type: null
+    scheme: 'http'
+    port:
+      api: 8003

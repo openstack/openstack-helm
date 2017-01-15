@@ -1,0 +1,70 @@
+apiVersion: extensions/v1beta1
+kind: DaemonSet
+metadata:
+  name: ovs-vswitchd
+spec:
+  template:
+    metadata:
+      labels:
+        app: ovs-vswitchd
+      annotations:
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "hash" }}
+        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "hash" }}        
+    spec:
+      nodeSelector:
+        {{ .Values.labels.ovs.node_selector_key }}: {{ .Values.labels.ovs.node_selector_value }}    
+      securityContext:
+        runAsUser: 0
+      dnsPolicy: ClusterFirst
+      hostNetwork: true
+      containers:
+        - name: ovs-vswitchd
+          image: {{ .Values.images.openvswitch_vswitchd }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+          securityContext:
+            privileged: true
+          # ensures this container can speak to the ovs database
+          # successfully before its marked as ready
+          readinessProbe:
+            exec:
+              command:
+                - /usr/bin/ovs-vsctl
+                - show
+          env:
+            - name: INTERFACE_NAME
+              value: {{ .Values.network.interface.openvswitch | default .Values.network.interface.default }}
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: COMMAND
+              value: "bash /tmp/openvswitch-vswitchd.sh"
+          volumeMounts:
+            - name: openvswitchvswitchdsh
+              mountPath: /tmp/openvswitch-vswitchd.sh
+              subPath: openvswitch-vswitchd.sh
+            - name: openvswitchensureconfiguredsh
+              mountPath: /tmp/openvswitch-ensure-configured.sh
+              subPath: openvswitch-ensure-configured.sh
+            - name: libmodules
+              mountPath: /lib/modules
+              readOnly: true
+            - name: run
+              mountPath: /run
+      volumes:
+        - name: openvswitchvswitchdsh
+          configMap:
+            name: neutron-bin
+        - name: openvswitchensureconfiguredsh
+          configMap:
+            name: neutron-bin
+        - name: libmodules
+          hostPath:
+            path: /lib/modules
+        - name: run
+          hostPath:
+            path: /run

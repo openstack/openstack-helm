@@ -1,0 +1,41 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: neutron-post
+spec:
+  template:
+    spec:
+      restartPolicy: OnFailure
+      nodeSelector:
+        {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
+      containers:
+        - name: neutron-post
+          image: {{ .Values.images.post }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+          env:
+            - name: INTERFACE_NAME
+              value: "eth0"
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: COMMAND
+              value: "bash /tmp/post.sh"
+            - name: DEPENDENCY_JOBS
+              value:  "{{  include "joinListWithColon" .Values.dependencies.post.jobs }}"
+            - name: DEPENDENCY_SERVICE
+              value: "{{  include "joinListWithColon" .Values.dependencies.post.service }}"
+            - name: ANSIBLE_LIBRARY
+              value: /usr/share/ansible/
+          volumeMounts:
+            - name: postsh
+              mountPath: /tmp/post.sh
+              subPath: post.sh
+      volumes:
+        - name: postsh
+          configMap:
+            name: neutron-bin

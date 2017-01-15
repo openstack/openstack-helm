@@ -1,0 +1,219 @@
+# Default values for keystone.
+# This is a YAML-formatted file.
+# Declare name/value pairs to be passed into your templates.
+# name: value
+
+labels:
+  control_node_selector_key: openstack-control-plane
+  control_node_selector_value: enabled
+  compute_node_selector_key: openstack-compute-node
+  compute_node_selector_value: enabled
+
+control_replicas: 1
+compute_replicas: 1
+
+image:
+  init: quay.io/stackanetes/stackanetes-kolla-toolbox:newton
+  db_sync: quay.io/stackanetes/stackanetes-nova-api:newton
+  api: quay.io/stackanetes/stackanetes-nova-api:newton
+  conductor: quay.io/stackanetes/stackanetes-nova-conductor:newton
+  scheduler: quay.io/stackanetes/stackanetes-nova-scheduler:newton
+  novncproxy: quay.io/stackanetes/stackanetes-nova-novncproxy:newton
+  consoleauth: quay.io/stackanetes/stackanetes-nova-consoleauth:newton
+  compute: quay.io/stackanetes/stackanetes-nova-compute:newton
+  libvirt: quay.io/stackanetes/stackanetes-nova-libvirt:newton
+  post: quay.io/stackanetes/stackanetes-kolla-toolbox:newton
+  entrypoint: quay.io/stackanetes/kubernetes-entrypoint:v0.1.0
+  pull_policy: "IfNotPresent"
+
+upgrades:
+  revision_history: 3
+  pod_replacement_strategy: RollingUpdate
+  rolling_update:
+    max_unavailable: 1
+    max_surge: 3
+
+network:
+  ip_address: "0.0.0.0"
+  # TODO(DTadrzak): move external IPs to common, this variable should be shared with
+  # horizon service
+  external_ips: ""
+  minion_interface_name: "eno1"
+  dns:
+    servers:
+      - "10.96.0.10"
+      - "8.8.8.8"
+    kubernetes_domain: "cluster.local"
+    other_domains: ""
+
+  port:
+    osapi: 8774
+    metadata: 8775
+    novncproxy: 6080
+
+nova:
+  default:
+    debug: false
+    osapi_workers: 8
+    metadata_workers: 8
+    conductor_workers: 8
+    force_config_drive: True
+
+database:
+  address: "mariadb"
+  port: 3306
+  root_user: "root"
+  root_password: "password"
+
+  nova_user: "nova"
+  nova_password: "password"
+  nova_database_name: "nova"
+  nova_api_database_name: "nova_api"
+
+keystone:
+  admin_user: "admin"
+  admin_password: "password"
+  admin_project_name: "admin"
+  admin_region_name: "RegionOne"
+  domain_name: "default"
+  tenant_name: "admin"
+
+  neutron_user: "neutron"
+  neutron_password: "password"
+  neutron_region_name: "RegionOne"
+
+  nova_user: "nova"
+  nova_password: "password"
+  nova_region_name: "RegionOne"
+
+rabbitmq:
+  address: "rabbitmq"
+  admin_user: "rabbitmq"
+  admin_password: "password"
+  port: 5672
+
+ceph:
+  enabled: false
+  monitors: []
+  cinder_user: "cinder"
+  cinder_keyring: null
+  nova_pool: "vms"
+  secret_uuid: ""
+
+neutron:
+  metadata_secret: "password"
+
+memcached:
+  address: "memcached:11211"
+
+dependencies:
+  api:
+    jobs: 
+    - keystone-db-sync
+    - nova-init
+    - nova-db-sync
+    service:
+    - mariadb
+  db_sync:
+    jobs:
+    - nova-init
+    - keystone-init
+    - mariadb-seed
+    service:
+    - mariadb
+  db_sync:
+    jobs:
+    - nova-init
+    - keystone-init
+    - mariadb-seed
+    - keystone-db-sync
+    service:
+    - mariadb
+  post:
+    jobs:
+    - nova-init
+    - keystone-init
+    - mariadb-seed
+    service:
+    - mariadb
+    - keystone-api
+  init:
+    jobs:
+    - mariadb-seed
+    service:
+    - mariadb
+  compute:
+    jobs:
+    - nova-post
+    service:
+    - keystone-api
+    - nova-api
+    daemonset:
+    - ovs-agent
+  libvirt:
+    jobs:
+    - nova-init
+    - nova-post
+    - nova-db-sync
+    service:
+    - keystone-api
+    - nova-api
+  consoleauth:
+    jobs:
+    - mariadb-seed
+    - keystone-db-sync
+    - nova-init
+    - nova-db-sync
+    service:
+    - mariadb
+  scheduler:
+    jobs:
+    - nova-db-sync
+    service:
+    - mariadb
+  conductor:
+    jobs:
+    - nova-db-sync
+    service:
+    - mariadb
+
+# typically overriden by environmental 
+# values, but should include all endpoints
+# required by this chart
+endpoints:
+  glance:
+    hosts:
+      default: glance-api
+    type: image
+    path: null
+    scheme: 'http'
+    port:
+      api: 9292
+      registry: 9191
+  nova:
+    hosts:
+      default: nova-api
+    path: "/v2/%(tenant_id)s"
+    type: compute
+    scheme: 'http'
+    port:
+      api: 8774
+      metadata: 8775
+      novncproxy: 6080
+  keystone:
+    hosts:
+      default: keystone-api
+    path: /v3
+    type: identity
+    scheme: 'http'
+    port:
+        admin: 35357
+        public: 5000
+  neutron:
+    hosts:
+      default: neutron-server
+    path: null
+    type: network
+    scheme: 'http'
+    port:
+      api: 9696

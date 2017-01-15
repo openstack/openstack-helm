@@ -7,8 +7,18 @@
 # tunables available - parameterizing more of the elements
 # in the manifests is a work in progress
 
+replicas:
+  mon: 3
+  rgw: 3
+  mon_check: 1
+
+service:
+  mon:
+    name: ceph-mon
+
 images:
   daemon: quay.io/attcomdev/ceph-daemon:latest
+  pull_policy: IfNotPresent
 
 labels:
   node_selector_key: ceph-storage
@@ -23,10 +33,51 @@ network:
 storage:
   osd_directory: /var/lib/openstack-helm/ceph/osd
   var_directory: /var/lib/openstack-helm/ceph/ceph
+  mon_directory: /var/lib/openstack-helm/ceph/mon
 
 # rgw is optionall disabled
 rgw:
   enabled: false
+
+rgw:
+  enabled: false
+
+resources:
+  osd:
+    requests:
+      memory: "512Mi"
+      cpu: "1000m"
+    limits:
+      memory: "1024Mi"
+      cpu: "2000m"
+  mds:
+    requests:
+      memory: "10Mi"
+      cpu: "250m"
+    limits:
+      memory: "50Mi"
+      cpu: "500m"
+  mon:
+    requests:
+      memory: "50Mi"
+      cpu: "1000m"
+    limits:
+      memory: "100Mi"
+      cpu: "2000m"
+  mon_check:
+    requests:
+      memory: "5Mi"
+      cpu: "250m"
+    limits:
+      memory: "50Mi"
+      cpu: "500m"
+  rgw:
+    requests:
+      memory: "5Mi"
+      cpu: "250m"
+    limits:
+      memory: "50Mi"
+      cpu: "500m"      
 
 # Setting this to false will assume you will
 # setup and orchestrate your own secrets and 
@@ -63,7 +114,7 @@ secrets:
 storageclass:
   provision_storage_class: true
   name: general
-  monitors: null 
+  monitors: null
   pool: rbd
   admin_id: admin
   admin_secret_name: pvc-ceph-conf-combined-storageclass

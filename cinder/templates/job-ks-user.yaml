@@ -1,0 +1,62 @@
+{{- $ksAdminSecret := .Values.keystone.admin_secret | default "cinder-env-keystone-admin" }}
+{{- $ksUserSecret := .Values.keystone.user_secret | default "cinder-env-keystone-user" }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: cinder-ks-user
+spec:
+  template:
+    metadata:
+      annotations:
+        pod.beta.kubernetes.io/init-containers: '[
+          {
+            "name": "init",
+            "image": {{ .Values.images.dep_check | quote }},
+            "imagePullPolicy": {{ .Values.images.pull_policy | quote }},
+            "env": [
+              {
+                "name": "NAMESPACE",
+                "value": "{{ .Release.Namespace }}"
+              },
+              {
+                "name": "DEPENDENCY_SERVICE",
+                "value": "{{ include "joinListWithColon" .Values.dependencies.ks_user.service }}"
+              },
+              {
+                "name": "COMMAND",
+                "value": "echo done"
+              }
+            ]
+          }
+        ]'
+    spec:
+      restartPolicy: OnFailure
+      nodeSelector:
+        {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
+      containers:
+        - name: cinder-ks-user
+          image: {{ .Values.images.ks_user }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+          command:
+            - bash
+            - /tmp/ks-user.sh
+          volumeMounts:
+            - name: ks-user-sh
+              mountPath: /tmp/ks-user.sh
+              subPath: ks-user.sh
+              readOnly: true
+          env:
+{{- with $env := dict "ksUserSecret" $ksAdminSecret }}
+{{- include "env_ks_openrc_tpl" $env | indent 12 }}
+{{- end }}
+            - name: SERVICE_OS_SERVICE_NAME
+              value: "cinder"
+{{- with $env := dict "ksUserSecret" $ksUserSecret }}
+{{- include "env_ks_user_create_openrc_tpl" $env | indent 12 }}
+{{- end }}
+            - name: SERVICE_OS_ROLE
+              value: {{ .Values.keystone.cinder_user_role | quote }}
+      volumes:
+        - name: ks-user-sh
+          configMap:
+            name: cinder-bin

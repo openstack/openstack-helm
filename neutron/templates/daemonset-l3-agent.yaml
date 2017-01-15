@@ -1,0 +1,80 @@
+apiVersion: extensions/v1beta1
+kind: DaemonSet
+metadata:
+  name: neutron-l3-agent
+spec:
+  template:
+    metadata:
+      labels:
+        app: neutron-l3-agent
+      annotations:
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "hash" }}
+        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "hash" }}        
+    spec:
+      nodeSelector:
+        {{ .Values.labels.agent.l3.node_selector_key }}: {{ .Values.labels.agent.l3.node_selector_value }}
+      securityContext:
+        runAsUser: 0
+      dnsPolicy: ClusterFirst
+      hostNetwork: true
+      containers:
+        - name: neutron-l3-agent
+          image: {{ .Values.images.l3 }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+          securityContext:
+            privileged: true
+          env:
+            - name: INTERFACE_NAME
+              value: {{ .Values.network.interface.l3 | default .Values.network.interface.default }}
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: COMMAND
+              value: "neutron-l3-agent --config-file /etc/neutron/neutron.conf --config-file /etc/neutron/l3-agent.ini --config-file /etc/neutron/plugins/ml2/ml2-conf.ini"
+            - name: DEPENDENCY_JOBS
+              value: "{{  include "joinListWithColon" .Values.dependencies.l3.jobs }}"
+            - name: DEPENDENCY_SERVICE
+              value: "{{  include "joinListWithColon" .Values.dependencies.l3.service }}"
+            - name: DEPENDENCY_DAEMONSET
+              value: "{{  include "joinListWithColon" .Values.dependencies.l3.daemonset }}"              
+          volumeMounts:
+            - name: neutronconf
+              mountPath: /etc/neutron/neutron.conf
+              subPath: neutron.conf
+            - name: ml2confini
+              mountPath: /etc/neutron/plugins/ml2/ml2-conf.ini
+              subPath: ml2-conf.ini
+            - name: l3agentini
+              mountPath: /etc/neutron/l3-agent.ini
+              subPath: l3-agent.ini
+            - name: resolvconf
+              mountPath: /etc/resolv.conf
+              subPath: resolv.conf                 
+            - name: runopenvswitch
+              mountPath: /run/openvswitch
+            - name: socket
+              mountPath: /var/lib/neutron/stackanetes
+      volumes:
+        - name: neutronconf
+          configMap:
+            name: neutron-etc
+        - name: ml2confini
+          configMap:
+            name: neutron-etc
+        - name: resolvconf
+          configMap:
+            name: neutron-etc
+        - name: l3agentini
+          configMap:
+            name: neutron-etc
+        - name: runopenvswitch
+          hostPath:
+            path: /run/openvswitch
+        - name: socket
+          hostPath:
+            path: /var/lib/neutron/stackanetes

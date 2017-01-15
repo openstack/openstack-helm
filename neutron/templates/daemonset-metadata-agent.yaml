@@ -1,0 +1,82 @@
+apiVersion: extensions/v1beta1
+kind: DaemonSet
+metadata:
+  name: neutron-metadata-agent
+spec:
+  template:
+    metadata:
+      labels:
+        app: neutron-metadata-agent
+      annotations:
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "hash" }}
+        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "hash" }}        
+    spec:
+      nodeSelector:
+        {{ .Values.labels.agent.metadata.node_selector_key }}: {{ .Values.labels.agent.metadata.node_selector_value }}
+      securityContext:
+        runAsUser: 0
+      dnsPolicy: ClusterFirst
+      hostNetwork: true
+      containers:
+        - name: neutron-metadata-agent
+          image: {{ .Values.images.metadata }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+          securityContext:
+            privileged: true
+          env:
+            - name: INTERFACE_NAME
+              value: {{ .Values.network.interface.metadata | default .Values.network.interface.default }}
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: COMMAND
+              value: "neutron-metadata-agent --config-file /etc/neutron/neutron.conf --config-file /etc/neutron/metadata-agent.ini"
+            - name: DEPENDENCY_JOBS
+              value: "{{  include "joinListWithColon" .Values.dependencies.metadata.jobs }}"
+            - name: DEPENDENCY_SERVICE
+              value: "{{  include "joinListWithColon" .Values.dependencies.metadata.service }}"
+            - name: DEPENDENCY_DAEMONSET
+              value: "{{  include "joinListWithColon" .Values.dependencies.metadata.daemonset }}"              
+          ports:
+          - containerPort: {{ .Values.network.port.metadata }}              
+          volumeMounts:
+            - name: neutronconf
+              mountPath: /etc/neutron/neutron.conf
+              subPath: neutron.conf
+            - name: ml2confini
+              mountPath: /etc/neutron/plugins/ml2/ml2-conf.ini
+              subPath: ml2-conf.ini
+            - name: metadataagentini
+              mountPath: /etc/neutron/metadata-agent.ini
+              subPath: metadata-agent.ini
+            - name: resolvconf
+              mountPath: /etc/resolv.conf
+              subPath: resolv.conf              
+            - name: runopenvswitch
+              mountPath: /run/openvswitch
+            - name: socket
+              mountPath: /var/lib/neutron/stackanetes
+      volumes:
+        - name: neutronconf
+          configMap:
+            name: neutron-etc
+        - name: ml2confini
+          configMap:
+            name: neutron-etc
+        - name: metadataagentini
+          configMap:
+            name: neutron-etc
+        - name: resolvconf
+          configMap:
+            name: neutron-etc            
+        - name: runopenvswitch
+          hostPath:
+            path: /run/openvswitch
+        - name: socket
+          hostPath:
+            path: /var/lib/neutron/openstack-helm

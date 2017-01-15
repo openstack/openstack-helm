@@ -1,0 +1,105 @@
+---
+apiVersion: apps/v1beta1
+kind: StatefulSet
+metadata:
+  labels:
+    app: ceph
+    daemon: mon
+  name: ceph-mon
+spec:
+  serviceName: {{ .Values.service.mon.name | quote }}
+  replicas: {{ .Values.replicas.mon }}
+  template:
+    metadata:
+      name: ceph-mon
+      labels:
+        app: ceph
+        daemon: mon
+      annotations:
+        # alanmeadows: this soft requirement allows single
+        # host deployments to spawn several ceph-mon
+        # containers
+        scheduler.alpha.kubernetes.io/affinity: >
+          {
+            "podAntiAffinity": {
+              "preferredDuringSchedulingIgnoredDuringExecution": [{
+                "labelSelector": {
+                  "matchExpressions": [{
+                    "key": "daemon",
+                    "operator": "In",
+                    "values":["mon"]
+                  }]
+                },
+              "topologyKey": "kubernetes.io/hostname",
+              "weight": 10
+              }]
+            }
+          }
+    spec:
+      nodeSelector:
+        {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}      
+      serviceAccount: default
+      volumes:
+        - name: ceph-conf
+          secret:
+            secretName: ceph-conf-combined
+        - name: ceph-bootstrap-osd-keyring
+          secret:
+            secretName: ceph-bootstrap-osd-keyring
+        - name: ceph-bootstrap-mds-keyring
+          secret:
+            secretName: ceph-bootstrap-mds-keyring
+        - name: ceph-bootstrap-rgw-keyring
+          secret:
+            secretName: ceph-bootstrap-rgw-keyring
+        - name: ceph-monfs
+          hostPath: 
+            path: {{ .Values.storage.mon_directory }}
+      containers:
+        - name: ceph-mon
+          image: {{ .Values.images.daemon }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+          lifecycle:
+            preStop:
+                exec:
+                  # remove the mon on Pod stop.
+                  command:
+                    - "/remove-mon.sh"
+          ports:
+            - containerPort: 6789
+          env:
+            - name: CEPH_DAEMON
+              value: MON
+            - name: KV_TYPE
+              value: k8s
+            - name: NETWORK_AUTO_DETECT
+              value: "4"
+            - name: CLUSTER
+              value: ceph
+          volumeMounts:
+            - name: ceph-conf
+              mountPath: /etc/ceph
+            - name: ceph-bootstrap-osd-keyring
+              mountPath: /var/lib/ceph/bootstrap-osd
+            - name: ceph-bootstrap-mds-keyring
+              mountPath: /var/lib/ceph/bootstrap-mds
+            - name: ceph-bootstrap-rgw-keyring
+              mountPath: /var/lib/ceph/bootstrap-rgw
+            - name: ceph-monfs
+              mountPath: /var/lib/ceph/mon
+          livenessProbe:
+              tcpSocket:
+                port: 6789
+              initialDelaySeconds: 60
+              timeoutSeconds: 5
+          readinessProbe:
+              tcpSocket:
+                port: 6789
+              timeoutSeconds: 5
+          resources:
+            requests:
+              memory: {{ .Values.resources.mon.requests.memory | quote }}
+              cpu: {{ .Values.resources.mon.requests.cpu | quote }}
+            limits:
+              memory: {{ .Values.resources.mon.limits.memory | quote }}
+              cpu: {{ .Values.resources.mon.limits.cpu | quote }}

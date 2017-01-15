@@ -17,6 +17,13 @@ images:
   post: quay.io/stackanetes/stackanetes-kolla-toolbox:newton
   pull_policy: "IfNotPresent"
 
+upgrades:
+  revision_history: 3
+  pod_replacement_strategy: RollingUpdate
+  rolling_update:
+    max_unavailable: 1
+    max_surge: 3
+
 keystone:
   auth_uri: "http://keystone-api:5000"
   auth_url: "http://keystone-api:35357"
@@ -33,7 +40,7 @@ network:
   port:
     api: 9292
     registry: 9191
-  ip_address: "{{ .IP }}"
+  ip_address: "0.0.0.0"
 
 database:
   address: mariadb
@@ -47,9 +54,12 @@ database:
 ceph:
   enabled: true
   monitors: []
-  glance_user: "glance"
+  glance_user: "admin"
   glance_pool: "images"
-  glance_keyring: ""
+  # a null value for the keyring will
+  # attempt to use the key from
+  # common/secrets/ceph-client-key
+  glance_keyring: null
 
 misc:
   workers: 8
@@ -98,3 +108,27 @@ dependencies:
     - keystone-api
     - glance-api
     - glance-registry
+
+# typically overriden by environmental 
+# values, but should include all endpoints
+# required by this chart
+endpoints:
+  glance:
+    hosts:
+      default: glance-api
+    type: image
+    path: null
+    scheme: 'http'
+    port:
+      api: 9292
+      registry: 9191
+  keystone:
+    hosts:
+      default: keystone-api
+    path: /v3
+    type: identity
+    scheme: 'http'
+    port:
+        admin: 35357
+        public: 5000
+

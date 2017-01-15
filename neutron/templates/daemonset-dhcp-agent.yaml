@@ -1,0 +1,86 @@
+apiVersion: extensions/v1beta1
+kind: DaemonSet
+metadata:
+  name: neutron-dhcp-agent
+spec:
+  template:
+    metadata:
+      labels:
+        app: neutron-dhcp-agent
+      annotations:
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "hash" }}
+        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "hash" }}        
+    spec:
+      nodeSelector:
+        {{ .Values.labels.agent.dhcp.node_selector_key }}: {{ .Values.labels.agent.dhcp.node_selector_value }}
+      securityContext:
+        runAsUser: 0
+      dnsPolicy: ClusterFirst
+      hostNetwork: true
+      containers:
+        - name: neutron-dhcp-agent
+          image: {{ .Values.images.dhcp }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+          securityContext:
+            privileged: true
+          env:
+            - name: INTERFACE_NAME
+              value: {{ .Values.network.interface.dhcp | default .Values.network.interface.default }}
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: COMMAND
+              value: "neutron-dhcp-agent --config-file /etc/neutron/neutron.conf --config-file /etc/neutron/dhcp-agent.ini"
+            - name: DEPENDENCY_JOBS
+              value: "{{  include "joinListWithColon" .Values.dependencies.dhcp.jobs }}"
+            - name: DEPENDENCY_SERVICE
+              value: "{{  include "joinListWithColon" .Values.dependencies.dhcp.service }}"
+            - name: DEPENDENCY_DAEMONSET
+              value: "{{  include "joinListWithColon" .Values.dependencies.dhcp.daemonset }}"
+          volumeMounts:
+            - name: neutronconf
+              mountPath: /etc/neutron/neutron.conf
+              subPath: neutron.conf
+            - name: ml2confini
+              mountPath: /etc/neutron/plugins/ml2/ml2-conf.ini
+              subPath: ml2-conf.ini
+            - name: dhcpagentini
+              mountPath: /etc/neutron/dhcp-agent.ini
+              subPath: dhcp-agent.ini
+            - name: dnsmasqconf
+              mountPath: /etc/neutron/dnsmasq.conf
+              subPath: dnsmasq.conf
+            - name: runopenvswitch
+              mountPath: /run/openvswitch
+            - name: socket
+              mountPath: /var/lib/neutron/openstack-helm
+            - name: resolvconf
+              mountPath: /etc/resolv.conf
+              subPath: resolv.conf              
+      volumes:
+        - name: neutronconf
+          configMap:
+            name: neutron-etc
+        - name: ml2confini
+          configMap:
+            name: neutron-etc
+        - name: dhcpagentini
+          configMap:
+            name: neutron-etc
+        - name: dnsmasqconf
+          configMap:
+            name: neutron-etc
+        - name: runopenvswitch
+          hostPath:
+            path: /run/openvswitch
+        - name: resolvconf
+          configMap:
+            name: neutron-etc
+        - name: socket
+          hostPath:
+            path: /var/lib/neutron/openstack-helm

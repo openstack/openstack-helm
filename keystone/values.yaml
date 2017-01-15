@@ -16,8 +16,15 @@ images:
   entrypoint: quay.io/stackanetes/kubernetes-entrypoint:v0.1.0
   pull_policy: "IfNotPresent"
 
+upgrades:
+  revision_history: 3
+  pod_replacement_strategy: RollingUpdate
+  rolling_update:
+    max_unavailable: 1
+    max_surge: 3
+
 keystone:
-  version: v2.0
+  version: v3
   scheme: http
   admin_region_name: RegionOne
   admin_user: admin
@@ -31,11 +38,11 @@ network:
   # alanmeadows(TODO): I seem unable to use {{ .IP }} here
   # but it does work for wsrep.conf in mariadb, I have spent
   # time trying to figure this out am completely stumped
-  # 
+  #
   # helm --debug --dry-run shows me that the config map
   # contains {{ .IP }} but its simply translated by K8s
   # to ""
-  ip_address: "0.0.0.0"    
+  ip_address: "0.0.0.0"
 
 database:
   port: 3306
@@ -46,12 +53,11 @@ database:
   keystone_user: keystone
 
 misc:
-  workers: 8
   debug: false
 
 dependencies:
   api:
-    jobs: 
+    jobs:
     - mariadb-seed
     - keystone-db-sync
     service:
@@ -67,3 +73,18 @@ dependencies:
     - mariadb-seed
     service:
     - mariadb
+
+# typically overriden by environmental
+# values, but should include all endpoints
+# required by this chart
+endpoints:
+  keystone:
+    hosts:
+      default: keystone-api
+    path: /v3
+    type: identity
+    scheme: 'http'
+    port:
+        admin: 35357
+        public: 5000
+

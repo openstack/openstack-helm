@@ -1,0 +1,64 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: neutron-server
+spec:
+  replicas: {{ .Values.replicas.server }}
+  revisionHistoryLimit: {{ .Values.upgrades.revision_history }}
+  strategy:
+    type: {{ .Values.upgrades.pod_replacement_strategy }}
+    {{ if eq .Values.upgrades.pod_replacement_strategy "RollingUpdate" }}
+    rollingUpdate:
+      maxUnavailable: {{ .Values.upgrades.rolling_update.max_unavailable }}
+      maxSurge: {{ .Values.upgrades.rolling_update.max_surge }}
+    {{ end }}  
+  template:
+    metadata:
+      labels:
+        app: neutron-server
+      annotations:
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "hash" }}
+        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "hash" }}        
+    spec:
+      nodeSelector:
+        {{ .Values.labels.server.node_selector_key }}: {{ .Values.labels.server.node_selector_value }}
+      containers:
+        - name: neutron-server
+          image: {{ .Values.images.server }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+          env:
+            - name: INTERFACE_NAME
+              value: "eth0"
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: COMMAND
+              value: "neutron-server --config-file /etc/neutron/neutron.conf --config-file /etc/neutron/plugins/ml2/ml2-conf.ini"
+            - name: DEPENDENCY_JOBS
+              value: "{{  include "joinListWithColon" .Values.dependencies.server.jobs }}"
+            - name: DEPENDENCY_SERVICE
+              value: "{{  include "joinListWithColon" .Values.dependencies.server.service }}"
+          ports:
+          - containerPort: {{ .Values.network.port.server }}
+          readinessProbe:
+            tcpSocket:
+              port: {{ .Values.network.port.server }}
+          volumeMounts:
+            - name: neutronconf
+              mountPath: /etc/neutron/neutron.conf
+              subPath: neutron.conf
+            - name: ml2confini
+              mountPath: /etc/neutron/plugins/ml2/ml2-conf.ini
+              subPath: ml2-conf.ini
+      volumes:
+        - name: neutronconf
+          configMap:
+            name: neutron-etc
+        - name: ml2confini
+          configMap:
+            name: neutron-etc
