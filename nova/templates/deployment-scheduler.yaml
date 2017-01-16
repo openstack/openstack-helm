@@ -1,3 +1,5 @@
+{{- $envAll := . }}
+{{- $dependecies := .Values.dependencies.scheduler }}
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
@@ -19,8 +21,9 @@ spec:
       annotations:
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "hash" }}
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "hash" }}        
-{{  include "dep-check-init-cont-header" . | indent 8 }}
-{{  include "dep-check-init-cont-footer" .Values.dependencies.scheduler | indent 8 }}
+        pod.beta.kubernetes.io/init-containers: '[
+{{ tuple $envAll $dependecies | include "dep-check-init-cont" | indent 10 }}
+        ]'
     spec:
       nodeSelector:
         {{ .Values.labels.control_node_selector_key }}: {{ .Values.labels.control_node_selector_value }}

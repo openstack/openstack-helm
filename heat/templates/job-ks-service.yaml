@@ -1,5 +1,6 @@
 {{- $envAll := . }}
 {{- $ksAdminSecret := .Values.keystone_secrets.admin }}
+{{- $dependecies := .Values.dependencies.ks_service }}
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -8,8 +9,9 @@ spec:
   template:
     metadata:
       annotations:
-{{  include "dep-check-init-cont-header" . | indent 8 }}
-{{  include "dep-check-init-cont-footer" .Values.dependencies.ks_service | indent 8 }}
+        pod.beta.kubernetes.io/init-containers: '[
+{{ tuple $envAll $dependecies | include "dep-check-init-cont" | indent 10 }}
+        ]'
     spec:
       restartPolicy: OnFailure
       nodeSelector:
