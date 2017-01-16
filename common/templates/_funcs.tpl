@@ -23,16 +23,16 @@
 {{- end -}}
 
 {{- define "dep-check-init-cont" -}}
-{{- $envALL := index . 0 -}}
+{{- $envAll := index . 0 -}}
 {{- $deps := index . 1 -}}
 {
   "name": "init",
-  "image": {{ $envALL.Values.images.dep_check | default "quay.io/stackanetes/kubernetes-entrypoint:v0.1.0" | quote }},
-  "imagePullPolicy": {{ $envALL.Values.images.pull_policy | default "IfNotPresent" | quote }},
+  "image": {{ $envAll.Values.images.dep_check | quote }},
+  "imagePullPolicy": {{ $envAll.Values.images.pull_policy | quote }},
   "env": [
     {
       "name": "NAMESPACE",
-      "value": "{{ $envALL.Release.Namespace }}"
+      "value": "{{ $envAll.Release.Namespace }}"
     },
     {
       "name": "INTERFACE_NAME",
