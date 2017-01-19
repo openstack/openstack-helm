@@ -21,3 +21,35 @@
 {{- $wtf := $context.Template.Name | replace $last $name -}}
 {{- include $wtf $context | sha256sum | quote -}}
 {{- end -}}
+
+{{- define "dep-check-init-cont" -}}
+{{- $envAll := index . 0 -}}
+{{- $deps := index . 1 -}}
+{
+  "name": "init",
+  "image": {{ $envAll.Values.images.dep_check | quote }},
+  "imagePullPolicy": {{ $envAll.Values.images.pull_policy | quote }},
+  "env": [
+    {
+      "name": "NAMESPACE",
+      "value": "{{ $envAll.Release.Namespace }}"
+    },
+    {
+      "name": "INTERFACE_NAME",
+      "value": "eth0"
+    },
+    {
+      "name": "DEPENDENCY_SERVICE",
+      "value": "{{  include "joinListWithColon"  $deps.service }}"
+    },
+    {
+      "name": "DEPENDENCY_JOBS",
+      "value": "{{  include "joinListWithColon" $deps.jobs }}"
+    },
+    {
+      "name": "COMMAND",
+      "value": "echo done"
+    }
+  ]
+}
+{{- end -}}

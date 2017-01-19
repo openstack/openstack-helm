@@ -1,3 +1,5 @@
+{{- $envAll := . }}
+{{- $dependecies := .Values.dependencies.libvirt }}
 apiVersion: extensions/v1beta1
 kind: DaemonSet
 metadata:
@@ -11,33 +13,7 @@ spec:
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "hash" }}
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "hash" }}        
         pod.beta.kubernetes.io/init-containers: '[
-          {
-            "name": "init",
-            "image": "{{ .Values.image.entrypoint }}",
-            "imagePullPolicy": "{{ .Values.image.pull_policy }}",            
-            "env": [
-              {
-                "name": "NAMESPACE",
-                "value": "{{ .Release.Namespace }}"
-              },
-              {
-                "name": "INTERFACE_NAME",
-                "value": "eth0"
-              },
-              {
-                "name": "DEPENDENCY_SERVICE",
-                "value": "{{  include "joinListWithColon" .Values.dependencies.libvirt.service }}"
-              },
-              {
-                "name": "DEPENDENCY_JOBS",
-                "value": "{{  include "joinListWithColon" .Values.dependencies.libvirt.jobs }}"
-              },
-              {
-                "name": "COMMAND",
-                "value": "echo done"
-              }
-            ]
-          }
+{{ tuple $envAll $dependecies | include "dep-check-init-cont" | indent 10 }}
         ]'
     spec:
       nodeSelector:
@@ -48,8 +24,8 @@ spec:
       dnsPolicy: ClusterFirst
       containers:
         - name: nova-libvirt
-          image: {{ .Values.image.libvirt }}
-          imagePullPolicy: {{ .Values.image.pull_policy }}
+          image: {{ .Values.images.libvirt }}
+          imagePullPolicy: Always
           securityContext:
             privileged: true
           command:
