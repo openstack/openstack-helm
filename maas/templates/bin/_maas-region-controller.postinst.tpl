@@ -35,30 +35,6 @@ configure_maas_default_url() {
     maas-region local_config_set --maas-url "http://${ipaddr}/MAAS"
 }
 
-get_default_route_ip6() {
-    while read Src SrcPref Dest DestPref Gateway Metric RefCnt Use Flags Iface
-    do
-        [ "$SrcPref" = 00 ] && [ "$Iface" != lo ] && break
-    done < /proc/net/ipv6_route
-    if [ -n "$Iface" ]; then
-        LC_ALL=C /sbin/ip -6 addr list dev "$Iface" scope global permanent |
-            sed -n '/ inet6 /s/.*inet6 \([0-9a-fA-F:]*\).*/[\1]/p' | head -1
-    fi
-}
-
-get_default_route_ip4() {
-    while read Iface Destination Gateway Flags RefCnt Use Metric Mask MTU Window IRTT
-    do
-        [ "$Mask" = "00000000" ] && break
-    done < /proc/net/route
-    if [ -n "$Iface" ]; then
-        ipaddr=$(LC_ALL=C /sbin/ip -4 addr list dev "$Iface" scope global)
-        ipaddr=${ipaddr#* inet }
-        ipaddr=${ipaddr%%/*}
-        echo $ipaddr
-    fi
-}
-
 extract_default_maas_url() {
     # Extract DEFAULT_MAAS_URL IP/host setting from config file $1.
     grep "^DEFAULT_MAAS_URL" "$1" | cut -d"/" -f3
@@ -86,16 +62,7 @@ if [ "$1" = "configure" ] && [ -z "$2" ]; then
     db_get maas/default-maas-url
     ipaddr="$RET"
     if [ -z "$ipaddr" ]; then
-        #ipaddr=$(get_default_route_ip4)
         ipaddr="maas-region-ui.{{ .Release.Namespace }}"
-    fi
-    if [ -z "$ipaddr" ]; then
-        #ipaddr=$(get_default_route_ip6)
-        ipaddr="maas-region-ui.{{ .Release.Namespace }}"
-    fi
-    # Fallback default is "localhost"
-    if [ -z "$ipaddr" ]; then
-        ipaddr=localhost
     fi
     # Set the IP address of the interface with default route
     configure_maas_default_url "$ipaddr"
