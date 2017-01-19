@@ -1,5 +1,5 @@
 [DEFAULT]
-debug = {{ .Values.misc.debug }}
+debug = {{ .Values.api.default.debug }}
 use_syslog = False
 use_stderr = True
 
@@ -9,6 +9,9 @@ max_retries = -1
 
 [memcache]
 servers = {{ include "memcached_host" . }}:11211
+
+[token]
+provider = {{ .Values.api.token.provider }}
 
 [cache]
 backend = dogpile.cache.memcached
