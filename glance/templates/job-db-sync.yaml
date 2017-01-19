@@ -1,9 +1,9 @@
 {{- $envAll := . }}
-{{- $dependecies := .Values.dependencies.post }}
+{{- $dependecies := .Values.dependencies.db_sync }}
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: glance-post
+  name: glance-db-sync
 spec:
   template:
     metadata:
@@ -12,25 +12,21 @@ spec:
 {{ tuple $envAll $dependecies | include "dep-check-init-cont" | indent 10 }}
         ]'
     spec:
+      restartPolicy: OnFailure
       nodeSelector:
         {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
-      restartPolicy: OnFailure
       containers:
-        - name: glance-post
-          image: {{ .Values.images.post }}
+        - name: glance-db-sync
+          image: {{ .Values.images.db_sync }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
           command:
-            - bash
-            - /tmp/post.sh
+            - glance-manage
+            - db_sync
           volumeMounts:
-            - name: postsh
-              mountPath: /tmp/post.sh
-              subPath: post.sh
-          env:
-          - name: ANSIBLE_LIBRARY
-            value: /usr/share/ansible/
+            - name: glanceapiconf
+              mountPath: /etc/glance/glance-api.conf
+              subPath: glance-api.conf
       volumes:
-        - name: postsh
+        - name: glanceapiconf
           configMap:
-            name: glance-postsh
-
+            name: glance-etc

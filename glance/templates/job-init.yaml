@@ -1,9 +1,9 @@
 {{- $envAll := . }}
-{{- $dependecies := .Values.dependencies.db_sync }}
+{{- $dependecies := .Values.dependencies.init }}
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: glance-db-sync
+  name: glance-init
 spec:
   template:
     metadata:
@@ -16,23 +16,20 @@ spec:
       nodeSelector:
         {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
       containers:
-        - name: glance-db-sync
-          image: {{ .Values.images.db_sync }}
+        - name: glance-init
+          image: {{ .Values.images.init }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
+          env:
+          - name: ANSIBLE_LIBRARY
+            value: /usr/share/ansible/
           command:
             - bash
-            - /tmp/db-sync.sh
+            - /tmp/init.sh
           volumeMounts:
-            - name: glanceapiconf
-              mountPath: /etc/glance/glance-api.conf
-              subPath: glance-api.conf
-            - name: dbsyncsh
-              mountPath: /tmp/db-sync.sh
-              subPath: db-sync.sh
+            - name: initsh
+              mountPath: /tmp/init.sh
+              subPath: init.sh
       volumes:
-        - name: glanceapiconf
+        - name: initsh
           configMap:
-            name: glance-glanceapiconf
-        - name: dbsyncsh
-          configMap:
-            name: glance-dbsyncsh
+            name: glance-bin
