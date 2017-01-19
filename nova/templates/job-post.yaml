@@ -1,3 +1,5 @@
+{{- $envAll := . }}
+{{- $dependecies := .Values.dependencies.post }}
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -7,29 +9,7 @@ spec:
     metadata:
       annotations:
         pod.beta.kubernetes.io/init-containers: '[
-          {
-            "name": "init",
-            "image": "{{ .Values.image.entrypoint }}",
-            "imagePullPolicy": "{{ .Values.image.pull_policy }}",            
-            "env": [
-              {
-                "name": "NAMESPACE",
-                "value": "{{ .Release.Namespace }}"
-              },            
-              {
-                "name": "DEPENDENCY_SERVICE",
-                "value": "{{  include "joinListWithColon" .Values.dependencies.post.service }}"
-              },
-              {
-                "name": "DEPENDENCY_JOBS",
-                "value": "{{  include "joinListWithColon" .Values.dependencies.post.jobs }}"
-              },
-              {
-                "name": "COMMAND",
-                "value": "echo done"
-              }
-            ]
-          }
+{{ tuple $envAll $dependecies | include "dep-check-init-cont" | indent 10 }}
         ]'
     spec:
       restartPolicy: OnFailure
@@ -37,8 +17,8 @@ spec:
         {{ .Values.labels.control_node_selector_key }}: {{ .Values.labels.control_node_selector_value }}
       containers:
         - name: nova-post
-          image: {{ .Values.image.post }}
-          imagePullPolicy: {{ .Values.image.pull_policy }}
+          image: {{ .Values.images.post }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
           command:
             - bash
             - /tmp/post.sh
