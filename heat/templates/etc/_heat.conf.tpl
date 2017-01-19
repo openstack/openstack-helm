@@ -80,3 +80,11 @@ region_name = {{ .Values.keystone.heat_trustee_region_name }}
 user_domain_name = {{ .Values.keystone.heat_trustee_user_domain }}
 username = {{ .Values.keystone.heat_trustee_user }}
 password = {{ .Values.keystone.heat_trustee_password }}
+
+
+[clients]
+endpoint_type = internalURL
+
+[clients_keystone]
+endpoint_type = internalURL
+auth_uri = {{ include "endpoint_keystone_internal" . }}

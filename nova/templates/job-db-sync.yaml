@@ -1,3 +1,5 @@
+{{- $envAll := . }}
+{{- $dependecies := .Values.dependencies.db_sync }}
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -7,38 +9,16 @@ spec:
     metadata:
       annotations:
         pod.beta.kubernetes.io/init-containers: '[
-          {
-            "name": "init",
-            "image": "{{ .Values.image.entrypoint }}",
-            "imagePullPolicy": "{{ .Values.image.pull_policy }}",        
-            "env": [
-              {
-                "name": "NAMESPACE",
-                "value": "{{ .Release.Namespace }}"
-              },            
-              {
-                "name": "DEPENDENCY_SERVICE",
-                "value": "{{  include "joinListWithColon" .Values.dependencies.db_sync.service }}"
-              },
-              {
-                "name": "DEPENDENCY_JOBS",
-                "value": "{{  include "joinListWithColon" .Values.dependencies.db_sync.jobs }}"
-              },
-              {
-                "name": "COMMAND",
-                "value": "echo done"
-              }
-            ]
-          }
+{{ tuple $envAll $dependecies | include "dep-check-init-cont" | indent 10 }}
         ]'
     spec:
       restartPolicy: OnFailure
       nodeSelector:
-        {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
+        {{ .Values.labels.control_node_selector_key }}: {{ .Values.labels.control_node_selector_value }}
       containers:
         - name: nova-db-sync
-          image: {{ .Values.image.db_sync }}
-          imagePullPolicy: {{ .Values.image.pull_policy }}
+          image: {{ .Values.images.db_sync }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
           command:
             - bash
             - /tmp/db-sync.sh

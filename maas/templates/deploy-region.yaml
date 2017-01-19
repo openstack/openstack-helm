@@ -14,12 +14,7 @@ spec:
             "name": "init",
             "image": "{{ .Values.images.maas_region }}",
             "imagePullPolicy": "Always",
-            "command": [
-                    "/bin/bash", "-c"
-            ],
-            "args": [
-                    "chmod +x /tmp/start.sh; /tmp/start.sh"
-            ],
+            "command": ["bash", "/tmp/start.sh"],
             "volumeMounts": [
                 {
                     "name": "maas-config",
@@ -59,6 +54,9 @@ spec:
         imagePullPolicy: Always
         ports:
         - containerPort: {{ .Values.network.port.region_container }}
+        readinessProbe:
+          tcpSocket:
+            port: {{ .Values.network.port.region_container }}
         securityContext:
           privileged: true
         volumeMounts:
@@ -91,7 +89,7 @@ spec:
           emptyDir: {}
         - name: maas-region-secret
           configMap:
-            name: maas-region-var
+            name: maas-region-etc
         - name: maas-config
           emptyDir: {}
         - name: maas-dns-config
@@ -102,4 +100,4 @@ spec:
             name: maas-region-bin
         - name: maasregionpostinst
           configMap:
-            name: maas-region-var
+            name: maas-region-bin
