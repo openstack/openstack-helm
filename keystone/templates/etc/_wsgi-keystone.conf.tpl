@@ -5,7 +5,7 @@ LogFormat "%h %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\"" combine
 LogFormat "%{X-Forwarded-For}i %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\"" proxy
 
 <VirtualHost *:{{ .Values.network.port.public }}>
-    WSGIDaemonProcess keystone-public processes=16 threads=6 user=keystone group=keystone display-name=%{GROUP}
+    WSGIDaemonProcess keystone-public processes=1 threads=4 user=keystone group=keystone display-name=%{GROUP}
     WSGIProcessGroup keystone-public
     WSGIScriptAlias / /var/www/cgi-bin/keystone/main
     WSGIApplicationGroup %{GLOBAL}
@@ -21,7 +21,7 @@ LogFormat "%{X-Forwarded-For}i %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-A
 </VirtualHost>
 
 <VirtualHost *:{{ .Values.network.port.admin }}>
-    WSGIDaemonProcess keystone-admin processes=16 threads=5 user=keystone group=keystone display-name=%{GROUP}
+    WSGIDaemonProcess keystone-admin processes=1 threads=4 user=keystone group=keystone display-name=%{GROUP}
     WSGIProcessGroup keystone-admin
     WSGIScriptAlias / /var/www/cgi-bin/keystone/admin
     WSGIApplicationGroup %{GLOBAL}
