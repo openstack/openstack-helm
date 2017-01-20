@@ -34,24 +34,29 @@ spec:
           image: {{ .Values.images.api }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
           command:
-          - glance-api --config-dir /etc/glance
+          - glance-api
+          - --config-file
+          - /etc/glance/glance-registry.conf
           ports:
             - containerPort: {{ .Values.network.port.api }}
           readinessProbe:
             tcpSocket:
               port: {{ .Values.network.port.api }}
           volumeMounts:
+            - name: etcglance
+              mountPath: /etc/glance
             - name: glanceapiconf
               mountPath: /etc/glance/glance-api.conf
               subPath: glance-api.conf
+              readOnly: true
             - name: glanceapipaste
               mountPath: /etc/glance/glance-api-paste.ini
               subPath: glance-api-paste.ini
-            - name: etcglance
-              mountPath: /etc/glance
+              readOnly: true
             - name: glancepolicy
               mountPath: /etc/glance/policy.json
               subPath: policy.json
+              readOnly: true
 {{- if .Values.development.enabled }}
             - name: glance-data
               mountPath: /var/lib/glance/images
@@ -59,9 +64,11 @@ spec:
             - name: cephconf
               mountPath: /etc/ceph/ceph.conf
               subPath: ceph.conf
+              readOnly: true
             - name: cephclientglancekeyring
               mountPath: /etc/ceph/ceph.client.{{ .Values.ceph.glance_user }}.keyring
               subPath: ceph.client.{{ .Values.ceph.glance_user }}.keyring
+              readOnly: true
 {{- end }}
       volumes:
         - name: glanceapiconf
