@@ -1,5 +1,7 @@
 # Openstack-Helm
 
+Join us on [freenode](https://freenode.net/): `#openstack-helm`
+
 Openstack-Helm is a fully self-contained Helm-based OpenStack deployment on Kubernetes. It will provide baremetal provisioning, persistent storage, full-stack resiliency, full-stack scalability, performance monitoring and tracing, and an optional development pipeline (using Jenkins). This project, along with the tools used within are community-based and open sourced.
 
 # Mission
