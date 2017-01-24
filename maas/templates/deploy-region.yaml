@@ -3,7 +3,7 @@ kind: StatefulSet
 metadata:
   name: maas-region
 spec:
-  serviceName: "{{ .Values.service_name }}"
+  serviceName: "{{ .Values.ui_service_name }}"
   template:
     metadata:
       labels:
@@ -13,7 +13,7 @@ spec:
           {
             "name": "init",
             "image": "{{ .Values.images.maas_region }}",
-            "imagePullPolicy": "Always",
+            "imagePullPolicy": "{{ .Values.images.pull_policy }}",
             "command": ["bash", "/tmp/start.sh"],
             "volumeMounts": [
                 {
@@ -41,6 +41,11 @@ spec:
                     "name": "maasregionpostinst",
                     "mountPath": "/var/lib/dpkg/info/maas-region-controller.postinst",
                     "subPath": "maas-region-controller.postinst"
+                },
+                {
+                    "name": "postgresql-defaults",
+                    "mountPath": "/etc/dbconfig-common/maas-region-controller.conf",
+                    "subPath": "maas-region-controller.conf"
                 }
             ]
           }
@@ -51,9 +56,12 @@ spec:
       containers:
       - name: maas-region
         image: {{ .Values.images.maas_region }}
-        imagePullPolicy: Always
+        imagePullPolicy: {{ .Values.images.pull_policy }}
         ports:
-        - containerPort: {{ .Values.network.port.region_container }}
+        - name: region-ui
+          containerPort: {{ .Values.network.port.region_container }}
+        - name: postgresql
+          containerPort: {{ .Values.network.port.db_service }}
         readinessProbe:
           tcpSocket:
             port: {{ .Values.network.port.region_container }}
@@ -93,6 +101,9 @@ spec:
         - name: maas-config
           emptyDir: {}
         - name: maas-dns-config
+          configMap:
+            name: maas-region-etc
+        - name: postgresql-defaults
           configMap:
             name: maas-region-etc
         - name: startsh
