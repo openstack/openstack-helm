@@ -1,0 +1,40 @@
+{{- $envAll := . }}
+{{- $dependencies := .Values.dependencies.db_sync }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: heat-db-sync
+spec:
+  template:
+    metadata:
+      annotations:
+        pod.beta.kubernetes.io/init-containers: '[
+{{ tuple $envAll $dependencies | include "dep-check-init-cont" | indent 10 }}
+        ]'
+    spec:
+      restartPolicy: OnFailure
+      nodeSelector:
+        {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
+      containers:
+        - name: heat-db-sync
+          image: {{ .Values.images.db_sync }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+          command:
+            - heat-manage
+          args:
+            - --config-dir
+            - /etc/heat/conf
+            - db_sync
+          volumeMounts:
+            - name: pod-etc-heat
+              mountPath: /etc/heat
+            - name: heatconf
+              mountPath: /etc/heat/conf/heat.conf
+              subPath: heat.conf
+              readOnly: true
+      volumes:
+        - name: pod-etc-heat
+          emptyDir: {}
+        - name: heatconf
+          configMap:
+            name: heat-etc

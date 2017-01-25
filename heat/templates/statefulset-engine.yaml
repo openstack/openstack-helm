@@ -1,0 +1,52 @@
+{{- $envAll := . }}
+{{- $dependencies := .Values.dependencies.engine }}
+apiVersion: apps/v1beta1
+kind: StatefulSet
+metadata:
+  name: heat-engine
+spec:
+  serviceName: heat-engine
+  replicas: {{ .Values.replicas.engine }}
+  template:
+    metadata:
+      labels:
+        app: heat-engine
+      annotations:
+        pod.beta.kubernetes.io/init-containers: '[
+{{ tuple $envAll $dependencies | include "dep-check-init-cont" | indent 10 }}
+        ]'
+    spec:
+      nodeSelector:
+        {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
+      containers:
+        - name: heat-engine
+          image: {{ .Values.images.engine }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+          command:
+            - heat-engine
+            - --config-dir
+            - /etc/heat/conf
+          volumeMounts:
+            - name: pod-etc-heat
+              mountPath: /etc/heat
+            - name: pod-var-cache-heat
+              mountPath: /var/cache/heat
+            - name: heatconf
+              mountPath: /etc/heat/conf/heat.conf
+              subPath: heat.conf
+              readOnly: true
+            - name: heatpolicy
+              mountPath: /etc/heat/policy.json
+              subPath: policy.json
+              readOnly: true
+      volumes:
+        - name: pod-etc-heat
+          emptyDir: {}
+        - name: pod-var-cache-heat
+          emptyDir: {}
+        - name: heatconf
+          configMap:
+            name: heat-etc
+        - name: heatpolicy
+          configMap:
+            name: heat-etc

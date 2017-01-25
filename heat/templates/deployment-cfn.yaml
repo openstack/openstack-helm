@@ -1,0 +1,63 @@
+{{- $envAll := . }}
+{{- $dependencies := .Values.dependencies.cfn }}
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: heat-cfn
+spec:
+  replicas: {{ .Values.replicas.cfn }}
+  template:
+    metadata:
+      labels:
+        app: heat-cfn
+      annotations:
+        pod.beta.kubernetes.io/init-containers: '[
+{{ tuple $envAll $dependencies | include "dep-check-init-cont" | indent 10 }}
+        ]'
+    spec:
+      nodeSelector:
+        {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
+      containers:
+        - name: heat-cfn
+          image: {{ .Values.images.cfn }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+          command:
+            - heat-api-cfn
+            - --config-dir
+            - /etc/heat/conf
+          ports:
+            - containerPort: {{ .Values.service.cfn.port }}
+          readinessProbe:
+            tcpSocket:
+              port: {{ .Values.service.cfn.port }}
+          volumeMounts:
+            - name: pod-etc-heat
+              mountPath: /etc/heat
+            - name: pod-var-cache-heat
+              mountPath: /var/cache/heat
+            - name: heatconf
+              mountPath: /etc/heat/conf/heat.conf
+              subPath: heat.conf
+              readOnly: true
+            - name: heatpaste
+              mountPath: /etc/heat/api-paste.ini
+              subPath: api-paste.ini
+              readOnly: true
+            - name: heatpolicy
+              mountPath: /etc/heat/policy.json
+              subPath: policy.json
+              readOnly: true
+      volumes:
+        - name: pod-etc-heat
+          emptyDir: {}
+        - name: pod-var-cache-heat
+          emptyDir: {}
+        - name: heatconf
+          configMap:
+            name: heat-etc
+        - name: heatpaste
+          configMap:
+            name: heat-etc
+        - name: heatpolicy
+          configMap:
+            name: heat-etc

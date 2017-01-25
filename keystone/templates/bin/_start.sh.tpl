@@ -1,8 +1,10 @@
-#!/bin/bash		
-set -ex		
-		
-# Loading Apache2 ENV variables		
-source /etc/apache2/envvars		
+#!/bin/bash
+set -ex
 
-# start apache with any container arguments
-apache2 -DFOREGROUND $*
+if [ -f /etc/apache2/envvars ]; then
+   # Loading Apache2 ENV variables
+   source /etc/apache2/envvars
+fi
+
+# Start Apache2
+exec apache2 -DFOREGROUND

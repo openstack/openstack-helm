@@ -1,42 +1,28 @@
+{{- $envAll := . }}
+{{- $dependecies := .Values.dependencies.api }}
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
   name: keystone-api
 spec:
   replicas: {{ .Values.replicas }}
+  revisionHistoryLimit: {{ .Values.upgrades.revision_history }}
+  strategy:
+    type: {{ .Values.upgrades.pod_replacement_strategy }}
+    {{ if eq .Values.upgrades.pod_replacement_strategy "RollingUpdate" }}
+    rollingUpdate:
+      maxUnavailable: {{ .Values.upgrades.rolling_update.max_unavailable }}
+      maxSurge: {{ .Values.upgrades.rolling_update.max_surge }}
+    {{ end }}
   template:
     metadata:
       labels:
         app: keystone-api
       annotations:
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "hash" }}
+        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "hash" }}
         pod.beta.kubernetes.io/init-containers: '[
-          {
-            "name": "init",
-            "image": "{{ .Values.images.entrypoint }}",
-            "imagePullPolicy": "{{ .Values.images.pull_policy }}",
-            "env": [
-              {
-                "name": "NAMESPACE",
-                "value": "{{ .Release.Namespace }}"
-              },
-              {
-                "name": "INTERFACE_NAME",
-                "value": "eth0"
-              },
-              {
-                "name": "DEPENDENCY_SERVICE",
-                "value": "{{  include "joinListWithColon" .Values.dependencies.api.service }}"
-              },
-              {
-                "name": "DEPENDENCY_JOBS",
-                "value": "{{  include "joinListWithColon" .Values.dependencies.api.jobs }}"
-              },
-              {
-                "name": "COMMAND",
-                "value": "echo done"
-              }              
-            ]
-          }
+{{ tuple $envAll $dependecies | include "dep-check-init-cont" | indent 10 }}
         ]'
     spec:
       nodeSelector:
@@ -51,24 +37,60 @@ spec:
           ports:
             - containerPort: {{ .Values.network.port.public }}
             - containerPort: {{ .Values.network.port.admin }}
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - apachectl
+                  - -k
+                  - graceful-stop
           readinessProbe:
             tcpSocket:
               port: {{ .Values.network.port.public }}
           volumeMounts:
+            - name: pod-etc-keystone
+              mountPath: /etc/keystone
             - name: keystoneconf
               mountPath: /etc/keystone/keystone.conf
               subPath: keystone.conf
+              readOnly: true
+            - name: keystonepaste
+              mountPath: /etc/keystone/keystone-paste.ini
+              subPath: keystone-paste.ini
+              readOnly: true
+            - name: keystonepolicy
+              mountPath: /etc/keystone/policy.json
+              subPath: policy.json
+              readOnly: true
+            - name: keystonessotemplate
+              mountPath: /etc/keystone/sso_callback_template.html
+              subPath: sso_callback_template.html
+              readOnly: true
             - name: wsgikeystone
               mountPath: /etc/apache2/conf-enabled/wsgi-keystone.conf
               subPath: wsgi-keystone.conf
+              readOnly: true
             - name: mpmeventconf
               mountPath: /etc/apache2/mods-available/mpm_event.conf
               subPath: mpm_event.conf
+              readOnly: true
             - name: startsh
               mountPath: /tmp/start.sh
               subPath: start.sh
+              readOnly: true
       volumes:
+        - name: pod-etc-keystone
+          emptyDir: {}
         - name: keystoneconf
+          configMap:
+            name: keystone-etc
+        - name: keystonepaste
+          configMap:
+            name: keystone-etc
+        - name: keystonepolicy
+          configMap:
+            name: keystone-etc
+        - name: keystonessotemplate
           configMap:
             name: keystone-etc
         - name: wsgikeystone
@@ -80,4 +102,3 @@ spec:
         - name: startsh
           configMap:
             name: keystone-bin
-

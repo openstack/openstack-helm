@@ -1,0 +1,44 @@
+{{- $envAll := . }}
+{{- $ksAdminSecret := .Values.keystone.admin_secret | default "cinder-env-keystone-admin" }}
+{{- $dependencies := .Values.dependencies.ks_service }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: cinder-ks-service
+spec:
+  template:
+    metadata:
+      annotations:
+        pod.beta.kubernetes.io/init-containers: '[
+{{ tuple $envAll $dependencies | include "dep-check-init-cont" | indent 10 }}
+        ]'
+    spec:
+      restartPolicy: OnFailure
+      nodeSelector:
+        {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
+      containers:
+{{- range $key1, $osServiceType := tuple "volume" "volumev2" "volumev3" }}
+        - name: {{ $osServiceType }}-ks-service-registration
+          image: {{ $envAll.Values.images.ks_service }}
+          imagePullPolicy: {{ $envAll.Values.images.pull_policy }}
+          command:
+            - bash
+            - /tmp/ks-service.sh
+          volumeMounts:
+            - name: ks-service-sh
+              mountPath: /tmp/ks-service.sh
+              subPath: ks-service.sh
+              readOnly: true
+          env:
+{{- with $env := dict "ksUserSecret" $ksAdminSecret }}
+{{- include "env_ks_openrc_tpl" $env | indent 12 }}
+{{- end }}
+            - name: OS_SERVICE_NAME
+              value: {{ tuple $osServiceType $envAll | include "endpoint_name_lookup" }}
+            - name: OS_SERVICE_TYPE
+              value: {{ $osServiceType }}
+{{- end }}
+      volumes:
+        - name: ks-service-sh
+          configMap:
+            name: cinder-bin

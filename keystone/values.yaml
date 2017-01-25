@@ -13,8 +13,15 @@ images:
   db_sync: quay.io/stackanetes/stackanetes-keystone-api:newton
   api: quay.io/stackanetes/stackanetes-keystone-api:newton
   init: quay.io/stackanetes/stackanetes-kolla-toolbox:newton
-  entrypoint: quay.io/stackanetes/kubernetes-entrypoint:v0.1.0
+  dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.1.0
   pull_policy: "IfNotPresent"
+
+upgrades:
+  revision_history: 3
+  pod_replacement_strategy: RollingUpdate
+  rolling_update:
+    max_unavailable: 1
+    max_surge: 3
 
 keystone:
   version: v3
@@ -24,6 +31,12 @@ keystone:
   admin_password: password
   admin_project_name: admin
 
+api:
+  default:
+    debug: false
+  token:
+    provider: uuid
+
 network:
   port:
     admin: 35357
@@ -31,11 +44,11 @@ network:
   # alanmeadows(TODO): I seem unable to use {{ .IP }} here
   # but it does work for wsrep.conf in mariadb, I have spent
   # time trying to figure this out am completely stumped
-  # 
+  #
   # helm --debug --dry-run shows me that the config map
   # contains {{ .IP }} but its simply translated by K8s
   # to ""
-  ip_address: "0.0.0.0"    
+  ip_address: "0.0.0.0"
 
 database:
   port: 3306
@@ -45,13 +58,9 @@ database:
   keystone_password: password
   keystone_user: keystone
 
-misc:
-  workers: 8
-  debug: false
-
 dependencies:
   api:
-    jobs: 
+    jobs:
     - mariadb-seed
     - keystone-db-sync
     service:
@@ -81,4 +90,3 @@ endpoints:
     port:
         admin: 35357
         public: 5000
-

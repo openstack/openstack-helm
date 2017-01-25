@@ -1,0 +1,35 @@
+{{- $envAll := . }}
+{{- $dependencies := .Values.dependencies.post }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: glance-post
+spec:
+  template:
+    metadata:
+      annotations:
+        pod.beta.kubernetes.io/init-containers: '[
+{{ tuple $envAll $dependencies | include "dep-check-init-cont" | indent 10 }}
+        ]'
+    spec:
+      nodeSelector:
+        {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
+      restartPolicy: OnFailure
+      containers:
+        - name: glance-post
+          image: {{ .Values.images.post }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+          command:
+            - bash
+            - /tmp/post.sh
+          volumeMounts:
+            - name: postsh
+              mountPath: /tmp/post.sh
+              subPath: post.sh
+          env:
+          - name: ANSIBLE_LIBRARY
+            value: /usr/share/ansible/
+      volumes:
+        - name: postsh
+          configMap:
+            name: glance-bin

@@ -1,0 +1,38 @@
+{{- $envAll := . }}
+{{- $dependencies := .Values.dependencies.db_sync }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: nova-db-sync
+spec:
+  template:
+    metadata:
+      annotations:
+        pod.beta.kubernetes.io/init-containers: '[
+{{ tuple $envAll $dependencies | include "dep-check-init-cont" | indent 10 }}
+        ]'
+    spec:
+      restartPolicy: OnFailure
+      nodeSelector:
+        {{ .Values.labels.control_node_selector_key }}: {{ .Values.labels.control_node_selector_value }}
+      containers:
+        - name: nova-db-sync
+          image: {{ .Values.images.db_sync }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+          command:
+            - bash
+            - /tmp/db-sync.sh
+          volumeMounts:
+            - name: novaconf
+              mountPath: /etc/nova/nova.conf
+              subPath: nova.conf
+            - name: nova-bin
+              mountPath: /tmp/db-sync.sh
+              subPath: db-sync.sh
+      volumes:
+        - name: novaconf
+          configMap:
+            name: nova-etc
+        - name: nova-bin
+          configMap:
+            name: nova-bin

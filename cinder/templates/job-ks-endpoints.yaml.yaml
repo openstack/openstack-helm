@@ -1,0 +1,50 @@
+{{- $envAll := . }}
+{{- $ksAdminSecret := $envAll.Values.keystone.admin_secret | default "cinder-env-keystone-admin" }}
+{{- $dependencies := .Values.dependencies.ks_endpoints }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: cinder-ks-endpoints
+spec:
+  template:
+    metadata:
+      annotations:
+        pod.beta.kubernetes.io/init-containers: '[
+{{ tuple $envAll $dependencies | include "dep-check-init-cont" | indent 10 }}
+        ]'
+    spec:
+      restartPolicy: OnFailure
+      nodeSelector:
+        {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
+      containers:
+{{- range $key1, $osServiceType := tuple "volume" "volumev2" "volumev3" }}
+{{- range $key2, $osServiceEndPoint := tuple "admin" "internal" "public" }}
+        - name: {{ $osServiceType }}-ks-endpoints-{{ $osServiceEndPoint }}
+          image: {{ $envAll.Values.images.ks_endpoints }}
+          imagePullPolicy: {{ $envAll.Values.images.pull_policy }}
+          command:
+            - bash
+            - /tmp/ks-endpoints.sh
+          volumeMounts:
+            - name: ks-endpoints-sh
+              mountPath: /tmp/ks-endpoints.sh
+              subPath: ks-endpoints.sh
+              readOnly: true
+          env:
+{{- with $env := dict "ksUserSecret" $ksAdminSecret }}
+{{- include "env_ks_openrc_tpl" $env | indent 12 }}
+{{- end }}
+            - name: OS_SVC_ENDPOINT
+              value: {{ $osServiceEndPoint }}
+            - name: OS_SERVICE_NAME
+              value: {{ tuple $osServiceType $envAll | include "endpoint_name_lookup" }}
+            - name: OS_SERVICE_TYPE
+              value: {{ $osServiceType }}
+            - name: OS_SERVICE_ENDPOINT
+              value: {{ tuple $osServiceType $osServiceEndPoint "api" $envAll | include "endpoint_type_lookup_addr" }}
+{{- end }}
+{{- end }}
+      volumes:
+        - name: ks-endpoints-sh
+          configMap:
+            name: cinder-bin

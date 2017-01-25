@@ -1,0 +1,68 @@
+{{- $envAll := . }}
+{{- $dependencies := .Values.dependencies.volume }}
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: cinder-volume
+spec:
+  replicas: {{ .Values.replicas.volume }}
+  revisionHistoryLimit: {{ .Values.upgrades.revision_history }}
+  strategy:
+    type: {{ .Values.upgrades.pod_replacement_strategy }}
+    {{ if eq .Values.upgrades.pod_replacement_strategy "RollingUpdate" }}
+    rollingUpdate:
+      maxUnavailable: {{ .Values.upgrades.rolling_update.max_unavailable }}
+      maxSurge: {{ .Values.upgrades.rolling_update.max_surge }}
+    {{ end }}
+  template:
+    metadata:
+      labels:
+        app: cinder-volume
+      annotations:
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "hash" }}
+        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "hash" }}
+        pod.beta.kubernetes.io/init-containers: '[
+{{ tuple $envAll $dependencies | include "dep-check-init-cont" | indent 10 }}
+        ]'
+    spec:
+      nodeSelector:
+        {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
+      containers:
+        - name: cinder-volume
+          image: {{ .Values.images.volume }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+          command:
+          - cinder-volume
+          - --config-dir
+          - /etc/cinder/conf
+          volumeMounts:
+            - name: pod-etc-cinder
+              mountPath: /etc/cinder
+            - name: pod-var-cache-cinder
+              mountPath: /var/cache/cinder
+            - name: cinderconf
+              mountPath: /etc/cinder/conf/cinder.conf
+              subPath: cinder.conf
+              readOnly: true
+            - name: cephconf
+              mountPath: /etc/ceph/ceph.conf
+              subPath: ceph.conf
+              readOnly: true
+            - name: cephclientcinderkeyring
+              mountPath: /etc/ceph/ceph.client.{{ .Values.ceph.cinder_user }}.keyring
+              subPath: ceph.client.{{ .Values.ceph.cinder_user }}.keyring
+              readOnly: true
+      volumes:
+        - name: pod-etc-cinder
+          emptyDir: {}
+        - name: pod-var-cache-cinder
+          emptyDir: {}
+        - name: cinderconf
+          configMap:
+            name: cinder-etc
+        - name: cephconf
+          configMap:
+            name: cinder-etc
+        - name: cephclientcinderkeyring
+          configMap:
+            name: cinder-etc

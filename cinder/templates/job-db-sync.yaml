@@ -1,0 +1,41 @@
+{{- $envAll := . }}
+{{- $dependencies := .Values.dependencies.db_sync }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: cinder-db-sync
+spec:
+  template:
+    metadata:
+      annotations:
+        pod.beta.kubernetes.io/init-containers: '[
+{{ tuple $envAll $dependencies | include "dep-check-init-cont" | indent 10 }}
+        ]'
+    spec:
+      restartPolicy: OnFailure
+      nodeSelector:
+        {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
+      containers:
+        - name: cinder-db-sync
+          image: {{ .Values.images.db_sync }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+          command:
+            - cinder-manage
+          args:
+            - --config-dir
+            - /etc/cinder/conf
+            - db
+            - sync
+          volumeMounts:
+            - name: pod-etc-cinder
+              mountPath: /etc/cinder
+            - name: cinderconf
+              mountPath: /etc/cinder/conf/cinder.conf
+              subPath: cinder.conf
+              readOnly: true
+      volumes:
+        - name: pod-etc-cinder
+          emptyDir: {}
+        - name: cinderconf
+          configMap:
+            name: cinder-etc

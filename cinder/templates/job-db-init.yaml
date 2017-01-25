@@ -1,0 +1,36 @@
+{{- $envAll := . }}
+{{- $dependencies := .Values.dependencies.db_init }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: cinder-db-init
+spec:
+  template:
+    metadata:
+      annotations:
+        pod.beta.kubernetes.io/init-containers: '[
+{{ tuple $envAll $dependencies | include "dep-check-init-cont" | indent 10 }}
+        ]'
+    spec:
+      restartPolicy: OnFailure
+      nodeSelector:
+        {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
+      containers:
+        - name: cinder-db-init
+          image: {{ .Values.images.db_init | quote }}
+          imagePullPolicy: {{ .Values.images.pull_policy | quote }}
+          env:
+          - name: ANSIBLE_LIBRARY
+            value: /usr/share/ansible/
+          command:
+            - bash
+            - /tmp/db-init.sh
+          volumeMounts:
+            - name: dbinitsh
+              mountPath: /tmp/db-init.sh
+              subPath: db-init.sh
+              readOnly: true
+      volumes:
+        - name: dbinitsh
+          configMap:
+            name: cinder-bin
