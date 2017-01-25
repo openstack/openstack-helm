@@ -1,9 +1,9 @@
 {{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.init }}
+{{- $dependencies := .Values.dependencies.db_init }}
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: keystone-init
+  name: neutron-db-init
 spec:
   template:
     metadata:
@@ -14,19 +14,19 @@ spec:
     spec:
       restartPolicy: OnFailure
       nodeSelector:
-        {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
+        {{ .Values.labels.server.node_selector_key }}: {{ .Values.labels.server.node_selector_value }}
       containers:
-        - name: keystone-init
-          image: {{ .Values.images.init }}
+        - name: neutron-db-init
+          image: {{ .Values.images.db_init }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
           command:
             - bash
             - /tmp/init.sh
           volumeMounts:
-            - name: keystone-bin
+            - name: initsh
               mountPath: /tmp/init.sh
               subPath: init.sh
       volumes:
-        - name: keystone-bin
+        - name: initsh
           configMap:
-            name: keystone-bin
+            name: neutron-bin
