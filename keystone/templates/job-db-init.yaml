@@ -3,33 +3,30 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: glance-init
+  name: keystone-db-init
 spec:
   template:
     metadata:
       annotations:
         pod.beta.kubernetes.io/init-containers: '[
-{{ tuple $envAll $dependencies | include "dep-check-init-cont" | indent 10 }}
+{{ tuple $envAll $dependencies | include "dep_check_init_cont" | indent 10 }}
         ]'
     spec:
       restartPolicy: OnFailure
       nodeSelector:
         {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
       containers:
-        - name: glance-init
-          image: {{ .Values.images.init }}
+        - name: keystone-db-init
+          image: {{ .Values.images.db_init }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
-          env:
-          - name: ANSIBLE_LIBRARY
-            value: /usr/share/ansible/
           command:
             - bash
             - /tmp/init.sh
           volumeMounts:
-            - name: initsh
+            - name: keystone-bin
               mountPath: /tmp/init.sh
               subPath: init.sh
       volumes:
-        - name: initsh
+        - name: keystone-bin
           configMap:
-            name: glance-bin
+            name: keystone-bin

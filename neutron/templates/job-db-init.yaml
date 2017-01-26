@@ -1,32 +1,32 @@
 {{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.init }}
+{{- $dependencies := .Values.dependencies.db_init }}
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: nova-init
+  name: neutron-db-init
 spec:
   template:
     metadata:
       annotations:
         pod.beta.kubernetes.io/init-containers: '[
-{{ tuple $envAll $dependencies | include "dep-check-init-cont" | indent 10 }}
+{{ tuple $envAll $dependencies | include "dep_check_init_cont" | indent 10 }}
         ]'
     spec:
       restartPolicy: OnFailure
       nodeSelector:
-        {{ .Values.labels.control_node_selector_key }}: {{ .Values.labels.control_node_selector_value }}
+        {{ .Values.labels.server.node_selector_key }}: {{ .Values.labels.server.node_selector_value }}
       containers:
-        - name: nova-init
-          image: {{ .Values.images.init }}
+        - name: neutron-db-init
+          image: {{ .Values.images.db_init }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
           command:
             - bash
             - /tmp/init.sh
           volumeMounts:
-            - name: nova-bin
+            - name: initsh
               mountPath: /tmp/init.sh
               subPath: init.sh
       volumes:
-        - name: nova-bin
+        - name: initsh
           configMap:
-            name: nova-bin
+            name: neutron-bin

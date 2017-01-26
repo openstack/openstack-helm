@@ -1,3 +1,5 @@
+{{- $envAll := . }}
+{{- $dependencies := .Values.dependencies.dhcp }}
 apiVersion: extensions/v1beta1
 kind: DaemonSet
 metadata:
@@ -9,7 +11,10 @@ spec:
         app: neutron-dhcp-agent
       annotations:
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "hash" }}
-        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "hash" }}        
+        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "hash" }}
+        pod.beta.kubernetes.io/init-containers: '[
+{{ tuple $envAll $dependencies | include "dep_check_init_cont" | indent 10 }}
+        ]'
     spec:
       nodeSelector:
         {{ .Values.labels.agent.dhcp.node_selector_key }}: {{ .Values.labels.agent.dhcp.node_selector_value }}
@@ -23,25 +28,12 @@ spec:
           imagePullPolicy: {{ .Values.images.pull_policy }}
           securityContext:
             privileged: true
-          env:
-            - name: INTERFACE_NAME
-              value: {{ .Values.network.interface.dhcp | default .Values.network.interface.default }}
-            - name: POD_NAME
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.name
-            - name: NAMESPACE
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.namespace
-            - name: COMMAND
-              value: "neutron-dhcp-agent --config-file /etc/neutron/neutron.conf --config-file /etc/neutron/dhcp-agent.ini"
-            - name: DEPENDENCY_JOBS
-              value: "{{  include "joinListWithColon" .Values.dependencies.dhcp.jobs }}"
-            - name: DEPENDENCY_SERVICE
-              value: "{{  include "joinListWithColon" .Values.dependencies.dhcp.service }}"
-            - name: DEPENDENCY_DAEMONSET
-              value: "{{  include "joinListWithColon" .Values.dependencies.dhcp.daemonset }}"
+          command:
+            - neutron-dhcp-agent
+            - --config-file
+            - /etc/neutron/neutron.conf
+            - --config-file
+            - /etc/neutron/dhcp-agent.ini
           volumeMounts:
             - name: neutronconf
               mountPath: /etc/neutron/neutron.conf
@@ -61,7 +53,7 @@ spec:
               mountPath: /var/lib/neutron/openstack-helm
             - name: resolvconf
               mountPath: /etc/resolv.conf
-              subPath: resolv.conf              
+              subPath: resolv.conf
       volumes:
         - name: neutronconf
           configMap:
