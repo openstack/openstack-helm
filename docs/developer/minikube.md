@@ -27,20 +27,19 @@ If your environment meets all of the prerequisites above, you can simply use the
 
 ```
 # Clone the project:
-$ git clone https://github.com/att-comdev/openstack-helm.git && cd openstack-helm
+git clone https://github.com/att-comdev/openstack-helm.git && cd openstack-helm
 
 # Get a list of the current tags:
-$ git tag -l
-0.1.0
+git tag -l
 
 # Checkout the tag you want to work with (if desired, or use master for development):
-$ git checkout 0.1.0
+git checkout 0.1.0
 
 # Start a local Helm Server:
-$ helm serve &
+helm serve &
 
 # You may need to change these params for your environment. Look up use of --iso-url if needed:
-$ minikube start \
+minikube start \
         --network-plugin=cni \
         --kubernetes-version v1.5.1 \
         --disk-size 40g \
@@ -53,25 +52,25 @@ $ minikube start \
 kubectl create -f http://docs.projectcalico.org/v2.0/getting-started/kubernetes/installation/hosted/calico.yaml
 
 # Initialize Helm/Deploy Tiller:
-$ helm init
+helm init
 
 # Package the Openstack-Helm Charts, and push them to your local Helm repository:
-$ make
+make
 
 # Label the Minikube as an Openstack Control Plane node:
-$ kubectl label nodes openstack-control-plane=enabled --all --namespace=openstack
+kubectl label nodes openstack-control-plane=enabled --all --namespace=openstack
 
 # Deploy each chart:
-$ helm install --name mariadb --set development.enabled=true local/mariadb --namespace=openstack
-$ helm install --name=memcached local/memcached --namespace=openstack
-$ helm install --name=rabbitmq local/rabbitmq --namespace=openstack
-$ helm install --name=keystone local/keystone --namespace=openstack
-$ helm install --name=cinder local/cinder --namespace=openstack
-$ helm install --name=glance local/glance --namespace=openstack
-$ helm install --name=heat local/heat --namespace=openstack
-$ helm install --name=nova local/nova --namespace=openstack
-$ helm install --name=neutron local/neutron --namespace=openstack
-$ helm install --name=horizon local/horizon --namespace=openstack
+helm install --name mariadb --set development.enabled=true local/mariadb --namespace=openstack
+helm install --name=memcached local/memcached --namespace=openstack
+helm install --name=rabbitmq local/rabbitmq --namespace=openstack
+helm install --name=keystone local/keystone --namespace=openstack
+helm install --name=cinder local/cinder --namespace=openstack
+helm install --name=glance local/glance --namespace=openstack
+helm install --name=heat local/heat --namespace=openstack
+helm install --name=nova local/nova --namespace=openstack
+helm install --name=neutron local/neutron --namespace=openstack
+helm install --name=horizon local/horizon --namespace=openstack
 ```
 
 # Getting Started
