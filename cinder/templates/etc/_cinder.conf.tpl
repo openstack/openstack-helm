@@ -15,7 +15,7 @@ api_paste_config = /etc/cinder/api-paste.ini
 glance_api_servers = "{{ .Values.glance.proto }}://{{ .Values.glance.host }}:{{ .Values.glance.port }}"
 glance_api_version = {{ .Values.glance.version }}
 
-enabled_backends = {{  include "joinListWithColon" .Values.backends.enabled }}
+enabled_backends = {{  include "joinListWithComma" .Values.backends.enabled }}
 
 auth_strategy = keystone
 os_region_name = {{ .Values.keystone.cinder_region_name }}

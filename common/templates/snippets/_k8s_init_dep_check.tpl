@@ -30,15 +30,15 @@
     },
     {
       "name": "DEPENDENCY_SERVICE",
-      "value": "{{  include "joinListWithColon"  $deps.service }}"
+      "value": "{{  include "joinListWithComma"  $deps.service }}"
     },
     {
       "name": "DEPENDENCY_JOBS",
-      "value": "{{  include "joinListWithColon" $deps.jobs }}"
+      "value": "{{  include "joinListWithComma" $deps.jobs }}"
     },
     {
       "name": "DEPENDENCY_DAEMONSET",
-      "value": "{{  include "joinListWithColon" $deps.daemonset }}"
+      "value": "{{  include "joinListWithComma" $deps.daemonset }}"
     },
     {
       "name": "COMMAND",
