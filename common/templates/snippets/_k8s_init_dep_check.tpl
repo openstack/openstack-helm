@@ -9,7 +9,7 @@
     {
       "name": "POD_NAME",
       {{- if $deps.pod -}}
-      "value": "{{-  $deps.pod . 1  -}}"
+      "value": "{{ index $deps.pod 0 }}"
       {{- else -}}
       "valueFrom": {
         "fieldRef": {
@@ -46,7 +46,7 @@
     },
     {
       "name": "DEPENDENCY_CONTAINER",
-      "value": "{{  include "joinListWithColon" $deps.container }}"
+      "value": "{{  include "joinListWithComma" $deps.container }}"
     },
     {
       "name": "COMMAND",
