@@ -1,11 +1,11 @@
 [ml2]
 # Changing type_drivers after bootstrap can lead to database inconsistencies
-type_drivers = {{ include "joinListWithColon" .Values.ml2.type_drivers }}
+type_drivers = {{ include "joinListWithComma" .Values.ml2.type_drivers }}
 tenant_network_types = {{ .Values.ml2.tenant_network_types }}
-mechanism_drivers = {{ include "joinListWithColon" .Values.ml2.mechanism_drivers }}
+mechanism_drivers = {{ include "joinListWithComma" .Values.ml2.mechanism_drivers }}
 
 [ml2_type_flat]
-flat_networks = {{ include "joinListWithColon" .Values.ml2.ml2_type_flat.flat_networks }}
+flat_networks = {{ include "joinListWithComma" .Values.ml2.ml2_type_flat.flat_networks }}
 
 [ml2_type_gre]
 # (ListOpt) Comma-separated list of <tun_min>:<tun_max> tuples enumerating ranges
@@ -35,7 +35,7 @@ arp_responder = false
 {{- end }}
 
 [ovs]
-bridge_mappings = {{ include "joinListWithColon" .Values.ml2.ovs.bridge_mappings }}
+bridge_mappings = {{ include "joinListWithComma" .Values.ml2.ovs.bridge_mappings }}
 tenant_network_type = {{ .Values.ml2.agent.tunnel_types }}
 
 [vxlan]
