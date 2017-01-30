@@ -2,6 +2,8 @@
 
 Join us on [freenode](https://freenode.net/): `#openstack-helm`
 
+Community Meetings: [Every other Tuesday @ 3PM UTC](https://calendar.google.com/calendar/embed?src=rnd4tpeoncig91pvs05il4p29o%40group.calendar.google.com&ctz=America/New_York) (Provided by [Zoom](https://zoom.us/j/562328746))
+
 Openstack-Helm is a fully self-contained Helm-based OpenStack deployment on Kubernetes. It will provide baremetal provisioning, persistent storage, full-stack resiliency, full-stack scalability, performance monitoring and tracing, and an optional development pipeline (using Jenkins). This project, along with the tools used within are community-based and open sourced.
 
 # Mission
