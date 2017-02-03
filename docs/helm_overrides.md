@@ -6,9 +6,9 @@ This document covers helm overrides and the openstack-helm approach.  For more i
 
 Two major philosophies guide the openstack-helm values approach.  It is important that new chart developers understand the `values.yaml` approach openstack-helm has within each of its charts to ensure all of our charts are both consistent and remain a joy to work with.
 
-The first is that all charts should be independently installable and do not require a parent chart. This means that the values file in each chart should be self-contained.  We will avoid the use of Helm globals and the concept of a parent chart as a requirement to capture and feed environment specific overrides into subcharts.  An example of a single site definition YAML that can be source controlled and used as `--values` input to all openstack-helm charts to maintain overrides in one testable place is forthcoming.  Currently Helm does not support as `--values=environment.yaml` chunking up a larger override files YAML namespace.  Ideally, we are seeking native Helm support for `helm install local/keystone --values=environment.yaml:keystone` where `environment.yaml` is the operators chart-wide environment defition and `keystone` is the section in environment.yaml that will be fed to the keystone chart during install as overrides.  Standard YAML anchors can be used to duplicate common elements like the `endpoints` sections.  As of this document, operators can use a temporary approach like [values.py](https://github.com/att-comdev/openstack-helm/blob/master/common/utils/values/values.py) to chunk up a single override YAML file as input to various individual charts.  It is our belief that overrides, just like the templates themselves, should be source controlled and tested especially for operators operating charts at scale.  We will continue to examine efforts such as [helm-value-store](https://github.com/skuid/helm-value-store) and solutions in the vein of [helmfile](https://github.com/roboll/helmfile).  A project that seems quite compelling to address the needs of orchestrating multiple charts and managing site specific overrides is [Landscape](https://github.com/Eneco/landscaper)
+The first is that all charts should be independently installable and do not require a parent chart. This means that the values file in each chart should be self-contained.  We will avoid the use of Helm globals and the concept of a parent chart as a requirement to capture and feed environment specific overrides into subcharts.  An example of a single site definition YAML that can be source controlled and used as `--values` input to all openstack-helm charts to maintain overrides in one testable place is forthcoming.  Currently Helm does not support as `--values=environment.yaml` chunking up a larger override files YAML namespace.  Ideally, we are seeking native Helm support for `helm install local/keystone --values=environment.yaml:keystone` where `environment.yaml` is the operators chart-wide environment defition and `keystone` is the section in environment.yaml that will be fed to the keystone chart during install as overrides.  Standard YAML anchors can be used to duplicate common elements like the `endpoints` sections.  As of this document, operators can use a temporary approach like [values.py](https://github.com/att-comdev/openstack-helm/blob/master/helm-toolkit/utils/values/values.py) to chunk up a single override YAML file as input to various individual charts.  It is our belief that overrides, just like the templates themselves, should be source controlled and tested especially for operators operating charts at scale.  We will continue to examine efforts such as [helm-value-store](https://github.com/skuid/helm-value-store) and solutions in the vein of [helmfile](https://github.com/roboll/helmfile).  A project that seems quite compelling to address the needs of orchestrating multiple charts and managing site specific overrides is [Landscape](https://github.com/Eneco/landscaper)
 
-The second is that the values files should be consistent across all charts, including charts in core, infra, and addons.  This provides a consistent way for operators to override settings such as enabling developer mode, defining resource limitations, and customizing the actual OpenStack configuration within chart templates without having to guess how a particular chart developer has layed out their values.yaml. There are also various macros in the `common` chart that will depend on the values.yaml within all charts being structured a certain way.
+The second is that the values files should be consistent across all charts, including charts in core, infra, and addons.  This provides a consistent way for operators to override settings such as enabling developer mode, defining resource limitations, and customizing the actual OpenStack configuration within chart templates without having to guess how a particular chart developer has layed out their values.yaml. There are also various macros in the `helm-toolkit` chart that will depend on the `values.yaml` within all charts being structured a certain way.
 
 Finally, where charts reference connectivity information for other services sane defaults should be provided.  In the case where these services are provided by openstack-helm itself, the defaults should assume the user will use the openstack-helm charts for those services but ensure that they can be overriden if the operator has them externally deployed.
 
@@ -51,7 +51,7 @@ labels:
   node_selector_value: enabled
 ```
 
-In some cases, such as the neutron chart, a chart may need to define more then one label. In cases such as this, each element should be articulated under the `labels:`` section, nesting where appropriate:
+In some cases, such as the neutron chart, a chart may need to define more then one label. In cases such as this, each element should be articulated under the `labels:` section, nesting where appropriate:
 
 ```
 labels:
@@ -116,7 +116,9 @@ In some cases, especially with infrastructure components, it becomes necessary f
 
 ## Images
 
-Our core philosophy regarding images is that the toolsets required to enable the OpenStack services should be applied by Kubernetes itself.  This requires the openstack-helm to develop common and simple scripts with minimal dependencies that can be overlayed on any image meeting the OpenStack core library requirements.  The advantage of this however is that we can be image agnostic, allowing operators to use Stackanetes, Kolla, Yaodu, or any image flavor they choose and they will all function the same.
+Our core philosophy regarding images is that the toolsets required to enable the OpenStack services should be applied by Kubernetes itself.  This requires the openstack-helm to develop common and simple scripts with minimal dependencies that can be overlayed on any image meeting the OpenStack core library requirements.  The advantage of this however is that we can be image agnostic, allowing operators to use Stackanetes, Kolla, Yaodu, or any image flavor and format they choose and they will all function the same.
+
+The long-term goal besides being image agnostic is to also able to support any of the container runtimes that Kubernetes supports, even those which may not use Docker's own packaging format.  This will allow this project to continue to offer maximum flexibility with regard to operator choice.
 
 To that end, all charts provide an `images:` section that allows operators to override images.  It is also our assertion that all default image references should be fully spelled out, even those hosted by docker, and no default image reference should use `:latest` but be pinned to a specific version to ensure a consistent behavior for deployments over time.
 
@@ -168,7 +170,7 @@ This is accomplished with the following annotation:
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "hash" }}
 ```
 
-The `hash` function defined in the `common` chart ensures that any change to any file referenced by configmap-bin.yaml or configmap-etc.yaml results in a new hash, which will trigger a rolling update.
+The `hash` function defined in the `helm-toolkit` chart ensures that any change to any file referenced by configmap-bin.yaml or configmap-etc.yaml results in a new hash, which will trigger a rolling update.
 
 All chart components (except `DaemonSets`) are outfitted by default with rolling update strategies:
 
@@ -261,7 +263,7 @@ For instance, in the neutron chart `values.yaml` the following endpoints are def
 # values, but should include all endpoints
 # required by this chart
 endpoints:
-  glance:
+  image:
     hosts:
       default: glance-api
     type: image
@@ -270,7 +272,7 @@ endpoints:
     port:
       api: 9292
       registry: 9191
-  nova:
+  compute:
     hosts:
       default: nova-api
     path: "/v2/%(tenant_id)s"
@@ -280,7 +282,7 @@ endpoints:
       api: 8774
       metadata: 8775
       novncproxy: 6080
-  keystone:
+  identity:
     hosts:
       default: keystone-api
     path: /v3
@@ -289,7 +291,7 @@ endpoints:
     port:
         admin: 35357
         public: 5000
-  neutron:
+  network:
     hosts:
       default: neutron-server
     path: null
@@ -299,15 +301,15 @@ endpoints:
       api: 9696
 ```
 
-These values define all the endpoints that the neutron chart may need in order to build full URL compatible endpoints to various services.  Long-term these will also include database, memcached, and rabbitmq elements in one place--essentially all external connectivity needs defined centrally.
+These values define all the endpoints that the neutron chart may need in order to build full URL compatible endpoints to various services.  Long-term these will also include database, memcached, and rabbitmq elements in one place-essentially all external connectivity needs defined centrally.
 
-The macros that help translate these into the actual URLs necessary are defined in the `common` chart.  For instance, the cinder chart defines a `glance_api_servers` definition in the `cinder.conf` template:
+The macros that help translate these into the actual URLs necessary are defined in the `helm-toolkit` chart.  For instance, the cinder chart defines a `glance_api_servers` definition in the `cinder.conf` template:
 
 ```
-+glance_api_servers = {{ tuple "image" "internal" "api" . | include "endpoint_type_lookup_addr" }}
++glance_api_servers = {{ tuple "image" "internal" "api" . | include "helm-toolkit.endpoint_type_lookup_addr" }}
 ```
 
-This line of magic uses the `endpoint_type_lookup_addr` macro in the common chart (since it is used by all charts), and passes it three parameters:
+This line of magic uses the `endpoint_type_lookup_addr` macro in the `helm-toolkit` chart (since it is used by all charts).  Note a second convention here, all `{{ define }}` macros in charts should be pre-fixed with the chart that is defining them.  This allows developers to easily identify the source of a helm macro and also avoid namespace collissions.  In the example above, the macro `endpoint_type_look_addr` is defined in the `helm-toolkit` chart.  This macro is passed three parameters (aided by the `tuple` method built into the go/sprig templating library used by Helm):
 
 - image: This is the OpenStack service we are building an endpoint for.  This will be mapped to `glance` which is the image service for OpenStack.
 - internal: This is the OpenStack endpoint type we are looking for - valid values would be `internal`, `admin`, and `public`
