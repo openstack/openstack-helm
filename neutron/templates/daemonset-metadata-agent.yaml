@@ -1,3 +1,5 @@
+{{- $envAll := . }}
+{{- $dependencies := .Values.dependencies.metadata }}
 apiVersion: extensions/v1beta1
 kind: DaemonSet
 metadata:
@@ -9,7 +11,10 @@ spec:
         app: neutron-metadata-agent
       annotations:
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "hash" }}
-        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "hash" }}        
+        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "hash" }}
+        pod.beta.kubernetes.io/init-containers: '[
+{{ tuple $envAll $dependencies | include "dep_check_init_cont" | indent 10 }}
+        ]'
     spec:
       nodeSelector:
         {{ .Values.labels.agent.metadata.node_selector_key }}: {{ .Values.labels.agent.metadata.node_selector_value }}
@@ -21,29 +26,25 @@ spec:
         - name: neutron-metadata-agent
           image: {{ .Values.images.metadata }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
+          {{- if .Values.resources.enabled }}         
+          resources:
+            limits:
+              cpu: {{ .Values.resources.agent.metadata.limits.cpu | quote }}
+              memory: {{ .Values.resources.agent.metadata.limits.memory | quote }}
+            requests:
+              cpu: {{ .Values.resources.agent.metadata.requests.cpu | quote }}
+              memory: {{ .Values.resources.agent.metadata.requests.memory | quote }}
+          {{- end }}
           securityContext:
             privileged: true
-          env:
-            - name: INTERFACE_NAME
-              value: {{ .Values.network.interface.metadata | default .Values.network.interface.default }}
-            - name: POD_NAME
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.name
-            - name: NAMESPACE
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.namespace
-            - name: COMMAND
-              value: "neutron-metadata-agent --config-file /etc/neutron/neutron.conf --config-file /etc/neutron/metadata-agent.ini"
-            - name: DEPENDENCY_JOBS
-              value: "{{  include "joinListWithColon" .Values.dependencies.metadata.jobs }}"
-            - name: DEPENDENCY_SERVICE
-              value: "{{  include "joinListWithColon" .Values.dependencies.metadata.service }}"
-            - name: DEPENDENCY_DAEMONSET
-              value: "{{  include "joinListWithColon" .Values.dependencies.metadata.daemonset }}"              
+          command:
+            - neutron-metadata-agent
+            - --config-file
+            - /etc/neutron/neutron.conf
+            - --config-file
+            - /etc/neutron/metadata-agent.ini
           ports:
-          - containerPort: {{ .Values.network.port.metadata }}              
+          - containerPort: {{ .Values.network.port.metadata }}
           volumeMounts:
             - name: neutronconf
               mountPath: /etc/neutron/neutron.conf
@@ -56,7 +57,7 @@ spec:
               subPath: metadata-agent.ini
             - name: resolvconf
               mountPath: /etc/resolv.conf
-              subPath: resolv.conf              
+              subPath: resolv.conf
             - name: runopenvswitch
               mountPath: /run/openvswitch
             - name: socket
@@ -73,7 +74,7 @@ spec:
             name: neutron-etc
         - name: resolvconf
           configMap:
-            name: neutron-etc            
+            name: neutron-etc
         - name: runopenvswitch
           hostPath:
             path: /run/openvswitch

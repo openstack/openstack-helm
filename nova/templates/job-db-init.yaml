@@ -1,0 +1,41 @@
+{{- $envAll := . }}
+{{- $dependencies := .Values.dependencies.init }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: nova-db-init
+spec:
+  template:
+    metadata:
+      annotations:
+        pod.beta.kubernetes.io/init-containers: '[
+{{ tuple $envAll $dependencies | include "dep_check_init_cont" | indent 10 }}
+        ]'
+    spec:
+      restartPolicy: OnFailure
+      nodeSelector:
+        {{ .Values.labels.control_node_selector_key }}: {{ .Values.labels.control_node_selector_value }}
+      containers:
+        - name: nova-db-init
+          image: {{ .Values.images.db_init }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+          {{- if .Values.resources.enabled }}
+          resources:
+            requests:
+              memory: {{ .Values.resources.nova_init.requests.memory | quote }}
+              cpu: {{ .Values.resources.nova_init.requests.cpu | quote }}
+            limits:
+              memory: {{ .Values.resources.nova_init.limits.memory | quote }}
+              cpu: {{ .Values.resources.nova_init.limits.cpu | quote }}
+          {{- end }}
+          command:
+            - bash
+            - /tmp/init.sh
+          volumeMounts:
+            - name: nova-bin
+              mountPath: /tmp/init.sh
+              subPath: init.sh
+      volumes:
+        - name: nova-bin
+          configMap:
+            name: nova-bin

@@ -1,34 +1,37 @@
+{{- $envAll := . }}
+{{- $dependencies := .Values.dependencies.db_sync }}
 apiVersion: batch/v1
 kind: Job
 metadata:
   name: neutron-post
 spec:
   template:
+    metadata:
+      annotations:
+        pod.beta.kubernetes.io/init-containers: '[
+{{ tuple $envAll $dependencies | include "dep_check_init_cont" | indent 10 }}
+        ]'
     spec:
       restartPolicy: OnFailure
       nodeSelector:
-        {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
+        {{ .Values.labels.server.node_selector_key }}: {{ .Values.labels.server.node_selector_value }}
       containers:
         - name: neutron-post
           image: {{ .Values.images.post }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
+          command:
+            - bash
+            - /tmp/post.sh
+          {{- if .Values.resources.enabled }}
+          resources:
+            limits:
+              cpu: {{ .Values.resources.jobs.post.limits.cpu | quote }}
+              memory: {{ .Values.resources.jobs.post.limits.memory | quote }}
+            requests:
+              cpu: {{ .Values.resources.jobs.post.requests.cpu | quote }}
+              memory: {{ .Values.resources.jobs.post.requests.memory | quote }}
+          {{- end }}
           env:
-            - name: INTERFACE_NAME
-              value: "eth0"
-            - name: POD_NAME
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.name
-            - name: NAMESPACE
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.namespace
-            - name: COMMAND
-              value: "bash /tmp/post.sh"
-            - name: DEPENDENCY_JOBS
-              value:  "{{  include "joinListWithColon" .Values.dependencies.post.jobs }}"
-            - name: DEPENDENCY_SERVICE
-              value: "{{  include "joinListWithColon" .Values.dependencies.post.service }}"
             - name: ANSIBLE_LIBRARY
               value: /usr/share/ansible/
           volumeMounts:

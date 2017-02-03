@@ -1,3 +1,5 @@
+{{- $envAll := . }}
+{{- $dependencies := .Values.dependencies.ks_user }}
 {{- $ksAdminSecret := .Values.keystone_secrets.admin }}
 {{- $ksUserSecret := .Values.keystone_secrets.user }}
 # The heat user management job is a bit different from other services as it also needs to create a stack domain and trusts user
@@ -12,25 +14,7 @@ spec:
     metadata:
       annotations:
         pod.beta.kubernetes.io/init-containers: '[
-          {
-            "name": "init",
-            "image": {{ .Values.images.dep_check | quote }},
-            "imagePullPolicy": {{ .Values.images.pull_policy | quote }},
-            "env": [
-              {
-                "name": "NAMESPACE",
-                "value": "{{ .Release.Namespace }}"
-              },
-              {
-                "name": "DEPENDENCY_SERVICE",
-                "value": "{{ include "joinListWithColon" .Values.dependencies.ks_user.service }}"
-              },
-              {
-                "name": "COMMAND",
-                "value": "echo done"
-              }
-            ]
-          }
+{{ tuple $envAll $dependencies | include "dep_check_init_cont" | indent 10 }}
         ]'
     spec:
       restartPolicy: OnFailure
@@ -40,6 +24,15 @@ spec:
         - name: heat-ks-user
           image: {{ .Values.images.ks_user }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
+          {{- if .Values.resources.enabled }}
+          resources:
+            requests:
+              memory: {{ .Values.resources.heat_ks_user.requests.memory | quote }}
+              cpu: {{ .Values.resources.heat_ks_user.requests.cpu | quote }}
+            limits:
+              memory: {{ .Values.resources.heat_ks_user.limits.memory | quote }}
+              cpu: {{ .Values.resources.heat_ks_user.limits.cpu | quote }}
+          {{- end }}
           command:
             - bash
             - /tmp/ks-user.sh

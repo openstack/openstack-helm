@@ -1,3 +1,5 @@
+{{- $envAll := . }}
+{{- $dependencies := .Values.dependencies.cfn }}
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
@@ -10,29 +12,7 @@ spec:
         app: heat-cfn
       annotations:
         pod.beta.kubernetes.io/init-containers: '[
-          {
-            "name": "init",
-            "image": {{ .Values.images.dep_check | quote }},
-            "imagePullPolicy": {{ .Values.images.pull_policy | quote }},
-            "env": [
-              {
-                "name": "NAMESPACE",
-                "value": "{{ .Release.Namespace }}"
-              },
-              {
-                "name": "DEPENDENCY_SERVICE",
-                "value": "{{  include "joinListWithColon" .Values.dependencies.cfn.service }}"
-              },
-              {
-                "name": "DEPENDENCY_JOBS",
-                "value": "{{  include "joinListWithColon" .Values.dependencies.cfn.jobs }}"
-              },
-              {
-                "name": "COMMAND",
-                "value": "echo done"
-              }
-            ]
-          }
+{{ tuple $envAll $dependencies | include "dep_check_init_cont" | indent 10 }}
         ]'
     spec:
       nodeSelector:
@@ -41,6 +21,15 @@ spec:
         - name: heat-cfn
           image: {{ .Values.images.cfn }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
+          {{- if .Values.resources.enabled }}
+          resources:
+            requests:
+              memory: {{ .Values.resources.heat_cfn.requests.memory | quote }}
+              cpu: {{ .Values.resources.heat_cfn.requests.cpu | quote }}
+            limits:
+              memory: {{ .Values.resources.heat_cfn.limits.memory | quote }}
+              cpu: {{ .Values.resources.heat_cfn.limits.cpu | quote }}
+          {{- end }}
           command:
             - heat-api-cfn
             - --config-dir

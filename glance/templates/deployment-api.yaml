@@ -1,0 +1,107 @@
+{{- $envAll := . }}
+{{- $dependencies := .Values.dependencies.api }}
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: glance-api
+spec:
+{{- if .Values.development.enabled }}
+  replicas: 1
+{{- else }}
+  replicas: {{ .Values.replicas.api }}
+{{- end }}
+  revisionHistoryLimit: {{ .Values.upgrades.revision_history }}
+  strategy:
+    type: {{ .Values.upgrades.pod_replacement_strategy }}
+    {{ if eq .Values.upgrades.pod_replacement_strategy "RollingUpdate" }}
+    rollingUpdate:
+      maxUnavailable: {{ .Values.upgrades.rolling_update.max_unavailable }}
+      maxSurge: {{ .Values.upgrades.rolling_update.max_surge }}
+    {{ end }}
+  template:
+    metadata:
+      labels:
+        app: glance-api
+      annotations:
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "hash" }}
+        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "hash" }}
+        pod.beta.kubernetes.io/init-containers: '[
+{{ tuple $envAll $dependencies | include "dep_check_init_cont" | indent 10 }}
+        ]'
+    spec:
+      nodeSelector:
+        {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
+      containers:
+        - name: glance-api
+          image: {{ .Values.images.api }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+          {{- if .Values.resources.enabled }}
+          resources:
+            limits:
+              cpu: {{ .Values.resources.api.limits.cpu | quote }}
+              memory: {{ .Values.resources.api.limits.memory | quote }}
+            requests:
+              cpu: {{ .Values.resources.api.requests.cpu | quote }}
+              memory: {{ .Values.resources.api.requests.memory | quote }}
+          {{- end }}
+          command:
+          - glance-api
+          - --config-file
+          - /etc/glance/glance-api.conf
+          ports:
+            - containerPort: {{ .Values.network.port.api }}
+          readinessProbe:
+            tcpSocket:
+              port: {{ .Values.network.port.api }}
+          volumeMounts:
+            - name: etcglance
+              mountPath: /etc/glance
+            - name: glanceapiconf
+              mountPath: /etc/glance/glance-api.conf
+              subPath: glance-api.conf
+              readOnly: true
+            - name: glanceapipaste
+              mountPath: /etc/glance/glance-api-paste.ini
+              subPath: glance-api-paste.ini
+              readOnly: true
+            - name: glancepolicy
+              mountPath: /etc/glance/policy.json
+              subPath: policy.json
+              readOnly: true
+{{- if .Values.development.enabled }}
+            - name: glance-data
+              mountPath: /var/lib/glance/images
+{{- else }}
+            - name: cephconf
+              mountPath: /etc/ceph/ceph.conf
+              subPath: ceph.conf
+              readOnly: true
+            - name: cephclientglancekeyring
+              mountPath: /etc/ceph/ceph.client.{{ .Values.ceph.glance_user }}.keyring
+              subPath: ceph.client.{{ .Values.ceph.glance_user }}.keyring
+              readOnly: true
+{{- end }}
+      volumes:
+        - name: glanceapiconf
+          configMap:
+            name: glance-etc
+        - name: glanceapipaste
+          configMap:
+            name: glance-etc
+{{- if .Values.development.enabled }}
+        - name: glance-data
+          hostPath:
+            path: {{ .Values.development.storage_path }}
+{{- else }}
+        - name: cephconf
+          configMap:
+            name: glance-etc
+        - name: cephclientglancekeyring
+          configMap:
+            name: glance-etc
+{{- end }}
+        - name: etcglance
+          emptyDir: {}
+        - name: glancepolicy
+          configMap:
+            name: glance-etc

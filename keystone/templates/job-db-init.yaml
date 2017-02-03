@@ -1,0 +1,41 @@
+{{- $envAll := . }}
+{{- $dependencies := .Values.dependencies.init }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: keystone-db-init
+spec:
+  template:
+    metadata:
+      annotations:
+        pod.beta.kubernetes.io/init-containers: '[
+{{ tuple $envAll $dependencies | include "dep_check_init_cont" | indent 10 }}
+        ]'
+    spec:
+      restartPolicy: OnFailure
+      nodeSelector:
+        {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
+      containers:
+        - name: keystone-db-init
+          image: {{ .Values.images.db_init }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+          {{- if .Values.resources.enabled }}  
+          resources:
+            limits:
+              cpu: {{ .Values.resources.jobs.init.limits.cpu | quote }}
+              memory: {{ .Values.resources.jobs.init.limits.memory | quote }}
+            requests:
+              cpu: {{ .Values.resources.jobs.init.requests.cpu | quote }}
+              memory: {{ .Values.resources.jobs.init.requests.memory | quote }}
+          {{- end }}
+          command:
+            - bash
+            - /tmp/init.sh
+          volumeMounts:
+            - name: keystone-bin
+              mountPath: /tmp/init.sh
+              subPath: init.sh
+      volumes:
+        - name: keystone-bin
+          configMap:
+            name: keystone-bin

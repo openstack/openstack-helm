@@ -1,3 +1,5 @@
+{{- $envAll := . }}
+{{- $dependencies := .Values.dependencies.l3 }}
 apiVersion: extensions/v1beta1
 kind: DaemonSet
 metadata:
@@ -9,7 +11,10 @@ spec:
         app: neutron-l3-agent
       annotations:
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "hash" }}
-        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "hash" }}        
+        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "hash" }}
+        pod.beta.kubernetes.io/init-containers: '[
+{{ tuple $envAll $dependencies | include "dep_check_init_cont" | indent 10 }}
+        ]'
     spec:
       nodeSelector:
         {{ .Values.labels.agent.l3.node_selector_key }}: {{ .Values.labels.agent.l3.node_selector_value }}
@@ -21,27 +26,25 @@ spec:
         - name: neutron-l3-agent
           image: {{ .Values.images.l3 }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
+          {{- if .Values.resources.enabled }}             
+          resources:
+            limits:
+              cpu: {{ .Values.resources.agent.l3.limits.cpu | quote }}
+              memory: {{ .Values.resources.agent.l3.limits.memory | quote }}
+            requests:
+              cpu: {{ .Values.resources.agent.l3.requests.cpu | quote }}
+              memory: {{ .Values.resources.agent.l3.requests.memory | quote }}
+          {{- end }}
           securityContext:
             privileged: true
-          env:
-            - name: INTERFACE_NAME
-              value: {{ .Values.network.interface.l3 | default .Values.network.interface.default }}
-            - name: POD_NAME
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.name
-            - name: NAMESPACE
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.namespace
-            - name: COMMAND
-              value: "neutron-l3-agent --config-file /etc/neutron/neutron.conf --config-file /etc/neutron/l3-agent.ini --config-file /etc/neutron/plugins/ml2/ml2-conf.ini"
-            - name: DEPENDENCY_JOBS
-              value: "{{  include "joinListWithColon" .Values.dependencies.l3.jobs }}"
-            - name: DEPENDENCY_SERVICE
-              value: "{{  include "joinListWithColon" .Values.dependencies.l3.service }}"
-            - name: DEPENDENCY_DAEMONSET
-              value: "{{  include "joinListWithColon" .Values.dependencies.l3.daemonset }}"              
+          command:
+            - neutron-l3-agent
+            - --config-file
+            - /etc/neutron/neutron.conf
+            - --config-file
+            - /etc/neutron/l3-agent.ini
+            - --config-file
+            - /etc/neutron/plugins/ml2/ml2-conf.ini
           volumeMounts:
             - name: neutronconf
               mountPath: /etc/neutron/neutron.conf
@@ -54,7 +57,7 @@ spec:
               subPath: l3-agent.ini
             - name: resolvconf
               mountPath: /etc/resolv.conf
-              subPath: resolv.conf                 
+              subPath: resolv.conf
             - name: runopenvswitch
               mountPath: /run/openvswitch
             - name: socket

@@ -12,8 +12,8 @@ labels:
 control_replicas: 1
 compute_replicas: 1
 
-image:
-  init: quay.io/stackanetes/stackanetes-kolla-toolbox:newton
+images:
+  db_init: quay.io/stackanetes/stackanetes-kolla-toolbox:newton
   db_sync: quay.io/stackanetes/stackanetes-nova-api:newton
   api: quay.io/stackanetes/stackanetes-nova-api:newton
   conductor: quay.io/stackanetes/stackanetes-nova-conductor:newton
@@ -23,7 +23,7 @@ image:
   compute: quay.io/stackanetes/stackanetes-nova-compute:newton
   libvirt: quay.io/stackanetes/stackanetes-nova-libvirt:newton
   post: quay.io/stackanetes/stackanetes-kolla-toolbox:newton
-  entrypoint: quay.io/stackanetes/kubernetes-entrypoint:v0.1.0
+  dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.1.0
   pull_policy: "IfNotPresent"
 
 upgrades:
@@ -108,31 +108,31 @@ memcached:
 
 dependencies:
   api:
-    jobs: 
+    jobs:
     - keystone-db-sync
-    - nova-init
+    - nova-db-init
     - nova-db-sync
     service:
     - mariadb
   db_sync:
     jobs:
-    - nova-init
-    - keystone-init
+    - nova-db-init
+    - keystone-db-init
     - mariadb-seed
     service:
     - mariadb
   db_sync:
     jobs:
-    - nova-init
-    - keystone-init
+    - nova-db-init
+    - keystone-db-init
     - mariadb-seed
     - keystone-db-sync
     service:
     - mariadb
   post:
     jobs:
-    - nova-init
-    - keystone-init
+    - nova-db-init
+    - keystone-db-init
     - mariadb-seed
     service:
     - mariadb
@@ -152,7 +152,7 @@ dependencies:
     - ovs-agent
   libvirt:
     jobs:
-    - nova-init
+    - nova-db-init
     - nova-post
     - nova-db-sync
     service:
@@ -162,7 +162,7 @@ dependencies:
     jobs:
     - mariadb-seed
     - keystone-db-sync
-    - nova-init
+    - nova-db-init
     - nova-db-sync
     service:
     - mariadb
@@ -177,7 +177,7 @@ dependencies:
     service:
     - mariadb
 
-# typically overriden by environmental 
+# typically overriden by environmental
 # values, but should include all endpoints
 # required by this chart
 endpoints:
@@ -217,3 +217,76 @@ endpoints:
     scheme: 'http'
     port:
       api: 9696
+
+resources:
+  enabled: false
+  nova_compute:
+    requests:
+      memory: "124Mi"
+      cpu: "100m"
+    limits:
+      memory: "1024Mi"
+      cpu: "2000m"
+  nova_libvirt:
+    requests:
+      memory: "124Mi"
+      cpu: "100m"
+    limits:
+      memory: "1024Mi"
+      cpu: "2000m"
+  nova_api_metadata:
+    requests:
+      memory: "124Mi"
+      cpu: "100m"
+    limits:
+      memory: "1024Mi"
+      cpu: "2000m"
+  nova_osapi:
+    requests:
+      memory: "124Mi"
+      cpu: "100m"
+    limits:
+      memory: "1024Mi"
+      cpu: "2000m"
+  nova_conductor:
+    requests:
+      memory: "124Mi"
+      cpu: "100m"
+    limits:
+      memory: "1024Mi"
+      cpu: "2000m"
+  nova_consoleauth:
+    requests:
+      memory: "124Mi"
+      cpu: "100m"
+    limits:
+      memory: "1024Mi"
+      cpu: "2000m"
+  nova_scheduler:
+    requests:
+      memory: "124Mi"
+      cpu: "100m"
+    limits:
+      memory: "1024Mi"
+      cpu: "2000m"
+  nova_db_sync:
+    requests:
+      memory: "124Mi"
+      cpu: "100m"
+    limits:
+      memory: "1024Mi"
+      cpu: "2000m"
+  nova_init:
+    requests:
+      memory: "124Mi"
+      cpu: "100m"
+    limits:
+      memory: "1024Mi"
+      cpu: "2000m"
+  nova_post:
+    requests:
+      memory: "124Mi"
+      cpu: "100m"
+    limits:
+      memory: "1024Mi"
+      cpu: "2000m"

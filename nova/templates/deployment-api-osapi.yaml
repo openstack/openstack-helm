@@ -1,3 +1,5 @@
+{{- $envAll := . }}
+{{- $dependencies := .Values.dependencies.api }}
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
@@ -11,54 +13,37 @@ spec:
     rollingUpdate:
       maxUnavailable: {{ .Values.upgrades.rolling_update.max_unavailable }}
       maxSurge: {{ .Values.upgrades.rolling_update.max_surge }}
-    {{ end }}  
+    {{ end }}
   template:
     metadata:
       labels:
         app: nova-osapi
       annotations:
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "hash" }}
-        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "hash" }}        
+        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "hash" }}
         pod.beta.kubernetes.io/init-containers: '[
-          {
-            "name": "init",
-            "image": "{{ .Values.image.entrypoint }}",
-            "imagePullPolicy": "{{ .Values.image.pull_policy }}",            
-            "env": [
-              {
-                "name": "NAMESPACE",
-                "value": "{{ .Release.Namespace }}"
-              },
-              {
-                "name": "INTERFACE_NAME",
-                "value": "eth0"
-              },
-              {
-                "name": "DEPENDENCY_SERVICE",
-                "value": "{{  include "joinListWithColon" .Values.dependencies.api.service }}"
-              },
-              {
-                "name": "DEPENDENCY_JOBS",
-                "value": "{{  include "joinListWithColon" .Values.dependencies.api.jobs }}"
-              },
-              {
-                "name": "COMMAND",
-                "value": "echo done"
-              }              
-            ]
-          }
+{{ tuple $envAll $dependencies | include "dep_check_init_cont" | indent 10 }}
         ]'
     spec:
       nodeSelector:
         {{ .Values.labels.control_node_selector_key }}: {{ .Values.labels.control_node_selector_value }}
       containers:
-        - name: nova-api-osapi
-          image: {{ .Values.image.api }}
-          imagePullPolicy: {{ .Values.image.pull_policy }}
+        - name: nova-osapi
+          image: {{ .Values.images.api }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
           securityContext:
             capabilities:
               add:
                 - NET_ADMIN
+          {{- if .Values.resources.enabled }}
+          resources:
+            requests:
+              memory: {{ .Values.resources.nova_osapi.requests.memory | quote }}
+              cpu: {{ .Values.resources.nova_osapi.requests.cpu | quote }}
+            limits:
+              memory: {{ .Values.resources.nova_osapi.limits.memory | quote }}
+              cpu: {{ .Values.resources.nova_osapi.limits.cpu | quote }}
+          {{- end }}
           command:
             - nova-api
             - --config-file=/etc/nova/nova.conf

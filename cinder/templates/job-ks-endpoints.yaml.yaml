@@ -1,5 +1,6 @@
 {{- $envAll := . }}
 {{- $ksAdminSecret := $envAll.Values.keystone.admin_secret | default "cinder-env-keystone-admin" }}
+{{- $dependencies := .Values.dependencies.ks_endpoints }}
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -9,25 +10,7 @@ spec:
     metadata:
       annotations:
         pod.beta.kubernetes.io/init-containers: '[
-          {
-            "name": "init",
-            "image": {{ .Values.images.dep_check | quote }},
-            "imagePullPolicy": {{ .Values.images.pull_policy | quote }},
-            "env": [
-              {
-                "name": "NAMESPACE",
-                "value": "{{ .Release.Namespace }}"
-              },
-              {
-                "name": "DEPENDENCY_SERVICE",
-                "value": "{{ include "joinListWithColon" .Values.dependencies.ks_service.service }}"
-              },
-              {
-                "name": "COMMAND",
-                "value": "echo done"
-              }
-            ]
-          }
+{{ tuple $envAll $dependencies | include "dep_check_init_cont" | indent 10 }}
         ]'
     spec:
       restartPolicy: OnFailure
@@ -39,6 +22,15 @@ spec:
         - name: {{ $osServiceType }}-ks-endpoints-{{ $osServiceEndPoint }}
           image: {{ $envAll.Values.images.ks_endpoints }}
           imagePullPolicy: {{ $envAll.Values.images.pull_policy }}
+          {{- if $envAll.Values.resources.enabled }}
+          resources:
+            requests:
+              memory: {{ $envAll.Values.resources.cinder_ks_endpoints.requests.memory | quote }}
+              cpu: {{ $envAll.Values.resources.cinder_ks_endpoints.requests.cpu | quote }}
+            limits:
+              memory: {{ $envAll.Values.resources.cinder_ks_endpoints.limits.memory | quote }}
+              cpu: {{ $envAll.Values.resources.cinder_ks_endpoints.limits.cpu | quote }}
+          {{- end }}
           command:
             - bash
             - /tmp/ks-endpoints.sh

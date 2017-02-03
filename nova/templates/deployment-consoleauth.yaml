@@ -1,3 +1,5 @@
+{{- $envAll := . }}
+{{- $dependencies := .Values.dependencies.consoleauth }}
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
@@ -11,50 +13,33 @@ spec:
     rollingUpdate:
       maxUnavailable: {{ .Values.upgrades.rolling_update.max_unavailable }}
       maxSurge: {{ .Values.upgrades.rolling_update.max_surge }}
-    {{ end }}  
+    {{ end }}
   template:
     metadata:
       labels:
         app: nova-consoleauth
       annotations:
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "hash" }}
-        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "hash" }}        
+        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "hash" }}
         pod.beta.kubernetes.io/init-containers: '[
-          {
-            "name": "init",
-            "image": "{{ .Values.image.entrypoint }}",
-            "imagePullPolicy": "{{ .Values.image.pull_policy }}",            
-            "env": [
-              {
-                "name": "NAMESPACE",
-                "value": "{{ .Release.Namespace }}"
-              },
-              {
-                "name": "INTERFACE_NAME",
-                "value": "eth0"
-              },
-              {
-                "name": "DEPENDENCY_SERVICE",
-                "value": "{{  include "joinListWithColon" .Values.dependencies.consoleauth.service }}"
-              },
-              {
-                "name": "DEPENDENCY_JOBS",
-                "value": "{{  include "joinListWithColon" .Values.dependencies.consoleauth.jobs }}"
-              },
-              {
-                "name": "COMMAND",
-                "value": "echo done"
-              }              
-            ]
-          }
+{{ tuple $envAll $dependencies | include "dep_check_init_cont" | indent 10 }}
         ]'
     spec:
       nodeSelector:
         {{ .Values.labels.control_node_selector_key }}: {{ .Values.labels.control_node_selector_value }}
       containers:
         - name: nova-consoleauth
-          image: {{ .Values.image.consoleauth }}
-          imagePullPolicy: {{ .Values.image.pull_policy }}
+          image: {{ .Values.images.consoleauth }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+          {{- if .Values.resources.enabled }}
+          resources:
+            requests:
+              memory: {{ .Values.resources.nova_consoleauth.requests.memory | quote }}
+              cpu: {{ .Values.resources.nova_consoleauth.requests.cpu | quote }}
+            limits:
+              memory: {{ .Values.resources.nova_consoleauth.limits.memory | quote }}
+              cpu: {{ .Values.resources.nova_consoleauth.limits.cpu | quote }}
+          {{- end }}
           command:
             - nova-consoleauth
             - --config-file

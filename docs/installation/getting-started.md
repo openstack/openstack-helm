@@ -190,11 +190,17 @@ Please ensure that you have verified and completed the steps above to prevent is
 Although Ceph is mentioned throughout this guide, our deployment is flexible to allow you the option of bringing any type of persistent storage. Although most of these verification steps are the same, if not very similar, we will use Ceph as our example throughout this guide.
 
 ## Node Labels
-First, we must label our nodes according to their role. Although we are labeling `all` nodes, you are free to label only the nodes you wish. You must have at least one, although a minimum of three are recommended.
+First, we must label our nodes according to their role. Although we are labeling `all` nodes, you are free to label only the nodes you wish. You must have at least one, although a minimum of three are recommended. Nodes are labeled according to their Openstack roles:
+
+**Storage Nodes:** `ceph-storage`
+**Control Plane:** `openstack-control-plane`
+**Compute Nodes:** `openvswitch`, `openstack-compute-node`
 
 ```
 admin@kubenode01:~$ kubectl label nodes openstack-control-plane=enabled --all
 admin@kubenode01:~$ kubectl label nodes ceph-storage=enabled --all
+admin@kubenode01:~$ kubectl label nodes openvswitch=enabled --all
+admin@kubenode01:~$ kubectl label nodes openstack-compute-node=enabled --all
 ```
 
 ## Obtaining the Project
@@ -262,7 +268,7 @@ Please ensure that you use ``--purge`` whenever deleting a project.
 ## Ceph Installation and Verification
 Install the first service, which is Ceph. If all instructions have been followed as mentioned above, this installation should go smoothly. Use the following command to install Ceph:
 ```
-admin@kubenode01:~$ helm install --name=ceph local/ceph --namespace=ceph
+admin@kubenode01:~$ helm install --set network.public=$osd_public_network --name=ceph local/ceph --namespace=ceph
 ```
 
 ## Bootstrap Installation

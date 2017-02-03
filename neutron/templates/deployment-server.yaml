@@ -1,3 +1,5 @@
+{{- $envAll := . }}
+{{- $dependencies := .Values.dependencies.server }}
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
@@ -11,14 +13,17 @@ spec:
     rollingUpdate:
       maxUnavailable: {{ .Values.upgrades.rolling_update.max_unavailable }}
       maxSurge: {{ .Values.upgrades.rolling_update.max_surge }}
-    {{ end }}  
+    {{ end }}
   template:
     metadata:
       labels:
         app: neutron-server
       annotations:
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "hash" }}
-        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "hash" }}        
+        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "hash" }}
+        pod.beta.kubernetes.io/init-containers: '[
+{{ tuple $envAll $dependencies | include "dep_check_init_cont" | indent 10 }}
+        ]'
     spec:
       nodeSelector:
         {{ .Values.labels.server.node_selector_key }}: {{ .Values.labels.server.node_selector_value }}
@@ -26,23 +31,21 @@ spec:
         - name: neutron-server
           image: {{ .Values.images.server }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
-          env:
-            - name: INTERFACE_NAME
-              value: "eth0"
-            - name: POD_NAME
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.name
-            - name: NAMESPACE
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.namespace
-            - name: COMMAND
-              value: "neutron-server --config-file /etc/neutron/neutron.conf --config-file /etc/neutron/plugins/ml2/ml2-conf.ini"
-            - name: DEPENDENCY_JOBS
-              value: "{{  include "joinListWithColon" .Values.dependencies.server.jobs }}"
-            - name: DEPENDENCY_SERVICE
-              value: "{{  include "joinListWithColon" .Values.dependencies.server.service }}"
+          command:
+            - neutron-server
+            - --config-file
+            - /etc/neutron/neutron.conf
+            - --config-file
+            - /etc/neutron/plugins/ml2/ml2-conf.ini
+          {{- if .Values.resources.enabled }}
+          resources:
+            limits:
+              cpu: {{ .Values.resources.server.limits.cpu | quote }}
+              memory: {{ .Values.resources.server.limits.memory | quote }}
+            requests:
+              cpu: {{ .Values.resources.server.requests.cpu | quote }}
+              memory: {{ .Values.resources.server.requests.memory | quote }}
+          {{- end }}
           ports:
           - containerPort: {{ .Values.network.port.server }}
           readinessProbe:

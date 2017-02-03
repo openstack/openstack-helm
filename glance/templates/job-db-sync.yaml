@@ -1,0 +1,41 @@
+{{- $envAll := . }}
+{{- $dependencies := .Values.dependencies.db_sync }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: glance-db-sync
+spec:
+  template:
+    metadata:
+      annotations:
+        pod.beta.kubernetes.io/init-containers: '[
+{{ tuple $envAll $dependencies | include "dep_check_init_cont" | indent 10 }}
+        ]'
+    spec:
+      restartPolicy: OnFailure
+      nodeSelector:
+        {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
+      containers:
+        - name: glance-db-sync
+          image: {{ .Values.images.db_sync }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+          {{- if .Values.resources.enabled }}
+          resources:
+            limits:
+              cpu: {{ .Values.resources.jobs.db.limits.cpu | quote }}
+              memory: {{ .Values.resources.jobs.db.limits.memory | quote }}
+            requests:
+              cpu: {{ .Values.resources.jobs.db.requests.cpu | quote }}
+              memory: {{ .Values.resources.jobs.db.requests.memory | quote }}
+          {{- end }}
+          command:
+            - glance-manage
+            - db_sync
+          volumeMounts:
+            - name: glanceapiconf
+              mountPath: /etc/glance/glance-api.conf
+              subPath: glance-api.conf
+      volumes:
+        - name: glanceapiconf
+          configMap:
+            name: glance-etc

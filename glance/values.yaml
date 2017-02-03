@@ -1,20 +1,27 @@
-# Default values for keystone.
+# Default values for glance.
 # This is a YAML-formatted file.
 # Declare name/value pairs to be passed into your templates.
 # name: value
 
-replicas: 1
+replicas:
+  api: 1
+  registry: 1
+
+development:
+  enabled: false
+  storage_path: /data/openstack-helm/glance/images
 
 labels:
   node_selector_key: openstack-control-plane
   node_selector_value: enabled
 
 images:
+  db_init: quay.io/stackanetes/stackanetes-kolla-toolbox:newton
   db_sync: quay.io/stackanetes/stackanetes-glance-api:newton
   api: quay.io/stackanetes/stackanetes-glance-api:newton
-  init: quay.io/stackanetes/stackanetes-kolla-toolbox:newton
   registry: quay.io/stackanetes/stackanetes-glance-registry:newton
   post: quay.io/stackanetes/stackanetes-kolla-toolbox:newton
+  dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.1.0
   pull_policy: "IfNotPresent"
 
 upgrades:
@@ -65,10 +72,49 @@ misc:
   workers: 8
   debug: false
 
+resources:
+  enabled: false
+  api:
+    limits:
+      memory: "128Mi"
+      cpu: "500m"
+    requests:
+      memory: "128Mi"
+      cpu: "500m"
+  registry:
+    limits:
+      memory: "128Mi"
+      cpu: "500m"
+    requests:
+      memory: "128Mi"
+      cpu: "500m"
+  jobs:
+    db:
+      limits:
+        memory: "128Mi"
+        cpu: "500m"
+      requests:
+        memory: "128Mi"
+        cpu: "500m"
+    init:
+      limits:
+        memory: "128Mi"
+        cpu: "500m"
+      requests:
+        memory: "128Mi"
+        cpu: "500m"
+    post:
+      limits:
+        memory: "128Mi"
+        cpu: "500m"
+      requests:
+        memory: "128Mi"
+        cpu: "500m"
+
 dependencies:
   api:
     jobs:
-    - glance-init
+    - glance-db-init
     - glance-db-sync
     - keystone-db-sync
     service:
@@ -76,7 +122,7 @@ dependencies:
     - mariadb
   registry:
     jobs:
-    - glance-init
+    - glance-db-init
     - glance-db-sync
     - keystone-db-sync
     service:
@@ -85,9 +131,9 @@ dependencies:
     - glance-api
   db_sync:
     jobs:
-    - keystone-init
+    - keystone-db-init
     - keystone-db-sync
-    - glance-init
+    - glance-db-init
     - mariadb-seed
     service:
     - mariadb
@@ -98,10 +144,10 @@ dependencies:
     - mariadb
   post:
     jobs:
-    - glance-init
+    - glance-db-init
     - glance-db-sync
     - keystone-db-sync
-    - keystone-init
+    - keystone-db-init
     - mariadb-seed
     service:
     - mariadb
@@ -109,7 +155,7 @@ dependencies:
     - glance-api
     - glance-registry
 
-# typically overriden by environmental 
+# typically overriden by environmental
 # values, but should include all endpoints
 # required by this chart
 endpoints:
@@ -131,4 +177,3 @@ endpoints:
     port:
         admin: 35357
         public: 5000
-

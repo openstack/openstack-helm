@@ -1,3 +1,5 @@
+{{- $envAll := . }}
+{{- $dependencies := .Values.dependencies.ovs_agent }}
 apiVersion: extensions/v1beta1
 kind: DaemonSet
 metadata:
@@ -9,10 +11,13 @@ spec:
         app: ovs-agent
       annotations:
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "hash" }}
-        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "hash" }}        
+        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "hash" }}
+        pod.beta.kubernetes.io/init-containers: '[
+{{ tuple $envAll $dependencies | include "dep_check_init_cont" | indent 10 }}
+        ]'
     spec:
       nodeSelector:
-        {{ .Values.labels.ovs.node_selector_key }}: {{ .Values.labels.ovs.node_selector_value }}    
+        {{ .Values.labels.ovs.node_selector_key }}: {{ .Values.labels.ovs.node_selector_value }}
       securityContext:
         runAsUser: 0
       dnsPolicy: ClusterFirst
@@ -21,8 +26,20 @@ spec:
         - name: ovs-agent
           image: {{ .Values.images.neutron_openvswitch_agent }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
+          {{- if .Values.resources.enabled }}
+          resources:
+            limits:
+              cpu: {{ .Values.resources.ovs.agent.limits.cpu | quote }}
+              memory: {{ .Values.resources.ovs.agent.limits.memory | quote }}
+            requests:
+              cpu: {{ .Values.resources.ovs.agent.requests.cpu | quote }}
+              memory: {{ .Values.resources.ovs.agent.requests.memory | quote }}
+          {{- end }}
           securityContext:
             privileged: true
+          command:
+            - bash
+            - /tmp/neutron-openvswitch-agent.sh
           # ensures this container can can see a br-int
           # bridge before its marked as ready
           readinessProbe:
@@ -31,23 +48,6 @@ spec:
                 - bash
                 - -c
                 - 'ovs-vsctl list-br | grep -q br-int'
-          env:
-            - name: INTERFACE_NAME
-              value: {{ .Values.network.interface.openvswitch | default .Values.network.interface.default }}
-            - name: POD_NAME
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.name
-            - name: NAMESPACE
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.namespace
-            - name: COMMAND
-              value: "bash /tmp/neutron-openvswitch-agent.sh"
-            - name: DEPENDENCY_JOBS
-              value: "{{  include "joinListWithColon" .Values.dependencies.ovs_agent.jobs }}"
-            - name: DEPENDENCY_SERVICE
-              value: "{{  include "joinListWithColon" .Values.dependencies.ovs_agent.service }}"
           volumeMounts:
             - name: neutronopenvswitchagentsh
               mountPath: /tmp/neutron-openvswitch-agent.sh
@@ -86,4 +86,4 @@ spec:
             path: /lib/modules
         - name: run
           hostPath:
-            path: /run                 
+            path: /run

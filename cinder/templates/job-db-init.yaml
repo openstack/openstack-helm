@@ -1,3 +1,5 @@
+{{- $envAll := . }}
+{{- $dependencies := .Values.dependencies.db_init }}
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -7,29 +9,7 @@ spec:
     metadata:
       annotations:
         pod.beta.kubernetes.io/init-containers: '[
-          {
-            "name": "init",
-            "image": {{ .Values.images.dep_check | quote }},
-            "imagePullPolicy": {{ .Values.images.pull_policy | quote }},
-            "env": [
-              {
-                "name": "NAMESPACE",
-                "value": "{{ .Release.Namespace }}"
-              },
-              {
-                "name": "DEPENDENCY_SERVICE",
-                "value": "{{  include "joinListWithColon" .Values.dependencies.db_init.service }}"
-              },
-              {
-                "name": "DEPENDENCY_JOBS",
-                "value": "{{  include "joinListWithColon" .Values.dependencies.db_init.jobs }}"
-              },
-              {
-                "name": "COMMAND",
-                "value": "echo done"
-              }
-            ]
-          }
+{{ tuple $envAll $dependencies | include "dep_check_init_cont" | indent 10 }}
         ]'
     spec:
       restartPolicy: OnFailure
@@ -39,6 +19,15 @@ spec:
         - name: cinder-db-init
           image: {{ .Values.images.db_init | quote }}
           imagePullPolicy: {{ .Values.images.pull_policy | quote }}
+          {{- if .Values.resources.enabled }}
+          resources:
+            requests:
+              memory: {{ .Values.resources.cinder_db_init.requests.memory | quote }}
+              cpu: {{ .Values.resources.cinder_db_init.requests.cpu | quote }}
+            limits:
+              memory: {{ .Values.resources.cinder_db_init.limits.memory | quote }}
+              cpu: {{ .Values.resources.cinder_db_init.limits.cpu | quote }}
+          {{- end }}
           env:
           - name: ANSIBLE_LIBRARY
             value: /usr/share/ansible/

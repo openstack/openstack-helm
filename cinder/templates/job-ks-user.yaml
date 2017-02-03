@@ -1,5 +1,7 @@
 {{- $ksAdminSecret := .Values.keystone.admin_secret | default "cinder-env-keystone-admin" }}
 {{- $ksUserSecret := .Values.keystone.user_secret | default "cinder-env-keystone-user" }}
+{{- $envAll := . }}
+{{- $dependencies := .Values.dependencies.ks_user }}
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -9,25 +11,7 @@ spec:
     metadata:
       annotations:
         pod.beta.kubernetes.io/init-containers: '[
-          {
-            "name": "init",
-            "image": {{ .Values.images.dep_check | quote }},
-            "imagePullPolicy": {{ .Values.images.pull_policy | quote }},
-            "env": [
-              {
-                "name": "NAMESPACE",
-                "value": "{{ .Release.Namespace }}"
-              },
-              {
-                "name": "DEPENDENCY_SERVICE",
-                "value": "{{ include "joinListWithColon" .Values.dependencies.ks_user.service }}"
-              },
-              {
-                "name": "COMMAND",
-                "value": "echo done"
-              }
-            ]
-          }
+{{ tuple $envAll $dependencies | include "dep_check_init_cont" | indent 10 }}
         ]'
     spec:
       restartPolicy: OnFailure
@@ -37,6 +21,15 @@ spec:
         - name: cinder-ks-user
           image: {{ .Values.images.ks_user }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
+          {{- if .Values.resources.enabled }}
+          resources:
+            requests:
+              memory: {{ .Values.resources.cinder_ks_user.requests.memory | quote }}
+              cpu: {{ .Values.resources.cinder_ks_user.requests.cpu | quote }}
+            limits:
+              memory: {{ .Values.resources.cinder_ks_user.limits.memory | quote }}
+              cpu: {{ .Values.resources.cinder_ks_user.limits.cpu | quote }}
+          {{- end }}
           command:
             - bash
             - /tmp/ks-user.sh

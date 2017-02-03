@@ -1,22 +1,13 @@
 #!/bin/bash
 set -ex
 
-# order of kolla_keystone_bootstrap urls
-# for those of looking for a little expanation
-# to a mysterious blackbox
-# 
-# these will feed into the keystone endpoints
-# so it is important they are correct
-#
-# keystone_admin_url
-# keystone_internal_url 
-# keystone_public_url 
+keystone-manage --config-file=/etc/keystone/keystone.conf db_sync
 
-keystone-manage db_sync
-kolla_keystone_bootstrap {{ .Values.keystone.admin_user }} {{ .Values.keystone.admin_password }} \
-  {{ .Values.keystone.admin_project_name }} admin \
-  {{ include "endpoint_keystone_admin" . }} \
-  {{ include "endpoint_keystone_internal" . }} \
-  {{ include "endpoint_keystone_internal" . }} \
-  {{ .Values.keystone.admin_region_name }}
-
+keystone-manage --config-file=/etc/keystone/keystone.conf bootstrap \
+    --bootstrap-username {{ .Values.keystone.admin_user }} \
+    --bootstrap-password {{ .Values.keystone.admin_password }} \
+    --bootstrap-project-name {{ .Values.keystone.admin_project_name }} \
+    --bootstrap-admin-url {{ include "endpoint_keystone_admin" . }} \
+    --bootstrap-public-url {{ include "endpoint_keystone_internal" . }} \
+    --bootstrap-internal-url {{ include "endpoint_keystone_internal" . }} \
+    --bootstrap-region-id {{ .Values.keystone.admin_region_name }}

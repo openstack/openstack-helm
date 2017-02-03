@@ -1,35 +1,44 @@
+{{- $envAll := . }}
+{{- $dependencies := .Values.dependencies.db_sync }}
 apiVersion: batch/v1
 kind: Job
 metadata:
   name: neutron-db-sync
 spec:
   template:
+    metadata:
+      annotations:
+        pod.beta.kubernetes.io/init-containers: '[
+{{ tuple $envAll $dependencies | include "dep_check_init_cont" | indent 10 }}
+        ]'
     spec:
       restartPolicy: OnFailure
       nodeSelector:
-        {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
+        {{ .Values.labels.server.node_selector_key }}: {{ .Values.labels.server.node_selector_value }}
       containers:
         - name: neutron-db-sync
           image: {{ .Values.images.db_sync }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
-          env:
-            - name: INTERFACE_NAME
-              value: "eth0"
-            - name: POD_NAME
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.name
-            - name: NAMESPACE
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.namespace
-            - name: COMMAND
-              value: "neutron-db-manage --config-file /etc/neutron/neutron.conf --config-file /etc/neutron/plugins/ml2/ml2-conf.ini upgrade head"
-            - name: DEPENDENCY_JOBS
-              value: "{{  include "joinListWithColon" .Values.dependencies.db_sync.jobs }}"
-            - name: DEPENDENCY_SERVICE
-              value: "{{  include "joinListWithColon" .Values.dependencies.db_sync.service }}"
+          command:
+            - neutron-db-manage
+            - --config-file
+            - /etc/neutron/neutron.conf
+            - --config-file
+            - /etc/neutron/plugins/ml2/ml2-conf.ini
+            - upgrade
+            - head
+          {{- if .Values.resources.enabled }}
+          resources:
+            limits:
+              cpu: {{ .Values.resources.jobs.db_sync.limits.cpu | quote }}
+              memory: {{ .Values.resources.jobs.db_sync.limits.memory | quote }}
+            requests:
+              cpu: {{ .Values.resources.jobs.db_sync.requests.cpu | quote }}
+              memory: {{ .Values.resources.jobs.db_sync.requests.memory | quote }}
+          {{- end }}
           volumeMounts:
+            - name: pod-etc-neutron
+              mountPath: /etc/neutron
             - name: neutronconf
               mountPath: /etc/neutron/neutron.conf
               subPath: neutron.conf
@@ -37,6 +46,8 @@ spec:
               mountPath: /etc/neutron/plugins/ml2/ml2-conf.ini
               subPath: ml2-conf.ini
       volumes:
+        - name: pod-etc-neutron
+          emptyDir: {}
         - name: neutronconf
           configMap:
             name: neutron-etc

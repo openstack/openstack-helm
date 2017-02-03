@@ -3,7 +3,9 @@
 Community development is extremely important to us. As an open source development team, we want the development of Openstack-Helm to be an easy experience. Please evaluate, and make recommendations. We want developers to feel welcome to contribute to this project. Below are some instructions and suggestions to help you get started.
 
 # Requirements
-We've tried to minimize the number of prerequisites required in order to get started. The main prerequisite is to install the most recent versions of Minikube and Helm.
+We've tried to minimize the number of prerequisites required in order to get started. For most users, the main prerequisites are to install the most recent versions of Minikube and Helm. For fresh installations, you may also need to install a Hypervisor that works for your system (that is supported by [Minikube](https://kubernetes.io/docs/getting-started-guides/minikube/#requirements)).
+
+**Kubectl:** Download and install the version of [`kubectl`](https://kubernetes.io/docs/getting-started-guides/kubectl/) that matches your Kubernetes deployment.
 
 **Kubernetes Minikube:**
 Ensure that you have installed a recent version of [Kubernetes/Minikube](http://kubernetes.io/docs/getting-started-guides/minikube/).
@@ -19,6 +21,57 @@ $ chmod 700 get_helm.sh
 $ ./get_helm.sh
 ```
 
+# TLDR;
+
+If your environment meets all of the prerequisites above, you can simply use the following commands:
+
+```
+# Clone the project:
+git clone https://github.com/att-comdev/openstack-helm.git && cd openstack-helm
+
+# Get a list of the current tags:
+git tag -l
+
+# Checkout the tag you want to work with (if desired, or use master for development):
+git checkout 0.1.0
+
+# Start a local Helm Server:
+helm serve &
+
+# You may need to change these params for your environment. Look up use of --iso-url if needed:
+minikube start \
+        --network-plugin=cni \
+        --kubernetes-version v1.5.1 \
+        --disk-size 40g \
+        --memory 16384 \
+        --cpus 4 \
+        --vm-driver kvm \
+        --iso-url=https://storage.googleapis.com/minikube/iso/minikube-v1.0.4.iso
+
+# Deploy a CNI/SDN:
+kubectl create -f http://docs.projectcalico.org/v2.0/getting-started/kubernetes/installation/hosted/calico.yaml
+
+# Initialize Helm/Deploy Tiller:
+helm init
+
+# Package the Openstack-Helm Charts, and push them to your local Helm repository:
+make
+
+# Label the Minikube as an Openstack Control Plane node:
+kubectl label nodes openstack-control-plane=enabled --all --namespace=openstack
+
+# Deploy each chart:
+helm install --name mariadb --set development.enabled=true local/mariadb --namespace=openstack
+helm install --name=memcached local/memcached --namespace=openstack
+helm install --name=rabbitmq local/rabbitmq --namespace=openstack
+helm install --name=keystone local/keystone --namespace=openstack
+helm install --name=cinder local/cinder --namespace=openstack
+helm install --name=glance local/glance --namespace=openstack
+helm install --name=heat local/heat --namespace=openstack
+helm install --name=nova local/nova --namespace=openstack
+helm install --name=neutron local/neutron --namespace=openstack
+helm install --name=horizon local/horizon --namespace=openstack
+```
 
 # Getting Started
 

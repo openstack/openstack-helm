@@ -10,10 +10,10 @@ labels:
   node_selector_value: enabled
 
 images:
+  db_init: quay.io/stackanetes/stackanetes-kolla-toolbox:newton
   db_sync: quay.io/stackanetes/stackanetes-keystone-api:newton
   api: quay.io/stackanetes/stackanetes-keystone-api:newton
-  init: quay.io/stackanetes/stackanetes-kolla-toolbox:newton
-  entrypoint: quay.io/stackanetes/kubernetes-entrypoint:v0.1.0
+  dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.1.0
   pull_policy: "IfNotPresent"
 
 upgrades:
@@ -30,6 +30,12 @@ keystone:
   admin_user: admin
   admin_password: password
   admin_project_name: admin
+
+api:
+  default:
+    debug: false
+  token:
+    provider: uuid
 
 network:
   port:
@@ -52,9 +58,6 @@ database:
   keystone_password: password
   keystone_user: keystone
 
-misc:
-  debug: false
-
 dependencies:
   api:
     jobs:
@@ -64,7 +67,7 @@ dependencies:
     - mariadb
   db_sync:
     jobs:
-    - keystone-init
+    - keystone-db-init
     - mariadb-seed
     service:
     - mariadb
@@ -73,6 +76,31 @@ dependencies:
     - mariadb-seed
     service:
     - mariadb
+
+resources:
+  enabled: false
+  api:
+    limits:
+      memory: "128Mi"
+      cpu: "500m"
+    requests:
+      memory: "128Mi"
+      cpu: "500m"
+  jobs:
+    db_sync:
+      limits:
+        memory: "128Mi"
+        cpu: "500m"
+      requests:
+        memory: "128Mi"
+        cpu: "500m"
+    init:
+      limits:
+        memory: "128Mi"
+        cpu: "500m"
+      requests:
+        memory: "128Mi"
+        cpu: "500m"
 
 # typically overriden by environmental
 # values, but should include all endpoints
@@ -87,4 +115,3 @@ endpoints:
     port:
         admin: 35357
         public: 5000
-

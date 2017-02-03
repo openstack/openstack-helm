@@ -1,0 +1,74 @@
+{{- $envAll := . }}
+{{- $dependencies := .Values.dependencies.registry }}
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: glance-registry
+spec:
+{{- if .Values.development.enabled }}
+  replicas: 1
+{{- else }}
+  replicas: {{ .Values.replicas.registry }}
+{{- end }}
+  template:
+    metadata:
+      labels:
+        app: glance-registry
+      annotations:
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "hash" }}
+        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "hash" }}
+        pod.beta.kubernetes.io/init-containers: '[
+{{ tuple $envAll $dependencies | include "dep_check_init_cont" | indent 10 }}
+        ]'
+    spec:
+      nodeSelector:
+        {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
+      containers:
+        - name: glance-registry
+          image: {{ .Values.images.registry }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+          {{- if .Values.resources.enabled }}  
+          resources:
+            limits:
+              cpu: {{ .Values.resources.registry.limits.cpu | quote }}
+              memory: {{ .Values.resources.registry.limits.memory | quote }}
+            requests:
+              cpu: {{ .Values.resources.registry.requests.cpu | quote }}
+              memory: {{ .Values.resources.registry.requests.memory | quote }}
+          {{- end }}
+          command:
+          - glance-registry
+          - --config-file
+          - /etc/glance/glance-registry.conf
+          ports:
+            - containerPort: {{ .Values.network.port.registry }}
+          readinessProbe:
+            tcpSocket:
+              port: {{ .Values.network.port.registry }}
+          volumeMounts:
+            - name: etcglance
+              mountPath: /etc/glance
+            - name: glanceregistryconf
+              mountPath: /etc/glance/glance-registry.conf
+              subPath: glance-registry.conf
+              readOnly: true
+            - name: glanceregistrypaste
+              mountPath: /etc/glance/glance-registry-paste.ini
+              subPath: glance-registry-paste.ini
+              readOnly: true
+            - name: glancepolicy
+              mountPath: /etc/glance/policy.json
+              subPath: policy.json
+              readOnly: true
+      volumes:
+        - name: etcglance
+          emptyDir: {}
+        - name: glanceregistryconf
+          configMap:
+            name: glance-etc
+        - name: glanceregistrypaste
+          configMap:
+            name: glance-etc
+        - name: glancepolicy
+          configMap:
+            name: glance-etc
