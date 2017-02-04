@@ -37,6 +37,7 @@ git checkout 0.1.0
 
 # Start a local Helm Server:
 helm serve &
+helm repo add local http://localhost:8879/charts
 
 # You may need to change these params for your environment. Look up use of --iso-url if needed:
 minikube start \
