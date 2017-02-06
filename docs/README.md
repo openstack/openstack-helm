@@ -3,8 +3,8 @@
 
 ## Table of Contents
 
-## &nbsp;1. [Openstack-Helm Design Principals]()   
-### &nbsp;&nbsp;&nbsp;1.1 Mission
+## &nbsp;1. [Openstack-Helm Design Principles]
+### &nbsp;&nbsp;&nbsp;1.1 [Mission](mission.md)
 ##### &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1.1.1 [Resiliency](mission.md#resiliency)
 ##### &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1.1.2 [Scaling](mission.md#scaling)
 ### &nbsp;&nbsp;&nbsp;1.2 Helm Overrides
