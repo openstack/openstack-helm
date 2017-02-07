@@ -1,22 +1,22 @@
 # Helm Overrides
 
-This document covers helm overrides and the openstack-helm approach.  For more information on Helm overrides in general see the Helm [Values Documentation](https://github.com/kubernetes/helm/blob/master/docs/charts.md#values-files)
+This document covers Helm overrides and the OpenStack-Helm approach.  For more information on Helm overrides in general see the Helm [Values Documentation](https://github.com/kubernetes/helm/blob/master/docs/charts.md#values-files)
 
 ## Values Philosophy
 
-Two major philosophies guide the openstack-helm values approach.  It is important that new chart developers understand the `values.yaml` approach openstack-helm has within each of its charts to ensure all of our charts are both consistent and remain a joy to work with.
+Two major philosophies guide the OpenStack-Helm values approach.  It is important that new chart developers understand the `values.yaml` approach OpenStack-Helm has within each of its charts to ensure that all charts are both consistent and remain a joy to work with.
 
-The first is that all charts should be independently installable and do not require a parent chart. This means that the values file in each chart should be self-contained.  We will avoid the use of Helm globals and the concept of a parent chart as a requirement to capture and feed environment specific overrides into subcharts.  An example of a single site definition YAML that can be source controlled and used as `--values` input to all openstack-helm charts to maintain overrides in one testable place is forthcoming.  Currently Helm does not support as `--values=environment.yaml` chunking up a larger override files YAML namespace.  Ideally, we are seeking native Helm support for `helm install local/keystone --values=environment.yaml:keystone` where `environment.yaml` is the operators chart-wide environment defition and `keystone` is the section in environment.yaml that will be fed to the keystone chart during install as overrides.  Standard YAML anchors can be used to duplicate common elements like the `endpoints` sections.  As of this document, operators can use a temporary approach like [values.py](https://github.com/att-comdev/openstack-helm/blob/master/helm-toolkit/utils/values/values.py) to chunk up a single override YAML file as input to various individual charts.  It is our belief that overrides, just like the templates themselves, should be source controlled and tested especially for operators operating charts at scale.  We will continue to examine efforts such as [helm-value-store](https://github.com/skuid/helm-value-store) and solutions in the vein of [helmfile](https://github.com/roboll/helmfile).  A project that seems quite compelling to address the needs of orchestrating multiple charts and managing site specific overrides is [Landscape](https://github.com/Eneco/landscaper)
+The first philosophy to understand is that all charts should be independently installable and should not require a parent chart. This means that the values file in each chart should be self-contained.  The project avoids using Helm globals and parent charts as requirements for capturing and feeding environment specific overrides into subcharts.  An example of a single site definition YAML that can be source controlled and used as `--values` input to all OpenStack-Helm charts to maintain overrides in one testable place is forthcoming.  Currently Helm does not support a `--values=environment.yaml` chunking up a larger override file's YAML namespace.  Ideally, the project seeks native Helm support for `helm install local/keystone --values=environment.yaml:keystone` where `environment.yaml` is the operator's chart-wide environment definition and `keystone` is the section in environment.yaml that will be fed to the keystone chart during install as overrides.  Standard YAML anchors can be used to duplicate common elements like the `endpoints` sections.  At the time of writing, operators can use a temporary approach like [values.py](https://github.com/att-comdev/openstack-helm/blob/master/helm-toolkit/utils/values/values.py) to chunk up a single override YAML file as input to various individual charts.  Overrides, just like the templates themselves, should be source controlled and tested, especially for operators operating charts at scale.  This project will continue to examine efforts such as [helm-value-store](https://github.com/skuid/helm-value-store) and solutions in the vein of [helmfile](https://github.com/roboll/helmfile).  Another compelling project that seems to address the needs of orchestrating multiple charts and managing site specific overrides is [Landscape](https://github.com/Eneco/landscaper)
 
-The second is that the values files should be consistent across all charts, including charts in core, infra, and addons.  This provides a consistent way for operators to override settings such as enabling developer mode, defining resource limitations, and customizing the actual OpenStack configuration within chart templates without having to guess how a particular chart developer has layed out their values.yaml. There are also various macros in the `helm-toolkit` chart that will depend on the `values.yaml` within all charts being structured a certain way.
+The second philosophy is that the values files should be consistent across all charts, including charts in core, infra, and add-ons.  This provides a consistent way for operators to override settings, such as enabling developer mode, defining resource limitations, and customizing the actual OpenStack configuration within chart templates without having to guess how a particular chart developer has laid out their values.yaml. There are also various macros in the `helm-toolkit` chart that will depend on the `values.yaml` within all charts being structured a certain way.
 
-Finally, where charts reference connectivity information for other services sane defaults should be provided.  In the case where these services are provided by openstack-helm itself, the defaults should assume the user will use the openstack-helm charts for those services but ensure that they can be overriden if the operator has them externally deployed.
+Finally, where charts reference connectivity information for other services sane defaults should be provided.  In cases where these services are provided by OpenStack-Helm itself, the defaults should assume that the user will use the OpenStack-Helm charts for those services, but should also allow those charts to be overridden if the operator has them externally deployed.
 
 ## Replicas
 
-All charts must provide replicas definitions and leverage those in the Kubernetes manifests.  This allows site operators to tune the replica counts at install or upgrade time.  We suggest all charts deploy by default with more then one replica to ensure that openstack-helm being used in production environments is treated as a first class citizen and that more than one replica of every service is frequently tested.  Developers wishing to deploy minimal environments can enable the `development` mode override which should enforce only one replica of each component.
+All charts must provide replica definitions and leverage those in the Kubernetes manifests.  This allows site operators to tune the replica counts at install or when upgrading.  Each chart should deploy with multiple replicas by default to ensure that production deployments are treated as first class citizens, and that services are tested with multiple replicas more frequently during development and testing.  Developers wishing to deploy minimal environments can enable the `development` mode override, which should enforce only one replica per component.
 
-The convention today in openstack-helm is to define a `replicas:` section for the chart, with each component being deployed having its own tunable value.
+The convention today in OpenStack-Helm is to define a `replicas:` section for the chart, where each component being deployed has its own tunable value.
 
 For example, the `glance` chart provides the following replicas in `values.yaml`
 
@@ -34,16 +34,17 @@ $ helm install local/glance --set replicas.api=3,replicas.registry=3
 
 ## Labels
 
-We use nodeSelectors as well as podAntiAffinity rules to ensure resources land in the proper place within Kubernetes.  Today, openstack-helm employs four labels:
+This project uses nodeSelectors as well as podAntiAffinity rules to ensure resources land in the proper place within Kubernetes.  Today, OpenStack-Helm employs four labels:
 
 - ceph-storage: enabled
 - openstack-control-plane: enabled
 - openstack-compute-node: enabled
 - openvswitch: enabled
 
-NOTE: The `openvswitch` label is an element that is applicable to both `openstack-control-plane` as well as `openstack-compute-node` hosts. Ideally, we would eliminate the `openvswitch` label as we simply want to deploy openvswitch to an OR of (`openstack-control-plane` and `openstack-compute-node`). However, Kubernetes `nodeSelectors` prohibits this specific logic. As a result of this, we require a third label that spans all hosts, which is `openvswitch`.  The openvswitch service must run on both types of hosts to provide openvswitch connectivity for DHCP, L3, Metadata services which run in the control plane as well as tenant connectivity which runs on the compute node infrastructure.
+NOTE: The `openvswitch` label is an element that is applicable to both `openstack-control-plane` as well as `openstack-compute-node` nodes. Ideally, you would eliminate the `openvswitch` label if you simply wanted to deploy openvswitch to an OR of (`openstack-control-plane` and `openstack-compute-node`).  However, Kubernetes `nodeSelectors` prohibits this specific logic. As a result of this, a third label that spans all hosts is required, which in this case is `openvswitch`.  The Open vSwitch service must run on both control plane and tenant nodes with both labels to provide connectivity for DHCP, L3, and Metadata services. These Open vSwitch services run as part of the control plane as well as tenant connectivity, which runs as part of the compute node infrastructure.
 
-Labels are of course definable and overridable by the chart operators. Labels are defined in charts with a common convention, using a `labels:` section which defines both a selector, and a value:
+
+Labels are of course definable and overridable by the chart operators. Labels are defined in charts with a common convention, by using a `labels:` section, which defines both a selector and a value:
 
 ```
 labels:
@@ -51,7 +52,7 @@ labels:
   node_selector_value: enabled
 ```
 
-In some cases, such as the neutron chart, a chart may need to define more then one label. In cases such as this, each element should be articulated under the `labels:` section, nesting where appropriate:
+In some cases, such as with the Neutron chart, a chart may need to define more then one label. In cases such as this, each element should be articulated under the `labels:` section, nesting where appropriate:
 
 ```
 labels:
@@ -233,7 +234,7 @@ resources:
 ...
 ```
 
-These resources definitions are then applied to the appropriate component, when the `enabled` flag is set.  For instance, below, the nova_compute daemonset has the requests and limits values applied from `.Values.resources.nova_compute`:
+These resources definitions are then applied to the appropriate component, when the `enabled` flag is set.  For instance, the following nova_compute daemonset has the requests and limits values applied from `.Values.resources.nova_compute`:
 
 ```
           {{- if .Values.resources.enabled }}
@@ -321,7 +322,7 @@ Charts should avoid at all costs hard coding values such as ``http://keystone-ap
 
 The openstack-helm charts make the following conditions available across all charts which can be set at install or upgrade time with Helm:
 
-### Developer Mode 
+### Developer Mode
 
 ```
 helm install local/chart --set development.enabled=true
