@@ -34,7 +34,7 @@ $ helm install local/glance --set replicas.api=3,replicas.registry=3
 
 ## Labels
 
-This project uses nodeSelectors as well as podAntiAffinity rules to ensure resources land in the proper place within Kubernetes.  Today, OpenStack-Helm employs four labels:
+This project uses `nodeSelectors` as well as `podAntiAffinity` rules to ensure resources land in the proper place within Kubernetes.  Today, OpenStack-Helm employs four labels:
 
 - ceph-storage: enabled
 - openstack-control-plane: enabled
@@ -44,7 +44,7 @@ This project uses nodeSelectors as well as podAntiAffinity rules to ensure resou
 NOTE: The `openvswitch` label is an element that is applicable to both `openstack-control-plane` as well as `openstack-compute-node` nodes. Ideally, you would eliminate the `openvswitch` label if you simply wanted to deploy openvswitch to an OR of (`openstack-control-plane` and `openstack-compute-node`).  However, Kubernetes `nodeSelectors` prohibits this specific logic. As a result of this, a third label that spans all hosts is required, which in this case is `openvswitch`.  The Open vSwitch service must run on both control plane and tenant nodes with both labels to provide connectivity for DHCP, L3, and Metadata services. These Open vSwitch services run as part of the control plane as well as tenant connectivity, which runs as part of the compute node infrastructure.
 
 
-Labels are of course definable and overridable by the chart operators. Labels are defined in charts with a common convention, by using a `labels:` section, which defines both a selector and a value:
+Labels are of course definable and overridable by the chart operators. Labels are defined in charts by using a `labels:` section, which is a common convention that defines both a selector and a value:
 
 ```
 labels:
@@ -89,7 +89,7 @@ These labels should be leveraged by `nodeSelector` definitions in charts for all
     ...
 ```
 
-In some cases, especially with infrastructure components, it becomes necessary for the chart developer to provide some scheduling instruction to Kubernetes to help ensure proper resiliency.  The most common example employed today are podAntiAffinity rules, such as those used in the `mariadb` chart.  We encourage these to be placed on all foundational elements so that Kubernetes will not only disperse resources for resiliency, but also allow multi-replica installations to deploy successfully into a single host environment:
+In some cases, especially with infrastructure components, it is necessary for the chart developer to provide scheduling instruction to Kubernetes to help ensure proper resiliency.  The most common examples employed today are podAntiAffinity rules, such as those used in the `mariadb` chart.  These should be placed on all foundational elements so that Kubernetes will not only disperse resources for resiliency, but also allow multi-replica installations to deploy successfully into a single host environment:
 
 ```
       annotations:
@@ -117,15 +117,15 @@ In some cases, especially with infrastructure components, it becomes necessary f
 
 ## Images
 
-Our core philosophy regarding images is that the toolsets required to enable the OpenStack services should be applied by Kubernetes itself.  This requires the openstack-helm to develop common and simple scripts with minimal dependencies that can be overlayed on any image meeting the OpenStack core library requirements.  The advantage of this however is that we can be image agnostic, allowing operators to use Stackanetes, Kolla, Yaodu, or any image flavor and format they choose and they will all function the same.
+The project's core philosophy regarding images is that the toolsets required to enable the OpenStack services should be applied by Kubernetes itself.  This requires OpenStack-Helm to develop common and simple scripts with minimal dependencies that can be overlaid on any image that meets the OpenStack core library requirements.  The advantage of this is that the project can be image agnostic, allowing operators to use Stackanetes, Kolla, Yaodu, or any image flavor and format they choose and they will all function the same.
 
-The long-term goal besides being image agnostic is to also able to support any of the container runtimes that Kubernetes supports, even those which may not use Docker's own packaging format.  This will allow this project to continue to offer maximum flexibility with regard to operator choice.
+A long-term goal, besides being image agnostic, is to also be able to support any of the container runtimes that Kubernetes supports, even those that might not use Docker's own packaging format.  This will allow the project to continue to offer maximum flexibility with regard to operator choice.
 
-To that end, all charts provide an `images:` section that allows operators to override images.  It is also our assertion that all default image references should be fully spelled out, even those hosted by docker, and no default image reference should use `:latest` but be pinned to a specific version to ensure a consistent behavior for deployments over time.
+To that end, all charts provide an `images:` section that allows operators to override images.  Also, all default image references should be fully spelled out, even those hosted by Docker or Quay. Further, no default image reference should use `:latest` but rather should be pinned to a specific version to ensure consistent behavior for deployments over time.
 
-Today, the `images:` section has several common conventions.  Most OpenStack services require a database initialization function, a database synchronization function, and finally a series of steps for Keystone registration and integration. There may also be specific images for each component that composes those OpenStack services and these may or may not differ but should all be defined in `images`.
+Today, the `images:` section has several common conventions.  Most OpenStack services require a database initialization function, a database synchronization function, and a series of steps for Keystone registration and integration. Each component may also have a specific image that composes an OpenStack service. The images may or may not differ, but regardless, should all be defined in `images`.
 
-The following standards are in use today, in addition to any components defined by the service itself.
+The following standards are in use today, in addition to any components defined by the service itself:
 
 - dep_check: The image that will perform dependency checking in an init-container.
 - db_init: The image that will perform database creation operations for the OpenStack service.
@@ -135,7 +135,7 @@ The following standards are in use today, in addition to any components defined 
 - ks_endpoints: The image that will perform keystone endpoint registration for the service.
 - pull_policy: The image pull policy, one of "Always", "IfNotPresent", and "Never" which will be used by all containers in the chart.
 
-An illustrative example of a images: section taken from the heat chart:
+An illustrative example of an `images:` section taken from the heat chart:
 
 ```
 images:
@@ -152,15 +152,15 @@ images:
   pull_policy: "IfNotPresent"
 ```
 
-The openstack-helm project today uses a mix of docker images from Stackanetes, Kolla, but going forward we will likely first standardize on Kolla images across all charts but without any reliance on Kolla image utilities, followed by support for alternative images with substantially smaller footprints such as [Yaodu](https://github.com/yaodu)
+The OpenStack-Helm project today uses a mix of Docker images from Stackanetes and Kolla, but will likely standardize on Kolla images for all charts without any reliance on Kolla image utilities. Soon, the project will support alternative images with substantially smaller footprints, such as [Yaodu](https://github.com/yaodu).
 
 ## Upgrades
 
-The openstack-helm project assumes all upgrades will be done through Helm.  This includes both template changes, including resources layered on top of the image such as configuration files as well as the Kubernetes resources themselves in addition to the more common practice of updating images.
+The OpenStack-Helm project assumes all upgrades will be done through Helm.  This includes both template changes, including resources layered on top of the image such as configuration files as well as the Kubernetes resources themselves in addition to the more common practice of updating images.
 
-Today, several issues exist within Helm when updating images within charts that may be used by jobs that have already run to completion or are still in flight.  We will seek to address these within the Helm community or within the charts themselves by support Helm hooks to allow jobs to be deleted during an upgrade so that they can be recreated with an updated image.  An example of where this behavior would be desirable would be an updated db_sync image which has updated to point from a Mitaka image to a Newton image.  In this case, the operator will likely want a db_sync job which was already run and completed during site installation to run again with the updated image to bring the schema inline with the Newton release.
+As Helm stands today, several issues exist when you update images within charts that might have been used by jobs that already ran to completion or are still in flight.  OpenStack-Helm developers will continue to work with the Helm community or develop charts that will support job removal prior to an upgrade, which will recreate services with updated images.  An example of where this behavior would be desirable is when an updated db_sync image has updated to point from a Mitaka image to a Newton image.  In this case, the operator will likely want a db_sync job, which was already run and completed during site installation, to run again with the updated image to bring the schema inline with the Newton release.
 
-The openstack-helm project also implements annotations across all chart configmaps so that changing resources inside containers such as configuration files, triggers a Kubernetes rolling update so that those resources can be updated without deleting and redeploying the service and treated like any other upgrade such as a container image change.
+The OpenStack-Helm project also implements annotations across all chart configmaps so that changing resources inside containers, such as configuration files, triggers a Kubernetes rolling update. This means that those resources can be updated without deleting and redeploying the service and can be treated like any other upgrade, such as a container image change.
 
 This is accomplished with the following annotation:
 
@@ -171,7 +171,7 @@ This is accomplished with the following annotation:
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "hash" }}
 ```
 
-The `hash` function defined in the `helm-toolkit` chart ensures that any change to any file referenced by configmap-bin.yaml or configmap-etc.yaml results in a new hash, which will trigger a rolling update.
+The `hash` function defined in the `helm-toolkit` chart ensures that any change to any file referenced by configmap-bin.yaml or configmap-etc.yaml results in a new hash, which will then trigger a rolling update.
 
 All chart components (except `DaemonSets`) are outfitted by default with rolling update strategies:
 
@@ -188,7 +188,7 @@ spec:
     {{ end }}
 ```
 
-In values.yaml in each chart, the same defaults are supplied in every chart, allowing the operator to override at upgrade or deployment time.
+In values.yaml in each chart, the same defaults are supplied in every chart, which allows the operator to override at upgrade or deployment time.
 
 ```
 upgrades:
