@@ -8,7 +8,7 @@
 ##### &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1.1.1 [Resiliency](mission.md#resiliency)
 ##### &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1.1.2 [Scaling](mission.md#scaling)
 ### &nbsp;&nbsp;&nbsp;1.2 Helm Overrides
-##### &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1.2.1 [Values Philosophy](helm_overrides#values)
+##### &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1.2.1 [Values Philosophy](helm_overrides.md#values)
 ##### &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1.2.1 [Replicas](helm_overrides.md#replicas)
 ##### &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1.2.1 [Labels](helm_overrides.md#labels)
 ##### &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1.2.1 [Images](helm_overrides.md#images)
