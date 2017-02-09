@@ -1,3 +1,5 @@
+[![Travis CI](https://travis-ci.org/att-comdev/openstack-helm.svg?branch=master)](https://travis-ci.org/att-comdev/openstack-helm)
+
 # Openstack-Helm
 
 **Join us on [Slack](http://slack.k8s.io/):** `#openstack-helm`<br>
