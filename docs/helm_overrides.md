@@ -201,11 +201,11 @@ upgrades:
 
 ## Resource Limits
 
-Resource limits should be defined for all charts within openstack-helm.
+Resource limits should be defined for all charts within OpenStack-Helm.
 
-The convention is to leverage a `resources:` section within values.yaml with an `enabled` setting that defaults to `false` but can be turned on by the operator at install or upgrade time.
+The convention is to leverage a `resources:` section within values.yaml by using an `enabled` setting that defaults to `false` but can be turned on by the operator at install or upgrade time.
 
-The resources specify the requests (memory and cpu) and limits (memory and cpu) for each deployed resource.  For example, from the nova chart `values.yaml`:
+The resources specify the requests (memory and cpu) and limits (memory and cpu) for each deployed resource.  For example, from the Nova chart `values.yaml`:
 
 ```
 resources:
@@ -234,7 +234,7 @@ resources:
 ...
 ```
 
-These resources definitions are then applied to the appropriate component, when the `enabled` flag is set.  For instance, the following nova_compute daemonset has the requests and limits values applied from `.Values.resources.nova_compute`:
+These resources definitions are then applied to the appropriate component when the `enabled` flag is set.  For instance, the following nova_compute daemonset has the requests and limits values applied from `.Values.resources.nova_compute`:
 
 ```
           {{- if .Values.resources.enabled }}
@@ -248,19 +248,19 @@ These resources definitions are then applied to the appropriate component, when 
           {{- end }}
 ```
 
-When a chart developer doesn't know what resource limits or requests to apply to a new component, they can deploy them locally and examine utilization using tools like WeaveScope.  The resource limits may not be perfect on initial submission but over time with community contributions they will be refined to reflect reality.
+When a chart developer doesn't know what resource limits or requests to apply to a new component, they can deploy the component locally and examine resource utilization using tools like WeaveScope.  The resource limits may not be perfect on initial submission, but over time and with community contributions, they can be refined to reflect reality.
 
 ## Endpoints
 
 NOTE: This feature is under active development.  There may be dragons here.
 
-Endpoints are a large part of what openstack-helm seeks to provide mechanisms around.  OpenStack is a highly interconnected application, with various components requiring connectivity details to numerous services, including other OpenStack components, infrastructure elements such as databases, queues, and memcached infrastructure.  We want to ensure we provide a consistent mechanism for defining these "endpoints" across all charts and the macros necessary to convert those definitions into usable endpoints.  The charts should consistently default to building endpoints that assume the operator is leveraging all of our charts to build their OpenStack stack.  However, we want to ensure that if operators want to run some of our charts and have those plug into their existing infrastructure, or run elements in different namespaces, for example, these endpoints should be overridable.
+As a large part of the project's purpose, OpenStack-Helm seeks to provide mechanisms around endpoints.  OpenStack is a highly interconnected application, with various components requiring connectivity details to numerous services, including other OpenStack components and infrastructure elements such as databases, queues, and memcached infrastructure.  The project's goal is to ensure that it can provide a consistent mechanism for defining these "endpoints" across all charts and provide the macros necessary to convert those definitions into usable endpoints.  The charts should consistently default to building endpoints that assume the operator is leveraging all charts to build their OpenStack cloud.  Endpoints should be configurable if an operator would like a chart to work with their existing infrastructure or run elements in different namespaces.
 
 
-For instance, in the neutron chart `values.yaml` the following endpoints are defined:
+For instance, in the Neutron chart `values.yaml` the following endpoints are defined:
 
 ```
-# typically overriden by environmental
+# typically overridden by environmental
 # values, but should include all endpoints
 # required by this chart
 endpoints:
@@ -302,7 +302,7 @@ endpoints:
       api: 9696
 ```
 
-These values define all the endpoints that the neutron chart may need in order to build full URL compatible endpoints to various services.  Long-term these will also include database, memcached, and rabbitmq elements in one place-essentially all external connectivity needs defined centrally.
+These values define all the endpoints that the Neutron chart may need in order to build full URL compatible endpoints to various services.  Long-term, these will also include database, memcached, and rabbitmq elements in one place. Essentially, all external connectivity needs to be defined centrally.
 
 The macros that help translate these into the actual URLs necessary are defined in the `helm-toolkit` chart.  For instance, the cinder chart defines a `glance_api_servers` definition in the `cinder.conf` template:
 
@@ -310,17 +310,17 @@ The macros that help translate these into the actual URLs necessary are defined 
 +glance_api_servers = {{ tuple "image" "internal" "api" . | include "helm-toolkit.endpoint_type_lookup_addr" }}
 ```
 
-This line of magic uses the `endpoint_type_lookup_addr` macro in the `helm-toolkit` chart (since it is used by all charts).  Note a second convention here, all `{{ define }}` macros in charts should be pre-fixed with the chart that is defining them.  This allows developers to easily identify the source of a helm macro and also avoid namespace collissions.  In the example above, the macro `endpoint_type_look_addr` is defined in the `helm-toolkit` chart.  This macro is passed three parameters (aided by the `tuple` method built into the go/sprig templating library used by Helm):
+This line of magic uses the `endpoint_type_lookup_addr` macro in the `helm-toolkit` chart (since it is used by all charts).  Note that there is a second convention here. All `{{ define }}` macros in charts should be pre-fixed with the chart that is defining them.  This allows developers to easily identify the source of a Helm macro and also avoid namespace collisions.  In the example above, the macro `endpoint_type_look_addr` is defined in the `helm-toolkit` chart.  This macro is passing three parameters (aided by the `tuple` method built into the go/sprig templating library used by Helm):
 
-- image: This is the OpenStack service we are building an endpoint for.  This will be mapped to `glance` which is the image service for OpenStack.
+- image: This is the OpenStack service that the endpoint is being built for.  This will be mapped to `glance` which is the image service for OpenStack.
 - internal: This is the OpenStack endpoint type we are looking for - valid values would be `internal`, `admin`, and `public`
-- api: This is the port to map to for the service.  Some components such as glance provide an `api` port and a `registry` port, for example.
+- api: This is the port to map to for the service.  Some components, such as glance, provide an `api` port and a `registry` port, for example.
 
-Charts should avoid at all costs hard coding values such as ``http://keystone-api:5000` as these are not compatible with operator overrides or supporting spreading components out over various namespaces.
+At all costs, charts should avoid hard coding values such as `http://keystone-api:5000` because these are not compatible with operator overrides and do not support spreading components out over various namespaces.
 
 ## Common Conditionals
 
-The openstack-helm charts make the following conditions available across all charts which can be set at install or upgrade time with Helm:
+The OpenStack-Helm charts make the following conditions available across all charts, which can be set at install or upgrade time with Helm:
 
 ### Developer Mode
 
@@ -328,7 +328,7 @@ The openstack-helm charts make the following conditions available across all cha
 helm install local/chart --set development.enabled=true
 ```
 
-The development mode flag should be available on all charts.  Enabling this reduces dependencies that chart may have on persistent volume claims (which are difficult to support in a laptop minikube environment) as well as reducing replica counts or resiliency features to support a minimal environment.
+The development mode flag should be available on all charts.  Enabling this reduces dependencies that the chart may have on persistent volume claims (which are difficult to support in a laptop minikube environment) as well as reducing replica counts or resiliency features to support a minimal environment.
 
 The glance chart for instance defines the following `development:` overrides:
 
