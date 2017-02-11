@@ -1,0 +1,54 @@
+apiVersion: apps/v1beta1
+kind: StatefulSet
+metadata:
+  name: {{ .Values.service_name }}
+spec:
+  serviceName: {{ .Values.service_name }}
+  replicas: {{ .Values.replicas }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.service_name }}
+    spec:
+      nodeSelector:
+        {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
+      containers:
+      - name: {{ .Values.service_name }}
+        image: {{ .Values.images.postgresql }}
+        imagePullPolicy: {{ .Values.images.pull_policy }}
+        ports:
+        - containerPort: {{ .Values.network.port.postgresql }}
+        livenessProbe:
+          exec:
+            command:
+            - pg_isready
+          initialDelaySeconds: 20
+          timeoutSeconds: 5
+        readinessProbe:
+          exec:
+            command:
+            - pg_isready
+          initialDelaySeconds: 20
+          timeoutSeconds: 5
+        resources:
+{{ toYaml .Values.resources | indent 10 }}
+        volumeMounts:
+        - name: postgresql-data
+          mountPath: /var/lib/postgresql
+      volumes:
+{{- if .Values.development.enabled }}
+      - name: postgresql-data
+        hostPath:
+          path: {{ .Values.development.storage_path }}
+{{- else }}
+  volumeClaimTemplates:
+  - metadata:
+      name: postgresql-data
+      annotations:
+        {{ .Values.volume.class_path }}: {{ .Values.volume.class_name }}
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: {{ .Values.volume.size }}
+{{- end }}
