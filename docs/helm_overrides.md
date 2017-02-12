@@ -41,7 +41,7 @@ This project uses `nodeSelectors` as well as `podAntiAffinity` rules to ensure r
 - openstack-compute-node: enabled
 - openvswitch: enabled
 
-NOTE: The `openvswitch` label is an element that is applicable to both `openstack-control-plane` as well as `openstack-compute-node` nodes. Ideally, you would eliminate the `openvswitch` label if you simply wanted to deploy openvswitch to an OR of (`openstack-control-plane` and `openstack-compute-node`).  However, Kubernetes `nodeSelectors` prohibits this specific logic. As a result of this, a third label that spans all hosts is required, which in this case is `openvswitch`.  The Open vSwitch service must run on both control plane and tenant nodes with both labels to provide connectivity for DHCP, L3, and Metadata services. These Open vSwitch services run as part of the control plane as well as tenant connectivity, which runs as part of the compute node infrastructure.
+NOTE: The `openvswitch` label is an element that is applicable to both `openstack-control-plane` as well as `openstack-compute-node` nodes. Ideally, you would eliminate the `openvswitch` label if you could simply do an OR of (`openstack-control-plane` and `openstack-compute-node`).  However, Kubernetes `nodeSelectors` prohibits this specific logic. As a result of this, a third label that spans all hosts is required, which in this case is `openvswitch`.  The Open vSwitch service must run on both control plane and tenant nodes with both labels to provide connectivity for DHCP, L3, and Metadata services. These Open vSwitch services run as part of the control plane as well as tenant connectivity, which runs as part of the compute node infrastructure.
 
 
 Labels are of course definable and overridable by the chart operators. Labels are defined in charts by using a `labels:` section, which is a common convention that defines both a selector and a value:
@@ -156,7 +156,7 @@ The OpenStack-Helm project today uses a mix of Docker images from Stackanetes an
 
 ## Upgrades
 
-The OpenStack-Helm project assumes all upgrades will be done through Helm.  This includes both template changes, including resources layered on top of the image such as configuration files as well as the Kubernetes resources themselves in addition to the more common practice of updating images.
+The OpenStack-Helm project assumes all upgrades will be done through Helm. This includes handling several different resource types. First, changes to the Helm chart templates themselves are handled. Second, all of the resources layered on top of the container image, such as `ConfigMaps` which includes both scripts and configuration files, are updated during an upgrade. Finally, any image references will result in rolling updates of containers, replacing them with the updating image.
 
 As Helm stands today, several issues exist when you update images within charts that might have been used by jobs that already ran to completion or are still in flight.  OpenStack-Helm developers will continue to work with the Helm community or develop charts that will support job removal prior to an upgrade, which will recreate services with updated images.  An example of where this behavior would be desirable is when an updated db_sync image has updated to point from a Mitaka image to a Newton image.  In this case, the operator will likely want a db_sync job, which was already run and completed during site installation, to run again with the updated image to bring the schema inline with the Newton release.
 
@@ -320,7 +320,7 @@ At all costs, charts should avoid hard coding values such as `http://keystone-ap
 
 ## Common Conditionals
 
-The OpenStack-Helm charts make the following conditions available across all charts, which can be set at install or upgrade time with Helm:
+The OpenStack-Helm charts make the following conditions available across all charts, which can be set at install or upgrade time with Helm below.
 
 ### Developer Mode
 
