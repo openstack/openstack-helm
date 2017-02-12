@@ -1,22 +1,22 @@
 # Helm Overrides
 
-This document covers helm overrides and the openstack-helm approach.  For more information on Helm overrides in general see the Helm [Values Documentation](https://github.com/kubernetes/helm/blob/master/docs/charts.md#values-files)
+This document covers Helm overrides and the OpenStack-Helm approach.  For more information on Helm overrides in general see the Helm [Values Documentation](https://github.com/kubernetes/helm/blob/master/docs/charts.md#values-files)
 
 ## Values Philosophy
 
-Two major philosophies guide the openstack-helm values approach.  It is important that new chart developers understand the `values.yaml` approach openstack-helm has within each of its charts to ensure all of our charts are both consistent and remain a joy to work with.
+Two major philosophies guide the OpenStack-Helm values approach.  It is important that new chart developers understand the `values.yaml` approach OpenStack-Helm has within each of its charts to ensure that all charts are both consistent and remain a joy to work with.
 
-The first is that all charts should be independently installable and do not require a parent chart. This means that the values file in each chart should be self-contained.  We will avoid the use of Helm globals and the concept of a parent chart as a requirement to capture and feed environment specific overrides into subcharts.  An example of a single site definition YAML that can be source controlled and used as `--values` input to all openstack-helm charts to maintain overrides in one testable place is forthcoming.  Currently Helm does not support as `--values=environment.yaml` chunking up a larger override files YAML namespace.  Ideally, we are seeking native Helm support for `helm install local/keystone --values=environment.yaml:keystone` where `environment.yaml` is the operators chart-wide environment defition and `keystone` is the section in environment.yaml that will be fed to the keystone chart during install as overrides.  Standard YAML anchors can be used to duplicate common elements like the `endpoints` sections.  As of this document, operators can use a temporary approach like [values.py](https://github.com/att-comdev/openstack-helm/blob/master/helm-toolkit/utils/values/values.py) to chunk up a single override YAML file as input to various individual charts.  It is our belief that overrides, just like the templates themselves, should be source controlled and tested especially for operators operating charts at scale.  We will continue to examine efforts such as [helm-value-store](https://github.com/skuid/helm-value-store) and solutions in the vein of [helmfile](https://github.com/roboll/helmfile).  A project that seems quite compelling to address the needs of orchestrating multiple charts and managing site specific overrides is [Landscape](https://github.com/Eneco/landscaper)
+The first philosophy to understand is that all charts should be independently installable and should not require a parent chart. This means that the values file in each chart should be self-contained.  The project avoids using Helm globals and parent charts as requirements for capturing and feeding environment specific overrides into subcharts.  An example of a single site definition YAML that can be source controlled and used as `--values` input to all OpenStack-Helm charts to maintain overrides in one testable place is forthcoming.  Currently Helm does not support a `--values=environment.yaml` chunking up a larger override file's YAML namespace.  Ideally, the project seeks native Helm support for `helm install local/keystone --values=environment.yaml:keystone` where `environment.yaml` is the operator's chart-wide environment definition and `keystone` is the section in environment.yaml that will be fed to the keystone chart during install as overrides.  Standard YAML anchors can be used to duplicate common elements like the `endpoints` sections.  At the time of writing, operators can use a temporary approach like [values.py](https://github.com/att-comdev/openstack-helm/blob/master/helm-toolkit/utils/values/values.py) to chunk up a single override YAML file as input to various individual charts.  Overrides, just like the templates themselves, should be source controlled and tested, especially for operators operating charts at scale.  This project will continue to examine efforts such as [helm-value-store](https://github.com/skuid/helm-value-store) and solutions in the vein of [helmfile](https://github.com/roboll/helmfile).  Another compelling project that seems to address the needs of orchestrating multiple charts and managing site specific overrides is [Landscape](https://github.com/Eneco/landscaper)
 
-The second is that the values files should be consistent across all charts, including charts in core, infra, and addons.  This provides a consistent way for operators to override settings such as enabling developer mode, defining resource limitations, and customizing the actual OpenStack configuration within chart templates without having to guess how a particular chart developer has layed out their values.yaml. There are also various macros in the `helm-toolkit` chart that will depend on the `values.yaml` within all charts being structured a certain way.
+The second philosophy is that the values files should be consistent across all charts, including charts in core, infra, and add-ons.  This provides a consistent way for operators to override settings, such as enabling developer mode, defining resource limitations, and customizing the actual OpenStack configuration within chart templates without having to guess how a particular chart developer has laid out their values.yaml. There are also various macros in the `helm-toolkit` chart that will depend on the `values.yaml` within all charts being structured a certain way.
 
-Finally, where charts reference connectivity information for other services sane defaults should be provided.  In the case where these services are provided by openstack-helm itself, the defaults should assume the user will use the openstack-helm charts for those services but ensure that they can be overriden if the operator has them externally deployed.
+Finally, where charts reference connectivity information for other services sane defaults should be provided.  In cases where these services are provided by OpenStack-Helm itself, the defaults should assume that the user will use the OpenStack-Helm charts for those services, but should also allow those charts to be overridden if the operator has them externally deployed.
 
 ## Replicas
 
-All charts must provide replicas definitions and leverage those in the Kubernetes manifests.  This allows site operators to tune the replica counts at install or upgrade time.  We suggest all charts deploy by default with more then one replica to ensure that openstack-helm being used in production environments is treated as a first class citizen and that more than one replica of every service is frequently tested.  Developers wishing to deploy minimal environments can enable the `development` mode override which should enforce only one replica of each component.
+All charts must provide replica definitions and leverage those in the Kubernetes manifests.  This allows site operators to tune the replica counts at install or when upgrading.  Each chart should deploy with multiple replicas by default to ensure that production deployments are treated as first class citizens, and that services are tested with multiple replicas more frequently during development and testing.  Developers wishing to deploy minimal environments can enable the `development` mode override, which should enforce only one replica per component.
 
-The convention today in openstack-helm is to define a `replicas:` section for the chart, with each component being deployed having its own tunable value.
+The convention today in OpenStack-Helm is to define a `replicas:` section for the chart, where each component being deployed has its own tunable value.
 
 For example, the `glance` chart provides the following replicas in `values.yaml`
 
@@ -34,16 +34,17 @@ $ helm install local/glance --set replicas.api=3,replicas.registry=3
 
 ## Labels
 
-We use nodeSelectors as well as podAntiAffinity rules to ensure resources land in the proper place within Kubernetes.  Today, openstack-helm employs four labels:
+This project uses `nodeSelectors` as well as `podAntiAffinity` rules to ensure resources land in the proper place within Kubernetes.  Today, OpenStack-Helm employs four labels:
 
 - ceph-storage: enabled
 - openstack-control-plane: enabled
 - openstack-compute-node: enabled
 - openvswitch: enabled
 
-NOTE: The `openvswitch` label is an element that is applicable to both `openstack-control-plane` as well as `openstack-compute-node` hosts. Ideally, we would eliminate the `openvswitch` label as we simply want to deploy openvswitch to an OR of (`openstack-control-plane` and `openstack-compute-node`). However, Kubernetes `nodeSelectors` prohibits this specific logic. As a result of this, we require a third label that spans all hosts, which is `openvswitch`.  The openvswitch service must run on both types of hosts to provide openvswitch connectivity for DHCP, L3, Metadata services which run in the control plane as well as tenant connectivity which runs on the compute node infrastructure.
+NOTE: The `openvswitch` label is an element that is applicable to both `openstack-control-plane` as well as `openstack-compute-node` nodes. Ideally, you would eliminate the `openvswitch` label if you could simply do an OR of (`openstack-control-plane` and `openstack-compute-node`).  However, Kubernetes `nodeSelectors` prohibits this specific logic. As a result of this, a third label that spans all hosts is required, which in this case is `openvswitch`.  The Open vSwitch service must run on both control plane and tenant nodes with both labels to provide connectivity for DHCP, L3, and Metadata services. These Open vSwitch services run as part of the control plane as well as tenant connectivity, which runs as part of the compute node infrastructure.
 
-Labels are of course definable and overridable by the chart operators. Labels are defined in charts with a common convention, using a `labels:` section which defines both a selector, and a value:
+
+Labels are of course definable and overridable by the chart operators. Labels are defined in charts by using a `labels:` section, which is a common convention that defines both a selector and a value:
 
 ```
 labels:
@@ -51,7 +52,7 @@ labels:
   node_selector_value: enabled
 ```
 
-In some cases, such as the neutron chart, a chart may need to define more then one label. In cases such as this, each element should be articulated under the `labels:` section, nesting where appropriate:
+In some cases, such as with the Neutron chart, a chart may need to define more then one label. In cases such as this, each element should be articulated under the `labels:` section, nesting where appropriate:
 
 ```
 labels:
@@ -88,7 +89,7 @@ These labels should be leveraged by `nodeSelector` definitions in charts for all
     ...
 ```
 
-In some cases, especially with infrastructure components, it becomes necessary for the chart developer to provide some scheduling instruction to Kubernetes to help ensure proper resiliency.  The most common example employed today are podAntiAffinity rules, such as those used in the `mariadb` chart.  We encourage these to be placed on all foundational elements so that Kubernetes will not only disperse resources for resiliency, but also allow multi-replica installations to deploy successfully into a single host environment:
+In some cases, especially with infrastructure components, it is necessary for the chart developer to provide scheduling instruction to Kubernetes to help ensure proper resiliency.  The most common examples employed today are podAntiAffinity rules, such as those used in the `mariadb` chart.  These should be placed on all foundational elements so that Kubernetes will not only disperse resources for resiliency, but also allow multi-replica installations to deploy successfully into a single host environment:
 
 ```
       annotations:
@@ -116,15 +117,15 @@ In some cases, especially with infrastructure components, it becomes necessary f
 
 ## Images
 
-Our core philosophy regarding images is that the toolsets required to enable the OpenStack services should be applied by Kubernetes itself.  This requires the openstack-helm to develop common and simple scripts with minimal dependencies that can be overlayed on any image meeting the OpenStack core library requirements.  The advantage of this however is that we can be image agnostic, allowing operators to use Stackanetes, Kolla, Yaodu, or any image flavor and format they choose and they will all function the same.
+The project's core philosophy regarding images is that the toolsets required to enable the OpenStack services should be applied by Kubernetes itself.  This requires OpenStack-Helm to develop common and simple scripts with minimal dependencies that can be overlaid on any image that meets the OpenStack core library requirements.  The advantage of this is that the project can be image agnostic, allowing operators to use Stackanetes, Kolla, Yaodu, or any image flavor and format they choose and they will all function the same.
 
-The long-term goal besides being image agnostic is to also able to support any of the container runtimes that Kubernetes supports, even those which may not use Docker's own packaging format.  This will allow this project to continue to offer maximum flexibility with regard to operator choice.
+A long-term goal, besides being image agnostic, is to also be able to support any of the container runtimes that Kubernetes supports, even those that might not use Docker's own packaging format.  This will allow the project to continue to offer maximum flexibility with regard to operator choice.
 
-To that end, all charts provide an `images:` section that allows operators to override images.  It is also our assertion that all default image references should be fully spelled out, even those hosted by docker, and no default image reference should use `:latest` but be pinned to a specific version to ensure a consistent behavior for deployments over time.
+To that end, all charts provide an `images:` section that allows operators to override images.  Also, all default image references should be fully spelled out, even those hosted by Docker or Quay. Further, no default image reference should use `:latest` but rather should be pinned to a specific version to ensure consistent behavior for deployments over time.
 
-Today, the `images:` section has several common conventions.  Most OpenStack services require a database initialization function, a database synchronization function, and finally a series of steps for Keystone registration and integration. There may also be specific images for each component that composes those OpenStack services and these may or may not differ but should all be defined in `images`.
+Today, the `images:` section has several common conventions.  Most OpenStack services require a database initialization function, a database synchronization function, and a series of steps for Keystone registration and integration. Each component may also have a specific image that composes an OpenStack service. The images may or may not differ, but regardless, should all be defined in `images`.
 
-The following standards are in use today, in addition to any components defined by the service itself.
+The following standards are in use today, in addition to any components defined by the service itself:
 
 - dep_check: The image that will perform dependency checking in an init-container.
 - db_init: The image that will perform database creation operations for the OpenStack service.
@@ -134,7 +135,7 @@ The following standards are in use today, in addition to any components defined 
 - ks_endpoints: The image that will perform keystone endpoint registration for the service.
 - pull_policy: The image pull policy, one of "Always", "IfNotPresent", and "Never" which will be used by all containers in the chart.
 
-An illustrative example of a images: section taken from the heat chart:
+An illustrative example of an `images:` section taken from the heat chart:
 
 ```
 images:
@@ -151,15 +152,15 @@ images:
   pull_policy: "IfNotPresent"
 ```
 
-The openstack-helm project today uses a mix of docker images from Stackanetes, Kolla, but going forward we will likely first standardize on Kolla images across all charts but without any reliance on Kolla image utilities, followed by support for alternative images with substantially smaller footprints such as [Yaodu](https://github.com/yaodu)
+The OpenStack-Helm project today uses a mix of Docker images from Stackanetes and Kolla, but will likely standardize on Kolla images for all charts without any reliance on Kolla image utilities. Soon, the project will support alternative images with substantially smaller footprints, such as [Yaodu](https://github.com/yaodu).
 
 ## Upgrades
 
-The openstack-helm project assumes all upgrades will be done through Helm.  This includes both template changes, including resources layered on top of the image such as configuration files as well as the Kubernetes resources themselves in addition to the more common practice of updating images.
+The OpenStack-Helm project assumes all upgrades will be done through Helm. This includes handling several different resource types. First, changes to the Helm chart templates themselves are handled. Second, all of the resources layered on top of the container image, such as `ConfigMaps` which includes both scripts and configuration files, are updated during an upgrade. Finally, any image references will result in rolling updates of containers, replacing them with the updating image.
 
-Today, several issues exist within Helm when updating images within charts that may be used by jobs that have already run to completion or are still in flight.  We will seek to address these within the Helm community or within the charts themselves by support Helm hooks to allow jobs to be deleted during an upgrade so that they can be recreated with an updated image.  An example of where this behavior would be desirable would be an updated db_sync image which has updated to point from a Mitaka image to a Newton image.  In this case, the operator will likely want a db_sync job which was already run and completed during site installation to run again with the updated image to bring the schema inline with the Newton release.
+As Helm stands today, several issues exist when you update images within charts that might have been used by jobs that already ran to completion or are still in flight.  OpenStack-Helm developers will continue to work with the Helm community or develop charts that will support job removal prior to an upgrade, which will recreate services with updated images.  An example of where this behavior would be desirable is when an updated db_sync image has updated to point from a Mitaka image to a Newton image.  In this case, the operator will likely want a db_sync job, which was already run and completed during site installation, to run again with the updated image to bring the schema inline with the Newton release.
 
-The openstack-helm project also implements annotations across all chart configmaps so that changing resources inside containers such as configuration files, triggers a Kubernetes rolling update so that those resources can be updated without deleting and redeploying the service and treated like any other upgrade such as a container image change.
+The OpenStack-Helm project also implements annotations across all chart configmaps so that changing resources inside containers, such as configuration files, triggers a Kubernetes rolling update. This means that those resources can be updated without deleting and redeploying the service and can be treated like any other upgrade, such as a container image change.
 
 This is accomplished with the following annotation:
 
@@ -170,7 +171,7 @@ This is accomplished with the following annotation:
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "hash" }}
 ```
 
-The `hash` function defined in the `helm-toolkit` chart ensures that any change to any file referenced by configmap-bin.yaml or configmap-etc.yaml results in a new hash, which will trigger a rolling update.
+The `hash` function defined in the `helm-toolkit` chart ensures that any change to any file referenced by configmap-bin.yaml or configmap-etc.yaml results in a new hash, which will then trigger a rolling update.
 
 All chart components (except `DaemonSets`) are outfitted by default with rolling update strategies:
 
@@ -187,7 +188,7 @@ spec:
     {{ end }}
 ```
 
-In values.yaml in each chart, the same defaults are supplied in every chart, allowing the operator to override at upgrade or deployment time.
+In values.yaml in each chart, the same defaults are supplied in every chart, which allows the operator to override at upgrade or deployment time.
 
 ```
 upgrades:
@@ -200,11 +201,11 @@ upgrades:
 
 ## Resource Limits
 
-Resource limits should be defined for all charts within openstack-helm.
+Resource limits should be defined for all charts within OpenStack-Helm.
 
-The convention is to leverage a `resources:` section within values.yaml with an `enabled` setting that defaults to `false` but can be turned on by the operator at install or upgrade time.
+The convention is to leverage a `resources:` section within values.yaml by using an `enabled` setting that defaults to `false` but can be turned on by the operator at install or upgrade time.
 
-The resources specify the requests (memory and cpu) and limits (memory and cpu) for each deployed resource.  For example, from the nova chart `values.yaml`:
+The resources specify the requests (memory and cpu) and limits (memory and cpu) for each deployed resource.  For example, from the Nova chart `values.yaml`:
 
 ```
 resources:
@@ -233,7 +234,7 @@ resources:
 ...
 ```
 
-These resources definitions are then applied to the appropriate component, when the `enabled` flag is set.  For instance, below, the nova_compute daemonset has the requests and limits values applied from `.Values.resources.nova_compute`:
+These resources definitions are then applied to the appropriate component when the `enabled` flag is set.  For instance, the following nova_compute daemonset has the requests and limits values applied from `.Values.resources.nova_compute`:
 
 ```
           {{- if .Values.resources.enabled }}
@@ -247,19 +248,19 @@ These resources definitions are then applied to the appropriate component, when 
           {{- end }}
 ```
 
-When a chart developer doesn't know what resource limits or requests to apply to a new component, they can deploy them locally and examine utilization using tools like WeaveScope.  The resource limits may not be perfect on initial submission but over time with community contributions they will be refined to reflect reality.
+When a chart developer doesn't know what resource limits or requests to apply to a new component, they can deploy the component locally and examine resource utilization using tools like WeaveScope.  The resource limits may not be perfect on initial submission, but over time and with community contributions, they can be refined to reflect reality.
 
 ## Endpoints
 
 NOTE: This feature is under active development.  There may be dragons here.
 
-Endpoints are a large part of what openstack-helm seeks to provide mechanisms around.  OpenStack is a highly interconnected application, with various components requiring connectivity details to numerous services, including other OpenStack components, infrastructure elements such as databases, queues, and memcached infrastructure.  We want to ensure we provide a consistent mechanism for defining these "endpoints" across all charts and the macros necessary to convert those definitions into usable endpoints.  The charts should consistently default to building endpoints that assume the operator is leveraging all of our charts to build their OpenStack stack.  However, we want to ensure that if operators want to run some of our charts and have those plug into their existing infrastructure, or run elements in different namespaces, for example, these endpoints should be overridable.
+As a large part of the project's purpose, OpenStack-Helm seeks to provide mechanisms around endpoints.  OpenStack is a highly interconnected application, with various components requiring connectivity details to numerous services, including other OpenStack components and infrastructure elements such as databases, queues, and memcached infrastructure.  The project's goal is to ensure that it can provide a consistent mechanism for defining these "endpoints" across all charts and provide the macros necessary to convert those definitions into usable endpoints.  The charts should consistently default to building endpoints that assume the operator is leveraging all charts to build their OpenStack cloud.  Endpoints should be configurable if an operator would like a chart to work with their existing infrastructure or run elements in different namespaces.
 
 
-For instance, in the neutron chart `values.yaml` the following endpoints are defined:
+For instance, in the Neutron chart `values.yaml` the following endpoints are defined:
 
 ```
-# typically overriden by environmental
+# typically overridden by environmental
 # values, but should include all endpoints
 # required by this chart
 endpoints:
@@ -301,7 +302,7 @@ endpoints:
       api: 9696
 ```
 
-These values define all the endpoints that the neutron chart may need in order to build full URL compatible endpoints to various services.  Long-term these will also include database, memcached, and rabbitmq elements in one place-essentially all external connectivity needs defined centrally.
+These values define all the endpoints that the Neutron chart may need in order to build full URL compatible endpoints to various services.  Long-term, these will also include database, memcached, and rabbitmq elements in one place. Essentially, all external connectivity needs to be defined centrally.
 
 The macros that help translate these into the actual URLs necessary are defined in the `helm-toolkit` chart.  For instance, the cinder chart defines a `glance_api_servers` definition in the `cinder.conf` template:
 
@@ -309,25 +310,25 @@ The macros that help translate these into the actual URLs necessary are defined 
 +glance_api_servers = {{ tuple "image" "internal" "api" . | include "helm-toolkit.endpoint_type_lookup_addr" }}
 ```
 
-This line of magic uses the `endpoint_type_lookup_addr` macro in the `helm-toolkit` chart (since it is used by all charts).  Note a second convention here, all `{{ define }}` macros in charts should be pre-fixed with the chart that is defining them.  This allows developers to easily identify the source of a helm macro and also avoid namespace collissions.  In the example above, the macro `endpoint_type_look_addr` is defined in the `helm-toolkit` chart.  This macro is passed three parameters (aided by the `tuple` method built into the go/sprig templating library used by Helm):
+This line of magic uses the `endpoint_type_lookup_addr` macro in the `helm-toolkit` chart (since it is used by all charts).  Note that there is a second convention here. All `{{ define }}` macros in charts should be pre-fixed with the chart that is defining them.  This allows developers to easily identify the source of a Helm macro and also avoid namespace collisions.  In the example above, the macro `endpoint_type_look_addr` is defined in the `helm-toolkit` chart.  This macro is passing three parameters (aided by the `tuple` method built into the go/sprig templating library used by Helm):
 
-- image: This is the OpenStack service we are building an endpoint for.  This will be mapped to `glance` which is the image service for OpenStack.
+- image: This is the OpenStack service that the endpoint is being built for.  This will be mapped to `glance` which is the image service for OpenStack.
 - internal: This is the OpenStack endpoint type we are looking for - valid values would be `internal`, `admin`, and `public`
-- api: This is the port to map to for the service.  Some components such as glance provide an `api` port and a `registry` port, for example.
+- api: This is the port to map to for the service.  Some components, such as glance, provide an `api` port and a `registry` port, for example.
 
-Charts should avoid at all costs hard coding values such as ``http://keystone-api:5000` as these are not compatible with operator overrides or supporting spreading components out over various namespaces.
+At all costs, charts should avoid hard coding values such as `http://keystone-api:5000` because these are not compatible with operator overrides and do not support spreading components out over various namespaces.
 
 ## Common Conditionals
 
-The openstack-helm charts make the following conditions available across all charts which can be set at install or upgrade time with Helm:
+The OpenStack-Helm charts make the following conditions available across all charts, which can be set at install or upgrade time with Helm below.
 
-### Developer Mode 
+### Developer Mode
 
 ```
 helm install local/chart --set development.enabled=true
 ```
 
-The development mode flag should be available on all charts.  Enabling this reduces dependencies that chart may have on persistent volume claims (which are difficult to support in a laptop minikube environment) as well as reducing replica counts or resiliency features to support a minimal environment.
+The development mode flag should be available on all charts.  Enabling this reduces dependencies that the chart may have on persistent volume claims (which are difficult to support in a laptop minikube environment) as well as reducing replica counts or resiliency features to support a minimal environment.
 
 The glance chart for instance defines the following `development:` overrides:
 
