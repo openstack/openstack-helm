@@ -1,6 +1,6 @@
 # Mission
 
-The goal for openstack-helm is to provide an incredibly customizable *framework* for operators and developers alike. This framework will enable end-users to deploy, maintain, and upgrade a fully functioning OpenStack environment for both simple and complex environments. Administrators or developers can either deploy all or individual OpenStack components along with their required dependencies. It heavily borrows concepts from [Stackanetes](https://github.com/stackanetes/stackanetes) and [other complex Helm application deployments](https://github.com/sapcc/openstack-helm). This project is meant to be a collaborative project that brings Openstack applications into a [Cloud-Native](https://www.cncf.io/about/charter) model.
+The goal for OpenStack-Helm is to provide an incredibly customizable *framework* for operators and developers alike. This framework will enable end-users to deploy, maintain, and upgrade a fully functioning OpenStack environment for both simple and complex environments. Administrators or developers can either deploy all or individual OpenStack components along with their required dependencies. It heavily borrows concepts from [Stackanetes](https://github.com/stackanetes/stackanetes) and [other complex Helm application deployments](https://github.com/sapcc/openstack-helm). This project is meant to be a collaborative project that brings Openstack applications into a [Cloud-Native](https://www.cncf.io/about/charter) model.
 
 ## Resiliency
 

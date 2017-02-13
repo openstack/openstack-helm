@@ -1,0 +1,33 @@
+language: go
+
+services:
+  - docker
+  
+before_install:
+  - export GLIDE_VERSION=v0.12.3
+  - ls $GOPATH/src/
+  - wget "https://github.com/Masterminds/glide/releases/download/$GLIDE_VERSION/glide-$GLIDE_VERSION-linux-amd64.tar.gz"
+  - mkdir -p $HOME/bin
+  - tar -vxz -C $HOME/bin --strip=1 -f glide-$GLIDE_VERSION-linux-amd64.tar.gz
+  - export PATH="$HOME/bin:$PATH" GLIDE_HOME="$HOME/.glide"
+
+install:
+  - cd $GOPATH/src/
+  - mkdir k8s.io && cd k8s.io
+  - git clone https://github.com/kubernetes/helm
+  - cd helm && make bootstrap build
+  - mv bin/helm $HOME/bin
+
+script:
+  - cd $TRAVIS_BUILD_DIR
+  - bash travis-ci/kubeadm_setup.sh  
+  - $GOPATH/src/k8s.io/helm/bin/tiller &
+  - export HELM_HOST=localhost:44134
+  - helm init --client-only
+  - helm version
+  - helm serve &
+  - sleep 1m
+  - helm repo add local http://localhost:8879/charts
+  - helm repo update
+  - make
+  - bash travis-ci/charts_dry_run.sh
