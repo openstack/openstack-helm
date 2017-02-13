@@ -8,12 +8,16 @@
   "env": [
     {
       "name": "POD_NAME",
+      {{- if $deps.pod -}}
+      "value": "{{ index $deps.pod 0 }}"
+      {{- else -}}
       "valueFrom": {
         "fieldRef": {
           "APIVersion": "v1",
           "fieldPath": "metadata.name"
         }
       }
+      {{- end -}}
     },
     {
       "name": "NAMESPACE",
@@ -39,6 +43,10 @@
     {
       "name": "DEPENDENCY_DAEMONSET",
       "value": "{{  include "joinListWithComma" $deps.daemonset }}"
+    },
+    {
+      "name": "DEPENDENCY_CONTAINER",
+      "value": "{{  include "joinListWithComma" $deps.container }}"
     },
     {
       "name": "COMMAND",
