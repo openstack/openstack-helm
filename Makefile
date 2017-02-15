@@ -1,14 +1,14 @@
-.PHONY: ceph bootstrap mariadb postgresql keystone memcached rabbitmq common openstack neutron nova cinder heat maas all clean
+.PHONY: ceph bootstrap mariadb postgresql keystone memcached rabbitmq helm-toolkit openstack neutron nova cinder heat maas all clean
 
-B64_DIRS := common/secrets
-B64_EXCLUDE := $(wildcard common/secrets/*.b64)
+B64_DIRS := helm-toolkit/secrets
+B64_EXCLUDE := $(wildcard helm-toolkit/secrets/*.b64)
 
 CHARTS := ceph mariadb postgresql rabbitmq memcached keystone glance horizon neutron nova cinder heat maas openstack
-COMMON_TPL := common/templates/_globals.tpl
+TOOLKIT_TPL := helm-toolkit/templates/_globals.tpl
 
-all: common ceph bootstrap mariadb postgresql rabbitmq memcached keystone glance horizon neutron nova cinder heat maas openstack
+all: helm-toolkit ceph bootstrap mariadb postgresql rabbitmq memcached keystone glance horizon neutron nova cinder heat maas openstack
 
-common: build-common
+helm-toolkit: build-helm-toolkit
 
 #ceph: nolint-build-ceph
 ceph: build-ceph
@@ -42,7 +42,7 @@ memcached: build-memcached
 openstack: build-openstack
 
 clean:
-	$(shell rm -rf common/secrets/*.b64)
+	$(shell rm -rf helm-toolkit/secrets/*.b64)
 	$(shell rm -rf */templates/_partials.tpl)
 	$(shell rm -rf */templates/_globals.tpl)
 	echo "Removed all .b64, _partials.tpl, and _globals.tpl files"

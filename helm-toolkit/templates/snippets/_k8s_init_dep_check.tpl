@@ -1,4 +1,4 @@
-{{- define "dep_check_init_cont" -}}
+{{- define "helm-toolkit.kubernetes_entrypoint_init_container" -}}
 {{- $envAll := index . 0 -}}
 {{- $deps := index . 1 -}}
 {
@@ -34,19 +34,19 @@
     },
     {
       "name": "DEPENDENCY_SERVICE",
-      "value": "{{  include "joinListWithComma"  $deps.service }}"
+      "value": "{{  include "helm-toolkit.joinListWithComma"  $deps.service }}"
     },
     {
       "name": "DEPENDENCY_JOBS",
-      "value": "{{  include "joinListWithComma" $deps.jobs }}"
+      "value": "{{  include "helm-toolkit.joinListWithComma" $deps.jobs }}"
     },
     {
       "name": "DEPENDENCY_DAEMONSET",
-      "value": "{{  include "joinListWithComma" $deps.daemonset }}"
+      "value": "{{  include "helm-toolkit.joinListWithComma" $deps.daemonset }}"
     },
     {
       "name": "DEPENDENCY_CONTAINER",
-      "value": "{{  include "joinListWithComma" $deps.container }}"
+      "value": "{{  include "helm-toolkit.joinListWithComma" $deps.container }}"
     },
     {
       "name": "COMMAND",

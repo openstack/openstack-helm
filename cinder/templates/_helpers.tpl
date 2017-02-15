@@ -4,10 +4,10 @@
 
 # this function returns the endpoint uri for a service, it takes an tuple
 # input in the form: service-type, endpoint-class, port-name. eg:
-# { tuple "orchestration" "public" "api" . | include "endpoint_type_lookup_addr" }
+# { tuple "orchestration" "public" "api" . | include "helm-toolkit.endpoint_type_lookup_addr" }
 # will return the appropriate URI. Once merged this should phase out the above.
 
-{{- define "endpoint_type_lookup_addr" -}}
+{{- define "helm-toolkit.endpoint_type_lookup_addr" -}}
 {{- $type := index . 0 -}}
 {{- $endpoint := index . 1 -}}
 {{- $port := index . 2 -}}

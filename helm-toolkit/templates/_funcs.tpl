@@ -1,8 +1,8 @@
-{{- define "joinListWithComma" -}}
+{{- define "helm-toolkit.joinListWithComma" -}}
 {{ range $k, $v := . }}{{ if $k }},{{ end }}{{ $v }}{{ end }}
 {{- end -}}
 
-{{- define "template" -}}
+{{- define "helm-toolkit.template" -}}
 {{- $name := index . 0 -}}
 {{- $context := index . 1 -}}
 {{- $v:= $context.Template.Name | split "/" -}}
@@ -12,7 +12,7 @@
 {{ include $wtf $context }}
 {{- end -}}
 
-{{- define "hash" -}}
+{{- define "helm-toolkit.hash" -}}
 {{- $name := index . 0 -}}
 {{- $context := index . 1 -}}
 {{- $v:= $context.Template.Name | split "/" -}}

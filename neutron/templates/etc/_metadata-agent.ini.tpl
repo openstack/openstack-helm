@@ -3,8 +3,8 @@ debug = {{ .Values.metadata_agent.default.debug }}
 
 # Neutron credentials for API access
 auth_plugin = password
-auth_url = {{ include "endpoint_keystone_admin" . }}
-auth_uri = {{ include "endpoint_keystone_internal" . }}
+auth_url = {{ include "helm-toolkit.endpoint_keystone_admin" . }}
+auth_uri = {{ include "helm-toolkit.endpoint_keystone_internal" . }}
 auth_region = {{ .Values.keystone.neutron_region_name }}
 admin_tenant_name = service
 project_domain_id = default
@@ -15,7 +15,7 @@ password = {{ .Values.keystone.admin_password }}
 endpoint_type = adminURL
 
 # Nova metadata service IP and port
-nova_metadata_ip = {{ include "nova_metadata_host" . }}
+nova_metadata_ip = {{ include "helm-toolkit.nova_metadata_host" . }}
 nova_metadata_port = {{ .Values.network.port.metadata }}
 nova_metadata_protocol = http
 

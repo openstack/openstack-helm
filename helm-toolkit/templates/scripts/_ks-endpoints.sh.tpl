@@ -1,4 +1,4 @@
-{{- define "common_keystone_endpoints" }}
+{{- define "helm-toolkit.keystone_endpoints" }}
 #!/bin/bash
 
 # Copyright 2017 Pete Birley

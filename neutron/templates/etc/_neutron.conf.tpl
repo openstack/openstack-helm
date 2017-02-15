@@ -33,7 +33,7 @@ router_auto_schedule = True
 transport_url = rabbit://{{ .Values.rabbitmq.admin_user }}:{{ .Values.rabbitmq.admin_password }}@{{ .Values.rabbitmq.address }}:{{ .Values.rabbitmq.port }}
 
 [nova]
-auth_url = {{ include "endpoint_keystone_internal" . }}
+auth_url = {{ include "helm-toolkit.endpoint_keystone_internal" . }}
 auth_plugin = password
 project_domain_id = default
 user_domain_id = default
@@ -55,11 +55,11 @@ l2_population = true
 arp_responder = true
 
 [database]
-connection = mysql+pymysql://{{ .Values.database.neutron_user }}:{{ .Values.database.neutron_password }}@{{ include "neutron_db_host" . }}/{{ .Values.database.neutron_database_name }}
+connection = mysql+pymysql://{{ .Values.database.neutron_user }}:{{ .Values.database.neutron_password }}@{{ include "helm-toolkit.mariadb_host" . }}/{{ .Values.database.neutron_database_name }}
 max_retries = -1
 
 [keystone_authtoken]
-auth_url = {{ include "endpoint_keystone_internal" . }}
+auth_url = {{ include "helm-toolkit.endpoint_keystone_internal" . }}
 auth_type = password
 project_domain_id = default
 user_domain_id = default

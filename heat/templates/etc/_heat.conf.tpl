@@ -33,7 +33,7 @@ max_retries = -1
 signing_dir = "/var/cache/heat"
 memcached_servers = "{{ .Values.memcached.host }}:{{ .Values.memcached.port }}"
 auth_version = v3
-auth_url = {{ include "endpoint_keystone_internal" . }}
+auth_url = {{ include "helm-toolkit.endpoint_keystone_internal" . }}
 auth_type = password
 region_name = {{ .Values.keystone.heat_region_name }}
 project_domain_name = {{ .Values.keystone.heat_project_domain }}
@@ -74,7 +74,7 @@ auth_section = "trustee_keystone"
 signing_dir = "/var/cache/heat"
 memcached_servers = "{{ .Values.memcached.host }}:{{ .Values.memcached.port }}"
 auth_version = v3
-auth_url = {{ include "endpoint_keystone_internal" . }}
+auth_url = {{ include "helm-toolkit.endpoint_keystone_internal" . }}
 auth_type = password
 region_name = {{ .Values.keystone.heat_trustee_region_name }}
 user_domain_name = {{ .Values.keystone.heat_trustee_user_domain }}
@@ -87,4 +87,4 @@ endpoint_type = internalURL
 
 [clients_keystone]
 endpoint_type = internalURL
-auth_uri = {{ include "endpoint_keystone_internal" . }}
+auth_uri = {{ include "helm-toolkit.endpoint_keystone_internal" . }}

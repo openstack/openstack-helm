@@ -7,7 +7,7 @@
 # however, constructing this appears to be a
 # herculean effort in gotpl
 
-{{- define "endpoint_keystone_internal" -}}
+{{- define "helm-toolkit.endpoint_keystone_internal" -}}
 {{- $fqdn := .Release.Namespace -}}
 {{- if .Values.endpoints.fqdn -}}
 {{- $fqdn := .Values.endpoints.fqdn -}}
@@ -17,7 +17,7 @@
 {{- end -}}
 {{- end -}}
 
-{{- define "endpoint_keystone_admin" -}}
+{{- define "helm-toolkit.endpoint_keystone_admin" -}}
 {{- $fqdn := .Release.Namespace -}}
 {{- if .Values.endpoints.fqdn -}}
 {{- $fqdn := .Values.endpoints.fqdn -}}
@@ -27,7 +27,7 @@
 {{- end -}}
 {{- end -}}
 
-{{- define "endpoint_nova_api_internal" -}}
+{{- define "helm-toolkit.endpoint_nova_api_internal" -}}
 {{- $fqdn := .Release.Namespace -}}
 {{- if .Values.endpoints.fqdn -}}
 {{- $fqdn := .Values.endpoints.fqdn -}}
@@ -37,7 +37,7 @@
 {{- end -}}
 {{- end -}}
 
-{{- define "endpoint_nova_metadata_internal" -}}
+{{- define "helm-toolkit.endpoint_nova_metadata_internal" -}}
 {{- $fqdn := .Release.Namespace -}}
 {{- if .Values.endpoints.fqdn -}}
 {{- $fqdn := .Values.endpoints.fqdn -}}
@@ -47,7 +47,7 @@
 {{- end -}}
 {{- end -}}
 
-{{- define "endpoint_nova_novncproxy_internal" -}}
+{{- define "helm-toolkit.endpoint_nova_novncproxy_internal" -}}
 {{- $fqdn := .Release.Namespace -}}
 {{- if .Values.endpoints.fqdn -}}
 {{- $fqdn := .Values.endpoints.fqdn -}}
@@ -57,7 +57,7 @@
 {{- end -}}
 {{- end -}}
 
-{{- define "endpoint_glance_api_internal" -}}
+{{- define "helm-toolkit.endpoint_glance_api_internal" -}}
 {{- $fqdn := .Release.Namespace -}}
 {{- if .Values.endpoints.fqdn -}}
 {{- $fqdn := .Values.endpoints.fqdn -}}
@@ -67,7 +67,7 @@
 {{- end -}}
 {{- end -}}
 
-{{- define "endpoint_glance_registry_internal" -}}
+{{- define "helm-toolkit.endpoint_glance_registry_internal" -}}
 {{- $fqdn := .Release.Namespace -}}
 {{- if .Values.endpoints.fqdn -}}
 {{- $fqdn := .Values.endpoints.fqdn -}}
@@ -77,7 +77,7 @@
 {{- end -}}
 {{- end -}}
 
-{{- define "endpoint_neutron_api_internal" -}}
+{{- define "helm-toolkit.endpoint_neutron_api_internal" -}}
 {{- $fqdn := .Release.Namespace -}}
 {{- if .Values.endpoints.fqdn -}}
 {{- $fqdn := .Values.endpoints.fqdn -}}
@@ -89,10 +89,10 @@
 
 # this function returns the endpoint uri for a service, it takes an tuple
 # input in the form: service-name, endpoint-class, port-name. eg:
-# { tuple "heat" "public" "api" . | include "endpoint_addr_lookup" }
+# { tuple "heat" "public" "api" . | include "helm-toolkit.endpoint_uri_lookup" }
 # will return the appropriate URI. Once merged this should phase out the above.
 
-{{- define "endpoint_addr_lookup" -}}
+{{- define "helm-toolkit.endpoint_uri_lookup" -}}
 {{- $name := index . 0 -}}
 {{- $endpoint := index . 1 -}}
 {{- $port := index . 2 -}}
@@ -122,7 +122,7 @@
 # { tuple heat . | include "ks_endpoint_type" }
 # will return "orchestration"
 
-{{- define "endpoint_type_lookup" -}}
+{{- define "helm-toolkit.endpoint_type_lookup" -}}
 {{- $name := index . 0 -}}
 {{- $context := index . 1 -}}
 {{- $nameNorm := $name | replace "-" "_" }}
@@ -134,4 +134,4 @@
 #-------------------------------
 # kolla helpers
 #-------------------------------
-{{ define "keystone_auth" }}{'auth_url':'{{ include "endpoint_keystone_internal" . }}', 'username':'{{ .Values.keystone.admin_user }}','password':'{{ .Values.keystone.admin_password }}','project_name':'{{ .Values.keystone.admin_project_name }}','domain_name':'default'}{{end}}
+{{ define "helm-toolkit.keystone_auth" }}{'auth_url':'{{ include "helm-toolkit.endpoint_keystone_internal" . }}', 'username':'{{ .Values.keystone.admin_user }}','password':'{{ .Values.keystone.admin_password }}','project_name':'{{ .Values.keystone.admin_project_name }}','domain_name':'default'}{{end}}

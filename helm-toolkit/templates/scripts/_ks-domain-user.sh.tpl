@@ -1,4 +1,4 @@
-{{- define "common_keystone_domain_user" }}
+{{- define "helm-toolkit.keystone_domain_user" }}
 #!/bin/bash
 
 # Copyright 2017 Pete Birley

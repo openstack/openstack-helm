@@ -43,19 +43,19 @@ lock_path = /var/lib/nova/tmp
 workers = {{ .Values.nova.default.conductor_workers }}
 
 [glance]
-api_servers = {{ include "endpoint_glance_api_internal" . }}
+api_servers = {{ include "helm-toolkit.endpoint_glance_api_internal" . }}
 num_retries = 3
 
 [cinder]
 catalog_info = volume:cinder:internalURL
 
 [neutron]
-url = {{ include "endpoint_neutron_api_internal" . }}
+url = {{ include "helm-toolkit.endpoint_neutron_api_internal" . }}
 
 metadata_proxy_shared_secret = {{ .Values.neutron.metadata_secret }}
 service_metadata_proxy = True
 
-auth_url = {{ include "endpoint_keystone_admin" . }}
+auth_url = {{ include "helm-toolkit.endpoint_keystone_admin" . }}
 auth_type = password
 project_domain_name = default
 user_domain_id = default
@@ -72,8 +72,8 @@ connection = mysql+pymysql://{{ .Values.database.nova_user }}:{{ .Values.databas
 max_retries = -1
 
 [keystone_authtoken]
-auth_uri = {{ include "endpoint_keystone_internal" . }}
-auth_url = {{ include "endpoint_keystone_admin" . }}
+auth_uri = {{ include "helm-toolkit.endpoint_keystone_internal" . }}
+auth_url = {{ include "helm-toolkit.endpoint_keystone_admin" . }}
 auth_type = password
 project_domain_id = default
 user_domain_id = default

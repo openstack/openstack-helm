@@ -1,4 +1,4 @@
-{{- define "common_keystone_service" }}
+{{- define "helm-toolkit.keystone_service" }}
 #!/bin/bash
 
 # Copyright 2017 Pete Birley

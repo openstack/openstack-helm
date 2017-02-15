@@ -1,4 +1,4 @@
-{{- define "env_ks_user_create_openrc_tpl" }}
+{{- define "helm-toolkit.keystone_user_create_env_vars" }}
 {{- $ksUserSecret := .ksUserSecret }}
 - name: SERVICE_OS_REGION_NAME
   valueFrom:

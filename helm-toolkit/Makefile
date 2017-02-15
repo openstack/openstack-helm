@@ -1,4 +1,4 @@
-EXCLUDE := templates/* charts/* Chart.yaml requirement* values.yaml Makefile utils/* common/Chart.yaml
+EXCLUDE := templates/* charts/* Chart.yaml requirement* values.yaml Makefile utils/* helm-toolkit/Chart.yaml
 SECRETS := $(shell find secrets -type f $(foreach e,$(EXCLUDE), -not -path "$(e)") )
 
 templates/_secrets.tpl: Makefile $(SECRETS)

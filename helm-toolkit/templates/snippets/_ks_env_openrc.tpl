@@ -1,4 +1,4 @@
-{{- define "env_ks_openrc_tpl" }}
+{{- define "helm-toolkit.keystone_openrc_env_vars" }}
 {{- $ksUserSecret := .ksUserSecret }}
 - name: OS_IDENTITY_API_VERSION
   value: "3"
