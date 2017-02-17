@@ -1,3 +1,5 @@
+{{- $envAll := . }}
+{{- $dependencies := .Values.dependencies }}
 kind: Deployment
 apiVersion: extensions/v1beta1
 metadata:
@@ -18,6 +20,27 @@ spec:
         app: rabbitmq
       annotations:
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.hash" }}
+        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.hash" }}
+        pod.beta.kubernetes.io/init-containers: '[
+{{ tuple $envAll $dependencies | include "helm-toolkit.kubernetes_entrypoint_init_container" | indent 10 }}
+        ]'
+        # TODO: this needs to be moved to common.
+        scheduler.alpha.kubernetes.io/affinity: >
+           {
+             "podAntiAffinity": {
+               "preferredDuringSchedulingIgnoredDuringExecution": [{
+                 "labelSelector": {
+                   "matchExpressions": [{
+                     "key": "app",
+                     "operator": "In",
+                     "values":["rabbitmq"]
+                   }]
+                 },
+               "topologyKey": "kubernetes.io/hostname",
+               "weight": 10
+               }]
+             }
+           }
     spec:
       nodeSelector:
         {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
@@ -27,6 +50,9 @@ spec:
         - name: rabbitmq-bin
           configMap:
             name: rabbitmq-bin
+        - name: rabbitmq-etc
+          configMap:
+            name: rabbitmq-etc
       containers:
         - name: rabbitmq
           image: {{ .Values.images.rabbitmq }}
@@ -40,21 +66,40 @@ spec:
               memory: {{ .Values.resources.api.requests.memory | quote }}
           {{- end }}
           command:
-            - bash
-            - /tmp/start_rabbitmq.sh
+          - bash
+          - /scripts/start.sh
+          env:
+          - name: RABBITMQ_POD_IP
+            valueFrom:
+              fieldRef:
+                fieldPath: status.podIP
+          readinessProbe:
+            timeoutSeconds: {{ .Values.probes_timeout }}
+            exec:
+              command:
+              - bash
+              - /scripts/rabbitmq-readiness.sh
           livenessProbe:
-            tcpSocket:
-              port: {{.Values.network.port.public}}
-            initialDelaySeconds: 60
-            timeoutSeconds: 5
-          ports:
-            - name: rabbitmq
-              containerPort: {{.Values.network.port.public}}
-            - name: management
-              containerPort: {{.Values.network.port.management}}
+            initialDelaySeconds: {{ .Values.probes_delay }}
+            timeoutSeconds: {{ .Values.probes_timeout }}
+            exec:
+              command:
+              - bash
+              - /scripts/rabbitmq-liveness.sh
           volumeMounts:
             - name: rabbitmq-emptydir
               mountPath: /var/lib/rabbitmq
             - name: rabbitmq-bin
-              mountPath: /tmp/start_rabbitmq.sh
-              subPath: start_rabbitmq.sh
+              mountPath: /scripts
+            - name: rabbitmq-etc
+              mountPath: /etc/rabbitmq/enabled_plugins
+              subPath: enabled_plugins
+            - name: rabbitmq-etc
+              mountPath: /etc/rabbitmq/erlang.cookie
+              subPath: erlang.cookie
+            - name: rabbitmq-etc
+              mountPath: /etc/rabbitmq/rabbitmq-env.conf
+              subPath: rabbitmq-env.conf
+            - name: rabbitmq-etc
+              mountPath: /etc/rabbitmq/rabbitmq.config
+              subPath: rabbitmq.config

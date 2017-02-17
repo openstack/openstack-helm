@@ -1,0 +1,36 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: etcd
+spec:
+  replicas: {{ .Values.resources.etcd.replicas }}
+  revisionHistoryLimit: {{ .Values.upgrades.revision_history }}
+  strategy:
+    type: {{ .Values.upgrades.pod_replacement_strategy }}
+    {{ if eq .Values.upgrades.pod_replacement_strategy "RollingUpdate" }}
+    rollingUpdate:
+      maxUnavailable: {{ .Values.upgrades.rolling_update.max_unavailable }}
+      maxSurge: {{ .Values.upgrades.rolling_update.max_surge }}
+    {{ end }}  
+  template:
+    metadata:
+      labels:
+        app: etcd
+    spec:
+      nodeSelector:
+        {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
+      containers:
+        - name: etcd
+          image: {{ .Values.images.etcd }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+          command:
+            - etcd
+            - --listen-client-urls
+            - http://0.0.0.0:{{ .Values.network.port }}
+            - --advertise-client-urls
+            - http://{{ .Values.network.host }}:{{ .Values.network.port }}
+          ports:
+            - containerPort: {{ .Values.network.port }}
+          readinessProbe:
+            tcpSocket:
+              port: {{ .Values.network.port }}

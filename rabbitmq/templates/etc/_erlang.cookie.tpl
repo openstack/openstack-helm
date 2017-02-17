@@ -1,0 +1,1 @@
+{{ .Values.erlang_cookie }}

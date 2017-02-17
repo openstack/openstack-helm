@@ -1,12 +1,12 @@
-.PHONY: ceph bootstrap mariadb postgresql keystone memcached rabbitmq helm-toolkit openstack neutron nova cinder heat maas all clean
+.PHONY: ceph bootstrap mariadb etcd postgresql keystone memcached rabbitmq helm-toolkit openstack neutron nova cinder heat maas all clean
 
 B64_DIRS := helm-toolkit/secrets
 B64_EXCLUDE := $(wildcard helm-toolkit/secrets/*.b64)
 
-CHARTS := ceph mariadb postgresql rabbitmq memcached keystone glance horizon neutron nova cinder heat maas openstack
+CHARTS := ceph mariadb etcd postgresql rabbitmq memcached keystone glance horizon neutron nova cinder heat maas openstack
 TOOLKIT_TPL := helm-toolkit/templates/_globals.tpl
 
-all: helm-toolkit ceph bootstrap mariadb postgresql rabbitmq memcached keystone glance horizon neutron nova cinder heat maas openstack
+all: helm-toolkit ceph bootstrap mariadb etcd postgresql rabbitmq memcached keystone glance horizon neutron nova cinder heat maas openstack
 
 helm-toolkit: build-helm-toolkit
 
@@ -16,6 +16,8 @@ ceph: build-ceph
 bootstrap: build-bootstrap
 
 mariadb: build-mariadb
+
+etcd: build-etcd
 
 postgresql: build-postgresql
 
