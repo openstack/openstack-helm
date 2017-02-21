@@ -5,7 +5,8 @@
 **Join us on [Slack](http://slack.k8s.io/):** `#openstack-helm`<br>
 **Join us on [Freenode](https://freenode.net/):** `#openstack-helm`<br>
 **Community Meetings:** [Every other Tuesday @ 3PM UTC](https://calendar.google.com/calendar/embed?src=rnd4tpeoncig91pvs05il4p29o%40group.calendar.google.com&ctz=America/New_York) (Provided by [Zoom](https://zoom.us/j/562328746))<br>
-**Community Agenda Items:** [Google Docs](https://docs.google.com/document/d/1Vm2OnMzjSru3cuvxh4Oa7R_z7staU-7ivGy8foOzDCs/edit#heading=h.bfc0dkav9gk2)
+**Community Agenda Items:** [Google Docs](https://docs.google.com/document/d/1Vm2OnMzjSru3cuvxh4Oa7R_z7staU-7ivGy8foOzDCs/edit#heading=h.bfc0dkav9gk2)<br>
+**Community Roadmap Items:** [Roadmap Docs](https://docs.google.com/spreadsheets/d/1N5AdAdLbvpZ9Tzi1TuqeJbHyczfZRysBIYE_ndnZx6c/edit?usp=sharing)
 
 Openstack-Helm is a fully self-contained Helm-based OpenStack deployment on Kubernetes. It will provide baremetal provisioning, persistent storage, full-stack resiliency, full-stack scalability, performance monitoring and tracing, and an optional development pipeline (using Jenkins). This project, along with the tools used within are community-based and open sourced.
 
