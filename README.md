@@ -32,17 +32,17 @@ To verify your Helm chart version, once the repository has been added, issue the
 
 ```
 $ helm search | grep openstack-helm
-local/bootstrap         	0.1.0  	openstack-helm namespace bootstrap
-openstack-helm/bootstrap	0.1.0  	openstack-helm namespace bootstrap
-openstack-helm/ceph     	0.1.0  	A Helm chart for Kubernetes
-openstack-helm/common   	0.1.0  	A base chart for all openstack charts
-openstack-helm/glance   	0.1.0  	A Helm chart for glance
-openstack-helm/horizon  	0.1.0  	A Helm chart for horizon
-openstack-helm/keystone 	0.1.0  	A Helm chart for keystone
-openstack-helm/mariadb  	0.1.0  	A helm chart for mariadb
-openstack-helm/memcached	0.1.0  	Chart for memcached
-openstack-helm/openstack	0.1.0  	A Helm chart for Kubernetes
-openstack-helm/rabbitmq 	0.1.0  	A Helm chart for Kubernetes
+local/bootstrap                 0.1.0   openstack-helm namespace bootstrap
+openstack-helm/bootstrap        0.1.0   openstack-helm namespace bootstrap
+openstack-helm/ceph             0.1.0   A Helm chart for Kubernetes
+openstack-helm/helm-toolkit     0.1.0   A base chart for all openstack charts
+openstack-helm/glance           0.1.0   A Helm chart for glance
+openstack-helm/horizon          0.1.0   A Helm chart for horizon
+openstack-helm/keystone         0.1.0   A Helm chart for keystone
+openstack-helm/mariadb          0.1.0   A helm chart for mariadb
+openstack-helm/memcached        0.1.0   Chart for memcached
+openstack-helm/openstack        0.1.0   A Helm chart for Kubernetes
+openstack-helm/rabbitmq         0.1.0   A Helm chart for Kubernetes
 $
 ```
 

@@ -166,7 +166,7 @@ After following the instructions above your environment is in a state where you 
 
 Consider the following when using Minikube and development mode:
 * Persistent Storage used for Minikube development mode is `hostPath`. The Ceph PVC's included with this project are not intended to work with Minikube.
-* There is *no need* to install the `common` `ceph` or `bootstrap` charts. These charts are required for deploying Ceph PVC's.
+* There is *no need* to install the `helm-toolkit` `ceph` or `bootstrap` charts. These charts are required for deploying Ceph PVC's.
 * Familiarize yourself with `values.yaml` included with the MariaDB chart. You will want to have the `storage_path` directory created prior to deploying MariaDB. This value will be used as the deployment's `hostPath`.
 * If Ceph development is required, you will need to follow the [getting started guide](https://github.com/att-comdev/openstack-helm/blob/master/docs/installation/getting-started.md) rather than this development mode documentation.
 
