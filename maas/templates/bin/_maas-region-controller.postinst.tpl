@@ -87,16 +87,13 @@ if [ "$1" = "configure" ] && [ -z "$2" ]; then
     ################  Configure Database  ###################
     #########################################################
 
-    # Need to for postgresql start so it doesn't fail on the installer
-    restart_postgresql
-
     # Create the database
     dbc_go maas-region-controller $@
     maas-region local_config_set \
-        --database-host "localhost" \
-        --database-name "{{ .Values.database.db_name }}" \
-        --database-user "{{ .Values.database.db_user }}" \
-        --database-pass "{{ .Values.database.db_password }}"
+        --database-host {{ include "helm-toolkit.postgresql_host" . | quote }} \
+        --database-name {{ .Values.database.db_name | quote }} \
+        --database-user {{ .Values.database.db_user | quote }} \
+        --database-pass {{ .Values.database.db_password | quote }}
 
     # Only syncdb if we have selected to install it with dbconfig-common.
     db_get maas-region-controller/dbconfig-install

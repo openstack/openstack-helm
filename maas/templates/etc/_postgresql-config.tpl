@@ -50,6 +50,9 @@ dbc_dbname='{{ .Values.database.db_name }}'
 #	ignored and instead is determined from /etc/mysql/debian.cnf.
 dbc_dbadmin='postgres'
 
+dbc_dbserver={{ include "helm-toolkit.postgresql_host" . | quote }}
+dbc_dbport={{ .Values.network.port.db_service }}
+
 # dbc_authmethod_admin: authentication method for admin
 # dbc_authmethod_user: authentication method for dbuser
 #	see the section titled "AUTHENTICATION METHODS" in

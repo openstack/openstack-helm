@@ -31,6 +31,7 @@
 # infrastructure services
 {{- define "helm-toolkit.rabbitmq_host"}}memcached.{{.Release.Namespace}}.svc.{{ include "helm-toolkit.region" . }}.{{ include "helm-toolkit.tld" . }}{{- end}}
 {{- define "helm-toolkit.mariadb_host"}}mariadb.{{.Release.Namespace}}.svc.{{ include "helm-toolkit.region" . }}.{{ include "helm-toolkit.tld" . }}{{- end}}
+{{- define "helm-toolkit.postgresql_host"}}postgresql.{{.Release.Namespace}}.svc.{{ include "helm-toolkit.region" . }}.{{ include "helm-toolkit.tld" . }}{{- end}}
 
 # nova defaults
 {{- define "helm-toolkit.nova_metadata_host"}}nova-api.{{ include "helm-toolkit.fqdn" . }}{{- end}}
