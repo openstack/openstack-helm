@@ -227,7 +227,7 @@ admin@kubenode01:~$ mkdir -p /var/lib/openstack-helm/ceph
 ## Ceph Secrets Generation
 Although you can bring your own secrets, we have conveniently created a secret generation tool for you (for greenfield deployments). You can create secrets for your project by issuing the following:
 ```
-admin@kubenode01:~$ cd common/utils/secret-generator
+admin@kubenode01:~$ cd helm-toolkit/utils/secret-generator
 admin@kubenode01:~$ ./generate_secrets.sh all `./generate_secrets.sh fsid`
 admin@kubenode01:~$ cd ../../..
 ```
