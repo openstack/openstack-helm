@@ -26,7 +26,7 @@ osapi_volume_listen_port = {{ .Values.network.port.api }}
 
 api_paste_config = /etc/cinder/api-paste.ini
 
-glance_api_servers = {{ tuple "image" "internal" "api" . | include "helm-toolkit.endpoint_type_lookup_addr" }}
+glance_api_servers = {{ tuple "image" "internal" "api" . | include "helm-toolkit.keystone_endpoint_uri_lookup" }}
 glance_api_version = {{ .Values.glance.version }}
 
 enabled_backends = {{  include "helm-toolkit.joinListWithComma" .Values.backends.enabled }}
@@ -45,7 +45,7 @@ max_retries = -1
 
 [keystone_authtoken]
 auth_version = v3
-auth_url = {{ tuple "identity" "internal" "api" . | include "helm-toolkit.endpoint_type_lookup_addr" }}
+auth_url = {{ tuple "identity" "internal" "api" . | include "helm-toolkit.keystone_endpoint_uri_lookup" }}
 auth_type = password
 region_name = {{ .Values.keystone.cinder_region_name }}
 project_domain_name = {{ .Values.keystone.cinder_project_domain }}

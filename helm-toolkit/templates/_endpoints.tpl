@@ -128,10 +128,10 @@
 
 # this function returns the endpoint uri for a service, it takes an tuple
 # input in the form: service-type, endpoint-class, port-name. eg:
-# { tuple "orchestration" "public" "api" . | include "helm-toolkit.endpoint_type_lookup_addr" }
+# { tuple "orchestration" "public" "api" . | include "helm-toolkit.keystone_endpoint_uri_lookup" }
 # will return the appropriate URI. Once merged this should phase out the above.
 
-{{- define "helm-toolkit.endpoint_type_lookup_addr" -}}
+{{- define "helm-toolkit.keystone_endpoint_uri_lookup" -}}
 {{- $type := index . 0 -}}
 {{- $endpoint := index . 1 -}}
 {{- $port := index . 2 -}}
@@ -178,7 +178,7 @@
 # { tuple orchestration . | include "ks_endpoint_type" }
 # will return "heat"
 
-{{- define "helm-toolkit.endpoint_name_lookup" -}}
+{{- define "helm-toolkit.keystone_endpoint_name_lookup" -}}
 {{- $type := index . 0 -}}
 {{- $context := index . 1 -}}
 {{- $endpointMap := index $context.Values.endpoints $type }}
@@ -189,4 +189,4 @@
 #-------------------------------
 # kolla helpers
 #-------------------------------
-{{ define "helm-toolkit.keystone_auth" }}{'auth_url':'{{ tuple "identity" "internal" "api" . | include "helm-toolkit.endpoint_type_lookup_addr" }}', 'username':'{{ .Values.keystone.admin_user }}','password':'{{ .Values.keystone.admin_password }}','project_name':'{{ .Values.keystone.admin_project_name }}','domain_name':'default'}{{end}}
+{{ define "helm-toolkit.keystone_auth" }}{'auth_url':'{{ tuple "identity" "internal" "api" . | include "helm-toolkit.keystone_endpoint_uri_lookup" }}', 'username':'{{ .Values.keystone.admin_user }}','password':'{{ .Values.keystone.admin_password }}','project_name':'{{ .Values.keystone.admin_project_name }}','domain_name':'default'}{{end}}
