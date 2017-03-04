@@ -12,13 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-Listen {{ .Values.network.ip_address }}:{{ .Values.network.port.public }}
-Listen {{ .Values.network.ip_address }}:{{ .Values.network.port.admin }}
+Listen 0.0.0.0:{{ .Values.network.port.api }}
+Listen 0.0.0.0:{{ .Values.network.port.admin }}
 
 LogFormat "%h %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\"" combined
 LogFormat "%{X-Forwarded-For}i %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\"" proxy
 
-<VirtualHost *:{{ .Values.network.port.public }}>
+<VirtualHost *:{{ .Values.network.port.api }}>
     WSGIDaemonProcess keystone-public processes=1 threads=4 user=keystone group=keystone display-name=%{GROUP}
     WSGIProcessGroup keystone-public
     WSGIScriptAlias / /var/www/cgi-bin/keystone/main
