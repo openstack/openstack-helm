@@ -12,6 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+{{- if empty .Values.conf.paste.override -}}
+{{ include "keystone.conf.paste" .Values.conf.paste }}
+{{- else -}}
+{{ .Values.conf.paste.override }}
+{{- end -}}
+
+{{- define "keystone.conf.paste" -}}
+
 # Keystone PasteDeploy configuration file.
 
 [filter:debug]
@@ -40,9 +48,6 @@ oslo_config_project = keystone
 
 [filter:http_proxy_to_wsgi]
 use = egg:oslo.middleware#http_proxy_to_wsgi
-
-[filter:healthcheck]
-use = egg:oslo.middleware#healthcheck
 
 [filter:ec2_extension]
 use = egg:keystone#ec2_extension
@@ -74,17 +79,17 @@ use = egg:keystone#admin_service
 [pipeline:public_api]
 # The last item in this pipeline must be public_service or an equivalent
 # application. It cannot be a filter.
-pipeline = healthcheck cors sizelimit http_proxy_to_wsgi osprofiler url_normalize request_id build_auth_context token_auth json_body ec2_extension public_service
+pipeline = cors sizelimit http_proxy_to_wsgi osprofiler url_normalize request_id admin_token_auth build_auth_context token_auth json_body ec2_extension public_service
 
 [pipeline:admin_api]
 # The last item in this pipeline must be admin_service or an equivalent
 # application. It cannot be a filter.
-pipeline = healthcheck cors sizelimit http_proxy_to_wsgi osprofiler url_normalize request_id build_auth_context token_auth json_body ec2_extension s3_extension admin_service
+pipeline = cors sizelimit http_proxy_to_wsgi osprofiler url_normalize request_id admin_token_auth build_auth_context token_auth json_body ec2_extension s3_extension admin_service
 
 [pipeline:api_v3]
 # The last item in this pipeline must be service_v3 or an equivalent
 # application. It cannot be a filter.
-pipeline = healthcheck cors sizelimit http_proxy_to_wsgi osprofiler url_normalize request_id build_auth_context token_auth json_body ec2_extension_v3 s3_extension service_v3
+pipeline = cors sizelimit http_proxy_to_wsgi osprofiler url_normalize request_id admin_token_auth build_auth_context token_auth json_body ec2_extension_v3 s3_extension service_v3
 
 [app:public_version_service]
 use = egg:keystone#public_version_service
@@ -93,10 +98,10 @@ use = egg:keystone#public_version_service
 use = egg:keystone#admin_version_service
 
 [pipeline:public_version_api]
-pipeline = healthcheck cors sizelimit osprofiler url_normalize public_version_service
+pipeline = cors sizelimit osprofiler url_normalize public_version_service
 
 [pipeline:admin_version_api]
-pipeline = healthcheck cors sizelimit osprofiler url_normalize admin_version_service
+pipeline = cors sizelimit osprofiler url_normalize admin_version_service
 
 [composite:main]
 use = egg:Paste#urlmap
@@ -109,3 +114,9 @@ use = egg:Paste#urlmap
 /v2.0 = admin_api
 /v3 = api_v3
 / = admin_version_api
+
+{{ if .append }}
+{{ .append }}
+{{ end }}
+
+{{- end -}}

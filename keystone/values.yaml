@@ -45,24 +45,10 @@ keystone:
   admin_password: password
   admin_project_name: admin
 
-api:
-  default:
-    debug: false
-  token:
-    provider: uuid
-
 network:
   port:
     admin: 35357
     api: 5000
-
-database:
-  port: 3306
-  root_user: root
-  root_password: password
-  keystone_database_name: keystone
-  keystone_password: password
-  keystone_user: keystone
 
 dependencies:
   api:
@@ -108,6 +94,196 @@ resources:
         memory: "128Mi"
         cpu: "500m"
 
+mounts:
+  job_db_init:
+    volumes:
+    - name: keystone-bin
+      configMap:
+        name: keystone-bin      
+    volumeMounts:
+    - name: keystone-bin
+      mountPath: /tmp/init.sh
+      subPath: init.sh
+  job_db_sync:
+    volumes:
+    - name: empty
+      emptyDir: {}
+    - name: keystone-etc
+      configMap:
+        name: keystone-etc
+    - name: keystone-bin
+      configMap:
+        name: keystone-bin      
+    volumeMounts:
+    - name: empty
+      mountPath: /etc/keystone
+    - name: keystone-etc
+      mountPath: /etc/keystone/keystone.conf
+      subPath: keystone.conf
+      readOnly: true
+    - name: keystone-bin
+      mountPath: /tmp/db-sync.sh
+      subPath: db-sync.sh
+      readOnly: true  
+  api:
+    volumes:
+    - name: empty
+      emptyDir: {}
+    - name: keystone-etc
+      configMap:
+        name: keystone-etc
+    - name: keystone-bin
+      configMap:
+        name: keystone-bin     
+    volumeMounts:
+    - name: empty
+      mountPath: /etc/keystone
+    - name: keystone-etc
+      mountPath: /etc/keystone/keystone.conf
+      subPath: keystone.conf
+      readOnly: true
+    - name: keystone-etc
+      mountPath: /etc/keystone/keystone-paste.ini
+      subPath: keystone-paste.ini
+      readOnly: true
+    - name: keystone-etc
+      mountPath: /etc/keystone/policy.json
+      subPath: policy.json
+      readOnly: true
+    - name: keystone-etc
+      mountPath: /etc/keystone/sso_callback_template.html
+      subPath: sso_callback_template.html
+      readOnly: true
+    - name: keystone-etc
+      mountPath: /etc/apache2/conf-enabled/wsgi-keystone.conf
+      subPath: wsgi-keystone.conf
+      readOnly: true
+    - name: keystone-etc
+      mountPath: /etc/apache2/mods-available/mpm_event.conf
+      subPath: mpm_event.conf
+      readOnly: true
+    - name: keystone-bin
+      mountPath: /tmp/start.sh
+      subPath: start.sh
+      readOnly: true      
+
+conf:
+  paste:
+    override:
+    append:
+  policy:
+    override:
+    append:
+  keystone:
+    override:
+    append:
+    assignment:
+      keystone: {}
+    auth:
+      keystone: {}
+    catalog:
+      keystone: {}
+    credential:
+      keystone: {}
+    domain_config:
+      keystone: {}
+    endpoint_filter:
+      keystone: {}
+    endpoint_policy:
+      keystone: {}
+    eventlet_server:
+      keystone: {}
+    federation:
+      keystone: {}
+    fernet_tokens:
+      keystone: {}
+    identity:
+      keystone: {}
+    identity_mapping:
+      keystone: {}
+    kvs:
+      keystone: {}
+    ldap:
+      keystone: {}
+    oauth1: 
+      keystone: {}
+    policy:
+      keystone: {}
+    resource:
+      keystone: {}
+    role:
+      keystone: {}
+    saml: 
+      keystone: {}
+    security_compliance:
+      keystone: {}
+    shadow_users:
+      keystone: {}
+    signing:
+      keystone: {}
+    token: 
+      keystone:
+        provider: uuid
+    tokenless_auth:
+      keystone: {}
+    trust:
+      keystone: {}
+    memcache:
+      keystone: {}
+    os_inherit: 
+      keystone: {}
+    paste_deploy:
+      keystone: {}
+    revoke:
+      keystone: {}
+    default: 
+      keystone: {}
+      oslo:
+        log: {}
+        messaging: {}
+    cache:
+      oslo:
+        cache: {}
+    cors:
+      oslo:
+        middleware: {}
+      subdomain:
+        oslo:
+          middleware: {}
+    database:
+      oslo:
+        db:
+          max_retries: -1
+    healthcheck:
+      oslo:
+        middleware: {}
+    matchmaker_redis:
+      oslo:
+        messaging: {}
+    oslo_messaging_amqp:
+      oslo:
+        messaging: {}
+    oslo_messaging_kafka:
+      oslo:
+        messaging: {}
+    oslo_messaging_notifications:
+      oslo:
+        messaging: {}
+    oslo_messaging_rabbit:
+      oslo:
+        messaging: {}
+    oslo_messaging_zmq:
+      oslo:
+        messaging: {}
+    oslo_middleware:
+      oslo:
+        middleware: {}
+    oslo_policy:
+      oslo:
+        policy: {}
+    profiler:
+      osprofiler: {}
+
 # typically overriden by environmental
 # values, but should include all endpoints
 # required by this chart
@@ -121,3 +297,36 @@ endpoints:
     port:
       admin: 35357
       api: 5000
+  oslo_db:
+    auth:
+      admin:
+        username: root
+        password: password
+      user:
+        username: keystone
+        password: password
+    hosts:
+      default: mariadb
+    path: /keystone
+    scheme: mysql+pymysql
+    port:
+      mysql: 3306
+  oslo_messaging:
+    auth:
+      admin:
+        username: admin
+        password: password
+      user:
+        username: keystone
+        password: password
+    hosts:
+      default: rabbitmq
+    path: /openstack
+    scheme: rabbit
+    port:
+      amqp: 5672  
+  oslo_cache:
+    hosts:
+      default: memcache
+    port:
+      memcache: 11211

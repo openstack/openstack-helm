@@ -120,7 +120,7 @@
 {{- with $endpointMap -}}
 {{- $endpointScheme := .scheme }}
 {{- $endpointHost := index .hosts $endpoint | default .hosts.default}}
-{{- $endpointPort := index .port $port }}
+{{- $endpointPort := index .port $port | default .port.default }}
 {{- $endpointPath := .path }}
 {{- printf "%s://%s.%s:%1.f%s" $endpointScheme $endpointHost $fqdn $endpointPort $endpointPath  | quote -}}
 {{- end -}}
@@ -147,6 +147,69 @@
 {{- $endpointPort := index .port $port }}
 {{- $endpointPath := .path | default "" }}
 {{- printf "%s://%s.%s:%1.f%s" $endpointScheme $endpointHost $fqdn $endpointPort $endpointPath -}}
+{{- end -}}
+{{- end -}}
+
+# this function helps resolve database style endpoints, which really follow the same
+# pattern as above, except they have a username and password component
+# 
+# presuming that .Values contains an endpoint: definition for 'neutron-db' with the
+# appropriate attributes, a call such as:
+# 
+# { tuple "neutron-db" "internal" "userClass" "portName" . | include "helm-toolkit.authenticated_endpoint_uri_lookup" }
+#
+# where portName is optional if a default port has been defined in .Values
+#
+# returns: mysql+pymysql://username:password@internal_host:3306/dbname
+
+{{- define "helm-toolkit.authenticated_endpoint_uri_lookup" -}}
+{{- $type := index . 0 -}}
+{{- $endpoint := index . 1 -}}
+{{- $userclass := index . 2 -}}
+{{- $port := index . 3 -}}
+{{- $context := index . 4 -}}
+{{- $endpointMap := index $context.Values.endpoints $type }}
+{{- $userMap := index $endpointMap.auth $userclass }}
+{{- $fqdn := $context.Release.Namespace -}}
+{{- if $context.Values.endpoints.fqdn -}}
+{{- $fqdn := $context.Values.endpoints.fqdn -}}
+{{- end -}}
+{{- with $endpointMap -}}
+{{- $endpointScheme := .scheme }}
+{{- $endpointUser := index $userMap "username" }}
+{{- $endpointPass := index $userMap "password" }}
+{{- $endpointHost := index .hosts $endpoint | default .hosts.default}}
+{{- $endpointPort := index .port $port | default .port.default }}
+{{- $endpointPath := .path | default "" }}
+{{- printf "%s://%s:%s@%s.%s:%1.f%s" $endpointScheme $endpointUser $endpointPass $endpointHost $fqdn $endpointPort $endpointPath -}}
+{{- end -}}
+{{- end -}}
+
+# this function returns hostnames from endpoint definitions for use cases
+# where the uri style return is not appropriate, and only the hostname 
+# portion is used or relevant in the template
+#
+# { tuple "memcache" "internal" "portName" . | include "helm-toolkit.hostname_endpoint_uri_lookup" }
+#
+# returns: internal_host:port
+#
+# output that requires the port aspect striped should simply split the output based on ':'
+
+{{- define "helm-toolkit.hostname_endpoint_uri_lookup" -}}
+{{- $type := index . 0 -}}
+{{- $endpoint := index . 1 -}}
+{{- $port := index . 2 -}}
+{{- $context := index . 3 -}}
+{{- $endpointMap := index $context.Values.endpoints $type }}
+{{- $fqdn := $context.Release.Namespace -}}
+{{- if $context.Values.endpoints.fqdn -}}
+{{- $fqdn := $context.Values.endpoints.fqdn -}}
+{{- end -}}
+{{- with $endpointMap -}}
+{{- $endpointScheme := .scheme }}
+{{- $endpointHost := index .hosts $endpoint | default .hosts.default}}
+{{- $endpointPort := index .port $port | default .port.default }}
+{{- printf "%s.%s:%1.f" $endpointHost $fqdn $endpointPort -}}
 {{- end -}}
 {{- end -}}
 

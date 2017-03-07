@@ -1,3 +1,11 @@
+{{- if empty .Values.conf.policy.override -}}
+{{ include "keystone.conf.policy" .Values.conf.policy }}
+{{- else -}}
+{{ .Values.conf.policy.override }}
+{{- end -}}
+
+{{- define "keystone.conf.policy" -}}
+
 {
     "admin_required": "role:admin or is_admin:1",
     "service_role": "role:service",
@@ -176,7 +184,7 @@
     "identity:list_projects_for_user": "",
     "identity:list_domains_for_user": "",
 
-    "identity:list_revoke_events": "rule:service_or_admin",
+    "identity:list_revoke_events": "",
 
     "identity:create_policy_association_for_endpoint": "rule:admin_required",
     "identity:check_policy_association_for_endpoint": "rule:admin_required",
@@ -192,8 +200,14 @@
 
     "identity:create_domain_config": "rule:admin_required",
     "identity:get_domain_config": "rule:admin_required",
-    "identity:get_security_compliance_domain_config": "",
     "identity:update_domain_config": "rule:admin_required",
     "identity:delete_domain_config": "rule:admin_required",
     "identity:get_domain_config_default": "rule:admin_required"
+{{- if .append -}}
+,
+{{ .append | indent 4 }}
+{{ end }}
+
 }
+
+{{ end -}}
