@@ -58,10 +58,10 @@ auth='{{ include "helm-toolkit.keystone_auth" .}}'" \
 cat <<EOF>/tmp/openrc
 export OS_USERNAME={{.Values.keystone.admin_user}}
 export OS_PASSWORD={{.Values.keystone.admin_password}}
-export OS_PROJECT_DOMAIN_NAME={{.Values.keystone.domain_name}}
-export OS_USER_DOMAIN_NAME={{.Values.keystone.domain_name}}
+export OS_PROJECT_DOMAIN_NAME={{.Values.keystone.admin_user_domain}}
+export OS_USER_DOMAIN_NAME={{.Values.keystone.admin_user_domain}}
 export OS_PROJECT_NAME={{.Values.keystone.admin_project_name}}
-export OS_AUTH_URL={{include "helm-toolkit.endpoint_keystone_internal" .}}
+export OS_AUTH_URL={{ tuple "identity" "internal" "api" . | include "helm-toolkit.keystone_endpoint_uri_lookup" }}
 export OS_AUTH_STRATEGY=keystone
 export OS_REGION_NAME={{.Values.keystone.admin_region_name}}
 export OS_INSECURE=1
