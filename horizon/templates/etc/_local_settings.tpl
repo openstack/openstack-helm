@@ -144,7 +144,7 @@ SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
 CACHES = {
     'default': {
         'BACKEND': 'django.core.cache.backends.memcached.MemcachedCache',
-        'LOCATION': '{{ include "helm-toolkit.rabbitmq_host" . }}'
+        'LOCATION': '{{ .Values.memcached.host }}:{{ .Values.memcached.port }}'
     }
 }
 
@@ -165,7 +165,7 @@ EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 #    ('http://cluster2.example.com:5000/v2.0', 'cluster2'),
 #]
 
-OPENSTACK_KEYSTONE_URL = "{{ include "helm-toolkit.endpoint_keystone_internal" . }}"
+OPENSTACK_KEYSTONE_URL = "{{ tuple "identity" "internal" "api" . | include "helm-toolkit.keystone_endpoint_uri_lookup" }}"
 OPENSTACK_KEYSTONE_DEFAULT_ROLE = "_member_"
 
 # Enables keystone web single-sign-on if set to True.
