@@ -21,7 +21,7 @@ ansible localhost -vvv -m kolla_keystone_service -a "service_name=nova \
 service_type=compute \
 description='Openstack Compute' \
 endpoint_region={{ .Values.keystone.nova_region_name }} \
-url='{{ include "helm-toolkit.endpoint_nova_api_internal" . }}' \
+url='{{ tuple "compute" "admin" "api" . | include "helm-toolkit.keystone_endpoint_uri_lookup" }}' \
 interface=admin \
 region_name={{ .Values.keystone.admin_region_name }} \
 auth='{{ include "helm-toolkit.keystone_auth" .}}'" \
@@ -31,7 +31,7 @@ ansible localhost -vvv -m kolla_keystone_service -a "service_name=nova \
 service_type=compute \
 description='Openstack Compute' \
 endpoint_region={{ .Values.keystone.nova_region_name }} \
-url='{{ include "helm-toolkit.endpoint_nova_api_internal" . }}' \
+url='{{ tuple "compute" "internal" "api" . | include "helm-toolkit.keystone_endpoint_uri_lookup" }}' \
 interface=internal \
 region_name={{ .Values.keystone.admin_region_name }} \
 auth='{{ include "helm-toolkit.keystone_auth" .}}'" \
@@ -41,7 +41,7 @@ ansible localhost -vvv -m kolla_keystone_service -a "service_name=nova \
 service_type=compute \
 description='Openstack Compute' \
 endpoint_region={{ .Values.keystone.nova_region_name }} \
-url='{{ include "helm-toolkit.endpoint_nova_api_internal" . }}' \
+url='{{ tuple "compute" "public" "api" . | include "helm-toolkit.keystone_endpoint_uri_lookup" }}' \
 interface=public \
 region_name={{ .Values.keystone.admin_region_name }} \
 auth='{{ include "helm-toolkit.keystone_auth" .}}'" \
@@ -68,5 +68,4 @@ export OS_INSECURE=1
 EOF
 
 . /tmp/openrc
-env
-openstack --debug role create _member_ --or-show
+openstack --debug role create --or-show _member_
