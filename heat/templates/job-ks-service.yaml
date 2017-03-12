@@ -31,8 +31,8 @@ spec:
       nodeSelector:
         {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
       containers:
-{{- range $key1, $osServiceName := tuple "heat" "heat-cfn" }}
-        - name: {{ $osServiceName }}-ks-service-registration
+{{- range $key1, $osServiceType := tuple "orchestration" "cloudformation" }}
+        - name: {{ $osServiceType }}-ks-service-registration
           image: {{ $envAll.Values.images.ks_service }}
           imagePullPolicy: {{ $envAll.Values.images.pull_policy }}
           {{- if $envAll.Values.resources.enabled }}
@@ -57,11 +57,10 @@ spec:
 {{- include "helm-toolkit.keystone_openrc_env_vars" $env | indent 12 }}
 {{- end }}
             - name: OS_SERVICE_NAME
-              value: {{ $osServiceName }}
+              value: {{ tuple $osServiceType $envAll | include "helm-toolkit.keystone_endpoint_name_lookup" }}
             - name: OS_SERVICE_TYPE
-              value: {{ tuple $osServiceName $envAll | include "helm-toolkit.endpoint_type_lookup" }}
+              value: {{ $osServiceType }}
 {{- end }}
-
       volumes:
         - name: ks-service-sh
           configMap:
