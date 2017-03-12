@@ -16,16 +16,14 @@
 debug = {{ .Values.metadata_agent.default.debug }}
 
 # Neutron credentials for API access
+auth_url = {{ tuple "identity" "admin" "admin" . | include "helm-toolkit.keystone_endpoint_uri_lookup" }}
 auth_plugin = password
-auth_url = {{ include "helm-toolkit.endpoint_keystone_admin" . }}
-auth_uri = {{ include "helm-toolkit.endpoint_keystone_internal" . }}
 auth_region = {{ .Values.keystone.neutron_region_name }}
-admin_tenant_name = service
-project_domain_id = default
-user_domain_id = default
-project_name = service
-username = {{ .Values.keystone.admin_user }}
-password = {{ .Values.keystone.admin_password }}
+project_domain_name = {{ .Values.keystone.neutron_project_domain }}
+project_name = {{ .Values.keystone.neutron_project_name }}
+user_domain_name = {{ .Values.keystone.neutron_user_domain }}
+username = {{ .Values.keystone.neutron_user }}
+password = {{ .Values.keystone.neutron_password }}
 endpoint_type = adminURL
 
 # Nova metadata service IP and port

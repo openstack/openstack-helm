@@ -47,13 +47,14 @@ router_auto_schedule = True
 transport_url = rabbit://{{ .Values.rabbitmq.admin_user }}:{{ .Values.rabbitmq.admin_password }}@{{ .Values.rabbitmq.address }}:{{ .Values.rabbitmq.port }}
 
 [nova]
-auth_url = {{ include "helm-toolkit.endpoint_keystone_internal" . }}
-auth_plugin = password
-project_domain_id = default
-user_domain_id = default
-endpoint_type = internal
+memcached_servers = "{{ .Values.memcached.host }}:{{ .Values.memcached.port }}"
+auth_version = v3
+auth_url = {{ tuple "identity" "internal" "api" . | include "helm-toolkit.keystone_endpoint_uri_lookup" }}
+auth_type = password
 region_name = {{ .Values.keystone.nova_region_name }}
-project_name = service
+project_domain_name = {{ .Values.keystone.nova_project_domain }}
+project_name = {{ .Values.keystone.nova_project_name }}
+user_domain_name = {{ .Values.keystone.nova_user_domain }}
 username = {{ .Values.keystone.nova_user }}
 password = {{ .Values.keystone.nova_password }}
 
@@ -73,11 +74,14 @@ connection = mysql+pymysql://{{ .Values.database.neutron_user }}:{{ .Values.data
 max_retries = -1
 
 [keystone_authtoken]
-auth_url = {{ include "helm-toolkit.endpoint_keystone_internal" . }}
+memcached_servers = "{{ .Values.memcached.host }}:{{ .Values.memcached.port }}"
+auth_version = v3
+auth_url = {{ tuple "identity" "internal" "api" . | include "helm-toolkit.keystone_endpoint_uri_lookup" }}
 auth_type = password
-project_domain_id = default
-user_domain_id = default
-project_name = service
+region_name = {{ .Values.keystone.neutron_region_name }}
+project_domain_name = {{ .Values.keystone.neutron_project_domain }}
+project_name = {{ .Values.keystone.neutron_project_name }}
+user_domain_name = {{ .Values.keystone.neutron_user_domain }}
 username = {{ .Values.keystone.neutron_user }}
 password = {{ .Values.keystone.neutron_password }}
 
