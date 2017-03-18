@@ -23,6 +23,9 @@ replicas:
 images:
   db_init: quay.io/stackanetes/stackanetes-kolla-toolbox:newton
   db_sync: quay.io/stackanetes/stackanetes-neutron-server:newton
+  ks_user: quay.io/stackanetes/stackanetes-kolla-toolbox:newton
+  ks_service: quay.io/stackanetes/stackanetes-kolla-toolbox:newton
+  ks_endpoints: quay.io/stackanetes/stackanetes-kolla-toolbox:newton
   server: quay.io/stackanetes/stackanetes-neutron-server:newton
   dhcp: quay.io/stackanetes/stackanetes-neutron-dhcp-agent:newton
   metadata: quay.io/stackanetes/stackanetes-neutron-metadata-agent:newton
@@ -30,7 +33,6 @@ images:
   neutron_openvswitch_agent: quay.io/stackanetes/stackanetes-neutron-openvswitch-agent:newton
   openvswitch_db_server: quay.io/attcomdev/openvswitch-vswitchd:latest
   openvswitch_vswitchd: quay.io/attcomdev/openvswitch-vswitchd:latest
-  post: quay.io/stackanetes/stackanetes-kolla-toolbox:newton
   dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.1.0
   pull_policy: "IfNotPresent"
 
@@ -160,9 +162,32 @@ ml2:
       - "physnet1:br-physnet1"
 
 dependencies:
+  db_init:
+    jobs:
+    - mariadb-seed
+    service:
+    - mariadb
+  db_sync:
+    jobs:
+    - neutron-db-init
+    service:
+    - mariadb
+  ks_user:
+    service:
+    - keystone-api
+  ks_service:
+    service:
+    - keystone-api
+  ks_endpoints:
+    jobs:
+    - neutron-ks-service
+    service:
+    - keystone-api
   server:
     jobs:
     - neutron-db-sync
+    - neutron-ks-user
+    - neutron-ks-endpoints
     service:
     - rabbitmq
     - mariadb
@@ -170,57 +195,29 @@ dependencies:
     - memcached
   dhcp:
     service:
-    - neutron-server
     - rabbitmq
+    - neutron-server
     - nova-api
-    jobs:
-    - neutron-db-init
-    - nova-post
     daemonset:
     - ovs-agent
   metadata:
     service:
     - rabbitmq
+    - neutron-server
     - nova-api
-    jobs:
-    - neutron-db-init
-    - nova-post
     daemonset:
     - ovs-agent
   ovs_agent:
-    jobs:
-    - neutron-post
-    - nova-post
     service:
-    - keystone-api
     - rabbitmq
     - neutron-server
   l3:
     service:
-    - neutron-server
     - rabbitmq
+    - neutron-server
     - nova-api
-    jobs:
-    - nova-db-init
-    - neutron-db-init
-    - nova-post
     daemonset:
     - ovs-agent
-  db_sync:
-    jobs:
-    - neutron-db-init
-    service:
-    - mariadb
-  db_init:
-    jobs:
-    - mariadb-seed
-    service:
-    - mariadb
-  post:
-    service:
-    - keystone-api
-    jobs:
-    - neutron-db-sync
 
 resources:
   enabled: false
