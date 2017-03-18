@@ -29,6 +29,9 @@ compute_replicas: 1
 images:
   db_init: quay.io/stackanetes/stackanetes-kolla-toolbox:newton
   db_sync: quay.io/stackanetes/stackanetes-nova-api:newton
+  ks_user: quay.io/stackanetes/stackanetes-kolla-toolbox:newton
+  ks_service: quay.io/stackanetes/stackanetes-kolla-toolbox:newton
+  ks_endpoints: quay.io/stackanetes/stackanetes-kolla-toolbox:newton
   api: quay.io/stackanetes/stackanetes-nova-api:newton
   conductor: quay.io/stackanetes/stackanetes-nova-conductor:newton
   scheduler: quay.io/stackanetes/stackanetes-nova-scheduler:newton
@@ -36,7 +39,6 @@ images:
   consoleauth: quay.io/stackanetes/stackanetes-nova-consoleauth:newton
   compute: quay.io/stackanetes/stackanetes-nova-compute:newton
   libvirt: quay.io/stackanetes/stackanetes-nova-libvirt:newton
-  post: quay.io/stackanetes/stackanetes-kolla-toolbox:newton
   dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.1.0
   pull_policy: "IfNotPresent"
 
@@ -132,42 +134,35 @@ memcached:
 dependencies:
   api:
     jobs:
-    - keystone-db-sync
-    - nova-db-init
     - nova-db-sync
+    - nova-ks-user
+    - nova-ks-endpoints
     service:
     - mariadb
-  db_sync:
+  db_init:
     jobs:
-    - nova-db-init
-    - keystone-db-init
     - mariadb-seed
     service:
     - mariadb
   db_sync:
     jobs:
     - nova-db-init
-    - keystone-db-init
-    - mariadb-seed
-    - keystone-db-sync
     service:
     - mariadb
-  post:
-    jobs:
-    - nova-db-init
-    - keystone-db-init
-    - mariadb-seed
+  ks_user:
     service:
-    - mariadb
     - keystone-api
-  init:
-    jobs:
-    - mariadb-seed
+  ks_service:
     service:
-    - mariadb
+    - keystone-api
+  ks_endpoints:
+    jobs:
+    - nova-ks-service
+    service:
+    - keystone-api
   compute:
     jobs:
-    - nova-post
+    - nova-db-sync
     service:
     - keystone-api
     - nova-api
@@ -175,17 +170,12 @@ dependencies:
     - ovs-agent
   libvirt:
     jobs:
-    - nova-db-init
-    - nova-post
     - nova-db-sync
     service:
     - keystone-api
     - nova-api
   consoleauth:
     jobs:
-    - mariadb-seed
-    - keystone-db-sync
-    - nova-db-init
     - nova-db-sync
     service:
     - mariadb
