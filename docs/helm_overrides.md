@@ -139,7 +139,7 @@ An illustrative example of an `images:` section taken from the heat chart:
 
 ```
 images:
-  dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.1.0
+  dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.1.1
   db_init: quay.io/stackanetes/stackanetes-kolla-toolbox:newton
   db_sync: docker.io/kolla/ubuntu-source-heat-api:3.0.1
   ks_user: quay.io/stackanetes/stackanetes-kolla-toolbox:newton
