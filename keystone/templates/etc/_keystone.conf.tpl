@@ -22,14 +22,14 @@ connection = mysql+pymysql://{{ .Values.database.keystone_user }}:{{ .Values.dat
 max_retries = -1
 
 [memcache]
-servers = {{ include "helm-toolkit.rabbitmq_host" . }}:11211
+servers = "{{ .Values.memcached.host }}:{{ .Values.memcached.port }}"
 
 [token]
 provider = {{ .Values.api.token.provider }}
 
 [cache]
 backend = dogpile.cache.memcached
-memcache_servers = {{ include "helm-toolkit.rabbitmq_host" . }}:11211
+memcache_servers = "{{ .Values.memcached.host }}:{{ .Values.memcached.port }}"
 config_prefix = cache.keystone
 enabled = True
 
