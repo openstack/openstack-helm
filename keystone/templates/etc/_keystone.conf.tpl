@@ -13,12 +13,122 @@
 # limitations under the License.
 
 {{- if empty .Values.conf.keystone.override -}}
+{{ include "keystone.conf.keystone_values_skeleton" .Values.conf.keystone | trunc 0 }}
 {{ include "keystone.conf.keystone" .Values.conf.keystone }}
 {{- else -}}
 {{ .Values.conf.keystone.override }}
 {{- end -}}
 
+{{- define "keystone.conf.keystone_values_skeleton" -}}
+{{- if not .default -}}{{- set . "default" dict -}}{{- end -}}
+{{- if not .default.keystone -}}{{- set .default "keystone" dict -}}{{- end -}}
+{{- if not .default.oslo -}}{{- set .default "oslo" dict -}}{{- end -}}
+{{- if not .default.oslo.log -}}{{- set .default.oslo "log" dict -}}{{- end -}}
+{{- if not .default.oslo.messaging -}}{{- set .default.oslo "messaging" dict -}}{{- end -}}
+{{- if not .assignment -}}{{- set . "assignment" dict -}}{{- end -}}
+{{- if not .assignment.keystone -}}{{- set .assignment "keystone" dict -}}{{- end -}}
+{{- if not .auth -}}{{- set . "auth" dict -}}{{- end -}}
+{{- if not .auth.keystone -}}{{- set .auth "keystone" dict -}}{{- end -}}
+{{- if not .cache -}}{{- set . "cache" dict -}}{{- end -}}
+{{- if not .cache.oslo -}}{{- set .cache "oslo" dict -}}{{- end -}}
+{{- if not .cache.oslo.cache -}}{{- set .cache.oslo "cache" dict -}}{{- end -}}
+{{- if not .catalog -}}{{- set . "catalog" dict -}}{{- end -}}
+{{- if not .catalog.keystone -}}{{- set .catalog "keystone" dict -}}{{- end -}}
+{{- if not .cors -}}{{- set . "cors" dict -}}{{- end -}}
+{{- if not .cors.oslo -}}{{- set .cors "oslo" dict -}}{{- end -}}
+{{- if not .cors.oslo.middleware -}}{{- set .cors.oslo "middleware" dict -}}{{- end -}}
+{{- if not .cors.subdomain -}}{{- set .cors "subdomain" dict -}}{{- end -}}
+{{- if not .cors.subdomain.oslo -}}{{- set .cors.subdomain "oslo" dict -}}{{- end -}}
+{{- if not .cors.subdomain.oslo.middleware -}}{{- set .cors.subdomain.oslo "middleware" dict -}}{{- end -}}
+{{- if not .credential -}}{{- set . "credential" dict -}}{{- end -}}
+{{- if not .credential.keystone -}}{{- set .credential "keystone" dict -}}{{- end -}}
+{{- if not .database -}}{{- set . "database" dict -}}{{- end -}}
+{{- if not .database.oslo -}}{{- set .database "oslo" dict -}}{{- end -}}
+{{- if not .database.oslo.db -}}{{- set .database.oslo "db" dict -}}{{- end -}}
+{{- if not .domain_config -}}{{- set . "domain_config" dict -}}{{- end -}}
+{{- if not .domain_config.keystone -}}{{- set .domain_config "keystone" dict -}}{{- end -}}
+{{- if not .endpoint_filter -}}{{- set . "endpoint_filter" dict -}}{{- end -}}
+{{- if not .endpoint_filter.keystone -}}{{- set .endpoint_filter "keystone" dict -}}{{- end -}}
+{{- if not .endpoint_policy -}}{{- set . "endpoint_policy" dict -}}{{- end -}}
+{{- if not .endpoint_policy.keystone -}}{{- set .endpoint_policy "keystone" dict -}}{{- end -}}
+{{- if not .eventlet_server -}}{{- set . "eventlet_server" dict -}}{{- end -}}
+{{- if not .eventlet_server.keystone -}}{{- set .eventlet_server "keystone" dict -}}{{- end -}}
+{{- if not .federation -}}{{- set . "federation" dict -}}{{- end -}}
+{{- if not .federation.keystone -}}{{- set .federation "keystone" dict -}}{{- end -}}
+{{- if not .fernet_tokens -}}{{- set . "fernet_tokens" dict -}}{{- end -}}
+{{- if not .fernet_tokens.keystone -}}{{- set .fernet_tokens "keystone" dict -}}{{- end -}}
+{{- if not .healthcheck -}}{{- set . "healthcheck" dict -}}{{- end -}}
+{{- if not .healthcheck.oslo -}}{{- set .healthcheck "oslo" dict -}}{{- end -}}
+{{- if not .healthcheck.oslo.middleware -}}{{- set .healthcheck.oslo "middleware" dict -}}{{- end -}}
+{{- if not .identity -}}{{- set . "identity" dict -}}{{- end -}}
+{{- if not .identity.keystone -}}{{- set .identity "keystone" dict -}}{{- end -}}
+{{- if not .identity_mapping -}}{{- set . "identity_mapping" dict -}}{{- end -}}
+{{- if not .identity_mapping.keystone -}}{{- set .identity_mapping "keystone" dict -}}{{- end -}}
+{{- if not .kvs -}}{{- set . "kvs" dict -}}{{- end -}}
+{{- if not .kvs.keystone -}}{{- set .kvs "keystone" dict -}}{{- end -}}
+{{- if not .ldap -}}{{- set . "ldap" dict -}}{{- end -}}
+{{- if not .ldap.keystone -}}{{- set .ldap "keystone" dict -}}{{- end -}}
+{{- if not .matchmaker_redis -}}{{- set . "matchmaker_redis" dict -}}{{- end -}}
+{{- if not .matchmaker_redis.oslo -}}{{- set .matchmaker_redis "oslo" dict -}}{{- end -}}
+{{- if not .matchmaker_redis.oslo.messaging -}}{{- set .matchmaker_redis.oslo "messaging" dict -}}{{- end -}}
+{{- if not .memcache -}}{{- set . "memcache" dict -}}{{- end -}}
+{{- if not .memcache.keystone -}}{{- set .memcache "keystone" dict -}}{{- end -}}
+{{- if not .oauth1 -}}{{- set . "oauth1" dict -}}{{- end -}}
+{{- if not .oauth1.keystone -}}{{- set .oauth1 "keystone" dict -}}{{- end -}}
+{{- if not .os_inherit -}}{{- set . "os_inherit" dict -}}{{- end -}}
+{{- if not .os_inherit.keystone -}}{{- set .os_inherit "keystone" dict -}}{{- end -}}
+{{- if not .oslo_messaging_amqp -}}{{- set . "oslo_messaging_amqp" dict -}}{{- end -}}
+{{- if not .oslo_messaging_amqp.oslo -}}{{- set .oslo_messaging_amqp "oslo" dict -}}{{- end -}}
+{{- if not .oslo_messaging_amqp.oslo.messaging -}}{{- set .oslo_messaging_amqp.oslo "messaging" dict -}}{{- end -}}
+{{- if not .oslo_messaging_kafka -}}{{- set . "oslo_messaging_kafka" dict -}}{{- end -}}
+{{- if not .oslo_messaging_kafka.oslo -}}{{- set .oslo_messaging_kafka "oslo" dict -}}{{- end -}}
+{{- if not .oslo_messaging_kafka.oslo.messaging -}}{{- set .oslo_messaging_kafka.oslo "messaging" dict -}}{{- end -}}
+{{- if not .oslo_messaging_notifications -}}{{- set . "oslo_messaging_notifications" dict -}}{{- end -}}
+{{- if not .oslo_messaging_notifications.oslo -}}{{- set .oslo_messaging_notifications "oslo" dict -}}{{- end -}}
+{{- if not .oslo_messaging_notifications.oslo.messaging -}}{{- set .oslo_messaging_notifications.oslo "messaging" dict -}}{{- end -}}
+{{- if not .oslo_messaging_rabbit -}}{{- set . "oslo_messaging_rabbit" dict -}}{{- end -}}
+{{- if not .oslo_messaging_rabbit.oslo -}}{{- set .oslo_messaging_rabbit "oslo" dict -}}{{- end -}}
+{{- if not .oslo_messaging_rabbit.oslo.messaging -}}{{- set .oslo_messaging_rabbit.oslo "messaging" dict -}}{{- end -}}
+{{- if not .oslo_messaging_zmq -}}{{- set . "oslo_messaging_zmq" dict -}}{{- end -}}
+{{- if not .oslo_messaging_zmq.oslo -}}{{- set .oslo_messaging_zmq "oslo" dict -}}{{- end -}}
+{{- if not .oslo_messaging_zmq.oslo.messaging -}}{{- set .oslo_messaging_zmq.oslo "messaging" dict -}}{{- end -}}
+{{- if not .oslo_middleware -}}{{- set . "oslo_middleware" dict -}}{{- end -}}
+{{- if not .oslo_middleware.oslo -}}{{- set .oslo_middleware "oslo" dict -}}{{- end -}}
+{{- if not .oslo_middleware.oslo.middleware -}}{{- set .oslo_middleware.oslo "middleware" dict -}}{{- end -}}
+{{- if not .oslo_policy -}}{{- set . "oslo_policy" dict -}}{{- end -}}
+{{- if not .oslo_policy.oslo -}}{{- set .oslo_policy "oslo" dict -}}{{- end -}}
+{{- if not .oslo_policy.oslo.policy -}}{{- set .oslo_policy.oslo "policy" dict -}}{{- end -}}
+{{- if not .paste_deploy -}}{{- set . "paste_deploy" dict -}}{{- end -}}
+{{- if not .paste_deploy.keystone -}}{{- set .paste_deploy "keystone" dict -}}{{- end -}}
+{{- if not .policy -}}{{- set . "policy" dict -}}{{- end -}}
+{{- if not .policy.keystone -}}{{- set .policy "keystone" dict -}}{{- end -}}
+{{- if not .profiler -}}{{- set . "profiler" dict -}}{{- end -}}
+{{- if not .profiler.osprofiler -}}{{- set .profiler "osprofiler" dict -}}{{- end -}}
+{{- if not .resource -}}{{- set . "resource" dict -}}{{- end -}}
+{{- if not .resource.keystone -}}{{- set .resource "keystone" dict -}}{{- end -}}
+{{- if not .revoke -}}{{- set . "revoke" dict -}}{{- end -}}
+{{- if not .revoke.keystone -}}{{- set .revoke "keystone" dict -}}{{- end -}}
+{{- if not .role -}}{{- set . "role" dict -}}{{- end -}}
+{{- if not .role.keystone -}}{{- set .role "keystone" dict -}}{{- end -}}
+{{- if not .saml -}}{{- set . "saml" dict -}}{{- end -}}
+{{- if not .saml.keystone -}}{{- set .saml "keystone" dict -}}{{- end -}}
+{{- if not .security_compliance -}}{{- set . "security_compliance" dict -}}{{- end -}}
+{{- if not .security_compliance.keystone -}}{{- set .security_compliance "keystone" dict -}}{{- end -}}
+{{- if not .shadow_users -}}{{- set . "shadow_users" dict -}}{{- end -}}
+{{- if not .shadow_users.keystone -}}{{- set .shadow_users "keystone" dict -}}{{- end -}}
+{{- if not .signing -}}{{- set . "signing" dict -}}{{- end -}}
+{{- if not .signing.keystone -}}{{- set .signing "keystone" dict -}}{{- end -}}
+{{- if not .token -}}{{- set . "token" dict -}}{{- end -}}
+{{- if not .token.keystone -}}{{- set .token "keystone" dict -}}{{- end -}}
+{{- if not .tokenless_auth -}}{{- set . "tokenless_auth" dict -}}{{- end -}}
+{{- if not .tokenless_auth.keystone -}}{{- set .tokenless_auth "keystone" dict -}}{{- end -}}
+{{- if not .trust -}}{{- set . "trust" dict -}}{{- end -}}
+{{- if not .trust.keystone -}}{{- set .trust "keystone" dict -}}{{- end -}}
+{{- end -}}
+
 {{- define "keystone.conf.keystone" }}
+
+
 [DEFAULT]
 
 #
@@ -177,8 +287,8 @@
 # can be set multiple times in order to opt-out of multiple notification
 # topics. For example: notification_opt_out=identity.user.create
 # notification_opt_out=identity.authenticate.success (multi valued)
-# from .default.keystone.notification_opt_out
-{{ if not .default.keystone.notification_opt_out }}#{{ end }}notification_opt_out = {{ .default.keystone.notification_opt_out | default "" }}
+# from .default.keystone.notification_opt_out (multiopt)
+{{ if not .default.keystone.notification_opt_out }}#notification_opt_out = {{ .default.keystone.notification_opt_out | default "" }}{{ else }}{{ range .default.keystone.notification_opt_out }}notification_opt_out = {{ . }}{{ end }}{{ end }}
 
 #
 # From oslo.log
@@ -636,8 +746,8 @@
 # Arguments supplied to the backend module. Specify this option once per
 # argument to be passed to the dogpile.cache backend. Example format:
 # "<argname>:<value>". (multi valued)
-# from .cache.oslo.cache.backend_argument
-{{ if not .cache.oslo.cache.backend_argument }}#{{ end }}backend_argument = {{ .cache.oslo.cache.backend_argument | default "" }}
+# from .cache.oslo.cache.backend_argument (multiopt)
+{{ if not .cache.oslo.cache.backend_argument }}#backend_argument = {{ .cache.oslo.cache.backend_argument | default "" }}{{ else }}{{ range .cache.oslo.cache.backend_argument }}backend_argument = {{ . }}{{ end }}{{ end }}
 
 # Proxy classes to import that will affect the way the dogpile.cache backend
 # functions. See the dogpile.cache documentation on changing-backend-behavior.
@@ -1118,8 +1228,8 @@
 # in order to use web-based SSO flows. For example:
 # trusted_dashboard=https://acme.example.com/auth/websso
 # trusted_dashboard=https://beta.example.com/auth/websso (multi valued)
-# from .federation.keystone.trusted_dashboard
-{{ if not .federation.keystone.trusted_dashboard }}#{{ end }}trusted_dashboard = {{ .federation.keystone.trusted_dashboard | default "" }}
+# from .federation.keystone.trusted_dashboard (multiopt)
+{{ if not .federation.keystone.trusted_dashboard }}#trusted_dashboard = {{ .federation.keystone.trusted_dashboard | default "" }}{{ else }}{{ range .federation.keystone.trusted_dashboard }}trusted_dashboard = {{ . }}{{ end }}{{ end }}
 
 # Absolute path to an HTML file used as a Single Sign-On callback handler. This
 # page is expected to redirect the user from keystone back to a trusted
@@ -2154,10 +2264,10 @@
 # 'rpc-cast' - Send RPC Casts pre-settled
 # 'notify'   - Send Notifications pre-settled
 #  (multi valued)
-# from .oslo_messaging_amqp.oslo.messaging.pre_settled
-{{ if not .oslo_messaging_amqp.oslo.messaging.pre_settled }}#{{ end }}pre_settled = {{ .oslo_messaging_amqp.oslo.messaging.pre_settled | default "rpc-cast" }}
-# from .oslo_messaging_amqp.oslo.messaging.pre_settled
-{{ if not .oslo_messaging_amqp.oslo.messaging.pre_settled }}#{{ end }}pre_settled = {{ .oslo_messaging_amqp.oslo.messaging.pre_settled | default "rpc-reply" }}
+# from .oslo_messaging_amqp.oslo.messaging.pre_settled (multiopt)
+{{ if not .oslo_messaging_amqp.oslo.messaging.pre_settled }}#pre_settled = {{ .oslo_messaging_amqp.oslo.messaging.pre_settled | default "rpc-cast" }}{{ else }}{{ range .oslo_messaging_amqp.oslo.messaging.pre_settled }}pre_settled = {{ . }}{{ end }}{{ end }}
+# from .oslo_messaging_amqp.oslo.messaging.pre_settled (multiopt)
+{{ if not .oslo_messaging_amqp.oslo.messaging.pre_settled }}#pre_settled = {{ .oslo_messaging_amqp.oslo.messaging.pre_settled | default "rpc-reply" }}{{ else }}{{ range .oslo_messaging_amqp.oslo.messaging.pre_settled }}pre_settled = {{ . }}{{ end }}{{ end }}
 
 
 [oslo_messaging_kafka]
@@ -2226,8 +2336,8 @@
 # The Drivers(s) to handle sending notifications. Possible values are
 # messaging, messagingv2, routing, log, test, noop (multi valued)
 # Deprecated group/name - [DEFAULT]/notification_driver
-# from .oslo_messaging_notifications.oslo.messaging.driver
-{{ if not .oslo_messaging_notifications.oslo.messaging.driver }}#{{ end }}driver = {{ .oslo_messaging_notifications.oslo.messaging.driver | default "" }}
+# from .oslo_messaging_notifications.oslo.messaging.driver (multiopt)
+{{ if not .oslo_messaging_notifications.oslo.messaging.driver }}#driver = {{ .oslo_messaging_notifications.oslo.messaging.driver | default "" }}{{ else }}{{ range .oslo_messaging_notifications.oslo.messaging.driver }}driver = {{ . }}{{ end }}{{ end }}
 
 # A URL representing the messaging driver to use for notifications. If not set,
 # we fall back to the same configuration used for RPC. (string value)
@@ -2805,8 +2915,8 @@
 # directories to be searched.  Missing or empty directories are ignored. (multi
 # valued)
 # Deprecated group/name - [DEFAULT]/policy_dirs
-# from .oslo_policy.oslo.policy.policy_dirs
-{{ if not .oslo_policy.oslo.policy.policy_dirs }}#{{ end }}policy_dirs = {{ .oslo_policy.oslo.policy.policy_dirs | default "policy.d" }}
+# from .oslo_policy.oslo.policy.policy_dirs (multiopt)
+{{ if not .oslo_policy.oslo.policy.policy_dirs }}#policy_dirs = {{ .oslo_policy.oslo.policy.policy_dirs | default "policy.d" }}{{ else }}{{ range .oslo_policy.oslo.policy.policy_dirs }}policy_dirs = {{ . }}{{ end }}{{ end }}
 
 
 [paste_deploy]
@@ -3520,8 +3630,8 @@
 # example, keystone.conf would include two consecutive lines in order to trust
 # two different DNs, such as `trusted_issuer = CN=john,OU=keystone,O=openstack`
 # and `trusted_issuer = CN=mary,OU=eng,O=abc`. (multi valued)
-# from .tokenless_auth.keystone.trusted_issuer
-{{ if not .tokenless_auth.keystone.trusted_issuer }}#{{ end }}trusted_issuer = {{ .tokenless_auth.keystone.trusted_issuer | default "" }}
+# from .tokenless_auth.keystone.trusted_issuer (multiopt)
+{{ if not .tokenless_auth.keystone.trusted_issuer }}#trusted_issuer = {{ .tokenless_auth.keystone.trusted_issuer | default "" }}{{ else }}{{ range .tokenless_auth.keystone.trusted_issuer }}trusted_issuer = {{ . }}{{ end }}{{ end }}
 
 # The federated protocol ID used to represent X.509 tokenless authorization.
 # This is used in combination with the value of `[tokenless_auth]
@@ -3571,5 +3681,4 @@
 {{ if .append }}
 {{ .append }}
 {{ end }}
-
 {{ end -}}
