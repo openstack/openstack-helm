@@ -12,12 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+{{- $ksAdminSecret := .Values.keystone.admin_secret | default "nova-env-keystone-admin" }}
+{{- $ksUserSecret := .Values.keystone.user_secret | default "nova-env-keystone-user" }}
 {{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.post }}
+{{- $dependencies := .Values.dependencies.ks_user }}
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: nova-post
+  name: nova-ks-user
 spec:
   template:
     metadata:
@@ -30,35 +32,38 @@ spec:
       nodeSelector:
         {{ .Values.labels.control_node_selector_key }}: {{ .Values.labels.control_node_selector_value }}
       containers:
-        - name: nova-post
-          image: {{ .Values.images.post }}
+        - name: nova-ks-user
+          image: {{ .Values.images.ks_user }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
           {{- if .Values.resources.enabled }}
           resources:
             requests:
-              memory: {{ .Values.resources.nova_post.requests.memory | quote }}
-              cpu: {{ .Values.resources.nova_post.requests.cpu | quote }}
+              memory: {{ .Values.resources.nova_ks_user.requests.memory | quote }}
+              cpu: {{ .Values.resources.nova_ks_user.requests.cpu | quote }}
             limits:
-              memory: {{ .Values.resources.nova_post.limits.memory | quote }}
-              cpu: {{ .Values.resources.nova_post.limits.cpu | quote }}
+              memory: {{ .Values.resources.nova_ks_user.limits.memory | quote }}
+              cpu: {{ .Values.resources.nova_ks_user.limits.cpu | quote }}
           {{- end }}
           command:
             - bash
-            - /tmp/post.sh
-          env:
-            - name: ANSIBLE_LIBRARY
-              value: /usr/share/ansible/
+            - /tmp/ks-user.sh
           volumeMounts:
-            - name: novaconf
-              mountPath: /etc/nova/nova.conf
-              subPath: nova.conf
-            - name: nova-bin
-              mountPath: /tmp/post.sh
-              subPath: post.sh
+            - name: ks-user-sh
+              mountPath: /tmp/ks-user.sh
+              subPath: ks-user.sh
+              readOnly: true
+          env:
+{{- with $env := dict "ksUserSecret" $ksAdminSecret }}
+{{- include "helm-toolkit.keystone_openrc_env_vars" $env | indent 12 }}
+{{- end }}
+            - name: SERVICE_OS_SERVICE_NAME
+              value: "nova"
+{{- with $env := dict "ksUserSecret" $ksUserSecret }}
+{{- include "helm-toolkit.keystone_user_create_env_vars" $env | indent 12 }}
+{{- end }}
+            - name: SERVICE_OS_ROLE
+              value: {{ .Values.keystone.nova_user_role | quote }}
       volumes:
-        - name: novaconf
-          configMap:
-            name: nova-etc
-        - name: nova-bin
+        - name: ks-user-sh
           configMap:
             name: nova-bin

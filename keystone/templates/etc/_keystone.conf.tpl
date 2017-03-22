@@ -135,6 +135,7 @@
 # From keystone
 #
 
+<<<<<<< HEAD
 # Using this feature is *NOT* recommended. Instead, use the `keystone-manage
 # bootstrap` command. The value of this option is treated as a "shared secret"
 # that can be used to bootstrap Keystone through the API. This "token" does not
@@ -714,9 +715,6 @@
 # overriding keystone's own `oauth1` authentication plugin. (string value)
 # from .auth.keystone.oauth1
 {{ if not .auth.keystone.oauth1 }}#{{ end }}oauth1 = {{ .auth.keystone.oauth1 | default "<None>" }}
-
-
-[cache]
 
 #
 # From oslo.cache
@@ -3679,4 +3677,5 @@
 {{ if not .trust.keystone.driver }}#{{ end }}driver = {{ .trust.keystone.driver | default "sql" }}
 
 {{- end -}}
+
 

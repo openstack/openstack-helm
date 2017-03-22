@@ -22,9 +22,9 @@ deferred_auth_method = "trusts"
 enable_stack_adopt = "True"
 enable_stack_abandon = "True"
 
-heat_metadata_server_url = {{ .Values.service.cfn.proto }}://{{ .Values.service.cfn.name }}:{{ .Values.service.cfn.port }}
-heat_waitcondition_server_url = {{ .Values.service.cfn.proto }}://{{ .Values.service.cfn.name }}:{{ .Values.service.cfn.port }}/v1/waitcondition
-heat_watch_server_url = {{ .Values.service.cloudwatch.proto }}://{{ .Values.service.cloudwatch.name }}:{{ .Values.service.cloudwatch.port }}
+heat_metadata_server_url = {{ tuple "cloudformation" "public" "api" . | include "helm-toolkit.keystone_endpoint_uri_lookup" | trimSuffix .Values.endpoints.cloudformation.path }}
+heat_waitcondition_server_url = {{ tuple "cloudformation" "public" "api" . | include "helm-toolkit.keystone_endpoint_uri_lookup" }}/waitcondition
+heat_watch_server_url = {{ tuple "cloudwatch" "public" "api" . | include "helm-toolkit.keystone_endpoint_uri_lookup" | trimSuffix "/" }}
 
 num_engine_workers = {{ .Values.resources.engine.workers }}
 
@@ -47,7 +47,7 @@ max_retries = -1
 signing_dir = "/var/cache/heat"
 memcached_servers = "{{ .Values.memcached.host }}:{{ .Values.memcached.port }}"
 auth_version = v3
-auth_url = {{ include "helm-toolkit.endpoint_keystone_internal" . }}
+auth_url = {{ tuple "identity" "internal" "api" . | include "helm-toolkit.keystone_endpoint_uri_lookup" }}
 auth_type = password
 region_name = {{ .Values.keystone.heat_region_name }}
 project_domain_name = {{ .Values.keystone.heat_project_domain }}
@@ -57,17 +57,17 @@ username = {{ .Values.keystone.heat_user }}
 password = {{ .Values.keystone.heat_password }}
 
 [heat_api]
-bind_port = {{ .Values.service.api.port }}
+bind_port = {{ .Values.network.api.port }}
 bind_host = 0.0.0.0
 workers = {{ .Values.resources.api.workers }}
 
 [heat_api_cloudwatch]
-bind_port = {{ .Values.service.cloudwatch.port }}
+bind_port = {{ .Values.network.cloudwatch.port }}
 bind_host = 0.0.0.0
 workers = {{ .Values.resources.cloudwatch.workers }}
 
 [heat_api_cfn]
-bind_port = {{ .Values.service.cfn.port }}
+bind_port = {{ .Values.network.cfn.port }}
 bind_host = 0.0.0.0
 workers = {{ .Values.resources.cfn.workers }}
 
@@ -88,9 +88,11 @@ auth_section = "trustee_keystone"
 signing_dir = "/var/cache/heat"
 memcached_servers = "{{ .Values.memcached.host }}:{{ .Values.memcached.port }}"
 auth_version = v3
-auth_url = {{ include "helm-toolkit.endpoint_keystone_internal" . }}
+auth_url = {{ tuple "identity" "internal" "api" . | include "helm-toolkit.keystone_endpoint_uri_lookup" }}
 auth_type = password
 region_name = {{ .Values.keystone.heat_trustee_region_name }}
+project_domain_name = {{ .Values.keystone.heat_trustee_project_domain }}
+project_name = {{ .Values.keystone.heat_trustee_project_name }}
 user_domain_name = {{ .Values.keystone.heat_trustee_user_domain }}
 username = {{ .Values.keystone.heat_trustee_user }}
 password = {{ .Values.keystone.heat_trustee_password }}
@@ -101,4 +103,4 @@ endpoint_type = internalURL
 
 [clients_keystone]
 endpoint_type = internalURL
-auth_uri = {{ include "helm-toolkit.endpoint_keystone_internal" . }}
+auth_uri = {{ tuple "identity" "internal" "api" . | include "endpoint_type_lookup_addr" }}

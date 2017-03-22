@@ -57,23 +57,26 @@ lock_path = /var/lib/nova/tmp
 workers = {{ .Values.nova.default.conductor_workers }}
 
 [glance]
-api_servers = {{ include "helm-toolkit.endpoint_glance_api_internal" . }}
+api_servers = {{ tuple "image" "internal" "api" . | include "helm-toolkit.keystone_endpoint_uri_lookup" }}
 num_retries = 3
 
 [cinder]
 catalog_info = volume:cinder:internalURL
 
 [neutron]
-url = {{ include "helm-toolkit.endpoint_neutron_api_internal" . }}
+url = {{ tuple "network" "internal" "api" . | include "helm-toolkit.keystone_endpoint_uri_lookup" }}
 
 metadata_proxy_shared_secret = {{ .Values.neutron.metadata_secret }}
 service_metadata_proxy = True
 
-auth_url = {{ include "helm-toolkit.endpoint_keystone_admin" . }}
+memcached_servers = "{{ .Values.memcached.host }}:{{ .Values.memcached.port }}"
+auth_version = v3
+auth_url = {{ tuple "identity" "internal" "api" . | include "helm-toolkit.keystone_endpoint_uri_lookup" }}
 auth_type = password
-project_domain_name = default
-user_domain_id = default
-project_name = service
+region_name = {{ .Values.keystone.neutron_region_name }}
+project_domain_name = {{ .Values.keystone.neutron_project_domain }}
+project_name = {{ .Values.keystone.neutron_project_name }}
+user_domain_name = {{ .Values.keystone.neutron_user_domain }}
 username = {{ .Values.keystone.neutron_user }}
 password = {{ .Values.keystone.neutron_password }}
 
@@ -86,12 +89,14 @@ connection = mysql+pymysql://{{ .Values.database.nova_user }}:{{ .Values.databas
 max_retries = -1
 
 [keystone_authtoken]
-auth_uri = {{ include "helm-toolkit.endpoint_keystone_internal" . }}
-auth_url = {{ include "helm-toolkit.endpoint_keystone_admin" . }}
+memcached_servers = "{{ .Values.memcached.host }}:{{ .Values.memcached.port }}"
+auth_version = v3
+auth_url = {{ tuple "identity" "internal" "api" . | include "helm-toolkit.keystone_endpoint_uri_lookup" }}
 auth_type = password
-project_domain_id = default
-user_domain_id = default
-project_name = service
+region_name = {{ .Values.keystone.nova_region_name }}
+project_domain_name = {{ .Values.keystone.nova_project_domain }}
+project_name = {{ .Values.keystone.nova_project_name }}
+user_domain_name = {{ .Values.keystone.nova_user_domain }}
 username = {{ .Values.keystone.nova_user }}
 password = {{ .Values.keystone.nova_password }}
 
@@ -116,7 +121,7 @@ compute = auto
 [cache]
 enabled = True
 backend = oslo_cache.memcache_pool
-memcache_servers = {{ .Values.memcached.address }}
+memcache_servers = "{{ .Values.memcached.host }}:{{ .Values.memcached.port }}"
 
 [wsgi]
 api_paste_config = /etc/nova/api-paste.ini

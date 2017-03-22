@@ -31,9 +31,9 @@ spec:
       nodeSelector:
         {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
       containers:
-{{- range $key1, $osServiceName := tuple "heat" "heat-cfn" }}
+{{- range $key1, $osServiceType := tuple "orchestration" "cloudformation" }}
 {{- range $key2, $osServiceEndPoint := tuple "admin" "internal" "public" }}
-        - name: {{ $osServiceName }}-ks-endpoints-{{ $osServiceEndPoint }}
+        - name: {{ $osServiceType }}-ks-endpoints-{{ $osServiceEndPoint }}
           image: {{ $envAll.Values.images.ks_endpoints }}
           imagePullPolicy: {{ $envAll.Values.images.pull_policy }}
           {{- if $envAll.Values.resources.enabled }}
@@ -60,11 +60,11 @@ spec:
             - name: OS_SVC_ENDPOINT
               value: {{ $osServiceEndPoint }}
             - name: OS_SERVICE_NAME
-              value: {{ $osServiceName }}
+              value: {{ tuple $osServiceType $envAll | include "helm-toolkit.keystone_endpoint_name_lookup" }}
             - name: OS_SERVICE_TYPE
-              value: {{ tuple $osServiceName $envAll | include "helm-toolkit.endpoint_type_lookup" }}
+              value: {{ $osServiceType }}
             - name: OS_SERVICE_ENDPOINT
-              value: {{ tuple $osServiceName $osServiceEndPoint "api" $envAll | include "helm-toolkit.endpoint_uri_lookup" }}
+              value: {{ tuple $osServiceType $osServiceEndPoint "api" $envAll | include "helm-toolkit.keystone_endpoint_uri_lookup" }}
 {{- end }}
 {{- end }}
       volumes:

@@ -13,12 +13,12 @@
 # limitations under the License.
 
 {{- $envAll := . }}
-{{- $ksAdminSecret := .Values.keystone_secrets.admin }}
+{{- $ksAdminSecret := .Values.keystone.admin_secret | default "neutron-env-keystone-admin" }}
 {{- $dependencies := .Values.dependencies.ks_service }}
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: heat-ks-service
+  name: neutron-ks-service
 spec:
   template:
     metadata:
@@ -29,20 +29,20 @@ spec:
     spec:
       restartPolicy: OnFailure
       nodeSelector:
-        {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
+        {{ .Values.labels.server.node_selector_key }}: {{ .Values.labels.server.node_selector_value }}
       containers:
-{{- range $key1, $osServiceType := tuple "orchestration" "cloudformation" }}
+{{- range $key1, $osServiceType := tuple "network" }}
         - name: {{ $osServiceType }}-ks-service-registration
           image: {{ $envAll.Values.images.ks_service }}
           imagePullPolicy: {{ $envAll.Values.images.pull_policy }}
           {{- if $envAll.Values.resources.enabled }}
           resources:
             requests:
-              memory: {{ $envAll.Values.resources.heat_ks_service.requests.memory | quote }}
-              cpu: {{ $envAll.Values.resources.heat_ks_service.requests.cpu | quote }}
+              memory: {{ $envAll.Values.resources.neutron_ks_service.requests.memory | quote }}
+              cpu: {{ $envAll.Values.resources.neutron_ks_service.requests.cpu | quote }}
             limits:
-              memory: {{ $envAll.Values.resources.heat_ks_service.limits.memory | quote }}
-              cpu: {{ $envAll.Values.resources.heat_ks_service.limits.cpu | quote }}
+              memory: {{ $envAll.Values.resources.neutron_ks_service.limits.memory | quote }}
+              cpu: {{ $envAll.Values.resources.neutron_ks_service.limits.cpu | quote }}
           {{- end }}
           command:
             - bash
@@ -64,4 +64,4 @@ spec:
       volumes:
         - name: ks-service-sh
           configMap:
-            name: heat-bin
+            name: neutron-bin

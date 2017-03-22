@@ -1,10 +1,11 @@
 # Troubleshooting
 
-Sometimes things go wrong. These guides will help you solve many common issues.
+Sometimes things go wrong. These guides will help you solve many common issues with the following:
 
-* [Minikube issues](ts-minikube.md)
-* [Networking issues](ts-networking.md)
-* [Persistent Storage issues](ts-persistent-storage.md)
+* [Database: Galera](ts-database.md#galera-cluster)
+* [Development: Minikube](ts-minikube.md)
+* [Networking: General](ts-networking.md)
+* [Persistent Storage: Ceph](ts-persistent-storage.md#ceph)
 
 ## Getting Help
 

@@ -32,10 +32,12 @@ labels:
 images:
   db_init: quay.io/stackanetes/stackanetes-kolla-toolbox:newton
   db_sync: quay.io/stackanetes/stackanetes-glance-api:newton
+  ks_user: quay.io/stackanetes/stackanetes-kolla-toolbox:newton
+  ks_service: quay.io/stackanetes/stackanetes-kolla-toolbox:newton
+  ks_endpoints: quay.io/stackanetes/stackanetes-kolla-toolbox:newton
   api: quay.io/stackanetes/stackanetes-glance-api:newton
   registry: quay.io/stackanetes/stackanetes-glance-registry:newton
-  post: quay.io/stackanetes/stackanetes-kolla-toolbox:newton
-  dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.1.0
+  dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.1.1
   pull_policy: "IfNotPresent"
 
 upgrades:
@@ -129,48 +131,44 @@ resources:
         cpu: "500m"
 
 dependencies:
-  api:
+  db_init:
+    jobs:
+    - mariadb-seed
+    service:
+    - mariadb
+  db_sync:
     jobs:
     - glance-db-init
+    service:
+    - mariadb
+  ks_user:
+    service:
+    - keystone-api
+  ks_service:
+    service:
+    - keystone-api
+  ks_endpoints:
+    jobs:
+    - glance-ks-service
+    service:
+    - keystone-api
+  api:
+    jobs:
     - glance-db-sync
-    - keystone-db-sync
+    - glance-ks-user
+    - glance-ks-endpoints
     service:
     - keystone-api
     - mariadb
   registry:
     jobs:
-    - glance-db-init
     - glance-db-sync
-    - keystone-db-sync
+    - glance-ks-user
+    - glance-ks-endpoints
     service:
     - keystone-api
     - mariadb
     - glance-api
-  db_sync:
-    jobs:
-    - keystone-db-init
-    - keystone-db-sync
-    - glance-db-init
-    - mariadb-seed
-    service:
-    - mariadb
-  init:
-    jobs:
-    - mariadb-seed
-    service:
-    - mariadb
-  post:
-    jobs:
-    - glance-db-init
-    - glance-db-sync
-    - keystone-db-sync
-    - keystone-db-init
-    - mariadb-seed
-    service:
-    - mariadb
-    - keystone-api
-    - glance-api
-    - glance-registry
 
 # typically overriden by environmental
 # values, but should include all endpoints

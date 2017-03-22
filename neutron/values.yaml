@@ -23,6 +23,9 @@ replicas:
 images:
   db_init: quay.io/stackanetes/stackanetes-kolla-toolbox:newton
   db_sync: quay.io/stackanetes/stackanetes-neutron-server:newton
+  ks_user: quay.io/stackanetes/stackanetes-kolla-toolbox:newton
+  ks_service: quay.io/stackanetes/stackanetes-kolla-toolbox:newton
+  ks_endpoints: quay.io/stackanetes/stackanetes-kolla-toolbox:newton
   server: quay.io/stackanetes/stackanetes-neutron-server:newton
   dhcp: quay.io/stackanetes/stackanetes-neutron-dhcp-agent:newton
   metadata: quay.io/stackanetes/stackanetes-neutron-metadata-agent:newton
@@ -30,8 +33,7 @@ images:
   neutron_openvswitch_agent: quay.io/stackanetes/stackanetes-neutron-openvswitch-agent:newton
   openvswitch_db_server: quay.io/attcomdev/openvswitch-vswitchd:latest
   openvswitch_vswitchd: quay.io/attcomdev/openvswitch-vswitchd:latest
-  post: quay.io/stackanetes/stackanetes-kolla-toolbox:newton
-  dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.1.0
+  dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.1.1
   pull_policy: "IfNotPresent"
 
 upgrades:
@@ -81,7 +83,8 @@ network:
     metadata: 8775
 
 memcached:
-  address: "memcached:11211"
+  host: memcached
+  port: 11211
 
 rabbitmq:
   address: rabbitmq
@@ -91,18 +94,26 @@ rabbitmq:
 
 keystone:
   admin_user: "admin"
+  admin_user_domain: "default"
   admin_password: "password"
   admin_project_name: "admin"
+  admin_project_domain: "default"
   admin_region_name: "RegionOne"
-  domain_name: "default"
-  tenant_name: "admin"
 
   neutron_user: "neutron"
+  neutron_user_domain: "default"
+  neutron_user_role: "admin"
   neutron_password: "password"
+  neutron_project_name: "service"
+  neutron_project_domain: "default"
   neutron_region_name: "RegionOne"
 
   nova_user: "nova"
+  nova_user_domain: "default"
+  nova_user_role: "admin"
   nova_password: "password"
+  nova_project_name: "service"
+  nova_project_domain: "default"
   nova_region_name: "RegionOne"
 
 database:
@@ -151,9 +162,32 @@ ml2:
       - "physnet1:br-physnet1"
 
 dependencies:
+  db_init:
+    jobs:
+    - mariadb-seed
+    service:
+    - mariadb
+  db_sync:
+    jobs:
+    - neutron-db-init
+    service:
+    - mariadb
+  ks_user:
+    service:
+    - keystone-api
+  ks_service:
+    service:
+    - keystone-api
+  ks_endpoints:
+    jobs:
+    - neutron-ks-service
+    service:
+    - keystone-api
   server:
     jobs:
     - neutron-db-sync
+    - neutron-ks-user
+    - neutron-ks-endpoints
     service:
     - rabbitmq
     - mariadb
@@ -161,57 +195,29 @@ dependencies:
     - memcached
   dhcp:
     service:
-    - neutron-server
     - rabbitmq
+    - neutron-server
     - nova-api
-    jobs:
-    - neutron-db-init
-    - nova-post
     daemonset:
     - ovs-agent
   metadata:
     service:
     - rabbitmq
+    - neutron-server
     - nova-api
-    jobs:
-    - neutron-db-init
-    - nova-post
     daemonset:
     - ovs-agent
   ovs_agent:
-    jobs:
-    - neutron-post
-    - nova-post
     service:
-    - keystone-api
     - rabbitmq
     - neutron-server
   l3:
     service:
-    - neutron-server
     - rabbitmq
+    - neutron-server
     - nova-api
-    jobs:
-    - nova-db-init
-    - neutron-db-init
-    - nova-post
     daemonset:
     - ovs-agent
-  db_sync:
-    jobs:
-    - neutron-db-init
-    service:
-    - mariadb
-  db_init:
-    jobs:
-    - mariadb-seed
-    service:
-    - mariadb
-  post:
-    service:
-    - keystone-api
-    jobs:
-    - neutron-db-sync
 
 resources:
   enabled: false
@@ -293,39 +299,30 @@ resources:
 # values, but should include all endpoints
 # required by this chart
 endpoints:
-  glance:
-    hosts:
-      default: glance-api
-    type: image
-    path: null
-    scheme: 'http'
-    port:
-      api: 9292
-      registry: 9191
-  nova:
+  compute:
+    name: nova
     hosts:
       default: nova-api
     path: "/v2/%(tenant_id)s"
-    type: compute
     scheme: 'http'
     port:
       api: 8774
       metadata: 8775
       novncproxy: 6080
-  keystone:
+  identity:
+    name: keystone
     hosts:
       default: keystone-api
     path: /v3
-    type: identity
     scheme: 'http'
     port:
-        admin: 35357
-        public: 5000
-  neutron:
+      admin: 35357
+      api: 5000
+  network:
+    name: neutron
     hosts:
       default: neutron-server
     path: null
-    type: network
     scheme: 'http'
     port:
       api: 9696

@@ -29,7 +29,7 @@ labels:
   node_selector_value: enabled
 
 images:
-  dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.1.0
+  dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.1.1
   db_init: quay.io/stackanetes/stackanetes-kolla-toolbox:newton
   db_sync: docker.io/kolla/ubuntu-source-heat-api:3.0.1
   ks_user: quay.io/stackanetes/stackanetes-kolla-toolbox:newton
@@ -48,8 +48,6 @@ keystone_secrets:
   stack: "heat-env-keystone-stack-user"
 
 keystone:
-  auth_uri: "http://keystone-api:5000"
-  auth_url: "http://keystone-api:35357"
   admin_user: "admin"
   admin_user_domain: "default"
   admin_password: "password"
@@ -79,19 +77,28 @@ keystone:
   heat_stack_password: "password"
   heat_stack_region_name: "RegionOne"
 
-service:
+network:
   api:
     name: "heat-api"
     port: 8004
     proto: "http"
+    node_port:
+      enabled: false
+      port: 30004
   cfn:
     name: "heat-cfn"
     port: 8000
     proto: "http"
+    node_port:
+      enabled: false
+      port: 30800
   cloudwatch:
     name: "heat-cloudwatch"
     port: 8003
     proto: "http"
+    node_port:
+      enabled: false
+      port: 30003
 
 database:
   address: mariadb
@@ -176,33 +183,34 @@ dependencies:
 # values, but should include all endpoints
 # required by this chart
 endpoints:
-  keystone:
+  identity:
+    name: keystone
     hosts:
       default: keystone-api
     path: /v3
-    type: identity
     scheme: 'http'
     port:
-        admin: 35357
-        public: 5000
-  heat:
+      admin: 35357
+      api: 5000
+  orchestration:
+    name: heat
     hosts:
       default: heat-api
     path: '/v1/%(project_id)s'
-    type: orchestration
     scheme: 'http'
     port:
       api: 8004
-  heat_cfn:
+  cloudformation:
+    name: heat-cfn
     hosts:
       default: heat-cfn
     path: /v1
-    type: cloudformation
     scheme: 'http'
     port:
       api: 8000
 # Cloudwatch does not get an entry in the keystone service catalog
-  heat_cloudwatch:
+  cloudwatch:
+    name: heat-cloudwatch
     hosts:
       default: heat-cloudwatch
     path: null

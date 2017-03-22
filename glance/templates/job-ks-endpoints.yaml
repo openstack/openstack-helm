@@ -13,12 +13,12 @@
 # limitations under the License.
 
 {{- $envAll := . }}
-{{- $ksAdminSecret := .Values.keystone_secrets.admin }}
-{{- $dependencies := .Values.dependencies.ks_service }}
+{{- $ksAdminSecret := $envAll.Values.keystone.admin_secret | default "glance-env-keystone-admin" }}
+{{- $dependencies := .Values.dependencies.ks_endpoints }}
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: heat-ks-service
+  name: glance-ks-endpoints
 spec:
   template:
     metadata:
@@ -31,37 +31,43 @@ spec:
       nodeSelector:
         {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
       containers:
-{{- range $key1, $osServiceType := tuple "orchestration" "cloudformation" }}
-        - name: {{ $osServiceType }}-ks-service-registration
-          image: {{ $envAll.Values.images.ks_service }}
+{{- range $key1, $osServiceType := tuple "image" }}
+{{- range $key2, $osServiceEndPoint := tuple "admin" "internal" "public" }}
+        - name: {{ $osServiceType }}-ks-endpoints-{{ $osServiceEndPoint }}
+          image: {{ $envAll.Values.images.ks_endpoints }}
           imagePullPolicy: {{ $envAll.Values.images.pull_policy }}
           {{- if $envAll.Values.resources.enabled }}
           resources:
             requests:
-              memory: {{ $envAll.Values.resources.heat_ks_service.requests.memory | quote }}
-              cpu: {{ $envAll.Values.resources.heat_ks_service.requests.cpu | quote }}
+              memory: {{ $envAll.Values.resources.glance_ks_endpoints.requests.memory | quote }}
+              cpu: {{ $envAll.Values.resources.glance_ks_endpoints.requests.cpu | quote }}
             limits:
-              memory: {{ $envAll.Values.resources.heat_ks_service.limits.memory | quote }}
-              cpu: {{ $envAll.Values.resources.heat_ks_service.limits.cpu | quote }}
+              memory: {{ $envAll.Values.resources.glance_ks_endpoints.limits.memory | quote }}
+              cpu: {{ $envAll.Values.resources.glance_ks_endpoints.limits.cpu | quote }}
           {{- end }}
           command:
             - bash
-            - /tmp/ks-service.sh
+            - /tmp/ks-endpoints.sh
           volumeMounts:
-            - name: ks-service-sh
-              mountPath: /tmp/ks-service.sh
-              subPath: ks-service.sh
+            - name: ks-endpoints-sh
+              mountPath: /tmp/ks-endpoints.sh
+              subPath: ks-endpoints.sh
               readOnly: true
           env:
 {{- with $env := dict "ksUserSecret" $ksAdminSecret }}
 {{- include "helm-toolkit.keystone_openrc_env_vars" $env | indent 12 }}
 {{- end }}
+            - name: OS_SVC_ENDPOINT
+              value: {{ $osServiceEndPoint }}
             - name: OS_SERVICE_NAME
               value: {{ tuple $osServiceType $envAll | include "helm-toolkit.keystone_endpoint_name_lookup" }}
             - name: OS_SERVICE_TYPE
               value: {{ $osServiceType }}
+            - name: OS_SERVICE_ENDPOINT
+              value: {{ tuple $osServiceType $osServiceEndPoint "api" $envAll | include "helm-toolkit.keystone_endpoint_uri_lookup" }}
+{{- end }}
 {{- end }}
       volumes:
-        - name: ks-service-sh
+        - name: ks-endpoints-sh
           configMap:
-            name: heat-bin
+            name: glance-bin

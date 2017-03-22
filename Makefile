@@ -12,15 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-.PHONY: ceph bootstrap mariadb etcd postgresql keystone memcached rabbitmq helm-toolkit openstack neutron nova cinder heat maas all clean
+.PHONY: ceph bootstrap mariadb etcd postgresql keystone memcached rabbitmq helm-toolkit neutron nova cinder heat maas all clean
 
 B64_DIRS := helm-toolkit/secrets
 B64_EXCLUDE := $(wildcard helm-toolkit/secrets/*.b64)
 
-CHARTS := ceph mariadb etcd postgresql rabbitmq memcached keystone glance horizon neutron nova cinder heat maas openstack
+CHARTS := ceph mariadb etcd postgresql rabbitmq memcached keystone glance horizon neutron nova cinder heat maas
 TOOLKIT_TPL := helm-toolkit/templates/_globals.tpl
 
-all: helm-toolkit ceph bootstrap mariadb etcd postgresql rabbitmq memcached keystone glance horizon neutron nova cinder heat maas openstack
+all: helm-toolkit ceph bootstrap mariadb etcd postgresql rabbitmq memcached keystone glance horizon neutron nova cinder heat maas
 
 helm-toolkit: build-helm-toolkit
 
@@ -54,8 +54,6 @@ heat: build-heat
 maas: build-maas
 
 memcached: build-memcached
-
-openstack: build-openstack
 
 clean:
 	$(shell rm -rf helm-toolkit/secrets/*.b64)

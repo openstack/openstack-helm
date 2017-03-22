@@ -29,6 +29,9 @@ compute_replicas: 1
 images:
   db_init: quay.io/stackanetes/stackanetes-kolla-toolbox:newton
   db_sync: quay.io/stackanetes/stackanetes-nova-api:newton
+  ks_user: quay.io/stackanetes/stackanetes-kolla-toolbox:newton
+  ks_service: quay.io/stackanetes/stackanetes-kolla-toolbox:newton
+  ks_endpoints: quay.io/stackanetes/stackanetes-kolla-toolbox:newton
   api: quay.io/stackanetes/stackanetes-nova-api:newton
   conductor: quay.io/stackanetes/stackanetes-nova-conductor:newton
   scheduler: quay.io/stackanetes/stackanetes-nova-scheduler:newton
@@ -36,8 +39,7 @@ images:
   consoleauth: quay.io/stackanetes/stackanetes-nova-consoleauth:newton
   compute: quay.io/stackanetes/stackanetes-nova-compute:newton
   libvirt: quay.io/stackanetes/stackanetes-nova-libvirt:newton
-  post: quay.io/stackanetes/stackanetes-kolla-toolbox:newton
-  dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.1.0
+  dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.1.1
   pull_policy: "IfNotPresent"
 
 upgrades:
@@ -86,18 +88,26 @@ database:
 
 keystone:
   admin_user: "admin"
+  admin_user_domain: "default"
   admin_password: "password"
   admin_project_name: "admin"
+  admin_project_domain: "default"
   admin_region_name: "RegionOne"
-  domain_name: "default"
-  tenant_name: "admin"
 
   neutron_user: "neutron"
+  neutron_user_domain: "default"
+  neutron_user_role: "admin"
   neutron_password: "password"
+  neutron_project_name: "service"
+  neutron_project_domain: "default"
   neutron_region_name: "RegionOne"
 
   nova_user: "nova"
+  nova_user_domain: "default"
+  nova_user_role: "admin"
   nova_password: "password"
+  nova_project_name: "service"
+  nova_project_domain: "default"
   nova_region_name: "RegionOne"
 
 rabbitmq:
@@ -118,47 +128,41 @@ neutron:
   metadata_secret: "password"
 
 memcached:
-  address: "memcached:11211"
+  host: memcached
+  port: 11211
 
 dependencies:
   api:
     jobs:
-    - keystone-db-sync
-    - nova-db-init
     - nova-db-sync
+    - nova-ks-user
+    - nova-ks-endpoints
     service:
     - mariadb
-  db_sync:
+  db_init:
     jobs:
-    - nova-db-init
-    - keystone-db-init
     - mariadb-seed
     service:
     - mariadb
   db_sync:
     jobs:
     - nova-db-init
-    - keystone-db-init
-    - mariadb-seed
-    - keystone-db-sync
     service:
     - mariadb
-  post:
-    jobs:
-    - nova-db-init
-    - keystone-db-init
-    - mariadb-seed
+  ks_user:
     service:
-    - mariadb
     - keystone-api
-  init:
-    jobs:
-    - mariadb-seed
+  ks_service:
     service:
-    - mariadb
+    - keystone-api
+  ks_endpoints:
+    jobs:
+    - nova-ks-service
+    service:
+    - keystone-api
   compute:
     jobs:
-    - nova-post
+    - nova-db-sync
     service:
     - keystone-api
     - nova-api
@@ -166,17 +170,12 @@ dependencies:
     - ovs-agent
   libvirt:
     jobs:
-    - nova-db-init
-    - nova-post
     - nova-db-sync
     service:
     - keystone-api
     - nova-api
   consoleauth:
     jobs:
-    - mariadb-seed
-    - keystone-db-sync
-    - nova-db-init
     - nova-db-sync
     service:
     - mariadb
@@ -195,39 +194,39 @@ dependencies:
 # values, but should include all endpoints
 # required by this chart
 endpoints:
-  glance:
-    hosts:
-      default: glance-api
-    type: image
-    path: null
-    scheme: 'http'
-    port:
-      api: 9292
-      registry: 9191
-  nova:
+  compute:
+    name: nova
     hosts:
       default: nova-api
     path: "/v2/%(tenant_id)s"
-    type: compute
     scheme: 'http'
     port:
       api: 8774
       metadata: 8775
       novncproxy: 6080
-  keystone:
+  identity:
+    name: keystone
     hosts:
       default: keystone-api
     path: /v3
-    type: identity
     scheme: 'http'
     port:
-        admin: 35357
-        public: 5000
-  neutron:
+      api: 5000
+      admin: 35357
+  image:
+    name: glance
+    hosts:
+      default: glance-api
+    path: null
+    scheme: 'http'
+    port:
+      api: 9292
+      registry: 9191
+  network:
+    name: neutron
     hosts:
       default: neutron-server
     path: null
-    type: network
     scheme: 'http'
     port:
       api: 9696
