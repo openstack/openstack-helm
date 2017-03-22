@@ -1,3 +1,4 @@
+
 # Copyright 2017 The Openstack-Helm Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,14 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-{{- if empty .Values.conf.keystone.override -}}
 {{ include "keystone.conf.keystone_values_skeleton" .Values.conf.keystone | trunc 0 }}
 {{ include "keystone.conf.keystone" .Values.conf.keystone }}
-{{- else -}}
-{{ .Values.conf.keystone.override }}
-{{- end -}}
+
 
 {{- define "keystone.conf.keystone_values_skeleton" -}}
+
 {{- if not .default -}}{{- set . "default" dict -}}{{- end -}}
 {{- if not .default.keystone -}}{{- set .default "keystone" dict -}}{{- end -}}
 {{- if not .default.oslo -}}{{- set .default "oslo" dict -}}{{- end -}}
@@ -124,10 +123,11 @@
 {{- if not .tokenless_auth.keystone -}}{{- set .tokenless_auth "keystone" dict -}}{{- end -}}
 {{- if not .trust -}}{{- set . "trust" dict -}}{{- end -}}
 {{- if not .trust.keystone -}}{{- set .trust "keystone" dict -}}{{- end -}}
+
 {{- end -}}
 
-{{- define "keystone.conf.keystone" }}
 
+{{- define "keystone.conf.keystone" -}}
 
 [DEFAULT]
 
@@ -3678,7 +3678,5 @@
 # from .trust.keystone.driver
 {{ if not .trust.keystone.driver }}#{{ end }}driver = {{ .trust.keystone.driver | default "sql" }}
 
-{{ if .append }}
-{{ .append }}
-{{ end }}
-{{ end -}}
+{{- end -}}
+

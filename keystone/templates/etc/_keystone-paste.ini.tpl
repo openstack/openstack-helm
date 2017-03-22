@@ -12,14 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-{{- if empty .Values.conf.paste.override -}}
-{{ include "keystone.conf.paste" .Values.conf.paste }}
-{{- else -}}
-{{ .Values.conf.paste.override }}
-{{- end -}}
-
-{{- define "keystone.conf.paste" -}}
-
 # Keystone PasteDeploy configuration file.
 
 [filter:debug]
@@ -114,9 +106,3 @@ use = egg:Paste#urlmap
 /v2.0 = admin_api
 /v3 = api_v3
 / = admin_version_api
-
-{{ if .append }}
-{{ .append }}
-{{ end }}
-
-{{- end -}}

@@ -1,11 +1,3 @@
-{{- if empty .Values.conf.policy.override -}}
-{{ include "keystone.conf.policy" .Values.conf.policy }}
-{{- else -}}
-{{ .Values.conf.policy.override }}
-{{- end -}}
-
-{{- define "keystone.conf.policy" -}}
-
 {
     "admin_required": "role:admin or is_admin:1",
     "service_role": "role:service",
@@ -203,11 +195,3 @@
     "identity:update_domain_config": "rule:admin_required",
     "identity:delete_domain_config": "rule:admin_required",
     "identity:get_domain_config_default": "rule:admin_required"
-{{- if .append -}}
-,
-{{ .append | indent 4 }}
-{{ end }}
-
-}
-
-{{ end -}}
