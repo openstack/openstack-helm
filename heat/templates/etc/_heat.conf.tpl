@@ -103,4 +103,4 @@ endpoint_type = internalURL
 
 [clients_keystone]
 endpoint_type = internalURL
-auth_uri = {{ tuple "identity" "internal" "api" . | include "endpoint_type_lookup_addr" }}
+auth_uri = {{ tuple "identity" "internal" "api" . | include "helm-toolkit.keystone_endpoint_uri_lookup" }}
