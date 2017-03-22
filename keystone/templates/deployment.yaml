@@ -11,10 +11,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 {{- $envAll := . }}
 {{- $dependencies := .Values.dependencies.api }}
-{{- $mounts := .Values.mounts.api }}
+{{- $mounts_keystone_api := .Values.mounts.keystone_api.keystone_api }}
+{{- $mounts_keystone_api_init := .Values.mounts.keystone_api.init_container }}
 
 apiVersion: extensions/v1beta1
 kind: Deployment
@@ -38,7 +38,7 @@ spec:
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.hash" }}
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.hash" }}
         pod.beta.kubernetes.io/init-containers: '[
-{{ tuple $envAll $dependencies | include "helm-toolkit.kubernetes_entrypoint_init_container" | indent 10 }}
+{{ tuple $envAll $dependencies $mounts_keystone_api_init | include "helm-toolkit.kubernetes_entrypoint_init_container" | indent 10 }}
         ]'
     spec:
       nodeSelector:
@@ -75,7 +75,6 @@ spec:
             tcpSocket:
               port: {{ .Values.network.port.api }}
           volumeMounts:            
-{{ toYaml $mounts.volumeMounts | indent 12 }}
+{{ toYaml $mounts_keystone_api.volumeMounts | indent 12 }}
       volumes:
-{{ toYaml $mounts.volumes | indent 8 }}
-
+{{ toYaml $mounts_keystone_api.volumes | indent 8 }}
