@@ -135,7 +135,6 @@
 # From keystone
 #
 
-<<<<<<< HEAD
 # Using this feature is *NOT* recommended. Instead, use the `keystone-manage
 # bootstrap` command. The value of this option is treated as a "shared secret"
 # that can be used to bootstrap Keystone through the API. This "token" does not
