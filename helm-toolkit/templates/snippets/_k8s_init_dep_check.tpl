@@ -68,6 +68,6 @@
       "value": "echo done"
     }
   ],
-"volumeMounts": {{ $mounts | quote | default "[]"}}
+"volumeMounts": {{ $mounts | default "[]"}}
 }
 {{- end -}}
