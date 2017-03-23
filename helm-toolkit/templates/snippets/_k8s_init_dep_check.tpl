@@ -15,6 +15,7 @@
 {{- define "helm-toolkit.kubernetes_entrypoint_init_container" -}}
 {{- $envAll := index . 0 -}}
 {{- $deps := index . 1 -}}
+{{- $mounts := index . 2 -}}
 {
   "name": "init",
   "image": {{ $envAll.Values.images.dep_check | quote }},
@@ -48,7 +49,7 @@
     },
     {
       "name": "DEPENDENCY_SERVICE",
-      "value": "{{  include "helm-toolkit.joinListWithComma"  $deps.service }}"
+      "value": "{{  include "helm-toolkit.joinListWithComma" $deps.service }}"
     },
     {
       "name": "DEPENDENCY_JOBS",
@@ -66,6 +67,7 @@
       "name": "COMMAND",
       "value": "echo done"
     }
-  ]
+  ],
+"volumeMounts": {{ $mounts | default "[]"}}
 }
 {{- end -}}

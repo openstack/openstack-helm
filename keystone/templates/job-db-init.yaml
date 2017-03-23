@@ -14,6 +14,9 @@
 
 {{- $envAll := . }}
 {{- $dependencies := .Values.dependencies.init }}
+{{- $mounts_keystone_db_init := .Values.mounts.keystone_db_init.keystone_db_init }}
+{{- $mounts_keystone_db_init_init := .Values.mounts.keystone_db_init.init_container }}
+
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -23,7 +26,7 @@ spec:
     metadata:
       annotations:
         pod.beta.kubernetes.io/init-containers: '[
-{{ tuple $envAll $dependencies | include "helm-toolkit.kubernetes_entrypoint_init_container" | indent 10 }}
+{{ tuple $envAll $dependencies $mounts_keystone_db_init_init | include "helm-toolkit.kubernetes_entrypoint_init_container" | indent 10 }}
         ]'
     spec:
       restartPolicy: OnFailure
@@ -45,11 +48,8 @@ spec:
           command:
             - bash
             - /tmp/init.sh
-          volumeMounts:
-            - name: keystone-bin
-              mountPath: /tmp/init.sh
-              subPath: init.sh
+          volumeMounts:            
+{{ toYaml $mounts_keystone_db_init.volumeMounts | indent 12 }}
       volumes:
-        - name: keystone-bin
-          configMap:
-            name: keystone-bin
+{{ toYaml $mounts_keystone_db_init.volumes | indent 8 }}
+
