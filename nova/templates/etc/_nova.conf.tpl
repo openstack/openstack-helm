@@ -23,7 +23,7 @@ force_config_drive = {{ .Values.nova.default.force_config_drive }}
 state_path = /var/lib/nova
 
 osapi_compute_listen = {{ .Values.network.ip_address }}
-osapi_compute_listen_port = {{ .Values.network.port.osapi }}
+osapi_compute_listen_port = {{ .Values.network.osapi.port }}
 osapi_compute_workers = {{ .Values.nova.default.osapi_workers }}
 
 workers = {{ .Values.nova.default.osapi_workers }}
@@ -44,11 +44,11 @@ transport_url = rabbit://{{ .Values.rabbitmq.admin_user }}:{{ .Values.rabbitmq.a
 
 [vnc]
 novncproxy_host = {{ .Values.network.ip_address }}
-novncproxy_port = {{ .Values.network.port.novncproxy }}
+novncproxy_port = {{ .Values.network.novncproxy.port }}
 vncserver_listen = 0.0.0.0
 vncserver_proxyclient_address = {{ .Values.network.ip_address }}
 
-novncproxy_base_url = http://{{ .Values.network.external_ips }}:{{ .Values.network.port.novncproxy }}/vnc_auto.html
+novncproxy_base_url = http://{{ .Values.network.external_ips }}:{{ .Values.network.novncproxy.port }}/vnc_auto.html
 
 [oslo_concurrency]
 lock_path = /var/lib/nova/tmp
