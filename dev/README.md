@@ -6,8 +6,8 @@
     * 16GB RAM
     * 32GB HDD Space
   * Software
-    * Vagrant
-    * VirtualBox
+    * Vagrant >= 1.8.0
+    * VirtualBox >= 5.1.0
     * Kubectl
     * Helm
     * Git
