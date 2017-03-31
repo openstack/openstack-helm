@@ -17,7 +17,7 @@ debug = {{ .Values.misc.debug }}
 use_syslog = False
 use_stderr = True
 
-bind_port = {{ .Values.network.port.api }}
+bind_port = {{ .Values.network.api.port }}
 workers = {{ .Values.misc.workers }}
 registry_host = glance-registry
 # Enable Copy-on-Write

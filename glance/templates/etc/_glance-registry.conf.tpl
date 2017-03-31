@@ -17,7 +17,7 @@ debug = {{ .Values.misc.debug }}
 use_syslog = False
 use_stderr = True
 
-bind_port = {{ .Values.network.port.registry }}
+bind_port = {{ .Values.network.registry.port }}
 workers = {{ .Values.misc.workers }}
 
 [database]

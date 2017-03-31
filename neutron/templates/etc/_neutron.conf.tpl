@@ -18,7 +18,7 @@ use_syslog = False
 use_stderr = True
 
 bind_host = {{ .Values.network.ip_address }}
-bind_port = {{ .Values.network.port.server }}
+bind_port = {{ .Values.network.server.port }}
 
 #lock_path = /var/lock/neutron
 api_paste_config = /usr/share/neutron/api-paste.ini
