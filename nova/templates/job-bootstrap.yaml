@@ -1,0 +1,66 @@
+# Copyright 2017 The Openstack-Helm Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+{{- $envAll := . }}
+{{- $ksAdminSecret := $envAll.Values.keystone.admin_secret | default "nova-env-keystone-admin" }}
+{{- $dependencies := .Values.dependencies.bootstrap }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: nova-bootstrap
+spec:
+  template:
+    metadata:
+      annotations:
+        pod.beta.kubernetes.io/init-containers: '[
+{{ tuple $envAll $dependencies | include "helm-toolkit.kubernetes_entrypoint_init_container" | indent 10 }}
+        ]'
+    spec:
+      restartPolicy: OnFailure
+      nodeSelector:
+        {{ .Values.labels.control_node_selector_key }}: {{ .Values.labels.control_node_selector_value }}
+      containers:
+        - name: nova-bootstrap
+          image: {{ .Values.images.bootstrap }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+          {{- if .Values.resources.enabled }}
+          resources:
+            requests:
+              memory: {{ .Values.resources.bootstrap.requests.memory | quote }}
+              cpu: {{ .Values.resources.bootstrap.requests.cpu | quote }}
+            limits:
+              memory: {{ .Values.resources.bootstrap.limits.memory | quote }}
+              cpu: {{ .Values.resources.bootstrap.limits.cpu | quote }}
+          {{- end }}
+          command:
+            - bash
+            - /tmp/bootstrap.sh
+          env:
+{{- with $env := dict "ksUserSecret" $ksAdminSecret }}
+{{- include "helm-toolkit.keystone_openrc_env_vars" $env | indent 12 }}
+{{- end }}
+          volumeMounts:
+            - name: novaconf
+              mountPath: /etc/nova/nova.conf
+              subPath: nova.conf
+            - name: nova-bin
+              mountPath: /tmp/bootstrap.sh
+              subPath: bootstrap.sh
+      volumes:
+        - name: novaconf
+          configMap:
+            name: nova-etc
+        - name: nova-bin
+          configMap:
+            name: nova-bin

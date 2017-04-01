@@ -39,6 +39,7 @@ images:
   consoleauth: quay.io/stackanetes/stackanetes-nova-consoleauth:newton
   compute: quay.io/stackanetes/stackanetes-nova-compute:newton
   libvirt: quay.io/stackanetes/stackanetes-nova-libvirt:newton
+  bootstrap: quay.io/stackanetes/stackanetes-nova-api:newton
   dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.1.1
   pull_policy: "IfNotPresent"
 
@@ -48,6 +49,16 @@ upgrades:
   rolling_update:
     max_unavailable: 1
     max_surge: 3
+
+bootstrap:
+  enabled: true
+  flavors:
+    m1_tiny:
+        name: "m1.tiny"
+        id: "auto"
+        ram: 512
+        disk: 20
+        vcpus: 1
 
 network:
   ip_address: "0.0.0.0"
@@ -149,6 +160,10 @@ dependencies:
     - nova-db-init
     service:
     - mariadb
+  bootstrap:
+    service:
+    - keystone-api
+    - nova-api
   ks_user:
     service:
     - keystone-api
@@ -297,6 +312,13 @@ resources:
       memory: "1024Mi"
       cpu: "2000m"
   nova_post:
+    requests:
+      memory: "124Mi"
+      cpu: "100m"
+    limits:
+      memory: "1024Mi"
+      cpu: "2000m"
+  bootstrap:
     requests:
       memory: "124Mi"
       cpu: "100m"
