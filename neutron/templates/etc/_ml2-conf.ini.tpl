@@ -17,6 +17,7 @@
 type_drivers = {{ include "helm-toolkit.joinListWithComma" .Values.ml2.type_drivers }}
 tenant_network_types = {{ .Values.ml2.tenant_network_types }}
 mechanism_drivers = {{ include "helm-toolkit.joinListWithComma" .Values.ml2.mechanism_drivers }}
+extension_drivers = {{ include "helm-toolkit.joinListWithComma" .Values.ml2.extension_drivers }}
 
 [ml2_type_flat]
 flat_networks = {{ include "helm-toolkit.joinListWithComma" .Values.ml2.ml2_type_flat.flat_networks }}
