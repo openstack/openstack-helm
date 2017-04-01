@@ -6,9 +6,9 @@ In order to drive towards a production-ready Openstack solution, our goal is to 
 
 | | Version | Notes |
 |--- |--- |--- |
-| **Kubernetes** | [v1.5.3](https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG.md#v153) | [Custom Controller for RDB tools](https://quay.io/repository/attcomdev/kube-controller-manager?tab=tags) |
-| **Helm** | [v2.2.1](https://github.com/kubernetes/helm/releases/tag/v2.2.1) | Planning for [v2.3.0](https://github.com/kubernetes/helm/milestone/30) |
-| **Calico** | [v2.0](http://docs.projectcalico.org/v2.0/releases/) | [`calicoctl` v1.0](https://github.com/projectcalico/calicoctl/releases) |
+| **Kubernetes** | [v1.5.5](https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG.md#v155) | [Custom Controller for RDB tools](https://quay.io/repository/attcomdev/kube-controller-manager?tab=tags) |
+| **Helm** | [v2.2.3](https://github.com/kubernetes/helm/releases/tag/v2.2.3) | Planning for [v2.3.0](https://github.com/kubernetes/helm/milestone/30) |
+| **Calico** | [v2.1](http://docs.projectcalico.org/v2.1/releases/) | [`calicoctl` v1.1](https://github.com/projectcalico/calicoctl/releases) |
 | **Docker** | [v1.12.6](https://github.com/docker/docker/releases/tag/v1.12.1) | [Per kubeadm Instructions](http://kubernetes.io/docs/getting-started-guides/kubeadm/) | |
 
 Other versions and considerations (such as other CNI SDN providers), config map data, and value overrides will be included in other documentation as we explore these options further.
@@ -42,9 +42,9 @@ admin@kubenode01:~$
 After an initial `kubeadmn` deployment has been scheduled, it is time to deploy a CNI-enabled SDN. We have selected **Calico**, but have also confirmed that this works for Weave, and Romana. For Calico version v2.0, you can apply the provided [Kubeadm Hosted Install](http://docs.projectcalico.org/v2.0/getting-started/kubernetes/installation/hosted/kubeadm/) manifest:
 
 ```
-kubectl apply -f http://docs.projectcalico.org/v2.0/getting-started/kubernetes/installation/hosted/kubeadm/calico.yaml
+kubectl apply -f http://docs.projectcalico.org/v2.1/getting-started/kubernetes/installation/hosted/kubeadm/calico.yaml
 ```
-**PLEASE NOTE:** If you are using a 192.168.0.0/16 CIDR for your Kubernetes hosts, you will need to modify [line 42](https://gist.github.com/v1k0d3n/a152b1f5b8db5a8ae9c8c7da575a9694#file-calico-kubeadm-hosted-yml-L42) for the `cidr` declaration within the `ippool`. This must be a `/16` range or more, as the `kube-controller` will hand out `/24` ranges to each node. We have included a sample comparison of the changes [here](http://docs.projectcalico.org/v2.0/getting-started/kubernetes/installation/hosted/kubeadm/calico.yaml) and [here](https://gist.githubusercontent.com/v1k0d3n/a152b1f5b8db5a8ae9c8c7da575a9694/raw/c950eef1123a7dcc4b0dedca1a202e0c06248e9e/calico-kubeadm-hosted.yml).
+**PLEASE NOTE:** For Calico deployments using v2.0, if you are using a 192.168.0.0/16 CIDR for your Kubernetes hosts, you will need to modify [line 42](https://gist.github.com/v1k0d3n/a152b1f5b8db5a8ae9c8c7da575a9694#file-calico-kubeadm-hosted-yml-L42) for the `cidr` declaration within the `ippool`. This must be a `/16` range or more, as the `kube-controller` will hand out `/24` ranges to each node. We have included a sample comparison of the changes [here](http://docs.projectcalico.org/v2.0/getting-started/kubernetes/installation/hosted/kubeadm/calico.yaml) and [here](https://gist.githubusercontent.com/v1k0d3n/a152b1f5b8db5a8ae9c8c7da575a9694/raw/c950eef1123a7dcc4b0dedca1a202e0c06248e9e/calico-kubeadm-hosted.yml). This is not applicable for Calico v2.1.
 
 After the container CNI-SDN is deployed, Calico has a tool you can use to verify your deployment. You can download this tool, [`calicoctl`](https://github.com/projectcalico/calicoctl/releases) to execute the following command:
 ```

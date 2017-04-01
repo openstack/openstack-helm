@@ -187,12 +187,8 @@ To deploy Openstack-Helm in development mode, ensure you've created a minikube-a
 /data
 /var/lib/localkube
 /var/lib/docker
-```
-
-As a result of this guidence, we recommend creating the following for MariaDB like shown below.
-
-```
-sudo mkdir -p /data/openstack-helm/mariadb
+/tmp/hostpath_pv
+/tmp/hostpath-provisioner
 ```
 
 ### Label Minikube Node
