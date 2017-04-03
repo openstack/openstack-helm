@@ -43,13 +43,25 @@ spec:
               memory: {{ .Values.resources.jobs.db.requests.memory | quote }}
           {{- end }}
           command:
-            - glance-manage
-            - db_sync
+            - bash
+            - /tmp/db-sync.sh
           volumeMounts:
+            - name: glance-bin
+              mountPath: /tmp/db-sync.sh
+              subPath: db-sync.sh
+              readOnly: true
+            - name: etcglance
+              mountPath: /etc/glance
             - name: glanceapiconf
               mountPath: /etc/glance/glance-api.conf
               subPath: glance-api.conf
+              readOnly: true
       volumes:
+        - name: etcglance
+          emptyDir: {}
         - name: glanceapiconf
           configMap:
             name: glance-etc
+        - name: glance-bin
+          configMap:
+            name: glance-bin

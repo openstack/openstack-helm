@@ -24,7 +24,7 @@ registry_host = glance-registry
 show_image_direct_url = True
 
 [database]
-connection = mysql+pymysql://{{ .Values.database.glance_user }}:{{ .Values.database.glance_password }}@{{ .Values.database.address }}/{{ .Values.database.glance_database_name }}
+connection = {{ tuple "oslo_db" "internal" "user" "mysql" . | include "helm-toolkit.authenticated_endpoint_uri_lookup" }}
 max_retries = -1
 
 [keystone_authtoken]

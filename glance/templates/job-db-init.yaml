@@ -43,16 +43,37 @@ spec:
               memory: {{ .Values.resources.jobs.init.requests.memory | quote }}
           {{- end }}
           env:
-          - name: ANSIBLE_LIBRARY
-            value: /usr/share/ansible/
+            - name: ROOT_DB_CONNECTION
+              valueFrom:
+                secretKeyRef:
+                  name: glance-db-root
+                  key: DB_CONNECTION
+            - name: OPENSTACK_CONFIG_FILE
+              value: /etc/glance/glance-api.conf
+            - name: OPENSTACK_CONFIG_DB_SECTION
+              value: database
+            - name: OPENSTACK_CONFIG_DB_KEY
+              value: connection
           command:
-            - bash
-            - /tmp/init.sh
+            - python
+            - /tmp/db-init.py
           volumeMounts:
-            - name: initsh
-              mountPath: /tmp/init.sh
-              subPath: init.sh
+            - name: glance-bin
+              mountPath: /tmp/db-init.py
+              subPath: db-init.py
+              readOnly: true
+            - name: etcglance
+              mountPath: /etc/glance
+            - name: glanceapiconf
+              mountPath: /etc/glance/glance-api.conf
+              subPath: glance-api.conf
+              readOnly: true
       volumes:
-        - name: initsh
+        - name: etcglance
+          emptyDir: {}
+        - name: glanceapiconf
+          configMap:
+            name: glance-etc
+        - name: glance-bin
           configMap:
             name: glance-bin
