@@ -50,11 +50,18 @@ Vagrant.configure("2") do |config|
     # Customize the number of vCPUs in the VM:
     vb.cpus = $vcpu_cores
 
-    # Set the size of the VM's root disk:
+    # Set the size of the VM's docker disk:
     unless File.exist?('.vagrant/machines/default/openstack-helm-storage.vdi')
       vb.customize ['createhd', '--filename', '.vagrant/machines/default/openstack-helm-storage', '--size', $docker_disk]
     end
     vb.customize ['storageattach', :id, '--storagectl', 'SCSI', '--port', 2, '--device', 0, '--type', 'hdd', '--medium', '.vagrant/machines/default/openstack-helm-storage.vdi']
+
+
+    # Set the size of the VM's PVC disk:
+    unless File.exist?('.vagrant/machines/default/openstack-helm-storage-kube-pvc.vdi')
+      vb.customize ['createhd', '--filename', '.vagrant/machines/default/openstack-helm-storage-kube-pvc', '--size', $pvc_disk]
+    end
+    vb.customize ['storageattach', :id, '--storagectl', 'SCSI', '--port', 3, '--device', 0, '--type', 'hdd', '--medium', '.vagrant/machines/default/openstack-helm-storage-kube-pvc.vdi']
 
   end
 
@@ -64,15 +71,27 @@ Vagrant.configure("2") do |config|
      mkfs.xfs /dev/disk/by-path/pci-0000\:00\:14.0-scsi-0\:0\:2\:0  -f -L docker-srg
      mkdir -p /var/lib/docker
      echo "LABEL=docker-srg /var/lib/docker xfs defaults 0 0" >> /etc/fstab
+
+     # Setup kubelet pvc storage
+     mkfs.xfs /dev/disk/by-path/pci-0000\:00\:14.0-scsi-0\:0\:3\:0  -f -L kube-srg
+     mkdir -p /var/lib/nfs-provisioner
+     echo "LABEL=kube-srg /var/lib/nfs-provisioner xfs defaults 0 0" >> /etc/fstab
+
+     # Mount Storage
      mount -a
 
+     # Install requirements
      apt-get update
      apt-get install -y \
         docker.io \
         nfs-common
+
+      # Setup kubelet lib as shared mount
       mkdir -p /var/lib/kublet
       mount --bind /var/lib/kublet /var/lib/kublet
       mount --make-shared /var/lib/kublet
+
+      # Run AIO container
       docker run \
         -dt \
         --name=kubeadm-aio \
