@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # Copyright 2017 The Openstack-Helm Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,18 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: cinder-bin
-data:
-  db-init.py: |
-{{- include "helm-toolkit.db_init" . | indent 4 }}
-  db-sync.sh: |
-{{ tuple "bin/_db-sync.sh.tpl" . | include "helm-toolkit.template" | indent 4 }}
-  ks-service.sh: |+
-{{- include "helm-toolkit.keystone_service" . | indent 4 }}
-  ks-endpoints.sh: |+
-{{- include "helm-toolkit.keystone_endpoints" . | indent 4 }}
-  ks-user.sh: |+
-{{- include "helm-toolkit.keystone_user" . | indent 4 }}
+set -ex
+
+glance-manage db sync
