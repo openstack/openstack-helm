@@ -26,13 +26,27 @@
 import os
 import sys
 import ConfigParser
+import logging
 from sqlalchemy import create_engine
+
+# Create logger, console handler and formatter
+logger = logging.getLogger('OpenStack-Helm DB Init')
+logger.setLevel(logging.DEBUG)
+ch = logging.StreamHandler()
+ch.setLevel(logging.DEBUG)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+# Set the formatter and add the handler
+ch.setFormatter(formatter)
+logger.addHandler(ch)
+
 
 # Get the connection string for the service db root user
 if "ROOT_DB_CONNECTION" in os.environ:
     db_connection = os.environ['ROOT_DB_CONNECTION']
+    logger.info('Got DB root connection')
 else:
-    print 'ROOT_DB_CONNECTION env var missing'
+    logger.critical('environment variable ROOT_DB_CONNECTION not set')
     sys.exit(1)
 
 # Get the connection string for the service db
@@ -42,28 +56,28 @@ if "OPENSTACK_CONFIG_FILE" in os.environ:
         if "OPENSTACK_CONFIG_DB_SECTION" in os.environ:
             os_conf_section = os.environ['OPENSTACK_CONFIG_DB_SECTION']
         else:
-            print 'Env var OPENSTACK_CONFIG_DB_SECTION not set'
+            logger.critical('environment variable OPENSTACK_CONFIG_DB_SECTION not set')
             sys.exit(1)
         if "OPENSTACK_CONFIG_DB_KEY" in os.environ:
             os_conf_key = os.environ['OPENSTACK_CONFIG_DB_KEY']
         else:
-            print 'Env var OPENSTACK_CONFIG_DB_KEY not set'
+            logger.critical('environment variable OPENSTACK_CONFIG_DB_KEY not set')
             sys.exit(1)
         config = ConfigParser.RawConfigParser()
-        print("Using {0} as db config source".format(os_conf))
+        logger.info("Using {0} as db config source".format(os_conf))
         config.read(os_conf)
-        print("Trying to load db config from {0}:{1}".format(
+        logger.info("Trying to load db config from {0}:{1}".format(
             os_conf_section, os_conf_key))
         user_db_conn = config.get(os_conf_section, os_conf_key)
-        print("Got config from {0}".format(os_conf))
+        logger.info("Got config from {0}".format(os_conf))
     except:
-        print("Tried to load config from {0} but failed.".format(os_conf))
+        logger.critical("Tried to load config from {0} but failed.".format(os_conf))
         sys.exit(1)
 elif "DB_CONNECTION" in os.environ:
     user_db_conn = os.environ['DB_CONNECTION']
-    print 'Got config from DB_CONNECTION env var'
+    logger.info('Got config from DB_CONNECTION env var')
 else:
-    print 'Could not get db config, either from config file or env var'
+    logger.critical('Could not get db config, either from config file or env var')
     sys.exit(1)
 
 # Root DB engine
@@ -78,8 +92,11 @@ try:
     root_engine = create_engine(root_engine_url)
     connection = root_engine.connect()
     connection.close()
+    logger.info("Tested connection to DB @ {0}:{1} as {2}".format(
+        host, port, root_user))
 except:
-    print 'Could not connect to database as root user'
+    logger.critical('Could not connect to database as root user')
+    raise
     sys.exit(1)
 
 # User DB engine
@@ -89,17 +106,19 @@ try:
     database = user_engine.url.database
     user = user_engine.url.username
     password = user_engine.url.password
-    print 'Got user db config'
+    logger.info('Got user db config')
 except:
-    print 'Could not get user database config'
+    logger.critical('Could not get user database config')
+    raise
     sys.exit(1)
 
 # Create DB
 try:
     root_engine.execute("CREATE DATABASE IF NOT EXISTS {0}".format(database))
-    print("Created database {0}".format(database))
+    logger.info("Created database {0}".format(database))
 except:
-    print("Could not create database {0}".format(database))
+    logger.critical("Could not create database {0}".format(database))
+    raise
     sys.exit(1)
 
 # Create DB User
@@ -107,17 +126,22 @@ try:
     root_engine.execute(
         "GRANT ALL ON `{0}`.* TO \'{1}\'@\'%%\' IDENTIFIED BY \'{2}\'".format(
             database, user, password))
-    print("Created user {0} for {1}".format(user, database))
+    logger.info("Created user {0} for {1}".format(user, database))
 except:
-    print("Could not create user {0} for {1}".format(user, database))
+    logger.critical("Could not create user {0} for {1}".format(user, database))
+    raise
     sys.exit(1)
 
 # Test connection
 try:
     connection = user_engine.connect()
     connection.close()
-    print 'Database connection for user ok'
+    logger.info("Tested connection to DB @ {0}:{1}/{2} as {3}".format(
+        host, port, database, user))
 except:
-    print 'Could not connect to database as user'
+    logger.critical('Could not connect to database as user')
+    raise
     sys.exit(1)
+
+logger.info('Finished DB Management')
 {{- end }}
