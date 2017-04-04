@@ -16,4 +16,4 @@
 
 set -ex
 
-glance-manage db sync
+cinder-manage db sync
