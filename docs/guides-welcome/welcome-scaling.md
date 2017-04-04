@@ -1,4 +1,4 @@
-## Scaling
+## Welcome: Scaling Philosophy
 
 Scaling is another first class citizen in openstack-helm.  We will be working to ensure that we support various deployment models that can support hyperscale, such as:
 

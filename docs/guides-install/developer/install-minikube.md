@@ -1,4 +1,4 @@
-# Development of Openstack-Helm
+# Openstack-Helm: Minikube Deployment
 
 Community development is extremely important to us. As an open source development team, we want the development of Openstack-Helm to be an easy experience. Please evaluate, and make recommendations. We want developers to feel welcome to contribute to this project. Below are some instructions and suggestions to help you get started.
 
