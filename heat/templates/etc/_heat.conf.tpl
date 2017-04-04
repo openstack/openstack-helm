@@ -40,7 +40,7 @@ backend = oslo_cache.memcache_pool
 memcache_servers = "{{ .Values.memcached.host }}:{{ .Values.memcached.port }}"
 
 [database]
-connection = mysql+pymysql://{{ .Values.database.heat_user }}:{{ .Values.database.heat_password }}@{{ .Values.database.address }}:{{ .Values.database.port }}/{{ .Values.database.heat_database_name }}
+connection = {{ tuple "oslo_db" "internal" "user" "mysql" . | include "helm-toolkit.authenticated_endpoint_uri_lookup" }}
 max_retries = -1
 
 [keystone_authtoken]

@@ -43,21 +43,25 @@ spec:
               cpu: {{ .Values.resources.heat_db_sync.limits.cpu | quote }}
           {{- end }}
           command:
-            - heat-manage
-          args:
-            - --config-dir
-            - /etc/heat/conf
-            - db_sync
+            - bash
+            - /tmp/db-sync.sh
           volumeMounts:
-            - name: pod-etc-heat
+            - name: heat-bin
+              mountPath: /tmp/db-sync.sh
+              subPath: db-sync.sh
+              readOnly: true
+            - name: etcheat
               mountPath: /etc/heat
-            - name: heatconf
-              mountPath: /etc/heat/conf/heat.conf
+            - name: heatapiconf
+              mountPath: /etc/heat/heat.conf
               subPath: heat.conf
               readOnly: true
       volumes:
-        - name: pod-etc-heat
+        - name: etcheat
           emptyDir: {}
-        - name: heatconf
+        - name: heatapiconf
           configMap:
             name: heat-etc
+        - name: heat-bin
+          configMap:
+            name: heat-bin
