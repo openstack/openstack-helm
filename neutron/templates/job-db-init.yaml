@@ -33,14 +33,38 @@ spec:
         - name: neutron-db-init
           image: {{ .Values.images.db_init }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
+          env:
+            - name: ROOT_DB_CONNECTION
+              valueFrom:
+                secretKeyRef:
+                  name: neutron-db-root
+                  key: DB_CONNECTION
+            - name: OPENSTACK_CONFIG_FILE
+              value: /etc/neutron/neutron.conf
+            - name: OPENSTACK_CONFIG_DB_SECTION
+              value: database
+            - name: OPENSTACK_CONFIG_DB_KEY
+              value: connection
           command:
-            - bash
-            - /tmp/init.sh
+            - python
+            - /tmp/db-init.py
           volumeMounts:
-            - name: initsh
-              mountPath: /tmp/init.sh
-              subPath: init.sh
+            - name: neutron-bin
+              mountPath: /tmp/db-init.py
+              subPath: db-init.py
+              readOnly: true
+            - name: etcneutron
+              mountPath: /etc/neutron
+            - name: neutronconf
+              mountPath: /etc/neutron/neutron.conf
+              subPath: neutron.conf
+              readOnly: true
       volumes:
-        - name: initsh
+        - name: etcneutron
+          emptyDir: {}
+        - name: neutronconf
+          configMap:
+            name: neutron-etc
+        - name: neutron-bin
           configMap:
             name: neutron-bin
