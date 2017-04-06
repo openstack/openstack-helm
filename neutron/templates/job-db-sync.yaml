@@ -33,14 +33,6 @@ spec:
         - name: neutron-db-sync
           image: {{ .Values.images.db_sync }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
-          command:
-            - neutron-db-manage
-            - --config-file
-            - /etc/neutron/neutron.conf
-            - --config-file
-            - /etc/neutron/plugins/ml2/ml2-conf.ini
-            - upgrade
-            - head
           {{- if .Values.resources.enabled }}
           resources:
             limits:
@@ -50,21 +42,30 @@ spec:
               cpu: {{ .Values.resources.jobs.db_sync.requests.cpu | quote }}
               memory: {{ .Values.resources.jobs.db_sync.requests.memory | quote }}
           {{- end }}
+          command:
+            - bash
+            - /tmp/db-sync.sh
           volumeMounts:
-            - name: pod-etc-neutron
+            - name: neutron-bin
+              mountPath: /tmp/db-sync.sh
+              subPath: db-sync.sh
+              readOnly: true
+            - name: etcneutron
               mountPath: /etc/neutron
             - name: neutronconf
               mountPath: /etc/neutron/neutron.conf
               subPath: neutron.conf
-            - name: ml2confini
+              readOnly: true
+            - name: neutronconf
               mountPath: /etc/neutron/plugins/ml2/ml2-conf.ini
               subPath: ml2-conf.ini
+              readOnly: true
       volumes:
-        - name: pod-etc-neutron
+        - name: etcneutron
           emptyDir: {}
         - name: neutronconf
           configMap:
             name: neutron-etc
-        - name: ml2confini
+        - name: neutron-bin
           configMap:
-            name: neutron-etc
+            name: neutron-bin

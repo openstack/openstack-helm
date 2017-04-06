@@ -43,22 +43,25 @@ spec:
               cpu: {{ .Values.resources.cinder_db_sync.limits.cpu | quote }}
           {{- end }}
           command:
-            - cinder-manage
-          args:
-            - --config-dir
-            - /etc/cinder/conf
-            - db
-            - sync
+            - bash
+            - /tmp/db-sync.sh
           volumeMounts:
-            - name: pod-etc-cinder
+            - name: cinder-bin
+              mountPath: /tmp/db-sync.sh
+              subPath: db-sync.sh
+              readOnly: true
+            - name: etccinder
               mountPath: /etc/cinder
-            - name: cinderconf
-              mountPath: /etc/cinder/conf/cinder.conf
+            - name: cinderapiconf
+              mountPath: /etc/cinder/cinder.conf
               subPath: cinder.conf
               readOnly: true
       volumes:
-        - name: pod-etc-cinder
+        - name: etccinder
           emptyDir: {}
-        - name: cinderconf
+        - name: cinderapiconf
           configMap:
             name: cinder-etc
+        - name: cinder-bin
+          configMap:
+            name: cinder-bin

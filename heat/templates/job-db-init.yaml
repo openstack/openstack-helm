@@ -43,17 +43,37 @@ spec:
               cpu: {{ .Values.resources.heat_db_init.limits.cpu | quote }}
           {{- end }}
           env:
-          - name: ANSIBLE_LIBRARY
-            value: /usr/share/ansible/
+            - name: ROOT_DB_CONNECTION
+              valueFrom:
+                secretKeyRef:
+                  name: heat-db-root
+                  key: DB_CONNECTION
+            - name: OPENSTACK_CONFIG_FILE
+              value: /etc/heat/heat.conf
+            - name: OPENSTACK_CONFIG_DB_SECTION
+              value: database
+            - name: OPENSTACK_CONFIG_DB_KEY
+              value: connection
           command:
-            - bash
-            - /tmp/db-init.sh
+            - python
+            - /tmp/db-init.py
           volumeMounts:
-            - name: dbinitsh
-              mountPath: /tmp/db-init.sh
-              subPath: db-init.sh
+            - name: heat-bin
+              mountPath: /tmp/db-init.py
+              subPath: db-init.py
+              readOnly: true
+            - name: etcheat
+              mountPath: /etc/heat
+            - name: heatapiconf
+              mountPath: /etc/heat/heat.conf
+              subPath: heat.conf
               readOnly: true
       volumes:
-        - name: dbinitsh
+        - name: etcheat
+          emptyDir: {}
+        - name: heatapiconf
+          configMap:
+            name: heat-etc
+        - name: heat-bin
           configMap:
             name: heat-bin
