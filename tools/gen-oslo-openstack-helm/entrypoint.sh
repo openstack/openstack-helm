@@ -19,3 +19,5 @@ source ${TOX_VENV_DIR}/bin/activate
 python /opt/gen-oslo-openstack-helm/generate.py ${GENCONFIG_FLAGS} \
     --helm_chart ${PROJECT} \
     --helm_namespace ${PROJECT}
+
+bash
