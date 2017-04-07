@@ -28,5 +28,6 @@ RUN set -x \
 
 COPY generate.py /opt/gen-oslo-openstack-helm/generate.py
 COPY entrypoint.sh /entrypoint.sh
+COPY oslo-config-generator /opt/gen-oslo-openstack-helm/oslo-config-generator
 
 ENTRYPOINT ["/entrypoint.sh"]
