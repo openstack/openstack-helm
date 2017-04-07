@@ -11,9 +11,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 {{- $envAll := . }}
 {{- $dependencies := .Values.dependencies.scheduler }}
+{{- $mounts_cinder_scheduler := .Values.mounts.cinder_scheduler.cinder_scheduler }}
+{{- $mounts_cinder_scheduler_init := .Values.mounts.cinder_scheduler.init_container }}
+
 apiVersion: apps/v1beta1
 kind: Deployment
 metadata:
@@ -36,7 +38,7 @@ spec:
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
         pod.beta.kubernetes.io/init-containers: '[
-{{ tuple $envAll $dependencies "[]" | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 10 }}
+{{ tuple $envAll $dependencies $mounts_cinder_scheduler_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 10 }}
         ]'
     spec:
       nodeSelector:
@@ -58,8 +60,6 @@ spec:
             - bash
             - /tmp/cinder-scheduler.sh
           volumeMounts:
-            - name: pod-etc-cinder
-              mountPath: /etc/cinder
             - name: pod-var-cache-cinder
               mountPath: /var/cache/cinder
             - name: cinder-bin
@@ -78,9 +78,8 @@ spec:
               mountPath: /etc/cinder/policy.json
               subPath: policy.json
               readOnly: true
+{{ if $mounts_cinder_scheduler.volumeMounts }}{{ toYaml $mounts_cinder_scheduler.volumeMounts | indent 12 }}{{ end }}
       volumes:
-        - name: pod-etc-cinder
-          emptyDir: {}
         - name: pod-var-cache-cinder
           emptyDir: {}
         - name: cinder-bin
@@ -89,3 +88,4 @@ spec:
         - name: cinder-etc
           configMap:
             name: cinder-etc
+{{ if $mounts_cinder_scheduler.volumes }}{{ toYaml $mounts_cinder_scheduler.volumes | indent 8 }}{{ end }}

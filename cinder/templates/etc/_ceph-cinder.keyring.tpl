@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-[client.{{ .Values.ceph.cinder_user }}]
-{{- if .Values.ceph.cinder_keyring }}
-    key = {{ .Values.ceph.cinder_keyring }}
+[client.{{ .Values.conf.backends.rbd1.rbd_user }}]
+{{- if .Values.conf.ceph.cinder_keyring }}
+    key = {{ .Values.conf.ceph.cinder_keyring }}
 {{- else }}
     key = {{- include "secrets/ceph-client-key" . -}}
 {{- end }}

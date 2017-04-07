@@ -11,9 +11,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 {{- $envAll := . }}
 {{- $dependencies := .Values.dependencies.volume }}
+{{- $mounts_cinder_volume := .Values.mounts.cinder_volume.cinder_volume }}
+{{- $mounts_cinder_volume_init := .Values.mounts.cinder_volume.init_container }}
+
 apiVersion: apps/v1beta1
 kind: Deployment
 metadata:
@@ -36,7 +38,7 @@ spec:
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
         pod.beta.kubernetes.io/init-containers: '[
-{{ tuple $envAll $dependencies "[]" | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 10 }}
+{{ tuple $envAll $dependencies $mounts_cinder_volume_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 10 }}
         ]'
     spec:
       nodeSelector:
@@ -58,8 +60,6 @@ spec:
             - bash
             - /tmp/cinder-volume.sh
           volumeMounts:
-            - name: pod-etc-cinder
-              mountPath: /etc/cinder
             - name: pod-var-cache-cinder
               mountPath: /var/cache/cinder
             - name: cinder-bin
@@ -71,16 +71,20 @@ spec:
               subPath: cinder.conf
               readOnly: true
             - name: cinder-etc
+              mountPath: /etc/cinder/conf/backends.conf
+              subPath: backends.conf
+              readOnly: true
+            {{- if include "cinder.is_ceph_configured" . }}
+            - name: cinder-etc
               mountPath: /etc/ceph/ceph.conf
               subPath: ceph.conf
               readOnly: true
-            - name: cinder-etc
-              mountPath: /etc/ceph/ceph.client.{{ .Values.ceph.cinder_user }}.keyring
-              subPath: ceph.client.{{ .Values.ceph.cinder_user }}.keyring
+              mountPath: /etc/ceph/ceph.client.{{ .Values.conf.backends.rbd1.rbd_user }}.keyring
+              subPath: ceph.client.{{ .Values.conf.backends.rbd1.rbd_user }}.keyring
               readOnly: true
+            {{- end }}
+{{ if $mounts_cinder_volume.volumeMounts }}{{ toYaml $mounts_cinder_volume.volumeMounts | indent 12 }}{{ end }}
       volumes:
-        - name: pod-etc-cinder
-          emptyDir: {}
         - name: pod-var-cache-cinder
           emptyDir: {}
         - name: cinder-bin
@@ -89,3 +93,4 @@ spec:
         - name: cinder-etc
           configMap:
             name: cinder-etc
+{{ if $mounts_cinder_volume.volumes }}{{ toYaml $mounts_cinder_volume.volumes | indent 8 }}{{ end }}

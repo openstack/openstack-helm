@@ -12,20 +12,102 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+{{- include "cinder.conf.cinder_values_skeleton" .Values.conf.cinder | trunc 0 -}}
+
+{{- if empty .Values.conf.cinder.keystone_authtoken.keystonemiddleware.auth_token.auth_uri -}}
+{{- tuple "identity" "internal" "api" . | include "helm-toolkit.keystone_endpoint_uri_lookup"| set .Values.conf.cinder.keystone_authtoken.keystonemiddleware.auth_token "auth_uri" | quote | trunc 0 -}}
+{{- end -}}
+
+# FIXME(alanmeadows) fix for broken keystonemiddleware oslo config gen in newton - will remove in future
+{{- if empty .Values.conf.cinder.keystone_authtoken.keystonemiddleware.auth_token.auth_url -}}
+{{- tuple "identity" "internal" "api" . | include "helm-toolkit.keystone_endpoint_uri_lookup"| set .Values.conf.cinder.keystone_authtoken.keystonemiddleware.auth_token "auth_url" | quote | trunc 0 -}}
+{{- end -}}
+
+{{- if empty .Values.conf.cinder.keystone_authtoken.keystonemiddleware.auth_token.memcached_servers -}}
+{{- tuple "oslo_cache" "internal" "memcache" . | include "helm-toolkit.hostname_endpoint_uri_lookup" | set .Values.conf.cinder.keystone_authtoken.keystonemiddleware.auth_token "memcached_servers" | quote | trunc 0 -}}
+{{- end -}}
+
+{{- if empty .Values.conf.cinder.database.oslo.db.connection -}}
+{{- tuple "oslo_db" "internal" "user" "mysql" . | include "helm-toolkit.authenticated_endpoint_uri_lookup"| set .Values.conf.cinder.database.oslo.db "connection" | quote | trunc 0 -}}
+{{- end -}}
+
+{{- if empty .Values.conf.cinder.default.oslo.messaging.transport_url -}}
+{{- tuple "oslo_messaging" "internal" "user" "amqp" . | include "helm-toolkit.authenticated_endpoint_uri_lookup" | set .Values.conf.cinder.default.oslo.messaging "transport_url" | quote | trunc 0 -}}
+{{- end -}}
+
+{{- if empty .Values.conf.cinder.default.cinder.glance_api_servers -}}
+{{- tuple "image" "internal" "api" . | include "helm-toolkit.keystone_endpoint_uri_lookup"| set .Values.conf.cinder.default.cinder "glance_api_servers" | quote | trunc 0 -}}
+{{- end -}}
+
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: cinder-etc
 data:
   cinder.conf: |+
+{{ if .Values.conf.cinder.override -}}
+{{ .Values.conf.cinder.override | indent 4 }}
+{{- else -}}
+{{- if .Values.conf.cinder.prefix -}}
+{{ .Values.conf.cinder.prefix | indent 4 }}
+{{- end }}
 {{ tuple "etc/_cinder.conf.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
+{{- end }}
+{{- if .Values.conf.cinder.append -}}
+{{ .Values.conf.cinder.append | indent 4 }}
+{{- end }}
+  backends.conf: |+
+{{ if .Values.conf.backends.override -}}
+{{ .Values.conf.backends.override | indent 4 }}
+{{- else -}}
+{{- if .Values.conf.backends.prefix -}}
+{{ .Values.conf.backends.prefix | indent 4 }}
+{{- end }}
+{{ include "helm-toolkit.utils.to_ini" .Values.conf.backends | indent 4 }}
+{{- end }}
+{{- if .Values.conf.backends.append -}}
+{{ .Values.conf.backends.append | indent 4 }}
+{{- end }}
   rootwrap.conf: |+
+{{ if .Values.conf.rootwrap.override -}}
+{{ .Values.conf.rootwrap.override | indent 4 }}
+{{- else -}}
+{{- if .Values.conf.rootwrap.prefix -}}
+{{ .Values.conf.rootwrap.prefix | indent 4 }}
+{{- end }}
 {{ tuple "etc/_rootwrap.conf.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
+{{- end }}
+{{- if .Values.conf.rootwrap.append -}}
+{{ .Values.conf.rootwrap.append | indent 4 }}
+{{- end }}
   api-paste.ini: |+
-{{ tuple "etc/_cinder-api-paste.ini.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
+{{ if .Values.conf.paste.override -}}
+{{ .Values.conf.paste.override | indent 4 }}
+{{- else -}}
+{{- if .Values.conf.paste.prefix -}}
+{{ .Values.conf.paste.prefix | indent 4 }}
+{{- end }}
+{{ tuple "etc/_api-paste.ini.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
+{{- end }}
+{{- if .Values.conf.paste.append -}}
+{{ .Values.conf.paste.append | indent 4 }}
+{{- end }}
   policy.json: |+
+{{ if .Values.conf.policy.override -}}
+{{ .Values.conf.policy.override | indent 4 }}
+{{- else -}}
 {{ tuple "etc/_policy.json.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
+{{- end }}
+{{- if include "cinder.is_ceph_configured" . -}}
   ceph.conf: |+
+{{ if .Values.conf.ceph.override -}}
+{{ .Values.conf.ceph.override | indent 4 }}
+{{- else -}}
+{{- end }}
 {{ tuple "etc/_ceph.conf.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
-  ceph.client.{{ .Values.ceph.cinder_user }}.keyring: |+
+{{- if .Values.conf.ceph.append -}}
+{{ .Values.conf.ceph.append | indent 4 }}
+{{- end }}
+  ceph.client.{{ .Values.conf.backends.rbd1.rbd_user }}.keyring: |+
 {{ tuple "etc/_ceph-cinder.keyring.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
+{{- end }}

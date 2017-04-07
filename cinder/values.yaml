@@ -56,54 +56,82 @@ keystone:
   admin_project_name: "admin"
   admin_project_domain: "default"
   admin_region_name: "RegionOne"
-
-  cinder_user: "cinder"
-  cinder_user_domain: "default"
   cinder_user_role: "admin"
-  cinder_password: "password"
-  cinder_project_name: "service"
-  cinder_project_domain: "default"
-  cinder_region_name: "RegionOne"
 
 network:
   api:
     name: "cinder-api"
-    port: 8776
     node_port:
       enabled: false
       port: 30877
 
-ceph:
-  enabled: true
-  monitors: []
-  cinder_user: "admin"
-  # a null value for the keyring will
-  # attempt to use the key from
-  # common/secrets/ceph-client-key
-  cinder_keyring: null
 
-backends:
-  enabled:
-  - rbd1
-  rbd1:
-    secret: null
-    user: "admin"
-    pool: "volumes"
-
-glance:
-  version: 2
-
-messaging:
-  hosts: rabbitmq
-  user: rabbitmq
-  password: password
-
-
-api:
-  workers: 8
-
-misc:
-  debug: false
+conf:
+  paste:
+    override:
+    append:
+  policy:
+    override:
+    append:
+  rootwrap:
+    override:
+    append:
+  ceph:
+    override:
+    append:
+    monitors: []
+    cinder_keyring: null
+  cinder:
+    override:
+    append:
+    database:
+      oslo:
+        db:
+          max_retries: -1
+    default:
+      oslo:
+        log:
+          debug: false
+          use_syslog: false
+          use_stderr: true
+      cinder:
+        enable_v1_api: false
+        volume_name_template: "%s"
+        osapi_volume_workers: 8
+        glance_api_version: 2
+        os_region_name: RegionOne
+        host: cinder-volume-worker
+        osapi_volume_listen_port: 8776
+        enabled_backends: "rbd1"
+    keystone_authtoken:
+      keystonemiddleware:
+        auth_token:
+          auth_version: v3
+          auth_type: password
+          region_name: RegionOne
+          project_domain_name: default
+          project_name: service
+          user_domain_name: default
+          username: cinder
+          password: password
+    oslo_concurrency:
+      oslo:
+        concurrency:
+          lock_path: "/var/lib/cinder/tmp"
+  backends:
+    override:
+    append:
+    # Those options will be written to backends.conf as-is.
+    rbd1:
+      volume_driver: cinder.volume.drivers.rbd.RBDDriver
+      volume_backend_name: rbd1
+      rbd_pool: volumes
+      rbd_ceph_conf: "/etc/ceph/ceph.conf"
+      rbd_flatten_volume_from_snapshot: false
+      rbd_max_clone_depth: 5
+      rbd_store_chunk_size: 4
+      rados_connect_timeout: -1
+      rbd_user: "admin"
 
 dependencies:
   db_init:
@@ -210,6 +238,25 @@ endpoints:
     scheme: mysql+pymysql
     port:
       mysql: 3306
+  oslo_messaging:
+    auth:
+      admin:
+        username: admin
+        password: password
+      user:
+        username: rabbitmq
+        password: password
+    hosts:
+      default: rabbitmq
+    path: /
+    scheme: rabbit
+    port:
+      amqp: 5672
+  oslo_cache:
+    hosts:
+      default: memcache
+    port:
+      memcache: 11211
 
 resources:
   enabled: false
@@ -269,3 +316,14 @@ resources:
     limits:
       memory: "1024Mi"
       cpu: "2000m"
+
+mounts:
+  cinder_api:
+    init_container: null
+    cinder_api:
+  cinder_scheduler:
+    init_container: null
+    cinder_scheduler:
+  cinder_volume:
+    init_container: null
+    cinder_volume:
