@@ -55,65 +55,106 @@ keystone:
   admin_project_domain: "default"
   admin_region_name: "RegionOne"
 
-  heat_user: "heat"
-  heat_user_domain: "default"
   heat_user_role: "admin"
-  heat_password: "password"
-  heat_project_name: "service"
-  heat_project_domain: "default"
-  heat_region_name: "RegionOne"
 
-  heat_trustee_user: "heat-trust"
-  heat_trustee_user_domain: "default"
   heat_trustee_role: "admin"
-  heat_trustee_password: "password"
-  heat_trustee_project_name: "service"
-  heat_trustee_project_domain: "default"
   heat_trustee_region_name: "RegionOne"
 
-  heat_stack_user: "heat-domain"
-  heat_stack_domain: "heat"
   heat_stack_user_role: "admin"
-  heat_stack_password: "password"
   heat_stack_region_name: "RegionOne"
+
+
+conf:
+  paste:
+    override:
+    append:
+  policy:
+    override:
+    append:
+  heat:
+    override:
+    append:
+    default:
+      heat:
+        common:
+          config:
+            stack_user_domain_name: heat
+            stack_domain_admin: heat-domain
+            stack_domain_admin_password: password
+            num_engine_workers: 4
+            trusts_delegated_roles: Member
+    keystone_authtoken:
+      keystonemiddleware:
+        auth_token:
+          auth_type: password
+          auth_version: v3
+          region_name: RegionOne
+          project_domain_name: default
+          project_name: service
+          user_domain_name: default
+          username: heat
+          password: password
+    trustee:
+      heat:
+        common:
+          context:
+            password: password
+            user_domain_name: default
+            username: heat-trust
+            project_domain_name: default
+            project_name: service
+    heat_api:
+      heat:
+        common:
+          wsgi:
+            bind_port: 8004
+            workers: 4
+    heat_api_cloudwatch:
+      heat:
+        common:
+          wsgi:
+            bind_port: 8003
+            workers: 4
+    heat_api_cfn:
+      heat:
+        common:
+          wsgi:
+            bind_port: 8000
+            workers: 4
+    paste_deploy:
+      heat.common:
+        config:
+          api_paste_config: /etc/heat/api-paste.ini
+    clients:
+      heat:
+        common:
+          config:
+            endpoint_type: internalURL
+    clients_keystone:
+      heat:
+        common:
+          config:
+            endpoint_type: internalURL
 
 network:
   api:
     name: "heat-api"
-    port: 8004
     proto: "http"
     node_port:
       enabled: false
       port: 30004
   cfn:
     name: "heat-cfn"
-    port: 8000
     proto: "http"
     node_port:
       enabled: false
       port: 30800
   cloudwatch:
     name: "heat-cloudwatch"
-    port: 8003
     proto: "http"
     node_port:
       enabled: false
       port: 30003
-
-messaging:
-  hosts: rabbitmq
-  user: rabbitmq
-  password: password
-
-memcached:
-  host: memcached
-  port: 11211
-
-misc:
-  debug: true
-
-secrets:
-  keystone_admin:
 
 dependencies:
   db_init:
@@ -223,6 +264,25 @@ endpoints:
     scheme: mysql+pymysql
     port:
       mysql: 3306
+  oslo_cache:
+    hosts:
+      default: memcache
+    port:
+      memcache: 11211
+  oslo_messaging:
+    auth:
+      admin:
+        username: admin
+        password: password
+      user:
+        username: rabbitmq
+        password: password
+    hosts:
+      default: rabbitmq
+    path: /
+    scheme: rabbit
+    port:
+      amqp: 5672
 
 resources:
   enabled: false
@@ -289,11 +349,3 @@ resources:
     limits:
       memory: "1024Mi"
       cpu: "2000m"
-  api:
-    workers: 8
-  cfn:
-    workers: 8
-  cloudwatch:
-    workers: 8
-  engine:
-    workers: 8
