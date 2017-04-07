@@ -23,7 +23,8 @@ RUN set -x \
     && rm get-pip.py \
     && pip install \
         oslo.config \
-        tox
+        tox \
+        crudini
 
 COPY generate.py /opt/gen-oslo-openstack-helm/generate.py
 COPY entrypoint.sh /entrypoint.sh
