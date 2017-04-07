@@ -34,6 +34,7 @@ images:
   ks_service: docker.io/kolla/ubuntu-source-kolla-toolbox:3.0.3
   ks_endpoints: docker.io/kolla/ubuntu-source-kolla-toolbox:3.0.3
   api: docker.io/kolla/ubuntu-source-cinder-api:3.0.3
+  bootstrap: docker.io/kolla/ubuntu-source-cinder-api:3.0.3
   scheduler: docker.io/kolla/ubuntu-source-cinder-scheduler:3.0.3
   volume: docker.io/kolla/ubuntu-source-cinder-volume:3.0.3
   backup: docker.io/kolla/ubuntu-source-cinder-backup:3.0.3
@@ -55,6 +56,14 @@ termination_grace_period:
   api:
     timeout: 30
 
+bootstrap:
+  enabled: true
+  bootstrap_conf_backends: true
+  volume_types:
+    name:
+      group:
+      volume_backend_name:
+
 keystone:
   admin_user: "admin"
   admin_user_domain: "default"
@@ -70,7 +79,6 @@ network:
     node_port:
       enabled: false
       port: 30877
-
 
 conf:
   paste:
@@ -171,6 +179,10 @@ dependencies:
     service:
     - mariadb
     - keystone-api
+  bootstrap:
+    service:
+    - keystone-api
+    - cinder-api
   volume:
     jobs:
     - cinder-db-sync
@@ -279,6 +291,13 @@ endpoints:
 resources:
   enabled: false
   cinder_api:
+    requests:
+      memory: "124Mi"
+      cpu: "100m"
+    limits:
+      memory: "1024Mi"
+      cpu: "2000m"
+  cinder_bootstrap:
     requests:
       memory: "124Mi"
       cpu: "100m"
