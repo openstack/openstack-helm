@@ -95,10 +95,6 @@
 
 [DEFAULT]
 
-#
-# From neutron
-#
-
 # Where to store Neutron state files. This directory must be writable by the
 # agent. (string value)
 # from .default.neutron.state_path
@@ -1054,7 +1050,6 @@
 # raised. Set to -1 to specify an infinite retry count. (integer value)
 # from .database.oslo.db.db_max_retries
 {{ if not .database.oslo.db.db_max_retries }}#{{ end }}db_max_retries = {{ .database.oslo.db.db_max_retries | default "20" }}
-
 
 [keystone_authtoken]
 

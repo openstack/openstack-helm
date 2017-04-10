@@ -14,12 +14,15 @@
 
 {{- $envAll := . }}
 {{- $dependencies := .Values.dependencies.consoleauth }}
+{{- $mounts_nova_consoleauth := .Values.mounts.nova_consoleauth.nova_conductor }}
+{{- $mounts_nova_consoleauth_init := .Values.mounts.nova_consoleauth.init_container }}
+
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
   name: nova-consoleauth
 spec:
-  replicas: {{ .Values.control_replicas }}
+  replicas: {{ .Values.replicas.consoleauth }}
   revisionHistoryLimit: {{ .Values.upgrades.revision_history }}
   strategy:
     type: {{ .Values.upgrades.pod_replacement_strategy }}
@@ -36,11 +39,11 @@ spec:
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.hash" }}
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.hash" }}
         pod.beta.kubernetes.io/init-containers: '[
-{{ tuple $envAll $dependencies "[]" | include "helm-toolkit.kubernetes_entrypoint_init_container" | indent 10 }}
+{{ tuple $envAll $dependencies $mounts_nova_consoleauth_init | include "helm-toolkit.kubernetes_entrypoint_init_container" | indent 10 }}
         ]'
     spec:
       nodeSelector:
-        {{ .Values.labels.control_node_selector_key }}: {{ .Values.labels.control_node_selector_value }}
+        {{ .Values.labels.consoleauth.node_selector_key }}: {{ .Values.labels.consoleauth.node_selector_value }}
       containers:
         - name: nova-consoleauth
           image: {{ .Values.images.consoleauth }}
@@ -59,13 +62,12 @@ spec:
             - --config-file
             - /etc/nova/nova.conf
           volumeMounts:
-            - name: novaconf
+            - name: nova-etc
               mountPath: /etc/nova/nova.conf
               subPath: nova.conf
+{{ if $mounts_nova_consoleauth.volumeMounts }}{{ toYaml $mounts_nova_consoleauth.volumeMounts | indent 12 }}{{ end }}            
       volumes:
-        - name: novaconf
+        - name: nova-etc
           configMap:
             name: nova-etc
-            items:
-            - key: nova.conf
-              path: nova.conf
+{{ if $mounts_nova_consoleauth.volumes }}{{ toYaml $mounts_nova_consoleauth.volumes | indent 8 }}{{ end }}     

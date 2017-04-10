@@ -1,4 +1,4 @@
-## Resiliency
+## Welcome: Resiliency Philosophy
 
 One of the goals of this project is to produce a set of charts that can be used in a production setting to deploy and upgrade OpenStack.  To achieve this goal, all components must be resilient, including both OpenStack and Infrastructure components leveraged by this project.  In addition, this also includes Kubernetes itself.  It is part of our mission to ensure that all infrastructure components are highly available and that a deployment can withstand a physical host failure out of the box. This means that:
 

@@ -14,12 +14,14 @@
 
 {{- $envAll := . }}
 {{- $dependencies := .Values.dependencies.api }}
+{{- $mounts_nova_api_metadata := .Values.mounts.nova_api_metadata.nova_api_metadata }}
+{{- $mounts_nova_api_metadata_init := .Values.mounts.nova_api_metadata.init_container }}
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
   name: nova-api-metadata
 spec:
-  replicas: {{ .Values.control_replicas }}
+  replicas: {{ .Values.replicas.api_metadata }}
   revisionHistoryLimit: {{ .Values.upgrades.revision_history }}
   strategy:
     type: {{ .Values.upgrades.pod_replacement_strategy }}
@@ -36,11 +38,11 @@ spec:
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.hash" }}
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.hash" }}        
         pod.beta.kubernetes.io/init-containers: '[
-{{ tuple $envAll $dependencies "[]" | include "helm-toolkit.kubernetes_entrypoint_init_container" | indent 10 }}
+{{ tuple $envAll $dependencies $mounts_nova_api_metadata_init | include "helm-toolkit.kubernetes_entrypoint_init_container" | indent 10 }}
         ]'
     spec:
       nodeSelector:
-        {{ .Values.labels.control_node_selector_key }}: {{ .Values.labels.control_node_selector_value }}
+        {{ .Values.labels.api_metadata.node_selector_key }}: {{ .Values.labels.api_metadata.node_selector_value }}
       containers:
         - name: nova-api
           image: {{ .Values.images.api }}
@@ -63,18 +65,17 @@ spec:
             - nova-api-metadata
             - --config-file=/etc/nova/nova.conf
           ports:
-            - containerPort: {{ .Values.network.port.metadata }}
+            - containerPort: {{ .Values.network.metadata.port }}
           readinessProbe:
             tcpSocket:
-              port: {{ .Values.network.port.metadata }}
+              port: {{ .Values.network.metadata.port }}
           volumeMounts:
-            - name: novaconf
+            - name: nova-etc
               mountPath: /etc/nova/nova.conf
               subPath: nova.conf
+{{ if $mounts_nova_api_metadata.volumeMounts }}{{ toYaml $mounts_nova_api_metadata.volumeMounts | indent 12 }}{{ end }}
       volumes:
-        - name: novaconf
+        - name: nova-etc
           configMap:
-            name: nova-etc
-            items:
-            - key: nova.conf
-              path: nova.conf
+            name: nova-etc        
+{{ if $mounts_nova_api_metadata.volumes }}{{ toYaml $mounts_nova_api_metadata.volumes | indent 8 }}{{ end }}

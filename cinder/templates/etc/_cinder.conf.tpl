@@ -22,7 +22,7 @@ volume_name_template = %s
 
 osapi_volume_workers = {{ .Values.api.workers }}
 osapi_volume_listen = 0.0.0.0
-osapi_volume_listen_port = {{ .Values.network.port.api }}
+osapi_volume_listen_port = {{ .Values.network.api.port }}
 
 api_paste_config = /etc/cinder/api-paste.ini
 
@@ -40,7 +40,7 @@ os_region_name = {{ .Values.keystone.cinder_region_name }}
 host=cinder-volume-worker
 
 [database]
-connection = mysql+pymysql://{{ .Values.database.cinder_user }}:{{ .Values.database.cinder_password }}@{{ .Values.database.address }}:{{ .Values.database.port }}/{{ .Values.database.cinder_database_name }}
+connection = {{ tuple "oslo_db" "internal" "user" "mysql" . | include "helm-toolkit.authenticated_endpoint_uri_lookup" }}
 max_retries = -1
 
 [keystone_authtoken]

@@ -24,7 +24,7 @@ labels:
   node_selector_value: enabled
 
 images:
-  db_init: quay.io/stackanetes/stackanetes-kolla-toolbox:newton
+  db_init: quay.io/stackanetes/stackanetes-keystone-api:newton
   db_sync: quay.io/stackanetes/stackanetes-keystone-api:newton
   api: quay.io/stackanetes/stackanetes-keystone-api:newton
   dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.1.1
@@ -46,9 +46,18 @@ keystone:
   admin_project_name: admin
 
 network:
-  port:
-    admin: 35357
-    api: 5000
+  api:
+    name: "keystone-api"
+    port: 5000
+    node_port:
+      enabled: false
+      port: 30500
+  admin:
+    name: "keystone-admin"
+    port: 35357
+    node_port:
+      enabled: false
+      port: 30357
 
 dependencies:
   api:
@@ -97,15 +106,27 @@ resources:
 mounts:
   keystone_db_init:
     init_container: null
-    keystone_db_init:     
+    keystone_db_init:
       volumes:
+      - name: empty
+        emptyDir: {}
+      - name: keystone-etc
+        configMap:
+          name: keystone-etc
       - name: keystone-bin
         configMap:
-          name: keystone-bin      
+          name: keystone-bin
       volumeMounts:
+      - name: empty
+        mountPath: /etc/keystone
+      - name: keystone-etc
+        mountPath: /etc/keystone/keystone.conf
+        subPath: keystone.conf
+        readOnly: true
       - name: keystone-bin
-        mountPath: /tmp/init.sh
-        subPath: init.sh
+        mountPath: /tmp/db-init.py
+        subPath: db-init.py
+        readOnly: true
   keystone_db_sync:
     init_container: null
     keystone_db_sync:
@@ -117,7 +138,7 @@ mounts:
           name: keystone-etc
       - name: keystone-bin
         configMap:
-          name: keystone-bin      
+          name: keystone-bin
       volumeMounts:
       - name: empty
         mountPath: /etc/keystone
@@ -128,7 +149,7 @@ mounts:
       - name: keystone-bin
         mountPath: /tmp/db-sync.sh
         subPath: db-sync.sh
-        readOnly: true  
+        readOnly: true
   keystone_api:
     init_container: null
     keystone_api:
@@ -140,7 +161,7 @@ mounts:
           name: keystone-etc
       - name: keystone-bin
         configMap:
-          name: keystone-bin     
+          name: keystone-bin
       volumeMounts:
       - name: empty
         mountPath: /etc/keystone
@@ -171,7 +192,7 @@ mounts:
       - name: keystone-bin
         mountPath: /tmp/start.sh
         subPath: start.sh
-        readOnly: true      
+        readOnly: true
 
 conf:
   paste:
@@ -183,7 +204,7 @@ conf:
   keystone:
     override:
     append:
-    token: 
+    token:
       keystone:
         provider: uuid
     database:
@@ -231,7 +252,7 @@ endpoints:
     path: /openstack
     scheme: rabbit
     port:
-      amqp: 5672  
+      amqp: 5672
   oslo_cache:
     hosts:
       default: memcache

@@ -32,10 +32,13 @@ main() {
         log-it "Node is unhealthy"
         return 1
     fi
+
+    {{ if gt (.Values.replicas | int) 1 -}}
     if ! is-node-properly-clustered; then
         log-it "Node is inconsistent with the rest of the cluster"
         return 1
     fi
+    {{- end }}
     return 0
 }
 

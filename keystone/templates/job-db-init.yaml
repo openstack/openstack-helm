@@ -36,7 +36,7 @@ spec:
         - name: keystone-db-init
           image: {{ .Values.images.db_init }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
-          {{- if .Values.resources.enabled }}  
+          {{- if .Values.resources.enabled }}
           resources:
             limits:
               cpu: {{ .Values.resources.jobs.init.limits.cpu | quote }}
@@ -45,11 +45,22 @@ spec:
               cpu: {{ .Values.resources.jobs.init.requests.cpu | quote }}
               memory: {{ .Values.resources.jobs.init.requests.memory | quote }}
           {{- end }}
+          env:
+            - name: ROOT_DB_CONNECTION
+              valueFrom:
+                secretKeyRef:
+                  name: keystone-db-root
+                  key: DB_CONNECTION
+            - name: OPENSTACK_CONFIG_FILE
+              value: /etc/keystone/keystone.conf
+            - name: OPENSTACK_CONFIG_DB_SECTION
+              value: database
+            - name: OPENSTACK_CONFIG_DB_KEY
+              value: connection
           command:
-            - bash
-            - /tmp/init.sh
-          volumeMounts:            
+            - python
+            - /tmp/db-init.py
+          volumeMounts:
 {{ toYaml $mounts_keystone_db_init.volumeMounts | indent 12 }}
       volumes:
 {{ toYaml $mounts_keystone_db_init.volumes | indent 8 }}
-

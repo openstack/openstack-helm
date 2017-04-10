@@ -1,0 +1,21 @@
+# Openstack-Helm: Operations Guides
+- [Helm Operations](ops-helm/readme.md) - Helm Operator Guides
+  - [Openstack-Helm Operations](ops-helm/osh-operations.md)
+  - [Addons and Plugins](ops-helm/osh-addons.md)
+- [Kubernetes Operations](ops-kubernetes/readme.md)
+  - [Init-Containers](ops-kubernetes/kb-init-containers.md)
+  - [Jobs](ops-kubernetes/kb-jobs.md)
+- [Openstack Operations](ops-openstack/readme.md)
+  - [Config Generation](ops-openstack/os-config/os-config-gen.md) - Openstack-Helm Configuration Management
+- [Networking Guides](ops-network/readme.md) - Network Operations
+  - [Ingress](ops-network/net-ingress.md)
+  - [Nodeports](ops-network/net-nodeport.md)
+- [Security Guides](readme.md) - Security Operations
+  - [Using Namespaces](ops-security/sec-namespaces.md)
+  - [SELinux and SECCOMP](ops-security/sec-appsec.md)
+  - [Role-Based Access Control](ops-security/sec-rbac.md)
+- [Troubleshooting Guides](troubleshooting/readme.md)
+  - [Database Issues](troubleshooting/ts-database.md)
+  - [Development Issues](troubleshooting/ts-development.md)
+  - [Networking Issues](troubleshooting/ts-networking.md)
+  - [Storage Issues](troubleshooting/ts-persistent-storage.md)

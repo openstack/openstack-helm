@@ -1,0 +1,81 @@
+############
+# Metadata #
+############
+[composite:metadata]
+use = egg:Paste#urlmap
+/: meta
+
+[pipeline:meta]
+pipeline = cors metaapp
+
+[app:metaapp]
+paste.app_factory = nova.api.metadata.handler:MetadataRequestHandler.factory
+
+#############
+# OpenStack #
+#############
+
+[composite:osapi_compute]
+use = call:nova.api.openstack.urlmap:urlmap_factory
+/: oscomputeversions
+# v21 is an exactly feature match for v2, except it has more stringent
+# input validation on the wsgi surface (prevents fuzzing early on the
+# API). It also provides new features via API microversions which are
+# opt into for clients. Unaware clients will receive the same frozen
+# v2 API feature set, but with some relaxed validation
+/v2: openstack_compute_api_v21_legacy_v2_compatible
+/v2.1: openstack_compute_api_v21
+
+[composite:openstack_compute_api_v21]
+use = call:nova.api.auth:pipeline_factory_v21
+noauth2 = cors http_proxy_to_wsgi compute_req_id faultwrap sizelimit noauth2 osapi_compute_app_v21
+keystone = cors http_proxy_to_wsgi compute_req_id faultwrap sizelimit authtoken keystonecontext osapi_compute_app_v21
+
+[composite:openstack_compute_api_v21_legacy_v2_compatible]
+use = call:nova.api.auth:pipeline_factory_v21
+noauth2 = cors http_proxy_to_wsgi compute_req_id faultwrap sizelimit noauth2 legacy_v2_compatible osapi_compute_app_v21
+keystone = cors http_proxy_to_wsgi compute_req_id faultwrap sizelimit authtoken keystonecontext legacy_v2_compatible osapi_compute_app_v21
+
+[filter:request_id]
+paste.filter_factory = oslo_middleware:RequestId.factory
+
+[filter:compute_req_id]
+paste.filter_factory = nova.api.compute_req_id:ComputeReqIdMiddleware.factory
+
+[filter:faultwrap]
+paste.filter_factory = nova.api.openstack:FaultWrapper.factory
+
+[filter:noauth2]
+paste.filter_factory = nova.api.openstack.auth:NoAuthMiddleware.factory
+
+[filter:sizelimit]
+paste.filter_factory = oslo_middleware:RequestBodySizeLimiter.factory
+
+[filter:http_proxy_to_wsgi]
+paste.filter_factory = oslo_middleware.http_proxy_to_wsgi:HTTPProxyToWSGI.factory
+
+[filter:legacy_v2_compatible]
+paste.filter_factory = nova.api.openstack:LegacyV2CompatibleWrapper.factory
+
+[app:osapi_compute_app_v21]
+paste.app_factory = nova.api.openstack.compute:APIRouterV21.factory
+
+[pipeline:oscomputeversions]
+pipeline = faultwrap http_proxy_to_wsgi oscomputeversionapp
+
+[app:oscomputeversionapp]
+paste.app_factory = nova.api.openstack.compute.versions:Versions.factory
+
+##########
+# Shared #
+##########
+
+[filter:cors]
+paste.filter_factory = oslo_middleware.cors:filter_factory
+oslo_config_project = nova
+
+[filter:keystonecontext]
+paste.filter_factory = nova.api.auth:NovaKeystoneContext.factory
+
+[filter:authtoken]
+paste.filter_factory = keystonemiddleware.auth_token:filter_factory

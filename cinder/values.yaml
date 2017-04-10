@@ -27,15 +27,15 @@ labels:
   node_selector_value: enabled
 
 images:
-  dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.1.1
+  db_init: quay.io/stackanetes/stackanetes-cinder-api:newton
+  db_sync: quay.io/stackanetes/stackanetes-cinder-api:newton
   ks_user: quay.io/stackanetes/stackanetes-kolla-toolbox:newton
   ks_service: quay.io/stackanetes/stackanetes-kolla-toolbox:newton
   ks_endpoints: quay.io/stackanetes/stackanetes-kolla-toolbox:newton
-  db_init: quay.io/stackanetes/stackanetes-kolla-toolbox:newton
-  db_sync: quay.io/stackanetes/stackanetes-cinder-api:newton
   api: quay.io/stackanetes/stackanetes-cinder-api:newton
   scheduler: quay.io/stackanetes/stackanetes-cinder-scheduler:newton
   volume: quay.io/stackanetes/stackanetes-cinder-volume:newton
+  dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.1.1
   pull_policy: "IfNotPresent"
 
 upgrades:
@@ -62,17 +62,12 @@ keystone:
   cinder_region_name: "RegionOne"
 
 network:
-  port:
-    api: 8776
-
-database:
-  address: mariadb
-  port: 3306
-  root_user: root
-  root_password: password
-  cinder_database_name: cinder
-  cinder_password: password
-  cinder_user: cinder
+  api:
+    name: "cinder-api"
+    port: 8776
+    node_port:
+      enabled: false
+      port: 30877
 
 ceph:
   enabled: true
@@ -199,6 +194,20 @@ endpoints:
     scheme: 'http'
     port:
       api: 8776
+  oslo_db:
+    auth:
+      admin:
+        username: root
+        password: password
+      user:
+        username: cinder
+        password: password
+    hosts:
+      default: mariadb
+    path: /cinder
+    scheme: mysql+pymysql
+    port:
+      mysql: 3306
 
 resources:
   enabled: false

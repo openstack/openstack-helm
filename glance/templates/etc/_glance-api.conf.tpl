@@ -17,14 +17,14 @@ debug = {{ .Values.misc.debug }}
 use_syslog = False
 use_stderr = True
 
-bind_port = {{ .Values.network.port.api }}
+bind_port = {{ .Values.network.api.port }}
 workers = {{ .Values.misc.workers }}
 registry_host = glance-registry
 # Enable Copy-on-Write
 show_image_direct_url = True
 
 [database]
-connection = mysql+pymysql://{{ .Values.database.glance_user }}:{{ .Values.database.glance_password }}@{{ .Values.database.address }}/{{ .Values.database.glance_database_name }}
+connection = {{ tuple "oslo_db" "internal" "user" "mysql" . | include "helm-toolkit.authenticated_endpoint_uri_lookup" }}
 max_retries = -1
 
 [keystone_authtoken]

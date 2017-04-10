@@ -1,0 +1,112 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+# NOTE: Variable overrides are in ./config.rb
+require "yaml"
+require "fileutils"
+
+# Use a variable file for overrides:
+CONFIG = File.expand_path("config.rb")
+if File.exist?(CONFIG)
+  require CONFIG
+end
+
+# All Vagrant configuration is done below. The "2" in Vagrant.configure
+# configures the configuration version (we support older styles for
+# backwards compatibility). Please don't change it unless you know what
+# you're doing.
+Vagrant.configure("2") do |config|
+  # The most common configuration options are documented and commented below.
+  # For a complete reference, please see the online documentation at
+  # https://docs.vagrantup.com.
+
+  # Every Vagrant development environment requires a box. You can search for
+  # boxes at https://atlas.hashicorp.com/search.
+  config.vm.box = $vm_image
+
+  # Disable automatic box update checking. If you disable this, then
+  # boxes will only be checked for updates when the user runs
+  # `vagrant box outdated`. This is not recommended.
+  # config.vm.box_check_update = false
+
+  # Create a private network, which allows host-only access to the machine
+  # using a specific IP.
+  config.vm.network "private_network", ip: "192.168.33.10"
+
+  # Share an additional folder to the guest VM. The first argument is
+  # the path on the host to the actual folder. The second argument is
+  # the path on the guest to mount the folder. And the optional third
+  # argument is a set of non-required options.
+  config.vm.synced_folder "../", "/opt/openstack-helm"
+
+  # Provider-specific configuration so you can fine-tune various
+  # backing providers for Vagrant. These expose provider-specific options.
+  config.vm.provider "virtualbox" do |vb|
+    # Display the VirtualBox GUI when booting the machine
+    vb.gui = false
+
+    # Customize the amount of memory on the VM:
+    vb.memory = $ram
+
+    # Customize the number of vCPUs in the VM:
+    vb.cpus = $vcpu_cores
+
+    # Set the size of the VM's docker disk:
+    unless File.exist?('.vagrant/machines/default/openstack-helm-storage.vdi')
+      vb.customize ['createhd', '--filename', '.vagrant/machines/default/openstack-helm-storage', '--size', $docker_disk]
+    end
+    vb.customize ['storageattach', :id, '--storagectl', 'SCSI', '--port', 2, '--device', 0, '--type', 'hdd', '--medium', '.vagrant/machines/default/openstack-helm-storage.vdi']
+
+
+    # Set the size of the VM's PVC disk:
+    unless File.exist?('.vagrant/machines/default/openstack-helm-storage-kube-pvc.vdi')
+      vb.customize ['createhd', '--filename', '.vagrant/machines/default/openstack-helm-storage-kube-pvc', '--size', $pvc_disk]
+    end
+    vb.customize ['storageattach', :id, '--storagectl', 'SCSI', '--port', 3, '--device', 0, '--type', 'hdd', '--medium', '.vagrant/machines/default/openstack-helm-storage-kube-pvc.vdi']
+
+  end
+
+  # Enable provisioning with a shell script.
+  config.vm.provision "shell", inline: <<-SHELL
+     # Setup docker storage
+     mkfs.xfs /dev/disk/by-path/pci-0000\:00\:14.0-scsi-0\:0\:2\:0  -f -L docker-srg
+     mkdir -p /var/lib/docker
+     echo "LABEL=docker-srg /var/lib/docker xfs defaults 0 0" >> /etc/fstab
+
+     # Setup kubelet pvc storage
+     mkfs.xfs /dev/disk/by-path/pci-0000\:00\:14.0-scsi-0\:0\:3\:0  -f -L kube-srg
+     mkdir -p /var/lib/nfs-provisioner
+     echo "LABEL=kube-srg /var/lib/nfs-provisioner xfs defaults 0 0" >> /etc/fstab
+
+     # Mount Storage
+     mount -a
+
+     # Install requirements
+     apt-get update
+     apt-get install -y \
+        docker.io \
+        nfs-common
+
+      # Setup kubelet lib as shared mount
+      mkdir -p /var/lib/kublet
+      mount --bind /var/lib/kublet /var/lib/kublet
+      mount --make-shared /var/lib/kublet
+
+      # Run AIO container
+      docker run \
+        -dt \
+        --name=kubeadm-aio \
+        --net=host \
+        --security-opt=seccomp:unconfined \
+        --cap-add=SYS_ADMIN \
+        --tmpfs=/run \
+        --tmpfs=/run/lock \
+        --volume=/etc/machine-id:/etc/machine-id:ro \
+        --volume=/home:/home:rw \
+        --volume=/etc/kubernetes:/etc/kubernetes:rw \
+        --volume=/sys/fs/cgroup:/sys/fs/cgroup:ro \
+        --volume=/var/run/docker.sock:/run/docker.sock \
+        --env KUBE_BIND_DEV=enp0s8 \
+        --env KUBELET_CONTAINER=quay.io/attcomdev/kubeadm-aio:v1.5.6 \
+        quay.io/attcomdev/kubeadm-aio:v1.5.6
+  SHELL
+end

@@ -12,13 +12,84 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+{{- include "nova.conf.nova_values_skeleton" .Values.conf.nova | trunc 0 -}}
+
+{{- if empty .Values.conf.nova.keystone_authtoken.keystonemiddleware.auth_token.auth_uri -}}
+{{- tuple "identity" "internal" "api" . | include "helm-toolkit.keystone_endpoint_uri_lookup"| set .Values.conf.nova.keystone_authtoken.keystonemiddleware.auth_token "auth_uri" | quote | trunc 0 -}}
+{{- end -}}
+
+# FIXME(alanmeadows) fix for broken keystonemiddleware oslo config gen in newton - will remove in future
+{{- if empty .Values.conf.nova.keystone_authtoken.keystonemiddleware.auth_token.auth_url -}}
+{{- tuple "identity" "internal" "api" . | include "helm-toolkit.keystone_endpoint_uri_lookup"| set .Values.conf.nova.keystone_authtoken.keystonemiddleware.auth_token "auth_url" | quote | trunc 0 -}}
+{{- end -}}
+
+{{- if empty .Values.conf.nova.keystone_authtoken.keystonemiddleware.auth_token.memcached_servers -}}
+{{- tuple "oslo_cache" "internal" "memcache" . | include "helm-toolkit.hostname_endpoint_uri_lookup" | set .Values.conf.nova.keystone_authtoken.keystonemiddleware.auth_token "memcached_servers" | quote | trunc 0 -}}
+{{- end -}}
+
+{{- if empty .Values.conf.nova.database.oslo.db.connection -}}
+{{- tuple "oslo_db" "internal" "user" "mysql" . | include "helm-toolkit.authenticated_endpoint_uri_lookup"| set .Values.conf.nova.database.oslo.db "connection" | quote | trunc 0 -}}
+{{- end -}}
+
+{{- if empty .Values.conf.nova.api_database.nova.conf.connection -}}
+{{- tuple "oslo_db_api" "internal" "user" "mysql" . | include "helm-toolkit.authenticated_endpoint_uri_lookup"| set .Values.conf.nova.api_database.nova.conf "connection" | quote | trunc 0 -}}
+{{- end -}}
+
+{{- if empty .Values.conf.nova.default.oslo.messaging.transport_url -}}
+{{- tuple "oslo_messaging" "internal" "user" "amqp" . | include "helm-toolkit.authenticated_endpoint_uri_lookup" | set .Values.conf.nova.default.oslo.messaging "transport_url" | quote | trunc 0 -}}
+{{- end -}}
+
+{{- if empty .Values.conf.nova.glance.nova.conf.api_servers -}}
+{{- tuple "image" "internal" "api" . | include "helm-toolkit.keystone_endpoint_uri_lookup"| set .Values.conf.nova.glance.nova.conf "api_servers" | quote | trunc 0 -}}
+{{- end -}}
+
+{{- if empty .Values.conf.nova.neutron.nova.conf.url -}}
+{{- tuple "network" "internal" "api" . | include "helm-toolkit.keystone_endpoint_uri_lookup"| set .Values.conf.nova.neutron.nova.conf "url" | quote | trunc 0 -}}
+{{- end -}}
+
+{{- if empty .Values.conf.nova.neutron.nova.conf.auth_url -}}
+{{- tuple "identity" "internal" "api" . | include "helm-toolkit.keystone_endpoint_uri_lookup"| set .Values.conf.nova.neutron.nova.conf "auth_url" | quote | trunc 0 -}}
+{{- end -}}
+
+{{- if empty .Values.conf.nova.cache.nova.conf.memcache_servers -}}
+{{- tuple "oslo_cache" "internal" "memcache" . | include "helm-toolkit.hostname_endpoint_uri_lookup" | set .Values.conf.nova.cache.nova.conf "memcache_servers" | quote | trunc 0 -}}
+{{- end -}}
+
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: nova-etc
 data:
   nova.conf: |+
+{{ if .Values.conf.nova.override -}}
+{{ .Values.conf.nova.override | indent 4 }}
+{{- else -}}
+{{- if .Values.conf.nova.prefix -}}
+{{ .Values.conf.nova.prefix | indent 4 }}
+{{- end }}
 {{ tuple "etc/_nova.conf.tpl" . | include "helm-toolkit.template" | indent 4 }}
+{{- end }}
+{{- if .Values.conf.nova.append -}}
+{{ .Values.conf.nova.append | indent 4 }}
+{{- end }}
+  api-paste.ini: |+
+{{ if .Values.conf.paste.override -}}
+{{ .Values.conf.paste.override | indent 4 }}
+{{- else -}}
+{{- if .Values.conf.paste.prefix -}}
+{{ .Values.conf.paste.prefix | indent 4 }}
+{{- end }}
+{{ tuple "etc/_api-paste.ini.tpl" . | include "helm-toolkit.template" | indent 4 }}
+{{- end }}
+{{- if .Values.conf.paste.append -}}
+{{ .Values.conf.paste.append | indent 4 }}
+{{- end }}
+  policy.yaml: |+
+{{ if .Values.conf.policy.override -}}
+{{ .Values.conf.policy.override | indent 4 }}
+{{- else -}}
+{{ tuple "etc/_policy.yaml.tpl" . | include "helm-toolkit.template" | indent 4 }}
+{{- end }}
   ceph.client.cinder.keyring.yaml: |+
 {{ tuple "etc/_ceph.client.cinder.keyring.yaml.tpl" . | include "helm-toolkit.template" | indent 4 }}
   resolv.conf: |+

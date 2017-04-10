@@ -14,6 +14,8 @@
 
 {{- $envAll := . }}
 {{- $dependencies := .Values.dependencies.libvirt }}
+{{- $mounts_nova_libvirt := .Values.mounts.nova_libvirt.nova_libvirt }}
+{{- $mounts_nova_libvirt_init := .Values.mounts.nova_libvirt.init_container }}
 apiVersion: extensions/v1beta1
 kind: DaemonSet
 metadata:
@@ -27,11 +29,11 @@ spec:
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.hash" }}
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.hash" }}
         pod.beta.kubernetes.io/init-containers: '[
-{{ tuple $envAll $dependencies "[]" | include "helm-toolkit.kubernetes_entrypoint_init_container" | indent 10 }}
+{{ tuple $envAll $dependencies $mounts_nova_libvirt_init | include "helm-toolkit.kubernetes_entrypoint_init_container" | indent 10 }}
         ]'
     spec:
       nodeSelector:
-        {{ .Values.labels.compute_node_selector_key }}: {{ .Values.labels.compute_node_selector_value }}
+        {{ .Values.labels.agent.libvirt.node_selector_key }}: {{ .Values.labels.agent.libvirt.node_selector_value }}
       securityContext:
         runAsUser: 0
       hostNetwork: true
@@ -55,53 +57,42 @@ spec:
             - bash
             - /tmp/libvirt.sh
           volumeMounts:
-            - name: libvirtdconf
+            - name: nova-etc
               mountPath: /etc/libvirt/libvirtd.conf
               subPath: libvirtd.conf
-            - name: libvirtsh
+            - name: nova-bin
               mountPath: /tmp/libvirt.sh
               subPath: libvirt.sh
+            - name: nova-etc
+              mountPath: /etc/nova/nova.conf
+              subPath: nova.conf
+            - name: nova-etc
+              mountPath: /etc/resolv.conf
+              subPath: resolv.conf
             - mountPath: /lib/modules
               name: libmodules
               readOnly: true
-            - mountPath: /var/lib/nova
-              name: varlibnova
-            - mountPath: /var/lib/libvirt
-              name: varliblibvirt
-            - mountPath: /run
-              name: run
-            - mountPath: /sys/fs/cgroup
-              name: cgroup
-            - mountPath: /etc/resolv.conf
-              name: resolvconf
-              subPath: resolv.conf
+            - name: varlibnova
+              mountPath: /var/lib/nova
+            - name: varliblibvirt
+              mountPath: /var/lib/libvirt
+            - name: run
+              mountPath: /run
+            - name: cgroup
+              mountPath: /sys/fs/cgroup
             {{- if .Values.ceph.enabled }}
-            - name: cephconf
+            - name: nova-etc
               mountPath: /etc/ceph/ceph.conf
               subPath: ceph.conf
-            - name: cephclientcinderkeyring
-              mountPath: /etc/ceph/ceph.client.{{ .Values.ceph.cinder_user }}.keyring
-              subPath: ceph.client.{{ .Values.ceph.cinder_user }}.keyring
+            - name: nova-etc
+              mountPath: /etc/ceph/ceph.client.keyring
+              subPath: ceph.client.keyring
             {{- end }}
+{{ if $mounts_nova_libvirt.volumeMounts }}{{ toYaml $mounts_nova_libvirt.volumeMounts | indent 12 }}{{ end }}
       volumes:
-        - name: libvirtdconf
+        - name: nova-etc
           configMap:
             name: nova-etc
-            items:
-            - key: libvirtd.conf
-              path: libvirtd.conf
-        - name: libvirtsh
-          configMap:
-            name: nova-bin
-            items:
-            - key: libvirt.sh
-              path: libvirt.sh
-        - name: resolvconf
-          configMap:
-            name: nova-etc
-            items:
-            - key: resolv.conf
-              path: resolv.conf
         - name: libmodules
           hostPath:
             path: /lib/modules
@@ -116,18 +107,5 @@ spec:
             path: /run
         - name: cgroup
           hostPath:
-            path: /sys/fs/cgroup
-        {{- if .Values.ceph.enabled }}
-        - name: cephconf
-          configMap:
-            name: nova-etc
-            items:
-            - key: ceph.conf
-              path: ceph.conf
-        - name: cephclientcinderkeyring
-          configMap:
-            name: nova-etc
-            items:
-            - key: ceph.client.cinder.keyring.yaml
-              path: ceph.client.cinder.keyring.yaml
-          {{- end }}
+            path: /sys/fs/cgroup        
+{{ if $mounts_nova_libvirt.volumes }}{{ toYaml $mounts_nova_libvirt.volumes | indent 8 }}{{ end }}

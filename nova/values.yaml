@@ -18,13 +18,38 @@
 # name: value
 
 labels:
-  control_node_selector_key: openstack-control-plane
-  control_node_selector_value: enabled
-  compute_node_selector_key: openstack-compute-node
-  compute_node_selector_value: enabled
-
-control_replicas: 1
-compute_replicas: 1
+  agent:
+    compute:
+      node_selector_key: openstack-compute-node
+      node_selector_value: enabled
+    libvirt:
+      node_selector_key: openstack-compute-node  
+      node_selector_value: enabled
+  conductor:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  consoleauth:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  scheduler:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  osapi:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  api_metadata:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  job:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+    
+replicas:
+  api_metadata: 1
+  osapi: 1
+  conductor: 1
+  consoleauth: 1
+  scheduler: 1
 
 images:
   db_init: quay.io/stackanetes/stackanetes-kolla-toolbox:newton
@@ -61,41 +86,27 @@ bootstrap:
         vcpus: 1
 
 network:
-  ip_address: "0.0.0.0"
-  # TODO(DTadrzak): move external IPs to common, this variable should be shared with
-  # horizon service
-  external_ips: ""
-  minion_interface_name: "eno1"
   dns:
     servers:
       - "10.96.0.10"
       - "8.8.8.8"
     kubernetes_domain: "cluster.local"
     other_domains: ""
-
-  port:
-    osapi: 8774
-    metadata: 8775
-    novncproxy: 6080
-
-nova:
-  default:
-    debug: false
-    osapi_workers: 8
-    metadata_workers: 8
-    conductor_workers: 8
-    force_config_drive: True
-
-database:
-  address: "mariadb"
-  port: 3306
-  root_user: "root"
-  root_password: "password"
-
-  nova_user: "nova"
-  nova_password: "password"
-  nova_database_name: "nova"
-  nova_api_database_name: "nova_api"
+  osapi:
+    name: "nova-osapi"
+    port: 8774
+    node_port:
+      enabled: false
+      port: 30774
+  metadata:
+    name: "nova-metadata"
+    port: 8775
+    node_port:
+      enabled: false
+      port: 30775
+  novncproxy:
+    name: "nova-novncproxy"
+    port: 6080
 
 keystone:
   admin_user: "admin"
@@ -104,28 +115,8 @@ keystone:
   admin_project_name: "admin"
   admin_project_domain: "default"
   admin_region_name: "RegionOne"
-
-  neutron_user: "neutron"
-  neutron_user_domain: "default"
-  neutron_user_role: "admin"
-  neutron_password: "password"
-  neutron_project_name: "service"
-  neutron_project_domain: "default"
-  neutron_region_name: "RegionOne"
-
-  nova_user: "nova"
-  nova_user_domain: "default"
   nova_user_role: "admin"
-  nova_password: "password"
-  nova_project_name: "service"
-  nova_project_domain: "default"
-  nova_region_name: "RegionOne"
 
-rabbitmq:
-  address: "rabbitmq"
-  admin_user: "rabbitmq"
-  admin_password: "password"
-  port: 5672
 
 ceph:
   enabled: false
@@ -135,12 +126,8 @@ ceph:
   nova_pool: "vms"
   secret_uuid: ""
 
-neutron:
-  metadata_secret: "password"
-
-memcached:
-  host: memcached
-  port: 11211
+libvirt:
+  listen_addr: 0.0.0.0
 
 dependencies:
   api:
@@ -205,10 +192,198 @@ dependencies:
     service:
     - mariadb
 
+mounts:
+  nova_compute:
+    init_container: null
+    nova_compute:
+  nova_libvirt:
+    init_container: null
+    nova_libvirt:
+  nova_api_metadata:
+    init_container: null
+    nova_api_metadata:
+  nova_api_osapi:
+    init_container: null
+    nova_api_osapi:
+  nova_consoleauth:
+    init_container: null
+    nova_consoleauth:
+  nova_conductor:
+    init_container: null
+    nova_conductor:
+  nova_scheduler:
+    init_container: null
+    nova_scheduler:
+
+conf:
+  paste:
+    override:
+    append:
+  policy:
+    override:
+    append:
+  nova:
+    override:
+    append:
+    default:
+      nova:
+        conf:
+          default_ephemeral_format: ext4
+          ram_allocation_ratio: 1.0
+          disk_allocation_ratio: 1.0
+          cpu_allocation_ratio: 3.0
+          force_config_drive: true
+          state_path: /var/lib/nova
+          osapi_compute_listen: 0.0.0.0
+          osapi_compute_listen_port: 8774
+          osapi_compute_workers: 1
+          metadata_workers: 1
+          use_neutron: true
+          firewall_driver: nova.virt.firewall.NoopFirewallDriver
+          linuxnet_interface_driver: openvswitch
+          allow_resize_to_same_host: true
+          compute_driver: libvirt.LibvirtDriver
+          my_ip: 0.0.0.0
+    vnc:
+      nova:
+        conf:
+          novncproxy_host: 0.0.0.0
+          novncproxy_port: 6080
+          vncserver_listen: 0.0.0.0
+          vncserver_proxyclient_address: 0.0.0.0
+          # FIXME(ALANMEADOWS)
+          novncproxy_base_url: http://0.0.0.0:6080/no_vnc.html 
+    conductor:
+      nova:
+        conf:
+          workers: 1
+    oslo_policy:
+      oslo:
+        policy:
+          policy_file: policy.yaml
+    oslo_concurrency:
+      oslo:
+        concurrency:
+          lock_path: /var/lib/nova/tmp
+    glance:
+      nova:
+        conf:
+          num_retries: 3
+    cinder:
+      nova:
+        conf:
+          catalog_info: volumev2:cinderv2:internalURL
+    neutron:
+      nova:
+        conf:
+          metadata_proxy_shared_secret: "password"
+          service_metadata_proxy: True
+          auth_type: password
+          auth_version: v3
+          region_name: RegionOne
+          domain_name: default
+          project_name: service
+          project_domain_name: default
+          user_domain_name: default
+          username: neutron
+          password: password          
+    database:
+      oslo:
+        db:
+          max_retries: -1
+    api_database:
+      oslo:
+        db:
+          max_retries: -1   
+    keystone_authtoken:
+      keystonemiddleware:
+        auth_token:
+          auth_type: password
+          auth_version: v3
+          region_name: RegionOne
+          project_name: service
+          project_domain_name: default
+          user_domain_name: default
+          username: nova
+          password: password
+        
+    libvirt:
+      nova:
+        conf:
+          connecton_uri: qemu+tcp://127.0.0.1/system
+          images_type: qcow2
+          images_rbd_pool: vms
+          images_rbd_ceph_conf: /etc/ceph/ceph.conf
+          rbd_user: cinder
+          rbd_secret_uuid: null
+          disk_cachemodes: "network=writeback"
+          hw_disk_discard: unmap
+    upgrade_levels:
+      nova:
+        conf:
+          compute: auto
+    cache:
+      nova:
+        conf:
+          enabled: true
+          backend: oslo_cache.memcache_pool
+    wsgi:
+      nova:
+        conf:
+          api_paste_config: /etc/nova/api-paste.ini
+
+
 # typically overriden by environmental
 # values, but should include all endpoints
 # required by this chart
 endpoints:
+  oslo_db:
+    auth:
+      admin:
+        username: root
+        password: password
+      user:
+        username: nova
+        password: password
+    hosts:
+      default: mariadb
+    path: /nova
+    scheme: mysql+pymysql
+    port:
+      mysql: 3306
+  oslo_db_api:
+    auth:
+      admin:
+        username: root
+        password: password
+      user:
+        username: nova
+        password: password
+    hosts:
+      default: mariadb
+    path: /nova_api
+    scheme: mysql+pymysql
+    port:
+      mysql: 3306   
+  oslo_messaging:
+    auth:
+      admin:
+        username: admin
+        password: password
+      user:
+        username: rabbitmq
+        password: password
+    hosts:
+      default: rabbitmq
+    path: /
+    scheme: rabbit
+    port:
+      amqp: 5672  
+  oslo_cache:
+    hosts:
+      default: memcache
+    port:
+      memcache: 11211  
   compute:
     name: nova
     hosts:
@@ -245,6 +420,7 @@ endpoints:
     scheme: 'http'
     port:
       api: 9696
+
 
 resources:
   enabled: false

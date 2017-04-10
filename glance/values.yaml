@@ -30,7 +30,7 @@ labels:
   node_selector_value: enabled
 
 images:
-  db_init: quay.io/stackanetes/stackanetes-kolla-toolbox:newton
+  db_init: quay.io/stackanetes/stackanetes-glance-api:newton
   db_sync: quay.io/stackanetes/stackanetes-glance-api:newton
   ks_user: quay.io/stackanetes/stackanetes-kolla-toolbox:newton
   ks_service: quay.io/stackanetes/stackanetes-kolla-toolbox:newton
@@ -46,6 +46,21 @@ upgrades:
   rolling_update:
     max_unavailable: 1
     max_surge: 3
+
+bootstrap:
+  enabled: true
+  images:
+    ubuntu_precise64:
+      name: "Ubuntu Precise 64-bit"
+      source_url: "http://cloud-images.ubuntu.com/precise/current/"
+      image_file: "precise-server-cloudimg-amd64-disk1.img"
+      min_disk: 20
+      image_type: qcow2
+      container_format: bare
+      private: true
+      properties:
+        hypervisor_type: "qemu"
+        os_distro: "ubuntu"
 
 keystone:
   admin_user: "admin"
@@ -64,18 +79,18 @@ keystone:
   glance_region_name: "RegionOne"
 
 network:
-  port:
-    api: 9292
-    registry: 9191
-
-database:
-  address: mariadb
-  port: 3306
-  root_user: root
-  root_password: password
-  glance_database_name: glance
-  glance_password: password
-  glance_user: glance
+  api:
+    name: "glance-api"
+    port: 9292
+    node_port:
+      enabled: false
+      port: 30092
+  registry:
+    name: "glance-registry"
+    port: 9191
+    node_port:
+      enabled: false
+      port: 30091
 
 ceph:
   enabled: true
@@ -129,6 +144,13 @@ resources:
       requests:
         memory: "128Mi"
         cpu: "500m"
+    bootstrap:
+      limits:
+        memory: "128Mi"
+        cpu: "500m"
+      requests:
+        memory: "128Mi"
+        cpu: "500m"
 
 dependencies:
   db_init:
@@ -141,6 +163,14 @@ dependencies:
     - glance-db-init
     service:
     - mariadb
+  bootstrap:
+    jobs:
+    - glance-db-sync
+    - glance-ks-user
+    - glance-ks-endpoints
+    service:
+    - mariadb
+    - glance-api
   ks_user:
     service:
     - keystone-api
@@ -192,3 +222,17 @@ endpoints:
     port:
       api: 9292
       registry: 9191
+  oslo_db:
+    auth:
+      admin:
+        username: root
+        password: password
+      user:
+        username: glance
+        password: password
+    hosts:
+      default: mariadb
+    path: /glance
+    scheme: mysql+pymysql
+    port:
+      mysql: 3306
