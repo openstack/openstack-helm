@@ -8,10 +8,13 @@ project and/or branch desired as necessary.
 
 ``` bash
 docker build . -t gen-oslo-openstack-helm
+PROJECT=heat
+sudo rm -rf /tmp/${PROJECT} || true
 docker run -it --rm \
-  -e PROJECT="heat" \
+  -e PROJECT="${PROJECT}" \
   -e PROJECT_BRANCH="stable/newton" \
-  -e PROJECT_REPO=https://git.openstack.org/openstack/heat.git \
+  -e PROJECT_REPO=https://git.openstack.org/openstack/${PROJECT}.git \
+  -v /tmp:/tmp:rw \
   gen-oslo-openstack-helm
 ```
 

@@ -185,22 +185,22 @@ class _ValuesSkeletonFormatter(object):
             if len(group_name.split('.')) > 1:
 
                 line = '{{- if not .%s -}}\
-                        {{- set . "%s" dict -}}\
-                        {{- end -}}\n' % (
-                            group_name.lower().split('.')[0],
-                            group_name.lower().split('.')[0])
+{{- set . "%s" dict -}}\
+{{- end -}}\n' % (
+                    group_name.lower().split('.')[0],
+                    group_name.lower().split('.')[0])
 
                 if line not in self.done:
                     self.done.append(line)
                     lines.append(line)
 
                 line = '{{- if not .%s.%s -}}\
-                        {{- set .%s "%s" dict -}}\
-                        {{- end -}}\n' % (
-                            group_name.lower().split('.')[0],
-                            group_name.lower().split('.')[1],
-                            group_name.lower().split('.')[0],
-                            group_name.lower().split('.')[1])
+{{- set .%s "%s" dict -}}\
+{{- end -}}\n' % (
+                    group_name.lower().split('.')[0],
+                    group_name.lower().split('.')[1],
+                    group_name.lower().split('.')[0],
+                    group_name.lower().split('.')[1])
 
                 if line not in self.done:
                     self.done.append(line)
@@ -208,93 +208,93 @@ class _ValuesSkeletonFormatter(object):
 
             else:
                 line = '{{- if not .%s -}}\
-                        {{- set . "%s" dict -}}\
-                        {{- end -}}\n' % (
-                            group_name.lower(),
-                            group_name.lower())
+{{- set . "%s" dict -}}\
+{{- end -}}\n' % (
+                    group_name.lower(),
+                    group_name.lower())
                 if line not in self.done:
                     self.done.append(line)
                     lines.append(line)
 
             if len(namespace.split('.')) == 1:
                 line = '{{- if not .%s.%s -}}\
-                        {{- set .%s "%s" dict -}}\
-                        {{- end -}}\n' % (
-                            group_name.lower(),
-                            namespace,
-                            group_name.lower(),
-                            namespace)
+{{- set .%s "%s" dict -}}\
+{{- end -}}\n' % (
+                    group_name.lower(),
+                    namespace,
+                    group_name.lower(),
+                    namespace)
                 if line not in self.done:
                     self.done.append(line)
                     lines.append(line)
 
             if len(namespace.split('.')) > 1:
                 line = '{{- if not .%s.%s -}}\
-                        {{- set .%s "%s" dict -}}\
-                        {{- end -}}\n' % (
-                            group_name.lower(),
-                            namespace.split('.')[0],
-                            group_name.lower(),
-                            namespace.split('.')[0])
+{{- set .%s "%s" dict -}}\
+{{- end -}}\n' % (
+                    group_name.lower(),
+                    namespace.split('.')[0],
+                    group_name.lower(),
+                    namespace.split('.')[0])
                 if line not in self.done:
                     self.done.append(line)
                     lines.append(line)
 
                 line = '{{- if not .%s.%s.%s -}}\
-                        {{- set .%s.%s "%s" dict -}}\
-                        {{- end -}}\n' % (
-                            group_name.lower(),
-                            namespace.split('.')[0],
-                            namespace.split('.')[1],
-                            group_name.lower(),
-                            namespace.split('.')[0],
-                            namespace.split('.')[1])
+{{- set .%s.%s "%s" dict -}}\
+{{- end -}}\n' % (
+                    group_name.lower(),
+                    namespace.split('.')[0],
+                    namespace.split('.')[1],
+                    group_name.lower(),
+                    namespace.split('.')[0],
+                    namespace.split('.')[1])
                 if line not in self.done:
                     self.done.append(line)
                     lines.append(line)
 
             if len(namespace.split('.')) > 2:
                 line = '{{- if not .%s.%s.%s.%s -}}\
-                        {{- set .%s.%s.%s "%s" dict -}}\
-                        {{- end -}}\n' % (
-                            group_name.lower(),
-                            namespace.split('.')[0],
-                            namespace.split('.')[1],
-                            namespace.split('.')[2],
-                            group_name.lower(),
-                            namespace.split('.')[0],
-                            namespace.split('.')[1],
-                            namespace.split('.')[2])
+{{- set .%s.%s.%s "%s" dict -}}\
+{{- end -}}\n' % (
+                    group_name.lower(),
+                    namespace.split('.')[0],
+                    namespace.split('.')[1],
+                    namespace.split('.')[2],
+                    group_name.lower(),
+                    namespace.split('.')[0],
+                    namespace.split('.')[1],
+                    namespace.split('.')[2])
                 if line not in self.done:
                     self.done.append(line)
                     lines.append(line)
 
             if len(opt.dest.split('.')) > 1:
                 line = '{{- if not .%s.%s.%s -}}\
-                        {{- set .%s.%s "%s" dict -}}\
-                        {{- end -}}\n' % (
-                            group_name.lower(),
-                            namespace,
-                            opt.dest.split('.')[0],
-                            group_name.lower(),
-                            namespace,
-                            opt.dest.split('.')[0])
+{{- set .%s.%s "%s" dict -}}\
+{{- end -}}\n' % (
+                    group_name.lower(),
+                    namespace,
+                    opt.dest.split('.')[0],
+                    group_name.lower(),
+                    namespace,
+                    opt.dest.split('.')[0])
                 if line not in self.done:
                     self.done.append(line)
                     lines.append(line)
 
             if len(opt.dest.split('.')) > 2:
                 line = '{{- if not .%s.%s.%s.%s -}}\
-                        {{- set .%s.%s.%s "%s" dict -}}\
-                        {{- end -}}\n' % (
-                            group_name.lower(),
-                            namespace,
-                            opt.dest.split('.')[0],
-                            opt.dest.split('.')[1],
-                            group_name.lower(),
-                            namespace,
-                            opt.dest.split('.')[0],
-                            opt.dest.split('.')[1])
+{{- set .%s.%s.%s "%s" dict -}}\
+{{- end -}}\n' % (
+                    group_name.lower(),
+                    namespace,
+                    opt.dest.split('.')[0],
+                    opt.dest.split('.')[1],
+                    group_name.lower(),
+                    namespace,
+                    opt.dest.split('.')[0],
+                    opt.dest.split('.')[1])
                 if line not in self.done:
                     self.done.append(line)
                     lines.append(line)
