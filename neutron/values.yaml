@@ -82,16 +82,6 @@ network:
     server: 9696
     metadata: 8775
 
-memcached:
-  host: memcached
-  port: 11211
-
-rabbitmq:
-  address: rabbitmq
-  admin_user: rabbitmq
-  admin_password: password
-  port: 5672
-
 keystone:
   admin_user: "admin"
   admin_user_domain: "default"
@@ -99,7 +89,7 @@ keystone:
   admin_project_name: "admin"
   admin_project_domain: "default"
   admin_region_name: "RegionOne"
-
+    
   neutron_user: "neutron"
   neutron_user_domain: "default"
   neutron_user_role: "admin"
@@ -108,57 +98,7 @@ keystone:
   neutron_project_domain: "default"
   neutron_region_name: "RegionOne"
 
-  nova_user: "nova"
-  nova_user_domain: "default"
-  nova_user_role: "admin"
-  nova_password: "password"
-  nova_project_name: "service"
-  nova_project_domain: "default"
-  nova_region_name: "RegionOne"
-
-database:
-  port: 3306
-  root_user: root
-  root_password: password
-  neutron_database_name: neutron
-  neutron_password: password
-  neutron_user: neutron
-
-metadata_agent:
-  default:
-    debug: 'True'
-
-neutron:
-  workers: 4
-  default:
-    l3_ha_network_type: gre
-    debug: 'True'
-metadata:
-  workers: 4
-
 ml2:
-  tenant_network_types: "flat"
-  agent:
-    tunnel_types: "vxlan"
-  type_drivers:
-    - flat
-    - vlan
-    - vxlan
-  mechanism_drivers:
-    - openvswitch
-    - l2population
-  extension_drivers:
-    - port_security
-  ml2_type_vxlan:
-    vni_ranges: "1:1000"
-    vxlan_group: 239.1.1.1
-  ml2_type_gre:
-    tunnel_id_ranges: "1:1000"
-  ml2_type_flat:
-    flat_networks:
-    - "*"
-  ml2_type_vlan:
-    network_vlan_ranges: "physnet1:1100:1110"
   ovs:
     auto_bridge_add:
       br-physnet1: enp11s0f0
@@ -299,10 +239,181 @@ resources:
         memory: "128Mi"
         cpu: "500m"
 
+conf:
+  paste:
+    override:
+    append:
+  policy:
+    override:
+    append:
+  neutron:
+    override:
+    append:
+    default:
+      neutron:
+        api_workers: 4
+        allow_overlapping_ips: True
+        core_plugin: ml2
+        service_plugins: router
+        interface_driver: openvswitch
+        metadata_proxy_socket: /var/lib/neutron/openstack-helm/metadata_proxy
+        db:
+          allow_automatic_l3agent_failover: True
+          l3_ha: True
+          min_l3_agents_per_router: 1
+          max_l3_agents_per_router: 2
+          l3_ha_network_type: vxlan
+          dhcp_agents_per_network: 3
+          network_auto_schedule: True
+          router_auto_schedule: True
+        agent:
+          interface_driver: openvswitch
+    oslo_concurrency:
+      oslo_concurrency:
+        lock_path: /var/lib/neutron/tmp
+    database:
+      oslo:
+        db:
+          max_retries: -1
+    agent:
+      neutron:
+        agent:
+          root_helper: sudo /var/lib/kolla/venv/bin/neutron-rootwrap /etc/neutron/rootwrap.conf
+          l2_population: True
+          arp_responder: True
+    oslo_messaging_notifications:
+      oslo:
+        messaging:
+          driver: 
+          - noop
+    nova:
+      nova:
+        auth:
+          region_name: RegionOne
+          project_domain_name: default
+          project_name: service
+          user_domain_name: default
+          username: nova
+          password: password
+    keystone_authtoken:
+      keystonemiddleware:
+        auth_token:
+          region_name: RegionOne
+          project_domain_name: default
+          project_name: admin
+          user_domain_name: admin
+          username: admin
+          password: password          
+  ml2_conf:
+    override:
+    append:
+    ml2:
+      neutron:
+        ml2:
+          extension_drivers: port_security
+          mechanism_drivers: openvswitch,l2population
+          type_drivers: flat,vlan,vxlan
+          tenant_network_types: vxlan
+    ml2_type_vxlan:
+      neutron:
+        ml2:
+          vni_ranges: 1:1000
+          vxlan_group: 239.1.1.1
+    ml2_type_flat:
+      neutron:
+        ml2:
+          flat_networks: "*"
+    ml2_type_vlan:
+      neutron:
+        ml2:
+          network_vlan_ranges: "physnet1:1100:1110"
+  ml2_conf_sriov:
+    override:
+    append:
+  dhcp_agent:
+    override:
+    append:
+    default:
+      neutron:
+        dhcp:
+          agent:
+            dnsmasq_config_file: /etc/neutron/dnsmasq.conf
+            enable_isolated_metadata: True
+            force_metadata: True
+  l3_agent:
+    override:
+    append:
+    default:
+      neutron:
+        l3:
+          agent:      
+            agent_mode: legacy
+            enable_metadata_proxy: True
+            enable_isolated_metadata: True
+  openvswitch_agent:
+    override:
+    append:
+    ovs:
+      neutron:
+        ml2:
+          ovs:
+            agent:
+              tunnel_types: vxlan
+              ovsdb_connection: unix:/var/run/openvswitch/db.sock
+  metering_agent:
+    override:
+    append:
+  metadata_agent:
+    override:
+    append:
+  sriov_agent:
+    override:
+    append:
+  macvtap_agent:
+    override:
+    append:    
+  linuxbridge_agent:
+    override:
+    append:
+
+
 # typically overriden by environmental
 # values, but should include all endpoints
 # required by this chart
 endpoints:
+  oslo_db:
+     auth:
+       admin:
+         username: root
+         password: password
+       user:
+         username: neutron
+         password: password
+     hosts:
+       default: mariadb
+     path: /neutron
+     scheme: mysql+pymysql
+     port:
+       mysql: 3306
+  oslo_messaging:
+     auth:
+       admin:
+         username: admin
+         password: password
+       user:
+         username: rabbitmq
+         password: password
+     hosts:
+       default: rabbitmq
+     path: /
+     scheme: rabbit
+     port:
+       amqp: 5672  
+  oslo_cache:
+     hosts:
+       default: memcache
+     port:
+       memcache: 11211        
   compute:
     name: nova
     hosts:

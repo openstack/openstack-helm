@@ -17,17 +17,20 @@
 set -ex
 export HOME=/tmp
 
-ansible localhost -vvv -m mysql_db -a "login_host='{{ include "helm-toolkit.mariadb_host" . }}' \
-login_port='{{ .Values.database.port }}' \
-login_user='{{ .Values.database.root_user }}' \
-login_password='{{ .Values.database.root_password }}' \
-name='{{ .Values.database.neutron_database_name }}'"
+ansible localhost -vvv \
+  -m mysql_db -a "login_host='{{ .Values.endpoints.oslo_db.hosts.internal | default .Values.endpoints.oslo_db.hosts.default }}' \
+                  login_port='{{ .Values.endpoints.oslo_db.port.mysql }}' \
+                  login_user='{{ .Values.endpoints.oslo_db.auth.admin.username }}' \
+                  login_password='{{ .Values.endpoints.oslo_db.auth.admin.password }}' \
+                  name='{{ .Values.endpoints.oslo_db.path | trimAll "/" }}'"
 
-ansible localhost -vvv -m mysql_user -a "login_host='{{ include "helm-toolkit.mariadb_host" . }}' \
-login_port='{{ .Values.database.port }}' \
-login_user='{{ .Values.database.root_user }}' \
-login_password='{{ .Values.database.root_password }}' \
-name='{{ .Values.database.neutron_user }}' \
-password='{{ .Values.database.neutron_password }}' \
-host='%' \
-priv='{{ .Values.database.neutron_database_name }}.*:ALL' append_privs='yes'"
+ansible localhost -vvv \
+  -m mysql_user -a "login_host='{{ .Values.endpoints.oslo_db.hosts.internal | default .Values.endpoints.oslo_db.hosts.default }}' \
+                    login_port='{{ .Values.endpoints.oslo_db.port.mysql }}' \
+                    login_user='{{ .Values.endpoints.oslo_db.auth.admin.username }}' \
+                    login_password='{{ .Values.endpoints.oslo_db.auth.admin.password }}' \
+                    name='{{ .Values.endpoints.oslo_db.auth.user.username }}' \
+                    password='{{ .Values.endpoints.oslo_db.auth.user.password }}' \
+                    host='%' \
+                    priv='{{ .Values.endpoints.oslo_db.path | trimAll "/" }}.*:ALL' \
+                    append_privs='yes'"
