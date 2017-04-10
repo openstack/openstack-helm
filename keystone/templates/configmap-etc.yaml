@@ -12,7 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-{{ tuple .Values.conf.keystone . | include "helm-toolkit.oslo_values_setup" | trunc 0 }}
+{{- include "keystone.conf.keystone_values_skeleton" .Values.conf.keystone | trunc 0 -}}
+
+{{- if empty .Values.conf.keystone.database.oslo.db.connection -}}
+{{- tuple "oslo_db" "internal" "user" "mysql" . | include "helm-toolkit.authenticated_endpoint_uri_lookup"| set .Values.conf.keystone.database.oslo.db "connection" | quote | trunc 0 -}}
+{{- end -}}
+
+{{- if empty .Values.conf.keystone.default.oslo.messaging.transport_url -}}
+{{- tuple "oslo_messaging" "internal" "user" "amqp" . | include "helm-toolkit.authenticated_endpoint_uri_lookup" | set .Values.conf.keystone.default.oslo.messaging "transport_url" | quote | trunc 0 -}}
+{{- end -}}
+
+{{- if empty .Values.conf.keystone.cache.oslo.cache -}}
+{{- tuple "oslo_cache" "internal" "memcache" . | include "helm-toolkit.hostname_endpoint_uri_lookup" | set .Values.conf.keystone.cache.oslo.cache "memcache_servers" | quote | trunc 0 -}}
+{{- end -}}
 
 apiVersion: v1
 kind: ConfigMap
@@ -21,31 +33,31 @@ metadata:
 data:
   keystone.conf: |+
 {{ if .Values.conf.keystone.override -}}
-{{ .Values.conf.keystone.override }}
+{{ .Values.conf.keystone.override | indent 4 }}
 {{- else -}}
 {{- if .Values.conf.keystone.prefix -}}
-{{ .Values.conf.keystone.prefix }}
+{{ .Values.conf.keystone.prefix | indent 4 }}
 {{- end }}
 {{ tuple "etc/_keystone.conf.tpl" . | include "helm-toolkit.template" | indent 4 }}
 {{- end }}
 {{- if .Values.conf.keystone.append -}}
-{{ .Values.conf.keystone.append }}
+{{ .Values.conf.keystone.append | indent 4 }}
 {{- end }}
   keystone-paste.ini: |+
 {{ if .Values.conf.paste.override -}}
-{{ .Values.conf.paste.override }}
+{{ .Values.conf.paste.override | indent 4 }}
 {{- else -}}
 {{- if .Values.conf.paste.prefix -}}
-{{ .Values.conf.paste.prefix }}
+{{ .Values.conf.paste.prefix | indent 4 }}
 {{- end }}
 {{ tuple "etc/_keystone-paste.ini.tpl" . | include "helm-toolkit.template" | indent 4 }}
 {{- end }}
 {{- if .Values.conf.paste.append -}}
-{{ .Values.conf.paste.append }}
+{{ .Values.conf.paste.append | indent 4 }}
 {{- end }}
   policy.json: |+
 {{ if .Values.conf.policy.override -}}
-{{ .Values.conf.policy.override }}
+{{ .Values.conf.policy.override | indent 4 }}
 {{- else -}}
 {{ tuple "etc/_policy.json.tpl" . | include "helm-toolkit.template" | indent 4 }}
 {{- end }}

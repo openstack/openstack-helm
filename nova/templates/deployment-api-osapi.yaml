@@ -14,6 +14,8 @@
 
 {{- $envAll := . }}
 {{- $dependencies := .Values.dependencies.api }}
+{{- $mounts_nova_api_osapi := .Values.mounts.nova_api_osapi.nova_api_osapi }}
+{{- $mounts_nova_api_osapi_init := .Values.mounts.nova_api_osapi.init_container }}
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
@@ -31,12 +33,12 @@ spec:
   template:
     metadata:
       labels:
-        app: nova-osapi
+        app: nova-api-osapi
       annotations:
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.hash" }}
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.hash" }}
         pod.beta.kubernetes.io/init-containers: '[
-{{ tuple $envAll $dependencies "[]" | include "helm-toolkit.kubernetes_entrypoint_init_container" | indent 10 }}
+{{ tuple $envAll $dependencies $mounts_nova_api_osapi_init | include "helm-toolkit.kubernetes_entrypoint_init_container" | indent 10 }}
         ]'
     spec:
       nodeSelector:
@@ -67,13 +69,12 @@ spec:
             tcpSocket:
               port: {{ .Values.network.osapi.port }}
           volumeMounts:
-            - name: novaconf
+            - name: nova-etc
               mountPath: /etc/nova/nova.conf
-              subPath: nova.conf
+              subPath: nova.conf                 
+{{ if $mounts_nova_api_osapi.volumeMounts }}{{ toYaml $mounts_nova_api_osapi.volumeMounts | indent 12 }}{{ end }}
       volumes:
-        - name: novaconf
+        - name: nova-etc
           configMap:
-            name: nova-etc
-            items:
-            - key: nova.conf
-              path: nova.conf
+            name: nova-etc        
+{{ if $mounts_nova_api_osapi.volumes}}{{ toYaml $mounts_nova_api_osapi.volumes | indent 8 }}{{ end }}
