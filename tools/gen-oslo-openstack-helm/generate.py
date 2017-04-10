@@ -269,6 +269,24 @@ class _ValuesSkeletonFormatter(object):
                     self.done.append(line)
                     lines.append(line)
 
+            if len(namespace.split('.')) > 3:
+                line = '{{- if not .%s.%s.%s.%s.%s -}}\
+{{- set .%s.%s.%s.%s "%s" dict -}}\
+{{- end -}}\n' % (
+                    group_name.lower(),
+                    namespace.split('.')[0],
+                    namespace.split('.')[1],
+                    namespace.split('.')[2],
+                    namespace.split('.')[3],
+                    group_name.lower(),
+                    namespace.split('.')[0],
+                    namespace.split('.')[1],
+                    namespace.split('.')[2],
+                    namespace.split('.')[3])
+                if line not in self.done:
+                    self.done.append(line)
+                    lines.append(line)
+
             if len(opt.dest.split('.')) > 1:
                 line = '{{- if not .%s.%s.%s -}}\
 {{- set .%s.%s "%s" dict -}}\
@@ -295,6 +313,24 @@ class _ValuesSkeletonFormatter(object):
                     namespace,
                     opt.dest.split('.')[0],
                     opt.dest.split('.')[1])
+                if line not in self.done:
+                    self.done.append(line)
+                    lines.append(line)
+
+            if len(opt.dest.split('.')) > 3:
+                line = '{{- if not .%s.%s.%s.%s.%s -}}\
+{{- set .%s.%s.%s.%s "%s" dict -}}\
+{{- end -}}\n' % (
+                    group_name.lower(),
+                    namespace,
+                    opt.dest.split('.')[0],
+                    opt.dest.split('.')[1],
+                    opt.dest.split('.')[2],
+                    group_name.lower(),
+                    namespace,
+                    opt.dest.split('.')[0],
+                    opt.dest.split('.')[1],
+                    opt.dest.split('.')[2])
                 if line not in self.done:
                     self.done.append(line)
                     lines.append(line)
