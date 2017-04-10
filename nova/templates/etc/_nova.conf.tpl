@@ -16,6 +16,7 @@
 {{ include "nova.conf.nova_values_skeleton" .Values.conf.nova | trunc 0 }}
 {{ include "nova.conf.nova" .Values.conf.nova }}
 
+
 {{- define "nova.conf.nova_values_skeleton" -}}
 
 {{- if not .default -}}{{- set . "default" dict -}}{{- end -}}
@@ -178,6 +179,10 @@
 [DEFAULT]
 
 #
+# From nova.conf
+#
+
+#
 # This determines the strategy to use for authentication: keystone or noauth2.
 # 'noauth2' is designed for testing only, as it does no actual credential
 # checking. 'noauth2' provides administrative credentials only if 'admin' is
@@ -280,7 +285,6 @@
 # from .default.nova.conf.vendordata_dynamic_targets
 {{ if not .default.nova.conf.vendordata_dynamic_targets }}#{{ end }}vendordata_dynamic_targets = {{ .default.nova.conf.vendordata_dynamic_targets | default "" }}
 
-<<<<<<< HEAD
 #
 # Path to an optional certificate file or CA bundle to verify dynamic
 # vendordata REST services ssl certificates against.
@@ -1443,7 +1447,7 @@
 #   * Current hostname (default) or any string representing hostname.
 #  (string value)
 # from .default.nova.conf.console_public_hostname
-{{ if not .default.nova.conf.console_public_hostname }}#{{ end }}console_public_hostname = {{ .default.nova.conf.console_public_hostname | default "hpdesktop" }}
+{{ if not .default.nova.conf.console_public_hostname }}#{{ end }}console_public_hostname = {{ .default.nova.conf.console_public_hostname | default "d5bac85a44d3" }}
 
 #
 # This option allows you to change the message topic used by nova-consoleauth
@@ -1602,7 +1606,7 @@
 # * vpn_ip
 #  (string value)
 # from .default.nova.conf.my_ip
-{{ if not .default.nova.conf.my_ip }}#{{ end }}my_ip = {{ .default.nova.conf.my_ip | default "68.121.13.249" }}
+{{ if not .default.nova.conf.my_ip }}#{{ end }}my_ip = {{ .default.nova.conf.my_ip | default "172.17.0.2" }}
 
 #
 # The IP address which is used to connect to the block storage network.
@@ -1626,7 +1630,7 @@
 # * String with hostname, FQDN or IP address. Default is hostname of this host.
 #  (string value)
 # from .default.nova.conf.host
-{{ if not .default.nova.conf.host }}#{{ end }}host = {{ .default.nova.conf.host | default "hpdesktop" }}
+{{ if not .default.nova.conf.host }}#{{ end }}host = {{ .default.nova.conf.host | default "d5bac85a44d3" }}
 
 #
 # Assign IPv6 and IPv4 addresses when creating instances.
@@ -2544,7 +2548,7 @@
 # * ``state_path``
 #  (string value)
 # from .default.nova.conf.pybasedir
-{{ if not .default.nova.conf.pybasedir }}#{{ end }}pybasedir = {{ .default.nova.conf.pybasedir | default "/data/alan/Workbench/openstack/nova" }}
+{{ if not .default.nova.conf.pybasedir }}#{{ end }}pybasedir = {{ .default.nova.conf.pybasedir | default "/tmp/nova" }}
 
 #
 # The directory where the Nova binaries are installed.
@@ -2559,7 +2563,7 @@
 # * The full path to a directory.
 #  (string value)
 # from .default.nova.conf.bindir
-{{ if not .default.nova.conf.bindir }}#{{ end }}bindir = {{ .default.nova.conf.bindir | default "/data/alan/Workbench/openstack/nova/.tox/py27/local/bin" }}
+{{ if not .default.nova.conf.bindir }}#{{ end }}bindir = {{ .default.nova.conf.bindir | default "/tmp/nova/.tox/genconfig/local/bin" }}
 
 #
 # The top-level directory for maintaining Nova's state.
@@ -6126,12 +6130,8 @@
 
 [keystone_authtoken]
 
-#
-# From keystonemiddleware.auth_token
-#
-
-# FIXME(alanmeadows) - added the next several lines because oslo gen config refuses to generate the line items required in keystonemiddleware 
-# for authentication - while it does support an "auth_section" parameter to locate these elsewhere, it would be a strange divergence 
+# FIXME(alanmeadows) - added the next several lines because oslo gen config refuses to generate the line items required in keystonemiddleware
+# for authentication - while it does support an "auth_section" parameter to locate these elsewhere, it would be a strange divergence
 # from how neutron keystone authentication is stored today - ocata and later appear to use a "service" user section which can house these details
 # and does successfully generate beyond newton, so likely this whole section will be removed the next time we generate this file
 
@@ -6143,6 +6143,13 @@
 {{ if not .keystone_authtoken.keystonemiddleware.auth_token.username }}#{{ end }}username = {{ .keystone_authtoken.keystonemiddleware.auth_token.username | default "<None>" }}
 {{ if not .keystone_authtoken.keystonemiddleware.auth_token.password }}#{{ end }}password = {{ .keystone_authtoken.keystonemiddleware.auth_token.password | default "<None>" }}
 
+# FIXME(alanmeadows) - added for some newton images using older keystoneauth1 libs but are still "newton"
+{{ if not .keystone_authtoken.keystonemiddleware.auth_token.auth_url }}#{{ end }}auth_url = {{ .keystone_authtoken.keystonemiddleware.auth_token.auth_url | default "<None>" }}
+
+#
+# From keystonemiddleware.auth_token
+#
+
 # Complete "public" Identity API endpoint. This endpoint should not be an
 # "admin" endpoint, as it should be accessible by all end users. Unauthenticated
 # clients are redirected to this endpoint to authenticate. Although this
@@ -6152,9 +6159,6 @@
 # end users may not be  able to reach that endpoint. (string value)
 # from .keystone_authtoken.keystonemiddleware.auth_token.auth_uri
 {{ if not .keystone_authtoken.keystonemiddleware.auth_token.auth_uri }}#{{ end }}auth_uri = {{ .keystone_authtoken.keystonemiddleware.auth_token.auth_uri | default "<None>" }}
-
-# FIXME(alanmeadows) - added for some newton images using older keystoneauth1 libs but are still "newton"
-{{ if not .keystone_authtoken.keystonemiddleware.auth_token.auth_url }}#{{ end }}auth_url = {{ .keystone_authtoken.keystonemiddleware.auth_token.auth_url | default "<None>" }}
 
 # API version of the admin Identity API endpoint. (string value)
 # from .keystone_authtoken.keystonemiddleware.auth_token.auth_version
@@ -10429,4 +10433,3 @@
 {{ if not .xvp.nova.conf.console_xvp_multiplex_port }}#{{ end }}console_xvp_multiplex_port = {{ .xvp.nova.conf.console_xvp_multiplex_port | default "5900" }}
 
 {{- end -}}
-
