@@ -24,18 +24,20 @@ chown neutron: /run/openvswitch/db.sock
 # which means we need to do a create action
 # 
 # see https://github.com/att-comdev/openstack-helm/issues/88
-timeout 3m neutron-sanity-check --config-file /etc/neutron/neutron.conf --ovsdb_native --nokeepalived_ipv6_support
+timeout 3m neutron-sanity-check --config-file /etc/neutron/neutron.conf --config-file /etc/neutron/plugins/ml2/openvswitch_agent.ini --ovsdb_native --nokeepalived_ipv6_support
 
 
 # determine local-ip dynamically based on interface provided but only if tunnel_types is not null
-{{- if .Values.ml2.agent.tunnel_types }}
 IP=$(ip a s {{ .Values.network.interface.tunnel | default .Values.network.interface.default}} | grep 'inet ' | awk '{print $2}' | awk -F "/" '{print $1}')
 cat <<EOF>/tmp/ml2-local-ip.ini
 [ovs]
 local_ip = $IP
 EOF
-{{- else }}
-touch /tmp/ml2-local-ip.ini
-{{- end }}
 
-exec sudo -E -u neutron neutron-openvswitch-agent --config-file /etc/neutron/neutron.conf --config-file /etc/neutron/plugins/ml2/ml2-conf.ini --config-file /tmp/ml2-local-ip.ini
+# TODO: make this configurable going forward as today
+# it forces openvswitch agent
+exec sudo -E -u neutron neutron-openvswitch-agent \
+--config-file /etc/neutron/neutron.conf \
+--config-file /etc/neutron/plugins/ml2/ml2-conf.ini \
+--config-file /tmp/ml2-local-ip.ini \
+--config-file /etc/neutron/plugins/ml2/openvswitch_agent.ini 
