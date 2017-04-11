@@ -1,0 +1,302 @@
+# Copyright 2017 The Openstack-Helm Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Default values for mistral.
+# This is a YAML-formatted file.
+# Declare name/value pairs to be passed into your templates.
+# name: value
+
+
+replicas:
+  api: 1
+  engine: 1
+  event_engine: 1
+  executor: 1
+
+labels:
+  node_selector_key: openstack-control-plane
+  node_selector_value: enabled
+
+images:
+  dep_check: docker.io/kolla/ubuntu-source-kubernetes-entrypoint:4.0.0
+  db_init: docker.io/kolla/ubuntu-source-mistral-api:3.0.3
+  db_sync: docker.io/kolla/ubuntu-source-mistral-api:3.0.3
+  ks_user: docker.io/kolla/ubuntu-source-kolla-toolbox:3.0.3
+  ks_service: docker.io/kolla/ubuntu-source-kolla-toolbox:3.0.3
+  ks_endpoints: docker.io/kolla/ubuntu-source-kolla-toolbox:3.0.3
+  api: docker.io/kolla/ubuntu-source-mistral-api:3.0.3
+  engine: docker.io/kolla/ubuntu-source-mistral-engine:3.0.3
+  event_engine: docker.io/kolla/ubuntu-source-mistral-engine:3.0.3
+  executor: docker.io/kolla/ubuntu-source-mistral-executor:3.0.3
+  pull_policy: "IfNotPresent"
+
+upgrades:
+  revision_history: 3
+  pod_replacement_strategy: RollingUpdate
+  rolling_update:
+    max_unavailable: 1
+    max_surge: 3
+
+keystone_secrets:
+  admin: "mistral-env-keystone-admin"
+  user: "mistral-env-keystone-user"
+
+keystone:
+  admin_user: "admin"
+  admin_user_domain: "default"
+  admin_password: "password"
+  admin_project_name: "admin"
+  admin_project_domain: "default"
+  admin_region_name: "RegionOne"
+
+  mistral_user: "mistral"
+  mistral_user_domain: "default"
+  mistral_user_role: "admin"
+  mistral_password: "password"
+  mistral_project_name: "service"
+  mistral_project_domain: "default"
+  mistral_region_name: "RegionOne"
+
+network:
+  api:
+    name: "mistral-api"
+    proto: "http"
+    node_port:
+      enabled: false
+      port: 28989
+
+dependencies:
+  db_init:
+    jobs:
+    - mariadb-seed
+    service:
+    - mariadb
+  db_sync:
+    jobs:
+    - mistral-db-init
+    service:
+    - mariadb
+  ks_user:
+    service:
+    - keystone-api
+  ks_service:
+    service:
+    - keystone-api
+  ks_endpoints:
+    jobs:
+    - mistral-ks-service
+    service:
+    - keystone-api
+  api:
+    jobs:
+    - mistral-db-sync
+    - mistral-ks-user
+    - mistral-ks-endpoints
+    service:
+    - keystone-api
+    - mariadb
+  engine:
+    jobs:
+    - mistral-db-sync
+    - mistral-ks-user
+    - mistral-ks-endpoints
+    service:
+    - keystone-api
+    - mariadb
+  event_engine:
+    jobs:
+    - mistral-db-sync
+    - mistral-ks-user
+    - mistral-ks-endpoints
+    service:
+    - keystone-api
+    - mariadb
+  executor:
+    jobs:
+    - mistral-db-sync
+    - mistral-ks-user
+    - mistral-ks-endpoints
+    service:
+    - keystone-api
+    - mariadb
+
+# typically overriden by environmental
+# values, but should include all endpoints
+# required by this chart
+endpoints:
+  identity:
+    name: keystone
+    hosts:
+      default: keystone-api
+    path: /v3
+    scheme: 'http'
+    port:
+      admin: 35357
+      api: 5000
+  workflow:
+    name: mistral
+    hosts:
+      default: mistral-api
+    path: /v2
+    scheme: 'http'
+    port:
+      api: 8989
+  oslo_db:
+    auth:
+      admin:
+        username: root
+        password: password
+      user:
+        username: mistral
+        password: password
+    hosts:
+      default: mariadb
+    path: /mistral
+    scheme: mysql+pymysql
+    port:
+      mysql: 3306
+  oslo_messaging:
+    auth:
+      admin:
+        username: admin
+        password: password
+      user:
+        username: rabbitmq
+        password: password
+    hosts:
+      default: rabbitmq
+    path: /
+    scheme: rabbit
+    port:
+      amqp: 5672
+  oslo_cache:
+    hosts:
+      default: memcache
+    port:
+      memcache: 11211
+
+mounts:
+  mistral_api:
+    init_container: null
+    mistral_api:
+  mistral_executor:
+    init_container: null
+    mistral_executor:
+  mistral_engine:
+    init_container: null
+    mistral_engine:
+  mistral_event_engine:
+    init_container: null
+    mistral_event_engine:
+
+conf:
+  policy:
+    override:
+    append:
+  mistral:
+    override:
+    append:
+    default:
+      mistral:
+        conf:
+    api:
+      mistral:
+        config:
+          port: 8989
+          api_workers: 8
+    coordination:
+      mistral:
+        config:
+          backend_url:
+    database:
+      oslo:
+        db:
+          max_retries: -1
+    keystone_authtoken:
+      keystonemiddleware:
+        auth_token:
+          auth_type: password
+          auth_version: v3
+          region_name: RegionOne
+          project_name: service
+          project_domain_name: default
+          user_domain_name: default
+          username: mistral
+          password: password
+
+resources:
+  enabled: false
+  api:
+    requests:
+      memory: "124Mi"
+      cpu: "100m"
+    limits:
+      memory: "1024Mi"
+      cpu: "2000m"
+  mistral_db_init:
+    requests:
+      memory: "124Mi"
+      cpu: "100m"
+    limits:
+      memory: "1024Mi"
+      cpu: "2000m"
+  mistral_db_sync:
+    requests:
+      memory: "124Mi"
+      cpu: "100m"
+    limits:
+      memory: "1024Mi"
+      cpu: "2000m"
+  mistral_ks_endpoints:
+    requests:
+      memory: "124Mi"
+      cpu: "100m"
+    limits:
+      memory: "1024Mi"
+      cpu: "2000m"
+  mistral_ks_service:
+    requests:
+      memory: "124Mi"
+      cpu: "100m"
+    limits:
+      memory: "1024Mi"
+      cpu: "2000m"
+  mistral_ks_user:
+    requests:
+      memory: "124Mi"
+      cpu: "100m"
+    limits:
+      memory: "1024Mi"
+      cpu: "2000m"
+  engine:
+    requests:
+      memory: "124Mi"
+      cpu: "100m"
+    limits:
+      memory: "1024Mi"
+      cpu: "2000m"
+  event_engine:
+    requests:
+      memory: "124Mi"
+      cpu: "100m"
+    limits:
+      memory: "1024Mi"
+      cpu: "2000m"
+  executor:
+    requests:
+      memory: "124Mi"
+      cpu: "100m"
+    limits:
+      memory: "1024Mi"
+      cpu: "2000m"
