@@ -42,14 +42,76 @@ spec:
               memory: {{ .Values.resources.nova_init.limits.memory | quote }}
               cpu: {{ .Values.resources.nova_init.limits.cpu | quote }}
           {{- end }}
+          env:
+            - name: ROOT_DB_CONNECTION
+              valueFrom:
+                secretKeyRef:
+                  name: nova-db-root
+                  key: DB_CONNECTION
+            - name: OPENSTACK_CONFIG_FILE
+              value: /etc/nova/nova.conf
+            - name: OPENSTACK_CONFIG_DB_SECTION
+              value: database
+            - name: OPENSTACK_CONFIG_DB_KEY
+              value: connection
           command:
-            - bash
-            - /tmp/init.sh
+            - python
+            - /tmp/db-init.py
           volumeMounts:
             - name: nova-bin
-              mountPath: /tmp/init.sh
-              subPath: init.sh
+              mountPath: /tmp/db-init.py
+              subPath: db-init.py
+              readOnly: true
+            - name: etcnova
+              mountPath: /etc/nova
+            - name: novaconf
+              mountPath: /etc/nova/nova.conf
+              subPath: nova.conf
+              readOnly: true
+        - name: nova-db-init-api
+          image: {{ .Values.images.db_init }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+          {{- if .Values.resources.enabled }}
+          resources:
+            requests:
+              memory: {{ .Values.resources.nova_init.requests.memory | quote }}
+              cpu: {{ .Values.resources.nova_init.requests.cpu | quote }}
+            limits:
+              memory: {{ .Values.resources.nova_init.limits.memory | quote }}
+              cpu: {{ .Values.resources.nova_init.limits.cpu | quote }}
+          {{- end }}
+          env:
+            - name: ROOT_DB_CONNECTION
+              valueFrom:
+                secretKeyRef:
+                  name: nova-db-root
+                  key: DB_CONNECTION
+            - name: OPENSTACK_CONFIG_FILE
+              value: /etc/nova/nova.conf
+            - name: OPENSTACK_CONFIG_DB_SECTION
+              value: api_database
+            - name: OPENSTACK_CONFIG_DB_KEY
+              value: connection
+          command:
+            - python
+            - /tmp/db-init.py
+          volumeMounts:
+            - name: nova-bin
+              mountPath: /tmp/db-init.py
+              subPath: db-init.py
+              readOnly: true
+            - name: etcnova
+              mountPath: /etc/nova
+            - name: novaconf
+              mountPath: /etc/nova/nova.conf
+              subPath: nova.conf
+              readOnly: true
       volumes:
+        - name: etcnova
+          emptyDir: {}
+        - name: novaconf
+          configMap:
+            name: nova-etc
         - name: nova-bin
           configMap:
             name: nova-bin
