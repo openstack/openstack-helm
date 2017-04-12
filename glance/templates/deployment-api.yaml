@@ -19,11 +19,7 @@ kind: Deployment
 metadata:
   name: glance-api
 spec:
-{{- if .Values.development.enabled }}
-  replicas: 1
-{{- else }}
   replicas: {{ .Values.replicas.api }}
-{{- end }}
   revisionHistoryLimit: {{ .Values.upgrades.revision_history }}
   strategy:
     type: {{ .Values.upgrades.pod_replacement_strategy }}
@@ -63,10 +59,10 @@ spec:
           - --config-file
           - /etc/glance/glance-api.conf
           ports:
-            - containerPort: {{ .Values.network.api.port }}
+            - containerPort: {{ .Values.conf.glance.default.glance.api.bind_port }}
           readinessProbe:
             tcpSocket:
-              port: {{ .Values.network.api.port }}
+              port: {{ .Values.conf.glance.default.glance.api.bind_port }}
           volumeMounts:
             - name: etcglance
               mountPath: /etc/glance
@@ -82,9 +78,9 @@ spec:
               mountPath: /etc/glance/policy.json
               subPath: policy.json
               readOnly: true
-{{- if .Values.development.enabled }}
-            - name: glance-data
-              mountPath: /var/lib/glance/images
+{{- if eq .Values.storage "file" }}
+            - name: glance-images
+              mountPath: {{ .Values.conf.glance.glance_store.glance.store.filesystem_store_datadir }}
 {{- else }}
             - name: cephconf
               mountPath: /etc/ceph/ceph.conf
@@ -102,10 +98,10 @@ spec:
         - name: glanceapipaste
           configMap:
             name: glance-etc
-{{- if .Values.development.enabled }}
-        - name: glance-data
-          hostPath:
-            path: {{ .Values.development.storage_path }}
+{{- if eq .Values.storage "file" }}
+        - name: glance-images
+          persistentVolumeClaim:
+            claimName: glance-images
 {{- else }}
         - name: cephconf
           configMap:

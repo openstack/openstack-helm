@@ -12,18 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+{{- if eq .Values.storage "file" }}
+kind: PersistentVolumeClaim
 apiVersion: v1
-kind: Service
 metadata:
-  name: glance-api
+  name: glance-images
+  annotations:
+    volume.beta.kubernetes.io/storage-class: general
 spec:
-  ports:
-    - port: {{ .Values.conf.glance.default.glance.api.bind_port }}
-    {{ if .Values.network.api.node_port.enabled }}
-      nodePort: .Values.network.api.node_port.port
-    {{ end }}
-  selector:
-    app: glance-api
-  {{ if .Values.network.api.node_port.enabled }}
-  type: NodePort
-  {{ end }}
+  accessModes: [ "ReadWriteOnce" ]
+  resources:
+    requests:
+      storage: 20Gi
+{{- end }}
