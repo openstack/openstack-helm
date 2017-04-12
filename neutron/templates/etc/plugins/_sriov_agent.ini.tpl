@@ -193,4 +193,3 @@
 {{ if not .sriov_nic.neutron.ml2.sriov.agent.exclude_devices }}#{{ end }}exclude_devices = {{ .sriov_nic.neutron.ml2.sriov.agent.exclude_devices | default "" }}
 
 {{- end -}}
-

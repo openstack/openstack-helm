@@ -352,4 +352,3 @@
 {{ if not .agent.neutron.base.agent.availability_zone }}#{{ end }}availability_zone = {{ .agent.neutron.base.agent.availability_zone | default "nova" }}
 
 {{- end -}}
-

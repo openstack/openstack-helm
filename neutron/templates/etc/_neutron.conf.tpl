@@ -1057,8 +1057,8 @@
 # From keystonemiddleware.auth_token
 #
 
-# FIXME(alanmeadows) - added the next several lines because oslo gen config refuses to generate the line items required in keystonemiddleware 
-# for authentication - while it does support an "auth_section" parameter to locate these elsewhere, it would be a strange divergence 
+# FIXME(alanmeadows) - added the next several lines because oslo gen config refuses to generate the line items required in keystonemiddleware
+# for authentication - while it does support an "auth_section" parameter to locate these elsewhere, it would be a strange divergence
 # from how neutron keystone authentication is stored today - ocata and later appear to use a "service" user section which can house these details
 # and does successfully generate beyond newton, so likely this whole section will be removed the next time we generate this file
 
@@ -2229,4 +2229,3 @@
 {{ if not .ssl.oslo.service.sslutils.ciphers }}#{{ end }}ciphers = {{ .ssl.oslo.service.sslutils.ciphers | default "<None>" }}
 
 {{- end -}}
-

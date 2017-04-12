@@ -344,4 +344,3 @@
 {{ if not .cache.oslo.cache.memcache_pool_connection_get_timeout }}#{{ end }}memcache_pool_connection_get_timeout = {{ .cache.oslo.cache.memcache_pool_connection_get_timeout | default "10" }}
 
 {{- end -}}
-
