@@ -15,6 +15,8 @@
 {{- $envAll := . }}
 {{- $ksAdminSecret := $envAll.Values.keystone.admin_secret | default "nova-env-keystone-admin" }}
 {{- $dependencies := .Values.dependencies.bootstrap }}
+{{- $mounts_nova_bootstrap := .Values.mounts.nova_bootstrap.nova_bootstrap }}
+{{- $mounts_nova_bootstrap_init := .Values.mounts.nova_bootstrap.init_container }}
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -24,7 +26,7 @@ spec:
     metadata:
       annotations:
         pod.beta.kubernetes.io/init-containers: '[
-{{ tuple $envAll $dependencies "[]" | include "helm-toolkit.kubernetes_entrypoint_init_container" | indent 10 }}
+{{ tuple $envAll $dependencies $mounts_nova_bootstrap_init | include "helm-toolkit.kubernetes_entrypoint_init_container" | indent 10 }}
         ]'
     spec:
       restartPolicy: OnFailure
@@ -51,12 +53,15 @@ spec:
 {{- include "helm-toolkit.keystone_openrc_env_vars" $env | indent 12 }}
 {{- end }}
           volumeMounts:
-            - name: novaconf
-              mountPath: /etc/nova/nova.conf
-              subPath: nova.conf
             - name: nova-bin
               mountPath: /tmp/bootstrap.sh
               subPath: bootstrap.sh
+              readOnly: true
+            - name: novaconf
+              mountPath: /etc/nova/nova.conf
+              subPath: nova.conf
+              readOnly: true
+{{ if $mounts_nova_bootstrap.volumeMounts }}{{ toYaml $mounts_nova_bootstrap.volumeMounts | indent 12 }}{{ end }}
       volumes:
         - name: novaconf
           configMap:
@@ -64,3 +69,4 @@ spec:
         - name: nova-bin
           configMap:
             name: nova-bin
+{{ if $mounts_nova_bootstrap.volumes }}{{ toYaml $mounts_nova_bootstrap.volumes | indent 8 }}{{ end }}
