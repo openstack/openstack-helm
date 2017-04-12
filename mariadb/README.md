@@ -1,4 +1,4 @@
-# aic-helm/mariadb
+# openstack-helm/mariadb
 
 By default, this chart creates a 3-member mariadb galera cluster.
 

@@ -1,4 +1,4 @@
-# aic-helm/ceph
+# openstack-helm/ceph
 
 This chart installs a working version of ceph.  It is based on the ceph-docker work and follows closely with the setup [examples](https://github.com/ceph/ceph-docker/tree/master/examples/kubernetes) for kubernetes.
 
