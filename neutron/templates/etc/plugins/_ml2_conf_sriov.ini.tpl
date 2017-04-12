@@ -169,4 +169,3 @@
 {{ if not .ml2_sriov.neutron.ml2.sriov.supported_pci_vendor_devs }}#{{ end }}supported_pci_vendor_devs = {{ .ml2_sriov.neutron.ml2.sriov.supported_pci_vendor_devs | default "<None>" }}
 
 {{- end -}}
-

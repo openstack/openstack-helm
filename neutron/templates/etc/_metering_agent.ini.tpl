@@ -171,4 +171,3 @@
 {{ if not .default.oslo.log.fatal_deprecations }}#{{ end }}fatal_deprecations = {{ .default.oslo.log.fatal_deprecations | default "false" }}
 
 {{- end -}}
-
