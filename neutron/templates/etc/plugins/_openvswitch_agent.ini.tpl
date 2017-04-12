@@ -380,4 +380,3 @@
 {{ if not .securitygroup.neutron.ml2.ovs.agent.enable_ipset }}#{{ end }}enable_ipset = {{ .securitygroup.neutron.ml2.ovs.agent.enable_ipset | default "true" }}
 
 {{- end -}}
-

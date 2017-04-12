@@ -18,6 +18,7 @@
 
 
 {{- define "neutron.conf.sriov_agent_values_skeleton" -}}
+
 {{- if not .default -}}{{- set . "default" dict -}}{{- end -}}
 {{- if not .default.oslo -}}{{- set .default "oslo" dict -}}{{- end -}}
 {{- if not .default.oslo.log -}}{{- set .default.oslo "log" dict -}}{{- end -}}
@@ -26,7 +27,6 @@
 {{- if not .agent.neutron.ml2 -}}{{- set .agent.neutron "ml2" dict -}}{{- end -}}
 {{- if not .agent.neutron.ml2.sriov -}}{{- set .agent.neutron.ml2 "sriov" dict -}}{{- end -}}
 {{- if not .agent.neutron.ml2.sriov.agent -}}{{- set .agent.neutron.ml2.sriov "agent" dict -}}{{- end -}}
-{{- if not .agent.neutron.ml2.agent -}}{{- set .agent.neutron.ml2 "agent" dict -}}{{- end -}}
 {{- if not .sriov_nic -}}{{- set . "sriov_nic" dict -}}{{- end -}}
 {{- if not .sriov_nic.neutron -}}{{- set .sriov_nic "neutron" dict -}}{{- end -}}
 {{- if not .sriov_nic.neutron.ml2 -}}{{- set .sriov_nic.neutron "ml2" dict -}}{{- end -}}
@@ -193,4 +193,3 @@
 {{ if not .sriov_nic.neutron.ml2.sriov.agent.exclude_devices }}#{{ end }}exclude_devices = {{ .sriov_nic.neutron.ml2.sriov.agent.exclude_devices | default "" }}
 
 {{- end -}}
-
