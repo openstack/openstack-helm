@@ -24,9 +24,11 @@ port=$2
 # by the agent
 ovs-vsctl --no-wait --may-exist add-br $bridge
 ovs-vsctl --no-wait --may-exist add-port $bridge $port
+ip link set dev $port up
 
 # handle any bridge mappings
 {{- range $bridge, $port := .Values.ml2.ovs.auto_bridge_add }}
 ovs-vsctl --no-wait --may-exist add-br {{ $bridge }}
 ovs-vsctl --no-wait --may-exist add-port {{ $bridge }} {{ $port }}
+ip link set dev {{ $port }} up
 {{- end}}
