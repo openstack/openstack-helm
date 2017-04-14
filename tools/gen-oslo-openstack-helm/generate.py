@@ -594,8 +594,7 @@ def generate(conf):
     output_file = (open(conf.output_file, 'w')
                    if conf.output_file else sys.stdout)
 
-    output_file.write('''
-# Copyright 2017 The Openstack-Helm Authors.
+    output_file.write('''# Copyright 2017 The Openstack-Helm Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
