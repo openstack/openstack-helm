@@ -1,0 +1,77 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+{{- $envAll := . }}
+{{- $dependencies := .Values.dependencies.db_init }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: barbican-db-init
+spec:
+  template:
+    metadata:
+      annotations:
+        pod.beta.kubernetes.io/init-containers: '[
+{{ tuple $envAll $dependencies "[]" | include "helm-toolkit.kubernetes_entrypoint_init_container" | indent 10 }}
+        ]'
+    spec:
+      restartPolicy: OnFailure
+      nodeSelector:
+        {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
+      containers:
+        - name: barbican-db-init
+          image: {{ .Values.images.db_init }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+          {{- if .Values.resources.enabled }}
+          resources:
+            limits:
+              cpu: {{ .Values.resources.db_init.limits.cpu | quote }}
+              memory: {{ .Values.resources.db_init.limits.memory | quote }}
+            requests:
+              cpu: {{ .Values.resources.db_init.requests.cpu | quote }}
+              memory: {{ .Values.resources.db_init.requests.memory | quote }}
+          {{- end }}
+          env:
+            - name: ROOT_DB_CONNECTION
+              valueFrom:
+                secretKeyRef:
+                  name: barbican-db-root
+                  key: DB_CONNECTION
+            - name: OPENSTACK_CONFIG_FILE
+              value: /etc/barbican/barbican.conf
+            - name: OPENSTACK_CONFIG_DB_SECTION
+              value: DEFAULT
+            - name: OPENSTACK_CONFIG_DB_KEY
+              value: sql_connection
+          command:
+            - python
+            - /tmp/db-init.py
+          volumeMounts:
+            - name: barbican-bin
+              mountPath: /tmp/db-init.py
+              subPath: db-init.py
+              readOnly: true
+            - name: barbican-etc
+              mountPath: /etc/barbican
+            - name: barbican-conf
+              mountPath: /etc/barbican/barbican.conf
+              subPath: barbican.conf
+              readOnly: true
+      volumes:
+        - name: barbican-etc
+          emptyDir: {}
+        - name: barbican-conf
+          configMap:
+            name: barbican-etc
+        - name: barbican-bin
+          configMap:
+            name: barbican-bin
