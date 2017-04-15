@@ -17,7 +17,7 @@ set -xe
 
 # Setup shared mounts for kubelet
 sudo mkdir -p /var/lib/kubelet
-sudo mount --bind /var/lib/kublet /var/lib/kubelet
+sudo mount --bind /var/lib/kubelet /var/lib/kubelet
 sudo mount --make-shared /var/lib/kubelet
 
 # Cleanup any old deployment
