@@ -61,6 +61,24 @@ spec:
             - python
             - /tmp/db-init.py
           volumeMounts:
-{{ toYaml $mounts_keystone_db_init.volumeMounts | indent 12 }}
+          - name: etckeystone
+            mountPath: /etc/keystone
+          - name: keystone-etc
+            mountPath: /etc/keystone/keystone.conf
+            subPath: keystone.conf
+            readOnly: true
+          - name: keystone-bin
+            mountPath: /tmp/db-init.py
+            subPath: db-init.py
+            readOnly: true
+{{ if $mounts_keystone_db_init.volumeMounts }}{{ toYaml $mounts_keystone_db_init.volumeMounts | indent 10 }}{{ end }}
       volumes:
-{{ toYaml $mounts_keystone_db_init.volumes | indent 8 }}
+      - name: etckeystone
+        emptyDir: {}
+      - name: keystone-etc
+        configMap:
+          name: keystone-etc
+      - name: keystone-bin
+        configMap:
+          name: keystone-bin
+{{ if $mounts_keystone_db_init.volumes }}{{ toYaml $mounts_keystone_db_init.volumes | indent 6 }}{{ end }}
