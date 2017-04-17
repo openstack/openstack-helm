@@ -13,7 +13,32 @@ From a freshly provisioned Ubuntu 16.04 LTS host run:
 sudo apt-get update -y
 sudo apt-get install -y \
         docker.io \
-        nfs-common
+        nfs-common \
+        git \
+        make
+```
+
+### OS Independent Host setup:
+
+You should install the `kubectl` and `helm` binaries:
+
+``` bash
+KUBE_VERSION=v1.6.0
+HELM_VERSION=v2.3.0
+
+TMP_DIR=$(mktemp -d)
+curl -sSL https://storage.googleapis.com/kubernetes-release/release/${KUBE_VERSION}/bin/linux/amd64/kubectl -o ${TMP_DIR}/kubectl
+chmod +x ${TMP_DIR}/kubectl
+sudo mv ${TMP_DIR}/kubectl /usr/local/bin/kubectl
+curl -sSL https://storage.googleapis.com/kubernetes-helm/helm-${HELM_VERSION}-linux-amd64.tar.gz | tar -zxv --strip-components=1 -C ${TMP_DIR}
+sudo mv ${TMP_DIR}/helm /usr/local/bin/helm
+rm -rf ${TMP_DIR}
+```
+
+And clone the OpenStack-Helm repo:
+
+``` bash
+git clone https://git.openstack.org/openstack/openstack-helm
 ```
 
 ### Build and deploy the AIO environment
