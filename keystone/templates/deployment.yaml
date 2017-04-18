@@ -75,6 +75,44 @@ spec:
             tcpSocket:
               port: {{ .Values.network.api.port }}
           volumeMounts:
-{{ toYaml $mounts_keystone_api.volumeMounts | indent 12 }}
+          - name: etckeystone
+            mountPath: /etc/keystone
+          - name: keystone-etc
+            mountPath: /etc/keystone/keystone.conf
+            subPath: keystone.conf
+            readOnly: true
+          - name: keystone-etc
+            mountPath: /etc/keystone/keystone-paste.ini
+            subPath: keystone-paste.ini
+            readOnly: true
+          - name: keystone-etc
+            mountPath: /etc/keystone/policy.json
+            subPath: policy.json
+            readOnly: true
+          - name: keystone-etc
+            mountPath: /etc/keystone/sso_callback_template.html
+            subPath: sso_callback_template.html
+            readOnly: true
+          - name: keystone-etc
+            mountPath: /etc/apache2/conf-enabled/wsgi-keystone.conf
+            subPath: wsgi-keystone.conf
+            readOnly: true
+          - name: keystone-etc
+            mountPath: /etc/apache2/mods-available/mpm_event.conf
+            subPath: mpm_event.conf
+            readOnly: true
+          - name: keystone-bin
+            mountPath: /tmp/start.sh
+            subPath: start.sh
+            readOnly: true
+{{ if $mounts_keystone_api.volumeMounts }}{{ toYaml $mounts_keystone_api.volumeMounts | indent 10 }}{{ end }}
       volumes:
-{{ toYaml $mounts_keystone_api.volumes | indent 8 }}
+      - name: etckeystone
+        emptyDir: {}
+      - name: keystone-etc
+        configMap:
+          name: keystone-etc
+      - name: keystone-bin
+        configMap:
+          name: keystone-bin
+{{ if $mounts_keystone_api.volumes }}{{ toYaml $mounts_keystone_api.volumes | indent 6 }}{{ end }}

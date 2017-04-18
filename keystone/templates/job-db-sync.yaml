@@ -48,6 +48,24 @@ spec:
             - bash
             - /tmp/db-sync.sh
           volumeMounts:
-{{ toYaml $mounts_keystone_db_sync.volumeMounts | indent 12 }}
+          - name: etckeystone
+            mountPath: /etc/keystone
+          - name: keystone-etc
+            mountPath: /etc/keystone/keystone.conf
+            subPath: keystone.conf
+            readOnly: true
+          - name: keystone-bin
+            mountPath: /tmp/db-sync.sh
+            subPath: db-sync.sh
+            readOnly: true
+{{ if $mounts_keystone_db_sync.volumeMounts }}{{ toYaml $mounts_keystone_db_sync.volumeMounts | indent 10 }}{{ end }}
       volumes:
-{{ toYaml $mounts_keystone_db_sync.volumes | indent 8 }}
+      - name: etckeystone
+        emptyDir: {}
+      - name: keystone-etc
+        configMap:
+          name: keystone-etc
+      - name: keystone-bin
+        configMap:
+          name: keystone-bin
+{{ if $mounts_keystone_db_sync.volumes }}{{ toYaml $mounts_keystone_db_sync.volumes | indent 6 }}{{ end }}
