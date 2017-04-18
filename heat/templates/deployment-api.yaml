@@ -14,6 +14,8 @@
 
 {{- $envAll := . }}
 {{- $dependencies := .Values.dependencies.api }}
+{{- $mounts_heat_api := .Values.mounts.heat_api.heat_api }}
+{{- $mounts_heat_api_init := .Values.mounts.heat_api.init_container }}
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
@@ -26,7 +28,7 @@ spec:
         app: heat-api
       annotations:
         pod.beta.kubernetes.io/init-containers: '[
-{{ tuple $envAll $dependencies "[]" | include "helm-toolkit.kubernetes_entrypoint_init_container" | indent 10 }}
+{{ tuple $envAll $dependencies $mounts_heat_api_init | include "helm-toolkit.kubernetes_entrypoint_init_container" | indent 10 }}
         ]'
     spec:
       nodeSelector:
@@ -70,6 +72,7 @@ spec:
               mountPath: /etc/heat/policy.json
               subPath: policy.json
               readOnly: true
+{{ if $mounts_heat_api.volumeMounts }}{{ toYaml $mounts_heat_api.volumeMounts | indent 12 }}{{ end }}
       volumes:
         - name: pod-etc-heat
           emptyDir: {}
@@ -84,3 +87,4 @@ spec:
         - name: heatpolicy
           configMap:
             name: heat-etc
+{{ if $mounts_heat_api.volumes }}{{ toYaml $mounts_heat_api.volumes | indent 8 }}{{ end }}
