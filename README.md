@@ -46,7 +46,7 @@ openstack-helm/rabbitmq         0.1.0   A Helm chart for Kubernetes
 $
 ```
 
-**UPDATED:** Please see our new [developer documentation](https://github.com/att-comdev/openstack-helm/blob/master/docs/developer/minikube.md) for Minikube.
+**UPDATED:** Please see our new [developer documentation](https://github.com/openstack/openstack-helm/blob/master/docs/guides-install/developer/install-minikube.md) for Minikube.
 
 # Additional Details
 
