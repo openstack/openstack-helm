@@ -43,7 +43,7 @@ helm repo add local http://localhost:8879/charts
 # You may need to change these params for your environment. Look up use of --iso-url if needed:
 minikube start \
         --network-plugin=cni \
-        --kubernetes-version v1.5.1 \
+        --kubernetes-version v1.6.0 \
         --disk-size 40g \
         --memory 16384 \
         --cpus 4 \
@@ -51,13 +51,16 @@ minikube start \
         --iso-url=https://storage.googleapis.com/minikube/iso/minikube-v1.0.4.iso
 
 # Deploy a CNI/SDN:
-kubectl create -f http://docs.projectcalico.org/v2.0/getting-started/kubernetes/installation/hosted/calico.yaml
+kubectl create -f http://docs.projectcalico.org/v2.1/getting-started/kubernetes/installation/hosted/kubeadm/1.6/calico.yaml
 
 # Initialize Helm/Deploy Tiller:
 helm init
 
 # Package the Openstack-Helm Charts, and push them to your local Helm repository:
 make
+
+# Setup RBAC rules
+kubectl update -f https://raw.githubusercontent.com/openstack/openstack-helm/master/tools/kubeadm-aio/assets/opt/rbac/dev.yaml
 
 # Label the Minikube as an Openstack Control Plane node:
 kubectl label nodes openstack-control-plane=enabled --all --namespace=openstack

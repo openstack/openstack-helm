@@ -6,8 +6,8 @@ In order to drive towards a production-ready Openstack solution, our goal is to 
 
 | | Version | Notes |
 |--- |--- |--- |
-| **Kubernetes** | [v1.5.5](https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG.md#v155) | [Custom Controller for RDB tools](https://quay.io/repository/attcomdev/kube-controller-manager?tab=tags) |
-| **Helm** | [v2.2.3](https://github.com/kubernetes/helm/releases/tag/v2.2.3) | Planning for [v2.3.0](https://github.com/kubernetes/helm/milestone/30) |
+| **Kubernetes** | [v1.6.0](https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG.md#v155) | [Custom Controller for RDB tools](https://quay.io/repository/attcomdev/kube-controller-manager?tab=tags) |
+| **Helm** | [v2.3.0](https://github.com/kubernetes/helm/releases/tag/v2.3.0) | |
 | **Calico** | [v2.1](http://docs.projectcalico.org/v2.1/releases/) | [`calicoctl` v1.1](https://github.com/projectcalico/calicoctl/releases) |
 | **Docker** | [v1.12.6](https://github.com/docker/docker/releases/tag/v1.12.1) | [Per kubeadm Instructions](http://kubernetes.io/docs/getting-started-guides/kubeadm/) | |
 
@@ -42,7 +42,7 @@ admin@kubenode01:~$
 After an initial `kubeadmn` deployment has been scheduled, it is time to deploy a CNI-enabled SDN. We have selected **Calico**, but have also confirmed that this works for Weave, and Romana. For Calico version v2.0, you can apply the provided [Kubeadm Hosted Install](http://docs.projectcalico.org/v2.0/getting-started/kubernetes/installation/hosted/kubeadm/) manifest:
 
 ```
-kubectl apply -f http://docs.projectcalico.org/v2.1/getting-started/kubernetes/installation/hosted/kubeadm/calico.yaml
+kubectl create -f http://docs.projectcalico.org/v2.1/getting-started/kubernetes/installation/hosted/kubeadm/1.6/calico.yaml
 ```
 **PLEASE NOTE:** For Calico deployments using v2.0, if you are using a 192.168.0.0/16 CIDR for your Kubernetes hosts, you will need to modify [line 42](https://gist.github.com/v1k0d3n/a152b1f5b8db5a8ae9c8c7da575a9694#file-calico-kubeadm-hosted-yml-L42) for the `cidr` declaration within the `ippool`. This must be a `/16` range or more, as the `kube-controller` will hand out `/24` ranges to each node. We have included a sample comparison of the changes [here](http://docs.projectcalico.org/v2.0/getting-started/kubernetes/installation/hosted/kubeadm/calico.yaml) and [here](https://gist.githubusercontent.com/v1k0d3n/a152b1f5b8db5a8ae9c8c7da575a9694/raw/c950eef1123a7dcc4b0dedca1a202e0c06248e9e/calico-kubeadm-hosted.yml). This is not applicable for Calico v2.1.
 
@@ -68,6 +68,13 @@ admin@kubenode01:~$
 ```
 
 It is important to call out that the Self Hosted Calico manifest for v2.0 (above) supports `nodetonode` mesh, and `nat-outgoing` by default. This is a change from version 1.6.
+
+## Setting Up RBAC
+Kubernetes >=v1.6 makes RBAC the default admission controller, OpenStack Helm does not currently have RBAC roles and permissions for each component so we relax the access control rules:
+
+``` bash
+kubectl update -f https://raw.githubusercontent.com/openstack/openstack-helm/master/tools/kubeadm-aio/assets/opt/rbac/dev.yaml
+```
 
 ## Preparing Persistent Storage
 Persistent storage is improving. Please check our current and/or resolved [issues](https://github.com/att-comdev/openstack-helm/issues?utf8=✓&q=ceph) to find out how we're working with the community to improve persistent storage for our project. For now, a few preparations need to be completed.
