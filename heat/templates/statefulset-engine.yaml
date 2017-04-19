@@ -14,6 +14,8 @@
 
 {{- $envAll := . }}
 {{- $dependencies := .Values.dependencies.engine }}
+{{- $mounts_heat_engine := .Values.mounts.heat_engine.heat_engine }}
+{{- $mounts_heat_engine_init := .Values.mounts.heat_engine.init_container }}
 apiVersion: apps/v1beta1
 kind: StatefulSet
 metadata:
@@ -27,7 +29,7 @@ spec:
         app: heat-engine
       annotations:
         pod.beta.kubernetes.io/init-containers: '[
-{{ tuple $envAll $dependencies "[]" | include "helm-toolkit.kubernetes_entrypoint_init_container" | indent 10 }}
+{{ tuple $envAll $dependencies $mounts_heat_engine_init | include "helm-toolkit.kubernetes_entrypoint_init_container" | indent 10 }}
         ]'
     spec:
       nodeSelector:
@@ -62,6 +64,7 @@ spec:
               mountPath: /etc/heat/policy.json
               subPath: policy.json
               readOnly: true
+{{ if $mounts_heat_engine.volumeMounts }}{{ toYaml $mounts_heat_engine.volumeMounts | indent 12 }}{{ end }}
       volumes:
         - name: pod-etc-heat
           emptyDir: {}
@@ -73,3 +76,4 @@ spec:
         - name: heatpolicy
           configMap:
             name: heat-etc
+{{ if $mounts_heat_engine.volumes }}{{ toYaml $mounts_heat_engine.volumes | indent 8 }}{{ end }}
