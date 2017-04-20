@@ -216,7 +216,7 @@ kubectl label nodes openstack-compute-node=enabled --all
 Download the latest copy of Openstack-Helm:
 
 ```
-git clone https://github.com/att-comdev/openstack-helm.git
+git clone https://github.com/openstack/openstack-helm.git
 cd openstack-helm
 ```
 
