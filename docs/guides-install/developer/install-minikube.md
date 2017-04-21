@@ -27,14 +27,13 @@ If your environment meets all of the prerequisites above, you can simply use the
 
 ```
 # Clone the project:
-git clone https://github.com/att-comdev/openstack-helm.git && cd openstack-helm
+git clone https://github.com/openstack/openstack-helm.git && cd openstack-helm
 
 # Get a list of the current tags:
 git tag -l
 
 # Checkout the tag you want to work with (use master for development):
 # For stability and testing, checkout the latest stable branch.
-git checkout 0.2.0
 
 # Start a local Helm Server:
 helm serve &
@@ -81,7 +80,7 @@ helm install --name=horizon local/horizon --namespace=openstack
 
 # Getting Started
 
-After installation, start Minikube with the flags listed below. Ensure that you have supplied enough disk, memory, and the current version flag for Kubernetes during `minikube start`. More information can be found [HERE](https://github.com/kubernetes/minikube/blob/master/docs/minikube_start.md).
+After installation, start Minikube with the flags listed below. Ensure that you have supplied enough disk, memory, and the current version flag for Kubernetes during `minikube start`. More information can be found [HERE](https://github.com/kubernetes/minikube#quickstart).
 
 ```
 minikube start \
@@ -91,7 +90,7 @@ minikube start \
     --memory 4048
 ```
 
-Next, deploy the [Calico](http://docs.projectcalico.org/master/getting-started/kubernetes/installation/hosted/hosted) manifest. This is not a requirement in cases where you want to use your own CNI-enabled SDN, however you are doing so at your own experience. Note which versions of Calico are recommended for the project in our [Installation Guide](https://github.com/att-comdev/openstack-helm/blob/master/docs/installation/getting-started.md#overview).
+Next, deploy the [Calico](http://docs.projectcalico.org/master/getting-started/kubernetes/installation/hosted/hosted) manifest. This is not a requirement in cases where you want to use your own CNI-enabled SDN, however you are doing so at your own experience. Note which versions of Calico are recommended for the project in our [Installation Guide](../install-multinode.md#overview).
 
 ```
 kubectl create -f http://docs.projectcalico.org/v2.0/getting-started/kubernetes/installation/hosted/calico.yaml
@@ -160,7 +159,7 @@ helm repo list
 Download the latest release of the project, preferably from `master` since you are following the "developer" instructions.
 
 ```
-git clone https://github.com/att-comdev/openstack-helm.git
+git clone https://github.com/openstack/openstack-helm.git
 ```
 
 Run `make` against the newly cloned project, which will automatically build secrets for the deployment and push the charts to your new local Helm repository:
@@ -182,7 +181,7 @@ Consider the following when using Minikube and development mode:
 * Persistent Storage used for Minikube development mode is `hostPath`. The Ceph PVC's included with this project are not intended to work with Minikube.
 * There is *no need* to install the `helm-toolkit` `ceph` or `bootstrap` charts. These charts are required for deploying Ceph PVC's.
 * Familiarize yourself with `values.yaml` included with the MariaDB chart. You will want to have the `storage_path` directory created prior to deploying MariaDB. This value will be used as the deployment's `hostPath`.
-* If Ceph development is required, you will need to follow the [getting started guide](https://github.com/att-comdev/openstack-helm/blob/master/docs/installation/getting-started.md) rather than this development mode documentation.
+* If Ceph development is required, you will need to follow the [getting started guide](../install-multinode.md) rather than this development mode documentation.
 
 To deploy Openstack-Helm in development mode, ensure you've created a minikube-approved `hostPath` volume. Minikube is very specific about what is expected for `hostPath` volumes. The following volumes are acceptable for minikube deployments:
 
@@ -277,4 +276,4 @@ If you have any questions, comments, or find any bugs, please submit an issue so
 
 # Troubleshooting
 
-* [Openstack-Helm Minikube Troubleshooting](../troubleshooting/ts-minikube.md)
+* [Openstack-Helm Minikube Troubleshooting](../../guides-operator/troubleshooting/ts-development.md)
