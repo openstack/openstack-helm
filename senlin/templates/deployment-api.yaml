@@ -1,0 +1,98 @@
+# Copyright 2017 The Openstack-Helm Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+{{- $envAll := . }}
+{{- $dependencies := .Values.dependencies.api }}
+{{- $mounts_senlin_api := .Values.mounts.senlin_api.senlin_api }}
+{{- $mounts_senlin_api_init := .Values.mounts.senlin_api.init_container }}
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: senlin-api
+spec:
+  replicas: {{ .Values.replicas.api }}
+  revisionHistoryLimit: {{ .Values.upgrades.revision_history }}
+  strategy:
+    type: {{ .Values.upgrades.pod_replacement_strategy }}
+    {{ if eq .Values.upgrades.pod_replacement_strategy "RollingUpdate" }}
+    rollingUpdate:
+      maxUnavailable: {{ .Values.upgrades.rolling_update.max_unavailable }}
+      maxSurge: {{ .Values.upgrades.rolling_update.max_surge }}
+    {{ end }}
+  template:
+    metadata:
+      labels:
+        app: senlin-api
+      annotations:
+        pod.beta.kubernetes.io/init-containers: '[
+{{ tuple $envAll $dependencies $mounts_senlin_api_init | include "helm-toolkit.kubernetes_entrypoint_init_container" | indent 10 }}
+        ]'
+    spec:
+      nodeSelector:
+        {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
+      containers:
+        - name: senlin-api
+          image: {{ .Values.images.api }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+          {{- if .Values.resources.enabled }}
+          resources:
+            requests:
+              memory: {{ .Values.resources.senlin_api.requests.memory | quote }}
+              cpu: {{ .Values.resources.senlin_api.requests.cpu | quote }}
+            limits:
+              memory: {{ .Values.resources.senlin_api.limits.memory | quote }}
+              cpu: {{ .Values.resources.senlin_api.limits.cpu | quote }}
+          {{- end }}
+          ports:
+            - containerPort: {{ .Values.conf.senlin.senlin_api.senlin.config.bind_port }}
+          readinessProbe:
+            tcpSocket:
+              port: {{ .Values.conf.senlin.senlin_api.senlin.config.bind_port }}
+          command:
+            - bash
+            - /tmp/senlin-api.sh
+          volumeMounts:
+            - name: senlin-bin
+              mountPath: /tmp/senlin-api.sh
+              subPath: senlin-api.sh
+              readOnly: true
+            - name: pod-etc-senlin
+              mountPath: /etc/senlin
+            - name: pod-var-cache-senlin
+              mountPath: /var/cache/senlin
+            - name: senlin-etc
+              mountPath: /etc/senlin/senlin.conf
+              subPath: senlin.conf
+              readOnly: true
+            - name: senlin-etc
+              mountPath: /etc/senlin/api-paste.ini
+              subPath: api-paste.ini
+              readOnly: true
+            - name: senlin-etc
+              mountPath: /etc/senlin/policy.json
+              subPath: policy.json
+              readOnly: true
+{{ if $mounts_senlin_api.volumeMounts }}{{ toYaml $mounts_senlin_api.volumeMounts | indent 12 }}{{ end }}
+      volumes:
+        - name: pod-etc-senlin
+          emptyDir: {}
+        - name: pod-var-cache-senlin
+          emptyDir: {}
+        - name: senlin-bin
+          configMap:
+            name: senlin-bin
+        - name: senlin-etc
+          configMap:
+            name: senlin-etc
+{{ if $mounts_senlin_api.volumes }}{{ toYaml $mounts_senlin_api.volumes | indent 8 }}{{ end }}

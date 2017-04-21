@@ -1,0 +1,82 @@
+# Copyright 2017 The Openstack-Helm Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+{{- $envAll := . }}
+{{- $dependencies := .Values.dependencies.engine }}
+{{- $mounts_senlin_engine := .Values.mounts.senlin_engine.senlin_engine }}
+{{- $mounts_senlin_engine_init := .Values.mounts.senlin_engine.init_container }}
+apiVersion: apps/v1beta1
+kind: StatefulSet
+metadata:
+  name: senlin-engine
+spec:
+  serviceName: senlin-engine
+  replicas: {{ .Values.replicas.engine }}
+  template:
+    metadata:
+      labels:
+        app: senlin-engine
+      annotations:
+        pod.beta.kubernetes.io/init-containers: '[
+{{ tuple $envAll $dependencies $mounts_senlin_engine_init | include "helm-toolkit.kubernetes_entrypoint_init_container" | indent 10 }}
+        ]'
+    spec:
+      nodeSelector:
+        {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
+      containers:
+        - name: senlin-engine
+          image: {{ .Values.images.engine }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+          {{- if .Values.resources.enabled }}
+          resources:
+            requests:
+              memory: {{ .Values.resources.senlin_engine.requests.memory | quote }}
+              cpu: {{ .Values.resources.senlin_engine.requests.cpu | quote }}
+            limits:
+              memory: {{ .Values.resources.senlin_engine.limits.memory | quote }}
+              cpu: {{ .Values.resources.senlin_engine.limits.cpu | quote }}
+          {{- end }}
+          command:
+            - bash
+            - /tmp/senlin-engine.sh
+          volumeMounts:
+            - name: senlin-bin
+              mountPath: /tmp/senlin-engine.sh
+              subPath: senlin-engine.sh
+              readOnly: true
+            - name: pod-etc-senlin
+              mountPath: /etc/senlin
+            - name: pod-var-cache-senlin
+              mountPath: /var/cache/senlin
+            - name: senlin-etc
+              mountPath: /etc/senlin/senlin.conf
+              subPath: senlin.conf
+              readOnly: true
+            - name: senlin-etc
+              mountPath: /etc/senlin/policy.json
+              subPath: policy.json
+              readOnly: true
+{{ if $mounts_senlin_engine.volumeMounts }}{{ toYaml $mounts_senlin_engine.volumeMounts | indent 12 }}{{ end }}
+      volumes:
+        - name: pod-etc-senlin
+          emptyDir: {}
+        - name: pod-var-cache-senlin
+          emptyDir: {}
+        - name: senlin-bin
+          configMap:
+            name: senlin-bin
+        - name: senlin-etc
+          configMap:
+            name: senlin-etc
+{{ if $mounts_senlin_engine.volumes }}{{ toYaml $mounts_senlin_engine.volumes | indent 8 }}{{ end }}
