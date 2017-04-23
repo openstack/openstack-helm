@@ -18,6 +18,7 @@ wsrep_provider=/usr/lib/galera/libgalera_smm.so
 wsrep_provider_options="gcache.size=512M"
 wsrep_slave_threads=12
 wsrep_sst_auth=root:{{ .Values.database.root_password }}
+wsrep_sst_method={{ .Values.database.wsrep_sst_method }}
 # xtrabackup-v2 would be more desirable here, but its
 # not in the upstream stackanetes images
 # ()[mysql@mariadb-seed-gdqr8 /]$ xtrabackup --version
