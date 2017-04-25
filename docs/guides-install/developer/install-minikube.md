@@ -65,13 +65,13 @@ kubectl update -f https://raw.githubusercontent.com/openstack/openstack-helm/mas
 kubectl label nodes openstack-control-plane=enabled --all --namespace=openstack
 
 # Deploy each chart:
-helm install --name mariadb --set development.enabled=true local/mariadb --namespace=openstack
+helm install --name mariadb local/mariadb --namespace=openstack --set development.enabled=true 
 helm install --name=memcached local/memcached --namespace=openstack
 helm install --name=etcd-rabbitmq local/etcd --namespace=openstack
 helm install --name=rabbitmq local/rabbitmq --namespace=openstack
 helm install --name=keystone local/keystone --namespace=openstack
 helm install --name=cinder local/cinder --namespace=openstack
-helm install --name=glance local/glance --namespace=openstack
+helm install --name=glance local/glance --namespace=openstack --values=./glance/_values-mvp.yaml
 helm install --name=heat local/heat --namespace=openstack
 helm install --name=nova local/nova --namespace=openstack
 helm install --name=neutron local/neutron --namespace=openstack

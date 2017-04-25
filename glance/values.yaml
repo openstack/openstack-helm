@@ -21,9 +21,7 @@ replicas:
   api: 1
   registry: 1
 
-development:
-  enabled: false
-  storage_path: /var/lib/localkube/openstack-helm/glance/images
+storage: ceph
 
 labels:
   node_selector_key: openstack-control-plane
@@ -69,25 +67,79 @@ keystone:
   admin_project_name: "admin"
   admin_project_domain: "default"
   admin_region_name: "RegionOne"
-
-  glance_user: "glance"
-  glance_user_domain: "default"
   glance_user_role: "admin"
-  glance_password: "password"
-  glance_project_name: "service"
-  glance_project_domain: "default"
-  glance_region_name: "RegionOne"
+
+
+conf:
+  ceph:
+    override:
+    append:
+  ceph_client:
+    override:
+    append:
+  paste:
+    override:
+    append:
+  policy:
+    override:
+    append:
+  glance:
+    override:
+    append:
+    default:
+      glance:
+        api:
+          bind_port: 9292
+    keystone_authtoken:
+      keystonemiddleware:
+        auth_token:
+          auth_type: password
+          auth_version: v3
+          region_name: RegionOne
+          project_domain_name: default
+          project_name: service
+          user_domain_name: default
+          username: glance
+          password: password
+    glance_store:
+      glance:
+        store:
+          stores: file, http, rbd
+          default_store: rbd
+          rbd_store_chunk_size: 8
+          rbd_store_pool: images
+          rbd_store_user: admin
+          rbd_store_ceph_conf: /etc/ceph/ceph.conf
+  paste_registry:
+    override:
+    append:
+  glance_registry:
+    override:
+    append:
+    default:
+      glance:
+        registry:
+          bind_port: 9191
+    keystone_authtoken:
+      keystonemiddleware:
+        auth_token:
+          auth_type: password
+          auth_version: v3
+          region_name: RegionOne
+          project_domain_name: default
+          project_name: service
+          user_domain_name: default
+          username: glance
+          password: password
 
 network:
   api:
     name: "glance-api"
-    port: 9292
     node_port:
       enabled: false
       port: 30092
   registry:
     name: "glance-registry"
-    port: 9191
     node_port:
       enabled: false
       port: 30091
@@ -95,8 +147,6 @@ network:
 ceph:
   enabled: true
   monitors: []
-  glance_user: "admin"
-  glance_pool: "images"
   # a null value for the keyring will
   # attempt to use the key from
   # common/secrets/ceph-client-key
@@ -221,7 +271,14 @@ endpoints:
     scheme: 'http'
     port:
       api: 9292
-      registry: 9191
+  image_registry:
+    name: glance-registry
+    hosts:
+      default: glance-registry
+    path: null
+    scheme: 'http'
+    port:
+      api: 9191
   oslo_db:
     auth:
       admin:
@@ -236,3 +293,22 @@ endpoints:
     scheme: mysql+pymysql
     port:
       mysql: 3306
+  oslo_cache:
+    hosts:
+      default: memcache
+    port:
+      memcache: 11211
+  oslo_messaging:
+    auth:
+      admin:
+        username: admin
+        password: password
+      user:
+        username: rabbitmq
+        password: password
+    hosts:
+      default: rabbitmq
+    path: /
+    scheme: rabbit
+    port:
+      amqp: 5672
