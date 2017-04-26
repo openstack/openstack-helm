@@ -1,0 +1,79 @@
+# Copyright 2017 The Openstack-Helm Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+{{- $envAll := . }}
+{{- $dependencies := .Values.dependencies.executor }}
+{{- $mounts_mistral_executor := .Values.mounts.mistral_executor.mistral_executor }}
+{{- $mounts_mistral_executor_init := .Values.mounts.mistral_executor.init_container }}
+
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: mistral-executor
+spec:
+  replicas: {{ .Values.replicas.executor }}
+  revisionHistoryLimit: {{ .Values.upgrades.revision_history }}
+  strategy:
+    type: {{ .Values.upgrades.pod_replacement_strategy }}
+    {{ if eq .Values.upgrades.pod_replacement_strategy "RollingUpdate" }}
+    rollingUpdate:
+      maxUnavailable: {{ .Values.upgrades.rolling_update.max_unavailable }}
+      maxSurge: {{ .Values.upgrades.rolling_update.max_surge }}
+    {{ end }}
+  template:
+    metadata:
+      labels:
+        app: mistral-executor
+      annotations:
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.hash" }}
+        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.hash" }}
+        pod.beta.kubernetes.io/init-containers: '[
+{{ tuple $envAll $dependencies $mounts_mistral_executor_init | include "helm-toolkit.kubernetes_entrypoint_init_container" | indent 10 }}
+        ]'
+    spec:
+      nodeSelector:
+        {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
+      containers:
+        - name: mistral-executor
+          image: {{ .Values.images.executor }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+          {{- if .Values.resources.enabled }}
+          resources:
+            limits:
+              cpu: {{ .Values.resources.executor.limits.cpu | quote }}
+              memory: {{ .Values.resources.executor.limits.memory | quote }}
+            requests:
+              cpu: {{ .Values.resources.executor.requests.cpu | quote }}
+              memory: {{ .Values.resources.executor.requests.memory | quote }}
+          {{- end }}
+          command:
+          - mistral-server
+          - --server
+          - executor
+          - --config-file
+          - /etc/mistral/mistral.conf
+          volumeMounts:
+            - name: pod-etc-mistral
+              mountPath: /etc/mistral
+            - name: mistralconf
+              mountPath: /etc/mistral/mistral.conf
+              subPath: mistral.conf
+              readOnly: true
+{{ if $mounts_mistral_executor.volumeMounts }}{{ toYaml $mounts_mistral_executor.volumeMounts | indent 12 }}{{ end }}
+      volumes:
+        - name: pod-etc-mistral
+          emptyDir: {}
+        - name: mistralconf
+          configMap:
+            name: mistral-etc
+{{ if $mounts_mistral_executor.volumes }}{{ toYaml $mounts_mistral_executor.volumes | indent 8 }}{{ end }}

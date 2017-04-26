@@ -1,0 +1,68 @@
+# Copyright 2017 The Openstack-Helm Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+{{- $envAll := . }}
+{{- $ksAdminSecret := .Values.keystone.admin_secret | default "mistral-env-keystone-admin" }}
+{{- $dependencies := .Values.dependencies.ks_service }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: mistral-ks-service
+spec:
+  template:
+    metadata:
+      annotations:
+        pod.beta.kubernetes.io/init-containers: '[
+{{ tuple $envAll $dependencies "[]" | include "helm-toolkit.kubernetes_entrypoint_init_container" | indent 10 }}
+        ]'
+    spec:
+      restartPolicy: OnFailure
+      nodeSelector:
+        {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
+      containers:
+{{- range $key1, $osServiceType := tuple "workflow" }}
+        - name: {{ $osServiceType }}-ks-service-registration
+          image: {{ $envAll.Values.images.ks_service }}
+          imagePullPolicy: {{ $envAll.Values.images.pull_policy }}
+          {{- if $envAll.Values.resources.enabled }}
+          resources:
+            requests:
+              memory: {{ $envAll.Values.resources.mistral_ks_service.requests.memory | quote }}
+              cpu: {{ $envAll.Values.resources.mistral_ks_service.requests.cpu | quote }}
+            limits:
+              memory: {{ $envAll.Values.resources.mistral_ks_service.limits.memory | quote }}
+              cpu: {{ $envAll.Values.resources.mistral_ks_service.limits.cpu | quote }}
+          {{- end }}
+          command:
+            - bash
+            - /tmp/ks-service.sh
+          volumeMounts:
+            - name: ks-service-sh
+              mountPath: /tmp/ks-service.sh
+              subPath: ks-service.sh
+              readOnly: true
+          env:
+{{- with $env := dict "ksUserSecret" $ksAdminSecret }}
+{{- include "helm-toolkit.keystone_openrc_env_vars" $env | indent 12 }}
+{{- end }}
+            - name: OS_SERVICE_NAME
+              value: {{ tuple $osServiceType $envAll | include "helm-toolkit.keystone_endpoint_name_lookup" }}
+            - name: OS_SERVICE_TYPE
+              value: {{ $osServiceType }}
+{{- end }}
+      volumes:
+        - name: ks-service-sh
+          configMap:
+            name: mistral-bin
+
