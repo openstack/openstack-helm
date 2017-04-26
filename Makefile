@@ -60,7 +60,9 @@ clean:
 	echo "Removed all .b64, _partials.tpl, and _globals.tpl files"
 
 build-%:
+	@echo
 	if [ -f $*/Makefile ]; then make -C $*; fi
 	if [ -f $*/requirements.yaml ]; then helm dep up $*; fi
 	helm lint $*
 	helm package $*
+	@echo
