@@ -1,10 +1,8 @@
-[![Travis CI](https://travis-ci.org/att-comdev/openstack-helm.svg?branch=master)](https://travis-ci.org/att-comdev/openstack-helm)
-
 # Openstack-Helm
 
 **Join us on [Slack](http://slack.k8s.io/):** `#openstack-helm`<br>
 **Join us on [Freenode](https://freenode.net/):** `#openstack-helm`<br>
-**Community Meetings:** [Every other Tuesday @ 3PM UTC](https://calendar.google.com/calendar/embed?src=rnd4tpeoncig91pvs05il4p29o%40group.calendar.google.com&ctz=America/New_York) (Provided by [Zoom](https://zoom.us/j/562328746))<br>
+**Community Meetings:** Every other Tuesday @ 3PM UTC in the `#openstack-helm` channel<br>
 **Community Agenda Items:** [Google Docs](https://docs.google.com/document/d/1Vm2OnMzjSru3cuvxh4Oa7R_z7staU-7ivGy8foOzDCs/edit#heading=h.bfc0dkav9gk2)<br>
 **Community Roadmap Items:** [Roadmap Docs](https://docs.google.com/spreadsheets/d/1N5AdAdLbvpZ9Tzi1TuqeJbHyczfZRysBIYE_ndnZx6c/edit?usp=sharing)
 
@@ -16,38 +14,10 @@ The goal for Openstack-Helm is to provide an incredibly customizable *framework*
 
 # Open Releases
 
-Until a 1.0.0 release, this collection is a work in progress and components will continue to be added or modified over time. Please review our [Milestones](https://github.com/att-comdev/openstack-helm/milestones), [Releases](https://github.com/att-comdev/openstack-helm/releases), and [Project](https://github.com/att-comdev/openstack-helm/projects/1) timelines.
+Until a 1.0.0 release, this collection is a work in progress and components will continue to be added or modified over time. Please review our [Milestones](https://launchpad.net/openstack-helm), and  [Releases](https://github.com/openstack/openstack-helm/releases) for more information.
 
 # Installation and Development
 
-This project is under heavy development. We encourage anyone who is interested in Openstack-Helm to review our [Getting Started](https://github.com/att-comdev/openstack-helm/blob/master/docs/installation/getting-started.md) documentation, complete with verification procedures. Feel free to ask questions or check out our current [Issues](https://github.com/att-comdev/openstack-helm/issues), [Project Plan](https://github.com/att-comdev/openstack-helm/projects/1) or submit a [Pull Request](https://github.com/att-comdev/openstack-helm/pulls).
+This project is under heavy development. We encourage anyone who is interested in Openstack-Helm to review our [Installation](https://github.com/openstack/openstack-helm/blob/master/docs/guides-install/readme.md) documentation, complete with verification procedures. Feel free to ask questions or check out our current [Issues and Bugs](https://bugs.launchpad.net/openstack-helm).
 
-Openstack-Helm is intended to be packaged and served from your own Helm [repository](https://github.com/kubernetes/helm/blob/master/docs/chart_repository.md). However, for quick installation, evaluation, and convenience, you can use our online Helm repository. After you've configured your environment for [Minikube](https://github.com/att-comdev/openstack-helm/blob/master/docs/developer/minikube.md) (for hostPath) or [Bare Metal](https://github.com/att-comdev/openstack-helm/blob/master/docs/installation/getting-started.md) (for PVC support), you can add our most recent repository by using the following command:
-
-```
-$ helm repo add openstack-helm https://att-comdev.github.io/openstack-helm/charts/
-```
-
-To verify your Helm chart version, once the repository has been added, issue the following:
-
-```
-$ helm search | grep openstack-helm
-local/bootstrap                 0.1.0   openstack-helm namespace bootstrap
-openstack-helm/bootstrap        0.1.0   openstack-helm namespace bootstrap
-openstack-helm/ceph             0.1.0   A Helm chart for Kubernetes
-openstack-helm/helm-toolkit     0.1.0   A base chart for all openstack charts
-openstack-helm/glance           0.1.0   A Helm chart for glance
-openstack-helm/horizon          0.1.0   A Helm chart for horizon
-openstack-helm/keystone         0.1.0   A Helm chart for keystone
-openstack-helm/mariadb          0.1.0   A helm chart for mariadb
-openstack-helm/memcached        0.1.0   Chart for memcached
-openstack-helm/openstack        0.1.0   A Helm chart for Kubernetes
-openstack-helm/rabbitmq         0.1.0   A Helm chart for Kubernetes
-$
-```
-
-**UPDATED:** Please see our new [developer documentation](https://github.com/openstack/openstack-helm/blob/master/docs/guides-install/developer/install-minikube.md) for Minikube.
-
-# Additional Details
-
-For additional details, and instructions on how to use this project, please see the [wiki](https://github.com/att-comdev/openstack-helm/wiki) for more details.
+Openstack-Helm is intended to be packaged and served from your own Helm [repository](https://github.com/kubernetes/helm/blob/master/docs/chart_repository.md). However, for quick installation, evaluation, and convenience, you can use our online Helm repository. After you've configured your environment for [Minikube](https://github.com/openstack/openstack-helm/blob/master/docs/guides-install/developer/install-minikube.md#openstack-helm-minikube-deployment) (for hostPath) or [Bare Metal](https://github.com/openstack/openstack-helm/blob/master/docs/guides-install/install-multinode.md#overview).
