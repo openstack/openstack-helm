@@ -45,12 +45,6 @@ spec:
         - name: neutron-server
           image: {{ .Values.images.server }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
-          command:
-            - neutron-server
-            - --config-file
-            - /etc/neutron/neutron.conf
-            - --config-file
-            - /etc/neutron/plugins/ml2/ml2_conf.ini
           {{- if .Values.resources.enabled }}
           resources:
             limits:
@@ -61,24 +55,38 @@ spec:
               memory: {{ .Values.resources.server.requests.memory | quote }}
           {{- end }}
           ports:
-          - containerPort: {{ .Values.network.server.port }}
+            - containerPort: {{ .Values.network.server.port }}
           readinessProbe:
             tcpSocket:
               port: {{ .Values.network.server.port }}
+          command:
+            - bash
+            - /tmp/neutron-server.sh
           volumeMounts:
+            - name: neutron-bin
+              mountPath: /tmp/neutron-server.sh
+              subPath: neutron-server.sh
+              readOnly: true
             - name: neutron-etc
               mountPath: /etc/neutron/neutron.conf
               subPath: neutron.conf
+              readOnly: true
             - name: neutron-etc
               mountPath: /etc/neutron/plugins/ml2/ml2_conf.ini
               subPath: ml2_conf.ini
+              readOnly: true
             - name: neutron-etc
               mountPath: /etc/neutron/api-paste.ini
               subPath: api-paste.ini
+              readOnly: true
             - name: neutron-etc
               mountPath: /etc/neutron/policy.json
               subPath: policy.json
+              readOnly: true
       volumes:
+        - name: neutron-bin
+          configMap:
+            name: neutron-bin
         - name: neutron-etc
           configMap:
             name: neutron-etc

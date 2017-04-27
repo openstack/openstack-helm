@@ -52,50 +52,51 @@ spec:
           securityContext:
             privileged: true
           command:
-            - neutron-dhcp-agent
-            - --config-file
-            - /etc/neutron/neutron.conf
-            - --config-file
-            - /etc/neutron/dhcp_agent.ini
+            - bash
+            - /tmp/neutron-dhcp-agent.sh
           volumeMounts:
-            - name: neutronconf
+            - name: neutron-bin
+              mountPath: /tmp/neutron-dhcp-agent.sh
+              subPath: neutron-dhcp-agent.sh
+              readOnly: true
+            - name: neutron-etc
               mountPath: /etc/neutron/neutron.conf
               subPath: neutron.conf
-            - name: ml2confini
+              readOnly: true
+            - name: neutron-etc
               mountPath: /etc/neutron/plugins/ml2/ml2_conf.ini
               subPath: ml2_conf.ini
-            - name: dhcpagentini
+              readOnly: true
+            - name: neutron-etc
+              mountPath: /etc/neutron/plugins/ml2/openvswitch_agent.ini
+              subPath: openvswitch_agent.ini
+              readOnly: true
+            - name: neutron-etc
               mountPath: /etc/neutron/dhcp_agent.ini
               subPath: dhcp_agent.ini
-            - name: dnsmasqconf
+              readOnly: true
+            - name: neutron-etc
               mountPath: /etc/neutron/dnsmasq.conf
               subPath: dnsmasq.conf
+              readOnly: true
+            - name: neutron-etc
+              mountPath: /etc/resolv.conf
+              subPath: resolv.conf
+              readOnly: true
             - name: runopenvswitch
               mountPath: /run/openvswitch
             - name: socket
               mountPath: /var/lib/neutron/openstack-helm
-            - name: resolvconf
-              mountPath: /etc/resolv.conf
-              subPath: resolv.conf
       volumes:
-        - name: neutronconf
+        - name: neutron-bin
           configMap:
-            name: neutron-etc
-        - name: ml2confini
-          configMap:
-            name: neutron-etc
-        - name: dhcpagentini
-          configMap:
-            name: neutron-etc
-        - name: dnsmasqconf
+            name: neutron-bin
+        - name: neutron-etc
           configMap:
             name: neutron-etc
         - name: runopenvswitch
           hostPath:
             path: /run/openvswitch
-        - name: resolvconf
-          configMap:
-            name: neutron-etc
         - name: socket
           hostPath:
             path: /var/lib/neutron/openstack-helm
