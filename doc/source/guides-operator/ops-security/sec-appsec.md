@@ -1,1 +1,0 @@
-# SECCOMP and SELinux
