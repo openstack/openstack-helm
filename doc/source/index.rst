@@ -14,6 +14,7 @@ Contents:
    readme
    philosophy
    install/index
+   devref/index
    contributing
 
 Indices and tables
