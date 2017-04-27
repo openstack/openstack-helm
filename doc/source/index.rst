@@ -13,6 +13,7 @@ Contents:
 
    readme
    philosophy
+   install/index
    contributing
 
 Indices and tables
