@@ -15,6 +15,7 @@ Contents:
    philosophy
    install/index
    devref/index
+   operator/index
    contributing
 
 Indices and tables
