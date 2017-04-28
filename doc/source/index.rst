@@ -12,6 +12,7 @@ Contents:
    :maxdepth: 3
 
    readme
+   philosophy
    contributing
 
 Indices and tables
