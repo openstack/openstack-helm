@@ -8,5 +8,4 @@ OpenStack-Helm Configuration Management
 Configuration overrides
 -----------------------
 
-Oslo Config Generation Tool
-===========================
+.. include:: ../../../tools/gen-oslo-openstack-helm/README.rst
