@@ -57,16 +57,22 @@ spec:
               cpu: {{ .Values.resources.nova_conductor.limits.cpu | quote }}
           {{- end }}
           command:
-            - nova-conductor
-            - --config-file
-            - /etc/nova/nova.conf
+            - bash
+            - /tmp/nova-conductor.sh
           volumeMounts:
+            - name: nova-bin
+              mountPath: /tmp/nova-conductor.sh
+              subPath: nova-conductor.sh
+              readOnly: true
             - name: nova-etc
               mountPath: /etc/nova/nova.conf
               subPath: nova.conf
               readOnly: true
 {{ if $mounts_nova_conductor.volumeMounts }}{{ toYaml $mounts_nova_conductor.volumeMounts | indent 12 }}{{ end }}
       volumes:
+        - name: nova-bin
+          configMap:
+            name: nova-bin
         - name: nova-etc
           configMap:
             name: nova-etc

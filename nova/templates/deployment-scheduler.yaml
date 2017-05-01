@@ -58,16 +58,22 @@ spec:
               cpu: {{ .Values.resources.nova_scheduler.limits.cpu | quote }}
           {{- end }}
           command:
-            - nova-scheduler
-            - --config-file
-            - /etc/nova/nova.conf
+            - bash
+            - /tmp/nova-scheduler.sh
           volumeMounts:
+            - name: nova-bin
+              mountPath: /tmp/nova-scheduler.sh
+              subPath: nova-scheduler.sh
+              readOnly: true
             - name: nova-etc
               mountPath: /etc/nova/nova.conf
               subPath: nova.conf
               readOnly: true
 {{ if $mounts_nova_scheduler.volumeMounts }}{{ toYaml $mounts_nova_scheduler.volumeMounts | indent 12 }}{{ end }}
       volumes:
+        - name: nova-bin
+          configMap:
+            name: nova-bin
         - name: nova-etc
           configMap:
             name: nova-etc

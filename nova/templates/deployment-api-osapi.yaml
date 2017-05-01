@@ -60,15 +60,19 @@ spec:
               memory: {{ .Values.resources.nova_osapi.limits.memory | quote }}
               cpu: {{ .Values.resources.nova_osapi.limits.cpu | quote }}
           {{- end }}
-          command:
-            - nova-api
-            - --config-file=/etc/nova/nova.conf
           ports:
             - containerPort: {{ .Values.network.osapi.port }}
           readinessProbe:
             tcpSocket:
               port: {{ .Values.network.osapi.port }}
+          command:
+            - bash
+            - /tmp/nova-api.sh
           volumeMounts:
+            - name: nova-bin
+              mountPath: /tmp/nova-api.sh
+              subPath: nova-api.sh
+              readOnly: true
             - name: nova-etc
               mountPath: /etc/nova/nova.conf
               subPath: nova.conf
@@ -79,6 +83,9 @@ spec:
               readOnly: true
 {{ if $mounts_nova_api_osapi.volumeMounts }}{{ toYaml $mounts_nova_api_osapi.volumeMounts | indent 12 }}{{ end }}
       volumes:
+        - name: nova-bin
+          configMap:
+            name: nova-bin
         - name: nova-etc
           configMap:
             name: nova-etc

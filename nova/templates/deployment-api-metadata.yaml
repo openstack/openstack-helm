@@ -61,15 +61,19 @@ spec:
             capabilities:
               add:
                 - NET_ADMIN
-          command:
-            - nova-api-metadata
-            - --config-file=/etc/nova/nova.conf
           ports:
             - containerPort: {{ .Values.network.metadata.port }}
           readinessProbe:
             tcpSocket:
               port: {{ .Values.network.metadata.port }}
+          command:
+            - bash
+            - /tmp/nova-api-metadata.sh
           volumeMounts:
+            - name: nova-bin
+              mountPath: /tmp/nova-api-metadata.sh
+              subPath: nova-api-metadata.sh
+              readOnly: true
             - name: nova-etc
               mountPath: /etc/nova/nova.conf
               subPath: nova.conf
@@ -80,6 +84,9 @@ spec:
               readOnly: true
 {{ if $mounts_nova_api_metadata.volumeMounts }}{{ toYaml $mounts_nova_api_metadata.volumeMounts | indent 12 }}{{ end }}
       volumes:
+        - name: nova-bin
+          configMap:
+            name: nova-bin
         - name: nova-etc
           configMap:
             name: nova-etc
