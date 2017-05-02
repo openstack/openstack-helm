@@ -28,6 +28,7 @@ sudo rm -rfv \
     /etc/cni/net.d \
     /etc/kubernetes \
     /var/lib/etcd \
+    /var/etcd \
     /var/lib/kubelet/* \
     /run/openvswitch \
     ${HOME}/.kubeadm-aio/admin.conf \
