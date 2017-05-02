@@ -11,9 +11,51 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 set -ex
 
-#TODO(lamt) Need to replace with actual gate logic.  Placeholder for now.
-env
-exit 0
+HELM_VERSION=${2:-v2.3.0}
+WORK_DIR=$(pwd)
+
+function helm_install {
+  TMP_DIR=$(mktemp -d)
+  sudo apt-get update -y
+  sudo apt-get install -y --no-install-recommends -qq \
+    git \
+    make \
+    curl
+
+  # install helm
+  curl -sSL https://storage.googleapis.com/kubernetes-helm/helm-${HELM_VERSION}-linux-amd64.tar.gz | tar -zxv --strip-components=1 -C ${TMP_DIR}
+  sudo mv ${TMP_DIR}/helm /usr/local/bin/helm
+  rm -rf ${TMP_DIR}
+}
+
+function helm_lint {
+  if [[ -d "$HOME/.helm" ]]; then
+     echo ".helm directory found"
+  else
+     helm init --client-only
+  fi
+  if [[ -z $(curl -s 127.0.0.1:8879 | grep 'Helm Repository') ]]; then
+     helm serve & > /dev/null
+     while [[ -z $(curl -s 127.0.0.1:8879 | grep 'Helm Repository') ]]; do
+        sleep 1
+        echo "Waiting for Helm Repository"
+     done
+  else
+     echo "Helm serve already running"
+  fi
+
+  if [[ -f "$HOME/.helm/repository/stable/index.yaml" ]]; then
+     helm repo remove stable
+  fi
+  if [[ -z $(-f "$HOME/.helm/repository/local/index.yaml") ]]; then
+     helm repo add local http://localhost:8879/charts
+  fi
+
+  make build-helm-toolkit -C ${WORK_DIR}
+  make TASK=lint -C ${WORK_DIR}
+}    
+
+helm_install
+helm_lint

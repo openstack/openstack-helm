@@ -14,6 +14,7 @@
 
 .PHONY: ceph bootstrap mariadb etcd keystone memcached rabbitmq helm-toolkit mistral neutron nova cinder heat senlin ingress all clean
 
+TASK :=build
 B64_DIRS := helm-toolkit/secrets
 B64_EXCLUDE := $(wildcard helm-toolkit/secrets/*.b64)
 
@@ -22,40 +23,40 @@ TOOLKIT_TPL := helm-toolkit/templates/_globals.tpl
 
 all: helm-toolkit ceph bootstrap mariadb etcd rabbitmq memcached keystone glance horizon mistral neutron nova cinder heat senlin ingress
 
-helm-toolkit: build-helm-toolkit
+helm-toolkit: $(TASK)-helm-toolkit
 
 #ceph: nolint-build-ceph
-ceph: build-ceph
+ceph: $(TASK)-ceph
 
-bootstrap: build-bootstrap
+bootstrap: $(TASK)-bootstrap
 
-mariadb: build-mariadb
+mariadb: $(TASK)-mariadb
 
-etcd: build-etcd
+etcd: $(TASK)-etcd
 
-keystone: build-keystone
+keystone: $(TASK)-keystone
 
-cinder: build-cinder
+cinder: $(TASK)-cinder
 
-horizon: build-horizon
+horizon: $(TASK)-horizon
 
-rabbitmq: build-rabbitmq
+rabbitmq: $(TASK)-rabbitmq
 
-glance: build-glance
+glance: $(TASK)-glance
 
-mistral: build-mistral
+mistral: $(TASK)-mistral
 
-neutron: build-neutron
+neutron: $(TASK)-neutron
 
-nova: build-nova
+nova: $(TASK)-nova
 
-heat: build-heat
+heat: $(TASK)-heat
 
-senlin: build-senlin
+senlin: $(TASK)-senlin
 
-memcached: build-memcached
+memcached: $(TASK)-memcached
 
-ingress: build-ingress
+ingress: $(TASK)-ingress
 
 clean:
 	$(shell rm -rf helm-toolkit/secrets/*.b64)
@@ -69,4 +70,11 @@ build-%:
 	if [ -f $*/requirements.yaml ]; then helm dep up $*; fi
 	helm lint $*
 	helm package $*
+	@echo
+
+lint-%:
+	@echo
+	if [ -f $*/Makefile ]; then make -C $*; fi
+	if [ -f $*/requirements.yaml ]; then helm dep up $*; fi
+	helm lint $*
 	@echo
