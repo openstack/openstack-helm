@@ -42,8 +42,8 @@ table_definition_cache=1024
 # will ensure you use memory and not disks for most read operations.
 # Typical values are 50..75% of available RAM.
 # TODO(tomasz.paszkowski): This needs to by dynamic based on avaliable RAM.
-innodb_buffer_pool_size=4096M
-innodb_log_file_size=2000M
+innodb_buffer_pool_size=1024M
+innodb_log_file_size=200M
 innodb_flush_method=O_DIRECT
 innodb_flush_log_at_trx_commit=2
 innodb_old_blocks_time=1000
