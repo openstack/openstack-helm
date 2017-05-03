@@ -1,0 +1,72 @@
+# Copyright 2017 The Openstack-Helm Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+{{- include "senlin.conf.senlin_values_skeleton" .Values.conf.senlin | trunc 0 -}}
+
+{{- if empty .Values.conf.senlin.keystone_authtoken.keystonemiddleware.auth_token.auth_uri -}}
+{{- tuple "identity" "internal" "api" . | include "helm-toolkit.keystone_endpoint_uri_lookup"| set .Values.conf.senlin.keystone_authtoken.keystonemiddleware.auth_token "auth_uri" | quote | trunc 0 -}}
+{{- end -}}
+
+# FIXME(alanmeadows) fix for broken keystonemiddleware oslo config gen in newton - will remove in future
+{{- if empty .Values.conf.senlin.keystone_authtoken.keystonemiddleware.auth_token.auth_url -}}
+{{- tuple "identity" "internal" "api" . | include "helm-toolkit.keystone_endpoint_uri_lookup"| set .Values.conf.senlin.keystone_authtoken.keystonemiddleware.auth_token "auth_url" | quote | trunc 0 -}}
+{{- end -}}
+
+{{- if empty .Values.conf.senlin.keystone_authtoken.keystonemiddleware.auth_token.memcached_servers -}}
+{{- tuple "oslo_cache" "internal" "memcache" . | include "helm-toolkit.hostname_endpoint_uri_lookup" | set .Values.conf.senlin.keystone_authtoken.keystonemiddleware.auth_token "memcached_servers" | quote | trunc 0 -}}
+{{- end -}}
+
+{{- if empty .Values.conf.senlin.database.oslo.db.connection -}}
+{{- tuple "oslo_db" "internal" "user" "mysql" . | include "helm-toolkit.authenticated_endpoint_uri_lookup"| set .Values.conf.senlin.database.oslo.db "connection" | quote | trunc 0 -}}
+{{- end -}}
+
+{{- if empty .Values.conf.senlin.default.oslo.messaging.transport_url -}}
+{{- tuple "oslo_messaging" "internal" "user" "amqp" . | include "helm-toolkit.authenticated_endpoint_uri_lookup" | set .Values.conf.senlin.default.oslo.messaging "transport_url" | quote | trunc 0 -}}
+{{- end -}}
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: senlin-etc
+data:
+  senlin.conf: |+
+{{ if .Values.conf.senlin.override -}}
+{{ .Values.conf.senlin.override | indent 4 }}
+{{- else -}}
+{{- if .Values.conf.senlin.prefix -}}
+{{ .Values.conf.senlin.prefix | indent 4 }}
+{{- end }}
+{{ tuple "etc/_senlin.conf.tpl" . | include "helm-toolkit.template" | indent 4 }}
+{{- end }}
+{{- if .Values.conf.senlin.append -}}
+{{ .Values.conf.senlin.append | indent 4 }}
+{{- end }}
+  api-paste.ini: |+
+{{ if .Values.conf.paste.override -}}
+{{ .Values.conf.paste.override | indent 4 }}
+{{- else -}}
+{{- if .Values.conf.paste.prefix -}}
+{{ .Values.conf.paste.prefix | indent 4 }}
+{{- end }}
+{{ tuple "etc/_api-paste.ini.tpl" . | include "helm-toolkit.template" | indent 4 }}
+{{- end }}
+{{- if .Values.conf.paste.append -}}
+{{ .Values.conf.paste.append | indent 4 }}
+{{- end }}
+  policy.json: |+
+{{ if .Values.conf.policy.override -}}
+{{ .Values.conf.policy.override | indent 4 }}
+{{- else -}}
+{{ tuple "etc/_policy.json.tpl" . | include "helm-toolkit.template" | indent 4 }}
+{{- end }}

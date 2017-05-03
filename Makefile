@@ -12,15 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-.PHONY: ceph bootstrap mariadb etcd keystone memcached rabbitmq helm-toolkit mistral neutron nova cinder heat ingress all clean
+.PHONY: ceph bootstrap mariadb etcd keystone memcached rabbitmq helm-toolkit mistral neutron nova cinder heat senlin ingress all clean
 
 B64_DIRS := helm-toolkit/secrets
 B64_EXCLUDE := $(wildcard helm-toolkit/secrets/*.b64)
 
-CHARTS := ceph mariadb etcd rabbitmq memcached keystone glance horizon mistral neutron nova cinder heat ingress
+CHARTS := ceph mariadb etcd rabbitmq memcached keystone glance horizon mistral neutron nova cinder heat senlin ingress
 TOOLKIT_TPL := helm-toolkit/templates/_globals.tpl
 
-all: helm-toolkit ceph bootstrap mariadb etcd rabbitmq memcached keystone glance horizon mistral neutron nova cinder heat ingress
+all: helm-toolkit ceph bootstrap mariadb etcd rabbitmq memcached keystone glance horizon mistral neutron nova cinder heat senlin ingress
 
 helm-toolkit: build-helm-toolkit
 
@@ -50,6 +50,8 @@ neutron: build-neutron
 nova: build-nova
 
 heat: build-heat
+
+senlin: build-senlin
 
 memcached: build-memcached
 
