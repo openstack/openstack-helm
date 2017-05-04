@@ -13,19 +13,14 @@
 # limitations under the License.
 
 apiVersion: v1
-kind: ConfigMap
+kind: Service
 metadata:
-  name: rabbitmq-etc
-  labels:
-    system: openstack
-    type: configuration
-    component: messaging
-data:
-  enabled_plugins: |
-{{ tuple "etc/_enabled_plugins.tpl" . | include  "helm-toolkit.template" | indent 4 }}
-  erlang.cookie: |
-{{ tuple "etc/_erlang.cookie.tpl" . | include  "helm-toolkit.template" | indent 4 }}
-  rabbitmq-env.conf: |
-{{ tuple "etc/_rabbitmq-env.conf.tpl" . | include  "helm-toolkit.template" | indent 4 }}
-  rabbitmq.conf: |
-{{ tuple "etc/_rabbitmq.conf.tpl" . | include  "helm-toolkit.template" | indent 4 }}
+  name: rabbitmq-discovery
+  annotations:
+    service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
+spec:
+  clusterIP: None
+  selector:
+    app: rabbitmq
+  ports:
+  - port: {{.Values.network.port.public}}

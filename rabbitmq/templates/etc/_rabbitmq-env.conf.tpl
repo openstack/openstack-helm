@@ -12,10 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+CONFIG_FILE=/etc/rabbitmq/rabbitmq.conf
 RABBITMQ_LOGS=-
 RABBITMQ_SASL_LOGS=-
-AUTOCLUSTER_TYPE=etcd
-AUTOCLUSTER_DELAY={{ .Values.autocluster.delay }}
 RABBITMQ_USE_LONGNAME=true
-AUTOCLUSTER_LOG_LEVEL={{ .Values.autocluster.log_level }}
-NODENAME="rabbit@${RABBITMQ_POD_IP}"
+NODENAME="rabbit@$(hostname -f)"

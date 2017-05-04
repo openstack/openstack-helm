@@ -12,20 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: rabbitmq-etc
-  labels:
-    system: openstack
-    type: configuration
-    component: messaging
-data:
-  enabled_plugins: |
-{{ tuple "etc/_enabled_plugins.tpl" . | include  "helm-toolkit.template" | indent 4 }}
-  erlang.cookie: |
-{{ tuple "etc/_erlang.cookie.tpl" . | include  "helm-toolkit.template" | indent 4 }}
-  rabbitmq-env.conf: |
-{{ tuple "etc/_rabbitmq-env.conf.tpl" . | include  "helm-toolkit.template" | indent 4 }}
-  rabbitmq.conf: |
-{{ tuple "etc/_rabbitmq.conf.tpl" . | include  "helm-toolkit.template" | indent 4 }}
+listeners.tcp.other_ip   = 0.0.0.0:{{ .Values.network.port.public }}
+
+default_user = {{ .Values.auth.default_user }}
+default_pass = {{ .Values.auth.default_pass }}
+
+loopback_users.guest = false
+
+autocluster.peer_discovery_backend = rabbit_peer_discovery_dns
+autocluster.dns.hostname           = rabbitmq-discovery.{{ .Release.Namespace }}.svc.cluster.local
+autocluster.node_type = disc
+
+cluster_keepalive_interval = 30000
+cluster_partition_handling = ignore
+
+queue_master_locator = random
