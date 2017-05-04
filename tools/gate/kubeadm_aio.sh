@@ -13,21 +13,8 @@
 # limitations under the License.
 set -ex
 
-export HELM_VERSION=${2:-v2.3.0}
-export KUBE_VERSION=${3:-v1.6.0}
-export KUBECONFIG=${HOME}/.kubeadm-aio/admin.conf
-export KUBEADM_IMAGE=openstack-helm/kubeadm-aio:v1.6
+source ${WORK_DIR}/tools/gate/funcs/kube.sh
 
-export WORK_DIR=$(pwd)
-source ${WORK_DIR}/tools/gate/funcs/helm.sh
-
-helm_install
-helm_serve
-helm_lint
-
-if [ "x$INTEGRATION" == "xAIO" ]; then
- bash ${WORK_DIR}/tools/gate/kubeadm_aio.sh
- if [ "x$INTEGRATION_TYPE" == "xbasic" ]; then
-   bash ${WORK_DIR}/tools/gate/basic_launch.sh
- fi
-fi
+kubeadm_aio_reqs_install
+kubeadm_aio_build
+kubeadm_aio_launch

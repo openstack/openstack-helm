@@ -17,7 +17,7 @@ Setup etc/hosts
 ---------------
 
 ::
-        
+
         #Replace eth0 with your interface name
         LOCAL_IP=$(ip addr | awk '/inet/ && /eth0/{sub(/\/.*$/,"",$2); print $2}')
         cat << EOF | sudo tee -a /etc/hosts
@@ -31,12 +31,12 @@ Install the latest versions of Docker, Network File System, Git & Make
 
 ::
 
-        sudo apt-get update -y                                                        
-        sudo apt-get install -y --no-install-recommends -qq \                        
-                docker.io \                                                        
-                nfs-common \                                                           
-                git \                                                                 
-                make                                                                    
+        sudo apt-get update -y
+        sudo apt-get install -y --no-install-recommends -qq \
+                docker.io \
+                nfs-common \
+                git \
+                make
 
 Kubectl
 -------
@@ -45,13 +45,13 @@ Download and install kubectl, the command line interface for running commands ag
 
 ::
 
-        KUBE_VERSION=v1.6.0                                                                                                              
-        HELM_VERSION=v2.3.0                                                                                                              
-        TMP_DIR=$(mktemp -d)                                                                                                             
-                                                                                                                                 
+        KUBE_VERSION=v1.6.0
+        HELM_VERSION=v2.3.0
+        TMP_DIR=$(mktemp -d)
+
         curl -sSL https://storage.googleapis.com/kubernetes-release/release/${KUBE_VERSION}/bin/linux/amd64/kubectl -o ${TMP_DIR}/kubectl
-        chmod +x ${TMP_DIR}/kubectl                                                                                                      
-        sudo mv ${TMP_DIR}/kubectl /usr/local/bin/kubectl                                                                                
+        chmod +x ${TMP_DIR}/kubectl
+        sudo mv ${TMP_DIR}/kubectl /usr/local/bin/kubectl
 
 Helm
 ----
@@ -61,8 +61,8 @@ Download and install Helm, the package manager for Kubernetes
 ::
 
         curl -sSL https://storage.googleapis.com/kubernetes-helm/helm-${HELM_VERSION}-linux-amd64.tar.gz | tar -zxv --strip-components=1 -C ${TMP_DIR}
-        sudo mv ${TMP_DIR}/helm /usr/local/bin/helm                                                                                                   
-        rm -rf ${TMP_DIR}                                                                                                                             
+        sudo mv ${TMP_DIR}/helm /usr/local/bin/helm
+        rm -rf ${TMP_DIR}
 
 OpenStack-Helm
 ==============
@@ -145,7 +145,7 @@ In the below examples the default values that would be used in a production-like
 
 ::
 
-        helm install --name=glance local/glance --namespace=openstack --values=./glance/_values-mvp.yaml
-        helm install --name=nova local/nova --namespace=openstack --values=./nova/_values-mvp.yaml --set=conf.nova.libvirt.nova.conf.virt_type=qemu
-        helm install --name=neutron local/neutron --namespace=openstack --values=./neutron/_values-mvp.yaml
+        helm install --name=glance local/glance --namespace=openstack --values=./tools/overrides/mvp/neutron.yaml
+        helm install --name=nova local/nova --namespace=openstack --values=./tools/overrides/mvp/nova.yaml --set=conf.nova.libvirt.nova.conf.virt_type=qemu
+        helm install --name=neutron local/neutron --namespace=openstack --values=./tools/overrides/mvp/neutron.yaml
         helm install --name=horizon local/horizon --namespace=openstack --set=network.enable_node_port=true
