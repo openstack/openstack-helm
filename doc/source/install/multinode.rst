@@ -176,7 +176,7 @@ binary on your deployment host in order to perform this action.
 
 ::
 
-    curl -L https://github.com/gliderlabs/sigil/releases/download/v0.4.0/sigil_0.4.0_Linux_x86_64.tgz | tar -zxC /usr/local/bin
+    curl -L https://github.com/gliderlabs/sigil/releases/download/v0.4.0/sigil_0.4.0_Linux_x86_64.tgz | sudo tar -zxC /usr/local/bin
 
 Kubernetes Controller Manager
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -203,8 +203,8 @@ Kubernetes Master:
 
 ::
 
-    export kube_version=v1.5.3
-    sed -i "s|gcr.io/google_containers/kube-controller-manager-amd64:'$kube_version'|quay.io/attcomdev/kube-controller-manager:'$kube_version'|g" /etc/kubernetes/manifests/kube-controller-manager.json
+    export kube_version=v1.6.2
+    sudo sed -i "s|gcr.io/google_containers/kube-controller-manager-amd64:'$kube_version'|quay.io/attcomdev/kube-controller-manager:'$kube_version'|g" /etc/kubernetes/manifests/kube-controller-manager.yaml
 
 Now you will want to ``restart`` your Kubernetes master server to
 continue.
@@ -358,7 +358,7 @@ Download the latest copy of Openstack-Helm:
 
 ::
 
-    git clone https://github.com/att-comdev/openstack-helm.git
+    git clone https://github.com/openstack/openstack-helm.git
     cd openstack-helm
 
 Ceph Preparation and Installation
