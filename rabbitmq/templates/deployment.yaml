@@ -12,18 +12,32 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-kind: StatefulSet
-apiVersion: apps/v1beta1
+{{- $envAll := . }}
+{{- $dependencies := .Values.dependencies }}
+kind: Deployment
+apiVersion: extensions/v1beta1
 metadata:
   name: rabbitmq
 spec:
   replicas: {{ .Values.replicas }}
-  serviceName: rabbitmq-discovery
+  revisionHistoryLimit: {{ .Values.upgrades.revision_history }}
+  strategy:
+    type: {{ .Values.upgrades.pod_replacement_strategy }}
+    {{ if eq .Values.upgrades.pod_replacement_strategy "RollingUpdate" }}
+    rollingUpdate:
+      maxUnavailable: {{ .Values.upgrades.rolling_update.max_unavailable }}
+      maxSurge: {{ .Values.upgrades.rolling_update.max_surge }}
+    {{ end }}  
   template:
     metadata:
       labels:
         app: rabbitmq
       annotations:
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.hash" }}
+        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.hash" }}
+        pod.beta.kubernetes.io/init-containers: '[
+{{ tuple $envAll $dependencies "[]" | include "helm-toolkit.kubernetes_entrypoint_init_container" | indent 10 }}
+        ]'
         # TODO: this needs to be moved to common.
         scheduler.alpha.kubernetes.io/affinity: >
            {
@@ -68,6 +82,11 @@ spec:
           command:
           - bash
           - /scripts/start.sh
+          env:
+          - name: RABBITMQ_POD_IP
+            valueFrom:
+              fieldRef:
+                fieldPath: status.podIP
           readinessProbe:
             timeoutSeconds: {{ .Values.probes_timeout }}
             exec:
@@ -96,5 +115,5 @@ spec:
               mountPath: /etc/rabbitmq/rabbitmq-env.conf
               subPath: rabbitmq-env.conf
             - name: rabbitmq-etc
-              mountPath: /etc/rabbitmq/rabbitmq.conf
-              subPath: rabbitmq.conf
+              mountPath: /etc/rabbitmq/rabbitmq.config
+              subPath: rabbitmq.config
