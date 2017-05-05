@@ -29,7 +29,7 @@ kube_wait_for_pods openstack 600
 helm install local/keystone --name=keystone --namespace=openstack
 kube_wait_for_pods openstack 240
 
-helm install local/glance --name=glance --namespace=openstack --values=${WORK_DIR}/tools/overrides/glance.yaml
-helm install local/nova --name=nova --namespace=openstack --values=${WORK_DIR}/tools/overrides/nova.yaml --set=conf.nova.libvirt.nova.conf.virt_type=qemu
-helm install local/neutron --name=neutron --namespace=openstack --values=${WORK_DIR}/tools/overrides/neutron.yaml
+helm install local/glance --name=glance --namespace=openstack --values=${WORK_DIR}/tools/overrides/mvp/glance.yaml
+helm install local/nova --name=nova --namespace=openstack --values=${WORK_DIR}/tools/overrides/mvp/nova.yaml --set=conf.nova.libvirt.nova.conf.virt_type=qemu
+helm install local/neutron --name=neutron --namespace=openstack --values=${WORK_DIR}/tools/overrides/mvp/neutron.yaml
 kube_wait_for_pods openstack 600
