@@ -25,7 +25,7 @@ applications into a `Cloud-Native <https://www.cncf.io/about/charter>`_ model.
 Communication
 -------------
 
-* Join us on `Slack <http://slack.k8s.io/>`_ - #openstack-helm
+* Join us on `Slack <https://kubernetes.slack.com/messages/C3WERB7DE/>`_ - #openstack-helm
 * Join us on `IRC <irc://chat.freenode.net:6697/openstack-helm>`_:
   #openstack-helm on freenode
 * Community IRC Meetings: [Every Tuesday @ 3PM UTC],
@@ -48,7 +48,7 @@ Installation and Development
 
 This project is under heavy development. We encourage anyone who is interested
 in Openstack-Helm to review our `Installation
-<https://github.com/openstack/openstack-helm/blob/master/doc/source/guides-install/readme.md>`_
+<doc/source/install/index.rst>`_
 documentation, complete with verification procedures. Feel free to ask
 questions or check out our current `Issues and Bugs
 <https://bugs.launchpad.net/openstack-helm>`_.
@@ -56,7 +56,7 @@ questions or check out our current `Issues and Bugs
 Openstack-Helm is intended to be packaged and served from your own Helm
 `repository <https://github.com/kubernetes/helm/blob/master/docs/chart_repository.md>`_.
 However, for quick installation, evaluation, and convenience, you can use our
-online Helm repository. After you've configured your environment for `Minikube
-<https://github.com/openstack/openstack-helm/blob/master/doc/source/guides-install/developer/install-minikube.md#openstack-helm-minikube-deployment>`_
-(for hostPath) or `Bare Metal
-<https://github.com/openstack/openstack-helm/blob/master/doc/source/guides-install/install-multinode.md#overview>`_.
+online Helm repository and configure your environment with `Kubeadm-AIO
+<doc/source/install/all-in-one.rst>`_ or `Vagrant <doc/source/install/developer/vagrant.rst>`_.
+
+For a production-like install, follow the `Bare Metal <doc/source/install/multinode.rst#overview>`_ install guide which can also be used to simulate a multinode installation by using HostPaths
