@@ -53,23 +53,41 @@ sudo docker run \
     --env KUBE_VERSION=${KUBE_VERSION} \
     ${KUBEADM_IMAGE}
 
-# Wait for kubeconfig
-while [[ ! -f ${HOME}/.kubeadm-aio/admin.conf ]]; do
-  echo "Waiting for kubeconfig"
-  sleep 2
+echo "Waiting for kubeconfig"
+set +x
+end=$(($(date +%s) + 120))
+READY="False"
+while true; do
+  if [ -f ${HOME}/.kubeadm-aio/admin.conf ]; then
+    READY="True"
+  fi
+  [ $READY == "True" ] && break || true
+  sleep 1
+  now=$(date +%s)
+  [ $now -gt $end ] && \
+    echo "KubeADM did not generate kubectl config in time" && \
+    docker logs kubeadm-aio && exit -1
 done
+set -x
 
 # Set perms of kubeconfig and set env-var
 sudo chown $(id -u):$(id -g) ${HOME}/.kubeadm-aio/admin.conf
 export KUBECONFIG=${HOME}/.kubeadm-aio/admin.conf
 
-# Wait for node to be ready before continuing
-NODE_STATUS="Unknown"
-while [[ $NODE_STATUS != "Ready" ]]; do
-  NODE_STATUS=$(kubectl get nodes --no-headers=true | awk "{ print \$2 }" | head -1)
-  echo "Current node status: ${NODE_STATUS}"
-  sleep 2
+echo "Waiting for node to be ready before continuing"
+set +x
+end=$(($(date +%s) + 240))
+READY="False"
+while true; do
+  READY=$(kubectl get nodes --no-headers=true | awk "{ print \$2 }" | head -1)
+  [ $READY == "Ready" ] && break || true
+  sleep 1
+  now=$(date +%s)
+  [ $now -gt $end ] && \
+    echo "Kube node did not register as ready in time" && \
+    docker logs kubeadm-aio && exit -1
 done
+set -x
 
 # Initialize Helm
 helm init
