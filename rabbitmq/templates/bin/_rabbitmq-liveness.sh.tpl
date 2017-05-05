@@ -45,11 +45,19 @@ main() {
                 log-it "Node is unhealthy"
                 return 1
             fi
+            if ! is-node-properly-clustered; then
+                log-it "Found clustering inconsistency, giving up"
+                return 1
+            fi
             return 0
             ;;
         stale) # node has started long ago - it shoud be either ready or dead
             if ! is-node-healthy; then
                 log-it "Long-running node become unhealthy"
+                return 1
+            fi
+            if ! is-node-properly-clustered; then
+                echo "Long-running node became inconsistent with the rest of the cluster"
                 return 1
             fi
             return 0

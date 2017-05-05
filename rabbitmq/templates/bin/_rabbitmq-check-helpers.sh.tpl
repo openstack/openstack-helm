@@ -93,3 +93,16 @@ is-node-healthy() {
     echo "$result" | prepend-log-prefix
     return 1
 }
+
+is-node-properly-clustered() {
+    result="$(rabbitmqctl eval 'autocluster:cluster_health_check().' 2>&1)"
+    if [[ $result =~ ^SUCCESS: ]]; then
+        return 0
+    elif [[ $result =~ ^FAILURE: ]]; then
+        echo "$result" | prepend-log-prefix
+        return 1
+    fi
+    log-it "Unexpected health-check output, giving the node the benefit of the doubt"
+    echo "$result" | prepend-log-prefix
+    return 0
+}
