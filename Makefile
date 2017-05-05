@@ -12,73 +12,34 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-.PHONY: ceph bootstrap mariadb etcd keystone barbican memcached rabbitmq helm-toolkit mistral neutron nova cinder heat senlin magnum ingress all clean
+HELM = helm
+TASK = build
 
-TASK :=build
-B64_DIRS := helm-toolkit/secrets
-B64_EXCLUDE := $(wildcard helm-toolkit/secrets/*.b64)
+CHARTS = helm-toolkit bootstrap ceph mariadb etcd rabbitmq memcached
+CHARTS += keystone glance cinder horizon neutron nova heat
+CHARTS += barbican mistral senlin magnum ingress
 
-CHARTS := ceph mariadb etcd rabbitmq memcached keystone barbican glance horizon mistral neutron nova cinder heat senlin magnum ingress
-TOOLKIT_TPL := helm-toolkit/templates/_globals.tpl
+all: $(CHARTS)
 
-all: helm-toolkit ceph bootstrap mariadb etcd rabbitmq memcached keystone barbican glance horizon mistral neutron nova cinder heat senlin ingress
+$(CHARTS):
+	@make $(TASK)-$@
 
-helm-toolkit: $(TASK)-helm-toolkit
+init-%:
+	@echo
+	@echo "===== Initializing $*"
+	if [ -f $*/Makefile ]; then make -C $*; fi
+	if [ -f $*/requirements.yaml ]; then helm dep up $*; fi
 
-#ceph: nolint-build-ceph
-ceph: $(TASK)-ceph
+lint-%: init-%
+	$(HELM) lint $*
 
-bootstrap: $(TASK)-bootstrap
-
-mariadb: $(TASK)-mariadb
-
-etcd: $(TASK)-etcd
-
-keystone: $(TASK)-keystone
-
-barbican: $(TASK)-barbican
-
-cinder: $(TASK)-cinder
-
-horizon: $(TASK)-horizon
-
-rabbitmq: $(TASK)-rabbitmq
-
-glance: $(TASK)-glance
-
-mistral: $(TASK)-mistral
-
-neutron: $(TASK)-neutron
-
-nova: $(TASK)-nova
-
-heat: $(TASK)-heat
-
-senlin: $(TASK)-senlin
-
-magnum: $(TASK)-magnum
-
-memcached: $(TASK)-memcached
-
-ingress: $(TASK)-ingress
+build-%: lint-%
+	$(HELM) package $*
 
 clean:
+	@echo "Removed all .b64, _partials.tpl, and _globals.tpl files"
 	$(shell rm -rf helm-toolkit/secrets/*.b64)
 	$(shell rm -rf */templates/_partials.tpl)
 	$(shell rm -rf */templates/_globals.tpl)
-	echo "Removed all .b64, _partials.tpl, and _globals.tpl files"
 
-build-%:
-	@echo
-	if [ -f $*/Makefile ]; then make -C $*; fi
-	if [ -f $*/requirements.yaml ]; then helm dep up $*; fi
-	helm lint $*
-	helm package $*
-	@echo
-
-lint-%:
-	@echo
-	if [ -f $*/Makefile ]; then make -C $*; fi
-	if [ -f $*/requirements.yaml ]; then helm dep up $*; fi
-	helm lint $*
-	@echo
+.PHONY: $(CHARTS)
