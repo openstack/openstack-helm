@@ -25,7 +25,7 @@ helm_install
 helm_serve
 helm_lint
 
-if [ "x$INTEGRATION" == "xAIO" ]; then
+if [ "x$INTEGRATION" == "xaio" ]; then
  bash ${WORK_DIR}/tools/gate/kubeadm_aio.sh
  if [ "x$INTEGRATION_TYPE" == "xbasic" ]; then
    bash ${WORK_DIR}/tools/gate/basic_launch.sh
