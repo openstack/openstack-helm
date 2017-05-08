@@ -145,7 +145,7 @@ In the below examples the default values that would be used in a production-like
 
 ::
 
-        helm install --name=glance local/glance --namespace=openstack --values=./tools/overrides/mvp/neutron.yaml
+        helm install --name=glance local/glance --namespace=openstack --values=./tools/overrides/mvp/glance.yaml
         helm install --name=nova local/nova --namespace=openstack --values=./tools/overrides/mvp/nova.yaml --set=conf.nova.libvirt.nova.conf.virt_type=qemu
         helm install --name=neutron local/neutron --namespace=openstack --values=./tools/overrides/mvp/neutron.yaml
         helm install --name=horizon local/horizon --namespace=openstack --set=network.enable_node_port=true
