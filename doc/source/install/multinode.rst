@@ -174,6 +174,19 @@ component so we relax the access control rules:
 
     kubectl update -f https://raw.githubusercontent.com/openstack/openstack-helm/master/tools/kubeadm-aio/assets/opt/rbac/dev.yaml
 
+Enabling Cron Jobs
+------------------
+
+OpenStack-Helm's default Keystone token provider is `fernet
+<https://docs.openstack.org/keystone/latest/admin/identity-fernet-token-faq.html>`_.
+To provide sufficient security, keys used to generate fernet tokens need to be
+rotated regularly. Keystone chart provides Cron Job for that task, but it is
+only deployed when Cron Jobs API is enabled on Kubernetes cluster. To enable
+Cron Jobs add ``--runtime-config=batch/v2alpha1=true`` to your kube-apiserver
+startup arguments (e.g. in your
+``/etc/kubernetes/manifests/kube-apiserver.yaml`` manifest). By default fernet
+keys will be rotated weekly.
+
 Preparing Persistent Storage
 ----------------------------
 
