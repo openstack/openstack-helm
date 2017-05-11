@@ -30,6 +30,10 @@ RUN set -x \
     && dpkg --configure kubeadm \
     && apt-get install -yf kubeadm \
     && mkdir -p /etc/kubernetes/manifests \
+# Install kubelet binary
+    && curl -sSL https://dl.k8s.io/v1.6.2/kubernetes-server-linux-amd64.tar.gz | tar -zxv --strip-components=1 \
+    && mv /tmp/server/bin/kubelet /usr/bin/kubelet \
+    && chmod +x /usr/bin/kubelet \
 # Move kubelet binary as we will run containerised
     && mv /usr/bin/kubelet /usr/bin/kubelet-real \
 # Install helm binary
