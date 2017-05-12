@@ -13,6 +13,35 @@
 # limitations under the License.
 
 [mysqld]
+# Charset
+character_set_server=utf8
+collation_server=utf8_unicode_ci
+skip-character-set-client-handshake
+
+# Logging
+slow_query_log=on
+slow_query_log_file=/var/log/mysql/mariadb-slow.log
+log_warnings=2
+
+# General logging has huge performance penalty therefore is disabled by default
+general_log=off
+general_log_file=/var/log/mysql/mariadb-error.log
+
+long_query_time=3
+log_queries_not_using_indexes=on
+
+# Networking
+bind_address=0.0.0.0
+port={{ .Values.network.port.mariadb }}
+
+# When a client connects, the server will perform hostname resolution,
+# and when DNS is slow, establishing the connection will become slow as well.
+# It is therefore recommended to start the server with skip-name-resolve to
+# disable all DNS lookups. The only limitation is that the GRANT statements
+# must then use IP addresses only.
+skip_name_resolve
+
+# Tuning
 user=mysql
 max_allowed_packet=256M
 open_files_limit=10240
@@ -27,7 +56,7 @@ max-connect-errors=1000000
 ## by setting query_cache_size=0 (now the default on MySQL 5.6)
 ## and to use other ways to speed up read queries: good indexing, adding
 ## replicas to spread the read load or using an external cache.
-query_cache_size =0
+query_cache_size=0
 query_cache_type=0
 
 sync_binlog=0
@@ -43,19 +72,37 @@ table_definition_cache=1024
 # Typical values are 50..75% of available RAM.
 # TODO(tomasz.paszkowski): This needs to by dynamic based on avaliable RAM.
 innodb_buffer_pool_size=1024M
-innodb_log_file_size=128M
-innodb_flush_method=O_DIRECT
-innodb_flush_log_at_trx_commit=2
-innodb_old_blocks_time=1000
-innodb_autoinc_lock_mode=2
 innodb_doublewrite=0
 innodb_file_format=Barracuda
 innodb_file_per_table=1
+innodb_flush_method=O_DIRECT
 innodb_io_capacity=500
 innodb_locks_unsafe_for_binlog=1
+innodb_log_file_size=128M
+innodb_old_blocks_time=1000
 innodb_read_io_threads=8
 innodb_write_io_threads=8
+
+# Clustering
+binlog_format=ROW
+default-storage-engine=InnoDB
+innodb_autoinc_lock_mode=2
+innodb_flush_log_at_trx_commit=2
+wsrep_cluster_name={{ .Values.service_name }}
+wsrep_on=1
+wsrep_provider=/usr/lib/galera/libgalera_smm.so
+wsrep_provider_options="gmcast.listen_addr=tcp://0.0.0.0:{{ .Values.network.port.wsrep }}"
+wsrep_slave_threads=12
+wsrep_sst_auth=root:{{ .Values.database.root_password }}
+wsrep_sst_method=xtrabackup-v2
 
 
 [mysqldump]
 max-allowed-packet=16M
+
+
+[client]
+default_character_set=utf8
+protocol=tcp
+port={{ .Values.network.port.mariadb }}
+connect_timeout=10

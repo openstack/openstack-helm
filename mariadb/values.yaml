@@ -12,23 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# note that you need to update the gcomm member list
-# below when changing this value
 replicas: 3
 
-# this flag allows a "leaner" version of this chart to be installed
-# likely lacking any resiliency or persistence, but will help
-# both laptop developers and cicd systems
-#
-# it will deploy a single instance of mariadb, use nodeDir
-# for persistence and satisfy the mariadb-seed job with
-# a busybox mock
-#
-# note enabling this flag takes precedence when enabled and
-# will override certain things, like the replicas requested
-development:
-  enabled: false
-  storage_path: /var/lib/localkube/openstack-helm/mariadb
+force_bootstrap: false
 
 resources:
   enabled: false
@@ -39,23 +25,16 @@ resources:
     requests:
       memory: "128Mi"
       cpu: "500m"
-  job:
-    seed:
-      limits:
-        memory: "128Mi"
-        cpu: "500m"
-      requests:
-        memory: "128Mi"
-        cpu: "500m"
 
 # this drives the service name, and statefulset name
 service_name: mariadb
 
 images:
-  mariadb: quay.io/stackanetes/stackanetes-mariadb:newton
+  mariadb: mariadb:10.1.23
   pull_policy: IfNotPresent
 
 volume:
+  enabled: true
   class_path: volume.beta.kubernetes.io/storage-class
   class_name: general
   size: 2Gi
@@ -66,14 +45,14 @@ labels:
 
 network:
   port:
-    wsrep: 4567
-    mariadb: 3306
     ist: 4444
-  dns:
-    kubernetes_domain: cluster.local
+    mariadb: 3306
+    wsrep: 4567
 
 database:
   root_password: password
-  cluster_name: mariadb
-  node_name: master
-  wsrep_sst_method: rsync
+
+  # Any configuration here will override the base config.
+  # config_override: |-
+  #   [mysqld]
+  #   wsrep_slave_threads=1

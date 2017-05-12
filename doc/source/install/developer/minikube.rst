@@ -84,7 +84,7 @@ use the following commands:
     kubectl label nodes openstack-control-plane=enabled --all --namespace=openstack
 
     # Deploy each chart:
-    helm install --name mariadb local/mariadb --namespace=openstack --set development.enabled=true
+    helm install --name mariadb local/mariadb --namespace=openstack --set volume.enabled=false
     helm install --name=memcached local/memcached --namespace=openstack
     helm install --name=etcd-rabbitmq local/etcd --namespace=openstack
     helm install --name=rabbitmq local/rabbitmq --namespace=openstack
@@ -263,7 +263,7 @@ child charts.
 
 ::
 
-    helm install --name mariadb --set development.enabled=true local/mariadb --namespace=openstack
+    helm install --name mariadb --set volume.enabled=false local/mariadb --namespace=openstack
 
 .. note::
   MariaDB seeding tasks run for quite a while. This is expected
