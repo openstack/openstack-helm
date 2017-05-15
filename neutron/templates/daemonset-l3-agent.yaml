@@ -14,6 +14,8 @@
 
 {{- $envAll := . }}
 {{- $dependencies := .Values.dependencies.l3 }}
+{{- $mounts_neutron_l3_agent := .Values.mounts.neutron_l3_agent.neutron_l3_agent }}
+{{- $mounts_neutron_l3_agent_init := .Values.mounts.neutron_l3_agent.init_container }}
 apiVersion: extensions/v1beta1
 kind: DaemonSet
 metadata:
@@ -27,7 +29,7 @@ spec:
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.hash" }}
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.hash" }}
         pod.beta.kubernetes.io/init-containers: '[
-{{ tuple $envAll $dependencies "[]" | include "helm-toolkit.kubernetes_entrypoint_init_container" | indent 10 }}
+{{ tuple $envAll $dependencies $mounts_neutron_l3_agent_init | include "helm-toolkit.kubernetes_entrypoint_init_container" | indent 10 }}
         ]'
     spec:
       nodeSelector:
@@ -83,6 +85,7 @@ spec:
               mountPath: /run/openvswitch
             - name: socket
               mountPath: /var/lib/neutron/stackanetes
+{{ if $mounts_neutron_l3_agent.volumeMounts }}{{ toYaml $mounts_neutron_l3_agent.volumeMounts | indent 12 }}{{ end }}
       volumes:
         - name: neutron-bin
           configMap:
@@ -96,3 +99,4 @@ spec:
         - name: socket
           hostPath:
             path: /var/lib/neutron/stackanetes
+{{ if $mounts_neutron_l3_agent.volumes }}{{ toYaml $mounts_neutron_l3_agent.volumes | indent 8 }}{{ end }}
