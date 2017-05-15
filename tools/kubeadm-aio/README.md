@@ -41,20 +41,24 @@ And clone the OpenStack-Helm repo:
 git clone https://git.openstack.org/openstack/openstack-helm
 ```
 
-### Build and deploy the AIO environment
+### Build the AIO environment (Optional)
 
-From the root directory of the OpenStack-Helm repo run:
+A known good image is published to dockerhub on a fairly regular basis, but if
+you wish to build your own image, from the root directory of the OpenStack-Helm
+repo run:
 
 ``` bash
-export KUBEADM_IMAGE=openstack-helm/kubeadm-aio:v1.6
+export KUBEADM_IMAGE=openstackhelm/kubeadm-aio:v1.6
 sudo docker build --pull -t ${KUBEADM_IMAGE} tools/kubeadm-aio
 ```
 
-To launch the environment then run:
+### Deploy the AIO environment
+
+To launch the environment run:
 
 ``` bash
-export KUBEADM_IMAGE=openstack-helm/kubeadm-aio:v1.6
-export KUBE_VERSION=v1.6.0
+export KUBEADM_IMAGE=openstackhelm/kubeadm-aio:v1.6
+export KUBE_VERSION=v1.6.2
 ./tools/kubeadm-aio/kubeadm-aio-launcher.sh
 export KUBECONFIG=${HOME}/.kubeadm-aio/admin.conf
 ```

@@ -2,6 +2,7 @@ FROM ubuntu:16.04
 MAINTAINER pete.birley@att.com
 
 ARG HELM_VERSION=v2.3.0
+ARG KUBE_VERSION=v1.6.2
 
 ENV container="docker" \
     DEBIAN_FRONTEND="noninteractive"
@@ -30,10 +31,14 @@ RUN set -x \
     && dpkg --configure kubeadm \
     && apt-get install -yf kubeadm \
     && mkdir -p /etc/kubernetes/manifests \
-# Install kubelet binary
-    && curl -sSL https://dl.k8s.io/v1.6.2/kubernetes-server-linux-amd64.tar.gz | tar -zxv --strip-components=1 \
+# Install kubelet & kubeadm binaries:
+# (portdirect) We do things in this weird way to let us use the deps and systemd
+# units from the packages in the .deb repo.
+    && curl -sSL https://dl.k8s.io/${KUBE_VERSION}/kubernetes-server-linux-amd64.tar.gz | tar -zxv --strip-components=1 \
     && mv /tmp/server/bin/kubelet /usr/bin/kubelet \
     && chmod +x /usr/bin/kubelet \
+    && mv /tmp/server/bin/kubeadm /usr/bin/kubeadm \
+    && chmod +x /usr/bin/kubeadm \
 # Move kubelet binary as we will run containerised
     && mv /usr/bin/kubelet /usr/bin/kubelet-real \
 # Install helm binary
