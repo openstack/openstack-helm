@@ -28,9 +28,6 @@ spec:
       annotations:
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
-        pod.beta.kubernetes.io/init-containers: '[
-{{ tuple $envAll $dependencies $mounts_neutron_metadata_agent_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 10 }}
-        ]'
     spec:
       nodeSelector:
         {{ .Values.labels.agent.metadata.node_selector_key }}: {{ .Values.labels.agent.metadata.node_selector_value }}
@@ -38,6 +35,8 @@ spec:
         runAsUser: 0
       dnsPolicy: ClusterFirst
       hostNetwork: true
+      initContainers:
+{{ tuple $envAll $dependencies $mounts_neutron_metadata_agent_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
         - name: neutron-metadata-agent
           image: {{ .Values.images.metadata }}
