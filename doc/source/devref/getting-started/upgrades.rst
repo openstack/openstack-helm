@@ -28,6 +28,11 @@ that those resources can be updated without deleting and redeploying the
 service and can be treated like any other upgrade, such as a container
 image change.
 
+Note: Rolling update values can conflict with values defined in each
+service's PodDisruptionBudget.  See
+`here <../../../html/operator/kubernetes.html#pod-disruption-budgets>`_
+for more information.
+
 This is accomplished with the following annotation:
 
 ::
