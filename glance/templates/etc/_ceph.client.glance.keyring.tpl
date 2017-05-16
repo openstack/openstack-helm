@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-[client.{{ .Values.ceph.glance_user }}]
-{{- if .Values.ceph.glance_keyring }}
-    key = {{ .Values.ceph.glance_keyring }}
+[client.{{ .Values.conf.glance.glance_store.glance.store.rbd_store_user }}]
+{{- if .Values.conf.ceph.keyring }}
+    key = {{ .Values.conf.ceph.keyring }}
 {{- else }}
     key = {{- include "secrets/ceph-client-key" . -}}
 {{- end }}
