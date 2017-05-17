@@ -66,15 +66,15 @@ spec:
           volumeMounts:
             - name: etcglance
               mountPath: /etc/glance
-            - name: glanceapiconf
+            - name: glance-etc
               mountPath: /etc/glance/glance-api.conf
               subPath: glance-api.conf
               readOnly: true
-            - name: glanceapipaste
+            - name: glance-etc
               mountPath: /etc/glance/glance-api-paste.ini
               subPath: glance-api-paste.ini
               readOnly: true
-            - name: glancepolicy
+            - name: glance-etc
               mountPath: /etc/glance/policy.json
               subPath: policy.json
               readOnly: true
@@ -82,36 +82,23 @@ spec:
             - name: glance-images
               mountPath: {{ .Values.conf.glance.glance_store.glance.store.filesystem_store_datadir }}
 {{- else }}
-            - name: cephconf
+            - name: glance-etc
               mountPath: /etc/ceph/ceph.conf
               subPath: ceph.conf
               readOnly: true
-            - name: cephclientglancekeyring
+            - name: glance-etc
               mountPath: /etc/ceph/ceph.client.{{ .Values.ceph.glance_user }}.keyring
               subPath: ceph.client.{{ .Values.ceph.glance_user }}.keyring
               readOnly: true
 {{- end }}
       volumes:
-        - name: glanceapiconf
-          configMap:
-            name: glance-etc
-        - name: glanceapipaste
+        - name: glance-etc
           configMap:
             name: glance-etc
 {{- if eq .Values.storage "file" }}
         - name: glance-images
           persistentVolumeClaim:
             claimName: glance-images
-{{- else }}
-        - name: cephconf
-          configMap:
-            name: glance-etc
-        - name: cephclientglancekeyring
-          configMap:
-            name: glance-etc
 {{- end }}
         - name: etcglance
           emptyDir: {}
-        - name: glancepolicy
-          configMap:
-            name: glance-etc
