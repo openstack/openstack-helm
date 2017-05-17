@@ -15,17 +15,27 @@
 # limitations under the License.
 
 set -ex
+# Wait for the libvirtd is up
+TIMEOUT=60
+while [[ ! -f /var/run/libvirtd.pid ]]; do
+    if [[ ${TIMEOUT} -gt 0 ]]; then
+        let TIMEOUT-=1
+        sleep 1
+    else
+        exit 1
+    fi
+done
 
-if [[ -f /var/run/libvirtd.pid ]]; then
-   test -d /proc/$(< /var/run/libvirtd.pid) && \
-   ( echo "Libvirtd daemon is running" && exit 10 )
-fi
+cat > /tmp/secret.xml <<EOF
+<secret ephemeral='no' private='no'>
+  <uuid>{{ .Values.ceph.secret_uuid }}</uuid>
+  <usage type='ceph'>
+    <name>client.{{ .Values.ceph.cinder_user }} secret</name>
+  </usage>
+</secret>
+EOF
 
-rm -f /var/run/libvirtd.pid
+virsh secret-define --file /tmp/secret.xml
+virsh secret-set-value --secret {{ .Values.ceph.secret_uuid }} --base64 {{ .Values.ceph.cinder_keyring }}
 
-if [[ -c /dev/kvm ]]; then
-    chmod 660 /dev/kvm
-    chown root:kvm /dev/kvm
-fi
-
-exec libvirtd -v --listen
+rm /tmp/secret.xml
