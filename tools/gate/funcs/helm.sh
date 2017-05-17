@@ -15,16 +15,29 @@ set -e
 
 function helm_install {
   TMP_DIR=$(mktemp -d)
-  sudo apt-get update -y
-  sudo apt-get install -y --no-install-recommends -qq \
-    git \
-    make \
-    curl \
-    ca-certificates
+  if [ "x$HOST_OS" == "xubuntu" ]; then
+    sudo apt-get update -y
+    sudo apt-get install -y --no-install-recommends -qq \
+      git \
+      make \
+      curl \
+      ca-certificates
+  elif [ "x$HOST_OS" == "xcentos" ]; then
+    sudo yum install -y \
+      git \
+      make \
+      curl
+  elif [ "x$HOST_OS" == "xfedora" ]; then
+    sudo dnf install -y \
+      git \
+      make \
+      curl
+  fi
 
   # install helm
   curl -sSL https://storage.googleapis.com/kubernetes-helm/helm-${HELM_VERSION}-linux-amd64.tar.gz | tar -zxv --strip-components=1 -C ${TMP_DIR}
   sudo mv ${TMP_DIR}/helm /usr/local/bin/helm
+
   rm -rf ${TMP_DIR}
 }
 

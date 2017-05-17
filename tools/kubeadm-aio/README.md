@@ -72,7 +72,7 @@ your host you may run the following, but note that this will wipe any previous
 client configuration you may have.
 
 ``` bash
-mkdir -p  ${HOME}/.kube
+mkdir -p ${HOME}/.kube
 cat ${HOME}/.kubeadm-aio/admin.conf > ${HOME}/.kube/config
 ```
 

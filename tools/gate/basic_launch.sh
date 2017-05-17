@@ -29,6 +29,13 @@ kube_wait_for_pods openstack 600
 helm install local/keystone --name=keystone --namespace=openstack
 kube_wait_for_pods openstack 240
 
+# NOTE(portdirect): Temp workaround until module loading is supported by
+# OpenStack-Helm in Fedora
+if [ "x$HOST_OS" == "xfedora" ]; then
+  sudo modprobe openvswitch
+  sudo modprobe gre
+  sudo modprobe vxlan
+fi
 helm install local/glance --name=glance --namespace=openstack --values=${WORK_DIR}/tools/overrides/mvp/glance.yaml
 helm install local/nova --name=nova --namespace=openstack --values=${WORK_DIR}/tools/overrides/mvp/nova.yaml --set=conf.nova.libvirt.nova.conf.virt_type=qemu
 helm install local/neutron --name=neutron --namespace=openstack --values=${WORK_DIR}/tools/overrides/mvp/neutron.yaml
