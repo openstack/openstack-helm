@@ -16,7 +16,7 @@ set -ex
 export HELM_VERSION=${2:-v2.3.0}
 export KUBE_VERSION=${3:-v1.6.0}
 export KUBECONFIG=${HOME}/.kubeadm-aio/admin.conf
-export KUBEADM_IMAGE=openstack-helm/kubeadm-aio:v1.6
+export KUBEADM_IMAGE=openstackhelm/kubeadm-aio:v1.6
 
 export WORK_DIR=$(pwd)
 source ${WORK_DIR}/tools/gate/funcs/helm.sh
