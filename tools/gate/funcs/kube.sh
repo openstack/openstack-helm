@@ -46,15 +46,40 @@ function kube_wait_for_pods {
 
 function kubeadm_aio_reqs_install {
   TMP_DIR=$(mktemp -d)
-  sudo apt-get update -y
-  sudo apt-get install -y --no-install-recommends -qq \
-          docker.io \
-          nfs-common \
-          jq
+  if [ "x$HOST_OS" == "xubuntu" ]; then
+    sudo apt-get update -y
+    sudo apt-get install -y --no-install-recommends -qq \
+            docker.io \
+            nfs-common \
+            jq
+  elif [ "x$HOST_OS" == "xcentos" ]; then
+    sudo yum install -y \
+            epel-release
+    sudo yum install -y \
+            docker \
+            nfs-utils \
+            jq
+    sudo cp -f /usr/lib/systemd/system/docker.service /etc/systemd/system/docker.service
+    sudo sed -i "s|^MountFlags=slave|MountFlags=share|g" /etc/systemd/system/docker.service
+    sudo systemctl daemon-reload
+    sudo systemctl restart docker
+  elif [ "x$HOST_OS" == "xfedora" ]; then
+    sudo dnf install -y \
+            docker-latest \
+            nfs-utils \
+            jq
+    sudo cp -f /usr/lib/systemd/system/docker-latest.service /etc/systemd/system/docker.service
+    sudo sed -i "s|/var/lib/docker-latest|/var/lib/docker|g" /etc/systemd/system/docker.service
+    echo "DOCKER_STORAGE_OPTIONS=--storage-driver=overlay2" | sudo tee /etc/sysconfig/docker-latest-storage
+    sudo systemctl daemon-reload
+    sudo systemctl restart docker
+  fi
 
   curl -sSL https://storage.googleapis.com/kubernetes-release/release/${KUBE_VERSION}/bin/linux/amd64/kubectl -o ${TMP_DIR}/kubectl
   chmod +x ${TMP_DIR}/kubectl
   sudo mv ${TMP_DIR}/kubectl /usr/local/bin/kubectl
+
+  rm -rf ${TMP_DIR}
 }
 
 function kubeadm_aio_build {
@@ -62,6 +87,11 @@ function kubeadm_aio_build {
 }
 
 function kubeadm_aio_launch {
+  if [ "x$HOST_OS" == "xcentos" ]; then
+    sudo setenforce 0 || true
+  elif [ "x$HOST_OS" == "xfedora" ]; then
+    sudo setenforce 0 || true
+  fi
   ${WORK_DIR}/tools/kubeadm-aio/kubeadm-aio-launcher.sh
   mkdir -p ${HOME}/.kube
   cat ${KUBECONFIG} > ${HOME}/.kube/config

@@ -14,12 +14,20 @@
 set -ex
 
 export HELM_VERSION=${2:-v2.3.0}
-export KUBE_VERSION=${3:-v1.6.0}
+export KUBE_VERSION=${3:-v1.6.2}
 export KUBECONFIG=${HOME}/.kubeadm-aio/admin.conf
 export KUBEADM_IMAGE=openstackhelm/kubeadm-aio:v1.6
 
 export WORK_DIR=$(pwd)
+source /etc/os-release
+export HOST_OS=${ID}
+source ${WORK_DIR}/tools/gate/funcs/network.sh
 source ${WORK_DIR}/tools/gate/funcs/helm.sh
+
+# We setup the network for pre kube here, to enable cluster restarts on
+# development machines
+net_resolv_pre_kube
+net_hosts_pre_kube
 
 helm_install
 helm_serve

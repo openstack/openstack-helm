@@ -13,8 +13,10 @@
 # limitations under the License.
 set -ex
 
+source ${WORK_DIR}/tools/gate/funcs/network.sh
 source ${WORK_DIR}/tools/gate/funcs/kube.sh
 
 kubeadm_aio_reqs_install
 #kubeadm_aio_build
 kubeadm_aio_launch
+net_resolv_kube
