@@ -19,3 +19,4 @@ AUTOCLUSTER_DELAY={{ .Values.autocluster.delay }}
 RABBITMQ_USE_LONGNAME=true
 AUTOCLUSTER_LOG_LEVEL={{ .Values.autocluster.log_level }}
 NODENAME="rabbit@${RABBITMQ_POD_IP}"
+RABBITMQ_NODE_TYPE={{ .Values.autocluster.node_type }}
