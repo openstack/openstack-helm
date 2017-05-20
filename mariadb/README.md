@@ -4,7 +4,7 @@ By default, this chart creates a 3-member mariadb galera cluster.
 
 This chart leverages StatefulSets, with persistent storage.
 
-It creates a job that acts as a temporary standalone galera cluster.  This host is bootstrapped with authentication and then the WSREP bindings are exposed publicly.  The cluster members being StatefulSets are provisioned one at a time.  The first host must be marked as ```Ready``` before the next host will be provisioned.  This is determined by the readinessProbes which actually validate that MySQL is up and responsive. 
+It creates a job that acts as a temporary standalone galera cluster.  This host is bootstrapped with authentication and then the WSREP bindings are exposed publicly.  The cluster members being StatefulSets are provisioned one at a time.  The first host must be marked as ```Ready``` before the next host will be provisioned.  This is determined by the readinessProbes which actually validate that MySQL is up and responsive.
 
 The configuration leverages xtrabackup-v2 for synchronization.  This may later be augmented to leverage rsync which has some benefits.
 

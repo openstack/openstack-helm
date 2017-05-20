@@ -24,6 +24,11 @@ export HOST_OS=${ID}
 source ${WORK_DIR}/tools/gate/funcs/network.sh
 source ${WORK_DIR}/tools/gate/funcs/helm.sh
 
+# Moving the ws-linter here to avoid it blocking all the jobs just for ws
+if [ "x$INTEGRATION_TYPE" == "xlinter" ]; then
+  bash ${WORK_DIR}/tools/gate/whitespace.sh
+fi
+
 # We setup the network for pre kube here, to enable cluster restarts on
 # development machines
 net_resolv_pre_kube
