@@ -42,10 +42,10 @@
 
 # this function helps resolve database style endpoints, which really follow the same
 # pattern as above, except they have a username and password component
-# 
+#
 # presuming that .Values contains an endpoint: definition for 'neutron-db' with the
 # appropriate attributes, a call such as:
-# 
+#
 # { tuple "neutron-db" "internal" "userClass" "portName" . | include "helm-toolkit.authenticated_endpoint_uri_lookup" }
 #
 # where portName is optional if a default port has been defined in .Values
@@ -76,7 +76,7 @@
 {{- end -}}
 
 # this function returns hostnames from endpoint definitions for use cases
-# where the uri style return is not appropriate, and only the hostname 
+# where the uri style return is not appropriate, and only the hostname
 # portion is used or relevant in the template
 #
 # { tuple "memcache" "internal" "portName" . | include "helm-toolkit.hostname_endpoint_uri_lookup" }

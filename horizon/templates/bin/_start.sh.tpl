@@ -22,7 +22,7 @@ rm -rf /var/run/apache2/*
 APACHE_DIR="apache2"
 
 # Compress Horizon's assets.
-/var/lib/kolla/venv/bin/manage.py collectstatic --noinput 
+/var/lib/kolla/venv/bin/manage.py collectstatic --noinput
 /var/lib/kolla/venv/bin/manage.py compress --force
 rm -rf /tmp/_tmp_.secret_key_store.lock /tmp/.secret_key_store
 
