@@ -14,6 +14,8 @@
 
 {{- $envAll := . }}
 {{- $dependencies := .Values.dependencies.server }}
+{{- $mounts_neutron_server := .Values.mounts.neutron_server.neutron_server }}
+{{- $mounts_neutron_server_init := .Values.mounts.neutron_server.init_container }}
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
@@ -36,7 +38,7 @@ spec:
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.hash" }}
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.hash" }}
         pod.beta.kubernetes.io/init-containers: '[
-{{ tuple $envAll $dependencies "[]" | include "helm-toolkit.kubernetes_entrypoint_init_container" | indent 10 }}
+{{ tuple $envAll $dependencies $mounts_neutron_server_init | include "helm-toolkit.kubernetes_entrypoint_init_container" | indent 10 }}
         ]'
     spec:
       nodeSelector:
@@ -83,6 +85,7 @@ spec:
               mountPath: /etc/neutron/policy.json
               subPath: policy.json
               readOnly: true
+{{ if $mounts_neutron_server.volumeMounts }}{{ toYaml $mounts_neutron_server.volumeMounts | indent 12 }}{{ end }}
       volumes:
         - name: neutron-bin
           configMap:
@@ -90,3 +93,4 @@ spec:
         - name: neutron-etc
           configMap:
             name: neutron-etc
+{{ if $mounts_neutron_server.volumes }}{{ toYaml $mounts_neutron_server.volumes | indent 8 }}{{ end }}

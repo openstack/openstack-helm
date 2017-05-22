@@ -14,6 +14,8 @@
 
 {{- $envAll := . }}
 {{- $dependencies := .Values.dependencies.registry }}
+{{- $mounts_glance_registry := .Values.mounts.glance_registry.glance_registry }}
+{{- $mounts_glance_registry_init := .Values.mounts.glance_registry.init_container }}
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
@@ -28,7 +30,7 @@ spec:
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.hash" }}
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.hash" }}
         pod.beta.kubernetes.io/init-containers: '[
-{{ tuple $envAll $dependencies "[]" | include "helm-toolkit.kubernetes_entrypoint_init_container" | indent 10 }}
+{{ tuple $envAll $dependencies $mounts_glance_registry_init | include "helm-toolkit.kubernetes_entrypoint_init_container" | indent 10 }}
         ]'
     spec:
       nodeSelector:
@@ -70,9 +72,11 @@ spec:
               mountPath: /etc/glance/policy.json
               subPath: policy.json
               readOnly: true
+{{ if $mounts_glance_registry.volumeMounts }}{{ toYaml $mounts_glance_registry.volumeMounts | indent 12 }}{{ end }}
       volumes:
         - name: etcglance
           emptyDir: {}
         - name: glance-etc
           configMap:
             name: glance-etc
+{{ if $mounts_glance_registry.volumes }}{{ toYaml $mounts_glance_registry.volumes | indent 8 }}{{ end }}
