@@ -14,6 +14,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+{{- if not .Values.ml2 -}}{{- set . "Values.ml2" dict -}}{{- end -}}
+{{- if not .Values.ml2.ovs -}}{{- set . "Values.ml2.ovs" dict -}}{{- end -}}
+{{- if not .Values.ml2.ovs.auto_bridge_add -}}{{- set . "Values.ml2.ovs.auto_bridge_add" dict -}}{{- end -}}
+
 set -x
 
 bridge=$1
@@ -23,12 +27,16 @@ port=$2
 # and br-int and br-tun are assumed and handled
 # by the agent
 ovs-vsctl --no-wait --may-exist add-br $bridge
-ovs-vsctl --no-wait --may-exist add-port $bridge $port
-ip link set dev $port up
+if [ $port] ; then
+  ovs-vsctl --no-wait --may-exist add-port $bridge $port
+  ip link set dev $port up
+fi
 
 # handle any bridge mappings
 {{- range $bridge, $port := .Values.ml2.ovs.auto_bridge_add }}
 ovs-vsctl --no-wait --may-exist add-br {{ $bridge }}
-ovs-vsctl --no-wait --may-exist add-port {{ $bridge }} {{ $port }}
-ip link set dev {{ $port }} up
+if [ {{  $port }} ] ; then
+    ovs-vsctl --no-wait --may-exist add-port {{ $bridge }} {{ $port }}
+    ip link set dev {{ $port }} up
+fi
 {{- end}}
