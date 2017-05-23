@@ -31,7 +31,7 @@ mysqld_safe --defaults-file=/etc/my.cnf \
             --wsrep_cluster_address='gcomm://' \
             --bind-address='127.0.0.1' \
             --wsrep_node_address="127.0.0.1:{{ .Values.network.port.wsrep }}" \
-            --wsrep_provider_options="gcache.size=512M; gmcast.listen_addr=tcp://127.0.0.1:{{ .Values.network.port.wsrep }}" &
+            --wsrep_provider_options="gmcast.listen_addr=tcp://127.0.0.1:{{ .Values.network.port.wsrep }}" &
 
 TIMEOUT=120
 while [[ ! -f /var/lib/mysql/mariadb.pid ]]; do
