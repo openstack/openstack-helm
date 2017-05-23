@@ -52,10 +52,11 @@ documentation, complete with verification procedures. Feel free to ask
 questions or check out our current `Issues and Bugs
 <https://bugs.launchpad.net/openstack-helm>`_.
 
-Openstack-Helm is intended to be packaged and served from your own Helm
-`repository <https://github.com/kubernetes/helm/blob/master/docs/chart_repository.md>`_.
-However, for quick installation, evaluation, and convenience, you can use our
+Please review our documentation at `Read the Docs <http://openstack-helm.readthedocs.io/>`_.
+For quick installation, evaluation, and convenience, you can use our
 online Helm repository and configure your environment with `Kubeadm-AIO
-<doc/source/install/all-in-one.rst>`_ or `Vagrant <doc/source/install/developer/vagrant.rst>`_.
+<http://openstack-helm.readthedocs.io/en/latest/install/all-in-one.html>`_.
 
-For a production-like install, follow the `Bare Metal <doc/source/install/multinode.rst#overview>`_ install guide which can also be used to simulate a multinode installation by using HostPaths
+For a production-like install, follow the
+`Bare Metal <http://openstack-helm.readthedocs.io/en/latest/install/multinode.html>`_
+install guide.
