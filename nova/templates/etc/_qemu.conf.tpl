@@ -12,23 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-conf:
-  nova:
-    default:
-      oslo:
-        log:
-          debug: true
-    libvirt:
-      nova:
-        conf:
-          images_type: null
-          images_rbd_pool: null
-          images_rbd_ceph_conf: null
-          rbd_user: null
-          rbd_secret_uuid: null
-          disk_cachemodes: null
-          hw_disk_discard: null
-    upgrade_levels:
-      nova:
-        conf:
-          compute: null
+# The backend to use for handling stdout/stderr output from
+# QEMU processes.
+#
+#  'file': QEMU writes directly to a plain file. This is the
+#          historical default, but allows QEMU to inflict a
+#          denial of service attack on the host by exhausting
+#          filesystem space
+#
+#  'logd': QEMU writes to a pipe provided by virtlogd daemon.
+#          This is the current default, providing protection
+#          against denial of service by performing log file
+#          rollover when a size limit is hit.
+#
+stdio_handler = "file"
