@@ -91,6 +91,6 @@ mysqld_safe --defaults-file=/etc/my.cnf \
             --wsrep_cluster_address='gcomm://' \
             --bind-address="0.0.0.0" \
             --wsrep_node_address="${POD_IP}:{{ .Values.network.port.wsrep }}" \
-            --wsrep_provider_options="gcache.size=512M; gmcast.listen_addr=tcp://${POD_IP}:{{ .Values.network.port.wsrep }}" &
+            --wsrep_provider_options="gmcast.listen_addr=tcp://${POD_IP}:{{ .Values.network.port.wsrep }}" &
 wait_for_cluster
 exit 0
