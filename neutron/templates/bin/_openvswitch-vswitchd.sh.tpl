@@ -23,5 +23,5 @@ modprobe gre
 modprobe vxlan
 
 ovs-vsctl --no-wait show
-bash /tmp/openvswitch-ensure-configured.sh {{ .Values.network.external_bridge }} {{ .Values.network.interface.external | default .Values.network.interface.default }}
+bash /tmp/openvswitch-ensure-configured.sh {{ .Values.network.external_bridge }} {{ .Values.network.interface.external }}
 exec /usr/sbin/ovs-vswitchd unix:/run/openvswitch/db.sock --mlockall -vconsole:emer -vconsole:err -vconsole:info

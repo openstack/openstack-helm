@@ -76,8 +76,11 @@ network:
   external_bridge: br-ex
   ip_address: 0.0.0.0
   interface:
-    external: enp12s0f0
-    default: enp11s0f0
+  # External interface will be automatically added to external_bridge. Default is null.
+  # Tunnel interface will be used for VXLAN tunneling. Default is null, with
+  # fallback mechanism to search for interface with default routing.
+    external: null
+    tunnel: null
   server:
     name: "neutron-server"
     port: 9696
@@ -112,12 +115,14 @@ metadata_agent:
 metadata:
   workers: 4
 
+
 ml2:
   ovs:
-    auto_bridge_add:
-      br-physnet1: enp11s0f0
-    bridge_mappings:
-      - "physnet1:br-physnet1"
+    auto_bridge_add: []
+# To automatically add a physical interface to a specific bridge using,
+# for example eth3 to bridge br-physnet1 define the following key/value
+# in auto_bridge_add:
+#       - br-physnet1:eth3
 
 dependencies:
   db_init:
@@ -341,10 +346,13 @@ conf:
       neutron:
         ml2:
           flat_networks: "*"
-    ml2_type_vlan:
-      neutron:
-        ml2:
-          network_vlan_ranges: "physnet1:1100:1110"
+    # If you want to use the external network as a tagged provider network,
+    # a range should be specified including the intended VLAN target
+    # using ml2_type_vlan.neutron.ml2.network_vlan_ranges:
+    # ml2_type_vlan:
+    #   neutron:
+    #     ml2:
+    #       network_vlan_ranges: "external:1100:1110"
   ml2_conf_sriov:
     override:
     append:
@@ -377,12 +385,18 @@ conf:
   openvswitch_agent:
     override:
     append:
-    ovs:
+    agent:
       neutron:
         ml2:
           ovs:
             agent:
               tunnel_types: vxlan
+    ovs:
+      neutron:
+        ml2:
+          ovs:
+            agent:
+              bridge_mappings: "external:br-ex"
               ovsdb_connection: unix:/var/run/openvswitch/db.sock
     securitygroup:
       neutron:
