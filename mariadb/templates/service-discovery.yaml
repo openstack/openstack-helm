@@ -12,7 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-[mysqld]
-default-storage-engine=InnoDB
-innodb=FORCE
-binlog_format=ROW
+# This service could be used for cluster pod discovery, though instead it's
+# primarily here to allow DNS lookups of cluster pods.
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.service_name }}-discovery
+  annotations:
+    service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
+spec:
+  ports:
+    - name: db
+      port: {{ .Values.network.port.mariadb }}
+  clusterIP: None
+  selector:
+    app: {{ .Values.service_name }}

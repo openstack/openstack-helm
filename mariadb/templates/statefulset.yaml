@@ -18,20 +18,14 @@ kind: StatefulSet
 metadata:
   name: {{ .Values.service_name }}
 spec:
-  serviceName: "{{ .Values.service_name }}"
-{{- if .Values.development.enabled }}
-  replicas: 1
-{{- else }}
+  serviceName: "{{ .Values.service_name }}-discovery"
   replicas: {{ .Values.replicas }}
-{{- end }}
   template:
     metadata:
       labels:
         app: {{ .Values.service_name }}
         galera: enabled
       annotations:
-        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.hash" }}
-        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.hash" }}
         # alanmeadows: this soft requirement allows single
         # host deployments to spawn several mariadb containers
         # but in a larger environment, would attempt to spread
@@ -72,73 +66,40 @@ spec:
             - bash
             - /tmp/start.sh
           env:
-            - name: INTERFACE_NAME
-              value: "eth0"
-            - name: POD_NAME
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.name
             - name: POD_IP
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
-            - name: NAMESPACE
+            - name: POD_NAME
               valueFrom:
                 fieldRef:
-                  fieldPath: metadata.namespace
-          ports:
-            - containerPort: {{ .Values.network.port.mariadb }}
-            - containerPort: {{ .Values.network.port.wsrep }}
-            - containerPort: {{ .Values.network.port.ist }}
-          # a readinessprobe is a much more complex affair with
-          # statefulsets, as the container must be "live"
-          # before the next stateful member is created
-          # and with galera this is problematic
+                  fieldPath: metadata.name
           readinessProbe:
             exec:
               command:
-                - python
-                - /mariadb-readiness.py
-            initialDelaySeconds: 60
+                - bash
+                - /tmp/readiness.sh
           volumeMounts:
             - name: mycnfd
-              mountPath: /etc/my.cnf.d
+              mountPath: /etc/mysql/conf.d
+            - name: mariadb-bin
+              mountPath: /tmp/readiness.sh
+              subPath: readiness.sh
             - name: mariadb-bin
               mountPath: /tmp/start.sh
               subPath: start.sh
-            - name: mariadb-bin
-              mountPath: /tmp/bootstrap-db.sh
-              subPath: bootstrap-db.sh
-            - name: mariadb-bin
-              mountPath: /tmp/peer-finder.py
-              subPath: peer-finder.py
-            - name: mariadb-bin
-              mountPath: /mariadb-readiness.py
-              subPath: readiness.py
             - name: mariadb-etc
-              mountPath: /etc/my.cnf.d/charsets.cnf
-              subPath: charsets.cnf
-            - name: mariadb-etc
-              mountPath: /etc/my.cnf.d/engine.cnf
-              subPath: engine.cnf
-            - name: mariadb-etc
-              mountPath: /etc/my.cnf.d/log.cnf
-              subPath: log.cnf
-            - name: mariadb-etc
-              mountPath: /etc/my.cnf
+              mountPath: /etc/mysql/my.cnf
               subPath: my.cnf
             - name: mariadb-etc
-              mountPath: /etc/my.cnf.d/networking.cnf
-              subPath: networking.cnf
+              mountPath: /etc/mysql/conf.d/00-base.cnf
+              subPath: 00-base.cnf
             - name: mariadb-etc
-              mountPath: /etc/my.cnf.d/pid.cnf
-              subPath: pid.cnf
+              mountPath: /etc/mysql/conf.d/20-override.cnf
+              subPath: 20-override.cnf
             - name: mariadb-etc
-              mountPath: /etc/my.cnf.d/tuning.cnf
-              subPath: tuning.cnf
-            - name: mariadb-etc
-              mountPath: /etc/my.cnf.d/wsrep.cnf
-              subPath: wsrep.cnf
+              mountPath: /etc/mysql/conf.d/99-force.cnf
+              subPath: 99-force.cnf
             - name: mysql-data
               mountPath: /var/lib/mysql
       volumes:
@@ -150,11 +111,11 @@ spec:
         - name: mariadb-etc
           configMap:
             name: mariadb-etc
-{{- if .Values.development.enabled }}
+        {{- if not .Values.volume.enabled }}
         - name: mysql-data
-          hostPath:
-            path: {{ .Values.development.storage_path }}
-{{- else }}
+          emptyDir: {}
+        {{- end }}
+{{- if .Values.volume.enabled }}
   volumeClaimTemplates:
   - metadata:
       name: mysql-data
