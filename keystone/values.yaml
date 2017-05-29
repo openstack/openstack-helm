@@ -28,6 +28,8 @@ images:
   db_sync: docker.io/kolla/ubuntu-source-keystone:3.0.3
   fernet_setup: docker.io/kolla/ubuntu-source-keystone:3.0.3
   fernet_rotate: docker.io/kolla/ubuntu-source-keystone:3.0.3
+  credential_setup: docker.io/kolla/ubuntu-source-keystone:3.0.3
+  credential_rotate: docker.io/kolla/ubuntu-source-keystone:3.0.3
   api: docker.io/kolla/ubuntu-source-keystone:3.0.3
   dep_check: docker.io/kolla/ubuntu-source-kubernetes-entrypoint:4.0.0
   pull_policy: "IfNotPresent"
@@ -60,6 +62,7 @@ dependencies:
   api:
     jobs:
     - keystone-db-sync
+    - keystone-credential-setup
     # Comment line below when not running fernet tokens.
     - keystone-fernet-setup
     services:
@@ -74,6 +77,7 @@ dependencies:
   db_sync:
     jobs:
     - keystone-db-init
+    - keystone-credential-setup
     # Comment line below when not running fernet tokens.
     - keystone-fernet-setup
     services:
@@ -83,6 +87,10 @@ dependencies:
   fernet_rotate:
     jobs:
     - keystone-fernet-setup
+  credential_setup:
+  credential_rotate:
+    jobs:
+    - keystone-credential-setup
   tests:
     services:
     - service: identity
@@ -121,6 +129,12 @@ pod:
     keystone_fernet_rotate:
       init_container: null
       keystone_fernet_rotate:
+    keystone_credential_setup:
+      init_container: null
+      keystone_credential_setup:
+    keystone_credential_rotate:
+      init_container: null
+      keystone_credential_rotate:
   replicas:
     api: 1
   lifecycle:
@@ -189,6 +203,20 @@ pod:
         requests:
           memory: "1024Mi"
           cpu: "2000m"
+      credential_setup:
+        limits:
+          memory: "128Mi"
+          cpu: "100m"
+        requests:
+          memory: "1024Mi"
+          cpu: "2000m"
+      credential_rotate:
+        limits:
+          memory: "128Mi"
+          cpu: "100m"
+        requests:
+          memory: "1024Mi"
+          cpu: "2000m"
 
 jobs:
   fernet_setup:
@@ -197,6 +225,15 @@ jobs:
   fernet_rotate:
     # weekly
     cron: "0 0 * * 0"
+    user: keystone
+    group: keystone
+  credential_setup:
+    user: keystone
+    group: keystone
+  credential_rotate:
+    # monthly
+    cron: "0 0 1 * *"
+    migrate_wait: 120
     user: keystone
     group: keystone
 
@@ -222,6 +259,9 @@ conf:
     fernet_tokens:
       keystone:
         key_repository: /etc/keystone/fernet-keys/
+    credential:
+      keystone:
+        key_repository: /etc/keystone/credential-keys/
     database:
       oslo:
         db:
