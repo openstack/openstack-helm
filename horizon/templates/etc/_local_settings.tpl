@@ -165,7 +165,7 @@ EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 #    ('http://cluster2.example.com:5000/v2.0', 'cluster2'),
 #]
 
-OPENSTACK_KEYSTONE_URL = "{{ tuple "identity" "internal" "api" . | include "helm-toolkit.keystone_endpoint_uri_lookup" }}"
+OPENSTACK_KEYSTONE_URL = "{{ tuple "identity" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" }}"
 OPENSTACK_KEYSTONE_DEFAULT_ROLE = "_member_"
 
 # Enables keystone web single-sign-on if set to True.

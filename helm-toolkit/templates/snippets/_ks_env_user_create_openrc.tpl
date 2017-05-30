@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-{{- define "helm-toolkit.keystone_user_create_env_vars" }}
+{{- define "helm-toolkit.snippets.keystone_user_create_env_vars" }}
 {{- $ksUserSecret := .ksUserSecret }}
 - name: SERVICE_OS_REGION_NAME
   valueFrom:

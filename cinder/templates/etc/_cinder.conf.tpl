@@ -26,10 +26,10 @@ osapi_volume_listen_port = {{ .Values.network.api.port }}
 
 api_paste_config = /etc/cinder/api-paste.ini
 
-glance_api_servers = {{ tuple "image" "internal" "api" . | include "helm-toolkit.keystone_endpoint_uri_lookup" }}
+glance_api_servers = {{ tuple "image" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" }}
 glance_api_version = {{ .Values.glance.version }}
 
-enabled_backends = {{  include "helm-toolkit.joinListWithComma" .Values.backends.enabled }}
+enabled_backends = {{  include "helm-toolkit.utils.joinListWithComma" .Values.backends.enabled }}
 
 auth_strategy = keystone
 os_region_name = {{ .Values.keystone.cinder_region_name }}
@@ -40,12 +40,12 @@ os_region_name = {{ .Values.keystone.cinder_region_name }}
 host=cinder-volume-worker
 
 [database]
-connection = {{ tuple "oslo_db" "internal" "user" "mysql" . | include "helm-toolkit.authenticated_endpoint_uri_lookup" }}
+connection = {{ tuple "oslo_db" "internal" "user" "mysql" . | include "helm-toolkit.endpoints.authenticated_endpoint_uri_lookup" }}
 max_retries = -1
 
 [keystone_authtoken]
 auth_version = v3
-auth_url = {{ tuple "identity" "internal" "api" . | include "helm-toolkit.keystone_endpoint_uri_lookup" }}
+auth_url = {{ tuple "identity" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" }}
 auth_type = password
 region_name = {{ .Values.keystone.cinder_region_name }}
 project_domain_name = {{ .Values.keystone.cinder_project_domain }}

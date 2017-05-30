@@ -12,19 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-{{- define "helm-toolkit.joinListWithComma" -}}
-{{ range $k, $v := . }}{{ if $k }},{{ end }}{{ $v }}{{ end }}
-{{- end -}}
-
-{{- define "helm-toolkit.template" -}}
-{{- $name := index . 0 -}}
-{{- $context := index . 1 -}}
-{{- $last := base $context.Template.Name }}
-{{- $wtf := $context.Template.Name | replace $last $name -}}
-{{ include $wtf $context }}
-{{- end -}}
-
-{{- define "helm-toolkit.hash" -}}
+{{- define "helm-toolkit.utils.hash" -}}
 {{- $name := index . 0 -}}
 {{- $context := index . 1 -}}
 {{- $last := base $context.Template.Name }}
