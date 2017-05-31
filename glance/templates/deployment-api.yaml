@@ -57,9 +57,8 @@ spec:
               memory: {{ .Values.resources.api.requests.memory | quote }}
           {{- end }}
           command:
-          - glance-api
-          - --config-file
-          - /etc/glance/glance-api.conf
+            - bash
+            - /tmp/glance-api.sh
           ports:
             - containerPort: {{ .Values.conf.glance.default.glance.api.bind_port }}
           readinessProbe:
@@ -68,6 +67,10 @@ spec:
           volumeMounts:
             - name: etcglance
               mountPath: /etc/glance
+            - name: glance-bin
+              mountPath: /tmp/glance-api.sh
+              subPath: glance-api.sh
+              readOnly: true
             - name: glance-etc
               mountPath: /etc/glance/glance-api.conf
               subPath: glance-api.conf
@@ -95,6 +98,11 @@ spec:
 {{- end }}
 {{ if $mounts_glance_api.volumeMounts }}{{ toYaml $mounts_glance_api.volumeMounts | indent 12 }}{{ end }}
       volumes:
+        - name: etcglance
+          emptyDir: {}
+        - name: glance-bin
+          configMap:
+            name: glance-bin
         - name: glance-etc
           configMap:
             name: glance-etc
@@ -103,6 +111,4 @@ spec:
           persistentVolumeClaim:
             claimName: glance-images
 {{- end }}
-        - name: etcglance
-          emptyDir: {}
 {{ if $mounts_glance_api.volumes }}{{ toYaml $mounts_glance_api.volumes | indent 8 }}{{ end }}
