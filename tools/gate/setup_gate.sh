@@ -24,6 +24,10 @@ export HOST_OS=${ID}
 source ${WORK_DIR}/tools/gate/funcs/network.sh
 source ${WORK_DIR}/tools/gate/funcs/helm.sh
 
+# Setup the logging location: by default use the working dir as the root.
+export LOGS_DIR=${LOGS_DIR:-"${WORK_DIR}/logs/"}
+mkdir -p ${LOGS_DIR}
+
 # Moving the ws-linter here to avoid it blocking all the jobs just for ws
 if [ "x$INTEGRATION_TYPE" == "xlinter" ]; then
   bash ${WORK_DIR}/tools/gate/whitespace.sh
@@ -40,6 +44,7 @@ helm_lint
 
 if [ "x$INTEGRATION" == "xaio" ]; then
  bash ${WORK_DIR}/tools/gate/kubeadm_aio.sh
+ bash ${WORK_DIR}/tools/gate/helm_dry_run.sh
  if [ "x$INTEGRATION_TYPE" == "xbasic" ]; then
    bash ${WORK_DIR}/tools/gate/basic_launch.sh
  fi
