@@ -47,7 +47,7 @@ Installation and Development
 ----------------------------
 
 This project is under heavy development. We encourage anyone who is interested
-in Openstack-Helm to review our `Installation <doc/source/install>`_
+in Openstack-Helm to review our `Installation <http://openstack-helm.readthedocs.io/en/latest/install/index.html>`_
 documentation, complete with verification procedures. Feel free to ask
 questions or check out our current `Issues and Bugs
 <https://bugs.launchpad.net/openstack-helm>`_.
