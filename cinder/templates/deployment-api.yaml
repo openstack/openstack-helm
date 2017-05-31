@@ -55,9 +55,8 @@ spec:
               cpu: {{ .Values.resources.cinder_api.limits.cpu | quote }}
           {{- end }}
           command:
-          - cinder-api
-          - --config-dir
-          - /etc/cinder/conf
+            - bash
+            - /tmp/cinder-api.sh
           ports:
             - name: c-api
               containerPort: {{ .Values.network.api.port }}
@@ -69,8 +68,12 @@ spec:
               mountPath: /etc/cinder
             - name: pod-var-cache-cinder
               mountPath: /var/cache/cinder
+            - name: cinder-bin
+              mountPath: /tmp/cinder-api.sh
+              subPath: cinder-api.sh
+              readOnly: true
             - name: cinder-etc
-              mountPath: /etc/cinder/conf/cinder.conf
+              mountPath: /etc/cinder/cinder.conf
               subPath: cinder.conf
               readOnly: true
             - name: cinder-etc
@@ -86,6 +89,9 @@ spec:
           emptyDir: {}
         - name: pod-var-cache-cinder
           emptyDir: {}
+        - name: cinder-bin
+          configMap:
+            name: cinder-bin
         - name: cinder-etc
           configMap:
             name: cinder-etc
