@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-{{- define "helm-toolkit.keystone_openrc_env_vars" }}
+{{- define "helm-toolkit.snippets.keystone_openrc_env_vars" }}
 {{- $ksUserSecret := .ksUserSecret }}
 - name: OS_IDENTITY_API_VERSION
   value: "3"

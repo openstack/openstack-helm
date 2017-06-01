@@ -12,4 +12,4 @@
 % See the License for the specific language governing permissions and
 % limitations under the License.
 
-[{{ include "helm-toolkit.joinListWithComma" .Values.enabled_plugins }}].
+[{{ include "helm-toolkit.utils.joinListWithComma" .Values.enabled_plugins }}].

@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-{{- define "helm-toolkit.kubernetes_entrypoint_init_container" -}}
+{{- define "helm-toolkit.snippets.kubernetes_entrypoint_init_container" -}}
 {{- $envAll := index . 0 -}}
 {{- $deps := index . 1 -}}
 {{- $mounts := index . 2 -}}
@@ -49,19 +49,19 @@
     },
     {
       "name": "DEPENDENCY_SERVICE",
-      "value": "{{  include "helm-toolkit.joinListWithComma" $deps.service }}"
+      "value": "{{  include "helm-toolkit.utils.joinListWithComma" $deps.service }}"
     },
     {
       "name": "DEPENDENCY_JOBS",
-      "value": "{{  include "helm-toolkit.joinListWithComma" $deps.jobs }}"
+      "value": "{{  include "helm-toolkit.utils.joinListWithComma" $deps.jobs }}"
     },
     {
       "name": "DEPENDENCY_DAEMONSET",
-      "value": "{{  include "helm-toolkit.joinListWithComma" $deps.daemonset }}"
+      "value": "{{  include "helm-toolkit.utils.joinListWithComma" $deps.daemonset }}"
     },
     {
       "name": "DEPENDENCY_CONTAINER",
-      "value": "{{  include "helm-toolkit.joinListWithComma" $deps.container }}"
+      "value": "{{  include "helm-toolkit.utils.joinListWithComma" $deps.container }}"
     },
     {
       "name": "COMMAND",

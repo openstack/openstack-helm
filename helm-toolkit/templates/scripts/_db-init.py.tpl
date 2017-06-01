@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-{{- define "helm-toolkit.db_init" }}
+{{- define "helm-toolkit.scripts.db_init" }}
 #!/usr/bin/env python
 
 # Creates db and user for an OpenStack Service:

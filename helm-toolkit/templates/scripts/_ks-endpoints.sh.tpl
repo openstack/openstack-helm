@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-{{- define "helm-toolkit.keystone_endpoints" }}
+{{- define "helm-toolkit.scripts.keystone_endpoints" }}
 #!/bin/bash
 
 # Copyright 2017 Pete Birley
