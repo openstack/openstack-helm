@@ -57,14 +57,15 @@ spec:
               memory: {{ .Values.resources.executor.requests.memory | quote }}
           {{- end }}
           command:
-          - mistral-server
-          - --server
-          - executor
-          - --config-file
-          - /etc/mistral/mistral.conf
+            - bash
+            - /tmp/mistral-executor.sh
           volumeMounts:
             - name: pod-etc-mistral
               mountPath: /etc/mistral
+            - name: mistral-bin
+              mountPath: /tmp/mistral-executor.sh
+              subPath: mistral-executor.sh
+              readOnly: true
             - name: mistral-etc
               mountPath: /etc/mistral/mistral.conf
               subPath: mistral.conf
@@ -73,6 +74,9 @@ spec:
       volumes:
         - name: pod-etc-mistral
           emptyDir: {}
+        - name: mistral-bin
+          configMap:
+            name: mistral-bin
         - name: mistral-etc
           configMap:
             name: mistral-etc
