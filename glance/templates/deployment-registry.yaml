@@ -35,6 +35,7 @@ spec:
     spec:
       nodeSelector:
         {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
+      terminationGracePeriodSeconds: {{ .Values.termination_grace_period.registry.timeout | default "600" }}
       containers:
         - name: glance-registry
           image: {{ .Values.images.registry }}
@@ -53,6 +54,13 @@ spec:
             - /tmp/glance-registry.sh
           ports:
             - containerPort: {{ .Values.conf.glance_registry.default.glance.registry.bind_port }}
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - kill
+                  - -TERM
+                  - "1"
           readinessProbe:
             tcpSocket:
               port: {{ .Values.conf.glance_registry.default.glance.registry.bind_port }}

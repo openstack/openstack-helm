@@ -43,6 +43,7 @@ spec:
     spec:
       nodeSelector:
         {{ .Values.labels.osapi.node_selector_key }}: {{ .Values.labels.osapi.node_selector_value }}
+      terminationGracePeriodSeconds: {{ .Values.termination_grace_period.osapi.timeout | default "30" }}
       containers:
         - name: nova-osapi
           image: {{ .Values.images.api }}
@@ -62,6 +63,13 @@ spec:
           {{- end }}
           ports:
             - containerPort: {{ .Values.network.osapi.port }}
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - kill
+                  - -TERM
+                  - "1"
           readinessProbe:
             tcpSocket:
               port: {{ .Values.network.osapi.port }}

@@ -43,6 +43,7 @@ spec:
     spec:
       nodeSelector:
         {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
+      terminationGracePeriodSeconds: {{ .Values.termination_grace_period.horizon.timeout | default "30" }}
       containers:
         - name: horizon
           image: {{ .Values.images.horizon }}
@@ -61,6 +62,13 @@ spec:
             - /tmp/start.sh
           ports:
             - containerPort: {{ .Values.network.port }}
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - apachectl
+                  - -k
+                  - graceful-stop
           readinessProbe:
             tcpSocket:
               port: {{ .Values.network.port }}

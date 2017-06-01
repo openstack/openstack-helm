@@ -43,6 +43,7 @@ spec:
     spec:
       nodeSelector:
         {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
+      terminationGracePeriodSeconds: {{ .Values.termination_grace_period.api.timeout | default "30" }}
       containers:
         - name: heat-api
           image: {{ .Values.images.api }}
@@ -61,6 +62,13 @@ spec:
             - /tmp/heat-api.sh
           ports:
             - containerPort: {{ .Values.conf.heat.heat_api.heat.common.wsgi.bind_port }}
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - kill
+                  - -TERM
+                  - "1"
           readinessProbe:
             tcpSocket:
               port: {{ .Values.conf.heat.heat_api.heat.common.wsgi.bind_port }}

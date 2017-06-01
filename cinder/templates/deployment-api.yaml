@@ -43,6 +43,7 @@ spec:
     spec:
       nodeSelector:
         {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
+      terminationGracePeriodSeconds: {{ .Values.termination_grace_period.api.timeout | default "30" }}
       containers:
         - name: cinder-api
           image: {{ .Values.images.api }}
@@ -62,6 +63,13 @@ spec:
           ports:
             - name: c-api
               containerPort: {{ .Values.conf.cinder.default.cinder.osapi_volume_listen_port }}
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - kill
+                  - -TERM
+                  - "1"
           readinessProbe:
             tcpSocket:
               port: {{ .Values.conf.cinder.default.cinder.osapi_volume_listen_port }}

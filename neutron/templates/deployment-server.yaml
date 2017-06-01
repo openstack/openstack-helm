@@ -43,6 +43,7 @@ spec:
     spec:
       nodeSelector:
         {{ .Values.labels.server.node_selector_key }}: {{ .Values.labels.server.node_selector_value }}
+      terminationGracePeriodSeconds: {{ .Values.termination_grace_period.server.timeout | default "30" }}
       containers:
         - name: neutron-server
           image: {{ .Values.images.server }}
@@ -58,6 +59,13 @@ spec:
           {{- end }}
           ports:
             - containerPort: {{ .Values.network.server.port }}
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - kill
+                  - -TERM
+                  - "1"
           readinessProbe:
             tcpSocket:
               port: {{ .Values.network.server.port }}

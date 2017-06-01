@@ -43,6 +43,7 @@ spec:
     spec:
       nodeSelector:
         {{ .Values.labels.api_metadata.node_selector_key }}: {{ .Values.labels.api_metadata.node_selector_value }}
+      terminationGracePeriodSeconds: {{ .Values.termination_grace_period.metadata.timeout | default "30" }}
       containers:
         - name: nova-api
           image: {{ .Values.images.api }}
@@ -63,6 +64,13 @@ spec:
                 - NET_ADMIN
           ports:
             - containerPort: {{ .Values.network.metadata.port }}
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - kill
+                  - -TERM
+                  - "1"
           readinessProbe:
             tcpSocket:
               port: {{ .Values.network.metadata.port }}
