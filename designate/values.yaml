@@ -1,0 +1,831 @@
+# Copyright 2019 The Openstack-Helm Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Default values for designate.
+# This is a YAML-formatted file.
+# Declare name/value pairs to be passed into your templates.
+# name: value
+
+release_group: null
+
+labels:
+  api:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  central:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  producer:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  worker:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  job:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  mdns:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  sink:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+
+images:
+  tags:
+    bootstrap: docker.io/openstackhelm/heat:queens-ubuntu_xenial
+    db_init: docker.io/openstackhelm/heat:queens-ubuntu_xenial
+    db_drop: docker.io/openstackhelm/heat:queens-ubuntu_xenial
+    rabbit_init: docker.io/rabbitmq:3.7-management
+    ks_user: docker.io/openstackhelm/heat:queens-ubuntu_xenial
+    ks_service: docker.io/openstackhelm/heat:queens-ubuntu_xenial
+    ks_endpoints: docker.io/openstackhelm/heat:queens-ubuntu_xenial
+    dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.3.1
+    designate_db_sync: docker.io/openstackhelm/designate:queens-ubuntu_xenial
+    designate_api: docker.io/openstackhelm/designate:queens-ubuntu_xenial
+    designate_central: docker.io/openstackhelm/designate:queens-ubuntu_xenial
+    designate_mdns: docker.io/openstackhelm/designate:queens-ubuntu_xenial
+    designate_worker: docker.io/openstackhelm/designate:queens-ubuntu_xenial
+    designate_producer: docker.io/openstackhelm/designate:queens-ubuntu_xenial
+    designate_sink: docker.io/openstackhelm/designate:queens-ubuntu_xenial
+  pull_policy: "IfNotPresent"
+  local_registry:
+    active: false
+    exclude:
+      - dep_check
+      - image_repo_sync
+
+pod:
+  affinity:
+      anti:
+        type:
+          default: preferredDuringSchedulingIgnoredDuringExecution
+        topologyKey:
+          default: kubernetes.io/hostname
+  mounts:
+    designate_api:
+      init_container: null
+      designate_api:
+        volumeMounts:
+        volumes:
+    designate_central:
+      init_container: null
+      designate_central:
+        volumeMounts:
+        volumes:
+    designate_mdns:
+      init_container: null
+      designate_mdns:
+        volumeMounts:
+        volumes:
+    designate_worker:
+      init_container: null
+      designate_worker:
+        volumeMounts:
+        volumes:
+    designate_producer:
+      init_container: null
+      designate_producer:
+        volumeMounts:
+        volumes:
+    designate_sink:
+      init_container: null
+      designate_sink:
+        volumeMounts:
+        volumes:
+    designate_db_sync:
+      designate_db_sync:
+        volumeMounts:
+        volumes:
+  replicas:
+    api: 1
+    central: 1
+    mdns: 1
+    producer: 1
+    sink: 1
+    worker: 1
+  lifecycle:
+    upgrades:
+      deployments:
+        revision_history: 3
+        pod_replacement_strategy: RollingUpdate
+        rolling_update:
+          max_unavailable: 1
+          max_surge: 3
+    disruption_budget:
+      api:
+        min_available: 0
+      central:
+        min_available: 0
+      mdns:
+        min_available: 0
+      worker:
+        min_available: 0
+      producer:
+        min_available: 0
+      sink:
+        min_available: 0
+    termination_grace_period:
+      api:
+        timeout: 30
+      mdns:
+        timeout: 30
+
+  resources:
+    enabled: false
+    api:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+    jobs:
+      bootstrap:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      db_init:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      db_sync:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      ks_endpoints:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      ks_service:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      ks_user:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      rabbit_init:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      tests:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+
+network:
+  api:
+    ingress:
+      public: true
+      classes:
+        namespace: "nginx"
+        cluster: "nginx-cluster"
+      annotations:
+        nginx.ingress.kubernetes.io/rewrite-target: /
+    external_policy_local: false
+    node_port:
+      enabled: false
+      port: 9001
+  mdns:
+    name: "designate-mdns"
+    proto: "http"
+    external_policy_local: false
+    node_port:
+      enabled: true
+      port: 5354
+
+bootstrap:
+  enabled: false
+  script: |
+    openstack token issue
+
+dependencies:
+  dynamic:
+    common:
+      local_image_registry:
+        jobs:
+          - designate-image-repo-sync
+        services:
+          - endpoint: node
+            service: local_image_registry
+    job_rabbit_init:
+      api:
+        jobs:
+          - designate-rabbit-init
+      sink:
+        jobs:
+          - designate-rabbit-init
+      central:
+        jobs:
+          - designate-rabbit-init
+      worker:
+        jobs:
+          - designate-rabbit-init
+  static:
+    db_init:
+      services:
+        - service: oslo_db
+          endpoint: internal
+    db_sync:
+      jobs:
+        - designate-db-init
+      services:
+        - service: oslo_db
+          endpoint: internal
+    ks_user:
+      services:
+        - service: identity
+          endpoint: internal
+    ks_service:
+      services:
+        - service: identity
+          endpoint: internal
+    ks_endpoints:
+      jobs:
+        - designate-ks-service
+      services:
+        - service: identity
+          endpoint: internal
+    rabbit_init:
+      services:
+        - service: oslo_messaging
+          endpoint: internal
+    api:
+      jobs:
+        - designate-db-sync
+        - designate-ks-user
+        - designate-ks-endpoints
+      service:
+        - service: oslo_db
+          endpoint: internal
+        - service: identity
+          endpoint: internal
+        - service: oslo_messaging
+          endpoint: internal
+    central:
+      jobs:
+        - designate-db-sync
+        - designate-ks-user
+        - designate-ks-endpoints
+      service:
+        - service: oslo_db
+          endpoint: internal
+        - service: identity
+          endpoint: internal
+        - service: oslo_messaging
+          endpoint: internal
+    worker:
+      jobs:
+        - designate-db-sync
+        - designate-ks-user
+        - designate-ks-endpoints
+      services:
+        - service: oslo_db
+          endpoint: internal
+        - service: identity
+          endpoint: internal
+        - service: mdns
+          endpoint: internal
+    mdns:
+      jobs:
+        - designate-db-sync
+        - designate-ks-user
+        - designate-ks-endpoints
+      services:
+        - service: oslo_db
+          endpoint: internal
+        - service: identity
+          endpoint: internal
+    producer:
+      jobs:
+        - designate-db-sync
+        - designate-ks-user
+        - designate-ks-endpoints
+      services:
+        - service: oslo_db
+          endpoint: internal
+        - service: identity
+          endpoint: internal
+    sink:
+      jobs:
+        - designate-db-sync
+        - designate-ks-user
+        - designate-ks-endpoints
+      services:
+        - service: oslo_db
+          endpoint: internal
+        - service: identity
+          endpoint: internal
+
+conf:
+  pools: |
+    - name: default
+      # The name is immutable. There will be no option to change the name after
+      # creation and the only way will to change it will be to delete it
+      # (and all zones associated with it) and recreate it.
+      description: Default Pool
+
+      attributes: {}
+
+      # List out the NS records for zones hosted within this pool
+      # This should be a record that is created outside of designate, that
+      # points to the public IP of the controller node.
+      ns_records:
+        - hostname: {{ printf "ns.%s.svc.%s." .Release.Namespace .Values.endpoints.cluster_domain_suffix }}
+          priority: 1
+
+      # List out the nameservers for this pool. These are the actual DNS servers.
+      # We use these to verify changes have propagated to all nameservers.
+      nameservers:
+        - host: ${POWERDNS_SERVICE_HOST}
+          port: {{ tuple "powerdns" "internal" "powerdns" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+
+      # List out the targets for this pool. For BIND there will be one
+      # entry for each BIND server, as we have to run rndc command on each server
+      targets:
+        - type: pdns4
+          description: PowerDNS Server
+
+          # List out the designate-mdns servers from which PowerDNS servers should
+          # request zone transfers (AXFRs) from.
+          # This should be the IP of the controller node.
+          # If you have multiple controllers you can add multiple masters
+          # by running designate-mdns on them, and adding them here.
+          masters:
+            - host: ${MINIDNS_SERVICE_HOST}
+              port: {{ tuple "mdns" "internal" "ipc" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+
+          # PowerDNS Configuration options
+          options:
+            host: ${POWERDNS_SERVICE_HOST}
+            port: {{ tuple "powerdns" "internal" "powerdns" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+            api_endpoint: http://${POWERDNS_SERVICE_HOST}:{{ tuple "powerdns" "internal" "powerdns_api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+            api_token: {{ tuple "powerdns" "service" . | include "helm-toolkit.endpoints.endpoint_token_lookup" }}
+  paste:
+    composite:osapi_dns:
+      use: egg:Paste#urlmap
+      /: osapi_dns_versions
+      /v2: osapi_dns_v2
+      /admin: osapi_dns_admin
+    composite:osapi_dns_versions:
+      use: call:designate.api.middleware:auth_pipeline_factory
+      noauth: http_proxy_to_wsgi cors maintenance faultwrapper osapi_dns_app_versions
+      keystone: http_proxy_to_wsgi cors maintenance faultwrapper osapi_dns_app_versions
+    app:osapi_dns_app_versions:
+      paste.app_factory: designate.api.versions:factory
+    composite:osapi_dns_v2:
+      use: call:designate.api.middleware:auth_pipeline_factory
+      noauth: http_proxy_to_wsgi cors request_id faultwrapper validation_API_v2 noauthcontext maintenance normalizeuri osapi_dns_app_v2
+      keystone: http_proxy_to_wsgi cors request_id faultwrapper validation_API_v2 authtoken keystonecontext maintenance normalizeuri osapi_dns_app_v2
+    app:osapi_dns_app_v2:
+      paste.app_factory: designate.api.v2:factory
+    composite:osapi_dns_admin:
+      use: call:designate.api.middleware:auth_pipeline_factory
+      noauth: http_proxy_to_wsgi cors request_id faultwrapper noauthcontext maintenance normalizeuri osapi_dns_app_admin
+      keystone: http_proxy_to_wsgi cors request_id faultwrapper authtoken keystonecontext maintenance normalizeuri osapi_dns_app_admin
+    app:osapi_dns_app_admin:
+      paste.app_factory: designate.api.admin:factory
+    filter:cors:
+      paste.filter_factory: oslo_middleware.cors:filter_factory
+      oslo_config_project: designate
+    filter:request_id:
+      paste.filter_factory: oslo_middleware:RequestId.factory
+    filter:http_proxy_to_wsgi:
+      paste.filter_factory: oslo_middleware:HTTPProxyToWSGI.factory
+    filter:noauthcontext:
+      paste.filter_factory: designate.api.middleware:NoAuthContextMiddleware.factory
+    filter:authtoken:
+      paste.filter_factory: keystonemiddleware.auth_token:filter_factory
+    filter:keystonecontext:
+      paste.filter_factory: designate.api.middleware:KeystoneContextMiddleware.factory
+    filter:maintenance:
+      paste.filter_factory: designate.api.middleware:MaintenanceMiddleware.factory
+    filter:normalizeuri:
+      paste.filter_factory: designate.api.middleware:NormalizeURIMiddleware.factory
+    filter:faultwrapper:
+      paste.filter_factory: designate.api.middleware:FaultWrapperMiddleware.factory
+    filter:validation_API_v2:
+      paste.filter_factory: designate.api.middleware:APIv2ValidationErrorMiddleware.factory
+  policy:
+    admin: role:admin or is_admin:True
+    primary_zone: target.zone_type:SECONDARY
+    owner: tenant:%(tenant_id)s
+    admin_or_owner: rule:admin or rule:owner
+    target: tenant:%(target_tenant_id)s
+    owner_or_target: rule:target or rule:owner
+    admin_or_owner_or_target: rule:owner_or_target or rule:admin
+    admin_or_target: rule:admin or rule:target
+    zone_primary_or_admin: ('PRIMARY':%(zone_type)s and rule:admin_or_owner) OR ('SECONDARY':%(zone_type)s AND is_admin:True)
+    default: rule:admin_or_owner
+    all_tenants: rule:admin
+    edit_managed_records : rule:admin
+    use_low_ttl: rule:admin
+    get_quotas: rule:admin_or_owner
+    get_quota: rule:admin_or_owner
+    set_quota: rule:admin
+    reset_quotas: rule:admin
+    create_tld: rule:admin
+    find_tlds: rule:admin
+    get_tld: rule:admin
+    update_tld: rule:admin
+    delete_tld: rule:admin
+    create_tsigkey: rule:admin
+    find_tsigkeys: rule:admin
+    get_tsigkey: rule:admin
+    update_tsigkey: rule:admin
+    delete_tsigkey: rule:admin
+    find_tenants: rule:admin
+    get_tenant: rule:admin
+    count_tenants: rule:admin
+    create_zone: rule:admin_or_owner
+    get_zones: rule:admin_or_owner
+    get_zone: rule:admin_or_owner
+    get_zone_servers: rule:admin_or_owner
+    find_zones: rule:admin_or_owner
+    find_zone: rule:admin_or_owner
+    update_zone: rule:admin_or_owner
+    delete_zone: rule:admin_or_owner
+    xfr_zone: rule:admin_or_owner
+    abandon_zone: rule:admin
+    count_zones: rule:admin_or_owner
+    count_zones_pending_notify: rule:admin_or_owner
+    purge_zones: rule:admin
+    touch_zone: rule:admin_or_owner
+    create_recordset: rule:zone_primary_or_admin
+    get_recordsets: rule:admin_or_owner
+    get_recordset: rule:admin_or_owner
+    find_recordsets: rule:admin_or_owner
+    find_recordset: rule:admin_or_owner
+    update_recordset: rule:zone_primary_or_admin
+    delete_recordset: rule:zone_primary_or_admin
+    count_recordset: rule:admin_or_owner
+    create_record: rule:admin_or_owner
+    get_records: rule:admin_or_owner
+    get_record: rule:admin_or_owner
+    find_records: rule:admin_or_owner
+    find_record: rule:admin_or_owner
+    update_record: rule:admin_or_owner
+    delete_record: rule:admin_or_owner
+    count_records: rule:admin_or_owner
+    use_sudo: rule:admin
+    create_blacklist: rule:admin
+    find_blacklist: rule:admin
+    find_blacklists: rule:admin
+    get_blacklist: rule:admin
+    update_blacklist: rule:admin
+    delete_blacklist: rule:admin
+    use_blacklisted_zone: rule:admin
+    create_pool: rule:admin
+    find_pools: rule:admin
+    find_pool: rule:admin
+    get_pool: rule:admin
+    update_pool: rule:admin
+    delete_pool: rule:admin
+    zone_create_forced_pool: rule:admin
+    diagnostics_ping: rule:admin
+    diagnostics_sync_zones: rule:admin
+    diagnostics_sync_zone: rule:admin
+    diagnostics_sync_record: rule:admin
+    create_zone_transfer_request: rule:admin_or_owner
+    get_zone_transfer_request: rule:admin_or_owner or tenant:%(target_tenant_id)s or None:%(target_tenant_id)s
+    get_zone_transfer_request_detailed: rule:admin_or_owner
+    find_zone_transfer_requests: '@'
+    find_zone_transfer_request: '@'
+    update_zone_transfer_request: rule:admin_or_owner
+    delete_zone_transfer_request: rule:admin_or_owner
+    create_zone_transfer_accept: rule:admin_or_owner or tenant:%(target_tenant_id)s or None:%(target_tenant_id)s
+    get_zone_transfer_accept: rule:admin_or_owner
+    find_zone_transfer_accepts: rule:admin
+    find_zone_transfer_accept: rule:admin
+    update_zone_transfer_accept: rule:admin
+    delete_zone_transfer_accept: rule:admin
+    create_zone_import: rule:admin_or_owner
+    find_zone_imports: rule:admin_or_owner
+    get_zone_import: rule:admin_or_owner
+    update_zone_import: rule:admin_or_owner
+    delete_zone_import: rule:admin_or_owner
+    zone_export: rule:admin_or_owner
+    create_zone_export: rule:admin_or_owner
+    find_zone_exports: rule:admin_or_owner
+    get_zone_export: rule:admin_or_owner
+    update_zone_export: rule:admin_or_owner
+    find_service_status: rule:admin
+    find_service_statuses: rule:admin
+    update_service_service_status: rule:admin
+  designate:
+    DEFAULT:
+      debug: false
+      log_config_append: /etc/designate/logging.conf
+    service:api:
+      auth_strategy: keystone
+      enable_api_v2: true
+      enable_api_admin: true
+      enabled_extensions_v2: quotas,reports
+      workers: 2
+    service:worker:
+      enabled: true
+      notify: false
+    oslo_middleware:
+      enable_proxy_headers_parsing: true
+    database:
+      max_retries: -1
+    storage:sqlalchemy:
+      max_retries: -1
+    keystone_authtoken:
+      auth_version: v3
+      auth_type: password
+      memcache_security_strategy: ENCRYPT
+  logging:
+    loggers:
+      keys:
+        - root
+        - designate
+    handlers:
+      keys:
+        - stdout
+        - stderr
+        - "null"
+    formatters:
+      keys:
+        - context
+        - default
+    logger_root:
+      level: WARNING
+      handlers: stdout
+    logger_designate:
+      level: INFO
+      handlers:
+        - stdout
+      qualname: designate
+    logger_amqp:
+      level: WARNING
+      handlers: stderr
+      qualname: amqp
+    logger_amqplib:
+      level: WARNING
+      handlers: stderr
+      qualname: amqplib
+    logger_eventletwsgi:
+      level: WARNING
+      handlers: stderr
+      qualname: eventlet.wsgi.server
+    logger_sqlalchemy:
+      level: WARNING
+      handlers: stderr
+      qualname: sqlalchemy
+    logger_boto:
+      level: WARNING
+      handlers: stderr
+      qualname: boto
+    handler_null:
+      class: logging.NullHandler
+      formatter: default
+      args: ()
+    handler_stdout:
+      class: StreamHandler
+      args: (sys.stdout,)
+      formatter: context
+    handler_stderr:
+      class: StreamHandler
+      args: (sys.stderr,)
+      formatter: context
+    formatter_context:
+      class: oslo_log.formatters.ContextFormatter
+      datefmt: "%Y-%m-%d %H:%M:%S"
+    formatter_default:
+      format: "%(message)s"
+      datefmt: "%Y-%m-%d %H:%M:%S"
+
+# Names of secrets used by bootstrap and environmental checks
+secrets:
+  identity:
+    admin: designate-keystone-admin
+    designate: designate-keystone-user
+    test: designate-keystone-test
+  oslo_db:
+    admin: designate-db-admin
+    user: designate-db-user
+  oslo_messaging:
+    admin: designate-rabbitmq-admin
+    designate: designate-rabbitmq-user
+  tls:
+    dns:
+      api:
+        public: designate-tls-public
+
+endpoints:
+  cluster_domain_suffix: cluster.local
+  local_image_registry:
+    name: docker-registry
+    namespace: docker-registry
+    hosts:
+      default: localhost
+      internal: docker-registry
+      node: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        node: 5000
+  identity:
+    name: keystone
+    auth:
+      admin:
+        region_name: RegionOne
+        username: admin
+        password: password
+        project_name: admin
+        user_domain_name: default
+        project_domain_name: default
+      designate:
+        role: admin
+        region_name: RegionOne
+        username: designate
+        password: password
+        project_name: service
+        user_domain_name: service
+        project_domain_name: service
+      test:
+        role: admin
+        region_name: RegionOne
+        username: designate-test
+        password: password
+        project_name: test
+        user_domain_name: service
+        project_domain_name: service
+    hosts:
+      default: keystone
+      internal: keystone-api
+    host_fqdn_override:
+      default: null
+    path:
+      default: /v3
+    scheme:
+      default: http
+    port:
+      api:
+        default: 80
+        internal: 5000
+  dns:
+    name: designate
+    hosts:
+      default: designate-api
+      public: designate
+    host_fqdn_override:
+      default: null
+    path:
+      default: /
+    scheme:
+      default: 'http'
+    port:
+      api:
+        default: 9001
+        public: 80
+  mdns:
+    name: minidns
+    hosts:
+      default: minidns
+      public: designate-mdns
+    host_fqdn_override:
+      default: null
+    path:
+      default: null
+    scheme:
+      default: 'tcp'
+    port:
+      ipc:
+        default: 5354
+  oslo_db:
+    auth:
+      admin:
+        username: root
+        password: password
+      user:
+        username: designate
+        password: password
+    hosts:
+      default: mariadb
+    host_fqdn_override:
+      default: null
+    path: /designate
+    scheme: mysql+pymysql
+    port:
+      mysql:
+        default: 3306
+  oslo_cache:
+    hosts:
+      default: memcached
+    host_fqdn_override:
+      default: null
+    port:
+      memcache:
+        default: 11211
+    auth:
+      # NOTE: this is used to define the value for keystone
+      # authtoken cache encryption key, if not set it will be populated
+      # automatically with a random value, but to take advantage of
+      # this feature all services should be set to use the same key,
+      # and memcache service.
+      memcache_secret_key: null
+  oslo_messaging:
+    auth:
+      admin:
+        username: rabbitmq
+        password: password
+      designate:
+        username: designate
+        password: password
+    statefulset:
+      replicas: 2
+      name: rabbitmq-rabbitmq
+    hosts:
+      default: rabbitmq
+    host_fqdn_override:
+      default: null
+    path: /designate
+    scheme: rabbit
+    port:
+      amqp:
+        default: 5672
+      http:
+        default: 15672
+  powerdns:
+    auth:
+      service:
+        token: chiave_segreta
+    hosts:
+      default: powerdns
+    host_fqdn_override:
+      default: null
+    port:
+      powerdns_api:
+        default: 8081
+      powerdns:
+        default: 53
+
+manifests:
+  configmap_bin: true
+  configmap_etc: true
+  deployment_api: true
+  deployment_central: true
+  deployment_worker: true
+  deployment_producer: true
+  deployment_mdns: true
+  deployment_sink: false
+  ingress_api: true
+  job_bootstrap: true
+  job_db_init: true
+  job_db_sync: true
+  job_ks_endpoints: true
+  job_ks_service: true
+  job_ks_user: true
+  job_rabbit_init: true
+  pdb_api: true
+  pdb_producer: true
+  pdb_central: true
+  pdb_worker: true
+  pdb_mdns: true
+  pdb_sink: false
+  secret_db: true
+  secret_ingress_tls: true
+  secret_keystone: true
+  secret_rabbitmq: true
+  service_api: true
+  service_mdns: true
+  service_ingress_api: true
