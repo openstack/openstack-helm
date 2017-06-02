@@ -79,34 +79,16 @@ Vagrant.configure("2") do |config|
 
      # Mount Storage
      mount -a
-
-     # Install requirements
      apt-get update
-     apt-get install -y \
-        docker.io \
-        nfs-common
+     apt-get install -y git
+SHELL
+  config.vm.provision "shell", privileged: false, inline: <<-SHELL
+     #Cloning repo
+     git clone https://git.openstack.org/openstack/openstack-helm
 
-      # Setup kubelet lib as shared mount
-      mkdir -p /var/lib/kublet
-      mount --bind /var/lib/kublet /var/lib/kublet
-      mount --make-shared /var/lib/kublet
-
-      # Run AIO container
-      docker run \
-        -dt \
-        --name=kubeadm-aio \
-        --net=host \
-        --security-opt=seccomp:unconfined \
-        --cap-add=SYS_ADMIN \
-        --tmpfs=/run \
-        --tmpfs=/run/lock \
-        --volume=/etc/machine-id:/etc/machine-id:ro \
-        --volume=/home:/home:rw \
-        --volume=/etc/kubernetes:/etc/kubernetes:rw \
-        --volume=/sys/fs/cgroup:/sys/fs/cgroup:ro \
-        --volume=/var/run/docker.sock:/run/docker.sock \
-        --env KUBE_BIND_DEV=enp0s8 \
-        --env KUBELET_CONTAINER=quay.io/attcomdev/kubeadm-aio:v1.5.6 \
-        quay.io/attcomdev/kubeadm-aio:v1.5.6
-  SHELL
+     cd openstack-helm
+     export INTEGRATION='aio'
+     export INTEGRATION_TYPE='basic'
+     ./tools/gate/setup_gate.sh
+SHELL
 end
