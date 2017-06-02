@@ -20,23 +20,22 @@
 
 set -x
 
-bridge=$1
-port=$2
+bridge="{{ .Values.network.external_bridge }}"
+port="{{ .Values.network.interface.external }}"
 
-# note that only "br-ex" is definable right now
-# and br-int and br-tun are assumed and handled
-# by the agent
-ovs-vsctl --no-wait --may-exist add-br $bridge
-if [ $port] ; then
-  ovs-vsctl --no-wait --may-exist add-port $bridge $port
-  ip link set dev $port up
+# create bridge device
+ovs-vsctl --no-wait --may-exist add-br "$bridge"
+if [ ! -z "$port" ] ; then
+  ovs-vsctl --no-wait --may-exist add-port "$bridge" "$port"
+  ip link set dev "$port" up
 fi
 
 # handle any bridge mappings
-{{- range $bridge, $port := .Values.ml2.ovs.auto_bridge_add }}
-ovs-vsctl --no-wait --may-exist add-br {{ $bridge }}
-if [ {{  $port }} ] ; then
-    ovs-vsctl --no-wait --may-exist add-port {{ $bridge }} {{ $port }}
-    ip link set dev {{ $port }} up
-fi
-{{- end}}
+{{ range $br, $phys := .Values.ml2.ovs.auto_bridge_add }}
+# create {{ $br }}{{ if $phys }} and add port {{ $phys }}{{ end }}
+ovs-vsctl --no-wait --may-exist add-br {{ $br }}
+{{ if $phys }}
+ovs-vsctl --no-wait --may-exist add-port {{ $br }} {{ $phys }}
+ip link set dev {{ $phys }} up
+{{ end }}
+{{ end -}}

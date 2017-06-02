@@ -26,8 +26,8 @@ chown neutron: /run/openvswitch/db.sock
 # see https://github.com/att-comdev/openstack-helm/issues/88
 timeout 3m neutron-sanity-check --config-file /etc/neutron/neutron.conf --config-file /etc/neutron/plugins/ml2/openvswitch_agent.ini --ovsdb_native --nokeepalived_ipv6_support
 
-tunnel_interface={{ .Values.network.interface.tunnel }}
-if [ not $tunnel_interface ] ; then
+tunnel_interface="{{- .Values.network.interface.tunnel -}}"
+if [ -z "${tunnel_interface}" ] ; then
     # search for interface with default routing
     tunnel_interface=$(ip r | grep default | grep -oP '(?<=dev ).*')
 fi
