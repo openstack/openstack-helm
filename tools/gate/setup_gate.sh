@@ -14,9 +14,9 @@
 set -ex
 
 export HELM_VERSION=${2:-v2.3.0}
-export KUBE_VERSION=${3:-v1.6.2}
+export KUBE_VERSION=${3:-v1.6.4}
 export KUBECONFIG=${HOME}/.kubeadm-aio/admin.conf
-export KUBEADM_IMAGE=openstackhelm/kubeadm-aio:v1.6
+export KUBEADM_IMAGE=openstackhelm/kubeadm-aio:${KUBE_VERSION}
 
 export WORK_DIR=$(pwd)
 source /etc/os-release
