@@ -59,19 +59,20 @@ spec:
           {{- end }}
           command:
             - bash
-            - /tmp/start.sh
+            - /tmp/keystone-api.sh
+            - start
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - bash
+                  - /tmp/keystone-api.sh
+                  - stop
           ports:
             - name: api-public
               containerPort: {{ .Values.network.api.port }}
             - name: api-admin
               containerPort: {{ .Values.network.admin.port }}
-          lifecycle:
-            preStop:
-              exec:
-                command:
-                  - apachectl
-                  - -k
-                  - graceful-stop
           readinessProbe:
             tcpSocket:
               port: {{ .Values.network.api.port }}
@@ -103,8 +104,8 @@ spec:
             subPath: mpm_event.conf
             readOnly: true
           - name: keystone-bin
-            mountPath: /tmp/start.sh
-            subPath: start.sh
+            mountPath: /tmp/keystone-api.sh
+            subPath: keystone-api.sh
             readOnly: true
 {{ if $mounts_keystone_api.volumeMounts }}{{ toYaml $mounts_keystone_api.volumeMounts | indent 10 }}{{ end }}
       volumes:

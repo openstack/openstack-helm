@@ -14,6 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-set -x
+set -ex
 exec cinder-volume \
       --config-file /etc/cinder/cinder.conf

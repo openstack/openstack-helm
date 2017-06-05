@@ -48,10 +48,6 @@ spec:
         - name: nova-osapi
           image: {{ .Values.images.api }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
-          securityContext:
-            capabilities:
-              add:
-                - NET_ADMIN
           {{- if .Values.resources.enabled }}
           resources:
             requests:
@@ -61,21 +57,22 @@ spec:
               memory: {{ .Values.resources.nova_osapi.limits.memory | quote }}
               cpu: {{ .Values.resources.nova_osapi.limits.cpu | quote }}
           {{- end }}
-          ports:
-            - containerPort: {{ .Values.network.osapi.port }}
+          command:
+            - bash
+            - /tmp/nova-api.sh
+            - start
           lifecycle:
             preStop:
               exec:
                 command:
-                  - kill
-                  - -TERM
-                  - "1"
+                  - bash
+                  - /tmp/nova-api.sh
+                  - stop
+          ports:
+            - containerPort: {{ .Values.network.osapi.port }}
           readinessProbe:
             tcpSocket:
               port: {{ .Values.network.osapi.port }}
-          command:
-            - bash
-            - /tmp/nova-api.sh
           volumeMounts:
             - name: nova-bin
               mountPath: /tmp/nova-api.sh

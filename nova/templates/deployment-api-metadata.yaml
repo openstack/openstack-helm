@@ -48,7 +48,6 @@ spec:
         - name: nova-api
           image: {{ .Values.images.api }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
-          # https://bugs.launchpad.net/kolla-mesos/+bug/1546007
           {{- if .Values.resources.enabled }}
           resources:
             requests:
@@ -58,25 +57,28 @@ spec:
               memory: {{ .Values.resources.nova_api_metadata.limits.memory | quote }}
               cpu: {{ .Values.resources.nova_api_metadata.limits.cpu | quote }}
           {{- end }}
+          # NOTE(portdirect): NET_ADMIN is needed as the api-metadata service
+          # expects to run some iptables commands, even when neutron is used.
           securityContext:
             capabilities:
               add:
                 - NET_ADMIN
-          ports:
-            - containerPort: {{ .Values.network.metadata.port }}
+          command:
+            - bash
+            - /tmp/nova-api-metadata.sh
+            - start
           lifecycle:
             preStop:
               exec:
                 command:
-                  - kill
-                  - -TERM
-                  - "1"
+                  - bash
+                  - /tmp/nova-api-metadata.sh
+                  - stop
+          ports:
+            - containerPort: {{ .Values.network.metadata.port }}
           readinessProbe:
             tcpSocket:
               port: {{ .Values.network.metadata.port }}
-          command:
-            - bash
-            - /tmp/nova-api-metadata.sh
           volumeMounts:
             - name: nova-bin
               mountPath: /tmp/nova-api-metadata.sh

@@ -14,6 +14,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-set -x
-exec heat-api-cloudwatch \
-      --config-file /etc/heat/heat.conf
+set -ex
+COMMAND="${@:-start}"
+
+function start () {
+  exec heat-api-cloudwatch \
+        --config-file /etc/heat/heat.conf
+}
+
+function stop () {
+  kill -TERM 1
+}
+
+$COMMAND

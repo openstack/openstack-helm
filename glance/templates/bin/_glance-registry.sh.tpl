@@ -14,6 +14,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-set -x
-exec glance-registry \
-      --config-file /etc/glance/glance-registry.conf
+set -ex
+COMMAND="${@:-start}"
+
+function start () {
+  exec glance-registry \
+        --config-file /etc/glance/glance-registry.conf
+}
+
+function stop () {
+  kill -TERM 1
+}
+
+$COMMAND

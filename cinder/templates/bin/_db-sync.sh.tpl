@@ -16,4 +16,4 @@
 
 set -ex
 
-cinder-manage db sync
+exec cinder-manage db sync
