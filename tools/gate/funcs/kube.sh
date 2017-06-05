@@ -56,11 +56,16 @@ function kubeadm_aio_reqs_install {
     sudo yum install -y \
             epel-release
     sudo yum install -y \
-            docker \
+            docker-latest \
             nfs-utils \
             jq
-    sudo cp -f /usr/lib/systemd/system/docker.service /etc/systemd/system/docker.service
+    sudo cp -f /usr/lib/systemd/system/docker-latest.service /etc/systemd/system/docker.service
+    sudo sed -i "s|/var/lib/docker-latest|/var/lib/docker|g" /etc/systemd/system/docker.service
+    sudo sed -i 's/^OPTIONS/#OPTIONS/g' /etc/sysconfig/docker-latest
     sudo sed -i "s|^MountFlags=slave|MountFlags=share|g" /etc/systemd/system/docker.service
+    sudo sed -i "/--seccomp-profile/,+1 d" /etc/systemd/system/docker.service
+    echo "DOCKER_STORAGE_OPTIONS=--storage-driver=overlay" | sudo tee /etc/sysconfig/docker-latest-storage
+    sudo setenforce 0 || true
     sudo systemctl daemon-reload
     sudo systemctl restart docker
   elif [ "x$HOST_OS" == "xfedora" ]; then
@@ -71,6 +76,7 @@ function kubeadm_aio_reqs_install {
     sudo cp -f /usr/lib/systemd/system/docker-latest.service /etc/systemd/system/docker.service
     sudo sed -i "s|/var/lib/docker-latest|/var/lib/docker|g" /etc/systemd/system/docker.service
     echo "DOCKER_STORAGE_OPTIONS=--storage-driver=overlay2" | sudo tee /etc/sysconfig/docker-latest-storage
+    sudo setenforce 0 || true
     sudo systemctl daemon-reload
     sudo systemctl restart docker
   fi
@@ -87,11 +93,6 @@ function kubeadm_aio_build {
 }
 
 function kubeadm_aio_launch {
-  if [ "x$HOST_OS" == "xcentos" ]; then
-    sudo setenforce 0 || true
-  elif [ "x$HOST_OS" == "xfedora" ]; then
-    sudo setenforce 0 || true
-  fi
   ${WORK_DIR}/tools/kubeadm-aio/kubeadm-aio-launcher.sh
   mkdir -p ${HOME}/.kube
   cat ${KUBECONFIG} > ${HOME}/.kube/config

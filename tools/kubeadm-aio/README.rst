@@ -31,7 +31,7 @@ You should install the ``kubectl`` and ``helm`` binaries:
 
 .. code:: bash
 
-    KUBE_VERSION=v1.6.0
+    KUBE_VERSION=v1.6.4
     HELM_VERSION=v2.3.0
 
     TMP_DIR=$(mktemp -d)
@@ -57,7 +57,7 @@ repo run:
 
 .. code:: bash
 
-    export KUBEADM_IMAGE=openstackhelm/kubeadm-aio:v1.6
+    export KUBEADM_IMAGE=openstackhelm/kubeadm-aio:v1.6.4
     sudo docker build --pull -t ${KUBEADM_IMAGE} tools/kubeadm-aio
 
 Deploy the AIO environment
@@ -67,8 +67,8 @@ To launch the environment then run:
 
 .. code:: bash
 
-    export KUBEADM_IMAGE=openstackhelm/kubeadm-aio:v1.6
-    export KUBE_VERSION=v1.6.2
+    export KUBEADM_IMAGE=openstackhelm/kubeadm-aio:v1.6.4
+    export KUBE_VERSION=v1.6.4
     ./tools/kubeadm-aio/kubeadm-aio-launcher.sh
     export KUBECONFIG=${HOME}/.kubeadm-aio/admin.conf
 
