@@ -21,6 +21,7 @@ replicas:
   api: 1
   volume: 1
   scheduler: 1
+  backup: 1
 
 labels:
   node_selector_key: openstack-control-plane
@@ -35,6 +36,7 @@ images:
   api: docker.io/kolla/ubuntu-source-cinder-api:3.0.3
   scheduler: docker.io/kolla/ubuntu-source-cinder-scheduler:3.0.3
   volume: docker.io/kolla/ubuntu-source-cinder-volume:3.0.3
+  backup: docker.io/kolla/ubuntu-source-cinder-backup:3.0.3
   dep_check: docker.io/kolla/ubuntu-source-kubernetes-entrypoint:4.0.0
   pull_policy: "IfNotPresent"
 
@@ -103,6 +105,10 @@ conf:
         host: cinder-volume-worker
         osapi_volume_listen_port: 8776
         enabled_backends: "rbd1"
+        backup_driver: "cinder.backup.drivers.ceph"
+        backup_ceph_conf: "/etc/ceph/ceph.conf"
+        backup_ceph_user: admin
+        backup_ceph_pool: backups
     keystone_authtoken:
       keystonemiddleware:
         auth_token:
@@ -170,6 +176,14 @@ dependencies:
     - keystone-api
     - cinder-api
   scheduler:
+    jobs:
+    - cinder-db-sync
+    - cinder-ks-user
+    - cinder-ks-endpoints
+    service:
+    - keystone-api
+    - cinder-api
+  volume:
     jobs:
     - cinder-db-sync
     - cinder-ks-user
@@ -281,6 +295,13 @@ resources:
     limits:
       memory: "1024Mi"
       cpu: "2000m"
+  cinder_backup:
+    requests:
+      memory: "124Mi"
+      cpu: "100m"
+    limits:
+      memory: "1024Mi"
+      cpu: "2000m"
   cinder_db_init:
     requests:
       memory: "124Mi"
@@ -327,3 +348,6 @@ mounts:
   cinder_volume:
     init_container: null
     cinder_volume:
+  cinder_backup:
+    init_container: null
+    cinder_backup:

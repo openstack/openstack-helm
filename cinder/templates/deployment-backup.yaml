@@ -1,0 +1,87 @@
+# Copyright 2017 The Openstack-Helm Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+{{- $envAll := . }}
+{{- $dependencies := .Values.dependencies.backup }}
+{{- $mounts_cinder_backup := .Values.mounts.cinder_backup.cinder_backup }}
+{{- $mounts_cinder_backup_init := .Values.mounts.cinder_backup.init_container }}
+
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: cinder-backup
+spec:
+  replicas: {{ .Values.replicas.backup }}
+  revisionHistoryLimit: {{ .Values.upgrades.revision_history }}
+  strategy:
+    type: {{ .Values.upgrades.pod_replacement_strategy }}
+    {{ if eq .Values.upgrades.pod_replacement_strategy "RollingUpdate" }}
+    rollingUpdate:
+      maxUnavailable: {{ .Values.upgrades.rolling_update.max_unavailable }}
+      maxSurge: {{ .Values.upgrades.rolling_update.max_surge }}
+    {{ end }}
+  template:
+    metadata:
+      labels:
+        app: cinder-backup
+      annotations:
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
+        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
+        pod.beta.kubernetes.io/init-containers: '[
+{{ tuple $envAll $dependencies $mounts_cinder_backup_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 10 }}
+        ]'
+    spec:
+      nodeSelector:
+        {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
+      containers:
+        - name: cinder-backup
+          image: {{ .Values.images.backup }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+          {{- if .Values.resources.enabled }}
+          resources:
+            requests:
+              memory: {{ .Values.resources.cinder_backup.requests.memory | quote }}
+              cpu: {{ .Values.resources.cinder_backup.requests.cpu | quote }}
+            limits:
+              memory: {{ .Values.resources.cinder_backup.limits.memory | quote }}
+              cpu: {{ .Values.resources.cinder_backup.limits.cpu | quote }}
+          {{- end }}
+          command:
+          - cinder-backup
+          - --config-dir
+          - /etc/cinder/conf
+          volumeMounts:
+            - name: pod-var-cache-cinder
+              mountPath: /var/cache/cinder
+            - name: cinder-etc
+              mountPath: /etc/cinder/conf/cinder.conf
+              subPath: cinder.conf
+              readOnly: true
+            {{- if eq .Values.conf.cinder.default.cinder.backup_driver "cinder.backup.drivers.ceph" }}
+            - name: cinder-etc
+              mountPath: /etc/ceph/ceph.conf
+              subPath: ceph.conf
+              readOnly: true
+            - name: cinder-etc
+              mountPath: /etc/ceph/ceph.client.{{ .Values.conf.backends.rbd1.rbd_user }}.keyring
+              subPath: ceph.client.{{ .Values.conf.backends.rbd1.rbd_user }}.keyring
+              readOnly: true
+            {{- end -}}
+{{ if $mounts_cinder_backup.volumeMounts }}{{ toYaml $mounts_cinder_backup.volumeMounts | indent 12 }}{{ end }}
+      volumes:
+        - name: pod-var-cache-cinder
+          emptyDir: {}
+        - name: cinder-etc
+          configMap:
+            name: cinder-etc
+{{ if $mounts_cinder_backup.volumes }}{{ toYaml $mounts_cinder_backup.volumes | indent 8 }}{{ end }}
