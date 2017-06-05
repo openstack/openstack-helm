@@ -1,4 +1,3 @@
-
 # Copyright 2017 The Openstack-Helm Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -56,9 +55,6 @@
 {{- if not .federation.keystone -}}{{- set .federation "keystone" dict -}}{{- end -}}
 {{- if not .fernet_tokens -}}{{- set . "fernet_tokens" dict -}}{{- end -}}
 {{- if not .fernet_tokens.keystone -}}{{- set .fernet_tokens "keystone" dict -}}{{- end -}}
-{{- if not .healthcheck -}}{{- set . "healthcheck" dict -}}{{- end -}}
-{{- if not .healthcheck.oslo -}}{{- set .healthcheck "oslo" dict -}}{{- end -}}
-{{- if not .healthcheck.oslo.middleware -}}{{- set .healthcheck.oslo "middleware" dict -}}{{- end -}}
 {{- if not .identity -}}{{- set . "identity" dict -}}{{- end -}}
 {{- if not .identity.keystone -}}{{- set .identity "keystone" dict -}}{{- end -}}
 {{- if not .identity_mapping -}}{{- set . "identity_mapping" dict -}}{{- end -}}
@@ -79,9 +75,6 @@
 {{- if not .oslo_messaging_amqp -}}{{- set . "oslo_messaging_amqp" dict -}}{{- end -}}
 {{- if not .oslo_messaging_amqp.oslo -}}{{- set .oslo_messaging_amqp "oslo" dict -}}{{- end -}}
 {{- if not .oslo_messaging_amqp.oslo.messaging -}}{{- set .oslo_messaging_amqp.oslo "messaging" dict -}}{{- end -}}
-{{- if not .oslo_messaging_kafka -}}{{- set . "oslo_messaging_kafka" dict -}}{{- end -}}
-{{- if not .oslo_messaging_kafka.oslo -}}{{- set .oslo_messaging_kafka "oslo" dict -}}{{- end -}}
-{{- if not .oslo_messaging_kafka.oslo.messaging -}}{{- set .oslo_messaging_kafka.oslo "messaging" dict -}}{{- end -}}
 {{- if not .oslo_messaging_notifications -}}{{- set . "oslo_messaging_notifications" dict -}}{{- end -}}
 {{- if not .oslo_messaging_notifications.oslo -}}{{- set .oslo_messaging_notifications "oslo" dict -}}{{- end -}}
 {{- if not .oslo_messaging_notifications.oslo.messaging -}}{{- set .oslo_messaging_notifications.oslo "messaging" dict -}}{{- end -}}
@@ -359,7 +352,7 @@
 # Log output to standard error. This option is ignored if log_config_append is
 # set. (boolean value)
 # from .default.oslo.log.use_stderr
-{{ if not .default.oslo.log.use_stderr }}#{{ end }}use_stderr = {{ .default.oslo.log.use_stderr | default "false" }}
+{{ if not .default.oslo.log.use_stderr }}#{{ end }}use_stderr = {{ .default.oslo.log.use_stderr | default "true" }}
 
 # Format string to use for log messages with context. (string value)
 # from .default.oslo.log.logging_context_format_string
@@ -403,21 +396,6 @@
 # from .default.oslo.log.instance_uuid_format
 {{ if not .default.oslo.log.instance_uuid_format }}#{{ end }}instance_uuid_format = {{ .default.oslo.log.instance_uuid_format | default "\"[instance: %(uuid)s] \"" }}
 
-# Interval, number of seconds, of log rate limiting. (integer value)
-# from .default.oslo.log.rate_limit_interval
-{{ if not .default.oslo.log.rate_limit_interval }}#{{ end }}rate_limit_interval = {{ .default.oslo.log.rate_limit_interval | default "0" }}
-
-# Maximum number of logged messages per rate_limit_interval. (integer value)
-# from .default.oslo.log.rate_limit_burst
-{{ if not .default.oslo.log.rate_limit_burst }}#{{ end }}rate_limit_burst = {{ .default.oslo.log.rate_limit_burst | default "0" }}
-
-# Log level name used by rate limiting: CRITICAL, ERROR, INFO, WARNING, DEBUG
-# or empty string. Logs with level greater or equal to rate_limit_except_level
-# are not filtered. An empty string means that all levels are filtered. (string
-# value)
-# from .default.oslo.log.rate_limit_except_level
-{{ if not .default.oslo.log.rate_limit_except_level }}#{{ end }}rate_limit_except_level = {{ .default.oslo.log.rate_limit_except_level | default "CRITICAL" }}
-
 # Enables or disables fatal status of deprecations. (boolean value)
 # from .default.oslo.log.fatal_deprecations
 {{ if not .default.oslo.log.fatal_deprecations }}#{{ end }}fatal_deprecations = {{ .default.oslo.log.fatal_deprecations | default "false" }}
@@ -446,7 +424,7 @@
 {{ if not .default.oslo.messaging.rpc_zmq_bind_address }}#{{ end }}rpc_zmq_bind_address = {{ .default.oslo.messaging.rpc_zmq_bind_address | default "*" }}
 
 # MatchMaker driver. (string value)
-# Allowed values: redis, sentinel, dummy
+# Allowed values: redis, dummy
 # Deprecated group/name - [DEFAULT]/rpc_zmq_matchmaker
 # from .default.oslo.messaging.rpc_zmq_matchmaker
 {{ if not .default.oslo.messaging.rpc_zmq_matchmaker }}#{{ end }}rpc_zmq_matchmaker = {{ .default.oslo.messaging.rpc_zmq_matchmaker | default "redis" }}
@@ -473,14 +451,13 @@
 # from .default.oslo.messaging.rpc_zmq_host
 {{ if not .default.oslo.messaging.rpc_zmq_host }}#{{ end }}rpc_zmq_host = {{ .default.oslo.messaging.rpc_zmq_host | default "localhost" }}
 
-# Number of seconds to wait before all pending messages will be sent after
-# closing a socket. The default value of -1 specifies an infinite linger
-# period. The value of 0 specifies no linger period. Pending messages shall be
-# discarded immediately when the socket is closed. Positive values specify an
-# upper bound for the linger period. (integer value)
+# Seconds to wait before a cast expires (TTL). The default value of -1
+# specifies an infinite linger period. The value of 0 specifies no linger
+# period. Pending messages shall be discarded immediately when the socket is
+# closed. Only supported by impl_zmq. (integer value)
 # Deprecated group/name - [DEFAULT]/rpc_cast_timeout
-# from .default.oslo.messaging.zmq_linger
-{{ if not .default.oslo.messaging.zmq_linger }}#{{ end }}zmq_linger = {{ .default.oslo.messaging.zmq_linger | default "-1" }}
+# from .default.oslo.messaging.rpc_cast_timeout
+{{ if not .default.oslo.messaging.rpc_cast_timeout }}#{{ end }}rpc_cast_timeout = {{ .default.oslo.messaging.rpc_cast_timeout | default "-1" }}
 
 # The default number of seconds that poll should wait. Poll raises timeout
 # exception when timeout expired. (integer value)
@@ -504,23 +481,12 @@
 # value)
 # Deprecated group/name - [DEFAULT]/use_pub_sub
 # from .default.oslo.messaging.use_pub_sub
-{{ if not .default.oslo.messaging.use_pub_sub }}#{{ end }}use_pub_sub = {{ .default.oslo.messaging.use_pub_sub | default "false" }}
+{{ if not .default.oslo.messaging.use_pub_sub }}#{{ end }}use_pub_sub = {{ .default.oslo.messaging.use_pub_sub | default "true" }}
 
 # Use ROUTER remote proxy. (boolean value)
 # Deprecated group/name - [DEFAULT]/use_router_proxy
 # from .default.oslo.messaging.use_router_proxy
-{{ if not .default.oslo.messaging.use_router_proxy }}#{{ end }}use_router_proxy = {{ .default.oslo.messaging.use_router_proxy | default "false" }}
-
-# This option makes direct connections dynamic or static. It makes sense only
-# with use_router_proxy=False which means to use direct connections for direct
-# message types (ignored otherwise). (boolean value)
-# from .default.oslo.messaging.use_dynamic_connections
-{{ if not .default.oslo.messaging.use_dynamic_connections }}#{{ end }}use_dynamic_connections = {{ .default.oslo.messaging.use_dynamic_connections | default "false" }}
-
-# How many additional connections to a host will be made for failover reasons.
-# This option is actual only in dynamic connections mode. (integer value)
-# from .default.oslo.messaging.zmq_failover_connections
-{{ if not .default.oslo.messaging.zmq_failover_connections }}#{{ end }}zmq_failover_connections = {{ .default.oslo.messaging.zmq_failover_connections | default "2" }}
+{{ if not .default.oslo.messaging.use_router_proxy }}#{{ end }}use_router_proxy = {{ .default.oslo.messaging.use_router_proxy | default "true" }}
 
 # Minimal port number for random ports range. (port value)
 # Minimum value: 0
@@ -554,74 +520,7 @@
 # even if server is disconnected, when the server appears we send all
 # accumulated messages to it. (boolean value)
 # from .default.oslo.messaging.zmq_immediate
-{{ if not .default.oslo.messaging.zmq_immediate }}#{{ end }}zmq_immediate = {{ .default.oslo.messaging.zmq_immediate | default "true" }}
-
-# Enable/disable TCP keepalive (KA) mechanism. The default value of -1 (or any
-# other negative value) means to skip any overrides and leave it to OS default;
-# 0 and 1 (or any other positive value) mean to disable and enable the option
-# respectively. (integer value)
-# from .default.oslo.messaging.zmq_tcp_keepalive
-{{ if not .default.oslo.messaging.zmq_tcp_keepalive }}#{{ end }}zmq_tcp_keepalive = {{ .default.oslo.messaging.zmq_tcp_keepalive | default "-1" }}
-
-# The duration between two keepalive transmissions in idle condition. The unit
-# is platform dependent, for example, seconds in Linux, milliseconds in Windows
-# etc. The default value of -1 (or any other negative value and 0) means to
-# skip any overrides and leave it to OS default. (integer value)
-# from .default.oslo.messaging.zmq_tcp_keepalive_idle
-{{ if not .default.oslo.messaging.zmq_tcp_keepalive_idle }}#{{ end }}zmq_tcp_keepalive_idle = {{ .default.oslo.messaging.zmq_tcp_keepalive_idle | default "-1" }}
-
-# The number of retransmissions to be carried out before declaring that remote
-# end is not available. The default value of -1 (or any other negative value
-# and 0) means to skip any overrides and leave it to OS default. (integer
-# value)
-# from .default.oslo.messaging.zmq_tcp_keepalive_cnt
-{{ if not .default.oslo.messaging.zmq_tcp_keepalive_cnt }}#{{ end }}zmq_tcp_keepalive_cnt = {{ .default.oslo.messaging.zmq_tcp_keepalive_cnt | default "-1" }}
-
-# The duration between two successive keepalive retransmissions, if
-# acknowledgement to the previous keepalive transmission is not received. The
-# unit is platform dependent, for example, seconds in Linux, milliseconds in
-# Windows etc. The default value of -1 (or any other negative value and 0)
-# means to skip any overrides and leave it to OS default. (integer value)
-# from .default.oslo.messaging.zmq_tcp_keepalive_intvl
-{{ if not .default.oslo.messaging.zmq_tcp_keepalive_intvl }}#{{ end }}zmq_tcp_keepalive_intvl = {{ .default.oslo.messaging.zmq_tcp_keepalive_intvl | default "-1" }}
-
-# Maximum number of (green) threads to work concurrently. (integer value)
-# from .default.oslo.messaging.rpc_thread_pool_size
-{{ if not .default.oslo.messaging.rpc_thread_pool_size }}#{{ end }}rpc_thread_pool_size = {{ .default.oslo.messaging.rpc_thread_pool_size | default "100" }}
-
-# Expiration timeout in seconds of a sent/received message after which it is
-# not tracked anymore by a client/server. (integer value)
-# from .default.oslo.messaging.rpc_message_ttl
-{{ if not .default.oslo.messaging.rpc_message_ttl }}#{{ end }}rpc_message_ttl = {{ .default.oslo.messaging.rpc_message_ttl | default "300" }}
-
-# Wait for message acknowledgements from receivers. This mechanism works only
-# via proxy without PUB/SUB. (boolean value)
-# from .default.oslo.messaging.rpc_use_acks
-{{ if not .default.oslo.messaging.rpc_use_acks }}#{{ end }}rpc_use_acks = {{ .default.oslo.messaging.rpc_use_acks | default "false" }}
-
-# Number of seconds to wait for an ack from a cast/call. After each retry
-# attempt this timeout is multiplied by some specified multiplier. (integer
-# value)
-# from .default.oslo.messaging.rpc_ack_timeout_base
-{{ if not .default.oslo.messaging.rpc_ack_timeout_base }}#{{ end }}rpc_ack_timeout_base = {{ .default.oslo.messaging.rpc_ack_timeout_base | default "15" }}
-
-# Number to multiply base ack timeout by after each retry attempt. (integer
-# value)
-# from .default.oslo.messaging.rpc_ack_timeout_multiplier
-{{ if not .default.oslo.messaging.rpc_ack_timeout_multiplier }}#{{ end }}rpc_ack_timeout_multiplier = {{ .default.oslo.messaging.rpc_ack_timeout_multiplier | default "2" }}
-
-# Default number of message sending attempts in case of any problems occurred:
-# positive value N means at most N retries, 0 means no retries, None or -1 (or
-# any other negative values) mean to retry forever. This option is used only if
-# acknowledgments are enabled. (integer value)
-# from .default.oslo.messaging.rpc_retry_attempts
-{{ if not .default.oslo.messaging.rpc_retry_attempts }}#{{ end }}rpc_retry_attempts = {{ .default.oslo.messaging.rpc_retry_attempts | default "3" }}
-
-# List of publisher hosts SubConsumer can subscribe on. This option has higher
-# priority then the default publishers list taken from the matchmaker. (list
-# value)
-# from .default.oslo.messaging.subscribe_on
-{{ if not .default.oslo.messaging.subscribe_on }}#{{ end }}subscribe_on = {{ .default.oslo.messaging.subscribe_on | default "" }}
+{{ if not .default.oslo.messaging.zmq_immediate }}#{{ end }}zmq_immediate = {{ .default.oslo.messaging.zmq_immediate | default "false" }}
 
 # Size of executor thread pool. (integer value)
 # Deprecated group/name - [DEFAULT]/rpc_thread_pool_size
@@ -714,6 +613,9 @@
 # overriding keystone's own `oauth1` authentication plugin. (string value)
 # from .auth.keystone.oauth1
 {{ if not .auth.keystone.oauth1 }}#{{ end }}oauth1 = {{ .auth.keystone.oauth1 | default "<None>" }}
+
+
+[cache]
 
 #
 # From oslo.cache
@@ -1280,39 +1182,6 @@
 # Minimum value: 1
 # from .fernet_tokens.keystone.max_active_keys
 {{ if not .fernet_tokens.keystone.max_active_keys }}#{{ end }}max_active_keys = {{ .fernet_tokens.keystone.max_active_keys | default "3" }}
-
-
-[healthcheck]
-
-#
-# From oslo.middleware
-#
-
-# DEPRECATED: The path to respond to healtcheck requests on. (string value)
-# This option is deprecated for removal.
-# Its value may be silently ignored in the future.
-# from .healthcheck.oslo.middleware.path
-{{ if not .healthcheck.oslo.middleware.path }}#{{ end }}path = {{ .healthcheck.oslo.middleware.path | default "/healthcheck" }}
-
-# Show more detailed information as part of the response (boolean value)
-# from .healthcheck.oslo.middleware.detailed
-{{ if not .healthcheck.oslo.middleware.detailed }}#{{ end }}detailed = {{ .healthcheck.oslo.middleware.detailed | default "false" }}
-
-# Additional backends that can perform health checks and report that
-# information back as part of a request. (list value)
-# from .healthcheck.oslo.middleware.backends
-{{ if not .healthcheck.oslo.middleware.backends }}#{{ end }}backends = {{ .healthcheck.oslo.middleware.backends | default "" }}
-
-# Check the presence of a file to determine if an application is running on a
-# port. Used by DisableByFileHealthcheck plugin. (string value)
-# from .healthcheck.oslo.middleware.disable_by_file_path
-{{ if not .healthcheck.oslo.middleware.disable_by_file_path }}#{{ end }}disable_by_file_path = {{ .healthcheck.oslo.middleware.disable_by_file_path | default "<None>" }}
-
-# Check the presence of a file based on a port to determine if an application
-# is running on a port. Expects a "port:path" list of strings. Used by
-# DisableByFilesPortsHealthcheck plugin. (list value)
-# from .healthcheck.oslo.middleware.disable_by_file_paths
-{{ if not .healthcheck.oslo.middleware.disable_by_file_paths }}#{{ end }}disable_by_file_paths = {{ .healthcheck.oslo.middleware.disable_by_file_paths | default "" }}
 
 
 [identity]
@@ -1915,7 +1784,7 @@
 # from .matchmaker_redis.oslo.messaging.password
 {{ if not .matchmaker_redis.oslo.messaging.password }}#{{ end }}password = {{ .matchmaker_redis.oslo.messaging.password | default "" }}
 
-# DEPRECATED: List of Redis Sentinel hosts (fault tolerance mode), e.g.,
+# DEPRECATED: List of Redis Sentinel hosts (fault tolerance mode) e.g.
 # [host:port, host1:port ... ] (list value)
 # This option is deprecated for removal.
 # Its value may be silently ignored in the future.
@@ -1935,7 +1804,7 @@
 # from .matchmaker_redis.oslo.messaging.check_timeout
 {{ if not .matchmaker_redis.oslo.messaging.check_timeout }}#{{ end }}check_timeout = {{ .matchmaker_redis.oslo.messaging.check_timeout | default "20000" }}
 
-# Timeout in ms on blocking socket operations. (integer value)
+# Timeout in ms on blocking socket operations (integer value)
 # from .matchmaker_redis.oslo.messaging.socket_timeout
 {{ if not .matchmaker_redis.oslo.messaging.socket_timeout }}#{{ end }}socket_timeout = {{ .matchmaker_redis.oslo.messaging.socket_timeout | default "10000" }}
 
@@ -2061,20 +1930,17 @@
 # from .oslo_messaging_amqp.oslo.messaging.trace
 {{ if not .oslo_messaging_amqp.oslo.messaging.trace }}#{{ end }}trace = {{ .oslo_messaging_amqp.oslo.messaging.trace | default "false" }}
 
-# CA certificate PEM file used to verify the server's certificate (string
-# value)
+# CA certificate PEM file to verify server certificate (string value)
 # Deprecated group/name - [amqp1]/ssl_ca_file
 # from .oslo_messaging_amqp.oslo.messaging.ssl_ca_file
 {{ if not .oslo_messaging_amqp.oslo.messaging.ssl_ca_file }}#{{ end }}ssl_ca_file = {{ .oslo_messaging_amqp.oslo.messaging.ssl_ca_file | default "" }}
 
-# Self-identifying certificate PEM file for client authentication (string
-# value)
+# Identifying certificate PEM file to present to clients (string value)
 # Deprecated group/name - [amqp1]/ssl_cert_file
 # from .oslo_messaging_amqp.oslo.messaging.ssl_cert_file
 {{ if not .oslo_messaging_amqp.oslo.messaging.ssl_cert_file }}#{{ end }}ssl_cert_file = {{ .oslo_messaging_amqp.oslo.messaging.ssl_cert_file | default "" }}
 
-# Private key PEM file used to sign ssl_cert_file certificate (optional)
-# (string value)
+# Private key PEM file used to sign cert_file certificate (string value)
 # Deprecated group/name - [amqp1]/ssl_key_file
 # from .oslo_messaging_amqp.oslo.messaging.ssl_key_file
 {{ if not .oslo_messaging_amqp.oslo.messaging.ssl_key_file }}#{{ end }}ssl_key_file = {{ .oslo_messaging_amqp.oslo.messaging.ssl_key_file | default "" }}
@@ -2084,11 +1950,8 @@
 # from .oslo_messaging_amqp.oslo.messaging.ssl_key_password
 {{ if not .oslo_messaging_amqp.oslo.messaging.ssl_key_password }}#{{ end }}ssl_key_password = {{ .oslo_messaging_amqp.oslo.messaging.ssl_key_password | default "<None>" }}
 
-# DEPRECATED: Accept clients using either SSL or plain TCP (boolean value)
+# Accept clients using either SSL or plain TCP (boolean value)
 # Deprecated group/name - [amqp1]/allow_insecure_clients
-# This option is deprecated for removal.
-# Its value may be silently ignored in the future.
-# Reason: Not applicable - not a SSL server
 # from .oslo_messaging_amqp.oslo.messaging.allow_insecure_clients
 {{ if not .oslo_messaging_amqp.oslo.messaging.allow_insecure_clients }}#{{ end }}allow_insecure_clients = {{ .oslo_messaging_amqp.oslo.messaging.allow_insecure_clients | default "false" }}
 
@@ -2140,13 +2003,8 @@
 # from .oslo_messaging_amqp.oslo.messaging.link_retry_delay
 {{ if not .oslo_messaging_amqp.oslo.messaging.link_retry_delay }}#{{ end }}link_retry_delay = {{ .oslo_messaging_amqp.oslo.messaging.link_retry_delay | default "10" }}
 
-# The maximum number of attempts to re-send a reply message which failed due to
-# a recoverable error. (integer value)
-# Minimum value: -1
-# from .oslo_messaging_amqp.oslo.messaging.default_reply_retry
-{{ if not .oslo_messaging_amqp.oslo.messaging.default_reply_retry }}#{{ end }}default_reply_retry = {{ .oslo_messaging_amqp.oslo.messaging.default_reply_retry | default "0" }}
-
-# The deadline for an rpc reply message delivery. (integer value)
+# The deadline for an rpc reply message delivery. Only used when caller does
+# not provide a timeout expiry. (integer value)
 # Minimum value: 5
 # from .oslo_messaging_amqp.oslo.messaging.default_reply_timeout
 {{ if not .oslo_messaging_amqp.oslo.messaging.default_reply_timeout }}#{{ end }}default_reply_timeout = {{ .oslo_messaging_amqp.oslo.messaging.default_reply_timeout | default "30" }}
@@ -2162,12 +2020,6 @@
 # Minimum value: 5
 # from .oslo_messaging_amqp.oslo.messaging.default_notify_timeout
 {{ if not .oslo_messaging_amqp.oslo.messaging.default_notify_timeout }}#{{ end }}default_notify_timeout = {{ .oslo_messaging_amqp.oslo.messaging.default_notify_timeout | default "30" }}
-
-# The duration to schedule a purge of idle sender links. Detach link after
-# expiry. (integer value)
-# Minimum value: 1
-# from .oslo_messaging_amqp.oslo.messaging.default_sender_link_timeout
-{{ if not .oslo_messaging_amqp.oslo.messaging.default_sender_link_timeout }}#{{ end }}default_sender_link_timeout = {{ .oslo_messaging_amqp.oslo.messaging.default_sender_link_timeout | default "600" }}
 
 # Indicates the addressing mode used by the driver.
 # Permitted values:
@@ -2250,78 +2102,6 @@
 # Minimum value: 1
 # from .oslo_messaging_amqp.oslo.messaging.notify_server_credit
 {{ if not .oslo_messaging_amqp.oslo.messaging.notify_server_credit }}#{{ end }}notify_server_credit = {{ .oslo_messaging_amqp.oslo.messaging.notify_server_credit | default "100" }}
-
-# Send messages of this type pre-settled.
-# Pre-settled messages will not receive acknowledgement
-# from the peer. Note well: pre-settled messages may be
-# silently discarded if the delivery fails.
-# Permitted values:
-# 'rpc-call' - send RPC Calls pre-settled
-# 'rpc-reply'- send RPC Replies pre-settled
-# 'rpc-cast' - Send RPC Casts pre-settled
-# 'notify'   - Send Notifications pre-settled
-#  (multi valued)
-# from .oslo_messaging_amqp.oslo.messaging.pre_settled (multiopt)
-{{ if not .oslo_messaging_amqp.oslo.messaging.pre_settled }}#pre_settled = {{ .oslo_messaging_amqp.oslo.messaging.pre_settled | default "rpc-cast" }}{{ else }}{{ range .oslo_messaging_amqp.oslo.messaging.pre_settled }}pre_settled = {{ . }}{{ end }}{{ end }}
-# from .oslo_messaging_amqp.oslo.messaging.pre_settled (multiopt)
-{{ if not .oslo_messaging_amqp.oslo.messaging.pre_settled }}#pre_settled = {{ .oslo_messaging_amqp.oslo.messaging.pre_settled | default "rpc-reply" }}{{ else }}{{ range .oslo_messaging_amqp.oslo.messaging.pre_settled }}pre_settled = {{ . }}{{ end }}{{ end }}
-
-
-[oslo_messaging_kafka]
-
-#
-# From oslo.messaging
-#
-
-# DEPRECATED: Default Kafka broker Host (string value)
-# This option is deprecated for removal.
-# Its value may be silently ignored in the future.
-# Reason: Replaced by [DEFAULT]/transport_url
-# from .oslo_messaging_kafka.oslo.messaging.kafka_default_host
-{{ if not .oslo_messaging_kafka.oslo.messaging.kafka_default_host }}#{{ end }}kafka_default_host = {{ .oslo_messaging_kafka.oslo.messaging.kafka_default_host | default "localhost" }}
-
-# DEPRECATED: Default Kafka broker Port (port value)
-# Minimum value: 0
-# Maximum value: 65535
-# This option is deprecated for removal.
-# Its value may be silently ignored in the future.
-# Reason: Replaced by [DEFAULT]/transport_url
-# from .oslo_messaging_kafka.oslo.messaging.kafka_default_port
-{{ if not .oslo_messaging_kafka.oslo.messaging.kafka_default_port }}#{{ end }}kafka_default_port = {{ .oslo_messaging_kafka.oslo.messaging.kafka_default_port | default "9092" }}
-
-# Max fetch bytes of Kafka consumer (integer value)
-# from .oslo_messaging_kafka.oslo.messaging.kafka_max_fetch_bytes
-{{ if not .oslo_messaging_kafka.oslo.messaging.kafka_max_fetch_bytes }}#{{ end }}kafka_max_fetch_bytes = {{ .oslo_messaging_kafka.oslo.messaging.kafka_max_fetch_bytes | default "1048576" }}
-
-# Default timeout(s) for Kafka consumers (integer value)
-# from .oslo_messaging_kafka.oslo.messaging.kafka_consumer_timeout
-{{ if not .oslo_messaging_kafka.oslo.messaging.kafka_consumer_timeout }}#{{ end }}kafka_consumer_timeout = {{ .oslo_messaging_kafka.oslo.messaging.kafka_consumer_timeout | default "1.0" }}
-
-# Pool Size for Kafka Consumers (integer value)
-# from .oslo_messaging_kafka.oslo.messaging.pool_size
-{{ if not .oslo_messaging_kafka.oslo.messaging.pool_size }}#{{ end }}pool_size = {{ .oslo_messaging_kafka.oslo.messaging.pool_size | default "10" }}
-
-# The pool size limit for connections expiration policy (integer value)
-# from .oslo_messaging_kafka.oslo.messaging.conn_pool_min_size
-{{ if not .oslo_messaging_kafka.oslo.messaging.conn_pool_min_size }}#{{ end }}conn_pool_min_size = {{ .oslo_messaging_kafka.oslo.messaging.conn_pool_min_size | default "2" }}
-
-# The time-to-live in sec of idle connections in the pool (integer value)
-# from .oslo_messaging_kafka.oslo.messaging.conn_pool_ttl
-{{ if not .oslo_messaging_kafka.oslo.messaging.conn_pool_ttl }}#{{ end }}conn_pool_ttl = {{ .oslo_messaging_kafka.oslo.messaging.conn_pool_ttl | default "1200" }}
-
-# Group id for Kafka consumer. Consumers in one group will coordinate message
-# consumption (string value)
-# from .oslo_messaging_kafka.oslo.messaging.consumer_group
-{{ if not .oslo_messaging_kafka.oslo.messaging.consumer_group }}#{{ end }}consumer_group = {{ .oslo_messaging_kafka.oslo.messaging.consumer_group | default "oslo_messaging_consumer" }}
-
-# Upper bound on the delay for KafkaProducer batching in seconds (floating
-# point value)
-# from .oslo_messaging_kafka.oslo.messaging.producer_batch_timeout
-{{ if not .oslo_messaging_kafka.oslo.messaging.producer_batch_timeout }}#{{ end }}producer_batch_timeout = {{ .oslo_messaging_kafka.oslo.messaging.producer_batch_timeout | default "0.0" }}
-
-# Size of batch for the producer async send (integer value)
-# from .oslo_messaging_kafka.oslo.messaging.producer_batch_size
-{{ if not .oslo_messaging_kafka.oslo.messaging.producer_batch_size }}#{{ end }}producer_batch_size = {{ .oslo_messaging_kafka.oslo.messaging.producer_batch_size | default "16384" }}
 
 
 [oslo_messaging_notifications]
@@ -2462,7 +2242,6 @@
 {{ if not .oslo_messaging_rabbit.oslo.messaging.rabbit_password }}#{{ end }}rabbit_password = {{ .oslo_messaging_rabbit.oslo.messaging.rabbit_password | default "guest" }}
 
 # The RabbitMQ login method. (string value)
-# Allowed values: PLAIN, AMQPLAIN, RABBIT-CR-DEMO
 # Deprecated group/name - [DEFAULT]/rabbit_login_method
 # from .oslo_messaging_rabbit.oslo.messaging.rabbit_login_method
 {{ if not .oslo_messaging_rabbit.oslo.messaging.rabbit_login_method }}#{{ end }}rabbit_login_method = {{ .oslo_messaging_rabbit.oslo.messaging.rabbit_login_method | default "AMQPLAIN" }}
@@ -2501,7 +2280,7 @@
 # Try to use HA queues in RabbitMQ (x-ha-policy: all). If you change this
 # option, you must wipe the RabbitMQ database. In RabbitMQ 3.0, queue mirroring
 # is no longer controlled by the x-ha-policy argument when declaring a queue.
-# If you just want to make sure that all queues (except those with auto-
+# If you just want to make sure that all queues (except  those with auto-
 # generated names) are mirrored across all nodes, run: "rabbitmqctl set_policy
 # HA '^(?!amq\.).*' '{"ha-mode": "all"}' " (boolean value)
 # Deprecated group/name - [DEFAULT]/rabbit_ha_queues
@@ -2600,12 +2379,6 @@
 # from .oslo_messaging_rabbit.oslo.messaging.pool_stale
 {{ if not .oslo_messaging_rabbit.oslo.messaging.pool_stale }}#{{ end }}pool_stale = {{ .oslo_messaging_rabbit.oslo.messaging.pool_stale | default "60" }}
 
-# Default serialization mechanism for serializing/deserializing
-# outgoing/incoming messages (string value)
-# Allowed values: json, msgpack
-# from .oslo_messaging_rabbit.oslo.messaging.default_serializer_type
-{{ if not .oslo_messaging_rabbit.oslo.messaging.default_serializer_type }}#{{ end }}default_serializer_type = {{ .oslo_messaging_rabbit.oslo.messaging.default_serializer_type | default "json" }}
-
 # Persist notification messages. (boolean value)
 # from .oslo_messaging_rabbit.oslo.messaging.notification_persistence
 {{ if not .oslo_messaging_rabbit.oslo.messaging.notification_persistence }}#{{ end }}notification_persistence = {{ .oslo_messaging_rabbit.oslo.messaging.notification_persistence | default "false" }}
@@ -2663,7 +2436,7 @@
 
 # Reconnecting retry count in case of connectivity problem during sending RPC
 # message, -1 means infinite retry. If actual retry attempts in not 0 the rpc
-# request could be processed more than one time (integer value)
+# request could be processed more then one time (integer value)
 # from .oslo_messaging_rabbit.oslo.messaging.default_rpc_retry_attempts
 {{ if not .oslo_messaging_rabbit.oslo.messaging.default_rpc_retry_attempts }}#{{ end }}default_rpc_retry_attempts = {{ .oslo_messaging_rabbit.oslo.messaging.default_rpc_retry_attempts | default "-1" }}
 
@@ -2686,7 +2459,7 @@
 {{ if not .oslo_messaging_zmq.oslo.messaging.rpc_zmq_bind_address }}#{{ end }}rpc_zmq_bind_address = {{ .oslo_messaging_zmq.oslo.messaging.rpc_zmq_bind_address | default "*" }}
 
 # MatchMaker driver. (string value)
-# Allowed values: redis, sentinel, dummy
+# Allowed values: redis, dummy
 # Deprecated group/name - [DEFAULT]/rpc_zmq_matchmaker
 # from .oslo_messaging_zmq.oslo.messaging.rpc_zmq_matchmaker
 {{ if not .oslo_messaging_zmq.oslo.messaging.rpc_zmq_matchmaker }}#{{ end }}rpc_zmq_matchmaker = {{ .oslo_messaging_zmq.oslo.messaging.rpc_zmq_matchmaker | default "redis" }}
@@ -2713,14 +2486,13 @@
 # from .oslo_messaging_zmq.oslo.messaging.rpc_zmq_host
 {{ if not .oslo_messaging_zmq.oslo.messaging.rpc_zmq_host }}#{{ end }}rpc_zmq_host = {{ .oslo_messaging_zmq.oslo.messaging.rpc_zmq_host | default "localhost" }}
 
-# Number of seconds to wait before all pending messages will be sent after
-# closing a socket. The default value of -1 specifies an infinite linger
-# period. The value of 0 specifies no linger period. Pending messages shall be
-# discarded immediately when the socket is closed. Positive values specify an
-# upper bound for the linger period. (integer value)
+# Seconds to wait before a cast expires (TTL). The default value of -1
+# specifies an infinite linger period. The value of 0 specifies no linger
+# period. Pending messages shall be discarded immediately when the socket is
+# closed. Only supported by impl_zmq. (integer value)
 # Deprecated group/name - [DEFAULT]/rpc_cast_timeout
-# from .oslo_messaging_zmq.oslo.messaging.zmq_linger
-{{ if not .oslo_messaging_zmq.oslo.messaging.zmq_linger }}#{{ end }}zmq_linger = {{ .oslo_messaging_zmq.oslo.messaging.zmq_linger | default "-1" }}
+# from .oslo_messaging_zmq.oslo.messaging.rpc_cast_timeout
+{{ if not .oslo_messaging_zmq.oslo.messaging.rpc_cast_timeout }}#{{ end }}rpc_cast_timeout = {{ .oslo_messaging_zmq.oslo.messaging.rpc_cast_timeout | default "-1" }}
 
 # The default number of seconds that poll should wait. Poll raises timeout
 # exception when timeout expired. (integer value)
@@ -2744,23 +2516,12 @@
 # value)
 # Deprecated group/name - [DEFAULT]/use_pub_sub
 # from .oslo_messaging_zmq.oslo.messaging.use_pub_sub
-{{ if not .oslo_messaging_zmq.oslo.messaging.use_pub_sub }}#{{ end }}use_pub_sub = {{ .oslo_messaging_zmq.oslo.messaging.use_pub_sub | default "false" }}
+{{ if not .oslo_messaging_zmq.oslo.messaging.use_pub_sub }}#{{ end }}use_pub_sub = {{ .oslo_messaging_zmq.oslo.messaging.use_pub_sub | default "true" }}
 
 # Use ROUTER remote proxy. (boolean value)
 # Deprecated group/name - [DEFAULT]/use_router_proxy
 # from .oslo_messaging_zmq.oslo.messaging.use_router_proxy
-{{ if not .oslo_messaging_zmq.oslo.messaging.use_router_proxy }}#{{ end }}use_router_proxy = {{ .oslo_messaging_zmq.oslo.messaging.use_router_proxy | default "false" }}
-
-# This option makes direct connections dynamic or static. It makes sense only
-# with use_router_proxy=False which means to use direct connections for direct
-# message types (ignored otherwise). (boolean value)
-# from .oslo_messaging_zmq.oslo.messaging.use_dynamic_connections
-{{ if not .oslo_messaging_zmq.oslo.messaging.use_dynamic_connections }}#{{ end }}use_dynamic_connections = {{ .oslo_messaging_zmq.oslo.messaging.use_dynamic_connections | default "false" }}
-
-# How many additional connections to a host will be made for failover reasons.
-# This option is actual only in dynamic connections mode. (integer value)
-# from .oslo_messaging_zmq.oslo.messaging.zmq_failover_connections
-{{ if not .oslo_messaging_zmq.oslo.messaging.zmq_failover_connections }}#{{ end }}zmq_failover_connections = {{ .oslo_messaging_zmq.oslo.messaging.zmq_failover_connections | default "2" }}
+{{ if not .oslo_messaging_zmq.oslo.messaging.use_router_proxy }}#{{ end }}use_router_proxy = {{ .oslo_messaging_zmq.oslo.messaging.use_router_proxy | default "true" }}
 
 # Minimal port number for random ports range. (port value)
 # Minimum value: 0
@@ -2794,74 +2555,7 @@
 # even if server is disconnected, when the server appears we send all
 # accumulated messages to it. (boolean value)
 # from .oslo_messaging_zmq.oslo.messaging.zmq_immediate
-{{ if not .oslo_messaging_zmq.oslo.messaging.zmq_immediate }}#{{ end }}zmq_immediate = {{ .oslo_messaging_zmq.oslo.messaging.zmq_immediate | default "true" }}
-
-# Enable/disable TCP keepalive (KA) mechanism. The default value of -1 (or any
-# other negative value) means to skip any overrides and leave it to OS default;
-# 0 and 1 (or any other positive value) mean to disable and enable the option
-# respectively. (integer value)
-# from .oslo_messaging_zmq.oslo.messaging.zmq_tcp_keepalive
-{{ if not .oslo_messaging_zmq.oslo.messaging.zmq_tcp_keepalive }}#{{ end }}zmq_tcp_keepalive = {{ .oslo_messaging_zmq.oslo.messaging.zmq_tcp_keepalive | default "-1" }}
-
-# The duration between two keepalive transmissions in idle condition. The unit
-# is platform dependent, for example, seconds in Linux, milliseconds in Windows
-# etc. The default value of -1 (or any other negative value and 0) means to
-# skip any overrides and leave it to OS default. (integer value)
-# from .oslo_messaging_zmq.oslo.messaging.zmq_tcp_keepalive_idle
-{{ if not .oslo_messaging_zmq.oslo.messaging.zmq_tcp_keepalive_idle }}#{{ end }}zmq_tcp_keepalive_idle = {{ .oslo_messaging_zmq.oslo.messaging.zmq_tcp_keepalive_idle | default "-1" }}
-
-# The number of retransmissions to be carried out before declaring that remote
-# end is not available. The default value of -1 (or any other negative value
-# and 0) means to skip any overrides and leave it to OS default. (integer
-# value)
-# from .oslo_messaging_zmq.oslo.messaging.zmq_tcp_keepalive_cnt
-{{ if not .oslo_messaging_zmq.oslo.messaging.zmq_tcp_keepalive_cnt }}#{{ end }}zmq_tcp_keepalive_cnt = {{ .oslo_messaging_zmq.oslo.messaging.zmq_tcp_keepalive_cnt | default "-1" }}
-
-# The duration between two successive keepalive retransmissions, if
-# acknowledgement to the previous keepalive transmission is not received. The
-# unit is platform dependent, for example, seconds in Linux, milliseconds in
-# Windows etc. The default value of -1 (or any other negative value and 0)
-# means to skip any overrides and leave it to OS default. (integer value)
-# from .oslo_messaging_zmq.oslo.messaging.zmq_tcp_keepalive_intvl
-{{ if not .oslo_messaging_zmq.oslo.messaging.zmq_tcp_keepalive_intvl }}#{{ end }}zmq_tcp_keepalive_intvl = {{ .oslo_messaging_zmq.oslo.messaging.zmq_tcp_keepalive_intvl | default "-1" }}
-
-# Maximum number of (green) threads to work concurrently. (integer value)
-# from .oslo_messaging_zmq.oslo.messaging.rpc_thread_pool_size
-{{ if not .oslo_messaging_zmq.oslo.messaging.rpc_thread_pool_size }}#{{ end }}rpc_thread_pool_size = {{ .oslo_messaging_zmq.oslo.messaging.rpc_thread_pool_size | default "100" }}
-
-# Expiration timeout in seconds of a sent/received message after which it is
-# not tracked anymore by a client/server. (integer value)
-# from .oslo_messaging_zmq.oslo.messaging.rpc_message_ttl
-{{ if not .oslo_messaging_zmq.oslo.messaging.rpc_message_ttl }}#{{ end }}rpc_message_ttl = {{ .oslo_messaging_zmq.oslo.messaging.rpc_message_ttl | default "300" }}
-
-# Wait for message acknowledgements from receivers. This mechanism works only
-# via proxy without PUB/SUB. (boolean value)
-# from .oslo_messaging_zmq.oslo.messaging.rpc_use_acks
-{{ if not .oslo_messaging_zmq.oslo.messaging.rpc_use_acks }}#{{ end }}rpc_use_acks = {{ .oslo_messaging_zmq.oslo.messaging.rpc_use_acks | default "false" }}
-
-# Number of seconds to wait for an ack from a cast/call. After each retry
-# attempt this timeout is multiplied by some specified multiplier. (integer
-# value)
-# from .oslo_messaging_zmq.oslo.messaging.rpc_ack_timeout_base
-{{ if not .oslo_messaging_zmq.oslo.messaging.rpc_ack_timeout_base }}#{{ end }}rpc_ack_timeout_base = {{ .oslo_messaging_zmq.oslo.messaging.rpc_ack_timeout_base | default "15" }}
-
-# Number to multiply base ack timeout by after each retry attempt. (integer
-# value)
-# from .oslo_messaging_zmq.oslo.messaging.rpc_ack_timeout_multiplier
-{{ if not .oslo_messaging_zmq.oslo.messaging.rpc_ack_timeout_multiplier }}#{{ end }}rpc_ack_timeout_multiplier = {{ .oslo_messaging_zmq.oslo.messaging.rpc_ack_timeout_multiplier | default "2" }}
-
-# Default number of message sending attempts in case of any problems occurred:
-# positive value N means at most N retries, 0 means no retries, None or -1 (or
-# any other negative values) mean to retry forever. This option is used only if
-# acknowledgments are enabled. (integer value)
-# from .oslo_messaging_zmq.oslo.messaging.rpc_retry_attempts
-{{ if not .oslo_messaging_zmq.oslo.messaging.rpc_retry_attempts }}#{{ end }}rpc_retry_attempts = {{ .oslo_messaging_zmq.oslo.messaging.rpc_retry_attempts | default "3" }}
-
-# List of publisher hosts SubConsumer can subscribe on. This option has higher
-# priority then the default publishers list taken from the matchmaker. (list
-# value)
-# from .oslo_messaging_zmq.oslo.messaging.subscribe_on
-{{ if not .oslo_messaging_zmq.oslo.messaging.subscribe_on }}#{{ end }}subscribe_on = {{ .oslo_messaging_zmq.oslo.messaging.subscribe_on | default "" }}
+{{ if not .oslo_messaging_zmq.oslo.messaging.zmq_immediate }}#{{ end }}zmq_immediate = {{ .oslo_messaging_zmq.oslo.messaging.zmq_immediate | default "false" }}
 
 
 [oslo_middleware]
@@ -2896,7 +2590,7 @@
 # From oslo.policy
 #
 
-# The file that defines policies. (string value)
+# The JSON file that defines policies. (string value)
 # Deprecated group/name - [DEFAULT]/policy_file
 # from .oslo_policy.oslo.policy.policy_file
 {{ if not .oslo_policy.oslo.policy.policy_file }}#{{ end }}policy_file = {{ .oslo_policy.oslo.policy.policy_file | default "policy.json" }}
@@ -3011,49 +2705,9 @@
 # Examples of possible values:
 #
 # * messaging://: use oslo_messaging driver for sending notifications.
-# * mongodb://127.0.0.1:27017 : use mongodb driver for sending notifications.
-# * elasticsearch://127.0.0.1:9200 : use elasticsearch driver for sending
-# notifications.
 #  (string value)
 # from .profiler.osprofiler.connection_string
 {{ if not .profiler.osprofiler.connection_string }}#{{ end }}connection_string = {{ .profiler.osprofiler.connection_string | default "messaging://" }}
-
-#
-# Document type for notification indexing in elasticsearch.
-#  (string value)
-# from .profiler.osprofiler.es_doc_type
-{{ if not .profiler.osprofiler.es_doc_type }}#{{ end }}es_doc_type = {{ .profiler.osprofiler.es_doc_type | default "notification" }}
-
-#
-# This parameter is a time value parameter (for example: es_scroll_time=2m),
-# indicating for how long the nodes that participate in the search will
-# maintain
-# relevant resources in order to continue and support it.
-#  (string value)
-# from .profiler.osprofiler.es_scroll_time
-{{ if not .profiler.osprofiler.es_scroll_time }}#{{ end }}es_scroll_time = {{ .profiler.osprofiler.es_scroll_time | default "2m" }}
-
-#
-# Elasticsearch splits large requests in batches. This parameter defines
-# maximum size of each batch (for example: es_scroll_size=10000).
-#  (integer value)
-# from .profiler.osprofiler.es_scroll_size
-{{ if not .profiler.osprofiler.es_scroll_size }}#{{ end }}es_scroll_size = {{ .profiler.osprofiler.es_scroll_size | default "10000" }}
-
-#
-# Redissentinel provides a timeout option on the connections.
-# This parameter defines that timeout (for example: socket_timeout=0.1).
-#  (floating point value)
-# from .profiler.osprofiler.socket_timeout
-{{ if not .profiler.osprofiler.socket_timeout }}#{{ end }}socket_timeout = {{ .profiler.osprofiler.socket_timeout | default "0.1" }}
-
-#
-# Redissentinel uses a service name to identify a master redis service.
-# This parameter defines the name (for example:
-# sentinal_service_name=mymaster).
-#  (string value)
-# from .profiler.osprofiler.sentinel_service_name
-{{ if not .profiler.osprofiler.sentinel_service_name }}#{{ end }}sentinel_service_name = {{ .profiler.osprofiler.sentinel_service_name | default "mymaster" }}
 
 
 [resource]
@@ -3676,5 +3330,4 @@
 {{ if not .trust.keystone.driver }}#{{ end }}driver = {{ .trust.keystone.driver | default "sql" }}
 
 {{- end -}}
-
 
