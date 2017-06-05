@@ -12,18 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-apiVersion: v1
-kind: Service
-metadata:
-  name: cinder-api
-spec:
-  ports:
-    - port: {{ .Values.conf.cinder.default.cinder.osapi_volume_listen_port }}
-    {{ if .Values.network.api.node_port.enabled }}
-      nodePort: {{ .Values.network.api.node_port.port }}
-    {{ end }}
-  selector:
-    app: cinder-api
-  {{ if .Values.network.api.node_port.enabled }}
-  type: NodePort
-  {{ end }}
+{{- define "helm-toolkit.to_ini" -}}
+{{- range $section, $values := . -}}
+{{- if kindIs "map" $values -}}
+[{{ $section }}]
+{{range $key, $value := $values -}}
+{{- if kindIs "slice" $value -}}
+{{ $key }} = {{ include "helm-toolkit.joinListWithComma" $value }}
+{{else -}}
+{{ $key }} = {{ $value }}
+{{end -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}

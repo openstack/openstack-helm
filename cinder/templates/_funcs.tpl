@@ -12,18 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-apiVersion: v1
-kind: Service
-metadata:
-  name: cinder-api
-spec:
-  ports:
-    - port: {{ .Values.conf.cinder.default.cinder.osapi_volume_listen_port }}
-    {{ if .Values.network.api.node_port.enabled }}
-      nodePort: {{ .Values.network.api.node_port.port }}
-    {{ end }}
-  selector:
-    app: cinder-api
-  {{ if .Values.network.api.node_port.enabled }}
-  type: NodePort
-  {{ end }}
+{{- define "cinder.is_ceph_configured" -}}
+{{- range $section, $values := .Values.conf.backends -}}
+{{- if kindIs "map" $values -}}
+{{- if eq $values.volume_driver "cinder.volume.drivers.rbd.RBDDriver" -}}
+true
+{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}

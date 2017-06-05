@@ -15,9 +15,9 @@
 [global]
 rgw_thread_pool_size = 1024
 rgw_num_rados_handles = 100
-{{- if .Values.ceph.monitors }}
+{{- if .Values.conf.ceph.monitors }}
 [mon]
-{{ range .Values.ceph.monitors }}
+{{ range .Values.conf.ceph.monitors }}
     [mon.{{ . }}]
       host = {{ . }}
       mon_addr = {{ . }}
