@@ -73,3 +73,11 @@ function helm_lint {
 function helm_build {
   make TASK=build -C ${WORK_DIR}
 }
+
+function helm_test_deployment {
+  DEPLOYMENT=$1
+  helm test ${DEPLOYMENT}
+  mkdir -p ${LOGS_DIR}/rally
+  kubectl logs -n openstack ${DEPLOYMENT}-rally-test > ${LOGS_DIR}/rally/${DEPLOYMENT}
+  kubectl delete -n openstack pod ${DEPLOYMENT}-rally-test
+}

@@ -12,16 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: keystone-bin
-data:
-  rally-test.sh: |
-{{- include "helm-toolkit.scripts.rally_test" . | indent 4 }}
-  db-init.py: |
-{{- include "helm-toolkit.scripts.db_init" . | indent 4 }}
-  db-sync.sh: |
-{{ tuple "bin/_db-sync.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
-  keystone-api.sh: |
-{{ tuple "bin/_keystone-api.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
+{{- define "helm-toolkit.scripts.rally_test" }}
+#!/bin/bash
+set -ex
+
+: ${RALLY_ENV_NAME:="openstack-helm"}
+rally-manage db create
+rally deployment create --fromenv --name ${RALLY_ENV_NAME}
+rally deployment use ${RALLY_ENV_NAME}
+rally deployment check
+rally task validate /etc/rally/rally_tests.yaml
+rally task start /etc/rally/rally_tests.yaml
+rally deployment destroy --deployment ${RALLY_ENV_NAME}
+rally task sla-check
+{{- end }}

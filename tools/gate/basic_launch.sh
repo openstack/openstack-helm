@@ -28,6 +28,7 @@ kube_wait_for_pods openstack 600
 
 helm install local/keystone --name=keystone --namespace=openstack
 kube_wait_for_pods openstack 240
+helm_test_deployment keystone
 
 # NOTE(portdirect): Temp workaround until module loading is supported by
 # OpenStack-Helm in Fedora
