@@ -38,14 +38,21 @@ fi
 net_resolv_pre_kube
 net_hosts_pre_kube
 
+# Setup helm
 helm_install
 helm_serve
 helm_lint
 
+# Setup the K8s Cluster
 if [ "x$INTEGRATION" == "xaio" ]; then
  bash ${WORK_DIR}/tools/gate/kubeadm_aio.sh
- bash ${WORK_DIR}/tools/gate/helm_dry_run.sh
- if [ "x$INTEGRATION_TYPE" == "xbasic" ]; then
-   bash ${WORK_DIR}/tools/gate/basic_launch.sh
- fi
+elif [ "x$INTEGRATION" == "xmulti" ]; then
+ bash ${WORK_DIR}/tools/gate/kubeadm_aio.sh
+ bash ${WORK_DIR}/tools/gate/setup_gate_worker_nodes.sh
+fi
+
+# Deploy OpenStack-Helm
+if [ "x$INTEGRATION_TYPE" == "xbasic" ]; then
+  bash ${WORK_DIR}/tools/gate/helm_dry_run.sh
+  bash ${WORK_DIR}/tools/gate/basic_launch.sh
 fi
