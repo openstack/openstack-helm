@@ -24,6 +24,7 @@ labels:
   node_selector_value: enabled
 
 images:
+  test: docker.io/kolla/ubuntu-binary-rally:4.0.0
   db_init: docker.io/kolla/ubuntu-source-keystone:3.0.3
   db_sync: docker.io/kolla/ubuntu-source-keystone:3.0.3
   api: docker.io/kolla/ubuntu-source-keystone:3.0.3
@@ -52,6 +53,8 @@ keystone:
   admin_user: admin
   admin_password: password
   admin_project_name: admin
+  admin_user_domain: default
+  admin_project_domain: default
 
 network:
   api:
@@ -81,6 +84,9 @@ dependencies:
   init:
     service:
     - mariadb
+  tests:
+    service:
+    - keystone-api
 
 resources:
   enabled: false
@@ -106,6 +112,13 @@ resources:
       requests:
         memory: "128Mi"
         cpu: "500m"
+  tests:
+    limits:
+      memory: "128Mi"
+      cpu: "500m"
+    requests:
+      memory: "128Mi"
+      cpu: "500m"
 
 mounts:
   keystone_db_init:
@@ -117,8 +130,14 @@ mounts:
   keystone_api:
     init_container: null
     keystone_api:
+  keystone_tests:
+    init_container: null
+    keystone_tests:
 
 conf:
+  rally_tests:
+    override:
+    append:
   paste:
     override:
     append:
