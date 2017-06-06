@@ -29,6 +29,7 @@ labels:
   node_selector_value: enabled
 
 images:
+  test: docker.io/kolla/ubuntu-binary-rally:4.0.0
   db_init: docker.io/kolla/ubuntu-source-glance-api:3.0.3
   db_sync: docker.io/kolla/ubuntu-source-glance-api:3.0.3
   ks_user: docker.io/kolla/ubuntu-source-kolla-toolbox:3.0.3
@@ -84,6 +85,13 @@ keystone:
 
 
 conf:
+  rally_tests:
+    override:
+    append:
+    images:
+      image_location: http://download.cirros-cloud.net/0.3.5/cirros-0.3.5-x86_64-disk.img
+      disk_format: qcow2
+      container_format: bare
   ceph:
     monitors: []
     keyring: null
@@ -213,6 +221,13 @@ resources:
       requests:
         memory: "128Mi"
         cpu: "500m"
+  tests:
+    limits:
+      memory: "128Mi"
+      cpu: "500m"
+    requests:
+      memory: "128Mi"
+      cpu: "500m"
 
 dependencies:
   db_init:
@@ -259,6 +274,11 @@ dependencies:
     - keystone-api
     - mariadb
     - glance-api
+  tests:
+    service:
+    - keystone-api
+    - glance-api
+    - glance-registry
 
 # typically overriden by environmental
 # values, but should include all endpoints
@@ -330,3 +350,6 @@ mounts:
   glance_registry:
     init_container: null
     glance_registry:
+  glance_tests:
+    init_container: null
+    glance_tests:

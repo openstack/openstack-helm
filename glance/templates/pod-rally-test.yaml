@@ -1,0 +1,75 @@
+# Copyright 2017 The Openstack-Helm Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+{{- $envAll := . }}
+{{- $ksAdminSecret := .Values.keystone.admin_secret | default "glance-env-keystone-admin" }}
+{{- $dependencies := .Values.dependencies.tests }}
+{{- $mounts_glance_tests := .Values.mounts.glance_tests.glance_tests }}
+{{- $mounts_glance_tests_init := .Values.mounts.glance_tests.init_container }}
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{.Release.Name}}-rally-test"
+  annotations:
+    "helm.sh/hook": test-success
+    pod.beta.kubernetes.io/init-containers: '[
+{{ tuple $envAll $dependencies $mounts_glance_tests_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 10 }}
+    ]'
+spec:
+  restartPolicy: Never
+  containers:
+    - name: {{.Release.Name}}-token-issue-test
+      image: {{ .Values.images.test }}
+      imagePullPolicy: {{ .Values.images.pull_policy }}
+      {{- if .Values.resources.enabled }}
+      resources:
+        limits:
+          cpu: {{ .Values.resources.tests.limits.cpu | quote }}
+          memory: {{ .Values.resources.tests.limits.memory | quote }}
+        requests:
+          cpu: {{ .Values.resources.tests.requests.cpu | quote }}
+          memory: {{ .Values.resources.tests.requests.memory | quote }}
+      {{- end }}
+      env:
+{{- with $env := dict "ksUserSecret" $ksAdminSecret }}
+{{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 8 }}
+{{- end }}
+        - name: RALLY_ENV_NAME
+          value: {{.Release.Name}}
+      command:
+        - bash
+        - /tmp/rally-test.sh
+      volumeMounts:
+        - name: glance-etc
+          mountPath: /etc/rally/rally_tests.yaml
+          subPath: rally_tests.yaml
+          readOnly: true
+        - name: glance-bin
+          mountPath: /tmp/rally-test.sh
+          subPath: rally-test.sh
+          readOnly: true
+        - name: rally-db
+          mountPath: /var/lib/rally
+{{ if $mounts_glance_tests.volumeMounts }}{{ toYaml $mounts_glance_tests.volumeMounts | indent 8 }}{{ end }}
+  volumes:
+    - name: glance-etc
+      configMap:
+        name: glance-etc
+    - name: glance-bin
+      configMap:
+        name: glance-bin
+    - name: rally-db
+      emptyDir: {}
+{{ if $mounts_glance_tests.volumes }}{{ toYaml $mounts_glance_tests.volumes | indent 4 }}{{ end }}
