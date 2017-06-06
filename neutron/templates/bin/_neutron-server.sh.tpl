@@ -14,7 +14,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-set -x
-exec neutron-server \
-      --config-file /etc/neutron/neutron.conf \
-      --config-file /etc/neutron/plugins/ml2/ml2_conf.ini
+set -ex
+COMMAND="${@:-start}"
+
+function start () {
+  exec neutron-server \
+        --config-file /etc/neutron/neutron.conf \
+        --config-file /etc/neutron/plugins/ml2/ml2_conf.ini
+}
+
+function stop () {
+  kill -TERM 1
+}
+
+$COMMAND

@@ -14,6 +14,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-set -x
-exec magnum-api \
-      --config-file /etc/magnum/magnum.conf
+set -ex
+COMMAND="${@:-start}"
+
+function start () {
+  exec magnum-api \
+        --config-file /etc/magnum/magnum.conf
+}
+
+function stop () {
+  kill -TERM 1
+}
+
+$COMMAND

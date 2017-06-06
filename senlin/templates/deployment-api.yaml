@@ -57,21 +57,22 @@ spec:
               memory: {{ .Values.resources.senlin_api.limits.memory | quote }}
               cpu: {{ .Values.resources.senlin_api.limits.cpu | quote }}
           {{- end }}
+          command:
+            - bash
+            - /tmp/senlin-api.sh
+            - start
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - bash
+                  - /tmp/senlin-api.sh
+                  - stop
           ports:
             - containerPort: {{ .Values.conf.senlin.senlin_api.senlin.config.bind_port }}
           readinessProbe:
             tcpSocket:
               port: {{ .Values.conf.senlin.senlin_api.senlin.config.bind_port }}
-          command:
-            - bash
-            - /tmp/senlin-api.sh
-          lifecycle:
-            preStop:
-              exec:
-                command:
-                  - kill
-                  - -TERM
-                  - "1"
           volumeMounts:
             - name: senlin-bin
               mountPath: /tmp/senlin-api.sh

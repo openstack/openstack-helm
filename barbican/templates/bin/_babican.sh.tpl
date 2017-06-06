@@ -15,5 +15,14 @@
 # limitations under the License.
 
 set -ex
+COMMAND="${@:-start}"
 
-exec uwsgi --master --emperor /etc/barbican/vassals
+function start () {
+  exec uwsgi --die-on-term --master --emperor /etc/barbican/vassals
+}
+
+function stop () {
+  kill -TERM 1
+}
+
+$COMMAND

@@ -14,6 +14,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-set -x
-exec glance-api \
-      --config-file /etc/glance/glance-api.conf
+set -ex
+COMMAND="${@:-start}"
+
+function start () {
+  exec glance-api \
+        --config-file /etc/glance/glance-api.conf
+}
+
+function stop () {
+  kill -TERM 1
+}
+
+$COMMAND

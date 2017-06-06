@@ -57,21 +57,22 @@ spec:
               cpu: {{ .Values.resources.server.requests.cpu | quote }}
               memory: {{ .Values.resources.server.requests.memory | quote }}
           {{- end }}
-          ports:
-            - containerPort: {{ .Values.network.server.port }}
+          command:
+            - bash
+            - /tmp/neutron-server.sh
+            - start
           lifecycle:
             preStop:
               exec:
                 command:
-                  - kill
-                  - -TERM
-                  - "1"
+                  - bash
+                  - /tmp/neutron-server.sh
+                  - stop
+          ports:
+            - containerPort: {{ .Values.network.server.port }}
           readinessProbe:
             tcpSocket:
               port: {{ .Values.network.server.port }}
-          command:
-            - bash
-            - /tmp/neutron-server.sh
           volumeMounts:
             - name: neutron-bin
               mountPath: /tmp/neutron-server.sh
