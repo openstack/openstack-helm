@@ -66,7 +66,7 @@ while true; do
   now=$(date +%s)
   [ $now -gt $end ] && \
     echo "KubeADM did not generate kubectl config in time" && \
-    docker logs kubeadm-aio && exit -1
+    sudo docker logs kubeadm-aio && exit -1
 done
 set -x
 
@@ -85,7 +85,7 @@ while true; do
   now=$(date +%s)
   [ $now -gt $end ] && \
     echo "Kube node did not register as ready in time" && \
-    docker logs kubeadm-aio && exit -1
+    sudo docker logs kubeadm-aio && exit -1
 done
 set -x
 
