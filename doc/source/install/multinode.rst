@@ -199,12 +199,17 @@ repository to do so.
 
 To make these changes, export your Kubernetes version, and edit the
 ``image`` line of your ``kube-controller-manager`` json manifest on your
-Kubernetes Master:
+Kubernetes Master using the commands below.
+Please be sure to select the version that matches your Kubernetes installation
+(available versions
+`here <https://quay.io/repository/attcomdev/kube-controller-manager?tag=latest&tab=tags>`__),
+noting that ``kube-controller-manager`` v1.6.1 is also backwards compatible with
+Kubernetes v1.6.0.
 
 ::
 
     export kube_version=v1.6.2
-    sudo sed -i "s|gcr.io/google_containers/kube-controller-manager-amd64:'$kube_version'|quay.io/attcomdev/kube-controller-manager:'$kube_version'|g" /etc/kubernetes/manifests/kube-controller-manager.yaml
+    sudo sed -i "s|gcr.io/google_containers/kube-controller-manager-amd64:$kube_version|quay.io/attcomdev/kube-controller-manager:$kube_version|g" /etc/kubernetes/manifests/kube-controller-manager.yaml
 
 Now you will want to ``restart`` your Kubernetes master server to
 continue.
