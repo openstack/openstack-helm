@@ -44,6 +44,33 @@ function kube_wait_for_pods {
   set -x
 }
 
+function kube_wait_for_nodes {
+  # Default wait timeout is 180 seconds
+  set +x
+  end=$(date +%s)
+  if [ x$2 != "x" ]; then
+   end=$((end + $2))
+  else
+   end=$((end + 180))
+  fi
+  while true; do
+      NUMBER_OF_NODES=$(kubectl get nodes --no-headers -o name | wc -l)
+      NUMBER_OF_NODES_EXPECTED=$(($(cat /etc/nodepool/sub_nodes_private | wc -l) + 1))
+      [ $NUMBER_OF_NODES -eq $NUMBER_OF_NODES_EXPECTED ] && \
+          NODES_ONLINE="True" || NODES_ONLINE="False"
+      while read SUB_NODE; do
+        echo $SUB_NODE | grep -q ^Ready && NODES_READY="True" || NODES_READY="False"
+      done < <(kubectl get nodes --no-headers | awk '{ print $2 }')
+      [ $NODES_ONLINE == "True" -a $NODES_READY == "True"  ] && \
+          break || true
+      sleep 5
+      now=$(date +%s)
+      [ $now -gt $end ] && echo "Nodes Failed to be ready in time." && \
+          kubectl get nodes -o wide && exit -1
+  done
+  set -x
+}
+
 function kubeadm_aio_reqs_install {
   TMP_DIR=$(mktemp -d)
   if [ "x$HOST_OS" == "xubuntu" ]; then
