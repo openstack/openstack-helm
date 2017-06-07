@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-{{- define "helm-toolkit.to_ini" -}}
+{{- define "helm-toolkit.utils.to_ini" -}}
 {{- range $section, $values := . -}}
 {{- if kindIs "map" $values -}}
 [{{ $section }}]
