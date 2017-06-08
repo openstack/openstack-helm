@@ -17,5 +17,15 @@ limitations under the License.
 */}}
 
 set -x
-exec heat-engine \
-      --config-file /etc/heat/heat.conf
+COMMAND="${@:-start}"
+
+function start () {
+    exec heat-engine \
+          --config-file /etc/heat/heat.conf
+}
+
+function stop () {
+  kill -TERM 1
+}
+
+$COMMAND
