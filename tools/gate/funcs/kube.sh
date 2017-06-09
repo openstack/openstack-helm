@@ -39,7 +39,7 @@ function kube_wait_for_pods {
       sleep 1
       now=$(date +%s)
       [ $now -gt $end ] && echo containers failed to start. && \
-          kubectl get pods --namespace $1 && exit -1
+          kubectl get pods --namespace $1 -o wide && exit -1
   done
   set -x
 }
