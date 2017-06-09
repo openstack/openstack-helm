@@ -16,4 +16,5 @@
 
 set -ex
 exec cinder-volume \
-      --config-file /etc/cinder/cinder.conf
+     --config-file /etc/cinder/cinder.conf \
+     --config-file /etc/cinder/conf/backends.conf
