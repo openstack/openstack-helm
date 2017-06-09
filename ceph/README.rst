@@ -69,7 +69,7 @@ This will not work on:
 Override the default network settings
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-By default, ``10.244.0.0/16`` is used for the ``cluster_network`` and
+By default, ``192.168.0.0/16`` is used for the ``cluster_network`` and
 ``public_network`` in ceph.conf. To change these defaults, set the
 following environment variables according to your network requirements.
 These IPs should be set according to the range of your Pod IPs in your
