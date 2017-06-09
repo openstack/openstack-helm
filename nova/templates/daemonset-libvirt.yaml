@@ -43,6 +43,14 @@ spec:
         - name: nova-libvirt
           image: {{ .Values.images.libvirt }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
+          {{- if .Values.ceph.enabled }}
+          lifecycle:
+            postStart:
+              exec:
+                command:
+                  - bash
+                  - /tmp/ceph-secret-define.sh
+          {{- end }}
           {{- if .Values.resources.enabled }}
           resources:
             requests:
@@ -103,6 +111,10 @@ spec:
             - name: nova-etc
               mountPath: /etc/ceph/ceph.client.keyring
               subPath: ceph.client.keyring
+              readOnly: true
+            - name: nova-bin
+              mountPath: /tmp/ceph-secret-define.sh
+              subPath: ceph-secret-define.sh
               readOnly: true
             {{- end }}
 {{ if $mounts_nova_libvirt.volumeMounts }}{{ toYaml $mounts_nova_libvirt.volumeMounts | indent 12 }}{{ end }}
