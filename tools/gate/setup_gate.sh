@@ -28,6 +28,11 @@ source ${WORK_DIR}/tools/gate/funcs/helm.sh
 export LOGS_DIR=${LOGS_DIR:-"${WORK_DIR}/logs/"}
 mkdir -p ${LOGS_DIR}
 
+function dump_logs () {
+  ${WORK_DIR}/tools/gate/dump_logs.sh
+}
+trap 'dump_logs "$?"' ERR
+
 # Moving the ws-linter here to avoid it blocking all the jobs just for ws
 if [ "x$INTEGRATION_TYPE" == "xlinter" ]; then
   bash ${WORK_DIR}/tools/gate/whitespace.sh
@@ -55,4 +60,5 @@ fi
 if [ "x$INTEGRATION_TYPE" == "xbasic" ]; then
   bash ${WORK_DIR}/tools/gate/helm_dry_run.sh
   bash ${WORK_DIR}/tools/gate/basic_launch.sh
+  bash ${WORK_DIR}/tools/gate/dump_logs.sh 0
 fi
