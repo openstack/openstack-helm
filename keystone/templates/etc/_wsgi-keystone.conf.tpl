@@ -21,7 +21,7 @@ LogFormat "%{X-Forwarded-For}i %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-A
 <VirtualHost *:{{ .Values.network.api.port }}>
     WSGIDaemonProcess keystone-public processes=1 threads=4 user=keystone group=keystone display-name=%{GROUP}
     WSGIProcessGroup keystone-public
-    WSGIScriptAlias / /var/www/cgi-bin/keystone/main
+    WSGIScriptAlias / /var/www/cgi-bin/keystone/keystone-wsgi-public
     WSGIApplicationGroup %{GLOBAL}
     WSGIPassAuthorization On
     <IfVersion >= 2.4>
@@ -37,7 +37,7 @@ LogFormat "%{X-Forwarded-For}i %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-A
 <VirtualHost *:{{ .Values.network.admin.port }}>
     WSGIDaemonProcess keystone-admin processes=1 threads=4 user=keystone group=keystone display-name=%{GROUP}
     WSGIProcessGroup keystone-admin
-    WSGIScriptAlias / /var/www/cgi-bin/keystone/admin
+    WSGIScriptAlias / /var/www/cgi-bin/keystone/keystone-wsgi-admin
     WSGIApplicationGroup %{GLOBAL}
     WSGIPassAuthorization On
     <IfVersion >= 2.4>
