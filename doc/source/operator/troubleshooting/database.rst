@@ -13,7 +13,7 @@ Galera Cluster
 MariaDB is a ``StatefulSet`` (``PetSets`` have been retired in
 Kubernetes v1.5.0). As such, it initiates a 'seed' which is used to
 deploy MariaDB members via `affinity/anti-affinity
-<http://kubernetes.io/docs/user-guide/node-selection/>`__
+<https://kubernetes.io/docs/user-guide/node-selection/>`__
 features. Ceph uses this as well. So what you will notice is the
 following behavior:
 
