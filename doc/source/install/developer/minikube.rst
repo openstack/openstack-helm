@@ -24,7 +24,7 @@ that matches your Kubernetes deployment.
 
 **Kubernetes Minikube:** Ensure that you have installed a recent version
 of
-`Kubernetes/Minikube <http://kubernetes.io/docs/getting-started-guides/minikube/>`__.
+`Kubernetes/Minikube <https://kubernetes.io/docs/getting-started-guides/minikube/>`__.
 
 **Kubernetes Helm:** Install a recent version of
 `Kubernetes/Helm <https://github.com/kubernetes/helm>`__:

@@ -7,7 +7,7 @@ Overview
 
 In order to drive towards a production-ready Openstack solution, our
 goal is to provide containerized, yet stable `persistent
-volumes <http://kubernetes.io/docs/user-guide/persistent-volumes/>`_
+volumes <https://kubernetes.io/docs/concepts/storage/persistent-volumes/>`_
 that Kubernetes can use to schedule applications that require state,
 such as MariaDB (Galera). Although we assume that the project should
 provide a “batteries included” approach towards persistent storage, we
@@ -31,7 +31,7 @@ comments, please create an `issue
   +------------------+--------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------+
   | **Calico**       | `v2.1 <http://docs.projectcalico.org/v2.1/releases/>`_                               | `calicoct v1.1 <https://github.com/projectcalico/calicoctl/releases>`_                                       |
   +------------------+--------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------+
-  | **Docker**       | `v1.12.6 <https://github.com/docker/docker/releases/tag/v1.12.1>`_                   | `Per kubeadm Instructions <http://kubernetes.io/docs/getting-started-guides/kubeadm/>`_                      |
+  | **Docker**       | `v1.12.6 <https://github.com/docker/docker/releases/tag/v1.12.1>`_                   | `Per kubeadm Instructions <https://kubernetes.io/docs/getting-started-guides/kubeadm/>`_                     |
   +------------------+--------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------+
 
 Other versions and considerations (such as other CNI SDN providers),
