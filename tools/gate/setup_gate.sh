@@ -25,7 +25,7 @@ source ${WORK_DIR}/tools/gate/funcs/network.sh
 source ${WORK_DIR}/tools/gate/funcs/helm.sh
 
 # Setup the logging location: by default use the working dir as the root.
-export LOGS_DIR=${LOGS_DIR:-"${WORK_DIR}/logs/"}
+export LOGS_DIR=${LOGS_DIR:-"${WORK_DIR}/logs"}
 mkdir -p ${LOGS_DIR}
 
 function dump_logs () {
@@ -47,6 +47,14 @@ net_hosts_pre_kube
 helm_install
 helm_serve
 helm_lint
+
+# In the linter, we also run the helm template plugin to get a sanity check
+# of the chart without verifying against the k8s API
+if [ "x$INTEGRATION_TYPE" == "xlinter" ]; then
+  helm_build > ${LOGS_DIR}/helm_build
+  helm_plugin_template_install
+  helm_template_run
+fi
 
 # Setup the K8s Cluster
 if [ "x$INTEGRATION" == "xaio" ]; then
