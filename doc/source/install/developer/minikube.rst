@@ -121,7 +121,7 @@ Note which versions of Calico are recommended for the project in our
 
 ::
 
-    kubectl create -f http://docs.projectcalico.org/v2.0/getting-started/kubernetes/installation/hosted/calico.yaml
+    kubectl create -f http://docs.projectcalico.org/v2.1/getting-started/kubernetes/installation/hosted/calico.yaml
 
 Wait for the environment to come up without error (like shown below).
 

@@ -78,8 +78,8 @@ Deploying a CNI-Enabled SDN (Calico)
 After an initial ``kubeadmn`` deployment has been scheduled, it is time
 to deploy a CNI-enabled SDN. We have selected **Calico**, but have also
 confirmed that this works for Weave, and Romana. For Calico version
-v2.0, you can apply the provided `Kubeadm Hosted
-Install <http://docs.projectcalico.org/v2.0/getting-started/kubernetes/installation/hosted/kubeadm/>`_
+v2.1, you can apply the provided `Kubeadm Hosted
+Install <http://docs.projectcalico.org/v2.1/getting-started/kubernetes/installation/hosted/kubeadm/>`_
 manifest:
 
 ::
@@ -87,17 +87,6 @@ manifest:
     kubectl create -f http://docs.projectcalico.org/v2.1/getting-started/kubernetes/installation/hosted/kubeadm/1.6/calico.yaml
 
 .. note::
-
-    For Calico deployments using v2.0, if you are using a 192.168.0.0/16
-    CIDR for your Kubernetes hosts, you will need to modify `line 42
-    <https://gist.github.com/v1k0d3n/a152b1f5b8db5a8ae9c8c7da575a9694#file-calico-kubeadm-hosted-yml-L42>`__
-    for the ``cidr`` declaration within the ``ippool``. This must be a
-    ``/16`` range or more, as the ``kube-controller`` will hand out ``/24``
-    ranges to each node. We have included a sample comparison of the changes
-    `here <http://docs.projectcalico.org/v2.0/getting-started/kubernetes/installation/hosted/kubeadm/calico.yaml>`__
-    and
-    `here <https://gist.githubusercontent.com/v1k0d3n/a152b1f5b8db5a8ae9c8c7da575a9694/raw/c950eef1123a7dcc4b0dedca1a202e0c06248e9e/calico-kubeadm-hosted.yml>`__.
-    This is not applicable for Calico v2.1.
 
     After the container CNI-SDN is deployed, Calico has a tool you can use
     to verify your deployment. You can download this tool,
@@ -125,7 +114,7 @@ manifest:
         admin@kubenode01:~$
 
     It is important to call out that the Self Hosted Calico manifest for
-    v2.0 (above) supports ``nodetonode`` mesh, and ``nat-outgoing`` by
+    v2.1 (above) supports ``nodetonode`` mesh, and ``nat-outgoing`` by
     default. This is a change from version 1.6.
 
 Setting Up RBAC
