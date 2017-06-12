@@ -56,12 +56,6 @@ spec:
               memory: {{ .Values.resources.nova_api_metadata.limits.memory | quote }}
               cpu: {{ .Values.resources.nova_api_metadata.limits.cpu | quote }}
           {{- end }}
-          # NOTE(portdirect): NET_ADMIN is needed as the api-metadata service
-          # expects to run some iptables commands, even when neutron is used.
-          securityContext:
-            capabilities:
-              add:
-                - NET_ADMIN
           command:
             - bash
             - /tmp/nova-api-metadata.sh
@@ -83,6 +77,18 @@ spec:
               mountPath: /tmp/nova-api-metadata.sh
               subPath: nova-api-metadata.sh
               readOnly: true
+            - name: nova-bin
+              mountPath: /sbin/iptables
+              subPath: fake-iptables.sh
+              readOnly: true
+            - name: nova-bin
+              mountPath: /sbin/iptables-restore
+              subPath: fake-iptables.sh
+              readOnly: true
+            - name: nova-bin
+              mountPath: /sbin/iptables-save
+              subPath: fake-iptables.sh
+              readOnly: true
             - name: nova-etc
               mountPath: /etc/nova/nova.conf
               subPath: nova.conf
@@ -96,6 +102,7 @@ spec:
         - name: nova-bin
           configMap:
             name: nova-bin
+            defaultMode: 0555
         - name: nova-etc
           configMap:
             name: nova-etc
