@@ -85,11 +85,8 @@ function helm_test_deployment {
 function helm_plugin_template_install {
   # NOTE(portdirect): the helm plugin install command does not seem to respect the --version flag with helm 2.3.0
   #helm plugin install https://github.com/technosophos/helm-template --version 2.3.0.1
-  TMP_DIR=$(mktemp -d)
-  curl -sSL https://github.com/technosophos/helm-template/releases/download/2.3.0%2B1/helm-template-linux-2.3.0.1.tgz | tar -zxv -C ${TMP_DIR}
-  mkdir -p ${HOME}/.helm/plugins/
-  mv ${TMP_DIR}/ ${HOME}/.helm/plugins/helm-template
-  rm -rf ${TMP_DIR}
+  mkdir -p ${HOME}/.helm/plugins/helm-template
+  curl -sSL https://github.com/technosophos/helm-template/releases/download/2.3.0%2B1/helm-template-linux-2.3.0.1.tgz | tar -zxv -C ${HOME}/.helm/plugins/helm-template
 }
 
 function helm_template_run {
