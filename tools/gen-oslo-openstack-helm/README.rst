@@ -6,7 +6,8 @@ Oslo Config Generator Hack to Generate Helm Configs
 Usage
 -----
 
-From this directory run the following commands, adjusting for the
+From the tools/gen-oslo-openstack-helm directory 
+run the following commands, adjusting for the
 OpenStack project and/or branch desired as necessary.
 
 .. code:: bash

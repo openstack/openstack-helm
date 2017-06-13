@@ -11,26 +11,20 @@ Developer Mode
 
     helm install local/chart --set development.enabled=true
 
-The development mode flag should be available on all charts. Enabling
-this reduces dependencies that the chart may have on persistent volume
-claims (which are difficult to support in a laptop minikube environment)
-as well as reducing replica counts or resiliency features to support a
-minimal environment.
+The development mode flag should be used by any charts that should
+behave differently on a developer's laptop than in a production-like deployment,
+or have resources that would be difficult to spin up in a small environment.
 
-The glance chart for instance defines the following ``development:``
-overrides:
+A chart could for instance define the following ``development:``
+override to set ``foo`` to ``bar`` in a dev environment, which
+would be triggered by setting the ``enabled`` flag to ``true``.
 
 ::
 
     development:
       enabled: false
-      storage_path: /var/lib/localkube/openstack-helm/glance/images
+      foo: bar
 
-The ``enabled`` flag allows the developer to enable development mode.
-The storage path allows the operator to store glance images in a
-hostPath instead of leveraging a ceph backend, which again, is difficult
-to spin up in a small laptop minikube environment. The host path can be
-overriden by the operator if desired.
 
 Resources
 ~~~~~~~~~
