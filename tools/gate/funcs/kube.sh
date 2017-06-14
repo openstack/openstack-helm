@@ -72,7 +72,6 @@ function kube_wait_for_nodes {
 }
 
 function kubeadm_aio_reqs_install {
-  TMP_DIR=$(mktemp -d)
   if [ "x$HOST_OS" == "xubuntu" ]; then
     sudo apt-get update -y
     sudo apt-get install -y --no-install-recommends -qq \
@@ -108,11 +107,16 @@ function kubeadm_aio_reqs_install {
     sudo systemctl restart docker
   fi
 
-  curl -sSL https://storage.googleapis.com/kubernetes-release/release/${KUBE_VERSION}/bin/linux/amd64/kubectl -o ${TMP_DIR}/kubectl
-  chmod +x ${TMP_DIR}/kubectl
-  sudo mv ${TMP_DIR}/kubectl /usr/local/bin/kubectl
+  if CURRENT_KUBECTL_LOC=$(type -p kubectl); then
+    CURRENT_KUBECTL_VERSION=$(${CURRENT_KUBECTL_LOC} version --client --short | awk '{ print $NF }' | awk -F '+' '{ print $1 }')
+  fi
+  [ "x$KUBE_VERSION" == "x$CURRENT_KUBECTL_VERSION" ] || ( \
+    TMP_DIR=$(mktemp -d)
+    curl -sSL https://storage.googleapis.com/kubernetes-release/release/${KUBE_VERSION}/bin/linux/amd64/kubectl -o ${TMP_DIR}/kubectl
+    chmod +x ${TMP_DIR}/kubectl
+    sudo mv ${TMP_DIR}/kubectl /usr/local/bin/kubectl
+    rm -rf ${TMP_DIR} )
 
-  rm -rf ${TMP_DIR}
 }
 
 function kubeadm_aio_build {

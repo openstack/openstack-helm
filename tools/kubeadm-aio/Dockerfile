@@ -60,6 +60,7 @@ RUN set -x \
         make \
         git \
         vim \
+        jq \
 # Install nfs utils for development PVC provisioner
         nfs-common \
 # Tweak Systemd units and targets for running in a container
