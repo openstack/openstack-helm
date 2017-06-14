@@ -1,5 +1,12 @@
 #!/bin/bash
 set +xe
+
+# if we can't find kubectl, bail immediately because it is likely
+# the whitespace linter fails -  no point to collect logs.
+if ! type "kubectl" &> /dev/null; then
+  exit $1
+fi
+
 echo "Capturing logs from environment."
 
 mkdir -p ${LOGS_DIR}/k8s/etc
