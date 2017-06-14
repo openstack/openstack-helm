@@ -57,7 +57,7 @@ repo run:
 
 .. code:: bash
 
-    export KUBEADM_IMAGE=openstackhelm/kubeadm-aio:v1.6.4
+    export KUBEADM_IMAGE=openstackhelm/kubeadm-aio:v1.6.5
     sudo docker build --pull -t ${KUBEADM_IMAGE} tools/kubeadm-aio
 
 Deploy the AIO environment

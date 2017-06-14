@@ -12,7 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+{{- if empty .Values.conf.ceph.config.global.mon_host -}}
+{{- $monHost := tuple "ceph_mon" "internal" . | include "helm-toolkit.endpoints.hostname_endpoint_lookup" }}
+{{- $monHostDomain := default .Release.Namespace .Values.ceph.namespace }}
+{{- $monHostURI := cat $monHost "." $monHostDomain | nospace -}}
+{{- $monHostURI |  set .Values.conf.ceph.config.global "mon_host" | quote | trunc 0 -}}
+{{- end -}}
+
+---
 apiVersion: v1
-description: OpenStack-Helm namespace bootstrap
-name: bootstrap
-version: 0.1.0
+kind: ConfigMap
+metadata:
+  name: ceph-etc
+data:
+  ceph.conf: |+
+{{ tuple "etc/_ceph.conf.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}

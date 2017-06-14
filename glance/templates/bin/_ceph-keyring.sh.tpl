@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # Copyright 2017 The Openstack-Helm Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,21 +14,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: "pvc-ceph-conf-combined-storageclass"
-type: kubernetes.io/rbd
-data:
-  key: |
-{{ include "secrets/ceph-client-key" . | b64enc | indent 4 }}
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: "pvc-ceph-client-key"
-type: kubernetes.io/rbd
-data:
-  key: |
-{{ include "secrets/ceph-client-key" . | b64enc | indent 4 }}
+set -ex
+export HOME=/tmp
+
+cat <<EOF > /etc/ceph/ceph.client.{{ .Values.conf.glance.glance_store.glance.store.rbd_store_user }}.keyring
+[client.{{ .Values.conf.glance.glance_store.glance.store.rbd_store_user }}]
+{{- if .Values.conf.ceph.keyring }}
+    key = {{ .Values.conf.ceph.keyring }}
+{{- else }}
+    key = $(cat /tmp/client-keyring)
+{{- end }}
+EOF
+
+exit 0

@@ -31,6 +31,7 @@ cat /etc/nodepool/sub_nodes_private | while read SUB_NODE; do
     export KUBEADM_TOKEN=${KUBEADM_TOKEN}; \
     export PRIMARY_NODE_IP=${PRIMARY_NODE_IP}; \
     export KUBEADM_IMAGE=${KUBEADM_IMAGE}; \
+    export PVC_BACKEND=${PVC_BACKEND}; \
     bash ${WORK_DIR}/tools/gate/provision_gate_worker_node.sh"
 EOS
 done

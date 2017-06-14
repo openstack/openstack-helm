@@ -61,8 +61,9 @@ RUN set -x \
         git \
         vim \
         jq \
-# Install nfs utils for development PVC provisioner
+# Install utils for PVC provisioners
         nfs-common \
+        ceph-common \
 # Tweak Systemd units and targets for running in a container
     && find /lib/systemd/system/sysinit.target.wants/ ! -name 'systemd-tmpfiles-setup.service' -type l -exec rm -fv {} + \
     && rm -fv \

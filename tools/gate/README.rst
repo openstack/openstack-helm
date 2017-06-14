@@ -17,6 +17,7 @@ integration test is below:
 
     export INTEGRATION=aio
     export INTEGRATION_TYPE=basic
+    export PVC_BACKEND=ceph
     ./tools/gate/setup_gate.sh
 
 Supported Platforms

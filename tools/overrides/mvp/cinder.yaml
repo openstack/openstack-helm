@@ -12,29 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-apiVersion: v1
-kind: Pod
-metadata:
-  name: ceph-rbd-test
-spec:
-  containers:
-  - name: cephrbd-rw
-    image: busybox
-    command:
-    - sh
-    - -c
-    - while true; do sleep 1; done
-    volumeMounts:
-    - mountPath: "/mnt/cephrbd"
-      name: cephrbd
-  volumes:
-  - name: cephrbd
-    rbd:
-      monitors:
-#This only works if you have skyDNS resolveable from the kubernetes node. Otherwise you must manually put in one or more mon pod ips.
-      - ceph-mon.ceph:6789
-      user: admin
-      image: ceph-rbd-test
-      pool: rbd
-      secretRef:
-        name: ceph-client-key
+# MVP values for glance.
+# This file contains overrides to launch a MVP deployment of glance for the
+# OpenStack-Helm Single node gates, and local development use. It should be
+# kept to the bare minimum required for this purpose.
+
+storage: "gate"
+
+conf:
+  cinder:
+    default:
+      cinder:
+        backup_driver: "cinder.backup.drivers.nfs"
+  backends:
+    rbd1:
+      volume_driver: "cinder.volume.drivers.nfs.NfsDriver"
+

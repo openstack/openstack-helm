@@ -13,14 +13,41 @@
 # limitations under the License.
 
 ---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  labels:
+    version: v0.1.0
+    test: ceph
+  name: ceph-test-job
+spec:
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: test
+          image: docker.io/alpine:latest
+          imagePullPolicy: Always
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              echo "Ceph PVC Mount Test Passed"
+          volumeMounts:
+            - name: ceph-mount
+              mountPath: /mnt/ceph
+      volumes:
+        - name: ceph-mount
+          persistentVolumeClaim:
+            claimName: ceph-test
+---
 kind: PersistentVolumeClaim
 apiVersion: v1
 metadata:
-  name: pvc-test
+  name: ceph-test
 spec:
-  accessModes:
-    - ReadWriteOnce
+  storageClassName: general
+  accessModes: [ "ReadWriteOnce" ]
   resources:
     requests:
       storage: 1Gi
-  storageClassName: general

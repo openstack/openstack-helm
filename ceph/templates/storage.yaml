@@ -12,8 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# note that these secrets are handled by the common chart, not the ceph
-# chart, as we likely want them "everywhere"
+{{- if .Values.manifests_enabled.deployment }}
 ---
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
@@ -21,12 +20,11 @@ metadata:
     name: {{ .Values.storageclass.name }}
 provisioner: kubernetes.io/rbd
 parameters:
-    monitors: {{ .Values.storageclass.monitors | default "ceph-mon.ceph:6789" }}
+    monitors: {{ tuple "ceph_mon" "internal" "mon" . | include "helm-toolkit.endpoints.hostname_endpoint_uri_lookup" }}
     adminId: {{ .Values.storageclass.admin_id }}
     adminSecretName: {{ .Values.storageclass.admin_secret_name }}
-    # forcing namespace due to issue with default pipeline of "{{ .Release.Namespace }}" }}
-    # during helm lint
-    adminSecretNamespace: {{ .Values.storageclass.admin_secret_namespace | default "ceph" }}
+    adminSecretNamespace: {{ .Values.storageclass.admin_secret_namespace }}
     pool: {{ .Values.storageclass.pool }}
     userId: {{ .Values.storageclass.user_id }}
     userSecretName: {{ .Values.storageclass.user_secret_name }}
+{{- end }}

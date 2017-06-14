@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # Copyright 2017 The Openstack-Helm Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,9 +14,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-[client.{{ .Values.conf.glance.glance_store.glance.store.rbd_store_user }}]
-{{- if .Values.conf.ceph.keyring }}
-    key = {{ .Values.conf.ceph.keyring }}
+set -ex
+export HOME=/tmp
+
+cat <<EOF > /etc/ceph/ceph.client.keyring
+[client.{{ .Values.ceph.cinder_user }}]
+{{- if .Values.ceph.cinder_keyring }}
+    key = {{ .Values.ceph.cinder_keyring }}
 {{- else }}
-    key = {{- include "secrets/ceph-client-key" . -}}
+    key = $(cat /tmp/client-keyring)
 {{- end }}
+EOF
+
+exit 0

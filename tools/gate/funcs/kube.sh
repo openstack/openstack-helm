@@ -130,3 +130,9 @@ function kubeadm_aio_launch {
   kube_wait_for_pods kube-system 240
   kube_wait_for_pods default 240
 }
+
+function ceph_kube_controller_manager_replace {
+  sudo docker pull ${CEPH_KUBE_CONTROLLER_MANAGER_IMAGE}
+  IMAGE_ID=$(sudo docker images ${CEPH_KUBE_CONTROLLER_MANAGER_IMAGE} -q)
+  sudo docker tag ${IMAGE_ID} ${BASE_KUBE_CONTROLLER_MANAGER_IMAGE}
+}

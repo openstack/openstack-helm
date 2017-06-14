@@ -12,7 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-{{- if .Values.rgw.enabled }}
+{{- if .Values.manifests_enabled.deployment }}
+{{- if .Values.ceph.enabled.rgw }}
+{{- $envAll := . }}
+{{- $dependencies := .Values.dependencies.rgw }}
 ---
 kind: Deployment
 apiVersion: apps/v1beta1
@@ -32,24 +35,22 @@ spec:
     spec:
       nodeSelector:
         {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
+              initContainers:
+{{ tuple $envAll $dependencies "" | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       serviceAccount: default
-      volumes:
-        - name: ceph-conf
-          secret:
-            secretName: ceph-conf-combined
-        - name: ceph-bootstrap-osd-keyring
-          secret:
-            secretName: ceph-bootstrap-osd-keyring
-        - name: ceph-bootstrap-mds-keyring
-          secret:
-            secretName: ceph-bootstrap-mds-keyring
-        - name: ceph-bootstrap-rgw-keyring
-          secret:
-            secretName: ceph-bootstrap-rgw-keyring
       containers:
         - name: ceph-rgw
           image: {{ .Values.images.daemon }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
+          {{- if .Values.resources.enabled }}
+          resources:
+            requests:
+              memory: {{ .Values.resources.rgw.requests.memory | quote }}
+              cpu: {{ .Values.resources.rgw.requests.cpu | quote }}
+            limits:
+              memory: {{ .Values.resources.rgw.limits.memory | quote }}
+              cpu: {{ .Values.resources.rgw.limits.cpu | quote }}
+          {{- end }}
           ports:
             - containerPort: {{ .Values.network.port.rgw_target }}
           env:
@@ -61,15 +62,33 @@ spec:
               value: k8s
             - name: CLUSTER
               value: ceph
+          command:
+            - /entrypoint.sh
           volumeMounts:
-            - name: ceph-conf
-              mountPath: /etc/ceph
+            - name: ceph-etc
+              mountPath: /etc/ceph/ceph.conf
+              subPath: ceph.conf
+              readOnly: true
+            - name: ceph-client-admin-keyring
+              mountPath: /etc/ceph/ceph.client.admin.keyring
+              subPath: ceph.client.admin.keyring
+              readOnly: true
+            - name: ceph-mon-keyring
+              mountPath: /etc/ceph/ceph.mon.keyring
+              subPath: ceph.mon.keyring
+              readOnly: true
             - name: ceph-bootstrap-osd-keyring
-              mountPath: /var/lib/ceph/bootstrap-osd
+              mountPath: /var/lib/ceph/bootstrap-osd/ceph.keyring
+              subPath: ceph.keyring
+              readOnly: false
             - name: ceph-bootstrap-mds-keyring
-              mountPath: /var/lib/ceph/bootstrap-mds
+              mountPath: /var/lib/ceph/bootstrap-mds/ceph.keyring
+              subPath: ceph.keyring
+              readOnly: false
             - name: ceph-bootstrap-rgw-keyring
-              mountPath: /var/lib/ceph/bootstrap-rgw
+              mountPath: /var/lib/ceph/bootstrap-rgw/ceph.keyring
+              subPath: ceph.keyring
+              readOnly: false
           livenessProbe:
               httpGet:
                 path: /
@@ -81,11 +100,24 @@ spec:
                 path: /
                 port: {{ .Values.network.port.rgw_target }}
               timeoutSeconds: 5
-          resources:
-            requests:
-              memory: {{ .Values.resources.rgw.requests.memory | quote }}
-              cpu: {{ .Values.resources.rgw.requests.cpu | quote }}
-            limits:
-              memory: {{ .Values.resources.rgw.limits.memory | quote }}
-              cpu: {{ .Values.resources.rgw.limits.cpu | quote }}
+      volumes:
+        - name: ceph-etc
+          configMap:
+            name: ceph-etc
+        - name: ceph-client-admin-keyring
+          secret:
+            secretName: {{ .Values.secrets.keyrings.admin }}
+        - name: ceph-mon-keyring
+          secret:
+            secretName: {{ .Values.secrets.keyrings.mon }}
+        - name: ceph-bootstrap-osd-keyring
+          secret:
+            secretName: {{ .Values.secrets.keyrings.osd }}
+        - name: ceph-bootstrap-mds-keyring
+          secret:
+            secretName: {{ .Values.secrets.keyrings.mds }}
+        - name: ceph-bootstrap-rgw-keyring
+          secret:
+            secretName: {{ .Values.secrets.keyrings.rgw }}
+{{- end }}
 {{- end }}

@@ -39,6 +39,23 @@ spec:
       dnsPolicy: ClusterFirst
       initContainers:
 {{ tuple $envAll $dependencies $mounts_nova_compute_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+        {{- if .Values.ceph.enabled }}
+        - name: ceph-keyring-placement
+          image: {{ .Values.images.compute }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+          command:
+            - /tmp/ceph-keyring.sh
+          volumeMounts:
+            - name: etcceph
+              mountPath: /etc/ceph
+            - name: nova-bin
+              mountPath: /tmp/ceph-keyring.sh
+              subPath: ceph-keyring.sh
+            - name: ceph-keyring
+              mountPath: /tmp/client-keyring
+              subPath: key
+              readOnly: true
+        {{ end }}
       containers:
         - name: nova-compute
           image: {{ .Values.images.compute }}
@@ -77,14 +94,18 @@ spec:
               mountPath: /etc/resolv.conf
               subPath: resolv.conf
               readOnly: true
-            - name: nova-etc
+            {{- if .Values.ceph.enabled }}
+            - name: etcceph
+              mountPath: /etc/ceph
+            - name: ceph-etc
               mountPath: /etc/ceph/ceph.conf
               subPath: ceph.conf
               readOnly: true
-            - name: nova-etc
-              mountPath: /etc/ceph/ceph.client.keyring
-              subPath: ceph.client.keyring
+            - name: ceph-keyring
+              mountPath: /tmp/client-keyring
+              subPath: key
               readOnly: true
+            {{ end }}
             - mountPath: /lib/modules
               name: libmodules
               readOnly: true
@@ -105,6 +126,16 @@ spec:
         - name: nova-etc
           configMap:
             name: nova-etc
+        {{- if .Values.ceph.enabled }}
+        - name: etcceph
+          emptyDir: {}
+        - name: ceph-etc
+          configMap:
+            name: ceph-etc
+        - name: ceph-keyring
+          secret:
+            secretName: pvc-ceph-client-key
+        {{ end }}
         - name: libmodules
           hostPath:
             path: /lib/modules

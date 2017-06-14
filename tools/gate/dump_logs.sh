@@ -53,6 +53,15 @@ kubectl get svc -o json --all-namespaces | jq -r \
     ${LOGS_DIR}/k8s/svc/$NAMESPACE-$NAME.txt
 done
 
+mkdir -p ${LOGS_DIR}/k8s/pvc
+kubectl get pvc -o json --all-namespaces | jq -r \
+  '.items[].metadata | .namespace + " " + .name' | while read line; do
+  NAMESPACE=$(echo $line | awk '{print $1}')
+  NAME=$(echo $line | awk '{print $2}')
+  kubectl describe pvc $NAME --namespace $NAMESPACE > \
+    ${LOGS_DIR}/k8s/pvc/$NAMESPACE-$NAME.txt
+done
+
 mkdir -p ${LOGS_DIR}/k8s/rbac
 for OBJECT_TYPE in clusterroles \
                    roles \
@@ -76,5 +85,6 @@ sudo iptables-save > ${LOGS_DIR}/nodes/$(hostname)/iptables.txt
 sudo ip a > ${LOGS_DIR}/nodes/$(hostname)/ip.txt
 sudo route -n > ${LOGS_DIR}/nodes/$(hostname)/routes.txt
 arp -a > ${LOGS_DIR}/nodes/$(hostname)/arp.txt
+cat /etc/resolv.conf > ${LOGS_DIR}/nodes/$(hostname)/resolv.conf
 
 exit $1

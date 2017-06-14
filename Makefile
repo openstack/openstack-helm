@@ -15,8 +15,8 @@
 HELM = helm
 TASK = build
 
-CHARTS = helm-toolkit bootstrap ceph mariadb etcd rabbitmq memcached
-CHARTS += keystone glance cinder horizon neutron nova heat
+CHARTS = helm-toolkit ceph mariadb etcd rabbitmq
+CHARTS += memcached keystone glance cinder horizon neutron nova heat
 CHARTS += barbican mistral senlin magnum ingress
 
 all: $(CHARTS)

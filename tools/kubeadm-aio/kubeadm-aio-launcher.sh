@@ -33,6 +33,7 @@ sudo rm -rfv \
     /run/openvswitch \
     /var/lib/nova \
     ${HOME}/.kubeadm-aio/admin.conf \
+    /var/lib/openstack-helm \
     /var/lib/nfs-provisioner || true
 
 # Launch Container

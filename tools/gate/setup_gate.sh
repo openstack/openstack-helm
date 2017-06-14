@@ -13,10 +13,12 @@
 # limitations under the License.
 set -ex
 
-export HELM_VERSION=${2:-v2.3.1}
+export HELM_VERSION=${2:-v2.4.1}
 export KUBE_VERSION=${3:-v1.6.5}
 export KUBECONFIG=${HOME}/.kubeadm-aio/admin.conf
-export KUBEADM_IMAGE=openstackhelm/kubeadm-aio:${KUBE_VERSION}
+export KUBEADM_IMAGE=openstackhelm/kubeadm-aio:${KUBE_VERSION}-ceph
+export BASE_KUBE_CONTROLLER_MANAGER_IMAGE=gcr.io/google_containers/kube-controller-manager-amd64:${KUBE_VERSION}
+export CEPH_KUBE_CONTROLLER_MANAGER_IMAGE=quay.io/attcomdev/kube-controller-manager:${KUBE_VERSION}
 
 export WORK_DIR=$(pwd)
 source /etc/os-release
@@ -24,6 +26,7 @@ export HOST_OS=${ID}
 source ${WORK_DIR}/tools/gate/funcs/common.sh
 source ${WORK_DIR}/tools/gate/funcs/network.sh
 source ${WORK_DIR}/tools/gate/funcs/helm.sh
+export PVC_BACKEND=ceph
 
 # Setup the logging location: by default use the working dir as the root.
 export LOGS_DIR=${LOGS_DIR:-"${WORK_DIR}/logs"}
@@ -34,12 +37,15 @@ function dump_logs () {
 }
 trap 'dump_logs "$?"' ERR
 
-# Install base requirements
-base_install
-
 # Moving the ws-linter here to avoid it blocking all the jobs just for ws
 if [ "x$INTEGRATION_TYPE" == "xlinter" ]; then
   bash ${WORK_DIR}/tools/gate/whitespace.sh
+fi
+
+# Install base requirements
+base_install
+if [ "x$PVC_BACKEND" == "xceph" ]; then
+  ceph_support_install
 fi
 
 # We setup the network for pre kube here, to enable cluster restarts on

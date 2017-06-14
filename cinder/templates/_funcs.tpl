@@ -12,12 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-{{- define "cinder.is_ceph_configured" -}}
+{{- define "cinder.is_ceph_volume_configured" -}}
 {{- range $section, $values := .Values.conf.backends -}}
 {{- if kindIs "map" $values -}}
 {{- if eq $values.volume_driver "cinder.volume.drivers.rbd.RBDDriver" -}}
 true
 {{- end -}}
 {{- end -}}
+{{- end -}}
+{{- end -}}
+
+{{- define "cinder.is_ceph_backup_configured" -}}
+{{- $values := .Values.conf.cinder.default.cinder -}}
+{{- if eq $values.backup_driver "cinder.backup.drivers.ceph" -}}
+true
 {{- end -}}
 {{- end -}}

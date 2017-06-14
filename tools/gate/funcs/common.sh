@@ -29,3 +29,17 @@ function base_install {
       iptables
   fi
 }
+
+function ceph_support_install {
+  if [ "x$HOST_OS" == "xubuntu" ]; then
+    sudo apt-get update -y
+    sudo apt-get install -y --no-install-recommends -qq \
+      ceph-common
+  elif [ "x$HOST_OS" == "xcentos" ]; then
+    sudo yum install -y \
+      ceph
+  elif [ "x$HOST_OS" == "xfedora" ]; then
+    sudo dnf install -y \
+      ceph
+  fi
+}

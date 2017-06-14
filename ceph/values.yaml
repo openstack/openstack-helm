@@ -12,6 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+manifests_enabled:
+  storage_secrets: true
+  client_secrets: true
+  deployment: true
+
 replicas:
   mon: 3
   rgw: 3
@@ -22,8 +27,10 @@ service:
     name: ceph-mon
 
 images:
-  daemon: docker.io/library/ceph/daemon:tag-build-master-jewel-ubuntu-16.04
-  pull_policy: IfNotPresent
+  dep_check: docker.io/kolla/ubuntu-source-kubernetes-entrypoint:4.0.0
+  daemon: quay.io/attcomdev/ceph-daemon:tag-build-master-jewel-ubuntu-16.04
+  ceph_config_helper: docker.io/port/ceph-config-helper:v1.6.5
+  pull_policy: Always
 
 labels:
   node_selector_key: ceph-storage
@@ -33,23 +40,125 @@ pod_disruption_budget:
   mon:
     min_available: 0
 
+secrets:
+  keyrings:
+    mon: ceph-mon-keyring
+    mds: ceph-bootstrap-mds-keyring
+    osd: ceph-bootstrap-osd-keyring
+    rgw: ceph-bootstrap-rgw-keyring
+    admin: ceph-client-admin-keyring
+
 network:
-  public: "10.25.0.0/16"
+  public: "192.168.0.0/16"
+  cluster: "192.168.0.0/16"
   port:
     mon: 6789
     rgw_ingress: 80
     rgw_target: 8088
 
-storage:
-  osd_directory: /var/lib/openstack-helm/ceph/osd
-  var_directory: /var/lib/openstack-helm/ceph/ceph
-  mon_directory: /var/lib/openstack-helm/ceph/mon
+conf:
+  ceph:
+    override:
+    append:
+    config:
+      global:
+        # auth
+        cephx: true
+        cephx_require_signatures: false
+        cephx_cluster_require_signatures: true
+        cephx_service_require_signatures: false
+
+        max_open_files: 131072
+        osd_pool_default_pg_num: 128
+        osd_pool_default_pgp_num: 128
+        osd_pool_default_size: 3
+        osd_pool_default_min_size: 1
+        mon_osd_full_ratio: .95
+        mon_osd_nearfull_ratio: .85
+        mon_host: null
+      mon:
+        mon_osd_down_out_interval: 600
+        mon_osd_min_down_reporters: 4
+        mon_clock_drift_allowed: .15
+        mon_clock_drift_warn_backoff: 30
+        mon_osd_report_timeout: 300
+      osd:
+        journal_size: 100
+        osd_mkfs_type: xfs
+        osd_mkfs_options_xfs: -f -i size=2048
+        osd_mon_heartbeat_interval: 30
+        osd_max_object_name_len: 256
+        #crush
+        osd_pool_default_crush_rule: 0
+        osd_crush_update_on_start: true
+        #backend
+        osd_objectstore: filestore
+        #performance tuning
+        filestore_merge_threshold: 40
+        filestore_split_multiple: 8
+        osd_op_threads: 8
+        filestore_op_threads: 8
+        filestore_max_sync_interval: 5
+        osd_max_scrubs: 1
+        #recovery tuning
+        osd_recovery_max_active: 5
+        osd_max_backfills: 2
+        osd_recovery_op_priority: 2
+        osd_client_op_priority: 63
+        osd_recovery_max_chunk: 1048576
+        osd_recovery_threads: 1
+        #ports
+        ms_bind_port_min: 6800
+        ms_bind_port_max: 7100
+      client:
+        rbd_cache_enabled: true
+        rbd_cache_writethrough_until_flush: true
+        rbd_default_features: "1"
+      mds:
+        mds_cache_size: 100000
+
+
+dependencies:
+  mon:
+    jobs:
+    service:
+  osd:
+    jobs:
+    services:
+    - service: ceph_mon
+      endpoint: internal
+  moncheck:
+    jobs:
+    services:
+    - service: ceph_mon
+      endpoint: internal
+  rgw:
+    jobs:
+    services:
+    - service: ceph_mon
+      endpoint: internal
+  mds:
+    jobs:
+    services:
+    - service: ceph_mon
+      endpoint: internal
+
+
+ceph:
+  enabled:
+    mds: true
+    rgw: false
+  storage:
+    osd_directory: /var/lib/openstack-helm/ceph/osd
+    var_directory: /var/lib/openstack-helm/ceph/ceph
+    mon_directory: /var/lib/openstack-helm/ceph/mon
 
 # rgw is optionally disabled
 rgw:
   enabled: false
 
 resources:
+  enabled: false
   osd:
     requests:
       memory: "512Mi"
@@ -85,36 +194,14 @@ resources:
     limits:
       memory: "50Mi"
       cpu: "500m"
-
-# Setting this to false will assume you will
-# setup and orchestrate your own secrets and
-# configmaps outside of this helm chart
-#
-# The list below is in the format of
-#
-#   configMapName:
-#      elementKeyName
-#
-#   ceph.conf:
-#      ceph.conf
-#      ceph.client.admin.keyring
-#      ceph.client.admin.keyring
-#   ceph.mon.keyring:
-#      ceph.mon.keyring
-#   ceph-bootstrap-rgw-keyring:
-#      ceph.keyring
-#      ceph.rgw.keyring
-#   ceph-bootstrap-mds-keyring:
-#      ceph.keyring
-#      ceph.mds.keyring
-#   ceph-bootstrap-osd-keyring:
-#      ceph.keyring
-#      ceph.osd.keyring
-#   ceph-client-key:
-#      ceph-client-key
-secrets:
-  use_common_secrets: true
-
+  jobs:
+    secret_provisioning:
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+      requests:
+        memory: "128Mi"
+        cpu: "500m"
 # if you change provision_storage_class to false
 # it is presumed you manage your own storage
 # class definition externally
@@ -125,6 +212,13 @@ storageclass:
   pool: rbd
   admin_id: admin
   admin_secret_name: pvc-ceph-conf-combined-storageclass
-  admin_secret_namespace: null
+  admin_secret_namespace: ceph
   user_id: admin
   user_secret_name: pvc-ceph-client-key
+
+endpoints:
+  ceph_mon:
+    hosts:
+      default: ceph-mon
+    port:
+      mon: 6789

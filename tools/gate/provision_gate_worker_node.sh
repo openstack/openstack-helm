@@ -37,7 +37,14 @@ sudo rm -rfv \
     /var/lib/etcd \
     /var/etcd \
     /var/lib/kubelet/* \
+    /var/lib/nova \
+    /var/lib/openstack-helm \
     /run/openvswitch || true
+
+# Load ceph kernel module if required
+if [ "x$PVC_BACKEND" == "xceph" ]; then
+  sudo modprobe rbd
+fi
 
 # Launch Container
 sudo docker run \

@@ -11,24 +11,21 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-{{- if .Values.manifests_enabled.deployment }}
-{{- if .Values.ceph.enabled.rgw }}
 ---
 apiVersion: v1
-kind: Service
+kind: ConfigMap
 metadata:
-  name: ceph-rgw
-  labels:
-    app: ceph
-    daemon: rgw
-spec:
-  ports:
-  - port: {{ .Values.network.port.rgw_ingress }}
-    protocol: TCP
-    targetPort: {{ .Values.network.port.rgw_target }}
-  selector:
-    app: ceph
-    daemon: rgw
+  name: ceph-bin
+data:
+{{- if .Values.manifests_enabled.storage_secrets }}
+  ceph-key.py: |+
+{{ tuple "bin/_ceph-key.py.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
+  ceph-key.sh: |+
+{{ tuple "bin/_ceph-key.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
+  ceph-storage-key.sh: |+
+{{ tuple "bin/_ceph-storage-key.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
 {{- end }}
+{{- if .Values.manifests_enabled.client_secrets }}
+  ceph-namespace-client-key.sh: |+
+{{ tuple "bin/_ceph-namespace-client-key.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
 {{- end }}
