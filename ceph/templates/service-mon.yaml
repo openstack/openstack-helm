@@ -13,14 +13,12 @@
 # limitations under the License.
 
 {{- if .Values.manifests_enabled.deployment }}
+{{- $envAll := . }}
 ---
 kind: Service
 apiVersion: v1
 metadata:
   name: {{ .Values.endpoints.ceph_mon.hosts.default }}
-  labels:
-    app: ceph
-    daemon: mon
   annotations:
     # In kubernetes 1.6 and beyond, it seems there was a change in behavior
     # requiring us to tolerate unready endpoints to form a quorum.  I can only
@@ -35,7 +33,6 @@ spec:
     protocol: TCP
     targetPort: {{ .Values.network.port.mon }}
   selector:
-    app: ceph
-    daemon: mon
+{{ tuple $envAll "ceph" "mon" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
   clusterIP: None
 {{- end }}

@@ -15,6 +15,7 @@ set -ex
 : ${WORK_DIR:="$(pwd)"}
 source ${WORK_DIR}/tools/gate/funcs/helm.sh
 source ${WORK_DIR}/tools/gate/funcs/kube.sh
+source ${WORK_DIR}/tools/gate/funcs/network.sh
 
 helm_build
 
@@ -33,7 +34,9 @@ helm install --namespace=openstack ${WORK_DIR}/dns-helper --name=dns-helper
 kube_wait_for_pods openstack 180
 
 if [ "x$PVC_BACKEND" == "xceph" ]; then
-  kubectl label nodes ceph-storage=enabled --all
+  kubectl label nodes ceph-mon=enabled --all
+  kubectl label nodes ceph-osd=enabled --all
+  kubectl label nodes ceph-mds=enabled --all
   CONTROLLER_MANAGER_POD=$(kubectl get -n kube-system pods -l component=kube-controller-manager --no-headers -o name | head -1 | awk -F '/' '{ print $NF }')
   kubectl exec -n kube-system ${CONTROLLER_MANAGER_POD} -- sh -c "cat > /etc/resolv.conf <<EOF
 nameserver 10.96.0.10
@@ -41,8 +44,10 @@ nameserver 8.8.8.8
 search cluster.local svc.cluster.local
 EOF"
 
-  export osd_cluster_network=192.168.0.0/16
-  export osd_public_network=192.168.0.0/16
+  SUBNET_RANGE=$(find_subnet_range)
+
+  export osd_cluster_network=${SUBNET_RANGE}
+  export osd_public_network=${SUBNET_RANGE}
 
   helm install --namespace=ceph ${WORK_DIR}/ceph --name=ceph \
     --set manifests_enabled.client_secrets=false \
@@ -52,7 +57,9 @@ EOF"
 
   kube_wait_for_pods ceph 600
 
-  kubectl exec -n ceph ceph-mon-0 -- ceph -s
+  MON_POD=$(kubectl get pods -l application=ceph -l component=mon -n ceph --no-headers | awk '{print $1}' | head -1)
+
+  kubectl exec -n ceph ${MON_POD} -- ceph -s
 
   helm install --namespace=openstack ${WORK_DIR}/ceph --name=ceph-openstack-config \
     --set manifests_enabled.storage_secrets=false \
@@ -62,7 +69,6 @@ EOF"
     --set network.cluster=$osd_cluster_network
 
   kube_wait_for_pods openstack 420
-
 fi
 
 helm install --namespace=openstack ${WORK_DIR}/ingress --name=ingress

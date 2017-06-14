@@ -255,16 +255,25 @@ Node Labels
 First, we must label our nodes according to their role. Although we are
 labeling ``all`` nodes, you are free to label only the nodes you wish.
 You must have at least one, although a minimum of three are recommended.
+In the case of Ceph, it is important to note that Ceph monitors
+and OSDs are each deployed as a ``DaemonSet``.  Be aware that
+labeling an even number of monitor nodes can result in trouble
+when trying to reach a quorum.
+
 Nodes are labeled according to their Openstack roles:
 
-* **Storage Nodes:** ``ceph-storage``
+* **Ceph MON Nodes:** ``ceph-mon``
+* **Ceph OSD Nodes:** ``ceph-osd``
+* **Ceph MDS Nodes:** ``ceph-mds``
 * **Control Plane:** ``openstack-control-plane``
 * **Compute Nodes:** ``openvswitch``, ``openstack-compute-node``
 
 ::
 
     kubectl label nodes openstack-control-plane=enabled --all
-    kubectl label nodes ceph-storage=enabled --all
+    kubectl label nodes ceph-mon=enabled --all
+    kubectl label nodes ceph-osd=enabled --all
+    kubectl label nodes ceph-mds=enabled --all
     kubectl label nodes openvswitch=enabled --all
     kubectl label nodes openstack-compute-node=enabled --all
 
@@ -281,15 +290,17 @@ Download the latest copy of Openstack-Helm:
 Ceph Preparation and Installation
 ---------------------------------
 
-Ceph must be aware of the OSD cluster and public networks. These CIDR
-ranges are the exact same ranges you used earlier in your Calico
-deployment yaml. Export this variable to your deployment environment by
-issuing the following commands:
+Ceph takes advantage of host networking.  For Ceph to be aware of the
+OSD cluster and public networks, you must set the CIDR ranges to be the
+subnet range that your host machines are running on.  In the example provided,
+the host's subnet CIDR is ``10.26.0.0/26``, but you will need to replace this
+to reflect your cluster. Export these variables to your deployment environment
+by issuing the following commands:
 
 ::
 
-    export osd_cluster_network=192.168.0.0/16
-    export osd_public_network=192.168.0.0/16
+    export osd_cluster_network=10.26.0.0/26
+    export osd_public_network=10.26.0.0/26
 
 Helm Preparation
 ----------------

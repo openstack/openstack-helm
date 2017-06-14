@@ -27,8 +27,8 @@ function net_resolv_post_kube {
 
 function net_hosts_pre_kube {
   sudo cp -f /etc/hosts /etc/hosts-pre-kube
-  HOST_IFACE=$(ip route | grep "^default" | awk '{ print $5 }')
-  HOST_IP=$(ip addr | awk "/inet/ && /${HOST_IFACE}/{sub(/\/.*$/,\"\",\$2); print \$2}")
+  HOST_IFACE=$(sudo ip route | grep "^default" | awk '{ print $5 }')
+  HOST_IP=$(sudo ip addr | awk "/inet/ && /${HOST_IFACE}/{sub(/\/.*$/,\"\",\$2); print \$2}")
 
   sudo sed -i "/$(hostname)/d" /etc/hosts
   echo "${HOST_IP} $(hostname)" | sudo tee -a /etc/hosts
@@ -36,4 +36,18 @@ function net_hosts_pre_kube {
 
 function net_hosts_post_kube {
   sudo cp -f /etc/hosts-pre-kube /etc/hosts
+}
+
+function find_subnet_range {
+  DEFAULT_IFACE=$(sudo ip route | awk --posix '$1~/^default$/{print $5}')
+  IFS=/ read IP_ADDR SUBNET_PREFIX <<< $(sudo ip addr show ${DEFAULT_IFACE} | awk --posix '$1~/^inet$/{print $2}')
+
+  set -- $(( 5 - (${SUBNET_PREFIX} / 8) )) 255 255 255 255 $(( (255 << (8 - (${SUBNET_PREFIX} % 8))) & 255 )) 0 0 0
+  [ $1 -gt 1 ] && shift $1 || shift
+  SUBNET_MASK=$(echo ${1-0}.${2-0}.${3-0}.${4-0})
+
+  IFS=. read -r i1 i2 i3 i4 <<< ${IP_ADDR}
+  IFS=. read -r m1 m2 m3 m4 <<< ${SUBNET_MASK}
+  BASE_SUBNET_IP=$(printf "%d.%d.%d.%d\n" "$((i1 & m1))" "$((i2 & m2))" "$((i3 & m3))" "$((i4 & m4))")
+  echo "$BASE_SUBNET_IP/$SUBNET_PREFIX"
 }

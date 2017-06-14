@@ -20,21 +20,16 @@
 kind: Deployment
 apiVersion: apps/v1beta1
 metadata:
-  labels:
-    app: ceph
-    daemon: rgw
   name: ceph-rgw
 spec:
   replicas: {{ .Values.replicas.rgw }}
   template:
     metadata:
-      name: ceph-rgw
       labels:
-        app: ceph
-        daemon: rgw
+{{ tuple $envAll "ceph" "rgw" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
     spec:
       nodeSelector:
-        {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
+        {{ .Values.labels.rgw.node_selector_key }}: {{ .Values.labels.rgw.node_selector_value }}
               initContainers:
 {{ tuple $envAll $dependencies "" | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       serviceAccount: default
@@ -42,18 +37,12 @@ spec:
         - name: ceph-rgw
           image: {{ .Values.images.daemon }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
-          {{- if .Values.pod.resources.enabled }}
-          resources:
-            requests:
-              memory: {{ .Values.pod.resources.rgw.requests.memory | quote }}
-              cpu: {{ .Values.pod.resources.rgw.requests.cpu | quote }}
-            limits:
-              memory: {{ .Values.pod.resources.rgw.limits.memory | quote }}
-              cpu: {{ .Values.pod.resources.rgw.limits.cpu | quote }}
-          {{- end }}
+{{ tuple $envAll $envAll.Values.pod.resources.rgw | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           ports:
             - containerPort: {{ .Values.network.port.rgw_target }}
           env:
+            - name: K8S_HOST_NETWORK
+              value: "1"
             - name: RGW_CIVETWEB_PORT
               value: "{{ .Values.network.port.rgw_target }}"
             - name: CEPH_DAEMON

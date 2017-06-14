@@ -19,9 +19,6 @@
 kind: Deployment
 apiVersion: apps/v1beta1
 metadata:
-  labels:
-    app: ceph
-    daemon: mds
   name: ceph-mds
 spec:
   replicas: 1
@@ -29,11 +26,10 @@ spec:
     metadata:
       name: ceph-mds
       labels:
-        app: ceph
-        daemon: mds
+{{ tuple $envAll "ceph" "mds" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
     spec:
       nodeSelector:
-        {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
+        {{ .Values.labels.mds.node_selector_key }}: {{ .Values.labels.mds.node_selector_value }}
       initContainers:
 {{ tuple $envAll $dependencies "" | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       serviceAccount: default
@@ -41,18 +37,12 @@ spec:
         - name: ceph-mds
           image: {{ .Values.images.daemon }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
-          {{- if .Values.pod.resources.enabled }}
-          resources:
-            requests:
-              memory: {{ .Values.pod.resources.mds.requests.memory | quote }}
-              cpu: {{ .Values.pod.resources.mds.requests.cpu | quote }}
-            limits:
-              memory: {{ .Values.pod.resources.mds.limits.memory | quote }}
-              cpu: {{ .Values.pod.resources.mds.limits.cpu | quote }}
-          {{- end }}
+{{ tuple $envAll $envAll.Values.pod.resources.mds | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           ports:
             - containerPort: 6800
           env:
+            - name: K8S_HOST_NETWORK
+              value: "1"
             - name: CEPH_DAEMON
               value: MDS
             - name: CEPHFS_CREATE

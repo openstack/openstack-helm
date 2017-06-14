@@ -20,36 +20,27 @@ kind: DaemonSet
 apiVersion: extensions/v1beta1
 metadata:
   name: ceph-osd
-  labels:
-    app: ceph
-    daemon: osd
 spec:
   template:
     metadata:
       labels:
-        app: ceph
-        daemon: osd
+{{ tuple $envAll "ceph" "osd" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
     spec:
       nodeSelector:
-        {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
+        {{ .Values.labels.osd.node_selector_key }}: {{ .Values.labels.osd.node_selector_value }}
       initContainers:
 {{ tuple $envAll $dependencies "" | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+      hostNetwork: true
       containers:
         - name: osd-pod
           image: {{ .Values.images.daemon }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
-          {{- if .Values.pod.resources.enabled }}
-          resources:
-            requests:
-              memory: {{ .Values.pod.resources.osd.requests.memory | quote }}
-              cpu: {{ .Values.pod.resources.osd.requests.cpu | quote }}
-            limits:
-              memory: {{ .Values.pod.resources.osd.limits.memory | quote }}
-              cpu: {{ .Values.pod.resources.osd.limits.cpu | quote }}
-          {{- end }}
+{{ tuple $envAll $envAll.Values.pod.resources.osd | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           securityContext:
             privileged: true
           env:
+            - name: K8S_HOST_NETWORK
+              value: "1"
             - name: CEPH_DAEMON
               value: osd_directory
             - name: KV_TYPE
