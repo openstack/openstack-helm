@@ -89,11 +89,17 @@ while true; do
 done
 set -x
 
+# Waiting for kube-system pods to be ready before continuing
+sudo docker exec kubeadm-aio wait-for-kube-pods kube-system
+
 # Initialize Helm
 helm init
 
 # Initialize Environment for Development
 sudo docker exec kubeadm-aio openstack-helm-dev-prep
 
-# Deploy NFS provisioner into enviromment
-sudo docker exec kubeadm-aio openstack-helm-nfs-prep
+: ${PVC_BACKEND:="nfs"}
+if [ "$PVC_BACKEND" == "nfs" ]; then
+  # Deploy NFS provisioner into enviromment
+  sudo docker exec kubeadm-aio openstack-helm-nfs-prep
+fi

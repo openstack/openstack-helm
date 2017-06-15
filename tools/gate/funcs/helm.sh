@@ -14,7 +14,6 @@
 set -e
 
 function helm_install {
-  TMP_DIR=$(mktemp -d)
   if [ "x$HOST_OS" == "xubuntu" ]; then
     sudo apt-get update -y
     sudo apt-get install -y --no-install-recommends -qq \
@@ -35,10 +34,14 @@ function helm_install {
   fi
 
   # install helm
-  curl -sSL https://storage.googleapis.com/kubernetes-helm/helm-${HELM_VERSION}-linux-amd64.tar.gz | tar -zxv --strip-components=1 -C ${TMP_DIR}
-  sudo mv ${TMP_DIR}/helm /usr/local/bin/helm
-
-  rm -rf ${TMP_DIR}
+  if CURRENT_HELM_LOC=$(type -p helm); then
+    CURRENT_HELM_VERSION=$(${CURRENT_HELM_LOC} version --client --short | awk '{ print $NF }' | awk -F '+' '{ print $1 }')
+  fi
+  [ "x$HELM_VERSION" == "x$CURRENT_HELM_VERSION" ] || ( \
+    TMP_DIR=$(mktemp -d)
+    curl -sSL https://storage.googleapis.com/kubernetes-helm/helm-${HELM_VERSION}-linux-amd64.tar.gz | tar -zxv --strip-components=1 -C ${TMP_DIR}
+    sudo mv ${TMP_DIR}/helm /usr/local/bin/helm
+    rm -rf ${TMP_DIR} )
 }
 
 function helm_serve {
