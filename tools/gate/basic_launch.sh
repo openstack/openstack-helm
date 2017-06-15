@@ -64,6 +64,7 @@ EOF"
   kubectl exec -n ceph ceph-mon-0 -- ceph osd pool create vms 8
 fi
 
+helm install --namespace=openstack local/ingress --name=ingress
 helm install --namespace=openstack local/mariadb --name=mariadb
 helm install --namespace=openstack local/memcached --name=memcached
 helm install --namespace=openstack local/etcd --name=etcd-rabbitmq
@@ -101,3 +102,11 @@ helm_test_deployment keystone 600
 helm_test_deployment glance 600
 helm_test_deployment neutron 600
 helm_test_deployment nova 600
+
+if [ "x$LAUNCH_ALL_OSH_SERVICES" == "xtrue" ]; then
+  helm install --namespace=openstack local/barbican --name=barbican
+  helm install --namespace=openstack local/magnum --name=magnum
+  helm install --namespace=openstack local/mistral --name=mistral
+  helm install --namespace=openstack local/senlin --name=senlin
+  kube_wait_for_pods openstack 600
+fi

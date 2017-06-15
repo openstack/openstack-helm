@@ -18,7 +18,7 @@ set -xe
 : ${KS_PASSWORD:="password"}
 : ${KS_USER_DOMAIN:="default"}
 : ${KS_PROJECT_DOMAIN:="default"}
-: ${KS_URL:="http://keystone-api.openstack:5000/v3"}
+: ${KS_URL:="http://keystone.openstack/v3"}
 
 : ${OSH_BR_EX_ADDR:="172.24.4.1/24"}
 : ${OSH_EXT_SUBNET:="172.24.4.0/24"}

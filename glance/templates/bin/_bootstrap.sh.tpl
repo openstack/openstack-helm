@@ -16,7 +16,6 @@
 
 set -ex
 export HOME=/tmp
-
 {{ if .Values.bootstrap.enabled }}
 
 cd /tmp/images

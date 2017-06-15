@@ -13,20 +13,22 @@
 # limitations under the License.
 
 # This function returns hostnames from endpoint definitions for use cases
-# where the uri style return is not appropriate, and only the short hostname or
-# kubernetes servicename is used or relevant in the template:
-# { tuple "memcache" "internal" . | include "helm-toolkit.endpoints.hostname_endpoint_lookup" }
-# returns: the short internal hostname, which will also match the service name
+# where the uri style return is not appropriate, and only the hostname
+# portion is used or relevant in the template:
+# { tuple "memcache" "internal" "portName" . | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" }
+# returns: internal_host:port
+#
+# Output that requires the port aspect striped could simply split the output based on ':'
 
-
-{{- define "helm-toolkit.endpoints.hostname_endpoint_lookup" -}}
+{{- define "helm-toolkit.endpoints.endpoint_port_lookup" -}}
 {{- $type := index . 0 -}}
 {{- $endpoint := index . 1 -}}
-{{- $context := index . 2 -}}
+{{- $port := index . 2 -}}
+{{- $context := index . 3 -}}
 {{- $endpointMap := index $context.Values.endpoints $type }}
 {{- with $endpointMap -}}
-{{- $endpointScheme := .scheme }}
-{{- $endpointHost := index .hosts $endpoint | default .hosts.default}}
-{{- printf "%s" $endpointHost -}}
+{{- $endpointPortMAP := index .port $port }}
+{{- $endpointPort := index $endpointPortMAP $endpoint | default (index $endpointPortMAP "default") }}
+{{- printf "%1.f" $endpointPort -}}
 {{- end -}}
 {{- end -}}

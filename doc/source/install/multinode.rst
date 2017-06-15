@@ -413,13 +413,14 @@ Installation of Other Services
 
 Now you can easily install the other services simply by going in order:
 
-**Install Memcached/Etcd/RabbitMQ:**
+**Install Memcached/Etcd/RabbitMQ/Ingress:**
 
 ::
 
     helm install --name=memcached local/memcached --namespace=openstack
     helm install --name=etcd-rabbitmq local/etcd --namespace=openstack
     helm install --name=rabbitmq local/rabbitmq --namespace=openstack
+    helm install --name=ingress local/ingress --namespace=openstack
 
 **Install Keystone:**
 

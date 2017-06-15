@@ -30,6 +30,7 @@ export PVC_BACKEND=ceph
 
 # Setup the logging location: by default use the working dir as the root.
 export LOGS_DIR=${LOGS_DIR:-"${WORK_DIR}/logs"}
+rm -rf ${LOGS_DIR} || true
 mkdir -p ${LOGS_DIR}
 
 function dump_logs () {

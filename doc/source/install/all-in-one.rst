@@ -138,6 +138,7 @@ The below snippet will install the given chart name from the local repository us
         helm install --name=memcached local/memcached --namespace=openstack
         helm install --name=etcd-rabbitmq local/etcd --namespace=openstack
         helm install --name=rabbitmq local/rabbitmq --namespace=openstack
+        helm install --name=ingress local/ingress --namespace=openstack
         helm install --name=keystone local/keystone --namespace=openstack
 
 

@@ -24,7 +24,7 @@
 {{- end -}}
 
 {{- if empty .Values.conf.nova.keystone_authtoken.keystonemiddleware.auth_token.memcached_servers -}}
-{{- tuple "oslo_cache" "internal" "memcache" . | include "helm-toolkit.endpoints.hostname_endpoint_uri_lookup" | set .Values.conf.nova.keystone_authtoken.keystonemiddleware.auth_token "memcached_servers" | quote | trunc 0 -}}
+{{- tuple "oslo_cache" "internal" "memcache" . | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" | set .Values.conf.nova.keystone_authtoken.keystonemiddleware.auth_token "memcached_servers" | quote | trunc 0 -}}
 {{- end -}}
 
 {{- if empty .Values.conf.nova.database.oslo.db.connection -}}
@@ -52,7 +52,15 @@
 {{- end -}}
 
 {{- if empty .Values.conf.nova.cache.nova.conf.memcache_servers -}}
-{{- tuple "oslo_cache" "internal" "memcache" . | include "helm-toolkit.endpoints.hostname_endpoint_uri_lookup" | set .Values.conf.nova.cache.nova.conf "memcache_servers" | quote | trunc 0 -}}
+{{- tuple "oslo_cache" "internal" "memcache" . | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" | set .Values.conf.nova.cache.nova.conf "memcache_servers" | quote | trunc 0 -}}
+{{- end -}}
+
+{{- if empty .Values.conf.nova.default.nova.conf.metadata_host -}}
+{{- set .Values.conf.nova.default.nova.conf "metadata_host" .Values.network.metadata.ip | quote | trunc 0 -}}
+{{- end -}}
+
+{{- if empty .Values.conf.nova.default.nova.conf.metadata_port -}}
+{{- tuple "compute_metadata" "public" "metadata" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | set .Values.conf.nova.default.nova.conf "metadata_port" | quote | trunc 0 -}}
 {{- end -}}
 
 apiVersion: v1

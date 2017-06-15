@@ -30,10 +30,10 @@
 {{- end -}}
 
 {{- if empty .Values.conf.glance.keystone_authtoken.keystonemiddleware.auth_token.memcached_servers -}}
-{{- tuple "oslo_cache" "internal" "memcache" . | include "helm-toolkit.endpoints.hostname_endpoint_uri_lookup" | set .Values.conf.glance.keystone_authtoken.keystonemiddleware.auth_token "memcached_servers" | quote | trunc 0 -}}
+{{- tuple "oslo_cache" "internal" "memcache" . | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" | set .Values.conf.glance.keystone_authtoken.keystonemiddleware.auth_token "memcached_servers" | quote | trunc 0 -}}
 {{- end -}}
 {{- if empty .Values.conf.glance_registry.keystone_authtoken.keystonemiddleware.auth_token.memcached_servers -}}
-{{- tuple "oslo_cache" "internal" "memcache" . | include "helm-toolkit.endpoints.hostname_endpoint_uri_lookup" | set .Values.conf.glance_registry.keystone_authtoken.keystonemiddleware.auth_token "memcached_servers" | quote | trunc 0 -}}
+{{- tuple "oslo_cache" "internal" "memcache" . | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" | set .Values.conf.glance_registry.keystone_authtoken.keystonemiddleware.auth_token "memcached_servers" | quote | trunc 0 -}}
 {{- end -}}
 
 {{- if empty .Values.conf.glance.database.oslo.db.connection -}}
@@ -51,15 +51,19 @@
 {{- end -}}
 
 {{- if empty .Values.conf.glance.default.glance.api.registry_host -}}
-{{- $imageRegistry := tuple "image_registry" "internal" "api" . | include "helm-toolkit.endpoints.hostname_endpoint_uri_lookup" }}
+{{- $imageRegistry := tuple "image_registry" "internal" "api" . | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" }}
 {{- $imageRegistryHostURI := split ":" $imageRegistry -}}
 {{- $imageRegistryHostURI._0 | set .Values.conf.glance.default.glance.api "registry_host" | quote | trunc 0 -}}
 {{- end -}}
 
 {{- if empty .Values.conf.glance.default.glance.api.registry_port -}}
-{{- $imageRegistry := tuple "image_registry" "internal" "api" . | include "helm-toolkit.endpoints.hostname_endpoint_uri_lookup" }}
+{{- $imageRegistry := tuple "image_registry" "internal" "api" . | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" }}
 {{- $imageRegistryHostURI := split ":" $imageRegistry -}}
 {{- $imageRegistryHostURI._1 | set .Values.conf.glance.default.glance.api "registry_port" | quote | trunc 0 -}}
+{{- end -}}
+
+{{- if empty .Values.conf.glance.default.glance.api.public_endpoint -}}
+{{- tuple "image" "public" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup"| set .Values.conf.glance.default.glance.api "public_endpoint" | quote | trunc 0 -}}
 {{- end -}}
 
 apiVersion: v1

@@ -15,5 +15,5 @@
 {{- define "helm-toolkit.utils.comma_joined_hostname_list" -}}
 {{- $deps := index . 0 -}}
 {{- $envAll := index . 1 -}}
-{{- range $k, $v := $deps -}}{{- if $k -}},{{- end -}}{{ tuple $v.service $v.endpoint $envAll | include "helm-toolkit.endpoints.hostname_endpoint_lookup" }}{{- end -}}
+{{- range $k, $v := $deps -}}{{- if $k -}},{{- end -}}{{ tuple $v.service $v.endpoint $envAll | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}{{- end -}}
 {{- end -}}
