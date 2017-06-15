@@ -65,6 +65,60 @@ spec:
               subPath: key
               readOnly: true
         {{ end }}
+        - name: nova-compute-init
+          image: {{ .Values.images.compute }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+          {{- if .Values.resources.enabled }}
+          resources:
+            requests:
+              memory: {{ .Values.resources.nova_compute.requests.memory | quote }}
+              cpu: {{ .Values.resources.nova_compute.requests.cpu | quote }}
+            limits:
+              memory: {{ .Values.resources.nova_compute.limits.memory | quote }}
+              cpu: {{ .Values.resources.nova_compute.limits.cpu | quote }}
+          {{- end }}
+          securityContext:
+            privileged: true
+          command:
+            - /tmp/nova-vnc-compute-init.sh
+          volumeMounts:
+            - name: nova-bin
+              mountPath: /tmp/nova-vnc-compute-init.sh
+              subPath: nova-vnc-compute-init.sh
+              readOnly: true
+            - name: nova-etc
+              mountPath: /etc/nova/nova.conf
+              subPath: nova.conf
+              readOnly: true
+            - name: nova-etc
+              mountPath: /etc/nova/api-paste.ini
+              subPath: api-paste.ini
+              readOnly: true
+            - name: nova-etc
+              mountPath: /etc/resolv.conf
+              subPath: resolv.conf
+              readOnly: true
+            - name: nova-etc
+              mountPath: /etc/ceph/ceph.conf
+              subPath: ceph.conf
+              readOnly: true
+            - name: nova-etc
+              mountPath: /etc/ceph/ceph.client.keyring
+              subPath: ceph.client.keyring
+              readOnly: true
+            - mountPath: /lib/modules
+              name: libmodules
+              readOnly: true
+            - name: varlibnova
+              mountPath: /var/lib/nova
+            - name: varliblibvirt
+              mountPath: /var/lib/libvirt
+            - name: run
+              mountPath: /run
+            - name: cgroup
+              mountPath: /sys/fs/cgroup
+            - name: pod-shared
+              mountPath: /tmp/pod-shared
       containers:
         - name: nova-compute
           image: {{ .Values.images.compute }}
@@ -126,6 +180,8 @@ spec:
               mountPath: /run
             - name: cgroup
               mountPath: /sys/fs/cgroup
+            - name: pod-shared
+              mountPath: /tmp/pod-shared
 {{ if $mounts_nova_compute.volumeMounts }}{{ toYaml $mounts_nova_compute.volumeMounts | indent 12 }}{{ end }}
       volumes:
         - name: nova-bin
@@ -160,4 +216,6 @@ spec:
         - name: cgroup
           hostPath:
             path: /sys/fs/cgroup
+        - name: pod-shared
+          emptyDir: {}
 {{ if $mounts_nova_compute.volumes }}{{ toYaml $mounts_nova_compute.volumes | indent 8 }}{{ end }}

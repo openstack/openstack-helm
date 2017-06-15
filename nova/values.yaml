@@ -23,6 +23,7 @@ replicas:
   conductor: 1
   consoleauth: 1
   scheduler: 1
+  novncproxy: 1
 
 labels:
   agent:
@@ -48,6 +49,9 @@ labels:
     node_selector_key: openstack-control-plane
     node_selector_value: enabled
   job:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  novncproxy:
     node_selector_key: openstack-control-plane
     node_selector_value: enabled
 
@@ -131,6 +135,13 @@ network:
     node_port:
       enabled: false
       port: 30775
+  novncproxy:
+    name: "nova-novncproxy"
+    node_port:
+      enabled: false
+      port: 36080
+    port: 6080
+    targetPort: 6080
 
 keystone:
   admin_user: "admin"
@@ -257,6 +268,12 @@ dependencies:
       endpoint: internal
     - service: network
       endpoint: internal
+  novncproxy:
+    jobs:
+    - nova-db-sync
+    services:
+    - service: oslo_db
+      endpoint: internal
 
 mounts:
   nova_compute:
@@ -286,6 +303,22 @@ mounts:
   nova_tests:
     init_container: null
     nova_tests:
+  nova_novncproxy:
+    init_novncproxy: null
+    nova_novncproxy:
+
+console:
+  # serial | spice | novnc | none
+  console_kind: novnc
+  serial:
+  spice:
+  novnc:
+    compute:
+      # IF blank, search default routing interface
+      vncserver_proxyclient_interface:
+    vncproxy:
+      # IF blank, search default routing interface
+      vncserver_proxyclient_interface:
 
 conf:
   paste:
@@ -316,15 +349,23 @@ conf:
           allow_resize_to_same_host: true
           compute_driver: libvirt.LibvirtDriver
           my_ip: 0.0.0.0
+    spice:
+    serial:
     vnc:
       nova:
         conf:
           novncproxy_host: 0.0.0.0
           novncproxy_port: 6080
           vncserver_listen: 0.0.0.0
-          vncserver_proxyclient_address: 0.0.0.0
-          # FIXME(ALANMEADOWS)
-          novncproxy_base_url: http://0.0.0.0:6080/no_vnc.html
+          # leave blank, this should be set by each compute nodes's ip
+          vncserver_proxyclient_address:
+          # set management or lb address
+          novncproxy_base_url: http://nova-novncproxy:6080/vnc_auto.html
+      vncproxy:
+        conf:
+          # IF blank, search default routing interface's ip
+          vncserver_listen:
+          vncserver_proxyclient_address:
     conductor:
       nova:
         conf:
@@ -606,6 +647,13 @@ resources:
       memory: "1024Mi"
       cpu: "2000m"
   bootstrap:
+    requests:
+      memory: "124Mi"
+      cpu: "100m"
+    limits:
+      memory: "1024Mi"
+      cpu: "2000m"
+  nova_novncproxy:
     requests:
       memory: "124Mi"
       cpu: "100m"

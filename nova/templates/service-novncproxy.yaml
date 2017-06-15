@@ -1,5 +1,3 @@
-#!/bin/bash
-
 # Copyright 2017 The Openstack-Helm Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,17 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-set -ex
+{{ if eq .Values.console.console_kind "novnc" }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: nova-novncproxy
+spec:
+  ports:
+  - name: nova-novncproxy
+    protocol: TCP
+    port: {{ .Values.network.novncproxy.port }}
+    targetPort: {{ .Values.network.novncproxy.targetPort }}
+    {{ if .Values.network.novncproxy.node_port.enabled }}
+    nodePort: {{ .Values.network.novncproxy.node_port.port }}
+    {{ end }}
+  selector:
+    app: nova-novncproxy
+  {{ if .Values.network.novncproxy.node_port.enabled }}
+  type: NodePort
+  {{ end }}
+{{ end }}
 
-# Make the Nova Instances Dir as this is not autocreated.
-mkdir -p /var/lib/nova/instances
-
-console_kind="{{- .Values.console.console_kind -}}"
-if [ "${console_kind}" == "novnc" ] ; then
-exec nova-compute \
-      --config-file /etc/nova/nova.conf \
-      --config-file /tmp/pod-shared/nova-vnc.ini
-else
-exec nova-compute \
-      --config-file /etc/nova/nova.conf
-fi
