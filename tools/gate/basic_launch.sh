@@ -20,20 +20,6 @@ helm_build
 
 helm search
 
-helm install local/mariadb --name=mariadb --namespace=openstack
-helm install local/memcached --name=memcached --namespace=openstack
-helm install local/etcd --name=etcd-rabbitmq --namespace=openstack
-helm install local/rabbitmq --name=rabbitmq --namespace=openstack
-kube_wait_for_pods openstack 600
-
-helm install local/keystone --name=keystone --namespace=openstack
-kube_wait_for_pods openstack 240
-helm_test_deployment keystone
-
-helm install local/glance --name=glance --namespace=openstack --values=${WORK_DIR}/tools/overrides/mvp/glance.yaml
-kube_wait_for_pods openstack 240
-helm_test_deployment glance
-
 # NOTE(portdirect): Temp workaround until module loading is supported by
 # OpenStack-Helm in Fedora
 if [ "x$HOST_OS" == "xfedora" ]; then
@@ -41,6 +27,24 @@ if [ "x$HOST_OS" == "xfedora" ]; then
   sudo modprobe gre
   sudo modprobe vxlan
 fi
-helm install local/nova --name=nova --namespace=openstack --values=${WORK_DIR}/tools/overrides/mvp/nova.yaml --set=conf.nova.libvirt.nova.conf.virt_type=qemu
-helm install local/neutron --name=neutron --namespace=openstack --values=${WORK_DIR}/tools/overrides/mvp/neutron.yaml
-kube_wait_for_pods openstack 600
+
+helm install --namespace=openstack local/mariadb --name=mariadb
+helm install --namespace=openstack local/memcached --name=memcached
+helm install --namespace=openstack local/etcd --name=etcd-rabbitmq
+helm install --namespace=openstack local/rabbitmq --name=rabbitmq
+helm install --namespace=openstack local/keystone --name=keystone
+helm install --namespace=openstack local/glance --name=glance \
+    --values=${WORK_DIR}/tools/overrides/mvp/glance.yaml
+helm install --namespace=openstack local/nova --name=nova \
+    --values=${WORK_DIR}/tools/overrides/mvp/nova.yaml \
+    --set=conf.nova.libvirt.nova.conf.virt_type=qemu
+helm install --namespace=openstack local/neutron --name=neutron \
+    --values=${WORK_DIR}/tools/overrides/mvp/neutron.yaml
+helm install --namespace=openstack local/cinder --name=cinder
+helm install --namespace=openstack local/heat --name=heat
+helm install --namespace=openstack local/horizon --name=horizon
+
+kube_wait_for_pods openstack 1200
+
+helm_test_deployment keystone
+helm_test_deployment glance
