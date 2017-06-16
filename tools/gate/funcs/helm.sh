@@ -79,7 +79,13 @@ function helm_build {
 
 function helm_test_deployment {
   DEPLOYMENT=$1
-  helm test ${DEPLOYMENT}
+  if [ x$2 == "x" ]; then
+    TIMEOUT=300
+  else
+    TIMEOUT=$2
+  fi
+
+  helm test --timeout ${TIMEOUT} ${DEPLOYMENT}
   mkdir -p ${LOGS_DIR}/rally
   kubectl logs -n openstack ${DEPLOYMENT}-rally-test > ${LOGS_DIR}/rally/${DEPLOYMENT}
   kubectl delete -n openstack pod ${DEPLOYMENT}-rally-test

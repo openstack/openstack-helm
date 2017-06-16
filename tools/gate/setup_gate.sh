@@ -21,6 +21,7 @@ export KUBEADM_IMAGE=openstackhelm/kubeadm-aio:${KUBE_VERSION}
 export WORK_DIR=$(pwd)
 source /etc/os-release
 export HOST_OS=${ID}
+source ${WORK_DIR}/tools/gate/funcs/common.sh
 source ${WORK_DIR}/tools/gate/funcs/network.sh
 source ${WORK_DIR}/tools/gate/funcs/helm.sh
 
@@ -32,6 +33,9 @@ function dump_logs () {
   ${WORK_DIR}/tools/gate/dump_logs.sh
 }
 trap 'dump_logs "$?"' ERR
+
+# Install base requirements
+base_install
 
 # Moving the ws-linter here to avoid it blocking all the jobs just for ws
 if [ "x$INTEGRATION_TYPE" == "xlinter" ]; then

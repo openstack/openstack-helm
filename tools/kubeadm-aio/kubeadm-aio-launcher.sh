@@ -31,6 +31,7 @@ sudo rm -rfv \
     /var/etcd \
     /var/lib/kubelet/* \
     /run/openvswitch \
+    /var/lib/nova \
     ${HOME}/.kubeadm-aio/admin.conf \
     /var/lib/nfs-provisioner || true
 

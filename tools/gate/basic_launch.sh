@@ -26,25 +26,32 @@ if [ "x$HOST_OS" == "xfedora" ]; then
   sudo modprobe openvswitch
   sudo modprobe gre
   sudo modprobe vxlan
+  sudo modprobe ip6_tables
 fi
 
 helm install --namespace=openstack local/mariadb --name=mariadb
 helm install --namespace=openstack local/memcached --name=memcached
 helm install --namespace=openstack local/etcd --name=etcd-rabbitmq
 helm install --namespace=openstack local/rabbitmq --name=rabbitmq
+kube_wait_for_pods openstack 420
 helm install --namespace=openstack local/keystone --name=keystone
 helm install --namespace=openstack local/glance --name=glance \
     --values=${WORK_DIR}/tools/overrides/mvp/glance.yaml
+kube_wait_for_pods openstack 420
 helm install --namespace=openstack local/nova --name=nova \
     --values=${WORK_DIR}/tools/overrides/mvp/nova.yaml \
     --set=conf.nova.libvirt.nova.conf.virt_type=qemu
 helm install --namespace=openstack local/neutron --name=neutron \
     --values=${WORK_DIR}/tools/overrides/mvp/neutron.yaml
+kube_wait_for_pods openstack 420
 helm install --namespace=openstack local/cinder --name=cinder
 helm install --namespace=openstack local/heat --name=heat
 helm install --namespace=openstack local/horizon --name=horizon
+kube_wait_for_pods openstack 420
 
-kube_wait_for_pods openstack 1200
+if [ "x$INTEGRATION" == "xaio" ]; then
+ bash ${WORK_DIR}/tools/gate/openstack_aio_launch.sh
+fi
 
-helm_test_deployment keystone
-helm_test_deployment glance
+helm_test_deployment keystone 600
+helm_test_deployment glance 600
