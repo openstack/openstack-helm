@@ -29,27 +29,21 @@ spec:
       labels:
         app: ceph
         daemon: mon
-      annotations:
-        # alanmeadows: this soft requirement allows single
-        # host deployments to spawn several ceph-mon
-        # containers
-        scheduler.alpha.kubernetes.io/affinity: >
-          {
-            "podAntiAffinity": {
-              "preferredDuringSchedulingIgnoredDuringExecution": [{
-                "labelSelector": {
-                  "matchExpressions": [{
-                    "key": "daemon",
-                    "operator": "In",
-                    "values":["mon"]
-                  }]
-                },
-              "topologyKey": "kubernetes.io/hostname",
-              "weight": 10
-              }]
-            }
-          }
     spec:
+      # alanmeadows: this soft requirement allows single
+      # host deployments to spawn several ceph-mon
+      # containers
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values: ["mon"]
+              topologyKey: kubernetes.io/hostname
+            weight: 10
       nodeSelector:
         {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
       serviceAccount: default

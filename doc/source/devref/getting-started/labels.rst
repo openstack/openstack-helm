@@ -84,24 +84,19 @@ single host environment:
 
 ::
 
-          annotations:
-            # this soft requirement allows single
-            # host deployments to spawn several mariadb containers
-            # but in a larger environment, would attempt to spread
-            # them out
-            scheduler.alpha.kubernetes.io/affinity: >
-              {
-                "podAntiAffinity": {
-                  "preferredDuringSchedulingIgnoredDuringExecution": [{
-                    "labelSelector": {
-                      "matchExpressions": [{
-                        "key": "app",
-                        "operator": "In",
-                        "values":["mariadb"]
-                      }]
-                    },
-                  "topologyKey": "kubernetes.io/hostname",
-                  "weight": 10
-                  }]
-                }
-              }
+      # alanmeadows: this soft requirement allows single
+      # host deployments to spawn several mariadb containers
+      # but in a larger environment, would attempt to spread
+      # them out
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values: ["mariadb"]
+              topologyKey: kubernetes.io/hostname
+            weight: 10
+
