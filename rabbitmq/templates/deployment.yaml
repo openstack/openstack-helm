@@ -35,24 +35,19 @@ spec:
       annotations:
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
-        # TODO: this needs to be moved to common.
-        scheduler.alpha.kubernetes.io/affinity: >
-           {
-             "podAntiAffinity": {
-               "preferredDuringSchedulingIgnoredDuringExecution": [{
-                 "labelSelector": {
-                   "matchExpressions": [{
-                     "key": "app",
-                     "operator": "In",
-                     "values":["rabbitmq"]
-                   }]
-                 },
-               "topologyKey": "kubernetes.io/hostname",
-               "weight": 10
-               }]
-             }
-           }
     spec:
+      # TODO: this needs to be moved to common.
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values: ["rabbitmq"]
+              topologyKey: kubernetes.io/hostname
+            weight: 10
       nodeSelector:
         {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
       volumes:
