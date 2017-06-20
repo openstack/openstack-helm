@@ -232,54 +232,69 @@ resources:
 
 dependencies:
   db_init:
-    service:
-    - mariadb
+    services:
+    - service: oslo_db
+      endpoint: internal
   db_sync:
     jobs:
     - glance-db-init
-    service:
-    - mariadb
+    services:
+    - service: oslo_db
+      endpoint: internal
   bootstrap:
     jobs:
     - glance-db-sync
     - glance-ks-user
     - glance-ks-endpoints
-    service:
-    - mariadb
-    - glance-api
+    services:
+    - service: identity
+      endpoint: internal
+    - service: image
+      endpoint: internal
   ks_user:
-    service:
-    - keystone-api
+    services:
+    - service: identity
+      endpoint: internal
   ks_service:
-    service:
-    - keystone-api
+    services:
+    - service: identity
+      endpoint: internal
   ks_endpoints:
     jobs:
     - glance-ks-service
-    service:
-    - keystone-api
+    services:
+    - service: identity
+      endpoint: internal
   api:
     jobs:
     - glance-db-sync
     - glance-ks-user
     - glance-ks-endpoints
-    service:
-    - keystone-api
-    - mariadb
+    services:
+    - service: oslo_db
+      endpoint: internal
+    - service: identity
+      endpoint: internal
   registry:
     jobs:
     - glance-db-sync
     - glance-ks-user
     - glance-ks-endpoints
-    service:
-    - keystone-api
-    - mariadb
-    - glance-api
+    services:
+    - service: oslo_db
+      endpoint: internal
+    - service: identity
+      endpoint: internal
+    - service: image
+      endpoint: internal
   tests:
-    service:
-    - keystone-api
-    - glance-api
-    - glance-registry
+    services:
+    - service: oslo_db
+      endpoint: internal
+    - service: identity
+      endpoint: internal
+    - service: image
+      endpoint: internal
 
 # typically overriden by environmental
 # values, but should include all endpoints
@@ -326,7 +341,7 @@ endpoints:
       mysql: 3306
   oslo_cache:
     hosts:
-      default: memcache
+      default: memcached
     port:
       memcache: 11211
   oslo_messaging:

@@ -33,7 +33,7 @@
     - name: INTERFACE_NAME
       value: eth0
     - name: DEPENDENCY_SERVICE
-      value: "{{  include "helm-toolkit.utils.joinListWithComma" $deps.service }}"
+      value: "{{ tuple $deps.services $envAll | include "helm-toolkit.utils.comma_joined_hostname_list" }}"
     - name: DEPENDENCY_JOBS
       value: "{{  include "helm-toolkit.utils.joinListWithComma" $deps.jobs }}"
     - name: DEPENDENCY_DAEMONSET
