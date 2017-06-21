@@ -31,8 +31,8 @@ You should install the ``kubectl`` and ``helm`` binaries:
 
 .. code:: bash
 
-    KUBE_VERSION=v1.6.4
-    HELM_VERSION=v2.3.0
+    KUBE_VERSION=v1.6.5
+    HELM_VERSION=v2.3.1
 
     TMP_DIR=$(mktemp -d)
     curl -sSL https://storage.googleapis.com/kubernetes-release/release/${KUBE_VERSION}/bin/linux/amd64/kubectl -o ${TMP_DIR}/kubectl
@@ -67,8 +67,8 @@ To launch the environment then run:
 
 .. code:: bash
 
-    export KUBEADM_IMAGE=openstackhelm/kubeadm-aio:v1.6.4
-    export KUBE_VERSION=v1.6.4
+    export KUBEADM_IMAGE=openstackhelm/kubeadm-aio:v1.6.5
+    export KUBE_VERSION=v1.6.5
     ./tools/kubeadm-aio/kubeadm-aio-launcher.sh
     export KUBECONFIG=${HOME}/.kubeadm-aio/admin.conf
 

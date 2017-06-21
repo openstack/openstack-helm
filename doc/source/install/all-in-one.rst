@@ -45,8 +45,8 @@ Download and install kubectl, the command line interface for running commands ag
 
 ::
 
-        KUBE_VERSION=v1.6.0
-        HELM_VERSION=v2.3.0
+        KUBE_VERSION=v1.6.5
+        HELM_VERSION=v2.3.1
         TMP_DIR=$(mktemp -d)
 
         curl -sSL https://storage.googleapis.com/kubernetes-release/release/${KUBE_VERSION}/bin/linux/amd64/kubectl -o ${TMP_DIR}/kubectl
@@ -108,15 +108,15 @@ Build
 
 ::
 
-        export KUBEADM_IMAGE=openstack-helm/kubeadm-aio:v1.6
+        export KUBEADM_IMAGE=openstack-helm/kubeadm-aio:v1.6.5
         sudo docker build --pull -t ${KUBEADM_IMAGE} tools/kubeadm-aio
-        export KUBE_VERSION=v1.6.2
 
 Deploy
 ------
 
 ::
 
+        export KUBE_VERSION=v1.6.5
         ./tools/kubeadm-aio/kubeadm-aio-launcher.sh
         export KUBECONFIG=${HOME}/.kubeadm-aio/admin.conf
         mkdir -p  ${HOME}/.kube

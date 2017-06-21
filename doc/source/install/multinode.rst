@@ -25,13 +25,13 @@ comments, please create an `issue
   +------------------+--------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------+
   |                  | Version                                                                              | Notes                                                                                                        |
   +==================+======================================================================================+==============================================================================================================+
-  | **Kubernetes**   | `v1.6.0 <https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG.md#v155>`_   | `Custom Controller for RDB tools <https://quay.io/repository/attcomdev/kube-controller-manager?tab=tags>`_   |
+  | **Kubernetes**   | `v1.6.5 <https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG.md#v165>`_   | `Custom Controller for RDB tools <https://quay.io/repository/attcomdev/kube-controller-manager?tab=tags>`_   |
   +------------------+--------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------+
-  | **Helm**         | `v2.3.0 <https://github.com/kubernetes/helm/releases/tag/v2.3.0>`_                   |                                                                                                              |
+  | **Helm**         | `v2.3.1 <https://github.com/kubernetes/helm/releases/tag/v2.3.1>`_                   |                                                                                                              |
   +------------------+--------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------+
   | **Calico**       | `v2.1 <http://docs.projectcalico.org/v2.1/releases/>`_                               | `calicoct v1.1 <https://github.com/projectcalico/calicoctl/releases>`_                                       |
   +------------------+--------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------+
-  | **Docker**       | `v1.12.6 <https://github.com/docker/docker/releases/tag/v1.12.1>`_                   | `Per kubeadm Instructions <https://kubernetes.io/docs/getting-started-guides/kubeadm/>`_                     |
+  | **Docker**       | `v1.12.6 <https://github.com/docker/docker/releases/tag/v1.12.6>`_                   | `Per kubeadm Instructions <https://kubernetes.io/docs/getting-started-guides/kubeadm/>`_                     |
   +------------------+--------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------+
 
 Other versions and considerations (such as other CNI SDN providers),
@@ -120,7 +120,7 @@ manifest:
 Setting Up RBAC
 ---------------
 
-Kubernetes >=v1.6 makes RBAC the default admission controller, OpenStack
+Kubernetes >=v1.6 makes RBAC the default admission controller. OpenStack
 Helm does not currently have RBAC roles and permissions for each
 component so we relax the access control rules:
 
@@ -193,11 +193,11 @@ Please be sure to select the version that matches your Kubernetes installation
 (available versions
 `here <https://quay.io/repository/attcomdev/kube-controller-manager?tag=latest&tab=tags>`__),
 noting that ``kube-controller-manager`` v1.6.1 is also backwards compatible with
-Kubernetes v1.6.0.
+Kubernetes v1.6.5.
 
 ::
 
-    export kube_version=v1.6.2
+    export kube_version=v1.6.5
     sudo sed -i "s|gcr.io/google_containers/kube-controller-manager-amd64:$kube_version|quay.io/attcomdev/kube-controller-manager:$kube_version|g" /etc/kubernetes/manifests/kube-controller-manager.yaml
 
 Now you will want to ``restart`` your Kubernetes master server to
@@ -485,7 +485,7 @@ StorageClass:
 
 You may want to validate that Ceph is deployed successfully. For more
 information on this, please see the section entitled `Ceph
-Troubleshooting <../troubleshooting/ts-persistent-storage.md>`__.
+Troubleshooting <../../operator/troubleshooting/persistent-storage.html>`__.
 
 MariaDB Installation and Verification
 -------------------------------------
