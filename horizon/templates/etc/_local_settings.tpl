@@ -645,7 +645,9 @@ SECURITY_GROUP_RULES = {
 # the enabled panel configuration.
 # You should not add settings to this list for out of tree extensions.
 # See: https://wiki.openstack.org/wiki/Horizon/RESTAPI
-REST_API_REQUIRED_SETTINGS = ['OPENSTACK_HYPERVISOR_FEATURES']
+REST_API_REQUIRED_SETTINGS = ['OPENSTACK_HYPERVISOR_FEATURES',
+                              'LAUNCH_INSTANCE_DEFAULTS',
+                              'OPENSTACK_IMAGE_FORMATS']
 
 # Additional settings can be made available to the client side for
 # extensibility by specifying them in REST_API_ADDITIONAL_SETTINGS
