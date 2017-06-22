@@ -15,6 +15,6 @@
 listen_tcp = 1
 auth_tcp = "none"
 ca_file = ""
-log_level = 2
-log_outputs = "2:stderr"
+log_level = {{ .Values.libvirt.log_level }}
+log_outputs = "{{ .Values.libvirt.log_level }}:stderr"
 listen_addr = "{{ .Values.libvirt.listen_addr }}"

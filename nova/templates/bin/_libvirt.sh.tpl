@@ -28,4 +28,4 @@ if [[ -c /dev/kvm ]]; then
     chown root:kvm /dev/kvm
 fi
 
-exec libvirtd -v --listen
+exec libvirtd --listen
