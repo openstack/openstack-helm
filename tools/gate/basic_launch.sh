@@ -55,3 +55,4 @@ fi
 
 helm_test_deployment keystone 600
 helm_test_deployment glance 600
+helm_test_deployment neutron 600

@@ -1,0 +1,64 @@
+# Copyright 2017 The Openstack-Helm Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+{{- $envAll := . }}
+{{- $ksAdminSecret := .Values.keystone.admin_secret | default "neutron-env-keystone-admin" }}
+{{- $dependencies := .Values.dependencies.tests }}
+{{- $mounts_neutron_tests := .Values.mounts.neutron_tests.neutron_tests }}
+{{- $mounts_neutron_tests_init := .Values.mounts.neutron_tests.init_container }}
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{.Release.Name}}-rally-test"
+  annotations:
+    "helm.sh/hook": test-success
+spec:
+  restartPolicy: Never
+  initContainers:
+{{ tuple $envAll $dependencies $mounts_neutron_tests_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+  containers:
+    - name: {{.Release.Name}}-token-issue-test
+      image: {{ .Values.images.test }}
+      env:
+{{- with $env := dict "ksUserSecret" $ksAdminSecret }}
+{{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 8 }}
+{{- end }}
+        - name: RALLY_ENV_NAME
+          value: {{.Release.Name}}
+      command:
+        - /tmp/rally-test.sh
+      volumeMounts:
+        - name: neutron-etc
+          mountPath: /etc/rally/rally_tests.yaml
+          subPath: rally_tests.yaml
+          readOnly: true
+        - name: neutron-bin
+          mountPath: /tmp/rally-test.sh
+          subPath: rally-test.sh
+          readOnly: true
+        - name: rally-db
+          mountPath: /var/lib/rally
+{{ if $mounts_neutron_tests.volumeMounts }}{{ toYaml $mounts_neutron_tests.volumeMounts | indent 8 }}{{ end }}
+  volumes:
+    - name: neutron-etc
+      configMap:
+        name: neutron-etc
+    - name: neutron-bin
+      configMap:
+        name: neutron-bin
+        defaultMode: 0555
+    - name: rally-db
+      emptyDir: {}
+{{ if $mounts_neutron_tests.volumes }}{{ toYaml $mounts_neutron_tests.volumes | indent 4 }}{{ end }}
