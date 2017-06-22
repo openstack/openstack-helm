@@ -54,7 +54,7 @@ hyperscale, such as:
   operators to override those replica counts. For some applications, this means
   that they support clustering.
 * Ensuring clustering style applications are not limited to fixed replica
-  counts.  For instance, we want to ensure that we can support n=Galera members
+  counts.  For instance, we want to ensure that we can support n Galera members
   and have those scale linearly, within reason, as opposed to only supporting a
   fixed count.
 * Duplicate charts of the same type within the same namespace.  For example,

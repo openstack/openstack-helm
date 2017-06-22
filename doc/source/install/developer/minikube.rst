@@ -61,7 +61,7 @@ use the following commands:
     # You may need to change these params for your environment. Look up use of --iso-url if needed:
     minikube start \
             --network-plugin=cni \
-            --kubernetes-version v1.6.0 \
+            --kubernetes-version v1.6.5 \
             --disk-size 40g \
             --memory 16384 \
             --cpus 4 \
@@ -108,7 +108,7 @@ for Kubernetes during ``minikube start``. More information can be found
 
     minikube start \
         --network-plugin=cni \
-        --kubernetes-version v1.5.1 \
+        --kubernetes-version v1.6.5 \
         --disk-size 40g \
         --memory 4048
 
@@ -117,7 +117,7 @@ Next, deploy the `Calico
 manifest. This is not a requirement in cases where you want to use your
 own CNI-enabled SDN, however you are doing so at your own experience.
 Note which versions of Calico are recommended for the project in our
-`Installation Guide <../install-multinode.md#overview>`__.
+`Installation Guide <../multinode.html#overview>`__.
 
 ::
 
@@ -216,17 +216,21 @@ project. If you need to make changes to a chart, simply re-run ``make``
 against the project in the top-tier directory. The charts will be
 updated and automatically re-pushed to your local repository.
 
-Consider the following when using Minikube and development mode: \*
-Persistent Storage used for Minikube development mode is ``hostPath``.
-The Ceph PVC's included with this project are not intended to work with
-Minikube. \* There is *no need* to install the ``helm-toolkit`` ``ceph``
-or ``bootstrap`` charts. These charts are required for deploying Ceph
-PVC's. \* Familiarize yourself with ``values.yaml`` included with the
-MariaDB chart. You will want to have the ``storage_path`` directory
-created prior to deploying MariaDB. This value will be used as the
-deployment's ``hostPath``. \* If Ceph development is required, you will
-need to follow the `getting started guide <../install-multinode.md>`__
-rather than this development mode documentation.
+Consider the following when using Minikube and development mode:
+
+- Persistent Storage used for Minikube development mode is ``hostPath``.
+  The Ceph PVC's included with this project are not intended to work with
+  Minikube.
+- There is *no need* to install the ``helm-toolkit`` ``ceph``
+  or ``bootstrap`` charts. These charts are required for deploying Ceph
+  PVC's.
+- Familiarize yourself with ``values.yaml`` included with the
+  MariaDB chart. You will want to have the ``storage_path`` directory
+  created prior to deploying MariaDB. This value will be used as the
+  deployment's ``hostPath``.
+- If Ceph development is required, you will
+  need to follow the `getting started guide <../multinode.html>`__
+  rather than this development mode documentation.
 
 To deploy Openstack-Helm in development mode, ensure you've created a
 minikube-approved ``hostPath`` volume. Minikube is very specific about
@@ -345,4 +349,4 @@ Troubleshooting
 ===============
 
 -  `Openstack-Helm Minikube
-   Troubleshooting <../../guides-operator/troubleshooting/ts-development.md>`__
+   Troubleshooting <../../operator/troubleshooting/development.html>`__

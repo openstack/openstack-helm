@@ -20,6 +20,7 @@ source ${WORK_DIR}/tools/gate/funcs/network.sh
 source ${WORK_DIR}/tools/gate/funcs/kube.sh
 
 kubeadm_aio_reqs_install
+sudo docker pull ${KUBEADM_IMAGE} || kubeadm_aio_build
 
 # Setup shared mounts for kubelet
 sudo mkdir -p /var/lib/kubelet
