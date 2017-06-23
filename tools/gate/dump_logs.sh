@@ -61,6 +61,16 @@ for OBJECT_TYPE in clusterroles \
   kubectl get ${OBJECT_TYPE} -o yaml > ${LOGS_DIR}/k8s/rbac/${OBJECT_TYPE}.yaml
 done
 
+mkdir -p ${LOGS_DIR}/k8s/descriptions
+for NAMESPACE in $(kubectl get namespaces -o name | awk -F '/' '{ print $NF }') ; do
+  for OBJECT in $(kubectl get all --show-all -n $NAMESPACE -o name) ; do
+    OBJECT_TYPE=$(echo $OBJECT | awk -F '/' '{ print $1 }')
+    OBJECT_NAME=$(echo $OBJECT | awk -F '/' '{ print $2 }')
+    mkdir -p ${LOGS_DIR}/k8s/descriptions/${NAMESPACE}/${OBJECT_TYPE}
+    kubectl describe -n $NAMESPACE $OBJECT > ${LOGS_DIR}/k8s/descriptions/${NAMESPACE}/$OBJECT_TYPE/$OBJECT_NAME.txt
+  done
+done
+
 mkdir -p ${LOGS_DIR}/nodes/$(hostname)
 sudo iptables-save > ${LOGS_DIR}/nodes/$(hostname)/iptables.txt
 sudo ip a > ${LOGS_DIR}/nodes/$(hostname)/ip.txt
