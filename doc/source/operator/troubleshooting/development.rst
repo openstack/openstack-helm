@@ -1,11 +1,3 @@
-Minikube
-========
-
-This troubleshooting guide is intended to assist users who are
-developing charts within this repository when using minikube. If you
-discover any issues with Minikube itself, submit an issue to the
-Minikube repository.
-
 Diagnosing the problem
 ----------------------
 
