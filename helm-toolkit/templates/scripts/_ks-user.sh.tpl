@@ -54,21 +54,30 @@ USER_ID=$(openstack user create --or-show --enable -f value -c id \
 # Display user
 openstack user show "${USER_ID}"
 
-# Manage user role
-USER_ROLE_ID=$(openstack role create --or-show -f value -c id \
+function ks_assign_user_role () {
+  # Manage user role assignment
+  openstack role add \
+      --user="${USER_ID}" \
+      --user-domain="${SERVICE_OS_USER_DOMAIN_NAME}" \
+      --project-domain="${SERVICE_OS_PROJECT_DOMAIN_NAME}" \
+      --project="${USER_PROJECT_ID}" \
+      "${USER_ROLE_ID}"
+
+  # Display user role assignment
+  openstack role assignment list \
+      --role="${USER_ROLE_ID}" \
+      --user-domain="${SERVICE_OS_USER_DOMAIN_NAME}" \
+      --user="${USER_ID}"
+}
+
+# Manage user service role
+export USER_ROLE_ID=$(openstack role create --or-show -f value -c id \
     "${SERVICE_OS_ROLE}");
+ks_assign_user_role
 
-# Manage user role assignment
-openstack role add \
-    --user="${USER_ID}" \
-    --user-domain="${SERVICE_OS_USER_DOMAIN_NAME}" \
-    --project-domain="${SERVICE_OS_PROJECT_DOMAIN_NAME}" \
-    --project="${USER_PROJECT_ID}" \
-    "${USER_ROLE_ID}"
-
-# Display user role assignment
-openstack role assignment list \
-    --role="${SERVICE_OS_ROLE}" \
-    --user-domain="${SERVICE_OS_USER_DOMAIN_NAME}" \
-    --user="${USER_ID}"
+# Manage user member role
+: ${MEMBER_OS_ROLE:="_member_"}
+export USER_ROLE_ID=$(openstack role create --or-show -f value -c id \
+    "${MEMBER_OS_ROLE}");
+ks_assign_user_role
 {{- end }}
