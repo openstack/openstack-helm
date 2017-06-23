@@ -138,3 +138,6 @@ ssh -i ${KEYPAIR_LOC} cirros@${FLOATING_IP} curl -sSL 169.254.169.254
 
 # Bonus round - display a Unicorn
 ssh -i ${KEYPAIR_LOC} cirros@${FLOATING_IP} curl http://artscene.textfiles.com/asciiart/unicorn || true
+
+# Remove the test vm
+$NOVA delete ${OSH_VM_NAME}
