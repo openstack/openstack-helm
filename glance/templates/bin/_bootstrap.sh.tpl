@@ -25,6 +25,7 @@ cd /tmp/images
 openstack image show {{ .name  | quote }} || \
   { curl -O {{ .source_url }}{{ .image_file }}; \
   openstack image create {{ .name | quote }} \
+  {{ if .id -}} --id {{ .id }} {{ end -}} \
   --min-disk {{ .min_disk }} \
   --disk-format {{ .image_type }} \
   --file {{ .image_file }} \
