@@ -46,7 +46,7 @@ Download and install kubectl, the command line interface for running commands ag
 ::
 
         KUBE_VERSION=v1.6.5
-        HELM_VERSION=v2.3.1
+        HELM_VERSION=v2.4.1
         TMP_DIR=$(mktemp -d)
 
         curl -sSL https://storage.googleapis.com/kubernetes-release/release/${KUBE_VERSION}/bin/linux/amd64/kubectl -o ${TMP_DIR}/kubectl
