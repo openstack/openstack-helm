@@ -23,5 +23,29 @@ modprobe gre
 modprobe vxlan
 
 ovs-vsctl --no-wait show
-bash -x /tmp/openvswitch-ensure-configured.sh
+
+external_bridge="{{- .Values.network.external_bridge -}}"
+external_interface="{{- .Values.network.interface.external -}}"
+if [ -n "${external_bridge}" ] ; then
+    # create bridge device
+    ovs-vsctl --no-wait --may-exist add-br $external_bridge
+    if [ -n "$external_interface" ] ; then
+        # add external interface to the bridge
+        ovs-vsctl --no-wait --may-exist add-port $external_bridge $external_interface
+        ip link set dev $external_interface up
+    fi
+fi
+
+# handle any bridge mappings
+{{- range $br, $phys := .Values.network.auto_bridge_add }}
+if [ -n "{{- $br -}}" ] ; then
+    # create {{ $br }}{{ if $phys }} and add port {{ $phys }}{{ end }}
+    ovs-vsctl --no-wait --may-exist add-br "{{ $br }}"
+    if [ -n "{{- $phys -}}" ] ; then
+        ovs-vsctl --no-wait --may-exist add-port "{{ $br }}" "{{ $phys }}"
+        ip link set dev "{{ $phys }}" up
+    fi
+fi
+{{- end }}
+
 exec /usr/sbin/ovs-vswitchd unix:/run/openvswitch/db.sock --mlockall -vconsole:emer -vconsole:err -vconsole:info
