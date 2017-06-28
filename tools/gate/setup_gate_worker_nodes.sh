@@ -14,15 +14,16 @@
 set -ex
 
 : ${SSH_PRIVATE_KEY:="/etc/nodepool/id_rsa"}
+: ${PRIMARY_NODE_IP:="$(cat /etc/nodepool/primary_node_private | tail -1)"}
+: ${SUB_NODE_IPS:="$(cat /etc/nodepool/sub_nodes_private)"}
+
 sudo chown $(whoami) ${SSH_PRIVATE_KEY}
 sudo chmod 600 ${SSH_PRIVATE_KEY}
 
-PRIMARY_NODE_IP=$(cat /etc/nodepool/primary_node_private | tail -1)
 KUBEADM_TOKEN=$(sudo docker exec kubeadm-aio kubeadm token list | tail -n -1 | awk '{ print $1 }')
 
-
 SUB_NODE_PROVISION_SCRIPT=$(mktemp --suffix=.sh)
-cat /etc/nodepool/sub_nodes_private | while read SUB_NODE; do
+for SUB_NODE in $SUB_NODE_IPS ; do
   cat >> ${SUB_NODE_PROVISION_SCRIPT} <<EOS
   ssh-keyscan "${SUB_NODE}" >> ~/.ssh/known_hosts
   ssh -i ${SSH_PRIVATE_KEY} $(whoami)@${SUB_NODE} mkdir -p ${WORK_DIR%/*}
