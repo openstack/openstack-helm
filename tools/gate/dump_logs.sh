@@ -15,7 +15,8 @@ sudo chmod 777 --recursive ${LOGS_DIR}/*
 
 mkdir -p ${LOGS_DIR}/k8s
 for OBJECT_TYPE in nodes \
-                   namespace; do
+                   namespace \
+                   storageclass; do
   kubectl get ${OBJECT_TYPE} -o yaml > ${LOGS_DIR}/k8s/${OBJECT_TYPE}.yaml
 done
 kubectl describe nodes > ${LOGS_DIR}/k8s/nodes.txt

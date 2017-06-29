@@ -54,8 +54,8 @@ function kube_wait_for_nodes {
    end=$((end + 180))
   fi
   while true; do
+      NUMBER_OF_NODES_EXPECTED=$1
       NUMBER_OF_NODES=$(kubectl get nodes --no-headers -o name | wc -l)
-      NUMBER_OF_NODES_EXPECTED=$(($(cat /etc/nodepool/sub_nodes_private | wc -l) + 1))
       [ $NUMBER_OF_NODES -eq $NUMBER_OF_NODES_EXPECTED ] && \
           NODES_ONLINE="True" || NODES_ONLINE="False"
       while read SUB_NODE; do

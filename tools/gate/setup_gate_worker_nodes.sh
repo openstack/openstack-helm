@@ -16,6 +16,7 @@ set -ex
 : ${SSH_PRIVATE_KEY:="/etc/nodepool/id_rsa"}
 : ${PRIMARY_NODE_IP:="$(cat /etc/nodepool/primary_node_private | tail -1)"}
 : ${SUB_NODE_IPS:="$(cat /etc/nodepool/sub_nodes_private)"}
+export SUB_NODE_COUNT="$(($(echo ${SUB_NODE_IPS} | wc -w) + 1))"
 
 sudo chown $(whoami) ${SSH_PRIVATE_KEY}
 sudo chmod 600 ${SSH_PRIVATE_KEY}
@@ -40,7 +41,7 @@ bash ${SUB_NODE_PROVISION_SCRIPT}
 rm -rf ${SUB_NODE_PROVISION_SCRIPT}
 
 source ${WORK_DIR}/tools/gate/funcs/kube.sh
-kube_wait_for_nodes 240
+kube_wait_for_nodes ${SUB_NODE_COUNT} 240
 kube_wait_for_pods kube-system 240
 kube_wait_for_pods openstack 240
 kubectl get nodes --show-all
