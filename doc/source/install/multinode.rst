@@ -178,10 +178,7 @@ To make these changes, export your Kubernetes version, and edit the
 ``image`` line of your ``kube-controller-manager`` json manifest on your
 Kubernetes Master using the commands below.
 Please be sure to select the version that matches your Kubernetes installation
-(available versions
-`here <https://quay.io/repository/attcomdev/kube-controller-manager?tag=latest&tab=tags>`__),
-noting that ``kube-controller-manager`` v1.6.1 is also backwards compatible with
-Kubernetes v1.6.5.
+from here <https://quay.io/repository/attcomdev/kube-controller-manager?tag=latest&tab=tags>`__.
 
 ::
 
@@ -288,19 +285,6 @@ issuing the following commands:
     export osd_cluster_network=192.168.0.0/16
     export osd_public_network=192.168.0.0/16
 
-Nova Compute Instance Storage
------------------------------
-
-Nova Compute requires a place to store instances locally. Each node
-labeled ``openstack-compute-node`` needs to have the following
-directory:
-
-::
-
-    mkdir -p /var/lib/nova/instances
-
-*Repeat this step for each node labeled: ``openstack-compute-node``*
-
 Helm Preparation
 ----------------
 
@@ -366,6 +350,10 @@ the following command to install Ceph:
       --set network.public=$osd_public_network \
       --set network.cluster=$osd_cluster_network
 
+You may want to validate that Ceph is deployed successfully. For more
+information on this, please see the section entitled `Ceph
+Troubleshooting <../../operator/troubleshooting/persistent-storage.html>`__.
+
 Activating Control-Plane Namespace for Ceph
 -------------------------------------------
 
@@ -373,7 +361,7 @@ In order for Ceph to fulfill PersistentVolumeClaims within Kubernetes namespaces
 outside of Ceph's namespace, a client keyring needs to be present within that
 namespace.  For the rest of the OpenStack and supporting core services, this guide
 will be deploying the control plane to a seperate namespace ``openstack``.  To
-deploy the aforementioned client keyring to the ``openstack`` namespace:
+deploy the client keyring and ``ceph.conf`` to the ``openstack`` namespace:
 
 ::
 
@@ -384,20 +372,11 @@ deploy the aforementioned client keyring to the ``openstack`` namespace:
       --set network.public=$osd_public_network \
       --set network.cluster=$osd_cluster_network
 
-This will load the client keyring as well as the same ``ceph.conf`` into
-the specified namespace. Deploying ceph.conf into this namespace allows
-OpenStack services to consume this ConfigMap for their Ceph-specific
-configurations.
-
-You may want to validate that Ceph is deployed successfully. For more
-information on this, please see the section entitled `Ceph
-Troubleshooting <../../operator/troubleshooting/persistent-storage.html>`__.
-
 Ceph pool creation
 ------------------
 
-You should now be ready to create the pools for OpenStack services to consume,
-using the following commands:
+Once Ceph has been deployed the pools for OpenStack services to consume can be
+created, using the following commands:
 
 ::
 
@@ -408,8 +387,7 @@ using the following commands:
 MariaDB Installation and Verification
 -------------------------------------
 
-We are using Galera to cluster MariaDB. To install MariaDB, issue the following
-command:
+To install MariaDB, issue the following command:
 
 ::
 
