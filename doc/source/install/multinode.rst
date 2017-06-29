@@ -59,7 +59,46 @@ procedure is opinionated *only to standardize the deployment process for
 users and developers*, and to limit questions to a known working
 deployment. Instructions will expand as the project becomes more mature.
 
-If you’re environment looks like this, you are ready to continue:
+Kube Controller Manager
+-----------------------
+
+This guide assumes you will be using Ceph to fulfill the
+PersistentVolumeClaims that will be made against your Kubernetes cluster.
+In order to use Ceph, you will need to leverage a custom Kubernetes
+Controller with the necessary
+`RDB <http://docs.ceph.com/docs/jewel/rbd/rbd/>`__ utilities. For your
+convenience, we are maintaining this along with the Openstack-Helm
+project. If you would like to check the current
+`tags <https://quay.io/repository/attcomdev/kube-controller-manager?tab=tags>`__
+or the
+`security <https://quay.io/repository/attcomdev/kube-controller-manager/image/eedc2bf21cca5647a26e348ee3427917da8b17c25ead38e832e1ed7c2ef1b1fd?tab=vulnerabilities>`__
+of these pre-built containers, you may view them at `our public Quay
+container
+registry <https://quay.io/repository/attcomdev/kube-controller-manager?tab=tags>`__.
+If you would prefer to build this container yourself, or add any
+additional packages, you are free to use our GitHub
+`dockerfiles <https://github.com/att-comdev/dockerfiles/tree/master/kube-controller-manager>`__
+repository to do so.
+
+To replace the Kube Controller Manager, run the following commands
+on every node in your cluster before executing ``kubeadm init``:
+
+::
+
+    export CEPH_KUBE_CONTROLLER_MANAGER_IMAGE=quay.io/attcomdev/kube-controller-manager:v1.6.5
+    export BASE_KUBE_CONTROLLER_MANAGER_IMAGE=gcr.io/google_containers/kube-controller-manager-amd64:v1.6.5
+    sudo docker pull ${CEPH_KUBE_CONTROLLER_MANAGER_IMAGE}
+    sudo docker tag ${CEPH_KUBE_CONTROLLER_MANAGER_IMAGE} ${BASE_KUBE_CONTROLLER_MANAGER_IMAGE}
+
+Afterwards, you can ``kubeadm init`` as such:
+
+::
+
+    admin@kubenode01:~$ kubeadm init --kubernetes-version v1.6.5
+
+
+If your environment looks like this after all nodes have joined the
+cluster, you are ready to continue:
 
 ::
 
@@ -154,39 +193,6 @@ installed on each of our hosts. Using our Ubuntu example:
 ::
 
     sudo apt-get install ceph-common -y
-
-Kubernetes Controller Manager
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Before deploying Ceph, you will need to re-deploy a custom Kubernetes
-Controller with the necessary
-`RDB <http://docs.ceph.com/docs/jewel/rbd/rbd/>`__ utilities. For your
-convenience, we are maintaining this along with the Openstack-Helm
-project. If you would like to check the current
-`tags <https://quay.io/repository/attcomdev/kube-controller-manager?tab=tags>`__
-or the
-`security <https://quay.io/repository/attcomdev/kube-controller-manager/image/eedc2bf21cca5647a26e348ee3427917da8b17c25ead38e832e1ed7c2ef1b1fd?tab=vulnerabilities>`__
-of these pre-built containers, you may view them at `our public Quay
-container
-registry <https://quay.io/repository/attcomdev/kube-controller-manager?tab=tags>`__.
-If you would prefer to build this container yourself, or add any
-additional packages, you are free to use our GitHub
-`dockerfiles <https://github.com/att-comdev/dockerfiles/tree/master/kube-controller-manager>`__
-repository to do so.
-
-To make these changes, export your Kubernetes version, and edit the
-``image`` line of your ``kube-controller-manager`` json manifest on your
-Kubernetes Master using the commands below.
-Please be sure to select the version that matches your Kubernetes installation
-from here <https://quay.io/repository/attcomdev/kube-controller-manager?tag=latest&tab=tags>`__.
-
-::
-
-    export kube_version=v1.6.5
-    sudo sed -i "s|gcr.io/google_containers/kube-controller-manager-amd64:$kube_version|quay.io/attcomdev/kube-controller-manager:$kube_version|g" /etc/kubernetes/manifests/kube-controller-manager.yaml
-
-Now you will want to ``restart`` the Kubernetes master server to
-continue.
 
 Kube Controller Manager DNS Resolution
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

@@ -133,6 +133,5 @@ function kubeadm_aio_launch {
 
 function ceph_kube_controller_manager_replace {
   sudo docker pull ${CEPH_KUBE_CONTROLLER_MANAGER_IMAGE}
-  IMAGE_ID=$(sudo docker images ${CEPH_KUBE_CONTROLLER_MANAGER_IMAGE} -q)
-  sudo docker tag ${IMAGE_ID} ${BASE_KUBE_CONTROLLER_MANAGER_IMAGE}
+  sudo docker tag ${CEPH_KUBE_CONTROLLER_MANAGER_IMAGE} ${BASE_KUBE_CONTROLLER_MANAGER_IMAGE}
 }
