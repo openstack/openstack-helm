@@ -19,7 +19,7 @@ COMMAND="${@:-start}"
 
 function start () {
   exec nova-api-os-compute \
-        --config-file /etc/nova/nova.conf
+        --config-file /etc/nova/nova.conf --debug
 }
 
 function stop () {

@@ -18,6 +18,10 @@ Listen 0.0.0.0:{{ .Values.network.admin.port }}
 LogFormat "%h %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\"" combined
 LogFormat "%{X-Forwarded-For}i %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\"" proxy
 
+SetEnvIf X-Forwarded-For "^.*\..*\..*\..*" forwarded
+CustomLog /dev/stdout combined env=!forwarded
+CustomLog /dev/stdout proxy env=forwarded
+
 <VirtualHost *:{{ .Values.network.api.port }}>
     WSGIDaemonProcess keystone-public processes=1 threads=4 user=keystone group=keystone display-name=%{GROUP}
     WSGIProcessGroup keystone-public
@@ -49,3 +53,23 @@ LogFormat "%{X-Forwarded-For}i %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-A
     CustomLog /dev/stdout combined env=!forwarded
     CustomLog /dev/stdout proxy env=forwarded
 </VirtualHost>
+
+Alias /identity /var/www/cgi-bin/keystone/keystone-wsgi-public
+<Location /identity>
+    SetHandler wsgi-script
+    Options +ExecCGI
+
+    WSGIProcessGroup keystone-public
+    WSGIApplicationGroup %{GLOBAL}
+    WSGIPassAuthorization On
+</Location>
+
+Alias /identity_admin /var/www/cgi-bin/keystone/keystone-wsgi-admin
+<Location /identity_admin>
+    SetHandler wsgi-script
+    Options +ExecCGI
+
+    WSGIProcessGroup keystone-admin
+    WSGIApplicationGroup %{GLOBAL}
+    WSGIPassAuthorization On
+</Location>

@@ -98,13 +98,13 @@ network:
   #    br0: if0
   #    br1: iface_two
   server:
-    name: "neutron-server"
     port: 9696
+    ingress:
+      public: true
     node_port:
       enabled: false
       port: 30096
   metadata:
-    name: "neutron-metadata"
     port: 8775
 
 keystone:
@@ -438,6 +438,14 @@ conf:
   metadata_agent:
     override:
     append:
+    default:
+      neutron:
+        metadata:
+          agent:
+            nova_metadata_ip: 10.97.120.234
+            nova_metadata_port: 80
+            nova_metadata_protocol: http
+            metadata_proxy_shared_secret: "password"
   sriov_agent:
     override:
     append:
@@ -466,7 +474,8 @@ endpoints:
      path: /neutron
      scheme: mysql+pymysql
      port:
-       mysql: 3306
+       mysql:
+         default: 3306
   oslo_messaging:
      auth:
        admin:
@@ -480,39 +489,58 @@ endpoints:
      path: /
      scheme: rabbit
      port:
-       amqp: 5672
+       amqp:
+         default: 5672
   oslo_cache:
      hosts:
        default: memcached
      port:
-       memcache: 11211
+       memcache:
+         default: 11211
   compute:
     name: nova
     hosts:
       default: nova-api
-    path: "/v2/%(tenant_id)s"
-    scheme: 'http'
+      public: nova
+    path:
+      default: "/v2/%(tenant_id)s"
+    scheme:
+      default: 'http'
     port:
-      api: 8774
-      metadata: 8775
-      novncproxy: 6080
+      api:
+        default: 8774
+        public: 80
+      metadata:
+        default: 8775
+      novncproxy:
+        default: 6080
   identity:
     name: keystone
     hosts:
       default: keystone-api
-    path: /v3
-    scheme: 'http'
+      public: keystone
+    path:
+      default: /v3
+    scheme:
+      default: http
     port:
-      admin: 35357
-      api: 5000
+      admin:
+        default: 35357
+      api:
+        default: 80
   network:
     name: neutron
     hosts:
       default: neutron-server
-    path: null
-    scheme: 'http'
+      public: neutron
+    path:
+      default: null
+    scheme:
+      default: 'http'
     port:
-      api: 9696
+      api:
+        default: 9696
+        public: 80
 
 mounts:
   neutron_server:
