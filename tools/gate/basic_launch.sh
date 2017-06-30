@@ -41,7 +41,7 @@ EOF"
   export osd_cluster_network=192.168.0.0/16
   export osd_public_network=192.168.0.0/16
 
-  helm install --namespace=ceph local/ceph --name=ceph2 \
+  helm install --namespace=ceph local/ceph --name=ceph \
     --set manifests_enabled.client_secrets=false \
     --set network.public=$osd_public_network \
     --set network.cluster=$osd_cluster_network
@@ -57,7 +57,7 @@ EOF"
     --set network.public=$osd_public_network \
     --set network.cluster=$osd_cluster_network
 
-  kube_wait_for_pods ceph 420
+  kube_wait_for_pods openstack 420
 
   kubectl exec -n ceph ceph-mon-0 -- ceph osd pool create volumes 8
   kubectl exec -n ceph ceph-mon-0 -- ceph osd pool create images 8
