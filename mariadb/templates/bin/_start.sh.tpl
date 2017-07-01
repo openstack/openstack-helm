@@ -13,20 +13,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-export MYSQL_ROOT_PASSWORD={{ .Values.database.root_password | quote }}
-
 #
 # Bootstrap database
 #
 CLUSTER_INIT_ARGS=
 
 if [ ! -d /var/lib/mysql/mysql ]; then
-    if [ "x${POD_NAME}" = "x{{ .Values.service_name }}-0" ]; then
+    if [ "x${POD_NAME}" = "x${SERVICE_NAME}-0" ]; then
         echo No data found for pod 0
         if [ "xtrue" = "x{{ .Values.force_bootstrap }}" ]; then
             echo force_bootstrap set, so will force-initialize node 0.
             CLUSTER_INIT_ARGS=--wsrep-new-cluster
-        elif ! mysql -h {{ .Values.service_name }} -u root --password=${MYSQL_ROOT_PASSWORD} -e 'select 1'; then
+        elif ! mysql -h ${SERVICE_NAME} -u root --password=${MYSQL_ROOT_PASSWORD} -e 'select 1'; then
             echo No other nodes found, so will initialize cluster.
             CLUSTER_INIT_ARGS=--wsrep-new-cluster
         else
@@ -47,12 +45,12 @@ CLUSTER_CONFIG_PATH=/etc/mysql/conf.d/10-cluster-config.cnf
 MEMBERS=
 for i in $(seq 1 {{ .Values.replicas }}); do
     NUM=$(expr $i - 1)
-    CANDIDATE_POD="{{ .Values.service_name }}-$NUM.{{ .Values.service_name }}-discovery"
-    if [ "x${CANDIDATE_POD}" != "x${POD_NAME}.{{ .Values.service_name }}-discovery" ]; then
+    CANDIDATE_POD="${SERVICE_NAME}-$NUM.${DISCOVERY_SERVICE_NAME}"
+    if [ "x${CANDIDATE_POD}" != "x${POD_NAME}.${DISCOVERY_SERVICE_NAME}" ]; then
         if [ -n "${MEMBERS}" ]; then
             MEMBERS+=,
         fi
-        MEMBERS+="${CANDIDATE_POD}:{{ .Values.network.port.wsrep }}"
+        MEMBERS+="${CANDIDATE_POD}:${WSREP_PORT}"
     fi
 done
 
@@ -64,7 +62,7 @@ cat <<EOS | tee ${CLUSTER_CONFIG_PATH}
 [mysqld]
 wsrep_cluster_address="gcomm://${MEMBERS}"
 wsrep_node_address=${POD_IP}
-wsrep_node_name=${POD_NAME}.{{ .Values.service_name}}-discovery
+wsrep_node_name=${POD_NAME}.${DISCOVERY_SERVICE_NAME}
 EOS
 
 echo ^^^

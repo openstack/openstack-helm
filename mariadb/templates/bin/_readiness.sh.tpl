@@ -16,9 +16,7 @@
 
 set -o pipefail
 
-PASSWORD={{ .Values.database.root_password | quote }}
-
-MYSQL="mysql -u root --password=${PASSWORD}"
+MYSQL="mysql -u root --password=${MYSQL_ROOT_PASSWORD}"
 
 if [ ! $($MYSQL -e 'select 1') ]; then
     echo "Could not SELECT 1" 1>&2

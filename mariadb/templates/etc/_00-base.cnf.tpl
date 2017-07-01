@@ -32,7 +32,7 @@ log_queries_not_using_indexes=on
 
 # Networking
 bind_address=0.0.0.0
-port={{ .Values.network.port.mariadb }}
+port={{ tuple "oslo_db" "internal" "mysql" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
 
 # When a client connects, the server will perform hostname resolution,
 # and when DNS is slow, establishing the connection will become slow as well.
@@ -88,12 +88,12 @@ binlog_format=ROW
 default-storage-engine=InnoDB
 innodb_autoinc_lock_mode=2
 innodb_flush_log_at_trx_commit=2
-wsrep_cluster_name={{ .Values.service_name }}
+wsrep_cluster_name={{ tuple "oslo_db" "internal" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
 wsrep_on=1
 wsrep_provider=/usr/lib/galera/libgalera_smm.so
-wsrep_provider_options="gmcast.listen_addr=tcp://0.0.0.0:{{ .Values.network.port.wsrep }}"
+wsrep_provider_options="gmcast.listen_addr=tcp://0.0.0.0:{{ tuple "oslo_db" "internal" "wsrep" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}"
 wsrep_slave_threads=12
-wsrep_sst_auth=root:{{ .Values.database.root_password }}
+wsrep_sst_auth=root:{{ .Values.endpoints.oslo_db.auth.admin.password }}
 wsrep_sst_method=xtrabackup-v2
 
 
@@ -104,5 +104,5 @@ max-allowed-packet=16M
 [client]
 default_character_set=utf8
 protocol=tcp
-port={{ .Values.network.port.mariadb }}
+port={{ tuple "oslo_db" "internal" "mysql" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
 connect_timeout=10

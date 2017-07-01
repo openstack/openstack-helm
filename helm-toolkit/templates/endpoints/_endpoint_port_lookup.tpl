@@ -15,7 +15,7 @@
 # This function returns hostnames from endpoint definitions for use cases
 # where the uri style return is not appropriate, and only the hostname
 # portion is used or relevant in the template:
-# { tuple "memcache" "internal" "portName" . | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" }
+# { tuple "memcache" "internal" "portName" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }
 # returns: internal_host:port
 #
 # Output that requires the port aspect striped could simply split the output based on ':'

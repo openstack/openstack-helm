@@ -16,15 +16,14 @@
 apiVersion: apps/v1beta1
 kind: StatefulSet
 metadata:
-  name: {{ .Values.service_name }}
+  name: mariadb
 spec:
-  serviceName: "{{ .Values.service_name }}-discovery"
+  serviceName: "{{ tuple "oslo_db" "internal" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}-discovery"
   replicas: {{ .Values.replicas }}
   template:
     metadata:
       labels:
-        app: {{ .Values.service_name }}
-        galera: enabled
+        app: mariadb
     spec:
       # alanmeadows: this soft requirement allows single
       # host deployments to spawn several mariadb containers
@@ -39,13 +38,13 @@ spec:
                 - key: app
                   operator: In
                   values:
-                    - {{ .Values.service_name }}
+                    - mariadb
               topologyKey: kubernetes.io/hostname
             weight: 10
       nodeSelector:
         {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
       containers:
-        - name: {{ .Values.service_name }}
+        - name: mariadb
           image: {{ .Values.images.mariadb }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
           {{- if .Values.resources.enabled }}
@@ -68,6 +67,17 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
+            - name: WSREP_PORT
+              value: {{ tuple "oslo_db" "internal" "wsrep" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | quote }}
+            - name: SERVICE_NAME
+              value: {{ tuple "oslo_db" "internal" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
+            - name: DISCOVERY_SERVICE_NAME
+              value: {{ tuple "oslo_db" "discovery" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup"}}
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mariadb-db-root-password
+                  key: MYSQL_ROOT_PASSWORD
           readinessProbe:
             exec:
               command:

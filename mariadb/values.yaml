@@ -30,9 +30,6 @@ resources:
       memory: "128Mi"
       cpu: "500m"
 
-# this drives the service name, and statefulset name
-service_name: mariadb
-
 images:
   mariadb: docker.io/mariadb:10.1.23
   pull_policy: IfNotPresent
@@ -46,16 +43,29 @@ labels:
   node_selector_key: openstack-control-plane
   node_selector_value: enabled
 
-network:
-  port:
-    ist: 4444
-    mariadb: 3306
-    wsrep: 4567
-
 database:
-  root_password: password
-
+  config_override: null
   # Any configuration here will override the base config.
   # config_override: |-
   #   [mysqld]
   #   wsrep_slave_threads=1
+
+# typically overriden by environmental
+# values, but should include all endpoints
+# required by this chart
+endpoints:
+  oslo_db:
+    auth:
+      admin:
+        username: root
+        password: password
+    hosts:
+      default: mariadb
+      discovery: mariadb-discovery
+    path: null
+    scheme: mysql+pymysql
+    port:
+      mysql:
+        default: 3306
+      wsrep:
+        default: 4567
