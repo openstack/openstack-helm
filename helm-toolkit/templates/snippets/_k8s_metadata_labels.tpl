@@ -11,15 +11,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-{{- $envAll := . }}
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: memcached
-spec:
-  sessionAffinity: ClientIP
-  ports:
-    - port: {{ .Values.network.port }}
-  selector:
-{{ tuple $envAll "memcached" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+
+{{- define "helm-toolkit.snippets.kubernetes_metadata_labels" -}}
+{{- $envAll := index . 0 -}}
+{{- $application := index . 1 -}}
+{{- $component := index . 2 -}}
+release_name: {{ $envAll.Release.Name }}
+application: {{ $application }}
+component: {{ $component }}
+{{- end -}}
