@@ -15,8 +15,8 @@ Contents:
    philosophy
    install/index
    devref/index
-   operator/index
    contributing
+   troubleshooting/index
 
 Indices and tables
 ==================
@@ -24,4 +24,3 @@ Indices and tables
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
-

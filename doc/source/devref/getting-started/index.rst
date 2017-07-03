@@ -8,6 +8,7 @@ Contents:
 
    values
    overrides
+   pod-disruption-budgets
    replicas
    images
    resources
