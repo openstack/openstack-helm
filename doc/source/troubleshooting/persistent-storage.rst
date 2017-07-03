@@ -3,81 +3,15 @@ Persistent Storage
 ==================
 
 This guide is to help users debug any general storage issues when
-deploying Charts in this repository.
+deploying charts in this repository.
 
 Ceph
 ====
 
-**CHART:** openstack-helm/ceph
+Ceph Deployment Status
+~~~~~~~~~~~~~~~~~~~~~~
 
-Ceph Validating PVC
-~~~~~~~~~~~~~~~~~~~
-
-To validate persistent volume claim (PVC) creation, we've placed a test
-manifest in the ``./test/`` directory. Deploy this pvc and explore the
-deployment:
-
-::
-
-    admin@kubenode01:~$ kubectl get pvc -o wide --all-namespaces -w
-    NAMESPACE   NAME                   STATUS    VOLUME                                     CAPACITY   ACCESSMODES   AGE
-    ceph        pvc-test               Bound     pvc-bc768dea-c93e-11e6-817f-001fc69c26d1   1Gi        RWO           9h
-    admin@kubenode01:~$
-
-The output above indicates that the PVC is 'bound' correctly. Now
-digging deeper:
-
-::
-
-    admin@kubenode01:~/projects/openstack-helm$ kubectl describe pvc pvc-test -n ceph
-    Name:       pvc-test
-    Namespace:  ceph
-    StorageClass:   general
-    Status:     Bound
-    Volume:     pvc-bc768dea-c93e-11e6-817f-001fc69c26d1
-    Labels:     <none>
-    Capacity:   1Gi
-    Access Modes:   RWO
-    No events.
-    admin@kubenode01:~/projects/openstack-helm$
-
-We can see that we have a VolumeID, and the 'capacity' is 1GB. It is a
-'general' storage class. It is just a simple test. You can safely delete
-this test by issuing the following:
-
-::
-
-    admin@kubenode01:~/projects/openstack-helm$ kubectl delete pvc pvc-test -n ceph
-    persistentvolumeclaim "pvc-test" deleted
-    admin@kubenode01:~/projects/openstack-helm$
-
-Ceph Validating StorageClass
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Next we can look at the storage class, to make sure that it was created
-correctly:
-
-::
-
-    admin@kubenode01:~$ kubectl describe storageclass/general
-    Name:       general
-    IsDefaultClass: No
-    Annotations:    <none>
-    Provisioner:    kubernetes.io/rbd
-    Parameters: adminId=admin,adminSecretName=pvc-ceph-conf-combined-storageclass,adminSecretNamespace=ceph,monitors=ceph-mon.ceph:6789,pool=rbd,userId=admin,userSecretName=pvc-ceph-client-key
-    No events.
-    admin@kubenode01:~$
-
-The parameters is what we're looking for here. If we see parameters
-passed to the StorageClass correctly, we will see the
-``ceph-mon.ceph:6789`` hostname/port, things like ``userid``, and
-appropriate secrets used for volume claims. This all looks great, and it
-time to Ceph itself.
-
-Ceph Validation
-~~~~~~~~~~~~~~~
-
-Most commonly, we want to validate that Ceph is working correctly. This
+First, we want to validate that Ceph is working correctly. This
 can be done with the following ceph command:
 
 ::
@@ -96,26 +30,55 @@ can be done with the following ceph command:
     admin@kubenode01:~$
 
 Use one of your Ceph Monitors to check the status of the cluster. A
-couple of things to note above; our health is 'HEALTH\_OK', we have 3
-mons, we've established a quorum, and we can see that our active mds is
-'ceph-mds-2810413505-gtjgv'. We have a healthy environment.
+couple of things to note above; our health is `HEALTH\_OK`, we have 3
+mons, we've established a quorum, and we can see that all of our OSDs
+are up and in the OSD map.
 
-For Glance and Cinder to operate, you will need to create some storage
-pools for these systems. Additionally, Nova can be configured to use a
-pool as well, but this is off by default.
+PVC Preliminary Validation
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-::
-
-    kubectl exec -n ceph -it ceph-mon-0 ceph osd pool create volumes 128
-    kubectl exec -n ceph -it ceph-mon-0 ceph osd pool create images 128
-
-Nova storage would be added like this:
+Before proceeding, it is important to ensure that you have deployed a
+client key in the namespace you wish to fulfill ``PersistentVolumeClaims``.
+To verify that your deployment namespace has a client key:
 
 ::
 
-    kubectl exec -n ceph -it ceph-mon-0 ceph osd pool create vms 128
+    admin@kubenode01: $ kubectl get secret -n openstack
+    NAME                  TYPE                                  DATA      AGE
+    default-token-nvl10   kubernetes.io/service-account-token   3         7d
+    pvc-ceph-client-key   kubernetes.io/rbd                     1         6m
 
-The choosing the amount of storage is up to you and can be changed by
-replacing the 128 to meet your needs.
+Without this, your RBD-backed PVCs will never reach the ``Bound`` state.  For
+more information, see how to `activate namespace for ceph <../install/multinode.html#activating-control-plane-namespace-for-ceph>`_.
 
-We are now ready to install our next chart, MariaDB.
+Note: This step is not relevant for PVCs within the same namespace Ceph
+was deployed.
+
+Ceph Validating PVC Operation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+To validate persistent volume claim (PVC) creation, we've placed a test
+manifest `here <https://raw.githubusercontent.com/openstack/openstack-helm/master/tests/pvc-test.yaml>`_.
+Deploy this manifest and verify the job completes successfully.
+
+Ceph Validating StorageClass
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Next we can look at the storage class, to make sure that it was created
+correctly:
+
+::
+
+    admin@kubenode01:~$ kubectl describe storageclass/general
+    Name:       general
+    IsDefaultClass: No
+    Annotations:    <none>
+    Provisioner:    kubernetes.io/rbd
+    Parameters: adminId=admin,adminSecretName=pvc-ceph-conf-combined-storageclass,adminSecretNamespace=ceph,monitors=ceph-mon.ceph:6789,pool=rbd,userId=admin,userSecretName=pvc-ceph-client-key
+    No events.
+    admin@kubenode01:~$
+
+The parameters are what we're looking for here. If we see parameters
+passed to the StorageClass correctly, we will see the
+``ceph-mon.ceph:6789`` hostname/port, things like ``userid``, and
+appropriate secrets used for volume claims.
