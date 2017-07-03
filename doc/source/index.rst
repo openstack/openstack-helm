@@ -12,7 +12,6 @@ Contents:
    :maxdepth: 3
 
    readme
-   philosophy
    install/index
    devref/index
    operator/index
@@ -24,4 +23,3 @@ Indices and tables
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
-
