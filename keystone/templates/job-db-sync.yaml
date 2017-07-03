@@ -43,6 +43,16 @@ spec:
               cpu: {{ .Values.resources.jobs.db_sync.requests.cpu | quote }}
               memory: {{ .Values.resources.jobs.db_sync.requests.memory | quote }}
           {{- end }}
+          env:
+            - name: OS_BOOTSTRAP_ADMIN_URL
+              value: {{ tuple "identity" "admin" "admin" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" }}
+            - name: OS_BOOTSTRAP_PUBLIC_URL
+              value: {{ tuple "identity" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" }}
+            - name: OS_BOOTSTRAP_INTERNAL_URL
+              value: {{ tuple "identity" "public" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" }}
+{{- with $env := dict "ksUserSecret" .Values.secrets.identity.admin }}
+{{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 12 }}
+{{- end }}
           command:
             - /tmp/db-sync.sh
           volumeMounts:

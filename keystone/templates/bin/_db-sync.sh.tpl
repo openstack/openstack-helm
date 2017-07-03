@@ -19,10 +19,10 @@ set -ex
 keystone-manage --config-file=/etc/keystone/keystone.conf db_sync
 
 keystone-manage --config-file=/etc/keystone/keystone.conf bootstrap \
-    --bootstrap-username {{ .Values.keystone.admin_user }} \
-    --bootstrap-password {{ .Values.keystone.admin_password }} \
-    --bootstrap-project-name {{ .Values.keystone.admin_project_name }} \
-    --bootstrap-admin-url {{ tuple "identity" "admin" "admin" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" }} \
-    --bootstrap-public-url {{ tuple "identity" "public" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" }} \
-    --bootstrap-internal-url {{ tuple "identity" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" }} \
-    --bootstrap-region-id {{ .Values.keystone.admin_region_name }}
+    --bootstrap-username ${OS_USERNAME} \
+    --bootstrap-password ${OS_PASSWORD} \
+    --bootstrap-project-name ${OS_PROJECT_NAME} \
+    --bootstrap-admin-url ${OS_BOOTSTRAP_ADMIN_URL} \
+    --bootstrap-public-url ${OS_BOOTSTRAP_PUBLIC_URL} \
+    --bootstrap-internal-url ${OS_BOOTSTRAP_INTERNAL_URL} \
+    --bootstrap-region-id ${OS_REGION_NAME}

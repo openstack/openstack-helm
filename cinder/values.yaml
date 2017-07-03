@@ -67,15 +67,6 @@ bootstrap:
       group:
       volume_backend_name:
 
-keystone:
-  admin_user: "admin"
-  admin_user_domain: "default"
-  admin_password: "password"
-  admin_project_name: "admin"
-  admin_project_domain: "default"
-  admin_region_name: "RegionOne"
-  cinder_user_role: "admin"
-
 network:
   api:
     ingress:
@@ -129,12 +120,6 @@ conf:
         auth_token:
           auth_version: v3
           auth_type: password
-          region_name: RegionOne
-          project_domain_name: default
-          project_name: service
-          user_domain_name: default
-          username: cinder
-          password: password
     oslo_concurrency:
       oslo:
         concurrency:
@@ -235,12 +220,37 @@ dependencies:
     - service: volume
       endpoint: internal
 
+# Names of secrets used by bootstrap and environmental checks
+secrets:
+  identity:
+    admin: cinder-keystone-admin
+    user: cinder-keystone-user
+  oslo_db:
+    admin: cinder-db-admin
+    user: cinder-db-user
+
 # We use a different layout of the endpoints here to account for versioning
 # this swaps the service name and type, and should be rolled out to other
 # services.
 endpoints:
   identity:
     name: keystone
+    auth:
+      admin:
+        region_name: RegionOne
+        username: admin
+        password: password
+        project_name: admin
+        user_domain_name: default
+        project_domain_name: default
+      user:
+        role: admin
+        region_name: RegionOne
+        username: cinder
+        password: password
+        project_name: service
+        user_domain_name: default
+        project_domain_name: default
     hosts:
       default: keystone-api
       public: keystone

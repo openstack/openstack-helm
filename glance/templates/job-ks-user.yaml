@@ -11,11 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-{{- $ksAdminSecret := .Values.keystone.admin_secret | default "glance-env-keystone-admin" }}
-{{- $ksUserSecret := .Values.keystone.user_secret | default "glance-env-keystone-user" }}
 {{- $envAll := . }}
 {{- $dependencies := .Values.dependencies.ks_user }}
+---
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -49,16 +47,16 @@ spec:
               subPath: ks-user.sh
               readOnly: true
           env:
-{{- with $env := dict "ksUserSecret" $ksAdminSecret }}
+{{- with $env := dict "ksUserSecret" .Values.secrets.identity.admin }}
 {{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 12 }}
 {{- end }}
             - name: SERVICE_OS_SERVICE_NAME
               value: "glance"
-{{- with $env := dict "ksUserSecret" $ksUserSecret }}
+{{- with $env := dict "ksUserSecret" .Values.secrets.identity.user }}
 {{- include "helm-toolkit.snippets.keystone_user_create_env_vars" $env | indent 12 }}
 {{- end }}
             - name: SERVICE_OS_ROLE
-              value: {{ .Values.keystone.glance_user_role | quote }}
+              value: {{ .Values.endpoints.identity.auth.user.role | quote }}
       volumes:
         - name: ks-user-sh
           configMap:
