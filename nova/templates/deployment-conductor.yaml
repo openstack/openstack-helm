@@ -16,6 +16,7 @@
 {{- $dependencies := .Values.dependencies.conductor }}
 {{- $mounts_nova_conductor := .Values.mounts.nova_conductor.nova_conductor }}
 {{- $mounts_nova_conductor_init := .Values.mounts.nova_conductor.init_container }}
+---
 apiVersion: apps/v1beta1
 kind: Deployment
 metadata:
@@ -33,11 +34,13 @@ spec:
   template:
     metadata:
       labels:
-        app: nova-conductor
+{{ tuple $envAll "nova" "conductor" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
       annotations:
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
     spec:
+      affinity:
+{{ tuple $envAll "nova" "conductor" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
       nodeSelector:
         {{ .Values.labels.conductor.node_selector_key }}: {{ .Values.labels.conductor.node_selector_value }}
       initContainers:

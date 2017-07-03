@@ -15,7 +15,7 @@
 {{- $dependencies := .Values.dependencies.api }}
 {{- $mounts_keystone_api := .Values.mounts.keystone_api.keystone_api }}
 {{- $mounts_keystone_api_init := .Values.mounts.keystone_api.init_container }}
-
+---
 apiVersion: apps/v1beta1
 kind: Deployment
 metadata:
@@ -33,11 +33,13 @@ spec:
   template:
     metadata:
       labels:
-        app: keystone-api
+{{ tuple $envAll "keystone" "api" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
       annotations:
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
     spec:
+      affinity:
+{{ tuple $envAll "keystone" "api" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
       nodeSelector:
         {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
       terminationGracePeriodSeconds: {{ .Values.termination_grace_period.api.timeout | default "30" }}

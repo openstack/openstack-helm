@@ -16,6 +16,7 @@
 {{- $dependencies := .Values.dependencies.server }}
 {{- $mounts_neutron_server := .Values.mounts.neutron_server.neutron_server }}
 {{- $mounts_neutron_server_init := .Values.mounts.neutron_server.init_container }}
+---
 apiVersion: apps/v1beta1
 kind: Deployment
 metadata:
@@ -33,11 +34,13 @@ spec:
   template:
     metadata:
       labels:
-        app: neutron-server
+{{ tuple $envAll "neutron" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
       annotations:
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
     spec:
+      affinity:
+{{ tuple $envAll "neutron" "server" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
       nodeSelector:
         {{ .Values.labels.server.node_selector_key }}: {{ .Values.labels.server.node_selector_value }}
       terminationGracePeriodSeconds: {{ .Values.termination_grace_period.server.timeout | default "30" }}

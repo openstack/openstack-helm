@@ -15,7 +15,7 @@
 {{- $dependencies := .Values.dependencies.volume }}
 {{- $mounts_cinder_volume := .Values.mounts.cinder_volume.cinder_volume }}
 {{- $mounts_cinder_volume_init := .Values.mounts.cinder_volume.init_container }}
-
+---
 apiVersion: apps/v1beta1
 kind: Deployment
 metadata:
@@ -33,11 +33,13 @@ spec:
   template:
     metadata:
       labels:
-        app: cinder-volume
+{{ tuple $envAll "cinder" "volume" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
       annotations:
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
     spec:
+      affinity:
+{{ tuple $envAll "cinder" "volume" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
       nodeSelector:
         {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
       initContainers:

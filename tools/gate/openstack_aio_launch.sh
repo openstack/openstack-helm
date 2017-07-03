@@ -45,11 +45,11 @@ KEYSTONE_CREDS="--os-username ${KS_USER} \
   --os-project-domain-name ${KS_PROJECT_DOMAIN} \
   --os-user-domain-name ${KS_USER_DOMAIN} \
   --os-password ${KS_PASSWORD}"
-NEUTRON_POD=$(kubectl get -n openstack pods -l app=neutron-server --no-headers -o name | head -1 | awk -F '/' '{ print $NF }')
+NEUTRON_POD=$(kubectl get -n openstack pods -l application=neutron,component=server --no-headers -o name | head -1 | awk -F '/' '{ print $NF }')
 NEUTRON="kubectl exec -n openstack ${NEUTRON_POD} -- neutron ${KEYSTONE_CREDS}"
-OPENSTACK_POD=$(kubectl get -n openstack pods -l app=keystone-api --no-headers -o name | head -1 | awk -F '/' '{ print $NF }')
+OPENSTACK_POD=$(kubectl get -n openstack pods -l application=keystone,component=api --no-headers -o name | head -1 | awk -F '/' '{ print $NF }')
 OPENSTACK="kubectl exec -n openstack ${OPENSTACK_POD} -- openstack ${KEYSTONE_CREDS} --os-identity-api-version 3 --os-image-api-version 2"
-NOVA_POD=$(kubectl get -n openstack pods -l app=nova-api-osapi --no-headers -o name | head -1 | awk -F '/' '{ print $NF }')
+NOVA_POD=$(kubectl get -n openstack pods -l application=nova,component=os-api --no-headers -o name | head -1 | awk -F '/' '{ print $NF }')
 NOVA="kubectl exec -n openstack ${NOVA_POD} -- nova ${KEYSTONE_CREDS}"
 
 # Turn on ip forwarding if its not already
@@ -62,7 +62,7 @@ sudo ip addr add ${OSH_BR_EX_ADDR} dev br-ex
 sudo ip link set br-ex up
 
 # Disable In-Band rules on br-ex bridge to ease debugging
-OVS_VSWITCHD_POD=$(kubectl get -n openstack pods -l app=ovs-vswitchd --no-headers -o name | head -1 | awk -F '/' '{ print $NF }')
+OVS_VSWITCHD_POD=$(kubectl get -n openstack pods -l application=neutron,component=ovs-vswitchd --no-headers -o name | head -1 | awk -F '/' '{ print $NF }')
 kubectl exec -n openstack ${OVS_VSWITCHD_POD} -- ovs-vsctl set Bridge br-ex other_config:disable-in-band=true
 
 # Setup masquerading on default route dev to public subnet

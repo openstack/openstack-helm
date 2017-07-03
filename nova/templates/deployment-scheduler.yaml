@@ -16,7 +16,7 @@
 {{- $dependencies := .Values.dependencies.scheduler }}
 {{- $mounts_nova_scheduler := .Values.mounts.nova_scheduler.nova_conductor }}
 {{- $mounts_nova_scheduler_init := .Values.mounts.nova_scheduler.init_container }}
-
+---
 apiVersion: apps/v1beta1
 kind: Deployment
 metadata:
@@ -34,11 +34,13 @@ spec:
   template:
     metadata:
       labels:
-        app: nova-scheduler
+{{ tuple $envAll "nova" "scheduler" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
       annotations:
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
     spec:
+      affinity:
+{{ tuple $envAll "nova" "scheduler" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
       nodeSelector:
         {{ .Values.labels.scheduler.node_selector_key }}: {{ .Values.labels.scheduler.node_selector_value }}
       initContainers:

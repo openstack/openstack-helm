@@ -16,6 +16,7 @@
 {{- $dependencies := .Values.dependencies.registry }}
 {{- $mounts_glance_registry := .Values.mounts.glance_registry.glance_registry }}
 {{- $mounts_glance_registry_init := .Values.mounts.glance_registry.init_container }}
+---
 apiVersion: apps/v1beta1
 kind: Deployment
 metadata:
@@ -25,11 +26,13 @@ spec:
   template:
     metadata:
       labels:
-        app: glance-registry
+{{ tuple $envAll "glance" "registry" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
       annotations:
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
     spec:
+      affinity:
+{{ tuple $envAll "glance" "registry" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
       nodeSelector:
         {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
       terminationGracePeriodSeconds: {{ .Values.termination_grace_period.registry.timeout | default "600" }}
