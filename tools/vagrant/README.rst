@@ -2,6 +2,10 @@
 Vagrant Deployment
 ==================
 
+A Vagrantfile has been provided in the ``tools/`` directory.  This
+vagrant installation will prep a single VM with specs from the ``config.rb``
+file, and will run OpenStack-Helm gate scripts to set up Kubernetes.
+
 Requirements
 ------------
 
