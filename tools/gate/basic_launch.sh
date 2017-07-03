@@ -84,30 +84,33 @@ helm install --namespace=openstack local/nova --name=nova \
 helm install --namespace=openstack local/neutron --name=neutron \
     --values=${WORK_DIR}/tools/overrides/mvp/neutron.yaml
 kube_wait_for_pods openstack 420
-if [ "x$PVC_BACKEND" == "xceph" ]; then
-  helm install --namespace=openstack local/cinder --name=cinder
-else
-  helm install --namespace=openstack local/cinder --name=cinder \
-      --values=${WORK_DIR}/tools/overrides/mvp/cinder.yaml
-fi
-helm install --namespace=openstack local/heat --name=heat
-helm install --namespace=openstack local/horizon --name=horizon
-kube_wait_for_pods openstack 420
 
 if [ "x$INTEGRATION" == "xaio" ]; then
  bash ${WORK_DIR}/tools/gate/openstack_aio_launch.sh
 fi
 
-helm_test_deployment keystone 600
-helm_test_deployment glance 600
-helm_test_deployment cinder 600
-helm_test_deployment neutron 600
-helm_test_deployment nova 600
+if [ "x$INTEGRATION" == "xmulti" ]; then
+  if [ "x$PVC_BACKEND" == "xceph" ]; then
+    helm install --namespace=openstack local/cinder --name=cinder
+  else
+    helm install --namespace=openstack local/cinder --name=cinder \
+        --values=${WORK_DIR}/tools/overrides/mvp/cinder.yaml
+  fi
+  helm install --namespace=openstack local/heat --name=heat
+  helm install --namespace=openstack local/horizon --name=horizon
+  kube_wait_for_pods openstack 420
 
-if [ "x$LAUNCH_ALL_OSH_SERVICES" == "xtrue" ]; then
   helm install --namespace=openstack local/barbican --name=barbican
   helm install --namespace=openstack local/magnum --name=magnum
+  kube_wait_for_pods openstack 420
+
   helm install --namespace=openstack local/mistral --name=mistral
   helm install --namespace=openstack local/senlin --name=senlin
   kube_wait_for_pods openstack 600
+
+  helm_test_deployment keystone 600
+  helm_test_deployment glance 600
+  helm_test_deployment cinder 600
+  helm_test_deployment neutron 600
+  helm_test_deployment nova 600
 fi
