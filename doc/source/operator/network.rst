@@ -1,9 +1,0 @@
-=================
-Networking Guides
-=================
-
-Ingress
-=======
-
-Nodeports
-=========
