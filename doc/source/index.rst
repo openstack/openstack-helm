@@ -12,7 +12,6 @@ Contents:
    :maxdepth: 3
 
    readme
-   philosophy
    install/index
    devref/index
    contributing
