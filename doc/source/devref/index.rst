@@ -1,9 +1,12 @@
-Helm development
-================
+Developer References
+====================
 
 Contents:
 
 .. toctree::
    :maxdepth: 2
 
-   getting-started/index
+   pod-disruption-budgets
+   images
+   endpoints
+   upgrades

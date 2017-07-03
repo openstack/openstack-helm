@@ -1,15 +1,6 @@
-=====================
-Kubernetes Operations
-=====================
-
-Init-Containers
-===============
-
-Jobs
-====
-
 Pod Disruption Budgets
-======================
+----------------------
+
 OpenStack-Helm leverages PodDistruptionBudgets to enforce quotas
 that ensure that a certain number of replicas of a pod are available
 at any given time.  This is particularly important in the case when a Kubernetes
