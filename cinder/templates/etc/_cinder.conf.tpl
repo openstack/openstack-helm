@@ -308,7 +308,8 @@
 
 # osapi volume extension to load (multi valued)
 # from .default.cinder.osapi_volume_extension (multiopt)
-{{ if not .default.cinder.osapi_volume_extension }}#osapi_volume_extension = {{ .default.cinder.osapi_volume_extension | default "cinder.api.contrib.standard_extensions" }}{{ else }}{{ range .default.cinder.osapi_volume_extension }}osapi_volume_extension = {{ . }}{{ end }}{{ end }}
+{{ if not .default.cinder.osapi_volume_extension }}#osapi_volume_extension = {{ .default.cinder.osapi_volume_extension | default "cinder.api.contrib.standard_extensions" }}{{ else }}{{ range .default.cinder.osapi_volume_extension }}osapi_volume_extension = {{ . }}
+{{ end }}{{ end }}
 
 # Full class name for the Manager for volume (string value)
 # from .default.cinder.volume_manager
@@ -887,7 +888,8 @@
 # takes the standard dict config form: replication_device =
 # target_device_id:<required>,key1:value1,key2:value2... (dict value)
 # from .default.cinder.replication_device (multiopt)
-{{ if not .default.cinder.replication_device }}#replication_device = {{ .default.cinder.replication_device | default "<None>" }}{{ else }}{{ range .default.cinder.replication_device }}replication_device = {{ . }}{{ end }}{{ end }}
+{{ if not .default.cinder.replication_device }}#replication_device = {{ .default.cinder.replication_device | default "<None>" }}{{ else }}{{ range .default.cinder.replication_device }}replication_device = {{ . }}
+{{ end }}{{ end }}
 
 # If set to True, upload-to-image in raw format will create a cloned
 # volume and register its location to the image service, instead of
@@ -2620,7 +2622,8 @@
 # messaging, messagingv2, routing, log, test, noop (multi valued)
 # Deprecated group/name - [DEFAULT]/notification_driver
 # from .oslo_messaging_notifications.oslo.messaging.driver (multiopt)
-{{ if not .oslo_messaging_notifications.oslo.messaging.driver }}#driver = {{ .oslo_messaging_notifications.oslo.messaging.driver | default "" }}{{ else }}{{ range .oslo_messaging_notifications.oslo.messaging.driver }}driver = {{ . }}{{ end }}{{ end }}
+{{ if not .oslo_messaging_notifications.oslo.messaging.driver }}#driver = {{ .oslo_messaging_notifications.oslo.messaging.driver | default "" }}{{ else }}{{ range .oslo_messaging_notifications.oslo.messaging.driver }}driver = {{ . }}
+{{ end }}{{ end }}
 
 # A URL representing the messaging driver to use for notifications. If
 # not set, we fall back to the same configuration used for RPC.
@@ -3129,7 +3132,8 @@
 # Missing or empty directories are ignored. (multi valued)
 # Deprecated group/name - [DEFAULT]/policy_dirs
 # from .oslo_policy.oslo.policy.policy_dirs (multiopt)
-{{ if not .oslo_policy.oslo.policy.policy_dirs }}#policy_dirs = {{ .oslo_policy.oslo.policy.policy_dirs | default "policy.d" }}{{ else }}{{ range .oslo_policy.oslo.policy.policy_dirs }}policy_dirs = {{ . }}{{ end }}{{ end }}
+{{ if not .oslo_policy.oslo.policy.policy_dirs }}#policy_dirs = {{ .oslo_policy.oslo.policy.policy_dirs | default "policy.d" }}{{ else }}{{ range .oslo_policy.oslo.policy.policy_dirs }}policy_dirs = {{ . }}
+{{ end }}{{ end }}
 
 
 [oslo_reports]

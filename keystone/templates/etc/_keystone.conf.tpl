@@ -281,7 +281,8 @@
 # topics. For example: notification_opt_out=identity.user.create
 # notification_opt_out=identity.authenticate.success (multi valued)
 # from .default.keystone.notification_opt_out (multiopt)
-{{ if not .default.keystone.notification_opt_out }}#notification_opt_out = {{ .default.keystone.notification_opt_out | default "" }}{{ else }}{{ range .default.keystone.notification_opt_out }}notification_opt_out = {{ . }}{{ end }}{{ end }}
+{{ if not .default.keystone.notification_opt_out }}#notification_opt_out = {{ .default.keystone.notification_opt_out | default "" }}{{ else }}{{ range .default.keystone.notification_opt_out }}notification_opt_out = {{ . }}
+{{ end }}{{ end }}
 
 #
 # From oslo.log
@@ -646,7 +647,8 @@
 # argument to be passed to the dogpile.cache backend. Example format:
 # "<argname>:<value>". (multi valued)
 # from .cache.oslo.cache.backend_argument (multiopt)
-{{ if not .cache.oslo.cache.backend_argument }}#backend_argument = {{ .cache.oslo.cache.backend_argument | default "" }}{{ else }}{{ range .cache.oslo.cache.backend_argument }}backend_argument = {{ . }}{{ end }}{{ end }}
+{{ if not .cache.oslo.cache.backend_argument }}#backend_argument = {{ .cache.oslo.cache.backend_argument | default "" }}{{ else }}{{ range .cache.oslo.cache.backend_argument }}backend_argument = {{ . }}
+{{ end }}{{ end }}
 
 # Proxy classes to import that will affect the way the dogpile.cache backend
 # functions. See the dogpile.cache documentation on changing-backend-behavior.
@@ -1128,7 +1130,8 @@
 # trusted_dashboard=https://acme.example.com/auth/websso
 # trusted_dashboard=https://beta.example.com/auth/websso (multi valued)
 # from .federation.keystone.trusted_dashboard (multiopt)
-{{ if not .federation.keystone.trusted_dashboard }}#trusted_dashboard = {{ .federation.keystone.trusted_dashboard | default "" }}{{ else }}{{ range .federation.keystone.trusted_dashboard }}trusted_dashboard = {{ . }}{{ end }}{{ end }}
+{{ if not .federation.keystone.trusted_dashboard }}#trusted_dashboard = {{ .federation.keystone.trusted_dashboard | default "" }}{{ else }}{{ range .federation.keystone.trusted_dashboard }}trusted_dashboard = {{ . }}
+{{ end }}{{ end }}
 
 # Absolute path to an HTML file used as a Single Sign-On callback handler. This
 # page is expected to redirect the user from keystone back to a trusted
@@ -2114,7 +2117,8 @@
 # messaging, messagingv2, routing, log, test, noop (multi valued)
 # Deprecated group/name - [DEFAULT]/notification_driver
 # from .oslo_messaging_notifications.oslo.messaging.driver (multiopt)
-{{ if not .oslo_messaging_notifications.oslo.messaging.driver }}#driver = {{ .oslo_messaging_notifications.oslo.messaging.driver | default "" }}{{ else }}{{ range .oslo_messaging_notifications.oslo.messaging.driver }}driver = {{ . }}{{ end }}{{ end }}
+{{ if not .oslo_messaging_notifications.oslo.messaging.driver }}#driver = {{ .oslo_messaging_notifications.oslo.messaging.driver | default "" }}{{ else }}{{ range .oslo_messaging_notifications.oslo.messaging.driver }}driver = {{ . }}
+{{ end }}{{ end }}
 
 # A URL representing the messaging driver to use for notifications. If not set,
 # we fall back to the same configuration used for RPC. (string value)
@@ -2607,7 +2611,8 @@
 # valued)
 # Deprecated group/name - [DEFAULT]/policy_dirs
 # from .oslo_policy.oslo.policy.policy_dirs (multiopt)
-{{ if not .oslo_policy.oslo.policy.policy_dirs }}#policy_dirs = {{ .oslo_policy.oslo.policy.policy_dirs | default "policy.d" }}{{ else }}{{ range .oslo_policy.oslo.policy.policy_dirs }}policy_dirs = {{ . }}{{ end }}{{ end }}
+{{ if not .oslo_policy.oslo.policy.policy_dirs }}#policy_dirs = {{ .oslo_policy.oslo.policy.policy_dirs | default "policy.d" }}{{ else }}{{ range .oslo_policy.oslo.policy.policy_dirs }}policy_dirs = {{ . }}
+{{ end }}{{ end }}
 
 
 [paste_deploy]
@@ -3282,7 +3287,8 @@
 # two different DNs, such as `trusted_issuer = CN=john,OU=keystone,O=openstack`
 # and `trusted_issuer = CN=mary,OU=eng,O=abc`. (multi valued)
 # from .tokenless_auth.keystone.trusted_issuer (multiopt)
-{{ if not .tokenless_auth.keystone.trusted_issuer }}#trusted_issuer = {{ .tokenless_auth.keystone.trusted_issuer | default "" }}{{ else }}{{ range .tokenless_auth.keystone.trusted_issuer }}trusted_issuer = {{ . }}{{ end }}{{ end }}
+{{ if not .tokenless_auth.keystone.trusted_issuer }}#trusted_issuer = {{ .tokenless_auth.keystone.trusted_issuer | default "" }}{{ else }}{{ range .tokenless_auth.keystone.trusted_issuer }}trusted_issuer = {{ . }}
+{{ end }}{{ end }}
 
 # The federated protocol ID used to represent X.509 tokenless authorization.
 # This is used in combination with the value of `[tokenless_auth]

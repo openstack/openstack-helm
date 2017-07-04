@@ -717,7 +717,8 @@
 # Reason: stevedore and setuptools entry points now allow a set of plugins to be
 # specified without this config option.
 # from .default.nova.conf.compute_available_monitors (multiopt)
-{{ if not .default.nova.conf.compute_available_monitors }}#compute_available_monitors = {{ .default.nova.conf.compute_available_monitors | default "" }}{{ else }}{{ range .default.nova.conf.compute_available_monitors }}compute_available_monitors = {{ . }}{{ end }}{{ end }}
+{{ if not .default.nova.conf.compute_available_monitors }}#compute_available_monitors = {{ .default.nova.conf.compute_available_monitors | default "" }}{{ else }}{{ range .default.nova.conf.compute_available_monitors }}compute_available_monitors = {{ . }}
+{{ end }}{{ end }}
 
 #
 # A list of monitors that can be used for getting compute metrics.
@@ -1655,7 +1656,8 @@
 #     configuration file.
 #  (multi valued)
 # from .default.nova.conf.dhcpbridge_flagfile (multiopt)
-{{ if not .default.nova.conf.dhcpbridge_flagfile }}#dhcpbridge_flagfile = {{ .default.nova.conf.dhcpbridge_flagfile | default "/etc/nova/nova-dhcpbridge.conf" }}{{ else }}{{ range .default.nova.conf.dhcpbridge_flagfile }}dhcpbridge_flagfile = {{ . }}{{ end }}{{ end }}
+{{ if not .default.nova.conf.dhcpbridge_flagfile }}#dhcpbridge_flagfile = {{ .default.nova.conf.dhcpbridge_flagfile | default "/etc/nova/nova-dhcpbridge.conf" }}{{ else }}{{ range .default.nova.conf.dhcpbridge_flagfile }}dhcpbridge_flagfile = {{ . }}
+{{ end }}{{ end }}
 
 #
 # The location where the network configuration files will be kept. The default
@@ -1736,7 +1738,8 @@
 #     use_network_dns_servers
 #  (multi valued)
 # from .default.nova.conf.dns_server (multiopt)
-{{ if not .default.nova.conf.dns_server }}#dns_server = {{ .default.nova.conf.dns_server | default "" }}{{ else }}{{ range .default.nova.conf.dns_server }}dns_server = {{ . }}{{ end }}{{ end }}
+{{ if not .default.nova.conf.dns_server }}#dns_server = {{ .default.nova.conf.dns_server | default "" }}{{ else }}{{ range .default.nova.conf.dns_server }}dns_server = {{ . }}
+{{ end }}{{ end }}
 
 #
 # When this option is set to True, the dns1 and dns2 servers for the network
@@ -1776,7 +1779,8 @@
 #     routing_source_ip
 #  (multi valued)
 # from .default.nova.conf.force_snat_range (multiopt)
-{{ if not .default.nova.conf.force_snat_range }}#force_snat_range = {{ .default.nova.conf.force_snat_range | default "" }}{{ else }}{{ range .default.nova.conf.force_snat_range }}force_snat_range = {{ . }}{{ end }}{{ end }}
+{{ if not .default.nova.conf.force_snat_range }}#force_snat_range = {{ .default.nova.conf.force_snat_range | default "" }}{{ else }}{{ range .default.nova.conf.force_snat_range }}force_snat_range = {{ . }}
+{{ end }}{{ end }}
 
 #
 # The path to the custom dnsmasq configuration file, if any.
@@ -1860,7 +1864,8 @@
 #     A list of zero or more interface names, or the word 'all'.
 #  (multi valued)
 # from .default.nova.conf.forward_bridge_interface (multiopt)
-{{ if not .default.nova.conf.forward_bridge_interface }}#forward_bridge_interface = {{ .default.nova.conf.forward_bridge_interface | default "all" }}{{ else }}{{ range .default.nova.conf.forward_bridge_interface }}forward_bridge_interface = {{ . }}{{ end }}{{ end }}
+{{ if not .default.nova.conf.forward_bridge_interface }}#forward_bridge_interface = {{ .default.nova.conf.forward_bridge_interface | default "all" }}{{ else }}{{ range .default.nova.conf.forward_bridge_interface }}forward_bridge_interface = {{ . }}
+{{ end }}{{ end }}
 
 #
 # This option determines the IP address for the network metadata API server.
@@ -2413,7 +2418,8 @@
 
 # DNS Servers for LDAP DNS driver (multi valued)
 # from .default.nova.conf.ldap_dns_servers (multiopt)
-{{ if not .default.nova.conf.ldap_dns_servers }}#ldap_dns_servers = {{ .default.nova.conf.ldap_dns_servers | default "dns.example.org" }}{{ else }}{{ range .default.nova.conf.ldap_dns_servers }}ldap_dns_servers = {{ . }}{{ end }}{{ end }}
+{{ if not .default.nova.conf.ldap_dns_servers }}#ldap_dns_servers = {{ .default.nova.conf.ldap_dns_servers | default "dns.example.org" }}{{ else }}{{ range .default.nova.conf.ldap_dns_servers }}ldap_dns_servers = {{ . }}
+{{ end }}{{ end }}
 
 # Base DN for DNS entries in LDAP (string value)
 # from .default.nova.conf.ldap_dns_base_dn
@@ -2609,7 +2615,8 @@
 #     "type-PF" and "type-VF".
 #  (multi valued)
 # from .default.nova.conf.pci_alias (multiopt)
-{{ if not .default.nova.conf.pci_alias }}#pci_alias = {{ .default.nova.conf.pci_alias | default "" }}{{ else }}{{ range .default.nova.conf.pci_alias }}pci_alias = {{ . }}{{ end }}{{ end }}
+{{ if not .default.nova.conf.pci_alias }}#pci_alias = {{ .default.nova.conf.pci_alias | default "" }}{{ else }}{{ range .default.nova.conf.pci_alias }}pci_alias = {{ . }}
+{{ end }}{{ end }}
 
 #
 # White list of PCI devices available to VMs.
@@ -2665,7 +2672,8 @@
 #                                  {"product_id":"0002", "vendor_id":"8086"}]
 #  (multi valued)
 # from .default.nova.conf.pci_passthrough_whitelist (multiopt)
-{{ if not .default.nova.conf.pci_passthrough_whitelist }}#pci_passthrough_whitelist = {{ .default.nova.conf.pci_passthrough_whitelist | default "" }}{{ else }}{{ range .default.nova.conf.pci_passthrough_whitelist }}pci_passthrough_whitelist = {{ . }}{{ end }}{{ end }}
+{{ if not .default.nova.conf.pci_passthrough_whitelist }}#pci_passthrough_whitelist = {{ .default.nova.conf.pci_passthrough_whitelist | default "" }}{{ else }}{{ range .default.nova.conf.pci_passthrough_whitelist }}pci_passthrough_whitelist = {{ . }}
+{{ end }}{{ end }}
 
 #
 # The number of instances allowed per project.
@@ -3068,7 +3076,8 @@
 #     scheduler_default_filters
 #  (multi valued)
 # from .default.nova.conf.scheduler_available_filters (multiopt)
-{{ if not .default.nova.conf.scheduler_available_filters }}#scheduler_available_filters = {{ .default.nova.conf.scheduler_available_filters | default "nova.scheduler.filters.all_filters" }}{{ else }}{{ range .default.nova.conf.scheduler_available_filters }}scheduler_available_filters = {{ . }}{{ end }}{{ end }}
+{{ if not .default.nova.conf.scheduler_available_filters }}#scheduler_available_filters = {{ .default.nova.conf.scheduler_available_filters | default "nova.scheduler.filters.all_filters" }}{{ else }}{{ range .default.nova.conf.scheduler_available_filters }}scheduler_available_filters = {{ . }}
+{{ end }}{{ end }}
 
 #
 # This option is the list of filter class names that will be used for filtering
@@ -3760,7 +3769,8 @@
 # <os_type>=<mkfs command>
 #  (multi valued)
 # from .default.nova.conf.virt_mkfs (multiopt)
-{{ if not .default.nova.conf.virt_mkfs }}#virt_mkfs = {{ .default.nova.conf.virt_mkfs | default "" }}{{ else }}{{ range .default.nova.conf.virt_mkfs }}virt_mkfs = {{ . }}{{ end }}{{ end }}
+{{ if not .default.nova.conf.virt_mkfs }}#virt_mkfs = {{ .default.nova.conf.virt_mkfs | default "" }}{{ else }}{{ range .default.nova.conf.virt_mkfs }}virt_mkfs = {{ . }}
+{{ end }}{{ end }}
 
 #
 # If enabled, attempt to resize the filesystem by accessing the image over a
@@ -3843,7 +3853,8 @@
 #   and on NUMA node 1 1 page of 1GiB.
 #  (dict value)
 # from .default.nova.conf.reserved_huge_pages (multiopt)
-{{ if not .default.nova.conf.reserved_huge_pages }}#reserved_huge_pages = {{ .default.nova.conf.reserved_huge_pages | default "<None>" }}{{ else }}{{ range .default.nova.conf.reserved_huge_pages }}reserved_huge_pages = {{ . }}{{ end }}{{ end }}
+{{ if not .default.nova.conf.reserved_huge_pages }}#reserved_huge_pages = {{ .default.nova.conf.reserved_huge_pages | default "<None>" }}{{ else }}{{ range .default.nova.conf.reserved_huge_pages }}reserved_huge_pages = {{ . }}
+{{ end }}{{ end }}
 
 #
 # From oslo.log
@@ -4318,7 +4329,8 @@
 # argument to be passed to the dogpile.cache backend. Example format:
 # "<argname>:<value>". (multi valued)
 # from .cache.nova.conf.backend_argument (multiopt)
-{{ if not .cache.nova.conf.backend_argument }}#backend_argument = {{ .cache.nova.conf.backend_argument | default "" }}{{ else }}{{ range .cache.nova.conf.backend_argument }}backend_argument = {{ . }}{{ end }}{{ end }}
+{{ if not .cache.nova.conf.backend_argument }}#backend_argument = {{ .cache.nova.conf.backend_argument | default "" }}{{ else }}{{ range .cache.nova.conf.backend_argument }}backend_argument = {{ . }}
+{{ end }}{{ end }}
 
 # Proxy classes to import that will affect the way the dogpile.cache backend
 # functions. See the dogpile.cache documentation on changing-backend-behavior.
@@ -7774,7 +7786,8 @@
 # messagingv2, routing, log, test, noop (multi valued)
 # Deprecated group/name - [DEFAULT]/notification_driver
 # from .oslo_messaging_notifications.oslo.messaging.driver (multiopt)
-{{ if not .oslo_messaging_notifications.oslo.messaging.driver }}#driver = {{ .oslo_messaging_notifications.oslo.messaging.driver | default "" }}{{ else }}{{ range .oslo_messaging_notifications.oslo.messaging.driver }}driver = {{ . }}{{ end }}{{ end }}
+{{ if not .oslo_messaging_notifications.oslo.messaging.driver }}#driver = {{ .oslo_messaging_notifications.oslo.messaging.driver | default "" }}{{ else }}{{ range .oslo_messaging_notifications.oslo.messaging.driver }}driver = {{ . }}
+{{ end }}{{ end }}
 
 # A URL representing the messaging driver to use for notifications. If not set,
 # we fall back to the same configuration used for RPC. (string value)
@@ -8264,7 +8277,8 @@
 # valued)
 # Deprecated group/name - [DEFAULT]/policy_dirs
 # from .oslo_policy.oslo.policy.policy_dirs (multiopt)
-{{ if not .oslo_policy.oslo.policy.policy_dirs }}#policy_dirs = {{ .oslo_policy.oslo.policy.policy_dirs | default "policy.d" }}{{ else }}{{ range .oslo_policy.oslo.policy.policy_dirs }}policy_dirs = {{ . }}{{ end }}{{ end }}
+{{ if not .oslo_policy.oslo.policy.policy_dirs }}#policy_dirs = {{ .oslo_policy.oslo.policy.policy_dirs | default "policy.d" }}{{ else }}{{ range .oslo_policy.oslo.policy.policy_dirs }}policy_dirs = {{ . }}
+{{ end }}{{ end }}
 
 
 [placement]

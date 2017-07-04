@@ -293,7 +293,8 @@
 # argument to be passed to the dogpile.cache backend. Example format:
 # "<argname>:<value>". (multi valued)
 # from .cache.oslo.cache.backend_argument (multiopt)
-{{ if not .cache.oslo.cache.backend_argument }}#backend_argument = {{ .cache.oslo.cache.backend_argument | default "" }}{{ else }}{{ range .cache.oslo.cache.backend_argument }}backend_argument = {{ . }}{{ end }}{{ end }}
+{{ if not .cache.oslo.cache.backend_argument }}#backend_argument = {{ .cache.oslo.cache.backend_argument | default "" }}{{ else }}{{ range .cache.oslo.cache.backend_argument }}backend_argument = {{ . }}
+{{ end }}{{ end }}
 
 # Proxy classes to import that will affect the way the dogpile.cache backend
 # functions. See the dogpile.cache documentation on changing-backend-behavior.

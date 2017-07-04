@@ -525,7 +525,7 @@ class _HelmOptFormatter(object):
                                     namespace, opt.dest))
                 lines.append('{{ if not .%s.%s.%s }}#%s = '
                              '{{ .%s.%s.%s | default "%s" }}{{ else }}'
-                             '{{ range .%s.%s.%s }}%s = {{ . }}{{ end }}'
+                             '{{ range .%s.%s.%s }}%s = {{ . }}\n{{ end }}'
                              '{{ end }}\n' % (
                                     group_name.lower(),
                                     namespace,
