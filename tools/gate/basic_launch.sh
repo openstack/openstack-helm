@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 set -ex
-
+: ${WORK_DIR:="$(pwd)"}
 source ${WORK_DIR}/tools/gate/funcs/helm.sh
 source ${WORK_DIR}/tools/gate/funcs/kube.sh
 
@@ -41,7 +41,7 @@ EOF"
   export osd_cluster_network=192.168.0.0/16
   export osd_public_network=192.168.0.0/16
 
-  helm install --namespace=ceph local/ceph --name=ceph \
+  helm install --namespace=ceph ${WORK_DIR}/ceph --name=ceph \
     --set manifests_enabled.client_secrets=false \
     --set network.public=$osd_public_network \
     --set network.cluster=$osd_cluster_network
@@ -50,7 +50,7 @@ EOF"
 
   kubectl exec -n ceph ceph-mon-0 -- ceph -s
 
-  helm install --namespace=openstack local/ceph --name=ceph-openstack-config \
+  helm install --namespace=openstack ${WORK_DIR}/ceph --name=ceph-openstack-config \
     --set manifests_enabled.storage_secrets=false \
     --set manifests_enabled.deployment=false \
     --set ceph.namespace=ceph \
@@ -64,24 +64,24 @@ EOF"
   kubectl exec -n ceph ceph-mon-0 -- ceph osd pool create vms 8
 fi
 
-helm install --namespace=openstack local/ingress --name=ingress
-helm install --namespace=openstack local/mariadb --name=mariadb
-helm install --namespace=openstack local/memcached --name=memcached
-helm install --namespace=openstack local/etcd --name=etcd-rabbitmq
-helm install --namespace=openstack local/rabbitmq --name=rabbitmq
+helm install --namespace=openstack ${WORK_DIR}/ingress --name=ingress
+helm install --namespace=openstack ${WORK_DIR}/mariadb --name=mariadb
+helm install --namespace=openstack ${WORK_DIR}/memcached --name=memcached
+helm install --namespace=openstack ${WORK_DIR}/etcd --name=etcd-rabbitmq
+helm install --namespace=openstack ${WORK_DIR}/rabbitmq --name=rabbitmq
 kube_wait_for_pods openstack 420
-helm install --namespace=openstack local/keystone --name=keystone
+helm install --namespace=openstack ${WORK_DIR}/keystone --name=keystone
 if [ "x$PVC_BACKEND" == "xceph" ]; then
-  helm install --namespace=openstack local/glance --name=glance
+  helm install --namespace=openstack ${WORK_DIR}/glance --name=glance
 else
-  helm install --namespace=openstack local/glance --name=glance \
+  helm install --namespace=openstack ${WORK_DIR}/glance --name=glance \
       --values=${WORK_DIR}/tools/overrides/mvp/glance.yaml
 fi
 kube_wait_for_pods openstack 420
-helm install --namespace=openstack local/nova --name=nova \
+helm install --namespace=openstack ${WORK_DIR}/nova --name=nova \
     --values=${WORK_DIR}/tools/overrides/mvp/nova.yaml \
     --set=conf.nova.libvirt.nova.conf.virt_type=qemu
-helm install --namespace=openstack local/neutron --name=neutron \
+helm install --namespace=openstack ${WORK_DIR}/neutron --name=neutron \
     --values=${WORK_DIR}/tools/overrides/mvp/neutron.yaml
 kube_wait_for_pods openstack 420
 
@@ -91,21 +91,21 @@ fi
 
 if [ "x$INTEGRATION" == "xmulti" ]; then
   if [ "x$PVC_BACKEND" == "xceph" ]; then
-    helm install --namespace=openstack local/cinder --name=cinder
+    helm install --namespace=openstack ${WORK_DIR}/cinder --name=cinder
   else
-    helm install --namespace=openstack local/cinder --name=cinder \
+    helm install --namespace=openstack ${WORK_DIR}/cinder --name=cinder \
         --values=${WORK_DIR}/tools/overrides/mvp/cinder.yaml
   fi
-  helm install --namespace=openstack local/heat --name=heat
-  helm install --namespace=openstack local/horizon --name=horizon
+  helm install --namespace=openstack ${WORK_DIR}/heat --name=heat
+  helm install --namespace=openstack ${WORK_DIR}/horizon --name=horizon
   kube_wait_for_pods openstack 420
 
-  helm install --namespace=openstack local/barbican --name=barbican
-  helm install --namespace=openstack local/magnum --name=magnum
+  helm install --namespace=openstack ${WORK_DIR}/barbican --name=barbican
+  helm install --namespace=openstack ${WORK_DIR}/magnum --name=magnum
   kube_wait_for_pods openstack 420
 
-  helm install --namespace=openstack local/mistral --name=mistral
-  helm install --namespace=openstack local/senlin --name=senlin
+  helm install --namespace=openstack ${WORK_DIR}/mistral --name=mistral
+  helm install --namespace=openstack ${WORK_DIR}/senlin --name=senlin
   kube_wait_for_pods openstack 600
 
   helm_test_deployment keystone 600
