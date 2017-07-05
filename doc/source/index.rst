@@ -16,6 +16,8 @@ Contents:
    devref/index
    contributing
    troubleshooting/index
+   testing
+   gates
 
 Indices and tables
 ==================
