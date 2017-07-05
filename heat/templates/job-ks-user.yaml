@@ -14,11 +14,7 @@
 
 {{- $envAll := . }}
 {{- $dependencies := .Values.dependencies.ks_user }}
-{{- $ksAdminSecret := .Values.keystone_secrets.admin }}
-{{- $ksUserSecret := .Values.keystone_secrets.user }}
 # The heat user management job is a bit different from other services as it also needs to create a stack domain and trusts user
-{{- $ksTrusteeUserSecret := .Values.keystone_secrets.trustee }}
-{{- $ksStackUserSecret := .Values.keystone_secrets.stack }}
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -52,21 +48,20 @@ spec:
               subPath: ks-user.sh
               readOnly: true
           env:
-{{- with $env := dict "ksUserSecret" $ksAdminSecret }}
+{{- with $env := dict "ksUserSecret" $envAll.Values.secrets.identity.admin }}
 {{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 12 }}
 {{- end }}
             - name: SERVICE_OS_SERVICE_NAME
               value: "heat"
-{{- with $env := dict "ksUserSecret" $ksUserSecret }}
+{{- with $env := dict "ksUserSecret" .Values.secrets.identity.user }}
 {{- include "helm-toolkit.snippets.keystone_user_create_env_vars" $env | indent 12 }}
 {{- end }}
             - name: SERVICE_OS_ROLE
-              value: {{ .Values.keystone.heat_user_role | quote }}
+              value: {{ .Values.endpoints.identity.auth.user.role | quote }}
         - name: heat-ks-trustee-user
           image: {{ .Values.images.ks_user }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
           command:
-            - bash
             - /tmp/ks-user.sh
           volumeMounts:
             - name: ks-user-sh
@@ -74,21 +69,20 @@ spec:
               subPath: ks-user.sh
               readOnly: true
           env:
-{{- with $env := dict "ksUserSecret" $ksAdminSecret }}
+{{- with $env := dict "ksUserSecret" $envAll.Values.secrets.identity.admin }}
 {{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 12 }}
 {{- end }}
             - name: SERVICE_OS_SERVICE_NAME
               value: "heat"
-{{- with $env := dict "ksUserSecret" $ksTrusteeUserSecret }}
+{{- with $env := dict "ksUserSecret" .Values.secrets.identity.trustee }}
 {{- include "helm-toolkit.snippets.keystone_user_create_env_vars" $env | indent 12 }}
 {{- end }}
             - name: SERVICE_OS_ROLE
-              value: {{ .Values.keystone.heat_trustee_role | quote }}
+              value: {{ .Values.endpoints.identity.auth.trustee.role | quote }}
         - name: heat-ks-domain-user
           image: {{ .Values.images.ks_user }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
           command:
-            - bash
             - /tmp/ks-domain-user.sh
           volumeMounts:
             - name: ks-user-sh
@@ -96,7 +90,7 @@ spec:
               subPath: ks-domain-user.sh
               readOnly: true
           env:
-{{- with $env := dict "ksUserSecret" $ksAdminSecret }}
+{{- with $env := dict "ksUserSecret" $envAll.Values.secrets.identity.admin }}
 {{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 12 }}
 {{- end }}
             - name: SERVICE_OS_SERVICE_NAME
@@ -104,25 +98,25 @@ spec:
             - name: SERVICE_OS_REGION_NAME
               valueFrom:
                 secretKeyRef:
-                  name: {{ $ksStackUserSecret }}
+                  name: {{ .Values.secrets.identity.stack_user }}
                   key: OS_REGION_NAME
             - name: SERVICE_OS_DOMAIN_NAME
               valueFrom:
                 secretKeyRef:
-                  name: {{ $ksStackUserSecret }}
+                  name: {{ .Values.secrets.identity.stack_user }}
                   key: OS_DOMAIN_NAME
             - name: SERVICE_OS_USERNAME
               valueFrom:
                 secretKeyRef:
-                  name: {{ $ksStackUserSecret }}
+                  name: {{ .Values.secrets.identity.stack_user }}
                   key: OS_USERNAME
             - name: SERVICE_OS_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ $ksStackUserSecret }}
+                  name: {{ .Values.secrets.identity.stack_user }}
                   key: OS_PASSWORD
             - name: SERVICE_OS_ROLE
-              value: {{ .Values.keystone.heat_stack_user_role | quote }}
+              value: {{ .Values.endpoints.identity.auth.stack_user.role | quote }}
       volumes:
         - name: ks-user-sh
           configMap:

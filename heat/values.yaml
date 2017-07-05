@@ -64,29 +64,6 @@ termination_grace_period:
   cloudwatch:
     timeout: 30
 
-keystone_secrets:
-  admin: "heat-env-keystone-admin"
-  user: "heat-env-keystone-user"
-  trustee: "heat-env-keystone-trustee"
-  stack: "heat-env-keystone-stack-user"
-
-keystone:
-  admin_user: "admin"
-  admin_user_domain: "default"
-  admin_password: "password"
-  admin_project_name: "admin"
-  admin_project_domain: "default"
-  admin_region_name: "RegionOne"
-
-  heat_user_role: "admin"
-
-  heat_trustee_role: "admin"
-  heat_trustee_region_name: "RegionOne"
-
-  heat_stack_user_role: "admin"
-  heat_stack_region_name: "RegionOne"
-
-
 conf:
   paste:
     override:
@@ -101,9 +78,6 @@ conf:
       heat:
         common:
           config:
-            stack_user_domain_name: heat
-            stack_domain_admin: heat-domain
-            stack_domain_admin_password: password
             num_engine_workers: 4
             trusts_delegated_roles: _member_
     keystone_authtoken:
@@ -111,24 +85,12 @@ conf:
         auth_token:
           auth_type: password
           auth_version: v3
-          region_name: RegionOne
-          project_domain_name: default
-          project_name: service
-          user_domain_name: default
-          username: heat
-          password: password
     trustee:
       heat:
         common:
           context:
             auth_section: trustee
             auth_type: password
-            password: password
-            user_domain_name: default
-            username: heat-trust
-            project_domain_name: default
-            project_name: service
-            region_name: RegionOne
             auth_version: v3
     heat_api:
       heat:
@@ -249,12 +211,53 @@ dependencies:
     - service: identity
       endpoint: internal
 
+# Names of secrets used by bootstrap and environmental checks
+secrets:
+  identity:
+    admin: heat-keystone-admin
+    user: heat-keystone-user
+    trustee: heat-keystone-trustee
+    stack_user: heat-keystone-stack-user
+  oslo_db:
+    admin: heat-db-admin
+    user: heat-db-user
+
 # typically overriden by environmental
 # values, but should include all endpoints
 # required by this chart
 endpoints:
   identity:
     name: keystone
+    auth:
+      admin:
+        region_name: RegionOne
+        username: admin
+        password: password
+        project_name: admin
+        user_domain_name: default
+        project_domain_name: default
+      user:
+        role: admin
+        region_name: RegionOne
+        username: heat
+        password: password
+        project_name: service
+        user_domain_name: default
+        project_domain_name: default
+      trustee:
+        role: admin
+        region_name: RegionOne
+        username: heat-trust
+        password: password
+        project_name: service
+        user_domain_name: default
+        project_domain_name: default
+      stack_user:
+        role: admin
+        region_name: RegionOne
+        username: heat-trust
+        password: password
+        domain_name: heat
     hosts:
       default: keystone-api
       public: keystone
