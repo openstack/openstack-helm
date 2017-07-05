@@ -1196,7 +1196,8 @@
 # messaging, messagingv2, routing, log, test, noop (multi valued)
 # Deprecated group/name - [DEFAULT]/notification_driver
 # from .oslo_messaging_notifications.oslo.messaging.driver (multiopt)
-{{ if not .oslo_messaging_notifications.oslo.messaging.driver }}#driver = {{ .oslo_messaging_notifications.oslo.messaging.driver | default "" }}{{ else }}{{ range .oslo_messaging_notifications.oslo.messaging.driver }}driver = {{ . }}{{ end }}{{ end }}
+{{ if not .oslo_messaging_notifications.oslo.messaging.driver }}#driver = {{ .oslo_messaging_notifications.oslo.messaging.driver | default "" }}{{ else }}{{ range .oslo_messaging_notifications.oslo.messaging.driver }}driver = {{ . }}
+{{ end }}{{ end }}
 
 # A URL representing the messaging driver to use for notifications. If
 # not set, we fall back to the same configuration used for RPC.
@@ -1679,7 +1680,8 @@
 # Missing or empty directories are ignored. (multi valued)
 # Deprecated group/name - [DEFAULT]/policy_dirs
 # from .oslo_policy.oslo.policy.policy_dirs (multiopt)
-{{ if not .oslo_policy.oslo.policy.policy_dirs }}#policy_dirs = {{ .oslo_policy.oslo.policy.policy_dirs | default "policy.d" }}{{ else }}{{ range .oslo_policy.oslo.policy.policy_dirs }}policy_dirs = {{ . }}{{ end }}{{ end }}
+{{ if not .oslo_policy.oslo.policy.policy_dirs }}#policy_dirs = {{ .oslo_policy.oslo.policy.policy_dirs | default "policy.d" }}{{ else }}{{ range .oslo_policy.oslo.policy.policy_dirs }}policy_dirs = {{ . }}
+{{ end }}{{ end }}
 
 
 [pecan]

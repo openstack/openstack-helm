@@ -696,7 +696,8 @@
 
 # List of certificate plugins to load. (multi valued)
 # from .certificate.barbican.certificate.plugin.enabled_certificate_plugins (multiopt)
-{{ if not .certificate.barbican.certificate.plugin.enabled_certificate_plugins }}#enabled_certificate_plugins = {{ .certificate.barbican.certificate.plugin.enabled_certificate_plugins | default "simple_certificate" }}{{ else }}{{ range .certificate.barbican.certificate.plugin.enabled_certificate_plugins }}enabled_certificate_plugins = {{ . }}{{ end }}{{ end }}
+{{ if not .certificate.barbican.certificate.plugin.enabled_certificate_plugins }}#enabled_certificate_plugins = {{ .certificate.barbican.certificate.plugin.enabled_certificate_plugins | default "simple_certificate" }}{{ else }}{{ range .certificate.barbican.certificate.plugin.enabled_certificate_plugins }}enabled_certificate_plugins = {{ . }}
+{{ end }}{{ end }}
 
 
 [certificate_event]
@@ -711,7 +712,8 @@
 
 # List of certificate plugins to load. (multi valued)
 # from .certificate_event.barbican.certificate.plugin.enabled_certificate_event_plugins (multiopt)
-{{ if not .certificate_event.barbican.certificate.plugin.enabled_certificate_event_plugins }}#enabled_certificate_event_plugins = {{ .certificate_event.barbican.certificate.plugin.enabled_certificate_event_plugins | default "simple_certificate_event" }}{{ else }}{{ range .certificate_event.barbican.certificate.plugin.enabled_certificate_event_plugins }}enabled_certificate_event_plugins = {{ . }}{{ end }}{{ end }}
+{{ if not .certificate_event.barbican.certificate.plugin.enabled_certificate_event_plugins }}#enabled_certificate_event_plugins = {{ .certificate_event.barbican.certificate.plugin.enabled_certificate_event_plugins | default "simple_certificate_event" }}{{ else }}{{ range .certificate_event.barbican.certificate.plugin.enabled_certificate_event_plugins }}enabled_certificate_event_plugins = {{ . }}
+{{ end }}{{ end }}
 
 
 [cors]
@@ -802,7 +804,8 @@
 
 # List of crypto plugins to load. (multi valued)
 # from .crypto.barbican.plugin.crypto.enabled_crypto_plugins (multiopt)
-{{ if not .crypto.barbican.plugin.crypto.enabled_crypto_plugins }}#enabled_crypto_plugins = {{ .crypto.barbican.plugin.crypto.enabled_crypto_plugins | default "simple_crypto" }}{{ else }}{{ range .crypto.barbican.plugin.crypto.enabled_crypto_plugins }}enabled_crypto_plugins = {{ . }}{{ end }}{{ end }}
+{{ if not .crypto.barbican.plugin.crypto.enabled_crypto_plugins }}#enabled_crypto_plugins = {{ .crypto.barbican.plugin.crypto.enabled_crypto_plugins | default "simple_crypto" }}{{ else }}{{ range .crypto.barbican.plugin.crypto.enabled_crypto_plugins }}enabled_crypto_plugins = {{ . }}
+{{ end }}{{ end }}
 
 
 [keystone_authtoken]
@@ -1417,9 +1420,11 @@
 # 'notify'   - Send Notifications pre-settled
 #  (multi valued)
 # from .oslo_messaging_amqp.oslo.messaging.pre_settled (multiopt)
-{{ if not .oslo_messaging_amqp.oslo.messaging.pre_settled }}#pre_settled = {{ .oslo_messaging_amqp.oslo.messaging.pre_settled | default "rpc-cast" }}{{ else }}{{ range .oslo_messaging_amqp.oslo.messaging.pre_settled }}pre_settled = {{ . }}{{ end }}{{ end }}
+{{ if not .oslo_messaging_amqp.oslo.messaging.pre_settled }}#pre_settled = {{ .oslo_messaging_amqp.oslo.messaging.pre_settled | default "rpc-cast" }}{{ else }}{{ range .oslo_messaging_amqp.oslo.messaging.pre_settled }}pre_settled = {{ . }}
+{{ end }}{{ end }}
 # from .oslo_messaging_amqp.oslo.messaging.pre_settled (multiopt)
-{{ if not .oslo_messaging_amqp.oslo.messaging.pre_settled }}#pre_settled = {{ .oslo_messaging_amqp.oslo.messaging.pre_settled | default "rpc-reply" }}{{ else }}{{ range .oslo_messaging_amqp.oslo.messaging.pre_settled }}pre_settled = {{ . }}{{ end }}{{ end }}
+{{ if not .oslo_messaging_amqp.oslo.messaging.pre_settled }}#pre_settled = {{ .oslo_messaging_amqp.oslo.messaging.pre_settled | default "rpc-reply" }}{{ else }}{{ range .oslo_messaging_amqp.oslo.messaging.pre_settled }}pre_settled = {{ . }}
+{{ end }}{{ end }}
 
 
 [oslo_messaging_kafka]
@@ -1491,7 +1496,8 @@
 # messaging, messagingv2, routing, log, test, noop (multi valued)
 # Deprecated group/name - [DEFAULT]/notification_driver
 # from .oslo_messaging_notifications.oslo.messaging.driver (multiopt)
-{{ if not .oslo_messaging_notifications.oslo.messaging.driver }}#driver = {{ .oslo_messaging_notifications.oslo.messaging.driver | default "" }}{{ else }}{{ range .oslo_messaging_notifications.oslo.messaging.driver }}driver = {{ . }}{{ end }}{{ end }}
+{{ if not .oslo_messaging_notifications.oslo.messaging.driver }}#driver = {{ .oslo_messaging_notifications.oslo.messaging.driver | default "" }}{{ else }}{{ range .oslo_messaging_notifications.oslo.messaging.driver }}driver = {{ . }}
+{{ end }}{{ end }}
 
 # A URL representing the messaging driver to use for notifications. If
 # not set, we fall back to the same configuration used for RPC.
@@ -2074,7 +2080,8 @@
 # Missing or empty directories are ignored. (multi valued)
 # Deprecated group/name - [DEFAULT]/policy_dirs
 # from .oslo_policy.oslo.policy.policy_dirs (multiopt)
-{{ if not .oslo_policy.oslo.policy.policy_dirs }}#policy_dirs = {{ .oslo_policy.oslo.policy.policy_dirs | default "policy.d" }}{{ else }}{{ range .oslo_policy.oslo.policy.policy_dirs }}policy_dirs = {{ . }}{{ end }}{{ end }}
+{{ if not .oslo_policy.oslo.policy.policy_dirs }}#policy_dirs = {{ .oslo_policy.oslo.policy.policy_dirs | default "policy.d" }}{{ else }}{{ range .oslo_policy.oslo.policy.policy_dirs }}policy_dirs = {{ . }}
+{{ end }}{{ end }}
 
 
 [p11_crypto_plugin]
@@ -2228,7 +2235,8 @@
 
 # List of secret store plugins to load. (multi valued)
 # from .secretstore.barbican.plugin.secret_store.enabled_secretstore_plugins (multiopt)
-{{ if not .secretstore.barbican.plugin.secret_store.enabled_secretstore_plugins }}#enabled_secretstore_plugins = {{ .secretstore.barbican.plugin.secret_store.enabled_secretstore_plugins | default "store_crypto" }}{{ else }}{{ range .secretstore.barbican.plugin.secret_store.enabled_secretstore_plugins }}enabled_secretstore_plugins = {{ . }}{{ end }}{{ end }}
+{{ if not .secretstore.barbican.plugin.secret_store.enabled_secretstore_plugins }}#enabled_secretstore_plugins = {{ .secretstore.barbican.plugin.secret_store.enabled_secretstore_plugins | default "store_crypto" }}{{ else }}{{ range .secretstore.barbican.plugin.secret_store.enabled_secretstore_plugins }}enabled_secretstore_plugins = {{ . }}
+{{ end }}{{ end }}
 
 # Flag to enable multiple secret store plugin backend support. Default
 # is False (boolean value)
