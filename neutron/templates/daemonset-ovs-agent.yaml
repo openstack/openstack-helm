@@ -22,15 +22,7 @@ kind: DaemonSet
 metadata:
   name: ovs-agent
 spec:
-  {{ if .Values.upgrades.daemonsets.ovs_agent.enabled }}
-  minReadySeconds: {{ .Values.upgrades.daemonsets.ovs_agent.min_ready_seconds }}
-  updateStrategy:
-    type: {{ .Values.upgrades.daemonsets.pod_replacement_strategy }}
-    {{ if eq .Values.upgrades.daemonsets.pod_replacement_strategy "RollingUpdate" }}
-    rollingUpdate:
-      maxUnavailable: {{ .Values.upgrades.daemonsets.ovs_agent.max_unavailable }}
-    {{ end }}
-  {{ end }}
+{{ tuple $envAll "ovs_agent" | include "helm-toolkit.snippets.kubernetes_upgrades_daemonset" | indent 2 }}
   template:
     metadata:
       labels:
@@ -48,15 +40,7 @@ spec:
         - name: ovs-agent-init
           image: {{ .Values.images.neutron_openvswitch_agent }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
-          {{- if .Values.resources.enabled }}
-          resources:
-            limits:
-              cpu: {{ .Values.resources.ovs.agent.limits.cpu | quote }}
-              memory: {{ .Values.resources.ovs.agent.limits.memory | quote }}
-            requests:
-              cpu: {{ .Values.resources.ovs.agent.requests.cpu | quote }}
-              memory: {{ .Values.resources.ovs.agent.requests.memory | quote }}
-          {{- end }}
+{{ tuple $envAll $envAll.Values.resources.agent.ovs | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           securityContext:
             privileged: true
             runAsUser: 0
@@ -89,20 +73,12 @@ spec:
             - name: neutron-etc
               mountPath: /etc/resolv.conf
               subPath: resolv.conf
-{{ if $mounts_neutron_ovs_agent.volumeMounts }}{{ toYaml $mounts_neutron_ovs_agent.volumeMounts | indent 12 }}{{ end }}
+{{- if $mounts_neutron_ovs_agent.volumeMounts }}{{ toYaml $mounts_neutron_ovs_agent.volumeMounts | indent 12 }}{{ end }}
       containers:
         - name: ovs-agent
           image: {{ .Values.images.neutron_openvswitch_agent }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
-          {{- if .Values.resources.enabled }}
-          resources:
-            limits:
-              cpu: {{ .Values.resources.ovs.agent.limits.cpu | quote }}
-              memory: {{ .Values.resources.ovs.agent.limits.memory | quote }}
-            requests:
-              cpu: {{ .Values.resources.ovs.agent.requests.cpu | quote }}
-              memory: {{ .Values.resources.ovs.agent.requests.memory | quote }}
-          {{- end }}
+{{ tuple $envAll $envAll.Values.resources.agent.ovs | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           securityContext:
             privileged: true
           command:
@@ -142,7 +118,7 @@ spec:
             - name: neutron-etc
               mountPath: /etc/resolv.conf
               subPath: resolv.conf
-{{ if $mounts_neutron_ovs_agent.volumeMounts }}{{ toYaml $mounts_neutron_ovs_agent.volumeMounts | indent 12 }}{{ end }}
+{{- if $mounts_neutron_ovs_agent.volumeMounts }}{{ toYaml $mounts_neutron_ovs_agent.volumeMounts | indent 12 }}{{ end }}
       volumes:
         - name: varlibopenvswitch
           emptyDir: {}
@@ -161,4 +137,4 @@ spec:
         - name: run
           hostPath:
             path: /run
-{{ if $mounts_neutron_ovs_agent.volumes }}{{ toYaml $mounts_neutron_ovs_agent.volumes | indent 8 }}{{ end }}
+{{- if $mounts_neutron_ovs_agent.volumes }}{{ toYaml $mounts_neutron_ovs_agent.volumes | indent 8 }}{{ end }}

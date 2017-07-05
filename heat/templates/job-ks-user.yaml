@@ -14,7 +14,7 @@
 
 {{- $envAll := . }}
 {{- $dependencies := .Values.dependencies.ks_user }}
-# The heat user management job is a bit different from other services as it also needs to create a stack domain and trusts user
+---
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -31,15 +31,7 @@ spec:
         - name: heat-ks-user
           image: {{ .Values.images.ks_user }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
-          {{- if .Values.resources.enabled }}
-          resources:
-            requests:
-              memory: {{ .Values.resources.heat_ks_user.requests.memory | quote }}
-              cpu: {{ .Values.resources.heat_ks_user.requests.cpu | quote }}
-            limits:
-              memory: {{ .Values.resources.heat_ks_user.limits.memory | quote }}
-              cpu: {{ .Values.resources.heat_ks_user.limits.cpu | quote }}
-          {{- end }}
+{{ tuple $envAll $envAll.Values.resources.jobs.ks_user | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           command:
             - /tmp/ks-user.sh
           volumeMounts:

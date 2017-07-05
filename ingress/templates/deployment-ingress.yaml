@@ -12,21 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+{{- $envAll := . }}
+---
 apiVersion: apps/v1beta1
 kind: {{ .Values.deployment_type }}
 metadata:
   name: ingress-api
 spec:
 {{- if eq .Values.deployment_type "Deployment" }}
-  replicas: {{ .Values.replicas.ingress }}
-  revisionHistoryLimit: {{ .Values.upgrades.revision_history }}
-  strategy:
-    type: {{ .Values.upgrades.pod_replacement_strategy }}
-    {{ if eq .Values.upgrades.pod_replacement_strategy "RollingUpdate" }}
-    rollingUpdate:
-      maxUnavailable: {{ .Values.upgrades.rolling_update.max_unavailable }}
-      maxSurge: {{ .Values.upgrades.rolling_update.max_surge }}
-    {{ end }}
+{{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_deployment" | indent 2 }}
 {{- end }}
   template:
     metadata:
@@ -45,15 +39,7 @@ spec:
         - name: ingress-api
           image: {{ .Values.images.ingress }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
-          {{- if .Values.resources.enabled }}
-          resources:
-            limits:
-              cpu: {{ .Values.resources.ingress.limits.cpu | quote }}
-              memory: {{ .Values.resources.ingress.limits.memory | quote }}
-            requests:
-              cpu: {{ .Values.resources.ingress.requests.cpu | quote }}
-              memory: {{ .Values.resources.ingress.requests.memory | quote }}
-          {{- end }}
+{{ tuple $envAll $envAll.Values.resources.error_pages | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           readinessProbe:
             httpGet:
               path: /healthz

@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 {{- $envAll := . }}
 {{- $dependencies := .Values.dependencies.executor }}
 {{- $mounts_mistral_executor := .Values.mounts.mistral_executor.mistral_executor }}
@@ -22,14 +23,7 @@ metadata:
   name: mistral-executor
 spec:
   replicas: {{ .Values.replicas.executor }}
-  revisionHistoryLimit: {{ .Values.upgrades.revision_history }}
-  strategy:
-    type: {{ .Values.upgrades.pod_replacement_strategy }}
-    {{ if eq .Values.upgrades.pod_replacement_strategy "RollingUpdate" }}
-    rollingUpdate:
-      maxUnavailable: {{ .Values.upgrades.rolling_update.max_unavailable }}
-      maxSurge: {{ .Values.upgrades.rolling_update.max_surge }}
-    {{ end }}
+{{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_deployment" | indent 2 }}
   template:
     metadata:
       labels:
@@ -48,15 +42,7 @@ spec:
         - name: mistral-executor
           image: {{ .Values.images.executor }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
-          {{- if .Values.resources.enabled }}
-          resources:
-            limits:
-              cpu: {{ .Values.resources.executor.limits.cpu | quote }}
-              memory: {{ .Values.resources.executor.limits.memory | quote }}
-            requests:
-              cpu: {{ .Values.resources.executor.requests.cpu | quote }}
-              memory: {{ .Values.resources.executor.requests.memory | quote }}
-          {{- end }}
+{{ tuple $envAll $envAll.Values.resources.executor | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           command:
             - /tmp/mistral-executor.sh
           volumeMounts:
@@ -70,7 +56,7 @@ spec:
               mountPath: /etc/mistral/mistral.conf
               subPath: mistral.conf
               readOnly: true
-{{ if $mounts_mistral_executor.volumeMounts }}{{ toYaml $mounts_mistral_executor.volumeMounts | indent 12 }}{{ end }}
+{{- if $mounts_mistral_executor.volumeMounts }}{{ toYaml $mounts_mistral_executor.volumeMounts | indent 12 }}{{ end }}
       volumes:
         - name: pod-etc-mistral
           emptyDir: {}
@@ -81,4 +67,4 @@ spec:
         - name: mistral-etc
           configMap:
             name: mistral-etc
-{{ if $mounts_mistral_executor.volumes }}{{ toYaml $mounts_mistral_executor.volumes | indent 8 }}{{ end }}
+{{- if $mounts_mistral_executor.volumes }}{{ toYaml $mounts_mistral_executor.volumes | indent 8 }}{{ end }}

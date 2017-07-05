@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 {{- $envAll := . }}
 {{- $dependencies := .Values.dependencies.api }}
 {{- $mounts_mistral_api := .Values.mounts.mistral_api.mistral_api }}
@@ -22,14 +23,7 @@ metadata:
   name: mistral-api
 spec:
   replicas: {{ .Values.replicas.api }}
-  revisionHistoryLimit: {{ .Values.upgrades.revision_history }}
-  strategy:
-    type: {{ .Values.upgrades.pod_replacement_strategy }}
-    {{ if eq .Values.upgrades.pod_replacement_strategy "RollingUpdate" }}
-    rollingUpdate:
-      maxUnavailable: {{ .Values.upgrades.rolling_update.max_unavailable }}
-      maxSurge: {{ .Values.upgrades.rolling_update.max_surge }}
-    {{ end }}
+{{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_deployment" | indent 2 }}
   template:
     metadata:
       labels:
@@ -49,15 +43,7 @@ spec:
         - name: mistral-api
           image: {{ .Values.images.api }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
-          {{- if .Values.resources.enabled }}
-          resources:
-            limits:
-              cpu: {{ .Values.resources.api.limits.cpu | quote }}
-              memory: {{ .Values.resources.api.limits.memory | quote }}
-            requests:
-              cpu: {{ .Values.resources.api.requests.cpu | quote }}
-              memory: {{ .Values.resources.api.requests.memory | quote }}
-          {{- end }}
+{{ tuple $envAll $envAll.Values.resources.api | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           command:
             - /tmp/mistral-api.sh
             - start
@@ -88,7 +74,7 @@ spec:
               mountPath: /etc/mistral/policy.json
               subPath: policy.json
               readOnly: true
-{{ if $mounts_mistral_api.volumeMounts }}{{ toYaml $mounts_mistral_api.volumeMounts | indent 12 }}{{ end }}
+{{- if $mounts_mistral_api.volumeMounts }}{{ toYaml $mounts_mistral_api.volumeMounts | indent 12 }}{{ end }}
       volumes:
         - name: pod-etc-mistral
           emptyDir: {}
@@ -99,4 +85,4 @@ spec:
         - name: mistral-etc
           configMap:
             name: mistral-etc
-{{ if $mounts_mistral_api.volumes }}{{ toYaml $mounts_mistral_api.volumes | indent 8 }}{{ end }}
+{{- if $mounts_mistral_api.volumes }}{{ toYaml $mounts_mistral_api.volumes | indent 8 }}{{ end }}

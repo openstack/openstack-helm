@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 {{- $envAll := . }}
 {{- $dependencies := .Values.dependencies.api }}
 {{- $mounts_barbican_api := .Values.mounts.barbican_api.barbican_api }}
@@ -22,14 +23,7 @@ metadata:
   name: barbican-api
 spec:
   replicas: {{ .Values.replicas.api }}
-  revisionHistoryLimit: {{ .Values.upgrades.revision_history }}
-  strategy:
-    type: {{ .Values.upgrades.pod_replacement_strategy }}
-    {{ if eq .Values.upgrades.pod_replacement_strategy "RollingUpdate" }}
-    rollingUpdate:
-      maxUnavailable: {{ .Values.upgrades.rolling_update.max_unavailable }}
-      maxSurge: {{ .Values.upgrades.rolling_update.max_surge }}
-    {{ end }}
+{{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_deployment" | indent 2 }}
   template:
     metadata:
       labels:
@@ -48,15 +42,7 @@ spec:
         - name: barbican-api
           image: {{ .Values.images.api }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
-          {{- if .Values.resources.enabled }}
-          resources:
-            limits:
-              cpu: {{ .Values.resources.api.limits.cpu | quote }}
-              memory: {{ .Values.resources.api.limits.memory | quote }}
-            requests:
-              cpu: {{ .Values.resources.api.requests.cpu | quote }}
-              memory: {{ .Values.resources.api.requests.memory | quote }}
-          {{- end }}
+{{ tuple $envAll $envAll.Values.resources.api | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           command:
             - /tmp/barbican.sh
             - start
@@ -98,7 +84,7 @@ spec:
               mountPath: /tmp/barbican.sh
               subPath: barbican.sh
               readOnly: true
-{{ if $mounts_barbican_api.volumeMounts }}{{ toYaml $mounts_barbican_api.volumeMounts | indent 12 }}{{ end }}
+{{- if $mounts_barbican_api.volumeMounts }}{{ toYaml $mounts_barbican_api.volumeMounts | indent 12 }}{{ end }}
       volumes:
         - name: etcbarbican
           emptyDir: {}
@@ -109,4 +95,4 @@ spec:
           configMap:
             name: barbican-bin
             defaultMode: 0555
-{{ if $mounts_barbican_api.volumes }}{{ toYaml $mounts_barbican_api.volumes | indent 8 }}{{ end }}
+{{- if $mounts_barbican_api.volumes }}{{ toYaml $mounts_barbican_api.volumes | indent 8 }}{{ end }}

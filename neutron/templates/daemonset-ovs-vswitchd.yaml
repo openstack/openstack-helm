@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 {{- $envAll := . }}
 ---
 apiVersion: extensions/v1beta1
@@ -18,15 +19,7 @@ kind: DaemonSet
 metadata:
   name: ovs-vswitchd
 spec:
-  {{ if .Values.upgrades.daemonsets.ovs_vswitchd.enabled }}
-  minReadySeconds: {{ .Values.upgrades.daemonsets.ovs_vswitchd.min_ready_seconds }}
-  updateStrategy:
-    type: {{ .Values.upgrades.daemonsets.pod_replacement_strategy }}
-    {{ if eq .Values.upgrades.daemonsets.pod_replacement_strategy "RollingUpdate" }}
-    rollingUpdate:
-      maxUnavailable: {{ .Values.upgrades.daemonsets.ovs_vswitchd.max_unavailable }}
-    {{ end }}
-  {{ end }}
+{{ tuple $envAll "ovs_vswitchd" | include "helm-toolkit.snippets.kubernetes_upgrades_daemonset" | indent 2 }}
   template:
     metadata:
       labels:
@@ -45,15 +38,7 @@ spec:
         - name: ovs-vswitchd
           image: {{ .Values.images.openvswitch_vswitchd }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
-          {{- if .Values.resources.enabled }}
-          resources:
-            limits:
-              cpu: {{ .Values.resources.ovs.vswitchd.limits.cpu | quote }}
-              memory: {{ .Values.resources.ovs.vswitchd.limits.memory | quote }}
-            requests:
-              cpu: {{ .Values.resources.ovs.vswitchd.requests.cpu | quote }}
-              memory: {{ .Values.resources.ovs.vswitchd.requests.memory | quote }}
-          {{- end }}
+{{ tuple $envAll $envAll.Values.resources.ovs.vswitchd | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           securityContext:
             privileged: true
           # ensures this container can speak to the ovs database

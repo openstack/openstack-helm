@@ -12,6 +12,7 @@
 
 {{- $envAll := . }}
 {{- $dependencies := .Values.dependencies.ks_service }}
+---
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -29,15 +30,7 @@ spec:
         - name: {{ $osServiceType }}-ks-service-registration
           image: {{ $envAll.Values.images.ks_service }}
           imagePullPolicy: {{ $envAll.Values.images.pull_policy }}
-          {{- if $envAll.Values.resources.enabled }}
-          resources:
-            requests:
-              memory: {{ $envAll.Values.resources.ks_service.requests.memory | quote }}
-              cpu: {{ $envAll.Values.resources.ks_service.requests.cpu | quote }}
-            limits:
-              memory: {{ $envAll.Values.resources.ks_service.limits.memory | quote }}
-              cpu: {{ $envAll.Values.resources.ks_service.limits.cpu | quote }}
-          {{- end }}
+{{ tuple $envAll $envAll.Values.resources.jobs.ks_service | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           command:
             - /tmp/ks-service.sh
           volumeMounts:

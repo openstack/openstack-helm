@@ -16,7 +16,7 @@
 {{- $dependencies := .Values.dependencies.tests }}
 {{- $mounts_glance_tests := .Values.mounts.glance_tests.glance_tests }}
 {{- $mounts_glance_tests_init := .Values.mounts.glance_tests.init_container }}
-
+---
 apiVersion: v1
 kind: Pod
 metadata:
@@ -31,15 +31,7 @@ spec:
     - name: {{.Release.Name}}-token-issue-test
       image: {{ .Values.images.test }}
       imagePullPolicy: {{ .Values.images.pull_policy }}
-      {{- if .Values.resources.enabled }}
-      resources:
-        limits:
-          cpu: {{ .Values.resources.tests.limits.cpu | quote }}
-          memory: {{ .Values.resources.tests.limits.memory | quote }}
-        requests:
-          cpu: {{ .Values.resources.tests.requests.cpu | quote }}
-          memory: {{ .Values.resources.tests.requests.memory | quote }}
-      {{- end }}
+{{ tuple $envAll $envAll.Values.resources.jobs.tests | include "helm-toolkit.snippets.kubernetes_resources" | indent 6 }}
       env:
 {{- with $env := dict "ksUserSecret" .Values.secrets.identity.admin }}
 {{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 8 }}
@@ -60,7 +52,7 @@ spec:
           readOnly: true
         - name: rally-db
           mountPath: /var/lib/rally
-{{ if $mounts_glance_tests.volumeMounts }}{{ toYaml $mounts_glance_tests.volumeMounts | indent 8 }}{{ end }}
+{{- if $mounts_glance_tests.volumeMounts }}{{ toYaml $mounts_glance_tests.volumeMounts | indent 8 }}{{ end }}
   volumes:
     - name: glance-etc
       configMap:
@@ -70,4 +62,4 @@ spec:
         name: glance-bin
     - name: rally-db
       emptyDir: {}
-{{ if $mounts_glance_tests.volumes }}{{ toYaml $mounts_glance_tests.volumes | indent 4 }}{{ end }}
+{{- if $mounts_glance_tests.volumes }}{{ toYaml $mounts_glance_tests.volumes | indent 4 }}{{ end }}

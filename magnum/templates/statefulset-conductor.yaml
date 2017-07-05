@@ -39,15 +39,7 @@ spec:
         - name: magnum-conductor
           image: {{ .Values.images.conductor }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
-          {{- if .Values.resources.enabled }}
-          resources:
-            requests:
-              memory: {{ .Values.resources.magnum_conductor.requests.memory | quote }}
-              cpu: {{ .Values.resources.magnum_conductor.requests.cpu | quote }}
-            limits:
-              memory: {{ .Values.resources.magnum_conductor.limits.memory | quote }}
-              cpu: {{ .Values.resources.magnum_conductor.limits.cpu | quote }}
-          {{- end }}
+{{ tuple $envAll $envAll.Values.resources.conductor | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           command:
             - /tmp/magnum-conductor.sh
           volumeMounts:
@@ -67,7 +59,7 @@ spec:
               mountPath: /etc/magnum/policy.json
               subPath: policy.json
               readOnly: true
-{{ if $mounts_magnum_conductor.volumeMounts }}{{ toYaml $mounts_magnum_conductor.volumeMounts | indent 12 }}{{ end }}
+{{- if $mounts_magnum_conductor.volumeMounts }}{{ toYaml $mounts_magnum_conductor.volumeMounts | indent 12 }}{{ end }}
       volumes:
         - name: pod-etc-magnum
           emptyDir: {}
@@ -80,4 +72,4 @@ spec:
         - name: magnum-etc
           configMap:
             name: magnum-etc
-{{ if $mounts_magnum_conductor.volumes }}{{ toYaml $mounts_magnum_conductor.volumes | indent 8 }}{{ end }}
+{{- if $mounts_magnum_conductor.volumes }}{{ toYaml $mounts_magnum_conductor.volumes | indent 8 }}{{ end }}

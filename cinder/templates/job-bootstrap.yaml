@@ -12,9 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-{{- if .Values.bootstrap.enabled }}
 {{- $envAll := . }}
+{{- if .Values.bootstrap.enabled }}
 {{- $dependencies := .Values.dependencies.bootstrap }}
+---
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -31,15 +32,7 @@ spec:
         - name: cinder-bootstrap
           image: {{ .Values.images.bootstrap }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
-          {{- if .Values.resources.enabled }}
-          resources:
-            requests:
-              memory: {{ .Values.resources.bootstrap.requests.memory | quote }}
-              cpu: {{ .Values.resources.bootstrap.requests.cpu | quote }}
-            limits:
-              memory: {{ .Values.resources.bootstrap.limits.memory | quote }}
-              cpu: {{ .Values.resources.bootstrap.limits.cpu | quote }}
-          {{- end }}
+{{ tuple $envAll $envAll.Values.resources.jobs.bootstrap | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           command:
             - /tmp/bootstrap.sh
           env:

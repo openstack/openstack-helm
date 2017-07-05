@@ -11,11 +11,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 {{- $envAll := . }}
 {{- $dependencies := .Values.dependencies.engine }}
 {{- $mounts_mistral_engine := .Values.mounts.mistral_engine.mistral_engine }}
 {{- $mounts_mistral_engine_init := .Values.mounts.mistral_engine.init_container }}
-
+---
 apiVersion: apps/v1beta1
 kind: StatefulSet
 metadata:
@@ -36,15 +37,7 @@ spec:
         - name: mistral-engine
           image: {{ .Values.images.engine }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
-          {{- if .Values.resources.enabled }}
-          resources:
-            limits:
-              cpu: {{ .Values.resources.engine.limits.cpu | quote }}
-              memory: {{ .Values.resources.engine.limits.memory | quote }}
-            requests:
-              cpu: {{ .Values.resources.engine.requests.cpu | quote }}
-              memory: {{ .Values.resources.engine.requests.memory | quote }}
-          {{- end }}
+{{ tuple $envAll $envAll.Values.resources.engine | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           command:
             - /tmp/mistral-engine.sh
           volumeMounts:
@@ -58,7 +51,7 @@ spec:
               mountPath: /etc/mistral/mistral.conf
               subPath: mistral.conf
               readOnly: true
-{{ if $mounts_mistral_engine.volumeMounts }}{{ toYaml $mounts_mistral_engine.volumeMounts | indent 12 }}{{ end }}
+{{- if $mounts_mistral_engine.volumeMounts }}{{ toYaml $mounts_mistral_engine.volumeMounts | indent 12 }}{{ end }}
       volumes:
         - name: pod-etc-mistral
           emptyDir: {}
@@ -69,4 +62,4 @@ spec:
         - name: mistral-etc
           configMap:
             name: mistral-etc
-{{ if $mounts_mistral_engine.volumes }}{{ toYaml $mounts_mistral_engine.volumes | indent 8 }}{{ end }}
+{{- if $mounts_mistral_engine.volumes }}{{ toYaml $mounts_mistral_engine.volumes | indent 8 }}{{ end }}

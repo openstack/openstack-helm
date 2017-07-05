@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 {{- $envAll := . }}
 ---
 apiVersion: extensions/v1beta1
@@ -18,15 +19,7 @@ kind: DaemonSet
 metadata:
   name: ovs-db
 spec:
-  {{ if .Values.upgrades.daemonsets.ovs_db.enabled }}
-  minReadySeconds: {{ .Values.upgrades.daemonsets.ovs_db.min_ready_seconds }}
-  updateStrategy:
-    type: {{ .Values.upgrades.daemonsets.pod_replacement_strategy }}
-    {{ if eq .Values.upgrades.daemonsets.pod_replacement_strategy "RollingUpdate" }}
-    rollingUpdate:
-      maxUnavailable: {{ .Values.upgrades.daemonsets.ovs_db.max_unavailable }}
-    {{ end }}
-  {{ end }}
+{{ tuple $envAll "ovs_db" | include "helm-toolkit.snippets.kubernetes_upgrades_daemonset" | indent 2 }}
   template:
     metadata:
       labels:
@@ -45,15 +38,7 @@ spec:
         - name: ovs-db
           image: {{ .Values.images.openvswitch_db_server }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
-          {{- if .Values.resources.enabled }}
-          resources:
-            limits:
-              cpu: {{ .Values.resources.ovs.db.limits.cpu | quote }}
-              memory: {{ .Values.resources.ovs.db.limits.memory | quote }}
-            requests:
-              cpu: {{ .Values.resources.ovs.db.requests.cpu | quote }}
-              memory: {{ .Values.resources.ovs.db.requests.memory | quote }}
-          {{- end }}
+{{ tuple $envAll $envAll.Values.resources.ovs.db | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           securityContext:
             privileged: true
           command:

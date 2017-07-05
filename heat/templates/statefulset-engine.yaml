@@ -39,15 +39,7 @@ spec:
         - name: heat-engine
           image: {{ .Values.images.engine }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
-          {{- if .Values.resources.enabled }}
-          resources:
-            requests:
-              memory: {{ .Values.resources.heat_engine.requests.memory | quote }}
-              cpu: {{ .Values.resources.heat_engine.requests.cpu | quote }}
-            limits:
-              memory: {{ .Values.resources.heat_engine.limits.memory | quote }}
-              cpu: {{ .Values.resources.heat_engine.limits.cpu | quote }}
-          {{- end }}
+{{ tuple $envAll $envAll.Values.resources.engine | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           command:
             - /tmp/heat-engine.sh
           volumeMounts:
@@ -67,7 +59,7 @@ spec:
               mountPath: /etc/heat/policy.json
               subPath: policy.json
               readOnly: true
-{{ if $mounts_heat_engine.volumeMounts }}{{ toYaml $mounts_heat_engine.volumeMounts | indent 12 }}{{ end }}
+{{- if $mounts_heat_engine.volumeMounts }}{{ toYaml $mounts_heat_engine.volumeMounts | indent 12 }}{{ end }}
       volumes:
         - name: pod-etc-heat
           emptyDir: {}
@@ -80,4 +72,4 @@ spec:
         - name: heat-etc
           configMap:
             name: heat-etc
-{{ if $mounts_heat_engine.volumes }}{{ toYaml $mounts_heat_engine.volumes | indent 8 }}{{ end }}
+{{- if $mounts_heat_engine.volumes }}{{ toYaml $mounts_heat_engine.volumes | indent 8 }}{{ end }}
