@@ -8,8 +8,6 @@ Sometimes things go wrong. These guides will help you solve many common issues w
    :maxdepth: 2
 
    database
-   development
-   networking
    persistent-storage
 
 Getting help
