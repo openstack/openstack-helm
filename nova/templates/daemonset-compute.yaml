@@ -22,15 +22,7 @@ kind: DaemonSet
 metadata:
   name: nova-compute
 spec:
-  {{ if .Values.upgrades.daemonsets.compute.enabled }}
-  minReadySeconds: {{ .Values.upgrades.daemonsets.compute.min_ready_seconds }}
-  updateStrategy:
-    type: {{ .Values.upgrades.daemonsets.pod_replacement_strategy }}
-    {{ if eq .Values.upgrades.daemonsets.pod_replacement_strategy "RollingUpdate" }}
-    rollingUpdate:
-      maxUnavailable: {{ .Values.upgrades.daemonsets.compute.max_unavailable }}
-    {{ end }}
-  {{ end }}
+{{ tuple $envAll "compute" | include "helm-toolkit.snippets.kubernetes_upgrades_daemonset" | indent 2 }}
   template:
     metadata:
       labels:
@@ -68,15 +60,7 @@ spec:
         - name: nova-compute-init
           image: {{ .Values.images.compute }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
-          {{- if .Values.resources.enabled }}
-          resources:
-            requests:
-              memory: {{ .Values.resources.nova_compute.requests.memory | quote }}
-              cpu: {{ .Values.resources.nova_compute.requests.cpu | quote }}
-            limits:
-              memory: {{ .Values.resources.nova_compute.limits.memory | quote }}
-              cpu: {{ .Values.resources.nova_compute.limits.cpu | quote }}
-          {{- end }}
+{{ tuple $envAll $envAll.Values.resources.compute | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           securityContext:
             privileged: true
           command:
@@ -123,15 +107,7 @@ spec:
         - name: nova-compute
           image: {{ .Values.images.compute }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
-          {{- if .Values.resources.enabled }}
-          resources:
-            requests:
-              memory: {{ .Values.resources.nova_compute.requests.memory | quote }}
-              cpu: {{ .Values.resources.nova_compute.requests.cpu | quote }}
-            limits:
-              memory: {{ .Values.resources.nova_compute.limits.memory | quote }}
-              cpu: {{ .Values.resources.nova_compute.limits.cpu | quote }}
-          {{- end }}
+{{ tuple $envAll $envAll.Values.resources.compute | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           securityContext:
             privileged: true
           command:
@@ -182,7 +158,7 @@ spec:
               mountPath: /sys/fs/cgroup
             - name: pod-shared
               mountPath: /tmp/pod-shared
-{{ if $mounts_nova_compute.volumeMounts }}{{ toYaml $mounts_nova_compute.volumeMounts | indent 12 }}{{ end }}
+{{- if $mounts_nova_compute.volumeMounts }}{{ toYaml $mounts_nova_compute.volumeMounts | indent 12 }}{{ end }}
       volumes:
         - name: nova-bin
           configMap:
@@ -218,4 +194,4 @@ spec:
             path: /sys/fs/cgroup
         - name: pod-shared
           emptyDir: {}
-{{ if $mounts_nova_compute.volumes }}{{ toYaml $mounts_nova_compute.volumes | indent 8 }}{{ end }}
+{{- if $mounts_nova_compute.volumes }}{{ toYaml $mounts_nova_compute.volumes | indent 8 }}{{ end }}

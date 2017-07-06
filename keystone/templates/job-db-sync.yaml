@@ -16,6 +16,7 @@
 {{- $dependencies := .Values.dependencies.db_sync }}
 {{- $mounts_keystone_db_sync := .Values.mounts.keystone_db_sync.keystone_db_sync }}
 {{- $mounts_keystone_db_sync_init := .Values.mounts.keystone_db_sync.init_container }}
+---
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -34,15 +35,7 @@ spec:
         - name: keystone-db-sync
           image: {{ .Values.images.db_sync }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
-          {{- if .Values.resources.enabled }}
-          resources:
-            limits:
-              cpu: {{ .Values.resources.jobs.db_sync.limits.cpu | quote }}
-              memory: {{ .Values.resources.jobs.db_sync.limits.memory | quote }}
-            requests:
-              cpu: {{ .Values.resources.jobs.db_sync.requests.cpu | quote }}
-              memory: {{ .Values.resources.jobs.db_sync.requests.memory | quote }}
-          {{- end }}
+{{ tuple $envAll $envAll.Values.resources.jobs.db_sync | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           env:
             - name: OS_BOOTSTRAP_ADMIN_URL
               value: {{ tuple "identity" "admin" "admin" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" }}
@@ -66,7 +59,7 @@ spec:
             mountPath: /tmp/db-sync.sh
             subPath: db-sync.sh
             readOnly: true
-{{ if $mounts_keystone_db_sync.volumeMounts }}{{ toYaml $mounts_keystone_db_sync.volumeMounts | indent 10 }}{{ end }}
+{{- if $mounts_keystone_db_sync.volumeMounts }}{{ toYaml $mounts_keystone_db_sync.volumeMounts | indent 10 }}{{ end }}
       volumes:
       - name: etckeystone
         emptyDir: {}
@@ -77,4 +70,4 @@ spec:
         configMap:
           name: keystone-bin
           defaultMode: 0555
-{{ if $mounts_keystone_db_sync.volumes }}{{ toYaml $mounts_keystone_db_sync.volumes | indent 6 }}{{ end }}
+{{- if $mounts_keystone_db_sync.volumes }}{{ toYaml $mounts_keystone_db_sync.volumes | indent 6 }}{{ end }}

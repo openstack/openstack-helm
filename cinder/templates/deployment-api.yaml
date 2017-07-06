@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 {{- $envAll := . }}
 {{- $dependencies := .Values.dependencies.api }}
 {{- $mounts_cinder_api := .Values.mounts.cinder_api.cinder_api }}
@@ -22,14 +23,7 @@ metadata:
   name: cinder-api
 spec:
   replicas: {{ .Values.replicas.api }}
-  revisionHistoryLimit: {{ .Values.upgrades.revision_history }}
-  strategy:
-    type: {{ .Values.upgrades.pod_replacement_strategy }}
-    {{ if eq .Values.upgrades.pod_replacement_strategy "RollingUpdate" }}
-    rollingUpdate:
-      maxUnavailable: {{ .Values.upgrades.rolling_update.max_unavailable }}
-      maxSurge: {{ .Values.upgrades.rolling_update.max_surge }}
-    {{ end }}
+{{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_deployment" | indent 2 }}
   template:
     metadata:
       labels:
@@ -49,15 +43,7 @@ spec:
         - name: cinder-api
           image: {{ .Values.images.api }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
-          {{- if .Values.resources.enabled }}
-          resources:
-            requests:
-              memory: {{ .Values.resources.cinder_api.requests.memory | quote }}
-              cpu: {{ .Values.resources.cinder_api.requests.cpu | quote }}
-            limits:
-              memory: {{ .Values.resources.cinder_api.limits.memory | quote }}
-              cpu: {{ .Values.resources.cinder_api.limits.cpu | quote }}
-          {{- end }}
+{{ tuple $envAll $envAll.Values.resources.api | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           command:
             - /tmp/cinder-api.sh
             - start
@@ -90,7 +76,7 @@ spec:
               mountPath: /etc/cinder/policy.json
               subPath: policy.json
               readOnly: true
-{{ if $mounts_cinder_api.volumeMounts }}{{ toYaml $mounts_cinder_api.volumeMounts | indent 12 }}{{ end }}
+{{- if $mounts_cinder_api.volumeMounts }}{{ toYaml $mounts_cinder_api.volumeMounts | indent 12 }}{{ end }}
       volumes:
         - name: cinder-bin
           configMap:
@@ -99,4 +85,4 @@ spec:
         - name: cinder-etc
           configMap:
             name: cinder-etc
-{{ if $mounts_cinder_api.volumes }}{{ toYaml $mounts_cinder_api.volumes | indent 8 }}{{ end }}
+{{- if $mounts_cinder_api.volumes }}{{ toYaml $mounts_cinder_api.volumes | indent 8 }}{{ end }}

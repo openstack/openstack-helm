@@ -23,14 +23,7 @@ metadata:
   name: heat-api
 spec:
   replicas: {{ .Values.replicas.api }}
-  revisionHistoryLimit: {{ .Values.upgrades.revision_history }}
-  strategy:
-    type: {{ .Values.upgrades.pod_replacement_strategy }}
-    {{ if eq .Values.upgrades.pod_replacement_strategy "RollingUpdate" }}
-    rollingUpdate:
-      maxUnavailable: {{ .Values.upgrades.rolling_update.max_unavailable }}
-      maxSurge: {{ .Values.upgrades.rolling_update.max_surge }}
-    {{ end }}
+{{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_deployment" | indent 2 }}
   template:
     metadata:
       labels:
@@ -50,15 +43,7 @@ spec:
         - name: heat-api
           image: {{ .Values.images.api }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
-          {{- if .Values.resources.enabled }}
-          resources:
-            requests:
-              memory: {{ .Values.resources.heat_api.requests.memory | quote }}
-              cpu: {{ .Values.resources.heat_api.requests.cpu | quote }}
-            limits:
-              memory: {{ .Values.resources.heat_api.limits.memory | quote }}
-              cpu: {{ .Values.resources.heat_api.limits.cpu | quote }}
-          {{- end }}
+{{ tuple $envAll $envAll.Values.resources.api | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           command:
             - /tmp/heat-api.sh
             - start
@@ -94,7 +79,7 @@ spec:
               mountPath: /etc/heat/policy.json
               subPath: policy.json
               readOnly: true
-{{ if $mounts_heat_api.volumeMounts }}{{ toYaml $mounts_heat_api.volumeMounts | indent 12 }}{{ end }}
+{{- if $mounts_heat_api.volumeMounts }}{{ toYaml $mounts_heat_api.volumeMounts | indent 12 }}{{ end }}
       volumes:
         - name: pod-etc-heat
           emptyDir: {}
@@ -107,4 +92,4 @@ spec:
         - name: heat-etc
           configMap:
             name: heat-etc
-{{ if $mounts_heat_api.volumes }}{{ toYaml $mounts_heat_api.volumes | indent 8 }}{{ end }}
+{{- if $mounts_heat_api.volumes }}{{ toYaml $mounts_heat_api.volumes | indent 8 }}{{ end }}

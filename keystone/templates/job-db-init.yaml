@@ -16,7 +16,7 @@
 {{- $dependencies := .Values.dependencies.db_init }}
 {{- $mounts_keystone_db_init := .Values.mounts.keystone_db_init.keystone_db_init }}
 {{- $mounts_keystone_db_init_init := .Values.mounts.keystone_db_init.init_container }}
-
+---
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -34,15 +34,7 @@ spec:
         - name: keystone-db-init
           image: {{ .Values.images.db_init }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
-          {{- if .Values.resources.enabled }}
-          resources:
-            limits:
-              cpu: {{ .Values.resources.jobs.init.limits.cpu | quote }}
-              memory: {{ .Values.resources.jobs.init.limits.memory | quote }}
-            requests:
-              cpu: {{ .Values.resources.jobs.init.requests.cpu | quote }}
-              memory: {{ .Values.resources.jobs.init.requests.memory | quote }}
-          {{- end }}
+{{ tuple $envAll $envAll.Values.resources.jobs.db_init | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           env:
             - name: ROOT_DB_CONNECTION
               valueFrom:
@@ -68,7 +60,7 @@ spec:
             mountPath: /tmp/db-init.py
             subPath: db-init.py
             readOnly: true
-{{ if $mounts_keystone_db_init.volumeMounts }}{{ toYaml $mounts_keystone_db_init.volumeMounts | indent 10 }}{{ end }}
+{{- if $mounts_keystone_db_init.volumeMounts }}{{ toYaml $mounts_keystone_db_init.volumeMounts | indent 10 }}{{ end }}
       volumes:
       - name: etckeystone
         emptyDir: {}
@@ -79,4 +71,4 @@ spec:
         configMap:
           name: keystone-bin
           defaultMode: 0555
-{{ if $mounts_keystone_db_init.volumes }}{{ toYaml $mounts_keystone_db_init.volumes | indent 6 }}{{ end }}
+{{- if $mounts_keystone_db_init.volumes }}{{ toYaml $mounts_keystone_db_init.volumes | indent 6 }}{{ end }}

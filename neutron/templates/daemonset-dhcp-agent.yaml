@@ -22,15 +22,7 @@ kind: DaemonSet
 metadata:
   name: neutron-dhcp-agent
 spec:
-  {{ if .Values.upgrades.daemonsets.dhcp_agent.enabled }}
-  minReadySeconds: {{ .Values.upgrades.daemonsets.dhcp_agent.min_ready_seconds }}
-  updateStrategy:
-    type: {{ .Values.upgrades.daemonsets.pod_replacement_strategy }}
-    {{ if eq .Values.upgrades.daemonsets.pod_replacement_strategy "RollingUpdate" }}
-    rollingUpdate:
-      maxUnavailable: {{ .Values.upgrades.daemonsets.dhcp_agent.max_unavailable }}
-    {{ end }}
-  {{ end }}
+{{ tuple $envAll "dhcp_agent" | include "helm-toolkit.snippets.kubernetes_upgrades_daemonset" | indent 2 }}
   template:
     metadata:
       labels:
@@ -51,15 +43,7 @@ spec:
         - name: neutron-dhcp-agent
           image: {{ .Values.images.dhcp }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
-          {{- if .Values.resources.enabled }}
-          resources:
-            limits:
-              cpu: {{ .Values.resources.agent.dhcp.limits.cpu | quote }}
-              memory: {{ .Values.resources.agent.dhcp.limits.memory | quote }}
-            requests:
-              cpu: {{ .Values.resources.agent.dhcp.requests.cpu | quote }}
-              memory: {{ .Values.resources.agent.dhcp.requests.memory | quote }}
-          {{- end }}
+{{ tuple $envAll $envAll.Values.resources.agent.dhcp | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           securityContext:
             privileged: true
           command:
@@ -97,7 +81,7 @@ spec:
               mountPath: /run/openvswitch
             - name: socket
               mountPath: /var/lib/neutron/openstack-helm
-{{ if $mounts_neutron_dhcp_agent.volumeMounts }}{{ toYaml $mounts_neutron_dhcp_agent.volumeMounts | indent 12 }}{{ end }}
+{{- if $mounts_neutron_dhcp_agent.volumeMounts }}{{ toYaml $mounts_neutron_dhcp_agent.volumeMounts | indent 12 }}{{ end }}
       volumes:
         - name: neutron-bin
           configMap:
@@ -112,4 +96,4 @@ spec:
         - name: socket
           hostPath:
             path: /var/lib/neutron/openstack-helm
-{{ if $mounts_neutron_dhcp_agent.volumes }}{{ toYaml $mounts_neutron_dhcp_agent.volumes | indent 8 }}{{ end }}
+{{- if $mounts_neutron_dhcp_agent.volumes }}{{ toYaml $mounts_neutron_dhcp_agent.volumes | indent 8 }}{{ end }}

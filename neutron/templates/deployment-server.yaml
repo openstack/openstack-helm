@@ -23,14 +23,7 @@ metadata:
   name: neutron-server
 spec:
   replicas: {{ .Values.replicas.server }}
-  revisionHistoryLimit: {{ .Values.upgrades.deployments.revision_history }}
-  strategy:
-    type: {{ .Values.upgrades.deployments.pod_replacement_strategy }}
-    {{ if eq .Values.upgrades.deployments.pod_replacement_strategy "RollingUpdate" }}
-    rollingUpdate:
-      maxUnavailable: {{ .Values.upgrades.deployments.rolling_update.max_unavailable }}
-      maxSurge: {{ .Values.upgrades.deployments.rolling_update.max_surge }}
-    {{ end }}
+{{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_deployment" | indent 2 }}
   template:
     metadata:
       labels:
@@ -50,15 +43,7 @@ spec:
         - name: neutron-server
           image: {{ .Values.images.server }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
-          {{- if .Values.resources.enabled }}
-          resources:
-            limits:
-              cpu: {{ .Values.resources.server.limits.cpu | quote }}
-              memory: {{ .Values.resources.server.limits.memory | quote }}
-            requests:
-              cpu: {{ .Values.resources.server.requests.cpu | quote }}
-              memory: {{ .Values.resources.server.requests.memory | quote }}
-          {{- end }}
+{{ tuple $envAll $envAll.Values.resources.server | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           command:
             - /tmp/neutron-server.sh
             - start
@@ -94,7 +79,7 @@ spec:
               mountPath: /etc/neutron/policy.json
               subPath: policy.json
               readOnly: true
-{{ if $mounts_neutron_server.volumeMounts }}{{ toYaml $mounts_neutron_server.volumeMounts | indent 12 }}{{ end }}
+{{- if $mounts_neutron_server.volumeMounts }}{{ toYaml $mounts_neutron_server.volumeMounts | indent 12 }}{{ end }}
       volumes:
         - name: neutron-bin
           configMap:
@@ -103,4 +88,4 @@ spec:
         - name: neutron-etc
           configMap:
             name: neutron-etc
-{{ if $mounts_neutron_server.volumes }}{{ toYaml $mounts_neutron_server.volumes | indent 8 }}{{ end }}
+{{- if $mounts_neutron_server.volumes }}{{ toYaml $mounts_neutron_server.volumes | indent 8 }}{{ end }}

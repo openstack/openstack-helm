@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 {{- $envAll := . }}
 {{- $dependencies := .Values.dependencies.volume }}
 {{- $mounts_cinder_volume := .Values.mounts.cinder_volume.cinder_volume }}
@@ -22,14 +23,7 @@ metadata:
   name: cinder-volume
 spec:
   replicas: {{ .Values.replicas.volume }}
-  revisionHistoryLimit: {{ .Values.upgrades.revision_history }}
-  strategy:
-    type: {{ .Values.upgrades.pod_replacement_strategy }}
-    {{ if eq .Values.upgrades.pod_replacement_strategy "RollingUpdate" }}
-    rollingUpdate:
-      maxUnavailable: {{ .Values.upgrades.rolling_update.max_unavailable }}
-      maxSurge: {{ .Values.upgrades.rolling_update.max_surge }}
-    {{ end }}
+{{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_deployment" | indent 2 }}
   template:
     metadata:
       labels:
@@ -65,15 +59,7 @@ spec:
         - name: cinder-volume
           image: {{ .Values.images.volume }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
-          {{- if .Values.resources.enabled }}
-          resources:
-            requests:
-              memory: {{ .Values.resources.cinder_volume.requests.memory | quote }}
-              cpu: {{ .Values.resources.cinder_volume.requests.cpu | quote }}
-            limits:
-              memory: {{ .Values.resources.cinder_volume.limits.memory | quote }}
-              cpu: {{ .Values.resources.cinder_volume.limits.cpu | quote }}
-          {{- end }}
+{{ tuple $envAll $envAll.Values.resources.volume | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           command:
             - /tmp/cinder-volume.sh
           volumeMounts:
@@ -101,7 +87,7 @@ spec:
               subPath: key
               readOnly: true
             {{- end }}
-{{ if $mounts_cinder_volume.volumeMounts }}{{ toYaml $mounts_cinder_volume.volumeMounts | indent 12 }}{{ end }}
+{{- if $mounts_cinder_volume.volumeMounts }}{{ toYaml $mounts_cinder_volume.volumeMounts | indent 12 }}{{ end }}
       volumes:
         - name: cinder-bin
           configMap:
@@ -120,4 +106,4 @@ spec:
           secret:
             secretName: pvc-ceph-client-key
         {{ end }}
-{{ if $mounts_cinder_volume.volumes }}{{ toYaml $mounts_cinder_volume.volumes | indent 8 }}{{ end }}
+{{- if $mounts_cinder_volume.volumes }}{{ toYaml $mounts_cinder_volume.volumes | indent 8 }}{{ end }}

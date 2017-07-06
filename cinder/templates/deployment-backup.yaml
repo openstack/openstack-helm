@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 {{- $envAll := . }}
 {{- $dependencies := .Values.dependencies.backup }}
 {{- $mounts_cinder_backup := .Values.mounts.cinder_backup.cinder_backup }}
@@ -22,14 +23,7 @@ metadata:
   name: cinder-backup
 spec:
   replicas: {{ .Values.replicas.backup }}
-  revisionHistoryLimit: {{ .Values.upgrades.revision_history }}
-  strategy:
-    type: {{ .Values.upgrades.pod_replacement_strategy }}
-    {{ if eq .Values.upgrades.pod_replacement_strategy "RollingUpdate" }}
-    rollingUpdate:
-      maxUnavailable: {{ .Values.upgrades.rolling_update.max_unavailable }}
-      maxSurge: {{ .Values.upgrades.rolling_update.max_surge }}
-    {{ end }}
+{{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_deployment" | indent 2 }}
   template:
     metadata:
       labels:
@@ -65,15 +59,7 @@ spec:
         - name: cinder-backup
           image: {{ .Values.images.backup }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
-          {{- if .Values.resources.enabled }}
-          resources:
-            requests:
-              memory: {{ .Values.resources.cinder_backup.requests.memory | quote }}
-              cpu: {{ .Values.resources.cinder_backup.requests.cpu | quote }}
-            limits:
-              memory: {{ .Values.resources.cinder_backup.limits.memory | quote }}
-              cpu: {{ .Values.resources.cinder_backup.limits.cpu | quote }}
-          {{- end }}
+{{ tuple $envAll $envAll.Values.resources.backup | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           command:
             - /tmp/cinder-backup.sh
           volumeMounts:
@@ -97,7 +83,7 @@ spec:
               subPath: key
               readOnly: true
             {{- end -}}
-{{ if $mounts_cinder_backup.volumeMounts }}{{ toYaml $mounts_cinder_backup.volumeMounts | indent 12 }}{{ end }}
+{{- if $mounts_cinder_backup.volumeMounts }}{{ toYaml $mounts_cinder_backup.volumeMounts | indent 12 }}{{ end }}
       volumes:
         - name: cinder-etc
           configMap:
@@ -116,4 +102,4 @@ spec:
           secret:
             secretName: pvc-ceph-client-key
         {{ end }}
-{{ if $mounts_cinder_backup.volumes }}{{ toYaml $mounts_cinder_backup.volumes | indent 8 }}{{ end }}
+{{- if $mounts_cinder_backup.volumes }}{{ toYaml $mounts_cinder_backup.volumes | indent 8 }}{{ end }}

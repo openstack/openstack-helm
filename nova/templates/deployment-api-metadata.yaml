@@ -23,14 +23,7 @@ metadata:
   name: nova-api-metadata
 spec:
   replicas: {{ .Values.replicas.api_metadata }}
-  revisionHistoryLimit: {{ .Values.upgrades.deployments.revision_history }}
-  strategy:
-    type: {{ .Values.upgrades.deployments.pod_replacement_strategy }}
-    {{ if eq .Values.upgrades.deployments.pod_replacement_strategy "RollingUpdate" }}
-    rollingUpdate:
-      maxUnavailable: {{ .Values.upgrades.deployments.rolling_update.max_unavailable }}
-      maxSurge: {{ .Values.upgrades.deployments.rolling_update.max_surge }}
-    {{ end }}
+{{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_deployment" | indent 2 }}
   template:
     metadata:
       labels:
@@ -50,15 +43,7 @@ spec:
         - name: nova-api
           image: {{ .Values.images.api }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
-          {{- if .Values.resources.enabled }}
-          resources:
-            requests:
-              memory: {{ .Values.resources.nova_api_metadata.requests.memory | quote }}
-              cpu: {{ .Values.resources.nova_api_metadata.requests.cpu | quote }}
-            limits:
-              memory: {{ .Values.resources.nova_api_metadata.limits.memory | quote }}
-              cpu: {{ .Values.resources.nova_api_metadata.limits.cpu | quote }}
-          {{- end }}
+{{ tuple $envAll $envAll.Values.resources.api_metadata | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           command:
             - /tmp/nova-api-metadata.sh
             - start
@@ -102,7 +87,7 @@ spec:
               mountPath: /etc/nova/policy.yaml
               subPath: policy.yaml
               readOnly: true
-{{ if $mounts_nova_api_metadata.volumeMounts }}{{ toYaml $mounts_nova_api_metadata.volumeMounts | indent 12 }}{{ end }}
+{{- if $mounts_nova_api_metadata.volumeMounts }}{{ toYaml $mounts_nova_api_metadata.volumeMounts | indent 12 }}{{ end }}
       volumes:
         - name: nova-bin
           configMap:
@@ -111,4 +96,4 @@ spec:
         - name: nova-etc
           configMap:
             name: nova-etc
-{{ if $mounts_nova_api_metadata.volumes }}{{ toYaml $mounts_nova_api_metadata.volumes | indent 8 }}{{ end }}
+{{- if $mounts_nova_api_metadata.volumes }}{{ toYaml $mounts_nova_api_metadata.volumes | indent 8 }}{{ end }}

@@ -16,7 +16,7 @@
 {{- $dependencies := .Values.dependencies.tests }}
 {{- $mounts_neutron_tests := .Values.mounts.neutron_tests.neutron_tests }}
 {{- $mounts_neutron_tests_init := .Values.mounts.neutron_tests.init_container }}
-
+---
 apiVersion: v1
 kind: Pod
 metadata:
@@ -30,6 +30,8 @@ spec:
   containers:
     - name: {{.Release.Name}}-token-issue-test
       image: {{ .Values.images.test }}
+      imagePullPolicy: {{ .Values.images.pull_policy }}
+{{ tuple $envAll $envAll.Values.resources.jobs.tests | include "helm-toolkit.snippets.kubernetes_resources" | indent 6 }}
       env:
 {{- with $env := dict "ksUserSecret" .Values.secrets.identity.admin }}
 {{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 8 }}
@@ -49,7 +51,7 @@ spec:
           readOnly: true
         - name: rally-db
           mountPath: /var/lib/rally
-{{ if $mounts_neutron_tests.volumeMounts }}{{ toYaml $mounts_neutron_tests.volumeMounts | indent 8 }}{{ end }}
+{{- if $mounts_neutron_tests.volumeMounts }}{{ toYaml $mounts_neutron_tests.volumeMounts | indent 8 }}{{ end }}
   volumes:
     - name: neutron-etc
       configMap:
@@ -60,4 +62,4 @@ spec:
         defaultMode: 0555
     - name: rally-db
       emptyDir: {}
-{{ if $mounts_neutron_tests.volumes }}{{ toYaml $mounts_neutron_tests.volumes | indent 4 }}{{ end }}
+{{- if $mounts_neutron_tests.volumes }}{{ toYaml $mounts_neutron_tests.volumes | indent 4 }}{{ end }}

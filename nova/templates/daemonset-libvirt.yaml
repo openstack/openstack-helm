@@ -22,15 +22,7 @@ kind: DaemonSet
 metadata:
   name: nova-libvirt
 spec:
-  {{ if .Values.upgrades.daemonsets.libvirt.enabled }}
-  minReadySeconds: {{ .Values.upgrades.daemonsets.libvirt.min_ready_seconds }}
-  updateStrategy:
-    type: {{ .Values.upgrades.daemonsets.pod_replacement_strategy }}
-    {{ if eq .Values.upgrades.daemonsets.pod_replacement_strategy "RollingUpdate" }}
-    rollingUpdate:
-      maxUnavailable: {{ .Values.upgrades.daemonsets.libvirt.max_unavailable }}
-    {{ end }}
-  {{ end }}
+{{ tuple $envAll "libvirt" | include "helm-toolkit.snippets.kubernetes_upgrades_daemonset" | indent 2 }}
   template:
     metadata:
       labels:
@@ -76,15 +68,7 @@ spec:
                 command:
                   - /tmp/ceph-secret-define.sh
           {{- end }}
-          {{- if .Values.resources.enabled }}
-          resources:
-            requests:
-              memory: {{ .Values.resources.nova_libvirt.requests.memory | quote }}
-              cpu: {{ .Values.resources.nova_libvirt.requests.cpu | quote }}
-            limits:
-              memory: {{ .Values.resources.nova_libvirt.limits.memory | quote }}
-              cpu: {{ .Values.resources.nova_libvirt.limits.cpu | quote }}
-          {{- end }}
+{{ tuple $envAll $envAll.Values.resources.libvirt | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           securityContext:
             privileged: true
           command:
@@ -143,7 +127,7 @@ spec:
               subPath: ceph-secret-define.sh
               readOnly: true
             {{- end }}
-{{ if $mounts_nova_libvirt.volumeMounts }}{{ toYaml $mounts_nova_libvirt.volumeMounts | indent 12 }}{{ end }}
+{{- if $mounts_nova_libvirt.volumeMounts }}{{ toYaml $mounts_nova_libvirt.volumeMounts | indent 12 }}{{ end }}
       volumes:
         - name: nova-bin
           configMap:
@@ -180,4 +164,4 @@ spec:
         - name: cgroup
           hostPath:
             path: /sys/fs/cgroup
-{{ if $mounts_nova_libvirt.volumes }}{{ toYaml $mounts_nova_libvirt.volumes | indent 8 }}{{ end }}
+{{- if $mounts_nova_libvirt.volumes }}{{ toYaml $mounts_nova_libvirt.volumes | indent 8 }}{{ end }}

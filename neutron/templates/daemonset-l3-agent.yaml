@@ -22,15 +22,7 @@ kind: DaemonSet
 metadata:
   name: neutron-l3-agent
 spec:
-  {{ if .Values.upgrades.daemonsets.l3_agent.enabled }}
-  minReadySeconds: {{ .Values.upgrades.daemonsets.l3_agent.min_ready_seconds }}
-  updateStrategy:
-    type: {{ .Values.upgrades.daemonsets.pod_replacement_strategy }}
-    {{ if eq .Values.upgrades.daemonsets.pod_replacement_strategy "RollingUpdate" }}
-    rollingUpdate:
-      maxUnavailable: {{ .Values.upgrades.daemonsets.l3_agent.max_unavailable }}
-    {{ end }}
-  {{ end }}
+{{ tuple $envAll "l3_agent" | include "helm-toolkit.snippets.kubernetes_upgrades_daemonset" | indent 2 }}
   template:
     metadata:
       labels:
@@ -51,15 +43,7 @@ spec:
         - name: neutron-l3-agent
           image: {{ .Values.images.l3 }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
-          {{- if .Values.resources.enabled }}
-          resources:
-            limits:
-              cpu: {{ .Values.resources.agent.l3.limits.cpu | quote }}
-              memory: {{ .Values.resources.agent.l3.limits.memory | quote }}
-            requests:
-              cpu: {{ .Values.resources.agent.l3.requests.cpu | quote }}
-              memory: {{ .Values.resources.agent.l3.requests.memory | quote }}
-          {{- end }}
+{{ tuple $envAll $envAll.Values.resources.agent.l3 | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           securityContext:
             privileged: true
           command:
@@ -96,7 +80,7 @@ spec:
               readOnly: true
             - name: socket
               mountPath: /var/lib/neutron/stackanetes
-{{ if $mounts_neutron_l3_agent.volumeMounts }}{{ toYaml $mounts_neutron_l3_agent.volumeMounts | indent 12 }}{{ end }}
+{{- if $mounts_neutron_l3_agent.volumeMounts }}{{ toYaml $mounts_neutron_l3_agent.volumeMounts | indent 12 }}{{ end }}
       volumes:
         - name: neutron-bin
           configMap:
@@ -114,4 +98,4 @@ spec:
         - name: socket
           hostPath:
             path: /var/lib/neutron/stackanetes
-{{ if $mounts_neutron_l3_agent.volumes }}{{ toYaml $mounts_neutron_l3_agent.volumes | indent 8 }}{{ end }}
+{{- if $mounts_neutron_l3_agent.volumes }}{{ toYaml $mounts_neutron_l3_agent.volumes | indent 8 }}{{ end }}

@@ -12,15 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-{{- $envAll := . }}
-{{- range $key1, $userClass := tuple "admin" "user" }}
-{{- $secretName := index $envAll.Values.secrets.identity $userClass }}
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: {{ $secretName }}
-type: Opaque
-data:
-{{- tuple $userClass "internal" $envAll | include "helm-toolkit.snippets.keystone_secret_openrc" | indent 2 -}}
+{{- define "helm-toolkit.snippets.kubernetes_upgrades_daemonset" -}}
+{{- $envAll := index . 0 -}}
+{{- $component := index . 1 -}}
+{{- $upgradeMap := index $envAll.Values.upgrades.daemonsets $component }}
+{{- with $upgradeMap -}}
+{{- if .enabled }}
+minReadySeconds: {{ .min_ready_seconds }}
+updateStrategy:
+  type: {{ .pod_replacement_strategy }}
+  {{- if .pod_replacement_strategy }}
+  {{- if eq .pod_replacement_strategy "RollingUpdate" }}
+  rollingUpdate:
+    maxUnavailable: {{ .max_unavailable }}
+  {{- end }}
+  {{- end }}
 {{- end }}
+{{- end -}}
+{{- end -}}

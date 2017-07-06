@@ -12,6 +12,7 @@
 
 {{- $envAll := . }}
 {{- $dependencies := .Values.dependencies.ks_endpoints }}
+---
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -30,15 +31,7 @@ spec:
         - name: {{ $osServiceType }}-ks-endpoints-{{ $osServiceEndPoint }}
           image: {{ $envAll.Values.images.ks_endpoints }}
           imagePullPolicy: {{ $envAll.Values.images.pull_policy }}
-          {{- if $envAll.Values.resources.enabled }}
-          resources:
-            requests:
-              memory: {{ $envAll.Values.resources.ks_endpoints.requests.memory | quote }}
-              cpu: {{ $envAll.Values.resources.ks_endpoints.requests.cpu | quote }}
-            limits:
-              memory: {{ $envAll.Values.resources.ks_endpoints.limits.memory | quote }}
-              cpu: {{ $envAll.Values.resources.ks_endpoints.limits.cpu | quote }}
-          {{- end }}
+{{ tuple $envAll $envAll.Values.resources.jobs.ks_endpoints | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           command:
             - /tmp/ks-endpoints.sh
           volumeMounts:
