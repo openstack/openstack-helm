@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # Copyright 2017 The Openstack-Helm Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,16 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-{{- $envAll := . }}
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: horizon-bin
-data:
-  db-init.py: |
-{{- include "helm-toolkit.scripts.db_init" . | indent 4 }}
-  db-sync.sh: |
-{{ tuple "bin/_db-sync.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
-  horizon.sh: |
-{{ tuple "bin/_horizon.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
+set -ex
+
+exec /var/lib/kolla/venv/bin/manage.py migrate
