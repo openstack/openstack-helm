@@ -12,30 +12,38 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+{{- $envAll := . }}
+---
 apiVersion: extensions/v1beta1
 kind: DaemonSet
 metadata:
-  name: resolv-conf-util
+  name: dns-helper
 spec:
   template:
     metadata:
       labels:
-        version: v0.1.0
-      name: resolv-conf-util
+{{ tuple $envAll "dns" "helper" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
     spec:
+      nodeSelector:
+        {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
       containers:
-      - name: resolv-conf-util
-        image: docker.io/ubuntu:16.04
+      - name: dns-helper
+        image: {{ .Values.images.dns_helper }}
+        imagePullPolicy: {{ .Values.images.pull_policy }}
         command:
-          - /bin/bash
-          - -ecx
-          - |
-            cat /etc/resolv.conf > /host/etc/resolv.conf
-            tail -f /dev/null
+          - /tmp/dns-helper.sh
         volumeMounts:
           - mountPath: /host/etc/resolv.conf
             name: host-resolv-conf
+          - name: dns-helper-bin
+            mountPath: /tmp/dns-helper.sh
+            subPath: dns-helper.sh
+            readOnly: true
       volumes:
         - name: host-resolv-conf
           hostPath:
             path: /etc/resolv.conf
+        - name: dns-helper-bin
+          configMap:
+            name: dns-helper-bin
+            defaultMode: 0555

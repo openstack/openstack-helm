@@ -15,15 +15,10 @@ set -e
 
 function net_resolv_pre_kube {
   sudo cp -f /etc/resolv.conf /etc/resolv-pre-kube.conf
+  sudo rm -f /etc/resolv.conf
   cat << EOF | sudo tee /etc/resolv.conf
 nameserver 8.8.8.8
 EOF
-}
-
-function net_resolv_kube {
-  kubectl get namespace openstack || kubectl create namespace openstack
-  kubectl create --namespace openstack -f ${WORK_DIR}/tools/gate/manifests/resolv-conf-util.yaml
-  kube_wait_for_pods openstack 240
 }
 
 function net_resolv_post_kube {
@@ -42,4 +37,3 @@ function net_hosts_pre_kube {
 function net_hosts_post_kube {
   sudo cp -f /etc/hosts-pre-kube /etc/hosts
 }
-
