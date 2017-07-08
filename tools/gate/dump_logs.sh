@@ -85,7 +85,7 @@ mkdir -p ${LOGS_DIR}/nodes/$(hostname)
 sudo iptables-save > ${LOGS_DIR}/nodes/$(hostname)/iptables.txt
 sudo ip a > ${LOGS_DIR}/nodes/$(hostname)/ip.txt
 sudo route -n > ${LOGS_DIR}/nodes/$(hostname)/routes.txt
-arp -a > ${LOGS_DIR}/nodes/$(hostname)/arp.txt
+sudo arp -a > ${LOGS_DIR}/nodes/$(hostname)/arp.txt
 cat /etc/resolv.conf > ${LOGS_DIR}/nodes/$(hostname)/resolv.conf
 
 exit $1
