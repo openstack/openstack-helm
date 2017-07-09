@@ -32,14 +32,16 @@ Installation and Development
 ----------------------------
 
 Please review our documentation at `Read the Docs <http://openstack-helm.readthedocs.io/>`_.
-For quick installation, evaluation, and convenience, we have provided a kubeadm
+For quick installation, evaluation, and convenience, we have a kubeadm
 based all-in-one solution that runs in a Docker container. The Kubeadm-AIO set
-up can be found `here. <http://openstack-helm.readthedocs.io/en/latest/install/all-in-one.html>`_
+up can be found `here, <http://openstack-helm.readthedocs.io/en/latest/install/developer/all-in-one.html>`_
+and the `gate scripts, <http://openstack-helm.readthedocs.io/en/latest/install/developer/gates.html>`_
+use are supported on any fresh Ubuntu, CentOS or Fedora machine.
 
 This project is under active development. We encourage anyone interested in
 OpenStack-Helm to review our `Installation <http://openstack-helm.readthedocs.io/en/latest/install/index.html>`_
-documentation, complete with verification procedures. Feel free to ask questions
-or check out our current `Issues and Bugs <https://bugs.launchpad.net/openstack-helm>`_.
+documentation. Feel free to ask questions or check out our current
+`Issues and Bugs <https://bugs.launchpad.net/openstack-helm>`_.
 
 To evaluate a multinode installation, follow the
 `Bare Metal <http://openstack-helm.readthedocs.io/en/latest/install/multinode.html>`_
