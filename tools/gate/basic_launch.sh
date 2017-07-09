@@ -46,7 +46,7 @@ EOF"
     --set network.public=$osd_public_network \
     --set network.cluster=$osd_cluster_network
 
-  kube_wait_for_pods ceph 420
+  kube_wait_for_pods ceph 600
 
   kubectl exec -n ceph ceph-mon-0 -- ceph -s
 
@@ -69,7 +69,7 @@ helm install --namespace=openstack ${WORK_DIR}/mariadb --name=mariadb
 helm install --namespace=openstack ${WORK_DIR}/memcached --name=memcached
 helm install --namespace=openstack ${WORK_DIR}/etcd --name=etcd-rabbitmq
 helm install --namespace=openstack ${WORK_DIR}/rabbitmq --name=rabbitmq
-kube_wait_for_pods openstack 420
+kube_wait_for_pods openstack 600
 helm install --namespace=openstack ${WORK_DIR}/keystone --name=keystone
 if [ "x$PVC_BACKEND" == "xceph" ]; then
   helm install --namespace=openstack ${WORK_DIR}/glance --name=glance

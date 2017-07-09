@@ -82,6 +82,7 @@ for NAMESPACE in $(kubectl get namespaces -o name | awk -F '/' '{ print $NF }') 
 done
 
 mkdir -p ${LOGS_DIR}/nodes/$(hostname)
+sudo docker logs kubelet 2> ${LOGS_DIR}/nodes/$(hostname)/kubelet.txt
 sudo iptables-save > ${LOGS_DIR}/nodes/$(hostname)/iptables.txt
 sudo ip a > ${LOGS_DIR}/nodes/$(hostname)/ip.txt
 sudo route -n > ${LOGS_DIR}/nodes/$(hostname)/routes.txt
