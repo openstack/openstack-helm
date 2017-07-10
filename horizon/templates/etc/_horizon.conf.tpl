@@ -14,11 +14,14 @@
 
 Listen 0.0.0.0:{{ .Values.network.port}}
 
-<VirtualHost *:{{ .Values.network.port}}>
-    LogLevel warn
-    ErrorLog /var/log/apache2/horizon.log
-    CustomLog /var/log/apache2/horizon-access.log combined
+LogFormat "%h %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\"" combined
+LogFormat "%{X-Forwarded-For}i %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\"" proxy
 
+SetEnvIf X-Forwarded-For "^.*\..*\..*\..*" forwarded
+CustomLog /dev/stdout combined env=!forwarded
+CustomLog /dev/stdout proxy env=forwarded
+
+<VirtualHost *:{{ .Values.network.port}}>
     WSGIScriptReloading On
     WSGIDaemonProcess horizon-http processes=5 threads=1 user=horizon group=horizon display-name=%{GROUP} python-path=/var/lib/kolla/venv/lib/python2.7/site-packages
     WSGIProcessGroup horizon-http
@@ -33,5 +36,13 @@ Listen 0.0.0.0:{{ .Values.network.port}}
     <Location "/static">
         SetHandler None
     </Location>
-</Virtualhost>
 
+    <IfVersion >= 2.4>
+      ErrorLogFormat "%{cu}t %M"
+    </IfVersion>
+    ErrorLog /dev/stderr
+
+    SetEnvIf X-Forwarded-For "^.*\..*\..*\..*" forwarded
+    CustomLog /dev/stdout combined env=!forwarded
+    CustomLog /dev/stdout proxy env=forwarded
+</Virtualhost>

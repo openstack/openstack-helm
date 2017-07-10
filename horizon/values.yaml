@@ -20,6 +20,8 @@
 replicas: 1
 
 images:
+  db_init: docker.io/kolla/ubuntu-source-horizon:4.0.0
+  db_sync: docker.io/kolla/ubuntu-source-horizon:4.0.0
   horizon: docker.io/kolla/ubuntu-source-horizon:4.0.0
   dep_check: docker.io/kolla/ubuntu-source-kubernetes-entrypoint:4.0.0
   pull_policy: "IfNotPresent"
@@ -57,10 +59,22 @@ local_settings:
 
 dependencies:
   dashboard:
+    jobs:
+    - horizon-db-sync
     services:
     - service: oslo_cache
       endpoint: internal
-    - service: identity
+    - service: oslo_db
+      endpoint: internal
+  db_init:
+    services:
+    - service: oslo_db
+      endpoint: internal
+  db_sync:
+    jobs:
+    - horizon-db-init
+    services:
+    - service: oslo_db
       endpoint: internal
 
 resources:
@@ -72,6 +86,27 @@ resources:
     limits:
       memory: "1204Mi"
       cpu: "2000m"
+  jobs:
+    db_init:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+    db_sync:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+
+# Names of secrets used by bootstrap and environmental checks
+secrets:
+  oslo_db:
+    admin: horizon-db-admin
+    user: horizon-db-user
 
 # typically overriden by environmental
 # values, but should include all endpoints
@@ -109,8 +144,29 @@ endpoints:
     port:
       web:
         default: 80
+  oslo_db:
+    auth:
+      admin:
+        username: root
+        password: password
+      user:
+        username: horizon
+        password: password
+    hosts:
+      default: mariadb
+    path: /horizon
+    scheme: mysql+pymysql
+    port:
+      mysql:
+        default: 3306
 
 mounts:
+  horizon_db_init:
+    init_container: null
+    horizon_db_init:
+  horizon_db_sync:
+    init_container: null
+    horizon_db_sync:
   horizon:
     init_container: null
     horizon:

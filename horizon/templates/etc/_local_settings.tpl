@@ -135,18 +135,25 @@ LOCAL_PATH = '/tmp'
 # SECRET_KEY for all of them.
 SECRET_KEY='{{ .Values.local_settings.horizon_secret_key }}'
 
-# Memcached session engine
-SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
-
-# We recommend you use memcached for development; otherwise after every reload
-# of the django development server, you will have to login again. To use
-# memcached set CACHES to something like
 CACHES = {
     'default': {
         'BACKEND': 'django.core.cache.backends.memcached.MemcachedCache',
-        'LOCATION': '{{ tuple "oslo_cache" "internal" "memcache" . | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" }}'
+        'LOCATION': '{{ tuple "oslo_cache" "internal" "memcache" . | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" }}',
     }
 }
+DATABASES = {
+    'default': {
+        # Database configuration here
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': '{{ .Values.endpoints.oslo_db.path | base }}',
+        'USER': '{{ .Values.endpoints.oslo_db.auth.user.username }}',
+        'PASSWORD': '{{ .Values.endpoints.oslo_db.auth.user.password }}',
+        'HOST': '{{ tuple "oslo_db" "internal" . | include "helm-toolkit.endpoints.hostname_fqdn_endpoint_lookup" }}',
+        'default-character-set': 'utf8',
+        'PORT': '{{ tuple "oslo_db" "internal" "mysql" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}'
+    }
+}
+SESSION_ENGINE = 'django.contrib.sessions.backends.cached_db'
 
 # Send email to the console by default
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
