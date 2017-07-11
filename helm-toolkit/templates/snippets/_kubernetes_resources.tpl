@@ -15,7 +15,7 @@
 {{- define "helm-toolkit.snippets.kubernetes_resources" -}}
 {{- $envAll := index . 0 -}}
 {{- $component := index . 1 -}}
-{{- if $envAll.Values.resources.enabled -}}
+{{- if $envAll.Values.pod.resources.enabled -}}
 resources:
   limits:
     cpu: {{ $component.limits.cpu | quote }}

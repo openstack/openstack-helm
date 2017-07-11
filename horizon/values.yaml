@@ -26,22 +26,6 @@ images:
   dep_check: docker.io/kolla/ubuntu-source-kubernetes-entrypoint:4.0.0
   pull_policy: "IfNotPresent"
 
-upgrades:
-  deployments:
-    revision_history: 3
-    pod_replacement_strategy: RollingUpdate
-    rolling_update:
-      max_unavailable: 1
-      max_surge: 3
-
-pod_disruption_budget:
-  horizon:
-    min_available: 0
-
-termination_grace_period:
-  horizon:
-    timeout: 30
-
 labels:
   node_selector_key: openstack-control-plane
   node_selector_value: enabled
@@ -77,30 +61,45 @@ dependencies:
     - service: oslo_db
       endpoint: internal
 
-resources:
-  enabled: false
-  server:
-    requests:
-      memory: "128Mi"
-      cpu: "100m"
-    limits:
-      memory: "1204Mi"
-      cpu: "2000m"
-  jobs:
-    db_init:
+pod:
+  lifecycle:
+    upgrades:
+      deployments:
+        revision_history: 3
+        pod_replacement_strategy: RollingUpdate
+        rolling_update:
+          max_unavailable: 1
+          max_surge: 3
+    disruption_budget:
+      horizon:
+        min_available: 0
+    termination_grace_period:
+      horizon:
+        timeout: 30
+  resources:
+    enabled: false
+    server:
       requests:
         memory: "128Mi"
         cpu: "100m"
       limits:
-        memory: "1024Mi"
+        memory: "1204Mi"
         cpu: "2000m"
-    db_sync:
-      requests:
-        memory: "128Mi"
-        cpu: "100m"
-      limits:
-        memory: "1024Mi"
-        cpu: "2000m"
+    jobs:
+      db_init:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      db_sync:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
 
 # Names of secrets used by bootstrap and environmental checks
 secrets:

@@ -14,7 +14,7 @@
 
 {{- define "helm-toolkit.snippets.kubernetes_upgrades_deployment" -}}
 {{- $envAll := index . 0 -}}
-{{- with $envAll.Values.upgrades.deployments -}}
+{{- with $envAll.Values.pod.lifecycle.upgrades.deployments -}}
 revisionHistoryLimit: {{ .revision_history }}
 strategy:
   type: {{ .pod_replacement_strategy }}

@@ -15,7 +15,7 @@
 {{- define "helm-toolkit.snippets.kubernetes_upgrades_daemonset" -}}
 {{- $envAll := index . 0 -}}
 {{- $component := index . 1 -}}
-{{- $upgradeMap := index $envAll.Values.upgrades.daemonsets $component }}
+{{- $upgradeMap := index $envAll.Values.pod.lifecycle.upgrades.daemonsets $component }}
 {{- with $upgradeMap -}}
 {{- if .enabled }}
 minReadySeconds: {{ .min_ready_seconds }}
