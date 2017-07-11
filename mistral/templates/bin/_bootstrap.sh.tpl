@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # Copyright 2017 The Openstack-Helm Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,32 +14,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Default values for etcd.
-# This is a YAML-formatted file.
-# Declare name/value pairs to be passed into your templates.
-# name: value
-
-images:
-  etcd: 'gcr.io/google_containers/etcd-amd64:2.2.5'
-  pull_policy: IfNotPresent
-
-labels:
-  node_selector_key: openstack-control-plane
-  node_selector_value: enabled
-
-network:
-  host: etcd
-  port: 2379
-
-pod:
-  lifecycle:
-    upgrades:
-      deployments:
-        pod_replacement_strategy: RollingUpdate
-        revision_history: 3
-        rolling_update:
-          max_surge: 3
-          max_unavailable: 1
-
-replicas:
-  etcd: 1
+set -ex
+{{ .Values.bootstrap.script | default "echo 'Not Enabled'" }}
