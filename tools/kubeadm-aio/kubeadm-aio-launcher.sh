@@ -57,7 +57,7 @@ sudo docker run \
 
 echo "Waiting for kubeconfig"
 set +x
-end=$(($(date +%s) + 120))
+end=$(($(date +%s) + 240))
 READY="False"
 while true; do
   if [ -f ${HOME}/.kubeadm-aio/admin.conf ]; then

@@ -2,7 +2,7 @@ FROM ubuntu:16.04
 MAINTAINER pete.birley@att.com
 
 ENV HELM_VERSION=v2.5.0 \
-    KUBE_VERSION=v1.6.5 \
+    KUBE_VERSION=v1.6.7 \
     CNI_VERSION=v0.5.2 \
     container="docker" \
     DEBIAN_FRONTEND="noninteractive"
@@ -11,15 +11,16 @@ RUN set -x \
     && TMP_DIR=$(mktemp --directory) \
     && cd ${TMP_DIR} \
     && apt-get update \
-    && apt-get install -y \
+    && apt-get install -y --no-install-recommends \
         apt-transport-https \
         ca-certificates \
         curl \
+        dbus \
 # Add Kubernetes repo
     && curl -sSL https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add - \
     && echo "deb http://apt.kubernetes.io/ kubernetes-xenial main" > /etc/apt/sources.list.d/kubernetes.list \
     && apt-get update \
-    && apt-get install -y \
+    && apt-get install -y --no-install-recommends \
         docker.io \
         iptables \
         kubectl \
@@ -56,7 +57,7 @@ RUN set -x \
     && curl -sSL https://storage.googleapis.com/kubernetes-helm/helm-${HELM_VERSION}-linux-amd64.tar.gz | tar -zxv --strip-components=1 \
     && mv ${TMP_DIR}/helm /usr/bin/helm \
 # Install openstack-helm dev utils
-    && apt-get install -y \
+    && apt-get install -y --no-install-recommends \
         make \
         git \
         vim \
@@ -64,6 +65,7 @@ RUN set -x \
 # Install utils for PVC provisioners
         nfs-common \
         ceph-common \
+        kmod \
 # Tweak Systemd units and targets for running in a container
     && find /lib/systemd/system/sysinit.target.wants/ ! -name 'systemd-tmpfiles-setup.service' -type l -exec rm -fv {} + \
     && rm -fv \

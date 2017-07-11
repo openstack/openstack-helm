@@ -1,7 +1,7 @@
 FROM ubuntu:16.04
 MAINTAINER pete.birley@att.com
 
-ARG KUBE_VERSION=v1.6.5
+ARG KUBE_VERSION=v1.6.7
 
 RUN set -x \
     && TMP_DIR=$(mktemp --directory) \
