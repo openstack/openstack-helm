@@ -27,6 +27,7 @@ service:
     name: ceph-mon
 
 images:
+  bootstrap: quay.io/attcomdev/ceph-daemon:tag-build-master-jewel-ubuntu-16.04
   dep_check: docker.io/kolla/ubuntu-source-kubernetes-entrypoint:4.0.0
   daemon: quay.io/attcomdev/ceph-daemon:tag-build-master-jewel-ubuntu-16.04
   ceph_config_helper: docker.io/port/ceph-config-helper:v1.6.7
@@ -79,6 +80,13 @@ pod:
         memory: "50Mi"
         cpu: "500m"
     jobs:
+      bootstrap:
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+        requests:
+          memory: "128Mi"
+          cpu: "500m"
       secret_provisioning:
         limits:
           memory: "1024Mi"
@@ -164,7 +172,6 @@ conf:
       mds:
         mds_cache_size: 100000
 
-
 dependencies:
   mon:
     jobs:
@@ -189,7 +196,11 @@ dependencies:
     services:
     - service: ceph_mon
       endpoint: internal
-
+  bootstrap:
+    jobs:
+    services:
+    - service: ceph_mon
+      endpoint: internal
 
 ceph:
   enabled:
@@ -203,6 +214,17 @@ ceph:
 # rgw is optionally disabled
 rgw:
   enabled: false
+
+bootstrap:
+  enabled: false
+  script: |
+    ceph -s
+    function ensure_pool () {
+      ceph osd pool stats $1 || ceph osd pool create $1 $2
+    }
+    ensure_pool volumes 8
+    ensure_pool images 8
+    ensure_pool vms 8
 
 # if you change provision_storage_class to false
 # it is presumed you manage your own storage
