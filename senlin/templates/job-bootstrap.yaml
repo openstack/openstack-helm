@@ -1,0 +1,56 @@
+# Copyright 2017 The Openstack-Helm Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+{{- $envAll := . }}
+{{- if .Values.bootstrap.enabled }}
+{{- $dependencies := .Values.dependencies.bootstrap }}
+{{- $mounts_senlin_bootstrap := .Values.mounts.senlin_bootstrap.senlin_bootstrap }}
+{{- $mounts_senlin_bootstrap_init := .Values.mounts.senlin_bootstrap.init_container }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: senlin-bootstrap
+spec:
+  template:
+    spec:
+      restartPolicy: OnFailure
+      nodeSelector:
+        {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
+      initContainers:
+{{ tuple $envAll $dependencies $mounts_senlin_bootstrap_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container"  | indent 8 }}
+      containers:
+        - name: senlin-bootstrap
+          image: {{ .Values.images.bootstrap }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+{{ tuple $envAll $envAll.Values.pod.resources.jobs.bootstrap | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          env:
+{{- with $env := dict "ksUserSecret" .Values.secrets.identity.admin }}
+{{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 12 }}
+{{- end }}
+          command:
+            - /tmp/bootstrap.sh
+          volumeMounts:
+            - name: senlin-bin
+              mountPath: /tmp/bootstrap.sh
+              subPath: bootstrap.sh
+              readOnly: true
+{{- if $mounts_senlin_bootstrap.volumeMounts }}{{ toYaml $mounts_senlin_bootstrap.volumeMounts | indent 10 }}{{ end }}
+      volumes:
+        - name: senlin-bin
+          configMap:
+            name: senlin-bin
+            defaultMode: 0555
+{{- if $mounts_senlin_bootstrap.volumes }}{{ toYaml $mounts_senlin_bootstrap.volumes | indent 6 }}{{ end }}
+{{- end }}
