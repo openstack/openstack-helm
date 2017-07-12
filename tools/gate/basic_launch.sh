@@ -29,6 +29,9 @@ if [ "x$HOST_OS" == "xfedora" ]; then
   sudo modprobe ip6_tables
 fi
 
+helm install --namespace=openstack ${WORK_DIR}/dns-helper --name=dns-helper
+kube_wait_for_pods openstack 180
+
 if [ "x$PVC_BACKEND" == "xceph" ]; then
   kubectl label nodes ceph-storage=enabled --all
   CONTROLLER_MANAGER_POD=$(kubectl get -n kube-system pods -l component=kube-controller-manager --no-headers -o name | head -1 | awk -F '/' '{ print $NF }')
