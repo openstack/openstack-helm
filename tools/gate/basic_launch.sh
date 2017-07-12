@@ -44,7 +44,8 @@ EOF"
   helm install --namespace=ceph ${WORK_DIR}/ceph --name=ceph \
     --set manifests_enabled.client_secrets=false \
     --set network.public=$osd_public_network \
-    --set network.cluster=$osd_cluster_network
+    --set network.cluster=$osd_cluster_network \
+    --set bootstrap.enabled=true
 
   kube_wait_for_pods ceph 600
 
@@ -59,9 +60,6 @@ EOF"
 
   kube_wait_for_pods openstack 420
 
-  kubectl exec -n ceph ceph-mon-0 -- ceph osd pool create volumes 8
-  kubectl exec -n ceph ceph-mon-0 -- ceph osd pool create images 8
-  kubectl exec -n ceph ceph-mon-0 -- ceph osd pool create vms 8
 fi
 
 helm install --namespace=openstack ${WORK_DIR}/ingress --name=ingress
