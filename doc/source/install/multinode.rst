@@ -354,7 +354,8 @@ the following command to install Ceph:
     helm install --namespace=ceph local/ceph --name=ceph \
       --set manifests_enabled.client_secrets=false \
       --set network.public=$osd_public_network \
-      --set network.cluster=$osd_cluster_network
+      --set network.cluster=$osd_cluster_network \
+      --set bootstrap.enabled=true
 
 You may want to validate that Ceph is deployed successfully. For more
 information on this, please see the section entitled `Ceph
@@ -377,24 +378,6 @@ deploy the client keyring and ``ceph.conf`` to the ``openstack`` namespace:
       --set ceph.namespace=ceph \
       --set network.public=$osd_public_network \
       --set network.cluster=$osd_cluster_network
-
-Ceph pool creation
-------------------
-
-Once Ceph has been deployed the pools for OpenStack services to consume can be
-created, using the following commands:
-
-::
-
-    kubectl exec -n ceph ceph-mon-0 -- ceph osd pool create volumes 8
-    kubectl exec -n ceph ceph-mon-0 -- ceph osd pool create images 8
-    kubectl exec -n ceph ceph-mon-0 -- ceph osd pool create vms 8
-
-The number of placement groups can be altered by replacing the 8
-to meet your needs. It is important to note that using too large
-of a number for your placement groups may result in Ceph
-becoming unhealthy. For more information on this topic, reference
-Ceph's documentation `here <http://docs.ceph.com/docs/master/rados/operations/placement-groups/#choosing-the-number-of-placement-groups>`_.
 
 MariaDB Installation and Verification
 -------------------------------------
