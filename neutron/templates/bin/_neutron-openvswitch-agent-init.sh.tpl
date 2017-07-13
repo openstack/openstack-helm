@@ -30,7 +30,7 @@ timeout 3m neutron-sanity-check --config-file /etc/neutron/neutron.conf --config
 tunnel_interface="{{- .Values.network.interface.tunnel -}}"
 if [ -z "${tunnel_interface}" ] ; then
     # search for interface with default routing
-    tunnel_interface=$(ip r | grep default | grep -oP '(?<=dev ).*')
+    tunnel_interface=$(ip route | awk '/^default/ { print $5 }' | head -1 )
 fi
 
 # determine local-ip dynamically based on interface provided but only if tunnel_types is not null
