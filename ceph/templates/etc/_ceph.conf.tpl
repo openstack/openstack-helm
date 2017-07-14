@@ -48,6 +48,7 @@ osd_max_object_name_len = {{ .Values.conf.ceph.config.osd.osd_max_object_name_le
 # crush
 osd_pool_default_crush_rule = {{ .Values.conf.ceph.config.osd.osd_pool_default_crush_rule | default "0" | quote }}
 osd_crush_update_on_start = {{ .Values.conf.ceph.config.osd.osd_crush_update_on_start | default "true" | quote }}
+osd_crush_chooseleaf_type = {{ .Values.conf.ceph.config.osd.osd_crush_chooseleaf_type | default "1" | quote }}
 
 # backend
 osd_objectstore = {{ .Values.conf.ceph.config.osd.osd_objectstore | default "filestore" | quote }}

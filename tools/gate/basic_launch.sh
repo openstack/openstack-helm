@@ -49,11 +49,20 @@ EOF"
   export osd_cluster_network=${SUBNET_RANGE}
   export osd_public_network=${SUBNET_RANGE}
 
-  helm install --namespace=ceph ${WORK_DIR}/ceph --name=ceph \
-    --set manifests_enabled.client_secrets=false \
-    --set network.public=$osd_public_network \
-    --set network.cluster=$osd_cluster_network \
-    --set bootstrap.enabled=true
+  if [ "x$INTEGRATION" == "xaio" ]; then
+    helm install --namespace=ceph ${WORK_DIR}/ceph --name=ceph \
+      --set manifests_enabled.client_secrets=false \
+      --set network.public=$osd_public_network \
+      --set network.cluster=$osd_cluster_network \
+      --set bootstrap.enabled=true \
+      --values=${WORK_DIR}/tools/overrides/mvp/ceph.yaml
+  else
+    helm install --namespace=ceph ${WORK_DIR}/ceph --name=ceph \
+      --set manifests_enabled.client_secrets=false \
+      --set network.public=$osd_public_network \
+      --set network.cluster=$osd_cluster_network \
+      --set bootstrap.enabled=true
+  fi
 
   kube_wait_for_pods ceph 600
 
