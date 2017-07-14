@@ -407,7 +407,7 @@ Now you can easily install the other services simply by going in order:
 ::
 
     helm install --namespace=openstack --name=keystone local/keystone \
-      --set replicas=2
+      --set pod.replicas.api=2
 
 **Install Horizon:**
 
@@ -421,7 +421,8 @@ Now you can easily install the other services simply by going in order:
 ::
 
     helm install --namespace=openstack --name=glance local/glance \
-      --set replicas.api=2,replicas.registry=2
+      --set pod.replicas.api=2 \
+      --set pod.replicas.registry=2
 
 **Install Heat:**
 
@@ -434,21 +435,26 @@ Now you can easily install the other services simply by going in order:
 ::
 
     helm install --namespace=openstack --name=neutron local/neutron \
-      --set replicas.server=2
+      --set pod.replicas.server=2
 
 **Install Nova:**
 
 ::
 
     helm install --namespace=openstack --name=nova local/nova \
-      --set control_replicas=2
+      --set pod.replicas.api_metadata=2 \
+      --set pod.replicas.osapi=2 \
+      --set pod.replicas.conductor=2 \
+      --set pod.replicas.consoleauth=2 \
+      --set pod.replicas.scheduler=2 \
+      --set pod.replicas.novncproxy=2
 
 **Install Cinder:**
 
 ::
 
     helm install --namespace=openstack --name=cinder local/cinder \
-      --set replicas.api=2
+      --set pod.replicas.api=2
 
 Final Checks
 ------------

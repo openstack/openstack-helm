@@ -19,7 +19,7 @@ apiVersion: apps/v1beta1
 metadata:
   name: rabbitmq
 spec:
-  replicas: {{ .Values.replicas }}
+  replicas: {{ .Values.pod.replicas.server }}
 {{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_deployment" | indent 2 }}
   template:
     metadata:
@@ -38,17 +38,8 @@ spec:
       containers:
         - name: rabbitmq
           image: {{ .Values.images.rabbitmq }}
-          {{- if .Values.pod.resources.enabled }}
-          resources:
-            limits:
-              cpu: {{ .Values.pod.resources.api.limits.cpu | quote }}
-              memory: {{ .Values.pod.resources.api.limits.memory | quote }}
-            requests:
-              cpu: {{ .Values.pod.resources.api.requests.cpu | quote }}
-              memory: {{ .Values.pod.resources.api.requests.memory | quote }}
-          {{- end }}
+{{ tuple $envAll $envAll.Values.pod.resources.server | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           command:
-          - bash
           - /scripts/start.sh
           env:
           - name: RABBITMQ_POD_IP
@@ -59,14 +50,12 @@ spec:
             timeoutSeconds: {{ .Values.probes_timeout }}
             exec:
               command:
-              - bash
               - /scripts/rabbitmq-readiness.sh
           livenessProbe:
             initialDelaySeconds: {{ .Values.probes_delay }}
             timeoutSeconds: {{ .Values.probes_timeout }}
             exec:
               command:
-              - bash
               - /scripts/rabbitmq-liveness.sh
           volumeMounts:
             - name: rabbitmq-emptydir
