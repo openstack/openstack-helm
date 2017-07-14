@@ -16,63 +16,34 @@
 {{- $envAll := . }}
 {{- $dependencies := .Values.dependencies.mon }}
 ---
-apiVersion: apps/v1beta1
-kind: StatefulSet
+kind: DaemonSet
+apiVersion: extensions/v1beta1
 metadata:
-  labels:
-    app: ceph
-    daemon: mon
   name: ceph-mon
 spec:
-  serviceName: {{ tuple "ceph_mon" "internal" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
-  replicas: {{ .Values.replicas.mon }}
   template:
     metadata:
-      name: ceph-mon
       labels:
-        app: ceph
-        daemon: mon
+{{ tuple $envAll "ceph" "mon" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
     spec:
-      # alanmeadows: this soft requirement allows single
-      # host deployments to spawn several ceph-mon
-      # containers
-      affinity:
-        podAntiAffinity:
-          preferredDuringSchedulingIgnoredDuringExecution:
-          - podAffinityTerm:
-              labelSelector:
-                matchExpressions:
-                - key: app
-                  operator: In
-                  values:
-                    - ceph
-                - key: daemon
-                  operator: In
-                  values:
-                    - mon
-              topologyKey: kubernetes.io/hostname
-            weight: 10
       nodeSelector:
-        {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
+        {{ .Values.labels.mon.node_selector_key }}: {{ .Values.labels.mon.node_selector_value }}
       initContainers:
 {{ tuple $envAll $dependencies "" | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+      hostNetwork: true
       serviceAccount: default
       containers:
         - name: ceph-mon
           image: {{ .Values.images.daemon }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
-          {{- if .Values.pod.resources.enabled }}
-          resources:
-            requests:
-              memory: {{ .Values.pod.resources.mon.requests.memory | quote }}
-              cpu: {{ .Values.pod.resources.mon.requests.cpu | quote }}
-            limits:
-              memory: {{ .Values.pod.resources.mon.limits.memory | quote }}
-              cpu: {{ .Values.pod.resources.mon.limits.cpu | quote }}
-          {{- end }}
+{{ tuple $envAll $envAll.Values.pod.resources.osd | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           ports:
             - containerPort: 6789
           env:
+            - name: K8S_HOST_NETWORK
+              value: "1"
+            - name: MONMAP
+              value: /var/lib/ceph/mon/monmap
             - name: CEPH_DAEMON
               value: MON
             - name: KV_TYPE
@@ -124,6 +95,14 @@ spec:
               mountPath: /etc/ceph/ceph.mon.keyring
               subPath: ceph.mon.keyring
               readOnly: false
+            - name: ceph-bin
+              mountPath: /variables_entrypoint.sh
+              subPath: variables_entrypoint.sh
+              readOnly: true
+            - name: ceph-bin
+              mountPath: /config.k8s.sh
+              subPath: config.k8s.sh
+              readOnly: true
             - name: ceph-bootstrap-osd-keyring
               mountPath: /var/lib/ceph/bootstrap-osd/ceph.keyring
               subPath: ceph.keyring
