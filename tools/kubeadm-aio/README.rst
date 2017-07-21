@@ -63,7 +63,7 @@ repo run:
 Deploy the AIO environment
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-To launch the environment then run:
+To launch the environment run:
 
 .. code:: bash
 
@@ -72,13 +72,13 @@ To launch the environment then run:
     ./tools/kubeadm-aio/kubeadm-aio-launcher.sh
     export KUBECONFIG=${HOME}/.kubeadm-aio/admin.conf
 
-One this has run, you should hopefully have a Kubernetes single node
-environment running, with Helm, Calico, a NFS PVC provisioner and
-appropriate RBAC rules and node labels to get developing.
+Once this has run without errors, you should hopefully have a Kubernetes single
+node environment running, with Helm, Calico, appropriate RBAC rules and node
+labels to get developing.
 
-If you wish to use this environment at the primary Kubernetes
-environment on your host you may run the following, but note that this
-will wipe any previous client configuration you may have.
+If you wish to use this environment as the primary Kubernetes environment on
+your host you may run the following, but note that this will wipe any previous
+client configuration you may have.
 
 .. code:: bash
 
