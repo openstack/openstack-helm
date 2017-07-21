@@ -17,6 +17,9 @@ set -xe
 
 source /etc/kube-role
 if [[ "${KUBE_ROLE}" == "master" ]]; then
+  # Source network vars
+  source /etc/kube-cni
+
   # Define k8s version
   source /etc/kube-version
   if [[ "${KUBE_VERSION}" == "default" ]]; then
@@ -31,9 +34,14 @@ if [[ "${KUBE_ROLE}" == "master" ]]; then
   if [[ "$KUBE_BIND_DEV" != "autodetect" ]]; then
     KUBE_BIND_IP=$(ip addr list ${KUBE_BIND_DEV} |grep "inet " |cut -d' ' -f6|cut -d/ -f1)
     echo 'We are going to bind the K8s API to: ${KUBE_BIND_IP}'
-    kubeadm init --skip-preflight-checks ${KUBE_VERSION_FLAG} --api-advertise-addresses ${KUBE_BIND_IP} --config /etc/kubeadm.conf
+    kubeadm init ${KUBE_VERSION_FLAG} \
+      --skip-preflight-checks \
+      --pod-network-cidr ${CNI_POD_CIDR} \
+      --api-advertise-addresses ${KUBE_BIND_IP}
   else
-    kubeadm init --skip-preflight-checks ${KUBE_VERSION_FLAG} --config /etc/kubeadm.conf
+    kubeadm init ${KUBE_VERSION_FLAG} \
+      --skip-preflight-checks \
+      --pod-network-cidr ${CNI_POD_CIDR}
   fi
 
   echo 'Setting up K8s client'
@@ -44,7 +52,7 @@ if [[ "${KUBE_ROLE}" == "master" ]]; then
   kubectl taint nodes --all node-role.kubernetes.io/master-
 
   echo 'Installing Calico CNI'
-  kubectl apply -f /opt/cni-manifests/calico.yaml
+  kubectl apply -f /opt/cni-manifests/${KUBE_CNI}.yaml
 
   echo 'Setting Up Cluser for OpenStack-Helm dev use'
   /usr/bin/openstack-helm-dev-prep

@@ -53,6 +53,9 @@ variables:
 Options
 -------
 
+You can also export some additional environment variables prior to running the
+``./tools/gate/setup_gate.sh`` that tweak aspects of the deployment.
+
 Rather than ceph, you may use a nfs based backend. This option is especially
 useful on old or low spec machines, though is not currently supported with
 Linux Kernels >=4.10:
@@ -60,3 +63,10 @@ Linux Kernels >=4.10:
 .. code:: bash
 
     export PVC_BACKEND=nfs
+
+It is also possible to customise the CNI used in the deployment:
+
+.. code:: bash
+
+    export KUBE_CNI=calico # or "canal" "weave" "flannel"
+    export CNI_POD_CIDR=192.168.0.0/16
