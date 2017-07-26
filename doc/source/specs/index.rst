@@ -8,3 +8,4 @@ Contents:
 
    specifications.rst
    template.rst
+   neutron-multiple-sdns.rst
