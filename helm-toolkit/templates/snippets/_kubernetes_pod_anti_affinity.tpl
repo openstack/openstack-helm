@@ -16,8 +16,10 @@
 {{- $envAll := index . 0 -}}
 {{- $application := index . 1 -}}
 {{- $component := index . 2 -}}
+{{- $antiAffinityType := index $envAll.Values.pod.affinity.anti.type $component | default $envAll.Values.pod.affinity.anti.type.default }}
+{{- $antiAffinityKey := index $envAll.Values.pod.affinity.anti.topologyKey $component | default $envAll.Values.pod.affinity.anti.topologyKey.default }}
 podAntiAffinity:
-  preferredDuringSchedulingIgnoredDuringExecution:
+  {{ $antiAffinityType }}:
   - podAffinityTerm:
       labelSelector:
         matchExpressions:
@@ -33,6 +35,6 @@ podAntiAffinity:
           operator: In
           values:
             - {{ $component }}
-      topologyKey: kubernetes.io/hostname
+      topologyKey: {{ $antiAffinityKey }}
     weight: 10
 {{- end -}}
