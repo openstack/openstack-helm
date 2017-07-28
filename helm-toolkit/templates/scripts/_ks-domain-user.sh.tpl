@@ -46,6 +46,9 @@ SERVICE_OS_USERID=$(openstack user create --or-show --enable -f value -c id \
     --password="${SERVICE_OS_PASSWORD}" \
     "${SERVICE_OS_USERNAME}")
 
+# Manage user password (we do this to ensure the password is updated if required)
+openstack user set --password="${SERVICE_OS_PASSWORD}" "${SERVICE_OS_USERID}"
+
 # Display user
 openstack user show "${SERVICE_OS_USERID}"
 
