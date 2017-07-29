@@ -16,7 +16,7 @@
 
 set -o pipefail
 
-MYSQL="mysql -u root --password=${MYSQL_ROOT_PASSWORD}"
+MYSQL="mysql --defaults-file=/etc/mysql/admin_user.cnf --host=localhost"
 
 if [ ! $($MYSQL -e 'select 1') ]; then
     echo "Could not SELECT 1" 1>&2

@@ -46,6 +46,10 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
+            - name: FORCE_BOOTSTRAP
+              value: {{ .Values.force_bootstrap | quote }}
+            - name: MARIADB_REPLICAS
+              value: {{ .Values.pod.replicas.server | quote }}
             - name: WSREP_PORT
               value: {{ tuple "oslo_db" "internal" "wsrep" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | quote }}
             - name: SERVICE_NAME
@@ -74,8 +78,8 @@ spec:
               readOnly: true
             - name: mariadb-etc
               mountPath: /etc/mysql/my.cnf
-              readOnly: true
               subPath: my.cnf
+              readOnly: true
             - name: mariadb-etc
               mountPath: /etc/mysql/conf.d/00-base.cnf
               subPath: 00-base.cnf
@@ -87,6 +91,10 @@ spec:
             - name: mariadb-etc
               mountPath: /etc/mysql/conf.d/99-force.cnf
               subPath: 99-force.cnf
+              readOnly: true
+            - name: mariadb-secrets
+              mountPath: /etc/mysql/admin_user.cnf
+              subPath: admin_user.cnf
               readOnly: true
             - name: mysql-data
               mountPath: /var/lib/mysql
@@ -100,6 +108,10 @@ spec:
         - name: mariadb-etc
           configMap:
             name: mariadb-etc
+            defaultMode: 0444
+        - name: mariadb-secrets
+          secret:
+            secretName: mariadb-secrets
             defaultMode: 0444
         {{- if not .Values.volume.enabled }}
         - name: mysql-data

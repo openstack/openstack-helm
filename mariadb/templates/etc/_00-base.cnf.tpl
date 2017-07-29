@@ -96,10 +96,8 @@ wsrep_slave_threads=12
 wsrep_sst_auth=root:{{ .Values.endpoints.oslo_db.auth.admin.password }}
 wsrep_sst_method=xtrabackup-v2
 
-
 [mysqldump]
 max-allowed-packet=16M
-
 
 [client]
 default_character_set=utf8
