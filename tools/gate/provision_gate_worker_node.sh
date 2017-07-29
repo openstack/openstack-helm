@@ -16,9 +16,19 @@ set -ex
 cd ${WORK_DIR}
 source /etc/os-release
 export HOST_OS=${ID}
+source ${WORK_DIR}/tools/gate/funcs/common.sh
 source ${WORK_DIR}/tools/gate/funcs/network.sh
 source ${WORK_DIR}/tools/gate/funcs/kube.sh
 
+# Install base requirements
+base_install
+if [ "x$PVC_BACKEND" == "xceph" ]; then
+  ceph_support_install
+elif [ "x$PVC_BACKEND" == "xnfs" ]; then
+  nfs_support_install
+fi
+
+# Install KubeadmAIO requirements and get image
 kubeadm_aio_reqs_install
 sudo docker pull ${KUBEADM_IMAGE} || kubeadm_aio_build
 
@@ -27,24 +37,8 @@ sudo mkdir -p /var/lib/kubelet
 sudo mount --bind /var/lib/kubelet /var/lib/kubelet
 sudo mount --make-shared /var/lib/kubelet
 
-# Cleanup any old deployment
-sudo docker rm -f kubeadm-aio || true
-sudo docker rm -f kubelet || true
-sudo docker ps -aq | xargs -r -l1 sudo docker rm -f
-sudo rm -rfv \
-    /etc/cni/net.d \
-    /etc/kubernetes \
-    /var/lib/etcd \
-    /var/etcd \
-    /var/lib/kubelet/* \
-    /var/lib/nova \
-    /var/lib/openstack-helm \
-    /run/openvswitch || true
-
-# Load ceph kernel module if required
-if [ "x$PVC_BACKEND" == "xceph" ]; then
-  sudo modprobe rbd
-fi
+# Clean up any old install
+kubeadm_aio_clean
 
 # Launch Container
 sudo docker run \

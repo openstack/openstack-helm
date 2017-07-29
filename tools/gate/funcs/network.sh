@@ -11,13 +11,24 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-set -e
+
+function net_default_iface {
+ sudo ip -4 route list 0/0 | awk '{ print $5; exit }'
+}
+
+function net_default_host_addr {
+ sudo ip addr | awk "/inet / && /$(net_default_iface)/{print \$2; exit }"
+}
+
+function net_default_host_ip {
+ echo $(net_default_host_addr) | awk -F '/' '{ print $1; exit }'
+}
 
 function net_resolv_pre_kube {
   sudo cp -f /etc/resolv.conf /etc/resolv-pre-kube.conf
   sudo rm -f /etc/resolv.conf
   cat << EOF | sudo tee /etc/resolv.conf
-nameserver 8.8.8.8
+nameserver ${UPSTREAM_DNS}
 EOF
 }
 
@@ -27,11 +38,8 @@ function net_resolv_post_kube {
 
 function net_hosts_pre_kube {
   sudo cp -f /etc/hosts /etc/hosts-pre-kube
-  HOST_IFACE=$(sudo ip route | grep "^default" | awk '{ print $5 }')
-  HOST_IP=$(sudo ip addr | awk "/inet/ && /${HOST_IFACE}/{sub(/\/.*$/,\"\",\$2); print \$2}")
-
   sudo sed -i "/$(hostname)/d" /etc/hosts
-  echo "${HOST_IP} $(hostname)" | sudo tee -a /etc/hosts
+  echo "$(net_default_host_ip) $(hostname)" | sudo tee -a /etc/hosts
 }
 
 function net_hosts_post_kube {
@@ -39,15 +47,10 @@ function net_hosts_post_kube {
 }
 
 function find_subnet_range {
-  DEFAULT_IFACE=$(sudo ip route | awk --posix '$1~/^default$/{print $5}')
-  IFS=/ read IP_ADDR SUBNET_PREFIX <<< $(sudo ip addr show ${DEFAULT_IFACE} | awk --posix '$1~/^inet$/{print $2}')
-
-  set -- $(( 5 - (${SUBNET_PREFIX} / 8) )) 255 255 255 255 $(( (255 << (8 - (${SUBNET_PREFIX} % 8))) & 255 )) 0 0 0
-  [ $1 -gt 1 ] && shift $1 || shift
-  SUBNET_MASK=$(echo ${1-0}.${2-0}.${3-0}.${4-0})
-
-  IFS=. read -r i1 i2 i3 i4 <<< ${IP_ADDR}
-  IFS=. read -r m1 m2 m3 m4 <<< ${SUBNET_MASK}
-  BASE_SUBNET_IP=$(printf "%d.%d.%d.%d\n" "$((i1 & m1))" "$((i2 & m2))" "$((i3 & m3))" "$((i4 & m4))")
-  echo "$BASE_SUBNET_IP/$SUBNET_PREFIX"
+  if [ "x$HOST_OS" == "xubuntu" ]; then
+    ipcalc $(net_default_host_addr) | awk '/^Network/ { print $2 }'
+  else
+    eval $(ipcalc --network --prefix $(net_default_host_addr))
+    echo "$NETWORK/$PREFIX"
+  fi
 }

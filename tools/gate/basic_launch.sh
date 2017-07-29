@@ -37,10 +37,10 @@ if [ "x$PVC_BACKEND" == "xceph" ]; then
   kubectl label nodes ceph-mon=enabled --all
   kubectl label nodes ceph-osd=enabled --all
   kubectl label nodes ceph-mds=enabled --all
-  CONTROLLER_MANAGER_POD=$(kubectl get -n kube-system pods -l component=kube-controller-manager --no-headers -o name | head -1 | awk -F '/' '{ print $NF }')
+  CONTROLLER_MANAGER_POD=$(kubectl get -n kube-system pods -l component=kube-controller-manager --no-headers -o name | awk -F '/' '{ print $NF; exit }')
   kubectl exec -n kube-system ${CONTROLLER_MANAGER_POD} -- sh -c "cat > /etc/resolv.conf <<EOF
 nameserver 10.96.0.10
-nameserver 8.8.8.8
+nameserver ${UPSTREAM_DNS}
 search cluster.local svc.cluster.local
 EOF"
 
@@ -66,7 +66,7 @@ EOF"
 
   kube_wait_for_pods ceph 600
 
-  MON_POD=$(kubectl get pods -l application=ceph -l component=mon -n ceph --no-headers | awk '{print $1}' | head -1)
+  MON_POD=$(kubectl get pods -l application=ceph -l component=mon -n ceph --no-headers | awk '{ print $1; exit }')
 
   kubectl exec -n ceph ${MON_POD} -- ceph -s
 

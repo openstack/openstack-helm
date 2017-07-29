@@ -11,14 +11,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-set -e
 
 function kube_wait_for_pods {
   # From Kolla-Kubernetes, orginal authors Kevin Fox & Serguei Bezverkhi
   # Default wait timeout is 180 seconds
   set +x
   end=$(date +%s)
-  if [ x$2 != "x" ]; then
+  if ! [ -z $2 ]; then
    end=$((end + $2))
   else
    end=$((end + 180))
@@ -48,7 +47,7 @@ function kube_wait_for_nodes {
   # Default wait timeout is 180 seconds
   set +x
   end=$(date +%s)
-  if [ x$2 != "x" ]; then
+  if ! [ -z $2 ]; then
    end=$((end + $2))
   else
    end=$((end + 180))
@@ -76,14 +75,12 @@ function kubeadm_aio_reqs_install {
     sudo apt-get update -y
     sudo apt-get install -y --no-install-recommends -qq \
             docker.io \
-            nfs-common \
             jq
   elif [ "x$HOST_OS" == "xcentos" ]; then
     sudo yum install -y \
             epel-release
     sudo yum install -y \
             docker-latest \
-            nfs-utils \
             jq
     sudo cp -f /usr/lib/systemd/system/docker-latest.service /etc/systemd/system/docker.service
     sudo sed -i "s|/var/lib/docker-latest|/var/lib/docker|g" /etc/systemd/system/docker.service
@@ -97,7 +94,6 @@ function kubeadm_aio_reqs_install {
   elif [ "x$HOST_OS" == "xfedora" ]; then
     sudo dnf install -y \
             docker-latest \
-            nfs-utils \
             jq
     sudo cp -f /usr/lib/systemd/system/docker-latest.service /etc/systemd/system/docker.service
     sudo sed -i "s|/var/lib/docker-latest|/var/lib/docker|g" /etc/systemd/system/docker.service
@@ -116,7 +112,6 @@ function kubeadm_aio_reqs_install {
     chmod +x ${TMP_DIR}/kubectl
     sudo mv ${TMP_DIR}/kubectl /usr/local/bin/kubectl
     rm -rf ${TMP_DIR} )
-
 }
 
 function kubeadm_aio_build {
@@ -129,6 +124,23 @@ function kubeadm_aio_launch {
   cat ${KUBECONFIG} > ${HOME}/.kube/config
   kube_wait_for_pods kube-system 240
   kube_wait_for_pods default 240
+}
+
+function kubeadm_aio_clean {
+  sudo docker rm -f kubeadm-aio || true
+  sudo docker rm -f kubelet || true
+  sudo docker ps -aq | xargs -r -l1 -P16 sudo docker rm -f
+  sudo rm -rfv \
+      /etc/cni/net.d \
+      /etc/kubernetes \
+      /var/lib/etcd \
+      /var/etcd \
+      /var/lib/kubelet/* \
+      /run/openvswitch \
+      /var/lib/nova \
+      ${HOME}/.kubeadm-aio/admin.conf \
+      /var/lib/openstack-helm \
+      /var/lib/nfs-provisioner || true
 }
 
 function ceph_kube_controller_manager_replace {

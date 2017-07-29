@@ -23,7 +23,7 @@ sudo mount --make-shared /var/lib/kubelet
 # Cleanup any old deployment
 sudo docker rm -f kubeadm-aio || true
 sudo docker rm -f kubelet || true
-sudo docker ps -aq | xargs -r -l1 sudo docker rm -f
+sudo docker ps -aq | xargs -r -l1 -P16 sudo docker rm -f
 sudo rm -rfv \
     /etc/cni/net.d \
     /etc/kubernetes \

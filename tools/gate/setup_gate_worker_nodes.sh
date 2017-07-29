@@ -21,7 +21,7 @@ export SUB_NODE_COUNT="$(($(echo ${SUB_NODE_IPS} | wc -w) + 1))"
 sudo chown $(whoami) ${SSH_PRIVATE_KEY}
 sudo chmod 600 ${SSH_PRIVATE_KEY}
 
-KUBEADM_TOKEN=$(sudo docker exec kubeadm-aio kubeadm token list | tail -n -1 | awk '{ print $1 }')
+KUBEADM_TOKEN=$(sudo docker exec kubeadm-aio kubeadm token list | awk '/The default bootstrap token/ { print $1 ; exit }')
 
 SUB_NODE_PROVISION_SCRIPT=$(mktemp --suffix=.sh)
 for SUB_NODE in $SUB_NODE_IPS ; do

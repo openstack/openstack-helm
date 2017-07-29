@@ -21,7 +21,6 @@ sudo docker pull ${KUBEADM_IMAGE} || kubeadm_aio_build
 
 if [ "x$PVC_BACKEND" == "xceph" ]; then
   ceph_kube_controller_manager_replace
-  sudo modprobe rbd
 fi
 
 kubeadm_aio_launch

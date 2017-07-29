@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-set -e
 
 function helm_install {
   if [ "x$HOST_OS" == "xubuntu" ]; then
@@ -100,8 +99,10 @@ function helm_plugin_template_install {
 
 function helm_template_run {
   mkdir -p ${LOGS_DIR}/templates
-  for CHART in $(helm search | awk '{ print $1 }' | tail -n +2 | awk -F '/' '{ print $NF }'); do
+  set +x
+  for CHART in $(helm search | tail -n +2 | awk '{ print $1 }' | awk -F '/' '{ print $NF }'); do
     echo "Running Helm template plugin on chart: $CHART"
     helm template --verbose $CHART > ${LOGS_DIR}/templates/$CHART
   done
+  set -x
 }

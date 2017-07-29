@@ -13,8 +13,10 @@
 # limitations under the License.
 set -ex
 
-export HELM_VERSION=${2:-v2.5.1}
-export KUBE_VERSION=${3:-v1.6.7}
+export HELM_VERSION=${HELM_VERSION:-"v2.5.1"}
+export KUBE_VERSION=${KUBE_VERSION:-"v1.6.7"}
+export PVC_BACKEND=${PVC_BACKEND:-"ceph"}
+export UPSTREAM_DNS=${UPSTREAM_DNS:-"8.8.8.8"}
 export KUBECONFIG=${HOME}/.kubeadm-aio/admin.conf
 export KUBEADM_IMAGE=openstackhelm/kubeadm-aio:${KUBE_VERSION}
 export BASE_KUBE_CONTROLLER_MANAGER_IMAGE=gcr.io/google_containers/kube-controller-manager-amd64:${KUBE_VERSION}
@@ -26,7 +28,6 @@ export HOST_OS=${ID}
 source ${WORK_DIR}/tools/gate/funcs/common.sh
 source ${WORK_DIR}/tools/gate/funcs/network.sh
 source ${WORK_DIR}/tools/gate/funcs/helm.sh
-export PVC_BACKEND=ceph
 
 # Setup the logging location: by default use the working dir as the root.
 export LOGS_DIR=${LOGS_DIR:-"${WORK_DIR}/logs"}
@@ -47,6 +48,8 @@ fi
 base_install
 if [ "x$PVC_BACKEND" == "xceph" ]; then
   ceph_support_install
+elif [ "x$PVC_BACKEND" == "xnfs" ]; then
+  nfs_support_install
 fi
 
 # We setup the network for pre kube here, to enable cluster restarts on
