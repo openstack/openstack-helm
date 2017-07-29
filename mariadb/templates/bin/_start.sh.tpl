@@ -43,7 +43,7 @@ fi
 CLUSTER_CONFIG_PATH=/etc/mysql/conf.d/10-cluster-config.cnf
 
 MEMBERS=
-for i in $(seq 1 {{ .Values.replicas }}); do
+for i in $(seq 1 {{ .Values.pod.replicas.server }}); do
     NUM=$(expr $i - 1)
     CANDIDATE_POD="${SERVICE_NAME}-$NUM.${DISCOVERY_SERVICE_NAME}"
     if [ "x${CANDIDATE_POD}" != "x${POD_NAME}.${DISCOVERY_SERVICE_NAME}" ]; then
@@ -66,7 +66,7 @@ wsrep_node_name=${POD_NAME}.${DISCOVERY_SERVICE_NAME}
 EOS
 
 echo ^^^
-echo Executinging upstream docker-entrypoint.
+echo Executing upstream docker-entrypoint.
 echo
 
 #
