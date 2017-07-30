@@ -44,7 +44,11 @@ nameserver ${UPSTREAM_DNS}
 search cluster.local svc.cluster.local
 EOF"
 
-  SUBNET_RANGE=$(find_subnet_range)
+  if [ "x$INTEGRATION" == "xmulti" ]; then
+    SUBNET_RANGE="$(find_multi_subnet_range)"
+  else
+    SUBNET_RANGE=$(find_subnet_range)
+  fi
 
   export osd_cluster_network=${SUBNET_RANGE}
   export osd_public_network=${SUBNET_RANGE}
