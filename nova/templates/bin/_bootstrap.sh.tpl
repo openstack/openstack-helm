@@ -17,9 +17,8 @@
 set -ex
 export HOME=/tmp
 
-{{ if .Values.bootstrap.enabled }}
-
-{{ range .Values.bootstrap.flavors }}
+{{ if .Values.bootstrap.flavors.enabled }}
+{{ range .Values.bootstrap.flavors.options }}
 openstack flavor show {{ .name }} || \
  openstack flavor create {{ .name }} \
  --id {{ .id }} \
@@ -27,7 +26,7 @@ openstack flavor show {{ .name }} || \
  --disk {{ .disk }} \
  --vcpus {{ .vcpus }}
 {{ end }}
-
 {{ end }}
 
+{{ .Values.bootstrap.script | default "echo 'Not Enabled'" }}
 exit 0
