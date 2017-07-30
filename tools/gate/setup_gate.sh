@@ -13,7 +13,7 @@
 # limitations under the License.
 set -ex
 
-export HELM_VERSION=${2:-v2.5.0}
+export HELM_VERSION=${2:-v2.5.1}
 export KUBE_VERSION=${3:-v1.6.7}
 export KUBECONFIG=${HOME}/.kubeadm-aio/admin.conf
 export KUBEADM_IMAGE=openstackhelm/kubeadm-aio:${KUBE_VERSION}

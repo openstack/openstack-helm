@@ -70,7 +70,7 @@ against your Kubernetes cluster.
 ::
 
       export KUBE_VERSION=v1.6.7
-      export HELM_VERSION=v2.5.0
+      export HELM_VERSION=v2.5.1
       export TMP_DIR=$(mktemp -d)
 
       curl -sSL https://storage.googleapis.com/kubernetes-release/release/${KUBE_VERSION}/bin/linux/amd64/kubectl -o ${TMP_DIR}/kubectl

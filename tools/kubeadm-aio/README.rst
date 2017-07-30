@@ -32,7 +32,7 @@ You should install the ``kubectl`` and ``helm`` binaries:
 .. code:: bash
 
     KUBE_VERSION=v1.6.7
-    HELM_VERSION=v2.5.0
+    HELM_VERSION=v2.5.1
 
     TMP_DIR=$(mktemp -d)
     curl -sSL https://storage.googleapis.com/kubernetes-release/release/${KUBE_VERSION}/bin/linux/amd64/kubectl -o ${TMP_DIR}/kubectl

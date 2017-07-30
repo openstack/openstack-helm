@@ -32,7 +32,7 @@ comments, please create an `issue
        - `v1.6.7 <https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG.md#v165>`_
        - `Custom Controller for RDB tools <https://quay.io/repository/attcomdev/kube-controller-manager?tab=tags>`_
      * - **Helm**
-       - `v2.5.0 <https://github.com/kubernetes/helm/releases/tag/v2.5.0>`_
+       - `v2.5.1 <https://github.com/kubernetes/helm/releases/tag/v2.5.1>`_
        -
      * - **Calico**
        - `v2.1 <http://docs.projectcalico.org/v2.1/releases/>`_
