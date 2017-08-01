@@ -52,7 +52,7 @@ fi
 
 # Determine if Endpoint needs updated
 if [[ ${OS_ENDPOINT_ID} ]]; then
-  OS_ENDPOINT_URL_CURRENT=$(openstack endpoint show ${OS_ENDPOINT_ID} --f value -c url)
+  OS_ENDPOINT_URL_CURRENT=$(openstack endpoint show ${OS_ENDPOINT_ID} -f value -c url)
   if [ "${OS_ENDPOINT_URL_CURRENT}" == "${OS_SERVICE_ENDPOINT}" ]; then
     echo "Endpoints Match: no action required"
     OS_ENDPOINT_UPDATE="False"
