@@ -22,6 +22,11 @@ export KUBEADM_IMAGE=openstackhelm/kubeadm-aio:${KUBE_VERSION}
 export BASE_KUBE_CONTROLLER_MANAGER_IMAGE=gcr.io/google_containers/kube-controller-manager-amd64:${KUBE_VERSION}
 export CEPH_KUBE_CONTROLLER_MANAGER_IMAGE=quay.io/attcomdev/kube-controller-manager:${KUBE_VERSION}
 
+export LOOPBACK_CREATE=${LOOPBACK_CREATE:="false"}
+export LOOPBACK_DEVS=${LOOPBACK_DEVS:="3"}
+export LOOPBACK_SIZE=${LOOPBACK_SIZE:="500M"}
+export LOOPBACK_DIR=${LOOPBACK_DIR:="/var/lib/iscsi-loopback"}
+
 export WORK_DIR=$(pwd)
 source /etc/os-release
 export HOST_OS=${ID}
@@ -44,13 +49,8 @@ if [ "x$INTEGRATION_TYPE" == "xlinter" ]; then
   bash ${WORK_DIR}/tools/gate/whitespace.sh
 fi
 
-# Install base requirements
-base_install
-if [ "x$PVC_BACKEND" == "xceph" ]; then
-  ceph_support_install
-elif [ "x$PVC_BACKEND" == "xnfs" ]; then
-  nfs_support_install
-fi
+# Do the basic node setup for running the gate
+gate_base_setup
 
 # We setup the network for pre kube here, to enable cluster restarts on
 # development machines

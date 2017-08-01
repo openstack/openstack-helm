@@ -20,13 +20,8 @@ source ${WORK_DIR}/tools/gate/funcs/common.sh
 source ${WORK_DIR}/tools/gate/funcs/network.sh
 source ${WORK_DIR}/tools/gate/funcs/kube.sh
 
-# Install base requirements
-base_install
-if [ "x$PVC_BACKEND" == "xceph" ]; then
-  ceph_support_install
-elif [ "x$PVC_BACKEND" == "xnfs" ]; then
-  nfs_support_install
-fi
+# Do the basic node setup for running the gate
+gate_base_setup
 
 # Install KubeadmAIO requirements and get image
 kubeadm_aio_reqs_install

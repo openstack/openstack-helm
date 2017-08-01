@@ -34,6 +34,10 @@ for SUB_NODE in $SUB_NODE_IPS ; do
     export PRIMARY_NODE_IP=${PRIMARY_NODE_IP}; \
     export KUBEADM_IMAGE=${KUBEADM_IMAGE}; \
     export PVC_BACKEND=${PVC_BACKEND}; \
+    export LOOPBACK_CREATE=${LOOPBACK_CREATE}; \
+    export LOOPBACK_DEVS=${LOOPBACK_DEVS}; \
+    export LOOPBACK_SIZE=${LOOPBACK_SIZE}; \
+    export LOOPBACK_DIR=${LOOPBACK_DIR}; \
     bash ${WORK_DIR}/tools/gate/provision_gate_worker_node.sh"
 EOS
 done
