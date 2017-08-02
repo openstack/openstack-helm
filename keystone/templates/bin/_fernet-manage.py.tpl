@@ -25,13 +25,13 @@ import re
 import six
 import subprocess
 import sys
+import time
 
 import requests
 
 FERNET_DIR = os.environ['KEYSTONE_KEYS_REPOSITORY']
 KEYSTONE_USER = os.environ['KEYSTONE_USER']
 KEYSTONE_GROUP = os.environ['KEYSTONE_GROUP']
-SECRET_NAME = 'keystone-fernet-keys'
 NAMESPACE = os.environ['KUBERNETES_NAMESPACE']
 
 # k8s connection data
@@ -131,8 +131,15 @@ def execute_command(cmd):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('command', choices=['fernet_setup', 'fernet_rotate'])
+    parser.add_argument('command', choices=['fernet_setup', 'fernet_rotate',
+                                            'credential_setup',
+                                            'credential_rotate'])
     args = parser.parse_args()
+
+    is_credential = args.command.startswith('credential')
+
+    SECRET_NAME = ('keystone-credential-keys' if is_credential else
+                   'keystone-fernet-keys')
 
     read_kube_config()
     secret = get_secret_definition(SECRET_NAME)
@@ -140,9 +147,10 @@ def main():
         LOG.error("Secret '%s' does not exist.", SECRET_NAME)
         sys.exit(1)
 
-    if args.command == 'fernet_rotate':
-        LOG.info("Copying existing fernet keys from secret '%s' to %s.",
-                 SECRET_NAME, FERNET_DIR)
+    if args.command in ('fernet_rotate', 'credential_rotate'):
+        LOG.info("Copying existing %s keys from secret '%s' to %s.",
+                 'credential' if is_credential else 'fernet', SECRET_NAME,
+                 FERNET_DIR)
         write_to_files(secret['data'])
 
     execute_command(args.command)
@@ -155,8 +163,22 @@ def main():
     LOG.info("%s fernet keys have been placed to secret '%s'",
              len(updated_keys), SECRET_NAME)
     LOG.debug("Placed keys: %s", updated_keys)
-    LOG.info("Fernet keys %s has been completed",
-             "rotation" if args.command == 'fernet_rotate' else "generation")
+    LOG.info("%s keys %s has been completed",
+             "Credential" if is_credential else 'Fernet',
+             "rotation" if args.command.endswith('_rotate') else "generation")
+
+    if args.command == 'credential_rotate':
+        # `credential_rotate` needs doing `credential_migrate` as well once all
+        # of the nodes have the new keys. So we'll sleep configurable amount of
+        # time to make sure k8s reloads the secrets in all pods and then
+        # execute `credential_migrate`.
+
+        migrate_wait = os.environ['KEYSTONE_CREDENTIAL_MIGRATE_WAIT']
+        LOG.info("Waiting %d seconds to execute `credential_migrate`.",
+                 migrate_wait)
+        time.sleep(migrate_wait)
+
+        execute_command('credential_migrate')
 
 if __name__ == "__main__":
     main()

@@ -187,6 +187,10 @@ startup arguments (e.g. in your
 ``/etc/kubernetes/manifests/kube-apiserver.yaml`` manifest). By default fernet
 keys will be rotated weekly.
 
+Please note that similar solution is used for keys used to encrypt credentials
+saved by Keystone. Those keys are also rotated by another Cron Job. By default
+it is run in a monthly manner.
+
 Preparing Persistent Storage
 ----------------------------
 
