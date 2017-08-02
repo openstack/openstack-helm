@@ -1,0 +1,76 @@
+# Copyright 2017 The Openstack-Helm Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+{{- if and (eq .Values.conf.keystone.token.keystone.provider "fernet") (.Capabilities.APIVersions.Has "batch/v2alpha1") }}
+{{- $envAll := . }}
+{{- $dependencies := .Values.dependencies.fernet_rotate }}
+{{- $mounts_keystone_fernet_rotate := .Values.pod.mounts.keystone_fernet_rotate.keystone_fernet_rotate }}
+{{- $mounts_keystone_fernet_rotate_init := .Values.pod.mounts.keystone_fernet_rotate.init_container }}
+apiVersion: batch/v2alpha1
+kind: CronJob
+metadata:
+  name: keystone-fernet-rotate
+spec:
+  schedule: {{ .Values.jobs.fernet_rotate.cron | quote }}
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          initContainers:
+{{ tuple $envAll $dependencies $mounts_keystone_fernet_rotate_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 12 }}
+          restartPolicy: OnFailure
+          nodeSelector:
+            {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
+          containers:
+            - name: keystone-fernet-rotate
+              image: {{ .Values.images.fernet_rotate }}
+              imagePullPolicy: {{ .Values.images.pull_policy }}
+{{ tuple $envAll $envAll.Values.pod.resources.jobs.fernet_rotate | include "helm-toolkit.snippets.kubernetes_resources" | indent 14 }}
+              env:
+              - name: KEYSTONE_USER
+                value: {{ .Values.jobs.fernet_rotate.user | quote }}
+              - name: KEYSTONE_GROUP
+                value: {{ .Values.jobs.fernet_rotate.group | quote }}
+              - name: KUBERNETES_NAMESPACE
+                value: {{ .Release.Namespace | quote }}
+              - name: KEYSTONE_KEYS_REPOSITORY
+                value: {{ .Values.conf.keystone.fernet_tokens.keystone.key_repository | quote }}
+              command:
+                - python
+                - /tmp/fernet-manage.py
+                - fernet_rotate
+              volumeMounts:
+              - name: etckeystone
+                mountPath: /etc/keystone
+              - name: keystone-etc
+                mountPath: /etc/keystone/keystone.conf
+                subPath: keystone.conf
+                readOnly: true
+              - name: keystone-bin
+                mountPath: /tmp/fernet-manage.py
+                subPath: fernet-manage.py
+                readOnly: true
+    {{- if $mounts_keystone_fernet_rotate.volumeMounts }}{{ toYaml $mounts_keystone_fernet_rotate.volumeMounts | indent 14 }}{{ end }}
+          volumes:
+          - name: etckeystone
+            emptyDir: {}
+          - name: keystone-etc
+            configMap:
+              name: keystone-etc
+          - name: keystone-bin
+            configMap:
+              name: keystone-bin
+    {{- if $mounts_keystone_fernet_rotate.volumes }}{{ toYaml $mounts_keystone_fernet_rotate.volumes | indent 10 }}{{ end }}
+{{- end }}

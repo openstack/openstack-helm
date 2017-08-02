@@ -1,0 +1,72 @@
+# Copyright 2017 The Openstack-Helm Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+{{- if eq .Values.conf.keystone.token.keystone.provider "fernet" }}
+{{- $envAll := . }}
+{{- $dependencies := .Values.dependencies.fernet_setup }}
+{{- $mounts_keystone_fernet_setup := .Values.pod.mounts.keystone_fernet_setup.keystone_fernet_setup }}
+{{- $mounts_keystone_fernet_setup_init := .Values.pod.mounts.keystone_fernet_setup.init_container }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: keystone-fernet-setup
+spec:
+  template:
+    spec:
+      initContainers:
+{{ tuple $envAll $dependencies $mounts_keystone_fernet_setup_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+      restartPolicy: OnFailure
+      nodeSelector:
+        {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
+      containers:
+        - name: keystone-fernet-setup
+          image: {{ .Values.images.fernet_setup }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+{{ tuple $envAll $envAll.Values.pod.resources.jobs.fernet_setup | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          env:
+          - name: KEYSTONE_USER
+            value: {{ .Values.jobs.fernet_setup.user | quote }}
+          - name: KEYSTONE_GROUP
+            value: {{ .Values.jobs.fernet_setup.group | quote }}
+          - name: KUBERNETES_NAMESPACE
+            value: {{ .Release.Namespace | quote }}
+          - name: KEYSTONE_KEYS_REPOSITORY
+            value: {{ .Values.conf.keystone.fernet_tokens.keystone.key_repository | quote }}
+          command:
+            - python
+            - /tmp/fernet-manage.py
+            - fernet_setup
+          volumeMounts:
+          - name: etckeystone
+            mountPath: /etc/keystone
+          - name: keystone-etc
+            mountPath: /etc/keystone/keystone.conf
+            subPath: keystone.conf
+            readOnly: true
+          - name: keystone-bin
+            mountPath: /tmp/fernet-manage.py
+            subPath: fernet-manage.py
+            readOnly: true
+{{- if $mounts_keystone_fernet_setup.volumeMounts }}{{ toYaml $mounts_keystone_fernet_setup.volumeMounts | indent 10 }}{{ end }}
+      volumes:
+      - name: etckeystone
+        emptyDir: {}
+      - name: keystone-etc
+        configMap:
+          name: keystone-etc
+      - name: keystone-bin
+        configMap:
+          name: keystone-bin
+{{- if $mounts_keystone_fernet_setup.volumes }}{{ toYaml $mounts_keystone_fernet_setup.volumes | indent 6 }}{{ end }}
+{{- end }}

@@ -26,6 +26,8 @@ images:
   test: docker.io/kolla/ubuntu-binary-rally:4.0.0
   db_init: docker.io/kolla/ubuntu-source-keystone:3.0.3
   db_sync: docker.io/kolla/ubuntu-source-keystone:3.0.3
+  fernet_setup: docker.io/kolla/ubuntu-source-keystone:3.0.3
+  fernet_rotate: docker.io/kolla/ubuntu-source-keystone:3.0.3
   api: docker.io/kolla/ubuntu-source-keystone:3.0.3
   dep_check: docker.io/kolla/ubuntu-source-kubernetes-entrypoint:4.0.0
   pull_policy: "IfNotPresent"
@@ -58,6 +60,8 @@ dependencies:
   api:
     jobs:
     - keystone-db-sync
+    # Comment line below when not running fernet tokens.
+    - keystone-fernet-setup
     services:
     - service: oslo_cache
       endpoint: internal
@@ -70,9 +74,15 @@ dependencies:
   db_sync:
     jobs:
     - keystone-db-init
+    # Comment line below when not running fernet tokens.
+    - keystone-fernet-setup
     services:
     - service: oslo_db
       endpoint: internal
+  fernet_setup:
+  fernet_rotate:
+    jobs:
+    - keystone-fernet-setup
   tests:
     services:
     - service: identity
@@ -105,6 +115,12 @@ pod:
     keystone_bootstrap:
       init_container: null
       keystone_bootstrap:
+    keystone_fernet_setup:
+      init_container: null
+      keystone_fernet_setup:
+    keystone_fernet_rotate:
+      init_container: null
+      keystone_fernet_rotate:
   replicas:
     api: 1
   lifecycle:
@@ -159,6 +175,30 @@ pod:
         limits:
           memory: "1024Mi"
           cpu: "2000m"
+      fernet_setup:
+        limits:
+          memory: "128Mi"
+          cpu: "100m"
+        requests:
+          memory: "10024Mi"
+          cpu: "2000m"
+      fernet_rotate:
+        limits:
+          memory: "128Mi"
+          cpu: "100m"
+        requests:
+          memory: "1024Mi"
+          cpu: "2000m"
+
+jobs:
+  fernet_setup:
+    user: keystone
+    group: keystone
+  fernet_rotate:
+    # weekly
+    cron: "0 0 * * 0"
+    user: keystone
+    group: keystone
 
 conf:
   rally_tests:
@@ -175,10 +215,13 @@ conf:
     append:
     default:
       keystone:
-        max_token_size: 32
+        max_token_size: 255
     token:
       keystone:
-        provider: uuid
+        provider: fernet
+    fernet_tokens:
+      keystone:
+        key_repository: /etc/keystone/fernet-keys/
     database:
       oslo:
         db:
