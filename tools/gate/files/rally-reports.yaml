@@ -1,0 +1,31 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  labels:
+    version: v0.1.0
+  name: get-rally-data
+spec:
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: get-rally-data
+          image: docker.io/alpine:latest
+          imagePullPolicy: Always
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              cp -av /mnt/rally-pvc/* /mnt/rally-data
+          volumeMounts:
+            - name: pvc-rally
+              mountPath: /mnt/rally-pvc
+            - name: rally-data
+              mountPath: /mnt/rally-data
+      volumes:
+        - name: pvc-rally
+          persistentVolumeClaim:
+            claimName: pvc-rally
+        - name: rally-data
+          hostPath:
+            path: /tmp/rally-data

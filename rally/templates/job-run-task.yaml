@@ -1,0 +1,103 @@
+{{/*
+Copyright 2017 The Openstack-Helm Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.job_run_task }}
+{{- $envAll := . }}
+{{- $dependencies := .Values.dependencies.run_task }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: rally-run-task
+spec:
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "rally" "run-task" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+    spec:
+      restartPolicy: OnFailure
+      nodeSelector:
+        {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
+      initContainers:
+{{ tuple $envAll $dependencies "[]" | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+        - name: rally-run-task-init
+          image: {{ .Values.images.run_task }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+      {{ tuple $envAll $envAll.Values.pod.resources.jobs.run_task | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          securityContext:
+            runAsUser: 0
+          command:
+            - chown
+            - -R
+            - "rally:"
+            - /var/lib/rally/data
+          volumeMounts:
+            - name: rally-reports
+              mountPath: /var/lib/rally/data
+      containers:
+        - name: rally-run-task
+          image: {{ .Values.images.run_task }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+{{ tuple $envAll $envAll.Values.pod.resources.jobs.run_task | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          command:
+            - /tmp/run-task.sh
+          env:
+{{- with $env := dict "ksUserSecret" .Values.secrets.identity.admin }}
+{{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 12 }}
+{{- end }}
+            - name: ENABLED_TESTS
+              value: {{ include "helm-toolkit.utils.joinListWithComma" .Values.enabled_tasks }}
+          volumeMounts:
+            - name: rally-bin
+              mountPath: /tmp/run-task.sh
+              subPath: run-task.sh
+              readOnly: true
+            - name: etcrally
+              mountPath: /etc/rally
+            - name: rally-etc
+              mountPath: /etc/rally/rally.conf
+              subPath: rally.conf
+              readOnly: true
+            - name: rally-tasks
+              mountPath: /tasks/rally
+              readOnly: true
+            - name: heat-tasks-test-templates
+              mountPath: /tmp/tasks/test-templates
+              readOnly: true
+            - name: rally-reports
+              mountPath: /var/lib/rally/data
+      volumes:
+        - name: etcrally
+          emptyDir: {}
+        - name: rally-etc
+          configMap:
+            name: rally-etc
+            defaultMode: 0444
+        - name: rally-tasks
+          configMap:
+            name: rally-tasks
+            defaultMode: 0444
+        - name: rally-bin
+          configMap:
+            name: rally-bin
+            defaultMode: 0555
+        - name: heat-tasks-test-templates
+          configMap:
+            name: heat-tasks-test-templates
+        - name: rally-reports
+          persistentVolumeClaim:
+            claimName: {{ .Values.pvc.name }}
+{{- end }}

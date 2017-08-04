@@ -98,3 +98,4 @@ export OSH_PUB_NET_STACK=${OSH_PUB_NET_STACK:="heat-public-net-deployment"}
 export OSH_SUBNET_POOL_STACK=${OSH_SUBNET_POOL_STACK:="heat-subnet-pool-deployment"}
 export OSH_BASIC_VM_STACK=${OSH_BASIC_VM_STACK:="heat-basic-vm-deployment"}
 export OSH_VM_KEY_STACK=${OSH_VM_KEY_STACK:="heat-vm-key"}
+export RALLY_CHART_ENABLED=${RALLY_CHART_ENABLED:="false"}

@@ -148,6 +148,15 @@ if [ "x$SDN_PLUGIN" == "xovs" ]; then
 fi
 kube_wait_for_pods openstack ${POD_START_TIMEOUT_OPENSTACK}
 
+if [ "x$INTEGRATION" == "xmulti" ] || [ "x$RALLY_CHART_ENABLED" == "xtrue" ]; then
+  if [ "x$PVC_BACKEND" != "xceph" ]; then
+    helm install --namespace=openstack ${WORK_DIR}/cinder --name=cinder \
+      --values=${WORK_DIR}/tools/overrides/mvp/cinder.yaml
+  else
+    helm install --namespace=openstack ${WORK_DIR}/cinder --name=cinder
+  fi
+fi
+
 if [ "x$PVC_BACKEND" == "xceph" ] && [ "x$SDN_PLUGIN" == "xovs" ]; then
   helm install --namespace=openstack ${WORK_DIR}/nova --name=nova \
       --set conf.nova.libvirt.virt_type=qemu
@@ -186,12 +195,6 @@ helm install --namespace=openstack ${WORK_DIR}/heat --name=heat
 kube_wait_for_pods openstack ${POD_START_TIMEOUT_OPENSTACK}
 
 if [ "x$INTEGRATION" == "xmulti" ]; then
-  if [ "x$PVC_BACKEND" == "xceph" ]; then
-    helm install --namespace=openstack ${WORK_DIR}/cinder --name=cinder
-  else
-    helm install --namespace=openstack ${WORK_DIR}/cinder --name=cinder \
-      --values=${WORK_DIR}/tools/overrides/mvp/cinder.yaml
-  fi
   helm install --namespace=openstack ${WORK_DIR}/horizon --name=horizon
   kube_wait_for_pods openstack ${POD_START_TIMEOUT_OPENSTACK}
 
@@ -210,4 +213,13 @@ if [ "x$INTEGRATION" == "xmulti" ]; then
   helm_test_deployment neutron ${SERVICE_TEST_TIMEOUT}
   helm_test_deployment nova ${SERVICE_TEST_TIMEOUT}
   helm_test_deployment barbican ${SERVICE_TEST_TIMEOUT} norally
+fi
+
+if [ "x$RALLY_CHART_ENABLED" == "xtrue" ]; then
+  helm install --namespace=openstack ${WORK_DIR}/magnum --name=magnum
+  helm install --namespace=openstack ${WORK_DIR}/senlin --name=senlin
+  kube_wait_for_pods openstack ${POD_START_TIMEOUT_OPENSTACK}
+
+  helm install --namespace=openstack ${WORK_DIR}/rally --name=rally
+  kube_wait_for_pods openstack 28800
 fi
