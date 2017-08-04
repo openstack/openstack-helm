@@ -69,7 +69,7 @@ against your Kubernetes cluster.
 
 ::
 
-      export KUBE_VERSION=v1.6.7
+      export KUBE_VERSION=v1.6.8
       export HELM_VERSION=v2.5.1
       export TMP_DIR=$(mktemp -d)
 
@@ -136,11 +136,11 @@ Build
 -----
 
 Using the Dockerfile defined in tools/kubeadm-aio directory, build the
-'openstackhelm/kubeadm-aio:v1.6.7' image.
+'openstackhelm/kubeadm-aio:v1.6.8' image.
 
 ::
 
-      export KUBEADM_IMAGE=openstackhelm/kubeadm-aio:v1.6.7
+      export KUBEADM_IMAGE=openstackhelm/kubeadm-aio:v1.6.8
       sudo docker build --pull -t ${KUBEADM_IMAGE} tools/kubeadm-aio
 
 Deploy
@@ -155,7 +155,7 @@ displayed during execution.
 
 ::
 
-      export KUBE_VERSION=v1.6.7
+      export KUBE_VERSION=v1.6.8
       ./tools/kubeadm-aio/kubeadm-aio-launcher.sh
       export KUBECONFIG=${HOME}/.kubeadm-aio/admin.conf
       mkdir -p  ${HOME}/.kube

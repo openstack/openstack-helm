@@ -31,7 +31,7 @@ repo run:
 
 .. code:: bash
 
-    export KUBE_VERSION=v1.6.7
+    export KUBE_VERSION=v1.6.8
     sudo docker build \
       --build-arg KUBE_VERSION=${KUBE_VERSION} \
       -t docker.io/port/ceph-config-helper:${KUBE_VERSION} \

@@ -14,7 +14,7 @@
 set -ex
 
 export HELM_VERSION=${HELM_VERSION:-"v2.5.1"}
-export KUBE_VERSION=${KUBE_VERSION:-"v1.6.7"}
+export KUBE_VERSION=${KUBE_VERSION:-"v1.6.8"}
 export PVC_BACKEND=${PVC_BACKEND:-"ceph"}
 export UPSTREAM_DNS=${UPSTREAM_DNS:-"8.8.8.8"}
 export KUBECONFIG=${HOME}/.kubeadm-aio/admin.conf

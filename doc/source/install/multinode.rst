@@ -29,7 +29,7 @@ comments, please create an `issue
        - Version
        - Notes
      * - **Kubernetes**
-       - `v1.6.7 <https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG.md#v165>`_
+       - `v1.6.8 <https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG.md#v165>`_
        - `Custom Controller for RDB tools <https://quay.io/repository/attcomdev/kube-controller-manager?tab=tags>`_
      * - **Helm**
        - `v2.5.1 <https://github.com/kubernetes/helm/releases/tag/v2.5.1>`_
@@ -85,8 +85,8 @@ on every node in your cluster before executing ``kubeadm init``:
 
 ::
 
-    export CEPH_KUBE_CONTROLLER_MANAGER_IMAGE=quay.io/attcomdev/kube-controller-manager:v1.6.7
-    export BASE_KUBE_CONTROLLER_MANAGER_IMAGE=gcr.io/google_containers/kube-controller-manager-amd64:v1.6.7
+    export CEPH_KUBE_CONTROLLER_MANAGER_IMAGE=quay.io/attcomdev/kube-controller-manager:v1.6.8
+    export BASE_KUBE_CONTROLLER_MANAGER_IMAGE=gcr.io/google_containers/kube-controller-manager-amd64:v1.6.8
     sudo docker pull ${CEPH_KUBE_CONTROLLER_MANAGER_IMAGE}
     sudo docker tag ${CEPH_KUBE_CONTROLLER_MANAGER_IMAGE} ${BASE_KUBE_CONTROLLER_MANAGER_IMAGE}
 
@@ -94,7 +94,7 @@ Afterwards, you can ``kubeadm init`` as such:
 
 ::
 
-    admin@kubenode01:~$ kubeadm init --kubernetes-version v1.6.7
+    admin@kubenode01:~$ kubeadm init --kubernetes-version v1.6.8
 
 
 If your environment looks like this after all nodes have joined the
