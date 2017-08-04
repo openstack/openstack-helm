@@ -59,38 +59,11 @@ procedure is opinionated *only to standardize the deployment process for
 users and developers*, and to limit questions to a known working
 deployment. Instructions will expand as the project becomes more mature.
 
-Kube Controller Manager
+KubeADM Deployment
 -----------------------
 
-This guide assumes you will be using Ceph to fulfill the
-PersistentVolumeClaims that will be made against your Kubernetes cluster.
-In order to use Ceph, you will need to leverage a custom Kubernetes
-Controller with the necessary
-`RDB <http://docs.ceph.com/docs/jewel/rbd/rbd/>`__ utilities. For your
-convenience, we are maintaining this along with the Openstack-Helm
-project. If you would like to check the current
-`tags <https://quay.io/repository/attcomdev/kube-controller-manager?tab=tags>`__
-or the
-`security <https://quay.io/repository/attcomdev/kube-controller-manager/image/eedc2bf21cca5647a26e348ee3427917da8b17c25ead38e832e1ed7c2ef1b1fd?tab=vulnerabilities>`__
-of these pre-built containers, you may view them at `our public Quay
-container
-registry <https://quay.io/repository/attcomdev/kube-controller-manager?tab=tags>`__.
-If you would prefer to build this container yourself, or add any
-additional packages, you are free to use our GitHub
-`dockerfiles <https://github.com/att-comdev/dockerfiles/tree/master/kube-controller-manager>`__
-repository to do so.
-
-To replace the Kube Controller Manager, run the following commands
-on every node in your cluster before executing ``kubeadm init``:
-
-::
-
-    export CEPH_KUBE_CONTROLLER_MANAGER_IMAGE=quay.io/attcomdev/kube-controller-manager:v1.6.8
-    export BASE_KUBE_CONTROLLER_MANAGER_IMAGE=gcr.io/google_containers/kube-controller-manager-amd64:v1.6.8
-    sudo docker pull ${CEPH_KUBE_CONTROLLER_MANAGER_IMAGE}
-    sudo docker tag ${CEPH_KUBE_CONTROLLER_MANAGER_IMAGE} ${BASE_KUBE_CONTROLLER_MANAGER_IMAGE}
-
-Afterwards, you can ``kubeadm init`` as such:
+Once the dependencies are installed, bringing up a ``kubeadm`` environment
+should just require a single command on the master node:
 
 ::
 
@@ -204,24 +177,22 @@ completed.
 Installing Ceph Host Requirements
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-You need to ensure that ``ceph-common`` or equivalent is
-installed on each of our hosts. Using our Ubuntu example:
+You need to ensure that ``ceph-common`` or equivalent is installed on each of
+our hosts. Using our Ubuntu example:
 
 ::
 
     sudo apt-get install ceph-common -y
 
-Kube Controller Manager DNS Resolution
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Kubernetes Node DNS Resolution
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-You will need to allow the Kubernetes Controller to use the
-Kubernetes service DNS server, and add the Kubernetes search suffix
-to the controller's resolv.conf. As of now, the Kubernetes controller
-only mirrors the host's ``resolv.conf``. This is not sufficient if you
-want the controller to know how to correctly resolve container service
-endpoints.
+For each of the nodes to know how to reach Ceph endpoints, each host much also
+have an entry for ``kube-dns``. Since we are using Ubuntu for our example, place
+these changes in ``/etc/network/interfaces`` to ensure they remain after reboot.
 
-First, find out what the IP Address of your ``kube-dns`` deployment is:
+To do this you will first need to find out what the IP Address of your
+``kube-dns`` deployment is:
 
 ::
 
@@ -229,26 +200,6 @@ First, find out what the IP Address of your ``kube-dns`` deployment is:
     NAME       CLUSTER-IP   EXTERNAL-IP   PORT(S)         AGE
     kube-dns   10.96.0.10   <none>        53/UDP,53/TCP   1d
     admin@kubenode01:~$
-
-Then update the controller manager configuration to match:
-
-::
-
-    admin@kubenode01:~$ CONTROLLER_MANAGER_POD=$(kubectl get -n kube-system pods -l component=kube-controller-manager --no-headers -o name | head -1 | awk -F '/' '{ print $NF }')
-    admin@kubenode01:~$ kubectl exec -n kube-system ${CONTROLLER_MANAGER_POD} -- sh -c "cat > /etc/resolv.conf <<EOF
-    nameserver 10.96.0.10
-    nameserver 8.8.8.8
-    search cluster.local svc.cluster.local
-    EOF"
-
-Kubernetes Node DNS Resolution
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-For each of the nodes to know exactly how to communicate with Ceph (and
-thus MariaDB) endpoints, each host much also have an entry for
-``kube-dns``. Since we are using Ubuntu for our example, place these
-changes in ``/etc/network/interfaces`` to ensure they remain after
-reboot.
 
 Now we are ready to continue with the Openstack-Helm installation.
 

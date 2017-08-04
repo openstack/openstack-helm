@@ -23,8 +23,6 @@ export SERVICE_TEST_TIMEOUT=${SERVICE_TEST_TIMEOUT:="600"}
 
 export KUBECONFIG=${HOME}/.kubeadm-aio/admin.conf
 export KUBEADM_IMAGE=openstackhelm/kubeadm-aio:${KUBE_VERSION}
-export BASE_KUBE_CONTROLLER_MANAGER_IMAGE=gcr.io/google_containers/kube-controller-manager-amd64:${KUBE_VERSION}
-export CEPH_KUBE_CONTROLLER_MANAGER_IMAGE=quay.io/attcomdev/kube-controller-manager:${KUBE_VERSION}
 
 export LOOPBACK_CREATE=${LOOPBACK_CREATE:="false"}
 export LOOPBACK_DEVS=${LOOPBACK_DEVS:="3"}

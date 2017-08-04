@@ -39,12 +39,6 @@ if [ "x$PVC_BACKEND" == "xceph" ]; then
   kubectl label nodes ceph-mon=enabled --all
   kubectl label nodes ceph-osd=enabled --all
   kubectl label nodes ceph-mds=enabled --all
-  CONTROLLER_MANAGER_POD=$(kubectl get -n kube-system pods -l component=kube-controller-manager --no-headers -o name | awk -F '/' '{ print $NF; exit }')
-  kubectl exec -n kube-system ${CONTROLLER_MANAGER_POD} -- sh -c "cat > /etc/resolv.conf <<EOF
-nameserver 10.96.0.10
-nameserver ${UPSTREAM_DNS}
-search cluster.local svc.cluster.local
-EOF"
 
   if [ "x$INTEGRATION" == "xmulti" ]; then
     SUBNET_RANGE="$(find_multi_subnet_range)"
@@ -79,6 +73,7 @@ EOF"
   helm install --namespace=openstack ${WORK_DIR}/ceph --name=ceph-openstack-config \
     --set manifests_enabled.storage_secrets=false \
     --set manifests_enabled.deployment=false \
+    --set manifests_enabled.rbd_provisioner=false \
     --set ceph.namespace=ceph \
     --set network.public=$osd_public_network \
     --set network.cluster=$osd_cluster_network

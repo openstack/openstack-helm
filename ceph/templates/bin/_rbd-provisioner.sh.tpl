@@ -1,4 +1,6 @@
 #!/bin/bash
+
+# Copyright 2017 The Openstack-Helm Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,12 +13,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 set -ex
 
-source ${WORK_DIR}/tools/gate/funcs/network.sh
-source ${WORK_DIR}/tools/gate/funcs/kube.sh
-
-kubeadm_aio_reqs_install
-sudo docker pull ${KUBEADM_IMAGE} || kubeadm_aio_build
-
-kubeadm_aio_launch
+exec /usr/local/bin/rbd-provisioner -id ${POD_NAME}
