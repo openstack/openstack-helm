@@ -12,20 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-{{- if .Values.manifests_enabled.storage_secrets }}
 {{- $envAll := . }}
+{{- if .Values.manifests_enabled.storage_secrets }}
 {{- range $key1, $cephBootstrapKey := tuple "mds" "osd" "rgw" "mon" }}
+{{- $jobName := print $cephBootstrapKey "-keyring-generator" }}
 ---
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: ceph-{{ $cephBootstrapKey }}-keyring-generator
+  name: ceph-{{ $jobName }}
 spec:
   template:
+    metadata:
+      labels:
+{{ tuple $envAll "ceph" $jobName | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
     spec:
       restartPolicy: OnFailure
       containers:
-        - name:  ceph-secret-generator
+        - name:  ceph-{{ $jobName }}
           image: {{ $envAll.Values.images.ceph_config_helper }}
           imagePullPolicy: {{ $envAll.Values.images.pull_policy }}
           {{- if $envAll.Values.pod.resources.enabled }}
