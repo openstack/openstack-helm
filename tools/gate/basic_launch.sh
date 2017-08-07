@@ -13,6 +13,8 @@
 # limitations under the License.
 set -ex
 : ${WORK_DIR:="$(pwd)"}
+: ${SERVICE_LAUNCH_TIMEOUT:="600"}
+: ${SERVICE_TEST_TIMEOUT:="600"}
 source ${WORK_DIR}/tools/gate/funcs/helm.sh
 source ${WORK_DIR}/tools/gate/funcs/kube.sh
 source ${WORK_DIR}/tools/gate/funcs/network.sh
@@ -31,7 +33,7 @@ if [ "x$HOST_OS" == "xfedora" ]; then
 fi
 
 helm install --namespace=openstack ${WORK_DIR}/dns-helper --name=dns-helper
-kube_wait_for_pods openstack 180
+kube_wait_for_pods openstack ${SERVICE_LAUNCH_TIMEOUT}
 
 if [ "x$PVC_BACKEND" == "xceph" ]; then
   kubectl label nodes ceph-mon=enabled --all
@@ -64,7 +66,7 @@ EOF"
       --set bootstrap.enabled=true
   fi
 
-  kube_wait_for_pods ceph 600
+  kube_wait_for_pods ceph ${SERVICE_LAUNCH_TIMEOUT}
 
   MON_POD=$(kubectl get pods -l application=ceph -l component=mon -n ceph --no-headers | awk '{ print $1; exit }')
 
@@ -77,7 +79,7 @@ EOF"
     --set network.public=$osd_public_network \
     --set network.cluster=$osd_cluster_network
 
-  kube_wait_for_pods openstack 420
+  kube_wait_for_pods openstack ${SERVICE_LAUNCH_TIMEOUT}
 fi
 
 helm install --namespace=openstack ${WORK_DIR}/ingress --name=ingress
@@ -85,7 +87,7 @@ helm install --namespace=openstack ${WORK_DIR}/mariadb --name=mariadb
 helm install --namespace=openstack ${WORK_DIR}/memcached --name=memcached
 helm install --namespace=openstack ${WORK_DIR}/etcd --name=etcd-rabbitmq
 helm install --namespace=openstack ${WORK_DIR}/rabbitmq --name=rabbitmq
-kube_wait_for_pods openstack 600
+kube_wait_for_pods openstack ${SERVICE_LAUNCH_TIMEOUT}
 helm install --namespace=openstack ${WORK_DIR}/keystone --name=keystone
 if [ "x$PVC_BACKEND" == "xceph" ]; then
   helm install --namespace=openstack ${WORK_DIR}/glance --name=glance
@@ -93,13 +95,13 @@ else
   helm install --namespace=openstack ${WORK_DIR}/glance --name=glance \
       --values=${WORK_DIR}/tools/overrides/mvp/glance.yaml
 fi
-kube_wait_for_pods openstack 420
+kube_wait_for_pods openstack ${SERVICE_LAUNCH_TIMEOUT}
 helm install --namespace=openstack ${WORK_DIR}/nova --name=nova \
     --values=${WORK_DIR}/tools/overrides/mvp/nova.yaml \
     --set=conf.nova.libvirt.nova.conf.virt_type=qemu
 helm install --namespace=openstack ${WORK_DIR}/neutron --name=neutron \
     --values=${WORK_DIR}/tools/overrides/mvp/neutron.yaml
-kube_wait_for_pods openstack 420
+kube_wait_for_pods openstack ${SERVICE_LAUNCH_TIMEOUT}
 
 if [ "x$INTEGRATION" == "xaio" ]; then
  bash ${WORK_DIR}/tools/gate/openstack_aio_launch.sh
@@ -114,19 +116,19 @@ if [ "x$INTEGRATION" == "xmulti" ]; then
   fi
   helm install --namespace=openstack ${WORK_DIR}/heat --name=heat
   helm install --namespace=openstack ${WORK_DIR}/horizon --name=horizon
-  kube_wait_for_pods openstack 420
+  kube_wait_for_pods openstack ${SERVICE_LAUNCH_TIMEOUT}
 
   helm install --namespace=openstack ${WORK_DIR}/barbican --name=barbican
   helm install --namespace=openstack ${WORK_DIR}/magnum --name=magnum
-  kube_wait_for_pods openstack 420
+  kube_wait_for_pods openstack ${SERVICE_LAUNCH_TIMEOUT}
 
   helm install --namespace=openstack ${WORK_DIR}/mistral --name=mistral
   helm install --namespace=openstack ${WORK_DIR}/senlin --name=senlin
-  kube_wait_for_pods openstack 600
+  kube_wait_for_pods openstack ${SERVICE_LAUNCH_TIMEOUT}
 
-  helm_test_deployment keystone 600
-  helm_test_deployment glance 600
-  helm_test_deployment cinder 600
-  helm_test_deployment neutron 600
-  helm_test_deployment nova 600
+  helm_test_deployment keystone ${SERVICE_TEST_TIMEOUT}
+  helm_test_deployment glance ${SERVICE_TEST_TIMEOUT}
+  helm_test_deployment cinder ${SERVICE_TEST_TIMEOUT}
+  helm_test_deployment neutron ${SERVICE_TEST_TIMEOUT}
+  helm_test_deployment nova ${SERVICE_TEST_TIMEOUT}
 fi

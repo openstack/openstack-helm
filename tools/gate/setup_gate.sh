@@ -17,6 +17,10 @@ export HELM_VERSION=${HELM_VERSION:-"v2.5.1"}
 export KUBE_VERSION=${KUBE_VERSION:-"v1.6.8"}
 export PVC_BACKEND=${PVC_BACKEND:-"ceph"}
 export UPSTREAM_DNS=${UPSTREAM_DNS:-"8.8.8.8"}
+
+export SERVICE_LAUNCH_TIMEOUT=${SERVICE_LAUNCH_TIMEOUT:="600"}
+export SERVICE_TEST_TIMEOUT=${SERVICE_TEST_TIMEOUT:="600"}
+
 export KUBECONFIG=${HOME}/.kubeadm-aio/admin.conf
 export KUBEADM_IMAGE=openstackhelm/kubeadm-aio:${KUBE_VERSION}
 export BASE_KUBE_CONTROLLER_MANAGER_IMAGE=gcr.io/google_containers/kube-controller-manager-amd64:${KUBE_VERSION}
