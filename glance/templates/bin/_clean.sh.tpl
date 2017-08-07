@@ -18,11 +18,10 @@ set -ex
 {{ if .Values.bootstrap.enabled }}
 {{ range .Values.bootstrap.images }}
   {{ if .id -}}
-    echo "Delete Glance Bootstrap Image..."
-    openstack image delete {{ .id }}
+    openstack image show {{ .id | quote }} && \
+      openstack image delete {{ .id | quote }}
   {{ end -}}
 {{ end }}
 
 {{ end }}
 exit 0
-
