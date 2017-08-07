@@ -76,6 +76,8 @@ function find_multi_subnet_range {
     if ! [ "$(ip_diff $X)" -eq "0" ]; then
       SUBMASK=$(((($X - 1 )) * 8))
       break
+    elif [ $X -eq "4" ]; then
+      SUBMASK=24
     fi
   done
   echo ${FIRST_IP_SUBNET%/*}/${SUBMASK}
