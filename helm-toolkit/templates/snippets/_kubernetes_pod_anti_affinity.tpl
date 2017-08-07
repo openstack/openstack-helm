@@ -23,10 +23,10 @@ podAntiAffinity:
   - podAffinityTerm:
       labelSelector:
         matchExpressions:
-        - key: release_name
+        - key: release_group
           operator: In
           values:
-            - {{ $envAll.Release.Name }}
+            - {{ $envAll.Values.release_group | default $envAll.Release.Name }}
         - key: application
           operator: In
           values:

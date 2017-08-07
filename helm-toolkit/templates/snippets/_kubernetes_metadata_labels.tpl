@@ -16,7 +16,7 @@
 {{- $envAll := index . 0 -}}
 {{- $application := index . 1 -}}
 {{- $component := index . 2 -}}
-release_name: {{ $envAll.Release.Name }}
+release_group: {{ $envAll.Values.release_group | default $envAll.Release.Name }}
 application: {{ $application }}
 component: {{ $component }}
 {{- end -}}
