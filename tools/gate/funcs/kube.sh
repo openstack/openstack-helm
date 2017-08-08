@@ -13,7 +13,7 @@
 # limitations under the License.
 
 function kube_wait_for_pods {
-  # From Kolla-Kubernetes, orginal authors Kevin Fox & Serguei Bezverkhi
+  # From Kolla-Kubernetes, original authors Kevin Fox & Serguei Bezverkhi
   # Default wait timeout is 180 seconds
   set +x
   end=$(date +%s)

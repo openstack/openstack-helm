@@ -70,7 +70,7 @@ table_definition_cache=1024
 # The buffer pool is where data and indexes are cached: having it as large as possible
 # will ensure you use memory and not disks for most read operations.
 # Typical values are 50..75% of available RAM.
-# TODO(tomasz.paszkowski): This needs to by dynamic based on avaliable RAM.
+# TODO(tomasz.paszkowski): This needs to by dynamic based on available RAM.
 innodb_buffer_pool_size=1024M
 innodb_doublewrite=0
 innodb_file_format=Barracuda
