@@ -102,10 +102,6 @@ helm install --namespace=openstack ${WORK_DIR}/neutron --name=neutron \
     --values=${WORK_DIR}/tools/overrides/mvp/neutron.yaml
 kube_wait_for_pods openstack ${SERVICE_LAUNCH_TIMEOUT}
 
-if [ "x$INTEGRATION" == "xaio" ]; then
- bash ${WORK_DIR}/tools/gate/openstack_aio_launch.sh
-fi
-
 if [ "x$INTEGRATION" == "xmulti" ]; then
   if [ "x$PVC_BACKEND" == "xceph" ]; then
     helm install --namespace=openstack ${WORK_DIR}/cinder --name=cinder

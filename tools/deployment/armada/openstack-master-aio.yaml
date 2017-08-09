@@ -1,0 +1,696 @@
+---
+schema: armada/Chart/v1
+metadata:
+  schema: metadata/Document/v1
+  name: helm-toolkit
+data:
+  chart_name: helm-toolkit
+  release: helm-toolkit
+  namespace: helm-toolkit
+  timeout: 300
+  values: {}
+  source:
+    type: local
+    location: /opt/openstack-helm/charts
+    subpath: helm-toolkit
+    reference: master
+  dependencies: []
+---
+schema: armada/Chart/v1
+metadata:
+  schema: metadata/Document/v1
+  name: ceph
+data:
+  chart_name: ceph
+  release: ceph
+  namespace: ceph
+  timeout: 3600
+  install:
+    no_hooks: false
+  upgrade:
+    no_hooks: false
+    pre:
+      delete:
+        - name: ceph-bootstrap
+          type: job
+          labels:
+            - application: ceph
+            - component: bootstrap
+            - release_group: osh-ceph
+        - name: ceph-mds-keyring-generator
+          type: job
+          labels:
+            - application: ceph
+            - component: mds-keyring-generator
+            - release_group: osh-ceph
+        - name: ceph-mon-keyring-generator
+          type: job
+          labels:
+            - application: ceph
+            - component: mon-keyring-generator
+            - release_group: osh-ceph
+        - name: ceph-rgw-keyring-generator
+          type: job
+          labels:
+            - application: ceph
+            - component: rgw-keyring-generator
+            - release_group: osh-ceph
+        - name: ceph-storage-keys-generator
+          type: job
+          labels:
+            - application: ceph
+            - component: storage-keys-generator
+            - release_group: osh-ceph
+        - name: ceph-osd-keyring-generator
+          type: job
+          labels:
+            - application: ceph
+            - component: osd-keyring-generator
+            - release_group: osh-ceph
+  values:
+    manifests_enabled:
+      client_secrets: False
+    bootstrap:
+      enabled: True
+    network:
+      public: 192.168.0.0/16
+      cluster: 192.168.0.0/16
+    conf:
+      ceph:
+        config:
+          global:
+            osd_pool_default_size: 1
+          osd:
+            osd_crush_chooseleaf_type: 0
+  source:
+    type: local
+    location: /opt/openstack-helm/charts
+    subpath: ceph
+    reference: master
+  dependencies:
+    - helm-toolkit
+---
+schema: armada/Chart/v1
+metadata:
+  schema: metadata/Document/v1
+  name: ceph-config
+data:
+  chart_name: ceph-config
+  release: ceph-config
+  namespace: openstack
+  timeout: 3600
+  install:
+    no_hooks: false
+  upgrade:
+    no_hooks: false
+    pre:
+      delete:
+        - name: ceph-namespace-client-key-generator
+          type: job
+          labels:
+            - application: ceph
+            - component: namespace-client-key-generator
+            - release_group: osh-ceph
+  values:
+    ceph:
+      namespace: ceph
+    manifests_enabled:
+      deployment: False
+      storage_secrets: False
+    network:
+      public: 192.168.0.0/16
+      cluster: 192.168.0.0/16
+  source:
+    type: local
+    location: /opt/openstack-helm/charts
+    subpath: ceph
+    reference: master
+  dependencies:
+    - helm-toolkit
+---
+schema: armada/Chart/v1
+metadata:
+  schema: metadata/Document/v1
+  name: mariadb
+data:
+  chart_name: mariadb
+  release: mariadb
+  namespace: openstack
+  timeout: 3600
+  install:
+    no_hooks: false
+  upgrade:
+    no_hooks: false
+  values: {}
+  source:
+    type: local
+    location: /opt/openstack-helm/charts
+    subpath: mariadb
+    reference: master
+  dependencies:
+    - helm-toolkit
+---
+schema: armada/Chart/v1
+metadata:
+  schema: metadata/Document/v1
+  name: memcached
+data:
+  chart_name: memcached
+  release: memcached
+  namespace: openstack
+  timeout: 300
+  install:
+    no_hooks: false
+  upgrade:
+    no_hooks: false
+  values: {}
+  source:
+    type: local
+    location: /opt/openstack-helm/charts
+    subpath: memcached
+    reference: master
+  dependencies:
+    - helm-toolkit
+---
+schema: armada/Chart/v1
+metadata:
+  schema: metadata/Document/v1
+  name: etcd
+data:
+  chart_name: etcd
+  release: etcd
+  namespace: openstack
+  timeout: 3600
+  install:
+    no_hooks: false
+  upgrade:
+    no_hooks: false
+  values: {}
+  source:
+    type: local
+    location: /opt/openstack-helm/charts
+    subpath: etcd
+    reference: master
+  dependencies:
+    - helm-toolkit
+---
+schema: armada/Chart/v1
+metadata:
+  schema: metadata/Document/v1
+  name: rabbitmq
+data:
+  chart_name: rabbitmq
+  release: rabbitmq
+  namespace: openstack
+  timeout: 300
+  install:
+    no_hooks: false
+  upgrade:
+    no_hooks: false
+  values: {}
+  source:
+    type: local
+    location: /opt/openstack-helm/charts
+    subpath: rabbitmq
+    reference: master
+  dependencies:
+    - helm-toolkit
+---
+schema: armada/Chart/v1
+metadata:
+  schema: metadata/Document/v1
+  name: ingress
+data:
+  chart_name: ingress
+  release: ingress
+  namespace: openstack
+  timeout: 300
+  install:
+    no_hooks: false
+  upgrade:
+    no_hooks: false
+  values: {}
+  source:
+    type: local
+    location: /opt/openstack-helm/charts
+    subpath: ingress
+    reference: master
+  dependencies:
+    - helm-toolkit
+---
+schema: armada/Chart/v1
+metadata:
+  schema: metadata/Document/v1
+  name: keystone
+data:
+  chart_name: keystone
+  release: keystone
+  namespace: openstack
+  timeout: 300
+  install:
+    no_hooks: false
+  upgrade:
+    no_hooks: false
+    pre:
+      delete:
+        - name: keystone-bootstrap
+          type: job
+          labels:
+            - application: keystone
+            - component: bootstrap
+            - release_group: osh-keystone
+        - name: keystone-credential-setup
+          type: job
+          labels:
+            - application: keystone
+            - component: credential-setup
+            - release_group: osh-keystone
+        - name: keystone-db-init
+          type: job
+          labels:
+            - application: keystone
+            - component: db-init
+            - release_group: osh-keystone
+        - name: keystone-db-sync
+          type: job
+          labels:
+            - application: keystone
+            - component: db-sync
+            - release_group: osh-keystone
+        - name: keystone-fernet-setup
+          type: job
+          labels:
+            - application: keystone
+            - component: fernet-setup
+            - release_group: osh-keystone
+  values: {}
+  source:
+    type: local
+    location: /opt/openstack-helm/charts
+    subpath: keystone
+    reference: master
+  dependencies:
+    - helm-toolkit
+---
+schema: armada/Chart/v1
+metadata:
+  schema: metadata/Document/v1
+  name: horizon
+data:
+  chart_name: horizon
+  release: horizon
+  namespace: openstack
+  timeout: 300
+  install:
+    no_hooks: false
+  upgrade:
+    no_hooks: false
+    pre:
+      delete:
+        - name: horizon-db-init
+          type: job
+          labels:
+            - application: horizon
+            - component: db-init
+            - release_group: osh-horizon
+        - name: horizon-db-sync
+          type: job
+          labels:
+            - application: horizon
+            - component: db-sync
+            - release_group: osh-horizon
+  values: {}
+  source:
+    type: local
+    location: /opt/openstack-helm/charts
+    subpath: horizon
+    reference: master
+  dependencies:
+    - helm-toolkit
+---
+schema: armada/Chart/v1
+metadata:
+  schema: metadata/Document/v1
+  name: glance
+data:
+  chart_name: glance
+  release: glance
+  namespace: openstack
+  timeout: 300
+  install:
+    no_hooks: false
+  upgrade:
+    no_hooks: false
+    pre:
+      delete:
+        - name: glance-bootstrap
+          type: job
+          labels:
+            - application: glance
+            - component: bootstrap
+            - release_group: osh-glance
+        - name: glance-db-init
+          type: job
+          labels:
+            - application: glance
+            - component: db-init
+            - release_group: osh-glance
+        - name: glance-db-sync
+          type: job
+          labels:
+            - application: glance
+            - component: db-sync
+            - release_group: osh-glance
+        - name: glance-ks-service
+          type: job
+          labels:
+            - application: glance
+            - component: ks-service
+            - release_group: osh-glance
+        - name: glance-ks-endpoints
+          type: job
+          labels:
+            - application: glance
+            - component: ks-endpoints
+            - release_group: osh-glance
+        - name: glance-ks-user
+          type: job
+          labels:
+            - application: glance
+            - component: ks-user
+            - release_group: osh-glance
+  values: {}
+  source:
+    type: local
+    location: /opt/openstack-helm/charts
+    subpath: glance
+    reference: master
+  dependencies:
+    - helm-toolkit
+---
+schema: armada/Chart/v1
+metadata:
+  schema: metadata/Document/v1
+  name: neutron
+data:
+  chart_name: neutron
+  release: neutron
+  namespace: openstack
+  timeout: 300
+  install:
+    no_hooks: false
+  upgrade:
+    no_hooks: false
+    pre:
+      delete:
+        - name: neutron-bootstrap
+          type: job
+          labels:
+            - application: neutron
+            - component: bootstrap
+            - release_group: osh-neutron
+        - name: neutron-db-init
+          type: job
+          labels:
+            - application: neutron
+            - component: db-init
+            - release_group: osh-neutron
+        - name: neutron-db-sync
+          type: job
+          labels:
+            - application: neutron
+            - component: db-sync
+            - release_group: osh-neutron
+        - name: neutron-ks-service
+          type: job
+          labels:
+            - application: neutron
+            - component: ks-service
+            - release_group: osh-neutron
+        - name: neutron-ks-endpoints
+          type: job
+          labels:
+            - application: neutron
+            - component: ks-endpoints
+            - release_group: osh-neutron
+        - name: neutron-ks-user
+          type: job
+          labels:
+            - application: neutron
+            - component: ks-user
+            - release_group: osh-neutron
+      update:
+        - name: neutron-l3-agent
+          type: daemonset
+          labels:
+            - component: l3-agent
+            - application: neutron
+            - release_group: osh-neutron
+  values:
+    network:
+      interface:
+        tunnel: docker0
+    conf:
+      neutron:
+        default:
+          oslo:
+            log:
+              debug: false
+          neutron:
+            db:
+              l3_ha: False
+              min_l3_agents_per_router: 1
+              max_l3_agents_per_router: 1
+              l3_ha_network_type: vxlan
+              dhcp_agents_per_network: 1
+      ml2_conf:
+        ml2_type_flat:
+          neutron:
+            ml2:
+              flat_networks: public
+      openvswitch_agent:
+        agent:
+          neutron:
+            ml2:
+              ovs:
+                agent:
+                  tunnel_types: vxlan
+        ovs:
+          neutron:
+            ml2:
+              ovs:
+                agent:
+                  of_interface: ovs-ofctl
+                  ovsdb_interface: vsctl
+                  bridge_mappings: public:br-ex
+  source:
+    type: local
+    location: /opt/openstack-helm/charts
+    subpath: neutron
+    reference: master
+  dependencies:
+    - helm-toolkit
+---
+schema: armada/Chart/v1
+metadata:
+  schema: metadata/Document/v1
+  name: nova
+data:
+  chart_name: nova
+  release: nova
+  namespace: openstack
+  timeout: 300
+  install:
+    no_hooks: false
+  upgrade:
+    no_hooks: false
+    pre:
+      delete:
+        - name: nova-bootstrap
+          type: job
+          labels:
+            - application: nova
+            - component: bootstrap
+            - release_group: osh-nova
+        - name: nova-db-init
+          type: job
+          labels:
+            - application: nova
+            - component: db-init
+            - release_group: osh-nova
+        - name: nova-db-sync
+          type: job
+          labels:
+            - application: nova
+            - component: db-sync
+            - release_group: osh-nova
+        - name: nova-ks-service
+          type: job
+          labels:
+            - application: nova
+            - component: ks-service
+            - release_group: osh-nova
+        - name: nova-ks-endpoints
+          type: job
+          labels:
+            - application: nova
+            - component: ks-endpoints
+            - release_group: osh-nova
+        - name: nova-ks-user
+          type: job
+          labels:
+            - application: nova
+            - component: ks-user
+            - release_group: osh-nova
+  values:
+    ceph:
+      enabled: false
+    conf:
+      nova:
+        default:
+          oslo:
+            log:
+              debug: false
+        libvirt:
+          nova:
+            conf:
+              virt_type: qemu
+              images_type: null
+              images_rbd_pool: null
+              images_rbd_ceph_conf: null
+              rbd_user: null
+              rbd_secret_uuid: null
+              disk_cachemodes: null
+              hw_disk_discard: null
+        upgrade_levels:
+          nova:
+            conf:
+              compute: null
+  source:
+    type: local
+    location: /opt/openstack-helm/charts
+    subpath: nova
+    reference: master
+  dependencies:
+    - helm-toolkit
+---
+schema: armada/Chart/v1
+metadata:
+  schema: metadata/Document/v1
+  name: cinder
+data:
+  chart_name: cinder
+  release: cinder
+  namespace: openstack
+  timeout: 300
+  install:
+    no_hooks: false
+  upgrade:
+    no_hooks: false
+    pre:
+      delete:
+        - name: cinder-bootstrap
+          type: job
+          labels:
+            - application: cinder
+            - component: bootstrap
+            - release_group: osh-cinder
+        - name: cinder-db-init
+          type: job
+          labels:
+            - application: cinder
+            - component: db-init
+            - release_group: osh-cinder
+        - name: cinder-db-sync
+          type: job
+          labels:
+            - application: cinder
+            - component: db-sync
+            - release_group: osh-cinder
+        - name: cinder-ks-service
+          type: job
+          labels:
+            - application: cinder
+            - component: ks-service
+            - release_group: osh-cinder
+        - name: cinder-ks-endpoints
+          type: job
+          labels:
+            - application: cinder
+            - component: ks-endpoints
+            - release_group: osh-cinder
+        - name: cinder-ks-user
+          type: job
+          labels:
+            - application: cinder
+            - component: ks-user
+            - release_group: osh-cinder
+  values: {}
+  source:
+    type: local
+    location: /opt/openstack-helm/charts
+    subpath: cinder
+    reference: master
+  dependencies:
+    - helm-toolkit
+---
+schema: armada/ChartGroup/v1
+metadata:
+  schema: metadata/Document/v1
+  name: ceph-storage
+data:
+  description: "Ceph Storage"
+  sequenced: True
+  chart_group:
+    - ceph
+    - ceph-config
+---
+schema: armada/ChartGroup/v1
+metadata:
+  schema: metadata/Document/v1
+  name: deploy-mariadb
+data:
+  description: "Mariadb"
+  sequenced: True
+  chart_group:
+    - mariadb
+---
+schema: armada/ChartGroup/v1
+metadata:
+  schema: metadata/Document/v1
+  name: openstack-infra-services
+data:
+  description: "OpenStack Infra Services"
+  sequenced: False
+  chart_group:
+    - etcd
+    - rabbitmq
+    - memcached
+    - ingress
+---
+schema: armada/ChartGroup/v1
+metadata:
+  schema: metadata/Document/v1
+  name: openstack-components
+data:
+  description: "OpenStack Components"
+  sequenced: False
+  chart_group:
+    - keystone
+    - horizon
+    - glance
+    - neutron
+    - nova
+    - cinder
+---
+schema: armada/Manifest/v1
+metadata:
+  schema: metadata/Document/v1
+  name: armada-manifest
+data:
+  release_prefix: osh
+  chart_groups:
+    - ceph-storage
+    - deploy-mariadb
+    - openstack-infra-services
+    - openstack-components

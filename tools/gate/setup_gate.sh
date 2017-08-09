@@ -84,5 +84,13 @@ fi
 if [ "x$INTEGRATION_TYPE" == "xbasic" ]; then
   bash ${WORK_DIR}/tools/gate/helm_dry_run.sh
   bash ${WORK_DIR}/tools/gate/basic_launch.sh
-  bash ${WORK_DIR}/tools/gate/dump_logs.sh 0
+elif [ "x$INTEGRATION_TYPE" == "xarmada" ]; then
+  bash ${WORK_DIR}/tools/gate/armada_launch.sh
 fi
+
+# Run Basic Funtional Full Stack Intergation Tests
+if [ "x$INTEGRATION" == "xaio" ]; then
+ bash ${WORK_DIR}/tools/gate/openstack_aio_launch.sh
+fi
+
+bash ${WORK_DIR}/tools/gate/dump_logs.sh 0
