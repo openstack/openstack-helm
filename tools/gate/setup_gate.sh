@@ -88,9 +88,11 @@ elif [ "x$INTEGRATION_TYPE" == "xarmada" ]; then
   bash ${WORK_DIR}/tools/gate/armada_launch.sh
 fi
 
-# Run Basic Funtional Full Stack Intergation Tests
-if [ "x$INTEGRATION" == "xaio" ]; then
- bash ${WORK_DIR}/tools/gate/openstack_aio_launch.sh
+if ! [ "x$INTEGRATION_TYPE" == "x" ]; then
+  # Run Basic Full Stack Tests
+  if [ "x$INTEGRATION" == "xaio" ]; then
+   bash ${WORK_DIR}/tools/gate/openstack_aio_launch.sh
+  fi
+  # Collect all logs from the environment
+  bash ${WORK_DIR}/tools/gate/dump_logs.sh 0
 fi
-
-bash ${WORK_DIR}/tools/gate/dump_logs.sh 0
