@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 set -ex
-
+: ${WORK_DIR:="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"}
+source ${WORK_DIR}/tools/gate/vars.sh
 source ${WORK_DIR}/tools/gate/funcs/helm.sh
 
 helm_build

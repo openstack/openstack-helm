@@ -12,10 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 set -ex
-
-: ${SSH_PRIVATE_KEY:="/etc/nodepool/id_rsa"}
-: ${PRIMARY_NODE_IP:="$(cat /etc/nodepool/primary_node | tail -1)"}
-: ${SUB_NODE_IPS:="$(cat /etc/nodepool/sub_nodes)"}
+: ${WORK_DIR:="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"}
+source ${WORK_DIR}/tools/gate/vars.sh
 export SUB_NODE_COUNT="$(($(echo ${SUB_NODE_IPS} | wc -w) + 1))"
 
 sudo chown $(whoami) ${SSH_PRIVATE_KEY}

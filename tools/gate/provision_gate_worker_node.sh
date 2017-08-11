@@ -12,10 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 set -ex
-
+: ${WORK_DIR:="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"}
+source ${WORK_DIR}/tools/gate/vars.sh
 cd ${WORK_DIR}
-source /etc/os-release
-export HOST_OS=${ID}
 source ${WORK_DIR}/tools/gate/funcs/common.sh
 source ${WORK_DIR}/tools/gate/funcs/network.sh
 source ${WORK_DIR}/tools/gate/funcs/kube.sh

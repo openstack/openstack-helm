@@ -26,6 +26,9 @@ KEYSTONE_CREDS="--os-username ${KS_USER} \
   --os-project-domain-name ${KS_PROJECT_DOMAIN} \
   --os-user-domain-name ${KS_USER_DOMAIN} \
   --os-password ${KS_PASSWORD}"
+
+HEAT_POD=$(kubectl get -n openstack pods -l application=heat,component=engine --no-headers -o name | awk -F '/' '{ print $NF; exit }')
+HEAT="kubectl exec -n openstack ${HEAT_POD} -- heat ${KEYSTONE_CREDS}"
 NEUTRON_POD=$(kubectl get -n openstack pods -l application=heat,component=engine --no-headers -o name | awk -F '/' '{ print $NF; exit }')
 NEUTRON="kubectl exec -n openstack ${NEUTRON_POD} -- neutron ${KEYSTONE_CREDS}"
 NOVA_POD=$(kubectl get -n openstack pods -l application=heat,component=engine --no-headers -o name | awk -F '/' '{ print $NF; exit }')
@@ -91,6 +94,27 @@ function wait_for_ssh_port {
       sleep 1
       now=$(date +%s)
       [ $now -gt $end ] && echo "Could not connect to $1 port 22 in time" && exit -1
+  done
+  set -x
+}
+
+function openstack_wait_for_stack {
+  # Default wait timeout is 180 seconds
+  set +x
+  end=$(date +%s)
+  if ! [ -z $2 ]; then
+   end=$((end + $2))
+  else
+   end=$((end + 180))
+  fi
+  while true; do
+      STATUS=$($OPENSTACK stack show $1 -f value -c stack_status)
+      [ $STATUS == "CREATE_COMPLETE" ] && \
+          break || true
+      sleep 1
+      now=$(date +%s)
+      [ $now -gt $end ] && echo Stack failed to start. && \
+          $OPENSTACK stack show $1 && exit -1
   done
   set -x
 }
