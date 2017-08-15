@@ -76,6 +76,14 @@ Once this has run without errors, you should hopefully have a Kubernetes single
 node environment running, with Helm, Calico, appropriate RBAC rules and node
 labels to get developing.
 
+Prior to launching you can also optionally set the following environment
+variables to control aspects of the CNI used:
+
+.. code:: bash
+
+    export KUBE_CNI=calico # or "canal" "weave" "flannel"
+    export CNI_POD_CIDR=192.168.0.0/16
+
 If you wish to use this environment as the primary Kubernetes environment on
 your host you may run the following, but note that this will wipe any previous
 client configuration you may have.

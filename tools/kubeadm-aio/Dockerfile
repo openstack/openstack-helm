@@ -3,7 +3,7 @@ MAINTAINER pete.birley@att.com
 
 ENV HELM_VERSION=v2.5.1 \
     KUBE_VERSION=v1.6.8 \
-    CNI_VERSION=v0.5.2 \
+    CNI_VERSION=v0.6.0-rc2 \
     container="docker" \
     DEBIAN_FRONTEND="noninteractive"
 
@@ -49,7 +49,7 @@ RUN set -x \
     && CNI_BIN_DIR=/opt/cni/bin \
     && mkdir -p ${CNI_BIN_DIR} \
     && cd ${CNI_BIN_DIR} \
-    && curl -sSL https://github.com/containernetworking/cni/releases/download/$CNI_VERSION/cni-amd64-$CNI_VERSION.tgz | tar -zxv --strip-components=1 \
+    && curl -sSL https://github.com/containernetworking/plugins/releases/download/$CNI_VERSION/cni-plugins-amd64-$CNI_VERSION.tgz | tar -zxv --strip-components=1 \
     && cd ${TMP_DIR} \
 # Move kubelet binary as we will run containerised
     && mv /usr/bin/kubelet /usr/bin/kubelet-real \
