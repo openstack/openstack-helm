@@ -74,6 +74,7 @@ fi
 helm install --namespace=openstack ${WORK_DIR}/memcached --name=memcached
 helm install --namespace=openstack ${WORK_DIR}/etcd --name=etcd-rabbitmq
 helm install --namespace=openstack ${WORK_DIR}/rabbitmq --name=rabbitmq
+helm install --namespace=openstack ${WORK_DIR}/libvirt --name=libvirt
 kube_wait_for_pods openstack ${SERVICE_LAUNCH_TIMEOUT}
 helm install --namespace=openstack ${WORK_DIR}/keystone --name=keystone
 if [ "x$PVC_BACKEND" == "xceph" ]; then

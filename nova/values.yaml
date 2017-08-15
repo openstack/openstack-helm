@@ -24,9 +24,6 @@ labels:
     compute:
       node_selector_key: openstack-compute-node
       node_selector_value: enabled
-    libvirt:
-      node_selector_key: openstack-compute-node
-      node_selector_value: enabled
   conductor:
     node_selector_key: openstack-control-plane
     node_selector_value: enabled
@@ -63,7 +60,6 @@ images:
   novncproxy_assets: docker.io/kolla/ubuntu-source-nova-novncproxy:3.0.3
   consoleauth: docker.io/kolla/ubuntu-source-nova-consoleauth:3.0.3
   compute: docker.io/kolla/ubuntu-source-nova-compute:3.0.3
-  libvirt: docker.io/kolla/ubuntu-source-nova-libvirt:3.0.3
   bootstrap: docker.io/kolla/ubuntu-source-heat-engine:3.0.3
   dep_check: docker.io/kolla/ubuntu-source-kubernetes-entrypoint:4.0.0
   pull_policy: "IfNotPresent"
@@ -136,10 +132,6 @@ ceph:
   cinder_keyring: null
   secret_uuid: 457eb676-33da-42ec-9a8c-9293d545c337
 
-libvirt:
-  listen_addr: 0.0.0.0
-  log_level: 3
-
 dependencies:
   api:
     jobs:
@@ -196,11 +188,9 @@ dependencies:
     - service: network
       endpoint: internal
     daemonset:
+    - libvirt
     # this should be set to corresponding neutron L2 agent
     - ovs-agent
-  libvirt:
-    jobs:
-    - nova-db-sync
   consoleauth:
     jobs:
     - nova-db-sync
@@ -834,9 +824,6 @@ pod:
     nova_compute:
       init_container: null
       nova_compute:
-    nova_libvirt:
-      init_container: null
-      nova_libvirt:
     nova_api_metadata:
       init_container: null
       nova_api_metadata:
@@ -882,10 +869,6 @@ pod:
           enabled: true
           min_ready_seconds: 0
           max_unavailable: 1
-        libvirt:
-          enabled: true
-          min_ready_seconds: 0
-          max_unavailable: 1
     disruption_budget:
       metadata:
         min_available: 0
@@ -899,13 +882,6 @@ pod:
   resources:
     enabled: false
     compute:
-      requests:
-        memory: "128Mi"
-        cpu: "100m"
-      limits:
-        memory: "1024Mi"
-        cpu: "2000m"
-    libvirt:
       requests:
         memory: "128Mi"
         cpu: "100m"
@@ -1009,7 +985,6 @@ manifests:
   configmap_bin: true
   configmap_etc: true
   daemonset_compute: true
-  daemonset_libvirt: true
   deployment_api_metadata: true
   deployment_api_osapi: true
   deployment_conductor: true

@@ -16,20 +16,19 @@ limitations under the License.
 
 {{- if .Values.manifests.daemonset_libvirt }}
 {{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.libvirt }}
-{{- $mounts_nova_libvirt := .Values.pod.mounts.nova_libvirt.nova_libvirt }}
-{{- $mounts_nova_libvirt_init := .Values.pod.mounts.nova_libvirt.init_container }}
+{{- $mounts_libvirt := .Values.pod.mounts.libvirt.libvirt }}
+{{- $mounts_libvirt_init := .Values.pod.mounts.libvirt.init_container }}
 ---
 apiVersion: extensions/v1beta1
 kind: DaemonSet
 metadata:
-  name: nova-libvirt
+  name: libvirt
 spec:
 {{ tuple $envAll "libvirt" | include "helm-toolkit.snippets.kubernetes_upgrades_daemonset" | indent 2 }}
   template:
     metadata:
       labels:
-{{ tuple $envAll "nova" "libvirt" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+{{ tuple $envAll "libvirt" "libvirt" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
       annotations:
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
@@ -39,9 +38,8 @@ spec:
       hostNetwork: true
       hostPID: true
       dnsPolicy: ClusterFirstWithHostNet
+{{- if .Values.ceph.enabled }}
       initContainers:
-{{ tuple $envAll $dependencies $mounts_nova_libvirt_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
-        {{- if .Values.ceph.enabled }}
         - name: ceph-keyring-placement
           image: {{ .Values.images.libvirt }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
@@ -61,7 +59,7 @@ spec:
           volumeMounts:
             - name: etcceph
               mountPath: /etc/ceph
-            - name: nova-bin
+            - name: libvirt-bin
               mountPath: /tmp/ceph-keyring.sh
               subPath: ceph-keyring.sh
               readOnly: true
@@ -69,9 +67,9 @@ spec:
               mountPath: /tmp/client-keyring
               subPath: key
               readOnly: true
-        {{ end }}
+{{- end }}
       containers:
-        - name: nova-libvirt
+        - name: libvirt
           image: {{ .Values.images.libvirt }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
 {{ tuple $envAll $envAll.Values.pod.resources.libvirt | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
@@ -106,33 +104,25 @@ spec:
                   - /tmp/ceph-secret-define.sh
           {{- end }}
           volumeMounts:
-            - name: nova-bin
+            - name: libvirt-bin
               mountPath: /tmp/libvirt.sh
               subPath: libvirt.sh
               readOnly: true
-            - name: nova-etc
+            - name: libvirt-etc
               mountPath: /etc/libvirt/libvirtd.conf
               subPath: libvirtd.conf
               readOnly: true
-            - name: nova-etc
+            - name: libvirt-etc
               mountPath: /etc/libvirt/qemu.conf
               subPath: qemu.conf
-              readOnly: true
-            - name: nova-etc
-              mountPath: /etc/nova/nova.conf
-              subPath: nova.conf
-              readOnly: true
-            - name: nova-etc
-              mountPath: /etc/nova/api-paste.ini
-              subPath: api-paste.ini
               readOnly: true
             - mountPath: /lib/modules
               name: libmodules
               readOnly: true
-            - name: varlibnova
-              mountPath: /var/lib/nova
-            - name: varliblibvirt
+            - name: var-lib-libvirt
               mountPath: /var/lib/libvirt
+            - name: var-lib-nova
+              mountPath: /var/lib/nova
             - name: run
               mountPath: /run
             - name: dev
@@ -153,20 +143,20 @@ spec:
               mountPath: /tmp/client-keyring
               subPath: key
               readOnly: true
-            - name: nova-bin
+            - name: libvirt-bin
               mountPath: /tmp/ceph-secret-define.sh
               subPath: ceph-secret-define.sh
               readOnly: true
             {{- end }}
-{{ if $mounts_nova_libvirt.volumeMounts }}{{ toYaml $mounts_nova_libvirt.volumeMounts | indent 12 }}{{ end }}
+{{ if $mounts_libvirt.volumeMounts }}{{ toYaml $mounts_libvirt.volumeMounts | indent 12 }}{{ end }}
       volumes:
-        - name: nova-bin
+        - name: libvirt-bin
           configMap:
-            name: nova-bin
+            name: libvirt-bin
             defaultMode: 0555
-        - name: nova-etc
+        - name: libvirt-etc
           configMap:
-            name: nova-etc
+            name: libvirt-etc
             defaultMode: 0444
         {{- if .Values.ceph.enabled }}
         - name: etcceph
@@ -182,12 +172,12 @@ spec:
         - name: libmodules
           hostPath:
             path: /lib/modules
-        - name: varlibnova
-          hostPath:
-            path: /var/lib/nova
-        - name: varliblibvirt
+        - name: var-lib-libvirt
           hostPath:
             path: /var/lib/libvirt
+        - name: var-lib-nova
+          hostPath:
+            path: /var/lib/nova
         - name: run
           hostPath:
             path: /run
@@ -200,5 +190,5 @@ spec:
         - name: machine-id
           hostPath:
             path: /etc/machine-id
-{{ if $mounts_nova_libvirt.volumes }}{{ toYaml $mounts_nova_libvirt.volumes | indent 8 }}{{ end }}
+{{ if $mounts_libvirt.volumes }}{{ toYaml $mounts_libvirt.volumes | indent 8 }}{{ end }}
 {{- end }}

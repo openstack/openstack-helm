@@ -190,6 +190,7 @@ OpenStack services depend upon them.
   helm install --name=etcd-rabbitmq ./etcd --namespace=openstack
   helm install --name=rabbitmq ./rabbitmq --namespace=openstack
   helm install --name=ingress ./ingress --namespace=openstack
+  helm install --name=libvirt ./libvirt --namespace=openstack
 
 Once the OpenStack infrastructure components are installed and running, the
 OpenStack services can be installed.  In the below examples the default values

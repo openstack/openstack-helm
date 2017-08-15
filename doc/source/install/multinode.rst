@@ -372,7 +372,7 @@ Installation of Other Services
 
 Now you can easily install the other services simply by going in order:
 
-**Install Memcached/Etcd/RabbitMQ/Ingress:**
+**Install Memcached/Etcd/RabbitMQ/Ingress/Libvirt:**
 
 ::
 
@@ -380,6 +380,7 @@ Now you can easily install the other services simply by going in order:
     helm install --name=etcd-rabbitmq ./etcd --namespace=openstack
     helm install --name=rabbitmq ./rabbitmq --namespace=openstack
     helm install --name=ingress ./ingress --namespace=openstack
+    helm install --name=libvirt ./libvirt --namespace=openstack
 
 **Install Keystone:**
 
