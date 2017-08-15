@@ -33,8 +33,6 @@ images:
   l3: docker.io/kolla/ubuntu-source-neutron-l3-agent:3.0.3
   neutron_openvswitch_agent: docker.io/kolla/ubuntu-source-neutron-openvswitch-agent:3.0.3
   neutron_linuxbridge_agent: docker.io/kolla/ubuntu-source-neutron-linuxbridge-agent:3.0.3
-  openvswitch_db_server: docker.io/kolla/ubuntu-source-openvswitch-db-server:3.0.3
-  openvswitch_vswitchd: docker.io/kolla/ubuntu-source-openvswitch-vswitchd:3.0.3
   dep_check: docker.io/kolla/ubuntu-source-kubernetes-entrypoint:4.0.0
   pull_policy: "IfNotPresent"
 
@@ -164,6 +162,9 @@ dependencies:
       endpoint: internal
     - service: network
       endpoint: internal
+    daemonset:
+    - ovs-vswitchd
+    - ovs-db
   lb_agent:
     services:
     - service: oslo_messaging
@@ -261,14 +262,6 @@ pod:
           enabled: true
           min_ready_seconds: 0
           max_unavailable: 1
-        ovs_db:
-          enabled: false
-          min_ready_seconds: 0
-          max_unavailable: 1
-        ovs_vswitchd:
-          enabled: false
-          min_ready_seconds: 0
-          max_unavailable: 1
     disruption_budget:
       server:
         min_available: 0
@@ -307,21 +300,6 @@ pod:
           memory: "1024Mi"
           cpu: "2000m"
       ovs:
-        requests:
-          memory: "128Mi"
-          cpu: "100m"
-        limits:
-          memory: "1024Mi"
-          cpu: "2000m"
-    ovs:
-      db:
-        requests:
-          memory: "128Mi"
-          cpu: "100m"
-        limits:
-          memory: "1024Mi"
-          cpu: "2000m"
-      vswitchd:
         requests:
           memory: "128Mi"
           cpu: "100m"
@@ -936,8 +914,6 @@ manifests:
   daemonset_lb_agent: false
   daemonset_metadata_agent: true
   daemonset_ovs_agent: true
-  daemonset_ovs_db: true
-  daemonset_ovs_vswitchd: true
   deployment_server: true
   ingress_server: true
   job_bootstrap: true

@@ -29,7 +29,7 @@ sudo ip link set br-ex up
 sudo iptables -t nat -A POSTROUTING -o $(net_default_iface) -s ${OSH_EXT_SUBNET} -j MASQUERADE
 
 # Disable In-Band rules on br-ex bridge to ease debugging
-OVS_VSWITCHD_POD=$(kubectl get -n openstack pods -l application=neutron,component=ovs-vswitchd --no-headers -o name | head -1 | awk -F '/' '{ print $NF }')
+OVS_VSWITCHD_POD=$(kubectl get -n openstack pods -l application=openvswitch,component=ovs-vswitchd --no-headers -o name | head -1 | awk -F '/' '{ print $NF }')
 kubectl exec -n openstack ${OVS_VSWITCHD_POD} -- ovs-vsctl set Bridge br-ex other_config:disable-in-band=true
 
 

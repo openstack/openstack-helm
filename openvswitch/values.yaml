@@ -1,0 +1,83 @@
+# Copyright 2017 The Openstack-Helm Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Default values for neutron.
+# This is a YAML-formatted file.
+# Declare name/value pairs to be passed into your templates.
+# name: value
+
+release_group: null
+
+images:
+  openvswitch_db_server: docker.io/kolla/ubuntu-source-openvswitch-db-server:3.0.3
+  openvswitch_vswitchd: docker.io/kolla/ubuntu-source-openvswitch-vswitchd:3.0.3
+  pull_policy: "IfNotPresent"
+
+labels:
+  ovs:
+      node_selector_key: openvswitch
+      node_selector_value: enabled
+
+network:
+  external_bridge: br-ex
+  ip_address: 0.0.0.0
+  interface:
+  # External interface will be automatically added to external_bridge. Default is null.
+  # Tunnel interface will be used for VXLAN tunneling. Default is null, with
+  # fallback mechanism to search for interface with default routing.
+    external: null
+    tunnel: null
+  # To automatically add a physical interface to a specific bridge using,
+  # for example eth3 to bridge br-physnet1 define the following key/value
+  # in auto_bridge_add:
+  #       br-physnet1: eth3
+  auto_bridge_add:
+  #    br0: if0
+  #    br1: iface_two
+
+pod:
+  lifecycle:
+    upgrades:
+      daemonsets:
+        pod_replacement_strategy: RollingUpdate
+        ovs_db:
+          enabled: false
+          min_ready_seconds: 0
+          max_unavailable: 1
+        ovs_vswitchd:
+          enabled: false
+          min_ready_seconds: 0
+          max_unavailable: 1
+  resources:
+    enabled: false
+    ovs:
+      db:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      vswitchd:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+
+manifests:
+  configmap_bin: true
+  daemonset_ovs_db: true
+  daemonset_ovs_vswitchd: true

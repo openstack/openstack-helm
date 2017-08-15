@@ -50,4 +50,8 @@ if [ -n "{{- $br -}}" ] ; then
 fi
 {{- end }}
 
-exec /usr/sbin/ovs-vswitchd unix:/run/openvswitch/db.sock --mlockall -vconsole:emer -vconsole:err -vconsole:info
+exec /usr/sbin/ovs-vswitchd unix:/run/openvswitch/db.sock \
+        -vconsole:emer \
+        -vconsole:err \
+        -vconsole:info \
+        --mlockall
