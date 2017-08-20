@@ -61,6 +61,19 @@ spec:
               readOnly: true
             - name: pod-shared
               mountPath: /tmp/pod-shared
+        - name: nova-novncproxy-init-assets
+          image: {{ .Values.images.novncproxy_assets }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+{{ tuple $envAll $envAll.Values.pod.resources.novncproxy | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          command:
+            - /tmp/nova-vnc-proxy-init-assets.sh
+          volumeMounts:
+            - name: nova-bin
+              mountPath: /tmp/nova-vnc-proxy-init-assets.sh
+              subPath: nova-vnc-proxy-init-assets.sh
+              readOnly: true
+            - name: pod-usr-share-novnc
+              mountPath: /tmp/usr/share/novnc
       containers:
         - name: nova-novncproxy
           image: {{ .Values.images.novncproxy }}
@@ -77,6 +90,9 @@ spec:
               mountPath: /etc/nova/nova.conf
               subPath: nova.conf
               readOnly: true
+            - name: pod-usr-share-novnc
+              mountPath: /usr/share/novnc
+              readOnly: true
             - name: pod-shared
               mountPath: /tmp/pod-shared
 {{- if $mounts_nova_novncproxy.volumeMounts }}{{ toYaml $mounts_nova_novncproxy.volumeMounts | indent 12 }}{{ end }}
@@ -89,6 +105,8 @@ spec:
           configMap:
             name: nova-etc
             defaultMode: 0444
+        - name: pod-usr-share-novnc
+          emptyDir: {}
         - name: pod-shared
           emptyDir: {}
 {{- if $mounts_nova_novncproxy.volumes }}{{ toYaml $mounts_nova_novncproxy.volumes | indent 8 }}{{ end }}
