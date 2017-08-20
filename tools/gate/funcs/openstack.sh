@@ -26,11 +26,11 @@ KEYSTONE_CREDS="--os-username ${KS_USER} \
   --os-project-domain-name ${KS_PROJECT_DOMAIN} \
   --os-user-domain-name ${KS_USER_DOMAIN} \
   --os-password ${KS_PASSWORD}"
-NEUTRON_POD=$(kubectl get -n openstack pods -l application=neutron,component=server --no-headers -o name | awk -F '/' '{ print $NF; exit }')
+NEUTRON_POD=$(kubectl get -n openstack pods -l application=heat,component=engine --no-headers -o name | awk -F '/' '{ print $NF; exit }')
 NEUTRON="kubectl exec -n openstack ${NEUTRON_POD} -- neutron ${KEYSTONE_CREDS}"
-NOVA_POD=$(kubectl get -n openstack pods -l application=nova,component=os-api --no-headers -o name | awk -F '/' '{ print $NF; exit }')
+NOVA_POD=$(kubectl get -n openstack pods -l application=heat,component=engine --no-headers -o name | awk -F '/' '{ print $NF; exit }')
 NOVA="kubectl exec -n openstack ${NOVA_POD} -- nova ${KEYSTONE_CREDS}"
-OPENSTACK_POD=$(kubectl get -n openstack pods -l application=keystone,component=api --no-headers -o name | awk -F '/' '{ print $NF; exit }')
+OPENSTACK_POD=$(kubectl get -n openstack pods -l application=heat,component=engine --no-headers -o name | awk -F '/' '{ print $NF; exit }')
 OPENSTACK="kubectl exec -n openstack ${OPENSTACK_POD} -- openstack ${KEYSTONE_CREDS} --os-identity-api-version 3 --os-image-api-version 2"
 
 function wait_for_ping {

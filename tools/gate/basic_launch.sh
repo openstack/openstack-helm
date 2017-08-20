@@ -102,6 +102,9 @@ helm install --namespace=openstack ${WORK_DIR}/neutron --name=neutron \
     --values=${WORK_DIR}/tools/overrides/mvp/neutron.yaml
 kube_wait_for_pods openstack ${SERVICE_LAUNCH_TIMEOUT}
 
+helm install --namespace=openstack ${WORK_DIR}/heat --name=heat
+kube_wait_for_pods openstack ${SERVICE_LAUNCH_TIMEOUT}
+
 if [ "x$INTEGRATION" == "xmulti" ]; then
   if [ "x$PVC_BACKEND" == "xceph" ]; then
     helm install --namespace=openstack ${WORK_DIR}/cinder --name=cinder
@@ -109,7 +112,6 @@ if [ "x$INTEGRATION" == "xmulti" ]; then
     helm install --namespace=openstack ${WORK_DIR}/cinder --name=cinder \
         --values=${WORK_DIR}/tools/overrides/mvp/cinder.yaml
   fi
-  helm install --namespace=openstack ${WORK_DIR}/heat --name=heat
   helm install --namespace=openstack ${WORK_DIR}/horizon --name=horizon
   kube_wait_for_pods openstack ${SERVICE_LAUNCH_TIMEOUT}
 
