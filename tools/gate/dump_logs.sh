@@ -86,6 +86,7 @@ echo "${NODE_NAME}" > ${LOGS_DIR}/nodes/master.txt
 sudo docker logs kubelet 2> ${LOGS_DIR}/nodes/${NODE_NAME}/kubelet.txt
 sudo docker logs kubeadm-aio 2>&1 > ${LOGS_DIR}/nodes/${NODE_NAME}/kubeadm-aio.txt
 sudo docker images --digests --no-trunc --all > ${LOGS_DIR}/nodes/${NODE_NAME}/images.txt
+sudo du -h --max-depth=1 /var/lib/docker | sort -hr > ${LOGS_DIR}/nodes/${NODE_NAME}/docker-size.txt
 sudo iptables-save > ${LOGS_DIR}/nodes/${NODE_NAME}/iptables.txt
 sudo ip a > ${LOGS_DIR}/nodes/${NODE_NAME}/ip.txt
 sudo route -n > ${LOGS_DIR}/nodes/${NODE_NAME}/routes.txt
@@ -102,6 +103,7 @@ if [ "x$INTEGRATION" == "xmulti" ]; then
     ssh -i ${SSH_PRIVATE_KEY} $(whoami)@${NODE_IP} sudo docker logs kubelet 2> ${LOGS_DIR}/nodes/${NODE_NAME}/kubelet.txt
     ssh -i ${SSH_PRIVATE_KEY} $(whoami)@${NODE_IP} sudo docker logs kubeadm-aio 2>&1 > ${LOGS_DIR}/nodes/${NODE_NAME}/kubeadm-aio.txt
     ssh -i ${SSH_PRIVATE_KEY} $(whoami)@${NODE_IP} sudo docker images --digests --no-trunc --all > ${LOGS_DIR}/nodes/${NODE_NAME}/images.txt
+    ssh -i ${SSH_PRIVATE_KEY} $(whoami)@${NODE_IP} sudo du -h --max-depth=1 /var/lib/docker | sort -hr > ${LOGS_DIR}/nodes/${NODE_NAME}/docker-size.txt
     ssh -i ${SSH_PRIVATE_KEY} $(whoami)@${NODE_IP} sudo iptables-save > ${LOGS_DIR}/nodes/${NODE_NAME}/iptables.txt
     ssh -i ${SSH_PRIVATE_KEY} $(whoami)@${NODE_IP} sudo ip a > ${LOGS_DIR}/nodes/${NODE_NAME}/ip.txt
     ssh -i ${SSH_PRIVATE_KEY} $(whoami)@${NODE_IP} sudo route -n > ${LOGS_DIR}/nodes/${NODE_NAME}/routes.txt

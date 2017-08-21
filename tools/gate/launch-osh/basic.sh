@@ -12,9 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 set -ex
-: ${WORK_DIR:="$(pwd)"}
-: ${SERVICE_LAUNCH_TIMEOUT:="600"}
-: ${SERVICE_TEST_TIMEOUT:="600"}
+: ${WORK_DIR:="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )/.."}
+source ${WORK_DIR}/tools/gate/vars.sh
 source ${WORK_DIR}/tools/gate/funcs/helm.sh
 source ${WORK_DIR}/tools/gate/funcs/kube.sh
 source ${WORK_DIR}/tools/gate/funcs/network.sh
@@ -23,23 +22,7 @@ helm_build
 
 helm search
 
-# NOTE(portdirect): Temp workaround until module loading is supported by
-# OpenStack-Helm in Fedora
-if [ "x$HOST_OS" == "xfedora" ]; then
-  sudo modprobe openvswitch
-  sudo modprobe gre
-  sudo modprobe vxlan
-  sudo modprobe ip6_tables
-fi
-
-helm install --namespace=openstack ${WORK_DIR}/dns-helper --name=dns-helper
-kube_wait_for_pods openstack ${SERVICE_LAUNCH_TIMEOUT}
-
 if [ "x$PVC_BACKEND" == "xceph" ]; then
-  kubectl label nodes ceph-mon=enabled --all
-  kubectl label nodes ceph-osd=enabled --all
-  kubectl label nodes ceph-mds=enabled --all
-
   if [ "x$INTEGRATION" == "xmulti" ]; then
     SUBNET_RANGE="$(find_multi_subnet_range)"
   else

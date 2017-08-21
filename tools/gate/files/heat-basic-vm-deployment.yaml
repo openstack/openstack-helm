@@ -1,0 +1,82 @@
+heat_template_version: 2016-10-14
+
+parameters:
+  public_net:
+    type: string
+    default: public
+  image:
+    type: string
+    default: Cirros 0.3.5 64-bit
+  flavor:
+    type: string
+    default: m1.tiny
+  ssh_key:
+    type: string
+    default: heat-vm-key
+  cidr:
+    type: string
+    default: 10.11.11.0/24
+
+resources:
+  server:
+    type: OS::Nova::Server
+    properties:
+      image: {get_param: image}
+      flavor: {get_param: flavor}
+      key_name: {get_param: ssh_key}
+      networks:
+        - port: { get_resource: server_port }
+      user_data_format: RAW
+
+  router:
+    type: OS::Neutron::Router
+    properties:
+      external_gateway_info:
+        network: {get_param: public_net}
+
+  router_interface:
+    type: OS::Neutron::RouterInterface
+    properties:
+      router_id: { get_resource: router }
+      subnet_id: { get_resource: private_subnet }
+
+  private_net:
+    type: OS::Neutron::Net
+
+  private_subnet:
+    type: OS::Neutron::Subnet
+    properties:
+      network: { get_resource: private_net }
+      cidr: {get_param: cidr}
+      dns_nameservers:
+        - 8.8.8.8
+        - 8.8.4.4
+
+  port_security_group:
+    type: OS::Neutron::SecurityGroup
+    properties:
+      name: default_port_security_group
+      description: >
+        Default security group assigned to port.
+      rules: [
+        {remote_ip_prefix: 0.0.0.0/0,
+        protocol: tcp,
+        port_range_min: 22,
+        port_range_max: 22},
+        {remote_ip_prefix: 0.0.0.0/0,
+        protocol: icmp}]
+
+  server_port:
+    type: OS::Neutron::Port
+    properties:
+      network: {get_resource: private_net}
+      fixed_ips:
+        - subnet: { get_resource: private_subnet }
+      security_groups:
+        - { get_resource: port_security_group }
+
+  server_floating_ip:
+    type: OS::Neutron::FloatingIP
+    properties:
+      floating_network: {get_param: public_net}
+      port_id: { get_resource: server_port }

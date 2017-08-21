@@ -1,0 +1,43 @@
+heat_template_version: 2016-10-14
+
+parameters:
+  network_name:
+    type: string
+    default: public
+
+  physical_network_name:
+    type: string
+    default: public
+
+  subnet_name:
+    type: string
+    default: public
+
+  subnet_cidr:
+    type: string
+    default: 172.24.4.0/24
+
+  subnet_gateway:
+    type: string
+    default: 172.24.4.1
+
+resources:
+  public_net:
+    type: OS::Neutron::ProviderNet
+    properties:
+      name: {get_param: network_name}
+      router_external: true
+      physical_network: {get_param: physical_network_name}
+      network_type: flat
+
+  private_subnet:
+    type: OS::Neutron::Subnet
+    properties:
+      name: {get_param: subnet_name}
+      network: { get_resource: public_net }
+      cidr: {get_param: subnet_cidr}
+      gateway_ip: {get_param: subnet_gateway}
+      enable_dhcp: false
+      dns_nameservers:
+        - 8.8.8.8
+        - 8.8.4.4
