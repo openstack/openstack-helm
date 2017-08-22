@@ -143,7 +143,13 @@ function kubeadm_aio_clean {
       /var/lib/nfs-provisioner || true
 }
 
-function ceph_kube_controller_manager_replace {
-  sudo docker pull ${CEPH_KUBE_CONTROLLER_MANAGER_IMAGE}
-  sudo docker tag ${CEPH_KUBE_CONTROLLER_MANAGER_IMAGE} ${BASE_KUBE_CONTROLLER_MANAGER_IMAGE}
+function kube_label_node_block_devs {
+  for HOST in $(cat $LOOPBACK_DEV_INFO | yaml_to_json | jq -r ".block_devices | keys? | .[]"); do
+    for DEV_TYPE in $(cat $LOOPBACK_DEV_INFO | yaml_to_json | jq -r ".block_devices.\"$HOST\" |  keys? | .[]"); do
+      DEV_ADDRS=$(cat $LOOPBACK_DEV_INFO | yaml_to_json | jq -r ".block_devices.\"$HOST\".\"$DEV_TYPE\" | .[]")
+      for DEV_ADDR in $(cat $LOOPBACK_DEV_INFO | yaml_to_json | jq -r ".block_devices.\"$HOST\".\"$DEV_TYPE\" | .[]"); do
+        kubectl label node $HOST device-$DEV_TYPE-$(echo $DEV_ADDR | tr '@' '_' | tr ':' '-' )=enabled
+      done
+    done
+  done
 }

@@ -14,7 +14,6 @@
 set -ex
 : ${WORK_DIR:="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"}
 source ${WORK_DIR}/tools/gate/vars.sh
-export SUB_NODE_COUNT="$(($(echo ${SUB_NODE_IPS} | wc -w) + 1))"
 
 sudo chown $(whoami) ${SSH_PRIVATE_KEY}
 sudo chmod 600 ${SSH_PRIVATE_KEY}
