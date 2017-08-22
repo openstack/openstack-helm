@@ -20,6 +20,9 @@ set -ex
 
 ceph_activate_namespace() {
   kube_namespace=$1
+  CEPH_KEY=$(kubectl get secret ${PVC_CEPH_STORAGECLASS_ADMIN_SECRET_NAME} \
+      --namespace=${PVC_CEPH_STORAGECLASS_DEPLOYED_NAMESPACE} \
+      -o json | jq -r '.data | .[]')
   {
   cat <<EOF
 apiVersion: v1
@@ -29,9 +32,7 @@ metadata:
 type: kubernetes.io/rbd
 data:
   key: |
-    $(kubectl get secret ${PVC_CEPH_STORAGECLASS_ADMIN_SECRET_NAME} \
-        --namespace=${PVC_CEPH_STORAGECLASS_DEPLOYED_NAMESPACE} \
-        -o json | jq -r '.data | .[]')
+    $(echo ${CEPH_KEY})
 EOF
   } | kubectl create --namespace ${kube_namespace} -f -
 }
