@@ -29,10 +29,11 @@ metadata:
 spec:
   restartPolicy: Never
   initContainers:
-{{ tuple $envAll $dependencies $mounts_nova_tests_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll $dependencies $mounts_nova_tests_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 4 }}
   containers:
     - name: {{.Release.Name}}-token-issue-test
       image: {{ .Values.images.test }}
+      imagePullPolicy: {{ .Values.images.pull_policy }}
       env:
 {{- with $env := dict "ksUserSecret" .Values.secrets.identity.admin }}
 {{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 8 }}
@@ -40,6 +41,7 @@ spec:
         - name: RALLY_ENV_NAME
           value: {{.Release.Name}}
       command:
+        - bash
         - /tmp/rally-test.sh
       volumeMounts:
         - name: nova-etc

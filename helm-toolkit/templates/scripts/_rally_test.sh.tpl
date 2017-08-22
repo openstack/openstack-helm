@@ -14,15 +14,22 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- define "helm-toolkit.scripts.rally_test" }}
+{{- define "helm-toolkit.scripts.rally_test" -}}
 #!/bin/bash
 set -ex
+{{- $rallyTests := index . 0 }}
 
 : ${RALLY_ENV_NAME:="openstack-helm"}
 rally-manage db create
 rally deployment create --fromenv --name ${RALLY_ENV_NAME}
 rally deployment use ${RALLY_ENV_NAME}
 rally deployment check
+{{- if $rallyTests.run_tempest }}
+rally verify create-verifier --name ${RALLY_ENV_NAME}-tempest --type tempest
+SERVICE_TYPE=$(rally deployment check | grep ${RALLY_ENV_NAME} | awk -F \| '{print $3}' | tr -d ' ' | tr -d '\n')
+rally verify start --pattern tempest.api.$SERVICE_TYPE*
+rally verify delete-verifier --id ${RALLY_ENV_NAME}-tempest --force
+{{- end }}
 rally task validate /etc/rally/rally_tests.yaml
 rally task start /etc/rally/rally_tests.yaml
 rally deployment destroy --deployment ${RALLY_ENV_NAME}
