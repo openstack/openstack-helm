@@ -56,9 +56,7 @@ openstack user show "${SERVICE_OS_USERID}"
 
 # Manage role
 SERVICE_OS_ROLE_ID=$(openstack role show -f value -c id \
-    --domain="${SERVICE_OS_DOMAIN_ID}" \
     "${SERVICE_OS_ROLE}" || openstack role create -f value -c id \
-    --domain="${SERVICE_OS_DOMAIN_ID}" \
     "${SERVICE_OS_ROLE}" )
 
 # Manage user role assignment
