@@ -94,14 +94,17 @@ spec:
           ports:
             - containerPort: 6789
           livenessProbe:
-              tcpSocket:
-                port: 6789
-              initialDelaySeconds: 60
-              timeoutSeconds: 5
+           exec:
+            command:
+             - /ceph-mon-liveness.sh
+           initialDelaySeconds: 60
+           periodSeconds: 60
           readinessProbe:
-              tcpSocket:
-                port: 6789
-              timeoutSeconds: 5
+           exec:
+            command:
+             - /ceph-mon-readiness.sh
+           initialDelaySeconds: 60
+           periodSeconds: 60
           volumeMounts:
             - name: ceph-bin
               mountPath: /start_mon.sh
@@ -114,6 +117,14 @@ spec:
             - name: ceph-bin
               mountPath: /common_functions.sh
               subPath: common_functions.sh
+              readOnly: true
+            - name: ceph-bin
+              mountPath: /ceph-mon-liveness.sh
+              subPath: ceph-mon-liveness.sh
+              readOnly: true
+            - name: ceph-bin
+              mountPath: /ceph-mon-readiness.sh
+              subPath: ceph-mon-readiness.sh
               readOnly: true
             - name: ceph-etc
               mountPath: /etc/ceph/ceph.conf
