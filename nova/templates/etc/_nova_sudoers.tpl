@@ -1,5 +1,3 @@
-#!/bin/bash
-
 {{/*
 Copyright 2017 The Openstack-Helm Authors.
 
@@ -16,14 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-set -ex
-
-console_kind="{{- .Values.console.console_kind -}}"
-if [ "${console_kind}" == "novnc" ] ; then
-exec nova-compute \
-      --config-file /etc/nova/nova.conf \
-      --config-file /tmp/pod-shared/nova-vnc.ini
-else
-exec nova-compute \
-      --config-file /etc/nova/nova.conf
-fi
+# This sudoers file supports rootwrap for both Kolla and LOCI Images.
+Defaults !requiretty
+Defaults secure_path="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin:/var/lib/openstack/bin:/var/lib/kolla/venv/bin"
+nova ALL = (root) NOPASSWD: /var/lib/kolla/venv/bin/nova-rootwrap /etc/nova/rootwrap.conf *, /var/lib/openstack/bin/nova-rootwrap /etc/nova/rootwrap.conf *

@@ -18,12 +18,8 @@ limitations under the License.
 
 set -ex
 
-console_kind="{{- .Values.console.console_kind -}}"
-if [ "${console_kind}" == "novnc" ] ; then
-exec nova-compute \
-      --config-file /etc/nova/nova.conf \
-      --config-file /tmp/pod-shared/nova-vnc.ini
-else
-exec nova-compute \
-      --config-file /etc/nova/nova.conf
-fi
+# Make the Nova Instances Dir as this is not autocreated.
+mkdir -p /var/lib/nova/instances
+
+# Set Ownership of nova dirs to the nova user
+chown ${NOVA_USER_UID} /var/lib/nova /var/lib/nova/instances

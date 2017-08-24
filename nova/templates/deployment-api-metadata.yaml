@@ -47,6 +47,8 @@ spec:
           image: {{ .Values.images.api }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
 {{ tuple $envAll $envAll.Values.pod.resources.api_metadata | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          securityContext:
+            runAsUser: {{ .Values.pod.user.nova.uid }}
           command:
             - /tmp/nova-api-metadata.sh
             - start
@@ -89,6 +91,29 @@ spec:
             - name: nova-etc
               mountPath: /etc/nova/policy.yaml
               subPath: policy.yaml
+              readOnly: true
+            - name: nova-etc
+              # NOTE (Portdirect): We mount here to overide Kollas custom
+              # sudoers file when using Kolla images, this location will
+              # also work fine for other images.
+              mountPath: /etc/sudoers.d/kolla_nova_sudoers
+              subPath: nova_sudoers
+              readOnly: true
+            - name: nova-etc
+              mountPath: /etc/nova/rootwrap.conf
+              subPath: rootwrap.conf
+              readOnly: true
+            - name: nova-etc
+              mountPath: /etc/nova/rootwrap.d/api-metadata.filters
+              subPath: api-metadata.filters
+              readOnly: true
+            - name: nova-etc
+              mountPath: /etc/nova/rootwrap.d/compute.filters
+              subPath: compute.filters
+              readOnly: true
+            - name: nova-etc
+              mountPath: /etc/nova/rootwrap.d/network.filters
+              subPath: network.filters
               readOnly: true
 {{ if $mounts_nova_api_metadata.volumeMounts }}{{ toYaml $mounts_nova_api_metadata.volumeMounts | indent 12 }}{{ end }}
       volumes:

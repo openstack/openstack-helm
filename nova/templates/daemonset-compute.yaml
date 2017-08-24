@@ -36,17 +36,34 @@ spec:
     spec:
       nodeSelector:
         {{ .Values.labels.agent.compute.node_selector_key }}: {{ .Values.labels.agent.compute.node_selector_value }}
-      securityContext:
-        runAsUser: 0
       hostNetwork: true
       hostPID: true
       dnsPolicy: ClusterFirstWithHostNet
       initContainers:
 {{ tuple $envAll $dependencies $mounts_nova_compute_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+        - name: nova-compute-init
+          image: {{ .Values.images.compute }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+          securityContext:
+            runAsUser: 0
+          env:
+            - name: NOVA_USER_UID
+              value: "{{ .Values.pod.user.nova.uid }}"
+          command:
+            - /tmp/nova-compute-init.sh
+          volumeMounts:
+            - name: nova-bin
+              mountPath: /tmp/nova-compute-init.sh
+              subPath: nova-compute-init.sh
+              readOnly: true
+            - name: varlibnova
+              mountPath: /var/lib/nova
         {{- if .Values.ceph.enabled }}
         - name: ceph-keyring-placement
           image: {{ .Values.images.compute }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
+          securityContext:
+            runAsUser: {{ .Values.pod.user.nova.uid }}
           env:
             - name: CEPH_CINDER_USER
               value: "{{ .Values.ceph.cinder_user }}"
@@ -69,12 +86,12 @@ spec:
               subPath: key
               readOnly: true
         {{ end }}
-        - name: nova-compute-init
+        - name: nova-compute-vnc-init
           image: {{ .Values.images.compute }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
 {{ tuple $envAll $envAll.Values.pod.resources.compute | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           securityContext:
-            privileged: true
+            runAsUser: {{ .Values.pod.user.nova.uid }}
           command:
             - /tmp/nova-vnc-compute-init.sh
           volumeMounts:
@@ -82,29 +99,6 @@ spec:
               mountPath: /tmp/nova-vnc-compute-init.sh
               subPath: nova-vnc-compute-init.sh
               readOnly: true
-            - name: nova-etc
-              mountPath: /etc/nova/nova.conf
-              subPath: nova.conf
-              readOnly: true
-            - name: nova-etc
-              mountPath: /etc/nova/api-paste.ini
-              subPath: api-paste.ini
-              readOnly: true
-            - name: nova-etc
-              mountPath: /etc/ceph/ceph.conf
-              subPath: ceph.conf
-              readOnly: true
-            - mountPath: /lib/modules
-              name: libmodules
-              readOnly: true
-            - name: varlibnova
-              mountPath: /var/lib/nova
-            - name: varliblibvirt
-              mountPath: /var/lib/libvirt
-            - name: run
-              mountPath: /run
-            - name: cgroup
-              mountPath: /sys/fs/cgroup
             - name: pod-shared
               mountPath: /tmp/pod-shared
       containers:
@@ -113,6 +107,7 @@ spec:
           imagePullPolicy: {{ .Values.images.pull_policy }}
 {{ tuple $envAll $envAll.Values.pod.resources.compute | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           securityContext:
+            runAsUser: {{ .Values.pod.user.nova.uid }}
             privileged: true
           {{- if .Values.ceph.enabled }}
           env:
@@ -143,6 +138,29 @@ spec:
             - name: nova-etc
               mountPath: /etc/nova/policy.yaml
               subPath: policy.yaml
+              readOnly: true
+            - name: nova-etc
+              # NOTE (Portdirect): We mount here to overide Kollas custom
+              # sudoers file when using Kolla images, this location will
+              # also work fine for other images.
+              mountPath: /etc/sudoers.d/kolla_nova_sudoers
+              subPath: nova_sudoers
+              readOnly: true
+            - name: nova-etc
+              mountPath: /etc/nova/rootwrap.conf
+              subPath: rootwrap.conf
+              readOnly: true
+            - name: nova-etc
+              mountPath: /etc/nova/rootwrap.d/api-metadata.filters
+              subPath: api-metadata.filters
+              readOnly: true
+            - name: nova-etc
+              mountPath: /etc/nova/rootwrap.d/compute.filters
+              subPath: compute.filters
+              readOnly: true
+            - name: nova-etc
+              mountPath: /etc/nova/rootwrap.d/network.filters
+              subPath: network.filters
               readOnly: true
             {{- if .Values.ceph.enabled }}
             - name: etcceph
