@@ -73,14 +73,22 @@ kube_wait_for_pods openstack ${SERVICE_LAUNCH_TIMEOUT}
 helm install --namespace=openstack ${WORK_DIR}/keystone --name=keystone
 if [ "x$PVC_BACKEND" == "xceph" ]; then
   helm install --namespace=openstack ${WORK_DIR}/glance --name=glance
+  helm install --namespace=openstack ${WORK_DIR}/cinder --name=cinder
 else
   helm install --namespace=openstack ${WORK_DIR}/glance --name=glance \
       --values=${WORK_DIR}/tools/overrides/mvp/glance.yaml
+  helm install --namespace=openstack ${WORK_DIR}/cinder --name=cinder \
+      --values=${WORK_DIR}/tools/overrides/mvp/cinder.yaml
 fi
 kube_wait_for_pods openstack ${SERVICE_LAUNCH_TIMEOUT}
-helm install --namespace=openstack ${WORK_DIR}/nova --name=nova \
-    --values=${WORK_DIR}/tools/overrides/mvp/nova.yaml \
-    --set=conf.nova.libvirt.nova.conf.virt_type=qemu
+if [ "x$PVC_BACKEND" == "xceph" ]; then
+  helm install --namespace=openstack ${WORK_DIR}/nova --name=nova \
+      --set=conf.nova.libvirt.nova.conf.virt_type=qemu
+else
+  helm install --namespace=openstack ${WORK_DIR}/nova --name=nova \
+      --values=${WORK_DIR}/tools/overrides/mvp/nova.yaml \
+      --set=conf.nova.libvirt.nova.conf.virt_type=qemu
+fi
 helm install --namespace=openstack ${WORK_DIR}/neutron --name=neutron \
     --values=${WORK_DIR}/tools/overrides/mvp/neutron.yaml
 kube_wait_for_pods openstack ${SERVICE_LAUNCH_TIMEOUT}
@@ -89,12 +97,6 @@ helm install --namespace=openstack ${WORK_DIR}/heat --name=heat
 kube_wait_for_pods openstack ${SERVICE_LAUNCH_TIMEOUT}
 
 if [ "x$INTEGRATION" == "xmulti" ]; then
-  if [ "x$PVC_BACKEND" == "xceph" ]; then
-    helm install --namespace=openstack ${WORK_DIR}/cinder --name=cinder
-  else
-    helm install --namespace=openstack ${WORK_DIR}/cinder --name=cinder \
-        --values=${WORK_DIR}/tools/overrides/mvp/cinder.yaml
-  fi
   helm install --namespace=openstack ${WORK_DIR}/horizon --name=horizon
   kube_wait_for_pods openstack ${SERVICE_LAUNCH_TIMEOUT}
 

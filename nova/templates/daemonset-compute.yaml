@@ -47,6 +47,15 @@ spec:
         - name: ceph-keyring-placement
           image: {{ .Values.images.compute }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
+          env:
+            - name: CEPH_CINDER_USER
+              value: "{{ .Values.ceph.cinder_user }}"
+            {{- if .Values.ceph.cinder_keyring }}
+            - name: CEPH_CINDER_KEYRING
+              value: "{{ .Values.ceph.cinder_keyring }}"
+            {{ end }}
+            - name: LIBVIRT_CEPH_SECRET_UUID
+              value: "{{ .Values.ceph.secret_uuid }}"
           command:
             - /tmp/ceph-keyring.sh
           volumeMounts:
@@ -85,10 +94,6 @@ spec:
               mountPath: /etc/ceph/ceph.conf
               subPath: ceph.conf
               readOnly: true
-            - name: nova-etc
-              mountPath: /etc/ceph/ceph.client.keyring
-              subPath: ceph.client.keyring
-              readOnly: true
             - mountPath: /lib/modules
               name: libmodules
               readOnly: true
@@ -109,6 +114,17 @@ spec:
 {{ tuple $envAll $envAll.Values.pod.resources.compute | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           securityContext:
             privileged: true
+          {{- if .Values.ceph.enabled }}
+          env:
+            - name: CEPH_CINDER_USER
+              value: "{{ .Values.ceph.cinder_user }}"
+            {{- if .Values.ceph.cinder_keyring }}
+            - name: CEPH_CINDER_KEYRING
+              value: "{{ .Values.ceph.cinder_keyring }}"
+            {{ end }}
+            - name: LIBVIRT_CEPH_SECRET_UUID
+              value: "{{ .Values.ceph.secret_uuid }}"
+          {{ end }}
           command:
             - /tmp/nova-compute.sh
           volumeMounts:

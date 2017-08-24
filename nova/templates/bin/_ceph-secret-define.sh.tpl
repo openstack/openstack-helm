@@ -16,28 +16,43 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+set -x
+LIBVIRT_SECRET_DEF=$(mktemp --suffix .xml)
+function cleanup {
+    rm -f ${LIBVIRT_SECRET_DEF}
+}
+trap cleanup EXIT
+
 set -ex
 # Wait for the libvirtd is up
 TIMEOUT=60
 while [[ ! -f /var/run/libvirtd.pid ]]; do
-    if [[ ${TIMEOUT} -gt 0 ]]; then
-        let TIMEOUT-=1
-        sleep 1
-    else
-        exit 1
-    fi
+  if [[ ${TIMEOUT} -gt 0 ]]; then
+    let TIMEOUT-=1
+    sleep 1
+  else
+    echo "ERROR: Libvirt did not start in time"
+    exit 1
+  fi
 done
 
-cat > /tmp/secret.xml <<EOF
+if [ -z "${LIBVIRT_CEPH_SECRET_UUID}" ] ; then
+  echo "ERROR: No Libvirt Secret UUID Supplied"
+  exit 1
+fi
+
+if [ -z "${CEPH_CINDER_KEYRING}" ] ; then
+  CEPH_CINDER_KEYRING=$(sed -n 's/^[[:space:]]*key[[:blank:]]\+=[[:space:]]\(.*\)/\1/p' /etc/ceph/ceph.client.${CEPH_CINDER_USER}.keyring)
+fi
+
+cat > ${LIBVIRT_SECRET_DEF} <<EOF
 <secret ephemeral='no' private='no'>
-  <uuid>{{ .Values.ceph.secret_uuid }}</uuid>
+  <uuid>${LIBVIRT_CEPH_SECRET_UUID}</uuid>
   <usage type='ceph'>
-    <name>client.{{ .Values.ceph.cinder_user }} secret</name>
+    <name>client.${CEPH_CINDER_USER}. secret</name>
   </usage>
 </secret>
 EOF
 
-virsh secret-define --file /tmp/secret.xml
-virsh secret-set-value --secret {{ .Values.ceph.secret_uuid }} --base64 {{ .Values.ceph.cinder_keyring }}
-
-rm /tmp/secret.xml
+virsh secret-define --file ${LIBVIRT_SECRET_DEF}
+virsh secret-set-value --secret "${LIBVIRT_CEPH_SECRET_UUID}" --base64 "${CEPH_CINDER_KEYRING}"

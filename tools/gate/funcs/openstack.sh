@@ -118,3 +118,24 @@ function openstack_wait_for_stack {
   done
   set -x
 }
+
+function openstack_wait_for_volume {
+  # Default wait timeout is 180 seconds
+  set +x
+  end=$(date +%s)
+  if ! [ -z $3 ]; then
+   end=$((end + $3))
+  else
+   end=$((end + 180))
+  fi
+  while true; do
+      STATUS=$($OPENSTACK volume show $1 -f value -c status)
+      [ $STATUS == "$2" ] && \
+          break || true
+      sleep 1
+      now=$(date +%s)
+      [ $now -gt $end ] && echo "Volume did not become $2 in time." && \
+          $OPENSTACK volume show $1 && exit -1
+  done
+  set -x
+}

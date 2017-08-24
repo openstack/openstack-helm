@@ -71,6 +71,9 @@ export OSH_PRIVATE_SUBNET_POOL_DEF_PREFIX=${OSH_PRIVATE_SUBNET_POOL_DEF_PREFIX:=
 export OSH_VM_FLAVOR=${OSH_VM_FLAVOR:="m1.tiny"}
 export OSH_VM_NAME_CLI=${OSH_VM_NAME_CLI:="osh-smoketest"}
 export OSH_VM_KEY_CLI=${OSH_VM_KEY_CLI:="osh-smoketest-key"}
+export OSH_VOL_NAME_CLI=${OSH_VOL_NAME_CLI:="osh-volume"}
+export OSH_VOL_SIZE_CLI=${OSH_VOL_SIZE_CLI:="1"}
+export OSH_VOL_TYPE_CLI=${OSH_VOL_TYPE_CLI:="rbd1"}
 export OSH_PUB_NET_STACK=${OSH_PUB_NET_STACK:="heat-public-net-deployment"}
 export OSH_SUBNET_POOL_STACK=${OSH_SUBNET_POOL_STACK:="heat-subnet-pool-deployment"}
 export OSH_BASIC_VM_STACK=${OSH_BASIC_VM_STACK:="heat-basic-vm-deployment"}

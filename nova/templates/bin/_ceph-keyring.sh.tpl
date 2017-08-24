@@ -19,13 +19,10 @@ limitations under the License.
 set -ex
 export HOME=/tmp
 
-cat <<EOF > /etc/ceph/ceph.client.keyring
-[client.{{ .Values.ceph.cinder_user }}]
-{{- if .Values.ceph.cinder_keyring }}
-    key = {{ .Values.ceph.cinder_keyring }}
-{{- else }}
-    key = $(cat /tmp/client-keyring)
-{{- end }}
-EOF
-
-exit 0
+CEPH_CINDER_KEYRING_FILE="/etc/ceph/ceph.client.${CEPH_CINDER_USER}.keyring"
+echo "[client.${CEPH_CINDER_USER}]" > ${CEPH_CINDER_KEYRING_FILE}
+if ! [ -z "${CEPH_CINDER_KEYRING}" ] ; then
+  echo "    key = ${CEPH_CINDER_KEYRING}" >> ${CEPH_CINDER_KEYRING_FILE}
+else
+  echo "    key = $(cat /tmp/client-keyring)" >> ${CEPH_CINDER_KEYRING_FILE}
+fi
