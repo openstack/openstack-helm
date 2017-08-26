@@ -65,7 +65,12 @@ if [ "x$PVC_BACKEND" == "xceph" ]; then
 fi
 
 helm install --namespace=openstack ${WORK_DIR}/ingress --name=ingress
-helm install --namespace=openstack ${WORK_DIR}/mariadb --name=mariadb
+if [ "x$INTEGRATION" == "xmulti" ]; then
+  helm install --namespace=openstack ${WORK_DIR}/mariadb --name=mariadb
+else
+  helm install --namespace=openstack ${WORK_DIR}/mariadb --name=mariadb \
+      --set=pod.replicas.server=1
+fi
 helm install --namespace=openstack ${WORK_DIR}/memcached --name=memcached
 helm install --namespace=openstack ${WORK_DIR}/etcd --name=etcd-rabbitmq
 helm install --namespace=openstack ${WORK_DIR}/rabbitmq --name=rabbitmq
@@ -73,12 +78,9 @@ kube_wait_for_pods openstack ${SERVICE_LAUNCH_TIMEOUT}
 helm install --namespace=openstack ${WORK_DIR}/keystone --name=keystone
 if [ "x$PVC_BACKEND" == "xceph" ]; then
   helm install --namespace=openstack ${WORK_DIR}/glance --name=glance
-  helm install --namespace=openstack ${WORK_DIR}/cinder --name=cinder
 else
   helm install --namespace=openstack ${WORK_DIR}/glance --name=glance \
       --values=${WORK_DIR}/tools/overrides/mvp/glance.yaml
-  helm install --namespace=openstack ${WORK_DIR}/cinder --name=cinder \
-      --values=${WORK_DIR}/tools/overrides/mvp/cinder.yaml
 fi
 kube_wait_for_pods openstack ${SERVICE_LAUNCH_TIMEOUT}
 if [ "x$PVC_BACKEND" == "xceph" ]; then
@@ -97,6 +99,12 @@ helm install --namespace=openstack ${WORK_DIR}/heat --name=heat
 kube_wait_for_pods openstack ${SERVICE_LAUNCH_TIMEOUT}
 
 if [ "x$INTEGRATION" == "xmulti" ]; then
+  if [ "x$PVC_BACKEND" == "xceph" ]; then
+    helm install --namespace=openstack ${WORK_DIR}/cinder --name=cinder
+  else
+    helm install --namespace=openstack ${WORK_DIR}/cinder --name=cinder \
+        --values=${WORK_DIR}/tools/overrides/mvp/cinder.yaml
+  fi
   helm install --namespace=openstack ${WORK_DIR}/horizon --name=horizon
   kube_wait_for_pods openstack ${SERVICE_LAUNCH_TIMEOUT}
 
