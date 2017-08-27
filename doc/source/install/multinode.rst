@@ -326,15 +326,15 @@ Ceph Installation and Verification
 
 Install the first service, which is Ceph. If all instructions have been
 followed as mentioned above, this installation should go smoothly. Use
-the following command to install Ceph:
+the following command to install Ceph in the ``openstack-helm`` project folder:
 
 ::
 
-    helm install --namespace=ceph local/ceph --name=ceph \
-      --set manifests_enabled.client_secrets=false \
-      --set network.public=$osd_public_network \
-      --set network.cluster=$osd_cluster_network \
-      --set bootstrap.enabled=true
+  helm install --namespace=ceph ./ceph --name=ceph \
+    --set manifests_enabled.client_secrets=false \
+    --set network.public=$osd_public_network \
+    --set network.cluster=$osd_cluster_network \
+    --set bootstrap.enabled=true
 
 You may want to validate that Ceph is deployed successfully. For more
 information on this, please see the section entitled `Ceph
@@ -351,7 +351,7 @@ deploy the client keyring and ``ceph.conf`` to the ``openstack`` namespace:
 
 ::
 
-    helm install --namespace=openstack local/ceph --name=ceph-openstack-config \
+    helm install --namespace=openstack ./ceph --name=ceph-openstack-config \
       --set manifests_enabled.storage_secrets=false \
       --set manifests_enabled.deployment=false \
       --set ceph.namespace=ceph \
@@ -365,7 +365,7 @@ To install MariaDB, issue the following command:
 
 ::
 
-    helm install --name=mariadb local/mariadb --namespace=openstack
+    helm install --name=mariadb ./mariadb --namespace=openstack
 
 Installation of Other Services
 ------------------------------
@@ -376,30 +376,30 @@ Now you can easily install the other services simply by going in order:
 
 ::
 
-    helm install --name=memcached local/memcached --namespace=openstack
-    helm install --name=etcd-rabbitmq local/etcd --namespace=openstack
-    helm install --name=rabbitmq local/rabbitmq --namespace=openstack
-    helm install --name=ingress local/ingress --namespace=openstack
+    helm install --name=memcached ./memcached --namespace=openstack
+    helm install --name=etcd-rabbitmq ./etcd --namespace=openstack
+    helm install --name=rabbitmq ./rabbitmq --namespace=openstack
+    helm install --name=ingress ./ingress --namespace=openstack
 
 **Install Keystone:**
 
 ::
 
-    helm install --namespace=openstack --name=keystone local/keystone \
+    helm install --namespace=openstack --name=keystone ./keystone \
       --set pod.replicas.api=2
 
 **Install Horizon:**
 
 ::
 
-    helm install --namespace=openstack --name=horizon local/horizon \
+    helm install --namespace=openstack --name=horizon ./horizon \
       --set network.enable_node_port=true
 
 **Install Glance:**
 
 ::
 
-    helm install --namespace=openstack --name=glance local/glance \
+    helm install --namespace=openstack --name=glance ./glance \
       --set pod.replicas.api=2 \
       --set pod.replicas.registry=2
 
@@ -407,20 +407,20 @@ Now you can easily install the other services simply by going in order:
 
 ::
 
-    helm install --namespace=openstack --name=heat local/heat
+    helm install --namespace=openstack --name=heat ./heat
 
 **Install Neutron:**
 
 ::
 
-    helm install --namespace=openstack --name=neutron local/neutron \
+    helm install --namespace=openstack --name=neutron ./neutron \
       --set pod.replicas.server=2
 
 **Install Nova:**
 
 ::
 
-    helm install --namespace=openstack --name=nova local/nova \
+    helm install --namespace=openstack --name=nova ./nova \
       --set pod.replicas.api_metadata=2 \
       --set pod.replicas.osapi=2 \
       --set pod.replicas.conductor=2 \
@@ -432,7 +432,7 @@ Now you can easily install the other services simply by going in order:
 
 ::
 
-    helm install --namespace=openstack --name=cinder local/cinder \
+    helm install --namespace=openstack --name=cinder ./cinder \
       --set pod.replicas.api=2
 
 Final Checks
