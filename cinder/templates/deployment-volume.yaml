@@ -45,6 +45,8 @@ spec:
         - name: ceph-keyring-placement
           image: {{ .Values.images.volume }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
+          securityContext:
+            runAsUser: 0
           command:
             - /tmp/ceph-keyring.sh
           volumeMounts:
@@ -53,6 +55,7 @@ spec:
             - name: cinder-bin
               mountPath: /tmp/ceph-keyring.sh
               subPath: ceph-keyring.sh
+              readOnly: true
             - name: ceph-keyring
               mountPath: /tmp/client-keyring
               subPath: key
@@ -63,6 +66,8 @@ spec:
           image: {{ .Values.images.volume }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
 {{ tuple $envAll $envAll.Values.pod.resources.volume | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          securityContext:
+            runAsUser: {{ .Values.pod.user.cinder.uid }}
           command:
             - /tmp/cinder-volume.sh
           volumeMounts:
@@ -90,6 +95,25 @@ spec:
               subPath: key
               readOnly: true
             {{- end }}
+            - name: cinder-etc
+              # NOTE (Portdirect): We mount here to overide Kollas custom
+              # sudoers file when using Kolla images, this location will
+              # also work fine for other images.
+              mountPath: /etc/sudoers.d/kolla_cinder_sudoers
+              subPath: cinder_sudoers
+              readOnly: true
+            - name: cinder-etc
+              mountPath: /etc/sudoers.d/kolla_cinder_volume_sudoers
+              subPath: cinder_sudoers
+              readOnly: true
+            - name: cinder-etc
+              mountPath: /etc/cinder/rootwrap.conf
+              subPath: rootwrap.conf
+              readOnly: true
+            - name: cinder-etc
+              mountPath: /etc/cinder/rootwrap.d/volume.filters
+              subPath: volume.filters
+              readOnly: true
 {{ if $mounts_cinder_volume.volumeMounts }}{{ toYaml $mounts_cinder_volume.volumeMounts | indent 12 }}{{ end }}
       volumes:
         - name: cinder-bin
