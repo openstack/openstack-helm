@@ -27,14 +27,14 @@ CustomLog /dev/stdout proxy env=forwarded
     WSGIScriptReloading On
     WSGIDaemonProcess horizon-http processes=5 threads=1 user=horizon group=horizon display-name=%{GROUP} python-path=/var/lib/kolla/venv/lib/python2.7/site-packages
     WSGIProcessGroup horizon-http
-    WSGIScriptAlias / /var/lib/kolla/venv/lib/python2.7/site-packages/openstack_dashboard/wsgi/django.wsgi
+    WSGIScriptAlias / /var/www/cgi-bin/horizon/django.wsgi
     WSGIPassAuthorization On
 
     <Location "/">
         Require all granted
     </Location>
 
-    Alias /static /var/lib/kolla/venv/lib/python2.7/site-packages/static
+    Alias /static /var/www/html/horizon
     <Location "/static">
         SetHandler None
     </Location>

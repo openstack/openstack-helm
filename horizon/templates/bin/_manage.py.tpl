@@ -1,8 +1,6 @@
-#!/bin/bash
+#!/usr/bin/env python
 
 {{/*
-Copyright 2017 The Openstack-Helm Authors.
-
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -16,10 +14,21 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-set -ex
+{{/*
+NOTE (Portdirect): This file is required to support Horizon regardless of the
+image used, and to provide PyMySQL support.
+*/}}
 
-SITE_PACKAGES_ROOT=$(python -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())")
-rm -f ${SITE_PACKAGES_ROOT}/openstack_dashboard/local/local_settings.py
-ln -s /etc/openstack-dashboard/local_settings ${SITE_PACKAGES_ROOT}/openstack_dashboard/local/local_settings.py
+import os
+import sys
 
-exec /tmp/manage.py migrate --noinput
+import pymysql
+
+pymysql.install_as_MySQLdb()
+
+from django.core.management import execute_from_command_line
+
+if __name__ == "__main__":
+    os.environ.setdefault("DJANGO_SETTINGS_MODULE",
+                          "openstack_dashboard.settings")
+    execute_from_command_line(sys.argv)

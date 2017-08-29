@@ -47,6 +47,8 @@ spec:
           image: {{ .Values.images.horizon }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
 {{ tuple $envAll $envAll.Values.pod.resources.server | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          securityContext:
+            runAsUser: 0
           command:
             - /tmp/horizon.sh
             - start
@@ -62,23 +64,63 @@ spec:
             tcpSocket:
               port: {{ .Values.network.port }}
           volumeMounts:
-            - name: startsh
+            - name: static-horizon
+              mountPath: /var/www/html/
+            - name: horizon-bin
               mountPath: /tmp/horizon.sh
               subPath: horizon.sh
+              readOnly: true
+            - name: horizon-bin
+              mountPath: /tmp/manage.py
+              subPath: manage.py
               readOnly: true
             - name: horizon-etc
               mountPath: /etc/apache2/sites-enabled/000-default.conf
               subPath: horizon.conf
               readOnly: true
+            - name: horizon-bin
+              mountPath: /var/www/cgi-bin/horizon/django.wsgi
+              subPath: django.wsgi
+              readOnly: true
             - name: horizon-etc
               mountPath: /etc/openstack-dashboard/local_settings
               subPath: local_settings
               readOnly: true
+            - name: horizon-etc
+              mountPath: /etc/openstack-dashboard/ceilometer_policy.json
+              subPath: ceilometer_policy.json
+              readOnly: true
+            - name: horizon-etc
+              mountPath: /etc/openstack-dashboard/cinder_policy.json
+              subPath: cinder_policy.json
+              readOnly: true
+            - name: horizon-etc
+              mountPath: /etc/openstack-dashboard/glance_policy.json
+              subPath: glance_policy.json
+              readOnly: true
+            - name: horizon-etc
+              mountPath: /etc/openstack-dashboard/heat_policy.json
+              subPath: heat_policy.json
+              readOnly: true
+            - name: horizon-etc
+              mountPath: /etc/openstack-dashboard/keystone_policy.json
+              subPath: keystone_policy.json
+              readOnly: true
+            - name: horizon-etc
+              mountPath: /etc/openstack-dashboard/neutron_policy.json
+              subPath: neutron_policy.json
+              readOnly: true
+            - name: horizon-etc
+              mountPath: /etc/openstack-dashboard/nova_policy.json
+              subPath: nova_policy.json
+              readOnly: true
 {{ if $mounts_horizon.volumeMounts }}{{ toYaml $mounts_horizon.volumeMounts | indent 12 }}{{ end }}
-          securityContext:
-            runAsUser: 0
       volumes:
-        - name: startsh
+        - name: wsgi-horizon
+          emptyDir: {}
+        - name: static-horizon
+          emptyDir: {}
+        - name: horizon-bin
           configMap:
             name: horizon-bin
             defaultMode: 0555
