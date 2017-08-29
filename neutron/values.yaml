@@ -32,6 +32,7 @@ images:
   metadata: docker.io/kolla/ubuntu-source-neutron-metadata-agent:3.0.3
   l3: docker.io/kolla/ubuntu-source-neutron-l3-agent:3.0.3
   neutron_openvswitch_agent: docker.io/kolla/ubuntu-source-neutron-openvswitch-agent:3.0.3
+  neutron_linuxbridge_agent: docker.io/kolla/ubuntu-source-neutron-linuxbridge-agent:3.0.3
   openvswitch_db_server: docker.io/kolla/ubuntu-source-openvswitch-db-server:3.0.3
   openvswitch_vswitchd: docker.io/kolla/ubuntu-source-openvswitch-vswitchd:3.0.3
   dep_check: docker.io/kolla/ubuntu-source-kubernetes-entrypoint:4.0.0
@@ -44,6 +45,9 @@ labels:
   # with our daemonset scheduling
   ovs:
       node_selector_key: openvswitch
+      node_selector_value: enabled
+  lb:
+      node_selector_key: linuxbridge
       node_selector_value: enabled
   agent:
     dhcp:
@@ -60,6 +64,9 @@ labels:
     node_selector_value: enabled
 
 network:
+  # provide what type of network wiring will be used
+  # possible options: ovs, linuxbridge
+  backend: ovs
   external_bridge: br-ex
   ip_address: 0.0.0.0
   interface:
@@ -138,6 +145,7 @@ dependencies:
     - service: compute
       endpoint: internal
     daemonset:
+    # this should be set to corresponding neutron L2 agent
     - ovs-agent
   metadata:
     services:
@@ -148,8 +156,15 @@ dependencies:
     - service: compute
       endpoint: internal
     daemonset:
+    # this should be set to corresponding neutron L2 agent
     - ovs-agent
   ovs_agent:
+    services:
+    - service: oslo_messaging
+      endpoint: internal
+    - service: network
+      endpoint: internal
+  lb_agent:
     services:
     - service: oslo_messaging
       endpoint: internal
@@ -164,6 +179,7 @@ dependencies:
     - service: compute
       endpoint: internal
     daemonset:
+    # this should be set to corresponding neutron L2 agent
     - ovs-agent
   tests:
     services:
@@ -198,6 +214,9 @@ pod:
     neutron_l3_agent:
       init_container: null
       neutron_l3_agent:
+    neutron_lb_agent:
+      init_container: null
+      neutron_lb_agent:
     neutron_metadata_agent:
       init_container: null
       neutron_metadata_agent:
@@ -228,6 +247,10 @@ pod:
           max_unavailable: 1
         l3_agent:
           enabled: false
+          min_ready_seconds: 0
+          max_unavailable: 1
+        lb_agent:
+          enabled: true
           min_ready_seconds: 0
           max_unavailable: 1
         metadata_agent:
@@ -263,6 +286,13 @@ pod:
           memory: "1024Mi"
           cpu: "2000m"
       l3:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      lb:
         requests:
           memory: "128Mi"
           cpu: "100m"
@@ -599,9 +629,11 @@ conf:
         default_availability_zones: nova
         api_workers: 4
         allow_overlapping_ips: True
+        # core_plugin can be: ml2, calico
         core_plugin: ml2
+        # service_plugin can be: router, odl-router, empty for calico,
+        # networking_ovn.l3.l3_ovn.OVNL3RouterPlugin for OVN
         service_plugins: router
-        interface_driver: openvswitch
         metadata_proxy_socket: /var/lib/neutron/openstack-helm/metadata_proxy
         db:
           allow_automatic_l3agent_failover: True
@@ -613,6 +645,7 @@ conf:
           network_auto_schedule: True
           router_auto_schedule: True
         agent:
+          # we can define here, which driver we are using: openvswitch or linuxbridge
           interface_driver: openvswitch
     oslo_concurrency:
       oslo:
@@ -654,6 +687,8 @@ conf:
       neutron:
         ml2:
           extension_drivers: port_security
+          # mechnism_drivers can be: openvswitch, linuxbridge,
+          # opendaylight, ovn
           mechanism_drivers: openvswitch,l2population
           type_drivers: flat,vlan,vxlan
           tenant_network_types: vxlan
@@ -683,6 +718,8 @@ conf:
       neutron:
         base:
           agent:
+            # we can define here, which driver we are using:
+            # openvswitch or linuxbridge
             interface_driver: openvswitch
         dhcp:
           agent:
@@ -696,6 +733,8 @@ conf:
       neutron:
         base:
           agent:
+            # we can define here, which driver we are using:
+            # openvswitch or linuxbridge
             interface_driver: openvswitch
         l3:
           agent:
@@ -754,6 +793,30 @@ conf:
   linuxbridge_agent:
     override:
     append:
+    linux_bridge:
+      neutron:
+        ml2:
+          linuxbridge:
+            agent:
+              # To define Flat and VLAN connections, in LB we can assign
+              # specific interface to the flat/vlan network name using:
+              # physical_interface_mappings: "external:eth3"
+              # Or we can set the mapping between the network and bridge:
+              bridge_mappings: "external:br-ex"
+              # The two above options are exclusive, do not use both of them at once
+    securitygroup:
+      neutron:
+        ml2:
+          linuxbridge:
+            agent:
+              firewall_driver: neutron.agent.linux.iptables_firewall.IptablesFirewallDriver
+    vxlan:
+      neutron:
+        ml2:
+          linuxbridge:
+            agent:
+              l2_population: True
+              arp_responder: True
 
 # Names of secrets used by bootstrap and environmental checks
 secrets:
@@ -870,6 +933,7 @@ manifests:
   configmap_etc: true
   daemonset_dhcp_agent: true
   daemonset_l3_agent: true
+  daemonset_lb_agent: false
   daemonset_metadata_agent: true
   daemonset_ovs_agent: true
   daemonset_ovs_db: true

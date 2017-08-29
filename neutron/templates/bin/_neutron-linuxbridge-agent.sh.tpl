@@ -16,11 +16,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-set -x
-exec neutron-l3-agent \
-      --config-file /etc/neutron/neutron.conf \
-      --config-file /etc/neutron/l3_agent.ini \
-      --config-file /etc/neutron/plugins/ml2/ml2_conf.ini
-{{- if eq .Values.network.backend "ovs" }} \
-      --config-file /etc/neutron/plugins/ml2/openvswitch_agent.ini
-{{- end }}
+set -ex
+
+exec neutron-linuxbridge-agent \
+  --config-file /etc/neutron/neutron.conf \
+  --config-file /etc/neutron/plugins/ml2/ml2_conf.ini \
+  --config-file /tmp/pod-shared/ml2-local-ip.ini \
+  --config-file /etc/neutron/plugins/ml2/linuxbridge_agent.ini

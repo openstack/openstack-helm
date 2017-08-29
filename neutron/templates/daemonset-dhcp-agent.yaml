@@ -63,10 +63,14 @@ spec:
               mountPath: /etc/neutron/plugins/ml2/ml2_conf.ini
               subPath: ml2_conf.ini
               readOnly: true
+            {{- if eq .Values.network.backend "ovs" }}
             - name: neutron-etc
               mountPath: /etc/neutron/plugins/ml2/openvswitch_agent.ini
               subPath: openvswitch_agent.ini
               readOnly: true
+            - name: runopenvswitch
+              mountPath: /run/openvswitch
+            {{- end }}
             - name: neutron-etc
               mountPath: /etc/neutron/dhcp_agent.ini
               subPath: dhcp_agent.ini
@@ -126,8 +130,6 @@ spec:
               mountPath: /etc/neutron/rootwrap.d/openvswitch-plugin.filters
               subPath: openvswitch-plugin.filters
               readOnly: true
-            - name: runopenvswitch
-              mountPath: /run/openvswitch
             - name: socket
               mountPath: /var/lib/neutron/openstack-helm
 {{ if $mounts_neutron_dhcp_agent.volumeMounts }}{{ toYaml $mounts_neutron_dhcp_agent.volumeMounts | indent 12 }}{{ end }}
@@ -140,9 +142,11 @@ spec:
           configMap:
             name: neutron-etc
             defaultMode: 0444
+        {{- if eq .Values.network.backend "ovs" }}
         - name: runopenvswitch
           hostPath:
             path: /run/openvswitch
+        {{- end }}
         - name: socket
           hostPath:
             path: /var/lib/neutron/openstack-helm
