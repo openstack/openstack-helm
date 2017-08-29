@@ -63,10 +63,14 @@ spec:
               mountPath: /etc/neutron/plugins/ml2/ml2_conf.ini
               subPath: ml2_conf.ini
               readOnly: true
+            {{- if eq .Values.network.backend "ovs" }}
             - name: neutron-etc
               mountPath: /etc/neutron/plugins/ml2/openvswitch_agent.ini
               subPath: openvswitch_agent.ini
               readOnly: true
+            - name: runopenvswitch
+              mountPath: /run/openvswitch
+            {{- end }}
             - name: neutron-etc
               mountPath: /etc/neutron/l3_agent.ini
               subPath: l3_agent.ini
@@ -122,8 +126,6 @@ spec:
               mountPath: /etc/neutron/rootwrap.d/openvswitch-plugin.filters
               subPath: openvswitch-plugin.filters
               readOnly: true
-            - name: runopenvswitch
-              mountPath: /run/openvswitch
             - name: libmodules
               mountPath: /lib/modules
               readOnly: true
@@ -139,9 +141,11 @@ spec:
           configMap:
             name: neutron-etc
             defaultMode: 0444
+        {{- if eq .Values.network.backend "ovs" }}
         - name: runopenvswitch
           hostPath:
             path: /run/openvswitch
+        {{- end }}
         - name: libmodules
           hostPath:
             path: /lib/modules
