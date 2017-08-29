@@ -1,0 +1,224 @@
+# Copyright 2017 The Openstack-Helm Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+labels:
+  job:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+
+images:
+  tags:
+    dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.2.1
+    tempest_run_tests: docker.io/kolla/ubuntu-source-tempest:3.0.3
+    ks_user: docker.io/openstackhelm/heat:newton
+  pull_policy: "IfNotPresent"
+
+pod:
+  user:
+    tempest:
+      uid: 1000
+  resources:
+    enabled: false
+    jobs:
+      ks_user:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      run_tests:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+
+dependencies:
+  static:
+    ks_user:
+      services:
+      - service: identity
+        endpoint: internal
+    run_tests:
+      jobs:
+      - tempest-ks-user
+      services:
+      - service: identity
+        endpoint: internal
+
+conf:
+  script: |
+    tempest run --smoke
+  # The following sections can be used to blacklist and whitelist specific tests.
+  # If either section is not empty, it will be used to create an entry in the
+  # tempest-etc configmap and will be mounted into the tempest-run-tests pod
+  # blacklist:
+  #   - (?:tempest\.api\.identity\.admin\.v3\.test_groups\.GroupsV3TestJSON\.test_list_groups)
+  #   - (?:tempest\.api\.image\.v2\.test_images\.ListSharedImagesTest\.test_list_images_param_member_status)
+  #   - (?:tempest\.scenario\.test_encrypted_cinder_volumes\.TestEncryptedCinderVolumes\.test_encrypted_cinder_volumes_cryptsetup)
+  #   - (?:tempest\.scenario\.test_encrypted_cinder_volumes\.TestEncryptedCinderVolumes\.test_encrypted_cinder_volumes_luks)
+  #   - (?:tempest\.api\.network\.test_networks\.NetworksIpV6Test\.test_external_network_visibility)
+  #   - (?:tempest\.api\.network\.test_networks\.NetworksTest\.test_external_network_visibility)
+  #   - (?:tempest\.scenario\.test_network_v6\.TestGettingAddress\.test_dualnet_multi_prefix_slaac)
+  #   - (?:tempest\.scenario\.test_network_v6\.TestGettingAddress\.test_dualnet_multi_prefix_dhcpv6_stateless)
+  #   - (?:tempest\.scenario\.test_network_basic_ops\.TestNetworkBasicOps\.test_update_router_admin_state)
+  #   - (?:tempest\.scenario\.test_network_basic_ops\.TestNetworkBasicOps\.test_router_rescheduling)
+  #   - (?:tempest\.scenario\.test_network_basic_ops\.TestNetworkBasicOps\.test_update_instance_port_admin_state)
+  # whitelist:
+  #   - (?:tempest\.api\.identity\.admin\.v3\.test_groups\.GroupsV3TestJSON\.test_list_groups)
+  #   - (?:tempest\.api\.image\.v2\.test_images\.ListSharedImagesTest\.test_list_images_param_member_status)
+  #   - (?:tempest\.scenario\.test_encrypted_cinder_volumes\.TestEncryptedCinderVolumes\.test_encrypted_cinder_volumes_cryptsetup)
+  #   - (?:tempest\.scenario\.test_encrypted_cinder_volumes\.TestEncryptedCinderVolumes\.test_encrypted_cinder_volumes_luks)
+  #   - (?:tempest\.api\.network\.test_networks\.NetworksIpV6Test\.test_external_network_visibility)
+  #   - (?:tempest\.api\.network\.test_networks\.NetworksTest\.test_external_network_visibility)
+  #   - (?:tempest\.scenario\.test_network_v6\.TestGettingAddress\.test_dualnet_multi_prefix_slaac)
+  #   - (?:tempest\.scenario\.test_network_v6\.TestGettingAddress\.test_dualnet_multi_prefix_dhcpv6_stateless)
+  #   - (?:tempest\.scenario\.test_network_basic_ops\.TestNetworkBasicOps\.test_update_router_admin_state)
+  #   - (?:tempest\.scenario\.test_network_basic_ops\.TestNetworkBasicOps\.test_router_rescheduling)
+  #   - (?:tempest\.scenario\.test_network_basic_ops\.TestNetworkBasicOps\.test_update_instance_port_admin_state)
+  tempest:
+    auth:
+      use_dynamic_credentials: true
+      admin_domain_scope: true
+      tempest_roles: admin, _member_
+      min_compute_nodes: 1
+    identity:
+      auth_version: v3
+    identity-feature-enabled:
+      api_v2: false
+      api_v3: true
+    image:
+      http_image: "http://download.cirros-cloud.net/0.3.5/cirros-0.3.5-x86_64-disk.img"
+      container_formats: bare
+      disk_formats: raw
+    network:
+      dns_servers: 10.96.0.10
+      project_networks_reachable: false
+      shared_physical_network: true
+    network-feature-enabled:
+      floating_ips: true
+      api_extensions:
+        - default-subnetpools
+        - network-ip-availability
+        - network_availability_zone
+        - auto-allocated-topology
+        - ext-gw-mode
+        - binding
+        - agent
+        - subnet_allocation
+        - l3_agent_scheduler
+        - tag
+        - external-net
+        - flavors
+        - net-mtu
+        - availability_zone
+        - quotas
+        - l3-ha
+        - provider
+        - multi-provider
+        - address-scope
+        - extraroute
+        - subnet-service-types
+        - standard-attr-timestamp
+        - service-type
+        - l3-flavors
+        - port-security
+        - extra_dhcp_opt
+        - standard-attr-revisions
+        - pagination
+        - sorting
+        - security-group
+        - dhcp_agent_scheduler
+        - router_availability_zone
+        - rbac-policies
+        - standard-attr-description
+        - router
+        - allowed-address-pairs
+        - project-id
+        - dvr
+    service_available:
+      cinder: true
+      glance: true
+      # The following services are marked as unavailable by default. The default
+      # tempest image used includes a bug resulting in failed network tests that
+      # wasn't fixed in newton. Swift is disabled by default as the swift chart
+      # isn't complete
+      neutron: false
+      nova: false
+      swift: false
+    validation:
+      connect_method: floating
+    volume:
+      disk_formats: raw
+      backend_name: rbd1
+      storage_protocol: rbd
+    volume-feature-enabled:
+      api_v1: False
+      api_v3: True
+
+pvc:
+  enabled: true
+  name: pvc-tempest
+  requests:
+    storage: 2Gi
+  storage_class: general
+
+secrets:
+  identity:
+    admin: tempest-keystone-admin
+    tempest: tempest-keystone-user
+
+endpoints:
+  cluster_domain_suffix: cluster.local
+  identity:
+    name: keystone
+    auth:
+      admin:
+        region_name: RegionOne
+        username: admin
+        password: password
+        project_name: admin
+        user_domain_name: default
+        project_domain_name: default
+      tempest:
+        role: admin
+        region_name: RegionOne
+        username: tempest
+        password: password
+        project_name: service
+        user_domain_name: default
+        project_domain_name: default
+    hosts:
+      default: keystone-api
+      public: keystone
+    host_fqdn_override:
+      default: null
+    path:
+      default: /v3
+    scheme:
+      default: http
+    port:
+      admin:
+        default: 35357
+      api:
+        default: 80
+
+manifests:
+  configmap_bin: true
+  configmap_etc: true
+  job_ks_user: true
+  job_run_tests: true
+  secret_keystone: true
