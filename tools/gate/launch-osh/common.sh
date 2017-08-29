@@ -18,20 +18,20 @@ source ${WORK_DIR}/tools/gate/funcs/helm.sh
 source ${WORK_DIR}/tools/gate/funcs/kube.sh
 source ${WORK_DIR}/tools/gate/funcs/network.sh
 
-# NOTE(portdirect): Temp workaround until module loading is supported by
-# OpenStack-Helm in Fedora
-if [ "x$HOST_OS" == "xfedora" ]; then
-  sudo modprobe openvswitch
-  sudo modprobe gre
-  sudo modprobe vxlan
-  sudo modprobe ip6_tables
-fi
-
 if [ "x$PVC_BACKEND" == "xceph" ]; then
   kubectl label nodes ceph-mon=enabled --all
   kubectl label nodes ceph-osd=enabled --all
   kubectl label nodes ceph-mds=enabled --all
   kubectl label nodes ceph-rgw=enabled --all
+fi
+
+if [ "x$SDN_PLUGIN" == "xovs" ]; then
+  kubectl label nodes openvswitch=enabled --all --namespace=openstack --overwrite
+elif [ "x$SDN_PLUGIN" == "xlinuxbridge" ]; then
+  # first unlabel nodes with 'openvswitch' tag, which is applied by default
+  # by kubeadm-aio docker image
+  kubectl label nodes openvswitch- --all --namespace=openstack --overwrite
+  kubectl label nodes linuxbridge=enabled --all --namespace=openstack --overwrite
 fi
 
 helm install --namespace=openstack ${WORK_DIR}/dns-helper --name=dns-helper

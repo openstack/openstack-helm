@@ -12,6 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+function sdn_lb_support_install {
+  if [ "x$HOST_OS" == "xubuntu" ]; then
+    sudo apt-get update -y
+    sudo apt-get install -y --no-install-recommends \
+      bridge-utils
+  elif [ "x$HOST_OS" == "xcentos" ]; then
+    sudo yum install -y \
+      bridge-utils
+  elif [ "x$HOST_OS" == "xfedora" ]; then
+    sudo dnf install -y \
+      bridge-utils
+  fi
+}
+
 function base_install {
   if [ "x$HOST_OS" == "xubuntu" ]; then
     sudo apt-get update -y
@@ -39,7 +53,23 @@ function base_install {
       nmap \
       lshw
   fi
+
+  if [ "x$SDN_PLUGIN" == "xlinuxbridge" ]; then
+    sdn_lb_support_install
+  fi
+
+  # NOTE(portdirect): Temp workaround until module loading is supported by
+  # OpenStack-Helm in Fedora
+  if [ "x$HOST_OS" == "xfedora" ]; then
+    sudo modprobe openvswitch
+    sudo modprobe ebtables
+    sudo modprobe gre
+    sudo modprobe vxlan
+    sudo modprobe ip6_tables
+  fi
 }
+
+
 
 function loopback_support_install {
   if [ "x$HOST_OS" == "xubuntu" ]; then

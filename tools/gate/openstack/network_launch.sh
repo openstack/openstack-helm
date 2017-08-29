@@ -28,9 +28,11 @@ sudo ip link set br-ex up
 # Setup masquerading on default route dev to public subnet
 sudo iptables -t nat -A POSTROUTING -o $(net_default_iface) -s ${OSH_EXT_SUBNET} -j MASQUERADE
 
-# Disable In-Band rules on br-ex bridge to ease debugging
-OVS_VSWITCHD_POD=$(kubectl get -n openstack pods -l application=openvswitch,component=openvswitch-vswitchd --no-headers -o name | head -1 | awk -F '/' '{ print $NF }')
-kubectl exec -n openstack ${OVS_VSWITCHD_POD} -- ovs-vsctl set Bridge br-ex other_config:disable-in-band=true
+if [ "x$SDN_PLUGIN" == "xovs" ]; then
+  # Disable In-Band rules on br-ex bridge to ease debugging
+  OVS_VSWITCHD_POD=$(kubectl get -n openstack pods -l application=openvswitch,component=openvswitch-vswitchd --no-headers -o name | head -1 | awk -F '/' '{ print $NF }')
+  kubectl exec -n openstack ${OVS_VSWITCHD_POD} -- ovs-vsctl set Bridge br-ex other_config:disable-in-band=true
+fi
 
 
 if ! $OPENSTACK service list -f value -c Type | grep -q orchestration; then
