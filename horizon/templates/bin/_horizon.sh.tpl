@@ -20,6 +20,13 @@ set -ex
 COMMAND="${@:-start}"
 
 function start () {
+  SITE_PACKAGES_ROOT=$(python -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())")
+  rm -f ${SITE_PACKAGES_ROOT}/openstack_dashboard/local/local_settings.py
+  ln -s /etc/openstack-dashboard/local_settings ${SITE_PACKAGES_ROOT}/openstack_dashboard/local/local_settings.py
+
+  # wsgi/horizon-http needs open files here, including secret_key_store
+  chown -R horizon ${SITE_PACKAGES_ROOT}/openstack_dashboard/local/
+
   if [ -f /etc/apache2/envvars ]; then
      # Loading Apache2 ENV variables
      source /etc/apache2/envvars
@@ -28,12 +35,9 @@ function start () {
   APACHE_DIR="apache2"
 
   # Compress Horizon's assets.
-  /var/lib/kolla/venv/bin/manage.py collectstatic --noinput
-  /var/lib/kolla/venv/bin/manage.py compress --force
+  /tmp/manage.py collectstatic --noinput
+  /tmp/manage.py compress --force
   rm -rf /tmp/_tmp_.secret_key_store.lock /tmp/.secret_key_store
-
-  # wsgi/horizon-http needs open files here, including secret_key_store
-  chown -R horizon /var/lib/kolla/venv/lib/python2.7/site-packages/openstack_dashboard/local/
 
   exec apache2 -DFOREGROUND
 }
