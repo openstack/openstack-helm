@@ -31,7 +31,20 @@ while [[ ! -f /var/run/libvirtd.pid ]]; do
     let TIMEOUT-=1
     sleep 1
   else
-    echo "ERROR: Libvirt did not start in time"
+    echo "ERROR: Libvirt did not start in time (pid file missing)"
+    exit 1
+  fi
+done
+
+# Even though we see the pid file the socket immediately (this is
+# needed for virsh)
+TIMEOUT=10
+while [[ ! -e /var/run/libvirt/libvirt-sock ]]; do
+  if [[ ${TIMEOUT} -gt 0 ]]; then
+    let TIMEOUT-=1
+    sleep 1
+  else
+    echo "ERROR: Libvirt did not start in time (socket missing)"
     exit 1
   fi
 done
