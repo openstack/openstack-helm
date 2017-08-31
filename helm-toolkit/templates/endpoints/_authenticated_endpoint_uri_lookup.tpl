@@ -30,11 +30,9 @@ limitations under the License.
 {{- $context := index . 4 -}}
 {{- $endpointMap := index $context.Values.endpoints $type }}
 {{- $userMap := index $endpointMap.auth $userclass }}
-{{- $fqdn := default "svc.cluster.local" $context.Release.Namespace -}}
-{{- if $context.Values.endpoints.fqdn -}}
-{{- $fqdn := $context.Values.endpoints.fqdn -}}
-{{- end -}}
+{{- $clusterSuffix := printf "%s.%s" "svc" $context.Values.endpoints.cluster_domain_suffix }}
 {{- with $endpointMap -}}
+{{- $namespace := .namespace | default $context.Release.Namespace }}
 {{- $endpointScheme := .scheme }}
 {{- $endpointUser := index $userMap "username" }}
 {{- $endpointPass := index $userMap "password" }}
@@ -42,6 +40,8 @@ limitations under the License.
 {{- $endpointPortMAP := index .port $port }}
 {{- $endpointPort := index $endpointPortMAP $endpoint | default (index $endpointPortMAP "default") }}
 {{- $endpointPath := .path | default "" }}
-{{- printf "%s://%s:%s@%s.%s:%1.f%s" $endpointScheme $endpointUser $endpointPass $endpointHost $fqdn $endpointPort $endpointPath -}}
+{{- $endpointClusterHostname := printf "%s.%s.%s" $endpointHost $namespace $clusterSuffix }}
+{{- $endpointHostname := index .host_fqdn_overide $endpoint | default .host_fqdn_overide.default | default $endpointClusterHostname }}
+{{- printf "%s://%s:%s@%s:%1.f%s" $endpointScheme $endpointUser $endpointPass $endpointHostname $endpointPort $endpointPath -}}
 {{- end -}}
 {{- end -}}

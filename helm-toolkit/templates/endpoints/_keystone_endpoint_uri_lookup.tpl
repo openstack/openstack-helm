@@ -24,17 +24,17 @@ limitations under the License.
 {{- $endpoint := index . 1 -}}
 {{- $port := index . 2 -}}
 {{- $context := index . 3 -}}
+{{- $clusterSuffix := printf "%s.%s" "svc" $context.Values.endpoints.cluster_domain_suffix }}
 {{- $endpointMap := index $context.Values.endpoints $type }}
-{{- $fqdn := default "svc.cluster.local" $context.Release.Namespace -}}
-{{- if $context.Values.endpoints.fqdn -}}
-{{- $fqdn := $context.Values.endpoints.fqdn -}}
-{{- end -}}
 {{- with $endpointMap -}}
+{{- $namespace := $endpointMap.namespace | default $context.Release.Namespace }}
 {{- $endpointScheme :=  index .scheme $endpoint | default .scheme.default }}
 {{- $endpointHost := index .hosts $endpoint | default .hosts.default }}
 {{- $endpointPortMAP := index .port $port }}
 {{- $endpointPort := index $endpointPortMAP $endpoint | default (index $endpointPortMAP "default") }}
 {{- $endpointPath := index .path $endpoint | default .path.default | default "/" }}
-{{- printf "%s://%s.%s:%1.f%s" $endpointScheme $endpointHost $fqdn $endpointPort $endpointPath -}}
+{{- $endpointClusterHostname := printf "%s.%s.%s" $endpointHost $namespace $clusterSuffix }}
+{{- $endpointHostname := index .host_fqdn_overide $endpoint | default .host_fqdn_overide.default | default $endpointClusterHostname }}
+{{- printf "%s://%s:%1.f%s" $endpointScheme $endpointHostname $endpointPort $endpointPath -}}
 {{- end -}}
 {{- end -}}

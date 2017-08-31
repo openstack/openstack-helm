@@ -15,20 +15,22 @@ limitations under the License.
 */}}
 
 # This function returns hostnames from endpoint definitions for use cases
-# where the uri style return is not appropriate, and only the short hostname or
-# kubernetes servicename is used or relevant in the template:
-# { tuple "memcache" "internal" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }
-# returns: the short internal hostname, which will also match the service name
+# where the uri style return is not appropriate, and only the hostname
+# portion is used or relevant in the template:
+# { tuple "memcache" "internal" . | include "helm-toolkit.endpoints.hostname_namespaced_endpoint_lookup" }
+# returns: internal_host_namespaced
 
-{{- define "helm-toolkit.endpoints.hostname_short_endpoint_lookup" -}}
+{{- define "helm-toolkit.endpoints.hostname_namespaced_endpoint_lookup" -}}
 {{- $type := index . 0 -}}
 {{- $endpoint := index . 1 -}}
 {{- $context := index . 2 -}}
 {{- $endpointMap := index $context.Values.endpoints $type }}
 {{- with $endpointMap -}}
+{{- $namespace := .namespace | default $context.Release.Namespace }}
 {{- $endpointScheme := .scheme }}
-{{- $endpointHost := index .hosts $endpoint | default .hosts.default}}
-{{- $endpointHostname := printf "%s" $endpointHost }}
+{{- $endpointHost := index .hosts $endpoint | default .hosts.default }}
+{{- $endpointClusterHostname := printf "%s.%s" $endpointHost $namespace }}
+{{- $endpointHostname := index .host_fqdn_overide $endpoint | default .host_fqdn_overide.default | default $endpointClusterHostname }}
 {{- printf "%s" $endpointHostname -}}
 {{- end -}}
 {{- end -}}
