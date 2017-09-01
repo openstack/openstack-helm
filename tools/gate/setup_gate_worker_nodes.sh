@@ -44,7 +44,7 @@ rm -rf ${SUB_NODE_PROVISION_SCRIPT}
 
 source ${WORK_DIR}/tools/gate/funcs/kube.sh
 kube_wait_for_nodes ${SUB_NODE_COUNT} 240
-kube_wait_for_pods kube-system 240
+kube_wait_for_pods kube-system ${POD_START_TIMEOUT}
 kube_wait_for_pods openstack 240
 kubectl get nodes --show-all
 kubectl get --all-namespaces all --show-all
