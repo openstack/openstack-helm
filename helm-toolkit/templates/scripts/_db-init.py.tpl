@@ -53,18 +53,18 @@ else:
 
 # Get the connection string for the service db
 if "OPENSTACK_CONFIG_FILE" in os.environ:
+    os_conf = os.environ['OPENSTACK_CONFIG_FILE']
+    if "OPENSTACK_CONFIG_DB_SECTION" in os.environ:
+        os_conf_section = os.environ['OPENSTACK_CONFIG_DB_SECTION']
+    else:
+        logger.critical('environment variable OPENSTACK_CONFIG_DB_SECTION not set')
+        sys.exit(1)
+    if "OPENSTACK_CONFIG_DB_KEY" in os.environ:
+        os_conf_key = os.environ['OPENSTACK_CONFIG_DB_KEY']
+    else:
+        logger.critical('environment variable OPENSTACK_CONFIG_DB_KEY not set')
+        sys.exit(1)
     try:
-        os_conf = os.environ['OPENSTACK_CONFIG_FILE']
-        if "OPENSTACK_CONFIG_DB_SECTION" in os.environ:
-            os_conf_section = os.environ['OPENSTACK_CONFIG_DB_SECTION']
-        else:
-            logger.critical('environment variable OPENSTACK_CONFIG_DB_SECTION not set')
-            sys.exit(1)
-        if "OPENSTACK_CONFIG_DB_KEY" in os.environ:
-            os_conf_key = os.environ['OPENSTACK_CONFIG_DB_KEY']
-        else:
-            logger.critical('environment variable OPENSTACK_CONFIG_DB_KEY not set')
-            sys.exit(1)
         config = ConfigParser.RawConfigParser()
         logger.info("Using {0} as db config source".format(os_conf))
         config.read(os_conf)
@@ -74,7 +74,7 @@ if "OPENSTACK_CONFIG_FILE" in os.environ:
         logger.info("Got config from {0}".format(os_conf))
     except:
         logger.critical("Tried to load config from {0} but failed.".format(os_conf))
-        sys.exit(1)
+        raise
 elif "DB_CONNECTION" in os.environ:
     user_db_conn = os.environ['DB_CONNECTION']
     logger.info('Got config from DB_CONNECTION env var')
@@ -99,7 +99,6 @@ try:
 except:
     logger.critical('Could not connect to database as root user')
     raise
-    sys.exit(1)
 
 # User DB engine
 try:
@@ -112,7 +111,6 @@ try:
 except:
     logger.critical('Could not get user database config')
     raise
-    sys.exit(1)
 
 # Create DB
 try:
@@ -121,7 +119,6 @@ try:
 except:
     logger.critical("Could not create database {0}".format(database))
     raise
-    sys.exit(1)
 
 # Create DB User
 try:
@@ -132,7 +129,6 @@ try:
 except:
     logger.critical("Could not create user {0} for {1}".format(user, database))
     raise
-    sys.exit(1)
 
 # Test connection
 try:
@@ -143,7 +139,6 @@ try:
 except:
     logger.critical('Could not connect to database as user')
     raise
-    sys.exit(1)
 
 logger.info('Finished DB Management')
 {{- end }}
