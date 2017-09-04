@@ -23,13 +23,13 @@ limitations under the License.
 apiVersion: extensions/v1beta1
 kind: DaemonSet
 metadata:
-  name: ovs-agent
+  name: neutron-ovs-agent
 spec:
 {{ tuple $envAll "ovs_agent" | include "helm-toolkit.snippets.kubernetes_upgrades_daemonset" | indent 2 }}
   template:
     metadata:
       labels:
-{{ tuple $envAll "neutron" "ovs-agent" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+{{ tuple $envAll "neutron" "neutron-ovs-agent" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
       annotations:
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
@@ -40,7 +40,7 @@ spec:
       hostNetwork: true
       initContainers:
 {{ tuple $envAll $dependencies $mounts_neutron_ovs_agent_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
-        - name: ovs-agent-init
+        - name: neutron-ovs-agent-init
           image: {{ .Values.images.neutron_openvswitch_agent }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
 {{ tuple $envAll $envAll.Values.pod.resources.agent.ovs | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
@@ -126,7 +126,7 @@ spec:
               mountPath: /run
 {{ if $mounts_neutron_ovs_agent.volumeMounts }}{{ toYaml $mounts_neutron_ovs_agent.volumeMounts | indent 12 }}{{ end }}
       containers:
-        - name: ovs-agent
+        - name: neutron-ovs-agent
           image: {{ .Values.images.neutron_openvswitch_agent }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
 {{ tuple $envAll $envAll.Values.pod.resources.agent.ovs | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}

@@ -23,13 +23,13 @@ limitations under the License.
 apiVersion: extensions/v1beta1
 kind: DaemonSet
 metadata:
-  name: lb-agent
+  name: neutron-lb-agent
 spec:
 {{ tuple $envAll "lb_agent" | include "helm-toolkit.snippets.kubernetes_upgrades_daemonset" | indent 2 }}
   template:
     metadata:
       labels:
-{{ tuple $envAll "neutron" "lb-agent" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+{{ tuple $envAll "neutron" "neutron-lb-agent" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
       annotations:
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
@@ -40,7 +40,7 @@ spec:
       hostNetwork: true
       initContainers:
 {{ tuple $envAll $dependencies $mounts_neutron_lb_agent_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
-        - name: lb-agent-init
+        - name: neutron-lb-agent-init
           image: {{ .Values.images.neutron_linuxbridge_agent }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
 {{ tuple $envAll $envAll.Values.pod.resources.agent.lb | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
@@ -126,7 +126,7 @@ spec:
               mountPath: /run
 {{ if $mounts_neutron_lb_agent.volumeMounts }}{{ toYaml $mounts_neutron_lb_agent.volumeMounts | indent 12 }}{{ end }}
       containers:
-        - name: lb-agent
+        - name: neutron-lb-agent
           image: {{ .Values.images.neutron_linuxbridge_agent }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
 {{ tuple $envAll $envAll.Values.pod.resources.agent.lb | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
