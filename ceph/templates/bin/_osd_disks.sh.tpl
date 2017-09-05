@@ -1,6 +1,17 @@
 #!/bin/bash
 set -ex
 
+function get_osd_dev {
+  for i in ${OSD_DISKS}
+   do
+    osd_id=$(echo ${i}|sed 's/\(.*\):\(.*\)/\1/')
+    osd_dev="/dev/$(echo ${i}|sed 's/\(.*\):\(.*\)/\2/')"
+    if [ ${osd_id} = ${1} ]; then
+      echo -n "${osd_dev}"
+    fi
+  done
+}
+
 function osd_disks {
   if [[ ! -d /var/lib/ceph/osd ]]; then
     log "ERROR- could not find the osd directory, did you bind mount the OSD data directory?"

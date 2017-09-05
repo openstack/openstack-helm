@@ -2,7 +2,7 @@
 # LIST OF ALL DAEMON SCENARIOS AVAILABLE #
 ##########################################
 
-ALL_SCENARIOS="populate_kvstore mon osd osd_directory osd_directory_single osd_ceph_disk osd_ceph_disk_prepare osd_ceph_disk_activate osd_ceph_activate_journal mds rgw rgw_user restapi nfs zap_device mon_health"
+ALL_SCENARIOS="osd osd_directory osd_directory_single osd_ceph_disk osd_ceph_disk_prepare osd_ceph_disk_activate osd_ceph_activate_journal"
 
 
 #########################
@@ -43,16 +43,6 @@ ALL_SCENARIOS="populate_kvstore mon osd osd_directory osd_directory_single osd_c
 : ${RGW_REMOTE_CGI_PORT:=9000}
 : ${RGW_REMOTE_CGI_HOST:=0.0.0.0}
 : ${RGW_USER:="cephnfs"}
-: ${RESTAPI_IP:=0.0.0.0}
-: ${RESTAPI_PORT:=5000}
-: ${RESTAPI_BASE_URL:=/api/v0.1}
-: ${RESTAPI_LOG_LEVEL:=warning}
-: ${RESTAPI_LOG_FILE:=/var/log/ceph/ceph-restapi.log}
-: ${KV_TYPE:=none} # valid options: etcd, k8s|kubernetes or none
-: ${KV_IP:=127.0.0.1}
-: ${KV_PORT:=4001}
-: ${GANESHA_OPTIONS:=""}
-: ${GANESHA_EPOCH:=""} # For restarting
 
 # This is ONLY used for the CLI calls, e.g: ceph $CLI_OPTS health
 CLI_OPTS="--cluster ${CLUSTER}"
@@ -61,18 +51,6 @@ CLI_OPTS="--cluster ${CLUSTER}"
 DAEMON_OPTS="--cluster ${CLUSTER} --setuser ceph --setgroup ceph -d"
 
 MOUNT_OPTS="-t xfs -o noatime,inode64"
-ETCDCTL_OPTS="--peers ${KV_IP}:${KV_PORT}"
-
-# make sure etcd uses http or https as a prefix
-if [[ "$KV_TYPE" == "etcd" ]]; then
-  if [ -n "${KV_CA_CERT}" ]; then
-        CONFD_NODE_SCHEMA="https://"
-    KV_TLS="--ca-file=${KV_CA_CERT} --cert-file=${KV_CLIENT_CERT} --key-file=${KV_CLIENT_KEY}"
-    CONFD_KV_TLS="-scheme=https -client-ca-keys=${KV_CA_CERT} -client-cert=${KV_CLIENT_CERT} -client-key=${KV_CLIENT_KEY}"
-  else
-    CONFD_NODE_SCHEMA="http://"
-  fi
-fi
 
 # Internal variables
 MDS_KEYRING=/var/lib/ceph/mds/${CLUSTER}-${MDS_NAME}/keyring

@@ -1,5 +1,9 @@
 #!/bin/bash
 set -ex
+export LC_ALL=C
+
+source variables_entrypoint.sh
+source common_functions.sh
 
 function watch_mon_health {
 
@@ -11,3 +15,5 @@ function watch_mon_health {
     sleep 30
   done
 }
+
+watch_mon_health

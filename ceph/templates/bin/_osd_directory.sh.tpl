@@ -1,6 +1,14 @@
 #!/bin/bash
 set -ex
 
+function is_integer {
+  # This function is about saying if the passed argument is an integer
+  # Supports also negative integers
+  # We use $@ here to consider everything given as parameter and not only the
+  # first one : that's mainly for splited strings like "10 10"
+  [[ $@ =~ ^-?[0-9]+$ ]]
+}
+
 function osd_directory {
   if [[ ! -d /var/lib/ceph/osd ]]; then
     log "ERROR- could not find the osd directory, did you bind mount the OSD data directory?"

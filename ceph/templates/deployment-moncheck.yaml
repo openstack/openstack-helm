@@ -33,37 +33,51 @@ spec:
 {{ tuple $envAll "ceph" "moncheck" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
       nodeSelector:
         {{ .Values.labels.mon.node_selector_key }}: {{ .Values.labels.mon.node_selector_value }}
+      serviceAccount: default
       initContainers:
 {{ tuple $envAll $dependencies "" | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
-      serviceAccount: default
+        - name: ceph-init-dirs
+          image: {{ .Values.images.daemon }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+          command:
+            - /tmp/init_dirs.sh
+          volumeMounts:
+            - name: ceph-bin
+              mountPath: /tmp/init_dirs.sh
+              subPath: init_dirs.sh
+              readOnly: true
+            - name: ceph-bin
+              mountPath: /variables_entrypoint.sh
+              subPath: variables_entrypoint.sh
+              readOnly: true
+            - name: pod-var-lib-ceph
+              mountPath: /var/lib/ceph
+              readOnly: false
       containers:
         - name: ceph-mon
           image: {{ .Values.images.daemon }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
 {{ tuple $envAll $envAll.Values.pod.resources.moncheck | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-          ports:
-            - containerPort: 6789
           env:
             - name: K8S_HOST_NETWORK
               value: "1"
-            - name: CEPH_DAEMON
-              value: MON_HEALTH
-            - name: KV_TYPE
-              value: k8s
-            - name: MON_IP_AUTO_DETECT
-              value: "1"
-            - name: CLUSTER
-              value: ceph
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.namespace
           command:
-            - /entrypoint.sh
+            - /watch_mon_health.sh
+          ports:
+            - containerPort: 6789
           volumeMounts:
-            - name: ceph-bin
-              mountPath: /entrypoint.sh
-              subPath: entrypoint.sh
-              readOnly: true
             - name: ceph-bin
               mountPath: /watch_mon_health.sh
               subPath: watch_mon_health.sh
+              readOnly: true
+            - name: ceph-bin
+              mountPath: /check_zombie_mons.py
+              subPath: check_zombie_mons.py
               readOnly: true
             - name: ceph-bin
               mountPath: /common_functions.sh
@@ -93,10 +107,12 @@ spec:
               mountPath: /var/lib/ceph/bootstrap-rgw/ceph.keyring
               subPath: ceph.keyring
               readOnly: false
-            - name: ceph-bin
-              mountPath: /check_zombie_mons.py
-              subPath: check_zombie_mons.py
-              readOnly: true
+            - name: pod-var-lib-ceph
+              mountPath: /var/lib/ceph
+              readOnly: false
+            - name: pod-run
+              mountPath: /run
+              readOnly: false
       volumes:
         - name: ceph-etc
           configMap:
@@ -106,6 +122,11 @@ spec:
           configMap:
             name: ceph-bin
             defaultMode: 0555
+        - name: pod-var-lib-ceph
+          emptyDir: {}
+        - name: pod-run
+          emptyDir:
+            medium: "Memory"
         - name: ceph-client-admin-keyring
           secret:
             secretName: {{ .Values.secrets.keyrings.admin }}

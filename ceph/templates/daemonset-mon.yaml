@@ -30,31 +30,43 @@ spec:
     spec:
       nodeSelector:
         {{ .Values.labels.mon.node_selector_key }}: {{ .Values.labels.mon.node_selector_value }}
-      initContainers:
-{{ tuple $envAll $dependencies "" | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       hostNetwork: true
       dnsPolicy: {{ .Values.pod.dns_policy }}
       serviceAccount: default
+      initContainers:
+{{ tuple $envAll $dependencies "" | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+        - name: ceph-init-dirs
+          image: {{ .Values.images.daemon }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+          command:
+            - /tmp/init_dirs.sh
+          volumeMounts:
+            - name: ceph-bin
+              mountPath: /tmp/init_dirs.sh
+              subPath: init_dirs.sh
+              readOnly: true
+            - name: ceph-bin
+              mountPath: /variables_entrypoint.sh
+              subPath: variables_entrypoint.sh
+              readOnly: true
+            - name: pod-var-lib-ceph
+              mountPath: /var/lib/ceph
+              readOnly: false
+            - name: pod-run
+              mountPath: /run
+              readOnly: false
       containers:
         - name: ceph-mon
           image: {{ .Values.images.daemon }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
 {{ tuple $envAll $envAll.Values.pod.resources.osd | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-          ports:
-            - containerPort: 6789
           env:
             - name: K8S_HOST_NETWORK
               value: "1"
             - name: MONMAP
               value: /var/lib/ceph/mon/monmap
             - name: CEPH_DAEMON
-              value: MON
-            - name: KV_TYPE
-              value: k8s
-            - name: CLUSTER
-              value: ceph
-            - name: NETWORK_AUTO_DETECT
-              value: "0"
+              value: mon
             - name: CEPH_PUBLIC_NETWORK
               value: {{ .Values.network.public | quote }}
             - name: MON_IP
@@ -62,18 +74,15 @@ spec:
                 fieldRef:
                   fieldPath: status.podIP
           command:
-            - /entrypoint.sh
+            - /start_mon.sh
           lifecycle:
             preStop:
                 exec:
-                  # remove the mon on Pod stop.
                   command:
-                    - "/remove-mon.sh"
+                    - /remove-mon.sh
+          ports:
+            - containerPort: 6789
           volumeMounts:
-            - name: ceph-bin
-              mountPath: /entrypoint.sh
-              subPath: entrypoint.sh
-              readOnly: true
             - name: ceph-bin
               mountPath: /start_mon.sh
               subPath: start_mon.sh
@@ -102,10 +111,6 @@ spec:
               mountPath: /variables_entrypoint.sh
               subPath: variables_entrypoint.sh
               readOnly: true
-            - name: ceph-bin
-              mountPath: /config.k8s.sh
-              subPath: config.k8s.sh
-              readOnly: true
             - name: ceph-bootstrap-osd-keyring
               mountPath: /var/lib/ceph/bootstrap-osd/ceph.keyring
               subPath: ceph.keyring
@@ -117,6 +122,12 @@ spec:
             - name: ceph-bootstrap-rgw-keyring
               mountPath: /var/lib/ceph/bootstrap-rgw/ceph.keyring
               subPath: ceph.keyring
+              readOnly: false
+            - name: pod-var-lib-ceph
+              mountPath: /var/lib/ceph
+              readOnly: false
+            - name: pod-run
+              mountPath: /run
               readOnly: false
           livenessProbe:
               tcpSocket:
@@ -136,6 +147,11 @@ spec:
           configMap:
             name: ceph-etc
             defaultMode: 0444
+        - name: pod-var-lib-ceph
+          emptyDir: {}
+        - name: pod-run
+          emptyDir:
+            medium: "Memory"
         - name: ceph-client-admin-keyring
           secret:
             secretName: {{ .Values.secrets.keyrings.admin }}
