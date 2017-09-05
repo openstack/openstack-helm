@@ -38,5 +38,8 @@
      ,{etcd_port, {{ .Values.endpoints.etcd.port }}}
      ,{node_type, {{ .Values.autocluster.node_type }} }
    ]}
+   ,{rabbitmq_management, [
+      {listener, [{port, {{ .Values.network.port.management }}}]}
+   ]}
 ].
 % EOF
