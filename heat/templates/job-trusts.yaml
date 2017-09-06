@@ -14,6 +14,9 @@
 
 {{- $envAll := . }}
 {{- $dependencies := .Values.dependencies.trusts }}
+{{- $mounts_heat_trusts := .Values.pod.mounts.heat_trusts.heat_trusts }}
+{{- $mounts_heat_trusts_init := .Values.pod.mounts.heat_trusts.init_container }}
+
 ---
 apiVersion: batch/v1
 kind: Job
@@ -21,12 +24,15 @@ metadata:
   name: heat-trusts
 spec:
   template:
+    metadata:
+      labels:
+{{ tuple $envAll "heat" "trusts" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
     spec:
       restartPolicy: OnFailure
       nodeSelector:
         {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
       initContainers:
-{{ tuple $envAll $dependencies "[]" | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll $dependencies $mounts_heat_trusts_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
         - name: heat-trusts
           image: {{ $envAll.Values.images.ks_service }}
@@ -40,6 +46,7 @@ spec:
               mountPath: /tmp/trusts.sh
               subPath: trusts.sh
               readOnly: true
+{{ if $mounts_heat_trusts.volumeMounts }}{{ toYaml $mounts_heat_trusts.volumeMounts | indent 12 }}{{ end }}
           env:
 {{- with $env := dict "ksUserSecret" $envAll.Values.secrets.identity.admin }}
 {{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 12 }}
@@ -52,3 +59,5 @@ spec:
         - name: heat-bin
           configMap:
             name: heat-bin
+            defaultMode: 0555
+{{ if $mounts_heat_trusts.volumes }}{{ toYaml $mounts_heat_trusts.volumes | indent 8 }}{{ end }}
