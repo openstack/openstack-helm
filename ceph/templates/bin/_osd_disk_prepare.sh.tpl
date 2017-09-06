@@ -47,8 +47,11 @@ function osd_disk_prepare {
   if [[ ${OSD_BLUESTORE} -eq 1 ]]; then
     ceph-disk -v prepare ${CLI_OPTS} --bluestore ${OSD_DEVICE}
   elif [[ ${OSD_DMCRYPT} -eq 1 ]]; then
-    check_admin_key
     # the admin key must be present on the node
+    if [[ ! -e $ADMIN_KEYRING ]]; then
+      log "ERROR- $ADMIN_KEYRING must exist; get it from your existing mon"
+      exit 1
+    fi
     # in order to store the encrypted key in the monitor's k/v store
     ceph-disk -v prepare ${CLI_OPTS} --journal-uuid ${OSD_JOURNAL_UUID} --lockbox-uuid ${OSD_LOCKBOX_UUID} --dmcrypt ${OSD_DEVICE} ${OSD_JOURNAL}
     echo "Unmounting LOCKBOX directory"

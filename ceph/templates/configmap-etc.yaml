@@ -14,12 +14,27 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- $envAll := . }}
+
 {{- if empty .Values.conf.ceph.config.global.mon_host -}}
 {{- $monHost := tuple "ceph_mon" "internal" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
 {{- $monHostDomain := default .Release.Namespace .Values.ceph.namespace }}
 {{- $monHostURI := cat $monHost "." $monHostDomain | nospace -}}
-{{- $monHostURI |  set .Values.conf.ceph.config.global "mon_host" | quote | trunc 0 -}}
+{{- $monHostURI | set .Values.conf.ceph.config.global "mon_host" | quote | trunc 0 -}}
 {{- end -}}
+
+{{- if empty .Values.conf.ceph.config.global.fsid -}}
+{{- uuidv4 | set .Values.conf.ceph.config.global "fsid" | quote | trunc 0 -}}
+{{- end -}}
+
+{{- if empty .Values.conf.ceph.config.osd.cluster_network -}}
+{{- .Values.network.cluster | set .Values.conf.ceph.config.osd "cluster_network" | quote | trunc 0 -}}
+{{- end -}}
+
+{{- if empty .Values.conf.ceph.config.osd.public_network -}}
+{{- .Values.network.public | set .Values.conf.ceph.config.osd "public_network" | quote | trunc 0 -}}
+{{- end -}}
+
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -27,4 +42,4 @@ metadata:
   name: ceph-etc
 data:
   ceph.conf: |+
-{{ tuple "etc/_ceph.conf.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
+{{ include "helm-toolkit.utils.to_ini" .Values.conf.ceph.config | indent 4 }}
