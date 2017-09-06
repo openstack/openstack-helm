@@ -175,7 +175,7 @@ def main():
         # time to make sure k8s reloads the secrets in all pods and then
         # execute `credential_migrate`.
 
-        migrate_wait = os.environ['KEYSTONE_CREDENTIAL_MIGRATE_WAIT']
+        migrate_wait = int(os.getenv('KEYSTONE_CREDENTIAL_MIGRATE_WAIT', "60"))
         LOG.info("Waiting %d seconds to execute `credential_migrate`.",
                  migrate_wait)
         time.sleep(migrate_wait)
