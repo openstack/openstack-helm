@@ -70,3 +70,10 @@ It is also possible to customise the CNI used in the deployment:
 
     export KUBE_CNI=calico # or "canal" "weave" "flannel"
     export CNI_POD_CIDR=192.168.0.0/16
+
+If you wish to deploy using Armada then you just need to export the following
+variable:
+
+.. code:: bash
+
+    export INTEGRATION_TYPE=armada

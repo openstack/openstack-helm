@@ -28,7 +28,8 @@ limitations under the License.
 {{- $userclass := index . 2 -}}
 {{- $port := index . 3 -}}
 {{- $context := index . 4 -}}
-{{- $endpointMap := index $context.Values.endpoints $type }}
+{{- $typeYamlSafe := $type | replace "-" "_" }}
+{{- $endpointMap := index $context.Values.endpoints $typeYamlSafe }}
 {{- $userMap := index $endpointMap.auth $userclass }}
 {{- $clusterSuffix := printf "%s.%s" "svc" $context.Values.endpoints.cluster_domain_suffix }}
 {{- with $endpointMap -}}

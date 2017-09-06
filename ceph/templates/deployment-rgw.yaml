@@ -14,9 +14,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if .Values.manifests_enabled.deployment }}
-{{- if .Values.ceph.enabled.rgw }}
+{{- if .Values.manifests.deployment_rgw }}
 {{- $envAll := . }}
+{{- if .Values.deployment.ceph }}
+{{- if .Values.ceph.enabled.rgw }}
 {{- $dependencies := .Values.dependencies.rgw }}
 ---
 kind: Deployment
@@ -24,7 +25,7 @@ apiVersion: apps/v1beta1
 metadata:
   name: ceph-rgw
 spec:
-  replicas: {{ .Values.replicas.rgw }}
+  replicas: {{ .Values.pod.replicas.rgw }}
   template:
     metadata:
       labels:
@@ -57,6 +58,38 @@ spec:
             - name: pod-run
               mountPath: /run
               readOnly: false
+{{ if .Values.ceph.rgw_keystone_auth }}
+        - name: ceph-rgw-ks-init
+          image: {{ .Values.images.daemon }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+{{ tuple $envAll $envAll.Values.pod.resources.rgw | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.name
+{{- with $env := dict "ksUserSecret" .Values.secrets.identity.user_rgw }}
+{{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 12 }}
+{{- end }}
+            - name: KEYSTONE_URL
+              value: {{ tuple "identity" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" | trimSuffix .Values.endpoints.identity.path.default | quote }}
+            - name: RGW_CIVETWEB_PORT
+              value: "{{ .Values.network.port.rgw }}"
+          command:
+            - /tmp/init_rgw_ks.sh
+          volumeMounts:
+            - name: pod-etc-ceph
+              mountPath: /etc/ceph
+            - name: ceph-bin
+              mountPath: /tmp/init_rgw_ks.sh
+              subPath: init_rgw_ks.sh
+              readOnly: true
+            - name: ceph-etc
+              mountPath: /tmp/ceph.conf
+              subPath: ceph.conf
+              readOnly: true
+{{ end }}
       containers:
         - name: ceph-rgw
           image: {{ .Values.images.daemon }}
@@ -64,23 +97,31 @@ spec:
 {{ tuple $envAll $envAll.Values.pod.resources.rgw | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           env:
             - name: RGW_CIVETWEB_PORT
-              value: "{{ .Values.network.port.rgw_target }}"
+              value: "{{ .Values.network.port.rgw }}"
           command:
             - /start_rgw.sh
           ports:
-            - containerPort: {{ .Values.network.port.rgw_target }}
+            - containerPort: {{ .Values.network.port.rgw }}
           livenessProbe:
               httpGet:
                 path: /
-                port: {{ .Values.network.port.rgw_target }}
+                port: {{ .Values.network.port.rgw }}
               initialDelaySeconds: 120
               timeoutSeconds: 5
           readinessProbe:
               httpGet:
                 path: /
-                port: {{ .Values.network.port.rgw_target }}
+                port: {{ .Values.network.port.rgw }}
               timeoutSeconds: 5
           volumeMounts:
+            - name: pod-etc-ceph
+              mountPath: /etc/ceph
+{{- if not .Values.ceph.rgw_keystone_auth }}
+            - name: ceph-etc
+              mountPath: /ceph/ceph.conf
+              subPath: ceph.conf
+              readOnly: true
+{{- end }}
             - name: ceph-bin
               mountPath: /start_rgw.sh
               subPath: start_rgw.sh
@@ -88,10 +129,6 @@ spec:
             - name: ceph-bin
               mountPath: /common_functions.sh
               subPath: common_functions.sh
-              readOnly: true
-            - name: ceph-etc
-              mountPath: /etc/ceph/ceph.conf
-              subPath: ceph.conf
               readOnly: true
             - name: ceph-client-admin-keyring
               mountPath: /etc/ceph/ceph.client.admin.keyring
@@ -120,6 +157,8 @@ spec:
               mountPath: /run
               readOnly: false
       volumes:
+        - name: pod-etc-ceph
+          emptyDir: {}
         - name: ceph-bin
           configMap:
             name: ceph-bin
@@ -148,5 +187,6 @@ spec:
         - name: ceph-bootstrap-rgw-keyring
           secret:
             secretName: {{ .Values.secrets.keyrings.rgw }}
+{{- end }}
 {{- end }}
 {{- end }}

@@ -14,16 +14,20 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-# This function is used in endpoint management templates
-# it returns the service type for an openstack service eg:
-# { tuple orchestration . | include "keystone_endpoint_name_lookup" }
-# will return "heat"
-
-{{- define "helm-toolkit.endpoints.keystone_endpoint_name_lookup" -}}
-{{- $type := index . 0 -}}
-{{- $context := index . 1 -}}
-{{- $typeYamlSafe := $type | replace "-" "_" }}
-{{- $endpointMap := index $context.Values.endpoints $typeYamlSafe }}
-{{- $endpointName := index $endpointMap "name" }}
-{{- $endpointName | quote -}}
-{{- end -}}
+{{- if .Values.manifests.configmap_bin_ks }}
+{{- $envAll := . }}
+{{- if .Values.deployment.rgw_keystone_user_and_endpoints }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ceph-bin-ks
+data:
+  ks-service.sh: |+
+{{- include "helm-toolkit.scripts.keystone_service" . | indent 4 }}
+  ks-endpoints.sh: |+
+{{- include "helm-toolkit.scripts.keystone_endpoints" . | indent 4 }}
+  ks-user.sh: |+
+{{- include "helm-toolkit.scripts.keystone_user" . | indent 4 }}
+{{- end }}
+{{- end }}

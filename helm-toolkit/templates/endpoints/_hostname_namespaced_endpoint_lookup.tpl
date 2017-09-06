@@ -24,7 +24,8 @@ limitations under the License.
 {{- $type := index . 0 -}}
 {{- $endpoint := index . 1 -}}
 {{- $context := index . 2 -}}
-{{- $endpointMap := index $context.Values.endpoints $type }}
+{{- $typeYamlSafe := $type | replace "-" "_" }}
+{{- $endpointMap := index $context.Values.endpoints $typeYamlSafe }}
 {{- with $endpointMap -}}
 {{- $namespace := .namespace | default $context.Release.Namespace }}
 {{- $endpointScheme := .scheme }}

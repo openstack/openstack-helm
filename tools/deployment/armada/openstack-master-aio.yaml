@@ -68,13 +68,26 @@ data:
             - component: osd-keyring-generator
             - release_group: osh-ceph
   values:
-    manifests_enabled:
-      client_secrets: False
-    bootstrap:
-      enabled: True
+    endpoints:
+      identity:
+        namespace: openstack
+      object_store:
+        namespace: ceph
+      ceph_mon:
+        namespace: ceph
+    ceph:
+      rgw_keystone_auth: true
     network:
       public: 192.168.0.0/16
       cluster: 192.168.0.0/16
+    deployment:
+      storage_secrets: true
+      ceph: true
+      rbd_provisioner: true
+      client_secrets: false
+      rgw_keystone_user_and_endpoints: false
+    bootstrap:
+      enabled: true
     conf:
       ceph:
         config:
@@ -112,14 +125,31 @@ data:
             - component: namespace-client-key-generator
             - release_group: osh-ceph
   values:
+    endpoints:
+      identity:
+        namespace: openstack
+      object_store:
+        namespace: ceph
+      ceph_mon:
+        namespace: ceph
     ceph:
-      namespace: ceph
-    manifests_enabled:
-      deployment: False
-      storage_secrets: False
+      rgw_keystone_auth: true
     network:
       public: 192.168.0.0/16
       cluster: 192.168.0.0/16
+    deployment:
+      storage_secrets: false
+      ceph: false
+      rbd_provisioner: false
+      client_secrets: true
+      rgw_keystone_user_and_endpoints: false
+    conf:
+      ceph:
+        config:
+          global:
+            osd_pool_default_size: 1
+          osd:
+            osd_crush_chooseleaf_type: 0
   source:
     type: local
     location: /opt/openstack-helm/charts
@@ -332,6 +362,54 @@ data:
     type: local
     location: /opt/openstack-helm/charts
     subpath: keystone
+    reference: master
+  dependencies:
+    - helm-toolkit
+---
+schema: armada/Chart/v1
+metadata:
+  schema: metadata/Document/v1
+  name: ceph-radosgw-keystone
+data:
+  chart_name: ceph-radosgw-keystone
+  release: ceph-radosgw-keystone
+  namespace: openstack
+  timeout: 3600
+  install:
+    no_hooks: false
+  upgrade:
+    no_hooks: false
+  values:
+    endpoints:
+      identity:
+        namespace: openstack
+      object_store:
+        namespace: ceph
+      endpoints:
+        ceph_mon:
+          namespace: ceph
+    ceph:
+      rgw_keystone_auth: true
+    network:
+      public: 192.168.0.0/16
+      cluster: 192.168.0.0/16
+    deployment:
+      storage_secrets: false
+      ceph: false
+      rbd_provisioner: false
+      client_secrets: false
+      rgw_keystone_user_and_endpoints: true
+    conf:
+      ceph:
+        config:
+          global:
+            osd_pool_default_size: 1
+          osd:
+            osd_crush_chooseleaf_type: 0
+  source:
+    type: local
+    location: /opt/openstack-helm/charts
+    subpath: ceph
     reference: master
   dependencies:
     - helm-toolkit
@@ -760,6 +838,7 @@ data:
   sequenced: False
   chart_group:
     - keystone
+    - ceph-radosgw-keystone
     - horizon
     - glance
     - neutron

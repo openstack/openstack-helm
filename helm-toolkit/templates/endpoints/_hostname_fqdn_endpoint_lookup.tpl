@@ -24,8 +24,9 @@ limitations under the License.
 {{- $type := index . 0 -}}
 {{- $endpoint := index . 1 -}}
 {{- $context := index . 2 -}}
+{{- $typeYamlSafe := $type | replace "-" "_" }}
 {{- $clusterSuffix := printf "%s.%s" "svc" $context.Values.endpoints.cluster_domain_suffix }}
-{{- $endpointMap := index $context.Values.endpoints $type }}
+{{- $endpointMap := index $context.Values.endpoints $typeYamlSafe }}
 {{- with $endpointMap -}}
 {{- $namespace := .namespace | default $context.Release.Namespace }}
 {{- $endpointScheme := .scheme }}

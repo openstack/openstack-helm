@@ -37,6 +37,10 @@ export KUBE_CNI=${KUBE_CNI:="calico"}
 # Set PVC Backend
 export PVC_BACKEND=${PVC_BACKEND:-"ceph"}
 
+# Set Object Storage options
+export CEPH_RGW_KEYSTONE_ENABLED=${CEPH_RGW_KEYSTONE_ENABLED:-"true"}
+export OPENSTACK_OBJECT_STORAGE=${OPENSTACK_OBJECT_STORAGE:-"radosgw"}
+
 # Set Upstream DNS
 export UPSTREAM_DNS=${UPSTREAM_DNS:-"8.8.8.8"}
 
