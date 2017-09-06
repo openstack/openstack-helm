@@ -30,7 +30,7 @@ limitations under the License.
 {{- $endpointScheme := .scheme }}
 {{- $endpointHost := index .hosts $endpoint | default .hosts.default }}
 {{- $endpointClusterHostname := printf "%s.%s" $endpointHost $namespace }}
-{{- $endpointHostname := index .host_fqdn_overide $endpoint | default .host_fqdn_overide.default | default $endpointClusterHostname }}
+{{- $endpointHostname := index .host_fqdn_override $endpoint | default .host_fqdn_override.default | default $endpointClusterHostname }}
 {{- printf "%s" $endpointHostname -}}
 {{- end -}}
 {{- end -}}
