@@ -95,7 +95,7 @@ Using git, clone the repository that holds all of the OpenStack service charts.
 
 ::
 
-      git clone https://github.com/openstack/openstack-helm.git
+      git clone https://git.openstack.org/openstack/openstack-helm.git
       cd openstack-helm
 
 Setup Helm client
@@ -143,6 +143,17 @@ Using the Dockerfile defined in tools/kubeadm-aio directory, build the
       export KUBEADM_IMAGE=openstackhelm/kubeadm-aio:v1.6.8
       sudo docker build --pull -t ${KUBEADM_IMAGE} tools/kubeadm-aio
 
+CNI Configuration
+-----------------
+
+Before deploying AIO, you may optionally set additional parameters which
+control aspects of the CNI used:
+
+::
+
+      export KUBE_CNI=calico # or "canal" "weave" "flannel"
+      export CNI_POD_CIDR=192.168.0.0/16
+
 Deploy
 ------
 
@@ -160,6 +171,25 @@ displayed during execution.
       export KUBECONFIG=${HOME}/.kubeadm-aio/admin.conf
       mkdir -p  ${HOME}/.kube
       cat ${KUBECONFIG} > ${HOME}/.kube/config
+
+Dummy Neutron Networks
+----------------------
+
+If you wish to create dummy network devices for Neutron to manage there is a
+helper script that can set them up for you:
+
+::
+
+      sudo docker exec kubelet /usr/bin/openstack-helm-aio-network-prep
+
+Logs
+----
+
+You can get the logs from your kubeadm-aio container by running:
+
+::
+
+      sudo docker logs -f kubeadm-aio
 
 Helm Chart Installation
 =======================
