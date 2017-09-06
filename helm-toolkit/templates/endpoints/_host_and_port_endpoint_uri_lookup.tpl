@@ -36,7 +36,7 @@ limitations under the License.
 {{- $endpointPortMAP := index .port $port }}
 {{- $endpointPort := index $endpointPortMAP $endpoint | default (index $endpointPortMAP "default") }}
 {{- $endpointClusterHostname := printf "%s.%s.%s" $endpointHost $namespace $clusterSuffix }}
-{{- $endpointHostname := index .host_fqdn_overide $endpoint | default .host_fqdn_overide.default | default $endpointClusterHostname }}
+{{- $endpointHostname := index .host_fqdn_override $endpoint | default .host_fqdn_override.default | default $endpointClusterHostname }}
 {{- printf "%s:%1.f" $endpointHostname $endpointPort -}}
 {{- end -}}
 {{- end -}}
