@@ -12,22 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-manifests_enabled:
+deployment:
+  ceph: true
   storage_secrets: true
   client_secrets: true
-  deployment: true
   rbd_provisioner: true
-
-replicas:
-  rgw: 1
-  mon_check: 1
-  rbd_provisioner: 2
-
-service:
-  mon:
-    name: ceph-mon
+  rgw_keystone_user_and_endpoints: false
 
 images:
+  ks_user: docker.io/kolla/ubuntu-source-heat-engine:3.0.3
+  ks_service: docker.io/kolla/ubuntu-source-heat-engine:3.0.3
+  ks_endpoints: docker.io/kolla/ubuntu-source-heat-engine:3.0.3
   bootstrap: quay.io/attcomdev/ceph-daemon:tag-build-master-jewel-ubuntu-16.04
   dep_check: docker.io/kolla/ubuntu-source-kubernetes-entrypoint:4.0.0
   daemon: quay.io/attcomdev/ceph-daemon:tag-build-master-jewel-ubuntu-16.04
@@ -36,6 +31,9 @@ images:
   pull_policy: "IfNotPresent"
 
 labels:
+  jobs:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
   mon:
     node_selector_key: ceph-mon
     node_selector_value: enabled
@@ -48,12 +46,13 @@ labels:
   rgw:
     node_selector_key: ceph-rgw
     node_selector_value: enabled
-  bootstrap:
-    node_selector_key: ceph-mon
-    node_selector_value: enabled
 
 pod:
   dns_policy: "ClusterFirstWithHostNet"
+  replicas:
+    rgw: 1
+    mon_check: 1
+    rbd_provisioner: 2
   affinity:
       anti:
         type:
@@ -119,6 +118,27 @@ pod:
         requests:
           memory: "128Mi"
           cpu: "500m"
+      ks_endpoints:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      ks_service:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      ks_user:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
 
 secrets:
   keyrings:
@@ -127,18 +147,25 @@ secrets:
     osd: ceph-bootstrap-osd-keyring
     rgw: ceph-bootstrap-rgw-keyring
     admin: ceph-client-admin-keyring
+  identity:
+    admin: ceph-keystone-admin
+    user: ceph-keystone-user
+    user_rgw: ceph-keystone-user-rgw
 
 network:
-#  public: "192.168.0.0/16"
-#  cluster: "192.168.0.0/16"
-  public: "10.1.10.0/24"
-  cluster: "10.1.10.0/24"
+  public: 192.168.0.0/16
+  cluster: 192.168.0.0/16
   port:
     mon: 6789
-    rgw_ingress: 80
-    rgw_target: 8088
+    rgw: 8088
 
 conf:
+  rgw_ks:
+    config:
+      rgw_keystone_api_version: 3
+      rgw_keystone_accepted_roles: "admin, _member_"
+      rgw_keystone_implicit_tenants: true
+      rgw_s3_auth_use_keystone: true
   ceph:
     override:
     append:
@@ -233,19 +260,30 @@ dependencies:
     jobs:
     - service: ceph_mon
       endpoint: internal
+  ks_user:
+    services:
+    - service: identity
+      endpoint: internal
+  ks_service:
+    services:
+    - service: identity
+      endpoint: internal
+  ks_endpoints:
+    jobs:
+    - ceph-ks-service
+    services:
+    - service: identity
+      endpoint: internal
 
 ceph:
+  rgw_keystone_auth: false
   enabled:
     mds: true
-    rgw: false
+    rgw: true
   storage:
     osd_directory: /var/lib/openstack-helm/ceph/osd
     var_directory: /var/lib/openstack-helm/ceph/ceph
     mon_directory: /var/lib/openstack-helm/ceph/mon
-
-# rgw is optionally disabled
-rgw:
-  enabled: false
 
 bootstrap:
   enabled: false
@@ -256,7 +294,6 @@ bootstrap:
     }
     ensure_pool volumes 8
     ensure_pool images 8
-    ensure_pool vms 8
 
 # if you change provision_storage_class to false
 # it is presumed you manage your own storage
@@ -275,7 +312,55 @@ storageclass:
 
 endpoints:
   cluster_domain_suffix: cluster.local
+  identity:
+    name: keystone
+    namespace: null
+    auth:
+      admin:
+        region_name: RegionOne
+        username: admin
+        password: password
+        project_name: admin
+        user_domain_name: default
+        project_domain_name: default
+      user:
+        role: admin
+        region_name: RegionOne
+        username: swift
+        password: password
+        project_name: service
+        user_domain_name: default
+        project_domain_name: default
+    hosts:
+      default: keystone-api
+      public: keystone
+    host_fqdn_override:
+      default: null
+    path:
+      default: /v3
+    scheme:
+      default: http
+    port:
+      admin:
+        default: 35357
+      api:
+        default: 80
+  object_store:
+    name: swift
+    namespace: null
+    hosts:
+      default: ceph-rgw
+    host_fqdn_override:
+      default: null
+    path:
+      default: /swift/v1
+    scheme:
+      default: http
+    port:
+      api:
+        default: 8088
   ceph_mon:
+    namespace: null
     hosts:
       default: ceph-mon
     host_fqdn_override:
@@ -283,3 +368,30 @@ endpoints:
     port:
       mon:
         default: 6789
+
+
+manifests:
+  configmap_bin_clients: true
+  configmap_bin_ks: true
+  configmap_bin: true
+  configmap_etc: true
+  configmap_templates: true
+  daemonset_mon: true
+  daemonset_osd: true
+  deployment_mds: true
+  deployment_moncheck: true
+  deployment_rbd_provisioner: true
+  deployment_rgw: true
+  job_bootstrap: true
+  job_keyring: true
+  job_ks_endpoints: true
+  job_ks_service: true
+  job_ks_user: true
+  job_namespace_client_key_cleaner: true
+  job_namespace_client_key: true
+  job_storage_admin_keys: true
+  secret_keystone_rgw: true
+  secret_keystone: true
+  service_mon: true
+  service_rgw: true
+  storageclass: true

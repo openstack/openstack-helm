@@ -14,13 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- if .Values.manifests.configmap_etc }}
 {{- $envAll := . }}
+{{- if or (.Values.deployment.ceph) (.Values.deployment.client_secrets) }}
 
 {{- if empty .Values.conf.ceph.config.global.mon_host -}}
-{{- $monHost := tuple "ceph_mon" "internal" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
-{{- $monHostDomain := default .Release.Namespace .Values.ceph.namespace }}
-{{- $monHostURI := cat $monHost "." $monHostDomain | nospace -}}
-{{- $monHostURI | set .Values.conf.ceph.config.global "mon_host" | quote | trunc 0 -}}
+{{- $monHost := tuple "ceph_mon" "internal" . | include "helm-toolkit.endpoints.hostname_fqdn_endpoint_lookup" }}
+{{- $monHost | set .Values.conf.ceph.config.global "mon_host" | quote | trunc 0 -}}
 {{- end -}}
 
 {{- if empty .Values.conf.ceph.config.global.fsid -}}
@@ -43,3 +43,5 @@ metadata:
 data:
   ceph.conf: |+
 {{ include "helm-toolkit.utils.to_ini" .Values.conf.ceph.config | indent 4 }}
+{{- end }}
+{{- end }}

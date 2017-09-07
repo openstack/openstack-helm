@@ -31,6 +31,7 @@ if [ "x$PVC_BACKEND" == "xceph" ]; then
   kubectl label nodes ceph-mon=enabled --all
   kubectl label nodes ceph-osd=enabled --all
   kubectl label nodes ceph-mds=enabled --all
+  kubectl label nodes ceph-rgw=enabled --all
 fi
 
 helm install --namespace=openstack ${WORK_DIR}/dns-helper --name=dns-helper

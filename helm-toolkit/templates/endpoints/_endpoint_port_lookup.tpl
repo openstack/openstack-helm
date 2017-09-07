@@ -27,7 +27,8 @@ limitations under the License.
 {{- $endpoint := index . 1 -}}
 {{- $port := index . 2 -}}
 {{- $context := index . 3 -}}
-{{- $endpointMap := index $context.Values.endpoints $type }}
+{{- $typeYamlSafe := $type | replace "-" "_" }}
+{{- $endpointMap := index $context.Values.endpoints $typeYamlSafe }}
 {{- with $endpointMap -}}
 {{- $endpointPortMAP := index .port $port }}
 {{- $endpointPort := index $endpointPortMAP $endpoint | default (index $endpointPortMAP "default") }}

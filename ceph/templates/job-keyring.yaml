@@ -14,8 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if .Values.manifests_enabled.storage_secrets }}
+{{- if .Values.manifests.job_keyring }}
 {{- $envAll := . }}
+{{- if .Values.deployment.storage_secrets }}
 {{- range $key1, $cephBootstrapKey := tuple "mds" "osd" "rgw" "mon" }}
 {{- $jobName := print $cephBootstrapKey "-keyring-generator" }}
 ---
@@ -30,19 +31,13 @@ spec:
 {{ tuple $envAll "ceph" $jobName | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
     spec:
       restartPolicy: OnFailure
+      nodeSelector:
+        {{ $envAll.Values.labels.jobs.node_selector_key }}: {{ $envAll.Values.labels.jobs.node_selector_value }}
       containers:
         - name:  ceph-{{ $jobName }}
           image: {{ $envAll.Values.images.ceph_config_helper }}
           imagePullPolicy: {{ $envAll.Values.images.pull_policy }}
-          {{- if $envAll.Values.pod.resources.enabled }}
-          resources:
-            requests:
-              memory: {{ .Values.pod.resources.jobs.secret_provisioning.requests.memory | quote }}
-              cpu: {{ .Values.pod.resources.jobs.secret_provisioning.requests.cpu | quote }}
-            limits:
-              memory: {{ .Values.pod.resources.jobs.secret_provisioning.limits.memory | quote }}
-              cpu: {{ .Values.pod.resources.jobs.secret_provisioning.limits.cpu | quote }}
-          {{- end }}
+{{ tuple $envAll $envAll.Values.pod.resources.jobs.secret_provisioning | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           env:
             - name: DEPLOYMENT_NAMESPACE
               valueFrom:
@@ -88,5 +83,6 @@ spec:
           configMap:
             name: ceph-templates
             defaultMode: 0444
-{{ end }}
-{{ end }}
+{{- end }}
+{{- end }}
+{{- end }}

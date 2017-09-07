@@ -14,8 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if .Values.manifests_enabled.deployment }}
+{{- if .Values.manifests.deployment_mds }}
 {{- $envAll := . }}
+{{- if .Values.deployment.ceph }}
 {{- if .Values.ceph.enabled.mds }}
 {{- $dependencies := .Values.dependencies.mds }}
 ---
@@ -70,6 +71,15 @@ spec:
             - /start_mds.sh
           ports:
             - containerPort: 6800
+          livenessProbe:
+              tcpSocket:
+                port: 6800
+              initialDelaySeconds: 60
+              timeoutSeconds: 5
+          readinessProbe:
+              tcpSocket:
+                port: 6800
+              timeoutSeconds: 5
           volumeMounts:
             - name: ceph-bin
               mountPath: /start_mds.sh
@@ -109,15 +119,6 @@ spec:
             - name: pod-run
               mountPath: /run
               readOnly: false
-          livenessProbe:
-              tcpSocket:
-                port: 6800
-              initialDelaySeconds: 60
-              timeoutSeconds: 5
-          readinessProbe:
-              tcpSocket:
-                port: 6800
-              timeoutSeconds: 5
       volumes:
         - name: ceph-etc
           configMap:
@@ -147,5 +148,6 @@ spec:
         - name: ceph-bootstrap-rgw-keyring
           secret:
             secretName: {{ .Values.secrets.keyrings.rgw }}
+{{- end }}
 {{- end }}
 {{- end }}

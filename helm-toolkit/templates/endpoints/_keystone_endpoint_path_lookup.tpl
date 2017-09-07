@@ -24,7 +24,8 @@ limitations under the License.
 {{- $endpoint := index . 1 -}}
 {{- $port := index . 2 -}}
 {{- $context := index . 3 -}}
-{{- $endpointMap := index $context.Values.endpoints $type }}
+{{- $typeYamlSafe := $type | replace "-" "_" }}
+{{- $endpointMap := index $context.Values.endpoints $typeYamlSafe }}
 {{- with $endpointMap -}}
 {{- $endpointPath := index .path $endpoint | default .path.default | default "/" }}
 {{- printf "%s" $endpointPath -}}

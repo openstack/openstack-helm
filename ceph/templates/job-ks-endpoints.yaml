@@ -1,0 +1,71 @@
+{{/*
+Copyright 2017 The Openstack-Helm Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.job_ks_endpoints }}
+{{- $envAll := . }}
+{{- if .Values.deployment.rgw_keystone_user_and_endpoints }}
+{{- $dependencies := .Values.dependencies.ks_endpoints }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: ceph-ks-endpoints
+spec:
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "ceph" "ks-endpoints" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+    spec:
+      restartPolicy: OnFailure
+      nodeSelector:
+        {{ $envAll.Values.labels.jobs.node_selector_key }}: {{ $envAll.Values.labels.jobs.node_selector_value }}
+      initContainers:
+{{ tuple $envAll $dependencies "[]" | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+      containers:
+{{- range $key1, $osServiceType := tuple "object-store" }}
+{{- range $key2, $osServiceEndPoint := tuple "admin" "internal" "public" }}
+        - name: {{ $osServiceType }}-ks-endpoints-{{ $osServiceEndPoint }}
+          image: {{ $envAll.Values.images.ks_endpoints }}
+          imagePullPolicy: {{ $envAll.Values.images.pull_policy }}
+{{ tuple $envAll $envAll.Values.pod.resources.jobs.ks_endpoints | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          command:
+            - /tmp/ks-endpoints.sh
+          volumeMounts:
+            - name: ks-endpoints-sh
+              mountPath: /tmp/ks-endpoints.sh
+              subPath: ks-endpoints.sh
+              readOnly: true
+          env:
+{{- with $env := dict "ksUserSecret" $envAll.Values.secrets.identity.admin }}
+{{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 12 }}
+{{- end }}
+            - name: OS_SVC_ENDPOINT
+              value: {{ $osServiceEndPoint }}
+            - name: OS_SERVICE_NAME
+              value: {{ tuple $osServiceType $envAll | include "helm-toolkit.endpoints.keystone_endpoint_name_lookup" }}
+            - name: OS_SERVICE_TYPE
+              value: {{ $osServiceType }}
+            - name: OS_SERVICE_ENDPOINT
+              value: {{ tuple $osServiceType $osServiceEndPoint "api" $envAll | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" }}
+{{- end }}
+{{- end }}
+      volumes:
+        - name: ks-endpoints-sh
+          configMap:
+            name: ceph-bin-ks
+            defaultMode: 0555
+{{- end }}
+{{- end }}
