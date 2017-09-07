@@ -134,7 +134,7 @@ This results in the gate running the following:
 ::
 
     helm test --timeout 600 mistral
-    mkdir -p mistral/rally
+    mkdir -p logs/rally
     kubectl logs -n openstack mistral-rally-test > logs/rally/mistral
     kubectl delete -n openstack pod mistral-rally-test
 
