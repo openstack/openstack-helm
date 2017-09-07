@@ -37,8 +37,9 @@ build-%: lint-%
 
 clean:
 	@echo "Removed .b64, _partials.tpl, and _globals.tpl files"
-	rm -rf helm-toolkit/secrets/*.b64
-	rm -rf */templates/_partials.tpl
-	rm -rf */templates/_globals.tpl
+	rm -f helm-toolkit/secrets/*.b64
+	rm -f */templates/_partials.tpl
+	rm -f */templates/_globals.tpl
+	rm -f *tgz */charts/*tgz
 
 .PHONY: $(EXCLUDES) $(CHARTS)
