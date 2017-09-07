@@ -18,5 +18,7 @@ limitations under the License.
 
 set -ex
 
-kubectl delete secret ${PVC_CEPH_STORAGECLASS_USER_SECRET_NAME} \
---namespace ${DEPLOYMENT_NAMESPACE} --ignore-not-found=true
+kubectl delete secret \
+  --namespace ${DEPLOYMENT_NAMESPACE} \
+  --ignore-not-found=true \
+  ${PVC_CEPH_STORAGECLASS_USER_SECRET_NAME}
