@@ -17,15 +17,5 @@ limitations under the License.
 */}}
 
 set -ex
-export HOME=/tmp
 
-cat <<EOF > /etc/ceph/ceph.client.${RBD_STORE_USER}.keyring
-[client.${RBD_STORE_USER}]
-{{- if .Values.conf.ceph.keyring }}
-    key = {{ .Values.conf.ceph.keyring }}
-{{- else }}
-    key = $(cat /tmp/client-keyring)
-{{- end }}
-EOF
-
-exit 0
+exec kubectl delete secret --namespace ${NAMESPACE} ${RBD_POOL_SECRET}

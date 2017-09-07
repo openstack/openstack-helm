@@ -117,17 +117,19 @@ fi
 
 helm install --namespace=openstack ${WORK_DIR}/etcd --name=etcd-rabbitmq
 helm install --namespace=openstack ${WORK_DIR}/rabbitmq --name=rabbitmq
+
+if [[ "x${PVC_BACKEND}" != "xceph"  ]] && [[ "x${GLANCE}" != "xpvc" ]] ; then
+    echo "Gate only supports glance with pvc backend when not using ceph"
+    exit 1
+fi
+helm install --namespace=openstack ${WORK_DIR}/glance --name=glance \
+  --set storage=${GLANCE}
+kube_wait_for_pods openstack ${SERVICE_LAUNCH_TIMEOUT}
+
 helm install --namespace=openstack ${WORK_DIR}/libvirt --name=libvirt
 helm install --namespace=openstack ${WORK_DIR}/openvswitch --name=openvswitch
 kube_wait_for_pods openstack ${SERVICE_LAUNCH_TIMEOUT}
 
-if [ "x$PVC_BACKEND" == "xceph" ]; then
-  helm install --namespace=openstack ${WORK_DIR}/glance --name=glance
-else
-  helm install --namespace=openstack ${WORK_DIR}/glance --name=glance \
-    --values=${WORK_DIR}/tools/overrides/mvp/glance.yaml
-fi
-kube_wait_for_pods openstack ${SERVICE_LAUNCH_TIMEOUT}
 if [ "x$PVC_BACKEND" == "xceph" ]; then
   helm install --namespace=openstack ${WORK_DIR}/nova --name=nova \
     --set=conf.nova.libvirt.nova.conf.virt_type=qemu

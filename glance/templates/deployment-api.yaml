@@ -42,7 +42,6 @@ spec:
       terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.api.timeout | default "600" }}
       initContainers:
 {{ tuple $envAll $dependencies $mounts_glance_api_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
-        {{- if eq .Values.storage "pvc" }}
         - name: glance-perms
           image: {{ .Values.images.api }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
@@ -57,13 +56,15 @@ spec:
           volumeMounts:
             - name: glance-images
               mountPath: {{ .Values.conf.glance.glance_store.glance.store.filesystem_store_datadir }}
-        {{- end }}
-        {{ if eq .Values.storage "ceph" }}
+        {{ if eq .Values.storage "rbd" }}
         - name: ceph-keyring-placement
           image: {{ .Values.images.api }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
           securityContext:
             runAsUser: {{ .Values.pod.user.glance.uid }}
+          env:
+            - name: RBD_STORE_USER
+              value: {{ .Values.conf.glance.glance_store.glance.store.rbd_store_user | quote }}
           command:
             - /tmp/ceph-keyring.sh
           volumeMounts:
@@ -118,10 +119,13 @@ spec:
               mountPath: /etc/glance/policy.json
               subPath: policy.json
               readOnly: true
-{{- if eq .Values.storage "pvc" }}
+            - name: glance-etc
+              mountPath: {{ .Values.conf.glance.glance_store.glance.store.swift_store_config_file }}
+              subPath: swift-store.conf
+              readOnly: true
             - name: glance-images
               mountPath: {{ .Values.conf.glance.glance_store.glance.store.filesystem_store_datadir }}
-{{- else }}
+{{- if eq .Values.storage "rbd" }}
             - name: etcceph
               mountPath: /etc/ceph
             - name: ceph-etc
@@ -150,6 +154,10 @@ spec:
           persistentVolumeClaim:
             claimName: glance-images
 {{ else }}
+        - name: glance-images
+          emptyDir: {}
+{{- end }}
+{{- if eq .Values.storage "rbd" }}
         - name: etcceph
           emptyDir: {}
         - name: ceph-etc
@@ -158,7 +166,7 @@ spec:
             defaultMode: 0444
         - name: ceph-keyring
           secret:
-            secretName: pvc-ceph-client-key
+            secretName: {{ .Values.secrets.rbd | quote }}
 {{- end }}
 {{ if $mounts_glance_api.volumes }}{{ toYaml $mounts_glance_api.volumes | indent 8 }}{{ end }}
 {{- end }}

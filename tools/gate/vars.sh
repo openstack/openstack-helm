@@ -41,6 +41,9 @@ export PVC_BACKEND=${PVC_BACKEND:-"ceph"}
 export CEPH_RGW_KEYSTONE_ENABLED=${CEPH_RGW_KEYSTONE_ENABLED:-"true"}
 export OPENSTACK_OBJECT_STORAGE=${OPENSTACK_OBJECT_STORAGE:-"radosgw"}
 
+# Set Glance Backend options
+export GLANCE=${GLANCE:-"radosgw"}
+
 # Set Upstream DNS
 export UPSTREAM_DNS=${UPSTREAM_DNS:-"8.8.8.8"}
 

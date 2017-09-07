@@ -17,8 +17,8 @@
 # Declare name/value pairs to be passed into your templates.
 # name: value
 
-# ceph or pvc
-storage: ceph
+# radosgw, rbd, swift or pvc
+storage: radosgw
 
 labels:
   node_selector_key: openstack-control-plane
@@ -28,6 +28,7 @@ release_group: null
 
 images:
   test: docker.io/kolla/ubuntu-source-rally:4.0.0
+  storage_init: quay.io/attcomdev/ceph-daemon:tag-build-master-jewel-ubuntu-16.04
   db_init: docker.io/kolla/ubuntu-source-heat-engine:3.0.3
   db_sync: docker.io/kolla/ubuntu-source-glance-api:3.0.3
   ks_user: docker.io/kolla/ubuntu-source-heat-engine:3.0.3
@@ -139,13 +140,15 @@ conf:
     glance_store:
       glance:
         store:
-          stores: file, http, rbd
-          default_store: rbd
           rbd_store_chunk_size: 8
           rbd_store_pool: images
-          rbd_store_user: admin
+          rbd_store_user: images
           rbd_store_ceph_conf: /etc/ceph/ceph.conf
           filesystem_store_datadir: /var/lib/glance/images
+          default_swift_reference: ref1
+          swift_store_container: glance
+          swift_store_create_container_on_put: true
+          swift_store_config_file: /etc/glance/swift-store.conf
     paste_deploy:
       glance:
         api:
@@ -170,6 +173,9 @@ conf:
       glance:
         registry:
           flavor: keystone
+  swift_store:
+    override:
+    append:
 
 network:
   api:
@@ -191,6 +197,8 @@ volume:
   size: 2Gi
 
 dependencies:
+  storage_init:
+    services:
   db_init:
     services:
     - service: oslo_db
@@ -203,6 +211,7 @@ dependencies:
       endpoint: internal
   bootstrap:
     jobs:
+    - glance-storage-init
     - glance-db-sync
     - glance-ks-user
     - glance-ks-endpoints
@@ -227,6 +236,7 @@ dependencies:
       endpoint: internal
   api:
     jobs:
+    - glance-storage-init
     - glance-db-sync
     - glance-ks-user
     - glance-ks-endpoints
@@ -237,6 +247,7 @@ dependencies:
       endpoint: internal
   registry:
     jobs:
+    - glance-storage-init
     - glance-db-sync
     - glance-ks-user
     - glance-ks-endpoints
@@ -264,6 +275,7 @@ secrets:
   oslo_db:
     admin: glance-db-admin
     user: glance-db-user
+  rbd: images-rbd-keyring
 
 # typically overriden by environmental
 # values, but should include all endpoints
@@ -374,6 +386,25 @@ endpoints:
     port:
       amqp:
         default: 5672
+  ceph_object_store:
+    name: radosgw
+    namespace: ceph
+    auth:
+      user:
+        username: glance
+        password: password
+        tmpurlkey: supersecret
+    hosts:
+      default: ceph-rgw
+    host_fqdn_override:
+      default: null
+    path:
+      default: /auth/v1.0
+    scheme:
+      default: http
+    port:
+      api:
+        default: 8088
 
 pod:
   user:
@@ -433,6 +464,13 @@ pod:
         memory: "1024Mi"
         cpu: "2000m"
     jobs:
+      storage_init:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
       db_sync:
         requests:
           memory: "128Mi"
@@ -497,6 +535,7 @@ manifests:
   job_ks_endpoints: true
   job_ks_service: true
   job_ks_user: true
+  job_storage_init: true
   pdb_api: true
   pdb_registry: true
   pod_rally_test: true
