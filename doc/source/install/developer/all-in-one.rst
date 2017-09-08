@@ -238,7 +238,7 @@ more sensible values for the All-in-One environment using the ``--values`` and
     --values=./tools/overrides/mvp/nova.yaml \
     --set=conf.nova.libvirt.nova.conf.virt_type=qemu
   helm install --name=neutron ./neutron \
-    --namespace=openstack --values=./tools/overrides/mvp/neutron.yaml
+    --namespace=openstack --values=./tools/overrides/mvp/neutron-ovs.yaml
   helm install --name=horizon ./horizon --namespace=openstack \
     --set=network.enable_node_port=true
 

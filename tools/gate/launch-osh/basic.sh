@@ -137,7 +137,7 @@ else
     --set=conf.nova.libvirt.nova.conf.virt_type=qemu
 fi
 helm install --namespace=openstack ${WORK_DIR}/neutron --name=neutron \
-  --values=${WORK_DIR}/tools/overrides/mvp/neutron.yaml
+    --values=${WORK_DIR}/tools/overrides/mvp/neutron-ovs.yaml
 kube_wait_for_pods openstack ${SERVICE_LAUNCH_TIMEOUT}
 
 helm install --namespace=openstack ${WORK_DIR}/heat --name=heat
