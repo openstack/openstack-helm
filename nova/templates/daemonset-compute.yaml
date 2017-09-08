@@ -162,6 +162,10 @@ spec:
               mountPath: /etc/nova/rootwrap.d/network.filters
               subPath: network.filters
               readOnly: true
+            - name: nova-etc
+              mountPath: /root/.ssh/config
+              subPath: ssh-config
+              readOnly: true
             {{- if .Values.ceph.enabled }}
             - name: etcceph
               mountPath: /etc/ceph
@@ -191,6 +195,39 @@ spec:
               mountPath: /etc/machine-id
               readOnly: true
 {{ if $mounts_nova_compute.volumeMounts }}{{ toYaml $mounts_nova_compute.volumeMounts | indent 12 }}{{ end }}
+        - name: nova-compute-ssh
+          image: {{ .Values.images.compute_ssh }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+{{ tuple $envAll $envAll.Values.pod.resources.ssh | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          securityContext:
+            privileged: true
+          env:
+            - name: KEY_TYPES
+              value: {{ include "helm-toolkit.utils.joinListWithComma" .Values.ssh.key_types | quote }}
+            - name: SSH_PORT
+              value: {{ .Values.network.ssh.port | quote }}
+          ports:
+            - containerPort: {{ .Values.network.ssh.port }}
+          command:
+            - /tmp/ssh-start.sh
+          volumeMounts:
+            - name: varlibnova
+              mountPath: /var/lib/nova
+            - name: varliblibvirt
+              mountPath: /var/lib/libvirt
+            - name: nova-etc
+              mountPath: /root/.ssh/id_rsa
+              subPath: ssh-key-private
+            - name: nova-etc
+              mountPath: /root/.ssh/id_rsa.pub
+              subPath: ssh-key-public
+            - name: nova-etc
+              mountPath: /root/.ssh/authorized_keys
+              subPath: ssh-key-public
+            - name: nova-bin
+              mountPath: /tmp/ssh-start.sh
+              subPath: ssh-start.sh
+              readOnly: true
       volumes:
         - name: nova-bin
           configMap:
