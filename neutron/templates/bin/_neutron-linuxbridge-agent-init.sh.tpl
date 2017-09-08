@@ -54,7 +54,7 @@ tunnel_interface="{{- .Values.network.interface.tunnel -}}"
 if [ -z "${tunnel_interface}" ] ; then
     # search for interface with default routing
     # If there is not default gateway, exit
-    tunnel_interface=$(ip r | grep default | grep -oP '(?<=dev ).*') || exit 1
+    tunnel_interface=$(ip route list 0/0 | grep -oP '(?<=dev\s)\w+') || exit 1
 fi
 
 # determine local-ip dynamically based on interface provided but only if tunnel_types is not null
