@@ -1,5 +1,5 @@
 Ceph Config Helper Container
-=====================
+============================
 
 This container builds a small image with kubectl and some other utilites for
 use in the ceph-config chart.

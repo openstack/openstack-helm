@@ -1,5 +1,3 @@
-#!/bin/bash
-
 {{/*
 Copyright 2017 The Openstack-Helm Authors.
 
@@ -16,7 +14,17 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-set -xe
-
-exec nova-scheduler \
-      --config-file /etc/nova/nova.conf
+{{- if and .Values.manifests.service_ingress_api .Values.network.api.ingress.public }}
+{{- $envAll := . }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ tuple "baremetal" "public" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
+spec:
+  ports:
+  - name: http
+    port: 80
+  selector:
+    app: ingress-api
+{{- end }}

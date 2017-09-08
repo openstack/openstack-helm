@@ -16,7 +16,24 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-set -xe
+set -ex
+function net_pxe_addr {
+ ip addr | awk "/inet / && /${PROVISIONER_INTERFACE}/{print \$2; exit }"
+}
+function net_pxe_ip {
+ echo $(net_pxe_addr) | awk -F '/' '{ print $1; exit }'
+}
+PXE_IP=$(net_pxe_ip)
 
-exec nova-scheduler \
-      --config-file /etc/nova/nova.conf
+if [ "x" == "x${PXE_IP}" ]; then
+  echo "Could not find IP for pxe to bind to"
+  exit 1
+fi
+
+ln -s /var/lib/openstack-helm/tftpboot /tftpboot
+exec /usr/sbin/in.tftpd \
+  --verbose \
+  --foreground \
+  --user root \
+  --address ${PXE_IP}:69 \
+  --map-file /tftp-map-file /tftpboot

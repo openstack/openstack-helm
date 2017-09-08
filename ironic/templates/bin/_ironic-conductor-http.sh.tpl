@@ -16,7 +16,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-set -xe
+set -ex
 
-exec nova-scheduler \
-      --config-file /etc/nova/nova.conf
+mkdir -p /var/lib/openstack-helm/httpboot
+cp -v /tmp/pod-shared/nginx.conf /etc/nginx/nginx.conf
+exec nginx -g 'daemon off;'

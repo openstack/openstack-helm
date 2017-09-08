@@ -16,7 +16,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-set -xe
+set -ex
+COMMAND="${@:-start}"
 
-exec nova-scheduler \
-      --config-file /etc/nova/nova.conf
+function start () {
+  exec ironic-api \
+        --config-file /etc/ironic/ironic.conf
+}
+
+function stop () {
+  kill -TERM 1
+}
+
+$COMMAND

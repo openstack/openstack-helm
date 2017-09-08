@@ -17,28 +17,23 @@
 set -xe
 
 #NOTE: Pull images and lint chart
-make pull-images ingress
+make pull-images glance
 
-#NOTE: Deploy global ingress
-helm install ./ingress \
-  --namespace=kube-system \
-  --name=ingress-kube-system \
-  --set deployment.mode=cluster \
-  --set deployment.type=DaemonSet \
-  --set network.host_namespace=true \
-  --set network.vip.manage=false \
-  --set network.vip.addr=172.18.0.1/32 \
-  --set conf.services.udp.53='kube-system/kube-dns:53'
-
-#NOTE: Deploy namespace ingress
-helm install ./ingress \
+#NOTE: Deploy command
+helm install ./glance \
   --namespace=openstack \
-  --name=ingress-openstack
+  --name=glance \
+  --set labels.node_selector_key=openstack-helm-node-class \
+  --set labels.node_selector_value=primary \
+  --set storage=radosgw
 
 #NOTE: Wait for deploy
-./tools/deployment/common/wait-for-pods.sh kube-system
 ./tools/deployment/common/wait-for-pods.sh openstack
 
-#NOTE: Display info
-helm status ingress-kube-system
-helm status ingress-openstack
+#NOTE: Validate Deployment info
+helm status glance
+export OS_CLOUD=openstack_helm
+openstack service list
+sleep 30 #NOTE(portdirect): Wait for ingress controller to update rules and restart Nginx
+openstack image list
+openstack image show 'Cirros 0.3.5 64-bit'

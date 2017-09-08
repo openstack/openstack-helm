@@ -1,0 +1,41 @@
+heat_template_version: 2016-10-14
+
+parameters:
+  baremetal_net:
+    type: string
+    default: baremetal
+  baremetal_subnet:
+    type: string
+    default: baremetal
+  image:
+    type: string
+    default: Cirros 0.3.5 64-bit
+  flavor:
+    type: string
+    default: baremetal
+  ssh_key:
+    type: string
+    default: heat-vm-key
+
+resources:
+  server:
+    type: OS::Nova::Server
+    properties:
+      image: {get_param: image}
+      flavor: {get_param: flavor}
+      key_name: {get_param: ssh_key}
+      networks:
+        - port: { get_resource: server_port }
+      user_data_format: RAW
+
+  server_port:
+    type: OS::Neutron::Port
+    properties:
+      network: {get_param: baremetal_net}
+      fixed_ips:
+        - subnet: { get_param: baremetal_subnet }
+      port_security_enabled: false
+
+outputs:
+  ip:
+    value: {get_attr:  [server_port, fixed_ips, 0, ip_address]}

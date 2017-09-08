@@ -1,0 +1,459 @@
+# Copyright 2017 The Openstack-Helm Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Default values for keystone.
+# This is a YAML-formatted file.
+# Declare name/value pairs to be passed into your templates.
+# name: value
+
+labels:
+  node_selector_key: openstack-control-plane
+  node_selector_value: enabled
+
+images:
+  tags:
+    bootstrap: docker.io/kolla/ubuntu-source-heat-engine:3.0.3
+    db_init: docker.io/kolla/ubuntu-source-heat-engine:3.0.3
+    ironic_db_sync: docker.io/kolla/ubuntu-source-ironic-api:3.0.3
+    ks_user: docker.io/kolla/ubuntu-source-heat-engine:3.0.3
+    ks_service: docker.io/kolla/ubuntu-source-heat-engine:3.0.3
+    ks_endpoints: docker.io/kolla/ubuntu-source-heat-engine:3.0.3
+    ironic_api: docker.io/kolla/ubuntu-source-ironic-api:3.0.3
+    ironic_conductor: docker.io/kolla/ubuntu-source-ironic-conductor:3.0.3
+    ironic_pxe: docker.io/kolla/ubuntu-source-ironic-pxe:3.0.3
+    ironic_pxe_init: docker.io/kolla/ubuntu-source-ironic-pxe:3.0.3
+    ironic_pxe_http: docker.io/nginx:1.13.3
+    dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.2.1
+  pull_policy: "IfNotPresent"
+
+conf:
+  paste:
+    override:
+    append:
+  policy: {}
+  tftp_map_file:
+    override:
+    append:
+  nginx:
+    override:
+    append:
+  ironic:
+    DEFAULT:
+      enabled_drivers: agent_ipmitool
+    api:
+      port: null
+    conductor:
+      api_url: null
+    database:
+      connection: null
+    deploy:
+      http_root: /var/lib/openstack-helm/httpboot
+    glance:
+      auth_type: password
+      swift_temp_url_duration: 86400
+      temp_url_endpoint_type: radosgw
+    inspector:
+      auth_type: password
+    keystone_authtoken:
+      auth_type: password
+      auth_version: v3
+    neutron:
+      auth_type: password
+      cleaning_network_uuid: null
+    pxe:
+      pxe_append_params: "nofb nomodeset vga=normal ipa-debug=1"
+      images_path: /var/lib/openstack-helm/ironic/images
+      instance_master_path: /var/lib/openstack-helm/ironic/master_images
+      pxe_config_template: $pybasedir/drivers/modules/ipxe_config.template
+      uefi_pxe_config_template: $pybasedir/drivers/modules/ipxe_config.template
+      tftp_root: /var/lib/openstack-helm/tftpboot
+      tftp_master_path: /var/lib/openstack-helm/tftpboot/master_images
+      pxe_bootfile_name: undionly.kpxe
+      uefi_pxe_bootfile_name: ipxe.efi
+      ipxe_enabled: true
+    service_catalog:
+      auth_type: password
+    swift:
+      auth_url: null
+
+network:
+  interface:
+    provisioner: null
+  api:
+    ingress:
+      public: true
+    node_port:
+      enabled: false
+      port: 30511
+
+bootstrap:
+  enabled: true
+  script: |
+    RELEASE="newton"
+    IMAGE_URL_BASE="http://tarballs.openstack.org/ironic-python-agent/tinyipa/files"
+    IMAGE_INITRAMFS="ironic-agent.initramfs"
+    IMAGE_INITRAMFS_URL="${IMAGE_URL_BASE}/tinyipa-stable-${RELEASE}.gz"
+    IMAGE_KERNEL="ironic-agent.kernel"
+    IMAGE_KERNEL_URL="${IMAGE_URL_BASE}/tinyipa-stable-${RELEASE}.vmlinuz"
+    openstack image show ${IMAGE_INITRAMFS} || (
+      IMAGE_LOC=$(mktemp)
+      curl -L ${IMAGE_INITRAMFS_URL} -o ${IMAGE_LOC}
+      openstack image create \
+        --file ${IMAGE_LOC} \
+        --disk-format ari \
+        --container-format ari \
+        --public \
+        ${IMAGE_INITRAMFS}
+      rm -f ${IMAGE_LOC}
+      )
+    openstack image show ${IMAGE_KERNEL} || (
+      IMAGE_LOC=$(mktemp)
+      curl -L ${IMAGE_KERNEL_URL} -o ${IMAGE_LOC}
+      openstack image create \
+        --file ${IMAGE_LOC} \
+        --disk-format aki \
+        --container-format aki \
+        --public \
+        ${IMAGE_KERNEL}
+      rm -f ${IMAGE_LOC}
+      )
+
+dependencies:
+  db_init:
+    services:
+    - service: oslo_db
+      endpoint: internal
+  db_sync:
+    jobs:
+    - ironic-db-init
+    services:
+    - service: oslo_db
+      endpoint: internal
+  ks_user:
+    services:
+    - service: identity
+      endpoint: internal
+  ks_service:
+    services:
+    - service: identity
+      endpoint: internal
+  ks_endpoints:
+    jobs:
+    - ironic-ks-service
+    services:
+    - service: identity
+      endpoint: internal
+  bootstrap:
+    jobs:
+    - ironic-db-sync
+    - ironic-ks-user
+    - ironic-ks-endpoints
+    services:
+    - service: identity
+      endpoint: internal
+    - service: image
+      endpoint: internal
+    - service: baremetal
+      endpoint: internal
+  api:
+    jobs:
+    - ironic-db-sync
+    - ironic-ks-user
+    - ironic-ks-endpoints
+    services:
+    - service: oslo_db
+      endpoint: internal
+    - service: identity
+      endpoint: internal
+  conductor:
+    jobs:
+    - ironic-db-sync
+    - ironic-ks-user
+    - ironic-ks-endpoints
+    services:
+    - service: oslo_db
+      endpoint: internal
+    - service: identity
+      endpoint: internal
+    - service: baremetal
+      endpoint: internal
+
+# Names of secrets used by bootstrap and environmental checks
+secrets:
+  identity:
+    admin: ironic-keystone-admin
+    ironic: ironic-keystone-user
+  oslo_db:
+    admin: ironic-db-admin
+    ironic: ironic-db-user
+
+# typically overriden by environmental
+# values, but should include all endpoints
+# required by this chart
+endpoints:
+  cluster_domain_suffix: cluster.local
+  identity:
+    name: keystone
+    auth:
+      admin:
+        region_name: RegionOne
+        username: admin
+        password: password
+        project_name: admin
+        user_domain_name: default
+        project_domain_name: default
+      ironic:
+        role: admin
+        region_name: RegionOne
+        username: ironic
+        password: password
+        project_name: service
+        user_domain_name: default
+        project_domain_name: default
+    hosts:
+      default: keystone-api
+      public: keystone
+    host_fqdn_override:
+      default: null
+    path:
+      default: /v3
+    scheme:
+      default: http
+    port:
+      admin:
+        default: 35357
+      api:
+        default: 80
+  baremetal:
+    name: ironic
+    hosts:
+      default: ironic-api
+      public: ironic
+    host_fqdn_override:
+      default: null
+    path:
+      default: null
+    scheme:
+      default: http
+    port:
+      api:
+        default: 6385
+        public: 80
+      pxe_http:
+        default: 8080
+  image:
+    name: glance
+    hosts:
+      default: glance-api
+      public: glance
+    host_fqdn_override:
+      default: null
+    path:
+      default: null
+    scheme:
+      default: http
+    port:
+      api:
+        default: 9292
+        public: 80
+  ceph_object_store:
+    name: radosgw
+    namespace: ceph
+    auth:
+      glance:
+        tmpurlkey: supersecret
+    hosts:
+      default: ceph-rgw
+    host_fqdn_override:
+      default: null
+    path:
+      default: /auth/v1.0
+    scheme:
+      default: http
+    port:
+      api:
+        default: 8088
+  oslo_db:
+    auth:
+      admin:
+        username: root
+        password: password
+      ironic:
+        username: ironic
+        password: password
+    hosts:
+      default: mariadb
+    host_fqdn_override:
+      default: null
+    path: /ironic
+    scheme: mysql+pymysql
+    port:
+      mysql:
+        default: 3306
+  oslo_cache:
+    hosts:
+      default: memcached
+    host_fqdn_override:
+      default: null
+    port:
+      memcache:
+        default: 11211
+  oslo_messaging:
+    auth:
+      ironic:
+        username: rabbitmq
+        password: password
+    hosts:
+      default: rabbitmq
+    host_fqdn_override:
+      default: null
+    path: /
+    scheme: rabbit
+    port:
+      amqp:
+        default: 5672
+  network:
+    name: neutron
+    hosts:
+      default: neutron-server
+      public: neutron
+    host_fqdn_override:
+      default: null
+    path:
+      default: null
+    scheme:
+      default: 'http'
+    port:
+      api:
+        default: 9696
+        public: 80
+
+pod:
+  affinity:
+    anti:
+      type:
+        default: preferredDuringSchedulingIgnoredDuringExecution
+      topologyKey:
+        default: kubernetes.io/hostname
+  mounts:
+    ironic_api:
+      init_container: null
+      ironic_api:
+    ironic_conductor:
+      init_container: null
+      ironic_conductor:
+    ironic_bootstrap:
+      init_container: null
+      ironic_bootstrap:
+  replicas:
+    api: 1
+    conductor: 1
+  lifecycle:
+    upgrades:
+      deployments:
+        revision_history: 3
+        pod_replacement_strategy: RollingUpdate
+        rolling_update:
+          max_unavailable: 1
+          max_surge: 3
+    disruption_budget:
+      api:
+        min_available: 0
+    termination_grace_period:
+      api:
+        timeout: 30
+  resources:
+    enabled: false
+    api:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+    conductor:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+    jobs:
+      bootstrap:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      db_init:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      db_sync:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      ks_endpoints:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      ks_service:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      ks_user:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      tests:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+
+manifests:
+  configmap_bin: true
+  configmap_etc: true
+  deployment_api: true
+  ingress_api: true
+  job_bootstrap: true
+  job_db_init: true
+  job_db_sync: true
+  job_ks_endpoints: true
+  job_ks_service: true
+  job_ks_user: true
+  pdb_api: true
+  secret_db: true
+  secret_keystone: true
+  service_api: true
+  service_ingress_api: true
+  statefulset_conductor: true
