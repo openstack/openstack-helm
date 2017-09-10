@@ -44,5 +44,7 @@ limitations under the License.
       value: "{{  include "helm-toolkit.utils.joinListWithComma" $deps.container }}"
     - name: COMMAND
       value: "echo done"
+  command:
+    - kubernetes-entrypoint
   volumeMounts: {{ $mounts | default "[]"}}
 {{- end -}}
