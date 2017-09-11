@@ -115,7 +115,31 @@ limitations under the License.
 {{- end -}}
 
 {{- if empty .Values.conf.glance.default.glance.api.public_endpoint -}}
-{{- tuple "image" "public" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup"| set .Values.conf.glance.default.glance.api "public_endpoint" | quote | trunc 0 -}}
+{{- tuple "image" "public" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" | set .Values.conf.glance.default.glance.api "public_endpoint" | quote | trunc 0 -}}
+{{- end -}}
+
+{{- if empty .Values.conf.glance.glance_store.glance.store.stores -}}
+{{- if eq .Values.storage "rbd" }}
+{{- "file, http, rbd" | set .Values.conf.glance.glance_store.glance.store "stores" | quote | trunc 0 -}}
+{{- end -}}
+{{- if eq .Values.storage "pvc" }}
+{{- "file, http" | set .Values.conf.glance.glance_store.glance.store "stores" | quote | trunc 0 -}}
+{{- end -}}
+{{ if or (eq .Values.storage "radosgw") (eq .Values.storage "swift") }}
+{{- "file, http, swift" | set .Values.conf.glance.glance_store.glance.store "stores" | quote | trunc 0 -}}
+{{- end -}}
+{{- end -}}
+
+{{- if empty .Values.conf.glance.glance_store.glance.store.default_store -}}
+{{- if eq .Values.storage "rbd" }}
+{{- "rbd" | set .Values.conf.glance.glance_store.glance.store "default_store" | quote | trunc 0 -}}
+{{- end -}}
+{{- if eq .Values.storage "pvc" }}
+{{- "file" | set .Values.conf.glance.glance_store.glance.store "default_store" | quote | trunc 0 -}}
+{{- end -}}
+{{ if or (eq .Values.storage "radosgw") (eq .Values.storage "swift") }}
+{{- "swift" | set .Values.conf.glance.glance_store.glance.store "default_store" | quote | trunc 0 -}}
+{{- end -}}
 {{- end -}}
 
 ---
@@ -136,4 +160,6 @@ data:
 {{- tuple .Values.conf.paste_registry "etc/_glance-registry-paste.ini.tpl" . | include "helm-toolkit.utils.configmap_templater" }}
   policy.json: |+
 {{  toJson .Values.conf.policy | indent 4 }}
+  swift-store.conf: |+
+{{- tuple .Values.conf.swift_store "etc/_swift-store.conf.tpl" . | include "helm-toolkit.utils.configmap_templater" }}
 {{- end }}

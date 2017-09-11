@@ -233,7 +233,7 @@ more sensible values for the All-in-One environment using the ``--values`` and
 
   helm install --name=keystone ./keystone --namespace=openstack
   helm install --name=glance ./glance --namespace=openstack \
-    --values=./tools/overrides/mvp/glance.yaml
+    --set storage=pvc
   helm install --name=nova ./nova --namespace=openstack \
     --values=./tools/overrides/mvp/nova.yaml \
     --set=conf.nova.libvirt.nova.conf.virt_type=qemu

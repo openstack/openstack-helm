@@ -451,11 +451,25 @@ now create endpoints in the Keystone service catalog:
 
 **Install Glance:**
 
+Glance supports a number of backends:
+
+* ``pvc``: A simple file based backend using Kubernetes PVCs
+* ``rbd``: Uses Ceph RBD devices to store images.
+* ``radosgw``: Uses Ceph RadosGW object storage to store images.
+* ``swift``: Uses the ``object-storage`` service from the OpenStack service
+  catalog to store images.
+
+You can deploy Glance with any of these backends if you deployed both the
+RadosGW and created Keystone endpoints by changing the value for
+``GLANCE_BACKEND`` in the following:
+
 ::
 
+    : ${GLANCE_BACKEND:="radosgw"}
     helm install --namespace=openstack --name=glance ./glance \
       --set pod.replicas.api=2 \
       --set pod.replicas.registry=2
+      --set storage=${GLANCE_BACKEND}
 
 **Install Heat:**
 
