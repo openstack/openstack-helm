@@ -44,6 +44,10 @@ export OPENSTACK_OBJECT_STORAGE=${OPENSTACK_OBJECT_STORAGE:-"radosgw"}
 # Set Glance Backend options
 export GLANCE=${GLANCE:-"radosgw"}
 
+# Set SDN Plugin
+# possible values: ovs, linuxbridge
+export SDN_PLUGIN=${SDN_PLUGIN:-"ovs"}
+
 # Set Upstream DNS
 export UPSTREAM_DNS=${UPSTREAM_DNS:-"8.8.8.8"}
 

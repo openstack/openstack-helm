@@ -127,19 +127,43 @@ helm install --namespace=openstack ${WORK_DIR}/glance --name=glance \
 kube_wait_for_pods openstack ${SERVICE_LAUNCH_TIMEOUT}
 
 helm install --namespace=openstack ${WORK_DIR}/libvirt --name=libvirt
-helm install --namespace=openstack ${WORK_DIR}/openvswitch --name=openvswitch
+if [ "x$SDN_PLUGIN" == "xovs" ]; then
+  helm install --namespace=openstack ${WORK_DIR}/openvswitch --name=openvswitch
+fi
 kube_wait_for_pods openstack ${SERVICE_LAUNCH_TIMEOUT}
 
-if [ "x$PVC_BACKEND" == "xceph" ]; then
+if [ "x$PVC_BACKEND" == "xceph" ] && [ "x$SDN_PLUGIN" == "xovs" ]; then
   helm install --namespace=openstack ${WORK_DIR}/nova --name=nova \
-    --set=conf.nova.libvirt.nova.conf.virt_type=qemu
-else
+      --set=conf.nova.libvirt.nova.conf.virt_type=qemu
+
+  helm install --namespace=openstack ${WORK_DIR}/neutron --name=neutron \
+      --values=${WORK_DIR}/tools/overrides/mvp/neutron-ovs.yaml
+
+elif [ "x$PVC_BACKEND" == "x" ] && [ "x$SDN_PLUGIN" == "xovs" ]; then
   helm install --namespace=openstack ${WORK_DIR}/nova --name=nova \
-    --values=${WORK_DIR}/tools/overrides/mvp/nova.yaml \
-    --set=conf.nova.libvirt.nova.conf.virt_type=qemu
+      --values=${WORK_DIR}/tools/overrides/mvp/nova.yaml \
+      --set=conf.nova.libvirt.nova.conf.virt_type=qemu
+
+  helm install --namespace=openstack ${WORK_DIR}/neutron --name=neutron \
+      --values=${WORK_DIR}/tools/overrides/mvp/neutron-ovs.yaml
+
+elif [ "x$PVC_BACKEND" == "xceph" ] && [ "x$SDN_PLUGIN" == "xlinuxbridge" ]; then
+  helm install --namespace=openstack ${WORK_DIR}/nova --name=nova \
+      --set=dependencies.compute.daemonset={neutron-lb-agent} \
+      --set=conf.nova.libvirt.nova.conf.virt_type=qemu
+
+  helm install --namespace=openstack ${WORK_DIR}/neutron --name=neutron \
+      --values=${WORK_DIR}/tools/overrides/mvp/neutron-linuxbridge.yaml
+
+elif [ "x$PVC_BACKEND" == "x" ] && [ "x$SDN_PLUGIN" == "xlinuxbridge" ]; then
+  helm install --namespace=openstack ${WORK_DIR}/nova --name=nova \
+      --values=${WORK_DIR}/tools/overrides/mvp/nova.yaml \
+      --set=conf.nova.libvirt.nova.conf.virt_type=qemu
+
+  helm install --namespace=openstack ${WORK_DIR}/neutron --name=neutron \
+      --values=${WORK_DIR}/tools/overrides/mvp/neutron-linuxbridge.yaml
 fi
-helm install --namespace=openstack ${WORK_DIR}/neutron --name=neutron \
-    --values=${WORK_DIR}/tools/overrides/mvp/neutron-ovs.yaml
+
 kube_wait_for_pods openstack ${SERVICE_LAUNCH_TIMEOUT}
 
 helm install --namespace=openstack ${WORK_DIR}/heat --name=heat
