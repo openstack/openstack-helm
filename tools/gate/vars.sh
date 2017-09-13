@@ -23,7 +23,7 @@ source /etc/os-release
 export HOST_OS=${HOST_OS:="${ID}"}
 
 # Set versions of K8s and Helm to use
-export HELM_VERSION=${HELM_VERSION:-"v2.5.1"}
+export HELM_VERSION=${HELM_VERSION:-"v2.6.1"}
 export KUBE_VERSION=${KUBE_VERSION:-"v1.7.5"}
 
 # Set K8s-AIO options

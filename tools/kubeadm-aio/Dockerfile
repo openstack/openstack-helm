@@ -1,7 +1,7 @@
 FROM ubuntu:16.04
 MAINTAINER pete.birley@att.com
 
-ENV HELM_VERSION=v2.5.1 \
+ENV HELM_VERSION=v2.6.1 \
     KUBE_VERSION=v1.7.5 \
     CNI_VERSION=v0.6.0-rc2 \
     container="docker" \
