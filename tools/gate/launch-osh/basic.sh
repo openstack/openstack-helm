@@ -116,7 +116,12 @@ if [ "x$OPENSTACK_OBJECT_STORAGE" == "xradosgw" ]; then
 fi
 
 helm install --namespace=openstack ${WORK_DIR}/etcd --name=etcd-rabbitmq
-helm install --namespace=openstack ${WORK_DIR}/rabbitmq --name=rabbitmq
+if [ "x$INTEGRATION" == "xmulti" ]; then
+    helm install --namespace=openstack ${WORK_DIR}/rabbitmq --name=rabbitmq
+else
+    helm install --namespace=openstack ${WORK_DIR}/rabbitmq --name=rabbitmq \
+         --set pod.replicas.server=1
+fi
 
 if [[ "x${PVC_BACKEND}" != "xceph"  ]] && [[ "x${GLANCE}" != "xpvc" ]] ; then
     echo "Gate only supports glance with pvc backend when not using ceph"
