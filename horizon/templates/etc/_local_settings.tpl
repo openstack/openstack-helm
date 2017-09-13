@@ -251,15 +251,15 @@ OPENSTACK_CINDER_FEATURES = {
 # services provided by neutron. Options currently available are load
 # balancer service, security groups, quotas, VPN service.
 OPENSTACK_NEUTRON_NETWORK = {
-    'enable_router': True,
-    'enable_quotas': True,
-    'enable_ipv6': True,
-    'enable_distributed_router': False,
-    'enable_ha_router': False,
-    'enable_lb': True,
-    'enable_firewall': True,
-    'enable_vpn': True,
-    'enable_fip_topology_check': True,
+    'enable_router': {{ .Values.local_settings.openstack_neutron_network.enable_router }},
+    'enable_quotas': {{ .Values.local_settings.openstack_neutron_network.enable_quotas }},
+    'enable_ipv6': {{ .Values.local_settings.openstack_neutron_network.enable_ipv6 }},
+    'enable_distributed_router': {{ .Values.local_settings.openstack_neutron_network.enable_distributed_router }},
+    'enable_ha_router': {{ .Values.local_settings.openstack_neutron_network.enable_ha_router }},
+    'enable_lb': {{ .Values.local_settings.openstack_neutron_network.enable_lb }},
+    'enable_firewall': {{ .Values.local_settings.openstack_neutron_network.enable_firewall }},
+    'enable_vpn': {{ .Values.local_settings.openstack_neutron_network.enable_vpn }},
+    'enable_fip_topology_check': {{ .Values.local_settings.openstack_neutron_network.enable_fip_topology_check }},
 
     # The profile_support option is used to detect if an external router can be
     # configured via the dashboard. When using specific plugins the
