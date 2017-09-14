@@ -9,4 +9,5 @@ Contents:
    pod-disruption-budgets
    images
    endpoints
+   oslo-config
    upgrades
