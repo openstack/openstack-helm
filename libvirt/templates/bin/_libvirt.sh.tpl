@@ -18,11 +18,9 @@ limitations under the License.
 
 set -ex
 
-if [[ -f /var/run/libvirtd.pid ]]; then
-   LIBVIRTD_PID="$(< /var/run/libvirtd.pid)"
-   test -d "/proc/$LIBVIRTD_PID" && \
-   test 'libvirtd' = "$(< /proc/$LIBVIRTD_PID/comm)" && \
-   ( echo "ERROR: Libvirtd daemon is already running" && exit 1 )
+if [ -n "$(cat /proc/*/comm 2>/dev/null | grep libvirtd)" ]; then
+    echo "ERROR: libvirtd daemon already running on host" 1>&2
+    exit 1
 fi
 
 rm -f /var/run/libvirtd.pid
