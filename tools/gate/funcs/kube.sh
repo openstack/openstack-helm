@@ -122,8 +122,8 @@ function kubeadm_aio_launch {
   ${WORK_DIR}/tools/kubeadm-aio/kubeadm-aio-launcher.sh
   mkdir -p ${HOME}/.kube
   cat ${KUBECONFIG} > ${HOME}/.kube/config
-  kube_wait_for_pods kube-system ${POD_START_TIMEOUT}
-  kube_wait_for_pods default 240
+  kube_wait_for_pods kube-system ${POD_START_TIMEOUT_SYSTEM}
+  kube_wait_for_pods default ${POD_START_TIMEOUT_DEFAULT}
 }
 
 function kubeadm_aio_clean {

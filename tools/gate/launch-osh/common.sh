@@ -35,4 +35,4 @@ elif [ "x$SDN_PLUGIN" == "xlinuxbridge" ]; then
 fi
 
 helm install --namespace=openstack ${WORK_DIR}/dns-helper --name=dns-helper
-kube_wait_for_pods openstack 180
+kube_wait_for_pods openstack ${POD_START_TIMEOUT_OPENSTACK}

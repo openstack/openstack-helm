@@ -40,8 +40,8 @@ sudo docker run -d \
 sudo docker exec armada armada tiller --status
 sudo docker exec armada armada apply ${ARMADA_MANIFEST}
 sudo docker rm -f armada
-kube_wait_for_pods ceph 600
-kube_wait_for_pods openstack 1200
+kube_wait_for_pods ceph ${POD_START_TIMEOUT_CEPH}
+kube_wait_for_pods openstack ${POD_START_TIMEOUT_OPENSTACK}
 
 MON_POD=$(kubectl get pods -l application=ceph -l component=mon -n ceph --no-headers | awk '{ print $1; exit }')
 kubectl exec -n ceph ${MON_POD} -- ceph -s

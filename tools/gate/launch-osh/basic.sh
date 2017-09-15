@@ -60,7 +60,7 @@ if [ "x$PVC_BACKEND" == "xceph" ]; then
       --set bootstrap.enabled=true
   fi
 
-  kube_wait_for_pods ceph ${SERVICE_LAUNCH_TIMEOUT}
+  kube_wait_for_pods ceph ${POD_START_TIMEOUT_CEPH}
 
   MON_POD=$(kubectl get pods \
     --namespace=ceph \
@@ -83,7 +83,7 @@ if [ "x$PVC_BACKEND" == "xceph" ]; then
     --set deployment.client_secrets=true \
     --set deployment.rgw_keystone_user_and_endpoints=false
 
-  kube_wait_for_pods openstack ${SERVICE_LAUNCH_TIMEOUT}
+  kube_wait_for_pods openstack ${POD_START_TIMEOUT_OPENSTACK}
 fi
 
 helm install --namespace=openstack ${WORK_DIR}/ingress --name=ingress
@@ -94,10 +94,10 @@ else
     --set pod.replicas.server=1
 fi
 helm install --namespace=openstack ${WORK_DIR}/memcached --name=memcached
-kube_wait_for_pods openstack ${SERVICE_LAUNCH_TIMEOUT}
+kube_wait_for_pods openstack ${POD_START_TIMEOUT_OPENSTACK}
 
 helm install --namespace=openstack ${WORK_DIR}/keystone --name=keystone
-kube_wait_for_pods openstack ${SERVICE_LAUNCH_TIMEOUT}
+kube_wait_for_pods openstack ${POD_START_TIMEOUT_OPENSTACK}
 
 if [ "x$OPENSTACK_OBJECT_STORAGE" == "xradosgw" ]; then
   helm install --namespace=openstack ${WORK_DIR}/ceph --name=radosgw-openstack \
@@ -112,7 +112,7 @@ if [ "x$OPENSTACK_OBJECT_STORAGE" == "xradosgw" ]; then
     --set deployment.rbd_provisioner=false \
     --set deployment.client_secrets=false \
     --set deployment.rgw_keystone_user_and_endpoints=true
-  kube_wait_for_pods openstack ${SERVICE_LAUNCH_TIMEOUT}
+  kube_wait_for_pods openstack ${POD_START_TIMEOUT_OPENSTACK}
 fi
 
 helm install --namespace=openstack ${WORK_DIR}/etcd --name=etcd-rabbitmq
@@ -124,13 +124,13 @@ if [[ "x${PVC_BACKEND}" != "xceph"  ]] && [[ "x${GLANCE}" != "xpvc" ]] ; then
 fi
 helm install --namespace=openstack ${WORK_DIR}/glance --name=glance \
   --set storage=${GLANCE}
-kube_wait_for_pods openstack ${SERVICE_LAUNCH_TIMEOUT}
+kube_wait_for_pods openstack ${POD_START_TIMEOUT_OPENSTACK}
 
 helm install --namespace=openstack ${WORK_DIR}/libvirt --name=libvirt
 if [ "x$SDN_PLUGIN" == "xovs" ]; then
   helm install --namespace=openstack ${WORK_DIR}/openvswitch --name=openvswitch
 fi
-kube_wait_for_pods openstack ${SERVICE_LAUNCH_TIMEOUT}
+kube_wait_for_pods openstack ${POD_START_TIMEOUT_OPENSTACK}
 
 if [ "x$PVC_BACKEND" == "xceph" ] && [ "x$SDN_PLUGIN" == "xovs" ]; then
   helm install --namespace=openstack ${WORK_DIR}/nova --name=nova \
@@ -164,10 +164,10 @@ elif [ "x$PVC_BACKEND" == "x" ] && [ "x$SDN_PLUGIN" == "xlinuxbridge" ]; then
       --values=${WORK_DIR}/tools/overrides/mvp/neutron-linuxbridge.yaml
 fi
 
-kube_wait_for_pods openstack ${SERVICE_LAUNCH_TIMEOUT}
+kube_wait_for_pods openstack ${POD_START_TIMEOUT_OPENSTACK}
 
 helm install --namespace=openstack ${WORK_DIR}/heat --name=heat
-kube_wait_for_pods openstack ${SERVICE_LAUNCH_TIMEOUT}
+kube_wait_for_pods openstack ${POD_START_TIMEOUT_OPENSTACK}
 
 if [ "x$INTEGRATION" == "xmulti" ]; then
   if [ "x$PVC_BACKEND" == "xceph" ]; then
@@ -177,15 +177,15 @@ if [ "x$INTEGRATION" == "xmulti" ]; then
       --values=${WORK_DIR}/tools/overrides/mvp/cinder.yaml
   fi
   helm install --namespace=openstack ${WORK_DIR}/horizon --name=horizon
-  kube_wait_for_pods openstack ${SERVICE_LAUNCH_TIMEOUT}
+  kube_wait_for_pods openstack ${POD_START_TIMEOUT_OPENSTACK}
 
   helm install --namespace=openstack ${WORK_DIR}/barbican --name=barbican
   helm install --namespace=openstack ${WORK_DIR}/magnum --name=magnum
-  kube_wait_for_pods openstack ${SERVICE_LAUNCH_TIMEOUT}
+  kube_wait_for_pods openstack ${POD_START_TIMEOUT_OPENSTACK}
 
   helm install --namespace=openstack ${WORK_DIR}/mistral --name=mistral
   helm install --namespace=openstack ${WORK_DIR}/senlin --name=senlin
-  kube_wait_for_pods openstack ${SERVICE_LAUNCH_TIMEOUT}
+  kube_wait_for_pods openstack ${POD_START_TIMEOUT_OPENSTACK}
 
   helm_test_deployment keystone ${SERVICE_TEST_TIMEOUT}
   helm_test_deployment glance ${SERVICE_TEST_TIMEOUT}
