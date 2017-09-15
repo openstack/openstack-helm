@@ -30,4 +30,59 @@ if [[ -c /dev/kvm ]]; then
     chown root:kvm /dev/kvm
 fi
 
-exec libvirtd --listen
+libvirtd --listen &
+
+LIBVIRT_SECRET_DEF=$(mktemp --suffix .xml)
+function cleanup {
+    rm -f ${LIBVIRT_SECRET_DEF}
+}
+trap cleanup EXIT
+
+# Wait for the libvirtd is up
+TIMEOUT=60
+while [[ ! -f /var/run/libvirtd.pid ]]; do
+  if [[ ${TIMEOUT} -gt 0 ]]; then
+    let TIMEOUT-=1
+    sleep 1
+  else
+    echo "ERROR: libvirt did not start in time (pid file missing)"
+    exit 1
+  fi
+done
+
+# Even though we see the pid file the socket immediately (this is
+# needed for virsh)
+TIMEOUT=10
+while [[ ! -e /var/run/libvirt/libvirt-sock ]]; do
+  if [[ ${TIMEOUT} -gt 0 ]]; then
+    let TIMEOUT-=1
+    sleep 1
+  else
+    echo "ERROR: libvirt did not start in time (socket missing)"
+    exit 1
+  fi
+done
+
+if [ -z "${LIBVIRT_CEPH_SECRET_UUID}" ] ; then
+  echo "ERROR: No libvirt Secret UUID Supplied"
+  exit 1
+fi
+
+if [ -z "${CEPH_CINDER_KEYRING}" ] ; then
+  CEPH_CINDER_KEYRING=$(sed -n 's/^[[:space:]]*key[[:blank:]]\+=[[:space:]]\(.*\)/\1/p' /etc/ceph/ceph.client.${CEPH_CINDER_USER}.keyring)
+fi
+
+cat > ${LIBVIRT_SECRET_DEF} <<EOF
+<secret ephemeral='no' private='no'>
+  <uuid>${LIBVIRT_CEPH_SECRET_UUID}</uuid>
+  <usage type='ceph'>
+    <name>client.${CEPH_CINDER_USER}. secret</name>
+  </usage>
+</secret>
+EOF
+
+virsh secret-define --file ${LIBVIRT_SECRET_DEF}
+virsh secret-set-value --secret "${LIBVIRT_CEPH_SECRET_UUID}" --base64 "${CEPH_CINDER_KEYRING}"
+
+# rejoin libvirtd
+wait
