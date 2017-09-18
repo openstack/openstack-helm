@@ -29,7 +29,7 @@ comments, please create an `issue
        - Version
        - Notes
      * - **Kubernetes**
-       - `v1.6.8 <https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG.md#v165>`_
+       - `v1.7.5 <https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG.md#v175>`_
        - `Custom Controller for RDB tools <https://quay.io/repository/attcomdev/kube-controller-manager?tab=tags>`_
      * - **Helm**
        - `v2.5.1 <https://github.com/kubernetes/helm/releases/tag/v2.5.1>`_
@@ -67,7 +67,7 @@ should just require a single command on the master node:
 
 ::
 
-    admin@kubenode01:~$ kubeadm init --kubernetes-version v1.6.8
+    admin@kubenode01:~$ kubeadm init --kubernetes-version v1.7.5
 
 
 If your environment looks like this after all nodes have joined the

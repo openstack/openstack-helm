@@ -15,6 +15,9 @@
 #    under the License.
 set -xe
 
+echo 'Starting the kubelet'
+systemctl start kubelet
+
 source /etc/kube-role
 if [[ "${KUBE_ROLE}" == "master" ]]; then
   # Source network vars
@@ -22,11 +25,9 @@ if [[ "${KUBE_ROLE}" == "master" ]]; then
 
   # Define k8s version
   source /etc/kube-version
-  if [[ "${KUBE_VERSION}" == "default" ]]; then
-    KUBE_VERSION_FLAG=""
-  else
-    KUBE_VERSION_FLAG="--kubernetes-version=${KUBE_VERSION}"
+  if ! [[ "${KUBE_VERSION}" == "default" ]]; then
     echo "We will use K8s ${KUBE_VERSION}"
+    sed -i "s|^kubernetesVersion: v1.7.5|kubernetesVersion: ${KUBE_VERSION}|g" /etc/kubeadm.conf
   fi
 
   echo 'Setting up K8s'
@@ -34,14 +35,14 @@ if [[ "${KUBE_ROLE}" == "master" ]]; then
   if [[ "$KUBE_BIND_DEV" != "autodetect" ]]; then
     KUBE_BIND_IP=$(ip addr list ${KUBE_BIND_DEV} |grep "inet " |cut -d' ' -f6|cut -d/ -f1)
     echo 'We are going to bind the K8s API to: ${KUBE_BIND_IP}'
-    kubeadm init ${KUBE_VERSION_FLAG} \
+    kubeadm init \
       --skip-preflight-checks \
-      --pod-network-cidr ${CNI_POD_CIDR} \
-      --api-advertise-addresses ${KUBE_BIND_IP}
+      --api-advertise-addresses ${KUBE_BIND_IP} \
+      --config /etc/kubeadm.conf
   else
-    kubeadm init ${KUBE_VERSION_FLAG} \
+    kubeadm init \
       --skip-preflight-checks \
-      --pod-network-cidr ${CNI_POD_CIDR}
+      --config /etc/kubeadm.conf
   fi
 
   echo 'Setting up K8s client'
