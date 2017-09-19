@@ -18,7 +18,7 @@ limitations under the License.
 
 set -ex
 
-client_address="{{- .Values.conf.nova.vnc.nova.conf.vncserver_proxyclient_address -}}"
+client_address="{{- .Values.conf.nova.vnc.vncserver_proxyclient_address -}}"
 if [ -z "${client_address}" ] ; then
     client_interface="{{- .Values.console.novnc.compute.vncserver_proxyclient_interface -}}"
     if [ -z "${client_interface}" ] ; then
@@ -30,7 +30,7 @@ if [ -z "${client_address}" ] ; then
     client_address=$(ip a s $client_interface | grep 'inet ' | awk '{print $2}' | awk -F "/" '{print $1}')
 fi
 
-listen_ip="{{- .Values.conf.nova.vnc.nova.conf.vncserver_listen -}}"
+listen_ip="{{- .Values.conf.nova.vnc.vncserver_listen -}}"
 if [ -z "${listen_ip}" ] ; then
     # The server component listens on all IP addresses and the proxy component
     # only listens on the management interface IP address of the compute node.
