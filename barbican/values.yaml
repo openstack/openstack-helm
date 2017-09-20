@@ -172,8 +172,48 @@ dependencies:
 
 conf:
   paste:
-    override:
-    append:
+    composite:main:
+      use: egg:Paste#urlmap
+      /: barbican_version
+      /v1: barbican-api-keystone
+    pipeline:barbican_version:
+      pipeline: cors http_proxy_to_wsgi versionapp
+    pipeline:barbican_api:
+      pipeline: cors http_proxy_to_wsgi unauthenticated-context apiapp
+    pipeline:barbican-profile:
+      pipeline: cors http_proxy_to_wsgi unauthenticated-context egg:Paste#cgitb egg:Paste#httpexceptions profile apiapp
+    pipeline:barbican-api-keystone:
+      pipeline: cors http_proxy_to_wsgi authtoken context apiapp
+    pipeline:barbican-api-keystone-audit:
+      pipeline: http_proxy_to_wsgi authtoken context audit apiapp
+    app:apiapp:
+      paste.app_factory: barbican.api.app:create_main_app
+    app:versionapp:
+      paste.app_factory: barbican.api.app:create_version_app
+    filter:simple:
+      paste.filter_factory: barbican.api.middleware.simple:SimpleFilter.factory
+    filter:unauthenticated-context:
+      paste.filter_factory: barbican.api.middleware.context:UnauthenticatedContextMiddleware.factory
+    filter:context:
+      paste.filter_factory: barbican.api.middleware.context:ContextMiddleware.factory
+    filter:audit:
+      paste.filter_factory: keystonemiddleware.audit:filter_factory
+      audit_map_file: /etc/barbican/api_audit_map.conf
+    filter:authtoken:
+      paste.filter_factory: keystonemiddleware.auth_token:filter_factory
+    filter:profile:
+      use: egg:repoze.profile
+      log_filename: myapp.profile
+      cachegrind_filename: cachegrind.out.myapp
+      discard_first_request: true
+      path: /__profile__
+      flush_at_shutdown: true
+      unwind: false
+    filter:cors:
+      paste.filter_factory: oslo_middleware.cors:filter_factory
+      oslo_config_project: barbican
+    filter:http_proxy_to_wsgi:
+      paste.filter_factory: oslo_middleware:HTTPProxyToWSGI.factory
   policy:
     admin: role:admin
     observer: role:observer
@@ -271,28 +311,50 @@ conf:
     secretstore_preferred:delete: rule:admin
     secretstore:get: rule:admin
   audit_map:
-    override:
-    append:
+    DEFAULT:
+      # default target endpoint type
+      # should match the endpoint type defined in service catalog
+      target_endpoint_type: key-manager
+    custom_actions:
+      # map urls ending with specific text to a unique action
+      # Don't need custom mapping for other resource operations
+      # Note: action should match action names defined in CADF taxonomy
+      acl/get: read
+    path_keywords:
+      # path of api requests for CADF target typeURI
+      # Just need to include top resource path to identify class of resources
+      secrets: null
+      containers: null
+      orders: null
+      cas: "None"
+      quotas: null
+      project-quotas: null
+    service_endpoints:
+      # map endpoint type defined in service catalog to CADF typeURI
+      key-manager: service/security/keymanager
   barbican_api:
-    override:
-    append:
+    uwsgi:
+      socket: null
+      protocol: http
+      processes: 1
+      lazy: true
+      vacuum: true
+      no-default-app: true
+      memory-report: true
+      plugins: python
+      paste: "config:/etc/barbican/barbican-api-paste.ini"
+      add-header: "Connection: close"
   barbican:
-    override:
-    append:
+    DEFAULT:
+      transport_url: null
     keystone_authtoken:
-      keystonemiddleware:
-        auth_token:
-          auth_type: password
-          auth_version: v3
-          memcache_security_strategy: ENCRYPT
+      auth_type: password
+      auth_version: v3
+      memcache_security_strategy: ENCRYPT
     database:
-      oslo:
-        db:
-          max_retries: -1
+      max_retries: -1
     barbican_api:
-      barbican:
-        config:
-          bind_port: 9311
+      bind_port: 9311
 
 # Names of secrets used by bootstrap and environmental checks
 secrets:
