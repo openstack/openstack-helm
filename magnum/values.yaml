@@ -37,8 +37,22 @@ images:
 
 conf:
   paste:
-    override:
-    append:
+    pipeline:main:
+      pipeline: cors healthcheck request_id authtoken api_v1
+    app:api_v1:
+      paste.app_factory: magnum.api.app:app_factory
+    filter:authtoken:
+      acl_public_routes: /, /v1
+      paste.filter_factory: magnum.api.middleware.auth_token:AuthTokenMiddleware.factory
+    filter:request_id:
+      paste.filter_factory: oslo_middleware:RequestId.factory
+    filter:cors:
+      paste.filter_factory:  oslo_middleware.cors:filter_factory
+      oslo_config_project: magnum
+    filter:healthcheck:
+      paste.filter_factory: oslo_middleware:Healthcheck.factory
+      backends: disable_by_file
+      disable_by_file_path: /etc/magnum/healthcheck_disable
   policy:
     context_is_admin: role:admin
     admin_or_owner: is_admin:True or project_id:%(project_id)s
@@ -83,18 +97,17 @@ conf:
     certificate:get: rule:admin_or_user or rule:cluster_user
     magnum-service:get_all: rule:admin_api
   magnum:
-    override:
-    append:
+    DEFAULT:
+      transport_url: null
+    database:
+      max_retries: -1
     keystone_authtoken:
-      keystonemiddleware:
-        auth_token:
-          auth_type: password
-          auth_version: v3
-          memcache_security_strategy: ENCRYPT
+      auth_type: password
+      auth_version: v3
+      memcache_security_strategy: ENCRYPT
     api:
-      magnum:
-        port: 9511
-        host: 0.0.0.0
+      port: 9511
+      host: 0.0.0.0
 
 network:
   api:
