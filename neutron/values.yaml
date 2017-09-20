@@ -370,8 +370,39 @@ conf:
     override:
     append:
   paste:
-    override:
-    append:
+    composite:neutron:
+      use: egg:Paste#urlmap
+      /: neutronversions_composite
+      /v2.0: neutronapi_v2_0
+    composite:neutronapi_v2_0:
+      use: call:neutron.auth:pipeline_factory
+      noauth: cors http_proxy_to_wsgi request_id catch_errors extensions neutronapiapp_v2_0
+      keystone: cors http_proxy_to_wsgi request_id catch_errors authtoken keystonecontext extensions neutronapiapp_v2_0
+    composite:neutronversions_composite:
+      use: call:neutron.auth:pipeline_factory
+      noauth: cors http_proxy_to_wsgi neutronversions
+      keystone: cors http_proxy_to_wsgi neutronversions
+    filter:request_id:
+      paste.filter_factory: oslo_middleware:RequestId.factory
+    filter:catch_errors:
+      paste.filter_factory: oslo_middleware:CatchErrors.factory
+    filter:cors:
+      paste.filter_factory: oslo_middleware.cors:filter_factory
+      oslo_config_project: neutron
+    filter:http_proxy_to_wsgi:
+      paste.filter_factory: oslo_middleware.http_proxy_to_wsgi:HTTPProxyToWSGI.factory
+    filter:keystonecontext:
+      paste.filter_factory: neutron.auth:NeutronKeystoneContext.factory
+    filter:authtoken:
+      paste.filter_factory: keystonemiddleware.auth_token:filter_factory
+    filter:extensions:
+      paste.filter_factory: neutron.api.extensions:plugin_aware_extension_middleware_factory
+    app:neutronversions:
+      paste.app_factory: neutron.api.versions:Versions.factory
+    app:neutronapiapp_v2_0:
+      paste.app_factory: neutron.api.v2.router:APIRouter.factory
+    filter:osprofiler:
+      paste.filter_factory: osprofiler.web:WsgiMiddleware.factory
   policy:
     context_is_admin: role:admin
     owner: tenant_id:%(tenant_id)s
@@ -600,201 +631,119 @@ conf:
       override:
       append:
   neutron:
-    override:
-    append:
-    default:
-      neutron:
-        default_availability_zones: nova
-        api_workers: 4
-        allow_overlapping_ips: True
-        # core_plugin can be: ml2, calico
-        core_plugin: ml2
-        # service_plugin can be: router, odl-router, empty for calico,
-        # networking_ovn.l3.l3_ovn.OVNL3RouterPlugin for OVN
-        service_plugins: router
-        metadata_proxy_socket: /var/lib/neutron/openstack-helm/metadata_proxy
-        db:
-          allow_automatic_l3agent_failover: True
-          l3_ha: True
-          min_l3_agents_per_router: 2
-          max_l3_agents_per_router: 2
-          l3_ha_network_type: vxlan
-          dhcp_agents_per_network: 3
-          network_auto_schedule: True
-          router_auto_schedule: True
-        agent:
-          # we can define here, which driver we are using: openvswitch or linuxbridge
-          interface_driver: openvswitch
+    DEFAULT:
+      default_availability_zones: nova
+      api_workers: 4
+      allow_overlapping_ips: True
+      # core_plugin can be: ml2, calico
+      core_plugin: ml2
+      # service_plugin can be: router, odl-router, empty for calico,
+      # networking_ovn.l3.l3_ovn.OVNL3RouterPlugin for OVN
+      service_plugins: router
+      metadata_proxy_socket: /var/lib/neutron/openstack-helm/metadata_proxy
+      allow_automatic_l3agent_failover: True
+      l3_ha: True
+      min_l3_agents_per_router: 2
+      max_l3_agents_per_router: 2
+      l3_ha_network_type: vxlan
+      dhcp_agents_per_network: 3
+      network_auto_schedule: True
+      router_auto_schedule: True
+      # we can define here, which driver we are using: openvswitch or linuxbridge
+      interface_driver: openvswitch
     oslo_concurrency:
-      oslo:
-        concurrency:
-          lock_path: /var/lib/neutron/tmp
+      lock_path: /var/lib/neutron/tmp
     database:
-      oslo:
-        db:
-          max_retries: -1
+      max_retries: -1
     agent:
-      neutron:
-        agent:
-          root_helper: sudo /var/lib/kolla/venv/bin/neutron-rootwrap /etc/neutron/rootwrap.conf
+      root_helper: sudo /var/lib/kolla/venv/bin/neutron-rootwrap /etc/neutron/rootwrap.conf
     oslo_messaging_notifications:
-      oslo:
-        messaging:
-          driver:
-          - noop
+      driver:
+      - noop
     nova:
-      nova:
-        auth:
-          auth_type: password
-          region_name: RegionOne
-          project_domain_name: default
-          project_name: service
-          user_domain_name: default
-          username: nova
-          password: password
+      auth_type: password
+      auth_version: v3
+      region_name: RegionOne
+      project_domain_name: default
+      project_name: service
+      user_domain_name: default
+      username: nova
+      password: password
     keystone_authtoken:
-      keystonemiddleware:
-        auth_token:
-          auth_type: password
-          auth_version: v3
-          memcache_security_strategy: ENCRYPT
-  ml2_conf:
-    override:
-    append:
-    ml2:
-      neutron:
-        ml2:
-          extension_drivers: port_security
-          # mechnism_drivers can be: openvswitch, linuxbridge,
-          # opendaylight, ovn
-          mechanism_drivers: openvswitch,l2population
-          type_drivers: flat,vlan,vxlan
-          tenant_network_types: vxlan
-    ml2_type_vxlan:
-      neutron:
-        ml2:
-          vni_ranges: 1:1000
-          vxlan_group: 239.1.1.1
-    ml2_type_flat:
-      neutron:
-        ml2:
-          flat_networks: "*"
-    # If you want to use the external network as a tagged provider network,
-    # a range should be specified including the intended VLAN target
-    # using ml2_type_vlan.neutron.ml2.network_vlan_ranges:
-    # ml2_type_vlan:
-    #   neutron:
-    #     ml2:
-    #       network_vlan_ranges: "external:1100:1110"
-  ml2_conf_sriov:
-    override:
-    append:
+      memcache_security_strategy: ENCRYPT
+      auth_type: password
+      auth_version: v3
+  plugins:
+    ml2_conf:
+      ml2:
+        extension_drivers: port_security
+        # mechnism_drivers can be: openvswitch, linuxbridge,
+        # opendaylight, ovn
+        mechanism_drivers: openvswitch,l2population
+        type_drivers: flat,vlan,vxlan
+        tenant_network_types: vxlan
+      ml2_type_vxlan:
+        vni_ranges: 1:1000
+        vxlan_group: 239.1.1.1
+      ml2_type_flat:
+        flat_networks: "*"
+      # If you want to use the external network as a tagged provider network,
+      # a range should be specified including the intended VLAN target
+      # using ml2_type_vlan.network_vlan_ranges:
+      # ml2_type_vlan:
+      #   network_vlan_ranges: "external:1100:1110"
+    ml2_conf_sriov: null
+    openvswitch_agent:
+      agent:
+        tunnel_types: vxlan
+        l2_population: True
+        arp_responder: True
+      ovs:
+        bridge_mappings: "external:br-ex"
+        ovsdb_connection: unix:/var/run/openvswitch/db.sock
+      securitygroup:
+        firewall_driver: openvswitch
+    linuxbridge_agent:
+      agent:
+        # To define Flat and VLAN connections, in LB we can assign
+        # specific interface to the flat/vlan network name using:
+        # physical_interface_mappings: "external:eth3"
+        # Or we can set the mapping between the network and bridge:
+        bridge_mappings: "external:br-ex"
+        # The two above options are exclusive, do not use both of them at once
+      securitygroup:
+        firewall_driver: neutron.agent.linux.iptables_firewall.IptablesFirewallDriver
+      vxlan:
+        l2_population: True
+        arp_responder: True
+    macvtap_agent: null
+    sriov_agent: null
   dhcp_agent:
-    override:
-    append:
-    default:
-      neutron:
-        base:
-          agent:
-            # we can define here, which driver we are using:
-            # openvswitch or linuxbridge
-            interface_driver: openvswitch
-        dhcp:
-          agent:
-            dnsmasq_config_file: /etc/neutron/dnsmasq.conf
-            enable_isolated_metadata: True
-            force_metadata: True
+    DEFAULT:
+      # we can define here, which driver we are using:
+      # openvswitch or linuxbridge
+      interface_driver: openvswitch
+      dnsmasq_config_file: /etc/neutron/dnsmasq.conf
+      enable_isolated_metadata: True
+      force_metadata: True
   l3_agent:
-    override:
-    append:
-    default:
-      neutron:
-        base:
-          agent:
-            # we can define here, which driver we are using:
-            # openvswitch or linuxbridge
-            interface_driver: openvswitch
-        l3:
-          agent:
-            agent_mode: legacy
-            enable_metadata_proxy: True
-            enable_isolated_metadata: True
-  openvswitch_agent:
-    override:
-    append:
-    agent:
-      neutron:
-        ml2:
-          ovs:
-            agent:
-              tunnel_types: vxlan
-              l2_population: True
-              arp_responder: True
-    ovs:
-      neutron:
-        ml2:
-          ovs:
-            agent:
-              bridge_mappings: "external:br-ex"
-              ovsdb_connection: unix:/var/run/openvswitch/db.sock
-    securitygroup:
-      neutron:
-        ml2:
-          ovs:
-            agent:
-              firewall_driver: openvswitch
-  metering_agent:
-    override:
-    append:
+    DEFAULT:
+      # we can define here, which driver we are using:
+      # openvswitch or linuxbridge
+      interface_driver: openvswitch
+      agent_mode: legacy
+      enable_metadata_proxy: True
+      enable_isolated_metadata: True
+  metering_agent: null
   metadata_agent:
-    override:
-    append:
-    default:
-      neutron:
-        metadata:
-          agent:
-            nova_metadata_ip: 10.97.120.234
-            nova_metadata_port: 80
-            nova_metadata_protocol: http
-            metadata_proxy_shared_secret: "password"
+    DEFAULT:
+      nova_metadata_ip: 10.97.120.234
+      nova_metadata_port: 80
+      nova_metadata_protocol: http
+      metadata_proxy_shared_secret: "password"
     cache:
-      oslo:
-        cache:
-          enabled: true
-          backend: dogpile.cache.memcached
-  sriov_agent:
-    override:
-    append:
-  macvtap_agent:
-    override:
-    append:
-  linuxbridge_agent:
-    override:
-    append:
-    linux_bridge:
-      neutron:
-        ml2:
-          linuxbridge:
-            agent:
-              # To define Flat and VLAN connections, in LB we can assign
-              # specific interface to the flat/vlan network name using:
-              # physical_interface_mappings: "external:eth3"
-              # Or we can set the mapping between the network and bridge:
-              bridge_mappings: "external:br-ex"
-              # The two above options are exclusive, do not use both of them at once
-    securitygroup:
-      neutron:
-        ml2:
-          linuxbridge:
-            agent:
-              firewall_driver: neutron.agent.linux.iptables_firewall.IptablesFirewallDriver
-    vxlan:
-      neutron:
-        ml2:
-          linuxbridge:
-            agent:
-              l2_population: True
-              arp_responder: True
+      enabled: true
+      backend: dogpile.cache.memcached
 
 # Names of secrets used by bootstrap and environmental checks
 secrets:
