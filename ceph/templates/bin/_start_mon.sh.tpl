@@ -15,11 +15,6 @@ if [[ -z "$MON_IP" ]]; then
   exit 1
 fi
 
-if [[ -z "$MON_IP" || -z "$CEPH_PUBLIC_NETWORK" ]]; then
-  log "ERROR- it looks like we have not been able to discover the network settings"
-  exit 1
-fi
-
 function get_mon_config {
   # Get fsid from ceph.conf
   local fsid=$(ceph-conf --lookup fsid -c /etc/ceph/${CLUSTER}.conf)
