@@ -25,7 +25,7 @@ true
 {{- end -}}
 
 {{- define "cinder.is_ceph_backup_configured" -}}
-{{- $values := .Values.conf.cinder.default.cinder -}}
+{{- $values := .Values.conf.cinder.DEFAULT -}}
 {{- if eq $values.backup_driver "cinder.backup.drivers.ceph" -}}
 true
 {{- end -}}
