@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-[{{ .Values.conf.glance.glance_store.glance.store.default_swift_reference }}]
+[{{ .Values.conf.glance.glance_store.default_swift_reference }}]
 {{- if eq .Values.storage "radosgw" }}
 auth_version = 1
 auth_address = {{ tuple "ceph_object_store" "public" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" }}
