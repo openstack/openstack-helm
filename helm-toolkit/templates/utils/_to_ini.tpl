@@ -20,7 +20,7 @@ limitations under the License.
 [{{ $section }}]
 {{range $key, $value := $values -}}
 {{- if kindIs "slice" $value -}}
-{{ $key }} = {{ include "helm-toolkit.joinListWithComma" $value }}
+{{ $key }} = {{ include "helm-toolkit.utils.joinListWithComma" $value }}
 {{else -}}
 {{ $key }} = {{ $value }}
 {{end -}}
