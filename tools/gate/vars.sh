@@ -49,7 +49,8 @@ export GLANCE=${GLANCE:-"radosgw"}
 export SDN_PLUGIN=${SDN_PLUGIN:-"ovs"}
 
 # Set Upstream DNS
-export UPSTREAM_DNS=${UPSTREAM_DNS:-"8.8.8.8"}
+export UPSTREAM_DNS1=${UPSTREAM_DNS1:-"8.8.8.8"}
+export UPSTREAM_DNS2=${UPSTREAM_DNS2:-"8.8.4.4"}
 
 # Set gate script timeouts
 export NODE_START_TIMEOUT=${NODE_START_TIMEOUT:="480"}

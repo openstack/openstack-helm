@@ -28,7 +28,8 @@ function net_resolv_pre_kube {
   sudo cp -f /etc/resolv.conf /etc/resolv-pre-kube.conf
   sudo rm -f /etc/resolv.conf
   cat << EOF | sudo tee /etc/resolv.conf
-nameserver ${UPSTREAM_DNS}
+nameserver ${UPSTREAM_DNS1}
+nameserver ${UPSTREAM_DNS2}
 EOF
 }
 
