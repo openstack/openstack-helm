@@ -28,3 +28,5 @@ limitations under the License.
 #          rollover when a size limit is hit.
 #
 stdio_handler = "file"
+{{ if not .Values.conf.qemu.user }}#{{ end }}user = {{ .Values.conf.qemu.user | default "nova" | quote }}
+{{ if not .Values.conf.qemu.group }}#{{ end }}group = {{ .Values.conf.qemu.group | default "kvm" | quote }}

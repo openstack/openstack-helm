@@ -17,6 +17,6 @@ limitations under the License.
 listen_tcp = 1
 auth_tcp = "none"
 ca_file = ""
-log_level = {{ .Values.libvirt.log_level }}
-log_outputs = "{{ .Values.libvirt.log_level }}:stderr"
-listen_addr = "{{ .Values.libvirt.listen_addr }}"
+log_level = {{ .Values.conf.libvirt.log_level }}
+log_outputs = "{{ .Values.conf.libvirt.log_level }}:stderr"
+listen_addr = "{{ .Values.conf.libvirt.listen_addr }}"
