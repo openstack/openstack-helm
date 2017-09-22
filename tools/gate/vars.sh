@@ -62,14 +62,18 @@ export SERVICE_TEST_TIMEOUT=${SERVICE_TEST_TIMEOUT:="600"}
 
 # Setup Loopback device options
 export LOOPBACK_CREATE=${LOOPBACK_CREATE:="false"}
-export LOOPBACK_DEVS=${LOOPBACK_DEVS:="3"}
-export LOOPBACK_SIZE=${LOOPBACK_SIZE:="500M"}
+export LOOPBACK_DEV_COUNT=${LOOPBACK_DEV_COUNT:="3,3,3"}
+export LOOPBACK_SIZES=${LOOPBACK_SIZES:="8192M,1024M,1024M"}
+export LOOPBACK_NAMES=${LOOPBACK_NAMES:="cephosd,cephjournal,swift"}
 export LOOPBACK_DIR=${LOOPBACK_DIR:="/var/lib/iscsi-loopback"}
+export LOOPBACK_LOCAL_DISC_INFO=${LOOPBACK_LOCAL_DISC_INFO:="/tmp/loopback-local-disc-info"}
+export LOOPBACK_DEV_INFO=${LOOPBACK_DEV_INFO:="/tmp/loopback-dev-info"}
 
 # Setup Multinode params
 export SSH_PRIVATE_KEY=${SSH_PRIVATE_KEY:="/etc/nodepool/id_rsa"}
 export PRIMARY_NODE_IP=${PRIMARY_NODE_IP:="$(cat /etc/nodepool/primary_node | tail -1)"}
 export SUB_NODE_IPS=${SUB_NODE_IPS:="$(cat /etc/nodepool/sub_nodes)"}
+export SUB_NODE_COUNT="$(($(echo ${SUB_NODE_IPS} | wc -w) + 1))"
 
 # Define OpenStack Test Params
 export OSH_BR_EX_ADDR=${OSH_BR_EX_ADDR:="172.24.4.1/24"}

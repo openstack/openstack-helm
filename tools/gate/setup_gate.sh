@@ -17,6 +17,7 @@ source ${WORK_DIR}/tools/gate/vars.sh
 source ${WORK_DIR}/tools/gate/funcs/common.sh
 source ${WORK_DIR}/tools/gate/funcs/network.sh
 source ${WORK_DIR}/tools/gate/funcs/helm.sh
+source ${WORK_DIR}/tools/gate/funcs/kube.sh
 
 # Setup the logging location: by default use the working dir as the root.
 rm -rf ${LOGS_DIR} || true
@@ -59,7 +60,10 @@ else
    bash ${WORK_DIR}/tools/gate/kubeadm_aio.sh
    bash ${WORK_DIR}/tools/gate/setup_gate_worker_nodes.sh
   fi
-
+  if [ "x$LOOPBACK_CREATE" == "xtrue" ]; then
+    loopback_dev_info_collect
+    kube_label_node_block_devs
+  fi
   # Deploy OpenStack-Helm
   if ! [ "x$INTEGRATION_TYPE" == "x" ]; then
     bash ${WORK_DIR}/tools/gate/helm_dry_run.sh
