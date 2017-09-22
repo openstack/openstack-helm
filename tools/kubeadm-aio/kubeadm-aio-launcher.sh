@@ -68,7 +68,7 @@ sudo docker run \
 
 echo "Waiting for kubeconfig"
 set +x
-end=$(($(date +%s) + 240))
+end=$(($(date +%s) + 480))
 READY="False"
 while true; do
   if [ -f ${HOME}/.kubeadm-aio/admin.conf ]; then
@@ -89,7 +89,7 @@ export KUBECONFIG=${HOME}/.kubeadm-aio/admin.conf
 
 echo "Waiting for node to be ready before continuing"
 set +x
-end=$(($(date +%s) + 240))
+end=$(($(date +%s) + 480))
 READY="False"
 while true; do
   READY=$(kubectl get nodes --no-headers=true | awk "{ print \$2 }" | head -1)
@@ -103,7 +103,7 @@ done
 set -x
 
 # Waiting for kube-system pods to be ready before continuing
-sudo docker exec kubeadm-aio wait-for-kube-pods kube-system
+sudo docker exec kubeadm-aio wait-for-kube-pods kube-system 480
 
 # Initialize Helm
 helm init
