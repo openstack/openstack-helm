@@ -59,7 +59,7 @@ function base_install {
       nmap \
       lshw \
       jq \
-      python2-pip
+      python-pip
   fi
 
   sudo -H pip install --upgrade pip
