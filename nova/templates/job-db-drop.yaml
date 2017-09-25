@@ -1,0 +1,109 @@
+{{/*
+Copyright 2017 The Openstack-Helm Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.job_db_drop }}
+{{- $envAll := . }}
+{{- $dependencies := .Values.dependencies.db_drop }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: nova-db-drop-{{ randAlphaNum 5 | lower }}
+  annotations:
+    "helm.sh/hook": pre-delete
+    "helm.sh/hook-delete-policy": hook-succeeded
+spec:
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "nova" "db-drop" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+    spec:
+      restartPolicy: OnFailure
+      nodeSelector:
+        {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
+      initContainers:
+{{ tuple $envAll $dependencies "[]" | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+      containers:
+        - name: nova-db-drop
+          image: {{ .Values.images.db_drop }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+{{ tuple $envAll $envAll.Values.pod.resources.jobs.db_drop | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          env:
+            - name: ROOT_DB_CONNECTION
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.oslo_db.admin }}
+                  key: DB_CONNECTION
+            - name: OPENSTACK_CONFIG_FILE
+              value: /etc/nova/nova.conf
+            - name: OPENSTACK_CONFIG_DB_SECTION
+              value: database
+            - name: OPENSTACK_CONFIG_DB_KEY
+              value: connection
+          command:
+            - /tmp/db-drop.py
+          volumeMounts:
+            - name: nova-bin
+              mountPath: /tmp/db-drop.py
+              subPath: db-drop.py
+              readOnly: true
+            - name: etcnova
+              mountPath: /etc/nova
+            - name: nova-etc
+              mountPath: /etc/nova/nova.conf
+              subPath: nova.conf
+              readOnly: true
+        - name: nova-db-drop-api
+          image: {{ .Values.images.db_drop }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+{{ tuple $envAll $envAll.Values.pod.resources.jobs.db_drop | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          env:
+            - name: ROOT_DB_CONNECTION
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.oslo_db.admin }}
+                  key: DB_CONNECTION
+            - name: OPENSTACK_CONFIG_FILE
+              value: /etc/nova/nova.conf
+            - name: OPENSTACK_CONFIG_DB_SECTION
+              value: api_database
+            - name: OPENSTACK_CONFIG_DB_KEY
+              value: connection
+          command:
+            - /tmp/db-drop.py
+          volumeMounts:
+            - name: nova-bin
+              mountPath: /tmp/db-drop.py
+              subPath: db-drop.py
+              readOnly: true
+            - name: etcnova
+              mountPath: /etc/nova
+            - name: nova-etc
+              mountPath: /etc/nova/nova.conf
+              subPath: nova.conf
+              readOnly: true
+      volumes:
+        - name: etcnova
+          emptyDir: {}
+        - name: nova-etc
+          configMap:
+            name: nova-etc
+            defaultMode: 0444
+        - name: nova-bin
+          configMap:
+            name: nova-bin
+            defaultMode: 0555
+{{- end }}

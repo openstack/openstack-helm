@@ -252,3 +252,25 @@ insight into the services' deployment status.
 
 Once the pods all register as Ready, the OpenStack services should be ready to
 receive requests.
+
+Removing Helm Charts
+=======================
+
+To delete an installed helm chart, use the following command:
+
+.. code-block:: shell
+
+  helm delete ${RELEASE_NAME} --purge
+
+This will delete all Kubernetes resources generated when the chart was
+instantiated. However for Openstack charts, by default, this will not delete
+the database and database users that were created when the chart was installed.
+All OpenStack projects can be configured such that upon deletion, their database
+will also be removed. To delete the database when the chart is deleted the database
+drop job must be enabled before installing the chart. There are two ways to enable
+the job, set the job_db_drop value to true in the chart's values.yaml file, or override
+the value using the helm install command as follows:
+
+.. code-block:: shell
+
+  helm install ${RELEASE_NAME} --set manifests.job_db_drop=true

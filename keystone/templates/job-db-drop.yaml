@@ -1,0 +1,84 @@
+{{/*
+Copyright 2017 The Openstack-Helm Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.job_db_drop }}
+{{- $envAll := . }}
+{{- $dependencies := .Values.dependencies.db_drop }}
+{{- $mounts_keystone_db_init := .Values.pod.mounts.keystone_db_init.keystone_db_init }}
+{{- $mounts_keystone_db_init_init := .Values.pod.mounts.keystone_db_init.init_container }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: keystone-db-drop-{{ randAlphaNum 5 | lower }}
+  annotations:
+    "helm.sh/hook": pre-delete
+    "helm.sh/hook-delete-policy": hook-succeeded
+spec:
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "keystone" "db-drop" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+    spec:
+      restartPolicy: OnFailure
+      nodeSelector:
+        {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
+      initContainers:
+{{ tuple $envAll $dependencies "[]" | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+      containers:
+        - name: keystone-db-drop
+          image: {{ .Values.images.db_drop }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+{{ tuple $envAll $envAll.Values.pod.resources.jobs.db_drop | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          env:
+            - name: ROOT_DB_CONNECTION
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.oslo_db.admin }}
+                  key: DB_CONNECTION
+            - name: OPENSTACK_CONFIG_FILE
+              value: /etc/keystone/keystone.conf
+            - name: OPENSTACK_CONFIG_DB_SECTION
+              value: database
+            - name: OPENSTACK_CONFIG_DB_KEY
+              value: connection
+          command:
+            - /tmp/db-drop.py
+          volumeMounts:
+          - name: etckeystone
+            mountPath: /etc/keystone
+          - name: keystone-etc
+            mountPath: /etc/keystone/keystone.conf
+            subPath: keystone.conf
+            readOnly: true
+          - name: keystone-bin
+            mountPath: /tmp/db-drop.py
+            subPath: db-drop.py
+            readOnly: true
+{{ if $mounts_keystone_db_init.volumeMounts }}{{ toYaml $mounts_keystone_db_init.volumeMounts | indent 10 }}{{ end }}
+      volumes:
+      - name: etckeystone
+        emptyDir: {}
+      - name: keystone-etc
+        configMap:
+          name: keystone-etc
+          defaultMode: 0444
+      - name: keystone-bin
+        configMap:
+          name: keystone-bin
+          defaultMode: 0555
+{{ if $mounts_keystone_db_init.volumes }}{{ toYaml $mounts_keystone_db_init.volumes | indent 6 }}{{ end }}
+{{- end }}
