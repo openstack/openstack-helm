@@ -23,6 +23,7 @@ if [ "x$PVC_BACKEND" == "xceph" ]; then
   kubectl label nodes ceph-osd=enabled --all --overwrite
   kubectl label nodes ceph-mds=enabled --all --overwrite
   kubectl label nodes ceph-rgw=enabled --all --overwrite
+  kubectl label nodes ceph-mgr=enabled --all --overwrite
 fi
 
 if [ "x$SDN_PLUGIN" == "xovs" ]; then

@@ -235,6 +235,7 @@ Nodes are labeled according to their Openstack roles:
 * **Ceph OSD Nodes:** ``ceph-osd``
 * **Ceph MDS Nodes:** ``ceph-mds``
 * **Ceph RGW Nodes:** ``ceph-rgw``
+* **Ceph MGR Nodes:** ``ceph-mgr``
 * **Control Plane:** ``openstack-control-plane``
 * **Compute Nodes:** ``openvswitch``, ``openstack-compute-node``
 
@@ -245,6 +246,7 @@ Nodes are labeled according to their Openstack roles:
     kubectl label nodes ceph-osd=enabled --all
     kubectl label nodes ceph-mds=enabled --all
     kubectl label nodes ceph-rgw=enabled --all
+    kubectl label nodes ceph-mgr=enabled --all
     kubectl label nodes openvswitch=enabled --all
     kubectl label nodes openstack-compute-node=enabled --all
 

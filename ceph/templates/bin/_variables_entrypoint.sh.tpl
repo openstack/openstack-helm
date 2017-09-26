@@ -2,7 +2,7 @@
 # LIST OF ALL DAEMON SCENARIOS AVAILABLE #
 ##########################################
 
-ALL_SCENARIOS="osd osd_directory osd_directory_single osd_ceph_disk osd_ceph_disk_prepare osd_ceph_disk_activate osd_ceph_activate_journal"
+ALL_SCENARIOS="osd osd_directory osd_directory_single osd_ceph_disk osd_ceph_disk_prepare osd_ceph_disk_activate osd_ceph_activate_journal mgr"
 
 
 #########################
@@ -43,6 +43,11 @@ ALL_SCENARIOS="osd osd_directory osd_directory_single osd_ceph_disk osd_ceph_dis
 : ${RGW_REMOTE_CGI_PORT:=9000}
 : ${RGW_REMOTE_CGI_HOST:=0.0.0.0}
 : ${RGW_USER:="cephnfs"}
+: ${MGR_NAME:=${HOSTNAME}}
+: ${MGR_DASHBOARD:=1}
+: ${MGR_IP:=0.0.0.0}
+: ${MGR_PORT:=7000}
+: ${RBD_POOL_PG:=128}
 
 # This is ONLY used for the CLI calls, e.g: ceph $CLI_OPTS health
 CLI_OPTS="--cluster ${CLUSTER}"
@@ -57,6 +62,7 @@ MDS_KEYRING=/var/lib/ceph/mds/${CLUSTER}-${MDS_NAME}/keyring
 ADMIN_KEYRING=/etc/ceph/${CLUSTER}.client.admin.keyring
 MON_KEYRING=/etc/ceph/${CLUSTER}.mon.keyring
 RGW_KEYRING=/var/lib/ceph/radosgw/${RGW_NAME}/keyring
+MGR_KEYRING=/var/lib/ceph/mgr/${CLUSTER}-${MGR_NAME}/keyring
 MDS_BOOTSTRAP_KEYRING=/var/lib/ceph/bootstrap-mds/${CLUSTER}.keyring
 RGW_BOOTSTRAP_KEYRING=/var/lib/ceph/bootstrap-rgw/${CLUSTER}.keyring
 OSD_BOOTSTRAP_KEYRING=/var/lib/ceph/bootstrap-osd/${CLUSTER}.keyring
