@@ -19,9 +19,13 @@ limitations under the License.
 set -ex
 export HOME=/tmp
 
-cat <<EOF > /etc/ceph/ceph.client.${RBD_STORE_USER}.keyring
-[client.${RBD_STORE_USER}]
+cat <<EOF > /etc/ceph/ceph.client.admin.keyring
+[client.admin]
+{{- if .Values.conf.ceph.admin_keyring }}
+    key = {{ .Values.conf.ceph.admin_keyring }}
+{{- else }}
     key = $(cat /tmp/client-keyring)
+{{- end }}
 EOF
 
 exit 0
