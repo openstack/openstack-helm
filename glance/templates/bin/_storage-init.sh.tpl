@@ -36,11 +36,16 @@ elif [ "x$STORAGE_BACKEND" == "xrbd" ]; then
   }
   ensure_pool ${RBD_POOL_NAME} ${RBD_POOL_CHUNK_SIZE}
 
-  #NOTE(Portdirect): Determine proper privs to assign keyring
-  ceph auth get-or-create client.${RBD_POOL_USER} \
-    mon "allow *" \
-    osd "allow *" \
-    -o ${KEYRING}
+  if USERINFO=$(ceph auth get client.${RBD_POOL_USER}); then
+    KEYSTR=$(echo $USERINFO | sed 's/.*\( key = .*\) caps mon.*/\1/')
+    echo $KEYSTR  > ${KEYRING}
+  else
+    #NOTE(Portdirect): Determine proper privs to assign keyring
+    ceph auth get-or-create client.${RBD_POOL_USER} \
+      mon "allow *" \
+      osd "allow *" \
+      -o ${KEYRING}
+  fi
 
   ENCODED_KEYRING=$(sed -n 's/^[[:blank:]]*key[[:blank:]]\+=[[:blank:]]\(.*\)/\1/p' ${KEYRING} | base64 -w0)
   cat > ${SECRET} <<EOF
