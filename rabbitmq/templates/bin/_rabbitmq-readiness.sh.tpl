@@ -19,7 +19,7 @@ limitations under the License.
 # This is taken from https://github.com/openstack/fuel-ccp-rabbitmq/blob/master/service/files/rabbitmq-readiness.sh.j2
 set -eu
 set -o pipefail
-exec 1>/proc/1/fd/2 2>/proc/1/fd/2
+exec 1>/dev/null 2>&1
 
 source $(readlink -f $(dirname $0))/rabbitmq-check-helpers.sh
 set-log-prefix "readiness:$$"
