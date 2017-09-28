@@ -123,6 +123,14 @@ else
          --set pod.replicas.server=1
 fi
 
+if [ "x$INTEGRATION" == "xmulti" ]; then
+  if [ "x$PVC_BACKEND" == "xceph" ]; then
+    #NOTE(portdirect): Deploy Telemetry componets here to enable ingestion
+    # of data from other services as the come online.
+    helm install --namespace=openstack ${WORK_DIR}/postgresql --name=postgresql
+  fi
+fi
+
 if [[ "x${PVC_BACKEND}" != "xceph"  ]] && [[ "x${GLANCE}" != "xpvc" ]] ; then
     echo "Gate only supports glance with pvc backend when not using ceph"
     exit 1
