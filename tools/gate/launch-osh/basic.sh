@@ -128,7 +128,11 @@ if [ "x$INTEGRATION" == "xmulti" ]; then
     #NOTE(portdirect): Deploy Telemetry componets here to enable ingestion
     # of data from other services as the come online.
     helm install --namespace=openstack ${WORK_DIR}/postgresql --name=postgresql
+    helm install --namespace=openstack ${WORK_DIR}/gnocchi --name=gnocchi
+    helm install --namespace=openstack ${WORK_DIR}/mongodb --name=mongodb
+    helm install --namespace=openstack ${WORK_DIR}/ceilometer --name=ceilometer
   fi
+  kube_wait_for_pods openstack ${POD_START_TIMEOUT_OPENSTACK}
 fi
 
 if [[ "x${PVC_BACKEND}" != "xceph"  ]] && [[ "x${GLANCE}" != "xpvc" ]] ; then
@@ -201,6 +205,7 @@ if [ "x$INTEGRATION" == "xmulti" ]; then
   kube_wait_for_pods openstack ${POD_START_TIMEOUT_OPENSTACK}
 
   helm_test_deployment keystone ${SERVICE_TEST_TIMEOUT}
+  helm_test_deployment gnocchi ${SERVICE_TEST_TIMEOUT}
   helm_test_deployment glance ${SERVICE_TEST_TIMEOUT}
   helm_test_deployment cinder ${SERVICE_TEST_TIMEOUT}
   helm_test_deployment neutron ${SERVICE_TEST_TIMEOUT}
