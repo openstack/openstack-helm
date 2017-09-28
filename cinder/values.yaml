@@ -37,9 +37,14 @@ images:
   bootstrap: docker.io/kolla/ubuntu-source-heat-engine:3.0.3
   scheduler: docker.io/kolla/ubuntu-source-cinder-scheduler:3.0.3
   volume: docker.io/kolla/ubuntu-source-cinder-volume:3.0.3
+  volume_usage_audit: docker.io/kolla/ubuntu-source-cinder-volume:3.0.3
   backup: docker.io/kolla/ubuntu-source-cinder-backup:3.0.3
   dep_check: docker.io/kolla/ubuntu-source-kubernetes-entrypoint:4.0.0
   pull_policy: "IfNotPresent"
+
+jobs:
+  volume_usage_audit:
+    cron: "*/5 * * * *"
 
 pod:
   user:
@@ -61,6 +66,9 @@ pod:
     cinder_volume:
       init_container: null
       cinder_volume:
+    cinder_volume_usage_audit:
+      init_container: null
+      cinder_volume_usage_audit:
     cinder_backup:
       init_container: null
       cinder_backup:
@@ -110,6 +118,13 @@ pod:
         memory: "1024Mi"
         cpu: "2000m"
     jobs:
+      volume_usage_audit:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
       bootstrap:
         requests:
           memory: "128Mi"
@@ -390,6 +405,8 @@ conf:
       memcache_security_strategy: ENCRYPT
     oslo_concurrency:
       lock_path: "/var/lib/cinder/tmp"
+    oslo_messaging_notifications:
+      driver: messagingv2
   backends:
     # Those options will be written to backends.conf as-is.
     rbd1:
@@ -453,6 +470,16 @@ dependencies:
     - service: volume
       endpoint: internal
   volume:
+    jobs:
+    - cinder-db-sync
+    - cinder-ks-user
+    - cinder-ks-endpoints
+    services:
+    - service: identity
+      endpoint: internal
+    - service: volume
+      endpoint: internal
+  volume_usage_audit:
     jobs:
     - cinder-db-sync
     - cinder-ks-user
@@ -656,6 +683,7 @@ endpoints:
 manifests:
   configmap_bin: true
   configmap_etc: true
+  cron_volume_usage_audit: true
   deployment_api: true
   deployment_backup: true
   deployment_scheduler: true

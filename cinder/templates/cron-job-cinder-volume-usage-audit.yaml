@@ -1,0 +1,74 @@
+{{/*
+Copyright 2017 The Openstack-Helm Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.cron_volume_usage_audit }}
+{{- if .Capabilities.APIVersions.Has "batch/v2alpha1" }}
+{{- $envAll := . }}
+{{- $dependencies := .Values.dependencies.volume_usage_audit }}
+{{- $mounts_cinder_volume_usage_audit := .Values.pod.mounts.cinder_volume_usage_audit.cinder_volume_usage_audit }}
+{{- $mounts_cinder_volume_usage_audit_init := .Values.pod.mounts.cinder_volume_usage_audit.init_container }}
+apiVersion: batch/v2alpha1
+kind: CronJob
+metadata:
+  name: cinder-volume-usage-audit
+spec:
+  schedule: {{ .Values.jobs.volume_usage_audit.cron | quote }}
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    metadata:
+      labels:
+{{ tuple $envAll "cinder" "volume-usage-audit" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+    spec:
+      template:
+        spec:
+          initContainers:
+{{ tuple $envAll $dependencies $mounts_cinder_volume_usage_audit_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 12 }}
+          restartPolicy: OnFailure
+          nodeSelector:
+            {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
+          containers:
+            - name: cinder-volume-usage-audit
+              image: {{ .Values.images.volume_usage_audit }}
+              imagePullPolicy: {{ .Values.images.pull_policy }}
+{{ tuple $envAll $envAll.Values.pod.resources.jobs.volume_usage_audit | include "helm-toolkit.snippets.kubernetes_resources" | indent 14 }}
+              command:
+                - /tmp/volume-usage-audit.sh
+              volumeMounts:
+              - name: etccinder
+                mountPath: /etc/cinder
+              - name: cinder-etc
+                mountPath: /etc/cinder/cinder.conf
+                subPath: cinder.conf
+                readOnly: true
+              - name: cinder-bin
+                mountPath: /tmp/volume-usage-audit.sh
+                subPath: volume-usage-audit.sh
+                readOnly: true
+    {{ if $mounts_cinder_volume_usage_audit.volumeMounts }}{{ toYaml $mounts_cinder_volume_usage_audit.volumeMounts | indent 14 }}{{ end }}
+          volumes:
+          - name: etccinder
+            emptyDir: {}
+          - name: cinder-etc
+            configMap:
+              name: cinder-etc
+              defaultMode: 0444
+          - name: cinder-bin
+            configMap:
+              name: cinder-bin
+              defaultMode: 0555
+    {{ if $mounts_cinder_volume_usage_audit.volumes }}{{ toYaml $mounts_cinder_volume_usage_audit.volumes | indent 10 }}{{ end }}
+{{- end }}
+{{- end }}
