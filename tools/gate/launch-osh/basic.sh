@@ -130,7 +130,6 @@ if [ "x$INTEGRATION" == "xmulti" ]; then
     helm install --namespace=openstack ${WORK_DIR}/postgresql --name=postgresql
     helm install --namespace=openstack ${WORK_DIR}/gnocchi --name=gnocchi
     helm install --namespace=openstack ${WORK_DIR}/mongodb --name=mongodb
-    helm install --namespace=openstack ${WORK_DIR}/ceilometer --name=ceilometer
   fi
   kube_wait_for_pods openstack ${POD_START_TIMEOUT_OPENSTACK}
 fi
