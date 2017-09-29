@@ -39,6 +39,8 @@ defined by the service itself:
    for the OpenStack service.
 -  db\_sync: The image that will perform database sync (schema
    initialization and migration) for the OpenStack service.
+-  db\_drop: The image that will perform database deletion operations
+   for the OpenStack service.
 -  ks\_user: The image that will perform keystone user creation for the
    service.
 -  ks\_service: The image that will perform keystone service
@@ -54,16 +56,18 @@ chart:
 ::
 
     images:
-      dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.1.1
-      db_init: quay.io/stackanetes/stackanetes-kolla-toolbox:newton
-      db_sync: docker.io/kolla/ubuntu-source-heat-api:3.0.1
-      ks_user: quay.io/stackanetes/stackanetes-kolla-toolbox:newton
-      ks_service: quay.io/stackanetes/stackanetes-kolla-toolbox:newton
-      ks_endpoints: quay.io/stackanetes/stackanetes-kolla-toolbox:newton
-      api: docker.io/kolla/ubuntu-source-heat-api:3.0.1
-      cfn: docker.io/kolla/ubuntu-source-heat-api:3.0.1
-      cloudwatch: docker.io/kolla/ubuntu-source-heat-api:3.0.1
-      engine: docker.io/kolla/ubuntu-source-heat-engine:3.0.1
+      bootstrap: docker.io/kolla/ubuntu-source-heat-engine:3.0.3
+      db_init: docker.io/kolla/ubuntu-source-heat-engine:3.0.3
+      db_sync: docker.io/kolla/ubuntu-source-heat-api:3.0.3
+      db_drop: docker.io/kolla/ubuntu-source-heat-engine:3.0.3
+      ks_user: docker.io/kolla/ubuntu-source-heat-engine:3.0.3
+      ks_service: docker.io/kolla/ubuntu-source-heat-engine:3.0.3
+      ks_endpoints: docker.io/kolla/ubuntu-source-heat-engine:3.0.3
+      api: docker.io/kolla/ubuntu-source-heat-api:3.0.3
+      cfn: docker.io/kolla/ubuntu-source-heat-api:3.0.3
+      cloudwatch: docker.io/kolla/ubuntu-source-heat-api:3.0.3
+      engine: docker.io/kolla/ubuntu-source-heat-engine:3.0.3
+      dep_check: docker.io/kolla/ubuntu-source-kubernetes-entrypoint:4.0.0
       pull_policy: "IfNotPresent"
 
 The OpenStack-Helm project today uses a mix of Docker images from

@@ -321,7 +321,10 @@ in the ``openstack-helm`` directory:
 
     helm delete --purge keystone
 
-Please ensure that you use ``--purge`` whenever deleting a project.
+Please ensure that you use ``--purge`` whenever deleting a project. Please note that by default
+this will not delete the database associated with the project. To enable the deletion of the
+associated database when the chart is deleted the manifests.job_db_drop value should be set
+to true when the chart is installed.
 
 Ceph Installation and Verification
 ----------------------------------
