@@ -12,6 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 set -ex
+
+# Exit if run as root
+if [[ $EUID -eq 0 ]]; then
+   echo "This script cannot be run as root" 1>&2
+   exit 1
+fi
+
 export WORK_DIR=$(pwd)
 source ${WORK_DIR}/tools/gate/vars.sh
 source ${WORK_DIR}/tools/gate/funcs/common.sh

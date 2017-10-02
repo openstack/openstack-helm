@@ -15,12 +15,6 @@
 #    under the License.
 set -xe
 
-# Exit if run as root
-if [[ $EUID -eq 0 ]]; then
-   echo "This script cannot be run as root" 1>&2
-   exit 1
-fi
-
 # Setup shared mounts for kubelet
 sudo mkdir -p /var/lib/kubelet
 sudo mount --bind /var/lib/kubelet /var/lib/kubelet
