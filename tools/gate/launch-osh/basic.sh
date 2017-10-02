@@ -147,7 +147,13 @@ helm install --namespace=openstack ${WORK_DIR}/glance --name=glance \
   --set storage=${GLANCE}
 kube_wait_for_pods openstack ${POD_START_TIMEOUT_OPENSTACK}
 
-helm install --namespace=openstack ${WORK_DIR}/libvirt --name=libvirt
+if [ "x${PVC_BACKEND}" == "xceph" ]; then
+    helm install --namespace=openstack ${WORK_DIR}/libvirt --name=libvirt
+else
+    helm install --namespace=openstack ${WORK_DIR}/libvirt --name=libvirt \
+        --set ceph.enabled="false"
+fi
+
 if [ "x$SDN_PLUGIN" == "xovs" ]; then
   helm install --namespace=openstack ${WORK_DIR}/openvswitch --name=openvswitch
 fi
@@ -162,34 +168,24 @@ if [ "x$INTEGRATION" == "xmulti" ] || [ "x$RALLY_CHART_ENABLED" == "xtrue" ]; th
   fi
 fi
 
-if [ "x$PVC_BACKEND" == "xceph" ] && [ "x$SDN_PLUGIN" == "xovs" ]; then
-  helm install --namespace=openstack ${WORK_DIR}/nova --name=nova \
-      --set conf.nova.libvirt.virt_type=qemu
+NOVA_INSTALL="helm install --namespace=openstack ${WORK_DIR}/nova --name=nova\
+    --set conf.nova.libvirt.virt_type=qemu"
 
+if [ "x$PVC_BACKEND" == "x" ] || [ "x$PVC_BACKEND" == "xnfs" ]; then
+  NOVA_INSTALL+=" --values=${WORK_DIR}/tools/overrides/mvp/nova.yaml"
+fi
+
+if [ "x$SDN_PLUGIN" == "xlinuxbridge" ]; then
+  NOVA_INSTALL+=" --set dependencies.compute.daemonset={neutron-lb-agent}"
+fi
+
+$NOVA_INSTALL
+
+if [ "x$SDN_PLUGIN" == "xovs" ]; then
   helm install --namespace=openstack ${WORK_DIR}/neutron --name=neutron \
       --values=${WORK_DIR}/tools/overrides/mvp/neutron-ovs.yaml
 
-elif [ "x$PVC_BACKEND" == "x" ] && [ "x$SDN_PLUGIN" == "xovs" ]; then
-  helm install --namespace=openstack ${WORK_DIR}/nova --name=nova \
-      --values=${WORK_DIR}/tools/overrides/mvp/nova.yaml \
-      --set conf.nova.libvirt.virt_type=qemu
-
-  helm install --namespace=openstack ${WORK_DIR}/neutron --name=neutron \
-      --values=${WORK_DIR}/tools/overrides/mvp/neutron-ovs.yaml
-
-elif [ "x$PVC_BACKEND" == "xceph" ] && [ "x$SDN_PLUGIN" == "xlinuxbridge" ]; then
-  helm install --namespace=openstack ${WORK_DIR}/nova --name=nova \
-      --set dependencies.compute.daemonset={neutron-lb-agent} \
-      --set conf.nova.libvirt.virt_type=qemu
-
-  helm install --namespace=openstack ${WORK_DIR}/neutron --name=neutron \
-      --values=${WORK_DIR}/tools/overrides/mvp/neutron-linuxbridge.yaml
-
-elif [ "x$PVC_BACKEND" == "x" ] && [ "x$SDN_PLUGIN" == "xlinuxbridge" ]; then
-  helm install --namespace=openstack ${WORK_DIR}/nova --name=nova \
-      --values=${WORK_DIR}/tools/overrides/mvp/nova.yaml \
-      --set conf.nova.libvirt.virt_type=qemu
-
+elif [ "x$SDN_PLUGIN" == "xlinuxbridge" ]; then
   helm install --namespace=openstack ${WORK_DIR}/neutron --name=neutron \
       --values=${WORK_DIR}/tools/overrides/mvp/neutron-linuxbridge.yaml
 fi

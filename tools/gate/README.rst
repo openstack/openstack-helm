@@ -63,6 +63,7 @@ Linux Kernels >=4.10:
 .. code:: bash
 
     export PVC_BACKEND=nfs
+    export GLANCE=pvc
 
 It is also possible to customise the CNI used in the deployment:
 
