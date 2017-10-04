@@ -30,12 +30,12 @@ if [[ -c /dev/kvm ]]; then
     chown root:kvm /dev/kvm
 fi
 
-if [ "x${LIBVIRT_CEPH_ENABLED}" == "xTrue" ] ; then
+if [ -n "${LIBVIRT_CEPH_SECRET_UUID}" ] ; then
   libvirtd --listen &
 
-  LIBVIRT_SECRET_DEF=$(mktemp --suffix .xml)
+  tmpsecret=$(mktemp --suffix .xml)
   function cleanup {
-      rm -f ${LIBVIRT_SECRET_DEF}
+      rm -f "${tmpsecret}"
   }
   trap cleanup EXIT
 
@@ -64,16 +64,11 @@ if [ "x${LIBVIRT_CEPH_ENABLED}" == "xTrue" ] ; then
     fi
   done
 
-  if [ -z "${LIBVIRT_CEPH_SECRET_UUID}" ] ; then
-    echo "ERROR: No libvirt Secret UUID Supplied"
-    exit 1
-  fi
-
   if [ -z "${CEPH_CINDER_KEYRING}" ] ; then
     CEPH_CINDER_KEYRING=$(sed -n 's/^[[:space:]]*key[[:blank:]]\+=[[:space:]]\(.*\)/\1/p' /etc/ceph/ceph.client.${CEPH_CINDER_USER}.keyring)
   fi
 
-  cat > ${LIBVIRT_SECRET_DEF} <<EOF
+  cat > ${tmpsecret} <<EOF
 <secret ephemeral='no' private='no'>
   <uuid>${LIBVIRT_CEPH_SECRET_UUID}</uuid>
   <usage type='ceph'>
@@ -82,7 +77,7 @@ if [ "x${LIBVIRT_CEPH_ENABLED}" == "xTrue" ] ; then
 </secret>
 EOF
 
-  virsh secret-define --file ${LIBVIRT_SECRET_DEF}
+  virsh secret-define --file ${tmpsecret}
   virsh secret-set-value --secret "${LIBVIRT_CEPH_SECRET_UUID}" --base64 "${CEPH_CINDER_KEYRING}"
 
   # rejoin libvirtd
