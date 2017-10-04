@@ -366,7 +366,7 @@ of your cluster by running:
   kubectl exec -n ceph ${MON_POD} -- ceph -s
 
 For more information on this, please see the section entitled `Ceph
-Troubleshooting <../../operator/troubleshooting/persistent-storage.html>`__.
+Troubleshooting <../troubleshooting/persistent-storage.html>`__.
 
 Activating Control-Plane Namespace for Ceph
 -------------------------------------------
