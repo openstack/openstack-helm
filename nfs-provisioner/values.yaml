@@ -1,0 +1,71 @@
+# Copyright 2017 The Openstack-Helm Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Default values for NFS.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+pod:
+  affinity:
+    anti:
+      type:
+        default: preferredDuringSchedulingIgnoredDuringExecution
+      topologyKey:
+        default: kubernetes.io/hostname
+  replicas:
+    #only 1 replica currently supported
+    server: 1
+  resources:
+    enabled: false
+    server:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+
+images:
+  nfs_provisioner: quay.io/kubernetes_incubator/nfs-provisioner:v1.0.7
+  pull_policy: IfNotPresent
+
+storage:
+  host:
+    host_path: /var/lib/openstack-helm/nfs
+
+labels:
+  node_selector_key: openstack-control-plane
+  node_selector_value: enabled
+
+storageclass:
+  provisioner: example.com/nfs
+  name: general
+
+endpoints:
+  cluster_domain_suffix: cluster.local
+  nfs:
+    hosts:
+      default: nfs-provisioner
+    host_fqdn_override:
+      default: null
+    path: null
+    scheme: null
+    port:
+      nfs:
+        default: null
+
+manifests:
+  deployment: true
+  service: true
+  storage_class: true
