@@ -8,3 +8,4 @@ Contents:
 
    developer/index
    multinode
+   ext-dns-fqdn
