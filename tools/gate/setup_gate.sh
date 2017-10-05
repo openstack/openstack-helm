@@ -84,7 +84,7 @@ else
 
   if ! [ "x$INTEGRATION_TYPE" == "x" ]; then
     # Run Basic Full Stack Tests
-    if [ "x$INTEGRATION" == "xaio" ]; then
+    if [ "x$INTEGRATION" == "xaio" ] && [ "x$RALLY_CHART_ENABLED" == "xfalse" ]; then
      bash ${WORK_DIR}/tools/gate/openstack/network_launch.sh
      bash ${WORK_DIR}/tools/gate/openstack/vm_cli_launch.sh
      bash ${WORK_DIR}/tools/gate/openstack/vm_heat_launch.sh

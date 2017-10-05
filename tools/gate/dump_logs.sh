@@ -125,4 +125,9 @@ $OPENSTACK hypervisor list > ${LOGS_DIR}/openstack/hypervisor.txt
 $OPENSTACK hypervisor show $(hostname) > ${LOGS_DIR}/openstack/hypervisor-$(hostname).txt
 $OPENSTACK network agent list > ${LOGS_DIR}/openstack/network_agent.txt
 
+if [ "x$RALLY_CHART_ENABLED" == "xtrue" ]; then
+mkdir -p ${LOGS_DIR}/openstack/rally
+  kubectl -n openstack logs $(kubectl -n openstack get pods -l job-name=rally-run-task --no-headers --output=name --show-all | awk -F '/' '{ print $NF; exit 0 }') > ${LOGS_DIR}/openstack/rally/rally_results.log
+fi
+
 exit $1
