@@ -6,8 +6,9 @@ Contents:
 .. toctree::
    :maxdepth: 2
 
-   pod-disruption-budgets
-   images
    endpoints
+   images
+   networking
    oslo-config
+   pod-disruption-budgets
    upgrades
