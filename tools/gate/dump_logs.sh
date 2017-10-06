@@ -7,6 +7,10 @@ if ! type "kubectl" &> /dev/null; then
   exit $1
 fi
 
+# make sure there are no helm processes sticking about when we're done
+# which can cause some test runs to hang
+pkill -x helm
+
 echo "Capturing logs from environment."
 mkdir -p ${LOGS_DIR}/k8s/etc
 sudo cp -a /etc/kubernetes ${LOGS_DIR}/k8s/etc
