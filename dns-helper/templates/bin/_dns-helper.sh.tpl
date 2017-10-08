@@ -19,4 +19,4 @@ limitations under the License.
 set -ex
 
 cat /etc/resolv.conf > /host/etc/resolv.conf
-tail -f /dev/null
+sleep infinity
