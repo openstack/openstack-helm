@@ -31,8 +31,7 @@ metadata:
   name: "${PVC_CEPH_STORAGECLASS_USER_SECRET_NAME}"
 type: kubernetes.io/rbd
 data:
-  key: |
-    $(echo ${CEPH_KEY})
+  key: $(echo ${CEPH_KEY})
 EOF
   } | kubectl create --namespace ${kube_namespace} -f -
 }

@@ -25,7 +25,7 @@ function ceph_gen_key () {
 function kube_ceph_keyring_gen () {
   CEPH_KEY=$1
   CEPH_KEY_TEMPLATE=$2
-  sed "s|{{"{{"}} key {{"}}"}}|${CEPH_KEY}|" ${CEPH_TEMPLATES_DIR}/${CEPH_KEY_TEMPLATE} | base64 | tr -d '\n'
+  sed "s|{{"{{"}} key {{"}}"}}|${CEPH_KEY}|" ${CEPH_TEMPLATES_DIR}/${CEPH_KEY_TEMPLATE} | base64 -w0 | tr -d '\n'
 }
 
 function create_kube_key () {
@@ -43,8 +43,7 @@ metadata:
   name: ${KUBE_SECRET_NAME}
 type: Opaque
 data:
-  ${CEPH_KEYRING_NAME}: |
-    $( kube_ceph_keyring_gen ${CEPH_KEYRING} ${CEPH_KEYRING_TEMPLATE} )
+  ${CEPH_KEYRING_NAME}: $( kube_ceph_keyring_gen ${CEPH_KEYRING} ${CEPH_KEYRING_TEMPLATE} )
 EOF
     } | kubectl create --namespace ${DEPLOYMENT_NAMESPACE} -f -
   fi
