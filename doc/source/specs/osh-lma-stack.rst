@@ -15,7 +15,7 @@ Blueprints:
 2. osh-logging-framework_
 
 .. _osh-monitoring: https://blueprints.launchpad.net/openstack-helm/+spec/osh-monitoring
-.. _osh-logging-framework: https://blueprints.launchpad.net/openstack-helm/+spec/openstack-logging-framework
+.. _osh-logging-framework: https://blueprints.launchpad.net/openstack-helm/+spec/osh-logging-framework
 
 
 Problem Description
