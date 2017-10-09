@@ -93,6 +93,10 @@ else
   helm install --namespace=openstack ${WORK_DIR}/mariadb --name=mariadb \
     --set pod.replicas.server=1
 fi
+
+helm install --namespace=openstack ${WORK_DIR}/ldap --name=ldap
+kube_wait_for_pods openstack ${POD_START_TIMEOUT_OPENSTACK}
+
 helm install --namespace=openstack ${WORK_DIR}/memcached --name=memcached
 kube_wait_for_pods openstack ${POD_START_TIMEOUT_OPENSTACK}
 
