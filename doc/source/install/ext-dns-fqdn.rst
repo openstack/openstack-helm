@@ -48,7 +48,7 @@ you will want exposed for API and Dashboard access.
 
 Update your lab/environment DNS server with your appropriate host values creating A Records
 for the edge node IP's and various FQDN's. Alternatively you can test these settings locally by
-editing your ``/ect/hosts``. Below is an example with a dummy domain ``os.foo.org`` and
+editing your ``/etc/hosts``. Below is an example with a dummy domain ``os.foo.org`` and
 dummy Ingress IP ``1.2.3.4``.
 
 ::
