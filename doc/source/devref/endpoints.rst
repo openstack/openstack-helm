@@ -98,3 +98,8 @@ Charts should not use hard coded values such as
 ``http://keystone-api:5000`` because these are not compatible with
 operator overrides and do not support spreading components out over
 various namespaces.
+
+By default, each endpoint is located in the same namespace as the current
+service's helm chart. To connect to a service which is running in a different
+kubernetes namespace, a ``namespace`` can be provided to each individual
+endpoint.
