@@ -1,3 +1,5 @@
+#!/bin/bash
+
 {{/*
 Copyright 2017 The Openstack-Helm Authors.
 
@@ -14,18 +16,5 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if .Values.manifests.configmap_bin }}
-{{- $envAll := . }}
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: openvswitch-bin
-data:
-  openvswitch-db-server.sh: |+
-{{ tuple "bin/_openvswitch-db-server.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
-  openvswitch-vswitchd.sh: |+
-{{ tuple "bin/_openvswitch-vswitchd.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
-  openvswitch-vswitchd-init-modules.sh: |+
-{{ tuple "bin/_openvswitch-vswitchd-init-modules.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
-{{- end }}
+set -ex
+chroot /mnt/host-rootfs modprobe ip6_tables
