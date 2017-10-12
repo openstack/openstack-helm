@@ -42,7 +42,8 @@ CustomLog /dev/stdout proxy env=forwarded
     <IfVersion >= 2.4>
       ErrorLogFormat "%{cu}t %M"
     </IfVersion>
-    ErrorLog /dev/stderr
+    ErrorLog /dev/stdout
+    TransferLog /dev/stdout
 
     SetEnvIf X-Forwarded-For "^.*\..*\..*\..*" forwarded
     CustomLog /dev/stdout combined env=!forwarded
