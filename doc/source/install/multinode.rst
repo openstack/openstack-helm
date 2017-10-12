@@ -188,8 +188,23 @@ Kubernetes Node DNS Resolution
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 For each of the nodes to know how to reach Ceph endpoints, each host much also
-have an entry for ``kube-dns``. Since we are using Ubuntu for our example, place
-these changes in ``/etc/network/interfaces`` to ensure they remain after reboot.
+have an entry for the ``kube-dns`` nameserver. That nameserver should be the
+first one in ``/etc/resolv.conf``, followed by general-purpose nameservers.
+A DNS search string such as the one below, along  with the
+``ndots:5`` option, will allow for OpenStack-Helm services to resolve one
+another using short domain names. The ``timeout:1`` and ``attempts:1``
+options will ensure that, as the nameservers are used in order, lookups move
+to the next one quickly when the ``kube-dns`` service is unavailable
+(e.g. when rebooting the node). Example:
+
+::
+
+    admin@kubenode01:~$ cat /etc/resolv.conf
+    nameserver 10.96.0.10 # Kubernetes DNS Server
+    nameserver 8.8.8.8 # Upstream DNS Server
+    nameserver 8.8.4.4 # Upstream DNS Server
+    search openstack.svc.cluster.local svc.cluster.local cluster.local
+    options ndots:5 timeout:1 attempts:1
 
 To do this you will first need to find out what the IP Address of your
 ``kube-dns`` deployment is:
@@ -200,6 +215,12 @@ To do this you will first need to find out what the IP Address of your
     NAME       CLUSTER-IP   EXTERNAL-IP   PORT(S)         AGE
     kube-dns   10.96.0.10   <none>        53/UDP,53/TCP   1d
     admin@kubenode01:~$
+
+You may need to take extra steps to persist these settings across reboots.
+Since we are using Ubuntu for our example, the nameservers and search entries
+should go in ``/etc/network/interfaces`` (see ``man 8 resolvconf``),
+and the ``options`` line should be placed in
+``/etc/resolvconf/resolv.conf.d/base``.
 
 Now we are ready to continue with the Openstack-Helm installation.
 
