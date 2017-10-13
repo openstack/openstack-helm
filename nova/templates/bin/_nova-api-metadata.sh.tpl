@@ -21,7 +21,8 @@ COMMAND="${@:-start}"
 
 function start () {
   exec nova-api-metadata \
-        --config-file /etc/nova/nova.conf
+        --config-file /etc/nova/nova.conf \
+        --config-file /tmp/pod-shared/nova-api-metadata.ini
 }
 
 function stop () {

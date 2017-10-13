@@ -40,6 +40,25 @@ spec:
       hostNetwork: true
       initContainers:
 {{ tuple $envAll $dependencies $mounts_neutron_metadata_agent_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+        - name: neutron-metadata-agent-init
+          image: {{ .Values.images.metadata }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+{{ tuple $envAll $envAll.Values.pod.resources.agent.metadata | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          securityContext:
+            runAsUser: {{ .Values.pod.user.neutron.uid }}
+          command:
+            - /tmp/neutron-metadata-agent-init.sh
+          volumeMounts:
+            - name: neutron-bin
+              mountPath: /tmp/neutron-metadata-agent-init.sh
+              subPath: neutron-metadata-agent-init.sh
+              readOnly: true
+            - name: neutron-etc
+              mountPath: /etc/neutron/neutron.conf
+              subPath: neutron.conf
+              readOnly: true
+            - name: pod-shared
+              mountPath: /tmp/pod-shared
       containers:
         - name: neutron-metadata-agent
           image: {{ .Values.images.metadata }}
@@ -130,6 +149,9 @@ spec:
               readOnly: true
             - name: socket
               mountPath: /var/lib/neutron/stackanetes
+            - name: pod-shared
+              mountPath: /tmp/pod-shared
+              readOnly: true
 {{ if $mounts_neutron_metadata_agent.volumeMounts }}{{ toYaml $mounts_neutron_metadata_agent.volumeMounts | indent 12 }}{{ end }}
       volumes:
         - name: neutron-bin
@@ -148,5 +170,7 @@ spec:
         - name: socket
           hostPath:
             path: /var/lib/neutron/openstack-helm
+        - name: pod-shared
+          emptyDir: {}
 {{ if $mounts_neutron_metadata_agent.volumes }}{{ toYaml $mounts_neutron_metadata_agent.volumes | indent 8 }}{{ end }}
 {{- end }}
