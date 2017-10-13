@@ -24,6 +24,18 @@ modprobe openvswitch
 modprobe gre
 modprobe vxlan
 
+sock="/var/run/openvswitch/db.sock"
+t=0
+while [ ! -e "${sock}" ] ; do
+    echo "waiting for ovs socket $sock"
+    sleep 1
+    t=$(($t+1))
+    if [ $t -ge 10 ] ; then
+	echo "no ovs socket, giving up"
+	exit 1
+    fi
+done
+
 ovs-vsctl --no-wait show
 
 external_bridge="{{- .Values.network.external_bridge -}}"
