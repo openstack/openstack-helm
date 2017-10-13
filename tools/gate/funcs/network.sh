@@ -17,7 +17,7 @@ function net_default_iface {
 }
 
 function net_default_host_addr {
- sudo ip addr | awk "/inet / && /$(net_default_iface)/{print \$2; exit }"
+ sudo ip addr | awk "/inet / && /$(net_default_iface)/{print \$2; exit }" | sed 's/\/32/\/24/'
 }
 
 function net_default_host_ip {
