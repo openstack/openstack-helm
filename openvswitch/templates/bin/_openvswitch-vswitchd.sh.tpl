@@ -31,8 +31,8 @@ while [ ! -e "${sock}" ] ; do
     sleep 1
     t=$(($t+1))
     if [ $t -ge 10 ] ; then
-	echo "no ovs socket, giving up"
-	exit 1
+        echo "no ovs socket, giving up"
+        exit 1
     fi
 done
 
