@@ -16,12 +16,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-set -x
-exec neutron-metadata-agent \
-      --config-file /etc/neutron/neutron.conf \
-      --config-file /etc/neutron/metadata_agent.ini \
-      --config-file /etc/neutron/plugins/ml2/ml2_conf.ini \
-      --config-file /tmp/pod-shared/neutron-metadata-agent.ini
-{{- if eq .Values.network.backend "ovs" }} \
-      --config-file /etc/neutron/plugins/ml2/openvswitch_agent.ini
-{{- end }}
+set -ex
+
+metadata_ip="{{- .Values.conf.metadata_agent.DEFAULT.nova_metadata_ip -}}"
+if [ -z "${metadata_ip}" ] ; then
+    metadata_ip=$(getent hosts metadata | awk '{print $1}')
+fi
+
+cat <<EOF>/tmp/pod-shared/neutron-metadata-agent.ini
+[DEFAULT]
+nova_metadata_ip=$metadata_ip
+EOF
+
