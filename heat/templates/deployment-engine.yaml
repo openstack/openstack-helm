@@ -14,28 +14,40 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if .Values.manifests.statefulset_engine }}
+{{- if or ( .Values.manifests.deployment_engine ) ( .Values.manifests.statefulset_engine ) }}
 {{- $envAll := . }}
 {{- $dependencies := .Values.dependencies.engine }}
 {{- $mounts_heat_engine := .Values.pod.mounts.heat_engine.heat_engine }}
 {{- $mounts_heat_engine_init := .Values.pod.mounts.heat_engine.init_container }}
 ---
 apiVersion: apps/v1beta1
-kind: StatefulSet
 metadata:
   name: heat-engine
+{{- if .Values.manifests.deployment_engine }}
+kind: Deployment
+spec:
+{{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_deployment" | indent 2 }}
+{{- else if .Values.manifests.statefulset_engine }}
+kind: StatefulSet
 spec:
   serviceName: heat-engine
+{{- end }}
   replicas: {{ .Values.pod.replicas.engine }}
   template:
     metadata:
       labels:
 {{ tuple $envAll "heat" "engine" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+{{- if .Values.manifests.deployment_engine }}
+      annotations:
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
+        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
+{{- end }}
     spec:
       affinity:
-{{ tuple $envAll "heat" "engine" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
+{{- tuple $envAll "heat" "engine" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
       nodeSelector:
         {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
+      terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.engine.timeout | default "30" }}
       initContainers:
 {{ tuple $envAll $dependencies $mounts_heat_engine_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
@@ -47,11 +59,16 @@ spec:
             runAsUser: {{ .Values.pod.user.heat.uid }}
           command:
             - /tmp/heat-engine.sh
+            - start
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /tmp/heat-engine.sh
+                  - stop
           volumeMounts:
             - name: pod-etc-heat
               mountPath: /etc/heat
-            - name: pod-var-cache-heat
-              mountPath: /var/cache/heat
             - name: heat-bin
               mountPath: /tmp/heat-engine.sh
               subPath: heat-engine.sh
@@ -67,8 +84,6 @@ spec:
 {{ if $mounts_heat_engine.volumeMounts }}{{ toYaml $mounts_heat_engine.volumeMounts | indent 12 }}{{ end }}
       volumes:
         - name: pod-etc-heat
-          emptyDir: {}
-        - name: pod-var-cache-heat
           emptyDir: {}
         - name: heat-bin
           configMap:
