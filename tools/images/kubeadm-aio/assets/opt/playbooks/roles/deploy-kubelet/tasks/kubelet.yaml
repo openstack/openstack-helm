@@ -1,0 +1,162 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+- name: ubuntu | installing kubelet support packages
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+  apt:
+    name: "{{item}}"
+    state: installed
+  with_items:
+    - ebtables
+    - ethtool
+    - iproute2
+    - iptables
+    - libmnl0
+    - libnfnetlink0
+    - libwrap0
+    - libxtables11
+    - socat
+
+- name: centos | installing kubelet support packages
+  when: ansible_distribution == 'CentOS' or ansible_distribution == 'Red Hat Enterprise Linux'
+  yum:
+    name: "{{item}}"
+    state: installed
+  with_items:
+    - ebtables
+    - ethtool
+    - tcp_wrappers-libs
+    - libmnl
+    - socat
+
+- name: fedora | installing kubelet support packages
+  when: ansible_distribution == 'Fedora'
+  dnf:
+    name: "{{item}}"
+    state: installed
+  with_items:
+    - ebtables
+    - ethtool
+    - tcp_wrappers-libs
+    - libmnl
+    - socat
+
+- name: getting docker cgroup driver info
+  when: kubelet.container_runtime == 'docker'
+  block:
+    - name: docker | getting cgroup driver info
+      shell: docker info | awk '/^Cgroup Driver:/ { print $NF }'
+      register: docker_cgroup_driver
+    - name: setting kublet cgroup driver
+      set_fact:
+        kubelet_cgroup_driver: "{{ docker_cgroup_driver.stdout }}"
+
+- name: setting kublet cgroup driver for CRI-O
+  when: kubelet.container_runtime == 'crio'
+  set_fact:
+    kubelet_cgroup_driver: "systemd"
+
+- name: setting node hostname fact
+  set_fact:
+    kubelet_node_hostname: "{% if ansible_domain is defined %}{{ ansible_fqdn }}{% else %}{{ ansible_hostname }}.node.{{ k8s.networking.dnsDomain }}{% endif %}"
+
+- name: base kubelet deploy
+  block:
+    - file:
+        path: "{{ item }}"
+        state: directory
+      with_items:
+        - /etc/kubernetes/
+        - /etc/systemd/system/kubelet.service.d/
+        - /var/lib/kubelet/
+    - name: copying kubelet binary to host
+      copy:
+        src: /opt/assets/usr/bin/kubelet
+        dest: /usr/bin/kubelet
+        owner: root
+        group: root
+        mode: 0555
+    - name: copying base systemd unit to host
+      template:
+        src: kubelet.service.j2
+        dest: /etc/systemd/system/kubelet.service
+        mode: 0640
+    - name: copying kubeadm drop-in systemd unit to host
+      template:
+        src: 10-kubeadm.conf.j2
+        dest: /etc/systemd/system/kubelet.service.d/10-kubeadm.conf
+        mode: 0640
+    - name: copying kubelet DNS config to host
+      template:
+        src: kubelet-resolv.conf.j2
+        dest: /etc/kubernetes/kubelet-resolv.conf
+        mode: 0640
+
+- name: base cni support
+  block:
+    - file:
+        path: "{{ item }}"
+        state: directory
+      with_items:
+        - /etc/cni/net.d
+        - /opt/cni/bin
+    - name: copy cni binaries into place
+      copy:
+        src: /opt/assets/opt/cni/bin/{{ item }}
+        dest: /opt/cni/bin/{{ item }}
+        owner: root
+        group: root
+        mode: 0555
+      with_items:
+        - flannel
+        - ptp
+        - host-local
+        - portmap
+        - tuning
+        - vlan
+        - sample
+        - dhcp
+        - ipvlan
+        - macvlan
+        - loopback
+        - bridge
+
+- name: CRI-O runtime config
+  when: kubelet.container_runtime == 'crio'
+  block:
+    - name: copying CRI-O drop-in systemd unit to host
+      template:
+        src: 0-crio.conf.j2
+        dest: /etc/systemd/system/kubelet.service.d/0-crio.conf
+        mode: 0640
+    - name: CRI-O | ensure service is restarted and enabled
+      systemd:
+        name: crio
+        state: restarted
+        enabled: yes
+        masked: no
+
+- name: docker | ensure service is started and enabled
+  when: kubelet.container_runtime == 'docker'
+  systemd:
+    name: docker
+    state: started
+    enabled: yes
+    masked: no
+
+- name: ensure service is restarted and enabled
+  systemd:
+    name: kubelet
+    state: restarted
+    daemon_reload: yes
+    enabled: yes
+    masked: no
