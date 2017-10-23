@@ -19,7 +19,7 @@ limitations under the License.
 {{- $deps := index . 1 -}}
 {{- $mounts := index . 2 -}}
 - name: init
-  image: {{ $envAll.Values.images.dep_check }}
+  image: {{ $envAll.Values.images.tags.dep_check }}
   imagePullPolicy: {{ $envAll.Values.images.pull_policy }}
   env:
     - name: POD_NAME
