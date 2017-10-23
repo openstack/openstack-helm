@@ -132,11 +132,24 @@ Run ``make`` from the root of the openstack-helm repository:
 Kubeadm-AIO Container
 =====================
 
+Pull
+----
+
+It is recommended to pull the kubeadm-aio container as it is stable
+at the time it was built
+
+::
+    export KUBEADM_IMAGE=openstackhelm/kubeadm-aio:v1.7.5
+    sudo docker pull ${KUBEADM_IMAGE}
+
+
+
 Build
 -----
 
-Using the Dockerfile defined in tools/kubeadm-aio directory, build the
-'openstackhelm/kubeadm-aio:v1.7.5' image.
+Optionally, using the Dockerfile defined in tools/kubeadm-aio directory, build the
+'openstackhelm/kubeadm-aio:v1.7.5' image. Warning - this may pull packages that
+have not been tested.
 
 ::
 
@@ -236,7 +249,7 @@ more sensible values for the All-in-One environment using the ``--values`` and
     --set storage=pvc
   helm install --name=nova ./nova --namespace=openstack \
     --values=./tools/overrides/mvp/nova.yaml \
-    --set conf.nova.libvirt.nova.conf.virt_type=qemu
+    --set conf.nova.libvirt.virt_type=qemu
   helm install --name=neutron ./neutron \
     --namespace=openstack --values=./tools/overrides/mvp/neutron-ovs.yaml
   helm install --name=horizon ./horizon --namespace=openstack \
