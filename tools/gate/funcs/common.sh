@@ -65,6 +65,7 @@ function base_install {
   sudo -H pip install --upgrade pip
   sudo -H pip install --upgrade setuptools
   sudo -H pip install pyyaml
+  sudo -H pip install yq
 
   if [ "x$SDN_PLUGIN" == "xlinuxbridge" ]; then
     sdn_lb_support_install

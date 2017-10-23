@@ -60,6 +60,7 @@ if [ "x$INTEGRATION_TYPE" == "xlinter" ]; then
   helm_plugin_template_install
   helm_template_run
 else
+  cd ${WORK_DIR}; make pull-all-images
   # Setup the K8s Cluster
   if [ "x$INTEGRATION" == "xaio" ]; then
    bash ${WORK_DIR}/tools/gate/kubeadm_aio.sh
