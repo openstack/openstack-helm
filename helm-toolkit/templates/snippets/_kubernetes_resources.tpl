@@ -14,17 +14,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- $envAll := . }}
----
-apiVersion: rbac.authorization.k8s.io/v1beta1
-kind: ClusterRoleBinding
-metadata:
-  name: calico-cni-plugin
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: calico-cni-plugin
-subjects:
-  - kind: ServiceAccount
-    name: calico-cni-plugin
-    namespace: {{ .Release.Namespace }}
+{{- define "helm-toolkit.snippets.kubernetes_resources" -}}
+{{- $envAll := index . 0 -}}
+{{- $component := index . 1 -}}
+{{- if $envAll.Values.pod.resources.enabled -}}
+resources:
+  limits:
+    cpu: {{ $component.limits.cpu | quote }}
+    memory: {{ $component.limits.memory | quote }}
+  requests:
+    cpu: {{ $component.requests.cpu | quote }}
+    memory: {{ $component.requests.memory | quote }}
+{{- end -}}
+{{- end -}}

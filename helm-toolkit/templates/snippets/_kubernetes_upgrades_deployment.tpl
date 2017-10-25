@@ -14,17 +14,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- $envAll := . }}
----
-apiVersion: rbac.authorization.k8s.io/v1beta1
-kind: ClusterRoleBinding
-metadata:
-  name: calico-cni-plugin
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: calico-cni-plugin
-subjects:
-  - kind: ServiceAccount
-    name: calico-cni-plugin
-    namespace: {{ .Release.Namespace }}
+{{- define "helm-toolkit.snippets.kubernetes_upgrades_deployment" -}}
+{{- $envAll := index . 0 -}}
+{{- with $envAll.Values.pod.lifecycle.upgrades.deployments -}}
+revisionHistoryLimit: {{ .revision_history }}
+strategy:
+  type: {{ .pod_replacement_strategy }}
+  {{- if eq .pod_replacement_strategy "RollingUpdate" }}
+  rollingUpdate:
+    maxUnavailable: {{ .rolling_update.max_unavailable }}
+    maxSurge: {{ .rolling_update.max_surge }}
+  {{- end }}
+{{- end -}}
+{{- end -}}

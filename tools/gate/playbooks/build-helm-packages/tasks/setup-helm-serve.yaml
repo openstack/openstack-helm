@@ -1,0 +1,62 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+- block:
+    - name: check if correct version of helm client already installed
+      shell: "[ \"x$($(type -p helm) version --client --short | awk '{ print $NF }' | awk -F '+' '{ print $1 }')\" == \"x${HELM_VERSION}\" ] || exit 1"
+      environment:
+        HELM_VERSION: "{{ helm.version }}"
+      register: need_helm
+      ignore_errors: True
+    - name: install helm client
+      when: need_helm | failed
+      become_user: root
+      shell: |
+              TMP_DIR=$(mktemp -d)
+              curl -sSL https://storage.googleapis.com/kubernetes-helm/helm-{{ helm.version }}-linux-amd64.tar.gz | tar -zxv --strip-components=1 -C ${TMP_DIR}
+              sudo mv ${TMP_DIR}/helm /usr/bin/helm
+              rm -rf ${TMP_DIR}
+    - name: setting up helm client
+      command: helm init --client-only
+
+- block:
+    - name: checking if local helm server is running
+      shell: curl -s 127.0.0.1:8879 | grep -q 'Helm Repository'
+      register: helm_server_running
+      ignore_errors: True
+    - name: launching local helm server via systemd
+      when: ( ansible_distribution == 'Fedora' ) and ( helm_server_running | failed )
+      shell: |
+              export XDG_RUNTIME_DIR="/run/user/$UID"
+              export DBUS_SESSION_BUS_ADDRESS="unix:path=${XDG_RUNTIME_DIR}/bus"
+              systemd-run --user --unit helm-server helm serve
+    - name: launching local helm server via shell
+      when: ( ansible_distribution != 'Fedora' ) and ( helm_server_running | failed )
+      shell: helm serve &
+    - name: wait for helm server to be ready
+      shell: curl -s 127.0.0.1:8879 | grep -q 'Helm Repository'
+      register: wait_for_helm_server
+      until: wait_for_helm_server.rc == 0
+      retries: 120
+      delay: 5
+
+- block:
+    - name: checking if helm 'stable' repo is present
+      shell: helm repo list | grep -q "^stable"
+      register: helm_stable_repo_present
+      ignore_errors: True
+    - name: checking if helm 'stable' repo is present
+      when: helm_stable_repo_present | succeeded
+      command: helm repo remove stable
+
+- name: adding helm local repo
+  command: helm repo add local http://localhost:8879/charts

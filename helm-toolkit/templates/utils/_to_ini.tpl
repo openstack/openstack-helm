@@ -14,17 +14,17 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- $envAll := . }}
----
-apiVersion: rbac.authorization.k8s.io/v1beta1
-kind: ClusterRoleBinding
-metadata:
-  name: calico-cni-plugin
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: calico-cni-plugin
-subjects:
-  - kind: ServiceAccount
-    name: calico-cni-plugin
-    namespace: {{ .Release.Namespace }}
+{{- define "helm-toolkit.utils.to_ini" -}}
+{{- range $section, $values := . -}}
+{{- if kindIs "map" $values -}}
+[{{ $section }}]
+{{range $key, $value := $values -}}
+{{- if kindIs "slice" $value -}}
+{{ $key }} = {{ include "helm-toolkit.utils.joinListWithComma" $value }}
+{{else -}}
+{{ $key }} = {{ $value }}
+{{end -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}

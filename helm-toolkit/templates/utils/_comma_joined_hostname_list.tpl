@@ -14,17 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- $envAll := . }}
----
-apiVersion: rbac.authorization.k8s.io/v1beta1
-kind: ClusterRoleBinding
-metadata:
-  name: calico-cni-plugin
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: calico-cni-plugin
-subjects:
-  - kind: ServiceAccount
-    name: calico-cni-plugin
-    namespace: {{ .Release.Namespace }}
+{{- define "helm-toolkit.utils.comma_joined_hostname_list" -}}
+{{- $deps := index . 0 -}}
+{{- $envAll := index . 1 -}}
+{{- range $k, $v := $deps -}}{{- if $k -}},{{- end -}}{{ tuple $v.service $v.endpoint $envAll | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}{{- end -}}
+{{- end -}}

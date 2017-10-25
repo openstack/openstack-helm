@@ -14,17 +14,19 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- $envAll := . }}
----
-apiVersion: rbac.authorization.k8s.io/v1beta1
-kind: ClusterRoleBinding
-metadata:
-  name: calico-cni-plugin
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: calico-cni-plugin
-subjects:
-  - kind: ServiceAccount
-    name: calico-cni-plugin
-    namespace: {{ .Release.Namespace }}
+{{- define "helm-toolkit.utils.configmap_templater" }}
+{{- $keyRoot := index . 0 -}}
+{{- $configTemplate := index . 1 -}}
+{{- $context := index . 2 -}}
+{{ if $keyRoot.override -}}
+{{ $keyRoot.override | indent 4 }}
+{{- else -}}
+{{- if $keyRoot.prefix -}}
+{{ $keyRoot.prefix | indent 4 }}
+{{- end }}
+{{ tuple $configTemplate $context | include "helm-toolkit.utils.template" | indent 4 }}
+{{- end }}
+{{- if $keyRoot.append -}}
+{{ $keyRoot.append | indent 4 }}
+{{- end }}
+{{- end -}}
