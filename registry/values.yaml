@@ -1,0 +1,167 @@
+# Copyright 2017 The Openstack-Helm Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Default values for docker registry.
+# This is a YAML-formatted file.
+# Declare name/value pairs to be passed into your templates.
+# name: value
+
+labels:
+  node_selector_key: openstack-control-plane
+  node_selector_value: enabled
+
+release_group: null
+
+images:
+  tags:
+    registry: docker.io/registry:2
+    registry_proxy: gcr.io/google_containers/kube-registry-proxy:0.4
+    bootstrap: docker.io/docker:17.07.0
+    dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.2.1
+  pull_policy: "IfNotPresent"
+  registry:
+    prefix: null
+
+volume:
+  class_name: general
+  size: 2Gi
+
+network:
+  registry:
+    ingress:
+      public: false
+    node_port:
+      enabled: false
+      port: 5000
+
+conf:
+  registry:
+    version: 0.1
+    log:
+      fields:
+        service: registry
+    storage:
+      cache:
+        blobdescriptor: redis
+      filesystem:
+        rootdirectory: /var/lib/registry
+    http:
+      secret: not-so-secret-secret
+      headers:
+        X-Content-Type-Options: [nosniff]
+    health:
+      storagedriver:
+        enabled: true
+        interval: 10s
+        threshold: 3
+    redis:
+      addr: null
+
+pod:
+  affinity:
+      anti:
+        type:
+          default: preferredDuringSchedulingIgnoredDuringExecution
+        topologyKey:
+          default: kubernetes.io/hostname
+  replicas:
+    registry: 1
+  lifecycle:
+    upgrades:
+      deployments:
+        revision_history: 3
+        pod_replacement_strategy: RollingUpdate
+        rolling_update:
+          max_unavailable: 1
+          max_surge: 3
+  resources:
+    enabled: false
+    registry:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+    registry_proxy:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+    jobs:
+      bootstrap:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+
+bootstrap:
+  enabled: true
+  script:
+    docker info
+  preload_images:
+    - gcr.io/google_containers/ubuntu-slim:0.14
+
+dependencies:
+  registry:
+    services:
+    - service: redis
+      endpoint: internal
+  registry_proxy:
+    services:
+    - service: docker_registry
+      endpoint: internal
+  bootstrap:
+    daemonset:
+    - docker-registry-proxy
+    services:
+    - service: docker_registry
+      endpoint: internal
+
+endpoints:
+  cluster_domain_suffix: cluster.local
+  docker_registry:
+    name: docker-registry
+    hosts:
+      default: docker-registry
+    host_fqdn_override:
+      default: null
+    path:
+      default: null
+    scheme:
+      default: http
+    port:
+      registry:
+        default: 5000
+  redis:
+    namespace: null
+    hosts:
+      default: redis
+    host_fqdn_override:
+      default: null
+    port:
+      redis:
+        default: 6379
+
+manifests:
+  configmap_bin: true
+  daemonset_registry_proxy: true
+  deployment_registry: true
+  job_bootstrap: true
+  pvc_images: true
+  service_registry: true
