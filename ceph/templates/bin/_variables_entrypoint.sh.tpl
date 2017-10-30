@@ -44,9 +44,7 @@ ALL_SCENARIOS="osd osd_directory osd_directory_single osd_ceph_disk osd_ceph_dis
 : ${RGW_REMOTE_CGI_HOST:=0.0.0.0}
 : ${RGW_USER:="cephnfs"}
 : ${MGR_NAME:=${HOSTNAME}}
-: ${MGR_DASHBOARD:=1}
 : ${MGR_IP:=0.0.0.0}
-: ${MGR_PORT:=7000}
 : ${RBD_POOL_PG:=128}
 
 # This is ONLY used for the CLI calls, e.g: ceph $CLI_OPTS health

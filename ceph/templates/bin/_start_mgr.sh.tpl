@@ -33,11 +33,30 @@ log "SUCCESS"
 
 ceph -v
 
-if [[ "$MGR_DASHBOARD" == 1 ]]; then
-    ceph ${CLI_OPTS} mgr module enable dashboard --force
-    ceph ${CLI_OPTS} config-key put mgr/dashboard/server_addr "$MGR_IP"
-    ceph ${CLI_OPTS} config-key put mgr/dashboard/server_port "$MGR_PORT"
-fi
+# Env. variables matching the pattern "<module>_" will be
+# found and parsed for config-key settings by
+#  ceph config-key set mgr/<module>/<key> <value>
+MODULES_TO_DISABLE=`ceph mgr dump | python -c "import json, sys; print ' '.join(json.load(sys.stdin)['modules'])"`
+
+for module in ${ENABLED_MODULES}; do
+    # This module may have been enabled in the past
+    # remove it from the disable list if present
+    MODULES_TO_DISABLE=${MODULES_TO_DISABLE/$module/}
+
+    options=`env | grep ^${module}_ || true`
+    for option in ${options}; do
+        #strip module name
+        option=${option/${module}_/}
+        key=`echo $option | cut -d= -f1`
+        value=`echo $option | cut -d= -f2`
+        ceph ${CLI_OPTS} config-key set mgr/$module/$key $value
+    done
+    ceph ${CLI_OPTS} mgr module enable ${module} --force
+done
+
+for module in $MODULES_TO_DISABLE; do
+  ceph ${CLI_OPTS} mgr module disable ${module}
+done
 
 log "SUCCESS"
 # start ceph-mgr
