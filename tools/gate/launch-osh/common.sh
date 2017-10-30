@@ -19,20 +19,24 @@ source ${WORK_DIR}/tools/gate/funcs/kube.sh
 source ${WORK_DIR}/tools/gate/funcs/network.sh
 
 if [ "x$PVC_BACKEND" == "xceph" ]; then
-  kubectl label nodes ceph-mon=enabled --all
-  kubectl label nodes ceph-osd=enabled --all
-  kubectl label nodes ceph-mds=enabled --all
-  kubectl label nodes ceph-rgw=enabled --all
+  kubectl label nodes ceph-mon=enabled --all --overwrite
+  kubectl label nodes ceph-osd=enabled --all --overwrite
+  kubectl label nodes ceph-mds=enabled --all --overwrite
+  kubectl label nodes ceph-rgw=enabled --all --overwrite
 fi
 
 if [ "x$SDN_PLUGIN" == "xovs" ]; then
-  kubectl label nodes openvswitch=enabled --all --namespace=openstack --overwrite
+  kubectl label nodes openvswitch=enabled --all --overwrite
 elif [ "x$SDN_PLUGIN" == "xlinuxbridge" ]; then
   # first unlabel nodes with 'openvswitch' tag, which is applied by default
   # by kubeadm-aio docker image
-  kubectl label nodes openvswitch- --all --namespace=openstack --overwrite
-  kubectl label nodes linuxbridge=enabled --all --namespace=openstack --overwrite
+  kubectl label nodes openvswitch- --all --overwrite
+  kubectl label nodes linuxbridge=enabled --all --overwrite
 fi
+
+#FIXME(portdirect): Ensure RBAC rules are essentially open until support added
+# to all charts and helm-toolkit.
+kubectl replace -f ${WORK_DIR}/tools/kubeadm-aio/assets/opt/rbac/dev.yaml
 
 helm install --namespace=openstack ${WORK_DIR}/dns-helper --name=dns-helper
 kube_wait_for_pods openstack ${POD_START_TIMEOUT_OPENSTACK}

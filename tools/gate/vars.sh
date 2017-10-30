@@ -16,7 +16,7 @@
 : ${WORK_DIR:="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"}
 
 # Set logs directory
-export LOGS_DIR=${LOGS_DIR:-"${WORK_DIR}/logs"}
+export LOGS_DIR=${LOGS_DIR:-"/tmp/logs"}
 
 # Get Host OS
 source /etc/os-release

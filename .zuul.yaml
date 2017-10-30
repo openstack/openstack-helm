@@ -1,0 +1,62 @@
+# Copyright 2017 The Openstack-Helm Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+- project:
+    name: openstack/openstack-helm
+    check:
+      jobs:
+        - openstack-helm-linter:
+            voting: true
+        - openstack-helm-legacy-ubuntu-vm-ovs-radosgw:
+            voting: false
+        - openstack-helm-legacy-ubuntu-vm-lb-radosgw:
+            voting: false
+    gate:
+      jobs:
+        - openstack-helm-linter
+
+- job:
+    name: openstack-helm-linter
+    run: tools/gate/playbooks/zuul-linter.yaml
+    nodeset: openstack-helm-single-node
+
+- job:
+    timeout: 7200
+    vars:
+        zuul_osh_infra_relative_path: ../openstack-helm-infra/
+    name: openstack-helm-legacy
+    pre-run:
+      - ../openstack-helm-infra/tools/gate/playbooks/osh-infra-deploy-docker.yaml
+      - ../openstack-helm-infra/tools/gate/playbooks/osh-infra-build.yaml
+      - ../openstack-helm-infra/tools/gate/playbooks/osh-infra-deploy-k8s.yaml
+    run: tools/gate/playbooks/legacy-gate-runner.yaml
+    post-run: tools/gate/playbooks/legacy-gate-post.yaml
+    required-projects:
+        - openstack/openstack-helm-infra
+
+- job:
+    name: openstack-helm-legacy-ubuntu-vm-ovs-radosgw
+    parent: openstack-helm-legacy
+    vars:
+      sdn_plugin: ovs
+      glance_backend: radosgw
+    nodeset: openstack-helm-ubuntu
+
+- job:
+    name: openstack-helm-legacy-ubuntu-vm-lb-radosgw
+    parent: openstack-helm-legacy
+    vars:
+      sdn_plugin: linuxbridge
+      glance_backend: radosgw
+    nodeset: openstack-helm-ubuntu
