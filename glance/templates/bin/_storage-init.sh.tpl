@@ -55,8 +55,7 @@ metadata:
   name: "${RBD_POOL_SECRET}"
 type: kubernetes.io/rbd
 data:
-  key: |
-    $( echo ${ENCODED_KEYRING} )
+  key: $( echo ${ENCODED_KEYRING} )
 EOF
   kubectl create --namespace ${NAMESPACE} -f ${SECRET}
 elif [ "x$STORAGE_BACKEND" == "xradosgw" ]; then
