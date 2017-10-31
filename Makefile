@@ -44,4 +44,7 @@ clean:
 	rm -f */requirements.lock
 	-rmdir -p */charts
 
+pull-all-images:
+	@./tools/pull-images.sh
+
 .PHONY: $(EXCLUDES) $(CHARTS)
