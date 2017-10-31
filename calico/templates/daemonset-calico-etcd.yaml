@@ -57,8 +57,13 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
-          command: ["/bin/sh","-c"]
-          args: ["/usr/local/bin/etcd --name=calico --data-dir=/var/etcd/calico-data --advertise-client-urls=http://$CALICO_ETCD_IP:6666 --listen-client-urls=http://0.0.0.0:6666 --listen-peer-urls=http://0.0.0.0:6667"]
+          command:
+            - /usr/local/bin/etcd
+            - --name=calico
+            - --data-dir=/var/etcd/calico-data
+            - --advertise-client-urls=http://$CALICO_ETCD_IP:{{ tuple "etcd" "internal" "client" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+            - --listen-client-urls=http://0.0.0.0:{{ tuple "etcd" "internal" "client" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+            - --listen-peer-urls=http://0.0.0.0:{{ tuple "etcd" "internal" "peer" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
           volumeMounts:
             - name: var-etcd
               mountPath: /var/etcd

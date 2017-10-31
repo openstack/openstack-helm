@@ -15,6 +15,7 @@ limitations under the License.
 */}}
 
 {{- $envAll := . }}
+{{- $dependencies := .Values.dependencies.calico_node }}
 ---
 # This manifest installs the calico/node container, as well
 # as the Calico CNI plugins and network config on
@@ -52,6 +53,8 @@ spec:
         - key: CriticalAddonsOnly
           operator: Exists
       serviceAccountName: calico-cni-plugin
+      initContainers:
+{{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
         # Runs calico/node container on each Kubernetes node.  This
         # container programs network policy and routes on each
@@ -166,3 +169,4 @@ spec:
         - name: cni-net-dir
           hostPath:
             path: /etc/cni/net.d
+{{ tuple . | include "helm-toolkit.snippets.kubernetes_entrypoint_secret_mount" | indent 8 }}

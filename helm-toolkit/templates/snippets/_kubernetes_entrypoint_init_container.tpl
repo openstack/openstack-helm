@@ -18,6 +18,8 @@ limitations under the License.
 {{- $envAll := index . 0 -}}
 {{- $deps := index . 1 -}}
 {{- $mounts := index . 2 -}}
+{{- $mountServiceAccount := dict "mountPath" "/var/run/secrets/kubernetes.io/serviceaccount" "name" "entrypoint-serviceaccount-secret" "readOnly" true -}}
+{{- $mountsEntrypoint := append $mounts $mountServiceAccount -}}
 - name: init
   image: {{ $envAll.Values.images.tags.dep_check }}
   imagePullPolicy: {{ $envAll.Values.images.pull_policy }}
@@ -46,5 +48,6 @@ limitations under the License.
       value: "echo done"
   command:
     - kubernetes-entrypoint
-  volumeMounts: {{ $mounts | default "[]"}}
+  volumeMounts:
+{{ toYaml $mountsEntrypoint | indent 4 }}
 {{- end -}}
