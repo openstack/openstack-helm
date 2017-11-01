@@ -1,0 +1,50 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+- name: wait for pods in namespace
+  vars:
+    namespace: null
+    timeout: 600
+    wait_return_code:
+      rc: 1
+  block:
+    - name: "wait for pods in {{ namespace }} namespace to be ready"
+      shell: |-
+              set -e
+              kubectl get pods --namespace="{{ namespace }}" -o json | jq -r \
+                  '.items[].status.phase' | grep Pending > /dev/null && \
+                  PENDING=True || PENDING=False
+
+              query='.items[]|select(.status.phase=="Running")'
+              query="$query|.status.containerStatuses[].ready"
+              kubectl get pods --namespace="{{ namespace }}" -o json | jq -r "$query" | \
+                  grep false > /dev/null && READY="False" || READY="True"
+
+              kubectl get jobs -o json --namespace="{{ namespace }}" | jq -r \
+                  '.items[] | .spec.completions == .status.succeeded' | \
+                  grep false > /dev/null && JOBR="False" || JOBR="True"
+              [ $PENDING == "False" -a $READY == "True" -a $JOBR == "True" ] && \
+                  exit 0 || exit 1
+      args:
+        executable: /bin/bash
+      register: wait_return_code
+      until: wait_return_code.rc == 0
+      retries: "{{ timeout }}"
+      delay: 1
+  rescue:
+    - name: "pods failed to come up in time, getting kubernetes objects status"
+      command: kubectl get --all-namespaces  all -o wide --show-all
+      register: out
+    - name: "pods failed to come up in time, displaying kubernetes objects status"
+      debug: var=out.stdout_lines
+    - name: "pods failed to come up in time, stopping execution"
+      command: exit 1

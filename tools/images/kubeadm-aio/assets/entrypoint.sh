@@ -52,6 +52,7 @@ fi
 : ${KUBE_API_BIND_ADDR:="${KUBE_BIND_ADDR}"}
 : ${KUBE_CERTS_DIR:="/etc/kubernetes/pki"}
 : ${KUBE_SELF_HOSTED:="false"}
+: ${KUBELET_NODE_LABELS:=""}
 
 PLAYBOOK_VARS="{
   \"my_container_name\": \"${CONTAINER_NAME}\",
@@ -90,12 +91,18 @@ PLAYBOOK_VARS="{
 
 set -x
 if [ "x${ACTION}" == "xdeploy-kubelet" ]; then
+
   if [ "x${KUBE_BIND_ADDR}" != "x" ]; then
     PLAYBOOK_VARS=$(echo $PLAYBOOK_VARS | jq ".kubelet += {\"bind_addr\": \"${KUBE_BIND_ADDR}\"}")
   elif [ "x${KUBE_BIND_DEVICE}" != "x" ]; then
     PLAYBOOK_VARS=$(echo $PLAYBOOK_VARS | jq ".kubelet += {\"bind_device\": \"${KUBE_BIND_DEVICE}\"}")
   fi
-  ansible-playbook /opt/playbooks/kubeadm-aio-deploy-kubelet.yaml \
+
+  if [ "x${KUBELET_NODE_LABELS}" != "x" ]; then
+    PLAYBOOK_VARS=$(echo $PLAYBOOK_VARS | jq ".kubelet += {\"kubelet_labels\": \"${KUBELET_NODE_LABELS}\"}")
+  fi
+
+  exec ansible-playbook /opt/playbooks/kubeadm-aio-deploy-kubelet.yaml \
     --inventory=/opt/playbooks/inventory.ini \
     --inventory=/opt/playbooks/vars.yaml \
     --extra-vars="${PLAYBOOK_VARS}"
@@ -105,12 +112,12 @@ elif [ "x${ACTION}" == "xdeploy-kube" ]; then
   elif [ "x${KUBE_API_BIND_DEVICE}" != "x" ]; then
     PLAYBOOK_VARS=$(echo $PLAYBOOK_VARS | jq ".k8s.api += {\"advertiseAddressDevice\": \"${KUBE_API_BIND_DEVICE}\"}")
   fi
-  ansible-playbook /opt/playbooks/kubeadm-aio-deploy-master.yaml \
+  exec ansible-playbook /opt/playbooks/kubeadm-aio-deploy-master.yaml \
     --inventory=/opt/playbooks/inventory.ini \
     --inventory=/opt/playbooks/vars.yaml \
     --extra-vars="${PLAYBOOK_VARS}"
 elif [ "x${ACTION}" == "xclean-host" ]; then
-  ansible-playbook /opt/playbooks/kubeadm-aio-clean.yaml \
+  exec ansible-playbook /opt/playbooks/kubeadm-aio-clean.yaml \
     --inventory=/opt/playbooks/inventory.ini \
     --inventory=/opt/playbooks/vars.yaml \
     --extra-vars="${PLAYBOOK_VARS}"

@@ -12,7 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-- name: master
+
+- name: setting node labels
+  vars:
+    kubeadm_kubelet_labels_node:
+      - "{% if nodes.labels.all is defined %}{% set comma = joiner(\",\") %}{% for item in nodes.labels.all %}{{ comma() }}{{ item.name }}={{ item.value }}{% endfor %}{% else %}\"\"{% endif %}"
+      - "{% set comma = joiner(\",\") %}{% for group in group_names %}{% if nodes.labels[group] is defined %}{% for item in nodes.labels[group] %}{{ comma() }}{{ item.name }}={{ item.value }}{% endfor %}{% else %}\"\"{% endif %}{% endfor %}"
+  set_fact:
+    kubeadm_kubelet_labels: "{% set comma = joiner(\",\") %}{% for item in kubeadm_kubelet_labels_node %}{{ comma() }}{{ item }}{% endfor %}"
+
+- name: deploy-kubelet
   vars:
     kubeadm_aio_action: deploy-kubelet
   include: util-kubeadm-aio-run.yaml

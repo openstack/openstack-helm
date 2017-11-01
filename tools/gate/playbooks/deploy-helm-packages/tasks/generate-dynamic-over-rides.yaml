@@ -1,5 +1,3 @@
-# Copyright 2017 The Openstack-Helm Authors.
-#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,6 +10,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# This set of tasks creates over-rides that need to be generated dyamicly and
+# injected at runtime.
+
 - name: Ensure docker python packages deployed
   include_role:
     name: deploy-package
@@ -20,7 +21,12 @@
     packages:
       - yq
 
-- name: pull all images used in repo
-  make:
+- name: setup directorys on host
+  file:
+    path: "{{ work_dir }}/tools/gate/local-overrides/"
+    state: directory
+
+- name: generate overides for bootstrap-registry-registry release
+  shell: "./tools/image-repo-overides.sh > ./tools/gate/local-overrides/bootstrap-registry-registry.yaml"
+  args:
     chdir: "{{ work_dir }}"
-    target: pull-all-images
