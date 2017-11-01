@@ -80,8 +80,10 @@ function kubeadm_aio_reqs_install {
     sudo yum install -y \
             epel-release
     sudo yum install -y \
-            docker-latest \
-            jq
+            docker-latest
+    # We need JQ 1.5 which is not currently in the CentOS or EPEL repos
+    sudo curl -L -o /usr/bin/jq https://github.com/stedolan/jq/releases/download/jq-1.5/jq-linux64
+    sudo chmod +x /usr/bin/jq
     sudo cp -f /usr/lib/systemd/system/docker-latest.service /etc/systemd/system/docker.service
     sudo sed -i "s|/var/lib/docker-latest|/var/lib/docker|g" /etc/systemd/system/docker.service
     sudo sed -i 's/^OPTIONS/#OPTIONS/g' /etc/sysconfig/docker-latest
