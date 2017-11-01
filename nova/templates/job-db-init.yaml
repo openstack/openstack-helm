@@ -92,6 +92,37 @@ spec:
               mountPath: /etc/nova/nova.conf
               subPath: nova.conf
               readOnly: true
+{{- if .Values.manifests.job_cell_setup }}
+        - name: nova-db-init-cell0
+          image: {{ .Values.images.tags.db_init }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+{{ tuple $envAll $envAll.Values.pod.resources.jobs.db_init | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          env:
+            - name: ROOT_DB_CONNECTION
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.oslo_db.admin }}
+                  key: DB_CONNECTION
+            - name: OPENSTACK_CONFIG_FILE
+              value: /etc/nova/nova.conf
+            - name: OPENSTACK_CONFIG_DB_SECTION
+              value: cell0_database
+            - name: OPENSTACK_CONFIG_DB_KEY
+              value: connection
+          command:
+            - /tmp/db-init.py
+          volumeMounts:
+            - name: nova-bin
+              mountPath: /tmp/db-init.py
+              subPath: db-init.py
+              readOnly: true
+            - name: etcnova
+              mountPath: /etc/nova
+            - name: nova-etc
+              mountPath: /etc/nova/nova.conf
+              subPath: nova.conf
+              readOnly: true
+{{- end }}
       volumes:
         - name: etcnova
           emptyDir: {}
