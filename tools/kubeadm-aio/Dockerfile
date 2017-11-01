@@ -1,8 +1,12 @@
 FROM ubuntu:16.04
 MAINTAINER pete.birley@att.com
+# You can specify particulat version using
+# --build-arg KUBE_VERSION=$KUBE_VERSION
+# or put 'xlatest' and it will download latest availible k8s packages.
+ARG KUBE_VERSION=v1.7.5
 
 ENV HELM_VERSION=v2.6.1 \
-    KUBE_VERSION=v1.7.5 \
+    KUBE_VERSION=${KUBE_VERSION} \
     CNI_VERSION=v0.6.0-rc2 \
     container="docker" \
     DEBIAN_FRONTEND="noninteractive"
@@ -20,27 +24,33 @@ RUN set -x \
     && curl -sSL https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add - \
     && echo "deb http://apt.kubernetes.io/ kubernetes-xenial main" > /etc/apt/sources.list.d/kubernetes.list \
     && apt-get update \
-    && apt-get install -y --no-install-recommends \
+    && if [ "$KUBE_VERSION" = "xlatest" ]; \
+         then version=`apt-cache policy kubeadm| grep Candidate: | awk '{print $2}' | sed 's/-[0-9]*//'`; \
+              APT_KUBE_VERSION="=${version}-*"; \
+              API_KUBE_VERSION="v${version}"; \
+         else APT_KUBE_VERSION="=$(echo $KUBE_VERSION | sed 's/v//g')-*";\
+              API_KUBE_VERSION=${KUBE_VERSION}; fi; \
+    apt-get install -y --no-install-recommends \
         docker.io \
         iptables \
-        kubectl \
-        kubelet \
+        kubectl"$APT_KUBE_VERSION" \
+        kubelet"$APT_KUBE_VERSION" \
         kubernetes-cni \
 # Install Kubeadm without running postinstall script as it expects systemd to be running.
-    && apt-get download kubeadm \
+    && apt-get download kubeadm"$APT_KUBE_VERSION" \
     && dpkg --unpack kubeadm*.deb \
     && mv /var/lib/dpkg/info/kubeadm.postinst /opt/kubeadm.postinst \
     && dpkg --configure kubeadm \
-    && apt-get install -yf kubeadm \
+    && apt-get install -yf kubeadm"$APT_KUBE_VERSION" \
     && mkdir -p /etc/kubernetes/manifests \
 # Install kubectl:
-    && curl -sSL https://dl.k8s.io/${KUBE_VERSION}/kubernetes-client-linux-amd64.tar.gz | tar -zxv --strip-components=1 \
+    && curl -sSL https://dl.k8s.io/$API_KUBE_VERSION/kubernetes-client-linux-amd64.tar.gz | tar -zxv --strip-components=1 \
     && mv ${TMP_DIR}/client/bin/kubectl /usr/bin/kubectl \
     && chmod +x /usr/bin/kubectl \
 # Install kubelet & kubeadm binaries:
 # (portdirect) We do things in this weird way to let us use the deps and systemd
 # units from the packages in the .deb repo.
-    && curl -sSL https://dl.k8s.io/${KUBE_VERSION}/kubernetes-server-linux-amd64.tar.gz | tar -zxv --strip-components=1 \
+    && curl -sSL https://dl.k8s.io/${API_KUBE_VERSION}/kubernetes-server-linux-amd64.tar.gz | tar -zxv --strip-components=1 \
     && mv ${TMP_DIR}/server/bin/kubelet /usr/bin/kubelet \
     && chmod +x /usr/bin/kubelet \
     && mv ${TMP_DIR}/server/bin/kubeadm /usr/bin/kubeadm \

@@ -115,7 +115,7 @@ function kubeadm_aio_reqs_install {
 }
 
 function kubeadm_aio_build {
-  sudo docker build --pull -t ${KUBEADM_IMAGE} tools/kubeadm-aio
+  sudo docker build --pull -t ${KUBEADM_IMAGE} --build-arg KUBE_VERSION=$KUBE_VERSION tools/kubeadm-aio
 }
 
 function kubeadm_aio_launch {
