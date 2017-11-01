@@ -492,7 +492,7 @@ RadosGW and created Keystone endpoints by changing the value for
     : ${GLANCE_BACKEND:="radosgw"}
     helm install --namespace=openstack --name=glance ./glance \
       --set pod.replicas.api=2 \
-      --set pod.replicas.registry=2
+      --set pod.replicas.registry=2 \
       --set storage=${GLANCE_BACKEND}
 
 **Install Heat:**
