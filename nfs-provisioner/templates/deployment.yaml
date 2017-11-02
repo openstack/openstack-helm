@@ -16,6 +16,11 @@ limitations under the License.
 
 {{- if .Values.manifests.deployment }}
 {{- $envAll := . }}
+{{- if .Values.images.local_registry.active -}}
+{{- $_ := set .Values "pod_dependency" (merge .Values.dependencies.nfs .Values.conditional_dependencies.local_image_registry) -}}
+{{- else -}}
+{{- $_ := set .Values "pod_dependency" .Values.dependencies.nfs -}}
+{{- end -}}
 ---
 kind: Deployment
 apiVersion: apps/v1beta1
@@ -34,6 +39,8 @@ spec:
 {{ tuple $envAll "nfs" "provisioner" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
       nodeSelector:
         {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
+      initContainers:
+{{ tuple $envAll .Values.pod_dependency list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
         - name: nfs-provisioner
 {{ tuple $envAll "nfs_provisioner" | include "helm-toolkit.snippets.image" | indent 10 }}
@@ -71,6 +78,7 @@ spec:
             - name: export-volume
               mountPath: /export
       volumes:
+{{ tuple . | include "helm-toolkit.snippets.kubernetes_entrypoint_secret_mount" | indent 8 }}
         - name: export-volume
           hostPath:
             path: {{ .Values.storage.host.host_path }}

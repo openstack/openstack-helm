@@ -35,13 +35,26 @@ pod:
       limits:
         memory: "1024Mi"
         cpu: "2000m"
+    jobs:
+      image_repo_sync:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
 
 images:
   tags:
     nfs_provisioner: quay.io/kubernetes_incubator/nfs-provisioner:v1.0.8
+    dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.2.1
+    image_repo_sync: docker.io/docker:17.07.0
   pull_policy: IfNotPresent
-  registry:
-    prefix: null
+  local_registry:
+    active: false
+    exclude:
+      - dep_check
+      - image_repo_sync
 
 storage:
   host:
@@ -55,8 +68,36 @@ storageclass:
   provisioner: example.com/nfs
   name: general
 
+dependencies:
+  nfs:
+    services: null
+  image_repo_sync:
+    services:
+      - service: local_image_registry
+        endpoint: internal
+
+conditional_dependencies:
+  local_image_registry:
+    jobs:
+      - nfs-image-repo-sync
+    services:
+      - service: local_image_registry
+        endpoint: node
+
 endpoints:
   cluster_domain_suffix: cluster.local
+  local_image_registry:
+    name: docker-registry
+    namespace: docker-registry
+    hosts:
+      default: localhost
+      internal: docker-registry
+      node: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        node: 5000
   nfs:
     hosts:
       default: nfs-provisioner
@@ -69,6 +110,9 @@ endpoints:
         default: null
 
 manifests:
+  configmap_bin: true
   deployment: true
+  job_image_repo_sync: true
+  rbac_entrypoint: true
   service: true
   storage_class: true

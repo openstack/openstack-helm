@@ -16,7 +16,11 @@ limitations under the License.
 
 {{- if .Values.manifests.deployment_registry }}
 {{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.registry }}
+{{- if .Values.images.local_registry.active -}}
+{{- $_ := set .Values "pod_dependency" (merge .Values.dependencies.registry .Values.conditional_dependencies.local_image_registry) -}}
+{{- else -}}
+{{- $_ := set .Values "pod_dependency" .Values.dependencies.registry -}}
+{{- end -}}
 ---
 apiVersion: apps/v1beta1
 kind: Deployment
@@ -38,7 +42,7 @@ spec:
       nodeSelector:
         {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
       initContainers:
-{{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll .Values.pod_dependency list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
         - name: registry
 {{ tuple $envAll "registry" | include "helm-toolkit.snippets.image" | indent 10 }}
@@ -60,6 +64,7 @@ spec:
           - name: docker-images
             mountPath: {{ .Values.conf.registry.storage.filesystem.rootdirectory }}
       volumes:
+{{ tuple . | include "helm-toolkit.snippets.kubernetes_entrypoint_secret_mount" | indent 8 }}
         - name: registry-bin
           configMap:
             name: registry-bin
@@ -71,5 +76,4 @@ spec:
         - name: docker-images
           persistentVolumeClaim:
             claimName: docker-images
-{{ tuple . | include "helm-toolkit.snippets.kubernetes_entrypoint_secret_mount" | indent 8 }}
 {{- end }}

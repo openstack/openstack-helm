@@ -14,8 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- if .Values.manifests.daemonset_calico_node }}
 {{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.calico_node }}
+{{- if .Values.images.local_registry.active -}}
+{{- $_ := set .Values "pod_dependency" (merge .Values.dependencies.calico_node .Values.conditional_dependencies.local_image_registry) -}}
+{{- else -}}
+{{- $_ := set .Values "pod_dependency" .Values.dependencies.calico_node -}}
+{{- end -}}
 ---
 # This manifest installs the calico/node container, as well
 # as the Calico CNI plugins and network config on
@@ -54,7 +59,7 @@ spec:
           operator: Exists
       serviceAccountName: calico-cni-plugin
       initContainers:
-{{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll .Values.pod_dependency list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
         # Runs calico/node container on each Kubernetes node.  This
         # container programs network policy and routes on each
@@ -155,6 +160,7 @@ spec:
             - mountPath: /host/etc/cni/net.d
               name: cni-net-dir
       volumes:
+{{ tuple . | include "helm-toolkit.snippets.kubernetes_entrypoint_secret_mount" | indent 8 }}
         # Used by calico/node.
         - name: lib-modules
           hostPath:
@@ -169,4 +175,4 @@ spec:
         - name: cni-net-dir
           hostPath:
             path: /etc/cni/net.d
-{{ tuple . | include "helm-toolkit.snippets.kubernetes_entrypoint_secret_mount" | indent 8 }}
+{{- end }}

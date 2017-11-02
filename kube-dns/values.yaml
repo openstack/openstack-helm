@@ -14,15 +14,76 @@
 
 # https://raw.githubusercontent.com/coreos/flannel/v0.8.0/Documentation/kube-flannel.yml
 
+labels:
+  node_selector_key: openstack-control-plane
+  node_selector_value: enabled
+
 images:
   tags:
     kube_dns: gcr.io/google_containers/k8s-dns-kube-dns-amd64:1.14.5
     kube_dns_nanny: gcr.io/google_containers/k8s-dns-dnsmasq-nanny-amd64:1.14.5
     kube_dns_sidecar: gcr.io/google_containers/k8s-dns-sidecar-amd64:1.14.5
+    dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.2.1
+    image_repo_sync: docker.io/docker:17.07.0
   pull_policy: IfNotPresent
-  registry:
-    prefix: null
+  local_registry:
+    active: false
+    exclude:
+      - dep_check
+      - image_repo_sync
+
+pod:
+  resources:
+    enabled: false
+    jobs:
+      image_repo_sync:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
 
 networking:
   dnsDomain: cluster.local
   dnsIP: 10.96.0.10
+
+dependencies:
+  kube_dns:
+    services: null
+  image_repo_sync:
+    services:
+      - service: local_image_registry
+        endpoint: internal
+
+conditional_dependencies:
+  local_image_registry:
+    jobs:
+      - kube-dns-image-repo-sync
+    services:
+      - service: local_image_registry
+        endpoint: node
+
+endpoints:
+  cluster_domain_suffix: cluster.local
+  local_image_registry:
+    name: docker-registry
+    namespace: docker-registry
+    hosts:
+      default: localhost
+      internal: docker-registry
+      node: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        node: 5000
+
+manifests:
+  configmap_bin: true
+  configmap_kube_dns: true
+  deployment_kube_dns: true
+  job_image_repo_sync: true
+  rbac_entrypoint: true
+  service_kube_dns: true
+  serviceaccount_kube_dns: true

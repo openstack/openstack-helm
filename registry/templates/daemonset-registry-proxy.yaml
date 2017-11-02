@@ -16,7 +16,11 @@ limitations under the License.
 
 {{- if .Values.manifests.daemonset_registry_proxy }}
 {{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.registry_proxy }}
+{{- if .Values.images.local_registry.active -}}
+{{- $_ := set .Values "pod_dependency" (merge .Values.dependencies.registry_proxy .Values.conditional_dependencies.local_image_registry) -}}
+{{- else -}}
+{{- $_ := set .Values "pod_dependency" .Values.dependencies.registry_proxy -}}
+{{- end -}}
 ---
 apiVersion: extensions/v1beta1
 kind: DaemonSet
@@ -36,7 +40,7 @@ spec:
       dnsPolicy: ClusterFirstWithHostNet
       hostNetwork: true
       initContainers:
-{{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll .Values.pod_dependency list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
       - name: registry-proxy
 {{ tuple $envAll "registry_proxy" | include "helm-toolkit.snippets.image" | indent 8 }}
@@ -53,6 +57,7 @@ spec:
             subPath: default.conf
             readOnly: true
       volumes:
+{{ tuple . | include "helm-toolkit.snippets.kubernetes_entrypoint_secret_mount" | indent 8 }}
         - name: registry-bin
           configMap:
             name: registry-bin
@@ -61,5 +66,4 @@ spec:
           configMap:
             name: registry-etc
             defaultMode: 0444
-{{ tuple . | include "helm-toolkit.snippets.kubernetes_entrypoint_secret_mount" | indent 8 }}
 {{- end }}

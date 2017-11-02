@@ -14,8 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- if .Values.manifests.deployment_calico_policy_controller }}
 {{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.calico_policy_controller }}
+{{- if .Values.images.local_registry.active -}}
+{{- $_ := set .Values "pod_dependency" (merge .Values.dependencies.calico_policy_controller .Values.conditional_dependencies.local_image_registry) -}}
+{{- else -}}
+{{- $_ := set .Values "pod_dependency" .Values.dependencies.calico_policy_controller -}}
+{{- end -}}
 ---
 # This manifest deploys the Calico policy controller on Kubernetes.
 # See https://github.com/projectcalico/k8s-policy
@@ -55,7 +60,7 @@ spec:
         operator: Exists
       serviceAccountName: calico-policy-controller
       initContainers:
-{{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll .Values.pod_dependency list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
         - name: calico-policy-controller
 {{ tuple $envAll "calico_kube_policy_controller" | include "helm-toolkit.snippets.image" | indent 10 }}
@@ -77,3 +82,4 @@ spec:
               value: "true"
       volumes:
 {{ tuple . | include "helm-toolkit.snippets.kubernetes_entrypoint_secret_mount" | indent 8 }}
+{{- end }}

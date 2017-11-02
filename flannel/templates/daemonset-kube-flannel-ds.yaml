@@ -14,7 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- if .Values.manifests.daemonset_kube_flannel_ds }}
 {{- $envAll := . }}
+{{- if .Values.images.local_registry.active -}}
+{{- $_ := set .Values "pod_dependency" (merge .Values.dependencies.flannel .Values.conditional_dependencies.local_image_registry) -}}
+{{- else -}}
+{{- $_ := set .Values "pod_dependency" .Values.dependencies.flannel -}}
+{{- end -}}
 ---
 apiVersion: extensions/v1beta1
 kind: DaemonSet
@@ -40,6 +46,8 @@ spec:
           operator: Exists
           effect: NoSchedule
       serviceAccountName: flannel
+      initContainers:
+{{ tuple $envAll .Values.pod_dependency list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
         - name: kube-flannel
 {{ tuple $envAll "flannel" | include "helm-toolkit.snippets.image" | indent 10 }}
@@ -69,6 +77,7 @@ spec:
             - name: flannel-cfg
               mountPath: /etc/kube-flannel/
       volumes:
+{{ tuple . | include "helm-toolkit.snippets.kubernetes_entrypoint_secret_mount" | indent 8 }}
         - name: run
           hostPath:
             path: /run
@@ -78,3 +87,4 @@ spec:
         - name: flannel-cfg
           configMap:
             name: kube-flannel-cfg
+{{- end }}

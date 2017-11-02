@@ -30,8 +30,10 @@ images:
     bootstrap: docker.io/docker:17.07.0
     dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.2.1
   pull_policy: "IfNotPresent"
-  registry:
-    prefix: null
+  local_registry:
+    active: false
+    exclude:
+      - dep_check
 
 volume:
   class_name: general
@@ -115,7 +117,7 @@ bootstrap:
   script:
     docker info
   preload_images:
-    - gcr.io/google_containers/ubuntu-slim:0.14
+    - quay.io/stackanetes/kubernetes-entrypoint:v0.2.1
 
 dependencies:
   registry:
@@ -135,16 +137,27 @@ dependencies:
 
 endpoints:
   cluster_domain_suffix: cluster.local
-  docker_registry:
+  local_image_registry:
     name: docker-registry
+    namespace: docker-registry
     hosts:
-      default: docker-registry
+      default: localhost
+      internal: docker-registry
+      node: localhost
     host_fqdn_override:
       default: null
-    path:
+    port:
+      registry:
+        default: 5000
+  docker_registry:
+    name: docker-registry
+    namespace: docker-registry
+    hosts:
+      default: localhost
+      internal: docker-registry
+      node: localhost
+    host_fqdn_override:
       default: null
-    scheme:
-      default: http
     port:
       registry:
         default: 5000
@@ -160,8 +173,11 @@ endpoints:
 
 manifests:
   configmap_bin: true
+  configmap_etc: true
   daemonset_registry_proxy: true
   deployment_registry: true
   job_bootstrap: true
+  job_image_repo_sync: true
   pvc_images: true
+  rbac_entrypoint: true
   service_registry: true

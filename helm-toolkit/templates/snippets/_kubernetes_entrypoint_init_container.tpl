@@ -21,8 +21,7 @@ limitations under the License.
 {{- $mountServiceAccount := dict "mountPath" "/var/run/secrets/kubernetes.io/serviceaccount" "name" "entrypoint-serviceaccount-secret" "readOnly" true -}}
 {{- $mountsEntrypoint := append $mounts $mountServiceAccount -}}
 - name: init
-  image: {{ $envAll.Values.images.tags.dep_check }}
-  imagePullPolicy: {{ $envAll.Values.images.pull_policy }}
+{{ tuple $envAll "dep_check" | include "helm-toolkit.snippets.image" | indent 2 }}
   env:
     - name: POD_NAME
       valueFrom:
@@ -37,7 +36,7 @@ limitations under the License.
     - name: INTERFACE_NAME
       value: eth0
     - name: DEPENDENCY_SERVICE
-      value: "{{ tuple $deps.services $envAll | include "helm-toolkit.utils.comma_joined_hostname_list" }}"
+      value: "{{ tuple $deps.services $envAll | include "helm-toolkit.utils.comma_joined_service_list" }}"
     - name: DEPENDENCY_JOBS
       value: "{{  include "helm-toolkit.utils.joinListWithComma" $deps.jobs }}"
     - name: DEPENDENCY_DAEMONSET

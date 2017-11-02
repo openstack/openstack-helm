@@ -14,19 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if .Values.manifests.clusterrolebinding_flannel }}
-{{- $envAll := . }}
----
-kind: ClusterRoleBinding
-apiVersion: rbac.authorization.k8s.io/v1beta1
-metadata:
-  name: flannel
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: flannel
-subjects:
-- kind: ServiceAccount
-  name: flannel
-  namespace: {{ .Release.Namespace }}
-{{- end }}
+{{- define "helm-toolkit.utils.comma_joined_service_list" -}}
+{{- $deps := index . 0 -}}
+{{- $envAll := index . 1 -}}
+{{- range $k, $v := $deps -}}{{- if $k -}},{{- end -}}{{ tuple $v.service $v.endpoint $envAll | include "helm-toolkit.endpoints.service_name_endpoint_with_namespace_lookup" }}{{- end -}}
+{{- end -}}

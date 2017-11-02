@@ -14,7 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- if .Values.manifests.deployment_kube_dns }}
 {{- $envAll := . }}
+{{- if .Values.images.local_registry.active -}}
+{{- $_ := set .Values "pod_dependency" (merge .Values.dependencies.kube_dns .Values.conditional_dependencies.local_image_registry) -}}
+{{- else -}}
+{{- $_ := set .Values "pod_dependency" .Values.dependencies.kube_dns -}}
+{{- end -}}
 ---
 apiVersion: extensions/v1beta1
 kind: Deployment
@@ -181,8 +187,10 @@ spec:
       - effect: NoSchedule
         key: node-role.kubernetes.io/master
       volumes:
+{{ tuple . | include "helm-toolkit.snippets.kubernetes_entrypoint_secret_mount" | indent 6 }}
       - configMap:
           defaultMode: 420
           name: kube-dns
           optional: true
         name: kube-dns-config
+{{- end }}

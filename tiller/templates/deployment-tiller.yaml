@@ -14,7 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- if .Values.manifests.deployment_tiller }}
 {{- $envAll := . }}
+{{- if .Values.images.local_registry.active -}}
+{{- $_ := set .Values "pod_dependency" (merge .Values.dependencies.tiller .Values.conditional_dependencies.local_image_registry) -}}
+{{- else -}}
+{{- $_ := set .Values "pod_dependency" .Values.dependencies.tiller -}}
+{{- end -}}
 ---
 apiVersion: extensions/v1beta1
 kind: Deployment
@@ -40,6 +46,8 @@ spec:
         app: helm
         name: tiller
     spec:
+      initContainers:
+{{ tuple $envAll .Values.pod_dependency list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
       - env:
         - name: TILLER_NAMESPACE
@@ -82,3 +90,6 @@ spec:
       serviceAccount: tiller
       serviceAccountName: tiller
       terminationGracePeriodSeconds: 30
+      volumes:
+{{ tuple . | include "helm-toolkit.snippets.kubernetes_entrypoint_secret_mount" | indent 8 }}
+{{- end }}

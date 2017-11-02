@@ -14,24 +14,20 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if .Values.manifests.job_bootstrap }}
+{{- if .Values.manifests.job_image_repo_sync }}
 {{- $envAll := . }}
-{{- if .Values.bootstrap.enabled }}
 {{- if .Values.images.local_registry.active -}}
-{{- $_ := set .Values "pod_dependency" (merge .Values.dependencies.bootstrap .Values.conditional_dependencies.local_image_registry) -}}
-{{- else -}}
-{{- $_ := set .Values "pod_dependency" .Values.dependencies.bootstrap -}}
-{{- end -}}
+{{- $_ := set .Values "pod_dependency" .Values.dependencies.image_repo_sync -}}
 ---
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: docker-bootstrap
+  name: tiller-image-repo-sync
 spec:
   template:
     metadata:
       labels:
-{{ tuple $envAll "docker" "bootstrap" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+{{ tuple $envAll "tiller" "image-repo-sync" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
     spec:
       restartPolicy: OnFailure
       nodeSelector:
@@ -39,31 +35,31 @@ spec:
       initContainers:
 {{ tuple $envAll .Values.pod_dependency list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container"  | indent 8 }}
       containers:
-        - name: docker-bootstrap
-{{ tuple $envAll "bootstrap" | include "helm-toolkit.snippets.image" | indent 10 }}
-{{ tuple $envAll $envAll.Values.pod.resources.jobs.bootstrap | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+        - name: image-repo-sync
+{{ tuple $envAll "image_repo_sync" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.jobs.image_repo_sync | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           env:
             - name: LOCAL_REPO
-              value: "localhost:{{ tuple "docker_registry" "public" "registry" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}"
-            - name: PRELOAD_IMAGES
-              value: "{{  include "helm-toolkit.utils.joinListWithComma" .Values.bootstrap.preload_images }}"
+              value: "{{ tuple "local_image_registry" "node" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}:{{ tuple "local_image_registry" "node" "registry" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}"
+            - name: IMAGE_SYNC_LIST
+              value: "{{ include "helm-toolkit.utils.image_sync_list" . }}"
           command:
-            - /tmp/bootstrap.sh
+            - /tmp/image-repo-sync.sh
           volumeMounts:
-            - name: registry-bin
-              mountPath: /tmp/bootstrap.sh
-              subPath: bootstrap.sh
+            - name: tiller-bin
+              mountPath: /tmp/image-repo-sync.sh
+              subPath: image-repo-sync.sh
               readOnly: true
             - name: docker-socket
               mountPath: /var/run/docker.sock
       volumes:
-{{ tuple . | include "helm-toolkit.snippets.kubernetes_entrypoint_secret_mount" | indent 8 }}
-        - name: registry-bin
+        - name: tiller-bin
           configMap:
-            name: registry-bin
+            name: tiller-bin
             defaultMode: 0555
         - name: docker-socket
           hostPath:
             path: /var/run/docker.sock
+{{ tuple . | include "helm-toolkit.snippets.kubernetes_entrypoint_secret_mount" | indent 8 }}
 {{- end }}
 {{- end }}

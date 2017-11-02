@@ -20,6 +20,10 @@
 #   calico/cni:v1.10.0
 #   calico/kube-policy-controller:v0.7.0
 
+labels:
+  node_selector_key: openstack-control-plane
+  node_selector_value: enabled
+
 images:
   tags:
     calico_etcd: quay.io/coreos/etcd:v3.1.10
@@ -27,11 +31,33 @@ images:
     calico_cni: quay.io/calico/cni:v1.10.0
     calico_kube_policy_controller: quay.io/calico/kube-policy-controller:v0.7.0
     dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.2.1
+    image_repo_sync: docker.io/docker:17.07.0
   pull_policy: IfNotPresent
-  registry:
-    prefix: null
+  local_registry:
+    active: false
+    exclude:
+      - dep_check
+      - image_repo_sync
+      - calico_etcd
+      - calico_node
+      - calico_cni
+      - calico_kube_policy_controller
+
+pod:
+  resources:
+    enabled: false
+    jobs:
+      image_repo_sync:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
 
 dependencies:
+  etcd:
+    services: null
   calico_node:
     services:
     - service: etcd
@@ -41,8 +67,28 @@ dependencies:
     - service: etcd
       endpoint: internal
 
+conditional_dependencies:
+  local_image_registry:
+    jobs:
+      - calico-image-repo-sync
+    services:
+      - service: local_image_registry
+        endpoint: node
+
 endpoints:
   cluster_domain_suffix: cluster.local
+  local_image_registry:
+    name: docker-registry
+    namespace: docker-registry
+    hosts:
+      default: localhost
+      internal: docker-registry
+      node: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        node: 5000
   etcd:
     hosts:
       default: calico-etcd
@@ -56,3 +102,19 @@ endpoints:
 
 networking:
   podSubnet: 192.168.0.0/16
+
+manifests:
+  clusterrole_calico_cni_plugin: true
+  clusterrole_calico_policy_controller: true
+  clusterrolebinding_calico_cni_plugin: true
+  clusterrolebinding_calico_policy_controller: true
+  configmap_bin: true
+  configmap_calico_config: true
+  daemonset_calico_etcd: true
+  daemonset_calico_node: true
+  deployment_calico_policy_controller: true
+  job_image_repo_sync: true
+  rbac_entrypoint: true
+  service_calico_etcd: true
+  serviceaccount_calico_cni_plugin: true
+  serviceaccount_calico_policy_controller: true

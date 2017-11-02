@@ -14,7 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- if .Values.manifests.deployment }}
 {{- $envAll := . }}
+{{- if .Values.images.local_registry.active -}}
+{{- $_ := set .Values "pod_dependency" (merge .Values.dependencies.redis .Values.conditional_dependencies.local_image_registry) -}}
+{{- else -}}
+{{- $_ := set .Values "pod_dependency" .Values.dependencies.redis -}}
+{{- end -}}
 ---
 apiVersion: apps/v1beta1
 kind: Deployment
@@ -32,16 +38,21 @@ spec:
 {{ tuple $envAll "redis" "server" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
       nodeSelector:
         {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
+      initContainers:
+{{ tuple $envAll .Values.pod_dependency list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
         - name: redis
 {{ tuple $envAll "redis" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.server | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-          command: ["sh", "-xec"]
-          args:
-            - |
-              exec redis-server --port {{ .Values.network.port }}
+          command:
+            - redis-server
+            - --port
+            - {{ .Values.network.port | quote }}
           ports:
             - containerPort: {{ .Values.network.port }}
           readinessProbe:
             tcpSocket:
               port: {{ .Values.network.port }}
+      volumes:
+{{ tuple . | include "helm-toolkit.snippets.kubernetes_entrypoint_secret_mount" | indent 8 }}
+{{- end }}

@@ -18,8 +18,9 @@ limitations under the License.
 {{- $envAll := index . 0 -}}
 {{- $image := index . 1 -}}
 {{- $imageTag := index $envAll.Values.images.tags $image -}}
-{{- if $envAll.Values.images.registry.prefix -}}
-image: {{ printf "%s/%s" $envAll.Values.images.registry.prefix $imageTag | quote }}
+{{- if and ($envAll.Values.images.local_registry.active) (not (has $image $envAll.Values.images.local_registry.exclude )) -}}
+{{- $registryPrefix := printf "%s:%s" (tuple "local_image_registry" "node" $envAll | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup") (tuple "local_image_registry" "node" "registry" $envAll | include "helm-toolkit.endpoints.endpoint_port_lookup") -}}
+image: {{ printf "%s/%s" $registryPrefix $imageTag | quote }}
 {{- else -}}
 image: {{ $imageTag | quote }}
 {{- end }}

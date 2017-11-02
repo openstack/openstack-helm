@@ -14,19 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if .Values.manifests.clusterrolebinding_flannel }}
-{{- $envAll := . }}
----
-kind: ClusterRoleBinding
-apiVersion: rbac.authorization.k8s.io/v1beta1
-metadata:
-  name: flannel
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: flannel
-subjects:
-- kind: ServiceAccount
-  name: flannel
-  namespace: {{ .Release.Namespace }}
+{{- define "helm-toolkit.scripts.image_repo_sync" }}
+#!/bin/sh
+set -ex
+
+IFS=','; for IMAGE in ${IMAGE_SYNC_LIST}; do
+  docker pull ${IMAGE}
+  docker tag ${IMAGE} ${LOCAL_REPO}/${IMAGE}
+  docker push ${LOCAL_REPO}/${IMAGE}
+done
 {{- end }}

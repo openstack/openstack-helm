@@ -14,19 +14,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if .Values.manifests.clusterrolebinding_flannel }}
-{{- $envAll := . }}
----
-kind: ClusterRoleBinding
-apiVersion: rbac.authorization.k8s.io/v1beta1
-metadata:
-  name: flannel
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: flannel
-subjects:
-- kind: ServiceAccount
-  name: flannel
-  namespace: {{ .Release.Namespace }}
-{{- end }}
+{{- define "helm-toolkit.utils.image_sync_list" -}}
+{{- $imageExcludeList := .Values.images.local_registry.exclude -}}
+{{- $imageDict := .Values.images.tags -}}
+{{- $local := dict "first" true -}}
+{{- range $k, $v := $imageDict -}}
+{{- if not $local.first -}},{{- end -}}
+{{- if (not (has $k $imageExcludeList )) -}}
+{{- index $imageDict $k -}}
+{{- $_ := set $local "first" false -}}
+{{- end -}}{{- end -}}
+{{- end -}}
