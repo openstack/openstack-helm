@@ -18,7 +18,7 @@ MAINTAINER pete.birley@att.com
 
 ENV KUBE_VERSION="v1.8.1" \
     CNI_VERSION="v0.6.0" \
-    HELM_VERSION="v2.7.0-rc1" \
+    HELM_VERSION="v2.7.0" \
     container="docker" \
     DEBIAN_FRONTEND="noninteractive" \
     CNI_BIN_DIR="/opt/cni/bin" \
