@@ -19,5 +19,5 @@ ALL_IMAGES="$(./tools/image-repo-overides.sh | \
   python -c 'import sys, yaml, json; json.dump(yaml.safe_load(sys.stdin), sys.stdout)' | \
   jq '.bootstrap.preload_images |map(.) | join(" ")' | tr -d '"')"
 for IMAGE in ${ALL_IMAGES}; do
-  docker inspect $IMAGE > /dev/null || docker pull $IMAGE
+  sudo -H docker inspect $IMAGE > /dev/null || sudo -H docker pull $IMAGE
 done
