@@ -20,6 +20,14 @@ chart_groups:
       - docker_registry_redis
       - docker_registry
 
+  - name: infra_monitoring
+    timeout: 600
+    charts:
+      - prometheus
+      - node_exporter
+      - kube_state_metrics
+      - alertmanager
+
 charts:
   docker_registry_nfs_provisioner:
     chart_name: nfs-provisioner
@@ -59,3 +67,58 @@ charts:
         node_selector_value: primary
       volume:
         class_name: openstack-helm-bootstrap
+
+  prometheus:
+    chart_name: prometheus
+    release: prometheus
+    namespace: openstack
+    timeout: 300
+    test:
+      enabled: true
+      timeout: 300
+      output: false
+    values:
+      storage:
+        enabled: false
+      manifests:
+        pvc: false
+      network:
+        prometheus:
+          ingress:
+            public: false
+
+  kube_state_metrics:
+    chart_name: kube-state-metrics
+    release: prometheus-kube-metrics
+    namespace: kube-system
+    test:
+      enabled: false
+      timeout: 300
+      output: false
+
+  node_exporter:
+    chart_name: node-exporter
+    release: prometheus-node-exporter
+    namespace: kube-system
+    test:
+      enabled: false
+      timeout: 300
+      output: false
+
+  alertmanager:
+    chart_name: alertmanager
+    release: prometheus-alertmanager
+    namespace: openstack
+    test:
+      enabled: false
+      timeout: 300
+      output: false
+    values:
+      storage:
+        enabled: false
+      manifests:
+        pvc: false
+      network:
+        alertmanager:
+          ingress:
+            public: false

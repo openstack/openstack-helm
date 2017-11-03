@@ -1,0 +1,907 @@
+# Copyright 2017 The Openstack-Helm Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Default values for prometheus.
+# This is a YAML-formatted file.
+# Declare name/value pairs to be passed into your templates.
+# name: value
+
+images:
+  tags:
+    prometheus: docker.io/prom/prometheus:v1.7.1
+    helm_tests: docker.io/kolla/ubuntu-source-kolla-toolbox:3.0.3
+    dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.2.1
+    image_repo_sync: docker.io/docker:17.07.0
+  pull_policy: IfNotPresent
+  local_registry:
+    active: false
+    exclude:
+      - dep_check
+      - image_repo_sync
+
+labels:
+  node_selector_key: openstack-control-plane
+  node_selector_value: enabled
+
+pod:
+  affinity:
+      anti:
+        type:
+          default: preferredDuringSchedulingIgnoredDuringExecution
+        topologyKey:
+          default: kubernetes.io/hostname
+  mounts:
+    prometheus:
+      prometheus:
+      init_container: null
+  replicas:
+    prometheus: 1
+  lifecycle:
+    upgrades:
+      revision_history: 3
+      pod_replacement_strategy: RollingUpdate
+      rolling_update:
+        max_unavailable: 1
+        max_surge: 3
+    termination_grace_period:
+      prometheus:
+        timeout: 30
+  resources:
+    enabled: false
+    prometheus:
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+      requests:
+        memory: "128Mi"
+        cpu: "500m"
+
+endpoints:
+  cluster_domain_suffix: cluster.local
+  local_image_registry:
+    name: docker-registry
+    namespace: docker-registry
+    hosts:
+      default: localhost
+      internal: docker-registry
+      node: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        node: 5000
+  monitoring:
+    name: prometheus
+    namespace: null
+    hosts:
+      default: prom-metrics
+      public: prometheus
+    host_fqdn_override:
+      default: null
+    path:
+      default: null
+    scheme:
+      default: 'http'
+    port:
+      api:
+        default: 9090
+        public: 80
+    scrape: true
+    scrape_port: 9090
+  alerts:
+    name: alertmanager
+    namespace: null
+    hosts:
+      default: alerts-api
+      public: alertmanager
+    host_fqdn_override:
+      default: null
+    path:
+      default: null
+    scheme:
+      default: 'http'
+    port:
+      api:
+        default: 9093
+        public: 80
+
+dependencies:
+  prometheus:
+    services: null
+  image_repo_sync:
+    services:
+      - service: local_image_registry
+        endpoint: internal
+
+conditional_dependencies:
+  local_image_registry:
+    jobs:
+      - prometheus-image-repo-sync
+    services:
+      - service: local_image_registry
+        endpoint: node
+
+network:
+  prometheus:
+    ingress:
+      public: true
+      proxy_body_size: 1024M
+    node_port:
+      enabled: false
+      port: 30900
+    port: 9090
+
+storage:
+  enabled: true
+  pvc:
+    name: prometheus-pvc
+    access_mode: ReadWriteMany
+  requests:
+    storage: 5Gi
+  storage_class: general
+
+manifests:
+  clusterrole: true
+  clusterrolebinding: true
+  configmap_bin: true
+  configmap_etc: true
+  configmap_rules: true
+  ingress_prometheus: true
+  helm_tests: true
+  job_image_repo_sync: true
+  pvc: true
+  rbac_entrypoint: true
+  service_ingress_prometheus: true
+  service: true
+  serviceaccount: true
+  statefulset_prometheus: true
+
+conf:
+  prometheus:
+    storage:
+      local:
+        path: /var/lib/prometheus/data
+        retention: 168h0m0s
+    log:
+      format: logger:stdout?json=true
+      level: info
+    query:
+      max_concurrency: 20
+      timeout: 2m0s
+    scrape_configs: |
+      global:
+        scrape_interval: 25s
+        evaluation_interval: 10s
+      rule_files:
+        - /etc/config/rules/alertmanager.rules
+        - /etc/config/rules/etcd3.rules
+        - /etc/config/rules/kubernetes.rules
+        - /etc/config/rules/kube-apiserver.rules
+        - /etc/config/rules/kube-controller-manager.rules
+        - /etc/config/rules/kubelet.rules
+        - /etc/config/rules/kube-scheduler.rules
+        - /etc/config/rules/rabbitmq.rules
+        - /etc/config/rules/mysql.rules
+        - /etc/config/rules/ceph.rules
+        - /etc/config/rules/openstack.rules
+        - /etc/config/rules/custom.rules
+      scrape_configs:
+        - job_name: kubelet
+          scheme: https
+          # This TLS & bearer token file config is used to connect to the actual scrape
+          # endpoints for cluster components. This is separate to discovery auth
+          # configuration because discovery & scraping are two separate concerns in
+          # Prometheus. The discovery auth config is automatic if Prometheus runs inside
+          # the cluster. Otherwise, more config options have to be provided within the
+          # <kubernetes_sd_config>.
+          tls_config:
+            ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+          bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+          kubernetes_sd_configs:
+          - role: node
+          scrape_interval: 45s
+          relabel_configs:
+          - action: labelmap
+            regex: __meta_kubernetes_node_label_(.+)
+          - target_label: __address__
+            replacement: kubernetes.default.svc:443
+          - source_labels: [__meta_kubernetes_node_name]
+            regex: (.+)
+            target_label: __metrics_path__
+            replacement: /api/v1/nodes/${1}/proxy/metrics
+          - source_labels: [__meta_kubernetes_node_name]
+            action: replace
+            target_label: kubernetes_io_hostname
+          # Scrape config for Kubelet cAdvisor.
+          #
+          # This is required for Kubernetes 1.7.3 and later, where cAdvisor metrics
+          # (those whose names begin with 'container_') have been removed from the
+          # Kubelet metrics endpoint.  This job scrapes the cAdvisor endpoint to
+          # retrieve those metrics.
+          #
+          # In Kubernetes 1.7.0-1.7.2, these metrics are only exposed on the cAdvisor
+          # HTTP endpoint; use "replacement: /api/v1/nodes/${1}:4194/proxy/metrics"
+          # in that case (and ensure cAdvisor's HTTP server hasn't been disabled with
+          # the --cadvisor-port=0 Kubelet flag).
+          #
+          # This job is not necessary and should be removed in Kubernetes 1.6 and
+          # earlier versions, or it will cause the metrics to be scraped twice.
+        - job_name: 'kubernetes-cadvisor'
+          # Default to scraping over https. If required, just disable this or change to
+          # `http`.
+          scheme: https
+          # This TLS & bearer token file config is used to connect to the actual scrape
+          # endpoints for cluster components. This is separate to discovery auth
+          # configuration because discovery & scraping are two separate concerns in
+          # Prometheus. The discovery auth config is automatic if Prometheus runs inside
+          # the cluster. Otherwise, more config options have to be provided within the
+          # <kubernetes_sd_config>.
+          tls_config:
+            ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+          bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+          kubernetes_sd_configs:
+          - role: node
+          scrape_interval: 45s
+          relabel_configs:
+          - action: labelmap
+            regex: __meta_kubernetes_node_label_(.+)
+          - target_label: __address__
+            replacement: kubernetes.default.svc:443
+          - source_labels: [__meta_kubernetes_node_name]
+            regex: (.+)
+            target_label: __metrics_path__
+            replacement: /api/v1/nodes/${1}/proxy/metrics/cadvisor
+          - source_labels: [__meta_kubernetes_node_name]
+            action: replace
+            target_label: kubernetes_io_hostname
+          metric_relabel_configs:
+          - action: replace
+            source_labels: [id]
+            regex: '^/machine\.slice/machine-rkt\\x2d([^\\]+)\\.+/([^/]+)\.service$'
+            target_label: rkt_container_name
+            replacement: '${2}-${1}'
+          - action: replace
+            source_labels: [id]
+            regex: '^/system\.slice/(.+)\.service$'
+            target_label: systemd_service_name
+            replacement: '${1}'
+          # Scrape config for API servers.
+          #
+          # Kubernetes exposes API servers as endpoints to the default/kubernetes
+          # service so this uses `endpoints` role and uses relabelling to only keep
+          # the endpoints associated with the default/kubernetes service using the
+          # default named port `https`. This works for single API server deployments as
+          # well as HA API server deployments.
+        - job_name: 'apiserver'
+          kubernetes_sd_configs:
+          - role: endpoints
+          scrape_interval: 45s
+          # Default to scraping over https. If required, just disable this or change to
+          # `http`.
+          scheme: https
+          # This TLS & bearer token file config is used to connect to the actual scrape
+          # endpoints for cluster components. This is separate to discovery auth
+          # configuration because discovery & scraping are two separate concerns in
+          # Prometheus. The discovery auth config is automatic if Prometheus runs inside
+          # the cluster. Otherwise, more config options have to be provided within the
+          # <kubernetes_sd_config>.
+          tls_config:
+            ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+            # If your node certificates are self-signed or use a different CA to the
+            # master CA, then disable certificate verification below. Note that
+            # certificate verification is an integral part of a secure infrastructure
+            # so this should only be disabled in a controlled environment. You can
+            # disable certificate verification by uncommenting the line below.
+            #
+            # insecure_skip_verify: true
+          bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+          # Keep only the default/kubernetes service endpoints for the https port. This
+          # will add targets for each API server which Kubernetes adds an endpoint to
+          # the default/kubernetes service.
+          relabel_configs:
+          - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]
+            action: keep
+            regex: default;kubernetes;https
+        # Scrape config for service endpoints.
+        #
+        # The relabeling allows the actual service scrape endpoint to be configured
+        # via the following annotations:
+        #
+        # * `prometheus.io/scrape`: Only scrape services that have a value of `true`
+        # * `prometheus.io/scheme`: If the metrics endpoint is secured then you will need
+        # to set this to `https` & most likely set the `tls_config` of the scrape config.
+        # * `prometheus.io/path`: If the metrics path is not `/metrics` override this.
+        # * `prometheus.io/port`: If the metrics are exposed on a different port to the
+        # service then set this appropriately.
+        - job_name: 'kubernetes-service-endpoints'
+          kubernetes_sd_configs:
+          - role: endpoints
+          scrape_interval: 60s
+          relabel_configs:
+          - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scrape]
+            action: keep
+            regex: true
+          - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scheme]
+            action: replace
+            target_label: __scheme__
+            regex: (https?)
+          - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_path]
+            action: replace
+            target_label: __metrics_path__
+            regex: (.+)
+          - source_labels: [__address__, __meta_kubernetes_service_annotation_prometheus_io_port]
+            action: replace
+            target_label: __address__
+            regex: ([^:]+)(?::\d+)?;(\d+)
+            replacement: $1:$2
+          - action: labelmap
+            regex: __meta_kubernetes_service_label_(.+)
+          - source_labels: [__meta_kubernetes_namespace]
+            action: replace
+            target_label: kubernetes_namespace
+          - source_labels: [__meta_kubernetes_service_name]
+            action: replace
+            target_label: kubernetes_name
+          - source_labels:
+            - __meta_kubernetes_service_name
+            target_label: job
+            replacement: ${1}
+        - job_name: calico-etcd
+          honor_labels: false
+          kubernetes_sd_configs:
+          - role: service
+          scrape_interval: 20s
+          relabel_configs:
+          - action: labelmap
+            regex: __meta_kubernetes_service_label_(.+)
+          - action: keep
+            source_labels:
+            - __meta_kubernetes_service_name
+            regex: "calico-etcd"
+          - action: keep
+            source_labels:
+            - __meta_kubernetes_namespace
+            regex: kube-system
+            target_label: namespace
+          - source_labels:
+            - __meta_kubernetes_pod_name
+            target_label: pod
+          - source_labels:
+            - __meta_kubernetes_service_name
+            target_label: service
+          - source_labels:
+            - __meta_kubernetes_service_name
+            target_label: job
+            replacement: ${1}
+          - source_labels:
+            - __meta_kubernetes_service_label
+            target_label: job
+            regex: calico-etcd
+            replacement: ${1}
+          - target_label: endpoint
+            replacement: "calico-etcd"
+      alerting:
+        alertmanagers:
+        - kubernetes_sd_configs:
+          - role: endpoints
+          scheme: http
+          relabel_configs:
+          - action: keep
+            source_labels:
+            - __meta_kubernetes_service_name
+            regex: alerts-api
+          - action: keep
+            source_labels:
+            - __meta_kubernetes_namespace
+            regex: monitoring
+          - action: keep
+            source_labels:
+            - __meta_kubernetes_endpoint_port_name
+            regex: alerts-api
+    rules:
+      alertmanager: |-
+        ALERT AlertmanagerConfigInconsistent
+          IF   count_values by (service) ("config_hash", alertmanager_config_hash)
+             / on(service) group_left
+               label_replace(prometheus_operator_alertmanager_spec_replicas, "service", "alertmanager-$1", "alertmanager", "(.*)") != 1
+          FOR 5m
+          LABELS {
+            severity = "critical"
+          }
+          ANNOTATIONS {
+            summary = "Alertmanager configurations are inconsistent",
+            description = "The configuration of the instances of the Alertmanager cluster `{{$labels.service}}` are out of sync."
+          }
+
+        ALERT AlertmanagerDownOrMissing
+          IF   label_replace(prometheus_operator_alertmanager_spec_replicas, "job", "alertmanager-$1", "alertmanager", "(.*)")
+             / on(job) group_right
+               sum by(job) (up) != 1
+          FOR 5m
+          LABELS {
+            severity = "warning"
+          }
+          ANNOTATIONS {
+            summary = "Alertmanager down or not discovered",
+            description = "An unexpected number of Alertmanagers are scraped or Alertmanagers disappeared from discovery."
+          }
+
+        ALERT FailedReload
+          IF alertmanager_config_last_reload_successful == 0
+          FOR 10m
+          LABELS {
+            severity = "warning"
+          }
+          ANNOTATIONS {
+            summary = "Alertmanager configuration reload has failed",
+            description = "Reloading Alertmanager's configuration has failed for {{ $labels.namespace }}/{{ $labels.pod}}."
+          }
+      etcd3: |-
+        # general cluster availability
+        # alert if another failed member will result in an unavailable cluster
+        ALERT InsufficientMembers
+
+          IF count(up{job="etcd"} == 0) > (count(up{job="etcd"}) / 2 - 1)
+          FOR 3m
+          LABELS {
+            severity = "critical"
+          }
+          ANNOTATIONS {
+            summary = "etcd cluster insufficient members",
+            description = "If one more etcd member goes down the cluster will be unavailable",
+          }
+
+        # etcd leader alerts
+        # ==================
+        # alert if any etcd instance has no leader
+        ALERT NoLeader
+          IF etcd_server_has_leader{job="etcd"} == 0
+          FOR 1m
+          LABELS {
+            severity = "critical"
+          }
+          ANNOTATIONS {
+            summary = "etcd member has no leader",
+            description = "etcd member {{ $labels.instance }} has no leader",
+          }
+
+        # alert if there are lots of leader changes
+        ALERT HighNumberOfLeaderChanges
+          IF increase(etcd_server_leader_changes_seen_total{job="etcd"}[1h]) > 3
+          LABELS {
+            severity = "warning"
+          }
+          ANNOTATIONS {
+            summary = "a high number of leader changes within the etcd cluster are happening",
+            description = "etcd instance {{ $labels.instance }} has seen {{ $value }} leader changes within the last hour",
+          }
+
+        # gRPC request alerts
+        # ===================
+        # alert if more than 1% of gRPC method calls have failed within the last 5 minutes
+        ALERT HighNumberOfFailedGRPCRequests
+          IF sum by(grpc_method) (rate(etcd_grpc_requests_failed_total{job="etcd"}[5m]))
+            / sum by(grpc_method) (rate(etcd_grpc_total{job="etcd"}[5m])) > 0.01
+          FOR 10m
+          LABELS {
+            severity = "warning"
+          }
+          ANNOTATIONS {
+            summary = "a high number of gRPC requests are failing",
+            description = "{{ $value }}% of requests for {{ $labels.grpc_method }} failed on etcd instance {{ $labels.instance }}",
+          }
+
+        # alert if more than 5% of gRPC method calls have failed within the last 5 minutes
+        ALERT HighNumberOfFailedGRPCRequests
+          IF sum by(grpc_method) (rate(etcd_grpc_requests_failed_total{job="etcd"}[5m]))
+            / sum by(grpc_method) (rate(etcd_grpc_total{job="etcd"}[5m])) > 0.05
+          FOR 5m
+          LABELS {
+            severity = "critical"
+          }
+          ANNOTATIONS {
+            summary = "a high number of gRPC requests are failing",
+            description = "{{ $value }}% of requests for {{ $labels.grpc_method }} failed on etcd instance {{ $labels.instance }}",
+          }
+
+        # alert if the 99th percentile of gRPC method calls take more than 150ms
+        ALERT GRPCRequestsSlow
+          IF histogram_quantile(0.99, rate(etcd_grpc_unary_requests_duration_seconds_bucket[5m])) > 0.15
+          FOR 10m
+          LABELS {
+            severity = "critical"
+          }
+          ANNOTATIONS {
+            summary = "slow gRPC requests",
+            description = "on etcd instance {{ $labels.instance }} gRPC requests to {{ $labels.grpc_method }} are slow",
+          }
+
+        # HTTP requests alerts
+        # ====================
+        # alert if more than 1% of requests to an HTTP endpoint have failed within the last 5 minutes
+        ALERT HighNumberOfFailedHTTPRequests
+          IF sum by(method) (rate(etcd_http_failed_total{job="etcd"}[5m]))
+            / sum by(method) (rate(etcd_http_received_total{job="etcd"}[5m])) > 0.01
+          FOR 10m
+          LABELS {
+            severity = "warning"
+          }
+          ANNOTATIONS {
+            summary = "a high number of HTTP requests are failing",
+            description = "{{ $value }}% of requests for {{ $labels.method }} failed on etcd instance {{ $labels.instance }}",
+          }
+
+        # alert if more than 5% of requests to an HTTP endpoint have failed within the last 5 minutes
+        ALERT HighNumberOfFailedHTTPRequests
+          IF sum by(method) (rate(etcd_http_failed_total{job="etcd"}[5m]))
+            / sum by(method) (rate(etcd_http_received_total{job="etcd"}[5m])) > 0.05
+          FOR 5m
+          LABELS {
+            severity = "critical"
+          }
+          ANNOTATIONS {
+            summary = "a high number of HTTP requests are failing",
+            description = "{{ $value }}% of requests for {{ $labels.method }} failed on etcd instance {{ $labels.instance }}",
+          }
+
+        # alert if the 99th percentile of HTTP requests take more than 150ms
+        ALERT HTTPRequestsSlow
+          IF histogram_quantile(0.99, rate(etcd_http_successful_duration_seconds_bucket[5m])) > 0.15
+          FOR 10m
+          LABELS {
+            severity = "warning"
+          }
+          ANNOTATIONS {
+            summary = "slow HTTP requests",
+            description = "on etcd instance {{ $labels.instance }} HTTP requests to {{ $labels.method }} are slow",
+          }
+
+        # etcd member communication alerts
+        # ================================
+        # alert if 99th percentile of round trips take 150ms
+        ALERT EtcdMemberCommunicationSlow
+          IF histogram_quantile(0.99, rate(etcd_network_member_round_trip_time_seconds_bucket[5m])) > 0.15
+          FOR 10m
+          LABELS {
+            severity = "warning"
+          }
+          ANNOTATIONS {
+            summary = "etcd member communication is slow",
+            description = "etcd instance {{ $labels.instance }} member communication with {{ $labels.To }} is slow",
+          }
+
+        # etcd proposal alerts
+        # ====================
+        # alert if there are several failed proposals within an hour
+        ALERT HighNumberOfFailedProposals
+          IF increase(etcd_server_proposals_failed_total{job="etcd"}[1h]) > 5
+          LABELS {
+            severity = "warning"
+          }
+          ANNOTATIONS {
+            summary = "a high number of proposals within the etcd cluster are failing",
+            description = "etcd instance {{ $labels.instance }} has seen {{ $value }} proposal failures within the last hour",
+          }
+
+        # etcd disk io latency alerts
+        # ===========================
+        # alert if 99th percentile of fsync durations is higher than 500ms
+        ALERT HighFsyncDurations
+          IF histogram_quantile(0.99, rate(etcd_disk_wal_fsync_duration_seconds_bucket[5m])) > 0.5
+          FOR 10m
+          LABELS {
+            severity = "warning"
+          }
+          ANNOTATIONS {
+            summary = "high fsync durations",
+            description = "etcd instance {{ $labels.instance }} fync durations are high",
+          }
+
+        # alert if 99th percentile of commit durations is higher than 250ms
+        ALERT HighCommitDurations
+          IF histogram_quantile(0.99, rate(etcd_disk_backend_commit_duration_seconds_bucket[5m])) > 0.25
+          FOR 10m
+          LABELS {
+            severity = "warning"
+          }
+          ANNOTATIONS {
+            summary = "high commit durations",
+            description = "etcd instance {{ $labels.instance }} commit durations are high",
+          }
+      kube_apiserver: |-
+        ALERT K8SApiserverDown
+          IF absent(up{job="apiserver"} == 1)
+          FOR 5m
+          LABELS {
+            severity = "critical"
+          }
+          ANNOTATIONS {
+            summary = "API server unreachable",
+            description = "Prometheus failed to scrape API server(s), or all API servers have disappeared from service discovery.",
+          }
+
+        # Some verbs excluded because they are expected to be long-lasting:
+        # WATCHLIST is long-poll, CONNECT is `kubectl exec`.
+        #
+        # apiserver_request_latencies' unit is microseconds
+        ALERT K8SApiServerLatency
+          IF histogram_quantile(
+              0.99,
+              sum without (instance,resource) (apiserver_request_latencies_bucket{verb!~"CONNECT|WATCHLIST|WATCH|PROXY"})
+            ) / 1e6 > 1.0
+          FOR 10m
+          LABELS {
+            severity = "warning"
+          }
+          ANNOTATIONS {
+            summary = "Kubernetes apiserver latency is high",
+            description = "99th percentile Latency for {{ $labels.verb }} requests to the kube-apiserver is higher than 1s.",
+          }
+
+      kube_controller_manager: |-
+        ALERT K8SControllerManagerDown
+          IF absent(up{job="kube-controller-manager"} == 1)
+          FOR 5m
+          LABELS {
+            severity = "critical",
+          }
+          ANNOTATIONS {
+            summary = "Controller manager is down",
+            description = "There is no running K8S controller manager. Deployments and replication controllers are not making progress.",
+            runbook = "https://coreos.com/tectonic/docs/latest/troubleshooting/controller-recovery.html#recovering-a-controller-manager",
+          }
+
+      kubelet: |-
+        ALERT K8SNodeNotReady
+          IF kube_node_status_ready{condition="true"} == 0
+          FOR 1h
+          LABELS {
+            severity = "warning",
+          }
+          ANNOTATIONS {
+            summary = "Node status is NotReady",
+            description = "The Kubelet on {{ $labels.node }} has not checked in with the API, or has set itself to NotReady, for more than an hour",
+          }
+
+        ALERT K8SManyNodesNotReady
+          IF
+          count(kube_node_status_ready{condition="true"} == 0) > 1
+          AND
+            (
+              count(kube_node_status_ready{condition="true"} == 0)
+            /
+              count(kube_node_status_ready{condition="true"})
+            ) > 0.2
+          FOR 1m
+          LABELS {
+            severity = "critical",
+          }
+          ANNOTATIONS {
+            summary = "Many Kubernetes nodes are Not Ready",
+            description = "{{ $value }} Kubernetes nodes (more than 10% are in the NotReady state).",
+          }
+
+        ALERT K8SKubeletDown
+          IF count(up{job="kubelet"} == 0) / count(up{job="kubelet"}) > 0.03
+          FOR 1h
+          LABELS {
+            severity = "warning",
+          }
+          ANNOTATIONS {
+            summary = "Many Kubelets cannot be scraped",
+            description = "Prometheus failed to scrape {{ $value }}% of kubelets.",
+          }
+
+        ALERT K8SKubeletDown
+          IF absent(up{job="kubelet"} == 1) or count(up{job="kubelet"} == 0) / count(up{job="kubelet"}) > 0.1
+          FOR 1h
+          LABELS {
+            severity = "critical",
+          }
+          ANNOTATIONS {
+            summary = "Many Kubelets cannot be scraped",
+            description = "Prometheus failed to scrape {{ $value }}% of kubelets, or all Kubelets have disappeared from service discovery.",
+          }
+
+        ALERT K8SKubeletTooManyPods
+          IF kubelet_running_pod_count > 100
+          LABELS {
+            severity = "warning",
+          }
+          ANNOTATIONS {
+            summary = "Kubelet is close to pod limit",
+            description = "Kubelet {{$labels.instance}} is running {{$value}} pods, close to the limit of 110",
+          }
+
+      kubernetes: |-
+        # NOTE: These rules were kindly contributed by the SoundCloud engineering team.
+
+        ### Container resources ###
+
+        cluster_namespace_controller_pod_container:spec_memory_limit_bytes =
+          sum by (cluster,namespace,controller,pod_name,container_name) (
+            label_replace(
+              container_spec_memory_limit_bytes{container_name!=""},
+              "controller", "$1",
+              "pod_name", "^(.*)-[a-z0-9]+"
+            )
+          )
+
+        cluster_namespace_controller_pod_container:spec_cpu_shares =
+          sum by (cluster,namespace,controller,pod_name,container_name) (
+            label_replace(
+              container_spec_cpu_shares{container_name!=""},
+              "controller", "$1",
+              "pod_name", "^(.*)-[a-z0-9]+"
+            )
+          )
+
+        cluster_namespace_controller_pod_container:cpu_usage:rate =
+          sum by (cluster,namespace,controller,pod_name,container_name) (
+            label_replace(
+              irate(
+                container_cpu_usage_seconds_total{container_name!=""}[5m]
+              ),
+              "controller", "$1",
+              "pod_name", "^(.*)-[a-z0-9]+"
+            )
+          )
+
+        cluster_namespace_controller_pod_container:memory_usage:bytes =
+          sum by (cluster,namespace,controller,pod_name,container_name) (
+            label_replace(
+              container_memory_usage_bytes{container_name!=""},
+              "controller", "$1",
+              "pod_name", "^(.*)-[a-z0-9]+"
+            )
+          )
+
+        cluster_namespace_controller_pod_container:memory_working_set:bytes =
+          sum by (cluster,namespace,controller,pod_name,container_name) (
+            label_replace(
+              container_memory_working_set_bytes{container_name!=""},
+              "controller", "$1",
+              "pod_name", "^(.*)-[a-z0-9]+"
+            )
+          )
+
+        cluster_namespace_controller_pod_container:memory_rss:bytes =
+          sum by (cluster,namespace,controller,pod_name,container_name) (
+            label_replace(
+              container_memory_rss{container_name!=""},
+              "controller", "$1",
+              "pod_name", "^(.*)-[a-z0-9]+"
+            )
+          )
+
+        cluster_namespace_controller_pod_container:memory_cache:bytes =
+          sum by (cluster,namespace,controller,pod_name,container_name) (
+            label_replace(
+              container_memory_cache{container_name!=""},
+              "controller", "$1",
+              "pod_name", "^(.*)-[a-z0-9]+"
+            )
+          )
+
+        cluster_namespace_controller_pod_container:disk_usage:bytes =
+          sum by (cluster,namespace,controller,pod_name,container_name) (
+            label_replace(
+              container_disk_usage_bytes{container_name!=""},
+              "controller", "$1",
+              "pod_name", "^(.*)-[a-z0-9]+"
+            )
+          )
+
+        cluster_namespace_controller_pod_container:memory_pagefaults:rate =
+          sum by (cluster,namespace,controller,pod_name,container_name,scope,type) (
+            label_replace(
+              irate(
+                container_memory_failures_total{container_name!=""}[5m]
+              ),
+              "controller", "$1",
+              "pod_name", "^(.*)-[a-z0-9]+"
+            )
+          )
+
+        cluster_namespace_controller_pod_container:memory_oom:rate =
+          sum by (cluster,namespace,controller,pod_name,container_name,scope,type) (
+            label_replace(
+              irate(
+                container_memory_failcnt{container_name!=""}[5m]
+              ),
+              "controller", "$1",
+              "pod_name", "^(.*)-[a-z0-9]+"
+            )
+          )
+
+        ### Cluster resources ###
+
+        cluster:memory_allocation:percent =
+          100 * sum by (cluster) (
+            container_spec_memory_limit_bytes{pod_name!=""}
+          ) / sum by (cluster) (
+            machine_memory_bytes
+          )
+
+        cluster:memory_used:percent =
+          100 * sum by (cluster) (
+            container_memory_usage_bytes{pod_name!=""}
+          ) / sum by (cluster) (
+            machine_memory_bytes
+          )
+
+        cluster:cpu_allocation:percent =
+          100 * sum by (cluster) (
+            container_spec_cpu_shares{pod_name!=""}
+          ) / sum by (cluster) (
+            container_spec_cpu_shares{id="/"} * on(cluster,instance) machine_cpu_cores
+          )
+
+        cluster:node_cpu_use:percent =
+          100 * sum by (cluster) (
+            rate(node_cpu{mode!="idle"}[5m])
+          ) / sum by (cluster) (
+            machine_cpu_cores
+          )
+
+        ### API latency ###
+
+        # Raw metrics are in microseconds. Convert to seconds.
+        cluster_resource_verb:apiserver_latency:quantile_seconds{quantile="0.99"} =
+          histogram_quantile(
+            0.99,
+            sum by(le,cluster,job,resource,verb) (apiserver_request_latencies_bucket)
+          ) / 1e6
+        cluster_resource_verb:apiserver_latency:quantile_seconds{quantile="0.9"} =
+          histogram_quantile(
+            0.9,
+            sum by(le,cluster,job,resource,verb) (apiserver_request_latencies_bucket)
+          ) / 1e6
+        cluster_resource_verb:apiserver_latency:quantile_seconds{quantile="0.5"} =
+          histogram_quantile(
+            0.5,
+            sum by(le,cluster,job,resource,verb) (apiserver_request_latencies_bucket)
+          ) / 1e6
+
+        ### Scheduling latency ###
+
+        cluster:scheduler_e2e_scheduling_latency:quantile_seconds{quantile="0.99"} =
+          histogram_quantile(0.99,sum by (le,cluster) (scheduler_e2e_scheduling_latency_microseconds_bucket)) / 1e6
+        cluster:scheduler_e2e_scheduling_latency:quantile_seconds{quantile="0.9"} =
+          histogram_quantile(0.9,sum by (le,cluster) (scheduler_e2e_scheduling_latency_microseconds_bucket)) / 1e6
+        cluster:scheduler_e2e_scheduling_latency:quantile_seconds{quantile="0.5"} =
+          histogram_quantile(0.5,sum by (le,cluster) (scheduler_e2e_scheduling_latency_microseconds_bucket)) / 1e6
+
+        cluster:scheduler_scheduling_algorithm_latency:quantile_seconds{quantile="0.99"} =
+          histogram_quantile(0.99,sum by (le,cluster) (scheduler_scheduling_algorithm_latency_microseconds_bucket)) / 1e6
+        cluster:scheduler_scheduling_algorithm_latency:quantile_seconds{quantile="0.9"} =
+          histogram_quantile(0.9,sum by (le,cluster) (scheduler_scheduling_algorithm_latency_microseconds_bucket)) / 1e6
+        cluster:scheduler_scheduling_algorithm_latency:quantile_seconds{quantile="0.5"} =
+          histogram_quantile(0.5,sum by (le,cluster) (scheduler_scheduling_algorithm_latency_microseconds_bucket)) / 1e6
+
+        cluster:scheduler_binding_latency:quantile_seconds{quantile="0.99"} =
+          histogram_quantile(0.99,sum by (le,cluster) (scheduler_binding_latency_microseconds_bucket)) / 1e6
+        cluster:scheduler_binding_latency:quantile_seconds{quantile="0.9"} =
+          histogram_quantile(0.9,sum by (le,cluster) (scheduler_binding_latency_microseconds_bucket)) / 1e6
+        cluster:scheduler_binding_latency:quantile_seconds{quantile="0.5"} =
+          histogram_quantile(0.5,sum by (le,cluster) (scheduler_binding_latency_microseconds_bucket)) / 1e6
+      rabbitmq: |-
+
+      mysql: |-
+
+      ceph: |-
+
+      openstack: |-
+
+      custom: |-

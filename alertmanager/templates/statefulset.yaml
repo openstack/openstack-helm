@@ -1,0 +1,106 @@
+{{/*
+Copyright 2017 The Openstack-Helm Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.statefulset }}
+{{- $envAll := . }}
+{{- if .Values.images.local_registry.active -}}
+{{- $_ := set .Values "pod_dependency" (merge .Values.dependencies.alertmanager .Values.conditional_dependencies.local_image_registry) -}}
+{{- else -}}
+{{- $_ := set .Values "pod_dependency" .Values.dependencies.alertmanager -}}
+{{- end -}}
+{{- $mounts_alertmanager := .Values.pod.mounts.alertmanager.alertmanager }}
+{{- $mounts_alertmanager_init := .Values.pod.mounts.alertmanager.init_container }}
+---
+apiVersion: apps/v1beta1
+kind: StatefulSet
+metadata:
+  name: alertmanager
+spec:
+  serviceName: {{ tuple "alerts" "internal" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
+  replicas: {{ .Values.pod.replicas.alertmanager }}
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "alertmanager" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
+        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
+    spec:
+      serviceAccount: alertmanager
+      affinity:
+{{ tuple $envAll "alertmanager" "server" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
+      nodeSelector:
+        {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
+      terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.alertmanager.timeout | default "30" }}
+      initContainers:
+{{ tuple $envAll .Values.pod_dependency list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+      containers:
+        - name: alertmanager
+{{ tuple $envAll "alertmanager" | include "helm-toolkit.snippets.image" | indent 10 }}
+          command:
+            - /tmp/alertmanager.sh
+            - start
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /tmp/alertmanager.sh
+                  - stop
+{{ tuple $envAll $envAll.Values.pod.resources.alertmanager | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          ports:
+            - name: alerts-api
+              containerPort: {{ .Values.network.alertmanager.port }}
+          readinessProbe:
+            httpGet:
+              path: /#/status
+              port: {{ .Values.network.alertmanager.port }}
+            initialDelaySeconds: 30
+            timeoutSeconds: 30
+          volumeMounts:
+            - name: etc-alertmanager
+              mountPath: /etc/config
+            - name: alertmanager-etc
+              mountPath: /etc/config/alertmanager.yml
+              subPath: alertmanager.yml
+              readOnly: true
+            - name: alertmanager-bin
+              mountPath: /tmp/alertmanager.sh
+              subPath: alertmanager.sh
+              readOnly: true
+            - name: storage
+              mountPath: /var/lib/alertmanager/data
+{{ if $mounts_alertmanager.volumeMounts }}{{ toYaml $mounts_alertmanager.volumeMounts | indent 12 }}{{ end }}
+      volumes:
+{{ tuple . | include "helm-toolkit.snippets.kubernetes_entrypoint_secret_mount" | indent 8 }}
+        - name: etc-alertmanager
+          emptyDir: {}
+        - name: alertmanager-etc
+          configMap:
+            name: alertmanager-etc
+        - name: alertmanager-bin
+          configMap:
+            name: alertmanager-bin
+            defaultMode: 0555
+        {{- if .Values.storage.enabled }}
+        - name: storage
+          persistentVolumeClaim:
+            claimName: {{ .Values.storage.pvc.name }}
+        {{- else }}
+        - name: storage
+          emptyDir: {}
+        {{- end }}
+{{ if $mounts_alertmanager.volumes }}{{ toYaml $mounts_alertmanager.volumes | indent 8 }}{{ end }}
+{{- end }}
