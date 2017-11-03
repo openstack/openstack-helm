@@ -16,7 +16,7 @@
 FROM gcr.io/google_containers/ubuntu-slim:0.14
 MAINTAINER pete.birley@att.com
 
-ENV KUBE_VERSION="v1.8.1" \
+ENV KUBE_VERSION="v1.8.2" \
     CNI_VERSION="v0.6.0" \
     HELM_VERSION="v2.7.0" \
     container="docker" \
