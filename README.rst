@@ -5,9 +5,9 @@ OpenStack-Helm
 Mission
 -------
 
-The goal of OpenStack-Helm is to enable deployment, maintenance, and upgrading
-of loosely coupled OpenStack services and their dependencies individually or as
-part of complex environments.
+The goal of OpenStack-Helm is to provide a collection of Helm charts that
+simply, resiliently, and flexibly deploy OpenStack and related services
+on Kubernetes.
 
 Communication
 -------------
@@ -31,18 +31,18 @@ Bugs and blueprints are tracked via OpenStack-Helm's Launchpad.
 Installation and Development
 ----------------------------
 
-Please review our documentation at `Read the Docs <http://openstack-helm.readthedocs.io/>`_.
+Please review our `documentation <https://docs.openstack.org/openstack-helm>`_.
 For quick installation, evaluation, and convenience, we have a kubeadm
 based all-in-one solution that runs in a Docker container. The Kubeadm-AIO set
-up can be found `here, <http://openstack-helm.readthedocs.io/en/latest/install/developer/all-in-one.html>`_
-and the `gate scripts, <http://openstack-helm.readthedocs.io/en/latest/install/developer/gates.html>`_
+up can be found `here, <https://docs.openstack.org/openstack-helm/latest/install/developer/all-in-one.html>`_
+and the `gate scripts, <https://docs.openstack.org/openstack-helm/latest/install/developer/gates.html>`_
 use are supported on any fresh Ubuntu, CentOS or Fedora machine.
 
 This project is under active development. We encourage anyone interested in
-OpenStack-Helm to review our `Installation <http://openstack-helm.readthedocs.io/en/latest/install/index.html>`_
+OpenStack-Helm to review our `Installation <https://docs.openstack.org/openstack-helm/latest/install/index.html>`_
 documentation. Feel free to ask questions or check out our current
 `Issues and Bugs <https://bugs.launchpad.net/openstack-helm>`_.
 
 To evaluate a multinode installation, follow the
-`Bare Metal <http://openstack-helm.readthedocs.io/en/latest/install/multinode.html>`_
+`Bare Metal <https://docs.openstack.org/openstack-helm/latest/install/multinode.html>`_
 install guide.

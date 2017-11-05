@@ -77,7 +77,7 @@ The default FQDN's for OpenStack-Helm are
 We want to change the ***public*** configurations to match our DNS layouts above. In each Chart
 ``values.yaml`` is a ``endpoints`` configuration that has ``host_fqdn_override``'s for each API
 that the Chart either produces or is dependant on. `Read more about how Endpoints are developed
-<http://openstack-helm.readthedocs.io/en/latest/devref/endpoints.html>`__.
+<https://docs.openstack.org/openstack-helm/latest/devref/endpoints.html>`__.
 Note while Glance Registry is listening on a Ingress http endpoint, you will not need to expose
 the registry for external services.
 
@@ -153,7 +153,7 @@ Examples
 Code examples below.
 
 If doing an `AIO install
-<http://openstack-helm.readthedocs.io/en/latest/install/developer/all-in-one.html>`__,
+<https://docs.openstack.org/openstack-helm/latest/install/developer/all-in-one.html>`__,
 all the ``--set`` flags
 
 .. code-block:: shell

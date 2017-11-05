@@ -7,7 +7,7 @@ Kubernetes itself. This requires OpenStack-Helm to develop common and
 simple scripts with minimal dependencies that can be overlaid on any
 image that meets the OpenStack core library requirements. The advantage
 of this is that the project can be image agnostic, allowing operators to
-use Stackanetes, Kolla, Yaodu, or any image flavor and format they
+use Stackanetes, Kolla, LOCI, or any image flavor and format they
 choose and they will all function the same.
 
 A long-term goal, besides being image agnostic, is to also be able to
@@ -56,18 +56,19 @@ chart:
 ::
 
     images:
-      bootstrap: docker.io/kolla/ubuntu-source-heat-engine:3.0.3
-      db_init: docker.io/kolla/ubuntu-source-heat-engine:3.0.3
-      db_sync: docker.io/kolla/ubuntu-source-heat-api:3.0.3
-      db_drop: docker.io/kolla/ubuntu-source-heat-engine:3.0.3
-      ks_user: docker.io/kolla/ubuntu-source-heat-engine:3.0.3
-      ks_service: docker.io/kolla/ubuntu-source-heat-engine:3.0.3
-      ks_endpoints: docker.io/kolla/ubuntu-source-heat-engine:3.0.3
-      api: docker.io/kolla/ubuntu-source-heat-api:3.0.3
-      cfn: docker.io/kolla/ubuntu-source-heat-api:3.0.3
-      cloudwatch: docker.io/kolla/ubuntu-source-heat-api:3.0.3
-      engine: docker.io/kolla/ubuntu-source-heat-engine:3.0.3
-      dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.2.1
+      tags:
+        bootstrap: docker.io/kolla/ubuntu-source-heat-engine:3.0.3
+        db_init: docker.io/kolla/ubuntu-source-heat-engine:3.0.3
+        db_sync: docker.io/kolla/ubuntu-source-heat-api:3.0.3
+        db_drop: docker.io/kolla/ubuntu-source-heat-engine:3.0.3
+        ks_user: docker.io/kolla/ubuntu-source-heat-engine:3.0.3
+        ks_service: docker.io/kolla/ubuntu-source-heat-engine:3.0.3
+        ks_endpoints: docker.io/kolla/ubuntu-source-heat-engine:3.0.3
+        api: docker.io/kolla/ubuntu-source-heat-api:3.0.3
+        cfn: docker.io/kolla/ubuntu-source-heat-api:3.0.3
+        cloudwatch: docker.io/kolla/ubuntu-source-heat-api:3.0.3
+        engine: docker.io/kolla/ubuntu-source-heat-engine:3.0.3
+        dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.2.1
       pull_policy: "IfNotPresent"
 
 The OpenStack-Helm project today uses a mix of Docker images from

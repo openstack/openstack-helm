@@ -39,8 +39,8 @@ This is accomplished with the following annotation:
 
           ...
           annotations:
-            configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "hash" }}
-            configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "hash" }}
+            configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
+            configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
 
 The ``hash`` function defined in the ``helm-toolkit`` chart ensures that
 any change to any file referenced by configmap-bin.yaml or
