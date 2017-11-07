@@ -16,6 +16,8 @@
     name: openstack/openstack-helm-infra
     check:
       jobs:
+        - openstack-helm-infra-linter:
+            voting: true
         - openstack-helm-infra-ubuntu:
             voting: true
         - openstack-helm-infra-centos:
@@ -24,7 +26,14 @@
             voting: false
     gate:
       jobs:
+        - openstack-helm-infra-linter
         - openstack-helm-infra-ubuntu
+
+- nodeset:
+    name: openstack-helm-single-node
+    nodes:
+      - name: primary
+        label: ubuntu-xenial
 
 - nodeset:
     name: openstack-helm-ubuntu
@@ -79,6 +88,12 @@
         nodes:
           - node-1
           - node-2
+
+- job:
+    name: openstack-helm-infra-linter
+    run: tools/gate/playbooks/zuul-linter.yaml
+    nodeset: openstack-helm-single-node
+
 - job:
     name: openstack-helm-infra-ubuntu
     pre-run: tools/gate/playbooks/zuul-pre.yaml
