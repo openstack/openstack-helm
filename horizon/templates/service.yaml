@@ -23,9 +23,9 @@ metadata:
   name: {{ tuple "dashboard" "internal" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
 spec:
   ports:
-    {{ if .Values.network.enable_node_port }}
+    {{ if .Values.network.node_port.enabled }}
     - name: http
-      nodePort: {{ .Values.network.node_port }}
+      nodePort: {{ .Values.network.node_port.port }}
       port: {{ .Values.network.port }}
       protocol: TCP
       targetPort: {{ .Values.network.port }}
@@ -37,7 +37,10 @@ spec:
     {{ end }}
   selector:
 {{ tuple $envAll "horizon" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
-  {{ if .Values.network.enable_node_port }}
+  {{ if .Values.network.node_port.enabled }}
   type: NodePort
+  {{ if .Values.network.external_policy_local }}
+  externalTrafficPolicy: Local
+  {{ end }}
   {{ end }}
 {{- end }}
