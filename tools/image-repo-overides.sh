@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-KUBE_VERSION=v1.8.2
+KUBE_VERSION=$(yq -r '.version.kubernetes' ./tools/gate/playbooks/vars.yaml)
 KUBE_IMAGES="gcr.io/google_containers/hyperkube-amd64:${KUBE_VERSION}
 gcr.io/google_containers/kube-apiserver-amd64:${KUBE_VERSION}
 gcr.io/google_containers/kube-controller-manager-amd64:${KUBE_VERSION}

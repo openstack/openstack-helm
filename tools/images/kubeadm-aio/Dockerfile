@@ -16,13 +16,21 @@
 FROM gcr.io/google_containers/ubuntu-slim:0.14
 MAINTAINER pete.birley@att.com
 
-ENV KUBE_VERSION="v1.8.2" \
-    CNI_VERSION="v0.6.0" \
-    HELM_VERSION="v2.7.0" \
-    container="docker" \
+ARG KUBE_VERSION="v1.8.3"
+ENV KUBE_VERSION ${KUBE_VERSION}
+
+ARG CNI_VERSION="v0.6.0"
+ENV CNI_VERSION ${CNI_VERSION}
+
+ARG HELM_VERSION="v2.7.0"
+ENV HELM_VERSION ${HELM_VERSION}
+
+ARG CHARTS="calico,flannel,tiller,kube-dns"
+ENV CHARTS ${CHARTS}
+
+ENV container="docker" \
     DEBIAN_FRONTEND="noninteractive" \
-    CNI_BIN_DIR="/opt/cni/bin" \
-    CHARTS="calico,flannel,tiller,kube-dns"
+    CNI_BIN_DIR="/opt/cni/bin"
 
 RUN set -ex ;\
     apt-get update ;\
