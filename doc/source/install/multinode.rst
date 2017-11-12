@@ -182,7 +182,7 @@ our hosts. Using our Ubuntu example:
 
 ::
 
-    sudo apt-get install ceph-common -y
+    sudo apt-get install ceph-common
 
 Kubernetes Node DNS Resolution
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

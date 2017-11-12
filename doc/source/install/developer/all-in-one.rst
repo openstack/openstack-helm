@@ -53,8 +53,8 @@ necessary
 
 ::
 
-      sudo apt-get update -y
-      sudo apt-get install -y --no-install-recommends -qq \
+      sudo apt-get update
+      sudo apt-get install --no-install-recommends -qq \
               curl \
               docker.io \
               nfs-common \
