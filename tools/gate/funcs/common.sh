@@ -71,15 +71,6 @@ function base_install {
     sdn_lb_support_install
   fi
 
-  # NOTE(portdirect): Temp workaround until module loading is supported by
-  # OpenStack-Helm in Fedora
-  if [ "x$HOST_OS" == "xfedora" ]; then
-    sudo modprobe openvswitch
-    sudo modprobe ebtables
-    sudo modprobe gre
-    sudo modprobe vxlan
-    sudo modprobe ip6_tables
-  fi
 }
 
 function json_to_yaml {

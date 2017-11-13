@@ -40,6 +40,24 @@ spec:
       hostNetwork: true
       initContainers:
 {{ tuple $envAll $dependencies $mounts_neutron_lb_agent_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+        - name: neutron-lb-agent-kernel-modules
+          image: {{ .Values.images.tags.neutron_linuxbridge_agent }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+          securityContext:
+            capabilities:
+              add:
+                - SYS_MODULE
+            runAsUser: 0
+          command:
+            - /tmp/neutron-linuxbridge-agent-init-modules.sh
+          volumeMounts:
+            - name: neutron-bin
+              mountPath: /tmp/neutron-linuxbridge-agent-init-modules.sh
+              subPath: neutron-linuxbridge-agent-init-modules.sh
+              readOnly: true
+            - name: host-rootfs
+              mountPath: /mnt/host-rootfs
+              readOnly: true
         - name: neutron-lb-agent-init
           image: {{ .Values.images.tags.neutron_linuxbridge_agent }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
@@ -118,9 +136,6 @@ spec:
             - name: neutron-etc
               mountPath: /etc/neutron/rootwrap.d/openvswitch-plugin.filters
               subPath: openvswitch-plugin.filters
-              readOnly: true
-            - name: libmodules
-              mountPath: /lib/modules
               readOnly: true
             - name: run
               mountPath: /run
@@ -211,9 +226,6 @@ spec:
               mountPath: /etc/neutron/rootwrap.d/openvswitch-plugin.filters
               subPath: openvswitch-plugin.filters
               readOnly: true
-            - name: libmodules
-              mountPath: /lib/modules
-              readOnly: true
             - name: run
               mountPath: /run
 {{ if $mounts_neutron_lb_agent.volumeMounts }}{{ toYaml $mounts_neutron_lb_agent.volumeMounts | indent 12 }}{{ end }}
@@ -228,11 +240,11 @@ spec:
           configMap:
             name: neutron-etc
             defaultMode: 0444
-        - name: libmodules
-          hostPath:
-            path: /lib/modules
         - name: run
           hostPath:
             path: /run
+        - name: host-rootfs
+          hostPath:
+            path: /
 {{ if $mounts_neutron_lb_agent.volumes }}{{ toYaml $mounts_neutron_lb_agent.volumes | indent 8 }}{{ end }}
 {{- end }}

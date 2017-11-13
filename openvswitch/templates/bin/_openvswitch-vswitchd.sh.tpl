@@ -18,12 +18,6 @@ limitations under the License.
 
 set -ex
 
-# load tunnel kernel modules we may use and gre/vxlan
-modprobe openvswitch
-
-modprobe gre
-modprobe vxlan
-
 sock="/var/run/openvswitch/db.sock"
 t=0
 while [ ! -e "${sock}" ] ; do

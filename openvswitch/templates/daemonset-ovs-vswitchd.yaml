@@ -34,6 +34,25 @@ spec:
         {{ .Values.labels.ovs.node_selector_key }}: {{ .Values.labels.ovs.node_selector_value }}
       dnsPolicy: ClusterFirstWithHostNet
       hostNetwork: true
+      initContainers:
+        - name: openvswitch-vswitchd-modules
+          image: {{ .Values.images.tags.openvswitch_vswitchd }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+          securityContext:
+            capabilities:
+              add:
+                - SYS_MODULE
+            runAsUser: 0
+          command:
+            - /tmp/openvswitch-vswitchd-init-modules.sh
+          volumeMounts:
+            - name: openvswitch-bin
+              mountPath: /tmp/openvswitch-vswitchd-init-modules.sh
+              subPath: openvswitch-vswitchd-init-modules.sh
+              readOnly: true
+            - name: host-rootfs
+              mountPath: /mnt/host-rootfs
+              readOnly: true
       containers:
         - name: openvswitch-vswitchd
           image: {{ .Values.images.tags.openvswitch_vswitchd }}
@@ -56,9 +75,6 @@ spec:
               mountPath: /tmp/openvswitch-vswitchd.sh
               subPath: openvswitch-vswitchd.sh
               readOnly: true
-            - name: libmodules
-              mountPath: /lib/modules
-              readOnly: true
             - name: run
               mountPath: /run
       volumes:
@@ -66,10 +82,10 @@ spec:
           configMap:
             name: openvswitch-bin
             defaultMode: 0555
-        - name: libmodules
-          hostPath:
-            path: /lib/modules
         - name: run
           hostPath:
             path: /run
+        - name: host-rootfs
+          hostPath:
+            path: /
 {{- end }}

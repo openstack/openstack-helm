@@ -18,8 +18,6 @@ limitations under the License.
 
 set -ex
 
-modprobe ebtables
-
 # configure external bridge
 external_bridge="{{- .Values.network.external_bridge -}}"
 external_interface="{{- .Values.network.interface.external -}}"
