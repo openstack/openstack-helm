@@ -12,17 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-- name: build the Kubeadm-AIO image
-  docker_image:
-     path: "{{ work_dir }}/"
-     name: "{{ images.kubernetes.kubeadm_aio }}"
-     dockerfile: "tools/images/kubeadm-aio/Dockerfile"
-     force: yes
-     pull: yes
-     state: present
-     rm: yes
-     buildargs:
-       KUBE_VERSION: "{{ version.kubernetes }}"
-       CNI_VERSION: "{{ version.cni }}"
-       HELM_VERSION: "{{ version.helm }}"
-       CHARTS: "calico,flannel,tiller,kube-dns"
+- name: Kubeadm-AIO build
+  block:
+    #NOTE(portdirect): we do this to ensure we are feeding the docker build
+    # a clean path to work with.
+    - name: Kubeadm-AIO image build path
+      shell: cd "{{ work_dir }}"; pwd
+      register: kubeadm_aio_path
+    - name: build the Kubeadm-AIO image
+      docker_image:
+         path: "{{ kubeadm_aio_path.stdout }}/"
+         name: "{{ images.kubernetes.kubeadm_aio }}"
+         dockerfile: "tools/images/kubeadm-aio/Dockerfile"
+         force: yes
+         pull: yes
+         state: present
+         rm: yes
+         buildargs:
+           KUBE_VERSION: "{{ version.kubernetes }}"
+           CNI_VERSION: "{{ version.cni }}"
+           HELM_VERSION: "{{ version.helm }}"
+           CHARTS: "calico,flannel,tiller,kube-dns"
