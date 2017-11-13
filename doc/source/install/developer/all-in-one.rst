@@ -233,8 +233,22 @@ OpenStack services depend upon them.
   helm install --name=etcd-rabbitmq ./etcd --namespace=openstack
   helm install --name=rabbitmq ./rabbitmq --namespace=openstack
   helm install --name=ingress ./ingress --namespace=openstack
-  helm install --name=libvirt ./libvirt --namespace=openstack
   helm install --name=openvswitch ./openvswitch --namespace=openstack
+
+Libvirt backs persistent volume claims with Ceph by default.  To run libvirt
+in an all-in-one environment without Ceph, ceph for libvirt must be disabled.
+
+.. code-block:: shell
+
+  helm install --name=libvirt ./libvirt --namespace=openstack \
+    --set ceph.enabled=false
+
+If Ceph is included as part of an all-in-one deployment, libvirt can be
+installed as normal.
+
+.. code-block:: shell
+
+  helm install --name=libvirt ./libvirt --namespace=openstack
 
 Once the OpenStack infrastructure components are installed and running, the
 OpenStack services can be installed.  In the below examples the default values
