@@ -1,0 +1,442 @@
+labels:
+  node_selector_key: openstack-control-plane
+  node_selector_value: enabled
+
+release_group: null
+
+images:
+  tags:
+    api: &congress_api docker.io/kolla/ubuntu-source-congress-api:3.0.3
+    datasource: docker.io/kolla/ubuntu-source-congress-datasource:3.0.3
+    policy_engine: docker.io/kolla/ubuntu-source-congress-policy-engine:3.0.3
+    db_init: *congress_api
+    db_sync: *congress_api
+    db_drop: *congress_api
+    ks_user: *congress_api
+    ks_service: *congress_api
+    ks_endpoints: *congress_api
+    ds_create: *congress_api
+    scripted_test: *congress_api
+    dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.2.1
+  pull_policy: "IfNotPresent"
+
+network:
+  api:
+    ingress:
+      public: true
+      proxy_body_size: 1024M
+    node_port:
+      enabled: false
+      port: 1789
+
+volume:
+  class_name: general
+  size: 2Gi
+
+dependencies:
+  storage_init:
+    services:
+  db_init:
+    services:
+    - service: oslo_db
+      endpoint: internal
+  db_sync:
+    jobs:
+    - congress-db-init
+    services:
+    - service: oslo_db
+      endpoint: internal
+  db_drop:
+    services:
+    - service: oslo_db
+      endpoint: internal
+  bootstrap:
+    jobs:
+    - congress-db-sync
+    - congress-ks-user
+    - congress-ks-endpoints
+    services:
+    - service: identity
+      endpoint: internal
+    - service: image
+      endpoint: internal
+  ks_user:
+    services:
+    - service: identity
+      endpoint: internal
+  ks_service:
+    services:
+    - service: identity
+      endpoint: internal
+  ks_endpoints:
+    jobs:
+    - congress-ks-service
+    services:
+    - service: identity
+      endpoint: internal
+  api:
+    jobs:
+    - congress-db-sync
+    - congress-ks-user
+    - congress-ks-endpoints
+    services:
+    - service: oslo_db
+      endpoint: internal
+    - service: identity
+      endpoint: internal
+  datasource:
+    jobs:
+    - congress-db-sync
+    - congress-ks-user
+    - congress-ks-endpoints
+    services:
+    - service: oslo_db
+      endpoint: internal
+    - service: identity
+      endpoint: internal
+  policy_engine:
+    jobs:
+    - congress-db-sync
+    - congress-ks-user
+    - congress-ks-endpoints
+    services:
+    - service: oslo_db
+      endpoint: internal
+    - service: identity
+      endpoint: internal
+  ds_create:
+    jobs:
+    - congress-ks-endpoints
+    services:
+    - service: policy
+      endpoint: internal
+  tests:
+    services:
+    - service: oslo_db
+      endpoint: internal
+    - service: identity
+      endpoint: internal
+    - service: policy
+      endpoint: internal
+
+secrets:
+  identity:
+    admin: congress-keystone-admin
+    user: congress-keystone-user
+  oslo_db:
+    admin: congress-db-admin
+    user: congress-db-user
+  rbd: images-rbd-keyring
+
+endpoints:
+  cluster_domain_suffix: cluster.local
+  identity:
+    name: keystone
+    auth:
+      admin:
+        region_name: RegionOne
+        username: admin
+        password: password
+        project_name: admin
+        user_domain_name: default
+        project_domain_name: default
+      user:
+        role: admin
+        region_name: RegionOne
+        username: congress
+        password: password
+        project_name: service
+        user_domain_name: default
+        project_domain_name: default
+    hosts:
+      default: keystone-api
+      public: keystone
+    host_fqdn_override:
+      default: null
+    path:
+      default: /v3
+    scheme:
+      default: http
+    port:
+      admin:
+        default: 35357
+      api:
+        default: 80
+  policy:
+    name: congress
+    hosts:
+      default: congress-api
+      public: congress
+    host_fqdn_override:
+      default: null
+    path:
+      default: null
+    scheme:
+      default: http
+    port:
+      api:
+        default: 1789
+        public: 80
+  oslo_db:
+    auth:
+      admin:
+        username: root
+        password: password
+      user:
+        username: congress
+        password: password
+    hosts:
+      default: mariadb
+    host_fqdn_override:
+      default: null
+    path: /congress
+    scheme: mysql+pymysql
+    port:
+      mysql:
+        default: 3306
+  oslo_cache:
+    hosts:
+      default: memcached
+    host_fqdn_override:
+      default: null
+    port:
+      memcache:
+        default: 11211
+  oslo_messaging:
+    auth:
+      admin:
+        username: admin
+        password: password
+      user:
+        username: rabbitmq
+        password: password
+    hosts:
+      default: rabbitmq
+    host_fqdn_override:
+      default: null
+    path: /
+    scheme: rabbit
+    port:
+      amqp:
+        default: 5672
+  ceph_object_store:
+    name: radosgw
+    namespace: ceph
+    auth:
+      user:
+        username: congress
+        password: password
+        tmpurlkey: supersecret
+    hosts:
+      default: ceph-rgw
+    host_fqdn_override:
+      default: null
+    path:
+      default: /auth/v1.0
+    scheme:
+      default: http
+    port:
+      api:
+        default: 8088
+
+policy:
+  datasource_services:
+    - neutronv2
+    - glancev2
+    - keystonev3
+    - swift
+    - heat
+    - nova
+  poll_time: 120
+
+conf:
+  congress:
+    DEFAULT:
+      bind_port: 1789
+      drivers: congress.datasources.neutronv2_driver.NeutronV2Driver,congress.datasources.glancev2_driver.GlanceV2Driver,congress.datasources.nova_driver.NovaDriver,congress.datasources.keystonev3_driver.KeystoneV3Driver,congress.datasources.cinder_driver.CinderDriver,congress.datasources.swift_driver.SwiftDriver,congress.datasources.plexxi_driver.PlexxiDriver,congress.datasources.vCenter_driver.VCenterDriver,congress.datasources.murano_driver.MuranoDriver,congress.datasources.ironic_driver.IronicDriver,congress.datasources.heatv1_driver.HeatV1Driver,congress.datasources.doctor_driver.DoctorDriver,congress.datasources.ceilometer_driver.CeilometerDriver
+      replicated_policy_engine: False
+      datasource_sync_period: 30
+      auth_strategy: keystone
+      debug: False
+      logging_exception_prefix: '%(color)s%(asctime)s.%(msecs)03d TRACE %(name)s %(instance)s'
+      logging_debug_format_suffix: 'from (pid=%(process)d) %(funcName)s %(pathname)s:%(lineno)d'
+      logging_default_format_string: '%(asctime)s.%(msecs)03d %(color)s%(levelname)s %(name)s [-%(color)s] %(instance)s%(color)s%(message)s'
+      logging_context_format_string: '%(asctime)s.%(msecs)03d %(color)s%(levelname)s %(name)s [%(request_id)s %(project_name)s %(user_name)s%(color)s] %(instance)s%(color)s%(message)s'
+    oslo_policy:
+      policy_file: /etc/congress/policy.json
+    database:
+      max_retries: -1
+    keystone_authtoken:
+      auth_type: password
+  paste:
+    composite:congress:
+      use: egg:Paste#urlmap
+      /: congressversions
+      /v1: congress_api_v1
+    pipeline:congressversions:
+      pipeline: cors http_proxy_to_wsgi catch_errors congressversionapp
+    app:congressversionapp:
+      paste.app_factory: congress.api.versions:Versions.factory
+    composite:congress_api_v1:
+      use: call:congress.auth:pipeline_factory
+      keystone: cors http_proxy_to_wsgi request_id catch_errors authtoken keystonecontext congress_api
+      noauth: cors http_proxy_to_wsgi request_id catch_errors congress_api
+    app:congress_api:
+      paste.app_factory: congress.service:congress_app_factory
+    filter:request_id:
+      paste.filter_factory: oslo_middleware:RequestId.factory
+    filter:catch_errors:
+      paste.filter_factory: oslo_middleware:CatchErrors.factory
+    filter:keystonecontext:
+      paste.filter_factory: congress.auth:CongressKeystoneContext.factory
+    filter:authtoken:
+      paste.filter_factory: keystonemiddleware.auth_token:filter_factory
+    filter:cors:
+      paste.filter_factory:  oslo_middleware.cors:filter_factory
+      oslo_config_project: congress
+    filter:http_proxy_to_wsgi:
+      paste.filter_factory: oslo_middleware.http_proxy_to_wsgi:HTTPProxyToWSGI.factory
+      oslo_config_project: congress
+  policy:
+    context_is_admin: role:admin
+    admin_only: rule:context_is_admin
+    regular_user: ""
+    default: rule:admin_only
+
+pod:
+  user:
+    congress:
+      uid: 1000
+  affinity:
+      anti:
+        type:
+          default: preferredDuringSchedulingIgnoredDuringExecution
+        topologyKey:
+          default: kubernetes.io/hostname
+  replicas:
+    api: 1
+    policy_engine: 1
+    # dont scale out ds node
+    # only one node per environment should be in active state
+    # https://docs.openstack.org/congress/latest/admin/ha-overview.html#ha-overview
+    datasource: 1
+  lifecycle:
+    upgrades:
+      deployments:
+        revision_history: 3
+        pod_replacement_strategy: RollingUpdate
+        rolling_update:
+          max_unavailable: 1
+          max_surge: 3
+    disruption_budget:
+      api:
+        min_available: 0
+      datasource:
+        min_available: 0
+      policy_engine:
+        min_available: 0
+    termination_grace_period:
+      api:
+        timeout: 600
+      datasource:
+        timeout: 600
+      policy_engine:
+        timeout: 600
+  resources:
+    enabled: false
+    api:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+    registry:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+    jobs:
+      storage_init:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      db_sync:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      db_init:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      db_drop:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      ks_user:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      ks_service:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      ks_endpoints:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      bootstrap:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      tests:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+
+manifests:
+  configmap_bin: true
+  configmap_etc: true
+  deployment_api: true
+  deployment_policy_engine: true
+  deployment_datasource: true
+  job_db_init: true
+  job_db_sync: true
+  secret_db: true
+  secret_keystone: true
+  job_ks_endpoints: true
+  job_ks_service: true
+  job_ks_user: true
+  job_ds_create: true
+  service_api: true
+  ingress_api: true
+  service_ingress_api: true
