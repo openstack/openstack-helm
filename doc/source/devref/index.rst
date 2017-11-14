@@ -12,3 +12,4 @@ Contents:
    oslo-config
    pod-disruption-budgets
    upgrades
+   fluent-logging
