@@ -22,7 +22,8 @@ sys.path.insert(0, os.path.abspath('../..'))
 extensions = [
     'sphinx.ext.autodoc',
     'openstackdocstheme',
-    'oslosphinx'
+    'oslosphinx',
+    'sphinxcontrib.blockdiag'
 ]
 
 # autodoc generation is a bit aggressive and a nuisance when doing heavy
