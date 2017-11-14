@@ -35,7 +35,7 @@ limitations under the License.
     - name: INTERFACE_NAME
       value: eth0
     - name: DEPENDENCY_SERVICE
-      value: "{{ tuple $deps.services $envAll | include "helm-toolkit.utils.comma_joined_hostname_list" }}"
+      value: "{{ tuple $deps.services $envAll | include "helm-toolkit.utils.comma_joined_service_list" }}"
     - name: DEPENDENCY_JOBS
       value: "{{  include "helm-toolkit.utils.joinListWithComma" $deps.jobs }}"
     - name: DEPENDENCY_DAEMONSET
