@@ -1,0 +1,92 @@
+{{/*
+Copyright 2017 The Openstack-Helm Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.deployment_placement }}
+{{- $envAll := . }}
+{{- $dependencies := .Values.dependencies.api }}
+{{- $mounts_nova_placement := .Values.pod.mounts.nova_placement.nova_placement }}
+{{- $mounts_nova_placement_init := .Values.pod.mounts.nova_placement.init_container }}
+---
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: nova-placement-api
+spec:
+  replicas: {{ .Values.pod.replicas.placement }}
+{{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_deployment" | indent 2 }}
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "nova" "placement" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
+        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
+    spec:
+      affinity:
+{{ tuple $envAll "nova" "placement" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
+      nodeSelector:
+        {{ .Values.labels.placement.node_selector_key }}: {{ .Values.labels.placement.node_selector_value }}
+      terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.placement.timeout | default "30" }}
+      initContainers:
+{{ tuple $envAll $dependencies $mounts_nova_placement_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+      containers:
+        - name: nova-placement-api
+          image: {{ .Values.images.tags.placement }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+{{ tuple $envAll $envAll.Values.pod.resources.placement | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          command:
+            - /tmp/nova-placement-api.sh
+            - start
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /tmp/nova-placement-api.sh
+                  - stop
+          ports:
+            - containerPort: {{ .Values.network.placement.port }}
+          readinessProbe:
+            tcpSocket:
+              port: {{ .Values.network.placement.port }}
+          volumeMounts:
+            - name: nova-bin
+              mountPath: /tmp/nova-placement-api.sh
+              subPath: nova-placement-api.sh
+              readOnly: true
+            - name: nova-etc
+              mountPath: /etc/nova/nova.conf
+              subPath: nova.conf
+              readOnly: true
+            - name: nova-etc
+              mountPath: /etc/nova/api-paste.ini
+              subPath: api-paste.ini
+              readOnly: true
+            - name: nova-etc
+              mountPath: /etc/nova/policy.yaml
+              subPath: policy.yaml
+              readOnly: true
+{{- if $mounts_nova_placement.volumeMounts }}{{ toYaml $mounts_nova_placement.volumeMounts | indent 12 }}{{ end }}
+      volumes:
+        - name: nova-bin
+          configMap:
+            name: nova-bin
+            defaultMode: 0555
+        - name: nova-etc
+          configMap:
+            name: nova-etc
+            defaultMode: 0444
+{{- if $mounts_nova_placement.volumes }}{{ toYaml $mounts_nova_placement.volumes | indent 8 }}{{ end }}
+{{- end }}
