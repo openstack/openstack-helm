@@ -1,0 +1,84 @@
+{{/*
+Copyright 2017 The Openstack-Helm Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.deployment_fluentd }}
+{{- $envAll := . }}
+{{- if .Values.images.local_registry.active -}}
+{{- $_ := set .Values "pod_dependency" (merge .Values.dependencies.fluentd .Values.conditional_dependencies.local_image_registry) -}}
+{{- else -}}
+{{- $_ := set .Values "pod_dependency" .Values.dependencies.fluentd -}}
+{{- end -}}
+{{- $mounts_fluentd := .Values.pod.mounts.fluentd.fluentd }}
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: fluentd
+spec:
+  replicas: {{ .Values.pod.replicas.fluentd }}
+{{ tuple $envAll  | include "helm-toolkit.snippets.kubernetes_upgrades_deployment" | indent 2 }}
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "aggregator" "internal" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
+    spec:
+      serviceAccount: fluent-logging
+      affinity:
+{{ tuple $envAll "aggregator" "internal" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
+      nodeSelector:
+        {{ .Values.labels.fluentd.node_selector_key }}: {{ .Values.labels.fluentd.node_selector_value }}
+      terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.fluentd_aggregator.timeout | default "30" }}
+      initContainers:
+{{ tuple $envAll .Values.pod_dependency list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+      containers:
+        - name: fluentd
+          image: {{ .Values.images.tags.fluentd }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+{{ tuple $envAll $envAll.Values.pod.resources.fluentd | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          command:
+            - /tmp/fluentd.sh
+            - start
+          ports:
+            - containerPort: {{ tuple "aggregator" "internal" "service" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+          volumeMounts:
+            - name: pod-etc-fluentd
+              mountPath: /etc/td-agent
+            - name: fluent-logging-etc
+              mountPath: /etc/td-agent/td-agent.conf
+              subPath: td-agent.conf
+              readOnly: true
+            - name: fluent-logging-bin
+              mountPath: /tmp/fluentd.sh
+              subPath: fluentd.sh
+              readOnly: true
+{{- if $mounts_fluentd.volumeMounts }}{{ toYaml $mounts_fluentd.volumeMounts | indent 12 }}{{- end }}
+      volumes:
+{{ tuple . | include "helm-toolkit.snippets.kubernetes_entrypoint_secret_mount" | indent 8 }}
+        - name: pod-etc-fluentd
+          emptyDir: {}
+        - name: fluent-logging-etc
+          configMap:
+            name: fluent-logging-etc
+            defaultMode: 0444
+        - name: fluent-logging-bin
+          configMap:
+            name: fluent-logging-bin
+            defaultMode: 0555
+{{- if $mounts_fluentd.volumes }}{{ toYaml $mounts_fluentd.volumes | indent 8 }}{{- end }}
+{{- end }}

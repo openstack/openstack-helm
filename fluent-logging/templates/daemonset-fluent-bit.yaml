@@ -1,0 +1,82 @@
+{{/*
+Copyright 2017 The Openstack-Helm Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.daemonset_fluentbit }}
+{{- $envAll := . }}
+{{- $dependencies := .Values.dependencies.fluentbit }}
+{{- if .Values.images.local_registry.active -}}
+{{- $_ := set .Values "pod_dependency" (merge .Values.dependencies.fluentbit .Values.conditional_dependencies.local_image_registry) -}}
+{{- else -}}
+{{- $_ := set .Values "pod_dependency" .Values.dependencies.fluentbit -}}
+{{- end -}}
+{{- $mounts_fluentbit := .Values.pod.mounts.fluentbit.fluentbit }}
+---
+apiVersion: extensions/v1beta1
+kind: DaemonSet
+metadata:
+  name: fluentbit
+spec:
+{{ tuple $envAll "fluentbit" | include "helm-toolkit.snippets.kubernetes_upgrades_daemonset" | indent 2 }}
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "fluentbit" "daemon" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
+    spec:
+      serviceAccount: fluent-logging
+      nodeSelector:
+        {{ .Values.labels.fluentbit.node_selector_key }}: {{ .Values.labels.fluentbit.node_selector_value }}
+      hostNetwork: true
+      hostPID: true
+      dnsPolicy: ClusterFirstWithHostNet
+      initContainers:
+{{ tuple $envAll .Values.pod_dependency list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+      containers:
+        - name: fluentbit
+          env:
+          image: {{ .Values.images.tags.fluentbit }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+{{ tuple $envAll $envAll.Values.pod.resources.fluentbit | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          volumeMounts:
+            - name: varlog
+              mountPath: /var/log
+            - name: varlibdockercontainers
+              mountPath: /var/lib/docker/containers
+              readOnly: true
+            - name: fluent-logging-etc
+              mountPath: /fluent-bit/etc/fluent-bit.conf
+              subPath: fluent-bit.conf
+              readOnly: true
+            - name: fluent-logging-etc
+              mountPath: /fluent-bit/etc/parsers.conf
+              subPath: parsers.conf
+              readOnly: true
+{{ if $mounts_fluentbit.volumeMounts }}{{ toYaml $mounts_fluentbit.volumeMounts | indent 8 }}{{ end }}
+      volumes:
+{{ tuple . | include "helm-toolkit.snippets.kubernetes_entrypoint_secret_mount" | indent 8 }}
+        - name: varlog
+          hostPath:
+            path: /var/log
+        - name: varlibdockercontainers
+          hostPath:
+            path: /var/lib/docker/containers
+        - name: fluent-logging-etc
+          configMap:
+            name: fluent-logging-etc
+            defaultMode: 0444
+{{ if $mounts_fluentbit.volumes }}{{ toYaml $mounts_fluentbit.volumes | indent 8 }}{{ end }}
+{{- end }}
