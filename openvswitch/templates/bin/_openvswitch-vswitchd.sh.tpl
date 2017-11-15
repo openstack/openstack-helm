@@ -47,12 +47,6 @@ if [ -n "${external_bridge}" ] ; then
         # add external interface to the bridge
         ovs-vsctl --no-wait --may-exist add-port $external_bridge $external_interface
         ip link set dev $external_interface up
-        ip link set dev $external_bridge up
-        # move ip address from physical interface to the bridge
-        for IP in $(ip addr show dev $external_interface | grep ' inet ' | awk '{print $2}'); do
-            ip addr add $IP dev $external_bridge
-            ip addr del $IP dev $external_interface
-        done
     fi
 fi
 
@@ -64,12 +58,6 @@ if [ -n "{{- $br -}}" ] ; then
     if [ -n "{{- $phys -}}" ] ; then
         ovs-vsctl --no-wait --may-exist add-port "{{ $br }}" "{{ $phys }}"
         ip link set dev "{{ $phys }}" up
-        ip link set dev "{{ $br }}" up
-        # move ip address from physical interface to the bridge
-        for IP in $(ip addr show dev "{{ $phys }}" | grep ' inet ' | awk '{print $2}'); do
-            ip addr add $IP dev "{{ $br }}"
-            ip addr del $IP dev "{{ $phys }}"
-        done
     fi
 fi
 {{- end }}
