@@ -139,6 +139,7 @@ It is recommended to pull the kubeadm-aio container as it is stable
 at the time it was built
 
 ::
+
     export KUBEADM_IMAGE=openstackhelm/kubeadm-aio:v1.7.5
     sudo docker pull ${KUBEADM_IMAGE}
 
