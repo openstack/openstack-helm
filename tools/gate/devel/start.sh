@@ -16,7 +16,10 @@
 
 set -ex
 : ${WORK_DIR:="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )/../../.."}
-export MODE=${1:-"local"}
+export DEPLOY=${1:-"full"}
+export MODE=${2:-"local"}
+export INVENTORY=${WORK_DIR}/tools/gate/devel/${MODE}-inventory.yaml
+export VARS=${WORK_DIR}/tools/gate/devel/${MODE}-vars.yaml
 
 function ansible_install {
   cd /tmp
@@ -28,7 +31,8 @@ function ansible_install {
       python-pip \
       libssl-dev \
       python-dev \
-      build-essential
+      build-essential \
+      jq
   elif [ "x$ID" == "xcentos" ]; then
     sudo yum install -y \
       epel-release
@@ -36,22 +40,41 @@ function ansible_install {
       python-pip \
       python-devel \
       redhat-rpm-config \
-      gcc
+      gcc \
+      curl
+    sudo curl -L -o /usr/bin/jq https://github.com/stedolan/jq/releases/download/jq-1.5/jq-linux64
+    sudo chmod +x /usr/bin/jq
   elif [ "x$ID" == "xfedora" ]; then
     sudo dnf install -y \
       python-devel \
       redhat-rpm-config \
-      gcc
+      gcc \
+      jq
   fi
 
   sudo -H pip install --no-cache-dir --upgrade pip
   sudo -H pip install --no-cache-dir --upgrade setuptools
   sudo -H pip install --no-cache-dir --upgrade pyopenssl
-  sudo -H pip install --no-cache-dir ansible
-  sudo -H pip install --no-cache-dir ara
-  sudo -H pip install --no-cache-dir yq
+  sudo -H pip install --no-cache-dir \
+    ansible \
+    ara \
+    yq
 }
-ansible_install
+
+if [ "x${DEPLOY}" == "xsetup-host" ]; then
+  ansible_install
+  PLAYBOOKS="osh-infra-docker"
+elif [ "x${DEPLOY}" == "xk8s" ]; then
+  PLAYBOOKS="osh-infra-build osh-infra-deploy-k8s"
+elif [ "x${DEPLOY}" == "xcharts" ]; then
+  PLAYBOOKS="osh-infra-deploy-charts"
+elif [ "x${DEPLOY}" == "xfull" ]; then
+  ansible_install
+  PLAYBOOKS="osh-infra-docker osh-infra-build osh-infra-deploy-k8s osh-infra-deploy-charts"
+else
+  echo "Unknown Deploy Option Selected"
+  exit 1
+fi
 
 cd ${WORK_DIR}
 export ANSIBLE_CALLBACK_PLUGINS="$(python -c 'import os,ara; print(os.path.dirname(ara.__file__))')/plugins/callbacks"
@@ -68,7 +91,9 @@ function dump_logs () {
 }
 trap 'dump_logs "$?"' ERR
 
-INVENTORY=${WORK_DIR}/tools/gate/devel/${MODE}-inventory.yaml
-VARS=${WORK_DIR}/tools/gate/devel/${MODE}-vars.yaml
-ansible-playbook ${WORK_DIR}/tools/gate/playbooks/zuul-pre.yaml -i ${INVENTORY} --extra-vars=@${VARS} --extra-vars "work_dir=${WORK_DIR}"
-ansible-playbook ${WORK_DIR}/tools/gate/playbooks/zuul-run.yaml -i ${INVENTORY} --extra-vars=@${VARS} --extra-vars "work_dir=${WORK_DIR}"
+for PLAYBOOK in ${PLAYBOOKS}; do
+  ansible-playbook ${WORK_DIR}/tools/gate/playbooks/${PLAYBOOK}.yaml \
+    -i ${INVENTORY} \
+    --extra-vars=@${VARS} \
+    --extra-vars "work_dir=${WORK_DIR}"
+done

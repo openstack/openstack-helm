@@ -17,37 +17,27 @@
     - vars.yaml
   vars:
     work_dir: "{{ zuul.project.src_dir }}/{{ zuul_osh_infra_relative_path | default('') }}"
+  gather_facts: False
+  become: yes
   roles:
-    - clean-host
+    - deploy-python
   tags:
-    - clean-host
+    - deploy-python
 
-- hosts: primary
+- hosts: all
   vars_files:
     - vars.yaml
   vars:
     work_dir: "{{ zuul.project.src_dir }}/{{ zuul_osh_infra_relative_path | default('') }}"
+  gather_facts: True
+  become: yes
   roles:
-    - deploy-kubeadm-aio-master
+    - setup-firewall
+    - deploy-python-pip
+    - deploy-docker
+    - deploy-yq
   tags:
-    - deploy-kubeadm-aio-master
-
-- hosts: nodes
-  vars_files:
-    - vars.yaml
-  vars:
-    work_dir: "{{ zuul.project.src_dir }}/{{ zuul_osh_infra_relative_path | default('') }}"
-  roles:
-    - deploy-kubeadm-aio-node
-  tags:
-    - deploy-kubeadm-aio-node
-
-- hosts: primary
-  vars_files:
-    - vars.yaml
-  vars:
-    work_dir: "{{ zuul.project.src_dir }}/{{ zuul_osh_infra_relative_path | default('') }}"
-  roles:
-    - deploy-helm-packages
-  tags:
-    - deploy-helm-packages
+    - setup-firewall
+    - deploy-python-pip
+    - deploy-docker
+    - deploy-yq
