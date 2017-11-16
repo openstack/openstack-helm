@@ -65,3 +65,7 @@ ssh -i ${KEYPAIR_LOC} cirros@${FLOATING_IP} curl http://artscene.textfiles.com/a
 
 # Remove the test stack
 $OPENSTACK stack delete ${OSH_BASIC_VM_STACK}
+
+#Remove keypair
+$OPENSTACK keypair delete ${OSH_VM_KEY_STACK}
+rm ${KEYPAIR_LOC}
