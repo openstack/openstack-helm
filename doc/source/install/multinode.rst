@@ -17,29 +17,9 @@ this is found throughout the project. If you have any questions or
 comments, please create an `issue
 <https://bugs.launchpad.net/openstack-helm>`_.
 
-.. warning::
-  Please see the latest published information about our
-  application versions.
-
-  .. list-table::
-     :widths: 45 155 200
-     :header-rows: 1
-
-     * -
-       - Version
-       - Notes
-     * - **Kubernetes**
-       - `v1.7.5 <https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG.md#v175>`_
-       - `Custom Controller for RDB tools <https://quay.io/repository/attcomdev/kube-controller-manager?tab=tags>`_
-     * - **Helm**
-       - `v2.6.1 <https://github.com/kubernetes/helm/releases/tag/v2.6.1>`_
-       -
-     * - **Calico**
-       - `v2.1 <http://docs.projectcalico.org/v2.1/releases/>`_
-       - `calicoct v1.1 <https://github.com/projectcalico/calicoctl/releases>`_
-     * - **Docker**
-       - `v1.12.6 <https://github.com/docker/docker/releases/tag/v1.12.6>`_
-       - `Per kubeadm Instructions <https://kubernetes.io/docs/getting-started-guides/kubeadm/>`_
+.. note::
+  Please see the supported application versions outlined in the
+  `source variable file <https://github.com/openstack/openstack-helm/blob/master/tools/gate/vars.sh>`_.
 
 Other versions and considerations (such as other CNI SDN providers),
 config map data, and value overrides will be included in other
