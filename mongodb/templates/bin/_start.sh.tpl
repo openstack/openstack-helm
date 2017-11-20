@@ -17,4 +17,31 @@ limitations under the License.
 */}}
 
 set -ex
-exec mongod --auth
+
+mongod --auth &
+
+t=0
+until mongo --eval "db.adminCommand('ping')"; do
+  echo "waiting for mongodb to start"
+  sleep 1
+  t=$(($t+1))
+  if [ $t -ge 30 ] ; then
+      echo "mongodb did not start, giving up"
+      exit 1
+  fi
+done
+
+#NOTE(portdirect): stop sending commands to stdout to prevent root password
+# being sent to logs.
+set +x
+mongo admin \
+  --username "${ADMIN_USER}" \
+  --password "${ADMIN_PASS}" \
+  --eval "db.changeUserPassword(\"${ADMIN_USER}\", \"${ADMIN_PASS}\")" || \
+    mongo admin \
+      --eval "db.createUser({ user: \"${ADMIN_USER}\", \
+                              pwd: \"${ADMIN_PASS}\", \
+                              roles: [ { role: \"userAdminAnyDatabase\", \
+                                         db: \"admin\" } ] });"
+set -x
+wait
