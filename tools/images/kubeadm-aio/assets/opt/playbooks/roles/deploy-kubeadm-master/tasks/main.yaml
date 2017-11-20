@@ -84,17 +84,25 @@
   delegate_to: 127.0.0.1
   block:
     - name: wait for kube api
-      shell: export KUBECONFIG=/mnt/rootfs/etc/kubernetes/admin.conf; python /usr/bin/test-kube-api.py
+      shell: python /usr/bin/test-kube-api.py
       register: task_result
       until: task_result.rc == 0
       retries: 120
       delay: 5
+      environment:
+        KUBECONFIG: '/mnt/rootfs/etc/kubernetes/admin.conf'
+      args:
+        executable: /bin/bash
     - name: wait for node to come online
-      shell: export KUBECONFIG=/mnt/rootfs/etc/kubernetes/admin.conf; kubectl get node "{{ kubeadm_node_hostname }}" --no-headers | gawk '{ print $2 }' | grep -q '\(^Ready\)\|\(^NotReady\)'
+      shell: kubectl get node "{{ kubeadm_node_hostname }}" --no-headers | gawk '{ print $2 }' | grep -q '\(^Ready\)\|\(^NotReady\)'
       register: task_result
       until: task_result.rc == 0
       retries: 120
       delay: 5
+      environment:
+        KUBECONFIG: '/mnt/rootfs/etc/kubernetes/admin.conf'
+      args:
+        executable: /bin/bash
     - include_tasks: wait-for-kube-system-namespace.yaml
 
 - name: deploying kube-proxy
@@ -107,11 +115,15 @@
   delegate_to: 127.0.0.1
   block:
     - name: wait for node to be ready
-      shell: export KUBECONFIG=/mnt/rootfs/etc/kubernetes/admin.conf; kubectl get node "{{ kubeadm_node_hostname }}" --no-headers | gawk '{ print $2 }' | grep -q '^Ready'
+      shell: kubectl get node "{{ kubeadm_node_hostname }}" --no-headers | gawk '{ print $2 }' | grep -q '^Ready'
       register: task_result
       until: task_result.rc == 0
       retries: 120
       delay: 5
+      environment:
+        KUBECONFIG: '/mnt/rootfs/etc/kubernetes/admin.conf'
+      args:
+        executable: /bin/bash
     - include_tasks: wait-for-kube-system-namespace.yaml
 
 # - name: deploying kube-dns addon
