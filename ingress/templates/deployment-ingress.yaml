@@ -35,8 +35,6 @@ spec:
       labels:
 {{ tuple $envAll "ingress" "api" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
         app: ingress-api
-      annotations:
-        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
     spec:
 {{- if eq .Values.deployment_type "Deployment" }}
       affinity:
@@ -47,6 +45,7 @@ spec:
 {{- if .Values.network.host_namespace }}
       hostNetwork: true
 {{- end }}
+      dnsPolicy: "ClusterFirstWithHostNet"
       terminationGracePeriodSeconds: 60
       containers:
         - name: ingress-api
@@ -83,15 +82,3 @@ spec:
             - /nginx-ingress-controller
             - '--default-backend-service=$(POD_NAMESPACE)/ingress-error-pages'
             - --configmap=$(POD_NAMESPACE)/nginx-custom-configuration
-{{- if .Values.network.host_namespace }}
-          volumeMounts:
-            - name: ingress-etc
-              mountPath: /etc/resolv.conf
-              subPath: resolv.conf
-              readOnly: true
-      volumes:
-        - name: ingress-etc
-          configMap:
-            name: ingress-etc
-            defaultMode: 0444
-{{- end }}
