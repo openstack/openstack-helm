@@ -21,6 +21,8 @@ TASK := build
 EXCLUDES := helm-toolkit doc tests tools logs
 CHARTS := helm-toolkit $(filter-out $(EXCLUDES), $(patsubst %/.,%,$(wildcard */.)))
 
+.PHONY: $(EXCLUDES) $(CHARTS)
+
 all: $(CHARTS)
 
 $(CHARTS):
@@ -50,4 +52,8 @@ clean:
 pull-all-images:
 	@./tools/pull-images.sh
 
-.PHONY: $(EXCLUDES) $(CHARTS)
+dev-deploy:
+	@./tools/gate/devel/start.sh $(filter-out $@,$(MAKECMDGOALS))
+
+%:
+	@:
