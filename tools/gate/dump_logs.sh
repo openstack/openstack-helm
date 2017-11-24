@@ -117,7 +117,7 @@ if [ "x$INTEGRATION" == "xmulti" ]; then
   done
 fi
 
-source ${WORK_DIR}/tools/gate/funcs/openstack.sh
+source ./tools/gate/funcs/openstack.sh
 mkdir -p ${LOGS_DIR}/openstack
 $OPENSTACK service list > ${LOGS_DIR}/openstack/service.txt
 $OPENSTACK endpoint list > ${LOGS_DIR}/openstack/endpoint.txt
