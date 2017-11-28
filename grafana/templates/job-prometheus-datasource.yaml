@@ -1,0 +1,71 @@
+{{/*
+Copyright 2017 The Openstack-Helm Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.job_datasource }}
+{{- $envAll := . }}
+
+{{- $_ := set .Values "pod_dependency" .Values.dependencies.register_datasource -}}
+{{- $serviceAccountName := "grafana-register-datasource" }}
+{{ tuple $envAll $envAll.Values.pod_dependency $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: grafana-register-datasource
+spec:
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "grafana" "datasource" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+    spec:
+      serviceAccountName: {{ $serviceAccountName }}
+      restartPolicy: OnFailure
+      nodeSelector:
+        {{ .Values.labels.jobs.node_selector_key }}: {{ .Values.labels.jobs.node_selector_value }}
+      initContainers:
+{{ tuple $envAll .Values.pod_dependency list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container"  | indent 8 }}
+      containers:
+        - name: grafana-datasource
+{{ tuple $envAll "datasource" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.jobs.datasource | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          command:
+            - /tmp/datasource.sh
+          env:
+            - name: GF_SECURITY_ADMIN_USER
+              valueFrom:
+                secretKeyRef:
+                  name: grafana-admin-creds
+                  key: GRAFANA_ADMIN_USERNAME
+            - name: GF_SECURITY_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: grafana-admin-creds
+                  key: GRAFANA_ADMIN_PASSWORD
+            - name: GRAFANA_SERVICE
+              value: {{ tuple "grafana" "internal" $envAll | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
+            - name: PROMETHEUS_URL
+              value: {{ tuple "monitoring" "internal" "api" $envAll | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" }}
+          volumeMounts:
+            - name: grafana-bin
+              mountPath: /tmp/datasource.sh
+              subPath: datasource.sh
+              readOnly: true
+      volumes:
+        - name: grafana-bin
+          configMap:
+            name: grafana-bin
+            defaultMode: 0555
+{{- end }}
