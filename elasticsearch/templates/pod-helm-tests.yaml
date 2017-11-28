@@ -1,0 +1,48 @@
+{{/*
+Copyright 2017 The Openstack-Helm Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.helm_tests }}
+{{- $envAll := . }}
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{.Release.Name}}-test"
+  annotations:
+    "helm.sh/hook": test-success
+spec:
+  restartPolicy: Never
+  containers:
+    - name: {{.Release.Name}}-helm-tests
+{{ tuple $envAll "helm_tests" | include "helm-toolkit.snippets.image" | indent 6 }}
+{{ tuple $envAll $envAll.Values.pod.resources.jobs.tests | include "helm-toolkit.snippets.kubernetes_resources" | indent 6 }}
+      command:
+        - /tmp/helm-tests.sh
+      env:
+        - name: ELASTICSEARCH_ENDPOINT
+          value: {{ tuple "elasticsearch" "internal" "client" . | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" }}
+      volumeMounts:
+        - name: elastic-bin
+          mountPath: /tmp/helm-tests.sh
+          subPath: helm-tests.sh
+          readOnly: true
+  volumes:
+{{ tuple . | include "helm-toolkit.snippets.kubernetes_entrypoint_secret_mount" | indent 4 }}
+    - name: elastic-bin
+      configMap:
+        name: elastic-bin
+        defaultMode: 0555
+{{- end }}

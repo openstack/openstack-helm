@@ -1,0 +1,271 @@
+# Copyright 2017 The Openstack-Helm Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Default values for elasticsearch
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+images:
+  tags:
+    memory_init: docker.io/kolla/ubuntu-source-kolla-toolbox:4.0.0
+    curator:  docker.io/bobrik/curator:5.2.0
+    elasticsearch: docker.io/elasticsearch:5.4.2
+    helm_tests: docker.io/kolla/ubuntu-source-kolla-toolbox:3.0.3
+    dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.2.1
+    image_repo_sync: docker.io/docker:17.07.0
+  pull_policy: "IfNotPresent"
+  local_registry:
+    active: false
+    exclude:
+      - dep_check
+      - image_repo_sync
+
+labels:
+  node_selector_key: openstack-control-plane
+  node_selector_value: enabled
+
+dependencies:
+  elasticsearch_client:
+    services: null
+  elasticsearch_master:
+    services: null
+  elasticsearch_data:
+    services: null
+  curator:
+    services: null
+  image_repo_sync:
+    services:
+      - service: local_image_registry
+        endpoint: internal
+
+conditional_dependencies:
+  local_image_registry:
+    jobs:
+      - elasticsearch-image-repo-sync
+    services:
+      - service: local_image_registry
+        endpoint: node
+
+pod:
+  affinity:
+      anti:
+        type:
+          default: preferredDuringSchedulingIgnoredDuringExecution
+        topologyKey:
+          default: kubernetes.io/hostname
+  replicas:
+    master: 3
+    data: 3
+    client: 2
+  lifecycle:
+    upgrades:
+      deployments:
+        revision_history: 3
+        pod_replacement_strategy: RollingUpdate
+        rolling_update:
+          max_unavailable: 1
+          max_surge: 3
+    termination_grace_period:
+      master:
+        timeout: 600
+      data:
+        timeout: 600
+      client:
+        timeout: 600
+  resources:
+    enabled: false
+    client:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+    master:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+    data:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+    jobs:
+      curator:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      image_repo_sync:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      tests:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+
+conf:
+  init:
+    max_map_count: 262144
+  curator:
+    schedule:  1 0 * * *
+    action_file: |
+      ---
+      # Remember, leave a key empty if there is no value.  None will be a string,
+      # not a Python "NoneType"
+      #
+      # Also remember that all examples have 'disable_action' set to True.  If you
+      # want to use this action as a template, be sure to set this to False after
+      # copying it.
+      actions:
+        1:
+          action: delete_indices
+          description: "Clean up ES by deleting old indices"
+          options:
+            timeout_override:
+            continue_if_exception: False
+            disable_action: False
+          filters:
+          - filtertype: age
+            source: name
+            direction: older
+            timestring: '%Y.%m.%d'
+            unit: days
+            unit_count: 30
+            field:
+            stats_result:
+            epoch:
+            exclude: False
+    config: |
+      ---
+      # Remember, leave a key empty if there is no value.  None will be a string,
+      # not a Python "NoneType"
+      client:
+        hosts:
+          - elasticsearch-logging
+        port: 9200
+        url_prefix:
+        use_ssl: False
+        certificate:
+        client_cert:
+        client_key:
+        ssl_no_validate: False
+        http_auth:
+        timeout: 30
+        master_only: False
+      logging:
+        loglevel: INFO
+        logfile:
+        logformat: default
+        blacklist: ['elasticsearch', 'urllib3']
+  elasticsearch:
+    override:
+    prefix:
+    append:
+    bootstrap:
+      memory_lock: true
+    cluster:
+      name: elasticsearch
+    network:
+      host: 0.0.0.0
+    path:
+      data: /usr/share/elasticsearch/data
+      logs: /usr/share/elasticsearch/logs
+    zen:
+      min_masters: 2
+    env:
+      java_opts: "-Xms256m -Xmx256m"
+  log4j2:
+    override:
+    prefix:
+    append:
+
+endpoints:
+  cluster_domain_suffix: cluster.local
+  elasticsearch:
+    name: elasticsearch
+    namespace: null
+    hosts:
+      data: elasticsearch-data
+      default: elasticsearch-logging
+      discovery: elasticsearch-discovery
+      public: elasticsearch
+    host_fqdn_override:
+      default: null
+    path:
+      default: null
+    scheme:
+      default: http
+    port:
+      client:
+        default: 9200
+      discovery:
+        default: 9300
+
+network:
+  client:
+    port: 9200
+    node_port:
+      enabled: false
+      port: 30920
+  discovery:
+    port: 9300
+    node_port:
+      enabled: false
+      port: 30930
+  data:
+    port: 9300
+    node_port:
+      enabled: false
+      port: 30931
+
+storage:
+  enabled: true
+  pvc:
+    name: pvc-elastic
+    access_mode: [ "ReadWriteMany" ]
+  requests:
+    storage: 5Gi
+  storage_class: general
+
+manifests:
+  clusterrole: true
+  clusterrolebinding: true
+  configmap_bin: true
+  configmap_etc: true
+  cron_curator: true
+  deployment_client: true
+  deployment_master: true
+  job_image_repo_sync: true
+  helm_tests: true
+  rbac_entrypoint: true
+  serviceaccount: true
+  service_data: true
+  service_discovery: true
+  service_logging: true
+  statefulset_data: true
