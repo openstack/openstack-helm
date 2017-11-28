@@ -6,6 +6,7 @@ Contents:
 .. toctree::
    :maxdepth: 2
 
+   developer-environment.rst
    osh-lma-stack.rst
    specifications.rst
    template.rst
