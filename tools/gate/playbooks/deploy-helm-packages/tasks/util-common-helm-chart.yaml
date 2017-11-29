@@ -49,7 +49,12 @@
         var: out.stdout_lines
 
     - name: "pre-upgrade, delete jobs for {{ chart_def['release'] }} release"
-      when: (check_deployed_result | succeeded) and ( 'upgrade' in chart_def ) and ( 'pre' in chart_def['upgrade'] ) and ( 'delete' in chart_def['upgrade']['pre'] ) and (chart_def.upgrade.pre.delete is not none)
+      when:
+        - check_deployed_result | succeeded
+        - "'upgrade' in chart_def"
+        - "'pre' in chart_def['upgrade']"
+        - "'delete' in chart_def['upgrade']['pre']"
+        - "chart_def.upgrade.pre.delete is not none"
       with_items: "{{ chart_def.upgrade.pre.delete }}"
       loop_control:
         loop_var: helm_upgrade_delete_job
@@ -68,6 +73,17 @@
       vars:
         namespace: "{{ chart_def['namespace'] }}"
         timeout: "{{ chart_def['timeout'] }}"
+
+    - include: util-common-helm-test.yaml
+      when:
+        - "'test' in chart_def"
+        - "chart_def.test is not none"
+        - "'enabled' in chart_def['test']"
+        - "chart_def.test.enabled|bool == true"
+      vars:
+        release: "{{ chart_def['release'] }}"
+        namespace: "{{ chart_def['namespace'] }}"
+        test_settings: "{{ chart_def.test }}"
 
   always:
     - name: "remove values.yaml for {{ chart_def['release'] }}"
