@@ -17,47 +17,57 @@ limitations under the License.
 */}}
 
 set -ex
+COMMAND="${@:-start}"
 
-sock="/var/run/openvswitch/db.sock"
-t=0
-while [ ! -e "${sock}" ] ; do
-    echo "waiting for ovs socket $sock"
-    sleep 1
-    t=$(($t+1))
-    if [ $t -ge 10 ] ; then
-        echo "no ovs socket, giving up"
-        exit 1
-    fi
-done
+OVS_SOCKET=/run/openvswitch/db.sock
 
-ovs-vsctl --no-wait show
+function start () {
+  t=0
+  while [ ! -e "${OVS_SOCKET}" ] ; do
+      echo "waiting for ovs socket $sock"
+      sleep 1
+      t=$(($t+1))
+      if [ $t -ge 10 ] ; then
+          echo "no ovs socket, giving up"
+          exit 1
+      fi
+  done
 
-external_bridge="{{- .Values.network.external_bridge -}}"
-external_interface="{{- .Values.network.interface.external -}}"
-if [ -n "${external_bridge}" ] ; then
-    # create bridge device
-    ovs-vsctl --no-wait --may-exist add-br $external_bridge
-    if [ -n "$external_interface" ] ; then
-        # add external interface to the bridge
-        ovs-vsctl --no-wait --may-exist add-port $external_bridge $external_interface
-        ip link set dev $external_interface up
-    fi
-fi
+  ovs-vsctl --no-wait show
 
-# handle any bridge mappings
-{{- range $br, $phys := .Values.network.auto_bridge_add }}
-if [ -n "{{- $br -}}" ] ; then
-    # create {{ $br }}{{ if $phys }} and add port {{ $phys }}{{ end }}
-    ovs-vsctl --no-wait --may-exist add-br "{{ $br }}"
-    if [ -n "{{- $phys -}}" ] ; then
-        ovs-vsctl --no-wait --may-exist add-port "{{ $br }}" "{{ $phys }}"
-        ip link set dev "{{ $phys }}" up
-    fi
-fi
-{{- end }}
+  external_bridge="{{- .Values.network.external_bridge -}}"
+  external_interface="{{- .Values.network.interface.external -}}"
+  if [ -n "${external_bridge}" ] ; then
+      # create bridge device
+      ovs-vsctl --no-wait --may-exist add-br $external_bridge
+      if [ -n "$external_interface" ] ; then
+          # add external interface to the bridge
+          ovs-vsctl --no-wait --may-exist add-port $external_bridge $external_interface
+          ip link set dev $external_interface up
+      fi
+  fi
 
-exec /usr/sbin/ovs-vswitchd unix:/run/openvswitch/db.sock \
-        -vconsole:emer \
-        -vconsole:err \
-        -vconsole:info \
-        --mlockall
+  # handle any bridge mappings
+  {{- range $br, $phys := .Values.network.auto_bridge_add }}
+  if [ -n "{{- $br -}}" ] ; then
+      # create {{ $br }}{{ if $phys }} and add port {{ $phys }}{{ end }}
+      ovs-vsctl --no-wait --may-exist add-br "{{ $br }}"
+      if [ -n "{{- $phys -}}" ] ; then
+          ovs-vsctl --no-wait --may-exist add-port "{{ $br }}" "{{ $phys }}"
+          ip link set dev "{{ $phys }}" up
+      fi
+  fi
+  {{- end }}
+
+  exec /usr/sbin/ovs-vswitchd unix:${OVS_SOCKET} \
+          -vconsole:emer \
+          -vconsole:err \
+          -vconsole:info \
+          --mlockall
+}
+
+function stop () {
+  ovs-appctl -T1 -t /run/openvswitch/ovs-vswitchd.1.ctl exit
+}
+
+$COMMAND

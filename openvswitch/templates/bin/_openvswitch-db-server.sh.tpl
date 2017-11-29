@@ -17,15 +17,32 @@ limitations under the License.
 */}}
 
 set -ex
+COMMAND="${@:-start}"
 
-mkdir -p "/run/openvswitch"
-if [[ ! -e "/run/openvswitch/conf.db" ]]; then
-  ovsdb-tool create "/run/openvswitch/conf.db"
-fi
+OVS_DB=/run/openvswitch/conf.db
+OVS_SOCKET=/run/openvswitch/db.sock
+OVS_SCHEMA=/usr/share/openvswitch/vswitch.ovsschema
 
-umask 000
-exec /usr/sbin/ovsdb-server /run/openvswitch/conf.db \
-        -vconsole:emer \
-        -vconsole:err \
-        -vconsole:info \
-        --remote=punix:/run/openvswitch/db.sock
+function start () {
+  mkdir -p "$(dirname ${OVS_DB})"
+  if [[ ! -e "${OVS_DB}" ]]; then
+    ovsdb-tool create "${OVS_DB}"
+  fi
+
+  if [[ "$(ovsdb-tool needs-conversion ${OVS_DB} ${OVS_SCHEMA})" == 'yes' ]]; then
+      ovsdb-tool convert ${OVS_DB} ${OVS_SCHEMA}
+  fi
+
+  umask 000
+  exec /usr/sbin/ovsdb-server ${OVS_DB} \
+          -vconsole:emer \
+          -vconsole:err \
+          -vconsole:info \
+          --remote=punix:${OVS_SOCKET}
+}
+
+function stop () {
+  ovs-appctl -T1 -t /run/openvswitch/ovsdb-server.1.ctl exit
+}
+
+$COMMAND
