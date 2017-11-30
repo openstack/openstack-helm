@@ -14,8 +14,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if .Values.manifests.configmap_etc }}
-{{- $envAll := . }}
+{{- define "nova.configmap.etc" }}
+{{- $configMapName := index . 0 }}
+{{- $envAll := index . 1 }}
+{{- with $envAll }}
 
 {{- if empty .Values.conf.nova.keystone_authtoken.auth_uri -}}
 {{- tuple "identity" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" | set .Values.conf.nova.keystone_authtoken "auth_uri" | quote | trunc 0 -}}
@@ -129,7 +131,7 @@ limitations under the License.
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: nova-etc
+  name: {{ $configMapName }}
 data:
   rally_tests.yaml: |+
 {{ toYaml .Values.conf.rally_tests.tests | indent 4 }}
@@ -153,4 +155,8 @@ data:
 {{- tuple .Values.conf.wsgi_placement "etc/_wsgi-nova-placement.conf.tpl" . | include "helm-toolkit.utils.configmap_templater" }}
   ssh-config.sh: |+
 {{- tuple .Values.conf.ssh "etc/_ssh-config.tpl" . | include "helm-toolkit.utils.configmap_templater" }}
+{{- end }}
+{{- end }}
+{{- if .Values.manifests.configmap_etc }}
+{{- list "nova-etc" . | include "nova.configmap.etc" }}
 {{- end }}
