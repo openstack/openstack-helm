@@ -1,0 +1,254 @@
+# Copyright 2017 The Openstack-Helm Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Default values for alertmanager.
+# This is a YAML-formatted file.
+# Declare name/value pairs to be passed into your templates.
+# name: value
+
+images:
+  tags:
+    alertmanager: docker.io/prom/alertmanager:v0.11.0
+    dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.2.1
+    image_repo_sync: docker.io/docker:17.07.0
+  pull_policy: IfNotPresent
+  local_registry:
+    active: false
+    exclude:
+      - dep_check
+      - image_repo_sync
+
+labels:
+  node_selector_key: openstack-control-plane
+  node_selector_value: enabled
+
+pod:
+  affinity:
+      anti:
+        type:
+          default: preferredDuringSchedulingIgnoredDuringExecution
+        topologyKey:
+          default: kubernetes.io/hostname
+  mounts:
+    alertmanager:
+      alertmanager:
+      init_container: null
+  replicas:
+    alertmanager: 1
+  lifecycle:
+    upgrades:
+      revision_history: 3
+      pod_replacement_strategy: RollingUpdate
+      rolling_update:
+        max_unavailable: 1
+        max_surge: 3
+    termination_grace_period:
+      alertmanager:
+        timeout: 30
+  resources:
+    enabled: false
+    alertmanager:
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+      requests:
+        memory: "128Mi"
+        cpu: "500m"
+
+endpoints:
+  cluster_domain_suffix: cluster.local
+  local_image_registry:
+    name: docker-registry
+    namespace: docker-registry
+    hosts:
+      default: localhost
+      internal: docker-registry
+      node: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        node: 5000
+  alerts:
+    name: alertmanager
+    namespace: null
+    hosts:
+      default: alerts-api
+      public: alertmanager
+    host_fqdn_override:
+      default: null
+    path:
+      default: null
+    scheme:
+      default: 'http'
+    port:
+      api:
+        default: 9093
+        public: 80
+
+dependencies:
+  alertmanager:
+    services: null
+  image_repo_sync:
+    services:
+      - service: local_image_registry
+        endpoint: internal
+
+conditional_dependencies:
+  local_image_registry:
+    jobs:
+      - alertmanager-image-repo-sync
+    services:
+      - service: local_image_registry
+        endpoint: node
+
+network:
+  alertmanager:
+    ingress:
+      public: true
+      proxy_body_size: 1024M
+    node_port:
+      enabled: false
+      port: 30903
+    port: 9093
+
+storage:
+  enabled: true
+  pvc:
+    name: alertmanager-pvc
+    access_mode: ReadWriteMany
+  requests:
+    storage: 5Gi
+  storage_class: general
+
+manifests:
+  clusterrolebinding: true
+  configmap_bin: true
+  configmap_etc: true
+  ingress: true
+  job_image_repo_sync: true
+  pvc: true
+  rbac_entrypoint: true
+  service: true
+  service_ingress: true
+  serviceaccount: true
+  statefulset: true
+
+conf:
+  alertmanager: |
+    global:
+      # The smarthost and SMTP sender used for mail notifications.
+      smtp_smarthost: 'localhost:25'
+      smtp_from: 'alertmanager@example.org'
+      smtp_auth_username: 'alertmanager'
+      smtp_auth_password: 'password'
+      # The auth token for Hipchat.
+      hipchat_auth_token: '1234556789'
+      # Alternative host for Hipchat.
+      hipchat_api_url: 'https://hipchat.foobar.org/'
+    # The directory from which notification templates are read.
+    templates:
+    - '/etc/alertmanager/template/*.tmpl'
+    # The root route on which each incoming alert enters.
+    route:
+      # The labels by which incoming alerts are grouped together. For example,
+      # multiple alerts coming in for cluster=A and alertname=LatencyHigh would
+      # be batched into a single group.
+      group_by: ['alertname', 'cluster', 'service']
+      # When a new group of alerts is created by an incoming alert, wait at
+      # least 'group_wait' to send the initial notification.
+      # This way ensures that you get multiple alerts for the same group that start
+      # firing shortly after another are batched together on the first
+      # notification.
+      group_wait: 30s
+      # When the first notification was sent, wait 'group_interval' to send a batch
+      # of new alerts that started firing for that group.
+      group_interval: 5m
+      # If an alert has successfully been sent, wait 'repeat_interval' to
+      # resend them.
+      repeat_interval: 3h
+      # A default receiver
+      receiver: team-X-mails
+      # All the above attributes are inherited by all child routes and can
+      # overwritten on each.
+      # The child route trees.
+      routes:
+      # This routes performs a regular expression match on alert labels to
+      # catch alerts that are related to a list of services.
+      - match_re:
+          service: ^(foo1|foo2|baz)$
+        receiver: team-X-mails
+        # The service has a sub-route for critical alerts, any alerts
+        # that do not match, i.e. severity != critical, fall-back to the
+        # parent node and are sent to 'team-X-mails'
+        routes:
+        - match:
+            severity: critical
+          receiver: team-X-pager
+      - match:
+          service: files
+        receiver: team-Y-mails
+        routes:
+        - match:
+            severity: critical
+          receiver: team-Y-pager
+      # This route handles all alerts coming from a database service. If there's
+      # no team to handle it, it defaults to the DB team.
+      - match:
+          service: database
+        receiver: team-DB-pager
+        # Also group alerts by affected database.
+        group_by: [alertname, cluster, database]
+        routes:
+        - match:
+            owner: team-X
+          receiver: team-X-pager
+        - match:
+            owner: team-Y
+          receiver: team-Y-pager
+    # Inhibition rules allow to mute a set of alerts given that another alert is
+    # firing.
+    # We use this to mute any warning-level notifications if the same alert is
+    # already critical.
+    inhibit_rules:
+    - source_match:
+        severity: 'critical'
+      target_match:
+        severity: 'warning'
+      # Apply inhibition if the alertname is the same.
+      equal: ['alertname', 'cluster', 'service']
+    receivers:
+    - name: 'team-X-mails'
+      email_configs:
+      - to: 'team-X+alerts@example.org'
+    - name: 'team-X-pager'
+      email_configs:
+      - to: 'team-X+alerts-critical@example.org'
+      pagerduty_configs:
+      - service_key: <team-X-key>
+    - name: 'team-Y-mails'
+      email_configs:
+      - to: 'team-Y+alerts@example.org'
+    - name: 'team-Y-pager'
+      pagerduty_configs:
+      - service_key: <team-Y-key>
+    - name: 'team-DB-pager'
+      pagerduty_configs:
+      - service_key: <team-DB-key>
+    - name: 'team-X-hipchat'
+      hipchat_configs:
+      - auth_token: <auth_token>
+        room_id: 85
+        message_format: html
+        notify: true

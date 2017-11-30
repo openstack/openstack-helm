@@ -1,0 +1,39 @@
+{{/*
+Copyright 2017 The Openstack-Helm Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.service }}
+{{- $envAll := . }}
+{{- $endpoint := $envAll.Values.endpoints.monitoring }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ tuple "monitoring" "internal" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
+  annotations:
+{{ tuple $endpoint $envAll  | include "helm-toolkit.snippets.prometheus_service_annotations" | indent 4 }}
+spec:
+  ports:
+  - name: prom-metrics
+    port: {{ .Values.network.prometheus.port }}
+    {{ if .Values.network.prometheus.node_port.enabled }}
+    nodePort: {{ .Values.network.prometheus.node_port.port }}
+    {{ end }}
+  selector:
+{{ tuple $envAll "prometheus" "api" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+  {{ if .Values.network.prometheus.node_port.enabled }}
+  type: NodePort
+  {{ end }}
+{{- end }}
