@@ -20,12 +20,20 @@ set -ex
 COMMAND="${@:-start}"
 
 function start () {
-  exec nova-placement-api \
-        --port {{ .Values.network.placement.port }}
+
+  cp -a $(type -p nova-placement-api) /var/www/cgi-bin/nova/
+
+  if [ -f /etc/apache2/envvars ]; then
+     # Loading Apache2 ENV variables
+     source /etc/apache2/envvars
+  fi
+
+  # Start Apache2
+  exec apache2 -DFOREGROUND
 }
 
 function stop () {
-  kill -TERM 1
+  apachectl -k graceful-stop
 }
 
 $COMMAND
