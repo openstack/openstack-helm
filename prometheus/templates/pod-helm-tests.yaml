@@ -28,19 +28,21 @@ spec:
   containers:
     - name: {{.Release.Name}}-helm-tests
 {{ tuple $envAll "helm_tests" | include "helm-toolkit.snippets.image" | indent 6 }}
+{{ tuple $envAll $envAll.Values.pod.resources.jobs.tests | include "helm-toolkit.snippets.kubernetes_resources" | indent 6 }}
       command:
-      - /tmp/helm-tests.sh
+        - /tmp/helm-tests.sh
       env:
-      - name: PROMETHEUS_ENDPOINT
-        value: {{ tuple "monitoring" "internal" "api" $envAll | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" }}
+        - name: PROMETHEUS_ENDPOINT
+          value: {{ tuple "monitoring" "internal" "api" $envAll | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" }}
       volumeMounts:
-      - name: prometheus-bin
-        mountPath: /tmp/helm-tests.sh
-        subPath: helm-tests.sh
-        readOnly: true
+        - name: prometheus-bin
+          mountPath: /tmp/helm-tests.sh
+          subPath: helm-tests.sh
+          readOnly: true
   volumes:
-  - name: prometheus-bin
-    configMap:
-      name: prometheus-bin
-      defaultMode: 0555
+{{ tuple . | include "helm-toolkit.snippets.kubernetes_entrypoint_secret_mount" | indent 4 }}
+    - name: prometheus-bin
+      configMap:
+        name: prometheus-bin
+        defaultMode: 0555
 {{- end }}
