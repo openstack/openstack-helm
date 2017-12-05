@@ -1,0 +1,37 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+- name: Kubectl describe cluster scoped objects common block
+  vars:
+    cluster_object: null
+
+  block:
+    - name: "creating directory for {{ cluster_object }} descriptions"
+      file: path="{{ logs_dir }}/resources/{{ cluster_object }}" state=directory
+
+    - name: "gathering names of {{ cluster_object }}s currently deployed"
+      shell: |-
+              set -e
+              kubectl get {{ cluster_object }} -o json | jq -r '.items[].metadata.name'
+      args:
+        executable: /bin/bash
+      register: resource_names
+
+    - name: "getting descriptions of {{ cluster_object }}s deployed"
+      shell: |-
+              set -e
+              kubectl describe {{ cluster_object }} {{ object_name }} > {{ logs_dir }}/resources/{{ cluster_object }}/{{ object_name }}.yaml
+      args:
+        executable: /bin/bash
+      loop_control:
+        loop_var: object_name
+      with_items: "{{ resource_names.stdout_lines }}"

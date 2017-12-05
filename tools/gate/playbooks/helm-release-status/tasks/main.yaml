@@ -10,18 +10,29 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-- include: generate-dynamic-over-rides.yaml
-
-- name: "creating directory for helm test logs"
+- name: "creating directory for helm release status"
   file:
-    path: "{{ logs_dir }}/helm-tests"
+    path: "{{ logs_dir }}/helm-releases"
     state: directory
 
-- name: "iterating through Helm chart groups"
+- name: "Gathering release status in chart groups"
   vars:
     chart_group_name: "{{ helm_chart_group.name }}"
-    chart_group_items: "{{ helm_chart_group.charts }}"
-  include: util-chart-group.yaml
+  include: util-chart-group-releases.yaml
   loop_control:
     loop_var: helm_chart_group
   with_items: "{{ chart_groups }}"
+
+- name: "Downloads helm release statuses to executor"
+  synchronize:
+    src: "{{ logs_dir }}/helm-releases"
+    dest: "{{ zuul.executor.log_root }}/{{ inventory_hostname }}"
+    mode: pull
+  ignore_errors: yes
+
+- name: "Download helm release test logs to executor"
+  synchronize:
+    src: "{{ logs_dir }}/helm-tests"
+    dest: "{{ zuul.executor.log_root }}/{{ inventory_hostname }}"
+    mode: pull
+  ignore_errors: yes

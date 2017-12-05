@@ -10,18 +10,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-- include: generate-dynamic-over-rides.yaml
-
-- name: "creating directory for helm test logs"
-  file:
-    path: "{{ logs_dir }}/helm-tests"
-    state: directory
-
-- name: "iterating through Helm chart groups"
+- name: Helm release status common block
   vars:
-    chart_group_name: "{{ helm_chart_group.name }}"
-    chart_group_items: "{{ helm_chart_group.charts }}"
-  include: util-chart-group.yaml
-  loop_control:
-    loop_var: helm_chart_group
-  with_items: "{{ chart_groups }}"
+    release: null
+    namespace: null
+  block:
+    - name: "describing the {{ release }} release"
+      shell: |-
+              helm status "{{ release }}" > "{{ logs_dir }}"/helm-releases/"{{ release }}".yaml
+      args:
+        executable: /bin/bash
+      ignore_errors: True

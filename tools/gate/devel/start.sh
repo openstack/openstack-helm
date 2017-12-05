@@ -70,7 +70,7 @@ elif [ "x${DEPLOY}" == "xcharts" ]; then
   PLAYBOOKS="osh-infra-deploy-charts"
 elif [ "x${DEPLOY}" == "xfull" ]; then
   ansible_install
-  PLAYBOOKS="osh-infra-docker osh-infra-build osh-infra-deploy-k8s osh-infra-deploy-charts"
+  PLAYBOOKS="osh-infra-docker osh-infra-build osh-infra-deploy-k8s osh-infra-deploy-charts osh-infra-collect-logs"
 else
   echo "Unknown Deploy Option Selected"
   exit 1

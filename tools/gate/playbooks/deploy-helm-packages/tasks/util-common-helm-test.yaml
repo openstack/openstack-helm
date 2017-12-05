@@ -39,12 +39,14 @@
       debug:
         var: test_result.stdout_lines
 
-    - name: "gathering logs for successful helm tests for {{ release }}"
+    - name: "gathering logs for helm tests for {{ release }}"
       when:
         - test_result | succeeded
-        - "'output' in test_settings"
-        - "test_settings.output|bool == true"
-      command: "kubectl logs {{ release }}-test -n {{ namespace }}"
+      shell: |-
+              set -e
+              kubectl logs {{ release }}-test -n {{ namespace }} >> {{ logs_dir }}/helm-tests/{{ release }}.txt
+      args:
+        executable: /bin/bash
       register: test_logs
 
     - name: "displaying logs for successful helm tests for {{ release }}"
