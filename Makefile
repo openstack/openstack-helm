@@ -12,11 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# It's necessary to set this because some environments don't link sh -> bash.
+SHELL := /bin/bash
+
 HELM := helm
 TASK := build
 
 EXCLUDES := helm-toolkit doc tests tools logs
 CHARTS := helm-toolkit $(filter-out $(EXCLUDES), $(patsubst %/.,%,$(wildcard */.)))
+
+.PHONY: $(EXCLUDES) $(CHARTS)
 
 all: $(CHARTS)
 
@@ -47,4 +52,5 @@ clean:
 pull-all-images:
 	@./tools/pull-images.sh
 
-.PHONY: $(EXCLUDES) $(CHARTS)
+pull-images:
+	@./tools/pull-images.sh $(filter-out $@,$(MAKECMDGOALS))
