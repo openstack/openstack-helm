@@ -21,6 +21,9 @@ limitations under the License.
 {{- else -}}
 {{- $_ := set .Values "pod_dependency" .Values.dependencies.nfs -}}
 {{- end -}}
+
+{{- $serviceAccountName := "nfs-provisioner"}}
+{{ tuple $envAll $envAll.Values.pod_dependency $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 kind: Deployment
 apiVersion: apps/v1beta1
@@ -35,7 +38,7 @@ spec:
       labels:
 {{ tuple $envAll "nfs" "provisioner" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
     spec:
-      serviceAccount: nfs-provisioner
+      serviceAccountName: {{ $serviceAccountName }}
       affinity:
 {{ tuple $envAll "nfs" "provisioner" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
       nodeSelector:
@@ -83,7 +86,6 @@ spec:
             - name: export-volume
               mountPath: /export
       volumes:
-{{ tuple . | include "helm-toolkit.snippets.kubernetes_entrypoint_secret_mount" | indent 8 }}
         - name: export-volume
           {{- if eq .Values.storage.type "persistentVolumeClaim" }}
           persistentVolumeClaim:

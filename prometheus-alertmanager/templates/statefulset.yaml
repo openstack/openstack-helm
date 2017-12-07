@@ -21,8 +21,12 @@ limitations under the License.
 {{- else -}}
 {{- $_ := set .Values "pod_dependency" .Values.dependencies.alertmanager -}}
 {{- end -}}
+
 {{- $mounts_alertmanager := .Values.pod.mounts.alertmanager.alertmanager }}
 {{- $mounts_alertmanager_init := .Values.pod.mounts.alertmanager.init_container }}
+
+{{- $serviceAccountName := "alertmanager"}}
+{{ tuple $envAll $envAll.Values.pod_dependency $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: apps/v1beta1
 kind: StatefulSet
@@ -93,7 +97,6 @@ spec:
               mountPath: /var/lib/alertmanager/data
 {{ if $mounts_alertmanager.volumeMounts }}{{ toYaml $mounts_alertmanager.volumeMounts | indent 12 }}{{ end }}
       volumes:
-{{ tuple . | include "helm-toolkit.snippets.kubernetes_entrypoint_secret_mount" | indent 8 }}
         - name: etc-alertmanager
           emptyDir: {}
         - name: alertmanager-etc

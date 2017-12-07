@@ -21,6 +21,9 @@ limitations under the License.
 {{- else -}}
 {{- $_ := set .Values "pod_dependency" .Values.dependencies.registry -}}
 {{- end -}}
+
+{{- $serviceAccountName := "docker-registry"}}
+{{ tuple $envAll $envAll.Values.pod_dependency $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: apps/v1beta1
 kind: Deployment
@@ -37,6 +40,7 @@ spec:
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
     spec:
+      serviceAccountName: {{ $serviceAccountName }}
       affinity:
 {{ tuple $envAll "docker" "registry" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
       nodeSelector:
@@ -64,7 +68,6 @@ spec:
           - name: docker-images
             mountPath: {{ .Values.conf.registry.storage.filesystem.rootdirectory }}
       volumes:
-{{ tuple . | include "helm-toolkit.snippets.kubernetes_entrypoint_secret_mount" | indent 8 }}
         - name: registry-bin
           configMap:
             name: registry-bin

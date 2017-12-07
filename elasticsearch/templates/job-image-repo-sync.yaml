@@ -18,6 +18,9 @@ limitations under the License.
 {{- $envAll := . }}
 {{- if .Values.images.local_registry.active -}}
 {{- $_ := set .Values "pod_dependency" .Values.dependencies.image_repo_sync -}}
+
+{{- $serviceAccountName := "elasticsearch-image-repo-sync"}}
+{{ tuple $envAll $envAll.Values.pod_dependency $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: batch/v1
 kind: Job
@@ -29,6 +32,7 @@ spec:
       labels:
 {{ tuple $envAll "elasticsearch" "image-repo-sync" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
     spec:
+      serviceAccountName: {{ $serviceAccountName }}
       restartPolicy: OnFailure
       nodeSelector:
         {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
@@ -60,6 +64,5 @@ spec:
         - name: docker-socket
           hostPath:
             path: /var/run/docker.sock
-{{ tuple . | include "helm-toolkit.snippets.kubernetes_entrypoint_secret_mount" | indent 8 }}
 {{- end }}
 {{- end }}

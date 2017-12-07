@@ -21,6 +21,9 @@ limitations under the License.
 {{- else -}}
 {{- $_ := set .Values "pod_dependency" .Values.dependencies.calico_policy_controller -}}
 {{- end -}}
+
+{{- $serviceAccountName := "calico-policy-controller"}}
+{{ tuple $envAll $envAll.Values.pod_dependency $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 # This manifest deploys the Calico policy controller on Kubernetes.
 # See https://github.com/projectcalico/k8s-policy
@@ -58,7 +61,7 @@ spec:
       # This, along with the annotation above marks this pod as a critical add-on.
       - key: CriticalAddonsOnly
         operator: Exists
-      serviceAccountName: calico-policy-controller
+      serviceAccountName: {{ $serviceAccountName }}
       initContainers:
 {{ tuple $envAll .Values.pod_dependency list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
@@ -80,6 +83,4 @@ spec:
             # kubernetes.default to the correct service clusterIP.
             - name: CONFIGURE_ETC_HOSTS
               value: "true"
-      volumes:
-{{ tuple . | include "helm-toolkit.snippets.kubernetes_entrypoint_secret_mount" | indent 8 }}
 {{- end }}

@@ -21,6 +21,9 @@ limitations under the License.
 {{- else -}}
 {{- $_ := set .Values "pod_dependency" .Values.dependencies.redis -}}
 {{- end -}}
+
+{{- $serviceAccountName := "redis"}}
+{{ tuple $envAll $envAll.Values.pod_dependency $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: apps/v1beta1
 kind: Deployment
@@ -34,6 +37,7 @@ spec:
       labels:
 {{ tuple $envAll "redis" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
     spec:
+      serviceAccountName: {{ $serviceAccountName }}
       affinity:
 {{ tuple $envAll "redis" "server" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
       nodeSelector:
@@ -53,6 +57,4 @@ spec:
           readinessProbe:
             tcpSocket:
               port: {{ .Values.network.port }}
-      volumes:
-{{ tuple . | include "helm-toolkit.snippets.kubernetes_entrypoint_secret_mount" | indent 8 }}
 {{- end }}

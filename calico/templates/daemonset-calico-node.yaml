@@ -21,6 +21,9 @@ limitations under the License.
 {{- else -}}
 {{- $_ := set .Values "pod_dependency" .Values.dependencies.calico_node -}}
 {{- end -}}
+
+{{- $serviceAccountName := "calico-cni-plugin"}}
+{{ tuple $envAll $envAll.Values.pod_dependency $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 # This manifest installs the calico/node container, as well
 # as the Calico CNI plugins and network config on
@@ -57,7 +60,7 @@ spec:
         # This, along with the annotation above marks this pod as a critical add-on.
         - key: CriticalAddonsOnly
           operator: Exists
-      serviceAccountName: calico-cni-plugin
+      serviceAccountName: {{ $serviceAccountName }}
       initContainers:
 {{ tuple $envAll .Values.pod_dependency list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
@@ -160,7 +163,6 @@ spec:
             - mountPath: /host/etc/cni/net.d
               name: cni-net-dir
       volumes:
-{{ tuple . | include "helm-toolkit.snippets.kubernetes_entrypoint_secret_mount" | indent 8 }}
         # Used by calico/node.
         - name: lib-modules
           hostPath:

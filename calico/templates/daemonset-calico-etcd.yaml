@@ -21,6 +21,9 @@ limitations under the License.
 {{- else -}}
 {{- $_ := set .Values "pod_dependency" .Values.dependencies.etcd -}}
 {{- end -}}
+
+{{- $serviceAccountName := "calico-etcd"}}
+{{ tuple $envAll $envAll.Values.pod_dependency $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 # This manifest installs the Calico etcd on the kubeadm master.  This uses a DaemonSet
 # to force it to run on the master even when the master isn't schedulable, and uses
@@ -76,7 +79,6 @@ spec:
             - name: var-etcd
               mountPath: /var/etcd
       volumes:
-{{ tuple . | include "helm-toolkit.snippets.kubernetes_entrypoint_secret_mount" | indent 8 }}
         - name: var-etcd
           hostPath:
             path: /var/etcd
