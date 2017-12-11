@@ -84,17 +84,14 @@ function helm_test_deployment {
     TIMEOUT=$2
   fi
 
-  NAME="${DEPLOYMENT}-rally-test"
-  if [ "$#" -gt 2 ]; then
-    NAME="${DEPLOYMENT}-test"
-  fi
+  NAME="${DEPLOYMENT}-test"
 
   # Get the namespace of the chart via the Helm release
   NAMESPACE=$(helm status ${DEPLOYMENT} |  awk '/^NAMESPACE/ { print $NF }')
 
   helm test --timeout ${TIMEOUT} ${DEPLOYMENT}
-  mkdir -p ${LOGS_DIR}/rally
-  kubectl logs -n ${NAMESPACE} ${NAME} > ${LOGS_DIR}/rally/${DEPLOYMENT}
+  mkdir -p ${LOGS_DIR}/helm-tests
+  kubectl logs -n ${NAMESPACE} ${NAME} > ${LOGS_DIR}/helm-tests/${DEPLOYMENT}
   kubectl delete -n ${NAMESPACE} pod ${NAME}
 }
 

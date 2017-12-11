@@ -217,7 +217,7 @@ if [ "x$INTEGRATION" == "xmulti" ]; then
   helm_test_deployment cinder ${SERVICE_TEST_TIMEOUT}
   helm_test_deployment neutron ${SERVICE_TEST_TIMEOUT}
   helm_test_deployment nova ${SERVICE_TEST_TIMEOUT}
-  helm_test_deployment barbican ${SERVICE_TEST_TIMEOUT} norally
+  helm_test_deployment barbican ${SERVICE_TEST_TIMEOUT}
 fi
 
 if [ "x$RALLY_CHART_ENABLED" == "xtrue" ]; then
