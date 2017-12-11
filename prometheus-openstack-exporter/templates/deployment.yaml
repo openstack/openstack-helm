@@ -1,0 +1,79 @@
+{{/*
+Copyright 2017 The Openstack-Helm Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.deployment }}
+{{- $envAll := . }}
+{{- $ksUserSecret := .Values.secrets.identity.user }}
+{{- if .Values.images.local_registry.active -}}
+{{- $_ := set .Values "pod_dependency" (merge .Values.dependencies.openstack_metrics_exporter .Values.conditional_dependencies.local_image_registry) -}}
+{{- else -}}
+{{- $_ := set .Values "pod_dependency" .Values.dependencies.openstack_metrics_exporter -}}
+{{- end -}}
+
+{{- $serviceAccountName := "prometheus-openstack-exporter" }}
+{{ tuple $envAll $envAll.Values.pod_dependency $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: openstack-exporter
+spec:
+  replicas: {{ .Values.pod.replicas.openstack_metrics_exporter }}
+{{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_deployment" | indent 2 }}
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "openstack-exporter" "exporter" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+    spec:
+      serviceAccountName: {{ $serviceAccountName }}
+      nodeSelector:
+        {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
+      terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.openstack_metrics_exporter.timeout | default "30" }}
+      initContainers:
+{{ tuple $envAll .Values.pod_dependency list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+      containers:
+        - name: openstack-metrics-exporter
+{{ tuple $envAll "openstack_metrics_exporter" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.openstack_metrics_exporter | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          command:
+            - /tmp/openstack-exporter.sh
+            - start
+          ports:
+            - name: metrics
+              containerPort: {{ .Values.network.openstack_metrics_exporter.port }}
+          env:
+            - name: TIMEOUT_SECONDS
+              value: "{{ .Values.conf.openstack_metrics_exporter.timeout_seconds }}"
+            - name: OS_POLLING_INTERVAL
+              value: "{{ .Values.conf.openstack_metrics_exporter.polling_interval_seconds }}"
+            - name: OS_RETRIES
+              value: "{{ .Values.conf.openstack_metrics_exporter.retries }}"
+            - name: LISTEN_PORT
+              value: "{{ .Values.network.openstack_metrics_exporter.port }}"
+{{- with $env := dict "ksUserSecret" $ksUserSecret }}
+{{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 12 }}
+{{- end }}
+          volumeMounts:
+            - name: openstack-exporter-bin
+              mountPath: /tmp/openstack-exporter.sh
+              subPath: openstack-exporter.sh
+              readOnly: true
+      volumes:
+        - name: openstack-exporter-bin
+          configMap:
+            name: openstack-exporter-bin
+            defaultMode: 0555
+{{- end }}
