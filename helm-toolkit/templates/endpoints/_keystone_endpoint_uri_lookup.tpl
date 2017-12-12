@@ -35,7 +35,11 @@ limitations under the License.
 {{- $endpointPort := index $endpointPortMAP $endpoint | default (index $endpointPortMAP "default") }}
 {{- $endpointPath := index .path $endpoint | default .path.default | default "/" }}
 {{- $endpointClusterHostname := printf "%s.%s.%s" $endpointHost $namespace $clusterSuffix }}
-{{- $endpointHostname := index .host_fqdn_override $endpoint | default .host_fqdn_override.default | default $endpointClusterHostname }}
-{{- printf "%s://%s:%1.f%s" $endpointScheme $endpointHostname $endpointPort $endpointPath -}}
+{{- if regexMatch "[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+" $endpointHost }}
+{{- printf "%s://%s:%1.f%s" $endpointScheme $endpointHost $endpointPort $endpointPath -}}
+{{- else -}}
+{{- $endpointFqdnHostname := index .host_fqdn_override $endpoint | default .host_fqdn_override.default | default $endpointClusterHostname }}
+{{- printf "%s://%s:%1.f%s" $endpointScheme $endpointFqdnHostname $endpointPort $endpointPath -}}
+{{- end -}}
 {{- end -}}
 {{- end -}}
