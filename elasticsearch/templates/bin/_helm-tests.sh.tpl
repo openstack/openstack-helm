@@ -31,7 +31,7 @@ function create_index () {
   ' | python -c "import sys, json; print json.load(sys.stdin)['acknowledged']")
   if [ "$index_result" == "True" ];
   then
-     echo "PASS: Test index created!"
+     echo "PASS: Test index created!";
   else
      echo "FAIL: Test index not created!";
      exit 1;
@@ -47,7 +47,7 @@ function insert_test_data () {
   ' | python -c "import sys, json; print json.load(sys.stdin)['created']")
   if [ "$insert_result" == "True" ]; then
      sleep 20
-     echo "PASS: Test data inserted into test index!"
+     echo "PASS: Test data inserted into test index!";
   else
      echo "FAIL: Test data not inserted into test index!";
      exit 1;
