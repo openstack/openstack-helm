@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Default values for fluentbit.
+# Default values for fluentbit and fluentd.
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
@@ -57,13 +57,13 @@ dependencies:
       endpoint: public
   fluentbit:
     services:
-    - service: aggregator
+    - service: fluentd
       endpoint: internal
   tests:
     services:
     - service: elasticsearch
       endpoint: internal
-    - service: aggregator
+    - service: fluentd
       endpoint: internal
 
 conditional_dependencies:
@@ -78,29 +78,62 @@ conditional_dependencies:
       - service: kafka
         endpoint: public
 
-
 conf:
   fluentbit:
-    service:
-      log_level: info
-    input:
-      mem_buf_limit: 5MB
-    override:
-  fluentd:
-    kafka:
-      enabled: false
-      topic_name: logs
-      flush_interval: 3s
-      output_data_type: json
-    elasticsearch:
-      logstash: true
-      buffer_chunk_limit: 10M
-      buffer_queue_limit: 32
-      flush_interval: 15s
-      max_retry_wait: 300
-      disable_retry_limit: true
-      num_threads: 8
-    override:
+    - service:
+        header: service
+        Flush: 1
+        Daemon: Off
+        Log_Level: info
+        Parsers_File: parsers.conf
+    - containers_tail:
+        header: input
+        Name: tail
+        Tag: kube.*
+        Path: /var/log/containers/*.log
+        Parser: docker
+        DB: /var/log/flb_kube.db
+        Mem_Buf_Limit: 5MB
+    - kube_filter:
+        header: filter
+        Name: kubernetes
+        Match: kube.*
+        Merge_JSON_Log: On
+    - fluentd_output:
+        header: output
+        Name: forward
+        Match: "*"
+        Host: ${FLUENTD_HOST}
+        Port: ${FLUENTD_PORT}
+  parsers:
+    - docker:
+        header: parser
+        Name: docker
+        Format: json
+        Time_Key: time
+        Time_Format: "%Y-%m-%dT%H:%M:%S.%L"
+        Time_Keep: On
+  td_agent:
+    - fluentbit_forward:
+        header: source
+        type: forward
+        port: "#{ENV['FLUENTD_PORT']}"
+        bind: 0.0.0.0
+    - elasticsearch:
+        header: match
+        type: elasticsearch
+        expression: "**"
+        include_tag_key: true
+        host: "#{ENV['ELASTICSEARCH_HOST']}"
+        port: "#{ENV['ELASTICSEARCH_PORT']}"
+        logstash_format: true
+        buffer_chunk_limit: 10M
+        buffer_queue_limit: 32
+        flush_interval: 20s
+        max_retry_wait: 300
+        disable_retry_limit: ""
+        num_threads: 8
+
 
 endpoints:
   cluster_domain_suffix: cluster.local
@@ -129,26 +162,29 @@ endpoints:
     hosts:
       default: kafka-logging
       public: kafka
+    host_fqdn_override:
+      default: null
+    path:
+      default: null
     scheme:
       default: http
-      public: http
     port:
       service:
         default: 9092
-  aggregator:
+  fluentd:
     namespace: null
     name: fluentd
     hosts:
       default: fluentd-logging
-      internal: fluentd-logging
+    host_fqdn_override:
+      default: null
+    path:
+      default: null
     scheme:
       default: http
     port:
       service:
         default: 24224
-        internal: 24224
-    host_fqdn_override:
-      default: null
 
 network:
   fluentd:
@@ -179,8 +215,10 @@ pod:
           max_unavailable: 1
           max_surge: 3
     termination_grace_period:
-      fluentd_aggregator:
+      fluentd:
         timeout: 30
+  replicas:
+    fluentd: 3
   resources:
     fluentbit:
       enabled: false
@@ -199,15 +237,21 @@ pod:
         memory: '128Mi'
         cpu: '500m'
     jobs:
-      tests:
+      image_repo_sync:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
         limits:
-          memory: '1024Mi'
-          cpu: '2000m'
+          memory: "1024Mi"
+          cpu: "2000m"
+      tests:
         requests:
           memory: '128Mi'
           cpu: '100m'
-  replicas:
-    fluentd: 3
+        limits:
+          memory: '1024Mi'
+          cpu: '2000m'
+
   mounts:
     fluentd:
       fluentd:
