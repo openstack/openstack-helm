@@ -22,6 +22,8 @@ limitations under the License.
 {{- $_ := set .Values "pod_dependency" .Values.dependencies.elasticsearch_data -}}
 {{- end -}}
 
+{{- $mounts_elasticsearch := .Values.pod.mounts.elasticsearch.elasticsearch }}
+
 {{- $serviceAccountName := "elasticsearch-data"}}
 {{ tuple $envAll $envAll.Values.pod_dependency $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
@@ -115,8 +117,13 @@ spec:
               mountPath: /usr/share/elasticsearch/config/log4j2.properties
               subPath: log4j2.properties
               readOnly: true
+            {{ if .Values.storage.filesystem_repository.enabled }}
+            - name: snapshots
+              mountPath: {{ .Values.conf.elasticsearch.path.repo }}
+            {{ end }}
             - name: storage
               mountPath: {{ .Values.conf.elasticsearch.path.data }}
+{{ if $mounts_elasticsearch.volumeMounts }}{{ toYaml $mounts_elasticsearch.volumeMounts | indent 12 }}{{ end }}
       volumes:
         - name: elastic-logs
           emptyDir: {}
@@ -130,7 +137,13 @@ spec:
           configMap:
             name: elastic-etc
             defaultMode: 0444
-{{- if not .Values.storage.enabled }}
+        {{ if .Values.storage.filesystem_repository.enabled }}
+        - name: snapshots
+          persistentVolumeClaim:
+            claimName: {{ .Values.storage.filesystem_repository.pvc.name }}
+        {{ end }}
+{{ if $mounts_elasticsearch.volumes }}{{ toYaml $mounts_elasticsearch.volumes | indent 8 }}{{ end }}
+{{- if not .Values.storage.elasticsearch.enabled }}
         - name: storage
           emptyDir: {}
 {{- else }}
@@ -138,10 +151,10 @@ spec:
     - metadata:
         name: storage
       spec:
-        accessModes: {{ .Values.storage.pvc.access_mode }}
+        accessModes: {{ .Values.storage.elasticsearch.pvc.access_mode }}
         resources:
           requests:
-            storage: {{ .Values.storage.requests.storage  }}
-        storageClassName: {{ .Values.storage.storage_class }}
+            storage: {{ .Values.storage.elasticsearch.requests.storage  }}
+        storageClassName: {{ .Values.storage.elasticsearch.storage_class }}
 {{- end }}
 {{- end }}

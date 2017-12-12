@@ -18,11 +18,12 @@
 
 images:
   tags:
-    memory_init: docker.io/kolla/ubuntu-source-kolla-toolbox:4.0.0
+    memory_init: docker.io/kolla/ubuntu-source-heat-engine:3.0.3
     curator:  docker.io/bobrik/curator:5.2.0
     elasticsearch: docker.io/elasticsearch:5.4.2
-    helm_tests: docker.io/kolla/ubuntu-source-kolla-toolbox:3.0.3
+    helm_tests: docker.io/kolla/ubuntu-source-heat-engine:3.0.3
     dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.2.1
+    snapshot_repository: docker.io/kolla/ubuntu-source-heat-engine:3.0.3
     image_repo_sync: docker.io/docker:17.07.0
   pull_policy: "IfNotPresent"
   local_registry:
@@ -47,6 +48,10 @@ dependencies:
   image_repo_sync:
     services:
       - service: local_image_registry
+        endpoint: internal
+  snapshot_repository:
+    services:
+      - service: elasticsearch
         endpoint: internal
 
 conditional_dependencies:
@@ -83,6 +88,9 @@ pod:
         timeout: 600
       client:
         timeout: 600
+  mounts:
+    elasticsearch:
+      elasticsearch:
   resources:
     enabled: false
     client:
@@ -121,6 +129,13 @@ pod:
         limits:
           memory: "1024Mi"
           cpu: "2000m"
+      snapshot_repository:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
       tests:
         requests:
           memory: "128Mi"
@@ -149,7 +164,33 @@ conf:
           options:
             timeout_override:
             continue_if_exception: False
-            disable_action: False
+            ignore_empty_list: True
+            disable_action: True
+          filters:
+          - filtertype: age
+            source: name
+            direction: older
+            timestring: '%Y.%m.%d'
+            unit: days
+            unit_count: 30
+            field:
+            stats_result:
+            epoch:
+            exclude: False
+        2:
+          action: snapshot
+          description: "Snapshot indices and send to configured repository"
+          options:
+            repository: default_repo
+            # Leaving this blank results in the default name format
+            name:
+            wait_for_completion: True
+            max_wait: 3600
+            wait_interval: 10
+            timeout_override:
+            ignore_empty_list: True
+            continue_if_exception: False
+            disable_action: True
           filters:
           - filtertype: age
             source: name
@@ -195,6 +236,10 @@ conf:
     path:
       data: /usr/share/elasticsearch/data
       logs: /usr/share/elasticsearch/logs
+      repo: /usr/share/elasticsearch/repo
+    repository:
+      name: default_repo
+      type: fs
     zen:
       min_masters: 2
     env:
@@ -244,13 +289,23 @@ network:
       port: 30931
 
 storage:
-  enabled: true
-  pvc:
-    name: pvc-elastic
-    access_mode: [ "ReadWriteOnce" ]
-  requests:
-    storage: 5Gi
-  storage_class: general
+  elasticsearch:
+    enabled: true
+    pvc:
+      name: pvc-elastic
+      access_mode: [ "ReadWriteOnce" ]
+    requests:
+      storage: 5Gi
+    storage_class: general
+  filesystem_repository:
+    enabled: true
+    pvc:
+      name: pvc-snapshots
+      access_mode: ReadWriteMany
+    requests:
+      storage: 5Gi
+    storage_class: general
+
 
 manifests:
   clusterrole: true
@@ -262,8 +317,9 @@ manifests:
   deployment_client: true
   deployment_master: true
   job_image_repo_sync: true
+  job_snapshot_repository: true
   helm_tests: true
-  serviceaccount: true
+  pvc_snapshots: true
   service_data: true
   service_discovery: true
   service_logging: true

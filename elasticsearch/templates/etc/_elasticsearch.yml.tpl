@@ -28,6 +28,7 @@ network.host: {{ .Values.conf.elasticsearch.network.host }}
 path:
   data: {{ .Values.conf.elasticsearch.path.data }}
   logs: {{ .Values.conf.elasticsearch.path.logs }}
+  repo: {{ .Values.conf.elasticsearch.path.repo }}
 
 bootstrap:
   memory_lock: {{ .Values.conf.elasticsearch.bootstrap.memory_lock }}
