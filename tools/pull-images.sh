@@ -15,9 +15,17 @@
 # limitations under the License.
 
 set -x
-ALL_IMAGES="$(./tools/image-repo-overides.sh | \
-  python -c 'import sys, yaml, json; json.dump(yaml.safe_load(sys.stdin), sys.stdout)' | \
-  jq '.bootstrap.preload_images |map(.) | join(" ")' | tr -d '"')"
-for IMAGE in ${ALL_IMAGES}; do
-  sudo -H docker inspect $IMAGE > /dev/null || sudo -H docker pull $IMAGE
+
+if [ "x$1" == "x" ]; then
+  CHART_DIRS="$(echo ./*/)"
+else
+  CHART_DIRS="$(echo ./$1/)"
+fi
+
+for CHART_DIR in ${CHART_DIRS} ; do
+  if [ -e ${CHART_DIR}values.yaml ]; then
+    for IMAGE in $(cat ${CHART_DIR}values.yaml | yq '.images.tags | map(.) | join(" ")' | tr -d '"'); do
+      sudo docker inspect $IMAGE >/dev/null|| sudo docker pull $IMAGE
+    done
+  fi
 done

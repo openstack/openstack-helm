@@ -52,6 +52,9 @@ clean:
 pull-all-images:
 	@./tools/pull-images.sh
 
+pull-images:
+	@./tools/pull-images.sh $(filter-out $@,$(MAKECMDGOALS))
+
 dev-deploy:
 	@./tools/gate/devel/start.sh $(filter-out $@,$(MAKECMDGOALS))
 
