@@ -92,8 +92,9 @@ endpoints:
     name: alertmanager
     namespace: null
     hosts:
-      default: alerts-api
+      default: alerts-engine
       public: alertmanager
+      discovery: alertmanager-discovery
     host_fqdn_override:
       default: null
     path:
@@ -104,6 +105,8 @@ endpoints:
       api:
         default: 9093
         public: 80
+      mesh:
+        default: 6783
 
 dependencies:
   alertmanager:
@@ -130,6 +133,7 @@ network:
       enabled: false
       port: 30903
     port: 9093
+    mesh_port: 6783
 
 storage:
   enabled: true
@@ -149,11 +153,17 @@ manifests:
   pvc: true
   rbac_entrypoint: true
   service: true
+  service_discovery: true
   service_ingress: true
   serviceaccount: true
   statefulset: true
 
 conf:
+  command_flags:
+    storage:
+      path: /var/lib/alertmanager/data
+    mesh:
+      listen_address: "0.0.0.0:6783"
   alertmanager: |
     global:
       # The smarthost and SMTP sender used for mail notifications.
