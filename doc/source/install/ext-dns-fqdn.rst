@@ -135,7 +135,7 @@ repeat code.
   export FQDN=os.foo.org
 
   helm install --name=horizon ./horizon --namespace=openstack \
-    --set network.enable_node_port=true \
+    --set network.node_port.enabled=true \
     --set endpoints.dashboard.host_fqdn_override.public=horizon.$FQDN \
     --set endpoints.identity.host_fqdn_override.public=keystone.$FQDN
 
@@ -184,7 +184,7 @@ all the ``--set`` flags
     --set endpoints.identity.host_fqdn_override.public=keystone.$FQDN
 
   helm install --name=horizon local/horizon --namespace=openstack \
-    --set=network.enable_node_port=true \
+    --set=network.node_port.enabled=true \
     --set endpoints.dashboard.host_fqdn_override.public=horizon.$FQDN \
     --set endpoints.identity.host_fqdn_override.public=keystone.$FQDN
 

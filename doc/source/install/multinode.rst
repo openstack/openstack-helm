@@ -453,7 +453,7 @@ now create endpoints in the Keystone service catalog:
 ::
 
     helm install --namespace=openstack --name=horizon ./horizon \
-      --set network.enable_node_port=true
+      --set network.node_port.enabled=true
 
 **Install Glance:**
 
