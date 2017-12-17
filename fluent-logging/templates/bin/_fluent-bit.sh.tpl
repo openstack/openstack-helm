@@ -1,3 +1,5 @@
+#!/bin/sh
+
 {{/*
 Copyright 2017 The Openstack-Helm Authors.
 
@@ -14,20 +16,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if .Values.manifests.configmap_bin }}
-{{- $envAll := . }}
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: fluent-logging-bin
-data:
-  fluentd.sh: |
-{{ tuple "bin/_fluentd.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
-  fluent-bit.sh: |
-{{ tuple "bin/_fluent-bit.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
-  helm-tests.sh: |
-{{ tuple "bin/_helm-tests.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
-  image-repo-sync.sh: |+
-{{- include "helm-toolkit.scripts.image_repo_sync" . | indent 4 }}
-{{- end }}
+set -ex
+
+exec /fluent-bit/bin/fluent-bit -c /fluent-bit/etc/fluent-bit.conf

@@ -51,7 +51,13 @@ spec:
           image: {{ .Values.images.tags.fluentbit }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
 {{ tuple $envAll $envAll.Values.pod.resources.fluentbit | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          command:
+            - /tmp/fluent-bit.sh
           volumeMounts:
+            - name: fluent-logging-bin
+              mountPath: /tmp/fluent-bit.sh
+              subPath: fluent-bit.sh
+              readOnly: true
             - name: varlog
               mountPath: /var/log
             - name: varlibdockercontainers
@@ -74,6 +80,10 @@ spec:
         - name: varlibdockercontainers
           hostPath:
             path: /var/lib/docker/containers
+        - name: fluent-logging-bin
+          configMap:
+            name: fluent-logging-bin
+            defaultMode: 0555
         - name: fluent-logging-etc
           configMap:
             name: fluent-logging-etc
