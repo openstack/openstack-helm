@@ -73,7 +73,11 @@ spec:
                 fieldRef:
                   fieldPath: metadata.namespace
           args:
+            {{ if empty .Values.storageclass.provisioner -}}
+            - "-provisioner=nfs/{{ .Release.Name }}"
+            {{- else -}}
             - "-provisioner={{ .Values.storageclass.provisioner }}"
+            {{- end }}
             - "-grace-period=10"
           volumeMounts:
             - name: export-volume
@@ -81,6 +85,15 @@ spec:
       volumes:
 {{ tuple . | include "helm-toolkit.snippets.kubernetes_entrypoint_secret_mount" | indent 8 }}
         - name: export-volume
+          {{- if eq .Values.storage.type "persistentVolumeClaim" }}
+          persistentVolumeClaim:
+            {{ if empty .Values.storage.persistentVolumeClaim.name -}}
+            claimName: {{ .Release.Name }}
+            {{- else -}}
+            claimName: {{ .Values.storage.persistentVolumeClaim.name }}
+            {{- end }}
+          {{- else if eq .Values.storage.type "hostPath" }}
           hostPath:
-            path: {{ .Values.storage.host.host_path }}
+            path: {{ .Values.storage.hostPath.path }}
+          {{- end }}
 {{- end }}

@@ -57,16 +57,28 @@ images:
       - image_repo_sync
 
 storage:
-  host:
-    host_path: /var/lib/openstack-helm/nfs
+  type: hostPath
+  hostPath:
+    path: /var/lib/openstack-helm/nfs
+  persistentVolumeClaim:
+    access_mode: ReadWriteOnce
+    class_name: general
+    #NOTE(portdirect): Unless explicity set the PV name will be populated to
+    # match "{{ .Release.Name }}".
+    name: null
+    size: 10Gi
 
 labels:
   node_selector_key: openstack-control-plane
   node_selector_value: enabled
 
 storageclass:
-  provisioner: example.com/nfs
-  name: general
+  #NOTE(portdirect): Unless explicity set the provisioner name will be generated
+  # with the format "nfs/{{ .Release.Name }}"
+  provisioner: null
+  #NOTE(portdirect): Unless explicity set the PV name will be populated to
+  # match "{{ .Release.Name }}".
+  name: null
 
 dependencies:
   nfs:
@@ -119,3 +131,4 @@ manifests:
   service: true
   serviceaccount: true
   storage_class: true
+  volume_claim: true

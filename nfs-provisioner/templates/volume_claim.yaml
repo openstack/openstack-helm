@@ -14,22 +14,24 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if .Values.manifests.storage_class }}
+{{- if .Values.manifests.volume_claim }}
+{{- if eq .Values.storage.type "persistentVolumeClaim" }}
 {{- $envAll := . }}
 ---
-kind: StorageClass
-apiVersion: storage.k8s.io/v1
+kind: PersistentVolumeClaim
+apiVersion: v1
 metadata:
-  {{ if empty .Values.storageclass.name -}}
+  {{ if empty .Values.storage.persistentVolumeClaim.name -}}
   name: {{ .Release.Name }}
   {{- else -}}
-  name: {{ .Values.storageclass.name }}
+  name: {{ .Values.storage.persistentVolumeClaim.name }}
   {{- end }}
-{{ if empty .Values.storageclass.provisioner -}}
-provisioner: nfs/{{ .Release.Name }}
-{{- else -}}
-provisioner: {{ .Values.storageclass.provisioner }}
+spec:
+  accessModes:
+    - {{ .Values.storage.persistentVolumeClaim.access_mode }}
+  resources:
+    requests:
+      storage: {{ .Values.storage.persistentVolumeClaim.size }}
+  storageClassName: {{ .Values.storage.persistentVolumeClaim.class_name }}
 {{- end }}
-parameters:
-  mountOptions: vers=4.1
 {{- end }}
