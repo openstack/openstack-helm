@@ -21,14 +21,15 @@ COMMAND="${@:-start}"
 
 function start () {
   exec /bin/prometheus \
-    -config.file=/etc/config/prometheus.yml \
-    -alertmanager.url={{ tuple "alerts" "internal" "api" . | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" }} \
-    -storage.local.path={{ .Values.conf.prometheus.storage.local.path }} \
-    -storage.local.retention={{ .Values.conf.prometheus.storage.local.retention }} \
-    -log.format={{ .Values.conf.prometheus.log.format | quote }} \
-    -log.level={{ .Values.conf.prometheus.log.level | quote }} \
-    -query.max-concurrency={{ .Values.conf.prometheus.query.max_concurrency }} \
-    -query.timeout={{ .Values.conf.prometheus.query.timeout }}
+    --config.file=/etc/config/prometheus.yml \
+    --log.level={{ .Values.conf.prometheus.log.level | quote }} \
+    --query.max-concurrency={{ .Values.conf.prometheus.query.max_concurrency }} \
+    --storage.tsdb.path={{ .Values.conf.prometheus.storage.tsdb.path }} \
+    --storage.tsdb.retention={{ .Values.conf.prometheus.storage.tsdb.retention }} \
+    {{ if .Values.conf.prometheus.web_admin_api.enabled }}
+    --web.enable-admin-api \
+    {{ end }}
+    --query.timeout={{ .Values.conf.prometheus.query.timeout }}
 }
 
 function stop () {
