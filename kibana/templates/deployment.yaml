@@ -1,0 +1,85 @@
+{{/*
+Copyright 2017 The Openstack-Helm Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.deployment }}
+{{- $envAll := . }}
+{{- if .Values.images.local_registry.active -}}
+{{- $_ := set .Values "pod_dependency" (merge .Values.dependencies.kibana .Values.conditional_dependencies.local_image_registry) -}}
+{{- else -}}
+{{- $_ := set .Values "pod_dependency" .Values.dependencies.kibana -}}
+{{- end -}}
+
+{{- $serviceAccountName := "kibana" }}
+{{ tuple $envAll $envAll.Values.pod_dependency $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: kibana
+spec:
+  replicas: {{ .Values.pod.replicas.kibana }}
+{{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_deployment" | indent 2 }}
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "kibana" "dashboard" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
+    spec:
+      serviceAccountName: {{ $serviceAccountName }}
+      affinity:
+{{ tuple $envAll "kibana" "dashboard" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
+      nodeSelector:
+        {{ .Values.labels.kibana.node_selector_key }}: {{ .Values.labels.kibana.node_selector_value }}
+      initContainers:
+{{ tuple $envAll .Values.pod_dependency list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+      containers:
+        - name: kibana
+{{ tuple $envAll "kibana" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.kibana | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          command:
+            - /tmp/kibana.sh
+            - start
+          ports:
+            - name: http
+              containerPort: {{ .Values.network.kibana.port }}
+          env:
+            - name: ELASTICSEARCH_URL
+              value: {{ tuple "elasticsearch" "default" "client" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" }}
+          volumeMounts:
+            - name: kibana-bin
+              mountPath: /tmp/kibana.sh
+              subPath: kibana.sh
+              readOnly: true
+            - name: pod-etc-kibana
+              mountPath: /usr/share/kibana/config
+            - name: kibana-etc
+              mountPath: /usr/share/kibana/config/kibana.yml
+              subPath: kibana.yml
+              readOnly: true
+      volumes:
+        - name: pod-etc-kibana
+          emptyDir: {}
+        - name: kibana-bin
+          configMap:
+            name: kibana-bin
+            defaultMode: 0555
+        - name: kibana-etc
+          configMap:
+            name: kibana-etc
+            defaultMode: 0444
+{{- end }}
