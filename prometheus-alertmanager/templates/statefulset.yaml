@@ -29,7 +29,7 @@ kind: StatefulSet
 metadata:
   name: alertmanager
 spec:
-  serviceName: {{ tuple "alerts" "internal" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
+  serviceName: {{ tuple "alerts" "discovery" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
   replicas: {{ .Values.pod.replicas.alertmanager }}
   template:
     metadata:
@@ -60,9 +60,14 @@ spec:
                   - /tmp/alertmanager.sh
                   - stop
 {{ tuple $envAll $envAll.Values.pod.resources.alertmanager | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          env:
+            - name: DISCOVERY_SVC
+              value: {{ tuple "alerts" "discovery" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
           ports:
             - name: alerts-api
               containerPort: {{ .Values.network.alertmanager.port }}
+            - name: peer-mesh
+              containerPort: {{ .Values.network.alertmanager.mesh_port }}
           readinessProbe:
             httpGet:
               path: /#/status

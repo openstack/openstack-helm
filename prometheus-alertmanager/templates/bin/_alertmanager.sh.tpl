@@ -22,7 +22,17 @@ COMMAND="${@:-start}"
 function start () {
   exec /bin/alertmanager \
     -config.file=/etc/config/alertmanager.yml \
-    -storage.path=/var/lib/alertmanager/data
+    -storage.path={{ .Values.conf.command_flags.storage.path }} \
+    -mesh.listen-address={{ .Values.conf.command_flags.mesh.listen_address }} \
+    $(generate_peers)
+}
+
+function generate_peers () {
+  final_pod_suffix=$(( {{ .Values.pod.replicas.alertmanager }}-1 ))
+  for pod_suffix in `seq 0 "$final_pod_suffix"`
+  do
+    echo -mesh.peer={{ .Release.Name }}-$pod_suffix.$DISCOVERY_SVC:6783
+  done
 }
 
 function stop () {
