@@ -47,7 +47,7 @@ clean:
 	rm -f */templates/_globals.tpl
 	rm -f *tgz */charts/*tgz
 	rm -f */requirements.lock
-	-rmdir -p */charts
+	-rm -rf */charts
 
 pull-all-images:
 	@./tools/pull-images.sh
