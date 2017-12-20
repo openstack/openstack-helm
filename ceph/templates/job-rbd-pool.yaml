@@ -17,6 +17,9 @@ limitations under the License.
 {{- if .Values.deployment.ceph }}
 {{- $envAll := . }}
 {{- $dependencies := .Values.dependencies.rbd_pool }}
+
+{{- $serviceAccountName := "ceph-rbd-pool" }}
+{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: batch/v1
 kind: Job
@@ -29,12 +32,14 @@ spec:
       labels:
 {{ tuple $envAll "ceph" "rbd-pool" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
     spec:
+      serviceAccountName: {{ $serviceAccountName }}
       restartPolicy: OnFailure
       affinity:
 {{ tuple $envAll "ceph" "mgr" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
       nodeSelector:
         {{ .Values.labels.mgr.node_selector_key }}: {{ .Values.labels.mgr.node_selector_value }}
-      serviceAccount: default
+      initContainers:
+{{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
         - name: ceph-rbd-pool
           image: {{ .Values.images.tags.ceph_daemon }}

@@ -18,8 +18,41 @@ limitations under the License.
 {{- if and (eq .Values.conf.keystone.token.provider "fernet") (.Capabilities.APIVersions.Has "batch/v2alpha1") }}
 {{- $envAll := . }}
 {{- $dependencies := .Values.dependencies.fernet_rotate }}
+
 {{- $mounts_keystone_fernet_rotate := .Values.pod.mounts.keystone_fernet_rotate.keystone_fernet_rotate }}
 {{- $mounts_keystone_fernet_rotate_init := .Values.pod.mounts.keystone_fernet_rotate.init_container }}
+
+{{- $serviceAccountName := "keystone-fernet-rotate" }}
+{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: Role
+metadata:
+  name: {{ $serviceAccountName }}
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+    verbs:
+      - get
+      - list
+      - create
+      - update
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: RoleBinding
+metadata:
+  name: {{ $serviceAccountName }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ $serviceAccountName }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ $serviceAccountName }}
+    namespace: {{ $envAll.Release.Namespace }}
+---
 apiVersion: batch/v2alpha1
 kind: CronJob
 metadata:
@@ -34,6 +67,7 @@ spec:
     spec:
       template:
         spec:
+          serviceAccountName: {{ $serviceAccountName }}
           initContainers:
 {{ tuple $envAll $dependencies $mounts_keystone_fernet_rotate_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 12 }}
           restartPolicy: OnFailure

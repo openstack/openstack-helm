@@ -17,8 +17,12 @@ limitations under the License.
 {{- if .Values.manifests.deployment_scheduler }}
 {{- $envAll := . }}
 {{- $dependencies := .Values.dependencies.scheduler }}
+
 {{- $mounts_cinder_scheduler := .Values.pod.mounts.cinder_scheduler.cinder_scheduler }}
 {{- $mounts_cinder_scheduler_init := .Values.pod.mounts.cinder_scheduler.init_container }}
+
+{{- $serviceAccountName := "cinder-scheduler" }}
+{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: apps/v1beta1
 kind: Deployment
@@ -35,6 +39,7 @@ spec:
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
     spec:
+      serviceAccountName: {{ $serviceAccountName }}
       affinity:
 {{ tuple $envAll "cinder" "scheduler" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
       nodeSelector:

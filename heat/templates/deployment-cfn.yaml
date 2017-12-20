@@ -17,8 +17,12 @@ limitations under the License.
 {{- if .Values.manifests.deployment_cfn }}
 {{- $envAll := . }}
 {{- $dependencies := .Values.dependencies.cfn }}
+
 {{- $mounts_heat_cfn := .Values.pod.mounts.heat_cfn.heat_cfn }}
 {{- $mounts_heat_cfn_init := .Values.pod.mounts.heat_cfn.init_container }}
+
+{{- $serviceAccountName := "heat-cfn" }}
+{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: apps/v1beta1
 kind: Deployment
@@ -35,6 +39,7 @@ spec:
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
     spec:
+      serviceAccountName: {{ $serviceAccountName }}
       affinity:
 {{ tuple $envAll "heat" "cfn" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
       nodeSelector:

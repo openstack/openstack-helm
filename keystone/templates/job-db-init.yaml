@@ -17,8 +17,12 @@ limitations under the License.
 {{- if .Values.manifests.job_db_init }}
 {{- $envAll := . }}
 {{- $dependencies := .Values.dependencies.db_init }}
+
 {{- $mounts_keystone_db_init := .Values.pod.mounts.keystone_db_init.keystone_db_init }}
 {{- $mounts_keystone_db_init_init := .Values.pod.mounts.keystone_db_init.init_container }}
+
+{{- $serviceAccountName := "keystone-db-init" }}
+{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: batch/v1
 kind: Job
@@ -30,6 +34,7 @@ spec:
       labels:
 {{ tuple $envAll "keystone" "db-init" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
     spec:
+      serviceAccountName: {{ $serviceAccountName }}
       restartPolicy: OnFailure
       nodeSelector:
         {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}

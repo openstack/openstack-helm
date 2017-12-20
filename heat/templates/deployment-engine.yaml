@@ -17,8 +17,12 @@ limitations under the License.
 {{- if or ( .Values.manifests.deployment_engine ) ( .Values.manifests.statefulset_engine ) }}
 {{- $envAll := . }}
 {{- $dependencies := .Values.dependencies.engine }}
+
 {{- $mounts_heat_engine := .Values.pod.mounts.heat_engine.heat_engine }}
 {{- $mounts_heat_engine_init := .Values.pod.mounts.heat_engine.init_container }}
+
+{{- $serviceAccountName := "heat-engine" }}
+{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: apps/v1beta1
 metadata:
@@ -43,6 +47,7 @@ spec:
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
 {{- end }}
     spec:
+      serviceAccountName: {{ $serviceAccountName }}
       affinity:
 {{- tuple $envAll "heat" "engine" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
       nodeSelector:

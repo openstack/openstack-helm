@@ -18,8 +18,13 @@ limitations under the License.
 {{- if .Capabilities.APIVersions.Has "batch/v2alpha1" }}
 {{- $envAll := . }}
 {{- $dependencies := .Values.dependencies.volume_usage_audit }}
+
 {{- $mounts_cinder_volume_usage_audit := .Values.pod.mounts.cinder_volume_usage_audit.cinder_volume_usage_audit }}
 {{- $mounts_cinder_volume_usage_audit_init := .Values.pod.mounts.cinder_volume_usage_audit.init_container }}
+
+{{- $serviceAccountName := "cinder-volume-usage-audit" }}
+{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
 apiVersion: batch/v2alpha1
 kind: CronJob
 metadata:
@@ -34,11 +39,12 @@ spec:
     spec:
       template:
         spec:
-          initContainers:
-{{ tuple $envAll $dependencies $mounts_cinder_volume_usage_audit_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 12 }}
+          serviceAccountName: {{ $serviceAccountName }}
           restartPolicy: OnFailure
           nodeSelector:
             {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
+          initContainers:
+{{ tuple $envAll $dependencies $mounts_cinder_volume_usage_audit_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 12 }}
           containers:
             - name: cinder-volume-usage-audit
               image: {{ .Values.images.tags.cinder_volume_usage_audit }}

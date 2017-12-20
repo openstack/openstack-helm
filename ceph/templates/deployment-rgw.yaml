@@ -19,6 +19,9 @@ limitations under the License.
 {{- if .Values.deployment.ceph }}
 {{- if .Values.ceph.enabled.rgw }}
 {{- $dependencies := .Values.dependencies.rgw }}
+
+{{- $serviceAccountName := "ceph-rgw"}}
+{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 kind: Deployment
 apiVersion: apps/v1beta1
@@ -31,13 +34,13 @@ spec:
       labels:
 {{ tuple $envAll "ceph" "rgw" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
     spec:
+      serviceAccountName: {{ $serviceAccountName }}
       affinity:
 {{ tuple $envAll "ceph" "rgw" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
       nodeSelector:
         {{ .Values.labels.rgw.node_selector_key }}: {{ .Values.labels.rgw.node_selector_value }}
-      serviceAccount: default
       initContainers:
-{{ tuple $envAll $dependencies "" | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
         - name: ceph-init-dirs
           image: {{ .Values.images.tags.ceph_daemon }}
           imagePullPolicy: {{ .Values.images.pull_policy }}

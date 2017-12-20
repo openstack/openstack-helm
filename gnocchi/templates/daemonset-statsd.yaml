@@ -17,8 +17,12 @@ limitations under the License.
 {{- if .Values.manifests.daemonset_statsd }}
 {{- $envAll := . }}
 {{- $dependencies := .Values.dependencies.statsd }}
+
 {{- $mounts_gnocchi_statsd := .Values.pod.mounts.gnocchi_statsd.gnocchi_statsd }}
 {{- $mounts_gnocchi_statsd_init := .Values.pod.mounts.gnocchi_statsd.init_container }}
+
+{{- $serviceAccountName := "gnocchi-statsd" }}
+{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: extensions/v1beta1
 kind: DaemonSet
@@ -33,6 +37,7 @@ spec:
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
     spec:
+      serviceAccountName: {{ $serviceAccountName }}
       nodeSelector:
         {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
       initContainers:

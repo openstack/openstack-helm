@@ -17,8 +17,12 @@ limitations under the License.
 {{- if .Values.manifests.deployment_api }}
 {{- $envAll := . }}
 {{- $dependencies := .Values.dependencies.api }}
+
 {{- $mounts_gnocchi_api := .Values.pod.mounts.gnocchi_api.gnocchi_api }}
 {{- $mounts_gnocchi_api_init := .Values.pod.mounts.gnocchi_api.init_container }}
+
+{{- $serviceAccountName := "gnocchi-api" }}
+{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: apps/v1beta1
 kind: Deployment
@@ -35,6 +39,7 @@ spec:
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
     spec:
+      serviceAccountName: {{ $serviceAccountName }}
       affinity:
 {{ tuple $envAll "gnocchi" "api" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
       nodeSelector:

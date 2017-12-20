@@ -27,7 +27,7 @@ helm install ./glance \
   --set storage=${GLANCE_BACKEND}
 
 #NOTE: Wait for deploy
-./tools/deployment/developer/wait-for-pods.sh openstack
+./tools/deployment/developer/wait-for-pods.sh openstack 600
 
 #NOTE: Validate Deployment info
 helm status glance

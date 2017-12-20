@@ -18,8 +18,12 @@ limitations under the License.
 {{- $envAll := . }}
 {{- if .Values.bootstrap.enabled }}
 {{- $dependencies := .Values.dependencies.bootstrap }}
+
 {{- $mounts_nova_bootstrap := .Values.pod.mounts.nova_bootstrap.nova_bootstrap }}
 {{- $mounts_nova_bootstrap_init := .Values.pod.mounts.nova_bootstrap.init_container }}
+
+{{- $serviceAccountName := "nova-bootstrap" }}
+{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: batch/v1
 kind: Job
@@ -31,6 +35,7 @@ spec:
       labels:
 {{ tuple $envAll "nova" "bootstrap" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
     spec:
+      serviceAccountName: {{ $serviceAccountName }}
       restartPolicy: OnFailure
       nodeSelector:
         {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}

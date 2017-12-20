@@ -17,8 +17,12 @@ limitations under the License.
 {{- if .Values.manifests.statefulset_engine }}
 {{- $envAll := . }}
 {{- $dependencies := .Values.dependencies.engine }}
+
 {{- $mounts_senlin_engine := .Values.pod.mounts.senlin_engine.senlin_engine }}
 {{- $mounts_senlin_engine_init := .Values.pod.mounts.senlin_engine.init_container }}
+
+{{- $serviceAccountName := "senlin-engine" }}
+{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: apps/v1beta1
 kind: StatefulSet
@@ -32,6 +36,7 @@ spec:
       labels:
 {{ tuple $envAll "senlin" "engine" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
     spec:
+      serviceAccountName: {{ $serviceAccountName }}
       affinity:
 {{ tuple $envAll "senlin" "engine" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
       nodeSelector:

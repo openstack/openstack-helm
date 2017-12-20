@@ -18,6 +18,9 @@ limitations under the License.
 {{- $envAll := . }}
 {{- if .Values.deployment.ceph }}
 {{- $dependencies := .Values.dependencies.osd }}
+
+{{- $serviceAccountName := "ceph-osd"}}
+{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 kind: DaemonSet
 apiVersion: extensions/v1beta1
@@ -29,12 +32,13 @@ spec:
       labels:
 {{ tuple $envAll "ceph" "osd" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
     spec:
+      serviceAccountName: {{ $serviceAccountName }}
       nodeSelector:
         {{ .Values.labels.osd.node_selector_key }}: {{ .Values.labels.osd.node_selector_value }}
       hostNetwork: true
       dnsPolicy: {{ .Values.pod.dns_policy }}
       initContainers:
-{{ tuple $envAll $dependencies "" | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
         - name: ceph-init-dirs
           image: {{ .Values.images.tags.ceph_daemon }}
           imagePullPolicy: {{ .Values.images.pull_policy }}

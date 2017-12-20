@@ -17,8 +17,12 @@ limitations under the License.
 {{- if .Values.manifests.daemonset_ovs_agent }}
 {{- $envAll := . }}
 {{- $dependencies := .Values.dependencies.ovs_agent }}
+
 {{- $mounts_neutron_ovs_agent := .Values.pod.mounts.neutron_ovs_agent.neutron_ovs_agent }}
 {{- $mounts_neutron_ovs_agent_init := .Values.pod.mounts.neutron_ovs_agent.init_container }}
+
+{{- $serviceAccountName := "neutron-ovs-agent" }}
+{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: extensions/v1beta1
 kind: DaemonSet
@@ -34,6 +38,7 @@ spec:
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
     spec:
+      serviceAccountName: {{ $serviceAccountName }}
       nodeSelector:
         {{ .Values.labels.ovs.node_selector_key }}: {{ .Values.labels.ovs.node_selector_value }}
       dnsPolicy: ClusterFirstWithHostNet

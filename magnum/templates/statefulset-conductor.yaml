@@ -17,8 +17,12 @@ limitations under the License.
 {{- if .Values.manifests.statefulset_conductor }}
 {{- $envAll := . }}
 {{- $dependencies := .Values.dependencies.conductor }}
+
 {{- $mounts_magnum_conductor := .Values.pod.mounts.magnum_conductor.magnum_conductor }}
 {{- $mounts_magnum_conductor_init := .Values.pod.mounts.magnum_conductor.init_container }}
+
+{{- $serviceAccountName := "magnum-conductor" }}
+{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: apps/v1beta1
 kind: StatefulSet
@@ -32,6 +36,7 @@ spec:
       labels:
 {{ tuple $envAll "magnum" "conductor" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
     spec:
+      serviceAccountName: {{ $serviceAccountName }}
       affinity:
 {{ tuple $envAll "magnum" "conductor" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
       nodeSelector:

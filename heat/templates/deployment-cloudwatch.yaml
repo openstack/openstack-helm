@@ -17,8 +17,12 @@ limitations under the License.
 {{- if .Values.manifests.deployment_cloudwatch }}
 {{- $envAll := . }}
 {{- $dependencies := .Values.dependencies.cloudwatch }}
+
 {{- $mounts_heat_cloudwatch := .Values.pod.mounts.heat_cloudwatch.heat_cloudwatch }}
 {{- $mounts_heat_cloudwatch_init := .Values.pod.mounts.heat_cloudwatch.init_container }}
+
+{{- $serviceAccountName := "heat-cloudwatch" }}
+{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: apps/v1beta1
 kind: Deployment
@@ -35,6 +39,7 @@ spec:
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
     spec:
+      serviceAccountName: {{ $serviceAccountName }}
       affinity:
 {{ tuple $envAll "heat" "cloudwatch" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
       nodeSelector:

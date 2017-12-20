@@ -17,20 +17,62 @@ limitations under the License.
 {{- if .Values.manifests.job_clean }}
 {{- $envAll := . }}
 {{- if .Values.bootstrap.enabled }}
+{{- $dependencies := .Values.dependencies.clean }}
+
+{{- $randStringSuffix := randAlphaNum 5 | lower }}
+
+{{- $serviceAccountName := print "glance-clean-" $randStringSuffix }}
+{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: Role
+metadata:
+  name: {{ $serviceAccountName }}
+  annotations:
+    "helm.sh/hook": pre-delete
+    "helm.sh/hook-delete-policy": hook-succeeded
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+    verbs:
+      - get
+      - delete
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: RoleBinding
+metadata:
+  name: {{ $serviceAccountName }}
+  annotations:
+    "helm.sh/hook": pre-delete
+    "helm.sh/hook-delete-policy": hook-succeeded
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ $serviceAccountName }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ $serviceAccountName }}
+    namespace: {{ $envAll.Release.Namespace }}
 ---
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: glance-clean-{{ randAlphaNum 5 | lower }}
+  name: {{ print "glance-clean-" $randStringSuffix }}
   annotations:
     "helm.sh/hook": pre-delete
+    "helm.sh/hook-delete-policy": hook-succeeded
 spec:
   template:
     metadata:
       labels:
 {{ tuple $envAll "glance" "clean" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
     spec:
+      serviceAccountName: {{ $serviceAccountName }}
       restartPolicy: OnFailure
+      initContainers:
+{{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
         {{- if eq .Values.storage "rbd" }}
         - name: glance-secret-clean

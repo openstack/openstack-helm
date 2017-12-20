@@ -15,6 +15,75 @@ limitations under the License.
 */}}
 
 {{- $envAll := . }}
+{{- $dependencies := .Values.dependencies.ingress }}
+
+{{- $serviceAccountName := "ingress-api"}}
+{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  name: nginx-ingress-clusterrole
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+      - endpoints
+      - nodes
+      - pods
+      - secrets
+    verbs:
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - nodes
+    verbs:
+      - get
+  - apiGroups:
+      - ""
+    resources:
+      - services
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - "extensions"
+    resources:
+      - ingresses
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+        - events
+    verbs:
+        - create
+        - patch
+  - apiGroups:
+      - "extensions"
+    resources:
+      - ingresses/status
+    verbs:
+      - update
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  name: nginx-ingress-clusterrole-nisa-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: nginx-ingress-clusterrole
+subjects:
+  - kind: ServiceAccount
+    name: {{ $serviceAccountName }}
+    namespace: {{ $envAll.Release.Namespace }}
 ---
 {{- if eq .Values.deployment_type "Deployment" }}
 apiVersion: apps/v1beta1
@@ -36,6 +105,7 @@ spec:
 {{ tuple $envAll "ingress" "api" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
         app: ingress-api
     spec:
+      serviceAccountName: {{ $serviceAccountName }}
 {{- if eq .Values.deployment_type "Deployment" }}
       affinity:
 {{ tuple $envAll "ingress" "server" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
@@ -47,6 +117,8 @@ spec:
 {{- end }}
       dnsPolicy: "ClusterFirstWithHostNet"
       terminationGracePeriodSeconds: 60
+      initContainers:
+{{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
         - name: ingress-api
           image: {{ .Values.images.tags.ingress }}

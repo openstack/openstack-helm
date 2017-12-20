@@ -17,8 +17,12 @@ limitations under the License.
 {{- if .Values.manifests.deployment_api_metadata }}
 {{- $envAll := . }}
 {{- $dependencies := .Values.dependencies.api }}
+
 {{- $mounts_nova_api_metadata := .Values.pod.mounts.nova_api_metadata.nova_api_metadata }}
 {{- $mounts_nova_api_metadata_init := .Values.pod.mounts.nova_api_metadata.init_container }}
+
+{{- $serviceAccountName := "nova-api-metadata" }}
+{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: apps/v1beta1
 kind: Deployment
@@ -35,6 +39,7 @@ spec:
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
     spec:
+      serviceAccountName: {{ $serviceAccountName }}
       affinity:
 {{ tuple $envAll "nova" "metadata" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
       nodeSelector:

@@ -17,8 +17,12 @@ limitations under the License.
 {{- if .Values.manifests.deployment_backup }}
 {{- $envAll := . }}
 {{- $dependencies := .Values.dependencies.backup }}
+
 {{- $mounts_cinder_backup := .Values.pod.mounts.cinder_backup.cinder_backup }}
 {{- $mounts_cinder_backup_init := .Values.pod.mounts.cinder_backup.init_container }}
+
+{{- $serviceAccountName := "cinder-backup" }}
+{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: apps/v1beta1
 kind: Deployment
@@ -35,6 +39,7 @@ spec:
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
     spec:
+      serviceAccountName: {{ $serviceAccountName }}
       affinity:
 {{ tuple $envAll "cinder" "backup" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
       nodeSelector:

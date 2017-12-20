@@ -17,6 +17,9 @@ limitations under the License.
 {{- if .Values.manifests.job_ks_endpoints }}
 {{- $envAll := . }}
 {{- $dependencies := .Values.dependencies.ks_endpoints }}
+
+{{- $serviceAccountName := "ceilometer-ks-endpoints" }}
+{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: batch/v1
 kind: Job
@@ -25,11 +28,12 @@ metadata:
 spec:
   template:
     spec:
+      serviceAccountName: {{ $serviceAccountName }}
       restartPolicy: OnFailure
       nodeSelector:
         {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
       initContainers:
-{{ tuple $envAll $dependencies "[]" | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
 {{- range $key1, $osServiceType := tuple "metering" }}
 {{- range $key2, $osServiceEndPoint := tuple "admin" "internal" "public" }}

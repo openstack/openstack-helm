@@ -15,7 +15,11 @@ limitations under the License.
 */}}
 
 {{- $envAll := . }}
-{{- $dependencies := .Values.dependencies }}
+{{- $dependencies := .Values.dependencies.rabbitmq }}
+
+{{- $serviceAccountName := "rabbitmq" }}
+{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
 kind: Deployment
 apiVersion: apps/v1beta1
 metadata:
@@ -31,12 +35,13 @@ spec:
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
     spec:
+      serviceAccountName: {{ $serviceAccountName }}
       affinity:
 {{ tuple $envAll "rabbitmq" "server" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
       nodeSelector:
         {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
       initContainers:
-{{ tuple $envAll $dependencies "[]" | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 9 }}
+{{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 9 }}
       containers:
         - name: rabbitmq
           image: {{ .Values.images.tags.rabbitmq }}

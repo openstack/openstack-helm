@@ -19,6 +19,9 @@ limitations under the License.
 {{- $dependencies := .Values.dependencies.executor }}
 {{- $mounts_mistral_executor := .Values.pod.mounts.mistral_executor.mistral_executor }}
 {{- $mounts_mistral_executor_init := .Values.pod.mounts.mistral_executor.init_container }}
+
+{{- $serviceAccountName := "mistral-executor" }}
+{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: apps/v1beta1
 kind: Deployment
@@ -35,6 +38,7 @@ spec:
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
     spec:
+      serviceAccountName: {{ $serviceAccountName }}
       affinity:
 {{ tuple $envAll "mistral" "executor" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
       nodeSelector:

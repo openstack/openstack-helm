@@ -17,8 +17,12 @@ limitations under the License.
 {{- if .Values.manifests.statefulset_event_engine }}
 {{- $envAll := . }}
 {{- $dependencies := .Values.dependencies.event_engine }}
+
 {{- $mounts_mistral_event_engine := .Values.pod.mounts.mistral_event_engine.mistral_event_engine }}
 {{- $mounts_mistral_event_engine_init := .Values.pod.mounts.mistral_event_engine.init_container }}
+
+{{- $serviceAccountName := "mistral-event-engine" }}
+{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: apps/v1beta1
 kind: StatefulSet
@@ -32,6 +36,7 @@ spec:
       labels:
 {{ tuple $envAll "mistral" "event-engine" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
     spec:
+      serviceAccountName: {{ $serviceAccountName }}
       affinity:
 {{ tuple $envAll "mistral" "event-engine" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
       nodeSelector:

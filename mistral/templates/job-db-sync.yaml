@@ -18,6 +18,9 @@ limitations under the License.
 {{- if .Values.manifests.job_db_sync }}
 {{- $envAll := . }}
 {{- $dependencies := .Values.dependencies.db_sync }}
+
+{{- $serviceAccountName := "mistral-db-sync" }}
+{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: batch/v1
 kind: Job
@@ -29,11 +32,12 @@ spec:
       labels:
 {{ tuple $envAll "mistral" "db-sync" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
     spec:
+      serviceAccountName: {{ $serviceAccountName }}
       restartPolicy: OnFailure
       nodeSelector:
         {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
       initContainers:
-{{ tuple $envAll $dependencies "[]" | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
         - name: mistral-db-sync
           image: {{ .Values.images.tags.mistral_db_sync }}

@@ -34,8 +34,5 @@ clouds:
 EOF
 sudo -H chown -R $(id -un): /etc/openstack
 
-#NOTE: Relax RBAC
-kubectl replace -f ./tools/kubeadm-aio/assets/opt/rbac/dev.yaml
-
 #NOTE: Build charts
 make all

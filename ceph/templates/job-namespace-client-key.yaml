@@ -17,6 +17,67 @@ limitations under the License.
 {{- if .Values.manifests.job_namespace_client_key }}
 {{- $envAll := . }}
 {{- if .Values.deployment.client_secrets }}
+{{- $dependencies := .Values.dependencies.namespace_client_key_generator }}
+
+{{- $randStringSuffix := randAlphaNum 5 | lower }}
+
+{{- $serviceAccountName := "ceph-namespace-client-key-generator" }}
+{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: Role
+metadata:
+  name: {{ $serviceAccountName }}
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+    verbs:
+      - get
+      - create
+      - update
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: RoleBinding
+metadata:
+  name: {{ $serviceAccountName }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ $serviceAccountName }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ $serviceAccountName }}
+    namespace: {{ $envAll.Release.Namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: Role
+metadata:
+  name: {{ printf "%s-%s" $serviceAccountName $randStringSuffix }}
+  namespace: {{ .Values.storageclass.admin_secret_namespace }}
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+    verbs:
+      - get
+      - list
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: RoleBinding
+metadata:
+  name: {{ printf "%s-%s" $serviceAccountName $randStringSuffix }}
+  namespace: {{ .Values.storageclass.admin_secret_namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ printf "%s-%s" $serviceAccountName $randStringSuffix }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ $serviceAccountName }}
+    namespace: {{ $envAll.Release.Namespace }}
 ---
 apiVersion: batch/v1
 kind: Job
@@ -28,9 +89,12 @@ spec:
       labels:
 {{ tuple $envAll "ceph" "client-key-generator" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
     spec:
+      serviceAccountName: {{ $serviceAccountName }}
       restartPolicy: OnFailure
       nodeSelector:
         {{ $envAll.Values.labels.jobs.node_selector_key }}: {{ $envAll.Values.labels.jobs.node_selector_value }}
+      initContainers:
+{{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
         - name:  ceph-storage-keys-generator
           image: {{ .Values.images.tags.ceph_config_helper }}

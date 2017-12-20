@@ -17,11 +17,48 @@ limitations under the License.
 {{- if .Values.manifests.job_namespace_client_key_cleaner }}
 {{- $envAll := . }}
 {{- if .Values.deployment.client_secrets }}
+{{- $dependencies := .Values.dependencies.namespace_client_key_cleaner }}
+
+{{- $randStringSuffix := randAlphaNum 5 | lower }}
+
+{{- $serviceAccountName := print "ceph-namespace-client-key-cleaner-" $randStringSuffix }}
+{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: Role
+metadata:
+  name: {{ $serviceAccountName }}
+  annotations:
+    "helm.sh/hook": pre-delete
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+    verbs:
+      - get
+      - list
+      - delete
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: RoleBinding
+metadata:
+  name: {{ $serviceAccountName }}
+  annotations:
+    "helm.sh/hook": pre-delete
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ $serviceAccountName }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ $serviceAccountName }}
+    namespace: {{ $envAll.Release.Namespace }}
 ---
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: ceph-namespace-client-key-cleaner-{{ randAlphaNum 5 | lower }}
+  name: ceph-namespace-client-key-cleaner-{{ $randStringSuffix }}
   annotations:
     "helm.sh/hook": pre-delete
 spec:
@@ -30,9 +67,12 @@ spec:
       labels:
 {{ tuple $envAll "ceph" "client-key-cleaner" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
     spec:
+      serviceAccountName: {{ $serviceAccountName }}
       restartPolicy: OnFailure
       nodeSelector:
         {{ $envAll.Values.labels.jobs.node_selector_key }}: {{ $envAll.Values.labels.jobs.node_selector_value }}
+      initContainers:
+{{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
         - name:  ceph-namespace-client-keys-cleaner
           image: {{ .Values.images.tags.ceph_config_helper }}

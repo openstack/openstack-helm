@@ -17,8 +17,12 @@ limitations under the License.
 {{- if .Values.manifests.deployment_placement }}
 {{- $envAll := . }}
 {{- $dependencies := .Values.dependencies.api }}
+
 {{- $mounts_nova_placement := .Values.pod.mounts.nova_placement.nova_placement }}
 {{- $mounts_nova_placement_init := .Values.pod.mounts.nova_placement.init_container }}
+
+{{- $serviceAccountName := "nova-placement-api" }}
+{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: apps/v1beta1
 kind: Deployment
@@ -35,6 +39,7 @@ spec:
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
     spec:
+      serviceAccountName: {{ $serviceAccountName }}
       affinity:
 {{ tuple $envAll "nova" "placement" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
       nodeSelector:

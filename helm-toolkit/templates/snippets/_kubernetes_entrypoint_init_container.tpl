@@ -46,5 +46,6 @@ limitations under the License.
       value: "echo done"
   command:
     - kubernetes-entrypoint
-  volumeMounts: {{ $mounts | default "[]"}}
+  volumeMounts:
+{{ toYaml $mounts | indent 4 }}
 {{- end -}}

@@ -20,6 +20,37 @@ limitations under the License.
 {{- range $key1, $cephBootstrapKey := tuple "mds" "osd" "rgw" "mon" "mgr" }}
 {{- if not (and (not $envAll.Values.manifests.deployment_rgw) (eq $cephBootstrapKey "rgw")) }}
 {{- $jobName := print $cephBootstrapKey "-keyring-generator" }}
+
+{{- $dependencies := $envAll.Values.dependencies.job_keyring_generator }}
+
+{{- $serviceAccountName := print "ceph-" $jobName }}
+{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: Role
+metadata:
+  name: {{ $serviceAccountName }}
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+    verbs:
+      - get
+      - create
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: RoleBinding
+metadata:
+  name: {{ $serviceAccountName }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ $serviceAccountName }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ $serviceAccountName }}
+    namespace: {{ $envAll.Release.Namespace }}
 ---
 apiVersion: batch/v1
 kind: Job
@@ -31,9 +62,12 @@ spec:
       labels:
 {{ tuple $envAll "ceph" $jobName | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
     spec:
+      serviceAccountName: {{ $serviceAccountName }}
       restartPolicy: OnFailure
       nodeSelector:
         {{ $envAll.Values.labels.jobs.node_selector_key }}: {{ $envAll.Values.labels.jobs.node_selector_value }}
+      initContainers:
+{{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
         - name:  ceph-{{ $jobName }}
           image: {{ $envAll.Values.images.tags.ceph_config_helper }}

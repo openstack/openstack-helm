@@ -20,6 +20,9 @@ limitations under the License.
 {{- $dependencies := .Values.dependencies.bootstrap }}
 {{- $mounts_mistral_bootstrap := .Values.pod.mounts.mistral_bootstrap.mistral_bootstrap }}
 {{- $mounts_mistral_bootstrap_init := .Values.pod.mounts.mistral_bootstrap.init_container }}
+
+{{- $serviceAccountName := "mistral-bootstrap" }}
+{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: batch/v1
 kind: Job
@@ -31,6 +34,7 @@ spec:
       labels:
 {{ tuple $envAll "mistral" "bootstrap" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
     spec:
+      serviceAccountName: {{ $serviceAccountName }}
       restartPolicy: OnFailure
       nodeSelector:
         {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}

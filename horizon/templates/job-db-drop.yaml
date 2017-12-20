@@ -18,13 +18,19 @@ limitations under the License.
 
 {{- $envAll := . }}
 {{- $dependencies := .Values.dependencies.db_drop }}
+
 {{- $mounts_horizon_db_init := .Values.pod.mounts.horizon_db_init.horizon_db_init }}
 {{- $mounts_horizon_db_init_init := .Values.pod.mounts.horizon_db_init.init_container }}
+
+{{- $randStringSuffix := randAlphaNum 5 | lower }}
+
+{{- $serviceAccountName := print "horizon-db-drop-" $randStringSuffix }}
+{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: horizon-db-drop-{{ randAlphaNum 5 | lower }}
+  name: {{ print "horizon-db-drop-" $randStringSuffix }}
   annotations:
     "helm.sh/hook": pre-delete
     "helm.sh/hook-delete-policy": hook-succeeded
@@ -34,11 +40,12 @@ spec:
       labels:
 {{ tuple $envAll "horizon" "db-drop" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
     spec:
+      serviceAccountName: {{ $serviceAccountName }}
       restartPolicy: OnFailure
       nodeSelector:
         {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
       initContainers:
-{{ tuple $envAll $dependencies "[]" | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
         - name: horizon-db-drop
           image: {{ .Values.images.tags.db_drop }}

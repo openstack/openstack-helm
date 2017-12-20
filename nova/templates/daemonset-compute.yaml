@@ -17,8 +17,12 @@ limitations under the License.
 {{- if .Values.manifests.daemonset_compute }}
 {{- $envAll := . }}
 {{- $dependencies := .Values.dependencies.compute }}
+
 {{- $mounts_nova_compute := .Values.pod.mounts.nova_compute.nova_compute }}
 {{- $mounts_nova_compute_init := .Values.pod.mounts.nova_compute.init_container }}
+
+{{- $serviceAccountName := "nova-compute" }}
+{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: extensions/v1beta1
 kind: DaemonSet
@@ -34,6 +38,7 @@ spec:
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
     spec:
+      serviceAccountName: {{ $serviceAccountName }}
       nodeSelector:
         {{ .Values.labels.agent.compute.node_selector_key }}: {{ .Values.labels.agent.compute.node_selector_value }}
       hostNetwork: true

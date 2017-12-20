@@ -16,6 +16,10 @@ limitations under the License.
 
 {{- if .Values.manifests.daemonset_ovs_vswitchd }}
 {{- $envAll := . }}
+{{- $dependencies := .Values.dependencies.vswitchd }}
+
+{{- $serviceAccountName := "openvswitch-vswitchd" }}
+{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: extensions/v1beta1
 kind: DaemonSet
@@ -30,11 +34,13 @@ spec:
       annotations:
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
     spec:
+      serviceAccountName: {{ $serviceAccountName }}
       nodeSelector:
         {{ .Values.labels.ovs.node_selector_key }}: {{ .Values.labels.ovs.node_selector_value }}
       dnsPolicy: ClusterFirstWithHostNet
       hostNetwork: true
       initContainers:
+{{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
         - name: openvswitch-vswitchd-modules
           image: {{ .Values.images.tags.openvswitch_vswitchd }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
