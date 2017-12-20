@@ -21,8 +21,12 @@ limitations under the License.
 {{- else -}}
 {{- $_ := set .Values "pod_dependency" .Values.dependencies.prometheus -}}
 {{- end -}}
+
 {{- $mounts_prometheus := .Values.pod.mounts.prometheus.prometheus }}
 {{- $mounts_prometheus_init := .Values.pod.mounts.prometheus.init_container }}
+
+{{- $serviceAccountName := "prometheus"}}
+{{ tuple $envAll $envAll.Values.pod_dependency $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: apps/v1beta1
 kind: StatefulSet
@@ -40,7 +44,7 @@ spec:
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
         configmap-rules-hash: {{ tuple "configmap-rules.yaml" . | include "helm-toolkit.utils.hash" }}
     spec:
-      serviceAccount: prometheus
+      serviceAccountName: {{ $serviceAccountName }}
       affinity:
 {{ tuple $envAll "prometheus" "api" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
       nodeSelector:
@@ -131,7 +135,6 @@ spec:
               mountPath: /var/lib/prometheus/data
 {{ if $mounts_prometheus.volumeMounts }}{{ toYaml $mounts_prometheus.volumeMounts | indent 12 }}{{ end }}
       volumes:
-{{ tuple . | include "helm-toolkit.snippets.kubernetes_entrypoint_secret_mount" | indent 8 }}
         - name: etcprometheus
           emptyDir: {}
         - name: rulesprometheus

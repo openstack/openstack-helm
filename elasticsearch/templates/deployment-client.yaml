@@ -21,6 +21,9 @@ limitations under the License.
 {{- else -}}
 {{- $_ := set .Values "pod_dependency" .Values.dependencies.elasticsearch_client -}}
 {{- end -}}
+
+{{- $serviceAccountName := "elasticsearch-client"}}
+{{ tuple $envAll $envAll.Values.pod_dependency $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: extensions/v1beta1
 kind: Deployment
@@ -37,7 +40,7 @@ spec:
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
     spec:
-      serviceAccount: elasticsearch
+      serviceAccountName: {{ $serviceAccountName }}
       affinity:
 {{ tuple $envAll "elasticsearch" "client" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
       terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.client.timeout | default "600" }}
@@ -124,7 +127,6 @@ spec:
             - name: storage
               mountPath: {{ .Values.conf.elasticsearch.path.data }}
       volumes:
-{{ tuple . | include "helm-toolkit.snippets.kubernetes_entrypoint_secret_mount" | indent 8 }}
         - name: elastic-logs
           emptyDir: {}
         - name: elastic-bin

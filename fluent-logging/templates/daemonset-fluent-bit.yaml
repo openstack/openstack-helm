@@ -22,7 +22,11 @@ limitations under the License.
 {{- else -}}
 {{- $_ := set .Values "pod_dependency" .Values.dependencies.fluentbit -}}
 {{- end -}}
+
 {{- $mounts_fluentbit := .Values.pod.mounts.fluentbit.fluentbit }}
+
+{{- $serviceAccountName := "fluentbit"}}
+{{ tuple $envAll $envAll.Values.pod_dependency $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: extensions/v1beta1
 kind: DaemonSet
@@ -37,7 +41,7 @@ spec:
       annotations:
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
     spec:
-      serviceAccount: fluent-logging
+      serviceAccountName: {{ $serviceAccountName }}
       nodeSelector:
         {{ .Values.labels.fluentbit.node_selector_key }}: {{ .Values.labels.fluentbit.node_selector_value }}
       hostNetwork: true
@@ -73,7 +77,6 @@ spec:
               readOnly: true
 {{ if $mounts_fluentbit.volumeMounts }}{{ toYaml $mounts_fluentbit.volumeMounts | indent 8 }}{{ end }}
       volumes:
-{{ tuple . | include "helm-toolkit.snippets.kubernetes_entrypoint_secret_mount" | indent 8 }}
         - name: varlog
           hostPath:
             path: /var/log

@@ -22,6 +22,9 @@ limitations under the License.
 {{- else -}}
 {{- $_ := set .Values "pod_dependency" .Values.dependencies.bootstrap -}}
 {{- end -}}
+
+{{- $serviceAccountName := "docker-bootstrap"}}
+{{ tuple $envAll $envAll.Values.pod_dependency $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: batch/v1
 kind: Job
@@ -33,6 +36,7 @@ spec:
       labels:
 {{ tuple $envAll "docker" "bootstrap" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
     spec:
+      serviceAccountName: {{ $serviceAccountName }}
       restartPolicy: OnFailure
       nodeSelector:
         {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
@@ -57,7 +61,6 @@ spec:
             - name: docker-socket
               mountPath: /var/run/docker.sock
       volumes:
-{{ tuple . | include "helm-toolkit.snippets.kubernetes_entrypoint_secret_mount" | indent 8 }}
         - name: registry-bin
           configMap:
             name: registry-bin

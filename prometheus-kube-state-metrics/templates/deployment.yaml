@@ -21,6 +21,9 @@ limitations under the License.
 {{- else -}}
 {{- $_ := set .Values "pod_dependency" .Values.dependencies.kube_state_metrics -}}
 {{- end -}}
+
+{{- $serviceAccountName := "kube-state-metrics"}}
+{{ tuple $envAll $envAll.Values.pod_dependency $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: extensions/v1beta1
 kind: Deployment
@@ -34,7 +37,7 @@ spec:
       labels:
 {{ tuple $envAll "kube-state-metrics" "exporter" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
     spec:
-      serviceAccount: kube-state-metrics
+      serviceAccountName: {{ $serviceAccountName }}
       nodeSelector:
         {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
       terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.kube_state_metrics.timeout | default "30" }}
@@ -47,6 +50,4 @@ spec:
           ports:
             - name: metrics
               containerPort: {{ .Values.network.kube_state_metrics.port }}
-      volumes:
-{{ tuple . | include "helm-toolkit.snippets.kubernetes_entrypoint_secret_mount" | indent 8 }}
 {{- end }}
