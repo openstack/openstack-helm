@@ -14,24 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-# Appends annotations for configuring prometheus scrape endpoints via
-# annotations. The required annotations are:
-# * `prometheus.io/scrape`: Only scrape services that have a value of `true`
-# * `prometheus.io/scheme`: If the metrics endpoint is secured then you will need
-# to set this to `https` & most likely set the `tls_config` of the scrape config.
-# * `prometheus.io/path`: If the metrics path is not `/metrics` override this.
-# * `prometheus.io/port`: If the metrics are exposed on a different port to the
-# service then set this appropriately.
-
-{{- define "helm-toolkit.snippets.prometheus_service_annotations" -}}
-{{- $endpoint := index . 0 -}}
-{{- $context := index . 1 -}}
-prometheus.io/scrape: {{ $endpoint.scrape | quote }}
-prometheus.io/scheme: {{ $endpoint.scheme.default | quote }}
-prometheus.io/path: {{ $endpoint.path.default | quote }}
-prometheus.io/port: {{ $endpoint.scrape_port | quote }}
-{{- end -}}
-
 # Appends annotations for configuring prometheus scrape jobs via pod
 # annotations. The required annotations are:
 # * `prometheus.io/scrape`: Only scrape pods that have a value of `true`
