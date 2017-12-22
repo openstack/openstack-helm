@@ -17,4 +17,8 @@ limitations under the License.
 */}}
 
 set -ex
+{{- range $k, $v := .Values.conf.ks_domains }}
+openstack --debug domain create --or-show {{ $k }}
+keystone-manage domain_config_upload --domain-name {{ $k }} || true
+{{- end }}
 {{ .Values.bootstrap.script | default "echo 'Not Enabled'" }}

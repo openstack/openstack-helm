@@ -1,0 +1,54 @@
+# Copyright 2017 The Openstack-Helm Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# MVP values for neutron using Linux Bridge.
+# This file contains overrides to launch a MVP deployment of neutron using
+# Linux Bridge for the OpenStack-Helm gates, and local development use.
+# It should be kept to the bare minimum required for this purpose.
+
+# This example sets the default domain to be LDAP based, and adds in a new
+# dbdomain that is SQL-backed.  Note that for this to work, you need to set
+# an admin (env: OS_USERNAME and OS_PASSWORD) that is valid in the LDAP.
+conf:
+  keystone:
+    identity:
+      driver: ldap
+      default_domain_id: default
+      domain_specific_drivers_enabled: True
+      domain_configurations_from_database: True
+      domain_config_dir: /etc/keystonedomains
+    ldap:
+      url: "ldap://ldap.openstack.svc.cluster.local:389"
+      user: "cn=admin,dc=cluster,dc=local"
+      password: password
+      suffix: "dc=cluster,dc=local"
+      user_attribute_ignore: enabled,email,tenants,default_project_id
+      query_scope: sub
+      user_enabled_emulation: True
+      user_enabled_emulation_dn: "cn=overwatch,ou=Groups,dc=cluster,dc=local"
+      user_tree_dn: "ou=People,dc=cluster,dc=local"
+      user_enabled_mask: 2
+      user_enabled_default: 512
+      user_name_attribute: cn
+      user_id_attribute: sn
+      user_mail_attribute: mail
+      user_pass_attribute: userPassword
+      group_tree_dn: "ou=Groups,dc=cluster,dc=local"
+      user_allow_create: False
+      user_allow_delete: False
+      user_allow_update: False
+  ks_domains:
+    dbdomain:
+      identity:
+        driver: sql
