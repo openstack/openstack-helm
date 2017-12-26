@@ -22,5 +22,5 @@ sudo ip addr add ${OSH_BR_EX_ADDR} dev br-ex
 sudo ip link set br-ex up
 
 # Setup masquerading on default route dev to public subnet
-DEFAULT_ROUTE_DEV="ens3"
+DEFAULT_ROUTE_DEV="$(sudo ip -4 route list 0/0 | awk '{ print $5; exit }')"
 sudo iptables -t nat -A POSTROUTING -o ${DEFAULT_ROUTE_DEV} -s ${OSH_EXT_SUBNET} -j MASQUERADE
