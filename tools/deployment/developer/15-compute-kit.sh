@@ -19,11 +19,21 @@ set -xe
 make pull-images nova
 make pull-images neutron
 
-#NOTE: Deploy command
-helm install ./nova \
-    --namespace=openstack \
-    --name=nova \
-    --set conf.nova.libvirt.virt_type=qemu
+#NOTE: Deploy nova
+if [ "x$(systemd-detect-virt)" == "xnone" ]; then
+  echo 'OSH is not being deployed in virtualized environment'
+  helm install ./nova \
+      --namespace=openstack \
+      --name=nova
+else
+  echo 'OSH is being deployed in virtualized environment, using qemu for nova'
+  helm install ./nova \
+      --namespace=openstack \
+      --name=nova \
+      --set conf.nova.libvirt.virt_type=qemu
+fi
+
+#NOTE: Deploy neutron
 helm install ./neutron \
     --namespace=openstack \
     --name=neutron \
