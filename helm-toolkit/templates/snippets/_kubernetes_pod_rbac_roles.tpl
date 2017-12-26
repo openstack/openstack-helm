@@ -21,7 +21,7 @@ limitations under the License.
 {{- $saNamespace := index . 3 -}}
 {{- $releaseName := $envAll.Release.Name }}
 ---
-apiVersion: rbac.authorization.k8s.io/v1
+apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: RoleBinding
 metadata:
   name: {{ $releaseName }}-{{ $saName }}
