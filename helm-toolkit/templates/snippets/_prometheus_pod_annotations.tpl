@@ -23,8 +23,13 @@ limitations under the License.
 
 {{- define "helm-toolkit.snippets.prometheus_pod_annotations" -}}
 {{- $pod := index . 0 -}}
-{{- $context := index . 1 -}}
-prometheus.io/scrape: {{ $pod.scrape | quote }}
-prometheus.io/path: {{ $pod.path.default | quote }}
-prometheus.io/port: {{ $pod.scrape_port | quote }}
+{{- if $pod.prometheus_scrape }}
+prometheus.io/scrape: {{ $pod.prometheus_scrape | quote }}
+{{- end }}
+{{- if $pod.prometheus_path }}
+prometheus.io/path: {{ $pod.prometheus_path | quote }}
+{{- end }}
+{{- if $pod.prometheus_port }}
+prometheus.io/port: {{ $pod.prometheus_port | quote }}
+{{- end }}
 {{- end -}}
