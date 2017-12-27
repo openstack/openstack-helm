@@ -12,7 +12,7 @@ Ceph Deployment Status
 ~~~~~~~~~~~~~~~~~~~~~~
 
 First, we want to validate that Ceph is working correctly. This
-can be done with the following ceph command:
+can be done with the following Ceph command:
 
 ::
 
