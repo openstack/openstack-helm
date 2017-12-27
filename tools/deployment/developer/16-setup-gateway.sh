@@ -21,6 +21,11 @@ OSH_EXT_SUBNET="172.24.4.0/24"
 sudo ip addr add ${OSH_BR_EX_ADDR} dev br-ex
 sudo ip link set br-ex up
 
+# NOTE(portdirect): With Docker >= 1.13.1 the default the default FORWARD chain
+# policy is configured to DROP, for the l3 agent to function as expected and
+# VMs reach the outside world correctly this needs to be set to ACCEPT.
+sudo iptables -P FORWARD ACCEPT
+
 # Setup masquerading on default route dev to public subnet
 DEFAULT_ROUTE_DEV="$(sudo ip -4 route list 0/0 | awk '{ print $5; exit }')"
 sudo iptables -t nat -A POSTROUTING -o ${DEFAULT_ROUTE_DEV} -s ${OSH_EXT_SUBNET} -j MASQUERADE
