@@ -244,7 +244,7 @@ OPENSTACK_HYPERVISOR_FEATURES = {
 # The OPENSTACK_CINDER_FEATURES settings can be used to enable optional
 # services provided by cinder that is not exposed by its extension API.
 OPENSTACK_CINDER_FEATURES = {
-    'enable_backup': False,
+    'enable_backup': {{ .Values.local_settings.openstack_cinder_features.enable_backup }},
 }
 
 # The OPENSTACK_NEUTRON_NETWORK settings can be used to enable optional

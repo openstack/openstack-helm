@@ -19,8 +19,8 @@ limitations under the License.
 set -ex
 export HOME=/tmp
 
-cat <<EOF > /etc/ceph/ceph.client.{{ .Values.conf.backends.rbd1.rbd_user }}.keyring
-[client.{{ .Values.conf.backends.rbd1.rbd_user }}]
+cat <<EOF > /etc/ceph/ceph.client.${RBD_USER}.keyring
+[client.${RBD_USER}]
 {{- if .Values.conf.ceph.cinder_keyring }}
     key = {{ .Values.conf.ceph.cinder_keyring }}
 {{- else }}
