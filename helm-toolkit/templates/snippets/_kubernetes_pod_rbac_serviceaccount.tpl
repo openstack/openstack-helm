@@ -36,9 +36,9 @@ metadata:
 {{- $_ := set $allNamespace $endpointNS (printf "%s%s" "services," ((index $allNamespace $endpointNS) | default "")) }}
 {{- end -}}
 {{- end -}}
-{{- else if eq $k "jobs" }}
+{{- else if and (eq $k "jobs") $v }}
 {{- $_ := set $allNamespace $saNamespace  (printf "%s%s" "jobs," ((index $allNamespace $saNamespace) | default "")) }}
-{{- else if eq $k "daemonset" }}
+{{- else if and (eq $k "daemonset") $v }}
 {{- $_ := set $allNamespace $saNamespace  (printf "%s%s" "daemonsets," ((index $allNamespace $saNamespace) | default "")) }}
 {{- end -}}
 {{- end -}}
