@@ -14,18 +14,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if .Values.manifests.configmap_etc }}
-{{- $envAll := . }}
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: kibana-etc
-data:
-  httpd.conf: |+
-{{- tuple .Values.conf.apache.httpd "etc/_httpd.conf.tpl" . | include "helm-toolkit.utils.configmap_templater" }}
-  kibana-host.conf: |+
-{{- tuple .Values.conf.apache.host "etc/_kibana-host.conf.tpl" . | include "helm-toolkit.utils.configmap_templater" }}
-  kibana.yml: |+
-{{ toYaml .Values.conf.kibana | indent 4 }}
-{{- end }}
+<VirtualHost *:80>
+  <Location />
+      ProxyPass http://localhost:${KIBANA_PORT}/
+      ProxyPassReverse http://localhost:${KIBANA_PORT}/
+  </Location>
+  <Proxy *>
+      AuthType Basic
+      AuthName "Authentication Required"
+      AuthUserFile {{.Values.conf.apache.htpasswd | quote}}
+      Require valid-user
+  </Proxy>
+</VirtualHost>

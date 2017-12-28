@@ -49,6 +49,43 @@ spec:
       initContainers:
 {{ tuple $envAll .Values.pod_dependency list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
+        - name: apache-proxy
+{{ tuple $envAll "apache_proxy" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.apache_proxy | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          command:
+            - /tmp/apache.sh
+            - start
+          ports:
+            - name: http
+              containerPort: 80
+          env:
+            - name: KIBANA_PORT
+              value: {{ tuple "kibana" "internal" "kibana" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | quote }}
+            - name: KIBANA_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: kibana-admin-creds
+                  key: KIBANA_USERNAME
+            - name: KIBANA_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: kibana-admin-creds
+                  key: KIBANA_PASSWORD
+          volumeMounts:
+            - name: kibana-bin
+              mountPath: /tmp/apache.sh
+              subPath: apache.sh
+              readOnly: true
+            - name: kibana-etc
+              mountPath: /usr/local/apache2/conf/httpd.conf
+              subPath: httpd.conf
+              readOnly: true
+            - name: pod-etc-apache
+              mountPath: /usr/local/apache2/conf/sites-enabled
+            - name: kibana-etc
+              mountPath: /usr/local/apache2/conf/sites-enabled/kibana-host.conf
+              subPath: kibana-host.conf
+              readOnly: true
         - name: kibana
 {{ tuple $envAll "kibana" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.kibana | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
@@ -56,7 +93,7 @@ spec:
             - /tmp/kibana.sh
             - start
           ports:
-            - name: http
+            - name: kibana
               containerPort: {{ .Values.network.kibana.port }}
           env:
             - name: ELASTICSEARCH_URL
@@ -84,6 +121,8 @@ spec:
               readOnly: true
       volumes:
         - name: pod-etc-kibana
+          emptyDir: {}
+        - name: pod-etc-apache
           emptyDir: {}
         - name: kibana-bin
           configMap:

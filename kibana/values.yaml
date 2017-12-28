@@ -19,6 +19,7 @@ labels:
 
 images:
   tags:
+    apache_proxy: docker.io/httpd:2.4
     kibana: docker.io/kibana:5.4.2
     dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.2.1
     image_repo_sync: docker.io/docker:17.07.0
@@ -67,6 +68,8 @@ pod:
 secrets:
   elasticsearch:
     user: kibana-elasticsearch-user
+  kibana:
+    admin: kibana-admin-creds
 
 dependencies:
   kibana:
@@ -87,29 +90,33 @@ conditional_dependencies:
         endpoint: node
 
 conf:
-  elasticsearch:
-    pingTimeout: 1500
-    preserveHost: true
-    requestTimeout: 30000
-    shardTimeout: 0
-    startupTimeout: 5000
-  il8n:
-    defaultLocale: en
+  apache:
+    htpasswd: /usr/local/apache2/conf/.htpasswd
+  httpd:
   kibana:
-    defaultAppId: discover
-    index: .kibana
-  logging:
-    quiet: false
-    silent: false
-    verbose: false
-  ops:
-    interval: 5000
-  server:
-    host: 0.0.0.0
-    maxPayloadBytes: 1048576
-    port: 5601
-    ssl:
-      enabled: false
+    elasticsearch:
+      pingTimeout: 1500
+      preserveHost: true
+      requestTimeout: 30000
+      shardTimeout: 0
+      startupTimeout: 5000
+    il8n:
+      defaultLocale: en
+    kibana:
+      defaultAppId: discover
+      index: .kibana
+    logging:
+      quiet: false
+      silent: false
+      verbose: false
+    ops:
+      interval: 5000
+    server:
+      host: localhost
+      maxPayloadBytes: 1048576
+      port: 5601
+      ssl:
+        enabled: false
 
 endpoints:
   cluster_domain_suffix: cluster.local
@@ -147,6 +154,10 @@ endpoints:
   kibana:
     name: kibana
     namespace: null
+    auth:
+      admin:
+        username: admin
+        password: changeme
     hosts:
       default: kibana-dash
       public: kibana
@@ -177,5 +188,6 @@ manifests:
   ingress_kibana: true
   job_image_repo_sync: true
   secret_elasticsearch: true
+  secret_admin: true
   service: true
   service_ingress_kibana: true
