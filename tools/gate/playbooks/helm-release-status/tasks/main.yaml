@@ -12,27 +12,33 @@
 
 - name: "creating directory for helm release status"
   file:
-    path: "{{ logs_dir }}/helm-releases"
+    path: "{{ logs_dir }}/helm"
     state: directory
 
-- name: "Gathering release status in chart groups"
+- name: "retrieve all deployed charts"
+  shell: |-
+          set -e
+          helm ls --short
+  args:
+    executable: /bin/bash
+  register: helm_releases
+
+- name: "Gather get release status for helm charts"
+  shell: |-
+          set -e
+          helm status {{ helm_released }}  >> {{ logs_dir }}/helm/{{ helm_release }}.txt
+  args:
+    executable: /bin/bash
+  ignore_errors: True
   vars:
-    chart_group_name: "{{ helm_chart_group.name }}"
-  include: util-chart-group-releases.yaml
+    helm_release: "{{ helm_released }}"
   loop_control:
-    loop_var: helm_chart_group
-  with_items: "{{ chart_groups }}"
+    loop_var: helm_released
+  with_items: "{{ helm_releases.stdout_lines }}"
 
-- name: "Downloads helm release statuses to executor"
+- name: "Downloads logs to executor"
   synchronize:
-    src: "{{ logs_dir }}/helm-releases"
+    src: "{{ logs_dir }}/helm"
     dest: "{{ zuul.executor.log_root }}/{{ inventory_hostname }}"
     mode: pull
-  ignore_errors: yes
-
-- name: "Download helm release test logs to executor"
-  synchronize:
-    src: "{{ logs_dir }}/helm-tests"
-    dest: "{{ zuul.executor.log_root }}/{{ inventory_hostname }}"
-    mode: pull
-  ignore_errors: yes
+  ignore_errors: True
