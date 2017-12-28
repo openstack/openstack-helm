@@ -1,6 +1,11 @@
 Openstack-Helm Gate Scripts
 ===========================
 
+.. warning::  These scripts are out of date. For all development and single node
+  evaluation purposes, please reference the All-in-One installation_ docs instead.
+
+.. _installation: https://docs.openstack.org/openstack-helm/latest/install/developer/all-in-one.html
+
 These scripts are used in the OpenStack-Helm Gates and can also be run
 locally to aid development and for demonstration purposes. Please note
 that they assume full control of a machine, and may be destructive in
