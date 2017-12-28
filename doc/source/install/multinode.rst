@@ -47,7 +47,7 @@ should just require a single command on the master node:
 
 ::
 
-    admin@kubenode01:~$ kubeadm init --kubernetes-version v1.7.5
+    admin@kubenode01:~$ kubeadm init
 
 
 If your environment looks like this after all nodes have joined the
@@ -77,55 +77,9 @@ Deploying a CNI-Enabled SDN (Calico)
 After an initial ``kubeadmn`` deployment has been scheduled, it is time
 to deploy a CNI-enabled SDN. We have selected **Calico**, but have also
 confirmed that this works for Weave, and Romana. For Calico version
-v2.1, you can apply the provided `Kubeadm Hosted
-Install <http://docs.projectcalico.org/v2.1/getting-started/kubernetes/installation/hosted/kubeadm/>`_
-manifest:
-
-::
-
-    kubectl create -f http://docs.projectcalico.org/v2.1/getting-started/kubernetes/installation/hosted/kubeadm/1.6/calico.yaml
-
-.. note::
-
-    After the container CNI-SDN is deployed, Calico has a tool you can use
-    to verify your deployment. You can download this tool,
-    ```calicoctl`` <https://github.com/projectcalico/calicoctl/releases>`__
-    to execute the following command:
-
-    ::
-
-        admin@kubenode01:~$ sudo calicoctl node status
-        Calico process is running.
-
-        IPv4 BGP status
-        +--------------+-------------------+-------+----------+-------------+
-        | PEER ADDRESS |     PEER TYPE     | STATE |  SINCE   |    INFO     |
-        +--------------+-------------------+-------+----------+-------------+
-        | 192.168.3.22 | node-to-node mesh | up    | 16:34:03 | Established |
-        | 192.168.3.23 | node-to-node mesh | up    | 16:33:59 | Established |
-        | 192.168.3.24 | node-to-node mesh | up    | 16:34:00 | Established |
-        | 192.168.3.25 | node-to-node mesh | up    | 16:33:59 | Established |
-        +--------------+-------------------+-------+----------+-------------+
-
-        IPv6 BGP status
-        No IPv6 peers found.
-
-        admin@kubenode01:~$
-
-    It is important to call out that the Self Hosted Calico manifest for
-    v2.1 (above) supports ``nodetonode`` mesh, and ``nat-outgoing`` by
-    default. This is a change from version 1.6.
-
-Setting Up RBAC
----------------
-
-Kubernetes >=v1.6 makes RBAC the default admission controller. OpenStack
-Helm does not currently have RBAC roles and permissions for each
-component so we relax the access control rules:
-
-.. code:: bash
-
-    kubectl update -f https://raw.githubusercontent.com/openstack/openstack-helm/master/tools/kubeadm-aio/assets/opt/rbac/dev.yaml
+v2.6, you can apply the provided `Kubeadm Hosted
+Install <https://docs.projectcalico.org/v2.6/getting-started/kubernetes/installation/hosted/kubeadm/>`_
+manifest.
 
 Enabling Cron Jobs
 ------------------
