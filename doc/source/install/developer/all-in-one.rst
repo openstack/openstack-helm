@@ -28,6 +28,11 @@ For a deployment without cinder and horizon the system requirements are:
 
 This guide covers the minimum number of requirements to get started.
 
+.. warning:: By default the Calico CNI will use ``192.168.0.0/16`` and
+   Kubernetes services will use ``10.96.0.0/16`` as the CIDR for services. Check
+   that these CIDRs are not in use on the development node before proceeding, or
+   adjust as required.
+
 Host Configuration
 ------------------
 
