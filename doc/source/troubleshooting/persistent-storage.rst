@@ -16,17 +16,27 @@ can be done with the following Ceph command:
 
 ::
 
-    admin@kubenode01:~$ kubectl exec -t -i ceph-mon-0 -n ceph -- ceph status
-        cluster 046de582-f8ee-4352-9ed4-19de673deba0
-         health HEALTH_OK
-         monmap e3: 3 mons at {ceph-mon-392438295-6q04c=10.25.65.131:6789/0,ceph-mon-392438295-ksrb2=10.25.49.196:6789/0,ceph-mon-392438295-l0pzj=10.25.79.193:6789/0}
-                election epoch 6, quorum 0,1,2 ceph-mon-392438295-ksrb2,ceph-mon-392438295-6q04c,ceph-mon-392438295-l0pzj
-          fsmap e5: 1/1/1 up {0=mds-ceph-mds-2810413505-gtjgv=up:active}
-         osdmap e23: 5 osds: 5 up, 5 in
-                flags sortbitwise
-          pgmap v22012: 80 pgs, 3 pools, 12712 MB data, 3314 objects
-                101 GB used, 1973 GB / 2186 GB avail
-                      80 active+clean
+    admin@kubenode01:~$ MON_POD=$(kubectl get --no-headers pods -n=ceph -l="application=ceph,component=mon" | awk '{ print $1; exit }')
+    admin@kubenode01:~$ kubectl exec -n ceph ${MON_POD} -- ceph -s
+        cluster:
+          id:     06a191c7-81bd-43f3-b5dd-3d6c6666af71
+          health: HEALTH_OK
+
+        services:
+          mon: 1 daemons, quorum att.port.direct
+          mgr: att.port.direct(active)
+          mds: cephfs-1/1/1 up  {0=mds-ceph-mds-68c9c76d59-zqc55=up:active}
+          osd: 1 osds: 1 up, 1 in
+          rgw: 1 daemon active
+
+        data:
+          pools:   11 pools, 208 pgs
+          objects: 352 objects, 464 MB
+          usage:   62467 MB used, 112 GB / 173 GB avail
+          pgs:     208 active+clean
+
+        io:
+          client:   253 B/s rd, 39502 B/s wr, 1 op/s rd, 8 op/s wr
     admin@kubenode01:~$
 
 Use one of your Ceph Monitors to check the status of the cluster. A
@@ -43,10 +53,9 @@ To verify that your deployment namespace has a client key:
 
 ::
 
-    admin@kubenode01: $ kubectl get secret -n openstack
-    NAME                  TYPE                                  DATA      AGE
-    default-token-nvl10   kubernetes.io/service-account-token   3         7d
-    pvc-ceph-client-key   kubernetes.io/rbd                     1         6m
+    admin@kubenode01: $ kubectl get secret -n openstack pvc-ceph-client-key
+    NAME                  TYPE                DATA      AGE
+    pvc-ceph-client-key   kubernetes.io/rbd   1         8h
 
 Without this, your RBD-backed PVCs will never reach the ``Bound`` state.  For
 more information, see how to `activate namespace for ceph <../install/multinode.html#activating-control-plane-namespace-for-ceph>`_.
@@ -70,15 +79,16 @@ correctly:
 ::
 
     admin@kubenode01:~$ kubectl describe storageclass/general
-    Name:       general
-    IsDefaultClass: No
-    Annotations:    <none>
-    Provisioner:    kubernetes.io/rbd
-    Parameters: adminId=admin,adminSecretName=pvc-ceph-conf-combined-storageclass,adminSecretNamespace=ceph,monitors=ceph-mon.ceph:6789,pool=rbd,userId=admin,userSecretName=pvc-ceph-client-key
-    No events.
+    Name:            general
+    IsDefaultClass:  No
+    Annotations:     <none>
+    Provisioner:     ceph.com/rbd
+    Parameters:      adminId=admin,adminSecretName=pvc-ceph-conf-combined-storageclass,adminSecretNamespace=ceph,imageFeatures=layering,imageFormat=2,monitors=ceph-mon.ceph.svc.cluster.local:6789,pool=rbd,userId=admin,userSecretName=pvc-ceph-client-key
+    ReclaimPolicy:   Delete
+    Events:          <none>
     admin@kubenode01:~$
 
 The parameters are what we're looking for here. If we see parameters
 passed to the StorageClass correctly, we will see the
-``ceph-mon.ceph:6789`` hostname/port, things like ``userid``, and
-appropriate secrets used for volume claims.
+``ceph-mon.ceph.svc.cluster.local:6789`` hostname/port, things like ``userid``,
+and appropriate secrets used for volume claims.
