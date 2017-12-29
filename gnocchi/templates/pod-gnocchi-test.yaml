@@ -17,8 +17,12 @@ limitations under the License.
 {{- if .Values.manifests.pod_gnocchi_test }}
 {{- $envAll := . }}
 {{- $dependencies := .Values.dependencies.tests }}
+
 {{- $mounts_gnocchi_tests := .Values.pod.mounts.gnocchi_tests.gnocchi_tests }}
 {{- $mounts_gnocchi_tests_init := .Values.pod.mounts.gnocchi_tests.init_container }}
+
+{{- $serviceAccountName := print .Release.Name "-test" }}
+{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: v1
 kind: Pod
@@ -27,28 +31,13 @@ metadata:
   annotations:
     "helm.sh/hook": test-success
 spec:
+  serviceAccountName: {{ $serviceAccountName }}
   restartPolicy: Never
   initContainers:
 {{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 4 }}
-    - name: ceph-keyring-placement
-      image: {{ .Values.images.tags.api }}
-      imagePullPolicy: {{ .Values.images.pull_policy }}
-      command:
-        - /tmp/ceph-keyring.sh
-      volumeMounts:
-        - name: etcceph
-          mountPath: /etc/ceph
-        - name: gnocchi-bin
-          mountPath: /tmp/ceph-keyring.sh
-          subPath: ceph-keyring.sh
-          readOnly: true
-        - name: ceph-keyring
-          mountPath: /tmp/client-keyring
-          subPath: key
-          readOnly: true
   containers:
     - name: {{.Release.Name}}-helm-tests
-      image: {{ .Values.images.tags.api }}
+      image: {{ .Values.images.tags.gnocchi_api }}
       imagePullPolicy: {{ .Values.images.pull_policy }}
 {{ tuple $envAll $envAll.Values.pod.resources.jobs.tests | include "helm-toolkit.snippets.kubernetes_resources" | indent 6 }}
       env:
@@ -72,10 +61,6 @@ spec:
           mountPath: /etc/gnocchi/gnocchi.conf
           subPath: gnocchi.conf
           readOnly: true
-        - name: ceph-etc
-          mountPath: /etc/ceph/ceph.conf
-          subPath: ceph.conf
-          readOnly: true
         - name: gnocchi-bin
           mountPath: /tmp/gnocchi-test.sh
           subPath: gnocchi-test.sh
@@ -90,13 +75,5 @@ spec:
       configMap:
         name: gnocchi-bin
         defaultMode: 0555
-    - name: ceph-etc
-      configMap:
-        name: ceph-etc
-    - name: ceph-keyring
-      secret:
-        secretName: pvc-ceph-client-key
-    - name: etcceph
-      emptyDir: {}
 {{ if $mounts_gnocchi_tests.volumes }}{{ toYaml $mounts_gnocchi_tests.volumes | indent 4 }}{{ end }}
 {{- end }}

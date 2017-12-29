@@ -28,8 +28,9 @@ set -ex
 ceph -s
 function ensure_pool () {
   ceph osd pool stats $1 || ceph osd pool create $1 $2
+  ceph osd pool application enable $1 $3
 }
-ensure_pool ${RBD_POOL_NAME} ${RBD_POOL_CHUNK_SIZE}
+ensure_pool ${RBD_POOL_NAME} ${RBD_POOL_CHUNK_SIZE} "gnocchi-metrics"
 
 if USERINFO=$(ceph auth get client.${RBD_POOL_USER}); then
   KEYSTR=$(echo $USERINFO | sed 's/.*\( key = .*\) caps mon.*/\1/')
@@ -39,6 +40,7 @@ else
   ceph auth get-or-create client.${RBD_POOL_USER} \
     mon "allow *" \
     osd "allow *" \
+    mgr "allow *" \
     -o ${KEYRING}
 fi
 

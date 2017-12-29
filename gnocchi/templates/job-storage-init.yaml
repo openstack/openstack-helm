@@ -25,8 +25,6 @@ apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: Role
 metadata:
   name: {{ $serviceAccountName }}
-  annotations:
-    "helm.sh/hook": pre-delete
 rules:
   - apiGroups:
       - ""
@@ -41,8 +39,6 @@ apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: RoleBinding
 metadata:
   name: {{ $serviceAccountName }}
-  annotations:
-    "helm.sh/hook": pre-delete
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
@@ -69,7 +65,7 @@ spec:
       initContainers:
 {{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
         - name: ceph-keyring-placement
-          image: {{ .Values.images.tags.api }}
+          image: {{ .Values.images.tags.gnocchi_api }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
           securityContext:
             runAsUser: {{ .Values.pod.user.gnocchi.uid }}
@@ -88,7 +84,7 @@ spec:
               readOnly: true
       containers:
         - name: gnocchi-storage-init
-          image: {{ .Values.images.tags.storage_init }}
+          image: {{ .Values.images.tags.gnocchi_storage_init }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
 {{ tuple $envAll $envAll.Values.pod.resources.jobs.storage_init | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           env:
