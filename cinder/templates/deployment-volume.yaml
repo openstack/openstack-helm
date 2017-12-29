@@ -46,7 +46,7 @@ spec:
         {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
       initContainers:
 {{ tuple $envAll $dependencies $mounts_cinder_volume_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
-        {{- if include "cinder.is_ceph_volume_configured" . }}
+        {{- if include "cinder.is_ceph_volume_configured" $envAll }}
         - name: ceph-keyring-placement
           image: {{ .Values.images.tags.cinder_volume }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
@@ -54,6 +54,9 @@ spec:
             runAsUser: 0
           command:
             - /tmp/ceph-keyring.sh
+          env:
+            - name: RBD_USER
+              value: {{ index (index .Values.conf.backends (include "cinder.ceph_volume_section_name" $envAll)) "rbd_user" | quote }}
           volumeMounts:
             - name: etcceph
               mountPath: /etc/ceph
@@ -88,7 +91,7 @@ spec:
               mountPath: /etc/cinder/conf/backends.conf
               subPath: backends.conf
               readOnly: true
-            {{- if include "cinder.is_ceph_volume_configured" . }}
+            {{- if include "cinder.is_ceph_volume_configured" $envAll }}
             - name: etcceph
               mountPath: /etc/ceph
             - name: ceph-etc
@@ -128,7 +131,7 @@ spec:
         - name: cinder-etc
           configMap:
             name: cinder-etc
-        {{- if include "cinder.is_ceph_volume_configured" . }}
+        {{- if include "cinder.is_ceph_volume_configured" $envAll }}
         - name: etcceph
           emptyDir: {}
         - name: ceph-etc
@@ -137,7 +140,7 @@ spec:
             defaultMode: 0444
         - name: ceph-keyring
           secret:
-            secretName: pvc-ceph-client-key
+            secretName: {{ .Values.secrets.rbd.volume | quote }}
         {{ end }}
 {{ if $mounts_cinder_volume.volumes }}{{ toYaml $mounts_cinder_volume.volumes | indent 8 }}{{ end }}
 {{- end }}

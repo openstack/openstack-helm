@@ -1,0 +1,123 @@
+{{/*
+Copyright 2017 The Openstack-Helm Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.job_clean }}
+{{- $envAll := . }}
+{{ if or (eq .Values.conf.cinder.DEFAULT.backup_driver "cinder.backup.drivers.ceph") (include "cinder.is_ceph_volume_configured" $envAll) }}
+{{- $dependencies := .Values.dependencies.clean }}
+
+{{- $randStringSuffix := randAlphaNum 5 | lower }}
+
+{{- $serviceAccountName := print "cinder-clean-" $randStringSuffix }}
+{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: Role
+metadata:
+  name: {{ $serviceAccountName }}
+  annotations:
+    "helm.sh/hook": pre-delete
+    "helm.sh/hook-delete-policy": hook-succeeded
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+    verbs:
+      - get
+      - delete
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: RoleBinding
+metadata:
+  name: {{ $serviceAccountName }}
+  annotations:
+    "helm.sh/hook": pre-delete
+    "helm.sh/hook-delete-policy": hook-succeeded
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ $serviceAccountName }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ $serviceAccountName }}
+    namespace: {{ $envAll.Release.Namespace }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ print "cinder-clean-" $randStringSuffix }}
+  annotations:
+    "helm.sh/hook": pre-delete
+    "helm.sh/hook-delete-policy": hook-succeeded
+spec:
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "cinder" "clean" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+    spec:
+      serviceAccountName: {{ $serviceAccountName }}
+      restartPolicy: OnFailure
+      initContainers:
+{{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+      containers:
+        {{- if include "cinder.is_ceph_volume_configured" $envAll }}
+        - name: cinder-volume-rbd-secret-clean
+          image: {{ .Values.images.tags.cinder_storage_init }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+{{ tuple $envAll $envAll.Values.pod.resources.jobs.clean | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          env:
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: RBD_POOL_SECRET
+              value: {{ .Values.secrets.rbd.volume | quote }}
+          command:
+            - /tmp/clean-secrets.sh
+          volumeMounts:
+            - name: cinder-bin
+              mountPath: /tmp/clean-secrets.sh
+              subPath: clean-secrets.sh
+              readOnly: true
+        {{ end }}
+        {{- if eq .Values.conf.cinder.DEFAULT.backup_driver "cinder.backup.drivers.ceph" }}
+        - name: cinder-volume-backup-secret-clean
+          image: {{ .Values.images.tags.cinder_backup_storage_init }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+{{ tuple $envAll $envAll.Values.pod.resources.jobs.clean | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          env:
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: RBD_POOL_SECRET
+              value: {{ .Values.secrets.rbd.backup | quote }}
+          command:
+            - /tmp/clean-secrets.sh
+          volumeMounts:
+            - name: cinder-bin
+              mountPath: /tmp/clean-secrets.sh
+              subPath: clean-secrets.sh
+              readOnly: true
+        {{ end }}
+      volumes:
+        - name: cinder-bin
+          configMap:
+            name: cinder-bin
+            defaultMode: 0555
+{{- end }}
+{{- end }}

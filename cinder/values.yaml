@@ -39,7 +39,9 @@ images:
     cinder_scheduler: docker.io/kolla/ubuntu-source-cinder-scheduler:3.0.3
     cinder_volume: docker.io/kolla/ubuntu-source-cinder-volume:3.0.3
     cinder_volume_usage_audit: docker.io/kolla/ubuntu-source-cinder-volume:3.0.3
+    cinder_storage_init: docker.io/ceph/daemon:tag-build-master-luminous-ubuntu-16.04
     cinder_backup: docker.io/kolla/ubuntu-source-cinder-backup:3.0.3
+    cinder_backup_storage_init: docker.io/ceph/daemon:tag-build-master-luminous-ubuntu-16.04
     dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.2.1
   pull_policy: "IfNotPresent"
 
@@ -148,6 +150,27 @@ pod:
           memory: "1024Mi"
           cpu: "2000m"
       db_drop:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      clean:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      backup_storage_init:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      storage_init:
         requests:
           memory: "128Mi"
           cpu: "100m"
@@ -395,10 +418,15 @@ conf:
       host: cinder-volume-worker
       osapi_volume_listen_port: 8776
       enabled_backends: "rbd1"
+      # NOTE(portdirect): "cinder.backup.drivers.swift"  and
+      # "cinder.backup.drivers.posix" also supported
       backup_driver: "cinder.backup.drivers.ceph"
+      # Backup: Ceph RBD options
       backup_ceph_conf: "/etc/ceph/ceph.conf"
-      backup_ceph_user: admin
-      backup_ceph_pool: backups
+      backup_ceph_user: cinderbackup
+      backup_ceph_pool: cinder.backups
+      # Backup: Posix options
+      backup_posix_path: /var/lib/cinder/backup
     database:
       max_retries: -1
     keystone_authtoken:
@@ -414,13 +442,13 @@ conf:
     rbd1:
       volume_driver: cinder.volume.drivers.rbd.RBDDriver
       volume_backend_name: rbd1
-      rbd_pool: volumes
+      rbd_pool: cinder.volumes
       rbd_ceph_conf: "/etc/ceph/ceph.conf"
       rbd_flatten_volume_from_snapshot: false
       rbd_max_clone_depth: 5
       rbd_store_chunk_size: 4
       rados_connect_timeout: -1
-      rbd_user: "admin"
+      rbd_user: cinder
   rally_tests:
     run_tempest: false
     tests:
@@ -454,6 +482,12 @@ conf:
             failure_rate:
               max: 0
 
+backup:
+  posix:
+    volume:
+      class_name: general
+      size: 10Gi
+
 dependencies:
   db_init:
     services:
@@ -483,11 +517,18 @@ dependencies:
     services:
     - service: identity
       endpoint: internal
+  backup_storage_init:
+    jobs:
+  storage_init:
+    jobs:
+  clean:
+    jobs:
   api:
     jobs:
     - cinder-db-sync
     - cinder-ks-user
     - cinder-ks-endpoints
+    - cinder-storage-init
     services:
     - service: oslo_db
       endpoint: internal
@@ -504,6 +545,7 @@ dependencies:
     - cinder-db-sync
     - cinder-ks-user
     - cinder-ks-endpoints
+    - cinder-storage-init
     services:
     - service: identity
       endpoint: internal
@@ -514,6 +556,7 @@ dependencies:
     - cinder-db-sync
     - cinder-ks-user
     - cinder-ks-endpoints
+    - cinder-storage-init
     services:
     - service: identity
       endpoint: internal
@@ -524,6 +567,7 @@ dependencies:
     - cinder-db-sync
     - cinder-ks-user
     - cinder-ks-endpoints
+    - cinder-storage-init
     services:
     - service: identity
       endpoint: internal
@@ -534,6 +578,8 @@ dependencies:
     - cinder-db-sync
     - cinder-ks-user
     - cinder-ks-endpoints
+    - cinder-storage-init
+    - cinder-backup-storage-init
     services:
     - service: identity
       endpoint: internal
@@ -554,6 +600,9 @@ secrets:
   oslo_db:
     admin: cinder-db-admin
     user: cinder-db-user
+  rbd:
+    backup: cinder-backup-rbd-keyring
+    volume: cinder-volume-rbd-keyring
 
 # We use a different layout of the endpoints here to account for versioning
 # this swaps the service name and type, and should be rolled out to other
@@ -719,15 +768,19 @@ manifests:
   deployment_scheduler: true
   deployment_volume: true
   ingress_api: true
+  job_backup_storage_init: true
   job_bootstrap: true
+  job_clean: true
   job_db_init: true
   job_db_sync: true
   job_db_drop: false
   job_ks_endpoints: true
   job_ks_service: true
   job_ks_user: true
+  job_storage_init: true
   pdb_api: true
   pod_rally_test: true
+  pvc_backup: true
   secret_db: true
   secret_keystone: true
   service_api: true
