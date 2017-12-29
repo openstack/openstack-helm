@@ -22,6 +22,8 @@ limitations under the License.
 {{- $_ := set .Values "pod_dependency" .Values.dependencies.elasticsearch_master -}}
 {{- end -}}
 
+{{- $mounts_elasticsearch := .Values.pod.mounts.elasticsearch.elasticsearch }}
+
 {{- $serviceAccountName := "elasticsearch-master"}}
 {{ tuple $envAll $envAll.Values.pod_dependency $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
@@ -120,6 +122,11 @@ spec:
               readOnly: true
             - name: storage
               mountPath: {{ .Values.conf.elasticsearch.path.data }}
+            {{ if .Values.storage.filesystem_repository.enabled }}
+            - name: snapshots
+              mountPath: {{ .Values.conf.elasticsearch.path.repo }}
+            {{ end }}
+{{ if $mounts_elasticsearch.volumeMounts }}{{ toYaml $mounts_elasticsearch.volumeMounts | indent 12 }}{{ end }}
       volumes:
         - name: elastic-logs
           emptyDir: {}
@@ -135,4 +142,10 @@ spec:
             defaultMode: 0444
         - name: storage
           emptyDir: {}
+        {{ if .Values.storage.filesystem_repository.enabled }}
+        - name: snapshots
+          persistentVolumeClaim:
+            claimName: {{ .Values.storage.filesystem_repository.pvc.name }}
+        {{ end }}
+{{ if $mounts_elasticsearch.volumes }}{{ toYaml $mounts_elasticsearch.volumes | indent 8 }}{{ end }}
 {{- end }}
