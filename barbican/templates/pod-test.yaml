@@ -16,8 +16,12 @@ limitations under the License.
 
 {{- $envAll := . }}
 {{- $dependencies := .Values.dependencies.tests }}
+
 {{- $mounts_barbican_tests := .Values.pod.mounts.barbican_tests.barbican_tests }}
 {{- $mounts_barbican_tests_init := .Values.pod.mounts.barbican_tests.init_container }}
+
+{{- $serviceAccountName := print .Release.Name "-test" }}
+{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: v1
 kind: Pod
@@ -26,6 +30,7 @@ metadata:
   annotations:
     "helm.sh/hook": test-success
 spec:
+  serviceAccountName: {{ $serviceAccountName }}
   restartPolicy: Never
   initContainers:
 {{ tuple $envAll $dependencies $mounts_barbican_tests_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
