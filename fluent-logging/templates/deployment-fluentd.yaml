@@ -37,17 +37,17 @@ spec:
   template:
     metadata:
       labels:
-{{ tuple $envAll "aggregator" "internal" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+{{ tuple $envAll "fluentd" "internal" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
       annotations:
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
     spec:
       serviceAccountName: {{ $serviceAccountName }}
       affinity:
-{{ tuple $envAll "aggregator" "internal" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
+{{ tuple $envAll "fluentd" "internal" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
       nodeSelector:
         {{ .Values.labels.fluentd.node_selector_key }}: {{ .Values.labels.fluentd.node_selector_value }}
-      terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.fluentd_aggregator.timeout | default "30" }}
+      terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.fluentd.timeout | default "30" }}
       initContainers:
 {{ tuple $envAll .Values.pod_dependency list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
@@ -59,7 +59,15 @@ spec:
             - /tmp/fluentd.sh
             - start
           ports:
-            - containerPort: {{ tuple "aggregator" "internal" "service" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+            - name: forward
+              containerPort: {{ tuple "fluentd" "internal" "service" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+          env:
+            - name: FLUENTD_PORT
+              value: {{ tuple "fluentd" "internal" "service" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | quote }}
+            - name: ELASTICSEARCH_HOST
+              value: {{ tuple "elasticsearch" "internal" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" | quote }}
+            - name: ELASTICSEARCH_PORT
+              value: {{ tuple "elasticsearch" "internal" "client" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | quote }}
           volumeMounts:
             - name: pod-etc-fluentd
               mountPath: /etc/td-agent
