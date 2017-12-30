@@ -14,22 +14,22 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if .Values.manifests.job_db_init_keystone }}
+{{- if .Values.manifests.job_db_init }}
 {{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.db_init_keystone }}
+{{- $dependencies := .Values.dependencies.db_init }}
 
-{{- $serviceAccountName := "gnocchi-db-init-keystone" }}
+{{- $serviceAccountName := "gnocchi-db-init" }}
 {{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: gnocchi-db-init-keystone
+  name: gnocchi-db-init
 spec:
   template:
     metadata:
       labels:
-{{ tuple $envAll "gnocchi" "db-init-keystone" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+{{ tuple $envAll "gnocchi" "db-init" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
     spec:
       serviceAccountName: {{ $serviceAccountName }}
       restartPolicy: OnFailure
@@ -39,7 +39,7 @@ spec:
 {{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
         - name: keystone-db-init
-          image: {{ .Values.images.tags.db_init_keystone | quote }}
+          image: {{ .Values.images.tags.db_init | quote }}
           imagePullPolicy: {{ .Values.images.pull_policy | quote }}
 {{ tuple $envAll $envAll.Values.pod.resources.jobs.db_init | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           env:

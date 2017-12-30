@@ -9,18 +9,18 @@ labels:
 images:
   tags:
     dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.2.1
-    storage_init: docker.io/ceph/daemon:tag-build-master-luminous-ubuntu-16.04
+    gnocchi_storage_init: docker.io/ceph/daemon:tag-build-master-luminous-ubuntu-16.04
     db_init_indexer: docker.io/postgres:9.5
     # using non-kolla images until kolla supports postgres as
     # an indexer
-    db_init_keystone: quay.io/attcomdev/ubuntu-source-gnocchi-api:3.0.3
+    db_init: quay.io/attcomdev/ubuntu-source-gnocchi-api:3.0.3
     db_sync: quay.io/attcomdev/ubuntu-source-gnocchi-api:3.0.3
     ks_user: docker.io/kolla/ubuntu-source-heat-engine:3.0.3
     ks_service: docker.io/kolla/ubuntu-source-heat-engine:3.0.3
     ks_endpoints: docker.io/kolla/ubuntu-source-heat-engine:3.0.3
-    api: quay.io/attcomdev/ubuntu-source-gnocchi-api:3.0.3
-    statsd: quay.io/attcomdev/ubuntu-source-gnocchi-statsd:3.0.3
-    metricd: quay.io/attcomdev/ubuntu-source-gnocchi-metricd:3.0.3
+    gnocchi_api: quay.io/attcomdev/ubuntu-source-gnocchi-api:3.0.3
+    gnocchi_statsd: quay.io/attcomdev/ubuntu-source-gnocchi-statsd:3.0.3
+    gnocchi_metricd: quay.io/attcomdev/ubuntu-source-gnocchi-metricd:3.0.3
   pull_policy: "IfNotPresent"
 
 network:
@@ -37,9 +37,11 @@ network:
       port: 8125
 
 dependencies:
+  clean:
+    services:
   storage_init:
     services:
-  db_init_keystone:
+  db_init:
     services:
     - service: oslo_db
       endpoint: internal
@@ -50,7 +52,8 @@ dependencies:
       endpoint: internal
   db_sync:
     jobs:
-    - gnocchi-db-init-keystone
+    - gnocchi-storage-init
+    - gnocchi-db-init
     - gnocchi-db-init-indexer
     services:
     - service: oslo_db_postgresql
@@ -190,6 +193,13 @@ pod:
         memory: "1024Mi"
         cpu: "2000m"
     jobs:
+      clean:
+        requests:
+          memory: "124Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
       db_init:
         requests:
           memory: "124Mi"
@@ -313,9 +323,9 @@ conf:
       max_retries: -1
     storage:
       driver: ceph
-      ceph_pool: metrics
-      ceph_username: admin
-      ceph_keyring: /etc/ceph/ceph.client.admin.keyring
+      ceph_pool: gnocchi.metrics
+      ceph_username: gnocchi
+      ceph_keyring: /etc/ceph/ceph.client.gnocchi.keyring
       ceph_conffile: /etc/ceph/ceph.conf
       file_basepath: /var/lib/gnocchi
       provided_keyring: null
@@ -441,8 +451,9 @@ manifests:
   daemonset_statsd: true
   deployment_api: true
   ingress_api: true
+  job_clean: true
   job_db_init_indexer: true
-  job_db_init_keystone: true
+  job_db_init: true
   job_db_sync: true
   job_ks_endpoints: true
   job_ks_service: true
