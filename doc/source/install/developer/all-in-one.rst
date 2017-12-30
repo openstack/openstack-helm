@@ -7,6 +7,8 @@ Overview
 
 Below are some instructions and suggestions to help you get started with a
 Kubeadm All-in-One environment on Ubuntu 16.04.
+Other supported versions of Linux can also be used, with the appropriate changes
+to package installation.
 
 Requirements
 ============
@@ -27,6 +29,10 @@ For a deployment without cinder and horizon the system requirements are:
 - 48GB HDD
 
 This guide covers the minimum number of requirements to get started.
+
+All commands below should be run as a normal user, not as root.
+Appropriate versions of Docker, Kubernetes, and Helm will be installed
+by the playbooks used below, so there's no need to install them ahead of time.
 
 .. warning:: By default the Calico CNI will use ``192.168.0.0/16`` and
    Kubernetes services will use ``10.96.0.0/16`` as the CIDR for services. Check
