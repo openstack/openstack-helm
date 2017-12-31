@@ -18,8 +18,8 @@ set -ex
 : ${WORK_DIR:="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )/../../.."}
 export DEPLOY=${1:-"full"}
 export MODE=${2:-"local"}
-export INVENTORY=${WORK_DIR}/tools/gate/devel/${MODE}-inventory.yaml
-export VARS=${WORK_DIR}/tools/gate/devel/${MODE}-vars.yaml
+export INVENTORY=${3:-${WORK_DIR}/tools/gate/devel/${MODE}-inventory.yaml}
+export VARS=${4:-${WORK_DIR}/tools/gate/devel/${MODE}-vars.yaml}
 
 function ansible_install {
   cd /tmp
