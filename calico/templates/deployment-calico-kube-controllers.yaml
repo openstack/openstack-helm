@@ -1,4 +1,4 @@
-{{/*
+  {{/*
 Copyright 2017 The Openstack-Helm Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,47 +14,84 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if .Values.manifests.deployment_calico_policy_controller }}
+{{- if .Values.manifests.deployment_calico_kube_controllers }}
 {{- $envAll := . }}
 {{- if .Values.images.local_registry.active -}}
-{{- $_ := set .Values "pod_dependency" (merge .Values.dependencies.calico_policy_controller .Values.conditional_dependencies.local_image_registry) -}}
+{{- $_ := set .Values "pod_dependency" (merge .Values.dependencies.calico_kube_controllers .Values.conditional_dependencies.local_image_registry) -}}
 {{- else -}}
-{{- $_ := set .Values "pod_dependency" .Values.dependencies.calico_policy_controller -}}
+{{- $_ := set .Values "pod_dependency" .Values.dependencies.calico_kube_controllers -}}
 {{- end -}}
 
-{{- $serviceAccountName := "calico-policy-controller"}}
+{{- $serviceAccountName := "calico-kube-controllers"}}
 {{ tuple $envAll $envAll.Values.pod_dependency $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
-# This manifest deploys the Calico policy controller on Kubernetes.
-# See https://github.com/projectcalico/k8s-policy
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ $serviceAccountName }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ $serviceAccountName }}
+subjects:
+- kind: ServiceAccount
+  name: {{ $serviceAccountName }}
+  namespace: {{ .Release.Namespace }}
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: {{ $serviceAccountName }}
+rules:
+  - apiGroups:
+    - ""
+    - extensions
+    resources:
+      - pods
+      - namespaces
+      - networkpolicies
+      - nodes
+    verbs:
+      - watch
+      - list
+---
+# This manifest deploys the Calico Kubernetes controllers.
+# See https://github.com/projectcalico/kube-controllers
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
-  name: calico-policy-controller
+  name: calico-kube-controllers
+  namespace: {{ .Release.Namespace }}
   labels:
-    k8s-app: calico-policy
-{{ tuple $envAll "calico" "policy" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+    k8s-app: calico-kube-controllers
+{{ tuple $envAll "calico" "kube-controller" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 spec:
-  # The policy controller can only have a single active instance.
+  # The controllers can only have a single active instance.
   replicas: 1
   strategy:
     type: Recreate
   template:
     metadata:
-      name: calico-policy-controller
+      name: calico-kube-controllers
+      namespace: kube-system
       labels:
-        k8s-app: calico-policy-controller
-{{ tuple $envAll "calico" "policy" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+        k8s-app: calico-kube-controllers
+{{ tuple $envAll "calico" "kube-controller" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
       annotations:
         # Mark this pod as a critical add-on; when enabled, the critical add-on scheduler
         # reserves resources for critical add-on pods so that they can be rescheduled after
         # a failure.  This annotation works in tandem with the toleration below.
         scheduler.alpha.kubernetes.io/critical-pod: ''
     spec:
-      # The policy controller must run in the host network namespace so that
+      # The controllers must run in the host network namespace so that
       # it isn't governed by policy that would prevent it from working.
       hostNetwork: true
       tolerations:
+      # this taint is set by all kubelets running `--cloud-provider=external`
+      # so we should tolerate it to schedule the calico pods
+      - key: node.cloudprovider.kubernetes.io/uninitialized
+        value: "true"
+        effect: NoSchedule
       - key: node-role.kubernetes.io/master
         effect: NoSchedule
       # Allow this pod to be rescheduled while the node is in "critical add-ons only" mode.
@@ -65,8 +102,8 @@ spec:
       initContainers:
 {{ tuple $envAll .Values.pod_dependency list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
-        - name: calico-policy-controller
-{{ tuple $envAll "calico_kube_policy_controller" | include "helm-toolkit.snippets.image" | indent 10 }}
+        - name: calico-kube-controllers
+{{ tuple $envAll "calico_kube_controllers" | include "helm-toolkit.snippets.image" | indent 10 }}
           env:
             # The location of the Calico etcd cluster.
             - name: ETCD_ENDPOINTS
@@ -78,6 +115,9 @@ spec:
             # service for API access.
             - name: K8S_API
               value: "https://kubernetes.default:443"
+            # Choose which controllers to run.
+            - name: ENABLED_CONTROLLERS
+              value: policy,profile,workloadendpoint,node
             # Since we're running in the host namespace and might not have KubeDNS
             # access, configure the container's /etc/hosts to resolve
             # kubernetes.default to the correct service clusterIP.
