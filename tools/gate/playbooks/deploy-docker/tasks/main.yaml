@@ -17,18 +17,6 @@
   register: need_docker
   ignore_errors: True
 
-- name: deploy docker packages
-  when: need_docker | failed
-  include_role:
-    name: deploy-package
-    tasks_from: dist
-  vars:
-    packages:
-      deb:
-        - docker.io
-      rpm:
-        - docker-latest
-
 - name: centos | moving systemd unit into place
   when: ( ansible_distribution == 'CentOS' or ansible_distribution == 'Red Hat Enterprise Linux' ) and ( need_docker | failed )
   template:
@@ -42,6 +30,25 @@
     src: fedora-docker.service.j2
     dest: /etc/systemd/system/docker.service
     mode: 0640
+
+- name: ubuntu | moving systemd unit into place
+  when: ( ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu' ) and ( need_docker | failed )
+  template:
+    src: ubuntu-docker.service.j2
+    dest: /etc/systemd/system/docker.service
+    mode: 0640
+
+- name: deploy docker packages
+  when: need_docker | failed
+  include_role:
+    name: deploy-package
+    tasks_from: dist
+  vars:
+    packages:
+      deb:
+        - docker.io
+      rpm:
+        - docker-latest
 
 - name: restarting docker
   systemd:
