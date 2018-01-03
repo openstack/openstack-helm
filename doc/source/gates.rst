@@ -16,11 +16,11 @@ Gate Checks
 
 OpenStack-Helm currently checks the following scenarios:
 
-- Testing any documentation changes and impacts
+- Testing any documentation changes and impacts.
 - Running Make on each chart, which lints and packages the charts.  This gate
-  does not stand up a Kubernetes cluster
+  does not stand up a Kubernetes cluster.
 - Provisioning a single node cluster and deploying the OpenStack services.  This
-  check is provided for: Ubuntu-1604, CentOS-7, and Fedora-25
+  check is provided for: Ubuntu-1604, CentOS-7, and Fedora-25.
 - Provisioning a multi-node Ubuntu-1604 cluster and deploying the OpenStack
   services. This check is provided for both a two node cluster and a three
   node cluster.
