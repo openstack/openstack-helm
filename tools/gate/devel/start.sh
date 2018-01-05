@@ -52,10 +52,10 @@ function ansible_install {
       jq
   fi
 
-  sudo -H pip install --no-cache-dir --upgrade pip
-  sudo -H pip install --no-cache-dir --upgrade setuptools
-  sudo -H pip install --no-cache-dir --upgrade pyopenssl
-  sudo -H pip install --no-cache-dir \
+  sudo -H -E pip install --no-cache-dir --upgrade pip
+  sudo -H -E pip install --no-cache-dir --upgrade setuptools
+  sudo -H -E pip install --no-cache-dir --upgrade pyopenssl
+  sudo -H -E pip install --no-cache-dir \
     ansible \
     ara \
     yq
