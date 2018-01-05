@@ -18,6 +18,7 @@
 
 images:
   tags:
+    apache_proxy: docker.io/httpd:2.4
     memory_init: docker.io/kolla/ubuntu-source-heat-engine:3.0.3
     curator:  docker.io/bobrik/curator:5.2.0
     elasticsearch: docker.io/elasticsearch:5.4.2
@@ -144,7 +145,14 @@ pod:
           memory: "1024Mi"
           cpu: "2000m"
 
+secrets:
+  elasticsearch:
+    user: elasticsearch-admin-creds
+
 conf:
+  apache:
+    htpasswd: /usr/local/apache2/conf/.htpasswd
+  httpd:
   init:
     max_map_count: 262144
   curator:
@@ -263,6 +271,10 @@ endpoints:
   elasticsearch:
     name: elasticsearch
     namespace: null
+    auth:
+      admin:
+        username: admin
+        password: changeme
     hosts:
       data: elasticsearch-data
       default: elasticsearch-logging
@@ -277,6 +289,8 @@ endpoints:
     port:
       client:
         default: 9200
+      http:
+        default: 80
       discovery:
         default: 9300
 
@@ -326,6 +340,7 @@ manifests:
   job_snapshot_repository: true
   helm_tests: true
   pvc_snapshots: true
+  secret_admin: true
   service_data: true
   service_discovery: true
   service_logging: true

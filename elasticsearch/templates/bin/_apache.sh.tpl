@@ -1,4 +1,5 @@
 #!/bin/bash
+
 {{/*
 Copyright 2017 The Openstack-Helm Authors.
 
@@ -15,18 +16,31 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-set -ex
+set -ev
+
 COMMAND="${@:-start}"
 
 function start () {
-  exec kibana \
-    --elasticsearch.url="$ELASTICSEARCH_URL" \
-    --elasticsearch.username="$ELASTICSEARCH_USERNAME" \
-    --elasticsearch.password="$ELASTICSEARCH_PASSWORD"
+
+  if [ -f /etc/apache2/envvars ]; then
+     # Loading Apache2 ENV variables
+     source /etc/httpd/apache2/envvars
+  fi
+  # Apache gets grumpy about PID files pre-existing
+  rm -f /etc/httpd/logs/httpd.pid
+
+  if [ -f {{ .Values.conf.apache.htpasswd }} ]; then
+    htpasswd -b {{ .Values.conf.apache.htpasswd }} $ELASTICSEARCH_USERNAME $ELASTICSEARCH_PASSWORD
+  else
+    htpasswd -cb {{ .Values.conf.apache.htpasswd }} $ELASTICSEARCH_USERNAME $ELASTICSEARCH_PASSWORD
+  fi
+
+  #Launch Apache on Foreground
+  exec httpd -DFOREGROUND
 }
 
 function stop () {
-  kill -TERM 1
+  apachectl -k graceful-stop
 }
 
 $COMMAND

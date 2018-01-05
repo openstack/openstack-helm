@@ -17,11 +17,13 @@ limitations under the License.
 
 set -ex
 
-exec curl -X PUT "${ELASTICSEARCH_ENDPOINT}/_snapshot/${REPO_NAME}" -H 'Content-Type: application/json' -d'
-{
-  "type": "'"$REPO_TYPE"'",
-  "settings": {
-    "location": "'"$REPO_LOCATION"'",
-    "compress": true
-  }
-}'
+exec curl -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
+  "${ELASTICSEARCH_ENDPOINT}/_snapshot/${REPO_NAME}" \
+  -H 'Content-Type: application/json' -d'
+  {
+    "type": "'"$REPO_TYPE"'",
+    "settings": {
+      "location": "'"$REPO_LOCATION"'",
+      "compress": true
+    }
+  }'

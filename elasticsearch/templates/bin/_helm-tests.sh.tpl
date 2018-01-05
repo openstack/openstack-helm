@@ -19,7 +19,8 @@ limitations under the License.
 set -ex
 
 function create_index () {
-  index_result=$(curl -XPUT "${ELASTICSEARCH_ENDPOINT}/test_index?pretty" -H 'Content-Type: application/json' -d'
+  index_result=$(curl -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
+  -XPUT "${ELASTICSEARCH_ENDPOINT}/test_index?pretty" -H 'Content-Type: application/json' -d'
   {
     "settings" : {
       "index" : {
@@ -39,7 +40,8 @@ function create_index () {
 }
 
 function insert_test_data () {
-  insert_result=$(curl -XPUT "${ELASTICSEARCH_ENDPOINT}/sample_index/sample_type/123/_create?pretty" -H 'Content-Type: application/json' -d'
+  insert_result=$(curl -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
+  -XPUT "${ELASTICSEARCH_ENDPOINT}/sample_index/sample_type/123/_create?pretty" -H 'Content-Type: application/json' -d'
   {
       "name" : "Elasticsearch",
       "message" : "Test data text entry"
@@ -56,18 +58,19 @@ function insert_test_data () {
 
 
 function check_hits () {
-  total_hits=$(curl -XGET "${ELASTICSEARCH_ENDPOINT}/_search?pretty" -H 'Content-Type: application/json' -d'
-    {
-      "query" : {
-        "bool": {
-          "must": [
-            { "match": { "name": "Elasticsearch" }},
-            { "match": { "message": "Test data text entry" }}
-          ]
-        }
+  total_hits=$(curl -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
+  "${ELASTICSEARCH_ENDPOINT}/_search?pretty" -H 'Content-Type: application/json' -d'
+  {
+    "query" : {
+      "bool": {
+        "must": [
+          { "match": { "name": "Elasticsearch" }},
+          { "match": { "message": "Test data text entry" }}
+        ]
       }
     }
-    ' | python -c "import sys, json; print json.load(sys.stdin)['hits']['total']")
+  }
+  ' | python -c "import sys, json; print json.load(sys.stdin)['hits']['total']")
   if [ "$total_hits" -gt 0 ]; then
      echo "PASS: Successful hits on test data query!"
   else

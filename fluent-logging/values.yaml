@@ -40,6 +40,10 @@ images:
       - dep_check
       - image_repo_sync
 
+secrets:
+  elasticsearch:
+    user: fluentd-elasticsearch-user
+
 dependencies:
   image_repo_sync:
     services:
@@ -122,6 +126,8 @@ conf:
     - elasticsearch:
         header: match
         type: elasticsearch
+        user: "#{ENV['ELASTICSEARCH_USERNAME']}"
+        password: "#{ENV['ELASTICSEARCH_PASSWORD']}"
         expression: "**"
         include_tag_key: true
         host: "#{ENV['ELASTICSEARCH_HOST']}"
@@ -134,12 +140,15 @@ conf:
         disable_retry_limit: ""
         num_threads: 8
 
-
 endpoints:
   cluster_domain_suffix: cluster.local
   elasticsearch:
     namespace: null
     name: elasticsearch
+    auth:
+      admin:
+        username: admin
+        password: changeme
     hosts:
       data: elasticsearch-data
       default: elasticsearch-logging
@@ -153,7 +162,7 @@ endpoints:
       default: http
     port:
       client:
-        default: 9200
+        default: 80
       discovery:
         default: 9300
   kafka:
@@ -251,7 +260,6 @@ pod:
         limits:
           memory: '1024Mi'
           cpu: '2000m'
-
   mounts:
     fluentd:
       fluentd:
@@ -267,4 +275,5 @@ manifests:
   daemonset_fluentbit: true
   job_image_repo_sync: true
   helm_tests: true
+  secret_elasticsearch: true
   service_fluentd: true

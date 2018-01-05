@@ -16,6 +16,7 @@ limitations under the License.
 
 {{- if .Values.manifests.deployment_client }}
 {{- $envAll := . }}
+{{- $esUserSecret := .Values.secrets.elasticsearch.user }}
 {{- if .Values.images.local_registry.active -}}
 {{- $_ := set .Values "pod_dependency" (merge .Values.dependencies.elasticsearch_client .Values.conditional_dependencies.local_image_registry) -}}
 {{- else -}}
@@ -108,6 +109,43 @@ spec:
               mountPath: {{ .Values.conf.elasticsearch.repository.location }}
 {{ end }}
       containers:
+        - name: apache-proxy
+{{ tuple $envAll "apache_proxy" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.apache_proxy | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          command:
+            - /tmp/apache.sh
+            - start
+          ports:
+            - name: http
+              containerPort: 80
+          env:
+            - name: ELASTICSEARCH_PORT
+              value: {{ tuple "elasticsearch" "internal" "client" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | quote }}
+            - name: ELASTICSEARCH_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $esUserSecret }}
+                  key: ELASTICSEARCH_USERNAME
+            - name: ELASTICSEARCH_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $esUserSecret }}
+                  key: ELASTICSEARCH_PASSWORD
+          volumeMounts:
+            - name: elasticsearch-bin
+              mountPath: /tmp/apache.sh
+              subPath: apache.sh
+              readOnly: true
+            - name: elasticsearch-etc
+              mountPath: /usr/local/apache2/conf/httpd.conf
+              subPath: httpd.conf
+              readOnly: true
+            - name: pod-etc-apache
+              mountPath: /usr/local/apache2/conf/sites-enabled
+            - name: elasticsearch-etc
+              mountPath: /usr/local/apache2/conf/sites-enabled/elasticsearch-host.conf
+              subPath: elasticsearch-host.conf
+              readOnly: true
         - name: elasticsearch-client
           securityContext:
             privileged: true
@@ -184,6 +222,8 @@ spec:
             {{ end }}
 {{ if $mounts_elasticsearch.volumeMounts }}{{ toYaml $mounts_elasticsearch.volumeMounts | indent 12 }}{{ end }}
       volumes:
+        - name: pod-etc-apache
+          emptyDir: {}
         - name: elasticsearch-logs
           emptyDir: {}
         - name: elasticsearch-bin

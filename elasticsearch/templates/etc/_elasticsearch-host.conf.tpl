@@ -1,4 +1,3 @@
-#!/bin/bash
 {{/*
 Copyright 2017 The Openstack-Helm Authors.
 
@@ -15,18 +14,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-set -ex
-COMMAND="${@:-start}"
-
-function start () {
-  exec kibana \
-    --elasticsearch.url="$ELASTICSEARCH_URL" \
-    --elasticsearch.username="$ELASTICSEARCH_USERNAME" \
-    --elasticsearch.password="$ELASTICSEARCH_PASSWORD"
-}
-
-function stop () {
-  kill -TERM 1
-}
-
-$COMMAND
+<VirtualHost *:80>
+  <Location />
+      ProxyPass http://localhost:${ELASTICSEARCH_PORT}/
+      ProxyPassReverse http://localhost:${ELASTICSEARCH_PORT}/
+  </Location>
+  <Proxy *>
+      AuthType Basic
+      AuthName "Authentication Required"
+      AuthUserFile {{.Values.conf.apache.htpasswd | quote}}
+      Require valid-user
+  </Proxy>
+</VirtualHost>

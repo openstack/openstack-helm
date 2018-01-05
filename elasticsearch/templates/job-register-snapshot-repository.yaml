@@ -17,6 +17,7 @@ limitations under the License.
 {{- if .Values.manifests.job_snapshot_repository }}
 {{- if .Values.conf.elasticsearch.repository.enabled }}
 {{- $envAll := . }}
+{{- $esUserSecret := .Values.secrets.elasticsearch.user }}
 {{- $_ := set .Values "pod_dependency" .Values.dependencies.snapshot_repository -}}
 
 {{- $serviceAccountName := "elasticsearch-register-snapshot-repository" }}
@@ -43,8 +44,18 @@ spec:
 {{ tuple $envAll "snapshot_repository" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.jobs.snapshot_repository | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           env:
+            - name: ELASTICSEARCH_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $esUserSecret }}
+                  key: ELASTICSEARCH_USERNAME
+            - name: ELASTICSEARCH_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $esUserSecret }}
+                  key: ELASTICSEARCH_PASSWORD
             - name: ELASTICSEARCH_ENDPOINT
-              value: {{ tuple "elasticsearch" "internal" "client" . | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" }}
+              value: {{ tuple "elasticsearch" "internal" "http" . | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" }}
             - name: REPO_NAME
               value: {{ .Values.conf.elasticsearch.repository.name | quote }}
             - name: REPO_TYPE

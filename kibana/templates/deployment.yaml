@@ -16,6 +16,7 @@ limitations under the License.
 
 {{- if .Values.manifests.deployment }}
 {{- $envAll := . }}
+{{- $esUserSecret := .Values.secrets.elasticsearch.user }}
 {{- if .Values.images.local_registry.active -}}
 {{- $_ := set .Values "pod_dependency" (merge .Values.dependencies.kibana .Values.conditional_dependencies.local_image_registry) -}}
 {{- else -}}
@@ -60,6 +61,16 @@ spec:
           env:
             - name: ELASTICSEARCH_URL
               value: {{ tuple "elasticsearch" "default" "client" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" }}
+            - name: ELASTICSEARCH_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $esUserSecret }}
+                  key: ELASTICSEARCH_USERNAME
+            - name: ELASTICSEARCH_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $esUserSecret }}
+                  key: ELASTICSEARCH_PASSWORD
           volumeMounts:
             - name: kibana-bin
               mountPath: /tmp/kibana.sh

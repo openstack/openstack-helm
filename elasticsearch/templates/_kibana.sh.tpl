@@ -20,9 +20,9 @@ COMMAND="${@:-start}"
 
 function start () {
   exec kibana \
-    --elasticsearch.url="$ELASTICSEARCH_URL" \
-    --elasticsearch.username="$ELASTICSEARCH_USERNAME" \
-    --elasticsearch.password="$ELASTICSEARCH_PASSWORD"
+    --elasticsearch.url="${ELASTICSEARCH_URL}" \
+    --elasticsearch.username="${ELASTICSEARCH_USERNAME}" \
+    --elasticsearch.password="{$ELASTICSEARCH_PASSWORD}"
 }
 
 function stop () {
