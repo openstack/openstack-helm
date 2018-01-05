@@ -14,9 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-listen_tcp = 1
-auth_tcp = "none"
-ca_file = ""
-log_level = {{ .Values.conf.libvirt.log_level }}
-log_outputs = "{{ .Values.conf.libvirt.log_level }}:stderr"
-listen_addr = "{{ .Values.conf.libvirt.listen_addr }}"
+{{- define "helm-toolkit.utils.to_kv_list" -}}
+{{- range $key, $value :=  . -}}
+{{- if regexMatch "^[0-9]+$" $value }}
+{{ $key }} = {{ $value }}
+{{- else }}
+{{ $key }} = {{ $value | quote }}
+{{- end }}
+{{- end -}}
+{{- end -}}
