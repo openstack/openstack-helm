@@ -16,7 +16,7 @@
 
 set -xe
 
-sudo -H pip install python-openstackclient python-heatclient
+sudo -H -E pip install python-openstackclient python-heatclient
 
 sudo -H mkdir -p /etc/openstack
 cat << EOF | sudo -H tee -a /etc/openstack/clouds.yaml

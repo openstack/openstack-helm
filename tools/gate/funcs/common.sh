@@ -62,10 +62,10 @@ function base_install {
       python-pip
   fi
 
-  sudo -H pip install --upgrade pip
-  sudo -H pip install --upgrade setuptools
-  sudo -H pip install pyyaml
-  sudo -H pip install yq
+  sudo -H -E pip install --upgrade pip
+  sudo -H -E pip install --upgrade setuptools
+  sudo -H -E pip install pyyaml
+  sudo -H -E pip install yq
 
   if [ "x$SDN_PLUGIN" == "xlinuxbridge" ]; then
     sdn_lb_support_install
