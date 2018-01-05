@@ -21,22 +21,21 @@ labels:
   node_selector_key: openstack-control-plane
   node_selector_value: enabled
 
+images:
+  tags:
+    rabbitmq: docker.io/rabbitmq:3.7
+    dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.2.1
+  pull_policy: "IfNotPresent"
+
 pod:
   affinity:
-      anti:
-        type:
-          default: preferredDuringSchedulingIgnoredDuringExecution
-        topologyKey:
-          default: kubernetes.io/hostname
+    anti:
+      type:
+        default: preferredDuringSchedulingIgnoredDuringExecution
+      topologyKey:
+        default: kubernetes.io/hostname
   replicas:
     server: 3
-  lifecycle:
-    upgrades:
-      revision_history: 3
-      pod_replacement_strategy: RollingUpdate
-      rolling_update:
-        max_unavailable: 1
-        max_surge: 3
   resources:
     enabled: false
     server:
@@ -47,48 +46,55 @@ pod:
         memory: "128Mi"
         cpu: "500m"
 
-auth:
-  default_user: rabbitmq
-  default_pass: password
-  admin_user: admin
-  admin_pass: password
-
-network:
-  port:
-    public: '5672'
-    management: '15672'
-
-images:
-  tags:
-    rabbitmq: quay.io/attcomdev/fuel-mcp-rabbitmq:ocata-unstable
-    dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.2.1
-  pull_policy: "IfNotPresent"
-
-enabled_plugins:
-  - autocluster
-  - rabbitmq_management
-
-erlang_cookie: openstack-cookie
-
-endpoints:
-  cluster_domain_suffix: cluster.local
-  etcd:
-    hosts:
-      default: etcd
-    host_fqdn_override:
-      default: null
-    port: 2379
-
-autocluster:
-  log_level: info
-  delay: 15
-  node_type: disc
-
-probes_delay: 180
-probes_timeout: 10
+conf:
+  enabled_plugins:
+    - rabbitmq_management
+    - rabbitmq_peer_discovery_k8s
+  rabbitmq:
+    listeners:
+      tcp:
+        #NOTE(portdirect): This is always defined via the endpoints section.
+        1: null
+    cluster_formation:
+      peer_discovery_backend: rabbit_peer_discovery_k8s
+      k8s:
+        address_type: ip
+      node_cleanup:
+        interval: "10"
+        only_log_warning: "false"
+    cluster_partition_handling: autoheal
+    queue_master_locator: min-masters
+    loopback_users.guest: "false"
 
 dependencies:
   rabbitmq:
-    services:
-    - service: etcd
-      endpoint: internal
+    jobs: null
+
+# typically overriden by environmental
+# values, but should include all endpoints
+# required by this chart
+endpoints:
+  cluster_domain_suffix: cluster.local
+  oslo_messaging:
+    auth:
+      erlang_cookie: openstack-cookie
+      user:
+        username: rabbitmq
+        password: password
+    hosts:
+      default: rabbitmq
+    host_fqdn_override:
+      default: null
+    path: /
+    scheme: rabbit
+    port:
+      amqp:
+        default: 5672
+      http:
+        default: 15672
+
+manifests:
+  configmap_bin: true
+  configmap_etc: true
+  service: true
+  statefulset: true

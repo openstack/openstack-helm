@@ -14,19 +14,52 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- if .Values.manifests.statefulset }}
 {{- $envAll := . }}
 {{- $dependencies := .Values.dependencies.rabbitmq }}
 
 {{- $serviceAccountName := "rabbitmq" }}
 {{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
-kind: Deployment
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: RoleBinding
+metadata:
+  name: {{ $serviceAccountName }}
+  namespace: {{ .Release.Namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ $serviceAccountName }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ $serviceAccountName }}
+    namespace: {{ .Release.Namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: Role
+metadata:
+  name: {{ $serviceAccountName }}
+  namespace: {{ .Release.Namespace }}
+rules:
+  - apiGroups:
+      - ""
+      - extensions
+      - batch
+      - apps
+    verbs:
+      - get
+      - list
+    resources:
+      - services
+      - endpoints
+---
 apiVersion: apps/v1beta1
+kind: StatefulSet
 metadata:
   name: rabbitmq
 spec:
+  serviceName: {{ tuple "oslo_messaging" "internal" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
   replicas: {{ .Values.pod.replicas.server }}
-{{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_deployment" | indent 2 }}
   template:
     metadata:
       labels:
@@ -47,45 +80,51 @@ spec:
           image: {{ .Values.images.tags.rabbitmq }}
 {{ tuple $envAll $envAll.Values.pod.resources.server | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           command:
-          - /scripts/start.sh
+            - /tmp/rabbitmq-start.sh
+          ports:
+            - name: http
+              protocol: TCP
+              containerPort: {{ tuple "oslo_messaging" "internal" "http" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+            - name: amqp
+              protocol: TCP
+              containerPort: {{ tuple "oslo_messaging" "internal" "amqp" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
           env:
-          - name: RABBITMQ_POD_IP
-            valueFrom:
-              fieldRef:
-                fieldPath: status.podIP
+            - name: MY_POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: RABBITMQ_USE_LONGNAME
+              value: "true"
+            - name: RABBITMQ_NODENAME
+              value: "rabbit@$(MY_POD_IP)"
+            - name: K8S_SERVICE_NAME
+              value: {{ tuple "oslo_messaging" "internal" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" | quote }}
+            - name: RABBITMQ_ERLANG_COOKIE
+              value: "{{ .Values.endpoints.oslo_messaging.auth.erlang_cookie }}"
           readinessProbe:
-            initialDelaySeconds: 30
-            periodSeconds: 30
-            timeoutSeconds: {{ .Values.probes_timeout }}
+            initialDelaySeconds: 10
+            timeoutSeconds: 10
             exec:
               command:
-              - /scripts/rabbitmq-readiness.sh
+              - /tmp/rabbitmq-readiness.sh
           livenessProbe:
-            initialDelaySeconds: {{ .Values.probes_delay }}
-            timeoutSeconds: {{ .Values.probes_timeout }}
+            initialDelaySeconds: 30
+            timeoutSeconds: 10
             exec:
               command:
-              - /scripts/rabbitmq-liveness.sh
+              - /tmp/rabbitmq-liveness.sh
           volumeMounts:
             - name: rabbitmq-emptydir
               mountPath: /var/lib/rabbitmq
             - name: rabbitmq-bin
-              mountPath: /scripts
+              mountPath: /tmp
             - name: rabbitmq-etc
               mountPath: /etc/rabbitmq/enabled_plugins
               subPath: enabled_plugins
               readOnly: true
             - name: rabbitmq-etc
-              mountPath: /etc/rabbitmq/erlang.cookie
-              subPath: erlang.cookie
-              readOnly: true
-            - name: rabbitmq-etc
-              mountPath: /etc/rabbitmq/rabbitmq-env.conf
-              subPath: rabbitmq-env.conf
-              readOnly: true
-            - name: rabbitmq-etc
-              mountPath: /etc/rabbitmq/rabbitmq.config
-              subPath: rabbitmq.config
+              mountPath: /etc/rabbitmq/rabbitmq.conf
+              subPath: rabbitmq.conf
               readOnly: true
       volumes:
         - name: rabbitmq-emptydir
@@ -98,3 +137,4 @@ spec:
           configMap:
             name: rabbitmq-etc
             defaultMode: 0444
+{{ end }}

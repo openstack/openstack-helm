@@ -13,17 +13,20 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */}}
+
+{{- if .Values.manifests.service }}
 {{- $envAll := . }}
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: rabbitmq
+  name: {{ tuple "oslo_messaging" "internal" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
 spec:
   ports:
-  - port: {{.Values.network.port.public}}
-    name: public
-  - port: {{.Values.network.port.management}}
-    name: management
+  - port: {{ tuple "oslo_messaging" "internal" "amqp" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+    name: amqp
+  - port: {{ tuple "oslo_messaging" "internal" "http" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+    name: http
   selector:
 {{ tuple $envAll "rabbitmq" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+{{ end }}
