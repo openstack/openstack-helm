@@ -73,23 +73,35 @@ spec:
           imagePullPolicy: {{ .Values.images.pull_policy }}
 {{ tuple $envAll $envAll.Values.pod.resources.mgr | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           env:
-            - name: MGR_PORT
-              value: "{{ .Values.network.port.mgr }}"
+            {{- if .Values.ceph_mgr_enabled_modules }}
+            - name: ENABLED_MODULES
+              value: |-
+              {{- range $value := .Values.ceph_mgr_enabled_modules }}
+                {{ $value }}
+              {{- end }}
+            {{- end }}
+            {{- if .Values.ceph_mgr_modules_config }}
+            {{- range $module,$params := .Values.ceph_mgr_modules_config }}
+            {{- range $key, $value := $params }}
+            - name: {{ $module }}_{{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
+            {{- end }}
+            {{- end }}
           command:
             - /start_mgr.sh
-          ports:
-            - containerPort: {{ .Values.network.port.mgr }}
           livenessProbe:
-              httpGet:
-                path: /
-                port: {{ .Values.network.port.mgr }}
-              initialDelaySeconds: 120
+              exec:
+                command:
+                  - bash
+                  - /check_mgr.sh
+              initialDelaySeconds: 30
               timeoutSeconds: 5
           readinessProbe:
-              httpGet:
-                path: /
-                port: {{ .Values.network.port.mgr }}
-              timeoutSeconds: 5
+              exec:
+                command:
+                  - bash
+                  - /check_mgr.sh
           volumeMounts:
             - name: pod-etc-ceph
               mountPath: /etc/ceph
@@ -100,6 +112,10 @@ spec:
             - name: ceph-bin
               mountPath: /start_mgr.sh
               subPath: start_mgr.sh
+              readOnly: true
+            - name: ceph-bin
+              mountPath: /check_mgr.sh
+              subPath: check_mgr.sh
               readOnly: true
             - name: ceph-bin
               mountPath: /variables_entrypoint.sh
