@@ -119,13 +119,7 @@ if [ "x$OPENSTACK_OBJECT_STORAGE" == "xradosgw" ]; then
   kube_wait_for_pods openstack ${POD_START_TIMEOUT_OPENSTACK}
 fi
 
-helm install --namespace=openstack ${WORK_DIR}/etcd --name=etcd-rabbitmq
-if [ "x$INTEGRATION" == "xmulti" ]; then
-    helm install --namespace=openstack ${WORK_DIR}/rabbitmq --name=rabbitmq
-else
-    helm install --namespace=openstack ${WORK_DIR}/rabbitmq --name=rabbitmq \
-         --set pod.replicas.server=1
-fi
+helm install --namespace=openstack ${WORK_DIR}/rabbitmq --name=rabbitmq
 
 if [ "x$INTEGRATION" == "xmulti" ]; then
   if [ "x$PVC_BACKEND" == "xceph" ]; then
