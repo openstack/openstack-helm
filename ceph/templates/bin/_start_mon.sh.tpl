@@ -37,6 +37,15 @@ function get_mon_config {
       exit 1
   fi
 
+  # if monmap exists and the mon is already there, don't overwrite monmap
+  if [ -f "${MONMAP}" ]; then
+      monmaptool --print "${MONMAP}" |grep -q "${MON_IP// }"":6789"
+      if [ $? -eq 0 ]; then
+          log "${MON_IP} already exists in monmap ${MONMAP}"
+          return
+      fi
+  fi
+
   # Create a monmap with the Pod Names and IP
   monmaptool --create ${MONMAP_ADD} --fsid ${fsid} $MONMAP --clobber
 }
