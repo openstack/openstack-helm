@@ -15,12 +15,19 @@
 images:
   tags:
     mariadb: docker.io/mariadb:10.1.23
+    prometheus_create_mysql_user: docker.io/mariadb:10.1.23
+    prometheus_mysql_exporter: docker.io/prom/mysqld-exporter:v0.10.0
+    prometheus_mysql_exporter_helm_tests: docker.io/kolla/ubuntu-source-heat-engine:3.0.3
     dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.2.1
   pull_policy: IfNotPresent
 
 labels:
-  node_selector_key: openstack-control-plane
-  node_selector_value: enabled
+  server:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  prometheus_mysql_exporter:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
 
 pod:
   affinity:
@@ -31,12 +38,30 @@ pod:
         default: kubernetes.io/hostname
   replicas:
     server: 3
+    prometheus_mysql_exporter: 1
   lifecycle:
+    upgrades:
+      deployments:
+        revision_history: 3
+        pod_replacement_strategy: RollingUpdate
+        rolling_update:
+          max_unavailable: 1
+          max_surge: 3
+    termination_grace_period:
+      prometheus_mysql_exporter:
+        timeout: 30
     disruption_budget:
       mariadb:
         min_available: 0
   resources:
     enabled: false
+    prometheus_mysql_exporter:
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+      requests:
+        memory: "128Mi"
+        cpu: "500m"
     server:
       requests:
         memory: "128Mi"
@@ -44,11 +69,42 @@ pod:
       limits:
         memory: "1024Mi"
         cpu: "2000m"
+    jobs:
+      tests:
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+      prometheus_create_mysql_user:
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
 
 dependencies:
   mariadb:
     jobs: null
     services: null
+  prometheus_mysql_exporter:
+    services:
+    - service: oslo_db
+      endpoint: internal
+    jobs:
+      - exporter-create-sql-user
+  prometheus_mysql_exporter_tests:
+    services:
+    - service: prometheus_mysql_exporter
+      endpoint: internal
+    - service: monitoring
+      endpoint: internal
+  prometheus_create_mysql_user:
+    services:
+    - service: oslo_db
+      endpoint: internal
 
 force_bootstrap: false
 
@@ -65,15 +121,62 @@ database:
   #   [mysqld]
   #   wsrep_slave_threads=1
 
+monitoring:
+  prometheus:
+    enabled: false
+    mysqld_exporter:
+      scrape: true
+
+network:
+  prometheus_mysql_exporter:
+    port: 9104
+
 # typically overriden by environmental
 # values, but should include all endpoints
 # required by this chart
 endpoints:
   cluster_domain_suffix: cluster.local
+  monitoring:
+    name: prometheus
+    namespace: null
+    hosts:
+      default: prom-metrics
+      public: prometheus
+    host_fqdn_override:
+      default: null
+    path:
+      default: null
+    scheme:
+      default: 'http'
+    port:
+      api:
+        default: 9090
+        public: 80
+  prometheus_mysql_exporter:
+    namespace: null
+    auth:
+      user:
+        username: exporter
+        password: password
+    hosts:
+      default: mysql-exporter
+    host_fqdn_override:
+      default: null
+    path:
+      default: /metrics
+    scheme:
+      default: 'http'
+    port:
+      metrics:
+        default: 9104
   oslo_db:
+    namespace: null
     auth:
       admin:
         username: root
+        password: password
+      exporter:
+        username: exporter
         password: password
     hosts:
       default: mariadb
@@ -92,6 +195,13 @@ manifests:
   configmap_bin: true
   configmap_etc: true
   pdb_server: true
+  monitoring:
+    prometheus:
+      configmap_bin: true
+      deployment_exporter: true
+      job_user_create: true
+      secret_etc: true
+      service_exporter: true
   secret_db: true
   secret_etc: true
   service_discovery: true

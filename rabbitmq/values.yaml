@@ -18,11 +18,17 @@
 # name: value
 
 labels:
-  node_selector_key: openstack-control-plane
-  node_selector_value: enabled
+  server:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  prometheus_rabbitmq_exporter:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
 
 images:
   tags:
+    prometheus_rabbitmq_exporter: docker.io/kbudde/rabbitmq-exporter:v0.21.0
+    prometheus_rabbitmq_exporter_helm_tests: docker.io/kolla/ubuntu-source-heat-engine:3.0.3
     rabbitmq: docker.io/rabbitmq:3.7
     dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.2.1
   pull_policy: "IfNotPresent"
@@ -36,8 +42,30 @@ pod:
         default: kubernetes.io/hostname
   replicas:
     server: 3
+    prometheus_rabbitmq_exporter: 1
+  lifecycle:
+    upgrades:
+      deployments:
+        revision_history: 3
+        pod_replacement_strategy: RollingUpdate
+        rolling_update:
+          max_unavailable: 1
+          max_surge: 3
+    termination_grace_period:
+      prometheus_rabbitmq_exporter:
+        timeout: 30
+    disruption_budget:
+      mariadb:
+        min_available: 0
   resources:
     enabled: false
+    prometheus_rabbitmq_exporter:
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+      requests:
+        memory: "128Mi"
+        cpu: "500m"
     server:
       limits:
         memory: "128Mi"
@@ -45,11 +73,24 @@ pod:
       requests:
         memory: "128Mi"
         cpu: "500m"
+    jobs:
+      tests:
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
 
 conf:
   enabled_plugins:
     - rabbitmq_management
     - rabbitmq_peer_discovery_k8s
+  prometheus_exporter:
+    capabilities:
+      - no_sort
+    log_level: info
+    skipverify: 1
   rabbitmq:
     listeners:
       tcp:
@@ -69,12 +110,48 @@ conf:
 dependencies:
   rabbitmq:
     jobs: null
+  prometheus_rabbitmq_exporter:
+    services:
+    - service: oslo_messaging
+      endpoint: internal
+  prometheus_rabbitmq_exporter_tests:
+    services:
+    - service: prometheus_rabbitmq_exporter
+      endpoint: internal
+    - service: monitoring
+      endpoint: internal
+
+monitoring:
+  prometheus:
+    enabled: false
+    rabbitmq_exporter:
+      scrape: true
+
+network:
+  prometheus_rabbitmq_exporter:
+    port: 9095
 
 # typically overriden by environmental
 # values, but should include all endpoints
 # required by this chart
 endpoints:
   cluster_domain_suffix: cluster.local
+  monitoring:
+    name: prometheus
+    namespace: null
+    hosts:
+      default: prom-metrics
+      public: prometheus
+    host_fqdn_override:
+      default: null
+    path:
+      default: null
+    scheme:
+      default: 'http'
+    port:
+      api:
+        default: 9090
+        public: 80
   oslo_messaging:
     auth:
       erlang_cookie: openstack-cookie
@@ -92,9 +169,27 @@ endpoints:
         default: 5672
       http:
         default: 15672
+  prometheus_rabbitmq_exporter:
+    namespace: null
+    hosts:
+      default: rabbitmq-exporter
+    host_fqdn_override:
+      default: null
+    path:
+      default: /metrics
+    scheme:
+      default: 'http'
+    port:
+      metrics:
+        default: 9095
 
 manifests:
   configmap_bin: true
   configmap_etc: true
+  monitoring:
+    prometheus:
+      configmap_bin: true
+      deployment_exporter: true
+      service_exporter: true
   service: true
   statefulset: true
