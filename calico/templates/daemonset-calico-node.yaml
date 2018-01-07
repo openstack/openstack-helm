@@ -16,6 +16,23 @@ limitations under the License.
 
 {{- if .Values.manifests.daemonset_calico_node }}
 {{- $envAll := . }}
+
+{{- if empty .Values.conf.node.CALICO_IPV4POOL_CIDR -}}
+{{- set .Values.conf.node "CALICO_IPV4POOL_CIDR" .Values.networking.podSubnet | quote | trunc 0 -}}
+{{- end -}}
+
+{{- if empty .Values.conf.node.FELIX_IPINIPMTU -}}
+{{/*
+#NOTE(portdirect): to err on the side of caution we subtract 20 from the physical
+# MTU to account for IPIP overhead unless explicty turned off.
+*/}}
+{{- if eq .Values.conf.node.CALICO_IPV4POOL_IPIP "off" -}}
+{{- set .Values.conf.node "FELIX_IPINIPMTU" .Values.networking.mtu | quote | trunc 0 -}}
+{{- else -}}
+{{- set .Values.conf.node "FELIX_IPINIPMTU" (sub .Values.networking.mtu 20) | quote | trunc 0 -}}
+{{- end -}}
+{{- end -}}
+
 {{- if .Values.images.local_registry.active -}}
 {{- $_ := set .Values "pod_dependency" (merge .Values.dependencies.calico_node .Values.conditional_dependencies.local_image_registry) -}}
 {{- else -}}
@@ -108,44 +125,12 @@ spec:
                 configMapKeyRef:
                   name: calico-config
                   key: calico_backend
-            # Cluster type to identify the deployment type
-            - name: CLUSTER_TYPE
-              value: "kubeadm,bgp"
             # Set noderef for node controller.
             - name: CALICO_K8S_NODE_REF
               valueFrom:
                 fieldRef:
                   fieldPath: spec.nodeName
-            # Disable file logging so `kubectl logs` works.
-            - name: CALICO_DISABLE_FILE_LOGGING
-              value: "true"
-            # Set Felix endpoint to host default action to ACCEPT.
-            - name: FELIX_DEFAULTENDPOINTTOHOSTACTION
-              value: "ACCEPT"
-            # Configure the IP Pool from which Pod IPs will be chosen.
-            - name: CALICO_IPV4POOL_CIDR
-              value: "{{ .Values.networking.podSubnet }}"
-            - name: CALICO_IPV4POOL_IPIP
-              value: "always"
-            # Disable IPv6 on Kubernetes.
-            - name: FELIX_IPV6SUPPORT
-              value: "false"
-            # Set MTU for tunnel device used if ipip is enabled
-            - name: FELIX_IPINIPMTU
-              value: "1440"
-            # Set Felix logging to "info"
-            - name: FELIX_LOGSEVERITYSCREEN
-              value: "info"
-            - name: FELIX_HEALTHENABLED
-              value: "true"
-            # Set Felix experimental Prometheus metrics server
-            - name: FELIX_PROMETHEUSMETRICSENABLED
-              value: "true"
-            - name: FELIX_PROMETHEUSMETRICSPORT
-              value: "9091"
-            # Auto-detect the BGP IP address.
-            - name: IP
-              value: ""
+{{ include "helm-toolkit.utils.to_k8s_env_vars" .Values.conf.node | indent 12 }}
           securityContext:
             privileged: true
           resources:

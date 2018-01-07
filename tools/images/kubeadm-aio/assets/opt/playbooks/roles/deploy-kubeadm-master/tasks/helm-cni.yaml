@@ -46,6 +46,14 @@
       retries: 120
       delay: 5
 
+- name: kubeadm | cni | get default mtu
+  block:
+    - name: getting default route device mtu
+      shell: echo $(cat /sys/class/net/$(sudo ip -4 route list 0/0 | awk '{ print $5; exit }')/mtu)
+      args:
+        executable: /bin/bash
+      register: cni_default_device_mtu
+
 - name: kubeadm | cni | calico
   when: cluster.cni == 'calico'
   delegate_to: 127.0.0.1
@@ -55,7 +63,7 @@
       environment:
         KUBECONFIG: '/mnt/rootfs/etc/kubernetes/admin.conf'
     - name: kubeadm | cni | calico
-      command: helm install /opt/charts/calico --name calico --namespace kube-system --set networking.podSubnet="{{ k8s.networking.podSubnet }}"  --wait --timeout=600
+      command: helm install /opt/charts/calico --name calico --namespace kube-system --set networking.podSubnet="{{ k8s.networking.podSubnet }}" --set networking.mtu="{{ cni_default_device_mtu.stdout }}" --wait --timeout=600
       environment:
         HELM_HOST: 'localhost:44134'
     - name: kubeadm | cni | calico
@@ -65,7 +73,7 @@
       register: kubeadm_helm_cni_status
     - name: kubeadm | cni | status
       debug:
-        msg: "{{ kubeadm_helm_cni_status }}"
+        msg: "{{ kubeadm_helm_cni_status.stdout_lines }}"
 
 - name: kubeadm | cni | flannel
   when: cluster.cni == 'flannel'
@@ -82,7 +90,7 @@
       register: kubeadm_helm_cni_status
     - name: kubeadm | cni | status
       debug:
-        msg: "{{ kubeadm_helm_cni_status }}"
+        msg: "{{ kubeadm_helm_cni_status.stdout_lines }}"
 
 - name: "removing bootstrap tiller container"
   become: true
