@@ -48,4 +48,8 @@ fi
 
 echo "${POD_NAME} ready." 1>&2
 
+if [ -e ${BOOTSTRAP_FILE} ]; then
+  rm -f ${BOOTSTRAP_FILE}
+fi
+
 exit 0

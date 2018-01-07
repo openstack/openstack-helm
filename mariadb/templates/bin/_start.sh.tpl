@@ -25,11 +25,13 @@ if [ ! -d /var/lib/mysql/mysql ]; then
         if [ "x${FORCE_BOOTSTRAP}" = "xtrue" ]; then
             echo 'force_bootstrap set, so will force-initialize node 0.'
             CLUSTER_INIT_ARGS=--wsrep-new-cluster
+            CLUSTER_BOOTSTRAP=true
         elif ! mysql --defaults-file=/etc/mysql/admin_user.cnf \
                      --connect-timeout 2 \
                      -e 'select 1'; then
             echo 'No other nodes found, so will initialize cluster.'
             CLUSTER_INIT_ARGS=--wsrep-new-cluster
+            CLUSTER_BOOTSTRAP=true
         else
             echo 'Found other live nodes, will attempt to join them.'
             mkdir /var/lib/mysql/mysql
@@ -38,6 +40,7 @@ if [ ! -d /var/lib/mysql/mysql ]; then
         echo 'Not pod 0, so will avoid upstream database initialization.'
         mkdir /var/lib/mysql/mysql
     fi
+    chown -R mysql:mysql /var/lib/mysql
 fi
 
 # Construct cluster config
@@ -50,8 +53,8 @@ for i in $(seq 1 ${MARIADB_REPLICAS}); do
     else
       NUM="$(expr $i - 1)"
     fi
-    CANDIDATE_POD="${SERVICE_NAME}-$NUM.${DISCOVERY_SERVICE_NAME}"
-    if [ "x${CANDIDATE_POD}" != "x${POD_NAME}.${DISCOVERY_SERVICE_NAME}" ]; then
+    CANDIDATE_POD="${SERVICE_NAME}-$NUM.$(hostname -d)"
+    if [ "x${CANDIDATE_POD}" != "x${POD_NAME}.$(hostname -d)" ]; then
         if [ -n "${MEMBERS}" ]; then
             MEMBERS+=,
         fi
@@ -60,13 +63,25 @@ for i in $(seq 1 ${MARIADB_REPLICAS}); do
 done
 
 echo "Writing cluster config for ${POD_NAME} to ${CLUSTER_CONFIG_PATH}"
-cat >> ${CLUSTER_CONFIG_PATH} <<EOF
+cat >> ${CLUSTER_CONFIG_PATH} << EOF
 [mysqld]
 wsrep_cluster_address="gcomm://${MEMBERS}"
 wsrep_node_address=${POD_IP}
-wsrep_node_name=${POD_NAME}.${DISCOVERY_SERVICE_NAME}
+wsrep_node_name=${POD_NAME}.$(hostname -d)
 EOF
 
-echo 'Executing upstream docker-entrypoint.'
-set +e
-exec /usr/local/bin/docker-entrypoint.sh mysqld ${CLUSTER_INIT_ARGS}
+if [ "x${CLUSTER_BOOTSTRAP}" = "xtrue" ]; then
+  mysql_install_db --user=mysql --datadir=/var/lib/mysql
+
+  cat > "${BOOTSTRAP_FILE}" << EOF
+DELETE FROM mysql.user ;
+CREATE OR REPLACE USER 'root'@'%' IDENTIFIED BY '${MYSQL_ROOT_PASSWORD}' ;
+GRANT ALL ON *.* TO 'root'@'%' WITH GRANT OPTION ;
+DROP DATABASE IF EXISTS test ;
+FLUSH PRIVILEGES ;
+EOF
+
+  CLUSTER_INIT_ARGS="${CLUSTER_INIT_ARGS} --init-file=${BOOTSTRAP_FILE}"
+fi
+
+exec mysqld ${CLUSTER_INIT_ARGS}

@@ -90,7 +90,7 @@ binlog_format=ROW
 default-storage-engine=InnoDB
 innodb_autoinc_lock_mode=2
 innodb_flush_log_at_trx_commit=2
-wsrep_cluster_name={{ tuple "oslo_db" "internal" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
+wsrep_cluster_name={{ tuple "oslo_db" "internal" . | include "helm-toolkit.endpoints.hostname_namespaced_endpoint_lookup" | replace "." "_" }}
 wsrep_on=1
 wsrep_provider=/usr/lib/galera/libgalera_smm.so
 wsrep_provider_options="gmcast.listen_addr=tcp://0.0.0.0:{{ tuple "oslo_db" "internal" "wsrep" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}"
