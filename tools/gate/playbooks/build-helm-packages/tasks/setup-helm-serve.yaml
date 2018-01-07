@@ -41,11 +41,28 @@
         executable: /bin/bash
       register: helm_server_running
       ignore_errors: True
-    - name: launching local helm server via shell
+    - name: getting current host user name
       when: helm_server_running | failed
-      shell: helm serve &
+      shell: id -un
       args:
         executable: /bin/bash
+      register: helm_server_user
+    - name: moving systemd unit into place for helm server
+      when: helm_server_running | failed
+      become: yes
+      become_user: root
+      template:
+        src: helm-serve.service.j2
+        dest: /etc/systemd/system/helm-serve.service
+        mode: 0640
+    - name: starting helm serve service
+      when: helm_server_running | failed
+      become: yes
+      become_user: root
+      systemd:
+        state: restarted
+        daemon_reload: yes
+        name: helm-serve
     - name: wait for helm server to be ready
       shell: curl -s 127.0.0.1:8879 | grep -q 'Helm Repository'
       args:
