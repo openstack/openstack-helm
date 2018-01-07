@@ -12,7 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-force_bootstrap: false
+images:
+  tags:
+    mariadb: docker.io/mariadb:10.1.23
+    dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.2.1
+  pull_policy: IfNotPresent
+
+labels:
+  node_selector_key: openstack-control-plane
+  node_selector_value: enabled
 
 pod:
   affinity:
@@ -30,31 +38,24 @@ pod:
   resources:
     enabled: false
     server:
-      limits:
-        memory: "128Mi"
-        cpu: "500m"
       requests:
         memory: "128Mi"
-        cpu: "500m"
-
-images:
-  tags:
-    mariadb: docker.io/mariadb:10.1.23
-    dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.2.1
-  pull_policy: IfNotPresent
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
 
 dependencies:
   mariadb:
     jobs: null
+    services: null
+
+force_bootstrap: false
 
 volume:
   enabled: true
   class_name: general
   size: 5Gi
-
-labels:
-  node_selector_key: openstack-control-plane
-  node_selector_value: enabled
 
 database:
   config_override: null
@@ -62,16 +63,6 @@ database:
   # config_override: |-
   #   [mysqld]
   #   wsrep_slave_threads=1
-
-resources:
-  enabled: false
-  server:
-    requests:
-      memory: "128Mi"
-      cpu: "100m"
-    limits:
-      memory: "1024Mi"
-      cpu: "2000m"
 
 # typically overriden by environmental
 # values, but should include all endpoints
@@ -95,3 +86,13 @@ endpoints:
         default: 3306
       wsrep:
         default: 4567
+
+manifests:
+  configmap_bin: true
+  configmap_etc: true
+  pdb_server: true
+  secret_db: true
+  secret_etc: true
+  service_discovery: true
+  service: true
+  statefulset: true
