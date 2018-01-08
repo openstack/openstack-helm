@@ -37,7 +37,7 @@ helm install --namespace=openstack ${WORK_DIR}/ceph --name=radosgw-openstack \
    --values=${WORK_DIR}/tools/overrides/mvp/ceph.yaml
 
 #NOTE: Wait for deploy
-./tools/deployment/developer/wait-for-pods.sh openstack
+./tools/deployment/common/wait-for-pods.sh openstack
 
 #NOTE: Validate Deployment info
 helm status radosgw-openstack

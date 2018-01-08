@@ -15,21 +15,35 @@
 #    under the License.
 set -xe
 
-#NOTE: Pull images and lint chart
-make pull-images nova
-make pull-images neutron
-
 #NOTE: Deploy nova
 if [ "x$(systemd-detect-virt)" == "xnone" ]; then
   echo 'OSH is not being deployed in virtualized environment'
   helm install ./nova \
       --namespace=openstack \
-      --name=nova
+      --name=nova \
+      --set pod.replicas.api_metadata=1 \
+      --set pod.replicas.placement=2 \
+      --set pod.replicas.osapi=2 \
+      --set pod.replicas.conductor=2 \
+      --set pod.replicas.consoleauth=2 \
+      --set pod.replicas.scheduler=2 \
+      --set pod.replicas.novncproxy=1 \
+      --set labels.api_metadata.node_selector_key=openstack-helm-node-class \
+      --set labels.api_metadata.node_selector_value=primary
 else
   echo 'OSH is being deployed in virtualized environment, using qemu for nova'
   helm install ./nova \
       --namespace=openstack \
       --name=nova \
+      --set pod.replicas.api_metadata=1 \
+      --set pod.replicas.placement=2 \
+      --set pod.replicas.osapi=2 \
+      --set pod.replicas.conductor=2 \
+      --set pod.replicas.consoleauth=2 \
+      --set pod.replicas.scheduler=2 \
+      --set pod.replicas.novncproxy=1 \
+      --set labels.api_metadata.node_selector_key=openstack-helm-node-class \
+      --set labels.api_metadata.node_selector_value=primary \
       --set conf.nova.libvirt.virt_type=qemu
 fi
 
@@ -37,6 +51,13 @@ fi
 helm install ./neutron \
     --namespace=openstack \
     --name=neutron \
+    --set pod.replicas.server=2 \
+    --set labels.agent.dhcp.node_selector_key=openstack-helm-node-class \
+    --set labels.agent.dhcp.node_selector_value=primary \
+    --set labels.agent.l3.node_selector_key=openstack-helm-node-class \
+    --set labels.agent.l3.node_selector_value=primary \
+    --set labels.agent.metadata.node_selector_key=openstack-helm-node-class \
+    --set labels.agent.metadata.node_selector_value=primary \
     --values=./tools/overrides/mvp/neutron-ovs.yaml
 
 #NOTE: Wait for deploy
@@ -48,3 +69,5 @@ openstack service list
 sleep 15
 openstack hypervisor list
 openstack network agent list
+#helm test nova --timeout 900
+#helm test neutron --timeout 900

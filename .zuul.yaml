@@ -16,22 +16,25 @@
     name: openstack/openstack-helm
     check:
       jobs:
-        - openstack-helm-linter:
-            voting: true
+        - openstack-helm-linter
         - openstack-helm-dev-deploy:
-            voting: true
             irrelevant-files:
               - ^.*\.rst$
               - ^doc/.*$
               - ^releasenotes/.*$
-        - openstack-helm-legacy-ubuntu-vm-ovs-radosgw:
+        - openstack-helm-multinode-ubuntu:
+            irrelevant-files:
+              - ^.*\.rst$
+              - ^doc/.*$
+              - ^releasenotes/.*$
+        #NOTE(portdirect): Voting disabled until ipcalc package issue resolved.
+        - openstack-helm-multinode-centos:
             voting: false
             irrelevant-files:
               - ^.*\.rst$
               - ^doc/.*$
               - ^releasenotes/.*$
-        - openstack-helm-legacy-ubuntu-vm-lb-radosgw:
-            voting: false
+        - openstack-helm-multinode-fedora:
             irrelevant-files:
               - ^.*\.rst$
               - ^doc/.*$
@@ -40,6 +43,9 @@
       jobs:
         - openstack-helm-linter
         - openstack-helm-dev-deploy
+        - openstack-helm-multinode-ubuntu
+ #       - openstack-helm-multinode-centos
+        - openstack-helm-multinode-fedora
 
 - job:
     name: openstack-helm-linter
@@ -63,29 +69,28 @@
     timeout: 7200
     vars:
         zuul_osh_infra_relative_path: ../openstack-helm-infra/
-    name: openstack-helm-legacy
+    name: openstack-helm-multinode
     pre-run:
       - ../openstack-helm-infra/tools/gate/playbooks/osh-infra-upgrade-host.yaml
       - ../openstack-helm-infra/tools/gate/playbooks/osh-infra-deploy-docker.yaml
       - ../openstack-helm-infra/tools/gate/playbooks/osh-infra-build.yaml
       - ../openstack-helm-infra/tools/gate/playbooks/osh-infra-deploy-k8s.yaml
-    run: tools/gate/playbooks/legacy-gate-runner.yaml
+    run: tools/gate/playbooks/multinode-deploy.yaml
     post-run: ../openstack-helm-infra/tools/gate/playbooks/osh-infra-collect-logs.yaml
     required-projects:
         - openstack/openstack-helm-infra
 
 - job:
-    name: openstack-helm-legacy-ubuntu-vm-ovs-radosgw
-    parent: openstack-helm-legacy
-    vars:
-      sdn_plugin: ovs
-      glance_backend: radosgw
-    nodeset: openstack-helm-ubuntu
+    name: openstack-helm-multinode-ubuntu
+    parent: openstack-helm-multinode
+    nodeset: openstack-helm-five-node-ubuntu
 
 - job:
-    name: openstack-helm-legacy-ubuntu-vm-lb-radosgw
-    parent: openstack-helm-legacy
-    vars:
-      sdn_plugin: linuxbridge
-      glance_backend: radosgw
-    nodeset: openstack-helm-ubuntu
+    name: openstack-helm-multinode-centos
+    parent: openstack-helm-multinode
+    nodeset: openstack-helm-five-node-centos
+
+- job:
+    name: openstack-helm-multinode-fedora
+    parent: openstack-helm-multinode
+    nodeset: openstack-helm-five-node-fedora

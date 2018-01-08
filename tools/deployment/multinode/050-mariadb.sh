@@ -13,21 +13,17 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
+
 set -xe
 
-#NOTE: Pull images and lint chart
-make pull-images heat
-
 #NOTE: Deploy command
-helm install ./heat \
-  --namespace=openstack \
-  --name=heat
+helm install ./mariadb \
+    --namespace=openstack \
+    --name=mariadb \
+    --set volume.enabled=false
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack
 
 #NOTE: Validate Deployment info
-export OS_CLOUD=openstack_helm
-openstack service list
-sleep 15
-openstack orchestration service list
+helm status mariadb

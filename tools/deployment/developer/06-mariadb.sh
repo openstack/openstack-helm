@@ -26,7 +26,7 @@ helm install ./mariadb \
     --set pod.replicas.server=1
 
 #NOTE: Wait for deploy
-./tools/deployment/developer/wait-for-pods.sh openstack 600
+./tools/deployment/common/wait-for-pods.sh openstack
 
 #NOTE: Validate Deployment info
 helm status mariadb

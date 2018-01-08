@@ -15,19 +15,13 @@
 #    under the License.
 set -xe
 
-#NOTE: Pull images and lint chart
-make pull-images heat
-
 #NOTE: Deploy command
-helm install ./heat \
+helm install ./openvswitch \
   --namespace=openstack \
-  --name=heat
+  --name=openvswitch
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack
 
 #NOTE: Validate Deployment info
-export OS_CLOUD=openstack_helm
-openstack service list
-sleep 15
-openstack orchestration service list
+helm status openvswitch

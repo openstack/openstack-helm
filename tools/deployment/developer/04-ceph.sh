@@ -38,7 +38,7 @@ helm install --namespace=ceph ${WORK_DIR}/ceph --name=ceph \
     --values=${WORK_DIR}/tools/overrides/mvp/ceph.yaml
 
 #NOTE: Wait for deploy
-./tools/deployment/developer/wait-for-pods.sh ceph
+./tools/deployment/common/wait-for-pods.sh ceph
 
 #NOTE: Validate deploy
 MON_POD=$(kubectl get pods \

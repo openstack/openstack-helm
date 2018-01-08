@@ -27,7 +27,7 @@ helm install ./horizon \
     --set network.node_port.port=31000
 
 #NOTE: Wait for deploy
-./tools/deployment/developer/wait-for-pods.sh openstack
+./tools/deployment/common/wait-for-pods.sh openstack
 
 #NOTE: Validate Deployment info
 helm status horizon

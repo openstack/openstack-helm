@@ -15,13 +15,15 @@
 #    under the License.
 set -xe
 
-#NOTE: Pull images and lint chart
-make pull-images heat
-
 #NOTE: Deploy command
-helm install ./heat \
+helm install ./cinder \
   --namespace=openstack \
-  --name=heat
+  --name=cinder \
+  --set pod.replicas.api=2 \
+  --set pod.replicas.volume=1 \
+  --set pod.replicas.scheduler=1 \
+  --set pod.replicas.backup=1 \
+  --set conf.cinder.DEFAULT.backup_driver=cinder.backup.drivers.swift
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack
@@ -30,4 +32,5 @@ helm install ./heat \
 export OS_CLOUD=openstack_helm
 openstack service list
 sleep 15
-openstack orchestration service list
+openstack volume type list
+#helm test cinder
