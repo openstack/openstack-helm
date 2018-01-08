@@ -28,6 +28,10 @@ documentation as we explore these options further.
 The installation procedures below, will take an administrator from a new
 ``kubeadm`` installation to Openstack-Helm deployment.
 
+.. warning:: Until the Ubuntu kernel shipped with 16.04 supports CephFS
+   subvolume mounts by default the `HWE Kernel
+   <../troubleshooting/ubuntu-hwe-kernel.rst>`__ is required to use CephFS.
+
 Kubernetes Preparation
 ======================
 
@@ -581,4 +585,3 @@ The following shows a set of example hosts and the values fed into the configmap
         DEFAULT:
           vcpu_pin_set: "0-31"
           cpu_allocation_ratio: 3.0
-

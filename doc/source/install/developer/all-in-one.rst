@@ -13,6 +13,10 @@ to package installation.
 Requirements
 ============
 
+.. warning:: Until the Ubuntu kernel shipped with 16.04 supports CephFS
+   subvolume mounts by default the `HWE Kernel
+   <../../troubleshooting/ubuntu-hwe-kernel.rst>`__ is required to use CephFS.
+
 System Requirements
 -------------------
 

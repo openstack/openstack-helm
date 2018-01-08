@@ -14,12 +14,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if .Values.manifests.job_storage_admin_keys }}
+{{- if .Values.manifests.job_cephfs_client_key }}
 {{- $envAll := . }}
-{{- if .Values.deployment.storage_secrets }}
-{{- $dependencies := .Values.dependencies.storage_keys_generator }}
+{{- if .Values.deployment.cephfs_provisioner }}
+{{- $dependencies := .Values.dependencies.cephfs_client_key_generator }}
 
-{{- $serviceAccountName := "ceph-storage-keys-generator" }}
+{{- $randStringSuffix := randAlphaNum 5 | lower }}
+
+{{- $serviceAccountName := "ceph-cephfs-client-key-generator" }}
 {{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1
@@ -34,6 +36,7 @@ rules:
     verbs:
       - get
       - create
+      - update
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: RoleBinding
@@ -48,15 +51,43 @@ subjects:
     name: {{ $serviceAccountName }}
     namespace: {{ $envAll.Release.Namespace }}
 ---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: Role
+metadata:
+  name: {{ printf "%s-%s" $serviceAccountName $randStringSuffix }}
+  namespace: {{ .Values.storageclass.rbd.admin_secret_namespace }}
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+    verbs:
+      - get
+      - list
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: RoleBinding
+metadata:
+  name: {{ printf "%s-%s" $serviceAccountName $randStringSuffix }}
+  namespace: {{ .Values.storageclass.rbd.admin_secret_namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ printf "%s-%s" $serviceAccountName $randStringSuffix }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ $serviceAccountName }}
+    namespace: {{ $envAll.Release.Namespace }}
+---
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: ceph-storage-keys-generator
+  name: ceph-cephfs-client-key-generator
 spec:
   template:
     metadata:
       labels:
-{{ tuple $envAll "ceph" "storage-keys-generator" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+{{ tuple $envAll "ceph" "client-key-generator" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
     spec:
       serviceAccountName: {{ $serviceAccountName }}
       restartPolicy: OnFailure
@@ -74,40 +105,23 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
-            - name: CEPH_GEN_DIR
-              value: /opt/ceph
-            - name: CEPH_TEMPLATES_DIR
-              value: /opt/ceph/templates
-            - name: CEPH_KEYRING_NAME
-              value: ceph.client.admin.keyring
-            - name: CEPH_KEYRING_TEMPLATE
-              value: admin.keyring
-            - name: CEPH_KEYRING_ADMIN_NAME
-              value: {{ .Values.secrets.keyrings.admin }}
-            - name: CEPH_STORAGECLASS_ADMIN_SECRET_NAME
-              value: {{ .Values.storageclass.rbd.admin_secret_name }}
+            - name: PVC_CEPH_CEPHFS_STORAGECLASS_USER_SECRET_NAME
+              value: {{ .Values.storageclass.cephfs.user_secret_name }}
+            - name: PVC_CEPH_CEPHFS_STORAGECLASS_ADMIN_SECRET_NAME
+              value: {{ .Values.storageclass.cephfs.admin_secret_name }}
+            - name: PVC_CEPH_CEPHFS_STORAGECLASS_DEPLOYED_NAMESPACE
+              value: {{ .Values.storageclass.cephfs.admin_secret_namespace }}
           command:
-            - /opt/ceph/ceph-storage-key.sh
+            - /opt/ceph/ceph-cephfs-client-key.sh
           volumeMounts:
             - name: ceph-bin
-              mountPath: /opt/ceph/ceph-storage-key.sh
-              subPath: ceph-storage-key.sh
-              readOnly: true
-            - name: ceph-bin
-              mountPath: /opt/ceph/ceph-key.py
-              subPath: ceph-key.py
-              readOnly: true
-            - name: ceph-templates
-              mountPath: /opt/ceph/templates
+              mountPath: /opt/ceph/ceph-cephfs-client-key.sh
+              subPath: ceph-cephfs-client-key.sh
               readOnly: true
       volumes:
         - name: ceph-bin
           configMap:
             name: ceph-bin
             defaultMode: 0555
-        - name: ceph-templates
-          configMap:
-            name: ceph-templates
-            defaultMode: 0444
 {{- end }}
 {{- end }}

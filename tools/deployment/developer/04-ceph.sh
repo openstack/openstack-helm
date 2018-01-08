@@ -31,6 +31,7 @@ helm install --namespace=ceph ${WORK_DIR}/ceph --name=ceph \
     --set deployment.storage_secrets=true \
     --set deployment.ceph=true \
     --set deployment.rbd_provisioner=true \
+    --set deployment.cephfs_provisioner=true \
     --set deployment.client_secrets=false \
     --set deployment.rgw_keystone_user_and_endpoints=false \
     --set bootstrap.enabled=true \
