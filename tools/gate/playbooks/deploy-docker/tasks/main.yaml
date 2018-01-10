@@ -38,6 +38,20 @@
     dest: /etc/systemd/system/docker.service
     mode: 0640
 
+# NOTE: (lamt) Setting up the proxy before installing docker
+- name: ensure docker.service.d directory exists
+  when: proxy.http is defined and (proxy.http | trim != "")
+  file:
+    path: /etc/systemd/system/docker.service.d
+    state: directory
+
+- name: proxy | moving proxy systemd unit into place
+  when: ( need_docker | failed ) and ( proxy.http is defined and (proxy.http | trim != "") )
+  template:
+    src: http-proxy.conf.j2
+    dest: /etc/systemd/system/docker.service.d/http-proxy.conf
+    mode: 0640
+
 - name: deploy docker packages
   when: need_docker | failed
   include_role:

@@ -28,6 +28,18 @@ ENV HELM_VERSION ${HELM_VERSION}
 ARG CHARTS="calico,flannel,tiller,kube-dns"
 ENV CHARTS ${CHARTS}
 
+ARG HTTP_PROXY=""
+ENV HTTP_PROXY ${HTTP_PROXY}
+ENV http_proxy ${HTTP_PROXY}
+
+ARG HTTPS_PROXY=""
+ENV HTTPS_PROXY ${HTTPS_PROXY}
+ENV https_proxy ${HTTPS_PROXY}
+
+ARG NO_PROXY="127.0.0.1,localhost,.svc.cluster.local"
+ENV NO_PROXY ${NO_PROXY}
+ENV no_proxy ${NO_PROXY}
+
 ENV container="docker" \
     DEBIAN_FRONTEND="noninteractive" \
     CNI_BIN_DIR="/opt/cni/bin"
