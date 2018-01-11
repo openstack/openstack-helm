@@ -18,7 +18,4 @@ limitations under the License.
 
 set -ex
 
-kubectl delete secret \
-  --namespace ${DEPLOYMENT_NAMESPACE} \
-  --ignore-not-found=true \
-  ${PVC_CEPH_RBD_STORAGECLASS_USER_SECRET_NAME}
+exec /usr/local/bin/cephfs-provisioner -id ${POD_NAME}

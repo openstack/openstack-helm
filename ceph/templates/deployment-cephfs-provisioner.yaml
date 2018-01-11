@@ -14,12 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if .Values.manifests.deployment_rbd_provisioner }}
+{{- if .Values.manifests.deployment_cephfs_provisioner }}
 {{- $envAll := . }}
-{{- if .Values.deployment.rbd_provisioner }}
-{{- $dependencies := .Values.dependencies.rbd_provisioner }}
+{{- if .Values.deployment.cephfs_provisioner }}
+{{- $dependencies := .Values.dependencies.cephfs_provisioner }}
 
-{{- $serviceAccountName := "ceph-rbd-provisioner"}}
+{{- $serviceAccountName := "ceph-cephfs-provisioner"}}
 {{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 kind: ClusterRole
@@ -27,6 +27,16 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: {{ $serviceAccountName }}
 rules:
+  - apiGroups:
+      - ''
+    resources:
+      - secrets
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
   - apiGroups:
       - ''
     resources:
@@ -76,14 +86,14 @@ rules:
     resources:
       - podsecuritypolicies
     resourceNames:
-      - rbd-provisioner
+      - cephfs-provisioner
     verbs:
       - use
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRoleBinding
 metadata:
-  name: run-rbd-provisioner
+  name: run-cephfs-provisioner
 subjects:
   - kind: ServiceAccount
     name: {{ $serviceAccountName }}
@@ -122,26 +132,26 @@ subjects:
 kind: Deployment
 apiVersion: extensions/v1beta1
 metadata:
-  name: ceph-rbd-provisioner
+  name: ceph-cephfs-provisioner
 spec:
-  replicas: {{ .Values.pod.replicas.rbd_provisioner }}
+  replicas: {{ .Values.pod.replicas.cephfs_provisioner }}
   strategy:
     type: Recreate
   template:
     metadata:
       labels:
-{{ tuple $envAll "rbd" "provisioner" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+{{ tuple $envAll "cephfs" "provisioner" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
     spec:
       serviceAccountName: {{ $serviceAccountName }}
       affinity:
-{{ tuple $envAll "rbd" "provisioner" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
+{{ tuple $envAll "cephfs" "provisioner" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
       initContainers:
 {{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
-        - name: ceph-rbd-provisioner
-          image: {{ .Values.images.tags.ceph_rbd_provisioner }}
+        - name: ceph-cephfs-provisioner
+          image: {{ .Values.images.tags.ceph_cephfs_provisioner }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
-{{ tuple $envAll $envAll.Values.pod.resources.rbd_provisioner | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.cephfs_provisioner | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           env:
             - name: PROVISIONER_NAME
               value: {{ .Values.storageclass.rbd.provisioner }}
@@ -150,11 +160,11 @@ spec:
                 fieldRef:
                   fieldPath: metadata.name
           command:
-            - /tmp/rbd-provisioner.sh
+            - /tmp/cephfs-provisioner.sh
           volumeMounts:
             - name: ceph-bin
-              mountPath: /tmp/rbd-provisioner.sh
-              subPath: rbd-provisioner.sh
+              mountPath: /tmp/cephfs-provisioner.sh
+              subPath: cephfs-provisioner.sh
               readOnly: true
       volumes:
         - name: ceph-bin

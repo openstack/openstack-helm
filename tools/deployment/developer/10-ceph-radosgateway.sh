@@ -31,6 +31,7 @@ helm install --namespace=openstack ${WORK_DIR}/ceph --name=radosgw-openstack \
    --set deployment.storage_secrets=false \
    --set deployment.ceph=false \
    --set deployment.rbd_provisioner=false \
+   --set deployment.cephfs_provisioner=false \
    --set deployment.client_secrets=false \
    --set deployment.rgw_keystone_user_and_endpoints=true \
    --values=${WORK_DIR}/tools/overrides/mvp/ceph.yaml

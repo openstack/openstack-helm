@@ -17,6 +17,7 @@ deployment:
   storage_secrets: true
   client_secrets: true
   rbd_provisioner: true
+  cephfs_provisioner: true
   rgw_keystone_user_and_endpoints: false
 
 images:
@@ -29,6 +30,7 @@ images:
     ceph_daemon: docker.io/ceph/daemon:tag-build-master-luminous-ubuntu-16.04
     ceph_config_helper: docker.io/port/ceph-config-helper:v1.7.5
     ceph_rbd_provisioner: quay.io/external_storage/rbd-provisioner:v0.1.1
+    ceph_cephfs_provisioner: quay.io/external_storage/cephfs-provisioner:v0.1.1
   pull_policy: "IfNotPresent"
 
 labels:
@@ -57,13 +59,14 @@ pod:
     rgw: 1
     mon_check: 1
     rbd_provisioner: 2
+    cephfs_provisioner: 2
     mgr: 1
   affinity:
-      anti:
-        type:
-          default: preferredDuringSchedulingIgnoredDuringExecution
-        topologyKey:
-          default: kubernetes.io/hostname
+    anti:
+      type:
+        default: preferredDuringSchedulingIgnoredDuringExecution
+      topologyKey:
+        default: kubernetes.io/hostname
   resources:
     enabled: false
     osd:
@@ -102,6 +105,13 @@ pod:
         memory: "50Mi"
         cpu: "500m"
     rbd_provisioner:
+      requests:
+        memory: "5Mi"
+        cpu: "250m"
+      limits:
+        memory: "50Mi"
+        cpu: "500m"
+    cephfs_provisioner:
       requests:
         memory: "5Mi"
         cpu: "250m"
@@ -202,6 +212,8 @@ conf:
       mds:
 
 dependencies:
+  cephfs_client_key_generator:
+    jobs:
   job_keyring_generator:
     jobs:
   namespace_client_key_cleaner:
@@ -248,6 +260,11 @@ dependencies:
     - service: ceph_mon
       endpoint: internal
   rbd_provisioner:
+    jobs:
+    services:
+    - service: ceph_mon
+      endpoint: internal
+  cephfs_provisioner:
     jobs:
     services:
     - service: ceph_mon
@@ -303,18 +320,27 @@ bootstrap:
 # it is presumed you manage your own storage
 # class definition externally
 storageclass:
-  provision_storage_class: true
-  provisioner: ceph.com/rbd
-  name: general
-  monitors: null
-  pool: rbd
-  admin_id: admin
-  admin_secret_name: pvc-ceph-conf-combined-storageclass
-  admin_secret_namespace: ceph
-  user_id: admin
-  user_secret_name: pvc-ceph-client-key
-  image_format: "2"
-  image_features: layering
+  rbd:
+    provision_storage_class: true
+    provisioner: ceph.com/rbd
+    name: general
+    monitors: null
+    pool: rbd
+    admin_id: admin
+    admin_secret_name: pvc-ceph-conf-combined-storageclass
+    admin_secret_namespace: ceph
+    user_id: admin
+    user_secret_name: pvc-ceph-client-key
+    image_format: "2"
+    image_features: layering
+  cephfs:
+    provision_storage_class: true
+    provisioner: ceph.com/cephfs
+    name: cephfs
+    admin_id: admin
+    user_secret_name: pvc-ceph-cephfs-client-key
+    admin_secret_name: pvc-ceph-conf-combined-storageclass
+    admin_secret_namespace: ceph
 
 endpoints:
   cluster_domain_suffix: cluster.local
@@ -388,9 +414,11 @@ manifests:
   deployment_mds: true
   deployment_moncheck: true
   deployment_rbd_provisioner: true
+  deployment_cephfs_provisioner: true
   deployment_rgw: true
   deployment_mgr: true
   job_bootstrap: true
+  job_cephfs_client_key: true
   job_keyring: true
   job_ks_endpoints: true
   job_ks_service: true

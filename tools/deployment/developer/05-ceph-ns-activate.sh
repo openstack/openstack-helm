@@ -31,6 +31,7 @@ helm install --namespace=openstack ${WORK_DIR}/ceph --name=ceph-openstack-config
     --set deployment.storage_secrets=false \
     --set deployment.ceph=false \
     --set deployment.rbd_provisioner=false \
+    --set deployment.cephfs_provisioner=false \
     --set deployment.client_secrets=true \
     --set deployment.rgw_keystone_user_and_endpoints=false \
     --values=${WORK_DIR}/tools/overrides/mvp/ceph.yaml
