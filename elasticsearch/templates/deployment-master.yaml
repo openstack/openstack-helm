@@ -57,6 +57,21 @@ spec:
           - sysctl
           - -w
           - vm.max_map_count={{ .Values.conf.init.max_map_count }}
+{{ if .Values.storage.filesystem_repository.enabled }}
+        - name: elasticsearch-repository-perms
+{{ tuple $envAll "elasticsearch" | include "helm-toolkit.snippets.image" | indent 10 }}
+          securityContext:
+            runAsUser: 0
+{{ tuple $envAll $envAll.Values.pod.resources.client | include "helm-toolkit.snippets.kubernetes_resources" | indent 8 }}
+          command:
+            - chown
+            - -R
+            - "elasticsearch:"
+            - {{ .Values.conf.elasticsearch.repository.location }}
+          volumeMounts:
+            - name: storage
+              mountPath: {{ .Values.conf.elasticsearch.repository.location }}
+{{ end }}
       containers:
         - name: elasticsearch-master
           securityContext:
