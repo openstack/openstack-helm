@@ -1,3 +1,5 @@
+#!/bin/sh
+
 {{/*
 Copyright 2017 The Openstack-Helm Authors.
 
@@ -14,21 +16,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if .Values.manifests.service_error }}
-{{- $envAll := . }}
----
-apiVersion: v1
-kind: Service
-metadata:
-  labels:
-{{ tuple $envAll "ingress" "error-pages" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
-  name: ingress-error-pages
-spec:
-  clusterIP: None
-  ports:
-  - port: 80
-    protocol: TCP
-    targetPort: 8080
-  selector:
-{{ tuple $envAll "ingress" "error-pages" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
-{{- end }}
+set -ex
+exec /usr/bin/dumb-init \
+    /nginx-ingress-controller \
+    --default-backend-service=${POD_NAMESPACE}/ingress-error-pages \
+    --configmap=${POD_NAMESPACE}/ingress-conf \
+    --tcp-services-configmap=${POD_NAMESPACE}/ingress-services-tcp \
+    --udp-services-configmap=${POD_NAMESPACE}/ingress-services-udp
