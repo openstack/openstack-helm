@@ -21,6 +21,8 @@ images:
     grafana: docker.io/grafana/grafana:4.5.2
     datasource: docker.io/kolla/ubuntu-source-heat-engine:3.0.3
     dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.2.1
+    db_init: docker.io/kolla/ubuntu-source-heat-engine:3.0.3
+    grafana_db_session_sync: docker.io/kolla/ubuntu-source-heat-engine:3.0.3
     image_repo_sync: docker.io/docker:17.07.0
   pull_policy: IfNotPresent
   local_registry:
@@ -30,17 +32,16 @@ images:
       - image_repo_sync
 
 labels:
-  jobs:
-    node_selector_key: openstack-control-plane
-    node_selector_value: enabled
+  node_selector_key: openstack-control-plane
+  node_selector_value: enabled
 
 pod:
   affinity:
-      anti:
-        type:
-          default: preferredDuringSchedulingIgnoredDuringExecution
-        topologyKey:
-          default: kubernetes.io/hostname
+    anti:
+      type:
+        default: preferredDuringSchedulingIgnoredDuringExecution
+      topologyKey:
+        default: kubernetes.io/hostname
   mounts:
     grafana:
       init_container: null
@@ -75,6 +76,27 @@ pod:
         limits:
           memory: "1024Mi"
           cpu: "2000m"
+      db_init:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      db_init_session:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      grafana_db_session_sync:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
     grafana:
       requests:
         memory: "128Mi"
@@ -85,6 +107,42 @@ pod:
 
 endpoints:
   cluster_domain_suffix: cluster.local
+  oslo_db:
+    namespace: null
+    auth:
+      admin:
+        username: root
+        password: password
+      user:
+        username: grafana
+        password: password
+    hosts:
+      default: mariadb
+    host_fqdn_override:
+      default: null
+    path: /grafana
+    scheme: mysql+pymysql
+    port:
+      mysql:
+        default: 3306
+  oslo_db_session:
+    namespace: null
+    auth:
+      admin:
+        username: root
+        password: password
+      user:
+        username: grafana_session
+        password: password
+    hosts:
+      default: mariadb
+    host_fqdn_override:
+      default: null
+    path: /grafana_session
+    scheme: mysql+pymysql
+    port:
+      mysql:
+        default: 3306
   grafana:
     name: grafana
     namespace: null
@@ -122,13 +180,31 @@ endpoints:
         public: 80
 
 dependencies:
-  register_datasource:
-    jobs:
+  db_init:
     services:
-    - service: grafana
-      endpoint: internal
+      - service: oslo_db
+        endpoint: internal
+  db_init_session:
+    services:
+      - service: oslo_db
+        endpoint: internal
+  db_session_sync:
+    jobs:
+      - grafana-db-init-session
+    services:
+      - service: oslo_db
+        endpoint: internal
+  register_datasource:
+    services:
+      - service: grafana
+        endpoint: internal
   grafana:
-    services: null
+    jobs:
+      - grafana-db-init
+      - grafana-db-session-sync
+    services:
+      - service: oslo_db
+        endpoint: internal
   image_repo_sync:
     services:
       - service: local_image_registry
@@ -150,8 +226,17 @@ network:
       port: 30902
     ingress:
       public: true
-      proxy_body_size: 1024M
+      annotations:
+        kubernetes.io/ingress.class: "nginx"
+        ingress.kubernetes.io/rewrite-target: /
 
+secrets:
+  oslo_db:
+    admin: grafana-db-admin
+    user: grafana-db-user
+  oslo_db_session:
+    admin: grafana-session-db-admin
+    user: grafana-session-db-user
 
 manifests:
   configmap_bin: true
@@ -159,9 +244,14 @@ manifests:
   configmap_etc: true
   deployment: true
   ingress: true
+  job_db_init: true
+  job_db_init_session: true
+  job_db_session_sync: true
   job_datasource: true
   job_image_repo_sync: true
-  secret_admin: true
+  secret_db: true
+  secret_db_session: true
+  secret_admin_creds: true
   service: true
   service_ingress: true
 
@@ -179,9 +269,11 @@ conf:
     server:
       protocol: http
       http_port: 3000
+    database:
+      type: mysql
     session:
-      provider: file
-      provider_config: sessions
+      provider: mysql
+      provider_config: null
       cookie_name: grafana_sess
       cookie_secure: false
       session_life_time: 86400
