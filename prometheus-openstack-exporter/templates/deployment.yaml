@@ -18,9 +18,9 @@ limitations under the License.
 {{- $envAll := . }}
 {{- $ksUserSecret := .Values.secrets.identity.user }}
 {{- if .Values.images.local_registry.active -}}
-{{- $_ := set .Values "pod_dependency" (merge .Values.dependencies.openstack_metrics_exporter .Values.conditional_dependencies.local_image_registry) -}}
+{{- $_ := set .Values "pod_dependency" (merge .Values.dependencies.prometheus_openstack_exporter .Values.conditional_dependencies.local_image_registry) -}}
 {{- else -}}
-{{- $_ := set .Values "pod_dependency" .Values.dependencies.openstack_metrics_exporter -}}
+{{- $_ := set .Values "pod_dependency" .Values.dependencies.prometheus_openstack_exporter -}}
 {{- end -}}
 
 {{- $serviceAccountName := "prometheus-openstack-exporter" }}
@@ -29,51 +29,52 @@ limitations under the License.
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
-  name: openstack-exporter
+  name: prometheus-openstack-exporter
 spec:
-  replicas: {{ .Values.pod.replicas.openstack_metrics_exporter }}
+  replicas: {{ .Values.pod.replicas.prometheus_openstack_exporter }}
 {{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_deployment" | indent 2 }}
   template:
     metadata:
       labels:
-{{ tuple $envAll "openstack-exporter" "exporter" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+{{ tuple $envAll "prometheus-openstack-exporter" "exporter" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
     spec:
       serviceAccountName: {{ $serviceAccountName }}
       nodeSelector:
         {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
-      terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.openstack_metrics_exporter.timeout | default "30" }}
+      terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.prometheus_openstack_exporter.timeout | default "30" }}
       initContainers:
 {{ tuple $envAll .Values.pod_dependency list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
         - name: openstack-metrics-exporter
-{{ tuple $envAll "openstack_metrics_exporter" | include "helm-toolkit.snippets.image" | indent 10 }}
-{{ tuple $envAll $envAll.Values.pod.resources.openstack_metrics_exporter | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ tuple $envAll "prometheus_openstack_exporter" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.prometheus_openstack_exporter | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           command:
-            - /tmp/openstack-exporter.sh
+            - /tmp/prometheus-openstack-exporter.sh
             - start
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /tmp/prometheus-openstack-exporter.sh
+                  - stop
           ports:
             - name: metrics
-              containerPort: {{ .Values.network.openstack_metrics_exporter.port }}
+              containerPort: {{ tuple "prometheus_openstack_exporter" "internal" "exporter" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
           env:
-            - name: TIMEOUT_SECONDS
-              value: "{{ .Values.conf.openstack_metrics_exporter.timeout_seconds }}"
-            - name: OS_POLLING_INTERVAL
-              value: "{{ .Values.conf.openstack_metrics_exporter.polling_interval_seconds }}"
-            - name: OS_RETRIES
-              value: "{{ .Values.conf.openstack_metrics_exporter.retries }}"
             - name: LISTEN_PORT
-              value: "{{ .Values.network.openstack_metrics_exporter.port }}"
+              value: {{ tuple "prometheus_openstack_exporter" "internal" "exporter" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | quote }}
+{{ include "helm-toolkit.utils.to_k8s_env_vars" .Values.conf.prometheus_openstack_exporter | indent 12 }}
 {{- with $env := dict "ksUserSecret" $ksUserSecret }}
 {{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 12 }}
 {{- end }}
           volumeMounts:
-            - name: openstack-exporter-bin
-              mountPath: /tmp/openstack-exporter.sh
-              subPath: openstack-exporter.sh
+            - name: prometheus-openstack-exporter-bin
+              mountPath: /tmp/prometheus-openstack-exporter.sh
+              subPath: prometheus-openstack-exporter.sh
               readOnly: true
       volumes:
-        - name: openstack-exporter-bin
+        - name: prometheus-openstack-exporter-bin
           configMap:
-            name: openstack-exporter-bin
+            name: prometheus-openstack-exporter-bin
             defaultMode: 0555
 {{- end }}

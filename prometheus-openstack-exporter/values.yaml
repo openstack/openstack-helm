@@ -12,17 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Default values for kube-state-metrics.
+# Default values for prometheus-openstack-exporter.
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
 images:
   tags:
-    openstack_metrics_exporter: docker.io/rakeshpatnaik/prometheus-openstack-exporter:v0.1
+    prometheus_openstack_exporter: docker.io/rakeshpatnaik/prometheus-openstack-exporter:v0.1
     helm_tests: docker.io/kolla/ubuntu-source-kolla-toolbox:3.0.3
-    pull_policy: IfNotPresent
     dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.2.1
     image_repo_sync: docker.io/docker:17.07.0
+    ks_user: docker.io/kolla/ubuntu-source-heat-engine:3.0.3
   pull_policy: IfNotPresent
   local_registry:
     active: false
@@ -36,17 +36,17 @@ labels:
 
 pod:
   affinity:
-      anti:
-        type:
-          default: preferredDuringSchedulingIgnoredDuringExecution
-        topologyKey:
-          default: kubernetes.io/hostname
+    anti:
+      type:
+        default: preferredDuringSchedulingIgnoredDuringExecution
+      topologyKey:
+        default: kubernetes.io/hostname
   mounts:
-    openstack_metrics_exporter:
-      openstack_metrics_exporter:
+    prometheus_openstack_exporter:
+      prometheus_openstack_exporter:
       init_container: null
   replicas:
-    openstack_metrics_exporter: 1
+    prometheus_openstack_exporter: 1
   lifecycle:
     upgrades:
       revision_history: 3
@@ -55,7 +55,7 @@ pod:
         max_unavailable: 1
         max_surge: 3
     termination_grace_period:
-      openstack_metrics_exporter:
+      prometheus_openstack_exporter:
         timeout: 30
   resources:
     enabled: false
@@ -74,12 +74,25 @@ pod:
         limits:
           memory: "1024Mi"
           cpu: "2000m"
-
-secrets:
-  identity:
-    user: openstack-metrics-user
+      ks_user:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
 
 dependencies:
+  ks_user:
+    services:
+      - service: identity
+        endpoint: internal
+  prometheus_openstack_exporter:
+    jobs:
+      - prometheus-openstack-exporter-ks-user
+    services:
+      - service: identity
+        endpoint: internal
   image_repo_sync:
     services:
       - service: local_image_registry
@@ -88,18 +101,21 @@ dependencies:
 conditional_dependencies:
   local_image_registry:
     jobs:
-      - openstack-metrics-exporter-image-repo-sync
+      - prometheus-openstack-exporter-image-repo-sync
     services:
       - service: local_image_registry
         endpoint: node
 
 conf:
-  openstack_metrics_exporter:
-    polling_interval_seconds: 30
-    timeout_seconds: 20
-    retries: 1
-    os_cpu_oc_ratio: 1.5
-    os_ram_oc_ratio: 1.0
+  prometheus_openstack_exporter:
+    OS_POLLING_INTERVAL: 30
+    TIMEOUT_SECONDS: 20
+    OS_RETRIES: 1
+
+secrets:
+  identity:
+    admin: prometheus-openstack-exporter-keystone-admin
+    user: prometheus-openstack-exporter-keystone-user
 
 endpoints:
   cluster_domain_suffix: cluster.local
@@ -115,7 +131,7 @@ endpoints:
     port:
       registry:
         node: 5000
-  openstack_metrics_exporter:
+  prometheus_openstack_exporter:
     namespace: null
     hosts:
       default: openstack-metrics
@@ -125,14 +141,24 @@ endpoints:
       default: null
     scheme:
       default: 'http'
+    port:
+      exporter:
+        default: 9103
     scrape: true
   identity:
     name: keystone
     auth:
+      admin:
+        region_name: RegionOne
+        username: admin
+        password: password
+        project_name: admin
+        user_domain_name: default
+        project_domain_name: default
       user:
         role: admin
         region_name: RegionOne
-        username: nova
+        username: prometheus-openstack-exporter
         password: password
         project_name: service
         user_domain_name: default
@@ -152,17 +178,10 @@ endpoints:
       api:
         default: 80
 
-network:
-  openstack_metrics_exporter:
-    port: 9103
-
 manifests:
   configmap_bin: true
-  clusterrole: true
-  clusterrolebinding: true
   deployment: true
   job_image_repo_sync: true
-  rbac_entrypoint: true
-  service_openstack_metrics_exporter: true
-  serviceaccount: true
-  openstack_metrics_user: true
+  job_ks_user: true
+  secret_keystone: true
+  service: true

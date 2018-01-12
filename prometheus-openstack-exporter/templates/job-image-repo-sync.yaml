@@ -19,14 +19,14 @@ limitations under the License.
 {{- if .Values.images.local_registry.active -}}
 {{- $_ := set .Values "pod_dependency" .Values.dependencies.image_repo_sync -}}
 
-{{- $serviceAccountName := "openstack-exporter-image-repo-sync"}}
+{{- $serviceAccountName := "prometheus-openstack-exporter-image-repo-sync"}}
 {{ tuple $envAll $envAll.Values.pod_dependency $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 
 ---
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: openstack-metrics-exporter-image-repo-sync
+  name: prometheus-openstack-exporter-image-repo-sync
 spec:
   template:
     metadata:
@@ -51,16 +51,16 @@ spec:
           command:
             - /tmp/image-repo-sync.sh
           volumeMounts:
-            - name:  openstack-exporter-bin
+            - name:  prometheus-openstack-exporter-bin
               mountPath: /tmp/image-repo-sync.sh
               subPath: image-repo-sync.sh
               readOnly: true
             - name: docker-socket
               mountPath: /var/run/docker.sock
       volumes:
-        - name:  openstack-exporter-bin
+        - name:  prometheus-openstack-exporter-bin
           configMap:
-            name:  openstack-exporter-bin
+            name:  prometheus-openstack-exporter-bin
             defaultMode: 0555
         - name: docker-socket
           hostPath:
