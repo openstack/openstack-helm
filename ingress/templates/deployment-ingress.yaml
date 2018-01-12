@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- if .Values.manifests.deployment_ingress }}
 {{- $envAll := . }}
 {{- $dependencies := .Values.dependencies.ingress }}
 
@@ -85,6 +86,63 @@ subjects:
     name: {{ $serviceAccountName }}
     namespace: {{ $envAll.Release.Namespace }}
 ---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: Role
+metadata:
+  name: nginx-ingress-role
+  namespace: {{ $envAll.Release.Namespace }}
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+      - pods
+      - secrets
+      - namespaces
+    verbs:
+      - get
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+    resourceNames:
+      # Defaults to "<election-id>-<ingress-class>"
+      # Here: "<ingress-controller-leader>-<nginx>"
+      # This has to be adapted if you change either parameter
+      # when launching the nginx-ingress-controller.
+      - "ingress-controller-leader-nginx"
+    verbs:
+      - get
+      - update
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+    verbs:
+      - create
+  - apiGroups:
+      - ""
+    resources:
+      - endpoints
+    verbs:
+      - get
+      - create
+      - update
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: RoleBinding
+metadata:
+  name: nginx-ingress-role-nisa-binding
+  namespace: {{ $envAll.Release.Namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: nginx-ingress-role
+subjects:
+  - kind: ServiceAccount
+    name: {{ $serviceAccountName }}
+    namespace: {{ $envAll.Release.Namespace }}
+---
 {{- if eq .Values.deployment_type "Deployment" }}
 apiVersion: apps/v1beta1
 kind: Deployment
@@ -150,7 +208,16 @@ spec:
               hostPort: 80
             - containerPort: 443
               hostPort: 443
-          args:
-            - /nginx-ingress-controller
-            - '--default-backend-service=$(POD_NAMESPACE)/ingress-error-pages'
-            - --configmap=$(POD_NAMESPACE)/nginx-custom-configuration
+          command:
+            - /tmp/ingress-controller.sh
+          volumeMounts:
+            - name: ingress-bin
+              mountPath: /tmp/ingress-controller.sh
+              subPath: ingress-controller.sh
+              readOnly: true
+      volumes:
+      - name: ingress-bin
+        configMap:
+          name: ingress-bin
+          defaultMode: 0555
+{{- end }}

@@ -1,3 +1,5 @@
+#!/bin/sh
+
 {{/*
 Copyright 2017 The Openstack-Helm Authors.
 
@@ -14,20 +16,5 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- $envAll := . }}
-
-{{- $serviceAccountName := "ingress-api" }}
----
-apiVersion: rbac.authorization.k8s.io/v1beta1
-kind: RoleBinding
-metadata:
-  name: nginx-ingress-role-nisa-binding
-  namespace: {{ $envAll.Release.Namespace }}
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: nginx-ingress-role
-subjects:
-  - kind: ServiceAccount
-    name: {{ $serviceAccountName }}
-    namespace: {{ $envAll.Release.Namespace }}
+set -ex
+exec /server
