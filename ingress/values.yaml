@@ -17,6 +17,12 @@
 # Declare name/value pairs to be passed into your templates.
 # name: value
 
+deployment:
+  mode: namespace
+  type: Deployment
+  cluster:
+    class: "nginx-cluster"
+
 images:
   tags:
     entrypoint: quay.io/stackanetes/kubernetes-entrypoint:v0.2.1
@@ -44,6 +50,11 @@ pod:
         rolling_update:
           max_unavailable: 1
           max_surge: 3
+    termination_grace_period:
+      server:
+        timeout: 60
+      error_pages:
+        timeout: 60
   resources:
     enabled: false
     ingress:
@@ -66,7 +77,18 @@ labels:
   node_selector_value: enabled
 
 network:
-  host_namespace: true
+  host_namespace: false
+  vip:
+    manage: false
+    interface: ingress-vip
+    addr: 172.18.0.1/32
+  ingress:
+    annotations:
+      #NOTE(portdirect): if left blank this is populated from
+      # .deployment.cluster.class
+      kubernetes.io/ingress.class: null
+      nginx.ingress.kubernetes.io/proxy-body-size: "0"
+  external_policy_local: false
 
 dependencies:
   error_pages:
@@ -75,21 +97,35 @@ dependencies:
     jobs: null
 
 endpoints:
+  cluster_domain_suffix: cluster.local
   ingress:
-    host: openstack
+    hosts:
+      default: ingress
+      error_pages: ingress-error-pages
+    host_fqdn_override:
+      default: null
     port:
-      http: 80
-      https: 443
+      http:
+        default: 80
+      https:
+        default: 443
 
-deployment_type: DaemonSet
-
-config:
+conf:
   controller:
+    #NOTE(portdirect): if left blank this is populated from
+    # .deployment.cluster.class in cluster mode, or set to
+    # "nginx" in namespace mode
+    INGRESS_CLASS: null
+  ingress:
     enable-underscores-in-headers: "true"
+    #NOTE(portdirect): if left blank this is populated from
+    # .network.vip.addr when running in host networking
+    # and .network.vip.manage=true, otherwise it is left as
+    # an empty string (the default).
+    bind-address: null
   services:
     tcp: null
-    udp:
-      53: "kube-system/kube-dns:53"
+    udp: null
 
 manifests:
   configmap_bin: true
@@ -98,5 +134,7 @@ manifests:
   configmap_services_udp: true
   deployment_error: true
   deployment_ingress: true
+  endpoints_ingress: true
+  ingress: true
   service_error: true
   service_ingress: true

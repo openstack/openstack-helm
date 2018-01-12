@@ -14,15 +14,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if .Values.manifests.configmap_services_udp }}
-{{- $envAll := . }}
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: ingress-services-udp
-{{- if not (empty $envAll.Values.conf.services.udp) }}
-data:
-{{ toYaml $envAll.Values.conf.services.udp | indent 2 }}
-{{- end }}
-{{- end }}
+{{- define "helm-toolkit.utils.to_k8s_env_vars" -}}
+{{range $key, $value := . -}}
+{{- if kindIs "slice" $value -}}
+- name: {{ $key }}
+  value: {{ include "helm-toolkit.utils.joinListWithComma" $value | quote }}
+{{else -}}
+- name: {{ $key }}
+  value: {{ $value | quote }}
+{{ end -}}
+{{- end -}}
+{{- end -}}

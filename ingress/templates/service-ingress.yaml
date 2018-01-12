@@ -21,18 +21,42 @@ apiVersion: v1
 kind: Service
 metadata:
   labels:
-    app: ingress-api
-  name: {{ .Values.endpoints.ingress.host }}
+{{ tuple $envAll "ingress" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+{{- if and .Values.network.host_namespace .Values.network.vip.manage }}
+    endpoint: vip
+{{- end }}
+  name: {{ tuple "ingress" "internal" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
 spec:
+{{- if and .Values.network.host_namespace .Values.network.vip.manage }}
+  clusterIP: None
+{{- end }}
   ports:
   - name: http
-    port: {{ .Values.endpoints.ingress.port.http }}
+    port: {{ tuple "ingress" "internal" "http" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
     protocol: TCP
-    targetPort: 80
+    targetPort: {{ tuple "ingress" "internal" "http" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
   - name: https
-    port: {{ .Values.endpoints.ingress.port.https }}
+    port: {{ tuple "ingress" "internal" "https" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
     protocol: TCP
-    targetPort: 443
+    targetPort: {{ tuple "ingress" "internal" "https" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+  {{- if not (empty $envAll.Values.conf.services.tcp) }}
+  {{range $key, $value := $envAll.Values.conf.services.tcp -}}
+  - name: {{ cat ((( $value | split "/" )._1 | split ":" )._0  | trunc 8 ) $key | nospace | quote }}
+    port: {{ $key }}
+    protocol: TCP
+    targetPort: {{ $key }}
+  {{ end -}}
+  {{- end }}
+  {{- if not (empty $envAll.Values.conf.services.udp) }}
+  {{range $key, $value := $envAll.Values.conf.services.udp -}}
+  - name: {{ cat ((( $value | split "/" )._1 | split ":" )._0  | trunc 8 ) $key | nospace | quote }}
+    port: {{ $key }}
+    protocol: UDP
+    targetPort: {{ $key }}
+  {{ end -}}
+  {{- end }}
+{{- if not (and .Values.network.host_namespace .Values.network.vip.manage) }}
   selector:
-    app: ingress-api
+{{ tuple $envAll "ingress" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+{{- end }}
 {{- end }}
