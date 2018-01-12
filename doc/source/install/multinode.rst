@@ -310,6 +310,7 @@ running the following commands in the ``openstack-helm`` project folder:
     --set deployment.storage_secrets=true \
     --set deployment.ceph=true \
     --set deployment.rbd_provisioner=true \
+    --set deployment.cephfs_provisioner=true \
     --set deployment.client_secrets=false \
     --set deployment.rgw_keystone_user_and_endpoints=false \
     --set bootstrap.enabled=true
@@ -351,6 +352,7 @@ deploy the client keyring and ``ceph.conf`` to the ``openstack`` namespace:
       --set deployment.storage_secrets=false \
       --set deployment.ceph=false \
       --set deployment.rbd_provisioner=false \
+      --set deployment.cephfs_provisioner=false \
       --set deployment.client_secrets=true \
       --set deployment.rgw_keystone_user_and_endpoints=false
 

@@ -40,6 +40,7 @@ if [ "x$PVC_BACKEND" == "xceph" ]; then
       --set deployment.storage_secrets=true \
       --set deployment.ceph=true \
       --set deployment.rbd_provisioner=true \
+      --set deployment.cephfs_provisioner=true \
       --set deployment.client_secrets=false \
       --set deployment.rgw_keystone_user_and_endpoints=false \
       --set bootstrap.enabled=true \
@@ -55,6 +56,7 @@ if [ "x$PVC_BACKEND" == "xceph" ]; then
       --set deployment.storage_secrets=true \
       --set deployment.ceph=true \
       --set deployment.rbd_provisioner=true \
+      --set deployment.cephfs_provisioner=true \
       --set deployment.client_secrets=false \
       --set deployment.rgw_keystone_user_and_endpoints=false \
       --set bootstrap.enabled=true
@@ -80,6 +82,7 @@ if [ "x$PVC_BACKEND" == "xceph" ]; then
     --set deployment.storage_secrets=false \
     --set deployment.ceph=false \
     --set deployment.rbd_provisioner=false \
+    --set deployment.cephfs_provisioner=false \
     --set deployment.client_secrets=true \
     --set deployment.rgw_keystone_user_and_endpoints=false
 
@@ -114,6 +117,7 @@ if [ "x$OPENSTACK_OBJECT_STORAGE" == "xradosgw" ]; then
     --set deployment.storage_secrets=false \
     --set deployment.ceph=false \
     --set deployment.rbd_provisioner=false \
+    --set deployment.cephfs_provisioner=false \
     --set deployment.client_secrets=false \
     --set deployment.rgw_keystone_user_and_endpoints=true
   kube_wait_for_pods openstack ${POD_START_TIMEOUT_OPENSTACK}
