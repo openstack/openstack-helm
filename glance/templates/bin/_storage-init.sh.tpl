@@ -33,7 +33,10 @@ elif [ "x$STORAGE_BACKEND" == "xrbd" ]; then
   ceph -s
   function ensure_pool () {
     ceph osd pool stats $1 || ceph osd pool create $1 $2
-    ceph osd pool application enable $1 $3
+    local test_luminous=$(ceph -v | egrep -q "12.2|luminous"; echo $?)
+    if [[ ${test_luminous} -ne 0 ]]; then
+      ceph osd pool application enable $1 $3
+    fi
   }
   ensure_pool ${RBD_POOL_NAME} ${RBD_POOL_CHUNK_SIZE} "glance-image"
 
