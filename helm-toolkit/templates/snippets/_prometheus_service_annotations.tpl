@@ -22,7 +22,6 @@ limitations under the License.
 
 {{- define "helm-toolkit.snippets.prometheus_service_annotations" -}}
 {{- $endpoint := index . 0 -}}
-{{- $context := index . 1 -}}
 prometheus.io/scrape: {{ $endpoint.scrape | quote }}
 prometheus.io/scheme: {{ $endpoint.scheme.default | quote }}
 prometheus.io/path: {{ $endpoint.path.default | quote }}
