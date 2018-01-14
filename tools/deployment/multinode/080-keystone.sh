@@ -28,5 +28,6 @@ helm install ./keystone \
 #NOTE: Validate Deployment info
 helm status keystone
 export OS_CLOUD=openstack_helm
+sleep 30
 openstack endpoint list
 helm test keystone --timeout 900

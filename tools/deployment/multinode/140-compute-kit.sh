@@ -66,8 +66,8 @@ helm install ./neutron \
 #NOTE: Validate Deployment info
 export OS_CLOUD=openstack_helm
 openstack service list
-sleep 15
+sleep 30
 openstack hypervisor list
 openstack network agent list
-#helm test nova --timeout 900
-#helm test neutron --timeout 900
+helm test nova --timeout 900
+helm test neutron --timeout 900
