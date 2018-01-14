@@ -7,5 +7,3 @@ Contents:
    :maxdepth: 2
 
    all-in-one
-   gates
-   vagrant

@@ -34,9 +34,7 @@ Installation and Development
 Please review our `documentation <https://docs.openstack.org/openstack-helm>`_.
 For quick installation, evaluation, and convenience, we have a kubeadm
 based all-in-one solution that runs in a Docker container. The Kubeadm-AIO set
-up can be found `here, <https://docs.openstack.org/openstack-helm/latest/install/developer/all-in-one.html>`_
-and the `gate scripts, <https://docs.openstack.org/openstack-helm/latest/install/developer/gates.html>`_
-use are supported on any fresh Ubuntu, CentOS or Fedora machine.
+up can be found `here, <https://docs.openstack.org/openstack-helm/latest/install/developer/all-in-one.html>`_.
 
 This project is under active development. We encourage anyone interested in
 OpenStack-Helm to review our `Installation <https://docs.openstack.org/openstack-helm/latest/install/index.html>`_
