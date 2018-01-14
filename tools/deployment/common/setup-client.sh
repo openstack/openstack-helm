@@ -13,21 +13,26 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
+
 set -xe
 
-#NOTE: Pull images and lint chart
-make pull-images heat
+sudo -H -E pip install python-openstackclient python-heatclient
 
-#NOTE: Deploy command
-helm install ./heat \
-  --namespace=openstack \
-  --name=heat
+sudo -H mkdir -p /etc/openstack
+cat << EOF | sudo -H tee -a /etc/openstack/clouds.yaml
+clouds:
+  openstack_helm:
+    region_name: RegionOne
+    identity_api_version: 3
+    auth:
+      username: 'admin'
+      password: 'password'
+      project_name: 'admin'
+      project_domain_name: 'default'
+      user_domain_name: 'default'
+      auth_url: 'http://keystone.openstack.svc.cluster.local/v3'
+EOF
+sudo -H chown -R $(id -un): /etc/openstack
 
-#NOTE: Wait for deploy
-./tools/deployment/common/wait-for-pods.sh openstack
-
-#NOTE: Validate Deployment info
-export OS_CLOUD=openstack_helm
-openstack service list
-sleep 15
-openstack orchestration service list
+#NOTE: Build charts
+make all

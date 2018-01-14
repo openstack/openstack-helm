@@ -74,13 +74,13 @@ FLOATING_IP=$(openstack floating ip show \
       -f value -c floating_ip_address)
 
 function wait_for_ssh_port {
-  # Default wait timeout is 180 seconds
+  # Default wait timeout is 300 seconds
   set +x
   end=$(date +%s)
   if ! [ -z $2 ]; then
    end=$((end + $2))
   else
-   end=$((end + 180))
+   end=$((end + 300))
   fi
   while true; do
       # Use Nmap as its the same on Ubuntu and RHEL family distros

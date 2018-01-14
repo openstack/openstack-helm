@@ -13,21 +13,16 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
+
 set -xe
 
-#NOTE: Pull images and lint chart
-make pull-images heat
-
 #NOTE: Deploy command
-helm install ./heat \
+helm install ./ingress \
   --namespace=openstack \
-  --name=heat
+  --name=ingress
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack
 
-#NOTE: Validate Deployment info
-export OS_CLOUD=openstack_helm
-openstack service list
-sleep 15
-openstack orchestration service list
+#NOTE: Display info
+helm status ingress

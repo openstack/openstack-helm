@@ -24,7 +24,7 @@ helm install ./cinder \
   --name=cinder
 
 #NOTE: Wait for deploy
-./tools/deployment/developer/wait-for-pods.sh openstack
+./tools/deployment/common/wait-for-pods.sh openstack
 
 #NOTE: Validate Deployment info
 export OS_CLOUD=openstack_helm

@@ -16,12 +16,12 @@
 set -e
 
 # From Kolla-Kubernetes, orginal authors Kevin Fox & Serguei Bezverkhi
-# Default wait timeout is 300 seconds
+# Default wait timeout is 600 seconds
 end=$(date +%s)
 if ! [ -z $2 ]; then
  end=$((end + $2))
 else
- end=$((end + 300))
+ end=$((end + 600))
 fi
 while true; do
     kubectl get pods --namespace=$1 -o json | jq -r \

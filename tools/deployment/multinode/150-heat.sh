@@ -15,13 +15,14 @@
 #    under the License.
 set -xe
 
-#NOTE: Pull images and lint chart
-make pull-images heat
-
 #NOTE: Deploy command
 helm install ./heat \
   --namespace=openstack \
-  --name=heat
+  --name=heat \
+  --set pod.replicas.api=2 \
+  --set pod.replicas.cfn=2 \
+  --set pod.replicas.cloudwatch=2 \
+  --set pod.replicas.engine=2
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack

@@ -13,21 +13,28 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
+
 set -xe
 
-#NOTE: Pull images and lint chart
-make pull-images heat
-
 #NOTE: Deploy command
-helm install ./heat \
+helm install ./ceph \
   --namespace=openstack \
-  --name=heat
+  --name=ceph-openstack-config \
+  --set endpoints.identity.namespace=openstack \
+  --set endpoints.object_store.namespace=ceph \
+  --set endpoints.ceph_mon.namespace=ceph \
+  --set ceph.rgw_keystone_auth=true \
+  --set network.public=$(./tools/deployment/multinode/kube-node-subnet.sh) \
+  --set network.cluster=$(./tools/deployment/multinode/kube-node-subnet.sh) \
+  --set deployment.storage_secrets=false \
+  --set deployment.ceph=false \
+  --set deployment.rbd_provisioner=false \
+  --set deployment.cephfs_provisioner=false \
+  --set deployment.client_secrets=true \
+  --set deployment.rgw_keystone_user_and_endpoints=false
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack
 
 #NOTE: Validate Deployment info
-export OS_CLOUD=openstack_helm
-openstack service list
-sleep 15
-openstack orchestration service list
+helm status ceph

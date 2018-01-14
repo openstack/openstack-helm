@@ -24,7 +24,7 @@ helm install ./openvswitch \
   --name=openvswitch
 
 #NOTE: Wait for deploy
-./tools/deployment/developer/wait-for-pods.sh openstack
+./tools/deployment/common/wait-for-pods.sh openstack
 
 #NOTE: Validate Deployment info
 helm status openvswitch
