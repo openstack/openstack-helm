@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-#https://github.com/kubernetes/ingress-nginx/tree/master/images/ubuntu-slim
-FROM gcr.io/google_containers/ubuntu-slim:0.14
+#https://github.com/kubernetes/kubernetes/tree/master/build/debian-base
+FROM gcr.io/google-containers/debian-base-amd64:0.3
 MAINTAINER pete.birley@att.com
 
 ARG KUBE_VERSION="v1.8.3"
@@ -36,6 +36,7 @@ RUN set -ex ;\
     apt-get update ;\
     apt-get upgrade -y ;\
     apt-get install -y --no-install-recommends \
+        bash \
         ca-certificates \
         curl \
         jq \
