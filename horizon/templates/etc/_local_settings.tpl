@@ -148,8 +148,8 @@ DATABASES = {
         # Database configuration here
         'ENGINE': 'django.db.backends.mysql',
         'NAME': '{{ .Values.endpoints.oslo_db.path | base }}',
-        'USER': '{{ .Values.endpoints.oslo_db.auth.user.username }}',
-        'PASSWORD': '{{ .Values.endpoints.oslo_db.auth.user.password }}',
+        'USER': '{{ .Values.endpoints.oslo_db.auth.horizon.username }}',
+        'PASSWORD': '{{ .Values.endpoints.oslo_db.auth.horizon.password }}',
         'HOST': '{{ tuple "oslo_db" "internal" . | include "helm-toolkit.endpoints.hostname_fqdn_endpoint_lookup" }}',
         'default-character-set': 'utf8',
         'PORT': '{{ tuple "oslo_db" "internal" "mysql" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}'

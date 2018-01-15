@@ -18,13 +18,13 @@ limitations under the License.
 {{- if eq .Values.storage "radosgw" }}
 auth_version = 1
 auth_address = {{ tuple "ceph_object_store" "public" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" }}
-user = {{ .Values.endpoints.ceph_object_store.auth.user.username }}:swift
-key = {{ .Values.endpoints.ceph_object_store.auth.user.password }}
+user = {{ .Values.endpoints.ceph_object_store.auth.glance.username }}:swift
+key = {{ .Values.endpoints.ceph_object_store.auth.glance.password }}
 {{- else }}
-user = {{ .Values.endpoints.identity.auth.user.project_name }}:{{ .Values.endpoints.identity.auth.user.username }}
-key = {{ .Values.endpoints.identity.auth.user.password }}
+user = {{ .Values.endpoints.identity.auth.glance.project_name }}:{{ .Values.endpoints.identity.auth.glance.username }}
+key = {{ .Values.endpoints.identity.auth.glance.password }}
 auth_address = {{ tuple "identity" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" }}
-user_domain_name = {{ .Values.endpoints.identity.auth.user.user_domain_name }}
-project_domain_name = {{ .Values.endpoints.identity.auth.user.project_domain_name }}
+user_domain_name = {{ .Values.endpoints.identity.auth.glance.user_domain_name }}
+project_domain_name = {{ .Values.endpoints.identity.auth.glance.project_domain_name }}
 auth_version = 3
 {{- end -}}
