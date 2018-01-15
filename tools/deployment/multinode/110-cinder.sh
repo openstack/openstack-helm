@@ -31,6 +31,6 @@ helm install ./cinder \
 #NOTE: Validate Deployment info
 export OS_CLOUD=openstack_helm
 openstack service list
-sleep 15
+sleep 30
 openstack volume type list
-#helm test cinder
+helm test cinder --timeout 900
