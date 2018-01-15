@@ -22,14 +22,14 @@ limitations under the License.
 # pod's declared ports (default is a port-free target if none are declared).
 
 {{- define "helm-toolkit.snippets.prometheus_pod_annotations" -}}
-{{- $pod := index . 0 -}}
-{{- if $pod.prometheus_scrape }}
-prometheus.io/scrape: {{ $pod.prometheus_scrape | quote }}
+{{- $config := index . 0 -}}
+{{- if $config.scrape }}
+prometheus.io/scrape: {{ $config.scrape | quote }}
 {{- end }}
-{{- if $pod.prometheus_path }}
-prometheus.io/path: {{ $pod.prometheus_path | quote }}
+{{- if $config.path }}
+prometheus.io/path: {{ $config.path | quote }}
 {{- end }}
-{{- if $pod.prometheus_port }}
-prometheus.io/port: {{ $pod.prometheus_port | quote }}
+{{- if $config.port }}
+prometheus.io/port: {{ $config.port | quote }}
 {{- end }}
 {{- end -}}
