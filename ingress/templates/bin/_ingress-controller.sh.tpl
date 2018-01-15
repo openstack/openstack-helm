@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 {{/*
 Copyright 2017 The Openstack-Helm Authors.
@@ -17,9 +17,26 @@ limitations under the License.
 */}}
 
 set -ex
-exec /usr/bin/dumb-init \
-    /nginx-ingress-controller \
-    --default-backend-service=${POD_NAMESPACE}/ingress-error-pages \
-    --configmap=${POD_NAMESPACE}/ingress-conf \
-    --tcp-services-configmap=${POD_NAMESPACE}/ingress-services-tcp \
-    --udp-services-configmap=${POD_NAMESPACE}/ingress-services-udp
+COMMAND="${@:-start}"
+
+function start () {
+  exec /usr/bin/dumb-init \
+      /nginx-ingress-controller \
+      {{- if eq .Values.deployment.mode "namespace" }}
+      --watch-namespace ${POD_NAMESPACE} \
+      {{- end }}
+      --http-port=${PORT_HTTP} \
+      --https-port=${PORT_HTTPS} \
+      --election-id=${RELEASE_NAME} \
+      --ingress-class=${INGRESS_CLASS} \
+      --default-backend-service=${POD_NAMESPACE}/${ERROR_PAGE_SERVICE} \
+      --configmap=${POD_NAMESPACE}/ingress-conf \
+      --tcp-services-configmap=${POD_NAMESPACE}/ingress-services-tcp \
+      --udp-services-configmap=${POD_NAMESPACE}/ingress-services-udp
+}
+
+function stop () {
+  kill -TERM 1
+}
+
+$COMMAND

@@ -38,7 +38,7 @@ spec:
 {{ tuple $envAll "ingress" "error-pages" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
       nodeSelector:
         {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
-      terminationGracePeriodSeconds: 60
+      terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.error_pages.timeout | default "60" }}
       initContainers:
 {{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
@@ -57,6 +57,13 @@ spec:
             - containerPort: 8080
           command:
             - /tmp/ingress-error-pages.sh
+            - start
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /tmp/ingress-error-pages.sh
+                  - stop
           volumeMounts:
             - name: ingress-bin
               mountPath: /tmp/ingress-error-pages.sh

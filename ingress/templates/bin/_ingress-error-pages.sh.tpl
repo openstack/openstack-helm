@@ -17,4 +17,10 @@ limitations under the License.
 */}}
 
 set -ex
-exec /server
+COMMAND="${@:-start}"
+
+if [ "x${COMMAND}" == "xstart" ]; then
+  exec /server
+elif [ "x${COMMAND}" == "xstop" ]; then
+  kill -TERM 1
+fi

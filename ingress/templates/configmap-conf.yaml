@@ -16,11 +16,18 @@ limitations under the License.
 
 {{- if .Values.manifests.configmap_conf }}
 {{- $envAll := . }}
+
+{{- if and .Values.network.host_namespace .Values.network.vip.manage -}}
+{{- if empty (index .Values.conf.ingress "bind-address") -}}
+{{- set .Values.conf.ingress "bind-address" ( .Values.network.vip.addr | split "/" )._0  | quote | trunc 0 -}}
+{{- end -}}
+{{- end -}}
+
 ---
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: ingress-conf
 data:
-{{ toYaml .Values.config.controller | indent 2 }}
+{{ toYaml .Values.conf.ingress | indent 2 }}
 {{- end }}
