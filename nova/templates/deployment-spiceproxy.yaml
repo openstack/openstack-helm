@@ -14,45 +14,45 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if .Values.manifests.deployment_novncproxy }}
+{{- if .Values.manifests.deployment_spiceproxy }}
 {{- $envAll := . }}
-{{ if eq .Values.console.console_kind "novnc" }}
-{{- $dependencies := .Values.dependencies.novncproxy }}
+{{ if eq .Values.console.console_kind "spice" }}
+{{- $dependencies := .Values.dependencies.spiceproxy }}
 
-{{- $mounts_nova_novncproxy := .Values.pod.mounts.nova_novncproxy.nova_novncproxy }}
-{{- $mounts_nova_novncproxy_init := .Values.pod.mounts.nova_novncproxy.init_novncproxy }}
+{{- $mounts_nova_spiceproxy := .Values.pod.mounts.nova_spiceproxy.nova_spiceproxy }}
+{{- $mounts_nova_spiceproxy_init := .Values.pod.mounts.nova_spiceproxy.init_spiceproxy }}
 
-{{- $serviceAccountName := "nova-novncproxy" }}
+{{- $serviceAccountName := "nova-spiceproxy" }}
 {{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: apps/v1beta1
 kind: Deployment
 metadata:
-  name: nova-novncproxy
+  name: nova-spiceproxy
 spec:
-  replicas: {{ .Values.pod.replicas.novncproxy }}
+  replicas: {{ .Values.pod.replicas.spiceproxy }}
 {{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_deployment" | indent 2 }}
   template:
     metadata:
       labels:
-{{ tuple $envAll "nova" "novnc-proxy" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+{{ tuple $envAll "nova" "spice-proxy" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
       annotations:
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
     spec:
       serviceAccountName: {{ $serviceAccountName }}
       affinity:
-{{ tuple $envAll "nova" "novnc-proxy" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
+{{ tuple $envAll "nova" "spice-proxy" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
       nodeSelector:
-        {{ .Values.labels.novncproxy.node_selector_key }}: {{ .Values.labels.novncproxy.node_selector_value }}
+        {{ .Values.labels.spiceproxy.node_selector_key }}: {{ .Values.labels.spiceproxy.node_selector_value }}
       hostNetwork: true
       dnsPolicy: ClusterFirstWithHostNet
       initContainers:
-{{ tuple $envAll $dependencies $mounts_nova_novncproxy_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
-        - name: nova-novncproxy-init
-          image: {{ .Values.images.tags.novncproxy }}
+{{ tuple $envAll $dependencies $mounts_nova_spiceproxy_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+        - name: nova-spiceproxy-init
+          image: {{ .Values.images.tags.spiceproxy }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
-{{ tuple $envAll $envAll.Values.pod.resources.novncproxy | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.spiceproxy | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           securityContext:
             runAsUser: {{ .Values.pod.user.nova.uid }}
           command:
@@ -68,10 +68,10 @@ spec:
               readOnly: true
             - name: pod-shared
               mountPath: /tmp/pod-shared
-        - name: nova-novncproxy-init-assets
-          image: {{ .Values.images.tags.novncproxy_assets }}
+        - name: nova-spiceproxy-init-assets
+          image: {{ .Values.images.tags.spiceproxy_assets }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
-{{ tuple $envAll $envAll.Values.pod.resources.novncproxy | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.spiceproxy | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           command:
             - /tmp/nova-console-proxy-init-assets.sh
           volumeMounts:
@@ -79,13 +79,13 @@ spec:
               mountPath: /tmp/nova-console-proxy-init-assets.sh
               subPath: nova-console-proxy-init-assets.sh
               readOnly: true
-            - name: pod-usr-share-novnc
-              mountPath: /tmp/usr/share/novnc
+            - name: pod-usr-share-spice-html5
+              mountPath: /tmp/usr/share/spice-html5
       containers:
-        - name: nova-novncproxy
-          image: {{ .Values.images.tags.novncproxy }}
+        - name: nova-spiceproxy
+          image: {{ .Values.images.tags.spiceproxy }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
-{{ tuple $envAll $envAll.Values.pod.resources.novncproxy | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.spiceproxy | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           command:
             - /tmp/nova-console-proxy.sh
           volumeMounts:
@@ -97,12 +97,12 @@ spec:
               mountPath: /etc/nova/nova.conf
               subPath: nova.conf
               readOnly: true
-            - name: pod-usr-share-novnc
-              mountPath: /usr/share/novnc
+            - name: pod-usr-share-spice-html5
+              mountPath: /usr/share/spice-html5
               readOnly: true
             - name: pod-shared
               mountPath: /tmp/pod-shared
-{{ if $mounts_nova_novncproxy.volumeMounts }}{{ toYaml $mounts_nova_novncproxy.volumeMounts | indent 12 }}{{ end }}
+{{ if $mounts_nova_spiceproxy.volumeMounts }}{{ toYaml $mounts_nova_spiceproxy.volumeMounts | indent 12 }}{{ end }}
       volumes:
         - name: nova-bin
           configMap:
@@ -112,10 +112,10 @@ spec:
           configMap:
             name: nova-etc
             defaultMode: 0444
-        - name: pod-usr-share-novnc
+        - name: pod-usr-share-spice-html5
           emptyDir: {}
         - name: pod-shared
           emptyDir: {}
-{{ if $mounts_nova_novncproxy.volumes }}{{ toYaml $mounts_nova_novncproxy.volumes | indent 8 }}{{ end }}
+{{ if $mounts_nova_spiceproxy.volumes }}{{ toYaml $mounts_nova_spiceproxy.volumes | indent 8 }}{{ end }}
 {{- end }}
 {{- end }}

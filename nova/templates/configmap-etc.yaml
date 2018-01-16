@@ -138,12 +138,25 @@ limitations under the License.
 {{- set .Values.conf.nova.placement "password" .Values.endpoints.identity.auth.placement.password | quote | trunc 0 -}}
 {{- end -}}
 
+{{- if eq .Values.console.console_kind "novnc"}}
+{{- "true" | set .Values.conf.nova.vnc "enabled" | quote | trunc 0 -}}
 {{- if empty .Values.conf.nova.vnc.novncproxy_base_url -}}
 {{- tuple "compute_novnc_proxy" "public" "novnc_proxy" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" | set .Values.conf.nova.vnc "novncproxy_base_url" | quote | trunc 0 -}}
 {{- end -}}
-
 {{- if empty .Values.conf.nova.vnc.novncproxy_port -}}
 {{- tuple "compute_novnc_proxy" "internal" "novnc_proxy" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | set .Values.conf.nova.vnc "novncproxy_port" | quote | trunc 0 -}}
+{{- end -}}
+{{- end -}}
+
+{{- if eq .Values.console.console_kind "spice"}}
+{{- "false" | set .Values.conf.nova.vnc "enabled" | quote | trunc 0 -}}
+{{- "true" | set .Values.conf.nova.spice "enabled" | quote | trunc 0 -}}
+{{- if empty .Values.conf.nova.spice.html5proxy_base_url -}}
+{{- tuple "compute_spice_proxy" "public" "spice_proxy" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" | set .Values.conf.nova.spice "html5proxy_base_url" | quote | trunc 0 -}}
+{{- end -}}
+{{- if empty .Values.conf.nova.spice.html5proxy_port -}}
+{{- tuple "compute_spice_proxy" "internal" "spice_proxy" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | set .Values.conf.nova.spice "html5proxy_port" | quote | trunc 0 -}}
+{{- end -}}
 {{- end -}}
 
 ---

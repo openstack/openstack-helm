@@ -48,6 +48,9 @@ labels:
   novncproxy:
     node_selector_key: openstack-control-plane
     node_selector_value: enabled
+  spiceproxy:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
 
 images:
   tags:
@@ -63,6 +66,8 @@ images:
     scheduler: docker.io/kolla/ubuntu-source-nova-scheduler:3.0.3
     novncproxy: docker.io/kolla/ubuntu-source-nova-novncproxy:3.0.3
     novncproxy_assets: docker.io/kolla/ubuntu-source-nova-novncproxy:3.0.3
+    spiceproxy: docker.io/kolla/ubuntu-source-nova-spicehtml5proxy:3.0.3
+    spiceproxy_assets: docker.io/kolla/ubuntu-source-nova-spicehtml5proxy:3.0.3
     consoleauth: docker.io/kolla/ubuntu-source-nova-consoleauth:3.0.3
     compute: docker.io/kolla/ubuntu-source-nova-compute:3.0.3
     compute_ssh: docker.io/kolla/ubuntu-source-nova-ssh:3.0.3
@@ -147,9 +152,15 @@ network:
   novncproxy:
     node_port:
       enabled: false
-      port: 36080
+      port: 30680
     port: 6080
     targetPort: 6080
+  spiceproxy:
+    node_port:
+      enabled: false
+      port: 30682
+    port: 6082
+    targetPort: 6082
   ssh:
     name: "nova-ssh"
     port: 8022
@@ -294,6 +305,12 @@ console:
   console_kind: novnc
   serial:
   spice:
+    compute:
+      # IF blank, search default routing interface
+      server_proxyclient_interface:
+    proxy:
+      # IF blank, search default routing interface
+      server_proxyclient_interface:
   novnc:
     compute:
       # IF blank, search default routing interface
@@ -990,6 +1007,11 @@ conf:
       vncserver_listen: 0.0.0.0
       # leave blank, this should be set by each compute nodes's ip
       vncserver_proxyclient_address: null
+    spice:
+      html5proxy_host: 0.0.0.0
+      server_listen: 0.0.0.0
+      # leave blank, this should be set by each compute nodes's ip
+      server_proxyclient_address: null
     conductor:
       workers: 1
     oslo_policy:
@@ -1242,6 +1264,19 @@ endpoints:
     port:
       novnc_proxy:
         default: 6080
+  compute_spice_proxy:
+    name: nova
+    hosts:
+      default: nova-spiceproxy
+    host_fqdn_override:
+      default: null
+    path:
+      default: /spice_auto.html
+    scheme:
+      default: 'http'
+    port:
+      spice_proxy:
+        default: 6082
   placement:
     name: placement
     hosts:
@@ -1314,6 +1349,9 @@ pod:
     nova_novncproxy:
       init_novncproxy: null
       nova_novncproxy:
+    nova_spiceproxy:
+      init_spiceproxy: null
+      nova_spiceproxy:
   replicas:
     api_metadata: 1
     placement: 1
@@ -1322,6 +1360,7 @@ pod:
     consoleauth: 1
     scheduler: 1
     novncproxy: 1
+    spiceproxy: 1
   lifecycle:
     upgrades:
       deployments:
@@ -1415,6 +1454,13 @@ pod:
       limits:
         memory: "1024Mi"
         cpu: "2000m"
+    spiceproxy:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
     jobs:
       bootstrap:
         requests:
@@ -1480,7 +1526,6 @@ pod:
           memory: "1024Mi"
           cpu: "2000m"
 
-
 manifests:
   configmap_bin: true
   configmap_etc: true
@@ -1491,6 +1536,7 @@ manifests:
   deployment_conductor: true
   deployment_consoleauth: true
   deployment_novncproxy: true
+  deployment_spiceproxy: true
   deployment_scheduler: true
   ingress_metadata: true
   ingress_placement: true
@@ -1521,4 +1567,5 @@ manifests:
   service_metadata: true
   service_placement: true
   service_novncproxy: true
+  service_spiceproxy: true
   service_osapi: true
