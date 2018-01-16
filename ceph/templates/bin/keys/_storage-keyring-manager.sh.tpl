@@ -49,7 +49,7 @@ type: Opaque
 data:
   ${CEPH_KEYRING_NAME}: $( kube_ceph_keyring_gen ${CEPH_KEYRING} ${CEPH_KEYRING_TEMPLATE} )
 EOF
-    } | kubectl create --namespace ${DEPLOYMENT_NAMESPACE} -f -
+    } | kubectl apply --namespace ${DEPLOYMENT_NAMESPACE} -f -
   fi
 }
 #create_kube_key <ceph_key> <ceph_keyring_name> <ceph_keyring_template> <kube_secret_name>
@@ -71,7 +71,7 @@ type: kubernetes.io/rbd
 data:
   key: $( echo ${CEPH_KEYRING} | base64 | tr -d '\n' )
 EOF
-    } | kubectl create --namespace ${DEPLOYMENT_NAMESPACE} -f -
+    } | kubectl apply --namespace ${DEPLOYMENT_NAMESPACE} -f -
   fi
 }
 #create_kube_storage_key <ceph_key> <kube_secret_name>

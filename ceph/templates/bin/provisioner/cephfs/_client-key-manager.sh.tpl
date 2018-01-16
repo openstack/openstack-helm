@@ -37,7 +37,7 @@ type: "${secret_type}"
 data:
   key: $( echo ${ceph_key} )
 EOF
-  } | kubectl create --namespace ${kube_namespace} -f -
+  } | kubectl apply --namespace ${kube_namespace} -f -
 }
 
 if ! kubectl get --namespace ${DEPLOYMENT_NAMESPACE} secrets ${PVC_CEPH_CEPHFS_STORAGECLASS_USER_SECRET_NAME}; then
