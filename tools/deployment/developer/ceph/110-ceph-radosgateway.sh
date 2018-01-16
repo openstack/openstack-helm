@@ -42,6 +42,7 @@ helm install --namespace=openstack ${WORK_DIR}/ceph --name=radosgw-openstack \
 #NOTE: Validate Deployment info
 helm status radosgw-openstack
 export OS_CLOUD=openstack_helm
+sleep 30 #NOTE(portdirect): Wait for ingress controller to update rules and restart Nginx
 openstack service list
 openstack container create 'mygreatcontainer'
 curl -L -o /tmp/important-file.jpg https://imgflip.com/s/meme/Cute-Cat.jpg

@@ -13,21 +13,40 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
-
 set -xe
 
 #NOTE: Pull images and lint chart
-make pull-images keystone
+make pull-images nova
+make pull-images neutron
 
-#NOTE: Deploy command
-helm install ./keystone \
+#NOTE: Deploy nova
+if [ "x$(systemd-detect-virt)" == "xnone" ]; then
+  echo 'OSH is not being deployed in virtualized environment'
+  helm install ./nova \
+      --namespace=openstack \
+      --name=nova \
+      --set ceph.enabled=false
+else
+  echo 'OSH is being deployed in virtualized environment, using qemu for nova'
+  helm install ./nova \
+      --namespace=openstack \
+      --name=nova \
+      --set conf.nova.libvirt.virt_type=qemu \
+      --set ceph.enabled=false
+fi
+
+#NOTE: Deploy neutron
+helm install ./neutron \
     --namespace=openstack \
-    --name=keystone
+    --name=neutron \
+    --values=./tools/overrides/mvp/neutron-ovs.yaml
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack
 
 #NOTE: Validate Deployment info
-helm status keystone
 export OS_CLOUD=openstack_helm
-openstack endpoint list
+openstack service list
+sleep 30 #NOTE(portdirect): Wait for ingress controller to update rules and restart Nginx
+openstack hypervisor list
+openstack network agent list

@@ -16,16 +16,15 @@
 
 set -xe
 
-#NOTE: Pull images and lint chart
-make pull-images rabbitmq
-
 #NOTE: Deploy command
-helm install ./rabbitmq \
-    --namespace=openstack \
-    --name=rabbitmq
+: ${OSH_INFRA_PATH:="../openstack-helm-infra"}
+helm install ${OSH_INFRA_PATH}/nfs-provisioner \
+    --namespace=nfs \
+    --name=nfs-provisioner \
+    --set storageclass.name=general
 
 #NOTE: Wait for deploy
-./tools/deployment/common/wait-for-pods.sh openstack
+./tools/deployment/common/wait-for-pods.sh nfs
 
-#NOTE: Validate Deployment info
-helm status rabbitmq
+#NOTE: Display info
+helm status nfs-provisioner

@@ -27,5 +27,5 @@ helm install ./barbican \
 #NOTE: Validate Deployment info
 export OS_CLOUD=openstack_helm
 openstack service list
-sleep 30
+sleep 30 #NOTE(portdirect): Wait for ingress controller to update rules and restart Nginx
 helm test barbican

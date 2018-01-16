@@ -13,10 +13,21 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
-
 set -xe
 
-: ${OSH_INFRA_PATH:="../openstack-helm-infra"}
-cd ${OSH_INFRA_PATH}
-make dev-deploy setup-host
-make dev-deploy k8s
+#NOTE: Pull images and lint chart
+make pull-images cinder
+
+#NOTE: Deploy command
+helm install ./cinder \
+  --namespace=openstack \
+  --name=cinder
+
+#NOTE: Wait for deploy
+./tools/deployment/common/wait-for-pods.sh openstack
+
+#NOTE: Validate Deployment info
+export OS_CLOUD=openstack_helm
+openstack service list
+sleep 30 #NOTE(portdirect): Wait for ingress controller to update rules and restart Nginx
+openstack volume type list
