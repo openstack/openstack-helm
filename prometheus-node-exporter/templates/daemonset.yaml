@@ -23,8 +23,21 @@ limitations under the License.
 {{- $_ := set .Values "pod_dependency" .Values.dependencies.node_exporter -}}
 {{- end -}}
 
-{{- $serviceAccountName := "node-exporter"}}
+{{- $serviceAccountName := printf "%s-%s" .Release.Name "node-exporter"}}
 {{ tuple $envAll $envAll.Values.pod_dependency $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  name: run-node-exporter
+subjects:
+  - kind: ServiceAccount
+    name: {{ $serviceAccountName }}
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  kind: ClusterRole
+  name: cluster-admin
+  apiGroup: rbac.authorization.k8s.io
 ---
 apiVersion: extensions/v1beta1
 kind: DaemonSet
