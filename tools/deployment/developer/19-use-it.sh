@@ -66,12 +66,10 @@ openstack stack create --wait \
     -t ./tools/gate/files/heat-basic-vm-deployment.yaml \
     heat-basic-vm-deployment
 
-FLOATING_IP=$(openstack floating ip show \
-  $(openstack stack resource show \
-      heat-basic-vm-deployment \
-      server_floating_ip \
-      -f value -c physical_resource_id) \
-      -f value -c floating_ip_address)
+FLOATING_IP=$(openstack stack output show \
+    heat-basic-vm-deployment \
+    floating_ip \
+    -f value -c output_value)
 
 function wait_for_ssh_port {
   # Default wait timeout is 300 seconds
