@@ -29,7 +29,11 @@ limitations under the License.
 {{- with $endpointMap -}}
 {{- $endpointScheme := .scheme }}
 {{- $endpointHost := index .hosts $endpoint | default .hosts.default}}
+{{- if regexMatch "[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+" $endpointHost }}
+{{- printf "%s" $typeYamlSafe -}}
+{{- else }}
 {{- $endpointHostname := printf "%s" $endpointHost }}
 {{- printf "%s" $endpointHostname -}}
+{{- end }}
 {{- end -}}
 {{- end -}}
