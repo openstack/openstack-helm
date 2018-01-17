@@ -35,7 +35,7 @@ elif [ "x$STORAGE_BACKEND" == "xcinder.backup.drivers.ceph" ]; then
   function ensure_pool () {
     ceph osd pool stats $1 || ceph osd pool create $1 $2
     local test_luminous=$(ceph -v | egrep -q "12.2|luminous"; echo $?)
-    if [[ ${test_luminous} -ne 0 ]]; then
+    if [[ ${test_luminous} -eq 0 ]]; then
       ceph osd pool application enable $1 $3
     fi
   }
