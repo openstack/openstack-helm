@@ -18,27 +18,27 @@ limitations under the License.
 {{- $envAll := . }}
 {{- $dependencies := .Values.dependencies.rabbitmq }}
 
-{{- $serviceAccountName := "rabbitmq" }}
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{- $rcControllerName := printf "%s-%s" $envAll.Release.Name "rabbitmq"  }}
+{{ tuple $envAll $dependencies $rcControllerName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: RoleBinding
 metadata:
-  name: {{ $serviceAccountName }}
+  name: {{ $rcControllerName | quote }}
   namespace: {{ .Release.Namespace }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: {{ $serviceAccountName }}
+  name: {{ $rcControllerName | quote }}
 subjects:
   - kind: ServiceAccount
-    name: {{ $serviceAccountName }}
+    name: {{ $rcControllerName | quote }}
     namespace: {{ .Release.Namespace }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: Role
 metadata:
-  name: {{ $serviceAccountName }}
+  name: {{ $rcControllerName | quote }}
   namespace: {{ .Release.Namespace }}
 rules:
   - apiGroups:
@@ -56,7 +56,7 @@ rules:
 apiVersion: apps/v1beta1
 kind: StatefulSet
 metadata:
-  name: rabbitmq
+  name: {{ $rcControllerName | quote }}
 spec:
   serviceName: {{ tuple "oslo_messaging" "internal" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
   replicas: {{ .Values.pod.replicas.server }}
@@ -68,7 +68,7 @@ spec:
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
     spec:
-      serviceAccountName: {{ $serviceAccountName }}
+      serviceAccountName: {{ $rcControllerName | quote }}
       affinity:
 {{ tuple $envAll "rabbitmq" "server" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
       nodeSelector:
@@ -131,10 +131,10 @@ spec:
           emptyDir: {}
         - name: rabbitmq-bin
           configMap:
-            name: rabbitmq-bin
+            name: {{ printf "%s-%s" $envAll.Release.Name "rabbitmq-bin" | quote }}
             defaultMode: 0555
         - name: rabbitmq-etc
           configMap:
-            name: rabbitmq-etc
+            name: {{ printf "%s-%s" $envAll.Release.Name "rabbitmq-etc" | quote }}
             defaultMode: 0444
 {{ end }}
