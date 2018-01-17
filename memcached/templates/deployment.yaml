@@ -17,13 +17,13 @@ limitations under the License.
 {{- $envAll := . }}
 {{- $dependencies := .Values.dependencies.memcached }}
 
-{{- $serviceAccountName := "memcached" }}
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{- $rcControllerName := printf "%s-%s" $envAll.Release.Name "memcached"  }}
+{{ tuple $envAll $dependencies $rcControllerName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: apps/v1beta1
 kind: Deployment
 metadata:
-  name: memcached
+  name: {{ $rcControllerName | quote }}
 spec:
   replicas: {{ .Values.pod.replicas.server }}
 {{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_deployment" | indent 2 }}
@@ -32,7 +32,7 @@ spec:
       labels:
 {{ tuple $envAll "memcached" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
     spec:
-      serviceAccountName: {{ $serviceAccountName }}
+      serviceAccountName: {{ $rcControllerName | quote }}
       affinity:
 {{ tuple $envAll "memcached" "server" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
       nodeSelector:
@@ -48,12 +48,12 @@ spec:
           args:
             - |
               exec memcached -v \
-                -p {{ .Values.network.port }} \
+                -p {{ tuple "oslo_cache" "internal" "memcache" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }} \
                 -U 0 \
                 -c {{ .Values.memcached.max_connections }} \
                 -m {{ .Values.memcached.memory }};
           ports:
-            - containerPort: {{ .Values.network.port }}
+            - containerPort: {{ tuple "oslo_cache" "internal" "memcache" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
           readinessProbe:
             tcpSocket:
-              port: {{ .Values.network.port }}
+              port: {{ tuple "oslo_cache" "internal" "memcache" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
