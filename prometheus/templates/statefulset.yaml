@@ -158,13 +158,19 @@ spec:
           configMap:
             name: prometheus-bin
             defaultMode: 0555
-        {{- if .Values.storage.enabled }}
-        - name: storage
-          persistentVolumeClaim:
-            claimName: {{ .Values.storage.pvc.name }}
-        {{- else }}
+{{ if $mounts_prometheus.volumes }}{{ toYaml $mounts_prometheus.volumes | indent 8 }}{{ end }}
+{{- if not .Values.storage.enabled }}
         - name: storage
           emptyDir: {}
-        {{- end }}
-{{ if $mounts_prometheus.volumes }}{{ toYaml $mounts_prometheus.volumes | indent 8 }}{{ end }}
+{{- else }}
+  volumeClaimTemplates:
+    - metadata:
+        name: storage
+      spec:
+        accessModes: {{ .Values.storage.pvc.access_mode }}
+        resources:
+          requests:
+            storage: {{ .Values.storage.requests.storage  }}
+        storageClassName: {{ .Values.storage.storage_class }}
+{{- end }}
 {{- end }}
