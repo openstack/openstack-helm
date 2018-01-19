@@ -1,0 +1,80 @@
+---
+schema: armada/Chart/v1
+metadata:
+  schema: metadata/Document/v1
+  name: helm-toolkit
+data:
+  chart_name: helm-toolkit
+  release: helm-toolkit
+  namespace: helm-toolkit
+  timeout: 300
+  values: {}
+  source:
+    type: local
+    location: ${OSH_PATH}
+    subpath: helm-toolkit
+    reference: master
+  dependencies: []
+---
+schema: armada/Chart/v1
+metadata:
+  schema: metadata/Document/v1
+  name: ceph
+data:
+  chart_name: ceph
+  release: ceph
+  namespace: ceph
+  timeout: 1800
+  install:
+    no_hooks: false
+  upgrade:
+    no_hooks: false
+  values:
+    endpoints:
+      identity:
+        namespace: openstack
+      object_store:
+        namespace: ceph
+      ceph_mon:
+        namespace: ceph
+    network:
+      public: ${CEPH_NETWORK}
+      cluster: ${CEPH_NETWORK}
+    deployment:
+      storage_secrets: true
+      ceph: true
+      rbd_provisioner: true
+      cephfs_provisioner: true
+      client_secrets: false
+      rgw_keystone_user_and_endpoints: false
+    bootstrap:
+      enabled: true
+    conf:
+      rgw_ks:
+        enabled: true
+  source:
+    type: local
+    location: ${OSH_PATH}
+    subpath: ceph
+    reference: master
+  dependencies:
+    - helm-toolkit
+---
+schema: armada/ChartGroup/v1
+metadata:
+  schema: metadata/Document/v1
+  name: ceph-storage
+data:
+  description: "Ceph Storage"
+  sequenced: True
+  chart_group:
+    - ceph
+---
+schema: armada/Manifest/v1
+metadata:
+  schema: metadata/Document/v1
+  name: armada-manifest
+data:
+  release_prefix: osh
+  chart_groups:
+    - ceph-storage
