@@ -17,6 +17,7 @@ limitations under the License.
 */}}
 
 set -ex
+{{ if .Release.IsInstall }}
 
 function ceph_gen_key () {
   python ${CEPH_GEN_DIR}/ceph-key.py
@@ -75,3 +76,9 @@ EOF
 }
 #create_kube_storage_key <ceph_key> <kube_secret_name>
 create_kube_storage_key ${CEPH_CLIENT_KEY} ${CEPH_STORAGECLASS_ADMIN_SECRET_NAME}
+
+{{ else }}
+
+echo "Not touching ${KUBE_SECRET_NAME} as this is not the initial deployment"
+
+{{ end }}
