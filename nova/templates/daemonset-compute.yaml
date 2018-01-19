@@ -92,6 +92,7 @@ spec:
               subPath: key
               readOnly: true
         {{ end }}
+        {{- if eq .Values.console.console_kind "novnc"}}
         - name: nova-compute-vnc-init
           image: {{ .Values.images.tags.compute }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
@@ -99,14 +100,32 @@ spec:
           securityContext:
             runAsUser: {{ .Values.pod.user.nova.uid }}
           command:
-            - /tmp/nova-vnc-compute-init.sh
+            - /tmp/nova-console-compute-init.sh
           volumeMounts:
             - name: nova-bin
-              mountPath: /tmp/nova-vnc-compute-init.sh
-              subPath: nova-vnc-compute-init.sh
+              mountPath: /tmp/nova-console-compute-init.sh
+              subPath: nova-console-compute-init.sh
               readOnly: true
             - name: pod-shared
               mountPath: /tmp/pod-shared
+        {{ end }}
+        {{- if eq .Values.console.console_kind "spice"}}
+        - name: nova-compute-spice-init
+          image: {{ .Values.images.tags.compute }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+{{ tuple $envAll $envAll.Values.pod.resources.compute | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          securityContext:
+            runAsUser: {{ .Values.pod.user.nova.uid }}
+          command:
+            - /tmp/nova-console-compute-init.sh
+          volumeMounts:
+            - name: nova-bin
+              mountPath: /tmp/nova-console-compute-init.sh
+              subPath: nova-console-compute-init.sh
+              readOnly: true
+            - name: pod-shared
+              mountPath: /tmp/pod-shared
+        {{ end }}
       containers:
         - name: nova-compute
           image: {{ .Values.images.tags.compute }}

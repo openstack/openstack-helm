@@ -18,9 +18,19 @@ limitations under the License.
 
 set -ex
 
-client_address="{{- .Values.conf.nova.vnc.vncserver_proxyclient_address -}}"
-if [ -z "${client_address}" ] ; then
+console_kind="{{- .Values.console.console_kind -}}"
+
+if [ "${console_kind}" == "novnc" ] ; then
+    client_address="{{- .Values.conf.nova.vnc.vncserver_proxyclient_address -}}"
     client_interface="{{- .Values.console.novnc.vncproxy.vncserver_proxyclient_interface -}}"
+    listen_ip="{{- .Values.conf.nova.vnc.vncserver_listen -}}"
+elif [ "${console_kind}" == "spice" ] ; then
+    client_address="{{- .Values.conf.nova.spice.server_proxyclient_address -}}"
+    client_interface="{{- .Values.console.spice.proxy.server_proxyclient_interface -}}"
+    listen_ip="{{- .Values.conf.nova.spice.server_listen -}}"
+fi
+
+if [ -z "${client_address}" ] ; then
     if [ -z "${client_interface}" ] ; then
         # search for interface with default routing
         client_interface=$(ip r | grep default | awk '{print $5}')
@@ -30,13 +40,20 @@ if [ -z "${client_address}" ] ; then
     client_address=$(ip a s $client_interface | grep 'inet ' | awk '{print $2}' | awk -F "/" '{print $1}')
 fi
 
-listen_ip="{{- .Values.conf.nova.vnc.vncserver_listen -}}"
 if [ -z "${listen_ip}" ] ; then
     listen_ip=$client_address
 fi
 
+if [ "${console_kind}" == "novnc" ] ; then
 cat <<EOF>/tmp/pod-shared/nova-vnc.ini
 [vnc]
 vncserver_proxyclient_address = $client_address
 vncserver_listen = $listen_ip
 EOF
+elif [ "${console_kind}" == "spice" ] ; then
+cat <<EOF>/tmp/pod-shared/nova-spice.ini
+[spice]
+server_proxyclient_address = $client_address
+server_listen = $listen_ip
+EOF
+fi

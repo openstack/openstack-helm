@@ -18,9 +18,19 @@ limitations under the License.
 
 set -ex
 
-client_address="{{- .Values.conf.nova.vnc.vncserver_proxyclient_address -}}"
+console_kind="{{- .Values.console.console_kind -}}"
+
+if [ "${console_kind}" == "novnc" ] ; then
+    client_address="{{- .Values.conf.nova.vnc.server_proxyclient_address -}}"
+    client_interface="{{- .Values.console.novnc.compute.server_proxyclient_interface -}}"
+    listen_ip="{{- .Values.conf.nova.vnc.server_listen -}}"
+elif [ "${console_kind}" == "spice" ] ; then
+    client_address="{{- .Values.conf.nova.spice.server_proxyclient_address -}}"
+    client_interface="{{- .Values.console.spice.compute.server_proxyclient_interface -}}"
+    listen_ip="{{- .Values.conf.nova.spice.server_listen -}}"
+fi
+
 if [ -z "${client_address}" ] ; then
-    client_interface="{{- .Values.console.novnc.compute.vncserver_proxyclient_interface -}}"
     if [ -z "${client_interface}" ] ; then
         # search for interface with default routing
         client_interface=$(ip r | grep default | awk '{print $5}')
@@ -30,15 +40,22 @@ if [ -z "${client_address}" ] ; then
     client_address=$(ip a s $client_interface | grep 'inet ' | awk '{print $2}' | awk -F "/" '{print $1}')
 fi
 
-listen_ip="{{- .Values.conf.nova.vnc.vncserver_listen -}}"
 if [ -z "${listen_ip}" ] ; then
     # The server component listens on all IP addresses and the proxy component
     # only listens on the management interface IP address of the compute node.
     listen_ip=0.0.0.0
 fi
 
+if [ "${console_kind}" == "novnc" ] ; then
 cat <<EOF>/tmp/pod-shared/nova-vnc.ini
 [vnc]
 vncserver_proxyclient_address = $client_address
 vncserver_listen = $listen_ip
 EOF
+elif [ "${console_kind}" == "spice" ] ; then
+cat <<EOF>/tmp/pod-shared/nova-spice.ini
+[spice]
+server_proxyclient_address = $client_address
+server_listen = $listen_ip
+EOF
+fi

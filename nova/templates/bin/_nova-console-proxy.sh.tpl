@@ -16,6 +16,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-set -ex
+set -x
 
-cp -vaR /usr/share/novnc/* /tmp/usr/share/novnc/
+console_kind="{{- .Values.console.console_kind -}}"
+if [ "${console_kind}" == "novnc" ] ; then
+    exec nova-novncproxy \
+        --config-file /etc/nova/nova.conf \
+        --config-file /tmp/pod-shared/nova-vnc.ini
+elif [ "${console_kind}" == "spice" ] ; then
+    exec nova-spicehtml5proxy\
+        --config-file /etc/nova/nova.conf \
+        --config-file /tmp/pod-shared/nova-spice.ini
+fi
