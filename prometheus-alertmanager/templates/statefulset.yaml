@@ -106,7 +106,7 @@ spec:
               mountPath: /tmp/alertmanager.sh
               subPath: alertmanager.sh
               readOnly: true
-            - name: storage
+            - name: alertmanager-data
               mountPath: /var/lib/alertmanager/data
 {{ if $mounts_alertmanager.volumeMounts }}{{ toYaml $mounts_alertmanager.volumeMounts | indent 12 }}{{ end }}
       volumes:
@@ -119,13 +119,19 @@ spec:
           configMap:
             name: alertmanager-bin
             defaultMode: 0555
-        {{- if .Values.storage.enabled }}
-        - name: storage
-          persistentVolumeClaim:
-            claimName: {{ .Values.storage.pvc.name }}
-        {{- else }}
-        - name: storage
-          emptyDir: {}
-        {{- end }}
 {{ if $mounts_alertmanager.volumes }}{{ toYaml $mounts_alertmanager.volumes | indent 8 }}{{ end }}
+{{- if not .Values.storage.enabled }}
+        - name: alertmanager-data
+          emptyDir: {}
+{{- else }}
+  volumeClaimTemplates:
+    - metadata:
+        name: alertmanager-data
+      spec:
+        accessModes: {{ .Values.storage.pvc.access_mode }}
+        resources:
+          requests:
+            storage: {{ .Values.storage.requests.storage  }}
+        storageClassName: {{ .Values.storage.storage_class }}
+{{- end }}
 {{- end }}
