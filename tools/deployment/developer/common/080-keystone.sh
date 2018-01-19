@@ -13,24 +13,22 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
+
 set -xe
 
+#NOTE: Pull images and lint chart
+make pull-images keystone
+
 #NOTE: Deploy command
-helm install ./cinder \
-  --namespace=openstack \
-  --name=cinder \
-  --set pod.replicas.api=2 \
-  --set pod.replicas.volume=1 \
-  --set pod.replicas.scheduler=1 \
-  --set pod.replicas.backup=1 \
-  --set conf.cinder.DEFAULT.backup_driver=cinder.backup.drivers.swift
+helm install ./keystone \
+    --namespace=openstack \
+    --name=keystone
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack
 
 #NOTE: Validate Deployment info
+helm status keystone
 export OS_CLOUD=openstack_helm
-openstack service list
 sleep 30 #NOTE(portdirect): Wait for ingress controller to update rules and restart Nginx
-openstack volume type list
-helm test cinder --timeout 900
+openstack endpoint list

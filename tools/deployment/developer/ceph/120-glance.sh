@@ -13,21 +13,26 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
+
 set -xe
 
 #NOTE: Pull images and lint chart
-make pull-images cinder
+make pull-images glance
 
 #NOTE: Deploy command
-helm install ./cinder \
+GLANCE_BACKEND="radosgw" # NOTE(portdirect), this could be: radosgw, rbd, swift or pvc
+helm install ./glance \
   --namespace=openstack \
-  --name=cinder
+  --name=glance \
+  --set storage=${GLANCE_BACKEND}
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack
 
 #NOTE: Validate Deployment info
+helm status glance
 export OS_CLOUD=openstack_helm
 openstack service list
-sleep 15
-openstack volume type list
+sleep 30 #NOTE(portdirect): Wait for ingress controller to update rules and restart Nginx
+openstack image list
+openstack image show 'Cirros 0.3.5 64-bit'
