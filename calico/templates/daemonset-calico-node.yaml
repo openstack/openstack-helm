@@ -39,6 +39,8 @@ limitations under the License.
 {{- $_ := set .Values "pod_dependency" .Values.dependencies.calico_node -}}
 {{- end -}}
 
+{{- $prometheus_annotations := $envAll.Values.monitoring.prometheus.calico_node }}
+
 {{- $serviceAccountName := "calico-cni-plugin"}}
 {{ tuple $envAll $envAll.Values.pod_dependency $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
@@ -93,7 +95,9 @@ spec:
         # reserves resources for critical add-on pods so that they can be rescheduled after
         # a failure.  This annotation works in tandem with the toleration below.
         scheduler.alpha.kubernetes.io/critical-pod: ''
-{{ tuple $envAll.Values.pod.annotations.calico_node | include "helm-toolkit.snippets.prometheus_pod_annotations" | indent 8 }}
+{{- if .Values.monitoring.prometheus.enabled }}
+{{ tuple $prometheus_annotations | include "helm-toolkit.snippets.prometheus_pod_annotations" | indent 8 }}
+{{- end }}
     spec:
       hostNetwork: true
       tolerations:
