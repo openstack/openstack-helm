@@ -20,6 +20,7 @@ set -xe
 make pull-images ceph
 
 #NOTE: Deploy command
+uuidgen > /tmp/ceph-fs-uuid.txt
 cat > /tmp/ceph.yaml <<EOF
 endpoints:
   identity:
@@ -46,6 +47,7 @@ conf:
   ceph:
     config:
       global:
+        fsid: "$(cat /tmp/ceph-fs-uuid.txt)"
         osd_pool_default_size: 1
       osd:
         osd_crush_chooseleaf_type: 0

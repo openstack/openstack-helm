@@ -44,15 +44,14 @@ spec:
           image: {{ .Values.images.tags.ceph_daemon }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
           command:
-            - /tmp/init_dirs.sh
+            - /tmp/init-dirs.sh
+          env:
+            - name: CLUSTER
+              value: "ceph"
           volumeMounts:
             - name: ceph-bin
-              mountPath: /tmp/init_dirs.sh
-              subPath: init_dirs.sh
-              readOnly: true
-            - name: ceph-bin
-              mountPath: /variables_entrypoint.sh
-              subPath: variables_entrypoint.sh
+              mountPath: /tmp/init-dirs.sh
+              subPath: init-dirs.sh
               readOnly: true
             - name: pod-var-lib-ceph
               mountPath: /var/lib/ceph
@@ -65,11 +64,13 @@ spec:
           image: {{ .Values.images.tags.ceph_daemon }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
 {{ tuple $envAll $envAll.Values.pod.resources.mds | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          command:
+            - /tmp/mds-start.sh
           env:
+            - name: CLUSTER
+              value: "ceph"
             - name: CEPHFS_CREATE
               value: "1"
-          command:
-            - /start_mds.sh
           ports:
             - containerPort: 6800
           livenessProbe:
@@ -83,16 +84,8 @@ spec:
               timeoutSeconds: 5
           volumeMounts:
             - name: ceph-bin
-              mountPath: /start_mds.sh
-              subPath: start_mds.sh
-              readOnly: true
-            - name: ceph-bin
-              mountPath: /variables_entrypoint.sh
-              subPath: variables_entrypoint.sh
-              readOnly: true
-            - name: ceph-bin
-              mountPath: /common_functions.sh
-              subPath: common_functions.sh
+              mountPath: /tmp/mds-start.sh
+              subPath: mds-start.sh
               readOnly: true
             - name: ceph-etc
               mountPath: /etc/ceph/ceph.conf

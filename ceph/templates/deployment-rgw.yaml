@@ -43,15 +43,14 @@ spec:
           image: {{ .Values.images.tags.ceph_daemon }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
           command:
-            - /tmp/init_dirs.sh
+            - /tmp/init-dirs.sh
+          env:
+            - name: CLUSTER
+              value: "ceph"
           volumeMounts:
             - name: ceph-bin
-              mountPath: /tmp/init_dirs.sh
-              subPath: init_dirs.sh
-              readOnly: true
-            - name: ceph-bin
-              mountPath: /variables_entrypoint.sh
-              subPath: variables_entrypoint.sh
+              mountPath: /tmp/init-dirs.sh
+              subPath: init-dirs.sh
               readOnly: true
             - name: pod-var-lib-ceph
               mountPath: /var/lib/ceph
@@ -65,6 +64,8 @@ spec:
           imagePullPolicy: {{ .Values.images.pull_policy }}
 {{ tuple $envAll $envAll.Values.pod.resources.rgw | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           env:
+            - name: CLUSTER
+              value: "ceph"
             - name: POD_NAME
               valueFrom:
                 fieldRef:
@@ -78,13 +79,13 @@ spec:
             - name: RGW_CIVETWEB_PORT
               value: "{{ .Values.network.port.rgw }}"
           command:
-            - /tmp/init_rgw_ks.sh
+            - /tmp/rgw-init-keystone.sh
           volumeMounts:
             - name: pod-etc-ceph
               mountPath: /etc/ceph
             - name: ceph-bin
-              mountPath: /tmp/init_rgw_ks.sh
-              subPath: init_rgw_ks.sh
+              mountPath: /tmp/rgw-init-keystone.sh
+              subPath: rgw-init-keystone.sh
               readOnly: true
             - name: ceph-etc
               mountPath: /tmp/ceph.conf
@@ -97,10 +98,12 @@ spec:
           imagePullPolicy: {{ .Values.images.pull_policy }}
 {{ tuple $envAll $envAll.Values.pod.resources.rgw | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           env:
+            - name: CLUSTER
+              value: "ceph"
             - name: RGW_CIVETWEB_PORT
               value: "{{ .Values.network.port.rgw }}"
           command:
-            - /start_rgw.sh
+            - /tmp/rgw-start.sh
           ports:
             - containerPort: {{ .Values.network.port.rgw }}
           livenessProbe:
@@ -115,6 +118,10 @@ spec:
                 port: {{ .Values.network.port.rgw }}
               timeoutSeconds: 5
           volumeMounts:
+            - name: ceph-bin
+              mountPath: /tmp/rgw-start.sh
+              subPath: rgw-start.sh
+              readOnly: true
             - name: pod-etc-ceph
               mountPath: /etc/ceph
 {{- if not .Values.conf.rgw_ks.enabled }}
@@ -123,18 +130,6 @@ spec:
               subPath: ceph.conf
               readOnly: true
 {{- end }}
-            - name: ceph-bin
-              mountPath: /start_rgw.sh
-              subPath: start_rgw.sh
-              readOnly: true
-            - name: ceph-bin
-              mountPath: /variables_entrypoint.sh
-              subPath: variables_entrypoint.sh
-              readOnly: true
-            - name: ceph-bin
-              mountPath: /common_functions.sh
-              subPath: common_functions.sh
-              readOnly: true
             - name: ceph-client-admin-keyring
               mountPath: /etc/ceph/ceph.client.admin.keyring
               subPath: ceph.client.admin.keyring

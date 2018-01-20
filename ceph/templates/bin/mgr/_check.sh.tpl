@@ -17,5 +17,26 @@ limitations under the License.
 */}}
 
 set -ex
+export LC_ALL=C
 
-exec /usr/local/bin/rbd-provisioner -id ${POD_NAME}
+COMMAND="${@:-liveness}"
+
+function heath_check () {
+  IS_MGR_AVAIL=$(ceph --cluster "${CLUSTER}" mgr dump | python -c "import json, sys; print json.load(sys.stdin)['available']")
+
+  if [ "${IS_MGR_AVAIL}" = True ]; then
+    exit 0
+  else
+    exit 1
+  fi
+}
+
+function liveness () {
+  heath_check
+}
+
+function readiness () {
+  heath_check
+}
+
+$COMMAND

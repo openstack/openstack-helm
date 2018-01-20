@@ -18,31 +18,34 @@ limitations under the License.
 
 set -ex
 export LC_ALL=C
-source variables_entrypoint.sh
+: "${HOSTNAME:=$(uname -n)}"
+: "${MGR_NAME:=${HOSTNAME}}"
+: "${RGW_NAME:=${HOSTNAME}}"
+: "${MDS_NAME:=mds-${HOSTNAME}}"
+: "${MDS_BOOTSTRAP_KEYRING:=/var/lib/ceph/bootstrap-mds/${CLUSTER}.keyring}"
+: "${RGW_BOOTSTRAP_KEYRING:=/var/lib/ceph/bootstrap-rgw/${CLUSTER}.keyring}"
+: "${OSD_BOOTSTRAP_KEYRING:=/var/lib/ceph/bootstrap-osd/${CLUSTER}.keyring}"
 
-for keyring in $OSD_BOOTSTRAP_KEYRING $MDS_BOOTSTRAP_KEYRING $RGW_BOOTSTRAP_KEYRING; do
-  mkdir -p $(dirname $keyring)
+for keyring in ${OSD_BOOTSTRAP_KEYRING} ${MDS_BOOTSTRAP_KEYRING} ${RGW_BOOTSTRAP_KEYRING}; do
+  mkdir -p "$(dirname "$keyring")"
 done
 
 # Let's create the ceph directories
-for directory in mon osd mds radosgw tmp mgr; do
-  mkdir -p /var/lib/ceph/$directory
+for DIRECTORY in mon osd mds radosgw tmp mgr; do
+  mkdir -p "/var/lib/ceph/${DIRECTORY}"
 done
-
-# Make the monitor directory
-mkdir -p "$MON_DATA_DIR"
 
 # Create socket directory
 mkdir -p /run/ceph
 
 # Creating rados directories
-mkdir -p /var/lib/ceph/radosgw/${RGW_NAME}
+mkdir -p "/var/lib/ceph/radosgw/${RGW_NAME}"
 
 # Create the MDS directory
-mkdir -p /var/lib/ceph/mds/${CLUSTER}-${MDS_NAME}
+mkdir -p "/var/lib/ceph/mds/${CLUSTER}-${MDS_NAME}"
 
 # Create the MGR directory
-mkdir -p /var/lib/ceph/mgr/${CLUSTER}-$MGR_NAME
+mkdir -p "/var/lib/ceph/mgr/${CLUSTER}-${MGR_NAME}"
 
 # Adjust the owner of all those directories
 chown -R ceph. /run/ceph/ /var/lib/ceph/*

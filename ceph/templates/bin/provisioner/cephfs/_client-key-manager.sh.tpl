@@ -40,4 +40,10 @@ EOF
   } | kubectl create --namespace ${kube_namespace} -f -
 }
 
-ceph_activate_namespace ${DEPLOYMENT_NAMESPACE} "kubernetes.io/cephfs" ${PVC_CEPH_CEPHFS_STORAGECLASS_USER_SECRET_NAME} "$(echo ${CEPH_CEPHFS_KEY} | jq -r '.data | .[]')"
+if ! kubectl get --namespace ${DEPLOYMENT_NAMESPACE} secrets ${PVC_CEPH_CEPHFS_STORAGECLASS_USER_SECRET_NAME}; then
+  ceph_activate_namespace \
+    ${DEPLOYMENT_NAMESPACE} \
+    "kubernetes.io/cephfs" \
+    ${PVC_CEPH_CEPHFS_STORAGECLASS_USER_SECRET_NAME} \
+    "$(echo ${CEPH_CEPHFS_KEY} | jq -r '.data | .[]')"
+fi

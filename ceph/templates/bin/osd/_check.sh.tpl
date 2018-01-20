@@ -14,10 +14,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# A liveness check for ceph OSDs: exit 0 iff
+# A liveness check for ceph OSDs: exit 0 if
 # all OSDs on this host are in the "active" state
 # per their admin sockets.
-CEPH=${CEPH_CMD:-/usr/bin/ceph}
 
 SOCKDIR=${CEPH_SOCKET_DIR:-/run/ceph}
 SBASE=${CEPH_OSD_SOCKET_BASE:-ceph-osd}
@@ -27,12 +26,12 @@ SSUFFIX=${CEPH_SOCKET_SUFFIX:-asok}
 cond=1
 for sock in $SOCKDIR/$SBASE.*.$SSUFFIX; do
  if [ -S $sock ]; then
-  osdid=`echo $sock | awk -F. '{print $2}'`
-  state=`${CEPH} -f json-pretty --connect-timeout 1 --admin-daemon "${sock}" status|grep state|sed 's/.*://;s/[^a-z]//g'`
-  echo "OSD $osdid $state";
+  OSD_ID=$(echo $sock | awk -F. '{print $2}')
+  OSD_STATE=$(ceph -f json-pretty --connect-timeout 1 --admin-daemon "${sock}" status|grep state|sed 's/.*://;s/[^a-z]//g')
+  echo "OSD ${OSD_ID} ${OSD_STATE}";
   # this might be a stricter check than we actually want.  what are the
   # other values for the "state" field?
-  if [ "x${state}x" = 'xactivex' ]; then
+  if [ "x${OSD_STATE}x" = 'xactivex' ]; then
    cond=0
   else
    # one's not ready, so the whole pod's not ready.

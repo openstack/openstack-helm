@@ -1,22 +1,18 @@
 #!/bin/bash
 set -ex
-
-source variables_entrypoint.sh
-source common_functions.sh
-
-if [[ ! -e /usr/bin/ceph-mgr ]]; then
-    log "ERROR- /usr/bin/ceph-mgr doesn't exist"
-    sleep infinity
-fi
+: "${CEPH_GET_ADMIN_KEY:=0}"
+: "${MGR_NAME:=$(uname -n)}"
+: "${MGR_KEYRING:=/var/lib/ceph/mgr/${CLUSTER}-${MGR_NAME}/keyring}"
+: "${ADMIN_KEYRING:=/etc/ceph/${CLUSTER}.client.admin.keyring}"
 
 if [[ ! -e /etc/ceph/${CLUSTER}.conf ]]; then
-    log "ERROR- /etc/ceph/${CLUSTER}.conf must exist; get it from your existing mon"
+    echo "ERROR- /etc/ceph/${CLUSTER}.conf must exist; get it from your existing mon"
     exit 1
 fi
 
 if [ ${CEPH_GET_ADMIN_KEY} -eq 1 ]; then
-    if [[ ! -e $ADMIN_KEYRING ]]; then
-        log "ERROR- $ADMIN_KEYRING must exist; get it from your existing mon"
+    if [[ ! -e ${ADMIN_KEYRING} ]]; then
+        echo "ERROR- ${ADMIN_KEYRING} must exist; get it from your existing mon"
         exit 1
     fi
 fi
@@ -24,14 +20,14 @@ fi
 # Check to see if our MGR has been initialized
 if [ ! -e "$MGR_KEYRING" ]; then
     # Create ceph-mgr key
-    timeout 10 ceph ${CLI_OPTS} auth get-or-create mgr."$MGR_NAME" mon 'allow profile mgr' osd 'allow *' mds 'allow *' -o "$MGR_KEYRING"
+    timeout 10 ceph --cluster "${CLUSTER}" auth get-or-create mgr."${MGR_NAME}" mon 'allow profile mgr' osd 'allow *' mds 'allow *' -o "$MGR_KEYRING"
     chown --verbose ceph. "$MGR_KEYRING"
     chmod 600 "$MGR_KEYRING"
 fi
 
-log "SUCCESS"
+echo "SUCCESS"
 
-ceph -v
+ceph --cluster "${CLUSTER}" -v
 
 # Env. variables matching the pattern "<module>_" will be
 # found and parsed for config-key settings by
@@ -49,15 +45,20 @@ for module in ${ENABLED_MODULES}; do
         option=${option/${module}_/}
         key=`echo $option | cut -d= -f1`
         value=`echo $option | cut -d= -f2`
-        ceph ${CLI_OPTS} config-key set mgr/$module/$key $value
+        ceph --cluster "${CLUSTER}" config-key set mgr/$module/$key $value
     done
-    ceph ${CLI_OPTS} mgr module enable ${module} --force
+    ceph --cluster "${CLUSTER}" mgr module enable ${module} --force
 done
 
 for module in $MODULES_TO_DISABLE; do
-  ceph ${CLI_OPTS} mgr module disable ${module}
+  ceph --cluster "${CLUSTER}" mgr module disable ${module}
 done
 
-log "SUCCESS"
+echo "SUCCESS"
 # start ceph-mgr
-exec /usr/bin/ceph-mgr $DAEMON_OPTS -i "$MGR_NAME"
+exec /usr/bin/ceph-mgr \
+  --cluster "${CLUSTER}" \
+  --setuser "ceph" \
+  --setgroup "ceph" \
+  -d \
+  -i "${MGR_NAME}"
