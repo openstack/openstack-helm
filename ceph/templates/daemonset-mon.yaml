@@ -14,9 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if .Values.manifests.daemonset_mon }}
+{{- if and .Values.manifests.daemonset_mon .Values.deployment.ceph }}
 {{- $envAll := . }}
-{{- if .Values.deployment.ceph }}
 {{- $dependencies := .Values.dependencies.mon }}
 
 {{- $serviceAccountName := "ceph-mon"}}
@@ -81,9 +80,6 @@ spec:
               readOnly: true
             - name: pod-var-lib-ceph
               mountPath: /var/lib/ceph
-              readOnly: false
-            - name: mon-directory
-              mountPath: /var/lib/ceph/mon
               readOnly: false
             - name: pod-run
               mountPath: /run
@@ -186,9 +182,6 @@ spec:
             - name: pod-var-lib-ceph
               mountPath: /var/lib/ceph
               readOnly: false
-            - name: mon-directory
-              mountPath: /var/lib/ceph/mon
-              readOnly: false
             - name: pod-run
               mountPath: /run
               readOnly: false
@@ -203,13 +196,10 @@ spec:
             defaultMode: 0444
         - name: pod-var-lib-ceph
           hostPath:
-            path: {{ .Values.ceph.storage.mon_directory }}
+            path: {{ .Values.conf.storage.mon.directory }}
         - name: pod-run
           emptyDir:
             medium: "Memory"
-        - name: mon-directory
-          hostPath:
-            path: {{ .Values.ceph.storage.mon_directory }}
         - name: ceph-client-admin-keyring
           secret:
             secretName: {{ .Values.secrets.keyrings.admin }}
@@ -225,5 +215,4 @@ spec:
         - name: ceph-bootstrap-rgw-keyring
           secret:
             secretName: {{ .Values.secrets.keyrings.rgw }}
-{{- end }}
 {{- end }}

@@ -14,10 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if .Values.manifests.deployment_rgw }}
+{{- if and .Values.manifests.deployment_rgw ( and .Values.deployment.ceph .Values.conf.features.rgw ) }}
 {{- $envAll := . }}
-{{- if .Values.deployment.ceph }}
-{{- if .Values.ceph.enabled.rgw }}
 {{- $dependencies := .Values.dependencies.rgw }}
 
 {{- $serviceAccountName := "ceph-rgw"}}
@@ -61,7 +59,7 @@ spec:
             - name: pod-run
               mountPath: /run
               readOnly: false
-{{ if .Values.ceph.rgw_keystone_auth }}
+{{ if .Values.conf.rgw_ks.enabled }}
         - name: ceph-rgw-ks-init
           image: {{ .Values.images.tags.ceph_daemon }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
@@ -119,7 +117,7 @@ spec:
           volumeMounts:
             - name: pod-etc-ceph
               mountPath: /etc/ceph
-{{- if not .Values.ceph.rgw_keystone_auth }}
+{{- if not .Values.conf.rgw_ks.enabled }}
             - name: ceph-etc
               mountPath: /etc/ceph/ceph.conf
               subPath: ceph.conf
@@ -194,6 +192,4 @@ spec:
         - name: ceph-bootstrap-rgw-keyring
           secret:
             secretName: {{ .Values.secrets.keyrings.rgw }}
-{{- end }}
-{{- end }}
 {{- end }}

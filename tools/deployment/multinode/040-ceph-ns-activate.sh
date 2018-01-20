@@ -17,21 +17,36 @@
 set -xe
 
 #NOTE: Deploy command
+CEPH_PUBLIC_NETWORK=$(./tools/deployment/multinode/kube-node-subnet.sh)
+CEPH_CLUSTER_NETWORK=$(./tools/deployment/multinode/kube-node-subnet.sh)
+cat > /tmp/ceph-openstack-config.yaml <<EOF
+endpoints:
+  identity:
+    namespace: openstack
+  object_store:
+    namespace: ceph
+  ceph_mon:
+    namespace: ceph
+network:
+  public: ${CEPH_PUBLIC_NETWORK}
+  cluster: ${CEPH_CLUSTER_NETWORK}
+deployment:
+  storage_secrets: false
+  ceph: false
+  rbd_provisioner: false
+  cephfs_provisioner: false
+  client_secrets: true
+  rgw_keystone_user_and_endpoints: false
+bootstrap:
+  enabled: false
+conf:
+  rgw_ks:
+    enabled: true
+EOF
 helm install ./ceph \
   --namespace=openstack \
   --name=ceph-openstack-config \
-  --set endpoints.identity.namespace=openstack \
-  --set endpoints.object_store.namespace=ceph \
-  --set endpoints.ceph_mon.namespace=ceph \
-  --set ceph.rgw_keystone_auth=true \
-  --set network.public=$(./tools/deployment/multinode/kube-node-subnet.sh) \
-  --set network.cluster=$(./tools/deployment/multinode/kube-node-subnet.sh) \
-  --set deployment.storage_secrets=false \
-  --set deployment.ceph=false \
-  --set deployment.rbd_provisioner=false \
-  --set deployment.cephfs_provisioner=false \
-  --set deployment.client_secrets=true \
-  --set deployment.rgw_keystone_user_and_endpoints=false
+  --values=/tmp/ceph-openstack-config.yaml
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack

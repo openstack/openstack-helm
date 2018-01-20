@@ -20,21 +20,40 @@ set -xe
 make pull-images ceph
 
 #NOTE: Deploy command
-WORK_DIR=$(pwd)
-helm install --namespace=openstack ${WORK_DIR}/ceph --name=ceph-openstack-config \
-    --set endpoints.identity.namespace=openstack \
-    --set endpoints.object_store.namespace=ceph \
-    --set endpoints.ceph_mon.namespace=ceph \
-    --set ceph.rgw_keystone_auth=true \
-    --set network.public=172.17.0.1/16 \
-    --set network.cluster=172.17.0.1/16 \
-    --set deployment.storage_secrets=false \
-    --set deployment.ceph=false \
-    --set deployment.rbd_provisioner=false \
-    --set deployment.cephfs_provisioner=false \
-    --set deployment.client_secrets=true \
-    --set deployment.rgw_keystone_user_and_endpoints=false \
-    --values=${WORK_DIR}/tools/overrides/mvp/ceph.yaml
+cat > /tmp/ceph-openstack-config.yaml <<EOF
+endpoints:
+  identity:
+    namespace: openstack
+  object_store:
+    namespace: ceph
+  ceph_mon:
+    namespace: ceph
+network:
+  public: 172.17.0.1/16
+  cluster: 172.17.0.1/16
+deployment:
+  storage_secrets: false
+  ceph: false
+  rbd_provisioner: false
+  cephfs_provisioner: false
+  client_secrets: true
+  rgw_keystone_user_and_endpoints: false
+bootstrap:
+  enabled: false
+conf:
+  rgw_ks:
+    enabled: true
+  ceph:
+    config:
+      global:
+        osd_pool_default_size: 1
+      osd:
+        osd_crush_chooseleaf_type: 0
+EOF
+helm install ./ceph \
+  --namespace=openstack \
+  --name=ceph-openstack-config \
+  --values=/tmp/ceph-openstack-config.yaml
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack
