@@ -18,6 +18,8 @@ limitations under the License.
 
 set -ex
 
+{{ if .Release.IsInstall }}
+
 function ceph_gen_key () {
   python ${CEPH_GEN_DIR}/ceph-key.py
 }
@@ -51,3 +53,9 @@ EOF
 
 #create_kube_key <ceph_key> <ceph_keyring_name> <ceph_keyring_template> <kube_secret_name>
 create_kube_key $(ceph_gen_key) ${CEPH_KEYRING_NAME} ${CEPH_KEYRING_TEMPLATE} ${KUBE_SECRET_NAME}
+
+{{ else }}
+
+echo "Not touching ${KUBE_SECRET_NAME} as this is not the initial deployment"
+
+{{- end -}}
