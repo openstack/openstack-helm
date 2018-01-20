@@ -231,7 +231,6 @@ limitations under the License.
       {{- if hasKey $context.Values.__volume "configMap" }}
         {{- if eq $context.Values.__volume.configMap.name $context.Values.__last_configmap_name }}
           {{- $_ := set $context.Values.__volume.configMap "name" $current_dict.dns_1123_name }}
-          {{- $_ := set $context.Values.__volume "name" $current_dict.dns_1123_name }}
         {{- end }}
       {{- end }}
       {{- $updated_list := append $context.Values.__volume_list $context.Values.__volume }}
@@ -239,19 +238,6 @@ limitations under the License.
     {{- end }}
     {{- $_ := set $context.Values.__daemonset_yaml.spec.template.spec "volumes" $context.Values.__volume_list }}
 
-    {{/* set names for container volume mounts */}}
-    {{- $_ := set $context.Values "__volume_mount_list" list }}
-    {{- range $vol_mount := $container.volumeMounts }}
-      {{- $_ := set $context.Values "__volume_mount" $vol_mount }}
-      {{- if eq $vol_mount.name $context.Values.__last_configmap_name }}
-        {{- $_ := set $context.Values.__volume_mount "name" $current_dict.dns_1123_name }}
-      {{- end }}
-      {{- $updated_list := append $context.Values.__volume_mount_list $context.Values.__volume_mount }}
-      {{- $_ := set $context.Values "__volume_mount_list" $updated_list }}
-    {{- end }}
-    {{- $_ := set $container "volumeMounts" $context.Values.__volume_mount_list }}
-    {{- $container_list := list $container }}
-    {{- $_ := set $context.Values.__daemonset_yaml.spec.template.spec "containers" $container_list }}
 
     {{/* populate scheduling restrictions */}}
     {{- if hasKey $current_dict "matchExpressions" }}
@@ -283,4 +269,3 @@ limitations under the License.
     {{- $_ := set $context.Values "__last_configmap_name" $current_dict.dns_1123_name }}
   {{- end }}
 {{- end }}
-

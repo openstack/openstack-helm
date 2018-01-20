@@ -14,8 +14,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if .Values.manifests.configmap_etc }}
-{{- $envAll := . }}
+{{- define "ceph.configmap.etc" }}
+{{- $configMapName := index . 0 }}
+{{- $envAll := index . 1 }}
+{{- with $envAll }}
+
 {{- if or (.Values.deployment.ceph) (.Values.deployment.client_secrets) }}
 
 {{- if empty .Values.conf.ceph.config.global.mon_host -}}
@@ -39,9 +42,13 @@ limitations under the License.
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: ceph-etc
+  name: {{ $configMapName }}
 data:
   ceph.conf: |+
 {{ include "helm-toolkit.utils.to_ini" .Values.conf.ceph.config | indent 4 }}
 {{- end }}
+{{- end }}
+{{- end }}
+{{- if .Values.manifests.configmap_etc }}
+{{- list "ceph-etc" . | include "ceph.configmap.etc" }}
 {{- end }}

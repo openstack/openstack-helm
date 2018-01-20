@@ -14,13 +14,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if .Values.manifests.daemonset_osd }}
-{{- $envAll := . }}
-{{- if .Values.deployment.ceph }}
-{{- $dependencies := .Values.dependencies.osd }}
 
-{{- $serviceAccountName := "ceph-osd"}}
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{- define "ceph.osd.daemonset" }}
+{{- $daemonset := index . 0 }}
+{{- $configMapName := index . 1 }}
+{{- $serviceAccountName := index . 2 }}
+{{- $dependencies := index . 3 }}
+{{- $envAll := index . 4 }}
+{{- with $envAll }}
+
 ---
 kind: DaemonSet
 apiVersion: extensions/v1beta1
@@ -159,7 +161,7 @@ spec:
             defaultMode: 0555
         - name: ceph-etc
           configMap:
-            name: ceph-etc
+            name: {{ $configMapName }}
             defaultMode: 0444
         - name: ceph-client-admin-keyring
           secret:
@@ -180,4 +182,15 @@ spec:
           hostPath:
             path: {{ .Values.ceph.storage.osd_directory }}
 {{- end }}
+{{- end }}
+
+{{- if and .Values.manifests.daemonset_osd .Values.deployment.ceph }}
+{{- $daemonset := "osd" }}
+{{- $configMapName := "ceph-etc" }}
+{{- $serviceAccountName := "ceph-osd"}}
+{{- $dependencies := .Values.dependencies.osd }}
+{{ tuple . $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{- $daemonset_yaml := list $daemonset $configMapName $serviceAccountName $dependencies . | include "ceph.osd.daemonset" | toString | fromYaml }}
+{{- $configmap_yaml := "ceph.configmap.etc" }}
+{{- list $daemonset $daemonset_yaml $configmap_yaml $configMapName . | include "helm-toolkit.utils.daemonset_overrides" }}
 {{- end }}
