@@ -11,7 +11,7 @@ OS Specific Host setup:
 ~~~~~~~~~~~~~~~~~~~~~~~
 
 Ubuntu:
-^^^^^^^aa
+^^^^^^^
 
 From a freshly provisioned Ubuntu 16.04 LTS host run:
 
