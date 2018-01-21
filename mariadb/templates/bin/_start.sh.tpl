@@ -19,7 +19,128 @@ set -xe
 
 # Bootstrap database
 CLUSTER_INIT_ARGS=""
-if [ ! -d /var/lib/mysql/mysql ]; then
+CLUSTER_CONFIG_PATH=/etc/mysql/conf.d/10-cluster-config.cnf
+
+function exitWithManualRecovery() {
+
+    UUID=$(sed -e 's/^.*uuid:[\ ,\t]*//' -e 'tx' -e 'd' -e ':x' /var/lib/mysql/grastate.dat)
+    SEQNO=$(sed -e 's/^.*seqno:[\ ,\t]*//' -e 'tx' -e 'd' -e ':x' /var/lib/mysql/grastate.dat)
+
+    cat >/dev/stderr <<EOF
+   **********************************************************
+   *            MANUAL RECOVERY ACTION REQUIRED             *
+   **********************************************************
+
+All cluster members are down and grastate.dat indicates that it's not
+safe to start the cluster from this node. If you see this message on
+all nodes, you have to do a manual recovery by following these steps:
+
+    a) Find the node with the highest WSREP seq#:
+
+	POD ${PODNAME} uuid: ${UUID} seq: ${SEQNO}
+
+   	If you see uuid 00000000-0000-0000-0000-000000000000 with
+   	seq -1, the node crashed during DDL.
+
+   	If seq is -1 you will find a DETECTED CRASH message
+   	on your log. Check the output from InnoDB for the last
+   	transaction id available.
+
+    b) Set environment variable FORCE_RECOVERY=<NAME OF POD>
+       to force bootstrapping from the specified node.
+
+        Remember to remove FORCE_RECOVERY after your nodes
+        are fully recovered! You may lose data otherwise.
+
+You can ignore this message and wait for the next restart if at
+least one node started without errors.
+EOF
+
+    exit 1
+}
+
+# Construct cluster config
+MEMBERS=""
+for i in $(seq 1 ${MARIADB_REPLICAS}); do
+    if [ "$i" -eq "1" ]; then
+      NUM="0"
+    else
+      NUM="$(expr $i - 1)"
+    fi
+    CANDIDATE_POD="${SERVICE_NAME}-$NUM.$(hostname -d)"
+    if [ "x${CANDIDATE_POD}" != "x${POD_NAME}.$(hostname -d)" ]; then
+        if [ -n "${MEMBERS}" ]; then
+            MEMBERS+=,
+        fi
+        MEMBERS+="${CANDIDATE_POD}:${WSREP_PORT}"
+    fi
+done
+
+echo "Writing cluster config for ${POD_NAME} to ${CLUSTER_CONFIG_PATH}"
+cat > ${CLUSTER_CONFIG_PATH} <<EOF
+[mysqld]
+wsrep_cluster_address="gcomm://${MEMBERS}"
+wsrep_node_address=${POD_IP}
+wsrep_node_name=${POD_NAME}.$(hostname -d)
+EOF
+
+if [ ! -z "${FORCE_RECOVERY// }" ]; then
+    	cat >/dev/stderr <<EOF
+   **********************************************************
+   *    !!!        FORCE_RECOVERY WARNING       !!!         *
+   **********************************************************
+
+POD is starting with FORCE_RECOVERY defined. Remember to unset this
+variable after recovery! You may end up in recovering from a node
+with old data on a crash!
+
+You have been warned ;-)
+
+   **********************************************************
+   *               FORCE_RECOVERY WARNING                   *
+   **********************************************************
+EOF
+
+fi
+
+if [ -d /var/lib/mysql/mysql -a -f /var/lib/mysql/grastate.dat ]; then
+
+    # Node already initialized
+
+    if [ "$(sed -e 's/^.*seqno:[\ ,\t]*//' -e 'tx' -e 'd' -e ':x' /var/lib/mysql/grastate.dat)" = "-1" ]; then
+    	cat >/dev/stderr <<EOF
+   **********************************************************
+   *                   DETECTED CRASH                       *
+   **********************************************************
+
+Trying to recover from a previous crash by running with wsrep-recover...
+EOF
+	mysqld --wsrep_cluster_address=gcomm:// --wsrep-recover
+    fi
+
+    echo "Check if we can find a cluster memeber."
+    if ! mysql --defaults-file=/etc/mysql/admin_user.cnf \
+        --connect-timeout 2 \
+         -e 'select 1'; then
+	# No other nodes are running
+    	if [ -z "${FORCE_RECOVERY// }" -a "$(sed -e 's/^.*safe_to_bootstrap:[\ ,\t]*//' -e 'tx' -e 'd' -e ':x' /var/lib/mysql/grastate.dat)" = "1" ]; then
+            echo 'Bootstrapping from this node.'
+            CLUSTER_INIT_ARGS=--wsrep-new-cluster
+        elif [ "x${FORCE_RECOVERY}x" = "x${POD_NAME}x" ]; then
+            echo 'Forced recovery bootstrap from this node.'
+            CLUSTER_INIT_ARGS=--wsrep-new-cluster
+            cp -f /var/lib/mysql/grastate.dat /var/lib/mysql/grastate.bak
+    	    cat >/var/lib/mysql/grastate.dat <<EOF
+`grep -v 'safe_to_bootstrap:' /var/lib/mysql/grastate.bak`
+safe_to_bootstrap: 1
+EOF
+	    chown -R mysql:mysql /var/lib/mysql/grastate.dat
+        else
+    	    exitWithManualRecovery
+    	fi
+    fi
+
+elif [ ! -d /var/lib/mysql/mysql -o "x${FORCE_BOOTSTRAP}" = "xtrue" ]; then
     if [ "x${POD_NAME}" = "x${SERVICE_NAME}-0" ]; then
         echo No data found for pod 0
         if [ "x${FORCE_BOOTSTRAP}" = "xtrue" ]; then
@@ -43,32 +164,6 @@ if [ ! -d /var/lib/mysql/mysql ]; then
     chown -R mysql:mysql /var/lib/mysql
 fi
 
-# Construct cluster config
-CLUSTER_CONFIG_PATH=/etc/mysql/conf.d/10-cluster-config.cnf
-
-MEMBERS=""
-for i in $(seq 1 ${MARIADB_REPLICAS}); do
-    if [ "$i" -eq "1" ]; then
-      NUM="0"
-    else
-      NUM="$(expr $i - 1)"
-    fi
-    CANDIDATE_POD="${SERVICE_NAME}-$NUM.$(hostname -d)"
-    if [ "x${CANDIDATE_POD}" != "x${POD_NAME}.$(hostname -d)" ]; then
-        if [ -n "${MEMBERS}" ]; then
-            MEMBERS+=,
-        fi
-        MEMBERS+="${CANDIDATE_POD}:${WSREP_PORT}"
-    fi
-done
-
-echo "Writing cluster config for ${POD_NAME} to ${CLUSTER_CONFIG_PATH}"
-cat >> ${CLUSTER_CONFIG_PATH} << EOF
-[mysqld]
-wsrep_cluster_address="gcomm://${MEMBERS}"
-wsrep_node_address=${POD_IP}
-wsrep_node_name=${POD_NAME}.$(hostname -d)
-EOF
 
 if [ "x${CLUSTER_BOOTSTRAP}" = "xtrue" ]; then
   mysql_install_db --user=mysql --datadir=/var/lib/mysql
