@@ -21,7 +21,7 @@ end=$(date +%s)
 if ! [ -z $2 ]; then
  end=$((end + $2))
 else
- end=$((end + 600))
+ end=$((end + 900))
 fi
 while true; do
     kubectl get pods --namespace=$1 -o json | jq -r \
@@ -36,7 +36,7 @@ while true; do
         grep false > /dev/null && JOBR="False" || JOBR="True"
     [ $PENDING == "False" -a $READY == "True" -a $JOBR == "True" ] && \
         break || true
-    sleep 1
+    sleep 5
     now=$(date +%s)
     [ $now -gt $end ] && echo containers failed to start. && \
         kubectl get pods --namespace $1 -o wide && exit -1
