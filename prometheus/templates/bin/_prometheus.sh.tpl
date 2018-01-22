@@ -26,6 +26,8 @@ function start () {
     --query.max-concurrency={{ .Values.conf.prometheus.query.max_concurrency }} \
     --storage.tsdb.path={{ .Values.conf.prometheus.storage.tsdb.path }} \
     --storage.tsdb.retention={{ .Values.conf.prometheus.storage.tsdb.retention }} \
+    --storage.tsdb.min-block-duration={{ .Values.conf.prometheus.storage.tsdb.min_block_duration }} \
+    --storage.tsdb.max-block-duration={{ .Values.conf.prometheus.storage.tsdb.max_block_duration }} \
     {{ if .Values.conf.prometheus.web_admin_api.enabled }}
     --web.enable-admin-api \
     {{ end }}
