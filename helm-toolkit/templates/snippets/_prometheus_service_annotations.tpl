@@ -21,9 +21,17 @@ limitations under the License.
 # service then set this appropriately.
 
 {{- define "helm-toolkit.snippets.prometheus_service_annotations" -}}
-{{- $endpoint := index . 0 -}}
-prometheus.io/scrape: {{ $endpoint.scrape | quote }}
-prometheus.io/scheme: {{ $endpoint.scheme.default | quote }}
-prometheus.io/path: {{ $endpoint.path.default | quote }}
-prometheus.io/port: {{ $endpoint.scrape_port | quote }}
+{{- $config := index . 0 -}}
+{{- if $config.scrape }}
+prometheus.io/scrape: {{ $config.scrape | quote }}
+{{- end }}
+{{- if $config.scheme }}
+prometheus.io/scheme: {{ $config.scheme | quote }}
+{{- end }}
+{{- if $config.path }}
+prometheus.io/path: {{ $config.path | quote }}
+{{- end }}
+{{- if $config.port }}
+prometheus.io/port: {{ $config.port | quote }}
+{{- end }}
 {{- end -}}
