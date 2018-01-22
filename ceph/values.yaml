@@ -187,15 +187,98 @@ network:
     mgr: 7000
 
 conf:
-  storage:
-    osd:
-      directory: /var/lib/openstack-helm/ceph/osd
-    mon:
-      directory: /var/lib/openstack-helm/ceph/mon
   features:
     mds: true
     rgw: true
     mgr: true
+  pool:
+    crush:
+      #NOTE(portdirect): to use RBD devices with Ubuntu 16.04's 4.4.x series
+      # kernel this should be set to `hammer`
+      tunables: null
+    target:
+      osd: 5
+      pg_per_osd: 100
+    default:
+      #NOTE(portdirect): this should be 'same_host' for a single node
+      # cluster to be in a healthy state
+      crush_rule: replicated_rule
+    spec:
+      # RBD pool
+      - name: rbd
+        application: rbd
+        replication: 3
+        percent_total_data: 40
+      # CephFS pools
+      - name: cephfs_metadata
+        application: cephfs
+        replication: 3
+        percent_total_data: 5
+      - name: cephfs_data
+        application: cephfs
+        replication: 3
+        percent_total_data: 10
+      # RadosGW pools
+      - name: .rgw.root
+        application: rgw
+        replication: 3
+        percent_total_data: 0.1
+      - name: default.rgw.control
+        application: rgw
+        replication: 3
+        percent_total_data: 0.1
+      - name: default.rgw.data.root
+        application: rgw
+        replication: 3
+        percent_total_data: 0.1
+      - name: default.rgw.gc
+        application: rgw
+        replication: 3
+        percent_total_data: 0.1
+      - name: default.rgw.log
+        application: rgw
+        replication: 3
+        percent_total_data: 0.1
+      - name: default.rgw.intent-log
+        application: rgw
+        replication: 3
+        percent_total_data: 0.1
+      - name: default.rgw.meta
+        application: rgw
+        replication: 3
+        percent_total_data: 0.1
+      - name: default.rgw.usage
+        application: rgw
+        replication: 3
+        percent_total_data: 0.1
+      - name: default.rgw.users.keys
+        application: rgw
+        replication: 3
+        percent_total_data: 0.1
+      - name: default.rgw.users.email
+        application: rgw
+        replication: 3
+        percent_total_data: 0.1
+      - name: default.rgw.users.swift
+        application: rgw
+        replication: 3
+        percent_total_data: 0.1
+      - name: default.rgw.users.uid
+        application: rgw
+        replication: 3
+        percent_total_data: 0.1
+      - name: default.rgw.buckets.extra
+        application: rgw
+        replication: 3
+        percent_total_data: 0.1
+      - name: default.rgw.buckets.index
+        application: rgw
+        replication: 3
+        percent_total_data: 3
+      - name: default.rgw.buckets.data
+        application: rgw
+        replication: 3
+        percent_total_data: 34.8
   rgw_ks:
     enabled: false
     config:
@@ -204,25 +287,57 @@ conf:
       rgw_keystone_implicit_tenants: true
       rgw_s3_auth_use_keystone: true
   ceph:
-    override:
-    append:
-    config:
-      global:
-        # auth
-        cephx: true
-        cephx_require_signatures: false
-        cephx_cluster_require_signatures: true
-        cephx_service_require_signatures: false
-        mon_host: null
-      mon:
-      osd:
-        osd_mkfs_type: xfs
-        osd_mkfs_options_xfs: -f -i size=2048
-        osd_max_object_name_len: 256
-        ms_bind_port_min: 6800
-        ms_bind_port_max: 7100
-      client:
-      mds:
+    global:
+      # auth
+      cephx: true
+      cephx_require_signatures: false
+      cephx_cluster_require_signatures: true
+      cephx_service_require_signatures: false
+    osd:
+      osd_mkfs_type: xfs
+      osd_mkfs_options_xfs: -f -i size=2048
+      osd_max_object_name_len: 256
+      ms_bind_port_min: 6800
+      ms_bind_port_max: 7100
+  storage:
+    mon:
+      directory: /var/lib/openstack-helm/ceph/mon
+    # NOTE(portdirect): for homogeneous clusters the `osd` key can be used to
+    # define OSD pods that will be deployed across the cluster.
+    osd:
+      - data:
+          type: directory
+          location: /var/lib/openstack-helm/ceph/osd/osd-one
+        journal:
+          type: directory
+          location: /var/lib/openstack-helm/ceph/osd/journal-one
+      # - data:
+      #     type: block-logical
+      #     location: /dev/sde
+      #   journal:
+      #     type: block-logical
+      #     location: /dev/sdf
+      # - data:
+      #     type: block-logical
+      #     location: /dev/sdg
+      #   journal:
+      #     type: directory
+      #     location: /var/lib/openstack-helm/ceph/osd/journal-sdg
+# NOTE(portdirect): for heterogeneous clusters the overrides section can be used to define
+# OSD pods that will be deployed upon specifc nodes.
+# overrides:
+#   ceph_osd:
+#     hosts:
+#       - name: host1.fqdn
+#         conf:
+#           storage:
+#             osd:
+#               - data:
+#                   type: directory
+#                   location: /var/lib/openstack-helm/ceph/osd/data-three
+#                 journal:
+#                   type: directory
+#                   location: /var/lib/openstack-helm/ceph/osd/journal-three
 
 dependencies:
   cephfs_client_key_generator:
@@ -257,6 +372,7 @@ dependencies:
     jobs:
       - ceph-storage-keys-generator
       - ceph-rgw-keyring-generator
+      - ceph-rbd-pool
     services:
     - service: ceph_mon
       endpoint: internal
@@ -264,6 +380,7 @@ dependencies:
     jobs:
       - ceph-storage-keys-generator
       - ceph-mds-keyring-generator
+      - ceph-rbd-pool
     services:
     - service: ceph_mon
       endpoint: internal
@@ -274,11 +391,13 @@ dependencies:
       endpoint: internal
   rbd_provisioner:
     jobs:
+      - ceph-rbd-pool
     services:
     - service: ceph_mon
       endpoint: internal
   cephfs_provisioner:
     jobs:
+      - ceph-rbd-pool
     services:
     - service: ceph_mon
       endpoint: internal

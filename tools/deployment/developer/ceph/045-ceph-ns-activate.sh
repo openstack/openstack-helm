@@ -45,12 +45,8 @@ conf:
   rgw_ks:
     enabled: true
   ceph:
-    config:
-      global:
-        osd_pool_default_size: 1
-        fsid: ${CEPH_FS_ID}
-      osd:
-        osd_crush_chooseleaf_type: 0
+    global:
+      fsid: ${CEPH_FS_ID}
 EOF
 helm upgrade --install ceph-openstack-config ./ceph \
   --namespace=openstack \

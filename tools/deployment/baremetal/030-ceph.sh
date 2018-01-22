@@ -67,12 +67,103 @@ conf:
   rgw_ks:
     enabled: true
   ceph:
-    config:
-      global:
-        fsid: "$(cat /tmp/ceph-fs-uuid.txt)"
-        osd_pool_default_size: 1
-      osd:
-        osd_crush_chooseleaf_type: 0
+    global:
+      fsid: ${CEPH_FS_ID}
+      osd_pool_default_size: 1
+    osd:
+      osd_crush_chooseleaf_type: 0
+  pool:
+    crush:
+      tunables: ${CRUSH_TUNABLES}
+    target:
+      osd: 1
+      pg_per_osd: 100
+    default:
+      crush_rule: same_host
+    spec:
+      # RBD pool
+      - name: rbd
+        application: rbd
+        replication: 1
+        percent_total_data: 40
+      # CephFS pools
+      - name: cephfs_metadata
+        application: cephfs
+        replication: 1
+        percent_total_data: 5
+      - name: cephfs_data
+        application: cephfs
+        replication: 1
+        percent_total_data: 10
+      # RadosGW pools
+      - name: .rgw.root
+        application: rgw
+        replication: 1
+        percent_total_data: 0.1
+      - name: default.rgw.control
+        application: rgw
+        replication: 1
+        percent_total_data: 0.1
+      - name: default.rgw.data.root
+        application: rgw
+        replication: 1
+        percent_total_data: 0.1
+      - name: default.rgw.gc
+        application: rgw
+        replication: 1
+        percent_total_data: 0.1
+      - name: default.rgw.log
+        application: rgw
+        replication: 1
+        percent_total_data: 0.1
+      - name: default.rgw.intent-log
+        application: rgw
+        replication: 1
+        percent_total_data: 0.1
+      - name: default.rgw.meta
+        application: rgw
+        replication: 1
+        percent_total_data: 0.1
+      - name: default.rgw.usage
+        application: rgw
+        replication: 1
+        percent_total_data: 0.1
+      - name: default.rgw.users.keys
+        application: rgw
+        replication: 1
+        percent_total_data: 0.1
+      - name: default.rgw.users.email
+        application: rgw
+        replication: 1
+        percent_total_data: 0.1
+      - name: default.rgw.users.swift
+        application: rgw
+        replication: 1
+        percent_total_data: 0.1
+      - name: default.rgw.users.uid
+        application: rgw
+        replication: 1
+        percent_total_data: 0.1
+      - name: default.rgw.buckets.extra
+        application: rgw
+        replication: 1
+        percent_total_data: 0.1
+      - name: default.rgw.buckets.index
+        application: rgw
+        replication: 1
+        percent_total_data: 3
+      - name: default.rgw.buckets.data
+        application: rgw
+        replication: 1
+        percent_total_data: 34.8
+  storage:
+    osd:
+      - data:
+          type: directory
+          location: /var/lib/openstack-helm/ceph/osd/osd-one
+        journal:
+          type: directory
+          location: /var/lib/openstack-helm/ceph/osd/journal-one
 EOF
 helm install ./ceph \
   --namespace=ceph \

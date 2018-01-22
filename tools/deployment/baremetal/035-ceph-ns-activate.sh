@@ -48,12 +48,8 @@ conf:
   rgw_ks:
     enabled: true
   ceph:
-    config:
-      global:
-        osd_pool_default_size: 1
-        fsid: "$(cat /tmp/ceph-fs-uuid.txt)"
-      osd:
-        osd_crush_chooseleaf_type: 0
+    global:
+      fsid: "$(cat /tmp/ceph-fs-uuid.txt)"
 EOF
 helm install ./ceph \
   --namespace=openstack \

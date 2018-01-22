@@ -21,6 +21,15 @@ uuidgen > /tmp/ceph-fs-uuid.txt
 CEPH_PUBLIC_NETWORK="$(./tools/deployment/multinode/kube-node-subnet.sh)"
 CEPH_CLUSTER_NETWORK="$(./tools/deployment/multinode/kube-node-subnet.sh)"
 CEPH_FS_ID="$(cat /tmp/ceph-fs-uuid.txt)"
+#NOTE(portdirect): to use RBD devices with Ubuntu kernels < 4.5 this
+# should be set to 'hammer'
+. /etc/os-release
+if [ "x${ID}" == "xubuntu" ] && \
+   [ "$(uname -r | awk -F "." '{ print $2 }')" -lt "5" ]; then
+  CRUSH_TUNABLES=hammer
+else
+  CRUSH_TUNABLES=null
+fi
 tee /tmp/ceph.yaml << EOF
 endpoints:
   identity:
@@ -42,11 +51,26 @@ deployment:
 bootstrap:
   enabled: true
 conf:
-  config:
+  ceph:
     global:
       fsid: ${CEPH_FS_ID}
   rgw_ks:
     enabled: true
+  pool:
+    crush:
+      tunables: ${CRUSH_TUNABLES}
+    target:
+      # NOTE(portdirect): 5 nodes, with one osd per node
+      osd: 5
+      pg_per_osd: 100
+  storage:
+    osd:
+      - data:
+          type: directory
+          location: /var/lib/openstack-helm/ceph/osd/osd-one
+        journal:
+          type: directory
+          location: /var/lib/openstack-helm/ceph/osd/journal-one
 EOF
 helm upgrade --install ceph ./ceph \
   --namespace=ceph \
@@ -55,5 +79,10 @@ helm upgrade --install ceph ./ceph \
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh ceph 1200
 
-#NOTE: Validate Deployment info
-helm status ceph
+#NOTE: Validate deploy
+MON_POD=$(kubectl get pods \
+  --namespace=ceph \
+  --selector="application=ceph" \
+  --selector="component=mon" \
+  --no-headers | awk '{ print $1; exit }')
+kubectl exec -n ceph ${MON_POD} -- ceph -s

@@ -41,7 +41,7 @@ deployment:
 bootstrap:
   enabled: false
 conf:
-  config:
+  ceph:
     global:
       fsid: ${CEPH_FS_ID}
   rgw_ks:

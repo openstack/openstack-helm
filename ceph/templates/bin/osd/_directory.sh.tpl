@@ -4,6 +4,7 @@ export LC_ALL=C
 : "${HOSTNAME:=$(uname -n)}"
 : "${CRUSH_LOCATION:=root=default host=${HOSTNAME}}"
 : "${OSD_PATH_BASE:=/var/lib/ceph/osd/${CLUSTER}}"
+: "${JOURNAL_DIR:=/var/lib/ceph/journal}"
 : "${OSD_BOOTSTRAP_KEYRING:=/var/lib/ceph/bootstrap-osd/${CLUSTER}.keyring}"
 
 function is_available {
