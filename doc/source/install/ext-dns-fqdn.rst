@@ -153,7 +153,7 @@ Examples
 Code examples below.
 
 If doing an `AIO install
-<https://docs.openstack.org/openstack-helm/latest/install/developer/all-in-one.html>`__,
+<https://docs.openstack.org/openstack-helm/latest/install/developer/index.html>`__,
 all the ``--set`` flags
 
 .. code-block:: shell
