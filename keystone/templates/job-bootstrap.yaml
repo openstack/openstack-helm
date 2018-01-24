@@ -43,7 +43,7 @@ spec:
 {{ tuple $envAll $dependencies $mounts_keystone_bootstrap_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container"  | indent 8 }}
       containers:
         - name: keystone-bootstrap
-          image: {{ .Values.images.tags.bootstrap }}
+          image: {{ .Values.images.tags.keystone_bootstrap }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
 {{ tuple $envAll $envAll.Values.pod.resources.jobs.bootstrap | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           env:
@@ -53,16 +53,52 @@ spec:
           command:
             - /tmp/bootstrap.sh
           volumeMounts:
+            - name: etckeystonedomains
+              mountPath: {{ .Values.conf.keystone.identity.domain_config_dir | default "/etc/keystonedomains" }}
+            - name: etckeystone
+              mountPath: /etc/keystone
             - name: keystone-bin
               mountPath: /tmp/bootstrap.sh
               subPath: bootstrap.sh
               readOnly: true
+            - name: keystone-etc
+              mountPath: /etc/keystone/keystone.conf
+              subPath: keystone.conf
+              readOnly: true
+{{- range $k, $v := .Values.conf.ks_domains }}
+            - name: keystone-etc
+              mountPath: {{ $envAll.Values.conf.keystone.identity.domain_config_dir | default "/etc/keystonedomains" }}/keystone.{{ $k }}.conf
+              subPath: keystone.{{ $k }}.conf
+              readOnly: true
+{{- end }}
+{{- if eq .Values.conf.keystone.token.provider "fernet" }}
+            - name: keystone-fernet-keys
+              mountPath: {{ .Values.conf.keystone.fernet_tokens.key_repository }}
+{{- end }}
+            - name: keystone-credential-keys
+              mountPath: {{ .Values.conf.keystone.credential.key_repository }}
 {{ if $mounts_keystone_bootstrap.volumeMounts }}{{ toYaml $mounts_keystone_bootstrap.volumeMounts | indent 12 }}{{ end }}
       volumes:
+        - name: etckeystone
+          emptyDir: {}
+        - name: etckeystonedomains
+          emptyDir: {}
+        - name: keystone-etc
+          configMap:
+            name: keystone-etc
+            defaultMode: 0444
         - name: keystone-bin
           configMap:
             name: keystone-bin
             defaultMode: 0555
+{{- if eq .Values.conf.keystone.token.provider "fernet" }}
+        - name: keystone-fernet-keys
+          secret:
+            secretName: keystone-fernet-keys
+{{- end }}
+        - name: keystone-credential-keys
+          secret:
+            secretName: keystone-credential-keys
 {{ if $mounts_keystone_bootstrap.volumes }}{{ toYaml $mounts_keystone_bootstrap.volumes | indent 9 }}{{ end }}
 {{- end }}
 {{- end }}
