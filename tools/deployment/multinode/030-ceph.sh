@@ -17,6 +17,7 @@
 set -xe
 
 #NOTE: Deploy command
+uuidgen > /tmp/ceph-fs-uuid.txt
 CEPH_PUBLIC_NETWORK=$(./tools/deployment/multinode/kube-node-subnet.sh)
 CEPH_CLUSTER_NETWORK=$(./tools/deployment/multinode/kube-node-subnet.sh)
 cat > /tmp/ceph.yaml <<EOF
@@ -40,6 +41,9 @@ deployment:
 bootstrap:
   enabled: true
 conf:
+  config:
+    global:
+      fsid: "$(cat /tmp/ceph-fs-uuid.txt)"
   rgw_ks:
     enabled: true
 EOF

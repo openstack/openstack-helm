@@ -43,15 +43,14 @@ spec:
           image: {{ .Values.images.tags.ceph_daemon }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
           command:
-            - /tmp/init_dirs.sh
+            - /tmp/init-dirs.sh
+          env:
+            - name: CLUSTER
+              value: "ceph"
           volumeMounts:
             - name: ceph-bin
-              mountPath: /tmp/init_dirs.sh
-              subPath: init_dirs.sh
-              readOnly: true
-            - name: ceph-bin
-              mountPath: /variables_entrypoint.sh
-              subPath: variables_entrypoint.sh
+              mountPath: /tmp/init-dirs.sh
+              subPath: init-dirs.sh
               readOnly: true
             - name: pod-var-lib-ceph
               mountPath: /var/lib/ceph
@@ -62,6 +61,8 @@ spec:
           imagePullPolicy: {{ .Values.images.pull_policy }}
 {{ tuple $envAll $envAll.Values.pod.resources.moncheck | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           env:
+            - name: CLUSTER
+              value: "ceph"
             - name: K8S_HOST_NETWORK
               value: "1"
             - name: NAMESPACE
@@ -70,21 +71,17 @@ spec:
                   apiVersion: v1
                   fieldPath: metadata.namespace
           command:
-            - /watch_mon_health.sh
+            - /tmp/moncheck-start.sh
           ports:
             - containerPort: 6789
           volumeMounts:
             - name: ceph-bin
-              mountPath: /watch_mon_health.sh
-              subPath: watch_mon_health.sh
+              mountPath: /tmp/moncheck-start.sh
+              subPath: moncheck-start.sh
               readOnly: true
             - name: ceph-bin
-              mountPath: /check_zombie_mons.py
-              subPath: check_zombie_mons.py
-              readOnly: true
-            - name: ceph-bin
-              mountPath: /common_functions.sh
-              subPath: common_functions.sh
+              mountPath: /tmp/moncheck-reap-zombies.py
+              subPath: moncheck-reap-zombies.py
               readOnly: true
             - name: ceph-etc
               mountPath: /etc/ceph/ceph.conf

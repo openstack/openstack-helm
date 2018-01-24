@@ -40,6 +40,9 @@ deployment:
 bootstrap:
   enabled: false
 conf:
+  config:
+    global:
+      fsid: "$(cat /tmp/ceph-fs-uuid.txt)"
   rgw_ks:
     enabled: true
 EOF

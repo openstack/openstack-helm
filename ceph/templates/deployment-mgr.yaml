@@ -47,15 +47,14 @@ spec:
           image: {{ .Values.images.tags.ceph_daemon }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
           command:
-            - /tmp/init_dirs.sh
+            - /tmp/init-dirs.sh
+          env:
+            - name: CLUSTER
+              value: "ceph"
           volumeMounts:
             - name: ceph-bin
-              mountPath: /tmp/init_dirs.sh
-              subPath: init_dirs.sh
-              readOnly: true
-            - name: ceph-bin
-              mountPath: /variables_entrypoint.sh
-              subPath: variables_entrypoint.sh
+              mountPath: /tmp/init-dirs.sh
+              subPath: init-dirs.sh
               readOnly: true
             - name: pod-var-lib-ceph
               mountPath: /var/lib/ceph
@@ -71,6 +70,8 @@ spec:
           imagePullPolicy: {{ .Values.images.pull_policy }}
 {{ tuple $envAll $envAll.Values.pod.resources.mgr | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           env:
+            - name: CLUSTER
+              value: "ceph"
             {{- if .Values.ceph_mgr_enabled_modules }}
             - name: ENABLED_MODULES
               value: |-
@@ -87,41 +88,35 @@ spec:
             {{- end }}
             {{- end }}
           command:
-            - /start_mgr.sh
+            - /mgr-start.sh
           livenessProbe:
-              exec:
-                command:
-                  - bash
-                  - /check_mgr.sh
-              initialDelaySeconds: 30
-              timeoutSeconds: 5
+           exec:
+            command:
+             - /tmp/mgr-check.sh
+             - liveness
+           initialDelaySeconds: 30
+           timeoutSeconds: 5
           readinessProbe:
-              exec:
-                command:
-                  - bash
-                  - /check_mgr.sh
+           exec:
+            command:
+             - /tmp/mgr-check.sh
+             - readiness
+           initialDelaySeconds: 30
+           timeoutSeconds: 5
           volumeMounts:
+            - name: ceph-bin
+              mountPath: /mgr-start.sh
+              subPath: mgr-start.sh
+              readOnly: true
+            - name: ceph-bin
+              mountPath: /tmp/mgr-check.sh
+              subPath: mgr-check.sh
+              readOnly: true
             - name: pod-etc-ceph
               mountPath: /etc/ceph
             - name: ceph-etc
               mountPath: /etc/ceph/ceph.conf
               subPath: ceph.conf
-              readOnly: true
-            - name: ceph-bin
-              mountPath: /start_mgr.sh
-              subPath: start_mgr.sh
-              readOnly: true
-            - name: ceph-bin
-              mountPath: /check_mgr.sh
-              subPath: check_mgr.sh
-              readOnly: true
-            - name: ceph-bin
-              mountPath: /variables_entrypoint.sh
-              subPath: variables_entrypoint.sh
-              readOnly: true
-            - name: ceph-bin
-              mountPath: /common_functions.sh
-              subPath: common_functions.sh
               readOnly: true
             - name: ceph-client-admin-keyring
               mountPath: /etc/ceph/ceph.client.admin.keyring

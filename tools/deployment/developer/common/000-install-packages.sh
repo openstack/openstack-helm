@@ -23,4 +23,5 @@ sudo apt-get install --no-install-recommends -y \
         make \
         jq \
         nmap \
-        curl
+        curl \
+        uuid-runtime

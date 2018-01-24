@@ -45,15 +45,14 @@ spec:
           image: {{ .Values.images.tags.ceph_daemon }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
           command:
-            - /tmp/init_dirs.sh
+            - /tmp/init-dirs.sh
+          env:
+            - name: CLUSTER
+              value: "ceph"
           volumeMounts:
             - name: ceph-bin
-              mountPath: /tmp/init_dirs.sh
-              subPath: init_dirs.sh
-              readOnly: true
-            - name: ceph-bin
-              mountPath: /variables_entrypoint.sh
-              subPath: variables_entrypoint.sh
+              mountPath: /tmp/init-dirs.sh
+              subPath: init-dirs.sh
               readOnly: true
             - name: pod-var-lib-ceph
               mountPath: /var/lib/ceph
@@ -69,49 +68,36 @@ spec:
           securityContext:
             privileged: true
           env:
-            - name: CEPH_DAEMON
-              value: osd_directory
+            - name: CLUSTER
+              value: "ceph"
             - name: CEPH_GET_ADMIN_KEY
               value: "1"
           command:
-            - /start_osd.sh
+            - /tmp/osd-directory.sh
           ports:
             - containerPort: 6800
           livenessProbe:
            exec:
             command:
-             - /ceph-osd-liveness-readiness.sh
-           initialDelaySeconds: 60
+             - /tmp/osd-check.sh
+             - liveness
+           initialDelaySeconds: 120
            periodSeconds: 60
           readinessProbe:
            exec:
             command:
-             - /ceph-osd-liveness-readiness.sh
+             - /tmp/osd-check.sh
+             - readiness
            initialDelaySeconds: 60
            periodSeconds: 60
           volumeMounts:
-            - name: devices
-              mountPath: /dev
-              readOnly: false
             - name: ceph-bin
-              mountPath: /start_osd.sh
-              subPath: start_osd.sh
+              mountPath: /tmp/osd-directory.sh
+              subPath: osd-directory.sh
               readOnly: true
             - name: ceph-bin
-              mountPath: /variables_entrypoint.sh
-              subPath: variables_entrypoint.sh
-              readOnly: true
-            - name: ceph-bin
-              mountPath: /osd_directory.sh
-              subPath: osd_directory.sh
-              readOnly: true
-            - name: ceph-bin
-              mountPath: /common_functions.sh
-              subPath: common_functions.sh
-              readOnly: true
-            - name: ceph-bin
-              mountPath: /ceph-osd-liveness-readiness.sh
-              subPath: ceph-osd-liveness-readiness.sh
+              mountPath: /tmp/osd-check.sh
+              subPath: osd-check.sh
               readOnly: true
             - name: ceph-etc
               mountPath: /etc/ceph/ceph.conf
@@ -136,6 +122,9 @@ spec:
             - name: ceph-bootstrap-rgw-keyring
               mountPath: /var/lib/ceph/bootstrap-rgw/ceph.keyring
               subPath: ceph.keyring
+              readOnly: false
+            - name: devices
+              mountPath: /dev
               readOnly: false
             - name: osd-directory
               mountPath: /var/lib/ceph/osd

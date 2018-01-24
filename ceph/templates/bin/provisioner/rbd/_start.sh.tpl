@@ -18,4 +18,4 @@ limitations under the License.
 
 set -ex
 
-exec /usr/local/bin/cephfs-provisioner -id ${POD_NAME}
+exec /usr/local/bin/rbd-provisioner -id "${POD_NAME}"
