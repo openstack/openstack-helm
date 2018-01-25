@@ -28,6 +28,9 @@ labels:
   prometheus_fluentd_exporter:
     node_selector_key: openstack-control-plane
     node_selector_value: enabled
+  elasticsearch_template:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
 
 images:
   tags:
@@ -36,6 +39,7 @@ images:
     prometheus_fluentd_exporter: docker.io/srwilkers/fluentd_exporter:v0.1
     dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.2.1
     helm_tests: docker.io/kolla/ubuntu-source-heat-engine:3.0.3
+    elasticsearch_template: docker.io/kolla/ubuntu-source-heat-engine:3.0.3
     image_repo_sync: docker.io/docker:17.07.0
   pull_policy: IfNotPresent
   local_registry:
@@ -64,8 +68,14 @@ dependencies:
     - service: kafka
       endpoint: public
   fluentbit:
+    jobs:
+    - elasticsearch-template
     services:
     - service: fluentd
+      endpoint: internal
+  elasticsearch-template:
+    services:
+    - service: elasticsearch
       endpoint: internal
   tests:
     services:
@@ -156,6 +166,50 @@ conf:
     log:
       format: "logger:stdout?json=true"
       level: "info"
+  template:
+    template: "logstash-*"
+    settings:
+      number_of_shards: 5
+      number_of_replicas: 1
+    mappings:
+      flb_type:
+        properties:
+          kubernetes:
+            properties:
+              container_name:
+                type: keyword
+                index: not_analyzed
+              docker_id:
+                type: keyword
+                index: not_analyzed
+              host:
+                type: keyword
+                index: not_analyzed
+              labels:
+                properties:
+                  app:
+                    type: keyword
+                    index: not_analyzed
+                  application:
+                    type: keyword
+                    index: not_analyzed
+                  component:
+                    type: keyword
+                    index: not_analyzed
+                  release_group:
+                    type: keyword
+                    index: not_analyzed
+              namespace_name:
+                type: keyword
+                index: not_analyzed
+              pod_id:
+                type: keyword
+                index: not_analyzed
+              pod_name:
+               type: keyword
+               index: not_analyzed
+          log:
+            type: text
 
 endpoints:
   cluster_domain_suffix: cluster.local
@@ -319,6 +373,9 @@ pod:
       fluentbit:
     fluent_tests:
       fluent_tests:
+    elasticsearch_template:
+      init_container:
+      elasticsearch_template:
 
 manifests:
   configmap_bin: true
@@ -334,3 +391,4 @@ manifests:
       service_exporter: true
   secret_elasticsearch: true
   service_fluentd: true
+  job_elasticsearch_template: true

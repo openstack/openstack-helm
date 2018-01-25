@@ -108,3 +108,34 @@ section):
 {{- end -}}
 {{- end -}}
 {{- end -}}
+
+# This function generates elasticsearch template files with entries in the
+# fluent-logging values.yaml.  It results in a configuration section with the
+# following format (for as many key/value pairs defined in values for a section):
+# {
+#     key: value
+#     key: {
+#         key: { ... }
+#     }
+# }
+# The configuration schema can be found here:
+# https://www.elastic.co/guide/en/elasticsearch/reference/current/indices-templates.html
+
+{{- define "fluent_logging.to_elasticsearch_template" -}}
+{
+{{- include "fluent_logging.recursive_tuple" . | indent 2 }}
+}
+{{- end }}
+
+{{- define "fluent_logging.recursive_tuple" -}}
+{{- range $key, $value := . -}}
+,
+{{- if or (kindIs "map" $value) }}
+{{ $key | quote -}}:{
+{{- include "fluent_logging.recursive_tuple" $value | indent 2 }}
+}
+{{- else }}
+{{ $key | quote -}}:{{ $value | quote }}
+{{- end }}
+{{- end }}
+{{- end }}
