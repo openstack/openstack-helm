@@ -95,3 +95,6 @@ wait_for_ssh_port $FLOATING_IP
 # SSH into the VM and check it can reach the outside world
 ssh-keyscan "$FLOATING_IP" >> ~/.ssh/known_hosts
 ssh -i ${HOME}/.ssh/osh_key cirros@${FLOATING_IP} ping -q -c 1 -W 2 ${OSH_BR_EX_ADDR%/*}
+
+# Check the VM can reach the metadata server
+ssh -i ${HOME}/.ssh/osh_key cirros@${FLOATING_IP} curl --verbose --connect-timeout 5 169.254.169.254

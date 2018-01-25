@@ -20,6 +20,7 @@ set -x
 exec neutron-l3-agent \
       --config-file /etc/neutron/neutron.conf \
       --config-file /etc/neutron/l3_agent.ini \
+      --config-file /etc/neutron/metadata_agent.ini \
       --config-file /etc/neutron/plugins/ml2/ml2_conf.ini
 {{- if eq .Values.network.backend "ovs" }} \
       --config-file /etc/neutron/plugins/ml2/openvswitch_agent.ini

@@ -18,13 +18,4 @@ limitations under the License.
 
 set -ex
 
-metadata_ip="{{- .Values.conf.metadata_agent.DEFAULT.nova_metadata_ip -}}"
-if [ -z "${metadata_ip}" ] ; then
-    metadata_ip=$(getent hosts metadata | awk '{print $1}')
-fi
-
-cat <<EOF>/tmp/pod-shared/neutron-metadata-agent.ini
-[DEFAULT]
-nova_metadata_ip=$metadata_ip
-EOF
-
+chown ${NEUTRON_USER_UID} /var/lib/neutron/openstack-helm

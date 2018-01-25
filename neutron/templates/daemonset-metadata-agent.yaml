@@ -50,7 +50,10 @@ spec:
           imagePullPolicy: {{ .Values.images.pull_policy }}
 {{ tuple $envAll $envAll.Values.pod.resources.agent.metadata | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           securityContext:
-            runAsUser: {{ .Values.pod.user.neutron.uid }}
+            runAsUser: 0
+          env:
+            - name: NEUTRON_USER_UID
+              value: "{{ .Values.pod.user.neutron.uid }}"
           command:
             - /tmp/neutron-metadata-agent-init.sh
           volumeMounts:
@@ -62,8 +65,8 @@ spec:
               mountPath: /etc/neutron/neutron.conf
               subPath: neutron.conf
               readOnly: true
-            - name: pod-shared
-              mountPath: /tmp/pod-shared
+            - name: socket
+              mountPath: /var/lib/neutron/openstack-helm
       containers:
         - name: neutron-metadata-agent
           image: {{ .Values.images.tags.neutron_metadata }}
@@ -72,8 +75,6 @@ spec:
           securityContext:
             runAsUser: {{ .Values.pod.user.neutron.uid }}
             privileged: true
-          ports:
-            - containerPort: {{ .Values.network.metadata.port }}
           command:
             - /tmp/neutron-metadata-agent.sh
           volumeMounts:
@@ -153,10 +154,7 @@ spec:
               subPath: openvswitch-plugin.filters
               readOnly: true
             - name: socket
-              mountPath: /var/lib/neutron/stackanetes
-            - name: pod-shared
-              mountPath: /tmp/pod-shared
-              readOnly: true
+              mountPath: /var/lib/neutron/openstack-helm
 {{ if $mounts_neutron_metadata_agent.volumeMounts }}{{ toYaml $mounts_neutron_metadata_agent.volumeMounts | indent 12 }}{{ end }}
       volumes:
         - name: neutron-bin
@@ -175,7 +173,5 @@ spec:
         - name: socket
           hostPath:
             path: /var/lib/neutron/openstack-helm
-        - name: pod-shared
-          emptyDir: {}
 {{ if $mounts_neutron_metadata_agent.volumes }}{{ toYaml $mounts_neutron_metadata_agent.volumes | indent 8 }}{{ end }}
 {{- end }}
