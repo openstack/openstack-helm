@@ -43,6 +43,7 @@ Listen 80
 # Example:
 # LoadModule foo_module modules/mod_foo.so
 #
+LoadModule mpm_event_module modules/mod_mpm_event.so
 LoadModule authn_file_module modules/mod_authn_file.so
 LoadModule authn_core_module modules/mod_authn_core.so
 LoadModule authz_host_module modules/mod_authz_host.so

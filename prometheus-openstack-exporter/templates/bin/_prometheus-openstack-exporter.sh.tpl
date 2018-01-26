@@ -20,7 +20,7 @@ set -ex
 COMMAND="${@:-start}"
 
 function start () {
-  exec python /usr/local/bin/prometheus_openstack_exporter/exporter.py
+  exec python /usr/local/bin/exporter/main.py
 }
 
 function stop () {
