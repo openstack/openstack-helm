@@ -14,12 +14,29 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+# This function returns key value pair in the INI format (key = value)
+# as needed by openstack config files
+#
+# Sample key value pair format:
+# conf:
+#   libvirt:
+#     log_level: 3
+# Usage:
+# { include "helm-toolkit.utils.to_kv_list" .Values.conf.libvirt }
+# returns: log_level = 3
+
 {{- define "helm-toolkit.utils.to_kv_list" -}}
 {{- range $key, $value :=  . -}}
+{{- if kindIs "slice" $value }}
+{{ $key }} = {{ include "helm-toolkit.utils.joinListWithComma" $value | quote }}
+{{- else if kindIs "string" $value }}
 {{- if regexMatch "^[0-9]+$" $value }}
 {{ $key }} = {{ $value }}
 {{- else }}
 {{ $key }} = {{ $value | quote }}
+{{- end }}
+{{- else }}
+{{ $key }} = {{ $value }}
 {{- end }}
 {{- end -}}
 {{- end -}}
