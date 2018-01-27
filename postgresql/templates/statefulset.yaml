@@ -56,6 +56,8 @@ spec:
               secretKeyRef:
                 name: {{ .Values.secrets.postgresql.admin }}
                 key: 'POSTGRES_USER'
+          - name: 'PGDATA'
+            value: {{ .Values.storage.mount.path | quote }}
         livenessProbe:
           exec:
             command:
@@ -71,7 +73,8 @@ spec:
 {{ tuple $envAll $envAll.Values.pod.resources.server | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
         volumeMounts:
         - name: postgresql-data
-          mountPath: /var/lib/postgresql
+          mountPath: {{ .Values.storage.mount.path }}
+          subPath: {{ .Values.storage.mount.subpath }}
 {{- if not .Values.storage.pvc.enabled }}
       volumes:
       - name: postgresql-data
