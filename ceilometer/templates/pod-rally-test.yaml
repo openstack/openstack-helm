@@ -18,31 +18,56 @@ limitations under the License.
 {{- $envAll := . }}
 {{- $dependencies := .Values.dependencies.tests }}
 
-{{- $mounts_ceilometer_tests := .Values.pod.mounts.ceilometer_tests.ceilometer_tests }}
-{{- $mounts_ceilometer_tests_init := .Values.pod.mounts.ceilometer_tests.init_container }}
+{{- $mounts_tests := .Values.pod.mounts.ceilometer_tests.ceilometer_tests }}
+{{- $mounts_tests_init := .Values.pod.mounts.ceilometer_tests.init_container }}
 
-{{- $serviceAccountName := print .Release.Name "-test" }}
+{{- $serviceAccountName := print $envAll.Release.Name "-test" }}
 {{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: v1
 kind: Pod
 metadata:
-  name: "{{.Release.Name}}-test"
+  name: {{ print $envAll.Release.Name "-test" }}
   annotations:
     "helm.sh/hook": test-success
 spec:
-  serviceAccountName: {{ $serviceAccountName }}
   restartPolicy: Never
+  serviceAccountName: {{ $serviceAccountName }}
   initContainers:
-{{ tuple $envAll $dependencies $mounts_ceilometer_tests_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll $dependencies $mounts_tests_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 4 }}
+    - name: {{ .Release.Name }}-test-ks-user
+      image: {{ .Values.images.tags.ks_user }}
+      imagePullPolicy: {{ .Values.images.pull_policy }}
+{{ tuple $envAll $envAll.Values.pod.resources.jobs.ks_user | include "helm-toolkit.snippets.kubernetes_resources" | indent 6 }}
+      command:
+        - /tmp/ks-user.sh
+      volumeMounts:
+        - name: ceilometer-bin
+          mountPath: /tmp/ks-user.sh
+          subPath: ks-user.sh
+          readOnly: true
+      env:
+{{- with $env := dict "ksUserSecret" .Values.secrets.identity.admin }}
+{{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 8 }}
+{{- end }}
+        - name: SERVICE_OS_SERVICE_NAME
+          value: "test"
+{{- with $env := dict "ksUserSecret" .Values.secrets.identity.test }}
+{{- include "helm-toolkit.snippets.keystone_user_create_env_vars" $env | indent 8 }}
+{{- end }}
+        - name: SERVICE_OS_ROLE
+          value: {{ .Values.endpoints.identity.auth.test.role | quote }}
   containers:
-    - name: {{.Release.Name}}-token-issue-test
+    - name: {{ .Release.Name }}-test
       image: {{ .Values.images.tags.test }}
       imagePullPolicy: {{ .Values.images.pull_policy }}
 {{ tuple $envAll $envAll.Values.pod.resources.jobs.tests | include "helm-toolkit.snippets.kubernetes_resources" | indent 6 }}
       env:
-{{- with $env := dict "ksUserSecret" $envAll.Values.secrets.identity.admin }}
+{{- with $env := dict "ksUserSecret" .Values.secrets.identity.admin }}
 {{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 8 }}
+{{- end }}
+{{- with $env := dict "ksUserSecret" .Values.secrets.identity.test }}
+{{- include "helm-toolkit.snippets.keystone_user_create_env_vars" $env | indent 8 }}
 {{- end }}
         - name: RALLY_ENV_NAME
           value: {{.Release.Name}}
@@ -59,7 +84,7 @@ spec:
           readOnly: true
         - name: rally-db
           mountPath: /var/lib/rally
-{{ if $mounts_ceilometer_tests.volumeMounts }}{{ toYaml $mounts_ceilometer_tests.volumeMounts | indent 8 }}{{ end }}
+{{ if $mounts_tests.volumeMounts }}{{ toYaml $mounts_tests.volumeMounts | indent 8 }}{{ end }}
   volumes:
     - name: ceilometer-etc
       configMap:
@@ -71,5 +96,5 @@ spec:
         defaultMode: 0555
     - name: rally-db
       emptyDir: {}
-{{ if $mounts_ceilometer_tests.volumes }}{{ toYaml $mounts_ceilometer_tests.volumes | indent 4 }}{{ end }}
+{{ if $mounts_tests.volumes }}{{ toYaml $mounts_tests.volumes | indent 4 }}{{ end }}
 {{- end }}
