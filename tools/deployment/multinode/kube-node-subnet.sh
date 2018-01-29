@@ -15,10 +15,11 @@
 #    under the License.
 set -e
 
+UTILS_IMAGE=docker.io/openstackhelm/gate-utils:v0.1.0
 NODE_IPS=$(mktemp --suffix=.txt)
 kubectl get nodes -o json | jq -r '.items[].status.addresses[] | select(.type=="InternalIP").address' | sort -V > $NODE_IPS
-FIRST_IP_SUBNET=$(ipcalc "$(head -n 1 ${NODE_IPS})/24" | awk '/^Network/ { print $2 }')
-LAST_IP_SUBNET=$(ipcalc "$(tail -n 1 ${NODE_IPS})/24" | awk '/^Network/ { print $2 }')
+FIRST_IP_SUBNET=$(sudo docker run ${UTILS_IMAGE} ipcalc "$(head -n 1 ${NODE_IPS})/24" | awk '/^Network/ { print $2 }')
+LAST_IP_SUBNET=$(sudo docker run ${UTILS_IMAGE} ipcalc "$(tail -n 1 ${NODE_IPS})/24" | awk '/^Network/ { print $2 }')
 rm -f $NODE_IPS
 function ip_diff {
   echo $(($(echo $LAST_IP_SUBNET | awk -F '.' "{ print \$$1}") - $(echo $FIRST_IP_SUBNET | awk -F '.' "{ print \$$1}")))
