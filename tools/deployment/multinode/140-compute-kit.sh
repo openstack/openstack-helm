@@ -48,17 +48,49 @@ else
 fi
 
 #NOTE: Deploy neutron
+#NOTE(portdirect): for simplicity we will assume the default route device
+# should be used for tunnels
+NETWORK_TUNNEL_DEV="$(sudo ip -4 route list 0/0 | awk '{ print $5; exit }')"
+tee /tmp/neutron.yaml << EOF
+network:
+  interface:
+    tunnel: "${NETWORK_TUNNEL_DEV}"
+labels:
+  agent:
+    dhcp:
+      node_selector_key: openstack-helm-node-class
+      node_selector_value: primary
+    l3:
+      node_selector_key: openstack-helm-node-class
+      node_selector_value: primary
+    metadata:
+      node_selector_key: openstack-helm-node-class
+      node_selector_value: primary
+pod:
+  replicas:
+    server: 2
+conf:
+  neutron:
+    DEFAULT:
+      l3_ha: False
+      min_l3_agents_per_router: 1
+      max_l3_agents_per_router: 1
+      l3_ha_network_type: vxlan
+      dhcp_agents_per_network: 1
+  plugins:
+    ml2_conf:
+      ml2_type_flat:
+        flat_networks: public
+    openvswitch_agent:
+      agent:
+        tunnel_types: vxlan
+      ovs:
+        bridge_mappings: public:br-ex
+EOF
 helm install ./neutron \
     --namespace=openstack \
     --name=neutron \
-    --set pod.replicas.server=2 \
-    --set labels.agent.dhcp.node_selector_key=openstack-helm-node-class \
-    --set labels.agent.dhcp.node_selector_value=primary \
-    --set labels.agent.l3.node_selector_key=openstack-helm-node-class \
-    --set labels.agent.l3.node_selector_value=primary \
-    --set labels.agent.metadata.node_selector_key=openstack-helm-node-class \
-    --set labels.agent.metadata.node_selector_value=primary \
-    --values=./tools/overrides/mvp/neutron-ovs.yaml
+    --values=/tmp/neutron.yaml
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack
