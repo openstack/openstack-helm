@@ -159,6 +159,47 @@ limitations under the License.
 {{- end -}}
 {{- end -}}
 
+{{- if empty .Values.conf.nova.ironic.api_endpoint -}}
+{{- tuple "baremetal" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" | set .Values.conf.nova.ironic "api_endpoint" | quote | trunc 0 -}}
+{{- end -}}
+
+{{- if empty .Values.conf.nova.ironic.auth_url -}}
+{{- tuple "identity" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" | set .Values.conf.nova.ironic "auth_url" | quote | trunc 0 -}}
+{{- end -}}
+
+{{- if empty .Values.conf.nova.ironic.region_name -}}
+{{- set .Values.conf.nova.ironic "region_name" .Values.endpoints.identity.auth.ironic.region_name | quote | trunc 0 -}}
+{{- end -}}
+{{- if empty .Values.conf.nova.ironic.project_name -}}
+{{- set .Values.conf.nova.ironic "project_name" .Values.endpoints.identity.auth.ironic.project_name | quote | trunc 0 -}}
+{{- end -}}
+{{- if empty .Values.conf.nova.ironic.project_domain_name -}}
+{{- set .Values.conf.nova.ironic "project_domain_name" .Values.endpoints.identity.auth.ironic.project_domain_name | quote | trunc 0 -}}
+{{- end -}}
+{{- if empty .Values.conf.nova.ironic.user_domain_name -}}
+{{- set .Values.conf.nova.ironic "user_domain_name" .Values.endpoints.identity.auth.ironic.user_domain_name | quote | trunc 0 -}}
+{{- end -}}
+{{- if empty .Values.conf.nova.ironic.username -}}
+{{- set .Values.conf.nova.ironic "username" .Values.endpoints.identity.auth.ironic.username | quote | trunc 0 -}}
+{{- end -}}
+{{- if empty .Values.conf.nova.ironic.password -}}
+{{- set .Values.conf.nova.ironic "password" .Values.endpoints.identity.auth.ironic.password | quote | trunc 0 -}}
+{{- end -}}
+{{- if empty .Values.conf.nova.ironic.auth_type -}}
+{{- set .Values.conf.nova.ironic "auth_type" .Values.endpoints.identity.auth.ironic.auth_type | quote | trunc 0 -}}
+{{- end -}}
+{{- if empty .Values.conf.nova.ironic.auth_version -}}
+{{- set .Values.conf.nova.ironic "auth_version" .Values.endpoints.identity.auth.ironic.auth_version | quote | trunc 0 -}}
+{{- end -}}
+
+{{- if empty .Values.conf.nova.ironic.memcache_secret_key -}}
+{{- randAlphaNum 64 | set .Values.conf.nova.ironic "memcache_secret_key" | quote | trunc 0 -}}
+{{- end -}}
+
+{{- if empty .Values.conf.nova.ironic.memcache_servers -}}
+{{- tuple "oslo_cache" "internal" "memcache" . | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" | set .Values.conf.nova.ironic "memcache_servers" | quote | trunc 0 -}}
+{{- end -}}
+
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -183,6 +224,8 @@ data:
 {{- tuple .Values.conf.rootwrap_filters.network "etc/rootwrap.d/_network.filters.tpl" . | include "helm-toolkit.utils.configmap_templater" }}
   nova.conf: |+
 {{ include "helm-toolkit.utils.to_oslo_conf" .Values.conf.nova | indent 4 }}
+  nova-ironic.conf: |+
+{{ include "helm-toolkit.utils.to_oslo_conf" .Values.conf.nova_ironic | indent 4 }}
   wsgi-nova-placement.conf: |+
 {{- tuple .Values.conf.wsgi_placement "etc/_wsgi-nova-placement.conf.tpl" . | include "helm-toolkit.utils.configmap_templater" }}
   ssh-config.sh: |+
