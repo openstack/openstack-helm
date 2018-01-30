@@ -37,7 +37,7 @@ type: "${secret_type}"
 data:
   key: $( echo ${ceph_key} )
 EOF
-  } | kubectl create --namespace ${kube_namespace} -f -
+  } | kubectl apply --namespace ${kube_namespace} -f -
 }
 
 ceph_activate_namespace ${DEPLOYMENT_NAMESPACE} "kubernetes.io/rbd" ${PVC_CEPH_RBD_STORAGECLASS_USER_SECRET_NAME} "$(echo ${CEPH_RBD_KEY} | jq -r '.data | .[]')"
