@@ -25,7 +25,7 @@ each node and mounts the `/var/lib/docker/containers` directory. The Docker
 container runtime engine directs events posted to stdout and stderr to this
 directory on the host. Fluent-bit then forward the contents of that directory to
 Fluentd. Fluentd runs as deployment at the designated nodes and expose service
-for Fluent-bit to foward logs. Fluentd should then apply the Logstash format to
+for Fluent-bit to forward logs. Fluentd should then apply the Logstash format to
 the logs. Fluentd can also write kubernetes and OpenStack metadata to the logs.
 Fluentd will then forward the results to Elasticsearch and to optionally kafka.
 Elasticsearch indexes the logs in a logstash-* index by default. Kafka stores
