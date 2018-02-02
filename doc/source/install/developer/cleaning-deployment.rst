@@ -29,16 +29,34 @@ follows:
 Environment tear-down
 =====================
 
-To tear-down, the development environment charts should be removed firstly from
+To tear-down, the development environment charts should be removed first from
 the 'openstack' namespace and then the 'ceph' namespace using the commands from
-the `Removing Helm Charts`_ section. Once this has been done the namespaces
-themselves can be cleaned by running:
+the `Removing Helm Charts` section.  You can run the following commands to
+loop through and delete the charts, then stop the kubelet systemd unit and
+remove all the containers before removing the ``/var/lib/openstack-helm``
+and ``/var/lib/nova`` directory from the host.
 
 .. code-block:: shell
 
-  kubectl delete namespace <namespace_name>
+  for NS in openstack ceph; do
+    helm ls --namespace $NS --short | xargs -L1 -P16 helm delete --purge
+  done
 
-Final cleanup of the development environment is then performed by removing the
-``/var/lib/openstack-helm`` directory from the host. This will restore the
-environment back to a clean Kubernetes deployment, that can either be manually
-removed or over-written by restarting the deployment process.
+  kubectl delete namespace openstack
+
+  kubectl delete namespace ceph
+
+  sudo systemctl disable kubelet --now
+
+  sudo systemctl stop kubelet
+
+  sudo docker ps -aq | xargs -L1 -P16 sudo docker rm -f
+
+  sudo rm -rf /var/lib/openstack-helm
+
+  sudo rm -rf /var/lib/nova
+
+
+These commands will restore the environment back to a clean Kubernetes
+deployment, that can either be manually removed or over-written by
+restarting the deployment process.
