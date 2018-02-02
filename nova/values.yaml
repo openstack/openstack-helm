@@ -24,6 +24,9 @@ labels:
     compute:
       node_selector_key: openstack-compute-node
       node_selector_value: enabled
+    compute_ironic:
+      node_selector_key: openstack-compute-node
+      node_selector_value: enabled
   conductor:
     node_selector_key: openstack-control-plane
     node_selector_value: enabled
@@ -71,6 +74,7 @@ images:
     consoleauth: docker.io/kolla/ubuntu-source-nova-consoleauth:3.0.3
     compute: docker.io/kolla/ubuntu-source-nova-compute:3.0.3
     compute_ssh: docker.io/kolla/ubuntu-source-nova-ssh:3.0.3
+    compute_ironic: docker.io/kolla/ubuntu-source-nova-compute-ironic:3.0.3
     placement: docker.io/kolla/ubuntu-source-nova-placement-api:3.0.3-beta.1
     bootstrap: docker.io/kolla/ubuntu-source-heat-engine:3.0.3
     dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.2.1
@@ -237,6 +241,20 @@ dependencies:
     - libvirt
     # this should be set to corresponding neutron L2 agent
     - neutron-ovs-agent
+  compute_ironic:
+    jobs:
+    - nova-db-sync
+    services:
+    - service: oslo_messaging
+      endpoint: internal
+    - service: image
+      endpoint: internal
+    - service: compute
+      endpoint: internal
+    - service: network
+      endpoint: internal
+    - service: baremetal
+      endpoint: internal
   consoleauth:
     jobs:
     - nova-db-sync
@@ -912,6 +930,10 @@ conf:
     network:
       override:
       append:
+  nova_ironic:
+    DEFAULT:
+      scheduler_host_manager: ironic_host_manager
+      compute_driver: ironic.IronicDriver
   nova:
     DEFAULT:
       default_ephemeral_format: ext4
@@ -956,6 +978,9 @@ conf:
       num_retries: 3
     cinder:
       catalog_info: volumev2:cinder:internalURL
+    ironic:
+      api_endpoint: null
+      auth_url: null
     neutron:
       metadata_proxy_shared_secret: "password"
       service_metadata_proxy: True
@@ -1115,6 +1140,17 @@ endpoints:
         user_domain_name: default
         username: neutron
         password: password
+      #NOTE(portdirect): the ironic user is not managed by the nova chart
+      # these values should match those set in the ironic chart.
+      ironic:
+        auth_type: password
+        auth_version: v3
+        region_name: RegionOne
+        project_name: service
+        project_domain_name: default
+        user_domain_name: default
+        username: ironic
+        password: password
       placement:
         role: admin
         region_name: RegionOne
@@ -1248,6 +1284,21 @@ endpoints:
       api:
         default: 9696
         public: 80
+  baremetal:
+    name: ironic
+    hosts:
+      default: ironic-api
+      public: ironic
+    host_fqdn_override:
+      default: null
+    path:
+      default: null
+    scheme:
+      default: http
+    port:
+      api:
+        default: 6385
+        public: 80
 
 pod:
   user:
@@ -1263,6 +1314,9 @@ pod:
     nova_compute:
       init_container: null
       nova_compute:
+    nova_compute_ironic:
+      init_container: null
+      nova_compute_ironic:
     nova_api_metadata:
       init_container: null
       nova_api_metadata:
@@ -1295,6 +1349,7 @@ pod:
       nova_spiceproxy:
   replicas:
     api_metadata: 1
+    compute_ironic: 1
     placement: 1
     osapi: 1
     conductor: 1
@@ -1333,6 +1388,13 @@ pod:
   resources:
     enabled: false
     compute:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+    compute_ironic:
       requests:
         memory: "128Mi"
         cpu: "100m"
@@ -1510,3 +1572,4 @@ manifests:
   service_novncproxy: true
   service_spiceproxy: true
   service_osapi: true
+  statefulset_compute_ironic: false
