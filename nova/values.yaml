@@ -65,6 +65,7 @@ images:
     db_drop: docker.io/openstackhelm/heat:newton
     db_init: docker.io/openstackhelm/heat:newton
     dep_check: 'quay.io/stackanetes/kubernetes-entrypoint:v0.2.1'
+    rabbit_init: docker.io/rabbitmq:3.7-management
     ks_user: docker.io/openstackhelm/heat:newton
     ks_service: docker.io/openstackhelm/heat:newton
     ks_endpoints: docker.io/openstackhelm/heat:newton
@@ -199,6 +200,7 @@ dependencies:
         - nova-db-sync
         - nova-ks-user
         - nova-ks-endpoints
+        - nova-rabbit-init
       services:
         - endpoint: internal
           service: oslo_messaging
@@ -217,6 +219,7 @@ dependencies:
     cell_setup:
       jobs:
         - nova-db-sync
+        - nova-rabbit-init
       services:
         - endpoint: internal
           service: oslo_messaging
@@ -231,6 +234,7 @@ dependencies:
         - libvirt
       jobs:
         - nova-db-sync
+        - nova-rabbit-init
       services:
         - endpoint: internal
           service: oslo_messaging
@@ -243,6 +247,7 @@ dependencies:
     compute_ironic:
       jobs:
         - nova-db-sync
+        - nova-rabbit-init
       services:
         - endpoint: internal
           service: oslo_messaging
@@ -257,6 +262,7 @@ dependencies:
     conductor:
       jobs:
         - nova-db-sync
+        - nova-rabbit-init
       services:
         - endpoint: internal
           service: oslo_messaging
@@ -269,6 +275,7 @@ dependencies:
     consoleauth:
       jobs:
         - nova-db-sync
+        - nova-rabbit-init
       services:
         - endpoint: internal
           service: oslo_messaging
@@ -306,6 +313,10 @@ dependencies:
       services:
         - endpoint: internal
           service: identity
+    rabbit_init:
+      services:
+      - service: oslo_messaging
+        endpoint: internal
     novncproxy:
       jobs:
         - nova-db-sync
@@ -315,6 +326,7 @@ dependencies:
     scheduler:
       jobs:
         - nova-db-sync
+        - nova-rabbit-init
       services:
         - endpoint: internal
           service: oslo_messaging
@@ -1048,6 +1060,9 @@ secrets:
   oslo_db_cell0:
     admin: nova-db-api-admin
     nova: nova-db-api-user
+  oslo_messaging:
+    admin: nova-rabbitmq-admin
+    nova: nova-rabbitmq-user
 
 # typically overriden by environmental
 # values, but should include all endpoints
@@ -1107,8 +1122,11 @@ endpoints:
         default: 3306
   oslo_messaging:
     auth:
-      nova:
+      admin:
         username: rabbitmq
+        password: password
+      nova:
+        username: nova
         password: password
     hosts:
       default: rabbitmq
@@ -1119,6 +1137,8 @@ endpoints:
     port:
       amqp:
         default: 5672
+      http:
+        default: 15672
   oslo_cache:
     hosts:
       default: memcached
@@ -1493,6 +1513,13 @@ pod:
         limits:
           memory: "1024Mi"
           cpu: "2000m"
+      rabbit_init:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
       db_sync:
         requests:
           memory: "128Mi"
@@ -1563,6 +1590,7 @@ manifests:
   job_db_init_placement: true
   job_db_sync: true
   job_db_drop: false
+  job_rabbit_init: true
   job_ks_endpoints: true
   job_ks_service: true
   job_ks_user: true
@@ -1578,6 +1606,7 @@ manifests:
   secret_db: true
   secret_keystone: true
   secret_keystone_placement: true
+  secret_rabbitmq: true
   service_ingress_metadata: true
   service_ingress_placement: true
   service_ingress_osapi: true

@@ -35,6 +35,7 @@ images:
     keystone_db_sync: docker.io/openstackhelm/keystone:newton
     db_drop: docker.io/openstackhelm/heat:newton
     ks_user: docker.io/openstackhelm/heat:newton
+    rabbit_init: docker.io/rabbitmq:3.7-management
     keystone_fernet_setup: docker.io/openstackhelm/keystone:newton
     keystone_fernet_rotate: docker.io/openstackhelm/keystone:newton
     keystone_credential_setup: docker.io/openstackhelm/keystone:newton
@@ -111,6 +112,10 @@ dependencies:
       services:
         - endpoint: internal
           service: oslo_db
+    rabbit_init:
+      services:
+      - service: oslo_messaging
+        endpoint: internal
     domain_manage:
       services:
         - endpoint: internal
@@ -217,6 +222,13 @@ pod:
           memory: "1024Mi"
           cpu: "2000m"
       db_drop:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      rabbit_init:
         requests:
           memory: "128Mi"
           cpu: "100m"
@@ -734,6 +746,9 @@ secrets:
   oslo_db:
     admin: keystone-db-admin
     keystone: keystone-db-user
+  oslo_messaging:
+    admin: keystone-rabbitmq-admin
+    keystone: keystone-rabbitmq-user
 
 # typically overriden by environmental
 # values, but should include all endpoints
@@ -794,8 +809,11 @@ endpoints:
   oslo_messaging:
     namespace: null
     auth:
-      keystone:
+      admin:
         username: rabbitmq
+        password: password
+      keystone:
+        username: keystone
         password: password
     hosts:
       default: rabbitmq
@@ -806,6 +824,8 @@ endpoints:
     port:
       amqp:
         default: 5672
+      http:
+        default: 15672
   oslo_cache:
     namespace: null
     hosts:
@@ -830,11 +850,13 @@ manifests:
   job_db_drop: false
   job_domain_manage: true
   job_fernet_setup: true
+  job_rabbit_init: true
   pdb_api: true
   pod_rally_test: true
   secret_credential_keys: true
   secret_db: true
   secret_fernet_keys: true
   secret_keystone: true
+  secret_rabbitmq: true
   service_ingress_api: true
   service_api: true

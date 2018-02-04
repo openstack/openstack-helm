@@ -39,6 +39,7 @@ images:
     ks_user: docker.io/openstackhelm/heat:newton
     ks_service: docker.io/openstackhelm/heat:newton
     ks_endpoints: docker.io/openstackhelm/heat:newton
+    rabbit_init: docker.io/rabbitmq:3.7-management
     ironic_api: docker.io/openstackhelm/ironic:newton
     ironic_conductor: docker.io/openstackhelm/ironic:newton
     ironic_pxe: docker.io/openstackhelm/ironic:newton
@@ -209,6 +210,10 @@ dependencies:
       services:
         - endpoint: internal
           service: identity
+    rabbit_init:
+      services:
+      - service: oslo_messaging
+        endpoint: internal
     manage_cleaning_network:
       services:
         - endpoint: internal
@@ -222,6 +227,9 @@ secrets:
   oslo_db:
     admin: ironic-db-admin
     ironic: ironic-db-user
+  oslo_messaging:
+    admin: ironic-rabbitmq-admin
+    ironic: ironic-rabbitmq-user
 
 # typically overriden by environmental
 # values, but should include all endpoints
@@ -336,8 +344,11 @@ endpoints:
         default: 11211
   oslo_messaging:
     auth:
-      ironic:
+      admin:
         username: rabbitmq
+        password: password
+      ironic:
+        username: ironic
         password: password
     hosts:
       default: rabbitmq
@@ -348,6 +359,8 @@ endpoints:
     port:
       amqp:
         default: 5672
+      http:
+        default: 15672
   network:
     name: neutron
     hosts:
@@ -457,6 +470,13 @@ pod:
         limits:
           memory: "1024Mi"
           cpu: "2000m"
+      rabbit_init:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
       tests:
         requests:
           memory: "128Mi"
@@ -477,9 +497,11 @@ manifests:
   job_ks_service: true
   job_ks_user: true
   job_manage_cleaning_network: true
+  job_rabbit_init: true
   pdb_api: true
   secret_db: true
   secret_keystone: true
+  secret_rabbitmq: true
   service_api: true
   service_ingress_api: true
   statefulset_conductor: true

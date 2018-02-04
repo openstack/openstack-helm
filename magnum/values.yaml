@@ -36,6 +36,7 @@ images:
     db_init: docker.io/openstackhelm/heat:newton
     magnum_db_sync: docker.io/openstackhelm/magnum:newton
     db_drop: docker.io/openstackhelm/heat:newton
+    rabbit_init: docker.io/rabbitmq:3.7-management
     ks_user: docker.io/openstackhelm/heat:newton
     ks_service: docker.io/openstackhelm/heat:newton
     ks_endpoints: docker.io/openstackhelm/heat:newton
@@ -186,7 +187,10 @@ dependencies:
       services:
         - endpoint: internal
           service: identity
-
+    rabbit_init:
+      services:
+      - service: oslo_messaging
+        endpoint: internal
 # Names of secrets used by bootstrap and environmental checks
 secrets:
   identity:
@@ -195,6 +199,9 @@ secrets:
   oslo_db:
     admin: magnum-db-admin
     magnum: magnum-db-user
+  oslo_messaging:
+    admin: magnum-rabbitmq-admin
+    magnum: magnum-rabbitmq-user
 
 # typically overriden by environmental
 # values, but should include all endpoints
@@ -275,8 +282,11 @@ endpoints:
         default: 11211
   oslo_messaging:
     auth:
-      magnum:
+      admin:
         username: rabbitmq
+        password: password
+      magnum:
+        username: magnum
         password: password
     hosts:
       default: rabbitmq
@@ -287,6 +297,8 @@ endpoints:
     port:
       amqp:
         default: 5672
+      http:
+        default: 15672
 
 pod:
   user:
@@ -391,6 +403,13 @@ pod:
         limits:
           memory: "1024Mi"
           cpu: "2000m"
+      rabbit_init:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
       tests:
         requests:
           memory: "128Mi"
@@ -411,9 +430,11 @@ manifests:
   job_ks_endpoints: true
   job_ks_service: true
   job_ks_user: true
+  job_rabbit_init: true
   pdb_api: true
   secret_db: true
   secret_keystone: true
+  secret_rabbitmq: true
   service_api: true
   service_ingress_api: true
   statefulset_conductor: true

@@ -35,6 +35,7 @@ images:
     ks_service: docker.io/openstackhelm/heat:newton
     ks_endpoints: docker.io/openstackhelm/heat:newton
     barbican_api: docker.io/openstackhelm/barbican:newton
+    rabbit_init: docker.io/rabbitmq:3.7-management
   pull_policy: "IfNotPresent"
 
 pod:
@@ -102,6 +103,13 @@ pod:
           memory: "1024Mi"
           cpu: "2000m"
       db_drop:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      rabbit_init:
         requests:
           memory: "128Mi"
           cpu: "100m"
@@ -195,6 +203,10 @@ dependencies:
       services:
         - endpoint: internal
           service: identity
+    rabbit_init:
+      services:
+      - service: oslo_messaging
+        endpoint: internal
 
 conf:
   paste:
@@ -390,6 +402,9 @@ secrets:
   oslo_db:
     admin: barbican-db-admin
     barbican: barbican-db-user
+  oslo_messaging:
+    admin: barbican-rabbitmq-admin
+    barbican: barbican-rabbitmq-user
 
 endpoints:
   cluster_domain_suffix: cluster.local
@@ -459,8 +474,11 @@ endpoints:
         default: 3306
   oslo_messaging:
     auth:
-      barbican:
+      admin:
         username: rabbitmq
+        password: password
+      barbican:
+        username: barbican
         password: password
     hosts:
       default: rabbitmq
@@ -471,6 +489,8 @@ endpoints:
     port:
       amqp:
         default: 5672
+      http:
+        default: 15672
   oslo_cache:
     hosts:
       default: memcached
@@ -489,6 +509,7 @@ manifests:
   job_db_init: true
   job_db_sync: true
   job_db_drop: false
+  job_rabbit_init: true
   job_ks_endpoints: true
   job_ks_service: true
   job_ks_user: true
@@ -496,5 +517,6 @@ manifests:
   pod_test: true
   secret_db: true
   secret_keystone: true
+  secret_rabbitmq: true
   service_ingress_api: true
   service_api: true
