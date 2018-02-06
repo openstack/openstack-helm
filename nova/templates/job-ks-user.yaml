@@ -15,54 +15,8 @@ limitations under the License.
 */}}
 
 {{- if .Values.manifests.job_ks_user }}
-{{- $envAll := . }}
+{{- $nodeSelector := dict .Values.labels.job.node_selector_key .Values.labels.job.node_selector_value }}
 {{- $dependencies := .Values.dependencies.ks_user }}
-
-{{- $serviceAccountName := "nova-ks-user" }}
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
----
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: nova-ks-user
-spec:
-  template:
-    metadata:
-      labels:
-{{ tuple $envAll "nova" "ks-user" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
-    spec:
-      serviceAccountName: {{ $serviceAccountName }}
-      restartPolicy: OnFailure
-      nodeSelector:
-        {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
-      initContainers:
-{{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
-      containers:
-        - name: nova-ks-user
-          image: {{ .Values.images.tags.ks_user }}
-          imagePullPolicy: {{ .Values.images.pull_policy }}
-{{ tuple $envAll $envAll.Values.pod.resources.jobs.db_service | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-          command:
-            - /tmp/ks-user.sh
-          volumeMounts:
-            - name: ks-user-sh
-              mountPath: /tmp/ks-user.sh
-              subPath: ks-user.sh
-              readOnly: true
-          env:
-{{- with $env := dict "ksUserSecret" .Values.secrets.identity.admin }}
-{{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 12 }}
-{{- end }}
-            - name: SERVICE_OS_SERVICE_NAME
-              value: "nova"
-{{- with $env := dict "ksUserSecret" .Values.secrets.identity.nova }}
-{{- include "helm-toolkit.snippets.keystone_user_create_env_vars" $env | indent 12 }}
-{{- end }}
-            - name: SERVICE_OS_ROLE
-              value: {{ .Values.endpoints.identity.auth.nova.role | quote }}
-      volumes:
-        - name: ks-user-sh
-          configMap:
-            name: nova-bin
-            defaultMode: 0555
+{{- $ksUserJob := dict "envAll" . "nodeSelector" $nodeSelector "dependencies" $dependencies "configMapBin" "nova-bin" "serviceName" "nova" "serviceUser" "nova" }}
+{{ $ksUserJob | include "helm-toolkit.manifests.job_ks_user" }}
 {{- end }}
