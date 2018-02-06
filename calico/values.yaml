@@ -29,7 +29,10 @@ images:
     calico_etcd: quay.io/coreos/etcd:v3.1.10
     calico_node: quay.io/calico/node:v2.6.5
     calico_cni: quay.io/calico/cni:v1.11.2
-    calico_kube_controllers: quay.io/calico/kube-controllers:v1.0.2
+    calico_cni: quay.io/calico/cni:v1.10.0
+    calico_ctl: quay.io/calico/ctl:v1.6.2
+    calico_settings: quay.io/calico/ctl:v1.6.2
+    calico_kube_policy_controller: quay.io/calico/kube-policy-controller:v0.7.0
     dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.2.1
     image_repo_sync: docker.io/docker:17.07.0
   pull_policy: IfNotPresent
@@ -54,6 +57,64 @@ pod:
         limits:
           memory: "1024Mi"
           cpu: "2000m"
+      calico_settings:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+    calico_kube_policy_controller:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+    calico_node:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+    calico_cni:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+    calico_ctl:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+    calico_etcd:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+  lifecycle:
+    upgrades:
+      deployments:
+        revision_history: 3
+        pod_replacement_strategy: RollingUpdate
+        rolling_update:
+          max_unavailable: 1
+          max_surge: 3
+    disruption_budget:
+      policy_controller:
+        min_available: 0
+    termination_grace_period:
+      policy_controller:
+        timeout: 5
+      node:
+        timeout: 5
 
 dependencies:
   etcd:
@@ -62,7 +123,11 @@ dependencies:
     services:
     - service: etcd
       endpoint: internal
-  calico_kube_controllers:
+  calico_settings:
+    services:
+    - service: etcd
+      endpoint: internal
+  calico_kube_policy_controllers:
     services:
     - service: etcd
       endpoint: internal
@@ -74,6 +139,7 @@ conditional_dependencies:
     services:
       - service: local_image_registry
         endpoint: node
+
 
 endpoints:
   cluster_domain_suffix: cluster.local
@@ -90,10 +156,27 @@ endpoints:
       registry:
         node: 5000
   etcd:
+    auth:
+      client:
+        tls:
+          crt: null
+          ca: null
+          key: null
+        path:
+          # these must be within /etc/calico
+          crt: /etc/calico/pki/crt
+          ca: /etc/calico/pki/ca
+          key: /etc/calico/pki/key
+    scheme:
+      default: http
+    path:
+      default: ' ' # space required to provide a truly empty path
     hosts:
-      default: calico-etcd
+      default: 10.96.232.136
     host_fqdn_override:
       default: null
+    service:
+      name: null
     port:
       client:
         default: 6666
@@ -112,8 +195,79 @@ networking:
   #NOTE(portdirect): this should be the physical MTU, the appropriate MTU
   # that calico should use will be calculated.
   mtu: 1500
+  settings:
+    mesh: "on"
+    # technically this could be a list, today we only support
+    # a single podSubnet, the one above.  The settings below
+    # will be applied to that ipPool
+    ippool:
+      ipip:
+        enabled: "true"
+        mode: "always"
+      nat_outgoing: "true"
+      disabled: "false"
+  bgp:
+    # our asnumber for bgp peering
+    asnumber: 64512
+    ipv4:
+      # this is a list of peer objects that will be passed
+      # directly to calicoctl - for global peers, the scope
+      # should be global and the node attribute removed
+      #
+      #  apiVersion: v1
+      #  kind: bgpPeer
+      #  metadata:
+      #    peerIP: 10.1.10.39
+      #    scope: node
+      #    node: hpnode1
+      #  spec:
+      #    asNumber: 64512
+      peers: []
+      # this is a list of additional IPv4 cidrs that if we
+      # discover IPs within them on a host, we will announce
+      # the address in addition to traditional pod workloads
+      additional_cidrs: []
+      mesh:
+        port:
+          neighbor: 179
+          listen: 179
+      no_mesh:
+        port:
+          neighbor: 179
+          listen: 179
+    ipv6:
+      # this is a list of peer objects that will be passed
+      # directly to calicoctl - for global peers, the scope
+      # should be global and the node attribute removed
+      #
+      #  apiVersion: v1
+      #  kind: bgpPeer
+      #  metadata:
+      #    peerIP: 2603:3024:1200:7500:7011:1dd6:1462:fa5b
+      #    scope: node
+      #    node: hpnode1
+      #  spec:
+      #    asNumber: 64512
+      peers: []
+      # this is a list of additional IPv6 cidrs that if we
+      # discover IPs within them on a host, we will announce
+      # them in addition to traditional pod workloads
+      additional_cidrs: []
+      mesh:
+        port:
+          neighbor: 179
+          listen: 179
+      no_mesh:
+        port:
+          neighbor: 179
+          listen: 179
 
 conf:
+  etcd:
+    credentials:
+      ca: null
+      key: null
+      certificate: null
   cni_network_config:
     name: k8s-pod-network
     cniVersion: 0.1.0
@@ -129,11 +283,31 @@ conf:
       k8s_auth_token: __SERVICEACCOUNT_TOKEN__
     kubernetes:
       kubeconfig: "/etc/cni/net.d/__KUBECONFIG_FILENAME__"
+  policy_controller:
+    # The location of the Kubernetes API.  Use the default Kubernetes
+    # service for API access.
+    K8S_API: "https://kubernetes.default:443"
+    # Choose which controllers to run.
+    ENABLED_CONTROLLERS: "policy,profile,workloadendpoint,node"
+    # Since we're running in the host namespace and might not have KubeDNS
+    # access, configure the container's /etc/hosts to resolve
+    # kubernetes.default to the correct service clusterIP.
+    CONFIGURE_ETC_HOSTS: "true"
   node:
     # Cluster type to identify the deployment type
     CLUSTER_TYPE:
       - kubeadm
       - bgp
+    # Describes which BGP networking backend to use gobgp, bird, none.  Default is bird.
+    # NOTE(alanmeadows) today this chart only supports applying the bgp customizations to
+    # bird templates - in the future we may support gobgp as well
+    CALICO_NETWORKING_BACKEND: bird
+    # Location of the CA certificate for etcd.
+    ETCD_CA_CERT_FILE: ""
+    # Location of the client key for etcd.
+    ETCD_KEY_FILE: ""
+    # Location of the client certificate for etcd.
+    ETCD_CERT_FILE: ""
     # Disable file logging so `kubectl logs` works.
     CALICO_DISABLE_FILE_LOGGING: "true"
     # Set Felix endpoint to host default action to ACCEPT.
@@ -154,12 +328,21 @@ conf:
     FELIX_PROMETHEUSMETRICSPORT: "9091"
     # Auto-detect the BGP IP address.
     IP: ""
+    # Detection of source interface for routing
+    # options include
+    # can-reach=DESTINATION
+    # interface=INTERFACE-REGEX
+    IP_AUTODETECTION_METHOD: first-found
+    IPV6_AUTODETECTION_METHOD: first-found
 
 manifests:
   configmap_bin: true
-  configmap_calico_config: true
+  configmap_etc: true
   daemonset_calico_etcd: true
   daemonset_calico_node: true
-  deployment_calico_kube_controllers: true
+  daemonset_calico_node_calicoctl: true
+  deployment_calico_kube_policy_controllers: true
   job_image_repo_sync: true
+  job_calico_settings: true
   service_calico_etcd: true
+  secret_certificates: true

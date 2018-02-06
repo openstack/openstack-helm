@@ -14,15 +14,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if .Values.manifests.deployment_calico_kube_controllers }}
+{{- if .Values.manifests.deployment_calico_kube_policy_controllers }}
 {{- $envAll := . }}
 {{- if .Values.images.local_registry.active -}}
-{{- $_ := set .Values "pod_dependency" (merge .Values.dependencies.calico_kube_controllers .Values.conditional_dependencies.local_image_registry) -}}
+{{- $_ := set .Values "pod_dependency" (merge .Values.dependencies.calico_kube_policy_controllers .Values.conditional_dependencies.local_image_registry) -}}
 {{- else -}}
-{{- $_ := set .Values "pod_dependency" .Values.dependencies.calico_kube_controllers -}}
+{{- $_ := set .Values "pod_dependency" .Values.dependencies.calico_kube_policy_controllers -}}
 {{- end -}}
 
-{{- $serviceAccountName := "calico-kube-controllers"}}
+{{- $serviceAccountName := "calico-kube-policy-controllers"}}
 {{ tuple $envAll $envAll.Values.pod_dependency $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1
@@ -60,22 +60,23 @@ rules:
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
-  name: calico-kube-controllers
+  name: calico-kube-policy-controllers
   namespace: {{ .Release.Namespace }}
   labels:
-    k8s-app: calico-kube-controllers
+    k8s-app: calico-kube-policy-controllers
 {{ tuple $envAll "calico" "kube-controller" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 spec:
   # The controllers can only have a single active instance.
   replicas: 1
   strategy:
     type: Recreate
+{{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_deployment" | indent 2 }}
   template:
     metadata:
-      name: calico-kube-controllers
+      name: calico-kube-policy-controllers
       namespace: kube-system
       labels:
-        k8s-app: calico-kube-controllers
+        k8s-app: calico-kube-policy-controllers
 {{ tuple $envAll "calico" "kube-controller" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
       annotations:
         # Mark this pod as a critical add-on; when enabled, the critical add-on scheduler
@@ -101,26 +102,46 @@ spec:
       serviceAccountName: {{ $serviceAccountName }}
       initContainers:
 {{ tuple $envAll .Values.pod_dependency list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+      terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.policy_controller.timeout | default "30" }}
       containers:
-        - name: calico-kube-controllers
-{{ tuple $envAll "calico_kube_controllers" | include "helm-toolkit.snippets.image" | indent 10 }}
+        - name: calico-policy-controller
+{{ tuple $envAll "calico_kube_policy_controller" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.calico_kube_policy_controller | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           env:
             # The location of the Calico etcd cluster.
             - name: ETCD_ENDPOINTS
               valueFrom:
                 configMapKeyRef:
-                  name: calico-config
+                  name: calico-etc
                   key: etcd_endpoints
-            # The location of the Kubernetes API.  Use the default Kubernetes
-            # service for API access.
-            - name: K8S_API
-              value: "https://kubernetes.default:443"
-            # Choose which controllers to run.
-            - name: ENABLED_CONTROLLERS
-              value: policy,profile,workloadendpoint,node
-            # Since we're running in the host namespace and might not have KubeDNS
-            # access, configure the container's /etc/hosts to resolve
-            # kubernetes.default to the correct service clusterIP.
-            - name: CONFIGURE_ETC_HOSTS
-              value: "true"
+{{ include "helm-toolkit.utils.to_k8s_env_vars" .Values.conf.policy_controller | indent 12 }}
+{{ if .Values.endpoints.etcd.auth.client.tls.ca}}
+            - name: ETCD_CA_CERT_FILE
+              value: {{ .Values.endpoints.etcd.auth.client.path.ca }}
+{{ end }}
+{{ if .Values.endpoints.etcd.auth.client.tls.key}}
+            - name: ETCD_KEY_FILE
+              value: {{ .Values.endpoints.etcd.auth.client.path.key }}
+{{ end }}
+{{ if .Values.endpoints.etcd.auth.client.tls.crt}}
+            - name: ETCD_CERT_FILE
+              value: {{ .Values.endpoints.etcd.auth.client.path.crt }}
+{{ end }}
+          volumeMounts:
+            - name: calico-certificates
+              mountPath: {{ .Values.endpoints.etcd.auth.client.path.ca }}
+              subPath: tls.ca
+              readOnly: true
+            - name: calico-certificates
+              mountPath: {{ .Values.endpoints.etcd.auth.client.path.crt }}
+              subPath: tls.crt
+              readOnly: true
+            - name: calico-certificates
+              mountPath: {{ .Values.endpoints.etcd.auth.client.path.key }}
+              subPath: tls.key
+              readOnly: true
+      volumes:
+        - name: calico-certificates
+          secret:
+            secretName: calico-certificates
 {{- end }}

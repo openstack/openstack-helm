@@ -1,0 +1,100 @@
+{{/*
+Copyright 2017 The Openstack-Helm Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.job_calico_settings }}
+{{- $envAll := . }}
+{{- $_ := set .Values "pod_dependency" .Values.dependencies.calico_settings -}}
+
+{{- $serviceAccountName := "calico-settings"}}
+{{ tuple $envAll $envAll.Values.pod_dependency $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: calico-settings
+spec:
+  template:
+    metadata:
+      annotations:
+        # Mark this pod as a critical add-on; when enabled, the critical add-on scheduler
+        # reserves resources for critical add-on pods so that they can be rescheduled after
+        # a failure.  This annotation works in tandem with the toleration below.
+        scheduler.alpha.kubernetes.io/critical-pod: ''
+      labels:
+{{ tuple $envAll "calico" "calico_settings" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+    spec:
+      hostNetwork: true
+      tolerations:
+        - key: node-role.kubernetes.io/master
+          effect: NoSchedule
+        # Allow this pod to be rescheduled while the node is in "critical add-ons only" mode.
+        # This, along with the annotation above marks this pod as a critical add-on.
+        - key: CriticalAddonsOnly
+          operator: Exists
+      serviceAccountName: {{ $serviceAccountName }}
+      restartPolicy: OnFailure
+      initContainers:
+{{ tuple $envAll .Values.pod_dependency list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container"  | indent 8 }}
+      containers:
+        - name: calico-settings
+{{ tuple $envAll "calico_settings" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.calico_settings | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          env:
+            - name: ETCD_ENDPOINTS
+              valueFrom:
+                configMapKeyRef:
+                  name: calico-etc
+                  key: etcd_endpoints
+{{ if .Values.endpoints.etcd.auth.client.tls.ca}}
+            - name: ETCD_CA_CERT_FILE
+              value: {{ .Values.endpoints.etcd.auth.client.path.ca }}
+{{ end }}
+{{ if .Values.endpoints.etcd.auth.client.tls.key}}
+            - name: ETCD_KEY_FILE
+              value: {{ .Values.endpoints.etcd.auth.client.path.key }}
+{{ end }}
+{{ if .Values.endpoints.etcd.auth.client.tls.crt}}
+            - name: ETCD_CERT_FILE
+              value: {{ .Values.endpoints.etcd.auth.client.path.crt }}
+{{ end }}
+          command:
+            - /tmp/calico-settings.sh
+          volumeMounts:
+            - name: calico-bin
+              mountPath: /tmp/calico-settings.sh
+              subPath: calico-settings.sh
+              readOnly: true
+            - name: calico-certificates
+              mountPath: {{ .Values.endpoints.etcd.auth.client.path.ca }}
+              subPath: tls.ca
+              readOnly: true
+            - name: calico-certificates
+              mountPath: {{ .Values.endpoints.etcd.auth.client.path.crt }}
+              subPath: tls.crt
+              readOnly: true
+            - name: calico-certificates
+              mountPath: {{ .Values.endpoints.etcd.auth.client.path.key }}
+              subPath: tls.key
+              readOnly: true
+      volumes:
+        - name: calico-bin
+          configMap:
+            name: calico-bin
+            defaultMode: 0555
+        - name: calico-certificates
+          secret:
+            secretName: calico-certificates
+{{- end }}
