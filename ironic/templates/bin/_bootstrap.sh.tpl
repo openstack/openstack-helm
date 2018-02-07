@@ -16,7 +16,5 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-set -xe
-
-exec nova-scheduler \
-      --config-file /etc/nova/nova.conf
+set -ex
+{{ .Values.bootstrap.script | default "echo 'Not Enabled'" }}

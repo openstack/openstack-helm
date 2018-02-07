@@ -16,7 +16,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-set -xe
+set -ex
 
-exec nova-scheduler \
-      --config-file /etc/nova/nova.conf
+mkdir -p /var/lib/openstack-helm/ironic/images
+mkdir -p /var/lib/openstack-helm/ironic/master_images
+
+exec ironic-conductor \
+      --config-file /etc/ironic/ironic.conf \
+      --config-file /tmp/pod-shared/conductor-local-ip.conf

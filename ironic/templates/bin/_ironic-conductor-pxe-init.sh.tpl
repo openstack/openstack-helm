@@ -16,7 +16,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-set -xe
+set -ex
 
-exec nova-scheduler \
-      --config-file /etc/nova/nova.conf
+apt-get update
+apt-get install ipxe -y
+
+mkdir -p /var/lib/openstack-helm/tftpboot
+mkdir -p /var/lib/openstack-helm/tftpboot/master_images
+
+for FILE in undionly.kpxe ipxe.efi; do
+  if [ -f /usr/lib/ipxe/$FILE ]; then
+    cp -v /usr/lib/ipxe/$FILE /var/lib/openstack-helm/tftpboot
+  fi
+done
