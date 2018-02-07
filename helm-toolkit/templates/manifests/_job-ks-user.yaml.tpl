@@ -16,18 +16,16 @@ limitations under the License.
 
 # This function creates a manifest for keystone user management.
 # It can be used in charts dict created similar to the following:
-# {- $nodeSelector := dict .Values.labels.node_selector_key .Values.labels.node_selector_value }
-# {- $dependencies := .Values.dependencies.ks_user }
-# {- $ksUserJob := dict "envAll" . "nodeSelector" $nodeSelector "dependencies" $dependencies "configMapBin" "senlin-bin" "serviceName" "senlin" "serviceUser" "senlin" }
+# {- $ksUserJob := dict "envAll" . "serviceName" "senlin" }
 # { $ksUserJob | include "helm-toolkit.manifests.job_ks_user" }
 
 {{- define "helm-toolkit.manifests.job_ks_user" -}}
 {{- $envAll := index . "envAll" -}}
-{{- $nodeSelector := index . "nodeSelector" -}}
-{{- $dependencies := index . "dependencies" -}}
-{{- $configMapBin := index . "configMapBin" -}}
 {{- $serviceName := index . "serviceName" -}}
-{{- $serviceUser := index . "serviceUser" -}}
+{{- $nodeSelector := index . "nodeSelector" | default ( dict $envAll.Values.labels.job.node_selector_key $envAll.Values.labels.job.node_selector_value ) -}}
+{{- $dependencies := index . "dependencies" | default $envAll.Values.dependencies.ks_user -}}
+{{- $configMapBin := index . "configMapBin" | default (printf "%s-%s" $serviceName "bin" ) -}}
+{{- $serviceUser := index . "serviceUser" | default $serviceName -}}
 {{- $serviceUserPretty := $serviceUser | replace "_" "-" -}}
 
 {{- $serviceAccountName := printf "%s-%s" $serviceUserPretty "ks-user" }}
