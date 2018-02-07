@@ -15,39 +15,19 @@
     path: "{{ logs_dir }}/prometheus"
     state: directory
 
-- name: "get exporter services in kube-system namespace"
+- name: "Get prometheus metrics from exporters in all namespaces"
   shell: |-
           set -e
-          kubectl get svc -l component=metrics -n kube-system -o json \
-            | jq -r '.items[].metadata.name'
+          NAMESPACES=$(kubectl get namespaces -o json | jq -r '.items[].metadata.name')
+          for NS in $NAMESPACES; do
+            SERVICES=$(kubectl get svc -l component=metrics -n $NS -o json | jq -r '.items[].metadata.name')
+            for SVC in $SERVICES; do
+              PORT=$(kubectl get svc $SVC -n $NS -o json | jq -r '.spec.ports[].port')
+              curl "$SVC.$NS:$PORT/metrics" >> "{{ logs_dir }}"/prometheus/$NS-$SVC.txt
+            done
+          done
   args:
     executable: /bin/bash
-  register: kube_system_exporters
-
-- include: util-common-prom-metrics.yaml
-  vars:
-    exporter: "{{ kube_system_exporter }}"
-    namespace: kube-system
-  loop_control:
-    loop_var: kube_system_exporter
-  with_items: "{{ kube_system_exporters.stdout_lines }}"
-
-- name: "get exporter services in openstack namespace"
-  shell: |-
-          set -e
-          kubectl get svc -l component=metrics -n openstack -o json \
-            | jq -r '.items[].metadata.name'
-  args:
-    executable: /bin/bash
-  register: openstack_exporters
-
-- include: util-common-prom-metrics.yaml
-  vars:
-    exporter: "{{ openstack_exporter }}"
-    namespace: openstack
-  loop_control:
-    loop_var: openstack_exporter
-  with_items: "{{ openstack_exporters.stdout_lines }}"
 
 - name: "Downloads logs to executor"
   synchronize:
