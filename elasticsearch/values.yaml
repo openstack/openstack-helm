@@ -23,6 +23,7 @@ images:
     curator:  docker.io/bobrik/curator:5.2.0
     elasticsearch: docker.io/elasticsearch:5.6.4
     helm_tests: docker.io/kolla/ubuntu-source-heat-engine:3.0.3
+    prometheus_elasticsearch_exporter: docker.io/justwatch/elasticsearch_exporter:1.0.1
     dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.2.1
     snapshot_repository: docker.io/kolla/ubuntu-source-heat-engine:3.0.3
     image_repo_sync: docker.io/docker:17.07.0
@@ -44,6 +45,10 @@ dependencies:
     services: null
   elasticsearch_data:
     services: null
+  prometheus_elasticsearch_exporter:
+    services:
+      - service: elasticsearch
+        endpoint: internal
   curator:
     services: null
   image_repo_sync:
@@ -89,6 +94,8 @@ pod:
         timeout: 600
       client:
         timeout: 600
+      prometheus_elasticsearch_exporter:
+        timeout: 600
   mounts:
     elasticsearch:
       elasticsearch:
@@ -109,6 +116,13 @@ pod:
         memory: "1024Mi"
         cpu: "2000m"
     data:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+    prometheus_elasticsearch_exporter:
       requests:
         memory: "128Mi"
         cpu: "100m"
@@ -265,6 +279,10 @@ conf:
     override:
     prefix:
     append:
+  prometheus_elasticsearch_exporter:
+    es:
+      all: true
+      timeout: 20s
 
 endpoints:
   cluster_domain_suffix: cluster.local
@@ -293,6 +311,25 @@ endpoints:
         default: 80
       discovery:
         default: 9300
+  prometheus_elasticsearch_exporter:
+    namespace: null
+    hosts:
+      default: elasticsearch-exporter
+    host_fqdn_override:
+      default: null
+    path:
+      default: /metrics
+    scheme:
+      default: 'http'
+    port:
+      metrics:
+        default: 9108
+
+monitoring:
+  prometheus:
+    enabled: false
+    elasticsearch_exporter:
+      scrape: true
 
 network:
   client:
@@ -310,6 +347,8 @@ network:
     node_port:
       enabled: false
       port: 30931
+  prometheus_elasticsearch_exporter:
+    port: 9108
 
 storage:
   elasticsearch:
@@ -341,6 +380,12 @@ manifests:
   helm_tests: true
   pvc_snapshots: false
   secret_admin: true
+  monitoring:
+    prometheus:
+      configmap_bin_exporter: true
+      deployment_exporter: true
+      service_exporter: true
+  pvc_snapshots: true
   service_data: true
   service_discovery: true
   service_logging: true
