@@ -15,53 +15,6 @@ limitations under the License.
 */}}
 
 {{- if .Values.manifests.job_ks_service }}
-{{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.ks_service }}
-
-{{- $serviceAccountName := "magnum-ks-service" }}
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
----
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: magnum-ks-service
-spec:
-  template:
-    metadata:
-      labels:
-{{ tuple $envAll "magnum" "ks-service" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
-    spec:
-      serviceAccountName: {{ $serviceAccountName }}
-      restartPolicy: OnFailure
-      nodeSelector:
-        {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
-      initContainers:
-{{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
-      containers:
-{{- range $key1, $osServiceType := tuple "container-infra" }}
-        - name: {{ $osServiceType }}-ks-service-registration
-          image: {{ $envAll.Values.images.tags.ks_service }}
-          imagePullPolicy: {{ $envAll.Values.images.pull_policy }}
-{{ tuple $envAll $envAll.Values.pod.resources.jobs.ks_service | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-          command:
-            - /tmp/ks-service.sh
-          volumeMounts:
-            - name: ks-service-sh
-              mountPath: /tmp/ks-service.sh
-              subPath: ks-service.sh
-              readOnly: true
-          env:
-{{- with $env := dict "ksUserSecret" $envAll.Values.secrets.identity.admin }}
-{{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 12 }}
-{{- end }}
-            - name: OS_SERVICE_NAME
-              value: {{ tuple $osServiceType $envAll | include "helm-toolkit.endpoints.keystone_endpoint_name_lookup" }}
-            - name: OS_SERVICE_TYPE
-              value: {{ $osServiceType }}
-{{- end }}
-      volumes:
-        - name: ks-service-sh
-          configMap:
-            name: magnum-bin
-            defaultMode: 0555
+{{- $ksServiceJob := dict "envAll" . "serviceName" "magnum" "serviceTypes" ( tuple "container-infra" ) -}}
+{{ $ksServiceJob | include "helm-toolkit.manifests.job_ks_service" }}
 {{- end }}
