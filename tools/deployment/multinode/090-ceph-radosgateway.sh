@@ -17,9 +17,10 @@
 set -xe
 
 #NOTE: Deploy command
-CEPH_PUBLIC_NETWORK=$(./tools/deployment/multinode/kube-node-subnet.sh)
-CEPH_CLUSTER_NETWORK=$(./tools/deployment/multinode/kube-node-subnet.sh)
-cat > /tmp/radosgw-openstack.yaml <<EOF
+CEPH_PUBLIC_NETWORK="$(./tools/deployment/multinode/kube-node-subnet.sh)"
+CEPH_CLUSTER_NETWORK="$(./tools/deployment/multinode/kube-node-subnet.sh)"
+CEPH_FS_ID="$(cat /tmp/ceph-fs-uuid.txt)"
+tee /tmp/radosgw-openstack.yaml <<EOF
 endpoints:
   identity:
     namespace: openstack
@@ -42,13 +43,12 @@ bootstrap:
 conf:
   config:
     global:
-      fsid: "$(cat /tmp/ceph-fs-uuid.txt)"
+      fsid: ${CEPH_FS_ID}
   rgw_ks:
     enabled: true
 EOF
-helm install ./ceph \
+helm upgrade --install radosgw-openstack ./ceph \
   --namespace=openstack \
-  --name=radosgw-openstack \
   --values=/tmp/radosgw-openstack.yaml
 
 #NOTE: Wait for deploy

@@ -17,21 +17,30 @@
 set -xe
 
 #NOTE: Deploy global ingress
-helm install ./ingress \
+tee /tmp/ingress-kube-system.yaml << EOF
+pod:
+  replicas:
+    error_page: 2
+deployment:
+  mode: cluster
+  type: DaemonSet
+network:
+  host_namespace: true
+EOF
+helm upgrade --install ingress-kube-system ./ingress \
   --namespace=kube-system \
-  --name=ingress-kube-system \
-  --set pod.replicas.error_page=2 \
-  --set deployment.mode=cluster \
-  --set deployment.type=DaemonSet \
-  --set network.host_namespace=true \
-  --set conf.services.udp.53='kube-system/kube-dns:53'
+  --values=/tmp/ingress-kube-system.yaml
 
 #NOTE: Deploy namespace ingress
-helm install ./ingress \
+tee /tmp/ingress-openstack.yaml << EOF
+pod:
+  replicas:
+    ingress: 2
+    error_page: 2
+EOF
+helm upgrade --install ingress-openstack ./ingress \
   --namespace=openstack \
-  --name=ingress-openstack \
-  --set pod.replicas.ingress=2 \
-  --set pod.replicas.error_page=2
+  --values=/tmp/ingress-openstack.yaml
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh kube-system

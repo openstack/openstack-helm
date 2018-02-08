@@ -18,12 +18,16 @@ set -xe
 
 #NOTE: Deploy command
 GLANCE_BACKEND="radosgw" # NOTE(portdirect), this could be: radosgw, rbd, swift or pvc
-helm install ./glance \
+tee /tmp/glance.yaml << EOF
+storage: ${GLANCE_BACKEND}
+pod:
+  replicas:
+    api: 2
+    registry: 2
+EOF
+helm upgrade --install glance ./glance \
   --namespace=openstack \
-  --name=glance \
-  --set pod.replicas.api=2 \
-  --set pod.replicas.registry=2 \
-  --set storage=${GLANCE_BACKEND}
+  --values=/tmp/glance.yaml
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack

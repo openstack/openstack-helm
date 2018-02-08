@@ -17,9 +17,8 @@
 set -xe
 
 #NOTE: Deploy command
-helm install ./rabbitmq \
-    --namespace=openstack \
-    --name=rabbitmq
+helm upgrade --install rabbitmq ./rabbitmq \
+    --namespace=openstack
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack

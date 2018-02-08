@@ -17,9 +17,8 @@
 set -xe
 
 #NOTE: Deploy command
-helm install ./keystone \
+helm upgrade --install keystone ./keystone \
     --namespace=openstack \
-    --name=keystone \
     --set pod.replicas.api=2
 
 #NOTE: Wait for deploy

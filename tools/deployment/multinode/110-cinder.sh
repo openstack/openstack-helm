@@ -16,14 +16,21 @@
 set -xe
 
 #NOTE: Deploy command
-helm install ./cinder \
+tee /tmp/cinder.yaml << EOF
+pod:
+  replicas:
+    api: 2
+    volume: 1
+    scheduler: 1
+    backup: 1
+conf:
+  cinder:
+    DEFAULT:
+      backup_driver: cinder.backup.drivers.swift
+EOF
+helm upgrade --install cinder ./cinder \
   --namespace=openstack \
-  --name=cinder \
-  --set pod.replicas.api=2 \
-  --set pod.replicas.volume=1 \
-  --set pod.replicas.scheduler=1 \
-  --set pod.replicas.backup=1 \
-  --set conf.cinder.DEFAULT.backup_driver=cinder.backup.drivers.swift
+  --values=/tmp/cinder.yaml
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack

@@ -17,10 +17,8 @@
 set -xe
 
 #NOTE: Deploy command
-helm install ./mariadb \
-    --namespace=openstack \
-    --name=mariadb \
-    --set volume.enabled=false
+helm upgrade --install mariadb ./mariadb \
+    --namespace=openstack
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack

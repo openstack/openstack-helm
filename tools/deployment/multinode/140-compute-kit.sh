@@ -16,34 +16,31 @@
 set -xe
 
 #NOTE: Deploy nova
+tee /tmp/nova.yaml << EOF
+labels:
+  api_metadata:
+    node_selector_key: openstack-helm-node-class
+    node_selector_value: primary
+pod:
+  replicas:
+    api_metadata: 1
+    placement: 2
+    osapi: 2
+    conductor: 2
+    consoleauth: 2
+    scheduler: 1
+    novncproxy: 1
+EOF
 if [ "x$(systemd-detect-virt)" == "xnone" ]; then
   echo 'OSH is not being deployed in virtualized environment'
-  helm install ./nova \
+  helm upgrade --install nova ./nova \
       --namespace=openstack \
-      --name=nova \
-      --set pod.replicas.api_metadata=1 \
-      --set pod.replicas.placement=2 \
-      --set pod.replicas.osapi=2 \
-      --set pod.replicas.conductor=2 \
-      --set pod.replicas.consoleauth=2 \
-      --set pod.replicas.scheduler=2 \
-      --set pod.replicas.novncproxy=1 \
-      --set labels.api_metadata.node_selector_key=openstack-helm-node-class \
-      --set labels.api_metadata.node_selector_value=primary
+      --values=/tmp/nova.yaml
 else
   echo 'OSH is being deployed in virtualized environment, using qemu for nova'
-  helm install ./nova \
+  helm upgrade --install nova ./nova \
       --namespace=openstack \
-      --name=nova \
-      --set pod.replicas.api_metadata=1 \
-      --set pod.replicas.placement=2 \
-      --set pod.replicas.osapi=2 \
-      --set pod.replicas.conductor=2 \
-      --set pod.replicas.consoleauth=2 \
-      --set pod.replicas.scheduler=2 \
-      --set pod.replicas.novncproxy=1 \
-      --set labels.api_metadata.node_selector_key=openstack-helm-node-class \
-      --set labels.api_metadata.node_selector_value=primary \
+      --values=/tmp/nova.yaml \
       --set conf.nova.libvirt.virt_type=qemu
 fi
 
@@ -87,9 +84,8 @@ conf:
       ovs:
         bridge_mappings: public:br-ex
 EOF
-helm install ./neutron \
+helm upgrade --install neutron ./neutron \
     --namespace=openstack \
-    --name=neutron \
     --values=/tmp/neutron.yaml
 
 #NOTE: Wait for deploy

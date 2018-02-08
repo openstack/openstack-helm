@@ -17,9 +17,10 @@
 set -xe
 
 #NOTE: Deploy command
-CEPH_PUBLIC_NETWORK=$(./tools/deployment/multinode/kube-node-subnet.sh)
-CEPH_CLUSTER_NETWORK=$(./tools/deployment/multinode/kube-node-subnet.sh)
-cat > /tmp/ceph-openstack-config.yaml <<EOF
+CEPH_PUBLIC_NETWORK="$(./tools/deployment/multinode/kube-node-subnet.sh)"
+CEPH_CLUSTER_NETWORK="$(./tools/deployment/multinode/kube-node-subnet.sh)"
+CEPH_FS_ID="$(cat /tmp/ceph-fs-uuid.txt)"
+tee /tmp/ceph-openstack-config.yaml <<EOF
 endpoints:
   identity:
     namespace: openstack
@@ -42,17 +43,16 @@ bootstrap:
 conf:
   config:
     global:
-      fsid: "$(cat /tmp/ceph-fs-uuid.txt)"
+      fsid: ${CEPH_FS_ID}
   rgw_ks:
     enabled: true
 EOF
-helm install ./ceph \
+helm upgrade --install ceph-openstack-config ./ceph \
   --namespace=openstack \
-  --name=ceph-openstack-config \
   --values=/tmp/ceph-openstack-config.yaml
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack
 
 #NOTE: Validate Deployment info
-helm status ceph
+helm status ceph-openstack-config

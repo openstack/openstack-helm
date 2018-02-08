@@ -17,9 +17,8 @@
 set -xe
 
 #NOTE: Deploy command
-helm install ./memcached \
-    --namespace=openstack \
-    --name=memcached
+helm upgrade --install memcached ./memcached \
+    --namespace=openstack
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack
