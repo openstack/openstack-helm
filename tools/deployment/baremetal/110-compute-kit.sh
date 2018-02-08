@@ -43,9 +43,6 @@ labels:
     metadata:
       node_selector_key: openstack-helm-node-class
       node_selector_value: primary
-  server:
-    node_selector_key: openstack-helm-node-class
-    node_selector_value: primary
 pod:
   replicas:
     server: 1
@@ -129,39 +126,9 @@ helm install ./ironic \
 tee /tmp/nova.yaml << EOF
 labels:
   agent:
-    compute:
-      node_selector_key: openstack-helm-node-class
-      node_selector_value: primary
     compute_ironic:
       node_selector_key: openstack-helm-node-class
       node_selector_value: primary
-  conductor:
-    node_selector_key: openstack-helm-node-class
-    node_selector_value: primary
-  consoleauth:
-    node_selector_key: openstack-helm-node-class
-    node_selector_value: primary
-  scheduler:
-    node_selector_key: openstack-helm-node-class
-    node_selector_value: primary
-  osapi:
-    node_selector_key: openstack-helm-node-class
-    node_selector_value: primary
-  api_metadata:
-    node_selector_key: openstack-helm-node-class
-    node_selector_value: primary
-  placement:
-    node_selector_key: openstack-helm-node-class
-    node_selector_value: primary
-  job:
-    node_selector_key: openstack-helm-node-class
-    node_selector_value: primary
-  novncproxy:
-    node_selector_key: openstack-helm-node-class
-    node_selector_value: primary
-  spiceproxy:
-    node_selector_key: openstack-helm-node-class
-    node_selector_value: primary
 conf:
   nova:
     DEFAULT:

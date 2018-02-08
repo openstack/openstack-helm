@@ -23,8 +23,6 @@ make pull-images ingress
 helm install ./ingress \
   --namespace=kube-system \
   --name=ingress-kube-system \
-  --set labels.node_selector_key=openstack-helm-node-class \
-  --set labels.node_selector_value=primary \
   --set deployment.mode=cluster \
   --set deployment.type=DaemonSet \
   --set network.host_namespace=true \
@@ -35,9 +33,7 @@ helm install ./ingress \
 #NOTE: Deploy namespace ingress
 helm install ./ingress \
   --namespace=openstack \
-  --name=ingress-openstack \
-  --set labels.node_selector_key=openstack-helm-node-class \
-  --set labels.node_selector_value=primary
+  --name=ingress-openstack
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh kube-system

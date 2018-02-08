@@ -16,6 +16,11 @@
 
 set -xe
 
+#NOTE: We only want to run control plane components on the primary node
+kubectl label nodes openstack-control-plane- --all --overwrite
+PRIMARY_NODE="$(kubectl get nodes -l openstack-helm-node-class=primary -o name | awk -F '/' '{ print $NF; exit }')"
+kubectl label node ${PRIMARY_NODE} openstack-control-plane=enabled
+
 #NOTE: Build charts
 make all
 

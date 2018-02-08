@@ -21,9 +21,7 @@ make pull-images heat
 #NOTE: Deploy command
 helm install ./heat \
   --namespace=openstack \
-  --name=heat \
-  --set labels.node_selector_key=openstack-helm-node-class \
-  --set labels.node_selector_value=primary
+  --name=heat
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack

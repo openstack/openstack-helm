@@ -22,9 +22,7 @@ make pull-images memcached
 #NOTE: Deploy command
 helm install ./memcached \
     --namespace=openstack \
-    --name=memcached \
-    --set labels.node_selector_key=openstack-helm-node-class \
-    --set labels.node_selector_value=primary
+    --name=memcached
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack

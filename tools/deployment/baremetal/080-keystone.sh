@@ -22,9 +22,7 @@ make pull-images keystone
 #NOTE: Deploy command
 helm install ./keystone \
     --namespace=openstack \
-    --name=keystone \
-    --set labels.node_selector_key=openstack-helm-node-class \
-    --set labels.node_selector_value=primary
+    --name=keystone
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack

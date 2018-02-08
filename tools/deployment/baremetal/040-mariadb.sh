@@ -23,8 +23,6 @@ make pull-images mariadb
 helm install ./mariadb \
     --namespace=openstack \
     --name=mariadb \
-    --set labels.node_selector_key=openstack-helm-node-class \
-    --set labels.node_selector_value=primary \
     --set pod.replicas.server=1
 
 #NOTE: Wait for deploy

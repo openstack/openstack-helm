@@ -23,8 +23,6 @@ make pull-images glance
 helm install ./glance \
   --namespace=openstack \
   --name=glance \
-  --set labels.node_selector_key=openstack-helm-node-class \
-  --set labels.node_selector_value=primary \
   --set storage=radosgw
 
 #NOTE: Wait for deploy
