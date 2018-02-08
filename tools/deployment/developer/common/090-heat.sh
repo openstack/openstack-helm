@@ -19,9 +19,8 @@ set -xe
 make pull-images heat
 
 #NOTE: Deploy command
-helm install ./heat \
-  --namespace=openstack \
-  --name=heat
+helm upgrade --install heat ./heat \
+  --namespace=openstack
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack

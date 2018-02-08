@@ -20,9 +20,8 @@ set -xe
 make pull-images horizon
 
 #NOTE: Deploy command
-helm install ./horizon \
+helm upgrade --install horizon ./horizon \
     --namespace=openstack \
-    --name=horizon \
     --set network.node_port.enabled=true \
     --set network.node_port.port=31000
 

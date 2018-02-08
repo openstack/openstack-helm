@@ -19,21 +19,20 @@ set -xe
 #NOTE: Pull images and lint chart
 make pull-images ingress
 
-#NOTE: Deploy global ingress
-helm install ./ingress \
+tee /tmp/ingress-kube-system.yaml << EOF
+deployment:
+  mode: cluster
+  type: DaemonSet
+network:
+  host_namespace: true
+EOF
+helm upgrade --install ingress-kube-system ./ingress \
   --namespace=kube-system \
-  --name=ingress-kube-system \
-  --set deployment.mode=cluster \
-  --set deployment.type=DaemonSet \
-  --set network.host_namespace=true \
-  --set network.vip.manage=false \
-  --set network.vip.addr=172.18.0.1/32 \
-  --set conf.services.udp.53='kube-system/kube-dns:53'
+  --values=/tmp/ingress-kube-system.yaml
 
 #NOTE: Deploy namespace ingress
-helm install ./ingress \
-  --namespace=openstack \
-  --name=ingress-openstack
+helm upgrade --install ingress-openstack ./ingress \
+  --namespace=openstack
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh kube-system

@@ -19,9 +19,8 @@ set -xe
 make pull-images libvirt
 
 #NOTE: Deploy command
-helm install ./libvirt \
+helm upgrade --install libvirt ./libvirt \
   --namespace=openstack \
-  --name=libvirt \
   --set ceph.enabled=false
 
 #NOTE: Wait for deploy

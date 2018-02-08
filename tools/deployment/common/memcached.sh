@@ -16,6 +16,9 @@
 
 set -xe
 
+#NOTE: Pull images and lint chart
+make pull-images memcached
+
 #NOTE: Deploy command
 helm upgrade --install memcached ./memcached \
     --namespace=openstack

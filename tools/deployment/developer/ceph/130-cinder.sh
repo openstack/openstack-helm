@@ -19,9 +19,8 @@ set -xe
 make pull-images cinder
 
 #NOTE: Deploy command
-helm install ./cinder \
-  --namespace=openstack \
-  --name=cinder
+helm upgrade --install cinder ./cinder \
+  --namespace=openstack
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack

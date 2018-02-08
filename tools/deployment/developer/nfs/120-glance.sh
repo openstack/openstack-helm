@@ -20,9 +20,8 @@ set -xe
 make pull-images glance
 
 #NOTE: Deploy command
-helm install ./glance \
+helm upgrade --install glance ./glance \
   --namespace=openstack \
-  --name=glance \
   --set storage=pvc
 
 #NOTE: Wait for deploy

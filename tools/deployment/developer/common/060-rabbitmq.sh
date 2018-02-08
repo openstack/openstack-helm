@@ -20,9 +20,8 @@ set -xe
 make pull-images rabbitmq
 
 #NOTE: Deploy command
-helm install ./rabbitmq \
+helm upgrade --install rabbitmq ./rabbitmq \
     --namespace=openstack \
-    --name=rabbitmq \
     --set pod.replicas.server=1
 
 #NOTE: Wait for deploy

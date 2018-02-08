@@ -20,7 +20,8 @@ set -xe
 make pull-images ceph
 
 #NOTE: Deploy command
-cat > /tmp/radosgw-openstack.yaml <<EOF
+CEPH_FS_ID="$(cat /tmp/ceph-fs-uuid.txt)"
+tee /tmp/radosgw-openstack.yaml <<EOF
 endpoints:
   identity:
     namespace: openstack
@@ -47,13 +48,12 @@ conf:
     config:
       global:
         osd_pool_default_size: 1
-        fsid: "$(cat /tmp/ceph-fs-uuid.txt)"
+        fsid: ${CEPH_FS_ID}
       osd:
         osd_crush_chooseleaf_type: 0
 EOF
-helm install ./ceph \
+helm upgrade --install radosgw-openstack ./ceph \
   --namespace=openstack \
-  --name=radosgw-openstack \
   --values=/tmp/radosgw-openstack.yaml
 
 #NOTE: Wait for deploy

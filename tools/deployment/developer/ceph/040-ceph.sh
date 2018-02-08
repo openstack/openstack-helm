@@ -21,7 +21,8 @@ make pull-images ceph
 
 #NOTE: Deploy command
 uuidgen > /tmp/ceph-fs-uuid.txt
-cat > /tmp/ceph.yaml <<EOF
+CEPH_FS_ID="$(cat /tmp/ceph-fs-uuid.txt)"
+tee /tmp/ceph.yaml <<EOF
 endpoints:
   identity:
     namespace: openstack
@@ -47,14 +48,13 @@ conf:
   ceph:
     config:
       global:
-        fsid: "$(cat /tmp/ceph-fs-uuid.txt)"
+        fsid: ${CEPH_FS_ID}
         osd_pool_default_size: 1
       osd:
         osd_crush_chooseleaf_type: 0
 EOF
-helm install ./ceph \
+helm upgrade --install ceph ./ceph \
   --namespace=ceph \
-  --name=ceph \
   --values=/tmp/ceph.yaml
 
 #NOTE: Wait for deploy

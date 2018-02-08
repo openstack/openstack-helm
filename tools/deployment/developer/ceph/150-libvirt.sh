@@ -19,9 +19,8 @@ set -xe
 make pull-images libvirt
 
 #NOTE: Deploy command
-helm install ./libvirt \
-  --namespace=openstack \
-  --name=libvirt
+helm upgrade --install libvirt ./libvirt \
+  --namespace=openstack
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack

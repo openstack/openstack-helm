@@ -21,9 +21,8 @@ make pull-images glance
 
 #NOTE: Deploy command
 GLANCE_BACKEND="radosgw" # NOTE(portdirect), this could be: radosgw, rbd, swift or pvc
-helm install ./glance \
+helm upgrade --install glance ./glance \
   --namespace=openstack \
-  --name=glance \
   --set storage=${GLANCE_BACKEND}
 
 #NOTE: Wait for deploy
