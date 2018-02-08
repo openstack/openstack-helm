@@ -52,6 +52,18 @@
     dest: /etc/systemd/system/docker.service.d/http-proxy.conf
     mode: 0640
 
+- name: centos | add docker-ce repository
+  when: ( ansible_distribution == 'CentOS' or ansible_distribution == 'Red Hat Enterprise Linux' ) and ( need_docker | failed )
+  get_url:
+    url: https://download.docker.com/linux/centos/docker-ce.repo
+    dest: /etc/yum.repos.d/docker-ce.repo
+
+- name: fedora | add docker-ce repository
+  when: ( ansible_distribution == 'Fedora' ) and ( need_docker | failed )
+  get_url:
+    url: https://download.docker.com/linux/fedora/docker-ce.repo
+    dest: /etc/yum.repos.d/docker-ce.repo
+
 - name: deploy docker packages
   when: need_docker | failed
   include_role:
@@ -62,7 +74,7 @@
       deb:
         - docker.io
       rpm:
-        - docker-latest
+        - docker-ce
 
 - name: restarting docker
   systemd:
