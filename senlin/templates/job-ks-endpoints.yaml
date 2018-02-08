@@ -15,59 +15,6 @@ limitations under the License.
 */}}
 
 {{- if .Values.manifests.job_ks_endpoints }}
-{{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.ks_endpoints }}
-
-{{- $serviceAccountName := "senlin-ks-endpoints" }}
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
----
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: senlin-ks-endpoints
-spec:
-  template:
-    metadata:
-      labels:
-{{ tuple $envAll "senlin" "ks-endpoints" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
-    spec:
-      serviceAccountName: {{ $serviceAccountName }}
-      restartPolicy: OnFailure
-      nodeSelector:
-        {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
-      initContainers:
-{{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
-      containers:
-{{- range $key1, $osServiceType := tuple "clustering" }}
-{{- range $key2, $osServiceEndPoint := tuple "admin" "internal" "public" }}
-        - name: {{ $osServiceType }}-ks-endpoints-{{ $osServiceEndPoint }}
-          image: {{ $envAll.Values.images.tags.ks_endpoints }}
-          imagePullPolicy: {{ $envAll.Values.images.pull_policy }}
-{{ tuple $envAll $envAll.Values.pod.resources.jobs.ks_endpoints | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-          command:
-            - /tmp/ks-endpoints.sh
-          volumeMounts:
-            - name: ks-endpoints-sh
-              mountPath: /tmp/ks-endpoints.sh
-              subPath: ks-endpoints.sh
-              readOnly: true
-          env:
-{{- with $env := dict "ksUserSecret" $envAll.Values.secrets.identity.admin }}
-{{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 12 }}
-{{- end }}
-            - name: OS_SVC_ENDPOINT
-              value: {{ $osServiceEndPoint }}
-            - name: OS_SERVICE_NAME
-              value: {{ tuple $osServiceType $envAll | include "helm-toolkit.endpoints.keystone_endpoint_name_lookup" }}
-            - name: OS_SERVICE_TYPE
-              value: {{ $osServiceType }}
-            - name: OS_SERVICE_ENDPOINT
-              value: {{ tuple $osServiceType $osServiceEndPoint "api" $envAll | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" }}
-{{- end }}
-{{- end }}
-      volumes:
-        - name: ks-endpoints-sh
-          configMap:
-            name: senlin-bin
-            defaultMode: 0555
+{{- $ksServiceJob := dict "envAll" . "serviceName" "senlin" "serviceTypes" ( tuple "clustering" ) -}}
+{{ $ksServiceJob | include "helm-toolkit.manifests.job_ks_endpoints" }}
 {{- end }}
