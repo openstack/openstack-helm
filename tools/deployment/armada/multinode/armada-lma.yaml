@@ -1,0 +1,483 @@
+---
+schema: armada/Chart/v1
+metadata:
+  schema: metadata/Document/v1
+  name: helm-toolkit
+data:
+  chart_name: helm-toolkit
+  release: helm-toolkit
+  namespace: helm-toolkit
+  timeout: 300
+  values: {}
+  source:
+    type: local
+    location: ${OSH_PATH}
+    subpath: helm-toolkit
+    reference: master
+  dependencies: []
+---
+schema: armada/Chart/v1
+metadata:
+  schema: metadata/Document/v1
+  name: osh-infra-helm-toolkit
+data:
+  chart_name: osh-infra-helm-toolkit
+  release: osh-infra-helm-toolkit
+  namespace: helm-toolkit
+  timeout: 300
+  values: {}
+  source:
+    type: local
+    location: ${OSH_INFRA_PATH}
+    subpath: helm-toolkit
+    reference: master
+  dependencies: []
+---
+schema: armada/Chart/v1
+metadata:
+  schema: metadata/Document/v1
+  name: osh-infra-ingress-controller
+data:
+  chart_name: osh-infra-ingress-controller
+  release: osh-infra-ingress-controller
+  namespace: osh-infra
+  timeout: 1800
+  install:
+    no_hooks: false
+  upgrade:
+    no_hooks: false
+  values:
+    labels:
+      node_selector_key: openstack-control-plane
+      node_selector_value: enabled
+    pod:
+      replicas:
+        error_page: 2
+        ingress: 2
+  source:
+    type: local
+    location: ${OSH_PATH}
+    subpath: ingress
+    reference: master
+  dependencies:
+    - helm-toolkit
+---
+schema: armada/Chart/v1
+metadata:
+  schema: metadata/Document/v1
+  name: osh-infra-ceph-config
+data:
+  chart_name: osh-infra-ceph-config
+  release: osh-infra-ceph-config
+  namespace: osh-infra
+  timeout: 1800
+  install:
+    no_hooks: false
+  upgrade:
+    no_hooks: false
+  values:
+    endpoints:
+      identity:
+        namespace: openstack
+      object_store:
+        namespace: ceph
+      ceph_mon:
+        namespace: ceph
+    labels:
+      jobs:
+        node_selector_key: openstack-control-plane
+        node_selector_value: enabled
+    network:
+      public: ${CEPH_NETWORK}
+      cluster: ${CEPH_NETWORK}
+    deployment:
+      storage_secrets: false
+      ceph: false
+      rbd_provisioner: false
+      cephfs_provisioner: false
+      client_secrets: true
+      rgw_keystone_user_and_endpoints: false
+    bootstrap:
+      enabled: false
+    conf:
+      rgw_ks:
+        enabled: true
+  source:
+    type: local
+    location: ${OSH_PATH}
+    subpath: ceph
+    reference: master
+  dependencies:
+    - helm-toolkit
+---
+schema: armada/Chart/v1
+metadata:
+  schema: metadata/Document/v1
+  name: osh-infra-mariadb
+data:
+  chart_name: osh-infra-mariadb
+  release: osh-infra-mariadb
+  namespace: osh-infra
+  timeout: 1800
+  install:
+    no_hooks: false
+  upgrade:
+    no_hooks: false
+  values:
+    volume:
+      enabled: false
+    pod:
+      replicas:
+        server: 1
+    endpoints:
+      oslo_db:
+        auth:
+          admin:
+            password: ${DB_ADMIN_PASSWORD}
+    labels:
+      node_selector_key: openstack-control-plane
+      node_selector_value: enabled
+  source:
+    type: local
+    location: ${OSH_PATH}
+    subpath: mariadb
+    reference: master
+  dependencies:
+    - helm-toolkit
+---
+schema: armada/Chart/v1
+metadata:
+  schema: metadata/Document/v1
+  name: elasticsearch
+data:
+  chart_name: elasticsearch
+  release: elasticsearch
+  namespace: osh-infra
+  timeout: 3600
+  install:
+    no_hooks: false
+  upgrade:
+    no_hooks: false
+  values:
+    endpoints:
+      elasticsearch:
+        auth:
+          admin:
+            password: ${ELASTICSEARCH_ADMIN_PASSWORD}
+    pod:
+      replicas:
+        data: 1
+        client: 1
+    labels:
+      node_selector_key: openstack-control-plane
+      node_selector_value: enabled
+    storage:
+      elasticsearch:
+        enabled: false
+  source:
+    type: local
+    location: ${OSH_INFRA_PATH}
+    subpath: elasticsearch
+    reference: master
+  dependencies:
+    - osh-infra-helm-toolkit
+---
+schema: armada/Chart/v1
+metadata:
+  schema: metadata/Document/v1
+  name: fluent-logging
+data:
+  chart_name: fluent-logging
+  release: fluent-logging
+  namespace: osh-infra
+  timeout: 3600
+  install:
+    no_hooks: false
+  upgrade:
+    no_hooks: false
+  values:
+    endpoints:
+      elasticsearch:
+        auth:
+          admin:
+            password: ${ELASTICSEARCH_ADMIN_PASSWORD}
+    pod:
+      replicas:
+        fluentd: 1
+    labels:
+      fluentd:
+        node_selector_key: openstack-control-plane
+        node_selector_value: enabled
+      fluentbit:
+        node_selector_key: openstack-control-plane
+        node_selector_value: enabled
+  source:
+    type: local
+    location: ${OSH_INFRA_PATH}
+    subpath: fluent-logging
+    reference: master
+  dependencies:
+    - osh-infra-helm-toolkit
+---
+schema: armada/Chart/v1
+metadata:
+  schema: metadata/Document/v1
+  name: kibana
+data:
+  chart_name: kibana
+  release: kibana
+  namespace: osh-infra
+  timeout: 1800
+  install:
+    no_hooks: false
+  upgrade:
+    no_hooks: false
+  values:
+    endpoints:
+      elasticsearch:
+        auth:
+          admin:
+            password: ${ELASTICSEARCH_ADMIN_PASSWORD}
+      kibana:
+        auth:
+          admin:
+            password: ${KIBANA_ADMIN_PASSWORD}
+    labels:
+      kibana:
+        node_selector_key: openstack-control-plane
+        node_selector_value: enabled
+  source:
+    type: local
+    location: ${OSH_INFRA_PATH}
+    subpath: kibana
+    reference: master
+  dependencies:
+    - osh-infra-helm-toolkit
+---
+schema: armada/Chart/v1
+metadata:
+  schema: metadata/Document/v1
+  name: prometheus
+data:
+  chart_name: prometheus
+  release: prometheus
+  namespace: osh-infra
+  timeout: 1800
+  install:
+    no_hooks: false
+  upgrade:
+    no_hooks: false
+  values:
+    labels:
+      node_selector_key: openstack-control-plane
+      node_selector_value: enabled
+    pod:
+      replicas:
+        prometheus: 2
+  source:
+    type: local
+    location: ${OSH_INFRA_PATH}
+    subpath: prometheus
+    reference: master
+  dependencies:
+    - osh-infra-helm-toolkit
+---
+schema: armada/Chart/v1
+metadata:
+  schema: metadata/Document/v1
+  name: prometheus-kube-state-metrics
+data:
+  chart_name: prometheus-kube-state-metrics
+  release: prometheus-kube-state-metrics
+  namespace: kube-system
+  timeout: 1800
+  install:
+    no_hooks: false
+  upgrade:
+    no_hooks: false
+  values:
+    labels:
+      node_selector_key: openstack-control-plane
+      node_selector_value: enabled
+  source:
+    type: local
+    location: ${OSH_INFRA_PATH}
+    subpath: prometheus-kube-state-metrics
+    reference: master
+  dependencies:
+    - osh-infra-helm-toolkit
+---
+schema: armada/Chart/v1
+metadata:
+  schema: metadata/Document/v1
+  name: prometheus-node-exporter
+data:
+  chart_name: prometheus-node-exporter
+  release: prometheus-node-exporter
+  namespace: kube-system
+  timeout: 1800
+  install:
+    no_hooks: false
+  upgrade:
+    no_hooks: false
+  values:
+    labels:
+      node_selector_key: openstack-control-plane
+      node_selector_value: enabled
+  source:
+    type: local
+    location: ${OSH_INFRA_PATH}
+    subpath: prometheus-node-exporter
+    reference: master
+  dependencies:
+    - osh-infra-helm-toolkit
+---
+schema: armada/Chart/v1
+metadata:
+  schema: metadata/Document/v1
+  name: prometheus-alertmanager
+data:
+  chart_name: prometheus-alertmanager
+  release: prometheus-alertmanager
+  namespace: osh-infra
+  timeout: 1800
+  install:
+    no_hooks: false
+  upgrade:
+    no_hooks: false
+  values:
+    storage:
+      enabled: false
+    labels:
+      node_selector_key: openstack-control-plane
+      node_selector_value: enabled
+  source:
+    type: local
+    location: ${OSH_INFRA_PATH}
+    subpath: prometheus-alertmanager
+    reference: master
+  dependencies:
+    - osh-infra-helm-toolkit
+---
+schema: armada/Chart/v1
+metadata:
+  schema: metadata/Document/v1
+  name: grafana
+data:
+  chart_name: grafana
+  release: grafana
+  namespace: osh-infra
+  timeout: 1800
+  install:
+    no_hooks: false
+  upgrade:
+    no_hooks: false
+  values:
+    endpoints:
+      oslo_db:
+        namespace: osh-infra
+        auth:
+          admin:
+            password: ${DB_ADMIN_PASSWORD}
+          user:
+            password: ${GRAFANA_DB_PASSWORD}
+      oslo_db_session:
+        namespace: osh-infra
+        auth:
+          admin:
+            password: ${DB_ADMIN_PASSWORD}
+          user:
+            password: ${GRAFANA_SESSION_DB_PASSWORD}
+      grafana:
+        auth:
+          admin:
+            password: ${GRAFANA_ADMIN_PASSWORD}
+    labels:
+      node_selector_key: openstack-control-plane
+      node_selector_value: enabled
+  source:
+    type: local
+    location: ${OSH_INFRA_PATH}
+    subpath: grafana
+    reference: master
+  dependencies:
+    - osh-infra-helm-toolkit
+---
+schema: armada/ChartGroup/v1
+metadata:
+  schema: metadata/Document/v1
+  name: osh-infra-ingress-controller
+data:
+  description: "LMA Ingress Controller"
+  sequenced: False
+  chart_group:
+    - osh-infra-ingress-controller
+---
+schema: armada/ChartGroup/v1
+metadata:
+  schema: metadata/Document/v1
+  name: osh-infra-ceph-config
+data:
+  description: "LMA Ceph Config"
+  sequenced: True
+  chart_group:
+    - osh-infra-ceph-config
+---
+schema: armada/ChartGroup/v1
+metadata:
+  schema: metadata/Document/v1
+  name: osh-infra-mariadb
+data:
+  description: "Mariadb"
+  sequenced: True
+  chart_group:
+    - osh-infra-mariadb
+---
+schema: armada/ChartGroup/v1
+metadata:
+  schema: metadata/Document/v1
+  name: osh-infra-logging
+data:
+  description: 'Logging Infrastructure'
+  sequenced: True
+  chart_group:
+    - elasticsearch
+    - fluent-logging
+---
+schema: armada/ChartGroup/v1
+metadata:
+  schema: metadata/Document/v1
+  name: osh-infra-monitoring
+data:
+  description: 'Monitoring Infrastructure'
+  sequenced: False
+  chart_group:
+    - prometheus-alertmanager
+    - prometheus-node-exporter
+    - prometheus-kube-state-metrics
+    - prometheus
+---
+schema: armada/ChartGroup/v1
+metadata:
+  schema: metadata/Document/v1
+  name: osh-infra-dashboards
+data:
+  description: 'Logging and Monitoring Dashboards'
+  sequenced: False
+  chart_group:
+    - grafana
+    - kibana
+---
+schema: armada/Manifest/v1
+metadata:
+  schema: metadata/Document/v1
+  name: armada-manifest
+data:
+  release_prefix: osh-infra
+  chart_groups:
+    - osh-infra-ingress-controller
+    - osh-infra-ceph-config
+    - osh-infra-logging
+    - osh-infra-monitoring
+    - osh-infra-mariadb
+    - osh-infra-dashboards

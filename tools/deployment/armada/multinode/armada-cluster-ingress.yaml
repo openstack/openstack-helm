@@ -1,0 +1,73 @@
+---
+schema: armada/Chart/v1
+metadata:
+  schema: metadata/Document/v1
+  name: helm-toolkit
+data:
+  chart_name: helm-toolkit
+  release: helm-toolkit
+  namespace: helm-toolkit
+  timeout: 300
+  values: {}
+  source:
+    type: local
+    location: ${OSH_PATH}
+    subpath: helm-toolkit
+    reference: master
+  dependencies: []
+---
+schema: armada/Chart/v1
+metadata:
+  schema: metadata/Document/v1
+  name: ingress-kube-system
+data:
+  chart_name: ingress-kube-system
+  release: ingress-kube-system
+  namespace: kube-system
+  timeout: 1800
+  install:
+    no_hooks: false
+  upgrade:
+    no_hooks: false
+  values:
+    labels:
+      node_selector_key: openstack-control-plane
+      node_selector_value: enabled
+    pod:
+      replicas:
+        error_page: 2
+    deployment:
+      mode: cluster
+      type: DaemonSet
+    network:
+      host_namespace: true
+    conf:
+      services:
+        udp:
+          53: 'kube-system/kube-dns:53'
+  source:
+    type: local
+    location: ${OSH_PATH}
+    subpath: ingress
+    reference: master
+  dependencies:
+    - helm-toolkit
+---
+schema: armada/ChartGroup/v1
+metadata:
+  schema: metadata/Document/v1
+  name: cluster-ingress-controller
+data:
+  description: "Cluster Ingress Controller"
+  sequenced: False
+  chart_group:
+    - ingress-kube-system
+---
+schema: armada/Manifest/v1
+metadata:
+  schema: metadata/Document/v1
+  name: armada-manifest
+data:
+  release_prefix: osh
+  chart_groups:
+    - cluster-ingress-controller
