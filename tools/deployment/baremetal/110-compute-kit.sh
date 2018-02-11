@@ -25,6 +25,8 @@ make pull-images nova
 #NOTE(portdirect): for simplicity we will assume the default route device
 # should be used for tunnels
 NETWORK_TUNNEL_DEV="$(sudo ip -4 route list 0/0 | awk '{ print $5; exit }')"
+OSH_IRONIC_PXE_DEV="ironic-pxe"
+OSH_IRONIC_PXE_PYSNET="ironic"
 tee /tmp/neutron.yaml << EOF
 network:
   interface:
@@ -57,71 +59,37 @@ conf:
   plugins:
     ml2_conf:
       ml2_type_flat:
-        flat_networks: public,physnet2
+        flat_networks: public,${OSH_IRONIC_PXE_PYSNET}
     openvswitch_agent:
       agent:
         tunnel_types: vxlan
       ovs:
-        bridge_mappings: "external:br-ex,physnet2:ironic-pxe"
-manifests:
-  daemonset_dhcp_agent: false
-  daemonset_metadata_agent: false
-  daemonset_l3_agent: false
+        bridge_mappings: "external:br-ex,${OSH_IRONIC_PXE_PYSNET}:${OSH_IRONIC_PXE_DEV}"
 EOF
 helm install ./neutron \
     --namespace=openstack \
     --name=neutron \
     --values=/tmp/neutron.yaml
 
-#NOTE: Wait for deploy
-./tools/deployment/common/wait-for-pods.sh openstack
-
-#NOTE: Validate Deployment info
-export OS_CLOUD=openstack_helm
-openstack service list
-sleep 30 #NOTE(portdirect): Wait for ingress controller to update rules and restart Nginx
-
-export OSH_IRONIC_PXE_NET_NAME="${OSH_IRONIC_PXE_NET_NAME:="baremetal"}"
-IRONIC_NEUTRON_CLEANING_NET_ID=$(openstack network create -f value -c id --share --provider-network-type flat \
-  --provider-physical-network physnet2 ${OSH_IRONIC_PXE_NET_NAME})
-
-export OSH_IRONIC_PXE_DEV=${OSH_IRONIC_PXE_DEV:="ironic-pxe"}
-export OSH_IRONIC_PXE_ADDR="${OSH_IRONIC_PXE_ADDR:="172.24.6.1/24"}"
-export OSH_IRONIC_PXE_SUBNET="${OSH_IRONIC_PXE_SUBNET:="172.24.6.0/24"}"
-export OSH_IRONIC_PXE_ALOC_START="${OSH_IRONIC_PXE_ALOC_START:="172.24.6.100"}"
-export OSH_IRONIC_PXE_ALOC_END="${OSH_IRONIC_PXE_ALOC_END:="172.24.6.200"}"
-export OSH_IRONIC_PXE_SUBNET_NAME="${OSH_IRONIC_PXE_SUBNET_NAME:="baremetal"}"
-openstack subnet create \
-  --gateway ${OSH_IRONIC_PXE_ADDR%/*} \
-  --allocation-pool start=${OSH_IRONIC_PXE_ALOC_START},end=${OSH_IRONIC_PXE_ALOC_END} \
-  --dns-nameserver $(kubectl get -n kube-system svc kube-dns -o json | jq -r '.spec.clusterIP') \
-  --subnet-range ${OSH_IRONIC_PXE_SUBNET} \
-  --network ${OSH_IRONIC_PXE_NET_NAME} \
-  ${OSH_IRONIC_PXE_SUBNET_NAME}
-
 tee /tmp/ironic.yaml << EOF
 labels:
   node_selector_key: openstack-helm-node-class
   node_selector_value: primary
 network:
-  interface:
-    provisioner: "${OSH_IRONIC_PXE_DEV}"
+  pxe:
+    device: "${OSH_IRONIC_PXE_DEV}"
+    neutron_provider_network: "${OSH_IRONIC_PXE_PYSNET}"
 conf:
   ironic:
     conductor:
       automated_clean: "false"
     deploy:
       shred_final_overwrite_with_zeros: "false"
-    neutron:
-      cleaning_network_uuid: "${IRONIC_NEUTRON_CLEANING_NET_ID}"
 EOF
 helm install ./ironic \
     --namespace=openstack \
     --name=ironic \
     --values=/tmp/ironic.yaml
-
-#NOTE: Wait for deploy
-./tools/deployment/common/wait-for-pods.sh openstack
 
 tee /tmp/nova.yaml << EOF
 labels:
@@ -152,12 +120,6 @@ helm install ./nova \
     --namespace=openstack \
     --name=nova \
     --values=/tmp/nova.yaml
-
-helm upgrade neutron ./neutron \
-  --values=/tmp/neutron.yaml \
-  --set=manifests.daemonset_dhcp_agent=true \
-  --set=manifests.daemonset_metadata_agent=true \
-  --set=manifests.daemonset_l3_agent=true
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack

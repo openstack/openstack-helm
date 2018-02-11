@@ -23,6 +23,8 @@ labels:
 
 images:
   tags:
+    manage_cleaning_network: docker.io/kolla/ubuntu-source-heat-engine:3.0.3
+    retrive_cleaning_network: docker.io/kolla/ubuntu-source-heat-engine:3.0.3
     bootstrap: docker.io/kolla/ubuntu-source-heat-engine:3.0.3
     db_init: docker.io/kolla/ubuntu-source-heat-engine:3.0.3
     ironic_db_sync: docker.io/kolla/ubuntu-source-ironic-api:3.0.3
@@ -88,8 +90,15 @@ conf:
       auth_url: null
 
 network:
-  interface:
-    provisioner: null
+  pxe:
+    device: ironic-pxe
+    neutron_network_name: baremetal
+    neutron_subnet_name: baremetal
+    neutron_provider_network: ironic
+    neutron_subnet_gateway: 172.24.6.1/24
+    neutron_subnet_cidr: 172.24.6.0/24
+    neutron_subnet_alloc_start: 172.24.6.100
+    neutron_subnet_alloc_end: 172.24.6.200
   api:
     ingress:
       public: true
@@ -130,6 +139,10 @@ bootstrap:
       )
 
 dependencies:
+  manage_cleaning_network:
+    services:
+    - service: network
+      endpoint: internal
   db_init:
     services:
     - service: oslo_db
@@ -171,6 +184,7 @@ dependencies:
     - ironic-db-sync
     - ironic-ks-user
     - ironic-ks-endpoints
+    - ironic-manage-cleaning-network
     services:
     - service: oslo_db
       endpoint: internal
@@ -181,6 +195,7 @@ dependencies:
     - ironic-db-sync
     - ironic-ks-user
     - ironic-ks-endpoints
+    - ironic-manage-cleaning-network
     services:
     - service: oslo_db
       endpoint: internal
@@ -451,6 +466,7 @@ manifests:
   job_ks_endpoints: true
   job_ks_service: true
   job_ks_user: true
+  job_manage_cleaning_network: true
   pdb_api: true
   secret_db: true
   secret_keystone: true

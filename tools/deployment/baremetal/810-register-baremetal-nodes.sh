@@ -30,7 +30,7 @@ while read NODE_DETAIL_RAW; do
   NODE_DETAIL=($(echo ${NODE_DETAIL_RAW}))
   NODE_BMC_IP=${NODE_DETAIL[0]}
   NODE_MAC=${NODE_DETAIL[1]}
-  if ! [ "x${MASTER_IP}" == "x${NODE_BMC_IP}" ]; then
+  if [ "$(kubectl get node -o name | wc -l)" -eq "1" ] || [ "x${MASTER_IP}" != "x${NODE_BMC_IP}" ]; then
     BM_NODE=$(openstack baremetal node create \
               --driver agent_ipmitool \
               --driver-info ipmi_username=admin \

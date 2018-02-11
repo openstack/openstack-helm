@@ -36,7 +36,7 @@ if [ "x" == "x${PXE_IP}" ]; then
   exit 1
 fi
 
-cat <<EOF>/tmp/pod-shared/conductor-local-ip.conf
+tee /tmp/pod-shared/conductor-local-ip.conf << EOF
 [DEFAULT]
 
 # IP address of this host. If unset, will determine the IP

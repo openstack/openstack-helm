@@ -47,6 +47,24 @@ spec:
       terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.api.timeout | default "30" }}
       initContainers:
 {{ tuple $envAll $dependencies $mounts_ironic_api_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+        - name: ironic-retrive-cleaning-net
+          image: {{ .Values.images.tags.retrive_cleaning_network }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+{{ tuple $envAll $envAll.Values.pod.resources.conductor | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          env:
+{{- with $env := dict "ksUserSecret" .Values.secrets.identity.ironic }}
+{{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 12 }}
+{{- end }}
+{{ include "helm-toolkit.utils.to_k8s_env_vars" $envAll.Values.network.pxe | indent 12 }}
+          command:
+            - /tmp/retreive-cleaning-network.sh
+          volumeMounts:
+            - name: ironic-bin
+              mountPath: /tmp/retreive-cleaning-network.sh
+              subPath: retreive-cleaning-network.sh
+              readOnly: true
+            - name: pod-shared
+              mountPath: /tmp/pod-shared
       containers:
         - name: ironic-api
           image: {{ .Values.images.tags.ironic_api }}
@@ -79,6 +97,8 @@ spec:
               mountPath: /etc/ironic/policy.json
               subPath: policy.json
               readOnly: true
+            - name: pod-shared
+              mountPath: /tmp/pod-shared
 {{- if $mounts_ironic_api.volumeMounts }}{{ toYaml $mounts_ironic_api.volumeMounts | indent 12 }}{{ end }}
       volumes:
         - name: ironic-bin
@@ -89,5 +109,7 @@ spec:
           configMap:
             name: ironic-etc
             defaultMode: 0444
+        - name: pod-shared
+          emptyDir: {}
 {{- if $mounts_ironic_api.volumes }}{{ toYaml $mounts_ironic_api.volumes | indent 8 }}{{ end }}
 {{- end }}

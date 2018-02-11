@@ -17,16 +17,9 @@ limitations under the License.
 */}}
 
 set -ex
-COMMAND="${@:-start}"
 
-function start () {
-  exec ironic-api \
-        --config-file /etc/ironic/ironic.conf \
-        --config-file /tmp/pod-shared/cleaning-network.conf
-}
-
-function stop () {
-  kill -TERM 1
-}
-
-$COMMAND
+IRONIC_NEUTRON_CLEANING_NET_ID=$(openstack network show ${neutron_network_name} -f value -c id)
+tee /tmp/pod-shared/cleaning-network.conf <<EOF
+[neutron]
+cleaning_network_uuid = ${IRONIC_NEUTRON_CLEANING_NET_ID}
+EOF

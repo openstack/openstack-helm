@@ -67,7 +67,7 @@ spec:
 {{ tuple $envAll $envAll.Values.pod.resources.conductor | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           env:
             - name: PROVISIONER_INTERFACE
-              value: {{ .Values.network.interface.provisioner }}
+              value: {{ .Values.network.pxe.device }}
           command:
             - /tmp/ironic-conductor-init.sh
           volumeMounts:
@@ -83,7 +83,7 @@ spec:
 {{ tuple $envAll $envAll.Values.pod.resources.conductor | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           env:
             - name: PROVISIONER_INTERFACE
-              value: {{ .Values.network.interface.provisioner }}
+              value: {{ .Values.network.pxe.device }}
           command:
             - /tmp/ironic-conductor-http-init.sh
           volumeMounts:
@@ -94,6 +94,24 @@ spec:
             - name: ironic-etc
               mountPath: /etc/nginx/nginx.conf
               subPath: nginx.conf
+              readOnly: true
+            - name: pod-shared
+              mountPath: /tmp/pod-shared
+        - name: ironic-retrive-cleaning-net
+          image: {{ .Values.images.tags.retrive_cleaning_network }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+{{ tuple $envAll $envAll.Values.pod.resources.conductor | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          env:
+{{- with $env := dict "ksUserSecret" .Values.secrets.identity.ironic }}
+{{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 12 }}
+{{- end }}
+{{ include "helm-toolkit.utils.to_k8s_env_vars" $envAll.Values.network.pxe | indent 12 }}
+          command:
+            - /tmp/retreive-cleaning-network.sh
+          volumeMounts:
+            - name: ironic-bin
+              mountPath: /tmp/retreive-cleaning-network.sh
+              subPath: retreive-cleaning-network.sh
               readOnly: true
             - name: pod-shared
               mountPath: /tmp/pod-shared
@@ -141,7 +159,7 @@ spec:
             privileged: true
           env:
             - name: PROVISIONER_INTERFACE
-              value: {{ .Values.network.interface.provisioner }}
+              value: {{ .Values.network.pxe.device }}
           command:
             - /tmp/ironic-conductor-pxe.sh
           volumeMounts:
