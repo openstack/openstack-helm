@@ -192,6 +192,14 @@
       when: kube_public_configmap_rolebinding_exists | failed
       command: kubectl --kubeconfig /mnt/rootfs/etc/kubernetes/admin.conf -n kube-public create rolebinding kubeadm:bootstrap-signer-clusterinfo --role system:bootstrap-signer-clusterinfo --user system:anonymous
 
+- name: adding labels to namespace to support network policy
+  delegate_to: 127.0.0.1
+  command: kubectl --kubeconfig=/mnt/rootfs/etc/kubernetes/admin.conf  label --overwrite namespace {{ item }} name={{ item }}
+  with_items:
+    - default
+    - kube-system
+    - kube-public
+
 - name: converting the cluster to be selfhosted
   when: k8s.selfHosted|bool == true
   delegate_to: 127.0.0.1
@@ -219,11 +227,3 @@
         owner: "{{ vars.user.uid }}"
         group: "{{ vars.user.gid }}"
         mode: 0600
-
-- name: add labels to namespace
-  delegate_to: 127.0.0.1
-  command: kubectl label --overwrite namespace {{ item }} name={{ item }}
-  with_items:
-    - default
-    - kube-system
-  ignore_errors: True
