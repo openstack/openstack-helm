@@ -10,7 +10,7 @@ goal is to provide containerized, yet stable `persistent
 volumes <https://kubernetes.io/docs/concepts/storage/persistent-volumes/>`_
 that Kubernetes can use to schedule applications that require state,
 such as MariaDB (Galera). Although we assume that the project should
-provide a “batteries included” approach towards persistent storage, we
+provide a "batteries included" approach towards persistent storage, we
 want to allow operators to define their own solution as well. Examples
 of this work will be documented in another section, however evidence of
 this is found throughout the project. If you have any questions or
