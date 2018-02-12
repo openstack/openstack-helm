@@ -28,16 +28,26 @@ limitations under the License.
 {{- $_ := set .Values.conf.prometheus.scrape_configs "rule_files" $envAll.Values.__rule_files -}}
 {{- end -}}
 
+{{- if not (empty $envAll.Values.conf.prometheus.scrape_configs.scrape_configs) }}
+{{- $_ := set $envAll.Values "__updated_scrape_configs" ( list ) }}
+{{- $promScrapeTarget := first $envAll.Values.conf.prometheus.scrape_configs.scrape_configs }}
+{{- if (empty $promScrapeTarget.basic_auth) }}
+{{- $_ := set $promScrapeTarget "basic_auth" $envAll.Values.endpoints.monitoring.auth.admin }}
+{{- end }}
+{{- end }}
+
 ---
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: prometheus-etc
 data:
-  prometheus.yml: |
+  prometheus.yml: |+
 {{ toYaml .Values.conf.prometheus.scrape_configs | indent 4 }}
 {{ range $key, $value := .Values.conf.prometheus.rules }}
   {{ $key }}.rules: |
 {{ toYaml $value | indent 4 }}
 {{ end }}
+#NOTE(srwilkers): this must be last, to work round helm ~2.7 bug.
+{{- include "helm-toolkit.snippets.values_template_renderer" (dict "envAll" $envAll "template" .Values.conf.httpd "key" "httpd.conf") | indent 2 }}
 {{- end }}

@@ -26,6 +26,16 @@ limitations under the License.
 {{- $datasource_url := tuple $datasource "internal" "api" $envAll | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" }}
 {{- $_ := set $config "url" $datasource_url }}
 {{- end }}
+{{- if and ($config.basicAuth) (empty $config.basicAuthUser) -}}
+{{- $datasource_endpoint := index $envAll.Values.endpoints $datasource -}}
+{{- $datasource_user :=  $datasource_endpoint.auth.user.username -}}
+{{- $_ := set $config "basicAuthUser" $datasource_user -}}
+{{- end }}
+{{- if and ($config.basicAuth) (empty $config.basicAuthPassword) -}}
+{{- $datasource_endpoint := index $envAll.Values.endpoints $datasource -}}
+{{- $datasource_password :=  $datasource_endpoint.auth.user.password -}}
+{{- $_ := set $config "basicAuthPassword" $datasource_password -}}
+{{- end }}
 {{- $__datasources := append $envAll.Values.__datasources $config }}
 {{- $_ := set $envAll.Values "__datasources" $__datasources }}
 {{- end }}
