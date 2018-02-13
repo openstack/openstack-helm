@@ -31,8 +31,8 @@ if [ "x$STORAGE_BACKEND" == "xcinder.volume.drivers.rbd.RBDDriver" ]; then
   ceph -s
   function ensure_pool () {
     ceph osd pool stats $1 || ceph osd pool create $1 $2
-    local test_luminous=$(ceph -v | egrep -q "12.2|luminous"; echo $?)
-    if [[ ${test_luminous} -eq 0 ]]; then
+    local test_luminous=$(ceph tell osd.* version | egrep -c "12.2|luminous")
+    if [[ ${test_luminous} -gt 0 ]]; then
       ceph osd pool application enable $1 $3
     fi
   }
