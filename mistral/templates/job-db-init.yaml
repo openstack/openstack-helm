@@ -15,67 +15,6 @@ limitations under the License.
 */}}
 
 {{- if .Values.manifests.job_db_init }}
-{{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.db_init }}
-
-{{- $serviceAccountName := "mistral-db-init" }}
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
----
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: mistral-db-init
-spec:
-  template:
-    metadata:
-      labels:
-{{ tuple $envAll "mistral" "db-init" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
-    spec:
-      serviceAccountName: {{ $serviceAccountName }}
-      restartPolicy: OnFailure
-      nodeSelector:
-        {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
-      initContainers:
-{{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
-      containers:
-        - name: mistral-db-init
-          image: {{ .Values.images.tags.db_init | quote }}
-          imagePullPolicy: {{ .Values.images.pull_policy | quote }}
-{{ tuple $envAll $envAll.Values.pod.resources.jobs.db_init | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-          env:
-            - name: ROOT_DB_CONNECTION
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.secrets.oslo_db.admin }}
-                  key: DB_CONNECTION
-            - name: OPENSTACK_CONFIG_FILE
-              value: /etc/mistral/mistral.conf
-            - name: OPENSTACK_CONFIG_DB_SECTION
-              value: database
-            - name: OPENSTACK_CONFIG_DB_KEY
-              value: connection
-          command:
-            - /tmp/db-init.py
-          volumeMounts:
-            - name: mistral-bin
-              mountPath: /tmp/db-init.py
-              subPath: db-init.py
-              readOnly: true
-            - name: pod-etc-mistral
-              mountPath: /etc/mistral
-            - name: mistral-etc
-              mountPath: /etc/mistral/mistral.conf
-              subPath: mistral.conf
-              readOnly: true
-      volumes:
-        - name: mistral-bin
-          configMap:
-            name: mistral-bin
-            defaultMode: 0555
-        - name: pod-etc-mistral
-          emptyDir: {}
-        - name: mistral-etc
-          configMap:
-            name: mistral-etc
-            defaultMode: 0444
+{{- $dbInitJob := dict "envAll" . "serviceName" "mistral" -}}
+{{ $dbInitJob | include "helm-toolkit.manifests.job_db_init_mysql" }}
 {{- end }}

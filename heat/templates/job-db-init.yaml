@@ -15,67 +15,6 @@ limitations under the License.
 */}}
 
 {{- if .Values.manifests.job_db_init }}
-{{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.db_init }}
-
-{{- $serviceAccountName := "heat-db-init" }}
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
----
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: heat-db-init
-spec:
-  template:
-    metadata:
-      labels:
-{{ tuple $envAll "heat" "db-init" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
-    spec:
-      serviceAccountName: {{ $serviceAccountName }}
-      restartPolicy: OnFailure
-      nodeSelector:
-        {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
-      initContainers:
-{{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
-      containers:
-        - name: heat-db-init
-          image: {{ .Values.images.tags.db_init | quote }}
-          imagePullPolicy: {{ .Values.images.pull_policy | quote }}
-{{ tuple $envAll $envAll.Values.pod.resources.jobs.db_init | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-          env:
-            - name: ROOT_DB_CONNECTION
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.secrets.oslo_db.admin }}
-                  key: DB_CONNECTION
-            - name: OPENSTACK_CONFIG_FILE
-              value: /etc/heat/heat.conf
-            - name: OPENSTACK_CONFIG_DB_SECTION
-              value: database
-            - name: OPENSTACK_CONFIG_DB_KEY
-              value: connection
-          command:
-            - /tmp/db-init.py
-          volumeMounts:
-            - name: heat-bin
-              mountPath: /tmp/db-init.py
-              subPath: db-init.py
-              readOnly: true
-            - name: etcheat
-              mountPath: /etc/heat
-            - name: heat-etc
-              mountPath: /etc/heat/heat.conf
-              subPath: heat.conf
-              readOnly: true
-      volumes:
-        - name: etcheat
-          emptyDir: {}
-        - name: heat-etc
-          configMap:
-            name: heat-etc
-            defaultMode: 0444
-        - name: heat-bin
-          configMap:
-            name: heat-bin
-            defaultMode: 0555
+{{- $dbInitJob := dict "envAll" . "serviceName" "heat" -}}
+{{ $dbInitJob | include "helm-toolkit.manifests.job_db_init_mysql" }}
 {{- end }}
