@@ -24,22 +24,15 @@ pgsql_superuser_cmd () {
   if [[ ! -z $2 ]]; then
       EXPORT PGDATABASE=$2
   fi
-
+  if [[ ! -z "${ROOT_DB_PASS}" ]]; then
+      export PGPASSWORD="${ROOT_DB_PASS}"
+  fi
   psql \
   -h ${DB_FQDN} \
   -p ${DB_PORT} \
   -U ${ROOT_DB_USER} \
   --command="${DB_COMMAND}"
-}
-
-pgsql_superuser_cmd () {
-  DB_COMMAND="$1"
-
-  psql \
-  -h ${DB_FQDN} \
-  -p ${DB_PORT} \
-  -U ${ROOT_DB_USER} \
-  --command="${DB_COMMAND}"
+  unset PGPASSWORD
 }
 
 if [[ ! -v ROOT_DB_CONNECTION ]]; then
@@ -95,3 +88,4 @@ pgsql_superuser_cmd "SELECT * FROM pg_roles WHERE rolname = '$DB_USER';" | tail 
 
 #give permissions to user
 pgsql_superuser_cmd "GRANT ALL PRIVILEGES ON DATABASE $DB_NAME to $DB_USER;"
+
