@@ -19,6 +19,8 @@ set -xe
 #NOTE: Pull images and lint chart
 make pull-images ingress
 
+#NOTE: Deploy command
+: ${EXTRA_CONFIG:=""}
 tee /tmp/ingress-kube-system.yaml << EOF
 deployment:
   mode: cluster
@@ -28,7 +30,8 @@ network:
 EOF
 helm upgrade --install ingress-kube-system ./ingress \
   --namespace=kube-system \
-  --values=/tmp/ingress-kube-system.yaml
+  --values=/tmp/ingress-kube-system.yaml \
+  ${EXTRA_CONFIG}
 
 #NOTE: Deploy namespace ingress
 helm upgrade --install ingress-openstack ./ingress \

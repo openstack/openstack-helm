@@ -57,7 +57,7 @@ for LIBVIRT_POD in ${LIBVIRT_PODS}; do
   kubectl exec -n libvirt ${LIBVIRT_POD} -- sh -c "virsh undefine fake-baremetal-1 || true"
   kubectl exec -n libvirt ${LIBVIRT_POD} -- virsh define /tmp/fake-baremetal-1.xml
   kubectl exec -n libvirt ${LIBVIRT_POD} -- sh -c "vbmc delete fake-baremetal-1 || true"
-  kubectl exec -n libvirt ${LIBVIRT_POD} -- vbmc add fake-baremetal-1
+  kubectl exec -n libvirt ${LIBVIRT_POD} -- vbmc add fake-baremetal-1 --address ${LIBVIRT_NODE_IP}
   kubectl exec -n libvirt ${LIBVIRT_POD} -- sh -c "nohup vbmc start fake-baremetal-1 &>/dev/null &"
   kubectl exec -n libvirt ${LIBVIRT_POD} -- virsh list --all
   kubectl exec -n libvirt ${LIBVIRT_POD} -- vbmc show fake-baremetal-1

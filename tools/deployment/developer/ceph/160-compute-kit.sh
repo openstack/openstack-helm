@@ -20,15 +20,18 @@ make pull-images nova
 make pull-images neutron
 
 #NOTE: Deploy nova
+: ${EXTRA_CONFIG:=""}
 if [ "x$(systemd-detect-virt)" == "xnone" ]; then
   echo 'OSH is not being deployed in virtualized environment'
   helm upgrade --install nova ./nova \
-      --namespace=openstack
+      --namespace=openstack \
+      ${EXTRA_CONFIG}
 else
   echo 'OSH is being deployed in virtualized environment, using qemu for nova'
   helm upgrade --install nova ./nova \
       --namespace=openstack \
-      --set conf.nova.libvirt.virt_type=qemu
+      --set conf.nova.libvirt.virt_type=qemu \
+      ${EXTRA_CONFIG}
 fi
 
 #NOTE: Deploy neutron
@@ -56,7 +59,8 @@ conf:
 EOF
 helm upgrade --install neutron ./neutron \
     --namespace=openstack \
-    --values=/tmp/neutron.yaml
+    --values=/tmp/neutron.yaml \
+    ${EXTRA_CONFIG}
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack

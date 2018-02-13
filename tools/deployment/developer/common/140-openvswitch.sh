@@ -19,8 +19,10 @@ set -xe
 make pull-images openvswitch
 
 #NOTE: Deploy command
+: ${EXTRA_CONFIG:=""}
 helm upgrade --install openvswitch ./openvswitch \
-  --namespace=openstack
+  --namespace=openstack \
+  ${EXTRA_CONFIG}
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack

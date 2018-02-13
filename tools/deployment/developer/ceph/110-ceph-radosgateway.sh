@@ -20,6 +20,7 @@ set -xe
 make pull-images ceph
 
 #NOTE: Deploy command
+: ${EXTRA_CONFIG:=""}
 CEPH_FS_ID="$(cat /tmp/ceph-fs-uuid.txt)"
 tee /tmp/radosgw-openstack.yaml <<EOF
 endpoints:
@@ -50,7 +51,8 @@ conf:
 EOF
 helm upgrade --install radosgw-openstack ./ceph \
   --namespace=openstack \
-  --values=/tmp/radosgw-openstack.yaml
+  --values=/tmp/radosgw-openstack.yaml \
+  ${EXTRA_CONFIG}
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack

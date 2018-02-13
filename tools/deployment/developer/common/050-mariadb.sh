@@ -20,9 +20,11 @@ set -xe
 make pull-images mariadb
 
 #NOTE: Deploy command
+: ${EXTRA_CONFIG:=""}
 helm upgrade --install mariadb ./mariadb \
     --namespace=openstack \
-    --set pod.replicas.server=1
+    --set pod.replicas.server=1 \
+    ${EXTRA_CONFIG}
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack
