@@ -31,7 +31,7 @@ snippet for an imaginary Keystone configuration is described here:
               - log
         security_compliance:
           password_expires_ignore_user_ids:
-          # Values in a list will be converted to a comma seperated key
+          # Values in a list will be converted to a comma separated key
             - "123"
             - "456"
 
