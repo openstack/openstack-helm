@@ -25,11 +25,15 @@ labels:
   fluentbit:
     node_selector_key: openstack-control-plane
     node_selector_value: enabled
+  prometheus_fluentd_exporter:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
 
 images:
   tags:
     fluentbit: docker.io/fluent/fluent-bit:0.12.9
     fluentd: docker.io/kolla/ubuntu-source-fluentd:ocata
+    prometheus_fluentd_exporter: docker.io/srwilkers/fluentd_exporter:v0.1
     dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.2.1
     helm_tests: docker.io/kolla/ubuntu-source-heat-engine:3.0.3
     image_repo_sync: docker.io/docker:17.07.0
@@ -67,6 +71,10 @@ dependencies:
     services:
     - service: elasticsearch
       endpoint: internal
+    - service: fluentd
+      endpoint: internal
+  prometheus_fluentd_exporter:
+    services:
     - service: fluentd
       endpoint: internal
 
@@ -118,6 +126,11 @@ conf:
         Time_Format: "%Y-%m-%dT%H:%M:%S.%L"
         Time_Keep: On
   td_agent:
+    - metrics_agent:
+        header: source
+        type: monitor_agent
+        bind: 0.0.0.0
+        port: 24220
     - fluentbit_forward:
         header: source
         type: forward
@@ -139,6 +152,10 @@ conf:
         max_retry_wait: 300
         disable_retry_limit: ""
         num_threads: 8
+  fluentd_exporter:
+    log:
+      format: "logger:stdout?json=true"
+      level: "info"
 
 endpoints:
   cluster_domain_suffix: cluster.local
@@ -194,13 +211,38 @@ endpoints:
     port:
       service:
         default: 24224
+      metrics:
+        default: 24220
+  prometheus_fluentd_exporter:
+    namespace: null
+    hosts:
+      default: fluentd-exporter
+    host_fqdn_override:
+      default: null
+    path:
+      default: /metrics
+    scheme:
+      default: 'http'
+    port:
+      metrics:
+        default: 9309
+
+monitoring:
+  prometheus:
+    enabled: false
+    fluentd_exporter:
+      scrape: true
 
 network:
   fluentd:
     node_port:
       enabled: false
       port: 32329
-    port: 24224
+    port:
+      service: 24224
+      metrics: 24220
+  prometheus_fluentd_exporter:
+    port: 9309
 
 pod:
   affinity:
@@ -226,8 +268,11 @@ pod:
     termination_grace_period:
       fluentd:
         timeout: 30
+      prometheus_fluentd_exporter:
+        timeout: 30
   replicas:
     fluentd: 3
+    prometheus_fluentd_exporter: 1
   resources:
     fluentbit:
       enabled: false
@@ -245,6 +290,13 @@ pod:
       requests:
         memory: '128Mi'
         cpu: '500m'
+    prometheus_fluentd_exporter:
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+      requests:
+        memory: "128Mi"
+        cpu: "500m"
     jobs:
       image_repo_sync:
         requests:
@@ -275,5 +327,10 @@ manifests:
   daemonset_fluentbit: true
   job_image_repo_sync: true
   helm_tests: true
+  monitoring:
+    prometheus:
+      configmap_bin: true
+      deployment_exporter: true
+      service_exporter: true
   secret_elasticsearch: true
   service_fluentd: true

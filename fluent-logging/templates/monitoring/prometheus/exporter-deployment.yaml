@@ -1,0 +1,70 @@
+{{/*
+Copyright 2017 The Openstack-Helm Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if and .Values.manifests.monitoring.prometheus.deployment_exporter .Values.monitoring.prometheus.enabled }}
+{{- $envAll := . }}
+{{- $dependencies := .Values.dependencies.prometheus_fluentd_exporter }}
+
+{{ $fluentd_host := tuple "fluentd" "internal" "metrics" $envAll | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" }}
+{{ $fluentd_metrics_path := "api/plugins.json" }}
+{{ $fluentd_metrics_host := printf "http://%s/%s" $fluentd_host $fluentd_metrics_path }}
+
+{{- $serviceAccountName := "prometheus-fluentd-exporter"}}
+{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: prometheus-fluentd-exporter
+spec:
+  replicas: {{ .Values.pod.replicas.prometheus_fluentd_exporter }}
+{{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_deployment" | indent 2 }}
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "prometheus_fluentd_exporter" "exporter" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+    spec:
+      serviceAccountName: {{ $serviceAccountName }}
+      nodeSelector:
+        {{ .Values.labels.prometheus_fluentd_exporter.node_selector_key }}: {{ .Values.labels.prometheus_fluentd_exporter.node_selector_value }}
+      terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.prometheus_fluentd_exporter.timeout | default "30" }}
+      initContainers:
+{{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+      containers:
+        - name: fluentd-exporter
+          image: {{ .Values.images.tags.prometheus_fluentd_exporter }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+{{ tuple $envAll $envAll.Values.pod.resources.prometheus_fluentd_exporter | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          command:
+            - /tmp/fluentd-exporter.sh
+            - start
+          ports:
+            - name: metrics
+              containerPort: {{ .Values.network.prometheus_fluentd_exporter.port }}
+          env:
+            - name: FLUENTD_METRICS_HOST
+              value: {{ $fluentd_metrics_host }}
+          volumeMounts:
+            - name: fluentd-exporter-bin
+              mountPath: /tmp/fluentd-exporter.sh
+              subPath: fluentd-exporter.sh
+              readOnly: true
+      volumes:
+        - name: fluentd-exporter-bin
+          configMap:
+            name: fluentd-exporter-bin
+            defaultMode: 0555
+{{- end }}
