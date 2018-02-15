@@ -107,6 +107,21 @@ spec:
             - name: cinder-backup
               mountPath: {{ .Values.conf.cinder.DEFAULT.backup_posix_path }}
         {{ end }}
+        {{- if eq ( split "://" .Values.conf.cinder.coordination.backend_url )._0 "file" }}
+        - name: ceph-coordination-volume-perms
+          image: {{ .Values.images.tags.cinder_backup }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+          securityContext:
+            runAsUser: 0
+          command:
+            - chown
+            - -R
+            - "cinder:"
+            - {{ ( split "://" .Values.conf.cinder.coordination.backend_url )._1 }}
+          volumeMounts:
+            - name: cinder-coordination
+              mountPath: {{ ( split "://" .Values.conf.cinder.coordination.backend_url )._1 }}
+        {{ end }}
       containers:
         - name: cinder-backup
           image: {{ .Values.images.tags.cinder_backup }}
@@ -143,6 +158,10 @@ spec:
             {{- if eq .Values.conf.cinder.DEFAULT.backup_driver "cinder.backup.drivers.posix" }}
             - name: cinder-backup
               mountPath: {{ .Values.conf.cinder.DEFAULT.backup_posix_path }}
+            {{- end }}
+            {{- if eq ( split "://" .Values.conf.cinder.coordination.backend_url )._0 "file" }}
+            - name: cinder-coordination
+              mountPath: {{ ( split "://" .Values.conf.cinder.coordination.backend_url )._1 }}
             {{- end }}
             - name: cinder-etc
               # NOTE (Portdirect): We mount here to override Kollas
@@ -195,6 +214,12 @@ spec:
         - name: cinder-backup
           persistentVolumeClaim:
             claimName: cinder-backup
+        {{- end }}
+        {{- if eq ( split "://" .Values.conf.cinder.coordination.backend_url )._0 "file" }}
+        #NOTE (portdirect): this will need to be set to a shared mount amongst all cinder
+        # pods for the coordination backend to be fully functional.
+        - name: cinder-coordination
+          emptyDir: {}
         {{- end }}
 {{ if $mounts_cinder_backup.volumes }}{{ toYaml $mounts_cinder_backup.volumes | indent 8 }}{{ end }}
 {{- end }}
