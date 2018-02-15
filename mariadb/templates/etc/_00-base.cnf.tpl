@@ -105,4 +105,3 @@ max-allowed-packet=16M
 default_character_set=utf8
 protocol=tcp
 port={{ tuple "oslo_db" "internal" "mysql" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-connect_timeout=10
