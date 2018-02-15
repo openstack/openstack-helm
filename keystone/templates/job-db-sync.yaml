@@ -14,80 +14,27 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- define "keystone.templates._job_db_sync.env_vars" -}}
+{{- $envAll := index . 0 -}}
+env:
+  - name: OS_BOOTSTRAP_ADMIN_URL
+    value: {{ tuple "identity" "admin" "admin" $envAll | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" }}
+  - name: OS_BOOTSTRAP_INTERNAL_URL
+    value: {{ tuple "identity" "internal" "api" $envAll | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" }}
+  - name: OS_BOOTSTRAP_PUBLIC_URL
+    value: {{ tuple "identity" "public" "api" $envAll | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" }}
+{{- with $env := dict "ksUserSecret" $envAll.Values.secrets.identity.admin }}
+{{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 2}}
+{{- end }}
+{{- end }}
+
 {{- if .Values.manifests.job_db_sync }}
-{{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.db_sync }}
-
-{{- $mounts_keystone_db_sync := .Values.pod.mounts.keystone_db_sync.keystone_db_sync }}
-{{- $mounts_keystone_db_sync_init := .Values.pod.mounts.keystone_db_sync.init_container }}
-
-{{- $serviceAccountName := "keystone-db-sync" }}
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
----
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: keystone-db-sync
-spec:
-  template:
-    metadata:
-      labels:
-{{ tuple $envAll "keystone" "db-sync" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
-    spec:
-      serviceAccountName: {{ $serviceAccountName }}
-      restartPolicy: OnFailure
-      nodeSelector:
-        {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
-      initContainers:
-{{ tuple $envAll $dependencies $mounts_keystone_db_sync_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
-      containers:
-        - name: keystone-db-sync
-          image: {{ .Values.images.tags.keystone_db_sync }}
-          imagePullPolicy: {{ .Values.images.pull_policy }}
-{{ tuple $envAll $envAll.Values.pod.resources.jobs.db_sync | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-          env:
-            - name: OS_BOOTSTRAP_ADMIN_URL
-              value: {{ tuple "identity" "admin" "admin" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" }}
-            - name: OS_BOOTSTRAP_INTERNAL_URL
-              value: {{ tuple "identity" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" }}
-            - name: OS_BOOTSTRAP_PUBLIC_URL
-              value: {{ tuple "identity" "public" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" }}
-{{- with $env := dict "ksUserSecret" .Values.secrets.identity.admin }}
-{{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 12 }}
-{{- end }}
-          command:
-            - /tmp/db-sync.sh
-          volumeMounts:
-          - name: etckeystone
-            mountPath: /etc/keystone
-          - name: keystone-etc
-            mountPath: /etc/keystone/keystone.conf
-            subPath: keystone.conf
-            readOnly: true
-          - name: keystone-bin
-            mountPath: /tmp/db-sync.sh
-            subPath: db-sync.sh
-            readOnly: true
+{{- $local := dict "podVolMounts" false "podVols" false -}}
 {{- if eq .Values.conf.keystone.token.provider "fernet" }}
-          - name: keystone-fernet-keys
-            mountPath: {{ .Values.conf.keystone.fernet_tokens.key_repository }}
+{{- $_ := set $local "podVolMounts" (list (dict "name" "keystone-fernet-keys" "mountPath" .Values.conf.keystone.fernet_tokens.key_repository "readOnly" true )) }}
+{{- $_ := set $local "podVols" (list (dict "name" "keystone-fernet-keys" "secret" (dict "secretName" "keystone-fernet-keys"))) }}
 {{- end }}
-{{ if $mounts_keystone_db_sync.volumeMounts }}{{ toYaml $mounts_keystone_db_sync.volumeMounts | indent 10 }}{{ end }}
-      volumes:
-      - name: etckeystone
-        emptyDir: {}
-      - name: keystone-etc
-        configMap:
-          name: keystone-etc
-          defaultMode: 0444
-      - name: keystone-bin
-        configMap:
-          name: keystone-bin
-          defaultMode: 0555
-{{- if eq .Values.conf.keystone.token.provider "fernet" }}
-      - name: keystone-fernet-keys
-        secret:
-          secretName: keystone-fernet-keys
-{{- end }}
-{{ if $mounts_keystone_db_sync.volumes }}{{ toYaml $mounts_keystone_db_sync.volumes | indent 6 }}{{ end }}
+{{- $podEnvVars := tuple . | include "keystone.templates._job_db_sync.env_vars" | toString | fromYaml }}
+{{- $dbSyncJob := dict "envAll" . "serviceName" "keystone" "podVolMounts" $local.podVolMounts "podVols" $local.podVols "podEnvVars" $podEnvVars.env -}}
+{{ $dbSyncJob | include "helm-toolkit.manifests.job_db_sync" }}
 {{- end }}

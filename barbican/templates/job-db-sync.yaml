@@ -15,55 +15,6 @@ limitations under the License.
 */}}
 
 {{- if .Values.manifests.job_db_sync }}
-{{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.db_sync }}
-
-{{- $serviceAccountName := "barbican-db-sync" }}
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
----
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: barbican-db-sync
-spec:
-  template:
-    metadata:
-      labels:
-{{ tuple $envAll "barbican" "db-sync" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
-    spec:
-      serviceAccountName: {{ $serviceAccountName }}
-      restartPolicy: OnFailure
-      nodeSelector:
-        {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
-      initContainers:
-{{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
-      containers:
-        - name: barbican-db-sync
-          image: {{ .Values.images.tags.barbican_db_sync }}
-          imagePullPolicy: {{ .Values.images.pull_policy }}
-{{ tuple $envAll $envAll.Values.pod.resources.jobs.db_sync | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-          command:
-            - /tmp/db-sync.sh
-          volumeMounts:
-            - name: etcbarbican
-              mountPath: /etc/barbican
-            - name: barbican-bin
-              mountPath: /tmp/db-sync.sh
-              subPath: db-sync.sh
-              readOnly: true
-            - name: barbican-etc
-              mountPath: /etc/barbican/barbican.conf
-              subPath: barbican.conf
-              readOnly: true
-      volumes:
-        - name: etcbarbican
-          emptyDir: {}
-        - name: barbican-etc
-          configMap:
-            name: barbican-etc
-            defaultMode: 0444
-        - name: barbican-bin
-          configMap:
-            name: barbican-bin
-            defaultMode: 0555
+{{- $dbSyncJob := dict "envAll" . "serviceName" "barbican" -}}
+{{ $dbSyncJob | include "helm-toolkit.manifests.job_db_sync" }}
 {{- end }}

@@ -15,55 +15,8 @@ limitations under the License.
 */}}
 
 {{- if .Values.manifests.job_db_sync }}
-{{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.db_sync }}
-
-{{- $serviceAccountName := "glance-db-sync" }}
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
----
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: glance-db-sync
-spec:
-  template:
-    metadata:
-      labels:
-{{ tuple $envAll "glance" "db-sync" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
-    spec:
-      serviceAccountName: {{ $serviceAccountName }}
-      restartPolicy: OnFailure
-      nodeSelector:
-        {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
-      initContainers:
-{{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
-      containers:
-        - name: glance-db-sync
-          image: {{ .Values.images.tags.glance_db_sync }}
-          imagePullPolicy: {{ .Values.images.pull_policy }}
-{{ tuple $envAll $envAll.Values.pod.resources.jobs.db_sync | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-          command:
-            - /tmp/db-sync.sh
-          volumeMounts:
-            - name: glance-bin
-              mountPath: /tmp/db-sync.sh
-              subPath: db-sync.sh
-              readOnly: true
-            - name: etcglance
-              mountPath: /etc/glance
-            - name: glance-etc
-              mountPath: /etc/glance/glance-api.conf
-              subPath: glance-api.conf
-              readOnly: true
-      volumes:
-        - name: etcglance
-          emptyDir: {}
-        - name: glance-etc
-          configMap:
-            name: glance-etc
-            defaultMode: 0444
-        - name: glance-bin
-          configMap:
-            name: glance-bin
-            defaultMode: 0555
+{{- $serviceName := "glance" -}}
+{{- $dbToSync := index . "dbToSync" | default ( dict "configFile" (printf "/etc/%s/%s.conf" $serviceName "glance-api" ) "image" ( index .Values.images.tags ( printf "%s_db_sync" $serviceName )) ) -}}
+{{- $dbSyncJob := dict "envAll" . "serviceName" $serviceName "dbToSync" $dbToSync -}}
+{{ $dbSyncJob | include "helm-toolkit.manifests.job_db_sync" }}
 {{- end }}

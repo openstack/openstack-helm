@@ -15,55 +15,6 @@ limitations under the License.
 */}}
 
 {{- if .Values.manifests.job_db_sync }}
-{{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.db_sync }}
-
-{{- $serviceAccountName := "cinder-db-sync" }}
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
----
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: cinder-db-sync
-spec:
-  template:
-    metadata:
-      labels:
-{{ tuple $envAll "cinder" "db-sync" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
-    spec:
-      serviceAccountName: {{ $serviceAccountName }}
-      restartPolicy: OnFailure
-      nodeSelector:
-        {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
-      initContainers:
-{{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
-      containers:
-        - name: cinder-db-sync
-          image: {{ .Values.images.tags.cinder_db_sync }}
-          imagePullPolicy: {{ .Values.images.pull_policy }}
-{{ tuple $envAll $envAll.Values.pod.resources.jobs.db_sync | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-          command:
-            - /tmp/db-sync.sh
-          volumeMounts:
-            - name: cinder-bin
-              mountPath: /tmp/db-sync.sh
-              subPath: db-sync.sh
-              readOnly: true
-            - name: etccinder
-              mountPath: /etc/cinder
-            - name: cinder-etc
-              mountPath: /etc/cinder/cinder.conf
-              subPath: cinder.conf
-              readOnly: true
-      volumes:
-        - name: etccinder
-          emptyDir: {}
-        - name: cinder-etc
-          configMap:
-            name: cinder-etc
-            defaultMode: 0444
-        - name: cinder-bin
-          configMap:
-            name: cinder-bin
-            defaultMode: 0555
+{{- $dbSyncJob := dict "envAll" . "serviceName" "cinder" -}}
+{{ $dbSyncJob | include "helm-toolkit.manifests.job_db_sync" }}
 {{- end }}

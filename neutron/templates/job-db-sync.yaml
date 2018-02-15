@@ -15,68 +15,7 @@ limitations under the License.
 */}}
 
 {{- if .Values.manifests.job_db_sync }}
-{{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.db_sync }}
-
-{{- $serviceAccountName := "neutron-db-sync" }}
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
----
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: neutron-db-sync
-spec:
-  template:
-    metadata:
-      labels:
-{{ tuple $envAll "neutron" "db-sync" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
-    spec:
-      serviceAccountName: {{ $serviceAccountName }}
-      restartPolicy: OnFailure
-      nodeSelector:
-        {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
-      initContainers:
-{{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
-      containers:
-        - name: neutron-db-sync
-          image: {{ .Values.images.tags.neutron_db_sync }}
-          imagePullPolicy: {{ .Values.images.pull_policy }}
-{{ tuple $envAll $envAll.Values.pod.resources.jobs.db_sync | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-          {{- if .Values.pod.resources.enabled }}
-          resources:
-            limits:
-              cpu: {{ .Values.pod.resources.jobs.db_sync.limits.cpu | quote }}
-              memory: {{ .Values.pod.resources.jobs.db_sync.limits.memory | quote }}
-            requests:
-              cpu: {{ .Values.pod.resources.jobs.db_sync.requests.cpu | quote }}
-              memory: {{ .Values.pod.resources.jobs.db_sync.requests.memory | quote }}
-          {{- end }}
-          command:
-            - /tmp/db-sync.sh
-          volumeMounts:
-            - name: neutron-bin
-              mountPath: /tmp/db-sync.sh
-              subPath: db-sync.sh
-              readOnly: true
-            - name: etcneutron
-              mountPath: /etc/neutron
-            - name: neutron-etc
-              mountPath: /etc/neutron/neutron.conf
-              subPath: neutron.conf
-              readOnly: true
-            - name: neutron-etc
-              mountPath: /etc/neutron/plugins/ml2/ml2_conf.ini
-              subPath: ml2_conf.ini
-              readOnly: true
-      volumes:
-        - name: etcneutron
-          emptyDir: {}
-        - name: neutron-etc
-          configMap:
-            name: neutron-etc
-            defaultMode: 0444
-        - name: neutron-bin
-          configMap:
-            name: neutron-bin
-            defaultMode: 0555
+{{- $podVolMounts := list (dict "name" "db-sync-conf" "mountPath" "/etc/neutron/plugins/ml2/ml2_conf.ini" "subPath" "ml2_conf.ini" "readOnly" true )}}
+{{- $dbSyncJob := dict "envAll" . "serviceName" "neutron" "podVolMounts" $podVolMounts -}}
+{{ $dbSyncJob | include "helm-toolkit.manifests.job_db_sync" }}
 {{- end }}

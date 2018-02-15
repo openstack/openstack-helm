@@ -15,55 +15,6 @@ limitations under the License.
 */}}
 
 {{- if .Values.manifests.job_db_sync }}
-{{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.db_sync }}
-
-{{- $serviceAccountName := "congress-db-sync" }}
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
----
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: congress-db-sync
-spec:
-  template:
-    metadata:
-      labels:
-{{ tuple $envAll "congress" "db-sync" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
-    spec:
-      serviceAccountName: {{ $serviceAccountName }}
-      restartPolicy: OnFailure
-      nodeSelector:
-        {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
-      initContainers:
-{{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
-      containers:
-        - name: congress-db-sync
-          image: {{ .Values.images.tags.congress_db_sync }}
-          imagePullPolicy: {{ .Values.images.pull_policy }}
-{{ tuple $envAll $envAll.Values.pod.resources.jobs.db_sync | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-          command:
-            - /tmp/db-sync.sh
-          volumeMounts:
-            - name: congress-bin
-              mountPath: /tmp/db-sync.sh
-              subPath: db-sync.sh
-              readOnly: true
-            - name: etccongress
-              mountPath: /etc/congress
-            - name: congress-etc
-              mountPath: /etc/congress/congress.conf
-              subPath: congress.conf
-              readOnly: true
-      volumes:
-        - name: etccongress
-          emptyDir: {}
-        - name: congress-etc
-          configMap:
-            name: congress-etc
-            defaultMode: 0444
-        - name: congress-bin
-          configMap:
-            name: congress-bin
-            defaultMode: 0555
+{{- $dbSyncJob := dict "envAll" . "serviceName" "congress" -}}
+{{ $dbSyncJob | include "helm-toolkit.manifests.job_db_sync" }}
 {{- end }}
