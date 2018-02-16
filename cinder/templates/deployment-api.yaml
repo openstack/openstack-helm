@@ -47,6 +47,21 @@ spec:
       terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.api.timeout | default "30" }}
       initContainers:
 {{ tuple $envAll $dependencies $mounts_cinder_api_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+        {{- if eq ( split "://" .Values.conf.cinder.coordination.backend_url )._0 "file" }}
+        - name: ceph-coordination-volume-perms
+          image: {{ .Values.images.tags.cinder_backup }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+          securityContext:
+            runAsUser: 0
+          command:
+            - chown
+            - -R
+            - "cinder:"
+            - {{ ( split "://" .Values.conf.cinder.coordination.backend_url )._1 }}
+          volumeMounts:
+            - name: cinder-coordination
+              mountPath: {{ ( split "://" .Values.conf.cinder.coordination.backend_url )._1 }}
+        {{ end }}
       containers:
         - name: cinder-api
           image: {{ .Values.images.tags.cinder_api }}
@@ -86,6 +101,10 @@ spec:
               mountPath: /etc/cinder/policy.json
               subPath: policy.json
               readOnly: true
+            {{- if eq ( split "://" .Values.conf.cinder.coordination.backend_url )._0 "file" }}
+            - name: cinder-coordination
+              mountPath: {{ ( split "://" .Values.conf.cinder.coordination.backend_url )._1 }}
+            {{- end }}
 {{ if $mounts_cinder_api.volumeMounts }}{{ toYaml $mounts_cinder_api.volumeMounts | indent 12 }}{{ end }}
       volumes:
         - name: cinder-bin
@@ -96,5 +115,11 @@ spec:
           configMap:
             name: cinder-etc
             defaultMode: 0444
+        {{- if eq ( split "://" .Values.conf.cinder.coordination.backend_url )._0 "file" }}
+        #NOTE (portdirect): this will need to be set to a shared mount amongst all cinder
+        # pods for the coordination backend to be fully functional.
+        - name: cinder-coordination
+          emptyDir: {}
+        {{- end }}
 {{ if $mounts_cinder_api.volumes }}{{ toYaml $mounts_cinder_api.volumes | indent 8 }}{{ end }}
 {{- end }}
