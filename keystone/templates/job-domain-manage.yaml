@@ -14,52 +14,66 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if .Values.manifests.job_bootstrap }}
+{{- if .Values.manifests.job_domain_manage }}
 {{- $envAll := . }}
-{{- if .Values.bootstrap.enabled }}
-{{- $dependencies := .Values.dependencies.bootstrap }}
+{{- $dependencies := .Values.dependencies.domain_manage }}
 
-{{- $mounts_keystone_bootstrap := .Values.pod.mounts.keystone_bootstrap.keystone_bootstrap }}
-{{- $mounts_keystone_bootstrap_init := .Values.pod.mounts.keystone_bootstrap.init_container }}
+{{- $mounts_keystone_domain_manage := .Values.pod.mounts.keystone_domain_manage.keystone_domain_manage }}
+{{- $mounts_keystone_domain_manage_init := .Values.pod.mounts.keystone_domain_manage.init_container }}
 
-{{- $serviceAccountName := "keystone-bootstrap" }}
+{{- $serviceAccountName := "keystone-domain-manage" }}
 {{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: keystone-bootstrap
+  name: keystone-domain-manage
 spec:
   template:
     metadata:
       labels:
-{{ tuple $envAll "keystone" "bootstrap" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+{{ tuple $envAll "keystone" "domain-manage" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
     spec:
       serviceAccountName: {{ $serviceAccountName }}
       restartPolicy: OnFailure
       nodeSelector:
         {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
       initContainers:
-{{ tuple $envAll $dependencies $mounts_keystone_bootstrap_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container"  | indent 8 }}
-      containers:
-        - name: keystone-bootstrap
+{{ tuple $envAll $dependencies $mounts_keystone_domain_manage_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container"  | indent 8 }}
+        - name: keystone-domain-manage-init
           image: {{ .Values.images.tags.bootstrap }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
-{{ tuple $envAll $envAll.Values.pod.resources.jobs.bootstrap | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.jobs.domain_manage | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           env:
 {{- with $env := dict "ksUserSecret" .Values.secrets.identity.admin }}
 {{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 12 }}
 {{- end }}
           command:
-            - /tmp/bootstrap.sh
+            - /tmp/domain-manage-init.sh
+          volumeMounts:
+            - name: keystone-bin
+              mountPath: /tmp/domain-manage-init.sh
+              subPath: domain-manage-init.sh
+              readOnly: true
+      containers:
+        - name: keystone-domain-manage
+          image: {{ .Values.images.tags.keystone_domain_manage }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+{{ tuple $envAll $envAll.Values.pod.resources.jobs.domain_manage | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          env:
+{{- with $env := dict "ksUserSecret" .Values.secrets.identity.admin }}
+{{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 12 }}
+{{- end }}
+          command:
+            - /tmp/domain-manage.sh
           volumeMounts:
             - name: etckeystonedomains
               mountPath: {{ .Values.conf.keystone.identity.domain_config_dir | default "/etc/keystonedomains" }}
             - name: etckeystone
               mountPath: /etc/keystone
             - name: keystone-bin
-              mountPath: /tmp/bootstrap.sh
-              subPath: bootstrap.sh
+              mountPath: /tmp/domain-manage.sh
+              subPath: domain-manage.sh
               readOnly: true
             - name: keystone-etc
               mountPath: /etc/keystone/keystone.conf
@@ -77,7 +91,7 @@ spec:
 {{- end }}
             - name: keystone-credential-keys
               mountPath: {{ .Values.conf.keystone.credential.key_repository }}
-{{ if $mounts_keystone_bootstrap.volumeMounts }}{{ toYaml $mounts_keystone_bootstrap.volumeMounts | indent 12 }}{{ end }}
+{{ if $mounts_keystone_domain_manage.volumeMounts }}{{ toYaml $mounts_keystone_domain_manage.volumeMounts | indent 12 }}{{ end }}
       volumes:
         - name: etckeystone
           emptyDir: {}
@@ -99,6 +113,5 @@ spec:
         - name: keystone-credential-keys
           secret:
             secretName: keystone-credential-keys
-{{ if $mounts_keystone_bootstrap.volumes }}{{ toYaml $mounts_keystone_bootstrap.volumes | indent 9 }}{{ end }}
-{{- end }}
+{{ if $mounts_keystone_domain_manage.volumes }}{{ toYaml $mounts_keystone_domain_manage.volumes | indent 9 }}{{ end }}
 {{- end }}
