@@ -14,17 +14,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if .Values.manifests.service }}
+{{- if .Values.manifests.configmap_bin }}
 {{- $envAll := . }}
+{{- $configMapBinName := printf "%s-%s" $envAll.Release.Name "memcached-bin"  }}
 ---
 apiVersion: v1
-kind: Service
+kind: ConfigMap
 metadata:
-  name: {{ tuple "oslo_cache" "internal" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
-spec:
-  sessionAffinity: ClientIP
-  ports:
-    - port: {{ tuple "oslo_cache" "internal" "memcache" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-  selector:
-{{ tuple $envAll "memcached" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+  name: {{ $configMapBinName }}
+data:
+  memcached.sh: |
+{{ tuple "bin/_memcached.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
 {{- end }}
