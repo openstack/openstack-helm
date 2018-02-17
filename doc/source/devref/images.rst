@@ -57,17 +57,17 @@ chart:
 
     images:
       tags:
-        bootstrap: docker.io/kolla/ubuntu-source-heat-engine:3.0.3
-        db_init: docker.io/kolla/ubuntu-source-heat-engine:3.0.3
+        bootstrap: docker.io/openstackhelm/heat:newton
+        db_init: docker.io/openstackhelm/heat:newton
         db_sync: docker.io/kolla/ubuntu-source-heat-api:3.0.3
-        db_drop: docker.io/kolla/ubuntu-source-heat-engine:3.0.3
-        ks_user: docker.io/kolla/ubuntu-source-heat-engine:3.0.3
-        ks_service: docker.io/kolla/ubuntu-source-heat-engine:3.0.3
-        ks_endpoints: docker.io/kolla/ubuntu-source-heat-engine:3.0.3
+        db_drop: docker.io/openstackhelm/heat:newton
+        ks_user: docker.io/openstackhelm/heat:newton
+        ks_service: docker.io/openstackhelm/heat:newton
+        ks_endpoints: docker.io/openstackhelm/heat:newton
         api: docker.io/kolla/ubuntu-source-heat-api:3.0.3
         cfn: docker.io/kolla/ubuntu-source-heat-api:3.0.3
         cloudwatch: docker.io/kolla/ubuntu-source-heat-api:3.0.3
-        engine: docker.io/kolla/ubuntu-source-heat-engine:3.0.3
+        engine: docker.io/openstackhelm/heat:newton
         dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.2.1
       pull_policy: "IfNotPresent"
 

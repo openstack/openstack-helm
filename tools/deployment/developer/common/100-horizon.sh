@@ -20,10 +20,12 @@ set -xe
 make pull-images horizon
 
 #NOTE: Deploy command
+: ${EXTRA_CONFIG:=""}
 helm upgrade --install horizon ./horizon \
     --namespace=openstack \
     --set network.node_port.enabled=true \
-    --set network.node_port.port=31000
+    --set network.node_port.port=31000 \
+    ${EXTRA_CONFIG}
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack

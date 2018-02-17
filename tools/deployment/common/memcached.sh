@@ -20,8 +20,10 @@ set -xe
 make pull-images memcached
 
 #NOTE: Deploy command
+: ${EXTRA_CONFIG:=""}
 helm upgrade --install memcached ./memcached \
-    --namespace=openstack
+    --namespace=openstack \
+    ${EXTRA_CONFIG}
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack

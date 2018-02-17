@@ -20,10 +20,12 @@ set -xe
 make pull-images glance
 
 #NOTE: Deploy command
+: ${EXTRA_CONFIG:=""}
 GLANCE_BACKEND="radosgw" # NOTE(portdirect), this could be: radosgw, rbd, swift or pvc
 helm upgrade --install glance ./glance \
   --namespace=openstack \
-  --set storage=${GLANCE_BACKEND}
+  --set storage=${GLANCE_BACKEND} \
+  ${EXTRA_CONFIG}
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack

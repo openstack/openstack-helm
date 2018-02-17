@@ -18,8 +18,11 @@ limitations under the License.
 
 set -ex
 
-apt-get update
-apt-get install ipxe -y
+#NOTE(portdirect): this works round a limitation in Kolla images
+if ! dpkg -l ipxe; then
+  apt-get update
+  apt-get install ipxe -y
+fi
 
 mkdir -p /var/lib/openstack-helm/tftpboot
 mkdir -p /var/lib/openstack-helm/tftpboot/master_images
