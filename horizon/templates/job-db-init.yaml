@@ -15,59 +15,7 @@ limitations under the License.
 */}}
 
 {{- if .Values.manifests.job_db_init }}
-{{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.db_init }}
-
-{{- $mounts_horizon_db_init := .Values.pod.mounts.horizon_db_init.horizon_db_init }}
-{{- $mounts_horizon_db_init_init := .Values.pod.mounts.horizon_db_init.init_container }}
-
-{{- $serviceAccountName := "horizon-db-init" }}
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
----
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: horizon-db-init
-spec:
-  template:
-    metadata:
-      labels:
-{{ tuple $envAll "horizon" "db-init" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
-    spec:
-      serviceAccountName: {{ $serviceAccountName }}
-      restartPolicy: OnFailure
-      nodeSelector:
-        {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
-      initContainers:
-{{ tuple $envAll $dependencies $mounts_horizon_db_init_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
-      containers:
-        - name: horizon-db-init
-          image: {{ .Values.images.tags.db_init }}
-          imagePullPolicy: {{ .Values.images.pull_policy }}
-{{ tuple $envAll $envAll.Values.pod.resources.jobs.db_init | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-          env:
-            - name: ROOT_DB_CONNECTION
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.secrets.oslo_db.admin }}
-                  key: DB_CONNECTION
-            - name: DB_CONNECTION
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.secrets.oslo_db.horizon }}
-                  key: DB_CONNECTION
-          command:
-            - /tmp/db-init.py
-          volumeMounts:
-          - name: horizon-bin
-            mountPath: /tmp/db-init.py
-            subPath: db-init.py
-            readOnly: true
-{{ if $mounts_horizon_db_init.volumeMounts }}{{ toYaml $mounts_horizon_db_init.volumeMounts | indent 10 }}{{ end }}
-      volumes:
-      - name: horizon-bin
-        configMap:
-          name: horizon-bin
-          defaultMode: 0555
-{{ if $mounts_horizon_db_init.volumes }}{{ toYaml $mounts_horizon_db_init.volumes | indent 6 }}{{ end }}
+{{- $dbToInit := dict "inputType" "secret" "adminSecret" .Values.secrets.oslo_db.admin "userSecret" .Values.secrets.oslo_db.horizon -}}
+{{- $dbInitJob := dict "envAll" . "serviceName" "horizon" "dbToInit" $dbToInit -}}
+{{ $dbInitJob | include "helm-toolkit.manifests.job_db_init_mysql" }}
 {{- end }}

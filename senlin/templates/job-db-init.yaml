@@ -15,67 +15,6 @@ limitations under the License.
 */}}
 
 {{- if .Values.manifests.job_db_init }}
-{{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.db_init }}
-
-{{- $serviceAccountName := "senlin-db-init" }}
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
----
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: senlin-db-init
-spec:
-  template:
-    metadata:
-      labels:
-{{ tuple $envAll "senlin" "db-init" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
-    spec:
-      serviceAccountName: {{ $serviceAccountName }}
-      restartPolicy: OnFailure
-      nodeSelector:
-        {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
-      initContainers:
-{{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
-      containers:
-        - name: senlin-db-init
-          image: {{ .Values.images.tags.db_init | quote }}
-          imagePullPolicy: {{ .Values.images.pull_policy | quote }}
-{{ tuple $envAll $envAll.Values.pod.resources.jobs.db_init | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-          env:
-            - name: ROOT_DB_CONNECTION
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.secrets.oslo_db.admin }}
-                  key: DB_CONNECTION
-            - name: OPENSTACK_CONFIG_FILE
-              value: /etc/senlin/senlin.conf
-            - name: OPENSTACK_CONFIG_DB_SECTION
-              value: database
-            - name: OPENSTACK_CONFIG_DB_KEY
-              value: connection
-          command:
-            - /tmp/db-init.py
-          volumeMounts:
-            - name: senlin-bin
-              mountPath: /tmp/db-init.py
-              subPath: db-init.py
-              readOnly: true
-            - name: etcsenlin
-              mountPath: /etc/senlin
-            - name: senlin-etc
-              mountPath: /etc/senlin/senlin.conf
-              subPath: senlin.conf
-              readOnly: true
-      volumes:
-        - name: etcsenlin
-          emptyDir: {}
-        - name: senlin-etc
-          configMap:
-            name: senlin-etc
-            defaultMode: 0444
-        - name: senlin-bin
-          configMap:
-            name: senlin-bin
-            defaultMode: 0555
+{{- $dbInitJob := dict "envAll" . "serviceName" "senlin" -}}
+{{ $dbInitJob | include "helm-toolkit.manifests.job_db_init_mysql" }}
 {{- end }}

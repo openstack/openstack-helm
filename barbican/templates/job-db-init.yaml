@@ -15,67 +15,8 @@ limitations under the License.
 */}}
 
 {{- if .Values.manifests.job_db_init }}
-{{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.db_init }}
-
-{{- $serviceAccountName := "barbican-db-init" }}
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
----
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: barbican-db-init
-spec:
-  template:
-    metadata:
-      labels:
-{{ tuple $envAll "barbican" "db-init" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
-    spec:
-      serviceAccountName: {{ $serviceAccountName }}
-      restartPolicy: OnFailure
-      nodeSelector:
-        {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
-      initContainers:
-{{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
-      containers:
-        - name: barbican-db-init
-          image: {{ .Values.images.tags.db_init }}
-          imagePullPolicy: {{ .Values.images.pull_policy }}
-{{ tuple $envAll $envAll.Values.pod.resources.jobs.db_init | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-          env:
-            - name: ROOT_DB_CONNECTION
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.secrets.oslo_db.admin }}
-                  key: DB_CONNECTION
-            - name: OPENSTACK_CONFIG_FILE
-              value: /etc/barbican/barbican.conf
-            - name: OPENSTACK_CONFIG_DB_SECTION
-              value: DEFAULT
-            - name: OPENSTACK_CONFIG_DB_KEY
-              value: sql_connection
-          command:
-            - /tmp/db-init.py
-          volumeMounts:
-            - name: barbican-etc
-              mountPath: /etc/barbican
-            - name: barbican-bin
-              mountPath: /tmp/db-init.py
-              subPath: db-init.py
-              readOnly: true
-            - name: barbican-conf
-              mountPath: /etc/barbican/barbican.conf
-              subPath: barbican.conf
-              readOnly: true
-      volumes:
-        - name: barbican-etc
-          emptyDir: {}
-        - name: barbican-conf
-          configMap:
-            name: barbican-etc
-            defaultMode: 0444
-        - name: barbican-bin
-          configMap:
-            name: barbican-bin
-            defaultMode: 0555
+{{- $serviceName := "barbican" -}}
+{{- $dbToInit := dict "adminSecret" .Values.secrets.oslo_db.admin "configFile" (printf "/etc/%s/%s.conf" $serviceName $serviceName ) "configDbSection" "DEFAULT" "configDbKey" "sql_connection" -}}
+{{- $dbInitJob := dict "envAll" . "serviceName" $serviceName "dbToInit" $dbToInit -}}
+{{ $dbInitJob | include "helm-toolkit.manifests.job_db_init_mysql" }}
 {{- end }}
