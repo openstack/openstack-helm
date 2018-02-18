@@ -17,5 +17,6 @@ limitations under the License.
 */}}
 
 set -ex
-
-{{ .Values.bootstrap.script | default "echo 'Not Enabled'" }}
+{{- range $k, $v := .Values.conf.ks_domains }}
+openstack --debug domain create --or-show {{ $k }}
+{{- end }}

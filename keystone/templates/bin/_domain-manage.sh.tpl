@@ -17,5 +17,6 @@ limitations under the License.
 */}}
 
 set -ex
-
-{{ .Values.bootstrap.script | default "echo 'Not Enabled'" }}
+{{- range $k, $v := .Values.conf.ks_domains }}
+keystone-manage domain_config_upload --domain-name {{ $k }} || true
+{{- end }}

@@ -28,7 +28,7 @@ release_group: null
 
 images:
   tags:
-    keystone_bootstrap: docker.io/openstackhelm/heat:newton
+    bootstrap: docker.io/openstackhelm/heat:newton
     test: docker.io/kolla/ubuntu-source-rally:4.0.0
     db_init: docker.io/openstackhelm/heat:newton
     keystone_db_sync: docker.io/openstackhelm/keystone:newton
@@ -39,6 +39,7 @@ images:
     keystone_credential_setup: docker.io/openstackhelm/keystone:newton
     keystone_credential_rotate: docker.io/openstackhelm/keystone:newton
     keystone_api: docker.io/openstackhelm/keystone:newton
+    keystone_domain_manage: docker.io/openstackhelm/keystone:newton
     dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.2.1
   pull_policy: "IfNotPresent"
 
@@ -115,6 +116,12 @@ dependencies:
     services:
     - service: identity
       endpoint: internal
+    jobs:
+    - keystone-domain-manage
+  domain_manage:
+    services:
+    - service: identity
+      endpoint: internal
 
 pod:
   affinity:
@@ -151,6 +158,9 @@ pod:
     keystone_credential_rotate:
       init_container: null
       keystone_credential_rotate:
+    keystone_domain_manage:
+      init_container: null
+      keystone_domain_manage:
   replicas:
     api: 1
   lifecycle:
@@ -178,6 +188,13 @@ pod:
         cpu: "2000m"
     jobs:
       bootstrap:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      domain_manage:
         requests:
           memory: "128Mi"
           cpu: "100m"
@@ -810,6 +827,7 @@ manifests:
   job_db_init: true
   job_db_sync: true
   job_db_drop: false
+  job_domain_manage: true
   job_fernet_setup: true
   pdb_api: true
   pod_rally_test: true
