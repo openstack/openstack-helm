@@ -18,11 +18,10 @@ limitations under the License.
 
 set -ex
 export HOME=/tmp
-{{ if .Values.bootstrap.enabled }}
 
 cd /tmp/images
 
-{{ range .Values.bootstrap.images }}
+{{ range .Values.bootstrap.structured.images }}
 openstack image show {{ .name  | quote }} || \
   { curl -O {{ .source_url }}{{ .image_file }}; \
   openstack image create {{ .name | quote }} \
@@ -39,5 +38,4 @@ openstack image show {{ .name  | quote }} || \
   {{- end -}}; }
 {{ end }}
 
-{{ end }}
-exit 0
+{{ .Values.bootstrap.script | default "echo 'Not Enabled'" }}

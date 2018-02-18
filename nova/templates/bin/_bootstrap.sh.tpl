@@ -19,8 +19,8 @@ limitations under the License.
 set -ex
 export HOME=/tmp
 
-{{ if .Values.bootstrap.flavors.enabled }}
-{{ range .Values.bootstrap.flavors.options }}
+{{ if .Values.bootstrap.structured.flavors.enabled }}
+{{ range .Values.bootstrap.structured.flavors.options }}
 openstack flavor show {{ .name }} || \
  openstack flavor create {{ .name }} \
  --id {{ .id }} \
@@ -31,4 +31,3 @@ openstack flavor show {{ .name }} || \
 {{ end }}
 
 {{ .Values.bootstrap.script | default "echo 'Not Enabled'" }}
-exit 0
