@@ -14,45 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if .Values.manifests.ingress_placement }}
-{{- $envAll := . }}
-{{- if .Values.network.placement.ingress.public }}
-{{- $backendServiceType := "placement" }}
-{{- $backendPort := "p-api" }}
-{{- $ingressName := tuple $backendServiceType "public" $envAll | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
-{{- $backendName := tuple $backendServiceType "internal" $envAll | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
-{{- $hostName := tuple $backendServiceType "public" $envAll | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
-{{- $hostNameNamespaced := tuple $backendServiceType "public" $envAll | include "helm-toolkit.endpoints.hostname_namespaced_endpoint_lookup" }}
-{{- $hostNameFull := tuple $backendServiceType "public" $envAll | include "helm-toolkit.endpoints.hostname_fqdn_endpoint_lookup" }}
----
-apiVersion: extensions/v1beta1
-kind: Ingress
-metadata:
-  name: {{ $ingressName }}
-  annotations:
-{{ toJson .Values.network.placement.ingress.annotations | indent 4 }}
-spec:
-  rules:
-{{ if ne $hostNameNamespaced $hostNameFull }}
-{{- range $key1, $vHost := tuple $hostName $hostNameNamespaced $hostNameFull }}
-  - host: {{ $vHost }}
-    http:
-      paths:
-      - path: /
-        backend:
-          serviceName: {{ $backendName }}
-          servicePort: {{ $backendPort }}
-{{- end }}
-{{- else }}
-{{- range $key1, $vHost := tuple $hostName $hostNameNamespaced }}
-  - host: {{ $vHost }}
-    http:
-      paths:
-      - path: /
-        backend:
-          serviceName: {{ $backendName }}
-          servicePort: {{ $backendPort }}
-{{- end }}
-{{- end }}
-{{- end }}
+{{- if and .Values.manifests.ingress_placement .Values.network.placement.ingress.public }}
+{{- $ingressOpts := dict "envAll" . "backendService" "placement" "backendServiceType" "placement" "backendPort" "p-api" -}}
+{{ $ingressOpts | include "helm-toolkit.manifests.ingress" }}
 {{- end }}
