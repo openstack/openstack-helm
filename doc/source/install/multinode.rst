@@ -187,8 +187,13 @@ Alternatively, this step can be performed by running the script directly:
 
   ./tools/deployment/multinode/020-ingress.sh
 
+
 Deploy Ceph
 -----------
+
+.. note::
+  The `./tools/deployment/multinode/kube-node-subnet.sh` script requires docker
+  to run.
 
 .. literalinclude:: ../../../tools/deployment/multinode/030-ceph.sh
     :language: shell
