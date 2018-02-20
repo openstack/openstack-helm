@@ -49,8 +49,16 @@ images:
     heat_cfn: docker.io/openstackhelm/heat:newton
     heat_cloudwatch: docker.io/openstackhelm/heat:newton
     heat_engine: docker.io/openstackhelm/heat:newton
+    heat_engine_cleaner: docker.io/openstackhelm/heat:newton
     dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.2.1
   pull_policy: "IfNotPresent"
+
+jobs:
+  engine_cleaner:
+    cron: "*/5 * * * *"
+    history:
+      success: 3
+      failed: 1
 
 conf:
   paste:
@@ -351,6 +359,18 @@ dependencies:
       endpoint: internal
     - service: identity
       endpoint: internal
+  engine_cleaner:
+    jobs:
+    - heat-db-sync
+    - heat-ks-user
+    - heat-trustee-ks-user
+    - heat-domain-ks-user
+    - heat-ks-endpoints
+    services:
+    - service: oslo_db
+      endpoint: internal
+    - service: identity
+      endpoint: internal
 
 # Names of secrets used by bootstrap and environmental checks
 secrets:
@@ -530,6 +550,9 @@ pod:
     heat_trusts:
       init_container: null
       heat_trusts:
+    heat_engine_cleaner:
+      init_container: null
+      heat_engine_cleaner:
   replicas:
     api: 1
     cfn: 1
@@ -653,10 +676,18 @@ pod:
         limits:
           memory: "1024Mi"
           cpu: "2000m"
+      engine_cleaner:
+        requests:
+          memory: "124Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
 
 manifests:
   configmap_bin: true
   configmap_etc: true
+  cron_job_engine_cleaner: true
   deployment_api: true
   deployment_cfn: true
   deployment_cloudwatch: true
