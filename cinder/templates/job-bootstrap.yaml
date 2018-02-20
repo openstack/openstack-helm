@@ -14,58 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if .Values.manifests.job_bootstrap }}
-{{- $envAll := . }}
-{{- if .Values.bootstrap.enabled }}
-{{- $dependencies := .Values.dependencies.bootstrap }}
-
-{{- $serviceAccountName := "cinder-bootstrap" }}
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
----
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: cinder-bootstrap
-spec:
-  template:
-    metadata:
-      labels:
-{{ tuple $envAll "cinder" "bootstrap" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
-    spec:
-      serviceAccountName: {{ $serviceAccountName }}
-      restartPolicy: OnFailure
-      nodeSelector:
-        {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
-      initContainers:
-{{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
-      containers:
-        - name: cinder-bootstrap
-          image: {{ .Values.images.tags.bootstrap }}
-          imagePullPolicy: {{ .Values.images.pull_policy }}
-{{ tuple $envAll $envAll.Values.pod.resources.jobs.bootstrap | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-          command:
-            - /tmp/bootstrap.sh
-          env:
-{{- with $env := dict "ksUserSecret" .Values.secrets.identity.admin }}
-{{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 12 }}
-{{- end }}
-          volumeMounts:
-            - name: cinder-etc
-              mountPath: /etc/cinder/cinder.conf
-              subPath: cinder.conf
-              readOnly: true
-            - name: cinder-bin
-              mountPath: /tmp/bootstrap.sh
-              subPath: bootstrap.sh
-              readOnly: true
-      volumes:
-        - name: cinder-etc
-          configMap:
-            name: cinder-etc
-            defaultMode: 0444
-        - name: cinder-bin
-          configMap:
-            name: cinder-bin
-            defaultMode: 0555
-{{- end }}
+{{- if and .Values.manifests.job_bootstrap .Values.bootstrap.enabled }}
+{{- $bootstrapJob := dict "envAll" . "serviceName" "cinder" "keystoneUser" .Values.bootstrap.ks_user -}}
+{{ $bootstrapJob | include "helm-toolkit.manifests.job_bootstrap" }}
 {{- end }}

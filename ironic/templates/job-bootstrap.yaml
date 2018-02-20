@@ -15,52 +15,6 @@ limitations under the License.
 */}}
 
 {{- if and .Values.manifests.job_bootstrap .Values.bootstrap.enabled }}
-{{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.bootstrap }}
-
-{{- $mounts_ironic_bootstrap := .Values.pod.mounts.ironic_bootstrap.ironic_bootstrap }}
-{{- $mounts_ironic_bootstrap_init := .Values.pod.mounts.ironic_bootstrap.init_container }}
-
-{{- $serviceAccountName := "ironic-bootstrap" }}
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
----
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: ironic-bootstrap
-spec:
-  template:
-    metadata:
-      labels:
-{{ tuple $envAll "ironic" "bootstrap" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
-    spec:
-      serviceAccountName: {{ $serviceAccountName }}
-      restartPolicy: OnFailure
-      nodeSelector:
-        {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
-      initContainers:
-{{ tuple $envAll $dependencies $mounts_ironic_bootstrap_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container"  | indent 8 }}
-      containers:
-        - name: ironic-bootstrap
-          image: {{ .Values.images.tags.ironic_bootstrap }}
-          imagePullPolicy: {{ .Values.images.pull_policy }}
-{{ tuple $envAll $envAll.Values.pod.resources.jobs.bootstrap | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-          env:
-{{- with $env := dict "ksUserSecret" .Values.secrets.identity.ironic }}
-{{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 12 }}
-{{- end }}
-          command:
-            - /tmp/bootstrap.sh
-          volumeMounts:
-            - name: ironic-bin
-              mountPath: /tmp/bootstrap.sh
-              subPath: bootstrap.sh
-              readOnly: true
-{{- if $mounts_ironic_bootstrap.volumeMounts }}{{ toYaml $mounts_ironic_bootstrap.volumeMounts | indent 10 }}{{ end }}
-      volumes:
-        - name: ironic-bin
-          configMap:
-            name: ironic-bin
-            defaultMode: 0555
-{{- if $mounts_ironic_bootstrap.volumes }}{{ toYaml $mounts_ironic_bootstrap.volumes | indent 6 }}{{ end }}
+{{- $bootstrapJob := dict "envAll" . "serviceName" "ironic" "keystoneUser" .Values.bootstrap.ks_user -}}
+{{ $bootstrapJob | include "helm-toolkit.manifests.job_bootstrap" }}
 {{- end }}

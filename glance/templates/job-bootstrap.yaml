@@ -14,60 +14,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if .Values.manifests.job_bootstrap }}
-{{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.bootstrap }}
-
-{{- $serviceAccountName := "glance-bootstrap" }}
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
----
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: glance-bootstrap
-spec:
-  template:
-    metadata:
-      labels:
-{{ tuple $envAll "glance" "bootstrap" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
-    spec:
-      serviceAccountName: {{ $serviceAccountName }}
-      restartPolicy: OnFailure
-      nodeSelector:
-        {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
-      initContainers:
-{{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
-      containers:
-        - name: glance-bootstrap
-          image: {{ .Values.images.tags.glance_bootstrap }}
-          imagePullPolicy: {{ .Values.images.pull_policy }}
-{{ tuple $envAll $envAll.Values.pod.resources.jobs.bootstrap | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-          env:
-{{- with $env := dict "ksUserSecret" .Values.secrets.identity.admin }}
-{{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 12 }}
+{{- define "glance.templates._job_bootstrap.pod_volumes" -}}
+{{- $envAll := index . 0 -}}
+volumeMounts:
+  - name: imagedir
+    mountPath: /tmp/images
+volumes:
+  - name: imagedir
+    emptyDir: {}
 {{- end }}
-          command:
-            - /tmp/bootstrap.sh
-          volumeMounts:
-            - name: imagedir
-              mountPath: /tmp/images
-            - name: glance-bin
-              mountPath: /tmp/bootstrap.sh
-              subPath: bootstrap.sh
-              readOnly: true
-            - name: glance-etc
-              mountPath: /etc/glance/glance-api.conf
-              subPath: glance-api.conf
-              readOnly: true
-      volumes:
-        - name: imagedir
-          emptyDir: {}
-        - name: glance-bin
-          configMap:
-            name: glance-bin
-            defaultMode: 0555
-        - name: glance-etc
-          configMap:
-            name: glance-etc
-            defaultMode: 0444
+
+{{- if and .Values.manifests.job_bootstrap .Values.bootstrap.enabled }}
+{{- $podVolumes := tuple . | include "glance.templates._job_bootstrap.pod_volumes" | toString | fromYaml }}
+{{- $bootstrapJob := dict "envAll" . "serviceName" "glance" "keystoneUser" .Values.bootstrap.ks_user "podVolMounts" $podVolumes.volumeMounts "podVols" $podVolumes.volumes -}}
+{{ $bootstrapJob | include "helm-toolkit.manifests.job_bootstrap" }}
 {{- end }}
