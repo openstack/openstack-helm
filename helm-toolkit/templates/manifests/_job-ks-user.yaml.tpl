@@ -49,8 +49,8 @@ spec:
 {{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
         - name: ks-user
-          image: {{ $envAll.Values.images.tags.ks_user | quote }}
-          imagePullPolicy: {{ $envAll.Values.images.pull_policy | quote }}
+          image: {{ $envAll.Values.images.tags.ks_user }}
+          imagePullPolicy: {{ $envAll.Values.images.pull_policy }}
 {{ tuple $envAll $envAll.Values.pod.resources.jobs.ks_user | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           command:
             - /tmp/ks-user.sh
