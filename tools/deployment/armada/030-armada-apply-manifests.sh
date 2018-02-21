@@ -16,18 +16,8 @@
 
 set -xe
 
-source ./tools/deployment/armada/generate-passwords.sh
-: ${OSH_INFRA_PATH:="../openstack-helm-infra"}
-: ${OSH_PATH:="./"}
-
-export CEPH_NETWORK=$(./tools/deployment/multinode/kube-node-subnet.sh)
-export TUNNEL_DEVICE=$(ip -4 route list 0/0 | awk '{ print $5; exit }')
-export OSH_INFRA_PATH
-export OSH_PATH
-
 manifests="armada-cluster-ingress armada-ceph armada-lma armada-osh"
 for manifest in $manifests; do
   echo "Applying $manifest manifest"
-  envsubst < ./tools/deployment/armada/multinode/$manifest.yaml > /tmp/$manifest.yaml
   armada apply /tmp/$manifest.yaml
 done
