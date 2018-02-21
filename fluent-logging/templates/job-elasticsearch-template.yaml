@@ -1,0 +1,74 @@
+{{/*
+Copyright 2017 The Openstack-Helm Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.job_elasticsearch_template }}
+{{- $envAll := . }}
+{{- $dependencies := .Values.dependencies.elasticsearch_template }}
+{{- $mounts_elasticsearch_template := .Values.pod.mounts.elasticsearch_template.elasticsearch_template }}
+{{- $mounts_elasticsearch_template_init := .Values.pod.mounts.elasticsearch_template.init_container }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: elasticsearch-template
+spec:
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "fluent" "elasticsearch-template" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+    spec:
+      restartPolicy: OnFailure
+      nodeSelector:
+        {{ .Values.labels.elasticsearch_template.node_selector_key }}: {{ .Values.labels.elasticsearch_template.node_selector_value }}
+      initContainers:
+{{ tuple $envAll $dependencies $mounts_elasticsearch_template_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+      containers:
+        - name: elasticsearch-template
+          image: {{ .Values.images.tags.elasticsearch_template }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+{{ tuple $envAll $envAll.Values.pod.resources.jobs.elasticsearch_template | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          env:
+            - name: ELASTICSEARCH_HOST
+              value: {{ tuple "elasticsearch" "internal" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" | quote }}
+            - name: ELASTICSEARCH_PORT
+              value: {{ tuple "elasticsearch" "internal" "client" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | quote }}
+            - name: ELASTICSEARCH_USERNAME
+              value: {{ .Values.endpoints.elasticsearch.auth.admin.username }}
+            - name: ELASTICSEARCH_PASSWORD
+              value: {{ .Values.endpoints.elasticsearch.auth.admin.password }}
+          command:
+            - /tmp/create_template.sh
+          volumeMounts:
+            - name: fluent-logging-bin
+              mountPath: /tmp/create_template.sh
+              subPath: create_template.sh
+              readOnly: true
+            - name: fluent-logging-etc
+              mountPath: /tmp/template.xml.raw
+              subPath: template.xml.raw
+              readOnly: true
+{{ if $mounts_elasticsearch_template.volumeMounts }}{{ toYaml $mounts_elasticsearch_template.volumeMounts | indent 10 }}{{ end }}
+      volumes:
+        - name: fluent-logging-bin
+          configMap:
+            name: fluent-logging-bin
+            defaultMode: 0555
+        - name: fluent-logging-etc
+          configMap:
+            name: fluent-logging-etc
+            defaultMode: 0666
+{{ if $mounts_elasticsearch_template.volumes }}{{ toYaml $mounts_elasticsearch_template.volumes | indent 6 }}{{ end }}
+{{- end }}

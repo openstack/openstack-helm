@@ -46,7 +46,22 @@ function check_kubernetes_tag () {
   fi
 }
 
+# Tests whether fluent-logging has successfully generate template_fluent_logging template
+# defined by value.yaml
+function check_template () {
+  total_hits=$(curl -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
+              -XGET "${ELASTICSEARCH_ENDPOINT}/_template/template_fluent_logging" -H 'Content-Type: application/json' \
+              | python -c "import sys, json; print len(json.load(sys.stdin))")
+  if [ "$total_hits" -gt 0 ]; then
+     echo "PASS: Successful hits on template, provided by fluent-logging!"
+  else
+     echo "FAIL: No hits on query for template_fluent_logging template! Exiting";
+     exit 1;
+  fi
+}
+
 # Sleep for at least the buffer flush time to allow for indices to be populated
 sleep 30
+check_template
 check_logstash_index
 check_kubernetes_tag
