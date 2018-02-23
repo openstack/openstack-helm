@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- if .Values.manifests.statefulset }}
 {{- $envAll := . }}
 {{- $dependencies := .Values.dependencies.postgresql }}
 
@@ -43,8 +44,9 @@ spec:
       - name: postgresql
         image: {{ .Values.images.tags.postgresql }}
         imagePullPolicy: {{ .Values.images.pull_policy }}
+{{ tuple $envAll $envAll.Values.pod.resources.server | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
         ports:
-        - containerPort: {{ tuple "postgresql" "internal" "postgresql" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+          - containerPort: {{ tuple "postgresql" "internal" "postgresql" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
         env:
           - name: 'POSTGRES_PASSWORD'
             valueFrom:
@@ -58,41 +60,51 @@ spec:
                 key: 'POSTGRES_USER'
           - name: 'PGDATA'
             value: {{ .Values.storage.mount.path | quote }}
+        command:
+          - /tmp/start.sh
         livenessProbe:
           exec:
             command:
-            - pg_isready
-            - -U
-            - {{ .Values.endpoints.postgresql.auth.admin.username }}
+              - /tmp/readiness.sh
           initialDelaySeconds: 20
           timeoutSeconds: 5
         readinessProbe:
           exec:
             command:
-            - pg_isready
-            - -U
-            - {{ .Values.endpoints.postgresql.auth.admin.username }}
+              - /tmp/readiness.sh
           initialDelaySeconds: 20
           timeoutSeconds: 5
-{{ tuple $envAll $envAll.Values.pod.resources.server | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
         volumeMounts:
-        - name: postgresql-data
-          mountPath: {{ .Values.storage.mount.path }}
-          subPath: {{ .Values.storage.mount.subpath }}
-{{- if not .Values.storage.pvc.enabled }}
+          - name: postgresql-bin
+            mountPath: /tmp/start.sh
+            subPath: start.sh
+            readOnly: true
+          - name: postgresql-bin
+            mountPath: /tmp/readiness.sh
+            subPath: readiness.sh
+            readOnly: true
+          - name: postgresql-data
+            mountPath: {{ .Values.storage.mount.path }}
+            subPath: {{ .Values.storage.mount.subpath }}
       volumes:
-      - name: postgresql-data
-        hostPath:
-          path: {{ .Values.storage.host.host_path }}
+        - name: postgresql-bin
+          configMap:
+            name: postgresql-bin
+            defaultMode: 0555
+{{- if not .Values.storage.pvc.enabled }}
+        - name: postgresql-data
+          hostPath:
+            path: {{ .Values.storage.host.host_path }}
 {{- else }}
   volumeClaimTemplates:
-  - metadata:
-      name: postgresql-data
-      annotations:
-        {{ .Values.storage.pvc.class_path }}: {{ .Values.storage.pvc.class_name }}
-    spec:
-      accessModes: [ "ReadWriteOnce" ]
-      resources:
-        requests:
-          storage: {{ .Values.storage.pvc.size }}
+    - metadata:
+        name: postgresql-data
+        annotations:
+          {{ .Values.storage.pvc.class_path }}: {{ .Values.storage.pvc.class_name }}
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        resources:
+          requests:
+            storage: {{ .Values.storage.pvc.size }}
+{{- end }}
 {{- end }}
