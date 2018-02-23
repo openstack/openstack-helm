@@ -12,16 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+{{- if .Values.manifests.deployment }}
 {{- $envAll := . }}
+
 {{- $dependencies := .Values.dependencies.etcd }}
 
-{{- $serviceAccountName := "etcd" }}
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{- $rcControllerName := printf "%s-%s" $envAll.Release.Name "etcd"  }}
+{{- $configMapBinName := printf "%s-%s" $envAll.Release.Name "etcd-bin"  }}
+
+{{ tuple $envAll $dependencies $rcControllerName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: apps/v1beta1
 kind: Deployment
 metadata:
-  name: etcd
+  name: {{ $rcControllerName | quote }}
 spec:
   replicas: {{ .Values.pod.replicas.etcd }}
 {{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_deployment" | indent 2 }}
@@ -30,7 +34,7 @@ spec:
       labels:
 {{ tuple $envAll "etcd" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
     spec:
-      serviceAccountName: {{ $serviceAccountName }}
+      serviceAccountName: {{ $rcControllerName | quote }}
       affinity:
 {{ tuple $envAll "etcd" "server" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
       nodeSelector:
@@ -42,13 +46,20 @@ spec:
           image: {{ .Values.images.tags.etcd }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
           command:
-            - etcd
-            - --listen-client-urls
-            - http://0.0.0.0:{{ .Values.network.port }}
-            - --advertise-client-urls
-            - http://{{ .Values.network.host }}:{{ .Values.network.port }}
+            - /tmp/etcd.sh
           ports:
-            - containerPort: {{ .Values.network.port }}
+            - containerPort: {{ tuple "etcd" "internal" "client" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
           readinessProbe:
             tcpSocket:
-              port: {{ .Values.network.port }}
+              port: {{ tuple "etcd" "internal" "client" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+          volumeMounts:
+            - name: etcd-bin
+              mountPath: /tmp/etcd.sh
+              subPath: etcd.sh
+              readOnly: true
+      volumes:
+        - name: etcd-bin
+          configMap:
+            name: {{ $configMapBinName | quote }}
+            defaultMode: 0555
+{{- end }}
