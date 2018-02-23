@@ -112,121 +112,122 @@ bootstrap:
     openstack token issue
 
 dependencies:
-  db_init:
-    services:
-    - service: oslo_db
-      endpoint: internal
-  db_sync:
-    jobs:
-    - neutron-db-init
-    services:
-    - service: oslo_db
-      endpoint: internal
-  db_drop:
-    services:
-    - service: oslo_db
-      endpoint: internal
-  ks_user:
-    services:
-    - service: identity
-      endpoint: internal
-  ks_service:
-    services:
-    - service: identity
-      endpoint: internal
-  ks_endpoints:
-    jobs:
-    - neutron-ks-service
-    services:
-    - service: identity
-      endpoint: internal
-  server:
-    jobs:
-    - neutron-db-sync
-    - neutron-ks-user
-    - neutron-ks-endpoints
-    services:
-    - service: oslo_db
-      endpoint: internal
-    - service: oslo_messaging
-      endpoint: internal
-    - service: oslo_cache
-      endpoint: internal
-    - service: identity
-      endpoint: internal
-  dhcp:
-    services:
-    - service: oslo_messaging
-      endpoint: internal
-    - service: network
-      endpoint: internal
-    - service: compute
-      endpoint: internal
-    daemonset:
-    # this should be set to corresponding neutron L2 agent
-    - neutron-ovs-agent
-  metadata:
-    services:
-    - service: oslo_messaging
-      endpoint: internal
-    - service: network
-      endpoint: internal
-    - service: compute
-      endpoint: internal
-    - service: compute_metadata
-      endpoint: public
-    daemonset:
-    # this should be set to corresponding neutron L2 agent
-    - neutron-ovs-agent
-  ovs_agent:
-    services:
-    - service: oslo_messaging
-      endpoint: internal
-    - service: network
-      endpoint: internal
-    daemonset:
-    - openvswitch-vswitchd
-    - openvswitch-db
-  lb_agent:
-    services:
-    - service: oslo_messaging
-      endpoint: internal
-    - service: network
-      endpoint: internal
-  l3:
-    services:
-    - service: oslo_messaging
-      endpoint: internal
-    - service: network
-      endpoint: internal
-    - service: compute
-      endpoint: internal
-    daemonset:
-    # this should be set to corresponding neutron L2 agent
-    - neutron-ovs-agent
-  tests:
-    services:
-    - service: network
-      endpoint: internal
-    - service: compute
-      endpoint: internal
-  bootstrap:
-    services:
-    - service: network
-      endpoint: internal
-    - service: compute
-      endpoint: internal
+  static:
+    bootstrap:
+      services:
+        - endpoint: internal
+          service: network
+        - endpoint: internal
+          service: compute
+    db_drop:
+      services:
+        - endpoint: internal
+          service: oslo_db
+    db_init:
+      services:
+        - endpoint: internal
+          service: oslo_db
+    db_sync:
+      jobs:
+        - neutron-db-init
+      services:
+        - endpoint: internal
+          service: oslo_db
+    dhcp:
+      daemonset:
+        # this should be set to corresponding neutron L2 agent
+        - neutron-ovs-agent
+      services:
+        - endpoint: internal
+          service: oslo_messaging
+        - endpoint: internal
+          service: network
+        - endpoint: internal
+          service: compute
+    ks_endpoints:
+      jobs:
+        - neutron-ks-service
+      services:
+        - endpoint: internal
+          service: identity
+    ks_service:
+      services:
+        - endpoint: internal
+          service: identity
+    ks_user:
+      services:
+        - endpoint: internal
+          service: identity
+    l3:
+      daemonset:
+        # this should be set to corresponding neutron L2 agent
+        - neutron-ovs-agent
+      services:
+        - endpoint: internal
+          service: oslo_messaging
+        - endpoint: internal
+          service: network
+        - endpoint: internal
+          service: compute
+    lb_agent:
+      services:
+        - endpoint: internal
+          service: oslo_messaging
+        - endpoint: internal
+          service: network
+    metadata:
+      daemonset:
+        # this should be set to corresponding neutron L2 agent
+        - neutron-ovs-agent
+      services:
+        - endpoint: internal
+          service: oslo_messaging
+        - endpoint: internal
+          service: network
+        - endpoint: internal
+          service: compute
+        - endpoint: public
+          service: compute_metadata
+    ovs_agent:
+      daemonset:
+        - openvswitch-vswitchd
+        - openvswitch-db
+      services:
+        - endpoint: internal
+          service: oslo_messaging
+        - endpoint: internal
+          service: network
+    server:
+      jobs:
+        - neutron-db-sync
+        - neutron-ks-user
+        - neutron-ks-endpoints
+      services:
+        - endpoint: internal
+          service: oslo_db
+        - endpoint: internal
+          service: oslo_messaging
+        - endpoint: internal
+          service: oslo_cache
+        - endpoint: internal
+          service: identity
+    tests:
+      services:
+        - endpoint: internal
+          service: network
+        - endpoint: internal
+          service: compute
 
 pod:
   user:
     neutron:
       uid: 42424
   affinity:
-      anti:
-        type:
-          default: preferredDuringSchedulingIgnoredDuringExecution
-        topologyKey:
-          default: kubernetes.io/hostname
+    anti:
+      type:
+        default: preferredDuringSchedulingIgnoredDuringExecution
+      topologyKey:
+        default: kubernetes.io/hostname
   mounts:
     neutron_server:
       init_container: null

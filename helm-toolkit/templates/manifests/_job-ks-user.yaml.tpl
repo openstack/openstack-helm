@@ -23,7 +23,7 @@ limitations under the License.
 {{- $envAll := index . "envAll" -}}
 {{- $serviceName := index . "serviceName" -}}
 {{- $nodeSelector := index . "nodeSelector" | default ( dict $envAll.Values.labels.job.node_selector_key $envAll.Values.labels.job.node_selector_value ) -}}
-{{- $dependencies := index . "dependencies" | default $envAll.Values.dependencies.ks_user -}}
+{{- $dependencies := index . "dependencies" | default $envAll.Values.dependencies.static.ks_user -}}
 {{- $configMapBin := index . "configMapBin" | default (printf "%s-%s" $serviceName "bin" ) -}}
 {{- $serviceUser := index . "serviceUser" | default $serviceName -}}
 {{- $serviceUserPretty := $serviceUser | replace "_" "-" -}}
