@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 {{/*
 Copyright 2017 The Openstack-Helm Authors.
 
@@ -14,17 +16,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if .Values.manifests.service }}
-{{- $envAll := . }}
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: {{ tuple "postgresql" "internal" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
-spec:
-  ports:
-    - name: db
-      port: {{ tuple "postgresql" "internal" "postgresql" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-  selector:
-{{ tuple $envAll "postgresql" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
-{{- end }}
+set -ex
+
+exec /docker-entrypoint.sh postgres
