@@ -206,22 +206,8 @@ function osd_disk_prepare {
   if [ "x$JOURNAL_TYPE" == "xdirectory" ]; then
     export OSD_JOURNAL="--journal-file"
   fi
-  if [[ ${OSD_DMCRYPT} -eq 1 ]]; then
-    # the admin key must be present on the node
-    if [[ ! -e $ADMIN_KEYRING ]]; then
-      echo "ERROR- $ADMIN_KEYRING must exist; get it from your existing mon"
-      exit 1
-    fi
-    # in order to store the encrypted key in the monitor's k/v store
-    ceph-disk -v prepare ${CLI_OPTS} --journal-uuid ${OSD_JOURNAL_UUID} --lockbox-uuid ${OSD_LOCKBOX_UUID} --dmcrypt ${OSD_DEVICE} ${OSD_JOURNAL}
-    echo "Unmounting LOCKBOX directory"
-    # NOTE(leseb): adding || true so when this bug will be fixed the entrypoint will not fail
-    # Ceph bug tracker: http://tracker.ceph.com/issues/18944
-    DATA_UUID=$(blkid -o value -s PARTUUID ${OSD_DEVICE}1)
-    umount /var/lib/ceph/osd-lockbox/${DATA_UUID} || true
-  else
-    ceph-disk -v prepare ${CLI_OPTS} --journal-uuid ${OSD_JOURNAL_UUID} ${OSD_DEVICE} ${OSD_JOURNAL}
-  fi
+
+  ceph-disk -v prepare ${CLI_OPTS} --journal-uuid ${OSD_JOURNAL_UUID} ${OSD_DEVICE} ${OSD_JOURNAL}
 
   # watch the udev event queue, and exit if all current events are handled
   udevadm settle --timeout=600
