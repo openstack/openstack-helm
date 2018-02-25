@@ -20,7 +20,7 @@ set -xe
 make pull-images ingress
 
 #NOTE: Deploy command
-: ${EXTRA_CONFIG:=""}
+: ${OSH_EXTRA_HELM_ARGS:=""}
 tee /tmp/ingress-kube-system.yaml << EOF
 deployment:
   mode: cluster
@@ -31,7 +31,7 @@ EOF
 helm upgrade --install ingress-kube-system ./ingress \
   --namespace=kube-system \
   --values=/tmp/ingress-kube-system.yaml \
-  ${EXTRA_CONFIG}
+  ${OSH_EXTRA_HELM_ARGS}
 
 #NOTE: Deploy namespace ingress
 helm upgrade --install ingress-openstack ./ingress \

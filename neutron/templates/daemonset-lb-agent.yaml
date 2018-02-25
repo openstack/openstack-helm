@@ -14,9 +14,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if .Values.manifests.daemonset_lb_agent }}
+{{- if and .Values.manifests.daemonset_lb_agent ( eq .Values.network.backend "linuxbridge" ) }}
 {{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.static.lb_agent }}
+
+{{- $dependencyOpts := dict "envAll" $envAll "dependencyMixinParam" $envAll.Values.network.backend "dependencyKey" "lb_agent" -}}
+{{- $dependencies := include "helm-toolkit.utils.dependency_resolver" $dependencyOpts | toString | fromYaml }}
 
 {{- $mounts_neutron_lb_agent := .Values.pod.mounts.neutron_lb_agent.neutron_lb_agent }}
 {{- $mounts_neutron_lb_agent_init := .Values.pod.mounts.neutron_lb_agent.init_container }}

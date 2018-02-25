@@ -20,10 +20,10 @@ set -xe
 make pull-images keystone
 
 #NOTE: Deploy command
-: ${EXTRA_CONFIG:=""}
+: ${OSH_EXTRA_HELM_ARGS:=""}
 helm upgrade --install keystone ./keystone \
     --namespace=openstack \
-    ${EXTRA_CONFIG}
+    ${OSH_EXTRA_HELM_ARGS}
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack

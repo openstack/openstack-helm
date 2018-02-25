@@ -19,9 +19,11 @@ set -xe
 make pull-images libvirt
 
 #NOTE: Deploy command
+: ${OSH_EXTRA_HELM_ARGS:=""}
 helm upgrade --install libvirt ./libvirt \
   --namespace=openstack \
-  --set ceph.enabled=false
+  --set ceph.enabled=false \
+  ${OSH_EXTRA_HELM_ARGS}
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack

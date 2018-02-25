@@ -20,7 +20,7 @@ set -xe
 make pull-images ceph
 
 #NOTE: Deploy command
-: ${EXTRA_CONFIG:=""}
+: ${OSH_EXTRA_HELM_ARGS:=""}
 CEPH_FS_ID="$(cat /tmp/ceph-fs-uuid.txt)"
 tee /tmp/ceph-openstack-config.yaml <<EOF
 endpoints:
@@ -52,7 +52,7 @@ EOF
 helm upgrade --install ceph-openstack-config ./ceph \
   --namespace=openstack \
   --values=/tmp/ceph-openstack-config.yaml \
-  ${EXTRA_CONFIG}
+  ${OSH_EXTRA_HELM_ARGS}
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack

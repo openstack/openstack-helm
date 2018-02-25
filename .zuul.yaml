@@ -16,12 +16,24 @@
     check:
       jobs:
         - openstack-helm-linter
-        - openstack-helm-dev-deploy-ceph:
+        - openstack-helm-dev-deploy-ceph-ovs:
             irrelevant-files:
               - ^.*\.rst$
               - ^doc/.*$
               - ^releasenotes/.*$
-        - openstack-helm-dev-deploy-nfs:
+        - openstack-helm-dev-deploy-nfs-ovs:
+            irrelevant-files:
+              - ^.*\.rst$
+              - ^doc/.*$
+              - ^releasenotes/.*$
+        - openstack-helm-dev-deploy-ceph-lb:
+            voting: false
+            irrelevant-files:
+              - ^.*\.rst$
+              - ^doc/.*$
+              - ^releasenotes/.*$
+        - openstack-helm-dev-deploy-nfs-lb:
+            voting: false
             irrelevant-files:
               - ^.*\.rst$
               - ^doc/.*$
@@ -69,12 +81,12 @@
               - ^.*\.rst$
               - ^doc/.*$
               - ^releasenotes/.*$
-        - openstack-helm-dev-deploy-ceph:
+        - openstack-helm-dev-deploy-ceph-ovs:
             irrelevant-files:
               - ^.*\.rst$
               - ^doc/.*$
               - ^releasenotes/.*$
-        - openstack-helm-dev-deploy-nfs:
+        - openstack-helm-dev-deploy-nfs-ovs:
             irrelevant-files:
               - ^.*\.rst$
               - ^doc/.*$
@@ -108,12 +120,34 @@
     nodeset: openstack-helm-single-node
 
 - job:
-    name: openstack-helm-dev-deploy-ceph
+    name: openstack-helm-dev-deploy-ceph-ovs
+    vars:
+      osh_neutron_backend: openvswitch
     parent: openstack-helm-dev-deploy
     run: tools/gate/playbooks/dev-deploy-ceph.yaml
 
 - job:
-    name: openstack-helm-dev-deploy-nfs
+    name: openstack-helm-dev-deploy-nfs-ovs
+    vars:
+      osh_neutron_backend: openvswitch
+    parent: openstack-helm-dev-deploy
+    run: tools/gate/playbooks/dev-deploy-nfs.yaml
+
+- job:
+    name: openstack-helm-dev-deploy-ceph-lb
+    vars:
+      osh_neutron_backend: linuxbridge
+      zuul_osh_infra_relative_path: ../openstack-helm-infra/
+      zuul_osh_extra_helm_args_relative_path: --values=./tools/overrides/backends/networking/linuxbridge.yaml
+    parent: openstack-helm-dev-deploy
+    run: tools/gate/playbooks/dev-deploy-ceph.yaml
+
+- job:
+    name: openstack-helm-dev-deploy-nfs-lb
+    vars:
+      osh_neutron_backend: linuxbridge
+      zuul_osh_infra_relative_path: ../openstack-helm-infra/
+      zuul_osh_extra_helm_args_relative_path: --values=./tools/overrides/backends/networking/linuxbridge.yaml
     parent: openstack-helm-dev-deploy
     run: tools/gate/playbooks/dev-deploy-nfs.yaml
 
