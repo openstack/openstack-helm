@@ -36,6 +36,8 @@ images:
     neutron_l3: docker.io/openstackhelm/neutron:newton
     neutron_openvswitch_agent: docker.io/openstackhelm/neutron:newton
     neutron_linuxbridge_agent: docker.io/openstackhelm/neutron:newton
+    neutron_sriov_agent: docker.io/openstackhelm/neutron:newton-sriov-1804
+    neutron_sriov_agent_init: docker.io/openstackhelm/neutron:newton-sriov-1804
     dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.2.1
   pull_policy: "IfNotPresent"
 
@@ -56,12 +58,15 @@ labels:
   lb:
     node_selector_key: linuxbridge
     node_selector_value: enabled
-  # ovs is a special case, requiring a special
+  # openvswitch is a special case, requiring a special
   # label that can apply to both control hosts
   # and compute hosts, until we get more sophisticated
   # with our daemonset scheduling
   ovs:
     node_selector_key: openvswitch
+    node_selector_value: enabled
+  sriov:
+    node_selector_key: sriov
     node_selector_value: enabled
   server:
     node_selector_key: openstack-control-plane
@@ -72,8 +77,9 @@ labels:
 
 network:
   # provide what type of network wiring will be used
-  # possible options: ovs, linuxbridge
-  backend: ovs
+  # possible options: openvswitch, linuxbridge, sriov
+  backend:
+    - openvswitch
   external_bridge: br-ex
   ip_address: 0.0.0.0
   interface:
@@ -94,6 +100,12 @@ network:
   #   br-physnet1: eth3
   #   br0: if0
   #   br1: iface_two
+  sriov:
+  # To perform setup of network interfaces using the SR-IOV init
+  # container you can use a section similar to:
+  # sriov:
+  #   - device: ${DEV}
+  #     num_vfs: 8
   server:
     ingress:
       public: true
@@ -114,7 +126,7 @@ bootstrap:
 dependencies:
   dynamic:
     targeted:
-      ovs:
+      openvswitch:
         dhcp:
           daemonset:
             - neutron-ovs-agent
@@ -134,6 +146,18 @@ dependencies:
         metadata:
           daemonset:
             - neutron-lb-agent
+        lb_agent:
+          daemonset: null
+      sriov:
+        dhcp:
+          daemonset:
+            - neutron-sriov-agent
+        l3:
+          daemonset:
+            - neutron-sriov-agent
+        metadata:
+          daemonset:
+            - neutron-sriov-agent
   static:
     bootstrap:
       services:
@@ -196,6 +220,7 @@ dependencies:
         - endpoint: internal
           service: compute
     lb_agent:
+      daemonset: null
       jobs:
         - neutron-rabbit-init
       services:
@@ -278,6 +303,9 @@ pod:
     neutron_ovs_agent:
       init_container: null
       neutron_ovs_agent:
+    neutron_sriov_agent:
+      init_container: null
+      neutron_sriov_agent:
     neutron_tests:
       init_container: null
       neutron_tests:
@@ -313,6 +341,10 @@ pod:
           min_ready_seconds: 0
           max_unavailable: 1
         ovs_agent:
+          enabled: true
+          min_ready_seconds: 0
+          max_unavailable: 1
+        sriov_agent:
           enabled: true
           min_ready_seconds: 0
           max_unavailable: 1
@@ -354,6 +386,13 @@ pod:
           memory: "1024Mi"
           cpu: "2000m"
       ovs:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      sriov:
         requests:
           memory: "128Mi"
           cpu: "100m"
@@ -1032,7 +1071,12 @@ conf:
         l2_population: True
         arp_responder: True
     macvtap_agent: null
-    sriov_agent: null
+    sriov_agent:
+      securitygroup:
+        firewall_driver: neutron.agent.firewall.NoopFirewallDriver
+      sriov_nic:
+        physical_device_mappings: physnet2:enp3s0f1
+        exclude_devices: null
   dhcp_agent:
     DEFAULT:
       #(NOTE)portdirect: if unset this is populated dyanmicly from the value in
@@ -1229,6 +1273,7 @@ manifests:
   daemonset_lb_agent: true
   daemonset_metadata_agent: true
   daemonset_ovs_agent: true
+  daemonset_sriov_agent: true
   deployment_server: true
   ingress_server: true
   job_bootstrap: true

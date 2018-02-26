@@ -32,7 +32,6 @@ if [ -n "${external_bridge}" ] ; then
     fi
 fi
 
-
 # configure all bridge mappings defined in config
 {{- range $br, $phys := .Values.network.auto_bridge_add }}
 if [ -n "{{- $br -}}" ] ; then
