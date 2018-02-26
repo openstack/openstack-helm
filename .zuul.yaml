@@ -69,7 +69,7 @@
               - ^.*\.rst$
               - ^doc/.*$
               - ^releasenotes/.*$
-        - openstack-helm-kolla-deploy-ceph:
+        - openstack-helm-kolla-deploy-ceph-ovs:
             irrelevant-files:
               - ^.*\.rst$
               - ^doc/.*$
@@ -96,7 +96,7 @@
               - ^.*\.rst$
               - ^doc/.*$
               - ^releasenotes/.*$
-        - openstack-helm-kolla-deploy-ceph:
+        - openstack-helm-kolla-deploy-ceph-ovs:
             irrelevant-files:
               - ^.*\.rst$
               - ^doc/.*$
@@ -111,6 +111,7 @@
     name: openstack-helm-dev-deploy
     timeout: 7200
     vars:
+      osh_neutron_backend: openvswitch
       zuul_osh_infra_relative_path: ../openstack-helm-infra/
     pre-run:
       - ../openstack-helm-infra/tools/gate/playbooks/osh-infra-upgrade-host.yaml
@@ -121,15 +122,11 @@
 
 - job:
     name: openstack-helm-dev-deploy-ceph-ovs
-    vars:
-      osh_neutron_backend: openvswitch
     parent: openstack-helm-dev-deploy
     run: tools/gate/playbooks/dev-deploy-ceph.yaml
 
 - job:
     name: openstack-helm-dev-deploy-nfs-ovs
-    vars:
-      osh_neutron_backend: openvswitch
     parent: openstack-helm-dev-deploy
     run: tools/gate/playbooks/dev-deploy-nfs.yaml
 
@@ -137,7 +134,6 @@
     name: openstack-helm-dev-deploy-ceph-lb
     vars:
       osh_neutron_backend: linuxbridge
-      zuul_osh_infra_relative_path: ../openstack-helm-infra/
       zuul_osh_extra_helm_args_relative_path: --values=./tools/overrides/backends/networking/linuxbridge.yaml
     parent: openstack-helm-dev-deploy
     run: tools/gate/playbooks/dev-deploy-ceph.yaml
@@ -146,7 +142,6 @@
     name: openstack-helm-dev-deploy-nfs-lb
     vars:
       osh_neutron_backend: linuxbridge
-      zuul_osh_infra_relative_path: ../openstack-helm-infra/
       zuul_osh_extra_helm_args_relative_path: --values=./tools/overrides/backends/networking/linuxbridge.yaml
     parent: openstack-helm-dev-deploy
     run: tools/gate/playbooks/dev-deploy-nfs.yaml
@@ -206,6 +201,8 @@
     run: tools/gate/playbooks/ironic-deploy.yaml
 
 - job:
-    name: openstack-helm-kolla-deploy-ceph
+    name: openstack-helm-kolla-deploy-ceph-ovs
+    vars:
+      zuul_osh_extra_helm_args_relative_path: --values=./tools/overrides/releases/newton/kolla.yaml
     parent: openstack-helm-dev-deploy
-    run: tools/gate/playbooks/kolla-deploy-ceph.yaml
+    run: tools/gate/playbooks/dev-deploy-ceph.yaml
