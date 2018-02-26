@@ -55,7 +55,8 @@ Adding Tests
 ------------
 
 All tests should be added to the gates during development, and are required for
-any new service charts prior to merging.  All Helm tests are added to the gates
-in the basic_launch.sh_ file.
+any new service charts prior to merging.  All Helm tests should be included as
+part of the deployment script.  An example of this can be seen in
+this script_.
 
-.. _basic_launch.sh: https://github.com/openstack/openstack-helm/blob/master/tools/gate/basic_launch.sh
+.. _script: https://github.com/openstack/openstack-helm/blob/9d4f9862ca07f08005f9bdb4e6d58ad770fa4178/tools/deployment/multinode/080-keystone.sh#L32
