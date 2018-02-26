@@ -18,7 +18,7 @@ SHELL := /bin/bash
 HELM := helm
 TASK := build
 
-EXCLUDES := helm-toolkit doc tests tools logs
+EXCLUDES := helm-toolkit doc tests tools logs tmp
 CHARTS := helm-toolkit $(filter-out $(EXCLUDES), $(patsubst %/.,%,$(wildcard */.)))
 
 .PHONY: $(EXCLUDES) $(CHARTS)
@@ -47,7 +47,7 @@ clean:
 	rm -f */templates/_globals.tpl
 	rm -f *tgz */charts/*tgz
 	rm -f */requirements.lock
-	-rm -rf */charts
+	-rm -rf */charts */tmpcharts
 
 pull-all-images:
 	@./tools/pull-images.sh
