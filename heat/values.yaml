@@ -42,6 +42,7 @@ images:
     db_init: docker.io/openstackhelm/heat:newton
     heat_db_sync: docker.io/openstackhelm/heat:newton
     db_drop: docker.io/openstackhelm/heat:newton
+    rabbit_init: docker.io/rabbitmq:3.7-management
     ks_user: docker.io/openstackhelm/heat:newton
     ks_service: docker.io/openstackhelm/heat:newton
     ks_endpoints: docker.io/openstackhelm/heat:newton
@@ -365,6 +366,10 @@ dependencies:
       services:
         - endpoint: internal
           service: identity
+    rabbit_init:
+      services:
+      - service: oslo_messaging
+        endpoint: internal
     trusts:
       jobs:
         - heat-ks-user
@@ -384,6 +389,9 @@ secrets:
   oslo_db:
     admin: heat-db-admin
     heat: heat-db-user
+  oslo_messaging:
+    admin: heat-rabbitmq-admin
+    heat: heat-rabbitmq-user
 
 # typically overriden by environmental
 # values, but should include all endpoints
@@ -510,8 +518,11 @@ endpoints:
         default: 11211
   oslo_messaging:
     auth:
-      heat:
+      admin:
         username: rabbitmq
+        password: password
+      heat:
+        username: heat
         password: password
     hosts:
       default: rabbitmq
@@ -522,6 +533,8 @@ endpoints:
     port:
       amqp:
         default: 5672
+      http:
+        default: 15672
 
 pod:
   user:
@@ -664,6 +677,13 @@ pod:
         limits:
           memory: "1024Mi"
           cpu: "2000m"
+      rabbit_init:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
       tests:
         requests:
           memory: "128Mi"
@@ -706,11 +726,13 @@ manifests:
   job_ks_user_domain: true
   job_ks_user_trustee: true
   job_ks_user: true
+  job_rabbit_init: true
   pdb_api: true
   pdb_cfn: true
   pdb_cloudwatch: true
   secret_db: true
   secret_keystone: true
+  secret_rabbitmq: true
   service_api: true
   service_cfn: true
   service_cloudwatch: true

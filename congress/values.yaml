@@ -41,6 +41,7 @@ images:
     db_init: docker.io/openstackhelm/heat:newton
     congress_db_sync: docker.io/openstackhelm/congress:newton
     db_drop: docker.io/openstackhelm/heat:newton
+    rabbit_init: docker.io/rabbitmq:3.7-management
     ks_user: docker.io/openstackhelm/heat:newton
     ks_service: docker.io/openstackhelm/heat:newton
     ks_endpoints: docker.io/openstackhelm/heat:newton
@@ -130,6 +131,10 @@ dependencies:
       services:
         - endpoint: internal
           service: identity
+    rabbit_init:
+      services:
+      - service: oslo_messaging
+        endpoint: internal
     policy_engine:
       jobs:
         - congress-db-sync
@@ -159,6 +164,9 @@ secrets:
     admin: congress-db-admin
     congress: congress-db-user
   rbd: images-rbd-keyring
+  oslo_messaging:
+    admin: congress-rabbitmq-admin
+    congress: congress-rabbitmq-user
 
 bootstrap:
   enabled: false
@@ -242,8 +250,11 @@ endpoints:
         default: 11211
   oslo_messaging:
     auth:
-      congress:
+      admin:
         username: rabbitmq
+        password: password
+      congress:
+        username: congress
         password: password
     hosts:
       default: rabbitmq
@@ -254,6 +265,8 @@ endpoints:
     port:
       amqp:
         default: 5672
+      http:
+        default: 15672
 
 policy:
   datasource_services:
@@ -403,6 +416,13 @@ pod:
         limits:
           memory: "1024Mi"
           cpu: "2000m"
+      rabbit_init:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
       ks_user:
         requests:
           memory: "128Mi"
@@ -450,6 +470,7 @@ manifests:
   job_db_init: true
   job_db_sync: true
   job_ds_create: true
+  job_rabbit_init: true
   job_ks_endpoints: true
   job_ks_service: true
   job_ks_user: true
@@ -457,3 +478,4 @@ manifests:
   secret_keystone: true
   service_api: true
   service_ingress_api: true
+  secret_rabbitmq: true

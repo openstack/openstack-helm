@@ -26,6 +26,7 @@ images:
     db_init: docker.io/openstackhelm/heat:newton
     neutron_db_sync: docker.io/openstackhelm/neutron:newton
     db_drop: docker.io/openstackhelm/heat:newton
+    rabbit_init: docker.io/rabbitmq:3.7-management
     ks_user: docker.io/openstackhelm/heat:newton
     ks_service: docker.io/openstackhelm/heat:newton
     ks_endpoints: docker.io/openstackhelm/heat:newton
@@ -157,6 +158,8 @@ dependencies:
           service: oslo_db
     dhcp:
       daemonset: null
+      jobs:
+        - neutron-rabbit-init
       services:
         - endpoint: internal
           service: oslo_messaging
@@ -178,8 +181,14 @@ dependencies:
       services:
         - endpoint: internal
           service: identity
+    rabbit_init:
+      services:
+      - service: oslo_messaging
+        endpoint: internal
     l3:
       daemonset: null
+      jobs:
+        - neutron-rabbit-init
       services:
         - endpoint: internal
           service: oslo_messaging
@@ -188,6 +197,8 @@ dependencies:
         - endpoint: internal
           service: compute
     lb_agent:
+      jobs:
+        - neutron-rabbit-init
       services:
         - endpoint: internal
           service: oslo_messaging
@@ -195,6 +206,8 @@ dependencies:
           service: network
     metadata:
       daemonset: null
+      jobs:
+        - neutron-rabbit-init
       services:
         - endpoint: internal
           service: oslo_messaging
@@ -205,6 +218,8 @@ dependencies:
         - endpoint: public
           service: compute_metadata
     ovs_agent:
+      jobs:
+        - neutron-rabbit-init
       daemonset:
         - openvswitch-vswitchd
         - openvswitch-db
@@ -218,6 +233,7 @@ dependencies:
         - neutron-db-sync
         - neutron-ks-user
         - neutron-ks-endpoints
+        - neutron-rabbit-init
       services:
         - endpoint: internal
           service: oslo_db
@@ -361,6 +377,13 @@ pod:
           memory: "1024Mi"
           cpu: "2000m"
       db_init:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      rabbit_init:
         requests:
           memory: "128Mi"
           cpu: "100m"
@@ -1040,6 +1063,9 @@ secrets:
   oslo_db:
     admin: neutron-db-admin
     neutron: neutron-db-user
+  oslo_messaging:
+    admin: neutron-rabbitmq-admin
+    neutron: neutron-rabbitmq-user
 
 # typically overriden by environmental
 # values, but should include all endpoints
@@ -1065,8 +1091,11 @@ endpoints:
          default: 3306
   oslo_messaging:
      auth:
+       admin:
+        username: rabbitmq
+        password: password
        neutron:
-         username: rabbitmq
+         username: neutron
          password: password
      hosts:
        default: rabbitmq
@@ -1077,6 +1106,8 @@ endpoints:
      port:
        amqp:
          default: 5672
+       http:
+         default: 15672
   oslo_cache:
      hosts:
        default: memcached
@@ -1197,9 +1228,11 @@ manifests:
   job_ks_endpoints: true
   job_ks_service: true
   job_ks_user: true
+  job_rabbit_init: true
   pdb_server: true
   pod_rally_test: true
   secret_db: true
   secret_keystone: true
+  secret_rabbitmq: true
   service_ingress_server: true
   service_server: true

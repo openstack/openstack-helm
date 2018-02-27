@@ -46,6 +46,7 @@ images:
     ks_user: docker.io/openstackhelm/heat:newton
     ks_service: docker.io/openstackhelm/heat:newton
     ks_endpoints: docker.io/openstackhelm/heat:newton
+    rabbit_init: docker.io/rabbitmq:3.7-management
     glance_api: docker.io/openstackhelm/glance:newton
     glance_registry: docker.io/openstackhelm/glance:newton
     # Bootstrap image requires curl
@@ -356,6 +357,10 @@ dependencies:
       services:
         - endpoint: internal
           service: identity
+    rabbit_init:
+      services:
+      - service: oslo_messaging
+        endpoint: internal
     registry:
       jobs:
         - glance-storage-init
@@ -390,6 +395,10 @@ secrets:
     admin: glance-db-admin
     glance: glance-db-user
   rbd: images-rbd-keyring
+  oslo_messaging:
+    admin: glance-rabbitmq-admin
+    glance: glance-rabbitmq-user
+
 
 # typically overriden by environmental
 # values, but should include all endpoints
@@ -493,8 +502,11 @@ endpoints:
         default: 11211
   oslo_messaging:
     auth:
-      glance:
+      admin:
         username: rabbitmq
+        password: password
+      glance:
+        username: glance
         password: password
     hosts:
       default: rabbitmq
@@ -505,6 +517,8 @@ endpoints:
     port:
       amqp:
         default: 5672
+      http:
+        default: 15672
   ceph_object_store:
     name: radosgw
     namespace: ceph
@@ -632,6 +646,13 @@ pod:
         limits:
           memory: "1024Mi"
           cpu: "2000m"
+      rabbit_init:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
       bootstrap:
         requests:
           memory: "128Mi"
@@ -663,12 +684,14 @@ manifests:
   job_ks_service: true
   job_ks_user: true
   job_storage_init: true
+  job_rabbit_init: true
   pdb_api: true
   pdb_registry: true
   pod_rally_test: true
   pvc_images: true
   secret_db: true
   secret_keystone: true
+  secret_rabbitmq: true
   service_ingress_api: true
   service_ingress_registry: true
   service_api: true

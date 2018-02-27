@@ -46,6 +46,7 @@ images:
     db_init_mongodb: docker.io/mongo:3.4.9-jessie
     db_init: docker.io/kolla/ubuntu-source-ceilometer-api:3.0.3
     ceilometer_db_sync: docker.io/kolla/ubuntu-source-ceilometer-api:3.0.3
+    rabbit_init: docker.io/rabbitmq:3.7-management
     ks_user: docker.io/openstackhelm/heat:newton
     ks_service: docker.io/openstackhelm/heat:newton
     ks_endpoints: docker.io/openstackhelm/heat:newton
@@ -1576,6 +1577,10 @@ dependencies:
       services:
         - endpoint: internal
           service: identity
+    rabbit_init:
+      services:
+      - service: oslo_messaging
+        endpoint: internal
     notification:
       jobs:
         - ceilometer-db-init-mongodb
@@ -1612,6 +1617,9 @@ secrets:
   mongodb:
     admin: ceilometer-mongodb-admin
     ceilometer: ceilometer-mongodb-user
+  oslo_messaging:
+    admin: ceilometer-rabbitmq-admin
+    ceilometer: ceilometer-rabbitmq-user
 
 bootstrap:
   enabled: false
@@ -1768,8 +1776,11 @@ endpoints:
         default: 11211
   oslo_messaging:
     auth:
-      ceilometer:
+      admin:
         username: rabbitmq
+        password: password
+      ceilometer:
+        username: ceilometer
         password: password
     hosts:
       default: rabbitmq
@@ -1780,6 +1791,8 @@ endpoints:
     port:
       amqp:
         default: 5672
+      http:
+        default: 15672
 
 pod:
   affinity:
@@ -1886,6 +1899,13 @@ pod:
         limits:
           memory: "1024Mi"
           cpu: "2000m"
+      rabbit_init:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
       ks_endpoints:
         requests:
           memory: "124Mi"
@@ -1931,10 +1951,12 @@ manifests:
   job_ks_endpoints: true
   job_ks_service: true
   job_ks_user: true
+  job_rabbit_init: true
   pdb_api: true
   pod_rally_test: true
   secret_db: true
   secret_keystone: true
   secret_mongodb: true
+  secret_rabbitmq: true
   service_api: true
   service_ingress_api: true
