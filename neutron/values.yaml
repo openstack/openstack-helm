@@ -112,6 +112,28 @@ bootstrap:
     openstack token issue
 
 dependencies:
+  dynamic:
+    targeted:
+      ovs:
+        dhcp:
+          daemonset:
+            - neutron-ovs-agent
+        l3:
+          daemonset:
+            - neutron-ovs-agent
+        metadata:
+          daemonset:
+            - neutron-ovs-agent
+      linuxbridge:
+        dhcp:
+          daemonset:
+            - neutron-lb-agent
+        l3:
+          daemonset:
+            - neutron-lb-agent
+        metadata:
+          daemonset:
+            - neutron-lb-agent
   static:
     bootstrap:
       services:
@@ -134,9 +156,7 @@ dependencies:
         - endpoint: internal
           service: oslo_db
     dhcp:
-      daemonset:
-        # this should be set to corresponding neutron L2 agent
-        - neutron-ovs-agent
+      daemonset: null
       services:
         - endpoint: internal
           service: oslo_messaging
@@ -159,9 +179,7 @@ dependencies:
         - endpoint: internal
           service: identity
     l3:
-      daemonset:
-        # this should be set to corresponding neutron L2 agent
-        - neutron-ovs-agent
+      daemonset: null
       services:
         - endpoint: internal
           service: oslo_messaging
@@ -176,9 +194,7 @@ dependencies:
         - endpoint: internal
           service: network
     metadata:
-      daemonset:
-        # this should be set to corresponding neutron L2 agent
-        - neutron-ovs-agent
+      daemonset: null
       services:
         - endpoint: internal
           service: oslo_messaging
@@ -928,8 +944,9 @@ conf:
       dhcp_agents_per_network: 3
       network_auto_schedule: True
       router_auto_schedule: True
-      # we can define here, which driver we are using: openvswitch or linuxbridge
-      interface_driver: openvswitch
+      #(NOTE)portdirect: if unset this is populated dyanmicly from the value in
+      # 'network.backend' to sane defaults.
+      interface_driver: null
     oslo_concurrency:
       lock_path: /var/lib/neutron/tmp
     database:
@@ -949,9 +966,9 @@ conf:
     ml2_conf:
       ml2:
         extension_drivers: port_security
-        # mechnism_drivers can be: openvswitch, linuxbridge,
-        # opendaylight, ovn
-        mechanism_drivers: openvswitch,l2population
+        #(NOTE)portdirect: if unset this is populated dyanmicly from the value
+        # in 'network.backend' to sane defaults.
+        mechanism_drivers: null
         type_drivers: flat,vlan,vxlan
         tenant_network_types: vxlan
       ml2_type_vxlan:
@@ -992,16 +1009,16 @@ conf:
     sriov_agent: null
   dhcp_agent:
     DEFAULT:
-      # we can define here, which driver we are using:
-      # openvswitch or linuxbridge
-      interface_driver: openvswitch
+      #(NOTE)portdirect: if unset this is populated dyanmicly from the value in
+      # 'network.backend' to sane defaults.
+      interface_driver: null
       dnsmasq_config_file: /etc/neutron/dnsmasq.conf
       force_metadata: True
   l3_agent:
     DEFAULT:
-      # we can define here, which driver we are using:
-      # openvswitch or linuxbridge
-      interface_driver: openvswitch
+      #(NOTE)portdirect: if unset this is populated dyanmicly from the value in
+      # 'network.backend' to sane defaults.
+      interface_driver: null
       agent_mode: legacy
   metering_agent: null
   metadata_agent:
@@ -1168,7 +1185,7 @@ manifests:
   configmap_etc: true
   daemonset_dhcp_agent: true
   daemonset_l3_agent: true
-  daemonset_lb_agent: false
+  daemonset_lb_agent: true
   daemonset_metadata_agent: true
   daemonset_ovs_agent: true
   deployment_server: true

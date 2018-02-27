@@ -20,7 +20,7 @@ set -xe
 make pull-images ceph
 
 #NOTE: Deploy command
-: ${EXTRA_CONFIG:=""}
+: ${OSH_EXTRA_HELM_ARGS:=""}
 uuidgen > /tmp/ceph-fs-uuid.txt
 CEPH_FS_ID="$(cat /tmp/ceph-fs-uuid.txt)"
 #NOTE(portdirect): to use RBD devices with Ubuntu kernels < 4.5 this
@@ -157,7 +157,7 @@ EOF
 helm upgrade --install ceph ./ceph \
   --namespace=ceph \
   --values=/tmp/ceph.yaml \
-  ${EXTRA_CONFIG}
+  ${OSH_EXTRA_HELM_ARGS}
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh ceph
