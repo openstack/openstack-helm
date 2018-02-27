@@ -91,9 +91,10 @@ Adding Services
 As charts for additional services are added to OpenStack-Helm, they should be
 included in the gates.  Adding new services to the gates allows a chart
 developer and the review team to identify any potential issues associated with
-a new service.  All services are currently launched in the gate via
-basic_launch.sh.  Any new services are added to this file, and the required
-format for a basic service is:
+a new service. All services are currently launched in the gate via
+a series of launch scripts of the format ``NNN-service-name.sh`` where ``NNN``
+dictates the order these scripts are launched. The script should contain
+an installation command like:
 
 ::
 
@@ -119,11 +120,11 @@ Adding Tests
 
 As new charts are developed and the services are added to the gate, an
 associated Helm test should be introduced to the gates.  The appropriate place
-for executing these tests is in basic_launch.sh, and must be placed after the
-entry for installing the service and any associated overrides.  Any tests that
-use the Rally testing framework should leverage the helm_test_deployment
-function in the aforementioned funcs/helm.sh file.  For example, a Helm test for
-Mistral might look like:
+for executing these tests is in the respective service's launch script, and
+must be placed after the entry for installing the service and any associated
+overrides.  Any tests that use the Rally testing framework should leverage the
+helm_test_deployment function in the aforementioned funcs/helm.sh file. For
+example, a Helm test for Mistral might look like:
 
 ::
 
@@ -139,6 +140,6 @@ This results in the gate running the following:
     kubectl delete -n openstack pod mistral-rally-test
 
 Any tests that do not use the Rally testing framework would need to be handled
-in the appropriate manner in basic_launch.sh.  This would ideally result in new
+in the appropriate manner in launch script. This would ideally result in new
 functions that could be reused, or expansion of the gate scripts to include
 scenarios beyond basic service launches.
