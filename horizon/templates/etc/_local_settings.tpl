@@ -177,21 +177,33 @@ EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 OPENSTACK_KEYSTONE_URL = "{{ tuple "identity" "public" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" }}"
 OPENSTACK_KEYSTONE_DEFAULT_ROLE = "_member_"
 
+
+{{- if .Values.local_settings.auth.sso.enabled }}
 # Enables keystone web single-sign-on if set to True.
-#WEBSSO_ENABLED = False
+WEBSSO_ENABLED = True
 
 # Determines which authentication choice to show as default.
-#WEBSSO_INITIAL_CHOICE = "credentials"
+WEBSSO_INITIAL_CHOICE = "{{ .Values.local_settings.auth.sso.initial_choice }}"
 
 # The list of authentication mechanisms
 # which include keystone federation protocols.
 # Current supported protocol IDs are 'saml2' and 'oidc'
 # which represent SAML 2.0, OpenID Connect respectively.
 # Do not remove the mandatory credentials mechanism.
-#WEBSSO_CHOICES = (
-#    ("credentials", _("Keystone Credentials")),
-#    ("oidc", _("OpenID Connect")),
-#    ("saml2", _("Security Assertion Markup Language")))
+WEBSSO_CHOICES = (
+    ("credentials", _("Keystone Credentials")),
+  {{- range $i, $sso := .Values.local_settings.auth.idp_mapping }}
+    ({{ $sso.name | quote }}, {{ $sso.label | quote }}),
+  {{- end }}
+)
+
+WEBSSO_IDP_MAPPING = {
+  {{- range $i, $sso := .Values.local_settings.auth.idp_mapping }}
+    {{ $sso.name | quote}}: ({{ $sso.idp | quote }}, {{ $sso.protocol | quote }}),
+  {{- end }}
+}
+
+{{- end }}
 
 # Disable SSL certificate checks (useful for self-signed certificates):
 #OPENSTACK_SSL_NO_VERIFY = True
