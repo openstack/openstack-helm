@@ -14,10 +14,10 @@ an rc file or through modifying ``/etc/environment``.
 
 .. code-block:: shell
 
-  export http_proxy="http://username:passwrd@host:port"
-  export HTTP_PROXY="http://username:passwrd@host:port"
-  export https_proxy="https://username:passwrd@host:port"
-  export HTTPS_PROXY="https://username:passwrd@host:port"
+  export http_proxy="http://username:password@host:port"
+  export HTTP_PROXY="http://username:password@host:port"
+  export https_proxy="https://username:password@host:port"
+  export HTTPS_PROXY="https://username:password@host:port"
   export no_proxy="127.0.0.1,localhost,.svc.cluster.local"
   export NO_PROXY="127.0.0.1,localhost,.svc.cluster.local"
 
