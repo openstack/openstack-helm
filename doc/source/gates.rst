@@ -9,7 +9,7 @@ OpenStack-Helm's single node and multinode gates leverage the kubeadm-aio
 environment created and maintained for use as a development environment.  All
 information regarding the kubeadm-aio environment can be found here_.
 
-.. _here: https://github.com/openstack/openstack-helm/tree/master/tools/kubeadm-aio
+.. _here: https://docs.openstack.org/openstack-helm/latest/install/developer/index.html
 
 Gate Checks
 -----------
