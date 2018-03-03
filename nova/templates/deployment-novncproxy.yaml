@@ -14,9 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if .Values.manifests.deployment_novncproxy }}
+{{- if and .Values.manifests.deployment_novncproxy ( eq .Values.console.console_kind "novnc" )}}
 {{- $envAll := . }}
-{{ if eq .Values.console.console_kind "novnc" }}
 {{- $dependencies := .Values.dependencies.static.novncproxy }}
 
 {{- $mounts_nova_novncproxy := .Values.pod.mounts.nova_novncproxy.nova_novncproxy }}
@@ -88,6 +87,9 @@ spec:
 {{ tuple $envAll $envAll.Values.pod.resources.novncproxy | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           command:
             - /tmp/nova-console-proxy.sh
+          ports:
+            - name: n-novnc
+              containerPort: {{ tuple "compute_novnc_proxy" "internal" "novnc_proxy" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
           volumeMounts:
             - name: nova-bin
               mountPath: /tmp/nova-console-proxy.sh
@@ -117,5 +119,4 @@ spec:
         - name: pod-shared
           emptyDir: {}
 {{ if $mounts_nova_novncproxy.volumes }}{{ toYaml $mounts_nova_novncproxy.volumes | indent 8 }}{{ end }}
-{{- end }}
 {{- end }}

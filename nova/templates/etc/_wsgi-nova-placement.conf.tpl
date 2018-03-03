@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-Listen 0.0.0.0:{{ .Values.network.placement.port }}
+Listen 0.0.0.0:{{ tuple "placement" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
 
 LogFormat "%h %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\"" combined
 LogFormat "%{X-Forwarded-For}i %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\"" proxy
@@ -23,7 +23,7 @@ SetEnvIf X-Forwarded-For "^.*\..*\..*\..*" forwarded
 CustomLog /dev/stdout combined env=!forwarded
 CustomLog /dev/stdout proxy env=forwarded
 
-<VirtualHost *:{{ .Values.network.placement.port }}>
+<VirtualHost *:{{ tuple "placement" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}>
     WSGIDaemonProcess placement-api processes=1 threads=4 user=nova group=nova display-name=%{GROUP}
     WSGIProcessGroup placement-api
     WSGIScriptAlias / /var/www/cgi-bin/nova/nova-placement-api
