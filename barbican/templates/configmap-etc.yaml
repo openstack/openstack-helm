@@ -66,8 +66,12 @@ limitations under the License.
 {{- tuple "key_manager" "public" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" | trimSuffix $barbicanPath | set .Values.conf.barbican.DEFAULT "host_href" | quote | trunc 0 -}}
 {{- end -}}
 
+{{- if empty .Values.conf.barbican.barbican_api.bind_port -}}
+{{- tuple "key_manager" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | set .Values.conf.barbican.barbican_api "bind_port" | quote | trunc 0 -}}
+{{- end -}}
+
 {{- if empty .Values.conf.barbican_api.uwsgi.socket -}}
-{{- printf ":%1.f" .Values.conf.barbican.barbican_api.bind_port | set .Values.conf.barbican_api.uwsgi "socket" | quote | trunc 0 -}}
+{{- printf ":%s" ( tuple "key_manager" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" ) | set .Values.conf.barbican_api.uwsgi "socket" | quote | trunc 0 -}}
 {{- end -}}
 
 ---
