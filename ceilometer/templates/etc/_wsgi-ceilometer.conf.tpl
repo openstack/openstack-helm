@@ -14,11 +14,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-Listen 0.0.0.0:{{ .Values.network.api.port }}
+Listen 0.0.0.0:{{ tuple "metering" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
 
 LogFormat "%h %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\"" combined
 
-<VirtualHost *:{{ .Values.network.api.port }}>
+<VirtualHost *:{{ tuple "metering" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}>
     LogLevel info
     WSGIDaemonProcess ceilometer-api processes=2 threads=1 user=ceilometer group=ceilometer display-name=%{GROUP} python-path=/var/lib/kolla/venv/lib/python2.7/site-packages
     WSGIProcessGroup ceilometer-api
