@@ -14,13 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-Listen 0.0.0.0:{{ .Values.conf.gnocchi.api.port }}
+Listen 0.0.0.0:{{ tuple "metric" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
 
 SetEnvIf X-Forwarded-For "^.*\..*\..*\..*" forwarded
 CustomLog /dev/stdout combined env=!forwarded
 CustomLog /dev/stdout proxy env=forwarded
 
-<VirtualHost *:{{ .Values.conf.gnocchi.api.port }}>
+<VirtualHost *:{{ tuple "metric" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}>
     WSGIDaemonProcess gnocchi processes=1 threads=2 user=gnocchi group=gnocchi display-name=%{GROUP}
     WSGIProcessGroup gnocchi
     WSGIScriptAlias / "/var/lib/kolla/venv/lib/python2.7/site-packages/gnocchi/rest/app.wsgi"
