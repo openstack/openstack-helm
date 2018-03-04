@@ -20,15 +20,16 @@ limitations under the License.
 apiVersion: v1
 kind: Service
 metadata:
-  name: gnocchi-statsd
+  name: {{ tuple "metric_statsd" "internal" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
 spec:
   ports:
-    - port: {{ .Values.conf.gnocchi.statsd.port }}
+    - name: gn-stats
+      port: {{ tuple "metric_statsd" "internal" "statsd" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
     {{ if .Values.network.statsd.node_port.enabled }}
       nodePort: {{ .Values.network.statsd.node_port.port }}
     {{ end }}
   selector:
-    app: gnocchi-statsd
+{{ tuple $envAll "gnocchi" "statsd" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
   {{ if .Values.network.statsd.node_port.enabled }}
   type: NodePort
   {{ end }}
