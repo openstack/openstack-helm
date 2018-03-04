@@ -77,6 +77,20 @@ function check_hits_on_test_data () {
   fi
 }
 
+function check_snapshot_repositories () {
+  {{ range $repository := .Values.conf.elasticsearch.snapshots.repositories }}
+  repository={{$repository.name}}
+  repository_search_result=$(curl -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
+  "${ELASTICSEARCH_ENDPOINT}/_cat/repositories" | awk '{print $1}' | grep "\<$repository\>")
+  if [ "$repository_search_result" == "$repository" ]; then
+     echo "PASS: The snapshot repository $repository exists!"
+  else
+     echo "FAIL: The snapshot repository $respository does not exist! Exiting now";
+     exit 1;
+  fi
+{{ end }}
+}
+
 function remove_test_index () {
   echo "Deleting index created for service testing"
   curl -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
@@ -86,4 +100,7 @@ function remove_test_index () {
 create_test_index
 insert_data_into_test_index
 check_hits_on_test_data
+{{ if .Values.conf.elasticsearch.snapshots.enabled }}
+check_snapshot_repositories
+{{ end }}
 remove_test_index

@@ -99,21 +99,6 @@ spec:
           - sysctl
           - -w
           - vm.max_map_count={{ .Values.conf.init.max_map_count }}
-{{ if .Values.storage.filesystem_repository.enabled }}
-        - name: elasticsearch-repository-perms
-{{ tuple $envAll "elasticsearch" | include "helm-toolkit.snippets.image" | indent 10 }}
-{{ tuple $envAll $envAll.Values.pod.resources.client | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-          securityContext:
-            runAsUser: 0
-          command:
-            - chown
-            - -R
-            - "elasticsearch:"
-            - {{ .Values.conf.elasticsearch.repository.location }}
-          volumeMounts:
-            - name: storage
-              mountPath: {{ .Values.conf.elasticsearch.repository.location }}
-{{ end }}
       containers:
         - name: apache-proxy
 {{ tuple $envAll "apache_proxy" | include "helm-toolkit.snippets.image" | indent 10 }}
@@ -200,6 +185,8 @@ spec:
               value: {{ tuple "elasticsearch" "discovery" $envAll | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
             - name: ES_JAVA_OPTS
               value: "{{ .Values.conf.elasticsearch.env.java_opts }}"
+            - name: ES_PLUGINS_INSTALL
+              value: "elasticsearch-s3"
           volumeMounts:
             - name: elasticsearch-logs
               mountPath: {{ .Values.conf.elasticsearch.config.path.logs }}
@@ -219,10 +206,6 @@ spec:
               readOnly: true
             - name: storage
               mountPath: {{ .Values.conf.elasticsearch.config.path.data }}
-            {{ if .Values.storage.filesystem_repository.enabled }}
-            - name: snapshots
-              mountPath: {{ .Values.conf.elasticsearch.repository.location }}
-            {{ end }}
 {{ if $mounts_elasticsearch.volumeMounts }}{{ toYaml $mounts_elasticsearch.volumeMounts | indent 12 }}{{ end }}
       volumes:
         - name: pod-etc-apache
@@ -241,10 +224,5 @@ spec:
             defaultMode: 0444
         - name: storage
           emptyDir: {}
-        {{ if .Values.storage.filesystem_repository.enabled }}
-        - name: snapshots
-          persistentVolumeClaim:
-            claimName: {{ .Values.storage.filesystem_repository.pvc.name }}
-        {{ end }}
 {{ if $mounts_elasticsearch.volumes }}{{ toYaml $mounts_elasticsearch.volumes | indent 8 }}{{ end }}
 {{- end }}

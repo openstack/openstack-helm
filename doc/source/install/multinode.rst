@@ -184,6 +184,19 @@ Alternatively, this step can be performed by running the script directly:
 
   ./tools/deployment/multinode/110-nagios.sh
 
+Deploy Rados Gateway for OSH-Infra
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. literalinclude:: ../../../tools/deployment/multinode/115-radosgw-osh-infra.sh
+    :language: shell
+    :lines: 1,17-
+
+Alternatively, this step can be performed by running the script directly:
+
+.. code-block:: shell
+
+  ./tools/deployment/multinode/115-radosgw-osh-infra.sh
+
 Deploy Elasticsearch
 ^^^^^^^^^^^^^^^^^^^^
 

@@ -21,7 +21,10 @@ images:
     apache_proxy: docker.io/httpd:2.4
     memory_init: docker.io/kolla/ubuntu-source-heat-engine:3.0.3
     curator:  docker.io/bobrik/curator:5.2.0
-    elasticsearch: docker.io/elasticsearch:5.6.4
+    elasticsearch: docker.io/srwilkers/elasticsearch-s3:v0.1.0
+    ceph_key_placement: docker.io/port/ceph-config-helper:v1.10.3
+    s3_bucket: docker.io/port/ceph-config-helper:v1.10.3
+    s3_user: docker.io/port/ceph-config-helper:v1.10.3
     helm_tests: docker.io/kolla/ubuntu-source-heat-engine:3.0.3
     prometheus_elasticsearch_exporter: docker.io/justwatch/elasticsearch_exporter:1.0.1
     dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.3.1
@@ -53,13 +56,18 @@ dependencies:
             service: local_image_registry
   static:
     curator:
-      services: null
+      services:
+        - endpoint: internal
+          service: elasticsearch
     elasticsearch_client:
       services: null
+      jobs: null
     elasticsearch_data:
       services: null
+      jobs: null
     elasticsearch_master:
       services: null
+      jobs: null
     image_repo_sync:
       services:
         - endpoint: internal
@@ -72,6 +80,15 @@ dependencies:
       services:
         - endpoint: internal
           service: elasticsearch
+      jobs:
+        - elasticsearch-s3-bucket
+    s3_user:
+      services:
+        - endpoint: internal
+          service: ceph_object_store
+    s3_bucket:
+      jobs:
+        - elasticsearch-s3-user
 
 pod:
   affinity:
@@ -163,6 +180,27 @@ pod:
         limits:
           memory: "1024Mi"
           cpu: "2000m"
+      storage_init:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      s3_bucket:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      s3_user:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
       tests:
         requests:
           memory: "128Mi"
@@ -172,8 +210,11 @@ pod:
           cpu: "2000m"
 
 secrets:
+  rgw:
+    admin: radosgw-s3-admin-creds
+    elasticsearch: elasticsearch-s3-user-creds
   elasticsearch:
-    user: elasticsearch-admin-creds
+    user: elasticsearch-user-secrets
   tls:
     elasticsearch:
       elasticsearch:
@@ -297,6 +338,8 @@ conf:
     rootLogger.appenderRef.rolling.ref=rolling
   init:
     max_map_count: 262144
+  ceph:
+    admin_keyring: null
   curator:
     #run every 6th hour
     schedule:  "0 */6 * * *"
@@ -353,7 +396,7 @@ conf:
           description: >-
             "Snapshot indices older than one day"
           options:
-            repository: default_repo
+            repository: logstash_snapshots
             # Leaving this blank results in the default name format
             name:
             wait_for_completion: True
@@ -375,7 +418,7 @@ conf:
           description: >-
             "Delete snapshots older than 30 days"
           options:
-            repository: default_repo
+            repository: logstash_snapshots
             disable_action: True
             timeout_override: 600
             ignore_empty_list: True
@@ -417,6 +460,13 @@ conf:
         compression: true
       network:
         host: 0.0.0.0
+      cloud:
+        aws:
+          protocol: http
+          s3:
+            # NOTE(srwilkers): This gets configured dynamically via endpoint
+            # lookups
+            endpoint: null
       node:
         master: ${NODE_MASTER}
         data: ${NODE_DATA}
@@ -425,11 +475,15 @@ conf:
       path:
         data: /usr/share/elasticsearch/data
         logs: /usr/share/elasticsearch/logs
-    repository:
+    snapshots:
       enabled: false
-      name: default_repo
-      location: /var/lib/openstack-helm/elasticsearch
-      type: fs
+      # NOTE(srwilkers): The path for the radosgw s3 endpoint gets populated
+      # dynamically with this value to ensure the bucket name and s3 compatible
+      # radosgw endpoint/path match
+      bucket: elasticsearch_bucket
+      repositories:
+        logstash:
+          name: logstash_snapshots
     env:
       java_opts: "-Xms256m -Xmx256m"
   prometheus_elasticsearch_exporter:
@@ -512,6 +566,31 @@ endpoints:
     port:
       ldap:
         default: 389
+  ceph_object_store:
+    name: radosgw
+    namespace: null
+    auth:
+      elasticsearch:
+        username: elasticsearch
+        access_key: "elastic_access_key"
+        secret_key: "elastic_secret_key"
+      admin:
+        username: s3_admin
+        access_key: "admin_access_key"
+        secret_key: "admin_secret_key"
+    hosts:
+      default: ceph-rgw
+      public: radosgw
+    host_fqdn_override:
+      default: null
+    path:
+      default: null
+    scheme:
+      default: http
+    port:
+      api:
+        default: 8088
+        public: 80
 
 monitoring:
   prometheus:
@@ -533,22 +612,13 @@ network:
       port: 30920
 
 storage:
-  elasticsearch:
-    enabled: true
-    pvc:
-      name: pvc-elastic
-      access_mode: [ "ReadWriteOnce" ]
-    requests:
-      storage: 5Gi
-    storage_class: general
-  filesystem_repository:
-    enabled: false
-    pvc:
-      name: pvc-snapshots
-      access_mode: ReadWriteMany
-    requests:
-      storage: 5Gi
-    storage_class: general
+  enabled: true
+  pvc:
+    name: pvc-elastic
+    access_mode: [ "ReadWriteOnce" ]
+  requests:
+    storage: 5Gi
+  storage_class: general
 
 
 manifests:
@@ -559,16 +629,17 @@ manifests:
   deployment_master: true
   ingress: true
   job_image_repo_sync: true
-  job_snapshot_repository: false
+  job_snapshot_repository: true
+  job_s3_user: true
+  job_s3_bucket: true
   helm_tests: true
-  pvc_snapshots: false
   secret_elasticsearch: true
+  secret_s3: true
   monitoring:
     prometheus:
       configmap_bin_exporter: true
       deployment_exporter: true
       service_exporter: true
-  pvc_snapshots: true
   service_data: true
   service_discovery: true
   service_ingress: true

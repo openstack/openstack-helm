@@ -17,8 +17,23 @@ limitations under the License.
 {{- if .Values.manifests.configmap_etc }}
 {{- $envAll := . }}
 
-{{- if and (.Values.conf.elasticsearch.repository.enabled) (empty .Values.conf.elasticsearch.config.path.repo) -}}
-{{- set .Values.conf.elasticsearch.config.path "repo" .Values.conf.elasticsearch.repository.location -}}
+{{- if empty .Values.conf.elasticsearch.config.cloud.aws.access_key -}}
+{{- set .Values.conf.elasticsearch.config.cloud.aws "access_key" .Values.endpoints.ceph_object_store.auth.elasticsearch.access_key -}}
+{{- end -}}
+
+{{- if empty .Values.conf.elasticsearch.config.cloud.aws.secret_key -}}
+{{- set .Values.conf.elasticsearch.config.cloud.aws "secret_key" .Values.endpoints.ceph_object_store.auth.elasticsearch.secret_key -}}
+{{- end -}}
+
+{{- if empty .Values.endpoints.ceph_object_store.path.default -}}
+{{- set .Values.endpoints.ceph_object_store.path "default" .Values.conf.elasticsearch.snapshots.bucket -}}
+{{- end -}}
+
+{{- if empty .Values.conf.elasticsearch.config.cloud.aws.s3.endpoint -}}
+{{- $radosgw_host := tuple "ceph_object_store" "internal" "api" . | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" -}}
+{{- $bucket_path := tuple "ceph_object_store" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_path_lookup" -}}
+{{- $s3_endpoint := printf "%s/%s" $radosgw_host $bucket_path -}}
+{{- set .Values.conf.elasticsearch.config.cloud.aws.s3 "endpoint" $s3_endpoint -}}
 {{- end -}}
 ---
 apiVersion: v1

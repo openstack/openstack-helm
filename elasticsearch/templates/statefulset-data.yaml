@@ -94,21 +94,6 @@ spec:
             - sysctl
             - -w
             - vm.max_map_count={{ .Values.conf.init.max_map_count }}
-{{ if .Values.storage.filesystem_repository.enabled }}
-        - name: elasticsearch-repository-perms
-{{ tuple $envAll "elasticsearch" | include "helm-toolkit.snippets.image" | indent 10 }}
-{{ tuple $envAll $envAll.Values.pod.resources.data | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-          securityContext:
-            runAsUser: 0
-          command:
-            - chown
-            - -R
-            - "elasticsearch:"
-            - {{ .Values.conf.elasticsearch.repository.location }}
-          volumeMounts:
-            - name: storage
-              mountPath: {{ .Values.conf.elasticsearch.repository.location }}
-{{ end }}
       containers:
         - name: elasticsearch-data
 {{ tuple $envAll "elasticsearch" | include "helm-toolkit.snippets.image" | indent 10 }}
@@ -155,6 +140,8 @@ spec:
               value: "{{ .Values.conf.elasticsearch.env.java_opts }}"
             - name: DISCOVERY_SERVICE
               value: {{ tuple "elasticsearch" "discovery" $envAll | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
+            - name: ES_PLUGINS_INSTALL
+              value: "elasticsearch-s3"
           volumeMounts:
             - name: elasticsearch-logs
               mountPath: {{ .Values.conf.elasticsearch.config.path.logs }}
@@ -172,10 +159,6 @@ spec:
               mountPath: /usr/share/elasticsearch/config/log4j2.properties
               subPath: log4j2.properties
               readOnly: true
-            {{ if .Values.storage.filesystem_repository.enabled }}
-            - name: snapshots
-              mountPath: {{ .Values.conf.elasticsearch.repository.location }}
-            {{ end }}
             - name: storage
               mountPath: {{ .Values.conf.elasticsearch.config.path.data }}
 {{ if $mounts_elasticsearch.volumeMounts }}{{ toYaml $mounts_elasticsearch.volumeMounts | indent 12 }}{{ end }}
@@ -192,13 +175,8 @@ spec:
           secret:
             secretName: elasticsearch-etc
             defaultMode: 0444
-        {{ if .Values.storage.filesystem_repository.enabled }}
-        - name: snapshots
-          persistentVolumeClaim:
-            claimName: {{ .Values.storage.filesystem_repository.pvc.name }}
-        {{ end }}
 {{ if $mounts_elasticsearch.volumes }}{{ toYaml $mounts_elasticsearch.volumes | indent 8 }}{{ end }}
-{{- if not .Values.storage.elasticsearch.enabled }}
+{{- if not .Values.storage.enabled }}
         - name: storage
           emptyDir: {}
 {{- else }}
@@ -206,10 +184,10 @@ spec:
     - metadata:
         name: storage
       spec:
-        accessModes: {{ .Values.storage.elasticsearch.pvc.access_mode }}
+        accessModes: {{ .Values.storage.pvc.access_mode }}
         resources:
           requests:
-            storage: {{ .Values.storage.elasticsearch.requests.storage  }}
-        storageClassName: {{ .Values.storage.elasticsearch.storage_class }}
+            storage: {{ .Values.storage.requests.storage  }}
+        storageClassName: {{ .Values.storage.storage_class }}
 {{- end }}
 {{- end }}

@@ -1,4 +1,5 @@
 #!/bin/bash
+
 {{/*
 Copyright 2017 The Openstack-Helm Authors.
 
@@ -15,22 +16,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{ $envAll := . }}
-
 set -ex
+export HOME=/tmp
 
-{{ range $repository := $envAll.Values.conf.elasticsearch.snapshots.repositories }}
-curl -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
-  "${ELASTICSEARCH_HOST}/_snapshot/{{$repository.name}}" \
-  -H 'Content-Type: application/json' -d'
-  {
-    "type": "s3",
-    "settings": {
-      "endpoint": "'"$RGW_HOST"'",
-      "protocol": "http",
-      "bucket": "'"$S3_BUCKET"'",
-      "access_key": "'"$S3_ACCESS_KEY"'",
-      "secret_key": "'"$S3_SECRET_KEY"'"
-    }
-  }'
-{{ end }}
+cat <<EOF > /etc/ceph/ceph.client.admin.keyring
+[client.admin]
+{{- if .Values.conf.ceph.admin_keyring }}
+    key = {{ .Values.conf.ceph.admin_keyring }}
+{{- else }}
+    key = $(cat /tmp/client-keyring)
+{{- end }}
+EOF
+
+exit 0
