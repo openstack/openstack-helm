@@ -18,13 +18,13 @@ limitations under the License.
 {{- $envAll := . }}
 {{- $dependencies := .Values.dependencies.static.api }}
 
-{{- $serviceAccountName := "congress-api-dep" }}
+{{- $serviceAccountName := "congress-api" }}
 {{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
-  name: congress-api-dep
+  name: congress-api
 spec:
   replicas: {{ .Values.pod.replicas.api }}
 {{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_deployment" | indent 2 }}
@@ -50,10 +50,11 @@ spec:
           - /tmp/congress-api.sh
           - start
         ports:
-          - containerPort: {{ .Values.conf.congress.DEFAULT.bind_port }}
+          - name: c-api
+            containerPort: {{ tuple "policy" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
         readinessProbe:
           tcpSocket:
-            port: {{ .Values.conf.congress.DEFAULT.bind_port }}
+            port: {{ tuple "policy" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
         volumeMounts:
           - name: etccongress
             mountPath: /etc/congress
