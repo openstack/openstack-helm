@@ -25,11 +25,6 @@ limitations under the License.
 {{- tuple "identity" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup"| set .Values.conf.neutron.keystone_authtoken "auth_url" | quote | trunc 0 -}}
 {{- end }}
 
-# Set a random string as secret key.
-{{- if empty .Values.conf.neutron.keystone_authtoken.memcache_secret_key -}}
-{{- randAlphaNum 64 | set .Values.conf.neutron.keystone_authtoken "memcache_secret_key" | quote | trunc 0 -}}
-{{- end -}}
-
 {{- if empty .Values.conf.neutron.keystone_authtoken.project_name -}}
 {{- set .Values.conf.neutron.keystone_authtoken "project_name" .Values.endpoints.identity.auth.neutron.project_name | quote | trunc 0 -}}
 {{- end -}}
@@ -52,6 +47,9 @@ limitations under the License.
 {{- if empty .Values.conf.neutron.keystone_authtoken.memcached_servers -}}
 {{- tuple "oslo_cache" "internal" "memcache" . | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" | set .Values.conf.neutron.keystone_authtoken "memcached_servers" | quote | trunc 0 -}}
 {{- end }}
+{{- if empty .Values.conf.neutron.keystone_authtoken.memcache_secret_key -}}
+{{- set .Values.conf.neutron.keystone_authtoken "memcache_secret_key" ( default ( randAlphaNum 64 ) .Values.endpoints.oslo_cache.auth.memcache_secret_key ) | quote | trunc 0 -}}
+{{- end -}}
 
 {{- if empty .Values.conf.neutron.database.connection -}}
 {{- tuple "oslo_db" "internal" "neutron" "mysql" . | include "helm-toolkit.endpoints.authenticated_endpoint_uri_lookup"| set .Values.conf.neutron.database "connection" | quote | trunc 0 -}}
