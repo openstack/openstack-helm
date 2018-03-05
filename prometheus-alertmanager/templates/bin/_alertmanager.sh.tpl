@@ -31,7 +31,7 @@ function generate_peers () {
   final_pod_suffix=$(( {{ .Values.pod.replicas.alertmanager }}-1 ))
   for pod_suffix in `seq 0 "$final_pod_suffix"`
   do
-    echo -mesh.peer={{ .Release.Name }}-$pod_suffix.$DISCOVERY_SVC:6783
+    echo -mesh.peer={{ .Release.Name }}-$pod_suffix.$DISCOVERY_SVC:$MESH_PORT
   done
 }
 

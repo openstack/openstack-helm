@@ -81,15 +81,17 @@ spec:
           env:
             - name: DISCOVERY_SVC
               value: {{ tuple "alerts" "discovery" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
+            - name: MESH_PORT
+              value: {{ tuple "alerts" "internal" "mesh" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | quote }}
           ports:
             - name: alerts-api
-              containerPort: {{ .Values.network.alertmanager.port }}
+              containerPort: {{ tuple "alerts" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
             - name: peer-mesh
-              containerPort: {{ .Values.network.alertmanager.mesh_port }}
+              containerPort: {{ tuple "alerts" "internal" "mesh" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
           readinessProbe:
             httpGet:
               path: /#/status
-              port: {{ .Values.network.alertmanager.port }}
+              port: {{ tuple "alerts" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
             initialDelaySeconds: 30
             timeoutSeconds: 30
           volumeMounts:
