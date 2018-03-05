@@ -74,7 +74,23 @@ spec:
       nodeSelector:
         {{ .Values.labels.server.node_selector_key }}: {{ .Values.labels.server.node_selector_value }}
       initContainers:
-{{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 9 }}
+{{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{- if .Values.volume.chown_on_start }}
+        - name: rabbitmq-perms
+          image: {{ .Values.images.tags.rabbitmq }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+          securityContext:
+            runAsUser: 0
+{{ tuple $envAll $envAll.Values.pod.resources.server | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          command:
+            - chown
+            - -R
+            - "rabbitmq:"
+            - /var/lib/rabbitmq
+          volumeMounts:
+            - name: rabbitmq-data
+              mountPath: /var/lib/rabbitmq
+{{- end }}
       containers:
         - name: rabbitmq
           image: {{ .Values.images.tags.rabbitmq }}
@@ -114,7 +130,7 @@ spec:
               command:
               - /tmp/rabbitmq-liveness.sh
           volumeMounts:
-            - name: rabbitmq-emptydir
+            - name: rabbitmq-data
               mountPath: /var/lib/rabbitmq
             - name: rabbitmq-bin
               mountPath: /tmp
@@ -127,8 +143,6 @@ spec:
               subPath: rabbitmq.conf
               readOnly: true
       volumes:
-        - name: rabbitmq-emptydir
-          emptyDir: {}
         - name: rabbitmq-bin
           configMap:
             name: {{ printf "%s-%s" $envAll.Release.Name "rabbitmq-bin" | quote }}
@@ -137,4 +151,19 @@ spec:
           configMap:
             name: {{ printf "%s-%s" $envAll.Release.Name "rabbitmq-etc" | quote }}
             defaultMode: 0444
+        {{- if not .Values.volume.enabled }}
+        - name: rabbitmq-data
+          emptyDir: {}
+        {{- end }}
+{{- if .Values.volume.enabled }}
+  volumeClaimTemplates:
+    - metadata:
+        name: rabbitmq-data
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        resources:
+          requests:
+            storage: {{ .Values.volume.size }}
+        storageClassName: {{ .Values.volume.class_name }}
+{{- end }}
 {{ end }}
