@@ -14,9 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if .Values.manifests.service_novncproxy }}
+{{- if and .Values.manifests.service_novncproxy ( eq .Values.console.console_kind "novnc" ) }}
 {{- $envAll := . }}
-{{ if eq .Values.console.console_kind "novnc" }}
 ---
 apiVersion: v1
 kind: Service
@@ -24,10 +23,8 @@ metadata:
   name: {{ tuple "compute_novnc_proxy" "internal" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
 spec:
   ports:
-  - name: nova-novncproxy
-    protocol: TCP
-    port: {{ .Values.network.novncproxy.port }}
-    targetPort: {{ .Values.network.novncproxy.targetPort }}
+  - name: n-novnc
+    port: {{ tuple "compute_novnc_proxy" "internal" "novnc_proxy" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
     {{ if .Values.network.novncproxy.node_port.enabled }}
     nodePort: {{ .Values.network.novncproxy.node_port.port }}
     {{ end }}
@@ -36,5 +33,4 @@ spec:
   {{ if .Values.network.novncproxy.node_port.enabled }}
   type: NodePort
   {{ end }}
-{{- end }}
 {{- end }}

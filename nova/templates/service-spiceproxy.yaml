@@ -14,9 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if .Values.manifests.service_spiceproxy }}
+{{- if and .Values.manifests.service_spiceproxy (eq .Values.console.console_kind "spice") }}
 {{- $envAll := . }}
-{{ if eq .Values.console.console_kind "spice" }}
 ---
 apiVersion: v1
 kind: Service
@@ -24,10 +23,8 @@ metadata:
   name: {{ tuple "compute_spice_proxy" "internal" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
 spec:
   ports:
-  - name: nova-spiceproxy
-    protocol: TCP
-    port: {{ .Values.network.spiceproxy.port }}
-    targetPort: {{ .Values.network.spiceproxy.targetPort }}
+  - name: n-spice
+    port: {{ tuple "compute_spice_proxy" "internal" "spice_proxy" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
     {{ if .Values.network.spiceproxy.node_port.enabled }}
     nodePort: {{ .Values.network.spiceproxy.node_port.port }}
     {{ end }}
@@ -36,5 +33,4 @@ spec:
   {{ if .Values.network.spiceproxy.node_port.enabled }}
   type: NodePort
   {{ end }}
-{{- end }}
 {{- end }}
