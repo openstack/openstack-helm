@@ -20,7 +20,7 @@ COMMAND="${@:-start}"
 
 function start () {
   ulimit -l unlimited
-  exec /docker-entrypoint.sh elasticsearch
+  exec /usr/local/bin/docker-entrypoint.sh
 }
 
 function stop () {

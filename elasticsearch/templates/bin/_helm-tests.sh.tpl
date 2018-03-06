@@ -46,8 +46,8 @@ function insert_test_data () {
       "name" : "Elasticsearch",
       "message" : "Test data text entry"
   }
-  ' | python -c "import sys, json; print json.load(sys.stdin)['created']")
-  if [ "$insert_result" == "True" ]; then
+  ' | python -c "import sys, json; print json.load(sys.stdin)['result']")
+  if [ "$insert_result" == "created" ]; then
      sleep 20
      echo "PASS: Test data inserted into test index!";
   else
