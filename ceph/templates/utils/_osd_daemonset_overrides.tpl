@@ -201,7 +201,7 @@ limitations under the License.
     there may be other valid label names which would make for an invalid DNS-1123 name
     but these will be easier to handle in future with sprig regex* functions
     (not availabile in helm 2.5.1) */}}
-    {{- $name_format2 := $name_format1 | replace "_" "-" }}
+    {{- $name_format2 := $name_format1 | replace "_" "-" | replace "." "-" }}
     {{/* To account for the case where the same label is defined multiple times in overrides
     (but with different label values), we add a sha of the scheduling data to ensure
     name uniqueness */}}
