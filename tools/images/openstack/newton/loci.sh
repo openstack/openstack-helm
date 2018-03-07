@@ -31,7 +31,7 @@ sudo docker exec docker-in-docker docker build --force-rm --pull --no-cache \
     --build-arg PROJECT=keystone \
     --build-arg FROM=gcr.io/google_containers/ubuntu-slim:0.14 \
     --build-arg PROJECT_REF=${OPENSTACK_VERSION} \
-    --build-arg PROFILES="apache" \
+    --build-arg PROFILES="apache ldap" \
     --build-arg PIP_PACKAGES="pycrypto python-openstackclient" \
     --build-arg WHEELS=openstackhelm/requirements:${IMAGE_TAG} \
     --tag docker.io/openstackhelm/keystone:${IMAGE_TAG}
