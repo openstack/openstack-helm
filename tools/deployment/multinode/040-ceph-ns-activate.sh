@@ -49,7 +49,9 @@ conf:
 EOF
 helm upgrade --install ceph-openstack-config ./ceph \
   --namespace=openstack \
-  --values=/tmp/ceph-openstack-config.yaml
+  --values=/tmp/ceph-openstack-config.yaml \
+  ${OSH_EXTRA_HELM_ARGS} \
+  ${OSH_EXTRA_HELM_ARGS_CEPH_NS_ACTIVATE}
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack

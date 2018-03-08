@@ -21,7 +21,9 @@ helm upgrade --install mistral ./mistral \
   --set pod.replicas.api=2 \
   --set pod.replicas.engine=2 \
   --set pod.replicas.event_engine=2 \
-  --set pod.replicas.executor=2
+  --set pod.replicas.executor=2 \
+  ${OSH_EXTRA_HELM_ARGS} \
+  ${OSH_EXTRA_HELM_ARGS_MISTRAL}
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack

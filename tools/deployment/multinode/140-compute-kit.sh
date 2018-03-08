@@ -35,13 +35,17 @@ if [ "x$(systemd-detect-virt)" == "xnone" ]; then
   echo 'OSH is not being deployed in virtualized environment'
   helm upgrade --install nova ./nova \
       --namespace=openstack \
-      --values=/tmp/nova.yaml
+      --values=/tmp/nova.yaml \
+      ${OSH_EXTRA_HELM_ARGS} \
+      ${OSH_EXTRA_HELM_ARGS_NOVA}
 else
   echo 'OSH is being deployed in virtualized environment, using qemu for nova'
   helm upgrade --install nova ./nova \
       --namespace=openstack \
       --values=/tmp/nova.yaml \
-      --set conf.nova.libvirt.virt_type=qemu
+      --set conf.nova.libvirt.virt_type=qemu \
+      ${OSH_EXTRA_HELM_ARGS} \
+      ${OSH_EXTRA_HELM_ARGS_NOVA}
 fi
 
 #NOTE: Deploy neutron
@@ -86,7 +90,9 @@ conf:
 EOF
 helm upgrade --install neutron ./neutron \
     --namespace=openstack \
-    --values=/tmp/neutron.yaml
+    --values=/tmp/neutron.yaml \
+    ${OSH_EXTRA_HELM_ARGS} \
+    ${OSH_EXTRA_HELM_ARGS_NEUTRON}
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack

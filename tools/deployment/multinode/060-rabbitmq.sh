@@ -18,7 +18,9 @@ set -xe
 
 #NOTE: Deploy command
 helm upgrade --install rabbitmq ./rabbitmq \
-    --namespace=openstack
+    --namespace=openstack \
+    ${OSH_EXTRA_HELM_ARGS} \
+    ${OSH_EXTRA_HELM_ARGS_RABBITMQ}
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack

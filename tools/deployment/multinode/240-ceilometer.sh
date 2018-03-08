@@ -21,7 +21,9 @@ helm upgrade --install ceilometer ./ceilometer \
   --set pod.replicas.api=2 \
   --set pod.replicas.central=2 \
   --set pod.replicas.collector=2 \
-  --set pod.replicas.notification=2
+  --set pod.replicas.notification=2 \
+  ${OSH_EXTRA_HELM_ARGS} \
+  ${OSH_EXTRA_HELM_ARGS_CEILOMETER}
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack

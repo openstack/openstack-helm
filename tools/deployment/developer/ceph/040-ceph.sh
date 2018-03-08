@@ -157,7 +157,8 @@ EOF
 helm upgrade --install ceph ./ceph \
   --namespace=ceph \
   --values=/tmp/ceph.yaml \
-  ${OSH_EXTRA_HELM_ARGS}
+  ${OSH_EXTRA_HELM_ARGS} \
+  ${OSH_EXTRA_HELM_ARGS_CEPH_DEPLOY}
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh ceph

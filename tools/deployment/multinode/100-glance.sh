@@ -27,7 +27,9 @@ pod:
 EOF
 helm upgrade --install glance ./glance \
   --namespace=openstack \
-  --values=/tmp/glance.yaml
+  --values=/tmp/glance.yaml \
+  ${OSH_EXTRA_HELM_ARGS} \
+  ${OSH_EXTRA_HELM_ARGS_GLANCE}
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack

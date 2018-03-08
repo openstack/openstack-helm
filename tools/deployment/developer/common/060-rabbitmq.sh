@@ -24,7 +24,8 @@ make pull-images rabbitmq
 helm upgrade --install rabbitmq ./rabbitmq \
     --namespace=openstack \
     --set pod.replicas.server=1 \
-    ${OSH_EXTRA_HELM_ARGS}
+    ${OSH_EXTRA_HELM_ARGS} \
+    ${OSH_EXTRA_HELM_ARGS_RABBITMQ}
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack

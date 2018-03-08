@@ -19,7 +19,9 @@ set -xe
 helm upgrade --install magnum ./magnum \
   --namespace=openstack \
   --set pod.replicas.api=2 \
-  --set pod.replicas.conductor=2
+  --set pod.replicas.conductor=2 \
+  ${OSH_EXTRA_HELM_ARGS} \
+  ${OSH_EXTRA_HELM_ARGS_MAGNUM}
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack

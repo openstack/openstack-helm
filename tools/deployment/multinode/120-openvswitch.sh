@@ -17,7 +17,9 @@ set -xe
 
 #NOTE: Deploy command
 helm upgrade --install openvswitch ./openvswitch \
-  --namespace=openstack
+  --namespace=openstack \
+  ${OSH_EXTRA_HELM_ARGS} \
+  ${OSH_EXTRA_HELM_ARGS_OPENVSWITCH}
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack

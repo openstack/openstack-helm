@@ -17,7 +17,9 @@ set -xe
 
 #NOTE: Wait for deploy
 helm upgrade --install mongodb ./mongodb \
-  --namespace=openstack
+  --namespace=openstack \
+  ${OSH_EXTRA_HELM_ARGS} \
+  ${OSH_EXTRA_HELM_ARGS_MONGODB}
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack

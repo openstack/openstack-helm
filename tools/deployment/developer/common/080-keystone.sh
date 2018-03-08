@@ -23,7 +23,8 @@ make pull-images keystone
 : ${OSH_EXTRA_HELM_ARGS:=""}
 helm upgrade --install keystone ./keystone \
     --namespace=openstack \
-    ${OSH_EXTRA_HELM_ARGS}
+    ${OSH_EXTRA_HELM_ARGS} \
+    ${OSH_EXTRA_HELM_ARGS_KEYSTONE}
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack

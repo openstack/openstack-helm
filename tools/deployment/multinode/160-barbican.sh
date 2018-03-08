@@ -18,7 +18,9 @@ set -xe
 #NOTE: Deploy command
 helm upgrade --install barbican ./barbican \
   --namespace=openstack \
-  --set pod.replicas.api=2
+  --set pod.replicas.api=2 \
+  ${OSH_EXTRA_HELM_ARGS} \
+  ${OSH_EXTRA_HELM_ARGS_BARBICAN}
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack

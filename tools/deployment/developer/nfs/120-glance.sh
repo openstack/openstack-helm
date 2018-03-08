@@ -24,7 +24,8 @@ make pull-images glance
 helm upgrade --install glance ./glance \
   --namespace=openstack \
   --set storage=pvc \
-  ${OSH_EXTRA_HELM_ARGS}
+  ${OSH_EXTRA_HELM_ARGS} \
+  ${OSH_EXTRA_HELM_ARGS_GLANCE}
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack

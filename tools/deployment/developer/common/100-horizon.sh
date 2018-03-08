@@ -25,7 +25,8 @@ helm upgrade --install horizon ./horizon \
     --namespace=openstack \
     --set network.node_port.enabled=true \
     --set network.node_port.port=31000 \
-    ${OSH_EXTRA_HELM_ARGS}
+    ${OSH_EXTRA_HELM_ARGS} \
+    ${OSH_EXTRA_HELM_ARGS_HORIZON}
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack

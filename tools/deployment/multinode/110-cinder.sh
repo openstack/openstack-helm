@@ -30,7 +30,9 @@ conf:
 EOF
 helm upgrade --install cinder ./cinder \
   --namespace=openstack \
-  --values=/tmp/cinder.yaml
+  --values=/tmp/cinder.yaml \
+  ${OSH_EXTRA_HELM_ARGS} \
+  ${OSH_EXTRA_HELM_ARGS_CINDER}
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack

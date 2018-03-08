@@ -23,7 +23,8 @@ make pull-images memcached
 : ${OSH_EXTRA_HELM_ARGS:=""}
 helm upgrade --install memcached ./memcached \
     --namespace=openstack \
-    ${OSH_EXTRA_HELM_ARGS}
+    ${OSH_EXTRA_HELM_ARGS} \
+    ${OSH_EXTRA_HELM_ARGS_MEMCACHED}
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack

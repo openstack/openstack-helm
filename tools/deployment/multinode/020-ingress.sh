@@ -29,7 +29,9 @@ network:
 EOF
 helm upgrade --install ingress-kube-system ./ingress \
   --namespace=kube-system \
-  --values=/tmp/ingress-kube-system.yaml
+  --values=/tmp/ingress-kube-system.yaml \
+  ${OSH_EXTRA_HELM_ARGS} \
+  ${OSH_EXTRA_HELM_ARGS_INGRESS_KUBE_SYSTEM}
 
 #NOTE: Deploy namespace ingress
 tee /tmp/ingress-openstack.yaml << EOF

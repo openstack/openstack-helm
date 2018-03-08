@@ -31,11 +31,14 @@ EOF
 helm upgrade --install ingress-kube-system ./ingress \
   --namespace=kube-system \
   --values=/tmp/ingress-kube-system.yaml \
-  ${OSH_EXTRA_HELM_ARGS}
+  ${OSH_EXTRA_HELM_ARGS} \
+  ${OSH_EXTRA_HELM_ARGS_INGRESS_KUBE_SYSTEM}
 
 #NOTE: Deploy namespace ingress
 helm upgrade --install ingress-openstack ./ingress \
-  --namespace=openstack
+  --namespace=openstack \
+  ${OSH_EXTRA_HELM_ARGS} \
+  ${OSH_EXTRA_HELM_ARGS_INGRESS_OPENSTACK}
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh kube-system
