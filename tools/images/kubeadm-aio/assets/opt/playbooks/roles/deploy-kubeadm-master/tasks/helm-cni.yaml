@@ -63,7 +63,7 @@
       environment:
         KUBECONFIG: '/mnt/rootfs/etc/kubernetes/admin.conf'
     - name: kubeadm | cni | calico
-      command: helm install /opt/charts/calico --name calico --namespace kube-system --set networking.podSubnet="{{ k8s.networking.podSubnet }}" --set networking.mtu="{{ cni_default_device_mtu.stdout }}" --wait --timeout=600
+      command: helm install /opt/charts/calico --name calico --namespace kube-system --set networking.podSubnet="{{ k8s.networking.podSubnet }}" --set conf.node.IP_AUTODETECTION_METHOD="can-reach={% if k8s.api.advertiseAddress is defined %}{{ k8s.api.advertiseAddress }}{% else %}{% if k8s.api.advertiseAddressDevice is defined %}{{ hostvars[inventory_hostname]['ansible_'+k8s.api.advertiseAddressDevice].ipv4.address }}{% else %}{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] }}{% endif %}{% endif %}" --set networking.mtu="{{ cni_default_device_mtu.stdout }}" --wait --timeout=600
       environment:
         HELM_HOST: 'localhost:44134'
     - name: kubeadm | cni | calico
