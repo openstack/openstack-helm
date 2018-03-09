@@ -20,8 +20,22 @@ make pull-images cinder
 
 #NOTE: Deploy command
 : ${OSH_EXTRA_HELM_ARGS:=""}
+tee /tmp/cinder.yaml <<EOF
+conf:
+  ceph:
+    pools:
+      backup:
+        replication: 1
+        crush_rule: same_host
+        chunk_size: 8
+      volume:
+        replication: 1
+        crush_rule: same_host
+        chunk_size: 8
+EOF
 helm upgrade --install cinder ./cinder \
   --namespace=openstack \
+  --values=/tmp/cinder.yaml \
   ${OSH_EXTRA_HELM_ARGS} \
   ${OSH_EXTRA_HELM_ARGS_CINDER}
 

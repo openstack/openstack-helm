@@ -38,6 +38,8 @@ elif [ "x$STORAGE_BACKEND" == "xcinder.backup.drivers.ceph" ]; then
     if [[ ${test_luminous} -gt 0 ]]; then
       ceph osd pool application enable $1 $3
     fi
+    ceph osd pool set $1 size ${RBD_POOL_REPLICATION}
+    ceph osd pool set $1 crush_rule "${RBD_POOL_CRUSH_RULE}"
   }
   ensure_pool ${RBD_POOL_NAME} ${RBD_POOL_CHUNK_SIZE} "cinder-backup"
 
