@@ -25,7 +25,7 @@ CustomLog /dev/stdout combined env=!forwarded
 CustomLog /dev/stdout proxy env=forwarded
 
 <VirtualHost *:{{ tuple "identity" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}>
-    WSGIDaemonProcess keystone-public processes=1 threads=4 user=keystone group=keystone display-name=%{GROUP}
+    WSGIDaemonProcess keystone-public processes=1 threads=1 user=keystone group=keystone display-name=%{GROUP}
     WSGIProcessGroup keystone-public
     WSGIScriptAlias / /var/www/cgi-bin/keystone/keystone-wsgi-public
     WSGIApplicationGroup %{GLOBAL}
@@ -41,7 +41,7 @@ CustomLog /dev/stdout proxy env=forwarded
 </VirtualHost>
 
 <VirtualHost *:{{ tuple "identity" "internal" "admin" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}>
-    WSGIDaemonProcess keystone-admin processes=1 threads=4 user=keystone group=keystone display-name=%{GROUP}
+    WSGIDaemonProcess keystone-admin processes=1 threads=1 user=keystone group=keystone display-name=%{GROUP}
     WSGIProcessGroup keystone-admin
     WSGIScriptAlias / /var/www/cgi-bin/keystone/keystone-wsgi-admin
     WSGIApplicationGroup %{GLOBAL}
