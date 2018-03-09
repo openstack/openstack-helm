@@ -17,7 +17,7 @@ limitations under the License.
 
 set -ex
 
-exec curl "http://${GF_SECURITY_ADMIN_USER}:${GF_SECURITY_ADMIN_PASSWORD}@${GRAFANA_SERVICE}:{{ .Values.network.grafana.port }}/api/datasources" \
+exec curl "http://${GF_SECURITY_ADMIN_USER}:${GF_SECURITY_ADMIN_PASSWORD}@${GRAFANA_SERVICE}:${GRAFANA_PORT}/api/datasources" \
             -H "Content-Type: application/json;charset=UTF-8" --data-binary \
             {{- with .Values.conf.datasource }}
             "{\"name\":\"{{ .name }}\",\"type\":\"{{ .type }}\",\"url\":\"$PROMETHEUS_URL\",\"database\":\"{{ .database }}\",\"jsonData\":{ {{ .jsonData }} },\"access\":\"{{ .access }}\",\"isDefault\":{{ .isDefault }}}"
