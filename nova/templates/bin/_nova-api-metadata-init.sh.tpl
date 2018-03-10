@@ -18,7 +18,7 @@ limitations under the License.
 
 set -ex
 
-metadata_ip="{{- .Values.network.metadata.ip -}}"
+metadata_ip="{{- .Values.endpoints.compute_metadata.ip.ingress -}}"
 if [ -z "${metadata_ip}" ] ; then
     metadata_ip=$(getent hosts metadata | awk '{print $1}')
 fi
@@ -27,4 +27,3 @@ cat <<EOF>/tmp/pod-shared/nova-api-metadata.ini
 [DEFAULT]
 metadata_host=$metadata_ip
 EOF
-
