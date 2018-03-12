@@ -135,7 +135,11 @@ section):
 {{- include "fluent_logging.recursive_tuple" $value | indent 2 }}
 }
 {{- else }}
+{{- if eq $key "index_patterns"}}
+{{ $key | quote -}}: [{{ $value | quote }}]
+{{- else }}
 {{ $key | quote -}}:{{ $value | quote }}
+{{- end }}
 {{- end }}
 {{- end }}
 {{- end }}
