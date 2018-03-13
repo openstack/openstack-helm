@@ -16,6 +16,7 @@ limitations under the License.
 
 {{- if .Values.manifests.job_elasticsearch_template }}
 {{- $envAll := . }}
+{{- $esUserSecret := .Values.secrets.elasticsearch.user }}
 {{- $dependencies := .Values.dependencies.static.elasticsearch_template }}
 {{- $mounts_elasticsearch_template := .Values.pod.mounts.elasticsearch_template.elasticsearch_template }}
 {{- $mounts_elasticsearch_template_init := .Values.pod.mounts.elasticsearch_template.init_container }}
@@ -44,11 +45,17 @@ spec:
             - name: ELASTICSEARCH_HOST
               value: {{ tuple "elasticsearch" "internal" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" | quote }}
             - name: ELASTICSEARCH_PORT
-              value: {{ tuple "elasticsearch" "internal" "client" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | quote }}
+              value: {{ tuple "elasticsearch" "internal" "http" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | quote }}
             - name: ELASTICSEARCH_USERNAME
-              value: {{ .Values.endpoints.elasticsearch.auth.admin.username }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $esUserSecret }}
+                  key: ELASTICSEARCH_USERNAME
             - name: ELASTICSEARCH_PASSWORD
-              value: {{ .Values.endpoints.elasticsearch.auth.admin.password }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $esUserSecret }}
+                  key: ELASTICSEARCH_PASSWORD
           command:
             - /tmp/create_template.sh
           volumeMounts:
