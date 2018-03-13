@@ -19,7 +19,7 @@ set -ex
 # Get IDs for filtering
 OS_PROJECT_ID=$(openstack project show -f value -c id ${OS_PROJECT_NAME})
 OS_USER_ID=$(openstack user show -f value -c id ${OS_USERNAME})
-SERVICE_OS_TRUSTEE_ID=$(openstack user show -f value -c id ${SERVICE_OS_TRUSTEE})
+SERVICE_OS_TRUSTEE_ID=$(openstack user show -f value -c id --domain ${SERVICE_OS_TRUSTEE_DOMAIN} ${SERVICE_OS_TRUSTEE})
 
 # Check if trust doesn't already exist
 openstack trust list -f value -c "Project ID" \
@@ -42,6 +42,7 @@ fi
 SERVICE_OS_TRUST_ID=$(openstack trust create -f value -c id \
           --project="${OS_PROJECT_NAME}" \
           ${roles[@]/#/--role=} \
+          --trustee-domain="${SERVICE_OS_TRUSTEE_DOMAIN}" \
           "${OS_USERNAME}" \
           "${SERVICE_OS_TRUSTEE}")
 
