@@ -5,9 +5,6 @@ include "bird6_ipam.cfg";
 {{`{{$node_ip_key := printf "/host/%s/ip_addr_v4" (getenv "NODENAME")}}`}}{{`{{$node_ip := getv $node_ip_key}}`}}
 {{`{{$node_ip6_key := printf "/host/%s/ip_addr_v6" (getenv "NODENAME")}}`}}{{`{{$node_ip6 := getv $node_ip6_key}}`}}
 
-# ensure we only listen to a specific ip and address
-listen bgp address {{`{{$node_ip6}}`}} port {{.Values.networking.bgp.ipv6.no_mesh.port.listen}};
-
 router id {{`{{$node_ip}}`}};  # Use IPv4 address since router id is 4 octets, even in MP-BGP
 
 {{`{{define "LOGGING"}}`}}
@@ -46,6 +43,10 @@ protocol direct {
 
 {{`{{if eq "" ($node_ip6)}}`}}# IPv6 disabled on this node.
 {{`{{else}}`}}{{`{{$node_as_key := printf "/host/%s/as_num" (getenv "NODENAME")}}`}}
+
+# ensure we only listen to a specific ip and address
+listen bgp address {{`{{$node_ip6}}`}} port {{.Values.networking.bgp.ipv6.no_mesh.port.listen}};
+
 # Template for all BGP clients
 template bgp bgp_template {
   {{`{{template "LOGGING"}}`}}
