@@ -87,9 +87,20 @@
       args:
         chdir: "{{ zuul.project.src_dir }}"
     - name: Deploy Keystone
+      when: idp_backend is not defined
       shell: |
         set -xe;
         ./tools/deployment/developer/nfs/080-keystone.sh
+      environment:
+        OSH_EXTRA_HELM_ARGS: "{{ zuul_osh_extra_helm_args_relative_path | default('') }}"
+        OSH_INFRA_PATH: "{{ zuul_osh_infra_relative_path | default('') }}"
+      args:
+        chdir: "{{ zuul.project.src_dir }}"
+    - name: Deploy Keystone with LDAP
+      when: idp_backend is defined and idp_backend == "ldap"
+      shell: |
+        set -xe;
+        ./tools/deployment/developer/ldap/080-keystone.sh
       environment:
         OSH_EXTRA_HELM_ARGS: "{{ zuul_osh_extra_helm_args_relative_path | default('') }}"
         OSH_INFRA_PATH: "{{ zuul_osh_infra_relative_path | default('') }}"

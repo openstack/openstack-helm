@@ -30,6 +30,7 @@ limitations under the License.
 {{- $configMapEtc := index . "configMapEtc" | default (printf "%s-%s" $serviceName "etc" ) -}}
 {{- $configFile := index . "configFile" | default (printf "/etc/%s/%s.conf" $serviceName $serviceName ) -}}
 {{- $keystoneUser := index . "keystoneUser" | default $serviceName -}}
+{{- $openrc := index . "openrc" | default "true" -}}
 
 {{- $serviceNamePretty := $serviceName | replace "_" "-" -}}
 
@@ -57,9 +58,11 @@ spec:
           image: {{ $envAll.Values.images.tags.bootstrap }}
           imagePullPolicy: {{ $envAll.Values.images.pull_policy }}
 {{ tuple $envAll $envAll.Values.pod.resources.jobs.bootstrap | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{- if eq $openrc "true" }}
           env:
 {{- with $env := dict "ksUserSecret" ( index $envAll.Values.secrets.identity $keystoneUser ) }}
 {{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 12 }}
+{{- end }}
 {{- end }}
           command:
             - /tmp/bootstrap.sh

@@ -25,6 +25,14 @@ pod:
         default: kubernetes.io/hostname
   replicas:
     server: 1
+  lifecycle:
+    upgrades:
+      deployments:
+        revision_history: 3
+        pod_replacement_strategy: RollingUpdate
+        rolling_update:
+          max_unavailable: 1
+          max_surge: 3
   resources:
     enabled: false
     server:
@@ -34,9 +42,23 @@ pod:
       limits:
         memory: "1024Mi"
         cpu: "2000m"
+    jobs:
+      bootstrap:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+  mounts:
+    ldap_data_load:
+      init_container: null
+      ldap_data_load:
+
 images:
   tags:
-    ldap: "docker.io/osixia/openldap:1.1.9"
+    bootstrap: "docker.io/osixia/openldap:1.2.0"
+    ldap: "docker.io/osixia/openldap:1.2.0"
     dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.2.1
   pull_policy: IfNotPresent
 
@@ -44,6 +66,10 @@ dependencies:
   static:
     ldap:
       jobs: null
+    bootstrap:
+      services:
+        - endpoint: internal
+          service: ldap
 
 storage:
   pvc:
@@ -58,6 +84,12 @@ labels:
   server:
     node_selector_key: openstack-control-plane
     node_selector_value: enabled
+  job:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+
+bootstrap:
+  enabled: false
 
 endpoints:
   cluster_domain_suffix: cluster.local
@@ -72,10 +104,98 @@ endpoints:
       ldap:
         default: 389
 
+data:
+  sample: |
+    dn: ou=People,dc=cluster,dc=local
+    objectclass: organizationalunit
+    ou: People
+    description: We the People
+
+    # NOTE: Password is "password" without quotes
+    dn: uid=alice,ou=People,dc=cluster,dc=local
+    objectClass: inetOrgPerson
+    objectClass: top
+    objectClass: posixAccount
+    objectClass: shadowAccount
+    objectClass: person
+    sn: Alice
+    cn: alice
+    uid: alice
+    userPassword: {SSHA}+i3t/DLCgLDGaIOAmfeFJ2kDeJWmPUDH
+    description: SHA
+    gidNumber: 1000
+    uidNumber: 1493
+    homeDirectory: /home/alice
+    mail: alice@example.com
+
+    # NOTE: Password is "password" without quotes
+    dn: uid=bob,ou=People,dc=cluster,dc=local
+    objectClass: inetOrgPerson
+    objectClass: top
+    objectClass: posixAccount
+    objectClass: shadowAccount
+    objectClass: person
+    sn: Bob
+    cn: bob
+    uid: bob
+    userPassword: {SSHA}fCJ5vuW1BQ4/OfOVkkx1qjwi7yHFuGNB
+    description: MD5
+    gidNumber: 1000
+    uidNumber: 5689
+    homeDirectory: /home/bob
+    mail: bob@example.com
+
+    dn: ou=Groups,dc=cluster,dc=local
+    objectclass: organizationalunit
+    ou: Groups
+    description: We the People
+
+    dn: cn=cryptography,ou=Groups,dc=cluster,dc=local
+    objectclass: top
+    objectclass: posixGroup
+    gidNumber: 418
+    cn: overwatch
+    description: Cryptography Team
+    memberUID: uid=alice,ou=People,dc=cluster,dc=local
+    memberUID: uid=bob,ou=People,dc=cluster,dc=local
+
+    dn: cn=blue,ou=Groups,dc=cluster,dc=local
+    objectclass: top
+    objectclass: posixGroup
+    gidNumber: 419
+    cn: blue
+    description: Blue Team
+    memberUID: uid=bob,ou=People,dc=cluster,dc=local
+
+    dn: cn=red,ou=Groups,dc=cluster,dc=local
+    objectclass: top
+    objectclass: posixGroup
+    gidNumber: 420
+    cn: red
+    description: Red Team
+    memberUID: uid=alice,ou=People,dc=cluster,dc=local
+
+secrets:
+  identity:
+    admin: admin
+    ldap: ldap
+
+dependencies:
+  static:
+    server:
+      jobs:
+        - ldap-load-data
+      services:
+        - endpoint: internal
+          service: ldap
+
 openldap:
   domain: cluster.local
   password: password
 
 manifests:
+  configmap_bin: true
+  configmap_etc: true
+  job_bootstrap: true
   statefulset: true
   service: true
