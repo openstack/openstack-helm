@@ -35,7 +35,28 @@
     #        CNI_VERSION: "{{ version.cni }}"
     #        HELM_VERSION: "{{ version.helm }}"
     #        CHARTS: "calico,flannel,tiller,kube-dns"
+    - name: Kubeadm-AIO image build path with proxy
+      when: proxy.http is defined and (proxy.http | trim != "")
+      shell: |-
+              set -e
+              docker build \
+                --network host \
+                --force-rm \
+                --tag "{{ images.kubernetes.kubeadm_aio }}" \
+                --file tools/images/kubeadm-aio/Dockerfile \
+                --build-arg KUBE_VERSION="{{ version.kubernetes }}" \
+                --build-arg CNI_VERSION="{{ version.cni }}" \
+                --build-arg HELM_VERSION="{{ version.helm }}" \
+                --build-arg CHARTS="calico,flannel,tiller,kube-dns" \
+                --build-arg HTTP_PROXY="{{ proxy.http }}" \
+                --build-arg HTTPS_PROXY="{{ proxy.https }}" \
+                --build-arg NO_PROXY="{{ proxy.noproxy }}" \
+                .
+      args:
+        chdir: "{{ kubeadm_aio_path.stdout }}/"
+        executable: /bin/bash
     - name: Kubeadm-AIO image build path
+      when: proxy.http is undefined or (proxy.http | trim == "")
       shell: |-
               set -e
               docker build \
