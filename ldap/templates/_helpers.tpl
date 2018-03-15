@@ -14,3 +14,9 @@ We truncate at 63 chars because some Kubernetes name fields are limited to this 
 {{- $name := default .Chart.Name .Values.nameOverride -}}
 {{- printf "%s-%s" .Release.Name $name | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
+
+{{- define "splitdomain" -}}
+{{- $name := index . 0 -}}
+{{- $local := dict "first" true }}
+{{- range $k, $v := splitList "." $name }}{{- if not $local.first -}},{{- end -}}dc={{- $v -}}{{- $_ := set $local "first" false -}}{{- end -}}
+{{- end -}}
