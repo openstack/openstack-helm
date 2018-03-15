@@ -32,8 +32,10 @@ timeout 3m neutron-sanity-check --config-file /etc/neutron/neutron.conf --config
 # handle any bridge mappings
 {{- range $bridge, $port := .Values.network.auto_bridge_add }}
 ovs-vsctl --no-wait --may-exist add-br {{ $bridge }}
+{{ if $port }}
 ovs-vsctl --no-wait --may-exist add-port {{ $bridge }} {{ $port }}
 ip link set dev {{ $port }} up
+{{ end }}
 {{- end }}
 
 tunnel_interface="{{- .Values.network.interface.tunnel -}}"
