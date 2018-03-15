@@ -84,6 +84,18 @@ sudo docker exec docker-in-docker docker push docker.io/openstackhelm/neutron:${
 
 sudo docker exec docker-in-docker docker build --force-rm --pull --no-cache \
     https://git.openstack.org/openstack/loci.git \
+    --build-arg PROJECT=neutron \
+    --build-arg FROM=docker.io/ubuntu:18.04 \
+    --build-arg PROJECT_REF=${OPENSTACK_VERSION} \
+    --build-arg PROFILES="neutron linuxbridge openvswitch" \
+    --build-arg PIP_PACKAGES="pycrypto" \
+    --build-arg DIST_PACKAGES="ethtool lshw" \
+    --build-arg WHEELS=openstackhelm/requirements:${IMAGE_TAG} \
+    --tag docker.io/openstackhelm/neutron:${IMAGE_TAG}-sriov-1804
+sudo docker exec docker-in-docker docker push docker.io/openstackhelm/neutron:${IMAGE_TAG}-sriov-1804
+
+sudo docker exec docker-in-docker docker build --force-rm --pull --no-cache \
+    https://git.openstack.org/openstack/loci.git \
     --build-arg PROJECT=nova \
     --build-arg FROM=gcr.io/google_containers/ubuntu-slim:0.14 \
     --build-arg PROJECT_REF=${OPENSTACK_VERSION} \

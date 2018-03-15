@@ -14,70 +14,52 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if and .Values.manifests.daemonset_ovs_agent ( has "openvswitch" .Values.network.backend ) }}
+{{- if and .Values.manifests.daemonset_sriov_agent ( has "sriov" .Values.network.backend ) }}
 {{- $envAll := . }}
 
-{{- $dependencyOpts := dict "envAll" $envAll "dependencyMixinParam" $envAll.Values.network.backend "dependencyKey" "ovs_agent" -}}
+{{- $dependencyOpts := dict "envAll" $envAll "dependencyMixinParam" $envAll.Values.network.backend "dependencyKey" "sriov_agent" -}}
 {{- $dependencies := include "helm-toolkit.utils.dependency_resolver" $dependencyOpts | toString | fromYaml }}
 
-{{- $mounts_neutron_ovs_agent := .Values.pod.mounts.neutron_ovs_agent.neutron_ovs_agent }}
-{{- $mounts_neutron_ovs_agent_init := .Values.pod.mounts.neutron_ovs_agent.init_container }}
+{{- $mounts_neutron_sriov_agent := .Values.pod.mounts.neutron_sriov_agent.neutron_sriov_agent }}
+{{- $mounts_neutron_sriov_agent_init := .Values.pod.mounts.neutron_sriov_agent.init_container }}
 
-{{- $serviceAccountName := "neutron-ovs-agent" }}
+{{- $serviceAccountName := "neutron-sriov-agent" }}
 {{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: extensions/v1beta1
 kind: DaemonSet
 metadata:
-  name: neutron-ovs-agent
+  name: neutron-sriov-agent
 spec:
-{{ tuple $envAll "ovs_agent" | include "helm-toolkit.snippets.kubernetes_upgrades_daemonset" | indent 2 }}
+{{ tuple $envAll "sriov_agent" | include "helm-toolkit.snippets.kubernetes_upgrades_daemonset" | indent 2 }}
   template:
     metadata:
       labels:
-{{ tuple $envAll "neutron" "neutron-ovs-agent" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+{{ tuple $envAll "neutron" "neutron-sriov-agent" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
       annotations:
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
     spec:
       serviceAccountName: {{ $serviceAccountName }}
       nodeSelector:
-        {{ .Values.labels.ovs.node_selector_key }}: {{ .Values.labels.ovs.node_selector_value }}
+        {{ .Values.labels.sriov.node_selector_key }}: {{ .Values.labels.sriov.node_selector_value }}
       dnsPolicy: ClusterFirstWithHostNet
       hostNetwork: true
       initContainers:
-{{ tuple $envAll $dependencies $mounts_neutron_ovs_agent_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
-        - name: neutron-openvswitch-agent-kernel-modules
-          image: {{ .Values.images.tags.neutron_openvswitch_agent }}
+{{ tuple $envAll $dependencies $mounts_neutron_sriov_agent_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+        - name: neutron-sriov-agent-init
+          image: {{ .Values.images.tags.neutron_sriov_agent_init }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
-          securityContext:
-            capabilities:
-              add:
-                - SYS_MODULE
-            runAsUser: 0
-          command:
-            - /tmp/neutron-openvswitch-agent-init-modules.sh
-          volumeMounts:
-            - name: neutron-bin
-              mountPath: /tmp/neutron-openvswitch-agent-init-modules.sh
-              subPath: neutron-openvswitch-agent-init-modules.sh
-              readOnly: true
-            - name: host-rootfs
-              mountPath: /mnt/host-rootfs
-              readOnly: true
-        - name: neutron-ovs-agent-init
-          image: {{ .Values.images.tags.neutron_openvswitch_agent }}
-          imagePullPolicy: {{ .Values.images.pull_policy }}
-{{ tuple $envAll $envAll.Values.pod.resources.agent.ovs | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.agent.sriov | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           securityContext:
             privileged: true
             runAsUser: 0
           command:
-            - /tmp/neutron-openvswitch-agent-init.sh
+            - /tmp/neutron-sriov-agent-init.sh
           volumeMounts:
             - name: neutron-bin
-              mountPath: /tmp/neutron-openvswitch-agent-init.sh
-              subPath: neutron-openvswitch-agent-init.sh
+              mountPath: /tmp/neutron-sriov-agent-init.sh
+              subPath: neutron-sriov-agent-init.sh
               readOnly: true
             - name: pod-shared
               mountPath: /tmp/pod-shared
@@ -90,8 +72,8 @@ spec:
               subPath: ml2_conf.ini
               readOnly: true
             - name: neutron-etc
-              mountPath: /etc/neutron/plugins/ml2/openvswitch_agent.ini
-              subPath: openvswitch_agent.ini
+              mountPath: /etc/neutron/plugins/ml2/sriov_agent.ini
+              subPath: sriov_agent.ini
               readOnly: true
             - name: neutron-etc
               # NOTE (Portdirect): We mount here to override Kollas
@@ -146,29 +128,21 @@ spec:
               readOnly: true
             - name: run
               mountPath: /run
-{{ if $mounts_neutron_ovs_agent.volumeMounts }}{{ toYaml $mounts_neutron_ovs_agent.volumeMounts | indent 12 }}{{ end }}
+{{ if $mounts_neutron_sriov_agent.volumeMounts }}{{ toYaml $mounts_neutron_sriov_agent.volumeMounts | indent 12 }}{{ end }}
       containers:
-        - name: neutron-ovs-agent
-          image: {{ .Values.images.tags.neutron_openvswitch_agent }}
+        - name: neutron-sriov-agent
+          image: {{ .Values.images.tags.neutron_sriov_agent }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
-{{ tuple $envAll $envAll.Values.pod.resources.agent.ovs | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.agent.sriov | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           securityContext:
             runAsUser: {{ .Values.pod.user.neutron.uid }}
             privileged: true
           command:
-            - /tmp/neutron-openvswitch-agent.sh
-          # ensures this container can can see a br-int
-          # bridge before its marked as ready
-          readinessProbe:
-            exec:
-              command:
-                - bash
-                - -c
-                - 'ovs-vsctl list-br | grep -q br-int'
+            - /tmp/neutron-sriov-agent.sh
           volumeMounts:
             - name: neutron-bin
-              mountPath: /tmp/neutron-openvswitch-agent.sh
-              subPath: neutron-openvswitch-agent.sh
+              mountPath: /tmp/neutron-sriov-agent.sh
+              subPath: neutron-sriov-agent.sh
               readOnly: true
             - name: pod-shared
               mountPath: /tmp/pod-shared
@@ -181,8 +155,8 @@ spec:
               subPath: ml2_conf.ini
               readOnly: true
             - name: neutron-etc
-              mountPath: /etc/neutron/plugins/ml2/openvswitch_agent.ini
-              subPath: openvswitch_agent.ini
+              mountPath: /etc/neutron/plugins/ml2/sriov_agent.ini
+              subPath: sriov_agent.ini
               readOnly: true
             - name: neutron-etc
               # NOTE (Portdirect): We mount here to override Kollas
@@ -237,10 +211,8 @@ spec:
               readOnly: true
             - name: run
               mountPath: /run
-{{ if $mounts_neutron_ovs_agent.volumeMounts }}{{ toYaml $mounts_neutron_ovs_agent.volumeMounts | indent 12 }}{{ end }}
+{{ if $mounts_neutron_sriov_agent.volumeMounts }}{{ toYaml $mounts_neutron_sriov_agent.volumeMounts | indent 12 }}{{ end }}
       volumes:
-        - name: varlibopenvswitch
-          emptyDir: {}
         - name: pod-shared
           emptyDir: {}
         - name: neutron-bin
@@ -257,5 +229,5 @@ spec:
         - name: host-rootfs
           hostPath:
             path: /
-{{ if $mounts_neutron_ovs_agent.volumes }}{{ toYaml $mounts_neutron_ovs_agent.volumes | indent 8 }}{{ end }}
+{{ if $mounts_neutron_sriov_agent.volumes }}{{ toYaml $mounts_neutron_sriov_agent.volumes | indent 8 }}{{ end }}
 {{- end }}
