@@ -65,7 +65,7 @@ sudo docker exec docker-in-docker docker build --force-rm --pull --no-cache \
     --build-arg PROJECT=cinder \
     --build-arg FROM=gcr.io/google_containers/ubuntu-slim:0.14 \
     --build-arg PROJECT_REF=${OPENSTACK_VERSION} \
-    --build-arg PROFILES="cinder lvm ceph" \
+    --build-arg PROFILES="cinder lvm ceph qemu" \
     --build-arg PIP_PACKAGES="pycrypto python-swiftclient" \
     --build-arg WHEELS=openstackhelm/requirements:${IMAGE_TAG} \
     --tag docker.io/openstackhelm/cinder:${IMAGE_TAG}
