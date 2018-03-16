@@ -47,6 +47,3 @@ exec /opt/cni/bin/calicoctl.bin \$*
 EOF
 
 chmod +x /host/opt/cni/bin/calicoctl
-
-# sleep forever
-while [ 1 ]; do sleep 86400; done;
