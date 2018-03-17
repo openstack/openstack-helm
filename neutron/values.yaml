@@ -38,7 +38,7 @@ images:
     neutron_linuxbridge_agent: docker.io/openstackhelm/neutron:newton
     neutron_sriov_agent: docker.io/openstackhelm/neutron:newton-sriov-1804
     neutron_sriov_agent_init: docker.io/openstackhelm/neutron:newton-sriov-1804
-    dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.2.1
+    dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.3.0
   pull_policy: "IfNotPresent"
 
 labels:
@@ -128,36 +128,54 @@ dependencies:
     targeted:
       openvswitch:
         dhcp:
-          daemonset:
-            - neutron-ovs-agent
+          pod:
+            - labels:
+                application: neutron
+                component: neutron-ovs-agent
         l3:
-          daemonset:
-            - neutron-ovs-agent
+          pod:
+            - labels:
+                application: neutron
+                component: neutron-ovs-agent
         metadata:
-          daemonset:
-            - neutron-ovs-agent
+          pod:
+            - labels:
+                application: neutron
+                component: neutron-ovs-agent
       linuxbridge:
         dhcp:
-          daemonset:
-            - neutron-lb-agent
+          pod:
+            - labels:
+                application: neutron
+                component: neutron-lb-agent
         l3:
-          daemonset:
-            - neutron-lb-agent
+          pod:
+            - labels:
+                application: neutron
+                component: neutron-lb-agent
         metadata:
-          daemonset:
-            - neutron-lb-agent
+          pod:
+            - labels:
+                application: neutron
+                component: neutron-lb-agent
         lb_agent:
-          daemonset: null
+          pod: null
       sriov:
         dhcp:
-          daemonset:
-            - neutron-sriov-agent
+          pod:
+            - labels:
+                application: neutron
+                component: neutron-sriov-agent
         l3:
-          daemonset:
-            - neutron-sriov-agent
+          pod:
+            - labels:
+                application: neutron
+                component: neutron-sriov-agent
         metadata:
-          daemonset:
-            - neutron-sriov-agent
+          pod:
+            - labels:
+                application: neutron
+                component: neutron-sriov-agent
   static:
     bootstrap:
       services:
@@ -180,7 +198,7 @@ dependencies:
         - endpoint: internal
           service: oslo_db
     dhcp:
-      daemonset: null
+      pod: null
       jobs:
         - neutron-rabbit-init
       services:
@@ -209,7 +227,7 @@ dependencies:
       - service: oslo_messaging
         endpoint: internal
     l3:
-      daemonset: null
+      pod: null
       jobs:
         - neutron-rabbit-init
       services:
@@ -220,7 +238,7 @@ dependencies:
         - endpoint: internal
           service: compute
     lb_agent:
-      daemonset: null
+      pod: null
       jobs:
         - neutron-rabbit-init
       services:
@@ -229,7 +247,7 @@ dependencies:
         - endpoint: internal
           service: network
     metadata:
-      daemonset: null
+      pod: null
       jobs:
         - neutron-rabbit-init
       services:
@@ -244,9 +262,13 @@ dependencies:
     ovs_agent:
       jobs:
         - neutron-rabbit-init
-      daemonset:
-        - openvswitch-vswitchd
-        - openvswitch-db
+      pod:
+        - labels:
+            application: openvswitch
+            component: openvswitch-vswitchd
+        - labels:
+            application: openvswitch
+            component: openvswitch-vswitchd-db
       services:
         - endpoint: internal
           service: oslo_messaging
