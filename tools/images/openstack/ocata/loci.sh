@@ -51,6 +51,16 @@ sudo docker exec docker-in-docker docker push docker.io/openstackhelm/heat:${IMA
 
 sudo docker exec docker-in-docker docker build --force-rm --pull --no-cache \
     https://git.openstack.org/openstack/loci.git \
+    --build-arg PROJECT=barbican \
+    --build-arg FROM=gcr.io/google_containers/ubuntu-slim:0.14 \
+    --build-arg PROJECT_REF=${OPENSTACK_VERSION} \
+    --build-arg PIP_PACKAGES="pycrypto" \
+    --build-arg WHEELS=openstackhelm/requirements:${IMAGE_TAG} \
+    --tag docker.io/openstackhelm/barbican:${IMAGE_TAG}
+sudo docker exec docker-in-docker docker push docker.io/openstackhelm/barbican:${IMAGE_TAG}
+
+sudo docker exec docker-in-docker docker build --force-rm --pull --no-cache \
+    https://git.openstack.org/openstack/loci.git \
     --build-arg PROJECT=glance \
     --build-arg FROM=gcr.io/google_containers/ubuntu-slim:0.14 \
     --build-arg PROJECT_REF=${OPENSTACK_VERSION} \
