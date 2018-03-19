@@ -137,9 +137,11 @@ for the L2 agent daemonset:
           endpoint: internal
         - service: compute
           endpoint: internal
-        daemonset:
-        # this should be set to corresponding neutron L2 agent
-        - neutron-ovs-agent
+        pod:
+          # this should be set to corresponding neutron L2 agent
+          - labels:
+              application: neutron
+              component: neutron-ovs-agent
 
 There is also a need for DHCP agent to pass ovs agent config file
 (in :code:`neutron/templates/bin/_neutron-dhcp-agent.sh.tpl`):
@@ -317,14 +319,20 @@ and use this `neutron/values.yaml` override:
       backend: linuxbridge
     dependencies:
       dhcp:
-        daemonset:
-        - neutron-lb-agent
+        pod:
+          - labels:
+              application: neutron
+              component: neutron-lb-agent
       metadata:
-        daemonset:
-        - neutron-lb-agent
+        pod:
+          - labels:
+              application: neutron
+              component: neutron-lb-agent
       l3:
-        daemonset:
-        - neutron-lb-agent
+        pod:
+          - labels:
+              application: neutron
+              component: neutron-lb-agent
     conf:
       neutron:
         DEFAULT

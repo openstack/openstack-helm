@@ -98,14 +98,20 @@ updated to reflect the new kind on L2 agent:
 
     dependencies:
       dhcp:
-        daemonset:
-          - lb-agent
+        pod:
+          - labels:
+              application: neutron
+              component: neutron-lb-agent
       metadata:
-        daemonset:
-          - lb-agent
+        pod:
+          - labels:
+              application: neutron
+              component: neutron-lb-agent
       l3:
-        daemonset:
-          - lb-agent
+        pod:
+          - labels:
+              application: neutron
+              component: neutron-lb-agent
 
 LinuxBridge should be also enabled in :code:`manifests` section:
 
