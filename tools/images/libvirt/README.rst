@@ -30,7 +30,7 @@ repo run:
 
 .. code:: bash
 
-    LIBVIRT_VERSION=1.3.1-1ubuntu10.18
+    LIBVIRT_VERSION=1.3.1-1ubuntu10.19
     DISTRO=ubuntu
     DISTRO_RELEASE=xenial
     CEPH_RELEASE=luminous
