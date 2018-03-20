@@ -57,7 +57,7 @@ rules:
       {{ if eq $v "jobs" }}
       - jobs
       {{- end -}}
-      {{ if or (eq $v "daemonsets") (eq $v "jobs") }}
+      {{ if or (eq $v "pods") (eq $v "daemonsets") (eq $v "jobs") }}
       - pods
       {{- end -}}
       {{ if eq $v "services" }}

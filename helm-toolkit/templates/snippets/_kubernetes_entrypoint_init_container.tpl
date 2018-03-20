@@ -33,6 +33,8 @@ limitations under the License.
           fieldPath: metadata.namespace
     - name: INTERFACE_NAME
       value: eth0
+    - name: PATH
+      value: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/
     - name: DEPENDENCY_SERVICE
       value: "{{ tuple $deps.services $envAll | include "helm-toolkit.utils.comma_joined_service_list" }}"
     - name: DEPENDENCY_JOBS
@@ -41,6 +43,8 @@ limitations under the License.
       value: "{{  include "helm-toolkit.utils.joinListWithComma" $deps.daemonset }}"
     - name: DEPENDENCY_CONTAINER
       value: "{{  include "helm-toolkit.utils.joinListWithComma" $deps.container }}"
+    - name: DEPENDENCY_POD
+      value: {{ if $deps.pod }}{{ toJson $deps.pod | quote }}{{ else }}""{{ end }}
     - name: COMMAND
       value: "echo done"
   command:
