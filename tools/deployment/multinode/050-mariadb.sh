@@ -19,6 +19,7 @@ set -xe
 #NOTE: Deploy command
 helm upgrade --install mariadb ./mariadb \
     --namespace=openstack \
+    --set pod.replicas.server=3 \
     ${OSH_EXTRA_HELM_ARGS} \
     ${OSH_EXTRA_HELM_ARGS_MARIADB}
 #NOTE: Wait for deploy
