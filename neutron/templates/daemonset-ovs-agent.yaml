@@ -14,17 +14,17 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if and .Values.manifests.daemonset_ovs_agent ( has "openvswitch" .Values.network.backend ) }}
-{{- $envAll := . }}
-
-{{- $dependencyOpts := dict "envAll" $envAll "dependencyMixinParam" $envAll.Values.network.backend "dependencyKey" "ovs_agent" -}}
-{{- $dependencies := include "helm-toolkit.utils.dependency_resolver" $dependencyOpts | toString | fromYaml }}
+{{- define "neutron.ovs_agent.daemonset" }}
+{{- $daemonset := index . 0 }}
+{{- $configMapName := index . 1 }}
+{{- $serviceAccountName := index . 2 }}
+{{- $dependencies := index . 3 }}
+{{- $envAll := index . 4 }}
+{{- with $envAll }}
 
 {{- $mounts_neutron_ovs_agent := .Values.pod.mounts.neutron_ovs_agent.neutron_ovs_agent }}
 {{- $mounts_neutron_ovs_agent_init := .Values.pod.mounts.neutron_ovs_agent.init_container }}
 
-{{- $serviceAccountName := "neutron-ovs-agent" }}
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: extensions/v1beta1
 kind: DaemonSet
@@ -249,7 +249,7 @@ spec:
             defaultMode: 0555
         - name: neutron-etc
           configMap:
-            name: neutron-etc
+            name: {{ $configMapName }}
             defaultMode: 0444
         - name: run
           hostPath:
@@ -258,4 +258,18 @@ spec:
           hostPath:
             path: /
 {{ if $mounts_neutron_ovs_agent.volumes }}{{ toYaml $mounts_neutron_ovs_agent.volumes | indent 8 }}{{ end }}
+{{- end }}
+{{- end }}
+
+{{- if and .Values.manifests.daemonset_ovs_agent ( has "openvswitch" .Values.network.backend ) }}
+{{- $envAll := . }}
+{{- $daemonset := "ovs-agent" }}
+{{- $configMapName := "neutron-etc" }}
+{{- $serviceAccountName := "neutron-ovs-agent" }}
+{{- $dependencyOpts := dict "envAll" $envAll "dependencyMixinParam" $envAll.Values.network.backend "dependencyKey" "ovs_agent" -}}
+{{- $dependencies := include "helm-toolkit.utils.dependency_resolver" $dependencyOpts | toString | fromYaml }}
+{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{- $daemonset_yaml := list $daemonset $configMapName $serviceAccountName $dependencies . | include "neutron.ovs_agent.daemonset" | toString | fromYaml }}
+{{- $configmap_yaml := "neutron.configmap.etc" }}
+{{- list $daemonset $daemonset_yaml $configmap_yaml $configMapName . | include "helm-toolkit.utils.daemonset_overrides" }}
 {{- end }}

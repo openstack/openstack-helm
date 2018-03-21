@@ -14,8 +14,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if .Values.manifests.configmap_etc }}
-{{- $envAll := . }}
+{{- define "neutron.configmap.etc" }}
+{{- $configMapName := index . 0 }}
+{{- $envAll := index . 1 }}
+{{- with $envAll }}
 
 {{- if empty $envAll.Values.conf.neutron.keystone_authtoken.auth_uri -}}
 {{- tuple "identity" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup"| set $envAll.Values.conf.neutron.keystone_authtoken "auth_uri" | quote | trunc 0 -}}
@@ -150,7 +152,7 @@ limitations under the License.
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: neutron-etc
+  name: {{ $configMapName }}
 data:
   rally_tests.yaml: |
 {{ toYaml $envAll.Values.conf.rally_tests.tests | indent 4 }}
@@ -205,4 +207,9 @@ data:
 {{- tuple $envAll.Values.conf.rootwrap_filters.linuxbridge_plugin "etc/rootwrap.d/_linuxbridge-plugin.filters.tpl" . | include "helm-toolkit.utils.configmap_templater" }}
   openvswitch-plugin.filters: |
 {{- tuple $envAll.Values.conf.rootwrap_filters.openvswitch_plugin "etc/rootwrap.d/_openvswitch-plugin.filters.tpl" . | include "helm-toolkit.utils.configmap_templater" }}
+{{- end }}
+{{- end }}
+
+{{- if .Values.manifests.configmap_etc }}
+{{- list "neutron-etc" . | include "neutron.configmap.etc" }}
 {{- end }}
