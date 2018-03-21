@@ -30,6 +30,14 @@ if [[ -c /dev/kvm ]]; then
     chown root:kvm /dev/kvm
 fi
 
+if [ -d /sys/kernel/mm/hugepages ]; then
+  if [ -n "$(grep KVM_HUGEPAGES=0 /etc/default/qemu-kvm)" ]; then
+    sed -i 's/.*KVM_HUGEPAGES=0.*/KVM_HUGEPAGES=1/g' /etc/default/qemu-kvm
+  else
+    echo KVM_HUGEPAGES=1 >> /etc/default/qemu-kvm
+  fi
+fi
+
 if [ -n "${LIBVIRT_CEPH_SECRET_UUID}" ] ; then
   libvirtd --listen &
 
