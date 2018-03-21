@@ -13,3 +13,4 @@ Contents:
    pod-disruption-budgets
    upgrades
    fluent-logging
+   node-and-label-specific-configurations
