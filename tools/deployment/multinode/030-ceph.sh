@@ -30,6 +30,9 @@ if [ "x${ID}" == "xubuntu" ] && \
 else
   CRUSH_TUNABLES=null
 fi
+if [ "x${ID}" == "xcentos" ]; then
+  CRUSH_TUNABLES=hammer
+fi
 tee /tmp/ceph.yaml << EOF
 endpoints:
   identity:

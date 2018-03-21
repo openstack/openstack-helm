@@ -21,7 +21,6 @@ helm upgrade --install mariadb ./mariadb \
     --namespace=openstack \
     ${OSH_EXTRA_HELM_ARGS} \
     ${OSH_EXTRA_HELM_ARGS_MARIADB}
-
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack
 
