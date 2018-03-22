@@ -28,7 +28,7 @@ Bugs and enhancements are tracked via OpenStack-Helm's `Storyboard <https://stor
 Installation and Development
 ----------------------------
 
-Please review our `documentation <https://docs.openstack.org/openstack-helm>`_.
+Please review our `documentation <https://docs.openstack.org/openstack-helm/latest/>`_.
 For quick installation, evaluation, and convenience, we have a kubeadm
 based all-in-one solution that runs in a Docker container. The Kubeadm-AIO set
 up can be found `here <https://docs.openstack.org/openstack-helm/latest/install/developer/index.html>`_.
