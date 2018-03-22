@@ -17,6 +17,12 @@ limitations under the License.
 
 set -xe
 
+# MariaDB 10.2.13 has a regression which breaks clustering, patch
+# around this for now
+if /usr/sbin/mysqld --version | grep --silent 10.2.13 ; then
+    sed -i 's^LSOF_OUT=.*^LSOF_OUT=$(lsof -sTCP:LISTEN -i TCP:${PORT} -a -c nc -c socat -F c 2> /dev/null || :)^' /usr/bin/wsrep_sst_xtrabackup-v2
+fi
+
 # Bootstrap database
 CLUSTER_INIT_ARGS=""
 CLUSTER_CONFIG_PATH=/etc/mysql/conf.d/10-cluster-config.cnf
