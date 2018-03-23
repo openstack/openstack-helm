@@ -17,6 +17,8 @@ limitations under the License.
 {{- if .Values.manifests.deployment }}
 {{- $envAll := . }}
 
+{{- $nagiosUserSecret := .Values.secrets.nagios.admin }}
+
 {{- $serviceAccountName := "nagios" }}
 {{ tuple $envAll "nagios" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
@@ -80,11 +82,21 @@ spec:
 {{ tuple $envAll "nagios" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.nagios | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           ports:
-            - name: metrics
-              containerPort: {{ tuple "nagios" "internal" "nagios" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+            - name: http
+              containerPort: {{ tuple "nagios" "internal" "http" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
           env:
             - name: PROMETHEUS_SERVICE
               value: {{ tuple "monitoring" "internal" "api" . | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" }}
+            - name: NAGIOSADMIN_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $nagiosUserSecret }}
+                  key: NAGIOSADMIN_USER
+            - name: NAGIOSADMIN_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $nagiosUserSecret }}
+                  key: NAGIOSADMIN_PASS
           volumeMounts:
             - name: nagios-etc
               mountPath: /opt/nagios/etc/nagios.cfg
