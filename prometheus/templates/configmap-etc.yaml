@@ -16,6 +16,18 @@ limitations under the License.
 
 {{- if .Values.manifests.configmap_etc }}
 {{- $envAll := . }}
+
+{{- if empty $envAll.Values.conf.prometheus.scrape_configs.rule_files -}}
+{{- $_ := set $envAll.Values "__rule_files" ( list ) }}
+{{- $rulesKeys := keys $envAll.Values.conf.prometheus.rules -}}
+{{- range $rule := $rulesKeys }}
+{{- $rulesFile := printf "/etc/config/rules/%s.rules" $rule }}
+{{- $__rule_files := append $envAll.Values.__rule_files $rulesFile }}
+{{- $_ := set $envAll.Values "__rule_files" $__rule_files }}
+{{ end }}
+{{- set .Values.conf.prometheus.scrape_configs "rule_files" $envAll.Values.__rule_files | quote | trunc 0 -}}
+{{- end -}}
+
 ---
 apiVersion: v1
 kind: ConfigMap
