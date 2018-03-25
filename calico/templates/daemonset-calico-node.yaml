@@ -112,6 +112,66 @@ spec:
       terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.node.timeout | default "30" }}
       initContainers:
 {{ tuple $envAll .Values.pod_dependency list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ if .Values.manifests.daemonset_calico_node_calicoctl }}
+        - name: install-calicoctl
+{{ tuple $envAll "calico_ctl" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.calico_ctl | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          command:
+            - /tmp/install-calicoctl.sh
+          env:
+            - name: ETCD_ENDPOINTS
+              valueFrom:
+                configMapKeyRef:
+                  name: calico-etc
+                  key: etcd_endpoints
+{{ if .Values.endpoints.etcd.auth.client.tls.ca}}
+            - name: ETCD_CA_CERT_FILE
+              value: {{ .Values.endpoints.etcd.auth.client.path.ca }}
+            - name: ETCD_CA_CERT
+              valueFrom:
+                secretKeyRef:
+                  name: calico-certificates
+                  key: tls.ca
+{{ end }}
+{{ if .Values.endpoints.etcd.auth.client.tls.key}}
+            - name: ETCD_KEY_FILE
+              value: {{ .Values.endpoints.etcd.auth.client.path.key }}
+            - name: ETCD_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: calico-certificates
+                  key: tls.key
+{{ end }}
+{{ if .Values.endpoints.etcd.auth.client.tls.crt}}
+            - name: ETCD_CERT_FILE
+              value: {{ .Values.endpoints.etcd.auth.client.path.crt }}
+            - name: ETCD_CERT
+              valueFrom:
+                secretKeyRef:
+                  name: calico-certificates
+                  key: tls.crt
+{{ end }}
+          volumeMounts:
+            - mountPath: /host/etc/calico
+              name: calico-cert-dir
+            - mountPath: /host/opt/cni/bin
+              name: cni-bin-dir
+            - mountPath: /tmp/install-calicoctl.sh
+              name: calico-bin
+              subPath: install-calicoctl.sh
+            - name: calico-certificates
+              mountPath: {{ .Values.endpoints.etcd.auth.client.path.ca }}
+              subPath: tls.ca
+              readOnly: true
+            - name: calico-certificates
+              mountPath: {{ .Values.endpoints.etcd.auth.client.path.crt }}
+              subPath: tls.crt
+              readOnly: true
+            - name: calico-certificates
+              mountPath: {{ .Values.endpoints.etcd.auth.client.path.key }}
+              subPath: tls.key
+              readOnly: true
+{{ end }}
       containers:
         # Runs calico/node container on each Kubernetes node.  This
         # container programs network policy and routes on each
@@ -219,66 +279,6 @@ spec:
               mountPath: /host/opt/cni/bin
             - name: cni-net-dir
               mountPath: /host/etc/cni/net.d
-{{ if .Values.manifests.daemonset_calico_node_calicoctl }}
-        - name: install-calicoctl
-{{ tuple $envAll "calico_ctl" | include "helm-toolkit.snippets.image" | indent 10 }}
-{{ tuple $envAll $envAll.Values.pod.resources.calico_ctl | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-          command:
-            - /tmp/install-calicoctl.sh
-          env:
-            - name: ETCD_ENDPOINTS
-              valueFrom:
-                configMapKeyRef:
-                  name: calico-etc
-                  key: etcd_endpoints
-{{ if .Values.endpoints.etcd.auth.client.tls.ca}}
-            - name: ETCD_CA_CERT_FILE
-              value: {{ .Values.endpoints.etcd.auth.client.path.ca }}
-            - name: ETCD_CA_CERT
-              valueFrom:
-                secretKeyRef:
-                  name: calico-certificates
-                  key: tls.ca
-{{ end }}
-{{ if .Values.endpoints.etcd.auth.client.tls.key}}
-            - name: ETCD_KEY_FILE
-              value: {{ .Values.endpoints.etcd.auth.client.path.key }}
-            - name: ETCD_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: calico-certificates
-                  key: tls.key
-{{ end }}
-{{ if .Values.endpoints.etcd.auth.client.tls.crt}}
-            - name: ETCD_CERT_FILE
-              value: {{ .Values.endpoints.etcd.auth.client.path.crt }}
-            - name: ETCD_CERT
-              valueFrom:
-                secretKeyRef:
-                  name: calico-certificates
-                  key: tls.crt
-{{ end }}
-          volumeMounts:
-            - mountPath: /host/etc/calico
-              name: calico-cert-dir
-            - mountPath: /host/opt/cni/bin
-              name: cni-bin-dir
-            - mountPath: /tmp/install-calicoctl.sh
-              name: calico-bin
-              subPath: install-calicoctl.sh
-            - name: calico-certificates
-              mountPath: {{ .Values.endpoints.etcd.auth.client.path.ca }}
-              subPath: tls.ca
-              readOnly: true
-            - name: calico-certificates
-              mountPath: {{ .Values.endpoints.etcd.auth.client.path.crt }}
-              subPath: tls.crt
-              readOnly: true
-            - name: calico-certificates
-              mountPath: {{ .Values.endpoints.etcd.auth.client.path.key }}
-              subPath: tls.key
-              readOnly: true
-{{ end }}
       volumes:
         # Used by calico/node.
         - name: lib-modules
