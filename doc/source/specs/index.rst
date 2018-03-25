@@ -14,3 +14,4 @@ Contents:
    nginx-sidecar.rst
    support-linux-bridge-on-neutron.rst
    fluentbit-fluentd-architecture.rst
+   osh-1.0-requirements.rst
