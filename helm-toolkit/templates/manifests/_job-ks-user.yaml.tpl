@@ -68,8 +68,13 @@ spec:
 {{- with $env := dict "ksUserSecret" (index $envAll.Values.secrets.identity $serviceUser ) }}
 {{- include "helm-toolkit.snippets.keystone_user_create_env_vars" $env | indent 12 }}
 {{- end }}
-            - name: SERVICE_OS_ROLE
-              value: {{ index $envAll.Values.endpoints.identity.auth $serviceUser "role" | quote }}
+            - name: SERVICE_OS_ROLES
+            {{- $serviceOsRoles := index $envAll.Values.endpoints.identity.auth $serviceUser "role" }}
+            {{- if kindIs "slice" $serviceOsRoles }}
+              value: {{ include "helm-toolkit.utils.joinListWithComma" $serviceOsRoles | quote }}
+            {{- else }}
+              value: {{ $serviceOsRoles | quote }}
+            {{- end }}
       volumes:
         - name: ks-user-sh
           configMap:

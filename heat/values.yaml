@@ -283,10 +283,17 @@ network:
       port: 30003
 
 bootstrap:
-  enabled: false
-  ks_user: heat
+  enabled: true
+  ks_user: admin
   script: |
-    openstack token issue
+    #NOTE(portdirect): required for all users who operate heat stacks
+    openstack role create --or-show heat_stack_owner
+
+    #NOTE(portdirect): The Orchestration service automatically assigns the
+    # 'heat_stack_user' role to users that it creates during stack deployment.
+    # By default, this role restricts API operations. To avoid conflicts, do
+    # not add this role to users with the heat_stack_owner role.
+    openstack role create --or-show heat_stack_user
 
 dependencies:
   static:
@@ -421,7 +428,9 @@ endpoints:
         user_domain_name: default
         project_domain_name: default
       heat:
-        role: admin
+        role:
+          - admin
+          - heat_stack_owner
         region_name: RegionOne
         username: heat
         password: password
