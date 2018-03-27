@@ -278,9 +278,21 @@ conf:
       max_retries: -1
     oslo_messaging_notifications:
       driver: messagingv2
-  swift_store:
-    override:
-    append:
+  swift_store: |
+    [{{ .Values.conf.glance.glance_store.default_swift_reference }}]
+    {{- if eq .Values.storage "radosgw" }}
+    auth_version = 1
+    auth_address = {{ tuple "ceph_object_store" "public" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" }}
+    user = {{ .Values.endpoints.ceph_object_store.auth.glance.username }}:swift
+    key = {{ .Values.endpoints.ceph_object_store.auth.glance.password }}
+    {{- else }}
+    user = {{ .Values.endpoints.identity.auth.glance.project_name }}:{{ .Values.endpoints.identity.auth.glance.username }}
+    key = {{ .Values.endpoints.identity.auth.glance.password }}
+    auth_address = {{ tuple "identity" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" }}
+    user_domain_name = {{ .Values.endpoints.identity.auth.glance.user_domain_name }}
+    project_domain_name = {{ .Values.endpoints.identity.auth.glance.project_domain_name }}
+    auth_version = 3
+    {{- end -}}
 
 network:
   api:
