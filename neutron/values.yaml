@@ -974,43 +974,371 @@ conf:
     get_subports: ''
     add_subports: rule:admin_or_owner
     remove_subports: rule:admin_or_owner
-  neutron_sudoers:
-    override:
-    append:
-  rootwrap:
-    override:
-    append:
+  neutron_sudoers: |
+    # This sudoers file supports rootwrap for both Kolla and LOCI Images.
+    Defaults !requiretty
+    Defaults secure_path="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin:/var/lib/openstack/bin:/var/lib/kolla/venv/bin"
+    neutron ALL = (root) NOPASSWD: /var/lib/kolla/venv/bin/neutron-rootwrap /etc/neutron/rootwrap.conf *, /var/lib/openstack/bin/neutron-rootwrap /etc/neutron/rootwrap.conf *
+  rootwrap: |
+    # Configuration for neutron-rootwrap
+    # This file should be owned by (and only-writeable by) the root user
+
+    [DEFAULT]
+    # List of directories to load filter definitions from (separated by ',').
+    # These directories MUST all be only writeable by root !
+    filters_path=/etc/neutron/rootwrap.d,/usr/share/neutron/rootwrap
+
+    # List of directories to search executables in, in case filters do not
+    # explicitely specify a full path (separated by ',')
+    # If not specified, defaults to system PATH environment variable.
+    # These directories MUST all be only writeable by root !
+    exec_dirs=/sbin,/usr/sbin,/bin,/usr/bin,/usr/local/bin,/usr/local/sbin,/var/lib/openstack/bin,/var/lib/kolla/venv/bin
+
+    # Enable logging to syslog
+    # Default value is False
+    use_syslog=False
+
+    # Which syslog facility to use.
+    # Valid values include auth, authpriv, syslog, local0, local1...
+    # Default value is 'syslog'
+    syslog_log_facility=syslog
+
+    # Which messages to log.
+    # INFO means log all usage
+    # ERROR means only log unsuccessful attempts
+    syslog_log_level=ERROR
+
+    [xenapi]
+    # XenAPI configuration is only required by the L2 agent if it is to
+    # target a XenServer/XCP compute host's dom0.
+    xenapi_connection_url=<None>
+    xenapi_connection_username=root
+    xenapi_connection_password=<None>
   rootwrap_filters:
     debug:
-      override:
-      append:
+      pods:
+        - dhcp_agent
+        - l3_agent
+        - lb_agent
+        - metadata_agent
+        - ovs_agent
+        - sriov_agent
+      content: |
+        # neutron-rootwrap command filters for nodes on which neutron is
+        # expected to control network
+        #
+        # This file should be owned by (and only-writeable by) the root user
+
+        # format seems to be
+        # cmd-name: filter-name, raw-command, user, args
+
+        [Filters]
+
+        # This is needed because we should ping
+        # from inside a namespace which requires root
+        # _alt variants allow to match -c and -w in any order
+        #   (used by NeutronDebugAgent.ping_all)
+        ping: RegExpFilter, ping, root, ping, -w, \d+, -c, \d+, [0-9\.]+
+        ping_alt: RegExpFilter, ping, root, ping, -c, \d+, -w, \d+, [0-9\.]+
+        ping6: RegExpFilter, ping6, root, ping6, -w, \d+, -c, \d+, [0-9A-Fa-f:]+
+        ping6_alt: RegExpFilter, ping6, root, ping6, -c, \d+, -w, \d+, [0-9A-Fa-f:]+
     dibbler:
-      override:
-      append:
+      pods:
+        - dhcp_agent
+        - l3_agent
+        - lb_agent
+        - metadata_agent
+        - ovs_agent
+        - sriov_agent
+      content: |
+        # neutron-rootwrap command filters for nodes on which neutron is
+        # expected to control network
+        #
+        # This file should be owned by (and only-writeable by) the root user
+
+        # format seems to be
+        # cmd-name: filter-name, raw-command, user, args
+
+        [Filters]
+
+        # Filters for the dibbler-based reference implementation of the pluggable
+        # Prefix Delegation driver. Other implementations using an alternative agent
+        # should include a similar filter in this folder.
+
+        # prefix_delegation_agent
+        dibbler-client: CommandFilter, dibbler-client, root
     ipset_firewall:
-      override:
-      append:
+      pods:
+        - dhcp_agent
+        - l3_agent
+        - lb_agent
+        - metadata_agent
+        - ovs_agent
+        - sriov_agent
+      content: |
+        # neutron-rootwrap command filters for nodes on which neutron is
+        # expected to control network
+        #
+        # This file should be owned by (and only-writeable by) the root user
+
+        # format seems to be
+        # cmd-name: filter-name, raw-command, user, args
+
+        [Filters]
+        # neutron/agent/linux/iptables_firewall.py
+        #   "ipset", "-A", ...
+        ipset: CommandFilter, ipset, root
     l3:
-      override:
-      append:
+      pods:
+        - dhcp_agent
+        - l3_agent
+        - lb_agent
+        - metadata_agent
+        - ovs_agent
+        - sriov_agent
+      content: |
+        # neutron-rootwrap command filters for nodes on which neutron is
+        # expected to control network
+        #
+        # This file should be owned by (and only-writeable by) the root user
+
+        # format seems to be
+        # cmd-name: filter-name, raw-command, user, args
+
+        [Filters]
+
+        # arping
+        arping: CommandFilter, arping, root
+
+        # l3_agent
+        sysctl: CommandFilter, sysctl, root
+        route: CommandFilter, route, root
+        radvd: CommandFilter, radvd, root
+
+        # metadata proxy
+        metadata_proxy: CommandFilter, neutron-ns-metadata-proxy, root
+        # RHEL invocation of the metadata proxy will report /usr/bin/python
+        kill_metadata: KillFilter, root, python, -15, -9
+        kill_metadata7: KillFilter, root, python2.7, -15, -9
+        kill_radvd_usr: KillFilter, root, /usr/sbin/radvd, -15, -9, -HUP
+        kill_radvd: KillFilter, root, /sbin/radvd, -15, -9, -HUP
+
+        # ip_lib
+        ip: IpFilter, ip, root
+        find: RegExpFilter, find, root, find, /sys/class/net, -maxdepth, 1, -type, l, -printf, %.*
+        ip_exec: IpNetnsExecFilter, ip, root
+
+        # For ip monitor
+        kill_ip_monitor: KillFilter, root, ip, -9
+
+        # ovs_lib (if OVSInterfaceDriver is used)
+        ovs-vsctl: CommandFilter, ovs-vsctl, root
+
+        # iptables_manager
+        iptables-save: CommandFilter, iptables-save, root
+        iptables-restore: CommandFilter, iptables-restore, root
+        ip6tables-save: CommandFilter, ip6tables-save, root
+        ip6tables-restore: CommandFilter, ip6tables-restore, root
+
+        # Keepalived
+        keepalived: CommandFilter, keepalived, root
+        kill_keepalived: KillFilter, root, /usr/sbin/keepalived, -HUP, -15, -9
+
+        # l3 agent to delete floatingip's conntrack state
+        conntrack: CommandFilter, conntrack, root
+
+        # keepalived state change monitor
+        keepalived_state_change: CommandFilter, neutron-keepalived-state-change, root
     netns_cleanup:
-      override:
-      append:
+      pods:
+        - dhcp_agent
+        - l3_agent
+        - lb_agent
+        - metadata_agent
+        - ovs_agent
+        - sriov_agent
+      content: |
+        # neutron-rootwrap command filters for nodes on which neutron is
+        # expected to control network
+        #
+        # This file should be owned by (and only-writeable by) the root user
+
+        # format seems to be
+        # cmd-name: filter-name, raw-command, user, args
+
+        [Filters]
+
+        # netns-cleanup
+        netstat: CommandFilter, netstat, root
     dhcp:
-      override:
-      append:
+      pods:
+        - dhcp_agent
+        - l3_agent
+        - lb_agent
+        - metadata_agent
+        - ovs_agent
+        - sriov_agent
+      content: |
+        # neutron-rootwrap command filters for nodes on which neutron is
+        # expected to control network
+        #
+        # This file should be owned by (and only-writeable by) the root user
+
+        # format seems to be
+        # cmd-name: filter-name, raw-command, user, args
+
+        [Filters]
+
+        # dhcp-agent
+        dnsmasq: CommandFilter, dnsmasq, root
+        # dhcp-agent uses kill as well, that's handled by the generic KillFilter
+        # it looks like these are the only signals needed, per
+        # neutron/agent/linux/dhcp.py
+        kill_dnsmasq: KillFilter, root, /sbin/dnsmasq, -9, -HUP, -15
+        kill_dnsmasq_usr: KillFilter, root, /usr/sbin/dnsmasq, -9, -HUP, -15
+
+        ovs-vsctl: CommandFilter, ovs-vsctl, root
+        ivs-ctl: CommandFilter, ivs-ctl, root
+        mm-ctl: CommandFilter, mm-ctl, root
+        dhcp_release: CommandFilter, dhcp_release, root
+        dhcp_release6: CommandFilter, dhcp_release6, root
+
+        # metadata proxy
+        metadata_proxy: CommandFilter, neutron-ns-metadata-proxy, root
+        # RHEL invocation of the metadata proxy will report /usr/bin/python
+        kill_metadata: KillFilter, root, python, -9
+        kill_metadata7: KillFilter, root, python2.7, -9
+
+        # ip_lib
+        ip: IpFilter, ip, root
+        find: RegExpFilter, find, root, find, /sys/class/net, -maxdepth, 1, -type, l, -printf, %.*
+        ip_exec: IpNetnsExecFilter, ip, root
     ebtables:
-      override:
-      append:
+      pods:
+        - dhcp_agent
+        - l3_agent
+        - lb_agent
+        - metadata_agent
+        - ovs_agent
+        - sriov_agent
+      content: |
+        # neutron-rootwrap command filters for nodes on which neutron is
+        # expected to control network
+        #
+        # This file should be owned by (and only-writeable by) the root user
+
+        # format seems to be
+        # cmd-name: filter-name, raw-command, user, args
+
+        [Filters]
+
+        ebtables: CommandFilter, ebtables, root
     iptables_firewall:
-      override:
-      append:
+      pods:
+        - dhcp_agent
+        - l3_agent
+        - lb_agent
+        - metadata_agent
+        - ovs_agent
+        - sriov_agent
+      content: |
+        # neutron-rootwrap command filters for nodes on which neutron is
+        # expected to control network
+        #
+        # This file should be owned by (and only-writeable by) the root user
+
+        # format seems to be
+        # cmd-name: filter-name, raw-command, user, args
+
+        [Filters]
+
+        # neutron/agent/linux/iptables_firewall.py
+        #   "iptables-save", ...
+        iptables-save: CommandFilter, iptables-save, root
+        iptables-restore: CommandFilter, iptables-restore, root
+        ip6tables-save: CommandFilter, ip6tables-save, root
+        ip6tables-restore: CommandFilter, ip6tables-restore, root
+
+        # neutron/agent/linux/iptables_firewall.py
+        #   "iptables", "-A", ...
+        iptables: CommandFilter, iptables, root
+        ip6tables: CommandFilter, ip6tables, root
+
+        # neutron/agent/linux/iptables_firewall.py
+        sysctl: CommandFilter, sysctl, root
+
+        # neutron/agent/linux/ip_conntrack.py
+        conntrack: CommandFilter, conntrack, root
     linuxbridge_plugin:
-      override:
-      append:
+      pods:
+        - dhcp_agent
+        - l3_agent
+        - lb_agent
+        - metadata_agent
+        - ovs_agent
+        - sriov_agent
+      content: |
+        # neutron-rootwrap command filters for nodes on which neutron is
+        # expected to control network
+        #
+        # This file should be owned by (and only-writeable by) the root user
+
+        # format seems to be
+        # cmd-name: filter-name, raw-command, user, args
+
+        [Filters]
+
+        # linuxbridge-agent
+        # unclear whether both variants are necessary, but I'm transliterating
+        # from the old mechanism
+        brctl: CommandFilter, brctl, root
+        bridge: CommandFilter, bridge, root
+
+        # ip_lib
+        ip: IpFilter, ip, root
+        find: RegExpFilter, find, root, find, /sys/class/net, -maxdepth, 1, -type, l, -printf, %.*
+        ip_exec: IpNetnsExecFilter, ip, root
+
+        # tc commands needed for QoS support
+        tc_replace_tbf: RegExpFilter, tc, root, tc, qdisc, replace, dev, .+, root, tbf, rate, .+, latency, .+, burst, .+
+        tc_add_ingress: RegExpFilter, tc, root, tc, qdisc, add, dev, .+, ingress, handle, .+
+        tc_delete: RegExpFilter, tc, root, tc, qdisc, del, dev, .+, .+
+        tc_show_qdisc: RegExpFilter, tc, root, tc, qdisc, show, dev, .+
+        tc_show_filters: RegExpFilter, tc, root, tc, filter, show, dev, .+, parent, .+
+        tc_add_filter: RegExpFilter, tc, root, tc, filter, add, dev, .+, parent, .+, protocol, all, prio, .+, basic, police, rate, .+, burst, .+, mtu, .+, drop
     openvswitch_plugin:
-      override:
-      append:
+      pods:
+        - dhcp_agent
+        - l3_agent
+        - lb_agent
+        - metadata_agent
+        - ovs_agent
+        - sriov_agent
+      content: |
+        # neutron-rootwrap command filters for nodes on which neutron is
+        # expected to control network
+        #
+        # This file should be owned by (and only-writeable by) the root user
+
+        # format seems to be
+        # cmd-name: filter-name, raw-command, user, args
+
+        [Filters]
+
+        # openvswitch-agent
+        # unclear whether both variants are necessary, but I'm transliterating
+        # from the old mechanism
+        ovs-vsctl: CommandFilter, ovs-vsctl, root
+        # NOTE(yamamoto): of_interface=native doesn't use ovs-ofctl
+        ovs-ofctl: CommandFilter, ovs-ofctl, root
+        kill_ovsdb_client: KillFilter, root, /usr/bin/ovsdb-client, -9
+        ovsdb-client: CommandFilter, ovsdb-client, root
+        xe: CommandFilter, xe, root
+
+        # ip_lib
+        ip: IpFilter, ip, root
+        find: RegExpFilter, find, root, find, /sys/class/net, -maxdepth, 1, -type, l, -printf, %.*
+        ip_exec: IpNetnsExecFilter, ip, root
   neutron:
     DEFAULT:
       #NOTE(portdirect): the bind port should not be defined, and is manipulated
