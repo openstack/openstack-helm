@@ -16,7 +16,7 @@
 FROM gcr.io/google-containers/debian-base-amd64:0.3
 MAINTAINER pete.birley@att.com
 
-ARG KUBE_VERSION="v1.9.3"
+ARG KUBE_VERSION="v1.10.2"
 ENV KUBE_VERSION ${KUBE_VERSION}
 
 ARG CNI_VERSION="v0.6.0"
