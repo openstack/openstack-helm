@@ -68,7 +68,7 @@ chart:
         cfn: docker.io/kolla/ubuntu-source-heat-api:3.0.3
         cloudwatch: docker.io/kolla/ubuntu-source-heat-api:3.0.3
         engine: docker.io/openstackhelm/heat:newton
-        dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.3.0
+        dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.3.1
       pull_policy: "IfNotPresent"
 
 The OpenStack-Helm project today uses a mix of Docker images from

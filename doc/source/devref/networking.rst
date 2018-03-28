@@ -139,7 +139,8 @@ for the L2 agent daemonset:
           endpoint: internal
         pod:
           # this should be set to corresponding neutron L2 agent
-          - labels:
+          - requireSameNode: true
+            labels:
               application: neutron
               component: neutron-ovs-agent
 
@@ -320,17 +321,20 @@ and use this `neutron/values.yaml` override:
     dependencies:
       dhcp:
         pod:
-          - labels:
+          - requireSameNode: true
+            labels:
               application: neutron
               component: neutron-lb-agent
       metadata:
         pod:
-          - labels:
+          - requireSameNode: true
+            labels:
               application: neutron
               component: neutron-lb-agent
       l3:
         pod:
-          - labels:
+          - requireSameNode: true
+            labels:
               application: neutron
               component: neutron-lb-agent
     conf:
