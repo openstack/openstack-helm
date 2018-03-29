@@ -137,10 +137,16 @@ spec:
               mountPath: /etc/cinder/rootwrap.conf
               subPath: rootwrap.conf
               readOnly: true
+            {{- range $key, $value := $envAll.Values.conf.rootwrap_filters }}
+            {{- if ( has "volume" $value.pods ) }}
+            {{- $filePrefix := replace "_" "-"  $key }}
+            {{- $rootwrapFile := printf "/etc/cinder/rootwrap.d/%s.filters" $filePrefix }}
             - name: cinder-etc
-              mountPath: /etc/cinder/rootwrap.d/volume.filters
-              subPath: volume.filters
+              mountPath: {{ $rootwrapFile }}
+              subPath: {{ base $rootwrapFile }}
               readOnly: true
+            {{- end }}
+            {{- end }}
 {{ if $mounts_cinder_volume.volumeMounts }}{{ toYaml $mounts_cinder_volume.volumeMounts | indent 12 }}{{ end }}
       volumes:
         - name: cinder-bin

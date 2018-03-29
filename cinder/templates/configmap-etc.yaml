@@ -110,9 +110,12 @@ data:
   policy.json: |
 {{ toJson .Values.conf.policy | indent 4 }}
   cinder_sudoers: |
-{{- tuple .Values.conf.cinder_sudoers "etc/_cinder_sudoers.tpl" . | include "helm-toolkit.utils.configmap_templater" }}
+{{ $envAll.Values.conf.cinder_sudoers | indent 4 }}
   rootwrap.conf: |
-{{- tuple .Values.conf.rootwrap "etc/_rootwrap.conf.tpl" . | include "helm-toolkit.utils.configmap_templater" }}
-  volume.filters: |
-{{- tuple .Values.conf.rootwrap_filters.volume "etc/rootwrap.d/_volume.filters.tpl" . | include "helm-toolkit.utils.configmap_templater" }}
+{{ $envAll.Values.conf.rootwrap | indent 4 }}
+{{- range $key, $value := $envAll.Values.conf.rootwrap_filters }}
+{{- $filePrefix := replace "_" "-"  $key }}
+  {{ printf "%s.filters" $filePrefix }}: |
+{{ $value.content | indent 4 }}
+{{- end }}
 {{- end }}
