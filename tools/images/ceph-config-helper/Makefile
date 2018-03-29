@@ -19,7 +19,7 @@ DOCKER_REGISTRY            ?= docker.io
 IMAGE_NAME                 ?= ceph-config-helper
 IMAGE_PREFIX               ?= openstackhelm
 IMAGE_TAG                  ?= latest
-KUBE_VERSION               ?= v1.7.5
+KUBE_VERSION               ?= v1.9.6
 LABEL                      ?= putlabelshere
 
 IMAGE := ${DOCKER_REGISTRY}/${IMAGE_PREFIX}/${IMAGE_NAME}:${IMAGE_TAG}
@@ -32,6 +32,7 @@ images: build_$(IMAGE_NAME)
 .PHONY: build_$(IMAGE_NAME)
 build_$(IMAGE_NAME):
 	docker build \
+	--network host \
 	--build-arg KUBE_VERSION=$(KUBE_VERSION) \
 	-t $(IMAGE) \
 	--label $(LABEL) --label KUBE_VERSION=$(KUBE_VERSION) \
