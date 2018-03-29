@@ -22,22 +22,10 @@ kind: ConfigMap
 metadata:
   name: horizon-etc
 data:
-  horizon.conf: |
-{{ tuple "etc/_horizon.conf.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
-  local_settings: |
-{{ tuple "etc/_local_settings.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
-  ceilometer_policy.json: |
-{{  toJson .Values.conf.ceilometer_policy | indent 4 }}
-  cinder_policy.json: |
-{{  toJson .Values.conf.cinder_policy | indent 4 }}
-  glance_policy.json: |
-{{  toJson .Values.conf.glance_policy | indent 4 }}
-  heat_policy.json: |
-{{  toJson .Values.conf.heat_policy | indent 4 }}
-  keystone_policy.json: |
-{{  toJson .Values.conf.keystone_policy | indent 4 }}
-  neutron_policy.json: |
-{{  toJson .Values.conf.neutron_policy | indent 4 }}
-  nova_policy.json: |
-{{  toJson .Values.conf.nova_policy | indent 4 }}
+{{- include "helm-toolkit.snippets.values_template_renderer" (dict "envAll" $envAll "template" .Values.conf.horizon.apache "key" "horizon.conf") | indent 2 }}
+{{- include "helm-toolkit.snippets.values_template_renderer" (dict "envAll" $envAll "template" .Values.conf.horizon.local_settings.template "key" "local_settings") | indent 2 }}
+{{- range $key, $value := .Values.conf.horizon.policy }}
+  {{ printf "%s_policy.json" $key }}: |
+{{ $value | toPrettyJson | indent 4 }}
+{{- end }}
 {{- end }}
