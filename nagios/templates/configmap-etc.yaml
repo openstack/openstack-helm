@@ -1,0 +1,32 @@
+{{/*
+Copyright 2017 The Openstack-Helm Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.configmap_etc }}
+{{- $envAll := . }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nagios-etc
+data:
+  nagios.cfg: |+
+{{ include "nagios.to_nagios_conf" .Values.conf.nagios.config | indent 4 }}
+  nagios_objects.cfg: |+
+{{- tuple "host" .Values.conf.nagios.hosts | include "nagios.object_definition" | indent 4 }}
+{{- tuple "hostgroup" .Values.conf.nagios.host_groups | include "nagios.object_definition" | indent 4 }}
+{{- tuple "command" .Values.conf.nagios.commands | include "nagios.object_definition" | indent 4 }}
+{{- tuple "service" .Values.conf.nagios.services | include "nagios.object_definition" | indent 4 }}
+{{- end }}
