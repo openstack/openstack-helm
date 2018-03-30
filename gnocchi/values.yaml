@@ -263,6 +263,28 @@ pod:
           cpu: "2000m"
 
 conf:
+  apache: |
+    Listen 0.0.0.0:{{ tuple "metric" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+
+    SetEnvIf X-Forwarded-For "^.*\..*\..*\..*" forwarded
+    CustomLog /dev/stdout combined env=!forwarded
+    CustomLog /dev/stdout proxy env=forwarded
+
+    <VirtualHost *:{{ tuple "metric" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}>
+        WSGIDaemonProcess gnocchi processes=1 threads=2 user=gnocchi group=gnocchi display-name=%{GROUP}
+        WSGIProcessGroup gnocchi
+        WSGIScriptAlias / "/var/lib/kolla/venv/lib/python2.7/site-packages/gnocchi/rest/app.wsgi"
+        WSGIApplicationGroup %{GLOBAL}
+
+        ErrorLog /dev/stderr
+        SetEnvIf X-Forwarded-For "^.*\..*\..*\..*" forwarded
+        CustomLog /dev/stdout combined env=!forwarded
+        CustomLog /dev/stdout proxy env=forwarded
+
+        <Directory "/var/lib/kolla/venv/lib/python2.7/site-packages/gnocchi/rest">
+              Require all granted
+        </Directory>
+    </VirtualHost>
   ceph:
     monitors: []
     admin_keyring: null
