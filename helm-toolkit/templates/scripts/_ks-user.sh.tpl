@@ -76,6 +76,10 @@ openstack user set --password="${SERVICE_OS_PASSWORD}" "${USER_ID}"
 openstack user show "${USER_ID}"
 
 function ks_assign_user_role () {
+  # Get user role
+  USER_ROLE_ID=$(openstack role create --or-show -f value -c id \
+      "${SERVICE_OS_ROLE}");
+
   # Manage user role assignment
   openstack role add \
       --user="${USER_ID}" \
@@ -92,9 +96,10 @@ function ks_assign_user_role () {
 }
 
 # Manage user service role
-export USER_ROLE_ID=$(openstack role create --or-show -f value -c id \
-    "${SERVICE_OS_ROLE}");
-ks_assign_user_role
+IFS=','
+for SERVICE_OS_ROLE in ${SERVICE_OS_ROLES}; do
+  ks_assign_user_role
+done
 
 # Manage user member role
 : ${MEMBER_OS_ROLE:="_member_"}
