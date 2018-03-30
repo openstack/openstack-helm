@@ -40,6 +40,8 @@ metadata:
 {{- $_ := set $allNamespace $saNamespace  (printf "%s%s" "jobs," ((index $allNamespace $saNamespace) | default "")) }}
 {{- else if and (eq $k "daemonset") $v }}
 {{- $_ := set $allNamespace $saNamespace  (printf "%s%s" "daemonsets," ((index $allNamespace $saNamespace) | default "")) }}
+{{- else if and (eq $k "pod") $v }}
+{{- $_ := set $allNamespace $saNamespace  (printf "%s%s" "pods," ((index $allNamespace $saNamespace) | default "")) }}
 {{- end -}}
 {{- end -}}
 {{- $_ := unset $allNamespace $randomKey }}
