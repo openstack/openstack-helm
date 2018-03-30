@@ -18,6 +18,12 @@ limitations under the License.
 # definition. This is used in kubernetes-entrypoint to support dependencies
 # between different services in different namespaces.
 # returns: the endpoint namespace and the service name, delimited by a colon
+#
+# Normally, the service name is constructed dynamically from the hostname
+# however when an ip address is used as the hostname, we default to
+# namespace:endpointCategoryName in order to construct a valid service name
+# however this can be overriden to a custom service name by defining
+# .service.name within the endpoint definition
 
 {{- define "helm-toolkit.endpoints.service_name_endpoint_with_namespace_lookup" -}}
 {{- $type := index . 0 -}}
@@ -29,6 +35,14 @@ limitations under the License.
 {{- $endpointScheme := .scheme }}
 {{- $endpointName := index .hosts $endpoint | default .hosts.default}}
 {{- $endpointNamespace := .namespace | default $context.Release.Namespace }}
+{{- if regexMatch "[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+" $endpointName }}
+{{- if .service.name }}
+{{- printf "%s:%s" $endpointNamespace .service.name -}}
+{{- else -}}
+{{- printf "%s:%s" $endpointNamespace $typeYamlSafe -}}
+{{- end -}}
+{{- else -}}
 {{- printf "%s:%s" $endpointNamespace $endpointName -}}
+{{- end -}}
 {{- end -}}
 {{- end -}}
