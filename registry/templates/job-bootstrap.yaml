@@ -17,15 +17,9 @@ limitations under the License.
 {{- if .Values.manifests.job_bootstrap }}
 {{- $envAll := . }}
 {{- if .Values.bootstrap.enabled }}
-{{- if .Values.images.local_registry.active -}}
-{{- $_ := set .Values "pod_dependency" dict -}}
-{{- $_ := include "helm-toolkit.utils.merge" (tuple .Values.pod_dependency .Values.dependencies.static.bootstrap .Values.dependencies.dynamic.common.local_image_registry) -}}
-{{- else -}}
-{{- $_ := set .Values "pod_dependency" .Values.dependencies.static.bootstrap -}}
-{{- end -}}
 
 {{- $serviceAccountName := "docker-bootstrap"}}
-{{ tuple $envAll $envAll.Values.pod_dependency $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{ tuple $envAll "bootstrap" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: batch/v1
 kind: Job
@@ -42,7 +36,7 @@ spec:
       nodeSelector:
         {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
       initContainers:
-{{ tuple $envAll .Values.pod_dependency list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container"  | indent 8 }}
+{{ tuple $envAll "bootstrap" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container"  | indent 8 }}
       containers:
         - name: docker-bootstrap
 {{ tuple $envAll "bootstrap" | include "helm-toolkit.snippets.image" | indent 10 }}

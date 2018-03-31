@@ -16,17 +16,11 @@ limitations under the License.
 
 {{- if .Values.manifests.deployment_master }}
 {{- $envAll := . }}
-{{- if .Values.images.local_registry.active -}}
-{{- $_ := set .Values "pod_dependency" dict -}}
-{{- $_ := include "helm-toolkit.utils.merge" (tuple .Values.pod_dependency .Values.dependencies.static.elasticsearch_master .Values.dependencies.dynamic.common.local_image_registry) -}}
-{{- else -}}
-{{- $_ := set .Values "pod_dependency" .Values.dependencies.static.elasticsearch_master -}}
-{{- end -}}
 
 {{- $mounts_elasticsearch := .Values.pod.mounts.elasticsearch.elasticsearch }}
 
 {{- $serviceAccountName := "elasticsearch-master"}}
-{{ tuple $envAll $envAll.Values.pod_dependency $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{ tuple $envAll "elasticsearch_master" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRoleBinding
@@ -85,7 +79,7 @@ spec:
       nodeSelector:
         {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
       initContainers:
-{{ tuple $envAll .Values.pod_dependency list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll "elasticsearch_master" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container"  | indent 8 }}
         - name: memory-map-increase
           securityContext:
             privileged: true

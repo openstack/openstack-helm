@@ -16,15 +16,9 @@ limitations under the License.
 
 {{- if .Values.manifests.deployment_tiller }}
 {{- $envAll := . }}
-{{- if .Values.images.local_registry.active -}}
-{{- $_ := set .Values "pod_dependency" dict -}}
-{{- $_ := include "helm-toolkit.utils.merge" (tuple .Values.pod_dependency .Values.dependencies.static.tiller .Values.dependencies.dynamic.common.local_image_registry) -}}
-{{- else -}}
-{{- $_ := set .Values "pod_dependency" .Values.dependencies.static.tiller -}}
-{{- end -}}
 
 {{- $serviceAccountName := printf "%s-%s" .Release.Name "tiller" }}
-{{ tuple $envAll $envAll.Values.pod_dependency $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{ tuple $envAll "tiller" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -64,7 +58,7 @@ spec:
         name: tiller
     spec:
       initContainers:
-{{ tuple $envAll .Values.pod_dependency list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll "tiller" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
       - env:
         - name: TILLER_NAMESPACE

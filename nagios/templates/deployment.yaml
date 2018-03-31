@@ -16,15 +16,9 @@ limitations under the License.
 
 {{- if .Values.manifests.deployment }}
 {{- $envAll := . }}
-{{- if .Values.images.local_registry.active -}}
-{{- $_ := set .Values "pod_dependency" dict -}}
-{{- $_ := include "helm-toolkit.utils.merge" (tuple .Values.pod_dependency .Values.dependencies.static.nagios .Values.dependencies.dynamic.common.local_image_registry) -}}
-{{- else -}}
-{{- $_ := set .Values "pod_dependency" .Values.dependencies.static.nagios -}}
-{{- end -}}
 
 {{- $serviceAccountName := "nagios" }}
-{{ tuple $envAll $envAll.Values.pod_dependency $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{ tuple $envAll "nagios" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRole
@@ -80,7 +74,7 @@ spec:
         {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
       terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.nagios.timeout | default "30" }}
       initContainers:
-{{ tuple $envAll .Values.pod_dependency list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll "nagios" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
         - name: nagios
 {{ tuple $envAll "nagios" | include "helm-toolkit.snippets.image" | indent 10 }}

@@ -16,10 +16,9 @@ limitations under the License.
 
 {{- if .Values.manifests.job_db_init }}
 {{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.static.db_init }}
 
 {{- $serviceAccountName := "grafana-db-init" }}
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{ tuple $envAll "db_init" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: batch/v1
 kind: Job
@@ -36,7 +35,7 @@ spec:
       nodeSelector:
         {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
       initContainers:
-{{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll "db_init" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
         - name: grafana-db-init
 {{ tuple $envAll "db_init" | include "helm-toolkit.snippets.image" | indent 10 }}

@@ -17,15 +17,9 @@ limitations under the License.
 {{- if .Values.manifests.deployment }}
 {{- $envAll := . }}
 {{- $esUserSecret := .Values.secrets.elasticsearch.user }}
-{{- if .Values.images.local_registry.active -}}
-{{- $_ := set .Values "pod_dependency" dict -}}
-{{- $_ := include "helm-toolkit.utils.merge" (tuple .Values.pod_dependency .Values.dependencies.static.kibana .Values.dependencies.dynamic.common.local_image_registry) -}}
-{{- else -}}
-{{- $_ := set .Values "pod_dependency" .Values.dependencies.static.kibana -}}
-{{- end -}}
 
 {{- $serviceAccountName := "kibana" }}
-{{ tuple $envAll $envAll.Values.pod_dependency $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{ tuple $envAll "kibana" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: extensions/v1beta1
 kind: Deployment
@@ -48,7 +42,7 @@ spec:
       nodeSelector:
         {{ .Values.labels.kibana.node_selector_key }}: {{ .Values.labels.kibana.node_selector_value }}
       initContainers:
-{{ tuple $envAll .Values.pod_dependency list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll "kibana" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
         - name: apache-proxy
 {{ tuple $envAll "apache_proxy" | include "helm-toolkit.snippets.image" | indent 10 }}

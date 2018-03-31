@@ -16,10 +16,9 @@ limitations under the License.
 
 {{- if .Values.manifests.job_calico_settings }}
 {{- $envAll := . }}
-{{- $_ := set .Values "pod_dependency" .Values.dependencies.static.calico_settings -}}
 
 {{- $serviceAccountName := "calico-settings"}}
-{{ tuple $envAll $envAll.Values.pod_dependency $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{ tuple $envAll "calico_settings" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: batch/v1
 kind: Job
@@ -47,7 +46,7 @@ spec:
       serviceAccountName: {{ $serviceAccountName }}
       restartPolicy: OnFailure
       initContainers:
-{{ tuple $envAll .Values.pod_dependency list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container"  | indent 8 }}
+{{ tuple $envAll "calico_settings" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container"  | indent 8 }}
       containers:
         - name: calico-settings
 {{ tuple $envAll "calico_settings" | include "helm-toolkit.snippets.image" | indent 10 }}

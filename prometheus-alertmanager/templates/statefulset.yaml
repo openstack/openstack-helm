@@ -16,18 +16,12 @@ limitations under the License.
 
 {{- if .Values.manifests.statefulset }}
 {{- $envAll := . }}
-{{- if .Values.images.local_registry.active -}}
-{{- $_ := set .Values "pod_dependency" dict -}}
-{{- $_ := include "helm-toolkit.utils.merge" (tuple .Values.pod_dependency .Values.dependencies.static.alertmanager .Values.dependencies.dynamic.common.local_image_registry) -}}
-{{- else -}}
-{{- $_ := set .Values "pod_dependency" .Values.dependencies.static.alertmanager -}}
-{{- end -}}
 
 {{- $mounts_alertmanager := .Values.pod.mounts.alertmanager.alertmanager }}
 {{- $mounts_alertmanager_init := .Values.pod.mounts.alertmanager.init_container }}
 
 {{- $serviceAccountName := "alertmanager"}}
-{{ tuple $envAll $envAll.Values.pod_dependency $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{ tuple $envAll "alertmanager" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: apps/v1beta1
 kind: StatefulSet
@@ -51,7 +45,7 @@ spec:
         {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
       terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.alertmanager.timeout | default "30" }}
       initContainers:
-{{ tuple $envAll .Values.pod_dependency list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll "alertmanager" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
         - name: alertmanager-perms
 {{ tuple $envAll "alertmanager" | include "helm-toolkit.snippets.image" | indent 10 }}
           securityContext:

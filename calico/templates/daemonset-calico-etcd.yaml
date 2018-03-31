@@ -16,15 +16,9 @@ limitations under the License.
 
 {{- if .Values.manifests.daemonset_calico_etcd }}
 {{- $envAll := . }}
-{{- if .Values.images.local_registry.active -}}
-{{- $_ := set .Values "pod_dependency" dict -}}
-{{- $_ := include "helm-toolkit.utils.merge" (tuple .Values.pod_dependency .Values.dependencies.static.etcd .Values.dependencies.dynamic.common.local_image_registry) -}}
-{{- else -}}
-{{- $_ := set .Values "pod_dependency" .Values.dependencies.static.etcd -}}
-{{- end -}}
 
 {{- $serviceAccountName := "calico-etcd"}}
-{{ tuple $envAll $envAll.Values.pod_dependency $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{ tuple $envAll "etcd" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 # This manifest installs the Calico etcd on the kubeadm master.  This uses a DaemonSet
 # to force it to run on the master even when the master isn't schedulable, and uses
@@ -60,7 +54,7 @@ spec:
         node-role.kubernetes.io/master: ""
       hostNetwork: true
       initContainers:
-{{ tuple $envAll .Values.pod_dependency list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll "etcd" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
         - name: calico-etcd
 {{ tuple $envAll "calico_etcd" | include "helm-toolkit.snippets.image" | indent 10 }}

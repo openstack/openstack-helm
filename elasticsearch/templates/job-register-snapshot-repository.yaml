@@ -17,11 +17,11 @@ limitations under the License.
 {{- if .Values.manifests.job_snapshot_repository }}
 {{- if .Values.conf.elasticsearch.repository.enabled }}
 {{- $envAll := . }}
+
 {{- $esUserSecret := .Values.secrets.elasticsearch.user }}
-{{- $_ := set .Values "pod_dependency" .Values.dependencies.static.snapshot_repository -}}
 
 {{- $serviceAccountName := "elasticsearch-register-snapshot-repository" }}
-{{ tuple $envAll $envAll.Values.pod_dependency $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{ tuple $envAll "snapshot_repository" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: batch/v1
 kind: Job
@@ -38,7 +38,7 @@ spec:
       nodeSelector:
         {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
       initContainers:
-{{ tuple $envAll .Values.pod_dependency list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container"  | indent 8 }}
+{{ tuple $envAll "snapshot_repository" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container"  | indent 8 }}
       containers:
         - name: register-snapshot-repository
 {{ tuple $envAll "snapshot_repository" | include "helm-toolkit.snippets.image" | indent 10 }}

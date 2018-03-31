@@ -16,18 +16,12 @@ limitations under the License.
 
 {{- if .Values.manifests.statefulset_prometheus }}
 {{- $envAll := . }}
-{{- if .Values.images.local_registry.active -}}
-{{- $_ := set .Values "pod_dependency" dict -}}
-{{- $_ := include "helm-toolkit.utils.merge" (tuple .Values.pod_dependency .Values.dependencies.static.prometheus .Values.dependencies.dynamic.common.local_image_registry) -}}
-{{- else -}}
-{{- $_ := set .Values "pod_dependency" .Values.dependencies.static.prometheus -}}
-{{- end -}}
 
 {{- $mounts_prometheus := .Values.pod.mounts.prometheus.prometheus }}
 {{- $mounts_prometheus_init := .Values.pod.mounts.prometheus.init_container }}
 
 {{- $serviceAccountName := printf "%s-%s" .Release.Name "prometheus"}}
-{{ tuple $envAll $envAll.Values.pod_dependency $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{ tuple $envAll "prometheus" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRole
@@ -92,7 +86,7 @@ spec:
         {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
       terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.prometheus.timeout | default "30" }}
       initContainers:
-{{ tuple $envAll .Values.pod_dependency list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll "prometheus" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
         - name: prometheus-perms
 {{ tuple $envAll "prometheus" | include "helm-toolkit.snippets.image" | indent 10 }}
           securityContext:

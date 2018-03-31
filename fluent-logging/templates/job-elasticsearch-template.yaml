@@ -17,9 +17,11 @@ limitations under the License.
 {{- if .Values.manifests.job_elasticsearch_template }}
 {{- $envAll := . }}
 {{- $esUserSecret := .Values.secrets.elasticsearch.user }}
-{{- $dependencies := .Values.dependencies.static.elasticsearch_template }}
 {{- $mounts_elasticsearch_template := .Values.pod.mounts.elasticsearch_template.elasticsearch_template }}
 {{- $mounts_elasticsearch_template_init := .Values.pod.mounts.elasticsearch_template.init_container }}
+
+{{- $serviceAccountName := "fluent-logging-elasticsearch-template"}}
+{{ tuple $envAll "elasticsearch_template" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: batch/v1
 kind: Job
@@ -31,11 +33,12 @@ spec:
       labels:
 {{ tuple $envAll "fluent" "elasticsearch-template" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
     spec:
+      serviceAccountName: {{ $serviceAccountName }}
       restartPolicy: OnFailure
       nodeSelector:
         {{ .Values.labels.elasticsearch_template.node_selector_key }}: {{ .Values.labels.elasticsearch_template.node_selector_value }}
       initContainers:
-{{ tuple $envAll $dependencies $mounts_elasticsearch_template_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll "elasticsearch_template" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
         - name: elasticsearch-template
           image: {{ .Values.images.tags.elasticsearch_template }}
