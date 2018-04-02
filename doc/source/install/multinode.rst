@@ -19,7 +19,7 @@ comments, please create an `issue
 
 .. note::
   Please see the supported application versions outlined in the
-  `source variable file <https://github.com/openstack/openstack-helm/blob/master/tools/gate/vars.sh>`_.
+  `source variable file <https://github.com/openstack/openstack-helm-infra/blob/master/tools/gate/playbooks/vars.yaml>`_.
 
 Other versions and considerations (such as other CNI SDN providers),
 config map data, and value overrides will be included in other
