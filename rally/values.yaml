@@ -269,15 +269,6 @@ pvc:
   storage_class: general
 
 conf:
-  paste:
-    override:
-    append:
-  policy:
-    override:
-    append:
-  audit_map:
-    override:
-    append:
   rally:
     keystone_authtoken:
       auth_type: password
@@ -288,62 +279,425 @@ conf:
       connection:
   rally_tasks:
     heat_tests:
-      random_strings:
-        override:
-        prefix:
-        append:
-      updated_random_strings_replace:
-        override:
-        prefix:
-        append:
-      updated_random_strings_add:
-        override:
-        prefix:
-        append:
-      updated_random_strings_delete:
-        override:
-        prefix:
-        append:
-      resource_group_with_constraint:
-        override:
-        prefix:
-        append:
-      resource_group_with_outputs:
-        override:
-        prefix:
-        append:
-      resource_group_server_with_volume:
-        override:
-        prefix:
-        append:
-      resource_group:
-        override:
-        prefix:
-        append:
-      default:
-        override:
-        prefix:
-        append:
-      autoscaling_group:
-        override:
-        prefix:
-        append:
-      server_with_ports:
-        override:
-        prefix:
-        append:
-      server_with_volume:
-        override:
-        prefix:
-        append:
-      updated_resource_group_increase:
-        override:
-        prefix:
-        append:
-      updated_resource_group_reduce:
-        override:
-        prefix:
-        append:
+          autoscaling_group:
+            heat_template_version: '2013-05-23'
+            outputs:
+              scaling_url:
+                value:
+                  get_attr:
+                    - scaling_policy
+                    - alarm_url
+            parameters:
+              flavor:
+                constraints:
+                  - custom_constraint: nova.flavor
+                default: m1.tiny
+                type: string
+              image:
+                constraints:
+                  - custom_constraint: glance.image
+                default: cirros-0.3.4-x86_64-uec
+                type: string
+              max_size:
+                constraints:
+                  - range:
+                      min: 1
+                default: 5
+                type: number
+              scaling_adjustment:
+                default: 1
+                type: number
+            resources:
+              asg:
+                properties:
+                  desired_capacity: 3
+                  max_size:
+                    get_param: max_size
+                  min_size: 1
+                  resource:
+                    properties:
+                      flavor:
+                        get_param: flavor
+                      image:
+                        get_param: image
+                    type: 'OS::Nova::Server'
+                type: 'OS::Heat::AutoScalingGroup'
+              scaling_policy:
+                properties:
+                  adjustment_type: change_in_capacity
+                  auto_scaling_group_id:
+                    get_resource: asg
+                  scaling_adjustment:
+                    get_param: scaling_adjustment
+                type: 'OS::Heat::ScalingPolicy'
+          autoscaling_policy:
+            heat_template_version: '2013-05-23'
+            resources:
+              test_group:
+                properties:
+                  desired_capacity: 0
+                  max_size: 0
+                  min_size: 0
+                  resource:
+                    type: 'OS::Heat::RandomString'
+                type: 'OS::Heat::AutoScalingGroup'
+              test_policy:
+                properties:
+                  adjustment_type: change_in_capacity
+                  auto_scaling_group_id:
+                    get_resource: test_group
+                  scaling_adjustment: 1
+                type: 'OS::Heat::ScalingPolicy'
+          default:
+            heat_template_version: '2014-10-16'
+          random_strings:
+            description: Test template for rally create-update-delete scenario
+            heat_template_version: '2014-10-16'
+            resources:
+              test_string_one:
+                properties:
+                  length: 20
+                type: 'OS::Heat::RandomString'
+              test_string_two:
+                properties:
+                  length: 20
+                type: 'OS::Heat::RandomString'
+          resource_group:
+            description: Test template for rally create-update-delete scenario
+            heat_template_version: '2014-10-16'
+            resources:
+              test_group:
+                properties:
+                  count: 2
+                  resource_def:
+                    properties:
+                      length: 20
+                    type: 'OS::Heat::RandomString'
+                type: 'OS::Heat::ResourceGroup'
+          resource_group_server_with_volume:
+            description: |
+              Test template that creates a resource group with servers and volumes.
+              The template allows to create a lot of nested stacks with standard configuration:
+              nova instance, cinder volume attached to that instance
+            heat_template_version: '2014-10-16'
+            parameters:
+              instance_availability_zone:
+                default: nova
+                description: The Availability Zone to launch the instance.
+                type: string
+              instance_flavor:
+                default: m1.tiny
+                description: Type of the instance to be created.
+                type: string
+              instance_image:
+                default: cirros-0.3.4-x86_64-uec
+                type: string
+              instance_volume_size:
+                constraints:
+                  - range:
+                      max: 1024
+                      min: 1
+                default: 1
+                description: Size of volume to attach to instance
+                type: number
+              num_instances:
+                constraints:
+                  - range:
+                      min: 1
+                description: number of instances that should be created in resource group
+                type: number
+            resources:
+              group_of_volumes:
+                properties:
+                  count:
+                    get_param: num_instances
+                  resource_def:
+                    properties:
+                      availability_zone:
+                        get_param: instance_availability_zone
+                      flavor:
+                        get_param: instance_flavor
+                      image:
+                        get_param: instance_image
+                      volume_size:
+                        get_param: instance_volume_size
+                    type: templates/server-with-volume.yaml.template
+                type: 'OS::Heat::ResourceGroup'
+          resource_group_with_constraint:
+            description: Template for testing caching.
+            heat_template_version: '2013-05-23'
+            parameters:
+              count:
+                default: 40
+                type: number
+              delay:
+                default: 0.1
+                type: number
+            resources:
+              rg:
+                properties:
+                  count:
+                    get_param: count
+                  resource_def:
+                    properties:
+                      constraint_prop_secs:
+                        get_param: delay
+                    type: 'OS::Heat::TestResource'
+                type: 'OS::Heat::ResourceGroup'
+          resource_group_with_outputs:
+            heat_template_version: '2013-05-23'
+            outputs:
+              val1:
+                value:
+                  get_attr:
+                    - rg
+                    - resource.0.output
+              val10:
+                value:
+                  get_attr:
+                    - rg
+                    - resource.9.output
+              val2:
+                value:
+                  get_attr:
+                    - rg
+                    - resource.1.output
+              val3:
+                value:
+                  get_attr:
+                    - rg
+                    - resource.2.output
+              val4:
+                value:
+                  get_attr:
+                    - rg
+                    - resource.3.output
+              val5:
+                value:
+                  get_attr:
+                    - rg
+                    - resource.4.output
+              val6:
+                value:
+                  get_attr:
+                    - rg
+                    - resource.5.output
+              val7:
+                value:
+                  get_attr:
+                    - rg
+                    - resource.6.output
+              val8:
+                value:
+                  get_attr:
+                    - rg
+                    - resource.7.output
+              val9:
+                value:
+                  get_attr:
+                    - rg
+                    - resource.8.output
+            parameters:
+              attr_wait_secs:
+                default: 0.5
+                type: number
+            resources:
+              rg:
+                properties:
+                  count: 10
+                  resource_def:
+                    properties:
+                      attr_wait_secs:
+                        get_param: attr_wait_secs
+                    type: 'OS::Heat::TestResource'
+                type: 'OS::Heat::ResourceGroup'
+          server_with_ports:
+            heat_template_version: '2013-05-23'
+            parameters:
+              cidr:
+                default: 11.11.11.0/24
+                type: string
+              flavor:
+                default: m1.tiny
+                type: string
+              image:
+                default: cirros-0.3.4-x86_64-uec
+                type: string
+              public_net:
+                default: public
+                type: string
+            resources:
+              port_security_group:
+                properties:
+                  description: |
+                    Default security group assigned to port. The neutron default group
+                    is not used because neutron creates several groups with the same name=default
+                    and nova cannot chooses which one should it use.
+                  name: default_port_security_group
+                type: 'OS::Neutron::SecurityGroup'
+              private_net:
+                type: 'OS::Neutron::Net'
+              private_subnet:
+                properties:
+                  cidr:
+                    get_param: cidr
+                  network:
+                    get_resource: private_net
+                type: 'OS::Neutron::Subnet'
+              router:
+                properties:
+                  external_gateway_info:
+                    network:
+                      get_param: public_net
+                type: 'OS::Neutron::Router'
+              router_interface:
+                properties:
+                  router_id:
+                    get_resource: router
+                  subnet_id:
+                    get_resource: private_subnet
+                type: 'OS::Neutron::RouterInterface'
+              server:
+                properties:
+                  flavor:
+                    get_param: flavor
+                  image:
+                    get_param: image
+                  networks:
+                    - port:
+                        get_resource: server_port
+                type: 'OS::Nova::Server'
+              server_port:
+                properties:
+                  fixed_ips:
+                    - subnet:
+                        get_resource: private_subnet
+                  network:
+                    get_resource: private_net
+                  security_groups:
+                    - get_resource: port_security_group
+                type: 'OS::Neutron::Port'
+          server_with_volume:
+            heat_template_version: '2013-05-23'
+            parameters:
+              availability_zone:
+                default: nova
+                description: The Availability Zone to launch the instance.
+                type: string
+              flavor:
+                default: m1.tiny
+                type: string
+              image:
+                default: cirros-0.3.4-x86_64-uec
+                type: string
+              volume_size:
+                constraints:
+                  - description: must be between 1 and 1024 Gb.
+                    range:
+                      max: 1024
+                      min: 1
+                default: 1
+                description: Size of the volume to be created.
+                type: number
+            resources:
+              cinder_volume:
+                properties:
+                  availability_zone:
+                    get_param: availability_zone
+                  size:
+                    get_param: volume_size
+                type: 'OS::Cinder::Volume'
+              server:
+                properties:
+                  flavor:
+                    get_param: flavor
+                  image:
+                    get_param: image
+                type: 'OS::Nova::Server'
+              volume_attachment:
+                properties:
+                  instance_uuid:
+                    get_resource: server
+                  mountpoint: /dev/vdc
+                  volume_id:
+                    get_resource: cinder_volume
+                type: 'OS::Cinder::VolumeAttachment'
+          updated_random_strings_add:
+            description: |
+              Test template for create-update-delete-stack scenario in rally. The
+              template updates the stack defined by random-strings.yaml.template with additional
+              resource.
+            heat_template_version: '2014-10-16'
+            resources:
+              test_string_one:
+                properties:
+                  length: 20
+                type: 'OS::Heat::RandomString'
+              test_string_three:
+                properties:
+                  length: 20
+                type: 'OS::Heat::RandomString'
+              test_string_two:
+                properties:
+                  length: 20
+                type: 'OS::Heat::RandomString'
+          updated_random_strings_delete:
+            description: |
+              Test template for create-update-delete-stack scenario in rally. The
+              template deletes one resource from the stack defined by random-strings.yaml.template.
+            heat_template_version: '2014-10-16'
+            resources:
+              test_string_one:
+                properties:
+                  length: 20
+                type: 'OS::Heat::RandomString'
+          updated_random_strings_replace:
+            description: |
+              Test template for create-update-delete-stack scenario in rally. The
+              template deletes one resource from the stack defined by random-strings.yaml.template
+              and re-creates it with the updated parameters (so-called update-replace). That happens
+              because some parameters cannot be changed without resource re-creation. The template
+              allows to measure performance of update-replace operation.
+            heat_template_version: '2014-10-16'
+            resources:
+              test_string_one:
+                properties:
+                  length: 20
+                type: 'OS::Heat::RandomString'
+              test_string_two:
+                properties:
+                  length: 40
+                type: 'OS::Heat::RandomString'
+          updated_resource_group_increase:
+            description: |
+              Test template for create-update-delete-stack scenario in rally. The
+              template updates one resource from the stack defined by resource-group.yaml.template
+              and adds children resources to that resource.
+            heat_template_version: '2014-10-16'
+            resources:
+              test_group:
+                properties:
+                  count: 3
+                  resource_def:
+                    properties:
+                      length: 20
+                    type: 'OS::Heat::RandomString'
+                type: 'OS::Heat::ResourceGroup'
+          updated_resource_group_reduce:
+            description: |
+              Test template for create-update-delete-stack scenario in rally.
+              The template updates one resource from the stack defined by resource-group.yaml.template
+              and deletes children resources from that resource.
+            heat_template_version: '2014-10-16'
+            resources:
+              test_group:
+                properties:
+                  count: 1
+                  resource_def:
+                    properties:
+                      length: 20
+                    type: 'OS::Heat::RandomString'
+                type: 'OS::Heat::ResourceGroup'
     authenticate_task:
       Authenticate.keystone:
         -
