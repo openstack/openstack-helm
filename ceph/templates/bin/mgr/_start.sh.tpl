@@ -17,7 +17,8 @@ if [ ${CEPH_GET_ADMIN_KEY} -eq 1 ]; then
     fi
 fi
 
-# Check to see if our MGR has been initialized
+# Create a MGR keyring
+rm -rf $MGR_KEYRING
 if [ ! -e "$MGR_KEYRING" ]; then
     # Create ceph-mgr key
     timeout 10 ceph --cluster "${CLUSTER}" auth get-or-create mgr."${MGR_NAME}" mon 'allow profile mgr' osd 'allow *' mds 'allow *' -o "$MGR_KEYRING"
