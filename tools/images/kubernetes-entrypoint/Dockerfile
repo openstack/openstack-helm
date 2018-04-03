@@ -1,0 +1,10 @@
+FROM docker.io/ubuntu:xenial
+MAINTAINER sean.eagan@att.com
+
+ARG BINARY_PATH
+ARG BINARY_INSTALL_PATH=/usr/local/bin/kubernetes-entrypoint
+ENV BINARY_INSTALL_PATH=${BINARY_INSTALL_PATH}
+
+COPY ${BINARY_PATH} ${BINARY_INSTALL_PATH}
+
+CMD ${BINARY_INSTALL_PATH}
