@@ -20,6 +20,7 @@ set -ex
 COMMAND="${@:-start}"
 
 OVS_SOCKET=/run/openvswitch/db.sock
+OVS_PID=/run/openvswitch/ovs-vswitchd.pid
 
 function start () {
   t=0
@@ -63,11 +64,13 @@ function start () {
           -vconsole:emer \
           -vconsole:err \
           -vconsole:info \
+          --pidfile=${OVS_PID} \
           --mlockall
 }
 
 function stop () {
-  ovs-appctl -T1 -t /run/openvswitch/ovs-vswitchd.1.ctl exit
+  PID=$(cat $OVS_PID)
+  ovs-appctl -T1 -t /run/openvswitch/ovs-vswitchd.${PID}.ctl exit
 }
 
 $COMMAND

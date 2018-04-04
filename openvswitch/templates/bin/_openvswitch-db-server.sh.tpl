@@ -22,6 +22,7 @@ COMMAND="${@:-start}"
 OVS_DB=/run/openvswitch/conf.db
 OVS_SOCKET=/run/openvswitch/db.sock
 OVS_SCHEMA=/usr/share/openvswitch/vswitch.ovsschema
+OVS_PID=/run/openvswitch/ovsdb-server.pid
 
 function start () {
   mkdir -p "$(dirname ${OVS_DB})"
@@ -38,11 +39,13 @@ function start () {
           -vconsole:emer \
           -vconsole:err \
           -vconsole:info \
+          --pidfile=${OVS_PID} \
           --remote=punix:${OVS_SOCKET}
 }
 
 function stop () {
-  ovs-appctl -T1 -t /run/openvswitch/ovsdb-server.1.ctl exit
+  PID=$(cat $OVS_PID)
+  ovs-appctl -T1 -t /run/openvswitch/ovsdb-server.${PID}.ctl exit
 }
 
 $COMMAND
