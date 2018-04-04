@@ -31,7 +31,7 @@ repo run:
 
 .. code:: bash
 
-    export KUBE_VERSION=v1.9.6
+    export KUBE_VERSION=v1.10.0
     sudo docker build \
       --network host \
       --build-arg KUBE_VERSION=${KUBE_VERSION} \

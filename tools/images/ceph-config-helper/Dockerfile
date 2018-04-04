@@ -1,7 +1,7 @@
 FROM docker.io/ubuntu:xenial
 MAINTAINER pete.birley@att.com
 
-ARG KUBE_VERSION=v1.9.6
+ARG KUBE_VERSION=v1.10.0
 ARG CEPH_RELEASE=luminous
 
 ADD https://download.ceph.com/keys/release.asc /etc/apt/ceph-release.asc
@@ -17,6 +17,7 @@ RUN set -ex ;\
     apt-get install -y \
         apt-transport-https \
         ca-certificates \
+        ceph \
         curl \
         python \
         jq ;\
