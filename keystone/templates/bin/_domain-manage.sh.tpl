@@ -16,7 +16,17 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-set -ex
+set -e
+endpt={{ tuple "identity" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" }}
+path={{ .Values.conf.keystone.identity.domain_config_dir | default "/etc/keystonedomains" }}
+
 {{- range $k, $v := .Values.conf.ks_domains }}
-keystone-manage domain_config_upload --domain-name {{ $k }} || true
+
+filename=${path}/keystone.{{ $k }}.json
+python /tmp/domain-manage.py \
+    $endpt \
+    $(openstack token issue -f value -c id) \
+    $(openstack domain show {{ $k }} -f value -c id) \
+    {{ $k }} $filename
+
 {{- end }}
