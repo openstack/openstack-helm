@@ -14,54 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if .Values.manifests.job_image_repo_sync }}
-{{- $envAll := . }}
-{{- if .Values.images.local_registry.active -}}
-
-{{- $serviceAccountName := "grafana-image-repo-sync" }}
-{{ tuple $envAll "image_repo_sync" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
----
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: grafana-image-repo-sync
-spec:
-  template:
-    metadata:
-      labels:
-{{ tuple $envAll "grafana" "image-repo-sync" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
-    spec:
-      serviceAccountName: {{ $serviceAccountName }}
-      restartPolicy: OnFailure
-      nodeSelector:
-        {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
-      initContainers:
-{{ tuple $envAll "image_repo_sync" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container"  | indent 8 }}
-      containers:
-        - name: image-repo-sync
-{{ tuple $envAll "image_repo_sync" | include "helm-toolkit.snippets.image" | indent 10 }}
-{{ tuple $envAll $envAll.Values.pod.resources.jobs.image_repo_sync | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-          env:
-            - name: LOCAL_REPO
-              value: "{{ tuple "local_image_registry" "node" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}:{{ tuple "local_image_registry" "node" "registry" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}"
-            - name: IMAGE_SYNC_LIST
-              value: "{{ include "helm-toolkit.utils.image_sync_list" . }}"
-          command:
-            - /tmp/image-repo-sync.sh
-          volumeMounts:
-            - name: grafana-bin
-              mountPath: /tmp/image-repo-sync.sh
-              subPath: image-repo-sync.sh
-              readOnly: true
-            - name: docker-socket
-              mountPath: /var/run/docker.sock
-      volumes:
-        - name: grafana-bin
-          configMap:
-            name: grafana-bin
-            defaultMode: 0555
-        - name: docker-socket
-          hostPath:
-            path: /var/run/docker.sock
-{{- end }}
+{{- if and .Values.manifests.job_image_repo_sync .Values.images.local_registry.active }}
+{{- $imageRepoSyncJob := dict "envAll" . "serviceName" "grafana" -}}
+{{ $imageRepoSyncJob | include "helm-toolkit.manifests.job_image_repo_sync" }}
 {{- end }}
