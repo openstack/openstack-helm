@@ -81,6 +81,7 @@ network:
         num_vfs: 32
         promisc: false
   auto_bridge_add:
+    br-ex: null
     br-physnet3: ${OVSBR}
 conf:
   neutron:

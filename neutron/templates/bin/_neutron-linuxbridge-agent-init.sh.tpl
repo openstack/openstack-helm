@@ -18,20 +18,6 @@ limitations under the License.
 
 set -ex
 
-# configure external bridge
-external_bridge="{{- .Values.network.external_bridge -}}"
-external_interface="{{- .Values.network.interface.external -}}"
-if [ -n "${external_bridge}" ] ; then
-    # adding existing bridge would break out the script when -e is set
-    set +e
-    ip link add name $external_bridge type bridge
-    set -e
-    ip link set dev $external_bridge up
-    if [ -n "$external_interface" ] ; then
-        ip link set dev $external_interface master $external_bridge
-    fi
-fi
-
 # configure all bridge mappings defined in config
 {{- range $br, $phys := .Values.network.auto_bridge_add }}
 if [ -n "{{- $br -}}" ] ; then
