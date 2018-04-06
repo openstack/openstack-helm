@@ -19,10 +19,10 @@ data:
 schema: armada/Chart/v1
 metadata:
   schema: metadata/Document/v1
-  name: ceph
+  name: ceph-mon
 data:
-  chart_name: ceph
-  release: ceph
+  chart_name: ceph-mon
+  release: ceph-mon
   namespace: ceph
   timeout: 1800
   install:
@@ -33,39 +33,35 @@ data:
       delete:
         - type: job
           labels:
-            application: ceph
+            application: ceph-mon
             component: bootstrap
         - type: job
           labels:
-            application: ceph
+            application: ceph-mon
             component: cephfs-client-key-generator
         - type: job
           labels:
-            application: ceph
+            application: ceph-mon
             component: mds-keyring-generator
         - type: job
           labels:
-            application: ceph
+            application: ceph-mon
             component: osd-keyring-generator
         - type: job
           labels:
-            application: ceph
+            application: ceph-mon
             component: rgw-keyring-generator
         - type: job
           labels:
-            application: ceph
+            application: ceph-mon
             component: mon-keyring-generator
         - type: job
           labels:
-            application: ceph
+            application: ceph-mon
             component: mgr-keyring-generator
         - type: job
           labels:
-            application: ceph
-            component: rbd-pool
-        - type: job
-          labels:
-            application: ceph
+            application: ceph-mon
             component: storage-keys-generator
   values:
     endpoints:
@@ -114,7 +110,151 @@ data:
   source:
     type: local
     location: ${OSH_PATH}
-    subpath: ceph
+    subpath: ceph-mon
+    reference: master
+  dependencies:
+    - helm-toolkit
+---
+schema: armada/Chart/v1
+metadata:
+  schema: metadata/Document/v1
+  name: ceph-osd
+data:
+  chart_name: ceph-osd
+  release: ceph-osd
+  namespace: ceph
+  timeout: 1800
+  install:
+    no_hooks: false
+  upgrade:
+    no_hooks: false
+  values:
+    endpoints:
+      identity:
+        namespace: openstack
+      object_store:
+        namespace: ceph
+      ceph_mon:
+        namespace: ceph
+    network:
+      public: ${CEPH_NETWORK}
+      cluster: ${CEPH_NETWORK}
+    deployment:
+      storage_secrets: true
+      ceph: true
+      rbd_provisioner: true
+      cephfs_provisioner: true
+      client_secrets: false
+      rgw_keystone_user_and_endpoints: false
+    bootstrap:
+      enabled: true
+    conf:
+      ceph:
+        global:
+          #NOTE (portdirect): any uuidv4 value is acceptable here, though must
+          # be consistent if you wish to redploy whist maintaining data.
+          fsid: C1150D08-707D-4FEB-85E7-692BD9206DC3
+      rgw_ks:
+        enabled: true
+      pool:
+        crush:
+          #NOTE(portdirect): set to hammer if using kernel < 4.5
+          tunables: null
+        target:
+          # NOTE(portdirect): 5 nodes, with one osd per node
+          osd: 5
+          pg_per_osd: 100
+      storage:
+        osd:
+          - data:
+              type: directory
+              location: /var/lib/openstack-helm/ceph/osd/osd-one
+            journal:
+              type: directory
+              location: /var/lib/openstack-helm/ceph/osd/journal-one
+  source:
+    type: local
+    location: ${OSH_PATH}
+    subpath: ceph-osd
+    reference: master
+  dependencies:
+    - helm-toolkit
+---
+schema: armada/Chart/v1
+metadata:
+  schema: metadata/Document/v1
+  name: ceph-client
+data:
+  chart_name: ceph-client
+  release: ceph-client
+  namespace: ceph
+  timeout: 1800
+  install:
+    no_hooks: false
+  upgrade:
+    no_hooks: false
+    pre:
+      delete:
+        - type: job
+          labels:
+            application: ceph-client
+            component: bootstrap
+        - type: job
+          labels:
+            application: ceph-client
+            component: cephfs-client-key-generator
+        - type: job
+          labels:
+            application: ceph-client
+            component: rbd-pool
+  values:
+    endpoints:
+      identity:
+        namespace: openstack
+      object_store:
+        namespace: ceph
+      ceph_mon:
+        namespace: ceph
+    network:
+      public: ${CEPH_NETWORK}
+      cluster: ${CEPH_NETWORK}
+    deployment:
+      storage_secrets: true
+      ceph: true
+      rbd_provisioner: true
+      cephfs_provisioner: true
+      client_secrets: false
+      rgw_keystone_user_and_endpoints: false
+    bootstrap:
+      enabled: true
+    conf:
+      ceph:
+        global:
+          #NOTE (portdirect): any uuidv4 value is acceptable here, though must
+          # be consistent if you wish to redploy whist maintaining data.
+          fsid: C1150D08-707D-4FEB-85E7-692BD9206DC3
+      rgw_ks:
+        enabled: true
+      pool:
+        crush:
+          #NOTE(portdirect): set to hammer if using kernel < 4.5
+          tunables: null
+        target:
+          # NOTE(portdirect): 5 nodes, with one osd per node
+          osd: 5
+          pg_per_osd: 100
+      storage:
+        osd:
+          - data:
+              type: directory
+              location: /var/lib/openstack-helm/ceph/osd/osd-one
+            journal:
+              type: directory
+              location: /var/lib/openstack-helm/ceph/osd/journal-one
+  source:
+    type: local
+    location: ${OSH_PATH}
+    subpath: ceph-client
     reference: master
   dependencies:
     - helm-toolkit
@@ -127,7 +267,9 @@ data:
   description: "Ceph Storage"
   sequenced: True
   chart_group:
-    - ceph
+    - ceph-mon
+    - ceph-osd
+    - ceph-client
 ---
 schema: armada/Manifest/v1
 metadata:

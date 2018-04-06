@@ -17,7 +17,9 @@
 set -xe
 
 #NOTE: Pull images and lint chart
-make pull-images ceph
+for CHART in ceph-mon ceph-osd ceph-client; do
+  make pull-images "${CHART}"
+done
 
 #NOTE: Deploy command
 uuidgen > /tmp/ceph-fs-uuid.txt
@@ -165,18 +167,21 @@ conf:
           type: directory
           location: /var/lib/openstack-helm/ceph/osd/journal-one
 EOF
-helm install ./ceph \
-  --namespace=ceph \
-  --name=ceph \
-  --values=/tmp/ceph.yaml
 
-#NOTE: Wait for deploy
-./tools/deployment/common/wait-for-pods.sh ceph
+for CHART in ceph-mon ceph-osd ceph-client; do
+  helm install ./${CHART} \
+    --namespace=ceph \
+    --name=${CHART} \
+    --values=/tmp/ceph.yaml
 
-#NOTE: Validate deploy
-MON_POD=$(kubectl get pods \
-  --namespace=ceph \
-  --selector="application=ceph" \
-  --selector="component=mon" \
-  --no-headers | awk '{ print $1; exit }')
-kubectl exec -n ceph ${MON_POD} -- ceph -s
+  #NOTE: Wait for deploy
+  ./tools/deployment/common/wait-for-pods.sh ceph
+
+  #NOTE: Validate deploy
+  MON_POD=$(kubectl get pods \
+    --namespace=ceph \
+    --selector="application=ceph" \
+    --selector="component=mon" \
+    --no-headers | awk '{ print $1; exit }')
+  kubectl exec -n ceph ${MON_POD} -- ceph -s
+done

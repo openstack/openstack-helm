@@ -1,0 +1,52 @@
+{{/*
+Copyright 2017 The Openstack-Helm Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if and .Values.manifests.configmap_bin .Values.deployment.ceph }}
+{{- $envAll := . }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ceph-mon-bin
+data:
+{{- if .Values.bootstrap.enabled }}
+  bootstrap.sh: |
+{{ tuple "bin/_bootstrap.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
+{{- end }}
+
+  init-dirs.sh: |
+{{ tuple "bin/_init-dirs.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
+
+  keys-bootstrap-keyring-generator.py: |
+{{ tuple "bin/keys/_bootstrap-keyring-generator.py.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
+  keys-bootstrap-keyring-manager.sh: |
+{{ tuple "bin/keys/_bootstrap-keyring-manager.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
+  keys-storage-keyring-manager.sh: |
+{{ tuple "bin/keys/_storage-keyring-manager.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
+
+  mon-start.sh: |
+{{ tuple "bin/mon/_start.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
+  mon-stop.sh: |
+{{ tuple "bin/mon/_stop.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
+  mon-check.sh: |
+{{ tuple "bin/mon/_check.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
+
+  moncheck-start.sh: |
+{{ tuple "bin/moncheck/_start.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
+  moncheck-reap-zombies.py: |
+{{ tuple "bin/moncheck/_reap-zombies.py.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
+
+{{- end }}

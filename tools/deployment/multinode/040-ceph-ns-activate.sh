@@ -47,7 +47,7 @@ conf:
   rgw_ks:
     enabled: true
 EOF
-helm upgrade --install ceph-openstack-config ./ceph \
+helm upgrade --install ceph-openstack-config ./ceph-client \
   --namespace=openstack \
   --values=/tmp/ceph-openstack-config.yaml \
   ${OSH_EXTRA_HELM_ARGS} \

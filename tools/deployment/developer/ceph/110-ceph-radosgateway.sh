@@ -49,7 +49,7 @@ conf:
     global:
       fsid: ${CEPH_FS_ID}
 EOF
-helm upgrade --install radosgw-openstack ./ceph \
+helm upgrade --install radosgw-openstack ./ceph-client \
   --namespace=openstack \
   --values=/tmp/radosgw-openstack.yaml \
   ${OSH_EXTRA_HELM_ARGS} \

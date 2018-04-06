@@ -75,19 +75,22 @@ conf:
           type: directory
           location: /var/lib/openstack-helm/ceph/osd/journal-one
 EOF
-helm upgrade --install ceph ./ceph \
-  --namespace=ceph \
-  --values=/tmp/ceph.yaml \
-  ${OSH_EXTRA_HELM_ARGS} \
-  ${OSH_EXTRA_HELM_ARGS_CEPH_DEPLOY}
 
-#NOTE: Wait for deploy
-./tools/deployment/common/wait-for-pods.sh ceph 1200
+for CHART in ceph-mon ceph-osd ceph-client; do
+  helm upgrade --install ${CHART} ./${CHART} \
+    --namespace=ceph \
+    --values=/tmp/ceph.yaml \
+    ${OSH_EXTRA_HELM_ARGS} \
+    ${OSH_EXTRA_HELM_ARGS_CEPH_DEPLOY}
 
-#NOTE: Validate deploy
-MON_POD=$(kubectl get pods \
-  --namespace=ceph \
-  --selector="application=ceph" \
-  --selector="component=mon" \
-  --no-headers | awk '{ print $1; exit }')
-kubectl exec -n ceph ${MON_POD} -- ceph -s
+  #NOTE: Wait for deploy
+  ./tools/deployment/common/wait-for-pods.sh ceph 1200
+
+  #NOTE: Validate deploy
+  MON_POD=$(kubectl get pods \
+    --namespace=ceph \
+    --selector="application=ceph" \
+    --selector="component=mon" \
+    --no-headers | awk '{ print $1; exit }')
+  kubectl exec -n ceph ${MON_POD} -- ceph -s
+done
