@@ -1,0 +1,44 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+- name: "creating directory for helm release status"
+  file:
+    path: "{{ logs_dir }}/helm"
+    state: directory
+
+- name: "retrieve all deployed charts"
+  shell: |-
+          set -e
+          helm ls --short
+  args:
+    executable: /bin/bash
+  register: helm_releases
+
+- name: "Gather get release status for helm charts"
+  shell: |-
+          set -e
+          helm status {{ helm_released }}  >> {{ logs_dir }}/helm/{{ helm_release }}.txt
+  args:
+    executable: /bin/bash
+  ignore_errors: True
+  vars:
+    helm_release: "{{ helm_released }}"
+  loop_control:
+    loop_var: helm_released
+  with_items: "{{ helm_releases.stdout_lines }}"
+
+- name: "Downloads logs to executor"
+  synchronize:
+    src: "{{ logs_dir }}/helm"
+    dest: "{{ zuul.executor.log_root }}/{{ inventory_hostname }}"
+    mode: pull
+  ignore_errors: True

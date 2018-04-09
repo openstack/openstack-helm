@@ -1,0 +1,92 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+- name: Helm management common block
+  vars:
+    check_deployed_result: null
+    chart_values_file: null
+    upgrade:
+      pre:
+        delete: null
+
+  block:
+    - name: "create temporary file for {{ chart_def['release'] }}'s values .yaml"
+      tempfile:
+        state: file
+        suffix: .yaml
+      register: chart_values_file
+    - name: "write out values.yaml for {{ chart_def['release'] }}"
+      copy:
+        dest: "{{ chart_values_file.path }}"
+        content: "{% if 'values' in chart_def %}{{ chart_def['values'] | to_nice_yaml }}{% else %}{% endif %}"
+
+    - name: "check if {{ chart_def['release'] }} is deployed"
+      command: helm status "{{ chart_def['release'] }}"
+      register: check_deployed_result
+      ignore_errors: True
+
+    - name: "check if local overrides are present in {{ work_dir }}/tools/gate/local-overrides/{{ chart_def['release'] }}.yaml"
+      stat:
+        path: "{{ work_dir }}/tools/gate/local-overrides/{{ chart_def['release'] }}.yaml"
+      register: local_overrides
+
+    - name: "try to deploy release {{ chart_def['release'] }} in {{ chart_def['namespace'] }} namespace with {{ chart_def['chart_name'] }} chart"
+      when: check_deployed_result | failed
+      command: "helm install {{ work_dir }}/{{ chart_def['chart_name'] }} --namespace {{ chart_def['namespace'] }} --name {{ chart_def['release'] }} --values={{ chart_values_file.path }}{% if local_overrides.stat.exists %} --values {{ work_dir }}/tools/gate/local-overrides/{{ chart_def['release'] }}.yaml{% endif %}"
+      register: out
+    - name: "display info for the helm {{ chart_def['release'] }} release deploy"
+      when: check_deployed_result | failed
+      debug:
+        var: out.stdout_lines
+
+    - name: "pre-upgrade, delete jobs for {{ chart_def['release'] }} release"
+      when:
+        - check_deployed_result | succeeded
+        - "'upgrade' in chart_def"
+        - "'pre' in chart_def['upgrade']"
+        - "'delete' in chart_def['upgrade']['pre']"
+        - "chart_def.upgrade.pre.delete is not none"
+      with_items: "{{ chart_def.upgrade.pre.delete }}"
+      loop_control:
+        loop_var: helm_upgrade_delete_job
+      command: "kubectl delete --namespace {{ chart_def['namespace'] }} job -l application={{ helm_upgrade_delete_job.labels.application }},component={{ helm_upgrade_delete_job.labels.component }} --ignore-not-found=true"
+    - name: "try to upgrade release {{ chart_def['release'] }} in {{ chart_def['namespace'] }} namespace with {{ chart_def['chart_name'] }} chart"
+      when: check_deployed_result | succeeded
+      command: "helm upgrade {{ chart_def['release'] }} {{ work_dir }}/{{ chart_def['chart_name'] }} --values={{ chart_values_file.path }}{% if local_overrides.stat.exists %} --values {{ work_dir }}/tools/gate/local-overrides/{{ chart_def['release'] }}.yaml{% endif %}"
+      register: out
+    - name: "display info for the helm {{ chart_def['release'] }} release upgrade"
+      when: check_deployed_result | succeeded
+      debug:
+        var: out.stdout_lines
+
+    - include: util-common-wait-for-pods.yaml
+      when: ('timeout' in chart_def)
+      vars:
+        namespace: "{{ chart_def['namespace'] }}"
+        timeout: "{{ chart_def['timeout'] }}"
+
+    - include: util-common-helm-test.yaml
+      when:
+        - "'test' in chart_def"
+        - "chart_def.test is not none"
+        - "'enabled' in chart_def['test']"
+        - "chart_def.test.enabled|bool == true"
+      vars:
+        release: "{{ chart_def['release'] }}"
+        namespace: "{{ chart_def['namespace'] }}"
+        test_settings: "{{ chart_def.test }}"
+
+  always:
+    - name: "remove values.yaml for {{ chart_def['release'] }}"
+      file:
+        path: "{{ chart_values_file.path }}"
+        state: absent

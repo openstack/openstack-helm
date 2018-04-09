@@ -1,0 +1,74 @@
+# Copyright 2017 The Openstack-Helm Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+#NOTE(portdirect): Untill https://github.com/ansible/ansible/issues/21433 is
+# reolved, we build with a shell script to make use of the host network.
+- name: Kubeadm-AIO build
+  block:
+    #NOTE(portdirect): we do this to ensure we are feeding the docker build
+    # a clean path to work with.
+    - name: Kubeadm-AIO image build path
+      shell: cd "{{ work_dir }}"; pwd
+      register: kubeadm_aio_path
+    # - name: build the Kubeadm-AIO image
+    #   docker_image:
+    #      path: "{{ kubeadm_aio_path.stdout }}/"
+    #      name: "{{ images.kubernetes.kubeadm_aio }}"
+    #      dockerfile: "tools/images/kubeadm-aio/Dockerfile"
+    #      force: yes
+    #      pull: yes
+    #      state: present
+    #      rm: yes
+    #      buildargs:
+    #        KUBE_VERSION: "{{ version.kubernetes }}"
+    #        CNI_VERSION: "{{ version.cni }}"
+    #        HELM_VERSION: "{{ version.helm }}"
+    #        CHARTS: "calico,flannel,tiller,kube-dns"
+    - name: Kubeadm-AIO image build path with proxy
+      when: proxy.http is defined and (proxy.http | trim != "")
+      shell: |-
+              set -e
+              docker build \
+                --network host \
+                --force-rm \
+                --tag "{{ images.kubernetes.kubeadm_aio }}" \
+                --file tools/images/kubeadm-aio/Dockerfile \
+                --build-arg KUBE_VERSION="{{ version.kubernetes }}" \
+                --build-arg CNI_VERSION="{{ version.cni }}" \
+                --build-arg HELM_VERSION="{{ version.helm }}" \
+                --build-arg CHARTS="calico,flannel,tiller,kube-dns" \
+                --build-arg HTTP_PROXY="{{ proxy.http }}" \
+                --build-arg HTTPS_PROXY="{{ proxy.https }}" \
+                --build-arg NO_PROXY="{{ proxy.noproxy }}" \
+                .
+      args:
+        chdir: "{{ kubeadm_aio_path.stdout }}/"
+        executable: /bin/bash
+    - name: Kubeadm-AIO image build path
+      when: proxy.http is undefined or (proxy.http | trim == "")
+      shell: |-
+              set -e
+              docker build \
+                --network host \
+                --force-rm \
+                --tag "{{ images.kubernetes.kubeadm_aio }}" \
+                --file tools/images/kubeadm-aio/Dockerfile \
+                --build-arg KUBE_VERSION="{{ version.kubernetes }}" \
+                --build-arg CNI_VERSION="{{ version.cni }}" \
+                --build-arg HELM_VERSION="{{ version.helm }}" \
+                --build-arg CHARTS="calico,flannel,tiller,kube-dns" \
+                .
+      args:
+        chdir: "{{ kubeadm_aio_path.stdout }}/"
+        executable: /bin/bash

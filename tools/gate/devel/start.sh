@@ -94,7 +94,7 @@ function dump_logs () {
 trap 'dump_logs "$?"' ERR
 
 for PLAYBOOK in ${PLAYBOOKS}; do
-  ansible-playbook ${WORK_DIR}/tools/gate/playbooks/${PLAYBOOK}.yaml \
+  ansible-playbook ${WORK_DIR}/playbooks/${PLAYBOOK}.yaml \
     -i ${INVENTORY} \
     --extra-vars=@${VARS} \
     --extra-vars "work_dir=${WORK_DIR}"

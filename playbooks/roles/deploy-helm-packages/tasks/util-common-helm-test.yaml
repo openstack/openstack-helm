@@ -1,0 +1,67 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+- name: Helm test common block
+  vars:
+    release: null
+    namespace: null
+    test_settings: null
+
+  block:
+    - name: "remove any expired helm test pods for {{ release }}"
+      command: "kubectl delete pod {{ release }}-test -n {{ namespace }}"
+      ignore_errors: True
+
+    - name: "run helm tests for the {{ release }} release"
+      when:
+        - "'timeout' in test_settings"
+        - "'timeout' is none"
+      command: "helm test {{ release }}"
+      register: test_result
+
+    - name: "run helm tests for the {{ release }} release with timeout"
+      when:
+        - "'timeout' in test_settings"
+        - "'timeout' is not none"
+      command: " helm test --timeout {{ test_settings.timeout }} {{ release }}"
+      register: test_result
+
+    - name: "display status for {{ release }} helm tests"
+      debug:
+        var: test_result.stdout_lines
+
+    - name: "gathering logs for helm tests for {{ release }}"
+      when:
+        - test_result | succeeded
+      shell: |-
+              set -e
+              kubectl logs {{ release }}-test -n {{ namespace }} >> {{ logs_dir }}/helm-tests/{{ release }}.txt
+      args:
+        executable: /bin/bash
+      register: test_logs
+
+    - name: "displaying logs for successful helm tests for {{ release }}"
+      when:
+        - test_result | succeeded
+        - "'output' in test_settings"
+        - "test_settings.output|bool == true"
+      debug:
+        var: test_logs.stdout_lines
+  rescue:
+    - name: "gathering logs for failed helm tests for {{ release }}"
+      command: "kubectl logs {{ release }}-test -n {{ namespace }}"
+      register: out
+    - name: "displaying logs for failed helm tests for {{ release }}"
+      debug:
+        var: out.stdout_lines
+    - name: "helm tests for {{ release }} failed, stopping execution"
+      command: exit 1
