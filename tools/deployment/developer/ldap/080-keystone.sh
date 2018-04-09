@@ -61,6 +61,16 @@ openstack user list --domain ldapdomain
 
 openstack role add --user bob --project admin --user-domain ldapdomain --project-domain default admin
 
+domain="ldapdomain"
+domainId=$(openstack domain show ${domain} -f value -c id)
+token=$(openstack token issue -f value -c id)
+
 #NOTE: Testing we can auth against the LDAP user
 unset OS_CLOUD
-openstack --os-auth-url http://keystone.openstack.svc.cluster.local/v3 --os-username bob --os-password password --os-user-domain-name ldapdomain --os-identity-api-version 3 token issue
+openstack --os-auth-url http://keystone.openstack.svc.cluster.local/v3 --os-username bob --os-password password --os-user-domain-name ${domain} --os-identity-api-version 3 token issue
+
+#NOTE: Test the domain specific thing works
+curl --verbose -X GET \
+  -H "Content-Type: application/json" \
+  -H "X-Auth-Token: $token" \
+  http://keystone.openstack.svc.cluster.local/v3/domains/${domainId}/config
