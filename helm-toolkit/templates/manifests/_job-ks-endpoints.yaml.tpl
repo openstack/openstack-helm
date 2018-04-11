@@ -24,12 +24,11 @@ limitations under the License.
 {{- $serviceName := index . "serviceName" -}}
 {{- $serviceTypes := index . "serviceTypes" -}}
 {{- $nodeSelector := index . "nodeSelector" | default ( dict $envAll.Values.labels.job.node_selector_key $envAll.Values.labels.job.node_selector_value ) -}}
-{{- $dependencies := index . "dependencies" | default $envAll.Values.dependencies.static.ks_endpoints -}}
 {{- $configMapBin := index . "configMapBin" | default (printf "%s-%s" $serviceName "bin" ) -}}
 {{- $serviceNamePretty := $serviceName | replace "_" "-" -}}
 
 {{- $serviceAccountName := printf "%s-%s" $serviceNamePretty "ks-endpoints" }}
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{ tuple $envAll "ks_endpoints" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: batch/v1
 kind: Job
@@ -46,7 +45,7 @@ spec:
       nodeSelector:
 {{ toYaml $nodeSelector | indent 8 }}
       initContainers:
-{{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll "ks_endpoints" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
 {{- range $key1, $osServiceType := $serviceTypes }}
 {{- range $key2, $osServiceEndPoint := tuple "admin" "internal" "public" }}
