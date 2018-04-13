@@ -16,7 +16,7 @@ limitations under the License.
 
 {{- if and .Values.manifests.monitoring.prometheus.deployment_exporter .Values.monitoring.prometheus.enabled }}
 {{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.static.prometheus_rabbitmq_exporter }}
+{{- $dependencies := $envAll.Values.dependencies.static.prometheus_rabbitmq_exporter }}
 
 {{- $rcControllerName := printf "%s-%s" $envAll.Release.Name "rabbitmq-exporter"  }}
 {{ tuple $envAll $dependencies $rcControllerName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
@@ -26,41 +26,41 @@ kind: Deployment
 metadata:
   name: {{ $rcControllerName | quote }}
 spec:
-  replicas: {{ .Values.pod.replicas.prometheus_rabbitmq_exporter }}
+  replicas: {{ $envAll.Values.pod.replicas.prometheus_rabbitmq_exporter }}
 {{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_deployment" | indent 2 }}
   template:
     metadata:
       labels:
 {{ tuple $envAll "prometheus_rabbitmq_exporter" "exporter" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
-      namespace: {{ .Values.endpoints.prometheus_rabbitmq_exporter.namespace }}
+      namespace: {{ $envAll.Values.endpoints.prometheus_rabbitmq_exporter.namespace }}
     spec:
       serviceAccountName: {{ $rcControllerName | quote }}
       nodeSelector:
-        {{ .Values.labels.prometheus_rabbitmq_exporter.node_selector_key }}: {{ .Values.labels.prometheus_rabbitmq_exporter.node_selector_value }}
-      terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.prometheus_rabbitmq_exporter.timeout | default "30" }}
+        {{ $envAll.Values.labels.prometheus_rabbitmq_exporter.node_selector_key }}: {{ $envAll.Values.labels.prometheus_rabbitmq_exporter.node_selector_value }}
+      terminationGracePeriodSeconds: {{ $envAll.Values.pod.lifecycle.termination_grace_period.prometheus_rabbitmq_exporter.timeout | default "30" }}
       initContainers:
 {{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
         - name: rabbitmq-exporter
-          image: {{ .Values.images.tags.prometheus_rabbitmq_exporter }}
-          imagePullPolicy: {{ .Values.images.pull_policy }}
+          image: {{ $envAll.Values.images.tags.prometheus_rabbitmq_exporter }}
+          imagePullPolicy: {{ $envAll.Values.images.pull_policy }}
 {{ tuple $envAll $envAll.Values.pod.resources.prometheus_rabbitmq_exporter | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           ports:
             - name: metrics
-              containerPort: {{ .Values.network.prometheus_rabbitmq_exporter.port }}
+              containerPort: {{ $envAll.Values.network.prometheus_rabbitmq_exporter.port }}
           env:
           - name: RABBIT_URL
             value: http://{{ tuple "oslo_messaging" "internal" . | include "helm-toolkit.endpoints.hostname_fqdn_endpoint_lookup" }}:15672
           - name: RABBIT_USER
-            value: {{ .Values.endpoints.oslo_messaging.auth.user.username | quote }}
+            value: {{ $envAll.Values.endpoints.oslo_messaging.auth.user.username | quote }}
           - name: RABBIT_PASSWORD
-            value: {{ .Values.endpoints.oslo_messaging.auth.user.password | quote }}
+            value: {{ $envAll.Values.endpoints.oslo_messaging.auth.user.password | quote }}
           - name: RABBIT_CAPABILITIES
-            value: {{ tuple .Values.conf.prometheus_exporter.capabilities $envAll | include "helm-toolkit.utils.joinListWithComma" | quote }}
+            value: {{ tuple $envAll.Values.conf.prometheus_exporter.capabilities $envAll | include "helm-toolkit.utils.joinListWithComma" | quote }}
           - name: PUBLISH_PORT
-            value: {{ .Values.network.prometheus_rabbitmq_exporter.port | quote }}
+            value: {{ $envAll.Values.network.prometheus_rabbitmq_exporter.port | quote }}
           - name: LOG_LEVEL
-            value: {{ .Values.conf.prometheus_exporter.log_level | quote }}
+            value: {{ $envAll.Values.conf.prometheus_exporter.log_level | quote }}
           - name: SKIPVERIFY
-            value: {{ .Values.conf.prometheus_exporter.skipverify | quote }}
+            value: {{ $envAll.Values.conf.prometheus_exporter.skipverify | quote }}
 {{- end }}

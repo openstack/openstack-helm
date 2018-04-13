@@ -17,20 +17,17 @@ limitations under the License.
 {{- if .Values.manifests.configmap_etc }}
 {{- $envAll := . }}
 
-{{- if empty .Values.conf.rabbitmq.cluster_formation.k8s.service_name -}}
-{{- tuple "oslo_messaging" "internal" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" | set .Values.conf.rabbitmq.cluster_formation.k8s "service_name" | quote | trunc 0 -}}
-{{- end -}}
-{{- if empty .Values.conf.rabbitmq.cluster_formation.k8s.host -}}
-{{- print "kubernetes.default.svc." .Values.endpoints.cluster_domain_suffix | set .Values.conf.rabbitmq.cluster_formation.k8s "host" | quote | trunc 0 -}}
+{{- if empty $envAll.Values.conf.rabbitmq.cluster_formation.k8s.host -}}
+{{- print "kubernetes.default.svc." $envAll.Values.endpoints.cluster_domain_suffix | set $envAll.Values.conf.rabbitmq.cluster_formation.k8s "host" | quote | trunc 0 -}}
 {{- end -}}
 
-{{- print "0.0.0.0:" ( tuple "oslo_messaging" "internal" "amqp" . | include "helm-toolkit.endpoints.endpoint_port_lookup") | set .Values.conf.rabbitmq.listeners.tcp "1" | quote | trunc 0 -}}
+{{- print "0.0.0.0:" ( tuple "oslo_messaging" "internal" "amqp" . | include "helm-toolkit.endpoints.endpoint_port_lookup") | set $envAll.Values.conf.rabbitmq.listeners.tcp "1" | quote | trunc 0 -}}
 
-{{- if empty .Values.conf.rabbitmq.default_user -}}
-{{- set .Values.conf.rabbitmq "default_user" .Values.endpoints.oslo_messaging.auth.user.username | quote | trunc 0 -}}
+{{- if empty $envAll.Values.conf.rabbitmq.default_user -}}
+{{- set $envAll.Values.conf.rabbitmq "default_user" $envAll.Values.endpoints.oslo_messaging.auth.user.username | quote | trunc 0 -}}
 {{- end -}}
-{{- if empty .Values.conf.rabbitmq.default_pass -}}
-{{- set .Values.conf.rabbitmq "default_pass" .Values.endpoints.oslo_messaging.auth.user.password | quote | trunc 0 -}}
+{{- if empty $envAll.Values.conf.rabbitmq.default_pass -}}
+{{- set $envAll.Values.conf.rabbitmq "default_pass" $envAll.Values.endpoints.oslo_messaging.auth.user.password | quote | trunc 0 -}}
 {{- end -}}
 
 ---
@@ -42,5 +39,5 @@ data:
   enabled_plugins: |
 {{ tuple "etc/_enabled_plugins.tpl" . | include  "helm-toolkit.utils.template" | indent 4 }}
   rabbitmq.conf: |
-{{ include "rabbitmq.to_rabbit_config" .Values.conf.rabbitmq | indent 4 }}
+{{ include "rabbitmq.utils.to_rabbit_config" $envAll.Values.conf.rabbitmq | indent 4 }}
 {{ end }}

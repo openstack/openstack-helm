@@ -16,7 +16,12 @@ limitations under the License.
 
 {{- if .Values.manifests.statefulset }}
 {{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.static.rabbitmq }}
+{{- if empty $envAll.Values.endpoints.oslo_messaging.hosts.discovery }}
+{{- $service_discovery_name := .Release.Name | trunc 12 }}
+{{- $_ := set $envAll.Values.endpoints.oslo_messaging.hosts "discovery" ( printf "%s-%s-%s" $service_discovery_name "dsv" ( $service_discovery_name | sha256sum | trunc 6 )) }}
+{{- end }}
+
+{{- $dependencies := $envAll.Values.dependencies.static.rabbitmq }}
 
 {{- $rcControllerName := printf "%s-%s" $envAll.Release.Name "rabbitmq"  }}
 {{ tuple $envAll $dependencies $rcControllerName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
@@ -58,8 +63,8 @@ kind: StatefulSet
 metadata:
   name: {{ $rcControllerName | quote }}
 spec:
-  serviceName: {{ tuple "oslo_messaging" "internal" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
-  replicas: {{ .Values.pod.replicas.server }}
+  serviceName: {{ tuple "oslo_messaging" "discovery" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
+  replicas: {{ $envAll.Values.pod.replicas.server }}
   template:
     metadata:
       labels:
@@ -72,13 +77,13 @@ spec:
       affinity:
 {{ tuple $envAll "rabbitmq" "server" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
       nodeSelector:
-        {{ .Values.labels.server.node_selector_key }}: {{ .Values.labels.server.node_selector_value }}
+        {{ $envAll.Values.labels.server.node_selector_key }}: {{ $envAll.Values.labels.server.node_selector_value }}
       initContainers:
 {{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
-{{- if .Values.volume.chown_on_start }}
+{{- if $envAll.Values.volume.chown_on_start }}
         - name: rabbitmq-perms
-          image: {{ .Values.images.tags.rabbitmq }}
-          imagePullPolicy: {{ .Values.images.pull_policy }}
+          image: {{ $envAll.Values.images.tags.rabbitmq }}
+          imagePullPolicy: {{ $envAll.Values.images.pull_policy }}
           securityContext:
             runAsUser: 0
 {{ tuple $envAll $envAll.Values.pod.resources.server | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
@@ -93,7 +98,7 @@ spec:
 {{- end }}
       containers:
         - name: rabbitmq
-          image: {{ .Values.images.tags.rabbitmq }}
+          image: {{ $envAll.Values.images.tags.rabbitmq }}
 {{ tuple $envAll $envAll.Values.pod.resources.server | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           command:
             - /tmp/rabbitmq-start.sh
@@ -104,19 +109,26 @@ spec:
             - name: amqp
               protocol: TCP
               containerPort: {{ tuple "oslo_messaging" "internal" "amqp" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+            - name: clustering
+              protocol: TCP
+              containerPort: {{ add (tuple "oslo_messaging" "internal" "amqp" . | include "helm-toolkit.endpoints.endpoint_port_lookup") 20000 }}
           env:
-            - name: MY_POD_IP
+            - name: MY_POD_NAME
               valueFrom:
                 fieldRef:
-                  fieldPath: status.podIP
+                  fieldPath: metadata.name
             - name: RABBITMQ_USE_LONGNAME
               value: "true"
             - name: RABBITMQ_NODENAME
-              value: "rabbit@$(MY_POD_IP)"
+              value: "rabbit@$(MY_POD_NAME).{{ tuple "oslo_messaging" "discovery" . | include "helm-toolkit.endpoints.hostname_fqdn_endpoint_lookup" }}"
             - name: K8S_SERVICE_NAME
-              value: {{ tuple "oslo_messaging" "internal" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" | quote }}
+              value: {{ tuple "oslo_messaging" "discovery" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
+            # NOTE(portdirect): We use the discovery fqdn here, as we resolve
+            # nodes via their pods hostname/nodename
+            - name: K8S_HOSTNAME_SUFFIX
+              value: ".{{ tuple "oslo_messaging" "discovery" . | include "helm-toolkit.endpoints.hostname_fqdn_endpoint_lookup" }}"
             - name: RABBITMQ_ERLANG_COOKIE
-              value: "{{ .Values.endpoints.oslo_messaging.auth.erlang_cookie }}"
+              value: "{{ $envAll.Values.endpoints.oslo_messaging.auth.erlang_cookie }}"
           readinessProbe:
             initialDelaySeconds: 10
             timeoutSeconds: 10
@@ -151,11 +163,11 @@ spec:
           configMap:
             name: {{ printf "%s-%s" $envAll.Release.Name "rabbitmq-etc" | quote }}
             defaultMode: 0444
-        {{- if not .Values.volume.enabled }}
+        {{- if not $envAll.Values.volume.enabled }}
         - name: rabbitmq-data
           emptyDir: {}
         {{- end }}
-{{- if .Values.volume.enabled }}
+{{- if $envAll.Values.volume.enabled }}
   volumeClaimTemplates:
     - metadata:
         name: rabbitmq-data
@@ -163,7 +175,7 @@ spec:
         accessModes: [ "ReadWriteOnce" ]
         resources:
           requests:
-            storage: {{ .Values.volume.size }}
-        storageClassName: {{ .Values.volume.class_name }}
+            storage: {{ $envAll.Values.volume.size }}
+        storageClassName: {{ $envAll.Values.volume.class_name }}
 {{- end }}
 {{ end }}

@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- define "rabbitmq.to_rabbit_config" -}}
+{{- define "rabbitmq.utils.to_rabbit_config" -}}
 {{- range $top_key, $top_value :=  . }}
 {{- if kindIs "map" $top_value -}}
 {{- range $second_key, $second_value :=  . }}

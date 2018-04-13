@@ -14,13 +14,17 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if .Values.manifests.service }}
+{{- if .Values.manifests.service_discovery }}
 {{- $envAll := . }}
+{{- if empty $envAll.Values.endpoints.oslo_messaging.hosts.discovery }}
+{{- $service_discovery_name := .Release.Name | trunc 12 }}
+{{- $_ := set $envAll.Values.endpoints.oslo_messaging.hosts "discovery" ( printf "%s-%s-%s" $service_discovery_name "dsv" ( $service_discovery_name | sha256sum | trunc 6 )) }}
+{{- end }}
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ tuple "oslo_messaging" "internal" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
+  name: {{ tuple "oslo_messaging" "discovery" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
 spec:
   ports:
   - port: {{ tuple "oslo_messaging" "internal" "amqp" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
@@ -29,6 +33,7 @@ spec:
     name: clustering
   - port: {{ tuple "oslo_messaging" "internal" "http" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
     name: http
+  clusterIP: None
   selector:
 {{ tuple $envAll "rabbitmq" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 {{ end }}

@@ -24,13 +24,17 @@ labels:
   prometheus_rabbitmq_exporter:
     node_selector_key: openstack-control-plane
     node_selector_value: enabled
+  test:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
 
 images:
   tags:
     prometheus_rabbitmq_exporter: docker.io/kbudde/rabbitmq-exporter:v0.21.0
     prometheus_rabbitmq_exporter_helm_tests: docker.io/openstackhelm/heat:newton
-    rabbitmq: docker.io/rabbitmq:3.7.3
+    rabbitmq: docker.io/rabbitmq:3.7.4
     dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.3.0
+    scripted_test: docker.io/rabbitmq:3.7.4-management
   pull_policy: "IfNotPresent"
 
 pod:
@@ -94,15 +98,15 @@ conf:
   rabbitmq:
     listeners:
       tcp:
-        #NOTE(portdirect): This is always defined via the endpoints section.
+        # NOTE(portdirect): This is always defined via the endpoints section.
         1: null
     cluster_formation:
       peer_discovery_backend: rabbit_peer_discovery_k8s
       k8s:
-        address_type: ip
+        address_type: hostname
       node_cleanup:
         interval: "10"
-        only_log_warning: "false"
+        only_log_warning: "true"
     cluster_partition_handling: autoheal
     queue_master_locator: min-masters
     loopback_users.guest: "false"
@@ -121,6 +125,10 @@ dependencies:
           service: monitoring
     rabbitmq:
       jobs: null
+    tests:
+      services:
+        - endpoint: internal
+          service: oslo_messaging
 
 monitoring:
   prometheus:
@@ -129,6 +137,14 @@ monitoring:
       scrape: true
 
 network:
+  management:
+    ingress:
+      public: true
+      classes:
+        namespace: "nginx"
+        cluster: "nginx-cluster"
+      annotations:
+        nginx.ingress.kubernetes.io/rewrite-target: /
   prometheus_rabbitmq_exporter:
     port: 9095
 
@@ -161,15 +177,28 @@ endpoints:
         password: password
     hosts:
       default: rabbitmq
+      # NOTE(portdirect): If left empty, the release name sha suffixed with dsv
+      # will be used for to produce a unique hostname for clustering
+      # and discovery.
+      discovery: null
+      # NOTE(portdirect): the public host is only used to the management WUI
+      # If left empty, the release name sha suffixed with mgr, will be used to
+      # produce an unique hostname.
+      public: null
     host_fqdn_override:
       default: null
     path: /
     scheme: rabbit
     port:
+      clustering:
+        # NOTE(portdirect): the value for this port is driven by amqp+20000
+        # it should not be set manually.
+        default: null
       amqp:
         default: 5672
       http:
         default: 15672
+        public: 80
   prometheus_rabbitmq_exporter:
     namespace: null
     hosts:
@@ -193,10 +222,14 @@ volume:
 manifests:
   configmap_bin: true
   configmap_etc: true
+  ingress_management: true
+  pod_test: true
   monitoring:
     prometheus:
       configmap_bin: true
       deployment_exporter: true
       service_exporter: true
+  service_discovery: true
+  service_ingress_management: true
   service: true
   statefulset: true
