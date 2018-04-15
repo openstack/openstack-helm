@@ -55,6 +55,7 @@ RUN set -ex ;\
         python-pip \
         gawk ;\
     pip --no-cache-dir install --upgrade pip ;\
+    hash -r ;\
     pip --no-cache-dir install setuptools ;\
     pip --no-cache-dir install kubernetes ;\
     pip --no-cache-dir install ansible ;\
