@@ -26,6 +26,12 @@ should be cloned:
     git clone https://git.openstack.org/openstack/openstack-helm.git
 
 
+.. note::
+  This installation, by default will use Google DNS servers, 8.8.8.8 or 8.8.4.4
+  and updates resolv.conf. These DNS nameserver entries can be changed by
+  updating file ``/opt/openstack-helm-infra/tools/images/kubeadm-aio/assets/opt/playbooks/vars.yaml``
+  under section ``external_dns_nameservers``.
+
 Deploy Kubernetes & Helm
 ------------------------
 

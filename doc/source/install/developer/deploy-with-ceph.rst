@@ -2,6 +2,10 @@
 Deployment With Ceph
 ====================
 
+.. note::
+  For other deployment options, select appropriate ``Deployment with ...``
+  option from `Index <../developer/index.html>`__ page.
+
 Deploy Ceph
 ^^^^^^^^^^^
 
