@@ -16,52 +16,63 @@ limitations under the License.
 
 {{- define "helm-toolkit.scripts.rabbit_init" }}
 #!/bin/bash
-set -ex
-
+set -e
 # Extract connection details
-RABBIT_HOSTNAME=`echo $RABBITMQ_ADMIN_CONNECTION | awk -F'[@]' '{print $2}' \
-  | awk -F'[:/]' '{print $1}'`
-RABBIT_PORT=`echo $RABBITMQ_ADMIN_CONNECTION | awk -F'[@]' '{print $2}' \
-  | awk -F'[:/]' '{print $2}'`
+RABBIT_HOSTNAME=$(echo "${RABBITMQ_ADMIN_CONNECTION}" | \
+  awk -F'[@]' '{print $2}' | \
+  awk -F'[:/]' '{print $1}')
+RABBIT_PORT=$(echo "${RABBITMQ_ADMIN_CONNECTION}" | \
+  awk -F'[@]' '{print $2}' | \
+  awk -F'[:/]' '{print $2}')
 
 # Extract Admin User creadential
-RABBITMQ_ADMIN_USERNAME=`echo $RABBITMQ_ADMIN_CONNECTION | awk -F'[@]' '{print $1}' \
-  | awk -F'[//:]' '{print $4}'`
-RABBITMQ_ADMIN_PASSWORD=`echo $RABBITMQ_ADMIN_CONNECTION | awk -F'[@]' '{print $1}' \
-  | awk -F'[//:]' '{print $5}'`
+RABBITMQ_ADMIN_USERNAME=$(echo "${RABBITMQ_ADMIN_CONNECTION}" | \
+  awk -F'[@]' '{print $1}' | \
+  awk -F'[//:]' '{print $4}')
+RABBITMQ_ADMIN_PASSWORD=$(echo "${RABBITMQ_ADMIN_CONNECTION}" | \
+  awk -F'[@]' '{print $1}' | \
+  awk -F'[//:]' '{print $5}')
 
 # Extract User creadential
-RABBITMQ_USERNAME=`echo $RABBITMQ_USER_CONNECTION | awk -F'[@]' '{print $1}' \
-  | awk -F'[//:]' '{print $4}'`
-RABBITMQ_PASSWORD=`echo $RABBITMQ_USER_CONNECTION | awk -F'[@]' '{print $1}' \
-  | awk -F'[//:]' '{print $5}'`
+RABBITMQ_USERNAME=$(echo "${RABBITMQ_USER_CONNECTION}" | \
+  awk -F'[@]' '{print $1}' | \
+  awk -F'[//:]' '{print $4}')
+RABBITMQ_PASSWORD=$(echo "${RABBITMQ_USER_CONNECTION}" | \
+  awk -F'[@]' '{print $1}' | \
+  awk -F'[//:]' '{print $5}')
 
-# Using admin creadential, list current rabbitmq users
-rabbitmqadmin --host=$RABBIT_HOSTNAME --port=$RABBIT_PORT \
-  --username=$RABBITMQ_ADMIN_USERNAME --password=$RABBITMQ_ADMIN_PASSWORD \
-  list users
+# Extract User vHost
+RABBITMQ_VHOST=$(echo "${RABBITMQ_USER_CONNECTION}" | \
+  awk -F'[@]' '{print $2}' | \
+  awk -F'[:/]' '{print $3}')
 
-# if user already exist, credentials will be overwritten
-# Using admin creadential, adding new admin rabbitmq user"
-rabbitmqadmin --host=$RABBIT_HOSTNAME --port=$RABBIT_PORT \
-  --username=$RABBITMQ_ADMIN_USERNAME --password=$RABBITMQ_ADMIN_PASSWORD \
-  declare user name=$RABBITMQ_USERNAME password=$RABBITMQ_PASSWORD \
-  tags="administrator"
+function rabbitmqadmin_cli () {
+  rabbitmqadmin \
+    --host="${RABBIT_HOSTNAME}" \
+    --port="${RABBIT_PORT}" \
+    --username="${RABBITMQ_ADMIN_USERNAME}" \
+    --password="${RABBITMQ_ADMIN_PASSWORD}" \
+    ${@}
+}
 
-# Declare permissions for new user
-rabbitmqadmin --host=$RABBIT_HOSTNAME --port=$RABBIT_PORT \
-  --username=$RABBITMQ_ADMIN_USERNAME --password=$RABBITMQ_ADMIN_PASSWORD \
-  declare permission vhost="/" user=$RABBITMQ_USERNAME \
-  configure=".*" write=".*" read=".*"
+echo "Managing: User: ${RABBITMQ_USERNAME}"
+rabbitmqadmin_cli \
+  declare user \
+  name="${RABBITMQ_USERNAME}" \
+  password="${RABBITMQ_PASSWORD}" \
+  tags="user"
 
-# Using new user creadential, list current rabbitmq users
-rabbitmqadmin --host=$RABBIT_HOSTNAME --port=$RABBIT_PORT \
-  --username=$RABBITMQ_USERNAME --password=$RABBITMQ_PASSWORD \
-  list users
+echo "Managing: vHost: ${RABBITMQ_VHOST}"
+rabbitmqadmin_cli \
+  declare vhost \
+  name="${RABBITMQ_VHOST}"
 
-# Using new user creadential, list permissions
-rabbitmqadmin --host=$RABBIT_HOSTNAME --port=$RABBIT_PORT \
-  --username=$RABBITMQ_USERNAME --password=$RABBITMQ_PASSWORD \
-  list permissions
-
+echo "Managing: Permissions: ${RABBITMQ_USERNAME} on ${RABBITMQ_VHOST}"
+rabbitmqadmin_cli \
+  declare permission \
+  vhost="${RABBITMQ_VHOST}" \
+  user="${RABBITMQ_USERNAME}" \
+  configure=".*" \
+  write=".*" \
+  read=".*"
 {{- end }}
