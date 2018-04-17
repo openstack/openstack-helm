@@ -16,10 +16,9 @@ limitations under the License.
 
 {{- if .Values.manifests.cron_curator }}
 {{- $envAll := . }}
-{{- $_ := set .Values "pod_dependency" .Values.dependencies.static.curator -}}
 
 {{- $serviceAccountName := "elastic-curator"}}
-{{ tuple $envAll $envAll.Values.pod_dependency $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{ tuple $envAll "curator" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: batch/v1beta1
 kind: CronJob
@@ -37,7 +36,7 @@ spec:
           serviceAccountName: {{ $serviceAccountName }}
           restartPolicy: OnFailure
           initContainers:
-{{ tuple $envAll .Values.pod_dependency list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container"  | indent 12 }}
+{{ tuple $envAll "curator" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container"  | indent 12 }}
           containers:
             - name: curator
 {{ tuple $envAll "curator" | include "helm-toolkit.snippets.image" | indent 14 }}

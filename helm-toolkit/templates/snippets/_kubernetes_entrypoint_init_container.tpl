@@ -16,8 +16,18 @@ limitations under the License.
 
 {{- define "helm-toolkit.snippets.kubernetes_entrypoint_init_container" -}}
 {{- $envAll := index . 0 -}}
-{{- $deps := index . 1 -}}
+{{- $component := index . 1 -}}
 {{- $mounts := index . 2 -}}
+
+{{- $_ := set $envAll.Values "__kubernetes_entrypoint_init_container" dict -}}
+{{- $_ := set $envAll.Values.__kubernetes_entrypoint_init_container "deps" dict -}}
+{{- if and ($envAll.Values.images.local_registry.active) (ne $component "image_repo_sync") -}}
+{{- $_ := include "helm-toolkit.utils.merge" ( tuple $envAll.Values.__kubernetes_entrypoint_init_container.deps ( index $envAll.Values.dependencies.static $component ) $envAll.Values.dependencies.dynamic.common.local_image_registry ) -}}
+{{- else -}}
+{{- $_ := set $envAll.Values.__kubernetes_entrypoint_init_container "deps" ( index $envAll.Values.dependencies.static $component ) -}}
+{{- end -}}
+{{- $deps := $envAll.Values.__kubernetes_entrypoint_init_container.deps }}
+
 - name: init
 {{ tuple $envAll "dep_check" | include "helm-toolkit.snippets.image" | indent 2 }}
   env:
@@ -38,11 +48,11 @@ limitations under the License.
     - name: DEPENDENCY_SERVICE
       value: "{{ tuple $deps.services $envAll | include "helm-toolkit.utils.comma_joined_service_list" }}"
     - name: DEPENDENCY_JOBS
-      value: "{{  include "helm-toolkit.utils.joinListWithComma" $deps.jobs }}"
+      value: "{{ include "helm-toolkit.utils.joinListWithComma" $deps.jobs }}"
     - name: DEPENDENCY_DAEMONSET
-      value: "{{  include "helm-toolkit.utils.joinListWithComma" $deps.daemonset }}"
+      value: "{{ include "helm-toolkit.utils.joinListWithComma" $deps.daemonset }}"
     - name: DEPENDENCY_CONTAINER
-      value: "{{  include "helm-toolkit.utils.joinListWithComma" $deps.container }}"
+      value: "{{ include "helm-toolkit.utils.joinListWithComma" $deps.container }}"
     - name: DEPENDENCY_POD
       value: {{ if $deps.pod }}{{ toJson $deps.pod | quote }}{{ else }}""{{ end }}
     - name: COMMAND

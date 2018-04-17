@@ -16,18 +16,13 @@ limitations under the License.
 
 {{- if .Values.manifests.deployment_client }}
 {{- $envAll := . }}
+
 {{- $esUserSecret := .Values.secrets.elasticsearch.user }}
-{{- if .Values.images.local_registry.active -}}
-{{- $_ := set .Values "pod_dependency" dict -}}
-{{- $_ := include "helm-toolkit.utils.merge" (tuple .Values.pod_dependency .Values.dependencies.static.elasticsearch_client .Values.dependencies.dynamic.common.local_image_registry) -}}
-{{- else -}}
-{{- $_ := set .Values "pod_dependency" .Values.dependencies.static.elasticsearch_client -}}
-{{- end -}}
 
 {{- $mounts_elasticsearch := .Values.pod.mounts.elasticsearch.elasticsearch }}
 
 {{- $serviceAccountName := printf "%s-%s" .Release.Name "elasticsearch-client"}}
-{{ tuple $envAll $envAll.Values.pod_dependency $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{ tuple $envAll "elasticsearch_client" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRoleBinding
@@ -86,7 +81,7 @@ spec:
         {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
       terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.client.timeout | default "600" }}
       initContainers:
-{{ tuple $envAll .Values.pod_dependency list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll "elasticsearch_client" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container"  | indent 8 }}
         - name: memory-map-increase
           securityContext:
             privileged: true

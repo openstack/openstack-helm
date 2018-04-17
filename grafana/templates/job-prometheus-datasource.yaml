@@ -17,9 +17,8 @@ limitations under the License.
 {{- if .Values.manifests.job_datasource }}
 {{- $envAll := . }}
 
-{{- $_ := set .Values "pod_dependency" .Values.dependencies.static.register_datasource -}}
 {{- $serviceAccountName := "grafana-register-datasource" }}
-{{ tuple $envAll $envAll.Values.pod_dependency $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{ tuple $envAll "register_datasource" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: batch/v1
 kind: Job
@@ -36,7 +35,7 @@ spec:
       nodeSelector:
         {{ .Values.labels.node_selector_key }}: {{ .Values.labels.node_selector_value }}
       initContainers:
-{{ tuple $envAll .Values.pod_dependency list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container"  | indent 8 }}
+{{ tuple $envAll "register_datasource" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container"  | indent 8 }}
       containers:
         - name: grafana-datasource
 {{ tuple $envAll "datasource" | include "helm-toolkit.snippets.image" | indent 10 }}

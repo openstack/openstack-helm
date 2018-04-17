@@ -16,15 +16,9 @@ limitations under the License.
 
 {{- if .Values.manifests.deployment_calico_kube_policy_controllers }}
 {{- $envAll := . }}
-{{- if .Values.images.local_registry.active -}}
-{{- $_ := set .Values "pod_dependency" dict -}}
-{{- $_ := include "helm-toolkit.utils.merge" (tuple .Values.pod_dependency .Values.dependencies.static.calico_kube_policy_controllers .Values.dependencies.dynamic.common.local_image_registry) -}}
-{{- else -}}
-{{- $_ := set .Values "pod_dependency" .Values.dependencies.static.calico_kube_policy_controllers -}}
-{{- end -}}
 
 {{- $serviceAccountName := printf "%s-%s" .Release.Name "calico-kube-controllers"}}
-{{ tuple $envAll $envAll.Values.pod_dependency $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{ tuple $envAll "calico_kube_policy_controllers" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRoleBinding
@@ -102,7 +96,7 @@ spec:
         operator: Exists
       serviceAccountName: {{ $serviceAccountName }}
       initContainers:
-{{ tuple $envAll .Values.pod_dependency list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll "calico_kube_policy_controllers" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.policy_controller.timeout | default "30" }}
       containers:
         - name: calico-policy-controller

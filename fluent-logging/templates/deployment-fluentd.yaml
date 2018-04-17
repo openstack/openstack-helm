@@ -17,17 +17,11 @@ limitations under the License.
 {{- if .Values.manifests.deployment_fluentd }}
 {{- $envAll := . }}
 {{- $esUserSecret := .Values.secrets.elasticsearch.user }}
-{{- if .Values.images.local_registry.active -}}
-{{- $_ := set .Values "pod_dependency" dict -}}
-{{- $_ := include "helm-toolkit.utils.merge" (tuple .Values.pod_dependency .Values.dependencies.static.fluentd .Values.dependencies.dynamic.common.local_image_registry) -}}
-{{- else -}}
-{{- $_ := set .Values "pod_dependency" .Values.dependencies.static.fluentd -}}
-{{- end -}}
 
 {{- $mounts_fluentd := .Values.pod.mounts.fluentd.fluentd }}
 
 {{- $serviceAccountName := printf "%s-%s" .Release.Name "fluentd" }}
-{{ tuple $envAll $envAll.Values.pod_dependency $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{ tuple $envAll "fluentd" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRoleBinding
@@ -100,7 +94,7 @@ spec:
         {{ .Values.labels.fluentd.node_selector_key }}: {{ .Values.labels.fluentd.node_selector_value }}
       terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.fluentd.timeout | default "30" }}
       initContainers:
-{{ tuple $envAll .Values.pod_dependency list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll "fluentd" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
         - name: fluentd
           image: {{ .Values.images.tags.fluentd }}

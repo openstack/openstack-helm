@@ -16,11 +16,21 @@ limitations under the License.
 
 {{- define "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" -}}
 {{- $envAll := index . 0 -}}
-{{- $deps := index . 1 -}}
+{{- $component := index . 1 -}}
 {{- $saName := index . 2 -}}
 {{- $saNamespace := $envAll.Release.Namespace }}
 {{- $randomKey := randAlphaNum 32 }}
 {{- $allNamespace := dict $randomKey "" }}
+
+{{- $_ := set $envAll.Values "__kubernetes_entrypoint_init_container" dict -}}
+{{- $_ := set $envAll.Values.__kubernetes_entrypoint_init_container "deps" dict -}}
+{{- if and ($envAll.Values.images.local_registry.active) (ne $component "image_repo_sync") -}}
+{{- $_ := include "helm-toolkit.utils.merge" ( tuple $envAll.Values.__kubernetes_entrypoint_init_container.deps ( index $envAll.Values.dependencies.static $component ) $envAll.Values.dependencies.dynamic.common.local_image_registry ) -}}
+{{- else -}}
+{{- $_ := set $envAll.Values.__kubernetes_entrypoint_init_container "deps" ( index $envAll.Values.dependencies.static $component ) -}}
+{{- end -}}
+{{- $deps := $envAll.Values.__kubernetes_entrypoint_init_container.deps }}
+
 ---
 apiVersion: v1
 kind: ServiceAccount

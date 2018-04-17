@@ -16,18 +16,11 @@ limitations under the License.
 
 {{- if .Values.manifests.daemonset_fluentbit }}
 {{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.static.fluentbit }}
-{{- if .Values.images.local_registry.active -}}
-{{- $_ := set .Values "pod_dependency" dict -}}
-{{- $_ := include "helm-toolkit.utils.merge" (tuple .Values.pod_dependency .Values.dependencies.static.fluentbit .Values.dependencies.dynamic.common.local_image_registry) -}}
-{{- else -}}
-{{- $_ := set .Values "pod_dependency" .Values.dependencies.static.fluentbit -}}
-{{- end -}}
 
 {{- $mounts_fluentbit := .Values.pod.mounts.fluentbit.fluentbit }}
 
 {{- $serviceAccountName := printf "%s-%s" .Release.Name "fluentbit" }}
-{{ tuple $envAll $envAll.Values.pod_dependency $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{ tuple $envAll "fluentbit" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRoleBinding
@@ -99,7 +92,7 @@ spec:
       hostPID: true
       dnsPolicy: ClusterFirstWithHostNet
       initContainers:
-{{ tuple $envAll .Values.pod_dependency list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll "fluentbit" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
         - name: fluentbit
           image: {{ .Values.images.tags.fluentbit }}
