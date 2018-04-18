@@ -47,6 +47,7 @@ function ansible_install {
   elif [ "x$ID" == "xfedora" ]; then
     sudo dnf install -y \
       python-devel \
+      libselinux-python \
       redhat-rpm-config \
       gcc \
       jq
