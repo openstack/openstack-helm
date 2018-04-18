@@ -19,7 +19,7 @@ comments, please create an `issue
 
 .. note::
   Please see the supported application versions outlined in the
-  `source variable file <https://github.com/openstack/openstack-helm-infra/blob/master/tools/gate/playbooks/vars.yaml>`_.
+  `source variable file <https://github.com/openstack/openstack-helm-infra/blob/master/playbooks/vars.yaml>`_.
 
 Other versions and considerations (such as other CNI SDN providers),
 config map data, and value overrides will be included in other
@@ -43,6 +43,16 @@ using KubeADM and Ansible.
 OpenStack-Helm Infra KubeADM deployment
 ---------------------------------------
 
+.. note::
+   Throughout this guide the assumption is that the user is:
+   ``ubuntu``. Because this user has to execute root level commands
+   remotely to other nodes, it is advised to add the following lines
+   to ``/etc/suders`` for each node:
+
+   ``root    ALL=(ALL) NOPASSWD: ALL``
+
+   ``ubuntu  ALL=(ALL) NOPASSWD: ALL``
+
 On the master node install the latest versions of Git, CA Certs & Make if necessary
 
 .. literalinclude:: ../../../tools/deployment/developer/common/000-install-packages.sh
@@ -56,8 +66,7 @@ On the worker nodes
     #!/bin/bash
     set -xe
     sudo apt-get update
-    sudo apt-get install --no-install-recommends -y \
-                 git
+    sudo apt-get install --no-install-recommends -y git
 
 
 SSH-Key preparation
@@ -66,6 +75,17 @@ SSH-Key preparation
 Create an ssh-key on the master node, and add the public key to each node that
 you intend to join the cluster.
 
+.. note::
+   1. To generate the key you can use ``ssh-keygen -t rsa``
+   2. To copy the ssh key to each node, this can be accomplished with
+      the ``ssh-copy-id`` command, for example: *ssh-copy-id
+      ubuntu@192.168.122.178*
+   3. Copy the key: ``sudo cp ~/.ssh/id_rsa /etc/openstack-helm/deploy-key.pem``
+   4. Set correct owenership: ``sudo chown ubuntu
+      /etc/openstack-helm/deploy-key.pem``
+
+   Test this by ssh'ing to a node and then executing a command with
+   'sudo'. Neither operation should require a password.
 
 Clone the OpenStack-Helm Repos
 ------------------------------
@@ -87,6 +107,10 @@ Create an inventory file
 ------------------------
 
 On the master node create an inventory file for the cluster:
+
+.. note::
+   node_one, node_two and node_three below are all worker nodes,
+   children of the master node that the commands below are executed on.
 
 .. code-block:: shell
 
@@ -141,7 +165,6 @@ On the master node create an environment file for the cluster:
         domain: cluster.local
     EOF
 
-
 .. note::
   This installation, by default will use Google DNS servers, 8.8.8.8 or 8.8.4.4
   and updates resolv.conf. These DNS nameserver entries can be changed by
@@ -167,7 +190,9 @@ Deploy OpenStack-Helm
 =====================
 
 .. note::
-  The following commands all assume that they are run from the ``openstack-helm`` directory.
+  The following commands all assume that they are run from the
+  ``/opt/openstack-helm`` directory.
+
 
 Setup Clients on the host and assemble the charts
 -------------------------------------------------
