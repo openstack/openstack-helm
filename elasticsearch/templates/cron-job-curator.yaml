@@ -17,6 +17,8 @@ limitations under the License.
 {{- if .Values.manifests.cron_curator }}
 {{- $envAll := . }}
 
+{{- $esUserSecret := .Values.secrets.elasticsearch.user }}
+
 {{- $serviceAccountName := "elastic-curator"}}
 {{ tuple $envAll "curator" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
@@ -43,6 +45,19 @@ spec:
               command:
                 - /tmp/curator.sh
 {{ tuple $envAll $envAll.Values.pod.resources.jobs.curator | include "helm-toolkit.snippets.kubernetes_resources" | indent 14 }}
+              env:
+                - name: ELASTICSEARCH_HOST
+                  value: {{ tuple "elasticsearch" "internal" "http" . | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" }}
+                - name: ELASTICSEARCH_USERNAME
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ $esUserSecret }}
+                      key: ELASTICSEARCH_USERNAME
+                - name: ELASTICSEARCH_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ $esUserSecret }}
+                      key: ELASTICSEARCH_PASSWORD
               volumeMounts:
                 - name: pod-etc-curator
                   mountPath: /etc/config

@@ -175,8 +175,8 @@ conf:
   init:
     max_map_count: 262144
   curator:
-    #runs weekly
-    schedule:  "0 0 * * 0"
+    #run every 6th hour
+    schedule:  "0 */6 * * *"
     action_file:
       # Remember, leave a key empty if there is no value.  None will be a string,
       # not a Python "NoneType"
@@ -187,7 +187,8 @@ conf:
       actions:
         1:
           action: delete_indices
-          description: "Clean up ES by deleting old indices"
+          description: >-
+            "Delete indices older than 7 days"
           options:
             timeout_override:
             continue_if_exception: False
@@ -199,14 +200,31 @@ conf:
             direction: older
             timestring: '%Y.%m.%d'
             unit: days
-            unit_count: 30
-            field:
-            stats_result:
-            epoch:
-            exclude: False
+            unit_count: 7
+            exclude: True
         2:
+          action: delete_indices
+          description: >-
+            "Delete indices by age if available disk space is
+             less than 80% total disk"
+          options:
+            timeout_override: 600
+            continue_if_exception: False
+            ignore_empty_list: True
+            disable_action: True
+          filters:
+          - filtertype: space
+            source: creation_date
+            use_age: True
+            # This space assumes the default PVC size of 5Gi times three data
+            # replicas. This must be adjusted if changed due to Curator being
+            # unable to calculate percentages of total disk space
+            disk_space: 12
+            exclude: False
+        3:
           action: snapshot
-          description: "Snapshot indices and send to configured repository"
+          description: >-
+            "Snapshot indices older than one day"
           options:
             repository: default_repo
             # Leaving this blank results in the default name format
@@ -214,7 +232,7 @@ conf:
             wait_for_completion: True
             max_wait: 3600
             wait_interval: 10
-            timeout_override:
+            timeout_override: 600
             ignore_empty_list: True
             continue_if_exception: False
             disable_action: True
@@ -224,31 +242,40 @@ conf:
             direction: older
             timestring: '%Y.%m.%d'
             unit: days
-            unit_count: 30
-            field:
-            stats_result:
-            epoch:
+            unit_count: 1
             exclude: False
+        4:
+          action: delete_snapshots
+          description: >-
+            "Delete snapshots older than 30 days"
+          options:
+            repository: default_repo
+            disable_action: True
+            timeout_override: 600
+            ignore_empty_list: True
+          filters:
+          - filtertype: pattern
+            kind: prefix
+            value: curator-
+            exclude:
+          - filtertype: age
+            source: creation_date
+            direction: older
+            unit: days
+            unit_count: 30
     config:
       # Remember, leave a key empty if there is no value.  None will be a string,
       # not a Python "NoneType"
       client:
         hosts:
-          - elasticsearch-logging
-        port: 9200
-        url_prefix:
+          - ${ELASTICSEARCH_HOST}
         use_ssl: False
-        certificate:
-        client_cert:
-        client_key:
         ssl_no_validate: False
-        http_auth:
-        timeout: 30
-        master_only: False
+        http_auth: ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}
+        timeout: 60
       logging:
         loglevel: INFO
-        logfile:
-        logformat: default
+        logformat: logstash
         blacklist: ['elasticsearch', 'urllib3']
   elasticsearch:
     config:
