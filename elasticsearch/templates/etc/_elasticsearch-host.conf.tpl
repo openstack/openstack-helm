@@ -21,7 +21,7 @@ limitations under the License.
   </Location>
   <Proxy *>
       AuthType Basic
-      AuthName "Authentication Required"
+      AuthName "Authentication Required for Elasticsearch"
       AuthUserFile {{.Values.conf.apache.htpasswd | quote}}
       Require valid-user
   </Proxy>
