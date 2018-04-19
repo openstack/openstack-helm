@@ -40,17 +40,17 @@
       register: local_overrides
 
     - name: "try to deploy release {{ chart_def['release'] }} in {{ chart_def['namespace'] }} namespace with {{ chart_def['chart_name'] }} chart"
-      when: check_deployed_result | failed
+      when: check_deployed_result is failed
       command: "helm install {{ work_dir }}/{{ chart_def['chart_name'] }} --namespace {{ chart_def['namespace'] }} --name {{ chart_def['release'] }} --values={{ chart_values_file.path }}{% if local_overrides.stat.exists %} --values {{ work_dir }}/tools/gate/local-overrides/{{ chart_def['release'] }}.yaml{% endif %}"
       register: out
     - name: "display info for the helm {{ chart_def['release'] }} release deploy"
-      when: check_deployed_result | failed
+      when: check_deployed_result is failed
       debug:
         var: out.stdout_lines
 
     - name: "pre-upgrade, delete jobs for {{ chart_def['release'] }} release"
       when:
-        - check_deployed_result | succeeded
+        - check_deployed_result is succeeded
         - "'upgrade' in chart_def"
         - "'pre' in chart_def['upgrade']"
         - "'delete' in chart_def['upgrade']['pre']"
@@ -60,11 +60,11 @@
         loop_var: helm_upgrade_delete_job
       command: "kubectl delete --namespace {{ chart_def['namespace'] }} job -l application={{ helm_upgrade_delete_job.labels.application }},component={{ helm_upgrade_delete_job.labels.component }} --ignore-not-found=true"
     - name: "try to upgrade release {{ chart_def['release'] }} in {{ chart_def['namespace'] }} namespace with {{ chart_def['chart_name'] }} chart"
-      when: check_deployed_result | succeeded
+      when: check_deployed_result is succeeded
       command: "helm upgrade {{ chart_def['release'] }} {{ work_dir }}/{{ chart_def['chart_name'] }} --values={{ chart_values_file.path }}{% if local_overrides.stat.exists %} --values {{ work_dir }}/tools/gate/local-overrides/{{ chart_def['release'] }}.yaml{% endif %}"
       register: out
     - name: "display info for the helm {{ chart_def['release'] }} release upgrade"
-      when: check_deployed_result | succeeded
+      when: check_deployed_result is succeeded
       debug:
         var: out.stdout_lines
 
