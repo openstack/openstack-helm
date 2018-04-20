@@ -29,12 +29,6 @@ function start () {
   # Apache gets grumpy about PID files pre-existing
   rm -f /etc/httpd/logs/httpd.pid
 
-  if [ -f {{ .Values.conf.apache.htpasswd }} ]; then
-    htpasswd -b {{ .Values.conf.apache.htpasswd }} $KIBANA_USERNAME $KIBANA_PASSWORD
-  else
-    htpasswd -cb {{ .Values.conf.apache.htpasswd }} $KIBANA_USERNAME $KIBANA_PASSWORD
-  fi
-
   #Launch Apache on Foreground
   exec httpd -DFOREGROUND
 }

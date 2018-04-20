@@ -52,6 +52,8 @@ LoadModule authz_user_module modules/mod_authz_user.so
 LoadModule authz_core_module modules/mod_authz_core.so
 LoadModule access_compat_module modules/mod_access_compat.so
 LoadModule auth_basic_module modules/mod_auth_basic.so
+LoadModule ldap_module modules/mod_ldap.so
+LoadModule authnz_ldap_module modules/mod_authnz_ldap.so
 LoadModule reqtimeout_module modules/mod_reqtimeout.so
 LoadModule filter_module modules/mod_filter.so
 LoadModule proxy_html_module modules/mod_proxy_html.so
