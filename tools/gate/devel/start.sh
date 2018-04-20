@@ -56,7 +56,7 @@ function ansible_install {
   sudo -H -E pip install --no-cache-dir --upgrade pip
   sudo -H -E pip install --no-cache-dir --upgrade setuptools
   sudo -H -E pip install --no-cache-dir --upgrade pyopenssl
-  sudo -H -E pip install --no-cache-dir \
+  sudo -H -E pip install --no-cache-dir --upgrade \
     ansible \
     ara \
     yq
