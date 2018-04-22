@@ -18,7 +18,7 @@
 
 images:
   tags:
-    nagios: docker.io/srwilkers/prometheus-nagios:v0.1.0
+    nagios: quay.io/attcomdev/nagios:931116b88c54931c616dfa66f424be38f74d8ad2
     dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.2.1
     image_repo_sync: docker.io/docker:17.07.0
   pull_policy: IfNotPresent
@@ -52,6 +52,10 @@ dependencies:
     nagios:
       services: null
 
+secrets:
+  nagios:
+    admin: nagios-admin-creds
+
 endpoints:
   cluster_domain_suffix: cluster.local
   local_image_registry:
@@ -84,6 +88,10 @@ endpoints:
   nagios:
     name: nagios
     namespace: null
+    auth:
+      admin:
+        username: admin
+        password: changeme
     hosts:
       default: nagios-metrics
       public: nagios
@@ -94,8 +102,8 @@ endpoints:
     scheme:
       default: http
     port:
-      nagios:
-        default: 25
+      http:
+        default: 80
 
 network:
   nagios:
@@ -122,7 +130,7 @@ pod:
       nagios:
         timeout: 30
   replicas:
-    nagios: 3
+    nagios: 1
   resources:
     enabled: false
     nagios:
@@ -147,6 +155,7 @@ manifests:
   deployment: true
   ingress: true
   job_image_repo_sync: true
+  secret_nagios: true
   service: true
   service_ingress: true
 
@@ -157,36 +166,397 @@ conf:
           use: linux-server
           host_name: prometheus
           alias: "Prometheus Monitoring"
-          address: $PROMETHEUS_SERVICE
-          hostgroups: monitoring
+          address: 127.0.0.1
+          hostgroups: prometheus-hosts
+          check_command: check-prometheus-host-alive
     host_groups:
-      - monitoring:
-          hostgroup_name: monitoring
-          alias: "Monitoring Instances"
-          members: prometheus
+      - prometheus-hosts:
+          hostgroup_name: prometheus-hosts
+          alias: "Prometheus Virtual Host"
+      - all:
+          hostgroup_name: all
+          alias: "all"
+      - base-os:
+          hostgroup_name: base-os
+          alias: "base-os"
     commands:
-      - check_prometheus:
-          command_name: check_prometheus
-          command_line: "$USER1$/check_prometheus_metric.sh -H $HOSTADDRESS$ -q '$ARG1$' -w $ARG2$ -c $ARG3$ -n $ARG4$ -m $ARG5$"
-      - check_prometheus_nan_ok:
-          command_name: check_prometheus_nan_ok
-          command_line: "$USER1$/check_prometheus_metric.sh -H $HOSTADDRESS$ -q '$ARG1$' -w $ARG2$ -c $ARG3$ -n $ARG4$ -m $ARG5$ -O"
-      - check_prometheus_extra_info:
-          command_name: check_prometheus_extra_info
-          command_line: "$USER1$/check_prometheus_metric.sh -H $HOSTADDRESS$ -q '$ARG1$' -w $ARG2$ -c $ARG3$ -n $ARG4$ -m $ARG5$ -i -t vector"
+      - check_prometheus_host_alive:
+          command_name: check-prometheus-host-alive
+          command_line: "$USER1$/check_rest_get_api.py --url $USER2$ --warning_response_seconds 5 --critical_response_seconds 10"
+      - check_prom_alert_with_labels:
+          command_name: check_prom_alert_with_labels
+          command_line: "$USER1$/query_prometheus_alerts.py --prometheus_api $USER2$ --alertname '$ARG1$' --labels_csv '$ARG2$' --msg_format '$ARG3$' --ok_message '$ARG4$'"
+      - check_prom_alert:
+          command_name: check_prom_alert
+          command_line: "$USER1$/query_prometheus_alerts.py --prometheus_api $USER2$ --alertname '$ARG1$' --msg_format '$ARG2$' --ok_message '$ARG3$'"
+      - check_filespace_mounts-usage-rate-fullin4hrs:
+          command_name: check_filespace_mounts-usage-rate-fullin4hrs
+          command_line: $USER1$/query_prometheus_alerts.py --prometheus_api $USER2$ --alertname 'node_filesystem_full_in_4h' --labels_csv 'instance=~"$HOSTADDRESS$.*"' --msg_format 'CRITICAL- Mountpoint {mountpoint} will be full in four hours' --ok_message 'OK- All mountpoints usage rate is normal'
+      - check_filespace_mounts-usage:
+          command_name: check_filespace_mounts-usage
+          command_line: $USER1$/query_prometheus_alerts.py --prometheus_api $USER2$ --alertname 'node_filesystem_full_80percent' --labels_csv 'instance=~"$HOSTADDRESS$.*"' --msg_format 'CRITICAL- Mountpoint {mountpoint} is more than 80 pecent full' --ok_message 'OK- All mountpoints usage is normal'
+      - check_node_loadavg:
+          command_name: check_node_loadavg
+          command_line: $USER1$/query_prometheus_alerts.py --prometheus_api $USER2$ --alertname 'node_load1_90percent' --labels_csv 'instance=~"$HOSTADDRESS$.*"' --msg_format 'CRITICAL- Node load average has been more than 90% for the pash hour' --ok_message 'OK- Node load average is normal'
+      - check_node_cpu_util:
+          command_name: check_node_cpu_util
+          command_line: $USER1$/query_prometheus_alerts.py --prometheus_api $USER2$ --alertname 'node_cpu_util_90percent' --labels_csv 'instance=~"$HOSTADDRESS$.*"' --msg_format 'CRITICAL- Node CPU utilization has been more than 90% for the pash hour' --ok_message 'OK- Node cpu utilization is normal'
+      - check_network_connections:
+          command_name: check_network_connections
+          command_line: $USER1$/query_prometheus_alerts.py --prometheus_api $USER2$ --alertname 'node_network_conntrack_usage_80percent' --labels_csv 'instance=~"$HOSTADDRESS$.*"' --msg_format 'CRITICAL- Node network connections are more than 90% in use' --ok_message 'OK- Network connection utilization is normal'
+      - check_memory_usage:
+          command_name: check_memory_usage
+          command_line: $USER1$/query_prometheus_alerts.py --prometheus_api $USER2$ --alertname 'high_memory_load' --labels_csv 'instance=~"$HOSTADDRESS$.*"' --msg_format 'CRITICAL- Node memory usage is more than 85%' --ok_message 'OK- Node memory usage is less than 85%'
+      - check_disk_write_latency:
+          command_name: check_disk_write_latency
+          command_line: $USER1$/query_prometheus_alerts.py --prometheus_api $USER2$ --alertname 'node_disk_write_latency' --labels_csv 'instance=~"$HOSTADDRESS$.*"' --msg_format 'CRITICAL- Disk write latency is high' --ok_message 'OK- Node disk write latency is normal'
+      - check_disk_read_latency:
+          command_name: check_disk_read_latency
+          command_line: $USER1$/query_prometheus_alerts.py --prometheus_api $USER2$ --alertname 'node_disk_read_latency' --labels_csv 'instance=~"$HOSTADDRESS$.*"' --msg_format 'CRITICAL- Disk read latency is high' --ok_message 'OK- Node disk read latency is normal'
+      - check_entropy_availability:
+          command_name: check_entropy_availability
+          command_line: $USER1$/query_prometheus_alerts.py --prometheus_api $USER2$ --alertname 'node_entropy_available_low' --labels_csv 'instance=~"$HOSTADDRESS$.*"' --msg_format 'CRITICAL- System has low entropy availability' --ok_message 'OK- System entropy availability is sufficient'
+      - check_filedescriptor_usage_rate:
+          command_name: check_filedescriptor_usage_rate
+          command_line: $USER1$/query_prometheus_alerts.py --prometheus_api $USER2$ --alertname 'node_filedescriptors_full_in_3h' --labels_csv 'instance=~"$HOSTADDRESS$.*"' --msg_format 'CRITICAL- at current consumption rate no free file descriptors will be available in 3hrs.' --ok_message 'OK- System file descriptor consumption is ok.'
+      - check_hwmon_high_cpu_temp:
+          command_name: check_hwmon_high_cpu_temp
+          command_line: $USER1$/query_prometheus_alerts.py --prometheus_api $USER2$ --alertname 'node_hwmon_high_cpu_temp' --labels_csv 'instance=~"$HOSTADDRESS$.*"' --msg_format 'CRITICAL- CPU temperature is 90 percent of critical temperature.' --ok_message 'OK- CPU temperatures are normal.'
+      - check_network_receive_drop_high:
+          command_name: check_network_receive_drop_high
+          command_line: $USER1$/query_prometheus_alerts.py --prometheus_api $USER2$ --alertname 'high_network_drop_rcv' --labels_csv 'instance=~"$HOSTADDRESS$.*"' --msg_format 'CRITICAL- Host system has an unusally high drop in network reception.' --ok_message 'OK- network packet receive drops not high.'
+      - check_network_transmit_drop_high:
+          command_name: check_network_transmit_drop_high
+          command_line: $USER1$/query_prometheus_alerts.py --prometheus_api $USER2$ --alertname 'high_network_drop_send' --labels_csv 'instance=~"$HOSTADDRESS$.*"' --msg_format 'CRITICAL- Host system has an unusally high drop in network transmission.' --ok_message 'OK- network packet tramsmit drops not high.'
+      - check_network_receive_errors_high:
+          command_name: check_network_receive_errors_high
+          command_line: $USER1$/query_prometheus_alerts.py --prometheus_api $USER2$ --alertname 'high_network_drop_send' --labels_csv 'instance=~"$HOSTADDRESS$.*"' --msg_format 'CRITICAL- Host system has an unusally high error rate in network reception.' --ok_message 'OK- network reception errors not high.'
+      - check_network_transmit_errors_high:
+          command_name: check_network_transmit_errors_high
+          command_line: $USER1$/query_prometheus_alerts.py --prometheus_api $USER2$ --alertname 'high_network_drop_send' --labels_csv 'instance=~"$HOSTADDRESS$.*"' --msg_format 'CRITICAL- Host system has an unusally high error rate in network transmission.' --ok_message 'OK- network transmission errors not high.'
+      - check_vmstat_paging_rate:
+          command_name: check_vmstat_paging_rate
+          command_line: $USER1$/query_prometheus_alerts.py --prometheus_api $USER2$ --alertname 'node_vmstat_paging_rate_high' --labels_csv 'instance=~"$HOSTADDRESS$.*"' --msg_format 'CRITICAL- Memory paging rate over 5 minutes is high.' --ok_message 'OK- Memory paging rate over 5 minutes is ok.'
+      - check_xfs_block_allocation:
+          command_name: check_xfs_block_allocation
+          command_line: $USER1$/query_prometheus_alerts.py --prometheus_api $USER2$ --alertname 'node_xfs_block_allocation_high' --labels_csv 'instance=~"$HOSTADDRESS$.*"' --msg_format 'CRITICAL- XFS block allocation is more than 80 percent of available.' --ok_message 'OK- XFS block allocation is less than 80 percent of available.'
+      - check_network_bond_status:
+          command_name: check_network_bond_status
+          command_line: $USER1$/query_prometheus_alerts.py --prometheus_api $USER2$ --alertname 'node_network_bond_slaves_down' --labels_csv 'instance=~"$HOSTADDRESS$.*"' --msg_format 'CRITICAL- {master} is missing slave interfaces.' --ok_message 'OK- Network bonds have slave interfaces functional.'
+      - check_numa_memory_usage:
+          command_name: check_numa_memory_usage
+          command_line: $USER1$/query_prometheus_alerts.py --prometheus_api $USER2$ --alertname 'node_numa_memory_used' --labels_csv 'instance=~"$HOSTADDRESS$.*"' --msg_format 'CRITICAL- NUMA memory usage is more than 80 percent of available.' --ok_message 'OK- NUMA memory usage is normal.'
+      - check_ntp_sync:
+          command_name: check_ntp_sync
+          command_line: $USER1$/query_prometheus_alerts.py --prometheus_api $USER2$ --alertname 'node_ntp_clock_skew_high' --labels_csv 'instance=~"$HOSTADDRESS$.*"' --msg_format 'CRITICAL- NTP clock skew is more than 2 seconds.' --ok_message 'OK- NTP clock skew is less than 2 seconds.'
     services:
       - check_prometheus_replicas:
           use: generic-service
-          host_name: prometheus
-          service_description: "Check Prometheus replicas"
-          check_command: check_prometheus_extra_info!kube_statefulset_status_replicas{namespace="openstack",statefulset="prometheus"}!3!2!prometheus_replicas!lt
+          hostgroup_name: prometheus-hosts
+          service_description: "Prometheus_replica-count"
+          check_command: check_prom_alert_with_labels!replicas_unavailable_statefulset!statefulset="prometheus"!statefulset {statefulset} has lesser than configured replicas
           check_interval: 1
       - check_alertmanager_replicas:
           use: generic-service
-          host_name: prometheus
-          service_description: "Check Alertmanager replicas"
-          check_command: check_prometheus_extra_info!kube_statefulset_status_replicas{namespace="openstack",statefulset="alertmanager"}!3!2!alertmanager_replicas!lt
+          hostgroup_name: prometheus-hosts
+          service_description: "PrometheusAlertmanager_replica-count"
+          check_command: check_prom_alert_with_labels!replicas_unavailable_statefulset!statefulset="alertmanager"!statefulset {statefulset} has lesser than configured replicas
           check_interval: 1
+      - check_statefulset_replicas:
+          use: generic-service
+          hostgroup_name: prometheus-hosts
+          service_description: "Statefulset_replica-count"
+          check_command: check_prom_alert!replicas_unavailable_statefulset!CRITICAL- statefulset {statefulset} has lesser than configured replicas!OK- All statefulsets have configured amount of replicas
+          check_interval: 1
+      - check_daemonset_misscheduled:
+          use: generic-service
+          hostgroup_name: prometheus-hosts
+          service_description: "Daemonset_misscheduled"
+          check_command: check_prom_alert!daemonsets_misscheduled!CRITICAL- Daemonset {daemonset} is incorrectly scheudled!OK- No daemonset misscheduling detected
+          check_interval: 1
+      - check_daemonset_not-scheduled:
+          use: generic-service
+          hostgroup_name: prometheus-hosts
+          service_description: "Daemonset_not-scheduled"
+          check_command: check_prom_alert!daemonsets_not_scheduled!CRITICAL- Daemonset {daemonset} is missing to be scheduled in some nodes!OK- All daemonset scheduling is as desired
+          check_interval: 1
+      - check_deployment_replicas_unavailable:
+          use: generic-service
+          hostgroup_name: prometheus-hosts
+          service_description: "Deployment_replicas-unavailable"
+          check_command: check_prom_alert!deployment_replicas_unavailable!CRITICAL- Deployment {deployment} has less than desired replicas!OK- All deployments have desired replicas
+          check_interval: 1
+      - check_deployment_rollingupdate_replicas_unavailable:
+          use: generic-service
+          hostgroup_name: prometheus-hosts
+          service_description: "RollingUpdate_Deployment-replicas-unavailable"
+          check_command: check_prom_alert!rollingupdate_deployment_replica_less_than_spec_max_unavailable!CRITICAL- Deployment {deployment} has less than desired replicas during a rolling update!OK- All deployments have desired replicas
+          check_interval: 1
+      - check_job_status_failed:
+          use: generic-service
+          hostgroup_name: prometheus-hosts
+          service_description: "Job_status-failed"
+          check_command: check_prom_alert!job_status_failed!CRITICAL- Job {exported_job} has failed!OK- No Job failures
+          check_interval: 1
+      - check_pod_status_pending:
+          use: generic-service
+          hostgroup_name: prometheus-hosts
+          service_description: "Pod_status-pending"
+          check_command: check_prom_alert!pod_status_pending!CRITICAL- Pod {pod} in namespace {namespace} has been in pending status for more than 10 minutes!OK- No pods in pending status
+          check_interval: 1
+      - check_pod_status_error_image_pull:
+          use: generic-service
+          hostgroup_name: prometheus-hosts
+          service_description: "Pod_status-error-image-pull"
+          check_command: check_prom_alert!pod_status_error_image_pull!CRITICAL- Pod {pod} in namespace {namespace} has been in errpr status of ErrImagePull for more than 10 minutes!OK- No pods in error status
+          check_interval: 1
+      - check_replicaset_missing_replicas:
+          use: generic-service
+          hostgroup_name: prometheus-hosts
+          service_description: "Replicaset_missing-replicas"
+          check_command: check_prom_alert!replicaset_missing_replicas!CRITICAL- Replicaset {replicaset} is missing replicas!OK- No replicas missing from replicaset
+          check_interval: 1
+      - check_pod_container_terminated:
+          use: generic-service
+          hostgroup_name: prometheus-hosts
+          service_description: "Pod_status-container-terminated"
+          check_command: check_prom_alert!pod_container_terminated!CRITICAL- pod {pod} in namespace {namespace} has a container in terminated state!OK- pod container status looks good
+          check_interval: 1
+      - check_glance_api:
+          use: generic-service
+          hostgroup_name: prometheus-hosts
+          service_description: "API_glance"
+          check_command: check_prom_alert!glance_api_availability!CRITICAL- Glance API at {url} is not available!OK- Glance API is available
+          check_interval: 1
+      - check_nova_api:
+          use: generic-service
+          hostgroup_name: prometheus-hosts
+          service_description: "API_nova"
+          check_command: check_prom_alert!nova_api_availability!CRITICAL- Nova API at {url} is not available!OK- Nova API is available
+          check_interval: 1
+      - check_keystone_api:
+          use: generic-service
+          hostgroup_name: prometheus-hosts
+          service_description: "API_keystone"
+          check_command: check_prom_alert!keystone_api_availability!CRITICAL- Keystone API at {url} is not available!OK- Keystone API is available
+          check_interval: 1
+      - check_neutron_api:
+          use: generic-service
+          hostgroup_name: prometheus-hosts
+          service_description: "API_neutron"
+          check_command: check_prom_alert!neutron_api_availability!CRITICAL- Neutron API at {url} is not available!OK- Neutron API is available
+          check_interval: 1
+      - check_swift_api:
+          use: generic-service
+          hostgroup_name: prometheus-hosts
+          service_description: "API_swift"
+          check_command: check_prom_alert!swift_api_availability!CRITICAL- Swift API at {url} is not available!OK- Swift API is available
+          check_interval: 1
+      - check_service_nova_compute:
+          use: generic-service
+          hostgroup_name: prometheus-hosts
+          service_description: "Service_nova-compute"
+          check_command: check_prom_alert!openstack_nova_compute_disabled!CRITICAL- nova-compute services are disabled on certain hosts!OK- nova-compute services are enabled on all hosts
+          check_interval: 1
+      - check_service_nova_conductor:
+          use: generic-service
+          hostgroup_name: prometheus-hosts
+          service_description: "Service_nova-conductor"
+          check_command: check_prom_alert!openstack_nova_conductor_disabled!CRITICAL- nova-conductor services are disabled on certain hosts!OK- nova-conductor services are enabled on all hosts
+          check_interval: 1
+      - check_service_nova_consoleauth:
+          use: generic-service
+          hostgroup_name: prometheus-hosts
+          service_description: "Service_nova-consoleauth"
+          check_command: check_prom_alert!openstack_nova_consoleauth_disabled!CRITICAL- nova-consoleauth services are disabled on certain hosts!OK- nova-consoleauth services are enabled on all hosts
+          check_interval: 1
+      - check_service_nova_scheduler:
+          use: generic-service
+          hostgroup_name: prometheus-hosts
+          service_description: "Service_nova-scheduler"
+          check_command: check_prom_alert!openstack_nova_scheduler_disabled!CRITICAL- nova-scheduler services are disabled on certain hosts!OK- nova-scheduler services are enabled on all hosts
+          check_interval: 1
+      - check_ceph_monitor_quorum:
+          use: generic-service
+          hostgroup_name: prometheus-hosts
+          service_description: "CEPH_quorum"
+          check_command: check_prom_alert!ceph_monitor_quorum_low!CRITICAL- ceph monitor quorum does not exist!OK- ceph monitor quorum exists
+          check_interval: 1
+      - check_ceph_storage_usage:
+          use: generic-service
+          hostgroup_name: prometheus-hosts
+          service_description: "CEPH_storage-usage"
+          check_command: check_prom_alert!ceph_cluster_usage_high!CRITICAL- ceph cluster storage is more than 80 percent!OK- ceph storage is less than 80 percent
+          check_interval: 1
+      - check_ceph_pgs_degradation:
+          use: generic-service
+          hostgroup_name: prometheus-hosts
+          service_description: "CEPH_PGs-degradation"
+          check_command: check_prom_alert!ceph_placement_group_degrade_pct_high!CRITICAL- ceph cluster PGs down are more than 80 percent!OK- ceph PG degradation is less than 80 percent
+          check_interval: 1
+      - check_ceph_osds_down:
+          use: generic-service
+          hostgroup_name: prometheus-hosts
+          service_description: "CEPH_OSDs-down"
+          check_command: check_prom_alert!ceph_osd_down_pct_high!CRITICAL- CEPH OSDs down are more than 80 percent!OK- CEPH OSDs down is less than 80 percent
+          check_interval: 1
+      - check_ceph_monitor_clock_skew:
+          use: generic-service
+          hostgroup_name: prometheus-hosts
+          service_description: "CEPH_Clock-skew"
+          check_command: check_prom_alert!ceph_monitor_clock_skew_high!CRITICAL- CEPH clock skew is more than 2 seconds!OK- CEPH clock skew is less than 2 seconds
+          check_interval: 1
+      - check_fluentd_up:
+          use: generic-service
+          hostgroup_name: prometheus-hosts
+          service_description: "Fluentd_status"
+          check_command: check_prom_alert!fluentd_not_running!CRITICAL- fluentd is not running on {instance}!OK- Flunetd is working on all nodes
+          check_interval: 1
+      - check_etcd_high_http_deletes_failed:
+          use: generic-service
+          hostgroup_name: prometheus-hosts
+          service_description: ETCD_high-http-delete-failures
+          check_command: check_prom_alert_with_labels!etcd_HighNumberOfFailedHTTPRequests!method="DELETE"!CRITICAL- ETCD {instance} has a high HTTP DELETE operations failure!OK- ETCD at {instance} has low or no failures for HTTP DELETE
+          check_interval: 1
+      - check_etcd_high_http_get_failed:
+          use: generic-service
+          hostgroup_name: prometheus-hosts
+          service_description: ETCD_high-http-get-failures
+          check_command: check_prom_alert_with_labels!etcd_HighNumberOfFailedHTTPRequests!method=~"GET|QGET"!CRITICAL- ETCD {instance} has a high HTTP GET operations failure!OK- ETCD at {instance} has low or no failures for HTTP GET
+          check_interval: 1
+      - check_etcd_high_http_updates_failed:
+          use: generic-service
+          hostgroup_name: prometheus-hosts
+          service_description: ETCD_high-http-update-failures
+          check_command: check_prom_alert_with_labels!etcd_HighNumberOfFailedHTTPRequests!method="PUT"!CRITICAL- ETCD {instance} has a high HTTP PUT operations failure!OK- ETCD at {instance} has low or no failures for HTTP PUT
+          check_interval: 1
+      - check_felix_iptables_save_errors:
+          use: generic-service
+          service_description: Calico_iptables-save-errors
+          check_command: check_prom_alert!calico_iptable_save_errors_high_1h!CRITICAL- Felix instance {instance} has seen high iptable save errors within the last hour!OK- iptables save errors are none or low
+          hostgroup_name: prometheus-hosts
+      - check_felix_ipset_errors:
+          use: generic-service
+          service_description: Calico_ipset-errors
+          check_command: check_prom_alert!calico_ipset_errors_high_1h!CRITICAL- Felix instance {instance} has seen high ipset errors within the last hour!OK- ipset errors are none or low
+          hostgroup_name: prometheus-hosts
+      - check_felix_int_dataplane_iface_msg_batch_size:
+          use: generic-service
+          service_description: Calico_interface-message-batch-size
+          check_command: check_prom_alert!calico_datapane_iface_msg_batch_size_high_5m!CRITICAL- Felix instance {instance} has seen a high value of dataplane interface message batch size!OK- dataplane interface message batch size are low
+          hostgroup_name: prometheus-hosts
+      - check_felix_int_dataplane_addr_msg_batch_size:
+          use: generic-service
+          service_description: Calico_address-message-batch-size
+          check_command: check_prom_alert!calico_datapane_address_msg_batch_size_high_5m!CRITICAL- Felix instance {instance} has seen a high value of dataplane address message batch size!OK- dataplane address message batch size are low
+          hostgroup_name: prometheus-hosts
+      - check_felix_int_dataplane_failures:
+          use: generic-service
+          service_description: Calico_datapane_failures_high
+          check_command: check_prom_alert!calico_datapane_failures_high_1h!CRITICAL- Felix instance {instance} has seen high dataplane failures within the last hour!OK- datapane failures are none or low
+          hostgroup_name: prometheus-hosts
+      - check_filespace_mounts-usage-rate-fullin4hrs:
+          use: generic-service
+          hostgroup_name: base-os
+          service_description: "Filespace_mounts-usage-rate-fullin4hrs"
+          check_command: check_filespace_mounts-usage-rate-fullin4hrs
+          check_interval: 1
+      - check_filespace_mounts-usage:
+          use: generic-service
+          hostgroup_name: base-os
+          service_description: "Filespace_mounts-usage"
+          check_command: check_filespace_mounts-usage
+          check_interval: 1
+      - check_node_loadavg:
+          use: generic-service
+          service_description: CPU_Load-average
+          check_command: check_node_loadavg
+          hostgroup_name: base-os
+      - check_node_cpu_util:
+          use: generic-service
+          service_description: CPU_utilization
+          check_command: check_node_cpu_util
+          hostgroup_name: base-os
+      - check_network_connections:
+          use: generic-service
+          service_description: Network_connections
+          check_command: check_network_connections
+          hostgroup_name: base-os
+      - check_memory_usage:
+          use: generic-service
+          service_description: Memory_usage
+          check_command: check_memory_usage
+          hostgroup_name: base-os
+      - check_disk_write_latency:
+          use: generic-service
+          service_description: Disk_write-latency
+          check_command: check_disk_write_latency
+          hostgroup_name: base-os
+      - check_disk_read_latency:
+          use: generic-service
+          service_description: Disk_read-latency
+          check_command: check_disk_read_latency
+          hostgroup_name: base-os
+      - check_entropy_availability:
+          use: generic-service
+          service_description: Entropy_availability
+          check_command: check_entropy_availability
+          hostgroup_name: base-os
+      - check_filedescriptor_usage_rate:
+          use: generic-service
+          service_description: FileDescriptors_usage-rate-high
+          check_command: check_filedescriptor_usage_rate
+          hostgroup_name: base-os
+      - check_hwmon_high_cpu_temp:
+          use: generic-service
+          service_description: HW_cpu-temp-high
+          check_command: check_hwmon_high_cpu_temp
+          hostgroup_name: base-os
+      - check_network_receive_drop_high:
+          use: generic-service
+          service_description: Network_receive-drop-high
+          check_command: check_network_receive_drop_high
+          hostgroup_name: base-os
+      - check_network_transmit_drop_high:
+          use: generic-service
+          service_description: Network_transmit-drop-high
+          check_command: check_network_transmit_drop_high
+          hostgroup_name: base-os
+      - check_network_receive_errors_high:
+          use: generic-service
+          service_description: Network_receive-errors-high
+          check_command: check_network_receive_errors_high
+          hostgroup_name: base-os
+      - check_network_transmit_errors_high:
+          use: generic-service
+          service_description: Network_transmit-errors-high
+          check_command: check_network_transmit_errors_high
+          hostgroup_name: base-os
+      - check_vmstat_paging_rate:
+          use: generic-service
+          service_description: Memory_vmstat-paging-rate
+          check_command: check_vmstat_paging_rate
+          hostgroup_name: base-os
+      - check_xfs_block_allocation:
+          use: generic-service
+          service_description: XFS_block-allocation
+          check_command: check_xfs_block_allocation
+          hostgroup_name: base-os
+      - check_network_bond_status:
+          use: generic-service
+          service_description: Network_bondstatus
+          check_command: check_network_bond_status
+          hostgroup_name: base-os
+      - check_numa_memory_usage:
+          use: generic-service
+          service_description: Memory_NUMA-usage
+          check_command: check_numa_memory_usage
+          hostgroup_name: base-os
+      - check_ntp_sync:
+          use: generic-service
+          service_description: NTP_sync
+          check_command: check_ntp_sync
+          hostgroup_name: base-os
     config:
       log_file: /opt/nagios/var/nagios.log
       cfg_file:
@@ -195,6 +565,7 @@ conf:
         - /opt/nagios/etc/objects/contacts.cfg
         - /opt/nagios/etc/objects/timeperiods.cfg
         - /opt/nagios/etc/objects/templates.cfg
+        - /opt/nagios/etc/objects/prometheus_discovery_objects.cfg
       object_cache_file: /opt/nagios/var/objects.cache
       precached_object_file: /opt/nagios/var/objects.precache
       resource_file: /opt/nagios/etc/resource.cfg
@@ -204,7 +575,7 @@ conf:
       nagios_group: nagios
       check_external_commands: 1
       command_file: /opt/nagios/var/rw/nagios.cmd
-      lock_file: /opt/nagios/var/nagios.lock
+      lock_file: /var/run/nagios.lock
       temp_file: /opt/nagios/var/nagios.tmp
       temp_path: /tmp
       event_broker_options: -1
@@ -290,4 +661,4 @@ conf:
       debug_verbosity: 1
       debug_file: /opt/nagios/var/nagios.debug
       max_debug_file_size: 1000000
-      allow_empty_hostgroup_assignment: 0
+      allow_empty_hostgroup_assignment: 1
