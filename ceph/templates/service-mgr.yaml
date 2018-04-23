@@ -28,9 +28,15 @@ metadata:
 {{- end }}
 spec:
   ports:
-  - port: {{ .Values.network.port.mgr }}
+  - name: ceph-mgr
+    port: {{ tuple "ceph_mgr" "internal" "mgr" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
     protocol: TCP
-    targetPort: {{ .Values.network.port.mgr }}
+    targetPort: {{ tuple "ceph_mgr" "internal" "mgr" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+  {{ if (has "prometheus" .Values.ceph_mgr_enabled_modules) }}
+  - name: metrics
+    protocol: TCP
+    port: {{ tuple "ceph_mgr" "internal" "metrics" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+  {{ end }}
   selector:
 {{ tuple $envAll "ceph" "mgr" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 {{- end }}
