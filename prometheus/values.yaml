@@ -1309,3 +1309,183 @@ conf:
             annotations:
               description: 'Felix instance {{ $labels.instance }} has seen {{ $value }} iptable restore errors within the last hour'
               summary: 'A high number of iptable restore errors within Felix are happening'
+      rabbitmq:
+        groups:
+        - name: rabbitmq.rules
+          rules:
+          - alert: rabbitmq_network_pratitions_detected
+            expr: min(partitions) by(instance) > 0
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              description: 'RabbitMQ at {{ $labels.instance }} has {{ $value }} partitions'
+              summary: 'RabbitMQ Network partitions detected'
+          - alert: rabbitmq_down
+            expr:  min(rabbitmq_up) by(instance) != 1
+            for: 10m
+            labels:
+              severity: page
+            annotations:
+              description: 'RabbitMQ Server instance {{ $labels.instance }} is down'
+              summary: 'The RabbitMQ Server instance at {{ $labels.instance }} has been down the last 10 mins'
+          - alert: rabbitmq_file_descriptor_usage_high
+            expr:  fd_used * 100 /fd_total > 80
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              description: 'RabbitMQ Server instance {{ $labels.instance }} has high file descriptor usage of {{ $value }} percent.'
+              summary: 'RabbitMQ file descriptors usage is high for last 10 mins'
+          - alert: rabbitmq_node_disk_free_alarm
+            expr:  node_disk_free_alarm > 0
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              description: 'RabbitMQ Server instance {{ $labels.instance }} has low disk free space available.'
+              summary: 'RabbitMQ disk space usage is high'
+          - alert: rabbitmq_node_memory_alarm
+            expr:  node_mem_alarm > 0
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              description: 'RabbitMQ Server instance {{ $labels.instance }} has low free memory.'
+              summary: 'RabbitMQ memory usage is high'
+          - alert: rabbitmq_less_than_3_nodes
+            expr:  running < 3
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              description: 'RabbitMQ Server has less than 3 nodes running.'
+              summary: 'RabbitMQ server is at risk of loosing data'
+          - alert: rabbitmq_queue_messages_returned_high
+            expr:  queue_messages_returned_total/queue_messages_published_total * 100 > 50
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              description: 'RabbitMQ Server is returing more than 50 percent of messages received.'
+              summary: 'RabbitMQ server is returning more than 50 percent of messages received.'
+          - alert: rabbitmq_consumers_low_utilization
+            expr:  queue_consumer_utilisation < .4
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              description: 'RabbitMQ consumers message consumption speed is low'
+              summary: 'RabbitMQ consumers message consumption speed is low'
+          - alert: rabbitmq_high_message_load
+            expr:  queue_messages_total > 17000 or increase(queue_messages_total[5m]) > 4000
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              description: 'RabbitMQ has high message load. Total Queue depth > 17000 or growth more than 4000 messages.'
+              summary: 'RabbitMQ has high message load'
+      elasticsearch:
+        groups:
+        - name: elasticsearch.rules
+          rules:
+          - alert: es_high_process_open_files_count
+            expr: sum(elasticsearch_process_open_files_count) by (host) > 64000
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              description: 'Elasticsearch at {{ $labels.host }} has more than 64000 process open file count.'
+              summary: 'Elasticsearch has a very high process open file count.'
+          - alert: es_high_process_cpu_percent
+            expr: elasticsearch_process_cpu_percent > 95
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              description: 'Elasticsearch at {{ $labels.instance }} has high process cpu percent of {{ $value }}.'
+              summary: 'Elasticsearch process cpu usage is more than 95 percent.'
+          - alert: es_fs_usage_high
+            expr: (100 * (elasticsearch_filesystem_data_size_bytes - elasticsearch_filesystem_data_free_bytes) / elasticsearch_filesystem_data_size_bytes) > 80
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              description: 'Elasticsearch at {{ $labels.instance }} has filesystem usage of {{ $value }}.'
+              summary: 'Elasticsearch filesystem usage is high.'
+          - alert: es_unassigned_shards
+            expr: elasticsearch_cluster_health_unassigned_shards > 0
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              description: 'Elasticsearch has {{ $value }} unassigned shards.'
+              summary: 'Elasticsearch has unassigned shards and hence a unhealthy cluster state.'
+          - alert: es_cluster_health_timed_out
+            expr: elasticsearch_cluster_health_timed_out > 0
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              description: 'Elasticsearch cluster health status call timedout {{ $value }} times.'
+              summary: 'Elasticsearch cluster health status calls are timing out.'
+          - alert: es_cluster_health_status_alert
+            expr: elasticsearch_cluster_health_status > 0
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              description: 'Elasticsearch cluster health status is not green. One or more shards or replicas are unallocated.'
+              summary: 'Elasticsearch cluster health status is not green.'
+          - alert: es_cluster_health_too_few_nodes_running
+            expr: elasticsearch_cluster_health_number_of_nodes < 3
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              description: 'There are only {{$value}} < 3 ElasticSearch nodes running'
+              summary: 'ElasticSearch running on less than 3 nodes'
+          - alert: es_cluster_health_too_few_data_nodes_running
+            expr: elasticsearch_cluster_health_number_of_data_nodes < 3
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              description: 'There are only {{$value}} < 3 ElasticSearch data nodes running'
+              summary: 'ElasticSearch running on less than 3 data nodes'
+      mariadb:
+        groups:
+        - name: mariadb.rules
+          rules:
+          - alert: mariadb_table_lock_wait_high
+            expr: 100 * mysql_global_status_table_locks_waited/(mysql_global_status_table_locks_waited + mysql_global_status_table_locks_immediate) > 30
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              description: 'Mariadb has high table lock waits of {{ $value }} percentage'
+              summary: 'Mariadb table lock waits are high'
+          - alert: mariadb_node_not_ready
+            expr:  mysql_global_status_wsrep_ready != 1
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              description: '{{$labels.job}} on {{$labels.instance}} is not ready.'
+              summary: 'Galera cluster node not ready'
+          - alert: mariadb_galera_node_out_of_sync
+            expr:  mysql_global_status_wsrep_local_state != 4 AND mysql_global_variables_wsrep_desync == 0
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              description: '{{$labels.job}} on {{$labels.instance}} is not in sync ({{$value}} != 4)'
+              summary: 'Galera cluster node out of sync'
+          - alert: mariadb_innodb_replication_fallen_behind
+            expr:  (mysql_global_variables_innodb_replication_delay > 30) AND on (instance) (predict_linear(mysql_global_variables_innodb_replication_delay[5m], 60*2) > 0)
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              description: 'The mysql innodb replication has fallen behind and is not recovering'
+              summary: 'MySQL innodb replication is lagging'
