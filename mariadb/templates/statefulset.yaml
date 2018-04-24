@@ -62,8 +62,6 @@ spec:
           image: {{ .Values.images.tags.mariadb }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
 {{ tuple $envAll $envAll.Values.pod.resources.server | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-          command:
-            - /tmp/start.sh
           env:
             - name: POD_IP
               valueFrom:
@@ -90,6 +88,13 @@ spec:
                 secretKeyRef:
                   name: mariadb-db-root-password
                   key: MYSQL_ROOT_PASSWORD
+          command:
+            - /tmp/start.sh
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /tmp/stop.sh
           readinessProbe:
             initialDelaySeconds: 30
             periodSeconds: 30
@@ -101,12 +106,16 @@ spec:
             - name: mycnfd
               mountPath: /etc/mysql/conf.d
             - name: mariadb-bin
-              mountPath: /tmp/readiness.sh
-              subPath: readiness.sh
-              readOnly: true
-            - name: mariadb-bin
               mountPath: /tmp/start.sh
               subPath: start.sh
+              readOnly: true
+            - name: mariadb-bin
+              mountPath: /tmp/stop.sh
+              subPath: stop.sh
+              readOnly: true
+            - name: mariadb-bin
+              mountPath: /tmp/readiness.sh
+              subPath: readiness.sh
               readOnly: true
             - name: mariadb-etc
               mountPath: /etc/mysql/my.cnf
