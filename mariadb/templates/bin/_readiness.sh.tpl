@@ -16,40 +16,37 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-set -o pipefail
+set -e
 
-MYSQL="mysql --defaults-file=/etc/mysql/admin_user.cnf --host=localhost"
+MYSQL="mysql \
+  --defaults-file=/etc/mysql/admin_user.cnf \
+  --host=localhost \
+  --connect-timeout 2"
 
-if [ ! $($MYSQL -e 'select 1') ]; then
-    echo "Could not SELECT 1" 1>&2
+mysql_status_query () {
+  STATUS=$1
+  $MYSQL -e "show status like \"${STATUS}\"" | \
+    awk "/${STATUS}/ { print \$NF; exit }"
+}
+
+if ! $MYSQL -e 'select 1' > /dev/null 2>&1 ; then
     exit 1
 fi
 
-# Set this late, so that we can give a nicer error message above.
-set -o errexit
-
-CLUSTER_STATUS=$($MYSQL -e "show status like 'wsrep_cluster_status'" | tail -n 1 | cut -f 2)
-if [ "x${CLUSTER_STATUS}" != "xPrimary" ]; then
-    echo "Not in primary cluster: '${CLUSTER_STATUS}'" 1>&2
+if [ "x$(mysql_status_query wsrep_cluster_status)" != "xPrimary" ]; then
+    # Not in primary cluster
+    exit 1
+fi
+if [ "x$(mysql_status_query wsrep_ready)" != "xON" ]; then
+    # WSREP not ready
+    exit 1
+fi
+if [ "x$(mysql_status_query wsrep_local_state_comment)" != "xSynced" ]; then
+    # WSREP not synced
     exit 1
 fi
 
-WSREP_READY=$($MYSQL -e "show status like 'wsrep_ready'" | tail -n 1 | cut -f 2)
-if [ "x${WSREP_READY}" != "xON" ]; then
-    echo "WSREP not ready: '${WSREP_READY}'" 1>&2
-    exit 1
-fi
-
-WSREP_STATE=$($MYSQL -e "show status like 'wsrep_local_state_comment'" | tail -n 1 | cut -f 2)
-if [ "x${WSREP_STATE}" != "xSynced" ]; then
-    echo "WSREP not synced: '${WSREP_STATE}'" 1>&2
-    exit 1
-fi
-
-echo "${POD_NAME} ready." 1>&2
-
+# If we made it this far, its safe to remove the bootstrap file if present
 if [ -e ${BOOTSTRAP_FILE} ]; then
   rm -f ${BOOTSTRAP_FILE}
 fi
-
-exit 0
