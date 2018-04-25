@@ -53,6 +53,12 @@ function create_pool () {
   fi
   ceph --cluster "${CLUSTER}" osd pool set "${POOL_NAME}" size ${POOL_REPLICATION}
   ceph --cluster "${CLUSTER}" osd pool set "${POOL_NAME}" crush_rule "${POOL_CRUSH_RULE}"
+  for PG_PARAM in pg_num pgp_num; do
+    CURRENT_PG_VALUE=$(ceph --cluster ceph osd pool get "${POOL_NAME}" "${PG_PARAM}" | awk "/^${PG_PARAM}:/ { print \$NF }")
+    if [ "${POOL_PLACEMENT_GROUPS}" -gt "${CURRENT_PG_VALUE}" ]; then
+      ceph --cluster ceph osd pool set "${POOL_NAME}" "${PG_PARAM}" "${POOL_PLACEMENT_GROUPS}"
+    fi
+  done
 }
 
 function manage_pool () {
