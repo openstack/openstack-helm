@@ -46,9 +46,9 @@ spec:
         imagePullPolicy: {{ .Values.images.pull_policy }}
         env:
         - name: LDAP_DOMAIN
-          value: {{ .Values.openldap.domain }}
+          value: {{ .Values.endpoints.ldap.auth.domainname }}
         - name: LDAP_ADMIN_PASSWORD
-          value: {{ .Values.openldap.password }}
+          value: {{ .Values.endpoints.ldap.auth.password }}
         ports:
         - containerPort: {{ tuple "ldap" "internal" "ldap" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
 {{ tuple $envAll $envAll.Values.pod.resources.server | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
@@ -57,31 +57,31 @@ spec:
           mountPath: /var/lib/ldap
         - name: ldap-config
           mountPath: /etc/ldap/slapd.d
-{{- if not .Values.storage.pvc.enabled }}
+{{- if not .Values.volume.enabled }}
       volumes:
       - name: ldap-data
         hostPath:
-          path: {{ .Values.storage.host.data_path }}
+          path: {{ .Values.volume.host.data_path }}
       - name: ldap-config
         hostPath:
-          path: {{ .Values.storage.host.config_path }}
+          path: {{ .Values.volume.host.config_path }}
 {{- else }}
   volumeClaimTemplates:
   - metadata:
       name: ldap-data
     spec:
       accessModes: [ "ReadWriteOnce" ]
-      storageClassName: {{ .Values.storage.pvc.class_name }}
       resources:
         requests:
-          storage: {{ .Values.storage.pvc.size }}
+          storage: {{ .Values.volume.size }}
+      storageClassName: {{ .Values.volume.class_name }}
   - metadata:
       name: ldap-config
     spec:
       accessModes: [ "ReadWriteOnce" ]
-      storageClassName: {{ .Values.storage.pvc.class_name }}
       resources:
         requests:
-          storage: {{ .Values.storage.pvc.size }}
+          storage: {{ .Values.volume.size }}
+      storageClassName: {{ .Values.volume.class_name }}
 {{- end }}
 {{- end }}

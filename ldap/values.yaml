@@ -16,6 +16,23 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
+release_group: null
+
+images:
+  tags:
+    bootstrap: "docker.io/osixia/openldap:1.2.0"
+    ldap: "docker.io/osixia/openldap:1.2.0"
+    dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.3.0
+  pull_policy: IfNotPresent
+
+labels:
+  server:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  job:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+
 pod:
   affinity:
     anti:
@@ -55,13 +72,6 @@ pod:
       init_container: null
       ldap_data_load:
 
-images:
-  tags:
-    bootstrap: "docker.io/osixia/openldap:1.2.0"
-    ldap: "docker.io/osixia/openldap:1.2.0"
-    dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.3.1
-  pull_policy: IfNotPresent
-
 dependencies:
   static:
     ldap:
@@ -77,22 +87,13 @@ dependencies:
         - endpoint: internal
           service: ldap
 
-storage:
-  pvc:
-    enabled: true
-    size: 2Gi
-    class_name: general
+volume:
+  enabled: true
+  size: 2Gi
+  class_name: general
   host:
     data_path: /data/openstack-helm/ldap
     config_path: /data/openstack-helm/config
-
-labels:
-  server:
-    node_selector_key: openstack-control-plane
-    node_selector_value: enabled
-  job:
-    node_selector_key: openstack-control-plane
-    node_selector_value: enabled
 
 bootstrap:
   enabled: false
@@ -109,6 +110,10 @@ endpoints:
     port:
       ldap:
         default: 389
+    auth:
+      username: admin
+      domainname: cluster.local
+      password: password
 
 data:
   sample: |
@@ -180,15 +185,6 @@ data:
     cn: red
     description: Red Team
     memberUID: uid=alice,ou=People,dc=cluster,dc=local
-
-secrets:
-  identity:
-    admin: admin
-    ldap: ldap
-
-openldap:
-  domain: cluster.local
-  password: password
 
 manifests:
   configmap_bin: true
