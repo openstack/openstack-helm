@@ -20,9 +20,9 @@ set -ex
 COMMAND="${@:-start}"
 
 OVS_DB=/run/openvswitch/conf.db
-OVS_SOCKET=/run/openvswitch/db.sock
 OVS_SCHEMA=/usr/share/openvswitch/vswitch.ovsschema
 OVS_PID=/run/openvswitch/ovsdb-server.pid
+OVS_SOCKET=/run/openvswitch/db.sock
 
 function start () {
   mkdir -p "$(dirname ${OVS_DB})"
@@ -40,7 +40,11 @@ function start () {
           -vconsole:err \
           -vconsole:info \
           --pidfile=${OVS_PID} \
-          --remote=punix:${OVS_SOCKET}
+          --remote=punix:${OVS_SOCKET} \
+          --remote=db:Open_vSwitch,Open_vSwitch,manager_options \
+          --private-key=db:Open_vSwitch,SSL,private_key \
+          --certificate=db:Open_vSwitch,SSL,certificate \
+          --bootstrap-ca-cert=db:Open_vSwitch,SSL,ca_cert
 }
 
 function stop () {
