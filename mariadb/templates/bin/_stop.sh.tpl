@@ -1,3 +1,4 @@
+#!/bin/bash
 {{/*
 Copyright 2017 The Openstack-Helm Authors.
 
@@ -14,18 +15,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if .Values.manifests.configmap_bin }}
-{{- $envAll := . }}
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: mariadb-bin
-data:
-  readiness.sh: |
-{{ tuple "bin/_readiness.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
-  start.sh: |
-{{ tuple "bin/_start.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
-  stop.sh: |
-{{ tuple "bin/_stop.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
-{{- end }}
+set -xe
+
+exec mysqladmin \
+    --defaults-file=/etc/mysql/admin_user.cnf \
+    --host=localhost \
+    --connect-timeout 2 \
+    shutdown
