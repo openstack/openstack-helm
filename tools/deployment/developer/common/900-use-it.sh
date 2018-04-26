@@ -96,3 +96,30 @@ ssh -i ${HOME}/.ssh/osh_key cirros@${FLOATING_IP} ping -q -c 1 -W 2 ${OSH_BR_EX_
 
 # Check the VM can reach the metadata server
 ssh -i ${HOME}/.ssh/osh_key cirros@${FLOATING_IP} curl --verbose --connect-timeout 5 169.254.169.254
+
+# Check to see if cinder has been deployed, if it has then perform a volume attach.
+if helm ls --short | grep -q "^cinder$"; then
+  INSTANCE_ID=$(openstack stack output show \
+      heat-basic-vm-deployment \
+      instance_uuid \
+      -f value -c output_value)
+
+  # Get the the devices that are present on the instance
+  DEVS_PRE_ATTACH=$(mktemp)
+  ssh -i ${HOME}/.ssh/osh_key cirros@${FLOATING_IP} lsblk > ${DEVS_PRE_ATTACH}
+
+  # Create and attach a block device to the instance
+  openstack stack create --wait \
+    --parameter instance_uuid=${INSTANCE_ID} \
+    -t ./tools/gate/files/heat-vm-volume-attach.yaml \
+    heat-vm-volume-attach
+
+  # Get the the devices that are present on the instance
+  DEVS_POST_ATTACH=$(mktemp)
+  ssh -i ${HOME}/.ssh/osh_key cirros@${FLOATING_IP} lsblk > ${DEVS_POST_ATTACH}
+
+  # Check that we have the expected number of extra devices on the instance post attach
+  if ! [ "$(comm -13 ${DEVS_PRE_ATTACH} ${DEVS_POST_ATTACH} | wc -l)" -eq "1" ]; then
+    exit 1
+  fi
+fi
