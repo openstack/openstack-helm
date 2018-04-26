@@ -40,72 +40,88 @@ spec:
         {{ .Values.labels.server.node_selector_key }}: {{ .Values.labels.server.node_selector_value }}
       initContainers:
 {{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
-      containers:
-      - name: mongodb
-        image: {{ .Values.images.tags.mongodb }}
-        imagePullPolicy: {{ .Values.images.pull_policy }}
-        ports:
-        - containerPort: {{ tuple "mongodb" "internal" "mongodb" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-        env:
-          - name: ADMIN_PASS
-            valueFrom:
-              secretKeyRef:
-                name: mongodb-root-creds
-                key: MONGODB_ROOT_PASSWORD
-          - name: ADMIN_USER
-            valueFrom:
-              secretKeyRef:
-                name: mongodb-root-creds
-                key: MONGODB_ROOT_USERNAME
-        command:
-          - /tmp/start.sh
-        livenessProbe:
-          exec:
-            command:
-            - mongo
-            - --eval
-            - "db.adminCommand('ping')"
-          initialDelaySeconds: 20
-          timeoutSeconds: 5
-        readinessProbe:
-          exec:
-            command:
-            - mongo
-            - --eval
-            - "db.adminCommand('ping')"
-          initialDelaySeconds: 20
-          timeoutSeconds: 5
+{{- if $envAll.Values.volume.chown_on_start }}
+        - name: mongodb-perms
+          image: {{ $envAll.Values.images.tags.mongodb }}
+          imagePullPolicy: {{ $envAll.Values.images.pull_policy }}
+          securityContext:
+            runAsUser: 0
 {{ tuple $envAll $envAll.Values.pod.resources.server | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-        volumeMounts:
-          - name: mongodb-bin
-            mountPath: /tmp/start.sh
-            subPath: start.sh
-            readOnly: true
-          - name: mongodb-bin
-            mountPath: /tmp/setup_admin_user.sh
-            subPath: setup_admin_user.sh
-            readOnly: true
-          - name: mongodb-data
-            mountPath: /data/db
+          command:
+            - chown
+            - -R
+            - "mongodb:"
+            - {{ $envAll.Values.volume.host.host_path }}
+          volumeMounts:
+            - name: mongodb-data
+              mountPath: {{ $envAll.Values.volume.host.host_path }}
+{{- end }}
+      containers:
+        - name: mongodb
+          image: {{ .Values.images.tags.mongodb }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+          ports:
+          - containerPort: {{ tuple "mongodb" "internal" "mongodb" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+          env:
+            - name: ADMIN_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: mongodb-root-creds
+                  key: MONGODB_ROOT_PASSWORD
+            - name: ADMIN_USER
+              valueFrom:
+                secretKeyRef:
+                  name: mongodb-root-creds
+                  key: MONGODB_ROOT_USERNAME
+          command:
+            - /tmp/start.sh
+          livenessProbe:
+            exec:
+              command:
+              - mongo
+              - --eval
+              - "db.adminCommand('ping')"
+            initialDelaySeconds: 20
+            timeoutSeconds: 5
+          readinessProbe:
+            exec:
+              command:
+              - mongo
+              - --eval
+              - "db.adminCommand('ping')"
+            initialDelaySeconds: 20
+            timeoutSeconds: 5
+{{ tuple $envAll $envAll.Values.pod.resources.server | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          volumeMounts:
+            - name: mongodb-bin
+              mountPath: /tmp/start.sh
+              subPath: start.sh
+              readOnly: true
+            - name: mongodb-bin
+              mountPath: /tmp/setup_admin_user.sh
+              subPath: setup_admin_user.sh
+              readOnly: true
+            - name: mongodb-data
+              mountPath: /data/db
       volumes:
       - name: mongodb-bin
         configMap:
           name: mongodb-bin
           defaultMode: 0555
-{{- if not .Values.storage.pvc.enabled }}
+{{- if not .Values.volume.enabled }}
       - name: mongodb-data
         hostPath:
-          path: {{ .Values.storage.host.host_path }}
+          path: {{ .Values.volume.host_path }}
 {{- else }}
   volumeClaimTemplates:
   - metadata:
       name: mongodb-data
       annotations:
-        {{ .Values.storage.pvc.class_path }}: {{ .Values.storage.pvc.class_name }}
+        {{ .Values.volume.class_path }}: {{ .Values.volume.class_name }}
     spec:
       accessModes: [ "ReadWriteOnce" ]
       resources:
         requests:
-          storage: {{ .Values.storage.pvc.size }}
+          storage: {{ .Values.volume.size }}
 {{- end }}
 {{- end }}
