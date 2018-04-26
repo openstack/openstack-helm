@@ -37,6 +37,12 @@ images:
       - dep_check
       - image_repo_sync
 
+network:
+  # provide what type of network wiring will be used
+  # possible options: openvswitch, linuxbridge, sriov
+  backend:
+    - openvswitch
+
 endpoints:
   cluster_domain_suffix: cluster.local
   local_image_registry:
@@ -118,8 +124,31 @@ dependencies:
         services:
           - endpoint: node
             service: local_image_registry
+    targeted:
+      openvswitch:
+        libvirt:
+          pod:
+            - requireSameNode: true
+              labels:
+                application: neutron
+                component: neutron-ovs-agent
+      linuxbridge:
+        libvirt:
+          pod:
+            - requireSameNode: true
+              labels:
+                application: neutron
+                component: neutron-lb-agent
+      sriov:
+        libvirt:
+          pod:
+            - requireSameNode: true
+              labels:
+                application: neutron
+                component: neutron-sriov-agent
   static:
-    libvirt: null
+    libvirt:
+      services: null
     image_repo_sync:
       services:
         - endpoint: internal

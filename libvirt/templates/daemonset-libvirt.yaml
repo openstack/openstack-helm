@@ -16,12 +16,14 @@ limitations under the License.
 
 {{- if .Values.manifests.daemonset_libvirt }}
 {{- $envAll := . }}
+{{- $dependencyOpts := dict "envAll" $envAll "dependencyMixinParam" $envAll.Values.network.backend "dependencyKey" "libvirt" -}}
+{{- $_ := include "helm-toolkit.utils.dependency_resolver" $dependencyOpts | toString | fromYaml }}
 
 {{- $mounts_libvirt := .Values.pod.mounts.libvirt.libvirt }}
 {{- $mounts_libvirt_init := .Values.pod.mounts.libvirt.init_container }}
 
 {{- $serviceAccountName := "libvirt" }}
-{{ tuple $envAll "libvirt" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{ tuple $envAll "pod_dependency" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: apps/v1
 kind: DaemonSet
@@ -49,7 +51,7 @@ spec:
       hostPID: true
       dnsPolicy: ClusterFirstWithHostNet
       initContainers:
-{{ tuple $envAll "libvirt" $mounts_libvirt_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll "pod_dependency" $mounts_libvirt_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
 {{- if .Values.conf.ceph.enabled }}
         {{- if empty .Values.conf.ceph.cinder.keyring }}
         - name: ceph-admin-keyring-placement
