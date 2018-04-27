@@ -38,13 +38,20 @@ limitations under the License.
       value: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/
     - name: DEPENDENCY_SERVICE
       value: "{{ tuple $deps.services $envAll | include "helm-toolkit.utils.comma_joined_service_list" }}"
+{{- if $deps.jobs -}}
+  {{- if kindIs "string" (index $deps.jobs 0) }}
     - name: DEPENDENCY_JOBS
-      value: "{{  include "helm-toolkit.utils.joinListWithComma" $deps.jobs }}"
+      value: "{{ include "helm-toolkit.utils.joinListWithComma" $deps.jobs }}"
+  {{- else }}
+    - name: DEPENDENCY_JOBS_JSON
+      value: {{- toJson $deps.jobs | quote -}}
+  {{- end -}}
+{{- end }}
     - name: DEPENDENCY_DAEMONSET
       value: "{{  include "helm-toolkit.utils.joinListWithComma" $deps.daemonset }}"
     - name: DEPENDENCY_CONTAINER
       value: "{{  include "helm-toolkit.utils.joinListWithComma" $deps.container }}"
-    - name: DEPENDENCY_POD
+    - name: DEPENDENCY_POD_JSON
       value: {{ if $deps.pod }}{{ toJson $deps.pod | quote }}{{ else }}""{{ end }}
     - name: COMMAND
       value: "echo done"

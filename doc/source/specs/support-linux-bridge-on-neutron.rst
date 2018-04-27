@@ -99,17 +99,20 @@ updated to reflect the new kind on L2 agent:
     dependencies:
       dhcp:
         pod:
-          - labels:
+          - requireSameNode: true
+            labels:
               application: neutron
               component: neutron-lb-agent
       metadata:
         pod:
-          - labels:
+          - requireSameNode: true
+            labels:
               application: neutron
               component: neutron-lb-agent
       l3:
         pod:
-          - labels:
+          - requireSameNode: true
+            labels:
               application: neutron
               component: neutron-lb-agent
 
