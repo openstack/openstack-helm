@@ -1,1 +1,0 @@
-../common/120-kibana.sh
