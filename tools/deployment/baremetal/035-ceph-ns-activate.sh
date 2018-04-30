@@ -17,7 +17,7 @@
 set -xe
 
 #NOTE: Pull images and lint chart
-make pull-images ceph
+make pull-images ceph-client
 
 #NOTE: Deploy command
 tee /tmp/ceph-openstack-config.yaml <<EOF
@@ -51,7 +51,7 @@ conf:
     global:
       fsid: "$(cat /tmp/ceph-fs-uuid.txt)"
 EOF
-helm install ./ceph \
+helm install ./ceph-client \
   --namespace=openstack \
   --name=ceph-openstack-config \
   --values=/tmp/ceph-openstack-config.yaml

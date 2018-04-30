@@ -17,7 +17,7 @@
 set -xe
 
 #NOTE: Pull images and lint chart
-make pull-images ceph
+make pull-images ceph-client
 
 #NOTE: Deploy command
 : ${OSH_EXTRA_HELM_ARGS:=""}
@@ -49,7 +49,7 @@ conf:
     global:
       fsid: ${CEPH_FS_ID}
 EOF
-helm upgrade --install ceph-openstack-config ./ceph \
+helm upgrade --install ceph-openstack-config ./ceph-client \
   --namespace=openstack \
   --values=/tmp/ceph-openstack-config.yaml \
   ${OSH_EXTRA_HELM_ARGS} \
