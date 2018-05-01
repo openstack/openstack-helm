@@ -18,6 +18,30 @@ limitations under the License.
 
 set -ex
 
+NOVA_VERSION=$(nova-manage --version 2>&1 > /dev/null)
+
+function manage_cells () {
+  # NOTE(portdirect): check if nova fully supports cells v2, and manage
+  # accordingly. Support was complete in ocata (V14.x.x).
+  if [ "${NOVA_VERSION%%.*}" -gt "14" ]; then
+    nova-manage cell_v2 map_cell0
+    nova-manage cell_v2 list_cells | grep -q " cell1 " || \
+      nova-manage cell_v2 create_cell --name=cell1 --verbose
+  fi
+}
+
+# NOTE(portdirect): if the db has been populated we should setup cells if
+# required, otherwise we should poulate the api db, and then setup cells.
+if [ "$(nova-manage api_db version)" -gt "0" ]; then
+  manage_cells
+  nova-manage api_db sync
+else
+  nova-manage api_db sync
+  manage_cells
+fi
+
 nova-manage db sync
-nova-manage api_db sync
+
 nova-manage db online_data_migrations
+
+echo 'Finished DB migrations'
