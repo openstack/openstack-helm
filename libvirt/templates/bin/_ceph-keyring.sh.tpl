@@ -19,13 +19,21 @@ limitations under the License.
 set -ex
 export HOME=/tmp
 
-cat <<EOF > /etc/ceph/ceph.client.${CEPH_CINDER_USER}.keyring
-[client.{{ .Values.ceph.cinder_user }}]
-{{- if .Values.ceph.cinder_keyring }}
-    key = {{ .Values.ceph.cinder_keyring }}
-{{- else }}
-    key = $(cat /tmp/client-keyring)
-{{- end }}
+KEYRING=/etc/ceph/ceph.client.${CEPH_CINDER_USER}.keyring
+{{- if .Values.conf.ceph.cinder.keyring }}
+cat > ${KEYRING} <<EOF
+[client.{{ .Values.conf.ceph.cinder.user }}]
+    key = {{ .Values.conf.ceph.cinder.keyring }}
 EOF
+{{- else }}
+if ! [ "x${CEPH_CINDER_USER}" == "xadmin"]; then
+  #NOTE(Portdirect): Determine proper privs to assign keyring
+  ceph auth get-or-create client.${CEPH_CINDER_USER} \
+    mon "allow *" \
+    osd "allow *" \
+    mgr "allow *" \
+    -o ${KEYRING}
 
-exit 0
+  rm -f /etc/ceph/ceph.client.admin.keyring
+fi
+{{- end }}

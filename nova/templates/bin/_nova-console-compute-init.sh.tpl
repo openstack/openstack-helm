@@ -46,14 +46,15 @@ if [ -z "${listen_ip}" ] ; then
     listen_ip=0.0.0.0
 fi
 
+touch /tmp/pod-shared/nova-console.conf
 if [ "${console_kind}" == "novnc" ] ; then
-cat <<EOF>/tmp/pod-shared/nova-vnc.ini
+  cat > /tmp/pod-shared/nova-console.conf <<EOF
 [vnc]
 vncserver_proxyclient_address = $client_address
 vncserver_listen = $listen_ip
 EOF
 elif [ "${console_kind}" == "spice" ] ; then
-cat <<EOF>/tmp/pod-shared/nova-spice.ini
+  cat > /tmp/pod-shared/nova-console.conf <<EOF
 [spice]
 server_proxyclient_address = $client_address
 server_listen = $listen_ip

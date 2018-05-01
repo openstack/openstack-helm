@@ -64,7 +64,29 @@ spec:
               readOnly: true
             - name: varlibnova
               mountPath: /var/lib/nova
-        {{- if .Values.ceph.enabled }}
+        {{- if .Values.conf.ceph.enabled }}
+        {{- if empty .Values.conf.ceph.cinder.keyring }}
+        - name: ceph-admin-keyring-placement
+          image: {{ .Values.images.tags.nova_compute }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+          securityContext:
+            runAsUser: 0
+          command:
+            - /tmp/ceph-admin-keyring.sh
+          volumeMounts:
+            - name: etcceph
+              mountPath: /etc/ceph
+            - name: nova-bin
+              mountPath: /tmp/ceph-admin-keyring.sh
+              subPath: ceph-admin-keyring.sh
+              readOnly: true
+            {{- if empty .Values.conf.ceph.admin_keyring }}
+            - name: ceph-keyring
+              mountPath: /tmp/client-keyring
+              subPath: key
+              readOnly: true
+            {{ end }}
+        {{ end }}
         - name: ceph-keyring-placement
           image: {{ .Values.images.tags.nova_compute }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
@@ -72,13 +94,13 @@ spec:
             runAsUser: {{ .Values.pod.user.nova.uid }}
           env:
             - name: CEPH_CINDER_USER
-              value: "{{ .Values.ceph.cinder_user }}"
-            {{- if .Values.ceph.cinder_keyring }}
+              value: "{{ .Values.conf.ceph.cinder.user }}"
+            {{- if .Values.conf.ceph.cinder.keyring }}
             - name: CEPH_CINDER_KEYRING
-              value: "{{ .Values.ceph.cinder_keyring }}"
+              value: "{{ .Values.conf.ceph.cinder.keyring }}"
             {{ end }}
             - name: LIBVIRT_CEPH_SECRET_UUID
-              value: "{{ .Values.ceph.secret_uuid }}"
+              value: "{{ .Values.conf.ceph.secret_uuid }}"
           command:
             - /tmp/ceph-keyring.sh
           volumeMounts:
@@ -87,12 +109,10 @@ spec:
             - name: nova-bin
               mountPath: /tmp/ceph-keyring.sh
               subPath: ceph-keyring.sh
-            {{- if empty .Values.ceph.cinder_keyring }}
-            - name: ceph-keyring
-              mountPath: /tmp/client-keyring
-              subPath: key
+            - name: ceph-etc
+              mountPath: /etc/ceph/ceph.conf
+              subPath: ceph.conf
               readOnly: true
-            {{ end }}
         {{ end }}
         {{- if eq .Values.console.console_kind "novnc"}}
         - name: nova-compute-vnc-init
@@ -136,16 +156,16 @@ spec:
           securityContext:
             runAsUser: {{ .Values.pod.user.nova.uid }}
             privileged: true
-          {{- if .Values.ceph.enabled }}
+          {{- if .Values.conf.ceph.enabled }}
           env:
             - name: CEPH_CINDER_USER
-              value: "{{ .Values.ceph.cinder_user }}"
-            {{- if .Values.ceph.cinder_keyring }}
+              value: "{{ .Values.conf.ceph.cinder.user }}"
+            {{- if .Values.conf.ceph.cinder.keyring }}
             - name: CEPH_CINDER_KEYRING
-              value: "{{ .Values.ceph.cinder_keyring }}"
+              value: "{{ .Values.conf.ceph.cinder.keyring }}"
             {{ end }}
             - name: LIBVIRT_CEPH_SECRET_UUID
-              value: "{{ .Values.ceph.secret_uuid }}"
+              value: "{{ .Values.conf.ceph.secret_uuid }}"
           {{ end }}
           command:
             - /tmp/nova-compute.sh
@@ -193,14 +213,14 @@ spec:
               mountPath: /root/.ssh/config
               subPath: ssh-config
               readOnly: true
-            {{- if .Values.ceph.enabled }}
+            {{- if .Values.conf.ceph.enabled }}
             - name: etcceph
               mountPath: /etc/ceph
             - name: ceph-etc
               mountPath: /etc/ceph/ceph.conf
               subPath: ceph.conf
               readOnly: true
-            {{- if empty .Values.ceph.cinder_keyring }}
+            {{- if empty .Values.conf.ceph.cinder.keyring }}
             - name: ceph-keyring
               mountPath: /tmp/client-keyring
               subPath: key
@@ -266,14 +286,14 @@ spec:
           configMap:
             name: {{ $configMapName }}
             defaultMode: 0444
-        {{- if .Values.ceph.enabled }}
+        {{- if .Values.conf.ceph.enabled }}
         - name: etcceph
           emptyDir: {}
         - name: ceph-etc
           configMap:
             name: ceph-etc
             defaultMode: 0444
-        {{- if empty .Values.ceph.cinder_keyring }}
+        {{- if empty .Values.conf.ceph.cinder.keyring }}
         - name: ceph-keyring
           secret:
             secretName: pvc-ceph-client-key
