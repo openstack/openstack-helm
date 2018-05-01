@@ -16,10 +16,12 @@
 
 set -xe
 
-#NOTE: We only want to run control plane components on the primary node
-kubectl label nodes openstack-control-plane- --all --overwrite
-PRIMARY_NODE="$(kubectl get nodes -l openstack-helm-node-class=primary -o name | awk -F '/' '{ print $NF; exit }')"
-kubectl label node ${PRIMARY_NODE} openstack-control-plane=enabled
+#NOTE: We only want to run ceph and control plane components on the primary node
+for LABEL in openstack-control-plane ceph-osd ceph-mon ceph-mds ceph-rgw ceph-mgr; do
+  kubectl label nodes ${LABEL}- --all --overwrite
+  PRIMARY_NODE="$(kubectl get nodes -l openstack-helm-node-class=primary -o name | awk -F '/' '{ print $NF; exit }')"
+  kubectl label node ${PRIMARY_NODE} ${LABEL}=enabled
+done
 
 #NOTE: Build charts
 make all
