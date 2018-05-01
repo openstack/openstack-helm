@@ -1497,6 +1497,7 @@ dependencies:
       jobs:
         - ceilometer-db-init-mongodb
         - ceilometer-db-sync
+        - ceilometer-rabbit-init
         - ceilometer-ks-user
         - ceilometer-ks-endpoints
       services:
@@ -1512,6 +1513,7 @@ dependencies:
       jobs:
         - ceilometer-db-init-mongodb
         - ceilometer-db-sync
+        - ceilometer-rabbit-init
         - ceilometer-ks-user
         - ceilometer-ks-endpoints
       services:
@@ -1527,6 +1529,7 @@ dependencies:
       jobs:
         - ceilometer-db-init-mongodb
         - ceilometer-db-sync
+        - ceilometer-rabbit-init
         - ceilometer-ks-user
         - ceilometer-ks-endpoints
       services:
@@ -1542,6 +1545,7 @@ dependencies:
       jobs:
         - ceilometer-db-init-mongodb
         - ceilometer-db-sync
+        - ceilometer-rabbit-init
         - ceilometer-ks-user
         - ceilometer-ks-endpoints
       services:
@@ -1564,9 +1568,12 @@ dependencies:
     db_sync:
       jobs:
         - ceilometer-db-init
+        - ceilometer-db-init-mongodb
       services:
         - endpoint: internal
           service: oslo_db
+        - endpoint: internal
+          service: mongodb
     ks_endpoints:
       jobs:
         - ceilometer-ks-service
@@ -1589,6 +1596,7 @@ dependencies:
       jobs:
         - ceilometer-db-init-mongodb
         - ceilometer-db-sync
+        - ceilometer-rabbit-init
         - ceilometer-ks-user
         - ceilometer-ks-endpoints
       services:
@@ -1820,7 +1828,6 @@ pod:
     api: 1
     central: 1
     collector: 1
-    compute: 1
     notification: 1
   lifecycle:
     upgrades:
@@ -1830,6 +1837,12 @@ pod:
         rolling_update:
           max_unavailable: 1
           max_surge: 3
+      daemonsets:
+        pod_replacement_strategy: RollingUpdate
+        compute:
+          enabled: true
+          min_ready_seconds: 0
+          max_unavailable: 1
     disruption_budget:
       api:
         min_available: 0
@@ -1937,7 +1950,7 @@ manifests:
   deployment_api: true
   deployment_central: true
   deployment_collector: true
-  deployment_compute: true
+  daemonset_compute: true
   deployment_notification: true
   ingress_api: true
   job_bootstrap: true
