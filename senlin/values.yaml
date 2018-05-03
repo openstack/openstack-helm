@@ -42,8 +42,16 @@ images:
     ks_endpoints: docker.io/openstackhelm/heat:newton
     senlin_api: docker.io/openstackhelm/senlin:newton
     senlin_engine: docker.io/openstackhelm/senlin:newton
+    senlin_engine_cleaner: docker.io/openstackhelm/senlin:newton
     dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.3.1
   pull_policy: "IfNotPresent"
+
+jobs:
+  engine_cleaner:
+    cron: "*/5 * * * *"
+    history:
+      success: 3
+      failed: 1
 
 conf:
   paste:
@@ -123,8 +131,11 @@ conf:
   senlin:
     DEFAULT:
       transport_url: null
+      host: senlin
     database:
       max_retries: -1
+    authentication:
+      auth_url: null
     keystone_authtoken:
       auth_type: password
       auth_version: v3
@@ -155,6 +166,16 @@ bootstrap:
 
 dependencies:
   static:
+    engine_cleaner:
+      jobs:
+        - senlin-db-sync
+      services:
+        - endpoint: internal
+          service: oslo_db
+        - endpoint: internal
+          service: oslo_messaging
+        - endpoint: internal
+          service: identity
     api:
       jobs:
         - senlin-db-sync
@@ -349,6 +370,9 @@ pod:
     senlin_bootstrap:
       init_container: null
       senlin_bootstrap:
+    senlin_engine_cleaner:
+      init_container: null
+      senlin_engine_cleaner:
   replicas:
     api: 1
     engine: 1
@@ -446,11 +470,20 @@ pod:
         limits:
           memory: "1024Mi"
           cpu: "2000m"
+      engine_cleaner:
+        requests:
+          memory: "124Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
 
 manifests:
   configmap_bin: true
   configmap_etc: true
+  cron_job_engine_cleaner: true
   deployment_api: true
+  deployment_engine: true
   ingress_api: true
   job_bootstrap: true
   job_db_init: true
@@ -466,4 +499,3 @@ manifests:
   secret_rabbitmq: true
   service_ingress_api: true
   service_api: true
-  statefulset_engine: true

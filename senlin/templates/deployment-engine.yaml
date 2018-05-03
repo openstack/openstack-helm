@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if .Values.manifests.statefulset_engine }}
+{{- if .Values.manifests.deployment_engine }}
 {{- $envAll := . }}
 {{- $dependencies := .Values.dependencies.static.engine }}
 
@@ -25,16 +25,18 @@ limitations under the License.
 {{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: apps/v1beta1
-kind: StatefulSet
+kind: Deployment
 metadata:
   name: senlin-engine
 spec:
-  serviceName: senlin-engine
   replicas: {{ .Values.pod.replicas.engine }}
   template:
     metadata:
       labels:
 {{ tuple $envAll "senlin" "engine" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
+        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
     spec:
       serviceAccountName: {{ $serviceAccountName }}
       affinity:
@@ -59,8 +61,6 @@ spec:
               readOnly: true
             - name: pod-etc-senlin
               mountPath: /etc/senlin
-            - name: pod-var-cache-senlin
-              mountPath: /var/cache/senlin
             - name: senlin-etc
               mountPath: /etc/senlin/senlin.conf
               subPath: senlin.conf
@@ -72,8 +72,6 @@ spec:
 {{ if $mounts_senlin_engine.volumeMounts }}{{ toYaml $mounts_senlin_engine.volumeMounts | indent 12 }}{{ end }}
       volumes:
         - name: pod-etc-senlin
-          emptyDir: {}
-        - name: pod-var-cache-senlin
           emptyDir: {}
         - name: senlin-bin
           configMap:

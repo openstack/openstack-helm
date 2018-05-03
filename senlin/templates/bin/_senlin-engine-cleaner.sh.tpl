@@ -17,5 +17,5 @@ limitations under the License.
 */}}
 
 set -ex
-exec senlin-engine \
-      --config-file /etc/senlin/senlin.conf
+
+senlin-manage service clean
