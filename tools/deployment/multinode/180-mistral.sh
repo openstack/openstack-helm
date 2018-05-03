@@ -28,6 +28,7 @@ helm upgrade --install mistral ./mistral \
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack
 
-#NOTE: Validate Deployment info
+#NOTE: Validate Deployment
 export OS_CLOUD=openstack_helm
 openstack service list
+helm test mistral

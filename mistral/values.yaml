@@ -33,11 +33,15 @@ labels:
   job:
     node_selector_key: openstack-control-plane
     node_selector_value: enabled
+  test:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
 
 release_group: null
 
 images:
   tags:
+    test: docker.io/kolla/ubuntu-source-rally:4.0.0
     bootstrap: docker.io/openstackhelm/heat:newton
     dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.3.1
     db_init: docker.io/openstackhelm/heat:newton
@@ -146,12 +150,19 @@ dependencies:
       services:
         - service: oslo_messaging
           endpoint: internal
+    tests:
+      services:
+        - endpoint: internal
+          service: identity
+        - endpoint: internal
+          service: workflowv2
 
 # Names of secrets used by bootstrap and environmental checks
 secrets:
   identity:
     admin: mistral-keystone-admin
     mistral: mistral-keystone-user
+    test: mistral-keystone-test
   oslo_db:
     admin: mistral-db-admin
     mistral: mistral-db-user
@@ -180,6 +191,14 @@ endpoints:
         username: mistral
         password: password
         project_name: service
+        user_domain_name: default
+        project_domain_name: default
+      test:
+        role: admin
+        region_name: RegionOne
+        username: test
+        password: password
+        project_name: test
         user_domain_name: default
         project_domain_name: default
     hosts:
@@ -264,6 +283,72 @@ endpoints:
         default: 11211
 
 conf:
+  rally_tests:
+    run_tempest: false
+    tests:
+      MistralWorkbooks.create_workbook:
+        - args:
+            definition: /tmp/rally-jobs/mistral_wb.yaml
+            do_delete: true
+          runner:
+            concurrency: 1
+            times: 1
+            type: constant
+          sla:
+            failure_rate:
+              max: 0
+      MistralExecutions.create_execution_from_workbook:
+        - args:
+            definition: /tmp/rally-jobs/mistral_wb.yaml
+            do_delete: true
+            params: /tmp/rally-jobs/mistral_params.json
+            wf_input: /tmp/rally-jobs/mistral_input.json
+            workflow_name: wf1
+          runner:
+            concurrency: 1
+            times: 1
+            type: constant
+          sla:
+            failure_rate:
+              max: 0
+      MistralWorkbooks.list_workbooks:
+        - runner:
+            concurrency: 1
+            times: 1
+            type: constant
+          sla:
+            failure_rate:
+              max: 0
+      MistralExecutions.list_executions:
+        - runner:
+            concurrency: 1
+            times: 1
+            type: constant
+          sla:
+            failure_rate:
+              max: 0
+    templates:
+      - name: /tmp/rally-jobs/mistral_wb.yaml
+        template: |
+          version: "2.0"
+          name: wb
+          workflows:
+            wf1:
+              type: direct
+              input:
+                - input1: input1
+                - some_json_input: {}
+              tasks:
+                hello:
+                  action: std.echo output="Hello"
+                  publish:
+                      result: $
+      - name: /tmp/rally-jobs/mistral_input.json
+        template: |
+          {"input1": "value1", "some_json_input": {"a": "b"}}
+      - name: /tmp/rally-jobs/mistral_params.json
+        template: |
+          {"env": {"env_param": "env_param_value"}}
   policy:
     admin_only: is_admin:True
     admin_or_owner: is_admin:True or project_id:%(project_id)s
@@ -359,6 +444,9 @@ pod:
     mistral_bootstrap:
       init_container: null
       mistral_bootstrap:
+    mistral_tests:
+      init_container: null
+      mistral_tests:
   replicas:
     api: 1
     engine: 1
@@ -488,6 +576,7 @@ manifests:
   job_ks_user: true
   job_rabbit_init: true
   pdb_api: true
+  pod_rally_test: true
   secret_db: true
   secret_keystone: true
   secret_rabbitmq: true
