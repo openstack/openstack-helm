@@ -19,7 +19,6 @@ set -xe
 #NOTE: Deploy command
 CEPH_PUBLIC_NETWORK="$(./tools/deployment/multinode/kube-node-subnet.sh)"
 CEPH_CLUSTER_NETWORK="$(./tools/deployment/multinode/kube-node-subnet.sh)"
-CEPH_FS_ID="$(cat /tmp/ceph-fs-uuid.txt)"
 tee /tmp/ceph-openstack-config.yaml <<EOF
 endpoints:
   identity:
@@ -41,9 +40,6 @@ deployment:
 bootstrap:
   enabled: false
 conf:
-  ceph:
-    global:
-      fsid: ${CEPH_FS_ID}
   rgw_ks:
     enabled: true
 EOF

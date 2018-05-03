@@ -21,7 +21,6 @@ make pull-images ceph
 
 #NOTE: Deploy command
 : ${OSH_EXTRA_HELM_ARGS:=""}
-CEPH_FS_ID="$(cat /tmp/ceph-fs-uuid.txt)"
 tee /tmp/radosgw-openstack.yaml <<EOF
 endpoints:
   identity:
@@ -45,9 +44,6 @@ bootstrap:
 conf:
   rgw_ks:
     enabled: true
-  ceph:
-    global:
-      fsid: ${CEPH_FS_ID}
 EOF
 helm upgrade --install radosgw-openstack ./ceph-client \
   --namespace=openstack \
