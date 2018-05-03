@@ -1,5 +1,4 @@
 FROM docker.io/ubuntu:xenial
-MAINTAINER sean.eagan@att.com
 
 ARG BINARY_PATH
 ARG BINARY_INSTALL_PATH=/usr/local/bin/kubernetes-entrypoint
