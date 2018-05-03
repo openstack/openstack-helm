@@ -18,4 +18,11 @@ limitations under the License.
 
 set -ex
 
-nova-manage cell_v2 simple_cell_setup
+NOVA_VERSION=$(nova-manage --version 2>&1 > /dev/null)
+
+# NOTE(portdirect): check if nova fully supports cells v2, and manage
+# accordingly. Support was complete in ocata (V14.x.x).
+
+if [ "${NOVA_VERSION%%.*}" -gt "14" ]; then
+  nova-manage cell_v2 discover_hosts --verbose
+fi

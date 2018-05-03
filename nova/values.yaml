@@ -85,6 +85,15 @@ images:
     nova_spiceproxy_assets: 'docker.io/kolla/ubuntu-source-nova-spicehtml5proxy:3.0.3'
     test: 'docker.io/kolla/ubuntu-source-rally:4.0.0'
 
+jobs:
+  # NOTE(portdirect): When using cells new nodes will be added to the cell on the hour by default.
+  # TODO(portdirect): Add a post-start action to nova compute pods that registers themselves.
+  cell_setup:
+    cron: "0 */1 * * *"
+    history:
+      success: 3
+      failed: 1
+
 bootstrap:
   enabled: true
   ks_user: admin
@@ -252,6 +261,11 @@ dependencies:
           service: identity
         - endpoint: internal
           service: compute
+      pod:
+        - requireSameNode: false
+          labels:
+            application: nova
+            component: compute
     compute:
       pod:
         - requireSameNode: true
@@ -1614,6 +1628,7 @@ pod:
 manifests:
   configmap_bin: true
   configmap_etc: true
+  cron_job_cell_setup: true
   daemonset_compute: true
   deployment_api_metadata: true
   deployment_api_osapi: true
@@ -1639,7 +1654,6 @@ manifests:
   job_ks_placement_endpoints: true
   job_ks_placement_service: true
   job_ks_placement_user: true
-  job_cell_setup: true
   pdb_metadata: true
   pdb_placement: true
   pdb_osapi: true
