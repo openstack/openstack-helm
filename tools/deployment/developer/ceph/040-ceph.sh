@@ -23,7 +23,7 @@ done
 
 #NOTE: Deploy command
 : ${OSH_EXTRA_HELM_ARGS:=""}
-uuidgen > /tmp/ceph-fs-uuid.txt
+[ -s /tmp/ceph-fs-uuid.txt ] || uuidgen > /tmp/ceph-fs-uuid.txt
 CEPH_FS_ID="$(cat /tmp/ceph-fs-uuid.txt)"
 #NOTE(portdirect): to use RBD devices with Ubuntu kernels < 4.5 this
 # should be set to 'hammer'
