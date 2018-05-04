@@ -30,6 +30,7 @@ metadata:
   name: magnum-conductor
 spec:
   serviceName: magnum-conductor
+  podManagementPolicy: "Parallel"
   replicas: {{ .Values.pod.replicas.conductor }}
   template:
     metadata:
@@ -43,6 +44,26 @@ spec:
         {{ .Values.labels.conductor.node_selector_key }}: {{ .Values.labels.conductor.node_selector_value }}
       initContainers:
 {{ tuple $envAll $dependencies $mounts_magnum_conductor_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+        - name: magnum-conductor-init
+          image: {{ .Values.images.tags.magnum_conductor }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+{{ tuple $envAll $envAll.Values.pod.resources.conductor | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          securityContext:
+            runAsUser: {{ .Values.pod.user.magnum.uid }}
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+          command:
+            - /tmp/magnum-conductor-init.sh
+          volumeMounts:
+            - name: magnum-bin
+              mountPath: /tmp/magnum-conductor-init.sh
+              subPath: magnum-conductor-init.sh
+              readOnly: true
+            - name: pod-shared
+              mountPath: /tmp/pod-shared
       containers:
         - name: magnum-conductor
           image: {{ .Values.images.tags.magnum_conductor }}
@@ -59,8 +80,6 @@ spec:
               readOnly: true
             - name: pod-etc-magnum
               mountPath: /etc/magnum
-            - name: pod-var-cache-magnum
-              mountPath: /var/cache/magnum
             - name: magnum-etc
               mountPath: /etc/magnum/magnum.conf
               subPath: magnum.conf
@@ -69,11 +88,15 @@ spec:
               mountPath: /etc/magnum/policy.json
               subPath: policy.json
               readOnly: true
+            - name: pod-shared
+              mountPath: /tmp/pod-shared
+            - name: magnum-lock-path
+              mountPath: {{ .Values.conf.magnum.oslo_concurrency.lock_path }}
 {{ if $mounts_magnum_conductor.volumeMounts }}{{ toYaml $mounts_magnum_conductor.volumeMounts | indent 12 }}{{ end }}
       volumes:
         - name: pod-etc-magnum
           emptyDir: {}
-        - name: pod-var-cache-magnum
+        - name: pod-shared
           emptyDir: {}
         - name: magnum-bin
           configMap:
@@ -83,5 +106,7 @@ spec:
           configMap:
             name: magnum-etc
             defaultMode: 0444
+        - name: magnum-lock-path
+          emptyDir: {}
 {{ if $mounts_magnum_conductor.volumes }}{{ toYaml $mounts_magnum_conductor.volumes | indent 8 }}{{ end }}
 {{- end }}

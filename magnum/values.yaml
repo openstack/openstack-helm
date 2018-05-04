@@ -109,6 +109,12 @@ conf:
   magnum:
     DEFAULT:
       transport_url: null
+    oslo_messaging_notifications:
+      driver: messaging
+    oslo_concurrency:
+      lock_path: /var/lib/magnum/tmp
+    certificates:
+      cert_manager_type: barbican
     database:
       max_retries: -1
     trust:
@@ -159,6 +165,10 @@ dependencies:
           service: identity
         - endpoint: internal
           service: oslo_messaging
+        - endpoint: internal
+          service: key_manager
+        - endpoint: internal
+          service: orchestration
     conductor:
       jobs:
         - magnum-db-sync
@@ -173,6 +183,10 @@ dependencies:
           service: identity
         - endpoint: internal
           service: oslo_messaging
+        - endpoint: internal
+          service: key_manager
+        - endpoint: internal
+          service: orchestration
     db_drop:
       services:
         - endpoint: internal
@@ -275,6 +289,36 @@ endpoints:
     port:
       api:
         default: 9511
+        public: 80
+  key_manager:
+    name: barbican
+    hosts:
+      default: barbican-api
+      public: barbican
+    host_fqdn_override:
+      default: null
+    path:
+      default: /v1
+    scheme:
+      default: http
+    port:
+      api:
+        default: 9311
+        public: 80
+  orchestration:
+    name: heat
+    hosts:
+      default: heat-api
+      public: heat
+    host_fqdn_override:
+      default: null
+    path:
+      default: '/v1/%(project_id)s'
+    scheme:
+      default: 'http'
+    port:
+      api:
+        default: 8004
         public: 80
   oslo_db:
     auth:

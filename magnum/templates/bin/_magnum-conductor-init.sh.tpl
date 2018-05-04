@@ -17,6 +17,8 @@ limitations under the License.
 */}}
 
 set -ex
-exec magnum-conductor \
-      --config-file /etc/magnum/magnum.conf \
-      --config-file /tmp/pod-shared/magnum.conf
+
+tee /tmp/pod-shared/magnum.conf <<EOF
+[DEFAULT]
+host = ${POD_NAME}
+EOF
