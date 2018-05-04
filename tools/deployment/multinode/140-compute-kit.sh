@@ -101,7 +101,7 @@ helm upgrade --install neutron ./neutron \
 export OS_CLOUD=openstack_helm
 openstack service list
 sleep 30 #NOTE(portdirect): Wait for ingress controller to update rules and restart Nginx
-openstack hypervisor list
+openstack compute service list
 openstack network agent list
 helm test nova --timeout 900
 helm test neutron --timeout 900
