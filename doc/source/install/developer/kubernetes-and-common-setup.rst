@@ -11,6 +11,12 @@ Install the latest versions of Git, CA Certs & Make if necessary
     :language: shell
     :lines: 1,17-
 
+Alternatively, this step can be performed by running the script directly:
+
+.. code-block:: shell
+
+  ./tools/deployment/developer/common/000-install-packages.sh
+
 Clone the OpenStack-Helm Repos
 ------------------------------
 
@@ -41,6 +47,12 @@ You may now deploy kubernetes, and helm onto your machine, first move into the
 .. literalinclude:: ../../../../tools/deployment/developer/common/010-deploy-k8s.sh
     :language: shell
     :lines: 1,17-
+
+Alternatively, this step can be performed by running the script directly:
+
+.. code-block:: shell
+
+  ./tools/deployment/developer/common/010-deploy-k8s.sh
 
 This command will deploy a single node KubeADM administered cluster. This will
 use the parameters in ``${OSH_INFRA_PATH}/tools/gate/playbooks/vars.yaml`` to control the
