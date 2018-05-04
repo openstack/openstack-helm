@@ -17,7 +17,7 @@
 set -xe
 
 #NOTE: Deploy command
-uuidgen > /tmp/ceph-fs-uuid.txt
+[ -s /tmp/ceph-fs-uuid.txt ] || uuidgen > /tmp/ceph-fs-uuid.txt
 CEPH_PUBLIC_NETWORK="$(./tools/deployment/multinode/kube-node-subnet.sh)"
 CEPH_CLUSTER_NETWORK="$(./tools/deployment/multinode/kube-node-subnet.sh)"
 CEPH_FS_ID="$(cat /tmp/ceph-fs-uuid.txt)"
