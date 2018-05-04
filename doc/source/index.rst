@@ -17,7 +17,7 @@ Contents:
    install/index
    readme
    specs/index
-   testing
+   testing/index
    troubleshooting/index
 
 Indices and Tables

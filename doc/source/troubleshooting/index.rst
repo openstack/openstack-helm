@@ -11,6 +11,7 @@ Sometimes things go wrong. These guides will help you solve many common issues w
    persistent-storage
    proxy
    ubuntu-hwe-kernel
+   ceph
 
 Getting help
 ============
