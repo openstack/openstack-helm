@@ -27,11 +27,15 @@ labels:
   job:
     node_selector_key: openstack-control-plane
     node_selector_value: enabled
+  test:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
 
 release_group: null
 
 images:
   tags:
+    scripted_test: docker.io/openstackhelm/heat:newton
     bootstrap: docker.io/openstackhelm/heat:newton
     db_init: docker.io/openstackhelm/heat:newton
     senlin_db_sync: docker.io/openstackhelm/senlin:newton
@@ -54,6 +58,31 @@ jobs:
       failed: 1
 
 conf:
+  rally_tests:
+    run_tempest: false
+    tests:
+      SenlinClusters.create_and_delete_cluster:
+        - args:
+            desired_capacity: 3
+            min_size: 0
+            max_size: 5
+          runner:
+            concurrency: 1
+            times: 1
+            type: constant
+          sla:
+            failure_rate:
+              max: 0
+          context:
+            profiles:
+              type: os.nova.server
+              version: "1.0"
+              properties:
+                name: cirros_server
+                flavor: 689eeda3-c6cd-450f-b000-58025c783763
+                image: df0c1a14-0940-4ae5-be5c-bb06aa407da2
+                networks:
+                  - network: public
   paste:
     pipeline:senlin-api:
       pipeline: request_id faultwrap ssl versionnegotiation webhook authtoken context trust apiv1app
@@ -232,6 +261,12 @@ dependencies:
       services:
         - endpoint: internal
           service: oslo_messaging
+    tests:
+      services:
+        - endpoint: internal
+          service: identity
+        - endpoint: internal
+          service: clustering
 
 
 # Names of secrets used by bootstrap and environmental checks
@@ -267,6 +302,14 @@ endpoints:
         username: senlin
         password: password
         project_name: service
+        user_domain_name: default
+        project_domain_name: default
+      test:
+        role: admin
+        region_name: RegionOne
+        username: test
+        password: password
+        project_name: test
         user_domain_name: default
         project_domain_name: default
     hosts:
@@ -373,6 +416,9 @@ pod:
     senlin_engine_cleaner:
       init_container: null
       senlin_engine_cleaner:
+    senlin_tests:
+      init_container: null
+      senlin_tests:
   replicas:
     api: 1
     engine: 1
@@ -494,6 +540,7 @@ manifests:
   job_ks_user: true
   job_rabbit_init: true
   pdb_api: true
+  pod_test: true
   secret_db: true
   secret_keystone: true
   secret_rabbitmq: true
