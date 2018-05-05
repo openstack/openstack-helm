@@ -155,6 +155,10 @@ conf:
         journal:
           type: directory
           location: /var/lib/openstack-helm/ceph/osd/journal-one
+
+pod:
+  replicas:
+    mgr: 1
 EOF
 
 for CHART in ceph-mon ceph-osd ceph-client; do
