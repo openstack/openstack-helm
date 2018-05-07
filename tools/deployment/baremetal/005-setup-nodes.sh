@@ -30,7 +30,7 @@ make all
 helm install ./libvirt \
   --namespace=libvirt \
   --name=libvirt \
-  --set ceph.enabled=false \
+  --set conf.ceph.enabled=false \
   --set images.tags.libvirt=docker.io/openstackhelm/vbmc:centos
 
 #NOTE: Wait for deploy
