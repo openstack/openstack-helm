@@ -16,8 +16,8 @@
 
 set -xe
 
-#NOTE: Pull images and lint chart
-make pull-images keystone
+#NOTE: Lint and package chart
+make keystone
 
 #NOTE: Deploy command
 : ${OSH_EXTRA_HELM_ARGS:=""}

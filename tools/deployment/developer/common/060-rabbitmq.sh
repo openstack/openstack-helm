@@ -16,8 +16,8 @@
 
 set -xe
 
-#NOTE: Pull images and lint chart
-make pull-images rabbitmq
+#NOTE: Lint and package chart
+make rabbitmq
 
 #NOTE: Deploy command
 : ${OSH_EXTRA_HELM_ARGS:=""}

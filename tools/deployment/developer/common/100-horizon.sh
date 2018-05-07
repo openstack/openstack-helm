@@ -16,8 +16,8 @@
 
 set -xe
 
-#NOTE: Pull images and lint chart
-make pull-images horizon
+#NOTE: Lint and package chart
+make horizon
 
 #NOTE: Deploy command
 : ${OSH_EXTRA_HELM_ARGS:=""}

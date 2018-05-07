@@ -16,9 +16,9 @@
 
 set -xe
 
-#NOTE: Pull images and lint chart
+#NOTE: Lint and package chart
 for CHART in ceph-mon ceph-osd ceph-client; do
-  make pull-images "${CHART}"
+  make "${CHART}"
 done
 
 #NOTE: Deploy command
