@@ -16,10 +16,10 @@
 
 set -xe
 
-#NOTE: Pull images and lint chart
-make pull-images neutron
-make pull-images ironic
-make pull-images nova
+#NOTE: Lint and package chart
+make neutron
+make ironic
+make nova
 
 #NOTE: Deploy neutron
 #NOTE(portdirect): for simplicity we will assume the default route device

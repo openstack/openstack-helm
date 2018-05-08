@@ -15,9 +15,9 @@
 #    under the License.
 set -xe
 
-#NOTE: Pull images and lint chart
-make pull-images nova
-make pull-images neutron
+#NOTE: Lint and package chart
+make nova
+make neutron
 
 #NOTE: Deploy nova
 : ${OSH_EXTRA_HELM_ARGS:=""}

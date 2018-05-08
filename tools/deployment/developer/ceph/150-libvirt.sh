@@ -15,8 +15,8 @@
 #    under the License.
 set -xe
 
-#NOTE: Pull images and lint chart
-make pull-images libvirt
+#NOTE: Lint and package chart
+make libvirt
 
 #NOTE: Deploy command
 : ${OSH_EXTRA_HELM_ARGS:=""}

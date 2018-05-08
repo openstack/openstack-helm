@@ -16,8 +16,8 @@
 
 set -xe
 
-#NOTE: Pull images and lint chart
-make pull-images memcached
+#NOTE: Lint and package chart
+make memcached
 
 #NOTE: Deploy command
 : ${OSH_EXTRA_HELM_ARGS:=""}

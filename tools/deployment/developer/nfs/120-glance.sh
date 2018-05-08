@@ -16,8 +16,8 @@
 
 set -xe
 
-#NOTE: Pull images and lint chart
-make pull-images glance
+#NOTE: Lint and package chart
+make glance
 
 #NOTE: Deploy command
 : ${OSH_EXTRA_HELM_ARGS:=""}

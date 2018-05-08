@@ -16,8 +16,8 @@
 
 set -xe
 
-#NOTE: Handle LDAP
-make pull-images ldap
+#NOTE: Lint and package chart
+make ldap
 
 #NOTE: Deploy command
 : ${OSH_EXTRA_HELM_ARGS:=""}
