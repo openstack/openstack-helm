@@ -38,7 +38,7 @@ if [ -d /sys/kernel/mm/hugepages ]; then
   fi
 fi
 
-if [ -n "${LIBVIRT_CEPH_SECRET_UUID}" ] ; then
+if [ -n "${LIBVIRT_CEPH_CINDER_SECRET_UUID}" ] ; then
   libvirtd --listen &
 
   tmpsecret=$(mktemp --suffix .xml)
@@ -78,7 +78,7 @@ if [ -n "${LIBVIRT_CEPH_SECRET_UUID}" ] ; then
 
   cat > ${tmpsecret} <<EOF
 <secret ephemeral='no' private='no'>
-  <uuid>${LIBVIRT_CEPH_SECRET_UUID}</uuid>
+  <uuid>${LIBVIRT_CEPH_CINDER_SECRET_UUID}</uuid>
   <usage type='ceph'>
     <name>client.${CEPH_CINDER_USER}. secret</name>
   </usage>
@@ -86,7 +86,7 @@ if [ -n "${LIBVIRT_CEPH_SECRET_UUID}" ] ; then
 EOF
 
   virsh secret-define --file ${tmpsecret}
-  virsh secret-set-value --secret "${LIBVIRT_CEPH_SECRET_UUID}" --base64 "${CEPH_CINDER_KEYRING}"
+  virsh secret-set-value --secret "${LIBVIRT_CEPH_CINDER_SECRET_UUID}" --base64 "${CEPH_CINDER_KEYRING}"
 
   # rejoin libvirtd
   wait

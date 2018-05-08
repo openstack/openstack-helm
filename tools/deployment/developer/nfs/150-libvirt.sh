@@ -22,7 +22,7 @@ make libvirt
 : ${OSH_EXTRA_HELM_ARGS:=""}
 helm upgrade --install libvirt ./libvirt \
   --namespace=openstack \
-  --set ceph.enabled=false \
+  --set conf.ceph.enabled=false \
   ${OSH_EXTRA_HELM_ARGS} \
   ${OSH_EXTRA_HELM_ARGS_LIBVIRT}
 

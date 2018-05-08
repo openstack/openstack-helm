@@ -18,16 +18,6 @@ limitations under the License.
 
 set -ex
 
-console_kind="{{- .Values.console.console_kind -}}"
-if [ "${console_kind}" == "novnc" ] ; then
 exec nova-compute \
       --config-file /etc/nova/nova.conf \
-      --config-file /tmp/pod-shared/nova-vnc.ini
-elif [ "${console_kind}" == "spice" ] ; then
-exec nova-compute \
-      --config-file /etc/nova/nova.conf \
-      --config-file /tmp/pod-shared/nova-spice.ini
-else
-exec nova-compute \
-      --config-file /etc/nova/nova.conf
-fi
+      --config-file /tmp/pod-shared/nova-console.conf

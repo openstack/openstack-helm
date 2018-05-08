@@ -19,7 +19,7 @@ limitations under the License.
 set -ex
 export HOME=/tmp
 
-cat <<EOF > /etc/ceph/ceph.client.${RBD_STORE_USER}.keyring
+cat > /etc/ceph/ceph.client.${RBD_STORE_USER}.keyring <<EOF
 [client.${RBD_STORE_USER}]
     key = $(cat /tmp/client-keyring)
 EOF
