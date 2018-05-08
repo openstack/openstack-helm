@@ -158,8 +158,9 @@ conf:
 
 pod:
   replicas:
-    mgr: 1
     mds: 1
+    mgr: 1
+    rgw: 1
 EOF
 
 for CHART in ceph-mon ceph-osd ceph-client; do
