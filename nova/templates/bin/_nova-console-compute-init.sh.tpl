@@ -21,7 +21,7 @@ set -ex
 console_kind="{{- .Values.console.console_kind -}}"
 
 if [ "${console_kind}" == "novnc" ] ; then
-    client_address="{{- .Values.conf.nova.vnc.server_proxyclient_address -}}"
+    client_address="{{- .Values.conf.nova.vnc.vncserver_proxyclient_address -}}"
     client_interface="{{- .Values.console.novnc.compute.server_proxyclient_interface -}}"
     listen_ip="{{- .Values.conf.nova.vnc.server_listen -}}"
 elif [ "${console_kind}" == "spice" ] ; then
