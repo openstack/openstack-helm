@@ -1,3 +1,5 @@
+#!/bin/sh
+
 {{/*
 Copyright 2017 The Openstack-Helm Authors.
 
@@ -14,16 +16,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if .Values.manifests.pdb_server }}
-{{- $envAll := . }}
----
-apiVersion: policy/v1beta1
-kind: PodDisruptionBudget
-metadata:
-  name: mariadb-server
-spec:
-  minAvailable: {{ .Values.pod.lifecycle.disruption_budget.mariadb.min_available }}
-  selector:
-    matchLabels:
-{{ tuple $envAll "mariadb" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
-{{- end }}
+set -ex
+COMMAND="${@:-start}"
+
+if [ "x${COMMAND}" == "xstart" ]; then
+  exec /server
+elif [ "x${COMMAND}" == "xstop" ]; then
+  kill -TERM 1
+fi

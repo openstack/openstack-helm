@@ -14,16 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if .Values.manifests.pdb_server }}
+{{- if .Values.manifests.configmap_services_tcp }}
 {{- $envAll := . }}
 ---
-apiVersion: policy/v1beta1
-kind: PodDisruptionBudget
+apiVersion: v1
+kind: ConfigMap
 metadata:
-  name: mariadb-server
-spec:
-  minAvailable: {{ .Values.pod.lifecycle.disruption_budget.mariadb.min_available }}
-  selector:
-    matchLabels:
-{{ tuple $envAll "mariadb" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
+  name: mariadb-services-tcp
+data:
+  {{ tuple "oslo_db" "internal" "mysql" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}: "{{ .Release.Namespace }}/{{ tuple "oslo_db" "direct" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}:{{ tuple "oslo_db" "direct" "mysql" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}"
 {{- end }}

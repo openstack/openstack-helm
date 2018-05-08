@@ -24,7 +24,8 @@ limitations under the License.
 apiVersion: apps/v1beta1
 kind: StatefulSet
 metadata:
-  name: mariadb
+  # NOTE(portdirect): the statefulset name must match the POD_NAME_PREFIX env var for discovery to work
+  name: {{ tuple "oslo_db" "direct" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
 spec:
   serviceName: "{{ tuple "oslo_db" "discovery" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}"
   podManagementPolicy: "Parallel"
@@ -80,14 +81,21 @@ spec:
             - name: MARIADB_REPLICAS
               value: {{ .Values.pod.replicas.server | quote }}
             - name: WSREP_PORT
-              value: {{ tuple "oslo_db" "internal" "wsrep" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | quote }}
-            - name: SERVICE_NAME
-              value: {{ tuple "oslo_db" "internal" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
+              value: {{ tuple "oslo_db" "direct" "wsrep" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | quote }}
+            - name: POD_NAME_PREFIX
+              value: {{ tuple "oslo_db" "direct" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
             - name: MYSQL_ROOT_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: mariadb-db-root-password
                   key: MYSQL_ROOT_PASSWORD
+          ports:
+            - name: mysql
+              protocol: TCP
+              containerPort: {{ tuple "oslo_db" "direct" "mysql" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+            - name: wsrep
+              protocol: TCP
+              containerPort: {{ tuple "oslo_db" "direct" "wsrep" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
           command:
             - /tmp/start.sh
           lifecycle:

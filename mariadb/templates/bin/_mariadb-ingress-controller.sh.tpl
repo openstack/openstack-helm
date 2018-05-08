@@ -1,3 +1,5 @@
+#!/bin/bash
+
 {{/*
 Copyright 2017 The Openstack-Helm Authors.
 
@@ -14,16 +16,23 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if .Values.manifests.pdb_server }}
-{{- $envAll := . }}
----
-apiVersion: policy/v1beta1
-kind: PodDisruptionBudget
-metadata:
-  name: mariadb-server
-spec:
-  minAvailable: {{ .Values.pod.lifecycle.disruption_budget.mariadb.min_available }}
-  selector:
-    matchLabels:
-{{ tuple $envAll "mariadb" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
-{{- end }}
+set -ex
+COMMAND="${@:-start}"
+
+function start () {
+  exec /usr/bin/dumb-init \
+      /nginx-ingress-controller \
+      --force-namespace-isolation \
+      --watch-namespace ${POD_NAMESPACE} \
+      --election-id=${RELEASE_NAME} \
+      --ingress-class=${INGRESS_CLASS} \
+      --default-backend-service=${POD_NAMESPACE}/${ERROR_PAGE_SERVICE} \
+      --tcp-services-configmap=${POD_NAMESPACE}/mariadb-services-tcp
+}
+
+
+function stop () {
+  kill -TERM 1
+}
+
+$COMMAND
