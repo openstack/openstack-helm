@@ -18,7 +18,7 @@ limitations under the License.
 
 set -ex
 {{ if .Values.bootstrap.enabled }}
-{{ range .Values.bootstrap.images }}
+{{ range .Values.bootstrap.structured.images }}
   {{ if .id -}}
     openstack image show {{ .id | quote }} && \
       openstack image delete {{ .id | quote }}
