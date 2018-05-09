@@ -73,7 +73,7 @@ for i in $(seq 1 ${MARIADB_REPLICAS}); do
     else
       NUM="$(expr $i - 1)"
     fi
-    CANDIDATE_POD="${SERVICE_NAME}-$NUM.$(hostname -d)"
+    CANDIDATE_POD="${POD_NAME_PREFIX}-$NUM.$(hostname -d)"
     if [ "x${CANDIDATE_POD}" != "x${POD_NAME}.$(hostname -d)" ]; then
         if [ -n "${MEMBERS}" ]; then
             MEMBERS+=,
@@ -147,7 +147,7 @@ EOF
     fi
 
 elif [ ! -d /var/lib/mysql/mysql -o "x${FORCE_BOOTSTRAP}" = "xtrue" ]; then
-    if [ "x${POD_NAME}" = "x${SERVICE_NAME}-0" ]; then
+    if [ "x${POD_NAME}" = "x${POD_NAME_PREFIX}-0" ]; then
         echo No data found for pod 0
         if [ "x${FORCE_BOOTSTRAP}" = "xtrue" ]; then
             echo 'force_bootstrap set, so will force-initialize node 0.'

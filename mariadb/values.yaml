@@ -20,6 +20,8 @@ images:
     # https://review.openstack.org/#/q/Ifd09d7effe7d382074ca9e6678df36bdd4bce0af
     # and check whether it's still needed
     mariadb: docker.io/mariadb:10.2.13
+    ingress: quay.io/kubernetes-ingress-controller/nginx-ingress-controller:0.9.0
+    error_pages: gcr.io/google_containers/defaultbackend:1.0
     prometheus_create_mysql_user: docker.io/mariadb:10.2.13
     prometheus_mysql_exporter: docker.io/prom/mysqld-exporter:v0.10.0
     prometheus_mysql_exporter_helm_tests: docker.io/openstackhelm/heat:newton
@@ -30,7 +32,13 @@ labels:
   server:
     node_selector_key: openstack-control-plane
     node_selector_value: enabled
+  ingress:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
   prometheus_mysql_exporter:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  error_server:
     node_selector_key: openstack-control-plane
     node_selector_value: enabled
 
@@ -43,6 +51,8 @@ pod:
         default: kubernetes.io/hostname
   replicas:
     server: 1
+    ingress: 1
+    error_page: 1
     prometheus_mysql_exporter: 1
   lifecycle:
     upgrades:
@@ -55,6 +65,8 @@ pod:
     termination_grace_period:
       prometheus_mysql_exporter:
         timeout: 30
+      error_pages:
+        timeout: 10
     disruption_budget:
       mariadb:
         min_available: 0
@@ -92,6 +104,13 @@ pod:
 
 dependencies:
   static:
+    error_pages:
+      jobs: null
+    ingress:
+      jobs: null
+      services:
+        - endpoint: error_pages
+          service: oslo_db
     mariadb:
       jobs: null
       services: null
@@ -119,6 +138,11 @@ volume:
   enabled: true
   class_name: general
   size: 5Gi
+
+
+
+conf:
+  ingress: null
 
 database:
   config_override: null
@@ -186,7 +210,9 @@ endpoints:
         password: password
     hosts:
       default: mariadb
+      direct: mariadb-server
       discovery: mariadb-discovery
+      error_pages: mariadb-ingress-error-pages
     host_fqdn_override:
       default: null
     path: null
@@ -200,7 +226,9 @@ endpoints:
 manifests:
   configmap_bin: true
   configmap_etc: true
-  pdb_server: true
+  configmap_services_tcp: true
+  deployment_error: true
+  deployment_ingress: true
   monitoring:
     prometheus:
       configmap_bin: true
@@ -208,8 +236,11 @@ manifests:
       job_user_create: true
       secret_etc: true
       service_exporter: true
+  pdb_server: true
   secret_db: true
   secret_etc: true
   service_discovery: true
+  service_ingress: true
+  service_error: true
   service: true
   statefulset: true

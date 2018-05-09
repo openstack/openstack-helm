@@ -17,11 +17,18 @@
 set -xe
 
 #NOTE: Deploy command
+tee /tmp/mariadb.yaml << EOF
+pod:
+  replicas:
+    server: 3
+    ingress: 3
+EOF
 helm upgrade --install mariadb ./mariadb \
     --namespace=openstack \
-    --set pod.replicas.server=3 \
+    --values=/tmp/mariadb.yaml \
     ${OSH_EXTRA_HELM_ARGS} \
     ${OSH_EXTRA_HELM_ARGS_MARIADB}
+
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack
 
