@@ -11,12 +11,6 @@ Install the latest versions of Git, CA Certs & Make if necessary
     :language: shell
     :lines: 1,17-
 
-Alternatively, this step can be performed by running the script directly:
-
-.. code-block:: shell
-
-  ./tools/deployment/developer/common/000-install-packages.sh
-
 Clone the OpenStack-Helm Repos
 ------------------------------
 
