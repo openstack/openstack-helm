@@ -110,6 +110,7 @@ conf:
       scheduler_tracks_instance_changes: false
       scheduler_host_subset_size: 9999
 manifests:
+  cron_job_cell_setup: false
   daemonset_compute: false
   daemonset_libvirt: false
   statefulset_compute_ironic: true
