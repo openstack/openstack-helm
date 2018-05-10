@@ -16,7 +16,7 @@
 
 set -xe
 
-#NOTE: Pull images and lint charts for deploying the docker registry
+#NOTE: Pull images and lint charts for deploying a local docker registry
 make pull-images nfs-provisioner
 make pull-images redis
 make pull-images registry
