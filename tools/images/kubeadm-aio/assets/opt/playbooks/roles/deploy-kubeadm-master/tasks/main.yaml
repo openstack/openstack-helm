@@ -215,15 +215,18 @@
   delegate_to: 127.0.0.1
   command: kubeadm alpha phase selfhosting convert-from-staticpods --kubeconfig /mnt/rootfs/etc/kubernetes/admin.conf --config /mnt/rootfs/etc/kubernetes/kubeadm-conf.yaml
 
-- name: setting up kubectl client on host
+- name: setting up kubectl client and kubeadm on host
   block:
     - name: kubectl | copying kubectl binary to host
       copy:
-        src: /usr/bin/kubectl
-        dest: /usr/bin/kubectl
+        src: "/usr/bin/{{ item }}"
+        dest: "/usr/bin/{{ item }}"
         owner: root
         group: root
         mode: 0555
+      with_items:
+        - kubectl
+        - kubeadm
     - name: kubectl | master | ensure kube config directory exists for user
       file:
         path: "{{ item }}"
