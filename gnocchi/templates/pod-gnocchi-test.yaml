@@ -16,13 +16,12 @@ limitations under the License.
 
 {{- if .Values.manifests.pod_gnocchi_test }}
 {{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.static.tests }}
 
 {{- $mounts_gnocchi_tests := .Values.pod.mounts.gnocchi_tests.gnocchi_tests }}
 {{- $mounts_gnocchi_tests_init := .Values.pod.mounts.gnocchi_tests.init_container }}
 
 {{- $serviceAccountName := print .Release.Name "-test" }}
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{ tuple $envAll "tests" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: v1
 kind: Pod
@@ -36,7 +35,7 @@ spec:
   serviceAccountName: {{ $serviceAccountName }}
   restartPolicy: Never
   initContainers:
-{{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 4 }}
+{{ tuple $envAll "tests" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 4 }}
   containers:
     - name: {{.Release.Name}}-helm-tests
       image: {{ .Values.images.tags.gnocchi_api }}

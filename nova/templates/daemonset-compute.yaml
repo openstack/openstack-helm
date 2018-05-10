@@ -18,8 +18,7 @@ limitations under the License.
 {{- $daemonset := index . 0 }}
 {{- $configMapName := index . 1 }}
 {{- $serviceAccountName := index . 2 }}
-{{- $dependencies := index . 3 }}
-{{- $envAll := index . 4 }}
+{{- $envAll := index . 3 }}
 {{- with $envAll }}
 
 {{- $mounts_nova_compute := .Values.pod.mounts.nova_compute.nova_compute }}
@@ -46,7 +45,7 @@ spec:
       hostPID: true
       dnsPolicy: ClusterFirstWithHostNet
       initContainers:
-{{ tuple $envAll $dependencies $mounts_nova_compute_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll "pod_dependency" $mounts_nova_compute_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
         - name: nova-compute-init
           image: {{ .Values.images.tags.nova_compute }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
@@ -332,8 +331,8 @@ spec:
 {{- $dependencyOpts := dict "envAll" $envAll "dependencyMixinParam" $envAll.Values.network.backend "dependencyKey" "compute" -}}
 {{- $dependencies := include "helm-toolkit.utils.dependency_resolver" $dependencyOpts | toString | fromYaml }}
 
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
-{{- $daemonset_yaml := list $daemonset $configMapName $serviceAccountName $dependencies . | include "nova.compute.daemonset" | toString | fromYaml }}
+{{ tuple $envAll "pod_dependency" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{- $daemonset_yaml := list $daemonset $configMapName $serviceAccountName . | include "nova.compute.daemonset" | toString | fromYaml }}
 {{- $configmap_yaml := "nova.configmap.etc" }}
 {{- list $daemonset $daemonset_yaml $configmap_yaml $configMapName . | include "helm-toolkit.utils.daemonset_overrides" }}
 {{- end }}

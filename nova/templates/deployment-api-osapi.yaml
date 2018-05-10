@@ -16,13 +16,12 @@ limitations under the License.
 
 {{- if .Values.manifests.deployment_api_osapi }}
 {{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.static.api }}
 
 {{- $mounts_nova_api_osapi := .Values.pod.mounts.nova_api_osapi.nova_api_osapi }}
 {{- $mounts_nova_api_osapi_init := .Values.pod.mounts.nova_api_osapi.init_container }}
 
 {{- $serviceAccountName := "nova-api-osapi" }}
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{ tuple $envAll "api" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: apps/v1beta1
 kind: Deployment
@@ -46,7 +45,7 @@ spec:
         {{ .Values.labels.osapi.node_selector_key }}: {{ .Values.labels.osapi.node_selector_value }}
       terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.osapi.timeout | default "30" }}
       initContainers:
-{{ tuple $envAll $dependencies $mounts_nova_api_osapi_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll "api" $mounts_nova_api_osapi_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
         - name: nova-osapi
           image: {{ .Values.images.tags.nova_api }}

@@ -15,13 +15,12 @@ limitations under the License.
 */}}
 
 {{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.static.trusts }}
 
 {{- $mounts_heat_trusts := .Values.pod.mounts.heat_trusts.heat_trusts }}
 {{- $mounts_heat_trusts_init := .Values.pod.mounts.heat_trusts.init_container }}
 
 {{- $serviceAccountName := "heat-trusts" }}
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{ tuple $envAll "trusts" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: batch/v1
 kind: Job
@@ -38,7 +37,7 @@ spec:
       nodeSelector:
         {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
       initContainers:
-{{ tuple $envAll $dependencies $mounts_heat_trusts_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll "trusts" $mounts_heat_trusts_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
         - name: heat-trusts
           image: {{ $envAll.Values.images.tags.ks_service }}

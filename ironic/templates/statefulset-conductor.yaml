@@ -16,13 +16,12 @@ limitations under the License.
 
 {{- if .Values.manifests.statefulset_conductor }}
 {{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.static.conductor }}
 
 {{- $mounts_ironic_conductor := .Values.pod.mounts.ironic_conductor.ironic_conductor }}
 {{- $mounts_ironic_conductor_init := .Values.pod.mounts.ironic_conductor.init_container }}
 
 {{- $serviceAccountName := "ironic-conductor" }}
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{ tuple $envAll "conductor" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: apps/v1beta1
 kind: StatefulSet
@@ -47,7 +46,7 @@ spec:
       hostIPC: True
       dnsPolicy: ClusterFirstWithHostNet
       initContainers:
-{{ tuple $envAll $dependencies $mounts_ironic_conductor_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll "conductor" $mounts_ironic_conductor_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
         - name: ironic-conductor-pxe-init
           image: {{ .Values.images.tags.ironic_pxe_init }}
           imagePullPolicy: {{ .Values.images.pull_policy }}

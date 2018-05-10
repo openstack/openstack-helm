@@ -16,13 +16,12 @@ limitations under the License.
 
 {{- if .Values.manifests.deployment_consoleauth }}
 {{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.static.consoleauth }}
 
 {{- $mounts_nova_consoleauth := .Values.pod.mounts.nova_consoleauth.nova_conductor }}
 {{- $mounts_nova_consoleauth_init := .Values.pod.mounts.nova_consoleauth.init_container }}
 
 {{- $serviceAccountName := "nova-consoleauth" }}
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{ tuple $envAll "consoleauth" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: apps/v1beta1
 kind: Deployment
@@ -45,7 +44,7 @@ spec:
       nodeSelector:
         {{ .Values.labels.consoleauth.node_selector_key }}: {{ .Values.labels.consoleauth.node_selector_value }}
       initContainers:
-{{ tuple $envAll $dependencies $mounts_nova_consoleauth_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll "consoleauth" $mounts_nova_consoleauth_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
         - name: nova-consoleauth
           image: {{ .Values.images.tags.nova_consoleauth }}

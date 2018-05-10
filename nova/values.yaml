@@ -85,6 +85,12 @@ images:
     nova_spiceproxy: docker.io/openstackhelm/nova:newton
     nova_spiceproxy_assets: 'docker.io/kolla/ubuntu-source-nova-spicehtml5proxy:3.0.3'
     test: 'docker.io/kolla/ubuntu-source-rally:4.0.0'
+    image_repo_sync: docker.io/docker:17.07.0
+  local_registry:
+    active: false
+    exclude:
+      - dep_check
+      - image_repo_sync
 
 jobs:
   # NOTE(portdirect): When using cells new nodes will be added to the cell on the hour by default.
@@ -198,6 +204,13 @@ network:
 
 dependencies:
   dynamic:
+    common:
+      local_image_registry:
+        jobs:
+          - nova-image-repo-sync
+        services:
+          - endpoint: node
+            service: local_image_registry
     targeted:
       openvswitch:
         compute:
@@ -378,6 +391,10 @@ dependencies:
           service: compute
         - endpoint: internal
           service: network
+    image_repo_sync:
+      services:
+        - endpoint: internal
+          service: local_image_registry
 
 console:
   # serial | spice | novnc | none
@@ -1112,6 +1129,18 @@ secrets:
 # required by this chart
 endpoints:
   cluster_domain_suffix: cluster.local
+  local_image_registry:
+    name: docker-registry
+    namespace: docker-registry
+    hosts:
+      default: localhost
+      internal: docker-registry
+      node: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        node: 5000
   oslo_db:
     auth:
       admin:
@@ -1625,6 +1654,13 @@ pod:
         limits:
           memory: "1024Mi"
           cpu: "2000m"
+      image_repo_sync:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
 
 manifests:
   configmap_bin: true
@@ -1648,6 +1684,7 @@ manifests:
   job_db_init_placement: true
   job_db_sync: true
   job_db_drop: false
+  job_image_repo_sync: true
   job_rabbit_init: true
   job_ks_endpoints: true
   job_ks_service: true

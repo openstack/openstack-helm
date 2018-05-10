@@ -16,10 +16,9 @@ limitations under the License.
 
 {{- if .Values.manifests.job_db_init_mongodb }}
 {{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.static.db_init_mongodb }}
 
 {{- $serviceAccountName := "ceilometer-db-init-mongodb" }}
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{ tuple $envAll "db_init_mongodb" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: batch/v1
 kind: Job
@@ -33,7 +32,7 @@ spec:
       nodeSelector:
         {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
       initContainers:
-{{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll "db_init_mongodb" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
         - name: ceilometer-db-init-mongodb
           image: {{ .Values.images.tags.db_init_mongodb }}

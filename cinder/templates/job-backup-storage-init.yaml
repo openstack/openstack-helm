@@ -16,10 +16,9 @@ limitations under the License.
 
 {{- if .Values.manifests.job_backup_storage_init }}
 {{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.static.backup_storage_init }}
 
 {{- $serviceAccountName := "cinder-backup-storage-init" }}
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{ tuple $envAll "backup_storage_init" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: Role
@@ -64,7 +63,7 @@ spec:
       nodeSelector:
         {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
       initContainers:
-{{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll "backup_storage_init" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
         {{- if eq .Values.conf.cinder.DEFAULT.backup_driver "cinder.backup.drivers.ceph" }}
         - name: ceph-keyring-placement
           image: {{ .Values.images.tags.cinder_backup_storage_init }}

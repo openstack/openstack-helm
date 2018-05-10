@@ -16,10 +16,9 @@ limitations under the License.
 
 {{- if .Values.manifests.job_manage_db }}
 {{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.static.manage_db }}
 
 {{- $serviceAccountName := "rally-manage-db" }}
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{ tuple $envAll "manage_db" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: batch/v1
 kind: Job
@@ -36,7 +35,7 @@ spec:
       nodeSelector:
         {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
       initContainers:
-{{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll "manage_db" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
         - name: rally-manage-db
           image: {{ .Values.images.tags.manage_db }}

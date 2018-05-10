@@ -39,7 +39,13 @@ images:
     neutron_sriov_agent: docker.io/openstackhelm/neutron:newton-sriov-1804
     neutron_sriov_agent_init: docker.io/openstackhelm/neutron:newton-sriov-1804
     dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.3.1
+    image_repo_sync: docker.io/docker:17.07.0
   pull_policy: "IfNotPresent"
+  local_registry:
+    active: false
+    exclude:
+      - dep_check
+      - image_repo_sync
 
 labels:
   agent:
@@ -131,6 +137,13 @@ bootstrap:
 
 dependencies:
   dynamic:
+    common:
+      local_image_registry:
+        jobs:
+          - neutron-image-repo-sync
+        services:
+          - endpoint: node
+            service: local_image_registry
     targeted:
       openvswitch:
         dhcp:
@@ -312,6 +325,10 @@ dependencies:
           service: network
         - endpoint: internal
           service: compute
+    image_repo_sync:
+      services:
+        - endpoint: internal
+          service: local_image_registry
 
 pod:
   user:
@@ -503,6 +520,13 @@ pod:
           memory: "1024Mi"
           cpu: "2000m"
       tests:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      image_repo_sync:
         requests:
           memory: "128Mi"
           cpu: "100m"
@@ -1487,6 +1511,18 @@ secrets:
 # required by this chart
 endpoints:
   cluster_domain_suffix: cluster.local
+  local_image_registry:
+    name: docker-registry
+    namespace: docker-registry
+    hosts:
+      default: localhost
+      internal: docker-registry
+      node: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        node: 5000
   oslo_db:
     auth:
       admin:
@@ -1648,6 +1684,7 @@ manifests:
   job_db_init: true
   job_db_sync: true
   job_db_drop: false
+  job_image_repo_sync: true
   job_ks_endpoints: true
   job_ks_service: true
   job_ks_user: true

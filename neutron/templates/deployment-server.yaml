@@ -24,7 +24,7 @@ limitations under the License.
 {{- $mounts_neutron_server_init := .Values.pod.mounts.neutron_server.init_container }}
 
 {{- $serviceAccountName := "neutron-server" }}
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{ tuple $envAll "pod_dependency" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: apps/v1beta1
 kind: Deployment
@@ -48,7 +48,7 @@ spec:
         {{ .Values.labels.server.node_selector_key }}: {{ .Values.labels.server.node_selector_value }}
       terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.server.timeout | default "30" }}
       initContainers:
-{{ tuple $envAll $dependencies $mounts_neutron_server_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll "pod_dependency" $mounts_neutron_server_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
         - name: neutron-server
           image: {{ .Values.images.tags.neutron_server }}

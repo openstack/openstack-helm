@@ -20,10 +20,8 @@ limitations under the License.
 {{- if not (and (not $envAll.Values.manifests.deployment_rgw) (eq $cephBootstrapKey "rgw")) }}
 {{- $jobName := print $cephBootstrapKey "-keyring-generator" }}
 
-{{- $dependencies := $envAll.Values.dependencies.static.job_keyring_generator }}
-
 {{- $serviceAccountName := print "ceph-" $jobName }}
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{ tuple $envAll "job_keyring_generator" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: Role
@@ -67,7 +65,7 @@ spec:
       nodeSelector:
         {{ $envAll.Values.labels.job.node_selector_key }}: {{ $envAll.Values.labels.job.node_selector_value }}
       initContainers:
-{{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll "job_keyring_generator" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
         - name:  ceph-{{ $jobName }}
           image: {{ $envAll.Values.images.tags.ceph_config_helper }}

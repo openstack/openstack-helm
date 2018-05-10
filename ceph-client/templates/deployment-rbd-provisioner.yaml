@@ -16,10 +16,9 @@ limitations under the License.
 
 {{- if and .Values.manifests.deployment_rbd_provisioner .Values.deployment.rbd_provisioner }}
 {{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.static.rbd_provisioner }}
 
 {{- $serviceAccountName := printf "%s-%s" .Release.Name "ceph-rbd-provisioner" }}
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{ tuple $envAll "rbd_provisioner" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
@@ -137,7 +136,7 @@ spec:
       nodeSelector:
         {{ .Values.labels.provisioner.node_selector_key }}: {{ .Values.labels.provisioner.node_selector_value }}
       initContainers:
-{{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll "rbd_provisioner" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
         - name: ceph-rbd-provisioner
           image: {{ .Values.images.tags.ceph_rbd_provisioner }}

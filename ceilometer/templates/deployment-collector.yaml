@@ -16,13 +16,12 @@ limitations under the License.
 
 {{- if .Values.manifests.deployment_collector }}
 {{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.static.collector }}
 
 {{- $mounts_ceilometer_collector := .Values.pod.mounts.ceilometer_collector.ceilometer_collector }}
 {{- $mounts_ceilometer_collector_init := .Values.pod.mounts.ceilometer_collector.init_container }}
 
 {{- $serviceAccountName := "ceilometer-collector" }}
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{ tuple $envAll "collector" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: apps/v1beta1
 kind: Deployment
@@ -45,7 +44,7 @@ spec:
       nodeSelector:
         {{ .Values.labels.collector.node_selector_key }}: {{ .Values.labels.collector.node_selector_value }}
       initContainers:
-{{ tuple $envAll $dependencies $mounts_ceilometer_collector_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll "collector" $mounts_ceilometer_collector_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
         - name: ceilometer-collector
           image: {{ .Values.images.tags.ceilometer_collector }}

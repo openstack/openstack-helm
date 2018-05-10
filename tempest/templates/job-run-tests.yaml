@@ -17,10 +17,9 @@ limitations under the License.
 {{- if .Values.manifests.job_run_tests }}
 
 {{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.static.run_tests }}
 
 {{- $serviceAccountName := "tempest-run-tests" }}
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{ tuple $envAll "run_tests" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: batch/v1
 kind: Job
@@ -37,7 +36,7 @@ spec:
       nodeSelector:
         {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
       initContainers:
-{{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll "run_tests" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
         - name: tempest-run-tests-init
           image: {{ .Values.images.tags.tempest_run_tests }}
           imagePullPolicy: {{ .Values.images.tags.pull_policy }}

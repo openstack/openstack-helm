@@ -17,12 +17,11 @@ limitations under the License.
 {{- if .Values.manifests.job_clean }}
 {{- $envAll := . }}
 {{- if .Values.bootstrap.enabled }}
-{{- $dependencies := .Values.dependencies.static.clean }}
 
 {{- $randStringSuffix := randAlphaNum 5 | lower }}
 
 {{- $serviceAccountName := print "glance-clean-" $randStringSuffix }}
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{ tuple $envAll "clean" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: Role
@@ -68,7 +67,7 @@ spec:
       nodeSelector:
         {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
       initContainers:
-{{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll "clean" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
         {{- if eq .Values.storage "rbd" }}
         - name: glance-secret-clean

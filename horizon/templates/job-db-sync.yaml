@@ -16,13 +16,12 @@ limitations under the License.
 
 {{- if .Values.manifests.job_db_sync }}
 {{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.static.db_sync }}
 
 {{- $mounts_horizon_db_sync := .Values.pod.mounts.horizon_db_sync.horizon_db_sync }}
 {{- $mounts_horizon_db_sync_init := .Values.pod.mounts.horizon_db_sync.init_container }}
 
 {{- $serviceAccountName := "horizon-db-sync" }}
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{ tuple $envAll "db_sync" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: batch/v1
 kind: Job
@@ -39,7 +38,7 @@ spec:
       nodeSelector:
         {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
       initContainers:
-{{ tuple $envAll $dependencies $mounts_horizon_db_sync_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll "db_sync" $mounts_horizon_db_sync_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
         - name: horizon-db-sync
           image: {{ .Values.images.tags.horizon_db_sync }}

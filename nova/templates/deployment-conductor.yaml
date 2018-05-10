@@ -16,13 +16,12 @@ limitations under the License.
 
 {{- if .Values.manifests.deployment_conductor }}
 {{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.static.conductor }}
 
 {{- $mounts_nova_conductor := .Values.pod.mounts.nova_conductor.nova_conductor }}
 {{- $mounts_nova_conductor_init := .Values.pod.mounts.nova_conductor.init_container }}
 
 {{- $serviceAccountName := "nova-conductor" }}
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{ tuple $envAll "conductor" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: apps/v1beta1
 kind: Deployment
@@ -45,7 +44,7 @@ spec:
       nodeSelector:
         {{ .Values.labels.conductor.node_selector_key }}: {{ .Values.labels.conductor.node_selector_value }}
       initContainers:
-{{ tuple $envAll $dependencies $mounts_nova_conductor_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll "conductor" $mounts_nova_conductor_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
         - name: nova-conductor
           image: {{ .Values.images.tags.nova_conductor }}

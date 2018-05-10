@@ -16,10 +16,9 @@ limitations under the License.
 
 {{- if and .Values.manifests.daemonset_mon .Values.deployment.ceph }}
 {{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.static.mon }}
 
 {{- $serviceAccountName := "ceph-mon"}}
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{ tuple $envAll "mon" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: Role
@@ -63,7 +62,7 @@ spec:
       hostNetwork: true
       dnsPolicy: {{ .Values.pod.dns_policy }}
       initContainers:
-{{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll "mon" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
         - name: ceph-init-dirs
           image: {{ .Values.images.tags.ceph_mon }}
           imagePullPolicy: {{ .Values.images.pull_policy }}

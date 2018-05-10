@@ -16,13 +16,12 @@ limitations under the License.
 
 {{- if .Values.manifests.pod_test }}
 {{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.static.tests }}
 
 {{- $mounts_senlin_tests := .Values.pod.mounts.senlin_tests.senlin_tests }}
 {{- $mounts_senlin_tests_init := .Values.pod.mounts.senlin_tests.init_container }}
 
 {{- $serviceAccountName := print .Release.Name "-test" }}
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{ tuple $envAll "tests" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: v1
 kind: Pod
@@ -36,7 +35,7 @@ spec:
     {{ .Values.labels.test.node_selector_key }}: {{ .Values.labels.test.node_selector_value }}
   restartPolicy: Never
   initContainers:
-{{ tuple $envAll $dependencies $mounts_senlin_tests_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll "tests" $mounts_senlin_tests_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
   containers:
     - name: {{.Release.Name}}-senlin-test
       image: {{ .Values.images.tags.scripted_test }}

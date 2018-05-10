@@ -16,12 +16,12 @@ limitations under the License.
 
 {{- if .Values.manifests.statefulset_compute_ironic }}
 {{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.static.compute_ironic }}
+
 {{- $mounts_nova_compute_ironic := .Values.pod.mounts.nova_compute_ironic.nova_compute_ironic }}
 {{- $mounts_nova_compute_ironic_init := .Values.pod.mounts.nova_compute_ironic.init_container }}
 
 {{- $serviceAccountName := "nova-compute-ironic" }}
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{ tuple $envAll "compute_ironic" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: apps/v1beta1
 kind: StatefulSet
@@ -49,7 +49,7 @@ spec:
       hostPID: true
       dnsPolicy: ClusterFirstWithHostNet
       initContainers:
-{{ tuple $envAll $dependencies $mounts_nova_compute_ironic_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll "compute_ironic" $mounts_nova_compute_ironic_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
         - name: nova-compute-ironic
           image: {{ .Values.images.tags.nova_compute_ironic }}

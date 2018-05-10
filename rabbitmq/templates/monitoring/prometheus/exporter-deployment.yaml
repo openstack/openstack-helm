@@ -16,10 +16,9 @@ limitations under the License.
 
 {{- if and .Values.manifests.monitoring.prometheus.deployment_exporter .Values.monitoring.prometheus.enabled }}
 {{- $envAll := . }}
-{{- $dependencies := $envAll.Values.dependencies.static.prometheus_rabbitmq_exporter }}
 
 {{- $rcControllerName := printf "%s-%s" $envAll.Release.Name "rabbitmq-exporter"  }}
-{{ tuple $envAll $dependencies $rcControllerName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{ tuple $envAll "prometheus_rabbitmq_exporter" $rcControllerName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: extensions/v1beta1
 kind: Deployment
@@ -39,7 +38,7 @@ spec:
         {{ $envAll.Values.labels.prometheus_rabbitmq_exporter.node_selector_key }}: {{ $envAll.Values.labels.prometheus_rabbitmq_exporter.node_selector_value }}
       terminationGracePeriodSeconds: {{ $envAll.Values.pod.lifecycle.termination_grace_period.prometheus_rabbitmq_exporter.timeout | default "30" }}
       initContainers:
-{{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll "prometheus_rabbitmq_exporter" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
         - name: rabbitmq-exporter
           image: {{ $envAll.Values.images.tags.prometheus_rabbitmq_exporter }}

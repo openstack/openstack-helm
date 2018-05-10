@@ -43,7 +43,13 @@ images:
     keystone_api: docker.io/openstackhelm/keystone:newton
     keystone_domain_manage: docker.io/openstackhelm/keystone:newton
     dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.3.1
+    image_repo_sync: docker.io/docker:17.07.0
   pull_policy: "IfNotPresent"
+  local_registry:
+    active: false
+    exclude:
+      - dep_check
+      - image_repo_sync
 
 bootstrap:
   enabled: true
@@ -85,6 +91,14 @@ network:
       port: 30357
 
 dependencies:
+  dynamic:
+    common:
+      local_image_registry:
+        jobs:
+          - keystone-image-repo-sync
+        services:
+          - endpoint: node
+            service: local_image_registry
   static:
     api:
       jobs:
@@ -138,6 +152,10 @@ dependencies:
       services:
         - endpoint: internal
           service: identity
+    image_repo_sync:
+      services:
+        - endpoint: internal
+          service: local_image_registry
 
 pod:
   affinity:
@@ -274,6 +292,13 @@ pod:
           memory: "1024Mi"
           cpu: "2000m"
       credential_rotate:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      image_repo_sync:
         requests:
           memory: "128Mi"
           cpu: "100m"
@@ -767,6 +792,18 @@ secrets:
 # required by this chart
 endpoints:
   cluster_domain_suffix: cluster.local
+  local_image_registry:
+    name: docker-registry
+    namespace: docker-registry
+    hosts:
+      default: localhost
+      internal: docker-registry
+      node: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        node: 5000
   identity:
     namespace: null
     name: keystone
@@ -875,6 +912,7 @@ manifests:
   job_db_drop: false
   job_domain_manage: true
   job_fernet_setup: true
+  job_image_repo_sync: true
   job_rabbit_init: true
   pdb_api: true
   pod_rally_test: true

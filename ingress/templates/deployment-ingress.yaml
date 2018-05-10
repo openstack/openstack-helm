@@ -16,7 +16,6 @@ limitations under the License.
 
 {{- if .Values.manifests.deployment_ingress }}
 {{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.static.ingress }}
 
 {{- if empty .Values.conf.controller.INGRESS_CLASS -}}
 {{- if eq .Values.deployment.mode "cluster" }}
@@ -27,7 +26,7 @@ limitations under the License.
 {{- end -}}
 
 {{- $serviceAccountName := printf "%s-%s" .Release.Name "ingress" }}
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{ tuple $envAll "ingress" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRole
@@ -180,7 +179,7 @@ spec:
       dnsPolicy: "ClusterFirstWithHostNet"
       terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.server.timeout | default "60" }}
       initContainers:
-{{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll "ingress" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
 {{- if and .Values.network.host_namespace .Values.network.vip.manage }}
         - name: ingress-vip-kernel-modules
           image: {{ .Values.images.tags.ingress }}

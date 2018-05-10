@@ -37,13 +37,27 @@ pod:
       limits:
         memory: "1024Mi"
         cpu: "2000m"
+    jobs:
+      image_repo_sync:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
 
 # using dockerhub postgresql: https://hub.docker.com/r/library/postgres/tags/
 images:
   tags:
     postgresql: "docker.io/postgres:9.5"
     dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.3.1
-  pull_policy: IfNotPresent
+    image_repo_sync: docker.io/docker:17.07.0
+  pull_policy: "IfNotPresent"
+  local_registry:
+    active: false
+    exclude:
+      - dep_check
+      - image_repo_sync
 
 storage:
   pvc:
@@ -63,9 +77,21 @@ labels:
     node_selector_value: enabled
 
 dependencies:
+  dynamic:
+    common:
+      local_image_registry:
+        jobs:
+          - postgresql-image-repo-sync
+        services:
+          - endpoint: node
+            service: local_image_registry
   static:
     postgresql:
       jobs: null
+    image_repo_sync:
+      services:
+        - endpoint: internal
+          service: local_image_registry
 
 secrets:
   postgresql:
@@ -73,6 +99,18 @@ secrets:
 
 endpoints:
   cluster_domain_suffix: cluster.local
+  local_image_registry:
+    name: docker-registry
+    namespace: docker-registry
+    hosts:
+      default: localhost
+      internal: docker-registry
+      node: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        node: 5000
   postgresql:
     auth:
       admin:
@@ -90,6 +128,7 @@ endpoints:
 
 manifests:
   configmap_bin: true
+  job_image_repo_sync: true
   secret_admin: true
   service: true
   statefulset: true

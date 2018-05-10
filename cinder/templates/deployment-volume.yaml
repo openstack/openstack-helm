@@ -16,13 +16,12 @@ limitations under the License.
 
 {{- if .Values.manifests.deployment_volume }}
 {{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.static.volume }}
 
 {{- $mounts_cinder_volume := .Values.pod.mounts.cinder_volume.cinder_volume }}
 {{- $mounts_cinder_volume_init := .Values.pod.mounts.cinder_volume.init_container }}
 
 {{- $serviceAccountName := "cinder-volume" }}
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{ tuple $envAll "volume" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: apps/v1beta1
 kind: Deployment
@@ -45,7 +44,7 @@ spec:
       nodeSelector:
         {{ .Values.labels.volume.node_selector_key }}: {{ .Values.labels.volume.node_selector_value }}
       initContainers:
-{{ tuple $envAll $dependencies $mounts_cinder_volume_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll "volume" $mounts_cinder_volume_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
         {{- if include "cinder.is_ceph_volume_configured" $envAll }}
         - name: ceph-keyring-placement
           image: {{ .Values.images.tags.cinder_volume }}

@@ -18,6 +18,12 @@ images:
     ceph_osd: 'docker.io/ceph/daemon:tag-build-master-luminous-ubuntu-16.04'
     ceph_bootstrap: 'docker.io/ceph/daemon:tag-build-master-luminous-ubuntu-16.04'
     dep_check: 'quay.io/stackanetes/kubernetes-entrypoint:v0.3.0'
+    image_repo_sync: docker.io/docker:17.07.0
+  local_registry:
+    active: false
+    exclude:
+      - dep_check
+      - image_repo_sync
 
 labels:
   job:
@@ -44,6 +50,15 @@ pod:
       limits:
         memory: "1024Mi"
         cpu: "1000m"
+    jobs:
+      image_repo_sync:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+
 secrets:
   keyrings:
     osd: ceph-bootstrap-osd-keyring
@@ -109,6 +124,14 @@ conf:
 #                   location: /var/lib/openstack-helm/ceph/osd/journal-three
 
 dependencies:
+  dynamic:
+    common:
+      local_image_registry:
+        jobs:
+          - ceph-osd-image-repo-sync
+        services:
+          - endpoint: node
+            service: local_image_registry
   static:
     osd:
       jobs:
@@ -117,6 +140,10 @@ dependencies:
       services:
         - endpoint: internal
           service: ceph_mon
+    image_repo_sync:
+      services:
+        - endpoint: internal
+          service: local_image_registry
 
 bootstrap:
   enabled: false
@@ -133,6 +160,18 @@ bootstrap:
 
 endpoints:
   cluster_domain_suffix: cluster.local
+  local_image_registry:
+    name: docker-registry
+    namespace: docker-registry
+    hosts:
+      default: localhost
+      internal: docker-registry
+      node: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        node: 5000
   ceph_mon:
     namespace: null
     hosts:
@@ -148,3 +187,4 @@ manifests:
   configmap_bin: true
   configmap_etc: true
   daemonset_osd: true
+  job_image_repo_sync: true

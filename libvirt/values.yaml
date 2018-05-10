@@ -29,8 +29,28 @@ images:
   tags:
     libvirt: docker.io/openstackhelm/libvirt:ubuntu-xenial-1.3.1
     dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.3.1
+    image_repo_sync: docker.io/docker:17.07.0
   pull_policy: "IfNotPresent"
+  local_registry:
+    active: false
+    exclude:
+      - dep_check
+      - image_repo_sync
 
+endpoints:
+  cluster_domain_suffix: cluster.local
+  local_image_registry:
+    name: docker-registry
+    namespace: docker-registry
+    hosts:
+      default: localhost
+      internal: docker-registry
+      node: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        node: 5000
 
 conf:
   ceph:
@@ -80,12 +100,33 @@ pod:
       limits:
         memory: "1024Mi"
         cpu: "2000m"
+    jobs:
+      image_repo_sync:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
 
 dependencies:
+  dynamic:
+    common:
+      local_image_registry:
+        jobs:
+          - libvirt-image-repo-sync
+        services:
+          - endpoint: node
+            service: local_image_registry
   static:
     libvirt: null
+    image_repo_sync:
+      services:
+        - endpoint: internal
+          service: local_image_registry
 
 manifests:
   configmap_bin: true
   configmap_etc: true
   daemonset_libvirt: true
+  job_image_repo_sync: true

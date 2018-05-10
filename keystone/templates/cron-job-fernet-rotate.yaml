@@ -17,13 +17,12 @@ limitations under the License.
 {{- if .Values.manifests.cron_fernet_rotate }}
 {{- if eq .Values.conf.keystone.token.provider "fernet" }}
 {{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.static.fernet_rotate }}
 
 {{- $mounts_keystone_fernet_rotate := .Values.pod.mounts.keystone_fernet_rotate.keystone_fernet_rotate }}
 {{- $mounts_keystone_fernet_rotate_init := .Values.pod.mounts.keystone_fernet_rotate.init_container }}
 
 {{- $serviceAccountName := "keystone-fernet-rotate" }}
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{ tuple $envAll "fernet_rotate" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: Role
@@ -71,7 +70,7 @@ spec:
         spec:
           serviceAccountName: {{ $serviceAccountName }}
           initContainers:
-{{ tuple $envAll $dependencies $mounts_keystone_fernet_rotate_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 12 }}
+{{ tuple $envAll "fernet_rotate" $mounts_keystone_fernet_rotate_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 12 }}
           restartPolicy: OnFailure
           nodeSelector:
             {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
