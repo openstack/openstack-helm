@@ -22,6 +22,7 @@ COMMAND="${@:-start}"
 function start () {
   exec ironic-api \
         --config-file /etc/ironic/ironic.conf \
+        --config-file /tmp/pod-shared/swift.conf \
         --config-file /tmp/pod-shared/cleaning-network.conf
 }
 

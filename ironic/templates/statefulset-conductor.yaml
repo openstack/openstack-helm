@@ -96,6 +96,25 @@ spec:
               readOnly: true
             - name: pod-shared
               mountPath: /tmp/pod-shared
+        - name: ironic-retrive-swift-config
+          image: {{ .Values.images.tags.ironic_retrive_swift_config }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+{{ tuple $envAll $envAll.Values.pod.resources.conductor | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          env:
+            - name: OS_SWIFT_API_VERSION
+              value: {{ .Values.conf.ironic.glance.swift_api_version | quote }}
+{{- with $env := dict "ksUserSecret" .Values.secrets.identity.glance }}
+{{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 12 }}
+{{- end }}
+          command:
+            - /tmp/retreive-swift-config.sh
+          volumeMounts:
+            - name: ironic-bin
+              mountPath: /tmp/retreive-swift-config.sh
+              subPath: retreive-swift-config.sh
+              readOnly: true
+            - name: pod-shared
+              mountPath: /tmp/pod-shared
         - name: ironic-retrive-cleaning-net
           image: {{ .Values.images.tags.ironic_retrive_cleaning_network }}
           imagePullPolicy: {{ .Values.images.pull_policy }}

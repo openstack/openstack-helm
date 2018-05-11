@@ -22,7 +22,7 @@ make glance
 #NOTE: Deploy command
 : ${OSH_EXTRA_HELM_ARGS:=""}
 #NOTE(portdirect), this could be: radosgw, rbd, swift or pvc
-: ${GLANCE_BACKEND:="radosgw"}
+: ${GLANCE_BACKEND:="swift"}
 helm upgrade --install glance ./glance \
   --namespace=openstack \
   --set storage=${GLANCE_BACKEND} \

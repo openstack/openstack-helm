@@ -34,6 +34,7 @@ images:
   tags:
     ironic_manage_cleaning_network: docker.io/openstackhelm/heat:newton
     ironic_retrive_cleaning_network: docker.io/openstackhelm/heat:newton
+    ironic_retrive_swift_config: docker.io/openstackhelm/heat:newton
     # Bootstrap image requires curl
     bootstrap: docker.io/openstackhelm/heat:newton
     db_init: docker.io/openstackhelm/heat:newton
@@ -109,7 +110,10 @@ conf:
     glance:
       auth_type: password
       swift_temp_url_duration: 86400
-      temp_url_endpoint_type: radosgw
+      temp_url_endpoint_type: swift
+      swift_container: glance
+      swift_api_version: v1
+      auth_section: glance
     inspector:
       auth_type: password
     keystone_authtoken:
@@ -117,7 +121,6 @@ conf:
       auth_version: v3
     neutron:
       auth_type: password
-      cleaning_network_uuid: null
     pxe:
       pxe_append_params: "nofb nomodeset vga=normal ipa-debug=1"
       images_path: /var/lib/openstack-helm/ironic/images
@@ -280,6 +283,7 @@ secrets:
   identity:
     admin: ironic-keystone-admin
     ironic: ironic-keystone-user
+    glance: ironic-glance-keystone-user
   oslo_db:
     admin: ironic-db-admin
     ironic: ironic-db-user
@@ -312,6 +316,14 @@ endpoints:
         username: admin
         password: password
         project_name: admin
+        user_domain_name: default
+        project_domain_name: default
+      glance:
+        role: admin
+        region_name: RegionOne
+        username: glance
+        password: password
+        project_name: service
         user_domain_name: default
         project_domain_name: default
       ironic:
@@ -368,23 +380,6 @@ endpoints:
       api:
         default: 9292
         public: 80
-  ceph_object_store:
-    name: radosgw
-    namespace: ceph
-    auth:
-      glance:
-        tmpurlkey: supersecret
-    hosts:
-      default: ceph-rgw
-    host_fqdn_override:
-      default: null
-    path:
-      default: /auth/v1.0
-    scheme:
-      default: http
-    port:
-      api:
-        default: 8088
   oslo_db:
     auth:
       admin:
@@ -451,6 +446,23 @@ endpoints:
       api:
         default: 9696
         public: 80
+  object_store:
+    name: swift
+    namespace: ceph
+    auth:
+      glance:
+        tmpurlkey: supersecret
+    hosts:
+      default: ceph-rgw
+    host_fqdn_override:
+      default: null
+    path:
+      default: /swift/v1/KEY_$(tenant_id)s
+    scheme:
+      default: http
+    port:
+      api:
+        default: 8088
 
 pod:
   affinity:

@@ -1,7 +1,7 @@
 FROM docker.io/ubuntu:xenial
 MAINTAINER pete.birley@att.com
 
-ARG KUBE_VERSION=v1.10.1
+ARG KUBE_VERSION=v1.10.2
 ARG CEPH_RELEASE=luminous
 
 ADD https://download.ceph.com/keys/release.asc /etc/apt/ceph-release.asc
@@ -19,13 +19,21 @@ RUN set -ex ;\
         ca-certificates \
         ceph \
         curl \
+        gcc \
         python \
+        python-dev \
         jq ;\
     curl -sSL https://bootstrap.pypa.io/get-pip.py | python ;\
     pip --no-cache-dir install --upgrade \
       crush \
-      six ;\
+      six \
+      python-openstackclient \
+      python-swiftclient ;\
     curl -sSL https://dl.k8s.io/${KUBE_VERSION}/kubernetes-client-linux-amd64.tar.gz | tar -zxv --strip-components=1 ;\
     mv ${TMP_DIR}/client/bin/kubectl /usr/bin/kubectl ;\
     chmod +x /usr/bin/kubectl ;\
-    rm -rf ${TMP_DIR}
+    rm -rf ${TMP_DIR} ;\
+    apt-get purge -y --auto-remove \
+        python-dev \
+        gcc ;\
+    rm -rf /var/lib/apt/lists/*

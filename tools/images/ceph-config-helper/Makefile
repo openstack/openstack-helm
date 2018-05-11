@@ -19,7 +19,7 @@ DOCKER_REGISTRY            ?= docker.io
 IMAGE_NAME                 ?= ceph-config-helper
 IMAGE_PREFIX               ?= openstackhelm
 IMAGE_TAG                  ?= latest
-KUBE_VERSION               ?= v1.10.1
+KUBE_VERSION               ?= v1.10.2
 LABEL                      ?= putlabelshere
 
 IMAGE := ${DOCKER_REGISTRY}/${IMAGE_PREFIX}/${IMAGE_NAME}:${IMAGE_TAG}

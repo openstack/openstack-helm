@@ -24,4 +24,5 @@ mkdir -p /var/lib/openstack-helm/ironic/master_images
 exec ironic-conductor \
       --config-file /etc/ironic/ironic.conf \
       --config-file /tmp/pod-shared/conductor-local-ip.conf \
+      --config-file /tmp/pod-shared/swift.conf \
       --config-file /tmp/pod-shared/cleaning-network.conf
