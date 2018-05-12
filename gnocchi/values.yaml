@@ -36,7 +36,13 @@ images:
     gnocchi_api: quay.io/attcomdev/ubuntu-source-gnocchi-api:3.0.3
     gnocchi_statsd: quay.io/attcomdev/ubuntu-source-gnocchi-statsd:3.0.3
     gnocchi_metricd: quay.io/attcomdev/ubuntu-source-gnocchi-metricd:3.0.3
+    image_repo_sync: docker.io/docker:17.07.0
   pull_policy: "IfNotPresent"
+  local_registry:
+    active: false
+    exclude:
+      - dep_check
+      - image_repo_sync
 
 network:
   api:
@@ -57,6 +63,14 @@ network:
       port: 8125
 
 dependencies:
+  dynamic:
+    common:
+      local_image_registry:
+        jobs:
+          - gnocchi-image-repo-sync
+        services:
+          - endpoint: node
+            service: local_image_registry
   static:
     api:
       jobs:
@@ -140,6 +154,10 @@ dependencies:
           service: oslo_db_postgresql
         - endpoint: internal
           service: metric
+    image_repo_sync:
+      services:
+        - endpoint: internal
+          service: local_image_registry
 
 pod:
   user:
@@ -259,6 +277,13 @@ pod:
       tests:
         requests:
           memory: "124Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      image_repo_sync:
+        requests:
+          memory: "128Mi"
           cpu: "100m"
         limits:
           memory: "1024Mi"
@@ -406,6 +431,18 @@ bootstrap:
 # required by this chart
 endpoints:
   cluster_domain_suffix: cluster.local
+  local_image_registry:
+    name: docker-registry
+    namespace: docker-registry
+    hosts:
+      default: localhost
+      internal: docker-registry
+      node: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        node: 5000
   identity:
     name: keystone
     auth:
@@ -532,6 +569,7 @@ manifests:
   job_db_drop: false
   job_db_init_indexer: true
   job_db_init: true
+  job_image_repo_sync: true
   secret_db_indexer: true
   job_db_sync: true
   job_ks_endpoints: true

@@ -19,8 +19,7 @@ limitations under the License.
 {{- $daemonset := index . 0 }}
 {{- $configMapName := index . 1 }}
 {{- $serviceAccountName := index . 2 }}
-{{- $dependencies := index . 3 }}
-{{- $envAll := index . 4 }}
+{{- $envAll := index . 3 }}
 {{- with $envAll }}
 ---
 kind: DaemonSet
@@ -40,7 +39,7 @@ spec:
       hostPID: true
       dnsPolicy: {{ .Values.pod.dns_policy }}
       initContainers:
-{{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll "osd" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
         - name: ceph-init-dirs
           image: {{ .Values.images.tags.ceph_osd }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
@@ -253,9 +252,8 @@ spec:
 {{- $daemonset := "osd" }}
 {{- $configMapName := "ceph-osd-etc" }}
 {{- $serviceAccountName := "ceph-osd"}}
-{{- $dependencies := .Values.dependencies.static.osd }}
-{{ tuple . $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
-{{- $daemonset_yaml := list $daemonset $configMapName $serviceAccountName $dependencies . | include "ceph.osd.daemonset" | toString | fromYaml }}
+{{ tuple . "osd" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{- $daemonset_yaml := list $daemonset $configMapName $serviceAccountName . | include "ceph.osd.daemonset" | toString | fromYaml }}
 {{- $configmap_yaml := "ceph.osd.configmap.etc" }}
 {{- list $daemonset $daemonset_yaml $configmap_yaml $configMapName . | include "ceph.utils.osd_daemonset_overrides" }}
 {{- end }}

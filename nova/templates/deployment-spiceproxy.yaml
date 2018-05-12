@@ -16,13 +16,12 @@ limitations under the License.
 
 {{- if and .Values.manifests.deployment_spiceproxy ( eq .Values.console.console_kind "spice" )}}
 {{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.static.spiceproxy }}
 
 {{- $mounts_nova_spiceproxy := .Values.pod.mounts.nova_spiceproxy.nova_spiceproxy }}
 {{- $mounts_nova_spiceproxy_init := .Values.pod.mounts.nova_spiceproxy.init_spiceproxy }}
 
 {{- $serviceAccountName := "nova-spiceproxy" }}
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{ tuple $envAll "spiceproxy" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: apps/v1beta1
 kind: Deployment
@@ -47,7 +46,7 @@ spec:
       hostNetwork: true
       dnsPolicy: ClusterFirstWithHostNet
       initContainers:
-{{ tuple $envAll $dependencies $mounts_nova_spiceproxy_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll "spiceproxy" $mounts_nova_spiceproxy_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
         - name: nova-spiceproxy-init
           image: {{ .Values.images.tags.nova_spiceproxy }}
           imagePullPolicy: {{ .Values.images.pull_policy }}

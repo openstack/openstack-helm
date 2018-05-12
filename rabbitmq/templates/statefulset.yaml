@@ -21,10 +21,8 @@ limitations under the License.
 {{- $_ := set $envAll.Values.endpoints.oslo_messaging.hosts "discovery" ( printf "%s-%s-%s" $service_discovery_name "dsv" ( $service_discovery_name | sha256sum | trunc 6 )) }}
 {{- end }}
 
-{{- $dependencies := $envAll.Values.dependencies.static.rabbitmq }}
-
 {{- $rcControllerName := printf "%s-%s" $envAll.Release.Name "rabbitmq"  }}
-{{ tuple $envAll $dependencies $rcControllerName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{ tuple $envAll "rabbitmq" $rcControllerName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: RoleBinding
@@ -79,7 +77,7 @@ spec:
       nodeSelector:
         {{ $envAll.Values.labels.server.node_selector_key }}: {{ $envAll.Values.labels.server.node_selector_value }}
       initContainers:
-{{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll "rabbitmq" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
 {{- if $envAll.Values.volume.chown_on_start }}
         - name: rabbitmq-perms
           image: {{ $envAll.Values.images.tags.rabbitmq }}

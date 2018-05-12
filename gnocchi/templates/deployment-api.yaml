@@ -16,13 +16,12 @@ limitations under the License.
 
 {{- if .Values.manifests.deployment_api }}
 {{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.static.api }}
 
 {{- $mounts_gnocchi_api := .Values.pod.mounts.gnocchi_api.gnocchi_api }}
 {{- $mounts_gnocchi_api_init := .Values.pod.mounts.gnocchi_api.init_container }}
 
 {{- $serviceAccountName := "gnocchi-api" }}
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{ tuple $envAll "api" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: apps/v1beta1
 kind: Deployment
@@ -46,7 +45,7 @@ spec:
         {{ .Values.labels.api.node_selector_key }}: {{ .Values.labels.api.node_selector_value }}
       terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.api.timeout | default "30" }}
       initContainers:
-{{ tuple $envAll $dependencies $mounts_gnocchi_api_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll "api" $mounts_gnocchi_api_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
         - name: ceph-keyring-placement
           image: {{ .Values.images.tags.gnocchi_api }}
           imagePullPolicy: {{ .Values.images.pull_policy }}

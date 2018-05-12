@@ -16,13 +16,12 @@ limitations under the License.
 
 {{- if .Values.manifests.deployment_api }}
 {{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.static.api }}
 
 {{- $mounts_heat_api := .Values.pod.mounts.heat_api.heat_api }}
 {{- $mounts_heat_api_init := .Values.pod.mounts.heat_api.init_container }}
 
 {{- $serviceAccountName := "heat-api" }}
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{ tuple $envAll "api" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: apps/v1beta1
 kind: Deployment
@@ -46,7 +45,7 @@ spec:
         {{ .Values.labels.api.node_selector_key }}: {{ .Values.labels.api.node_selector_value }}
       terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.api.timeout | default "30" }}
       initContainers:
-{{ tuple $envAll $dependencies $mounts_heat_api_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll "api" $mounts_heat_api_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
         - name: heat-api
           image: {{ .Values.images.tags.heat_api }}

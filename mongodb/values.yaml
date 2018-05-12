@@ -37,13 +37,27 @@ pod:
       limits:
         memory: "1024Mi"
         cpu: "2000m"
+    jobs:
+      image_repo_sync:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
 
 # using dockerhub mongodb: https://hub.docker.com/r/library/mongo/tags/
 images:
   tags:
     mongodb: docker.io/mongo:3.4.9-jessie
     dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.3.1
-  pull_policy: IfNotPresent
+    image_repo_sync: docker.io/docker:17.07.0
+  pull_policy: "IfNotPresent"
+  local_registry:
+    active: false
+    exclude:
+      - dep_check
+      - image_repo_sync
 
 volume:
   chown_on_start: true
@@ -61,6 +75,18 @@ labels:
 
 endpoints:
   cluster_domain_suffix: cluster.local
+  local_image_registry:
+    name: docker-registry
+    namespace: docker-registry
+    hosts:
+      default: localhost
+      internal: docker-registry
+      node: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        node: 5000
   mongodb:
     auth:
       admin:
@@ -77,12 +103,25 @@ endpoints:
         default: 27017
 
 dependencies:
+  dynamic:
+    common:
+      local_image_registry:
+        jobs:
+          - mongodb-image-repo-sync
+        services:
+          - endpoint: node
+            service: local_image_registry
   static:
     mongodb:
       jobs: null
+    image_repo_sync:
+      services:
+        - endpoint: internal
+          service: local_image_registry
 
 manifests:
   configmap_bin: true
+  job_image_repo_sync: true
   secret_db_root_creds: true
   service: true
   statefulset: true

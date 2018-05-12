@@ -16,13 +16,12 @@ limitations under the License.
 
 {{- if .Values.manifests.cron_job_engine_cleaner }}
 {{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.static.engine_cleaner }}
 
 {{- $mounts_heat_engine_cleaner := .Values.pod.mounts.heat_engine_cleaner.heat_engine_cleaner }}
 {{- $mounts_heat_engine_cleaner_init := .Values.pod.mounts.heat_engine_cleaner.init_container }}
 
 {{- $serviceAccountName := "heat-engine-cleaner" }}
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{ tuple $envAll "engine_cleaner" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: batch/v1beta1
 kind: CronJob
@@ -45,7 +44,7 @@ spec:
           nodeSelector:
             {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
           initContainers:
-{{ tuple $envAll $dependencies $mounts_heat_engine_cleaner_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 12 }}
+{{ tuple $envAll "engine_cleaner" $mounts_heat_engine_cleaner_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 12 }}
           containers:
             - name: heat-engine-cleaner
               image: {{ .Values.images.tags.heat_engine_cleaner }}

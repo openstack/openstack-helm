@@ -16,10 +16,9 @@ limitations under the License.
 
 {{- if .Values.manifests.deployment_policy_engine }}
 {{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.static.policy_engine }}
 
 {{- $serviceAccountName := "congress-policy-engine-dep" }}
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{ tuple $envAll "policy_engine" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: extensions/v1beta1
 kind: Deployment
@@ -37,7 +36,7 @@ spec:
       affinity:
 {{ tuple $envAll "congress" "policy_engine" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
       initContainers:
-{{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll "policy_engine" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       nodeSelector:
         {{ .Values.labels.policy_engine.node_selector_key }}: {{ .Values.labels.policy_engine.node_selector_value }}
       containers:

@@ -16,12 +16,11 @@ limitations under the License.
 
 {{- if and .Values.manifests.job_namespace_client_key_cleaner .Values.deployment.client_secrets }}
 {{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.static.namespace_client_key_cleaner }}
 
 {{- $randStringSuffix := randAlphaNum 5 | lower }}
 
 {{- $serviceAccountName := print "ceph-namespace-client-key-cleaner-" $randStringSuffix }}
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{ tuple $envAll "namespace_client_key_cleaner" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: Role
@@ -67,7 +66,7 @@ spec:
       nodeSelector:
         {{ $envAll.Values.labels.job.node_selector_key }}: {{ $envAll.Values.labels.job.node_selector_value }}
       initContainers:
-{{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll "namespace_client_key_cleaner" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
         - name:  ceph-namespace-client-keys-cleaner
           image: {{ .Values.images.tags.ceph_config_helper }}

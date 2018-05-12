@@ -16,13 +16,12 @@ limitations under the License.
 
 {{- if .Values.manifests.statefulset_engine }}
 {{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.static.engine }}
 
 {{- $mounts_mistral_engine := .Values.pod.mounts.mistral_engine.mistral_engine }}
 {{- $mounts_mistral_engine_init := .Values.pod.mounts.mistral_engine.init_container }}
 
 {{- $serviceAccountName := "mistral-engine" }}
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{ tuple $envAll "engine" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: apps/v1beta1
 kind: StatefulSet
@@ -42,7 +41,7 @@ spec:
       nodeSelector:
         {{ .Values.labels.engine.node_selector_key }}: {{ .Values.labels.engine.node_selector_value }}
       initContainers:
-{{ tuple $envAll $dependencies $mounts_mistral_engine_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll "engine" $mounts_mistral_engine_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
         - name: mistral-engine
           image: {{ .Values.images.tags.mistral_engine }}

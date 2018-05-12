@@ -16,10 +16,9 @@ limitations under the License.
 
 {{- if and .Values.manifests.deployment_mds ( and .Values.deployment.ceph .Values.conf.features.mds) }}
 {{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.static.mds }}
 
 {{- $serviceAccountName := "ceph-mds"}}
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{ tuple $envAll "mds" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 kind: Deployment
 apiVersion: apps/v1beta1
@@ -39,7 +38,7 @@ spec:
       nodeSelector:
         {{ .Values.labels.mds.node_selector_key }}: {{ .Values.labels.mds.node_selector_value }}
       initContainers:
-{{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll "mds" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
         - name: ceph-init-dirs
           image: {{ .Values.images.tags.ceph_mds }}
           imagePullPolicy: {{ .Values.images.pull_policy }}

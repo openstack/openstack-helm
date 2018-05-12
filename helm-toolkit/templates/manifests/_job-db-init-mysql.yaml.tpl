@@ -28,7 +28,6 @@ limitations under the License.
 {{- $envAll := index . "envAll" -}}
 {{- $serviceName := index . "serviceName" -}}
 {{- $nodeSelector := index . "nodeSelector" | default ( dict $envAll.Values.labels.job.node_selector_key $envAll.Values.labels.job.node_selector_value ) -}}
-{{- $dependencies := index . "dependencies" | default $envAll.Values.dependencies.static.db_init -}}
 {{- $configMapBin := index . "configMapBin" | default (printf "%s-%s" $serviceName "bin" ) -}}
 {{- $configMapEtc := index . "configMapEtc" | default (printf "%s-%s" $serviceName "etc" ) -}}
 {{- $dbToInit := index . "dbToInit" | default ( dict "adminSecret" $envAll.Values.secrets.oslo_db.admin "configFile" (printf "/etc/%s/%s.conf" $serviceName $serviceName ) "configDbSection" "database" "configDbKey" "connection" ) -}}
@@ -37,7 +36,7 @@ limitations under the License.
 {{- $serviceNamePretty := $serviceName | replace "_" "-" -}}
 
 {{- $serviceAccountName := printf "%s-%s" $serviceNamePretty "db-init" }}
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{ tuple $envAll "db_init" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: batch/v1
 kind: Job
@@ -54,7 +53,7 @@ spec:
       nodeSelector:
 {{ toYaml $nodeSelector | indent 8 }}
       initContainers:
-{{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll "db_init" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
 {{- range $key1, $dbToInit := $dbsToInit }}
 {{ $dbToInitType := default "oslo" $dbToInit.inputType }}

@@ -16,12 +16,11 @@ limitations under the License.
 
 {{- if .Values.manifests.deployment }}
 {{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.static.memcached }}
 
 {{- $rcControllerName := printf "%s-%s" $envAll.Release.Name "memcached"  }}
 {{- $configMapBinName := printf "%s-%s" $envAll.Release.Name "memcached-bin"  }}
 
-{{ tuple $envAll $dependencies $rcControllerName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{ tuple $envAll "memcached" $rcControllerName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: apps/v1beta1
 kind: Deployment
@@ -41,7 +40,7 @@ spec:
       nodeSelector:
         {{ .Values.labels.server.node_selector_key }}: {{ .Values.labels.server.node_selector_value }}
       initContainers:
-{{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 9 }}
+{{ tuple $envAll "memcached" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 9 }}
       containers:
         - name: memcached
           image: {{ .Values.images.tags.memcached }}

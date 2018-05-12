@@ -16,10 +16,9 @@ limitations under the License.
 
 {{- if .Values.manifests.statefulset }}
 {{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.static.mariadb }}
 
 {{- $serviceAccountName := "mariadb" }}
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{ tuple $envAll "mariadb" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: apps/v1beta1
 kind: StatefulSet
@@ -41,7 +40,7 @@ spec:
       nodeSelector:
         {{ .Values.labels.server.node_selector_key }}: {{ .Values.labels.server.node_selector_value }}
       initContainers:
-{{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll "mariadb" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
 {{- if .Values.volume.chown_on_start }}
         - name: mariadb-perms
           image: {{ .Values.images.tags.mariadb }}

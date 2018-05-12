@@ -16,10 +16,9 @@ limitations under the License.
 
 {{- if .Values.manifests.deployment_datasource }}
 {{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.static.datasource }}
 
 {{- $serviceAccountName := "congress-datasource-dep" }}
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{ tuple $envAll "datasource" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: extensions/v1beta1
 kind: Deployment
@@ -37,7 +36,7 @@ spec:
       affinity:
 {{ tuple $envAll "congress" "datasource" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
       initContainers:
-{{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll "datasource" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       nodeSelector:
         {{ .Values.labels.datasource.node_selector_key }}: {{ .Values.labels.datasource.node_selector_value }}
       containers:

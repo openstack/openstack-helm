@@ -16,13 +16,12 @@ limitations under the License.
 
 {{- if and .Values.manifests.deployment_novncproxy ( eq .Values.console.console_kind "novnc" )}}
 {{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.static.novncproxy }}
 
 {{- $mounts_nova_novncproxy := .Values.pod.mounts.nova_novncproxy.nova_novncproxy }}
 {{- $mounts_nova_novncproxy_init := .Values.pod.mounts.nova_novncproxy.init_novncproxy }}
 
 {{- $serviceAccountName := "nova-novncproxy" }}
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{ tuple $envAll "novncproxy" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: apps/v1beta1
 kind: Deployment
@@ -47,7 +46,7 @@ spec:
       hostNetwork: true
       dnsPolicy: ClusterFirstWithHostNet
       initContainers:
-{{ tuple $envAll $dependencies $mounts_nova_novncproxy_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll "novncproxy" $mounts_nova_novncproxy_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
         - name: nova-novncproxy-init
           image: {{ .Values.images.tags.nova_novncproxy }}
           imagePullPolicy: {{ .Values.images.pull_policy }}

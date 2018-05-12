@@ -16,10 +16,9 @@ limitations under the License.
 
 {{- if and .Values.manifests.job_rbd_pool .Values.deployment.ceph }}
 {{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.static.rbd_pool }}
 
 {{- $serviceAccountName := "ceph-rbd-pool" }}
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{ tuple $envAll "rbd_pool" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: batch/v1
 kind: Job
@@ -39,7 +38,7 @@ spec:
       nodeSelector:
         {{ $envAll.Values.labels.job.node_selector_key }}: {{ $envAll.Values.labels.job.node_selector_value }}
       initContainers:
-{{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll "rbd_pool" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
         - name: ceph-rbd-pool
           image: {{ .Values.images.tags.ceph_rbd_pool }}

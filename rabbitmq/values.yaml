@@ -35,7 +35,13 @@ images:
     rabbitmq: docker.io/rabbitmq:3.7.4
     dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.3.1
     scripted_test: docker.io/rabbitmq:3.7.4-management
+    image_repo_sync: docker.io/docker:17.07.0
   pull_policy: "IfNotPresent"
+  local_registry:
+    active: false
+    exclude:
+      - dep_check
+      - image_repo_sync
 
 pod:
   affinity:
@@ -85,6 +91,13 @@ pod:
         requests:
           memory: "128Mi"
           cpu: "100m"
+      image_repo_sync:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
 
 conf:
   enabled_plugins:
@@ -112,6 +125,14 @@ conf:
     loopback_users.guest: "false"
 
 dependencies:
+  dynamic:
+    common:
+      local_image_registry:
+        jobs:
+          - rabbitmq-image-repo-sync
+        services:
+          - endpoint: node
+            service: local_image_registry
   static:
     prometheus_rabbitmq_exporter:
       services:
@@ -129,6 +150,10 @@ dependencies:
       services:
         - endpoint: internal
           service: oslo_messaging
+    image_repo_sync:
+      services:
+        - endpoint: internal
+          service: local_image_registry
 
 monitoring:
   prometheus:
@@ -153,6 +178,18 @@ network:
 # required by this chart
 endpoints:
   cluster_domain_suffix: cluster.local
+  local_image_registry:
+    name: docker-registry
+    namespace: docker-registry
+    hosts:
+      default: localhost
+      internal: docker-registry
+      node: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        node: 5000
   monitoring:
     name: prometheus
     namespace: null
@@ -223,6 +260,7 @@ manifests:
   configmap_bin: true
   configmap_etc: true
   ingress_management: true
+  job_image_repo_sync: true
   pod_test: true
   monitoring:
     prometheus:

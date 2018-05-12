@@ -16,13 +16,12 @@ limitations under the License.
 
 {{- if .Values.manifests.pod_rally_test }}
 {{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.static.tests }}
 
 {{- $mounts_tests := .Values.pod.mounts.ceilometer_tests.ceilometer_tests }}
 {{- $mounts_tests_init := .Values.pod.mounts.ceilometer_tests.init_container }}
 
 {{- $serviceAccountName := print $envAll.Release.Name "-test" }}
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{ tuple $envAll "tests" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: v1
 kind: Pod
@@ -36,7 +35,7 @@ spec:
     {{ .Values.labels.test.node_selector_key }}: {{ .Values.labels.test.node_selector_value }}
   serviceAccountName: {{ $serviceAccountName }}
   initContainers:
-{{ tuple $envAll $dependencies $mounts_tests_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 4 }}
+{{ tuple $envAll "tests" $mounts_tests_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 4 }}
     - name: {{ .Release.Name }}-test-ks-user
       image: {{ .Values.images.tags.ks_user }}
       imagePullPolicy: {{ .Values.images.pull_policy }}

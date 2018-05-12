@@ -16,10 +16,9 @@ limitations under the License.
 
 {{- if .Values.manifests.job_db_init_indexer }}
 {{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.static.db_init_postgresql }}
 
 {{- $serviceAccountName := "gnocchi-db-init-indexer" }}
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{ tuple $envAll "db_init_postgresql" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: batch/v1
 kind: Job
@@ -36,7 +35,7 @@ spec:
       nodeSelector:
         {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
       initContainers:
-{{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll "db_init_postgresql" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
         - name: gnocchi-db-init-indexer
           image: {{ .Values.images.tags.db_init_indexer }}

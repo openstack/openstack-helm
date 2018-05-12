@@ -16,13 +16,12 @@ limitations under the License.
 
 {{- if .Values.manifests.statefulset_conductor }}
 {{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.static.conductor }}
 
 {{- $mounts_magnum_conductor := .Values.pod.mounts.magnum_conductor.magnum_conductor }}
 {{- $mounts_magnum_conductor_init := .Values.pod.mounts.magnum_conductor.init_container }}
 
 {{- $serviceAccountName := "magnum-conductor" }}
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{ tuple $envAll "conductor" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: apps/v1beta1
 kind: StatefulSet
@@ -43,7 +42,7 @@ spec:
       nodeSelector:
         {{ .Values.labels.conductor.node_selector_key }}: {{ .Values.labels.conductor.node_selector_value }}
       initContainers:
-{{ tuple $envAll $dependencies $mounts_magnum_conductor_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll "conductor" $mounts_magnum_conductor_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
         - name: magnum-conductor-init
           image: {{ .Values.images.tags.magnum_conductor }}
           imagePullPolicy: {{ .Values.images.pull_policy }}

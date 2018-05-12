@@ -16,10 +16,9 @@ limitations under the License.
 
 {{- if .Values.manifests.job_ks_service }}
 {{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.static.ks_service }}
 
 {{- $serviceAccountName := "rally-ks-service" }}
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{ tuple $envAll "ks_service" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: batch/v1
 kind: Job
@@ -36,7 +35,7 @@ spec:
       nodeSelector:
         {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
       initContainers:
-{{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll "ks_service" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
 {{- range $key1, $osServiceType := tuple "benchmark" }}
         - name: {{ $osServiceType }}-ks-service-registration

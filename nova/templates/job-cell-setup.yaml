@@ -16,10 +16,9 @@ limitations under the License.
 
 {{- if .Values.manifests.job_cell_setup }}
 {{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.static.cell_setup }}
 
 {{- $serviceAccountName := "nova-cell-setup" }}
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{ tuple $envAll "cell_setup" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: batch/v1
 kind: Job
@@ -36,7 +35,7 @@ spec:
       nodeSelector:
         {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
       initContainers:
-{{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll "cell_setup" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
         - name: nova-cell-setup-init
           image: {{ .Values.images.tags.nova_cell_setup_init }}
           imagePullPolicy: {{ .Values.images.pull_policy }}

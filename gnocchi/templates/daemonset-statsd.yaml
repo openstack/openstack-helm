@@ -16,13 +16,12 @@ limitations under the License.
 
 {{- if .Values.manifests.daemonset_statsd }}
 {{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.static.statsd }}
 
 {{- $mounts_gnocchi_statsd := .Values.pod.mounts.gnocchi_statsd.gnocchi_statsd }}
 {{- $mounts_gnocchi_statsd_init := .Values.pod.mounts.gnocchi_statsd.init_container }}
 
 {{- $serviceAccountName := "gnocchi-statsd" }}
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{ tuple $envAll "statsd" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: extensions/v1beta1
 kind: DaemonSet
@@ -41,7 +40,7 @@ spec:
       nodeSelector:
         {{ .Values.labels.statsd.node_selector_key }}: {{ .Values.labels.statsd.node_selector_value }}
       initContainers:
-{{ tuple $envAll $dependencies $mounts_gnocchi_statsd_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll "statsd" $mounts_gnocchi_statsd_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
         - name: ceph-keyring-placement
           image: {{ .Values.images.tags.gnocchi_api }}
           imagePullPolicy: {{ .Values.images.pull_policy }}

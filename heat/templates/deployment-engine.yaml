@@ -16,13 +16,12 @@ limitations under the License.
 
 {{- if or ( .Values.manifests.deployment_engine ) ( .Values.manifests.statefulset_engine ) }}
 {{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.static.engine }}
 
 {{- $mounts_heat_engine := .Values.pod.mounts.heat_engine.heat_engine }}
 {{- $mounts_heat_engine_init := .Values.pod.mounts.heat_engine.init_container }}
 
 {{- $serviceAccountName := "heat-engine" }}
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{ tuple $envAll "engine" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: apps/v1beta1
 metadata:
@@ -54,7 +53,7 @@ spec:
         {{ .Values.labels.engine.node_selector_key }}: {{ .Values.labels.engine.node_selector_value }}
       terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.engine.timeout | default "30" }}
       initContainers:
-{{ tuple $envAll $dependencies $mounts_heat_engine_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll "engine" $mounts_heat_engine_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
         - name: heat-engine
           image: {{ .Values.images.tags.heat_engine }}

@@ -16,10 +16,9 @@ limitations under the License.
 
 {{- if .Values.manifests.statefulset }}
 {{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.static.postgresql }}
 
 {{- $serviceAccountName := "postgresql" }}
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{ tuple $envAll "postgresql" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: apps/v1beta1
 kind: StatefulSet
@@ -39,7 +38,7 @@ spec:
       nodeSelector:
         {{ .Values.labels.server.node_selector_key }}: {{ .Values.labels.server.node_selector_value }}
       initContainers:
-{{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll "postgresql" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
       - name: postgresql
         image: {{ .Values.images.tags.postgresql }}

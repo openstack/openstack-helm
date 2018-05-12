@@ -16,13 +16,12 @@ limitations under the License.
 
 {{- if .Values.manifests.daemonset_libvirt }}
 {{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.static.libvirt }}
 
 {{- $mounts_libvirt := .Values.pod.mounts.libvirt.libvirt }}
 {{- $mounts_libvirt_init := .Values.pod.mounts.libvirt.init_container }}
 
 {{- $serviceAccountName := "libvirt" }}
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{ tuple $envAll "libvirt" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: extensions/v1beta1
 kind: DaemonSet
@@ -45,7 +44,7 @@ spec:
       hostPID: true
       dnsPolicy: ClusterFirstWithHostNet
       initContainers:
-{{ tuple $envAll $dependencies $mounts_libvirt_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll "libvirt" $mounts_libvirt_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
 {{- if .Values.conf.ceph.enabled }}
         {{- if empty .Values.conf.ceph.cinder.keyring }}
         - name: ceph-admin-keyring-placement

@@ -18,13 +18,12 @@ limitations under the License.
 {{- $envAll := index . "envAll" -}}
 {{- $serviceName := index . "serviceName" -}}
 {{- $nodeSelector := index . "nodeSelector" | default ( dict $envAll.Values.labels.job.node_selector_key $envAll.Values.labels.job.node_selector_value ) -}}
-{{- $dependencies := index . "dependencies" | default $envAll.Values.dependencies.static.rabbit_init -}}
 {{- $configMapBin := index . "configMapBin" | default (printf "%s-%s" $serviceName "bin" ) -}}
 {{- $serviceUser := index . "serviceUser" | default $serviceName -}}
 {{- $serviceUserPretty := $serviceUser | replace "_" "-" -}}
 
 {{- $serviceAccountName := printf "%s-%s" $serviceUserPretty "rabbit-init" }}
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{ tuple $envAll "rabbit_init" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: batch/v1
 kind: Job
@@ -41,7 +40,7 @@ spec:
       nodeSelector:
 {{ toYaml $nodeSelector | indent 8 }}
       initContainers:
-{{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll "rabbit_init" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
         - name: rabbit-init
           image: {{ $envAll.Values.images.tags.rabbit_init | quote }}

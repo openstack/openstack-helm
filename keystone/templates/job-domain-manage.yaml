@@ -16,13 +16,12 @@ limitations under the License.
 
 {{- if .Values.manifests.job_domain_manage }}
 {{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.static.domain_manage }}
 
 {{- $mounts_keystone_domain_manage := .Values.pod.mounts.keystone_domain_manage.keystone_domain_manage }}
 {{- $mounts_keystone_domain_manage_init := .Values.pod.mounts.keystone_domain_manage.init_container }}
 
 {{- $serviceAccountName := "keystone-domain-manage" }}
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{ tuple $envAll "domain_manage" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: batch/v1
 kind: Job
@@ -39,7 +38,7 @@ spec:
       nodeSelector:
         {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
       initContainers:
-{{ tuple $envAll $dependencies $mounts_keystone_domain_manage_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container"  | indent 8 }}
+{{ tuple $envAll "domain_manage" $mounts_keystone_domain_manage_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container"  | indent 8 }}
         - name: keystone-domain-manage-init
           image: {{ .Values.images.tags.bootstrap }}
           imagePullPolicy: {{ .Values.images.pull_policy }}

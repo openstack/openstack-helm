@@ -16,10 +16,9 @@ limitations under the License.
 
 {{- if and .Values.manifests.deployment_moncheck .Values.deployment.ceph }}
 {{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.static.moncheck }}
 
 {{- $serviceAccountName := "ceph-mon-check"}}
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{ tuple $envAll "moncheck" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 kind: Deployment
 apiVersion: apps/v1beta1
@@ -38,7 +37,7 @@ spec:
       nodeSelector:
         {{ .Values.labels.mon.node_selector_key }}: {{ .Values.labels.mon.node_selector_value }}
       initContainers:
-{{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll "moncheck" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
         - name: ceph-mon
           image: {{ .Values.images.tags.ceph_mon_check }}

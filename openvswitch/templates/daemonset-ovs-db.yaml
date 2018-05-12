@@ -16,10 +16,9 @@ limitations under the License.
 
 {{- if .Values.manifests.daemonset_ovs_db }}
 {{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.static.db }}
 
 {{- $serviceAccountName := "openvswitch-db" }}
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{ tuple $envAll "db" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: extensions/v1beta1
 kind: DaemonSet
@@ -40,7 +39,7 @@ spec:
       dnsPolicy: ClusterFirstWithHostNet
       hostNetwork: true
       initContainers:
-{{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll "db" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
         - name: openvswitch-db
           image: {{ .Values.images.tags.openvswitch_db_server }}

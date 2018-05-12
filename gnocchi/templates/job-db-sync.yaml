@@ -16,10 +16,9 @@ limitations under the License.
 
 {{- if .Values.manifests.job_db_sync }}
 {{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.static.db_sync }}
 
 {{- $serviceAccountName := "gnocchi-db-sync" }}
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{ tuple $envAll "db_sync" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: batch/v1
 kind: Job
@@ -36,7 +35,7 @@ spec:
       nodeSelector:
         {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
       initContainers:
-{{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll "db_sync" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
         - name: ceph-keyring-placement
           image: {{ .Values.images.tags.gnocchi_api }}
           imagePullPolicy: {{ .Values.images.pull_policy }}

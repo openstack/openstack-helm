@@ -16,10 +16,9 @@ limitations under the License.
 
 {{- if .Values.manifests.cron_job_cell_setup }}
 {{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.static.cell_setup }}
 
 {{- $serviceAccountName := "nova-cell-setup-cron" }}
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{ tuple $envAll "cell_setup" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: batch/v1beta1
 kind: CronJob
@@ -45,7 +44,7 @@ spec:
           nodeSelector:
             {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
           initContainers:
-{{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 12 }}
+{{ tuple $envAll "cell_setup" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 12 }}
           containers:
             - name: nova-cell-setup
               image: {{ .Values.images.tags.nova_cell_setup }}

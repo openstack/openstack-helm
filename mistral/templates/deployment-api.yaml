@@ -16,12 +16,12 @@ limitations under the License.
 
 {{- if .Values.manifests.deployment_api }}
 {{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.static.api }}
+
 {{- $mounts_mistral_api := .Values.pod.mounts.mistral_api.mistral_api }}
 {{- $mounts_mistral_api_init := .Values.pod.mounts.mistral_api.init_container }}
 
 {{- $serviceAccountName := "mistral-api" }}
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{ tuple $envAll "api" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: apps/v1beta1
 kind: Deployment
@@ -45,7 +45,7 @@ spec:
         {{ .Values.labels.api.node_selector_key }}: {{ .Values.labels.api.node_selector_value }}
       terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.api.timeout | default "30" }}
       initContainers:
-{{ tuple $envAll $dependencies $mounts_mistral_api_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll "api" $mounts_mistral_api_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
         - name: mistral-api
           image: {{ .Values.images.tags.mistral_api }}
