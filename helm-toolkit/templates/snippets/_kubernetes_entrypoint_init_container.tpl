@@ -38,7 +38,6 @@ limitations under the License.
 
 - name: init
 {{ tuple $envAll "dep_check" | include "helm-toolkit.snippets.image" | indent 2 }}
-  imagePullPolicy: {{ $envAll.Values.images.pull_policy }}
   env:
     - name: POD_NAME
       valueFrom:
@@ -66,9 +65,9 @@ limitations under the License.
   {{- end -}}
 {{- end }}
     - name: DEPENDENCY_DAEMONSET
-      value: "{{  include "helm-toolkit.utils.joinListWithComma" $deps.daemonset }}"
+      value: "{{ include "helm-toolkit.utils.joinListWithComma" $deps.daemonset }}"
     - name: DEPENDENCY_CONTAINER
-      value: "{{  include "helm-toolkit.utils.joinListWithComma" $deps.container }}"
+      value: "{{ include "helm-toolkit.utils.joinListWithComma" $deps.container }}"
     - name: DEPENDENCY_POD_JSON
       value: {{ if $deps.pod }}{{ toJson $deps.pod | quote }}{{ else }}""{{ end }}
     - name: COMMAND
