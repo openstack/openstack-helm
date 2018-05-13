@@ -12,14 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+- name: check if pip installed
+  command: pip --version
+  register: pip_version_output
+  ignore_errors: yes
+  changed_when: false
+
 - name: ensuring python pip package is present for ubuntu
-  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+  when: ( pip_version_output is failed ) and ( ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu' )
   apt:
     name: python-pip
     state: present
 
 - name: ensuring python pip package is present for centos
-  when: ansible_distribution == 'CentOS' or ansible_distribution == 'Red Hat Enterprise Linux'
+  when: ( pip_version_output is failed ) and ( ansible_distribution == 'CentOS' or ansible_distribution == 'Red Hat Enterprise Linux' )
   block:
     - name: ensuring epel-release package is present for centos as python-pip is in the epel repo
       yum:
@@ -30,8 +36,8 @@
         name: python-devel
         state: present
 
-- name: ensuring python pip package is present for fedora via the python-devel rpm
-  when: ansible_distribution == 'Fedora'
+- name: ensuring python pip package is present for fedora via the python2-pip rpm
+  when: ( pip_version_output is failed ) and ( ansible_distribution == 'Fedora' )
   dnf:
     name: python2-pip
     state: present
