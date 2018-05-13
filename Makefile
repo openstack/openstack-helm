@@ -18,8 +18,8 @@ SHELL := /bin/bash
 HELM := helm
 TASK := build
 
-EXCLUDES := helm-toolkit doc tests tools logs tmp
-CHARTS := helm-toolkit $(filter-out $(EXCLUDES), $(patsubst %/.,%,$(wildcard */.)))
+EXCLUDES := doc tests tools logs tmp
+CHARTS := $(filter-out $(EXCLUDES), $(patsubst %/.,%,$(wildcard */.)))
 
 .PHONY: $(EXCLUDES) $(CHARTS)
 
@@ -42,7 +42,6 @@ build-%: lint-%
 
 clean:
 	@echo "Removed .b64, _partials.tpl, and _globals.tpl files"
-	rm -f helm-toolkit/secrets/*.b64
 	rm -f */templates/_partials.tpl
 	rm -f */templates/_globals.tpl
 	rm -f *tgz */charts/*tgz
