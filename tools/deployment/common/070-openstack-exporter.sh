@@ -16,8 +16,8 @@
 
 set -xe
 
-#NOTE: Pull images and lint chart
-make pull-images prometheus-openstack-exporter
+#NOTE: Lint and package chart
+make prometheus-openstack-exporter
 
 #NOTE: Deploy command
 tee /tmp/prometheus-openstack-exporter.yaml << EOF

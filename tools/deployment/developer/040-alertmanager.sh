@@ -16,8 +16,8 @@
 
 set -xe
 
-#NOTE: Pull images and lint chart
-make pull-images alertmanager
+#NOTE: Lint and package chart
+make alertmanager
 
 #NOTE: Deploy command
 tee /tmp/prometheus-alertmanager.yaml << EOF

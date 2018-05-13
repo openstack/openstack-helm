@@ -16,8 +16,8 @@
 
 set -xe
 
-#NOTE: Pull images and lint chart
-make pull-images prometheus
+#NOTE: Lint and package chart
+make prometheus
 
 #NOTE: Deploy command
 tee /tmp/prometheus.yaml << EOF

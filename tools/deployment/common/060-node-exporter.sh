@@ -16,8 +16,8 @@
 
 set -xe
 
-#NOTE: Pull images and lint chart
-make pull-images prometheus-node-exporter
+#NOTE: Lint and package chart
+make prometheus-node-exporter
 
 #NOTE: Deploy command
 helm upgrade --install prometheus-node-exporter \

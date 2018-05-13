@@ -16,8 +16,8 @@
 
 set -xe
 
-#NOTE: Pull images and lint chart
-make pull-images nagios
+#NOTE: Lint and package chart
+make nagios
 
 #NOTE: Deploy command
 helm upgrade --install nagios ./nagios \

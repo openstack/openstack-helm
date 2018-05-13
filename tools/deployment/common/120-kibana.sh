@@ -16,8 +16,8 @@
 
 set -xe
 
-#NOTE: Pull images and lint chart
-make pull-images kibana
+#NOTE: Lint and package chart
+make kibana
 
 #NOTE: Deploy command
 helm upgrade --install kibana ./kibana \

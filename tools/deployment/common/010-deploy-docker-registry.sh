@@ -16,10 +16,10 @@
 
 set -xe
 
-#NOTE: Pull images and lint charts for deploying a local docker registry
-make pull-images nfs-provisioner
-make pull-images redis
-make pull-images registry
+#NOTE: Lint and package charts for deploying a local docker registry
+make nfs-provisioner
+make redis
+make registry
 
 #NOTE: Deploy nfs for the docker registry
 tee /tmp/docker-registry-nfs-provisioner.yaml << EOF

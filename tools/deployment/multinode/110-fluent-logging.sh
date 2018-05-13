@@ -16,8 +16,8 @@
 
 set -xe
 
-#NOTE: Pull images and lint chart
-make pull-images fluent-logging
+#NOTE: Lint and package chart
+make fluent-logging
 
 #NOTE: Deploy command
 helm upgrade --install fluent-logging ./fluent-logging \

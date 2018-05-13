@@ -16,8 +16,8 @@
 
 set -xe
 
-#NOTE: Pull images and lint chart
-make pull-images elasticsearch
+#NOTE: Lint and package chart
+make elasticsearch
 
 #NOTE: Deploy command
 tee /tmp/elasticsearch.yaml << EOF

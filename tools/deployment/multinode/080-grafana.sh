@@ -16,8 +16,8 @@
 
 set -xe
 
-#NOTE: Pull images and lint chart
-make pull-images grafana
+#NOTE: Lint and package chart
+make grafana
 
 #NOTE: Deploy command
 tee /tmp/grafana.yaml << EOF
