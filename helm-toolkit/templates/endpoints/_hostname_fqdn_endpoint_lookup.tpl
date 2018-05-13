@@ -32,7 +32,12 @@ limitations under the License.
 {{- $endpointScheme := .scheme }}
 {{- $endpointHost := index .hosts $endpoint | default .hosts.default }}
 {{- $endpointClusterHostname := printf "%s.%s.%s" $endpointHost $namespace $clusterSuffix }}
+{{- if kindIs "map" (index .host_fqdn_override $endpoint) }}
+{{- $endpointHostname := index .host_fqdn_override $endpoint "host" | default .host_fqdn_override.default | default $endpointClusterHostname }}
+{{- printf "%s" $endpointHostname -}}
+{{- else }}
 {{- $endpointHostname := index .host_fqdn_override $endpoint | default .host_fqdn_override.default | default $endpointClusterHostname }}
 {{- printf "%s" $endpointHostname -}}
+{{- end -}}
 {{- end -}}
 {{- end -}}
