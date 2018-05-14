@@ -31,32 +31,35 @@ Environment tear-down
 
 To tear-down, the development environment charts should be removed first from
 the 'openstack' namespace and then the 'ceph' namespace using the commands from
-the `Removing Helm Charts` section.  You can run the following commands to
-loop through and delete the charts, then stop the kubelet systemd unit and
-remove all the containers before removing the ``/var/lib/openstack-helm``
-and ``/var/lib/nova`` directory from the host.
+the `Removing Helm Charts` section. Additonally charts should be removed from
+the 'nfs' and 'libvirt' namespaces if deploying with NFS backing or bare metal
+development support. You can run the following commands to loop through and
+delete the charts, then stop the kubelet systemd unit and remove all the
+containers before removing the directories used on the host by pods.
 
 .. code-block:: shell
 
-  for NS in openstack ceph; do
-    helm ls --namespace $NS --short | xargs -L1 -P16 helm delete --purge
+  for NS in openstack ceph nfs libvirt; do
+     helm ls --namespace $NS --short | xargs -r -L1 -P2 helm delete --purge
   done
 
-  kubectl delete namespace openstack
-
-  kubectl delete namespace ceph
-
-  sudo systemctl disable kubelet --now
-
   sudo systemctl stop kubelet
+  sudo systemctl disable kubelet
 
-  sudo docker ps -aq | xargs -L1 -P16 sudo docker rm -f
+  sudo docker ps -aq | xargs -r -L1 -P16 sudo docker rm -f
 
-  sudo rm -rf /var/lib/openstack-helm
+  sudo rm -rf /var/lib/openstack-helm/*
 
-  sudo rm -rf /var/lib/nova
+  # NOTE(portdirect): These directories are used by nova and libvirt
+  sudo rm -rf /var/lib/nova/*
+  sudo rm -rf /var/lib/libvirt/*
+  sudo rm -rf /etc/libvirt/qemu/*
+
+  # NOTE(portdirect): Clean up mounts left behind by kubernetes pods
+  sudo findmnt --raw | awk '/^\/var\/lib\/kubelet\/pods/ { print $1 }' | xargs -r -L1 -P16 sudo umount -f -l
 
 
 These commands will restore the environment back to a clean Kubernetes
 deployment, that can either be manually removed or over-written by
-restarting the deployment process.
+restarting the deployment process. It is recommended to restart the host before
+doing so to ensure any residual state, eg. Network interfaces are removed.
