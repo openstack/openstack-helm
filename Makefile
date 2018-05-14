@@ -14,39 +14,37 @@
 
 # It's necessary to set this because some environments don't link sh -> bash.
 SHELL := /bin/bash
+TASK  := build
 
-HELM := helm
-TASK := build
-
-EXCLUDES := doc tests tools logs tmp
-CHARTS := $(filter-out $(EXCLUDES), $(patsubst %/.,%,$(wildcard */.)))
+EXCLUDES := helm-toolkit doc tests tools logs tmp
+CHARTS := helm-toolkit $(filter-out $(EXCLUDES), $(patsubst %/.,%,$(wildcard */.)))
 
 .PHONY: $(EXCLUDES) $(CHARTS)
 
 all: $(CHARTS)
 
 $(CHARTS):
-	@echo
-	@echo "===== Processing [$@] chart ====="
-	@make $(TASK)-$@
+	@if [ -d $@ ]; then \
+		echo; \
+		echo "===== Processing [$@] chart ====="; \
+		make $(TASK)-$@; \
+	fi
 
 init-%:
 	if [ -f $*/Makefile ]; then make -C $*; fi
 	if [ -f $*/requirements.yaml ]; then helm dep up $*; fi
 
 lint-%: init-%
-	if [ -d $* ]; then $(HELM) lint $*; fi
+	if [ -d $* ]; then helm lint $*; fi
 
 build-%: lint-%
-	if [ -d $* ]; then $(HELM) package $*; fi
+	if [ -d $* ]; then helm package $*; fi
 
 clean:
-	@echo "Removed .b64, _partials.tpl, and _globals.tpl files"
-	rm -f */templates/_partials.tpl
-	rm -f */templates/_globals.tpl
-	rm -f *tgz */charts/*tgz
-	rm -f */requirements.lock
-	-rm -rf */charts */tmpcharts
+	@echo "Clean all build artifacts"
+	rm -f */templates/_partials.tpl */templates/_globals.tpl
+	rm -f *tgz */charts/*tgz */requirements.lock
+	rm -rf */charts */tmpcharts
 
 pull-all-images:
 	@./tools/pull-images.sh
