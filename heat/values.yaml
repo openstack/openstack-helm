@@ -35,9 +35,13 @@ labels:
   job:
     node_selector_key: openstack-control-plane
     node_selector_value: enabled
+  test:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
 
 images:
   tags:
+    test: docker.io/kolla/ubuntu-source-rally:4.0.0
     bootstrap: docker.io/openstackhelm/heat:newton
     db_init: docker.io/openstackhelm/heat:newton
     heat_db_sync: docker.io/openstackhelm/heat:newton
@@ -68,6 +72,216 @@ jobs:
       failed: 1
 
 conf:
+  rally_tests:
+    run_tempest: false
+    tests:
+      HeatStacks.create_and_delete_stack:
+        - args:
+            template_path: /tmp/rally-jobs/default.yaml
+          runner:
+            concurrency: 1
+            times: 1
+            type: constant
+          sla:
+            failure_rate:
+              max: 0
+      HeatStacks.create_update_delete_stack:
+        - args:
+            template_path: /tmp/rally-jobs/random_strings.yaml
+            updated_template_path: /tmp/rally-jobs/updated_random_strings_replace.yaml
+          runner:
+            concurrency: 1
+            times: 1
+            type: constant
+          sla:
+            failure_rate:
+              max: 0
+      HeatStacks.create_check_delete_stack:
+        - args:
+            template_path: /tmp/rally-jobs/random_strings.yaml
+          runner:
+            concurrency: 1
+            times: 1
+            type: constant
+          sla:
+            failure_rate:
+              max: 0
+      HeatStacks.create_and_delete_stack:
+        - args:
+            template_path: /tmp/rally-jobs/resource_group_with_constraint.yaml
+          runner:
+            concurrency: 1
+            times: 1
+            type: constant
+          sla:
+            failure_rate:
+              max: 0
+      HeatStacks.create_and_list_stack:
+        - args:
+            template_path: /tmp/rally-jobs/default.yaml
+          runner:
+            concurrency: 1
+            times: 1
+            type: constant
+          sla:
+            failure_rate:
+              max: 0
+      HeatStacks.create_snapshot_restore_delete_stack:
+        - args:
+            template_path: /tmp/rally-jobs/random_strings.yaml
+          runner:
+            concurrency: 1
+            times: 1
+            type: constant
+          sla:
+            failure_rate:
+              max: 0
+      HeatStacks.create_stack_and_list_output:
+        - args:
+            template_path: /tmp/rally-jobs/resource_group_with_outputs.yaml
+          runner:
+            concurrency: 1
+            times: 1
+            type: constant
+          sla:
+            failure_rate:
+              max: 0
+      HeatStacks.create_stack_and_list_output_via_API:
+        - args:
+            template_path: /tmp/rally-jobs/resource_group_with_outputs.yaml
+          runner:
+            concurrency: 1
+            times: 1
+            type: constant
+          sla:
+            failure_rate:
+              max: 0
+    templates:
+      - name: /tmp/rally-jobs/default.yaml
+        template: |
+          heat_template_version: 2014-10-16
+      - name: /tmp/rally-jobs/random_strings.yaml
+        template: |
+          heat_template_version: 2014-10-16
+          description: Test template for rally create-update-delete scenario
+          resources:
+            test_string_one:
+              type: OS::Heat::RandomString
+              properties:
+                length: 20
+            test_string_two:
+              type: OS::Heat::RandomString
+              properties:
+                length: 20
+      - name: /tmp/rally-jobs/resource_group_with_constraint.yaml
+        template: |
+          heat_template_version: 2013-05-23
+          description: Template for testing caching.
+          parameters:
+            count:
+              type: number
+              default: 40
+            delay:
+              type: number
+              default: 0.1
+          resources:
+            rg:
+              type: OS::Heat::ResourceGroup
+              properties:
+                count:
+                  get_param: count
+                resource_def:
+                    type: OS::Heat::TestResource
+                    properties:
+                      constraint_prop_secs:
+                        get_param: delay
+      - name: /tmp/rally-jobs/resource_group_with_outputs.yaml
+        template: |
+          heat_template_version: 2013-05-23
+          parameters:
+            attr_wait_secs:
+              type: number
+              default: 0.5
+          resources:
+            rg:
+              type: OS::Heat::ResourceGroup
+              properties:
+                count: 10
+                resource_def:
+                  type: OS::Heat::TestResource
+                  properties:
+                    attr_wait_secs:
+                      get_param: attr_wait_secs
+          outputs:
+            val1:
+              value:
+                get_attr:
+                  - rg
+                  - resource.0.output
+            val2:
+              value:
+                get_attr:
+                  - rg
+                  - resource.1.output
+            val3:
+              value:
+                get_attr:
+                  - rg
+                  - resource.2.output
+            val4:
+              value:
+                get_attr:
+                  - rg
+                  - resource.3.output
+            val5:
+              value:
+                get_attr:
+                  - rg
+                  - resource.4.output
+            val6:
+              value:
+                get_attr:
+                  - rg
+                  - resource.5.output
+            val7:
+              value:
+                get_attr:
+                  - rg
+                  - resource.6.output
+            val8:
+              value:
+                get_attr:
+                  - rg
+                  - resource.7.output
+            val9:
+              value:
+                get_attr:
+                  - rg
+                  - resource.8.output
+            val10:
+              value:
+                get_attr:
+                  - rg
+                  - resource.9.output
+      - name: /tmp/rally-jobs/updated_random_strings_replace.yaml
+        template: |
+          heat_template_version: 2014-10-16
+          description: |
+            Test template for create-update-delete-stack scenario in rally.
+            The template deletes one resource from the stack defined by
+            random-strings.yaml.template and re-creates it with the updated parameters
+            (so-called update-replace). That happens because some parameters cannot be
+            changed without resource re-creation. The template allows to measure performance
+            of update-replace operation.
+          resources:
+            test_string_one:
+              type: OS::Heat::RandomString
+              properties:
+                length: 20
+            test_string_two:
+              type: OS::Heat::RandomString
+              properties:
+                length: 40
   paste:
     pipeline:heat-api:
       pipeline: cors request_id faultwrap http_proxy_to_wsgi versionnegotiation osprofiler authurl authtoken context apiv1app
@@ -429,6 +643,12 @@ dependencies:
       services:
         - endpoint: internal
           service: local_image_registry
+    tests:
+      services:
+        - endpoint: internal
+          service: identity
+        - endpoint: internal
+          service: orchestration
 
 # Names of secrets used by bootstrap and environmental checks
 secrets:
@@ -437,6 +657,7 @@ secrets:
     heat: heat-keystone-user
     heat_trustee: heat-keystone-trustee
     heat_stack_user: heat-keystone-stack-user
+    test: heat-keystone-test
   oslo_db:
     admin: heat-db-admin
     heat: heat-db-user
@@ -495,6 +716,14 @@ endpoints:
         username: heat-domain
         password: password
         domain_name: heat
+      test:
+        role: admin
+        region_name: RegionOne
+        username: test
+        password: password
+        project_name: test
+        user_domain_name: default
+        project_domain_name: default
     hosts:
       default: keystone-api
       public: keystone
@@ -640,6 +869,9 @@ pod:
     heat_engine_cleaner:
       init_container: null
       heat_engine_cleaner:
+    heat_tests:
+      init_container: null
+      heat_tests:
   replicas:
     api: 1
     cfn: 1
@@ -810,6 +1042,7 @@ manifests:
   pdb_api: true
   pdb_cfn: true
   pdb_cloudwatch: false
+  pod_rally_test: true
   secret_db: true
   secret_keystone: true
   secret_rabbitmq: true

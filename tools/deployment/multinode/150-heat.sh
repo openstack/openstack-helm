@@ -38,3 +38,4 @@ export OS_CLOUD=openstack_helm
 openstack service list
 sleep 30 #NOTE(portdirect): Wait for ingress controller to update rules and restart Nginx
 openstack orchestration service list
+helm test heat --timeout 900
