@@ -78,25 +78,54 @@ spec:
       initContainers:
 {{ tuple $envAll "nagios" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
-        - name: nagios
-{{ tuple $envAll "nagios" | include "helm-toolkit.snippets.image" | indent 10 }}
-{{ tuple $envAll $envAll.Values.pod.resources.nagios | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+        - name: apache-proxy
+{{ tuple $envAll "apache_proxy" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.apache_proxy | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          command:
+            - /tmp/apache.sh
+            - start
           ports:
             - name: http
               containerPort: {{ tuple "nagios" "internal" "http" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
           env:
+            - name: NAGIOS_PORT
+              value: {{ tuple "nagios" "internal" "nagios" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | quote }}
+            - name: LDAP_URL
+              value: {{ tuple "ldap" "default" "ldap" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" | quote }}
+            - name: BIND_DN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $nagiosUserSecret }}
+                  key: BIND_DN
+            - name: BIND_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $nagiosUserSecret }}
+                  key: BIND_PASSWORD
+          volumeMounts:
+            - name: nagios-bin
+              mountPath: /tmp/apache.sh
+              subPath: apache.sh
+              readOnly: true
+            - name: nagios-etc
+              mountPath: /usr/local/apache2/conf/httpd.conf
+              subPath: httpd.conf
+              readOnly: true
+            - name: pod-etc-apache
+              mountPath: /usr/local/apache2/conf/sites-enabled
+            - name: nagios-etc
+              mountPath: /usr/local/apache2/conf/sites-enabled/nagios-host.conf
+              subPath: nagios-host.conf
+              readOnly: true
+        - name: nagios
+{{ tuple $envAll "nagios" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.nagios | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          ports:
+            - name: nagios
+              containerPort: {{ tuple "nagios" "internal" "nagios" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+          env:
             - name: PROMETHEUS_SERVICE
               value: {{ tuple "monitoring" "internal" "api" . | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" }}
-            - name: NAGIOSADMIN_USER
-              valueFrom:
-                secretKeyRef:
-                  name: {{ $nagiosUserSecret }}
-                  key: NAGIOSADMIN_USER
-            - name: NAGIOSADMIN_PASS
-              valueFrom:
-                secretKeyRef:
-                  name: {{ $nagiosUserSecret }}
-                  key: NAGIOSADMIN_PASS
           volumeMounts:
             - name: nagios-etc
               mountPath: /opt/nagios/etc/nagios.cfg
@@ -111,4 +140,10 @@ spec:
           configMap:
             name: nagios-etc
             defaultMode: 0444
+        - name: pod-etc-apache
+          emptyDir: {}
+        - name: nagios-bin
+          configMap:
+            name: nagios-bin
+            defaultMode: 0555
 {{- end }}

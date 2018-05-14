@@ -18,7 +18,8 @@
 
 images:
   tags:
-    nagios: quay.io/attcomdev/nagios:931116b88c54931c616dfa66f424be38f74d8ad2
+    apache_proxy: docker.io/httpd:2.4
+    nagios: quay.io/attcomdev/nagios:8ed23ede915ccf23aacd370953291090007ed16d
     dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.2.1
     image_repo_sync: docker.io/docker:17.07.0
   pull_policy: IfNotPresent
@@ -88,10 +89,6 @@ endpoints:
   nagios:
     name: nagios
     namespace: null
-    auth:
-      admin:
-        username: admin
-        password: changeme
     hosts:
       default: nagios-metrics
       public: nagios
@@ -102,8 +99,26 @@ endpoints:
     scheme:
       default: http
     port:
+      nagios:
+        default: 8000
       http:
         default: 80
+  ldap:
+    hosts:
+      default: ldap
+    auth:
+      admin:
+        bind: "cn=admin,dc=cluster,dc=local"
+        password: password
+    host_fqdn_override:
+      default: null
+    path:
+      default: "/ou=People,dc=cluster,dc=local"
+    scheme:
+      default: ldap
+    port:
+      ldap:
+        default: 389
 
 network:
   nagios:
@@ -140,6 +155,13 @@ pod:
       requests:
         memory: "128Mi"
         cpu: "100m"
+    apache_proxy:
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
     jobs:
       image_repo_sync:
         limits:
@@ -160,6 +182,9 @@ manifests:
   service_ingress: true
 
 conf:
+  apache:
+    httpd: null
+    elasticsearch_host: null
   nagios:
     hosts:
       - prometheus:
