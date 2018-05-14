@@ -61,6 +61,7 @@ openstack stack create --wait \
     --parameter image="${IMAGE_NAME}" \
     --parameter ssh_key=${OSH_VM_KEY_STACK} \
     --parameter cidr=${OSH_PRIVATE_SUBNET} \
+    --parameter dns_nameserver=${OSH_BR_EX_ADDR%/*} \
     -t ./tools/gate/files/heat-basic-vm-deployment.yaml \
     heat-basic-vm-deployment
 
@@ -96,6 +97,9 @@ ssh -i ${HOME}/.ssh/osh_key cirros@${FLOATING_IP} ping -q -c 1 -W 2 ${OSH_BR_EX_
 
 # Check the VM can reach the metadata server
 ssh -i ${HOME}/.ssh/osh_key cirros@${FLOATING_IP} curl --verbose --connect-timeout 5 169.254.169.254
+
+# Check the VM can reach the keystone server
+ssh -i ${HOME}/.ssh/osh_key cirros@${FLOATING_IP} curl --verbose --connect-timeout 5 keystone.openstack.svc.cluster.local
 
 # Check to see if cinder has been deployed, if it has then perform a volume attach.
 if helm ls --short | grep -q "^cinder$"; then
