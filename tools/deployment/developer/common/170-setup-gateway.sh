@@ -29,3 +29,19 @@ sudo iptables -P FORWARD ACCEPT
 # Setup masquerading on default route dev to public subnet
 DEFAULT_ROUTE_DEV="$(sudo ip -4 route list 0/0 | awk '{ print $5; exit }')"
 sudo iptables -t nat -A POSTROUTING -o ${DEFAULT_ROUTE_DEV} -s ${OSH_EXT_SUBNET} -j MASQUERADE
+
+# NOTE(portdirect): Setup DNS for public endpoints
+sudo docker run -d \
+  --name br-ex-dns-server \
+  --net host \
+  --cap-add=NET_ADMIN \
+  --volume /etc/kubernetes/kubelet-resolv.conf:/etc/kubernetes/kubelet-resolv.conf:ro \
+  --entrypoint dnsmasq \
+  docker.io/openstackhelm/neutron:newton \
+    --keep-in-foreground \
+    --no-hosts \
+    --resolv-file=/etc/kubernetes/kubelet-resolv.conf \
+    --address="/svc.cluster.local/${OSH_BR_EX_ADDR%/*}" \
+    --listen-address="${OSH_BR_EX_ADDR%/*}"
+sleep 1
+sudo docker top br-ex-dns-server
