@@ -7,7 +7,6 @@ data:
   chart_name: helm-toolkit
   release: helm-toolkit
   namespace: helm-toolkit
-  timeout: 300
   values: {}
   source:
     type: local
@@ -24,11 +23,14 @@ data:
   chart_name: osh-infra-ingress-controller
   release: osh-infra-ingress-controller
   namespace: osh-infra
-  timeout: 1800
+  wait:
+    timeout: 1800
+    labels:
+      release_group: osh-infra-osh-infra-ingress-controller
   install:
-    no_hooks: false
+    no_hooks: False
   upgrade:
-    no_hooks: false
+    no_hooks: False
   values:
     labels:
       node_selector_key: openstack-control-plane
@@ -53,11 +55,14 @@ data:
   chart_name: osh-infra-ceph-config
   release: osh-infra-ceph-config
   namespace: osh-infra
-  timeout: 1800
+  wait:
+    timeout: 1800
+    labels:
+      release_group: osh-infra-osh-infra-ceph-config
   install:
-    no_hooks: false
+    no_hooks: False
   upgrade:
-    no_hooks: false
+    no_hooks: False
     pre:
       delete:
         - type: job
@@ -84,21 +89,53 @@ data:
       public: ${CEPH_NETWORK}
       cluster: ${CEPH_NETWORK}
     deployment:
-      storage_secrets: false
-      ceph: false
-      rbd_provisioner: false
-      cephfs_provisioner: false
-      client_secrets: true
-      rgw_keystone_user_and_endpoints: false
+      storage_secrets: False
+      ceph: False
+      rbd_provisioner: False
+      cephfs_provisioner: False
+      client_secrets: True
+      rgw_keystone_user_and_endpoints: False
     bootstrap:
-      enabled: false
+      enabled: False
     conf:
       rgw_ks:
-        enabled: true
+        enabled: True
   source:
     type: local
     location: ${OSH_PATH}
     subpath: ceph-client
+    reference: master
+  dependencies:
+    - helm-toolkit
+---
+schema: armada/Chart/v1
+metadata:
+  schema: metadata/Document/v1
+  name: osh-infra-ldap
+data:
+  chart_name: osh-infra-ldap
+  release: osh-infra-ldap
+  namespace: osh-infra
+  wait:
+    timeout: 1800
+    labels:
+      release_group: osh-infra-osh-infra-ldap
+  install:
+    no_hooks: false
+  upgrade:
+    no_hooks: false
+  values:
+    labels:
+      server:
+        node_selector_key: openstack-control-plane
+        node_selector_value: enabled
+      job:
+        node_selector_key: openstack-control-plane
+        node_selector_value: enabled
+  source:
+    type: local
+    location: ${OSH_INFRA_PATH}
+    subpath: ldap
     reference: master
   dependencies:
     - helm-toolkit
@@ -111,14 +148,15 @@ data:
   chart_name: osh-infra-mariadb
   release: osh-infra-mariadb
   namespace: osh-infra
-  timeout: 1800
+  wait:
+    timeout: 1800
+    labels:
+      release_group: osh-infra-osh-infra-mariadb
   install:
-    no_hooks: false
+    no_hooks: False
   upgrade:
-    no_hooks: false
+    no_hooks: False
   values:
-    volume:
-      enabled: false
     pod:
       replicas:
         server: 1
@@ -150,11 +188,14 @@ data:
   chart_name: elasticsearch
   release: elasticsearch
   namespace: osh-infra
-  timeout: 3600
+  wait:
+    timeout: 3600
+    labels:
+      release_group: osh-infra-elasticsearch
   install:
-    no_hooks: false
+    no_hooks: False
   upgrade:
-    no_hooks: false
+    no_hooks: False
   values:
     endpoints:
       elasticsearch:
@@ -167,7 +208,7 @@ data:
         client: 1
     monitoring:
       prometheus:
-        enabled: true
+        enabled: True
     labels:
       elasticsearch:
         node_selector_key: openstack-control-plane
@@ -191,11 +232,14 @@ data:
   chart_name: fluent-logging
   release: fluent-logging
   namespace: osh-infra
-  timeout: 3600
+  wait:
+    timeout: 3600
+    labels:
+      release_group: osh-infra-fluent-logging
   install:
-    no_hooks: false
+    no_hooks: False
   upgrade:
-    no_hooks: false
+    no_hooks: False
   values:
     endpoints:
       elasticsearch:
@@ -204,7 +248,7 @@ data:
             password: ${ELASTICSEARCH_ADMIN_PASSWORD}
     monitoring:
       prometheus:
-        enabled: true
+        enabled: True
     pod:
       replicas:
         fluentd: 1
@@ -237,11 +281,14 @@ data:
   chart_name: kibana
   release: kibana
   namespace: osh-infra
-  timeout: 1800
+  wait:
+    timeout: 1800
+    labels:
+      release_group: osh-infra-kibana
   install:
-    no_hooks: false
+    no_hooks: False
   upgrade:
-    no_hooks: false
+    no_hooks: False
   values:
     endpoints:
       elasticsearch:
@@ -275,11 +322,14 @@ data:
   chart_name: prometheus
   release: prometheus
   namespace: osh-infra
-  timeout: 1800
+  wait:
+    timeout: 1800
+    labels:
+      release_group: osh-infra-prometheus
   install:
-    no_hooks: false
+    no_hooks: False
   upgrade:
-    no_hooks: false
+    no_hooks: False
   values:
     labels:
       prometheus:
@@ -307,11 +357,14 @@ data:
   chart_name: prometheus-kube-state-metrics
   release: prometheus-kube-state-metrics
   namespace: kube-system
-  timeout: 1800
+  wait:
+    timeout: 1800
+    labels:
+      release_group: osh-infra-prometheus-kube-state-metrics
   install:
-    no_hooks: false
+    no_hooks: False
   upgrade:
-    no_hooks: false
+    no_hooks: False
   values:
     labels:
       kube_state_metrics:
@@ -336,11 +389,14 @@ data:
   chart_name: prometheus-node-exporter
   release: prometheus-node-exporter
   namespace: kube-system
-  timeout: 1800
+  wait:
+    timeout: 1800
+    labels:
+      release_group: osh-infra-prometheus-node-exporter
   install:
-    no_hooks: false
+    no_hooks: False
   upgrade:
-    no_hooks: false
+    no_hooks: False
   values:
     labels:
       node_exporter:
@@ -365,11 +421,14 @@ data:
   chart_name: prometheus-alertmanager
   release: prometheus-alertmanager
   namespace: osh-infra
-  timeout: 1800
+  wait:
+    timeout: 1800
+    labels:
+      release_group: osh-infra-prometheus-alertmanager
   install:
-    no_hooks: false
+    no_hooks: False
   upgrade:
-    no_hooks: false
+    no_hooks: False
   values:
     labels:
       alertmanager:
@@ -394,11 +453,14 @@ data:
   chart_name: grafana
   release: grafana
   namespace: osh-infra
-  timeout: 1800
+  wait:
+    timeout: 1800
+    labels:
+      release_group: osh-infra-grafana
   install:
-    no_hooks: false
+    no_hooks: False
   upgrade:
-    no_hooks: false
+    no_hooks: False
   values:
     endpoints:
       oslo_db:
@@ -457,6 +519,16 @@ data:
 schema: armada/ChartGroup/v1
 metadata:
   schema: metadata/Document/v1
+  name: osh-infra-ldap
+data:
+  description: "LDAP"
+  sequenced: True
+  chart_group:
+    - osh-infra-ldap
+---
+schema: armada/ChartGroup/v1
+metadata:
+  schema: metadata/Document/v1
   name: osh-infra-mariadb
 data:
   description: "Mariadb"
@@ -508,6 +580,7 @@ data:
   chart_groups:
     - osh-infra-ingress-controller
     - osh-infra-ceph-config
+    - osh-infra-ldap
     - osh-infra-logging
     - osh-infra-monitoring
     - osh-infra-mariadb
