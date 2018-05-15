@@ -156,13 +156,7 @@ On the master node create an environment file for the cluster:
      sudo ip -4 route list 0/0 | awk '{ print $5; exit }'
     }
     cat > /opt/openstack-helm-infra/tools/gate/devel/multinode-vars.yaml <<EOF
-    kubernetes:
-      network:
-        default_device: $(net_default_iface)
-      cluster:
-        cni: calico
-        pod_subnet: 192.168.0.0/16
-        domain: cluster.local
+    kubernetes_network_default_device: $(net_default_iface)
     EOF
 
 .. note::
