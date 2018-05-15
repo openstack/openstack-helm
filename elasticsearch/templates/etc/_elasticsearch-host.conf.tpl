@@ -15,14 +15,20 @@ limitations under the License.
 */}}
 
 <VirtualHost *:80>
+  ProxyRequests On
+  ProxyPreserveHost On
   <Location />
       ProxyPass http://localhost:${ELASTICSEARCH_PORT}/
       ProxyPassReverse http://localhost:${ELASTICSEARCH_PORT}/
   </Location>
   <Proxy *>
+      AuthName "Elasticsearch"
       AuthType Basic
-      AuthName "Authentication Required for Elasticsearch"
-      AuthUserFile {{.Values.conf.apache.htpasswd | quote}}
+      AuthBasicProvider ldap file
+      AuthUserFile /usr/local/apache2/conf/.htpasswd
+      AuthLDAPBindDN ${BIND_DN}
+      AuthLDAPBindPassword ${BIND_PASSWORD}
+      AuthLDAPURL ${LDAP_URL}
       Require valid-user
   </Proxy>
 </VirtualHost>

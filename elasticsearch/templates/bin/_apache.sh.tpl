@@ -29,10 +29,10 @@ function start () {
   # Apache gets grumpy about PID files pre-existing
   rm -f /etc/httpd/logs/httpd.pid
 
-  if [ -f {{ .Values.conf.apache.htpasswd }} ]; then
-    htpasswd -b {{ .Values.conf.apache.htpasswd }} $ELASTICSEARCH_USERNAME $ELASTICSEARCH_PASSWORD
+  if [ -f /usr/local/apache2/conf/.htpasswd ]; then
+    htpasswd -b /usr/local/apache2/conf/.htpasswd $ELASTICSEARCH_USERNAME $ELASTICSEARCH_PASSWORD
   else
-    htpasswd -cb {{ .Values.conf.apache.htpasswd }} $ELASTICSEARCH_USERNAME $ELASTICSEARCH_PASSWORD
+    htpasswd -cb /usr/local/apache2/conf/.htpasswd $ELASTICSEARCH_USERNAME $ELASTICSEARCH_PASSWORD
   fi
 
   #Launch Apache on Foreground

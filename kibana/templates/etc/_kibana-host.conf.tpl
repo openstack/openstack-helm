@@ -20,9 +20,12 @@ limitations under the License.
       ProxyPassReverse http://localhost:${KIBANA_PORT}/
   </Location>
   <Proxy *>
+      AuthName "Kibana"
       AuthType Basic
-      AuthName "Authentication Required for Kibana"
-      AuthUserFile {{.Values.conf.apache.htpasswd | quote}}
+      AuthBasicProvider ldap
+      AuthLDAPBindDN ${BIND_DN}
+      AuthLDAPBindPassword ${BIND_PASSWORD}
+      AuthLDAPURL ${LDAP_URL}
       Require valid-user
   </Proxy>
 </VirtualHost>
