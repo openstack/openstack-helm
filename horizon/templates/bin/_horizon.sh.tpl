@@ -34,6 +34,11 @@ function start () {
   rm -rf /var/run/apache2/*
   APACHE_DIR="apache2"
 
+  # If the image has support for it, compile the translations
+  if type -p gettext >/dev/null 2>/dev/null; then
+    cd ${SITE_PACKAGES_ROOT}/openstack_dashboard; /tmp/manage.py compilemessages
+  fi
+
   # Compress Horizon's assets.
   /tmp/manage.py collectstatic --noinput
   /tmp/manage.py compress --force
