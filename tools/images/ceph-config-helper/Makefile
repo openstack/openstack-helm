@@ -24,7 +24,7 @@ LABEL                      ?= putlabelshere
 
 IMAGE := ${DOCKER_REGISTRY}/${IMAGE_PREFIX}/${IMAGE_NAME}:${IMAGE_TAG}
 
-# Build Deckhand Docker image for this project
+# Build ceph-config-helper Docker image for this project
 .PHONY: images
 images: build_$(IMAGE_NAME)
 
