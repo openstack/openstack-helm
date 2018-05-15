@@ -17,7 +17,7 @@
 set -xe
 
 #NOTE: Pull images and lint chart
-make pull-images ldap
+make ldap
 
 #NOTE: Deploy command
 helm upgrade --install ldap ./ldap \

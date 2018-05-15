@@ -16,6 +16,8 @@
 
 set -xe
 
+make nfs-provisioner
+
 #NOTE: Deploy nfs instance for logging, monitoring and alerting components
 tee /tmp/lma-nfs-provisioner.yaml << EOF
 labels:
