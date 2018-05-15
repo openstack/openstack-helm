@@ -1,3 +1,5 @@
+#!/bin/bash
+
 {{/*
 Copyright 2017 The Openstack-Helm Authors.
 
@@ -14,16 +16,25 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if .Values.manifests.secret_nagios }}
-{{- $envAll := . }}
-{{- $secretName := index $envAll.Values.secrets.nagios.admin }}
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: {{ $secretName }}
-type: Opaque
-data:
-  BIND_DN: {{ .Values.endpoints.ldap.auth.admin.bind | b64enc }}
-  BIND_PASSWORD: {{ .Values.endpoints.ldap.auth.admin.password | b64enc }}
-{{- end }}
+set -ev
+
+COMMAND="${@:-start}"
+
+function start () {
+
+  if [ -f /etc/apache2/envvars ]; then
+     # Loading Apache2 ENV variables
+     source /etc/httpd/apache2/envvars
+  fi
+  # Apache gets grumpy about PID files pre-existing
+  rm -f /etc/httpd/logs/httpd.pid
+
+  #Launch Apache on Foreground
+  exec httpd -DFOREGROUND
+}
+
+function stop () {
+  apachectl -k graceful-stop
+}
+
+$COMMAND
