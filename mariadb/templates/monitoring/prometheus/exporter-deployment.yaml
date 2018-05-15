@@ -16,10 +16,9 @@ limitations under the License.
 
 {{- if and .Values.manifests.monitoring.prometheus.deployment_exporter .Values.monitoring.prometheus.enabled }}
 {{- $envAll := . }}
-{{- $dependencies := .Values.dependencies.static.prometheus_mysql_exporter }}
 
 {{- $serviceAccountName := "prometheus-mysql-exporter"}}
-{{ tuple $envAll $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{ tuple $envAll "prometheus_mysql_exporter" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: extensions/v1beta1
 kind: Deployment
@@ -39,7 +38,7 @@ spec:
         {{ .Values.labels.prometheus_mysql_exporter.node_selector_key }}: {{ .Values.labels.prometheus_mysql_exporter.node_selector_value }}
       terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.prometheus_mysql_exporter.timeout | default "30" }}
       initContainers:
-{{ tuple $envAll $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll "prometheus_mysql_exporter" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
         - name: mysql-exporter
           image: {{ .Values.images.tags.prometheus_mysql_exporter }}
