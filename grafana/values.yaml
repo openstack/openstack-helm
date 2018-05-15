@@ -18,11 +18,11 @@
 
 images:
   tags:
-    grafana: docker.io/grafana/grafana:4.5.2
-    datasource: docker.io/kolla/ubuntu-source-heat-engine:3.0.3
+    grafana: docker.io/grafana/grafana:5.0.0
     dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.3.1
     db_init: docker.io/kolla/ubuntu-source-heat-engine:3.0.3
     grafana_db_session_sync: docker.io/kolla/ubuntu-source-heat-engine:3.0.3
+    helm_tests: docker.io/kolla/ubuntu-source-heat-engine:3.0.3
     image_repo_sync: docker.io/docker:17.07.0
   pull_policy: IfNotPresent
   local_registry:
@@ -101,6 +101,13 @@ pod:
         limits:
           memory: "1024Mi"
           cpu: "2000m"
+      tests:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
     grafana:
       requests:
         memory: "128Mi"
@@ -165,7 +172,7 @@ endpoints:
     auth:
       admin:
         username: admin
-        password: admin
+        password: password
     hosts:
       default: grafana-dashboard
       public: grafana
@@ -195,6 +202,21 @@ endpoints:
       api:
         default: 9090
         public: 80
+  ldap:
+    hosts:
+      default: ldap
+    auth:
+      admin:
+        password: password
+    host_fqdn_override:
+      default: null
+    path:
+      default: "/ou=People,dc=cluster,dc=local"
+    scheme:
+      default: ldap
+    port:
+      ldap:
+        default: 389
 
 dependencies:
   dynamic:
@@ -231,7 +253,7 @@ dependencies:
       services:
         - endpoint: internal
           service: local_image_registry
-    register_datasource:
+    tests:
       services:
         - endpoint: internal
           service: grafana
@@ -263,10 +285,10 @@ manifests:
   configmap_etc: true
   deployment: true
   ingress: true
+  helm_tests: true
   job_db_init: true
   job_db_init_session: true
   job_db_session_sync: true
-  job_datasource: true
   job_image_repo_sync: true
   secret_db: true
   secret_db_session: true
@@ -275,16 +297,67 @@ manifests:
   service_ingress: true
 
 conf:
-  datasource:
-    name: prometheus
-    type: prometheus
-    database:
-    access: proxy
-    isDefault: true
+  ldap: |
+    verbose_logging = true
+
+    [[servers]]
+    host = "ldap.openstack.svc.cluster.local"
+    port = 389
+    use_ssl = false
+    start_tls = false
+    ssl_skip_verify = false
+    bind_dn = "cn=admin,dc=cluster,dc=local"
+    bind_password = 'password'
+    search_filter = "(uid=%s)"
+    search_base_dns = ["dc=cluster,dc=local"]
+    group_search_filter = "(&(objectclass=posixGroup)(memberUID=uid=%s,ou=People,dc=cluster,dc=local))"
+    group_search_base_dns = ["ou=Groups,dc=cluster,dc=local"]
+
+    [servers.attributes]
+    username = "uid"
+    surname = "sn"
+    member_of = "cn"
+    email = "mail"
+
+    [[servers.group_mappings]]
+    group_dn = "cn=admin,dc=cluster,dc=local"
+    org_role = "Admin"
+
+    [[servers.group_mappings]]
+    group_dn = "*"
+    org_role = "Editor"
+  provisioning:
+    dashboards:
+      apiVersion: 1
+      providers:
+      - name: 'osh-infra-dashboards'
+        orgId: 1
+        folder: ''
+        type: file
+        disableDeletion: false
+        editable: false
+        options:
+          path: /var/lib/grafana/dashboards
+    datasources:
+      apiVersion: 1
+      datasources:
+      - name: prometheus
+        type: prometheus
+        access: proxy
+        orgId: 1
+        editable: true
+        url: 'http://prom-metrics.openstack.svc.cluster.local:9090'
   grafana:
+    auth.basic:
+      enabled: true
+    auth.ldap:
+      enabled: true
+      config_file: /etc/grafana/ldap.toml
+      allow_sign_up: true
     paths:
       data: /var/lib/grafana/data
       plugins: /var/lib/grafana/plugins
+      provisioning: /var/lib/grafana/provisioning
     server:
       protocol: http
       http_port: 3000
@@ -306,17 +379,10 @@ conf:
       allow_sign_up: false
       allow_org_create: false
       auto_assign_org: true
-      auto_assign_org_role: Admin
       default_theme: dark
     log:
       mode: console
       level: info
-    log.console:
-      level: info
-      format: console
-    dashboards.json:
-      enabled: true
-      path: /var/lib/grafana/dashboards
     grafana_net:
       url: https://grafana.net
   dashboards:

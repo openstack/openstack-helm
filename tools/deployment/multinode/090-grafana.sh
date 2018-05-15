@@ -52,3 +52,6 @@ helm upgrade --install grafana ./grafana \
 
 #NOTE: Validate Deployment info
 helm status grafana
+
+#NOTE: Run helm tests
+helm test grafana

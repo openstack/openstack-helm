@@ -35,8 +35,16 @@ kind: ConfigMap
 metadata:
   name: grafana-etc
 data:
+  datasources.yaml: |
+{{ toYaml .Values.conf.provisioning.datasources | indent 4 }}
+  dashboards.yaml: |
+{{ toYaml .Values.conf.provisioning.dashboards | indent 4 }}
   grafana.ini: |
 {{ include "helm-toolkit.utils.to_ini" .Values.conf.grafana | indent 4 }}
+{{ if not (empty .Values.conf.ldap) }}
+  ldap.toml: |
+{{ .Values.conf.ldap | indent 4 }}
+{{ end }}
 {{ range $key, $value := .Values.conf.dashboards }}
   {{$key}}.json: |
 {{ toJson $value | indent 4 }}
