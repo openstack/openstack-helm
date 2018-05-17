@@ -37,7 +37,7 @@ ENV CNI_VERSION ${CNI_VERSION}
 ARG HELM_VERSION="v2.8.2"
 ENV HELM_VERSION ${HELM_VERSION}
 
-ARG CHARTS="calico,flannel,tiller,kube-dns"
+ARG CHARTS="calico,flannel,tiller,kube-dns,kubernetes-keystone-webhook"
 ENV CHARTS ${CHARTS}
 
 ARG HTTP_PROXY=""
