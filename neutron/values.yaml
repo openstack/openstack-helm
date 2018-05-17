@@ -1151,6 +1151,10 @@ conf:
         route: CommandFilter, route, root
         radvd: CommandFilter, radvd, root
 
+        # haproxy
+        haproxy: RegExpFilter, haproxy, root, haproxy, -f, .*
+        kill_haproxy: KillFilter, root, haproxy, -15, -9, -HUP
+
         # metadata proxy
         metadata_proxy: CommandFilter, neutron-ns-metadata-proxy, root
         # RHEL invocation of the metadata proxy will report /usr/bin/python
@@ -1164,6 +1168,15 @@ conf:
         ip: IpFilter, ip, root
         find: RegExpFilter, find, root, find, /sys/class/net, -maxdepth, 1, -type, l, -printf, %.*
         ip_exec: IpNetnsExecFilter, ip, root
+
+        # l3_tc_lib
+        l3_tc_show_qdisc: RegExpFilter, tc, root, tc, qdisc, show, dev, .+
+        l3_tc_add_qdisc_ingress: RegExpFilter, tc, root, tc, qdisc, add, dev, .+, ingress
+        l3_tc_add_qdisc_egress: RegExpFilter, tc, root, tc, qdisc, add, dev, .+, root, handle, 1:, htb
+        l3_tc_show_filters: RegExpFilter, tc, root, tc, -p, -s, -d, filter, show, dev, .+, parent, .+, prio, 1
+        l3_tc_delete_filters: RegExpFilter, tc, root, tc, filter, del, dev, .+, parent, .+, prio, 1, handle, .+, u32
+        l3_tc_add_filter_ingress: RegExpFilter, tc, root, tc, filter, add, dev, .+, parent, .+, protocol, ip, prio, 1, u32, match, ip, dst, .+, police, rate, .+, burst, .+, drop, flowid, :1
+        l3_tc_add_filter_egress:  RegExpFilter, tc, root, tc, filter, add, dev, .+, parent, .+, protocol, ip, prio, 1, u32, match, ip, src, .+, police, rate, .+, burst, .+, drop, flowid, :1
 
         # For ip monitor
         kill_ip_monitor: KillFilter, root, ip, -9
@@ -1377,6 +1390,49 @@ conf:
         ip: IpFilter, ip, root
         find: RegExpFilter, find, root, find, /sys/class/net, -maxdepth, 1, -type, l, -printf, %.*
         ip_exec: IpNetnsExecFilter, ip, root
+
+        # needed for FDB extension
+        bridge: CommandFilter, bridge, root
+      privsep:
+        pods:
+          - dhcp_agent
+          - l3_agent
+          - lb_agent
+          - metadata_agent
+          - ovs_agent
+          - sriov_agent
+        content: |
+          # Command filters to allow privsep daemon to be started via rootwrap.
+          #
+          # This file should be owned by (and only-writeable by) the root user
+
+          [Filters]
+
+          # By installing the following, the local admin is asserting that:
+          #
+          # 1. The python module load path used by privsep-helper
+          #    command as root (as started by sudo/rootwrap) is trusted.
+          # 2. Any oslo.config files matching the --config-file
+          #    arguments below are trusted.
+          # 3. Users allowed to run sudo/rootwrap with this configuration(*) are
+          #    also allowed to invoke python "entrypoint" functions from
+          #    --privsep_context with the additional (possibly root) privileges
+          #    configured for that context.
+          #
+          # (*) ie: the user is allowed by /etc/sudoers to run rootwrap as root
+          #
+          # In particular, the oslo.config and python module path must not
+          # be writeable by the unprivileged user.
+
+          # oslo.privsep default neutron context
+          privsep: PathFilter, privsep-helper, root,
+           --config-file, /etc,
+           --privsep_context, neutron.privileged.default,
+           --privsep_sock_path, /
+
+          # NOTE: A second `--config-file` arg can also be added above. Since
+          # many neutron components are installed like that (eg: by devstack).
+          # Adjust to suit local requirements.
   neutron:
     DEFAULT:
       #NOTE(portdirect): the bind port should not be defined, and is manipulated
