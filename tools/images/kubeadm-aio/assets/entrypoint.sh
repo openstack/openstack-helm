@@ -52,6 +52,7 @@ fi
 : ${KUBE_API_BIND_ADDR:="${KUBE_BIND_ADDR}"}
 : ${KUBE_CERTS_DIR:="/etc/kubernetes/pki"}
 : ${KUBE_SELF_HOSTED:="false"}
+: ${KUBE_KEYSTONE_AUTH:="false"}
 : ${KUBELET_NODE_LABELS:=""}
 
 PLAYBOOK_VARS="{
@@ -78,6 +79,7 @@ PLAYBOOK_VARS="{
     \"imageRepository\": \"${KUBE_IMAGE_REPO}\",
     \"certificatesDir\": \"${KUBE_CERTS_DIR}\",
     \"selfHosted\": \"${KUBE_SELF_HOSTED}\",
+    \"keystoneAuth\": \"${KUBE_KEYSTONE_AUTH}\",
     \"api\": {
       \"bindPort\": ${KUBE_API_BIND_PORT}
     },
