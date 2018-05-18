@@ -1,0 +1,183 @@
+# Copyright 2017 The Openstack-Helm Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+labels:
+  api:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  test:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+
+images:
+  tags:
+    kubernetes_keystone_webhook: docker.io/gagehugo/k8s-keystone-auth:latest
+    scripted_test: docker.io/openstackhelm/heat:newton
+    dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.3.1
+    image_repo_sync: docker.io/docker:17.07.0
+  pull_policy: IfNotPresent
+  local_registry:
+    active: false
+    exclude:
+      - dep_check
+      - image_repo_sync
+
+network:
+  api:
+    ingress:
+      public: true
+      classes:
+        namespace: "nginx"
+        cluster: "nginx-cluster"
+      annotations:
+        nginx.ingress.kubernetes.io/rewrite-target: /
+        nginx.ingress.kubernetes.io/secure-backends: "true"
+    external_policy_local: false
+    node_port:
+      enabled: false
+      port: 30601
+
+pod:
+  affinity:
+    anti:
+      type:
+        default: preferredDuringSchedulingIgnoredDuringExecution
+      topologyKey:
+        default: kubernetes.io/hostname
+  replicas:
+    api: 1
+  resources:
+    enabled: false
+    api:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "256Mi"
+        cpu: "200m"
+    jobs:
+      tests:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "256Mi"
+          cpu: "200m"
+  mounts:
+    kubernetes_keystone_webhook_api:
+      init_container: null
+      kubernetes_keystone_webhook_api: null
+    kubernetes_keystone_webhook_tests:
+      init_container: null
+      kubernetes_keystone_webhook_tests: null
+
+release_group: null
+
+conf:
+  policy:
+    - resource:
+        verbs:
+          - get
+          - list
+          - watch
+        resources:
+          - pods
+        namespace: openstack
+        version: "*"
+      match:
+        - type: user
+          values:
+            - admin
+
+secrets:
+  identity:
+    admin: kubernetes-keystone-webhook-admin
+  certificates:
+    api: kubernetes-keystone-webhook-certs
+
+endpoints:
+  cluster_domain_suffix: cluster.local
+  kubernetes:
+    auth:
+      api:
+        tls:
+          crt: null
+          key: null
+  identity:
+    name: keystone
+    auth:
+      admin:
+        region_name: RegionOne
+        username: admin
+        password: password
+        project_name: admin
+        user_domain_name: default
+        project_domain_name: default
+    hosts:
+      default: keystone-api
+      public: keystone
+    host_fqdn_override:
+      default: null
+    path:
+      default: /v3
+    scheme:
+      default: http
+    port:
+      admin:
+        default: 35357
+      api:
+        default: 80
+  kubernetes_keystone_webhook:
+    namespace: null
+    name: k8sksauth
+    hosts:
+      default: k8sksauth-api
+      public: k8sksauth
+    host_fqdn_override:
+      default: null
+    path:
+      default: /webhook
+    scheme:
+      default: https
+    port:
+      api:
+        default: 8443
+        public: 443
+
+
+dependencies:
+  dynamic:
+    common:
+      local_image_registry:
+        jobs:
+          - k8sksauth-image-repo-sync
+        services:
+          - endpoint: node
+            service: local_image_registry
+  static:
+    api:
+      jobs: null
+      services: null
+
+manifests:
+  api_secret: true
+  configmap_etc: true
+  configmap_bin: true
+  deployment: true
+  ingress_webhook: true
+  pod_test: true
+  secret_certificates: true
+  secret_keystone: true
+  service_ingress_api: true
+  service: true
