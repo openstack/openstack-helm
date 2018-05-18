@@ -40,39 +40,38 @@ spec:
       nodeSelector:
         {{ .Values.labels.api.node_selector_key }}: {{ .Values.labels.api.node_selector_value }}
       containers:
-      - name: congress-api
-        image: {{ .Values.images.tags.congress_api }}
-        imagePullPolicy: {{ .Values.images.pull_policy }}
-        securityContext:
-          runAsUser: {{ .Values.pod.user.congress.uid }}
-        command:
-          - /tmp/congress-api.sh
-          - start
-        ports:
-          - name: c-api
-            containerPort: {{ tuple "policy" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-        readinessProbe:
-          tcpSocket:
-            port: {{ tuple "policy" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-        volumeMounts:
-          - name: etccongress
-            mountPath: /etc/congress
-          - name: congress-bin
-            mountPath: /tmp/congress-api.sh
-            subPath: congress-api.sh
-            readOnly: true
-          - name: congress-etc
-            mountPath: /etc/congress/congress.conf
-            subPath: congress.conf
-            readOnly: true
-          - name: congress-etc
-            mountPath: /etc/congress/api-paste.ini
-            subPath: api-paste.ini
-            readOnly: true
-          - name: congress-etc
-            mountPath: /etc/congress/policy.json
-            subPath: policy.json
-            readOnly: true
+        - name: congress-api
+{{ tuple $envAll "congress_api" | include "helm-toolkit.snippets.image" | indent 10 }}
+          securityContext:
+            runAsUser: {{ .Values.pod.user.congress.uid }}
+          command:
+            - /tmp/congress-api.sh
+            - start
+          ports:
+            - name: c-api
+              containerPort: {{ tuple "policy" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+          readinessProbe:
+            tcpSocket:
+              port: {{ tuple "policy" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+          volumeMounts:
+            - name: etccongress
+              mountPath: /etc/congress
+            - name: congress-bin
+              mountPath: /tmp/congress-api.sh
+              subPath: congress-api.sh
+              readOnly: true
+            - name: congress-etc
+              mountPath: /etc/congress/congress.conf
+              subPath: congress.conf
+              readOnly: true
+            - name: congress-etc
+              mountPath: /etc/congress/api-paste.ini
+              subPath: api-paste.ini
+              readOnly: true
+            - name: congress-etc
+              mountPath: /etc/congress/policy.json
+              subPath: policy.json
+              readOnly: true
       volumes:
         - name: etccongress
           emptyDir: {}
