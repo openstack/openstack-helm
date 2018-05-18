@@ -49,8 +49,7 @@ spec:
       containers:
 {{- range $key1, $osServiceType := $serviceTypes }}
         - name: {{ printf "%s-%s" $osServiceType "ks-service-registration" | quote }}
-          image: {{ $envAll.Values.images.tags.ks_service }}
-          imagePullPolicy: {{ $envAll.Values.images.pull_policy }}
+{{ tuple $envAll "ks_service" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.jobs.ks_service | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           command:
             - /tmp/ks-service.sh

@@ -43,8 +43,7 @@ spec:
 {{ tuple $envAll "rabbit_init" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
         - name: rabbit-init
-          image: {{ $envAll.Values.images.tags.rabbit_init | quote }}
-          imagePullPolicy: {{ $envAll.Values.images.pull_policy | quote }}
+{{ tuple $envAll "rabbit_init" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.jobs.rabbit_init | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           command:
             - /tmp/rabbit-init.sh

@@ -58,8 +58,7 @@ spec:
 {{- range $key1, $dbToInit := $dbsToInit }}
 {{ $dbToInitType := default "oslo" $dbToInit.inputType }}
         - name: {{ printf "%s-%s-%d" $serviceNamePretty "db-init" $key1 | quote }}
-          image: {{ $envAll.Values.images.tags.db_init }}
-          imagePullPolicy: {{ $envAll.Values.images.pull_policy }}
+{{ tuple $envAll "db_init" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.jobs.db_init | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           env:
             - name: ROOT_DB_CONNECTION

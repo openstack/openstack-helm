@@ -53,8 +53,7 @@ spec:
 {{ tuple $envAll "db_sync" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
         - name: {{ printf "%s-%s" $serviceNamePretty "db-sync" | quote }}
-          image: {{ $dbToSync.image | quote }}
-          imagePullPolicy: {{ $envAll.Values.images.pull_policy | quote }}
+{{ tuple $envAll $dbToSync.image | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.jobs.db_sync | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
 {{- if $podEnvVars }}
           env:

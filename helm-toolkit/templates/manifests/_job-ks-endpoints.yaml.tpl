@@ -50,8 +50,7 @@ spec:
 {{- range $key1, $osServiceType := $serviceTypes }}
 {{- range $key2, $osServiceEndPoint := tuple "admin" "internal" "public" }}
         - name: {{ printf "%s-%s-%s" $osServiceType "ks-endpoints" $osServiceEndPoint | quote }}
-          image: {{ $envAll.Values.images.tags.ks_endpoints }}
-          imagePullPolicy: {{ $envAll.Values.images.pull_policy }}
+{{ tuple $envAll "ks_endpoints" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.jobs.ks_endpoints | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           command:
             - /tmp/ks-endpoints.sh
