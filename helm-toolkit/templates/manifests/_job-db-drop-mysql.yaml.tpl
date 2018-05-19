@@ -61,7 +61,8 @@ spec:
 {{- range $key1, $dbToDrop := $dbsToDrop }}
 {{ $dbToDropType := default "oslo" $dbToDrop.inputType }}
         - name: {{ printf "%s-%s-%d" $serviceNamePretty "db-drop" $key1 | quote }}
-{{ tuple $envAll "db_drop" | include "helm-toolkit.snippets.image" | indent 10 }}
+          image: {{ $envAll.Values.images.tags.db_drop }}
+          imagePullPolicy: {{ $envAll.Values.images.pull_policy }}
 {{ tuple $envAll $envAll.Values.pod.resources.jobs.db_drop | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           env:
             - name: ROOT_DB_CONNECTION
