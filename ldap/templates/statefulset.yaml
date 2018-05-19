@@ -40,30 +40,29 @@ spec:
       initContainers:
 {{ tuple $envAll "ldap" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 6 }}
       containers:
-      - name: ldap
-        image: {{ .Values.images.tags.ldap }}
-        imagePullPolicy: {{ .Values.images.pull_policy }}
-        env:
-        - name: LDAP_DOMAIN
-          value: {{ .Values.openldap.domain }}
-        - name: LDAP_ADMIN_PASSWORD
-          value: {{ .Values.openldap.password }}
-        ports:
-        - containerPort: {{ tuple "ldap" "internal" "ldap" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+        - name: ldap
+{{ tuple $envAll "ldap" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.server | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-        volumeMounts:
-        - name: ldap-data
-          mountPath: /var/lib/ldap
-        - name: ldap-config
-          mountPath: /etc/ldap/slapd.d
+          env:
+            - name: LDAP_DOMAIN
+              value: {{ .Values.openldap.domain }}
+            - name: LDAP_ADMIN_PASSWORD
+              value: {{ .Values.openldap.password }}
+          ports:
+            - containerPort: {{ tuple "ldap" "internal" "ldap" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+          volumeMounts:
+            - name: ldap-data
+              mountPath: /var/lib/ldap
+            - name: ldap-config
+              mountPath: /etc/ldap/slapd.d
 {{- if not .Values.storage.pvc.enabled }}
       volumes:
-      - name: ldap-data
-        hostPath:
-          path: {{ .Values.storage.host.data_path }}
-      - name: ldap-config
-        hostPath:
-          path: {{ .Values.storage.host.config_path }}
+        - name: ldap-data
+          hostPath:
+            path: {{ .Values.storage.host.data_path }}
+        - name: ldap-config
+          hostPath:
+            path: {{ .Values.storage.host.config_path }}
 {{- else }}
   volumeClaimTemplates:
   - metadata:
