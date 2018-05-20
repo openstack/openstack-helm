@@ -40,51 +40,50 @@ spec:
       initContainers:
 {{ tuple $envAll "postgresql" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
-      - name: postgresql
-        image: {{ .Values.images.tags.postgresql }}
-        imagePullPolicy: {{ .Values.images.pull_policy }}
-{{ tuple $envAll $envAll.Values.pod.resources.server | include "helm-toolkit.snippets.kubernetes_resources" | indent 8 }}
-        ports:
-          - containerPort: {{ tuple "postgresql" "internal" "postgresql" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-        env:
-          - name: 'POSTGRES_PASSWORD'
-            valueFrom:
-              secretKeyRef:
-                name: {{ .Values.secrets.postgresql.admin }}
-                key: 'POSTGRES_PASSWORD'
-          - name: 'POSTGRES_USER'
-            valueFrom:
-              secretKeyRef:
-                name: {{ .Values.secrets.postgresql.admin }}
-                key: 'POSTGRES_USER'
-          - name: 'PGDATA'
-            value: {{ .Values.storage.mount.path | quote }}
-        command:
-          - /tmp/start.sh
-        livenessProbe:
-          exec:
-            command:
-              - /tmp/readiness.sh
-          initialDelaySeconds: 20
-          timeoutSeconds: 5
-        readinessProbe:
-          exec:
-            command:
-              - /tmp/readiness.sh
-          initialDelaySeconds: 20
-          timeoutSeconds: 5
-        volumeMounts:
-          - name: postgresql-bin
-            mountPath: /tmp/start.sh
-            subPath: start.sh
-            readOnly: true
-          - name: postgresql-bin
-            mountPath: /tmp/readiness.sh
-            subPath: readiness.sh
-            readOnly: true
-          - name: postgresql-data
-            mountPath: {{ .Values.storage.mount.path }}
-            subPath: {{ .Values.storage.mount.subpath }}
+        - name: postgresql
+{{ tuple $envAll "postgresql" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.server | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          ports:
+            - containerPort: {{ tuple "postgresql" "internal" "postgresql" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+          env:
+            - name: 'POSTGRES_PASSWORD'
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.postgresql.admin }}
+                  key: 'POSTGRES_PASSWORD'
+            - name: 'POSTGRES_USER'
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.postgresql.admin }}
+                  key: 'POSTGRES_USER'
+            - name: 'PGDATA'
+              value: {{ .Values.storage.mount.path | quote }}
+          command:
+            - /tmp/start.sh
+          livenessProbe:
+            exec:
+              command:
+                - /tmp/readiness.sh
+            initialDelaySeconds: 20
+            timeoutSeconds: 5
+          readinessProbe:
+            exec:
+              command:
+                - /tmp/readiness.sh
+            initialDelaySeconds: 20
+            timeoutSeconds: 5
+          volumeMounts:
+            - name: postgresql-bin
+              mountPath: /tmp/start.sh
+              subPath: start.sh
+              readOnly: true
+            - name: postgresql-bin
+              mountPath: /tmp/readiness.sh
+              subPath: readiness.sh
+              readOnly: true
+            - name: postgresql-data
+              mountPath: {{ .Values.storage.mount.path }}
+              subPath: {{ .Values.storage.mount.subpath }}
       volumes:
         - name: postgresql-bin
           configMap:
