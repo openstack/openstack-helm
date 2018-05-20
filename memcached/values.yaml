@@ -40,6 +40,10 @@ dependencies:
       services:
         - endpoint: internal
           service: local_image_registry
+    prometheus_memcached_exporter:
+      services:
+        - endpoint: internal
+          service: oslo_cache
 
 endpoints:
   cluster_domain_suffix: cluster.local
@@ -56,6 +60,7 @@ endpoints:
       registry:
         node: 5000
   oslo_cache:
+    namespace: null
     host_fqdn_override:
       default: null
     hosts:
@@ -64,12 +69,32 @@ endpoints:
     port:
       memcache:
         default: 11211
+  prometheus_memcached_exporter:
+    namespace: null
+    hosts:
+      default: memcached-exporter
+    host_fqdn_override:
+      default: null
+    path:
+      default: /metrics
+    scheme:
+      default: 'http'
+    port:
+      metrics:
+        default: 9150
+
+monitoring:
+  prometheus:
+    enabled: false
+    memcached_exporter:
+      scrape: true
 
 images:
   pull_policy: IfNotPresent
   tags:
     dep_check: 'quay.io/stackanetes/kubernetes-entrypoint:v0.3.1'
     memcached: 'docker.io/memcached:1.5.5'
+    prometheus_memcached_exporter: docker.io/prom/memcached-exporter:v0.4.1
     image_repo_sync: docker.io/docker:17.07.0
   local_registry:
     active: false
@@ -81,12 +106,20 @@ labels:
   server:
     node_selector_key: openstack-control-plane
     node_selector_value: enabled
+  prometheus_memcached_exporter:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
 
 manifests:
   configmap_bin: true
   deployment: true
   job_image_repo_sync: true
   service: true
+  monitoring:
+    prometheus:
+      configmap_bin: true
+      deployment_exporter: true
+      service_exporter: true
 
 pod:
   affinity:
@@ -103,14 +136,27 @@ pod:
         rolling_update:
           max_surge: 3
           max_unavailable: 1
+    termination_grace_period:
+      memcached:
+        timeout: 30
+      prometheus_memcached_exporter:
+        timeout: 30
   replicas:
     server: 1
+    prometheus_memcached_exporter: 1
   resources:
     enabled: false
     memcached:
       limits:
-        cpu: 500m
-        memory: 1024Mi
+        cpu: "2000m"
+        memory: "1024Mi"
+      requests:
+        cpu: "500m"
+        memory: "128Mi"
+    prometheus_memcached_exporter:
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
       requests:
         cpu: 500m
         memory: 128Mi
