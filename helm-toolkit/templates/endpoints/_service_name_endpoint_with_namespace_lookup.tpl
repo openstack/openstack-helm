@@ -22,7 +22,7 @@ limitations under the License.
 # Normally, the service name is constructed dynamically from the hostname
 # however when an ip address is used as the hostname, we default to
 # namespace:endpointCategoryName in order to construct a valid service name
-# however this can be overriden to a custom service name by defining
+# however this can be overridden to a custom service name by defining
 # .service.name within the endpoint definition
 
 {{- define "helm-toolkit.endpoints.service_name_endpoint_with_namespace_lookup" -}}
