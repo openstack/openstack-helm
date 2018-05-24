@@ -29,6 +29,12 @@ function start () {
   # Apache gets grumpy about PID files pre-existing
   rm -f /etc/httpd/logs/httpd.pid
 
+  if [ -f /usr/local/apache2/conf/.htpasswd ]; then
+    htpasswd -b /usr/local/apache2/conf/.htpasswd $NAGIOSADMIN_USER $NAGIOSADMIN_PASS
+  else
+    htpasswd -cb /usr/local/apache2/conf/.htpasswd $NAGIOSADMIN_USER $NAGIOSADMIN_PASS
+  fi
+
   #Launch Apache on Foreground
   exec httpd -DFOREGROUND
 }
