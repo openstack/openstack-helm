@@ -81,10 +81,11 @@ spec:
       initContainers:
 {{ tuple $envAll "elasticsearch_master" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container"  | indent 8 }}
         - name: memory-map-increase
+{{ tuple $envAll "memory_init" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.master | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           securityContext:
             privileged: true
             runAsUser: 0
-{{ tuple $envAll "memory_init" | include "helm-toolkit.snippets.image" | indent 10 }}
           command:
           - sysctl
           - -w
@@ -92,9 +93,9 @@ spec:
 {{ if .Values.storage.filesystem_repository.enabled }}
         - name: elasticsearch-repository-perms
 {{ tuple $envAll "elasticsearch" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.master | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           securityContext:
             runAsUser: 0
-{{ tuple $envAll $envAll.Values.pod.resources.client | include "helm-toolkit.snippets.kubernetes_resources" | indent 8 }}
           command:
             - chown
             - -R

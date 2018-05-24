@@ -78,10 +78,11 @@ spec:
       initContainers:
 {{ tuple $envAll "elasticsearch_data" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container"  | indent 8 }}
         - name: memory-map-increase
+{{ tuple $envAll "memory_init" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.data | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           securityContext:
             privileged: true
             runAsUser: 0
-{{ tuple $envAll "memory_init" | include "helm-toolkit.snippets.image" | indent 10 }}
           command:
             - sysctl
             - -w
@@ -89,9 +90,9 @@ spec:
 {{ if .Values.storage.filesystem_repository.enabled }}
         - name: elasticsearch-repository-perms
 {{ tuple $envAll "elasticsearch" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.data | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           securityContext:
             runAsUser: 0
-{{ tuple $envAll $envAll.Values.pod.resources.client | include "helm-toolkit.snippets.kubernetes_resources" | indent 8 }}
           command:
             - chown
             - -R
@@ -103,14 +104,14 @@ spec:
 {{ end }}
       containers:
         - name: elasticsearch-data
+{{ tuple $envAll "elasticsearch" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.data | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           securityContext:
             privileged: true
             capabilities:
               add:
                 - IPC_LOCK
                 - SYS_RESOURCE
-{{ tuple $envAll "elasticsearch" | include "helm-toolkit.snippets.image" | indent 10 }}
-{{ tuple $envAll $envAll.Values.pod.resources.data | include "helm-toolkit.snippets.kubernetes_resources" | indent 8 }}
           command:
             - /tmp/elasticsearch.sh
             - start
