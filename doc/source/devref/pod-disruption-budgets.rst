@@ -13,7 +13,7 @@ to a templated variable inside the ``values.yaml`` file.
 The ``min_available`` within each service's ``values.yaml`` file can be
 represented by either a whole number, such as ``1``, or a percentage,
 such as ``80%``.  For example, when deploying 5 replicas of a pod (such as
-keystone-api), using ``min_available: 3`` would enfore policy to ensure at
+keystone-api), using ``min_available: 3`` would enforce policy to ensure at
 least 3 replicas were running, whereas using ``min_available: 80%`` would ensure
 that 4 replicas of that pod are running.
 

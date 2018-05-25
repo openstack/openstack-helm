@@ -101,5 +101,5 @@ various namespaces.
 
 By default, each endpoint is located in the same namespace as the current
 service's helm chart. To connect to a service which is running in a different
-kubernetes namespace, a ``namespace`` can be provided to each individual
+Kubernetes namespace, a ``namespace`` can be provided to each individual
 endpoint.

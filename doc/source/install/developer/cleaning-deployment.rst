@@ -18,7 +18,7 @@ All OpenStack projects can be configured such that upon deletion, their database
 will also be removed. To delete the database when the chart is deleted the
 database drop job must be enabled before installing the chart. There are two
 ways to enable the job, set the job_db_drop value to true in the chart's
-values.yaml file, or override the value using the helm install command as
+``values.yaml`` file, or override the value using the helm install command as
 follows:
 
 .. code-block:: shell

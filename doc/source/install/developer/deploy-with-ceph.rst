@@ -19,7 +19,7 @@ Alternatively, this step can be performed by running the script directly:
 
   ./tools/deployment/developer/ceph/040-ceph.sh
 
-Activate the openstack namespace to be able to use Ceph
+Activate the OpenStack namespace to be able to use Ceph
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. literalinclude:: ../../../../tools/deployment/developer/ceph/045-ceph-ns-activate.sh
