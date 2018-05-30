@@ -16,6 +16,7 @@
 
 set -xe
 
+sudo -H -E pip install "cmd2<=0.8.7"
 sudo -H -E pip install python-openstackclient python-heatclient
 
 sudo -H mkdir -p /etc/openstack
