@@ -55,6 +55,9 @@ function ansible_install {
 
   sudo -H -E pip install --no-cache-dir --upgrade pip
   sudo -H -E pip install --no-cache-dir --upgrade setuptools
+  # NOTE(lamt) Preinstalling a capped version of cmd2 to address bug:
+  # https://github.com/python-cmd2/cmd2/issues/421
+  sudo -H -E pip install --no-cache-dir --upgrade "cmd2<=0.8.7"
   sudo -H -E pip install --no-cache-dir --upgrade pyopenssl
   sudo -H -E pip install --no-cache-dir --upgrade \
     ansible \
