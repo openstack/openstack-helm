@@ -31,7 +31,7 @@ Environment tear-down
 
 To tear-down, the development environment charts should be removed first from
 the 'openstack' namespace and then the 'ceph' namespace using the commands from
-the `Removing Helm Charts` section. Additonally charts should be removed from
+the `Removing Helm Charts` section. Additionally charts should be removed from
 the 'nfs' and 'libvirt' namespaces if deploying with NFS backing or bare metal
 development support. You can run the following commands to loop through and
 delete the charts, then stop the kubelet systemd unit and remove all the
