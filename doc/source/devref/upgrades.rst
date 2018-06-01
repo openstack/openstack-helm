@@ -63,7 +63,7 @@ with rolling update strategies:
           maxSurge: {{ .Values.upgrades.rolling_update.max_surge }}
         {{ end }}
 
-In values.yaml in each chart, the same defaults are supplied in every
+In ``values.yaml`` in each chart, the same defaults are supplied in every
 chart, which allows the operator to override at upgrade or deployment
 time.
 

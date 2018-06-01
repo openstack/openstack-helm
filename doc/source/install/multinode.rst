@@ -5,7 +5,7 @@ Multinode
 Overview
 ========
 
-In order to drive towards a production-ready Openstack solution, our
+In order to drive towards a production-ready OpenStack solution, our
 goal is to provide containerized, yet stable `persistent
 volumes <https://kubernetes.io/docs/concepts/storage/persistent-volumes/>`_
 that Kubernetes can use to schedule applications that require state,
@@ -81,7 +81,7 @@ you intend to join the cluster.
       the ``ssh-copy-id`` command, for example: *ssh-copy-id
       ubuntu@192.168.122.178*
    3. Copy the key: ``sudo cp ~/.ssh/id_rsa /etc/openstack-helm/deploy-key.pem``
-   4. Set correct owenership: ``sudo chown ubuntu
+   4. Set correct ownership: ``sudo chown ubuntu
       /etc/openstack-helm/deploy-key.pem``
 
    Test this by ssh'ing to a node and then executing a command with
