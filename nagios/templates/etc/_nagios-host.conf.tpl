@@ -19,7 +19,8 @@ limitations under the License.
   <Proxy *>
     AuthName "Nagios"
     AuthType Basic
-    AuthBasicProvider ldap
+    AuthBasicProvider ldap file
+    AuthUserFile /usr/local/apache2/conf/.htpasswd
     AuthLDAPBindDN ${BIND_DN}
     AuthLDAPBindPassword ${BIND_PASSWORD}
     AuthLDAPURL ${LDAP_URL}
