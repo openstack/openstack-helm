@@ -2,13 +2,16 @@
 
 set -ex
 
-sed 's/ ,//' /tmp/template.xml.raw > /tmp/template.xml
+{{ range $template, $fields := .Values.conf.templates }}
+
 result=$(curl -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
--XPUT "${ELASTICSEARCH_HOST}:${ELASTICSEARCH_PORT}/_template/template_fluent_logging" \
--H 'Content-Type: application/json' -d @/tmp/template.xml \
+-XPUT "${ELASTICSEARCH_HOST}:${ELASTICSEARCH_PORT}/_template/{{$template}}" \
+-H 'Content-Type: application/json' -d @/tmp/{{$template}}.json \
 | python -c "import sys, json; print json.load(sys.stdin)['acknowledged']")
 if [ "$result" == "True" ]; then
-   echo "template created!"
+   echo "{{$template}} template created!"
 else
-   echo "template not created!"
+   echo "{{$template}} template not created!"
 fi
+
+{{ end }}
