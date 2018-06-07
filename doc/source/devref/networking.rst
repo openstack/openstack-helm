@@ -54,7 +54,7 @@ should be configured in :code:`neutron.conf`:
     # Example: router, qos, trunk, metering.
     # If other SDN implement L3 or other services, it should be configured
     # here
-    service_plugin = router
+    service_plugins = router
 
 All of the above configs are endpoints or path to the specific class
 implementing the interface. You can see the endpoints to class mapping in
@@ -129,20 +129,16 @@ for the L2 agent daemonset:
 .. code-block:: yaml
 
     dependencies:
-      dhcp:
-        services:
-        - service: oslo_messaging
-          endpoint: internal
-        - service: network
-          endpoint: internal
-        - service: compute
-          endpoint: internal
-        pod:
-          # this should be set to corresponding neutron L2 agent
-          - requireSameNode: true
-            labels:
-              application: neutron
-              component: neutron-ovs-agent
+      dynamic:
+        targeted:
+          openvswitch:
+            dhcp:
+              pod:
+                # this should be set to corresponding neutron L2 agent
+                - requireSameNode: true
+                  labels:
+                    application: neutron
+                    component: neutron-ovs-agent
 
 There is also a need for DHCP agent to pass ovs agent config file
 (in :code:`neutron/templates/bin/_neutron-dhcp-agent.sh.tpl`):
@@ -150,11 +146,12 @@ There is also a need for DHCP agent to pass ovs agent config file
 .. code-block:: bash
 
     exec neutron-dhcp-agent \
-        --config-file /etc/neutron/neutron.conf \
-        --config-file /etc/neutron/dhcp_agent.ini \
-        --config-file /etc/neutron/plugins/ml2/ml2_conf.ini \
-    {{- if eq .Values.network.backend "ovs" }} \
-        --config-file /etc/neutron/plugins/ml2/openvswitch_agent.ini
+          --config-file /etc/neutron/neutron.conf \
+          --config-file /etc/neutron/dhcp_agent.ini \
+          --config-file /etc/neutron/metadata_agent.ini \
+          --config-file /etc/neutron/plugins/ml2/ml2_conf.ini
+    {{- if ( has "openvswitch" .Values.network.backend ) }} \
+          --config-file /etc/neutron/plugins/ml2/openvswitch_agent.ini
     {{- end }}
 
 This requirement is OVS specific, the `ovsdb_connection` string is defined
@@ -176,7 +173,7 @@ All dependencies described in neutron-dhcp-agent are valid here.
 If the SDN implements its own version of L3 networking, neutron-l3-agent
 should not be started.
 
-neutron-metadata-agent service is scheduled to run on nodes with the label
+neutron-l3-agent service is scheduled to run on nodes with the label
 `openstack-control-plane=enabled`.
 
 neutron-metadata-agent
@@ -199,9 +196,10 @@ a new configuration option is added:
 .. code-block:: yaml
 
     network:
-      # the networking backend that can be used:
-      # ovs, linuxbridge, calico, odl, ovn
-      backend: ovs
+      # provide what type of network wiring will be used
+      # possible options: openvswitch, linuxbridge, sriov
+      backend:
+        - openvswitch
 
 This option will allow to configure the Neutron services in proper way, by
 checking what is the actual backed set in :code:`neutron/values.yaml`.
@@ -220,19 +218,23 @@ Kubernetes resources should be deployed:
       daemonset_lb_agent: false
       daemonset_metadata_agent: true
       daemonset_ovs_agent: true
+      daemonset_sriov_agent: true
       deployment_server: true
       ingress_server: true
       job_bootstrap: true
       job_db_init: true
       job_db_sync: true
       job_db_drop: false
+      job_image_repo_sync: true
       job_ks_endpoints: true
       job_ks_service: true
       job_ks_user: true
+      job_rabbit_init: true
       pdb_server: true
       pod_rally_test: true
       secret_db: true
       secret_keystone: true
+      secret_rabbitmq: true
       service_ingress_server: true
       service_server: true
 
@@ -274,7 +276,7 @@ it may be used with other technologies that are leveraging the OVS technology,
 such as OVN or ODL.
 
 Configuration of OVS is done via configuration scripts
-`neutron/templates/bin/_openvswitch-vswitchd.sh.tpl`. The script is configuring
+`openvswitch/templates/bin/_openvswitch-vswitchd.sh.tpl`. The script is configuring
 the external network bridge and sets up any bridge mappings defined in
 :code:`network.auto_bridge_add`.
 
@@ -283,11 +285,12 @@ than the default loopback mechanism.
 
 .. code-block:: bash
 
-    exec /usr/sbin/ovs-vswitchd unix:/run/openvswitch/db.sock \
-        -vconsole:emer \
-        -vconsole:err \
-        -vconsole:info \
-        --mlockall
+    exec /usr/sbin/ovs-vswitchd unix:${OVS_SOCKET} \
+            -vconsole:emer \
+            -vconsole:err \
+            -vconsole:info \
+            --pidfile=${OVS_PID} \
+            --mlockall
 
 Linuxbridge
 ~~~~~~~~~~~
@@ -300,7 +303,7 @@ network virtualization technology) at the same time.
 
 neutron-lb-agent
 ++++++++++++++++
-This daemonset includes the linuxbridge Neutron agent with bridge-utilis and
+This daemonset includes the linuxbridge Neutron agent with bridge-utils and
 ebtables utilities installed. This is all that is needed, since linuxbridge
 uses native kernel libraries.
 
@@ -319,24 +322,29 @@ and use this `neutron/values.yaml` override:
     network:
       backend: linuxbridge
     dependencies:
-      dhcp:
-        pod:
-          - requireSameNode: true
-            labels:
-              application: neutron
-              component: neutron-lb-agent
-      metadata:
-        pod:
-          - requireSameNode: true
-            labels:
-              application: neutron
-              component: neutron-lb-agent
-      l3:
-        pod:
-          - requireSameNode: true
-            labels:
-              application: neutron
-              component: neutron-lb-agent
+      dynamic:
+        targeted:
+          linuxbridge:
+            dhcp:
+              pod:
+                - requireSameNode: true
+                  labels:
+                    application: neutron
+                    component: neutron-lb-agent
+            l3:
+              pod:
+                - requireSameNode: true
+                  labels:
+                    application: neutron
+                    component: neutron-lb-agent
+            metadata:
+              pod:
+                - requireSameNode: true
+                  labels:
+                    application: neutron
+                    component: neutron-lb-agent
+            lb_agent:
+              pod: null
     conf:
       neutron:
         DEFAULT
