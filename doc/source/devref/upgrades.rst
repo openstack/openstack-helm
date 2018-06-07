@@ -30,7 +30,7 @@ image change.
 
 Note: Rolling update values can conflict with values defined in each
 service's PodDisruptionBudget.  See
-`here <../../../html/operator/kubernetes.html#pod-disruption-budgets>`_
+`here <https://docs.openstack.org/openstack-helm/latest/devref/pod-disruption-budgets.html>`_
 for more information.
 
 This is accomplished with the following annotation:
@@ -47,21 +47,15 @@ any change to any file referenced by configmap-bin.yaml or
 configmap-etc.yaml results in a new hash, which will then trigger a
 rolling update.
 
-All chart components (except ``DaemonSets``) are outfitted by default
+All ``Deployment`` chart components are outfitted by default
 with rolling update strategies:
 
 ::
 
+    # Source: keystone/templates/deployment-api.yaml
     spec:
-      replicas: {{ .Values.replicas }}
-      revisionHistoryLimit: {{ .Values.upgrades.revision_history }}
-      strategy:
-        type: {{ .Values.upgrades.pod_replacement_strategy }}
-        {{ if eq .Values.upgrades.pod_replacement_strategy "RollingUpdate" }}
-        rollingUpdate:
-          maxUnavailable: {{ .Values.upgrades.rolling_update.max_unavailable }}
-          maxSurge: {{ .Values.upgrades.rolling_update.max_surge }}
-        {{ end }}
+      replicas: {{ .Values.pod.replicas.api }}
+    {{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_deployment" | indent 2 }
 
 In ``values.yaml`` in each chart, the same defaults are supplied in every
 chart, which allows the operator to override at upgrade or deployment
@@ -69,9 +63,12 @@ time.
 
 ::
 
-    upgrades:
-      revision_history: 3
-      pod_replacement_strategy: RollingUpdate
-      rolling_update:
-        max_unavailable: 1
-        max_surge: 3
+    pod:
+      lifecycle:
+        upgrades:
+          deployments:
+            revision_history: 3
+            pod_replacement_strategy: RollingUpdate
+            rolling_update:
+              max_unavailable: 1
+              max_surge: 3
