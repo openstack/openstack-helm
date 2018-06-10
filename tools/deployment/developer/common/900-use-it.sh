@@ -108,7 +108,7 @@ if helm ls --short | grep -q "^cinder$"; then
       instance_uuid \
       -f value -c output_value)
 
-  # Get the the devices that are present on the instance
+  # Get the devices that are present on the instance
   DEVS_PRE_ATTACH=$(mktemp)
   ssh -i ${HOME}/.ssh/osh_key cirros@${FLOATING_IP} lsblk > ${DEVS_PRE_ATTACH}
 
@@ -118,7 +118,7 @@ if helm ls --short | grep -q "^cinder$"; then
     -t ./tools/gate/files/heat-vm-volume-attach.yaml \
     heat-vm-volume-attach
 
-  # Get the the devices that are present on the instance
+  # Get the devices that are present on the instance
   DEVS_POST_ATTACH=$(mktemp)
   ssh -i ${HOME}/.ssh/osh_key cirros@${FLOATING_IP} lsblk > ${DEVS_POST_ATTACH}
 
