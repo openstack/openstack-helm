@@ -26,6 +26,11 @@ extensions = [
     'sphinxcontrib.blockdiag'
 ]
 
+# openstackdocstheme options
+repository_name = 'openstack/openstack-helm'
+bug_project = '886'
+bug_tag = 'docs'
+
 # autodoc generation is a bit aggressive and a nuisance when doing heavy
 # text edit cycles.
 # execute "export SPHINX_DEBUG=1" in your terminal to disable
