@@ -15,10 +15,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-
 set -ex
 
-function create_index () {
+function create_test_index () {
   index_result=$(curl -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
   -XPUT "${ELASTICSEARCH_ENDPOINT}/test_index?pretty" -H 'Content-Type: application/json' -d'
   {
@@ -39,9 +38,9 @@ function create_index () {
   fi
 }
 
-function insert_test_data () {
+function insert_data_into_test_index () {
   insert_result=$(curl -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
-  -XPUT "${ELASTICSEARCH_ENDPOINT}/sample_index/sample_type/123/_create?pretty" -H 'Content-Type: application/json' -d'
+  -XPUT "${ELASTICSEARCH_ENDPOINT}/test_index/sample_type/123/_create?pretty" -H 'Content-Type: application/json' -d'
   {
       "name" : "Elasticsearch",
       "message" : "Test data text entry"
@@ -56,8 +55,7 @@ function insert_test_data () {
   fi
 }
 
-
-function check_hits () {
+function check_hits_on_test_data () {
   total_hits=$(curl -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
   "${ELASTICSEARCH_ENDPOINT}/_search?pretty" -H 'Content-Type: application/json' -d'
   {
@@ -79,6 +77,13 @@ function check_hits () {
   fi
 }
 
-create_index
-insert_test_data
-check_hits
+function remove_test_index () {
+  echo "Deleting index created for service testing"
+  curl -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
+  -XDELETE "${ELASTICSEARCH_ENDPOINT}/test_index"
+}
+
+create_test_index
+insert_data_into_test_index
+check_hits_on_test_data
+remove_test_index
