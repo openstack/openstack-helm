@@ -20,13 +20,10 @@ Communication
 * Meeting Agenda Items: `Agenda
   <https://etherpad.openstack.org/p/openstack-helm-meeting-agenda>`_
 
-Launchpad
----------
+Storyboard
+----------
 
-Bugs and blueprints are tracked via OpenStack-Helm's Launchpad.
-
-* `Bugs <https://bugs.launchpad.net/openstack-helm>`_
-* `Blueprints <https://blueprints.launchpad.net/openstack-helm>`_
+Bugs and enhancements are tracked via OpenStack-Helm's `Storyboard <https://storyboard.openstack.org/#!/project_group/64>`_.
 
 Installation and Development
 ----------------------------
@@ -39,7 +36,7 @@ up can be found `here <https://docs.openstack.org/openstack-helm/latest/install/
 This project is under active development. We encourage anyone interested in
 OpenStack-Helm to review our `Installation <https://docs.openstack.org/openstack-helm/latest/install/index.html>`_
 documentation. Feel free to ask questions or check out our current
-`Issues and Bugs <https://bugs.launchpad.net/openstack-helm>`_.
+`Storyboard backlog <https://storyboard.openstack.org/#!/project_group/64>`_.
 
 To evaluate a multinode installation, follow the
 `Bare Metal <https://docs.openstack.org/openstack-helm/latest/install/multinode.html>`_

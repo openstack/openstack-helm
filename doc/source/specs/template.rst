@@ -10,9 +10,9 @@
 Blueprint Title
 ===============
 
-Include the URL of your Launchpad blueprint:
+Include the URL of your Storyboard RFE:
 
-https://blueprints.launchpad.net/openstack-helm/+spec/example
+https://storyboard.openstack.org/#!/story/1234567
 
 Problem Description
 ===================
@@ -51,7 +51,7 @@ Who is leading the implementation?
 Designate the primary author and contact.
 
 Primary assignee:
-  <launchpad-id or None>
+  <Gerrit Id or None>
 
 Work Items
 ----------
