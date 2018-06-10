@@ -2,7 +2,7 @@ Fluentd-logging
 ===============
 
 OpenStack-Helm defines a centralized logging mechanism to provide insight into
-the the state of the OpenStack services and infrastructure components as
+the state of the OpenStack services and infrastructure components as
 well as underlying kubernetes platform. Among the requirements for a logging
 platform, where log data can come from and where log data need to be delivered
 are very variable. To support various logging scenarios, OpenStack-Helm should
