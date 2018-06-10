@@ -19,6 +19,7 @@
     playbook_user_dir: "{{ ansible_user_dir }}"
     kube_master: "{{ groups['primary'][0] }}"
     kube_worker: "{{ inventory_hostname }}"
+    kube_node_hostname: "{{ ansible_fqdn }}"
 
 - name: deploying kubelet and support assets to node
   include_role:
@@ -35,9 +36,15 @@
     kubeadm_aio_join_command: "{{ kubeadm_cluster_join_command }}"
   include: util-run-join-command.yaml
 
+# FIXME(portdirect): running as root for now to unblock the gates, though this
+# runs ok under ansible 2.5.4 locally without privileges
 - name: waiting for node to be ready
   delegate_to: "{{ kube_master }}"
-  command: kubectl get node "{{ ansible_fqdn }}" -o jsonpath="{$.status.conditions[?(@.reason=='KubeletReady')]['type']}"
+  become: true
+  become_user: root
+  shell: kubectl get node "{{ kube_node_hostname }}" -o jsonpath="{$.status.conditions[?(@.reason=='KubeletReady')]['type']}" || echo "Not registered yet"
+  environment:
+    KUBECONFIG: '/etc/kubernetes/admin.conf'
   register: task_result
   until: task_result.stdout == 'Ready'
   retries: 120
