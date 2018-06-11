@@ -74,10 +74,17 @@ spec:
           volumeMounts:
             - name: etcceph
               mountPath: /etc/ceph
+            {{- if not .Values.backup.external_ceph_rbd.enabled }}
             - name: cinder-bin
               mountPath: /tmp/ceph-admin-keyring.sh
               subPath: ceph-admin-keyring.sh
               readOnly: true
+           {{- else }}
+            - name: cinder-bin
+              mountPath: /tmp/ceph-admin-keyring.sh
+              subPath: external-ceph-rbd-admin-keyring.sh
+              readOnly: true
+            {{ end }}
             {{- if empty .Values.conf.ceph.admin_keyring }}
             - name: ceph-keyring
               mountPath: /tmp/client-keyring
@@ -120,10 +127,17 @@ spec:
             {{- if eq .Values.conf.cinder.DEFAULT.backup_driver "cinder.backup.drivers.ceph" }}
             - name: etcceph
               mountPath: /etc/ceph
+            {{- if not .Values.backup.external_ceph_rbd.enabled }}
             - name: ceph-etc
               mountPath: /etc/ceph/ceph.conf
               subPath: ceph.conf
               readOnly: true
+            {{- else }}
+            - name: cinder-etc
+              mountPath: /etc/ceph/ceph.conf
+              subPath: external-backup-ceph.conf
+              readOnly: true
+            {{- end }}
             {{- if empty .Values.conf.ceph.admin_keyring }}
             - name: ceph-keyring
               mountPath: /tmp/client-keyring
@@ -143,6 +157,12 @@ spec:
           configMap:
             name: ceph-etc
             defaultMode: 0444
+        {{- if .Values.backup.external_ceph_rbd.enabled }}
+        - name: cinder-etc
+          configMap:
+            name: cinder-etc
+            defaultMode: 0444
+        {{- end }}
         {{- if empty .Values.conf.ceph.admin_keyring }}
         - name: ceph-keyring
           secret:

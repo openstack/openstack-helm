@@ -149,10 +149,17 @@ spec:
             {{ if or (eq .Values.conf.cinder.DEFAULT.backup_driver "cinder.backup.drivers.ceph") (include "cinder.utils.is_ceph_volume_configured" $envAll) }}
             - name: etcceph
               mountPath: /etc/ceph
+            {{- if not .Values.backup.external_ceph_rbd.enabled }}
             - name: ceph-etc
               mountPath: /etc/ceph/ceph.conf
               subPath: ceph.conf
               readOnly: true
+            {{- else }}
+            - name: cinder-etc
+              mountPath: /etc/ceph/ceph.conf
+              subPath: external-backup-ceph.conf
+              readOnly: true
+            {{- end }}
             - name: ceph-keyring
               mountPath: /tmp/client-keyring
               subPath: key
