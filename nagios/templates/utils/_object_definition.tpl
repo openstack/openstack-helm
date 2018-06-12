@@ -14,7 +14,7 @@ limitations under the License.
 # This function defines commands, hosts, hostgroups, and services for nagios by
 # consuming yaml trees to define the fields for these objects
 
-{{- define "nagios.object_definition" -}}
+{{- define "nagios.utils.object_definition" -}}
 {{- $type := index . 0 }}
 {{- $objects := index . 1 }}
 {{- range $object := $objects }}
@@ -25,17 +25,5 @@ define {{ $type }} {
 {{- end }}
 }
 {{end -}}
-{{- end -}}
-{{- end -}}
-
-{{- define "nagios.to_nagios_conf" -}}
-{{- range $key, $value := . -}}
-{{ if eq $key "cfg_file" }}
-{{ range $file := $value -}}
-{{ $key }}={{ $file }}
-{{ end }}
-{{- else }}
-{{ $key }}={{ $value }}
-{{- end }}
 {{- end -}}
 {{- end -}}
