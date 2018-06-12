@@ -23,13 +23,18 @@ limitations under the License.
 {{- $serviceAccountName := "alertmanager"}}
 {{ tuple $envAll "alertmanager" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
-apiVersion: apps/v1beta1
+apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: alertmanager
+  labels:
+{{ tuple $envAll "alertmanager" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 spec:
   serviceName: {{ tuple "alerts" "discovery" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
   replicas: {{ .Values.pod.replicas.alertmanager }}
+  selector:
+    matchLabels:
+{{ tuple $envAll "alertmanager" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
   template:
     metadata:
       labels:
