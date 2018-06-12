@@ -150,21 +150,23 @@ subjects:
 apiVersion: apps/v1
 kind: Deployment
 {{- else if eq .Values.deployment.type "DaemonSet" }}
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: DaemonSet
 {{- end }}
 metadata:
   name: ingress
   labels:
 {{ tuple $envAll "ingress" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+    app: ingress-api
 spec:
 {{- if eq .Values.deployment.type "Deployment" }}
   replicas: {{ .Values.pod.replicas.ingress }}
+{{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_deployment" | indent 2 }}
+{{- end }}
   selector:
     matchLabels:
 {{ tuple $envAll "ingress" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
-{{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_deployment" | indent 2 }}
-{{- end }}
+      app: ingress-api
   template:
     metadata:
       labels:
