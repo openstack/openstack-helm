@@ -56,13 +56,18 @@ rules:
       - services
       - endpoints
 ---
-apiVersion: apps/v1beta1
+apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: {{ $rcControllerName | quote }}
+  labels:
+{{ tuple $envAll "rabbitmq" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 spec:
   serviceName: {{ tuple "oslo_messaging" "discovery" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
   replicas: {{ $envAll.Values.pod.replicas.server }}
+  selector:
+    matchLabels:
+{{ tuple $envAll "rabbitmq" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
   template:
     metadata:
       labels:

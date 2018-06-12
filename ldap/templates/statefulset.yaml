@@ -20,13 +20,18 @@ limitations under the License.
 {{- $serviceAccountName := "ldap" }}
 {{ tuple $envAll "ldap" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
-apiVersion: apps/v1beta1
+apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: ldap
+  labels:
+{{ tuple $envAll "ldap" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 spec:
   serviceName: {{ tuple "ldap" "internal" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
   replicas: {{ .Values.pod.replicas.server }}
+  selector:
+    matchLabels:
+{{ tuple $envAll "ldap" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
   template:
     metadata:
       labels:
