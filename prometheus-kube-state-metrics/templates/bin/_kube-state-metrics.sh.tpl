@@ -1,3 +1,4 @@
+#!/bin/bash
 {{/*
 Copyright 2017 The Openstack-Helm Authors.
 
@@ -14,16 +15,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if .Values.manifests.configmap_bin }}
-{{- $envAll := . }}
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: kube-state-metrics-bin
-data:
-  kube-state-metrics.sh: |
-{{ tuple "bin/_kube-state-metrics.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
-  image-repo-sync.sh: |
-{{- include "helm-toolkit.scripts.image_repo_sync" . | indent 4 }}
-{{- end }}
+set -ex
+
+exec kube-state-metrics --port=8080 --telemetry-port=8081
