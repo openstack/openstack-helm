@@ -57,12 +57,8 @@ spec:
         - name: node-exporter
 {{ tuple $envAll "node_exporter" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.node_exporter | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-          args:
-            - --collector.ntp
-            - --collector.ntp.server={{ .Values.conf.ntp_server_ip }}
-            - --collector.meminfo_numa
-            - --collector.bonding
-            - --collector.mountstats
+          command:
+            - /tmp/node-exporter.sh
           ports:
             - name: metrics
               containerPort: {{ tuple "node_metrics" "internal" "metrics" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
@@ -74,6 +70,10 @@ spec:
             - name: sys
               mountPath: /host/sys
               readOnly:  true
+            - name: node-exporter-bin
+              mountPath: /tmp/node-exporter.sh
+              subPath: node-exporter.sh
+              readOnly: true
       volumes:
         - name: proc
           hostPath:
@@ -81,4 +81,8 @@ spec:
         - name: sys
           hostPath:
             path: /sys
+        - name: node-exporter-bin
+          configMap:
+            name: node-exporter-bin
+            defaultMode: 0555
 {{- end }}

@@ -1,3 +1,4 @@
+#!/bin/sh
 {{/*
 Copyright 2017 The Openstack-Helm Authors.
 
@@ -14,16 +15,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if .Values.manifests.configmap_bin }}
-{{- $envAll := . }}
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: node-exporter-bin
-data:
-  node-exporter.sh: |
-{{ tuple "bin/_node-exporter.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
-  image-repo-sync.sh: |
-{{- include "helm-toolkit.scripts.image_repo_sync" . | indent 4 }}
-{{- end }}
+set -ex
+
+exec /bin/node_exporter \
+  --collector.ntp \
+  --collector.ntp.server={{ .Values.conf.ntp_server_ip }} \
+  --collector.meminfo_numa \
+  --collector.bonding \
+  --collector.mountstats
+  --logtostderr
