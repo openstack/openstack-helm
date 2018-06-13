@@ -67,7 +67,7 @@ spec:
               subPath: key
               readOnly: true
         {{ end }}
-        {{- if include "cinder.is_ceph_volume_configured" $envAll }}
+        {{- if include "cinder.utils.is_ceph_volume_configured" $envAll }}
         - name: ceph-keyring-placement
 {{ tuple $envAll "cinder_backup" | include "helm-toolkit.snippets.image" | indent 10 }}
           securityContext:
@@ -76,7 +76,7 @@ spec:
             - /tmp/ceph-keyring.sh
           env:
             - name: RBD_USER
-              value: {{ index (index .Values.conf.backends (include "cinder.ceph_volume_section_name" $envAll)) "rbd_user" | quote }}
+              value: {{ index (index .Values.conf.backends (include "cinder.utils.ceph_volume_section_name" $envAll)) "rbd_user" | quote }}
           volumeMounts:
             - name: etcceph
               mountPath: /etc/ceph
@@ -137,7 +137,7 @@ spec:
               mountPath: /etc/cinder/cinder.conf
               subPath: cinder.conf
               readOnly: true
-            {{ if or (eq .Values.conf.cinder.DEFAULT.backup_driver "cinder.backup.drivers.ceph") (include "cinder.is_ceph_volume_configured" $envAll) }}
+            {{ if or (eq .Values.conf.cinder.DEFAULT.backup_driver "cinder.backup.drivers.ceph") (include "cinder.utils.is_ceph_volume_configured" $envAll) }}
             - name: etcceph
               mountPath: /etc/ceph
             - name: ceph-etc
@@ -186,7 +186,7 @@ spec:
           configMap:
             name: cinder-bin
             defaultMode: 0555
-        {{ if or (eq .Values.conf.cinder.DEFAULT.backup_driver "cinder.backup.drivers.ceph") (include "cinder.is_ceph_volume_configured" $envAll) }}
+        {{ if or (eq .Values.conf.cinder.DEFAULT.backup_driver "cinder.backup.drivers.ceph") (include "cinder.utils.is_ceph_volume_configured" $envAll) }}
         - name: etcceph
           emptyDir: {}
         - name: ceph-etc
@@ -199,7 +199,7 @@ spec:
           secret:
             secretName: {{ .Values.secrets.rbd.backup | quote }}
         {{ end }}
-        {{- if include "cinder.is_ceph_volume_configured" $envAll }}
+        {{- if include "cinder.utils.is_ceph_volume_configured" $envAll }}
         - name: ceph-keyring
           secret:
             secretName: {{ .Values.secrets.rbd.volume | quote }}

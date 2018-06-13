@@ -14,21 +14,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- define "cinder.is_ceph_volume_configured" -}}
+{{- define "cinder.utils.is_ceph_volume_configured" -}}
 {{- range $section, $values := .Values.conf.backends -}}
 {{- if kindIs "map" $values -}}
 {{- if eq $values.volume_driver "cinder.volume.drivers.rbd.RBDDriver" -}}
 true
-{{- end -}}
-{{- end -}}
-{{- end -}}
-{{- end -}}
-
-{{- define "cinder.ceph_volume_section_name" -}}
-{{- range $section, $values := .Values.conf.backends -}}
-{{- if kindIs "map" $values -}}
-{{- if eq $values.volume_driver "cinder.volume.drivers.rbd.RBDDriver" -}}
-{{ $section }}
 {{- end -}}
 {{- end -}}
 {{- end -}}
