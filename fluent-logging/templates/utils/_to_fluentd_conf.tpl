@@ -33,7 +33,7 @@ section):
 # The configuration schema can be found here:
 # https://docs.fluentd.org/v0.12/articles/config-file
 
-{{- define "fluent_logging.to_fluentd_conf" -}}
+{{- define "fluent_logging.utils.to_fluentd_conf" -}}
 {{- range $values := . -}}
 {{- range $section := . -}}
 {{- $header := pick . "header" -}}
@@ -83,28 +83,4 @@ section):
 {{ printf "</%s>" $header.header }}
 {{- end }}
 {{ end -}}
-{{- end -}}
-
-
-# This function generates fluentbit configuration files with entries in the
-# fluent-logging values.yaml.  It results in a configuration section with the
-# following format (for as many key/value pairs defined in values for a section):
-# [HEADER]
-#     key value
-#     key value
-#     key value
-# The configuration schema can be found here:
-# http://fluentbit.io/documentation/0.12/configuration/schema.html
-
-{{- define "fluent_logging.to_fluentbit_conf" -}}
-{{- range $values := . -}}
-{{- range $section := . -}}
-{{- $header := pick . "header" -}}
-{{- $config := omit . "header" }}
-[{{$header.header | upper }}]
-{{range $key, $value := $config -}}
-{{ $key | indent 4 }} {{ $value }}
-{{end -}}
-{{- end -}}
-{{- end -}}
 {{- end -}}
