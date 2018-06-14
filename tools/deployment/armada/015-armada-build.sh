@@ -17,7 +17,7 @@
 set -xe
 
 TMP_DIR=$(mktemp -d)
-git clone --depth 1 http://github.com/att-comdev/armada.git ${TMP_DIR}/armada
+  git clone --depth 1 http://github.com/openstack/airship-armada.git ${TMP_DIR}/armada
 sudo pip3 install ${TMP_DIR}/armada
 sudo make build -C ${TMP_DIR}/armada
 sudo rm -rf ${TMP_DIR}
