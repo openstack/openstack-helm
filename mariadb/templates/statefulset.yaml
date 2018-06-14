@@ -20,15 +20,20 @@ limitations under the License.
 {{- $serviceAccountName := "mariadb" }}
 {{ tuple $envAll "mariadb" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
-apiVersion: apps/v1beta1
+apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   # NOTE(portdirect): the statefulset name must match the POD_NAME_PREFIX env var for discovery to work
   name: {{ tuple "oslo_db" "direct" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
+  labels:
+{{ tuple $envAll "mariadb" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 spec:
   serviceName: "{{ tuple "oslo_db" "discovery" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}"
   podManagementPolicy: "Parallel"
   replicas: {{ .Values.pod.replicas.server }}
+  selector:
+    matchLabels:
+{{ tuple $envAll "mariadb" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
   template:
     metadata:
       labels:

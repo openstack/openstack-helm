@@ -23,12 +23,17 @@ limitations under the License.
 {{- $serviceAccountName := "nova-compute-ironic" }}
 {{ tuple $envAll "compute_ironic" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
-apiVersion: apps/v1beta1
+apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: nova-compute-ironic
+  labels:
+{{ tuple $envAll "nova" "compute" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 spec:
   replicas: {{ .Values.pod.replicas.compute_ironic }}
+  selector:
+    matchLabels:
+{{ tuple $envAll "nova" "compute" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
   serviceName: "{{ tuple "baremetal" "internal" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}-compute"
   template:
     metadata:
