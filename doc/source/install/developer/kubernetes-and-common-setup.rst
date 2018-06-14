@@ -2,15 +2,6 @@
 Kubernetes and Common Setup
 ===========================
 
-Packages
---------
-
-Install the latest versions of Git, CA Certs & Make if necessary
-
-.. literalinclude:: ../../../../tools/deployment/developer/common/000-install-packages.sh
-    :language: shell
-    :lines: 1,17-
-
 Clone the OpenStack-Helm Repos
 ------------------------------
 
