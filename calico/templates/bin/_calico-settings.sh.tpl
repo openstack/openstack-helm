@@ -3,7 +3,7 @@
 set -eux
 
 {{ if empty .Values.conf.node.CALICO_IPV4POOL_CIDR }}
-{{ set .Values.conf.node "CALICO_IPV4POOL_CIDR" .Values.networking.podSubnet | quote | trunc 0 }}
+{{ $_ := set .Values.conf.node "CALICO_IPV4POOL_CIDR" .Values.networking.podSubnet }}
 {{ end }}
 
 # An idempotent script for interacting with calicoctl to instantiate
