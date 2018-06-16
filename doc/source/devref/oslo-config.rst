@@ -77,15 +77,15 @@ performed via statements in the configmap template, which also calls the
 ::
 
     {{- if empty .Values.conf.keystone.database.connection -}}
-    {{- tuple "oslo_db" "internal" "user" "mysql" . | include "helm-toolkit.endpoints.authenticated_endpoint_uri_lookup"| set .Values.conf.keystone.database "connection" | quote | trunc 0 -}}
+    {{- $_ := tuple "oslo_db" "internal" "user" "mysql" . | include "helm-toolkit.endpoints.authenticated_endpoint_uri_lookup"| set .Values.conf.keystone.database "connection" -}}
     {{- end -}}
 
     {{- if empty .Values.conf.keystone.DEFAULT.transport_url -}}
-    {{- tuple "oslo_messaging" "internal" "user" "amqp" . | include "helm-toolkit.endpoints.authenticated_endpoint_uri_lookup" | set .Values.conf.keystone.DEFAULT "transport_url" | quote | trunc 0 -}}
+    {{- $_ := tuple "oslo_messaging" "internal" "user" "amqp" . | include "helm-toolkit.endpoints.authenticated_endpoint_uri_lookup" | set .Values.conf.keystone.DEFAULT "transport_url" -}}
     {{- end -}}
 
     {{- if empty .Values.conf.keystone.cache.memcache_servers -}}
-    {{- tuple "oslo_cache" "internal" "memcache" . | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" | set .Values.conf.keystone.cache "memcache_servers" | quote | trunc 0 -}}
+    {{- $_ := tuple "oslo_cache" "internal" "memcache" . | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" | set .Values.conf.keystone.cache "memcache_servers" -}}
     {{- end -}}
 
     ---
