@@ -415,6 +415,7 @@ conf:
   barbican:
     DEFAULT:
       transport_url: null
+      log_config_append: /etc/barbican/logging.conf
     keystone_authtoken:
       auth_type: password
       auth_version: v3
@@ -426,6 +427,65 @@ conf:
       #NOTE(portdirect): the bind port should not be defined, and is manipulated
       # via the endpoints section.
       bind_port: null
+  logging:
+    loggers:
+      keys:
+        - root
+        - barbican
+    handlers:
+      keys:
+        - stdout
+        - stderr
+        - "null"
+    formatters:
+      keys:
+        - context
+        - default
+    logger_root:
+      level: WARNING
+      handlers: null
+    logger_barbican:
+      level: INFO
+      handlers:
+        - stdout
+        - stderr
+      qualname: barbican
+    logger_amqp:
+      level: WARNING
+      handlers: stderr
+      qualname: amqp
+    logger_amqplib:
+      level: WARNING
+      handlers: stderr
+      qualname: amqplib
+    logger_eventletwsgi:
+      level: WARNING
+      handlers: stderr
+      qualname: eventlet.wsgi.server
+    logger_sqlalchemy:
+      level: WARNING
+      handlers: stderr
+      qualname: sqlalchemy
+    logger_boto:
+      level: WARNING
+      handlers: stderr
+      qualname: boto
+    handler_null:
+      class: logging.NullHandler
+      formatter: default
+      args: ()
+    handler_stdout:
+      class: StreamHandler
+      args: (sys.stdout,)
+      formatter: context
+    handler_stderr:
+      class: StreamHandler
+      args: (sys.stderr,)
+      formatter: context
+    formatter_context:
+      class: oslo_log.formatters.ContextFormatter
+    formatter_default:
+      format: "%(message)s"
 
 # Names of secrets used by bootstrap and environmental checks
 secrets:
@@ -551,6 +611,21 @@ endpoints:
     port:
       memcache:
         default: 11211
+  fluentd:
+    namespace: null
+    name: fluentd
+    hosts:
+      default: fluentd-logging
+    host_fqdn_override:
+      default: null
+    path:
+      default: null
+    scheme: 'http'
+    port:
+      service:
+        default: 24224
+      metrics:
+        default: 24220
 
 manifests:
   configmap_bin: true

@@ -337,6 +337,7 @@ jobs:
 conf:
   keystone:
     DEFAULT:
+      log_config_append: /etc/keystone/logging.conf
       max_token_size: 255
     token:
       provider: fernet
@@ -775,6 +776,65 @@ conf:
   sso_callback_template:
     override:
     append:
+  logging:
+    loggers:
+      keys:
+        - root
+        - keystone
+    handlers:
+      keys:
+        - stdout
+        - stderr
+        - "null"
+    formatters:
+      keys:
+        - context
+        - default
+    logger_root:
+      level: WARNING
+      handlers: null
+    logger_keystone:
+      level: INFO
+      handlers:
+        - stdout
+        - stderr
+      qualname: keystone
+    logger_amqp:
+      level: WARNING
+      handlers: stderr
+      qualname: amqp
+    logger_amqplib:
+      level: WARNING
+      handlers: stderr
+      qualname: amqplib
+    logger_eventletwsgi:
+      level: WARNING
+      handlers: stderr
+      qualname: eventlet.wsgi.server
+    logger_sqlalchemy:
+      level: WARNING
+      handlers: stderr
+      qualname: sqlalchemy
+    logger_boto:
+      level: WARNING
+      handlers: stderr
+      qualname: boto
+    handler_null:
+      class: logging.NullHandler
+      formatter: default
+      args: ()
+    handler_stdout:
+      class: StreamHandler
+      args: (sys.stdout,)
+      formatter: context
+    handler_stderr:
+      class: StreamHandler
+      args: (sys.stderr,)
+      formatter: context
+    formatter_context:
+      class: oslo_log.formatters.ContextFormatter
+    formatter_default:
+      format: "%(message)s"
 
 # Names of secrets used by bootstrap and environmental checks
 secrets:
@@ -900,6 +960,21 @@ endpoints:
           #   tls_req_cert: allow # Valid values: demand, never, allow
           #   tls_cacertfile: /etc/certs/tls.ca # abs path to the CA cert
           ca: null
+  fluentd:
+    namespace: null
+    name: fluentd
+    hosts:
+      default: fluentd-logging
+    host_fqdn_override:
+      default: null
+    path:
+      default: null
+    scheme: 'http'
+    port:
+      service:
+        default: 24224
+      metrics:
+        default: 24220
 
 manifests:
   configmap_bin: true

@@ -72,6 +72,18 @@ limitations under the License.
 {{- $_ := printf ":%s" ( tuple "key_manager" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" ) | set .Values.conf.barbican_api.uwsgi "socket" -}}
 {{- end -}}
 
+{{- if and (empty .Values.conf.logging.handler_fluent) (has "fluent" .Values.conf.logging.handlers.keys) -}}
+{{- $fluentd_host := tuple "fluentd" "internal" $envAll | include "helm-toolkit.endpoints.hostname_namespaced_endpoint_lookup" }}
+{{- $fluentd_port := tuple "fluentd" "internal" "service" $envAll | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+{{- $fluent_args := printf "('openstack.barbican', '%s', %s)" $fluentd_host $fluentd_port }}
+{{- $handler_fluent := dict "class" "fluent.handler.FluentHandler" "formatter" "fluent" "args" $fluent_args -}}
+{{- $_ := set .Values.conf.logging "handler_fluent" $handler_fluent -}}
+{{- end -}}
+
+{{- if and (empty .Values.conf.logging.formatter_fluent) (has "fluent" .Values.conf.logging.formatters.keys) -}}
+{{- $formatter_fluent := dict "class" "oslo_log.formatters.FluentFormatter" -}}
+{{- $_ := set .Values.conf.logging "formatter_fluent" $formatter_fluent -}}
+{{- end -}}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -80,6 +92,8 @@ metadata:
 data:
   barbican.conf: |
 {{ include "helm-toolkit.utils.to_oslo_conf" .Values.conf.barbican | indent 4 }}
+  logging.conf: |
+{{ include "helm-toolkit.utils.to_oslo_conf" .Values.conf.logging | indent 4 }}
   barbican-api-paste.ini: |
 {{ include "helm-toolkit.utils.to_ini" .Values.conf.paste | indent 4 }}
   api_audit_map.conf: |
