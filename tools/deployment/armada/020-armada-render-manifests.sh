@@ -20,7 +20,19 @@ source ./tools/deployment/armada/generate-passwords.sh
 : ${OSH_INFRA_PATH:="../openstack-helm-infra"}
 : ${OSH_PATH:="./"}
 
+[ -s /tmp/ceph-fs-uuid.txt ] || uuidgen > /tmp/ceph-fs-uuid.txt
+#NOTE(portdirect): to use RBD devices with Ubuntu kernels < 4.5 this
+# should be set to 'hammer'
+. /etc/os-release
+if [ "x${ID}" == "xubuntu" ] && \
+   [ "$(uname -r | awk -F "." '{ print $2 }')" -lt "5" ]; then
+  export CRUSH_TUNABLES=hammer
+else
+  export CRUSH_TUNABLES=null
+fi
+
 export CEPH_NETWORK=$(./tools/deployment/multinode/kube-node-subnet.sh)
+export CEPH_FS_ID="$(cat /tmp/ceph-fs-uuid.txt)"
 export TUNNEL_DEVICE=$(ip -4 route list 0/0 | awk '{ print $5; exit }')
 export OSH_INFRA_PATH
 export OSH_PATH
