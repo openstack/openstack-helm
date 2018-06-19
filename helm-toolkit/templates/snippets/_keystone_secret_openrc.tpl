@@ -20,10 +20,11 @@ limitations under the License.
 {{- $context := index . 2 -}}
 {{- $userContext := index $context.Values.endpoints.identity.auth $userClass }}
 OS_AUTH_URL: {{ tuple "identity" $identityEndpoint "api" $context | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" | b64enc }}
-OS_REGION_NAME: {{  $userContext.region_name | b64enc }}
-OS_PROJECT_DOMAIN_NAME: {{  $userContext.project_domain_name | b64enc }}
-OS_PROJECT_NAME: {{  $userContext.project_name | b64enc }}
-OS_USER_DOMAIN_NAME: {{  $userContext.user_domain_name | b64enc }}
-OS_USERNAME: {{  $userContext.username | b64enc }}
-OS_PASSWORD: {{  $userContext.password | b64enc }}
+OS_REGION_NAME: {{ $userContext.region_name | b64enc }}
+OS_INTERFACE: {{ $userContext.interface | default "internal" | b64enc }}
+OS_PROJECT_DOMAIN_NAME: {{ $userContext.project_domain_name | b64enc }}
+OS_PROJECT_NAME: {{ $userContext.project_name | b64enc }}
+OS_USER_DOMAIN_NAME: {{ $userContext.user_domain_name | b64enc }}
+OS_USERNAME: {{ $userContext.username | b64enc }}
+OS_PASSWORD: {{ $userContext.password | b64enc }}
 {{- end }}
