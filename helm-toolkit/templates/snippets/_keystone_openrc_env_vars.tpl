@@ -28,6 +28,11 @@ limitations under the License.
     secretKeyRef:
       name: {{ $ksUserSecret }}
       key: OS_REGION_NAME
+- name: OS_INTERFACE
+  valueFrom:
+    secretKeyRef:
+      name: {{ $ksUserSecret }}
+      key: OS_INTERFACE
 - name: OS_PROJECT_DOMAIN_NAME
   valueFrom:
     secretKeyRef:
