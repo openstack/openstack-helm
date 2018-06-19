@@ -184,7 +184,33 @@ spec:
             - name: pod-run
               mountPath: /run
               readOnly: false
+            - name: varlog
+              mountPath: /var/log/ceph
+        {{ if .Values.logging.fluentd }}
+        - name: fluentbit-sidecar
+{{ tuple $envAll "fluentbit" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.fluentbit | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          command:
+            - /tmp/fluentbit-sidecar.sh
+          volumeMounts:
+            - name: ceph-mon-bin
+              mountPath: /tmp/fluentbit-sidecar.sh
+              subPath: fluentbit-sidecar.sh
+              readOnly: true
+            - name: varlog
+              mountPath: /var/log/ceph
+            - name: ceph-mon-etc
+              mountPath: /fluent-bit/etc/fluent-bit.conf
+              subPath: fluent-bit.conf
+              readOnly: true
+            - name: ceph-mon-etc
+              mountPath: /fluent-bit/etc/parsers.conf
+              subPath: parsers.conf
+              readOnly: true
+        {{ end }}
       volumes:
+        - name: varlog
+          emptyDir: {}
         - name: ceph-mon-bin
           configMap:
             name: ceph-mon-bin

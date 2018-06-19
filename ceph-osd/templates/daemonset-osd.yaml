@@ -80,7 +80,8 @@ spec:
             privileged: true
           env:
           # NOTE(portdirect): These environment variables will be populated
-          # dynamicly at the point of render.
+          # dynamicly at the point of render and added to all containers in the
+          # pod
           # - name: JOURNAL_LOCATION
           #   value: /var/lib/openstack-helm/ceph/osd/journal-one
           # - name: STORAGE_LOCATION
@@ -215,6 +216,30 @@ spec:
             - name: journal
               mountPath: /var/lib/ceph/journal
               readOnly: false
+            - name: varlog
+              mountPath: /var/log/ceph
+        {{ if .Values.logging.fluentd }}
+        - name: fluentbit-sidecar
+{{ tuple $envAll "fluentbit" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.fluentbit | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          command:
+            - /tmp/fluentbit-sidecar.sh
+          volumeMounts:
+            - name: ceph-osd-bin
+              mountPath: /tmp/fluentbit-sidecar.sh
+              subPath: fluentbit-sidecar.sh
+              readOnly: true
+            - name: varlog
+              mountPath: /var/log/ceph
+            - name: ceph-osd-etc
+              mountPath: /fluent-bit/etc/fluent-bit.conf
+              subPath: fluent-bit.conf
+              readOnly: true
+            - name: ceph-osd-etc
+              mountPath: /fluent-bit/etc/parsers.conf
+              subPath: parsers.conf
+              readOnly: true
+        {{ end }}
       volumes:
         - name: devices
           hostPath:
@@ -223,6 +248,8 @@ spec:
           hostPath:
             path: /run/lvm
         - name: pod-var-lib-ceph
+          emptyDir: {}
+        - name: varlog
           emptyDir: {}
         - name: pod-run
           emptyDir:
