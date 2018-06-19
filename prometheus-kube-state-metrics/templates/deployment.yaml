@@ -116,7 +116,19 @@ spec:
         - name: kube-state-metrics
 {{ tuple $envAll "kube_state_metrics" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.kube_state_metrics | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          command:
+            - /tmp/kube-state-metrics.sh
           ports:
             - name: metrics
               containerPort: {{ tuple "kube_state_metrics" "internal" "http" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+          volumeMounts:
+            - name: kube-state-metrics-bin
+              mountPath: /tmp/kube-state-metrics.sh
+              subPath: kube-state-metrics.sh
+              readOnly: true
+      volumes:
+        - name: kube-state-metrics-bin
+          configMap:
+            name: kube-state-metrics-bin
+            defaultMode: 0555
 {{- end }}
