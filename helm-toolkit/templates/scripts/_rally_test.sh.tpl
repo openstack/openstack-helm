@@ -20,6 +20,7 @@ set -ex
 {{- $rallyTests := index . 0 }}
 
 : "${RALLY_ENV_NAME:="openstack-helm"}"
+: "${OS_INTERFACE:="public"}"
 
 rally-manage db create
 cat > /tmp/rally-config.json << EOF
@@ -27,7 +28,7 @@ cat > /tmp/rally-config.json << EOF
     "type": "ExistingCloud",
     "auth_url": "${OS_AUTH_URL}",
     "region_name": "${OS_REGION_NAME}",
-    "endpoint_type": "public",
+    "endpoint_type": "${OS_INTERFACE}",
     "admin": {
         "username": "${OS_USERNAME}",
         "password": "${OS_PASSWORD}",
