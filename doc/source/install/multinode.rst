@@ -13,9 +13,9 @@ such as MariaDB (Galera). Although we assume that the project should
 provide a "batteries included" approach towards persistent storage, we
 want to allow operators to define their own solution as well. Examples
 of this work will be documented in another section, however evidence of
-this is found throughout the project. If you have any questions or
-comments, please create an `issue
-<https://bugs.launchpad.net/openstack-helm>`_.
+this is found throughout the project. If you find any issues or gaps,
+please create a `story <https://storyboard.openstack.org/#!/project/886>`_
+to track what can be done to improve our documentation.
 
 .. note::
   Please see the supported application versions outlined in the

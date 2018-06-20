@@ -21,13 +21,13 @@ drafted and approved.
 Process
 -------
 
-Before drafting a specification, a blueprint should be filed in Launchpad_ along
-with any dependencies the blueprint requires.  Once the blueprint has been
+Before drafting a specification, a blueprint should be filed in Storyboard_
+along with any dependencies the blueprint requires.  Once the blueprint has been
 registered, submit the specification as a patch set to the specs/ directory
 using the supplied template.
 
 More information about the blueprint + specification lifecycle can be found
 here_.
 
-.. _Launchpad: https://blueprints.launchpad.net/openstack-helm
+.. _Storyboard: https://storyboard.openstack.org/#!/project_group/64
 .. _here: https://wiki.openstack.org/wiki/Blueprints#Blueprints_and_Specs
