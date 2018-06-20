@@ -38,7 +38,7 @@ function start () {
 }
 
 function sleep () {
-  exec bash -c "while :; do sleep 2073600; done"
+  exec /usr/bin/dumb-init bash -c "while :; do sleep 2073600; done"
 }
 
 function stop () {
