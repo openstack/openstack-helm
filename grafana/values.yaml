@@ -207,11 +207,12 @@ endpoints:
       default: ldap
     auth:
       admin:
+        bind_dn: "cn=admin,dc=cluster,dc=local"
         password: password
     host_fqdn_override:
       default: null
     path:
-      default: "/ou=People,dc=cluster,dc=local"
+      default: "ou=People,dc=cluster,dc=local"
     scheme:
       default: ldap
     port:
@@ -297,35 +298,39 @@ manifests:
   service_ingress: true
 
 conf:
-  ldap: |
-    verbose_logging = true
-
-    [[servers]]
-    host = "ldap.openstack.svc.cluster.local"
-    port = 389
-    use_ssl = false
-    start_tls = false
-    ssl_skip_verify = false
-    bind_dn = "cn=admin,dc=cluster,dc=local"
-    bind_password = 'password'
-    search_filter = "(uid=%s)"
-    search_base_dns = ["dc=cluster,dc=local"]
-    group_search_filter = "(&(objectclass=posixGroup)(memberUID=uid=%s,ou=People,dc=cluster,dc=local))"
-    group_search_base_dns = ["ou=Groups,dc=cluster,dc=local"]
-
-    [servers.attributes]
-    username = "uid"
-    surname = "sn"
-    member_of = "cn"
-    email = "mail"
-
-    [[servers.group_mappings]]
-    group_dn = "cn=admin,dc=cluster,dc=local"
-    org_role = "Admin"
-
-    [[servers.group_mappings]]
-    group_dn = "*"
-    org_role = "Editor"
+  ldap:
+    config:
+      base_dns:
+        search: "dc=cluster,dc=local"
+        group_search: "ou=Groups,dc=cluster,dc=local"
+      filters:
+        search: "(uid=%s)"
+        group_search: "(&(objectclass=posixGroup)(memberUID=uid=%s,ou=People,dc=cluster,dc=local))"
+    template: |
+      verbose_logging = false
+      [[servers]]
+      host = "{{ tuple "ldap" "internal" . | include "helm-toolkit.endpoints.hostname_fqdn_endpoint_lookup" }}"
+      port = {{ tuple "ldap" "internal" "ldap" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+      use_ssl = false
+      start_tls = false
+      ssl_skip_verify = false
+      bind_dn = "{{ .Values.endpoints.ldap.auth.admin.bind_dn }}"
+      bind_password = "{{ .Values.endpoints.ldap.auth.admin.password }}"
+      search_filter = "{{ .Values.conf.ldap.config.filters.search }}"
+      search_base_dns = ["{{ .Values.conf.ldap.config.base_dns.search }}"]
+      group_search_filter = "{{ .Values.conf.ldap.config.filters.group_search }}"
+      group_search_base_dns = ["{{ .Values.conf.ldap.config.base_dns.group_search }}"]
+      [servers.attributes]
+      username = "uid"
+      surname = "sn"
+      member_of = "cn"
+      email = "mail"
+      [[servers.group_mappings]]
+      group_dn = "{{.Values.endpoints.ldap.auth.admin.bind_dn }}"
+      org_role = "Admin"
+      [[servers.group_mappings]]
+      group_dn = "*"
+      org_role = "Viewer"
   provisioning:
     dashboards:
       apiVersion: 1
@@ -348,8 +353,6 @@ conf:
         editable: true
         url: 'http://prom-metrics.openstack.svc.cluster.local:9090'
   grafana:
-    auth.basic:
-      enabled: true
     auth.ldap:
       enabled: true
       config_file: /etc/grafana/ldap.toml

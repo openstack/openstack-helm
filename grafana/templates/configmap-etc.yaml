@@ -28,7 +28,6 @@ limitations under the License.
 {{- $path := .Values.endpoints.oslo_db_session.path }}
 {{- $_ := printf "%s:%s%s(%s)%s" $user $pass "@tcp" $host_port $path | set .Values.conf.grafana.session "provider_config" }}
 {{- end -}}
-
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -42,8 +41,7 @@ data:
   grafana.ini: |
 {{ include "helm-toolkit.utils.to_ini" .Values.conf.grafana | indent 4 }}
 {{ if not (empty .Values.conf.ldap) }}
-  ldap.toml: |
-{{ .Values.conf.ldap | indent 4 }}
+{{- include "helm-toolkit.snippets.values_template_renderer" (dict "envAll" $envAll "template" .Values.conf.ldap.template "key" "ldap.toml") | indent 2 }}
 {{ end }}
 {{ range $key, $value := .Values.conf.dashboards }}
   {{$key}}.json: |
