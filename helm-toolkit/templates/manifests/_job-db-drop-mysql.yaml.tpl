@@ -30,7 +30,7 @@ limitations under the License.
 {{- $nodeSelector := index . "nodeSelector" | default ( dict $envAll.Values.labels.job.node_selector_key $envAll.Values.labels.job.node_selector_value ) -}}
 {{- $configMapBin := index . "configMapBin" | default (printf "%s-%s" $serviceName "bin" ) -}}
 {{- $configMapEtc := index . "configMapEtc" | default (printf "%s-%s" $serviceName "etc" ) -}}
-{{- $dbToDrop := index . "dbToDrop" | default ( dict "adminSecret" $envAll.Values.secrets.oslo_db.admin "configFile" (printf "/etc/%s/%s.conf" $serviceName $serviceName ) "logConfigFile" (printf "/etc/%s/logging.conf" $serviceName ) "configDbSection" "database" "configDbKey" "connection" ) -}}
+{{- $dbToDrop := index . "dbToDrop" | default ( dict "adminSecret" $envAll.Values.secrets.oslo_db.admin "configFile" (printf "/etc/%s/%s.conf" $serviceName $serviceName ) "configDbSection" "database" "configDbKey" "connection" ) -}}
 {{- $dbsToDrop := default (list $dbToDrop) (index . "dbsToDrop") }}
 
 {{- $serviceNamePretty := $serviceName | replace "_" "-" -}}
@@ -98,10 +98,6 @@ spec:
             - name: db-drop-conf
               mountPath: {{ $dbToDrop.configFile | quote }}
               subPath: {{ base $dbToDrop.configFile | quote }}
-              readOnly: true
-            - name: db-drop-conf
-              mountPath: {{ $dbToDrop.logConfigFile | quote }}
-              subPath: {{ base $dbToDrop.logConfigFile | quote }}
               readOnly: true
 {{- end }}
 {{- end }}

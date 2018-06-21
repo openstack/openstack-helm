@@ -30,7 +30,7 @@ limitations under the License.
 {{- $nodeSelector := index . "nodeSelector" | default ( dict $envAll.Values.labels.job.node_selector_key $envAll.Values.labels.job.node_selector_value ) -}}
 {{- $configMapBin := index . "configMapBin" | default (printf "%s-%s" $serviceName "bin" ) -}}
 {{- $configMapEtc := index . "configMapEtc" | default (printf "%s-%s" $serviceName "etc" ) -}}
-{{- $dbToInit := index . "dbToInit" | default ( dict "adminSecret" $envAll.Values.secrets.oslo_db.admin "configFile" (printf "/etc/%s/%s.conf" $serviceName $serviceName ) "logConfigFile" (printf "/etc/%s/logging.conf" $serviceName ) "configDbSection" "database" "configDbKey" "connection" ) -}}
+{{- $dbToInit := index . "dbToInit" | default ( dict "adminSecret" $envAll.Values.secrets.oslo_db.admin "configFile" (printf "/etc/%s/%s.conf" $serviceName $serviceName ) "configDbSection" "database" "configDbKey" "connection" ) -}}
 {{- $dbsToInit := default (list $dbToInit) (index . "dbsToInit") }}
 
 {{- $serviceNamePretty := $serviceName | replace "_" "-" -}}
@@ -95,10 +95,6 @@ spec:
             - name: db-init-conf
               mountPath: {{ $dbToInit.configFile | quote }}
               subPath: {{ base $dbToInit.configFile | quote }}
-              readOnly: true
-            - name: db-init-conf
-              mountPath: {{ $dbToInit.logConfigFile | quote }}
-              subPath: {{ base $dbToInit.logConfigFile | quote }}
               readOnly: true
 {{- end }}
 {{- end }}

@@ -28,7 +28,7 @@ limitations under the License.
 {{- $podVolMounts := index . "podVolMounts" | default false -}}
 {{- $podVols := index . "podVols" | default false -}}
 {{- $podEnvVars := index . "podEnvVars" | default false -}}
-{{- $dbToSync := index . "dbToSync" | default ( dict "configFile" (printf "/etc/%s/%s.conf" $serviceName $serviceName ) "logConfigFile" (printf "/etc/%s/logging.conf" $serviceName ) "image" ( index $envAll.Values.images.tags ( printf "%s_db_sync" $serviceName )) ) -}}
+{{- $dbToSync := index . "dbToSync" | default ( dict "configFile" (printf "/etc/%s/%s.conf" $serviceName $serviceName ) "image" ( index $envAll.Values.images.tags ( printf "%s_db_sync" $serviceName )) ) -}}
 
 {{- $serviceNamePretty := $serviceName | replace "_" "-" -}}
 
@@ -72,10 +72,6 @@ spec:
             - name: db-sync-conf
               mountPath: {{ $dbToSync.configFile | quote }}
               subPath: {{ base $dbToSync.configFile | quote }}
-              readOnly: true
-            - name: db-sync-conf
-              mountPath: {{ $dbToSync.logConfigFile | quote }}
-              subPath: {{ base $dbToSync.logConfigFile | quote }}
               readOnly: true
 {{- if $podVolMounts }}
 {{ $podVolMounts | toYaml | indent 12 }}
