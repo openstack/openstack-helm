@@ -22,7 +22,7 @@ limitations under the License.
   {{- $context := index . 4 }}
   {{- $_ := unset $context ".Files" }}
   {{- $_ := set $context.Values "__daemonset_yaml" $daemonset_yaml }}
-  {{- $daemonset_root_name := printf (print $context.Chart.Name "_" $daemonset) }}
+  {{- $daemonset_root_name := printf "ceph_%s" $daemonset }}
   {{- $_ := set $context.Values "__daemonset_list" list }}
   {{- $_ := set $context.Values "__default" dict }}
   {{- if hasKey $context.Values.conf "overrides" }}
