@@ -147,6 +147,31 @@
         enabled: yes
         masked: no
 
+- name: Setup DNS redirector for fqdn testing
+  # NOTE(portdirect): This must be done before the K8S DNS pods attempt to
+  # start, so they use the dnsmasq instance to resolve upstream hostnames
+  when: gate.fqdn_testing|bool == true
+  block:
+    - name: Setup DNS redirector | Remove std kubelet resolv.conf
+      file:
+        path: "/etc/kubernetes/kubelet-resolv.conf"
+        state: absent
+    - name: Setup DNS redirector | Populating new kubelet resolv.conf
+      copy:
+        dest: "/etc/kubernetes/kubelet-resolv.conf"
+        mode: 0640
+        content: |
+          nameserver 172.17.0.1
+    - name: Setup DNS redirector | Ensuring static manifests dir exists
+      file:
+        path: "/etc/kubernetes/manifests/"
+        state: directory
+    - name: Setup DNS redirector | Placing pod manifest on host
+      template:
+        src: osh-dns-redirector.yaml.j2
+        dest: /etc/kubernetes/manifests/osh-dns-redirector.yaml
+        mode: 0640
+
 - name: docker | ensure service is started and enabled
   when: kubelet.container_runtime == 'docker'
   systemd:

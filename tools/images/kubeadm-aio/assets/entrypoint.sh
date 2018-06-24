@@ -54,6 +54,9 @@ fi
 : ${KUBE_SELF_HOSTED:="false"}
 : ${KUBE_KEYSTONE_AUTH:="false"}
 : ${KUBELET_NODE_LABELS:=""}
+: ${GATE_FQDN_TEST:="false"}
+: ${GATE_INGRESS_IP:="127.0.0.1"}
+: ${GATE_FQDN_TLD:="openstackhelm.test"}
 
 PLAYBOOK_VARS="{
   \"my_container_name\": \"${CONTAINER_NAME}\",
@@ -88,6 +91,11 @@ PLAYBOOK_VARS="{
       \"podSubnet\": \"${KUBE_NET_POD_SUBNET}\",
       \"serviceSubnet\": \"${KUBE_NET_SUBNET_SUBNET}\"
     }
+  },
+  \"gate\": {
+    \"fqdn_testing\": \"${GATE_FQDN_TEST}\",
+    \"ingress_ip\": \"${GATE_INGRESS_IP}\",
+    \"fqdn_tld\": \"${GATE_FQDN_TLD}\"
   }
 }"
 
