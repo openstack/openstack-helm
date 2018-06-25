@@ -40,6 +40,7 @@ sudo docker run -d \
   docker.io/openstackhelm/neutron:newton \
     --keep-in-foreground \
     --no-hosts \
+    --bind-interfaces \
     --resolv-file=/etc/kubernetes/kubelet-resolv.conf \
     --address="/svc.cluster.local/${OSH_BR_EX_ADDR%/*}" \
     --listen-address="${OSH_BR_EX_ADDR%/*}"
