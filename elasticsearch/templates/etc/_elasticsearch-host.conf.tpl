@@ -24,7 +24,7 @@ limitations under the License.
   <Proxy *>
       AuthName "Elasticsearch"
       AuthType Basic
-      AuthBasicProvider ldap file
+      AuthBasicProvider file ldap
       AuthUserFile /usr/local/apache2/conf/.htpasswd
       AuthLDAPBindDN ${BIND_DN}
       AuthLDAPBindPassword ${BIND_PASSWORD}
