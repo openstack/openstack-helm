@@ -34,16 +34,22 @@ helm upgrade --install ingress-kube-system ./ingress \
   ${OSH_EXTRA_HELM_ARGS} \
   ${OSH_EXTRA_HELM_ARGS_INGRESS_KUBE_SYSTEM}
 
-#NOTE: Deploy namespace ingress
-helm upgrade --install ingress-openstack ./ingress \
-  --namespace=openstack \
-  ${OSH_EXTRA_HELM_ARGS} \
-  ${OSH_EXTRA_HELM_ARGS_INGRESS_OPENSTACK}
-
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh kube-system
-./tools/deployment/common/wait-for-pods.sh openstack
 
 #NOTE: Display info
 helm status ingress-kube-system
-helm status ingress-openstack
+
+#NOTE: Deploy namespace ingress
+for NAMESPACE in openstack ceph; do
+  helm upgrade --install ingress-${NAMESPACE} ./ingress \
+    --namespace=${NAMESPACE} \
+    ${OSH_EXTRA_HELM_ARGS} \
+    ${OSH_EXTRA_HELM_ARGS_INGRESS_OPENSTACK}
+
+  #NOTE: Wait for deploy
+  ./tools/deployment/common/wait-for-pods.sh ${NAMESPACE}
+
+  #NOTE: Display info
+  helm status ingress-openstack
+done

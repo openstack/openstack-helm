@@ -33,21 +33,28 @@ helm upgrade --install ingress-kube-system ./ingress \
   ${OSH_EXTRA_HELM_ARGS} \
   ${OSH_EXTRA_HELM_ARGS_INGRESS_KUBE_SYSTEM}
 
-#NOTE: Deploy namespace ingress
-tee /tmp/ingress-openstack.yaml << EOF
+#NOTE: Wait for deploy
+./tools/deployment/common/wait-for-pods.sh kube-system
+
+#NOTE: Display info
+helm status ingress-kube-system
+
+#NOTE: Deploy namespaced ingress controllers
+for NAMESPACE in openstack ceph; do
+  #NOTE: Deploy namespace ingress
+  tee /tmp/ingress-${NAMESPACE}.yaml << EOF
 pod:
   replicas:
     ingress: 2
     error_page: 2
 EOF
-helm upgrade --install ingress-openstack ./ingress \
-  --namespace=openstack \
-  --values=/tmp/ingress-openstack.yaml
+  helm upgrade --install ingress-${NAMESPACE} ./ingress \
+    --namespace=${NAMESPACE} \
+    --values=/tmp/ingress-${NAMESPACE}.yaml
 
-#NOTE: Wait for deploy
-./tools/deployment/common/wait-for-pods.sh kube-system
-./tools/deployment/common/wait-for-pods.sh openstack
+  #NOTE: Wait for deploy
+  ./tools/deployment/common/wait-for-pods.sh ${NAMESPACE}
 
-#NOTE: Display info
-helm status ingress-kube-system
-helm status ingress-openstack
+  #NOTE: Display info
+  helm status ingress-${NAMESPACE}
+done

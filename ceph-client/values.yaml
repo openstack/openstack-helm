@@ -162,11 +162,24 @@ secrets:
     user_rgw: ceph-keystone-user-rgw
 
 network:
+  api:
+    ingress:
+      public: true
+      classes:
+        namespace: "nginx"
+        cluster: "nginx-cluster"
+      annotations:
+        nginx.ingress.kubernetes.io/rewrite-target: /
+        nginx.ingress.kubernetes.io/proxy-body-size: "0"
+        nginx.org/proxy-max-temp-file-size: "0"
+    external_policy_local: false
+    node_port:
+      enabled: false
+      port: 30004
   public: 192.168.0.0/16
   cluster: 192.168.0.0/16
   port:
     mon: 6789
-    rgw: 8088
     mgr: 7000
 
 conf:
@@ -280,6 +293,7 @@ conf:
       rgw_keystone_make_new_tenants: true
       rgw_s3_auth_use_keystone: true
       rgw_swift_account_in_url: true
+      rgw_swift_url: null
   ceph:
     global:
       # auth
@@ -488,6 +502,7 @@ endpoints:
     namespace: null
     hosts:
       default: ceph-rgw
+      public: radosgw
     host_fqdn_override:
       default: null
     path:
@@ -497,6 +512,7 @@ endpoints:
     port:
       api:
         default: 8088
+        public: 80
   ceph_mon:
     namespace: null
     hosts:
@@ -538,6 +554,7 @@ manifests:
   deployment_cephfs_provisioner: true
   deployment_rgw: true
   deployment_mgr: true
+  ingress_rgw: true
   job_bootstrap: false
   job_cephfs_client_key: true
   job_image_repo_sync: true
@@ -549,6 +566,7 @@ manifests:
   job_rbd_pool: true
   secret_keystone_rgw: true
   secret_keystone: true
+  service_ingress_rgw: true
   service_mgr: true
   service_rgw: true
   storageclass_cephfs: true

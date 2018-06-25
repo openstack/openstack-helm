@@ -23,9 +23,19 @@ metadata:
   name: ceph-rgw
 spec:
   ports:
-  - port: {{ .Values.network.port.rgw }}
+  - name: ceph-rgw
+    port: {{ tuple "object_store" "internal" "api" $envAll | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
     protocol: TCP
-    targetPort: {{ .Values.network.port.rgw }}
+    targetPort: {{ tuple "object_store" "internal" "api" $envAll | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+  {{ if .Values.network.api.node_port.enabled }}
+    nodePort: {{ .Values.network.api.node_port.port }}
+  {{ end }}
   selector:
 {{ tuple $envAll "ceph" "rgw" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+  {{ if .Values.network.api.node_port.enabled }}
+  type: NodePort
+  {{ if .Values.network.api.external_policy_local }}
+  externalTrafficPolicy: Local
+  {{ end }}
+  {{ end }}
 {{- end }}

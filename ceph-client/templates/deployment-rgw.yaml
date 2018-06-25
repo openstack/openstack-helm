@@ -79,7 +79,7 @@ spec:
             - name: KEYSTONE_URL
               value: {{ tuple "identity" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" | trimSuffix .Values.endpoints.identity.path.default | quote }}
             - name: RGW_CIVETWEB_PORT
-              value: "{{ .Values.network.port.rgw }}"
+              value: "{{ tuple "object_store" "internal" "api" $envAll | include "helm-toolkit.endpoints.endpoint_port_lookup" }}"
           command:
             - /tmp/rgw-init-keystone.sh
           volumeMounts:
@@ -102,21 +102,21 @@ spec:
             - name: CLUSTER
               value: "ceph"
             - name: RGW_CIVETWEB_PORT
-              value: "{{ .Values.network.port.rgw }}"
+              value: "{{ tuple "object_store" "internal" "api" $envAll | include "helm-toolkit.endpoints.endpoint_port_lookup" }}"
           command:
             - /tmp/rgw-start.sh
           ports:
-            - containerPort: {{ .Values.network.port.rgw }}
+            - containerPort: {{ tuple "object_store" "internal" "api" $envAll | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
           livenessProbe:
               httpGet:
                 path: /
-                port: {{ .Values.network.port.rgw }}
+                port: {{ tuple "object_store" "internal" "api" $envAll | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
               initialDelaySeconds: 120
               timeoutSeconds: 5
           readinessProbe:
               httpGet:
                 path: /
-                port: {{ .Values.network.port.rgw }}
+                port: {{ tuple "object_store" "internal" "api" $envAll | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
               timeoutSeconds: 5
           volumeMounts:
             - name: ceph-client-bin
