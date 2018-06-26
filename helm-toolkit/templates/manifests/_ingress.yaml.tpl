@@ -56,18 +56,30 @@ spec:
 {{ $hostRules | include "helm-toolkit.manifests.ingress._host_rules" | indent 4}}
 {{- end }}
 {{- if not ( hasSuffix ( printf ".%s.svc.%s" $envAll.Release.Namespace $envAll.Values.endpoints.cluster_domain_suffix) $hostNameFull) }}
+{{- range $key2, $ingressController := tuple "namespace" "cluster" }}
 {{- $hostNameFullRules := dict "vHost" $hostNameFull "backendName" $backendName "backendPort" $backendPort }}
-{{ $hostNameFullRules | include "helm-toolkit.manifests.ingress._host_rules" | indent 4}}
 ---
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
-  name: {{ printf "%s-%s" $ingressName "fqdn" }}
+  name: {{ printf "%s-%s-%s" $ingressName $ingressController "fqdn" }}
   annotations:
-    kubernetes.io/ingress.class: {{ index $envAll.Values.network $backendService "ingress" "classes" "cluster" | quote }}
+    kubernetes.io/ingress.class: {{ index $envAll.Values.network $backendService "ingress" "classes" $ingressController | quote }}
 {{ toYaml (index $envAll.Values.network $backendService "ingress" "annotations") | indent 4 }}
 spec:
+{{- $host := index $envAll.Values.endpoints $backendServiceType "host_fqdn_override" }}
+{{- if $host.public }}
+{{- if $host.public.tls }}
+{{- if and $host.public.tls.key $host.public.tls.crt }}
+  tls:
+    - secretName: {{ index $envAll.Values.secrets "tls" $backendServiceType $backendService "public" }}
+      hosts:
+        - {{ index $hostNameFullRules "vHost" }}
+{{- end }}
+{{- end }}
+{{- end }}
   rules:
 {{ $hostNameFullRules | include "helm-toolkit.manifests.ingress._host_rules" | indent 4}}
+{{- end }}
 {{- end }}
 {{- end }}

@@ -31,6 +31,8 @@ spec:
   ports:
     - name: http
       port: 80
+    - name: https
+      port: 443
   selector:
     app: ingress-api
 {{- if index $envAll.Values.endpoints $backendServiceType }}

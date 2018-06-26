@@ -38,8 +38,13 @@ limitations under the License.
 {{- if regexMatch "[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+" $endpointHost }}
 {{- printf "%s://%s:%1.f%s" $endpointScheme $endpointHost $endpointPort $endpointPath -}}
 {{- else -}}
+{{- if kindIs "map" (index .host_fqdn_override $endpoint) }}
+{{- $endpointFqdnHostname := index .host_fqdn_override $endpoint "host" | default .host_fqdn_override.default | default $endpointClusterHostname }}
+{{- printf "%s://%s:%1.f%s" $endpointScheme $endpointFqdnHostname $endpointPort $endpointPath -}}
+{{- else }}
 {{- $endpointFqdnHostname := index .host_fqdn_override $endpoint | default .host_fqdn_override.default | default $endpointClusterHostname }}
 {{- printf "%s://%s:%1.f%s" $endpointScheme $endpointFqdnHostname $endpointPort $endpointPath -}}
+{{- end -}}
 {{- end -}}
 {{- end -}}
 {{- end -}}
