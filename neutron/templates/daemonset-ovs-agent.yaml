@@ -49,6 +49,11 @@ spec:
         {{ .Values.labels.ovs.node_selector_key }}: {{ .Values.labels.ovs.node_selector_value }}
       dnsPolicy: ClusterFirstWithHostNet
       hostNetwork: true
+      {{- if or ( gt .Capabilities.KubeVersion.Major "1" ) ( ge .Capabilities.KubeVersion.Minor "10" ) }}
+      shareProcessNamespace: true
+      {{- else }}
+      hostPID: true
+      {{- end }}
       initContainers:
 {{ tuple $envAll "pod_dependency" $mounts_neutron_ovs_agent_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
         - name: neutron-openvswitch-agent-kernel-modules
