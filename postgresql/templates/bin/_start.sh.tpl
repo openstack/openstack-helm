@@ -18,4 +18,4 @@ limitations under the License.
 
 set -ex
 
-exec /docker-entrypoint.sh postgres
+exec /docker-entrypoint.sh postgres -N {{ .Values.conf.postgresql.max_connections }} -B {{ .Values.conf.postgresql.shared_buffers }}
