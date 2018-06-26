@@ -32,13 +32,18 @@ helm install ./ingress \
 
 #NOTE: Deploy namespace ingress
 helm install ./ingress \
+  --namespace=ceph \
+  --name=ingress-ceph
+helm install ./ingress \
   --namespace=openstack \
   --name=ingress-openstack
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh kube-system
+./tools/deployment/common/wait-for-pods.sh ceph
 ./tools/deployment/common/wait-for-pods.sh openstack
 
 #NOTE: Display info
 helm status ingress-kube-system
+helm status ingress-ceph
 helm status ingress-openstack
