@@ -30,9 +30,10 @@ set -ex
 if [ "x$STORAGE_BACKEND" == "xpvc" ]; then
   echo "No action required."
 elif [ "x$STORAGE_BACKEND" == "xswift" ]; then
+  : ${OS_INTERFACE:="internal"}
   OS_TOKEN="$(openstack token issue -f value -c id)"
   OS_PROJECT_ID="$(openstack project show service -f value -c id)"
-  OS_SWIFT_ENDPOINT_PREFIX="$(openstack endpoint list --service swift --interface public -f value -c URL | awk -F '$' '{ print $1 }')"
+  OS_SWIFT_ENDPOINT_PREFIX="$(openstack endpoint list --service swift --interface ${OS_INTERFACE} -f value -c URL | awk -F '$' '{ print $1 }')"
   OS_SWIFT_SCOPED_ENDPOINT="${OS_SWIFT_ENDPOINT_PREFIX}${OS_PROJECT_ID}"
   curl -i -X POST "${OS_SWIFT_SCOPED_ENDPOINT}" \
     -H "X-Auth-Token: ${OS_TOKEN}" \
