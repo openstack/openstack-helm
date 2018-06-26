@@ -430,6 +430,7 @@ conf:
     resource_types:OS::Cinder::QoSSpecs: rule:project_admin
   heat:
     DEFAULT:
+      log_config_append: /etc/heat/logging.conf
       num_engine_workers: 1
       trusts_delegated_roles: ""
       host: heat-engine
@@ -465,6 +466,65 @@ conf:
       endpoint_type: internalURL
     oslo_messaging_notifications:
       driver: messagingv2
+  logging:
+    loggers:
+      keys:
+        - root
+        - heat
+    handlers:
+      keys:
+        - stdout
+        - stderr
+        - "null"
+    formatters:
+      keys:
+        - context
+        - default
+    logger_root:
+      level: WARNING
+      handlers: null
+    logger_heat:
+      level: INFO
+      handlers:
+        - stdout
+        - stderr
+      qualname: heat
+    logger_amqp:
+      level: WARNING
+      handlers: stderr
+      qualname: amqp
+    logger_amqplib:
+      level: WARNING
+      handlers: stderr
+      qualname: amqplib
+    logger_eventletwsgi:
+      level: WARNING
+      handlers: stderr
+      qualname: eventlet.wsgi.server
+    logger_sqlalchemy:
+      level: WARNING
+      handlers: stderr
+      qualname: sqlalchemy
+    logger_boto:
+      level: WARNING
+      handlers: stderr
+      qualname: boto
+    handler_null:
+      class: logging.NullHandler
+      formatter: default
+      args: ()
+    handler_stdout:
+      class: StreamHandler
+      args: (sys.stdout,)
+      formatter: context
+    handler_stderr:
+      class: StreamHandler
+      args: (sys.stderr,)
+      formatter: context
+    formatter_context:
+      class: oslo_log.formatters.ContextFormatter
+    formatter_default:
+      format: "%(message)s"
 
 network:
   api:
@@ -857,6 +917,21 @@ endpoints:
         default: 5672
       http:
         default: 15672
+  fluentd:
+    namespace: null
+    name: fluentd
+    hosts:
+      default: fluentd-logging
+    host_fqdn_override:
+      default: null
+    path:
+      default: null
+    scheme: 'http'
+    port:
+      service:
+        default: 24224
+      metrics:
+        default: 24220
 
 pod:
   user:

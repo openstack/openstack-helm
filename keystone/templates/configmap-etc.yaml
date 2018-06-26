@@ -29,6 +29,18 @@ limitations under the License.
 {{- $_ := tuple "oslo_cache" "internal" "memcache" . | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" | set .Values.conf.keystone.cache "memcache_servers" -}}
 {{- end -}}
 
+{{- if and (empty .Values.conf.logging.handler_fluent) (has "fluent" .Values.conf.logging.handlers.keys) -}}
+{{- $fluentd_host := tuple "fluentd" "internal" $envAll | include "helm-toolkit.endpoints.hostname_namespaced_endpoint_lookup" }}
+{{- $fluentd_port := tuple "fluentd" "internal" "service" $envAll | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+{{- $fluent_args := printf "('openstack.keystone', '%s', %s)" $fluentd_host $fluentd_port }}
+{{- $handler_fluent := dict "class" "fluent.handler.FluentHandler" "formatter" "fluent" "args" $fluent_args -}}
+{{- $_ := set .Values.conf.logging "handler_fluent" $handler_fluent -}}
+{{- end -}}
+
+{{- if and (empty .Values.conf.logging.formatter_fluent) (has "fluent" .Values.conf.logging.formatters.keys) -}}
+{{- $formatter_fluent := dict "class" "oslo_log.formatters.FluentFormatter" -}}
+{{- $_ := set .Values.conf.logging "formatter_fluent" $formatter_fluent -}}
+{{- end -}}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -39,6 +51,8 @@ data:
 {{ toYaml .Values.conf.rally_tests.tests | indent 4 }}
   keystone.conf: |
 {{ include "helm-toolkit.utils.to_oslo_conf" .Values.conf.keystone | indent 4 }}
+  logging.conf: |
+{{ include "helm-toolkit.utils.to_oslo_conf" $envAll.Values.conf.logging | indent 4 }}
   keystone-paste.ini: |
 {{ include "helm-toolkit.utils.to_ini" .Values.conf.paste | indent 4 }}
   policy.json: |

@@ -165,6 +165,7 @@ conf:
     webhooks:trigger: ''
   senlin:
     DEFAULT:
+      log_config_append: /etc/senlin/logging.conf
       transport_url: null
       host: senlin
     database:
@@ -179,6 +180,65 @@ conf:
       # NOTE(portdirect): the bind port should not be defined, and is manipulated
       # via the endpoints section.
       bind_port: null
+  logging:
+    loggers:
+      keys:
+        - root
+        - senlin
+    handlers:
+      keys:
+        - stdout
+        - stderr
+        - "null"
+    formatters:
+      keys:
+        - context
+        - default
+    logger_root:
+      level: WARNING
+      handlers: null
+    logger_senlin:
+      level: INFO
+      handlers:
+        - stdout
+        - stderr
+      qualname: senlin
+    logger_amqp:
+      level: WARNING
+      handlers: stderr
+      qualname: amqp
+    logger_amqplib:
+      level: WARNING
+      handlers: stderr
+      qualname: amqplib
+    logger_eventletwsgi:
+      level: WARNING
+      handlers: stderr
+      qualname: eventlet.wsgi.server
+    logger_sqlalchemy:
+      level: WARNING
+      handlers: stderr
+      qualname: sqlalchemy
+    logger_boto:
+      level: WARNING
+      handlers: stderr
+      qualname: boto
+    handler_null:
+      class: logging.NullHandler
+      formatter: default
+      args: ()
+    handler_stdout:
+      class: StreamHandler
+      args: (sys.stdout,)
+      formatter: context
+    handler_stderr:
+      class: StreamHandler
+      args: (sys.stderr,)
+      formatter: context
+    formatter_context:
+      class: oslo_log.formatters.ContextFormatter
+    formatter_default:
+      format: "%(message)s"
 
 network:
   api:
@@ -285,7 +345,6 @@ dependencies:
       services:
         - endpoint: internal
           service: local_image_registry
-
 
 # Names of secrets used by bootstrap and environmental checks
 secrets:
@@ -422,6 +481,21 @@ endpoints:
         default: 5672
       http:
         default: 15672
+  fluentd:
+    namespace: null
+    name: fluentd
+    hosts:
+      default: fluentd-logging
+    host_fqdn_override:
+      default: null
+    path:
+      default: null
+    scheme: 'http'
+    port:
+      service:
+        default: 24224
+      metrics:
+        default: 24220
 
 pod:
   user:

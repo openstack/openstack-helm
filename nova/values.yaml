@@ -1021,6 +1021,7 @@ conf:
       compute_driver: ironic.IronicDriver
   nova:
     DEFAULT:
+      log_config_append: /etc/nova/logging.conf
       default_ephemeral_format: ext4
       ram_allocation_ratio: 1.0
       disk_allocation_ratio: 1.0
@@ -1101,6 +1102,65 @@ conf:
     placement:
       auth_type: password
       auth_version: v3
+  logging:
+    loggers:
+      keys:
+        - root
+        - nova
+    handlers:
+      keys:
+        - stdout
+        - stderr
+        - "null"
+    formatters:
+      keys:
+        - context
+        - default
+    logger_root:
+      level: WARNING
+      handlers: null
+    logger_nova:
+      level: INFO
+      handlers:
+        - stdout
+        - stderr
+      qualname: nova
+    logger_amqp:
+      level: WARNING
+      handlers: stderr
+      qualname: amqp
+    logger_amqplib:
+      level: WARNING
+      handlers: stderr
+      qualname: amqplib
+    logger_eventletwsgi:
+      level: WARNING
+      handlers: stderr
+      qualname: eventlet.wsgi.server
+    logger_sqlalchemy:
+      level: WARNING
+      handlers: stderr
+      qualname: sqlalchemy
+    logger_boto:
+      level: WARNING
+      handlers: stderr
+      qualname: boto
+    handler_null:
+      class: logging.NullHandler
+      formatter: default
+      args: ()
+    handler_stdout:
+      class: StreamHandler
+      args: (sys.stdout,)
+      formatter: context
+    handler_stderr:
+      class: StreamHandler
+      args: (sys.stderr,)
+      formatter: context
+    formatter_context:
+      class: oslo_log.formatters.ContextFormatter
+    formatter_default:
+      format: "%(message)s"
 
 # Names of secrets used by bootstrap and environmental checks
 secrets:
@@ -1440,6 +1500,21 @@ endpoints:
       api:
         default: 6385
         public: 80
+  fluentd:
+    namespace: null
+    name: fluentd
+    hosts:
+      default: fluentd-logging
+    host_fqdn_override:
+      default: null
+    path:
+      default: null
+    scheme: 'http'
+    port:
+      service:
+        default: 24224
+      metrics:
+        default: 24220
 
 pod:
   user:
