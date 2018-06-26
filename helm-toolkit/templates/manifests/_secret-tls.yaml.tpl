@@ -19,7 +19,7 @@ limitations under the License.
 {{- $endpoint := index . "endpoint" | default "public" }}
 {{- $backendServiceType := index . "backendServiceType" }}
 {{- $backendService := index . "backendService" | default "api" }}
-{{- $host := index $envAll.Values.endpoints $backendServiceType "host_fqdn_override" }}
+{{- $host := index $envAll.Values.endpoints ( $backendServiceType | replace "-" "_" ) "host_fqdn_override" }}
 {{- if $host.public }}
 {{- if $host.public.tls }}
 {{- if and $host.public.tls.key $host.public.tls.crt }}
@@ -27,7 +27,7 @@ limitations under the License.
 apiVersion: v1
 kind: Secret
 metadata:
-  name: {{ index $envAll.Values.secrets.tls $backendServiceType $backendService $endpoint }}
+  name: {{ index $envAll.Values.secrets.tls ( $backendServiceType | replace "-" "_" ) $backendService $endpoint }}
 type: kubernetes.io/tls
 data:
   tls.crt: {{ $host.public.tls.crt | b64enc }}
