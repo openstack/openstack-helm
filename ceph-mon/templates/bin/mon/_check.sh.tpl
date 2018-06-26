@@ -25,7 +25,7 @@ function heath_check () {
   SBASE=${CEPH_OSD_SOCKET_BASE:-ceph-mon}
   SSUFFIX=${CEPH_SOCKET_SUFFIX:-asok}
 
-  MON_ID=$(ps auwwx | grep ceph-mon | grep -v "$1" | grep -v grep | sed 's/.*-i\ *//;s/\ *-.*//'|awk '{print $1}')
+  MON_ID=$(ps auwwx | grep ceph-mon | grep -v "$1" | grep -v grep | sed 's/.*-i\ //;s/\ .*//'|awk '{print $1}')
 
   if [ -z "${MON_ID}" ]; then
     if [[ ${K8S_HOST_NETWORK} -eq 0 ]]; then
