@@ -171,6 +171,7 @@ all the ``--set`` flags
   helm install --name=nova local/nova --namespace=openstack \
     --values=./tools/overrides/mvp/nova.yaml \
     --set conf.nova.libvirt.virt_type=qemu \
+    --set conf.nova.libvirt.cpu_mode=none \
     --set endpoints.compute.host_fqdn_override.public=nova.$FQDN \
     --set endpoints.compute_metadata.host_fqdn_override.public=metadata.$FQDN \
     --set endpoints.image.host_fqdn_override.public=glance.$FQDN \

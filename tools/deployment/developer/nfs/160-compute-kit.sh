@@ -34,6 +34,7 @@ else
       --namespace=openstack \
       --set conf.ceph.enabled=false \
       --set conf.nova.libvirt.virt_type=qemu \
+      --set conf.nova.libvirt.cpu_mode=none \
       ${OSH_EXTRA_HELM_ARGS} \
       ${OSH_EXTRA_HELM_ARGS_NOVA}
 fi
