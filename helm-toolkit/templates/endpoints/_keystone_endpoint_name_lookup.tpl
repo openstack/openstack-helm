@@ -14,10 +14,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-# This function is used in endpoint management templates
-# it returns the service type for an openstack service eg:
-# { tuple orchestration . | include "keystone_endpoint_name_lookup" }
-# will return "heat"
+{{/*
+abstract: |
+  Resolves the service name for an service type
+values: |
+  endpoints:
+    identity:
+      name: keystone
+usage: |
+  {{ tuple identity . | include "keystone_endpoint_name_lookup" }}
+return: |
+  "keystone"
+*/}}
 
 {{- define "helm-toolkit.endpoints.keystone_endpoint_name_lookup" -}}
 {{- $type := index . 0 -}}

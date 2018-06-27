@@ -14,10 +14,26 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-# This function returns the path for a service, it takes an tuple
-# input in the form: service-type, endpoint-class, port-name. eg:
-# { tuple "orchestration" "public" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_path_lookup" }
-# will return the appropriate path.
+# FIXME(portdirect): it appears the port input here serves no purpose,
+# and should be removed. In addition this function is bugged, do we use it?
+
+{{/*
+abstract: |
+  Resolves the path for an endpoint
+values: |
+  endpoints:
+    cluster_domain_suffix: cluster.local
+    oslo_db:
+      path:
+       default: /dbname
+      port:
+        mysql:
+          default: 3306
+usage: |
+  {{ tuple "oslo_db" "internal" "mysql" . | include "helm-toolkit.endpoints.keystone_endpoint_path_lookup" }}
+return: |
+  /dbname
+*/}}
 
 {{- define "helm-toolkit.endpoints.keystone_endpoint_path_lookup" -}}
 {{- $type := index . 0 -}}

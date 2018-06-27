@@ -14,13 +14,21 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-# This function returns hostnames from endpoint definitions for use cases
-# where the uri style return is not appropriate, and only the hostname
-# portion is used or relevant in the template:
-# { tuple "memcache" "internal" "portName" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }
-# returns: internal_host:port
-#
-# Output that requires the port aspect striped could simply split the output based on ':'
+{{/*
+abstract: |
+  Resolves the port for an endpoint
+values: |
+  endpoints:
+    cluster_domain_suffix: cluster.local
+    oslo_db:
+      port:
+        mysql:
+          default: 3306
+usage: |
+  {{ tuple "oslo_db" "internal" "mysql" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+return: |
+  3306
+*/}}
 
 {{- define "helm-toolkit.endpoints.endpoint_port_lookup" -}}
 {{- $type := index . 0 -}}

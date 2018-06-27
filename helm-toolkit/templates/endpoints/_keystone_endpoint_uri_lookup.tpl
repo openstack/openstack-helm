@@ -14,10 +14,27 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-# This function returns the endpoint uri for a service, it takes an tuple
-# input in the form: service-type, endpoint-class, port-name. eg:
-# { tuple "orchestration" "public" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" }
-# will return the appropriate URI.
+{{/*
+abstract: |
+  This function helps resolve uri style endpoints
+values: |
+  endpoints:
+    cluster_domain_suffix: cluster.local
+    oslo_db:
+      hosts:
+        default: mariadb
+      host_fqdn_override:
+        default: null
+      path: /dbname
+      scheme: mysql+pymysql
+      port:
+        mysql:
+          default: 3306
+usage: |
+  {{ tuple "oslo_db" "internal" "mysql" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" }}
+return: |
+  mysql+pymysql://mariadb.default.svc.cluster.local:3306/dbname
+*/}}
 
 {{- define "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" -}}
 {{- $type := index . 0 -}}

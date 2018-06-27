@@ -14,11 +14,21 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-# This function returns hostnames from endpoint definitions for use cases
-# where the uri style return is not appropriate, and only the hostname
-# portion is used or relevant in the template:
-# { tuple "memcache" "internal" . | include "helm-toolkit.endpoints.hostname_namespaced_endpoint_lookup" }
-# returns: internal_host_namespaced
+{{/*
+abstract: |
+  Resolves the namespace scoped hostname for an endpoint
+values: |
+  endpoints:
+    oslo_db:
+      hosts:
+        default: mariadb
+      host_fqdn_override:
+        default: null
+usage: |
+  {{ tuple "oslo_db" "internal" . | include "helm-toolkit.endpoints.hostname_namespaced_endpoint_lookup" }}
+return: |
+  mariadb.default
+*/}}
 
 {{- define "helm-toolkit.endpoints.hostname_namespaced_endpoint_lookup" -}}
 {{- $type := index . 0 -}}

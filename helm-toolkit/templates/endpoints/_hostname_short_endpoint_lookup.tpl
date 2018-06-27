@@ -14,11 +14,21 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-# This function returns hostnames from endpoint definitions for use cases
-# where the uri style return is not appropriate, and only the short hostname or
-# kubernetes servicename is used or relevant in the template:
-# { tuple "memcache" "internal" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }
-# returns: the short internal hostname, which will also match the service name
+{{/*
+abstract: |
+  Resolves the short hostname for an endpoint
+values: |
+  endpoints:
+    oslo_db:
+      hosts:
+        default: mariadb
+      host_fqdn_override:
+        default: null
+usage: |
+  {{ tuple "oslo_db" "internal" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
+return: |
+  mariadb
+*/}}
 
 {{- define "helm-toolkit.endpoints.hostname_short_endpoint_lookup" -}}
 {{- $type := index . 0 -}}

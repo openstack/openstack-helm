@@ -14,13 +14,34 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-# This function helps resolve database style endpoints:
-#
-# Presuming that .Values contains an endpoint: definition for 'neutron-db' with the
-# appropriate attributes, a call such as:
-# { tuple "neutron-db" "internal" "userClass" "portName" . | include "helm-toolkit.endpoints.authenticated_endpoint_uri_lookup" }
-# where portName is optional if a default port has been defined in .Values
-# returns: mysql+pymysql://username:password@internal_host:3306/dbname
+{{/*
+abstract: |
+  Resolves database, or basic auth, style endpoints
+values: |
+  endpoints:
+    cluster_domain_suffix: cluster.local
+    oslo_db:
+      auth:
+        admin:
+          username: root
+          password: password
+        service_username:
+          username: username
+          password: password
+      hosts:
+        default: mariadb
+      host_fqdn_override:
+        default: null
+      path: /dbname
+      scheme: mysql+pymysql
+      port:
+        mysql:
+          default: 3306
+usage: |
+  {{ tuple "oslo_db" "internal" "service_username" "mysql" . | include "helm-toolkit.endpoints.authenticated_endpoint_uri_lookup" }}
+return: |
+  mysql+pymysql://serviceuser:password@mariadb.default.svc.cluster.local:3306/dbname
+*/}}
 
 {{- define "helm-toolkit.endpoints.authenticated_endpoint_uri_lookup" -}}
 {{- $type := index . 0 -}}
