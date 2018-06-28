@@ -20,8 +20,9 @@ limitations under the License.
 {{- $backendServiceType := index . "backendServiceType" }}
 {{- $backendService := index . "backendService" | default "api" }}
 {{- $host := index $envAll.Values.endpoints ( $backendServiceType | replace "-" "_" ) "host_fqdn_override" }}
-{{- if $host.public }}
-{{- if $host.public.tls }}
+{{- if hasKey $host "public" }}
+{{- if kindIs "map" $host.public }}
+{{- if hasKey $host.public "tls" }}
 {{- if and $host.public.tls.key $host.public.tls.crt }}
 ---
 apiVersion: v1
@@ -34,6 +35,7 @@ data:
   tls.key: {{ $host.public.tls.key | b64enc }}
 {{- if $host.public.tls.ca }}
   ca.crt: {{ $host.public.tls.ca | b64enc }}
+{{- end }}
 {{- end }}
 {{- end }}
 {{- end }}

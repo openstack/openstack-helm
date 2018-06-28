@@ -68,13 +68,15 @@ metadata:
 {{ toYaml (index $envAll.Values.network $backendService "ingress" "annotations") | indent 4 }}
 spec:
 {{- $host := index $envAll.Values.endpoints ( $backendServiceType | replace "-" "_" ) "host_fqdn_override" }}
-{{- if $host.public }}
-{{- if $host.public.tls }}
+{{- if hasKey $host "public" }}
+{{- if kindIs "map" $host.public }}
+{{- if hasKey $host.public "tls" }}
 {{- if and $host.public.tls.key $host.public.tls.crt }}
   tls:
     - secretName: {{ index $envAll.Values.secrets "tls" ( $backendServiceType | replace "-" "_" ) $backendService "public" }}
       hosts:
         - {{ index $hostNameFullRules "vHost" }}
+{{- end }}
 {{- end }}
 {{- end }}
 {{- end }}
