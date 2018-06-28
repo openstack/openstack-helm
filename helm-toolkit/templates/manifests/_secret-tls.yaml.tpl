@@ -33,7 +33,7 @@ data:
   tls.crt: {{ $host.public.tls.crt | b64enc }}
   tls.key: {{ $host.public.tls.key | b64enc }}
 {{- if $host.public.tls.ca }}
-  tls.ca: {{ $host.public.tls.ca | b64enc }}
+  ca.crt: {{ $host.public.tls.ca | b64enc }}
 {{- end }}
 {{- end }}
 {{- end }}
