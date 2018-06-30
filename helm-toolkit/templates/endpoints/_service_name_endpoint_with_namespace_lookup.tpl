@@ -48,7 +48,6 @@ return: |
 {{- $typeYamlSafe := $type | replace "-" "_" }}
 {{- $endpointMap := index $context.Values.endpoints $typeYamlSafe }}
 {{- with $endpointMap -}}
-{{- $endpointScheme := .scheme }}
 {{- $endpointName := index .hosts $endpoint | default .hosts.default}}
 {{- $endpointNamespace := .namespace | default $context.Release.Namespace }}
 {{- if regexMatch "[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+" $endpointName }}

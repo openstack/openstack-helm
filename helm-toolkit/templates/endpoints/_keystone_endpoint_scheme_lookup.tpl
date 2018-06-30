@@ -47,10 +47,11 @@ return: |
 {{- $endpoint := index . 1 -}}
 {{- $port := index . 2 -}}
 {{- $context := index . 3 -}}
-{{- $typeYamlSafe := $type | replace "-" "_" }}
-{{- $endpointMap := index $context.Values.endpoints $typeYamlSafe }}
-{{- with $endpointMap -}}
-{{- $endpointScheme := index .scheme $endpoint | default .scheme.default | default "http" }}
+{{- $endpointMap := index $context.Values.endpoints ( $type | replace "-" "_" ) }}
+{{- if kindIs "string" $endpointMap.scheme }}
+{{- printf "%s" $endpointMap.scheme | default "http" -}}
+{{- else -}}
+{{- $endpointScheme := index $endpointMap.scheme $endpoint | default $endpointMap.scheme.default | default "http" }}
 {{- printf "%s" $endpointScheme -}}
 {{- end -}}
 {{- end -}}

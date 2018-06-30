@@ -41,27 +41,9 @@ return: |
 {{- $endpoint := index . 1 -}}
 {{- $port := index . 2 -}}
 {{- $context := index . 3 -}}
-{{- $typeYamlSafe := $type | replace "-" "_" }}
-{{- $clusterSuffix := printf "%s.%s" "svc" $context.Values.endpoints.cluster_domain_suffix }}
-{{- $endpointMap := index $context.Values.endpoints $typeYamlSafe }}
-{{- with $endpointMap -}}
-{{- $namespace := $endpointMap.namespace | default $context.Release.Namespace }}
-{{- $endpointScheme :=  index .scheme $endpoint | default .scheme.default }}
-{{- $endpointHost := index .hosts $endpoint | default .hosts.default }}
-{{- $endpointPortMAP := index .port $port }}
-{{- $endpointPort := index $endpointPortMAP $endpoint | default (index $endpointPortMAP "default") }}
-{{- $endpointPath := index .path $endpoint | default .path.default | default "/" }}
-{{- $endpointClusterHostname := printf "%s.%s.%s" $endpointHost $namespace $clusterSuffix }}
-{{- if regexMatch "[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+" $endpointHost }}
-{{- printf "%s://%s:%1.f%s" $endpointScheme $endpointHost $endpointPort $endpointPath -}}
-{{- else -}}
-{{- if kindIs "map" (index .host_fqdn_override $endpoint) }}
-{{- $endpointFqdnHostname := index .host_fqdn_override $endpoint "host" | default .host_fqdn_override.default | default $endpointClusterHostname }}
-{{- printf "%s://%s:%1.f%s" $endpointScheme $endpointFqdnHostname $endpointPort $endpointPath -}}
-{{- else }}
-{{- $endpointFqdnHostname := index .host_fqdn_override $endpoint | default .host_fqdn_override.default | default $endpointClusterHostname }}
-{{- printf "%s://%s:%1.f%s" $endpointScheme $endpointFqdnHostname $endpointPort $endpointPath -}}
-{{- end -}}
-{{- end -}}
-{{- end -}}
+{{- $endpointScheme := tuple $type $endpoint $port $context | include "helm-toolkit.endpoints.keystone_endpoint_scheme_lookup" }}
+{{- $endpointHost := tuple $type $endpoint $context | include "helm-toolkit.endpoints.endpoint_host_lookup" }}
+{{- $endpointPort := tuple $type $endpoint $port $context | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+{{- $endpointPath := tuple $type $endpoint $port $context | include "helm-toolkit.endpoints.keystone_endpoint_path_lookup" }}
+{{- printf "%s://%s:%s%s" $endpointScheme $endpointHost $endpointPort $endpointPath -}}
 {{- end -}}

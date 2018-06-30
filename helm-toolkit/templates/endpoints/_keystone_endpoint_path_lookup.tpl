@@ -40,10 +40,11 @@ return: |
 {{- $endpoint := index . 1 -}}
 {{- $port := index . 2 -}}
 {{- $context := index . 3 -}}
-{{- $typeYamlSafe := $type | replace "-" "_" }}
-{{- $endpointMap := index $context.Values.endpoints $typeYamlSafe }}
-{{- with $endpointMap -}}
-{{- $endpointPath := index .path $endpoint | default .path.default | default "/" }}
+{{- $endpointMap := index $context.Values.endpoints ( $type | replace "-" "_" ) }}
+{{- if kindIs "string" $endpointMap.path }}
+{{- printf "%s" $endpointMap.path | default "/" -}}
+{{- else -}}
+{{- $endpointPath := index $endpointMap.path $endpoint | default $endpointMap.path.default | default "/" }}
 {{- printf "%s" $endpointPath -}}
 {{- end -}}
 {{- end -}}

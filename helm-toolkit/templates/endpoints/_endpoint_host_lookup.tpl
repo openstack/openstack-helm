@@ -16,7 +16,8 @@ limitations under the License.
 
 {{/*
 abstract: |
-  Resolves 'hostname:port' for an endpoint
+  Resolves either the fully qualified hostname, of if defined in the host feild
+  IPv4 for an endpoint.
 values: |
   endpoints:
     cluster_domain_suffix: cluster.local
@@ -25,21 +26,24 @@ values: |
         default: mariadb
       host_fqdn_override:
         default: null
-      port:
-        mysql:
-          default: 3306
 usage: |
-  {{ tuple "oslo_db" "internal" "mysql" . | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" }}
+  {{ tuple "oslo_db" "internal" . | include "helm-toolkit.endpoints.endpoint_host_lookup" }}
 return: |
-  mariadb.default.svc.cluster.local:3306
+  mariadb.default.svc.cluster.local
 */}}
 
-{{- define "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" -}}
+{{- define "helm-toolkit.endpoints.endpoint_host_lookup" -}}
 {{- $type := index . 0 -}}
 {{- $endpoint := index . 1 -}}
-{{- $port := index . 2 -}}
-{{- $context := index . 3 -}}
-{{- $endpointPort := tuple $type $endpoint $port $context | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+{{- $context := index . 2 -}}
+{{- $endpointMap := index $context.Values.endpoints ( $type | replace "-" "_" ) }}
+{{- $endpointScheme := $endpointMap.scheme }}
+{{- $endpointHost := index $endpointMap.hosts $endpoint | default $endpointMap.hosts.default }}
+{{- if regexMatch "[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+" $endpointHost }}
+{{- $endpointHostname := printf "%s" $endpointHost }}
+{{- printf "%s" $endpointHostname -}}
+{{- else }}
 {{- $endpointHostname := tuple $type $endpoint $context | include "helm-toolkit.endpoints.hostname_fqdn_endpoint_lookup" }}
-{{- printf "%s:%s" $endpointHostname $endpointPort -}}
+{{- printf "%s" $endpointHostname -}}
+{{- end }}
 {{- end -}}

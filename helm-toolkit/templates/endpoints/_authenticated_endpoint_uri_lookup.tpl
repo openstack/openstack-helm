@@ -49,21 +49,12 @@ return: |
 {{- $userclass := index . 2 -}}
 {{- $port := index . 3 -}}
 {{- $context := index . 4 -}}
-{{- $typeYamlSafe := $type | replace "-" "_" }}
-{{- $endpointMap := index $context.Values.endpoints $typeYamlSafe }}
-{{- $userMap := index $endpointMap.auth $userclass }}
-{{- $clusterSuffix := printf "%s.%s" "svc" $context.Values.endpoints.cluster_domain_suffix }}
-{{- with $endpointMap -}}
-{{- $namespace := .namespace | default $context.Release.Namespace }}
-{{- $endpointScheme := .scheme }}
+{{- $endpointScheme := tuple $type $endpoint $port $context | include "helm-toolkit.endpoints.keystone_endpoint_scheme_lookup" }}
+{{- $userMap := index $context.Values.endpoints ( $type | replace "-" "_" ) "auth" $userclass }}
 {{- $endpointUser := index $userMap "username" }}
 {{- $endpointPass := index $userMap "password" }}
-{{- $endpointHost := index .hosts $endpoint | default .hosts.default}}
-{{- $endpointPortMAP := index .port $port }}
-{{- $endpointPort := index $endpointPortMAP $endpoint | default (index $endpointPortMAP "default") }}
-{{- $endpointPath := .path | default "" }}
-{{- $endpointClusterHostname := printf "%s.%s.%s" $endpointHost $namespace $clusterSuffix }}
-{{- $endpointHostname := index .host_fqdn_override $endpoint | default .host_fqdn_override.default | default $endpointClusterHostname }}
-{{- printf "%s://%s:%s@%s:%1.f%s" $endpointScheme $endpointUser $endpointPass $endpointHostname $endpointPort $endpointPath -}}
-{{- end -}}
+{{- $endpointHost := tuple $type $endpoint $context | include "helm-toolkit.endpoints.endpoint_host_lookup" }}
+{{- $endpointPort := tuple $type $endpoint $port $context | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+{{- $endpointPath := tuple $type $endpoint $port $context | include "helm-toolkit.endpoints.keystone_endpoint_path_lookup" }}
+{{- printf "%s://%s:%s@%s:%s%s" $endpointScheme $endpointUser $endpointPass $endpointHost $endpointPort $endpointPath -}}
 {{- end -}}
