@@ -40,7 +40,7 @@ Alternatively, this step can be performed by running the script directly:
   ./tools/deployment/developer/common/010-deploy-k8s.sh
 
 This command will deploy a single node KubeADM administered cluster. This will
-use the parameters in ``${OSH_INFRA_PATH}/tools/gate/playbooks/vars.yaml`` to control the
+use the parameters in ``${OSH_INFRA_PATH}/playbooks/vars.yaml`` to control the
 deployment, which can be over-ridden by adding entries to
 ``${OSH_INFRA_PATH}/tools/gate/devel/local-vars.yaml``.
 
