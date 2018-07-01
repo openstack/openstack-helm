@@ -34,16 +34,13 @@ return: |
 {{- $type := index . 0 -}}
 {{- $endpoint := index . 1 -}}
 {{- $context := index . 2 -}}
-{{- $typeYamlSafe := $type | replace "-" "_" }}
-{{- $endpointMap := index $context.Values.endpoints $typeYamlSafe }}
-{{- with $endpointMap -}}
-{{- $endpointScheme := .scheme }}
-{{- $endpointHost := index .hosts $endpoint | default .hosts.default}}
+{{- $endpointMap := index $context.Values.endpoints ( $type | replace "-" "_" ) }}
+{{- $endpointScheme := $endpointMap.scheme }}
+{{- $endpointHost := index $endpointMap.hosts $endpoint | default $endpointMap.hosts.default }}
 {{- if regexMatch "[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+" $endpointHost }}
-{{- printf "%s" $typeYamlSafe -}}
+{{- printf "%s" $type -}}
 {{- else }}
 {{- $endpointHostname := printf "%s" $endpointHost }}
 {{- printf "%s" $endpointHostname -}}
 {{- end }}
-{{- end -}}
 {{- end -}}

@@ -37,9 +37,7 @@ return: |
 {{- $context := index . 3 -}}
 {{- $typeYamlSafe := $type | replace "-" "_" }}
 {{- $endpointMap := index $context.Values.endpoints $typeYamlSafe }}
-{{- with $endpointMap -}}
-{{- $endpointPortMAP := index .port $port }}
-{{- $endpointPort := index $endpointPortMAP $endpoint | default (index $endpointPortMAP "default") }}
+{{- $endpointPortMAP := index $endpointMap.port $port }}
+{{- $endpointPort := index $endpointPortMAP $endpoint | default ( index $endpointPortMAP "default" ) }}
 {{- printf "%1.f" $endpointPort -}}
-{{- end -}}
 {{- end -}}

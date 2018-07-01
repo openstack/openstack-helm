@@ -30,8 +30,7 @@ return: |
 {{- define "helm-toolkit.endpoints.keystone_endpoint_name_lookup" -}}
 {{- $type := index . 0 -}}
 {{- $context := index . 1 -}}
-{{- $typeYamlSafe := $type | replace "-" "_" }}
-{{- $endpointMap := index $context.Values.endpoints $typeYamlSafe }}
+{{- $endpointMap := index $context.Values.endpoints ( $type | replace "-" "_" ) }}
 {{- $endpointName := index $endpointMap "name" }}
 {{- $endpointName | quote -}}
 {{- end -}}
