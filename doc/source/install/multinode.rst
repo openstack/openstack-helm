@@ -19,14 +19,23 @@ to track what can be done to improve our documentation.
 
 .. note::
   Please see the supported application versions outlined in the
-  `source variable file <https://github.com/openstack/openstack-helm-infra/blob/master/playbooks/vars.yaml>`_.
+  `source variable file <https://github.com/openstack/openstack-helm-infra/blob/master/roles/build-images/defaults/main.yml>`_.
 
 Other versions and considerations (such as other CNI SDN providers),
 config map data, and value overrides will be included in other
 documentation as we explore these options further.
 
 The installation procedures below, will take an administrator from a new
-``kubeadm`` installation to Openstack-Helm deployment.
+``kubeadm`` installation to OpenStack-Helm deployment.
+
+.. note:: Many of the default container images that are referenced across
+  OpenStack-Helm charts are not intended for production use; for example,
+  while LOCI and Kolla can be used to produce production-grade images, their
+  public reference images are not prod-grade.  In addition, some of the default
+  images use ``latest`` or ``master`` tags, which are moving targets and can
+  lead to unpredictable behavior.  For production-like deployments, we
+  recommend building custom images, or at minimum caching a set of known
+  images, and incorporating them into OpenStack-Helm via values overrides.
 
 .. warning:: Until the Ubuntu kernel shipped with 16.04 supports CephFS
    subvolume mounts by default the `HWE Kernel
@@ -43,7 +52,7 @@ using KubeADM and Ansible.
 OpenStack-Helm Infra KubeADM deployment
 ---------------------------------------
 
-On the worker nodes
+On the worker nodes:
 
 .. code-block:: shell
 
@@ -143,6 +152,12 @@ On the master node create an environment file for the cluster:
     kubernetes_network_default_device: $(net_default_iface)
     EOF
 
+Additional configuration variables can be found `here
+<https://github.com/openstack/openstack-helm-infra/blob/master/roles/deploy-kubeadm-aio-common/defaults/main.yml>`_.
+In particular, ``kubernetes_cluster_pod_subnet`` can be used to override the
+pod subnet set up by Calico (the default container SDN), if you have a
+preexisting network that conflicts with the default pod subnet of 192.168.0.0/16.
+
 .. note::
   This installation, by default will use Google DNS servers, 8.8.8.8 or 8.8.4.4
   and updates resolv.conf. These DNS nameserver entries can be changed by
@@ -205,6 +220,23 @@ Alternatively, this step can be performed by running the script directly:
 
 Deploy Ceph
 -----------
+
+The script below configures Ceph to use filesystem directory-based storage.
+To configure a custom block device-based backend, please refer
+to the ``ceph-osd`` `values.yaml <https://github.com/openstack/openstack-helm/blob/master/ceph-osd/values.yaml>`_.
+
+Additional information on Kubernetes Ceph-based integration can be found in
+the documentation for the
+`CephFS <https://github.com/kubernetes-incubator/external-storage/blob/master/ceph/cephfs/README.md>`_
+and `RBD <https://github.com/kubernetes-incubator/external-storage/blob/master/ceph/rbd/README.md>`_
+storage provisioners, as well as for the alternative
+`NFS <https://github.com/kubernetes-incubator/external-storage/blob/master/nfs/README.md>`_ provisioner.
+
+.. warning:: The upstream Ceph image repository does not currently pin tags to
+  specific Ceph point releases.  This can lead to unpredictable results
+  in long-lived deployments.  In production scenarios, we strongly recommend
+  overriding the Ceph images to use either custom built images or controlled,
+  cached images.
 
 .. note::
   The `./tools/deployment/multinode/kube-node-subnet.sh` script requires docker
@@ -388,3 +420,14 @@ Alternatively, this step can be performed by running the script directly:
 .. code-block:: shell
 
   ./tools/deployment/multinode/160-barbican.sh
+
+Configure OpenStack
+-------------------
+
+Configuring OpenStack for a particular production use-case is beyond the scope
+of this guide. Please refer to the
+OpenStack `Configuration <https://docs.openstack.org/queens/configuration/>`_
+documentation for your selected version of OpenStack to determine
+what additional values overrides should be
+provided to the OpenStack-Helm charts to ensure appropriate networking,
+security, etc. is in place.
