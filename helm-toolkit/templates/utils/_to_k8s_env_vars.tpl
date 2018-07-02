@@ -14,6 +14,20 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{/*
+abstract: |
+  Returns key value pair formatted to be used in k8s templates as container
+  env vars.
+values: |
+  test:
+    foo: bar
+usage: |
+  {{ include "helm-toolkit.utils.to_k8s_env_vars" .Values.test }}
+return: |
+  - name: foo
+    value: "bar"
+*/}}
+
 {{- define "helm-toolkit.utils.to_k8s_env_vars" -}}
 {{range $key, $value := . -}}
 {{- if kindIs "slice" $value -}}

@@ -15,26 +15,26 @@ limitations under the License.
 */}}
 
 {{/*
-This function renders out configuration sections into a format suitable for
-incorporation into a config-map. This allows various forms of input to be
-rendered out as appropriate, as illustrated in the following example:
-
-With the input:
-
+abstract: |
+  Renders out configuration sections into a format suitable for incorporation
+  into a config-map. Allowing various forms of input to be rendered out as
+  appropriate.
+values: |
   conf:
+    inputs:
+      - foo
+      - bar
     some:
       config_to_render: |
         #We can use all of gotpl here: eg macros, ranges etc.
-        Listen 0.0.0.0:{{ tuple "dashboard" "internal" "web" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+        {{ include "helm-toolkit.utils.joinListWithComma" .Values.conf.inputs }}
       config_to_complete:
         #here we can fill out params, but things need to be valid yaml as input
         '{{ .Release.Name }}': '{{ printf "%s-%s" .Release.Namespace "namespace" }}'
       static_config:
         #this is just passed though as yaml to the configmap
         foo: bar
-
-And the template:
-
+usage: |
   {{- $envAll := . }}
   ---
   apiVersion: v1
@@ -45,9 +45,8 @@ And the template:
   {{- include "helm-toolkit.snippets.values_template_renderer" (dict "envAll" $envAll "template" .Values.conf.some.config_to_render "key" "config_to_render.conf") | indent 2 }}
   {{- include "helm-toolkit.snippets.values_template_renderer" (dict "envAll" $envAll "template" .Values.conf.some.config_to_complete "key" "config_to_complete.yaml") | indent 2 }}
   {{- include "helm-toolkit.snippets.values_template_renderer" (dict "envAll" $envAll "template" .Values.conf.some.static_config "key" "static_config.yaml") | indent 2 }}
-
-The rendered output will match:
-
+return: |
+  ---
   apiVersion: v1
   kind: ConfigMap
   metadata:
@@ -55,14 +54,13 @@ The rendered output will match:
   data:
     config_to_render.conf: |
       #We can use all of gotpl here: eg macros, ranges etc.
-      Listen 0.0.0.0:80
+      foo,bar
 
     config_to_complete.yaml: |
       'RELEASE-NAME': 'default-namespace'
 
     static_config.yaml: |
       foo: bar
-
 */}}
 
 {{- define "helm-toolkit.snippets.values_template_renderer" -}}

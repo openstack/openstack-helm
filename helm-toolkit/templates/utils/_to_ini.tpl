@@ -14,6 +14,29 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{/*
+abstract: |
+  Returns INI formatted output from yaml input
+values: |
+  conf:
+    paste:
+      filter:debug:
+        use: egg:oslo.middleware#debug
+      filter:request_id:
+        use: egg:oslo.middleware#request_id
+      filter:build_auth_context:
+        use: egg:keystone#build_auth_context
+usage: |
+  {{ include "helm-toolkit.utils.to_ini" .Values.conf.paste }}
+return: |
+  [filter:build_auth_context]
+  use = egg:keystone#build_auth_context
+  [filter:debug]
+  use = egg:oslo.middleware#debug
+  [filter:request_id]
+  use = egg:oslo.middleware#request_id
+*/}}
+
 {{- define "helm-toolkit.utils.to_ini" -}}
 {{- range $section, $values := . -}}
 {{- if kindIs "map" $values -}}

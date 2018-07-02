@@ -14,6 +14,19 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{/*
+abstract: |
+  Joins a list of values into a comma seperated string
+values: |
+  test:
+    - foo
+    - bar
+usage: |
+  {{ include "helm-toolkit.utils.joinListWithComma" .Values.test }}
+return: |
+  foo,bar
+*/}}
+
 {{- define "helm-toolkit.utils.joinListWithComma" -}}
 {{- $local := dict "first" true -}}
 {{- range $k, $v := . -}}{{- if not $local.first -}},{{- end -}}{{- $v -}}{{- $_ := set $local "first" false -}}{{- end -}}

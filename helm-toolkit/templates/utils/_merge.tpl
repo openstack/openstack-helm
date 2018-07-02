@@ -28,6 +28,7 @@ to the target key. Slices are merged by appending them and removing any
 duplicates. Any other values are merged by simply keeping the source, and
 throwing away the target.
 */}}
+
 {{- define "helm-toolkit.utils.merge" -}}
   {{- $local := dict -}}
   {{- if kindIs "map" $ -}}

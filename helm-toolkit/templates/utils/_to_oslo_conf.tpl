@@ -14,6 +14,37 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{/*
+abstract: |
+  Returns OSLO.conf formatted output from yaml input
+values: |
+  conf:
+    keystone:
+      DEFAULT: # Keys at this level are used for section headings
+        max_token_size: 255
+      oslo_messaging_notifications:
+        driver: # An example of a multistring option's syntax
+          type: multistring
+          values:
+            - messagingv2
+            - log
+      security_compliance:
+        password_expires_ignore_user_ids:
+        # Values in a list will be converted to a comma separated key
+          - "123"
+          - "456"
+usage: |
+  {{ include "helm-toolkit.utils.to_oslo_conf" .Values.conf.keystone }}
+return: |
+  [DEFAULT]
+  max_token_size = 255
+  [oslo_messaging_notifications]
+  driver = messagingv2
+  driver = log
+  [security_compliance]
+  password_expires_ignore_user_ids = 123,456
+*/}}
+
 {{- define "helm-toolkit.utils.to_oslo_conf" -}}
 {{- range $section, $values := . -}}
 {{- if kindIs "map" $values -}}
