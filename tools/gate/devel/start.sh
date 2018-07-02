@@ -32,7 +32,8 @@ function ansible_install {
       libssl-dev \
       python-dev \
       build-essential \
-      jq
+      jq \
+      curl
   elif [ "x$ID" == "xcentos" ]; then
     sudo yum install -y \
       epel-release
