@@ -161,7 +161,7 @@ preexisting network that conflicts with the default pod subnet of 192.168.0.0/16
 .. note::
   This installation, by default will use Google DNS servers, 8.8.8.8 or 8.8.4.4
   and updates resolv.conf. These DNS nameserver entries can be changed by
-  updating file ``/openstack-helm-infra/tools/images/kubeadm-aio/assets/opt/playbooks/vars.yaml``
+  updating file ``/opt/openstack-helm-infra/tools/images/kubeadm-aio/assets/opt/playbooks/vars.yaml``
   under section ``external_dns_nameservers``. This change must be done on each
   node in your cluster.
 
