@@ -103,9 +103,101 @@ dependencies:
           service: elasticsearch
 
 conf:
-  apache:
-    httpd: null
-    kibana_host: null
+  httpd: |
+    ServerRoot "/usr/local/apache2"
+
+    Listen 80
+
+    LoadModule mpm_event_module modules/mod_mpm_event.so
+    LoadModule authn_file_module modules/mod_authn_file.so
+    LoadModule authn_core_module modules/mod_authn_core.so
+    LoadModule authz_host_module modules/mod_authz_host.so
+    LoadModule authz_groupfile_module modules/mod_authz_groupfile.so
+    LoadModule authz_user_module modules/mod_authz_user.so
+    LoadModule authz_core_module modules/mod_authz_core.so
+    LoadModule access_compat_module modules/mod_access_compat.so
+    LoadModule auth_basic_module modules/mod_auth_basic.so
+    LoadModule ldap_module modules/mod_ldap.so
+    LoadModule authnz_ldap_module modules/mod_authnz_ldap.so
+    LoadModule reqtimeout_module modules/mod_reqtimeout.so
+    LoadModule filter_module modules/mod_filter.so
+    LoadModule proxy_html_module modules/mod_proxy_html.so
+    LoadModule log_config_module modules/mod_log_config.so
+    LoadModule env_module modules/mod_env.so
+    LoadModule headers_module modules/mod_headers.so
+    LoadModule setenvif_module modules/mod_setenvif.so
+    LoadModule version_module modules/mod_version.so
+    LoadModule proxy_module modules/mod_proxy.so
+    LoadModule proxy_connect_module modules/mod_proxy_connect.so
+    LoadModule proxy_http_module modules/mod_proxy_http.so
+    LoadModule proxy_balancer_module modules/mod_proxy_balancer.so
+    LoadModule slotmem_shm_module modules/mod_slotmem_shm.so
+    LoadModule slotmem_plain_module modules/mod_slotmem_plain.so
+    LoadModule unixd_module modules/mod_unixd.so
+    LoadModule status_module modules/mod_status.so
+    LoadModule autoindex_module modules/mod_autoindex.so
+
+    <IfModule unixd_module>
+    User daemon
+    Group daemon
+    </IfModule>
+
+    <Directory />
+        AllowOverride none
+        Require all denied
+    </Directory>
+
+    <Files ".ht*">
+        Require all denied
+    </Files>
+
+    ErrorLog /dev/stderr
+
+    LogLevel warn
+
+    <IfModule log_config_module>
+        LogFormat "%h %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\"" combined
+        LogFormat "%h %l %u %t \"%r\" %>s %b" common
+
+        <IfModule logio_module>
+          LogFormat "%h %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\" %I %O" combinedio
+        </IfModule>
+
+        CustomLog /dev/stdout common
+
+        CustomLog /dev/stdout combined
+    </IfModule>
+
+    <Directory "/usr/local/apache2/cgi-bin">
+        AllowOverride None
+        Options None
+        Require all granted
+    </Directory>
+
+    <IfModule headers_module>
+        RequestHeader unset Proxy early
+    </IfModule>
+
+    <IfModule proxy_html_module>
+    Include conf/extra/proxy-html.conf
+    </IfModule>
+
+    <VirtualHost *:80>
+      <Location />
+          ProxyPass http://localhost:{{ tuple "kibana" "internal" "kibana" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}/
+          ProxyPassReverse http://localhost:{{ tuple "kibana" "internal" "kibana" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}/
+      </Location>
+      <Proxy *>
+          AuthName "Kibana"
+          AuthType Basic
+          AuthBasicProvider file ldap
+          AuthUserFile /usr/local/apache2/conf/.htpasswd
+          AuthLDAPBindDN {{ .Values.endpoints.ldap.auth.admin.bind }}
+          AuthLDAPBindPassword {{ .Values.endpoints.ldap.auth.admin.password }}
+          AuthLDAPURL {{ tuple "ldap" "default" "ldap" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" | quote }}
+          Require valid-user
+      </Proxy>
+    </VirtualHost>
   kibana:
     elasticsearch:
       pingTimeout: 1500

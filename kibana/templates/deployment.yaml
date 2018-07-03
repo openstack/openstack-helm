@@ -65,30 +65,16 @@ spec:
             initialDelaySeconds: 20
             periodSeconds: 10
           env:
-            - name: KIBANA_PORT
-              value: {{ tuple "kibana" "internal" "kibana" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | quote }}
-            - name: KIBANA_USERNAME
+            - name: ELASTICSEARCH_USERNAME
               valueFrom:
                 secretKeyRef:
                   name: {{ $esUserSecret }}
                   key: ELASTICSEARCH_USERNAME
-            - name: KIBANA_PASSWORD
+            - name: ELASTICSEARCH_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: {{ $esUserSecret }}
                   key: ELASTICSEARCH_PASSWORD
-            - name: LDAP_URL
-              value: {{ tuple "ldap" "default" "ldap" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" | quote }}
-            - name: BIND_DN
-              valueFrom:
-                secretKeyRef:
-                  name: {{ $esUserSecret }}
-                  key: BIND_DN
-            - name: BIND_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: {{ $esUserSecret }}
-                  key: BIND_PASSWORD
           volumeMounts:
             - name: kibana-bin
               mountPath: /tmp/apache.sh
@@ -97,12 +83,6 @@ spec:
             - name: kibana-etc
               mountPath: /usr/local/apache2/conf/httpd.conf
               subPath: httpd.conf
-              readOnly: true
-            - name: pod-etc-apache
-              mountPath: /usr/local/apache2/conf/sites-enabled
-            - name: kibana-etc
-              mountPath: /usr/local/apache2/conf/sites-enabled/kibana-host.conf
-              subPath: kibana-host.conf
               readOnly: true
         - name: kibana
 {{ tuple $envAll "kibana" | include "helm-toolkit.snippets.image" | indent 10 }}

@@ -98,10 +98,6 @@ spec:
             initialDelaySeconds: 20
             periodSeconds: 10
           env:
-            - name: NAGIOS_PORT
-              value: {{ tuple "nagios" "internal" "nagios" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | quote }}
-            - name: LDAP_URL
-              value: {{ tuple "ldap" "default" "ldap" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" | quote }}
             - name: NAGIOSADMIN_USER
               valueFrom:
                 secretKeyRef:
@@ -112,16 +108,6 @@ spec:
                 secretKeyRef:
                   name: {{ $nagiosUserSecret }}
                   key: NAGIOSADMIN_PASS
-            - name: BIND_DN
-              valueFrom:
-                secretKeyRef:
-                  name: {{ $nagiosUserSecret }}
-                  key: BIND_DN
-            - name: BIND_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: {{ $nagiosUserSecret }}
-                  key: BIND_PASSWORD
           volumeMounts:
             - name: nagios-bin
               mountPath: /tmp/apache.sh
@@ -130,12 +116,6 @@ spec:
             - name: nagios-etc
               mountPath: /usr/local/apache2/conf/httpd.conf
               subPath: httpd.conf
-              readOnly: true
-            - name: pod-etc-apache
-              mountPath: /usr/local/apache2/conf/sites-enabled
-            - name: nagios-etc
-              mountPath: /usr/local/apache2/conf/sites-enabled/nagios-host.conf
-              subPath: nagios-host.conf
               readOnly: true
         - name: nagios
 {{ tuple $envAll "nagios" | include "helm-toolkit.snippets.image" | indent 10 }}

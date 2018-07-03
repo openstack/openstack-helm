@@ -30,9 +30,9 @@ function start () {
   rm -f /etc/httpd/logs/httpd.pid
 
   if [ -f /usr/local/apache2/conf/.htpasswd ]; then
-    htpasswd -b /usr/local/apache2/conf/.htpasswd $NAGIOSADMIN_USER $NAGIOSADMIN_PASS
+    htpasswd -b /usr/local/apache2/conf/.htpasswd "$NAGIOSADMIN_USER" "$NAGIOSADMIN_PASS"
   else
-    htpasswd -cb /usr/local/apache2/conf/.htpasswd $NAGIOSADMIN_USER $NAGIOSADMIN_PASS
+    htpasswd -cb /usr/local/apache2/conf/.htpasswd "$NAGIOSADMIN_USER" "$NAGIOSADMIN_PASS"
   fi
 
   #Launch Apache on Foreground

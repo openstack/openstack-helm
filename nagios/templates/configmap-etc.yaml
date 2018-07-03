@@ -22,10 +22,6 @@ kind: ConfigMap
 metadata:
   name: nagios-etc
 data:
-  httpd.conf: |
-{{- tuple .Values.conf.apache.httpd "etc/_httpd.conf.tpl" . | include "helm-toolkit.utils.configmap_templater" }}
-  nagios-host.conf: |
-{{- tuple .Values.conf.apache.host "etc/_nagios-host.conf.tpl" . | include "helm-toolkit.utils.configmap_templater" }}
   cgi.cfg: |+
 {{ include "nagios.utils.to_nagios_conf" .Values.conf.nagios.cgi | indent 4 }}
   nagios.cfg: |+
@@ -37,4 +33,6 @@ data:
 {{- tuple "hostgroup" .Values.conf.nagios.host_groups | include "nagios.utils.object_definition" | indent 4 }}
 {{- tuple "command" .Values.conf.nagios.commands | include "nagios.utils.object_definition" | indent 4 }}
 {{- tuple "service" .Values.conf.nagios.services | include "nagios.utils.object_definition" | indent 4 }}
+#NOTE(portdirect): this must be last, to work round helm ~2.7 bug.
+{{- include "helm-toolkit.snippets.values_template_renderer" (dict "envAll" $envAll "template" .Values.conf.httpd "key" "httpd.conf") | indent 2 }}
 {{- end }}
