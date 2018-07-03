@@ -129,8 +129,6 @@ spec:
             - name: nagios
               containerPort: {{ tuple "nagios" "internal" "nagios" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
           env:
-            - name: PROMETHEUS_SERVICE
-              value: {{ tuple "monitoring" "internal" "admin" "http" . | include "helm-toolkit.endpoints.authenticated_endpoint_uri_lookup" }}
             - name: SNMP_NOTIF_PRIMARY_TARGET_WITH_PORT
               value: {{ $envAll.Values.conf.nagios.notification.snmp.primary_target }}
             - name: SNMP_NOTIF_SECONDARY_TARGET_WITH_PORT
@@ -139,6 +137,16 @@ spec:
               value: {{ $envAll.Values.conf.nagios.notification.http.primary_target }}
             - name: REST_NOTIF_SECONDARY_TARGET_URL
               value: {{ $envAll.Values.conf.nagios.notification.http.secondary_target }}
+            - name: PROMETHEUS_SERVICE
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $nagiosUserSecret }}
+                  key: PROMETHEUS_SERVICE
+            - name: ELASTICSEARCH_SERVICE
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $nagiosUserSecret }}
+                  key: ELASTICSEARCH_SERVICE
             - name: NAGIOSADMIN_USER
               valueFrom:
                 secretKeyRef:
