@@ -29,6 +29,7 @@ function run_rally () {
   rally task start /tasks/rally/${CURRENT_TEST}.yaml
   rally task list
   rally task report --out /var/lib/rally/data/${CURRENT_TEST}.html
+  rally task sla-check
 
 }
 
