@@ -24,8 +24,8 @@ RUN set -ex ;\
       "Development Tools" ;\
     yum clean all ;\
     rm -rf /var/cache/yum ;\
-    curl https://bootstrap.pypa.io/get-pip.py -o /tmpget-pip.py ;\
-    python /tmpget-pip.py ;\
+    curl https://bootstrap.pypa.io/get-pip.py -o /tmp/get-pip.py ;\
+    python /tmp/get-pip.py ;\
     rm -f /tmp/get-pip.py ;\
     TMP_DIR=$(mktemp -d) ;\
     git clone https://github.com/openstack/virtualbmc ${TMP_DIR} ;\
