@@ -64,6 +64,10 @@ spec:
               secretKeyRef:
                 name: {{ index $envAll.Values.secrets.oslo_messaging $serviceName }}
                 key: RABBITMQ_CONNECTION
+{{- if $envAll.Values.conf.rabbitmq }}
+          - name: RABBITMQ_AUXILIARY_CONFIGURATION
+            value: {{ toJson $envAll.Values.conf.rabbitmq | quote }}
+{{- end }}
       volumes:
         - name: rabbit-init-sh
           configMap:

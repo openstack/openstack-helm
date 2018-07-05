@@ -75,4 +75,12 @@ rabbitmqadmin_cli \
   configure=".*" \
   write=".*" \
   read=".*"
+
+if [ ! -z "$RABBITMQ_AUXILIARY_CONFIGURATION" ]
+then
+  echo "Applying additional configuration"
+  echo "${RABBITMQ_AUXILIARY_CONFIGURATION}" > /tmp/rmq_definitions.json
+  rabbitmqadmin_cli import /tmp/rmq_definitions.json
+fi
+
 {{- end }}
