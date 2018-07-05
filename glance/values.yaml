@@ -360,6 +360,20 @@ conf:
     project_domain_name = {{ .Values.endpoints.identity.auth.glance.project_domain_name }}
     auth_version = 3
     {{- end -}}
+  rabbitmq:
+    #NOTE(rk760n): adding rmq policy to mirror messages from notification queues and set expiration time for the ones
+    policies:
+      - vhost: "glance"
+        name: "ha_ttl_glance"
+        definition:
+          #mirror messges to other nodes in rmq cluster
+          ha-mode: "all"
+          ha-sync-mode: "automatic"
+          #70s
+          message-ttl: 70000
+        priority: 0
+        apply-to: all
+        pattern: '(notifications)\.'
 
 network:
   api:
