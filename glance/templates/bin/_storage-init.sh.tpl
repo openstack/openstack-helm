@@ -35,7 +35,7 @@ elif [ "x$STORAGE_BACKEND" == "xswift" ]; then
   OS_PROJECT_ID="$(openstack project show service -f value -c id)"
   OS_SWIFT_ENDPOINT_PREFIX="$(openstack endpoint list --service swift --interface ${OS_INTERFACE} -f value -c URL | awk -F '$' '{ print $1 }')"
   OS_SWIFT_SCOPED_ENDPOINT="${OS_SWIFT_ENDPOINT_PREFIX}${OS_PROJECT_ID}"
-  curl -i -X POST "${OS_SWIFT_SCOPED_ENDPOINT}" \
+  curl --fail -i -X POST "${OS_SWIFT_SCOPED_ENDPOINT}" \
     -H "X-Auth-Token: ${OS_TOKEN}" \
     -H "X-Account-Meta-Temp-URL-Key: ${SWIFT_TMPURL_KEY}"
 elif [ "x$STORAGE_BACKEND" == "xrbd" ]; then
