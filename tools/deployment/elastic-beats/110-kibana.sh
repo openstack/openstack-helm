@@ -1,0 +1,1 @@
+../osh-infra-logging/070-kibana.sh

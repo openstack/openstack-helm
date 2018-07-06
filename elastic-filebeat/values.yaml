@@ -1,0 +1,216 @@
+# Copyright 2017 The Openstack-Helm Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the 'License');
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an 'AS IS' BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Default values for filebeat
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+release_group: null
+
+labels:
+  filebeat:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  job:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+
+images:
+  tags:
+    filebeat: docker.elastic.co/beats/filebeat:6.2.3
+    dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.3.1
+    image_repo_sync: docker.io/docker:17.07.0
+  pull_policy: IfNotPresent
+  local_registry:
+    active: false
+    exclude:
+      - dep_check
+      - image_repo_sync
+
+secrets:
+  elasticsearch:
+    user: filebeat-elasticsearch-user
+
+dependencies:
+  dynamic:
+    common:
+      local_image_registry:
+        jobs:
+          - filebeat-image-repo-sync
+        services:
+          - endpoint: node
+            service: local_image_registry
+  static:
+    filebeat:
+      services: null
+    image_repo_sync:
+      services:
+        - endpoint: internal
+          service: local_image_registry
+
+conf:
+  setup:
+    dashboards:
+      enabled: true
+  path:
+    logs: /var/log/
+  output:
+    elasticsearch:
+      hosts: ["${ELASTICSEARCH_HOST}:${ELASTICSEARCH_PORT}"]
+      username: "${ELASTICSEARCH_USERNAME}"
+      password: "${ELASTICSEARCH_PASSWORD}"
+  filebeat:
+    config:
+      prospectors:
+        path: ${path.config}/prospectors.d/*.yml
+        reload:
+          enabled: false
+      modules:
+        path: ${path.config}/modules.d/*.yml
+        reload:
+          enabled: false
+    autodiscover:
+      providers:
+        - type: kubernetes
+          templates:
+            - condition:
+                equals:
+                  kubernetes.namespace: kube-system
+              config:
+                - type: docker
+                  containers.ids:
+                    - "${data.kubernetes.container.id}"
+                  exclude_lines: ["^\\s+[\\-`('.|_]"]
+        - type: kubernetes
+          templates:
+            - condition:
+                equals:
+                  kubernetes.namespace: ceph
+              config:
+                - type: docker
+                  containers.ids:
+                    - "${data.kubernetes.container.id}"
+                  exclude_lines: ["^\\s+[\\-`('.|_]"]
+        - type: kubernetes
+          templates:
+            - condition:
+                equals:
+                  kubernetes.namespace: openstack
+              config:
+                - type: docker
+                  containers.ids:
+                    - "${data.kubernetes.container.id}"
+                  exclude_lines: ["^\\s+[\\-`('.|_]"]
+    prospectors:
+      - type: docker
+        containers.ids:
+          - "*"
+        multiline:
+          pattern: '^Traceback'
+          match: after
+          negate: true
+    processors:
+      - add_kubernetes_metadata:
+          in_cluster: true
+      - drop_event:
+          when:
+            equals:
+              kubernetes:
+                container:
+                  name: "filebeat"
+
+endpoints:
+  cluster_domain_suffix: cluster.local
+  local_image_registry:
+    name: docker-registry
+    namespace: docker-registry
+    hosts:
+      default: localhost
+      internal: docker-registry
+      node: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        node: 5000
+  elasticsearch:
+    namespace: null
+    name: elasticsearch
+    auth:
+      admin:
+        username: admin
+        password: changeme
+    hosts:
+      data: elasticsearch-data
+      default: elasticsearch-logging
+      discovery: elasticsearch-discovery
+      public: elasticsearch
+    host_fqdn_override:
+      default: null
+    path:
+      default: null
+    scheme:
+      default: http
+    port:
+      http:
+        default: 80
+  filebeat:
+    namespace: null
+    name: filebeat
+    hosts:
+      default: filebeat
+    host_fqdn_override:
+      default: null
+    path:
+      default: null
+    scheme:
+      default: http
+    port:
+      service:
+        default: 5066
+
+pod:
+  affinity:
+    anti:
+      type:
+        default: preferredDuringSchedulingIgnoredDuringExecution
+      topologyKey:
+        default: kubernetes.io/hostname
+  lifecycle:
+    upgrades:
+      daemonsets:
+        pod_replacement_strategy: RollingUpdate
+        filebeat:
+          enabled: true
+          min_ready_seconds: 0
+          max_unavailable: 1
+  resources:
+    filebeat:
+      enabled: false
+      limits:
+        memory: '400Mi'
+        cpu: '400m'
+      requests:
+        memory: '100Mi'
+        cpu: '100m'
+  mounts:
+    filebeat:
+      filebeat:
+
+manifests:
+  configmap_bin: true
+  configmap_etc: true
+  daemonset: true
+  job_image_repo_sync: true
+  secret_elasticsearch: true

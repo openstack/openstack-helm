@@ -1,0 +1,166 @@
+# Copyright 2017 The Openstack-Helm Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the 'License');
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an 'AS IS' BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Default values for elastic-apm-server
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+release_group: null
+
+labels:
+  elastic_apm_server:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  job:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+
+images:
+  tags:
+    elastic_apm_server: docker.elastic.co/apm/apm-server:6.2.3
+    dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.3.1
+    image_repo_sync: docker.io/docker:17.07.0
+  pull_policy: IfNotPresent
+  local_registry:
+    active: false
+    exclude:
+      - dep_check
+      - image_repo_sync
+
+secrets:
+  elasticsearch:
+    user: elastic-apm-server-elasticsearch-user
+
+dependencies:
+  dynamic:
+    common:
+      local_image_registry:
+        jobs:
+          - elastic-apm-server-image-repo-sync
+        services:
+          - endpoint: node
+            service: local_image_registry
+  static:
+    elastic_apm_server:
+      services: null
+    image_repo_sync:
+      services:
+        - endpoint: internal
+          service: local_image_registry
+
+conf:
+  apm_server:
+    setup:
+      dashboards:
+        enabled: true
+    host: ['${APM_SERVER_HOST}:${APM_SERVER_PORT}']
+    output:
+      elasticsearch:
+        hosts: ["${ELASTICSEARCH_HOST}:${ELASTICSEARCH_PORT}"]
+        username: "${ELASTICSEARCH_USERNAME}"
+        password: "${ELASTICSEARCH_PASSWORD}"
+
+endpoints:
+  cluster_domain_suffix: cluster.local
+  local_image_registry:
+    name: docker-registry
+    namespace: docker-registry
+    hosts:
+      default: localhost
+      internal: docker-registry
+      node: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        node: 5000
+  elasticsearch:
+    namespace: null
+    name: elasticsearch
+    auth:
+      admin:
+        username: admin
+        password: changeme
+    hosts:
+      data: elasticsearch-data
+      default: elasticsearch-logging
+      discovery: elasticsearch-discovery
+      public: elasticsearch
+    host_fqdn_override:
+      default: null
+    path:
+      default: null
+    scheme:
+      default: http
+    port:
+      http:
+        default: 80
+  elastic_apm_server:
+    namespace: null
+    name: apm-server
+    hosts:
+      default: apm-server
+    host_fqdn_override:
+      default: null
+    path:
+      default: null
+    scheme:
+      default: http
+    port:
+      server:
+        default: 8200
+
+pod:
+  affinity:
+    anti:
+      type:
+        default: preferredDuringSchedulingIgnoredDuringExecution
+      topologyKey:
+        default: kubernetes.io/hostname
+  lifecycle:
+    upgrades:
+      daemonsets:
+        pod_replacement_strategy: RollingUpdate
+        elastic_apm_server:
+          enabled: true
+          min_ready_seconds: 0
+          max_unavailable: 1
+  replicas:
+    elastic_apm_server: 1
+  resources:
+    elastic_apm_server:
+      enabled: false
+      limits:
+        memory: '400Mi'
+        cpu: '400m'
+      requests:
+        memory: '100Mi'
+        cpu: '100m'
+  mounts:
+    elastic_apm_server:
+      elastic_apm_server:
+
+network:
+  elastic_apm_server:
+    node_port:
+      enabled: false
+      port: 30200
+
+manifests:
+  configmap_bin: true
+  configmap_etc: true
+  deployment: true
+  service: true
+  job_image_repo_sync: true
+  secret_elasticsearch: true

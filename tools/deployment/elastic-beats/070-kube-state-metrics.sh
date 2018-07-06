@@ -1,0 +1,1 @@
+../common/070-kube-state-metrics.sh
