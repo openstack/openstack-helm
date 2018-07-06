@@ -1,0 +1,234 @@
+# Copyright 2017 The Openstack-Helm Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Default values for ceph-client.
+# This is a YAML-formatted file.
+# Declare name/value pairs to be passed into your templates.
+# name: value
+
+deployment:
+  ceph: true
+  client_secrets: false
+  rbd_provisioner: true
+  cephfs_provisioner: true
+
+release_group: null
+
+images:
+  pull_policy: IfNotPresent
+  tags:
+    ceph_bootstrap: 'docker.io/ceph/daemon:tag-build-master-luminous-ubuntu-16.04'
+    ceph_cephfs_provisioner: 'quay.io/external_storage/cephfs-provisioner:v0.1.1'
+    ceph_config_helper: 'docker.io/port/ceph-config-helper:v1.10.3'
+    ceph_rbd_provisioner: 'quay.io/external_storage/rbd-provisioner:v0.1.1'
+    dep_check: 'quay.io/stackanetes/kubernetes-entrypoint:v0.3.1'
+    image_repo_sync: docker.io/docker:17.07.0
+  local_registry:
+    active: false
+    exclude:
+      - dep_check
+      - image_repo_sync
+
+labels:
+  job:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  provisioner:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+
+pod:
+  dns_policy: "ClusterFirstWithHostNet"
+  replicas:
+    cephfs_provisioner: 2
+    rbd_provisioner: 2
+  affinity:
+    anti:
+      type:
+        default: preferredDuringSchedulingIgnoredDuringExecution
+      topologyKey:
+        default: kubernetes.io/hostname
+  resources:
+    enabled: false
+    rbd_provisioner:
+      requests:
+        memory: "5Mi"
+        cpu: "250m"
+      limits:
+        memory: "50Mi"
+        cpu: "500m"
+    cephfs_provisioner:
+      requests:
+        memory: "5Mi"
+        cpu: "250m"
+      limits:
+        memory: "50Mi"
+        cpu: "500m"
+    jobs:
+      bootstrap:
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+        requests:
+          memory: "128Mi"
+          cpu: "500m"
+      image_repo_sync:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+
+secrets:
+  keyrings:
+    admin: ceph-client-admin-keyring
+
+network:
+  public: 192.168.0.0/16
+  cluster: 192.168.0.0/16
+  port:
+    mon: 6789
+    mgr: 7000
+
+conf:
+  ceph:
+    global:
+      # auth
+      cephx: true
+      cephx_require_signatures: false
+      cephx_cluster_require_signatures: true
+      cephx_service_require_signatures: false
+    osd:
+      osd_mkfs_type: xfs
+      osd_mkfs_options_xfs: -f -i size=2048
+      osd_max_object_name_len: 256
+      ms_bind_port_min: 6800
+      ms_bind_port_max: 7100
+
+dependencies:
+  dynamic:
+    common:
+      local_image_registry:
+        jobs:
+          - ceph-client-image-repo-sync
+        services:
+          - endpoint: node
+            service: local_image_registry
+  static:
+    bootstrap:
+      jobs: null
+      services:
+        - endpoint: internal
+          service: ceph_mon
+    cephfs_client_key_generator:
+      jobs: null
+    cephfs_provisioner:
+      jobs:
+        - ceph-rbd-pool
+      services:
+        - endpoint: internal
+          service: ceph_mon
+    namespace_client_key_cleaner:
+      jobs: null
+    namespace_client_key_generator:
+      jobs: null
+    rbd_provisioner:
+      jobs:
+        - ceph-rbd-pool
+      services:
+        - endpoint: internal
+          service: ceph_mon
+    image_repo_sync:
+      services:
+        - endpoint: internal
+          service: local_image_registry
+
+bootstrap:
+  enabled: false
+  script: |
+    ceph -s
+    function ensure_pool () {
+      ceph osd pool stats $1 || ceph osd pool create $1 $2
+      local test_luminous=$(ceph tell osd.* version | egrep -c "12.2|luminous")
+      if [[ ${test_luminous} -gt 0 ]]; then
+        ceph osd pool application enable $1 $3
+      fi
+    }
+    #ensure_pool volumes 8 cinder
+
+# if you change provision_storage_class to false
+# it is presumed you manage your own storage
+# class definition externally
+storageclass:
+  rbd:
+    provision_storage_class: true
+    provisioner: ceph.com/rbd
+    name: general
+    monitors: null
+    pool: rbd
+    admin_id: admin
+    admin_secret_name: pvc-ceph-conf-combined-storageclass
+    admin_secret_namespace: ceph
+    user_id: admin
+    user_secret_name: pvc-ceph-client-key
+    image_format: "2"
+    image_features: layering
+  cephfs:
+    provision_storage_class: true
+    provisioner: ceph.com/cephfs
+    name: cephfs
+    admin_id: admin
+    user_secret_name: pvc-ceph-cephfs-client-key
+    admin_secret_name: pvc-ceph-conf-combined-storageclass
+    admin_secret_namespace: ceph
+
+endpoints:
+  cluster_domain_suffix: cluster.local
+  local_image_registry:
+    name: docker-registry
+    namespace: docker-registry
+    hosts:
+      default: localhost
+      internal: docker-registry
+      node: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        node: 5000
+  ceph_mon:
+    namespace: null
+    hosts:
+      default: ceph-mon
+      discovery: ceph-mon-discovery
+    host_fqdn_override:
+      default: null
+    port:
+      mon:
+        default: 6789
+
+manifests:
+  configmap_bin: true
+  configmap_bin_common: true
+  configmap_etc: true
+  deployment_rbd_provisioner: true
+  deployment_cephfs_provisioner: true
+  job_bootstrap: false
+  job_cephfs_client_key: true
+  job_image_repo_sync: true
+  job_namespace_client_key_cleaner: true
+  job_namespace_client_key: true
+  storageclass_cephfs: true
+  storageclass_rbd: true

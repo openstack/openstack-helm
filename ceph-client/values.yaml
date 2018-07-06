@@ -19,9 +19,6 @@
 
 deployment:
   ceph: true
-  client_secrets: false
-  rbd_provisioner: true
-  cephfs_provisioner: true
   rgw_keystone_user_and_endpoints: false
 
 release_group: null
@@ -30,12 +27,10 @@ images:
   pull_policy: IfNotPresent
   tags:
     ceph_bootstrap: 'docker.io/ceph/daemon:tag-build-master-luminous-ubuntu-16.04'
-    ceph_cephfs_provisioner: 'quay.io/external_storage/cephfs-provisioner:v0.1.1'
     ceph_config_helper: 'docker.io/port/ceph-config-helper:v1.10.3'
     ceph_mds: 'docker.io/ceph/daemon:tag-build-master-luminous-ubuntu-16.04'
     ceph_mgr: 'docker.io/ceph/daemon:tag-build-master-luminous-ubuntu-16.04'
     ceph_rbd_pool: 'docker.io/port/ceph-config-helper:v1.10.3'
-    ceph_rbd_provisioner: 'quay.io/external_storage/rbd-provisioner:v0.1.1'
     ceph_rgw: 'docker.io/ceph/daemon:tag-build-master-luminous-ubuntu-16.04'
     dep_check: 'quay.io/stackanetes/kubernetes-entrypoint:v0.3.1'
     ks_endpoints: 'docker.io/openstackhelm/heat:newton'
@@ -68,8 +63,6 @@ labels:
 pod:
   dns_policy: "ClusterFirstWithHostNet"
   replicas:
-    cephfs_provisioner: 2
-    rbd_provisioner: 2
     mds: 2
     mgr: 2
     rgw: 2
@@ -89,20 +82,6 @@ pod:
         memory: "50Mi"
         cpu: "500m"
     rgw:
-      requests:
-        memory: "5Mi"
-        cpu: "250m"
-      limits:
-        memory: "50Mi"
-        cpu: "500m"
-    rbd_provisioner:
-      requests:
-        memory: "5Mi"
-        cpu: "250m"
-      limits:
-        memory: "50Mi"
-        cpu: "500m"
-    cephfs_provisioner:
       requests:
         memory: "5Mi"
         cpu: "250m"
@@ -433,32 +412,6 @@ ceph_mgr_enabled_modules:
 #    num_rep: "3"
 #    min_size: "2"
 
-# if you change provision_storage_class to false
-# it is presumed you manage your own storage
-# class definition externally
-storageclass:
-  rbd:
-    provision_storage_class: true
-    provisioner: ceph.com/rbd
-    name: general
-    monitors: null
-    pool: rbd
-    admin_id: admin
-    admin_secret_name: pvc-ceph-conf-combined-storageclass
-    admin_secret_namespace: ceph
-    user_id: admin
-    user_secret_name: pvc-ceph-client-key
-    image_format: "2"
-    image_features: layering
-  cephfs:
-    provision_storage_class: true
-    provisioner: ceph.com/cephfs
-    name: cephfs
-    admin_id: admin
-    user_secret_name: pvc-ceph-cephfs-client-key
-    admin_secret_name: pvc-ceph-conf-combined-storageclass
-    admin_secret_namespace: ceph
-
 endpoints:
   cluster_domain_suffix: cluster.local
   local_image_registry:
@@ -563,11 +516,8 @@ monitoring:
 manifests:
   configmap_bin: true
   configmap_bin_ks: true
-  configmap_bin_common: true
   configmap_etc: true
   deployment_mds: true
-  deployment_rbd_provisioner: true
-  deployment_cephfs_provisioner: true
   deployment_rgw: true
   deployment_mgr: true
   ingress_rgw: true
@@ -577,8 +527,6 @@ manifests:
   job_ks_endpoints: true
   job_ks_service: true
   job_ks_user: true
-  job_namespace_client_key_cleaner: true
-  job_namespace_client_key: true
   job_rbd_pool: true
   secret_ingress_tls: true
   secret_keystone_rgw: true
@@ -586,5 +534,3 @@ manifests:
   service_ingress_rgw: true
   service_mgr: true
   service_rgw: true
-  storageclass_cephfs: true
-  storageclass_rbd: true

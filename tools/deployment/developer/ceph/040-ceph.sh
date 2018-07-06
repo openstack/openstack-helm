@@ -17,7 +17,7 @@
 set -xe
 
 #NOTE: Lint and package chart
-for CHART in ceph-mon ceph-osd ceph-client; do
+for CHART in ceph-mon ceph-osd ceph-client ceph-provisioners; do
   make "${CHART}"
 done
 
@@ -163,7 +163,7 @@ pod:
     rgw: 1
 EOF
 
-for CHART in ceph-mon ceph-osd ceph-client; do
+for CHART in ceph-mon ceph-osd ceph-client ceph-provisioners; do
   helm upgrade --install ${CHART} ./${CHART} \
     --namespace=ceph \
     --values=/tmp/ceph.yaml \

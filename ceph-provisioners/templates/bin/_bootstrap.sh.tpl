@@ -1,3 +1,5 @@
+#!/bin/bash
+
 {{/*
 Copyright 2017 The Openstack-Helm Authors.
 
@@ -14,16 +16,5 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if and .Values.manifests.configmap_bin .Values.deployment.client_secrets }}
-{{- $envAll := . }}
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: ceph-client-bin-provisioner
-data:
-  provisioner-rbd-namespace-client-key-manager.sh: |
-{{ tuple "bin/provisioner/rbd/_namespace-client-key-manager.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
-  provisioner-rbd-namespace-client-key-cleaner.sh: |
-{{ tuple "bin/provisioner/rbd/_namespace-client-key-cleaner.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
-{{- end }}
+set -ex
+{{ .Values.bootstrap.script | default "echo 'Not Enabled'" }}
