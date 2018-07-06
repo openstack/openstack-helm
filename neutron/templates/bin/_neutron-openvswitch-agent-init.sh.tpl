@@ -52,8 +52,13 @@ if [ -z "${tunnel_interface}" ] ; then
 fi
 
 # determine local-ip dynamically based on interface provided but only if tunnel_types is not null
-IP=$(ip a s $tunnel_interface | grep 'inet ' | awk '{print $2}' | awk -F "/" '{print $1}')
-cat <<EOF>/tmp/pod-shared/ml2-local-ip.ini
+LOCAL_IP=$(ip a s $tunnel_interface | grep 'inet ' | awk '{print $2}' | awk -F "/" '{print $1}')
+if [ -z "${LOCAL_IP}" ] ; then
+  echo "Var LOCAL_IP is empty"
+  exit 1
+fi
+
+tee > /tmp/pod-shared/ml2-local-ip.ini << EOF
 [ovs]
-local_ip = $IP
+local_ip = "${LOCAL_IP}"
 EOF
