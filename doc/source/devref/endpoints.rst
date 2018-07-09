@@ -49,8 +49,8 @@ endpoints are defined:
         type: identity
         scheme: 'http'
         port:
-            admin: 35357
-            public: 5000
+          admin: 35357
+          public: 5000
       network:
         hosts:
           default: neutron-server
