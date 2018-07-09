@@ -14,6 +14,19 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{/*
+abstract: |
+  Renders a set of standardised labels
+values: |
+  release_group: null
+usage: |
+  {{ tuple . "foo" "bar" | include "helm-toolkit.snippets.kubernetes_metadata_labels" }}
+return: |
+  release_group: RELEASE-NAME
+  application: foo
+  component: bar
+*/}}
+
 {{- define "helm-toolkit.snippets.kubernetes_metadata_labels" -}}
 {{- $envAll := index . 0 -}}
 {{- $application := index . 1 -}}
