@@ -14,13 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if and .Values.manifests.job_namespace_client_key_cleaner .Values.deployment.client_secrets }}
+{{- if and .Values.manifests.job_namespace_client_key .Values.deployment.client_secrets }}
 {{- $envAll := . }}
 
 {{- $randStringSuffix := randAlphaNum 5 | lower }}
 
-{{- $serviceAccountName := print "ceph-namespace-client-key-cleaner-" $randStringSuffix }}
-{{ tuple $envAll "namespace_client_key_cleaner" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{- $serviceAccountName := "ceph-namespace-client-key-generator" }}
+{{ tuple $envAll "namespace_client_key_generator" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: Role
@@ -33,8 +33,9 @@ rules:
       - secrets
     verbs:
       - get
-      - list
-      - delete
+      - create
+      - update
+      - patch
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: RoleBinding
@@ -49,26 +50,52 @@ subjects:
     name: {{ $serviceAccountName }}
     namespace: {{ $envAll.Release.Namespace }}
 ---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: Role
+metadata:
+  name: {{ printf "%s-%s" $serviceAccountName $randStringSuffix }}
+  namespace: {{ .Values.storageclass.rbd.admin_secret_namespace }}
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+    verbs:
+      - get
+      - list
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: RoleBinding
+metadata:
+  name: {{ printf "%s-%s" $serviceAccountName $randStringSuffix }}
+  namespace: {{ .Values.storageclass.rbd.admin_secret_namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ printf "%s-%s" $serviceAccountName $randStringSuffix }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ $serviceAccountName }}
+    namespace: {{ $envAll.Release.Namespace }}
+---
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: ceph-namespace-client-key-cleaner-{{ $randStringSuffix }}
-  annotations:
-    "helm.sh/hook": pre-delete
+  name: ceph-namespace-client-key-generator
 spec:
   template:
     metadata:
       labels:
-{{ tuple $envAll "ceph" "client-key-cleaner" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+{{ tuple $envAll "ceph" "client-key-generator" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
     spec:
       serviceAccountName: {{ $serviceAccountName }}
       restartPolicy: OnFailure
       nodeSelector:
         {{ $envAll.Values.labels.job.node_selector_key }}: {{ $envAll.Values.labels.job.node_selector_value }}
       initContainers:
-{{ tuple $envAll "namespace_client_key_cleaner" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll "namespace_client_key_generator" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
-        - name:  ceph-namespace-client-keys-cleaner
+        - name:  ceph-storage-keys-generator
 {{ tuple $envAll "ceph_config_helper" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.jobs.secret_provisioning | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           env:
@@ -78,16 +105,20 @@ spec:
                   fieldPath: metadata.namespace
             - name: PVC_CEPH_RBD_STORAGECLASS_USER_SECRET_NAME
               value: {{ .Values.storageclass.rbd.user_secret_name }}
+            - name: PVC_CEPH_RBD_STORAGECLASS_ADMIN_SECRET_NAME
+              value: {{ .Values.storageclass.rbd.admin_secret_name }}
+            - name: PVC_CEPH_RBD_STORAGECLASS_DEPLOYED_NAMESPACE
+              value: {{ .Values.storageclass.rbd.admin_secret_namespace }}
           command:
-            - /tmp/provisioner-rbd-namespace-client-key-cleaner.sh
+            - /tmp/provisioner-rbd-namespace-client-key-manager.sh
           volumeMounts:
-            - name: ceph-client-bin-provisioner
-              mountPath: /tmp/provisioner-rbd-namespace-client-key-cleaner.sh
-              subPath: provisioner-rbd-namespace-client-key-cleaner.sh
+            - name: ceph-provisioners-bin-clients
+              mountPath: /tmp/provisioner-rbd-namespace-client-key-manager.sh
+              subPath: provisioner-rbd-namespace-client-key-manager.sh
               readOnly: true
       volumes:
-        - name: ceph-client-bin-provisioner
+        - name: ceph-provisioners-bin-clients
           configMap:
-            name: ceph-client-bin-provisioner
+            name: ceph-provisioners-bin-clients
             defaultMode: 0555
 {{- end }}

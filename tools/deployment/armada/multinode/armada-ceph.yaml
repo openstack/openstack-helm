@@ -273,6 +273,79 @@ data:
   dependencies:
     - helm-toolkit
 ---
+schema: armada/Chart/v1
+metadata:
+  schema: metadata/Document/v1
+  name: ceph-provisioners
+data:
+  chart_name: ceph-provisioners
+  release: ceph-provisioners
+  namespace: ceph
+  wait:
+    timeout: 1800
+    labels:
+      release_group: osh-ceph-provisioners
+  install:
+    no_hooks: False
+  upgrade:
+    no_hooks: False
+    pre:
+      delete:
+        - type: job
+          labels:
+            release_group: osh-ceph-provisioners
+  values:
+    endpoints:
+      identity:
+        namespace: openstack
+        auth:
+          swift:
+            password: ${SWIFT_USER_PASSWORD}
+      object_store:
+        namespace: ceph
+      ceph_mon:
+        namespace: ceph
+    network:
+      public: ${CEPH_NETWORK}
+      cluster: ${CEPH_NETWORK}
+    deployment:
+      storage_secrets: true
+      ceph: true
+      rbd_provisioner: true
+      cephfs_provisioner: true
+      client_secrets: false
+      rgw_keystone_user_and_endpoints: false
+    bootstrap:
+      enabled: true
+    conf:
+      ceph:
+        global:
+          fsid: ${CEPH_FS_ID}
+      rgw_ks:
+        enabled: true
+      pool:
+        crush:
+          tunables: ${CRUSH_TUNABLES}
+        target:
+          # NOTE(portdirect): 5 nodes, with one osd per node
+          osd: 5
+          pg_per_osd: 100
+      storage:
+        osd:
+          - data:
+              type: directory
+              location: /var/lib/openstack-helm/ceph/osd/osd-one
+            journal:
+              type: directory
+              location: /var/lib/openstack-helm/ceph/osd/journal-one
+  source:
+    type: local
+    location: ${OSH_PATH}
+    subpath: ceph-provisioners
+    reference: master
+  dependencies:
+    - helm-toolkit
+---
 schema: armada/ChartGroup/v1
 metadata:
   schema: metadata/Document/v1
@@ -285,6 +358,7 @@ data:
     - ceph-mon
     - ceph-osd
     - ceph-client
+    - ceph-provisioners
 ---
 schema: armada/Manifest/v1
 metadata:

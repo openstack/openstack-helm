@@ -17,7 +17,7 @@
 set -xe
 
 #NOTE: Lint and package chart
-make ceph-client
+make ceph-provisioners
 
 #NOTE: Deploy command
 : ${OSH_EXTRA_HELM_ARGS:=""}
@@ -45,7 +45,7 @@ conf:
   rgw_ks:
     enabled: true
 EOF
-helm upgrade --install ceph-openstack-config ./ceph-client \
+helm upgrade --install ceph-openstack-config ./ceph-provisioners \
   --namespace=openstack \
   --values=/tmp/ceph-openstack-config.yaml \
   ${OSH_EXTRA_HELM_ARGS} \
