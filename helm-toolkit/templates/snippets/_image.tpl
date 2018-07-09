@@ -14,6 +14,40 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{/*
+abstract: |
+  Resolves an image reference to a string, and its pull policy
+values: |
+  images:
+    tags:
+      test_image: docker.io/port/test:version-foo
+      image_foo: quay.io/stackanetes/kubernetes-entrypoint:v0.3.1
+    pull_policy: IfNotPresent
+    local_registry:
+      active: true
+      exclude:
+        - image_foo
+  endpoints:
+    cluster_domain_suffix: cluster.local
+    local_image_registry:
+      name: docker-registry
+      namespace: docker-registry
+      hosts:
+        default: localhost
+        internal: docker-registry
+        node: localhost
+      host_fqdn_override:
+        default: null
+      port:
+        registry:
+          node: 5000
+usage: |
+  {{ tuple . "test_image" | include "helm-toolkit.snippets.image" }}
+return: |
+  image: "localhost:5000/docker.io/port/test:version-foo"
+  imagePullPolicy: IfNotPresent
+*/}}
+
 {{- define "helm-toolkit.snippets.image" -}}
 {{- $envAll := index . 0 -}}
 {{- $image := index . 1 -}}
