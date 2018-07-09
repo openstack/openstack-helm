@@ -24,7 +24,7 @@ endpoints:
   identity:
     namespace: openstack
   object_store:
-    namespace: ceph
+    namespace: openstack
   ceph_mon:
     namespace: ceph
 network:
@@ -32,7 +32,7 @@ network:
   cluster: ${CEPH_CLUSTER_NETWORK}
 deployment:
   storage_secrets: false
-  ceph: false
+  ceph: true
   rbd_provisioner: false
   cephfs_provisioner: false
   client_secrets: false
@@ -43,7 +43,7 @@ conf:
   rgw_ks:
     enabled: true
 EOF
-helm upgrade --install radosgw-openstack ./ceph-client \
+helm upgrade --install radosgw-openstack ./ceph-rgw \
   --namespace=openstack \
   --values=/tmp/radosgw-openstack.yaml \
   ${OSH_EXTRA_HELM_ARGS} \

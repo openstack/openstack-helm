@@ -22,13 +22,8 @@ limitations under the License.
 {{- if or (.Values.deployment.ceph) (.Values.deployment.client_secrets) }}
 
 {{- if empty .Values.conf.ceph.global.mon_host -}}
-{{- $monHost := tuple "ceph_mon" "internal" "mon" . | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" }}
+{{- $monHost := tuple "ceph_mon" "internal" . | include "helm-toolkit.endpoints.hostname_fqdn_endpoint_lookup" }}
 {{- $_ := $monHost | set .Values.conf.ceph.global "mon_host" -}}
-{{- end -}}
-
-{{- if empty .Values.conf.ceph.global.mon_addr -}}
-{{- $monPort := tuple "ceph_mon" "internal" "mon" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-{{- $_ := printf ":%s" $monPort | set .Values.conf.ceph.global "mon_addr" -}}
 {{- end -}}
 
 {{- if empty .Values.conf.ceph.osd.cluster_network -}}
@@ -37,6 +32,10 @@ limitations under the License.
 
 {{- if empty .Values.conf.ceph.osd.public_network -}}
 {{- $_ := .Values.network.public | set .Values.conf.ceph.osd "public_network" -}}
+{{- end -}}
+
+{{- if empty .Values.conf.rgw_ks.config.rgw_swift_url -}}
+{{- $_ := tuple "object_store" "public" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" | trimSuffix .Values.endpoints.object_store.path.default | set .Values.conf.rgw_ks.config "rgw_swift_url" -}}
 {{- end -}}
 
 ---
@@ -52,5 +51,5 @@ data:
 {{- end }}
 {{- end }}
 {{- if .Values.manifests.configmap_etc }}
-{{- list "ceph-client-etc" . | include "ceph.configmap.etc" }}
+{{- list "ceph-rgw-etc" . | include "ceph.configmap.etc" }}
 {{- end }}

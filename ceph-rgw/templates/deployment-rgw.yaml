@@ -51,7 +51,7 @@ spec:
             - name: CLUSTER
               value: "ceph"
           volumeMounts:
-            - name: ceph-client-bin
+            - name: ceph-rgw-bin
               mountPath: /tmp/init-dirs.sh
               subPath: init-dirs.sh
               readOnly: true
@@ -85,11 +85,11 @@ spec:
           volumeMounts:
             - name: pod-etc-ceph
               mountPath: /etc/ceph
-            - name: ceph-client-bin
+            - name: ceph-rgw-bin
               mountPath: /tmp/rgw-init-keystone.sh
               subPath: rgw-init-keystone.sh
               readOnly: true
-            - name: ceph-client-etc
+            - name: ceph-rgw-etc
               mountPath: /tmp/ceph.conf
               subPath: ceph.conf
               readOnly: true
@@ -119,22 +119,18 @@ spec:
                 port: {{ tuple "object_store" "internal" "api" $envAll | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
               timeoutSeconds: 5
           volumeMounts:
-            - name: ceph-client-bin
+            - name: ceph-rgw-bin
               mountPath: /tmp/rgw-start.sh
               subPath: rgw-start.sh
               readOnly: true
             - name: pod-etc-ceph
               mountPath: /etc/ceph
 {{- if not .Values.conf.rgw_ks.enabled }}
-            - name: ceph-client-etc
+            - name: ceph-rgw-etc
               mountPath: /etc/ceph/ceph.conf
               subPath: ceph.conf
               readOnly: true
 {{- end }}
-            - name: ceph-client-admin-keyring
-              mountPath: /etc/ceph/ceph.client.admin.keyring
-              subPath: ceph.client.admin.keyring
-              readOnly: true
             - name: ceph-bootstrap-rgw-keyring
               mountPath: /var/lib/ceph/bootstrap-rgw/ceph.keyring
               subPath: ceph.keyring
@@ -148,22 +144,19 @@ spec:
       volumes:
         - name: pod-etc-ceph
           emptyDir: {}
-        - name: ceph-client-bin
+        - name: ceph-rgw-bin
           configMap:
-            name: ceph-client-bin
+            name: ceph-rgw-bin
             defaultMode: 0555
-        - name: ceph-client-etc
+        - name: ceph-rgw-etc
           configMap:
-            name: ceph-client-etc
+            name: ceph-rgw-etc
             defaultMode: 0444
         - name: pod-var-lib-ceph
           emptyDir: {}
         - name: pod-run
           emptyDir:
             medium: "Memory"
-        - name: ceph-client-admin-keyring
-          secret:
-            secretName: {{ .Values.secrets.keyrings.admin }}
         - name: ceph-bootstrap-rgw-keyring
           secret:
             secretName: {{ .Values.secrets.keyrings.rgw }}

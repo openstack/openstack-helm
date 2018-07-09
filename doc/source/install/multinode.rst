@@ -200,8 +200,8 @@ Alternatively, this step can be performed by running the script directly:
 
   ./tools/deployment/multinode/080-keystone.sh
 
-Create Ceph endpoints and service account for use with keystone
----------------------------------------------------------------
+Deploy Rados Gateway for object store
+-------------------------------------
 
 .. literalinclude:: ../../../tools/deployment/multinode/090-ceph-radosgateway.sh
     :language: shell

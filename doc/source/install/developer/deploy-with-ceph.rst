@@ -113,8 +113,8 @@ Alternatively, this step can be performed by running the script directly:
 
   ./tools/deployment/developer/ceph/100-horizon.sh
 
-Create Ceph endpoints and service account for use with keystone
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Deploy Rados Gateway for object store
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. literalinclude:: ../../../../tools/deployment/developer/ceph/110-ceph-radosgateway.sh
     :language: shell
