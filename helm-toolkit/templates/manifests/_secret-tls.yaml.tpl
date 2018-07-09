@@ -14,6 +14,41 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{/*
+abstract: |
+  Creates a manifest for a services public tls secret
+values: |
+  secrets:
+    tls:
+      key_manager:
+        api:
+          public: barbican-tls-public
+  endpoints:
+    key_manager:
+      host_fqdn_override:
+        public:
+          tls:
+            crt: |
+              FOO-CRT
+            key: |
+              FOO-KEY
+            ca: |
+              FOO-CA_CRT
+usage: |
+  {{- include "helm-toolkit.manifests.secret_ingress_tls" ( dict "envAll" . "backendServiceType" "key-manager" ) -}}
+return: |
+  ---
+  apiVersion: v1
+  kind: Secret
+  metadata:
+    name: barbican-tls-public
+  type: kubernetes.io/tls
+  data:
+    tls.crt: Rk9PLUNSVAo=
+    tls.key: Rk9PLUtFWQo=
+    ca.crt: Rk9PLUNBX0NSVAo=
+*/}}
+
 {{- define "helm-toolkit.manifests.secret_ingress_tls" }}
 {{- $envAll := index . "envAll" }}
 {{- $endpoint := index . "endpoint" | default "public" }}
