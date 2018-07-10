@@ -30,11 +30,54 @@ if [[ -c /dev/kvm ]]; then
     chown root:kvm /dev/kvm
 fi
 
-if [ -d /sys/kernel/mm/hugepages ]; then
+# We assume that if hugepage count > 0, then hugepages should be exposed to libvirt/qemu
+hp_count="$(cat /proc/meminfo | grep HugePages_Total | tr -cd '[:digit:]')"
+if [ 0"$hp_count" -gt 0 ]; then
+
+  echo "INFO: Detected hugepage count of '$hp_count'. Enabling hugepage settings for libvirt/qemu."
+
+  # Enable KVM hugepages for QEMU
   if [ -n "$(grep KVM_HUGEPAGES=0 /etc/default/qemu-kvm)" ]; then
     sed -i 's/.*KVM_HUGEPAGES=0.*/KVM_HUGEPAGES=1/g' /etc/default/qemu-kvm
   else
     echo KVM_HUGEPAGES=1 >> /etc/default/qemu-kvm
+  fi
+
+  # Ensure that the hugepage mount location is available/mapped inside the
+  # container. This assumes use of the default ubuntu dev-hugepages.mount
+  # systemd unit which mounts hugepages at this location.
+  if [ ! -d /dev/hugepages ]; then
+    echo "ERROR: Hugepages configured in kernel, but libvirtd container cannot access /dev/hugepages"
+    exit 1
+  fi
+
+  # Kubernetes 1.10.x introduced cgroup changes that caused the container's
+  # hugepage byte limit quota to zero out. This workaround sets that pod limit
+  # back to the total number of hugepage bytes available to the baremetal host.
+
+  for limit in $(ls /sys/fs/cgroup/hugetlb/kubepods/hugetlb.*.limit_in_bytes); do
+    target="/sys/fs/cgroup/hugetlb/$(dirname $(awk -F: '($2~/hugetlb/){print $3}' /proc/self/cgroup))/$(basename $limit)"
+    # Ensure the write target for the hugepage limit for the pod exists
+    if [ ! -f "$target" ]; then
+      echo "ERROR: Could not find write target for hugepage limit: $target"
+    fi
+
+    # Write hugetable limit for pod
+    echo "$(cat $limit)" > "$target"
+  done
+
+  # Determine OS default hugepage size to use for the hugepage write test
+  default_hp_kb="$(cat /proc/meminfo | grep Hugepagesize | tr -cd '[:digit:]')"
+
+  # Attempt to write to the hugepage mount to ensure it is operational, but only
+  # if we have at least 1 free page.
+  num_free_pages="$(cat /sys/kernel/mm/hugepages/hugepages-${default_hp_kb}kB | tr -cd '[:digit:]')"
+  echo "INFO: '$num_free_pages' free hugepages of size ${default_hp_kb}kB"
+  if [ 0"$num_free_pages" - gt 0 ]; then
+    (fallocate -o0 -l "$default_hp_kb" /dev/hugepages/foo && rm /dev/hugepages/foo) || \
+      (echo "ERROR: fallocate failed test at /dev/hugepages with size ${default_hp_kb}kB"
+       rm /dev/hugepages/foo
+       exit 1)
   fi
 fi
 
