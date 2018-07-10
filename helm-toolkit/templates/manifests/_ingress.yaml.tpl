@@ -14,10 +14,131 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-# This function creates a manifest for a services ingress rules.
-# It can be used in charts dict created similar to the following:
-# {- $ingressOpts := dict "envAll" . "backendServiceType" "key-manager" -}
-# { $ingressOpts | include "helm-toolkit.manifests.ingress" }
+{{/*
+abstract: |
+  Creates a manifest for a services ingress rules.
+values: |
+  network:
+    api:
+      ingress:
+        public: true
+        classes:
+          namespace: "nginx"
+          cluster: "nginx-cluster"
+        annotations:
+          nginx.ingress.kubernetes.io/rewrite-target: /
+  secrets:
+    tls:
+      key_manager:
+        api:
+          public: barbican-tls-public
+  endpoints:
+    cluster_domain_suffix: cluster.local
+    key_manager:
+      name: barbican
+      hosts:
+        default: barbican-api
+        public: barbican
+      host_fqdn_override:
+        default: null
+        public:
+          host: barbican.openstackhelm.example
+          tls:
+            crt: |
+              FOO-CRT
+            key: |
+              FOO-KEY
+            ca: |
+              FOO-CA_CRT
+      path:
+        default: /
+      scheme:
+        default: http
+        public: https
+      port:
+        api:
+          default: 9311
+          public: 80
+usage: |
+  {{- include "helm-toolkit.manifests.ingress" ( dict "envAll" . "backendServiceType" "key-manager" "backendPort" "b-api" ) -}}
+return: |
+  ---
+  apiVersion: extensions/v1beta1
+  kind: Ingress
+  metadata:
+    name: barbican
+    annotations:
+      kubernetes.io/ingress.class: "nginx"
+      nginx.ingress.kubernetes.io/rewrite-target: /
+
+  spec:
+    rules:
+      - host: barbican
+        http:
+          paths:
+            - path: /
+              backend:
+                serviceName: barbican-api
+                servicePort: b-api
+      - host: barbican.default
+        http:
+          paths:
+            - path: /
+              backend:
+                serviceName: barbican-api
+                servicePort: b-api
+      - host: barbican.default.svc.cluster.local
+        http:
+          paths:
+            - path: /
+              backend:
+                serviceName: barbican-api
+                servicePort: b-api
+  ---
+  apiVersion: extensions/v1beta1
+  kind: Ingress
+  metadata:
+    name: barbican-namespace-fqdn
+    annotations:
+      kubernetes.io/ingress.class: "nginx"
+      nginx.ingress.kubernetes.io/rewrite-target: /
+
+  spec:
+    tls:
+      - secretName: barbican-tls-public
+        hosts:
+          - barbican.openstackhelm.example
+    rules:
+      - host: barbican.openstackhelm.example
+        http:
+          paths:
+            - path: /
+              backend:
+                serviceName: barbican-api
+                servicePort: b-api
+  ---
+  apiVersion: extensions/v1beta1
+  kind: Ingress
+  metadata:
+    name: barbican-cluster-fqdn
+    annotations:
+      kubernetes.io/ingress.class: "nginx-cluster"
+      nginx.ingress.kubernetes.io/rewrite-target: /
+
+  spec:
+    tls:
+      - secretName: barbican-tls-public
+        hosts:
+          - barbican.openstackhelm.example
+    rules:
+      - host: barbican.openstackhelm.example
+        http:
+          paths:
+            - path: /
+              backend:
+                serviceName: barbican-api
+                servicePort: b-api
+*/}}
 
 {{- define "helm-toolkit.manifests.ingress._host_rules" -}}
 {{- $vHost := index . "vHost" -}}
