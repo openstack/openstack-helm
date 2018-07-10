@@ -1,9 +1,6 @@
-=======
-Testing
-=======
-
+==========
 Helm Tests
-----------
+==========
 
 Every OpenStack-Helm chart should include any required Helm tests necessary to
 provide a sanity check for the OpenStack service.  Information on using the Helm
@@ -26,7 +23,6 @@ any required scripting templates via the configmap-bin template for the service
 chart.  If Rally tests are not appropriate or adequate for a service chart, any
 additional tests should be documented appropriately and adhere to the same
 expectations.
-
 
 Running Tests
 -------------
