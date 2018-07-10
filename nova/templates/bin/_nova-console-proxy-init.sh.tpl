@@ -37,7 +37,7 @@ if [ -z "${client_address}" ] ; then
     fi
 
     # determine client ip dynamically based on interface provided
-    client_address=$(ip a s $client_interface | grep 'inet ' | awk '{print $2}' | awk -F "/" '{print $1}')
+    client_address=$(ip a s $client_interface | grep 'inet ' | awk '{print $2}' | awk -F "/" '{print $1}' | head -n 1)
 fi
 
 if [ -z "${listen_ip}" ] ; then
