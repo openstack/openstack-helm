@@ -46,6 +46,7 @@ function check_kubernetes_tag () {
   fi
 }
 
+{{ if and (.Values.manifests.job_elasticsearch_template) (not (empty .Values.conf.templates)) }}
 # Tests whether fluent-logging has successfully generated the elasticsearch index mapping
 # templates defined by values.yaml
 function check_templates () {
@@ -61,9 +62,12 @@ function check_templates () {
   fi
   {{ end }}
 }
+{{ end }}
 
 # Sleep for at least the buffer flush time to allow for indices to be populated
 sleep 30
+{{ if and (.Values.manifests.job_elasticsearch_template) (not (empty .Values.conf.templates)) }}
 check_templates
+{{ end }}
 check_logstash_index
 check_kubernetes_tag
