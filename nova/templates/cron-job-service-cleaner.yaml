@@ -1,0 +1,73 @@
+{{/*
+Copyright 2017 The Openstack-Helm Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.cron_job_service_cleaner }}
+{{- $envAll := . }}
+
+{{- $serviceAccountName := "nova-service-cleaner" }}
+{{ tuple $envAll "service_cleaner" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: nova-service-cleaner
+spec:
+  schedule: {{ .Values.jobs.service_cleaner.cron | quote }}
+  successfulJobsHistoryLimit: {{ .Values.jobs.service_cleaner.history.success }}
+  failedJobsHistoryLimit: {{ .Values.jobs.service_cleaner.history.failed }}
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    metadata:
+      labels:
+{{ tuple $envAll "nova" "service-cleaner" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+    spec:
+      template:
+        spec:
+          serviceAccountName: {{ $serviceAccountName }}
+          restartPolicy: OnFailure
+          nodeSelector:
+            {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
+          initContainers:
+{{ tuple $envAll "service_cleaner" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 12 }}
+          containers:
+            - name: nova-service-cleaner
+{{ tuple $envAll "nova_service_cleaner" | include "helm-toolkit.snippets.image" | indent 14 }}
+{{ tuple $envAll $envAll.Values.pod.resources.jobs.service_cleaner | include "helm-toolkit.snippets.kubernetes_resources" | indent 14 }}
+              env:
+{{- with $env := dict "ksUserSecret" $envAll.Values.secrets.identity.nova }}
+{{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 14 }}
+{{- end }}
+              command:
+                - /tmp/nova-service-cleaner.sh
+              volumeMounts:
+              - name: nova-bin
+                mountPath: /tmp/nova-service-cleaner.sh
+                subPath: nova-service-cleaner.sh
+                readOnly: true
+              - name: etcnova
+                mountPath: /etc/nova
+          volumes:
+          - name: etcnova
+            emptyDir: {}
+          - name: nova-etc
+            configMap:
+              name: nova-etc
+              defaultMode: 0444
+          - name: nova-bin
+            configMap:
+              name: nova-bin
+              defaultMode: 0555
+{{- end }}
