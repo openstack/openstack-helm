@@ -9,4 +9,5 @@ Contents:
    common-requirements
    developer/index
    multinode
+   kubernetes-gate
    ext-dns-fqdn
