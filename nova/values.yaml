@@ -82,6 +82,9 @@ images:
     nova_novncproxy_assets: 'docker.io/kolla/ubuntu-source-nova-novncproxy:3.0.3'
     nova_placement: docker.io/openstackhelm/nova:newton
     nova_scheduler: docker.io/openstackhelm/nova:newton
+    # NOTE(portdirect): we simply use the ceph config helper here,
+    # as it has both oscli and jq.
+    nova_service_cleaner: 'docker.io/port/ceph-config-helper:v1.10.3'
     nova_spiceproxy: docker.io/openstackhelm/nova:newton
     nova_spiceproxy_assets: 'docker.io/kolla/ubuntu-source-nova-spicehtml5proxy:3.0.3'
     test: 'docker.io/kolla/ubuntu-source-rally:4.0.0'
@@ -96,6 +99,11 @@ jobs:
   # NOTE(portdirect): When using cells new nodes will be added to the cell on the hour by default.
   # TODO(portdirect): Add a post-start action to nova compute pods that registers themselves.
   cell_setup:
+    cron: "0 */1 * * *"
+    history:
+      success: 3
+      failed: 1
+  service_cleaner:
     cron: "0 */1 * * *"
     history:
       success: 3
@@ -273,6 +281,19 @@ dependencies:
           labels:
             application: nova
             component: compute
+    service_cleaner:
+      jobs:
+        - nova-db-sync
+        - nova-rabbit-init
+      services:
+        - endpoint: internal
+          service: oslo_messaging
+        - endpoint: internal
+          service: oslo_db
+        - endpoint: internal
+          service: identity
+        - endpoint: internal
+          service: compute
     compute:
       pod:
         - requireSameNode: true
@@ -1765,6 +1786,13 @@ pod:
         limits:
           memory: "1024Mi"
           cpu: "2000m"
+      service_cleaner:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
       image_repo_sync:
         requests:
           memory: "128Mi"
@@ -1777,6 +1805,7 @@ manifests:
   configmap_bin: true
   configmap_etc: true
   cron_job_cell_setup: true
+  cron_job_service_cleaner: true
   daemonset_compute: true
   deployment_api_metadata: true
   deployment_api_osapi: true
