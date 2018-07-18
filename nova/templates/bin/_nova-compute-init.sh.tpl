@@ -23,3 +23,17 @@ mkdir -p /var/lib/nova/instances
 
 # Set Ownership of nova dirs to the nova user
 chown ${NOVA_USER_UID} /var/lib/nova /var/lib/nova/instances
+
+migration_interface="{{- .Values.conf.libvirt.live_migration_interface -}}"
+if [[ -n $migration_interface ]]; then
+    # determine ip dynamically based on interface provided
+    migration_address=$(ip r | grep $migration_interface | grep -v default | awk '{print $9}')
+fi
+
+touch /tmp/pod-shared/nova-libvirt.conf
+if [[ -n $migration_address ]]; then
+cat <<EOF>/tmp/pod-shared/nova-libvirt.conf
+[libvirt]
+live_migration_inbound_addr = $migration_address
+EOF
+fi
