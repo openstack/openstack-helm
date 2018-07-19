@@ -51,5 +51,5 @@ for NAMESPACE in openstack ceph; do
   ./tools/deployment/common/wait-for-pods.sh ${NAMESPACE}
 
   #NOTE: Display info
-  helm status ingress-openstack
+  helm status ingress-${NAMESPACE}
 done
