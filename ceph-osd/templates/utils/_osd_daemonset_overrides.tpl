@@ -14,6 +14,17 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- define "ceph.utils.match_exprs_hash" }}
+  {{- $match_exprs := index . 0 }}
+  {{- $context := index . 1 }}
+  {{- $_ := set $context.Values "__match_exprs_hash_content" "" }}
+  {{- range $match_expr := $match_exprs }}
+    {{- $_ := set $context.Values "__match_exprs_hash_content" (print $context.Values.__match_exprs_hash_content $match_expr.key $match_expr.operator ($match_expr.values | quote)) }}
+  {{- end }}
+  {{- $context.Values.__match_exprs_hash_content | sha256sum | trunc 8 }}
+  {{- $_ := unset $context.Values "__match_exprs_hash_content" }}
+{{- end }}
+
 {{- define "ceph.utils.osd_daemonset_overrides" }}
   {{- $daemonset := index . 0 }}
   {{- $daemonset_yaml := index . 1 }}
@@ -207,7 +218,7 @@ limitations under the License.
     name uniqueness */}}
     {{- $_ := set $current_dict "dns_1123_name" dict }}
     {{- if hasKey $current_dict "matchExpressions" }}
-      {{- $_ := set $current_dict "dns_1123_name" (printf (print $name_format2 "-" ($current_dict.matchExpressions | quote | sha256sum | trunc 8))) }}
+      {{- $_ := set $current_dict "dns_1123_name" (printf (print $name_format2 "-" (list $current_dict.matchExpressions $context | include "ceph.utils.match_exprs_hash"))) }}
     {{- else }}
       {{- $_ := set $current_dict "dns_1123_name" $name_format2 }}
     {{- end }}
