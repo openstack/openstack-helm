@@ -20,8 +20,9 @@ set -xe
 make memcached
 
 #NOTE: Deploy command
+: ${OSH_INFRA_PATH:="../openstack-helm-infra"}
 : ${OSH_EXTRA_HELM_ARGS:=""}
-helm upgrade --install memcached ./memcached \
+helm upgrade --install memcached ${OSH_INFRA_PATH}/memcached \
     --namespace=openstack \
     ${OSH_EXTRA_HELM_ARGS} \
     ${OSH_EXTRA_HELM_ARGS_MEMCACHED}
