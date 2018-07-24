@@ -17,6 +17,7 @@
 set -xe
 
 #NOTE: Deploy global ingress
+: ${OSH_INFRA_PATH:="../openstack-helm-infra"}
 tee /tmp/ingress-kube-system.yaml << EOF
 pod:
   replicas:
@@ -27,7 +28,7 @@ deployment:
 network:
   host_namespace: true
 EOF
-helm upgrade --install ingress-kube-system ./ingress \
+helm upgrade --install ingress-kube-system ${OSH_INFRA_PATH}/ingress \
   --namespace=kube-system \
   --values=/tmp/ingress-kube-system.yaml \
   ${OSH_EXTRA_HELM_ARGS} \
@@ -48,7 +49,7 @@ pod:
     ingress: 2
     error_page: 2
 EOF
-  helm upgrade --install ingress-${NAMESPACE} ./ingress \
+  helm upgrade --install ingress-${NAMESPACE} ${OSH_INFRA_PATH}/ingress \
     --namespace=${NAMESPACE} \
     --values=/tmp/ingress-${NAMESPACE}.yaml
 

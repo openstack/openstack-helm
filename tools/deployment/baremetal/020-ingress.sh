@@ -20,7 +20,8 @@ set -xe
 make ingress
 
 #NOTE: Deploy global ingress
-helm install ./ingress \
+: ${OSH_INFRA_PATH:="../openstack-helm-infra"}
+helm install ${OSH_INFRA_PATH}/ingress \
   --namespace=kube-system \
   --name=ingress-kube-system \
   --set deployment.mode=cluster \
@@ -31,10 +32,10 @@ helm install ./ingress \
   --set conf.services.udp.53='kube-system/kube-dns:53'
 
 #NOTE: Deploy namespace ingress
-helm install ./ingress \
+helm install ${OSH_INFRA_PATH}/ingress \
   --namespace=ceph \
   --name=ingress-ceph
-helm install ./ingress \
+helm install ${OSH_INFRA_PATH}/ingress \
   --namespace=openstack \
   --name=ingress-openstack
 
