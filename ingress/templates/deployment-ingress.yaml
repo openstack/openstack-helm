@@ -1,0 +1,330 @@
+{{/*
+Copyright 2017 The Openstack-Helm Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.deployment_ingress }}
+{{- $envAll := . }}
+
+{{- if empty .Values.conf.controller.INGRESS_CLASS -}}
+{{- if eq .Values.deployment.mode "cluster" }}
+{{- $_ := set .Values.conf.controller "INGRESS_CLASS" .Values.deployment.cluster.class -}}
+{{- else if eq .Values.deployment.mode "namespace" }}
+{{- $_ := set .Values.conf.controller "INGRESS_CLASS" "nginx" -}}
+{{- end }}
+{{- end -}}
+
+{{- $serviceAccountName := printf "%s-%s" .Release.Name "ingress" }}
+{{ tuple $envAll "ingress" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  name: {{ $serviceAccountName }}
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+      - endpoints
+      - nodes
+      - pods
+      - secrets
+    verbs:
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - nodes
+    verbs:
+      - get
+  - apiGroups:
+      - ""
+    resources:
+      - services
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - "extensions"
+    resources:
+      - ingresses
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+        - events
+    verbs:
+        - create
+        - patch
+  - apiGroups:
+      - "extensions"
+    resources:
+      - ingresses/status
+    verbs:
+      - update
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ $serviceAccountName }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ $serviceAccountName }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ $serviceAccountName }}
+    namespace: {{ $envAll.Release.Namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: Role
+metadata:
+  name: {{ $serviceAccountName }}
+  namespace: {{ $envAll.Release.Namespace }}
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+      - pods
+      - secrets
+      - namespaces
+    verbs:
+      - get
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+    resourceNames:
+      - {{ printf "%s-%s" .Release.Name .Values.conf.controller.INGRESS_CLASS | quote }}
+    verbs:
+      - get
+      - update
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+    verbs:
+      - create
+  - apiGroups:
+      - ""
+    resources:
+      - endpoints
+    verbs:
+      - get
+      - create
+      - update
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: RoleBinding
+metadata:
+  name: {{ $serviceAccountName }}
+  namespace: {{ $envAll.Release.Namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ $serviceAccountName }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ $serviceAccountName }}
+    namespace: {{ $envAll.Release.Namespace }}
+---
+{{- if eq .Values.deployment.type "Deployment" }}
+apiVersion: apps/v1
+kind: Deployment
+{{- else if eq .Values.deployment.type "DaemonSet" }}
+apiVersion: apps/v1
+kind: DaemonSet
+{{- end }}
+metadata:
+  name: ingress
+  labels:
+{{ tuple $envAll "ingress" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+    app: ingress-api
+spec:
+{{- if eq .Values.deployment.type "Deployment" }}
+  replicas: {{ .Values.pod.replicas.ingress }}
+{{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_deployment" | indent 2 }}
+{{- end }}
+  selector:
+    matchLabels:
+{{ tuple $envAll "ingress" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
+      app: ingress-api
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "ingress" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+        app: ingress-api
+    spec:
+      serviceAccountName: {{ $serviceAccountName }}
+{{- if eq .Values.deployment.type "Deployment" }}
+      affinity:
+{{ tuple $envAll "ingress" "server" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
+{{- end }}
+      nodeSelector:
+        {{ .Values.labels.server.node_selector_key }}: {{ .Values.labels.server.node_selector_value }}
+{{- if .Values.network.host_namespace }}
+      hostNetwork: true
+{{- end }}
+      dnsPolicy: "ClusterFirstWithHostNet"
+      terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.server.timeout | default "60" }}
+      initContainers:
+{{ tuple $envAll "ingress" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{- if and .Values.network.host_namespace .Values.network.vip.manage }}
+        - name: ingress-vip-kernel-modules
+{{ tuple $envAll "ingress" | include "helm-toolkit.snippets.image" | indent 10 }}
+          securityContext:
+            capabilities:
+              add:
+                - SYS_MODULE
+            runAsUser: 0
+          command:
+            - /tmp/ingress-vip.sh
+            - kernel_modules
+          volumeMounts:
+            - name: ingress-bin
+              mountPath: /tmp/ingress-vip.sh
+              subPath: ingress-vip.sh
+              readOnly: true
+            - name: host-rootfs
+              mountPath: /mnt/host-rootfs
+              readOnly: true
+        - name: ingress-vip-init
+{{ tuple $envAll "ingress" | include "helm-toolkit.snippets.image" | indent 10 }}
+          securityContext:
+            capabilities:
+              add:
+                - NET_ADMIN
+            runAsUser: 0
+          env:
+{{ include "helm-toolkit.utils.to_k8s_env_vars" .Values.network.vip | indent 12 }}
+          command:
+            - /tmp/ingress-vip.sh
+            - start
+          volumeMounts:
+            - name: ingress-bin
+              mountPath: /tmp/ingress-vip.sh
+              subPath: ingress-vip.sh
+              readOnly: true
+{{- end }}
+      containers:
+        - name: ingress
+{{ tuple $envAll "ingress" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.ingress | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 10254
+              scheme: HTTP
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 10254
+              scheme: HTTP
+            initialDelaySeconds: 10
+            timeoutSeconds: 1
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: PORT_HTTP
+              value: {{ tuple "ingress" "internal" "http" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | quote }}
+            - name: PORT_HTTPS
+              value: {{ tuple "ingress" "internal" "https" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | quote }}
+            - name: RELEASE_NAME
+              value: {{ .Release.Name | quote }}
+            - name: ERROR_PAGE_SERVICE
+              value: {{ tuple "ingress" "error_pages" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" | quote }}
+{{ include "helm-toolkit.utils.to_k8s_env_vars" .Values.conf.controller | indent 12 }}
+          ports:
+            - containerPort: {{ tuple "ingress" "internal" "http" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+            {{- if .Values.network.host_namespace }}
+              hostPort: {{ tuple "ingress" "internal" "http" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+            {{- end }}
+            - containerPort: {{ tuple "ingress" "internal" "https" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+            {{- if .Values.network.host_namespace }}
+              hostPort: {{ tuple "ingress" "internal" "https" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+            {{- end }}
+          command:
+            - /tmp/ingress-controller.sh
+            - start
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /tmp/ingress-controller.sh
+                  - stop
+          volumeMounts:
+            - name: ingress-bin
+              mountPath: /tmp/ingress-controller.sh
+              subPath: ingress-controller.sh
+              readOnly: true
+{{- if and .Values.network.host_namespace .Values.network.vip.manage }}
+        - name: ingress-vip
+          securityContext:
+            capabilities:
+              add:
+                - NET_ADMIN
+            runAsUser: 0
+{{- if eq .Values.network.vip.mode "routed" }}
+{{ tuple $envAll "ingress" | include "helm-toolkit.snippets.image" | indent 10 }}
+          env:
+{{ include "helm-toolkit.utils.to_k8s_env_vars" .Values.network.vip | indent 12 }}
+          command:
+            - /tmp/ingress-vip.sh
+            - sleep
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /tmp/ingress-vip.sh
+                  - stop
+          volumeMounts:
+            - name: ingress-bin
+              mountPath: /tmp/ingress-vip.sh
+              subPath: ingress-vip.sh
+              readOnly: true
+{{- else if eq .Values.network.vip.mode "keepalived" }}
+{{ tuple $envAll "keepalived" | include "helm-toolkit.snippets.image" | indent 10 }}
+          env:
+          - name: KEEPALIVED_INTERFACE
+            value: {{ .Values.network.vip.interface | quote }}
+          - name: KEEPALIVED_VIRTUAL_IPS
+            value: {{ ( .Values.network.vip.addr | split "/" )._0  | quote }}
+          - name: KEEPALIVED_UNICAST_PEERS
+            value: null
+{{- end }}
+{{- end }}
+      volumes:
+        - name: ingress-bin
+          configMap:
+            name: ingress-bin
+            defaultMode: 0555
+      {{- if and .Values.network.host_namespace .Values.network.vip.manage }}
+        - name: host-rootfs
+          hostPath:
+            path: /
+      {{- end }}
+{{- end }}
