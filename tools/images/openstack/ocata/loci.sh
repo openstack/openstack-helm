@@ -31,7 +31,7 @@ sudo docker exec docker-in-docker docker build --force-rm --pull --no-cache \
     --build-arg PROJECT=keystone \
     --build-arg FROM=gcr.io/google_containers/ubuntu-slim:0.14 \
     --build-arg PROJECT_REF=${OPENSTACK_VERSION} \
-    --build-arg PROFILES="apache ldap" \
+    --build-arg PROFILES="fluent apache ldap" \
     --build-arg PIP_PACKAGES="pycrypto python-openstackclient" \
     --build-arg WHEELS=openstackhelm/requirements:${IMAGE_TAG} \
     --tag docker.io/openstackhelm/keystone:${IMAGE_TAG}
@@ -42,7 +42,7 @@ sudo docker exec docker-in-docker docker build --force-rm --pull --no-cache \
     --build-arg PROJECT=heat \
     --build-arg FROM=gcr.io/google_containers/ubuntu-slim:0.14 \
     --build-arg PROJECT_REF=${OPENSTACK_VERSION} \
-    --build-arg PROFILES="apache" \
+    --build-arg PROFILES="fluent apache" \
     --build-arg PIP_PACKAGES="pycrypto" \
     --build-arg DIST_PACKAGES="curl" \
     --build-arg WHEELS=openstackhelm/requirements:${IMAGE_TAG} \
@@ -54,6 +54,7 @@ sudo docker exec docker-in-docker docker build --force-rm --pull --no-cache \
     --build-arg PROJECT=barbican \
     --build-arg FROM=gcr.io/google_containers/ubuntu-slim:0.14 \
     --build-arg PROJECT_REF=${OPENSTACK_VERSION} \
+    --build-arg PROFILES="fluent" \
     --build-arg PIP_PACKAGES="pycrypto" \
     --build-arg WHEELS=openstackhelm/requirements:${IMAGE_TAG} \
     --tag docker.io/openstackhelm/barbican:${IMAGE_TAG}
@@ -64,7 +65,7 @@ sudo docker exec docker-in-docker docker build --force-rm --pull --no-cache \
     --build-arg PROJECT=glance \
     --build-arg FROM=gcr.io/google_containers/ubuntu-slim:0.14 \
     --build-arg PROJECT_REF=${OPENSTACK_VERSION} \
-    --build-arg PROFILES="glance ceph" \
+    --build-arg PROFILES="fluent glance ceph" \
     --build-arg PIP_PACKAGES="pycrypto python-swiftclient" \
     --build-arg WHEELS=openstackhelm/requirements:${IMAGE_TAG} \
     --tag docker.io/openstackhelm/glance:${IMAGE_TAG}
@@ -75,7 +76,7 @@ sudo docker exec docker-in-docker docker build --force-rm --pull --no-cache \
     --build-arg PROJECT=cinder \
     --build-arg FROM=gcr.io/google_containers/ubuntu-slim:0.14 \
     --build-arg PROJECT_REF=${OPENSTACK_VERSION} \
-    --build-arg PROFILES="cinder lvm ceph qemu" \
+    --build-arg PROFILES="fluent cinder lvm ceph qemu" \
     --build-arg PIP_PACKAGES="pycrypto python-swiftclient" \
     --build-arg WHEELS=openstackhelm/requirements:${IMAGE_TAG} \
     --tag docker.io/openstackhelm/cinder:${IMAGE_TAG}
@@ -86,7 +87,7 @@ sudo docker exec docker-in-docker docker build --force-rm --pull --no-cache \
     --build-arg PROJECT=neutron \
     --build-arg FROM=gcr.io/google_containers/ubuntu-slim:0.14 \
     --build-arg PROJECT_REF=${OPENSTACK_VERSION} \
-    --build-arg PROFILES="neutron linuxbridge openvswitch" \
+    --build-arg PROFILES="fluent neutron linuxbridge openvswitch" \
     --build-arg PIP_PACKAGES="pycrypto" \
     --build-arg WHEELS=openstackhelm/requirements:${IMAGE_TAG} \
     --tag docker.io/openstackhelm/neutron:${IMAGE_TAG}
@@ -97,7 +98,7 @@ sudo docker exec docker-in-docker docker build --force-rm --pull --no-cache \
     --build-arg PROJECT=neutron \
     --build-arg FROM=docker.io/ubuntu:18.04 \
     --build-arg PROJECT_REF=${OPENSTACK_VERSION} \
-    --build-arg PROFILES="neutron linuxbridge openvswitch" \
+    --build-arg PROFILES="fluent neutron linuxbridge openvswitch" \
     --build-arg PIP_PACKAGES="pycrypto" \
     --build-arg DIST_PACKAGES="ethtool lshw" \
     --build-arg WHEELS=openstackhelm/requirements:${IMAGE_TAG} \
@@ -109,7 +110,7 @@ sudo docker exec docker-in-docker docker build --force-rm --pull --no-cache \
     --build-arg PROJECT=nova \
     --build-arg FROM=gcr.io/google_containers/ubuntu-slim:0.14 \
     --build-arg PROJECT_REF=${OPENSTACK_VERSION} \
-    --build-arg PROFILES="nova ceph linuxbridge openvswitch configdrive qemu apache" \
+    --build-arg PROFILES="fluent nova ceph linuxbridge openvswitch configdrive qemu apache" \
     --build-arg PIP_PACKAGES="pycrypto" \
     --build-arg WHEELS=openstackhelm/requirements:${IMAGE_TAG} \
     --tag docker.io/openstackhelm/nova:${IMAGE_TAG}
@@ -120,7 +121,7 @@ sudo docker exec docker-in-docker docker build --force-rm --pull --no-cache \
     --build-arg PROJECT=horizon \
     --build-arg FROM=gcr.io/google_containers/ubuntu-slim:0.14 \
     --build-arg PROJECT_REF=${OPENSTACK_VERSION} \
-    --build-arg PROFILES="horizon apache" \
+    --build-arg PROFILES="fluent horizon apache" \
     --build-arg PIP_PACKAGES="pycrypto" \
     --build-arg WHEELS=openstackhelm/requirements:${IMAGE_TAG} \
     --tag docker.io/openstackhelm/horizon:${IMAGE_TAG}
@@ -131,7 +132,7 @@ sudo docker exec docker-in-docker docker build --force-rm --pull --no-cache \
     --build-arg PROJECT=senlin \
     --build-arg FROM=gcr.io/google_containers/ubuntu-slim:0.14 \
     --build-arg PROJECT_REF=${OPENSTACK_VERSION} \
-    --build-arg PROFILES="senlin" \
+    --build-arg PROFILES="fluent senlin" \
     --build-arg PIP_PACKAGES="pycrypto" \
     --build-arg WHEELS=openstackhelm/requirements:${IMAGE_TAG} \
     --tag docker.io/openstackhelm/senlin:${IMAGE_TAG}
@@ -142,7 +143,7 @@ sudo docker exec docker-in-docker docker build --force-rm --pull --no-cache \
     --build-arg PROJECT=congress \
     --build-arg FROM=gcr.io/google_containers/ubuntu-slim:0.14 \
     --build-arg PROJECT_REF=${OPENSTACK_VERSION} \
-    --build-arg PROFILES="congress" \
+    --build-arg PROFILES="fluent congress" \
     --build-arg PIP_PACKAGES="pycrypto python-congressclient" \
     --build-arg WHEELS=openstackhelm/requirements:${IMAGE_TAG} \
     --tag docker.io/openstackhelm/congress:${IMAGE_TAG}
@@ -153,7 +154,7 @@ sudo docker exec docker-in-docker docker build --force-rm --pull --no-cache \
     --build-arg PROJECT=magnum \
     --build-arg FROM=gcr.io/google_containers/ubuntu-slim:0.14 \
     --build-arg PROJECT_REF=${OPENSTACK_VERSION} \
-    --build-arg PROFILES="magnum" \
+    --build-arg PROFILES="fluent magnum" \
     --build-arg PIP_PACKAGES="pycrypto" \
     --build-arg WHEELS=openstackhelm/requirements:${IMAGE_TAG} \
     --tag docker.io/openstackhelm/magnum:${IMAGE_TAG}
@@ -164,7 +165,7 @@ sudo docker exec docker-in-docker docker build --force-rm --pull --no-cache \
     --build-arg PROJECT=ironic \
     --build-arg FROM=gcr.io/google_containers/ubuntu-slim:0.14 \
     --build-arg PROJECT_REF=${OPENSTACK_VERSION} \
-    --build-arg PROFILES="ironic ipxe ipmi qemu tftp" \
+    --build-arg PROFILES="fluent ironic ipxe ipmi qemu tftp" \
     --build-arg PIP_PACKAGES="pycrypto" \
     --build-arg DIST_PACKAGES="iproute2" \
     --build-arg WHEELS=openstackhelm/requirements:${IMAGE_TAG} \
