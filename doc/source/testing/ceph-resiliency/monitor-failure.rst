@@ -123,3 +123,86 @@ symptoms are similar to when 1 or 2 Monitor processes are killed:
 The status of the pods (where the three Monitor processes are killed)
 changed as follows: ``Running`` -> ``Error`` -> ``CrashLoopBackOff``
 -> ``Running`` and this recovery process takes about 1 minute.
+
+Case: Monitor database is destroyed
+===================================
+
+We intentionlly destroy a Monitor database by removing
+``/var/lib/openstack-helm/ceph/mon/mon/ceph-voyager3/store.db``.
+
+Symptom:
+--------
+
+A Ceph Monitor running on voyager3 (whose Monitor database is destroyed) becomes out of quorum,
+and the mon-pod's status stays in ``Running`` -> ``Error`` -> ``CrashLoopBackOff`` while keeps restarting.
+
+.. code-block:: console
+
+  (mon-pod):/# ceph -s
+    cluster:
+      id:     9d4d8c61-cf87-4129-9cef-8fbf301210ad
+      health: HEALTH_WARN
+              too few PGs per OSD (22 < min 30)
+              mon voyager1 is low on available space
+              1/3 mons down, quorum voyager1,voyager2
+
+    services:
+      mon: 3 daemons, quorum voyager1,voyager2, out of quorum: voyager3
+      mgr: voyager1(active), standbys: voyager3
+      mds: cephfs-1/1/1 up  {0=mds-ceph-mds-65bb45dffc-cslr6=up:active}, 1 up:standby
+      osd: 24 osds: 24 up, 24 in
+      rgw: 2 daemons active
+
+    data:
+      pools:   18 pools, 182 pgs
+      objects: 240 objects, 3359 bytes
+      usage:   2675 MB used, 44675 GB / 44678 GB avail
+      pgs:     182 active+clean
+
+.. code-block:: console
+
+  $ kubectl get pods -n ceph -o wide|grep ceph-mon
+  ceph-mon-4gzzw                             1/1       Running            0          6d        135.207.240.42    voyager2
+  ceph-mon-6bbs6                             0/1       CrashLoopBackOff   5          6d        135.207.240.43    voyager3
+  ceph-mon-qgc7p                             1/1       Running            0          6d        135.207.240.41    voyager1
+
+The logs of the failed mon-pod shows the ceph-mon process cannot run as ``/var/lib/ceph/mon/ceph-voyager3/store.db`` does not exist.
+
+.. code-block:: console
+
+  $ kubectl logs ceph-mon-6bbs6 -n ceph
+  + ceph-mon --setuser ceph --setgroup ceph --cluster ceph -i voyager3 --inject-monmap /etc/ceph/monmap-ceph --keyring /etc/ceph/ceph.mon.keyring --mon-data /var/lib/ceph/mon/ceph-voyager3
+  2018-07-10 18:30:04.546200 7f4ca9ed4f00 -1 rocksdb: Invalid argument: /var/lib/ceph/mon/ceph-voyager3/store.db: does not exist (create_if_missing is false)
+  2018-07-10 18:30:04.546214 7f4ca9ed4f00 -1 error opening mon data directory at '/var/lib/ceph/mon/ceph-voyager3': (22) Invalid argument
+
+Recovery:
+---------
+
+Remove the entire ceph-mon directory on voyager3, and then Ceph will automatically
+recreate the database by using the other ceph-mons' database.
+
+.. code-block:: console
+
+  $ sudo rm -rf /var/lib/openstack-helm/ceph/mon/mon/ceph-voyager3
+
+.. code-block:: console
+
+  (mon-pod):/# ceph -s
+    cluster:
+      id:     9d4d8c61-cf87-4129-9cef-8fbf301210ad
+      health: HEALTH_WARN
+              too few PGs per OSD (22 < min 30)
+              mon voyager1 is low on available space
+
+    services:
+      mon: 3 daemons, quorum voyager1,voyager2,voyager3
+      mgr: voyager1(active), standbys: voyager3
+      mds: cephfs-1/1/1 up  {0=mds-ceph-mds-65bb45dffc-cslr6=up:active}, 1 up:standby
+      osd: 24 osds: 24 up, 24 in
+      rgw: 2 daemons active
+
+    data:
+      pools:   18 pools, 182 pgs
+      objects: 240 objects, 3359 bytes
+      usage:   2675 MB used, 44675 GB / 44678 GB avail
+      pgs:     182 active+clean
