@@ -15,7 +15,7 @@ limitations under the License.
 */}}
 
 Listen 0.0.0.0:{{ tuple "identity" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-Listen 0.0.0.0:{{ tuple "identity" "internal" "admin" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+Listen 0.0.0.0:{{ tuple "identity" "admin" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
 
 LogFormat "%h %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\"" combined
 LogFormat "%{X-Forwarded-For}i %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\"" proxy
@@ -40,7 +40,7 @@ CustomLog /dev/stdout proxy env=forwarded
     CustomLog /dev/stdout proxy env=forwarded
 </VirtualHost>
 
-<VirtualHost *:{{ tuple "identity" "internal" "admin" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}>
+<VirtualHost *:{{ tuple "identity" "admin" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}>
     WSGIDaemonProcess keystone-admin processes=1 threads=1 user=keystone group=keystone display-name=%{GROUP}
     WSGIProcessGroup keystone-admin
     WSGIScriptAlias / /var/www/cgi-bin/keystone/keystone-wsgi-admin
