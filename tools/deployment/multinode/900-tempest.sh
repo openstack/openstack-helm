@@ -83,7 +83,9 @@ envsubst < /tmp/tempest.yaml
 
 helm upgrade --install tempest ./tempest \
   --namespace=openstack \
-  --values=/tmp/tempest.yaml
+  --values=/tmp/tempest.yaml \
+  ${OSH_EXTRA_HELM_ARGS} \
+  ${OSH_EXTRA_HELM_ARGS_TEMPEST}
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack 2400
