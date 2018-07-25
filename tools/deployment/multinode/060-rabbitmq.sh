@@ -17,7 +17,9 @@
 set -xe
 
 #NOTE: Deploy command
-helm upgrade --install rabbitmq ./rabbitmq \
+: ${OSH_INFRA_PATH:="../openstack-helm-infra"}
+: ${OSH_EXTRA_HELM_ARGS:=""}
+helm upgrade --install rabbitmq ${OSH_INFRA_PATH}/rabbitmq \
     --namespace=openstack \
     ${OSH_EXTRA_HELM_ARGS} \
     ${OSH_EXTRA_HELM_ARGS_RABBITMQ}
