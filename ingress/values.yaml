@@ -1,0 +1,211 @@
+# Copyright 2017 The Openstack-Helm Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Default values for ingress.
+# This is a YAML-formatted file.
+# Declare name/value pairs to be passed into your templates.
+# name: value
+
+deployment:
+  mode: namespace
+  type: Deployment
+  cluster:
+    class: "nginx-cluster"
+
+images:
+  tags:
+    entrypoint: quay.io/stackanetes/kubernetes-entrypoint:v0.3.1
+    # https://github.com/kubernetes/ingress-nginx/blob/09524cd3363693463da5bf4a9bb3900da435ad05/Changelog.md#090
+    ingress: quay.io/kubernetes-ingress-controller/nginx-ingress-controller:0.9.0
+    error_pages: gcr.io/google_containers/defaultbackend:1.0
+    keepalived: osixia/keepalived:1.4.5
+    dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.3.1
+    image_repo_sync: docker.io/docker:17.07.0
+  pull_policy: "IfNotPresent"
+  local_registry:
+    active: false
+    exclude:
+      - dep_check
+      - image_repo_sync
+
+pod:
+  affinity:
+    anti:
+      type:
+        default: preferredDuringSchedulingIgnoredDuringExecution
+      topologyKey:
+        default: kubernetes.io/hostname
+  replicas:
+    ingress: 1
+    error_page: 1
+  lifecycle:
+    upgrades:
+      deployments:
+        revision_history: 3
+        pod_replacement_strategy: RollingUpdate
+        rolling_update:
+          max_unavailable: 1
+          max_surge: 3
+    termination_grace_period:
+      server:
+        timeout: 60
+      error_pages:
+        timeout: 60
+  resources:
+    enabled: false
+    ingress:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+    error_pages:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+    jobs:
+      image_repo_sync:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+
+labels:
+  server:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  error_server:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+
+network:
+  host_namespace: false
+  vip:
+    manage: false
+    # what type of vip manage machanism will be used
+    # possible options: routed, keepalived
+    mode: routed
+    interface: ingress-vip
+    addr: 172.18.0.1/32
+  ingress:
+    annotations:
+      #NOTE(portdirect): if left blank this is populated from
+      # .deployment.cluster.class
+      kubernetes.io/ingress.class: null
+      nginx.ingress.kubernetes.io/proxy-body-size: "0"
+  external_policy_local: false
+
+dependencies:
+  dynamic:
+    common:
+      local_image_registry:
+        jobs:
+          - ingress-image-repo-sync
+        services:
+          - endpoint: node
+            service: local_image_registry
+  static:
+    error_pages:
+      jobs: null
+    ingress:
+      jobs: null
+    image_repo_sync:
+      services:
+        - endpoint: internal
+          service: local_image_registry
+
+monitoring:
+  prometheus:
+    enabled: true
+    ingress_exporter:
+      scrape: true
+
+endpoints:
+  cluster_domain_suffix: cluster.local
+  local_image_registry:
+    name: docker-registry
+    namespace: docker-registry
+    hosts:
+      default: localhost
+      internal: docker-registry
+      node: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        node: 5000
+  ingress:
+    hosts:
+      default: ingress
+      error_pages: ingress-error-pages
+    host_fqdn_override:
+      default: null
+    port:
+      http:
+        default: 80
+      https:
+        default: 443
+  ingress_exporter:
+    namespace: null
+    hosts:
+      default: ingress-exporter
+    host_fqdn_override:
+      default: null
+    path:
+      default: null
+    scheme:
+      default: 'http'
+    port:
+      metrics:
+        default: 10254
+
+conf:
+  controller:
+    #NOTE(portdirect): if left blank this is populated from
+    # .deployment.cluster.class in cluster mode, or set to
+    # "nginx" in namespace mode
+    INGRESS_CLASS: null
+  ingress:
+    enable-underscores-in-headers: "true"
+    #NOTE(portdirect): if left blank this is populated from
+    # .network.vip.addr when running in host networking
+    # and .network.vip.manage=true, otherwise it is left as
+    # an empty string (the default).
+    bind-address: null
+    enable-vts-status: "true"
+  services:
+    tcp: null
+    udp: null
+
+manifests:
+  configmap_bin: true
+  configmap_conf: true
+  configmap_services_tcp: true
+  configmap_services_udp: true
+  deployment_error: true
+  deployment_ingress: true
+  endpoints_ingress: true
+  ingress: true
+  service_error: true
+  service_ingress: true
+  job_image_repo_sync: true
+  monitoring:
+    prometheus:
+      service_exporter: true
