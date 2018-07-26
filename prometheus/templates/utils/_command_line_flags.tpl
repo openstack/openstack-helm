@@ -34,11 +34,11 @@ limitations under the License.
 # 'prometheus --help-man'
 
 {{- define "prometheus.utils.command_line_flags" -}}
-{{- range $flag, $value := . }}
-{{- $flag := $flag | replace "_" "-" -}}
-{{- if eq $flag "web.enable-admin-api" -}}
-{{- if $value -}}
-{{- printf "--%s" $flag }}
+{{- range $flag, $value := . -}}
+{{- $flag := $flag | replace "_" "-" }}
+{{- if eq $flag "web.enable-admin-api" "web.enable-lifecycle" -}}
+{{- if $value }}
+{{- printf " --%s" $flag -}}
 {{- end -}}
 {{- else -}}
 {{- $value := $value | toString }}
