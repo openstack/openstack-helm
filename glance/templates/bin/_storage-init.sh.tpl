@@ -43,7 +43,7 @@ elif [ "x$STORAGE_BACKEND" == "xrbd" ]; then
   function ensure_pool () {
     ceph osd pool stats "$1" || ceph osd pool create "$1" "$2"
     local test_luminous
-    test_luminous=$(ceph tell osd.* version | egrep -c "12.2|luminous")
+    test_luminous=$(ceph tell osd.* version | egrep -c "12.2|luminous" | xargs echo)
     if [[ ${test_luminous} -gt 0 ]]; then
       ceph osd pool application enable "$1" "$3"
     fi
