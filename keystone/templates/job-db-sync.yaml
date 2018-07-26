@@ -23,16 +23,42 @@ env:
     value: {{ tuple "identity" "internal" "api" $envAll | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" }}
   - name: OS_BOOTSTRAP_PUBLIC_URL
     value: {{ tuple "identity" "public" "api" $envAll | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" }}
+  - name: OPENSTACK_CONFIG_FILE
+    value: "/etc/keystone/keystone.conf"
+  - name: OPENSTACK_CONFIG_DB_SECTION
+    value: "database"
+  - name: OPENSTACK_CONFIG_DB_KEY
+    value: "connection"
 {{- with $env := dict "ksUserSecret" $envAll.Values.secrets.identity.admin }}
 {{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 2}}
 {{- end }}
 {{- end }}
 
+{{- define "keystone.templates._job_db_sync.pod_vol_mounts" -}}
+{{- $envAll := index . 0 -}}
+volumeMounts:
+  - name: db-sync-sh
+    mountPath: /tmp/endpoint-update.py
+    subPath: endpoint-update.py
+    readOnly: true
+  - name: keystone-fernet-keys
+    mountPath: {{ $envAll.Values.conf.keystone.fernet_tokens.key_repository }}
+    readOnly: true
+{{- end }}
+
+{{- define "keystone.templates._job_db_sync.pod_vols" -}}
+{{- $envAll := index . 0 -}}
+volumes:
+  - name: keystone-fernet-keys
+    secret:
+      secretName: keystone-fernet-keys
+{{- end }}
+
 {{- if .Values.manifests.job_db_sync }}
 {{- $local := dict "podVolMounts" false "podVols" false -}}
 {{- if eq .Values.conf.keystone.token.provider "fernet" }}
-{{- $_ := set $local "podVolMounts" (list (dict "name" "keystone-fernet-keys" "mountPath" .Values.conf.keystone.fernet_tokens.key_repository "readOnly" true )) }}
-{{- $_ := set $local "podVols" (list (dict "name" "keystone-fernet-keys" "secret" (dict "secretName" "keystone-fernet-keys"))) }}
+{{- $_ := set $local "podVolMounts" ( index ( tuple . | include "keystone.templates._job_db_sync.pod_vol_mounts" | toString | fromYaml ) "volumeMounts" ) }}
+{{- $_ := set $local "podVols" ( index ( tuple . | include "keystone.templates._job_db_sync.pod_vols" | toString | fromYaml ) "volumes" ) }}
 {{- end }}
 {{- $podEnvVars := tuple . | include "keystone.templates._job_db_sync.env_vars" | toString | fromYaml }}
 {{- $dbSyncJob := dict "envAll" . "serviceName" "keystone" "podVolMounts" $local.podVolMounts "podVols" $local.podVols "podEnvVars" $podEnvVars.env -}}

@@ -27,3 +27,5 @@ keystone-manage --config-file=/etc/keystone/keystone.conf bootstrap \
     --bootstrap-public-url ${OS_BOOTSTRAP_PUBLIC_URL} \
     --bootstrap-internal-url ${OS_BOOTSTRAP_INTERNAL_URL} \
     --bootstrap-region-id ${OS_REGION_NAME}
+
+exec python /tmp/endpoint-update.py
