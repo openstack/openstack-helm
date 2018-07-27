@@ -17,28 +17,15 @@
 set -xe
 
 #NOTE: Lint and package chart
-make alertmanager
+make nagios
 
 #NOTE: Deploy command
-tee /tmp/prometheus-alertmanager.yaml << EOF
-pod:
-  replicas:
-    alertmanager: 1
-storage:
-  storage_class: openstack-helm-lma-nfs
-network:
-  alertmanager:
-    ingress:
-      public: false
-    node_port:
-      enabled: true
-EOF
-helm upgrade --install prometheus-alertmanager ./prometheus-alertmanager \
+helm upgrade --install nagios ./nagios \
     --namespace=openstack \
-    --values=/tmp/prometheus-alertmanager.yaml
+    --set pod.replicas.nagios=3
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack
 
 #NOTE: Validate Deployment info
-helm status prometheus-alertmanager
+helm status nagios

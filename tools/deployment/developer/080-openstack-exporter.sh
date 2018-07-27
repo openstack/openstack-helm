@@ -1,1 +1,0 @@
-../common/080-openstack-exporter.sh

@@ -17,43 +17,15 @@
 set -xe
 
 #NOTE: Lint and package chart
-make grafana
+make prometheus
 
 #NOTE: Deploy command
-tee /tmp/grafana.yaml << EOF
-dependencies:
-  static:
-    grafana:
-      jobs: null
-      services: null
-manifests:
-  ingress: false
-  job_db_init: false
-  job_db_init_session: false
-  job_db_session_sync: false
-  secret_db: false
-  secret_db_session: false
-  service_ingress: false
-conf:
-  grafana:
-    database:
-      type: sqlite3
-    session:
-      provider: file
-      provider_config: sessions
-network:
-  grafana:
-    ingress:
-      public: false
-    node_port:
-      enabled: true
-EOF
-helm upgrade --install grafana ./grafana \
+helm upgrade --install prometheus ./prometheus \
     --namespace=openstack \
-    --values=/tmp/grafana.yaml
+    --set storage.storage_class=openstack-helm-lma-nfs
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack
 
 #NOTE: Validate Deployment info
-helm status grafana
+helm status prometheus

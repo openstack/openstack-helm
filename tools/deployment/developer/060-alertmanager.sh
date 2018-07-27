@@ -17,25 +17,16 @@
 set -xe
 
 #NOTE: Lint and package chart
-make prometheus
+make alertmanager
 
 #NOTE: Deploy command
-tee /tmp/prometheus.yaml << EOF
-storage:
-  storage_class: openstack-helm-lma-nfs
-network:
-  prometheus:
-    ingress:
-      public: false
-    node_port:
-      enabled: true
-EOF
-helm upgrade --install prometheus ./prometheus \
+helm upgrade --install prometheus-alertmanager ./prometheus-alertmanager \
     --namespace=openstack \
-    --values=/tmp/prometheus.yaml
+    --set pod.replicas.alertmanager=1 \
+    --set storage.storage_class=openstack-helm-lma-nfs
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack
 
 #NOTE: Validate Deployment info
-helm status prometheus
+helm status prometheus-alertmanager

@@ -16,17 +16,30 @@
 
 set -xe
 
-#NOTE: Lint and package chart
-make nagios
+#NOTE: Deploy global ingress
+tee /tmp/ingress-kube-system.yaml << EOF
+deployment:
+  mode: cluster
+  type: DaemonSet
+network:
+  host_namespace: true
+EOF
+helm upgrade --install ingress-kube-system ./ingress \
+  --namespace=kube-system \
+  --values=/tmp/ingress-kube-system.yaml
 
-#NOTE: Deploy command
-helm upgrade --install nagios ./nagios \
-    --namespace=openstack \
-    --set network.nagios.ingress.public=false \
-    --set network.nagios.node_port.enabled=true
+#NOTE: Wait for deploy
+./tools/deployment/common/wait-for-pods.sh kube-system
+
+#NOTE: Display info
+helm status ingress-kube-system
+
+#NOTE: Deploy namespace ingress controllers
+helm upgrade --install ingress-openstack ./ingress \
+  --namespace=openstack
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack
 
-#NOTE: Validate Deployment info
-helm status nagios
+#NOTE: Display info
+helm status ingress-openstack
