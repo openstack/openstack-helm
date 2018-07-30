@@ -1,1 +1,0 @@
-../common/030-ldap.sh

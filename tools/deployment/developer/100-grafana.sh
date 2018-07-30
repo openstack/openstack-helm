@@ -17,16 +17,36 @@
 set -xe
 
 #NOTE: Lint and package chart
-make nagios
+make grafana
 
 #NOTE: Deploy command
-helm upgrade --install nagios ./nagios \
+tee /tmp/grafana.yaml << EOF
+dependencies:
+  static:
+    grafana:
+      jobs: null
+      services: null
+manifests:
+  job_db_init: false
+  job_db_init_session: false
+  job_db_session_sync: false
+  secret_db: false
+  secret_db_session: false
+  service_ingress: false
+conf:
+  grafana:
+    database:
+      type: sqlite3
+    session:
+      provider: file
+      provider_config: sessions
+EOF
+helm upgrade --install grafana ./grafana \
     --namespace=openstack \
-    --set network.nagios.ingress.public=false \
-    --set pod.replicas.nagios=3
+    --values=/tmp/grafana.yaml
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack
 
 #NOTE: Validate Deployment info
-helm status nagios
+helm status grafana

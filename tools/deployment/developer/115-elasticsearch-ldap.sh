@@ -1,1 +1,0 @@
-../common/115-elasticsearch-ldap.sh

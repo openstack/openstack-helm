@@ -17,16 +17,14 @@
 set -xe
 
 #NOTE: Lint and package chart
-make kibana
+make nagios
 
 #NOTE: Deploy command
-helm upgrade --install kibana ./kibana \
-    --namespace=openstack \
-    --set network.kibana.node_port.enabled=true \
-    --set network.kibana.ingress.public=false
+helm upgrade --install nagios ./nagios \
+    --namespace=openstack
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack
 
 #NOTE: Validate Deployment info
-helm status kibana
+helm status nagios
