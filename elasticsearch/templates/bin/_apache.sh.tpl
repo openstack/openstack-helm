@@ -30,9 +30,9 @@ function start () {
   rm -f /etc/httpd/logs/httpd.pid
 
   if [ -f /usr/local/apache2/conf/.htpasswd ]; then
-    htpasswd -b /usr/local/apache2/conf/.htpasswd $ELASTICSEARCH_USERNAME $ELASTICSEARCH_PASSWORD
+    htpasswd -b /usr/local/apache2/conf/.htpasswd "$ELASTICSEARCH_USERNAME" "$ELASTICSEARCH_PASSWORD"
   else
-    htpasswd -cb /usr/local/apache2/conf/.htpasswd $ELASTICSEARCH_USERNAME $ELASTICSEARCH_PASSWORD
+    htpasswd -cb /usr/local/apache2/conf/.htpasswd "$ELASTICSEARCH_USERNAME" "$ELASTICSEARCH_PASSWORD"
   fi
 
   #Launch Apache on Foreground
