@@ -28,7 +28,7 @@ RUN sed -i \
         /etc/apt/sources.list ;\
     echo "APT::Get::AllowUnauthenticated \"${ALLOW_UNAUTHENTICATED}\";" > /etc/apt/apt.conf.d/allow-unathenticated
 
-ARG KUBE_VERSION="v1.10.5"
+ARG KUBE_VERSION="v1.10.6"
 ENV KUBE_VERSION ${KUBE_VERSION}
 
 ARG CNI_VERSION="v0.6.0"
