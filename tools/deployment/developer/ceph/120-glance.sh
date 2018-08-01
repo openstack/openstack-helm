@@ -21,6 +21,7 @@ make glance
 
 #NOTE: Deploy command
 : ${OSH_EXTRA_HELM_ARGS:=""}
+: ${OSH_OPENSTACK_RELEASE:="newton"}
 #NOTE(portdirect), this could be: radosgw, rbd, swift or pvc
 : ${GLANCE_BACKEND:="swift"}
 tee /tmp/glance.yaml <<EOF
