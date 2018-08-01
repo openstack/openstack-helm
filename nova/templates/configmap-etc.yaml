@@ -227,13 +227,12 @@ data:
   nova_sudoers: |
 {{ $envAll.Values.conf.nova_sudoers | indent 4 }}
   rootwrap.conf: |
-{{- tuple .Values.conf.rootwrap "etc/_rootwrap.conf.tpl" . | include "helm-toolkit.utils.configmap_templater" }}
-  api-metadata.filters: |
-{{- tuple .Values.conf.rootwrap_filters.api_metadata "etc/rootwrap.d/_api-metadata.filters.tpl" . | include "helm-toolkit.utils.configmap_templater" }}
-  compute.filters: |
-{{- tuple .Values.conf.rootwrap_filters.compute "etc/rootwrap.d/_compute.filters.tpl" . | include "helm-toolkit.utils.configmap_templater" }}
-  network.filters: |
-{{- tuple .Values.conf.rootwrap_filters.network "etc/rootwrap.d/_network.filters.tpl" . | include "helm-toolkit.utils.configmap_templater" }}
+{{- .Values.conf.rootwrap | indent 4 }}
+{{- range $key, $value := $envAll.Values.conf.rootwrap_filters }}
+{{- $filePrefix := replace "_" "-"  $key }}
+  {{ printf "%s.filters" $filePrefix }}: |
+{{ $value.content | indent 4 }}
+{{- end }}
   nova.conf: |
 {{ include "helm-toolkit.utils.to_oslo_conf" .Values.conf.nova | indent 4 }}
   logging.conf: |
