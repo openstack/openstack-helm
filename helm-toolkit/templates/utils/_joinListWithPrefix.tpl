@@ -1,5 +1,4 @@
-#!/bin/sh
-{{/*
+{/*
 Copyright 2017 The Openstack-Helm Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,9 +14,21 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-set -ex
+{{/*
+abstract: |
+  Joins a list of prefixed values into a space seperated string
+values: |
+  test:
+    - foo
+    - bar
+usage: |
+  {{ tuple "prefix" .Values.test | include "helm-toolkit.utils.joinListWithPrefix" }}
+return: |
+  prefixfoo prefixbar
+*/}}
 
-exec /bin/node_exporter \
-  {{ tuple "--collector." .Values.conf.collectors.enable | include "helm-toolkit.utils.joinListWithPrefix" }} \
-  {{ tuple "--no-collector." .Values.conf.collectors.disable | include "helm-toolkit.utils.joinListWithPrefix" }} \
-  --collector.ntp.server={{ .Values.conf.ntp_server_ip }}
+{{- define "helm-toolkit.utils.joinListWithPrefix" -}}
+{{- $prefix := index . 0 -}}
+{{- $local := dict "first" true -}}
+{{- range $k, $v := index . 1 -}}{{- if not $local.first -}}{{- " " -}}{{- end -}}{{- $prefix -}}{{- $v -}}{{- $_ := set $local "first" false -}}{{- end -}}
+{{- end -}}
