@@ -65,15 +65,19 @@ spec:
                   - /tmp/keystone-api.sh
                   - stop
           ports:
+            {{- $portInt := tuple "identity" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+            {{- $portAdm := tuple "identity" "admin" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
             - name: ks-pub
-              containerPort: {{ tuple "identity" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+              containerPort: {{ $portInt }}
+            {{- if not ( eq $portInt $portAdm ) }}
             - name: ks-adm
-              containerPort: {{ tuple "identity" "admin" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+              containerPort: {{ $portAdm }}
+            {{- end }}
           readinessProbe:
             httpGet:
               scheme: HTTP
               path: /
-              port: {{ tuple "identity" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+              port: {{ $portInt }}
             initialDelaySeconds: 15
             periodSeconds: 10
           volumeMounts:

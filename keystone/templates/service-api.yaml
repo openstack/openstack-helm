@@ -23,16 +23,20 @@ metadata:
   name: {{ tuple "identity" "internal" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
 spec:
   ports:
-  - name: ks-pub
-    port: {{ tuple "identity" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-    {{ if .Values.network.api.node_port.enabled }}
-    nodePort: {{ .Values.network.api.node_port.port }}
-    {{ end }}
-  - name: ks-adm
-    port: {{ tuple "identity" "admin" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-    {{ if .Values.network.admin.node_port.enabled }}
-    nodePort: {{ .Values.network.admin.node_port.port }}
-    {{ end }}
+  {{- $portInt := tuple "identity" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+  {{- $portAdm := tuple "identity" "admin" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+    - name: ks-pub
+      port: {{ tuple "identity" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+      {{ if .Values.network.api.node_port.enabled }}
+      nodePort: {{ .Values.network.api.node_port.port }}
+      {{ end }}
+  {{- if not ( eq $portInt $portAdm ) }}
+    - name: ks-adm
+      port: {{ tuple "identity" "admin" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+      {{ if .Values.network.admin.node_port.enabled }}
+      nodePort: {{ .Values.network.admin.node_port.port }}
+      {{ end }}
+  {{- end }}
   selector:
 {{ tuple $envAll "keystone" "api" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
   {{ if or (.Values.network.api.node_port.enabled) (.Values.network.admin.node_port.enabled) }}
