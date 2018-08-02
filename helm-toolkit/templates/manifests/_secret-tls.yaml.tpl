@@ -55,10 +55,11 @@ return: |
 {{- $backendServiceType := index . "backendServiceType" }}
 {{- $backendService := index . "backendService" | default "api" }}
 {{- $host := index $envAll.Values.endpoints ( $backendServiceType | replace "-" "_" ) "host_fqdn_override" }}
-{{- if hasKey $host "public" }}
-{{- if kindIs "map" $host.public }}
-{{- if hasKey $host.public "tls" }}
-{{- if and $host.public.tls.key $host.public.tls.crt }}
+{{- if hasKey $host $endpoint }}
+{{- $endpointHost := index $host $endpoint }}
+{{- if kindIs "map" $endpointHost }}
+{{- if hasKey $endpointHost "tls" }}
+{{- if and $endpointHost.tls.key $endpointHost.tls.crt }}
 ---
 apiVersion: v1
 kind: Secret
@@ -66,10 +67,10 @@ metadata:
   name: {{ index $envAll.Values.secrets.tls ( $backendServiceType | replace "-" "_" ) $backendService $endpoint }}
 type: kubernetes.io/tls
 data:
-  tls.crt: {{ $host.public.tls.crt | b64enc }}
-  tls.key: {{ $host.public.tls.key | b64enc }}
-{{- if $host.public.tls.ca }}
-  ca.crt: {{ $host.public.tls.ca | b64enc }}
+  tls.crt: {{ $endpointHost.tls.crt | b64enc }}
+  tls.key: {{ $endpointHost.tls.key | b64enc }}
+{{- if $endpointHost.tls.ca }}
+  ca.crt: {{ $endpointHost.tls.ca | b64enc }}
 {{- end }}
 {{- end }}
 {{- end }}
