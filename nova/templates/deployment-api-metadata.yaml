@@ -133,18 +133,16 @@ spec:
               mountPath: /etc/nova/rootwrap.conf
               subPath: rootwrap.conf
               readOnly: true
+            {{- range $key, $value := $envAll.Values.conf.rootwrap_filters }}
+            {{- if ( has "metadata" $value.pods ) }}
+            {{- $filePrefix := replace "_" "-"  $key }}
+            {{- $rootwrapFile := printf "/etc/nova/rootwrap.d/%s.filters" $filePrefix }}
             - name: nova-etc
-              mountPath: /etc/nova/rootwrap.d/api-metadata.filters
-              subPath: api-metadata.filters
+              mountPath: {{ $rootwrapFile }}
+              subPath: {{ base $rootwrapFile }}
               readOnly: true
-            - name: nova-etc
-              mountPath: /etc/nova/rootwrap.d/compute.filters
-              subPath: compute.filters
-              readOnly: true
-            - name: nova-etc
-              mountPath: /etc/nova/rootwrap.d/network.filters
-              subPath: network.filters
-              readOnly: true
+            {{- end }}
+            {{- end }}
             - name: pod-shared
               mountPath: /tmp/pod-shared
               readOnly: true
