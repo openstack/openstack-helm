@@ -32,7 +32,7 @@ clouds:
       project_name: 'admin'
       project_domain_name: 'default'
       user_domain_name: 'default'
-      auth_url: 'http://keystone.openstack.svc.cluster.local/identity/v3'
+      auth_url: 'http://keystone.openstack.svc.cluster.local/v3'
 EOF
 
 #NOTE: Build charts

@@ -15,12 +15,8 @@ limitations under the License.
 */}}
 
 {{- $portInt := tuple "identity" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-{{- $portAdm := tuple "identity" "admin" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
 
 Listen 0.0.0.0:{{ $portInt }}
-{{- if not ( eq $portInt $portAdm ) }}
-Listen 0.0.0.0:{{ $portAdm }}
-{{- end }}
 
 LogFormat "%h %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\"" combined
 LogFormat "%{X-Forwarded-For}i %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\"" proxy
@@ -44,55 +40,3 @@ CustomLog /dev/stdout proxy env=forwarded
     CustomLog /dev/stdout combined env=!forwarded
     CustomLog /dev/stdout proxy env=forwarded
 </VirtualHost>
-
-{{- if not ( eq $portInt $portAdm ) }}
-<VirtualHost *:{{ $portAdm }}>
-    WSGIDaemonProcess keystone-admin processes=1 threads=1 user=keystone group=keystone display-name=%{GROUP}
-    WSGIProcessGroup keystone-admin
-    WSGIScriptAlias / /var/www/cgi-bin/keystone/keystone-wsgi-admin
-    WSGIApplicationGroup %{GLOBAL}
-    WSGIPassAuthorization On
-    <IfVersion >= 2.4>
-      ErrorLogFormat "%{cu}t %M"
-    </IfVersion>
-    ErrorLog /dev/stderr
-
-    SetEnvIf X-Forwarded-For "^.*\..*\..*\..*" forwarded
-    CustomLog /dev/stdout combined env=!forwarded
-    CustomLog /dev/stdout proxy env=forwarded
-</VirtualHost>
-{{- else }}
-WSGIDaemonProcess keystone-admin processes=1 threads=1 user=keystone group=keystone display-name=%{GROUP}
-WSGIProcessGroup keystone-admin
-WSGIScriptAlias / /var/www/cgi-bin/keystone/keystone-wsgi-admin
-WSGIApplicationGroup %{GLOBAL}
-WSGIPassAuthorization On
-<IfVersion >= 2.4>
-  ErrorLogFormat "%{cu}t %M"
-</IfVersion>
-ErrorLog /dev/stderr
-
-SetEnvIf X-Forwarded-For "^.*\..*\..*\..*" forwarded
-CustomLog /dev/stdout combined env=!forwarded
-CustomLog /dev/stdout proxy env=forwarded
-{{- end }}
-
-Alias /identity /var/www/cgi-bin/keystone/keystone-wsgi-public
-<Location /identity>
-    SetHandler wsgi-script
-    Options +ExecCGI
-
-    WSGIProcessGroup keystone-public
-    WSGIApplicationGroup %{GLOBAL}
-    WSGIPassAuthorization On
-</Location>
-
-Alias /identity_admin /var/www/cgi-bin/keystone/keystone-wsgi-admin
-<Location /identity_admin>
-    SetHandler wsgi-script
-    Options +ExecCGI
-
-    WSGIProcessGroup keystone-admin
-    WSGIApplicationGroup %{GLOBAL}
-    WSGIPassAuthorization On
-</Location>

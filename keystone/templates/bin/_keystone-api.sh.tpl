@@ -22,7 +22,7 @@ COMMAND="${@:-start}"
 
 function start () {
 
-  for KEYSTONE_WSGI_SCRIPT in keystone-wsgi-public keystone-wsgi-admin; do
+  for KEYSTONE_WSGI_SCRIPT in keystone-wsgi-public; do
     cp -a $(type -p ${KEYSTONE_WSGI_SCRIPT}) /var/www/cgi-bin/keystone/
   done
 
