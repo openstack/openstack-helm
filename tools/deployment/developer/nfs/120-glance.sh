@@ -21,6 +21,7 @@ make glance
 
 #NOTE: Deploy command
 : ${OSH_EXTRA_HELM_ARGS:=""}
+: ${OSH_OPENSTACK_RELEASE:="newton"}
 : ${GLANCE_BACKEND:="pvc"}
 tee /tmp/glance.yaml <<EOF
 storage: ${GLANCE_BACKEND}
