@@ -787,15 +787,66 @@ conf:
           sla:
             failure_rate:
               max: 0
-  mpm_event:
-    override:
-    append:
-  wsgi_keystone:
-    override:
-    append:
-  sso_callback_template:
-    override:
-    append:
+  mpm_event: |
+    <IfModule mpm_event_module>
+      ServerLimit         1024
+      StartServers        32
+      MinSpareThreads     32
+      MaxSpareThreads     256
+      ThreadsPerChild     25
+      MaxRequestsPerChild 128
+      ThreadLimit         720
+    </IfModule>
+  wsgi_keystone: |
+    {{- $portInt := tuple "identity" "internal" "api" $ | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+
+    Listen 0.0.0.0:{{ $portInt }}
+
+    LogFormat "%h %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\"" combined
+    LogFormat "%{X-Forwarded-For}i %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\"" proxy
+
+    SetEnvIf X-Forwarded-For "^.*\..*\..*\..*" forwarded
+    CustomLog /dev/stdout combined env=!forwarded
+    CustomLog /dev/stdout proxy env=forwarded
+
+    <VirtualHost *:{{ $portInt }}>
+        WSGIDaemonProcess keystone-public processes=1 threads=1 user=keystone group=keystone display-name=%{GROUP}
+        WSGIProcessGroup keystone-public
+        WSGIScriptAlias / /var/www/cgi-bin/keystone/keystone-wsgi-public
+        WSGIApplicationGroup %{GLOBAL}
+        WSGIPassAuthorization On
+        <IfVersion >= 2.4>
+          ErrorLogFormat "%{cu}t %M"
+        </IfVersion>
+        ErrorLog /dev/stdout
+
+        SetEnvIf X-Forwarded-For "^.*\..*\..*\..*" forwarded
+        CustomLog /dev/stdout combined env=!forwarded
+        CustomLog /dev/stdout proxy env=forwarded
+    </VirtualHost>
+  sso_callback_template: |
+    <!DOCTYPE html>
+    <html xmlns="http://www.w3.org/1999/xhtml">
+      <head>
+        <title>Keystone WebSSO redirect</title>
+      </head>
+      <body>
+         <form id="sso" name="sso" action="$host" method="post">
+           Please wait...
+           <br/>
+           <input type="hidden" name="token" id="token" value="$token"/>
+           <noscript>
+             <input type="submit" name="submit_no_javascript" id="submit_no_javascript"
+                value="If your JavaScript is disabled, please click to continue"/>
+           </noscript>
+         </form>
+         <script type="text/javascript">
+           window.onload = function() {
+             document.forms['sso'].submit();
+           }
+         </script>
+      </body>
+    </html>
   logging:
     loggers:
       keys:
