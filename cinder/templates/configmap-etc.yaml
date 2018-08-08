@@ -108,33 +108,24 @@ limitations under the License.
 {{- end -}}
 ---
 apiVersion: v1
-kind: ConfigMap
+kind: Secret
 metadata:
   name: cinder-etc
+type: Opaque
 data:
-  rally_tests.yaml: |
-{{ toYaml .Values.conf.rally_tests.tests | indent 4 }}
-  cinder.conf: |
-{{ include "helm-toolkit.utils.to_oslo_conf" .Values.conf.cinder | indent 4 }}
-  logging.conf: |
-{{ include "helm-toolkit.utils.to_oslo_conf" .Values.conf.logging | indent 4 }}
-  backends.conf: |
-{{ include "helm-toolkit.utils.to_ini" .Values.conf.backends | indent 4 }}
-  api-paste.ini: |
-{{ include "helm-toolkit.utils.to_ini" .Values.conf.paste | indent 4 }}
-  policy.json: |
-{{ toJson .Values.conf.policy | indent 4 }}
-  cinder_sudoers: |
-{{ $envAll.Values.conf.cinder_sudoers | indent 4 }}
-  rootwrap.conf: |
-{{ $envAll.Values.conf.rootwrap | indent 4 }}
+  rally_tests.yaml: {{ toYaml .Values.conf.rally_tests.tests | b64enc }}
+  cinder.conf: {{ include "helm-toolkit.utils.to_oslo_conf" .Values.conf.cinder | b64enc }}
+  logging.conf: {{ include "helm-toolkit.utils.to_oslo_conf" .Values.conf.logging | b64enc }}
+  backends.conf: {{ include "helm-toolkit.utils.to_ini" .Values.conf.backends | b64enc }}
+  api-paste.ini: {{ include "helm-toolkit.utils.to_ini" .Values.conf.paste | b64enc }}
+  policy.json: {{ toJson .Values.conf.policy | b64enc }}
+  cinder_sudoers: {{ $envAll.Values.conf.cinder_sudoers | b64enc }}
+  rootwrap.conf: {{ $envAll.Values.conf.rootwrap | b64enc }}
 {{- range $key, $value := $envAll.Values.conf.rootwrap_filters }}
 {{- $filePrefix := replace "_" "-"  $key }}
-  {{ printf "%s.filters" $filePrefix }}: |
-{{ $value.content | indent 4 }}
+  {{ printf "%s.filters" $filePrefix }}: {{ $value.content | b64enc }}
 {{- end }}
 {{- if .Values.backup.external_ceph_rbd.enabled }}
-  external-backup-ceph.conf: |
-{{ include "helm-toolkit.utils.to_ini" .Values.backup.external_ceph_rbd.conf | indent 4 }}
+  external-backup-ceph.conf: {{ include "helm-toolkit.utils.to_ini" .Values.backup.external_ceph_rbd.conf | b64enc }}
 {{- end }}
 {{- end }}

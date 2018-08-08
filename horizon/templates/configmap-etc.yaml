@@ -18,14 +18,14 @@ limitations under the License.
 {{- $envAll := . }}
 ---
 apiVersion: v1
-kind: ConfigMap
+kind: Secret
 metadata:
   name: horizon-etc
+type: Opaque
 data:
-{{- include "helm-toolkit.snippets.values_template_renderer" (dict "envAll" $envAll "template" .Values.conf.horizon.apache "key" "horizon.conf") | indent 2 }}
-{{- include "helm-toolkit.snippets.values_template_renderer" (dict "envAll" $envAll "template" .Values.conf.horizon.local_settings.template "key" "local_settings") | indent 2 }}
+{{- include "helm-toolkit.snippets.values_template_renderer" (dict "envAll" $envAll "template" .Values.conf.horizon.apache "key" "horizon.conf" "format" "Secret" ) | indent 2 }}
+{{- include "helm-toolkit.snippets.values_template_renderer" (dict "envAll" $envAll "template" .Values.conf.horizon.local_settings.template "key" "local_settings" "format" "Secret" ) | indent 2 }}
 {{- range $key, $value := .Values.conf.horizon.policy }}
-  {{ printf "%s_policy.json" $key }}: |
-{{ $value | toPrettyJson | indent 4 }}
+  {{ printf "%s_policy.json" $key }}: {{ $value | toPrettyJson | b64enc }}
 {{- end }}
 {{- end }}

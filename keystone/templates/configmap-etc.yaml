@@ -43,26 +43,21 @@ limitations under the License.
 {{- end -}}
 ---
 apiVersion: v1
-kind: ConfigMap
+kind: Secret
 metadata:
   name: keystone-etc
+type: Opaque
 data:
-  rally_tests.yaml: |
-{{ toYaml .Values.conf.rally_tests.tests | indent 4 }}
-  keystone.conf: |
-{{ include "helm-toolkit.utils.to_oslo_conf" .Values.conf.keystone | indent 4 }}
-  logging.conf: |
-{{ include "helm-toolkit.utils.to_oslo_conf" $envAll.Values.conf.logging | indent 4 }}
-  keystone-paste.ini: |
-{{ include "helm-toolkit.utils.to_ini" .Values.conf.paste | indent 4 }}
-  policy.json: |
-{{  toJson .Values.conf.policy | indent 4 }}
-  ports.conf: ""
+  rally_tests.yaml: {{ toYaml .Values.conf.rally_tests.tests | b64enc }}
+  keystone.conf: {{ include "helm-toolkit.utils.to_oslo_conf" .Values.conf.keystone | b64enc }}
+  logging.conf: {{ include "helm-toolkit.utils.to_oslo_conf" $envAll.Values.conf.logging | b64enc }}
+  keystone-paste.ini: {{ include "helm-toolkit.utils.to_ini" .Values.conf.paste | b64enc }}
+  policy.json: {{  toJson .Values.conf.policy | b64enc }}
+  ports.conf: ''
 {{- range $k, $v := .Values.conf.ks_domains }}
-  keystone.{{ $k }}.json: |
-{{ toJson $v | indent 4 }}
+  keystone.{{ $k }}.json: {{ toJson $v | b64enc }}
 {{- end }}
-{{- include "helm-toolkit.snippets.values_template_renderer" (dict "envAll" $envAll "template" .Values.conf.mpm_event "key" "mpm_event.conf") | indent 2 }}
-{{- include "helm-toolkit.snippets.values_template_renderer" (dict "envAll" $envAll "template" .Values.conf.wsgi_keystone "key" "wsgi-keystone.conf") | indent 2 }}
-{{- include "helm-toolkit.snippets.values_template_renderer" (dict "envAll" $envAll "template" .Values.conf.sso_callback_template "key" "sso_callback_template.html") | indent 2 }}
+{{- include "helm-toolkit.snippets.values_template_renderer" (dict "envAll" $envAll "template" .Values.conf.mpm_event "key" "mpm_event.conf" "format" "Secret" ) | indent 2 }}
+{{- include "helm-toolkit.snippets.values_template_renderer" (dict "envAll" $envAll "template" .Values.conf.wsgi_keystone "key" "wsgi-keystone.conf" "format" "Secret" ) | indent 2 }}
+{{- include "helm-toolkit.snippets.values_template_renderer" (dict "envAll" $envAll "template" .Values.conf.sso_callback_template "key" "sso_callback_template.html" "format" "Secret" ) | indent 2 }}
 {{- end }}

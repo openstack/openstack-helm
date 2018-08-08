@@ -107,25 +107,18 @@ limitations under the License.
 
 ---
 apiVersion: v1
-kind: ConfigMap
+kind: Secret
 metadata:
   name: ceilometer-etc
+type: Opaque
 data:
-  rally_tests.yaml: |
-{{ toYaml .Values.conf.rally_tests | indent 4 }}
-  ceilometer.conf: |
-{{ include "helm-toolkit.utils.to_oslo_conf" .Values.conf.ceilometer | indent 4 }}
-  api_paste.ini: |
-{{ include "helm-toolkit.utils.to_ini" .Values.conf.paste | indent 4 }}
-  policy.json: |
-{{ toJson .Values.conf.policy | indent 4 }}
-  event_pipeline.yaml: |
-{{ toYaml .Values.conf.event_pipeline | indent 4 }}
-  pipeline.yaml: |
-{{ toYaml .Values.conf.pipeline | indent 4 }}
-  event_definitions.yaml: |
-{{ toYaml .Values.conf.event_definitions | indent 4 }}
-  gnocchi_resources.yaml: |
-{{ toYaml .Values.conf.gnocchi_resources | indent 4 }}
-{{- include "helm-toolkit.snippets.values_template_renderer" (dict "envAll" $envAll "template" .Values.conf.wsgi_ceilometer "key" "wsgi-ceilometer.conf" ) | indent 2 }}
+  rally_tests.yaml: {{ toYaml .Values.conf.rally_tests | b64enc }}
+  ceilometer.conf: {{ include "helm-toolkit.utils.to_oslo_conf" .Values.conf.ceilometer | b64enc }}
+  api_paste.ini: {{ include "helm-toolkit.utils.to_ini" .Values.conf.paste | b64enc }}
+  policy.json: {{ toJson .Values.conf.policy | b64enc }}
+  event_pipeline.yaml: {{ toYaml .Values.conf.event_pipeline | b64enc }}
+  pipeline.yaml: {{ toYaml .Values.conf.pipeline | b64enc }}
+  event_definitions.yaml: {{ toYaml .Values.conf.event_definitions | b64enc }}
+  gnocchi_resources.yaml: {{ toYaml .Values.conf.gnocchi_resources | b64enc }}
+{{ include "helm-toolkit.snippets.values_template_renderer" (dict "envAll" $envAll "template" .Values.conf.wsgi_ceilometer "key" "wsgi-ceilometer.conf" "format" "Secret" ) | indent 2 }}
 {{- end }}

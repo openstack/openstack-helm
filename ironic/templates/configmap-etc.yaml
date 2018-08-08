@@ -198,16 +198,14 @@ limitations under the License.
 {{- end -}}
 ---
 apiVersion: v1
-kind: ConfigMap
+kind: Secret
 metadata:
   name: ironic-etc
+type: Opaque
 data:
-  ironic.conf: |
-{{ include "helm-toolkit.utils.to_oslo_conf" .Values.conf.ironic | indent 4 }}
-  logging.conf: |
-{{ include "helm-toolkit.utils.to_oslo_conf" .Values.conf.logging | indent 4 }}
-  policy.json: |
-{{  toJson .Values.conf.policy | indent 4 }}
-{{- include "helm-toolkit.snippets.values_template_renderer" (dict "envAll" $envAll "template" .Values.conf.tftp_map_file "key" "tftp-map-file") | indent 2 }}
-{{- include "helm-toolkit.snippets.values_template_renderer" (dict "envAll" $envAll "template" .Values.conf.nginx "key" "nginx.conf") | indent 2 }}
+  ironic.conf: {{ include "helm-toolkit.utils.to_oslo_conf" .Values.conf.ironic | b64enc }}
+  logging.conf: {{ include "helm-toolkit.utils.to_oslo_conf" .Values.conf.logging | b64enc }}
+  policy.json: {{  toJson .Values.conf.policy | b64enc }}
+{{- include "helm-toolkit.snippets.values_template_renderer" (dict "envAll" $envAll "template" .Values.conf.tftp_map_file "key" "tftp-map-file" "format" "Secret" ) | indent 2 }}
+{{- include "helm-toolkit.snippets.values_template_renderer" (dict "envAll" $envAll "template" .Values.conf.nginx "key" "nginx.conf" "format" "Secret" ) | indent 2 }}
 {{- end }}
