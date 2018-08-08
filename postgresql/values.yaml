@@ -28,6 +28,18 @@ pod:
   replicas:
     #only 1 replica currently supported
     server: 1
+    prometheus_postgresql_exporter: 1
+  lifecycle:
+    upgrades:
+      deployments:
+        revision_history: 3
+        pod_replacement_strategy: RollingUpdate
+        rolling_update:
+          max_unavailable: 1
+          max_surge: 3
+    termination_grace_period:
+      prometheus_postgresql_exporter:
+        timeout: 30
   resources:
     enabled: false
     server:
@@ -37,6 +49,13 @@ pod:
       limits:
         memory: "1024Mi"
         cpu: "2000m"
+    prometheus_postgresql_exporter:
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+      requests:
+        memory: "128Mi"
+        cpu: "500m"
     jobs:
       image_repo_sync:
         requests:
@@ -45,6 +64,13 @@ pod:
         limits:
           memory: "1024Mi"
           cpu: "2000m"
+      prometheus_postgresql_exporter_create_user:
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
 
 # using dockerhub postgresql: https://hub.docker.com/r/library/postgres/tags/
 images:
@@ -52,6 +78,8 @@ images:
     postgresql: "docker.io/postgres:9.5"
     dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.3.1
     image_repo_sync: docker.io/docker:17.07.0
+    prometheus_postgresql_exporter: docker.io/wrouesnel/postgres_exporter:v0.4.6
+    prometheus_postgresql_exporter_create_user: "docker.io/postgres:9.5"
   pull_policy: "IfNotPresent"
   local_registry:
     active: false
@@ -75,6 +103,9 @@ labels:
   server:
     node_selector_key: openstack-control-plane
     node_selector_value: enabled
+  prometheus_postgresql_exporter:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
 
 dependencies:
   dynamic:
@@ -92,6 +123,22 @@ dependencies:
       services:
         - endpoint: internal
           service: local_image_registry
+    prometheus_postgresql_exporter_create_user:
+      services:
+        - endpoint: internal
+          service: postgresql
+    prometheus_postgresql_exporter:
+      services:
+        - endpoint: internal
+          service: postgresql
+      jobs:
+        - prometheus-postgresql-exporter-create-user
+
+monitoring:
+  prometheus:
+    enabled: false
+    postgresql_exporter:
+      scrape: true
 
 conf:
   postgresql:
@@ -101,6 +148,7 @@ conf:
 secrets:
   postgresql:
     admin: postgresql-admin
+    exporter: postgresql-exporter
 
 endpoints:
   cluster_domain_suffix: cluster.local
@@ -121,6 +169,9 @@ endpoints:
       admin:
         username: postgres
         password: password
+      exporter:
+        username: psql_exporter
+        password: psql_exp_pass
     hosts:
       default: postgresql
     host_fqdn_override:
@@ -130,6 +181,23 @@ endpoints:
     port:
       postgresql:
         default: 5432
+  prometheus_postgresql_exporter:
+    namespace: null
+    auth:
+      user:
+        username: exporter
+        password: password
+    hosts:
+      default: postgresql-exporter
+    host_fqdn_override:
+      default: null
+    path:
+      default: /metrics
+    scheme:
+      default: 'http'
+    port:
+      metrics:
+        default: 9187
 
 manifests:
   configmap_bin: true
@@ -137,3 +205,10 @@ manifests:
   secret_admin: true
   service: true
   statefulset: true
+  monitoring:
+    prometheus:
+      configmap_bin: true
+      deployment_exporter: true
+      job_user_create: true
+      secret_etc: true
+      service_exporter: true
