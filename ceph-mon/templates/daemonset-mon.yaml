@@ -106,6 +106,8 @@ spec:
               value: {{ .Values.network.public | quote }}
             - name: KUBECTL_PARAM
               value: {{ tuple $envAll "ceph" "mon" | include "helm-toolkit.snippets.kubernetes_kubectl_params" | indent 10 }}
+            - name: MON_PORT
+              value: {{ tuple "ceph_mon" "internal" "mon" $envAll | include "helm-toolkit.endpoints.endpoint_port_lookup" | quote }}
             - name: MON_IP
               valueFrom:
                 fieldRef:
@@ -126,7 +128,7 @@ spec:
                   command:
                     - /tmp/mon-stop.sh
           ports:
-            - containerPort: 6789
+            - containerPort: {{ tuple "ceph_mon" "internal" "mon" $envAll | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
           livenessProbe:
            exec:
             command:
