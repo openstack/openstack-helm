@@ -21,7 +21,7 @@ COMMAND="${@:-start}"
 
 function start () {
   exec /bin/alertmanager \
-    -config.file=/etc/config/alertmanager.yml \
+    -config.file=/etc/alertmanager/config.yml \
     -storage.path={{ .Values.conf.command_flags.storage.path }} \
     -mesh.listen-address={{ .Values.conf.command_flags.mesh.listen_address }} \
     $(generate_peers)
