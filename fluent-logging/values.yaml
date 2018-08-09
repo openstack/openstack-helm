@@ -158,6 +158,79 @@ conf:
         header: match
         expression: "fluent.**"
         type: "null"
+      # NOTE(srwilkers): Look for specific keywords in the log key to determine
+      # log level of event
+    - tag_kubernetes_log_level:
+        header: match
+        type: rewrite_tag_filter
+        expression: "kube.var.log.containers.**.log"
+        rule:
+          -
+            - header: rule
+              key: log
+              pattern: /info/i
+              tag: info.${tag}
+            - header: rule
+              key: log
+              pattern: /warn/i
+              tag: warn.${tag}
+            - header: rule
+              key: log
+              pattern: /error/i
+              tag: error.${tag}
+            - header: rule
+              key: log
+              pattern: /critical/i
+              tag: critical.${tag}
+            - header: rule
+              key: log
+              pattern: (.+)
+              tag: info.${tag}
+      # NOTE(srwilkers): Create new key for log level, and use the tag prefix
+      # added previously
+    - add_kubernetes_log_level_and_application_key:
+        header: filter
+        type: record_transformer
+        enable_ruby: true
+        expression: "**.kube.var.log.containers.**.log"
+        record:
+          -
+            - header: record
+              level: ${tag_parts[0]}
+              application: ${record["kubernetes"]["labels"]["application"]}
+    - add_openstack_application_key:
+        header: filter
+        type: record_transformer
+        expression: "openstack.**"
+        record:
+          -
+            - header: record
+              application: ${tag_parts[1]}
+      #NOTE(srwilkers): This prefixes the tag for oslo.log entries from the
+      # fluent handler/formatter with the log level, allowing for lookups on
+      # openstack logs with a particular log level (ie: error.openstack.keystone)
+    - tag_openstack_log_level:
+        header: match
+        type: rewrite_tag_filter
+        expression: "openstack.**"
+        rule:
+          -
+            - header: rule
+              key: level
+              pattern: INFO
+              tag: info.${tag}
+            - header: rule
+              key: level
+              pattern: WARN
+              tag: warn.${tag}
+            - header: rule
+              key: level
+              pattern: ERROR
+              tag: error.${tag}
+            - header: rule
+              key: level
+              pattern: CRITICAL
+              tag: critical.${tag}
     - elasticsearch:
         header: match
         type: elasticsearch
@@ -199,20 +272,6 @@ conf:
                 host:
                   type: keyword
                   index: false
-                labels:
-                  properties:
-                    app:
-                      type: keyword
-                      index: false
-                    application:
-                      type: keyword
-                      index: false
-                    component:
-                      type: keyword
-                      index: false
-                    release_group:
-                      type: keyword
-                      index: false
                 namespace_name:
                   type: keyword
                   index: false
@@ -222,8 +281,6 @@ conf:
                 pod_name:
                   type: keyword
                   index: false
-            log:
-              type: text
 
 endpoints:
   cluster_domain_suffix: cluster.local
