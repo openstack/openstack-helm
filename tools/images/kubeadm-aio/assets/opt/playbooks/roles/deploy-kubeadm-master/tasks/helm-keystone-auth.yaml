@@ -50,17 +50,17 @@
 - name: kubeadm | get certs
   block:
     - name: kubeadm | get kubeapi cert
-      shell: cat /etc/kubernetes/pki/apiserver.crt | base64 -w0
+      shell: cat /etc/kubernetes/pki/apiserver.crt
       register: kubeadm_kubeapi_cert
     - name: kubeadm | get kubeapi key
-      shell: cat /etc/kubernetes/pki/apiserver.key | base64 -w0
+      shell: cat /etc/kubernetes/pki/apiserver.key
       register: kubeadm_kubeapi_key
 
 - name: kubeadm | keystone auth
   delegate_to: 127.0.0.1
   block:
     - name: kubeadm | keystone auth
-      command: "helm upgrade --install kubernetes-keystone-webhook /opt/charts/kubernetes-keystone-webhook --namespace=kube-system --set endpoints.identity.namespace=openstack --set endpoints.kubernetes.auth.api.tls.crt={{ kubeadm_kubeapi_cert.stdout }} --set endpoints.kubernetes.auth.api.tls.key={{ kubeadm_kubeapi_key.stdout }}"
+      command: "helm upgrade --install kubernetes-keystone-webhook /opt/charts/kubernetes-keystone-webhook --namespace=kube-system --set endpoints.identity.namespace=openstack --set endpoints.kubernetes.auth.api.tls.crt='{{ kubeadm_kubeapi_cert.stdout }}' --set endpoints.kubernetes.auth.api.tls.key='{{ kubeadm_kubeapi_key.stdout }}'"
       environment:
         HELM_HOST: 'localhost:44134'
     - name: kubeadm | keystone auth
