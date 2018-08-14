@@ -50,9 +50,15 @@ passwords="BARBICAN_DB_PASSWORD \
     OPENSTACK_EXPORTER_USER_PASSWORD \
     PROMETHEUS_ADMIN_PASSWORD \
     RABBITMQ_ADMIN_PASSWORD \
+    RADOSGW_S3_ADMIN_ACCESS_KEY \
+    RADOSGW_S3_ADMIN_SECRET_KEY \
+    RADOSGW_S3_ELASTICSEARCH_ACCESS_KEY \
+    RADOSGW_S3_ELASTICSEARCH_SECRET_KEY \
     SWIFT_USER_PASSWORD"
 
 for password in $passwords
 do
-  export $password=$(tr -dc A-Za-z0-9 < /dev/urandom 2>/dev/null | head -c 20)
+  value=$(tr -dc A-Za-z0-9 < /dev/urandom 2>/dev/null | head -c 20)
+  export $password=$value
+  echo "export $password=$value" >> /tmp/passwords.env
 done
