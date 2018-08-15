@@ -20,8 +20,13 @@ limitations under the License.
 {{- with $envAll }}
 
 {{- if empty .Values.conf.ceph.global.mon_host -}}
-{{- $monHost := tuple "ceph_mon" "internal" . | include "helm-toolkit.endpoints.hostname_fqdn_endpoint_lookup" }}
+{{- $monHost := tuple "ceph_mon" "internal" "mon" . | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" }}
 {{- $_ := $monHost | set .Values.conf.ceph.global "mon_host" -}}
+{{- end -}}
+
+{{- if empty .Values.conf.ceph.global.mon_addr -}}
+{{- $monPort := tuple "ceph_mon" "internal" "mon" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+{{- $_ := printf ":%s" $monPort | set .Values.conf.ceph.global "mon_addr" -}}
 {{- end -}}
 
 {{- if empty .Values.conf.ceph.global.fsid -}}

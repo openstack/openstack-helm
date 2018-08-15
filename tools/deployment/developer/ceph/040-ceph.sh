@@ -40,11 +40,29 @@ endpoints:
     namespace: openstack
   object_store:
     namespace: ceph
+    port:
+      api:
+        default: 8088
+        public: 80
   ceph_mon:
     namespace: ceph
+    port:
+      mon:
+        default: 6789
+  ceph_mgr:
+    namespace: ceph
+    port:
+      mgr:
+        default: 7000
+      metrics:
+        default: 9283
 network:
   public: 172.17.0.1/16
   cluster: 172.17.0.1/16
+  port:
+    mon: 6789
+    rgw: 8088
+    mgr: 7000
 deployment:
   storage_secrets: true
   ceph: true
@@ -60,6 +78,7 @@ conf:
   ceph:
     global:
       fsid: ${CEPH_FS_ID}
+      mon_addr: :6789
       osd_pool_default_size: 1
     osd:
       osd_crush_chooseleaf_type: 0
