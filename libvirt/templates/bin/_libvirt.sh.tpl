@@ -71,9 +71,9 @@ if [ 0"$hp_count" -gt 0 ]; then
 
   # Attempt to write to the hugepage mount to ensure it is operational, but only
   # if we have at least 1 free page.
-  num_free_pages="$(cat /sys/kernel/mm/hugepages/hugepages-${default_hp_kb}kB | tr -cd '[:digit:]')"
+  num_free_pages="$(cat /sys/kernel/mm/hugepages/hugepages-${default_hp_kb}kB/free_hugepages | tr -cd '[:digit:]')"
   echo "INFO: '$num_free_pages' free hugepages of size ${default_hp_kb}kB"
-  if [ 0"$num_free_pages" - gt 0 ]; then
+  if [ 0"$num_free_pages" -gt 0 ]; then
     (fallocate -o0 -l "$default_hp_kb" /dev/hugepages/foo && rm /dev/hugepages/foo) || \
       (echo "ERROR: fallocate failed test at /dev/hugepages with size ${default_hp_kb}kB"
        rm /dev/hugepages/foo
