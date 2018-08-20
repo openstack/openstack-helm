@@ -32,7 +32,6 @@ manifests:
   job_db_session_sync: false
   secret_db: false
   secret_db_session: false
-  service_ingress: false
 conf:
   grafana:
     database:
