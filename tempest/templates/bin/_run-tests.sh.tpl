@@ -20,6 +20,10 @@ set -ex
 
 tempest cleanup --init-saved-state
 
+if [ "true" == "{{- .Values.conf.cleanup.force -}}" ]; then
+trap "tempest cleanup; exit" 1 ERR
+fi
+
 {{ .Values.conf.script }}
 
 tempest cleanup
