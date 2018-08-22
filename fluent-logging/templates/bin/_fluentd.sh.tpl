@@ -20,7 +20,7 @@ set -ex
 COMMAND="${@:-start}"
 
 function start () {
-  exec /usr/sbin/td-agent
+  exec fluentd -c /fluentd/etc/fluent.conf
 }
 
 function stop () {
