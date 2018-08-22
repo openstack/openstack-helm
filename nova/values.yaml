@@ -451,9 +451,11 @@ conf:
       user: "cinder"
       keyring: null
       secret_uuid: 457eb676-33da-42ec-9a8c-9293d545c337
-  ssh:
-    override:
-    append:
+  ssh: |
+    Host *
+      StrictHostKeyChecking no
+      UserKnownHostsFile /dev/null
+      Port {{ .Values.network.ssh.port }}
   rally_tests:
     run_tempest: false
     tests:
@@ -1050,9 +1052,41 @@ conf:
     # INFO means log all usage
     # ERROR means only log unsuccessful attempts
     syslog_log_level=ERROR
-  wsgi_placement:
-    override:
-    append:
+  wsgi_placement: |
+    Listen 0.0.0.0:{{ tuple "placement" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+
+    LogFormat "%h %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\"" combined
+    LogFormat "%{X-Forwarded-For}i %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\"" proxy
+
+    SetEnvIf X-Forwarded-For "^.*\..*\..*\..*" forwarded
+    CustomLog /dev/stdout combined env=!forwarded
+    CustomLog /dev/stdout proxy env=forwarded
+
+    <VirtualHost *:{{ tuple "placement" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}>
+        WSGIDaemonProcess placement-api processes=1 threads=4 user=nova group=nova display-name=%{GROUP}
+        WSGIProcessGroup placement-api
+        WSGIScriptAlias / /var/www/cgi-bin/nova/nova-placement-api
+        WSGIApplicationGroup %{GLOBAL}
+        WSGIPassAuthorization On
+        <IfVersion >= 2.4>
+          ErrorLogFormat "%{cu}t %M"
+        </IfVersion>
+        ErrorLog /dev/stdout
+
+        SetEnvIf X-Forwarded-For "^.*\..*\..*\..*" forwarded
+        CustomLog /dev/stdout combined env=!forwarded
+        CustomLog /dev/stdout proxy env=forwarded
+    </VirtualHost>
+
+    Alias /placement /var/www/cgi-bin/nova/nova-placement-api
+    <Location /placement>
+        SetHandler wsgi-script
+        Options +ExecCGI
+
+        WSGIProcessGroup placement-api
+        WSGIApplicationGroup %{GLOBAL}
+        WSGIPassAuthorization On
+    </Location>
   rootwrap_filters:
     api_metadata:
       pods:
