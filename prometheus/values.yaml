@@ -431,8 +431,6 @@ conf:
       query.timeout: 2m
       storage.tsdb.path: /var/lib/prometheus/data
       storage.tsdb.retention: 7d
-      storage.tsdb.min_block_duration: 2h
-      storage.tsdb.max_block_duration: 2h
       # NOTE(srwilkers): These settings default to false, but they are
       # exposed here to allow enabling if desired. Please note the security
       # impacts of enabling these flags. More information regarding the impacts
@@ -542,9 +540,11 @@ conf:
           # This job is not necessary and should be removed in Kubernetes 1.6 and
           # earlier versions, or it will cause the metrics to be scraped twice.
         - job_name: 'kubernetes-cadvisor'
+
           # Default to scraping over https. If required, just disable this or change to
           # `http`.
           scheme: https
+
           # This TLS & bearer token file config is used to connect to the actual scrape
           # endpoints for cluster components. This is separate to discovery auth
           # configuration because discovery & scraping are two separate concerns in
@@ -554,9 +554,10 @@ conf:
           tls_config:
             ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
           bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+
           kubernetes_sd_configs:
           - role: node
-          scrape_interval: 45s
+
           relabel_configs:
           - action: labelmap
             regex: __meta_kubernetes_node_label_(.+)
@@ -567,23 +568,6 @@ conf:
             regex: (.+)
             target_label: __metrics_path__
             replacement: /api/v1/nodes/${1}/proxy/metrics/cadvisor
-          - source_labels:
-              - __meta_kubernetes_node_name
-            action: replace
-            target_label: kubernetes_io_hostname
-          metric_relabel_configs:
-          - action: replace
-            source_labels:
-              - id
-            regex: '^/machine\.slice/machine-rkt\\x2d([^\\]+)\\.+/([^/]+)\.service$'
-            target_label: rkt_container_name
-            replacement: '${2}-${1}'
-          - action: replace
-            source_labels:
-              - id
-            regex: '^/system\.slice/(.+)\.service$'
-            target_label: systemd_service_name
-            replacement: '${1}'
           # Scrape config for API servers.
           #
           # Kubernetes exposes API servers as endpoints to the default/kubernetes
