@@ -1488,14 +1488,95 @@ conf:
     'telemetry:get_sample': ''
     'telemetry:get_samples': ''
     'telemetry:query_sample': ''
+  wsgi_ceilometer: |
+    Listen 0.0.0.0:{{ tuple "metering" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+
+    LogFormat "%h %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\"" combined
+
+    <VirtualHost *:{{ tuple "metering" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}>
+        LogLevel info
+        WSGIDaemonProcess ceilometer-api processes=2 threads=1 user=ceilometer group=ceilometer display-name=%{GROUP} python-path=/var/lib/kolla/venv/lib/python2.7/site-packages
+        WSGIProcessGroup ceilometer-api
+
+        WSGIScriptReloading On
+        WSGIScriptAlias / /var/lib/kolla/venv/lib/python2.7/site-packages/ceilometer/api/app.wsgi
+
+        WSGIApplicationGroup %{GLOBAL}
+
+        <Directory "/var/lib/kolla/venv/lib/python2.7/site-packages/ceilometer/api">
+            <IfVersion >= 2.4>
+                Require all granted
+            </IfVersion>
+            <IfVersion < 2.4>
+                Order allow,deny
+                Allow from all
+            </IfVersion>
+        </Directory>
+        ErrorLog /dev/stdout
+        CustomLog /dev/stdout combined
+    </VirtualHost>
   rally_tests:
-    append: null
-    metering:
-      meter_name: ram_util
-      statistic: avg
-      threshold: 10
-      type: threshold
-    override: null
+    CeilometerStats.create_meter_and_get_stats:
+      - args:
+          user_id: user-id
+          resource_id: resource-id
+          counter_volume: 1
+          counter_unit: ''
+          counter_type: cumulative
+        runner:
+          type: constant
+          times: 1
+          concurrency: 1
+        sla:
+          failure_rate:
+            max: 0
+    CeilometerMeters.list_meters:
+      - runner:
+          type: constant
+          times: 1
+          concurrency: 1
+        sla:
+          failure_rate:
+            max: 0
+        context:
+          ceilometer:
+            counter_name: benchmark_meter
+            counter_type: gauge
+            counter_unit: "%"
+            counter_volume: 1
+            resources_per_tenant: 1
+            samples_per_resource: 1
+            timestamp_interval: 10
+            metadata_list:
+            - status: active
+              name: rally benchmark on
+              deleted: 'false'
+            - status: terminated
+              name: rally benchmark off
+              deleted: 'true'
+        args:
+          limit: 5
+          metadata_query:
+            status: terminated
+    CeilometerQueries.create_and_query_samples:
+      - args:
+          filter:
+            "=":
+              counter_unit: instance
+          orderby:
+          limit: 10
+          counter_name: cpu_util
+          counter_type: gauge
+          counter_unit: instance
+          counter_volume: 1
+          resource_id: resource_id
+        runner:
+          type: constant
+          times: 1
+          concurrency: 1
+          sla:
+            failure_rate:
+              max: 0
 
 dependencies:
   dynamic:
