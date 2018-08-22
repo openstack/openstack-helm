@@ -16,12 +16,10 @@
 
 set -xe
 
-#NOTE: Lint and package chart
-make ldap
-
 #NOTE: Deploy command
+: ${OSH_INFRA_PATH:="../openstack-helm-infra"}
 : ${OSH_EXTRA_HELM_ARGS:=""}
-helm upgrade --install ldap ./ldap \
+helm upgrade --install ldap ${OSH_INFRA_PATH}/ldap \
     --namespace=openstack \
     --set pod.replicas.server=1 \
     --set bootstrap.enabled=true \
