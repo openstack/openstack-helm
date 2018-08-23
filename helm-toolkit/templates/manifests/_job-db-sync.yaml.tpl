@@ -88,8 +88,8 @@ spec:
         - name: etc-service
           emptyDir: {}
         - name: db-sync-conf
-          configMap:
-            name: {{ $configMapEtc | quote }}
+          secret:
+            secretName: {{ $configMapEtc | quote }}
             defaultMode: 0444
 {{- if $podVols }}
 {{ $podVols | toYaml | indent 8 }}

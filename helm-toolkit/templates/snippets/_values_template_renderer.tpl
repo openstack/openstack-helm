@@ -67,13 +67,23 @@ return: |
 {{- $envAll := index . "envAll" -}}
 {{- $template := index . "template" -}}
 {{- $key := index . "key" -}}
+{{- $format := index . "format" | default "configMap" -}}
 {{- with $envAll -}}
 {{- $templateRendered := tpl ( $template | toYaml ) . }}
-{{- if hasPrefix  "|\n" $templateRendered }}
-{{ $key }}: {{ $templateRendered }}
+{{- if eq $format "Secret" }}
+{{- if hasPrefix "|\n" $templateRendered }}
+{{ $key }}: {{ regexReplaceAllLiteral "\n  " ( $templateRendered | trimPrefix "|\n" | trimPrefix "  " ) "\n" | b64enc }}
+{{- else }}
+{{ $key }}: {{ $templateRendered | b64enc }}
+{{- end -}}
+{{- else }}
+{{- if hasPrefix "|\n" $templateRendered }}
+{{ $key }}: |
+{{ regexReplaceAllLiteral "\n  " ( $templateRendered | trimPrefix "|\n" | trimPrefix "  " ) "\n" | indent 2 }}
 {{- else }}
 {{ $key }}: |
 {{ $templateRendered | indent 2 }}
+{{- end -}}
 {{- end -}}
 {{- end -}}
 {{- end -}}

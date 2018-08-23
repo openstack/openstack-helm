@@ -118,8 +118,8 @@ spec:
         - name: etc-service
           emptyDir: {}
         - name: db-drop-conf
-          configMap:
-            name: {{ $configMapEtc | quote }}
+          secret:
+            secretName: {{ $configMapEtc | quote }}
             defaultMode: 0444
 {{- end -}}
 {{- end -}}
