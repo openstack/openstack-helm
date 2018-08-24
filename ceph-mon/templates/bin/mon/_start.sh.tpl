@@ -5,7 +5,6 @@ export LC_ALL=C
 : "${MON_KEYRING:=/etc/ceph/${CLUSTER}.mon.keyring}"
 : "${ADMIN_KEYRING:=/etc/ceph/${CLUSTER}.client.admin.keyring}"
 : "${MDS_BOOTSTRAP_KEYRING:=/var/lib/ceph/bootstrap-mds/${CLUSTER}.keyring}"
-: "${RGW_BOOTSTRAP_KEYRING:=/var/lib/ceph/bootstrap-rgw/${CLUSTER}.keyring}"
 : "${OSD_BOOTSTRAP_KEYRING:=/var/lib/ceph/bootstrap-osd/${CLUSTER}.keyring}"
 
 if [[ -z "$CEPH_PUBLIC_NETWORK" ]]; then
@@ -81,7 +80,7 @@ if [ ! -e "${MON_DATA_DIR}/keyring" ]; then
   fi
 
   # Testing if it's not the first monitor, if one key doesn't exist we assume none of them exist
-  for KEYRING in ${OSD_BOOTSTRAP_KEYRING} ${MDS_BOOTSTRAP_KEYRING} ${RGW_BOOTSTRAP_KEYRING} ${ADMIN_KEYRING}; do
+  for KEYRING in ${OSD_BOOTSTRAP_KEYRING} ${MDS_BOOTSTRAP_KEYRING} ${ADMIN_KEYRING}; do
     ceph-authtool ${MON_KEYRING} --import-keyring ${KEYRING}
   done
 
