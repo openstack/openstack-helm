@@ -1,7 +1,7 @@
 #!/bin/bash
 
 {{/*
-Copyright 2018 The Openstack-Helm Authors.
+Copyright 2018 OpenStack Foundation.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
