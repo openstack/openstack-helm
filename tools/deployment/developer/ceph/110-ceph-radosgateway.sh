@@ -20,6 +20,7 @@ set -xe
 make ceph
 
 #NOTE: Deploy command
+: ${OSH_INFRA_PATH:="../openstack-helm-infra"}
 : ${OSH_EXTRA_HELM_ARGS:=""}
 tee /tmp/radosgw-openstack.yaml <<EOF
 endpoints:
@@ -48,7 +49,7 @@ pod:
   replicas:
     rgw: 1
 EOF
-helm upgrade --install radosgw-openstack ./ceph-rgw \
+helm upgrade --install radosgw-openstack ${OSH_INFRA_PATH}/ceph-rgw \
   --namespace=openstack \
   --values=/tmp/radosgw-openstack.yaml \
   ${OSH_EXTRA_HELM_ARGS} \

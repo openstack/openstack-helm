@@ -43,7 +43,9 @@ conf:
   rgw_ks:
     enabled: true
 EOF
-helm upgrade --install ceph-openstack-config ./ceph-provisioners \
+
+: ${OSH_INFRA_PATH:="../openstack-helm-infra"}
+helm upgrade --install ceph-openstack-config ${OSH_INFRA_PATH}/ceph-provisioners \
   --namespace=openstack \
   --values=/tmp/ceph-openstack-config.yaml \
   ${OSH_EXTRA_HELM_ARGS} \

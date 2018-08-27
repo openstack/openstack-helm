@@ -76,8 +76,9 @@ conf:
           location: /var/lib/openstack-helm/ceph/osd/journal-one
 EOF
 
+: ${OSH_INFRA_PATH:="../openstack-helm-infra"}
 for CHART in ceph-mon ceph-osd ceph-client ceph-provisioners; do
-  helm upgrade --install ${CHART} ./${CHART} \
+  helm upgrade --install ${CHART} ${OSH_INFRA_PATH}/${CHART} \
     --namespace=ceph \
     --values=/tmp/ceph.yaml \
     ${OSH_EXTRA_HELM_ARGS} \

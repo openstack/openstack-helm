@@ -43,7 +43,9 @@ conf:
   rgw_ks:
     enabled: true
 EOF
-helm upgrade --install radosgw-openstack ./ceph-rgw \
+
+: ${OSH_INFRA_PATH:="../openstack-helm-infra"}
+helm upgrade --install radosgw-openstack ${OSH_INFRA_PATH}/ceph-rgw \
   --namespace=openstack \
   --values=/tmp/radosgw-openstack.yaml \
   ${OSH_EXTRA_HELM_ARGS} \

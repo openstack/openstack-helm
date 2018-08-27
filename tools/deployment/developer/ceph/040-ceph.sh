@@ -22,6 +22,7 @@ for CHART in ceph-mon ceph-osd ceph-client ceph-provisioners; do
 done
 
 #NOTE: Deploy command
+: ${OSH_INFRA_PATH:="../openstack-helm-infra"}
 : ${OSH_EXTRA_HELM_ARGS:=""}
 [ -s /tmp/ceph-fs-uuid.txt ] || uuidgen > /tmp/ceph-fs-uuid.txt
 CEPH_FS_ID="$(cat /tmp/ceph-fs-uuid.txt)"
@@ -183,7 +184,7 @@ pod:
 EOF
 
 for CHART in ceph-mon ceph-osd ceph-client ceph-provisioners; do
-  helm upgrade --install ${CHART} ./${CHART} \
+  helm upgrade --install ${CHART} ${OSH_INFRA_PATH}/${CHART} \
     --namespace=ceph \
     --values=/tmp/ceph.yaml \
     ${OSH_EXTRA_HELM_ARGS} \
