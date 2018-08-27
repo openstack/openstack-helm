@@ -16,28 +16,22 @@
 
 set -xe
 
-#NOTE: Lint and package chart
-make elasticsearch
+make nfs-provisioner
 
-#NOTE: Deploy command
-tee /tmp/elasticsearch.yaml << EOF
-conf:
-  elasticsearch:
-    env:
-      java_opts: "-Xms512m -Xmx512m"
-monitoring:
-  prometheus:
-    enabled: true
+#NOTE: Deploy nfs instance for logging, monitoring and alerting components
+tee /tmp/nfs-provisioner.yaml << EOF
+labels:
+  node_selector_key: openstack-control-plane
+  node_selector_value: enabled
+storageclass:
+  name: general
 EOF
-helm upgrade --install elasticsearch ./elasticsearch \
-    --namespace=osh-infra \
-    --values=/tmp/elasticsearch.yaml
+helm upgrade --install nfs-provisioner \
+    ./nfs-provisioner --namespace=osh-infra \
+    --values=/tmp/nfs-provisioner.yaml
 
-#NOTE: Wait for deploy
+#NOTE: Wait for deployment
 ./tools/deployment/common/wait-for-pods.sh osh-infra
 
 #NOTE: Validate Deployment info
-helm status elasticsearch
-
-#NOTE: Run helm tests
-helm test elasticsearch
+helm status nfs-provisioner

@@ -21,10 +21,10 @@ make kibana
 
 #NOTE: Deploy command
 helm upgrade --install kibana ./kibana \
-    --namespace=openstack
+    --namespace=osh-infra
 
 #NOTE: Wait for deploy
-./tools/deployment/common/wait-for-pods.sh openstack
+./tools/deployment/common/wait-for-pods.sh osh-infra
 
 #NOTE: Validate Deployment info
 helm status kibana

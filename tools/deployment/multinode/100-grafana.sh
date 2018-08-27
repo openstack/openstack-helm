@@ -44,11 +44,11 @@ pod:
     grafana: 2
 EOF
 helm upgrade --install grafana ./grafana \
-    --namespace=openstack \
+    --namespace=osh-infra \
     --values=/tmp/grafana.yaml
 
 #NOTE: Wait for deploy
-./tools/deployment/common/wait-for-pods.sh openstack
+./tools/deployment/common/wait-for-pods.sh osh-infra
 
 #NOTE: Validate Deployment info
 helm status grafana

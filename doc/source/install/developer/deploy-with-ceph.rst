@@ -5,7 +5,7 @@ Development Deployment
 Deploy Local Docker Registry
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. literalinclude:: ../../../tools/deployment/multinode/010-deploy-docker-registry.sh
+.. literalinclude:: ../../../../tools/deployment/developer/ceph/010-deploy-docker-registry.sh
     :language: shell
     :lines: 1,17-
 
@@ -13,12 +13,12 @@ Alternatively, this step can be performed by running the script directly:
 
 .. code-block:: shell
 
-  ./tools/deployment/multinode/010-deploy-docker-registry.sh
+  ./tools/deployment/developer/ceph/010-deploy-docker-registry.sh
 
 Deploy Cluster and Namespace Ingress Controllers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. literalinclude:: ../../../tools/deployment/multinode/020-ingress.sh
+.. literalinclude:: ../../../../tools/deployment/developer/ceph/020-ingress.sh
     :language: shell
     :lines: 1,17-
 
@@ -26,12 +26,12 @@ Alternatively, this step can be performed by running the script directly:
 
 .. code-block:: shell
 
-  ./tools/deployment/multinode/020-ingress.sh
+  ./tools/deployment/developer/ceph/020-ingress.sh
 
   Deploy Ceph
   ^^^^^^^^^^^
 
-  .. literalinclude:: ../../../../tools/deployment/multinode/030-ceph.sh
+  .. literalinclude:: ../../../../tools/deployment/developer/ceph/030-ceph.sh
       :language: shell
       :lines: 1,17-
 
@@ -39,12 +39,12 @@ Alternatively, this step can be performed by running the script directly:
 
   .. code-block:: shell
 
-    ./tools/deployment/multinode/030-ceph.sh
+    ./tools/deployment/developer/ceph/030-ceph.sh
 
   Activate the OSH-Infra namespace to be able to use Ceph
   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-  .. literalinclude:: ../../../../tools/deployment/multinode/035-ceph-ns-activate.sh
+  .. literalinclude:: ../../../../tools/deployment/developer/ceph/035-ceph-ns-activate.sh
       :language: shell
       :lines: 1,17-
 
@@ -52,12 +52,12 @@ Alternatively, this step can be performed by running the script directly:
 
   .. code-block:: shell
 
-    ./tools/deployment/multinode/035-ceph-ns-activate.sh
+    ./tools/deployment/developer/ceph/035-ceph-ns-activate.sh
 
 Deploy LDAP
 ^^^^^^^^^^^
 
-.. literalinclude:: ../../../tools/deployment/multinode/040-ldap.sh
+.. literalinclude:: ../../../../tools/deployment/developer/ceph/040-ldap.sh
     :language: shell
     :lines: 1,17-
 
@@ -65,12 +65,12 @@ Alternatively, this step can be performed by running the script directly:
 
 .. code-block:: shell
 
-  ./tools/deployment/multinode/040-ldap.sh
+  ./tools/deployment/developer/ceph/040-ldap.sh
 
 Deploy Prometheus
 ^^^^^^^^^^^^^^^^^
 
-.. literalinclude:: ../../../tools/deployment/multinode/050-prometheus.sh
+.. literalinclude:: ../../../../tools/deployment/developer/ceph/050-prometheus.sh
     :language: shell
     :lines: 1,17-
 
@@ -78,12 +78,12 @@ Alternatively, this step can be performed by running the script directly:
 
 .. code-block:: shell
 
-  ./tools/deployment/multinode/050-prometheus.sh
+  ./tools/deployment/developer/ceph/050-prometheus.sh
 
 Deploy Alertmanager
 ^^^^^^^^^^^^^^^^^^^
 
-.. literalinclude:: ../../../tools/deployment/multinode/060-alertmanager.sh
+.. literalinclude:: ../../../../tools/deployment/developer/ceph/060-alertmanager.sh
     :language: shell
     :lines: 1,17-
 
@@ -91,12 +91,12 @@ Alternatively, this step can be performed by running the script directly:
 
 .. code-block:: shell
 
-  ./tools/deployment/multinode/060-alertmanager.sh
+  ./tools/deployment/developer/ceph/060-alertmanager.sh
 
 Deploy Kube-State-Metrics
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. literalinclude:: ../../../tools/deployment/multinode/070-kube-state-metrics.sh
+.. literalinclude:: ../../../../tools/deployment/developer/ceph/070-kube-state-metrics.sh
     :language: shell
     :lines: 1,17-
 
@@ -104,12 +104,12 @@ Alternatively, this step can be performed by running the script directly:
 
 .. code-block:: shell
 
-  ./tools/deployment/multinode/070-kube-state-metrics.sh
+  ./tools/deployment/developer/ceph/070-kube-state-metrics.sh
 
 Deploy Node Exporter
 ^^^^^^^^^^^^^^^^^^^^
 
-.. literalinclude:: ../../../tools/deployment/multinode/080-node-exporter.sh
+.. literalinclude:: ../../../../tools/deployment/developer/ceph/080-node-exporter.sh
     :language: shell
     :lines: 1,17-
 
@@ -117,12 +117,12 @@ Alternatively, this step can be performed by running the script directly:
 
 .. code-block:: shell
 
-  ./tools/deployment/multinode/080-node-exporter.sh
+  ./tools/deployment/developer/ceph/080-node-exporter.sh
 
 Deploy OpenStack Exporter
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. literalinclude:: ../../../tools/deployment/multinode/090-openstack-exporter.sh
+.. literalinclude:: ../../../../tools/deployment/developer/ceph/090-openstack-exporter.sh
     :language: shell
     :lines: 1,17-
 
@@ -130,12 +130,12 @@ Alternatively, this step can be performed by running the script directly:
 
 .. code-block:: shell
 
-  ./tools/deployment/multinode/090-openstack-exporter.sh
+  ./tools/deployment/developer/ceph/090-openstack-exporter.sh
 
 Deploy Grafana
 ^^^^^^^^^^^^^^
 
-.. literalinclude:: ../../../tools/deployment/multinode/100-grafana.sh
+.. literalinclude:: ../../../../tools/deployment/developer/ceph/100-grafana.sh
     :language: shell
     :lines: 1,17-
 
@@ -143,12 +143,12 @@ Alternatively, this step can be performed by running the script directly:
 
 .. code-block:: shell
 
-  ./tools/deployment/multinode/100-grafana.sh
+  ./tools/deployment/developer/ceph/100-grafana.sh
 
 Deploy Nagios
 ^^^^^^^^^^^^^
 
-.. literalinclude:: ../../../tools/deployment/multinode/110-nagios.sh
+.. literalinclude:: ../../../../tools/deployment/developer/ceph/110-nagios.sh
     :language: shell
     :lines: 1,17-
 
@@ -156,12 +156,12 @@ Alternatively, this step can be performed by running the script directly:
 
 .. code-block:: shell
 
-  ./tools/deployment/multinode/110-nagios.sh
+  ./tools/deployment/developer/ceph/110-nagios.sh
 
 Deploy Elasticsearch
 ^^^^^^^^^^^^^^^^^^^^
 
-.. literalinclude:: ../../../tools/deployment/multinode/120-elasticsearch.sh
+.. literalinclude:: ../../../../tools/deployment/developer/ceph/120-elasticsearch.sh
     :language: shell
     :lines: 1,17-
 
@@ -169,12 +169,12 @@ Alternatively, this step can be performed by running the script directly:
 
 .. code-block:: shell
 
-  ./tools/deployment/multinode/120-elasticsearch.sh
+  ./tools/deployment/developer/ceph/120-elasticsearch.sh
 
 Deploy Fluent-Logging
 ^^^^^^^^^^^^^^^^^^^^^
 
-.. literalinclude:: ../../../tools/deployment/multinode/130-fluent-logging.sh
+.. literalinclude:: ../../../../tools/deployment/developer/ceph/130-fluent-logging.sh
     :language: shell
     :lines: 1,17-
 
@@ -182,12 +182,12 @@ Alternatively, this step can be performed by running the script directly:
 
 .. code-block:: shell
 
-  ./tools/deployment/multinode/130-fluent-logging.sh
+  ./tools/deployment/developer/ceph/130-fluent-logging.sh
 
 Deploy Kibana
 ^^^^^^^^^^^^^
 
-.. literalinclude:: ../../../tools/deployment/multinode/140-kibana.sh
+.. literalinclude:: ../../../../tools/deployment/developer/ceph/140-kibana.sh
     :language: shell
     :lines: 1,17-
 
@@ -195,4 +195,4 @@ Alternatively, this step can be performed by running the script directly:
 
 .. code-block:: shell
 
-  ./tools/deployment/multinode/140-kibana.sh
+  ./tools/deployment/developer/ceph/140-kibana.sh

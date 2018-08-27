@@ -21,9 +21,6 @@ make ingress
 
 #NOTE: Deploy global ingress
 tee /tmp/ingress-kube-system.yaml << EOF
-pod:
-  replicas:
-    error_page: 2
 deployment:
   mode: cluster
   type: DaemonSet
@@ -32,9 +29,7 @@ network:
 EOF
 helm upgrade --install ingress-kube-system ./ingress \
   --namespace=kube-system \
-  --values=/tmp/ingress-kube-system.yaml \
-  ${OSH_INFRA_EXTRA_HELM_ARGS} \
-  ${OSH_INFRA_EXTRA_HELM_ARGS_INGRESS_KUBE_SYSTEM}
+  --values=/tmp/ingress-kube-system.yaml
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh kube-system
@@ -42,18 +37,12 @@ helm upgrade --install ingress-kube-system ./ingress \
 #NOTE: Display info
 helm status ingress-kube-system
 
-#NOTE: Deploy namespaced ingress controllers
+#NOTE: Deploy namespace ingress
 for NAMESPACE in osh-infra ceph; do
-  #NOTE: Deploy namespace ingress
-  tee /tmp/ingress-${NAMESPACE}.yaml << EOF
-pod:
-  replicas:
-    ingress: 2
-    error_page: 2
-EOF
   helm upgrade --install ingress-${NAMESPACE} ./ingress \
     --namespace=${NAMESPACE} \
-    --values=/tmp/ingress-${NAMESPACE}.yaml
+    ${OSH_EXTRA_HELM_ARGS} \
+    ${OSH_EXTRA_HELM_ARGS_INGRESS_OPENSTACK}
 
   #NOTE: Wait for deploy
   ./tools/deployment/common/wait-for-pods.sh ${NAMESPACE}

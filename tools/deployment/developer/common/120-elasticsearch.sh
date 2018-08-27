@@ -21,13 +21,12 @@ make elasticsearch
 
 #NOTE: Deploy command
 tee /tmp/elasticsearch.yaml << EOF
-conf:
-  elasticsearch:
-    env:
-      java_opts: "-Xms512m -Xmx512m"
 monitoring:
   prometheus:
     enabled: true
+pod:
+  replicas:
+    data: 1
 EOF
 helm upgrade --install elasticsearch ./elasticsearch \
     --namespace=osh-infra \
@@ -38,6 +37,3 @@ helm upgrade --install elasticsearch ./elasticsearch \
 
 #NOTE: Validate Deployment info
 helm status elasticsearch
-
-#NOTE: Run helm tests
-helm test elasticsearch

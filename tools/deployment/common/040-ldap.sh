@@ -21,12 +21,11 @@ make ldap
 
 #NOTE: Deploy command
 helm upgrade --install ldap ./ldap \
-    --namespace=openstack \
-    --set storage.pvc.class_name=openstack-helm-lma-nfs \
+    --namespace=osh-infra \
     --set bootstrap.enabled=true
 
 #NOTE: Wait for deploy
-./tools/deployment/common/wait-for-pods.sh openstack
+./tools/deployment/common/wait-for-pods.sh osh-infra
 
 #NOTE: Validate Deployment info
 helm status ldap
