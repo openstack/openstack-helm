@@ -1,7 +1,7 @@
 #!/bin/bash
 
 {{/*
-Copyright 2017-2018 OpenStack Foundation.
+Copyright 2017 The Openstack-Helm Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -23,3 +23,6 @@ exec neutron-openvswitch-agent \
   --config-file /etc/neutron/plugins/ml2/ml2_conf.ini \
   --config-file /tmp/pod-shared/ml2-local-ip.ini \
   --config-file /etc/neutron/plugins/ml2/openvswitch_agent.ini
+{{- if .Values.conf.plugins.taas.taas.enabled }} \
+  --config-file /etc/neutron/plugins/ml2/taas.ini
+{{- end }}

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 {{/*
-Copyright 2017-2018 OpenStack Foundation.
+Copyright 2017 The Openstack-Helm Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -23,6 +23,9 @@ function start () {
   exec neutron-server \
         --config-file /etc/neutron/neutron.conf \
         --config-file /etc/neutron/plugins/ml2/ml2_conf.ini
+{{- if .Values.conf.plugins.taas.taas.enabled }} \
+        --config-file /etc/neutron/taas_plugin.ini
+{{- end }}
 {{- if ( has "sriov" .Values.network.backend ) }} \
         --config-file /etc/neutron/plugins/ml2/sriov_agent.ini
 {{- end }}
