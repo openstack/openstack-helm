@@ -30,21 +30,18 @@ limitations under the License.
 {{- end -}}
 ---
 apiVersion: v1
-kind: ConfigMap
+kind: Secret
 metadata:
   name: grafana-etc
+type: Opaque
 data:
-  datasources.yaml: |
-{{- include "grafana.utils.generate_datasources" (dict "envAll" $envAll "datasources" .Values.conf.provisioning.datasources) | indent 4 }}
-  dashboards.yaml: |
-{{ toYaml .Values.conf.provisioning.dashboards | indent 4 }}
-  grafana.ini: |
-{{ include "helm-toolkit.utils.to_ini" .Values.conf.grafana | indent 4 }}
+  datasources.yaml: {{ include "grafana.utils.generate_datasources" (dict "envAll" $envAll "datasources" .Values.conf.provisioning.datasources) | b64enc }}
+  dashboards.yaml: {{ toYaml .Values.conf.provisioning.dashboards | b64enc }}
+  grafana.ini: {{ include "helm-toolkit.utils.to_ini" .Values.conf.grafana | b64enc }}
 {{ if not (empty .Values.conf.ldap) }}
-{{- include "helm-toolkit.snippets.values_template_renderer" (dict "envAll" $envAll "template" .Values.conf.ldap.template "key" "ldap.toml") | indent 2 }}
+{{- include "helm-toolkit.snippets.values_template_renderer" (dict "envAll" $envAll "template" .Values.conf.ldap.template "key" "ldap.toml" "format" "Secret") | indent 2 }}
 {{ end }}
 {{ range $key, $value := .Values.conf.dashboards }}
-  {{$key}}.json: |
-{{ toJson $value | indent 4 }}
+  {{$key}}.json: {{ toJson $value | b64enc }}
 {{ end }}
 {{- end }}
