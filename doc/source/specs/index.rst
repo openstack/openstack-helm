@@ -16,3 +16,4 @@ Contents:
    fluentbit-fluentd-architecture.rst
    osh-1.0-requirements.rst
    values-ordering.rst
+   tenant-ceph.rst
