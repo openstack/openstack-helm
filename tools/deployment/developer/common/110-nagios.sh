@@ -17,27 +17,14 @@
 set -xe
 
 #NOTE: Lint and package chart
-make elasticsearch
+make nagios
 
 #NOTE: Deploy command
-tee /tmp/elasticsearch.yaml << EOF
-conf:
-  elasticsearch:
-    env:
-      java_opts: "-Xms512m -Xmx512m"
-monitoring:
-  prometheus:
-    enabled: true
-EOF
-helm upgrade --install elasticsearch ./elasticsearch \
-    --namespace=osh-infra \
-    --values=/tmp/elasticsearch.yaml
+helm upgrade --install nagios ./nagios \
+    --namespace=osh-infra
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh osh-infra
 
 #NOTE: Validate Deployment info
-helm status elasticsearch
-
-#NOTE: Run helm tests
-helm test elasticsearch
+helm status nagios

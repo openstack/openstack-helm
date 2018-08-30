@@ -1,0 +1,1 @@
+../common/110-nagios.sh

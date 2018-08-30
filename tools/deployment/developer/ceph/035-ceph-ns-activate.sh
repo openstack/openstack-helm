@@ -17,27 +17,40 @@
 set -xe
 
 #NOTE: Lint and package chart
-make elasticsearch
+make ceph-provisioners
 
 #NOTE: Deploy command
-tee /tmp/elasticsearch.yaml << EOF
+: ${OSH_EXTRA_HELM_ARGS:=""}
+tee /tmp/ceph-osh-infra-config.yaml <<EOF
+endpoints:
+  ceph_mon:
+    namespace: ceph
+network:
+  public: 172.17.0.1/16
+  cluster: 172.17.0.1/16
+deployment:
+  storage_secrets: false
+  ceph: false
+  rbd_provisioner: false
+  cephfs_provisioner: false
+  client_secrets: true
+  rgw_keystone_user_and_endpoints: false
+bootstrap:
+  enabled: false
 conf:
-  elasticsearch:
-    env:
-      java_opts: "-Xms512m -Xmx512m"
-monitoring:
-  prometheus:
-    enabled: true
+  rgw_ks:
+    enabled: false
 EOF
-helm upgrade --install elasticsearch ./elasticsearch \
-    --namespace=osh-infra \
-    --values=/tmp/elasticsearch.yaml
+helm upgrade --install ceph-osh-infra-config ./ceph-provisioners \
+  --namespace=osh-infra \
+  --values=/tmp/ceph-osh-infra-config.yaml \
+  ${OSH_EXTRA_HELM_ARGS} \
+  ${OSH_EXTRA_HELM_ARGS_CEPH_NS_ACTIVATE}
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh osh-infra
 
 #NOTE: Validate Deployment info
-helm status elasticsearch
-
-#NOTE: Run helm tests
-helm test elasticsearch
+kubectl get -n osh-infra jobs --show-all
+kubectl get -n osh-infra secrets
+kubectl get -n osh-infra configmaps

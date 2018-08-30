@@ -16,7 +16,7 @@
 
 set -xe
 
-ELASTICSEARCH_ENDPOINT="elasticsearch-logging.openstack"
+ELASTICSEARCH_ENDPOINT="elasticsearch-logging.osh-infra"
 
 #NOTE: Create index with specified LDAP user
 function create_index () {

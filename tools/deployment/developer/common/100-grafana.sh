@@ -17,27 +17,35 @@
 set -xe
 
 #NOTE: Lint and package chart
-make elasticsearch
+make grafana
 
 #NOTE: Deploy command
-tee /tmp/elasticsearch.yaml << EOF
+tee /tmp/grafana.yaml << EOF
+dependencies:
+  static:
+    grafana:
+      jobs: null
+      services: null
+manifests:
+  job_db_init: false
+  job_db_init_session: false
+  job_db_session_sync: false
+  secret_db: false
+  secret_db_session: false
 conf:
-  elasticsearch:
-    env:
-      java_opts: "-Xms512m -Xmx512m"
-monitoring:
-  prometheus:
-    enabled: true
+  grafana:
+    database:
+      type: sqlite3
+    session:
+      provider: file
+      provider_config: sessions
 EOF
-helm upgrade --install elasticsearch ./elasticsearch \
+helm upgrade --install grafana ./grafana \
     --namespace=osh-infra \
-    --values=/tmp/elasticsearch.yaml
+    --values=/tmp/grafana.yaml
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh osh-infra
 
 #NOTE: Validate Deployment info
-helm status elasticsearch
-
-#NOTE: Run helm tests
-helm test elasticsearch
+helm status grafana

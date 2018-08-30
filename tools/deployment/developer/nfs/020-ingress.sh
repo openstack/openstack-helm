@@ -17,14 +17,34 @@
 set -xe
 
 #NOTE: Lint and package chart
-make prometheus-alertmanager
+make ingress
 
-#NOTE: Deploy command
-helm upgrade --install alertmanager ./prometheus-alertmanager \
-    --namespace=osh-infra
+#NOTE: Deploy global ingress
+tee /tmp/ingress-kube-system.yaml << EOF
+deployment:
+  mode: cluster
+  type: DaemonSet
+network:
+  host_namespace: true
+EOF
+helm upgrade --install ingress-kube-system ./ingress \
+  --namespace=kube-system \
+  --values=/tmp/ingress-kube-system.yaml
+
+#NOTE: Wait for deploy
+./tools/deployment/common/wait-for-pods.sh kube-system
+
+#NOTE: Display info
+helm status ingress-kube-system
+
+#NOTE: Deploy namespace ingress
+helm upgrade --install ingress-osh-infra ./ingress \
+  --namespace=osh-infra \
+  ${OSH_INFRA_EXTRA_HELM_ARGS} \
+  ${OSH_INFRA_EXTRA_HELM_ARGS_INGRESS_OPENSTACK}
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh osh-infra
 
-#NOTE: Validate Deployment info
-helm status alertmanager
+#NOTE: Display info
+helm status ingress-osh-infra

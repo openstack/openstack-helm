@@ -21,11 +21,11 @@ make fluent-logging
 
 #NOTE: Deploy command
 helm upgrade --install fluent-logging ./fluent-logging \
-    --namespace=openstack \
+    --namespace=osh-infra \
     --set monitoring.prometheus.enabled=true
 
 #NOTE: Wait for deploy
-./tools/deployment/common/wait-for-pods.sh openstack
+./tools/deployment/common/wait-for-pods.sh osh-infra
 
 #NOTE: Validate Deployment info
 helm status fluent-logging

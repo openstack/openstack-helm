@@ -21,11 +21,11 @@ make nagios
 
 #NOTE: Deploy command
 helm upgrade --install nagios ./nagios \
-    --namespace=openstack \
+    --namespace=osh-infra \
     --set pod.replicas.nagios=3
 
 #NOTE: Wait for deploy
-./tools/deployment/common/wait-for-pods.sh openstack
+./tools/deployment/common/wait-for-pods.sh osh-infra
 
 #NOTE: Validate Deployment info
 helm status nagios

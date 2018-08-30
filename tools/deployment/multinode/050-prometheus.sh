@@ -21,12 +21,11 @@ make prometheus
 
 #NOTE: Deploy command
 helm upgrade --install prometheus ./prometheus \
-    --namespace=openstack \
-    --set storage.storage_class=openstack-helm-lma-nfs \
+    --namespace=osh-infra \
     --set pod.replicas.prometheus=2
 
 #NOTE: Wait for deploy
-./tools/deployment/common/wait-for-pods.sh openstack
+./tools/deployment/common/wait-for-pods.sh osh-infra
 
 #NOTE: Validate Deployment info
 helm status prometheus
