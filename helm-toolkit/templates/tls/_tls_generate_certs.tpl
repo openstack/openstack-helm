@@ -39,7 +39,7 @@ return: |
     <CA CRT>
   crt: |
     <CRT>
-  exp: 2018-09-01T10:56:07.895392915-05:00
+  exp: 2018-09-01T10:56:07.895392915-00:00
   key: |
     <CRT PRIVATE KEY>
 */}}
@@ -63,7 +63,7 @@ return: |
 {{- end }}
 
 {{- $ca := buildCustomCert ($params.ca.crt | b64enc ) ($params.ca.key | b64enc ) }}
-{{- $expDate := date_modify (printf "+%sh" (mul $params.life 24 |toString)) now }}
+{{- $expDate := date_in_zone "2006-01-02T15:04:05Z07:00" ( date_modify (printf "+%sh" (mul $params.life 24 |toString)) now ) "UTC" }}
 {{- $rawCert := genSignedCert (first $local.certHosts) ($local.certIps) (rest $local.certHosts) (int $params.life) $ca }}
 {{- $certificate := dict "crt" $rawCert.Cert "key" $rawCert.Key "ca" $params.ca.crt "exp" $expDate "" }}
 {{- $certificate | toYaml }}
