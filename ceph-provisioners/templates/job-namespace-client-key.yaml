@@ -19,7 +19,7 @@ limitations under the License.
 
 {{- $randStringSuffix := randAlphaNum 5 | lower }}
 
-{{- $serviceAccountName := "ceph-namespace-client-key-generator" }}
+{{- $serviceAccountName := print $envAll.Release.Name "-ceph-ns-key-generator" }}
 {{ tuple $envAll "namespace_client_key_generator" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1
@@ -81,7 +81,7 @@ subjects:
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: ceph-namespace-client-key-generator
+  name: {{ $serviceAccountName }}
 spec:
   template:
     metadata:
@@ -119,6 +119,6 @@ spec:
       volumes:
         - name: ceph-provisioners-bin-clients
           configMap:
-            name: ceph-provisioners-bin-clients
+            name: {{ printf "%s-%s" $envAll.Release.Name "ceph-prov-bin-clients" | quote }}
             defaultMode: 0555
 {{- end }}
