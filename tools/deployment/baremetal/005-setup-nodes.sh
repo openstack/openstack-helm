@@ -69,6 +69,8 @@ done
 
 #NOTE: Deploy OvS to connect nodes to the deployment host
 : ${OSH_INFRA_PATH:="../openstack-helm-infra"}
+make -C ${OSH_INFRA_PATH} openvswitch
+
 helm install ${OSH_INFRA_PATH}/openvswitch \
   --namespace=openstack \
   --name=openvswitch
