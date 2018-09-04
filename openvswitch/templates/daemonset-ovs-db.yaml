@@ -1,0 +1,82 @@
+{{/*
+Copyright 2017 The Openstack-Helm Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.daemonset_ovs_db }}
+{{- $envAll := . }}
+
+{{- $serviceAccountName := "openvswitch-db" }}
+{{ tuple $envAll "db" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: openvswitch-db
+  labels:
+{{ tuple $envAll "openvswitch" "openvswitch-vswitchd-db" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  selector:
+    matchLabels:
+{{ tuple $envAll "openvswitch" "openvswitch-vswitchd-db" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
+{{ tuple $envAll "ovs_db" | include "helm-toolkit.snippets.kubernetes_upgrades_daemonset" | indent 2 }}
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "openvswitch" "openvswitch-vswitchd-db" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
+    spec:
+      serviceAccountName: {{ $serviceAccountName }}
+      nodeSelector:
+        {{ .Values.labels.ovs.node_selector_key }}: {{ .Values.labels.ovs.node_selector_value }}
+      dnsPolicy: ClusterFirstWithHostNet
+      hostNetwork: true
+      initContainers:
+{{ tuple $envAll "db" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+      containers:
+        - name: openvswitch-db
+{{ tuple $envAll "openvswitch_db_server" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.ovs.db | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          securityContext:
+            runAsUser: 0
+          command:
+            - /tmp/openvswitch-db-server.sh
+            - start
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /tmp/openvswitch-db-server.sh
+                  - stop
+          volumeMounts:
+            - name: openvswitch-bin
+              mountPath: /tmp/openvswitch-db-server.sh
+              subPath: openvswitch-db-server.sh
+              readOnly: true
+            - name: varlibopenvswitch
+              mountPath: /var/lib/openvswitch/
+            - name: run
+              mountPath: /run
+      volumes:
+        - name: openvswitch-bin
+          configMap:
+            name: openvswitch-bin
+            defaultMode: 0555
+        - name: varlibopenvswitch
+          emptyDir: {}
+        - name: run
+          hostPath:
+            path: /run
+{{- end }}
