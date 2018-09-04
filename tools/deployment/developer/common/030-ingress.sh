@@ -17,7 +17,8 @@
 set -xe
 
 #NOTE: Lint and package chart
-make ingress
+: ${OSH_INFRA_PATH:="../openstack-helm-infra"}
+make -C ${OSH_INFRA_PATH} ingress
 
 #NOTE: Deploy command
 : ${OSH_INFRA_PATH:="../openstack-helm-infra"}

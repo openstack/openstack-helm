@@ -17,12 +17,13 @@
 set -xe
 
 #NOTE: Lint and package chart
+: ${OSH_INFRA_PATH:="../openstack-helm-infra"}
 for CHART in ceph-mon ceph-osd ceph-client ceph-provisioners; do
-  make "${CHART}"
+  make -C ${OSH_INFRA_PATH} "${CHART}"
 done
 
 #NOTE: Deploy command
-: ${OSH_INFRA_PATH:="../openstack-helm-infra"}
+
 : ${OSH_EXTRA_HELM_ARGS:=""}
 [ -s /tmp/ceph-fs-uuid.txt ] || uuidgen > /tmp/ceph-fs-uuid.txt
 CEPH_FS_ID="$(cat /tmp/ceph-fs-uuid.txt)"
