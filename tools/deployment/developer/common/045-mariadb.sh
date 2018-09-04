@@ -17,18 +17,18 @@
 set -xe
 
 #NOTE: Lint and package chart
-make grafana
+make mariadb
 
 #NOTE: Deploy command
-helm upgrade --install grafana ./grafana \
+: ${OSH_INFRA_EXTRA_HELM_ARGS:=""}
+helm upgrade --install mariadb ./mariadb \
     --namespace=osh-infra \
-    --set pod.replicas.grafana=2
+    --set pod.replicas.server=1 \
+    ${OSH_INFRA_EXTRA_HELM_ARGS} \
+    ${OSH_INFRA_EXTRA_HELM_ARGS_MARIADB}
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh osh-infra
 
 #NOTE: Validate Deployment info
-helm status grafana
-
-#NOTE: Run helm tests
-helm test grafana
+helm status mariadb

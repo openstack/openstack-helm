@@ -1,0 +1,39 @@
+{{/*
+Copyright 2017 The Openstack-Helm Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.configmap_etc }}
+{{- $envAll := . }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mariadb-etc
+data:
+  my.cnf: |
+{{ tuple "etc/_my.cnf.tpl" $envAll | include "helm-toolkit.utils.template" | indent 4 }}
+  00-base.cnf: |
+{{ tuple "etc/_00-base.cnf.tpl" $envAll | include "helm-toolkit.utils.template" | indent 4 }}
+  20-override.cnf: |
+{{ tuple "etc/_20-override.cnf.tpl" $envAll | include "helm-toolkit.utils.template" | indent 4 }}
+  99-force.cnf: |
+{{ tuple "etc/_99-force.cnf.tpl" $envAll | include "helm-toolkit.utils.template" | indent 4 }}
+{{- if $envAll.Values.conf.ingress }}
+  nginx.tmpl: |
+{{ $envAll.Values.conf.ingress | indent 4 }}
+{{- else }}
+{{ ( $envAll.Files.Glob "files/nginx.tmpl" ).AsConfig | indent 2 }}
+{{- end }}
+{{- end }}

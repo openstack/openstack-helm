@@ -67,6 +67,19 @@ Alternatively, this step can be performed by running the script directly:
 
   ./tools/deployment/developer/ceph/040-ldap.sh
 
+Deploy MariaDB
+^^^^^^^^^^^^^^
+
+.. literalinclude:: ../../../../tools/deployment/developer/ceph/045-mariadb.sh
+    :language: shell
+    :lines: 1,17-
+
+Alternatively, this step can be performed by running the script directly:
+
+.. code-block:: shell
+
+  ./tools/deployment/developer/ceph/045-mariadb.sh
+
 Deploy Prometheus
 ^^^^^^^^^^^^^^^^^
 

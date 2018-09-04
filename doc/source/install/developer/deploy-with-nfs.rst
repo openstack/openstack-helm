@@ -54,6 +54,19 @@ Alternatively, this step can be performed by running the script directly:
 
   ./tools/deployment/developer/nfs/040-ldap.sh
 
+Deploy MariaDB
+^^^^^^^^^^^^^^
+
+.. literalinclude:: ../../../../tools/deployment/developer/nfs/045-mariadb.sh
+    :language: shell
+    :lines: 1,17-
+
+Alternatively, this step can be performed by running the script directly:
+
+.. code-block:: shell
+
+  ./tools/deployment/developer/nfs/045-mariadb.sh
+
 Deploy Prometheus
 ^^^^^^^^^^^^^^^^^
 

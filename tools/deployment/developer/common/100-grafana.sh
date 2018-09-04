@@ -20,29 +20,8 @@ set -xe
 make grafana
 
 #NOTE: Deploy command
-tee /tmp/grafana.yaml << EOF
-dependencies:
-  static:
-    grafana:
-      jobs: null
-      services: null
-manifests:
-  job_db_init: false
-  job_db_init_session: false
-  job_db_session_sync: false
-  secret_db: false
-  secret_db_session: false
-conf:
-  grafana:
-    database:
-      type: sqlite3
-    session:
-      provider: file
-      provider_config: sessions
-EOF
 helm upgrade --install grafana ./grafana \
-    --namespace=osh-infra \
-    --values=/tmp/grafana.yaml
+    --namespace=osh-infra
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh osh-infra
