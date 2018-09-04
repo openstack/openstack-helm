@@ -20,8 +20,9 @@ set -xe
 make mariadb
 
 #NOTE: Deploy command
+: ${OSH_INFRA_PATH:="../openstack-helm-infra"}
 : ${OSH_EXTRA_HELM_ARGS:=""}
-helm upgrade --install mariadb ./mariadb \
+helm upgrade --install mariadb ${OSH_INFRA_PATH}/mariadb \
     --namespace=openstack \
     --set pod.replicas.server=1 \
     ${OSH_EXTRA_HELM_ARGS} \

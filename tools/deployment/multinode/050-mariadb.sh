@@ -23,7 +23,8 @@ pod:
     server: 3
     ingress: 3
 EOF
-helm upgrade --install mariadb ./mariadb \
+: ${OSH_INFRA_PATH:="../openstack-helm-infra"}
+helm upgrade --install mariadb ${OSH_INFRA_PATH}/mariadb \
     --namespace=openstack \
     --values=/tmp/mariadb.yaml \
     ${OSH_EXTRA_HELM_ARGS} \
