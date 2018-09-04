@@ -16,7 +16,8 @@
 set -xe
 
 #NOTE: Wait for deploy
-helm upgrade --install mongodb ./mongodb \
+: ${OSH_INFRA_PATH:="../openstack-helm-infra"}
+helm upgrade --install mongodb ${OSH_INFRA_PATH}/mongodb \
   --namespace=openstack \
   ${OSH_EXTRA_HELM_ARGS} \
   ${OSH_EXTRA_HELM_ARGS_MONGODB}
