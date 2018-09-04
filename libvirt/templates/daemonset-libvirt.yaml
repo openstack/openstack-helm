@@ -1,0 +1,231 @@
+{{/*
+Copyright 2017 The Openstack-Helm Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.daemonset_libvirt }}
+{{- $envAll := . }}
+{{- $dependencyOpts := dict "envAll" $envAll "dependencyMixinParam" $envAll.Values.network.backend "dependencyKey" "libvirt" -}}
+{{- $_ := include "helm-toolkit.utils.dependency_resolver" $dependencyOpts | toString | fromYaml }}
+
+{{- $mounts_libvirt := .Values.pod.mounts.libvirt.libvirt }}
+{{- $mounts_libvirt_init := .Values.pod.mounts.libvirt.init_container }}
+
+{{- $serviceAccountName := "libvirt" }}
+{{ tuple $envAll "pod_dependency" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: libvirt
+  labels:
+{{ tuple $envAll "libvirt" "libvirt" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  selector:
+    matchLabels:
+{{ tuple $envAll "libvirt" "libvirt" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
+{{ tuple $envAll "libvirt" | include "helm-toolkit.snippets.kubernetes_upgrades_daemonset" | indent 2 }}
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "libvirt" "libvirt" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
+        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
+    spec:
+      serviceAccountName: {{ $serviceAccountName }}
+      nodeSelector:
+        {{ .Values.labels.agent.libvirt.node_selector_key }}: {{ .Values.labels.agent.libvirt.node_selector_value }}
+      hostNetwork: true
+      hostPID: true
+      dnsPolicy: ClusterFirstWithHostNet
+      initContainers:
+{{ tuple $envAll "pod_dependency" $mounts_libvirt_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{- if .Values.conf.ceph.enabled }}
+        {{- if empty .Values.conf.ceph.cinder.keyring }}
+        - name: ceph-admin-keyring-placement
+{{ tuple $envAll "libvirt" | include "helm-toolkit.snippets.image" | indent 10 }}
+          securityContext:
+            runAsUser: 0
+          command:
+            - /tmp/ceph-admin-keyring.sh
+          volumeMounts:
+            - name: etcceph
+              mountPath: /etc/ceph
+            - name: libvirt-bin
+              mountPath: /tmp/ceph-admin-keyring.sh
+              subPath: ceph-admin-keyring.sh
+              readOnly: true
+            {{- if empty .Values.conf.ceph.admin_keyring }}
+            - name: ceph-keyring
+              mountPath: /tmp/client-keyring
+              subPath: key
+              readOnly: true
+            {{ end }}
+        {{ end }}
+        - name: ceph-keyring-placement
+{{ tuple $envAll "libvirt" | include "helm-toolkit.snippets.image" | indent 10 }}
+          securityContext:
+            runAsUser: 0
+          env:
+            - name: CEPH_CINDER_USER
+              value: "{{ .Values.conf.ceph.cinder.user }}"
+            {{- if .Values.conf.ceph.cinder.keyring }}
+            - name: CEPH_CINDER_KEYRING
+              value: "{{ .Values.conf.ceph.cinder.keyring }}"
+            {{ end }}
+            - name: LIBVIRT_CEPH_CINDER_SECRET_UUID
+              value: "{{ .Values.conf.ceph.cinder.secret_uuid }}"
+          command:
+            - /tmp/ceph-keyring.sh
+          volumeMounts:
+            - name: etcceph
+              mountPath: /etc/ceph
+            - name: libvirt-bin
+              mountPath: /tmp/ceph-keyring.sh
+              subPath: ceph-keyring.sh
+              readOnly: true
+            - name: ceph-etc
+              mountPath: /etc/ceph/ceph.conf
+              subPath: ceph.conf
+              readOnly: true
+{{- end }}
+      containers:
+        - name: libvirt
+{{ tuple $envAll "libvirt" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.libvirt | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          securityContext:
+            privileged: true
+            runAsUser: 0
+          {{- if .Values.conf.ceph.enabled }}
+          env:
+            - name: CEPH_CINDER_USER
+              value: "{{ .Values.conf.ceph.cinder.user }}"
+            {{- if .Values.conf.ceph.cinder.keyring }}
+            - name: CEPH_CINDER_KEYRING
+              value: "{{ .Values.conf.ceph.cinder.keyring }}"
+            {{ end }}
+            - name: LIBVIRT_CEPH_CINDER_SECRET_UUID
+              value: "{{ .Values.conf.ceph.cinder.secret_uuid }}"
+          {{ end }}
+          command:
+            - /tmp/libvirt.sh
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - bash
+                  - -c
+                  - |-
+                    kill $(cat /var/run/libvirtd.pid)
+          volumeMounts:
+            - name: libvirt-bin
+              mountPath: /tmp/libvirt.sh
+              subPath: libvirt.sh
+              readOnly: true
+            - name: libvirt-etc
+              mountPath: /etc/libvirt/libvirtd.conf
+              subPath: libvirtd.conf
+              readOnly: true
+            - name: libvirt-etc
+              mountPath: /etc/libvirt/qemu.conf
+              subPath: qemu.conf
+              readOnly: true
+            - name: etc-libvirt-qemu
+              mountPath: /etc/libvirt/qemu
+            - mountPath: /lib/modules
+              name: libmodules
+              readOnly: true
+            - name: var-lib-libvirt
+              mountPath: /var/lib/libvirt
+              {{- if or ( gt .Capabilities.KubeVersion.Major "1" ) ( ge .Capabilities.KubeVersion.Minor "10" ) }}
+              mountPropagation: Bidirectional
+              {{- end }}
+            - name: var-lib-nova
+              mountPath: /var/lib/nova
+              {{- if or ( gt .Capabilities.KubeVersion.Major "1" ) ( ge .Capabilities.KubeVersion.Minor "10" ) }}
+              mountPropagation: Bidirectional
+              {{- end }}
+            - name: run
+              mountPath: /run
+            - name: dev
+              mountPath: /dev
+            - name: cgroup
+              mountPath: /sys/fs/cgroup
+            - name: machine-id
+              mountPath: /etc/machine-id
+              readOnly: true
+            {{- if .Values.conf.ceph.enabled }}
+            - name: etcceph
+              mountPath: /etc/ceph
+            - name: ceph-etc
+              mountPath: /etc/ceph/ceph.conf
+              subPath: ceph.conf
+              readOnly: true
+            {{- if empty .Values.conf.ceph.cinder.keyring }}
+            - name: ceph-keyring
+              mountPath: /tmp/client-keyring
+              subPath: key
+              readOnly: true
+            {{- end }}
+            {{- end }}
+{{ if $mounts_libvirt.volumeMounts }}{{ toYaml $mounts_libvirt.volumeMounts | indent 12 }}{{ end }}
+      volumes:
+        - name: libvirt-bin
+          configMap:
+            name: libvirt-bin
+            defaultMode: 0555
+        - name: libvirt-etc
+          configMap:
+            name: libvirt-etc
+            defaultMode: 0444
+        {{- if .Values.conf.ceph.enabled }}
+        - name: etcceph
+          emptyDir: {}
+        - name: ceph-etc
+          configMap:
+            name: {{ .Values.ceph_client.configmap }}
+            defaultMode: 0444
+        {{- if empty .Values.conf.ceph.cinder.keyring }}
+        - name: ceph-keyring
+          secret:
+            secretName: {{ .Values.ceph_client.user_secret_name }}
+        {{ end }}
+        {{ end }}
+        - name: libmodules
+          hostPath:
+            path: /lib/modules
+        - name: var-lib-libvirt
+          hostPath:
+            path: /var/lib/libvirt
+        - name: var-lib-nova
+          hostPath:
+            path: /var/lib/nova
+        - name: run
+          hostPath:
+            path: /run
+        - name: dev
+          hostPath:
+            path: /dev
+        - name: cgroup
+          hostPath:
+            path: /sys/fs/cgroup
+        - name: machine-id
+          hostPath:
+            path: /etc/machine-id
+        - name: etc-libvirt-qemu
+          hostPath:
+            path: /etc/libvirt/qemu
+{{ if $mounts_libvirt.volumes }}{{ toYaml $mounts_libvirt.volumes | indent 8 }}{{ end }}
+{{- end }}
