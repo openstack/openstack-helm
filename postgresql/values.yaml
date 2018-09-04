@@ -1,0 +1,214 @@
+# Copyright 2017 The Openstack-Helm Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Default values for postgresql.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+release_group: null
+
+pod:
+  affinity:
+    anti:
+      type:
+        default: preferredDuringSchedulingIgnoredDuringExecution
+      topologyKey:
+        default: kubernetes.io/hostname
+  replicas:
+    #only 1 replica currently supported
+    server: 1
+    prometheus_postgresql_exporter: 1
+  lifecycle:
+    upgrades:
+      deployments:
+        revision_history: 3
+        pod_replacement_strategy: RollingUpdate
+        rolling_update:
+          max_unavailable: 1
+          max_surge: 3
+    termination_grace_period:
+      prometheus_postgresql_exporter:
+        timeout: 30
+  resources:
+    enabled: false
+    server:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+    prometheus_postgresql_exporter:
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+      requests:
+        memory: "128Mi"
+        cpu: "500m"
+    jobs:
+      image_repo_sync:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      prometheus_postgresql_exporter_create_user:
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+
+# using dockerhub postgresql: https://hub.docker.com/r/library/postgres/tags/
+images:
+  tags:
+    postgresql: "docker.io/postgres:9.5"
+    dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.3.1
+    image_repo_sync: docker.io/docker:17.07.0
+    prometheus_postgresql_exporter: docker.io/wrouesnel/postgres_exporter:v0.4.6
+    prometheus_postgresql_exporter_create_user: "docker.io/postgres:9.5"
+  pull_policy: "IfNotPresent"
+  local_registry:
+    active: false
+    exclude:
+      - dep_check
+      - image_repo_sync
+
+storage:
+  pvc:
+    enabled: true
+    size: 5Gi
+    class_name: general
+    class_path: volume.beta.kubernetes.io/storage-class
+  host:
+    host_path: /data/openstack-helm/postgresql
+  mount:
+    path: /var/lib/postgresql/data
+    subpath: pgdata
+
+labels:
+  server:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  prometheus_postgresql_exporter:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+
+dependencies:
+  dynamic:
+    common:
+      local_image_registry:
+        jobs:
+          - postgresql-image-repo-sync
+        services:
+          - endpoint: node
+            service: local_image_registry
+  static:
+    postgresql:
+      jobs: null
+    image_repo_sync:
+      services:
+        - endpoint: internal
+          service: local_image_registry
+    prometheus_postgresql_exporter_create_user:
+      services:
+        - endpoint: internal
+          service: postgresql
+    prometheus_postgresql_exporter:
+      services:
+        - endpoint: internal
+          service: postgresql
+      jobs:
+        - prometheus-postgresql-exporter-create-user
+
+monitoring:
+  prometheus:
+    enabled: false
+    postgresql_exporter:
+      scrape: true
+
+conf:
+  postgresql:
+    max_connections: 100
+    shared_buffers: 128MB
+
+secrets:
+  postgresql:
+    admin: postgresql-admin
+    exporter: postgresql-exporter
+
+endpoints:
+  cluster_domain_suffix: cluster.local
+  local_image_registry:
+    name: docker-registry
+    namespace: docker-registry
+    hosts:
+      default: localhost
+      internal: docker-registry
+      node: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        node: 5000
+  postgresql:
+    auth:
+      admin:
+        username: postgres
+        password: password
+      exporter:
+        username: psql_exporter
+        password: psql_exp_pass
+    hosts:
+      default: postgresql
+    host_fqdn_override:
+      default: null
+    path: null
+    scheme: postgresql
+    port:
+      postgresql:
+        default: 5432
+  prometheus_postgresql_exporter:
+    namespace: null
+    auth:
+      user:
+        username: exporter
+        password: password
+    hosts:
+      default: postgresql-exporter
+    host_fqdn_override:
+      default: null
+    path:
+      default: /metrics
+    scheme:
+      default: 'http'
+    port:
+      metrics:
+        default: 9187
+
+manifests:
+  configmap_bin: true
+  job_image_repo_sync: true
+  secret_admin: true
+  service: true
+  statefulset: true
+  monitoring:
+    prometheus:
+      configmap_bin: true
+      deployment_exporter: true
+      job_user_create: true
+      secret_etc: true
+      service_exporter: true
