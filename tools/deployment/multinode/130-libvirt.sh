@@ -16,7 +16,8 @@
 set -xe
 
 #NOTE: Deploy libvirt
-helm upgrade --install libvirt ./libvirt \
+: ${OSH_INFRA_PATH:="../openstack-helm-infra"}
+helm upgrade --install libvirt ${OSH_INFRA_PATH}/libvirt \
   --namespace=openstack \
   ${OSH_EXTRA_HELM_ARGS} \
   ${OSH_EXTRA_HELM_ARGS_LIBVIRT}

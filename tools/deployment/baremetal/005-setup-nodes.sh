@@ -27,7 +27,8 @@ done
 make all
 
 #NOTE: Deploy libvirt with vbmc then define domains to use as baremetal nodes
-helm install ./libvirt \
+: ${OSH_INFRA_PATH:="../openstack-helm-infra"}
+helm install ${OSH_INFRA_PATH}/libvirt \
   --namespace=libvirt \
   --name=libvirt \
   --set network.backend=null \
