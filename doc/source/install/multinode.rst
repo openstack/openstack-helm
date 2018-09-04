@@ -119,6 +119,19 @@ Alternatively, this step can be performed by running the script directly:
 
   ./tools/deployment/multinode/080-node-exporter.sh
 
+Deploy Process Exporter
+^^^^^^^^^^^^^^^^^^^^^^^
+
+.. literalinclude:: ../../../tools/deployment/multinode/085-process-exporter.sh
+    :language: shell
+    :lines: 1,17-
+
+Alternatively, this step can be performed by running the script directly:
+
+.. code-block:: shell
+
+  ./tools/deployment/multinode/085-process-exporter.sh
+
 Deploy OpenStack Exporter
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
