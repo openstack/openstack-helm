@@ -132,6 +132,19 @@ Alternatively, this step can be performed by running the script directly:
 
   ./tools/deployment/developer/ceph/080-node-exporter.sh
 
+Deploy Process Exporter
+^^^^^^^^^^^^^^^^^^^^^^^
+
+.. literalinclude:: ../../../../tools/deployment/developer/ceph/085-process-exporter.sh
+    :language: shell
+    :lines: 1,17-
+
+Alternatively, this step can be performed by running the script directly:
+
+.. code-block:: shell
+
+  ./tools/deployment/developer/ceph/085-process-exporter.sh
+
 Deploy OpenStack Exporter
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
