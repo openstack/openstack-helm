@@ -7,6 +7,7 @@ Contents:
    :maxdepth: 2
 
    install/index
+   testing/index
 
 
 Indices and Tables
