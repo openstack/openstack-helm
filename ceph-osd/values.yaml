@@ -22,6 +22,7 @@ images:
   tags:
     ceph_osd: 'docker.io/ceph/daemon:tag-build-master-luminous-ubuntu-16.04'
     ceph_bootstrap: 'docker.io/ceph/daemon:tag-build-master-luminous-ubuntu-16.04'
+    ceph_config_helper: 'docker.io/port/ceph-config-helper:v1.10.3'
     dep_check: 'quay.io/stackanetes/kubernetes-entrypoint:v0.3.1'
     image_repo_sync: docker.io/docker:17.07.0
   local_registry:
@@ -55,6 +56,13 @@ pod:
       limits:
         memory: "1024Mi"
         cpu: "1000m"
+    tests:
+      requests:
+        memory: "10Mi"
+        cpu: "250m"
+      limits:
+        memory: "50Mi"
+        cpu: "500m"
     jobs:
       image_repo_sync:
         requests:
@@ -67,7 +75,7 @@ pod:
 secrets:
   keyrings:
     osd: ceph-bootstrap-osd-keyring
-
+    admin: ceph-client-admin-keyring
 network:
   public: 192.168.0.0/16
   cluster: 192.168.0.0/16
@@ -180,6 +188,10 @@ dependencies:
       services:
         - endpoint: internal
           service: local_image_registry
+    tests:
+      services:
+        - endpoint: internal
+          service: ceph_mon
 
 bootstrap:
   enabled: false
@@ -222,5 +234,7 @@ endpoints:
 manifests:
   configmap_bin: true
   configmap_etc: true
+  configmap_test_bin: true
   daemonset_osd: true
   job_image_repo_sync: true
+  helm_tests: true
