@@ -19,8 +19,9 @@ set -xe
 make openvswitch
 
 #NOTE: Deploy command
+: ${OSH_INFRA_PATH:="../openstack-helm-infra"}
 : ${OSH_EXTRA_HELM_ARGS:=""}
-helm upgrade --install openvswitch ./openvswitch \
+helm upgrade --install openvswitch ${OSH_INFRA_PATH}/openvswitch \
   --namespace=openstack \
   ${OSH_EXTRA_HELM_ARGS} \
   ${OSH_EXTRA_HELM_ARGS_OPENVSWITCH}

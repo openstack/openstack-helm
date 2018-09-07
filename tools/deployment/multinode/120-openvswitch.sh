@@ -16,7 +16,8 @@
 set -xe
 
 #NOTE: Deploy command
-helm upgrade --install openvswitch ./openvswitch \
+: ${OSH_INFRA_PATH:="../openstack-helm-infra"}
+helm upgrade --install openvswitch ${OSH_INFRA_PATH}/openvswitch \
   --namespace=openstack \
   ${OSH_EXTRA_HELM_ARGS} \
   ${OSH_EXTRA_HELM_ARGS_OPENVSWITCH}

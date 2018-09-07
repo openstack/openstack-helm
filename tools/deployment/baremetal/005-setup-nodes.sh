@@ -68,7 +68,8 @@ for LIBVIRT_POD in ${LIBVIRT_PODS}; do
 done
 
 #NOTE: Deploy OvS to connect nodes to the deployment host
-helm install ./openvswitch \
+: ${OSH_INFRA_PATH:="../openstack-helm-infra"}
+helm install ${OSH_INFRA_PATH}/openvswitch \
   --namespace=openstack \
   --name=openvswitch
 
