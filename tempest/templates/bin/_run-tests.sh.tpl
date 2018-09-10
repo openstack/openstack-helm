@@ -18,12 +18,16 @@ limitations under the License.
 
 set -ex
 
+{{ if .Values.conf.cleanup.enabled }}
 tempest cleanup --init-saved-state
 
 if [ "true" == "{{- .Values.conf.cleanup.force -}}" ]; then
 trap "tempest cleanup; exit" 1 ERR
 fi
+{{- end }}
 
 {{ .Values.conf.script }}
 
+{{ if .Values.conf.cleanup.enabled }}
 tempest cleanup
+{{- end }}
