@@ -1433,6 +1433,23 @@ conf:
           # NOTE: A second `--config-file` arg can also be added above. Since
           # many neutron components are installed like that (eg: by devstack).
           # Adjust to suit local requirements.
+    taas:
+      pods:
+        - ovs_agent
+        - sriov_agent
+      content: |
+        # neutron-rootwrap command filters for nodes on which neutron
+        # tap-as-a-service(taas) is eanbled.  Taas uses this command
+        # as part of its flow control.
+
+        # format seems to be
+        # cmd-name: filter-name, raw-command, user, args
+
+        [Filters]
+
+        # This is needed to allow taas to insert/remove vlan id to the
+        # target vf under /sys/class/net/[device-name]/device/sriov/[vf-index]/[mirror]
+        i40e_sysfs_command: RegExpFilter, /opt/i40e_sysfs_command, root, /opt/i40e_sysfs_command, \w+, .+, .+
   neutron:
     DEFAULT:
       log_config_append: /etc/neutron/logging.conf
@@ -1478,6 +1495,7 @@ conf:
       keys:
         - root
         - neutron
+        - neutron_taas
     handlers:
       keys:
         - stdout
@@ -1495,6 +1513,11 @@ conf:
       handlers:
         - stdout
       qualname: neutron
+    logger_neutron_taas:
+      level: INFO
+      handlers:
+        - stdout
+      qualname: neutron_taas
     logger_amqp:
       level: WARNING
       handlers: stderr
@@ -1550,7 +1573,12 @@ conf:
       # using ml2_type_vlan.network_vlan_ranges:
       # ml2_type_vlan:
       #   network_vlan_ranges: "external:1100:1110"
+      agent:
+        extensions: ""
     ml2_conf_sriov: null
+    taas:
+      taas:
+        enabled: False
     openvswitch_agent:
       agent:
         tunnel_types: vxlan

@@ -83,6 +83,12 @@ spec:
               mountPath: /etc/neutron/plugins/ml2/sriov_agent.ini
               subPath: sriov_agent.ini
               readOnly: true
+            {{- if .Values.conf.plugins.taas.taas.enabled }}
+            - name: neutron-etc
+              mountPath: /etc/neutron/plugins/ml2/taas.ini
+              subPath: taas.ini
+              readOnly: true
+            {{- end }}
             - name: neutron-etc
               # NOTE (Portdirect): We mount here to override Kollas
               # custom sudoers file when using Kolla images, this
@@ -96,12 +102,16 @@ spec:
               readOnly: true
             {{- range $key, $value := $envAll.Values.conf.rootwrap_filters }}
             {{- if ( has "sriov_agent" $value.pods ) }}
+            {{- if and ( eq "taas" $key ) (not $envAll.Values.conf.plugins.taas.taas.enabled) }}
+                ## if taas is not enabled, do not include taas.filters
+            {{- else }}
             {{- $filePrefix := replace "_" "-"  $key }}
             {{- $rootwrapFile := printf "/etc/neutron/rootwrap.d/%s.filters" $filePrefix }}
             - name: neutron-etc
               mountPath: {{ $rootwrapFile }}
               subPath: {{ base $rootwrapFile }}
               readOnly: true
+            {{- end }}
             {{- end }}
             {{- end }}
             - name: run
@@ -139,6 +149,12 @@ spec:
               mountPath: /etc/neutron/plugins/ml2/sriov_agent.ini
               subPath: sriov_agent.ini
               readOnly: true
+            {{- if .Values.conf.plugins.taas.taas.enabled }}
+            - name: neutron-etc
+              mountPath: /etc/neutron/plugins/ml2/taas.ini
+              subPath: taas.ini
+              readOnly: true
+            {{- end }}
             - name: neutron-etc
               # NOTE (Portdirect): We mount here to override Kollas
               # custom sudoers file when using Kolla images, this
@@ -152,12 +168,16 @@ spec:
               readOnly: true
             {{- range $key, $value := $envAll.Values.conf.rootwrap_filters }}
             {{- if ( has "sriov_agent" $value.pods ) }}
+            {{- if and ( eq "taas" $key ) (not $envAll.Values.conf.plugins.taas.taas.enabled) }}
+                ## if taas is not enabled, do not include taas.filters
+            {{- else }}
             {{- $filePrefix := replace "_" "-"  $key }}
             {{- $rootwrapFile := printf "/etc/neutron/rootwrap.d/%s.filters" $filePrefix }}
             - name: neutron-etc
               mountPath: {{ $rootwrapFile }}
               subPath: {{ base $rootwrapFile }}
               readOnly: true
+            {{- end }}
             {{- end }}
             {{- end }}
             - name: run
