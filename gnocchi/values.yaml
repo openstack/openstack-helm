@@ -1,0 +1,602 @@
+# Copyright 2018 The Openstack-Helm Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Default values for gnocchi.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+labels:
+  api:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  job:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  metricd:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  statsd:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  test:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+
+release_group: null
+
+images:
+  tags:
+    dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.3.1
+    gnocchi_storage_init: docker.io/port/ceph-config-helper:v1.10.3
+    db_init_indexer: docker.io/postgres:9.5
+    # using non-kolla images until kolla supports postgres as
+    # an indexer
+    db_init: quay.io/attcomdev/ubuntu-source-gnocchi-api:3.0.3
+    db_sync: quay.io/attcomdev/ubuntu-source-gnocchi-api:3.0.3
+    ks_user: docker.io/openstackhelm/heat:newton
+    ks_service: docker.io/openstackhelm/heat:newton
+    ks_endpoints: docker.io/openstackhelm/heat:newton
+    gnocchi_api: quay.io/attcomdev/ubuntu-source-gnocchi-api:3.0.3
+    gnocchi_statsd: quay.io/attcomdev/ubuntu-source-gnocchi-statsd:3.0.3
+    gnocchi_metricd: quay.io/attcomdev/ubuntu-source-gnocchi-metricd:3.0.3
+    image_repo_sync: docker.io/docker:17.07.0
+  pull_policy: "IfNotPresent"
+  local_registry:
+    active: false
+    exclude:
+      - dep_check
+      - image_repo_sync
+
+network:
+  api:
+    ingress:
+      public: true
+      classes:
+        namespace: "nginx"
+        cluster: "nginx-cluster"
+      annotations:
+        nginx.ingress.kubernetes.io/rewrite-target: /
+    external_policy_local: false
+    node_port:
+      enabled: false
+      port: 8041
+  statsd:
+    node_port:
+      enabled: false
+      port: 8125
+
+dependencies:
+  dynamic:
+    common:
+      local_image_registry:
+        jobs:
+          - gnocchi-image-repo-sync
+        services:
+          - endpoint: node
+            service: local_image_registry
+  static:
+    api:
+      jobs:
+        - gnocchi-storage-init
+        - gnocchi-db-sync
+        - gnocchi-ks-endpoints
+        - gnocchi-ks-service
+        - gnocchi-ks-user
+      services:
+        - endpoint: internal
+          service: identity
+        - endpoint: internal
+          service: oslo_db
+    clean:
+      services: null
+    db_init:
+      services:
+        - endpoint: internal
+          service: oslo_db
+    db_init_postgresql:
+      jobs: null
+      services:
+        - endpoint: internal
+          service: oslo_db_postgresql
+    db_sync:
+      jobs:
+        - gnocchi-storage-init
+        - gnocchi-db-init
+        - gnocchi-db-init-indexer
+      services:
+        - endpoint: internal
+          service: oslo_db_postgresql
+    ks_endpoints:
+      jobs:
+        - gnocchi-ks-service
+      services:
+        - endpoint: internal
+          service: identity
+    ks_service:
+      services:
+        - endpoint: internal
+          service: identity
+    ks_user:
+      services:
+        - endpoint: internal
+          service: identity
+    metricd:
+      jobs:
+        - gnocchi-storage-init
+        - gnocchi-db-sync
+        - gnocchi-ks-user
+        - gnocchi-ks-service
+        - gnocchi-ks-endpoints
+      services:
+        - endpoint: internal
+          service: oslo_db_postgresql
+        - endpoint: internal
+          service: metric
+    statsd:
+      jobs:
+        - gnocchi-storage-init
+        - gnocchi-db-sync
+        - gnocchi-ks-user
+        - gnocchi-ks-service
+        - gnocchi-ks-endpoints
+      services:
+        - endpoint: internal
+          service: oslo_db_postgresql
+        - endpoint: internal
+          service: metric
+    storage_init:
+      services: null
+    tests:
+      jobs:
+        - gnocchi-storage-init
+        - gnocchi-db-sync
+      services:
+        - endpoint: internal
+          service: identity
+        - endpoint: internal
+          service: oslo_db_postgresql
+        - endpoint: internal
+          service: metric
+    image_repo_sync:
+      services:
+        - endpoint: internal
+          service: local_image_registry
+
+pod:
+  user:
+    gnocchi:
+      uid: 1000
+  affinity:
+    anti:
+      type:
+        default: preferredDuringSchedulingIgnoredDuringExecution
+      topologyKey:
+        default: kubernetes.io/hostname
+  mounts:
+    gnocchi_api:
+      init_container: null
+      gnocchi_api:
+    gnocchi_statsd:
+      init_container: null
+      gnocchi_statsd:
+    gnocchi_metricd:
+      init_container: null
+      gnocchi_metricd:
+    gnocchi_tests:
+      init_container: null
+      gnocchi_tests:
+  replicas:
+    api: 1
+  lifecycle:
+    upgrades:
+      deployments:
+        revision_history: 3
+        pod_replacement_strategy: RollingUpdate
+        rolling_update:
+          max_unavailable: 1
+          max_surge: 3
+      daemonsets:
+        pod_replacement_strategy: RollingUpdate
+        metricd:
+          enabled: false
+          min_ready_seconds: 0
+          max_unavailable: 1
+        statsd:
+          enabled: false
+          min_ready_seconds: 0
+          max_unavailable: 1
+    disruption_budget:
+      api:
+        min_available: 0
+    termination_grace_period:
+      api:
+        timeout: 30
+  resources:
+    enabled: false
+    api:
+      requests:
+        memory: "124Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+    statsd:
+      requests:
+        memory: "124Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+    metricd:
+      requests:
+        memory: "124Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+    jobs:
+      clean:
+        requests:
+          memory: "124Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      db_init:
+        requests:
+          memory: "124Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      db_sync:
+        requests:
+          memory: "124Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      ks_endpoints:
+        requests:
+          memory: "124Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      ks_service:
+        requests:
+          memory: "124Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      ks_user:
+        requests:
+          memory: "124Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      tests:
+        requests:
+          memory: "124Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      image_repo_sync:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+
+conf:
+  apache: |
+    Listen 0.0.0.0:{{ tuple "metric" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+
+    SetEnvIf X-Forwarded-For "^.*\..*\..*\..*" forwarded
+    CustomLog /dev/stdout combined env=!forwarded
+    CustomLog /dev/stdout proxy env=forwarded
+
+    <VirtualHost *:{{ tuple "metric" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}>
+        WSGIDaemonProcess gnocchi processes=1 threads=2 user=gnocchi group=gnocchi display-name=%{GROUP}
+        WSGIProcessGroup gnocchi
+        WSGIScriptAlias / "/var/lib/kolla/venv/lib/python2.7/site-packages/gnocchi/rest/app.wsgi"
+        WSGIApplicationGroup %{GLOBAL}
+
+        ErrorLog /dev/stderr
+        SetEnvIf X-Forwarded-For "^.*\..*\..*\..*" forwarded
+        CustomLog /dev/stdout combined env=!forwarded
+        CustomLog /dev/stdout proxy env=forwarded
+
+        <Directory "/var/lib/kolla/venv/lib/python2.7/site-packages/gnocchi/rest">
+              Require all granted
+        </Directory>
+    </VirtualHost>
+  ceph:
+    monitors: []
+    admin_keyring: null
+    override:
+    append:
+  paste:
+    pipeline:main:
+      pipeline: gnocchi+auth
+    composite:gnocchi+noauth:
+      use: egg:Paste#urlmap
+      /: gnocchiversions
+      /v1: gnocchiv1+noauth
+    composite:gnocchi+auth:
+      use: egg:Paste#urlmap
+      /: gnocchiversions
+      /v1: gnocchiv1+auth
+    pipeline:gnocchiv1+noauth:
+      pipeline: gnocchiv1
+    pipeline:gnocchiv1+auth:
+      pipeline: keystone_authtoken gnocchiv1
+    app:gnocchiversions:
+      paste.app_factory: gnocchi.rest.app:app_factory
+      root: gnocchi.rest.VersionsController
+    app:gnocchiv1:
+      paste.app_factory: gnocchi.rest.app:app_factory
+      root: gnocchi.rest.V1Controller
+    filter:keystone_authtoken:
+      paste.filter_factory: keystonemiddleware.auth_token:filter_factory
+      oslo_config_project: gnocchi
+  policy:
+    admin_or_creator: 'role:admin or project_id:%(created_by_project_id)s'
+    resource_owner: 'project_id:%(project_id)s'
+    metric_owner: 'project_id:%(resource.project_id)s'
+    get status: 'role:admin'
+    create resource: ''
+    get resource: 'rule:admin_or_creator or rule:resource_owner'
+    update resource: 'rule:admin_or_creator'
+    delete resource: 'rule:admin_or_creator'
+    delete resources: 'rule:admin_or_creator'
+    list resource: 'rule:admin_or_creator or rule:resource_owner'
+    search resource: 'rule:admin_or_creator or rule:resource_owner'
+    create resource type: 'role:admin'
+    delete resource type: 'role:admin'
+    update resource type: 'role:admin'
+    list resource type: ''
+    get resource type: ''
+    get archive policy: ''
+    list archive policy: ''
+    create archive policy: 'role:admin'
+    update archive policy: 'role:admin'
+    delete archive policy: 'role:admin'
+    create archive policy rule: 'role:admin'
+    get archive policy rule: ''
+    list archive policy rule: ''
+    delete archive policy rule: 'role:admin'
+    create metric: ''
+    delete metric: 'rule:admin_or_creator'
+    get metric: 'rule:admin_or_creator or rule:metric_owner'
+    search metric: 'rule:admin_or_creator or rule:metric_owner'
+    list metric: ''
+    list all metric: 'role:admin'
+    get measures:  'rule:admin_or_creator or rule:metric_owner'
+    post measures:  'rule:admin_or_creator'
+  gnocchi:
+    DEFAULT:
+      debug: false
+    token:
+      provider: uuid
+    api:
+      auth_mode: keystone
+      #NOTE(portdirect): the bind port should not be defined, and is manipulated
+      # via the endpoints section.
+      port: null
+    statsd:
+      #NOTE(portdirect): the bind port should not be defined, and is manipulated
+      # via the endpoints section.
+      port: null
+    metricd:
+      workers: 1
+    database:
+      max_retries: -1
+    storage:
+      driver: ceph
+      ceph_pool: gnocchi.metrics
+      ceph_username: gnocchi
+      ceph_keyring: /etc/ceph/ceph.client.gnocchi.keyring
+      ceph_conffile: /etc/ceph/ceph.conf
+      file_basepath: /var/lib/gnocchi
+      provided_keyring: null
+    indexer:
+      driver: postgresql
+    keystone_authtoken:
+      auth_type: password
+      auth_version: v3
+      memcache_security_strategy: ENCRYPT
+
+ceph_client:
+  configmap: ceph-etc
+  user_secret_name: pvc-ceph-client-key
+
+secrets:
+  identity:
+    admin: gnocchi-keystone-admin
+    gnocchi: gnocchi-keystone-user
+  oslo_db:
+    admin: gnocchi-db-admin
+    gnocchi: gnocchi-db-user
+  oslo_db_indexer:
+    admin: gnocchi-db-indexer-admin
+    gnocchi: gnocchi-db-indexer-user
+  rbd: gnocchi-rbd-keyring
+
+bootstrap:
+  enabled: false
+  ks_user: gnocchi
+  script: |
+    openstack token issue
+
+# typically overridden by environmental
+# values, but should include all endpoints
+# required by this chart
+endpoints:
+  cluster_domain_suffix: cluster.local
+  local_image_registry:
+    name: docker-registry
+    namespace: docker-registry
+    hosts:
+      default: localhost
+      internal: docker-registry
+      node: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        node: 5000
+  identity:
+    name: keystone
+    auth:
+      admin:
+        username: "admin"
+        user_domain_name: "default"
+        password: "password"
+        project_name: "admin"
+        project_domain_name: "default"
+        region_name: "RegionOne"
+        os_auth_type: "password"
+        os_tenant_name: "admin"
+      gnocchi:
+        username: "gnocchi"
+        role: "admin"
+        password: "password"
+        project_name: "service"
+        region_name: "RegionOne"
+        os_auth_type: "password"
+        os_tenant_name: "service"
+        user_domain_name: service
+        project_domain_name: service
+    hosts:
+      default: keystone
+      internal: keystone-api
+    host_fqdn_override:
+      default: null
+    path:
+      default: /v3
+    scheme:
+      default: 'http'
+    port:
+      api:
+        default: 80
+        internal: 5000
+  metric:
+    name: gnocchi
+    hosts:
+      default: gnocchi-api
+      public: gnocchi
+    host_fqdn_override:
+      default: null
+    path:
+      default: null
+    scheme:
+      default: 'http'
+    port:
+      api:
+        default: 8041
+        public: 80
+  metric_statsd:
+    name: gnocchi-statsd
+    hosts:
+      default: gnocchi-statsd
+    host_fqdn_override:
+      default: null
+    path:
+      default: null
+    scheme:
+      default: null
+    port:
+      statsd:
+        default: 8125
+  oslo_db_postgresql:
+    auth:
+      admin:
+        username: postgres
+        password: password
+      gnocchi:
+        username: gnocchi
+        password: password
+    hosts:
+      default: postgresql
+    host_fqdn_override:
+      default: null
+    path: /gnocchi
+    scheme: postgresql
+    port:
+      postgresql:
+        default: 5432
+  oslo_db:
+    auth:
+      admin:
+        username: root
+        password: password
+      gnocchi:
+        username: gnocchi
+        password: password
+    hosts:
+      default: mariadb
+    host_fqdn_override:
+      default: null
+    path: /gnocchi
+    scheme: mysql+pymysql
+    port:
+      mysql:
+        default: 3306
+  oslo_cache:
+    auth:
+      # NOTE(portdirect): this is used to define the value for keystone
+      # authtoken cache encryption key, if not set it will be populated
+      # automatically with a random value, but to take advantage of
+      # this feature all services should be set to use the same key,
+      # and memcache service.
+      memcache_secret_key: null
+    hosts:
+      default: memcache
+    host_fqdn_override:
+      default: null
+    port:
+      memcache:
+        default: 11211
+
+manifests:
+  configmap_bin: true
+  configmap_etc: true
+  daemonset_metricd: true
+  daemonset_statsd: true
+  deployment_api: true
+  ingress_api: true
+  job_bootstrap: true
+  job_clean: true
+  job_db_drop: false
+  job_db_init_indexer: true
+  job_db_init: true
+  job_image_repo_sync: true
+  secret_db_indexer: true
+  job_db_sync: true
+  job_ks_endpoints: true
+  job_ks_service: true
+  job_ks_user: true
+  job_storage_init: true
+  pdb_api: true
+  pod_gnocchi_test: true
+  secret_db: true
+  secret_keystone: true
+  service_api: true
+  service_ingress_api: true
+  service_statsd: true
