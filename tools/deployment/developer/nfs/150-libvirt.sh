@@ -19,8 +19,9 @@ set -xe
 make libvirt
 
 #NOTE: Deploy command
+: ${OSH_INFRA_PATH:="../openstack-helm-infra"}
 : ${OSH_EXTRA_HELM_ARGS:=""}
-helm upgrade --install libvirt ./libvirt \
+helm upgrade --install libvirt ${OSH_INFRA_PATH}/libvirt \
   --namespace=openstack \
   --set conf.ceph.enabled=false \
   ${OSH_EXTRA_HELM_ARGS} \
