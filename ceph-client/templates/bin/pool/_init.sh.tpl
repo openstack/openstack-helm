@@ -43,6 +43,7 @@ function create_pool () {
   POOL_REPLICATION=$3
   POOL_PLACEMENT_GROUPS=$4
   POOL_CRUSH_RULE=$5
+  POOL_PROTECTION=$6
   if ! ceph --cluster "${CLUSTER}" osd pool stats "${POOL_NAME}" > /dev/null 2>&1; then
     ceph --cluster "${CLUSTER}" osd pool create "${POOL_NAME}" ${POOL_PLACEMENT_GROUPS}
     while [ $(ceph --cluster "${CLUSTER}" -s | grep creating -c) -gt 0 ]; do echo -n .;sleep 1; done
@@ -50,6 +51,14 @@ function create_pool () {
       rbd --cluster "${CLUSTER}" pool init ${POOL_NAME}
     fi
     ceph --cluster "${CLUSTER}" osd pool application enable "${POOL_NAME}" "${POOL_APPLICATION}"
+#
+# Make sure the pool is not protected after creation so we can manipulate its settings.
+# This may happen if default protecion flags are override through the ceph.conf file.
+# Final protection settings are applied once parameters (size, pg) have been adjusted.
+#
+    ceph --cluster "${CLUSTER}" osd pool set "${POOL_NAME}" nosizechange false
+    ceph --cluster "${CLUSTER}" osd pool set "${POOL_NAME}" nopgchange false
+    ceph --cluster "${CLUSTER}" osd pool set "${POOL_NAME}" nodelete false
   fi
   ceph --cluster "${CLUSTER}" osd pool set "${POOL_NAME}" size ${POOL_REPLICATION}
   ceph --cluster "${CLUSTER}" osd pool set "${POOL_NAME}" crush_rule "${POOL_CRUSH_RULE}"
@@ -59,6 +68,23 @@ function create_pool () {
       ceph --cluster ceph osd pool set "${POOL_NAME}" "${PG_PARAM}" "${POOL_PLACEMENT_GROUPS}"
     fi
   done
+#
+# Pool protection handling via .Values.conf.pool.target.protected
+# - true  | 1 = Prevent changes to the pools after they get created
+# - false | 0 = Do not modify the pools and use Ceph defaults
+# - Absent    = Do not modify the pools and use Ceph defaults
+#
+# Note: Modify /etc/ceph/ceph.conf to override protection default
+#       flags for later pools
+# - osd_pool_default_flag_nosizechange = Prevent size and min_size changes
+# - osd_pool_default_flag_nopgchange   = Prevent pg_num and pgp_num changes
+# - osd_pool_default_flag_nodelete     = Prevent pool deletion
+#
+  if [ "x${POOL_PROTECTION}" == "xtrue" ] ||  [ "x${POOL_PROTECTION}" == "x1" ]; then
+    ceph --cluster "${CLUSTER}" osd pool set "${POOL_NAME}" nosizechange true
+    ceph --cluster "${CLUSTER}" osd pool set "${POOL_NAME}" nopgchange true
+    ceph --cluster "${CLUSTER}" osd pool set "${POOL_NAME}" nodelete true
+  fi
 }
 
 function manage_pool () {
@@ -69,19 +95,22 @@ function manage_pool () {
   TOTAL_DATA_PERCENT=$5
   TARGET_PG_PER_OSD=$6
   POOL_CRUSH_RULE=$7
+  POOL_PROTECTION=$8
   POOL_PLACEMENT_GROUPS=$(/tmp/pool-calc.py ${POOL_REPLICATION} ${TOTAL_OSDS} ${TOTAL_DATA_PERCENT} ${TARGET_PG_PER_OSD})
-  create_pool "${POOL_APPLICATION}" "${POOL_NAME}" "${POOL_REPLICATION}" "${POOL_PLACEMENT_GROUPS}" "${POOL_CRUSH_RULE}"
+  create_pool "${POOL_APPLICATION}" "${POOL_NAME}" "${POOL_REPLICATION}" "${POOL_PLACEMENT_GROUPS}" "${POOL_CRUSH_RULE}" "${POOL_PROTECTION}"
 }
 
 {{ $targetNumOSD := .Values.conf.pool.target.osd }}
 {{ $targetPGperOSD := .Values.conf.pool.target.pg_per_osd }}
 {{ $crushRuleDefault := .Values.conf.pool.default.crush_rule }}
+{{ $targetProtection := .Values.conf.pool.target.protected | default "false" | quote | lower }}
 {{- range $pool := .Values.conf.pool.spec -}}
 {{- with $pool }}
-manage_pool {{ .application }} {{ .name }} {{ .replication }} {{ $targetNumOSD }} {{ .percent_total_data }} {{ $targetPGperOSD }} {{ $crushRuleDefault }}
+manage_pool {{ .application }} {{ .name }} {{ .replication }} {{ $targetNumOSD }} {{ .percent_total_data }} {{ $targetPGperOSD }} {{ $crushRuleDefault }} {{ $targetProtection }}
 {{- end }}
 {{- end }}
 
 {{- if .Values.conf.pool.crush.tunables }}
 ceph --cluster "${CLUSTER}" osd crush tunables {{ .Values.conf.pool.crush.tunables }}
 {{- end }}
+
