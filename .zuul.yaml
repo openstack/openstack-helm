@@ -18,73 +18,29 @@
     check:
       jobs:
         - openstack-helm-infra-linter
-        - openstack-helm-infra-ubuntu:
-            irrelevant-files:
-              - ^.*\.rst$
-              - ^doc/.*$
-              - ^releasenotes/.*$
-        - openstack-helm-infra-centos:
-            irrelevant-files:
-              - ^.*\.rst$
-              - ^doc/.*$
-              - ^releasenotes/.*$
+        - openstack-helm-infra-ubuntu
+        - openstack-helm-infra-centos
         - openstack-helm-infra-dev-deploy-ceph:
             # NOTE(srwilkers): Changing the dev-deploy-ceph job to nonvoting
             # until we can agree on the proper services to deploy with this job
             voting: false
-            irrelevant-files:
-              - ^.*\.rst$
-              - ^doc/.*$
-              - ^releasenotes/.*$
         - openstack-helm-infra-dev-deploy-nfs:
             #NOTE(srwilkers): Changing the dev-deploy-nfs job to nonvoting until
             # we can agree on the proper services to deploy with this job
             voting: false
-            irrelevant-files:
-              - ^.*\.rst$
-              - ^doc/.*$
-              - ^releasenotes/.*$
-        - openstack-helm-infra-openstack-support:
-            irrelevant-files:
-              - ^.*\.rst$
-              - ^doc/.*$
-              - ^releasenotes/.*$
-        - openstack-helm-infra-kubernetes-keystone-auth:
-            irrelevant-files:
-              - ^.*\.rst$
-              - ^doc/.*$
-              - ^releasenotes/.*$
+        - openstack-helm-infra-openstack-support
+        - openstack-helm-infra-kubernetes-keystone-auth
     gate:
       jobs:
         - openstack-helm-infra-linter
-        - openstack-helm-infra-ubuntu:
-            irrelevant-files:
-              - ^.*\.rst$
-              - ^doc/.*$
-              - ^releasenotes/.*$
-        - openstack-helm-infra-centos:
-            irrelevant-files:
-              - ^.*\.rst$
-              - ^doc/.*$
-              - ^releasenotes/.*$
-        - openstack-helm-infra-openstack-support:
-            irrelevant-files:
-              - ^.*\.rst$
-              - ^doc/.*$
-              - ^releasenotes/.*$
-        - openstack-helm-infra-kubernetes-keystone-auth:
-            irrelevant-files:
-              - ^.*\.rst$
-              - ^doc/.*$
-              - ^releasenotes/.*$
+        - openstack-helm-infra-ubuntu
+        - openstack-helm-infra-centos
+        - openstack-helm-infra-openstack-support
+        - openstack-helm-infra-kubernetes-keystone-auth
     experimental:
       jobs:
         #NOTE(srwilkers): Make fedora job experimental until issues resolved
-        - openstack-helm-infra-fedora:
-            irrelevant-files:
-              - ^.*\.rst$
-              - ^doc/.*$
-              - ^releasenotes/.*$
+        - openstack-helm-infra-fedora
 
 - nodeset:
     name: openstack-helm-single-node
@@ -224,12 +180,20 @@
           - node-4
 
 - job:
+    name: openstack-helm-infra-functional
+    irrelevant-files:
+      - ^.*\.rst$
+      - ^doc/.*$
+      - ^releasenotes/.*$
+
+- job:
     name: openstack-helm-infra-linter
     run: playbooks/zuul-linter.yaml
     nodeset: openstack-helm-single-node
 
 - job:
     name: openstack-helm-infra
+    parent: openstack-helm-functional
     timeout: 7200
     pre-run:
       - playbooks/osh-infra-upgrade-host.yaml
@@ -256,6 +220,7 @@
 
 - job:
     name: openstack-helm-infra-dev-deploy-ceph
+    parent: openstack-helm-functional
     timeout: 7200
     pre-run: playbooks/osh-infra-upgrade-host.yaml
     run: playbooks/osh-infra-dev-deploy-ceph.yaml
@@ -264,6 +229,7 @@
 
 - job:
     name: openstack-helm-infra-dev-deploy-nfs
+    parent: openstack-helm-functional
     timeout: 7200
     pre-run: playbooks/osh-infra-upgrade-host.yaml
     run: playbooks/osh-infra-dev-deploy-nfs.yaml
@@ -272,6 +238,7 @@
 
 - job:
     name: openstack-helm-infra-openstack-support
+    parent: openstack-helm-functional
     timeout: 7200
     pre-run: playbooks/osh-infra-upgrade-host.yaml
     run: playbooks/osh-infra-openstack-support.yaml
