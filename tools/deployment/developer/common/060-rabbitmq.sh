@@ -17,10 +17,10 @@
 set -xe
 
 #NOTE: Lint and package chart
-make rabbitmq
+: ${OSH_INFRA_PATH:="../openstack-helm-infra"}
+make -C ${OSH_INFRA_PATH} rabbitmq
 
 #NOTE: Deploy command
-: ${OSH_INFRA_PATH:="../openstack-helm-infra"}
 : ${OSH_EXTRA_HELM_ARGS:=""}
 helm upgrade --install rabbitmq ${OSH_INFRA_PATH}/rabbitmq \
     --namespace=openstack \
