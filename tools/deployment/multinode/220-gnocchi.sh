@@ -16,7 +16,8 @@
 set -xe
 
 #NOTE: Wait for deploy
-helm upgrade --install gnocchi ./gnocchi \
+: ${OSH_INFRA_PATH:="../openstack-helm-infra"}
+helm upgrade --install gnocchi ${OSH_INFRA_PATH}/gnocchi \
   --namespace=openstack \
   --set pod.replicas.api=2 \
   ${OSH_EXTRA_HELM_ARGS} \
