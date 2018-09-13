@@ -14,6 +14,33 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{/*
+abstract: |
+  Returns a comma seperated list of namespace:service pairs.
+values: |
+  dependencies:
+    static:
+      api:
+        services:
+          - endpoint: internal
+            service: oslo_cache
+          - endpoint: internal
+            service: oslo_db
+  endpoints:
+    oslo_db:
+      namespace: foo
+      hosts:
+        default: mariadb
+    oslo_cache:
+      namespace: bar
+      hosts:
+        default: memcache
+usage: |
+  {{ tuple .Values.dependencies.static.api.services . | include "helm-toolkit.utils.comma_joined_service_list" }}
+return: |
+  bar:memcache,foo:mariadb
+*/}}
+
 {{- define "helm-toolkit.utils.comma_joined_service_list" -}}
 {{- $deps := index . 0 -}}
 {{- $envAll := index . 1 -}}
