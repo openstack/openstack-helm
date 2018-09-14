@@ -15,8 +15,15 @@
   register: network_manager_in_use
   ignore_errors: True
 
+- name: DNS | Check if NetworkManager is managing DNS
+  set_fact:
+    network_manager_manage_dns: "{{ lookup('ini', 'dns section=main file=/etc/NetworkManager/NetworkManager.conf') }}"
+  ignore_errors: True
+
 - name: DNS | Disable network NetworkManager management of resolv.conf
-  when: network_manager_in_use is succeeded
+  when:
+    - network_manager_in_use is succeeded
+    - network_manager_manage_dns != "none"
   ini_file:
     path: /etc/NetworkManager/NetworkManager.conf
     section: main
@@ -30,7 +37,9 @@
     dest: /etc/resolv.conf
 
 - name: DNS | Restarting NetworkManager
-  when: network_manager_in_use is succeeded
+  when:
+    - network_manager_in_use is succeeded
+    - network_manager_manage_dns != "none"
   block:
     - name: DNS | Restarting NetworkManager Service
       systemd:
