@@ -17,10 +17,10 @@ set -xe
 
 export OS_CLOUD=openstack_helm
 
-export OSH_EXT_NET_NAME="public"
-export OSH_EXT_SUBNET_NAME="public-subnet"
-export OSH_EXT_SUBNET="172.24.4.0/24"
-export OSH_BR_EX_ADDR="172.24.4.1/24"
+: ${OSH_EXT_NET_NAME:="public"}
+: ${OSH_EXT_SUBNET_NAME:="public-subnet"}
+: ${OSH_EXT_SUBNET:="172.24.4.0/24"}
+: ${OSH_BR_EX_ADDR:="172.24.4.1/24"}
 openstack stack create --wait \
   --parameter network_name=${OSH_EXT_NET_NAME} \
   --parameter physical_network_name=public \
@@ -30,9 +30,9 @@ openstack stack create --wait \
   -t ./tools/gate/files/heat-public-net-deployment.yaml \
   heat-public-net-deployment
 
-export OSH_PRIVATE_SUBNET_POOL="10.0.0.0/8"
-export OSH_PRIVATE_SUBNET_POOL_NAME="shared-default-subnetpool"
-export OSH_PRIVATE_SUBNET_POOL_DEF_PREFIX="24"
+: ${OSH_PRIVATE_SUBNET_POOL:="10.0.0.0/8"}
+: ${OSH_PRIVATE_SUBNET_POOL_NAME:="shared-default-subnetpool"}
+: ${OSH_PRIVATE_SUBNET_POOL_DEF_PREFIX:="24"}
 openstack stack create --wait \
   --parameter subnet_pool_name=${OSH_PRIVATE_SUBNET_POOL_NAME} \
   --parameter subnet_pool_prefixes=${OSH_PRIVATE_SUBNET_POOL} \
@@ -40,14 +40,12 @@ openstack stack create --wait \
   -t ./tools/gate/files/heat-subnet-pool-deployment.yaml \
   heat-subnet-pool-deployment
 
-
-export OSH_EXT_NET_NAME="public"
-export OSH_VM_KEY_STACK="heat-vm-key"
-export OSH_PRIVATE_SUBNET="10.0.0.0/24"
-
+: ${OSH_EXT_NET_NAME:="public"}
+: ${OSH_VM_KEY_STACK:="heat-vm-key"}
+: ${OSH_PRIVATE_SUBNET:="10.0.0.0/24"}
 # NOTE(portdirect): We do this fancy, and seemingly pointless, footwork to get
 # the full image name for the cirros Image without having to be explicit.
-export IMAGE_NAME=$(openstack image show -f value -c name \
+IMAGE_NAME=$(openstack image show -f value -c name \
   $(openstack image list -f csv | awk -F ',' '{ print $2 "," $1 }' | \
     grep "^\"Cirros" | head -1 | awk -F ',' '{ print $2 }' | tr -d '"'))
 
@@ -102,7 +100,7 @@ ssh -i ${HOME}/.ssh/osh_key cirros@${FLOATING_IP} curl --verbose --connect-timeo
 ssh -i ${HOME}/.ssh/osh_key cirros@${FLOATING_IP} curl --verbose --connect-timeout 5 keystone.openstack.svc.cluster.local
 
 # Check to see if cinder has been deployed, if it has then perform a volume attach.
-if helm ls --short | grep -q "^cinder$"; then
+if openstack service list -f value -c Type | grep -q "^volume"; then
   INSTANCE_ID=$(openstack stack output show \
       heat-basic-vm-deployment \
       instance_uuid \
@@ -124,6 +122,7 @@ if helm ls --short | grep -q "^cinder$"; then
 
   # Check that we have the expected number of extra devices on the instance post attach
   if ! [ "$(comm -13 ${DEVS_PRE_ATTACH} ${DEVS_POST_ATTACH} | wc -l)" -eq "1" ]; then
+    echo "Volume not successfully attached"
     exit 1
   fi
 fi
