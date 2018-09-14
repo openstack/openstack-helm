@@ -269,16 +269,18 @@ by :code:`neutron-ovs-agent`. The IP is set in init container and shared between
 init container and main container with :code:`neutron-ovs-agent` via file
 :code:`/tmp/pod-shared/ml2-local-ip.ini`.
 
+Configuration of OVS bridges can be done via
+`neutron/templates/bin/_neutron-openvswitch-agent-init.sh.tpl`. The
+script is configuring the external network bridge and sets up any
+bridge mappings defined in :code:`network.auto_bridge_add`.  These
+values should be align with
+:code:`conf.plugins.openvswitch_agent.ovs.bridge_mappings`.
+
 openvswitch-db and openvswitch-vswitchd
 +++++++++++++++++++++++++++++++++++++++
 This runs the OVS tool and database. OpenVSwitch chart is not Neutron specific,
 it may be used with other technologies that are leveraging the OVS technology,
 such as OVN or ODL.
-
-Configuration of OVS is done via configuration scripts
-`openvswitch/templates/bin/_openvswitch-vswitchd.sh.tpl`. The script is configuring
-the external network bridge and sets up any bridge mappings defined in
-:code:`network.auto_bridge_add`.
 
 A detail worth mentioning is that ovs is configured to use sockets, rather
 than the default loopback mechanism.
