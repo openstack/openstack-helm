@@ -19,10 +19,30 @@ set -xe
 #NOTE: Lint and package chart
 make fluent-logging
 
-#NOTE: Deploy command
+if [ ! -d "/var/log/journal" ]; then
+tee /tmp/fluent-logging.yaml << EOF
+pod:
+  replicas:
+    fluentd: 1
+  mounts:
+    fluentbit:
+      fluentbit:
+        volumes:
+          - name: runlog
+            hostPath:
+              path: /run/log
+        volumeMounts:
+          - name: runlog
+            mountPath: /run/log
+EOF
+helm upgrade --install fluent-logging ./fluent-logging \
+    --namespace=osh-infra \
+    --values=/tmp/fluent-logging.yaml
+else
 helm upgrade --install fluent-logging ./fluent-logging \
     --namespace=osh-infra \
     --set pod.replicas.fluentd=1
+fi
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh osh-infra
