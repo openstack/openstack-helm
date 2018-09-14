@@ -20,11 +20,17 @@ spec:
         - --no-hosts
         - --bind-interfaces
         - --all-servers
-        {% for nameserver in external_dns_nameservers %}
-        - --server={{ nameserver }}
-        {% endfor %}
         - --address
         - /{{ gate.fqdn_tld }}/{{ gate.ingress_ip }}
         # NOTE(portdirect): just listen on the docker0 interface
         - --listen-address
         - 172.17.0.1
+      volumeMounts:
+        - mountPath: /etc/resolv.conf
+          name: resolv-conf
+          readOnly: true
+  volumes:
+    - name: resolv-conf
+      hostPath:
+        path: /etc/resolv-upstream.conf
+        type: FileOrCreate

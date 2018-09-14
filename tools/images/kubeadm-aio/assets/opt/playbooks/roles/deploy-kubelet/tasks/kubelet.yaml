@@ -181,6 +181,16 @@
       file:
         path: "/etc/kubernetes/manifests/"
         state: directory
+    - name: Setup DNS redirector | check if an resolv-upstream.conf exists
+      stat:
+        path: /etc/resolv-upstream.conf
+      register: resolv_upstream_conf
+    - name: Setup DNS redirector | Placing pod manifest on host
+      when: resolv_upstream_conf.stat.exists == False
+      template:
+        src: resolv-upstream.conf.j2
+        dest: /etc/resolv-upstream.conf
+        mode: 0640
     - name: Setup DNS redirector | Placing pod manifest on host
       template:
         src: osh-dns-redirector.yaml.j2
