@@ -20,17 +20,9 @@ set -xe
 make elasticsearch
 
 #NOTE: Deploy command
-tee /tmp/elasticsearch.yaml << EOF
-monitoring:
-  prometheus:
-    enabled: true
-pod:
-  replicas:
-    data: 1
-EOF
 helm upgrade --install elasticsearch ./elasticsearch \
     --namespace=osh-infra \
-    --values=/tmp/elasticsearch.yaml
+    --set pod.replicas.data=1
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh osh-infra
