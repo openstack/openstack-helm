@@ -14,6 +14,49 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{/*
+abstract: |
+  Returns a set of container enviorment variables, for use with the keystone
+  user management jobs.
+values: |
+  secrets:
+    identity:
+      service_user: example-keystone-user
+usage: |
+  {{ include "helm-toolkit.snippets.keystone_user_create_env_vars" ( dict "ksUserSecret" .Values.secrets.identity.service_user ) }}
+return: |
+  - name: SERVICE_OS_REGION_NAME
+    valueFrom:
+      secretKeyRef:
+        name: example-keystone-user
+        key: OS_REGION_NAME
+  - name: SERVICE_OS_PROJECT_DOMAIN_NAME
+    valueFrom:
+      secretKeyRef:
+        name: example-keystone-user
+        key: OS_PROJECT_DOMAIN_NAME
+  - name: SERVICE_OS_PROJECT_NAME
+    valueFrom:
+      secretKeyRef:
+        name: example-keystone-user
+        key: OS_PROJECT_NAME
+  - name: SERVICE_OS_USER_DOMAIN_NAME
+    valueFrom:
+      secretKeyRef:
+        name: example-keystone-user
+        key: OS_USER_DOMAIN_NAME
+  - name: SERVICE_OS_USERNAME
+    valueFrom:
+      secretKeyRef:
+        name: example-keystone-user
+        key: OS_USERNAME
+  - name: SERVICE_OS_PASSWORD
+    valueFrom:
+      secretKeyRef:
+        name: example-keystone-user
+        key: OS_PASSWORD
+*/}}
+
 {{- define "helm-toolkit.snippets.keystone_user_create_env_vars" }}
 {{- $ksUserSecret := .ksUserSecret }}
 - name: SERVICE_OS_REGION_NAME

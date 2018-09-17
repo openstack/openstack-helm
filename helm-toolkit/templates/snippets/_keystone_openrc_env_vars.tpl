@@ -14,6 +14,61 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{/*
+abstract: |
+  Returns a set of container enviorment variables, equivlant to an openrc for
+  use with keystone based command line clients.
+values: |
+  secrets:
+    identity:
+      admin: example-keystone-admin
+usage: |
+  {{ include "helm-toolkit.snippets.keystone_openrc_env_vars" ( dict "ksUserSecret" .Values.secrets.identity.admin ) }}
+return: |
+  - name: OS_IDENTITY_API_VERSION
+    value: "3"
+  - name: OS_AUTH_URL
+    valueFrom:
+      secretKeyRef:
+        name: example-keystone-admin
+        key: OS_AUTH_URL
+  - name: OS_REGION_NAME
+    valueFrom:
+      secretKeyRef:
+        name: example-keystone-admin
+        key: OS_REGION_NAME
+  - name: OS_INTERFACE
+    valueFrom:
+      secretKeyRef:
+        name: example-keystone-admin
+        key: OS_INTERFACE
+  - name: OS_PROJECT_DOMAIN_NAME
+    valueFrom:
+      secretKeyRef:
+        name: example-keystone-admin
+        key: OS_PROJECT_DOMAIN_NAME
+  - name: OS_PROJECT_NAME
+    valueFrom:
+      secretKeyRef:
+        name: example-keystone-admin
+        key: OS_PROJECT_NAME
+  - name: OS_USER_DOMAIN_NAME
+    valueFrom:
+      secretKeyRef:
+        name: example-keystone-admin
+        key: OS_USER_DOMAIN_NAME
+  - name: OS_USERNAME
+    valueFrom:
+      secretKeyRef:
+        name: example-keystone-admin
+        key: OS_USERNAME
+  - name: OS_PASSWORD
+    valueFrom:
+      secretKeyRef:
+        name: example-keystone-admin
+        key: OS_PASSWORD
+*/}}
+
 {{- define "helm-toolkit.snippets.keystone_openrc_env_vars" }}
 {{- $ksUserSecret := .ksUserSecret }}
 - name: OS_IDENTITY_API_VERSION
