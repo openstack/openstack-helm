@@ -15,7 +15,12 @@
     path: "{{ logs_dir }}/pod-logs"
     state: directory
 
-- name: "retrieve all container logs"
+- name: "creating directory for failed pod logs"
+  file:
+    path: "{{ logs_dir }}/pod-logs/failed-pods"
+    state: directory
+
+- name: "retrieve all container logs, current and previous (if they exist)"
   shell: |-
           set -e
           PARALLELISM_FACTOR=2
@@ -35,7 +40,9 @@
             for CONTAINER in ${INIT_CONTAINERS} ${CONTAINERS}; do
               echo "${NAMESPACE}/${POD}/${CONTAINER}"
               mkdir -p "{{ logs_dir }}/pod-logs/${NAMESPACE}/${POD}"
+              mkdir -p "{{ logs_dir }}/pod-logs/failed-pods/${NAMESPACE}/${POD}"
               kubectl logs ${POD} -n ${NAMESPACE} -c ${CONTAINER} > "{{ logs_dir }}/pod-logs/${NAMESPACE}/${POD}/${CONTAINER}.txt"
+              kubectl logs --previous ${POD} -n ${NAMESPACE} -c ${CONTAINER} > "{{ logs_dir }}/pod-logs/failed-pods/${NAMESPACE}/${POD}/${CONTAINER}.txt"
             done
           }
           export -f get_pod_logs
@@ -46,7 +53,7 @@
     executable: /bin/bash
   ignore_errors: True
 
-- name: "Downloads logs to executor"
+- name: "Downloads pod logs to executor"
   synchronize:
     src: "{{ logs_dir }}/pod-logs"
     dest: "{{ zuul.executor.log_root }}/{{ inventory_hostname }}"
