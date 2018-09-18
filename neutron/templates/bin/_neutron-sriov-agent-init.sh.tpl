@@ -22,7 +22,19 @@ set -ex
 if [ "x{{ $sriov.num_vfs }}" != "x" ]; then
   echo "{{ $sriov.num_vfs }}" > /sys/class/net/{{ $sriov.device }}/device/sriov_numvfs
 else
-  NUM_VFS=$(cat /sys/class/net/{{ $sriov.device }}/device/sriov_totalvfs)
+  #NOTE(portdirect): Many NICs have difficulty creating more than n-1 over their
+  # claimed limit, by default err on the side of caution and account for this
+  # limitation.
+  TOT_NUM_VFS=$(cat /sys/class/net/{{ $sriov.device }}/device/sriov_totalvfs)
+  if [[ "$TOT_NUM_VFS" -le "0" ]]; then
+    NUM_VFS="$TOT_NUM_VFS"
+  else
+    if [[ "$((TOT_NUM_VFS - 1 ))" -le "1" ]]; then
+      NUM_VFS=1
+    else
+      NUM_VFS="$((TOT_NUM_VFS - 1 ))"
+    fi
+  fi
   echo "${NUM_VFS}" > /sys/class/net/{{ $sriov.device }}/device/sriov_numvfs
 fi
 {{- if $sriov.mtu }}
