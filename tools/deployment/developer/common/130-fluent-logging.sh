@@ -22,7 +22,6 @@ make fluent-logging
 #NOTE: Deploy command
 helm upgrade --install fluent-logging ./fluent-logging \
     --namespace=osh-infra \
-    --set monitoring.prometheus.enabled=true \
     --set pod.replicas.fluentd=1
 
 #NOTE: Wait for deploy
