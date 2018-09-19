@@ -31,8 +31,14 @@ limitations under the License.
 {{- $config := omit . "header" }}
 [{{$header.header | upper }}]
 {{range $key, $value := $config -}}
+{{ if eq $key "Rename" }}
+{{- range $original, $new := $value -}}
+{{ printf "Rename %s %s" $original $new | indent 4 }}
+{{end}}
+{{- else -}}
 {{ $key | indent 4 }} {{ $value }}
 {{end -}}
+{{- end -}}
 {{- end -}}
 {{- end -}}
 {{- end -}}
