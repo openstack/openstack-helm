@@ -174,6 +174,10 @@ pod:
 secrets:
   elasticsearch:
     user: elasticsearch-admin-creds
+  tls:
+    elasticsearch:
+      elasticsearch:
+        public: elasticsearch-tls-public
 
 conf:
   httpd: |
@@ -461,6 +465,13 @@ endpoints:
       public: elasticsearch
     host_fqdn_override:
       default: null
+      # NOTE(srwilkers): this chart supports TLS for fqdn over-ridden public
+      # endpoints using the following format:
+      # public:
+      #   host: null
+      #   tls:
+      #     crt: null
+      #     key: null
     path:
       default: null
     scheme:
@@ -509,18 +520,17 @@ monitoring:
       scrape: true
 
 network:
-  client:
+  elasticsearch:
+    ingress:
+      public: true
+      classes:
+        namespace: "nginx"
+        cluster: "nginx-cluster"
+      annotations:
+        nginx.ingress.kubernetes.io/rewrite-target: /
     node_port:
       enabled: false
       port: 30920
-  discovery:
-    node_port:
-      enabled: false
-      port: 30930
-  data:
-    node_port:
-      enabled: false
-      port: 30931
 
 storage:
   elasticsearch:
@@ -547,6 +557,7 @@ manifests:
   cron_curator: true
   deployment_client: true
   deployment_master: true
+  ingress: true
   job_image_repo_sync: true
   job_snapshot_repository: false
   helm_tests: true
@@ -560,5 +571,6 @@ manifests:
   pvc_snapshots: true
   service_data: true
   service_discovery: true
+  service_ingress: true
   service_logging: true
   statefulset_data: true

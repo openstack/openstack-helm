@@ -14,17 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if .Values.manifests.service_data }}
-{{- $envAll := . }}
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: {{ tuple "elasticsearch" "data" $envAll | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
-spec:
-  ports:
-  - name: transport
-    port: {{ tuple "elasticsearch" "internal" "discovery" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-  selector:
-{{ tuple $envAll "elasticsearch" "data" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+{{- if and .Values.manifests.service_ingress .Values.network.elasticsearch.ingress.public }}
+{{- $serviceIngressOpts := dict "envAll" . "backendServiceType" "elasticsearch" -}}
+{{ $serviceIngressOpts | include "helm-toolkit.manifests.service_ingress" }}
 {{- end }}
