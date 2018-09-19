@@ -36,7 +36,7 @@ function check_logstash_index () {
 # prefix via the fluent-kubernetes plugin
 function check_kubernetes_tag () {
   total_hits=$(curl -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
-              -XGET "${ELASTICSEARCH_ENDPOINT}/logstash-*/_search?q=tag:kube.*" -H 'Content-Type: application/json' \
+              -XGET "${ELASTICSEARCH_ENDPOINT}/_search?q=tag:**kube.**" -H 'Content-Type: application/json' \
               | python -c "import sys, json; print json.load(sys.stdin)['hits']['total']")
   if [ "$total_hits" -gt 0 ]; then
      echo "PASS: Successful hits on logstash-* index, provided by fluentd!"
