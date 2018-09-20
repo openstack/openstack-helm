@@ -171,6 +171,20 @@ Alternatively, this step can be performed by running the script directly:
 
   ./tools/deployment/developer/ceph/110-nagios.sh
 
+Deploy Rados Gateway for OSH-Infra
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. literalinclude:: ../../../../tools/deployment/developer/ceph/115-radosgw-osh-infra.sh
+    :language: shell
+    :lines: 1,17-
+
+Alternatively, this step can be performed by running the script directly:
+
+.. code-block:: shell
+
+  ./tools/deployment/developer/ceph/115-radosgw-osh-infra.sh
+
+
 Deploy Elasticsearch
 ^^^^^^^^^^^^^^^^^^^^
 

@@ -19,22 +19,6 @@ limitations under the License.
 
 set -ex
 
-function create_admin_user () {
-  radosgw-admin user create \
-    --uid=${S3_ADMIN_USERNAME} \
-    --display-name=${S3_ADMIN_USERNAME}
-
-  radosgw-admin caps add \
-      --uid=${S3_ADMIN_USERNAME} \
-      --caps={{ .Values.conf.ceph.radosgw.s3_admin_caps | quote }}
-
-  radosgw-admin key create \
-    --uid=${S3_ADMIN_USERNAME} \
-    --key-type=s3 \
-    --access-key ${S3_ADMIN_ACCESS_KEY} \
-    --secret-key ${S3_ADMIN_SECRET_KEY}
-}
-
 function create_s3_user () {
   radosgw-admin user create \
     --uid=${S3_USERNAME} \
@@ -46,9 +30,6 @@ function create_s3_user () {
     --access-key ${S3_ACCESS_KEY} \
     --secret-key ${S3_SECRET_KEY}
 }
-
-radosgw-admin user stats --uid=${S3_ADMIN_USERNAME} || \
-  create_admin_user
 
 radosgw-admin user stats --uid=${S3_USERNAME} || \
   create_s3_user

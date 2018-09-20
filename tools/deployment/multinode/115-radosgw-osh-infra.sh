@@ -17,15 +17,39 @@
 set -xe
 
 #NOTE: Lint and package chart
-make elasticsearch
+make ceph-rgw
 
 #NOTE: Deploy command
-helm upgrade --install elasticsearch ./elasticsearch \
-    --namespace=osh-infra \
-    --set pod.replicas.data=1
+tee /tmp/radosgw-osh-infra.yaml <<EOF
+endpoints:
+  ceph_object_store:
+    namespace: osh-infra
+  ceph_mon:
+    namespace: ceph
+network:
+  public: 172.17.0.1/16
+  cluster: 172.17.0.1/16
+deployment:
+  storage_secrets: false
+  ceph: true
+  rbd_provisioner: false
+  cephfs_provisioner: false
+  client_secrets: false
+  rgw_keystone_user_and_endpoints: false
+bootstrap:
+  enabled: false
+conf:
+  rgw_ks:
+    enabled: false
+  rgw_s3:
+    enabled: true
+EOF
+helm upgrade --install radosgw-osh-infra ./ceph-rgw \
+  --namespace=osh-infra \
+  --values=/tmp/radosgw-osh-infra.yaml
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh osh-infra
 
 #NOTE: Validate Deployment info
-helm status elasticsearch
+helm status radosgw-osh-infra

@@ -14,11 +14,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if .Values.manifests.job_snapshot_repository }}
-{{- if .Values.conf.elasticsearch.repository.enabled }}
+{{- if and (.Values.manifests.job_snapshot_repository) (.Values.conf.elasticsearch.snapshots.enabled) }}
 {{- $envAll := . }}
 
 {{- $esUserSecret := .Values.secrets.elasticsearch.user }}
+{{- $s3UserSecret := .Values.secrets.rgw.elasticsearch }}
 
 {{- $serviceAccountName := "elasticsearch-register-snapshot-repository" }}
 {{ tuple $envAll "snapshot_repository" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
@@ -56,14 +56,22 @@ spec:
                 secretKeyRef:
                   name: {{ $esUserSecret }}
                   key: ELASTICSEARCH_PASSWORD
-            - name: ELASTICSEARCH_ENDPOINT
+            - name: ELASTICSEARCH_HOST
               value: {{ tuple "elasticsearch" "internal" "http" . | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" }}
-            - name: REPO_NAME
-              value: {{ .Values.conf.elasticsearch.repository.name | quote }}
-            - name: REPO_TYPE
-              value: {{ .Values.conf.elasticsearch.repository.type | quote }}
-            - name: REPO_LOCATION
-              value: {{ .Values.conf.elasticsearch.repository.location | quote }}
+            - name: S3_BUCKET
+              value: {{ .Values.conf.elasticsearch.snapshots.bucket | quote }}
+            - name: S3_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $s3UserSecret }}
+                  key: S3_ACCESS_KEY
+            - name: S3_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $s3UserSecret }}
+                  key: S3_SECRET_KEY
+            - name: RGW_HOST
+              value: {{ tuple "ceph_object_store" "internal" "api" $envAll | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" }}
           command:
             - /tmp/register-repository.sh
           volumeMounts:
@@ -76,5 +84,4 @@ spec:
           configMap:
             name: elasticsearch-bin
             defaultMode: 0555
-{{- end }}
 {{- end }}

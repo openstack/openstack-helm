@@ -25,9 +25,12 @@ conf:
   elasticsearch:
     env:
       java_opts: "-Xms512m -Xmx512m"
+    snapshots:
+      enabled: true
 monitoring:
   prometheus:
     enabled: true
+
 EOF
 helm upgrade --install elasticsearch ./elasticsearch \
     --namespace=osh-infra \
