@@ -19,7 +19,7 @@
 images:
   tags:
     apache_proxy: docker.io/httpd:2.4
-    nagios: quay.io/attcomdev/nagios:f5aac039c8e39efe467ac950936773a523bd7cb3
+    nagios: quay.io/attcomdev/nagios:389472c05ea4bc9f9b9e407e05e17527bfdce3cc
     dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.2.1
     image_repo_sync: docker.io/docker:17.07.0
   pull_policy: IfNotPresent
@@ -137,6 +137,24 @@ endpoints:
     port:
       ldap:
         default: 389
+  elasticsearch:
+    name: elasticsearch
+    namespace: null
+    auth:
+      admin:
+        username: admin
+        password: changeme
+    hosts:
+      default: elasticsearch-logging
+    host_fqdn_override:
+      default: null
+    path:
+      default: /
+    scheme:
+      default: http
+    port:
+      http:
+        default: 80
 
 network:
   nagios:
@@ -292,7 +310,7 @@ conf:
           AuthUserFile /usr/local/apache2/conf/.htpasswd
           AuthLDAPBindDN {{ .Values.endpoints.ldap.auth.admin.bind }}
           AuthLDAPBindPassword {{ .Values.endpoints.ldap.auth.admin.password }}
-          AuthLDAPURL {{ tuple "ldap" "public" "ldap" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" | quote }}
+          AuthLDAPURL {{ tuple "ldap" "default" "ldap" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" | quote }}
           Require valid-user
       </Proxy>
     </VirtualHost>
@@ -356,10 +374,10 @@ conf:
           command_line: "$USER1$/send_host_trap.sh '$USER8$' '$HOSTNAME$' $HOSTSTATEID$ '$HOSTOUTPUT$' '$USER4$' '$USER5$'"
       - send_service_http_post:
           command_name: send_service_http_post
-          command_line: "$USER1$/post_rest_api_service_event.sh '$HOSTNAME$' '$SERVICEDESC$' $SERVICESTATEID$ '$SERVICEOUTPUT$' '$HOSTNAME$' '$USER6$' '$USER7$'"
+          command_line: "$USER1$/send_http_post_event.py --type service --hostname '$HOSTNAME$' --servicedesc '$SERVICEDESC$' --state_id $SERVICESTATEID$ --output '$SERVICEOUTPUT$' --monitoring_hostname '$HOSTNAME$' --primary_url '$USER6$' --secondary_url '$USER7$'"
       - send_host_http_post:
           command_name: send_host_http_post
-          command_line: "$USER1$/post_rest_api_host_event.sh '$HOSTNAME$' $HOSTSTATEID$ '$HOSTOUTPUT$' '$HOSTNAME$' '$USER6$' '$USER7$'"
+          command_line: "$USER1$/send_http_post_event.py --type host --hostname '$HOSTNAME$' --state_id $HOSTSTATEID$ --output '$HOSTOUTPUT$' --monitoring_hostname '$HOSTNAME$' --primary_url '$USER6$' --secondary_url '$USER7$'"
       - check_prometheus_host_alive:
           command_name: check-prometheus-host-alive
           command_line: "$USER1$/check_rest_get_api.py --url $USER2$ --warning_response_seconds 5 --critical_response_seconds 10"
@@ -369,6 +387,9 @@ conf:
       - check_prom_alert:
           command_name: check_prom_alert
           command_line: "$USER1$/query_prometheus_alerts.py --prometheus_api $USER2$ --alertname '$ARG1$' --msg_format '$ARG2$' --ok_message '$ARG3$'"
+      - check_es_alert:
+          command_name: check_es_alert
+          command_line: "$USER1$/check_elasticsearch_query.py --es_url $USER9$ --logger '$ARG1$' --range_mins '$ARG2$' --alert_level '$ARG3$' --critical '$ARG4$' --es_type '$ARG5$'"
       - check_filespace_mounts-usage-rate-fullin4hrs:
           command_name: check_filespace_mounts-usage-rate-fullin4hrs
           command_line: $USER1$/query_prometheus_alerts.py --prometheus_api $USER2$ --alertname 'node_filesystem_full_in_4h' --labels_csv 'instance=~"$HOSTADDRESS$.*"' --msg_format 'CRITICAL- Mountpoint {mountpoint} will be full in four hours' --ok_message 'OK- All mountpoints usage rate is normal'
@@ -432,6 +453,9 @@ conf:
       - check_ceph_health:
           command_name: check_ceph_health
           command_line: $USER1$/check_exporter_health_metric.py --exporter_api 'http://$HOSTADDRESS$:9283/metrics' --health_metric ceph_health_status --critical 0 --warning 0
+      - check_prometheus_hosts:
+          command_name: check_prometheus_hosts
+          command_line: $USER1$/check_update_prometheus_hosts.py --prometheus_api $USER2$ --object_file_loc /opt/nagios/etc/objects/prometheus_discovery_objects.cfg
     services:
       - notifying_service:
           name: notifying_service
@@ -448,6 +472,12 @@ conf:
           hostgroup_name: ^ceph_mgr.*$
           service_description: "CEPH_health"
           check_command: check_ceph_health
+          check_interval: 60
+      - check_hosts_health:
+          use: generic-service
+          hostgroup_name: prometheus-hosts
+          service_description: "Nodes_health"
+          check_command: check_prom_alert!K8SNodesNotReady!CRITICAL- One or more nodes are not ready.
           check_interval: 60
       - check_prometheus_replicas:
           use: notifying_service
@@ -515,6 +545,12 @@ conf:
           service_description: "Pod_status-error-image-pull"
           check_command: check_prom_alert!pod_status_error_image_pull!CRITICAL- Pod {pod} in namespace {namespace} has been in errpr status of ErrImagePull for more than 10 minutes!OK- No pods in error status
           check_interval: 60
+      - check_pod_error_crash_loop_back_off:
+          use: notifying_service
+          hostgroup_name: prometheus-hosts
+          service_description: "Pod_status-crashLoopBackOff"
+          check_command: check_prom_alert!pod_error_crash_loop_back_off!CRITICAL- Pod {pod} in namespace {namespace} has been in error status of CrashLoopBackOff for more than 10 minutes!OK- No pods in crashLoopBackOff status
+          check_interval: 60
       - check_replicaset_missing_replicas:
           use: notifying_service
           hostgroup_name: prometheus-hosts
@@ -531,31 +567,66 @@ conf:
           use: notifying_service
           hostgroup_name: prometheus-hosts
           service_description: "API_glance"
-          check_command: check_prom_alert!glance_api_availability!CRITICAL- Glance API at {url} is not available!OK- Glance API is available
+          check_command: check_prom_alert!os_glance_api_availability!CRITICAL- Glance API at {url} is not available!OK- Glance API is available
           check_interval: 60
       - check_nova_api:
           use: notifying_service
           hostgroup_name: prometheus-hosts
           service_description: "API_nova"
-          check_command: check_prom_alert!nova_api_availability!CRITICAL- Nova API at {url} is not available!OK- Nova API is available
+          check_command: check_prom_alert!os_nova_api_availability!CRITICAL- Nova API at {url} is not available!OK- Nova API is available
           check_interval: 60
       - check_keystone_api:
           use: notifying_service
           hostgroup_name: prometheus-hosts
           service_description: "API_keystone"
-          check_command: check_prom_alert!keystone_api_availability!CRITICAL- Keystone API at {url} is not available!OK- Keystone API is available
+          check_command: check_prom_alert!os_keystone_api_availability!CRITICAL- Keystone API at {url} is not available!OK- Keystone API is available
           check_interval: 60
       - check_neutron_api:
           use: notifying_service
           hostgroup_name: prometheus-hosts
           service_description: "API_neutron"
-          check_command: check_prom_alert!neutron_api_availability!CRITICAL- Neutron API at {url} is not available!OK- Neutron API is available
+          check_command: check_prom_alert!os_neutron_api_availability!CRITICAL- Neutron API at {url} is not available!OK- Neutron API is available
+          check_interval: 60
+      - check_neutron_metadata_agent:
+          use: notifying_service
+          hostgroup_name: prometheus-hosts
+          service_description: "Service_neutron-metadata-agent"
+          check_command: check_prom_alert!os_neutron_metadata_agent_availability!CRITICAL- Some Neutron metadata agents are not available!OK- All the neutron metadata agents are up
+          check_interval: 60
+      - check_neutron_openvswitch_agent:
+          use: notifying_service
+          hostgroup_name: prometheus-hosts
+          service_description: "Service_neutron-openvswitch-agent"
+          check_command: check_prom_alert!os_neutron_openvswitch_agent_availability!CRITICAL- Some Neutron openvswitch agents are not available!OK- All the neutron openvswitch agents are up
+          check_interval: 60
+      - check_neutron_dhcp_agent:
+          use: notifying_service
+          hostgroup_name: prometheus-hosts
+          service_description: "Service_neutron-dhcp-agent"
+          check_command: check_prom_alert!os_neutron_dhcp_agent_availability!CRITICAL- Some Neutron dhcp agents are not available!OK- All the neutron dhcp agents are up
+          check_interval: 60
+      - check_neutron_l3_agent:
+          use: notifying_service
+          hostgroup_name: prometheus-hosts
+          service_description: "Service_neutron-l3-agent"
+          check_command: check_prom_alert!os_neutron_l3_agent_availability!CRITICAL- Some Neutron dhcp agents are not available!OK- All the neutron l3 agents are up
           check_interval: 60
       - check_swift_api:
           use: notifying_service
           hostgroup_name: prometheus-hosts
           service_description: "API_swift"
-          check_command: check_prom_alert!swift_api_availability!CRITICAL- Swift API at {url} is not available!OK- Swift API is available
+          check_command: check_prom_alert!os_swift_api_availability!CRITICAL- Swift API at {url} is not available!OK- Swift API is available
+          check_interval: 60
+      - check_cinder_api:
+          use: notifying_service
+          hostgroup_name: prometheus-hosts
+          service_description: "API_cinder"
+          check_command: check_prom_alert!os_cinder_api_availability!CRITICAL- Cinder API at {url} is not available!OK- Cinder API is available
+      - check_glance_api:
+          use: notifying_service
+          hostgroup_name: prometheus-hosts
+          service_description: "API_heat"
+          check_command: check_prom_alert!os_heat_api_availability!CRITICAL- Heat API at {url} is not available!OK- Heat API is available
           check_interval: 60
       - check_cinder_api:
           use: notifying_service
@@ -573,25 +644,43 @@ conf:
           use: notifying_service
           hostgroup_name: prometheus-hosts
           service_description: "Service_nova-compute"
-          check_command: check_prom_alert!openstack_nova_compute_disabled!CRITICAL- nova-compute services are disabled on certain hosts!OK- nova-compute services are enabled on all hosts
+          check_command: check_prom_alert!os_nova_compute_down!CRITICAL- nova-compute services are down on certain hosts!OK- nova-compute services are up on all hosts
           check_interval: 60
       - check_service_nova_conductor:
           use: notifying_service
           hostgroup_name: prometheus-hosts
           service_description: "Service_nova-conductor"
-          check_command: check_prom_alert!openstack_nova_conductor_disabled!CRITICAL- nova-conductor services are disabled on certain hosts!OK- nova-conductor services are enabled on all hosts
+          check_command: check_prom_alert!os_nova_conductor_down!CRITICAL- nova-conductor services are down on certain hosts!OK- nova-conductor services are up on all hosts
           check_interval: 60
       - check_service_nova_consoleauth:
           use: notifying_service
           hostgroup_name: prometheus-hosts
           service_description: "Service_nova-consoleauth"
-          check_command: check_prom_alert!openstack_nova_consoleauth_disabled!CRITICAL- nova-consoleauth services are disabled on certain hosts!OK- nova-consoleauth services are enabled on all hosts
+          check_command: check_prom_alert!os_nova_consoleauth_down!CRITICAL- nova-consoleauth services are down on certain hosts!OK- nova-consoleauth services are up on all hosts
           check_interval: 60
       - check_service_nova_scheduler:
           use: notifying_service
           hostgroup_name: prometheus-hosts
           service_description: "Service_nova-scheduler"
-          check_command: check_prom_alert!openstack_nova_scheduler_disabled!CRITICAL- nova-scheduler services are disabled on certain hosts!OK- nova-scheduler services are enabled on all hosts
+          check_command: check_prom_alert!openstack_nova_scheduler_down!CRITICAL- nova-scheduler services are down on certain hosts!OK- nova-scheduler services are up on all hosts
+          check_interval: 60
+      - check_os_vm_vcpu_usage:
+          use: notifying_service
+          hostgroup_name: prometheus-hosts
+          service_description: "OS-Total-Quota_VCPU-usage"
+          check_command: check_prom_alert!os_vm_vcpu_usage_high!CRITICAL- vcpu usage for openstack VMs is more than 80 percent of available!OK- Openstack VMs vcpu usage is less than 80 percent of available.
+          check_interval: 60
+      - check_os_vm_ram_usage:
+          use: notifying_service
+          hostgroup_name: prometheus-hosts
+          service_description: "OS-Total-Quota_RAM-usage"
+          check_command: check_prom_alert!os_vm_ram_usage_high!CRITICAL- RAM usage for openstack VMs is more than 80 percent of available!OK- Openstack VMs RAM usage is less than 80 percent of available.
+          check_interval: 60
+      - check_os_vm_disk_usage:
+          use: notifying_service
+          hostgroup_name: prometheus-hosts
+          service_description: "OS-Total-Quota_Disk-usage"
+          check_command: check_prom_alert!os_vm_disk_usage_high!CRITICAL- Disk usage for openstack VMs is more than 80 percent of available!OK- Openstack VMs Disk usage is less than 80 percent of available.
           check_interval: 60
       - check_ceph_monitor_quorum:
           use: notifying_service
@@ -776,6 +865,107 @@ conf:
           use: generic-service
           service_description: Mariadb_innodb-replication-lag
           check_command: check_prom_alert!mariadb_innodb_replication_fallen_behind!CRITICAL- Innodb replication has fallen behind and not recovering!OK- innodb replication lag is nominal.
+          hostgroup_name: prometheus-hosts
+      - check_prometheus_hosts:
+          use: notifying_service
+          service_description: Prometheus_hosts-update
+          check_command: check_prometheus_hosts
+          hostgroup_name: prometheus-hosts
+          check_interval: 900
+      - check_postgresql_replication_lag:
+          use: generic-service
+          service_description: Postgresql_replication-lag
+          check_command: check_prom_alert!pg_replication_fallen_behind!CRITICAL- Postgres Replication lag is over 2 minutes!OK- postgresql replication lag is nominal.
+          hostgroup_name: prometheus-hosts
+      - check_postgresql_connections:
+          use: generic-service
+          service_description: Postgresql_connections
+          check_command: check_prom_alert!pg_connections_too_high!CRITICAL- Postgres has more than 95% of available connections in use.!OK- postgresql open connections are within bounds.
+          hostgroup_name: prometheus-hosts
+      - check_postgresql_deadlocks:
+          use: generic-service
+          service_description: Postgresql_deadlocks
+          check_command: check_prom_alert!pg_deadlocks_detected!CRITICAL- Postgres server is experiencing deadlocks!OK- postgresql is not showing any deadlocks.
+          hostgroup_name: prometheus-hosts
+      - check_prom_exporter_ceph:
+          use: generic-service
+          service_description: Prometheus-exporter_CEPH
+          check_command: check_prom_alert!prom_exporter_ceph_unavailable!CRITICAL- CEPH exporter is not collecting metrics for alerting!OK- CEPH exporter metrics are available.
+          hostgroup_name: prometheus-hosts
+      - check_prom_exporter_openstack:
+          use: generic-service
+          service_description: Prometheus-exporter_Openstack
+          check_command: check_prom_alert!prom_exporter_openstack_unavailable!CRITICAL- Openstack exporter is not collecting metrics for alerting!OK- Openstack exporter metrics are available.
+          hostgroup_name: prometheus-hosts
+      - check_prom_exporter_mariadb:
+          use: generic-service
+          service_description: Prometheus-exporter_MariaDB
+          check_command: check_prom_alert!prom_exporter_mariadb_unavailable!CRITICAL- MariaDB exporter is not collecting metrics for alerting!OK- MariaDB exporter metrics are available.
+          hostgroup_name: prometheus-hosts
+      - check_prom_exporter_kube_state_metrics:
+          use: generic-service
+          service_description: Prometheus-exporter_Kube-state-metrics
+          check_command: check_prom_alert!prom_exporter_kube_state_metrics_unavailable!CRITICAL- kube-state-metrics exporter is not collecting metrics for alerting!OK- kube-state-metrics exporter metrics are available.
+          hostgroup_name: prometheus-hosts
+      - check_prom_exporter_postgresql:
+          use: generic-service
+          service_description: Prometheus-exporter_Postgresql
+          check_command: check_prom_alert!prom_exporter_postgresql_unavailable!CRITICAL- Postgresql exporter is not collecting metrics for alerting!OK- Postgresql exporter metrics are available.
+          hostgroup_name: prometheus-hosts
+      - check_prom_exporter_node:
+          use: generic-service
+          service_description: Prometheus-exporter_Node
+          check_command: check_prom_alert!prom_exporter_node_unavailable!CRITICAL- Node exporter is not collecting metrics for alerting!OK- Node exporter metrics are available.
+          hostgroup_name: prometheus-hosts
+      - check_prom_exporter_calico:
+          use: generic-service
+          service_description: Prometheus-exporter_Calico
+          check_command: check_prom_alert!prom_exporter_calico_unavailable!CRITICAL- Calico exporter is not collecting metrics for alerting!OK- Calico exporter metrics are available.
+          hostgroup_name: prometheus-hosts
+      - check_prom_exporter_elasticsearch:
+          use: generic-service
+          service_description: Prometheus-exporter_Elasticsearch
+          check_command: check_prom_alert!prom_exporter_elasticsearch_unavailable!CRITICAL- Elasticsearch exporter is not collecting metrics for alerting!OK- Elasticsearch exporter metrics are available.
+          hostgroup_name: prometheus-hosts
+      - check_prom_exporter_fluentd:
+          use: generic-service
+          service_description: Prometheus-exporter_Fluentd
+          check_command: check_prom_alert!prom_exporter_fluentd_unavailable!CRITICAL- Fluentd exporter is not collecting metrics for alerting!OK- Fluentd exporter metrics are available.
+          hostgroup_name: prometheus-hosts
+      - check_logmon_glance:
+          use: generic-service
+          service_description: Logmon_glance-error
+          check_command: check_es_alert!glance!15!CRITICAL,ERROR!10!oslo_openstack_fluentd
+          hostgroup_name: prometheus-hosts
+      - check_logmon_keystone:
+          use: generic-service
+          service_description: Logmon_keystone-error
+          check_command: check_es_alert!keystone!15!CRITICAL,ERROR!10!oslo_openstack_fluentd
+          hostgroup_name: prometheus-hosts
+      - check_logmon_nova:
+          use: generic-service
+          service_description: Logmon_nova-error
+          check_command: check_es_alert!nova!15!CRITICAL,ERROR!10!oslo_openstack_fluentd
+          hostgroup_name: prometheus-hosts
+      - check_logmon_neutron:
+          use: generic-service
+          service_description: Logmon_neutron-error
+          check_command: check_es_alert!neutron!15!CRITICAL,ERROR!10!oslo_openstack_fluentd
+          hostgroup_name: prometheus-hosts
+      - check_logmon_cinder:
+          use: generic-service
+          service_description: Logmon_cinder-error
+          check_command: check_es_alert!cinder!15!CRITICAL,ERROR!10!oslo_openstack_fluentd
+          hostgroup_name: prometheus-hosts
+      - check_logmon_heat:
+          use: generic-service
+          service_description: Logmon_heat-error
+          check_command: check_es_alert!heat!15!CRITICAL,ERROR!10!oslo_openstack_fluentd
+          hostgroup_name: prometheus-hosts
+      - check_logmon_horizon:
+          use: generic-service
+          service_description: Logmon_horizon-error
+          check_command: check_es_alert!horizon!15!CRITICAL,ERROR!10!docker_fluentd
           hostgroup_name: prometheus-hosts
       - check_filespace_mounts-usage-rate-fullin4hrs:
           use: notifying_service

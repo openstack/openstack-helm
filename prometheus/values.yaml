@@ -1185,6 +1185,14 @@ conf:
             annotations:
               description: '{{ $value }} Kubernetes nodes (more than 10% are in the NotReady state).'
               summary: Many Kubernetes nodes are Not Ready
+          - alert: K8SNodesNotReady
+            expr: count(kube_node_status_ready{condition="true"} == 0) > 0
+            for: 1m
+            labels:
+              severity: critical
+            annotations:
+              description: '{{ $value }} nodes are notReady state.'
+              summary: One or more Kubernetes nodes are Not Ready
           - alert: K8SKubeletDown
             expr: count(up{job="kubelet"} == 0) / count(up{job="kubelet"}) > 0.03
             for: 1h
@@ -1296,7 +1304,7 @@ conf:
             annotations:
               description: 'statefulset {{$labels.statefulset}} has {{$value}} replicas, which is less than desired'
               summary: '{{$labels.statefulset}}: has inssuficient replicas.'
-          - alert: kube_daemonsets_misscheduled
+          - alert: daemonsets_misscheduled
             expr: kube_daemonset_status_number_misscheduled > 0
             for: 10m
             labels:
@@ -1304,7 +1312,7 @@ conf:
             annotations:
               description: 'Daemonset {{$labels.daemonset}} is running where it is not supposed to run'
               summary: 'Daemonsets not scheduled correctly'
-          - alert: kube_daemonsets_not_scheduled
+          - alert: daemonsets_not_scheduled
             expr: kube_daemonset_status_desired_number_scheduled - kube_daemonset_status_current_number_scheduled > 0
             for: 10m
             labels:
@@ -1312,7 +1320,7 @@ conf:
             annotations:
               description: '{{ $value }} of Daemonset {{$labels.daemonset}} scheduled which is less than desired number'
               summary: 'Less than desired number of daemonsets scheduled'
-          - alert: kube_deployment_replicas_unavailable
+          - alert: deployment_replicas_unavailable
             expr: kube_deployment_status_replicas_unavailable > 0
             for: 10m
             labels:
@@ -1320,7 +1328,7 @@ conf:
             annotations:
               description: 'deployment {{$labels.deployment}} has {{$value}} replicas unavailable'
               summary: '{{$labels.deployment}}: has inssuficient replicas.'
-          - alert: kube_rollingupdate_deployment_replica_less_than_spec_max_unavailable
+          - alert: rollingupdate_deployment_replica_less_than_spec_max_unavailable
             expr: kube_deployment_status_replicas_available - kube_deployment_spec_strategy_rollingupdate_max_unavailable < 0
             for: 10m
             labels:
@@ -1328,7 +1336,7 @@ conf:
             annotations:
               description: 'deployment {{$labels.deployment}} has {{$value}} replicas available which is less than specified as max unavailable during a rolling update'
               summary: '{{$labels.deployment}}: has inssuficient replicas during a rolling update.'
-          - alert: kube_job_status_failed
+          - alert: job_status_failed
             expr: kube_job_status_failed > 0
             for: 10m
             labels:
@@ -1336,7 +1344,7 @@ conf:
             annotations:
               description: 'Job {{$labels.exported_job}} is in failed status'
               summary: '{{$labels.exported_job}} has failed status'
-          - alert: kube_pod_status_pending
+          - alert: pod_status_pending
             expr: kube_pod_status_phase{phase="Pending"} == 1
             for: 10m
             labels:
@@ -1344,7 +1352,7 @@ conf:
             annotations:
               description: 'Pod {{$labels.pod}} in namespace {{$labels.namespace}} has been in pending status for more than 10 minutes'
               summary: 'Pod {{$labels.pod}} in namespace {{$labels.namespace}} in pending status'
-          - alert: kube_pod_error_image_pull
+          - alert: pod_error_image_pull
             expr: kube_pod_container_status_waiting_reason {reason="ErrImagePull"} == 1
             for: 10m
             labels:
@@ -1352,7 +1360,7 @@ conf:
             annotations:
               description: 'Pod {{$labels.pod}} in namespace {{$labels.namespace}} has an Image pull error for more than 10 minutes'
               summary: 'Pod {{$labels.pod}} in namespace {{$labels.namespace}} in error status'
-          - alert: kube_pod_status_error_image_pull
+          - alert: pod_status_error_image_pull
             expr: kube_pod_container_status_waiting_reason {reason="ErrImagePull"} == 1
             for: 10m
             labels:
@@ -1360,7 +1368,15 @@ conf:
             annotations:
               description: 'Pod {{$labels.pod}} in namespace {{$labels.namespace}} has an Image pull error for more than 10 minutes'
               summary: 'Pod {{$labels.pod}} in namespace {{$labels.namespace}} in error status'
-          - alert: kube_replicaset_missing_replicas
+          - alert: pod_error_crash_loop_back_off
+            expr: kube_pod_container_status_waiting_reason {reason="CrashLoopBackOff"} == 1
+            for: 10m
+            labels:
+              severity: page
+            annotations:
+              description: 'Pod {{$labels.pod}} in namespace {{$labels.namespace}} has an CrashLoopBackOff  error for more than 10 minutes'
+              summary: 'Pod {{$labels.pod}} in namespace {{$labels.namespace}} in error status'
+          - alert: replicaset_missing_replicas
             expr:  kube_replicaset_spec_replicas -  kube_replicaset_status_ready_replicas > 0
             for: 10m
             labels:
@@ -1368,7 +1384,7 @@ conf:
             annotations:
               description: 'Replicaset {{$labels.replicaset}} is missing desired number of replicas for more than 10 minutes'
               summary: 'Replicaset {{$labels.replicaset}} is missing replicas'
-          - alert: kube_pod_container_terminated
+          - alert: pod_container_terminated
             expr: kube_pod_container_status_terminated_reason{reason=~"OOMKilled|Error|ContainerCannotRun"} > 0
             for: 10m
             labels:
@@ -1618,7 +1634,7 @@ conf:
         - name: openstack.rules
           rules:
           - alert: os_glance_api_availability
-            expr:  check_glance_api != 1
+            expr:  openstack_check_glance_api != 1
             for: 5m
             labels:
               severity: page
@@ -1626,7 +1642,7 @@ conf:
               description: 'Glance API is not available at {{$labels.url}} for more than 5 minutes'
               summary: 'Glance API is not available at {{$labels.url}}'
           - alert: os_nova_api_availability
-            expr:  check_nova_api != 1
+            expr:  openstack_check_nova_api != 1
             for: 5m
             labels:
               severity: page
@@ -1634,7 +1650,7 @@ conf:
               description: 'Nova API is not available at {{$labels.url}} for more than 5 minutes'
               summary: 'Nova API is not available at {{$labels.url}}'
           - alert: os_keystone_api_availability
-            expr:  check_keystone_api != 1
+            expr:  openstack_check_keystone_api != 1
             for: 5m
             labels:
               severity: page
@@ -1642,15 +1658,47 @@ conf:
               description: 'Keystone API is not available at {{$labels.url}} for more than 5 minutes'
               summary: 'Keystone API is not available at {{$labels.url}}'
           - alert: os_neutron_api_availability
-            expr:  check_neutron_api != 1
+            expr:  openstack_check_neutron_api != 1
             for: 5m
             labels:
               severity: page
             annotations:
               description: 'Neutron API is not available at {{$labels.url}} for more than 5 minutes'
               summary: 'Neutron API is not available at {{$labels.url}}'
+          - alert: os_neutron_metadata_agent_availability
+            expr:  openstack_services_neutron_metadata_agent_down_total > 0
+            for: 5m
+            labels:
+              severity: page
+            annotations:
+              description: 'One or more neutron metadata_agents are not available for more than 5 minutes'
+              summary: 'One or more neutron metadata_agents are not available'
+          - alert: os_neutron_openvswitch_agent_availability
+            expr:  openstack_services_neutron_openvswitch_agent_down_total > 0
+            for: 5m
+            labels:
+              severity: page
+            annotations:
+              description: 'One or more neutron openvswitch agents are not available for more than 5 minutes'
+              summary: 'One or more neutron openvswitch agents are not available'
+          - alert: os_neutron_dhcp_agent_availability
+            expr:  openstack_services_neutron_dhcp_agent_down_total > 0
+            for: 5m
+            labels:
+              severity: page
+            annotations:
+              description: 'One or more neutron dhcp agents are not available for more than 5 minutes'
+              summary: 'One or more neutron dhcp agents are not available'
+          - alert: os_neutron_l3_agent_availability
+            expr:  openstack_services_neutron_l3_agent_down_total > 0
+            for: 5m
+            labels:
+              severity: page
+            annotations:
+              description: 'One or more neutron L3 agents are not available for more than 5 minutes'
+              summary: 'One or more neutron L3 agents are not available'
           - alert: os_swift_api_availability
-            expr:  check_swift_api != 1
+            expr:  openstack_check_swift_api != 1
             for: 5m
             labels:
               severity: page
@@ -1673,8 +1721,16 @@ conf:
             annotations:
               description: 'Cinder scheduler is not available for more than 5 minutes'
               summary: 'Cinder scheduler is not available'
+          - alert: os_heat_api_availability
+            expr:  openstack_check_heat_api != 1
+            for: 5m
+            labels:
+              severity: page
+            annotations:
+              description: 'Heat API is not available at {{$labels.url}} for more than 5 minutes'
+              summary: 'Heat API is not available at {{$labels.url}}'
           - alert: os_nova_compute_disabled
-            expr:  services_nova_compute_disabled_total > 0
+            expr:  openstack_services_nova_compute_disabled_total > 0
             for: 5m
             labels:
               severity: page
@@ -1682,7 +1738,7 @@ conf:
               description: 'nova-compute is disabled on certain hosts for more than 5 minutes'
               summary: 'Openstack compute service nova-compute is disabled on some hosts'
           - alert: os_nova_conductor_disabled
-            expr:  services_nova_conductor_disabled_total > 0
+            expr:  openstack_services_nova_conductor_disabled_total > 0
             for: 5m
             labels:
               severity: page
@@ -1690,7 +1746,7 @@ conf:
               description: 'nova-conductor is disabled on certain hosts for more than 5 minutes'
               summary: 'Openstack compute service nova-conductor is disabled on some hosts'
           - alert: os_nova_consoleauth_disabled
-            expr:  services_nova_consoleauth_disabled_total > 0
+            expr:  openstack_services_nova_consoleauth_disabled_total > 0
             for: 5m
             labels:
               severity: page
@@ -1698,13 +1754,69 @@ conf:
               description: 'nova-consoleauth is disabled on certain hosts for more than 5 minutes'
               summary: 'Openstack compute service nova-consoleauth is disabled on some hosts'
           - alert: os_nova_scheduler_disabled
-            expr:  services_nova_scheduler_disabled_total > 0
+            expr:  openstack_services_nova_scheduler_disabled_total > 0
             for: 5m
             labels:
               severity: page
             annotations:
               description: 'nova-scheduler is disabled on certain hosts for more than 5 minutes'
               summary: 'Openstack compute service nova-scheduler is disabled on some hosts'
+          - alert: os_nova_compute_down
+            expr:  openstack_services_nova_compute_down_total > 0
+            for: 5m
+            labels:
+              severity: page
+            annotations:
+              description: 'nova-compute is down on certain hosts for more than 5 minutes'
+              summary: 'Openstack compute service nova-compute is down on some hosts'
+          - alert: os_nova_conductor_down
+            expr:  openstack_services_nova_conductor_down_total > 0
+            for: 5m
+            labels:
+              severity: page
+            annotations:
+              description: 'nova-conductor is down on certain hosts for more than 5 minutes'
+              summary: 'Openstack compute service nova-conductor is down on some hosts'
+          - alert: os_nova_consoleauth_down
+            expr:  openstack_services_nova_consoleauth_down_total > 0
+            for: 5m
+            labels:
+              severity: page
+            annotations:
+              description: 'nova-consoleauth is down on certain hosts for more than 5 minutes'
+              summary: 'Openstack compute service nova-consoleauth is down on some hosts'
+          - alert: os_nova_scheduler_down
+            expr:  openstack_services_nova_scheduler_down_total > 0
+            for: 5m
+            labels:
+              severity: page
+            annotations:
+              description: 'nova-scheduler is down on certain hosts for more than 5 minutes'
+              summary: 'Openstack compute service nova-scheduler is down on some hosts'
+          - alert: os_vm_vcpu_usage_high
+            expr: openstack_total_used_vcpus * 100/(openstack_total_used_vcpus + openstack_total_free_vcpus) > 80
+            for: 5m
+            labels:
+              severity: page
+            annotations:
+              description: 'Openstack VM vcpu usage is hight at {{$value}} percent'
+              summary: 'Openstack VM vcpu usage is high'
+          - alert: os_vm_ram_usage_high
+            expr: openstack_total_used_ram_MB * 100/(openstack_total_used_ram_MB + openstack_total_free_ram_MB) > 80
+            for: 5m
+            labels:
+              severity: page
+            annotations:
+              description: 'Openstack VM RAM usage is hight at {{$value}} percent'
+              summary: 'Openstack VM RAM usage is high'
+          - alert: os_vm_disk_usage_high
+            expr: openstack_total_used_disk_GB * 100/ ( openstack_total_used_disk_GB + openstack_total_free_disk_GB ) > 80
+            for: 5m
+            labels:
+              severity: page
+            annotations:
+              description: 'Openstack VM Disk usage is hight at {{$value}} percent'
+              summary: 'Openstack VM Disk usage is high'
       ceph:
         groups:
         - name: ceph.rules
@@ -1989,3 +2101,107 @@ conf:
             annotations:
               description: 'The mysql innodb replication has fallen behind and is not recovering'
               summary: 'MySQL innodb replication is lagging'
+      postgresql:
+        groups:
+        - name: postgresql.rules
+          rules:
+          - alert: pg_replication_fallen_behind
+            expr: (pg_replication_lag > 120) and ON(instance) (pg_replication_is_replica ==  1)
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              description: Replication lag on server {{$labels.instance}} is currently {{$value | humanizeDuration }}
+              title: Postgres Replication lag is over 2 minutes
+          - alert: pg_connections_too_high
+            expr: sum(pg_stat_activity_count) BY (environment, fqdn) > ON(fqdn) pg_settings_max_connections * 0.95
+            for: 5m
+            labels:
+              severity: warn
+              channel: database
+            annotations:
+              title: Postgresql has {{$value}} connections on {{$labels.fqdn}} which is close to the maximum
+          - alert: pg_deadlocks_detected
+            expr: sum by(datname) (rate(pg_stat_database_deadlocks[1m])) > 0
+            for: 5m
+            labels:
+              severity: warn
+            annotations:
+              description: postgresql at {{$labels.instance}} is showing {{$value}} rate of deadlocks for database {{$labels.datname}}
+              title: Postgres server is experiencing deadlocks
+      prometheus_exporters:
+        groups:
+        - name: prometheus_exporters.rules
+          rules:
+          - alert: prom_exporter_ceph_unavailable
+            expr: absent(ceph_health_status)
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              description: Ceph exporter is not collecting metrics or is not available for past 10 minutes
+              title: Ceph exporter is not collecting metrics or is not available
+          - alert: prom_exporter_openstack_unavailable
+            expr: absent(openstack_exporter_cache_refresh_duration_seconds)
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              description: Openstack exporter is not collecting metrics or is not available for past 10 minutes
+              title: Openstack exporter is not collecting metrics or is not available
+          - alert: prom_exporter_mariadb_unavailable
+            expr: absent(mysql_up)
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              description: MariaDB exporter is not collecting metrics or is not available for past 10 minutes
+              title: MariaDB exporter is not collecting metrics or is not available
+          - alert: prom_exporter_kube_state_metrics_unavailable
+            expr: absent(kube_node_info)
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              description: kube-state-metrics exporter is not collecting metrics or is not available for past 10 minutes
+              title: kube-state-metrics exporter is not collecting metrics or is not available
+          - alert: prom_exporter_postgresql_unavailable
+            expr: absent(pg_static)
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              description: postgresql exporter is not collecting metrics or is not available for past 10 minutes
+              title: postgresql exporter is not collecting metrics or is not available
+          - alert: prom_exporter_node_unavailable
+            expr: absent(node_uname_info)
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              description: node exporter is not collecting metrics or is not available for past 10 minutes
+              title: node exporter is not collecting metrics or is not available
+          - alert: prom_exporter_calico_unavailable
+            expr: absent(felix_host)
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              description: Calico exporter is not collecting metrics or is not available for past 10 minutes
+              title: Calico exporter is not collecting metrics or is not available
+          - alert: prom_exporter_elasticsearch_unavailable
+            expr: absent(elasticsearch_cluster_health_status)
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              description: Elasticsearch exporter is not collecting metrics or is not available for past 10 minutes
+              title: Elasticsearch exporter is not collecting metrics or is not available
+          - alert: prom_exporter_fluentd_unavailable
+            expr: absent(fluentd_up)
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              description: Fluentd exporter is not collecting metrics or is not available for past 10 minutes
+              title: Fluentd exporter is not collecting metrics or is not available
