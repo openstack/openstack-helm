@@ -17,8 +17,52 @@ limitations under the License.
 {{- if .Values.manifests.statefulset }}
 {{- $envAll := . }}
 
-{{- $serviceAccountName := "mariadb" }}
+{{- $serviceAccountName := printf "%s-%s" .Release.Name "mariadb" }}
 {{ tuple $envAll "mariadb" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: Role
+metadata:
+  name: {{ $serviceAccountName }}
+  namespace: {{ $envAll.Release.Namespace }}
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+    verbs:
+      - create
+  - apiGroups:
+      - ""
+    resourceNames:
+      - {{ printf "%s-%s" .Release.Name "mariadb-state" | quote }}
+    resources:
+      - configmaps
+    verbs:
+      - get
+      - patch
+  - apiGroups:
+      - ""
+    resourceNames:
+      - {{ tuple "oslo_db" "direct" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
+    resources:
+      - endpoints
+    verbs:
+      - get
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: RoleBinding
+metadata:
+  name: {{ $serviceAccountName }}
+  namespace: {{ $envAll.Release.Namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ $serviceAccountName }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ $serviceAccountName }}
+    namespace: {{ $envAll.Release.Namespace }}
 ---
 apiVersion: apps/v1
 kind: StatefulSet
@@ -27,6 +71,8 @@ metadata:
   name: {{ tuple "oslo_db" "direct" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
   annotations:
     {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+    configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
+    configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
   labels:
 {{ tuple $envAll "mariadb" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 spec:
@@ -40,6 +86,10 @@ spec:
     metadata:
       labels:
 {{ tuple $envAll "mariadb" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+        {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
+        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
     spec:
       serviceAccountName: {{ $serviceAccountName }}
       affinity:
@@ -68,26 +118,22 @@ spec:
 {{ tuple $envAll "mariadb" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.server | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           env:
-            - name: POD_IP
+            - name: POD_NAMESPACE
               valueFrom:
                 fieldRef:
-                  fieldPath: status.podIP
-            - name: POD_NAME
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.name
-            - name: FORCE_BOOTSTRAP
-              value: {{ .Values.force_bootstrap | quote }}
-            - name: FORCE_RECOVERY
-              value: {{ .Values.force_recovey | quote }}
-            - name: BOOTSTRAP_FILE
-              value: "/tmp/bootstrap.sql"
+                  fieldPath: metadata.namespace
             - name: MARIADB_REPLICAS
               value: {{ .Values.pod.replicas.server | quote }}
-            - name: WSREP_PORT
-              value: {{ tuple "oslo_db" "direct" "wsrep" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | quote }}
             - name: POD_NAME_PREFIX
               value: {{ tuple "oslo_db" "direct" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
+            - name: DISCOVERY_DOMAIN
+              value: {{ tuple "oslo_db" "discovery" . | include "helm-toolkit.endpoints.hostname_fqdn_endpoint_lookup" }}
+            - name: DIRECT_SVC_NAME
+              value: {{ tuple "oslo_db" "direct" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
+            - name: WSREP_PORT
+              value: {{ tuple "oslo_db" "direct" "wsrep" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | quote }}
+            - name: STATE_CONFIGMAP
+              value: {{ printf "%s-%s" .Release.Name "mariadb-state" | quote }}
             - name: MYSQL_ROOT_PASSWORD
               valueFrom:
                 secretKeyRef:
@@ -101,7 +147,7 @@ spec:
               protocol: TCP
               containerPort: {{ tuple "oslo_db" "direct" "wsrep" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
           command:
-            - /tmp/start.sh
+            - /tmp/start.py
           lifecycle:
             preStop:
               exec:
@@ -118,8 +164,8 @@ spec:
             - name: mycnfd
               mountPath: /etc/mysql/conf.d
             - name: mariadb-bin
-              mountPath: /tmp/start.sh
-              subPath: start.sh
+              mountPath: /tmp/start.py
+              subPath: start.py
               readOnly: true
             - name: mariadb-bin
               mountPath: /tmp/stop.sh
