@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2017 The Openstack-Helm Authors.
+# Copyright 2017-2018 The Openstack-Helm Authors.
 #
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
 #    not use this file except in compliance with the License. You may obtain
@@ -13,24 +13,21 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
-
 set -xe
 
 #NOTE: Lint and package chart
-make horizon
+make lockdown
 
 #NOTE: Deploy command
+: ${OSH_INFRA_PATH:="../openstack-helm-infra"}
 : ${OSH_EXTRA_HELM_ARGS:=""}
-helm upgrade --install horizon ./horizon \
+helm upgrade --install lockdown ${OSH_INFRA_PATH}/lockdown \
     --namespace=openstack \
-    --set network.node_port.enabled=true \
-    --set network.node_port.port=31000 \
-    --set manifests.network_policy=true \
     ${OSH_EXTRA_HELM_ARGS} \
-    ${OSH_EXTRA_HELM_ARGS_HORIZON}
+    ${OSH_EXTRA_HELM_ARGS_LOCKDOWN}
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack
 
 #NOTE: Validate Deployment info
-helm status horizon
+helm status lockdown

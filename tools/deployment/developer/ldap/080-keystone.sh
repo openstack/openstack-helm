@@ -19,10 +19,33 @@ set -xe
 #NOTE: Deploy command
 : ${OSH_INFRA_PATH:="../openstack-helm-infra"}
 : ${OSH_EXTRA_HELM_ARGS:=""}
+
+tee /tmp/ldap.yaml <<EOF
+manifests:
+  network_policy: true
+network_policy:
+  ldap:
+    ingress:
+      - from:
+        - podSelector:
+            matchLabels:
+              application: keystone
+        - podSelector:
+            matchLabels:
+              application: ldap
+        - podSelector:
+            matchLabels:
+              application: ingress
+        ports:
+        - protocol: TCP
+          port: 389
+EOF
+
 helm upgrade --install ldap ${OSH_INFRA_PATH}/ldap \
     --namespace=openstack \
     --set pod.replicas.server=1 \
     --set bootstrap.enabled=true \
+    --values=/tmp/ldap.yaml \
     ${OSH_EXTRA_HELM_ARGS} \
     ${OSH_EXTRA_HELM_ARGS_LDAP}
 
@@ -40,6 +63,7 @@ make pull-images keystone
 helm upgrade --install keystone ./keystone \
     --namespace=openstack \
     --values=./tools/overrides/keystone/ldap_domain_config.yaml \
+    --set manifests.network_policy=true \
     ${OSH_EXTRA_HELM_ARGS} \
     ${OSH_EXTRA_HELM_ARGS_KEYSTONE}
 

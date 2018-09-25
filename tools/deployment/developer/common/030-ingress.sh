@@ -20,6 +20,57 @@ set -xe
 : ${OSH_INFRA_PATH:="../openstack-helm-infra"}
 make -C ${OSH_INFRA_PATH} ingress
 
+tee /tmp/ingress.yaml <<EOF
+manifests:
+  network_policy: true
+network_policy:
+  ingress:
+    ingress:
+      - from:
+        - podSelector:
+            matchLabels:
+              application: keystone
+        - podSelector:
+            matchLabels:
+              application: heat
+        - podSelector:
+            matchLabels:
+              application: glance
+        - podSelector:
+            matchLabels:
+              application: cinder
+        - podSelector:
+            matchLabels:
+              application: congress
+        - podSelector:
+            matchLabels:
+              application: barbican
+        - podSelector:
+            matchLabels:
+              application: ceilometer
+        - podSelector:
+            matchLabels:
+              application: horizon
+        - podSelector:
+            matchLabels:
+              application: ironic
+        - podSelector:
+            matchLabels:
+              application: magnum
+        - podSelector:
+            matchLabels:
+              application: mistral
+        - podSelector:
+            matchLabels:
+              application: nova
+        - podSelector:
+            matchLabels:
+              application: neutron
+        - podSelector:
+            matchLabels:
+              application: senlin
+EOF
+
 #NOTE: Deploy command
 : ${OSH_INFRA_PATH:="../openstack-helm-infra"}
 : ${OSH_EXTRA_HELM_ARGS:=""}
@@ -43,15 +94,26 @@ helm upgrade --install ingress-kube-system ${OSH_INFRA_PATH}/ingress \
 helm status ingress-kube-system
 
 #NOTE: Deploy namespace ingress
-for NAMESPACE in openstack ceph; do
-  helm upgrade --install ingress-${NAMESPACE} ${OSH_INFRA_PATH}/ingress \
-    --namespace=${NAMESPACE} \
-    ${OSH_EXTRA_HELM_ARGS} \
-    ${OSH_EXTRA_HELM_ARGS_INGRESS_OPENSTACK}
+helm upgrade --install ingress-openstack ${OSH_INFRA_PATH}/ingress \
+  --namespace=openstack \
+  --values=/tmp/ingress.yaml \
+  ${OSH_EXTRA_HELM_ARGS} \
+  ${OSH_EXTRA_HELM_ARGS_INGRESS_OPENSTACK}
 
-  #NOTE: Wait for deploy
-  ./tools/deployment/common/wait-for-pods.sh ${NAMESPACE}
+#NOTE: Wait for deploy
+./tools/deployment/common/wait-for-pods.sh openstack
 
-  #NOTE: Display info
-  helm status ingress-${NAMESPACE}
-done
+#NOTE: Display info
+helm status ingress-openstack
+
+
+helm upgrade --install ingress-ceph ${OSH_INFRA_PATH}/ingress \
+  --namespace=ceph \
+  ${OSH_EXTRA_HELM_ARGS} \
+  ${OSH_EXTRA_HELM_ARGS_INGRESS_OPENSTACK}
+
+#NOTE: Wait for deploy
+./tools/deployment/common/wait-for-pods.sh ceph
+
+#NOTE: Display info
+helm status ingress-ceph

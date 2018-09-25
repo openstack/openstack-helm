@@ -19,10 +19,20 @@ set -xe
 : ${OSH_INFRA_PATH:="../openstack-helm-infra"}
 make -C ${OSH_INFRA_PATH} libvirt
 
+tee /tmp/libvirt.yaml <<EOF
+manifests:
+  network_policy: true
+network_policy:
+  libvirt:
+    ingress:
+      - {}
+EOF
+
 #NOTE: Deploy command
 : ${OSH_EXTRA_HELM_ARGS:=""}
 helm upgrade --install libvirt ${OSH_INFRA_PATH}/libvirt \
   --namespace=openstack \
+  --values=/tmp/libvirt.yaml \
   ${OSH_EXTRA_HELM_ARGS} \
   ${OSH_EXTRA_HELM_ARGS_LIBVIRT}
 
