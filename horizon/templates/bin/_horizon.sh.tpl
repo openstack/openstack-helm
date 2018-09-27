@@ -27,6 +27,8 @@ function start () {
   # wsgi/horizon-http needs open files here, including secret_key_store
   chown -R horizon ${SITE_PACKAGES_ROOT}/openstack_dashboard/local/
 
+  a2enmod rewrite
+
   if [ -f /etc/apache2/envvars ]; then
      # Loading Apache2 ENV variables
      source /etc/apache2/envvars
