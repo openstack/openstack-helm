@@ -16,9 +16,6 @@
 
 set -xe
 
-#NOTE: Pull images and lint chart
-make pull-images tempest
-
 #NOTE: Deploy command
 export OS_CLOUD=openstack_helm
 
