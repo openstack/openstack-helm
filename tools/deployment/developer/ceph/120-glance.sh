@@ -40,6 +40,7 @@ manifests:
   ingress_registry: true
   pdb_registry: true
   service_ingress_registry: true
+  service_registry: true
 EOF
 fi
 helm upgrade --install glance ./glance \
