@@ -33,7 +33,6 @@ limitations under the License.
 {{- end -}}
 {{- end -}}
 
-{{- $prometheus_annotations := $envAll.Values.monitoring.prometheus.calico_node }}
 
 {{- $serviceAccountName := printf "%s-%s" .Release.Name "calico-cni-plugin"}}
 {{ tuple $envAll "calico_node" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
@@ -67,10 +66,9 @@ rules:
 # as the Calico CNI plugins and network config on
 # each master and worker node in a Kubernetes cluster.
 kind: DaemonSet
-apiVersion: apps/v1
+apiVersion: extensions/v1beta1
 metadata:
   name: calico-node
-  namespace: kube-system
   annotations:
     {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
   labels:
@@ -81,30 +79,45 @@ spec:
     matchLabels:
       k8s-app: calico-node
 {{ tuple $envAll "calico" "node" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
   template:
     metadata:
       labels:
         k8s-app: calico-node
 {{ tuple $envAll "calico" "node" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
       annotations:
-        # Mark this pod as a critical add-on; when enabled, the critical add-on scheduler
-        # reserves resources for critical add-on pods so that they can be rescheduled after
-        # a failure.  This annotation works in tandem with the toleration below.
+        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
+        configmap-bird-hash: {{ tuple "configmap-bird.yaml" . | include "helm-toolkit.utils.hash" }}
+        # This, along with the CriticalAddonsOnly toleration below,
+        # marks the pod as a critical add-on, ensuring it gets
+        # priority scheduling and that its resources are reserved
+        # if it ever gets evicted.
         scheduler.alpha.kubernetes.io/critical-pod: ''
 {{- if .Values.monitoring.prometheus.enabled }}
+{{- $prometheus_annotations := $envAll.Values.monitoring.prometheus.calico_node }}
 {{ tuple $prometheus_annotations | include "helm-toolkit.snippets.prometheus_pod_annotations" | indent 8 }}
 {{- end }}
     spec:
+      nodeSelector:
+        beta.kubernetes.io/os: linux
       hostNetwork: true
       tolerations:
-        - key: node-role.kubernetes.io/master
-          effect: NoSchedule
-        # Allow this pod to be rescheduled while the node is in "critical add-ons only" mode.
-        # This, along with the annotation above marks this pod as a critical add-on.
+        # Make sure calico-node gets scheduled on all nodes.
+        - effect: NoSchedule
+          operator: Exists
+        # Mark the pod as a critical add-on for rescheduling.
         - key: CriticalAddonsOnly
           operator: Exists
+        - effect: NoExecute
+          operator: Exists
       serviceAccountName: {{ $serviceAccountName }}
-      terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.node.timeout | default "30" }}
+      # Minimize downtime during a rolling upgrade or deletion; tell Kubernetes to do a "force
+      # deletion": https://kubernetes.io/docs/concepts/workloads/pods/pod/#termination-of-pods.
+      terminationGracePeriodSeconds: 0
       initContainers:
 {{ tuple $envAll "calico_node" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
 {{ if .Values.manifests.daemonset_calico_node_calicoctl }}
@@ -119,13 +132,14 @@ spec:
                 configMapKeyRef:
                   name: calico-etc
                   key: etcd_endpoints
+
 {{ if .Values.endpoints.etcd.auth.client.tls.ca}}
             - name: ETCD_CA_CERT_FILE
               value: {{ .Values.endpoints.etcd.auth.client.path.ca }}
             - name: ETCD_CA_CERT
               valueFrom:
                 secretKeyRef:
-                  name: calico-certificates
+                  name: calico-etcd-secrets
                   key: tls.ca
 {{ end }}
 {{ if .Values.endpoints.etcd.auth.client.tls.key}}
@@ -134,7 +148,7 @@ spec:
             - name: ETCD_KEY
               valueFrom:
                 secretKeyRef:
-                  name: calico-certificates
+                  name: calico-etcd-secrets
                   key: tls.key
 {{ end }}
 {{ if .Values.endpoints.etcd.auth.client.tls.crt}}
@@ -143,7 +157,7 @@ spec:
             - name: ETCD_CERT
               valueFrom:
                 secretKeyRef:
-                  name: calico-certificates
+                  name: calico-etcd-secrets
                   key: tls.crt
 {{ end }}
           volumeMounts:
@@ -154,15 +168,15 @@ spec:
             - mountPath: /tmp/install-calicoctl.sh
               name: calico-bin
               subPath: install-calicoctl.sh
-            - name: calico-certificates
+            - name: calico-etcd-secrets
               mountPath: {{ .Values.endpoints.etcd.auth.client.path.ca }}
               subPath: tls.ca
               readOnly: true
-            - name: calico-certificates
+            - name: calico-etcd-secrets
               mountPath: {{ .Values.endpoints.etcd.auth.client.path.crt }}
               subPath: tls.crt
               readOnly: true
-            - name: calico-certificates
+            - name: calico-etcd-secrets
               mountPath: {{ .Values.endpoints.etcd.auth.client.path.key }}
               subPath: tls.key
               readOnly: true
@@ -175,18 +189,24 @@ spec:
 {{ tuple $envAll "calico_node" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.calico_node | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           env:
+            # Values expanded explicitly from conf.node (some of which
+            # might be derived from elsewhere, see values.yaml for an
+            # explanation of this)
+            #
 {{ include "helm-toolkit.utils.to_k8s_env_vars" .Values.conf.node | indent 12 }}
+
+            # Values explicit in the chart not expected to be found in
+            # conf.node
+            #
+
             # The location of the Calico etcd cluster.
             - name: ETCD_ENDPOINTS
               valueFrom:
                 configMapKeyRef:
                   name: calico-etc
                   key: etcd_endpoints
-            # Set noderef for node controller.
-            - name: CALICO_K8S_NODE_REF
-              valueFrom:
-                fieldRef:
-                  fieldPath: spec.nodeName
+
+            # etcd certs
 {{ if .Values.endpoints.etcd.auth.client.tls.ca}}
             - name: ETCD_CA_CERT_FILE
               value: {{ .Values.endpoints.etcd.auth.client.path.ca }}
@@ -199,8 +219,26 @@ spec:
             - name: ETCD_CERT_FILE
               value: {{ .Values.endpoints.etcd.auth.client.path.crt }}
 {{ end }}
+
+            # Set noderef for node controller.
+            - name: CALICO_K8S_NODE_REF
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+
           securityContext:
             privileged: true
+          resources:
+            requests:
+              cpu: 250m
+          livenessProbe:
+            httpGet:
+              path: /liveness
+              port: 9099
+              host: localhost
+            periodSeconds: 10
+            initialDelaySeconds: 10
+            failureThreshold: 6
           volumeMounts:
             - mountPath: /lib/modules
               name: lib-modules
@@ -208,45 +246,53 @@ spec:
             - mountPath: /var/run/calico
               name: var-run-calico
               readOnly: false
-            - mountPath: /etc/calico/confd/templates/bird6.cfg.mesh.template
-              name: calico-etc
-              subPath: bird6.cfg.mesh.template
-            - mountPath: /etc/calico/confd/templates/bird6.cfg.no-mesh.template
-              name: calico-etc
-              subPath: bird6.cfg.no-mesh.template
-            - mountPath: /etc/calico/confd/templates/bird6_ipam.cfg.template
-              name: calico-etc
-              subPath: bird6_ipam.cfg.template
-            - mountPath: /etc/calico/confd/templates/bird_aggr.cfg.template
-              name: calico-etc
-              subPath: bird_aggr.cfg.template
+
+            # bird template replacements
+            # bird cfg
             - mountPath: /etc/calico/confd/templates/bird.cfg.mesh.template
-              name: calico-etc
+              name: calico-bird
               subPath: bird.cfg.mesh.template
             - mountPath: /etc/calico/confd/templates/bird.cfg.no-mesh.template
-              name: calico-etc
+              name: calico-bird
               subPath: bird.cfg.no-mesh.template
+            # bird ipam
             - mountPath: /etc/calico/confd/templates/bird_ipam.cfg.template
-              name: calico-etc
+              name: calico-bird
               subPath: bird_ipam.cfg.template
+            # bird6 cfg
+            - mountPath: /etc/calico/confd/templates/bird6.cfg.mesh.template
+              name: calico-bird
+              subPath: bird6.cfg.mesh.template
+            - mountPath: /etc/calico/confd/templates/bird6.cfg.no-mesh.template
+              name: calico-bird
+              subPath: bird6.cfg.no-mesh.template
+            # bird6 ipam
+            - mountPath: /etc/calico/confd/templates/bird6_ipam.cfg.template
+              name: calico-bird
+              subPath: bird6_ipam.cfg.template
+            # filters...
+            - mountPath: /etc/calico/confd/templates/bird_aggr.cfg.template
+              name: calico-bird
+              subPath: bird_aggr.cfg.template
             - mountPath: /etc/calico/confd/templates/custom_filters6.cfg.template
-              name: calico-etc
+              name: calico-bird
               subPath: custom_filters6.cfg.template
             - mountPath: /etc/calico/confd/templates/custom_filters.cfg.template
-              name: calico-etc
+              name: calico-bird
               subPath: custom_filters.cfg.template
-            - mountPath: /etc/calico/confd/templates/tunl-ip.template
-              name: calico-etc
-              subPath: tunl-ip.template
-            - name: calico-certificates
+            # etcd secrets
+            - mountPath: /var/lib/calico
+              name: var-lib-calico
+              readOnly: false
+            - name: calico-etcd-secrets
               mountPath: {{ .Values.endpoints.etcd.auth.client.path.ca }}
               subPath: tls.ca
               readOnly: true
-            - name: calico-certificates
+            - name: calico-etcd-secrets
               mountPath: {{ .Values.endpoints.etcd.auth.client.path.crt }}
               subPath: tls.crt
               readOnly: true
-            - name: calico-certificates
+            - name: calico-etcd-secrets
               mountPath: {{ .Values.endpoints.etcd.auth.client.path.key }}
               subPath: tls.key
               readOnly: true
@@ -257,6 +303,12 @@ spec:
 {{ tuple $envAll $envAll.Values.pod.resources.calico_cni | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           command: ["/install-cni.sh"]
           env:
+            # Name of the CNI config file to create.
+            #
+            # NOTE: Calico v2 needs to end in .conf; Calico v3 is
+            # different!
+            - name: CNI_CONF_NAME
+              value: "10-calico.conf"
             # The location of the Calico etcd cluster.
             - name: ETCD_ENDPOINTS
               valueFrom:
@@ -282,6 +334,9 @@ spec:
         - name: var-run-calico
           hostPath:
             path: /var/run/calico
+        - name: var-lib-calico
+          hostPath:
+            path: /var/lib/calico
         # Used to install CNI.
         - name: cni-bin-dir
           hostPath:
@@ -296,11 +351,15 @@ spec:
           configMap:
             name: calico-etc
             defaultMode: 0444
+        - name: calico-bird
+          configMap:
+            name: calico-bird
+            defaultMode: 0444
         - name: calico-bin
           configMap:
             name: calico-bin
             defaultMode: 0555
-        - name: calico-certificates
+        - name: calico-etcd-secrets
           secret:
-            secretName: calico-certificates
+            secretName: calico-etcd-secrets
 {{- end }}

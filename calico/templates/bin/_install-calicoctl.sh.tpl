@@ -40,9 +40,11 @@ fi;
 
 cat <<EOF>/host/opt/cni/bin/calicoctl
 export ETCD_ENDPOINTS=$ETCD_ENDPOINTS
-if [ -e $ETCD_KEY_FILE ]; then export ETCD_KEY_FILE=$ETCD_KEY_FILE; fi;
-if [ -e $ETCD_CERT_FILE ]; then export ETCD_CERT_FILE=$ETCD_CERT_FILE; fi;
-if [ -e $ETCD_CA_CERT_FILE ]; then export ETCD_CA_CERT_FILE=$ETCD_CA_CERT_FILE; fi;
+
+[ -e $ETCD_KEY_FILE ] && export ETCD_KEY_FILE=$ETCD_KEY_FILE
+[ -e $ETCD_CERT_FILE ] && export ETCD_CERT_FILE=$ETCD_CERT_FILE
+[ -e $ETCD_CA_CERT_FILE ] && export ETCD_CA_CERT_FILE=$ETCD_CA_CERT_FILE
+
 exec /opt/cni/bin/calicoctl.bin \$*
 EOF
 

@@ -80,6 +80,6 @@ EOF
 # process IPv6 peers
 {{ if .Values.networking.bgp.ipv6.peers }}
 cat << EOF | ${CALICOCTL} apply -f -
-{{ .Values.networking.bgp.ipv4.peers | toYaml }}
+{{ .Values.networking.bgp.ipv6.peers | toYaml }}
 EOF
 {{ end }}

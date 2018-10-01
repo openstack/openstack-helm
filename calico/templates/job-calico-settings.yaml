@@ -30,6 +30,8 @@ spec:
   template:
     metadata:
       annotations:
+        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
         # Mark this pod as a critical add-on; when enabled, the critical add-on scheduler
         # reserves resources for critical add-on pods so that they can be rescheduled after
         # a failure.  This annotation works in tandem with the toleration below.
@@ -78,15 +80,15 @@ spec:
               mountPath: /tmp/calico-settings.sh
               subPath: calico-settings.sh
               readOnly: true
-            - name: calico-certificates
+            - name: calico-etcd-secrets
               mountPath: {{ .Values.endpoints.etcd.auth.client.path.ca }}
               subPath: tls.ca
               readOnly: true
-            - name: calico-certificates
+            - name: calico-etcd-secrets
               mountPath: {{ .Values.endpoints.etcd.auth.client.path.crt }}
               subPath: tls.crt
               readOnly: true
-            - name: calico-certificates
+            - name: calico-etcd-secrets
               mountPath: {{ .Values.endpoints.etcd.auth.client.path.key }}
               subPath: tls.key
               readOnly: true
@@ -95,7 +97,7 @@ spec:
           configMap:
             name: calico-bin
             defaultMode: 0555
-        - name: calico-certificates
+        - name: calico-etcd-secrets
           secret:
-            secretName: calico-certificates
+            secretName: calico-etcd-secrets
 {{- end }}
