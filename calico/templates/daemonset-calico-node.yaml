@@ -17,34 +17,42 @@ limitations under the License.
 {{- if .Values.manifests.daemonset_calico_node }}
 {{- $envAll := . }}
 
+
+
+{{/* Adjust MTU iff we have tunnel overhead; 20 suffices for an IPv4 IPIP header */}}
+{{- if ne .Values.conf.node.CALICO_IPV4POOL_IPIP "Never" -}}
+{{- $_ := set .Values.networking "mtu" (sub .Values.networking.mtu 20) -}}
+# Adjusted MTU to {{ .Values.networking.mtu }}
+{{ end -}}
+
+
+
+
+{{/* Some values need to be specified in multiple places; set appropriately */}}
+
+{{- if empty .Values.conf.node.FELIX_IPINIPMTU -}}
+{{- $_ := set .Values.conf.node "FELIX_IPINIPMTU" .Values.networking.mtu -}}
+{{- end -}}
+
+{{- if empty .Values.conf.node.CNI_MTU -}}
+{{- $_ := set .Values.conf.node "CNI_MTU" .Values.conf.node.FELIX_IPINIPMTU -}}
+{{- end -}}
+
 {{- if empty .Values.conf.node.CALICO_IPV4POOL_CIDR -}}
 {{- $_ := set .Values.conf.node "CALICO_IPV4POOL_CIDR" .Values.networking.podSubnet -}}
 {{- end -}}
 
-{{- if empty .Values.conf.node.FELIX_IPINIPMTU -}}
-{{/*
-#NOTE(portdirect): to err on the side of caution we subtract 20 from the physical
-# MTU to account for IPIP overhead unless explicty turned off.
-*/}}
-{{- if eq .Values.conf.node.CALICO_IPV4POOL_IPIP "off" -}}
-{{- $_ := set .Values.conf.node "FELIX_IPINIPMTU" .Values.networking.mtu -}}
-{{- else -}}
-{{- $_ := set .Values.conf.node "FELIX_IPINIPMTU" (sub .Values.networking.mtu 20) -}}
-{{- end -}}
-{{- end -}}
-
-
-{{- $serviceAccountName := printf "%s-%s" .Release.Name "calico-cni-plugin"}}
+{{- $serviceAccountName := "calico-node"}}
 {{ tuple $envAll "calico_node" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRoleBinding
 metadata:
-  name: calico-cni-plugin
+  name: calico-node
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: {{ $serviceAccountName }}
+  name: calico-node
 subjects:
 - kind: ServiceAccount
   name: {{ $serviceAccountName }}
@@ -61,6 +69,9 @@ rules:
       - nodes
     verbs:
       - get
+  - apiGroups: ["batch" ]
+    resources: ["jobs"]
+    verbs: ["get" ]
 ---
 # This manifest installs the calico/node container, as well
 # as the Calico CNI plugins and network config on
@@ -118,6 +129,7 @@ spec:
       # Minimize downtime during a rolling upgrade or deletion; tell Kubernetes to do a "force
       # deletion": https://kubernetes.io/docs/concepts/workloads/pods/pod/#termination-of-pods.
       terminationGracePeriodSeconds: 0
+
       initContainers:
 {{ tuple $envAll "calico_node" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
 {{ if .Values.manifests.daemonset_calico_node_calicoctl }}
@@ -132,7 +144,6 @@ spec:
                 configMapKeyRef:
                   name: calico-etc
                   key: etcd_endpoints
-
 {{ if .Values.endpoints.etcd.auth.client.tls.ca}}
             - name: ETCD_CA_CERT_FILE
               value: {{ .Values.endpoints.etcd.auth.client.path.ca }}
@@ -181,6 +192,7 @@ spec:
               subPath: tls.key
               readOnly: true
 {{ end }}
+
       containers:
         # Runs calico/node container on each Kubernetes node.  This
         # container programs network policy and routes on each
@@ -239,6 +251,15 @@ spec:
             periodSeconds: 10
             initialDelaySeconds: 10
             failureThreshold: 6
+
+          # Only for Calico v3
+          readinessProbe:
+            exec:
+              command:
+              - /bin/calico-node
+              - -bird-ready
+              - -felix-ready
+            periodSeconds: 10
           volumeMounts:
             - mountPath: /lib/modules
               name: lib-modules
@@ -249,37 +270,21 @@ spec:
 
             # bird template replacements
             # bird cfg
-            - mountPath: /etc/calico/confd/templates/bird.cfg.mesh.template
+            - mountPath: /etc/calico/confd/templates/bird.cfg.template
               name: calico-bird
-              subPath: bird.cfg.mesh.template
-            - mountPath: /etc/calico/confd/templates/bird.cfg.no-mesh.template
-              name: calico-bird
-              subPath: bird.cfg.no-mesh.template
+              subPath: bird.cfg.template
             # bird ipam
             - mountPath: /etc/calico/confd/templates/bird_ipam.cfg.template
               name: calico-bird
               subPath: bird_ipam.cfg.template
             # bird6 cfg
-            - mountPath: /etc/calico/confd/templates/bird6.cfg.mesh.template
+            - mountPath: /etc/calico/confd/templates/bird6.cfg.template
               name: calico-bird
-              subPath: bird6.cfg.mesh.template
-            - mountPath: /etc/calico/confd/templates/bird6.cfg.no-mesh.template
-              name: calico-bird
-              subPath: bird6.cfg.no-mesh.template
+              subPath: bird6.cfg.template
             # bird6 ipam
             - mountPath: /etc/calico/confd/templates/bird6_ipam.cfg.template
               name: calico-bird
               subPath: bird6_ipam.cfg.template
-            # filters...
-            - mountPath: /etc/calico/confd/templates/bird_aggr.cfg.template
-              name: calico-bird
-              subPath: bird_aggr.cfg.template
-            - mountPath: /etc/calico/confd/templates/custom_filters6.cfg.template
-              name: calico-bird
-              subPath: custom_filters6.cfg.template
-            - mountPath: /etc/calico/confd/templates/custom_filters.cfg.template
-              name: calico-bird
-              subPath: custom_filters.cfg.template
             # etcd secrets
             - mountPath: /var/lib/calico
               name: var-lib-calico
@@ -300,15 +305,14 @@ spec:
         # and CNI network config file on each node.
         - name: install-cni
 {{ tuple $envAll "calico_cni" | include "helm-toolkit.snippets.image" | indent 10 }}
-{{ tuple $envAll $envAll.Values.pod.resources.calico_cni | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           command: ["/install-cni.sh"]
           env:
             # Name of the CNI config file to create.
             #
-            # NOTE: Calico v2 needs to end in .conf; Calico v3 is
+            # NOTE: Calico v3 needs to end in .conflist; Calico v2 is
             # different!
             - name: CNI_CONF_NAME
-              value: "10-calico.conf"
+              value: "10-calico.conflist"
             # The location of the Calico etcd cluster.
             - name: ETCD_ENDPOINTS
               valueFrom:
@@ -321,6 +325,7 @@ spec:
                 configMapKeyRef:
                   name: calico-etc
                   key: cni_network_config
+
           volumeMounts:
             - name: cni-bin-dir
               mountPath: /host/opt/cni/bin
@@ -362,4 +367,5 @@ spec:
         - name: calico-etcd-secrets
           secret:
             secretName: calico-etcd-secrets
+
 {{- end }}

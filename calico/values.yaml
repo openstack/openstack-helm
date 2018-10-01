@@ -14,13 +14,15 @@
 
 images:
   tags:
-    calico_etcd: quay.io/coreos/etcd:v3.1.14
-    calico_node: quay.io/calico/node:v2.6.9
-    calico_cni: quay.io/calico/cni:v1.11.5
-    calico_ctl: quay.io/calico/ctl:v1.6.4
-    calico_settings: quay.io/calico/ctl:v1.6.4
+    # These are minimum versions, older images will very likely not
+    # work
+    calico_etcd: quay.io/coreos/etcd:v3.3.9
+    calico_node: quay.io/calico/node:v3.2.1
+    calico_cni: quay.io/calico/cni:v3.2.1
+    calico_ctl: calico/ctl:release-v3.2-amd64
+    calico_settings: calico/ctl:release-v3.2-amd64
     # NOTE: plural key, singular value
-    calico_kube_controllers: quay.io/calico/kube-policy-controller:v0.7.0
+    calico_kube_controllers: quay.io/calico/kube-controllers:v3.2.1
     dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.3.1
     image_repo_sync: docker.io/docker:17.07.0
   pull_policy: IfNotPresent
@@ -179,9 +181,9 @@ monitoring:
 
 networking:
   podSubnet: 192.168.0.0/16
-  # NOTE(portdirect): this should be the physical MTU, the appropriate MTU
-  # that calico should use will be calculated.
+  # Physical MTU, if ipip is enabled, the chart will adjust things downward
   mtu: 1500
+
   settings:
     mesh: "on"
     # technically this could be a list, today we only support
@@ -190,69 +192,60 @@ networking:
     ippool:
       ipip:
         enabled: "true"
-        # lowercase value
-        mode: "always"
+        # Titlecase
+        mode: "Always"
       nat_outgoing: "true"
       disabled: "false"
+
   bgp:
     # our asnumber for bgp peering
     asnumber: 64512
     ipv4:
-      # https://docs.projectcalico.org/v2.0/reference/calicoctl/resources/bgppeer
+      # https://docs.projectcalico.org/v3.2/reference/calicoctl/resources/bgppeer
       #
       # this is a list of peer objects that will be passed directly to
       # calicoctl - for global peers, the scope should be global and
       # the node attribute removed
       #
-      #  apiVersion: v1
-      #  kind: bgpPeer
-      #  metadata:
-      #    peerIP: 10.1.10.39
-      #    scope: node
-      #    node: some.name
-      #  spec:
-      #    asNumber: 64512
+      # apiVersion: projectcalico.org/v3
+      # kind: BGPPeer
+      # metadata:
+      #   name: some.name
+      # spec:
+      #   node: rack1-host1
+      #   peerIP: 10.1.10.39
+      #   asNumber: 64512
       peers: []
       # this is a list of additional IPv4 cidrs that if we discover
       # IPs within them on a host, we will announce the address in
       # addition to traditional pod workloads
       additional_cidrs: []
-      mesh:
-        port:
-          neighbor: 179
-          listen: 179
-      no_mesh:
-        port:
-          neighbor: 179
-          listen: 179
+      port:
+        neighbor: 179
+        listen: 179
     ipv6:
-      # https://docs.projectcalico.org/v2.0/reference/calicoctl/resources/bgppeer
+      # https://docs.projectcalico.org/v3.2/reference/calicoctl/resources/bgppeer
       #
       # this is a list of peer objects that will be passed directly to
       # calicoctl - for global peers, the scope should be global and
       # the node attribute removed
       #
-      #  apiVersion: v1
-      #  kind: bgpPeer
-      #  metadata:
-      #    peerIP: 2600:1:2:3::abcd
-      #    scope: node
-      #    node: rack1-host1
-      #  spec:
-      #    asNumber: 64512
+      # apiVersion: projectcalico.org/v3
+      # kind: BGPPeer
+      # metadata:
+      #   name: some.name
+      # spec:
+      #   node: rack1-host1
+      #   peerIP: 2600:1:2:3::abcd
+      #   asNumber: 64512
       peers: []
       # this is a list of additional IPv6 cidrs that if we discover
       # IPs within them on a host, we will announce them in addition
       # to traditional pod workloads
       additional_cidrs: []
-      mesh:
-        port:
-          neighbor: 179
-          listen: 179
-      no_mesh:
-        port:
-          neighbor: 179
-          listen: 179
+      port:
+        neighbor: 179
+        listen: 179
 
 conf:
   etcd:
@@ -260,22 +253,34 @@ conf:
       ca: null
       key: null
       certificate: null
+  # NOTE; syntax has subtly changed since Calico v2.  For Armada *all*
+  # of this needes to be specified.  We're using yaml here which we
+  # can't robustly convert to json (which the node pod requires) so it
+  # might be we revisit that and embedded a json string that gets
+  # edits
   cni_network_config:
-    # https://docs.projectcalico.org/v2.0/reference/cni-plugin/configuration
+    # https://docs.projectcalico.org/v3.2/reference/cni-plugin/configuration
+    #
+    # other than the etcd_* keys you likely want to leave this as-is
     name: k8s-pod-network
-    cniVersion: 0.1.0
-    type: calico
-    etcd_endpoints: __ETCD_ENDPOINTS__
-    log_level: info
-    mtu: null
-    ipam:
-      type: calico-ipam
-    policy:
-      type: k8s
-      k8s_api_root: https://__KUBERNETES_SERVICE_HOST__:__KUBERNETES_SERVICE_PORT__
-      k8s_auth_token: __SERVICEACCOUNT_TOKEN__
-    kubernetes:
-      kubeconfig: "/etc/cni/net.d/__KUBECONFIG_FILENAME__"
+    cniVersion: 0.3.0
+    plugins:
+    - type: calico
+      log_level: info
+      etcd_endpoints: __ETCD_ENDPOINTS__
+      etcd_key_file: __ETCD_KEY_FILE__
+      etcd_cert_file: __ETCD_CERT_FILE__
+      etcd_ca_cert_file: __ETCD_CA_CERT_FILE__
+      ipam:
+        type: calico-ipam
+      policy:
+        type: k8s
+      kubernetes:
+        kubeconfig: __KUBECONFIG_FILEPATH__
+    - type: portmap
+      snat: true
+      capabilities:
+        portMappings: true
   controllers:
     # The location of the Kubernetes API.  Use the default Kubernetes
     # service for API access.
@@ -286,11 +291,14 @@ conf:
     # access, configure the container's /etc/hosts to resolve
     # kubernetes.default to the correct service clusterIP.
     CONFIGURE_ETC_HOSTS: "true"
+
   node:
+    # for specific details see
+    # https://docs.projectcalico.org/v3.2/reference/node/configuration
+    name: k8s-pod-network
     # Cluster type to identify the deployment type
-    CLUSTER_TYPE:
-      - kubeadm
-      - bgp
+    # NOTE: v2 had a list ... v3 a comma separated string
+    CLUSTER_TYPE: "k8s,bgp"
     # Describes which BGP networking backend to use gobgp, bird, none.  Default is bird.
     # NOTE(alanmeadows) today this chart only supports applying the bgp customizations to
     # bird templates - in the future we may support gobgp as well
@@ -308,8 +316,8 @@ conf:
     # Configure the IP Pool from which Pod IPs will be chosen.
     CALICO_IPV4POOL_CIDR: null
     # Change this to 'off' in environments with direct L2 communication
-    # lowercase
-    CALICO_IPV4POOL_IPIP: "always"
+    # Titlecase
+    CALICO_IPV4POOL_IPIP: "Always"
     # Disable IPv6 on Kubernetes.
     FELIX_IPV6SUPPORT: "false"
     # Set MTU for tunnel device used if ipip is enabled
