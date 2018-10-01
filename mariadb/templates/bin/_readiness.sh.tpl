@@ -45,8 +45,3 @@ if [ "x$(mysql_status_query wsrep_local_state_comment)" != "xSynced" ]; then
     # WSREP not synced
     exit 1
 fi
-
-# If we made it this far, its safe to remove the bootstrap file if present
-if [ -e ${BOOTSTRAP_FILE} ]; then
-  rm -f ${BOOTSTRAP_FILE}
-fi
