@@ -30,6 +30,15 @@ if [[ -c /dev/kvm ]]; then
     chown root:kvm /dev/kvm
 fi
 
+#Setup Cgroups to use when breaking out of Kubernetes defined groups
+CGROUPS=""
+for CGROUP in cpu rdma hugetlb; do
+  if [ -d /sys/fs/cgroup/${CGROUP} ]; then
+    CGROUPS+="${CGROUP},"
+  fi
+done
+cgcreate -g ${CGROUPS%,}:/osh-libvirt
+
 # We assume that if hugepage count > 0, then hugepages should be exposed to libvirt/qemu
 hp_count="$(cat /proc/meminfo | grep HugePages_Total | tr -cd '[:digit:]')"
 if [ 0"$hp_count" -gt 0 ]; then
@@ -55,11 +64,6 @@ if [ 0"$hp_count" -gt 0 ]; then
   # hugepage byte limit quota to zero out. This workaround sets that pod limit
   # back to the total number of hugepage bytes available to the baremetal host.
   if [ -d /sys/fs/cgroup/hugetlb ]; then
-    # NOTE(portdirect): Kubelet will always create pod specific cgroups for
-    # hugetables so if the hugetlb cgroup is enabled, when k8s removes the pod
-    # it will also remove the hugetlb cgroup for the pod, taking any qemu
-    # processes with it.
-    echo "WARN: As the hugetlb cgroup is enabled, it will not be possible to restart the libvirt pod via k8s, without killing VMs."
     for limit in $(ls /sys/fs/cgroup/hugetlb/kubepods/hugetlb.*.limit_in_bytes); do
       target="/sys/fs/cgroup/hugetlb/$(dirname $(awk -F: '($2~/hugetlb/){print $3}' /proc/self/cgroup))/$(basename $limit)"
       # Ensure the write target for the hugepage limit for the pod exists
@@ -88,7 +92,8 @@ if [ 0"$hp_count" -gt 0 ]; then
 fi
 
 if [ -n "${LIBVIRT_CEPH_CINDER_SECRET_UUID}" ] ; then
-  libvirtd --listen &
+  #NOTE(portdirect): run libvirtd as a transient unit on the host with the osh-libvirt cgroups applied.
+  cgexec -g ${CGROUPS%,}:/osh-libvirt systemd-run --scope --slice=system libvirtd --listen &
 
   tmpsecret=$(mktemp --suffix .xml)
   function cleanup {
@@ -140,5 +145,6 @@ EOF
   # rejoin libvirtd
   wait
 else
-  exec libvirtd --listen
+  #NOTE(portdirect): run libvirtd as a transient unit on the host with the osh-libvirt cgroups applied.
+  exec cgexec -g ${CGROUPS%,}:/osh-libvirt systemd-run --scope --slice=system libvirtd --listen
 fi
