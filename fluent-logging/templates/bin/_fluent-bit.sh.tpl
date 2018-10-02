@@ -18,4 +18,10 @@ limitations under the License.
 
 set -ex
 
+if [ -d "/var/log/journal" ]; then
+  export JOURNAL_PATH="/var/log/journal"
+else
+  export JOURNAL_PATH="/run/log/journal"
+fi
+
 exec /fluent-bit/bin/fluent-bit -c /fluent-bit/etc/fluent-bit.conf
