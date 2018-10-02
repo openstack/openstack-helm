@@ -57,17 +57,17 @@ chart:
 
     images:
       tags:
-        bootstrap: docker.io/openstackhelm/heat:newton
-        db_init: docker.io/openstackhelm/heat:newton
-        db_sync: docker.io/kolla/ubuntu-source-heat-api:3.0.3
-        db_drop: docker.io/openstackhelm/heat:newton
-        ks_user: docker.io/openstackhelm/heat:newton
-        ks_service: docker.io/openstackhelm/heat:newton
-        ks_endpoints: docker.io/openstackhelm/heat:newton
-        api: docker.io/kolla/ubuntu-source-heat-api:3.0.3
-        cfn: docker.io/kolla/ubuntu-source-heat-api:3.0.3
-        cloudwatch: docker.io/kolla/ubuntu-source-heat-api:3.0.3
-        engine: docker.io/openstackhelm/heat:newton
+        bootstrap: docker.io/openstackhelm/heat:ocata
+        db_init: docker.io/openstackhelm/heat:ocata
+        db_sync: docker.io/kolla/ubuntu-source-heat-api:ocata
+        db_drop: docker.io/openstackhelm/heat:ocata
+        ks_user: docker.io/openstackhelm/heat:ocata
+        ks_service: docker.io/openstackhelm/heat:ocata
+        ks_endpoints: docker.io/openstackhelm/heat:ocata
+        api: docker.io/kolla/ubuntu-source-heat-api:ocata
+        cfn: docker.io/kolla/ubuntu-source-heat-api:ocata
+        cloudwatch: docker.io/kolla/ubuntu-source-heat-api:ocata
+        engine: docker.io/openstackhelm/heat:ocata
         dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.3.1
       pull_policy: "IfNotPresent"
 

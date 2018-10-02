@@ -37,7 +37,7 @@ sudo docker run -d \
   --cap-add=NET_ADMIN \
   --volume /etc/kubernetes/kubelet-resolv.conf:/etc/kubernetes/kubelet-resolv.conf:ro \
   --entrypoint dnsmasq \
-  docker.io/openstackhelm/neutron:newton \
+  docker.io/openstackhelm/neutron:ocata \
     --keep-in-foreground \
     --no-hosts \
     --bind-interfaces \
