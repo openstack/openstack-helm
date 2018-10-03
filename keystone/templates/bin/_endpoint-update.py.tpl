@@ -73,9 +73,8 @@ except:
 # Set Internal Endpoint
 try:
     endpoint_url = os.environ['OS_BOOTSTRAP_INTERNAL_URL']
-    user_engine.execute(
-        "update endpoint set url = '{0}' where interface ='internal' and service_id = (select id from service where service.type = 'identity')".
-        format(endpoint_url))
+    cmd = "update endpoint set url = %s where interface ='internal' and service_id = (select id from service where service.type = 'identity')"
+    user_engine.execute(cmd, (endpoint_url,))
 except:
     logger.critical("Could not update internal endpoint")
     raise
@@ -83,9 +82,8 @@ except:
 # Set Admin Endpoint
 try:
     endpoint_url = os.environ['OS_BOOTSTRAP_ADMIN_URL']
-    user_engine.execute(
-        "update endpoint set url = '{0}' where interface ='admin' and service_id = (select id from service where service.type = 'identity')".
-        format(endpoint_url))
+    cmd = "update endpoint set url = %s where interface ='admin' and service_id = (select id from service where service.type = 'identity')"
+    user_engine.execute(cmd, (endpoint_url,))
 except:
     logger.critical("Could not update admin endpoint")
     raise
@@ -93,9 +91,8 @@ except:
 # Set Public Endpoint
 try:
     endpoint_url = os.environ['OS_BOOTSTRAP_PUBLIC_URL']
-    user_engine.execute(
-        "update endpoint set url = '{0}' where interface ='public' and service_id = (select id from service where service.type = 'identity')".
-        format(endpoint_url))
+    cmd = "update endpoint set url = %s where interface ='public' and service_id = (select id from service where service.type = 'identity')"
+    user_engine.execute(cmd, (endpoint_url,))
 except:
     logger.critical("Could not update public endpoint")
     raise

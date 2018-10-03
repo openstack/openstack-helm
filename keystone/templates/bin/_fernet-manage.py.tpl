@@ -25,7 +25,7 @@ import os
 import pwd
 import re
 import six
-import subprocess
+import subprocess  #nosec
 import sys
 import time
 
@@ -127,7 +127,7 @@ def execute_command(cmd):
     LOG.info("Executing 'keystone-manage %s --keystone-user=%s "
              "--keystone-group=%s' command.",
              cmd, KEYSTONE_USER, KEYSTONE_GROUP)
-    subprocess.call(['keystone-manage', cmd,
+    subprocess.call(['keystone-manage', cmd,  #nosec
                      '--keystone-user=%s' % KEYSTONE_USER,
                      '--keystone-group=%s' % KEYSTONE_GROUP])
 
