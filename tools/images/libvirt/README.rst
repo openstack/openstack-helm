@@ -30,7 +30,7 @@ repo run:
 
 .. code:: bash
 
-    TARGET_OPENSTACK_VERSION=ocata
+    LIBVIRT_VERSION=1.3.1-1ubuntu10.24
     DISTRO=ubuntu
     DISTRO_RELEASE=xenial
     CEPH_RELEASE=luminous
@@ -41,8 +41,8 @@ repo run:
       --pull \
       --no-cache \
       --file=./tools/images/libvirt/Dockerfile.${DISTRO}.xenial \
-      --build-arg TARGET_OPENSTACK_VERSION="${TARGET_OPENSTACK_VERSION}" \
+      --build-arg LIBVIRT_VERSION="${LIBVIRT_VERSION}" \
       --build-arg CEPH_RELEASE="${CEPH_RELEASE}" \
-      -t docker.io/openstackhelm/libvirt:${DISTRO}-${DISTRO_RELEASE}-${TARGET_OPENSTACK_VERSION} \
+      -t docker.io/openstackhelm/libvirt:${DISTRO}-${DISTRO_RELEASE}-${LIBVIRT_VERSION} \
       tools/images/libvirt
-    sudo docker push docker.io/openstackhelm/libvirt:${DISTRO}-${DISTRO_RELEASE}-${TARGET_OPENSTACK_VERSION}
+    sudo docker push docker.io/openstackhelm/libvirt:${DISTRO}-${DISTRO_RELEASE}-${LIBVIRT_VERSION}

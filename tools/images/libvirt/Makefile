@@ -15,7 +15,7 @@
 # It's necessary to set this because some environments don't link sh -> bash.
 SHELL := /bin/bash
 
-TARGET_OPENSTACK_VERSION   ?= ocata
+LIBVIRT_VERSION            ?= 1.3.1-1ubuntu10.24
 DISTRO                     ?= ubuntu
 DISTRO_RELEASE             ?= xenial
 CEPH_RELEASE               ?= luminous
@@ -23,7 +23,7 @@ CEPH_RELEASE               ?= luminous
 DOCKER_REGISTRY            ?= docker.io
 IMAGE_NAME                 ?= libvirt
 IMAGE_PREFIX               ?= openstackhelm
-IMAGE_TAG                  ?= $(DISTRO)-$(DISTRO_RELEASE)-$(TARGET_OPENSTACK_VERSION)
+IMAGE_TAG                  ?= $(DISTRO)-$(DISTRO_RELEASE)-$(LIBVIRT_VERSION)
 LABEL                      ?= putlabelshere
 
 IMAGE := ${DOCKER_REGISTRY}/${IMAGE_PREFIX}/${IMAGE_NAME}:${IMAGE_TAG}
@@ -39,7 +39,7 @@ build_$(IMAGE_NAME):
 	--network=host \
 	--force-rm \
 	--file=./Dockerfile.${DISTRO}.xenial \
-	--build-arg TARGET_OPENSTACK_VERSION="${TARGET_OPENSTACK_VERSION}" \
+	--build-arg LIBVIRT_VERSION="${LIBVIRT_VERSION}" \
 	--build-arg CEPH_RELEASE="${CEPH_RELEASE}" \
 	--label $(LABEL) \
 	-t $(IMAGE) \
