@@ -55,10 +55,10 @@ elif [ "x$STORAGE_BACKEND" == "xrbd" ]; then
     echo "${KEYSTR}" > "${KEYRING}"
   else
     #NOTE(Portdirect): Determine proper privs to assign keyring
+    #NOTE(JCL): Restrict Glance user to only what is needed. MON Read only and RBD access to the Glance Pool
     ceph auth get-or-create "client.${RBD_POOL_USER}" \
-      mon "allow *" \
-      osd "allow *" \
-      mgr "allow *" \
+      mon "profile rbd" \
+      osd "profile rbd pool=${RBD_POOL_NAME}" \
       -o "${KEYRING}"
   fi
 

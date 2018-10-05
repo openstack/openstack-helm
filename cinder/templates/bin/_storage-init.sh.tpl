@@ -48,10 +48,10 @@ if [ "x$STORAGE_BACKEND" == "xcinder.volume.drivers.rbd.RBDDriver" ]; then
     echo $KEYSTR  > ${KEYRING}
   else
     #NOTE(Portdirect): Determine proper privs to assign keyring
+    #NOTE(JCL): Restrict Cinder permissions to what is needed. MON Read only and RBD access to Cinder pool only.
     ceph auth get-or-create client.${RBD_POOL_USER} \
-      mon "allow *" \
-      osd "allow *" \
-      mgr "allow *" \
+      mon "profile rbd" \
+      osd "profile rbd" \
       -o ${KEYRING}
   fi
 

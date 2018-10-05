@@ -26,12 +26,12 @@ cat > ${KEYRING} <<EOF
     key = {{ .Values.conf.ceph.cinder.keyring }}
 EOF
 {{- else }}
-if ! [ "x${CEPH_CINDER_USER}" == "xadmin"]; then
+if ! [ "x${CEPH_CINDER_USER}" == "xadmin" ]; then
   #NOTE(Portdirect): Determine proper privs to assign keyring
+  #NOTE(JCL): Restrict permissions to what is needed. So MON Read only and RBD access.
   ceph auth get-or-create client.${CEPH_CINDER_USER} \
-    mon "allow *" \
-    osd "allow *" \
-    mgr "allow *" \
+    mon "profile rbd" \
+    osd "profile rbd" \
     -o ${KEYRING}
 
   rm -f /etc/ceph/ceph.client.admin.keyring

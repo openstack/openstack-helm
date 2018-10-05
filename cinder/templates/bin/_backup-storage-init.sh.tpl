@@ -51,10 +51,10 @@ elif [ "x$STORAGE_BACKEND" == "xcinder.backup.drivers.ceph" ]; then
     echo $KEYSTR  > ${KEYRING}
   else
     #NOTE(Portdirect): Determine proper privs to assign keyring
+    #NOTE(JCL): Adjusted permissions for cinder backup.
     ceph auth get-or-create client.${RBD_POOL_USER} \
-      mon "allow *" \
-      osd "allow *" \
-      mgr "allow *" \
+      mon "profile rbd" \
+      osd "profile rbd pool=${RBD_POOL_NAME}" \
       -o ${KEYRING}
   fi
 
