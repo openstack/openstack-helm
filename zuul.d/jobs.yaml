@@ -1,4 +1,5 @@
-# Copyright 2017 The Openstack-Helm Authors.
+---
+# Copyright 2018 SUSE LINUX GmbH.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,172 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-- project:
-    templates:
-      - publish-openstack-docs-pti
-    check:
-      jobs:
-        - openstack-helm-infra-linter
-        - openstack-helm-infra-five-ubuntu
-        - openstack-helm-infra-dev-deploy-ceph:
-            # NOTE(srwilkers): Changing the dev-deploy-ceph job to nonvoting
-            # until we can agree on the proper services to deploy with this job
-            voting: false
-        - openstack-helm-infra-dev-deploy-nfs:
-            #NOTE(srwilkers): Changing the dev-deploy-nfs job to nonvoting until
-            # we can agree on the proper services to deploy with this job
-            voting: false
-        - openstack-helm-infra-openstack-support
-        - openstack-helm-infra-kubernetes-keystone-auth
-    gate:
-      jobs:
-        - openstack-helm-infra-linter
-        - openstack-helm-infra-five-ubuntu
-        - openstack-helm-infra-openstack-support
-        - openstack-helm-infra-kubernetes-keystone-auth
-    experimental:
-      jobs:
-        #NOTE(srwilkers): Make fedora job experimental until issues resolved
-        - openstack-helm-infra-five-fedora
-        #NOTE(srwilkers): Make centos job experimental until issues resolved
-        - openstack-helm-infra-five-centos
-
-- nodeset:
-    name: openstack-helm-single-node
-    nodes:
-      - name: primary
-        label: ubuntu-xenial
-    groups:
-      - name: primary
-        nodes:
-          - primary
-
-- nodeset:
-    name: openstack-helm-ubuntu
-    nodes:
-      - name: primary
-        label: ubuntu-xenial
-      - name: node-1
-        label: ubuntu-xenial
-      - name: node-2
-        label: ubuntu-xenial
-    groups:
-      - name: primary
-        nodes:
-          - primary
-      - name: nodes
-        nodes:
-          - node-1
-          - node-2
-
-- nodeset:
-    name: openstack-helm-centos
-    nodes:
-      - name: primary
-        label: centos-7
-      - name: node-1
-        label: centos-7
-      - name: node-2
-        label: centos-7
-    groups:
-      - name: primary
-        nodes:
-          - primary
-      - name: nodes
-        nodes:
-          - node-1
-          - node-2
-
-- nodeset:
-    name: openstack-helm-fedora
-    nodes:
-      - name: primary
-        label: fedora-latest
-      - name: node-1
-        label: fedora-latest
-      - name: node-2
-        label: fedora-latest
-    groups:
-      - name: primary
-        nodes:
-          - primary
-      - name: nodes
-        nodes:
-          - node-1
-          - node-2
-
-
-- nodeset:
-    name: openstack-helm-five-node-ubuntu
-    nodes:
-      - name: primary
-        label: ubuntu-xenial
-      - name: node-1
-        label: ubuntu-xenial
-      - name: node-2
-        label: ubuntu-xenial
-      - name: node-3
-        label: ubuntu-xenial
-      - name: node-4
-        label: ubuntu-xenial
-    groups:
-      - name: primary
-        nodes:
-          - primary
-      - name: nodes
-        nodes:
-          - node-1
-          - node-2
-          - node-3
-          - node-4
-
-- nodeset:
-    name: openstack-helm-five-node-centos
-    nodes:
-      - name: primary
-        label: centos-7
-      - name: node-1
-        label: centos-7
-      - name: node-2
-        label: centos-7
-      - name: node-3
-        label: centos-7
-      - name: node-4
-        label: centos-7
-    groups:
-      - name: primary
-        nodes:
-          - primary
-      - name: nodes
-        nodes:
-          - node-1
-          - node-2
-          - node-3
-          - node-4
-
-- nodeset:
-    name: openstack-helm-five-node-fedora
-    nodes:
-      - name: primary
-        label: fedora-latest
-      - name: node-1
-        label: fedora-latest
-      - name: node-2
-        label: fedora-latest
-      - name: node-3
-        label: fedora-latest
-      - name: node-4
-        label: fedora-latest
-    groups:
-      - name: primary
-        nodes:
-          - primary
-      - name: nodes
-        nodes:
-          - node-1
-          - node-2
-          - node-3
-          - node-4
+- job:
+    name: openstack-helm-lint
+    run: zuul.d/playbooks/lint.yml
+    nodeset: ubuntu-xenial
 
 - job:
     name: openstack-helm-infra-functional
@@ -223,6 +62,7 @@
         - ./tools/deployment/multinode/125-elasticsearch-ldap.sh
         - ./tools/deployment/multinode/130-fluent-logging.sh
         - ./tools/deployment/multinode/140-kibana.sh
+
 
 - job:
     name: openstack-helm-infra-ubuntu
@@ -319,7 +159,6 @@
         - ./tools/deployment/openstack-support/035-mariadb.sh
         - ./tools/deployment/openstack-support/040-libvirt.sh
         - ./tools/deployment/openstack-support/045-openvswitch.sh
-
 - job:
     name: openstack-helm-infra-five-ubuntu
     parent: openstack-helm-infra
