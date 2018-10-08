@@ -1,1 +1,0 @@
-../developer/ceph/030-ceph.sh

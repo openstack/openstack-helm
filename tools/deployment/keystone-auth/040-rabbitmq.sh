@@ -1,1 +1,1 @@
-../openstack-support/025-rabbitmq.sh
+../openstack-support/030-rabbitmq.sh

@@ -1,1 +1,1 @@
-../developer/nfs/030-nfs-provisioner.sh
+../osh-infra-monitoring/030-nfs-provisioner.sh

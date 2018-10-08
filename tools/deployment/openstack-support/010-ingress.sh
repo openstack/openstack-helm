@@ -38,7 +38,7 @@ helm upgrade --install ingress-kube-system ./ingress \
 helm status ingress-kube-system
 
 #NOTE: Deploy namespace ingress
-for NAMESPACE in openstack ceph; do
+for NAMESPACE in ceph openstack; do
   helm upgrade --install ingress-${NAMESPACE} ./ingress \
     --namespace=${NAMESPACE} \
     ${OSH_EXTRA_HELM_ARGS} \

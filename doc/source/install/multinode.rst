@@ -222,16 +222,3 @@ Alternatively, this step can be performed by running the script directly:
 .. code-block:: shell
 
   ./tools/deployment/multinode/130-fluent-logging.sh
-
-Deploy Kibana
-^^^^^^^^^^^^^
-
-.. literalinclude:: ../../../tools/deployment/multinode/140-kibana.sh
-    :language: shell
-    :lines: 1,17-
-
-Alternatively, this step can be performed by running the script directly:
-
-.. code-block:: shell
-
-  ./tools/deployment/multinode/140-kibana.sh
