@@ -200,8 +200,29 @@
       - playbooks/osh-infra-deploy-docker.yaml
       - playbooks/osh-infra-build.yaml
       - playbooks/osh-infra-deploy-k8s.yaml
-    run: playbooks/osh-infra-multinode-deploy.yaml
+    run: playbooks/osh-infra-gate-runner.yaml
     post-run: playbooks/osh-infra-collect-logs.yaml
+    vars:
+      gate_scripts:
+        - ./tools/deployment/multinode/010-deploy-docker-registry.sh
+        - ./tools/deployment/multinode/020-ingress.sh
+        - ./tools/deployment/multinode/030-ceph.sh
+        - ./tools/deployment/multinode/035-ceph-ns-activate.sh
+        - ./tools/deployment/multinode/040-ldap.sh
+        - ./tools/deployment/multinode/045-mariadb.sh
+        - ./tools/deployment/multinode/050-prometheus.sh
+        - ./tools/deployment/multinode/060-alertmanager.sh
+        - ./tools/deployment/multinode/070-kube-state-metrics.sh
+        - ./tools/deployment/multinode/080-node-exporter.sh
+        - ./tools/deployment/multinode/085-process-exporter.sh
+        - ./tools/deployment/multinode/090-openstack-exporter.sh
+        - ./tools/deployment/multinode/100-grafana.sh
+        - ./tools/deployment/multinode/110-nagios.sh
+        - ./tools/deployment/multinode/115-radosgw-osh-infra.sh
+        - ./tools/deployment/multinode/120-elasticsearch.sh
+        - ./tools/deployment/multinode/125-elasticsearch-ldap.sh
+        - ./tools/deployment/multinode/130-fluent-logging.sh
+        - ./tools/deployment/multinode/140-kibana.sh
 
 - job:
     name: openstack-helm-infra-ubuntu
@@ -223,27 +244,81 @@
     parent: openstack-helm-functional
     timeout: 7200
     pre-run: playbooks/osh-infra-upgrade-host.yaml
-    run: playbooks/osh-infra-dev-deploy-ceph.yaml
+    run: playbooks/osh-infra-gate-runner.yaml
     post-run: playbooks/osh-infra-collect-logs.yaml
     nodeset: openstack-helm-single-node
+    vars:
+      gate_scripts:
+        - ./tools/deployment/developer/ceph/000-install-packages.sh
+        - ./tools/deployment/developer/ceph/005-deploy-k8s.sh
+        - ./tools/deployment/developer/ceph/010-deploy-docker-registry.sh
+        - ./tools/deployment/developer/ceph/020-ingress.sh
+        - ./tools/deployment/developer/ceph/030-ceph.sh
+        - ./tools/deployment/developer/ceph/035-ceph-ns-activate.sh
+        - ./tools/deployment/developer/ceph/040-ldap.sh
+        - ./tools/deployment/developer/ceph/045-mariadb.sh
+        - ./tools/deployment/developer/ceph/050-prometheus.sh
+        - ./tools/deployment/developer/ceph/060-alertmanager.sh
+        - ./tools/deployment/developer/ceph/070-kube-state-metrics.sh
+        - ./tools/deployment/developer/ceph/080-node-exporter.sh
+        - ./tools/deployment/developer/ceph/090-process-exporter.sh
+        - ./tools/deployment/developer/ceph/100-grafana.sh
+        - ./tools/deployment/developer/ceph/110-nagios.sh
+        - ./tools/deployment/developer/ceph/115-radosgw-osh-infra.sh
+        - ./tools/deployment/developer/ceph/120-elasticsearch.sh
+        - ./tools/deployment/developer/ceph/125-elasticsearch-ldap.sh
+        - ./tools/deployment/developer/ceph/130-fluent-logging.sh
+        - ./tools/deployment/developer/ceph/140-kibana.sh
 
 - job:
     name: openstack-helm-infra-dev-deploy-nfs
     parent: openstack-helm-functional
     timeout: 7200
     pre-run: playbooks/osh-infra-upgrade-host.yaml
-    run: playbooks/osh-infra-dev-deploy-nfs.yaml
+    run: playbooks/osh-infra-gate-runner.yaml
     post-run: playbooks/osh-infra-collect-logs.yaml
     nodeset: openstack-helm-single-node
+    vars:
+      gate_scripts:
+        - ./tools/deployment/developer/nfs/000-install-packages.sh
+        - ./tools/deployment/developer/nfs/005-deploy-k8s.sh
+        - ./tools/deployment/developer/nfs/010-deploy-docker-registry.sh
+        - ./tools/deployment/developer/nfs/020-ingress.sh
+        - ./tools/deployment/developer/nfs/030-nfs-provisioner.sh
+        - ./tools/deployment/developer/nfs/040-ldap.sh
+        - ./tools/deployment/developer/nfs/045-mariadb.sh
+        - ./tools/deployment/developer/nfs/050-prometheus.sh
+        - ./tools/deployment/developer/nfs/060-alertmanager.sh
+        - ./tools/deployment/developer/nfs/070-kube-state-metrics.sh
+        - ./tools/deployment/developer/nfs/080-node-exporter.sh
+        - ./tools/deployment/developer/nfs/090-process-exporter.sh
+        - ./tools/deployment/developer/nfs/100-grafana.sh
+        - ./tools/deployment/developer/nfs/110-nagios.sh
+        - ./tools/deployment/developer/nfs/120-elasticsearch.sh
+        - ./tools/deployment/developer/nfs/125-elasticsearch-ldap.sh
+        - ./tools/deployment/developer/nfs/130-fluent-logging.sh
+        - ./tools/deployment/developer/nfs/140-kibana.sh
 
 - job:
     name: openstack-helm-infra-openstack-support
     parent: openstack-helm-functional
     timeout: 7200
     pre-run: playbooks/osh-infra-upgrade-host.yaml
-    run: playbooks/osh-infra-openstack-support.yaml
+    run: playbooks/osh-infra-gate-runner.yaml
     post-run: playbooks/osh-infra-collect-logs.yaml
     nodeset: openstack-helm-single-node
+    vars:
+      gate_scripts:
+        - ./tools/deployment/openstack-support/000-install-packages.sh
+        - ./tools/deployment/openstack-support/005-deploy-k8s.sh
+        - ./tools/deployment/openstack-support/010-ingress.sh
+        - ./tools/deployment/openstack-support/015-ceph.sh
+        - ./tools/deployment/openstack-support/020-ceph-ns-activate.sh
+        - ./tools/deployment/openstack-support/025-rabbitmq.sh
+        - ./tools/deployment/openstack-support/030-memcached.sh
+        - ./tools/deployment/openstack-support/035-mariadb.sh
+        - ./tools/deployment/openstack-support/040-libvirt.sh
+        - ./tools/deployment/openstack-support/045-openvswitch.sh
 
 - job:
     name: openstack-helm-infra-five-ubuntu
@@ -262,12 +337,20 @@
 
 - job:
     name: openstack-helm-infra-kubernetes-keystone-auth
-    vars:
-      zuul_osh_relative_path: ../openstack-helm/
-      kubernetes_keystone_auth: true
-      gate_fqdn_test: true
     parent: openstack-helm-infra
     nodeset: openstack-helm-single-node
-    run: playbooks/osh-infra-keystone-k8s-auth.yaml
+    run: playbooks/osh-infra-gate-runner.yaml
     required-projects:
       - openstack/openstack-helm
+    vars:
+      kubernetes_keystone_auth: true
+      gate_fqdn_test: true
+      gate_scripts:
+        - cd "${OSH_PATH}"; ./tools/deployment/developer/nfs/020-setup-client.sh
+        - cd "${OSH_PATH}"; ./tools/deployment/developer/nfs/030-ingress.sh
+        - cd "${OSH_PATH}"; ./tools/deployment/developer/nfs/040-nfs-provisioner.sh
+        - cd "${OSH_PATH}"; ./tools/deployment/developer/nfs/050-mariadb.sh
+        - cd "${OSH_PATH}"; ./tools/deployment/developer/nfs/060-rabbitmq.sh
+        - cd "${OSH_PATH}"; ./tools/deployment/developer/nfs/070-memcached.sh
+        - cd "${OSH_PATH}"; ./tools/deployment/developer/nfs/080-keystone.sh
+        - ./tools/deployment/keystone-auth/check.sh
