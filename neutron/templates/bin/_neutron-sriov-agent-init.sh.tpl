@@ -16,7 +16,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+#NOTE: Please limit "besteffort" to dev env with mixed hardware computes only
+#      For prod env, the target nic should be there, if not, script should error out.
 set -ex
+{{- if ( has "besteffort" .Values.conf.sriov_init ) }}
+set +e
+{{- end }}
 
 {{- range $k, $sriov := .Values.network.interface.sriov }}
 if [ "x{{ $sriov.num_vfs }}" != "x" ]; then
@@ -37,18 +42,28 @@ else
   fi
   echo "${NUM_VFS}" > /sys/class/net/{{ $sriov.device }}/device/sriov_numvfs
 fi
+
 {{- if $sriov.mtu }}
 ip link set dev {{ $sriov.device }} mtu {{ $sriov.mtu }}
 {{- end }}
 ip link set {{ $sriov.device }} up
 ip link show {{ $sriov.device }}
+
 {{- if $sriov.promisc }}
-ip link set {{ $sriov.device }} promisc on
+promisc_mode="on"
+{{- else }}
+promisc_mode="off"
+{{- end }}
+ip link set {{ $sriov.device }} promisc ${promisc_mode}
 #NOTE(portdirect): get the bus that the port is on
 NIC_BUS=$(lshw -c network -businfo | awk '/{{ $sriov.device }}/ {print $1}')
 #NOTE(portdirect): get first port on the nic
 NIC_FIRST_PORT=$(lshw -c network -businfo | awk "/${NIC_BUS%%.*}/ { print \$2; exit }"
 #NOTE(portdirect): Enable promisc mode on the nic, by setting it for the 1st port
-ethtool --set-priv-flags ${NIC_FIRST_PORT} vf-true-promisc-support on
+ethtool --set-priv-flags ${NIC_FIRST_PORT} vf-true-promisc-support ${promisc_mode}
 {{- end }}
-{{- end }}
+
+
+{{- if ( has "besteffort" .Values.conf.sriov_init ) }}
+exit 0
+{{ end }}
