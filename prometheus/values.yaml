@@ -1177,15 +1177,23 @@ conf:
         - name: kubelet.rules
           rules:
           - alert: K8SNodeNotReady
-            expr: kube_node_status_ready{condition="true"} == 0
-            for: 1h
+            expr: kube_node_status_condition{condition="Ready", status="unknown"} == 1 or kube_node_status_condition{condition="Ready", status="false"} == 1
+            for: 1m
             labels:
-              severity: warning
+              severity: critical
             annotations:
-              description: The Kubelet on {{ $labels.node }} has not checked in with the API, or has set itself to NotReady, for more than an hour
-              summary: Node status is NotReady
+              description: The Kubelet on {{ $labels.node }} has not checked in with the API, or has set itself to NotReady, for more than a minute
+              summary: '{{ $labels.node }} Node status is NotReady and {{ $labels.status }}'
           - alert: K8SManyNodesNotReady
-            expr: count(kube_node_status_ready{condition="true"} == 0) > 1 and (count(kube_node_status_ready{condition="true"} == 0) / count(kube_node_status_ready{condition="true"})) > 0.2
+            expr: count(kube_node_status_condition{condition="Ready", status="unknown"} == 1) > 1 and (count(kube_node_status_condition{condition="Ready", status="unknown"} == 1) / count(kube_node_status_condition{condition="Ready", status="unknown"})) > 0.2
+            for: 1m
+            labels:
+              severity: critical
+            annotations:
+              description: '{{ $value }} Kubernetes nodes (more than 10% are in the NotReady state).'
+              summary: Many Kubernetes nodes are Not Ready
+          - alert: K8SManyNodesNotReady
+            expr: count(kube_node_status_condition{condition="Ready", status="false"} == 1) > 1 and (count(kube_node_status_condition{condition="Ready", status="false"} == 1) / count(kube_node_status_condition{condition="Ready", status="false"})) > 0.2
             for: 1m
             labels:
               severity: critical
@@ -1193,7 +1201,7 @@ conf:
               description: '{{ $value }} Kubernetes nodes (more than 10% are in the NotReady state).'
               summary: Many Kubernetes nodes are Not Ready
           - alert: K8SNodesNotReady
-            expr: count(kube_node_status_ready{condition="true"} == 0) > 0
+            expr: count(kube_node_status_condition{condition="Ready", status="false"} == 1) > 0 or count(kube_node_status_condition{condition="Ready", status="unknown"} == 1) > 0
             for: 1m
             labels:
               severity: critical
@@ -1202,15 +1210,15 @@ conf:
               summary: One or more Kubernetes nodes are Not Ready
           - alert: K8SKubeletDown
             expr: count(up{job="kubelet"} == 0) / count(up{job="kubelet"}) > 0.03
-            for: 1h
+            for: 1m
             labels:
-              severity: warning
+              severity: critical
             annotations:
               description: Prometheus failed to scrape {{ $value }}% of kubelets.
               summary: Many Kubelets cannot be scraped
           - alert: K8SKubeletDown
             expr: absent(up{job="kubelet"} == 1) or count(up{job="kubelet"} == 0) / count(up{job="kubelet"}) > 0.1
-            for: 1h
+            for: 1m
             labels:
               severity: critical
             annotations:
