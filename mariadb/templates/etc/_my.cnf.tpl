@@ -17,7 +17,7 @@ limitations under the License.
 [mysqld]
 datadir=/var/lib/mysql
 basedir=/usr
-ignore-db-dir=lost+found
+ignore-db-dirs=lost+found
 
 [client-server]
 !includedir /etc/mysql/conf.d/
