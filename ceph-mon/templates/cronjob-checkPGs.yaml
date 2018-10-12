@@ -20,6 +20,33 @@ limitations under the License.
 {{- $serviceAccountName := "ceph-pool-checkpgs" }}
 {{ tuple $envAll "pool_checkpgs" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: Role
+metadata:
+  name: {{ $serviceAccountName }}
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - pods
+    verbs:
+      - get
+      - list
+      - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: RoleBinding
+metadata:
+  name: {{ $serviceAccountName }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ $serviceAccountName }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ $serviceAccountName }}
+    namespace: {{ $envAll.Release.Namespace }}
+---
 apiVersion: batch/v1beta1
 kind: CronJob
 metadata:
@@ -38,7 +65,13 @@ spec:
 {{ tuple $envAll "ceph" "pool-checkpgs" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
     spec:
       template:
+        metadata:
+          labels:
+{{ tuple $envAll "ceph" "pool-checkpgs" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 12 }}
         spec:
+          serviceAccountName: {{ $serviceAccountName }}
+          nodeSelector:
+            {{ .Values.labels.mon.node_selector_key }}: {{ .Values.labels.mon.node_selector_value }}
           containers:
           - name: {{ $serviceAccountName }}
 {{ tuple $envAll "ceph_config_helper" | include "helm-toolkit.snippets.image" | indent 12 }}
@@ -49,6 +82,61 @@ spec:
                     fieldPath: metadata.namespace
             command:
               - /tmp/utils-checkPGs.sh
+          volumeMounts:
+              - name: ceph-mon-bin
+                mountPath: /tmp/utils-checkPGs.py
+                subPath: utils-checkPGs.py
+                readOnly: true
+              - name: ceph-mon-bin
+                mountPath: /tmp/utils-checkPGs.sh
+                subPath: utils-checkPGs.sh
+                readOnly: true
+              - name: ceph-mon-etc
+                mountPath: /etc/ceph/ceph.conf
+                subPath: ceph.conf
+                readOnly: true
+              - mountPath: /etc/ceph/ceph.client.admin.keyring
+                name: ceph-client-admin-keyring
+                readOnly: true
+                subPath: ceph.client.admin.keyring
+              - mountPath: /etc/ceph/ceph.mon.keyring.seed
+                name: ceph-mon-keyring
+                readOnly: true
+                subPath: ceph.mon.keyring
+              - mountPath: /var/lib/ceph/bootstrap-osd/ceph.keyring
+                name: ceph-bootstrap-osd-keyring
+                readOnly: true
+                subPath: ceph.keyring
+              - mountPath: /var/lib/ceph/bootstrap-mds/ceph.keyring
+                name: ceph-bootstrap-mds-keyring
+                readOnly: true
+                subPath: ceph.keyring
           restartPolicy: Never
+          hostNetwork: true
+          volumes:
+            - name: ceph-mon-bin
+              configMap:
+                name: ceph-mon-bin
+                defaultMode: 0555
+            - name: ceph-mon-etc
+              configMap:
+                name: ceph-mon-etc
+                defaultMode: 0444
+            - name: ceph-client-admin-keyring
+              secret:
+                defaultMode: 420
+                secretName: ceph-client-admin-keyring
+            - name: ceph-mon-keyring
+              secret:
+                defaultMode: 420
+                secretName: ceph-mon-keyring
+            - name: ceph-bootstrap-osd-keyring
+              secret:
+                defaultMode: 420
+                secretName: ceph-bootstrap-osd-keyring
+            - name: ceph-bootstrap-mds-keyring
+              secret:
+                defaultMode: 420
+                secretName: ceph-bootstrap-mds-keyring
 
 {{- end }}
