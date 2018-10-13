@@ -75,11 +75,9 @@ table_definition_cache=1024
 # TODO(tomasz.paszkowski): This needs to by dynamic based on available RAM.
 innodb_buffer_pool_size=1024M
 innodb_doublewrite=0
-innodb_file_format=Barracuda
 innodb_file_per_table=1
 innodb_flush_method=O_DIRECT
 innodb_io_capacity=500
-innodb_locks_unsafe_for_binlog=1
 innodb_log_file_size=128M
 innodb_old_blocks_time=1000
 innodb_read_io_threads=8
