@@ -18,32 +18,71 @@ limitations under the License.
 
 set -ex
 
-# Tests whether fluentd has successfully indexed data into Elasticsearch under
-# the logstash-* index via the fluent-elasticsearch plugin
-function check_logstash_index () {
-  total_hits=$(curl -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
+# Test whether indexes have been created for each Elasticsearch output defined
+function check_output_indexes_exist () {
+  {{/*
+    First, determine the sum of Fluentbit and Fluentd's flush intervals. This
+    ensures we wait long enough for recorded events to be indexed
+  */}}
+  {{ $fluentBitConf := first .Values.conf.fluentbit }}
+  {{ $fluentBitServiceConf := index $fluentBitConf "service" }}
+  {{ $fluentBitFlush := index $fluentBitServiceConf "Flush" }}
+  fluentBitFlush={{$fluentBitFlush}}
+
+  {{/*
+    The generic Elasticsearch output should always be last, and intervals for all
+    Elasticsearch outputs should match. This means we can safely use the last item
+    in fluentd's configuration to get the Fluentd flush output interval
+  */}}
+  {{- $fluentdConf := last .Values.conf.td_agent -}}
+  {{- $fluentdElasticsearchConf := index $fluentdConf "elasticsearch" -}}
+  {{- $fluentdFlush := index $fluentdElasticsearchConf "flush_interval" -}}
+  fluentdFlush={{$fluentdFlush}}
+
+  totalFlush=$(($fluentBitFlush + $fluentdFlush))
+  sleep $totalFlush
+
+  {{/*
+    Iterate over Fluentd's config and for each Elasticsearch output, determine
+    the logstash index prefix and check Elasticsearch for that index
+  */}}
+  {{ range $key, $config := .Values.conf.td_agent -}}
+
+  {{/* Get list of keys to determine config header to index on */}}
+  {{- $keyList := keys $config -}}
+  {{- $configSection := first $keyList -}}
+
+  {{/* Index config section dictionary */}}
+  {{- $configEntry := index $config $configSection -}}
+
+  {{- if hasKey $configEntry "type" -}}
+  {{- $type := index $configEntry "type" -}}
+  {{- if eq $type "elasticsearch" -}}
+  {{- if hasKey $configEntry "logstash_prefix" -}}
+  {{- $logstashPrefix := index $configEntry "logstash_prefix" }}
+  {{$logstashPrefix}}_total_hits=$(curl -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
+              -XGET "${ELASTICSEARCH_ENDPOINT}/{{$logstashPrefix}}-*/_search?pretty" -H 'Content-Type: application/json' \
+              | python -c "import sys, json; print json.load(sys.stdin)['hits']['total']")
+  if [ "${{$logstashPrefix}}_total_hits" -gt 0 ]; then
+     echo "PASS: Successful hits on {{$logstashPrefix}}-* index!"
+  else
+     echo "FAIL: No hits on query for {{$logstashPrefix}}-* index! Exiting";
+     exit 1;
+  fi
+  {{ else }}
+  logstash_total_hits=$(curl -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
               -XGET "${ELASTICSEARCH_ENDPOINT}/logstash-*/_search?pretty" -H 'Content-Type: application/json' \
               | python -c "import sys, json; print json.load(sys.stdin)['hits']['total']")
-  if [ "$total_hits" -gt 0 ]; then
-     echo "PASS: Successful hits on logstash-* index, provided by fluentd!"
+  if [ "$logstash_total_hits" -gt 0 ]; then
+     echo "PASS: Successful hits on logstash-* index!"
   else
      echo "FAIL: No hits on query for logstash-* index! Exiting";
      exit 1;
   fi
-}
-
-# Tests whether fluentd has successfully tagged data with the kube.*
-# prefix via the fluent-kubernetes plugin
-function check_kubernetes_tag () {
-  total_hits=$(curl -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
-              -XGET "${ELASTICSEARCH_ENDPOINT}/_search?q=tag:**kube.**" -H 'Content-Type: application/json' \
-              | python -c "import sys, json; print json.load(sys.stdin)['hits']['total']")
-  if [ "$total_hits" -gt 0 ]; then
-     echo "PASS: Successful hits on logstash-* index, provided by fluentd!"
-  else
-     echo "FAIL: No hits on query for logstash-* index! Exiting";
-     exit 1;
-  fi
+  {{ end }}
+  {{- end }}
+  {{- end }}
+  {{- end -}}
 }
 
 {{ if and (.Values.manifests.job_elasticsearch_template) (not (empty .Values.conf.templates)) }}
@@ -64,10 +103,7 @@ function check_templates () {
 }
 {{ end }}
 
-# Sleep for at least the buffer flush time to allow for indices to be populated
-sleep 30
 {{ if and (.Values.manifests.job_elasticsearch_template) (not (empty .Values.conf.templates)) }}
 check_templates
 {{ end }}
-check_logstash_index
-check_kubernetes_tag
+check_output_indexes_exist
