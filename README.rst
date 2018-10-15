@@ -41,3 +41,11 @@ documentation. Feel free to ask questions or check out our current
 To evaluate a multinode installation, follow the
 `Bare Metal <https://docs.openstack.org/openstack-helm/latest/install/multinode.html>`_
 install guide.
+
+Repository
+----------
+
+Developers wishing to work on the OpenStack-Helm project should always base
+their work on the latest code, available from the OpenStack-Helm git repository.
+
+`OpenStack-Helm git repository <https://git.openstack.org/cgit/openstack/openstack-helm/>`_
