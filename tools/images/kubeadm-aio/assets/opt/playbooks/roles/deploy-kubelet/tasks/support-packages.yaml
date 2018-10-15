@@ -10,6 +10,33 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+- name: installing community ceph repository
+  when: kubelet.pv_support_ceph
+  block:
+  - name: ubuntu | ensure community ceph repository key is installed
+    when: ansible_distribution == 'Ubuntu'
+    apt_key:
+        id: "460F3994"
+        keyserver: "keyserver.ubuntu.com"
+        state: present
+
+  - name: ubuntu | ensure community ceph repository exists
+    when: ansible_distribution == 'Ubuntu'
+    apt_repository:
+        repo: "deb https://download.ceph.com/debian-luminous/ {{ ansible_lsb.codename }} main"
+        state: present
+        update_cache: yes
+
+  - name: centos | ensure community ceph repository exists
+    when: ansible_distribution == 'CentOS' or ansible_distribution == 'Red Hat Enterprise Linux'
+    yum_repository:
+       name: ceph
+       description: "Ceph community packages for Redhat/Centos"
+       gpgkey: "https://download.ceph.com/keys/release.asc"
+       baseurl: "https://download.ceph.com/rpm-luminous/el7/$basearch"
+       gpgcheck: yes
+       state: present
+
 - name: centos | installing epel-release
   when: ansible_distribution == 'CentOS' or ansible_distribution == 'Red Hat Enterprise Linux'
   yum:
@@ -43,8 +70,16 @@
     packages:
       deb:
         - ceph-common
+        - rbd-nbd
       rpm:
         - ceph-common
+        - rbd-nbd
+
+- when: kubelet.pv_support_ceph
+  name: blacklist kernel RBD driver module
+  copy:
+    dest: "/etc/modprobe.d/rbd.conf"
+    content: "install rbd /bin/true"
 
 - when: kubelet.pv_support_nfs
   name: installing NFS support packages
