@@ -17,4 +17,4 @@
 set -xe
 
 #NOTE: Move into openstack-helm root dir & Run keystone deployment script
-cd "${OSH_PATH}"; ./tools/deployment/developer/nfs/080-keystone.sh
+cd "${OSH_PATH}"; ./tools/deployment/developer/ldap/080-keystone.sh
