@@ -28,11 +28,20 @@ RUN sed -i \
         /etc/apt/sources.list ;\
     echo "APT::Get::AllowUnauthenticated \"${ALLOW_UNAUTHENTICATED}\";" > /etc/apt/apt.conf.d/allow-unathenticated
 
+ARG GOOGLE_KUBERNETES_REPO_URL=https://storage.googleapis.com/kubernetes-release/release/${KUBE_VERSION}/bin/linux/amd64
+ENV GOOGLE_KUBERNETES_REPO_URL ${GOOGLE_KUBERNETES_REPO_URL}
+
+ARG GOOGLE_HELM_REPO_URL=https://storage.googleapis.com/kubernetes-helm
+ENV GOOGLE_HELM_REPO_URL ${GOOGLE_HELM_REPO_URL}
+
 ARG KUBE_VERSION="v1.10.8"
 ENV KUBE_VERSION ${KUBE_VERSION}
 
 ARG CNI_VERSION="v0.6.0"
 ENV CNI_VERSION ${CNI_VERSION}
+
+ARG CNI_REPO_URL=https://github.com/containernetworking/plugins/releases/download/$CNI_VERSION
+ENV CNI_REPO_URL ${CNI_REPO_URL}
 
 ARG HELM_VERSION="v2.11.0"
 ENV HELM_VERSION ${HELM_VERSION}
@@ -78,18 +87,18 @@ RUN set -ex ;\
     pip --no-cache-dir install "ansible==2.5.5" ;\
     for BINARY in kubectl kubeadm; do \
       curl -sSL -o /usr/bin/${BINARY} \
-        https://storage.googleapis.com/kubernetes-release/release/${KUBE_VERSION}/bin/linux/amd64/${BINARY} ;\
+        ${GOOGLE_KUBERNETES_REPO_URL}/${BINARY} ;\
       chmod +x /usr/bin/${BINARY} ;\
     done ;\
     mkdir -p /opt/assets/usr/bin ;\
     curl -sSL -o /opt/assets/usr/bin/kubelet \
-      https://storage.googleapis.com/kubernetes-release/release/${KUBE_VERSION}/bin/linux/amd64/kubelet ;\
+      ${GOOGLE_KUBERNETES_REPO_URL}/kubelet ;\
     chmod +x /opt/assets/usr/bin/kubelet ;\
     mkdir -p /opt/assets${CNI_BIN_DIR} ;\
-    curl -sSL https://github.com/containernetworking/plugins/releases/download/$CNI_VERSION/cni-plugins-amd64-$CNI_VERSION.tgz | \
+    curl -sSL ${CNI_REPO_URL}/cni-plugins-amd64-$CNI_VERSION.tgz | \
       tar -zxv --strip-components=1 -C /opt/assets${CNI_BIN_DIR} ;\
     TMP_DIR=$(mktemp -d) ;\
-    curl -sSL https://storage.googleapis.com/kubernetes-helm/helm-${HELM_VERSION}-linux-amd64.tar.gz | tar -zxv --strip-components=1 -C ${TMP_DIR} ;\
+    curl -sSL ${GOOGLE_HELM_REPO_URL}/helm-${HELM_VERSION}-linux-amd64.tar.gz | tar -zxv --strip-components=1 -C ${TMP_DIR} ;\
     mv ${TMP_DIR}/helm /usr/bin/helm ;\
     rm -rf ${TMP_DIR} ;\
     apt-get purge -y --auto-remove \
