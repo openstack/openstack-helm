@@ -22,13 +22,15 @@ export LC_ALL=C
 COMMAND="${@:-liveness}"
 
 function heath_check () {
-  IS_MGR_AVAIL=$(ceph --cluster "${CLUSTER}" mgr dump | python -c "import json, sys; print json.load(sys.stdin)['available']")
-
-  if [ "${IS_MGR_AVAIL}" = True ]; then
-    exit 0
-  else
-    exit 1
-  fi
+   ASOK=$(ls /var/run/ceph/${CLUSTER}-mgr*)
+   MGR_NAME=$(basename ${ASOK} | sed -e 's/.asok//' | cut -d. -f2)
+   MGR_STATE=$(ceph --cluster ${CLUSTER} --connect-timeout 1 daemon mgr.${MGR_NAME} status|grep "osd_epoch")
+   if [ $? = 0 ]; then
+     exit 0
+   else
+     echo $MGR_STATE
+     exit 1
+   fi
 }
 
 function liveness () {
