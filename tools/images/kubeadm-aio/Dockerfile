@@ -77,14 +77,15 @@ RUN set -ex ;\
         gawk ;\
     pip --no-cache-dir install --upgrade pip ;\
     hash -r ;\
-    pip --no-cache-dir install setuptools ;\
-    pip --no-cache-dir install kubernetes ;\
-
+    pip --no-cache-dir install --upgrade setuptools ;\
     # NOTE(srwilkers): Pinning ansible to 2.5.5, as pip installs 2.6 by default.
     # 2.6 introduces a new command flag (init) for the docker_container module
     # that is incompatible with what we have currently. 2.5.5 ensures we match
     # what's deployed in the gates
-    pip --no-cache-dir install "ansible==2.5.5" ;\
+    pip --no-cache-dir install --upgrade \
+      requests \
+      kubernetes \
+      "ansible==2.5.5" ;\
     for BINARY in kubectl kubeadm; do \
       curl -sSL -o /usr/bin/${BINARY} \
         ${GOOGLE_KUBERNETES_REPO_URL}/${BINARY} ;\
