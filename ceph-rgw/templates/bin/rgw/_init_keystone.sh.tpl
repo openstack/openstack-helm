@@ -22,7 +22,7 @@ cp -va /tmp/ceph.conf /etc/ceph/ceph.conf
 
 cat >> /etc/ceph/ceph.conf <<EOF
 
-[client.rgw.${POD_NAME}]
+[client.rgw.$(hostname -s)]
 rgw_frontends = "civetweb port=${RGW_CIVETWEB_PORT}"
 rgw_keystone_url = "${KEYSTONE_URL}"
 rgw_keystone_admin_user = "${OS_USERNAME}"
