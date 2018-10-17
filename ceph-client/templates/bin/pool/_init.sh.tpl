@@ -37,6 +37,13 @@ if ! ceph --cluster "${CLUSTER}" osd crush rule ls | grep -q "^same_host$"; then
   ceph --cluster "${CLUSTER}" osd crush rule create-simple same_host default osd
 fi
 
+function reweight_osds () {
+  for OSD_ID in $(ceph --cluster "${CLUSTER}" osd df | awk '$3 == "0" {print $1}'); do
+    OSD_WEIGHT=$(ceph --cluster "${CLUSTER}" osd df --format json-pretty| grep -A7 osd.${OSD_ID} | awk '/"kb"/{ gsub(",",""); d= $2/1073741824 ; r = sprintf("%.2f", d); print r }');
+    ceph --cluster "${CLUSTER}" osd crush reweight osd.${OSD_ID} ${OSD_WEIGHT};
+  done
+}
+
 function create_pool () {
   POOL_APPLICATION=$1
   POOL_NAME=$2
@@ -72,6 +79,8 @@ function manage_pool () {
   POOL_PLACEMENT_GROUPS=$(/tmp/pool-calc.py ${POOL_REPLICATION} ${TOTAL_OSDS} ${TOTAL_DATA_PERCENT} ${TARGET_PG_PER_OSD})
   create_pool "${POOL_APPLICATION}" "${POOL_NAME}" "${POOL_REPLICATION}" "${POOL_PLACEMENT_GROUPS}" "${POOL_CRUSH_RULE}"
 }
+
+reweight_osds
 
 {{ $targetNumOSD := .Values.conf.pool.target.osd }}
 {{ $targetPGperOSD := .Values.conf.pool.target.pg_per_osd }}

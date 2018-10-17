@@ -71,7 +71,8 @@ if [[ -n "$(find /var/lib/ceph/osd -prune -empty)" ]]; then
   # init data directory
   ceph-osd -i ${OSD_ID} --mkfs --osd-uuid ${UUID} --mkjournal --osd-journal ${OSD_J} --setuser ceph --setgroup ceph
   # add the osd to the crush map
-  OSD_WEIGHT=$(df -P -k ${OSD_PATH} | tail -1 | awk '{ d= $2/1073741824 ; r = sprintf("%.2f", d); print r }')
+  # NOTE(supamatt): set the initial crush weight of the OSD to 0 to prevent automatic rebalancing
+  OSD_WEIGHT=0
   ceph --name=osd.${OSD_ID} --keyring=${OSD_KEYRING} osd crush create-or-move -- ${OSD_ID} ${OSD_WEIGHT} ${CRUSH_LOCATION}
 fi
 
