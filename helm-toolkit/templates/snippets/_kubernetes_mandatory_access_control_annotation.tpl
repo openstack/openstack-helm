@@ -16,7 +16,9 @@ limitations under the License.
 
 {{/*
 abstract: |
-  Renders apparmor annotations for a list of containers driven by values.yaml.
+  Renders mandatory access control annotations for a list of containers
+  driven by values.yaml. As of now, it can only generate an apparmor
+  annotation, but in the future could generate others.
 values: |
   pod:
     apparmor:
@@ -25,7 +27,7 @@ values: |
         mySecondContainerName: localhost/secondProfile # optional
         myThirdContainerName: localhost/thirdProfile # optional
 usage: |
-  {{ dict "envAll" . "podName" "myPodName" "containerNames" (list "myContainerName" "mySecondContainerName" "myThirdContainerName") | include "helm-toolkit.snippets.kubernetes_apparmor_annotation" }}
+  {{ dict "envAll" . "podName" "myPodName" "containerNames" (list "myContainerName" "mySecondContainerName" "myThirdContainerName") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" }}
 return: |
   container.apparmor.security.beta.kubernetes.io/myContainerName: localhost/myAppArmor
   container.apparmor.security.beta.kubernetes.io/mySecondContainerName: localhost/secondProfile
@@ -34,7 +36,7 @@ note: |
   The number of container underneath is a variable arguments. It loops through
   all the container names specified.
 */}}
-{{- define "helm-toolkit.snippets.kubernetes_apparmor_annotation" -}}
+{{- define "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" -}}
 {{- $envAll := index . "envAll" -}}
 {{- $podName := index . "podName" -}}
 {{- $containerNames := index . "containerNames" -}}
