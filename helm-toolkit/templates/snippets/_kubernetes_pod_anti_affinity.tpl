@@ -14,6 +14,51 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{/*
+abstract: |
+  Renders kubernetes anti affinity rules, this function supports both hard
+  'requiredDuringSchedulingIgnoredDuringExecution' and soft
+  'preferredDuringSchedulingIgnoredDuringExecution' types.
+values: |
+  pod:
+    affinity:
+      anti:
+        topologyKey:
+          default: kubernetes.io/hostname
+        type:
+          default: requiredDuringSchedulingIgnoredDuringExecution
+usage: |
+  {{ tuple . "appliction_x" "component_y" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" }}
+return: |
+  podAntiAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+    - labelSelector:
+        matchExpressions:
+          - key: release_group
+            operator: In
+            values:
+            - RELEASE-NAME
+          - key: application
+            operator: In
+            values:
+            - appliction_x
+          - key: component
+            operator: In
+            values:
+            - component_y
+          topologyKey: kubernetes.io/hostname
+*/}}
+
+{{- define "helm-toolkit.snippets.kubernetes_pod_anti_affinity._match_expressions" -}}
+{{- $envAll := index . "envAll" -}}
+{{- $application := index . "application" -}}
+{{- $component := index . "component" -}}
+{{- $expressionRelease := dict "key" "release_group" "operator" "In"  "values" ( list ( $envAll.Values.release_group | default $envAll.Release.Name ) ) -}}
+{{- $expressionApplication := dict "key" "application" "operator" "In"  "values" ( list $application ) -}}
+{{- $expressionComponent := dict "key" "component" "operator" "In"  "values" ( list $component ) -}}
+{{- list $expressionRelease $expressionApplication $expressionComponent | toYaml }}
+{{- end -}}
+
 {{- define "helm-toolkit.snippets.kubernetes_pod_anti_affinity" -}}
 {{- $envAll := index . 0 -}}
 {{- $application := index . 1 -}}
@@ -21,22 +66,20 @@ limitations under the License.
 {{- $antiAffinityType := index $envAll.Values.pod.affinity.anti.type $component | default $envAll.Values.pod.affinity.anti.type.default }}
 {{- $antiAffinityKey := index $envAll.Values.pod.affinity.anti.topologyKey $component | default $envAll.Values.pod.affinity.anti.topologyKey.default }}
 podAntiAffinity:
+{{- $matchExpressions := include "helm-toolkit.snippets.kubernetes_pod_anti_affinity._match_expressions" ( dict "envAll" $envAll "application" $application "component" $component ) -}}
+{{- if eq $antiAffinityType "preferredDuringSchedulingIgnoredDuringExecution" }}
   {{ $antiAffinityType }}:
   - podAffinityTerm:
       labelSelector:
         matchExpressions:
-        - key: release_group
-          operator: In
-          values:
-            - {{ $envAll.Values.release_group | default $envAll.Release.Name }}
-        - key: application
-          operator: In
-          values:
-            - {{ $application }}
-        - key: component
-          operator: In
-          values:
-            - {{ $component }}
+{{ $matchExpressions | indent 10 }}
       topologyKey: {{ $antiAffinityKey }}
     weight: 10
+{{- else if eq $antiAffinityType "requiredDuringSchedulingIgnoredDuringExecution" }}
+  {{ $antiAffinityType }}:
+  - labelSelector:
+      matchExpressions:
+{{ $matchExpressions | indent 8 }}
+    topologyKey: {{ $antiAffinityKey }}
+{{- end -}}
 {{- end -}}
