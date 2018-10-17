@@ -62,6 +62,8 @@ section):
 {{ $type | indent 4 }} {{ $innerValue }}
 {{- else if contains "ENV" ($innerValue | quote) }}
 {{ $innerKey | indent 4 }} {{ $innerValue | quote }}
+{{- else if eq $innerKey "flush_interval" }}
+{{ $innerKey | indent 4 }} {{ printf "%ss" $innerValue }}
 {{- else }}
 {{ $innerKey | indent 4 }} {{ $innerValue }}
 {{- end }}
@@ -75,6 +77,8 @@ section):
 {{ $type | indent 2 }} {{ $value }}
 {{- else if contains "ENV" ($value | quote) }}
 {{ $key | indent 2 }} {{ $value | quote }}
+{{- else if eq $key "flush_interval" }}
+{{ $key | indent 2 }} {{ printf "%ss" $value }}
 {{- else }}
 {{ $key | indent 2 }} {{ $value }}
 {{- end -}}

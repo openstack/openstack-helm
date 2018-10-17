@@ -22,7 +22,6 @@ images:
   tags:
     ceph_osd: 'docker.io/ceph/daemon:tag-build-master-luminous-ubuntu-16.04'
     ceph_bootstrap: 'docker.io/ceph/daemon:tag-build-master-luminous-ubuntu-16.04'
-    fluentbit: docker.io/fluent/fluent-bit:0.12.14
     dep_check: 'quay.io/stackanetes/kubernetes-entrypoint:v0.3.1'
     image_repo_sync: docker.io/docker:17.07.0
   local_registry:
@@ -56,13 +55,6 @@ pod:
       limits:
         memory: "1024Mi"
         cpu: "1000m"
-    fluentbit:
-      requests:
-        memory: "5Mi"
-        cpu: "250m"
-      limits:
-        memory: "50Mi"
-        cpu: "500m"
     jobs:
       image_repo_sync:
         requests:
@@ -148,40 +140,6 @@ conf:
 #                 journal:
 #                   type: directory
 #                   location: /var/lib/openstack-helm/ceph/osd/journal-three
-  fluentbit:
-    - service:
-        header: service
-        Flush: 30
-        Daemon: Off
-        Log_Level: info
-        Parsers_File: parsers.conf
-    - ceph_tail:
-        # NOTE(srwilkers): Despite being exposed, these values should not be
-        # modified, as the ceph-osd logs are always placed here
-        header: input
-        Name: tail
-        Tag: ceph-osd.*
-        Path: /var/log/ceph/ceph-osd.**.log
-        Parser: syslog
-        DB: /var/log/ceph/ceph-osd.db
-        DB.Sync: Normal
-        Buffer_Chunk_Size: 1M
-        Buffer_Max_Size: 1M
-        Mem_Buf_Limit: 5MB
-        Refresh_Interval: 10s
-  parsers:
-    - syslog:
-        header: parser
-        Name: syslog
-        Format: regex
-        Regex: '^(?<time>.*[0-9]{2}:[0-9]{2}:[0-9]{2}) (?<host>[^ ]*) (?<app>[a-zA-Z0-9_\/\.\-]*)(?:\[(?<pid>[0-9]+)\])?(?:[^\:]*\:)? (?<log>.+)$'
-        Time_Key: time
-        Time_Format: "%Y-%m-%dT%H:%M:%S.%L"
-        Time_Keep: On
-        Types: "pid:integer"
-
-logging:
-  fluentd: false
 
 dependencies:
   dynamic:
@@ -242,22 +200,6 @@ endpoints:
     port:
       mon:
         default: 6789
-  fluentd:
-    namespace: null
-    name: fluentd
-    hosts:
-      default: fluentd-logging
-    host_fqdn_override:
-      default: null
-    path:
-      default: null
-    scheme:
-      default: http
-    port:
-      service:
-        default: 24224
-      metrics:
-        default: 24220
 
 manifests:
   configmap_bin: true

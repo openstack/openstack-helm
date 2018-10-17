@@ -42,15 +42,6 @@ limitations under the License.
 {{- if empty .Values.conf.ceph.osd.public_network -}}
 {{- $_ := .Values.network.public | set .Values.conf.ceph.osd "public_network" -}}
 {{- end -}}
-
-{{- if not (has "fluentd_output" .Values.conf.fluentbit) -}}
-{{- $fluentd_host := tuple "fluentd" "internal" $envAll | include "helm-toolkit.endpoints.hostname_namespaced_endpoint_lookup" }}
-{{- $fluentd_port := tuple "fluentd" "internal" "service" $envAll | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-{{- $fluentd_output := dict "header" "output" "Name" "forward" "Match" "*" "Host" $fluentd_host "Port" $fluentd_port -}}
-{{- $_ := set .Values "__fluentbit_config" ( list $fluentd_output) -}}
-{{- $__fluentbit_config := append .Values.conf.fluentbit .Values.__fluentbit_config -}}
-{{- $_ := set .Values.conf "fluentbit" $__fluentbit_config -}}
-{{- end -}}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -59,12 +50,6 @@ metadata:
 data:
   ceph.conf: |
 {{ include "helm-toolkit.utils.to_ini" .Values.conf.ceph | indent 4 }}
-{{ if .Values.logging.fluentd }}
-  fluent-bit.conf: |
-{{ include "ceph-mon.utils.to_fluentbit_conf" .Values.conf.fluentbit | indent 4 }}
-  parsers.conf: |
-{{ include "ceph-mon.utils.to_fluentbit_conf" .Values.conf.parsers | indent 4 }}
-{{ end }}
 {{- end }}
 {{- end }}
 {{- end }}

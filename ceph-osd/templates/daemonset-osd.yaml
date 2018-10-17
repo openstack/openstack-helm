@@ -75,6 +75,35 @@ spec:
             - name: pod-run
               mountPath: /run
               readOnly: false
+        - name: ceph-log-ownership
+{{ tuple $envAll "ceph_osd" | include "helm-toolkit.snippets.image" | indent 10 }}
+          securityContext:
+            runAsUser: 0
+          env:
+          # NOTE(portdirect): These environment variables will be populated
+          # dynamicly at the point of render and added to all containers in the
+          # pod
+          # - name: JOURNAL_LOCATION
+          #   value: /var/lib/openstack-helm/ceph/osd/journal-one
+          # - name: STORAGE_LOCATION
+          #   value: /var/lib/openstack-helm/ceph/osd/data-one
+          # - name: JOURNAL_TYPE
+          #   value: directory
+          # - name: STORAGE_TYPE
+          #   value: directory
+            - name: CLUSTER
+              value: "ceph"
+            - name: CEPH_GET_ADMIN_KEY
+              value: "1"
+          command:
+            - chown
+            - -R
+            - ceph:root
+            - /var/log/ceph
+          volumeMounts:
+            - name: pod-var-log
+              mountPath: /var/log/ceph
+              readOnly: false
         - name: osd-init
 {{ tuple $envAll "ceph_osd" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.osd | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
@@ -218,30 +247,9 @@ spec:
             - name: journal
               mountPath: /var/lib/ceph/journal
               readOnly: false
-            - name: varlog
+            - name: pod-var-log
               mountPath: /var/log/ceph
-        {{ if .Values.logging.fluentd }}
-        - name: fluentbit-sidecar
-{{ tuple $envAll "fluentbit" | include "helm-toolkit.snippets.image" | indent 10 }}
-{{ tuple $envAll $envAll.Values.pod.resources.fluentbit | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-          command:
-            - /tmp/fluentbit-sidecar.sh
-          volumeMounts:
-            - name: ceph-osd-bin
-              mountPath: /tmp/fluentbit-sidecar.sh
-              subPath: fluentbit-sidecar.sh
-              readOnly: true
-            - name: varlog
-              mountPath: /var/log/ceph
-            - name: ceph-osd-etc
-              mountPath: /fluent-bit/etc/fluent-bit.conf
-              subPath: fluent-bit.conf
-              readOnly: true
-            - name: ceph-osd-etc
-              mountPath: /fluent-bit/etc/parsers.conf
-              subPath: parsers.conf
-              readOnly: true
-        {{ end }}
+              readOnly: false
       volumes:
         - name: devices
           hostPath:
@@ -251,8 +259,9 @@ spec:
             path: /run/lvm
         - name: pod-var-lib-ceph
           emptyDir: {}
-        - name: varlog
-          emptyDir: {}
+        - name: pod-var-log
+          hostPath:
+            path: /var/log/ceph
         - name: pod-run
           emptyDir:
             medium: "Memory"
