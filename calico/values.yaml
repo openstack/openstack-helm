@@ -247,6 +247,153 @@ networking:
         neighbor: 179
         listen: 179
 
+  # Policy contains embedded Calico policy and/or endpoint objects.
+  # Because lists are cumbersome to deal with this is stuctured as a
+  # dictionary (therefore not ordered).  The top-level key names are
+  # not important, priority contains a value between 0 and 9 inclusive
+  # and rules contains any objects (typically used as rules).
+  # Priority 0 objects are emitted before priority 9.  It is
+  # recommended any rules such as HostEndpoint be given a higher
+  # priority so that they are applied after more generic objects.
+  # Priority values outside of integers 0 through 9 are not valid and
+  # should not be used.
+  policy:
+    # alpha:
+    #   priority: 0
+    #   rules:
+    #   - apiVersion: projectcalico.org/v3
+    #     kind: GlobalNetworkPolicy
+    #     metadata:
+    #       name: allow-tcp-6379
+    #     spec:
+    #       order: 0
+    #       selector: role == 'database'
+    #       types:
+    #       - Ingress
+    #       - Egress
+    #       ingress:
+    #       - action: Allow
+    #         protocol: TCP
+    #         source:
+    #           selector: role == 'frontend'
+    #         destination:
+    #           ports:
+    #           - 6379
+    #       egress:
+    #       - action: Allow
+    #   - apiVersion: projectcalico.org/v3
+    #     kind: GlobalNetworkPolicy
+    #     metadata:
+    #       name: allow-tcp-3306
+    #     spec:
+    #       order: 1
+    #       selector: role == 'database'
+    #       types:
+    #       - Ingress
+    #       - Egress
+    #       ingress:
+    #       - action: Allow
+    #         protocol: TCP
+    #         source:
+    #           selector: role == 'frontend'
+    #         destination:
+    #           ports:
+    #           - 3306
+    #       egress:
+    #       - action: Allow
+
+    # beta:
+    #   priority: 1
+    #   rules:
+    #   - apiVersion: projectcalico.org/v3
+    #     kind: NetworkPolicy
+    #     metadata:
+    #       name: allow-tcp-6379
+    #       namespace: production
+    #     spec:
+    #       selector: role == 'database'
+    #       types:
+    #       - Ingress
+    #       - Egress
+    #       ingress:
+    #       - action: Allow
+    #         protocol: TCP
+    #         source:
+    #           selector: role == 'frontend'
+    #         destination:
+    #           ports:
+    #           - 6379
+    #       egress:
+    #       - action: Allow
+    #   - apiVersion: projectcalico.org/v3
+    #     kind: NetworkPolicy
+    #     metadata:
+    #       name: allow-tcp-8081
+    #       namespace: production
+    #     spec:
+    #       selector: role == 'webthing'
+    #       types:
+    #       - Ingress
+    #       - Egress
+    #       ingress:
+    #       - action: Allow
+    #         protocol: TCP
+    #         source:
+    #           selector: role == 'frontend'
+    #         destination:
+    #           ports:
+    #           - 8081
+    #       egress:
+    #       - action: Allow
+
+    # zulu:
+    #   priority: 9
+    #   rules:
+    #   - apiVersion: projectcalico.org/v3
+    #     kind: HostEndpoint
+    #     metadata:
+    #       name: first.thing
+    #       labels:
+    #         type: production
+    #     spec:
+    #       interfaceName: eth0
+    #       node: mysecrethost
+    #       expectedIPs:
+    #       - 192.168.0.1
+    #       - 192.168.0.2
+    #       profiles:
+    #       - profile1
+    #       - profile2
+    #       ports:
+    #       - name: some-port
+    #         port: 1234
+    #         protocol: TCP
+    #       - name: another-port
+    #         port: 5432
+    #         protocol: UDP
+    #   - apiVersion: projectcalico.org/v3
+    #     kind: HostEndpoint
+    #     metadata:
+    #       name: second.thing
+    #       labels:
+    #         type: production
+    #     spec:
+    #       interfaceName: eth1
+    #       node: myothersecrethost
+    #       expectedIPs:
+    #       - 192.168.1.1
+    #       - 192.168.1.2
+    #       profiles:
+    #       - profile1
+    #       - profile2
+    #       ports:
+    #       - name: some-port
+    #         port: 1234
+    #         protocol: TCP
+    #       - name: another-port
+    #         port: 5432
+    #         protocol: UDP
+
 conf:
   etcd:
     credentials:
@@ -299,9 +446,10 @@ conf:
     # Cluster type to identify the deployment type
     # NOTE: v2 had a list ... v3 a comma separated string
     CLUSTER_TYPE: "k8s,bgp"
-    # Describes which BGP networking backend to use gobgp, bird, none.  Default is bird.
-    # NOTE(alanmeadows) today this chart only supports applying the bgp customizations to
-    # bird templates - in the future we may support gobgp as well
+    # Describes which BGP networking backend to use gobgp, bird, none.
+    # Default is bird.  NOTE(alanmeadows) today this chart only
+    # supports applying the bgp customizations to bird templates - in
+    # the future we may support gobgp as well
     CALICO_NETWORKING_BACKEND: bird
     # Location of the CA certificate for etcd.
     ETCD_CA_CERT_FILE: ""
