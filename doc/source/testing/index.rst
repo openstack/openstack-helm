@@ -8,3 +8,4 @@ Testing
    helm-tests
    ceph-resiliency/index
    ceph-upgrade
+   ceph-node-resiliency
