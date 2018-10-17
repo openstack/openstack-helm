@@ -44,7 +44,7 @@ External DNS and FQDN
 =====================
 
 Prepare ahead of time your FQDN and DNS layouts. There are a handful of OpenStack endpoints
-you will want exposed for API and Dashboard access.
+you will want to expose for API and Dashboard access.
 
 Update your lab/environment DNS server with your appropriate host values creating A Records
 for the edge node IP's and various FQDN's. Alternatively you can test these settings locally by
@@ -74,7 +74,7 @@ The default FQDN's for OpenStack-Helm are
     metadata.openstack.svc.cluster.local
     glance.openstack.svc.cluster.local
 
-We want to change the ***public*** configurations to match our DNS layouts above. In each Chart
+We want to change the **public** configurations to match our DNS layouts above. In each Chart
 ``values.yaml`` is a ``endpoints`` configuration that has ``host_fqdn_override``'s for each API
 that the Chart either produces or is dependent on. `Read more about how Endpoints are developed
 <https://docs.openstack.org/openstack-helm/latest/devref/endpoints.html>`__.
@@ -141,7 +141,7 @@ repeat code.
 
 
 
-Note if you need to make a DNS change, you will have to do a uninstall (``helm delete <chart>``)
+Note if you need to make a DNS change, you will have to do uninstall (``helm delete <chart>``)
 and install again.
 
 Once installed, access the API's or Dashboard at `http://horizon.os.foo.org`

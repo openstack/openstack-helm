@@ -22,7 +22,7 @@ Setup:
 - 6 Nodes (VM based) env
 - Only 3 nodes will have Ceph and OpenStack related labels. Each of these 3
   nodes will have one MON and one OSD running on them.
-- Followed OSH multinode guide steps to setup nodes and install k8 cluster
+- Followed OSH multinode guide steps to setup nodes and install K8s cluster
 - Followed OSH multinode guide steps to install Ceph and OpenStack charts up to
   Cinder.
 
@@ -30,12 +30,12 @@ Steps:
 ======
 1) Initial Ceph and OpenStack deployment:
 Install Ceph and OpenStack charts on 3 nodes (mnode1, mnode2 and mnode3).
-Capture Ceph cluster status as well as k8s PODs status.
+Capture Ceph cluster status as well as K8s PODs status.
 
 2) Node reduction (failure):
 Shutdown 1 of 3 nodes (mnode3) to test node failure. This should cause
 Ceph cluster to go in HEALTH_WARN state as it has lost 1 MON and 1 OSD.
-Capture Ceph cluster status as well as k8s PODs status.
+Capture Ceph cluster status as well as K8s PODs status.
 
 3) Node expansion:
 Add Ceph and OpenStack related labels to 4th node (mnode4) for expansion.
@@ -53,7 +53,7 @@ Step 1: Initial Ceph and OpenStack deployment
 
 .. note::
   Make sure only 3 nodes (mnode1, mnode2, mnode3) have Ceph and OpenStack
-  related labels. k8s would only schedule PODs on these 3 nodes.
+  related labels. K8s would only schedule PODs on these 3 nodes.
 
 ``Ceph status:``
 
@@ -336,8 +336,8 @@ In this test env, let's shutdown ``mnode3`` node.
   openstack                  rabbitmq-rabbitmq-0                         0 (0%)        0 (0%)      0 (0%)           0 (0%)
 
 .. note::
-  In this test env, MariaDb chart is deployed with only 1 replicas. In order to
-  test properly, the node with MariaDb server POD (mnode2) should not be shutdown.
+  In this test env, MariaDB chart is deployed with only 1 replica. In order to
+  test properly, the node with MariaDB server POD (mnode2) should not be shutdown.
 
 .. note::
   In this test env, each node has Ceph and OpenStack related PODs. Due to this,
@@ -624,7 +624,7 @@ In this test env, let's shutdown ``mnode3`` node.
 Step 3: Node Expansion
 ======================
 
-Let's add more resources for k8s to schedule PODs on.
+Let's add more resources for K8s to schedule PODs on.
 
 In this test env, let's use ``mnode4`` and apply Ceph and OpenStack related
 labels.
@@ -1113,7 +1113,7 @@ As shown above, Ceph status is now HEALTH_OK and and shows 3 MONs available.
 As shown in Ceph status above, ``osd: 4 osds: 3 up, 3 in`` 1 of 4 OSDs is still
 down. Let's remove that OSD.
 
-First run ``ceph osd tree`` command to get list of OSDs.
+First, run ``ceph osd tree`` command to get list of OSDs.
 
 .. code-block:: console
 

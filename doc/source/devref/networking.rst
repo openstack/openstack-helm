@@ -123,7 +123,7 @@ for serving the request should be wired.
           # openvswitch or linuxbridge
           interface_driver: openvswitch
 
-Another place where the DHCP agent is dependent of L2 agent is the dependency
+Another place where the DHCP agent is dependent on L2 agent is the dependency
 for the L2 agent daemonset:
 
 .. code-block:: yaml
@@ -273,7 +273,7 @@ Configuration of OVS bridges can be done via
 `neutron/templates/bin/_neutron-openvswitch-agent-init.sh.tpl`. The
 script is configuring the external network bridge and sets up any
 bridge mappings defined in :code:`network.auto_bridge_add`.  These
-values should be align with
+values should align with
 :code:`conf.plugins.openvswitch_agent.ovs.bridge_mappings`.
 
 openvswitch-db and openvswitch-vswitchd
