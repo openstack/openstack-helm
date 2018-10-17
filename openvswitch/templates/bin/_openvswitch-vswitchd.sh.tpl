@@ -36,18 +36,6 @@ function start () {
 
   ovs-vsctl --no-wait show
 
-  # handle any bridge mappings
-  {{- range $br, $phys := .Values.network.auto_bridge_add }}
-  if [ -n "{{- $br -}}" ] ; then
-      # create {{ $br }}{{ if $phys }} and add port {{ $phys }}{{ end }}
-      ovs-vsctl --no-wait --may-exist add-br "{{ $br }}"
-      if [ -n "{{- $phys -}}" ] ; then
-          ovs-vsctl --no-wait --may-exist add-port "{{ $br }}" "{{ $phys }}"
-          ip link set dev "{{ $phys }}" up
-      fi
-  fi
-  {{- end }}
-
   exec /usr/sbin/ovs-vswitchd unix:${OVS_SOCKET} \
           -vconsole:emer \
           -vconsole:err \
