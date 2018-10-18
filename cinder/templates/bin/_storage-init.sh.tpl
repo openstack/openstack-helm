@@ -35,7 +35,10 @@ if [ "x$STORAGE_BACKEND" == "xcinder.volume.drivers.rbd.RBDDriver" ]; then
     if [[ ${test_luminous} -gt 0 ]]; then
       ceph osd pool application enable $1 $3
     fi
+    size_protection=$(ceph osd pool get $1 nosizechange | cut -f2 -d: | tr -d '[:space:]')
+    ceph osd pool set $1 nosizechange 0
     ceph osd pool set $1 size ${RBD_POOL_REPLICATION}
+    ceph osd pool set $1 nosizechange ${size_protection}
     ceph osd pool set $1 crush_rule "${RBD_POOL_CRUSH_RULE}"
   }
   ensure_pool ${RBD_POOL_NAME} ${RBD_POOL_CHUNK_SIZE} "cinder-volume"
