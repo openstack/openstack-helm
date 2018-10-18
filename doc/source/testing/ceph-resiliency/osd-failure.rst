@@ -69,7 +69,7 @@ Case: A OSD pod is deleted
 ==========================
 
 This is to test a scenario when an OSD pod is deleted by ``kubectl delete $OSD_POD_NAME``.
-Meanwhile, we monitor the status of Ceph and noted that it takes about 90 seconds for the OSD running in deleted pod to recover from ``down`` to ``up``.
+Meanwhile, we monitor the status of Ceph and note that it takes about 90 seconds for the OSD running in deleted pod to recover from ``down`` to ``up``.
 
 .. code-block:: console
 
@@ -102,6 +102,6 @@ Meanwhile, we monitor the status of Ceph and noted that it takes about 90 second
 We also monitored the pod status through ``kubectl get pods -n ceph``
 during this process. The deleted OSD pod status changed as follows:
 ``Terminating`` -> ``Init:1/3`` -> ``Init:2/3`` -> ``Init:3/3`` ->
-``Running``, and this process taks about 90 seconds. The reason is
+``Running``, and this process takes about 90 seconds. The reason is
 that Kubernetes automatically restarts OSD pods whenever they are
 deleted.

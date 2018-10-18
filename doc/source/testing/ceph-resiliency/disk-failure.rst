@@ -100,7 +100,7 @@ Note: To find the daemonset associated with a failed OSD, check out the followin
   (voyager1)$ kubectl get ds <daemonset-name> -n ceph -o yaml
 
 
-3. Remove the failed OSD (OSD ID = 2 in this example) from the Ceph cluster:
+2. Remove the failed OSD (OSD ID = 2 in this example) from the Ceph cluster:
 
 .. code-block:: console
 
@@ -109,7 +109,7 @@ Note: To find the daemonset associated with a failed OSD, check out the followin
   (mon-pod):/# ceph auth del osd.2
   (mon-pod):/# ceph osd rm 2
 
-4. Find that Ceph is healthy with a lost OSD (i.e., a total of 23 OSDs):
+3. Find that Ceph is healthy with a lost OSD (i.e., a total of 23 OSDs):
 
 .. code-block:: console
 
@@ -133,20 +133,20 @@ Note: To find the daemonset associated with a failed OSD, check out the followin
       usage:   2551 MB used, 42814 GB / 42816 GB avail
       pgs:     182 active+clean
 
-5. Replace the failed disk with a new one. If you repair (not replace) the failed disk,
+4. Replace the failed disk with a new one. If you repair (not replace) the failed disk,
 you may need to run the following:
 
 .. code-block:: console
 
   (voyager4)$ parted /dev/sdh mklabel msdos
 
-6. Start a new OSD pod on ``voyager4``:
+5. Start a new OSD pod on ``voyager4``:
 
 .. code-block:: console
 
   $ kubectl label nodes voyager4 --overwrite ceph_maintenance_window=inactive
 
-7. Validate the Ceph status (i.e., one OSD is added, so the total number of OSDs becomes 24):
+6. Validate the Ceph status (i.e., one OSD is added, so the total number of OSDs becomes 24):
 
 .. code-block:: console
 

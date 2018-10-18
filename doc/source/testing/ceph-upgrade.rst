@@ -13,7 +13,7 @@ to OSH components.
 Setup:
 ======
 - 3 Node (VM based) env.
-- Followed OSH multinode guide steps to setup nodes and install k8 cluster
+- Followed OSH multinode guide steps to setup nodes and install K8s cluster
 - Followed OSH multinode guide steps upto Ceph install
 
 Plan:
@@ -590,4 +590,4 @@ pods are running. No interruption to OSH pods.
 
 Conclusion:
 ===========
-Ceph can be upgreade without downtime for Openstack components in a multinoe env.
+Ceph can be upgraded without downtime for Openstack components in a multinode env.

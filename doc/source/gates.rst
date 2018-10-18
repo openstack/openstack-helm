@@ -69,7 +69,7 @@ each gate.  The contents of the log directory are as follows:
   gate fails, the reason should be apparent in the dry-runs output.  The logs
   found here are helpful in identifying issues resulting from using helm-toolkit
   functions incorrectly or other rendering issues with gotpl.
-- The k8s directory contains the logs and output of the Kubernetes objects.  It
+- The K8s directory contains the logs and output of the Kubernetes objects.  It
   includes: pods, nodes, secrets, services, namespaces, configmaps, deployments,
   daemonsets, and statefulsets.  Descriptions for the state of all resources
   during execution are found here, and this information can prove valuable when

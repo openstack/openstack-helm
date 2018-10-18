@@ -1,6 +1,6 @@
-===============================
-Commmon Deployment Requirements
-===============================
+==============================
+Common Deployment Requirements
+==============================
 
 Passwordless Sudo
 =================
