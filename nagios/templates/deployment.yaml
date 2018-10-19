@@ -87,6 +87,19 @@ spec:
       terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.nagios.timeout | default "30" }}
       initContainers:
 {{ tuple $envAll "nagios" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+        - name: nagios-log-ownership
+{{ tuple $envAll "nagios" | include "helm-toolkit.snippets.image" | indent 10 }}
+          securityContext:
+            runAsUser: 0
+          command:
+            - chown
+            - -R
+            - nagios:root
+            - /opt/nagios/var/log
+          volumeMounts:
+            - name: pod-var-log
+              mountPath: /opt/nagios/var/log
+              readOnly: false
       containers:
         - name: apache-proxy
 {{ tuple $envAll "apache_proxy" | include "helm-toolkit.snippets.image" | indent 10 }}
@@ -170,7 +183,13 @@ spec:
               mountPath: /opt/nagios/etc/nagios_objects.cfg
               subPath: nagios_objects.cfg
               readOnly: true
+            - name: pod-var-log
+              mountPath: /opt/nagios/var/log
+              readOnly: false
       volumes:
+        - name: pod-var-log
+          hostPath:
+            path: /opt/nagios/var/log
         - name: nagios-etc
           secret:
             secretName: nagios-etc
