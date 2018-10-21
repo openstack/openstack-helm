@@ -21,6 +21,10 @@ make elasticsearch
 
 #NOTE: Deploy command
 tee /tmp/elasticsearch.yaml << EOF
+pod:
+  replicas:
+    data: 1
+    master: 2
 conf:
   elasticsearch:
     env:

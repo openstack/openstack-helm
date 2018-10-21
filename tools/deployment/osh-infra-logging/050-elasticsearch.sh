@@ -27,6 +27,7 @@ monitoring:
 pod:
   replicas:
     data: 1
+    master: 2
 conf:
   elasticsearch:
     snapshots:

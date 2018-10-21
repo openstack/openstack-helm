@@ -27,6 +27,7 @@ monitoring:
 pod:
   replicas:
     data: 1
+    master: 2
 manifests:
   network_policy: true
 network_policy:

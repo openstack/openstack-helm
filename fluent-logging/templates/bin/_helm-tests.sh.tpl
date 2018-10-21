@@ -34,7 +34,7 @@ function check_output_indexes_exist () {
     Elasticsearch outputs should match. This means we can safely use the last item
     in fluentd's configuration to get the Fluentd flush output interval
   */}}
-  {{- $fluentdConf := last .Values.conf.td_agent -}}
+  {{- $fluentdConf := last .Values.conf.fluentd -}}
   {{- $fluentdElasticsearchConf := index $fluentdConf "elasticsearch" -}}
   {{- $fluentdFlush := index $fluentdElasticsearchConf "flush_interval" -}}
   fluentdFlush={{$fluentdFlush}}
