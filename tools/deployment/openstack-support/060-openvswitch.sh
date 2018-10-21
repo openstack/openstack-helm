@@ -13,18 +13,16 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
-
 set -xe
 
-#NOTE: Lint and package chart
-make prometheus-kube-state-metrics
-
 #NOTE: Deploy command
-helm upgrade --install prometheus-kube-state-metrics \
-    ./prometheus-kube-state-metrics --namespace=kube-system
+helm upgrade --install openvswitch ./openvswitch \
+  --namespace=openstack \
+  ${OSH_EXTRA_HELM_ARGS} \
+  ${OSH_EXTRA_HELM_ARGS_OPENVSWITCH}
 
 #NOTE: Wait for deploy
-./tools/deployment/common/wait-for-pods.sh kube-system
+./tools/deployment/common/wait-for-pods.sh osh-infra
 
 #NOTE: Validate Deployment info
-helm status prometheus-kube-state-metrics
+helm status openvswitch

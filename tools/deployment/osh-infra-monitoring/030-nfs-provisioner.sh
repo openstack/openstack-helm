@@ -16,15 +16,22 @@
 
 set -xe
 
-#NOTE: Lint and package chart
-make prometheus-node-exporter
+make nfs-provisioner
 
-#NOTE: Deploy command
-helm upgrade --install prometheus-node-exporter \
-    ./prometheus-node-exporter --namespace=kube-system
+#NOTE: Deploy nfs instance for logging, monitoring and alerting components
+tee /tmp/nfs-provisioner.yaml << EOF
+labels:
+  node_selector_key: openstack-control-plane
+  node_selector_value: enabled
+storageclass:
+  name: general
+EOF
+helm upgrade --install nfs-provisioner \
+    ./nfs-provisioner --namespace=osh-infra \
+    --values=/tmp/nfs-provisioner.yaml
 
-#NOTE: Wait for deploy
-./tools/deployment/common/wait-for-pods.sh kube-system
+#NOTE: Wait for deployment
+./tools/deployment/common/wait-for-pods.sh osh-infra
 
 #NOTE: Validate Deployment info
-helm status prometheus-node-exporter
+helm status nfs-provisioner

@@ -13,13 +13,15 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
-
 set -xe
 
-sudo apt-get update
-sudo apt-get install --no-install-recommends -y \
-        ca-certificates \
-        git \
-        make \
-        nmap \
-        curl
+#NOTE: Lint and package chart
+make libvirt
+
+#NOTE: Deploy command
+helm upgrade --install libvirt ./libvirt \
+  --namespace=openstack \
+  --set network.backend="null"
+
+#NOTE: Validate Deployment info
+helm status libvirt
