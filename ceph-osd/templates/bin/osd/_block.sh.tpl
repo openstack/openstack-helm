@@ -143,6 +143,9 @@ if [ "${OSD_BLUESTORE:-0}" -ne 1 ]; then
         JDEV="$(echo "${OSD_JOURNAL}" | sed 's/\(.*[^0-9]\)[0-9]*$/\1/')"
         if [ -d "/sys/block/$(basename "${JDEV}")/$(basename "${OSD_JOURNAL}")" ]; then
           OSD_JOURNAL="$(dev_part "${JDEV}" "$(echo "${OSD_JOURNAL}" | sed 's/.*[^0-9]\([0-9]*\)$/\1/')")"
+        elif [ "${OSD_DEVICE}" == "${OSD_JOURNAL}" ]; then
+          # journal and osd disk are on the same device.
+          OSD_JOURNAL="$(dev_part "${OSD_JOURNAL}" 2)"
         else
           # they likely supplied a bare device and prepare created partition 1.
           OSD_JOURNAL="$(dev_part "${OSD_JOURNAL}" 1)"
@@ -159,12 +162,12 @@ if [ "${OSD_BLUESTORE:-0}" -ne 1 ]; then
         exit 1
       else
         wait_for_file "${OSD_JOURNAL}"
-        chown ceph. "${OSD_JOURNAL}"
+        chown ceph. "${OSD_JOURNAL}" "${DATA_PART}"
       fi
     fi
   else
     wait_for_file "${JOURNAL_PART}"
-    chown ceph. "${JOURNAL_PART}"
+    chown ceph. "${JOURNAL_PART}" "${DATA_PART}"
     OSD_JOURNAL="${JOURNAL_PART}"
   fi
   CEPH_OSD_OPTIONS="${CEPH_OSD_OPTIONS} --osd-journal ${OSD_JOURNAL}"
