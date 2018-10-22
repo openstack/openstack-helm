@@ -2,6 +2,8 @@
 
 set -eux
 
+{{- $envAll := . }}
+
 {{ if empty .Values.conf.node.CALICO_IPV4POOL_CIDR }}
 {{ $_ := set .Values.conf.node "CALICO_IPV4POOL_CIDR" .Values.networking.podSubnet }}
 {{ end }}
@@ -66,5 +68,20 @@ $CTL apply -f - <<EOF
 EOF
 {{ end }}
 
-exit 0
+{{/* gotpl quirks mean it is easier to loop from 0 to 9 looking for a match in an inner loop than trying to extract and sort */}}
+{{ if .Values.networking.policy }}
+# Policy and Endpoint rules
+{{ range $n, $data := tuple 0 1 2 3 4 5 6 7 8 9 }}
+# Priority: {{ $n }} objects
+{{- range $section, $data := $envAll.Values.networking.policy }}
+{{- if eq (toString $data.priority) (toString $n) }}
+# Section: {{ $section }} Priority: {{ $data.priority }} {{ $n }}
+$CTL apply -f - <<EOF
+{{ $data.rules | toYaml }}
+EOF
+{{- end }}
+{{- end }}
+{{- end }}
+{{ end }}
 
+exit 0
