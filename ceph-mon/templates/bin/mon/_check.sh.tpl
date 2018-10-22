@@ -36,7 +36,7 @@ function heath_check () {
   fi
 
   if [ -S "${SOCKDIR}/${SBASE}.${MON_NAME}.${SSUFFIX}" ]; then
-   MON_STATE=$(ceph -f json-pretty --connect-timeout 1 --admin-daemon "${sock}" mon_status|grep state|sed 's/.*://;s/[^a-z]//g')
+   MON_STATE=$(ceph -f json-pretty --connect-timeout 1 --admin-daemon "${SOCKDIR}/${SBASE}.${MON_NAME}.${SSUFFIX}" mon_status|grep state|sed 's/.*://;s/[^a-z]//g')
    echo "MON ${MON_ID} ${MON_STATE}";
    # this might be a stricter check than we actually want.  what are the
    # other values for the "state" field?
