@@ -17,4 +17,4 @@
 set -xe
 
 #NOTE: Move into openstack-helm root dir & Run client setup script
-cd "${OSH_PATH}"; ./tools/deployment/developer/nfs/020-setup-client.sh
+cd ${OSH_PATH:-"../openstack-helm/"}; ./tools/deployment/developer/nfs/020-setup-client.sh; cd -
