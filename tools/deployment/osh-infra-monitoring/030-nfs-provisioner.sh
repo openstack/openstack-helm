@@ -27,11 +27,11 @@ storageclass:
   name: general
 EOF
 helm upgrade --install nfs-provisioner \
-    ./nfs-provisioner --namespace=osh-infra \
+    ./nfs-provisioner --namespace=nfs \
     --values=/tmp/nfs-provisioner.yaml
 
 #NOTE: Wait for deployment
-./tools/deployment/common/wait-for-pods.sh osh-infra
+./tools/deployment/common/wait-for-pods.sh nfs
 
 #NOTE: Validate Deployment info
 helm status nfs-provisioner
