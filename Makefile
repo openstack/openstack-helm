@@ -32,7 +32,7 @@ $(CHARTS):
 
 init-%:
 	if [ -f $*/Makefile ]; then make -C $*; fi
-	if [ -f $*/requirements.yaml ]; then helm dep up $*; fi
+	if [ -f $*/requirements.yaml ]; then $(HELM) dep up $*; fi
 
 lint-%: init-%
 	if [ -d $* ]; then $(HELM) lint $*; fi
