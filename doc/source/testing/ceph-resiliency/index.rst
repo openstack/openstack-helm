@@ -7,3 +7,4 @@ Ceph Resiliency
 
    README
    failure-domain
+   validate-object-replication
