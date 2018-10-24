@@ -25,6 +25,7 @@ if [ "x$(systemd-detect-virt)" == "xnone" ]; then
   echo 'OSH is not being deployed in virtualized environment'
   helm upgrade --install nova ./nova \
       --namespace=openstack \
+      --set manifests.network_policy=true \
       ${OSH_EXTRA_HELM_ARGS} \
       ${OSH_EXTRA_HELM_ARGS_NOVA}
 else
@@ -33,6 +34,7 @@ else
       --namespace=openstack \
       --set conf.nova.libvirt.virt_type=qemu \
       --set conf.nova.libvirt.cpu_mode=none \
+      --set manifests.network_policy=true \
       ${OSH_EXTRA_HELM_ARGS} \
       ${OSH_EXTRA_HELM_ARGS_NOVA}
 fi
@@ -68,6 +70,7 @@ EOF
 helm upgrade --install neutron ./neutron \
     --namespace=openstack \
     --values=/tmp/neutron.yaml \
+    --set manifests.network_policy=true \
     ${OSH_EXTRA_HELM_ARGS} \
     ${OSH_EXTRA_HELM_ARGS_NEUTRON}
 

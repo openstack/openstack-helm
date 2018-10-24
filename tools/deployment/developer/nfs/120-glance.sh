@@ -45,6 +45,7 @@ fi
 helm upgrade --install glance ./glance \
   --namespace=openstack \
   --values=/tmp/glance.yaml \
+  --set manifests.network_policy=true \
   ${OSH_EXTRA_HELM_ARGS} \
   ${OSH_EXTRA_HELM_ARGS_GLANCE}
 

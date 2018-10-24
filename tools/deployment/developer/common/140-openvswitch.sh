@@ -19,10 +19,20 @@ set -xe
 : ${OSH_INFRA_PATH:="../openstack-helm-infra"}
 make -C ${OSH_INFRA_PATH} openvswitch
 
+tee /tmp/openvswitch.yaml <<EOF
+manifests:
+  network_policy: true
+network_policy:
+  openvswitch:
+    ingress:
+      - {}
+EOF
+
 #NOTE: Deploy command
 : ${OSH_EXTRA_HELM_ARGS:=""}
 helm upgrade --install openvswitch ${OSH_INFRA_PATH}/openvswitch \
   --namespace=openstack \
+  --values=/tmp/openvswitch.yaml \
   ${OSH_EXTRA_HELM_ARGS} \
   ${OSH_EXTRA_HELM_ARGS_OPENVSWITCH}
 
