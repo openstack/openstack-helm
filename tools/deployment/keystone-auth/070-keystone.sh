@@ -16,5 +16,35 @@
 
 set -xe
 
-#NOTE: Move into openstack-helm root dir & Run keystone deployment script
-cd "${OSH_PATH}"; ./tools/deployment/developer/ldap/080-keystone.sh
+# Install LDAP
+make ldap
+
+: ${OSH_INFRA_EXTRA_HELM_ARGS:=""}
+helm upgrade --install ldap ${OSH_INFRA_PATH}/ldap \
+    --namespace=openstack \
+    --set pod.replicas.server=1 \
+    --set bootstrap.enabled=true \
+    ${OSH_INFRA_EXTRA_HELM_ARGS} \
+    ${OSH_INFRA_EXTRA_HELM_ARGS_LDAP}
+
+./tools/deployment/common/wait-for-pods.sh openstack
+helm status ldap
+
+# Install Keystone
+cd "${OSH_PATH}"
+
+make pull-images keystone
+: ${OSH_EXTRA_HELM_ARGS:=""}
+helm upgrade --install keystone ./keystone \
+    --namespace=openstack \
+    --values=./tools/overrides/keystone/ldap_domain_config.yaml \
+    ${OSH_EXTRA_HELM_ARGS} \
+    ${OSH_EXTRA_HELM_ARGS_KEYSTONE}
+
+./tools/deployment/common/wait-for-pods.sh openstack
+helm status keystone
+
+# Testing basic functionality
+export OS_CLOUD=openstack_helm
+sleep 30 #NOTE(portdirect): Wait for ingress controller to update rules and restart Nginx
+openstack endpoint list
