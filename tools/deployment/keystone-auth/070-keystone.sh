@@ -16,10 +16,12 @@
 
 set -xe
 
+: ${OSH_PATH:="../openstack-helm"}
+: ${OSH_INFRA_EXTRA_HELM_ARGS:=""}
+: ${OSH_EXTRA_HELM_ARGS:=""}
+
 # Install LDAP
 make ldap
-
-: ${OSH_INFRA_EXTRA_HELM_ARGS:=""}
 helm upgrade --install ldap ${OSH_INFRA_PATH}/ldap \
     --namespace=openstack \
     --set pod.replicas.server=1 \
@@ -31,13 +33,9 @@ helm upgrade --install ldap ${OSH_INFRA_PATH}/ldap \
 helm status ldap
 
 # Install Keystone
-cd ${OSH_PATH:-"../openstack-helm/"}
-
-make pull-images keystone
-: ${OSH_EXTRA_HELM_ARGS:=""}
-helm upgrade --install keystone ./keystone \
+helm upgrade --install keystone ${OSH_PATH}/keystone \
     --namespace=openstack \
-    --values=./tools/overrides/keystone/ldap_domain_config.yaml \
+    --values=${OSH_PATH}/tools/overrides/keystone/ldap_domain_config.yaml \
     ${OSH_EXTRA_HELM_ARGS} \
     ${OSH_EXTRA_HELM_ARGS_KEYSTONE}
 
