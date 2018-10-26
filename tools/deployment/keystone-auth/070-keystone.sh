@@ -31,7 +31,7 @@ helm upgrade --install ldap ${OSH_INFRA_PATH}/ldap \
 helm status ldap
 
 # Install Keystone
-cd "${OSH_PATH}"
+cd ${OSH_PATH:-"../openstack-helm/"}
 
 make pull-images keystone
 : ${OSH_EXTRA_HELM_ARGS:=""}
