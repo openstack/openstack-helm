@@ -46,6 +46,7 @@ spec:
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
     spec:
       serviceAccountName: {{ $serviceAccountName }}
+{{ dict "envAll" $envAll "application" "nova" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
       affinity:
 {{ tuple $envAll "nova" "novnc-proxy" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
       nodeSelector:
@@ -57,8 +58,6 @@ spec:
         - name: nova-novncproxy-init
 {{ tuple $envAll "nova_novncproxy" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.novncproxy | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-          securityContext:
-            runAsUser: {{ .Values.pod.user.nova.uid }}
           command:
             - /tmp/nova-console-proxy-init.sh
           volumeMounts:
