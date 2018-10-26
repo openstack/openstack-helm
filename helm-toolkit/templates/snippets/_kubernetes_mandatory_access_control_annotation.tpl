@@ -21,7 +21,8 @@ abstract: |
   annotation, but in the future could generate others.
 values: |
   pod:
-    apparmor:
+    mandatory_access_control:
+      type: apparmor
       myPodName:
         myContainerName: localhost/myAppArmor
         mySecondContainerName: localhost/secondProfile # optional
@@ -40,12 +41,22 @@ note: |
 {{- $envAll := index . "envAll" -}}
 {{- $podName := index . "podName" -}}
 {{- $containerNames := index . "containerNames" -}}
-{{- if hasKey (index $envAll.Values.pod "apparmor") $podName -}}
+{{- if hasKey $envAll.Values.pod "mandatory_access_control" -}}
+{{- if hasKey $envAll.Values.pod.mandatory_access_control "type" -}}
+{{- $macType := $envAll.Values.pod.mandatory_access_control.type -}}
+{{- if $macType -}}
+{{- if eq $macType "apparmor" -}}
+{{- if hasKey $envAll.Values.pod.mandatory_access_control $podName -}}
 {{- range $name := $containerNames -}}
-{{- $apparmorProfile := index $envAll.Values.pod.apparmor $podName $name -}}
+{{- $apparmorProfile := index $envAll.Values.pod.mandatory_access_control $podName $name -}}
 {{- if $apparmorProfile }}
 container.apparmor.security.beta.kubernetes.io/{{ $name }}: {{ $apparmorProfile }}
 {{- end -}}
 {{- end -}}
 {{- end -}}
 {{- end -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+
