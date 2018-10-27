@@ -58,7 +58,7 @@ ip link set {{ $sriov.device }} promisc ${promisc_mode}
 #NOTE(portdirect): get the bus that the port is on
 NIC_BUS=$(lshw -c network -businfo | awk '/{{ $sriov.device }}/ {print $1}')
 #NOTE(portdirect): get first port on the nic
-NIC_FIRST_PORT=$(lshw -c network -businfo | awk "/${NIC_BUS%%.*}/ { print \$2; exit }"
+NIC_FIRST_PORT=$(lshw -c network -businfo | awk "/${NIC_BUS%%.*}/ { print \$2; exit }")
 #NOTE(portdirect): Enable promisc mode on the nic, by setting it for the 1st port
 ethtool --set-priv-flags ${NIC_FIRST_PORT} vf-true-promisc-support ${promisc_mode}
 {{- end }}
