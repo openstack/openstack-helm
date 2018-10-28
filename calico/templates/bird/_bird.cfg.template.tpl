@@ -55,14 +55,18 @@ template bgp bgp_template {
   import all;        # Import all routes, since we don't know what the upstream
                      # topology is and therefore have to trust the ToR/RR.
   export filter calico_pools;  # Only want to export routes for workloads.
-  next hop self;     # Disable next hop processing and always advertise our
-                     # local address as nexthop
 {{`  source address {{$node_ip}};  # The local address we use for the TCP connection`}}
   add paths on;
   graceful restart;  # See comment in kernel section about graceful restart.
 }
 
 # ------------- Node-to-node mesh -------------
+{{`{{- $node_cid_key := printf "/host/%s/rr_cluster_id" (getenv "NODENAME")}}`}}
+{{`{{- $node_cluster_id := getv $node_cid_key}}`}}
+{{`{{- if ne "" ($node_cluster_id)}}`}}
+{{`# This node is configured as a route reflector with cluster ID {{$node_cluster_id}};`}}
+# ignore node-to-node mesh setting.
+{{`{{- else}}`}}
 {{`{{if (json (getv "/global/node_mesh")).enabled}}`}}
 {{`{{range $host := lsdir "/host"}}`}}
 {{`{{$onode_as_key := printf "/host/%s/as_num" .}}`}}
@@ -77,6 +81,7 @@ template bgp bgp_template {
 {{`{{else}}`}}
 # Node-to-node mesh disabled
 {{`{{end}}`}}
+{{`{{- end}}`}}
 
 
 # ------------- Global peers -------------
@@ -84,10 +89,18 @@ template bgp bgp_template {
 {{`{{range gets "/global/peer_v4/*"}}{{$data := json .Value}}`}}
 {{`{{$nums := split $data.ip "."}}{{$id := join $nums "_"}}`}}
 {{`# For peer {{.Key}}`}}
+{{`{{- if eq $data.ip ($node_ip) }}`}}
+{{`# Skipping ourselves ({{$node_ip}})`}}
+{{`{{- else}}`}}
 {{`protocol bgp Global_{{$id}} from bgp_template {`}}
 {{`  neighbor {{$data.ip}} as {{$data.as_num}};`}}
   neighbor port {{.Values.networking.bgp.ipv4.port.neighbor}};
+{{`{{- if and (ne "" ($node_cluster_id)) (ne $data.rr_cluster_id ($node_cluster_id))}}`}}
+  rr client;
+{{`  rr cluster id {{$node_cluster_id}};`}}
+{{`{{- end}}`}}
 }
+{{`{{- end}}`}}
 {{`{{end}}`}}
 {{`{{else}}# No global peers configured.{{end}}`}}
 
@@ -98,10 +111,18 @@ template bgp bgp_template {
 {{`{{range gets (printf "%s/*" $node_peers_key)}}{{$data := json .Value}}`}}
 {{`{{$nums := split $data.ip "."}}{{$id := join $nums "_"}}`}}
 {{`# For peer {{.Key}}`}}
+{{`{{- if eq $data.ip ($node_ip) }}`}}
+{{`# Skipping ourselves ({{$node_ip}})`}}
+{{`{{- else}}`}}
 {{`protocol bgp Node_{{$id}} from bgp_template {`}}
 {{`  neighbor {{$data.ip}} as {{$data.as_num}};`}}
   neighbor port {{.Values.networking.bgp.ipv4.port.neighbor}};
+{{`{{- if and (ne "" ($node_cluster_id)) (ne $data.rr_cluster_id ($node_cluster_id))}}`}}
+  rr client;
+{{`  rr cluster id {{$node_cluster_id}};`}}
+{{`{{- end}}`}}
 }
+{{`{{- end}}`}}
 {{`{{end}}`}}
 {{`{{else}}# No node-specific peers configured.{{end}}`}}
 {{`{{end}}{{/* End of IPv4 enable check */}}`}}
