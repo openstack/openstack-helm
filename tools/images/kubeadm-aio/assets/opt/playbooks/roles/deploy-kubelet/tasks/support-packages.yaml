@@ -61,22 +61,29 @@
   with_items:
     - libselinux-python
 
-- when: kubelet.pv_support_ceph
-  name: installing ceph support packages
-  include_role:
-    name: deploy-package
-    tasks_from: dist
-  vars:
-    packages:
-      deb:
-        - ceph-common
-        - rbd-nbd
-      rpm:
+- name: installing ceph support packages
+  when: kubelet.pv_support_ceph
+  block:
+  - name: ubuntu | installing packages
+    when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+    apt:
+      name: "{{item}}"
+      state: latest
+    with_items:
         - ceph-common
         - rbd-nbd
 
-- when: kubelet.pv_support_ceph
-  name: blacklist kernel RBD driver module
+  - name: centos | installing packages
+    when: ansible_distribution == 'CentOS' or ansible_distribution == 'Red Hat Enterprise Linux'
+    yum:
+      name: "{{item}}"
+      state: latest
+    with_items:
+        - ceph-common
+        - rbd-nbd
+
+- name: blacklist kernel RBD driver module
+  when: kubelet.pv_support_ceph
   copy:
     dest: "/etc/modprobe.d/rbd.conf"
     content: "install rbd /bin/true"
