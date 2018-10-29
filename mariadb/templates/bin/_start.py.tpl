@@ -89,8 +89,10 @@ if check_env_var("DISCOVERY_DOMAIN"):
     discovery_domain = os.environ['DISCOVERY_DOMAIN']
 if check_env_var("WSREP_PORT"):
     wsrep_port = os.environ['WSREP_PORT']
-if check_env_var("MYSQL_ROOT_PASSWORD"):
-    mysql_root_password = os.environ['MYSQL_ROOT_PASSWORD']
+if check_env_var("MYSQL_DBADMIN_USERNAME"):
+    mysql_dbadmin_username = os.environ['MYSQL_DBADMIN_USERNAME']
+if check_env_var("MYSQL_DBADMIN_PASSWORD"):
+    mysql_dbadmin_password = os.environ['MYSQL_DBADMIN_PASSWORD']
 
 # Set some variables for tuneables
 cluster_leader_ttl = 120
@@ -240,11 +242,11 @@ def mysqld_bootstrap():
         ], logger)
         template = (
             "DELETE FROM mysql.user ;\n"
-            "CREATE OR REPLACE USER 'root'@'%' IDENTIFIED BY \'{0}\' ;\n"
-            "GRANT ALL ON *.* TO 'root'@'%' WITH GRANT OPTION ;\n"
+            "CREATE OR REPLACE USER '{0}'@'%' IDENTIFIED BY \'{1}\' ;\n"
+            "GRANT ALL ON *.* TO '{0}'@'%' WITH GRANT OPTION ;\n"
             "DROP DATABASE IF EXISTS test ;\n"
             "FLUSH PRIVILEGES ;\n"
-            "SHUTDOWN ;".format(mysql_root_password))
+            "SHUTDOWN ;".format(mysql_dbadmin_username, mysql_dbadmin_password))
         bootstrap_sql_file = tempfile.NamedTemporaryFile(suffix='.sql').name
         with open(bootstrap_sql_file, 'w') as f:
             f.write(template)
