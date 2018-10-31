@@ -1982,6 +1982,19 @@ endpoints:
         default: 24224
       metrics:
         default: 24220
+  #NOTE(tp6510): these endpoints allow for things like DNS lookups and apiserver access.
+  # They are using to enable the Egress K8s network policy.
+  k8s:
+    port:
+      api:
+        default: 6443
+        internal: 5000
+  default:
+    namespace: default
+  kube_system:
+    namespace: kube-system
+  kube_public:
+    namespace: kube-public
 
 pod:
   user:
@@ -2238,9 +2251,29 @@ network_policy:
     # TODO(lamt): Need to tighten this ingress for security.
     ingress:
       - {}
+    egress:
+      - {}
+      - to:
+        - podSelector:
+            matchLabels:
+              application: ceph
+        - podSelector:
+            matchLabels:
+              application: ingress
+        - podSelector:
+            matchLabels:
+              application: openvswitch
+        - podSelector:
+            matchLabels:
+              application: libvirt
+        - podSelector:
+            matchLabels:
+              application: cinder
   placement:
     # TODO(lamt): Need to tighten this ingress for security.
     ingress:
+      - {}
+    egress:
       - {}
 
 manifests:
