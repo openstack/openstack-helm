@@ -17,6 +17,7 @@ limitations under the License.
 */}}
 
 set -ex
+{{- $envAll := . }}
 
 CEPH_RBD_KEY=$(kubectl get secret ${PVC_CEPH_RBD_STORAGECLASS_ADMIN_SECRET_NAME} \
     --namespace=${PVC_CEPH_RBD_STORAGECLASS_DEPLOYED_NAMESPACE} \
@@ -33,6 +34,8 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: "${secret_name}"
+  labels:
+{{ tuple $envAll "ceph" "rbd" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 type: "${secret_type}"
 data:
   key: $( echo ${ceph_key} )

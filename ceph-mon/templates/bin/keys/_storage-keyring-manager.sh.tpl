@@ -18,6 +18,7 @@ limitations under the License.
 
 set -ex
 {{ if .Release.IsInstall }}
+{{- $envAll := . }}
 
 function ceph_gen_key () {
   python ${CEPH_GEN_DIR}/keys-bootstrap-keyring-generator.py
@@ -45,6 +46,8 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: ${KUBE_SECRET_NAME}
+  labels:
+{{ tuple $envAll "ceph" "admin" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 type: Opaque
 data:
   ${CEPH_KEYRING_NAME}: $( kube_ceph_keyring_gen ${CEPH_KEYRING} ${CEPH_KEYRING_TEMPLATE} )
@@ -67,6 +70,8 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: ${KUBE_SECRET_NAME}
+  labels:
+{{ tuple $envAll "ceph" "admin" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 type: kubernetes.io/rbd
 data:
   key: $( echo ${CEPH_KEYRING} | base64 | tr -d '\n' )
