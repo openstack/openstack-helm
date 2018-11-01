@@ -64,6 +64,13 @@ spec:
           #   value: directory
             - name: CLUSTER
               value: "ceph"
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.namespace
+            - name: MON_PORT
+              value: {{ tuple "ceph_mon" "internal" "mon" $envAll | include "helm-toolkit.endpoints.endpoint_port_lookup" | quote }}
           volumeMounts:
             - name: ceph-osd-bin
               mountPath: /tmp/init-dirs.sh
@@ -125,6 +132,13 @@ spec:
               value: "ceph"
             - name: CEPH_GET_ADMIN_KEY
               value: "1"
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.namespace
+            - name: MON_PORT
+              value: {{ tuple "ceph_mon" "internal" "mon" $envAll | include "helm-toolkit.endpoints.endpoint_port_lookup" | quote }}
           command:
             - /tmp/osd-init.sh
           volumeMounts:
@@ -133,7 +147,7 @@ spec:
               subPath: osd-init.sh
               readOnly: true
             - name: ceph-osd-etc
-              mountPath: /etc/ceph/ceph.conf
+              mountPath: /etc/ceph/ceph.conf.template
               subPath: ceph.conf
               readOnly: true
             - name: ceph-bootstrap-osd-keyring
@@ -185,6 +199,13 @@ spec:
               value: {{ .Values.conf.storage.failure_domain_name | default "false" | quote }}
             - name: CRUSH_FAILURE_DOMAIN_BY_HOSTNAME
               value: {{ .Values.conf.storage.failure_domain_by_hostname | default "false" | quote }}
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.namespace
+            - name: MON_PORT
+              value: {{ tuple "ceph_mon" "internal" "mon" $envAll | include "helm-toolkit.endpoints.endpoint_port_lookup" | quote }}
           command:
             - /tmp/osd-start.sh
           lifecycle:
@@ -227,8 +248,12 @@ spec:
               mountPath: /tmp/osd-stop.sh
               subPath: osd-stop.sh
               readOnly: true
+            - name: ceph-osd-bin
+              mountPath: /tmp/utils-checkDNS.sh
+              subPath: utils-checkDNS.sh
+              readOnly: true
             - name: ceph-osd-etc
-              mountPath: /etc/ceph/ceph.conf
+              mountPath: /etc/ceph/ceph.conf.template
               subPath: ceph.conf
               readOnly: true
             - name: ceph-bootstrap-osd-keyring

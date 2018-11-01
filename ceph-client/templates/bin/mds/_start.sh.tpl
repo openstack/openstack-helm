@@ -12,10 +12,18 @@ export LC_ALL=C
 : "${ADMIN_KEYRING:=/etc/ceph/${CLUSTER}.client.admin.keyring}"
 : "${MDS_KEYRING:=/var/lib/ceph/mds/${CLUSTER}-${MDS_NAME}/keyring}"
 : "${MDS_BOOTSTRAP_KEYRING:=/var/lib/ceph/bootstrap-mds/${CLUSTER}.keyring}"
+: "${CEPH_CONF:="/etc/ceph/${CLUSTER}.conf"}"
 
-if [[ ! -e "/etc/ceph/${CLUSTER}.conf" ]]; then
-  echo "ERROR- /etc/ceph/${CLUSTER}.conf must exist; get it from your existing mon"
+if [[ ! -e ${CEPH_CONF}.template ]]; then
+  echo "ERROR- ${CEPH_CONF}.template must exist; get it from your existing mon"
   exit 1
+else
+  ENDPOINT=$(kubectl get endpoints ceph-mon -n ${NAMESPACE} -o json | awk -F'"' -v port=${MON_PORT} '/ip/{print $4":"port}' | paste -sd',')
+  if [[ ${ENDPOINT} == "" ]]; then
+    /bin/sh -c -e "cat ${CEPH_CONF}.template | tee ${CEPH_CONF}" || true
+  else
+    /bin/sh -c -e "cat ${CEPH_CONF}.template | sed 's/mon_host.*/mon_host = ${ENDPOINT}/g' | tee ${CEPH_CONF}" || true
+  fi
 fi
 
 # Check to see if we are a new MDS
