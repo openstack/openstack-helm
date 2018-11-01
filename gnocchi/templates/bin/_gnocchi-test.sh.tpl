@@ -49,7 +49,7 @@ gnocchi metric delete ${METRIC_UUID}
 
 RESOURCE_UUID={{ uuidv4 }}
 
-echo "Test: create resouce type"
+echo "Test: create resource type"
 gnocchi resource-type create --attribute name:string --attribute host:string test
 
 echo "Test: list resource types"
