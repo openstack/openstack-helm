@@ -85,6 +85,11 @@ spec:
       nodeSelector:
         {{ .Values.labels.nagios.node_selector_key }}: {{ .Values.labels.nagios.node_selector_value | quote }}
       terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.nagios.timeout | default "30" }}
+      {{- if or ( gt .Capabilities.KubeVersion.Major "1" ) ( ge .Capabilities.KubeVersion.Minor "10" ) }}
+      shareProcessNamespace: true
+      {{- else }}
+      hostPID: true
+      {{- end }}
       initContainers:
 {{ tuple $envAll "nagios" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
         - name: nagios-log-ownership
