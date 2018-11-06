@@ -182,6 +182,9 @@ pod:
     mds: 1
     mgr: 1
     rgw: 1
+
+manifests:
+  cronjob_checkPGs: true
 EOF
 
 for CHART in ceph-mon ceph-osd ceph-client ceph-provisioners; do
