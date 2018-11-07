@@ -1761,8 +1761,16 @@ conf:
         groups:
         - name: ceph.rules
           rules:
-          - alert: ceph_monitor_quorum_low
-            expr:  ceph_monitor_quorum_count < 3
+          - alert: no_active_ceph_mgr
+            expr: count(up{job="ceph-mgr"} == 1) == 0
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              description: 'no ceph active mgr is present or all ceph mgr are down'
+              summary: 'no ceph active mgt is present'
+          - alert: ceph_mon_quorum_low
+            expr:  ceph_mon_quorum_count < 3
             for: 5m
             labels:
               severity: page
@@ -1770,7 +1778,7 @@ conf:
               description: 'ceph monitor quorum has been less than 3 for more than 5 minutes'
               summary: 'ceph high availability is at risk'
           - alert: ceph_cluster_usage_high
-            expr:  100* ceph_cluster_used_bytes/ceph_cluster_capacity_bytes > 80
+            expr: 100* ceph_cluster_total_used_bytes/ceph_cluster_total_bytes > 80
             for: 5m
             labels:
               severity: page
@@ -1778,29 +1786,37 @@ conf:
               description: 'ceph cluster capacity usage more than 80 percent'
               summary: 'ceph cluster usage is more than 80 percent'
           - alert: ceph_placement_group_degrade_pct_high
-            expr:  100*ceph_degraded_pgs/ceph_total_pgs > 80
+            expr: 100 * sum(ceph_pg_degraded)/sum(ceph_osd_numpg) > 80
             for: 5m
             labels:
-              severity: page
+              severity: critical
             annotations:
               description: 'ceph placement group degradation is more than 80 percent'
               summary: 'ceph placement groups degraded'
           - alert: ceph_osd_down_pct_high
-            expr:  100* ceph_osds_down/(ceph_osds_down+ceph_osds_up) > 80
+            expr:  100 * count(ceph_osd_up==0)/count(ceph_osd_metadata) > 80
             for: 5m
             labels:
-              severity: page
+              severity: critical
             annotations:
               description: 'ceph OSDs down percent is more than 80 percent'
               summary: 'ceph OSDs down percent is high'
-          - alert: ceph_monitor_clock_skew_high
-            expr:  ceph_monitor_clock_skew_seconds > 2
+          - alert: ceph_osd_down
+            expr: ceph_osd_up == 0
+            for: 1m
+            labels:
+              severity: critical
+            annotations:
+              description: 'ceph OSD {{ $ceph_daemon }} is down in instance {{ $instance }}'
+              summary: 'ceph OSD {{ $ceph_daemon }} is down in instance {{ $instance }}'
+          - alert: ceph_osd_out
+            expr: ceph_osd_in == 0
             for: 5m
             labels:
               severity: page
             annotations:
-              description: 'ceph monitors clock skew on {{$labels.instance}} is more than 2 seconds'
-              summary: 'ceph monitor clock skew high'
+              description: 'ceph OSD {{ $ceph_daemon }} is out in instance {{ $instance }}'
+              summary: 'ceph OSD {{ $ceph_daemon }} is out in instance {{ $instance }}'
       fluentd:
         groups:
         - name: fluentd.rules
