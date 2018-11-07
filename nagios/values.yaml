@@ -155,6 +155,19 @@ endpoints:
     port:
       http:
         default: 80
+  ceph_mgr:
+    namespace: null
+    hosts:
+      default: ceph-mgr
+    host_fqdn_override:
+      default: null
+    port:
+      mgr:
+        default: 7000
+      metrics:
+        default: 9283
+    scheme:
+      default: http
 
 network:
   nagios:
@@ -366,9 +379,6 @@ conf:
       - base-os:
           hostgroup_name: base-os
           alias: "base-os"
-      - ceph_mgr_placeholder:
-          hostgroup_name: ceph_mgr_placeholder
-          alias: "ceph_mgr_placeholder"
     commands:
       - send_service_snmp_trap:
           command_name: send_service_snmp_trap
@@ -456,7 +466,7 @@ conf:
           command_line: $USER1$/query_prometheus_alerts.py --prometheus_api $USER2$ --alertname 'node_ntp_clock_skew_high' --labels_csv 'instance=~"$HOSTADDRESS$.*"' --msg_format 'CRITICAL- NTP clock skew is more than 2 seconds.' --ok_message 'OK- NTP clock skew is less than 2 seconds.'
       - check_ceph_health:
           command_name: check_ceph_health
-          command_line: $USER1$/check_exporter_health_metric.py --exporter_api 'http://$HOSTADDRESS$:9283/metrics' --health_metric ceph_health_status --critical 2 --warning 1
+          command_line: $USER1$/check_exporter_health_metric.py --exporter_api $USER10$ --health_metric ceph_health_status --critical 2 --warning 1
       - check_prometheus_hosts:
           command_name: check_prometheus_hosts
           command_line: $USER1$/check_update_prometheus_hosts.py --prometheus_api $USER2$ --object_file_loc /opt/nagios/etc/objects/prometheus_discovery_objects.cfg
@@ -469,14 +479,14 @@ conf:
           contact_groups: snmp_and_http_notifying_contact_group
           check_interval: 60
           notification_interval: 120
-          retry_interval: 15
+          retry_interval: 30
           register: 0
       - check_ceph_health:
           use: notifying_service
-          hostgroup_name: ^ceph_mgr.*$
+          hostgroup_name: base-os
           service_description: "CEPH_health"
           check_command: check_ceph_health
-          check_interval: 60
+          check_interval: 300
       - check_hosts_health:
           use: generic-service
           hostgroup_name: prometheus-hosts
@@ -1075,7 +1085,7 @@ conf:
       service_interleave_factor: s
       host_inter_check_delay_method: s
       max_host_check_spread: 30
-      max_concurrent_checks: 0
+      max_concurrent_checks: 60
       check_result_reaper_frequency: 10
       max_check_result_reaper_time: 30
       check_result_path: /opt/nagios/var/spool/checkresults
@@ -1106,6 +1116,7 @@ conf:
       retained_contact_host_attribute_mask: 0
       retained_contact_service_attribute_mask: 0
       interval_length: 1
+      check_workers: 4
       check_for_updates: 1
       bare_update_check: 0
       use_aggressive_host_checking: 0
