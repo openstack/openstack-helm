@@ -22,7 +22,7 @@ set -xe
 
 # Install LDAP
 make ldap
-helm upgrade --install ldap ${OSH_INFRA_PATH}/ldap \
+helm upgrade --install ldap ./ldap \
     --namespace=openstack \
     --set pod.replicas.server=1 \
     --set bootstrap.enabled=true \
