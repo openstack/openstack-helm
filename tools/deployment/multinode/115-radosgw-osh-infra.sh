@@ -20,6 +20,8 @@ set -xe
 make ceph-rgw
 
 #NOTE: Deploy command
+CEPH_PUBLIC_NETWORK="$(./tools/deployment/multinode/kube-node-subnet.sh)"
+CEPH_CLUSTER_NETWORK="$(./tools/deployment/multinode/kube-node-subnet.sh)"
 tee /tmp/radosgw-osh-infra.yaml <<EOF
 endpoints:
   ceph_object_store:
@@ -27,8 +29,8 @@ endpoints:
   ceph_mon:
     namespace: ceph
 network:
-  public: 172.17.0.1/16
-  cluster: 172.17.0.1/16
+  public: ${CEPH_PUBLIC_NETWORK}
+  cluster: ${CEPH_CLUSTER_NETWORK}
 deployment:
   storage_secrets: false
   ceph: true
