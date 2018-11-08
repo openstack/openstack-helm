@@ -47,11 +47,13 @@ elif [ "x$STORAGE_BACKEND" == "xcinder.backup.drivers.ceph" ]; then
   ensure_pool ${RBD_POOL_NAME} ${RBD_POOL_CHUNK_SIZE} "cinder-backup"
 
   if USERINFO=$(ceph auth get client.${RBD_POOL_USER}); then
-    KEYSTR=$(echo $USERINFO | sed 's/.*\( key = .*\) caps mon.*/\1/')
-    echo $KEYSTR  > ${KEYRING}
+    echo "Cephx user client.${RBD_POOL_USER} already exists"
+    echo "Update its cephx caps"
+    ceph auth caps client.${RBD_POOL_USER} \
+      mon "profile rbd" \
+      osd "profile rbd pool=${RBD_POOL_NAME}"
+    ceph auth get client.${RBD_POOL_USER} -o ${KEYRING}
   else
-    #NOTE(Portdirect): Determine proper privs to assign keyring
-    #NOTE(JCL): Adjusted permissions for cinder backup.
     ceph auth get-or-create client.${RBD_POOL_USER} \
       mon "profile rbd" \
       osd "profile rbd pool=${RBD_POOL_NAME}" \
