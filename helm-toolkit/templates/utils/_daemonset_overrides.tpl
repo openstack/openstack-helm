@@ -228,9 +228,9 @@ limitations under the License.
     {{- $_ := set $context.Values "__volume_list" list }}
     {{- range $current_volume := $context.Values.__daemonset_yaml.spec.template.spec.volumes }}
       {{- $_ := set $context.Values "__volume" $current_volume }}
-      {{- if hasKey $context.Values.__volume "configMap" }}
-        {{- if eq $context.Values.__volume.configMap.name $context.Values.__last_configmap_name }}
-          {{- $_ := set $context.Values.__volume.configMap "name" $current_dict.dns_1123_name }}
+      {{- if hasKey $context.Values.__volume "secret" }}
+        {{- if eq $context.Values.__volume.secret.secretName $context.Values.__last_configmap_name }}
+          {{- $_ := set $context.Values.__volume.secret "secretName" $current_dict.dns_1123_name }}
         {{- end }}
       {{- end }}
       {{- $updated_list := append $context.Values.__volume_list $context.Values.__volume }}
