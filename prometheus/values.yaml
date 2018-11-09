@@ -886,7 +886,7 @@ conf:
           - source_labels:
               - __meta_kubernetes_service_name
             action: drop
-            regex: '(openstack-metrics|prom-metrics)'
+            regex: '(openstack-metrics|prom-metrics|ceph-mgr)'
           - source_labels:
               - __meta_kubernetes_service_annotation_prometheus_io_scrape
             action: keep
@@ -988,6 +988,43 @@ conf:
             replacement: ${1}
           - target_label: endpoint
             replacement: "calico-etcd"
+        - job_name: ceph-mgr
+          kubernetes_sd_configs:
+          - role: service
+          scrape_interval: 20s
+          relabel_configs:
+          - action: labelmap
+            regex: __meta_kubernetes_service_label_(.+)
+          - action: keep
+            source_labels:
+              - __meta_kubernetes_service_name
+            regex: "ceph-mgr"
+          - source_labels:
+              - __meta_kubernetes_service_port_name
+            action: drop
+            regex: 'ceph-mgr'
+          - action: keep
+            source_labels:
+              - __meta_kubernetes_namespace
+            regex: ceph
+            target_label: namespace
+          - source_labels:
+              - __meta_kubernetes_pod_name
+            target_label: pod
+          - source_labels:
+              - __meta_kubernetes_service_name
+            target_label: service
+          - source_labels:
+              - __meta_kubernetes_service_name
+            target_label: job
+            replacement: ${1}
+          - source_labels:
+              - __meta_kubernetes_service_label
+            target_label: job
+            regex: ceph-mgr
+            replacement: ${1}
+          - target_label: endpoint
+            replacement: "ceph-mgr"
       alerting:
         alertmanagers:
         - kubernetes_sd_configs:
