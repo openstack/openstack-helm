@@ -74,6 +74,9 @@ conf:
         journal:
           type: directory
           location: /var/lib/openstack-helm/ceph/osd/journal-one
+
+manifests:
+  cronjob_checkPGs: true
 EOF
 
 for CHART in ceph-mon ceph-osd ceph-client ceph-provisioners; do
