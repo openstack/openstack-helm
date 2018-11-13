@@ -963,7 +963,7 @@ In this test env, ``mnode3`` is out of quorum.
     io:
       client:   132 kB/s wr, 0 op/s rd, 23 op/s wr
 
-As shown above, Ceph status is now HEALTH_OK and and shows 3 MONs available.
+As shown above, Ceph status is now HEALTH_OK and shows 3 MONs available.
 
 ``Ceph MON Status``
 
