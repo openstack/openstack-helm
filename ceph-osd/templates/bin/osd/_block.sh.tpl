@@ -126,13 +126,26 @@ OSD_PATH="${OSD_PATH_BASE}-${OSD_ID}"
 OSD_KEYRING="${OSD_PATH}/keyring"
 # NOTE(supamatt): set the initial crush weight of the OSD to 0 to prevent automatic rebalancing
 OSD_WEIGHT=0
-ceph \
-  --cluster "${CLUSTER}" \
-  --name="osd.${OSD_ID}" \
-  --keyring="${OSD_KEYRING}" \
-  osd \
-  crush \
-  create-or-move -- "${OSD_ID}" "${OSD_WEIGHT}" ${CRUSH_LOCATION}
+if [ "x${CRUSH_RULE}" == "xrack_replicated_rule" ]; then
+  RACK_LOCATION=$(echo rack_$(echo ${HOSTNAME} | cut -c ${RACK_REGEX}))
+  CRUSH_LOCATION=$(echo "root=default rack=${RACK_LOCATION} host=${HOSTNAME}")
+  ceph --cluster "${CLUSTER}" --name="osd.${OSD_ID}" --keyring="${OSD_KEYRING}" \
+    osd crush create-or-move -- "${OSD_ID}" "${OSD_WEIGHT}" ${CRUSH_LOCATION} || true
+  RACK_LOCATION_CHECK=$(ceph --cluster "${CLUSTER}" --name="osd.${OSD_ID}" --keyring="${OSD_KEYRING}" osd find ${OSD_ID} | awk -F'"' '/rack/{print $4}')
+  if [ "x${RACK_LOCATION_CHECK}" != x${RACK_LOCATION} ];  then
+    # NOTE(supamatt): Manually move the buckets for previously configured CRUSH configurations
+    # as create-or-move may not appropiately move them.
+    ceph --cluster "${CLUSTER}" --name="osd.${OSD_ID}" --keyring="${OSD_KEYRING}" \
+      osd crush add-bucket ${RACK_LOCATION} rack || true
+    ceph --cluster "${CLUSTER}" --name="osd.${OSD_ID}" --keyring="${OSD_KEYRING}" \
+      osd crush move ${RACK_LOCATION} root=default || true
+    ceph --cluster "${CLUSTER}" --name="osd.${OSD_ID}" --keyring="${OSD_KEYRING}" \
+      osd crush move ${HOSTNAME} rack=${RACK_LOCATION} || true
+  fi
+else
+  ceph --cluster "${CLUSTER}" --name="osd.${OSD_ID}" --keyring="${OSD_KEYRING}" \
+    osd crush create-or-move -- "${OSD_ID}" "${OSD_WEIGHT}" ${CRUSH_LOCATION} || true
+fi
 
 if [ "${OSD_BLUESTORE:-0}" -ne 1 ]; then
   if [ -n "${OSD_JOURNAL}" ]; then
