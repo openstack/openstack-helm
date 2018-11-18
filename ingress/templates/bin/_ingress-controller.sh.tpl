@@ -30,6 +30,7 @@ function start () {
       --https-port=${PORT_HTTPS} \
       --healthz-port=${PORT_HEALTHZ} \
       --status-port=${PORT_STATUS} \
+      --default-server-port=${DEFAULT_SERVER_PORT} \
       --election-id=${RELEASE_NAME} \
       --ingress-class=${INGRESS_CLASS} \
       --default-backend-service=${POD_NAMESPACE}/${ERROR_PAGE_SERVICE} \
