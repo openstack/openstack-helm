@@ -27,6 +27,7 @@ function start () {
       {{- end }}
       --http-port=${PORT_HTTP} \
       --https-port=${PORT_HTTPS} \
+      --status-port=${PORT_STATUS} \
       --election-id=${RELEASE_NAME} \
       --ingress-class=${INGRESS_CLASS} \
       --default-backend-service=${POD_NAMESPACE}/${ERROR_PAGE_SERVICE} \
