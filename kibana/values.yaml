@@ -26,6 +26,7 @@ images:
     kibana: docker.io/kibana:5.6.4
     dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.3.1
     image_repo_sync: docker.io/docker:17.07.0
+    register_kibana_indexes: docker.io/openstackhelm/heat:newton
   pull_policy: IfNotPresent
   local_registry:
     active: false
@@ -74,6 +75,13 @@ pod:
         limits:
           memory: "1024Mi"
           cpu: "2000m"
+      register_kibana_indexes:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
 
 secrets:
   elasticsearch:
@@ -101,6 +109,10 @@ dependencies:
       services:
         - endpoint: internal
           service: elasticsearch
+    register_kibana_indexes:
+      services:
+        - endpoint: internal
+          service: kibana
 
 conf:
   httpd: |
@@ -220,6 +232,12 @@ conf:
       port: 5601
       ssl:
         enabled: false
+  create_kibana_indexes:
+    enabled: true
+    indexes:
+      - logstash
+      - openstack
+    default_index: logstash
 
 endpoints:
   cluster_domain_suffix: cluster.local
@@ -323,3 +341,4 @@ manifests:
   secret_ingress_tls: true
   service: true
   service_ingress: true
+  job_register_kibana_indexes: true
