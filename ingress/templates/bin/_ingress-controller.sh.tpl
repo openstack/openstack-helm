@@ -27,6 +27,7 @@ function start () {
       {{- end }}
       --http-port=${PORT_HTTP} \
       --https-port=${PORT_HTTPS} \
+      --healthz-port=${PORT_HEALTHZ} \
       --status-port=${PORT_STATUS} \
       --election-id=${RELEASE_NAME} \
       --ingress-class=${INGRESS_CLASS} \
