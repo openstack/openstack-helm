@@ -20,8 +20,6 @@ set -ex
 export LC_ALL=C
 
 : "${ADMIN_KEYRING:=/etc/ceph/${CLUSTER}.client.admin.keyring}"
-: "${OSD_TARGET_PGS:=100}"
-: "${QUANTITY_OSDS:=15}"
 
 if [[ ! -e /etc/ceph/${CLUSTER}.conf ]]; then
   echo "ERROR- /etc/ceph/${CLUSTER}.conf must exist; get it from your existing mon"
@@ -33,13 +31,21 @@ if [[ ! -e ${ADMIN_KEYRING} ]]; then
    exit 1
 fi
 
-if ! ceph --cluster "${CLUSTER}" osd crush rule ls | grep -q "^same_host$"; then
-  ceph --cluster "${CLUSTER}" osd crush rule create-simple same_host default osd
-fi
+function create_crushrule () {
+  CRUSH_NAME=$1
+  CRUSH_RULE=$2
+  CRUSH_FAILURE_DOMAIN=$3
+  CRUSH_DEVICE_CLASS=$4
+  if ! ceph --cluster "${CLUSTER}" osd crush rule ls | grep -q "^\$CRUSH_NAME$"; then
+    ceph --cluster "${CLUSTER}" osd crush rule $CRUSH_RULE $CRUSH_NAME default $CRUSH_FAILURE_DOMAIN $CRUSH_DEVICE_CLASS || true
+  fi
+}
 
-if ! ceph --cluster "${CLUSTER}" osd crush rule ls | grep -q "^rack_replicated_rule$"; then
-  ceph --cluster "${CLUSTER}" osd crush rule create-simple rack_replicated_rule default rack
-fi
+{{- range $crush_rule := .Values.conf.pool.crush_rules -}}
+{{- with $crush_rule }}
+create_crushrule {{ .name }} {{ .crush_rule }} {{ .failure_domain }} {{ .device_class }}
+{{- end }}
+{{- end }}
 
 function reweight_osds () {
   for OSD_ID in $(ceph --cluster "${CLUSTER}" osd df | awk '$3 == "0" {print $1}'); do
@@ -105,28 +111,35 @@ function manage_pool () {
   POOL_APPLICATION=$1
   POOL_NAME=$2
   POOL_REPLICATION=$3
-  TOTAL_OSDS=$4
-  TOTAL_DATA_PERCENT=$5
-  TARGET_PG_PER_OSD=$6
-  POOL_CRUSH_RULE=$7
-  POOL_PROTECTION=$8
+  TOTAL_DATA_PERCENT=$4
+  TARGET_PG_PER_OSD=$5
+  POOL_CRUSH_RULE=$6
+  POOL_PROTECTION=$7
+  TOTAL_OSDS=$(ceph --cluster "${CLUSTER}" osd ls | wc -l)
+  if (ceph --cluster "${CLUSTER}" osd crush rule dump "${POOL_CRUSH_RULE}" | awk '/item_name/' | grep -q ssd); then
+    TOTAL_OSDS=$(ceph --cluster "${CLUSTER}" osd tree | grep "ssd" | wc -l)
+  elif (ceph --cluster "${CLUSTER}" osd crush rule dump "${POOL_CRUSH_RULE}" | awk '/item_name/' | grep -q hdd); then
+    TOTAL_OSDS=$(ceph --cluster "${CLUSTER}" osd tree | grep "hdd" | wc -l)
+  fi
   POOL_PLACEMENT_GROUPS=$(/tmp/pool-calc.py ${POOL_REPLICATION} ${TOTAL_OSDS} ${TOTAL_DATA_PERCENT} ${TARGET_PG_PER_OSD})
   create_pool "${POOL_APPLICATION}" "${POOL_NAME}" "${POOL_REPLICATION}" "${POOL_PLACEMENT_GROUPS}" "${POOL_CRUSH_RULE}" "${POOL_PROTECTION}"
 }
 
 reweight_osds
 
-{{ $targetNumOSD := .Values.conf.pool.target.osd }}
 {{ $targetPGperOSD := .Values.conf.pool.target.pg_per_osd }}
 {{ $crushRuleDefault := .Values.conf.pool.default.crush_rule }}
 {{ $targetProtection := .Values.conf.pool.target.protected | default "false" | quote | lower }}
 {{- range $pool := .Values.conf.pool.spec -}}
 {{- with $pool }}
-manage_pool {{ .application }} {{ .name }} {{ .replication }} {{ $targetNumOSD }} {{ .percent_total_data }} {{ $targetPGperOSD }} {{ $crushRuleDefault }} {{ $targetProtection }}
+{{- if .crush_rule }}
+manage_pool {{ .application }} {{ .name }} {{ .replication }} {{ .percent_total_data }} {{ $targetPGperOSD }} {{ .crush_rule }} {{ $targetProtection }}
+{{ else }}
+manage_pool {{ .application }} {{ .name }} {{ .replication }} {{ .percent_total_data }} {{ $targetPGperOSD }} {{ $crushRuleDefault }} {{ $targetProtection }}
+{{- end }}
 {{- end }}
 {{- end }}
 
 {{- if .Values.conf.pool.crush.tunables }}
 ceph --cluster "${CLUSTER}" osd crush tunables {{ .Values.conf.pool.crush.tunables }}
 {{- end }}
-

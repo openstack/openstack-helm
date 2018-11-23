@@ -123,19 +123,50 @@ conf:
       tunables: null
     target:
       #NOTE(portdirect): arbitrarily we set the default number of expected OSD's to 5
-      # to match the number of nodes in the OSH gate.
+      # to match the number of nodes in the OSH gate (used only for helm tests).
       osd: 5
       pg_per_osd: 100
       protected: true
     default:
-      # NOTE(supamatt): Accepted values are:
-      # same_host for a single node
-      # replicated_rule for a multi node
-      # rack_replicated_rule for a multi node in multiple (>=3) racks
-      # Ceph cluster must be in a healthy state.
+      # NOTE(supamatt): Accepted values are taken from `crush_rules` list.
       crush_rule: replicated_rule
+    crush_rules:
+      # NOTE(supamatt): Device classes must remain undefined if all OSDs are the
+      # same device type of backing disks (ie, all HDD or all SDD).
+      - name: same_host
+        crush_rule: create-simple
+        failure_domain: osd
+        device_class:
+      - name: replicated_rule
+        crush_rule: create-simple
+        failure_domain: host
+        device_class:
+      - name: rack_replicated_rule
+        crush_rule: create-simple
+        failure_domain: rack
+        device_class:
+      # - name: replicated_rule-ssd
+      #   crush_rule: create-replicated
+      #   failure_domain: host
+      #   device_class: sdd
+      # - name: replicated_rule-hdd
+      #   crush_rule: create-replicated
+      #   failure_domain: host
+      #   device_class: hdd
+      # - name: rack_replicated_rule-ssd
+      #   crush_rule: create-replicated
+      #   failure_domain: rack
+      #   device_class: ssd
+      # - name: rack_replicated_rule-hdd
+      #   crush_rule: create-replicated
+      #   failure_domain: rack
+      #   device_class: hdd
+      # - name: row_replicated_rule
+      #   crush_rule: create-simple
+      #   failure_domain: row
+      #   device_class:
 
-    #NOTE(portdirect): this section describes the pools that will be managed by
+    # NOTE(portdirect): this section describes the pools that will be managed by
     # the ceph pool management job, as it tunes the pgs and crush rule, based on
     # the above.
     spec:
@@ -144,6 +175,10 @@ conf:
         application: rbd
         replication: 3
         percent_total_data: 40
+      # NOTE(supamatt): By default the crush rules used to create each pool will be
+      # taken from the pool default `crush_rule` unless a pool specific `crush_rule`
+      # is specified. The rule MUST exist for it to be defined here.
+      #  crush_rule: replicated_rule
       # CephFS pools
       - name: cephfs_metadata
         application: cephfs
@@ -214,6 +249,7 @@ conf:
         application: rgw
         replication: 3
         percent_total_data: 34.8
+
   ceph:
     global:
       # auth
