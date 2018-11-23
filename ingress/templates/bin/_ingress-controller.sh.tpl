@@ -25,6 +25,7 @@ function start () {
       {{- if eq .Values.deployment.mode "namespace" }}
       --watch-namespace ${POD_NAMESPACE} \
       {{- end }}
+      --enable-dynamic-configuration \
       --http-port=${PORT_HTTP} \
       --https-port=${PORT_HTTPS} \
       --healthz-port=${PORT_HEALTHZ} \
