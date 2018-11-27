@@ -38,7 +38,13 @@ limitations under the License.
               {{- $current_dict := dict }}
 
               {{/* set daemonset name */}}
-              {{- $_ := set $current_dict "name" $host_data.name }}
+              {{/* Note: long hostnames can cause the 63 char name limit to be
+              exceeded. Truncate the hostname if hostname > 20 char */}}
+              {{- if gt (len $host_data.name) 20 }}
+                {{- $_ := set $current_dict "name" (substr 0 20 $host_data.name) }}
+              {{- else }}
+                {{- $_ := set $current_dict "name" $host_data.name }}
+              {{- end }}
 
               {{/* apply overrides */}}
               {{- $override_conf_copy := $host_data.conf }}
