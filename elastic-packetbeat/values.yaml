@@ -1,0 +1,182 @@
+# Copyright 2017 The Openstack-Helm Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the 'License');
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an 'AS IS' BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Default values for packetbeat
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+release_group: null
+
+labels:
+  packetbeat:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  job:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+
+images:
+  tags:
+    packetbeat: docker.elastic.co/beats/packetbeat:6.3.1
+    dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.3.1
+    image_repo_sync: docker.io/docker:17.07.0
+  pull_policy: IfNotPresent
+  local_registry:
+    active: false
+    exclude:
+      - dep_check
+      - image_repo_sync
+
+secrets:
+  elasticsearch:
+    user: packetbeat-elasticsearch-user
+
+dependencies:
+  dynamic:
+    common:
+      local_image_registry:
+        jobs:
+          - packetbeat-image-repo-sync
+        services:
+          - endpoint: node
+            service: local_image_registry
+  static:
+    packetbeat:
+      services: null
+    image_repo_sync:
+      services:
+        - endpoint: internal
+          service: local_image_registry
+
+conf:
+  packetbeat:
+    setup:
+      kibana:
+        host: ['${KIBANA_HOST}:${KIBANA_PORT}']
+      dashboards:
+        enabled: true
+        retry:
+          enabled: true
+          interval: 5
+    packetbeat:
+      interfaces:
+        device: any
+      protocols:
+        - type: dns
+          ports: [53]
+          include_authorities: true
+          include_additionals: true
+        - type: http
+          ports: [80, 8080, 8081, 5000, 8002]
+        - type: memcache
+          ports: [11211]
+        - type: mysql
+          ports: [3306]
+        - type: rabbit
+          ports: [5672, 15672]
+    output:
+      elasticsearch:
+        hosts: ['${ELASTICSEARCH_HOST}:${ELASTICSEARCH_PORT}']
+        username: ${ELASTICSEARCH_USERNAME}
+        password: ${ELASTICSEARCH_PASSWORD}
+
+endpoints:
+  cluster_domain_suffix: cluster.local
+  local_image_registry:
+    name: docker-registry
+    namespace: docker-registry
+    hosts:
+      default: localhost
+      internal: docker-registry
+      node: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        node: 5000
+  elasticsearch:
+    name: elasticsearch
+    namespace: null
+    auth:
+      admin:
+        username: admin
+        password: changeme
+    hosts:
+      data: elasticsearch-data
+      default: elasticsearch-logging
+      discovery: elasticsearch-discovery
+      public: elasticsearch
+    host_fqdn_override:
+      default: null
+    path:
+      default: null
+    scheme:
+      default: http
+    port:
+      http:
+        default: 80
+  kibana:
+    name: kibana
+    namespace: null
+    hosts:
+      default: kibana-dash
+      public: kibana
+    host_fqdn_override:
+      default: null
+    path:
+      default: null
+    scheme:
+      default: http
+    port:
+      kibana:
+        default: 5601
+      http:
+        default: 80
+
+pod:
+  affinity:
+    anti:
+      type:
+        default: preferredDuringSchedulingIgnoredDuringExecution
+      topologyKey:
+        default: kubernetes.io/hostname
+  lifecycle:
+    upgrades:
+      daemonsets:
+        pod_replacement_strategy: RollingUpdate
+        packetbeat:
+          enabled: true
+          min_ready_seconds: 0
+          max_unavailable: 1
+  replicas:
+    packetbeat: 1
+  resources:
+    packetbeat:
+      enabled: false
+      limits:
+        memory: '400Mi'
+        cpu: '400m'
+      requests:
+        memory: '100Mi'
+        cpu: '100m'
+  mounts:
+    packetbeat:
+      packetbeat:
+
+manifests:
+  configmap_bin: true
+  configmap_etc: true
+  daemonset: true
+  job_image_repo_sync: true
+  secret_elasticsearch: true
