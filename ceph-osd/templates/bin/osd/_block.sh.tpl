@@ -126,27 +126,40 @@ OSD_PATH="${OSD_PATH_BASE}-${OSD_ID}"
 OSD_KEYRING="${OSD_PATH}/keyring"
 # NOTE(supamatt): set the initial crush weight of the OSD to 0 to prevent automatic rebalancing
 OSD_WEIGHT=0
-if [ "x${CRUSH_RULE}" == "xrack_replicated_rule" ]; then
-  RACK_LOCATION=$(echo rack_$(echo ${HOSTNAME} | cut -c ${RACK_REGEX}))
-  CRUSH_LOCATION=$(echo "root=default rack=${RACK_LOCATION} host=${HOSTNAME}")
+function crush_create_or_move {
+  local crush_location=${1}
   ceph --cluster "${CLUSTER}" --name="osd.${OSD_ID}" --keyring="${OSD_KEYRING}" \
-    osd crush create-or-move -- "${OSD_ID}" "${OSD_WEIGHT}" ${CRUSH_LOCATION} || true
-  RACK_LOCATION_CHECK=$(ceph --cluster "${CLUSTER}" --name="osd.${OSD_ID}" --keyring="${OSD_KEYRING}" osd find ${OSD_ID} | awk -F'"' '/rack/{print $4}')
-  if [ "x${RACK_LOCATION_CHECK}" != x${RACK_LOCATION} ];  then
+    osd crush create-or-move -- "${OSD_ID}" "${OSD_WEIGHT}" ${crush_location} || true
+}
+function crush_add_and_move {
+  local crush_failure_domain_type=${1}
+  local crush_failure_domain_name=${2}
+  local crush_location=$(echo "root=default ${crush_failure_domain_type}=${crush_failure_domain_name} host=${HOSTNAME}")
+  crush_create_or_move "${crush_location}"
+  local crush_failure_domain_location_check=$(ceph --cluster "${CLUSTER}" --name="osd.${OSD_ID}" --keyring="${OSD_KEYRING}" osd find ${OSD_ID} | grep "${crush_failure_domain_type}" | awk -F '"' '{print $4}')
+  if [ "x${crush_failure_domain_location_check}" != "x${crush_failure_domain_name}" ];  then
     # NOTE(supamatt): Manually move the buckets for previously configured CRUSH configurations
     # as create-or-move may not appropiately move them.
     ceph --cluster "${CLUSTER}" --name="osd.${OSD_ID}" --keyring="${OSD_KEYRING}" \
-      osd crush add-bucket ${RACK_LOCATION} rack || true
+      osd crush add-bucket "${crush_failure_domain_name}" "${crush_failure_domain_type}" || true
     ceph --cluster "${CLUSTER}" --name="osd.${OSD_ID}" --keyring="${OSD_KEYRING}" \
-      osd crush move ${RACK_LOCATION} root=default || true
+      osd crush move "${crush_failure_domain_name}" root=default || true
     ceph --cluster "${CLUSTER}" --name="osd.${OSD_ID}" --keyring="${OSD_KEYRING}" \
-      osd crush move ${HOSTNAME} rack=${RACK_LOCATION} || true
+      osd crush move "${HOSTNAME}" "${crush_failure_domain_type}=${crush_failure_domain_name}" || true
+  fi
+}
+if [ "x${CRUSH_FAILURE_DOMAIN_TYPE}" != "host" ]; then
+  if [ "x${CRUSH_FAILURE_DOMAIN_NAME}" != "xfalse" ]; then
+    crush_add_and_move "${CRUSH_FAILURE_DOMAIN_TYPE}" "${CRUSH_FAILURE_DOMAIN_NAME}"
+  elif [ "x${CRUSH_FAILURE_DOMAIN_BY_HOSTNAME}" != "xfalse" ]; then
+    crush_add_and_move "${CRUSH_FAILURE_DOMAIN_TYPE}" "$(echo ${CRUSH_FAILURE_DOMAIN_TYPE}_$(echo ${HOSTNAME} | cut -c ${CRUSH_FAILURE_DOMAIN_BY_HOSTNAME}))"
+  else
+    # NOTE(supamatt): neither variables are defined then we fall back to expected default behavior
+    crush_create_or_move "${CRUSH_LOCATION}"
   fi
 else
-  ceph --cluster "${CLUSTER}" --name="osd.${OSD_ID}" --keyring="${OSD_KEYRING}" \
-    osd crush create-or-move -- "${OSD_ID}" "${OSD_WEIGHT}" ${CRUSH_LOCATION} || true
+  crush_create_or_move "${CRUSH_LOCATION}"
 fi
-
 if [ "${OSD_BLUESTORE:-0}" -ne 1 ]; then
   if [ -n "${OSD_JOURNAL}" ]; then
     if [ -b "${OSD_JOURNAL}" ]; then

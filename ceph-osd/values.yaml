@@ -106,20 +106,21 @@ conf:
       osd_recovery_max_active: 1
       osd_mount_options_xfs: "rw,noatime,largeio,inode64,swalloc,logbufs=8,logbsize=256k,allocsize=4M"
       osd_journal_size: 10240
-
-  pool:
-    default:
-      # NOTE(supamatt): Accepted values are:
-      # same_host for a single node
-      # replicated_rule for a multi node
-      # rack_replicated_rule for a multi node in multiple (>=3) racks
-      # Ceph cluster must be in a healthy state.
-      crush_rule: replicated_rule
-      # NOTE(supamatt): By default use the first 8 characters of the hostname to
-      # define the the rack type bucket names for CRUSH.
-      rack_regex: "1-8"
+      osd_crush_update_on_start: false
 
   storage:
+    # NOTE(supamatt): By default use host based buckets for failure domains. Any `failure_domain` defined must
+    # match the failure domain used on your CRUSH rules for pools. For example with a crush rule of
+    # rack_replicated_rule you would specify "rack" as the `failure_domain` to use.
+    # `failure_domain`: Set the CRUSH bucket type for your OSD to reside in. See the supported CRUSH configuration
+    #  as listed here: Supported CRUSH configuration is listed here: http://docs.ceph.com/docs/luminous/rados/operations/crush-map/
+    # `failure_domain_by_hostname`: Specify the portion of the hostname to use for your failure domain bucket name.
+    # `failure_domain_name`: Manually name the failure domain bucket name. This configuration option should only be used
+    #  when using host based overrides.
+    # failure_domain: "rack"
+    # failure_domain_by_hostname: 1-8
+    # failure_domain_name: false
+
     # NOTE(portdirect): for homogeneous clusters the `osd` key can be used to
     # define OSD pods that will be deployed across the cluster.
     osd:
@@ -149,6 +150,7 @@ conf:
 #       - name: host1.fqdn
 #         conf:
 #           storage:
+#             failure_domain_name: "rack1"
 #             osd:
 #               - data:
 #                   type: directory

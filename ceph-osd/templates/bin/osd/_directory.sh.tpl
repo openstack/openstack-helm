@@ -73,7 +73,40 @@ if [[ -n "$(find /var/lib/ceph/osd -prune -empty)" ]]; then
   # add the osd to the crush map
   # NOTE(supamatt): set the initial crush weight of the OSD to 0 to prevent automatic rebalancing
   OSD_WEIGHT=0
-  ceph --name=osd.${OSD_ID} --keyring=${OSD_KEYRING} osd crush create-or-move -- ${OSD_ID} ${OSD_WEIGHT} ${CRUSH_LOCATION}
+  function crush_create_or_move {
+    local crush_location=${1}
+    ceph --cluster "${CLUSTER}" --name="osd.${OSD_ID}" --keyring="${OSD_KEYRING}" \
+      osd crush create-or-move -- "${OSD_ID}" "${OSD_WEIGHT}" ${crush_location} || true
+  }
+  function crush_add_and_move {
+    local crush_failure_domain_type=${1}
+    local crush_failure_domain_name=${2}
+    local crush_location=$(echo "root=default ${crush_failure_domain_type}=${crush_failure_domain_name} host=${HOSTNAME}")
+    crush_create_or_move "${crush_location}"
+    local crush_failure_domain_location_check=$(ceph --cluster "${CLUSTER}" --name="osd.${OSD_ID}" --keyring="${OSD_KEYRING}" osd find ${OSD_ID} | grep "${crush_failure_domain_type}" | awk -F '"' '{print $4}')
+    if [ "x${crush_failure_domain_location_check}" != "x${crush_failure_domain_name}" ];  then
+      # NOTE(supamatt): Manually move the buckets for previously configured CRUSH configurations
+      # as create-or-move may not appropiately move them.
+      ceph --cluster "${CLUSTER}" --name="osd.${OSD_ID}" --keyring="${OSD_KEYRING}" \
+        osd crush add-bucket "${crush_failure_domain_name}" "${crush_failure_domain_type}" || true
+      ceph --cluster "${CLUSTER}" --name="osd.${OSD_ID}" --keyring="${OSD_KEYRING}" \
+        osd crush move "${crush_failure_domain_name}" root=default || true
+      ceph --cluster "${CLUSTER}" --name="osd.${OSD_ID}" --keyring="${OSD_KEYRING}" \
+        osd crush move "${HOSTNAME}" "${crush_failure_domain_type}=${crush_failure_domain_name}" || true
+    fi
+  }
+  if [ "x${CRUSH_FAILURE_DOMAIN_TYPE}" != "host" ]; then
+    if [ "x${CRUSH_FAILURE_DOMAIN_NAME}" != "xfalse" ]; then
+      crush_add_and_move "${CRUSH_FAILURE_DOMAIN_TYPE}" "${CRUSH_FAILURE_DOMAIN_NAME}"
+    elif [ "x${CRUSH_FAILURE_DOMAIN_BY_HOSTNAME}" != "xfalse" ]; then
+      crush_add_and_move "${CRUSH_FAILURE_DOMAIN_TYPE}" "$(echo ${CRUSH_FAILURE_DOMAIN_TYPE}_$(echo ${HOSTNAME} | cut -c ${CRUSH_FAILURE_DOMAIN_BY_HOSTNAME}))"
+    else
+      # NOTE(supamatt): neither variables are defined then we fall back to default behavior
+      crush_create_or_move "${CRUSH_LOCATION}"
+    fi
+  else
+    crush_create_or_move "${CRUSH_LOCATION}"
+  fi
 fi
 
 # create the directory and an empty Procfile
