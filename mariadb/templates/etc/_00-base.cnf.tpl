@@ -21,7 +21,7 @@ collation_server=utf8_unicode_ci
 skip-character-set-client-handshake
 
 # Logging
-slow_query_log=on
+slow_query_log=off
 slow_query_log_file=/var/log/mysql/mariadb-slow.log
 log_warnings=2
 
@@ -75,9 +75,11 @@ table_definition_cache=1024
 # TODO(tomasz.paszkowski): This needs to by dynamic based on available RAM.
 innodb_buffer_pool_size=1024M
 innodb_doublewrite=0
+innodb_file_format=Barracuda
 innodb_file_per_table=1
 innodb_flush_method=O_DIRECT
 innodb_io_capacity=500
+innodb_locks_unsafe_for_binlog=1
 innodb_log_file_size=128M
 innodb_old_blocks_time=1000
 innodb_read_io_threads=8
@@ -93,9 +95,9 @@ wsrep_on=1
 wsrep_provider=/usr/lib/galera/libgalera_smm.so
 wsrep_provider_options="gmcast.listen_addr=tcp://0.0.0.0:{{ tuple "oslo_db" "direct" "wsrep" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}"
 wsrep_slave_threads=12
-# FIX_ME(portdirect): https://mariadb.com/kb/en/library/mariabackup-overview/#granting-privileges-for-ssts
 wsrep_sst_auth=root:{{ .Values.endpoints.oslo_db.auth.admin.password }}
-wsrep_sst_method=mariabackup
+# FIXME(portdirect): use rsync for compatibility between image variations
+wsrep_sst_method=rsync
 
 [mysqldump]
 max-allowed-packet=16M

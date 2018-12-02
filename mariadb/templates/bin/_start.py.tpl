@@ -48,6 +48,10 @@ logger.addHandler(ch)
 local_hostname = socket.gethostname()
 logger.info("This instance hostname: {0}".format(local_hostname))
 
+# Get the instance number
+instance_number = local_hostname.split("-")[-1]
+logger.info("This instance number: {0}".format(instance_number))
+
 # Setup k8s client credentials and check api version
 kubernetes.config.load_incluster_config()
 kubernetes_version = kubernetes.client.VersionApi().get_code().git_version
@@ -109,6 +113,7 @@ def ensure_state_configmap(pod_namespace, configmap_name, configmap_body):
     except:
         k8s_api_instance.create_namespaced_config_map(
             namespace=pod_namespace, body=configmap_body)
+
         return False
 
 
@@ -351,13 +356,36 @@ def get_cluster_state():
         except:
             logger.info("The cluster configmap \"{0}\" does not exist.".format(
                 state_configmap_name))
+            time.sleep(default_sleep)
+            leader_expiry_raw = datetime.utcnow() + timedelta(
+                seconds=cluster_leader_ttl)
+            leader_expiry = "{0}Z".format(leader_expiry_raw.isoformat("T"))
+            if check_for_active_nodes():
+                # NOTE(portdirect): here we make the assumption that the 1st pod
+                # in an existing statefulset is the one to adopt as leader.
+                leader = "{0}-0".format("-".join(
+                    local_hostname.split("-")[:-1]))
+                state = "live"
+                logger.info(
+                    "The cluster is running already though unmanaged \"{0}\" will be declared leader in a \"{1}\" state".
+                    format(leader, state))
+            else:
+                leader = local_hostname
+                state = "new"
+                logger.info(
+                    "The cluster is new \"{0}\" will be declared leader in a \"{1}\" state".
+                    format(leader, state))
+
             initial_configmap_body = {
                 "apiVersion": "v1",
                 "kind": "ConfigMap",
                 "metadata": {
                     "name": state_configmap_name,
                     "annotations": {
-                        "openstackhelm.openstack.org/cluster.state": "new"
+                        "openstackhelm.openstack.org/cluster.state": state,
+                        "openstackhelm.openstack.org/leader.node": leader,
+                        "openstackhelm.openstack.org/leader.expiry":
+                        leader_expiry
                     }
                 },
                 "data": {}
@@ -369,14 +397,11 @@ def get_cluster_state():
     return state
 
 
-def declare_myself_cluser_leader(ttl):
-    """Declare the current pod as the cluster leader.
-
-    Keyword arguments:
-    ttl -- the ttl for the leader period
-    """
+def declare_myself_cluser_leader():
+    """Declare the current pod as the cluster leader."""
     logger.info("Declaring myself current cluster leader")
-    leader_expiry_raw = datetime.utcnow() + timedelta(seconds=120)
+    leader_expiry_raw = datetime.utcnow() + timedelta(
+        seconds=cluster_leader_ttl)
     leader_expiry = "{0}Z".format(leader_expiry_raw.isoformat("T"))
     set_configmap_annotation(
         key='openstackhelm.openstack.org/leader.node', value=local_hostname)
@@ -393,10 +418,10 @@ def deadmans_leader_election():
     if iso8601.parse_date(leader_expiry).replace(
             tzinfo=None) < datetime.utcnow().replace(tzinfo=None):
         logger.info("Current cluster leader has expired")
-        declare_myself_cluser_leader(ttl=cluster_leader_ttl)
+        declare_myself_cluser_leader()
     elif local_hostname == leader_node:
         logger.info("Renewing cluster leader lease")
-        declare_myself_cluser_leader(ttl=cluster_leader_ttl)
+        declare_myself_cluser_leader()
 
 
 def get_grastate_val(key):
@@ -452,31 +477,55 @@ def update_grastate_configmap():
 def update_grastate_on_restart():
     """Update the grastate.dat on node restart."""
     logger.info("Updating grastate info for node")
-    if get_grastate_val(key='seqno') == '-1':
-        logger.info(
-            "Node shutdown was not clean, getting position via wsrep-recover")
+    if os.path.exists('/var/lib/mysql/grastate.dat'):
+        if get_grastate_val(key='seqno') == '-1':
+            logger.info(
+                "Node shutdown was not clean, getting position via wsrep-recover"
+            )
 
-        def recover_wsrep_position():
-            """Extract recoved wsrep position from uncleanly exited node."""
-            wsrep_recover = subprocess.Popen(
-                [
-                    'mysqld', '--bind-address=127.0.0.1',
-                    '--wsrep_cluster_address=gcomm://', '--wsrep-recover'
-                ],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE)
-            out, err = wsrep_recover.communicate()
-            for item in err.split("\n"):
-                if "WSREP: Recovered position:" in item:
-                    line = item.strip().split()
-                    wsrep_rec_pos = line[-1].split(':')[-1]
-            return wsrep_rec_pos
+            def recover_wsrep_position():
+                """Extract recoved wsrep position from uncleanly exited node."""
+                wsrep_recover = subprocess.Popen(
+                    [
+                        'mysqld', '--bind-address=127.0.0.1',
+                        '--wsrep_cluster_address=gcomm://', '--wsrep-recover'
+                    ],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE)
+                out, err = wsrep_recover.communicate()
+                for item in err.split("\n"):
+                    if "WSREP: Recovered position:" in item:
+                        line = item.strip().split()
+                        wsrep_rec_pos = line[-1].split(':')[-1]
+                return wsrep_rec_pos
 
-        set_grastate_val(key='seqno', value=recover_wsrep_position())
+            set_grastate_val(key='seqno', value=recover_wsrep_position())
+        else:
+            logger.info("Node shutdown was clean, using grastate.dat")
+
+        update_grastate_configmap()
+
     else:
-        logger.info("Node shutdown was clean, using grastate.dat")
+        logger.info("No grastate.dat exists I am a new node")
 
-    update_grastate_configmap()
+
+def get_active_endpoints(endpoints_name=direct_svc_name,
+                         namespace=pod_namespace):
+    """Returns a list of active endpoints.
+
+    Keyword arguments:
+    endpoints_name -- endpoints to check for active backends
+                      (default direct_svc_name)
+    namespace -- namespace to check for endpoints (default pod_namespace)
+    """
+    endpoints = k8s_api_instance.read_namespaced_endpoints(
+        name=endpoints_name, namespace=pod_namespace)
+    endpoints_dict = endpoints.to_dict()
+    addresses_index = [
+        i for i, s in enumerate(endpoints_dict['subsets']) if 'addresses' in s
+    ][0]
+    active_endpoints = endpoints_dict['subsets'][addresses_index]['addresses']
+    return active_endpoints
 
 
 def check_for_active_nodes(endpoints_name=direct_svc_name,
@@ -489,13 +538,7 @@ def check_for_active_nodes(endpoints_name=direct_svc_name,
     namespace -- namespace to check for endpoints (default pod_namespace)
     """
     logger.info("Checking for active nodes")
-    endpoints = k8s_api_instance.read_namespaced_endpoints(
-        name=endpoints_name, namespace=pod_namespace)
-    endpoints_dict = endpoints.to_dict()
-    addresses_index = [
-        i for i, s in enumerate(endpoints_dict['subsets']) if 'addresses' in s
-    ][0]
-    active_endpoints = endpoints_dict['subsets'][addresses_index]['addresses']
+    active_endpoints = get_active_endpoints()
     if active_endpoints and len(active_endpoints) >= 1:
         return True
     else:
@@ -608,7 +651,11 @@ def launch_leader_election():
 
 
 def run_mysqld(cluster='existing'):
-    """Launch the mysqld instance for the pod.
+    """Launch the mysqld instance for the pod. This will also run mysql upgrade
+    if we are the 1st replica, and the rest of the cluster is already running.
+    This senario will be triggerd either following a rolling update, as this
+    works in reverse order for statefulset. Or restart of the 1st instance, in
+    which case the comand should be a no-op.
 
     Keyword arguments:
     cluster -- whether we going to form a cluster 'new' or joining an existing
@@ -621,18 +668,28 @@ def run_mysqld(cluster='existing'):
     mysqld_cmd = ['mysqld']
     if cluster == 'new':
         mysqld_cmd.append('--wsrep-new-cluster')
+    else:
+        if int(instance_number) == 0:
+            active_endpoints = get_active_endpoints()
+            if active_endpoints and len(active_endpoints) == (
+                    int(mariadb_replicas) - 1):
+                run_cmd_with_logging([
+                    'mysql_upgrade',
+                    '--defaults-file=/etc/mysql/admin_user.cnf'
+                ], logger)
+
     run_cmd_with_logging(mysqld_cmd, logger)
 
 
 def mysqld_reboot():
     """Reboot a mysqld cluster."""
-    declare_myself_cluser_leader(ttl=cluster_leader_ttl)
+    declare_myself_cluser_leader()
     set_grastate_val(key='safe_to_bootstrap', value='1')
     run_mysqld(cluster='new')
 
 
 def sigterm_shutdown(x, y):
-    """Shutdown the instnace of mysqld on shutdown signal."""
+    """Shutdown the instance of mysqld on shutdown signal."""
     logger.info("Got a sigterm from the container runtime, time to go.")
     stop_mysqld()
 
@@ -642,15 +699,26 @@ signal.signal(signal.SIGTERM, sigterm_shutdown)
 
 # Main logic loop
 if get_cluster_state() == 'new':
-    set_configmap_annotation(
-        key='openstackhelm.openstack.org/cluster.state', value='init')
-    declare_myself_cluser_leader(ttl=cluster_leader_ttl)
-    launch_leader_election()
-    mysqld_bootstrap()
-    update_grastate_configmap()
-    set_configmap_annotation(
-        key='openstackhelm.openstack.org/cluster.state', value='live')
-    run_mysqld(cluster='new')
+    leader_node = get_configmap_value(
+        type='annotation', key='openstackhelm.openstack.org/leader.node')
+    if leader_node == local_hostname:
+        set_configmap_annotation(
+            key='openstackhelm.openstack.org/cluster.state', value='init')
+        declare_myself_cluser_leader()
+        launch_leader_election()
+        mysqld_bootstrap()
+        update_grastate_configmap()
+        set_configmap_annotation(
+            key='openstackhelm.openstack.org/cluster.state', value='live')
+        run_mysqld(cluster='new')
+    else:
+        logger.info("Waiting for cluster to start running")
+        while not get_cluster_state() == 'live':
+            time.sleep(default_sleep)
+        while not check_for_active_nodes():
+            time.sleep(default_sleep)
+        launch_leader_election()
+        run_mysqld()
 elif get_cluster_state() == 'init':
     logger.info("Waiting for cluster to start running")
     while not get_cluster_state() == 'live':
