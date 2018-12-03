@@ -20,19 +20,26 @@ set -ex
 export HOME=/tmp
 
 KEYRING=/etc/ceph/ceph.client.${CEPH_CINDER_USER}.keyring
-{{- if .Values.conf.ceph.cinder.keyring }}
-cat > ${KEYRING} <<EOF
-[client.{{ .Values.conf.ceph.cinder.user }}]
-    key = {{ .Values.conf.ceph.cinder.keyring }}
-EOF
-{{- else }}
 if ! [ "x${CEPH_CINDER_USER}" == "xadmin" ]; then
-  #NOTE(JCL): Restrict access to the cluster to only what is needed. MON Read only and RBD access.
-  ceph auth get-or-create client.${CEPH_CINDER_USER} \
-    mon "profile rbd" \
-    osd "profile rbd" \
-    -o ${KEYRING}
-
+  #
+  # If user is not client.admin, check if it already exists. If not create
+  # the user. If the cephx user does not exist make sure the caps are set
+  # according to best practices
+  #
+  if USERINFO=$(ceph auth get client.${CEPH_CINDER_USER}); then
+    echo "Cephx user client.${CEPH_CINDER_USER} already exist"
+    echo "Update user client.${CEPH_CINDER_USER} caps"
+    ceph auth caps client.${CEPH_CINDER_USER} \
+       mon "profile rbd" \
+       osd "profile rbd"
+    KEYSTR=$(echo $USERINFO | sed 's/.*\( key = .*\) caps mon.*/\1/')
+    echo $KEYSTR > ${KEYRING}
+  else
+    echo "Creating Cephx user client.${CEPH_CINDER_USER}"
+    ceph auth get-or-create client.${CEPH_CINDER_USER} \
+      mon "profile rbd" \
+      osd "profile rbd" \
+      -o ${KEYRING}
+  fi
   rm -f /etc/ceph/ceph.client.admin.keyring
 fi
-{{- end }}

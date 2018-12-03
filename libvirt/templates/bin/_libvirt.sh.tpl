@@ -127,7 +127,7 @@ if [ -n "${LIBVIRT_CEPH_CINDER_SECRET_UUID}" ] ; then
   done
 
   if [ -z "${CEPH_CINDER_KEYRING}" ] ; then
-    CEPH_CINDER_KEYRING=$(sed -n 's/^[[:space:]]*key[[:blank:]]\+=[[:space:]]\(.*\)/\1/p' /etc/ceph/ceph.client.${CEPH_CINDER_USER}.keyring)
+    CEPH_CINDER_KEYRING=$(awk '/key/{print $3}' /etc/ceph/ceph.client.${CEPH_CINDER_USER}.keyring)
   fi
 
   cat > ${tmpsecret} <<EOF

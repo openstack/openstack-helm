@@ -36,14 +36,19 @@ function ensure_pool () {
 ensure_pool ${RBD_POOL_NAME} ${RBD_POOL_CHUNK_SIZE} "gnocchi-metrics"
 
 if USERINFO=$(ceph auth get client.${RBD_POOL_USER}); then
+  echo "Cephx user client.${RBD_POOL_USER} already exist."
+  echo "Update its cephx caps"
+  ceph auth caps client.${RBD_POOL_USER} \
+    mon "profile r" \
+    osd "profile rwx pool=${RBD_POOL_NAME}" \
+    mgr "allow r"
   KEYSTR=$(echo $USERINFO | sed 's/.*\( key = .*\) caps mon.*/\1/')
   echo $KEYSTR  > ${KEYRING}
 else
-  #NOTE(Portdirect): Determine proper privs to assign keyring
   ceph auth get-or-create client.${RBD_POOL_USER} \
-    mon "allow *" \
-    osd "allow *" \
-    mgr "allow *" \
+    mon "profile r" \
+    osd "profile rwx pool=${RBD_POOL_NAME}" \
+    mgr "allow r" \
     -o ${KEYRING}
 fi
 
