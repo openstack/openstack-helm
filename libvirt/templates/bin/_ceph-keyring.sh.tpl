@@ -20,6 +20,12 @@ set -ex
 export HOME=/tmp
 
 KEYRING=/etc/ceph/ceph.client.${CEPH_CINDER_USER}.keyring
+{{- if .Values.conf.ceph.cinder.keyring }}
+cat > ${KEYRING} <<EOF
+[client.{{ .Values.conf.ceph.cinder.user }}]
+    key = {{ .Values.conf.ceph.cinder.keyring }}
+EOF
+{{- else }}
 if ! [ "x${CEPH_CINDER_USER}" == "xadmin" ]; then
   #
   # If user is not client.admin, check if it already exists. If not create
@@ -32,8 +38,7 @@ if ! [ "x${CEPH_CINDER_USER}" == "xadmin" ]; then
     ceph auth caps client.${CEPH_CINDER_USER} \
        mon "profile rbd" \
        osd "profile rbd"
-    KEYSTR=$(echo $USERINFO | sed 's/.*\( key = .*\) caps mon.*/\1/')
-    echo $KEYSTR > ${KEYRING}
+    ceph auth get client.${CEPH_CINDER_USER} -o ${KEYRING}
   else
     echo "Creating Cephx user client.${CEPH_CINDER_USER}"
     ceph auth get-or-create client.${CEPH_CINDER_USER} \
@@ -43,3 +48,4 @@ if ! [ "x${CEPH_CINDER_USER}" == "xadmin" ]; then
   fi
   rm -f /etc/ceph/ceph.client.admin.keyring
 fi
+{{- end }}

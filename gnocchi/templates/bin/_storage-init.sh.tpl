@@ -42,8 +42,7 @@ if USERINFO=$(ceph auth get client.${RBD_POOL_USER}); then
     mon "profile r" \
     osd "profile rwx pool=${RBD_POOL_NAME}" \
     mgr "allow r"
-  KEYSTR=$(echo $USERINFO | sed 's/.*\( key = .*\) caps mon.*/\1/')
-  echo $KEYSTR  > ${KEYRING}
+  ceph auth get client.${RBD_POOL_USER} -o ${KEYRING}
 else
   ceph auth get-or-create client.${RBD_POOL_USER} \
     mon "profile r" \
