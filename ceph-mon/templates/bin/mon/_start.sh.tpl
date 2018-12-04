@@ -6,6 +6,19 @@ export LC_ALL=C
 : "${ADMIN_KEYRING:=/etc/ceph/${CLUSTER}.client.admin.keyring}"
 : "${MDS_BOOTSTRAP_KEYRING:=/var/lib/ceph/bootstrap-mds/${CLUSTER}.keyring}"
 : "${OSD_BOOTSTRAP_KEYRING:=/var/lib/ceph/bootstrap-osd/${CLUSTER}.keyring}"
+: "${CEPH_CONF:="/etc/ceph/${CLUSTER}.conf"}"
+
+if [[ ! -e ${CEPH_CONF}.template ]]; then
+  echo "ERROR- ${CEPH_CONF}.template must exist; get it from your existing mon"
+  exit 1
+else
+  ENDPOINT=$(kubectl get endpoints ceph-mon -n ${NAMESPACE} -o json | awk -F'"' -v port=${MON_PORT} '/ip/{print $4":"port}' | paste -sd',')
+  if [[ ${ENDPOINT} == "" ]]; then
+    /bin/sh -c -e "cat ${CEPH_CONF}.template | tee ${CEPH_CONF}" || true
+  else
+    /bin/sh -c -e "cat ${CEPH_CONF}.template | sed 's/mon_host.*/mon_host = ${ENDPOINT}/g' | tee ${CEPH_CONF}" || true
+  fi
+fi
 
 if [[ -z "$CEPH_PUBLIC_NETWORK" ]]; then
   echo "ERROR- CEPH_PUBLIC_NETWORK must be defined as the name of the network for the OSDs"

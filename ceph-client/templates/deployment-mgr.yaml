@@ -79,6 +79,13 @@ spec:
           env:
             - name: CLUSTER
               value: "ceph"
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.namespace
+            - name: MON_PORT
+              value: {{ tuple "ceph_mon" "internal" "mon" $envAll | include "helm-toolkit.endpoints.endpoint_port_lookup" | quote }}
             {{- if .Values.ceph_mgr_enabled_modules }}
             - name: ENABLED_MODULES
               value: |-
@@ -126,10 +133,14 @@ spec:
               mountPath: /tmp/mgr-check.sh
               subPath: mgr-check.sh
               readOnly: true
+            - name: ceph-client-bin
+              mountPath: /tmp/utils-checkDNS.sh
+              subPath: utils-checkDNS.sh
+              readOnly: true
             - name: pod-etc-ceph
               mountPath: /etc/ceph
             - name: ceph-client-etc
-              mountPath: /etc/ceph/ceph.conf
+              mountPath: /etc/ceph/ceph.conf.template
               subPath: ceph.conf
               readOnly: true
             - name: ceph-client-admin-keyring

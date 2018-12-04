@@ -21,6 +21,20 @@ set -ex
 : "${OSD_BOOTSTRAP_KEYRING:=/var/lib/ceph/bootstrap-osd/${CLUSTER}.keyring}"
 : "${OSD_JOURNAL_UUID:=$(uuidgen)}"
 : "${OSD_FORCE_ZAP:=1}"
+: "${CEPH_CONF:="/etc/ceph/${CLUSTER}.conf"}"
+
+if [[ ! -e ${CEPH_CONF}.template ]]; then
+  echo "ERROR- ${CEPH_CONF}.template must exist; get it from your existing mon"
+  exit 1
+else
+  ENDPOINT=$(kubectl get endpoints ceph-mon -n ${NAMESPACE} -o json | awk -F'"' -v port=${MON_PORT} '/ip/{print $4":"port}' | paste -sd',')
+  if [[ ${ENDPOINT} == "" ]]; then
+    # No endpoints are available, just copy ceph.conf as-is
+    /bin/sh -c -e "cat ${CEPH_CONF}.template | tee ${CEPH_CONF}" || true
+  else
+    /bin/sh -c -e "cat ${CEPH_CONF}.template | sed 's/mon_host.*/mon_host = ${ENDPOINT}/g' | tee ${CEPH_CONF}" || true
+  fi
+fi
 
 if [ "x${STORAGE_TYPE%-*}" == "xdirectory" ]; then
   export OSD_DEVICE="/var/lib/ceph/osd"

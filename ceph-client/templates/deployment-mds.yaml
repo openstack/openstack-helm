@@ -78,6 +78,13 @@ spec:
               value: "ceph"
             - name: CEPHFS_CREATE
               value: "1"
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.namespace
+            - name: MON_PORT
+              value: {{ tuple "ceph_mon" "internal" "mon" $envAll | include "helm-toolkit.endpoints.endpoint_port_lookup" | quote }}
           ports:
             - containerPort: 6800
           livenessProbe:
@@ -94,8 +101,12 @@ spec:
               mountPath: /tmp/mds-start.sh
               subPath: mds-start.sh
               readOnly: true
+            - name: ceph-client-bin
+              mountPath: /tmp/utils-checkDNS.sh
+              subPath: utils-checkDNS.sh
+              readOnly: true
             - name: ceph-client-etc
-              mountPath: /etc/ceph/ceph.conf
+              mountPath: /etc/ceph/ceph.conf.template
               subPath: ceph.conf
               readOnly: true
             - name: ceph-client-admin-keyring

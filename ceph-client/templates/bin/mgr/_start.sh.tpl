@@ -4,10 +4,18 @@ set -ex
 : "${MGR_NAME:=$(uname -n)}"
 : "${MGR_KEYRING:=/var/lib/ceph/mgr/${CLUSTER}-${MGR_NAME}/keyring}"
 : "${ADMIN_KEYRING:=/etc/ceph/${CLUSTER}.client.admin.keyring}"
+: "${CEPH_CONF:="/etc/ceph/${CLUSTER}.conf"}"
 
-if [[ ! -e /etc/ceph/${CLUSTER}.conf ]]; then
-    echo "ERROR- /etc/ceph/${CLUSTER}.conf must exist; get it from your existing mon"
-    exit 1
+if [[ ! -e ${CEPH_CONF}.template ]]; then
+  echo "ERROR- ${CEPH_CONF}.template must exist; get it from your existing mon"
+  exit 1
+else
+  ENDPOINT=$(kubectl get endpoints ceph-mon -n ${NAMESPACE} -o json | awk -F'"' -v port=${MON_PORT} '/ip/{print $4":"port}' | paste -sd',')
+  if [[ ${ENDPOINT} == "" ]]; then
+    /bin/sh -c -e "cat ${CEPH_CONF}.template | tee ${CEPH_CONF}" || true
+  else
+    /bin/sh -c -e "cat ${CEPH_CONF}.template | sed 's/mon_host.*/mon_host = ${ENDPOINT}/g' | tee ${CEPH_CONF}" || true
+  fi
 fi
 
 if [ ${CEPH_GET_ADMIN_KEY} -eq 1 ]; then
