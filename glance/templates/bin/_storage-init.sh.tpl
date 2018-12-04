@@ -51,10 +51,13 @@ elif [ "x$STORAGE_BACKEND" == "xrbd" ]; then
   ensure_pool "${RBD_POOL_NAME}" "${RBD_POOL_CHUNK_SIZE}" "glance-image"
 
   if USERINFO=$(ceph auth get "client.${RBD_POOL_USER}"); then
-    KEYSTR=$(echo "${USERINFO}" | sed 's/.*\( key = .*\) caps mon.*/\1/')
-    echo "${KEYSTR}" > "${KEYRING}"
+    echo "Cephx user client.${RBD_POOL_USER} already exist."
+    echo "Update its cephx caps"
+    ceph auth caps client.${RBD_POOL_USER} \
+      mon "profile rbd" \
+      osd "profile rbd pool=${RBD_POOL_NAME}"
+    ceph auth get client.${RBD_POOL_USER} -o ${KEYRING}
   else
-    #NOTE(Portdirect): Determine proper privs to assign keyring
     #NOTE(JCL): Restrict Glance user to only what is needed. MON Read only and RBD access to the Glance Pool
     ceph auth get-or-create "client.${RBD_POOL_USER}" \
       mon "profile rbd" \
