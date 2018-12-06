@@ -46,6 +46,12 @@ function start () {
   /tmp/manage.py compress --force
   rm -rf /tmp/_tmp_.secret_key_store.lock /tmp/.secret_key_store
 
+  # Add TaaS dashboard panel if available
+  TAAS_PANEL="${SITE_PACKAGES_ROOT}/neutron_taas_dashboard/enabled/_90_project_tapservices_panel.py"
+  if [ -f ${TAAS_PANEL} ]; then
+     ln -s ${TAAS_PANEL}   ${SITE_PACKAGES_ROOT}/openstack_dashboard/local/enabled/_90_project_tapservices_panel.py
+  fi
+
   exec apache2 -DFOREGROUND
 }
 
