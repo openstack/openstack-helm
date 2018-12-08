@@ -148,7 +148,7 @@ function crush_add_and_move {
       osd crush move "${HOSTNAME}" "${crush_failure_domain_type}=${crush_failure_domain_name}" || true
   fi
 }
-if [ "x${CRUSH_FAILURE_DOMAIN_TYPE}" != "host" ]; then
+if [ "x${CRUSH_FAILURE_DOMAIN_TYPE}" != "xhost" ]; then
   if [ "x${CRUSH_FAILURE_DOMAIN_NAME}" != "xfalse" ]; then
     crush_add_and_move "${CRUSH_FAILURE_DOMAIN_TYPE}" "${CRUSH_FAILURE_DOMAIN_NAME}"
   elif [ "x${CRUSH_FAILURE_DOMAIN_BY_HOSTNAME}" != "xfalse" ]; then
