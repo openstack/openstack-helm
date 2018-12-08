@@ -7,6 +7,10 @@ export LC_ALL=C
 : "${JOURNAL_DIR:=/var/lib/ceph/journal}"
 : "${OSD_BOOTSTRAP_KEYRING:=/var/lib/ceph/bootstrap-osd/${CLUSTER}.keyring}"
 
+eval CRUSH_FAILURE_DOMAIN_TYPE=$(cat /etc/ceph/storage.json | python -c 'import sys, json; data = json.load(sys.stdin); print(json.dumps(data["failure_domain"]))')
+eval CRUSH_FAILURE_DOMAIN_NAME=$(cat /etc/ceph/storage.json | python -c 'import sys, json; data = json.load(sys.stdin); print(json.dumps(data["failure_domain_name"]))')
+eval CRUSH_FAILURE_DOMAIN_BY_HOSTNAME=$(cat /etc/ceph/storage.json | python -c 'import sys, json; data = json.load(sys.stdin); print(json.dumps(data["failure_domain_by_hostname"]))')
+
 function is_available {
   command -v $@ &>/dev/null
 }
@@ -95,7 +99,7 @@ if [[ -n "$(find /var/lib/ceph/osd -prune -empty)" ]]; then
         osd crush move "${HOSTNAME}" "${crush_failure_domain_type}=${crush_failure_domain_name}" || true
     fi
   }
-  if [ "x${CRUSH_FAILURE_DOMAIN_TYPE}" != "host" ]; then
+  if [ "x${CRUSH_FAILURE_DOMAIN_TYPE}" != "xhost" ]; then
     if [ "x${CRUSH_FAILURE_DOMAIN_NAME}" != "xfalse" ]; then
       crush_add_and_move "${CRUSH_FAILURE_DOMAIN_TYPE}" "${CRUSH_FAILURE_DOMAIN_NAME}"
     elif [ "x${CRUSH_FAILURE_DOMAIN_BY_HOSTNAME}" != "xfalse" ]; then

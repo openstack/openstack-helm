@@ -25,6 +25,10 @@ set -ex
 : "${OSD_SOFT_FORCE_ZAP:=1}"
 : "${OSD_JOURNAL_PARTITION:=}"
 
+eval CRUSH_FAILURE_DOMAIN_TYPE=$(cat /etc/ceph/storage.json | python -c 'import sys, json; data = json.load(sys.stdin); print(json.dumps(data["failure_domain"]))')
+eval CRUSH_FAILURE_DOMAIN_NAME=$(cat /etc/ceph/storage.json | python -c 'import sys, json; data = json.load(sys.stdin); print(json.dumps(data["failure_domain_name"]))')
+eval CRUSH_FAILURE_DOMAIN_BY_HOSTNAME=$(cat /etc/ceph/storage.json | python -c 'import sys, json; data = json.load(sys.stdin); print(json.dumps(data["failure_domain_by_hostname"]))')
+
 if [ "x${STORAGE_TYPE%-*}" == "xdirectory" ]; then
   export OSD_DEVICE="/var/lib/ceph/osd"
 else
