@@ -97,6 +97,7 @@ function remove_test_index () {
   -XDELETE "${ELASTICSEARCH_ENDPOINT}/test_index"
 }
 
+remove_test_index || true
 create_test_index
 insert_data_into_test_index
 check_hits_on_test_data
