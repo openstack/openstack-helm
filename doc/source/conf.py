@@ -20,9 +20,7 @@ sys.path.insert(0, os.path.abspath('../..'))
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
 extensions = [
-    'sphinx.ext.autodoc',
     'openstackdocstheme',
-    'oslosphinx',
     'sphinxcontrib.blockdiag'
 ]
 
@@ -30,6 +28,7 @@ extensions = [
 repository_name = 'openstack/openstack-helm'
 bug_project = '886'
 bug_tag = 'docs'
+use_storyboard = True
 
 # autodoc generation is a bit aggressive and a nuisance when doing heavy
 # text edit cycles.
@@ -72,7 +71,7 @@ html_static_path = ['_static']
 # If not '', a 'Last updated on:' timestamp is inserted at every page bottom,
 # using the given strftime format.
 # html_last_updated_fmt = '%b %d, %Y'
-html_last_updated_fmt = '%Y-%m-%d %H:%M'
+# html_last_updated_fmt = '%Y-%m-%d %H:%M'
 
 # The theme to use for HTML and HTML Help pages.  Major themes that come with
 # Sphinx are currently 'default' and 'sphinxdoc'.
