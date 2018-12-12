@@ -2,6 +2,13 @@
 
 set -eux
 
+
+{{/* Robustness, Calico 3.x wants things as Titlecase; this causes pain */}}
+{{- $_ := set .Values.conf.node "CALICO_IPV4POOL_IPIP" (title .Values.conf.node.CALICO_IPV4POOL_IPIP ) -}}
+{{- $_ := set .Values.conf.node "CALICO_STARTUP_LOGLEVEL" (title .Values.conf.node.CALICO_STARTUP_LOGLEVEL ) -}}
+{{- $_ := set .Values.conf.node "FELIX_LOGSEVERITYSCREEN" (title .Values.conf.node.FELIX_LOGSEVERITYSCREEN ) -}}
+
+
 {{- $envAll := . }}
 
 {{ if empty .Values.conf.node.CALICO_IPV4POOL_CIDR }}
@@ -51,7 +58,7 @@ spec:
 {{- if .Values.conf.node.CALICO_IPV4POOL_BLOCKSIZE }}
   blockSize: {{ .Values.conf.node.CALICO_IPV4POOL_BLOCKSIZE }}
 {{- end }}
-  ipipMode: {{ .Values.networking.settings.ippool.ipip.mode }}
+  ipipMode: {{ .Values.conf.node.CALICO_IPV4POOL_IPIP }}
   natOutgoing: {{ .Values.networking.settings.ippool.nat_outgoing }}
   disabled: {{ .Values.networking.settings.ippool.disabled }}
 EOF

@@ -18,29 +18,32 @@ limitations under the License.
 {{- $envAll := . }}
 
 
-
-{{/* Adjust MTU iff we have tunnel overhead; 20 suffices for an IPv4 IPIP header */}}
-{{- if ne .Values.conf.node.CALICO_IPV4POOL_IPIP "Never" -}}
-{{- $_ := set .Values.networking "mtu" (sub .Values.networking.mtu 20) -}}
-# Adjusted MTU to {{ .Values.networking.mtu }}
-{{ end -}}
+{{/* Robustness, Calico 3.x wants things as Titlecase; this causes pain */}}
+{{- $_ := set .Values.conf.node "CALICO_IPV4POOL_IPIP" (title .Values.conf.node.CALICO_IPV4POOL_IPIP ) -}}
+{{- $_ := set .Values.conf.node "CALICO_STARTUP_LOGLEVEL" (title .Values.conf.node.CALICO_STARTUP_LOGLEVEL ) -}}
+{{- $_ := set .Values.conf.node "FELIX_LOGSEVERITYSCREEN" (title .Values.conf.node.FELIX_LOGSEVERITYSCREEN ) -}}
 
 
-
-
-{{/* Some values need to be specified in multiple places; set appropriately */}}
-
+{{/* If using tunnels, and FELIX_IPINIPMTU is not set, make it 20 less than the physical to account for IPIP overhead */}}
 {{- if empty .Values.conf.node.FELIX_IPINIPMTU -}}
-{{- $_ := set .Values.conf.node "FELIX_IPINIPMTU" .Values.networking.mtu -}}
+{{- if ne .Values.conf.node.CALICO_IPV4POOL_IPIP "Never" -}}
+{{- $_ := set .Values.conf.node "FELIX_IPINIPMTU" (sub .Values.networking.mtu 20) -}}
+# Setting tunnel MTU to {{ .Values.conf.node.FELIX_IPINIPMTU }}
+{{- end -}}
 {{- end -}}
 
+
+{{/* CNI_MTU is >= than the IPIP mtu, usually the physical MTU of the system */}}
 {{- if empty .Values.conf.node.CNI_MTU -}}
-{{- $_ := set .Values.conf.node "CNI_MTU" .Values.conf.node.FELIX_IPINIPMTU -}}
+{{- $_ := set .Values.conf.node "CNI_MTU" .Values.networking.mtu -}}
 {{- end -}}
+
 
 {{- if empty .Values.conf.node.CALICO_IPV4POOL_CIDR -}}
 {{- $_ := set .Values.conf.node "CALICO_IPV4POOL_CIDR" .Values.networking.podSubnet -}}
 {{- end -}}
+
+
 
 {{- $serviceAccountName := "calico-node" }}
 {{ tuple $envAll "calico_node" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
