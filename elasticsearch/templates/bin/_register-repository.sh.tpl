@@ -20,7 +20,7 @@ limitations under the License.
 set -ex
 
 {{ range $repository := $envAll.Values.conf.elasticsearch.snapshots.repositories }}
-curl -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
+result=$(curl -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
   "${ELASTICSEARCH_HOST}/_snapshot/{{$repository.name}}" \
   -H 'Content-Type: application/json' -d'
   {
@@ -32,5 +32,12 @@ curl -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
       "access_key": "'"$S3_ACCESS_KEY"'",
       "secret_key": "'"$S3_SECRET_KEY"'"
     }
-  }'
+  }' | python -c "import sys, json; print json.load(sys.stdin)['acknowledged']")
+if [ "$result" == "True" ];
+then
+   echo "Snapshot repository {{$repository.name}} created!";
+else
+   echo "Snapshot repository {{$repository.name}} not created!";
+   exit 1;
+fi
 {{ end }}
