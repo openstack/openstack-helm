@@ -62,6 +62,7 @@ spec:
   serviceAccountName: {{ $serviceAccountName }}
   initContainers:
 {{ tuple $envAll "tests" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 4 }}
+{{ if .Values.conf.rgw_ks.enabled }}
     - name: ceph-keyring-placement
 {{ tuple $envAll "ceph_config_helper" | include "helm-toolkit.snippets.image" | indent 6 }}
       securityContext:
@@ -80,14 +81,23 @@ spec:
           subPath: key
           readOnly: true
   containers:
-    - name: ceph-rgw-validation
+    - name: ceph-rgw-ks-validation
 {{ tuple $envAll "ceph_config_helper" | include "helm-toolkit.snippets.image" | indent 6 }}
 {{ tuple $envAll $envAll.Values.pod.resources.tests | include "helm-toolkit.snippets.kubernetes_resources" | indent 6 }}
       env:
-        - name: CEPH_DEPLOYMENT_NAMESPACE
-          value: {{ .Values.endpoints.ceph_mon.namespace }}
-        - name: CEPH_RGW_REPLICAS
-          value: "{{ .Values.pod.replicas.rgw }}"
+{{- with $env := dict "ksUserSecret" .Values.secrets.identity.user_rgw }}
+{{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 8 }}
+        - name: OS_AUTH_TYPE
+          valueFrom:
+            secretKeyRef:
+              name: {{ $.Values.secrets.identity.user_rgw }}
+              key: OS_AUTH_TYPE
+        - name: OS_TENANT_NAME
+          valueFrom:
+            secretKeyRef:
+              name: {{ $.Values.secrets.identity.user_rgw }}
+              key: OS_TENANT_NAME
+{{- end }}
       command:
         - /tmp/helm-tests.sh
       volumeMounts:
@@ -119,4 +129,29 @@ spec:
       configMap:
         name: ceph-rgw-etc
         defaultMode: 0444
+{{- end }}
+{{ if .Values.conf.rgw_s3.enabled }}
+  containers:
+    - name: ceph-rgw-s3-validation
+{{ tuple $envAll "ceph_rgw" | include "helm-toolkit.snippets.image" | indent 6 }}
+{{ tuple $envAll $envAll.Values.pod.resources.tests | include "helm-toolkit.snippets.kubernetes_resources" | indent 6 }}
+      env:
+{{- with $env := dict "s3AdminSecret" $envAll.Values.secrets.rgw_s3.admin }}
+{{- include "helm-toolkit.snippets.rgw_s3_admin_env_vars" $env | indent 8 }}
+{{- end }}
+        - name: RGW_HOST
+          value: {{ tuple "ceph_object_store" "internal" "api" $envAll | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" }}
+      command:
+        - /tmp/helm-tests.sh
+      volumeMounts:
+        - name: ceph-rgw-bin
+          mountPath: /tmp/helm-tests.sh
+          subPath: helm-tests.sh
+          readOnly: true
+  volumes:
+    - name: ceph-rgw-bin
+      configMap:
+        name: ceph-rgw-bin
+        defaultMode: 0555
+{{- end }}
 {{- end }}
