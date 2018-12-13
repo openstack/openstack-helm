@@ -55,6 +55,47 @@
         executable: /bin/bash
       register: cni_default_device_mtu
 
+- name: Generate  self-signed certificates
+  when: cluster.cni == 'calico'
+  delegate_to: 127.0.0.1
+  block:
+    - name: Get cfssl
+      get_url:
+        url: "https://pkg.cfssl.org/R1.2/{{ item }}_linux-amd64"
+        dest: "/usr/local/bin/{{ item }}"
+        mode: 744
+      with_items:
+        - cfssl
+        - cfssljson
+    - name: Add ca-config
+      template:
+        src: ca-config.json.j2
+        dest: /etc/kubernetes/pki/calico/ca-config.json
+    - name: Copy CA
+      copy:
+        src: /etc/kubernetes/pki/{{ item }}
+        dest: /etc/kubernetes/pki/calico/{{ item }}
+      with_items:
+        - ca.crt
+        - ca.key
+    - name: Prepare certificates for Calico
+      shell: |
+        echo '{"CN":"server","hosts":[""],"key":{"algo":"rsa","size":2048}}' | cfssl gencert -ca=ca.crt -ca-key=ca.key -config=ca-config.json -profile=server -hostname="{{ cluster.cni_host_ip }},127.0.0.1,localhost" - | cfssljson -bare server
+        echo '{"CN":"client","hosts":[""],"key":{"algo":"rsa","size":2048}}' | cfssl gencert -ca=ca.crt -ca-key=ca.key -config=ca-config.json -profile=client - | cfssljson -bare client
+      args:
+        chdir: /etc/kubernetes/pki/calico
+        executable: /bin/bash
+    - name: Add script file
+      template:
+        src: certs.py.j2
+        dest: /etc/kubernetes/pki/calico/certs.py
+
+    - name: Create yaml file
+      shell: python /etc/kubernetes/pki/calico/certs.py
+      args:
+        executable: /bin/bash
+        chdir: /etc/kubernetes/pki/calico
+
 - name: kubeadm | cni | calico
   when: cluster.cni == 'calico'
   delegate_to: 127.0.0.1
@@ -64,7 +105,7 @@
       environment:
         KUBECONFIG: '/mnt/rootfs/etc/kubernetes/admin.conf'
     - name: kubeadm | cni | calico
-      command: helm install /opt/charts/calico --name calico --namespace kube-system --set networking.podSubnet="{{ k8s.networking.podSubnet }}" --set conf.node.IP_AUTODETECTION_METHOD="can-reach={% if k8s.api.advertiseAddress is defined %}{{ k8s.api.advertiseAddress }}{% else %}{% if k8s.api.advertiseAddressDevice is defined %}{{ hostvars[inventory_hostname]['ansible_'+k8s.api.advertiseAddressDevice].ipv4.address }}{% else %}{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] }}{% endif %}{% endif %}" --set networking.mtu="{{ cni_default_device_mtu.stdout }}" --wait --timeout=600
+      command: helm install /opt/charts/calico --name calico --namespace kube-system --set networking.podSubnet="{{ k8s.networking.podSubnet }}" --set conf.node.IP_AUTODETECTION_METHOD="can-reach={% if k8s.api.advertiseAddress is defined %}{{ k8s.api.advertiseAddress }}{% else %}{% if k8s.api.advertiseAddressDevice is defined %}{{ hostvars[inventory_hostname]['ansible_'+k8s.api.advertiseAddressDevice].ipv4.address }}{% else %}{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] }}{% endif %}{% endif %}" --set networking.mtu="{{ cni_default_device_mtu.stdout }}" --values="/etc/kubernetes/pki/calico/calico_certs.yaml" --wait --timeout=600
       environment:
         HELM_HOST: 'localhost:44134'
     - name: kubeadm | cni | calico

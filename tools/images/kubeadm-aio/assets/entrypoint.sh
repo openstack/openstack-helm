@@ -36,6 +36,7 @@ fi
 : ${CONTAINER_NAME:="null"}
 : ${CONTAINER_RUNTIME:="docker"}
 : ${CNI_ENABLED:="calico"}
+: ${CNI_HOST_IP:="10.96.232.136"}
 : ${NET_SUPPORT_LINUXBRIDGE:="true"}
 : ${PVC_SUPPORT_CEPH:="false"}
 : ${PVC_SUPPORT_NFS:="false"}
@@ -66,7 +67,8 @@ PLAYBOOK_VARS="{
     \"home\": \"${USER_HOME}\"
   },
   \"cluster\": {
-    \"cni\": \"${CNI_ENABLED}\"
+    \"cni\": \"${CNI_ENABLED}\",
+    \"cni_host_ip\": \"${CNI_HOST_IP}\"
   },
   \"kubelet\": {
     \"container_runtime\": \"${CONTAINER_RUNTIME}\",
