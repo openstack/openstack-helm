@@ -51,8 +51,9 @@ Ceph Environment
 ================
 
 The ceph commands and scripts described in this write-up are executed as
-Linux user root on one of the ceph monitors deployed as kubernetes
-pods.  The root user has the credential to execute all the ceph commands.
+Linux user root on one of orchestration nodes and one of the ceph monitors
+deployed as kubernetes pods. The root user has the credential to execute
+all the ceph commands.
 
 On a kubernetes cluster, a separate namespace named **ceph** is configured
 for the ceph cluster.  Include the **ceph** namespace in **kubectl** when
@@ -386,11 +387,11 @@ Verify the Ceph cluster has a CRUSH rule with rack as the failure domain.
 ::
 
   # ceph osd crush rule ls
-  replicated_rack
-  # ceph osd crush rule dump replicated_rack
+  rack_replicated_rule
+  # ceph osd crush rule dump rack_replicated_rule
   {
       "rule_id": 2,
-      "rule_name": "replicated_rack",
+      "rule_name": "rack_replicated_rule",
       "ruleset": 2,
       "type": 1,
       "min_size": 1,
@@ -416,10 +417,10 @@ Create a ceph pool with its CRUSH rule set to the rack's rule.
 
 ::
 
-  # ceph osd pool create rbd 2048 2048 replicated replicated_rack
+  # ceph osd pool create rbd 2048 2048 replicated rack_replicated_rule
   pool 'rbd' created
   # ceph osd pool get rbd crush_rule
-  crush_rule: replicated_rack
+  crush_rule: rack_replicated_rule
   # ceph osd pool get rbd size
   size: 3
   # ceph osd pool get rbd pg_num
@@ -570,6 +571,7 @@ To see weight and affinity of each OSD.
    23   hdd  1.09000             osd.23            up  1.00000 1.00000
 
 
+
 crushtool CLI
 -------------
 
@@ -658,418 +660,161 @@ The **utils-checkPGs.py** script can read the same data from memory and construc
 the failure domains with OSDs.  Verify the OSDs in each PG against the
 constructed failure domains.
 
-You can edit the **/tmp/cm.rack.ascii** to modify the CRUSH Map.  Compile
-the modified ascii file into binary that has the new CRUSH Map.  To set
-the running ceph cluster with the new CRUSH Map, execute the following
-commands on one of the monitor nodes:
+Configure the Failure Domain in CRUSH Map
+=========================================
+
+The Ceph ceph-osd, ceph-client and cinder charts accept configuration parameters to set the Failure Domain for CRUSH.
+The options available are **failure_domain**, **failure_domain_by_hostname**, **failure_domain_name** and **crush_rule**
 
 ::
 
-  # vi /tmp/cm.rack.ascii
-  # crushtool -c /tmp/cm.rack.ascii -o /tmp/cm.bin.new
-  # ceph osd setcrushmap -i /tmp/cm.bin.new
-  # watch ceph status
+ ceph-osd specific overrides
+ failure_domain: Set the CRUSH bucket type for your OSD to reside in. (DEFAULT: "host")
+ failure_domain_by_hostname: Specify the portion of the hostname to use for your failure domain bucket name. (DEFAULT: "false")
+ failure_domain_name: Manually name the failure domain bucket name. This configuration option should only be used when using host based overrides. (DEFAULT: "false")
+
+::
+
+ ceph-client and cinder specific overrides
+ crush_rule**: Set the crush rule for a pool (DEFAULT: "replicated_rule")
+
+An example of a lab enviroment had the following paramters set for the ceph yaml override file to apply a rack level failure domain within CRUSH.
+
+::
+
+  endpoints:
+    identity:
+      namespace: openstack
+    object_store:
+      namespace: ceph
+    ceph_mon:
+      namespace: ceph
+  network:
+    public: 10.0.0.0/24
+    cluster: 10.0.0.0/24
+  deployment:
+    storage_secrets: true
+    ceph: true
+    rbd_provisioner: true
+    cephfs_provisioner: true
+    client_secrets: false
+    rgw_keystone_user_and_endpoints: false
+  bootstrap:
+    enabled: true
+  conf:
+    ceph:
+      global:
+        fsid: 6c12a986-148d-45a7-9120-0cf0522ca5e0
+    rgw_ks:
+      enabled: true
+    pool:
+      default:
+        crush_rule: rack_replicated_rule
+      crush:
+        tunables: null
+      target:
+        # NOTE(portdirect): 5 nodes, with one osd per node
+        osd: 18
+        pg_per_osd: 100
+    storage:
+      osd:
+        - data:
+            type: block-logical
+            location: /dev/vdb
+          journal:
+            type: block-logical
+            location: /dev/vde1
+        - data:
+            type: block-logical
+            location: /dev/vdc
+          journal:
+            type: block-logical
+            location: /dev/vde2
+        - data:
+            type: block-logical
+            location: /dev/vdd
+          journal:
+            type: block-logical
+            location: /dev/vde3
+    overrides:
+      ceph_osd:
+        hosts:
+          - name: osh-1
+            conf:
+              storage:
+                failure_domain: "rack"
+                failure_domain_name: "rack1"
+          - name: osh-2
+            conf:
+              storage:
+                failure_domain: "rack"
+                failure_domain_name: "rack1"
+          - name: osh-3
+            conf:
+              storage:
+                failure_domain: "rack"
+                failure_domain_name: "rack2"
+          - name: osh-4
+            conf:
+              storage:
+                failure_domain: "rack"
+                failure_domain_name: "rack2"
+          - name: osh-5
+            conf:
+              storage:
+                failure_domain: "rack"
+                failure_domain_name: "rack3"
+          - name: osh-6
+            conf:
+              storage:
+                failure_domain: "rack"
+                failure_domain_name: "rack3"
 
 .. NOTE::
 
-  You have to know the CRUSH Map syntax really well in order for you to be able to manually edit the ascii file.
-
-Buckets
--------
-
-You have a pre-existing Ceph cluster that did not have the rack
-buckets.  You want to restructure the CRUSH hierarchy with the rack
-buckets to a topology that is similar to the one presented earlier in
-this guide.
+   Note that the cinder chart will need an override configured to ensure the cinder pools in Ceph are using the correct **crush_rule**.
 
 ::
 
-  root@host3:/# ceph osd crush tree
-  ID  CLASS WEIGHT   TYPE NAME
-   -1       78.47974 root default
-   -2       13.07996     host host1
-    0   hdd  1.09000         osd.0
-    1   hdd  1.09000         osd.1
-    2   hdd  1.09000         osd.2
-    3   hdd  1.09000         osd.3
-    4   hdd  1.09000         osd.4
-    5   hdd  1.09000         osd.5
-    6   hdd  1.09000         osd.6
-    7   hdd  1.09000         osd.7
-    8   hdd  1.09000         osd.8
-    9   hdd  1.09000         osd.9
-   10   hdd  1.09000         osd.10
-   11   hdd  1.09000         osd.11
-   -5       13.07996     host host2
-   12   hdd  1.09000         osd.12
-   13   hdd  1.09000         osd.13
-   14   hdd  1.09000         osd.14
-   15   hdd  1.09000         osd.15
-   16   hdd  1.09000         osd.16
-   17   hdd  1.09000         osd.17
-   18   hdd  1.09000         osd.18
-   19   hdd  1.09000         osd.19
-   20   hdd  1.09000         osd.20
-   21   hdd  1.09000         osd.21
-   22   hdd  1.09000         osd.22
-   23   hdd  1.09000         osd.23
-  -13       13.07996     host host3
-   60   hdd  1.09000         osd.60
-   61   hdd  1.09000         osd.61
-   62   hdd  1.09000         osd.62
-   63   hdd  1.09000         osd.63
-   64   hdd  1.09000         osd.64
-   65   hdd  1.09000         osd.65
-   66   hdd  1.09000         osd.66
-   67   hdd  1.09000         osd.67
-   68   hdd  1.09000         osd.68
-   69   hdd  1.09000         osd.69
-   70   hdd  1.09000         osd.70
-   71   hdd  1.09000         osd.71
-   -9       13.07996     host host4
-   36   hdd  1.09000         osd.36
-   37   hdd  1.09000         osd.37
-   38   hdd  1.09000         osd.38
-   39   hdd  1.09000         osd.39
-   40   hdd  1.09000         osd.40
-   41   hdd  1.09000         osd.41
-   42   hdd  1.09000         osd.42
-   43   hdd  1.09000         osd.43
-   44   hdd  1.09000         osd.44
-   45   hdd  1.09000         osd.45
-   46   hdd  1.09000         osd.46
-   47   hdd  1.09000         osd.47
-  -11       13.07996     host host5
-   48   hdd  1.09000         osd.48
-   49   hdd  1.09000         osd.49
-   50   hdd  1.09000         osd.50
-   51   hdd  1.09000         osd.51
-   52   hdd  1.09000         osd.52
-   53   hdd  1.09000         osd.53
-   54   hdd  1.09000         osd.54
-   55   hdd  1.09000         osd.55
-   56   hdd  1.09000         osd.56
-   57   hdd  1.09000         osd.57
-   58   hdd  1.09000         osd.58
-   59   hdd  1.09000         osd.59
-   -7       13.07996     host host6
-   24   hdd  1.09000         osd.24
-   25   hdd  1.09000         osd.25
-   26   hdd  1.09000         osd.26
-   27   hdd  1.09000         osd.27
-   28   hdd  1.09000         osd.28
-   29   hdd  1.09000         osd.29
-   30   hdd  1.09000         osd.30
-   31   hdd  1.09000         osd.31
-   32   hdd  1.09000         osd.32
-   33   hdd  1.09000         osd.33
-   34   hdd  1.09000         osd.34
-   35   hdd  1.09000         osd.35
-  root@host3:/#
+  pod:
+    replicas:
+      api: 2
+      volume: 1
+      scheduler: 1
+      backup: 1
+  conf:
+    cinder:
+      DEFAULT:
+        backup_driver: cinder.backup.drivers.swift
+    ceph:
+      pools:
+        backup:
+          replicated: 3
+          crush_rule: rack_replicated_rule
+          chunk_size: 8
+        volume:
+          replicated: 3
+          crush_rule: rack_replicated_rule
+          chunk_size: 8
 
-To include the rack bucket in the CRUSH Map, follow these steps.  First, add
-the required rack buckets with the user-defined names.
+The charts can be updated with these overrides pre or post deployment. If this is a post deployment change then the following steps will apply for a gate based openstack-helm deployment.
 
 ::
 
-  root@host5:/# ceph osd crush add-bucket rack1 rack
-  added bucket rack1 type rack to crush map
-  root@host5:/# ceph osd crush add-bucket rack2 rack
-  added bucket rack2 type rack to crush map
-  root@host5:/# ceph osd crush add-bucket rack3 rack
-  added bucket rack3 type rack to crush map
-  root@host5:/# ceph osd tree
-  ID  CLASS WEIGHT   TYPE NAME             STATUS REWEIGHT PRI-AFF
-  -17              0 rack rack3
-  -16              0 rack rack2
-  -15              0 rack rack1
-   -1       78.47974 root default
-  . . .
+  cd /opt/openstack-helm
+  helm upgrade --install ceph-osd ../openstack-helm-infra/ceph-osd --namespace=ceph --values=/tmp/ceph.yaml
+  kubectl delete jobs/ceph-rbd-pool -n ceph
+  helm upgrade --install ceph-client ../openstack-helm-infra/ceph-client --namespace=ceph --values=/tmp/ceph.yaml
+  helm delete cinder --purge
+  helm upgrade --install cinder ./cinder --namespace=openstack --values=/tmp/cinder.yaml
 
-Move the hosts to the respective rack buckets.
+.. NOTE::
 
-::
+  There will be a brief interuption of I/O and a data movement of placement groups in Ceph while these changes are
+  applied. The data movement operation can take several minutes to several days to complete.
 
-  root@host5:/# ceph osd crush move host1 rack=rack1
-  moved item id -2 name 'host1' to location {rack=rack1} in crush map
-  root@host5:/# ceph osd crush move host2 rack=rack1
-  moved item id -5 name 'host2' to location {rack=rack1} in crush map
-
-Move the newly created rack rack1 to the root bucket.  Verify the new
-hierarchy with the ceph CLI.
-
-::
-
-  root@host5:/# ceph osd crush move rack1 root=default
-  moved item id -15 name 'rack1' to location {root=default} in crush map
-  root@host5:/# ceph osd tree
-  ID  CLASS WEIGHT   TYPE NAME                 STATUS REWEIGHT PRI-AFF
-  -17              0 rack rack3
-  -16              0 rack rack2
-   -1       78.47974 root default
-  -15       26.15991     rack rack1
-   -2       13.07996         host host1
-    0   hdd  1.09000             osd.0             up  1.00000 1.00000
-    1   hdd  1.09000             osd.1             up  1.00000 1.00000
-    2   hdd  1.09000             osd.2             up  1.00000 1.00000
-    3   hdd  1.09000             osd.3             up  1.00000 1.00000
-    4   hdd  1.09000             osd.4             up  1.00000 1.00000
-    5   hdd  1.09000             osd.5             up  1.00000 1.00000
-    6   hdd  1.09000             osd.6             up  1.00000 1.00000
-    7   hdd  1.09000             osd.7             up  1.00000 1.00000
-    8   hdd  1.09000             osd.8             up  1.00000 1.00000
-    9   hdd  1.09000             osd.9             up  1.00000 1.00000
-   10   hdd  1.09000             osd.10            up  1.00000 1.00000
-   11   hdd  1.09000             osd.11            up  1.00000 1.00000
-   -5       13.07996         host host2
-   12   hdd  1.09000             osd.12            up  1.00000 1.00000
-   13   hdd  1.09000             osd.13            up  1.00000 1.00000
-   14   hdd  1.09000             osd.14            up  1.00000 1.00000
-   15   hdd  1.09000             osd.15            up  1.00000 1.00000
-   16   hdd  1.09000             osd.16            up  1.00000 1.00000
-   17   hdd  1.09000             osd.17            up  1.00000 1.00000
-   18   hdd  1.09000             osd.18            up  1.00000 1.00000
-   19   hdd  1.09000             osd.19            up  1.00000 1.00000
-   20   hdd  1.09000             osd.20            up  1.00000 1.00000
-   21   hdd  1.09000             osd.21            up  1.00000 1.00000
-   22   hdd  1.09000             osd.22            up  1.00000 1.00000
-   23   hdd  1.09000             osd.23            up  1.00000 1.00000
-  . . .
-
-Repeat the same for rack2.
-
-::
-
-  root@host5:/# ceph osd crush move host3 rack=rack2
-  moved item id -13 name 'host3' to location {rack=rack2} in crush map
-  root@host5:/# ceph osd crush move host4 rack=rack2
-  moved item id -9 name 'host4' to location {rack=rack2} in crush map
-  root@host5:/# ceph osd crush move rack2 root=default
-  moved item id -16 name 'rack2' to location {root=default} in crush map
-
-Repeat the same for rack3.
-
-::
-
-  root@host5:/# ceph osd crush move host5 rack=rack3
-  moved item id -11 name 'host5' to location {rack=rack3} in crush map
-  root@host5:/# ceph osd crush move host6 rack=rack3
-  moved item id -7 name 'host6' to location {rack=rack3} in crush map
-  root@host5:/# ceph osd crush move rack3 root=default
-  moved item id -17 name 'rack3' to location {root=default} in crush map
-
-Extract the CRUSH Map from the in-memory copy and verify.
-
-::
-
-  root@host5:/# ceph osd getcrushmap -o /tmp/cm.bin.racks.6
-  100
-  root@host5:/# crushtool -d /tmp/cm.bin.racks.6 -o /tmp/cm.ascii.racks.6
-  root@host5:/# cat /tmp/cm.ascii.racks.6
-  . . .
-  # buckets
-  host host1 {
-          id -2           # do not change unnecessarily
-          id -3 class hdd         # do not change unnecessarily
-          # weight 13.080
-          alg straw2
-          hash 0  # rjenkins1
-          item osd.0 weight 1.090
-          item osd.1 weight 1.090
-          item osd.2 weight 1.090
-          item osd.3 weight 1.090
-          item osd.4 weight 1.090
-          item osd.5 weight 1.090
-          item osd.6 weight 1.090
-          item osd.7 weight 1.090
-          item osd.8 weight 1.090
-          item osd.9 weight 1.090
-          item osd.10 weight 1.090
-          item osd.11 weight 1.090
-  }
-  host host2 {
-          id -5           # do not change unnecessarily
-          id -6 class hdd         # do not change unnecessarily
-          # weight 13.080
-          alg straw2
-          hash 0  # rjenkins1
-          item osd.12 weight 1.090
-          item osd.13 weight 1.090
-          item osd.14 weight 1.090
-          item osd.15 weight 1.090
-          item osd.16 weight 1.090
-          item osd.18 weight 1.090
-          item osd.19 weight 1.090
-          item osd.17 weight 1.090
-          item osd.20 weight 1.090
-          item osd.21 weight 1.090
-          item osd.22 weight 1.090
-          item osd.23 weight 1.090
-  }
-  rack rack1 {
-          id -15          # do not change unnecessarily
-          id -20 class hdd                # do not change unnecessarily
-          # weight 26.160
-          alg straw2
-          hash 0  # rjenkins1
-          item host1 weight 13.080
-          item host2 weight 13.080
-  }
-  host host3 {
-          id -13          # do not change unnecessarily
-          id -14 class hdd                # do not change unnecessarily
-          # weight 13.080
-          alg straw2
-          hash 0  # rjenkins1
-          item osd.53 weight 1.090
-          item osd.54 weight 1.090
-          item osd.58 weight 1.090
-          item osd.59 weight 1.090
-          item osd.64 weight 1.090
-          item osd.65 weight 1.090
-          item osd.66 weight 1.090
-          item osd.67 weight 1.090
-          item osd.69 weight 1.090
-          item osd.68 weight 1.090
-          item osd.71 weight 1.090
-          item osd.70 weight 1.090
-  }
-  host host4 {
-          id -9           # do not change unnecessarily
-          id -10 class hdd                # do not change unnecessarily
-          # weight 13.080
-          alg straw2
-          hash 0  # rjenkins1
-          item osd.36 weight 1.090
-          item osd.37 weight 1.090
-          item osd.38 weight 1.090
-          item osd.39 weight 1.090
-          item osd.40 weight 1.090
-          item osd.41 weight 1.090
-          item osd.42 weight 1.090
-          item osd.44 weight 1.090
-          item osd.45 weight 1.090
-          item osd.46 weight 1.090
-          item osd.47 weight 1.090
-          item osd.43 weight 1.090
-  }
-  rack rack2 {
-          id -16          # do not change unnecessarily
-          id -19 class hdd                # do not change unnecessarily
-          # weight 26.160
-          alg straw2
-          hash 0  # rjenkins1
-          item host3 weight 13.080
-          item host4 weight 13.080
-  }
-  host host5 {
-          id -11          # do not change unnecessarily
-          id -12 class hdd                # do not change unnecessarily
-          # weight 13.080
-          alg straw2
-          hash 0  # rjenkins1
-          item osd.49 weight 1.090
-          item osd.48 weight 1.090
-          item osd.50 weight 1.090
-          item osd.51 weight 1.090
-          item osd.52 weight 1.090
-          item osd.55 weight 1.090
-          item osd.56 weight 1.090
-          item osd.57 weight 1.090
-          item osd.60 weight 1.090
-          item osd.61 weight 1.090
-          item osd.62 weight 1.090
-          item osd.63 weight 1.090
-  }
-  host host6 {
-          id -7           # do not change unnecessarily
-          id -8 class hdd         # do not change unnecessarily
-          # weight 13.080
-          alg straw2
-          hash 0  # rjenkins1
-          item osd.24 weight 1.090
-          item osd.25 weight 1.090
-          item osd.26 weight 1.090
-          item osd.27 weight 1.090
-          item osd.28 weight 1.090
-          item osd.29 weight 1.090
-          item osd.30 weight 1.090
-          item osd.31 weight 1.090
-          item osd.32 weight 1.090
-          item osd.33 weight 1.090
-          item osd.34 weight 1.090
-          item osd.35 weight 1.090
-  }
-  rack rack3 {
-          id -17          # do not change unnecessarily
-          id -18 class hdd                # do not change unnecessarily
-          # weight 26.160
-          alg straw2
-          hash 0  # rjenkins1
-          item host5 weight 13.080
-          item host6 weight 13.080
-  }
-  root default {
-          id -1           # do not change unnecessarily
-          id -4 class hdd         # do not change unnecessarily
-          # weight 78.480
-          alg straw2
-          hash 0  # rjenkins1
-          item rack1 weight 26.160
-          item rack2 weight 26.160
-          item rack3 weight 26.160
-  }
-
-  # rules
-  rule replicated_rule {
-          id 0
-          type replicated
-          min_size 1
-          max_size 10
-          step take default
-          step chooseleaf firstn 0 type host
-          step emit
-  }
-  rule same_host {
-          id 1
-          type replicated
-          min_size 1
-          max_size 10
-          step take default
-          step choose firstn 0 type osd
-          step emit
-  }
-  rule replicated_rack {
-          id 2
-          type replicated
-          min_size 1
-          max_size 10
-          step take default
-          step chooseleaf firstn 0 type rack
-          step emit
-  }
-
-  # end crush map
-  root@host5:/#
-
-Create a CRUSH Rule with rack as the failure domain.
-
-::
-
-  root@host5:/# ceph osd crush rule create-replicated replicated_rack default rack
-
-Create a ceph pool that uses the new CRUSH Rule.
-
-::
-
-  root@host5:/# ceph osd pool create cmTestPool 2048 2048 replicated replicated_rack
-  pool 'cmTestPool' created
-  root@host5:/# /tmp/utils-checkPGs.py cmTestPool
-  Checking PGs in pool cmTestPool ... Passed
-
-
-utils-checkPGs.py Script
-========================
+The utils-checkPGs.py Script
+============================
 
 The purpose of the **utils-checkPGs.py** script is to check whether a PG has OSDs
 allocated from the same failure domain.  The violating PGs with their
