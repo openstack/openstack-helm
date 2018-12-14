@@ -42,6 +42,8 @@ helm status ingress-kube-system
 
 #NOTE: Deploy namespaced ingress controllers
 for NAMESPACE in openstack ceph; do
+  # Allow $OSH_EXTRA_HELM_ARGS_INGRESS_ceph and $OSH_EXTRA_HELM_ARGS_INGRESS_openstack overrides
+  OSH_EXTRA_HELM_ARGS_INGRESS_NAMESPACE="OSH_EXTRA_HELM_ARGS_INGRESS_${NAMESPACE}"
   #NOTE: Deploy namespace ingress
   tee /tmp/ingress-${NAMESPACE}.yaml << EOF
 pod:
@@ -51,7 +53,9 @@ pod:
 EOF
   helm upgrade --install ingress-${NAMESPACE} ${OSH_INFRA_PATH}/ingress \
     --namespace=${NAMESPACE} \
-    --values=/tmp/ingress-${NAMESPACE}.yaml
+    --values=/tmp/ingress-${NAMESPACE}.yaml \
+  ${OSH_EXTRA_HELM_ARGS} \
+  ${!OSH_EXTRA_HELM_ARGS_INGRESS_NAMESPACE}
 
   #NOTE: Wait for deploy
   ./tools/deployment/common/wait-for-pods.sh ${NAMESPACE}
