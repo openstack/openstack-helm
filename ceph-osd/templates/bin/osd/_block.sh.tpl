@@ -200,7 +200,6 @@ if [ "${OSD_BLUESTORE:-0}" -ne 1 ]; then
     chown ceph. "${JOURNAL_PART}" "${DATA_PART}"
     OSD_JOURNAL="${JOURNAL_PART}"
   fi
-  CEPH_OSD_OPTIONS="${CEPH_OSD_OPTIONS} --osd-journal ${OSD_JOURNAL}"
 fi
 
 if [ "x${JOURNAL_TYPE}" == "xdirectory" ]; then

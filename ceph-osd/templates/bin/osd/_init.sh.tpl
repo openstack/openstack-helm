@@ -22,6 +22,8 @@ set -ex
 : "${OSD_JOURNAL_UUID:=$(uuidgen)}"
 : "${OSD_FORCE_ZAP:=1}"
 : "${CEPH_CONF:="/etc/ceph/${CLUSTER}.conf"}"
+# We do not want to zap journal disk. Tracking this option seperatly.
+: "${JOURNAL_FORCE_ZAP:=0}"
 
 if [[ ! -e ${CEPH_CONF}.template ]]; then
   echo "ERROR- ${CEPH_CONF}.template must exist; get it from your existing mon"
@@ -203,7 +205,7 @@ function osd_disk_prepare {
     CLI_OPTS="${CLI_OPTS} --bluestore"
   fi
 
-  if [ -b "${OSD_JOURNAL}" -a "${OSD_FORCE_ZAP:-0}" -eq 1 ]; then
+  if [ -b "${OSD_JOURNAL}" -a "${JOURNAL_FORCE_ZAP:-0}" -eq 1 ]; then
     # if we got here and zap is set, it's ok to wipe the journal.
     echo "OSD_FORCE_ZAP is set, so we will erase the journal device ${OSD_JOURNAL}"
     if [ -z "${OSD_JOURNAL_PARTITION}" ]; then
