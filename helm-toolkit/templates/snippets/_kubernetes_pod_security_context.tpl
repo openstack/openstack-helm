@@ -40,7 +40,7 @@ return: |
 {{- $application := index . "application" -}}
 securityContext:
   runAsUser: {{ index $envAll.Values.pod.user $application "uid" }}
-{{- if hasKey $envAll.Values.pod $application "security_context" }}
+{{- if hasKey (index $envAll.Values.pod $application) "security_context" }}
 {{ toYaml (index $envAll.Values.pod $application "security_context") | indent 2 }}
 {{- end }}
 {{- end -}}
