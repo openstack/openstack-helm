@@ -23,28 +23,29 @@ tee /tmp/ldap.yaml <<EOF
 manifests:
   network_policy: true
 network_policy:
-  ingress:
-    - from:
-      - podSelector:
-          matchLabels:
-            application: ldap
-      - podSelector:
-          matchLabels:
-            application: grafana
-      - podSelector:
-          matchLabels:
-            application: nagios
-      - podSelector:
-          matchLabels:
-            application: elasticsearch
-      - podSelector:
-          matchLabels:
-            application: kibana
-      ports:
-      - protocol: TCP
-        port: 389
-      - protocol: TCP
-        port: 80
+  ldap:
+    ingress:
+      - from:
+        - podSelector:
+            matchLabels:
+              application: ldap
+        - podSelector:
+            matchLabels:
+              application: grafana
+        - podSelector:
+            matchLabels:
+              application: nagios
+        - podSelector:
+            matchLabels:
+              application: elasticsearch
+        - podSelector:
+            matchLabels:
+              application: kibana
+        ports:
+        - protocol: TCP
+          port: 389
+        - protocol: TCP
+          port: 80
 EOF
 
 #NOTE: Deploy command
