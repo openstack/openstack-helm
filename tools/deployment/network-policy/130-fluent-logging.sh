@@ -19,10 +19,29 @@ set -xe
 #NOTE: Lint and package chart
 make fluent-logging
 
+tee /tmp/fluent-logging.yaml <<EOF
+manifests:
+  network_policy: true
+network_policy:
+  fluentbit:
+    ingress:
+      - from:
+  fluentd:
+    ingress:
+      - from:
+  fluent:
+    ingress:
+      - from:
+  fluent-logging:
+    ingress:
+      - from:
+EOF
+
+
 #NOTE: Deploy command
 helm upgrade --install fluent-logging ./fluent-logging \
     --namespace=osh-infra \
-    --set manifests.network_policy=true \
+    --values=/tmp/fluent-logging.yaml \
     --set pod.replicas.fluentd=1
 
 #NOTE: Wait for deploy
