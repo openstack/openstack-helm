@@ -24,9 +24,9 @@ kind: BGPConfiguration
 metadata:
   name: default
 spec:
-  logSeverityScreen: Info
-  nodeToNodeMeshEnabled: {{ .Values.networking.settings.mesh }}
   asNumber: {{ .Values.networking.bgp.asnumber }}
+  logSeverityScreen: {{ .Values.conf.node.FELIX_LOGSEVERITYSCREEN }}
+  nodeToNodeMeshEnabled: {{ .Values.networking.settings.mesh }}
 EOF
 
 # FelixConfiguration: ipipEnabled
@@ -37,7 +37,7 @@ metadata:
   name: default
 spec:
   ipipEnabled: {{ .Values.networking.settings.ippool.ipip.enabled }}
-  logSeverityScreen: Info
+  logSeverityScreen: {{ .Values.conf.node.FELIX_LOGSEVERITYSCREEN }}
 EOF
 
 # ipPool - https://docs.projectcalico.org/v3.2/reference/calicoctl/resources/ippool
