@@ -28,11 +28,16 @@ pod:
   replicas:
     data: 1
     master: 2
+manifests:
+  network_policy: true
+network_policy:
+  elasticsearch:
+    ingress:
+      - from:
 EOF
 
 helm upgrade --install elasticsearch ./elasticsearch \
     --namespace=osh-infra \
-    --set manifests.network_policy=true \
     --values=/tmp/elasticsearch.yaml
 
 #NOTE: Wait for deploy

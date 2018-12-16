@@ -39,11 +39,6 @@ network_policy:
           port: 4567
         - protocol: TCP
           port: 80
-    egress:
-      - from:
-        - podSelector:
-            matchLabels:
-              application: ingress
 EOF
 
 #NOTE: Deploy command
