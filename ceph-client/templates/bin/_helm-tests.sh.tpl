@@ -16,6 +16,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+set -ex
+
 function check_cluster_status() {
   echo "#### Start: Checking Ceph cluster status ####"
   ceph_status_output=$(ceph -s -f json | jq -r '.health')
