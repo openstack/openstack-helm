@@ -194,6 +194,84 @@ spec:
               subPath: tls.key
               readOnly: true
 {{ end }}
+        # This container installs the Calico CNI binaries
+        # and CNI network config file on each node.
+        - name: install-cni
+{{ tuple $envAll "calico_cni" | include "helm-toolkit.snippets.image" | indent 10 }}
+          command: ["/install-cni.sh"]
+          env:
+            # Prevents the container from sleeping forever.
+            - name: SLEEP
+              value: "false"
+            # Name of the CNI config file to create.
+            #
+            # NOTE: Calico v3 needs to end in .conflist; Calico v2 is
+            # different!
+            - name: CNI_CONF_NAME
+              value: "10-calico.conflist"
+            # The location of the Calico etcd cluster.
+            - name: ETCD_ENDPOINTS
+              valueFrom:
+                configMapKeyRef:
+                  name: calico-etc
+                  key: etcd_endpoints
+            # The CNI network config to install on each node.
+            - name: CNI_NETWORK_CONFIG
+              valueFrom:
+                configMapKeyRef:
+                  name: calico-etc
+                  key: cni_network_config
+
+
+          volumeMounts:
+            - name: cni-bin-dir
+              mountPath: /host/opt/cni/bin
+            - name: cni-net-dir
+              mountPath: /host/etc/cni/net.d
+      volumes:
+        # Used by calico/node.
+        - name: lib-modules
+          hostPath:
+            path: /lib/modules
+        - name: var-run-calico
+          hostPath:
+            path: /var/run/calico
+        - name: var-lib-calico
+          hostPath:
+            path: /var/lib/calico
+        - name: xtables-lock
+          hostPath:
+            path: /run/xtables.lock
+            type: FileOrCreate
+        # Used to install CNI.
+        - name: cni-bin-dir
+          hostPath:
+            path: /opt/cni/bin
+        - name: cni-net-dir
+          hostPath:
+            path: /etc/cni/net.d
+        - name: calico-cert-dir
+          hostPath:
+            path: /etc/calico
+        - name: calico-etc
+          configMap:
+            name: calico-etc
+            defaultMode: 0444
+        - name: calico-bird
+          configMap:
+            name: calico-bird
+            defaultMode: 0444
+        - name: calico-bin
+          configMap:
+            name: calico-bin
+            defaultMode: 0555
+        - name: calico-etcd-secrets
+          secret:
+            secretName: calico-etcd-secrets
+
+
+
+
 
       containers:
         # Runs calico/node container on each Kubernetes node.  This
@@ -306,75 +384,5 @@ spec:
               mountPath: {{ .Values.endpoints.etcd.auth.client.path.key }}
               subPath: tls.key
               readOnly: true
-        # This container installs the Calico CNI binaries
-        # and CNI network config file on each node.
-        - name: install-cni
-{{ tuple $envAll "calico_cni" | include "helm-toolkit.snippets.image" | indent 10 }}
-          command: ["/install-cni.sh"]
-          env:
-            # Name of the CNI config file to create.
-            #
-            # NOTE: Calico v3 needs to end in .conflist; Calico v2 is
-            # different!
-            - name: CNI_CONF_NAME
-              value: "10-calico.conflist"
-            # The location of the Calico etcd cluster.
-            - name: ETCD_ENDPOINTS
-              valueFrom:
-                configMapKeyRef:
-                  name: calico-etc
-                  key: etcd_endpoints
-            # The CNI network config to install on each node.
-            - name: CNI_NETWORK_CONFIG
-              valueFrom:
-                configMapKeyRef:
-                  name: calico-etc
-                  key: cni_network_config
-
-          volumeMounts:
-            - name: cni-bin-dir
-              mountPath: /host/opt/cni/bin
-            - name: cni-net-dir
-              mountPath: /host/etc/cni/net.d
-      volumes:
-        # Used by calico/node.
-        - name: lib-modules
-          hostPath:
-            path: /lib/modules
-        - name: var-run-calico
-          hostPath:
-            path: /var/run/calico
-        - name: var-lib-calico
-          hostPath:
-            path: /var/lib/calico
-        - name: xtables-lock
-          hostPath:
-            path: /run/xtables.lock
-            type: FileOrCreate
-        # Used to install CNI.
-        - name: cni-bin-dir
-          hostPath:
-            path: /opt/cni/bin
-        - name: cni-net-dir
-          hostPath:
-            path: /etc/cni/net.d
-        - name: calico-cert-dir
-          hostPath:
-            path: /etc/calico
-        - name: calico-etc
-          configMap:
-            name: calico-etc
-            defaultMode: 0444
-        - name: calico-bird
-          configMap:
-            name: calico-bird
-            defaultMode: 0444
-        - name: calico-bin
-          configMap:
-            name: calico-bin
-            defaultMode: 0555
-        - name: calico-etcd-secrets
-          secret:
-            secretName: calico-etcd-secrets
 
 {{- end }}
