@@ -7,6 +7,7 @@ export LC_ALL=C
 : "${JOURNAL_DIR:=/var/lib/ceph/journal}"
 : "${OSD_BOOTSTRAP_KEYRING:=/var/lib/ceph/bootstrap-osd/${CLUSTER}.keyring}"
 
+eval OSD_PG_INTERVAL_FIX=$(cat /etc/ceph/storage.json | python -c 'import sys, json; data = json.load(sys.stdin); print(json.dumps(data["osd_pg_interval_fix"]))')
 eval CRUSH_FAILURE_DOMAIN_TYPE=$(cat /etc/ceph/storage.json | python -c 'import sys, json; data = json.load(sys.stdin); print(json.dumps(data["failure_domain"]))')
 eval CRUSH_FAILURE_DOMAIN_NAME=$(cat /etc/ceph/storage.json | python -c 'import sys, json; data = json.load(sys.stdin); print(json.dumps(data["failure_domain_name"]))')
 eval CRUSH_FAILURE_DOMAIN_BY_HOSTNAME=$(cat /etc/ceph/storage.json | python -c 'import sys, json; data = json.load(sys.stdin); print(json.dumps(data["failure_domain_by_hostname"]))')
@@ -116,6 +117,13 @@ fi
 # create the directory and an empty Procfile
 mkdir -p /etc/forego/"${CLUSTER}"
 echo "" > /etc/forego/"${CLUSTER}"/Procfile
+
+# NOTE(supamatt): https://tracker.ceph.com/issues/21142 is impacting us due to the older Ceph version 12.2.3 that we are running
+if [ "x${OSD_PG_INTERVAL_FIX}" == "xtrue" ]; then
+  for PG in $(ls ${OSD_PATH}/current | awk -F'_' '/head/{print $1}'); do
+    ceph-objectstore-tool --data-path ${OSD_PATH} --op rm-past-intervals --pgid ${PG};
+  done
+fi
 
 for OSD_ID in $(ls /var/lib/ceph/osd | sed 's/.*-//'); do
   OSD_PATH="$OSD_PATH_BASE-$OSD_ID/"

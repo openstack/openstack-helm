@@ -25,6 +25,7 @@ set -ex
 : "${OSD_SOFT_FORCE_ZAP:=1}"
 : "${OSD_JOURNAL_PARTITION:=}"
 
+eval OSD_PG_INTERVAL_FIX=$(cat /etc/ceph/storage.json | python -c 'import sys, json; data = json.load(sys.stdin); print(json.dumps(data["osd_pg_interval_fix"]))')
 eval CRUSH_FAILURE_DOMAIN_TYPE=$(cat /etc/ceph/storage.json | python -c 'import sys, json; data = json.load(sys.stdin); print(json.dumps(data["failure_domain"]))')
 eval CRUSH_FAILURE_DOMAIN_NAME=$(cat /etc/ceph/storage.json | python -c 'import sys, json; data = json.load(sys.stdin); print(json.dumps(data["failure_domain_name"]))')
 eval CRUSH_FAILURE_DOMAIN_BY_HOSTNAME=$(cat /etc/ceph/storage.json | python -c 'import sys, json; data = json.load(sys.stdin); print(json.dumps(data["failure_domain_by_hostname"]))')
@@ -199,6 +200,15 @@ if [ "${OSD_BLUESTORE:-0}" -ne 1 ]; then
     wait_for_file "${JOURNAL_PART}"
     chown ceph. "${JOURNAL_PART}" "${DATA_PART}"
     OSD_JOURNAL="${JOURNAL_PART}"
+  fi
+fi
+
+if [ "${OSD_BLUESTORE:-0}" -ne 1 ]; then
+  # NOTE(supamatt): https://tracker.ceph.com/issues/21142 is impacting us due to the older Ceph version 12.2.3 that we are running
+  if [ "x${OSD_PG_INTERVAL_FIX}" == "xtrue" ]; then
+    for PG in $(ls ${OSD_PATH}/current | awk -F'_' '/head/{print $1}'); do
+      ceph-objectstore-tool --data-path ${OSD_PATH} --op rm-past-intervals --pgid ${PG};
+    done
   fi
 fi
 
