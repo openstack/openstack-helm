@@ -19,12 +19,12 @@ limitations under the License.
 set -ex
 
 function create_or_update_db () {
-  revisionResults=$(rally-manage db revision)
+  revisionResults=$(rally db revision)
   if [ $revisionResults = "None"  ]
   then
-    rally-manage db create
+    rally db create
   else
-    rally-manage db upgrade
+    rally db upgrade
   fi
 }
 
