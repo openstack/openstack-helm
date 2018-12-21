@@ -37,3 +37,22 @@ cat <<EOF>/tmp/pod-shared/nova-libvirt.conf
 live_migration_inbound_addr = $migration_address
 EOF
 fi
+
+hypervisor_interface="{{- .Values.conf.hypervisor.host_interface -}}"
+if [[ -z $hypervisor_interface ]]; then
+    # search for interface with default routing
+    # If there is not default gateway, exit
+    hypervisor_interface=$(ip -4 route list 0/0 | awk -F 'dev' '{ print $2; exit }' | awk '{ print $1 }') || exit 1
+fi
+
+hypervisor_address=$(ip a s $hypervisor_interface | grep 'inet ' | awk '{print $2}' | awk -F "/" '{print $1}')
+
+if [ -z "${hypervisor_address}" ] ; then
+  echo "Var my_ip is empty"
+  exit 1
+fi
+
+tee > /tmp/pod-shared/nova-hypervisor.conf << EOF
+[DEFAULT]
+my_ip  = $hypervisor_address
+EOF
