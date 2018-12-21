@@ -75,10 +75,15 @@ EOF
 # Priority: {{ $n }} objects
 {{- range $section, $data := $envAll.Values.networking.policy }}
 {{- if eq (toString $data.priority) (toString $n) }}
+{{/* add a safety check so we don't attempt to run calicoctl with an empty resource set */}}
+{{- if gt (len $data.rules) 0 }}
 # Section: {{ $section }} Priority: {{ $data.priority }} {{ $n }}
 $CTL apply -f - <<EOF
 {{ $data.rules | toYaml }}
 EOF
+{{- else }}
+echo "Skipping empty rules list."
+{{- end }}
 {{- end }}
 {{- end }}
 {{- end }}
