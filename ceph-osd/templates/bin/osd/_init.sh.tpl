@@ -50,6 +50,13 @@ else
   export OSD_JOURNAL=$(readlink -f ${JOURNAL_LOCATION})
 fi
 
+
+function udev_settle {
+  partprobe "${OSD_DEVICE}"
+  # watch the udev event queue, and exit if all current events are handled
+  udevadm settle --timeout=600
+}
+
 # Calculate proper device names, given a device and partition number
 function dev_part {
   local OSD_DEVICE=${1}
@@ -121,46 +128,41 @@ function osd_disk_prepare {
     fi
   fi
 
+  udev_settle
+
   # then search for some ceph metadata on the disk
   if [[ "$(parted --script ${OSD_DEVICE} print | egrep '^ 1.*ceph data')" ]]; then
     if [[ ${OSD_FORCE_ZAP} -eq 1 ]]; then
       if [ -b "${OSD_DEVICE}1" ]; then
-        local fs=`lsblk -fn ${OSD_DEVICE}1`
-        if [ ! -z "${fs}" ]; then
-          local cephFSID=`ceph-conf --lookup fsid`
-          if [ ! -z "${cephFSID}" ]; then
-            local tmpmnt=`mktemp -d`
-            mount ${OSD_DEVICE}1 ${tmpmnt}
-            if [ -f "${tmpmnt}/ceph_fsid" ]; then
-              osdFSID=`cat "${tmpmnt}/ceph_fsid"`
-              umount ${tmpmnt}
-              if [ ${osdFSID} != ${cephFSID} ]; then
-                echo "It looks like ${OSD_DEVICE} is an OSD belonging to a different (or old) ceph cluster."
-                echo "The OSD FSID is ${osdFSID} while this cluster is ${cephFSID}"
-                echo "Because OSD_FORCE_ZAP was set, we will zap this device."
-                ceph-disk -v zap ${OSD_DEVICE}
-              else
-                echo "It looks like ${OSD_DEVICE} is an OSD belonging to a this ceph cluster."
-                echo "OSD_FORCE_ZAP is set, but will be ignored and the device will not be zapped."
-                echo "Moving on, trying to activate the OSD now."
-                return
-              fi
-            else
-              umount ${tmpmnt}
-              echo "It looks like ${OSD_DEVICE} has a ceph data partition but no FSID."
+        local cephFSID=`ceph-conf --lookup fsid`
+        if [ ! -z "${cephFSID}" ]; then
+          local tmpmnt=`mktemp -d`
+          mount ${OSD_DEVICE}1 ${tmpmnt}
+          if [ -f "${tmpmnt}/ceph_fsid" ]; then
+            osdFSID=`cat "${tmpmnt}/ceph_fsid"`
+            umount ${tmpmnt}
+            if [ ${osdFSID} != ${cephFSID} ]; then
+              echo "It looks like ${OSD_DEVICE} is an OSD belonging to a different (or old) ceph cluster."
+              echo "The OSD FSID is ${osdFSID} while this cluster is ${cephFSID}"
               echo "Because OSD_FORCE_ZAP was set, we will zap this device."
               ceph-disk -v zap ${OSD_DEVICE}
+            else
+              echo "It looks like ${OSD_DEVICE} is an OSD belonging to a this ceph cluster."
+              echo "OSD_FORCE_ZAP is set, but will be ignored and the device will not be zapped."
+              echo "Moving on, trying to activate the OSD now."
+              return
             fi
           else
-            echo "Unable to determine the FSID of the current cluster."
-            echo "OSD_FORCE_ZAP is set, but this OSD will not be zapped."
-            echo "Moving on, trying to activate the OSD now."
-            return
+            umount ${tmpmnt}
+            echo "It looks like ${OSD_DEVICE} has a ceph data partition but no FSID."
+            echo "Because OSD_FORCE_ZAP was set, we will zap this device."
+            ceph-disk -v zap ${OSD_DEVICE}
           fi
         else
-          echo "It looks like ${OSD_DEVICE} has a ceph data partition but no filesystem."
-          echo "Because OSD_FORCE_ZAP was set, we will zap this device."
-          ceph-disk -v zap ${OSD_DEVICE}
+          echo "Unable to determine the FSID of the current cluster."
+          echo "OSD_FORCE_ZAP is set, but this OSD will not be zapped."
+          echo "Moving on, trying to activate the OSD now."
+          return
         fi
       else
         echo "parted says ${OSD_DEVICE}1 should exist, but we do not see it."
@@ -225,8 +227,7 @@ function osd_disk_prepare {
 
   ceph-disk -v prepare ${CLI_OPTS} --journal-uuid ${OSD_JOURNAL_UUID} ${OSD_DEVICE} ${OSD_JOURNAL}
 
-  # watch the udev event queue, and exit if all current events are handled
-  udevadm settle --timeout=600
+  udev_settle
 }
 
 if ! [ "x${STORAGE_TYPE%-*}" == "xdirectory" ]; then
