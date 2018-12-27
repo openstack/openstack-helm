@@ -46,6 +46,7 @@ spec:
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
     spec:
       serviceAccountName: {{ $serviceAccountName }}
+{{ dict "envAll" $envAll "application" "nova" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
       nodeSelector:
         {{ .Values.labels.agent.compute.node_selector_key }}: {{ .Values.labels.agent.compute.node_selector_value }}
       hostNetwork: true
@@ -75,8 +76,6 @@ spec:
         {{- if empty .Values.conf.ceph.cinder.keyring }}
         - name: ceph-admin-keyring-placement
 {{ tuple $envAll "nova_compute" | include "helm-toolkit.snippets.image" | indent 10 }}
-          securityContext:
-            runAsUser: 0
           command:
             - /tmp/ceph-admin-keyring.sh
           volumeMounts:
@@ -95,8 +94,6 @@ spec:
         {{ end }}
         - name: ceph-keyring-placement
 {{ tuple $envAll "nova_compute" | include "helm-toolkit.snippets.image" | indent 10 }}
-          securityContext:
-            runAsUser: {{ .Values.pod.user.nova.uid }}
           env:
             - name: CEPH_CINDER_USER
               value: "{{ .Values.conf.ceph.cinder.user }}"
@@ -123,8 +120,6 @@ spec:
         - name: nova-compute-vnc-init
 {{ tuple $envAll "nova_compute" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.compute | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-          securityContext:
-            runAsUser: {{ .Values.pod.user.nova.uid }}
           command:
             - /tmp/nova-console-compute-init.sh
           volumeMounts:
@@ -139,8 +134,6 @@ spec:
         - name: nova-compute-spice-init
 {{ tuple $envAll "nova_compute" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.compute | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-          securityContext:
-            runAsUser: {{ .Values.pod.user.nova.uid }}
           command:
             - /tmp/nova-console-compute-init.sh
           volumeMounts:
@@ -156,7 +149,6 @@ spec:
 {{ tuple $envAll "nova_compute" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.compute | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           securityContext:
-            runAsUser: {{ .Values.pod.user.nova.uid }}
             privileged: true
           {{- if .Values.conf.ceph.enabled }}
           env:

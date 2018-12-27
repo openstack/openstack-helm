@@ -61,6 +61,7 @@ spec:
 {{ tuple $envAll "glance" "storage-init" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
     spec:
       serviceAccountName: {{ $serviceAccountName }}
+{{ dict "envAll" $envAll "application" "glance" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
       restartPolicy: OnFailure
       nodeSelector:
         {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
@@ -69,8 +70,6 @@ spec:
         {{ if or (eq .Values.storage "rbd") (eq .Values.storage "radosgw") }}
         - name: ceph-keyring-placement
 {{ tuple $envAll "glance_api" | include "helm-toolkit.snippets.image" | indent 10 }}
-          securityContext:
-            runAsUser: {{ .Values.pod.user.glance.uid }}
           command:
             - /tmp/ceph-admin-keyring.sh
           volumeMounts:
