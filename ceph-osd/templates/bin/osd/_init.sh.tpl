@@ -18,25 +18,11 @@ limitations under the License.
 
 set -ex
 
-: "${OSD_BOOTSTRAP_KEYRING:=/var/lib/ceph/bootstrap-osd/${CLUSTER}.keyring}"
-: "${OSD_JOURNAL_UUID:=$(uuidgen)}"
+source /tmp/osd-common.sh
+
 : "${OSD_FORCE_ZAP:=1}"
-: "${CEPH_CONF:="/etc/ceph/${CLUSTER}.conf"}"
 # We do not want to zap journal disk. Tracking this option seperatly.
 : "${JOURNAL_FORCE_ZAP:=0}"
-
-if [[ ! -e ${CEPH_CONF}.template ]]; then
-  echo "ERROR- ${CEPH_CONF}.template must exist; get it from your existing mon"
-  exit 1
-else
-  ENDPOINT=$(kubectl get endpoints ceph-mon -n ${NAMESPACE} -o json | awk -F'"' -v port=${MON_PORT} '/ip/{print $4":"port}' | paste -sd',')
-  if [[ ${ENDPOINT} == "" ]]; then
-    # No endpoints are available, just copy ceph.conf as-is
-    /bin/sh -c -e "cat ${CEPH_CONF}.template | tee ${CEPH_CONF}" || true
-  else
-    /bin/sh -c -e "cat ${CEPH_CONF}.template | sed 's/mon_host.*/mon_host = ${ENDPOINT}/g' | tee ${CEPH_CONF}" || true
-  fi
-fi
 
 if [ "x${STORAGE_TYPE%-*}" == "xdirectory" ]; then
   export OSD_DEVICE="/var/lib/ceph/osd"
@@ -49,54 +35,6 @@ if [ "x$JOURNAL_TYPE" == "xdirectory" ]; then
 else
   export OSD_JOURNAL=$(readlink -f ${JOURNAL_LOCATION})
 fi
-
-
-function udev_settle {
-  partprobe "${OSD_DEVICE}"
-  # watch the udev event queue, and exit if all current events are handled
-  udevadm settle --timeout=600
-}
-
-# Calculate proper device names, given a device and partition number
-function dev_part {
-  local OSD_DEVICE=${1}
-  local OSD_PARTITION=${2}
-
-  if [[ -L ${OSD_DEVICE} ]]; then
-    # This device is a symlink. Work out it's actual device
-    local ACTUAL_DEVICE=$(readlink -f ${OSD_DEVICE})
-    local BN=$(basename ${OSD_DEVICE})
-    if [[ "${ACTUAL_DEVICE:0-1:1}" == [0-9] ]]; then
-      local DESIRED_PARTITION="${ACTUAL_DEVICE}p${OSD_PARTITION}"
-    else
-      local DESIRED_PARTITION="${ACTUAL_DEVICE}${OSD_PARTITION}"
-    fi
-    # Now search for a symlink in the directory of $OSD_DEVICE
-    # that has the correct desired partition, and the longest
-    # shared prefix with the original symlink
-    local SYMDIR=$(dirname ${OSD_DEVICE})
-    local LINK=""
-    local PFXLEN=0
-    for OPTION in $(ls $SYMDIR); do
-    if [[ $(readlink -f $SYMDIR/$OPTION) == $DESIRED_PARTITION ]]; then
-      local OPT_PREFIX_LEN=$(prefix_length $OPTION $BN)
-      if [[ $OPT_PREFIX_LEN > $PFXLEN ]]; then
-        LINK=$SYMDIR/$OPTION
-        PFXLEN=$OPT_PREFIX_LEN
-      fi
-    fi
-    done
-    if [[ $PFXLEN -eq 0 ]]; then
-      >&2 log "Could not locate appropriate symlink for partition ${OSD_PARTITION} of ${OSD_DEVICE}"
-      exit 1
-    fi
-    echo "$LINK"
-  elif [[ "${OSD_DEVICE:0-1:1}" == [0-9] ]]; then
-    echo "${OSD_DEVICE}p${OSD_PARTITION}"
-  else
-    echo "${OSD_DEVICE}${OSD_PARTITION}"
-  fi
-}
 
 function osd_disk_prepare {
   if [[ -z "${OSD_DEVICE}" ]];then
@@ -119,7 +57,7 @@ function osd_disk_prepare {
   if ! parted --script ${OSD_DEVICE} print > /dev/null 2>&1; then
     if [[ ${OSD_FORCE_ZAP} -eq 1 ]]; then
       echo "It looks like ${OSD_DEVICE} isn't consistent, however OSD_FORCE_ZAP is enabled so we are zapping the device anyway"
-      ceph-disk -v zap ${OSD_DEVICE}
+      sgdisk -Z ${OSD_DEVICE}
     else
       echo "Regarding parted, device ${OSD_DEVICE} is inconsistent/broken/weird."
       echo "It would be too dangerous to destroy it without any notification."
@@ -134,18 +72,18 @@ function osd_disk_prepare {
   if [[ "$(parted --script ${OSD_DEVICE} print | egrep '^ 1.*ceph data')" ]]; then
     if [[ ${OSD_FORCE_ZAP} -eq 1 ]]; then
       if [ -b "${OSD_DEVICE}1" ]; then
-        local cephFSID=`ceph-conf --lookup fsid`
+        local cephFSID=$(ceph-conf --lookup fsid)
         if [ ! -z "${cephFSID}" ]; then
-          local tmpmnt=`mktemp -d`
+          local tmpmnt=$(mktemp -d)
           mount ${OSD_DEVICE}1 ${tmpmnt}
           if [ -f "${tmpmnt}/ceph_fsid" ]; then
-            osdFSID=`cat "${tmpmnt}/ceph_fsid"`
+            osdFSID=$(cat "${tmpmnt}/ceph_fsid")
             umount ${tmpmnt}
             if [ ${osdFSID} != ${cephFSID} ]; then
               echo "It looks like ${OSD_DEVICE} is an OSD belonging to a different (or old) ceph cluster."
               echo "The OSD FSID is ${osdFSID} while this cluster is ${cephFSID}"
               echo "Because OSD_FORCE_ZAP was set, we will zap this device."
-              ceph-disk -v zap ${OSD_DEVICE}
+              sgdisk -Z ${OSD_DEVICE}
             else
               echo "It looks like ${OSD_DEVICE} is an OSD belonging to a this ceph cluster."
               echo "OSD_FORCE_ZAP is set, but will be ignored and the device will not be zapped."
@@ -156,7 +94,7 @@ function osd_disk_prepare {
             umount ${tmpmnt}
             echo "It looks like ${OSD_DEVICE} has a ceph data partition but no FSID."
             echo "Because OSD_FORCE_ZAP was set, we will zap this device."
-            ceph-disk -v zap ${OSD_DEVICE}
+            sgdisk -Z ${OSD_DEVICE}
           fi
         else
           echo "Unable to determine the FSID of the current cluster."
@@ -182,12 +120,12 @@ function osd_disk_prepare {
     # we only care about journals for filestore.
     if [ -n "${OSD_JOURNAL}" ]; then
       if [ -b $OSD_JOURNAL ]; then
-        OSD_JOURNAL=`readlink -f ${OSD_JOURNAL}`
-        OSD_JOURNAL_PARTITION=`echo $OSD_JOURNAL_PARTITION | sed 's/[^0-9]//g'`
+        OSD_JOURNAL=$(readlink -f ${OSD_JOURNAL})
+        OSD_JOURNAL_PARTITION=$(echo $OSD_JOURNAL_PARTITION | sed 's/[^0-9]//g')
         if [ -z "${OSD_JOURNAL_PARTITION}" ]; then
           # maybe they specified the journal as a /dev path like '/dev/sdc12':
-          local JDEV=`echo ${OSD_JOURNAL} | sed 's/\(.*[^0-9]\)[0-9]*$/\1/'`
-          if [ -d /sys/block/`basename $JDEV`/`basename $OSD_JOURNAL` ]; then
+          local JDEV=$(echo ${OSD_JOURNAL} | sed 's/\(.*[^0-9]\)[0-9]*$/\1/')
+          if [ -d /sys/block/$(basename ${JDEV})/$(basename ${OSD_JOURNAL}) ]; then
             OSD_JOURNAL=$(dev_part ${JDEV} `echo ${OSD_JOURNAL} |\
               sed 's/.*[^0-9]\([0-9]*\)$/\1/'`)
             OSD_JOURNAL_PARTITION=${JDEV}
@@ -198,8 +136,8 @@ function osd_disk_prepare {
       fi
       chown ceph. ${OSD_JOURNAL}
     else
-      echo "No journal device specified.  OSD and journal will share ${OSD_DEVICE}"
-      echo "For better performance, consider moving your journal to a separate device"
+      echo "No journal device specified. OSD and journal will share ${OSD_DEVICE}"
+      echo "For better performance on HDD, consider moving your journal to a separate device"
     fi
     CLI_OPTS="${CLI_OPTS} --filestore"
   else
@@ -212,12 +150,12 @@ function osd_disk_prepare {
     echo "OSD_FORCE_ZAP is set, so we will erase the journal device ${OSD_JOURNAL}"
     if [ -z "${OSD_JOURNAL_PARTITION}" ]; then
       # it's a raw block device.  nuke any existing partition table.
-      parted -s ${OSD_JOURNAL} mklabel msdos
+      sgdisk -Z ${OSD_JOURNAL}
     else
       # we are likely working on a partition. Just make a filesystem on
       # the device, as other partitions may be in use so nuking the whole
       # disk isn't safe.
-      mkfs -t xfs -f ${OSD_JOURNAL}
+      wipefs ${OSD_JOURNAL}
     fi
   fi
 
