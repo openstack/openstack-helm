@@ -1,0 +1,1236 @@
+---
+schema: armada/Chart/v1
+metadata:
+  schema: metadata/Document/v1
+  name: helm-toolkit
+data:
+  chart_name: helm-toolkit
+  release: helm-toolkit
+  namespace: helm-toolkit
+  values: {}
+  source:
+    type: local
+    location: ${OSH_INFRA_PATH}
+    subpath: helm-toolkit
+    reference: master
+  dependencies: []
+---
+schema: armada/Chart/v1
+metadata:
+  schema: metadata/Document/v1
+  name: osh-infra-ingress-controller
+data:
+  chart_name: osh-infra-ingress-controller
+  release: osh-infra-ingress-controller
+  namespace: osh-infra
+  wait:
+    timeout: 1800
+    labels:
+      release_group: osh-infra-osh-infra-ingress-controller
+  install:
+    no_hooks: False
+  upgrade:
+    no_hooks: False
+    pre:
+      delete:
+        - type: job
+          labels:
+            release_group: osh-infra-osh-infra-ingress-controller
+  values:
+    labels:
+      node_selector_key: openstack-control-plane
+      node_selector_value: enabled
+    pod:
+      replicas:
+        error_page: 2
+        ingress: 2
+  source:
+    type: local
+    location: ${OSH_INFRA_PATH}
+    subpath: ingress
+    reference: master
+  dependencies:
+    - helm-toolkit
+---
+schema: armada/Chart/v1
+metadata:
+  schema: metadata/Document/v1
+  name: osh-infra-ceph-config
+data:
+  chart_name: osh-infra-ceph-config
+  release: osh-infra-ceph-config
+  namespace: osh-infra
+  wait:
+    timeout: 1800
+    labels:
+      release_group: osh-infra-osh-infra-ceph-config
+  install:
+    no_hooks: False
+  upgrade:
+    no_hooks: False
+    pre:
+      delete:
+        - type: job
+          labels:
+            release_group: osh-infra-osh-infra-ceph-config
+  values:
+    endpoints:
+      identity:
+        namespace: openstack
+      object_store:
+        namespace: ceph
+      ceph_mon:
+        namespace: ceph
+    labels:
+      jobs:
+        node_selector_key: openstack-control-plane
+        node_selector_value: enabled
+    network:
+      public: ${CEPH_NETWORK}
+      cluster: ${CEPH_NETWORK}
+    deployment:
+      storage_secrets: False
+      ceph: False
+      rbd_provisioner: False
+      cephfs_provisioner: False
+      client_secrets: True
+      rgw_keystone_user_and_endpoints: False
+    bootstrap:
+      enabled: False
+    conf:
+      rgw_ks:
+        enabled: True
+  source:
+    type: local
+    location: ${OSH_INFRA_PATH}
+    subpath: ceph-provisioners
+    reference: master
+  dependencies:
+    - helm-toolkit
+---
+schema: armada/Chart/v1
+metadata:
+  schema: metadata/Document/v1
+  name: osh-infra-radosgw
+data:
+  chart_name: osh-infra-radosgw
+  release: osh-infra-radosgw
+  namespace: osh-infra
+  wait:
+    timeout: 1800
+    labels:
+      release_group: osh-infra-osh-infra-radosgw
+  install:
+    no_hooks: False
+  upgrade:
+    no_hooks: False
+    pre:
+      delete:
+        - type: job
+          labels:
+            release_group: osh-infra-radosgw-osh-infra
+  values:
+    endpoints:
+      object_store:
+        namespace: osh-infra
+      ceph_object_store:
+        namespace: osh-infra
+        auth:
+          admin:
+            access_key: ${RADOSGW_S3_ADMIN_ACCESS_KEY}
+            secret_key: ${RADOSGW_S3_ADMIN_SECRET_KEY}
+      ceph_mon:
+        namespace: ceph
+    labels:
+      job:
+        node_selector_key: openstack-control-plane
+        node_selector_value: enabled
+    bootstrap:
+      enabled: False
+    conf:
+      rgw_ks:
+        enabled: False
+      rgw_s3:
+        enabled: True
+    network:
+      public: ${CEPH_NETWORK}
+      cluster: ${CEPH_NETWORK}
+    deployment:
+      storage_secrets: False
+      ceph: True
+      rbd_provisioner: False
+      cephfs_provisioner: False
+      client_secrets: False
+      rgw_keystone_user_and_endpoints: False
+  source:
+    type: local
+    location: ${OSH_INFRA_PATH}
+    subpath: ceph-rgw
+    reference: master
+  dependencies:
+    - helm-toolkit
+---
+schema: armada/Chart/v1
+metadata:
+  schema: metadata/Document/v1
+  name: osh-infra-ldap
+data:
+  chart_name: osh-infra-ldap
+  release: osh-infra-ldap
+  namespace: osh-infra
+  wait:
+    timeout: 1800
+    labels:
+      release_group: osh-infra-osh-infra-ldap
+  install:
+    no_hooks: false
+  upgrade:
+    no_hooks: False
+    pre:
+      delete:
+        - type: job
+          labels:
+            release_group: osh-infra-osh-infra-ldap
+  values:
+    labels:
+      server:
+        node_selector_key: openstack-control-plane
+        node_selector_value: enabled
+      job:
+        node_selector_key: openstack-control-plane
+        node_selector_value: enabled
+    bootstrap:
+      enabled: true
+  source:
+    type: local
+    location: ${OSH_INFRA_PATH}
+    subpath: ldap
+    reference: master
+  dependencies:
+    - helm-toolkit
+---
+schema: armada/Chart/v1
+metadata:
+  schema: metadata/Document/v1
+  name: osh-infra-mariadb
+data:
+  chart_name: osh-infra-mariadb
+  release: osh-infra-mariadb
+  namespace: osh-infra
+  wait:
+    timeout: 1800
+    labels:
+      release_group: osh-infra-osh-infra-mariadb
+  install:
+    no_hooks: False
+  upgrade:
+    no_hooks: False
+    pre:
+      delete:
+        - type: job
+          labels:
+            release_group: osh-infra-osh-infra-mariadb
+  values:
+    pod:
+      replicas:
+        server: 1
+    endpoints:
+      oslo_db:
+        auth:
+          admin:
+            password: ${DB_ADMIN_PASSWORD}
+    volume:
+      enabled: false
+    labels:
+      server:
+        node_selector_key: openstack-control-plane
+        node_selector_value: enabled
+      prometheus_mysql_exporter:
+        node_selector_key: openstack-control-plane
+        node_selector_value: enabled
+  source:
+    type: local
+    location: ${OSH_INFRA_PATH}
+    subpath: mariadb
+    reference: master
+  dependencies:
+    - helm-toolkit
+---
+schema: armada/Chart/v1
+metadata:
+  schema: metadata/Document/v1
+  name: elasticsearch
+data:
+  chart_name: elasticsearch
+  release: elasticsearch
+  namespace: osh-infra
+  wait:
+    timeout: 3600
+    labels:
+      release_group: osh-infra-elasticsearch
+  install:
+    no_hooks: False
+  upgrade:
+    no_hooks: False
+    pre:
+      delete:
+        - type: job
+          labels:
+            release_group: osh-infra-elasticsearch
+        - type: pod
+          labels:
+            release_group: osh-infra-elasticsearch
+            component: test
+  values:
+    endpoints:
+      elasticsearch:
+        auth:
+          admin:
+            password: ${ELASTICSEARCH_ADMIN_PASSWORD}
+      object_store:
+        namespace: osh-infra
+      ceph_object_store:
+        namespace: osh-infra
+        auth:
+          admin:
+            access_key: ${RADOSGW_S3_ADMIN_ACCESS_KEY}
+            secret_key: ${RADOSGW_S3_ADMIN_SECRET_KEY}
+          elasticsearch:
+            access_key: ${RADOSGW_S3_ELASTICSEARCH_ACCESS_KEY}
+            secret_key: ${RADOSGW_S3_ELASTICSEARCH_SECRET_KEY}
+    pod:
+      replicas:
+        data: 1
+        master: 2
+    labels:
+      elasticsearch:
+        node_selector_key: openstack-control-plane
+        node_selector_value: enabled
+      job:
+        node_selector_key: openstack-control-plane
+        node_selector_value: enabled
+    conf:
+      elasticsearch:
+        env:
+          java_opts: "-Xms512m -Xmx512m"
+        snapshots:
+          enabled: true
+  source:
+    type: local
+    location: ${OSH_INFRA_PATH}
+    subpath: elasticsearch
+    reference: master
+  dependencies:
+    - helm-toolkit
+---
+schema: armada/Chart/v1
+metadata:
+  schema: metadata/Document/v1
+  name: fluent-logging
+data:
+  chart_name: fluent-logging
+  release: fluent-logging
+  namespace: osh-infra
+  wait:
+    timeout: 3600
+    labels:
+      release_group: osh-infra-fluent-logging
+  test:
+    enabled: false
+  install:
+    no_hooks: False
+  upgrade:
+    no_hooks: False
+    pre:
+      delete:
+        - type: job
+          labels:
+            release_group: osh-infra-fluent-logging
+        - type: pod
+          labels:
+            release_group: osh-infra-fluent-logging
+            component: test
+  values:
+    conf:
+      fluentbit:
+        - service:
+            header: service
+            Flush: 30
+            Daemon: Off
+            Log_Level: info
+            Parsers_File: parsers.conf
+        - ceph_cluster_logs:
+            header: input
+            Name: tail
+            Tag: ceph.cluster.*
+            Path: /var/log/ceph/ceph.log
+            DB: /var/log/ceph.db
+            Parsers: syslog
+            Mem_Buf_Limit: 5MB
+            DB.Sync: Normal
+            Buffer_Chunk_Size: 1M
+            Buffer_Max_Size: 1M
+        - ceph_audit_logs:
+            header: input
+            Name: tail
+            Tag: ceph.audit.*
+            Path: /var/log/ceph/ceph.audit.log
+            DB: /var/log/ceph.db
+            Parsers: syslog
+            Mem_Buf_Limit: 5MB
+            DB.Sync: Normal
+            Buffer_Chunk_Size: 1M
+            Buffer_Max_Size: 1M
+        - ceph_mon_logs:
+            header: input
+            Name: tail
+            Tag: ceph.mon.*
+            Path: /var/log/ceph/ceph-mon**.log
+            DB: /var/log/ceph.db
+            Parsers: syslog
+            Mem_Buf_Limit: 5MB
+            DB.Sync: Normal
+            Buffer_Chunk_Size: 1M
+            Buffer_Max_Size: 1M
+        - ceph_osd_logs:
+            header: input
+            Name: tail
+            Tag: ceph.osd.*
+            Path: /var/log/ceph/ceph-osd**.log
+            DB: /var/log/ceph.db
+            Parsers: syslog
+            Mem_Buf_Limit: 5MB
+            DB.Sync: Normal
+            Buffer_Chunk_Size: 1M
+            Buffer_Max_Size: 1M
+        - kernel_messages:
+            header: input
+            Name: tail
+            Tag: kernel
+            Path: /var/log/kern.log
+            DB: /var/log/kern.db
+            Mem_Buf_Limit: 5MB
+            DB.Sync: Normal
+            Buffer_Chunk_Size: 1M
+            Buffer_Max_Size: 1M
+        - kubelet:
+            header: input
+            Name: systemd
+            Tag: journal.*
+            Path: ${JOURNAL_PATH}
+            Systemd_Filter: _SYSTEMD_UNIT=kubelet.service
+            DB: /var/log/kubelet.db
+            Mem_Buf_Limit: 5MB
+            DB.Sync: Normal
+            Buffer_Chunk_Size: 1M
+            Buffer_Max_Size: 1M
+        - docker_daemon:
+            header: input
+            Name: systemd
+            Tag: journal.*
+            Path: ${JOURNAL_PATH}
+            Systemd_Filter: _SYSTEMD_UNIT=docker.service
+            DB: /var/log/docker.db
+            Mem_Buf_Limit: 5MB
+            DB.Sync: Normal
+            Buffer_Chunk_Size: 1M
+            Buffer_Max_Size: 1M
+        - kernel_record_modifier:
+            header: filter
+            Name: record_modifier
+            Match: kernel
+            Record: hostname ${HOSTNAME}
+        - systemd_modify_fields:
+            header: filter
+            Name: modify
+            Match: journal.**
+            Rename:
+              _BOOT_ID: BOOT_ID
+              _CAP_EFFECTIVE: CAP_EFFECTIVE
+              _CMDLINE: CMDLINE
+              _COMM: COMM
+              _EXE: EXE
+              _GID: GID
+              _HOSTNAME: HOSTNAME
+              _MACHINE_ID: MACHINE_ID
+              _PID: PID
+              _SYSTEMD_CGROUP: SYSTEMD_CGROUP
+              _SYSTEMD_SLICE: SYSTEMD_SLICE
+              _SYSTEMD_UNIT: SYSTEMD_UNIT
+              _UID: UID
+              _TRANSPORT: TRANSPORT
+        - containers_tail:
+            header: input
+            Name: tail
+            Tag: kube.*
+            Path: /var/log/containers/*.log
+            Parser: docker
+            DB: /var/log/flb_kube.db
+            Mem_Buf_Limit: 5MB
+            DB.Sync: Normal
+            Buffer_Chunk_Size: 1M
+            Buffer_Max_Size: 1M
+        - drop_fluentd_logs:
+            header: output
+            Name: "null"
+            Match: "**.fluentd**"
+        - kube_filter:
+            header: filter
+            Name: kubernetes
+            Match: kube.*
+            Merge_JSON_Log: On
+        - fluentd_output:
+            header: output
+            Name: forward
+            Match: "*"
+            Host: ${FLUENTD_HOST}
+            Port: ${FLUENTD_PORT}
+      parsers:
+        - docker:
+            header: parser
+            Name: docker
+            Format: json
+            Time_Key: time
+            Time_Format: "%Y-%m-%dT%H:%M:%S.%L"
+            Time_Keep: On
+        - syslog:
+            header: parser
+            Name: syslog
+            Format: regex
+            Regex: '^(?<time>.*[0-9]{2}:[0-9]{2}:[0-9]{2}) (?<host>[^ ]*) (?<app>[a-zA-Z0-9_\/\.\-]*)(?:\[(?<pid>[0-9]+)\])?(?:[^\:]*\:)? (?<log>.+)$'
+            Time_Key: time
+            Time_Format: "%Y-%m-%dT%H:%M:%S.%L"
+            Time_Keep: On
+            Types: "pid:integer"
+      fluentd:
+        - metrics_agent:
+            header: source
+            type: monitor_agent
+            bind: 0.0.0.0
+            port: 24220
+        - fluentbit_forward:
+            header: source
+            type: forward
+            port: "#{ENV['FLUENTD_PORT']}"
+            bind: 0.0.0.0
+        - drop_fluent_logs:
+            header: match
+            type: "null"
+            expression: "fluent.*"
+        - add_container_name:
+            header: filter
+            type: record_transformer
+            expression: "kube.**"
+            enable_ruby: true
+            record:
+              -
+                - header: record
+                  container_name: ${record["kubernetes"]["container_name"]}
+        - remove_openstack_pod_logged_events:
+            header: filter
+            type: grep
+            expression: "kube.**"
+            exclude:
+              -
+                - header: exclude
+                  key: container_name
+                  pattern: ^(cinder-api|cinder-scheduler|cinder-volume|cinder-backup|glance-api|glance-registry|heat-api|heat-cfn|heat-engine|keystone-api|neutron-dhcp-agent|neutron-l3-agent|neutron-server|nova-osapi|nova-api|nova-compute|nova-conductor|nova-consoleauth|nova-novncproxy|nova-scheduler)$
+          # NOTE(srwilkers): Look for specific keywords in the log key to determine
+          # log level of event
+        - tag_kubernetes_log_level:
+            header: match
+            type: rewrite_tag_filter
+            expression: "kube.var.log.containers.**.log"
+            rule:
+              -
+                - header: rule
+                  key: log
+                  pattern: /info/i
+                  tag: info.${tag}
+                - header: rule
+                  key: log
+                  pattern: /warn/i
+                  tag: warn.${tag}
+                - header: rule
+                  key: log
+                  pattern: /error/i
+                  tag: error.${tag}
+                - header: rule
+                  key: log
+                  pattern: /critical/i
+                  tag: critical.${tag}
+                - header: rule
+                  key: log
+                  pattern: (.+)
+                  tag: info.${tag}
+          # NOTE(srwilkers): Create new key for log level, and use the tag prefix
+          # added previously
+        - add_kubernetes_log_level_and_application_key:
+            header: filter
+            type: record_transformer
+            enable_ruby: true
+            expression: "**.kube.var.log.containers.**.log"
+            record:
+              -
+                - header: record
+                  level: ${tag_parts[0]}
+                  application: ${record["kubernetes"]["labels"]["application"]}
+        - add_openstack_application_key:
+            header: filter
+            type: record_transformer
+            expression: "openstack.**"
+            record:
+              -
+                - header: record
+                  application: ${tag_parts[1]}
+          #NOTE(srwilkers): This prefixes the tag for oslo.log entries from the
+          # fluent handler/formatter with the log level, allowing for lookups on
+          # openstack logs with a particular log level (ie: error.openstack.keystone)
+        - tag_openstack_log_level:
+            header: match
+            type: rewrite_tag_filter
+            expression: "openstack.**"
+            rule:
+              -
+                - header: rule
+                  key: level
+                  pattern: INFO
+                  tag: info.${tag}
+                - header: rule
+                  key: level
+                  pattern: WARN
+                  tag: warn.${tag}
+                - header: rule
+                  key: level
+                  pattern: ERROR
+                  tag: error.${tag}
+                - header: rule
+                  key: level
+                  pattern: CRITICAL
+                  tag: critical.${tag}
+        - journal_elasticsearch:
+            header: match
+            type: elasticsearch
+            user: "#{ENV['ELASTICSEARCH_USERNAME']}"
+            password: "#{ENV['ELASTICSEARCH_PASSWORD']}"
+            expression: "journal.**"
+            include_tag_key: true
+            host: "#{ENV['ELASTICSEARCH_HOST']}"
+            port: "#{ENV['ELASTICSEARCH_PORT']}"
+            logstash_format: true
+            logstash_prefix: journal
+            buffer_chunk_limit: 2M
+            buffer_queue_limit: 8
+            flush_interval: "5"
+            max_retry_wait: 300
+            disable_retry_limit: ""
+        - syslog_elasticsearch:
+            header: match
+            type: elasticsearch
+            user: "#{ENV['ELASTICSEARCH_USERNAME']}"
+            password: "#{ENV['ELASTICSEARCH_PASSWORD']}"
+            expression: "syslog.**"
+            include_tag_key: true
+            host: "#{ENV['ELASTICSEARCH_HOST']}"
+            port: "#{ENV['ELASTICSEARCH_PORT']}"
+            logstash_format: true
+            logstash_prefix: syslog
+            buffer_chunk_limit: 2M
+            buffer_queue_limit: 8
+            flush_interval: "5"
+            max_retry_wait: 300
+            disable_retry_limit: ""
+            type_name: syslog
+        - ceph_elasticsearch:
+            header: match
+            type: elasticsearch
+            user: "#{ENV['ELASTICSEARCH_USERNAME']}"
+            password: "#{ENV['ELASTICSEARCH_PASSWORD']}"
+            expression: "ceph**"
+            include_tag_key: true
+            host: "#{ENV['ELASTICSEARCH_HOST']}"
+            port: "#{ENV['ELASTICSEARCH_PORT']}"
+            logstash_format: true
+            logstash_prefix: ceph
+            buffer_chunk_limit: 2M
+            buffer_queue_limit: 8
+            flush_interval: "5"
+            max_retry_wait: 300
+            disable_retry_limit: ""
+        - kernel_elasticsearch:
+            header: match
+            type: elasticsearch
+            user: "#{ENV['ELASTICSEARCH_USERNAME']}"
+            password: "#{ENV['ELASTICSEARCH_PASSWORD']}"
+            expression: "kernel"
+            include_tag_key: true
+            host: "#{ENV['ELASTICSEARCH_HOST']}"
+            port: "#{ENV['ELASTICSEARCH_PORT']}"
+            logstash_format: true
+            logstash_prefix: kernel
+            buffer_chunk_limit: 2M
+            buffer_queue_limit: 8
+            flush_interval: "5"
+            max_retry_wait: 300
+            disable_retry_limit: ""
+        - oslo_fluentd_elasticsearch:
+            header: match
+            type: elasticsearch
+            user: "#{ENV['ELASTICSEARCH_USERNAME']}"
+            password: "#{ENV['ELASTICSEARCH_PASSWORD']}"
+            expression: "**.openstack.*"
+            include_tag_key: true
+            host: "#{ENV['ELASTICSEARCH_HOST']}"
+            port: "#{ENV['ELASTICSEARCH_PORT']}"
+            logstash_format: true
+            logstash_prefix: openstack
+            buffer_chunk_limit: 2M
+            buffer_queue_limit: 8
+            flush_interval: "5"
+            max_retry_wait: 300
+            disable_retry_limit: ""
+            type_name: oslo_openstack_fluentd
+        - elasticsearch:
+            header: match
+            type: elasticsearch
+            user: "#{ENV['ELASTICSEARCH_USERNAME']}"
+            password: "#{ENV['ELASTICSEARCH_PASSWORD']}"
+            expression: "**"
+            include_tag_key: true
+            host: "#{ENV['ELASTICSEARCH_HOST']}"
+            port: "#{ENV['ELASTICSEARCH_PORT']}"
+            logstash_format: true
+            buffer_chunk_limit: 2M
+            buffer_queue_limit: 8
+            flush_interval: "5"
+            max_retry_wait: 300
+            disable_retry_limit: ""
+            type_name: docker_fluentd
+      fluentd_exporter:
+        log:
+          format: "logger:stdout?json=true"
+          level: "info"
+      templates:
+        syslog:
+          template: "syslog-*"
+          index_patterns: "syslog-*"
+          settings:
+            number_of_shards: 1
+          mappings:
+            syslog:
+              properties:
+                cluster:
+                  type: keyword
+                app:
+                  type: keyword
+                pid:
+                  type: integer
+                host:
+                  type: keyword
+                log:
+                  type: text
+        oslo_openstack_fluentd:
+          template: "openstack-*"
+          index_patterns: "openstack-*"
+          settings:
+            number_of_shards: 1
+          mappings:
+            oslo_openstack_fluentd:
+              properties:
+                extra:
+                  properties:
+                    project:
+                      type: text
+                      norms: false
+                    version:
+                      type: text
+                      norms: false
+                filename:
+                  type: text
+                  norms: false
+                funcname:
+                  type: text
+                  norms: false
+                message:
+                  type: text
+                  norms: false
+                process_name:
+                  type: keyword
+                  index: false
+        docker_fluentd:
+          template: "logstash-*"
+          index_patterns: "logstash-*"
+          settings:
+            number_of_shards: 1
+          mappings:
+            docker_fluentd:
+              properties:
+                kubernetes:
+                  properties:
+                    container_name:
+                      type: keyword
+                      index: false
+                    docker_id:
+                      type: keyword
+                      index: false
+                    host:
+                      type: keyword
+                      index: false
+                    namespace_name:
+                      type: keyword
+                      index: false
+                    pod_id:
+                      type: keyword
+                      index: false
+                    pod_name:
+                      type: keyword
+                      index: false
+    endpoints:
+      elasticsearch:
+        auth:
+          admin:
+            password: ${ELASTICSEARCH_ADMIN_PASSWORD}
+    pod:
+      replicas:
+        fluentd: 1
+    labels:
+      fluentd:
+        node_selector_key: openstack-control-plane
+        node_selector_value: enabled
+      fluentbit:
+        node_selector_key: openstack-control-plane
+        node_selector_value: enabled
+      prometheus_fluentd_exporter:
+        node_selector_key: openstack-control-plane
+        node_selector_value: enabled
+      job:
+        node_selector_key: openstack-control-plane
+        node_selector_value: enabled
+  source:
+    type: local
+    location: ${OSH_INFRA_PATH}
+    subpath: fluent-logging
+    reference: master
+  dependencies:
+    - helm-toolkit
+---
+schema: armada/Chart/v1
+metadata:
+  schema: metadata/Document/v1
+  name: kibana
+data:
+  chart_name: kibana
+  release: kibana
+  namespace: osh-infra
+  wait:
+    timeout: 1800
+    labels:
+      release_group: osh-infra-kibana
+  install:
+    no_hooks: False
+  upgrade:
+    no_hooks: False
+    pre:
+      delete:
+        - type: job
+          labels:
+            release_group: osh-infra-kibana
+  values:
+    endpoints:
+      elasticsearch:
+        auth:
+          admin:
+            password: ${ELASTICSEARCH_ADMIN_PASSWORD}
+      kibana:
+        auth:
+          admin:
+            password: ${KIBANA_ADMIN_PASSWORD}
+    labels:
+      kibana:
+        node_selector_key: openstack-control-plane
+        node_selector_value: enabled
+      job:
+        node_selector_key: openstack-control-plane
+        node_selector_value: enabled
+  source:
+    type: local
+    location: ${OSH_INFRA_PATH}
+    subpath: kibana
+    reference: master
+  dependencies:
+    - helm-toolkit
+---
+schema: armada/Chart/v1
+metadata:
+  schema: metadata/Document/v1
+  name: prometheus
+data:
+  chart_name: prometheus
+  release: prometheus
+  namespace: osh-infra
+  wait:
+    timeout: 1800
+    labels:
+      release_group: osh-infra-prometheus
+  install:
+    no_hooks: False
+  upgrade:
+    no_hooks: False
+    pre:
+      delete:
+        - type: job
+          labels:
+            release_group: osh-infra-prometheus
+        - type: pod
+          labels:
+            release_group: osh-infra-prometheus
+            component: test
+  values:
+    endpoints:
+      monitoring:
+        auth:
+          admin:
+            password: ${PROMETHEUS_ADMIN_PASSWORD}
+    labels:
+      prometheus:
+        node_selector_key: openstack-control-plane
+        node_selector_value: enabled
+      job:
+        node_selector_key: openstack-control-plane
+        node_selector_value: enabled
+    pod:
+      replicas:
+        prometheus: 2
+  source:
+    type: local
+    location: ${OSH_INFRA_PATH}
+    subpath: prometheus
+    reference: master
+  dependencies:
+    - helm-toolkit
+---
+schema: armada/Chart/v1
+metadata:
+  schema: metadata/Document/v1
+  name: prometheus-kube-state-metrics
+data:
+  chart_name: prometheus-kube-state-metrics
+  release: prometheus-kube-state-metrics
+  namespace: kube-system
+  wait:
+    timeout: 1800
+    labels:
+      release_group: osh-infra-prometheus-kube-state-metrics
+  install:
+    no_hooks: False
+  upgrade:
+    no_hooks: False
+    pre:
+      delete:
+        - type: job
+          labels:
+            release_group: osh-infra-prometheus-kube-state-metrics
+  values:
+    labels:
+      kube_state_metrics:
+        node_selector_key: openstack-control-plane
+        node_selector_value: enabled
+      job:
+        node_selector_key: openstack-control-plane
+        node_selector_value: enabled
+  source:
+    type: local
+    location: ${OSH_INFRA_PATH}
+    subpath: prometheus-kube-state-metrics
+    reference: master
+  dependencies:
+    - helm-toolkit
+---
+schema: armada/Chart/v1
+metadata:
+  schema: metadata/Document/v1
+  name: prometheus-node-exporter
+data:
+  chart_name: prometheus-node-exporter
+  release: prometheus-node-exporter
+  namespace: kube-system
+  wait:
+    timeout: 1800
+    labels:
+      release_group: osh-infra-prometheus-node-exporter
+  install:
+    no_hooks: False
+  upgrade:
+    no_hooks: False
+    pre:
+      delete:
+        - type: job
+          labels:
+            release_group: osh-infra-prometheus-node-exporter
+  values:
+    labels:
+      node_exporter:
+        node_selector_key: openstack-control-plane
+        node_selector_value: enabled
+      job:
+        node_selector_key: openstack-control-plane
+        node_selector_value: enabled
+  source:
+    type: local
+    location: ${OSH_INFRA_PATH}
+    subpath: prometheus-node-exporter
+    reference: master
+  dependencies:
+    - helm-toolkit
+---
+schema: armada/Chart/v1
+metadata:
+  schema: metadata/Document/v1
+  name: prometheus-alertmanager
+data:
+  chart_name: prometheus-alertmanager
+  release: prometheus-alertmanager
+  namespace: osh-infra
+  wait:
+    timeout: 1800
+    labels:
+      release_group: osh-infra-prometheus-alertmanager
+  install:
+    no_hooks: False
+  upgrade:
+    no_hooks: False
+    pre:
+      delete:
+        - type: job
+          labels:
+            release_group: osh-infra-prometheus-alertmanager
+  values:
+    pod:
+      replicas:
+        alertmanager: 1
+    labels:
+      alertmanager:
+        node_selector_key: openstack-control-plane
+        node_selector_value: enabled
+      job:
+        node_selector_key: openstack-control-plane
+        node_selector_value: enabled
+  source:
+    type: local
+    location: ${OSH_INFRA_PATH}
+    subpath: prometheus-alertmanager
+    reference: master
+  dependencies:
+    - helm-toolkit
+---
+schema: armada/Chart/v1
+metadata:
+  schema: metadata/Document/v1
+  name: nagios
+data:
+  chart_name: nagios
+  release: nagios
+  namespace: osh-infra
+  wait:
+    timeout: 1800
+    labels:
+      release_group: osh-infra-nagios
+  install:
+    no_hooks: False
+  upgrade:
+    no_hooks: False
+    pre:
+      delete:
+        - type: job
+          labels:
+            release_group: osh-infra-nagios
+  values:
+    endpoints:
+      monitoring:
+        auth:
+          admin:
+            password: ${PROMETHEUS_ADMIN_PASSWORD}
+      elasticsearch:
+        auth:
+          admin:
+            password: ${ELASTICSEARCH_ADMIN_PASSWORD}
+    labels:
+      nagios:
+        node_selector_key: openstack-control-plane
+        node_selector_value: enabled
+      job:
+        node_selector_key: openstack-control-plane
+        node_selector_value: enabled
+  source:
+    type: local
+    location: ${OSH_INFRA_PATH}
+    subpath: nagios
+    reference: master
+  dependencies:
+    - helm-toolkit
+---
+schema: armada/Chart/v1
+metadata:
+  schema: metadata/Document/v1
+  name: grafana
+data:
+  chart_name: grafana
+  release: grafana
+  namespace: osh-infra
+  wait:
+    timeout: 1800
+    labels:
+      release_group: osh-infra-grafana
+  install:
+    no_hooks: False
+  upgrade:
+    no_hooks: False
+    pre:
+      delete:
+        - type: job
+          labels:
+            release_group: osh-infra-grafana
+        - type: pod
+          labels:
+            release_group: osh-infra-grafana
+            component: test
+  values:
+    endpoints:
+      monitoring:
+        auth:
+          admin:
+            password: ${PROMETHEUS_ADMIN_PASSWORD}
+      oslo_db:
+        namespace: osh-infra
+        auth:
+          admin:
+            password: ${DB_ADMIN_PASSWORD}
+          user:
+            password: ${GRAFANA_DB_PASSWORD}
+      oslo_db_session:
+        namespace: osh-infra
+        auth:
+          admin:
+            password: ${DB_ADMIN_PASSWORD}
+          user:
+            password: ${GRAFANA_SESSION_DB_PASSWORD}
+      grafana:
+        auth:
+          admin:
+            password: ${GRAFANA_ADMIN_PASSWORD}
+    labels:
+      grafana:
+        node_selector_key: openstack-control-plane
+        node_selector_value: enabled
+      job:
+        node_selector_key: openstack-control-plane
+        node_selector_value: enabled
+  source:
+    type: local
+    location: ${OSH_INFRA_PATH}
+    subpath: grafana
+    reference: master
+  dependencies:
+    - helm-toolkit
+---
+schema: armada/ChartGroup/v1
+metadata:
+  schema: metadata/Document/v1
+  name: osh-infra-ingress-controller
+data:
+  description: "LMA Ingress Controller"
+  sequenced: False
+  chart_group:
+    - osh-infra-ingress-controller
+---
+schema: armada/ChartGroup/v1
+metadata:
+  schema: metadata/Document/v1
+  name: osh-infra-ceph-config
+data:
+  description: "LMA Ceph Config"
+  sequenced: True
+  chart_group:
+    - osh-infra-ceph-config
+---
+schema: armada/ChartGroup/v1
+metadata:
+  schema: metadata/Document/v1
+  name: osh-infra-radosgw
+data:
+  description: "RadosGW for osh-infra"
+  sequenced: True
+  chart_group:
+    - osh-infra-radosgw
+---
+schema: armada/ChartGroup/v1
+metadata:
+  schema: metadata/Document/v1
+  name: osh-infra-ldap
+data:
+  description: "LDAP"
+  sequenced: True
+  chart_group:
+    - osh-infra-ldap
+---
+schema: armada/ChartGroup/v1
+metadata:
+  schema: metadata/Document/v1
+  name: osh-infra-mariadb
+data:
+  description: "Mariadb"
+  sequenced: True
+  chart_group:
+    - osh-infra-mariadb
+---
+schema: armada/ChartGroup/v1
+metadata:
+  schema: metadata/Document/v1
+  name: osh-infra-logging
+data:
+  description: 'Logging Infrastructure'
+  sequenced: True
+  chart_group:
+    - elasticsearch
+    - fluent-logging
+---
+schema: armada/ChartGroup/v1
+metadata:
+  schema: metadata/Document/v1
+  name: osh-infra-monitoring
+data:
+  description: 'Monitoring Infrastructure'
+  sequenced: False
+  chart_group:
+    - prometheus-alertmanager
+    - prometheus-node-exporter
+    - prometheus-kube-state-metrics
+    - prometheus
+    - nagios
+---
+schema: armada/ChartGroup/v1
+metadata:
+  schema: metadata/Document/v1
+  name: osh-infra-dashboards
+data:
+  description: 'Logging and Monitoring Dashboards'
+  sequenced: False
+  chart_group:
+    - grafana
+    - kibana
+---
+schema: armada/Manifest/v1
+metadata:
+  schema: metadata/Document/v1
+  name: armada-manifest
+data:
+  release_prefix: osh-infra
+  chart_groups:
+    - osh-infra-ingress-controller
+    - osh-infra-ceph-config
+    - osh-infra-radosgw
+    - osh-infra-ldap
+    - osh-infra-logging
+    - osh-infra-monitoring
+    - osh-infra-mariadb
+    - osh-infra-dashboards

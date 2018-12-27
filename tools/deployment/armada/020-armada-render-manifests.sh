@@ -37,8 +37,12 @@ export TUNNEL_DEVICE=$(ip -4 route list 0/0 | awk '{ print $5; exit }')
 export OSH_INFRA_PATH
 export OSH_PATH
 
+# NOTE(srwilkers): We add this here due to envsubst expanding the ${tag} placeholder in
+# fluentd's configuration. This ensures the placeholder value gets rendered appropriately
+export tag='${tag}'
+
 manifests="armada-cluster-ingress armada-ceph armada-lma armada-osh"
 for manifest in $manifests; do
   echo "Rendering $manifest manifest"
-  envsubst < ./tools/deployment/armada/multinode/$manifest.yaml > /tmp/$manifest.yaml
+  envsubst < ./tools/deployment/armada/manifests/$manifest.yaml > /tmp/$manifest.yaml
 done
