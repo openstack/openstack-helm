@@ -59,5 +59,5 @@ helm status radosgw-openstack
 export OS_CLOUD=openstack_helm
 openstack service list
 openstack container create 'mygreatcontainer'
-curl -L -o /tmp/important-file.jpg https://imgflip.com/s/meme/Cute-Cat.jpg
-openstack object create --name 'superimportantfile.jpg' 'mygreatcontainer' /tmp/important-file.jpg
+curl -L -o '/tmp/superimportantfile.jpg' 'https://imgflip.com/s/meme/Cute-Cat.jpg'
+( cd /tmp && openstack object create 'mygreatcontainer' 'superimportantfile.jpg' )
