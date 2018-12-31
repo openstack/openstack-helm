@@ -81,7 +81,7 @@ which has ``/dev/sdh`` as a backend is down.
 Solution:
 ---------
 
-To replace the failed OSD, excecute the following procedure:
+To replace the failed OSD, execute the following procedure:
 
 1. From the Kubernetes cluster, remove the failed OSD pod, which is running on ``voyager4``:
 
