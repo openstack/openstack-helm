@@ -16,7 +16,7 @@ limitations under the License.
 
 {{/*
 abstract: |
-  Returns a comma seperated list of namespace:service pairs.
+  Returns a comma separated list of namespace:service pairs.
 values: |
   dependencies:
     static:

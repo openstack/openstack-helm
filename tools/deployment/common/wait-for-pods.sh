@@ -15,7 +15,7 @@
 #    under the License.
 set -e
 
-# From Kolla-Kubernetes, orginal authors Kevin Fox & Serguei Bezverkhi
+# From Kolla-Kubernetes, original authors Kevin Fox & Serguei Bezverkhi
 # Default wait timeout is 600 seconds
 end=$(date +%s)
 if ! [ -z $2 ]; then
