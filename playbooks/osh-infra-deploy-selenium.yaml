@@ -13,20 +13,13 @@
 # limitations under the License.
 
 - hosts: primary
-  tasks:
-    - name: "creating directory for run artifacts"
-      file:
-        path: "/tmp/artifacts"
-        state: directory
-    - name: Run gate scripts
-      include_role:
-        name: osh-run-script
-      vars:
-        gate_script_path: "{{ item }}"
-      with_items: "{{ gate_scripts }}"
-    - name: "Downloads artifacts to executor"
-      synchronize:
-        src: "/tmp/artifacts"
-        dest: "{{ zuul.executor.log_root }}/{{ inventory_hostname }}"
-        mode: pull
-      ignore_errors: True
+  vars_files:
+    - vars.yaml
+  vars:
+    work_dir: "{{ zuul.project.src_dir }}/{{ zuul_osh_infra_relative_path | default('') }}"
+  gather_facts: True
+  become: yes
+  roles:
+    - deploy-selenium
+  tags:
+    - deploy-selenium
