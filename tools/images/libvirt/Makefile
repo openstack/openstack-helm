@@ -18,7 +18,7 @@ SHELL := /bin/bash
 LIBVIRT_VERSION            ?= 1.3.1-1ubuntu10.24
 DISTRO                     ?= ubuntu
 DISTRO_RELEASE             ?= xenial
-CEPH_RELEASE               ?= luminous
+CEPH_RELEASE               ?= mimic
 
 DOCKER_REGISTRY            ?= docker.io
 IMAGE_NAME                 ?= libvirt

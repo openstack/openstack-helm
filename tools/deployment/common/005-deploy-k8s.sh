@@ -28,7 +28,7 @@ sudo sed -i '/^::1/c\::1 localhost6 localhost6.localdomain6' /etc/hosts
 # NOTE: Install required packages on host
 sudo apt-key adv --keyserver keyserver.ubuntu.com  --recv 460F3994
 RELEASE_NAME=$(grep 'CODENAME' /etc/lsb-release | awk -F= '{print $2}')
-sudo add-apt-repository "deb https://download.ceph.com/debian-luminous/ ${RELEASE_NAME} main"
+sudo add-apt-repository "deb https://download.ceph.com/debian-mimic/ ${RELEASE_NAME} main"
 sudo -E apt-get update
 sudo -E apt-get install -y \
     docker.io \

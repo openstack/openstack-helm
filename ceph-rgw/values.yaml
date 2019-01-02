@@ -27,9 +27,9 @@ images:
   pull_policy: IfNotPresent
   tags:
     ceph_config_helper: 'docker.io/port/ceph-config-helper:v1.10.3'
-    ceph_rgw: 'docker.io/ceph/daemon:tag-build-master-luminous-ubuntu-16.04'
+    ceph_rgw: 'docker.io/ceph/daemon:master-0b3eb04-mimic-centos-7-x86_64'
     dep_check: 'quay.io/stackanetes/kubernetes-entrypoint:v0.3.1'
-    image_repo_sync: docker.io/docker:17.07.0
+    image_repo_sync: 'docker.io/docker:17.07.0'
     rgw_s3_admin: 'docker.io/port/ceph-config-helper:v1.10.3'
     ks_endpoints: 'docker.io/openstackhelm/heat:newton'
     ks_service: 'docker.io/openstackhelm/heat:newton'
@@ -62,11 +62,11 @@ pod:
     enabled: false
     rgw:
       requests:
-        memory: "5Mi"
+        memory: "128Mi"
         cpu: "250m"
       limits:
-        memory: "50Mi"
-        cpu: "500m"
+        memory: "512Mi"
+        cpu: "1000m"
     jobs:
       ceph-rgw-storage-init:
         requests:
@@ -294,6 +294,8 @@ conf:
       rgw_thread_pool_size: 512
       rgw_num_rados_handles: 4
       rgw_override_bucket_index_max_shards: 8
+      #NOTE (supamatt): Unfortunately we do not conform to S3 compliant names with some of our charts
+      rgw_relaxed_s3_bucket_names: true
   rgw_s3:
     enabled: false
     admin_caps: "users=*;buckets=*;zone=*"
@@ -364,8 +366,8 @@ bootstrap:
     ceph -s
     function ensure_pool () {
       ceph osd pool stats $1 || ceph osd pool create $1 $2
-      local test_luminous=$(ceph tell osd.* version | egrep -c "12.2|luminous")
-      if [[ ${test_luminous} -gt 0 ]]; then
+      local test_version=$(ceph tell osd.* version | egrep -c "mimic|luminous")
+      if [[ ${test_version} -gt 0 ]]; then
         ceph osd pool application enable $1 $3
       fi
     }
