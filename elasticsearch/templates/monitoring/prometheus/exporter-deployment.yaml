@@ -39,6 +39,7 @@ spec:
       labels:
 {{ tuple $envAll "elasticsearch" "exporter" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
     spec:
+{{ dict "envAll" $envAll "application" "elasticsearch_exporter" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
       serviceAccountName: {{ $serviceAccountName }}
       nodeSelector:
         {{ .Values.labels.elasticsearch.node_selector_key }}: {{ .Values.labels.elasticsearch.node_selector_value | quote }}
@@ -49,6 +50,8 @@ spec:
         - name: elasticsearch-exporter
 {{ tuple $envAll "prometheus_elasticsearch_exporter" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.exporter | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          securityContext:
+            allowPrivilegeEscalation: false
           command:
             - /tmp/elasticsearch-exporter.sh
             - start
