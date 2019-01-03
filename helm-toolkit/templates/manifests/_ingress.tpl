@@ -172,9 +172,9 @@ metadata:
 {{ toYaml (index $envAll.Values.network $backendService "ingress" "annotations") | indent 4 }}
 spec:
   rules:
-{{- range $key1, $vHost := tuple $hostName (printf "%s.%s" $hostName $envAll.Release.Namespace) (printf "%s.%s.svc.%s" $hostName $envAll.Release.Namespace $envAll.Values.endpoints.cluster_domain_suffix)}}
+{{- range $key1, $vHost := tuple $hostName (printf "%s.%s" $hostName $envAll.Release.Namespace) (printf "%s.%s.svc.%s" $hostName $envAll.Release.Namespace $envAll.Values.endpoints.cluster_domain_suffix) }}
 {{- $hostRules := dict "vHost" $vHost "backendName" $backendName "backendPort" $backendPort }}
-{{ $hostRules | include "helm-toolkit.manifests.ingress._host_rules" | indent 4}}
+{{ $hostRules | include "helm-toolkit.manifests.ingress._host_rules" | indent 4 }}
 {{- end }}
 {{- if not ( hasSuffix ( printf ".%s.svc.%s" $envAll.Release.Namespace $envAll.Values.endpoints.cluster_domain_suffix) $hostNameFull) }}
 {{- range $key2, $ingressController := tuple "namespace" "cluster" }}
@@ -202,7 +202,7 @@ spec:
 {{- end }}
 {{- end }}
   rules:
-{{ $hostNameFullRules | include "helm-toolkit.manifests.ingress._host_rules" | indent 4}}
+{{ $hostNameFullRules | include "helm-toolkit.manifests.ingress._host_rules" | indent 4 }}
 {{- end }}
 {{- end }}
 {{- end }}

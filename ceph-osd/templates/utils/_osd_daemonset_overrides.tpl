@@ -284,7 +284,7 @@ limitations under the License.
 {{- $_ := set $context.Values "__tmpYAML" dict }}
 
 {{ $dsNodeName := index $context.Values.__daemonset_yaml.metadata "name" }}
-{{ $localDsNodeName := print (trunc 54 $current_dict.dns_1123_name) "-" (print $dsNodeName $k | quote | sha256sum | trunc 8)}}
+{{ $localDsNodeName := print (trunc 54 $current_dict.dns_1123_name) "-" (print $dsNodeName $k | quote | sha256sum | trunc 8) }}
 {{- if not $context.Values.__tmpYAML.metadata }}{{- $_ := set $context.Values.__tmpYAML "metadata" dict }}{{- end }}
 {{- $_ := set $context.Values.__tmpYAML.metadata "name" $localDsNodeName }}
 
