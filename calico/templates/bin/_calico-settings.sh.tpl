@@ -40,7 +40,7 @@ spec:
   logSeverityScreen: {{ .Values.conf.node.FELIX_LOGSEVERITYSCREEN }}
 EOF
 
-# ipPool - https://docs.projectcalico.org/v3.3/reference/calicoctl/resources/ippool
+# ipPool - https://docs.projectcalico.org/v3.4/reference/calicoctl/resources/ippool
 $CTL apply -f - <<EOF
 apiVersion: projectcalico.org/v3
 kind: IPPool
