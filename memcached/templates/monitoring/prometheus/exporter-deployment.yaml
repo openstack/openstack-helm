@@ -40,6 +40,7 @@ spec:
 {{ tuple $envAll "prometheus_memcached_exporter" "exporter" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
       namespace: {{ .Values.endpoints.prometheus_memcached_exporter.namespace }}
     spec:
+{{ dict "envAll" $envAll "application" "memcached_exporter" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
       shareProcessNamespace: true
       serviceAccountName: {{ $rcControllerName | quote }}
       nodeSelector:
@@ -52,6 +53,8 @@ spec:
           image: {{ .Values.images.tags.prometheus_memcached_exporter }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
 {{ tuple $envAll $envAll.Values.pod.resources.prometheus_memcached_exporter | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          securityContext:
+            allowPrivilegeEscalation: false
           command:
             - /tmp/memcached-exporter.sh
             - start
