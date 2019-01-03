@@ -64,7 +64,10 @@ if [ 0"$hp_count" -gt 0 ]; then
   # hugepage byte limit quota to zero out. This workaround sets that pod limit
   # back to the total number of hugepage bytes available to the baremetal host.
   if [ -d /sys/fs/cgroup/hugetlb ]; then
-    for limit in $(ls /sys/fs/cgroup/hugetlb/kubepods/hugetlb.*.limit_in_bytes); do
+    limits="$(ls /sys/fs/cgroup/hugetlb/{{ .Values.conf.kubernetes.cgroup }}/hugetlb.*.limit_in_bytes)" || \
+      (echo "ERROR: Failed to locate any hugetable limits. Did you set the correct cgroup in your values used for this chart?"
+       exit 1)
+    for limit in $limits; do
       target="/sys/fs/cgroup/hugetlb/$(dirname $(awk -F: '($2~/hugetlb/){print $3}' /proc/self/cgroup))/$(basename $limit)"
       # Ensure the write target for the hugepage limit for the pod exists
       if [ ! -f "$target" ]; then
