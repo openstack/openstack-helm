@@ -130,6 +130,16 @@ conf:
         DB.Sync: Normal
         Buffer_Chunk_Size: 1M
         Buffer_Max_Size: 1M
+    - qemu:
+        header: input
+        Name: tail
+        Tag: qemu
+        Path: /var/log/libvirt/qemu/*.log
+        DB: /var/log/qemu.db
+        Mem_Buf_Limit: 5MB
+        DB.Sync: Normal
+        Buffer_Chunk_Size: 1M
+        Buffer_Max_Size: 1M
     - kubelet:
         header: input
         Name: systemd
@@ -156,6 +166,11 @@ conf:
         header: filter
         Name: record_modifier
         Match: libvirt
+        Record: hostname ${HOSTNAME}
+    - qemu_record_modifier:
+        header: filter
+        Name: record_modifier
+        Match: qemu
         Record: hostname ${HOSTNAME}
     - kernel_record_modifier:
         header: filter
@@ -344,6 +359,22 @@ conf:
         port: "#{ENV['ELASTICSEARCH_PORT']}"
         logstash_format: true
         logstash_prefix: libvirt
+        buffer_chunk_limit: 2M
+        buffer_queue_limit: 8
+        flush_interval: "5"
+        max_retry_wait: 300
+        disable_retry_limit: ""
+    - qemu_elasticsearch:
+        header: match
+        type: elasticsearch
+        user: "#{ENV['ELASTICSEARCH_USERNAME']}"
+        password: "#{ENV['ELASTICSEARCH_PASSWORD']}"
+        expression: "qemu"
+        include_tag_key: true
+        host: "#{ENV['ELASTICSEARCH_HOST']}"
+        port: "#{ENV['ELASTICSEARCH_PORT']}"
+        logstash_format: true
+        logstash_prefix: qemu
         buffer_chunk_limit: 2M
         buffer_queue_limit: 8
         flush_interval: "5"
