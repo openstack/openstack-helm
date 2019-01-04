@@ -20,7 +20,7 @@ set -ex
 curl -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
   -XPOST "${ELASTICSEARCH_ENDPOINT}/.kibana/index-pattern/{{ . }}-*" -H 'Content-Type: application/json' \
   -d '{"title":"{{ . }}-*","timeFieldName":"@timestamp","notExpandable":true}'
-{{- end}}
+{{- end }}
 curl -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
   -XPOST "${ELASTICSEARCH_ENDPOINT}/.kibana/config/5.6.4" -H 'Content-Type: application/json' \
   -d '{"defaultIndex" : "{{ .Values.conf.create_kibana_indexes.default_index }}-*"}'

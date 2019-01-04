@@ -20,7 +20,7 @@ limitations under the License.
 {{- range $object := $objects }}
 {{ range $config := $object }}
 define {{ $type }} {
-{{- range $key, $value := $config}}
+{{- range $key, $value := $config }}
   {{ $key }} {{ $value }}
 {{- end }}
 }
