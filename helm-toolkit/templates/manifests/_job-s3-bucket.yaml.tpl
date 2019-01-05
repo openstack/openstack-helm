@@ -56,7 +56,7 @@ spec:
           imagePullPolicy: {{ $envAll.Values.images.pull_policy }}
 {{ tuple $envAll $envAll.Values.pod.resources.jobs.s3_bucket | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           command:
-            - /tmp/create-s3-bucket.py
+            - /tmp/create-s3-bucket.sh
           env:
 {{- with $env := dict "s3AdminSecret" $envAll.Values.secrets.rgw.admin }}
 {{- include "helm-toolkit.snippets.rgw_s3_admin_env_vars" $env | indent 12 }}
@@ -69,9 +69,9 @@ spec:
             - name: RGW_HOST
               value: {{ tuple "ceph_object_store" "internal" "api" $envAll | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" }}
           volumeMounts:
-            - name: s3-bucket-py
-              mountPath: /tmp/create-s3-bucket.py
-              subPath: create-s3-bucket.py
+            - name: s3-bucket-sh
+              mountPath: /tmp/create-s3-bucket.sh
+              subPath: create-s3-bucket.sh
               readOnly: true
             - name: etcceph
               mountPath: /etc/ceph
@@ -86,7 +86,7 @@ spec:
               readOnly: true
             {{ end }}
       volumes:
-        - name: s3-bucket-py
+        - name: s3-bucket-sh
           configMap:
             name: {{ $configMapBin | quote }}
             defaultMode: 0555
