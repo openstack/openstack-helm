@@ -23,7 +23,7 @@
   - name: ubuntu | ensure community ceph repository exists
     when: ansible_distribution == 'Ubuntu'
     apt_repository:
-        repo: "deb https://download.ceph.com/debian-luminous/ {{ ansible_lsb.codename }} main"
+        repo: "deb https://download.ceph.com/debian-mimic/ {{ ansible_lsb.codename }} main"
         state: present
         update_cache: yes
 
@@ -33,7 +33,7 @@
        name: ceph
        description: "Ceph community packages for Redhat/Centos"
        gpgkey: "https://download.ceph.com/keys/release.asc"
-       baseurl: "https://download.ceph.com/rpm-luminous/el7/$basearch"
+       baseurl: "https://download.ceph.com/rpm-mimic/el7/$basearch"
        gpgcheck: yes
        state: present
 
@@ -73,6 +73,14 @@
         - ceph-common
         - rbd-nbd
 
+  - name: ubuntu | uninstall packages
+    when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+    apt:
+      name: "{{item}}"
+      state: absent
+    with_items:
+        - ceph
+
   - name: centos | installing packages
     when: ansible_distribution == 'CentOS' or ansible_distribution == 'Red Hat Enterprise Linux'
     yum:
@@ -81,6 +89,14 @@
     with_items:
         - ceph-common
         - rbd-nbd
+
+  - name: centos | installing packages
+    when: ansible_distribution == 'CentOS' or ansible_distribution == 'Red Hat Enterprise Linux'
+    yum:
+      name: "{{item}}"
+      state: absent
+    with_items:
+        - ceph
 
 - name: blacklist kernel RBD driver module
   when: kubelet.pv_support_ceph

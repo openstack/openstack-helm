@@ -33,7 +33,7 @@ repo run:
     LIBVIRT_VERSION=1.3.1-1ubuntu10.24
     DISTRO=ubuntu
     DISTRO_RELEASE=xenial
-    CEPH_RELEASE=luminous
+    CEPH_RELEASE=mimic
 
     sudo docker build \
       --network=host \
