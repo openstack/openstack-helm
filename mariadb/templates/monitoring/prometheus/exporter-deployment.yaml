@@ -38,6 +38,7 @@ spec:
 {{ tuple $envAll "prometheus_mysql_exporter" "exporter" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
       namespace: {{ .Values.endpoints.prometheus_mysql_exporter.namespace }}
     spec:
+{{ dict "envAll" $envAll "application" "mysql_exporter" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
       shareProcessNamespace: true
       serviceAccountName: {{ $serviceAccountName }}
       nodeSelector:
@@ -49,6 +50,8 @@ spec:
         - name: mysql-exporter
 {{ tuple $envAll "prometheus_mysql_exporter" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.prometheus_mysql_exporter | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          securityContext:
+            allowPrivilegeEscalation: false
           command:
             - /tmp/mysqld-exporter.sh
             - start
