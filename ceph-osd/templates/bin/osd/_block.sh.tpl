@@ -99,6 +99,11 @@ if [ "${OSD_BLUESTORE:-0}" -ne 1 ]; then
   fi
 fi
 
+# NOTE(supamatt): Just in case permissions do not align up, we recursively set them correctly.
+if [ $(stat -c%U ${OSD_PATH}) != ceph ]; then
+  chown -R ceph. ${OSD_PATH};
+fi
+
 if [ "${OSD_BLUESTORE:-0}" -ne 1 ]; then
   # NOTE(supamatt): This function is a workaround to Ceph upstream bug #21142
   osd_pg_interval_fix

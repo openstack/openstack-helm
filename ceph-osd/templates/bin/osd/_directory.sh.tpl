@@ -72,6 +72,11 @@ if [[ -n "$(find /var/lib/ceph/osd -prune -empty)" ]]; then
   crush_location
 fi
 
+# NOTE(supamatt): Just in case permissions do not align up, we recursively set them correctly.
+if [ $(stat -c%U ${OSD_PATH}) != ceph ]; then
+  chown -R ceph. ${OSD_PATH};
+fi
+
 # NOTE(supamatt): This function is a workaround to Ceph upstream bug #21142
 osd_pg_interval_fix
 
