@@ -45,6 +45,7 @@ spec:
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
     spec:
+{{ dict "envAll" $envAll "application" "alertmanager" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
       serviceAccountName: {{ $serviceAccountName }}
       affinity:
 {{ tuple $envAll "alertmanager" "server" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
@@ -70,6 +71,8 @@ spec:
         - name: alertmanager
 {{ tuple $envAll "alertmanager" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.alertmanager | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          securityContext:
+            allowPrivilegeEscalation: false
           command:
             - /tmp/alertmanager.sh
             - start
