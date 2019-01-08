@@ -54,7 +54,11 @@ if [ ! -e "${RGW_KEYRING}" ]; then
   chmod 0600 "${RGW_KEYRING}"
 fi
 
-RGW_FRONTENDS="beast port=${RGW_FRONTEND_PORT}"
+if [[ $(ceph -v | egrep -c "luminous" | xargs echo) -gt 0 ]]; then
+  RGW_FRONTENDS="civitweb port=${RGW_FRONTEND_PORT}"
+else
+  RGW_FRONTENDS="beast port=${RGW_FRONTEND_PORT}"
+fi
 
 /usr/bin/radosgw \
   --cluster "${CLUSTER}" \
