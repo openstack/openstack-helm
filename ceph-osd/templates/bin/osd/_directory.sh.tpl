@@ -72,14 +72,6 @@ if [[ -n "$(find /var/lib/ceph/osd -prune -empty)" ]]; then
   crush_location
 fi
 
-# NOTE(supamatt): Just in case permissions do not align up, we recursively set them correctly.
-if [ $(stat -c%U ${OSD_PATH}) != ceph ]; then
-  chown -R ceph. ${OSD_PATH};
-fi
-
-# NOTE(supamatt): This function is a workaround to Ceph upstream bug #21142
-osd_pg_interval_fix
-
 # create the directory and an empty Procfile
 mkdir -p /etc/forego/"${CLUSTER}"
 echo "" > /etc/forego/"${CLUSTER}"/Procfile
@@ -88,7 +80,7 @@ for OSD_ID in $(ls /var/lib/ceph/osd | sed 's/.*-//'); do
   OSD_PATH="$OSD_PATH_BASE-$OSD_ID/"
   OSD_KEYRING="${OSD_PATH%/}/keyring"
   if [ -n "${JOURNAL_DIR}" ]; then
-     OSD_J="${JOURNAL_DIR}/journal.${OSD_ID}"
+     OSD_JOURNAL="${JOURNAL_DIR}/journal.${OSD_ID}"
      chown -R ceph. ${JOURNAL_DIR}
   else
      if [ -n "${JOURNAL}" ]; then
@@ -96,12 +88,22 @@ for OSD_ID in $(ls /var/lib/ceph/osd | sed 's/.*-//'); do
         chown -R ceph. $(dirname ${JOURNAL_DIR})
      else
         OSD_JOURNAL=${OSD_PATH%/}/journal
+        chown ceph. ${OSD_JOURNAL}
      fi
   fi
   # log osd filesystem type
   FS_TYPE=`stat --file-system -c "%T" ${OSD_PATH}`
   echo "OSD $OSD_PATH filesystem type: $FS_TYPE"
-  echo "${CLUSTER}-${OSD_ID}: /usr/bin/ceph-osd --cluster ${CLUSTER} -f -i ${OSD_ID} --osd-journal ${OSD_JOURNAL} -k $OSD_KEYRING" | tee -a /etc/forego/"${CLUSTER}"/Procfile
+
+  # NOTE(supamatt): Just in case permissions do not align up, we recursively set them correctly.
+  if [ $(stat -c%U ${OSD_PATH}) != ceph ]; then
+    chown -R ceph. ${OSD_PATH};
+  fi
+
+  # NOTE(supamatt): This function is a workaround to Ceph upstream bug #21142
+  osd_pg_interval_fix
+
+  echo "${CLUSTER}-${OSD_ID}: /usr/bin/ceph-osd --cluster ${CLUSTER} -f -i ${OSD_ID} --osd-journal ${OSD_JOURNAL} -k ${OSD_KEYRING}" | tee -a /etc/forego/"${CLUSTER}"/Procfile
 done
 
 exec /usr/local/bin/forego start -f /etc/forego/"${CLUSTER}"/Procfile
