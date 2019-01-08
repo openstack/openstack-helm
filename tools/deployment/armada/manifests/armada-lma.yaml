@@ -424,6 +424,36 @@ data:
             DB.Sync: Normal
             Buffer_Chunk_Size: 1M
             Buffer_Max_Size: 1M
+        - libvirt:
+            header: input
+            Name: tail
+            Tag: libvirt
+            Path: /var/log/libvirt/libvirtd.log
+            DB: /var/log/libvirt.db
+            Mem_Buf_Limit: 5MB
+            DB.Sync: Normal
+            Buffer_Chunk_Size: 1M
+            Buffer_Max_Size: 1M
+        - qemu:
+            header: input
+            Name: tail
+            Tag: qemu
+            Path: /var/log/libvirt/qemu/*.log
+            DB: /var/log/qemu.db
+            Mem_Buf_Limit: 5MB
+            DB.Sync: Normal
+            Buffer_Chunk_Size: 1M
+            Buffer_Max_Size: 1M
+        - nagios:
+            header: input
+            Name: tail
+            Tag: nagios
+            Path: /opt/nagios/var/nagios.log
+            DB: /var/log/nagios.db
+            Mem_Buf_Limit: 5MB
+            DB.Sync: Normal
+            Buffer_Chunk_Size: 1M
+            Buffer_Max_Size: 1M
         - docker_daemon:
             header: input
             Name: systemd
@@ -435,6 +465,16 @@ data:
             DB.Sync: Normal
             Buffer_Chunk_Size: 1M
             Buffer_Max_Size: 1M
+        - libvirt_record_modifier:
+            header: filter
+            Name: record_modifier
+            Match: libvirt
+            Record: hostname ${HOSTNAME}
+        - qemu_record_modifier:
+            header: filter
+            Name: record_modifier
+            Match: qemu
+            Record: hostname ${HOSTNAME}
         - kernel_record_modifier:
             header: filter
             Name: record_modifier
@@ -608,6 +648,54 @@ data:
                   key: level
                   pattern: CRITICAL
                   tag: critical.${tag}
+        - libvirt_elasticsearch:
+            header: match
+            type: elasticsearch
+            user: "#{ENV['ELASTICSEARCH_USERNAME']}"
+            password: "#{ENV['ELASTICSEARCH_PASSWORD']}"
+            expression: "libvirt"
+            include_tag_key: true
+            host: "#{ENV['ELASTICSEARCH_HOST']}"
+            port: "#{ENV['ELASTICSEARCH_PORT']}"
+            logstash_format: true
+            logstash_prefix: libvirt
+            buffer_chunk_limit: 2M
+            buffer_queue_limit: 8
+            flush_interval: "5"
+            max_retry_wait: 300
+            disable_retry_limit: ""
+        - nagios_elasticsearch:
+            header: match
+            type: elasticsearch
+            user: "#{ENV['ELASTICSEARCH_USERNAME']}"
+            password: "#{ENV['ELASTICSEARCH_PASSWORD']}"
+            expression: "nagios"
+            include_tag_key: true
+            host: "#{ENV['ELASTICSEARCH_HOST']}"
+            port: "#{ENV['ELASTICSEARCH_PORT']}"
+            logstash_format: true
+            logstash_prefix: nagios
+            buffer_chunk_limit: 2M
+            buffer_queue_limit: 8
+            flush_interval: "5"
+            max_retry_wait: 300
+            disable_retry_limit: ""
+        - qemu_elasticsearch:
+            header: match
+            type: elasticsearch
+            user: "#{ENV['ELASTICSEARCH_USERNAME']}"
+            password: "#{ENV['ELASTICSEARCH_PASSWORD']}"
+            expression: "qemu"
+            include_tag_key: true
+            host: "#{ENV['ELASTICSEARCH_HOST']}"
+            port: "#{ENV['ELASTICSEARCH_PORT']}"
+            logstash_format: true
+            logstash_prefix: qemu
+            buffer_chunk_limit: 2M
+            buffer_queue_limit: 8
+            flush_interval: "5"
+            max_retry_wait: 300
+            disable_retry_limit: ""
         - journal_elasticsearch:
             header: match
             type: elasticsearch
@@ -836,6 +924,18 @@ data:
           labels:
             release_group: osh-infra-kibana
   values:
+    conf:
+      create_kibana_indexes:
+        indexes:
+          - logstash
+          - openstack
+          - journal
+          - kernel
+          - ceph
+          - nagios
+          - libvirt
+          - qemu
+          - syslog
     endpoints:
       elasticsearch:
         auth:
