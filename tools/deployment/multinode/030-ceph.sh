@@ -35,10 +35,6 @@ if [ "x${ID}" == "xcentos" ]; then
 fi
 tee /tmp/ceph.yaml << EOF
 endpoints:
-  identity:
-    namespace: openstack
-  object_store:
-    namespace: ceph
   ceph_mon:
     namespace: ceph
 network:
@@ -50,15 +46,12 @@ deployment:
   rbd_provisioner: true
   cephfs_provisioner: true
   client_secrets: false
-  rgw_keystone_user_and_endpoints: false
 bootstrap:
   enabled: true
 conf:
   ceph:
     global:
       fsid: ${CEPH_FS_ID}
-  rgw_ks:
-    enabled: true
   pool:
     crush:
       tunables: ${CRUSH_TUNABLES}

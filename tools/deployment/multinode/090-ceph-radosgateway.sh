@@ -31,11 +31,7 @@ network:
   public: ${CEPH_PUBLIC_NETWORK}
   cluster: ${CEPH_CLUSTER_NETWORK}
 deployment:
-  storage_secrets: false
   ceph: true
-  rbd_provisioner: false
-  cephfs_provisioner: false
-  client_secrets: false
   rgw_keystone_user_and_endpoints: true
 bootstrap:
   enabled: false

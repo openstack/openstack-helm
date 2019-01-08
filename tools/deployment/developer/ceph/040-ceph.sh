@@ -38,26 +38,10 @@ else
 fi
 tee /tmp/ceph.yaml <<EOF
 endpoints:
-  identity:
-    namespace: openstack
-  object_store:
-    namespace: ceph
-    port:
-      api:
-        default: 8088
-        public: 80
   ceph_mon:
     namespace: ceph
-    port:
-      mon:
-        default: 6789
   ceph_mgr:
     namespace: ceph
-    port:
-      mgr:
-        default: 7000
-      metrics:
-        default: 9283
 network:
   public: 172.17.0.1/16
   cluster: 172.17.0.1/16
@@ -71,12 +55,9 @@ deployment:
   rbd_provisioner: true
   cephfs_provisioner: true
   client_secrets: false
-  rgw_keystone_user_and_endpoints: false
 bootstrap:
   enabled: true
 conf:
-  rgw_ks:
-    enabled: true
   ceph:
     global:
       fsid: ${CEPH_FS_ID}
@@ -181,7 +162,6 @@ pod:
   replicas:
     mds: 1
     mgr: 1
-    rgw: 1
 
 manifests:
   cronjob_checkPGs: true

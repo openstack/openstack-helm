@@ -24,27 +24,18 @@ make -C ${OSH_INFRA_PATH} ceph-provisioners
 : ${OSH_EXTRA_HELM_ARGS:=""}
 tee /tmp/ceph-openstack-config.yaml <<EOF
 endpoints:
-  identity:
-    namespace: openstack
-  object_store:
-    namespace: ceph
   ceph_mon:
     namespace: ceph
 network:
   public: 172.17.0.1/16
   cluster: 172.17.0.1/16
 deployment:
-  storage_secrets: false
   ceph: false
   rbd_provisioner: false
   cephfs_provisioner: false
   client_secrets: true
-  rgw_keystone_user_and_endpoints: false
 bootstrap:
   enabled: false
-conf:
-  rgw_ks:
-    enabled: true
 EOF
 helm upgrade --install ceph-openstack-config ${OSH_INFRA_PATH}/ceph-provisioners \
   --namespace=openstack \

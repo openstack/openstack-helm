@@ -34,11 +34,7 @@ network:
   public: 172.17.0.1/16
   cluster: 172.17.0.1/16
 deployment:
-  storage_secrets: false
   ceph: true
-  rbd_provisioner: false
-  cephfs_provisioner: false
-  client_secrets: false
   rgw_keystone_user_and_endpoints: true
 bootstrap:
   enabled: false
