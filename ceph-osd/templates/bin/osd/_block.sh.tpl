@@ -78,6 +78,10 @@ if [ "${OSD_BLUESTORE:-0}" -ne 1 ]; then
         exit 1
       else
         OSD_JOURNAL="${OSD_JOURNAL_DISK}"
+        if [ -e "${OSD_PATH}/run_mkjournal" ]; then
+          ceph-osd -i ${OSD_ID} --mkjournal
+          rm -rf ${OSD_PATH}/run_mkjournal
+        fi
       fi
     fi
     if [ "x${JOURNAL_TYPE}" == "xdirectory" ]; then
