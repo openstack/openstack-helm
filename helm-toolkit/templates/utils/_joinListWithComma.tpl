@@ -16,7 +16,7 @@ limitations under the License.
 
 {{/*
 abstract: |
-  Joins a list of values into a comma seperated string
+  Joins a list of values into a comma separated string
 values: |
   test:
     - foo
