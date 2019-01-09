@@ -48,13 +48,14 @@ cat > /tmp/rally-config.json << EOF
             "project_domain_name": "${OS_PROJECT_DOMAIN_NAME}"
         },
         "users": [
-        {
-            "username": "${SERVICE_OS_USERNAME}",
-            "password": "${SERVICE_OS_PASSWORD}",
-            "project_name": "${SERVICE_OS_PROJECT_NAME}",
-            "user_domain_name": "${SERVICE_OS_USER_DOMAIN_NAME}",
-            "project_domain_name": "${SERVICE_OS_PROJECT_DOMAIN_NAME}"
-        }
+            {
+                "username": "${SERVICE_OS_USERNAME}",
+                "password": "${SERVICE_OS_PASSWORD}",
+                "project_name": "${SERVICE_OS_PROJECT_NAME}",
+                "user_domain_name": "${SERVICE_OS_USER_DOMAIN_NAME}",
+                "project_domain_name": "${SERVICE_OS_PROJECT_DOMAIN_NAME}"
+            }
+        ],
         "https_insecure": false,
         "https_cacert": ""
     }
