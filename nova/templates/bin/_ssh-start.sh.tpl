@@ -33,8 +33,21 @@ if [[ $(stat -c %U:%G ~nova/.ssh) != "nova:nova" ]]; then
     chown nova: ~nova/.ssh
 fi
 
-chmod 0600 ~root/.ssh/authorized_keys
-chmod 0600 ~root/.ssh/id_rsa
-chmod 0600 ~root/.ssh/id_rsa.pub
+{{- if .Values.network.sshd.enabled }}
+subnet_address="{{- .Values.network.sshd.from_subnet -}}"
+cat > /tmp/sshd_config_extend <<EOF
+
+# This Match block prevents Password Authentication for root user
+Match User root
+    PasswordAuthentication no
+
+# This Match Block is used to allow Root Login exceptions over the
+# internal subnet used by Nova Migrations
+Match Address $subnet_address
+    PermitRootLogin without-password
+EOF
+cat /tmp/sshd_config_extend >> /etc/ssh/sshd_config
+rm /tmp/sshd_config_extend
+{{- end }}
 
 exec /usr/sbin/sshd -D -e -o Port=$SSH_PORT
