@@ -52,7 +52,7 @@ Step 2: Run validation script
 
 .. note::
   Exec into ceph mon pod and execute the  validation script  by giving pool name as
-  first arugment, as shown below rbd is the pool name .
+  first argument, as shown below rbd is the pool name .
 
 .. code-block:: console
 
