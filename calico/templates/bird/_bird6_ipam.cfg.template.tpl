@@ -8,7 +8,23 @@ function osh_filters ()
 {{- end }}
 }
 
+function apply_communities ()
+{
+  # Set community value based on dictionary of cidrs
+{{- $asnum := .Values.networking.bgp.asnumber }}
+{{- range .Values.networking.bgp.ipv6.community_cidr_ref }}
+  {{- $community := .community }}
+  {{- $cidr := .cidr }}
+  {{- with .prefix }}
+  if ( net ~ {{ $cidr }} ) then { bgp_community.add(({{ . }}, {{ $community }})); }
+  {{- else }}
+  if ( net ~ {{ $cidr }} ) then { bgp_community.add(({{ $asnum }}, {{ $community }})); }
+  {{- end }}
+{{- end }}
+}
+
 filter calico_pools {
+  apply_communities();
   calico_aggr();
   osh_filters();
 {{`{{range ls "/pool"}}{{$data := json (getv (printf "/pool/%s" .))}}`}}
