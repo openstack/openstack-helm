@@ -68,6 +68,8 @@ spec:
               value: {{ $s3Bucket }}
             - name: RGW_HOST
               value: {{ tuple "ceph_object_store" "internal" "api" $envAll | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" }}
+            - name: RGW_PROTO
+              value: {{ tuple "ceph_object_store" "internal" "api" $envAll | include "helm-toolkit.endpoints.keystone_endpoint_scheme_lookup" }}
           volumeMounts:
             - name: s3-bucket-sh
               mountPath: /tmp/create-s3-bucket.sh

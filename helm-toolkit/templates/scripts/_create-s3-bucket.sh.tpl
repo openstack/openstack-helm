@@ -19,7 +19,11 @@ limitations under the License.
 
 function create_rgw_s3_bucket ()
 {
-  create_bucket=$(s3cmd mb s3://$S3_BUCKET --host=$RGW_HOST --access_key=$S3_ADMIN_ACCESS_KEY --secret_key=$S3_ADMIN_SECRET_KEY --no-encrypt --no-check-certificate)
+  if [ "$RGW_PROTO" = "http" ]; then
+    create_bucket=$(s3cmd mb s3://$S3_BUCKET --host=$RGW_HOST --access_key=$S3_ADMIN_ACCESS_KEY --secret_key=$S3_ADMIN_SECRET_KEY --no-encrypt --no-check-certificate --no-ssl)
+  else
+    create_bucket=$(s3cmd mb s3://$S3_BUCKET --host=$RGW_HOST --access_key=$S3_ADMIN_ACCESS_KEY --secret_key=$S3_ADMIN_SECRET_KEY --no-encrypt --no-check-certificate)
+  fi
   if [ $? -eq 0 ]; then
     echo "Bucket $S3_BUCKET created"
   else
@@ -30,7 +34,11 @@ function create_rgw_s3_bucket ()
 
 function modify_bucket_acl ()
 {
-  modify_acl=$(s3cmd setacl s3://$S3_BUCKET --host=$RGW_HOST --access_key=$S3_ADMIN_ACCESS_KEY --secret_key=$S3_ADMIN_SECRET_KEY --no-encrypt --no-check-certificate --acl-grant=read:$S3_USERNAME --acl-grant=write:$S3_USERNAME)
+  if [ "$RGW_PROTO" = "http" ]; then
+    modify_acl=$(s3cmd setacl s3://$S3_BUCKET --host=$RGW_HOST --access_key=$S3_ADMIN_ACCESS_KEY --secret_key=$S3_ADMIN_SECRET_KEY --no-encrypt --no-check-certificate --no-ssl --acl-grant=read:$S3_USERNAME --acl-grant=write:$S3_USERNAME)
+  else
+    modify_acl=$(s3cmd setacl s3://$S3_BUCKET --host=$RGW_HOST --access_key=$S3_ADMIN_ACCESS_KEY --secret_key=$S3_ADMIN_SECRET_KEY --no-encrypt --no-check-certificate --acl-grant=read:$S3_USERNAME --acl-grant=write:$S3_USERNAME)
+  fi
   if [ $? -eq 0 ]; then
     echo "Bucket $S3_BUCKET ACL updated"
   else
