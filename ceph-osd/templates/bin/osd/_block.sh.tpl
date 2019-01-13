@@ -83,8 +83,8 @@ if [ "${OSD_BLUESTORE:-0}" -ne 1 ]; then
     fi
     if [ "x${JOURNAL_TYPE}" == "xdirectory" ]; then
       OSD_JOURNAL="${OSD_JOURNAL}/journal.${OSD_ID}"
+      touch ${OSD_JOURNAL}
       wait_for_file "${OSD_JOURNAL}"
-      chown ceph. "${OSD_JOURNAL}"
     else
       if [ ! -b "${OSD_JOURNAL}" ]; then
         echo "ERROR: Unable to find journal device ${OSD_JOURNAL}"
@@ -110,7 +110,6 @@ if [ "${OSD_BLUESTORE:-0}" -ne 1 ]; then
 fi
 
 if [ "x${JOURNAL_TYPE}" == "xdirectory" ]; then
-  touch ${OSD_JOURNAL}
   chown -R ceph. /var/lib/ceph/journal
   ceph-osd \
     --cluster ceph \
