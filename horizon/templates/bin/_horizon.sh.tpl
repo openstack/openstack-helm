@@ -28,6 +28,7 @@ function start () {
   chown -R horizon ${SITE_PACKAGES_ROOT}/openstack_dashboard/local/
 
   a2enmod rewrite
+  a2dismod status
 
   if [ -f /etc/apache2/envvars ]; then
      # Loading Apache2 ENV variables
