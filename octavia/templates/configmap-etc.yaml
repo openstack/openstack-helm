@@ -1,0 +1,117 @@
+{{/*
+Copyright 2019 Samsung Electronics Co., Ltd.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- define "octavia.configmap.etc" }}
+{{- $configMapName := index . 0 }}
+{{- $envAll := index . 1 }}
+{{- with $envAll }}
+
+{{- if empty .Values.conf.octavia.keystone_authtoken.auth_uri -}}
+{{- $_ := tuple "identity" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup"| set .Values.conf.octavia.keystone_authtoken "auth_uri" -}}
+{{- end -}}
+
+{{- if empty .Values.conf.octavia.keystone_authtoken.auth_url -}}
+{{- $_ := tuple "identity" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup"| set .Values.conf.octavia.keystone_authtoken "auth_url" -}}
+{{- end -}}
+
+{{- if empty .Values.conf.octavia.keystone_authtoken.region_name -}}
+{{- $_ := set .Values.conf.octavia.keystone_authtoken "region_name" .Values.endpoints.identity.auth.octavia.region_name -}}
+{{- end -}}
+{{- if empty .Values.conf.octavia.keystone_authtoken.project_name -}}
+{{- $_ := set .Values.conf.octavia.keystone_authtoken "project_name" .Values.endpoints.identity.auth.octavia.project_name -}}
+{{- end -}}
+{{- if empty .Values.conf.octavia.keystone_authtoken.project_domain_name -}}
+{{- $_ := set .Values.conf.octavia.keystone_authtoken "project_domain_name" .Values.endpoints.identity.auth.octavia.project_domain_name -}}
+{{- end -}}
+{{- if empty .Values.conf.octavia.keystone_authtoken.user_domain_name -}}
+{{- $_ := set .Values.conf.octavia.keystone_authtoken "user_domain_name" .Values.endpoints.identity.auth.octavia.user_domain_name -}}
+{{- end -}}
+{{- if empty .Values.conf.octavia.keystone_authtoken.username -}}
+{{- $_ := set .Values.conf.octavia.keystone_authtoken "username" .Values.endpoints.identity.auth.octavia.username -}}
+{{- end -}}
+{{- if empty .Values.conf.octavia.keystone_authtoken.password -}}
+{{- $_ := set .Values.conf.octavia.keystone_authtoken "password" .Values.endpoints.identity.auth.octavia.password -}}
+{{- end -}}
+
+{{- if empty .Values.conf.octavia.keystone_authtoken.memcached_servers -}}
+{{- $_ := tuple "oslo_cache" "internal" "memcache" . | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" | set .Values.conf.octavia.keystone_authtoken "memcached_servers" -}}
+{{- end -}}
+{{- if empty .Values.conf.octavia.keystone_authtoken.memcache_secret_key -}}
+{{- $_ := set .Values.conf.octavia.keystone_authtoken "memcache_secret_key" ( default ( randAlphaNum 64 ) .Values.endpoints.oslo_cache.auth.memcache_secret_key ) -}}
+{{- end -}}
+
+{{- if empty .Values.conf.octavia.service_auth.auth_url -}}
+{{- $_ := tuple "identity" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup"| set .Values.conf.octavia.service_auth "auth_url" -}}
+{{- end -}}
+
+{{- if empty .Values.conf.octavia.service_auth.project_name -}}
+{{- $_ := set .Values.conf.octavia.service_auth "project_name" .Values.endpoints.identity.auth.admin.project_name -}}
+{{- end -}}
+{{- if empty .Values.conf.octavia.service_auth.project_domain_name -}}
+{{- $_ := set .Values.conf.octavia.service_auth "project_domain_name" .Values.endpoints.identity.auth.admin.project_domain_name -}}
+{{- end -}}
+{{- if empty .Values.conf.octavia.service_auth.user_domain_name -}}
+{{- $_ := set .Values.conf.octavia.service_auth "user_domain_name" .Values.endpoints.identity.auth.admin.user_domain_name -}}
+{{- end -}}
+{{- if empty .Values.conf.octavia.service_auth.username -}}
+{{- $_ := set .Values.conf.octavia.service_auth "username" .Values.endpoints.identity.auth.admin.username -}}
+{{- end -}}
+{{- if empty .Values.conf.octavia.service_auth.password -}}
+{{- $_ := set .Values.conf.octavia.service_auth "password" .Values.endpoints.identity.auth.admin.password -}}
+{{- end -}}
+
+{{- if empty .Values.conf.octavia.service_auth.memcached_servers -}}
+{{- $_ := tuple "oslo_cache" "internal" "memcache" . | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" | set .Values.conf.octavia.service_auth "memcached_servers" -}}
+{{- end -}}
+{{- if empty .Values.conf.octavia.service_auth.memcache_secret_key -}}
+{{- $_ := set .Values.conf.octavia.service_auth "memcache_secret_key" ( default ( randAlphaNum 64 ) .Values.endpoints.oslo_cache.auth.memcache_secret_key ) -}}
+{{- end -}}
+
+{{- if empty .Values.conf.octavia.database.connection -}}
+{{- $_ := tuple "oslo_db" "internal" "octavia" "mysql" . | include "helm-toolkit.endpoints.authenticated_endpoint_uri_lookup"| set .Values.conf.octavia.database "connection" -}}
+{{- end -}}
+
+{{- if empty .Values.conf.octavia.DEFAULT.transport_url -}}
+{{- $_ := tuple "oslo_messaging" "internal" "octavia" "amqp" . | include "helm-toolkit.endpoints.authenticated_endpoint_uri_lookup" | set .Values.conf.octavia.DEFAULT "transport_url" -}}
+{{- end -}}
+
+{{- if and (empty .Values.conf.logging.handler_fluent) (has "fluent" .Values.conf.logging.handlers.keys) -}}
+{{- $fluentd_host := tuple "fluentd" "internal" $envAll | include "helm-toolkit.endpoints.hostname_namespaced_endpoint_lookup" }}
+{{- $fluentd_port := tuple "fluentd" "internal" "service" $envAll | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+{{- $fluent_args := printf "('%s.%s', '%s', %s)" .Release.Namespace .Release.Name $fluentd_host $fluentd_port }}
+{{- $handler_fluent := dict "class" "fluent.handler.FluentHandler" "formatter" "fluent" "args" $fluent_args -}}
+{{- $_ := set .Values.conf.logging "handler_fluent" $handler_fluent -}}
+{{- end -}}
+
+{{- if and (empty .Values.conf.logging.formatter_fluent) (has "fluent" .Values.conf.logging.formatters.keys) -}}
+{{- $formatter_fluent := dict "class" "oslo_log.formatters.FluentFormatter" -}}
+{{- $_ := set .Values.conf.logging "formatter_fluent" $formatter_fluent -}}
+{{- end -}}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ $configMapName }}
+type: Opaque
+data:
+  octavia.conf: {{ include "helm-toolkit.utils.to_oslo_conf" .Values.conf.octavia | b64enc }}
+  logging.conf: {{ include "helm-toolkit.utils.to_oslo_conf" .Values.conf.logging | b64enc }}
+{{- end }}
+{{- end }}
+
+{{- if .Values.manifests.configmap_etc }}
+{{- list "octavia-etc" . | include "octavia.configmap.etc" }}
+{{- end }}
