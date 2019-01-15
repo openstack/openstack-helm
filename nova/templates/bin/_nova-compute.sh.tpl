@@ -21,4 +21,5 @@ set -ex
 exec nova-compute \
       --config-file /etc/nova/nova.conf \
       --config-file /tmp/pod-shared/nova-console.conf \
-      --config-file /tmp/pod-shared/nova-libvirt.conf
+      --config-file /tmp/pod-shared/nova-libvirt.conf \
+      --config-file /tmp/pod-shared/nova-hypervisor.conf
