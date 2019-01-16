@@ -2038,12 +2038,12 @@ conf:
               description: 'Elasticsearch cluster health status call timedout {{ $value }} times.'
               summary: 'Elasticsearch cluster health status calls are timing out.'
           - alert: es_cluster_health_status_alert
-            expr: elasticsearch_cluster_health_status > 0
+            expr: (sum(elasticsearch_cluster_health_status{color="green"})*2)+sum(elasticsearch_cluster_health_status{color="yellow"}) < 2
             for: 10m
             labels:
               severity: warning
             annotations:
-              description: 'Elasticsearch cluster health status is not green. One or more shards or replicas are unallocated.'
+              description: 'Elasticsearch cluster health status is {{ $value }}, not 2 (green). One or more shards or replicas are unallocated.'
               summary: 'Elasticsearch cluster health status is not green.'
           - alert: es_cluster_health_too_few_nodes_running
             expr: elasticsearch_cluster_health_number_of_nodes < 3
@@ -2053,6 +2053,14 @@ conf:
             annotations:
               description: 'There are only {{$value}} < 3 ElasticSearch nodes running'
               summary: 'ElasticSearch running on less than 3 nodes'
+          - alert: es_cluster_health_too_few_data_nodes_running
+            expr: elasticsearch_cluster_health_number_of_data_nodes < 3
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              description: 'There are only {{$value}} < 3 ElasticSearch data nodes running'
+              summary: 'ElasticSearch running on less than 3 data nodes'
           - alert: es_cluster_health_too_few_data_nodes_running
             expr: elasticsearch_cluster_health_number_of_data_nodes < 3
             for: 10m
