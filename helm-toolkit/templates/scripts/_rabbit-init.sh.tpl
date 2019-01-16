@@ -45,6 +45,8 @@ RABBITMQ_PASSWORD=$(echo "${RABBITMQ_USER_CONNECTION}" | \
 RABBITMQ_VHOST=$(echo "${RABBITMQ_USER_CONNECTION}" | \
   awk -F'[@]' '{print $2}' | \
   awk -F'[:/]' '{print $3}')
+# Resolve vHost to / if no value is set
+RABBITMQ_VHOST="${RABBITMQ_VHOST:-/}"
 
 function rabbitmqadmin_cli () {
   rabbitmqadmin \
@@ -62,10 +64,15 @@ rabbitmqadmin_cli \
   password="${RABBITMQ_PASSWORD}" \
   tags="user"
 
-echo "Managing: vHost: ${RABBITMQ_VHOST}"
-rabbitmqadmin_cli \
-  declare vhost \
-  name="${RABBITMQ_VHOST}"
+if [ "${RABBITMQ_VHOST}" != "/" ]
+then
+  echo "Managing: vHost: ${RABBITMQ_VHOST}"
+  rabbitmqadmin_cli \
+    declare vhost \
+    name="${RABBITMQ_VHOST}"
+else
+  echo "Skipping root vHost declaration: vHost: ${RABBITMQ_VHOST}"
+fi
 
 echo "Managing: Permissions: ${RABBITMQ_USERNAME} on ${RABBITMQ_VHOST}"
 rabbitmqadmin_cli \
