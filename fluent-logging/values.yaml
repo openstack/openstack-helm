@@ -115,9 +115,16 @@ conf:
         Name: tail
         Tag: kernel
         Path: /var/log/kern.log
-        DB: /var/log/kern.db
         Mem_Buf_Limit: 5MB
-        DB.Sync: Normal
+        Buffer_Chunk_Size: 1M
+        Buffer_Max_Size: 1M
+    - containers_tail:
+        header: input
+        Name: tail
+        Tag: kube.*
+        Path: /var/log/containers/*.log
+        Parser: docker
+        Mem_Buf_Limit: 5MB
         Buffer_Chunk_Size: 1M
         Buffer_Max_Size: 1M
     - libvirt:
@@ -125,9 +132,7 @@ conf:
         Name: tail
         Tag: libvirt
         Path: /var/log/libvirt/libvirtd.log
-        DB: /var/log/libvirt.db
         Mem_Buf_Limit: 5MB
-        DB.Sync: Normal
         Buffer_Chunk_Size: 1M
         Buffer_Max_Size: 1M
     - qemu:
@@ -135,9 +140,7 @@ conf:
         Name: tail
         Tag: qemu
         Path: /var/log/libvirt/qemu/*.log
-        DB: /var/log/qemu.db
         Mem_Buf_Limit: 5MB
-        DB.Sync: Normal
         Buffer_Chunk_Size: 1M
         Buffer_Max_Size: 1M
     - kubelet:
@@ -146,9 +149,7 @@ conf:
         Tag: journal.*
         Path: ${JOURNAL_PATH}
         Systemd_Filter: _SYSTEMD_UNIT=kubelet.service
-        DB: /var/log/kubelet.db
         Mem_Buf_Limit: 5MB
-        DB.Sync: Normal
         Buffer_Chunk_Size: 1M
         Buffer_Max_Size: 1M
     - docker_daemon:
@@ -157,11 +158,16 @@ conf:
         Tag: journal.*
         Path: ${JOURNAL_PATH}
         Systemd_Filter: _SYSTEMD_UNIT=docker.service
-        DB: /var/log/docker.db
         Mem_Buf_Limit: 5MB
-        DB.Sync: Normal
         Buffer_Chunk_Size: 1M
         Buffer_Max_Size: 1M
+    - throttle_filter:
+        header: filter
+        Name: throttle
+        Match: "**"
+        Rate: 1000
+        Window: 300
+        Interval: 1s
     - libvirt_record_modifier:
         header: filter
         Name: record_modifier
@@ -196,17 +202,6 @@ conf:
           _SYSTEMD_UNIT: SYSTEMD_UNIT
           _UID: UID
           _TRANSPORT: TRANSPORT
-    - containers_tail:
-        header: input
-        Name: tail
-        Tag: kube.*
-        Path: /var/log/containers/*.log
-        Parser: docker
-        DB: /var/log/flb_kube.db
-        Mem_Buf_Limit: 5MB
-        DB.Sync: Normal
-        Buffer_Chunk_Size: 1M
-        Buffer_Max_Size: 1M
     - drop_fluentd_logs:
         header: output
         Name: "null"
