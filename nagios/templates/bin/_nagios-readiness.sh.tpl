@@ -1,5 +1,7 @@
+#!/bin/bash
+
 {{/*
-Copyright 2017 The Openstack-Helm Authors.
+Copyright 2019 The Openstack-Helm Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,18 +16,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if .Values.manifests.configmap_bin }}
-{{- $envAll := . }}
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: nagios-bin
-data:
-  apache.sh: |
-{{ tuple "bin/_apache.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
-  nagios-readiness.sh: |
-{{ tuple "bin/_nagios-readiness.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
-  image-repo-sync.sh: |+
-{{- include "helm-toolkit.scripts.image_repo_sync" . | indent 4 }}
-{{- end }}
+# NOTE(sw5822): Redirect no-op operator output to Nagios log file to clean out
+# Nagios's log file, since Nagios doesn't support logging to /dev/null
+: > /opt/nagios/var/log/nagios.log
+
+# Check whether Nagios endpoint is reachable
+reply=$(curl -s -o /dev/null -w %{http_code} http://127.0.0.1:8000/nagios)
+if [ \"$reply\" -lt 200 -o \"$reply\" -ge 400 ]; then
+  exit 1
+fi
