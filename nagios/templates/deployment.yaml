@@ -92,19 +92,6 @@ spec:
       {{- end }}
       initContainers:
 {{ tuple $envAll "nagios" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
-        - name: nagios-log-ownership
-{{ tuple $envAll "nagios" | include "helm-toolkit.snippets.image" | indent 10 }}
-          securityContext:
-            runAsUser: 0
-          command:
-            - chown
-            - -R
-            - nagios:root
-            - /opt/nagios/var/log
-          volumeMounts:
-            - name: pod-var-log
-              mountPath: /opt/nagios/var/log
-              readOnly: false
       containers:
         - name: apache-proxy
 {{ tuple $envAll "apache_proxy" | include "helm-toolkit.snippets.image" | indent 10 }}
@@ -146,6 +133,12 @@ spec:
           ports:
             - name: nagios
               containerPort: {{ tuple "nagios" "internal" "nagios" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+          readinessProbe:
+            exec:
+              command:
+                - /tmp/nagios-readiness.sh
+            initialDelaySeconds: 60
+            periodSeconds: 30
           env:
             - name: SNMP_NOTIF_PRIMARY_TARGET_WITH_PORT
               value: {{ $envAll.Values.conf.nagios.notification.snmp.primary_target }}
@@ -190,6 +183,10 @@ spec:
               mountPath: /opt/nagios/etc/nagios_objects.cfg
               subPath: nagios_objects.cfg
               readOnly: true
+            - name: nagios-bin
+              mountPath: /tmp/nagios-readiness.sh
+              subPath: nagios-readiness.sh
+              readOnly: true
 {{- if not (empty .Values.conf.nagios.query_es_clauses) }}
             - name: nagios-etc
               mountPath: /opt/nagios/etc/objects/query_es_clauses.json
@@ -198,11 +195,9 @@ spec:
 {{- end }}
             - name: pod-var-log
               mountPath: /opt/nagios/var/log
-              readOnly: false
       volumes:
         - name: pod-var-log
-          hostPath:
-            path: /opt/nagios/var/log
+          emptyDir: {}
         - name: nagios-etc
           secret:
             secretName: nagios-etc
