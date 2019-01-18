@@ -49,8 +49,7 @@ CEPH_DISK_OPTIONS=""
 CEPH_OSD_OPTIONS=""
 DATA_UUID=$(blkid -o value -s PARTUUID ${OSD_DEVICE}*1)
 
-# watch the udev event queue, and exit if all current events are handled
-udevadm settle --timeout=600
+udev_settle
 
 DATA_PART=$(dev_part ${OSD_DEVICE} 1)
 MOUNTED_PART=${DATA_PART}
