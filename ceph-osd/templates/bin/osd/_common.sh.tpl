@@ -153,7 +153,16 @@ function osd_pg_interval_fix {
 
 function udev_settle {
   partprobe "${OSD_DEVICE}"
+  if [ "x$JOURNAL_TYPE" == "xblock-logical" ]; then
+    partprobe "${OSD_JOURNAL}"
+  fi
   # watch the udev event queue, and exit if all current events are handled
   udevadm settle --timeout=600
+
+  # On occassion udev may not make the correct device symlinks for Ceph, just in case we make them manually
+  mkdir -p /dev/disk/by-partuuid
+  for dev in $(blkid -o device | grep -v block); do
+    ln -s "../../$(echo ${dev} | awk -F '/' '{print $3}')" "/dev/disk/by-partuuid/$(blkid -o value -s PARTUUID ${dev})" || true
+  done
 }
 
