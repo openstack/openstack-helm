@@ -66,10 +66,9 @@ USER_ID=$(openstack user create --or-show --enable -f value -c id \
     --project-domain="${PROJECT_DOMAIN_ID}" \
     --project="${USER_PROJECT_ID}" \
     --description="${USER_DESC}" \
-    --password="${SERVICE_OS_PASSWORD}" \
     "${SERVICE_OS_USERNAME}");
 
-# Manage user password (we do this to ensure the password is updated if required)
+# Manage user password (we do this in a seperate step to ensure the password is updated if required)
 openstack user set --password="${SERVICE_OS_PASSWORD}" "${USER_ID}"
 
 # Display user
