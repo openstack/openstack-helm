@@ -69,7 +69,10 @@ USER_ID=$(openstack user create --or-show --enable -f value -c id \
     "${SERVICE_OS_USERNAME}");
 
 # Manage user password (we do this in a seperate step to ensure the password is updated if required)
+set +x
+echo "Setting user password via: openstack user set --password=xxxxxxx ${USER_ID}"
 openstack user set --password="${SERVICE_OS_PASSWORD}" "${USER_ID}"
+set -x
 
 # Display user
 openstack user show "${USER_ID}"
