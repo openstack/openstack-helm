@@ -84,6 +84,16 @@ spec:
           args:
           - --name=calico
           - --data-dir=/var/etcd/calico-data
+{{ if eq .Values.endpoints.etcd.scheme.default "https" }}
+          - --client-cert-auth=True
+          - --peer-client-cert-auth=True
+          - --trusted-ca-file=/etc/calico-certs/ca.crt
+          - --cert-file=/etc/calico-certs/server.crt
+          - --key-file=/etc/calico-certs/server.key
+          - --peer-trusted-ca-file=/etc/calico-certs/ca.crt
+          - --peer-cert-file=/etc/calico-certs/server.crt
+          - --peer-key-file=/etc/calico-certs/server.key
+{{ end }}
           - --advertise-client-urls={{ tuple "etcd" "internal" "client" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" }}
           - --listen-client-urls={{ tuple "etcd" "internal" "client" . | include "helm-toolkit.endpoints.keystone_endpoint_scheme_lookup" }}://0.0.0.0:{{ tuple "etcd" "internal" "client" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
           - --listen-peer-urls={{ tuple "etcd" "internal" "peer" . | include "helm-toolkit.endpoints.keystone_endpoint_scheme_lookup" }}://0.0.0.0:{{ tuple "etcd" "internal" "peer" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
@@ -91,8 +101,29 @@ spec:
           volumeMounts:
             - name: var-etcd
               mountPath: /var/etcd
+{{ if .Values.conf.etcd.credentials.ca }}
+            - name: calico-etcd-secrets
+              mountPath: /etc/calico-certs/ca.crt
+              subPath: etcd.ca
+              readOnly: true
+{{ end }}
+{{ if .Values.conf.etcd.credentials.certificate }}
+            - name: calico-etcd-secrets
+              mountPath: /etc/calico-certs/server.crt
+              subPath: etcd.crt
+              readOnly: true
+{{ end }}
+{{ if .Values.conf.etcd.credentials.key }}
+            - name: calico-etcd-secrets
+              mountPath: /etc/calico-certs/server.key
+              subPath: etcd.key
+              readOnly: true
+{{ end }}
       volumes:
         - name: var-etcd
           hostPath:
             path: /var/etcd
+        - name: calico-etcd-secrets
+          secret:
+            secretName: calico-etcd-secrets
 {{- end }}
