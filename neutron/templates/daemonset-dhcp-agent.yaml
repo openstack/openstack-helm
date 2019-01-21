@@ -65,12 +65,45 @@ spec:
 {{ tuple $envAll $envAll.Values.pod.resources.agent.dhcp | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           securityContext:
             privileged: true
+          readinessProbe:
+            exec:
+              command:
+              - python
+              - /tmp/health-probe.py
+              - --config-file
+              - /etc/neutron/neutron.conf
+              - --config-file
+              - /etc/neutron/dhcp_agent.ini
+              - --agent-queue-name
+              - dhcp_agent
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 65
+          livenessProbe:
+            exec:
+              command:
+              - python
+              - /tmp/health-probe.py
+              - --config-file
+              - /etc/neutron/neutron.conf
+              - --config-file
+              - /etc/neutron/dhcp_agent.ini
+              - --agent-queue-name
+              - dhcp_agent
+              - --liveness-probe
+            initialDelaySeconds: 120
+            periodSeconds: 90
+            timeoutSeconds: 70
           command:
             - /tmp/neutron-dhcp-agent.sh
           volumeMounts:
             - name: neutron-bin
               mountPath: /tmp/neutron-dhcp-agent.sh
               subPath: neutron-dhcp-agent.sh
+              readOnly: true
+            - name: neutron-bin
+              mountPath: /tmp/health-probe.py
+              subPath: health-probe.py
               readOnly: true
             - name: neutron-etc
               mountPath: /etc/neutron/neutron.conf
