@@ -45,6 +45,21 @@ conf:
     enabled: false
   rgw_s3:
     enabled: true
+network_policy:
+  ceph:
+    ingress:
+      - from:
+        - podSelector:
+            matchLabels:
+              application: elasticsearch
+        - podSelector:
+            matchLabels:
+              application: ceph
+        ports:
+        - protocol: TCP
+          port: 8088
+manifests:
+  network_policy: true
 EOF
 helm upgrade --install radosgw-osh-infra ./ceph-rgw \
   --namespace=osh-infra \
