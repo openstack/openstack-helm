@@ -59,30 +59,46 @@ options.add_argument('--headless')
 options.add_argument('--no-sandbox')
 options.add_argument('--window-size=1920x1080')
 
+errNO = 1
+
 browser = webdriver.Chrome('/etc/selenium/chromedriver', chrome_options=options)
 url = "http://{0}:{1}@{2}".format(kibana_user, kibana_password, kibana_journal_uri)
 browser.get(url)
 
-WebDriverWait(browser, 60).until(
-    EC.presence_of_element_located((By.XPATH, '//*[@id="kibana-body"]/div[1]/div/div/div[3]/discover-app/div/div[2]/div[2]/div/div[2]/div[2]/doc-table/div/table/tbody/tr[1]/td[2]'))
-)
-browser.save_screenshot('/tmp/artifacts/Kibana_JournalIndex.png')
+try:
+    WebDriverWait(browser, 60).until(
+        EC.presence_of_element_located((By.XPATH, '//*[@id="kibana-body"]/div[1]/div/div/div[3]/discover-app/div/div[2]/div[2]/div/div[2]/div[2]/doc-table/div/table/tbody/tr[1]/td[2]'))
+    )
+    browser.save_screenshot('/tmp/artifacts/Kibana_JournalIndex.png')
+except TimeoutException, e:
+    browser.save_screenshot('/tmp/artifacts/Error_{}.png'.format(errNO))
+    logger.error('Error occured loading Journal index')
+    errNO += 1
 
 browser = webdriver.Chrome('/etc/selenium/chromedriver', chrome_options=options)
 url = "http://{0}:{1}@{2}".format(kibana_user, kibana_password, kibana_kernel_uri)
 browser.get(url)
 
-WebDriverWait(browser, 60).until(
-    EC.presence_of_element_located((By.XPATH, '//*[@id="kibana-body"]/div[1]/div/div/div[3]/discover-app/div/div[2]/div[2]/div/div[2]/div[2]/doc-table/div/table/tbody/tr[1]/td[2]'))
-)
-browser.save_screenshot('/tmp/artifacts/Kibana_KernelIndex.png')
+try:
+    WebDriverWait(browser, 60).until(
+        EC.presence_of_element_located((By.XPATH, '//*[@id="kibana-body"]/div[1]/div/div/div[3]/discover-app/div/div[2]/div[2]/div/div[2]/div[2]/doc-table/div/table/tbody/tr[1]/td[2]'))
+    )
+    browser.save_screenshot('/tmp/artifacts/Kibana_KernelIndex.png')
+except TimeoutException, e:
+    browser.save_screenshot('/tmp/artifacts/Error_{}.png'.format(errNO))
+    logger.error('Error occured loading Kernel index')
+    errNO += 1
 
 browser = webdriver.Chrome('/etc/selenium/chromedriver', chrome_options=options)
 url = "http://{0}:{1}@{2}".format(kibana_user, kibana_password, kibana_logstash_uri)
 browser.get(url)
 
-WebDriverWait(browser, 60).until(
-    EC.presence_of_element_located((By.XPATH, '//*[@id="kibana-body"]/div[1]/div/div/div[3]/discover-app/div/div[2]/div[2]/div/div[2]/div[2]/doc-table/div/table/tbody/tr[1]/td[2]'))
-)
-
-browser.save_screenshot('/tmp/artifacts/Kibana_LogstashIndex.png')
+try:
+    WebDriverWait(browser, 60).until(
+        EC.presence_of_element_located((By.XPATH, '//*[@id="kibana-body"]/div[1]/div/div/div[3]/discover-app/div/div[2]/div[2]/div/div[2]/div[2]/doc-table/div/table/tbody/tr[1]/td[2]'))
+    )
+    browser.save_screenshot('/tmp/artifacts/Kibana_LogstashIndex.png')
+except TimeoutException, e:
+    browser.save_screenshot('/tmp/artifacts/Error_{}.png'.format(errNO))
+    logger.error('Error occured loading Logstash index')
+    errNO += 1
