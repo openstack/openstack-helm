@@ -15,7 +15,7 @@
 #    under the License.
 
 set -xe
-: ${HELM_VERSION:="v2.11.0"}
+: ${HELM_VERSION:="v2.12.1"}
 : ${KUBE_VERSION:="v1.12.2"}
 : ${MINIKUBE_VERSION:="v0.30.0"}
 : ${CALICO_VERSION:="v3.3"}
