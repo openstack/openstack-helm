@@ -6,7 +6,7 @@ RUN set -ex ;\
     apt-get upgrade -y ;\
     apt-get install -y --no-install-recommends \
         python-pip ;\
-    pip --no-cache-dir install --upgrade pip ;\
+    pip --no-cache-dir install --upgrade pip==18.1 ;\
     hash -r ;\
     pip --no-cache-dir install --upgrade setuptools ;\
     pip --no-cache-dir install --upgrade \

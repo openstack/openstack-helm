@@ -75,7 +75,7 @@ RUN set -ex ;\
         jq \
         python-pip \
         gawk ;\
-    pip --no-cache-dir install --upgrade pip ;\
+    pip --no-cache-dir install --upgrade pip==18.1 ;\
     hash -r ;\
     pip --no-cache-dir install --upgrade setuptools ;\
     # NOTE(srwilkers): Pinning ansible to 2.5.5, as pip installs 2.6 by default.
