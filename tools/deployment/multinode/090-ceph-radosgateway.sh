@@ -38,11 +38,39 @@ bootstrap:
 conf:
   rgw_ks:
     enabled: true
+network_policy:
+  ceph:
+    ingress:
+      - from:
+        - podSelector:
+            matchLabels:
+              application: glance
+        - podSelector:
+            matchLabels:
+              application: cinder
+        - podSelector:
+            matchLabels:
+              application: libvirt
+        - podSelector:
+            matchLabels:
+              application: nova
+        - podSelector:
+            matchLabels:
+              application: ceph
+        - podSelector:
+            matchLabels:
+              application: ingress
+        ports:
+        - protocol: TCP
+          port: 8088
+manifests:
+  network_policy: true
 EOF
 
 : ${OSH_INFRA_PATH:="../openstack-helm-infra"}
 helm upgrade --install radosgw-openstack ${OSH_INFRA_PATH}/ceph-rgw \
   --namespace=openstack \
+  --set manifests.network_policy=true \
   --values=/tmp/radosgw-openstack.yaml \
   ${OSH_EXTRA_HELM_ARGS} \
   ${OSH_EXTRA_HELM_ARGS_HEAT}

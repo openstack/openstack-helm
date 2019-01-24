@@ -29,6 +29,9 @@ network_policy:
       - from:
         - podSelector:
             matchLabels:
+              application: ceph
+        - podSelector:
+            matchLabels:
               application: keystone
         - podSelector:
             matchLabels:
