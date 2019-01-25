@@ -1300,6 +1300,14 @@ conf:
             annotations:
               description: '{{ $value }} of Daemonset {{$labels.daemonset}} scheduled which is less than desired number'
               summary: 'Less than desired number of daemonsets scheduled'
+          - alert: daemonset_pods_unavailable
+            expr: kube_daemonset_status_number_unavailable > 0
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              description: 'Daemonset {{$labels.daemonset}} currently has pods unavailable'
+              summary: 'Daemonset pods unavailable, due to one of many reasons'
           - alert: deployment_replicas_unavailable
             expr: kube_deployment_status_replicas_unavailable > 0
             for: 10m
@@ -1340,13 +1348,13 @@ conf:
             annotations:
               description: 'Pod {{$labels.pod}} in namespace {{$labels.namespace}} has an Image pull error for more than 10 minutes'
               summary: 'Pod {{$labels.pod}} in namespace {{$labels.namespace}} in error status'
-          - alert: pod_status_error_image_pull
-            expr: kube_pod_container_status_waiting_reason {reason="ErrImagePull"} == 1
+          - alert: pod_status_error_image_pull_backoff
+            expr: kube_pod_container_status_waiting_reason {reason="ImagePullBackOff"} == 1
             for: 10m
             labels:
               severity: page
             annotations:
-              description: 'Pod {{$labels.pod}} in namespace {{$labels.namespace}} has an Image pull error for more than 10 minutes'
+              description: 'Pod {{$labels.pod}} in namespace {{$labels.namespace}} has an ImagePullBackOff error for more than 10 minutes'
               summary: 'Pod {{$labels.pod}} in namespace {{$labels.namespace}} in error status'
           - alert: pod_error_crash_loop_back_off
             expr: kube_pod_container_status_waiting_reason {reason="CrashLoopBackOff"} == 1
@@ -1355,6 +1363,14 @@ conf:
               severity: page
             annotations:
               description: 'Pod {{$labels.pod}} in namespace {{$labels.namespace}} has an CrashLoopBackOff  error for more than 10 minutes'
+              summary: 'Pod {{$labels.pod}} in namespace {{$labels.namespace}} in error status'
+          - alert: pod_error_config_error
+            expr: kube_pod_container_status_waiting_reason {reason="CreateContainerConfigError"} == 1
+            for: 10m
+            labels:
+              severity: page
+            annotations:
+              description: 'Pod {{$labels.pod}} in namespace {{$labels.namespace}} has a CreateContainerConfigError error for more than 10 minutes'
               summary: 'Pod {{$labels.pod}} in namespace {{$labels.namespace}} in error status'
           - alert: replicaset_missing_replicas
             expr:  kube_replicaset_spec_replicas -  kube_replicaset_status_ready_replicas > 0
