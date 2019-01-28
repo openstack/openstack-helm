@@ -110,7 +110,7 @@ helm status ingress-openstack
 helm upgrade --install ingress-ceph ${OSH_INFRA_PATH}/ingress \
   --namespace=ceph \
   ${OSH_EXTRA_HELM_ARGS} \
-  ${OSH_EXTRA_HELM_ARGS_INGRESS_OPENSTACK}
+  ${OSH_EXTRA_HELM_ARGS_INGRESS_CEPH}
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh ceph
