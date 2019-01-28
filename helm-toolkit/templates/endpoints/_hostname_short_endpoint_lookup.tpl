@@ -17,17 +17,30 @@ limitations under the License.
 {{/*
 abstract: |
   Resolves the short hostname for an endpoint
-values: |
-  endpoints:
-    oslo_db:
-      hosts:
-        default: mariadb
-      host_fqdn_override:
-        default: null
-usage: |
-  {{ tuple "oslo_db" "internal" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
-return: |
-  mariadb
+examples:
+  - values: |
+      endpoints:
+        oslo_db:
+          hosts:
+            default: mariadb
+          host_fqdn_override:
+            default: null
+    usage: |
+      {{ tuple "oslo_db" "internal" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
+    return: |
+      mariadb
+  - values: |
+      endpoints:
+        oslo_db:
+          hosts:
+            default:
+              host: mariadb
+          host_fqdn_override:
+            default: null
+    usage: |
+      {{ tuple "oslo_db" "internal" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
+    return: |
+      mariadb
 */}}
 
 {{- define "helm-toolkit.endpoints.hostname_short_endpoint_lookup" -}}
@@ -36,7 +49,11 @@ return: |
 {{- $context := index . 2 -}}
 {{- $endpointMap := index $context.Values.endpoints ( $type | replace "-" "_" ) }}
 {{- $endpointScheme := $endpointMap.scheme }}
-{{- $endpointHost := index $endpointMap.hosts $endpoint | default $endpointMap.hosts.default }}
+{{- $_ := set $context.Values "__endpointHost" ( index $endpointMap.hosts $endpoint | default $endpointMap.hosts.default ) }}
+{{- if kindIs "map" $context.Values.__endpointHost }}
+{{- $_ := set $context.Values "__endpointHost" ( index $context.Values.__endpointHost "host" ) }}
+{{- end }}
+{{- $endpointHost := $context.Values.__endpointHost }}
 {{- if regexMatch "[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+" $endpointHost }}
 {{- printf "%s" $type -}}
 {{- else }}
