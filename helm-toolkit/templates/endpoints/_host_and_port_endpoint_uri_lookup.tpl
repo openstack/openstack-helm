@@ -17,21 +17,37 @@ limitations under the License.
 {{/*
 abstract: |
   Resolves 'hostname:port' for an endpoint
-values: |
-  endpoints:
-    cluster_domain_suffix: cluster.local
-    oslo_db:
-      hosts:
-        default: mariadb
-      host_fqdn_override:
-        default: null
-      port:
-        mysql:
-          default: 3306
-usage: |
-  {{ tuple "oslo_db" "internal" "mysql" . | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" }}
-return: |
-  mariadb.default.svc.cluster.local:3306
+examples:
+  - values: |
+      endpoints:
+        cluster_domain_suffix: cluster.local
+        oslo_db:
+          hosts:
+            default: mariadb
+          host_fqdn_override:
+            default: null
+          port:
+            mysql:
+              default: 3306
+    usage: |
+      {{ tuple "oslo_db" "internal" "mysql" . | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" }}
+    return: |
+      mariadb.default.svc.cluster.local:3306
+  - values: |
+      endpoints:
+        cluster_domain_suffix: cluster.local
+        oslo_db:
+          hosts:
+            default: 127.0.0.1
+          host_fqdn_override:
+            default: null
+          port:
+            mysql:
+              default: 3306
+    usage: |
+      {{ tuple "oslo_db" "internal" "mysql" . | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" }}
+    return: |
+      127.0.0.1:3306
 */}}
 
 {{- define "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" -}}
@@ -40,6 +56,6 @@ return: |
 {{- $port := index . 2 -}}
 {{- $context := index . 3 -}}
 {{- $endpointPort := tuple $type $endpoint $port $context | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-{{- $endpointHostname := tuple $type $endpoint $context | include "helm-toolkit.endpoints.hostname_fqdn_endpoint_lookup" }}
+{{- $endpointHostname := tuple $type $endpoint $context | include "helm-toolkit.endpoints.endpoint_host_lookup" }}
 {{- printf "%s:%s" $endpointHostname $endpointPort -}}
 {{- end -}}
