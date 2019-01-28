@@ -31,14 +31,15 @@ if [ "x${ARG}" == "xcron" ]; then
   done
 fi
 
-if [ "x${ARG}" == "xdefrag" ]; then
+if [ "x${ARG}" == "xdefrag" ] && [ "x${STORAGE_TYPE%-*}" == "xblock" ]; then
+  OSD_DEVICE=$(readlink -f ${STORAGE_LOCATION})
+  ODEV=$(echo ${OSD_DEVICE} | sed 's/[0-9]//g' | cut -f 3 -d '/')
   OSD_PATH=$(cat /proc/mounts | awk '/ceph-/{print $2}')
-  OSD_DEVICE=$(cat /proc/mounts | awk '/ceph-/{print $1}')
   OSD_STORE=$(cat ${OSD_PATH}/type)
+  DATA_PART=$(cat /proc/mounts | awk '/ceph-/{print $1}')
 
-  ODEV=$(echo "${OSD_DEVICE}" | sed 's/\(.*[^0-9]\)[0-9]*$/\1/' | awk -F'/' '{print $3}')
   ODEV_ROTATIONAL=$(cat /sys/block/${ODEV}/queue/rotational)
-  ODEV_SCHEDULER=$(cat /sys/block/${ODEV}/queue/scheduler)
+  ODEV_SCHEDULER=$(cat /sys/block/${ODEV}/queue/scheduler | tr -d '[]')
 
   # NOTE(supamatt): TODO implement bluestore defrag options once it's available upstream
   if [ "${ODEV_ROTATIONAL}" -eq "1" ] && [ "x${OSD_STORE}" == "xfilestore" ]; then

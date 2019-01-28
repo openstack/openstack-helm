@@ -88,8 +88,22 @@ storageclass:
     admin_secret_namespace: tenant-ceph
 bootstrap:
   enabled: true
+jobs:
+  ceph_defragosds:
+    # Execute every 15 minutes for gates
+    cron: "*/15 * * * *"
+    history:
+      # Number of successful job to keep
+      successJob: 1
+      # Number of failed job to keep
+      failJob: 1
+    concurrency:
+      # Skip new job if previous job still active
+      execPolicy: Forbid
+    startingDeadlineSecs: 60
 manifests:
   deployment_mds: false
+  cronjob_defragosds: true
 ceph_mgr_modules_config:
   prometheus:
     server_port: 9284

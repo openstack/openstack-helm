@@ -74,9 +74,22 @@ conf:
         journal:
           type: directory
           location: /var/lib/openstack-helm/ceph/osd/journal-one
-
+jobs:
+  ceph_defragosds:
+    # Execute every 15 minutes for gates
+    cron: "*/15 * * * *"
+    history:
+      # Number of successful job to keep
+      successJob: 1
+      # Number of failed job to keep
+      failJob: 1
+    concurrency:
+      # Skip new job if previous job still active
+      execPolicy: Forbid
+    startingDeadlineSecs: 60
 manifests:
   cronjob_checkPGs: true
+  cronjob_defragosds: true
 EOF
 
 for CHART in ceph-mon ceph-osd ceph-client ceph-provisioners; do
