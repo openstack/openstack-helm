@@ -17,18 +17,44 @@ limitations under the License.
 {{/*
 abstract: |
   Resolves the fully qualified hostname for an endpoint
-values: |
-  endpoints:
-    cluster_domain_suffix: cluster.local
-    oslo_db:
-      hosts:
-        default: mariadb
-      host_fqdn_override:
-        default: null
-usage: |
-  {{ tuple "oslo_db" "internal" . | include "helm-toolkit.endpoints.hostname_fqdn_endpoint_lookup" }}
-return: |
-  mariadb.default.svc.cluster.local
+examples:
+  - values: |
+      endpoints:
+        cluster_domain_suffix: cluster.local
+        oslo_db:
+          hosts:
+            default: mariadb
+          host_fqdn_override:
+            default: null
+    usage: |
+      {{ tuple "oslo_db" "internal" . | include "helm-toolkit.endpoints.hostname_fqdn_endpoint_lookup" }}
+    return: |
+      mariadb.default.svc.cluster.local
+  - values: |
+      endpoints:
+        cluster_domain_suffix: cluster.local
+        oslo_db:
+          hosts:
+            default: mariadb
+          host_fqdn_override:
+            default: mariadb.openstackhelm.openstack.org
+    usage: |
+      {{ tuple "oslo_db" "internal" . | include "helm-toolkit.endpoints.hostname_fqdn_endpoint_lookup" }}
+    return: |
+      mariadb.openstackhelm.openstack.org
+  - values: |
+      endpoints:
+        cluster_domain_suffix: cluster.local
+        oslo_db:
+          hosts:
+            default: mariadb
+          host_fqdn_override:
+            default:
+              host: mariadb.openstackhelm.openstack.org
+    usage: |
+      {{ tuple "oslo_db" "internal" . | include "helm-toolkit.endpoints.hostname_fqdn_endpoint_lookup" }}
+    return: |
+      mariadb.openstackhelm.openstack.org
 */}}
 
 {{- define "helm-toolkit.endpoints.hostname_fqdn_endpoint_lookup" -}}
@@ -38,11 +64,15 @@ return: |
 {{- $endpointMap := index $context.Values.endpoints ( $type | replace "-" "_" ) }}
 {{- $endpointHostNamespaced := tuple $type $endpoint $context | include "helm-toolkit.endpoints.hostname_namespaced_endpoint_lookup" }}
 {{- $endpointClusterHostname := printf "%s.svc.%s" $endpointHostNamespaced $context.Values.endpoints.cluster_domain_suffix }}
+{{- $_ := set $context.Values "__FQDNendpointHostDefault" ( index $endpointMap.host_fqdn_override "default" | default "" ) }}
+{{- if kindIs "map" $context.Values.__FQDNendpointHostDefault }}
+{{- $_ := set $context.Values "__FQDNendpointHostDefault" ( index $context.Values.__FQDNendpointHostDefault "host" ) }}
+{{- end }}
 {{- if kindIs "map" (index $endpointMap.host_fqdn_override $endpoint) }}
-{{- $endpointHostname := index $endpointMap.host_fqdn_override $endpoint "host" | default $endpointMap.host_fqdn_override.default | default $endpointMap.host_fqdn_override.default | default $endpointClusterHostname }}
+{{- $endpointHostname := index $endpointMap.host_fqdn_override $endpoint "host" | default $context.Values.__FQDNendpointHostDefault | default $endpointClusterHostname }}
 {{- printf "%s" $endpointHostname -}}
 {{- else }}
-{{- $endpointHostname := index $endpointMap.host_fqdn_override $endpoint | default $endpointMap.host_fqdn_override.default | default $endpointClusterHostname }}
+{{- $endpointHostname := index $endpointMap.host_fqdn_override $endpoint | default $context.Values.__FQDNendpointHostDefault | default $endpointClusterHostname }}
 {{- printf "%s" $endpointHostname -}}
 {{- end -}}
 {{- end -}}
