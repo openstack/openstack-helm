@@ -23,6 +23,7 @@ set -ex
 : "${CEPH_CONF:="/etc/ceph/${CLUSTER}.conf"}"
 : "${OSD_BOOTSTRAP_KEYRING:=/var/lib/ceph/bootstrap-osd/${CLUSTER}.keyring}"
 : "${OSD_JOURNAL_UUID:=$(uuidgen)}"
+: "${OSD_JOURNAL_SIZE:=$(awk '/^osd_journal_size/{print $3}' ${CEPH_CONF}.template)}"
 
 eval OSD_PG_INTERVAL_FIX=$(cat /etc/ceph/storage.json | python -c 'import sys, json; data = json.load(sys.stdin); print(json.dumps(data["osd_pg_interval_fix"]))')
 eval CRUSH_FAILURE_DOMAIN_TYPE=$(cat /etc/ceph/storage.json | python -c 'import sys, json; data = json.load(sys.stdin); print(json.dumps(data["failure_domain"]))')
@@ -142,6 +143,16 @@ function dev_part {
   fi
 }
 
+function disk_zap {
+  # Run all the commands that ceph-disk zap uses to clear a disk
+  local device=${1}
+  wipefs --all ${device}
+  # Wipe the first 200MB boundary, as Bluestore redeployments will not work otherwise
+  dd if=/dev/zero of=${device} bs=1M count=200
+  sgdisk --zap-all -- ${device}
+  sgdisk --clear --mbrtogpt -- ${device}
+}
+
 function osd_pg_interval_fix {
   # NOTE(supamatt): https://tracker.ceph.com/issues/21142 is impacting us due to the older Ceph version 12.2.3 that we are running
   if [ "x${OSD_PG_INTERVAL_FIX}" == "xtrue" ]; then
@@ -154,7 +165,9 @@ function osd_pg_interval_fix {
 function udev_settle {
   partprobe "${OSD_DEVICE}"
   if [ "x$JOURNAL_TYPE" == "xblock-logical" ]; then
-    partprobe "${OSD_JOURNAL}"
+    OSD_JOURNAL=$(readlink -f ${OSD_JOURNAL})
+    local JDEV=$(echo ${OSD_JOURNAL} | sed 's/[0-9]//g')
+    partprobe "${JDEV}"
   fi
   # watch the udev event queue, and exit if all current events are handled
   udevadm settle --timeout=600
