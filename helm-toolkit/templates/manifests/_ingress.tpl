@@ -60,7 +60,7 @@ values: |
           default: 9311
           public: 80
 usage: |
-  {{- include "helm-toolkit.manifests.ingress" ( dict "envAll" . "backendServiceType" "key-manager" "backendPort" "b-api" ) -}}
+  {{- include "helm-toolkit.manifests.ingress" ( dict "envAll" . "backendServiceType" "key-manager" "backendPort" "b-api" "endpoint" "public" ) -}}
 return: |
   ---
   apiVersion: extensions/v1beta1
@@ -158,10 +158,11 @@ return: |
 {{- $backendService := index . "backendService" | default "api" -}}
 {{- $backendServiceType := index . "backendServiceType" -}}
 {{- $backendPort := index . "backendPort" -}}
-{{- $ingressName := tuple $backendServiceType "public" $envAll | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
+{{- $endpoint := index . "endpoint" | default "public" -}}
+{{- $ingressName := tuple $backendServiceType $endpoint $envAll | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
 {{- $backendName := tuple $backendServiceType "internal" $envAll | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
-{{- $hostName := tuple $backendServiceType "public" $envAll | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
-{{- $hostNameFull := tuple $backendServiceType "public" $envAll | include "helm-toolkit.endpoints.hostname_fqdn_endpoint_lookup" }}
+{{- $hostName := tuple $backendServiceType $endpoint $envAll | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
+{{- $hostNameFull := tuple $backendServiceType $endpoint $envAll | include "helm-toolkit.endpoints.hostname_fqdn_endpoint_lookup" }}
 ---
 apiVersion: extensions/v1beta1
 kind: Ingress
@@ -189,12 +190,15 @@ metadata:
 {{ toYaml (index $envAll.Values.network $backendService "ingress" "annotations") | indent 4 }}
 spec:
 {{- $host := index $envAll.Values.endpoints ( $backendServiceType | replace "-" "_" ) "host_fqdn_override" }}
-{{- if hasKey $host "public" }}
-{{- if kindIs "map" $host.public }}
-{{- if hasKey $host.public "tls" }}
-{{- if and $host.public.tls.key $host.public.tls.crt }}
+{{- if hasKey $host $endpoint }}
+{{- $endpointHost := index $host $endpoint }}
+{{- if kindIs "map" $endpointHost }}
+{{- if hasKey $endpointHost "tls" }}
+{{- if and ( not ( empty $endpointHost.tls.key ) ) ( not ( empty $endpointHost.tls.crt ) ) }}
+{{- $secretName := index $envAll.Values.secrets "tls" ( $backendServiceType | replace "-" "_" ) $backendService $endpoint }}
+{{- $_ := required "You need to specify a secret in your values for the endpoint" $secretName }}
   tls:
-    - secretName: {{ index $envAll.Values.secrets "tls" ( $backendServiceType | replace "-" "_" ) $backendService "public" }}
+    - secretName: {{ $secretName }}
       hosts:
         - {{ index $hostNameFullRules "vHost" }}
 {{- end }}
