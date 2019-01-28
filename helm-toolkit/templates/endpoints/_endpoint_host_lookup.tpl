@@ -18,18 +18,57 @@ limitations under the License.
 abstract: |
   Resolves either the fully qualified hostname, of if defined in the host feild
   IPv4 for an endpoint.
-values: |
-  endpoints:
-    cluster_domain_suffix: cluster.local
-    oslo_db:
-      hosts:
-        default: mariadb
-      host_fqdn_override:
-        default: null
-usage: |
-  {{ tuple "oslo_db" "internal" . | include "helm-toolkit.endpoints.endpoint_host_lookup" }}
-return: |
-  mariadb.default.svc.cluster.local
+examples:
+  - values: |
+      endpoints:
+        cluster_domain_suffix: cluster.local
+        oslo_db:
+          hosts:
+            default: mariadb
+          host_fqdn_override:
+            default: null
+    usage: |
+      {{ tuple "oslo_db" "internal" . | include "helm-toolkit.endpoints.endpoint_host_lookup" }}
+    return: |
+      mariadb.default.svc.cluster.local
+  - values: |
+      endpoints:
+        cluster_domain_suffix: cluster.local
+        oslo_db:
+          hosts:
+            default:
+             host: mariadb
+          host_fqdn_override:
+            default: null
+    usage: |
+      {{ tuple "oslo_db" "internal" . | include "helm-toolkit.endpoints.endpoint_host_lookup" }}
+    return: |
+      mariadb.default.svc.cluster.local
+  - values: |
+      endpoints:
+        cluster_domain_suffix: cluster.local
+        oslo_db:
+          hosts:
+            default: 127.0.0.1
+          host_fqdn_override:
+            default: null
+    usage: |
+      {{ tuple "oslo_db" "internal" . | include "helm-toolkit.endpoints.endpoint_host_lookup" }}
+    return: |
+      127.0.0.1
+  - values: |
+      endpoints:
+        cluster_domain_suffix: cluster.local
+        oslo_db:
+          hosts:
+            default:
+             host: 127.0.0.1
+          host_fqdn_override:
+            default: null
+    usage: |
+      {{ tuple "oslo_db" "internal" . | include "helm-toolkit.endpoints.endpoint_host_lookup" }}
+    return: |
+      127.0.0.1
 */}}
 
 {{- define "helm-toolkit.endpoints.endpoint_host_lookup" -}}
@@ -38,7 +77,11 @@ return: |
 {{- $context := index . 2 -}}
 {{- $endpointMap := index $context.Values.endpoints ( $type | replace "-" "_" ) }}
 {{- $endpointScheme := $endpointMap.scheme }}
-{{- $endpointHost := index $endpointMap.hosts $endpoint | default $endpointMap.hosts.default }}
+{{- $_ := set $context.Values "__endpointHost" ( index $endpointMap.hosts $endpoint | default $endpointMap.hosts.default ) }}
+{{- if kindIs "map" $context.Values.__endpointHost }}
+{{- $_ := set $context.Values "__endpointHost" ( index $context.Values.__endpointHost "host" ) }}
+{{- end }}
+{{- $endpointHost := $context.Values.__endpointHost }}
 {{- if regexMatch "[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+" $endpointHost }}
 {{- $endpointHostname := printf "%s" $endpointHost }}
 {{- printf "%s" $endpointHostname -}}
