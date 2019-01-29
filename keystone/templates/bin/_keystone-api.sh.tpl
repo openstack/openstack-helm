@@ -31,6 +31,11 @@ function start () {
      source /etc/apache2/envvars
   fi
 
+  if [ -f /var/run/apache2/apache2.pid ]; then
+     # Remove the stale pid for debian/ubuntu images
+     rm -f /var/run/apache2/apache2.pid
+  fi
+
   # Start Apache2
   exec apache2 -DFOREGROUND
 }
