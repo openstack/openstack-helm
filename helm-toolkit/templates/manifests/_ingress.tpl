@@ -17,127 +17,210 @@ limitations under the License.
 {{/*
 abstract: |
   Creates a manifest for a services ingress rules.
-values: |
-  network:
-    api:
-      ingress:
-        public: true
-        classes:
-          namespace: "nginx"
-          cluster: "nginx-cluster"
+examples:
+  - values: |
+      network:
+        api:
+          ingress:
+            public: true
+            classes:
+              namespace: "nginx"
+              cluster: "nginx-cluster"
+            annotations:
+              nginx.ingress.kubernetes.io/rewrite-target: /
+      secrets:
+        tls:
+          key_manager:
+            api:
+              public: barbican-tls-public
+      endpoints:
+        cluster_domain_suffix: cluster.local
+        key_manager:
+          name: barbican
+          hosts:
+            default: barbican-api
+            public: barbican
+          host_fqdn_override:
+            default: null
+            public:
+              host: barbican.openstackhelm.example
+              tls:
+                crt: |
+                  FOO-CRT
+                key: |
+                  FOO-KEY
+                ca: |
+                  FOO-CA_CRT
+          path:
+            default: /
+          scheme:
+            default: http
+            public: https
+          port:
+            api:
+              default: 9311
+              public: 80
+    usage: |
+      {{- include "helm-toolkit.manifests.ingress" ( dict "envAll" . "backendServiceType" "key-manager" "backendPort" "b-api" "endpoint" "public" ) -}}
+    return: |
+      ---
+      apiVersion: extensions/v1beta1
+      kind: Ingress
+      metadata:
+        name: barbican
         annotations:
+          kubernetes.io/ingress.class: "nginx"
           nginx.ingress.kubernetes.io/rewrite-target: /
-  secrets:
-    tls:
-      key_manager:
+
+      spec:
+        rules:
+          - host: barbican
+            http:
+              paths:
+                - path: /
+                  backend:
+                    serviceName: barbican-api
+                    servicePort: b-api
+          - host: barbican.default
+            http:
+              paths:
+                - path: /
+                  backend:
+                    serviceName: barbican-api
+                    servicePort: b-api
+          - host: barbican.default.svc.cluster.local
+            http:
+              paths:
+                - path: /
+                  backend:
+                    serviceName: barbican-api
+                    servicePort: b-api
+      ---
+      apiVersion: extensions/v1beta1
+      kind: Ingress
+      metadata:
+        name: barbican-namespace-fqdn
+        annotations:
+          kubernetes.io/ingress.class: "nginx"
+          nginx.ingress.kubernetes.io/rewrite-target: /
+
+      spec:
+        tls:
+          - secretName: barbican-tls-public
+            hosts:
+              - barbican.openstackhelm.example
+        rules:
+          - host: barbican.openstackhelm.example
+            http:
+              paths:
+                - path: /
+                  backend:
+                    serviceName: barbican-api
+                    servicePort: b-api
+      ---
+      apiVersion: extensions/v1beta1
+      kind: Ingress
+      metadata:
+        name: barbican-cluster-fqdn
+        annotations:
+          kubernetes.io/ingress.class: "nginx-cluster"
+          nginx.ingress.kubernetes.io/rewrite-target: /
+
+      spec:
+        tls:
+          - secretName: barbican-tls-public
+            hosts:
+              - barbican.openstackhelm.example
+        rules:
+          - host: barbican.openstackhelm.example
+            http:
+              paths:
+                - path: /
+                  backend:
+                    serviceName: barbican-api
+                    servicePort: b-api
+  - values: |
+      network:
         api:
-          public: barbican-tls-public
-  endpoints:
-    cluster_domain_suffix: cluster.local
-    key_manager:
-      name: barbican
-      hosts:
-        default: barbican-api
-        public: barbican
-      host_fqdn_override:
-        default: null
-        public:
-          host: barbican.openstackhelm.example
-          tls:
-            crt: |
-              FOO-CRT
-            key: |
-              FOO-KEY
-            ca: |
-              FOO-CA_CRT
-      path:
-        default: /
-      scheme:
-        default: http
-        public: https
-      port:
-        api:
-          default: 9311
-          public: 80
-usage: |
-  {{- include "helm-toolkit.manifests.ingress" ( dict "envAll" . "backendServiceType" "key-manager" "backendPort" "b-api" "endpoint" "public" ) -}}
-return: |
-  ---
-  apiVersion: extensions/v1beta1
-  kind: Ingress
-  metadata:
-    name: barbican
-    annotations:
-      kubernetes.io/ingress.class: "nginx"
-      nginx.ingress.kubernetes.io/rewrite-target: /
+          ingress:
+            public: true
+            classes:
+              namespace: "nginx"
+              cluster: "nginx-cluster"
+            annotations:
+              nginx.ingress.kubernetes.io/rewrite-target: /
+      secrets:
+        tls:
+          key_manager:
+            api:
+              public: barbican-tls-public
+      endpoints:
+        cluster_domain_suffix: cluster.local
+        key_manager:
+          name: barbican
+          hosts:
+            default: barbican-api
+            public:
+              host: barbican
+              tls:
+                crt: |
+                  FOO-CRT
+                key: |
+                  FOO-KEY
+                ca: |
+                  FOO-CA_CRT
+          host_fqdn_override:
+            default: null
+          path:
+            default: /
+          scheme:
+            default: http
+            public: https
+          port:
+            api:
+              default: 9311
+              public: 80
+    usage: |
+      {{- include "helm-toolkit.manifests.ingress" ( dict "envAll" . "backendServiceType" "key-manager" "backendPort" "b-api" "endpoint" "public" ) -}}
+    return: |
+      ---
+      apiVersion: extensions/v1beta1
+      kind: Ingress
+      metadata:
+        name: barbican
+        annotations:
+          kubernetes.io/ingress.class: "nginx"
+          nginx.ingress.kubernetes.io/rewrite-target: /
 
-  spec:
-    rules:
-      - host: barbican
-        http:
-          paths:
-            - path: /
-              backend:
-                serviceName: barbican-api
-                servicePort: b-api
-      - host: barbican.default
-        http:
-          paths:
-            - path: /
-              backend:
-                serviceName: barbican-api
-                servicePort: b-api
-      - host: barbican.default.svc.cluster.local
-        http:
-          paths:
-            - path: /
-              backend:
-                serviceName: barbican-api
-                servicePort: b-api
-  ---
-  apiVersion: extensions/v1beta1
-  kind: Ingress
-  metadata:
-    name: barbican-namespace-fqdn
-    annotations:
-      kubernetes.io/ingress.class: "nginx"
-      nginx.ingress.kubernetes.io/rewrite-target: /
-
-  spec:
-    tls:
-      - secretName: barbican-tls-public
-        hosts:
-          - barbican.openstackhelm.example
-    rules:
-      - host: barbican.openstackhelm.example
-        http:
-          paths:
-            - path: /
-              backend:
-                serviceName: barbican-api
-                servicePort: b-api
-  ---
-  apiVersion: extensions/v1beta1
-  kind: Ingress
-  metadata:
-    name: barbican-cluster-fqdn
-    annotations:
-      kubernetes.io/ingress.class: "nginx-cluster"
-      nginx.ingress.kubernetes.io/rewrite-target: /
-
-  spec:
-    tls:
-      - secretName: barbican-tls-public
-        hosts:
-          - barbican.openstackhelm.example
-    rules:
-      - host: barbican.openstackhelm.example
-        http:
-          paths:
-            - path: /
-              backend:
-                serviceName: barbican-api
-                servicePort: b-api
+      spec:
+        tls:
+          - secretName: barbican-tls-public
+            hosts:
+              - barbican
+              - barbican.default
+              - barbican.default.svc.cluster.local
+        rules:
+          - host: barbican
+            http:
+              paths:
+                - path: /
+                  backend:
+                    serviceName: barbican-api
+                    servicePort: b-api
+          - host: barbican.default
+            http:
+              paths:
+                - path: /
+                  backend:
+                    serviceName: barbican-api
+                    servicePort: b-api
+          - host: barbican.default.svc.cluster.local
+            http:
+              paths:
+                - path: /
+                  backend:
+                    serviceName: barbican-api
+                    servicePort: b-api
 */}}
 
 {{- define "helm-toolkit.manifests.ingress._host_rules" -}}
@@ -172,6 +255,24 @@ metadata:
     kubernetes.io/ingress.class: {{ index $envAll.Values.network $backendService "ingress" "classes" "namespace" | quote }}
 {{ toYaml (index $envAll.Values.network $backendService "ingress" "annotations") | indent 4 }}
 spec:
+{{- $host := index $envAll.Values.endpoints ( $backendServiceType | replace "-" "_" ) "hosts" }}
+{{- if hasKey $host $endpoint }}
+{{- $endpointHost := index $host $endpoint }}
+{{- if kindIs "map" $endpointHost }}
+{{- if hasKey $endpointHost "tls" }}
+{{- if and ( not ( empty $endpointHost.tls.key ) ) ( not ( empty $endpointHost.tls.crt ) ) }}
+{{- $secretName := index $envAll.Values.secrets "tls" ( $backendServiceType | replace "-" "_" ) $backendService $endpoint }}
+{{- $_ := required "You need to specify a secret in your values for the endpoint" $secretName }}
+  tls:
+    - secretName: {{ $secretName }}
+      hosts:
+{{- range $key1, $vHost := tuple $hostName (printf "%s.%s" $hostName $envAll.Release.Namespace) (printf "%s.%s.svc.%s" $hostName $envAll.Release.Namespace $envAll.Values.endpoints.cluster_domain_suffix) }}
+        - {{ $vHost }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
   rules:
 {{- range $key1, $vHost := tuple $hostName (printf "%s.%s" $hostName $envAll.Release.Namespace) (printf "%s.%s.svc.%s" $hostName $envAll.Release.Namespace $envAll.Values.endpoints.cluster_domain_suffix) }}
 {{- $hostRules := dict "vHost" $vHost "backendName" $backendName "backendPort" $backendPort }}
