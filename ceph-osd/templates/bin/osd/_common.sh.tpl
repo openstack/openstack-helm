@@ -25,7 +25,6 @@ set -ex
 : "${OSD_JOURNAL_UUID:=$(uuidgen)}"
 : "${OSD_JOURNAL_SIZE:=$(awk '/^osd_journal_size/{print $3}' ${CEPH_CONF}.template)}"
 
-eval OSD_PG_INTERVAL_FIX=$(cat /etc/ceph/storage.json | python -c 'import sys, json; data = json.load(sys.stdin); print(json.dumps(data["osd_pg_interval_fix"]))')
 eval CRUSH_FAILURE_DOMAIN_TYPE=$(cat /etc/ceph/storage.json | python -c 'import sys, json; data = json.load(sys.stdin); print(json.dumps(data["failure_domain"]))')
 eval CRUSH_FAILURE_DOMAIN_NAME=$(cat /etc/ceph/storage.json | python -c 'import sys, json; data = json.load(sys.stdin); print(json.dumps(data["failure_domain_name"]))')
 eval CRUSH_FAILURE_DOMAIN_BY_HOSTNAME=$(cat /etc/ceph/storage.json | python -c 'import sys, json; data = json.load(sys.stdin); print(json.dumps(data["failure_domain_by_hostname"]))')
@@ -151,15 +150,6 @@ function disk_zap {
   dd if=/dev/zero of=${device} bs=1M count=200
   sgdisk --zap-all -- ${device}
   sgdisk --clear --mbrtogpt -- ${device}
-}
-
-function osd_pg_interval_fix {
-  # NOTE(supamatt): https://tracker.ceph.com/issues/21142 is impacting us due to the older Ceph version 12.2.3 that we are running
-  if [ "x${OSD_PG_INTERVAL_FIX}" == "xtrue" ]; then
-    for PG in $(ls ${OSD_PATH}/current | awk -F'_' '/head/{print $1}'); do
-      ceph-objectstore-tool --data-path ${OSD_PATH} --op rm-past-intervals --pgid ${PG};
-    done
-  fi
 }
 
 function udev_settle {
