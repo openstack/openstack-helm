@@ -41,6 +41,13 @@ values: |
         services:
           - endpoint: internal
             service: etcd
+        custom_resources:
+          - apiVersion: argoproj.io/v1alpha1
+            kind: Workflow
+            name: wf-example
+            fields:
+              - key: "status.phase"
+                value: "Succeeded"
   endpoints:
     local_image_registry:
       namespace: docker-registry
@@ -103,6 +110,8 @@ return: |
         value: ""
       - name: DEPENDENCY_POD_JSON
         value: ""
+      - name: DEPENDENCY_CUSTOM_RESOURCE
+        value: "[{\"apiVersion\":\"argoproj.io/v1alpha1\",\"kind\":\"Workflow\",\"namespace\":\"default\",\"name\":\"wf-example\",\"fields\":[{\"key\":\"status.phase\",\"value\":\"Succeeded\"}]}]"
       - name: COMMAND
         value: "echo done"
     command:
@@ -144,6 +153,9 @@ Values:
 {{- end -}}
 {{- end -}}
 {{- $deps := $envAll.Values.__kubernetes_entrypoint_init_container.deps }}
+{{- range $deps.custom_resources }}
+{{- $_ := set . "namespace" $envAll.Release.Namespace -}}
+{{- end -}}
 {{- $default_security_context := include "helm-toolkit.snippets.kubernetes_entrypoint_init_container._default_security_context" . | fromYaml }}
 {{- $patchedEnvAll := mergeOverwrite $default_security_context $envAll }}
 - name: init
@@ -181,6 +193,8 @@ Values:
       value: "{{ include "helm-toolkit.utils.joinListWithComma" $deps.container }}"
     - name: DEPENDENCY_POD_JSON
       value: {{ if $deps.pod }}{{ toJson $deps.pod | quote }}{{ else }}""{{ end }}
+    - name: DEPENDENCY_CUSTOM_RESOURCE
+      value: {{ if $deps.custom_resources }}{{ toJson $deps.custom_resources | quote }}{{ else }}""{{ end }}
     - name: COMMAND
       value: "echo done"
   command:
