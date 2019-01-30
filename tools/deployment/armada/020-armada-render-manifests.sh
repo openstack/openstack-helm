@@ -33,6 +33,7 @@ fi
 
 export CEPH_NETWORK=$(./tools/deployment/multinode/kube-node-subnet.sh)
 export CEPH_FS_ID="$(cat /tmp/ceph-fs-uuid.txt)"
+export RELEASE_UUID=$(uuidgen)
 export TUNNEL_DEVICE=$(ip -4 route list 0/0 | awk '{ print $5; exit }')
 export OSH_INFRA_PATH
 export OSH_PATH
