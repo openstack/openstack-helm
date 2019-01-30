@@ -19,30 +19,153 @@ set -xe
 #NOTE: Lint and package chart
 make fluent-logging
 
-tee /tmp/fluent-logging.yaml <<EOF
+if [ ! -d "/var/log/journal" ]; then
+tee /tmp/fluent-logging.yaml << EOF
+pod:
+  replicas:
+    fluentd: 1
+monitoring:
+  prometheus:
+    enabled: true
 manifests:
   network_policy: true
-network_policy:
+  monitoring:
+    prometheus:
+      network_policy_exporter: true
+mounts:
   fluentbit:
+    fluentbit:
+      volumes:
+        - name: runlog
+          hostPath:
+            path: /run/log
+      volumeMounts:
+        - name: runlog
+          mountPath: /run/log
+network_policy:
+  prometheus-fluentd-exporter:
     ingress:
       - from:
+        - podSelector:
+            matchLabels:
+              application: prometheus
+        ports:
+        - protocol: TCP
+          port: 9309
   fluentd:
     ingress:
       - from:
-  fluent:
-    ingress:
-      - from:
-  fluent-logging:
-    ingress:
-      - from:
+        - podSelector:
+            matchLabels:
+              application: fluentbit
+        - podSelector:
+            matchLabels:
+              application: prometheus-fluentd-exporter
+        - podSelector:
+            matchLabels:
+              application: keystone
+        - podSelector:
+            matchLabels:
+              application: heat
+        - podSelector:
+            matchLabels:
+              application: glance
+        - podSelector:
+            matchLabels:
+              application: cinder
+        - podSelector:
+            matchLabels:
+              application: barbican
+        - podSelector:
+            matchLabels:
+              application: ironic
+        - podSelector:
+            matchLabels:
+              application: nova
+        - podSelector:
+            matchLabels:
+              application: neutron
+        - podSelector:
+            matchLabels:
+              application: placement
+        ports:
+        - protocol: TCP
+          port: 24224
+        - protocol: TCP
+          port: 24220
 EOF
-
-
-#NOTE: Deploy command
 helm upgrade --install fluent-logging ./fluent-logging \
     --namespace=osh-infra \
-    --values=/tmp/fluent-logging.yaml \
-    --set pod.replicas.fluentd=1
+    --values=/tmp/fluent-logging.yaml
+else
+tee /tmp/fluent-logging.yaml << EOF
+pod:
+  replicas:
+    fluentd: 1
+monitoring:
+  prometheus:
+    enabled: true
+manifests:
+  network_policy: true
+  monitoring:
+    prometheus:
+      network_policy_exporter: true
+network_policy:
+  prometheus-fluentd-exporter:
+    ingress:
+      - from:
+        - podSelector:
+            matchLabels:
+              application: prometheus
+        ports:
+        - protocol: TCP
+          port: 9309
+  fluentd:
+    ingress:
+      - from:
+        - podSelector:
+            matchLabels:
+              application: fluentbit
+        - podSelector:
+            matchLabels:
+              application: prometheus-fluentd-exporter
+        - podSelector:
+            matchLabels:
+              application: keystone
+        - podSelector:
+            matchLabels:
+              application: heat
+        - podSelector:
+            matchLabels:
+              application: glance
+        - podSelector:
+            matchLabels:
+              application: cinder
+        - podSelector:
+            matchLabels:
+              application: barbican
+        - podSelector:
+            matchLabels:
+              application: ironic
+        - podSelector:
+            matchLabels:
+              application: nova
+        - podSelector:
+            matchLabels:
+              application: neutron
+        - podSelector:
+            matchLabels:
+              application: placement
+        ports:
+        - protocol: TCP
+          port: 24224
+        - protocol: TCP
+          port: 24220
+EOF
+helm upgrade --install fluent-logging ./fluent-logging \
+    --namespace=osh-infra \
+    --values=/tmp/fluent-logging.yaml
+fi
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh osh-infra

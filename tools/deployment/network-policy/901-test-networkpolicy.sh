@@ -55,6 +55,13 @@ test_netpol osh-infra mariadb server nagios.osh-infra.svc.cluster.local fail
 test_netpol osh-infra mariadb server prometheus.osh-infra.svc.cluster.local fail
 test_netpol osh-infra mariadb server nagios.osh-infra.svc.cluster.local fail
 test_netpol osh-infra mariadb server openstack-metrics.openstack.svc.cluster.local:9103 fail
+test_netpol osh-infra mariadb server kibana.osh-infra.svc.cluster.local fail
+test_netpol osh-infra mariadb server fluentd-logging.osh-infra.svc.cluster.local:24224 fail
+test_netpol osh-infra fluentbit daemon prometheus.osh-infra.svc.cluster.local fail
 
 # Doing positive tests
 test_netpol osh-infra grafana dashboard mariadb.osh-infra.svc.cluster.local:3306 success
+test_netpol osh-infra elasticsearch client kibana-dash.osh-infra.svc.cluster.local success
+test_netpol osh-infra fluentd internal elasticsearch-logging.osh-infra.svc.cluster.local success
+test_netpol osh-infra prometheus api fluentd-exporter.osh-infra.svc.cluster.local:9309/metrics success
+test_netpol osh-infra prometheus api elasticsearch-exporter.osh-infra.svc.cluster.local:9108/metrics success
