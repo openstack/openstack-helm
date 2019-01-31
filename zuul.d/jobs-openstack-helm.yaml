@@ -202,6 +202,34 @@
         - ./tools/deployment/armada/030-armada-apply-manifests.sh
 
 - job:
+    timeout: 9600
+    name: openstack-helm-armada-update-uuid
+    parent: openstack-helm-functional-temp
+    nodeset: openstack-helm-five-node-ubuntu
+    roles:
+      - zuul: openstack/openstack-helm-infra
+    pre-run:
+      - tools/gate/playbooks/osh-infra-upgrade-host.yaml
+      - tools/gate/playbooks/osh-infra-deploy-docker.yaml
+      - tools/gate/playbooks/osh-infra-build.yaml
+      - tools/gate/playbooks/osh-infra-deploy-k8s.yaml
+    run: tools/gate/playbooks/osh-gate-runner.yaml
+    post-run:
+      - tools/gate/playbooks/osh-infra-collect-logs.yaml
+      - tools/gate/playbooks/gather-armada-manifests.yaml
+    required-projects:
+      - openstack/openstack-helm-infra
+    vars:
+      zuul_osh_infra_relative_path: ../openstack-helm-infra/
+      gate_scripts:
+        - ./tools/deployment/armada/010-armada-host-setup.sh
+        - ./tools/deployment/armada/015-armada-build.sh
+        - ./tools/deployment/armada/020-armada-render-manifests.sh
+        - ./tools/deployment/armada/025-armada-validate-manifests.sh
+        - ./tools/deployment/armada/030-armada-apply-manifests.sh
+        - ./tools/deployment/armada/035-armada-update-uuid.sh
+
+- job:
     name: openstack-helm-multinode-temp-ubuntu
     parent: openstack-helm-multinode-temp
     nodeset: openstack-helm-five-node-ubuntu
