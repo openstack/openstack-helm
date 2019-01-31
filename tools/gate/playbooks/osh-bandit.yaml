@@ -1,0 +1,28 @@
+- hosts: all
+  name: openstack-helm-bandit
+  tasks:
+
+    - name: Install Required Packages and Setup Host
+      shell: |
+        set -xe;
+        ./tools/deployment/common/install-packages.sh
+        ./tools/deployment/common/deploy-k8s.sh
+        sudo -H pip install yq bandit
+      environment:
+        zuul_site_mirror_fqdn: "{{ zuul_site_mirror_fqdn }}"
+      args:
+        chdir: "{{ zuul.project.src_dir }}"
+
+    - name: Template out python files
+      shell: |
+        set -xe;
+        make all
+        mkdir -p python-files
+        ./tools/gate/files/template-python.sh
+      args:
+        chdir: "{{ zuul.project.src_dir }}"
+
+    - name: Run bandit against python files
+      shell: bandit -r ./python-files
+      args:
+        chdir: "{{ zuul.project.src_dir }}"
