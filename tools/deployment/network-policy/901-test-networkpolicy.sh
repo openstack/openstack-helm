@@ -16,14 +16,15 @@
 
 set -xe
 
-# test_netpol(namespace, component, target_host, expected_result{fail,success})
+# test_netpol(namespace, application label, component label, target_host, expected_result{fail,success})
 function test_netpol {
   NS=$1
-  COMPONENT=$2
-  HOST=$3
-  STATUS=$4
-  echo Testing connection from $COMPONENT to host $HOST with namespace $NS
-  POD=$(kubectl -n $NS get pod | grep $COMPONENT | grep Running | awk '{print $1}')
+  APPLICATION=$2
+  COMPONENT=$3
+  HOST=$4
+  STATUS=$5
+  echo Testing connection from component:$COMPONENT, application:$APPLICATION to host $HOST with namespace $NS
+  POD=$(kubectl -n $NS get pod -l application=$APPLICATION,component=$COMPONENT | grep Running | cut -f 1 -d " " | head -n 1)
   PID=$(sudo docker inspect --format '{{ .State.Pid }}' $(kubectl get pods --namespace $NS $POD -o jsonpath='{.status.containerStatuses[0].containerID}' | cut -c 10-21))
   if [ "x${STATUS}" == "xfail" ]; then
     if ! sudo nsenter -t $PID -n wget --spider --timeout=5 --tries=1 $HOST ; then
@@ -36,13 +37,11 @@ function test_netpol {
   fi
 }
 # Doing negative tests
-test_netpol osh-infra mariadb-server elasticsearch.osh-infra.svc.cluster.local fail
-test_netpol osh-infra mariadb-server nagios.osh-infra.svc.cluster.local fail
-test_netpol osh-infra mariadb-server prometheus.osh-infra.svc.cluster.local fail
+test_netpol osh-infra mariadb server elasticsearch.osh-infra.svc.cluster.local fail
+test_netpol osh-infra mariadb server nagios.osh-infra.svc.cluster.local fail
+test_netpol osh-infra mariadb server prometheus.osh-infra.svc.cluster.local fail
 
 # Doing positive tests
-test_netpol osh-infra grafana mariadb.osh-infra.svc.cluster.local:3306 success
+test_netpol osh-infra grafana dashboard mariadb.osh-infra.svc.cluster.local:3306 success
 
 echo Test successfully
-
-

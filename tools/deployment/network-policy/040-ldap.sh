@@ -40,6 +40,9 @@ network_policy:
       - podSelector:
           matchLabels:
             application: kibana
+      - podSelector:
+          matchLabels:
+            application: prometheus
       ports:
       - protocol: TCP
         port: 389
