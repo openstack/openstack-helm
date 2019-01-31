@@ -57,8 +57,22 @@ deployment:
   cephfs_provisioner: true
   client_secrets: false
   rgw_keystone_user_and_endpoints: false
+jobs:
+  ceph_defragosds:
+    # Execute every 15 minutes for gates
+    cron: "*/15 * * * *"
+    history:
+      # Number of successful job to keep
+      successJob: 1
+      # Number of failed job to keep
+      failJob: 1
+    concurrency:
+      # Skip new job if previous job still active
+      execPolicy: Forbid
+    startingDeadlineSecs: 60
 manifests:
   deployment_mds: false
+  cronjob_defragosds: true
 bootstrap:
   enabled: true
 conf:
