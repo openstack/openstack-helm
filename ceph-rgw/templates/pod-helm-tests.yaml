@@ -20,35 +20,6 @@ limitations under the License.
 {{- $serviceAccountName := printf "%s-%s" $envAll.Release.Name "test" }}
 {{ tuple $envAll "tests" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
-apiVersion: rbac.authorization.k8s.io/v1beta1
-kind: Role
-metadata:
-  name: {{ $serviceAccountName }}
-rules:
-  - apiGroups:
-      - ""
-    resources:
-      - pods
-      - pods/exec
-    verbs:
-      - "*"
-      - get
-      - list
-      - create
----
-apiVersion: rbac.authorization.k8s.io/v1beta1
-kind: RoleBinding
-metadata:
-  name: {{ $serviceAccountName }}
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: {{ $serviceAccountName }}
-subjects:
-  - kind: ServiceAccount
-    name: {{ $serviceAccountName }}
-    namespace: {{ $envAll.Release.Namespace }}
----
 apiVersion: v1
 kind: Pod
 metadata:
@@ -62,7 +33,6 @@ spec:
   serviceAccountName: {{ $serviceAccountName }}
   initContainers:
 {{ tuple $envAll "tests" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 4 }}
-{{ if .Values.conf.rgw_ks.enabled }}
     - name: ceph-keyring-placement
 {{ tuple $envAll "ceph_config_helper" | include "helm-toolkit.snippets.image" | indent 6 }}
       securityContext:
@@ -81,6 +51,7 @@ spec:
           subPath: key
           readOnly: true
   containers:
+{{ if .Values.conf.rgw_ks.enabled }}
     - name: ceph-rgw-ks-validation
 {{ tuple $envAll "ceph_config_helper" | include "helm-toolkit.snippets.image" | indent 6 }}
 {{ tuple $envAll $envAll.Values.pod.resources.tests | include "helm-toolkit.snippets.kubernetes_resources" | indent 6 }}

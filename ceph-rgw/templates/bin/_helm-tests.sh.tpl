@@ -54,13 +54,13 @@ function rgw_s3_bucket_validation ()
   echo "function: rgw_s3_bucket_validation"
 
   bucket=s3://rgw-test-bucket
-  create_bucket_output=$(s3cmd mb $bucket --host=$RGW_HOST --access_key=$S3_ADMIN_ACCESS_KEY --secret_key=$S3_ADMIN_SECRET_KEY --no-encrypt --no-check-certificate)
+  create_bucket_output=$(s3cmd mb $bucket --host=$RGW_HOST --host-bucket=$RGW_HOST --access_key=$S3_ADMIN_ACCESS_KEY --secret_key=$S3_ADMIN_SECRET_KEY --no-ssl)
 
   if [ $? -eq 0 ]; then
     echo "Bucket $bucket created"
     echo "Hello world!" > /tmp/hello.txt
 
-    s3cmd put /tmp/hello.txt $bucket --host=$RGW_HOST --access_key=$S3_ADMIN_ACCESS_KEY --secret_key=$S3_ADMIN_SECRET_KEY --no-encrypt --no-check-certificate
+    s3cmd put /tmp/hello.txt $bucket --host=$RGW_HOST --host-bucket=$RGW_HOST --access_key=$S3_ADMIN_ACCESS_KEY --secret_key=$S3_ADMIN_SECRET_KEY --no-ssl
     if [ $? -ne 0 ]; then
       echo "Error during s3cmd execution"
       exit 1
@@ -68,7 +68,7 @@ function rgw_s3_bucket_validation ()
       echo "File uploaded to bucket"
     fi
 
-    s3cmd get s3://rgw-test-bucket/hello.txt -> /tmp/output.txt --host=$RGW_HOST --access_key=$S3_ADMIN_ACCESS_KEY --secret_key=$S3_ADMIN_SECRET_KEY --no-encrypt --no-check-certificate
+    s3cmd get s3://rgw-test-bucket/hello.txt -> /tmp/output.txt --host=$RGW_HOST --host-bucket=$RGW_HOST --access_key=$S3_ADMIN_ACCESS_KEY --secret_key=$S3_ADMIN_SECRET_KEY --no-ssl
     if [ $? -ne 0 ]; then
       echo "Error during s3cmd execution"
       exit 1
@@ -82,13 +82,13 @@ function rgw_s3_bucket_validation ()
       echo "Content matches from downloaded file using s3cmd"
     fi
 
-    s3cmd ls $bucket --host=$RGW_HOST --access_key=$S3_ADMIN_ACCESS_KEY --secret_key=$S3_ADMIN_SECRET_KEY --no-encrypt --no-check-certificate
+    s3cmd ls $bucket --host=$RGW_HOST --host-bucket=$RGW_HOST --access_key=$S3_ADMIN_ACCESS_KEY --secret_key=$S3_ADMIN_SECRET_KEY --no-ssl
     if [ $? -ne 0 ]; then
       echo "Error during s3cmd execution"
       exit 1
     fi
 
-    s3cmd del s3://rgw-test-bucket/hello.txt --host=$RGW_HOST --access_key=$S3_ADMIN_ACCESS_KEY --secret_key=$S3_ADMIN_SECRET_KEY --no-encrypt --no-check-certificate
+    s3cmd del s3://rgw-test-bucket/hello.txt --host=$RGW_HOST --host-bucket=$RGW_HOST --access_key=$S3_ADMIN_ACCESS_KEY --secret_key=$S3_ADMIN_SECRET_KEY --no-ssl
     if [ $? -ne 0 ]; then
       echo "Error during s3cmd execution"
       exit 1
@@ -96,7 +96,7 @@ function rgw_s3_bucket_validation ()
       echo "File from bucket is deleted"
     fi
 
-    s3cmd del --recursive --force $bucket --host=$RGW_HOST --access_key=$S3_ADMIN_ACCESS_KEY --secret_key=$S3_ADMIN_SECRET_KEY --no-encrypt --no-check-certificate
+    s3cmd del --recursive --force $bucket --host=$RGW_HOST --host-bucket=$RGW_HOST --access_key=$S3_ADMIN_ACCESS_KEY --secret_key=$S3_ADMIN_SECRET_KEY --no-ssl
     if [ $? -ne 0 ]; then
       echo "Error during s3cmd execution"
       exit 1
@@ -118,7 +118,6 @@ fi
 
 if [ {{ .Values.conf.rgw_s3.enabled }} == true ];
 then
-  echo "--> S3 is enabled. Calling function to test S2 based auth "
+  echo "--> S3 is enabled. Calling function to test S3 based auth "
   rgw_s3_bucket_validation
 fi
-
