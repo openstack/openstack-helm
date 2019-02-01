@@ -171,6 +171,11 @@ conf:
         debug: "False"
         keystone_multidomain_support: "True"
         keystone_default_domain: Default
+        disable_password_reveal: "False"
+        csrf_cookie_secure: "False"
+        session_cookie_secure: "False"
+        session_cookie_httponly: "False"
+        secure_proxy_ssl_header: false
         openstack_cinder_features:
           enable_backup: "True"
         openstack_neutron_network:
@@ -234,12 +239,16 @@ conf:
         # https://docs.djangoproject.com/en/1.4/ref/settings/#secure-proxy-ssl-header
         #SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTOCOL', 'https')
         # https://docs.djangoproject.com/en/1.5/ref/settings/#secure-proxy-ssl-header
-        #SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+        {{- if .Values.conf.horizon.local_settings.config.secure_proxy_ssl_header }}
+        SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+        {{- end }}
 
         # If Horizon is being served through SSL, then uncomment the following two
         # settings to better secure the cookies from security exploits
-        #CSRF_COOKIE_SECURE = True
-        #SESSION_COOKIE_SECURE = True
+        CSRF_COOKIE_SECURE = '{{ .Values.conf.horizon.local_settings.config.csrf_cookie_secure }}'
+        SESSION_COOKIE_SECURE = '{{ .Values.conf.horizon.local_settings.config.session_cookie_secure }}'
+
+        SESSION_COOKIE_HTTPONLY = '{{ .Values.conf.horizon.local_settings.config.session_cookie_httponly }}'
 
         # Overrides for OpenStack API versions. Use this setting to force the
         # OpenStack dashboard to use a specific API version for a given service API.
@@ -305,7 +314,7 @@ conf:
 
         # Setting this to True will disable the reveal button for password fields,
         # including on the login form.
-        #HORIZON_CONFIG["disable_password_reveal"] = False
+        HORIZON_CONFIG["disable_password_reveal"] = '{{ .Values.conf.horizon.local_settings.config.disable_password_reveal }}'
 
         LOCAL_PATH = '/tmp'
 
