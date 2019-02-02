@@ -297,6 +297,29 @@
         - ./tools/deployment/armada/030-armada-apply-manifests.sh
 
 - job:
+    name: openstack-helm-infra-armada-update-uuid
+    parent: openstack-helm-infra-functional
+    nodeset: openstack-helm-five-node-ubuntu
+    timeout: 7200
+    pre-run:
+      - playbooks/osh-infra-upgrade-host.yaml
+      - playbooks/osh-infra-deploy-docker.yaml
+      - playbooks/osh-infra-build.yaml
+      - playbooks/osh-infra-deploy-k8s.yaml
+    run: playbooks/osh-infra-gate-runner.yaml
+    post-run:
+      - playbooks/osh-infra-collect-logs.yaml
+      - playbooks/gather-armada-manifests.yaml
+    vars:
+      gate_scripts:
+        - ./tools/deployment/armada/010-armada-host-setup.sh
+        - ./tools/deployment/armada/015-armada-build.sh
+        - ./tools/deployment/armada/020-armada-render-manifests.sh
+        - ./tools/deployment/armada/025-armada-validate-manifests.sh
+        - ./tools/deployment/armada/030-armada-apply-manifests.sh
+        - ./tools/deployment/armada/035-armada-update-uuids.sh
+
+- job:
     name: openstack-helm-infra-airship-divingbell
     parent: openstack-helm-infra
     nodeset: openstack-helm-single-node
