@@ -28,3 +28,5 @@ helm upgrade --install prometheus ./prometheus \
 
 #NOTE: Validate Deployment info
 helm status prometheus
+
+helm test prometheus

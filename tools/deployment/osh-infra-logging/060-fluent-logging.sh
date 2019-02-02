@@ -49,3 +49,5 @@ fi
 
 #NOTE: Validate Deployment info
 helm status fluent-logging
+
+helm test fluent-logging

@@ -43,3 +43,5 @@ helm upgrade --install elasticsearch ./elasticsearch \
 
 #NOTE: Validate Deployment info
 helm status elasticsearch
+
+helm test elasticsearch

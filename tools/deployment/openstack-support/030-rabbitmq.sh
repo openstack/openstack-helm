@@ -32,3 +32,5 @@ helm upgrade --install rabbitmq ./rabbitmq \
 
 #NOTE: Validate Deployment info
 helm status rabbitmq
+
+helm test rabbitmq
