@@ -18,12 +18,20 @@ limitations under the License.
 
 set -ex
 
-cp -va /tmp/ceph.conf /etc/ceph/ceph.conf
+cp -va /etc/ceph/ceph.conf.template /etc/ceph/ceph.conf
 
 cat >> /etc/ceph/ceph.conf <<EOF
 
 [client.rgw.$(hostname -s)]
 rgw_frontends = "beast port=${RGW_FRONTEND_PORT}"
+{{ range $key, $value := .Values.conf.rgw.config -}}
+{{- if kindIs "slice" $value -}}
+{{ $key }} = {{ include "helm-toolkit.joinListWithComma" $value | quote }}
+{{ else -}}
+{{ $key }} = {{ $value | quote  }}
+{{ end -}}
+{{- end -}}
+{{ if .Values.conf.rgw_ks.enabled }}
 rgw_keystone_url = "${KEYSTONE_URL}"
 rgw_keystone_admin_user = "${OS_USERNAME}"
 rgw_keystone_admin_password = "${OS_PASSWORD}"
@@ -36,4 +44,13 @@ rgw_keystone_admin_domain = "${OS_USER_DOMAIN_NAME}"
 {{ $key }} = {{ $value | quote  }}
 {{ end -}}
 {{- end -}}
+{{ end }}
+{{ range $key, $value := .Values.conf.rgw_s3.config -}}
+{{- if kindIs "slice" $value -}}
+{{ $key }} = {{ include "helm-toolkit.joinListWithComma" $value | quote }}
+{{ else -}}
+{{ $key }} = {{ $value | quote  }}
+{{ end -}}
+{{- end -}}
+
 EOF

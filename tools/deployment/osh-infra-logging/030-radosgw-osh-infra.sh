@@ -56,3 +56,6 @@ helm upgrade --install radosgw-osh-infra ./ceph-rgw \
 
 #NOTE: Validate Deployment info
 helm status radosgw-osh-infra
+
+#NOTE: Test Deployment
+helm test radosgw-osh-infra --timeout 900

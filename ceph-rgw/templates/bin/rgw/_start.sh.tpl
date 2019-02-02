@@ -54,12 +54,6 @@ if [ ! -e "${RGW_KEYRING}" ]; then
   chmod 0600 "${RGW_KEYRING}"
 fi
 
-if [[ $(ceph -v | egrep -c "luminous" | xargs echo) -gt 0 ]]; then
-  RGW_FRONTENDS="civitweb port=${RGW_FRONTEND_PORT}"
-else
-  RGW_FRONTENDS="beast port=${RGW_FRONTEND_PORT}"
-fi
-
 /usr/bin/radosgw \
   --cluster "${CLUSTER}" \
   --setuser "ceph" \
@@ -69,5 +63,4 @@ fi
   -k "${RGW_KEYRING}" \
   --rgw-socket-path="" \
   --rgw-zonegroup="${RGW_ZONEGROUP}" \
-  --rgw-zone="${RGW_ZONE}" \
-  --rgw-frontends="${RGW_FRONTENDS}"
+  --rgw-zone="${RGW_ZONE}"
