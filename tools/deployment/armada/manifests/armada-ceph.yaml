@@ -1,0 +1,339 @@
+---
+schema: armada/Chart/v1
+metadata:
+  schema: metadata/Document/v1
+  name: helm-toolkit
+data:
+  chart_name: helm-toolkit
+  release: helm-toolkit
+  namespace: helm-toolkit
+  values: {}
+  source:
+    type: local
+    location: ${OSH_INFRA_PATH}
+    subpath: helm-toolkit
+    reference: master
+  dependencies: []
+---
+schema: armada/Chart/v1
+metadata:
+  schema: metadata/Document/v1
+  name: ceph-ingress-controller
+data:
+  chart_name: ceph-ingress-controller
+  release: ceph-ingress-controller
+  namespace: ceph
+  wait:
+    timeout: 1800
+    labels:
+      release_group: osh-ceph-ingress-controller
+  install:
+    no_hooks: False
+  upgrade:
+    no_hooks: False
+    pre:
+      delete:
+        - type: job
+          labels:
+            release_group: osh-ceph-ingress-controller
+  values:
+    release_uuid: ${RELEASE_UUID}
+    labels:
+      server:
+        node_selector_key: openstack-control-plane
+        node_selector_value: enabled
+      error_server:
+        node_selector_key: openstack-control-plane
+        node_selector_value: enabled
+    pod:
+      replicas:
+        error_page: 2
+        ingress: 2
+  source:
+    type: local
+    location: ${OSH_INFRA_PATH}
+    subpath: ingress
+    reference: master
+  dependencies:
+    - helm-toolkit
+---
+schema: armada/Chart/v1
+metadata:
+  schema: metadata/Document/v1
+  name: ceph-mon
+data:
+  chart_name: ceph-mon
+  release: ceph-mon
+  namespace: ceph
+  wait:
+    timeout: 1800
+    labels:
+      release_group: osh-ceph-mon
+  install:
+    no_hooks: False
+  upgrade:
+    no_hooks: False
+    pre:
+      delete:
+        - type: job
+          labels:
+            release_group: osh-ceph-mon
+  values:
+    release_uuid: ${RELEASE_UUID}
+    endpoints:
+      ceph_mon:
+        namespace: ceph
+    network:
+      public: ${CEPH_NETWORK}
+      cluster: ${CEPH_NETWORK}
+    deployment:
+      storage_secrets: true
+      ceph: true
+    bootstrap:
+      enabled: true
+    conf:
+      ceph:
+        global:
+          fsid: ${CEPH_FS_ID}
+      pool:
+        crush:
+          tunables: ${CRUSH_TUNABLES}
+        target:
+          # NOTE(portdirect): 5 nodes, with one osd per node
+          osd: 5
+          pg_per_osd: 100
+      storage:
+        osd:
+          - data:
+              type: directory
+              location: /var/lib/openstack-helm/ceph/osd/osd-one
+            journal:
+              type: directory
+              location: /var/lib/openstack-helm/ceph/osd/journal-one
+  source:
+    type: local
+    location: ${OSH_INFRA_PATH}
+    subpath: ceph-mon
+    reference: master
+  dependencies:
+    - helm-toolkit
+---
+schema: armada/Chart/v1
+metadata:
+  schema: metadata/Document/v1
+  name: ceph-osd
+data:
+  chart_name: ceph-osd
+  release: ceph-osd
+  namespace: ceph
+  wait:
+    timeout: 1800
+    labels:
+      release_group: osh-ceph-osd
+  test:
+    enabled: true
+  install:
+    no_hooks: False
+  upgrade:
+    no_hooks: False
+    pre:
+      delete:
+        - type: job
+          labels:
+            release_group: osh-ceph-osd
+        - type: pod
+          labels:
+            release_group: osh-ceph-osd
+            component: test
+  values:
+    release_uuid: ${RELEASE_UUID}
+    endpoints:
+      ceph_mon:
+        namespace: ceph
+    network:
+      public: ${CEPH_NETWORK}
+      cluster: ${CEPH_NETWORK}
+    deployment:
+      ceph: true
+    bootstrap:
+      enabled: true
+    conf:
+      ceph:
+        global:
+          fsid: ${CEPH_FS_ID}
+      rgw_ks:
+        enabled: true
+      pool:
+        crush:
+          tunables: ${CRUSH_TUNABLES}
+        target:
+          # NOTE(portdirect): 5 nodes, with one osd per node
+          osd: 5
+          pg_per_osd: 100
+      storage:
+        osd:
+          - data:
+              type: directory
+              location: /var/lib/openstack-helm/ceph/osd/osd-one
+            journal:
+              type: directory
+              location: /var/lib/openstack-helm/ceph/osd/journal-one
+  source:
+    type: local
+    location: ${OSH_INFRA_PATH}
+    subpath: ceph-osd
+    reference: master
+  dependencies:
+    - helm-toolkit
+---
+schema: armada/Chart/v1
+metadata:
+  schema: metadata/Document/v1
+  name: ceph-client
+data:
+  chart_name: ceph-client
+  release: ceph-client
+  namespace: ceph
+  wait:
+    timeout: 1800
+    labels:
+      release_group: osh-ceph-client
+  test:
+    enabled: true
+  install:
+    no_hooks: False
+  upgrade:
+    no_hooks: False
+    pre:
+      delete:
+        - type: job
+          labels:
+            release_group: osh-ceph-client
+        - type: pod
+          labels:
+            release_group: osh-ceph-client
+            component: test
+  values:
+    release_uuid: ${RELEASE_UUID}
+    endpoints:
+      ceph_mon:
+        namespace: ceph
+    network:
+      public: ${CEPH_NETWORK}
+      cluster: ${CEPH_NETWORK}
+    deployment:
+      ceph: true
+    bootstrap:
+      enabled: true
+    conf:
+      ceph:
+        global:
+          fsid: ${CEPH_FS_ID}
+      pool:
+        crush:
+          tunables: ${CRUSH_TUNABLES}
+        target:
+          # NOTE(portdirect): 5 nodes, with one osd per node
+          osd: 5
+          pg_per_osd: 100
+      storage:
+        osd:
+          - data:
+              type: directory
+              location: /var/lib/openstack-helm/ceph/osd/osd-one
+            journal:
+              type: directory
+              location: /var/lib/openstack-helm/ceph/osd/journal-one
+  source:
+    type: local
+    location: ${OSH_INFRA_PATH}
+    subpath: ceph-client
+    reference: master
+  dependencies:
+    - helm-toolkit
+---
+schema: armada/Chart/v1
+metadata:
+  schema: metadata/Document/v1
+  name: ceph-provisioners
+data:
+  chart_name: ceph-provisioners
+  release: ceph-provisioners
+  namespace: ceph
+  wait:
+    timeout: 1800
+    labels:
+      release_group: osh-ceph-provisioners
+  install:
+    no_hooks: False
+  upgrade:
+    no_hooks: False
+    pre:
+      delete:
+        - type: job
+          labels:
+            release_group: osh-ceph-provisioners
+  values:
+    release_uuid: ${RELEASE_UUID}
+    endpoints:
+      ceph_mon:
+        namespace: ceph
+    network:
+      public: ${CEPH_NETWORK}
+      cluster: ${CEPH_NETWORK}
+    deployment:
+      ceph: true
+      rbd_provisioner: true
+      cephfs_provisioner: true
+      client_secrets: false
+    bootstrap:
+      enabled: true
+    conf:
+      ceph:
+        global:
+          fsid: ${CEPH_FS_ID}
+      pool:
+        crush:
+          tunables: ${CRUSH_TUNABLES}
+        target:
+          # NOTE(portdirect): 5 nodes, with one osd per node
+          osd: 5
+          pg_per_osd: 100
+      storage:
+        osd:
+          - data:
+              type: directory
+              location: /var/lib/openstack-helm/ceph/osd/osd-one
+            journal:
+              type: directory
+              location: /var/lib/openstack-helm/ceph/osd/journal-one
+  source:
+    type: local
+    location: ${OSH_INFRA_PATH}
+    subpath: ceph-provisioners
+    reference: master
+  dependencies:
+    - helm-toolkit
+---
+schema: armada/ChartGroup/v1
+metadata:
+  schema: metadata/Document/v1
+  name: ceph-storage
+data:
+  description: "Ceph Storage"
+  sequenced: True
+  chart_group:
+    - ceph-ingress-controller
+    - ceph-mon
+    - ceph-osd
+    - ceph-client
+    - ceph-provisioners
+---
+schema: armada/Manifest/v1
+metadata:
+  schema: metadata/Document/v1
+  name: armada-manifest
+data:
+  release_prefix: osh
+  chart_groups:
+    - ceph-storage
