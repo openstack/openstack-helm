@@ -24,6 +24,7 @@ make mariadb
 helm upgrade --install mariadb ./mariadb \
     --namespace=osh-infra \
     --set pod.replicas.server=1 \
+    --set monitoring.prometheus.enabled=true \
     ${OSH_INFRA_EXTRA_HELM_ARGS} \
     ${OSH_INFRA_EXTRA_HELM_ARGS_MARIADB}
 

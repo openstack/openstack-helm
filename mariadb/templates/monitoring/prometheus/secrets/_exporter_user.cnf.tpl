@@ -15,7 +15,7 @@ limitations under the License.
 */}}
 
 [client]
-user = {{ .Values.endpoints.prometheus_mysql_exporter.auth.user.username }}
-password = {{ .Values.endpoints.prometheus_mysql_exporter.auth.user.password }}
+user = {{ .Values.endpoints.oslo_db.auth.exporter.username }}
+password = {{ .Values.endpoints.oslo_db.auth.exporter.password }}
 host = {{ tuple "oslo_db" "direct" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
 port = {{ tuple "oslo_db" "direct" "mysql" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
