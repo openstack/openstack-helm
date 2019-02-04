@@ -71,7 +71,7 @@ class cephCRUSH():
 
         try:
             """Retrieve the crush hierarchies"""
-            crushTree = "ceph osd crush tree -f json-pretty | grep -v '^\[\]'"
+            crushTree = "ceph osd crush tree -f json-pretty | jq .nodes"
             chstr = subprocess.check_output(crushTree, shell=True)
             self.crushHierarchy = json.loads(chstr)
         except subprocess.CalledProcessError as e:
