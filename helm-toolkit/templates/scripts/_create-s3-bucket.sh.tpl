@@ -17,37 +17,30 @@ limitations under the License.
 {{- define "helm-toolkit.scripts.create_s3_bucket" }}
 #!/bin/bash
 
-function create_rgw_s3_bucket ()
-{
-  if [ "$RGW_PROTO" = "http" ]; then
-    create_bucket=$(s3cmd mb s3://$S3_BUCKET --host=$RGW_HOST --host-bucket=$RGW_HOST --access_key=$S3_ADMIN_ACCESS_KEY --secret_key=$S3_ADMIN_SECRET_KEY --no-ssl)
-  else
-    create_bucket=$(s3cmd mb s3://$S3_BUCKET --host=$RGW_HOST --host-bucket=$RGW_HOST --access_key=$S3_ADMIN_ACCESS_KEY --secret_key=$S3_ADMIN_SECRET_KEY)
-  fi
-  if [ $? -eq 0 ]; then
-    echo "Bucket $S3_BUCKET created"
-  else
-    echo "Error trying to create bucket $S3_BUCKET"
-    exit 1
-  fi
+set -e
+CONNECTION_ARGS="--host=$RGW_HOST --host-bucket=$RGW_HOST"
+
+if [ "$RGW_PROTO" = "http" ]; then
+  CONNECTION_ARGS+=" --no-ssl"
+else
+  CONNECTION_ARGS+=" --no-check-certificate"
+fi
+
+ADMIN_AUTH_ARGS=" --access_key=$S3_ADMIN_ACCESS_KEY --secret_key=$S3_ADMIN_SECRET_KEY"
+USER_AUTH_ARGS=" --access_key=$S3_ACCESS_KEY --secret_key=$S3_SECRET_KEY"
+
+function check_rgw_s3_bucket () {
+  s3cmd $CONNECTION_ARGS $USER_AUTH_ARGS ls s3://$S3_BUCKET
 }
 
-function modify_bucket_acl ()
-{
-  if [ "$RGW_PROTO" = "http" ]; then
-    modify_acl=$(s3cmd setacl s3://$S3_BUCKET --host=$RGW_HOST --host-bucket=$RGW_HOST --access_key=$S3_ADMIN_ACCESS_KEY --secret_key=$S3_ADMIN_SECRET_KEY --no-ssl --acl-grant=read:$S3_USERNAME --acl-grant=write:$S3_USERNAME)
-  else
-    modify_acl=$(s3cmd setacl s3://$S3_BUCKET --host=$RGW_HOST --host-bucket=$RGW_HOST --access_key=$S3_ADMIN_ACCESS_KEY --secret_key=$S3_ADMIN_SECRET_KEY --acl-grant=read:$S3_USERNAME --acl-grant=write:$S3_USERNAME)
-  fi
-  if [ $? -eq 0 ]; then
-    echo "Bucket $S3_BUCKET ACL updated"
-  else
-    echo "Error trying to update bucket $S3_BUCKET ACL"
-    exit 1
-  fi
+function create_rgw_s3_bucket () {
+  s3cmd $CONNECTION_ARGS $ADMIN_AUTH_ARGS mb s3://$S3_BUCKET
 }
 
-create_rgw_s3_bucket
-modify_bucket_acl
+function modify_bucket_acl () {
+  s3cmd $CONNECTION_ARGS $ADMIN_AUTH_ARGS setacl s3://$S3_BUCKET --acl-grant=read:$S3_USERNAME --acl-grant=write:$S3_USERNAME
+}
+
+check_rgw_s3_bucket || ( create_rgw_s3_bucket && modify_bucket_acl )
 
 {{- end }}
