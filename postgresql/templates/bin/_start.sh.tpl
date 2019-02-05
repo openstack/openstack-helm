@@ -16,6 +16,25 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-set -ex
+# Disable echo mode while setting the password
+# unless we are in debug mode
+{{- if .Values.conf.debug }}
+set -x
+{{- end }}
+set -e
 
-exec /docker-entrypoint.sh postgres -N {{ .Values.conf.postgresql.max_connections }} -B {{ .Values.conf.postgresql.shared_buffers }}
+POSTGRES_DB=${POSTGRES_DB:-"postgres"}
+
+# Check if the Postgres data directory exists before attempting to
+# set the password
+if [[ -d "$PGDATA" && -s "$PGDATA/PG_VERSION" ]]
+then
+  postgres --single -D "$PGDATA" "$POSTGRES_DB" <<EOF
+ALTER ROLE $POSTGRES_USER WITH PASSWORD '$POSTGRES_PASSWORD'
+EOF
+
+fi
+
+set -x
+
+exec /docker-entrypoint.sh postgres -N {{ .Values.conf.postgresql.max_connections | quote }} -B {{ .Values.conf.postgresql.shared_buffers | quote }}
