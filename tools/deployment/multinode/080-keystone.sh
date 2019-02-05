@@ -31,4 +31,6 @@ helm status keystone
 export OS_CLOUD=openstack_helm
 sleep 30 #NOTE(portdirect): Wait for ingress controller to update rules and restart Nginx
 openstack endpoint list
+# Delete the test pod if it still exists
+kubectl delete pods -l application=keystone,release_group=keystone,component=test --namespace=openstack --ignore-not-found
 helm test keystone --timeout 900
