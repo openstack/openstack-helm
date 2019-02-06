@@ -28,22 +28,54 @@ function rgw_keystone_bucket_validation ()
   echo "--> creating openstack_test_container container"
   openstack container create 'openstack_test_container'
 
-  echo "--> rgw bucket list"
-  radosgw-admin bucket list
+  echo "--> list containers"
+  openstack container list
 
-  all_buckets_stats=$(radosgw-admin bucket stats --format json)
-  bucket_stat=$(echo $all_buckets_stats | jq -c '.[] | select(.bucket | contains("openstack_test_container"))')
+  bucket_stat=$(openstack container list | grep "openstack_test_container")
   if [[ -z ${bucket_stat} ]]; then
-    echo "--> rgw bucket openstack_test_container not found"
+    echo "--> container openstack_test_container not found"
     exit 1
   else
-    echo "--> rgw bucket openstack_test_container found"
+    echo "--> container openstack_test_container found"
+    echo "Hello world!" | tee /tmp/hello.txt
+
+    echo "--> file uploaded to openstack_test_container container"
+    openstack object create --name hello openstack_test_container /tmp/hello.txt
+
+    echo "--> list contents of openstack_test_container container"
+    openstack object list openstack_test_container
+
+    echo "--> download object from openstack_test_container container"
+    openstack object save --file /tmp/output.txt openstack_test_container hello
+    if [ $? -ne 0 ]; then
+      echo "Error during openstack CLI execution"
+      exit 1
+    else
+      echo "File downloaded from container"
+    fi
+
+    content=$(cat /tmp/output.txt)
+    if [ "Hello world!" == "${content}" ]; then
+      echo "Content matches from downloaded file using openstack CLI"
+    else
+      echo "Content is mismatched from downloaded file using openstack CLI"
+      exit 1
+    fi
+
+    echo "--> deleting object from openstack_test_container container"
+    openstack object delete openstack_test_container hello
+    if [ $? -ne 0 ]; then
+      echo "Error during openstack CLI execution"
+      exit 1
+    else
+      echo "File from container is deleted"
+    fi
 
     echo "--> deleting openstack_test_container container"
     openstack container delete openstack_test_container
 
     echo "--> bucket list after deleting container"
-    radosgw-admin bucket list
+    openstack container list
   fi
 }
 
@@ -58,7 +90,7 @@ function rgw_s3_bucket_validation ()
 
   if [ $? -eq 0 ]; then
     echo "Bucket $bucket created"
-    echo "Hello world!" > /tmp/hello.txt
+    echo "Hello world!" | tee /tmp/hello.txt
 
     s3cmd put /tmp/hello.txt $bucket --host=$RGW_HOST --host-bucket=$RGW_HOST --access_key=$S3_ADMIN_ACCESS_KEY --secret_key=$S3_ADMIN_SECRET_KEY --no-ssl
     if [ $? -ne 0 ]; then
@@ -77,9 +109,11 @@ function rgw_s3_bucket_validation ()
     fi
 
     content=$(cat /tmp/output.txt)
-    echo $content
-    if [ "Hello" == "${content}" ]; then
+    if [ "Hello world!" == "${content}" ]; then
       echo "Content matches from downloaded file using s3cmd"
+    else
+      echo "Content is mismatched from downloaded file using s3cmd"
+      exit 1
     fi
 
     s3cmd ls $bucket --host=$RGW_HOST --host-bucket=$RGW_HOST --access_key=$S3_ADMIN_ACCESS_KEY --secret_key=$S3_ADMIN_SECRET_KEY --no-ssl
