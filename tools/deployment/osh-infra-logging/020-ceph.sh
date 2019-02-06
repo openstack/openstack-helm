@@ -187,6 +187,7 @@ jobs:
 manifests:
   cronjob_checkPGs: true
   cronjob_defragosds: true
+  job_bootstrap: false
 EOF
 
 for CHART in ceph-mon ceph-osd ceph-client ceph-provisioners; do
