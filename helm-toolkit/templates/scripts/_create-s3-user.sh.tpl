@@ -22,15 +22,51 @@ set -ex
 function create_s3_user () {
   radosgw-admin user create \
     --uid=${S3_USERNAME} \
-    --display-name=${S3_USERNAME}
-
-  radosgw-admin key create \
-    --uid=${S3_USERNAME} \
+    --display-name=${S3_USERNAME} \
     --key-type=s3 \
     --access-key ${S3_ACCESS_KEY} \
     --secret-key ${S3_SECRET_KEY}
 }
 
-radosgw-admin user stats --uid=${S3_USERNAME} || \
+function update_s3_user () {
+  # Retrieve old access keys, if they exist
+  old_access_keys=$(radosgw-admin user info --uid=${S3_USERNAME} \
+    | jq -r '.keys[].access_key' || true)
+
+  if [[ ! -z ${old_access_keys} ]]; then
+    for access_key in $old_access_keys; do
+      # If current access key is the same as the key supplied, do nothing.
+      if [ "$access_key" == "${S3_ACCESS_KEY}" ]; then
+        echo "Current key pair exists."
+        continue
+      else
+        # If keys differ, remove previous key
+        radosgw-admin key rm --uid=${S3_USERNAME} --key-type=s3 --access-key=$access_key
+      fi
+    done
+  fi
+
+  # Perform one more additional check to account for scenarios where multiple
+  # key pairs existed previously, but one existing key was the supplied key
+  current_access_key=$(radosgw-admin user info --uid=${S3_USERNAME} \
+    | jq -r '.keys[].access_key' || true)
+
+  # If the supplied key does not exist, modify the user
+  if [[ -z ${current_access_key} ]]; then
+    # Modify user with new access and secret keys
+    echo "Updating key pair"
+    radosgw-admin user modify \
+      --uid=${S3_USERNAME}\
+      --access-key ${S3_ACCESS_KEY} \
+      --secret-key ${S3_SECRET_KEY}
+  fi
+}
+
+user_exists=$(radosgw-admin user info --uid=${S3_USERNAME} || true)
+if [[ -z ${user_exists} ]]; then
   create_s3_user
+else
+  update_s3_user
+fi
+
 {{- end }}
