@@ -731,7 +731,7 @@ elif get_cluster_state() == 'init':
     run_mysqld()
 elif get_cluster_state() == 'live':
     logger.info("Cluster has been running starting restore/rejoin")
-    if not mariadb_replicas > 1:
+    if not int(mariadb_replicas) > 1:
         logger.info(
             "There is only a single node in this cluster, we are good to go")
         update_grastate_on_restart()
