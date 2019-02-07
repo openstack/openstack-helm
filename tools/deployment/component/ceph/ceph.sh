@@ -36,14 +36,6 @@ else
 fi
 tee /tmp/ceph.yaml <<EOF
 endpoints:
-  identity:
-    namespace: openstack
-  object_store:
-    namespace: ceph
-    port:
-      api:
-        default: 8088
-        public: 80
   ceph_mon:
     namespace: ceph
     port:
@@ -65,7 +57,6 @@ deployment:
   rbd_provisioner: true
   cephfs_provisioner: true
   client_secrets: false
-  rgw_keystone_user_and_endpoints: false
 bootstrap:
   enabled: true
 conf:
