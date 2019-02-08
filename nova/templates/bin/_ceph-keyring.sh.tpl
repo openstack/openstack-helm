@@ -19,6 +19,8 @@ limitations under the License.
 set -ex
 export HOME=/tmp
 
+cp -vf /etc/ceph/ceph.conf.template /etc/ceph/ceph.conf
+
 KEYRING=/etc/ceph/ceph.client.${CEPH_CINDER_USER}.keyring
 {{- if .Values.conf.ceph.cinder.keyring }}
 cat > ${KEYRING} <<EOF
