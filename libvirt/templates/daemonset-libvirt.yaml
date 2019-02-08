@@ -100,7 +100,7 @@ spec:
               subPath: ceph-keyring.sh
               readOnly: true
             - name: ceph-etc
-              mountPath: /etc/ceph/ceph.conf
+              mountPath: /etc/ceph/ceph.conf.template
               subPath: ceph.conf
               readOnly: true
 {{- end }}
@@ -174,10 +174,9 @@ spec:
             {{- if .Values.conf.ceph.enabled }}
             - name: etcceph
               mountPath: /etc/ceph
-            - name: ceph-etc
-              mountPath: /etc/ceph/ceph.conf
-              subPath: ceph.conf
-              readOnly: true
+              {{- if or ( gt .Capabilities.KubeVersion.Major "1" ) ( ge .Capabilities.KubeVersion.Minor "10" ) }}
+              mountPropagation: Bidirectional
+              {{- end }}
             {{- if empty .Values.conf.ceph.cinder.keyring }}
             - name: ceph-keyring
               mountPath: /tmp/client-keyring
@@ -197,7 +196,8 @@ spec:
             defaultMode: 0444
         {{- if .Values.conf.ceph.enabled }}
         - name: etcceph
-          emptyDir: {}
+          hostPath:
+            path: /var/lib/openstack-helm/compute/libvirt
         - name: ceph-etc
           configMap:
             name: {{ .Values.ceph_client.configmap }}
