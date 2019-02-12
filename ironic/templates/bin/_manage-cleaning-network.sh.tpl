@@ -40,7 +40,7 @@ if [ "x${SUBNET_EXISTS}" != "xtrue" ]; then
   openstack subnet create \
     --gateway ${neutron_subnet_gateway%/*} \
     --allocation-pool start=${neutron_subnet_alloc_start},end=${neutron_subnet_alloc_end} \
-    --dns-nameserver 10.96.0.10 \
+    --dns-nameserver ${neutron_subnet_dns_nameserver} \
     --subnet-range ${neutron_subnet_cidr} \
     --network ${neutron_network_name} \
     ${neutron_subnet_name}
