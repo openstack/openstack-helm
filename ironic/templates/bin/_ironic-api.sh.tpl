@@ -18,12 +18,17 @@ limitations under the License.
 
 set -ex
 COMMAND="${@:-start}"
+{{- if and (.Values.bootstrap.object_store.enabled) (.Values.bootstrap.object_store.openstack.enabled) }}
+OPTIONS=" --config-file /tmp/pod-shared/swift.conf"
+{{- end }}
+{{- if and (.Values.bootstrap.network.enabled) (.Values.bootstrap.network.openstack.enabled) }}
+OPTIONS="${OPTIONS} --config-file /tmp/pod-shared/cleaning-network.conf"
+{{- end }}
 
 function start () {
   exec ironic-api \
         --config-file /etc/ironic/ironic.conf \
-        --config-file /tmp/pod-shared/swift.conf \
-        --config-file /tmp/pod-shared/cleaning-network.conf
+        ${OPTIONS}
 }
 
 function stop () {
