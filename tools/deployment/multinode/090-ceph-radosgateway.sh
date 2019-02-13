@@ -52,8 +52,7 @@ helm upgrade --install radosgw-openstack ${OSH_INFRA_PATH}/ceph-rgw \
 
 #NOTE: Validate Deployment info
 helm status radosgw-openstack
+
+#NOTE: Run Tests
 export OS_CLOUD=openstack_helm
-openstack service list
-openstack container create 'mygreatcontainer'
-curl -L -o '/tmp/superimportantfile.jpg' 'https://imgflip.com/s/meme/Cute-Cat.jpg'
-( cd /tmp && openstack object create 'mygreatcontainer' 'superimportantfile.jpg' )
+helm test radosgw-openstack
