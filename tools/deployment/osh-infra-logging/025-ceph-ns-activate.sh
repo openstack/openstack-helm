@@ -50,6 +50,8 @@ helm upgrade --install ceph-osh-infra-config ./ceph-provisioners \
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh osh-infra
 
+helm test ceph-osh-infra-config
+
 #NOTE: Validate Deployment info
 kubectl get -n osh-infra jobs --show-all
 kubectl get -n osh-infra secrets
