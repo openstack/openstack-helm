@@ -31,6 +31,7 @@ RABBITMQ_ADMIN_PASSWORD=`echo $RABBITMQ_ADMIN_CONNECTION | awk -F'[@]' '{print $
   | awk -F'[//:]' '{print $5}'`
 
 function rabbit_find_paritions () {
+  echo "Checking cluster partitions"
   PARTITIONS=$(rabbitmqadmin \
     --host="${RABBIT_HOSTNAME}" \
     --port="${RABBIT_PORT}" \
@@ -54,7 +55,7 @@ for num, node in enumerate(obj):
 rabbit_find_paritions
 
 function rabbit_check_users_match () {
-  # Check users match on all nodes
+  echo "Checking users match on all nodes"
   NODES=$(rabbitmqadmin \
     --host="${RABBIT_HOSTNAME}" \
     --port="${RABBIT_PORT}" \
@@ -62,7 +63,9 @@ function rabbit_check_users_match () {
     --password="${RABBITMQ_ADMIN_PASSWORD}" \
     list nodes -f bash)
   USER_LIST=$(mktemp --directory)
+  echo "Found the following nodes: ${NODES}"
   for NODE in ${NODES}; do
+    echo "Checking Node: ${NODE#*@}"
     rabbitmqadmin \
       --host=${NODE#*@} \
       --port="${RABBIT_PORT}" \
