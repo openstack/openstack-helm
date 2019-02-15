@@ -22,8 +22,9 @@ values: |
     user:
       myApp:
         uid: 34356
-    security_context:
-      myApp:
+    myApp:
+      security_context:
+        readOnlyRootFilesystem: true
         seLinuxOptions:
           level: "s0:c123,c456"
 usage: |
@@ -31,8 +32,9 @@ usage: |
 return: |
   securityContext:
     runAsUser: 34356
+    readOnlyRootFilesystem: true
     seLinuxOptions:
-      level: "s0:c123,c456"
+      level: s0:c123,c456
 */}}
 
 {{- define "helm-toolkit.snippets.kubernetes_pod_security_context" -}}
