@@ -27,13 +27,25 @@ function test_netpol {
   POD=$(kubectl -n $NS get pod -l application=$APPLICATION,component=$COMPONENT | grep Running | cut -f 1 -d " " | head -n 1)
   PID=$(sudo docker inspect --format '{{ .State.Pid }}' $(kubectl get pods --namespace $NS $POD -o jsonpath='{.status.containerStatuses[0].containerID}' | cut -c 10-21))
   if [ "x${STATUS}" == "xfail" ]; then
-    if ! sudo nsenter -t $PID -n wget --spider --timeout=5 --tries=1 $HOST ; then
-      echo "Connection timed out; as expected by policy."
+    if ! sudo nsenter -t $PID -n wget -r -nd --delete-after --timeout=5 --tries=1 $HOST ; then
+      if [[ "$?" == 6 ]]; then
+        exit 1
+      else
+        echo "Connection timed out; as expected by policy."
+      fi
     else
       exit 1
     fi
   else
-    sudo nsenter -t $PID -n wget --spider --timeout=10 --tries=1 $HOST
+    if sudo nsenter -t $PID -n wget -r -nd --delete-after --timeout=10 --tries=1 $HOST; then
+      echo "Connection successful; as expected by policy"
+    # NOTE(srwilkers): If wget returns error code 6 (invalid credentials), we should consider it
+    # a success
+    elif [[ "$?" == 6 ]]; then
+      echo "Connection successful; as expected by policy"
+    else
+      exit 1
+    fi
   fi
 }
 # Doing negative tests
@@ -43,5 +55,3 @@ test_netpol osh-infra mariadb server prometheus.osh-infra.svc.cluster.local fail
 
 # Doing positive tests
 test_netpol osh-infra grafana dashboard mariadb.osh-infra.svc.cluster.local:3306 success
-
-echo Test successfully
