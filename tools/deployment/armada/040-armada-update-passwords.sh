@@ -34,6 +34,7 @@ fi
 
 export CEPH_NETWORK=$(./tools/deployment/multinode/kube-node-subnet.sh)
 export CEPH_FS_ID="$(cat /tmp/ceph-fs-uuid.txt)"
+export RELEASE_UUID=$(uuidgen)
 export OSH_INFRA_PATH
 
 # NOTE(srwilkers): We add this here due to envsubst expanding the ${tag} placeholder in
