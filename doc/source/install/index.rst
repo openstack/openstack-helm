@@ -11,3 +11,4 @@ Contents:
    multinode
    kubernetes-gate
    ext-dns-fqdn
+   plugins/index
