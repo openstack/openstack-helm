@@ -28,31 +28,31 @@ Alternatively, this step can be performed by running the script directly:
 
   ./tools/deployment/multinode/020-ingress.sh
 
-  Deploy Ceph
-  ^^^^^^^^^^^
+Deploy Ceph
+^^^^^^^^^^^
 
-  .. literalinclude:: ../../../../tools/deployment/multinode/030-ceph.sh
-      :language: shell
-      :lines: 1,17-
+.. literalinclude:: ../../../tools/deployment/multinode/030-ceph.sh
+    :language: shell
+    :lines: 1,17-
 
-  Alternatively, this step can be performed by running the script directly:
+Alternatively, this step can be performed by running the script directly:
 
-  .. code-block:: shell
+.. code-block:: shell
 
-    ./tools/deployment/multinode/030-ceph.sh
+  ./tools/deployment/multinode/030-ceph.sh
 
-  Activate the OSH-Infra namespace to be able to use Ceph
-  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Activate the OSH-Infra namespace to be able to use Ceph
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-  .. literalinclude:: ../../../../tools/deployment/multinode/035-ceph-ns-activate.sh
-      :language: shell
-      :lines: 1,17-
+.. literalinclude:: ../../../tools/deployment/multinode/035-ceph-ns-activate.sh
+    :language: shell
+    :lines: 1,17-
 
-  Alternatively, this step can be performed by running the script directly:
+Alternatively, this step can be performed by running the script directly:
 
-  .. code-block:: shell
+.. code-block:: shell
 
-    ./tools/deployment/multinode/035-ceph-ns-activate.sh
+  ./tools/deployment/multinode/035-ceph-ns-activate.sh
 
 Deploy LDAP
 ^^^^^^^^^^^
