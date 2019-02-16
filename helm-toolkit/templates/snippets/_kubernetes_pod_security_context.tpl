@@ -22,8 +22,8 @@ values: |
     user:
       myApp:
         uid: 34356
-    myApp:
-      security_context:
+    security_context:
+      myApp:
         readOnlyRootFilesystem: true
         seLinuxOptions:
           level: "s0:c123,c456"
@@ -42,7 +42,9 @@ return: |
 {{- $application := index . "application" -}}
 securityContext:
   runAsUser: {{ index $envAll.Values.pod.user $application "uid" }}
-{{- if hasKey (index $envAll.Values.pod $application) "security_context" }}
-{{ toYaml (index $envAll.Values.pod $application "security_context") | indent 2 }}
-{{- end }}
+{{- if hasKey $envAll.Values.pod "security_context" }}
+{{- if hasKey ( index $envAll.Values.pod.security_context ) $application }}
+{{ toYaml ( index $envAll.Values.pod.security_context $application ) | indent 2 }}
+{{- end -}}
+{{- end -}}
 {{- end -}}
