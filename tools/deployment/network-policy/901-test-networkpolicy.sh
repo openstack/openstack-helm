@@ -54,6 +54,7 @@ test_netpol osh-infra mariadb server elasticsearch.osh-infra.svc.cluster.local f
 test_netpol osh-infra mariadb server nagios.osh-infra.svc.cluster.local fail
 test_netpol osh-infra mariadb server prometheus.osh-infra.svc.cluster.local fail
 test_netpol osh-infra mariadb server nagios.osh-infra.svc.cluster.local fail
+test_netpol osh-infra mariadb server openstack-metrics.openstack.svc.cluster.local:9103 fail
 
 # Doing positive tests
 test_netpol osh-infra grafana dashboard mariadb.osh-infra.svc.cluster.local:3306 success

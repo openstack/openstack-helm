@@ -17,18 +17,24 @@
 set -xe
 
 #NOTE: Lint and package chart
-make prometheus-kube-state-metrics
+make prometheus-openstack-exporter
 
-tee /tmp/kube-state-metrics.yaml << EOF
+tee /tmp/prometheus-openstack-exporter.yaml << EOF
 manifests:
+  job_ks_user: false
   network_policy: true
+dependencies:
+  static:
+    prometheus_openstack_exporter:
+      jobs: null
+      services: null
 network_policy:
-  kube-state-metrics:
+  prometheus-openstack-exporter:
     ingress:
       - from:
         - podSelector:
             matchLabels:
-              application: kube-state-metrics
+              application: prometheus-openstack-exporter
         - namespaceSelector:
             matchLabels:
               name: osh-infra
@@ -39,18 +45,17 @@ network_policy:
         - protocol: TCP
           port: 80
         - protocol: TCP
-          port: 8080
-        - protocol: TCP
-          port: 443
+          port: 9103
 EOF
 
 #NOTE: Deploy command
-helm upgrade --install prometheus-kube-state-metrics \
-    ./prometheus-kube-state-metrics --namespace=kube-system \
-    --values=/tmp/kube-state-metrics.yaml
+helm upgrade --install prometheus-openstack-exporter \
+    ./prometheus-openstack-exporter \
+    --namespace=openstack \
+    --values=/tmp/prometheus-openstack-exporter.yaml
 
 #NOTE: Wait for deploy
-./tools/deployment/common/wait-for-pods.sh kube-system
+./tools/deployment/common/wait-for-pods.sh openstack
 
 #NOTE: Validate Deployment info
-helm status prometheus-kube-state-metrics
+helm status prometheus-openstack-exporter
