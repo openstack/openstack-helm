@@ -16,7 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-set -ex
+set -e
 
 mysql --defaults-file=/etc/mysql/admin_user.cnf -e \
   "CREATE OR REPLACE USER '${EXPORTER_USER}'@'%' IDENTIFIED BY '${EXPORTER_PASSWORD}'; \

@@ -16,7 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-set -ex
+set -e
 
 psql "postgresql://${ADMIN_USER}:${ADMIN_PASSWORD}@${POSTGRESQL_HOST_PORT}?sslmode=disable" << EOF
 CREATE USER ${EXPORTER_USER} WITH PASSWORD '${EXPORTER_PASSWORD}';
