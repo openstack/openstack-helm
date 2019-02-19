@@ -58,6 +58,15 @@ images:
       - dep_check
       - image_repo_sync
 
+jobs:
+  resources_cleaner:
+    # daily
+    cron: "0 */24 * * *"
+    deleted_resources_ttl: '1day'
+    history:
+      success: 3
+      failed: 1
+
 network:
   api:
     ingress:
@@ -155,6 +164,19 @@ dependencies:
           service: oslo_db_postgresql
         - endpoint: internal
           service: metric
+    resources_cleaner:
+      jobs:
+        - gnocchi-storage-init
+        - gnocchi-db-sync
+        - gnocchi-ks-user
+        - gnocchi-ks-endpoints
+      services:
+        - endpoint: internal
+          service: oslo_db
+        - endpoint: internal
+          service: identity
+        - endpoint: internal
+          service: metric
     storage_init:
       services: null
     tests:
@@ -193,6 +215,9 @@ pod:
     gnocchi_metricd:
       init_container: null
       gnocchi_metricd:
+    gnocchi_resources_cleaner:
+      init_container: null
+      gnocchi_resources_cleaner:
     gnocchi_tests:
       init_container: null
       gnocchi_tests:
@@ -284,6 +309,13 @@ pod:
       ks_user:
         requests:
           memory: "124Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      resources_cleaner:
+        requests:
+          memory: "128Mi"
           cpu: "100m"
         limits:
           memory: "1024Mi"
@@ -577,6 +609,7 @@ endpoints:
 manifests:
   configmap_bin: true
   configmap_etc: true
+  cron_job_resources_cleaner: true
   daemonset_metricd: true
   daemonset_statsd: true
   deployment_api: true
