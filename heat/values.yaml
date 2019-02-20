@@ -55,6 +55,7 @@ images:
     heat_cloudwatch: docker.io/openstackhelm/heat:ocata
     heat_engine: docker.io/openstackhelm/heat:ocata
     heat_engine_cleaner: docker.io/openstackhelm/heat:ocata
+    heat_purge_deleted: docker.io/openstackhelm/heat:ocata
     dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.3.1
     image_repo_sync: docker.io/docker:17.07.0
   pull_policy: "IfNotPresent"
@@ -68,6 +69,13 @@ jobs:
   engine_cleaner:
     cron: "*/5 * * * *"
     starting_deadline: 600
+    history:
+      success: 3
+      failed: 1
+
+  purge_deleted:
+    cron: "20 */24 * * *"
+    purge_age: 60
     history:
       success: 3
       failed: 1
@@ -681,6 +689,20 @@ dependencies:
           service: oslo_messaging
         - endpoint: internal
           service: identity
+    purge_deleted:
+      jobs:
+        - heat-db-sync
+        - heat-ks-user
+        - heat-trustee-ks-user
+        - heat-domain-ks-user
+        - heat-ks-endpoints
+      services:
+        - endpoint: internal
+          service: oslo_db
+        - endpoint: internal
+          service: oslo_messaging
+        - endpoint: internal
+          service: identity
     ks_endpoints:
       jobs:
         - heat-ks-service
@@ -1013,6 +1035,11 @@ pod:
       heat_engine_cleaner:
         volumeMounts:
         volumes:
+    heat_purge_deleted:
+      init_container: null
+      heat_purge_deleted:
+        volumeMounts:
+        volumes:
     heat_tests:
       init_container: null
       heat_tests:
@@ -1155,6 +1182,13 @@ pod:
         limits:
           memory: "1024Mi"
           cpu: "2000m"
+      purge_deleted:
+        requests:
+          memory: "124Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
       image_repo_sync:
         requests:
           memory: "128Mi"
@@ -1204,6 +1238,7 @@ manifests:
   configmap_bin: true
   configmap_etc: true
   cron_job_engine_cleaner: true
+  cron_job_purge_deleted: true
   deployment_api: true
   deployment_cfn: true
   deployment_cloudwatch: false
