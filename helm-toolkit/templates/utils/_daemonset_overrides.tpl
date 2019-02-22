@@ -21,7 +21,6 @@ limitations under the License.
   {{- $configmap_name := index . 3 }}
   {{- $context := index . 4 }}
   {{- $_ := unset $context ".Files" }}
-  {{- $_ := set $context.Values "__daemonset_yaml" $daemonset_yaml }}
   {{- $daemonset_root_name := printf (print $context.Chart.Name "_" $daemonset) }}
   {{- $_ := set $context.Values "__daemonset_list" list }}
   {{- $_ := set $context.Values "__default" dict }}
@@ -194,12 +193,13 @@ limitations under the License.
   {{- $list_aggregate := append $context.Values.__daemonset_list $context.Values.__default }}
   {{- $_ := set $context.Values "__daemonset_list" $list_aggregate }}
 
-  {{- $_ := set $context.Values "__last_configmap_name" $configmap_name }}
   {{- range $current_dict := $context.Values.__daemonset_list }}
 
     {{- $context_novalues := omit $context "Values" }}
     {{- $merged_dict := merge $current_dict.nodeData $context_novalues }}
     {{- $_ := set $current_dict "nodeData" $merged_dict }}
+    {{/* Deep copy original daemonset_yaml */}}
+    {{- $_ := set $context.Values "__daemonset_yaml" ($daemonset_yaml | toYaml | fromYaml) }}
 
     {{/* name needs to be a DNS-1123 compliant name. Ensure lower case */}}
     {{- $name_format1 := printf (print $daemonset_root_name "-" $current_dict.name) | lower }}
@@ -235,7 +235,7 @@ limitations under the License.
     {{- range $current_volume := $context.Values.__daemonset_yaml.spec.template.spec.volumes }}
       {{- $_ := set $context.Values "__volume" $current_volume }}
       {{- if hasKey $context.Values.__volume "secret" }}
-        {{- if eq $context.Values.__volume.secret.secretName $context.Values.__last_configmap_name }}
+        {{- if eq $context.Values.__volume.secret.secretName $configmap_name }}
           {{- $_ := set $context.Values.__volume.secret "secretName" $current_dict.dns_1123_name }}
         {{- end }}
       {{- end }}
@@ -272,6 +272,5 @@ limitations under the License.
     {{/* generate daemonset yaml */}}
 ---
 {{ $context.Values.__daemonset_yaml | toYaml }}
-    {{- $_ := set $context.Values "__last_configmap_name" $current_dict.dns_1123_name }}
   {{- end }}
 {{- end }}
