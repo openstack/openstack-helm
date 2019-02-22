@@ -19,7 +19,7 @@ set -xe
 #NOTE: Lint and package chart
 make nagios
 
-tee /tmp/nagios.yaml <<EOF
+tee /tmp/nagios.yaml << EOF
 manifests:
   network_policy: true
 network_policy:
@@ -29,13 +29,17 @@ network_policy:
         - podSelector:
             matchLabels:
               application: nagios
+        - podSelector:
+            matchLabels:
+              application: ingress
         ports:
         - protocol: TCP
-          port: 8000
-        - protocol: TCP
           port: 80
+        - protocol: TCP
+          port: 8000
+        - protocol:
+          port: 443
 EOF
-
 
 #NOTE: Deploy command
 helm upgrade --install nagios ./nagios \
