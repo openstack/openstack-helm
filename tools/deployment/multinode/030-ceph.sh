@@ -16,6 +16,12 @@
 
 set -xe
 
+#NOTE: Lint and package chart
+make ceph-mon
+make ceph-osd
+make ceph-client
+make ceph-provisioners
+
 #NOTE: Deploy command
 [ -s /tmp/ceph-fs-uuid.txt ] || uuidgen > /tmp/ceph-fs-uuid.txt
 CEPH_PUBLIC_NETWORK="$(./tools/deployment/multinode/kube-node-subnet.sh)"
