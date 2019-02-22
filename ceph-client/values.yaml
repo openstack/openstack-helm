@@ -122,6 +122,20 @@ network:
   public: 192.168.0.0/16
   cluster: 192.168.0.0/16
 
+jobs:
+  pool_checkPGs:
+    # Execute every 15 minutes
+    cron: "*/15 * * * *"
+    history:
+      # Number of successful job to keep
+      successJob: 1
+      # Number of failed job to keep
+      failJob: 1
+    concurrency:
+      # Skip new job if previous job still active
+      execPolicy: Forbid
+    startingDeadlineSecs: 60
+
 conf:
   features:
     mds: true
@@ -319,6 +333,12 @@ dependencies:
       services:
         - endpoint: internal
           service: ceph_mon
+    pool_checkpgs:
+      jobs:
+        - ceph-rbd-pool
+      services:
+        - endpoint: internal
+          service: ceph_mgr
     checkdns:
       services:
         - endpoint: internal
@@ -449,3 +469,4 @@ manifests:
   job_rbd_pool: true
   service_mgr: true
   pod_test: false
+  cronjob_checkPGs: true

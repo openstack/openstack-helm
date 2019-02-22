@@ -73,7 +73,9 @@ spec:
         spec:
           serviceAccountName: {{ $serviceAccountName }}
           nodeSelector:
-            {{ .Values.labels.mon.node_selector_key }}: {{ .Values.labels.mon.node_selector_value }}
+            {{ .Values.labels.mgr.node_selector_key }}: {{ .Values.labels.mgr.node_selector_value }}
+          initContainers:
+{{ tuple $envAll "pool_checkpgs" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 12 }}
           containers:
           - name: {{ $serviceAccountName }}
 {{ tuple $envAll "ceph_config_helper" | include "helm-toolkit.snippets.image" | indent 12 }}
@@ -85,15 +87,15 @@ spec:
             command:
               - /tmp/utils-checkPGs.sh
             volumeMounts:
-              - name: ceph-mon-bin
+              - name: ceph-client-bin
                 mountPath: /tmp/utils-checkPGs.py
                 subPath: utils-checkPGs.py
                 readOnly: true
-              - name: ceph-mon-bin
+              - name: ceph-client-bin
                 mountPath: /tmp/utils-checkPGs.sh
                 subPath: utils-checkPGs.sh
                 readOnly: true
-              - name: ceph-mon-etc
+              - name: ceph-client-etc
                 mountPath: /etc/ceph/ceph.conf
                 subPath: ceph.conf
                 readOnly: true
@@ -116,13 +118,13 @@ spec:
           restartPolicy: Never
           hostNetwork: true
           volumes:
-            - name: ceph-mon-bin
+            - name: ceph-client-bin
               configMap:
-                name: ceph-mon-bin
+                name: ceph-client-bin
                 defaultMode: 0555
-            - name: ceph-mon-etc
+            - name: ceph-client-etc
               configMap:
-                name: ceph-mon-etc
+                name: ceph-client-etc
                 defaultMode: 0444
             - name: ceph-client-admin-keyring
               secret:
