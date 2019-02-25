@@ -36,13 +36,17 @@ if neutron-sanity-check --version >/dev/null 2>/dev/null; then
 fi
 
 # handle any bridge mappings
-{{- range $bridge, $port := .Values.network.auto_bridge_add }}
-ovs-vsctl --no-wait --may-exist add-br {{ $bridge }}
-{{ if $port }}
-ovs-vsctl --no-wait --may-exist add-port {{ $bridge }} {{ $port }}
-ip link set dev {{ $port }} up
-{{ end }}
-{{- end }}
+# /tmp/auto_bridge_add is one line json file: {"br-ex1":"eth1","br-ex2":"eth2"}
+for bmap in `sed 's/[{}"]//g' /tmp/auto_bridge_add | tr "," "\n"`
+do
+  bridge=${bmap%:*}
+  iface=${bmap#*:}
+  ovs-vsctl --no-wait --may-exist add-br $bridge
+  if [ -n "$iface" ] && [ "$iface" != "null" ]
+  then
+    ovs-vsctl --no-wait --may-exist add-port $bridge $iface
+  fi
+done
 
 tunnel_interface="{{- .Values.network.interface.tunnel -}}"
 if [ -z "${tunnel_interface}" ] ; then

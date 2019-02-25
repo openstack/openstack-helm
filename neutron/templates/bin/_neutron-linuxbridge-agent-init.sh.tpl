@@ -19,19 +19,21 @@ limitations under the License.
 set -ex
 
 # configure all bridge mappings defined in config
-{{- range $br, $phys := .Values.network.auto_bridge_add }}
-if [ -n "{{- $br -}}" ] ; then
-    # adding existing bridge would break out the script when -e is set
-    set +e
-    ip link add name {{ $br }} type bridge
-    set -e
-    ip link set dev {{ $br }} up
-    if [ -n "{{- $phys -}}" ] ; then
-        ip link set dev {{ $phys }}  master {{ $br }}
-    fi
-fi
-{{- end }}
-
+# /tmp/auto_bridge_add is one line json file: {"br-ex1":"eth1","br-ex2":"eth2"}
+for bmap in `sed 's/[{}"]//g' /tmp/auto_bridge_add | tr "," "\n"`
+do
+  bridge=${bmap%:*}
+  iface=${bmap#*:}
+  # adding existing bridge would break out the script when -e is set
+  set +e
+  ip link add name $bridge type bridge
+  set -e
+  ip link set dev $bridge up
+  if [ -n "$iface" ] && [ "$iface" != "null" ]
+  then
+    ip link set dev $iface  master $bridge
+  fi
+done
 
 tunnel_interface="{{- .Values.network.interface.tunnel -}}"
 if [ -z "${tunnel_interface}" ] ; then
