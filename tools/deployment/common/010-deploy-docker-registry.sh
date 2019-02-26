@@ -58,3 +58,6 @@ helm upgrade --install docker-registry ./registry \
 helm status docker-registry-nfs-provisioner
 helm status docker-registry-redis
 helm status docker-registry
+
+#NOTE: Run helm tests
+helm test docker-registry-redis
