@@ -143,6 +143,7 @@ conf:
     LoadModule proxy_connect_module modules/mod_proxy_connect.so
     LoadModule proxy_http_module modules/mod_proxy_http.so
     LoadModule proxy_balancer_module modules/mod_proxy_balancer.so
+    LoadModule remoteip_module modules/mod_remoteip.so
     LoadModule slotmem_shm_module modules/mod_slotmem_shm.so
     LoadModule slotmem_plain_module modules/mod_slotmem_plain.so
     LoadModule unixd_module modules/mod_unixd.so
@@ -168,16 +169,18 @@ conf:
     LogLevel warn
 
     <IfModule log_config_module>
-        LogFormat "%h %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\"" combined
+        LogFormat "%a %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\"" combined
+        LogFormat "%{X-Forwarded-For}i %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\"" proxy
         LogFormat "%h %l %u %t \"%r\" %>s %b" common
 
         <IfModule logio_module>
-          LogFormat "%h %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\" %I %O" combinedio
+          LogFormat "%a %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\" %I %O" combinedio
         </IfModule>
 
+        SetEnvIf X-Forwarded-For "^.*\..*\..*\..*" forwarded
         CustomLog /dev/stdout common
-
         CustomLog /dev/stdout combined
+        CustomLog /dev/stdout proxy env=forwarded
     </IfModule>
 
     <Directory "/usr/local/apache2/cgi-bin">
@@ -195,6 +198,7 @@ conf:
     </IfModule>
 
     <VirtualHost *:80>
+      RemoteIPHeader X-Original-Forwarded-For
       <Location />
           ProxyPass http://localhost:{{ tuple "kibana" "internal" "kibana" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}/
           ProxyPassReverse http://localhost:{{ tuple "kibana" "internal" "kibana" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}/
