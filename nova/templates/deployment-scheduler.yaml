@@ -60,12 +60,41 @@ spec:
 {{ tuple $envAll $envAll.Values.pod.resources.scheduler | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           securityContext:
             allowPrivilegeEscalation: false
+          readinessProbe:
+            exec:
+              command:
+              - python
+              - /tmp/health-probe.py
+              - --config-file
+              - /etc/nova/nova.conf
+              - --service-queue-name
+              - scheduler
+            initialDelaySeconds: 80
+            periodSeconds: 90
+            timeoutSeconds: 70
+          livenessProbe:
+            exec:
+              command:
+              - python
+              - /tmp/health-probe.py
+              - --config-file
+              - /etc/nova/nova.conf
+              - --service-queue-name
+              - scheduler
+              - --liveness-probe
+            initialDelaySeconds: 120
+            periodSeconds: 90
+            timeoutSeconds: 70
           command:
             - /tmp/nova-scheduler.sh
           volumeMounts:
             - name: nova-bin
               mountPath: /tmp/nova-scheduler.sh
               subPath: nova-scheduler.sh
+              readOnly: true
+            - name: nova-bin
+              mountPath: /tmp/health-probe.py
+              subPath: health-probe.py
               readOnly: true
             - name: nova-etc
               mountPath: /etc/nova/nova.conf

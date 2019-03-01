@@ -180,12 +180,41 @@ spec:
             - name: LIBVIRT_CEPH_SECRET_UUID
               value: "{{ .Values.conf.ceph.secret_uuid }}"
           {{ end }}
+          readinessProbe:
+            exec:
+              command:
+              - python
+              - /tmp/health-probe.py
+              - --config-file
+              - /etc/nova/nova.conf
+              - --service-queue-name
+              - compute
+            initialDelaySeconds: 80
+            periodSeconds: 90
+            timeoutSeconds: 70
+          livenessProbe:
+            exec:
+              command:
+              - python
+              - /tmp/health-probe.py
+              - --config-file
+              - /etc/nova/nova.conf
+              - --service-queue-name
+              - compute
+              - --liveness-probe
+            initialDelaySeconds: 120
+            periodSeconds: 90
+            timeoutSeconds: 70
           command:
             - /tmp/nova-compute.sh
           volumeMounts:
             - name: nova-bin
               mountPath: /tmp/nova-compute.sh
               subPath: nova-compute.sh
+              readOnly: true
+            - name: nova-bin
+              mountPath: /tmp/health-probe.py
+              subPath: health-probe.py
               readOnly: true
             - name: nova-etc
               mountPath: /etc/nova/nova.conf
