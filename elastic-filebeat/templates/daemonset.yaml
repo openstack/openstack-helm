@@ -78,6 +78,9 @@ kind: DaemonSet
 metadata:
   name: filebeat
 spec:
+  selector:
+    matchLabels:
+{{ tuple $envAll "filebeat" "daemon" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
 {{ tuple $envAll "filebeat" | include "helm-toolkit.snippets.kubernetes_upgrades_daemonset" | indent 2 }}
   template:
     metadata:
@@ -87,8 +90,12 @@ spec:
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
     spec:
       serviceAccountName: {{ $serviceAccountName }}
+{{ if $envAll.Values.pod.tolerations.filebeat.enabled }}
+{{ tuple $envAll "filebeat" | include "helm-toolkit.snippets.kubernetes_tolerations" | indent 6 }}
+{{ else }}
       nodeSelector:
-        {{ .Values.labels.filebeat.node_selector_key }}: {{ .Values.labels.filebeat.node_selector_value }}
+        {{ .Values.labels.filebeat.node_selector_key }}: {{ .Values.labels.filebeat.node_selector_value | quote }}
+{{ end }}
       initContainers:
 {{ tuple $envAll "filebeat" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:

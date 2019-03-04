@@ -78,6 +78,9 @@ kind: DaemonSet
 metadata:
   name: metricbeat-node-modules
 spec:
+  selector:
+    matchLabels:
+{{ tuple $envAll "metricbeat" "daemon" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
 {{ tuple $envAll "metricbeat" | include "helm-toolkit.snippets.kubernetes_upgrades_daemonset" | indent 2 }}
   template:
     metadata:
@@ -89,6 +92,12 @@ spec:
       hostNetwork: true
       dnsPolicy: ClusterFirstWithHostNet
       serviceAccountName: {{ $serviceAccountName }}
+{{ if $envAll.Values.pod.tolerations.metricbeat.enabled }}
+{{ tuple $envAll "metricbeat" | include "helm-toolkit.snippets.kubernetes_tolerations" | indent 6 }}
+{{ else }}
+      nodeSelector:
+        {{ .Values.labels.metricbeat.node_selector_key }}: {{ .Values.labels.metricbeat.node_selector_value | quote }}
+{{ end }}
       initContainers:
 {{ tuple $envAll "metricbeat" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
