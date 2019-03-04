@@ -330,7 +330,7 @@ spec:
             medium: "Memory"
         - name: ceph-osd-bin
           configMap:
-            name: ceph-osd-bin
+            name: {{ printf "%s-%s" $envAll.Release.Name "bin" | quote }}
             defaultMode: 0555
         - name: ceph-osd-etc
           configMap:
@@ -352,9 +352,9 @@ spec:
 {{- end }}
 
 {{- if .Values.manifests.daemonset_osd }}
-{{- $daemonset := "osd" }}
-{{- $configMapName := "ceph-osd-etc" }}
-{{- $serviceAccountName := "ceph-osd" }}
+{{- $daemonset := (printf "%s" .Release.Name) }}
+{{- $configMapName := (printf "%s-%s" .Release.Name "etc") }}
+{{- $serviceAccountName := (printf "%s" .Release.Name) }}
 {{ tuple . "osd" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 {{- $daemonset_yaml := list $daemonset $configMapName $serviceAccountName . | include "ceph.osd.daemonset" | toString | fromYaml }}
 {{- $configmap_yaml := "ceph.osd.configmap.etc" }}
