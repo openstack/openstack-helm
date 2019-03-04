@@ -29,6 +29,9 @@ labels:
   central:
     node_selector_key: openstack-control-plane
     node_selector_value: enabled
+  ipmi:
+    node_selector_key: openstack-node
+    node_selector_value: enabled
   collector:
     node_selector_key: openstack-control-plane
     node_selector_value: enabled
@@ -56,6 +59,7 @@ images:
     ceilometer_central: docker.io/kolla/ubuntu-source-ceilometer-central:ocata
     ceilometer_collector: docker.io/kolla/ubuntu-source-ceilometer-collector:ocata
     ceilometer_compute: docker.io/kolla/ubuntu-source-ceilometer-compute:ocata
+    ceilometer_ipmi: docker.io/kolla/ubuntu-source-ceilometer-base:ocata
     ceilometer_notification: docker.io/kolla/ubuntu-source-ceilometer-notification:ocata
     dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.3.1
     image_repo_sync: docker.io/docker:17.07.0
@@ -79,6 +83,8 @@ network:
     node_port:
       enabled: false
       port: 38777
+
+ipmi_device: /dev/ipmi0
 
 conf:
   ceilometer:
@@ -1500,6 +1506,22 @@ dependencies:
           service: mongodb
         - endpoint: internal
           service: metric
+    ipmi:
+      jobs:
+        - ceilometer-db-init-mongodb
+        - ceilometer-db-sync
+        - ceilometer-rabbit-init
+        - ceilometer-ks-user
+        - ceilometer-ks-endpoints
+      services:
+        - endpoint: internal
+          service: identity
+        - endpoint: internal
+          service: oslo_db
+        - endpoint: internal
+          service: mongodb
+        - endpoint: internal
+          service: metric
     collector:
       jobs:
         - ceilometer-db-init-mongodb
@@ -1808,6 +1830,9 @@ pod:
     ceilometer_central:
       init_container: null
       ceilometer_central:
+    ceilometer_ipmi:
+      init_container: null
+      ceilometer_ipmi:
     ceilometer_collector:
       init_container: null
       ceilometer_collector:
@@ -1872,6 +1897,13 @@ pod:
     central:
       requests:
         memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+    ipmi:
+      requests:
+        memory: "124Mi"
         cpu: "100m"
       limits:
         memory: "1024Mi"
@@ -1953,6 +1985,7 @@ manifests:
   deployment_central: true
   deployment_collector: true
   daemonset_compute: true
+  daemonset_ipmi: false
   deployment_notification: true
   ingress_api: true
   job_bootstrap: true
