@@ -19,7 +19,7 @@ Communication
 * Join us on `IRC <irc://chat.freenode.net:6697/openstack-helm>`_:
   #openstack-helm on freenode
 * Community IRC Meetings: [Every Tuesday @ 3PM UTC],
-  #openstack-meeting-5 on freenode
+  #openstack-meeting-4 on freenode
 * Meeting Agenda Items: `Agenda
   <https://etherpad.openstack.org/p/openstack-helm-meeting-agenda>`_
 
