@@ -35,7 +35,7 @@ EOF
 #NOTE: Deploy with host networking off, and test for failure
 helm upgrade --install podsecuritypolicy ./podsecuritypolicy \
   --namespace=kube-system \
-  --set data.psp-default.hostNetwork=false \
+  --set data.psp-default.spec.hostNetwork=false \
   ${OSH_INFRA_EXTRA_HELM_ARGS} \
   ${OSH_INFRA_EXTRA_HELM_ARGS_PODSECURITYPOLICY}
 
@@ -50,12 +50,14 @@ if kubectl apply -f /tmp/psp-test-pod.yaml; then
   echo "ERROR: podsecuritypolicy incorrectly admitted a privileged pod"
   kubectl delete pod psp-test
   exit 1
+else
+  echo "Failure above is expected. Continuing."
 fi
 
 #NOTE: Deploy with host networking on, and test for success
 helm upgrade --install podsecuritypolicy ./podsecuritypolicy \
   --namespace=kube-system \
-  --set data.psp-default.hostNetwork=true \
+  --set data.psp-default.spec.hostNetwork=true \
   ${OSH_INFRA_EXTRA_HELM_ARGS} \
   ${OSH_INFRA_EXTRA_HELM_ARGS_PODSECURITYPOLICY}
 
