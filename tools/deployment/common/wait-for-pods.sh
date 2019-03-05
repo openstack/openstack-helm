@@ -16,28 +16,36 @@
 set -e
 
 # From Kolla-Kubernetes, orginal authors Kevin Fox & Serguei Bezverkhi
-# Default wait timeout is 600 seconds
+# Default wait timeout is 900 seconds
 end=$(date +%s)
-if ! [ -z $2 ]; then
- end=$((end + $2))
-else
- end=$((end + 900))
-fi
+timeout=${2:-900}
+end=$((end + timeout))
 while true; do
     kubectl get pods --namespace=$1 -o json | jq -r \
         '.items[].status.phase' | grep Pending > /dev/null && \
-        PENDING=True || PENDING=False
+        PENDING="True" || PENDING="False"
     query='.items[]|select(.status.phase=="Running")'
     query="$query|.status.containerStatuses[].ready"
     kubectl get pods --namespace=$1 -o json | jq -r "$query" | \
         grep false > /dev/null && READY="False" || READY="True"
-    kubectl get jobs -o json --namespace=$1 | jq -r \
+    kubectl get jobs --namespace=$1 -o json | jq -r \
         '.items[] | .spec.completions == .status.succeeded' | \
         grep false > /dev/null && JOBR="False" || JOBR="True"
     [ $PENDING == "False" -a $READY == "True" -a $JOBR == "True" ] && \
         break || true
     sleep 5
     now=$(date +%s)
-    [ $now -gt $end ] && echo containers failed to start. && \
-        kubectl get pods --namespace $1 -o wide && exit -1
+    if [ $now -gt $end ] ; then
+        echo "Containers failed to start after $timeout seconds"
+        echo
+        kubectl get pods --namespace $1 -o wide
+        echo
+        if [ $PENDING == "True" ] ; then
+            echo "Some pods are in pending state:"
+            kubectl get pods --field-selector=status.phase=Pending -n $1 -o wide
+        fi
+        [ $READY == "False" ] && echo "Some pods are not ready"
+        [ $JOBR == "False" ] && echo "Some jobs have not succeeded"
+        exit -1
+    fi
 done
