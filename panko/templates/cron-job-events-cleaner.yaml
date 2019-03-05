@@ -1,0 +1,84 @@
+{{/*
+Copyright 2019 Wind River Systems, Inc.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.cron_job_events_cleaner }}
+{{- $envAll := . }}
+
+{{- $mounts_panko_events_cleaner := .Values.pod.mounts.panko_events_cleaner.panko_events_cleaner }}
+{{- $mounts_panko_events_cleaner_init := .Values.pod.mounts.panko_events_cleaner.init_container }}
+
+{{- $serviceAccountName := "panko-events-cleaner" }}
+{{ tuple $envAll "events_cleaner" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: panko-events-cleaner
+  annotations:
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+spec:
+  schedule: {{ .Values.jobs.events_cleaner.cron | quote }}
+  successfulJobsHistoryLimit: {{ .Values.jobs.events_cleaner.history.success }}
+  failedJobsHistoryLimit: {{ .Values.jobs.events_cleaner.history.failed }}
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    metadata:
+      labels:
+{{ tuple $envAll "panko" "events-cleaner" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+    spec:
+      template:
+        spec:
+          serviceAccountName: {{ $serviceAccountName }}
+          restartPolicy: OnFailure
+          nodeSelector:
+            {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
+          initContainers:
+{{ tuple $envAll "events_cleaner" $mounts_panko_events_cleaner_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 12 }}
+          containers:
+            - name: panko-events-cleaner
+{{ tuple $envAll "panko_events_cleaner" | include "helm-toolkit.snippets.image" | indent 14 }}
+{{ tuple $envAll $envAll.Values.pod.resources.jobs.events_cleaner | include "helm-toolkit.snippets.kubernetes_resources" | indent 14 }}
+              command:
+                - /tmp/panko-events-cleaner.sh
+              volumeMounts:
+              - name: panko-bin
+                mountPath: /tmp/panko-events-cleaner.sh
+                subPath: panko-events-cleaner.sh
+                readOnly: true
+              - name: etcpanko
+                mountPath: /etc/panko
+              - name: panko-etc
+                mountPath: /etc/panko/panko.conf
+                subPath: panko.conf
+                readOnly: true
+              - name: panko-etc
+                mountPath: {{ .Values.conf.panko.DEFAULT.log_config_append }}
+                subPath: {{ base .Values.conf.panko.DEFAULT.log_config_append }}
+                readOnly: true
+{{ if $mounts_panko_events_cleaner.volumeMounts }}{{ toYaml $mounts_panko_events_cleaner.volumeMounts | indent 14 }}{{ end }}
+          volumes:
+          - name: etcpanko
+            emptyDir: {}
+          - name: panko-etc
+            secret:
+              secretName: panko-etc
+              defaultMode: 0444
+          - name: panko-bin
+            configMap:
+              name: panko-bin
+              defaultMode: 0555
+{{ if $mounts_panko_events_cleaner.volumes }}{{ toYaml $mounts_panko_events_cleaner.volumes | indent 10 }}{{ end }}
+{{- end }}

@@ -1,0 +1,122 @@
+{{/*
+Copyright 2019 Wind River Systems, Inc.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.deployment_api }}
+{{- $envAll := . }}
+
+{{- $mounts_panko_api := .Values.pod.mounts.panko_api.panko_api }}
+{{- $mounts_panko_api_init := .Values.pod.mounts.panko_api.init_container }}
+
+{{- $serviceAccountName := "panko-api" }}
+{{ tuple $envAll "api" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: panko-api
+  annotations:
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+  labels:
+{{ tuple $envAll "panko" "api" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  replicas: {{ .Values.pod.replicas.api }}
+  selector:
+    matchLabels:
+{{ tuple $envAll "panko" "api" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
+{{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_deployment" | indent 2 }}
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "panko" "api" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+{{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
+        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
+    spec:
+      serviceAccountName: {{ $serviceAccountName }}
+{{ dict "envAll" $envAll "application" "panko" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
+      affinity:
+{{ tuple $envAll "panko" "api" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
+      nodeSelector:
+        {{ .Values.labels.api.node_selector_key }}: {{ .Values.labels.api.node_selector_value }}
+      terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.api.timeout | default "30" }}
+      initContainers:
+{{ tuple $envAll "api" $mounts_panko_api_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+      containers:
+        - name: panko-api
+{{ tuple $envAll "panko_api" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.api | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "panko" "container" "panko_api" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          command:
+            - /tmp/panko-api.sh
+            - start
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /tmp/panko-api.sh
+                  - stop
+          ports:
+            - name: p-api
+              containerPort: {{ tuple "event" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+          readinessProbe:
+            tcpSocket:
+              port: {{ tuple "event" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+          volumeMounts:
+            - name: wsgi-panko
+              mountPath: /var/www/cgi-bin/panko
+            - name: etcpanko
+              mountPath: /etc/panko
+            - name: panko-etc
+              mountPath: /etc/panko/panko.conf
+              subPath: panko.conf
+              readOnly: true
+            - name: panko-etc
+              mountPath: {{ .Values.conf.panko.DEFAULT.log_config_append }}
+              subPath: {{ base .Values.conf.panko.DEFAULT.log_config_append }}
+              readOnly: true
+            - name: panko-etc
+              mountPath: /etc/panko/api_paste.ini
+              subPath: api_paste.ini
+              readOnly: true
+            - name: panko-etc
+              mountPath: /etc/panko/policy.json
+              subPath: policy.json
+              readOnly: true
+            - name: panko-etc
+              mountPath: /etc/apache2/conf-enabled/wsgi-panko.conf
+              subPath: wsgi-panko.conf
+              readOnly: true
+            - name: panko-bin
+              mountPath: /tmp/panko-api.sh
+              subPath: panko-api.sh
+              readOnly: true
+{{ if $mounts_panko_api.volumeMounts }}{{ toYaml $mounts_panko_api.volumeMounts | indent 12 }}{{ end }}
+      volumes:
+        - name: wsgi-panko
+          emptyDir: {}
+        - name: etcpanko
+          emptyDir: {}
+        - name: panko-etc
+          secret:
+            secretName: panko-etc
+            defaultMode: 0444
+        - name: panko-bin
+          configMap:
+            name: panko-bin
+            defaultMode: 0555
+{{ if $mounts_panko_api.volumes }}{{ toYaml $mounts_panko_api.volumes | indent 8 }}{{ end }}
+{{- end }}
