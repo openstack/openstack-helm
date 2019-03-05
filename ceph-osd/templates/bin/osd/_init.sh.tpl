@@ -173,6 +173,7 @@ function osd_journal_create {
       --partition-guid=${osd_journal_partition}:${OSD_JOURNAL_UUID} \
       --typecode=${osd_journal_partition}:45b0969e-9b03-4f30-b4c6-b4b80ceff106 --mbrtogpt -- ${jdev}
     OSD_JOURNAL=$(dev_part ${jdev} ${osd_journal_partition})
+    udev_settle
   else
     echo "The backing device ${jdev} for ${OSD_JOURNAL} does not exist on this system."
     exit 1
