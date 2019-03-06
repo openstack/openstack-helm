@@ -30,8 +30,9 @@ CEPH_FS_ID="$(cat /tmp/ceph-fs-uuid.txt)"
 #NOTE(portdirect): to use RBD devices with Ubuntu kernels < 4.5 this
 # should be set to 'hammer'
 . /etc/os-release
-if [ "x${ID}" == "xubuntu" ] && \
-   [ "$(uname -r | awk -F "." '{ print $2 }')" -lt "5" ]; then
+if [ "x${ID}" == "xcentos" ] || \
+   ([ "x${ID}" == "xubuntu" ] && \
+   [ "$(uname -r | awk -F "." '{ print $2 }')" -lt "5" ]); then
   CRUSH_TUNABLES=hammer
 else
   CRUSH_TUNABLES=null
