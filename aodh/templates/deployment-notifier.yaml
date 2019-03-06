@@ -1,0 +1,103 @@
+{{/*
+Copyright 2019 Wind River Systems, Inc.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.deployment_notifier }}
+{{- $envAll := . }}
+
+{{- $mounts_aodh_notifier := .Values.pod.mounts.aodh_notifier.aodh_notifier }}
+{{- $mounts_aodh_notifier_init := .Values.pod.mounts.aodh_notifier.init_container }}
+
+{{- $serviceAccountName := "aodh-notifier" }}
+{{ tuple $envAll "notifier" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aodh-notifier
+  annotations:
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+  labels:
+{{ tuple $envAll "aodh" "notifier" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  replicas: {{ .Values.pod.replicas.notifier }}
+  selector:
+    matchLabels:
+{{ tuple $envAll "aodh" "notifier" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
+{{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_deployment" | indent 2 }}
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "aodh" "notifier" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+{{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
+        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
+    spec:
+      serviceAccountName: {{ $serviceAccountName }}
+{{ dict "envAll" $envAll "application" "aodh" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
+      affinity:
+{{ tuple $envAll "aodh" "notifier" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
+      nodeSelector:
+        {{ .Values.labels.notifier.node_selector_key }}: {{ .Values.labels.notifier.node_selector_value }}
+      initContainers:
+{{ tuple $envAll "notifier" $mounts_aodh_notifier_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+      containers:
+        - name: aodh-notifier
+{{ tuple $envAll "aodh_notifier" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.notifier | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "aodh" "container" "aodh_notifier" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          command:
+            - /tmp/aodh-notifier.sh
+            - start
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /tmp/aodh-notifier.sh
+                  - stop
+          volumeMounts:
+            - name: pod-etc-aodh
+              mountPath: /etc/aodh
+            - name: aodh-etc
+              mountPath: /etc/aodh/aodh.conf
+              subPath: aodh.conf
+              readOnly: true
+            - name: aodh-etc
+              mountPath: {{ .Values.conf.aodh.DEFAULT.log_config_append }}
+              subPath: {{ base .Values.conf.aodh.DEFAULT.log_config_append }}
+              readOnly: true
+            - name: aodh-etc
+              mountPath: /etc/aodh/policy.json
+              subPath: policy.json
+              readOnly: true
+            - name: aodh-bin
+              mountPath: /tmp/aodh-notifier.sh
+              subPath: aodh-notifier.sh
+              readOnly: true
+{{ if $mounts_aodh_notifier.volumeMounts }}{{ toYaml $mounts_aodh_notifier.volumeMounts | indent 12 }}{{ end }}
+      volumes:
+        - name: pod-etc-aodh
+          emptyDir: {}
+        - name: aodh-etc
+          secret:
+            secretName: aodh-etc
+            defaultMode: 0444
+        - name: aodh-bin
+          configMap:
+            name: aodh-bin
+            defaultMode: 0555
+{{ if $mounts_aodh_notifier.volumes }}{{ toYaml $mounts_aodh_notifier.volumes | indent 8 }}{{ end }}
+{{- end }}
