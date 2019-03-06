@@ -18,4 +18,4 @@ limitations under the License.
 
 set -ex
 
-exec ceilometer-dbsync
+exec ceilometer-upgrade
