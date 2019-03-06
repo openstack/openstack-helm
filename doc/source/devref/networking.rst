@@ -272,7 +272,7 @@ init container and main container with :code:`neutron-ovs-agent` via file
 Configuration of OVS bridges can be done via
 `neutron/templates/bin/_neutron-openvswitch-agent-init.sh.tpl`. The
 script is configuring the external network bridge and sets up any
-bridge mappings defined in :code:`network.auto_bridge_add`.  These
+bridge mappings defined in :code:`conf.auto_bridge_add`.  These
 values should align with
 :code:`conf.plugins.openvswitch_agent.ovs.bridge_mappings`.
 
