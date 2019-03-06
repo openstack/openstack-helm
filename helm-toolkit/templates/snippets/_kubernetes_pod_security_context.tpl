@@ -17,34 +17,53 @@ limitations under the License.
 {{/*
 abstract: |
   Renders securityContext for a Kubernetes pod.
-values: |
-  pod:
-    user:
-      myApp:
-        uid: 34356
-    security_context:
-      myApp:
-        readOnlyRootFilesystem: true
-        seLinuxOptions:
-          level: "s0:c123,c456"
-usage: |
-  {{ dict "envAll" . "application" "myApp" | include "helm-toolkit.snippets.kubernetes_pod_security_context" }}
-return: |
-  securityContext:
-    runAsUser: 34356
-    readOnlyRootFilesystem: true
-    seLinuxOptions:
-      level: s0:c123,c456
+  For pod level, seurity context see here: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#podsecuritycontext-v1-core
+examples:
+  - values: |
+      pod:
+        # NOTE: The 'user' key is deprecated, and will be removed shortly.
+        user:
+          myApp:
+            uid: 34356
+        security_context:
+          myApp:
+            pod:
+              runAsNonRoot: true
+    usage: |
+      {{ dict "envAll" . "application" "myApp" | include "helm-toolkit.snippets.kubernetes_pod_security_context" }}
+    return: |
+      securityContext:
+        runAsUser: 34356
+        runAsNonRoot: true
+  - values: |
+      pod:
+        security_context:
+          myApp:
+            pod:
+              runAsUser: 34356
+              runAsNonRoot: true
+    usage: |
+      {{ dict "envAll" . "application" "myApp" | include "helm-toolkit.snippets.kubernetes_pod_security_context" }}
+    return: |
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 34356
 */}}
 
 {{- define "helm-toolkit.snippets.kubernetes_pod_security_context" -}}
 {{- $envAll := index . "envAll" -}}
 {{- $application := index . "application" -}}
 securityContext:
+{{- if hasKey $envAll.Values.pod "user" }}
+{{- if hasKey $envAll.Values.pod.user $application }}
+{{- if hasKey ( index $envAll.Values.pod.user $application ) "uid" }}
   runAsUser: {{ index $envAll.Values.pod.user $application "uid" }}
+{{- end -}}
+{{- end -}}
+{{- end -}}
 {{- if hasKey $envAll.Values.pod "security_context" }}
 {{- if hasKey ( index $envAll.Values.pod.security_context ) $application }}
-{{ toYaml ( index $envAll.Values.pod.security_context $application ) | indent 2 }}
+{{ toYaml ( index $envAll.Values.pod.security_context $application "pod" ) | indent 2 }}
 {{- end -}}
 {{- end -}}
 {{- end -}}
