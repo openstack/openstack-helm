@@ -52,6 +52,7 @@ function test_netpol {
 test_netpol osh-infra mariadb server elasticsearch.osh-infra.svc.cluster.local fail
 test_netpol osh-infra mariadb server nagios.osh-infra.svc.cluster.local fail
 test_netpol osh-infra mariadb server prometheus.osh-infra.svc.cluster.local fail
+test_netpol osh-infra mariadb server nagios.osh-infra.svc.cluster.local fail
 
 # Doing positive tests
 test_netpol osh-infra grafana dashboard mariadb.osh-infra.svc.cluster.local:3306 success
