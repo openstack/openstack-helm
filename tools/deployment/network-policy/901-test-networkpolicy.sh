@@ -48,6 +48,7 @@ function test_netpol {
     fi
   fi
 }
+
 # Doing negative tests
 test_netpol osh-infra mariadb server elasticsearch.osh-infra.svc.cluster.local fail
 test_netpol osh-infra mariadb server nagios.osh-infra.svc.cluster.local fail

@@ -19,7 +19,7 @@ set -xe
 #NOTE: Lint and package chart
 make prometheus
 
-tee /tmp/prometheus.yaml <<EOF
+tee /tmp/prometheus.yaml << EOF
 manifests:
   network_policy: true
 network_policy:
@@ -43,19 +43,20 @@ network_policy:
               application: nagios
         - podSelector:
             matchLabels:
-              application: fluentd-exporter
-        - podSelector:
-            matchLabels:
-              application: fluentd
+              application: ingress
         ports:
         - protocol: TCP
           port: 9093
+        - protocol: TCP
+          port: 9090
         - protocol: TCP
           port: 6783
         - protocol: TCP
           port: 9108
         - protocol: TCP
           port: 80
+        - protocol: TCP
+          port: 443
 EOF
 
 #NOTE: Deploy command
