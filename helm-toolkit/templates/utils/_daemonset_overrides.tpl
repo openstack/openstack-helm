@@ -48,10 +48,10 @@ limitations under the License.
               {{/* apply overrides */}}
               {{- $override_conf_copy := $host_data.conf }}
               {{- $root_conf_copy := omit $context.Values.conf "overrides" }}
-              {{- $merged_dict := merge $override_conf_copy $root_conf_copy }}
+              {{- $merged_dict := mergeOverwrite $root_conf_copy $override_conf_copy }}
               {{- $root_conf_copy2 := dict "conf" $merged_dict }}
               {{- $context_values := omit $context.Values "conf" }}
-              {{- $root_conf_copy3 := merge $context_values $root_conf_copy2 }}
+              {{- $root_conf_copy3 := mergeOverwrite $context_values $root_conf_copy2 }}
               {{- $root_conf_copy4 := dict "Values" $root_conf_copy3 }}
               {{- $_ := set $current_dict "nodeData" $root_conf_copy4 }}
 
@@ -87,10 +87,10 @@ limitations under the License.
               {{/* apply overrides */}}
               {{- $override_conf_copy := $label_data.conf }}
               {{- $root_conf_copy := omit $context.Values.conf "overrides" }}
-              {{- $merged_dict := merge $override_conf_copy $root_conf_copy }}
+              {{- $merged_dict := mergeOverwrite $root_conf_copy $override_conf_copy }}
               {{- $root_conf_copy2 := dict "conf" $merged_dict }}
               {{- $context_values := omit $context.Values "conf" }}
-              {{- $root_conf_copy3 := merge $context_values $root_conf_copy2 }}
+              {{- $root_conf_copy3 := mergeOverwrite $context_values $root_conf_copy2 }}
               {{- $root_conf_copy4 := dict "Values" $root_conf_copy3 }}
               {{- $_ := set $context.Values.__current_label "nodeData" $root_conf_copy4 }}
 
@@ -185,7 +185,7 @@ limitations under the License.
   {{- $root_conf_copy1 := omit $context.Values.conf "overrides" }}
   {{- $root_conf_copy2 := dict "conf" $root_conf_copy1 }}
   {{- $context_values := omit $context.Values "conf" }}
-  {{- $root_conf_copy3 := merge $context_values $root_conf_copy2 }}
+  {{- $root_conf_copy3 := mergeOverwrite $context_values $root_conf_copy2 }}
   {{- $root_conf_copy4 := dict "Values" $root_conf_copy3 }}
   {{- $_ := set $context.Values.__default "nodeData" $root_conf_copy4 }}
 
@@ -196,7 +196,7 @@ limitations under the License.
   {{- range $current_dict := $context.Values.__daemonset_list }}
 
     {{- $context_novalues := omit $context "Values" }}
-    {{- $merged_dict := merge $current_dict.nodeData $context_novalues }}
+    {{- $merged_dict := mergeOverwrite $context_novalues $current_dict.nodeData }}
     {{- $_ := set $current_dict "nodeData" $merged_dict }}
     {{/* Deep copy original daemonset_yaml */}}
     {{- $_ := set $context.Values "__daemonset_yaml" ($daemonset_yaml | toYaml | fromYaml) }}
