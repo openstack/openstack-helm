@@ -40,14 +40,25 @@ spec:
 {{ tuple $envAll "postgresql" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
     spec:
       serviceAccountName: {{ $serviceAccountName }}
-      securityContext:
-{{ toYaml $envAll.Values.pod.security.server | indent 8 }}
+{{ dict "envAll" $envAll "application" "server" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
       affinity:
 {{ tuple $envAll "postgresql" "server" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
       nodeSelector:
         {{ .Values.labels.server.node_selector_key }}: {{ .Values.labels.server.node_selector_value }}
       initContainers:
 {{ tuple $envAll "postgresql" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+        - name: set-volume-perms
+{{ tuple $envAll "postgresql" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.server | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          command:
+            - "/bin/chown"
+            - {{ .Values.pod.security_context.server.pod.runAsUser | quote }}
+            - {{ .Values.storage.mount.path | quote }}
+{{ dict "envAll" $envAll "application" "server" "container" "set-volume-perms" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          volumeMounts:
+            - name: postgresql-data
+              mountPath: {{ .Values.storage.mount.path }}
+              subPath: {{ .Values.storage.mount.subpath }}
       containers:
         - name: postgresql
 {{ tuple $envAll "postgresql" | include "helm-toolkit.snippets.image" | indent 10 }}
