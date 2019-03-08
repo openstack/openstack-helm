@@ -52,6 +52,24 @@ function check_snapshot_repositories () {
   {{ end }}
 }
 
+{{ if and (.Values.manifests.job_elasticsearch_templates) (not (empty .Values.conf.templates)) }}
+# Tests whether elasticsearch has successfully generated the elasticsearch index mapping
+# templates defined by values.yaml
+function check_templates () {
+  {{ range $template, $fields := .Values.conf.templates }}
+  {{$template}}_total_hits=$(curl -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
+              -XGET "${ELASTICSEARCH_ENDPOINT}/_template/{{$template}}" -H 'Content-Type: application/json' \
+              | python -c "import sys, json; print len(json.load(sys.stdin))")
+  if [ "${{$template}}_total_hits" -gt 0 ]; then
+     echo "PASS: Successful hits on {{$template}} template!"
+  else
+     echo "FAIL: No hits on query for {{$template}} template! Exiting";
+     exit 1;
+  fi
+  {{ end }}
+}
+{{ end }}
+
 function remove_test_index () {
   echo "Deleting index created for service testing"
   curl -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
@@ -63,4 +81,5 @@ create_test_index
 {{ if .Values.conf.elasticsearch.snapshots.enabled }}
 check_snapshot_repositories
 {{ end }}
+check_templates
 remove_test_index

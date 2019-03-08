@@ -95,7 +95,7 @@ spec:
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
 {{ dict "envAll" $envAll "podName" "fluentbit" "containerNames" (list "fluentbit") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
     spec:
-{{ dict "envAll" $envAll "application" "daemon" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
+{{ dict "envAll" $envAll "application" "fluentbit" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
       serviceAccountName: {{ $serviceAccountName }}
 {{ if $envAll.Values.pod.tolerations.fluentbit.enabled }}
 {{ tuple $envAll "fluentbit" | include "helm-toolkit.snippets.kubernetes_tolerations" | indent 6 }}
@@ -112,7 +112,7 @@ spec:
         - name: fluentbit
 {{ tuple $envAll "fluentbit" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.fluentbit | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-{{ dict "envAll" $envAll "application" "daemon" "container" "fluentbit" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+{{ dict "envAll" $envAll "application" "fluentbit" "container" "fluentbit" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
             - /tmp/fluent-bit.sh
           env:
@@ -123,7 +123,7 @@ spec:
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
-            - name: fluent-logging-bin
+            - name: fluentbit-bin
               mountPath: /tmp/fluent-bit.sh
               subPath: fluent-bit.sh
               readOnly: true
@@ -133,11 +133,11 @@ spec:
             - name: varlibdockercontainers
               mountPath: /var/lib/docker/containers
               readOnly: true
-            - name: fluent-logging-etc
+            - name: fluentbit-etc
               mountPath: /fluent-bit/etc/fluent-bit.conf
               subPath: fluent-bit.conf
               readOnly: true
-            - name: fluent-logging-etc
+            - name: fluentbit-etc
               mountPath: /fluent-bit/etc/parsers.conf
               subPath: parsers.conf
               readOnly: true
@@ -151,13 +151,13 @@ spec:
         - name: varlibdockercontainers
           hostPath:
             path: /var/lib/docker/containers
-        - name: fluent-logging-bin
+        - name: fluentbit-bin
           configMap:
-            name: fluent-logging-bin
+            name: fluentbit-bin
             defaultMode: 0555
-        - name: fluent-logging-etc
+        - name: fluentbit-etc
           secret:
-            secretName: fluent-logging-etc
+            secretName: fluentbit-etc
             defaultMode: 0444
 {{ if $mounts_fluentbit.volumes }}{{ toYaml $mounts_fluentbit.volumes | indent 8 }}{{ end }}
 {{- end }}

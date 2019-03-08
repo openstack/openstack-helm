@@ -95,7 +95,7 @@ spec:
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
     spec:
-{{ dict "envAll" $envAll "application" "internal" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
+{{ dict "envAll" $envAll "application" "fluentd" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
       serviceAccountName: {{ $serviceAccountName }}
       affinity:
 {{ tuple $envAll "fluentd" "internal" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
@@ -108,7 +108,7 @@ spec:
         - name: fluentd
 {{ tuple $envAll "fluentd" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.fluentd | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-{{ dict "envAll" $envAll "application" "internal" "container" "fluentd" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+{{ dict "envAll" $envAll "application" "fluentd" "container" "fluentd" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
             - /tmp/fluentd.sh
             - start
@@ -149,11 +149,11 @@ spec:
               mountPath: /tmp
             - name: pod-etc-fluentd
               mountPath: /fluentd/etc
-            - name: fluent-logging-etc
+            - name: fluentd-etc
               mountPath: /fluentd/etc/fluent.conf
               subPath: fluent.conf
               readOnly: true
-            - name: fluent-logging-bin
+            - name: fluentd-bin
               mountPath: /tmp/fluentd.sh
               subPath: fluentd.sh
               readOnly: true
@@ -163,13 +163,13 @@ spec:
           emptyDir: {}
         - name: pod-etc-fluentd
           emptyDir: {}
-        - name: fluent-logging-etc
+        - name: fluentd-etc
           secret:
-            secretName: fluent-logging-etc
+            secretName: fluentd-etc
             defaultMode: 0444
-        - name: fluent-logging-bin
+        - name: fluentd-bin
           configMap:
-            name: fluent-logging-bin
+            name: fluentd-bin
             defaultMode: 0555
 {{- if $mounts_fluentd.volumes }}{{ toYaml $mounts_fluentd.volumes | indent 8 }}{{- end }}
 {{- end }}

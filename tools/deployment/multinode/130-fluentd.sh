@@ -17,16 +17,14 @@
 set -xe
 
 #NOTE: Lint and package chart
-make fluent-logging
+make fluentd
 
 if [ ! -d "/var/log/journal" ]; then
-tee /tmp/fluent-logging.yaml << EOF
+tee /tmp/fluentd.yaml << EOF
 monitoring:
   prometheus:
     enabled: true
 pod:
-  replicas:
-    fluentd: 1
   mounts:
     fluentbit:
       fluentbit:
@@ -38,20 +36,16 @@ pod:
           - name: runlog
             mountPath: /run/log
 EOF
-helm upgrade --install fluent-logging ./fluent-logging \
+helm upgrade --install fluentd ./fluentd \
     --namespace=osh-infra \
-    --values=/tmp/fluent-logging.yaml
+    --values=/tmp/fluentd.yaml
 else
-helm upgrade --install fluent-logging ./fluent-logging \
-    --namespace=osh-infra \
-    --set pod.replicas.fluentd=1 \
-    --set monitoring.prometheus.enabled=true
+helm upgrade --install fluentd ./fluentd \
+    --namespace=osh-infra
 fi
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh osh-infra
 
 #NOTE: Validate Deployment info
-helm status fluent-logging
-
-helm test fluent-logging
+helm status fluentd

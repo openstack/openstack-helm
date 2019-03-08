@@ -30,6 +30,7 @@ images:
     dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.3.1
     snapshot_repository: docker.io/openstackhelm/ceph-config-helper:latest-ubuntu_xenial
     es_cluster_wait: docker.io/openstackhelm/ceph-config-helper:latest-ubuntu_xenial
+    elasticsearch_templates: docker.io/openstackhelm/heat:newton
     image_repo_sync: docker.io/docker:17.07.0
   pull_policy: "IfNotPresent"
   local_registry:
@@ -82,6 +83,10 @@ dependencies:
       services:
         - endpoint: internal
           service: elasticsearch
+    elasticsearch_templates:
+      services: null
+      jobs:
+        - elasticsearch-cluster-wait
     image_repo_sync:
       services:
         - endpoint: internal
@@ -220,6 +225,8 @@ pod:
   mounts:
     elasticsearch:
       elasticsearch:
+    elasticsearch_templates:
+      elasticsearch_templates:
   resources:
     enabled: false
     apache_proxy:
@@ -259,6 +266,13 @@ pod:
         cpu: "2000m"
     jobs:
       curator:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      elasticsearch_templates:
         requests:
           memory: "128Mi"
           cpu: "100m"
@@ -635,6 +649,35 @@ conf:
     es:
       all: true
       timeout: 20s
+  templates:
+    fluent:
+      template: "logstash-*"
+      index_patterns: "logstash-*"
+      settings:
+        number_of_shards: 1
+      mappings:
+        fluent:
+          properties:
+            kubernetes:
+              properties:
+                container_name:
+                  type: keyword
+                  index: false
+                docker_id:
+                  type: keyword
+                  index: false
+                host:
+                  type: keyword
+                  index: false
+                namespace_name:
+                  type: keyword
+                  index: false
+                pod_id:
+                  type: keyword
+                  index: false
+                pod_name:
+                  type: keyword
+                  index: false
 
 endpoints:
   cluster_domain_suffix: cluster.local
@@ -771,11 +814,13 @@ manifests:
   configmap_bin_elasticsearch: true
   configmap_etc_curator: true
   configmap_etc_elasticsearch: true
+  configmap_etc_templates: true
   cron_curator: true
   deployment_client: true
   deployment_master: true
   ingress: true
   job_cluster_wait: true
+  job_elasticsearch_templates: true
   job_image_repo_sync: true
   job_snapshot_repository: true
   job_s3_user: true
