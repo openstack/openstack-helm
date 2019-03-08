@@ -29,11 +29,21 @@ function start () {
   fi
 
   # Start Apache2
-  exec apache2 -DFOREGROUND
+  {{- if .Values.conf.software.apache2.a2enmod }}
+    {{- range .Values.conf.software.apache2.a2enmod }}
+  a2enmod {{ . }}
+    {{- end }}
+  {{- end }}
+  {{- if .Values.conf.software.apache2.a2dismod }}
+    {{- range .Values.conf.software.apache2.a2dismod }}
+  a2dismod {{ . }}
+    {{- end }}
+  {{- end }}
+  exec {{ .Values.conf.software.apache2.binary }} {{ .Values.conf.software.apache2.start_parameters }}
 }
 
 function stop () {
-  apachectl -k graceful-stop
+  {{ .Values.conf.software.apache2.binary }} -k graceful-stop
 }
 
 $COMMAND
