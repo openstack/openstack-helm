@@ -129,10 +129,26 @@ spec:
             privileged: true
           command:
             - /tmp/neutron-sriov-agent.sh
+          readinessProbe:
+            exec:
+              command:
+              - python
+              - /tmp/health-probe.py
+              - --config-file
+              - /etc/neutron/neutron.conf
+              - --config-file
+              - /etc/neutron/sriov_agent.ini
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 10
           volumeMounts:
             - name: neutron-bin
               mountPath: /tmp/neutron-sriov-agent.sh
               subPath: neutron-sriov-agent.sh
+              readOnly: true
+            - name: neutron-bin
+              mountPath: /tmp/health-probe.py
+              subPath: health-probe.py
               readOnly: true
             - name: pod-shared
               mountPath: /tmp/pod-shared

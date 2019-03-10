@@ -162,10 +162,29 @@ spec:
                 - bash
                 - -c
                 - 'ovs-vsctl list-br | grep -q br-int'
+          livenessProbe:
+            exec:
+              command:
+              - python
+              - /tmp/health-probe.py
+              - --config-file
+              - /etc/neutron/neutron.conf
+              - --config-file
+              - /etc/neutron/plugins/ml2/openvswitch_agent.ini
+              - --agent-queue-name
+              - q-agent-notifier-tunnel-update
+              - --liveness-probe
+            initialDelaySeconds: 120
+            periodSeconds: 90
+            timeoutSeconds: 70
           volumeMounts:
             - name: neutron-bin
               mountPath: /tmp/neutron-openvswitch-agent.sh
               subPath: neutron-openvswitch-agent.sh
+              readOnly: true
+            - name: neutron-bin
+              mountPath: /tmp/health-probe.py
+              subPath: health-probe.py
               readOnly: true
             - name: pod-shared
               mountPath: /tmp/pod-shared

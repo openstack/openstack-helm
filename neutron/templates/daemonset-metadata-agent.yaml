@@ -87,12 +87,41 @@ spec:
 {{ tuple $envAll $envAll.Values.pod.resources.agent.metadata | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           securityContext:
             privileged: true
+          readinessProbe:
+            exec:
+              command:
+              - python
+              - /tmp/health-probe.py
+              - --config-file
+              - /etc/neutron/neutron.conf
+              - --config-file
+              - /etc/neutron/metadata_agent.ini
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 35
+          livenessProbe:
+            exec:
+              command:
+              - python
+              - /tmp/health-probe.py
+              - --config-file
+              - /etc/neutron/neutron.conf
+              - --config-file
+              - /etc/neutron/metadata_agent.ini
+              - --liveness-probe
+            initialDelaySeconds: 90
+            periodSeconds: 60
+            timeoutSeconds: 45
           command:
             - /tmp/neutron-metadata-agent.sh
           volumeMounts:
             - name: neutron-bin
               mountPath: /tmp/neutron-metadata-agent.sh
               subPath: neutron-metadata-agent.sh
+              readOnly: true
+            - name: neutron-bin
+              mountPath: /tmp/health-probe.py
+              subPath: health-probe.py
               readOnly: true
             - name: neutron-etc
               mountPath: /etc/neutron/neutron.conf
