@@ -36,6 +36,7 @@ network_policy:
           port: 80
 EOF
 
+
 #NOTE: Deploy command
 helm upgrade --install grafana ./grafana \
     --namespace=osh-infra \
