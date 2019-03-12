@@ -61,8 +61,9 @@ RELEASE_NAME=$(grep 'CODENAME' /etc/lsb-release | awk -F= '{print $2}')
 sudo add-apt-repository "deb https://download.ceph.com/debian-mimic/
 ${RELEASE_NAME} main"
 sudo -E apt-get update
+# NOTE(srwilkers): Pin docker version to validated docker version for k8s 1.12.2
 sudo -E apt-get install -y \
-    docker.io \
+    docker.io=18.06.1-0ubuntu1.2~16.04.1 \
     socat \
     jq \
     util-linux \
