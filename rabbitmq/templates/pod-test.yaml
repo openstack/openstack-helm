@@ -36,6 +36,7 @@ metadata:
     {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
     "helm.sh/hook": test-success
 spec:
+{{ dict "envAll" $envAll "application" "test" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 2 }}
   serviceAccountName: {{ $serviceAccountName }}
   nodeSelector:
     {{ $envAll.Values.labels.test.node_selector_key }}: {{ $envAll.Values.labels.test.node_selector_value | quote }}
@@ -45,6 +46,7 @@ spec:
   containers:
     - name: {{.Release.Name}}-rabbitmq-test
 {{ tuple $envAll "scripted_test" | include "helm-toolkit.snippets.image" | indent 6 }}
+{{ dict "envAll" $envAll "application" "test" "container" "rabbitmq_test" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 6 }}
       env:
         - name: RABBITMQ_ADMIN_CONNECTION
           value: {{ tuple "oslo_messaging" "internal" "user" "http" $envAll | include "helm-toolkit.endpoints.authenticated_endpoint_uri_lookup" | quote }}
