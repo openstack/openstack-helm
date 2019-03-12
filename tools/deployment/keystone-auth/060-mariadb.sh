@@ -23,7 +23,6 @@ make mariadb
 : ${OSH_INFRA_EXTRA_HELM_ARGS:=""}
 helm upgrade --install mariadb ./mariadb \
     --namespace=openstack \
-    --set pod.replicas.server=1 \
     ${OSH_INFRA_EXTRA_HELM_ARGS} \
     ${OSH_INFRA_EXTRA_HELM_ARGS_MARIADB}
 

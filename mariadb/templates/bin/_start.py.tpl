@@ -246,7 +246,8 @@ def mysqld_bootstrap():
             "GRANT ALL ON *.* TO '{0}'@'%' WITH GRANT OPTION ;\n"
             "DROP DATABASE IF EXISTS test ;\n"
             "FLUSH PRIVILEGES ;\n"
-            "SHUTDOWN ;".format(mysql_dbadmin_username, mysql_dbadmin_password))
+            "SHUTDOWN ;".format(mysql_dbadmin_username,
+                                mysql_dbadmin_password))
         bootstrap_sql_file = tempfile.NamedTemporaryFile(suffix='.sql').name
         with open(bootstrap_sql_file, 'w') as f:
             f.write(template)
@@ -679,6 +680,22 @@ def run_mysqld(cluster='existing'):
                     'mysql_upgrade',
                     '--defaults-file=/etc/mysql/admin_user.cnf'
                 ], logger)
+
+    logger.info("Setting the root password to the current value")
+    template = ("CREATE OR REPLACE USER '{0}'@'%' IDENTIFIED BY \'{1}\' ;\n"
+                "GRANT ALL ON *.* TO '{0}'@'%' WITH GRANT OPTION ;\n"
+                "FLUSH PRIVILEGES ;\n"
+                "SHUTDOWN ;".format(mysql_dbadmin_username,
+                                    mysql_dbadmin_password))
+    bootstrap_sql_file = tempfile.NamedTemporaryFile(suffix='.sql').name
+    with open(bootstrap_sql_file, 'w') as f:
+        f.write(template)
+        f.close()
+    run_cmd_with_logging([
+        'mysqld', '--bind-address=127.0.0.1',
+        "--init-file={0}".format(bootstrap_sql_file)
+    ], logger)
+    os.remove(bootstrap_sql_file)
 
     run_cmd_with_logging(mysqld_cmd, logger)
 
