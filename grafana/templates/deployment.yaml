@@ -44,8 +44,6 @@ spec:
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
     spec:
-      securityContext:
-        readOnlyRootFilesystem: true
 {{ dict "envAll" $envAll "application" "grafana" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
       serviceAccountName: {{ $serviceAccountName }}
       nodeSelector:
@@ -56,8 +54,7 @@ spec:
         - name: grafana
 {{ tuple $envAll "grafana" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.grafana | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-          securityContext:
-            allowPrivilegeEscalation: false
+{{ dict "envAll" $envAll "application" "grafana" "container" "grafana" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
             - /tmp/grafana.sh
             - start
