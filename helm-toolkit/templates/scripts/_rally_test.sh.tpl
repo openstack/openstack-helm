@@ -21,6 +21,16 @@ set -ex
 
 : "${RALLY_ENV_NAME:="openstack-helm"}"
 : "${OS_INTERFACE:="public"}"
+: "${AUTO_REMOVE_USER:="true"}"
+
+if [ "x$AUTO_REMOVE_USER" == "xtrue" ]; then
+  function remove_rally_user {
+    openstack user delete \
+        --domain="${SERVICE_OS_USER_DOMAIN_NAME}" \
+        "${SERVICE_OS_USERNAME}"
+  }
+  trap remove_rally_user EXIT
+fi
 
 function create_or_update_db () {
   revisionResults=$(rally db revision)
