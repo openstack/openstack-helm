@@ -102,6 +102,10 @@ spec:
             - name: host-rootfs
               mountPath: /mnt/host-rootfs
               readOnly: true
+{{- if .Values.conf.ovs_dpdk.enabled }}
+            - name: pci-devices
+              mountPath: /sys/bus/pci/devices
+{{- end }}
         - name: neutron-ovs-agent-init
 {{ tuple $envAll "neutron_openvswitch_agent" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.agent.ovs | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
@@ -158,6 +162,12 @@ spec:
               mountPath: /etc/neutron/rootwrap.conf
               subPath: rootwrap.conf
               readOnly: true
+            {{- if .Values.conf.ovs_dpdk.enabled }}
+            - name: neutron-etc
+              mountPath: /tmp/dpdk.conf
+              subPath: dpdk.conf
+              readOnly: true
+            {{- end }}
             {{- range $key, $value := $envAll.Values.conf.rootwrap_filters }}
             {{- if ( has "ovs_agent" $value.pods ) }}
             {{- if and ( eq "taas" $key ) (not $envAll.Values.conf.plugins.taas.taas.enabled) }}
@@ -271,6 +281,12 @@ spec:
         - name: host-rootfs
           hostPath:
             path: /
+{{- if .Values.conf.ovs_dpdk.enabled }}
+        - name: pci-devices
+          hostPath:
+            path: /sys/bus/pci/devices
+            type: Directory
+{{- end }}
 {{ if $mounts_neutron_ovs_agent.volumes }}{{ toYaml $mounts_neutron_ovs_agent.volumes | indent 8 }}{{ end }}
 {{- end }}
 {{- end }}

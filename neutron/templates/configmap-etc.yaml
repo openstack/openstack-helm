@@ -169,6 +169,14 @@ just set it along with nova_metadata_host.
 {{- $formatter_fluent := dict "class" "oslo_log.formatters.FluentFormatter" -}}
 {{- $_ := set .Values.conf.logging "formatter_fluent" $formatter_fluent -}}
 {{- end -}}
+
+{{- if .Values.conf.ovs_dpdk.enabled -}}
+{{- $_ := set $envAll.Values.conf.plugins.openvswitch_agent.ovs "datapath_type" "netdev" -}}
+{{- if empty $envAll.Values.conf.plugins.openvswitch_agent.ovs.vhostuser_socket_dir -}}
+{{- $_ := set $envAll.Values.conf.plugins.openvswitch_agent.ovs "vhostuser_socket_dir" "/run/openvswitch/vhostuser" -}}
+{{- end -}}
+{{- end -}}
+
 ---
 apiVersion: v1
 kind: Secret
@@ -201,6 +209,7 @@ data:
   neutron_sudoers: {{ $envAll.Values.conf.neutron_sudoers | b64enc }}
   rootwrap.conf: {{ $envAll.Values.conf.rootwrap | b64enc }}
   auto_bridge_add: {{ toJson $envAll.Values.conf.auto_bridge_add | b64enc }}
+  dpdk.conf: {{ toJson $envAll.Values.conf.ovs_dpdk | b64enc }}
 {{- range $key, $value := $envAll.Values.conf.rootwrap_filters }}
 {{- $filePrefix := replace "_" "-"  $key }}
   {{ printf "%s.filters" $filePrefix }}: {{ $value.content | b64enc }}
