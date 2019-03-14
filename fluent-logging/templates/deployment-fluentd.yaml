@@ -94,8 +94,6 @@ spec:
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
     spec:
-      securityContext:
-        readOnlyRootFilesystem: true
 {{ dict "envAll" $envAll "application" "fluentd" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
       serviceAccountName: {{ $serviceAccountName }}
       affinity:
@@ -109,8 +107,7 @@ spec:
         - name: fluentd
 {{ tuple $envAll "fluentd" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.fluentd | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-          securityContext:
-            allowPrivilegeEscalation: false
+{{ dict "envAll" $envAll "application" "fluentd" "container" "fluentd" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
             - /tmp/fluentd.sh
             - start
