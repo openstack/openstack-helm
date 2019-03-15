@@ -18,4 +18,4 @@ limitations under the License.
 
 set -ex
 
-exec gnocchi-upgrade --create-legacy-resource-types
+exec gnocchi-upgrade
