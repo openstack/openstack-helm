@@ -20,4 +20,7 @@ set -ex
 exec /bin/node_exporter \
   {{ tuple "--collector." .Values.conf.collectors.enable | include "helm-toolkit.utils.joinListWithPrefix" }} \
   {{ tuple "--no-collector." .Values.conf.collectors.disable | include "helm-toolkit.utils.joinListWithPrefix" }} \
+  {{ if .Values.conf.collectors.textfile.directory }} \
+  --collector.textfile.directory={{.Values.conf.collectors.textfile.directory }} \
+  {{- end }}
   --collector.ntp.server={{ .Values.conf.ntp_server_ip }}
