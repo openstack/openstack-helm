@@ -244,6 +244,7 @@ conf:
 
     Listen 80
 
+    LoadModule allowmethods_module modules/mod_allowmethods.so
     LoadModule mpm_event_module modules/mod_mpm_event.so
     LoadModule authn_file_module modules/mod_authn_file.so
     LoadModule authn_core_module modules/mod_authn_core.so
@@ -324,8 +325,6 @@ conf:
       <Location />
           ProxyPass http://localhost:{{ tuple "elasticsearch" "internal" "client" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}/
           ProxyPassReverse http://localhost:{{ tuple "elasticsearch" "internal" "client" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}/
-      </Location>
-      <Proxy *>
           AuthName "Elasticsearch"
           AuthType Basic
           AuthBasicProvider file ldap
@@ -334,7 +333,35 @@ conf:
           AuthLDAPBindPassword {{ .Values.endpoints.ldap.auth.admin.password }}
           AuthLDAPURL {{ tuple "ldap" "default" "ldap" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" | quote }}
           Require valid-user
-      </Proxy>
+      </Location>
+
+      # Restrict access to the Elasticsearch Update API endpoint to prevent modification of indexed documents
+      <Location /*/_doc/*/_update*>
+          Require all denied
+      </Location>
+      # Restrict access to the Elasticsearch Update By Query API Endpoint to prevent modification of indexed documents
+      <Location /*/_update_by_query*>
+          Require all denied
+      </Location>
+      # Restrict access to the Elasticsearch Delete By Query API Endpoint to prevent deletion of indexed documents
+      <Location /*/_delete_by_query*>
+          Require all denied
+      </Location>
+
+      # Prohibit DELETE methods on the document API endpoint
+      <Location /*/_doc/*>
+          AllowMethods GET POST OPTIONS
+          ProxyPass http://localhost:{{ tuple "elasticsearch" "internal" "client" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}/
+          ProxyPassReverse http://localhost:{{ tuple "elasticsearch" "internal" "client" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}/
+          AuthName "Elasticsearch"
+          AuthType Basic
+          AuthBasicProvider file ldap
+          AuthUserFile /usr/local/apache2/conf/.htpasswd
+          AuthLDAPBindDN {{ .Values.endpoints.ldap.auth.admin.bind }}
+          AuthLDAPBindPassword {{ .Values.endpoints.ldap.auth.admin.password }}
+          AuthLDAPURL {{ tuple "ldap" "default" "ldap" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" | quote }}
+          Require valid-user
+      </Location>
     </VirtualHost>
   log4j2: |
     status = error
