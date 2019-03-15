@@ -18,7 +18,7 @@ limitations under the License.
 
 set -ex
 
-NOVA_VERSION=$(nova-manage --version 2>&1 > /dev/null)
+NOVA_VERSION=$(nova-manage --version 2>&1)
 
 function manage_cells () {
   # NOTE(portdirect): check if nova fully supports cells v2, and manage
