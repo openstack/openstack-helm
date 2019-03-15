@@ -39,6 +39,7 @@ spec:
   template:
     metadata:
       annotations:
+{{- dict "envAll" $envAll "podName" "memcached" "containerNames" (list "apparmor-loader" "memcached") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
       labels:
 {{ tuple $envAll "memcached" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
@@ -53,6 +54,7 @@ spec:
       terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.memcached.timeout | default "30" }}
       initContainers:
 {{ tuple $envAll "memcached" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ dict "envAll" $envAll | include "helm-toolkit.snippets.kubernetes_apparmor_loader_init_container" | indent 8 }}
       containers:
         - name: memcached
 {{ tuple $envAll "memcached" | include "helm-toolkit.snippets.image" | indent 10 }}
@@ -81,4 +83,5 @@ spec:
           configMap:
             name: {{ $configMapBinName | quote }}
             defaultMode: 0555
+{{ dict "envAll" $envAll "component" "memcached" "requireSys" true | include "helm-toolkit.snippets.kubernetes_apparmor_volumes" | indent 8 }}
 {{- end }}
