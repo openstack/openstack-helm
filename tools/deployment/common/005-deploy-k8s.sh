@@ -23,6 +23,7 @@ set -xe
 : ${CALICO_VERSION:="v3.3"}
 
 : "${HTTP_PROXY:=""}"
+: "${HTTPS_PROXY:=""}"
 
 export DEBCONF_NONINTERACTIVE_SEEN=true
 export DEBIAN_FRONTEND=noninteractive
@@ -131,7 +132,7 @@ END=$(($(date +%s) + 240))
 until kubectl --namespace=kube-system \
         get pods -l k8s-app=kube-dns --no-headers -o name | grep -q "^pod/coredns"; do
   NOW=$(date +%s)
-  [ "${NOW}" -gt "${END}" ] && exit -1
+  [ "${NOW}" -gt "${END}" ] && exit 1
   echo "still waiting for dns"
   sleep 10
 done
