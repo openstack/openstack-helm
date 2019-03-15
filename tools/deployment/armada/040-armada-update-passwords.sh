@@ -19,7 +19,7 @@ set -xe
 # Empty previous password file contents
 > /tmp/osh-passwords.env
 
-source ./tools/deployment/armada/generate-passwords.sh
+source ./tools/deployment/armada/generate-osh-passwords.sh
 : ${OSH_INFRA_PATH:="../openstack-helm-infra"}
 : ${OSH_PATH:="./"}
 
