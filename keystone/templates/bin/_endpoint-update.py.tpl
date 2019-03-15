@@ -17,7 +17,10 @@ limitations under the License.
 #!/usr/bin/env python
 import os
 import sys
-import ConfigParser
+try:
+    import ConfigParser
+except ImportError:
+    import configparser as ConfigParser
 import logging
 from sqlalchemy import create_engine
 

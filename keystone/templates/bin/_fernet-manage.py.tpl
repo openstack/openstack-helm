@@ -91,7 +91,7 @@ def read_from_files():
     for key in keys:
         with open(FERNET_DIR + key, 'r') as f:
             data[key] = f.read()
-    if len(keys):
+    if len(list(keys)):
         LOG.debug("Keys read from files: %s", keys)
     else:
         LOG.warn("No keys were read from files.")
