@@ -45,6 +45,7 @@ do
   if [ -n "$iface" ] && [ "$iface" != "null" ]
   then
     ovs-vsctl --no-wait --may-exist add-port $bridge $iface
+    ip link set dev $iface up
   fi
 done
 
