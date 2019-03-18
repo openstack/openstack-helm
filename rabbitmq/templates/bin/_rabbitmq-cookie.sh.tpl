@@ -18,4 +18,6 @@ limitations under the License.
 
 set -ex
 
-exec rabbitmq-server
+cp -vf /run/lib/rabbitmq/.erlang.cookie /var/lib/rabbitmq/.erlang.cookie
+chown "rabbitmq" /var/lib/rabbitmq/.erlang.cookie
+chmod 0600 /var/lib/rabbitmq/.erlang.cookie
