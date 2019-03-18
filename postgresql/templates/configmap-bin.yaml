@@ -19,24 +19,22 @@ limitations under the License.
 {{- $configMapBinName := printf "%s-%s" $envAll.Release.Name "etcd-bin"  }}
 ---
 apiVersion: v1
-kind: ConfigMap
+{{/* Note: this is a secret because credentials must be rendered into the password script. */}}
+kind: Secret
 metadata:
   name: postgresql-bin
+type: Opaque
 data:
 {{- if .Values.images.local_registry.active }}
-  image-repo-sync.sh: |
-{{- include "helm-toolkit.scripts.image_repo_sync" . | indent 4 }}
+  image-repo-sync.sh: {{- include "helm-toolkit.scripts.image_repo_sync" . | b64enc }}
 {{- end }}
-  start.sh: |
-{{ tuple "bin/_start.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
-  readiness.sh: |
-{{ tuple "bin/_readiness.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
-  db_test.sh: |
-{{ tuple "bin/_db_test.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
+  start.sh: {{ tuple "bin/_start.sh.tpl" . | include "helm-toolkit.utils.template" | b64enc }}
+  readiness.sh: {{ tuple "bin/_readiness.sh.tpl" . | include "helm-toolkit.utils.template" | b64enc }}
+  db_test.sh: {{ tuple "bin/_db_test.sh.tpl" . | include "helm-toolkit.utils.template" | b64enc }}
 {{- if .Values.conf.backup.enabled }}
-  backup_postgresql.sh: |
-{{ tuple "bin/_backup_postgresql.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
-  restore_postgresql.sh: |
-{{ tuple "bin/_restore_postgresql.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
+  backup_postgresql.sh: {{ tuple "bin/_backup_postgresql.sh.tpl" . | include "helm-toolkit.utils.template" | b64enc }}
+  restore_postgresql.sh: {{ tuple "bin/_restore_postgresql.sh.tpl" . | include "helm-toolkit.utils.template" | b64enc }}
 {{- end }}
+  set_password.sh: {{ tuple "bin/_set_password.sh.tpl" . | include "helm-toolkit.utils.template" | b64enc }}
+  patroni_conversion.sh: {{ tuple "bin/_patroni_conversion.sh.tpl" . | include "helm-toolkit.utils.template" | b64enc }}
 {{- end }}

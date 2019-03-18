@@ -1,4 +1,4 @@
-# Copyright 2017 The Openstack-Helm Authors.
+# Copyright 2019 The Openstack-Helm Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -37,6 +37,14 @@ pod:
         postgresql:
           readOnlyRootFilesystem: true
           allowPrivilegeEscalation: false
+        patroni_conversion:
+          runAsUser: 999
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+      pod:
+        runAsUser: 999
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
   affinity:
     anti:
       type:
@@ -46,8 +54,7 @@ pod:
       weight:
         default: 10
   replicas:
-    #only 1 replica currently supported
-    server: 1
+    server: 3
     prometheus_postgresql_exporter: 1
   lifecycle:
     upgrades:
@@ -106,10 +113,10 @@ pod:
           memory: "1024Mi"
           cpu: "2000m"
 
-# using dockerhub postgresql: https://hub.docker.com/r/library/postgres/tags/
+# using dockerhub patroni: https://hub.docker.com/r/openstackhelm/patroni/tags/
 images:
   tags:
-    postgresql: "docker.io/postgres:9.5"
+    postgresql: "docker.io/openstackhelm/patroni:latest-ubuntu_xenial"
     dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.3.1
     image_repo_sync: docker.io/docker:17.07.0
     prometheus_postgresql_exporter: docker.io/wrouesnel/postgres_exporter:v0.4.6
@@ -131,8 +138,8 @@ storage:
   host:
     host_path: /data/openstack-helm/postgresql
   mount:
-    path: /var/lib/postgresql/data
-    subpath: pgdata
+    path: /var/lib/postgresql
+    subpath: .
 
 labels:
   server:
@@ -205,8 +212,137 @@ jobs:
 conf:
   debug: false
   postgresql:
-    max_connections: 100
     shared_buffers: 128MB
+    max_connections: 100
+  patroni: |
+    scope: {{ tuple "postgresql" "internal" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
+    kubernetes:
+      labels:
+        application: {{ tuple "postgresql" "internal" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
+        component: server
+      use_endpoints: true
+      ports:
+      - name: {{ tuple "postgresql" "internal" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
+        port: {{ tuple "postgresql" "internal" "postgresql" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+    bootstrap:
+      dcs:
+        ttl: 30
+        loop_wait: 10
+        retry_timeout: 10
+        maximum_lag_on_failover: 1048576
+        postgresql:
+          data_dir: '{{ .Values.storage.mount.path }}/pgdata'
+          pgpass: '{{ .Values.storage.mount.path }}/pgpass'
+          use_pg_rewind: true
+          parameters:
+            archive_mode: 'on'
+            archive_timeout: 1800s
+            autovacuum_analyze_scale_factor: 0.02
+            autovacuum_max_workers: 5
+            autovacuum_vacuum_scale_factor: 0.05
+            checkpoint_completion_target: 0.9
+            datestyle: 'iso, mdy'
+            default_text_search_config: 'pg_catalog.english'
+            external_pid_file: '/tmp/postgres.pid'
+            hot_standby: 'on'
+            lc_messages: 'en_US.utf8'
+            lc_monetary: 'en_US.utf8'
+            lc_numeric: 'en_US.utf8'
+            lc_time: 'en_US.utf8'
+            log_autovacuum_min_duration: 0
+            log_checkpoints: 'on'
+            log_connections: 'on'
+            log_disconnections: 'on'
+            log_line_prefix: 'postgresql: %t [%p]: [%l-1] %c %x %d %u %a %h %m '
+            log_lock_waits: 'on'
+            log_min_duration_statement: 500
+            log_statement: none
+            log_temp_files: 0
+            log_timezone: 'UTC'
+            max_connections: {{ .Values.conf.postgresql.max_connections }}
+            max_replication_slots: 10
+            max_wal_senders: 10
+            max_worker_processes: 10
+            tcp_keepalives_idle: 900
+            tcp_keepalives_interval: 100
+            timezone: 'UTC'
+            track_commit_timestamp: 'on'
+            track_functions: all
+            wal_keep_segments: 100
+            wal_level: 'logical'
+            wal_log_hints: 'on'
+      initdb:
+      - auth-host: md5
+      - auth-local: trust
+      - encoding: UTF8
+      - locale: en_US.UTF-8
+      - data-checksums
+      pg_hba:
+      - host all all 127.0.0.1/32 trust
+      - host all all 0.0.0.0/0 md5
+      - host replication {{ .Values.endpoints.postgresql.auth.replica.username }} 127.0.0.1/32 md5  # Fixes issue with Postgres 9.5
+      - host replication {{ .Values.endpoints.postgresql.auth.replica.username }} POD_IP_PATTERN/0 md5
+      - local replication {{ .Values.endpoints.postgresql.auth.admin.username }} md5
+      - local all all trust
+    postgresql:
+      {{/* Note: the postgres pod mounts a volume at /var/lib/postgresql/data,
+           so let's just avoid it and use /var/lib/postgresql/pgdata instead.
+           Patroni moves this directory to a backup under the parent directory
+           (/var/lib/postgresql) under certain failure recovery scenarios, so
+           /var/lib/postgres itself must be exposed to the pod as a pvc mount.*/}}
+      data_dir: '{{ .Values.storage.mount.path }}/pgdata'
+      pgpass: '{{ .Values.storage.mount.path }}/pgpass'
+      callbacks:
+        on_role_change: /tmp/set_password.sh
+        on_start: /tmp/set_password.sh
+      use_pg_rewind: true
+      parameters:
+        archive_mode: 'on'
+        archive_timeout: 1800s
+        autovacuum_analyze_scale_factor: 0.02
+        autovacuum_max_workers: 5
+        autovacuum_vacuum_scale_factor: 0.05
+        checkpoint_completion_target: 0.9
+        datestyle: 'iso, mdy'
+        default_text_search_config: 'pg_catalog.english'
+        external_pid_file: '/tmp/postgres.pid'
+        hot_standby: 'on'
+        lc_messages: 'en_US.utf8'
+        lc_monetary: 'en_US.utf8'
+        lc_numeric: 'en_US.utf8'
+        lc_time: 'en_US.utf8'
+        log_autovacuum_min_duration: 0
+        log_checkpoints: 'on'
+        log_connections: 'on'
+        log_disconnections: 'on'
+        log_line_prefix: 'postgresql: %t [%p]: [%l-1] %c %x %d %u %a %h %m '
+        log_lock_waits: 'on'
+        log_min_duration_statement: 500
+        log_statement: none
+        log_temp_files: 0
+        log_timezone: 'UTC'
+        max_connections: {{ .Values.conf.postgresql.max_connections }}
+        max_replication_slots: 10
+        max_wal_senders: 10
+        max_worker_processes: 10
+        tcp_keepalives_idle: 900
+        tcp_keepalives_interval: 100
+        timezone: 'UTC'
+        track_commit_timestamp: 'on'
+        track_functions: all
+        shared_buffers: {{ .Values.conf.postgresql.shared_buffers }}
+        wal_keep_segments: 100
+        wal_level: 'logical'
+        wal_log_hints: 'on'
+      pg_hba:
+      - host all all 127.0.0.1/32 trust
+      - host all all 0.0.0.0/0 md5
+      - host replication {{ .Values.endpoints.postgresql.auth.replica.username }} 127.0.0.1/32 md5  # Fixes issue with Postgres 9.5
+      - host replication {{ .Values.endpoints.postgresql.auth.replica.username }} POD_IP_PATTERN/0 md5
+      - local replication {{ .Values.endpoints.postgresql.auth.admin.username }} md5
+      - local all all trust
+    watchdog:
+      mode: off  # Allowed values: off, automatic, required
   backup:
     enabled: true
     base_path: /var/backup
@@ -216,6 +352,7 @@ conf:
 secrets:
   postgresql:
     admin: postgresql-admin
+    replica: postgresql-replication
     exporter: postgresql-exporter
 
 endpoints:
@@ -237,6 +374,9 @@ endpoints:
       admin:
         username: postgres
         password: password
+      replica:
+        username: standby
+        password: password
       exporter:
         username: psql_exporter
         password: psql_exp_pass
@@ -249,6 +389,16 @@ endpoints:
     port:
       postgresql:
         default: 5432
+  postgresql_restapi:
+    hosts:
+      default: postgresql-restapi
+    host_fqdn_override:
+      default: null
+    path: null
+    scheme: postgresql
+    port:
+      restapi:
+        default: 8008
   prometheus_postgresql_exporter:
     namespace: null
     hosts:
@@ -265,8 +415,10 @@ endpoints:
 
 manifests:
   configmap_bin: true
+  configmap_etc: true
   job_image_repo_sync: true
   secret_admin: true
+  secret_replica: true
   secret_etc: true
   service: true
   statefulset: true

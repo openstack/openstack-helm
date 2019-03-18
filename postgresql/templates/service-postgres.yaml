@@ -1,5 +1,3 @@
-#!/usr/bin/env bash
-
 {{/*
 Copyright 2019 The Openstack-Helm Authors.
 
@@ -16,10 +14,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-set -ex
-
-if [ -f /tmp/postgres-disable-liveness-probe ]; then
-  exit 0
-else
-  pg_isready -U ${PATRONI_SUPERUSER_USERNAME}
-fi
+{{- if .Values.manifests.service }}
+{{- $envAll := . }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ tuple "postgresql" "internal" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
+spec:
+  ports:
+    - name: postgresql
+      port: {{ tuple "postgresql" "internal" "postgresql" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+{{- end }}

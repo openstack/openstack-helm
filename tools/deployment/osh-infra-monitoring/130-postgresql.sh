@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2017 The Openstack-Helm Authors.
+# Copyright 2019 The Openstack-Helm Authors.
 #
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
 #    not use this file except in compliance with the License. You may obtain
@@ -25,6 +25,8 @@ helm upgrade --install postgresql ./postgresql \
     --namespace=osh-infra \
     --set monitoring.prometheus.enabled=true \
     --set storage.pvc.size=1Gi \
+    --set storage.pvc.enabled=true \
+    --set pod.replicas.server=3 \
     ${OSH_INFRA_EXTRA_HELM_ARGS} \
     ${OSH_INFRA_EXTRA_HELM_ARGS_MARIADB}
 

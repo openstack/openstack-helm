@@ -1,5 +1,5 @@
 {{/*
-Copyright 2017 The Openstack-Helm Authors.
+Copyright 2019 The Openstack-Helm Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,6 +20,81 @@ limitations under the License.
 {{- $serviceAccountName := "postgresql" }}
 {{ tuple $envAll "postgresql" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: Role
+metadata:
+  name: {{ $serviceAccountName }}
+  namespace: {{ $envAll.Release.Namespace }}
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+    verbs:
+      - create
+      - get
+      - list
+      - patch
+      - update
+      - watch
+      # delete and deletecollection are required only for 'patronictl remove'
+      - delete
+      - deletecollection
+  - apiGroups:
+      - ""
+    resources:
+      - endpoints
+    verbs:
+      - get
+      - patch
+      - update
+      # the following three privileges are necessary only when using endpoints
+      - create
+      - list
+      - watch
+      # delete and deletecollection are required only for 'patronictl remove'
+      - delete
+      - deletecollection
+  - apiGroups:
+      - ""
+    resources:
+      - pods
+    verbs:
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  # The following privilege is only necessary for creation of headless service
+  # for postgresql-config endpoint, in order to prevent cleaning it up by the
+  # k8s master.
+  - apiGroups:
+      - ""
+    resources:
+      - services
+    verbs:
+      - create
+      - get
+      - list
+      - patch
+      - update
+      - watch
+      - delete
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: RoleBinding
+metadata:
+  name: {{ $serviceAccountName }}
+  namespace: {{ $envAll.Release.Namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ $serviceAccountName }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ $serviceAccountName }}
+    namespace: {{ $envAll.Release.Namespace }}
+---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -28,19 +103,27 @@ metadata:
     {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
   labels:
 {{ tuple $envAll "postgresql" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+    cluster-name: {{ tuple "postgresql" "internal" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
 spec:
   serviceName: {{ tuple "postgresql" "internal" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
+  podManagementPolicy: "Parallel"
   replicas: {{ .Values.pod.replicas.server }}
   selector:
     matchLabels:
 {{ tuple $envAll "postgresql" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
+      cluster-name: {{ tuple "postgresql" "internal" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
   template:
     metadata:
       labels:
 {{ tuple $envAll "postgresql" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+        cluster-name: {{ tuple "postgresql" "internal" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
       annotations:
 {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
+        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
+        configmap-admin-hash: {{ tuple "secret-admin.yaml" . | include "helm-toolkit.utils.hash" }}
+        configmap-replica-hash: {{ tuple "secret-replica.yaml" . | include "helm-toolkit.utils.hash" }}
+        configmap-secrets-etc-hash: {{ tuple "secrets-etc.yaml" . | include "helm-toolkit.utils.hash" }}
     spec:
       serviceAccountName: {{ $serviceAccountName }}
 {{ dict "envAll" $envAll "application" "server" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
@@ -53,56 +136,193 @@ spec:
         - name: set-volume-perms
 {{ tuple $envAll "postgresql" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.server | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-          command:
-            - "/bin/chown"
-            - {{ .Values.pod.security_context.server.pod.runAsUser | quote }}
-            - {{ .Values.storage.mount.path | quote }}
+          command: ["/bin/sh", "-c"]
+          args:
+            - set -xe;
+              /bin/chown {{ .Values.pod.security_context.server.pod.runAsUser }} {{ .Values.storage.mount.path }};
+              /bin/chmod 700 {{ .Values.storage.mount.path }};
+              /bin/chmod 700 {{ .Values.storage.mount.path }}/*;
 {{ dict "envAll" $envAll "application" "server" "container" "set_volume_perms" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
             - name: postgresql-data
               mountPath: {{ .Values.storage.mount.path }}
-              subPath: {{ .Values.storage.mount.subpath }}
+        # This is for non-HA -> Patroni conversion and can be removed in the future
+        - name: patroni-conversion
+{{ tuple $envAll "postgresql" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.server | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          env:
+            - name: PGDATA
+              value: "{{ .Values.storage.mount.path }}/pgdata"
+            - name: PATRONI_KUBERNETES_POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: PATRONI_KUBERNETES_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: KUBERNETES_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: PATRONI_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: PATRONI_KUBERNETES_POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: PATRONI_SUPERUSER_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.postgresql.admin }}
+                  key: 'POSTGRES_USER'
+            - name: PATRONI_SUPERUSER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.postgresql.admin }}
+                  key: 'POSTGRES_PASSWORD'
+            - name: PATRONI_REPLICATION_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.postgresql.replica }}
+                  key: 'REPLICA_USER'
+            - name: PATRONI_REPLICATION_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.postgresql.replica }}
+                  key: 'REPLICA_PASSWORD'
+            - name: PATRONI_RESTAPI_CONNECT_ADDRESS
+              value: $(PATRONI_KUBERNETES_POD_IP):{{ tuple "postgresql-restapi" "internal" "restapi" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+            - name: PATRONI_RESTAPI_LISTEN
+              value: 0.0.0.0:{{ tuple "postgresql-restapi" "internal" "restapi" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+            - name: PATRONI_POSTGRESQL_CONNECT_ADDRESS
+              value: $(PATRONI_KUBERNETES_POD_IP):{{ tuple "postgresql" "internal" "postgresql" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+            - name: PATRONI_POSTGRESQL_LISTEN
+              value: 0.0.0.0:{{ tuple "postgresql" "internal" "postgresql" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+            - name: PATRONI_admin_PASSWORD
+              value: $(PATRONI_SUPERUSER_PASSWORD)
+            - name: PATRONI_admin_OPTIONS
+              value: 'createrole,createdb'
+          command:
+            - /tmp/patroni_conversion.sh
+{{ dict "envAll" $envAll "application" "server" "container" "patroni_conversion" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: patroni-conversion-tmp
+              mountPath: /var/run/postgresql
+            - name: postgresql-bin
+              mountPath: /tmp/patroni_conversion.sh
+              subPath: patroni_conversion.sh
+              readOnly: true
+            - name: postgresql-data
+              mountPath: {{ .Values.storage.mount.path }}
+            - name: postgresql-etc
+              mountPath: /tmp/patroni-templated.yaml
+              subPath: patroni.yaml
+              readOnly: true
       containers:
         - name: postgresql
 {{ tuple $envAll "postgresql" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.server | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
 {{ dict "envAll" $envAll "application" "server" "container" "postgresql" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           ports:
+            - containerPort: {{ tuple "postgresql-restapi" "internal" "restapi" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+              protocol: TCP
             - containerPort: {{ tuple "postgresql" "internal" "postgresql" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+              protocol: TCP
           env:
-            - name: 'POSTGRES_PASSWORD'
+            - name: PGDATA
+              value: "{{ .Values.storage.mount.path }}/pgdata"
+            - name: PATRONI_KUBERNETES_POD_IP
               valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.secrets.postgresql.admin }}
-                  key: 'POSTGRES_PASSWORD'
-            - name: 'POSTGRES_USER'
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: PATRONI_KUBERNETES_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: KUBERNETES_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: PATRONI_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: PATRONI_KUBERNETES_POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: PATRONI_SUPERUSER_USERNAME
               valueFrom:
                 secretKeyRef:
                   name: {{ .Values.secrets.postgresql.admin }}
                   key: 'POSTGRES_USER'
-            - name: 'PGDATA'
-              value: {{ .Values.storage.mount.path | quote }}
+            - name: PATRONI_SUPERUSER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.postgresql.admin }}
+                  key: 'POSTGRES_PASSWORD'
+            - name: PATRONI_REPLICATION_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.postgresql.replica }}
+                  key: 'REPLICA_USER'
+            - name: PATRONI_REPLICATION_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.postgresql.replica }}
+                  key: 'REPLICA_PASSWORD'
+            - name: PATRONI_RESTAPI_CONNECT_ADDRESS
+              value: $(PATRONI_KUBERNETES_POD_IP):{{ tuple "postgresql-restapi" "internal" "restapi" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+            - name: PATRONI_RESTAPI_LISTEN
+              value: 0.0.0.0:{{ tuple "postgresql-restapi" "internal" "restapi" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+            - name: PATRONI_POSTGRESQL_CONNECT_ADDRESS
+              value: $(PATRONI_KUBERNETES_POD_IP):{{ tuple "postgresql" "internal" "postgresql" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+            - name: PATRONI_POSTGRESQL_LISTEN
+              value: 0.0.0.0:{{ tuple "postgresql" "internal" "postgresql" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+            - name: PATRONI_admin_PASSWORD
+              value: $(PATRONI_SUPERUSER_PASSWORD)
+            - name: PATRONI_admin_OPTIONS
+              value: 'createrole,createdb'
           command:
             - /tmp/start.sh
           livenessProbe:
             exec:
               command:
                 - /tmp/readiness.sh
-            initialDelaySeconds: 20
+            initialDelaySeconds: 30
             timeoutSeconds: 5
+            failureThreshold: 10
           readinessProbe:
             exec:
               command:
                 - /tmp/readiness.sh
-            initialDelaySeconds: 20
+            initialDelaySeconds: 30
             timeoutSeconds: 5
+            failureThreshold: 10
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
             - name: pg-run
               mountPath: /var/run/postgresql
+            - name: postgresql-bin
+              mountPath: /tmp/set_password.sh
+              subPath: set_password.sh
+              readOnly: true
             - name: postgresql-bin
               mountPath: /tmp/start.sh
               subPath: start.sh
@@ -111,19 +331,29 @@ spec:
               mountPath: /tmp/readiness.sh
               subPath: readiness.sh
               readOnly: true
+            - name: postgresql-etc
+              mountPath: /tmp/patroni-templated.yaml
+              subPath: patroni.yaml
+              readOnly: true
             - name: postgresql-data
               mountPath: {{ .Values.storage.mount.path }}
-              subPath: {{ .Values.storage.mount.subpath }}
       volumes:
         - name: pod-tmp
           emptyDir: {}
         - name: pg-run
           emptyDir:
             medium: "Memory"
+        # This is for non-HA -> Patroni conversion and can be removed in the future
+        - name: patroni-conversion-tmp
+          emptyDir: {}
         - name: postgresql-bin
-          configMap:
-            name: postgresql-bin
+          secret:
+            secretName: postgresql-bin
             defaultMode: 0555
+        - name: postgresql-etc
+          secret:
+            secretName: postgresql-etc
+            defaultMode: 0444
 {{- if not .Values.storage.pvc.enabled }}
         - name: postgresql-data
           hostPath:
