@@ -30,6 +30,24 @@ RABBITMQ_ADMIN_USERNAME=`echo $RABBITMQ_ADMIN_CONNECTION | awk -F'[@]' '{print $
 RABBITMQ_ADMIN_PASSWORD=`echo $RABBITMQ_ADMIN_CONNECTION | awk -F'[@]' '{print $1}' \
   | awk -F'[//:]' '{print $5}'`
 
+function rabbit_check_node_count () {
+  echo "Checking node count "
+  NODES_IN_CLUSTER=$(rabbitmqadmin \
+    --host="${RABBIT_HOSTNAME}" \
+    --port="${RABBIT_PORT}" \
+    --username="${RABBITMQ_ADMIN_USERNAME}" \
+    --password="${RABBITMQ_ADMIN_PASSWORD}" \
+    list nodes -f bash | wc -w)
+  if [ "$NODES_IN_CLUSTER" -eq "$RABBIT_REPLICA_COUNT" ]; then
+    echo "Number of nodes in cluster match number of desired pods ($NODES_IN_CLUSTER)"
+  else
+    echo "Number of nodes in cluster ($NODES_IN_CLUSTER) does not match number of desired pods ($RABBIT_REPLICA_COUNT)"
+    exit 1
+  fi
+}
+# Check node count
+rabbit_check_node_count
+
 function rabbit_find_paritions () {
   echo "Checking cluster partitions"
   PARTITIONS=$(rabbitmqadmin \
