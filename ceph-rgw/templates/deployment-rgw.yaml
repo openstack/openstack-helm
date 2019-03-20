@@ -18,7 +18,19 @@ limitations under the License.
 {{- $envAll := . }}
 
 {{- $serviceAccountName := "ceph-rgw" }}
-{{ tuple $envAll "rgw" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+
+{{- $_ := set $envAll.Values "__depParams" ( list ) }}
+{{- if .Values.conf.rgw_ks.enabled -}}
+{{- $__updateDepParams := append $envAll.Values.__depParams "keystone" -}}
+{{- $_ := set $envAll.Values "__depParams" $__updateDepParams -}}
+{{- end -}}
+{{- if .Values.conf.rgw_s3.enabled -}}
+{{- $__updateDepParams := append $envAll.Values.__depParams "s3" -}}
+{{- $_ := set $envAll.Values "__depParams" $__updateDepParams -}}
+{{- end -}}
+{{- $dependencyOpts := dict "envAll" $envAll "dependencyMixinParam" $envAll.Values.__depParams "dependencyKey" "rgw" -}}
+{{- $_ := include "helm-toolkit.utils.dependency_resolver" $dependencyOpts | toString | fromYaml }}
+{{ tuple $envAll "pod_dependency" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 kind: Deployment
 apiVersion: apps/v1
@@ -48,7 +60,7 @@ spec:
       nodeSelector:
         {{ .Values.labels.rgw.node_selector_key }}: {{ .Values.labels.rgw.node_selector_value }}
       initContainers:
-{{ tuple $envAll "rgw" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll "pod_dependency" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
         - name: ceph-init-dirs
 {{ tuple $envAll "ceph_rgw" | include "helm-toolkit.snippets.image" | indent 10 }}
           command:
