@@ -29,6 +29,7 @@ images:
     prometheus_mysql_exporter_helm_tests: docker.io/openstackhelm/heat:newton
     dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.3.1
     image_repo_sync: docker.io/docker:17.07.0
+    mariadb_backup: docker.io/openstackhelm/mariadb:10.2.18
   pull_policy: "IfNotPresent"
   local_registry:
     active: false
@@ -47,6 +48,9 @@ labels:
     node_selector_key: openstack-control-plane
     node_selector_value: enabled
   error_server:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  job:
     node_selector_key: openstack-control-plane
     node_selector_value: enabled
 
@@ -119,11 +123,13 @@ pod:
         limits:
           memory: "1024Mi"
           cpu: "2000m"
-
-jobs:
-  exporter_create_sql_user:
-    backoffLimit: 87600
-    activeDeadlineSeconds: 3600
+      mariadb_backup:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
 
 dependencies:
   dynamic:
@@ -165,6 +171,10 @@ dependencies:
       services:
         - endpoint: internal
           service: local_image_registry
+    mariadb_backup:
+      services:
+        - endpoint: internal
+          service: oslo_db
 
 force_bootstrap: false
 
@@ -173,9 +183,30 @@ volume:
   enabled: true
   class_name: general
   size: 5Gi
+  backup:
+    enabled: true
+    class_name: general
+    size: 5Gi
+
+jobs:
+  exporter_create_sql_user:
+    backoffLimit: 87600
+    activeDeadlineSeconds: 3600
+  backup_mariadb:
+    cron: "0 0 * * *"
+    history:
+      success: 3
+      failed: 1
 
 conf:
   ingress: null
+  backup:
+    enabled: true
+    base_path: /var/backup
+    mysqldump_options: >
+      --single-transaction --quick --skip-opt
+      --add-drop-database --add-drop-table --databases
+    days_of_backup_to_keep: 3
 
 database:
   config_override: null
@@ -292,6 +323,8 @@ manifests:
   deployment_error: true
   deployment_ingress: true
   job_image_repo_sync: true
+  cron_job_mariadb_backup: false
+  pvc_backup: false
   monitoring:
     prometheus:
       configmap_bin: true
