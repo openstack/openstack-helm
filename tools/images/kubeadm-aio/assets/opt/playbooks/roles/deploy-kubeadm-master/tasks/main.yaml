@@ -43,53 +43,53 @@
   delegate_to: 127.0.0.1
   block:
     - name: master | deploy | certs | etcd-ca
-      command: kubeadm alpha phase certs etcd-ca --config /mnt/rootfs/etc/kubernetes/kubeadm-conf.yaml
+      command: kubeadm init phase certs etcd-ca --config /mnt/rootfs/etc/kubernetes/kubeadm-conf.yaml
     - name: master | deploy | certs | etcd-server
-      command: kubeadm alpha phase certs etcd-server --config /mnt/rootfs/etc/kubernetes/kubeadm-conf.yaml
+      command: kubeadm init phase certs etcd-server --config /mnt/rootfs/etc/kubernetes/kubeadm-conf.yaml
     - name: master | deploy | certs | etcd-peer
-      command: kubeadm alpha phase certs etcd-peer --config /mnt/rootfs/etc/kubernetes/kubeadm-conf.yaml
+      command: kubeadm init phase certs etcd-peer --config /mnt/rootfs/etc/kubernetes/kubeadm-conf.yaml
     - name: master | deploy | certs | etcd-healthcheck-client
-      command: kubeadm alpha phase certs etcd-healthcheck-client --config /mnt/rootfs/etc/kubernetes/kubeadm-conf.yaml
+      command: kubeadm init phase certs etcd-healthcheck-client --config /mnt/rootfs/etc/kubernetes/kubeadm-conf.yaml
     - name: master | deploy | certs | ca
-      command: kubeadm alpha phase certs ca --config /mnt/rootfs/etc/kubernetes/kubeadm-conf.yaml
+      command: kubeadm init phase certs ca --config /mnt/rootfs/etc/kubernetes/kubeadm-conf.yaml
     - name: master | deploy | certs | apiserver
-      command: kubeadm alpha phase certs apiserver --config /mnt/rootfs/etc/kubernetes/kubeadm-conf.yaml
+      command: kubeadm init phase certs apiserver --config /mnt/rootfs/etc/kubernetes/kubeadm-conf.yaml
     - name: master | deploy | certs | apiserver-etcd-client
-      command: kubeadm alpha phase certs apiserver-etcd-client --config /mnt/rootfs/etc/kubernetes/kubeadm-conf.yaml
+      command: kubeadm init phase certs apiserver-etcd-client --config /mnt/rootfs/etc/kubernetes/kubeadm-conf.yaml
     - name: master | deploy | certs | apiserver-kubelet-client
-      command: kubeadm alpha phase certs apiserver-kubelet-client --config /mnt/rootfs/etc/kubernetes/kubeadm-conf.yaml
+      command: kubeadm init phase certs apiserver-kubelet-client --config /mnt/rootfs/etc/kubernetes/kubeadm-conf.yaml
     - name: master | deploy | certs | sa
-      command: kubeadm alpha phase certs sa --config /mnt/rootfs/etc/kubernetes/kubeadm-conf.yaml
+      command: kubeadm init phase certs sa
     - name: master | deploy | certs | front-proxy-ca
-      command: kubeadm alpha phase certs front-proxy-ca --config /mnt/rootfs/etc/kubernetes/kubeadm-conf.yaml
+      command: kubeadm init phase certs front-proxy-ca --config /mnt/rootfs/etc/kubernetes/kubeadm-conf.yaml
     - name: master | deploy | certs | front-proxy-client
-      command: kubeadm alpha phase certs front-proxy-client --config /mnt/rootfs/etc/kubernetes/kubeadm-conf.yaml
+      command: kubeadm init phase certs front-proxy-client --config /mnt/rootfs/etc/kubernetes/kubeadm-conf.yaml
 
 - name: generating kubeconfigs
   delegate_to: 127.0.0.1
   block:
     - name: master | deploy | kubeconfig | admin
-      command: kubeadm alpha phase kubeconfig admin --config /mnt/rootfs/etc/kubernetes/kubeadm-conf.yaml
+      command: kubeadm init phase kubeconfig admin --config /mnt/rootfs/etc/kubernetes/kubeadm-conf.yaml
     - name: master | deploy | kubeconfig | kubelet
-      command: kubeadm alpha phase kubeconfig kubelet --config /mnt/rootfs/etc/kubernetes/kubeadm-conf.yaml
+      command: kubeadm init phase kubeconfig kubelet --config /mnt/rootfs/etc/kubernetes/kubeadm-conf.yaml
     - name: master | deploy | kubeconfig | controller-manager
-      command: kubeadm alpha phase kubeconfig controller-manager --config /mnt/rootfs/etc/kubernetes/kubeadm-conf.yaml
+      command: kubeadm init phase kubeconfig controller-manager --config /mnt/rootfs/etc/kubernetes/kubeadm-conf.yaml
     - name: master | deploy | kubeconfig | scheduler
-      command: kubeadm alpha phase kubeconfig scheduler --config /mnt/rootfs/etc/kubernetes/kubeadm-conf.yaml
+      command: kubeadm init phase kubeconfig scheduler --config /mnt/rootfs/etc/kubernetes/kubeadm-conf.yaml
 
 - name: generating etcd static manifest
   delegate_to: 127.0.0.1
-  command: kubeadm alpha phase etcd local --config /mnt/rootfs/etc/kubernetes/kubeadm-conf.yaml
+  command: kubeadm init phase etcd local --config /mnt/rootfs/etc/kubernetes/kubeadm-conf.yaml
 
 - name: generating controlplane static manifests
   delegate_to: 127.0.0.1
   block:
     - name: master | deploy | controlplane | apiserver
-      command: kubeadm alpha phase controlplane apiserver --config /mnt/rootfs/etc/kubernetes/kubeadm-conf.yaml
+      command: kubeadm init phase control-plane apiserver --config /mnt/rootfs/etc/kubernetes/kubeadm-conf.yaml
     - name: master | deploy | controlplane | controller-manager
-      command: kubeadm alpha phase controlplane controller-manager --config /mnt/rootfs/etc/kubernetes/kubeadm-conf.yaml
+      command: kubeadm init phase control-plane controller-manager --config /mnt/rootfs/etc/kubernetes/kubeadm-conf.yaml
     - name: master | deploy | controlplane | scheduler
-      command: kubeadm alpha phase controlplane scheduler --config /mnt/rootfs/etc/kubernetes/kubeadm-conf.yaml
+      command: kubeadm init phase control-plane scheduler --config /mnt/rootfs/etc/kubernetes/kubeadm-conf.yaml
 
 - name: wait for kube components
   delegate_to: 127.0.0.1
@@ -118,7 +118,7 @@
 
 - name: deploying kube-proxy
   delegate_to: 127.0.0.1
-  command: kubeadm alpha phase addon kube-proxy --config /mnt/rootfs/etc/kubernetes/kubeadm-conf.yaml
+  command: kubeadm init phase addon kube-proxy --config /mnt/rootfs/etc/kubernetes/kubeadm-conf.yaml
 
 - include_tasks: helm-cni.yaml
 
@@ -142,17 +142,19 @@
   when: k8s.keystoneAuth|bool == true
 - include_tasks: helm-deploy.yaml
 
-- name: uploading cluster config to api
+- name: uploading kubeadm config
   delegate_to: 127.0.0.1
-  command: kubeadm alpha phase upload-config --kubeconfig /mnt/rootfs/etc/kubernetes/admin.conf --config /mnt/rootfs/etc/kubernetes/kubeadm-conf.yaml
+  command: kubeadm init phase upload-config kubeadm --kubeconfig /mnt/rootfs/etc/kubernetes/admin.conf --config /mnt/rootfs/etc/kubernetes/kubeadm-conf.yaml
+
+- name: uploading kubelet config
+  delegate_to: 127.0.0.1
+  command: kubeadm init phase upload-config kubelet --kubeconfig /mnt/rootfs/etc/kubernetes/admin.conf --config /mnt/rootfs/etc/kubernetes/kubeadm-conf.yaml
 
 - name: generating bootstrap-token objects
   delegate_to: 127.0.0.1
   block:
-    - name: master | deploy | bootstrap-token | allow-post-csrs
-      command: kubeadm --kubeconfig /mnt/rootfs/etc/kubernetes/admin.conf alpha phase bootstrap-token node allow-post-csrs
-    - name: master | deploy | bootstrap-token | allow-auto-approve
-      command: kubeadm --kubeconfig /mnt/rootfs/etc/kubernetes/admin.conf alpha phase bootstrap-token node allow-auto-approve
+    - name: master | deploy | bootstrap-token
+      command: kubeadm init phase bootstrap-token --kubeconfig /mnt/rootfs/etc/kubernetes/admin.conf
 
 - name: generating bootstrap-token objects
   delegate_to: 127.0.0.1
@@ -209,7 +211,7 @@
 - name: converting the cluster to be selfhosted
   when: k8s.selfHosted|bool == true
   delegate_to: 127.0.0.1
-  command: kubeadm alpha phase selfhosting convert-from-staticpods --kubeconfig /mnt/rootfs/etc/kubernetes/admin.conf --config /mnt/rootfs/etc/kubernetes/kubeadm-conf.yaml
+  command: kubeadm init phase selfhosting convert-from-staticpods --kubeconfig /mnt/rootfs/etc/kubernetes/admin.conf --config /mnt/rootfs/etc/kubernetes/kubeadm-conf.yaml
 
 - name: setting up kubectl client and kubeadm on host
   block:
