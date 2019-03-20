@@ -61,8 +61,9 @@ def check_service_status(transport):
         sys.stderr.write("Health probe unable to reach message bus")
         sys.exit(0)  # return success
     except oslo_messaging.rpc.client.RemoteError as re:
-        if ("Endpoint does not support RPC method" in re.message) or \
-                ("Endpoint does not support RPC version" in re.message):
+        message = getattr(re, "message", str(re))
+        if ("Endpoint does not support RPC method" in message) or \
+                ("Endpoint does not support RPC version" in message):
             sys.exit(0)  # Call reached the service
         else:
             sys.stderr.write("Health probe unable to reach service")
@@ -72,8 +73,9 @@ def check_service_status(transport):
                          "timed out")
         sys.exit(1)  # return failure
     except Exception as ex:
+        message = getattr(ex, "message", str(ex))
         sys.stderr.write("Health probe caught exception sending message to "
-                         "service: %s" % ex.message)
+                         "service: %s" % message)
         sys.exit(0)
     except:
         sys.stderr.write("Health probe caught exception sending message to"
@@ -180,7 +182,8 @@ def test_rpc_liveness():
     try:
         transport = oslo_messaging.get_transport(cfg.CONF)
     except Exception as ex:
-        sys.stderr.write("Message bus driver load error: %s" % ex.message)
+        message = getattr(ex, "message", str(ex))
+        sys.stderr.write("Message bus driver load error: %s" % message)
         sys.exit(0)  # return success
 
     if not cfg.CONF.transport_url or \
