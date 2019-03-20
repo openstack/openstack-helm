@@ -59,9 +59,7 @@ sudo sed -i '/^::1/c\::1 localhost6 localhost6.localdomain6' /etc/hosts
 # Install required packages for K8s on host
 sudo apt-key adv --keyserver keyserver.ubuntu.com  --recv 460F3994
 RELEASE_NAME=$(grep 'CODENAME' /etc/lsb-release | awk -F= '{print $2}')
-#NOTE (srwilkers): Use the luminous repository until the issues with the mimic
-# repository are sorted out
-sudo add-apt-repository "deb https://download.ceph.com/debian-luminous/
+sudo add-apt-repository "deb https://download.ceph.com/debian-mimic/
 ${RELEASE_NAME} main"
 sudo -E apt-get update
 # NOTE(srwilkers): Pin docker version to validated docker version for k8s 1.12.2
