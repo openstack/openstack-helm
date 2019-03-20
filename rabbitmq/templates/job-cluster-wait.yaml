@@ -1,0 +1,63 @@
+{{/*
+Copyright 2017 The Openstack-Helm Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.job_cluster_wait }}
+{{- $envAll := . }}
+
+{{- $serviceAccountName := print .Release.Name "-cluster-wait" }}
+{{ tuple $envAll "cluster_wait" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "{{.Release.Name}}-cluster-wait"
+  labels:
+{{ tuple $envAll "rabbitmq" "cluster-wait" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+  annotations:
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+spec:
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "rabbitmq" "cluster-wait" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+    spec:
+      serviceAccountName: {{ $serviceAccountName }}
+      restartPolicy: OnFailure
+      nodeSelector:
+        {{ $envAll.Values.labels.jobs.node_selector_key }}: {{ $envAll.Values.labels.test.node_selector_value | quote }}
+      initContainers:
+{{ tuple $envAll "tests" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+      containers:
+        - name: {{.Release.Name}}-rabbitmq-cluster-wait
+{{ tuple $envAll "scripted_test" | include "helm-toolkit.snippets.image" | indent 10 }}
+          env:
+            - name: RABBITMQ_ADMIN_CONNECTION
+              value: {{ tuple "oslo_messaging" "internal" "user" "http" $envAll | include "helm-toolkit.endpoints.authenticated_endpoint_uri_lookup" | quote }}
+            - name: RABBIT_REPLICA_COUNT
+              value: {{ $envAll.Values.pod.replicas.server | quote }}
+          command:
+            - /tmp/rabbitmq-wait-for-cluster.sh
+          volumeMounts:
+            - name: rabbitmq-bin
+              mountPath: /tmp/rabbitmq-wait-for-cluster.sh
+              subPath: rabbitmq-wait-for-cluster.sh
+              readOnly: true
+      volumes:
+        - name: rabbitmq-bin
+          configMap:
+            name: {{ printf "%s-%s" $envAll.Release.Name "rabbitmq-bin" | quote }}
+            defaultMode: 0555
+{{- end }}
