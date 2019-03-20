@@ -38,45 +38,6 @@ function create_test_index () {
   fi
 }
 
-function insert_data_into_test_index () {
-  insert_result=$(curl -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
-  -XPUT "${ELASTICSEARCH_ENDPOINT}/test_index/sample_type/123/_create?pretty" -H 'Content-Type: application/json' -d'
-  {
-      "name" : "Elasticsearch",
-      "message" : "Test data text entry"
-  }
-  ' | python -c "import sys, json; print json.load(sys.stdin)['result']")
-  if [ "$insert_result" == "created" ]; then
-     sleep 20
-     echo "PASS: Test data inserted into test index!";
-  else
-     echo "FAIL: Test data not inserted into test index!";
-     exit 1;
-  fi
-}
-
-function check_hits_on_test_data () {
-  total_hits=$(curl -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
-  "${ELASTICSEARCH_ENDPOINT}/_search?pretty" -H 'Content-Type: application/json' -d'
-  {
-    "query" : {
-      "bool": {
-        "must": [
-          { "match": { "name": "Elasticsearch" }},
-          { "match": { "message": "Test data text entry" }}
-        ]
-      }
-    }
-  }
-  ' | python -c "import sys, json; print json.load(sys.stdin)['hits']['total']")
-  if [ "$total_hits" -gt 0 ]; then
-     echo "PASS: Successful hits on test data query!"
-  else
-     echo "FAIL: No hits on query for test data! Exiting";
-     exit 1;
-  fi
-}
-
 function check_snapshot_repositories () {
   {{ range $repository := .Values.conf.elasticsearch.snapshots.repositories }}
   repository={{$repository.name}}
@@ -99,8 +60,6 @@ function remove_test_index () {
 
 remove_test_index || true
 create_test_index
-insert_data_into_test_index
-check_hits_on_test_data
 {{ if .Values.conf.elasticsearch.snapshots.enabled }}
 check_snapshot_repositories
 {{ end }}
