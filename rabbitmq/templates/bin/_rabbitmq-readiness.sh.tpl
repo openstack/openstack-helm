@@ -18,8 +18,4 @@ limitations under the License.
 
 set -e
 
-if [ -f /run/rabbit-disable-liveness-probe ]; then
-   exit 0
-else
-   exec rabbitmqctl status
-fi
+exec rabbitmqctl status

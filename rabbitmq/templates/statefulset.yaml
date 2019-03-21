@@ -67,6 +67,7 @@ metadata:
 spec:
   serviceName: {{ tuple "oslo_messaging" "discovery" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
   replicas: {{ $envAll.Values.pod.replicas.server }}
+  podManagementPolicy: "Parallel"
   selector:
     matchLabels:
 {{ tuple $envAll "rabbitmq" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
@@ -183,12 +184,18 @@ spec:
               value: ".{{ tuple "oslo_messaging" "discovery" . | include "helm-toolkit.endpoints.hostname_fqdn_endpoint_lookup" }}"
             - name: RABBITMQ_ERLANG_COOKIE
               value: "{{ $envAll.Values.endpoints.oslo_messaging.auth.erlang_cookie }}"
+            - name: PORT_HTTP
+              value: "{{ tuple "oslo_messaging" "internal" "http" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}"
+            - name: PORT_AMPQ
+              value: "{{ tuple "oslo_messaging" "internal" "amqp" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}"
+            - name: PORT_CLUSTERING
+              value: "{{ add (tuple "oslo_messaging" "internal" "amqp" . | include "helm-toolkit.endpoints.endpoint_port_lookup") 20000 }}"
           readinessProbe:
             initialDelaySeconds: 10
             timeoutSeconds: 10
             exec:
               command:
-              - /tmp/rabbitmq-liveness.sh
+              - /tmp/rabbitmq-readiness.sh
           livenessProbe:
             initialDelaySeconds: 30
             timeoutSeconds: 10
@@ -201,6 +208,10 @@ spec:
             - name: rabbitmq-bin
               mountPath: /tmp/rabbitmq-start.sh
               subPath: rabbitmq-start.sh
+              readOnly: true
+            - name: rabbitmq-bin
+              mountPath: /tmp/rabbitmq-readiness.sh
+              subPath: rabbitmq-readiness.sh
               readOnly: true
             - name: rabbitmq-bin
               mountPath: /tmp/rabbitmq-liveness.sh
