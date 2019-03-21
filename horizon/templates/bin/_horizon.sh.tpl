@@ -27,8 +27,17 @@ function start () {
   # wsgi/horizon-http needs open files here, including secret_key_store
   chown -R horizon ${SITE_PACKAGES_ROOT}/openstack_dashboard/local/
 
-  a2enmod rewrite
-  a2dismod status
+  {{- if .Values.conf.software.apache2.a2enmod }}
+    {{- range .Values.conf.software.apache2.a2enmod }}
+  a2enmod {{ . }}
+    {{- end }}
+  {{- end }}
+
+  {{- if .Values.conf.software.apache2.a2dismod }}
+    {{- range .Values.conf.software.apache2.a2dismod }}
+  a2dismod {{ . }}
+    {{- end }}
+  {{- end }}
 
   if [ -f /etc/apache2/envvars ]; then
      # Loading Apache2 ENV variables
@@ -53,11 +62,11 @@ function start () {
   /tmp/manage.py compress --force
   rm -rf /tmp/_tmp_.secret_key_store.lock /tmp/.secret_key_store
 
-  exec apache2 -DFOREGROUND
+  exec {{ .Values.conf.software.apache2.binary }} {{ .Values.conf.software.apache2.start_parameters }}
 }
 
 function stop () {
-  apachectl -k graceful-stop
+  {{ .Values.conf.software.apache2.binary }} -k graceful-stop
 }
 
 $COMMAND
