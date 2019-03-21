@@ -30,6 +30,9 @@ network_policy:
       - from:
         - podSelector:
             matchLabels:
+              application: rabbitmq
+        - podSelector:
+            matchLabels:
               application: keystone
         - podSelector:
             matchLabels:
