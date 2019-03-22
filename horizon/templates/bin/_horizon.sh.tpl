@@ -46,11 +46,17 @@ function start () {
   rm -rf /var/run/apache2/*
   APACHE_DIR="apache2"
 
-  # Add TaaS dashboard panel if available
-  TAAS_PANEL="${SITE_PACKAGES_ROOT}/neutron_taas_dashboard/enabled/_90_project_tapservices_panel.py"
-  if [ -f ${TAAS_PANEL} ]; then
-     ln -s ${TAAS_PANEL}   ${SITE_PACKAGES_ROOT}/openstack_dashboard/local/enabled/_90_project_tapservices_panel.py
+  # Add extra panels if available
+  {{- range .Values.conf.horizon.extra_panels }}
+  PANEL_DIR="${SITE_PACKAGES_ROOT}/{{ . }}/enabled"
+  if [ -d ${PANEL_DIR} ];then
+    for panel in `ls -1 ${PANEL_DIR}/_[1-9]*.py`
+    do
+      ln -s ${panel} ${SITE_PACKAGES_ROOT}/openstack_dashboard/local/enabled/$(basename ${panel})
+    done
   fi
+  unset PANEL_DIR
+  {{- end }}
 
   # If the image has support for it, compile the translations
   if type -p gettext >/dev/null 2>/dev/null; then
