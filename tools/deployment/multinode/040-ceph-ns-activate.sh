@@ -18,7 +18,7 @@ set -xe
 
 #NOTE: Deploy command
 CEPH_PUBLIC_NETWORK="$(./tools/deployment/multinode/kube-node-subnet.sh)"
-CEPH_CLUSTER_NETWORK="$(./tools/deployment/multinode/kube-node-subnet.sh)"
+CEPH_CLUSTER_NETWORK="${CEPH_PUBLIC_NETWORK}"
 tee /tmp/ceph-openstack-config.yaml <<EOF
 endpoints:
   ceph_mon:
