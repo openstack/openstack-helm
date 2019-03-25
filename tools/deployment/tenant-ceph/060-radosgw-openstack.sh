@@ -71,4 +71,4 @@ helm upgrade --install radosgw-openstack ./ceph-rgw \
 #NOTE: Validate Deployment info
 helm status radosgw-openstack
 
-helm test radosgw-openstack
+helm test radosgw-openstack --timeout 900

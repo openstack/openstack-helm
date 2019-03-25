@@ -158,3 +158,6 @@ for CHART in ceph-mon ceph-osd ceph-client; do
     --no-headers | awk '{ print $1; exit }')
   kubectl exec -n tenant-ceph ${MON_POD} -- ceph -s
 done
+
+helm test tenant-ceph-osd --timeout 900
+helm test ceph-client --timeout 900

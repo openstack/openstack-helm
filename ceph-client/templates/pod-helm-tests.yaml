@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if .Values.manifests.pod_test }}
+{{- if .Values.manifests.helm_tests }}
 {{- $envAll := . }}
 {{- $serviceAccountName := printf "%s-%s" $envAll.Release.Name "test" }}
 {{ tuple $envAll "tests" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
@@ -45,12 +45,8 @@ spec:
           value: {{ .Values.conf.pool.target.osd | quote }}
         - name: EXPECTED_CRUSHRULE
           value: {{ .Values.conf.pool.default.crush_rule | default "replicated_rule" | quote }}
-        - name: EXPECTED_POOLMINSIZE
-          value: "2"
         - name: MGR_COUNT
           value: {{ .Values.pod.replicas.mgr | default "1" | quote }}
-        - name: SPECS
-          value: {{ include "helm-toolkit.utils.joinListWithComma" .Values.conf.pool.spec }}
         {{- range $pool := .Values.conf.pool.spec -}}
         {{- with $pool }}
         - name: {{ .name | upper | replace "." "_" }}
