@@ -31,7 +31,39 @@ pod:
     scheduler: 1
     novncproxy: 1
 EOF
-if [ "x$(systemd-detect-virt)" == "xnone" ]; then
+
+function kvm_check () {
+  POD_NAME="tmp-$(cat /dev/urandom | env LC_CTYPE=C tr -dc a-z | head -c 5; echo)"
+  cat <<EOF | kubectl apply -f - 1>&2;
+apiVersion: v1
+kind: Pod
+metadata:
+  name: ${POD_NAME}
+spec:
+  hostPID: true
+  restartPolicy: Never
+  containers:
+  - name: util
+    securityContext:
+      privileged: true
+    image: docker.io/busybox:latest
+    command:
+      - sh
+      - -c
+      - |
+        nsenter -t1 -m -u -n -i -- sh -c "kvm-ok >/dev/null && echo yes || echo no"
+EOF
+  end=$(($(date +%s) + 900))
+  until kubectl get pod/${POD_NAME} -o go-template='{{.status.phase}}' | grep -q Succeeded; do
+    now=$(date +%s)
+    [ $now -gt $end ] && echo containers failed to start. && \
+        kubectl get pod/${POD_NAME} -o wide && exit 1
+  done
+  kubectl logs pod/${POD_NAME}
+  kubectl delete pod/${POD_NAME} 1>&2;
+}
+
+if [ "x$(kvm_check)" == "xyes" ]; then
   echo 'OSH is not being deployed in virtualized environment'
   helm upgrade --install nova ./nova \
       --namespace=openstack \
@@ -49,10 +81,39 @@ else
       ${OSH_EXTRA_HELM_ARGS_NOVA}
 fi
 
-#NOTE: Deploy neutron
-#NOTE(portdirect): for simplicity we will assume the default route device
+#NOTE: Deploy neutron, for simplicity we will assume the default route device
 # should be used for tunnels
-NETWORK_TUNNEL_DEV="$(sudo ip -4 route list 0/0 | awk '{ print $5; exit }')"
+function network_tunnel_dev () {
+  POD_NAME="tmp-$(cat /dev/urandom | env LC_CTYPE=C tr -dc a-z | head -c 5; echo)"
+  cat <<EOF | kubectl apply -f - 1>&2;
+apiVersion: v1
+kind: Pod
+metadata:
+  name: ${POD_NAME}
+spec:
+  hostNetwork: true
+  restartPolicy: Never
+  containers:
+  - name: util
+    image: docker.io/busybox:latest
+    command:
+    - 'ip'
+    - '-4'
+    - 'route'
+    - 'list'
+    - '0/0'
+EOF
+  end=$(($(date +%s) + 900))
+  until kubectl get pod/${POD_NAME} -o go-template='{{.status.phase}}' | grep -q Succeeded; do
+    now=$(date +%s)
+    [ $now -gt $end ] && echo containers failed to start. && \
+        kubectl get pod/${POD_NAME} -o wide && exit 1
+  done
+  kubectl logs pod/${POD_NAME} | awk '{ print $5; exit }'
+  kubectl delete pod/${POD_NAME} 1>&2;
+}
+
+NETWORK_TUNNEL_DEV="$(network_tunnel_dev)"
 tee /tmp/neutron.yaml << EOF
 network:
   interface:
