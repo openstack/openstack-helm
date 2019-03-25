@@ -26,6 +26,18 @@ function start () {
     cp -a $(type -p ${KEYSTONE_WSGI_SCRIPT}) /var/www/cgi-bin/keystone/
   done
 
+  {{- if .Values.conf.software.apache2.a2enmod }}
+    {{- range .Values.conf.software.apache2.a2enmod }}
+  a2enmod {{ . }}
+    {{- end }}
+  {{- end }}
+
+  {{- if .Values.conf.software.apache2.a2dismod }}
+    {{- range .Values.conf.software.apache2.a2dismod }}
+  a2dismod {{ . }}
+    {{- end }}
+  {{- end }}
+
   if [ -f /etc/apache2/envvars ]; then
      # Loading Apache2 ENV variables
      source /etc/apache2/envvars
@@ -37,11 +49,11 @@ function start () {
   fi
 
   # Start Apache2
-  exec apache2 -DFOREGROUND
+  exec {{ .Values.conf.software.apache2.binary }} {{ .Values.conf.software.apache2.start_parameters }}
 }
 
 function stop () {
-  apachectl -k graceful-stop
+  {{ .Values.conf.software.apache2.binary }} -k graceful-stop
 }
 
 $COMMAND
