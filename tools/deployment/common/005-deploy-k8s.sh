@@ -17,7 +17,7 @@
 
 set -xe
 
-: ${HELM_VERSION:="v2.13.0"}
+: ${HELM_VERSION:="v2.13.1"}
 : ${KUBE_VERSION:="v1.13.4"}
 : ${MINIKUBE_VERSION:="v0.30.0"}
 : ${CALICO_VERSION:="v3.3"}
