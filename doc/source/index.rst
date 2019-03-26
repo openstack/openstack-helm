@@ -10,6 +10,7 @@ Contents:
    testing/index
    monitoring/index
    logging/index
+   upgrade/index
    readme
 
 Indices and Tables
