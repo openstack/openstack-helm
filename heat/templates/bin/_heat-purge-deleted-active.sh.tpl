@@ -18,4 +18,4 @@ limitations under the License.
 
 set -ex
 
-heat-manage purge_deleted -g minutes $1
+heat-manage purge_deleted -g minutes "$1"
