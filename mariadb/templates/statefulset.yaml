@@ -74,6 +74,7 @@ metadata:
     configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
     configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
     mariadb-dbadmin-password-hash: {{ tuple "secret-dbadmin-password.yaml" . | include "helm-toolkit.utils.hash" }}
+    mariadb-sst-password-hash: {{ tuple "secret-dbadmin-password.yaml" . | include "helm-toolkit.utils.hash" }}
   labels:
 {{ tuple $envAll "mariadb" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 spec:
@@ -91,6 +92,8 @@ spec:
 {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
+        mariadb-dbadmin-password-hash: {{ tuple "secret-dbadmin-password.yaml" . | include "helm-toolkit.utils.hash" }}
+        mariadb-sst-password-hash: {{ tuple "secret-dbadmin-password.yaml" . | include "helm-toolkit.utils.hash" }}
     spec:
       shareProcessNamespace: true
       serviceAccountName: {{ $serviceAccountName }}
@@ -143,6 +146,13 @@ spec:
                 secretKeyRef:
                   name: mariadb-dbadmin-password
                   key: MYSQL_DBADMIN_PASSWORD
+            - name: MYSQL_DBSST_USERNAME
+              value: {{ .Values.endpoints.oslo_db.auth.sst.username }}
+            - name: MYSQL_DBSST_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mariadb-dbsst-password
+                  key: MYSQL_DBSST_PASSWORD
           ports:
             - name: mysql
               protocol: TCP

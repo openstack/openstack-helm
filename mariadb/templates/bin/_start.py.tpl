@@ -93,6 +93,15 @@ if check_env_var("MYSQL_DBADMIN_USERNAME"):
     mysql_dbadmin_username = os.environ['MYSQL_DBADMIN_USERNAME']
 if check_env_var("MYSQL_DBADMIN_PASSWORD"):
     mysql_dbadmin_password = os.environ['MYSQL_DBADMIN_PASSWORD']
+if check_env_var("MYSQL_DBSST_USERNAME"):
+    mysql_dbsst_username = os.environ['MYSQL_DBSST_USERNAME']
+if check_env_var("MYSQL_DBSST_PASSWORD"):
+    mysql_dbsst_password = os.environ['MYSQL_DBSST_PASSWORD']
+
+if mysql_dbadmin_username == mysql_dbsst_username:
+    logger.critical(
+        "The dbadmin username should not match the sst user username")
+    sys.exit(1)
 
 # Set some variables for tuneables
 cluster_leader_ttl = 120
@@ -245,16 +254,17 @@ def mysqld_bootstrap():
             "CREATE OR REPLACE USER '{0}'@'%' IDENTIFIED BY \'{1}\' ;\n"
             "GRANT ALL ON *.* TO '{0}'@'%' WITH GRANT OPTION ;\n"
             "DROP DATABASE IF EXISTS test ;\n"
+            "CREATE OR REPLACE USER '{2}'@'127.0.0.1' IDENTIFIED BY '{3}' ;\n"
+            "GRANT PROCESS, RELOAD, LOCK TABLES, REPLICATION CLIENT ON *.* TO '{2}'@'127.0.0.1' ;\n"
             "FLUSH PRIVILEGES ;\n"
-            "SHUTDOWN ;".format(mysql_dbadmin_username,
-                                mysql_dbadmin_password))
+            "SHUTDOWN ;".format(mysql_dbadmin_username, mysql_dbadmin_password,
+                                mysql_dbsst_username, mysql_dbsst_password))
         bootstrap_sql_file = tempfile.NamedTemporaryFile(suffix='.sql').name
         with open(bootstrap_sql_file, 'w') as f:
             f.write(template)
             f.close()
         run_cmd_with_logging([
-            'mysqld',
-            '--bind-address=127.0.0.1',
+            'mysqld', '--bind-address=127.0.0.1',
             '--wsrep_cluster_address=gcomm://',
             "--init-file={0}".format(bootstrap_sql_file)
         ], logger)
@@ -505,8 +515,7 @@ def update_grastate_on_restart():
                     stderr=subprocess.PIPE)
                 out, err = wsrep_recover.communicate()
                 for item in err.split("\n"):
-                    logger.info(
-                        "Recovering wsrep position: {0}".format(item))
+                    logger.info("Recovering wsrep position: {0}".format(item))
                     if "WSREP: Recovered position:" in item:
                         line = item.strip().split()
                         wsrep_rec_pos = line[-1].split(':')[-1]
@@ -603,8 +612,7 @@ def get_nodes_with_highest_seqno():
         if key == 'seqno':
             seqnos[node] = value
     max_seqno = max(seqnos.values())
-    max_seqno_nodes = sorted(
-        [k for k, v in seqnos.items() if v == max_seqno])
+    max_seqno_nodes = sorted([k for k, v in seqnos.items() if v == max_seqno])
     return max_seqno_nodes
 
 
@@ -617,13 +625,14 @@ def resolve_leader_node(nodename_array):
     lowest = sys.maxint
     leader = nodename_array[0]
     for nodename in nodename_array:
-        nodenum = int(nodename[nodename.rindex('-')+1:])
+        nodenum = int(nodename[nodename.rindex('-') + 1:])
         logger.info("Nodename %s has nodenum %d", nodename, nodenum)
         if nodenum < lowest:
             lowest = nodenum
             leader = nodename
     logger.info("Resolved leader is %s", leader)
     return leader
+
 
 def check_if_i_lead():
     """Check on full restart of cluster if this node should lead the cluster
@@ -718,18 +727,20 @@ def run_mysqld(cluster='existing'):
                 ], logger)
 
     logger.info("Setting the root password to the current value")
-    template = ("CREATE OR REPLACE USER '{0}'@'%' IDENTIFIED BY \'{1}\' ;\n"
-                "GRANT ALL ON *.* TO '{0}'@'%' WITH GRANT OPTION ;\n"
-                "FLUSH PRIVILEGES ;\n"
-                "SHUTDOWN ;".format(mysql_dbadmin_username,
-                                    mysql_dbadmin_password))
+    template = (
+        "CREATE OR REPLACE USER '{0}'@'%' IDENTIFIED BY \'{1}\' ;\n"
+        "GRANT ALL ON *.* TO '{0}'@'%' WITH GRANT OPTION ;\n"
+        "CREATE OR REPLACE USER '{2}'@'127.0.0.1' IDENTIFIED BY '{3}' ;\n"
+        "GRANT PROCESS, RELOAD, LOCK TABLES, REPLICATION CLIENT ON *.* TO '{2}'@'127.0.0.1' ;\n"
+        "FLUSH PRIVILEGES ;\n"
+        "SHUTDOWN ;".format(mysql_dbadmin_username, mysql_dbadmin_password,
+                            mysql_dbsst_username, mysql_dbsst_password))
     bootstrap_sql_file = tempfile.NamedTemporaryFile(suffix='.sql').name
     with open(bootstrap_sql_file, 'w') as f:
         f.write(template)
         f.close()
     run_cmd_with_logging([
-        'mysqld',
-        '--bind-address=127.0.0.1',
+        'mysqld', '--bind-address=127.0.0.1',
         '--wsrep_cluster_address=gcomm://',
         "--init-file={0}".format(bootstrap_sql_file)
     ], logger)

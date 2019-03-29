@@ -95,9 +95,8 @@ wsrep_on=1
 wsrep_provider=/usr/lib/galera/libgalera_smm.so
 wsrep_provider_options="gmcast.listen_addr=tcp://0.0.0.0:{{ tuple "oslo_db" "direct" "wsrep" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}"
 wsrep_slave_threads=12
-wsrep_sst_auth={{ .Values.endpoints.oslo_db.auth.admin.username }}:{{ .Values.endpoints.oslo_db.auth.admin.password }}
-# FIXME(portdirect): use rsync for compatibility between image variations
-wsrep_sst_method=rsync
+wsrep_sst_auth={{ .Values.endpoints.oslo_db.auth.sst.username }}:{{ .Values.endpoints.oslo_db.auth.sst.password }}
+wsrep_sst_method=mariabackup
 
 [mysqldump]
 max-allowed-packet=16M
