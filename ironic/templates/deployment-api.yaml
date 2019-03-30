@@ -54,6 +54,7 @@ spec:
       terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.api.timeout | default "30" }}
       initContainers:
 {{ tuple $envAll "api" $mounts_ironic_api_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{- if and (.Values.bootstrap.object_store.enabled) (.Values.bootstrap.object_store.openstack.enabled) }}
         - name: ironic-retrive-swift-config
 {{ tuple $envAll "ironic_retrive_swift_config" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.conductor | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
@@ -72,6 +73,8 @@ spec:
               readOnly: true
             - name: pod-shared
               mountPath: /tmp/pod-shared
+{{- end }}
+{{- if and (.Values.bootstrap.network.enabled) (.Values.bootstrap.network.openstack.enabled) }}
         - name: ironic-retrive-cleaning-net
 {{ tuple $envAll "ironic_retrive_cleaning_network" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.conductor | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
@@ -89,6 +92,7 @@ spec:
               readOnly: true
             - name: pod-shared
               mountPath: /tmp/pod-shared
+{{- end }}
       containers:
         - name: ironic-api
 {{ tuple $envAll "ironic_api" | include "helm-toolkit.snippets.image" | indent 10 }}
