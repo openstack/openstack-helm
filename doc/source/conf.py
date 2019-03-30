@@ -22,7 +22,6 @@ sys.path.insert(0, os.path.abspath('../..'))
 extensions = [
     'sphinx.ext.autodoc',
     'openstackdocstheme',
-    'oslosphinx',
     'sphinxcontrib.blockdiag'
 ]
 
