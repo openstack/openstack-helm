@@ -86,6 +86,13 @@ pod:
         requests:
           memory: "128Mi"
           cpu: "100m"
+      postgresql_backup:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
 
 # using dockerhub postgresql: https://hub.docker.com/r/library/postgres/tags/
 images:
@@ -95,6 +102,7 @@ images:
     image_repo_sync: docker.io/docker:17.07.0
     prometheus_postgresql_exporter: docker.io/wrouesnel/postgres_exporter:v0.4.6
     prometheus_postgresql_exporter_create_user: "docker.io/postgres:9.5"
+    postgresql_backup: "docker.io/postgres:9.5"
   pull_policy: "IfNotPresent"
   local_registry:
     active: false
@@ -122,6 +130,9 @@ labels:
     node_selectory_key: openstack-control-plane
     node_selector_value: enabled
   prometheus_postgresql_exporter:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  job:
     node_selector_key: openstack-control-plane
     node_selector_value: enabled
 
@@ -155,6 +166,10 @@ dependencies:
           service: postgresql
       jobs:
         - prometheus-postgresql-exporter-create-user
+    postgresql-backup:
+      services:
+        - endpoint: internal
+          service: postgresql
 
 monitoring:
   prometheus:
@@ -162,11 +177,29 @@ monitoring:
     postgresql_exporter:
       scrape: true
 
+volume:
+  backup:
+    enabled: true
+    class_name: general
+    size: 5Gi
+
+jobs:
+  backup_postgresql:
+    cron: "0 0 * * *"
+    history:
+      success: 3
+      failed: 1
+
 conf:
   debug: false
   postgresql:
     max_connections: 100
     shared_buffers: 128MB
+  backup:
+    enabled: true
+    base_path: /var/backup
+    days_of_backup_to_keep: 3
+    pg_dumpall_options: null
 
 secrets:
   postgresql:
@@ -222,8 +255,11 @@ manifests:
   configmap_bin: true
   job_image_repo_sync: true
   secret_admin: true
+  secret_etc: true
   service: true
   statefulset: true
+  cron_job_postgresql_backup: false
+  pvc_backup: false
   monitoring:
     prometheus:
       configmap_bin: true
