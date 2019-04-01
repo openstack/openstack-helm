@@ -503,6 +503,8 @@ def update_grastate_on_restart():
                     stderr=subprocess.PIPE)
                 out, err = wsrep_recover.communicate()
                 for item in err.split("\n"):
+                    logger.info(
+                        "Recovering wsrep position: {0}".format(item))
                     if "WSREP: Recovered position:" in item:
                         line = item.strip().split()
                         wsrep_rec_pos = line[-1].split(':')[-1]
