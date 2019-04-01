@@ -253,7 +253,9 @@ def mysqld_bootstrap():
             f.write(template)
             f.close()
         run_cmd_with_logging([
-            'mysqld', '--bind-address=127.0.0.1',
+            'mysqld',
+            '--bind-address=127.0.0.1',
+            '--wsrep_cluster_address=gcomm://',
             "--init-file={0}".format(bootstrap_sql_file)
         ], logger)
         os.remove(bootstrap_sql_file)
@@ -724,7 +726,9 @@ def run_mysqld(cluster='existing'):
         f.write(template)
         f.close()
     run_cmd_with_logging([
-        'mysqld', '--bind-address=127.0.0.1',
+        'mysqld',
+        '--bind-address=127.0.0.1',
+        '--wsrep_cluster_address=gcomm://',
         "--init-file={0}".format(bootstrap_sql_file)
     ], logger)
     os.remove(bootstrap_sql_file)
