@@ -29,6 +29,7 @@ images:
     prometheus_elasticsearch_exporter: docker.io/justwatch/elasticsearch_exporter:1.0.1
     dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.3.1
     snapshot_repository: docker.io/port/ceph-config-helper:v1.10.3
+    es_cluster_wait: docker.io/port/ceph-config-helper:v1.10.3
     image_repo_sync: docker.io/docker:17.07.0
   pull_policy: "IfNotPresent"
   local_registry:
@@ -77,6 +78,10 @@ dependencies:
     elasticsearch_master:
       services: null
       jobs: null
+    es_cluster_wait:
+      services:
+        - endpoint: internal
+          service: elasticsearch
     image_repo_sync:
       services:
         - endpoint: internal
@@ -86,15 +91,10 @@ dependencies:
         - endpoint: internal
           service: elasticsearch
     snapshot_repository:
-      services:
-        - endpoint: internal
-          service: elasticsearch
-        - endpoint: data
-          service: elasticsearch
-        - endpoint: discovery
-          service: elasticsearch
+      services: null
       jobs:
         - elasticsearch-s3-bucket
+        - elasticsearch-cluster-wait
     s3_user:
       services:
         - endpoint: internal
@@ -103,13 +103,7 @@ dependencies:
       jobs:
         - elasticsearch-s3-user
     tests:
-      services:
-        - endpoint: internal
-          service: elasticsearch
-        - endpoint: data
-          service: elasticsearch
-        - endpoint: discovery
-          service: elasticsearch
+      services: null
       jobs:
         - elasticsearch-register-snapshot-repository
 
@@ -208,6 +202,13 @@ pod:
           memory: "1024Mi"
           cpu: "2000m"
       snapshot_repository:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      es_cluster_wait:
         requests:
           memory: "128Mi"
           cpu: "100m"
@@ -685,6 +686,7 @@ manifests:
   deployment_client: true
   deployment_master: true
   ingress: true
+  job_cluster_wait: true
   job_image_repo_sync: true
   job_snapshot_repository: true
   job_s3_user: true
