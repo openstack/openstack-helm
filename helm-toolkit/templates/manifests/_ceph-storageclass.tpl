@@ -87,6 +87,10 @@ examples:
 
 {{- define "helm-toolkit.manifests.ceph-storageclass" -}}
 {{- $envAll := index . "envAll" -}}
+{{- $monHost := $envAll.Values.conf.ceph.global.mon_host -}}
+{{- if empty $monHost -}}
+{{- $monHost = tuple "ceph_mon" "internal" "mon" $envAll | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" -}}
+{{- end -}}
 {{- $storageclassData := index . "storageclass_data" -}}
 ---
 {{- if $storageclassData.provision_storage_class }}
@@ -100,7 +104,7 @@ metadata:
   name: {{ $storageclassData.metadata.name }}
 provisioner: {{ $storageclassData.provisioner }}
 parameters:
-  monitors: {{ tuple "ceph_mon" "internal" "mon" $envAll | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" }}
+  monitors: {{ $monHost }}
 {{- range $attr, $value := $storageclassData.parameters }}
   {{ $attr }}: {{ $value | quote }}
 {{- end }}
