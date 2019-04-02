@@ -1,3 +1,5 @@
+.. _images documentation:
+
 Images
 ------
 
