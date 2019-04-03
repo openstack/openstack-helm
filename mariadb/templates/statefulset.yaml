@@ -97,6 +97,7 @@ spec:
     spec:
       shareProcessNamespace: true
       serviceAccountName: {{ $serviceAccountName }}
+{{ dict "envAll" $envAll "application" "server" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
       affinity:
 {{ tuple $envAll "mariadb" "server" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
       nodeSelector:
@@ -106,8 +107,7 @@ spec:
 {{- if .Values.volume.chown_on_start }}
         - name: mariadb-perms
 {{ tuple $envAll "mariadb" | include "helm-toolkit.snippets.image" | indent 10 }}
-          securityContext:
-            runAsUser: 0
+{{ dict "envAll" $envAll "application" "server" "container" "perms" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.server | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           command:
             - chown
@@ -121,6 +121,7 @@ spec:
       containers:
         - name: mariadb
 {{ tuple $envAll "mariadb" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ dict "envAll" $envAll "application" "server" "container" "mariadb" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.server | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           env:
             - name: POD_NAMESPACE
@@ -175,6 +176,10 @@ spec:
               command:
                 - /tmp/readiness.sh
           volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: var-run
+              mountPath: /var/run/mysqld
             - name: mycnfd
               mountPath: /etc/mysql/conf.d
             - name: mariadb-bin
@@ -213,6 +218,10 @@ spec:
               mountPath: /var/lib/mysql
       volumes:
         - name: mycnfd
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
+        - name: var-run
           emptyDir: {}
         - name: mariadb-bin
           configMap:
