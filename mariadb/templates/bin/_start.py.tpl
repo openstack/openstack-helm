@@ -238,7 +238,7 @@ def mysqld_write_cluster_conf(mode='run'):
 
 # Function to setup mysqld
 def mysqld_bootstrap():
-    """Boostrap the db if no data found in the 'bootstrap_test_dir'"""
+    """Bootstrap the db if no data found in the 'bootstrap_test_dir'"""
     logger.info("Boostrapping Mariadb")
     mysql_data_dir = '/var/lib/mysql'
     bootstrap_test_dir = "{0}/mysql".format(mysql_data_dir)
@@ -726,26 +726,33 @@ def run_mysqld(cluster='existing'):
                     '--defaults-file=/etc/mysql/admin_user.cnf'
                 ], logger)
 
-    logger.info("Setting the root password to the current value")
-    template = (
-        "CREATE OR REPLACE USER '{0}'@'%' IDENTIFIED BY \'{1}\' ;\n"
-        "GRANT ALL ON *.* TO '{0}'@'%' WITH GRANT OPTION ;\n"
-        "CREATE OR REPLACE USER '{2}'@'127.0.0.1' IDENTIFIED BY '{3}' ;\n"
-        "GRANT PROCESS, RELOAD, LOCK TABLES, REPLICATION CLIENT ON *.* TO '{2}'@'127.0.0.1' ;\n"
-        "FLUSH PRIVILEGES ;\n"
-        "SHUTDOWN ;".format(mysql_dbadmin_username, mysql_dbadmin_password,
-                            mysql_dbsst_username, mysql_dbsst_password))
-    bootstrap_sql_file = tempfile.NamedTemporaryFile(suffix='.sql').name
-    with open(bootstrap_sql_file, 'w') as f:
-        f.write(template)
-        f.close()
-    run_cmd_with_logging([
-        'mysqld', '--bind-address=127.0.0.1',
-        '--wsrep_cluster_address=gcomm://',
-        "--init-file={0}".format(bootstrap_sql_file)
-    ], logger)
-    os.remove(bootstrap_sql_file)
+    mysql_data_dir = '/var/lib/mysql'
+    db_test_dir = "{0}/mysql".format(mysql_data_dir)
+    if os.path.isdir(db_test_dir):
+        logger.info("Setting the admin passwords to the current value")
+        template = (
+            "CREATE OR REPLACE USER '{0}'@'%' IDENTIFIED BY \'{1}\' ;\n"
+            "GRANT ALL ON *.* TO '{0}'@'%' WITH GRANT OPTION ;\n"
+            "CREATE OR REPLACE USER '{2}'@'127.0.0.1' IDENTIFIED BY '{3}' ;\n"
+            "GRANT PROCESS, RELOAD, LOCK TABLES, REPLICATION CLIENT ON *.* TO '{2}'@'127.0.0.1' ;\n"
+            "FLUSH PRIVILEGES ;\n"
+            "SHUTDOWN ;".format(mysql_dbadmin_username, mysql_dbadmin_password,
+                                mysql_dbsst_username, mysql_dbsst_password))
+        bootstrap_sql_file = tempfile.NamedTemporaryFile(suffix='.sql').name
+        with open(bootstrap_sql_file, 'w') as f:
+            f.write(template)
+            f.close()
+        run_cmd_with_logging([
+            'mysqld', '--bind-address=127.0.0.1', '--wsrep-on=false',
+            "--init-file={0}".format(bootstrap_sql_file)
+        ], logger)
+        os.remove(bootstrap_sql_file)
+    else:
+        logger.info(
+            "This is a fresh node joining the cluster for the 1st time, not attempting to set admin passwords"
+        )
 
+    logger.info("Launching MariaDB")
     run_cmd_with_logging(mysqld_cmd, logger)
 
 
