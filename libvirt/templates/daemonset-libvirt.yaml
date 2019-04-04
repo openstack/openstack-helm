@@ -14,16 +14,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if .Values.manifests.daemonset_libvirt }}
-{{- $envAll := . }}
-{{- $dependencyOpts := dict "envAll" $envAll "dependencyMixinParam" $envAll.Values.network.backend "dependencyKey" "libvirt" -}}
-{{- $_ := include "helm-toolkit.utils.dependency_resolver" $dependencyOpts | toString | fromYaml }}
+{{- define "libvirt.daemonset" }}
+{{- $daemonset := index . 0 }}
+{{- $configMapName := index . 1 }}
+{{- $serviceAccountName := index . 2 }}
+{{- $envAll := index . 3 }}
+{{- with $envAll }}
 
 {{- $mounts_libvirt := .Values.pod.mounts.libvirt.libvirt }}
 {{- $mounts_libvirt_init := .Values.pod.mounts.libvirt.init_container }}
 
-{{- $serviceAccountName := "libvirt" }}
-{{ tuple $envAll "pod_dependency" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: apps/v1
 kind: DaemonSet
@@ -32,16 +32,16 @@ metadata:
   annotations:
     {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
   labels:
-{{ tuple $envAll "libvirt" "libvirt" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+{{ tuple $envAll .Chart.Name $daemonset | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 spec:
   selector:
     matchLabels:
-{{ tuple $envAll "libvirt" "libvirt" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
-{{ tuple $envAll "libvirt" | include "helm-toolkit.snippets.kubernetes_upgrades_daemonset" | indent 2 }}
+{{ tuple $envAll .Chart.Name $daemonset | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
+{{ tuple $envAll $daemonset | include "helm-toolkit.snippets.kubernetes_upgrades_daemonset" | indent 2 }}
   template:
     metadata:
       labels:
-{{ tuple $envAll "libvirt" "libvirt" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+{{ tuple $envAll .Chart.Name $daemonset | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
       annotations:
 {{- dict "envAll" $envAll "podName" "libvirt" "containerNames" (list "libvirt") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
 {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
@@ -194,8 +194,8 @@ spec:
             name: libvirt-bin
             defaultMode: 0555
         - name: libvirt-etc
-          configMap:
-            name: libvirt-etc
+          secret:
+            secretName: {{ $configMapName }}
             defaultMode: 0444
         {{- if .Values.conf.ceph.enabled }}
         - name: etcceph
@@ -240,4 +240,22 @@ spec:
             path: /etc/libvirt/qemu
 {{ dict "envAll" $envAll "component" "libvirt" "requireSys" true | include "helm-toolkit.snippets.kubernetes_apparmor_volumes" | indent 8 }}
 {{ if $mounts_libvirt.volumes }}{{ toYaml $mounts_libvirt.volumes | indent 8 }}{{ end }}
+{{- end }}
+{{- end }}
+
+{{- if .Values.manifests.daemonset_libvirt }}
+
+{{- $envAll := . }}
+{{- $daemonset := "libvirt" }}
+{{- $configMapName := "libvirt-etc" }}
+{{- $serviceAccountName := "libvirt" }}
+
+{{- $dependencyOpts := dict "envAll" $envAll "dependencyMixinParam" $envAll.Values.network.backend "dependencyKey" "libvirt" -}}
+{{- $_ := include "helm-toolkit.utils.dependency_resolver" $dependencyOpts | toString | fromYaml }}
+
+{{ tuple $envAll "pod_dependency" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{- $daemonset_yaml := list $daemonset $configMapName $serviceAccountName . | include "libvirt.daemonset" | toString | fromYaml }}
+{{- $configmap_yaml := "libvirt.configmap.etc" }}
+{{- list $daemonset $daemonset_yaml $configmap_yaml $configMapName . | include "helm-toolkit.utils.daemonset_overrides" }}
+
 {{- end }}

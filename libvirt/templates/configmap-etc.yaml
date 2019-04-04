@@ -14,15 +14,23 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if .Values.manifests.configmap_etc }}
+{{- define "libvirt.configmap.etc" }}
+{{- $configMapName := index . 0 }}
+{{- $envAll := index . 1 }}
+{{- with $envAll }}
+
 ---
 apiVersion: v1
-kind: ConfigMap
+kind: Secret
 metadata:
-  name: libvirt-etc
+  name: {{ $configMapName }}
+type: Opaque
 data:
-  libvirtd.conf: |
-{{- include "libvirt.utils.to_libvirt_conf" .Values.conf.libvirt | indent 4 }}
-  qemu.conf: |
-{{- include "libvirt.utils.to_libvirt_conf" .Values.conf.qemu | indent 4 }}
+  libvirtd.conf: {{ include "libvirt.utils.to_libvirt_conf" .Values.conf.libvirt | b64enc }}
+  qemu.conf: {{ include "libvirt.utils.to_libvirt_conf" .Values.conf.qemu | b64enc }}
+{{- end }}
+{{- end }}
+
+{{- if .Values.manifests.configmap_etc }}
+{{- list "libvirt-etc" . | include "libvirt.configmap.etc" }}
 {{- end }}
