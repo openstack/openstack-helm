@@ -26,8 +26,8 @@ pod:
   mandatory_access_control:
     type: apparmor
     configmap_apparmor: true
-    libvirt:
-      libvirt: localhost/my-apparmor-v1
+    libvirt-libvirt-default:
+      libvirt-libvirt-default: localhost/my-apparmor-v1
       apparmor-loader: unconfined
 conf:
   apparmor_profiles:
@@ -164,10 +164,13 @@ conf:
 EOF
 
 #NOTE: Deploy command
+
 helm upgrade --install libvirt ./libvirt \
   --namespace=openstack \
   --values=/tmp/libvirt.yaml \
   --set network.backend="null"
 
 #NOTE: Validate Deployment info
+./tools/deployment/common/wait-for-pods.sh openstack
+
 helm status libvirt
