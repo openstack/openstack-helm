@@ -28,65 +28,8 @@ images:
 pod:
   mandatory_access_control:
     type: apparmor
-    configmap_apparmor: true
     memcached:
-      memcached: localhost/my-apparmor-v1
-      apparmor-loader: unconfined
-conf:
-  apparmor_profiles:
-    my-apparmor-v1.profile: |-
-      #include <tunables/global>
-      profile my-apparmor-v1 flags=(attach_disconnected,mediate_deleted) {
-        #include <abstractions/base>
-        network inet tcp,
-        network inet udp,
-        network inet icmp,
-        deny network raw,
-        deny network packet,
-        file,
-        umount,
-        deny /bin/** wl,
-        deny /boot/** wl,
-        deny /dev/** wl,
-        deny /etc/** wl,
-        deny /home/** wl,
-        deny /lib/** wl,
-        deny /lib64/** wl,
-        deny /media/** wl,
-        deny /mnt/** wl,
-        deny /opt/** wl,
-        deny /proc/** wl,
-        deny /root/** wl,
-        deny /sbin/** wl,
-        deny /srv/** wl,
-        deny /tmp/** wl,
-        deny /sys/** wl,
-        deny /usr/** wl,
-        audit /** w,
-        /var/run/nginx.pid w,
-        /usr/sbin/nginx ix,
-        deny /bin/dash mrwklx,
-        deny /bin/sh mrwklx,
-        deny /usr/bin/top mrwklx,
-        capability chown,
-        capability dac_override,
-        capability setuid,
-        capability setgid,
-        capability net_bind_service,
-        deny @{PROC}/{*,**^[0-9*],sys/kernel/shm*} wkx,
-        deny @{PROC}/sysrq-trigger rwklx,
-        deny @{PROC}/mem rwklx,
-        deny @{PROC}/kmem rwklx,
-        deny @{PROC}/kcore rwklx,
-        deny mount,
-        deny /sys/[^f]*/** wklx,
-        deny /sys/f[^s]*/** wklx,
-        deny /sys/fs/[^c]*/** wklx,
-        deny /sys/fs/c[^g]*/** wklx,
-        deny /sys/fs/cg[^r]*/** wklx,
-        deny /sys/firmware/efi/efivars/** rwklx,
-        deny /sys/kernel/security/** rwklx,
-      }
+      memcached: localhost/docker-default
 EOF
 
 # NOTE: Deploy command
@@ -110,7 +53,7 @@ helm status memcached
 pod=$(kubectl -n $namespace get pod | grep memcached | awk '{print $1}')
 unsorted_process_file="/tmp/unsorted_proc_list"
 sorted_process_file="/tmp/proc_list"
-expected_profile="my-apparmor-v1 (enforce)"
+expected_profile="docker-default (enforce)"
 
 # Grab the processes (numbered directories) from the /proc directory,
 # and then sort them. Highest proc number indicates most recent process.
