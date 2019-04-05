@@ -49,16 +49,20 @@ storageclass:
   rbd:
     ceph_configmap_name: tenant-ceph-etc
     provision_storage_class: false
-    name: tenant-rbd
-    admin_secret_name: pvc-tenant-ceph-conf-combined-storageclass
-    admin_secret_namespace: tenant-ceph
-    user_secret_name: pvc-tenant-ceph-client-key
+    metadata:
+      name: tenant-rbd
+    parameters:
+      adminSecretName: pvc-tenant-ceph-conf-combined-storageclass
+      adminSecretNamespace: tenant-ceph
+      userSecretName: pvc-tenant-ceph-client-key
   cephfs:
     provision_storage_class: false
-    name: cephfs
-    admin_secret_name: pvc-tenant-ceph-conf-combined-storageclass
-    admin_secret_namespace: tenant-ceph
-    user_secret_name: pvc-tenant-ceph-cephfs-client-key
+    metadata:
+      name: cephfs
+    parameters:
+      adminSecretName: pvc-tenant-ceph-conf-combined-storageclass
+      adminSecretNamespace: tenant-ceph
+      userSecretName: pvc-tenant-ceph-cephfs-client-key
 EOF
 helm upgrade --install tenant-ceph-openstack-config ./ceph-provisioners \
   --namespace=openstack \
