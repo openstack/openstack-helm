@@ -32,3 +32,6 @@ helm upgrade --install mariadb ./mariadb \
 
 #NOTE: Validate Deployment info
 helm status mariadb
+
+#NOTE: Validate the deployment
+helm test mariadb

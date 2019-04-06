@@ -14,15 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if .Values.manifests.secret_etc }}
-{{- $envAll := . }}
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: mariadb-secrets
-type: Opaque
-data:
-  admin_user.cnf: {{ tuple "secrets/_admin_user.cnf.tpl" . | include "helm-toolkit.utils.template"  | b64enc }}
-  admin_user_internal.cnf: {{ tuple "secrets/_admin_user_internal.cnf.tpl" . | include "helm-toolkit.utils.template"  | b64enc }}
-{{- end }}
+[client]
+user = {{ .Values.endpoints.oslo_db.auth.admin.username }}
+password = {{ .Values.endpoints.oslo_db.auth.admin.password }}
+host = {{ tuple "oslo_db" "internal" . | include "helm-toolkit.endpoints.hostname_fqdn_endpoint_lookup" }}
+port = {{ tuple "oslo_db" "internal" "mysql" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}

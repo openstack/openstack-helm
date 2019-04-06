@@ -1,3 +1,4 @@
+#!/bin/bash
 {{/*
 Copyright 2017 The Openstack-Helm Authors.
 
@@ -14,15 +15,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if .Values.manifests.secret_etc }}
-{{- $envAll := . }}
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: mariadb-secrets
-type: Opaque
-data:
-  admin_user.cnf: {{ tuple "secrets/_admin_user.cnf.tpl" . | include "helm-toolkit.utils.template"  | b64enc }}
-  admin_user_internal.cnf: {{ tuple "secrets/_admin_user_internal.cnf.tpl" . | include "helm-toolkit.utils.template"  | b64enc }}
-{{- end }}
+set -ex
+
+rm -f /tmp/test-success
+
+mysqlslap \
+  --defaults-file=/etc/mysql/test-params.cnf \
+  {{ include "helm-toolkit.utils.joinListWithSpace" $.Values.conf.tests.params }} -vv \
+  --post-system="touch /tmp/test-success"
+
+if ! [ -f /tmp/test-success ]; then
+  exit 1
+fi
