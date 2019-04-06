@@ -57,14 +57,14 @@ sudo sed -i '/^127.0.0.1/c\127.0.0.1 localhost localhost.localdomain localhost4l
 sudo sed -i '/^::1/c\::1 localhost6 localhost6.localdomain6' /etc/hosts
 
 # Install required packages for K8s on host
-sudo apt-key adv --keyserver keyserver.ubuntu.com  --recv 460F3994
+wget -q -O- 'https://download.ceph.com/keys/release.asc' | sudo apt-key add -
 RELEASE_NAME=$(grep 'CODENAME' /etc/lsb-release | awk -F= '{print $2}')
 sudo add-apt-repository "deb https://download.ceph.com/debian-mimic/
 ${RELEASE_NAME} main"
 sudo -E apt-get update
 # NOTE(srwilkers): Pin docker version to validated docker version for k8s 1.12.2
 sudo -E apt-get install -y \
-    docker.io=18.06.1-0ubuntu1.2~16.04.1 \
+    docker.io=18.06.1-0ubuntu1.2~18.04.1 \
     socat \
     jq \
     util-linux \
@@ -72,7 +72,7 @@ sudo -E apt-get install -y \
     rbd-nbd \
     nfs-common \
     bridge-utils \
-    libxtables11
+    libxtables12
 
 sudo -E tee /etc/modprobe.d/rbd.conf << EOF
 install rbd /bin/true
