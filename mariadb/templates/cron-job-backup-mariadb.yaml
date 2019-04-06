@@ -18,7 +18,7 @@ limitations under the License.
 {{- $envAll := . }}
 
 {{- $serviceAccountName := "mariadb-backup" }}
-{{ tuple $envAll "mariadb_account" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{ tuple $envAll "mariadb_backup" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: batch/v1beta1
 kind: CronJob
@@ -45,6 +45,8 @@ spec:
           restartPolicy: OnFailure
           nodeSelector:
             {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
+          initContainers:
+{{ tuple $envAll "mariadb_backup" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 10 }}
           containers:
           - command:
             - /tmp/backup_mariadb.sh
@@ -85,7 +87,7 @@ spec:
               defaultMode: 365
               name: mariadb-bin
             name: mariadb-bin
-          {{- if and .Values.volume.backup.enabled  .Values.manifests.pvc_backup  }}
+          {{- if and .Values.volume.backup.enabled  .Values.manifests.pvc_backup }}
           - name: mariadb-backup-dir
             persistentVolumeClaim:
               claimName: mariadb-backup-data
