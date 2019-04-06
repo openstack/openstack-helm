@@ -14,14 +14,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
-import sys
-import re
+
+import errno
 import logging
+import os
 import select
 import signal
 import subprocess
 import socket
+import sys
 import tempfile
 import time
 import threading
@@ -182,7 +183,14 @@ def stop_mysqld():
             if is_pid_mysqld(mysqld_pid):
                 logger.info("pid from pidfile is mysqld")
                 os.kill(mysqld_pid, 15)
-                pid, status = os.waitpid(mysqld_pid, 0)
+                try:
+                    pid, status = os.waitpid(mysqld_pid, 0)
+                except OSError as err:
+                    # The process has already exited
+                    if err.errno == errno.ECHILD:
+                        return
+                    else:
+                        raise
                 logger.info("Mysqld stopped: pid = {0}, "
                             "exit status = {1}".format(pid, status))
             else:
@@ -282,7 +290,7 @@ def safe_update_configmap(configmap_dict, configmap_patch):
     configmap_patch -- a dict containign the patch
     """
     logger.debug("Safe Patching configmap")
-    #NOTE(portdirect): Explictly set the resource version we are patching to
+    # NOTE(portdirect): Explictly set the resource version we are patching to
     # ensure nothing else has modified the confimap since we read it.
     configmap_patch['metadata']['resourceVersion'] = configmap_dict[
         'metadata']['resource_version']
