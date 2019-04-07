@@ -54,10 +54,9 @@ spec:
 {{ tuple $envAll $envAll.Values.pod.resources.prometheus_mysql_exporter | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           command:
             - /tmp/mysqld-exporter.sh
-            - start
           ports:
             - name: metrics
-              containerPort: {{ .Values.network.prometheus_mysql_exporter.port }}
+              containerPort: {{ tuple "prometheus_mysql_exporter" "internal" "metrics" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
           env:
             - name: EXPORTER_USER
               valueFrom:
@@ -74,6 +73,14 @@ spec:
                 secretKeyRef:
                   name: mysql-exporter-secrets
                   key: DATA_SOURCE_NAME
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: LISTEN_PORT
+              value: {{ tuple "prometheus_mysql_exporter" "internal" "metrics" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | quote }}
+            - name: TELEMETRY_PATH
+              value: {{ tuple "prometheus_mysql_exporter" "internal" "metrics" . | include "helm-toolkit.endpoints.keystone_endpoint_path_lookup" | quote }}
           volumeMounts:
             - name: mysql-exporter-secrets
               mountPath: /etc/mysql/mysql_user.cnf

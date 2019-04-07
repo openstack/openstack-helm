@@ -17,14 +17,8 @@ limitations under the License.
 */}}
 
 set -ex
-COMMAND="${@:-start}"
 
-function start () {
-  exec /bin/mysqld_exporter -config.my-cnf=/etc/mysql/mysql_user.cnf
-}
-
-function stop () {
-  kill -TERM 1
-}
-
-$COMMAND
+exec /bin/mysqld_exporter \
+  -config.my-cnf=/etc/mysql/mysql_user.cnf \
+  -web.listen-address="${POD_IP}:${LISTEN_PORT}" \
+  -web.telemetry-path="$TELEMETRY_PATH"

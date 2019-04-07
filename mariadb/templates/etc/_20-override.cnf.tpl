@@ -14,4 +14,4 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{ .Values.database.config_override }}
+{{ .Values.conf.database.config_override }}
