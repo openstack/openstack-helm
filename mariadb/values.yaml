@@ -30,6 +30,7 @@ images:
     dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.3.1
     image_repo_sync: docker.io/docker:17.07.0
     mariadb_backup: docker.io/openstackhelm/mariadb:10.2.18
+    scripted_test: docker.io/openstackhelm/mariadb:10.2.18
   pull_policy: "IfNotPresent"
   local_registry:
     active: false
@@ -51,6 +52,9 @@ labels:
     node_selector_key: openstack-control-plane
     node_selector_value: enabled
   job:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  test:
     node_selector_key: openstack-control-plane
     node_selector_value: enabled
 
@@ -93,6 +97,13 @@ pod:
       container:
         main:
           allowPrivilegeEscalation: false
+    tests:
+      pod:
+        runAsUser: 999
+      container:
+        test:
+          runAsUser: 999
+          readOnlyRootFilesystem: true
   affinity:
     anti:
       type:
@@ -210,6 +221,10 @@ dependencies:
       services:
         - endpoint: internal
           service: oslo_db
+    tests:
+      services:
+        - endpoint: internal
+          service: oslo_db
 
 force_bootstrap: false
 
@@ -234,6 +249,20 @@ jobs:
       failed: 1
 
 conf:
+  tests:
+    # This may either be:
+    # * internal: which will hit the endpoint exposed by the ingress controller
+    # * direct: which will hit the backends directly via a k8s service ip
+    # Note, deadlocks and failure are to be expected with concurrency if
+    # hitting the `direct` endpoint.
+    endpoint: internal
+    # This is a list of tuning params passed to mysqlslap:
+    params:
+      - --auto-generate-sql
+      - --concurrency=100
+      - --number-of-queries=1000
+      - --number-char-cols=1
+      - --number-int-cols=1
   ingress: null
   backup:
     enabled: true
@@ -372,6 +401,7 @@ manifests:
       service_exporter: true
   pdb_server: true
   network_policy: false
+  pod_test: true
   secret_dbadmin_password: true
   secret_sst_password: true
   secret_etc: true
