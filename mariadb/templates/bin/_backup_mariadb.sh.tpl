@@ -19,24 +19,10 @@ ARCHIVE_DIR=${MARIADB_BACKUP_BASE_DIR}/db/${MARIADB_POD_NAMESPACE}/mariadb/archi
 
 MYSQL="mysql \
    --defaults-file=/etc/mysql/admin_user.cnf \
-   --host=$MARIADB_SERVER_SERVICE_HOST \
    --connect-timeout 10"
 
 MYSQLDUMP="mysqldump \
-   --defaults-file=/etc/mysql/admin_user.cnf \
-   --host=$MARIADB_SERVER_SERVICE_HOST"
-
-delete_files() {
-  files_to_delete=("$@")
-  for f in "${files_to_delete[@]}"
-  do
-    if [ -f $f ]
-    then
-      echo "Deleting file $f."
-      rm -rf $f
-    fi
-  done
-}
+   --defaults-file=/etc/mysql/admin_user.cnf"
 
 days_difference() {
   archive_date=$( date --date="$1" +%s )
