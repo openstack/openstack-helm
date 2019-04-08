@@ -72,6 +72,9 @@ network_policy:
         - podSelector:
             matchLabels:
               application: senlin
+        - podSelector:
+            matchLabels:
+              application: mariadb-backup
         ports:
         - protocol: TCP
           port: 3306
