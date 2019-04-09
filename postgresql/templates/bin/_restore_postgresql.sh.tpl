@@ -109,6 +109,14 @@ list_databases() {
 
 }
 
+create_db_if_not_exist() {
+  #Postgresql does not have the concept of creating
+  #database if condition. This function help create
+  #the database in case it does not exist
+  $PSQL -tc "SELECT 1 FROM pg_database WHERE datname = '$1'" | grep -q 1 || \
+        $PSQL -c "CREATE DATABASE $1"
+}
+
 #Restore a single database dump from pg_dumpall dump.
 restore_single_db() {
   single_db_name=$1
@@ -127,6 +135,7 @@ restore_single_db() {
       extract_single_db_dump ${RESTORE_DIR}/postgres.all.sql $single_db_name
       if [[ -f ${RESTORE_DIR}/${single_db_name}.sql && -s ${RESTORE_DIR}/${single_db_name}.sql ]]
       then
+        create_db_if_not_exist $single_db_name
         $PSQL -d $single_db_name -f ${RESTORE_DIR}/${single_db_name}.sql 2>dbrestore.log
         if [ "$?" -eq 0 ]
         then
