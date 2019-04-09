@@ -1,0 +1,700 @@
+# Copyright 2019 Wind River Systems, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Default values for aodh.
+# This is a YAML-formatted file.
+# Declare name/value pairs to be passed into your templates.
+# name: value
+
+release_group: null
+
+labels:
+  api:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  evaluator:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  listener:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  notifier:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  job:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  test:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+
+
+images:
+  tags:
+    bootstrap: docker.io/openstackhelm/heat:ocata
+    db_init: docker.io/openstackhelm/heat:ocata
+    db_drop: docker.io/openstackhelm/heat:ocata
+    rabbit_init: docker.io/rabbitmq:3.7-management
+    aodh_db_sync: docker.io/kolla/ubuntu-source-aodh-api:ocata
+    ks_user: docker.io/openstackhelm/heat:ocata
+    ks_service: docker.io/openstackhelm/heat:ocata
+    ks_endpoints: docker.io/openstackhelm/heat:ocata
+    aodh_api: docker.io/kolla/ubuntu-source-aodh-api:ocata
+    aodh_evaluator: docker.io/kolla/ubuntu-source-aodh-evaluator:ocata
+    aodh_listener: docker.io/kolla/ubuntu-source-aodh-listener:ocata
+    aodh_notifier: docker.io/kolla/ubuntu-source-aodh-notifier:ocata
+    aodh_alarms_cleaner: docker.io/kolla/ubuntu-source-aodh-base:ocata
+    dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.3.1
+    image_repo_sync: docker.io/docker:17.07.0
+  pull_policy: "IfNotPresent"
+  local_registry:
+    active: false
+    exclude:
+      - dep_check
+      - image_repo_sync
+
+jobs:
+  alarms_cleaner:
+    # daily
+    cron: "0 */24 * * *"
+    history:
+      success: 3
+      failed: 1
+
+pod:
+  security_context:
+    aodh:
+      pod:
+        runAsUser: 42402
+      container:
+        aodh_api:
+          runAsUser: 0
+        aodh_evaluator:
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
+        aodh_notifier:
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
+        aodh_listener:
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
+  affinity:
+    anti:
+      type:
+        default: preferredDuringSchedulingIgnoredDuringExecution
+      topologyKey:
+        default: kubernetes.io/hostname
+  mounts:
+    aodh_api:
+      init_container: null
+      aodh_api:
+        volumeMounts:
+        volumes:
+    aodh_evaluator:
+      init_container: null
+      aodh_evaluator:
+        volumeMounts:
+        volumes:
+    aodh_listener:
+      init_container: null
+      aodh_listener:
+        volumeMounts:
+        volumes:
+    aodh_notifier:
+      init_container: null
+      aodh_notifier:
+        volumeMounts:
+        volumes:
+    aodh_alarms_cleaner:
+      init_container: null
+      aodh_alarms_cleaner:
+        volumeMounts:
+        volumes:
+    aodh_bootstrap:
+      init_container: null
+      aodh_bootstrap:
+        volumeMounts:
+        volumes:
+    aodh_tests:
+      init_container: null
+      aodh_tests:
+        volumeMounts:
+        volumes:
+  replicas:
+    api: 1
+    evaluator: 1
+    listener: 1
+    notifier: 1
+  lifecycle:
+    upgrades:
+      deployments:
+        revision_history: 3
+        pod_replacement_strategy: RollingUpdate
+        rolling_update:
+          max_unavailable: 1
+          max_surge: 3
+    disruption_budget:
+      api:
+        min_available: 0
+    termination_grace_period:
+      api:
+        timeout: 30
+  resources:
+    enabled: false
+    api:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+    evaluator:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+    listener:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+    notifier:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+    jobs:
+      bootstrap:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      rabbit_init:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      db_init:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      db_sync:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      ks_endpoints:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      ks_service:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      ks_user:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      alarms_cleaner:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      db_drop:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      tests:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      image_repo_sync:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+
+network:
+  api:
+    ingress:
+      public: true
+      classes:
+        namespace: "nginx"
+        cluster: "nginx-cluster"
+      annotations:
+        nginx.ingress.kubernetes.io/rewrite-target: /
+    external_policy_local: false
+    node_port:
+      enabled: false
+      port: 8042
+
+dependencies:
+  dynamic:
+    common:
+      local_image_registry:
+        jobs:
+          - aodh-image-repo-sync
+        services:
+          - endpoint: node
+            service: local_image_registry
+  static:
+    api:
+      jobs:
+        - aodh-db-sync
+        - aodh-ks-user
+        - aodh-ks-endpoints
+      services:
+        - endpoint: internal
+          service: oslo_db
+        - endpoint: internal
+          service: identity
+    evaluator:
+      jobs:
+        - aodh-db-sync
+        - aodh-rabbit-init
+      services:
+        - endpoint: internal
+          service: oslo_db
+        - endpoint: internal
+          service: identity
+        - endpoint: internal
+          service: alarming
+    listener:
+      jobs:
+        - aodh-db-sync
+        - aodh-rabbit-init
+      services:
+        - endpoint: internal
+          service: oslo_db
+        - endpoint: internal
+          service: identity
+        - endpoint: internal
+          service: alarming
+    notifier:
+      jobs:
+        - aodh-db-sync
+        - aodh-rabbit-init
+      services:
+        - endpoint: internal
+          service: oslo_db
+        - endpoint: internal
+          service: identity
+        - endpoint: internal
+          service: alarming
+    rabbit_init:
+      services:
+        - service: oslo_messaging
+          endpoint: internal
+    db_init:
+      services:
+        - endpoint: internal
+          service: oslo_db
+    db_sync:
+      jobs:
+        - aodh-db-init
+      services:
+        - endpoint: internal
+          service: oslo_db
+    db_drop:
+      services:
+        - endpoint: internal
+          service: oslo_db
+    ks_endpoints:
+      jobs:
+        - aodh-ks-service
+      services:
+        - endpoint: internal
+          service: identity
+    ks_service:
+      services:
+        - endpoint: internal
+          service: identity
+    ks_user:
+      services:
+        - endpoint: internal
+          service: identity
+    image_repo_sync:
+      services:
+        - endpoint: internal
+          service: local_image_registry
+    tests:
+      jobs:
+        - aodh-db-sync
+      services:
+        - endpoint: internal
+          service: identity
+        - endpoint: internal
+          service: oslo_db
+        - endpoint: internal
+          service: alarming
+
+conf:
+  wsgi_aodh: |
+    Listen 0.0.0.0:{{ tuple "alarming" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+
+    LogFormat "%h %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\"" combined
+    LogFormat "%{X-Forwarded-For}i %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\"" proxy
+
+    SetEnvIf X-Forwarded-For "^.*\..*\..*\..*" forwarded
+    CustomLog /dev/stdout combined env=!forwarded
+    CustomLog /dev/stdout proxy env=forwarded
+
+    <VirtualHost *:{{ tuple "alarming" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}>
+        WSGIDaemonProcess aodh processes=1 threads=2 user=aodh group=aodh display-name=%{GROUP}
+        WSGIProcessGroup aodh
+        WSGIScriptAlias / /var/www/cgi-bin/aodh/aodh-api
+        WSGIApplicationGroup %{GLOBAL}
+        <IfVersion >= 2.4>
+          ErrorLogFormat "%{cu}t %M"
+        </IfVersion>
+
+        ErrorLog /dev/stdout
+        SetEnvIf X-Forwarded-For "^.*\..*\..*\..*" forwarded
+        CustomLog /dev/stdout combined env=!forwarded
+        CustomLog /dev/stdout proxy env=forwarded
+    </VirtualHost>
+  paste:
+    composite:aodh+noauth:
+      use: egg:Paste#urlmap
+      /: aodhversions_pipeline
+      /v2: aodhv2_noauth_pipeline
+      /healthcheck: healthcheck
+    composite:aodh+keystone:
+      use: egg:Paste#urlmap
+      /: aodhversions_pipeline
+      /v2: aodhv2_keystone_pipeline
+      /healthcheck: healthcheck
+    app:healthcheck:
+      use: egg:oslo.middleware#healthcheck
+      oslo_config_project: aodh
+    pipeline:aodhversions_pipeline:
+      pipeline: cors http_proxy_to_wsgi aodhversions
+    app:aodhversions:
+      paste.app_factory: aodh.api.app:app_factory
+      root: aodh.api.controllers.root.VersionsController
+    pipeline:aodhv2_keystone_pipeline:
+      pipeline: cors http_proxy_to_wsgi request_id authtoken aodhv2
+    pipeline:aodhv2_noauth_pipeline:
+      pipeline: cors http_proxy_to_wsgi request_id aodhv2
+    app:aodhv2:
+      paste.app_factory: aodh.api.app:app_factory
+      root: aodh.api.controllers.v2.root.V2Controller
+    filter:authtoken:
+      paste.filter_factory: keystonemiddleware.auth_token:filter_factory
+      oslo_config_project: aodh
+    filter:request_id:
+      paste.filter_factory: oslo_middleware:RequestId.factory
+    filter:cors:
+      paste.filter_factory: oslo_middleware.cors:filter_factory
+      oslo_config_project: aodh
+    filter:http_proxy_to_wsgi:
+      paste.filter_factory: oslo_middleware.http_proxy_to_wsgi:HTTPProxyToWSGI.factory
+      oslo_config_project: aodh
+  policy:
+    context_is_admin: 'role:admin'
+    segregation: 'rule:context_is_admin'
+    admin_or_owner: 'rule:context_is_admin or project_id:%(project_id)s'
+    default: 'rule:admin_or_owner'
+    telemetry:get_alarm: 'rule:admin_or_owner'
+    telemetry:get_alarms: 'rule:admin_or_owner'
+    telemetry:query_alarm: 'rule:admin_or_owner'
+    telemetry:create_alarm: ''
+    telemetry:change_alarm: 'rule:admin_or_owner'
+    telemetry:delete_alarm: 'rule:admin_or_owner'
+    telemetry:get_alarm_state: 'rule:admin_or_owner'
+    telemetry:change_alarm_state: 'rule:admin_or_owner'
+    telemetry:alarm_history: 'rule:admin_or_owner'
+    telemetry:query_alarm_history: 'rule:admin_or_owner'
+  aodh:
+    DEFAULT:
+      debug: false
+      log_config_append: /etc/aodh/logging.conf
+    oslo_middleware:
+      enable_proxy_headers_parsing: true
+    database:
+      alarm_history_time_to_live: 86400
+      max_retries: -1
+    keystone_authtoken:
+      auth_version: v3
+      auth_type: password
+      memcache_security_strategy: ENCRYPT
+    service_credentials:
+      auth_type: password
+      interface: internal
+      auth_version: v3
+  logging:
+    loggers:
+      keys:
+        - root
+        - aodh
+    handlers:
+      keys:
+        - stdout
+        - stderr
+        - "null"
+    formatters:
+      keys:
+        - context
+        - default
+    logger_root:
+        level: WARNING
+        handlers: 'null'
+    logger_aodh:
+      level: INFO
+      handlers:
+        - stdout
+      qualname: aodh
+    logger_amqp:
+      level: WARNING
+      handlers: stderr
+      qualname: amqp
+    logger_amqplib:
+      level: WARNING
+      handlers: stderr
+      qualname: amqplib
+    logger_eventletwsgi:
+      level: WARNING
+      handlers: stderr
+      qualname: eventlet.wsgi.server
+    logger_sqlalchemy:
+      level: WARNING
+      handlers: stderr
+      qualname: sqlalchemy
+    logger_boto:
+      level: WARNING
+      handlers: stderr
+      qualname: boto
+    handler_null:
+      class: logging.NullHandler
+      formatter: default
+      args: ()
+    handler_stdout:
+      class: StreamHandler
+      args: (sys.stdout,)
+      formatter: context
+    handler_stderr:
+      class: StreamHandler
+      args: (sys.stderr,)
+      formatter: context
+    formatter_context:
+      class: oslo_log.formatters.ContextFormatter
+    formatter_default:
+      format: "%(message)s"
+
+secrets:
+  identity:
+    admin: aodh-keystone-admin
+    aodh: aodh-keystone-user
+  oslo_db:
+    admin: aodh-db-admin
+    aodh: aodh-db-user
+  oslo_messaging:
+    admin: aodh-rabbitmq-admin
+    aodh: aodh-rabbitmq-user
+
+bootstrap:
+  enabled: false
+  ks_user: aodh
+  script: |
+    openstack token issue
+
+# typically overriden by environmental
+# values, but should include all endpoints
+# required by this chart
+endpoints:
+  cluster_domain_suffix: cluster.local
+  local_image_registry:
+    name: docker-registry
+    namespace: docker-registry
+    hosts:
+      default: localhost
+      internal: docker-registry
+      node: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        node: 5000
+  identity:
+    name: keystone
+    auth:
+      admin:
+        region_name: RegionOne
+        username: admin
+        password: password
+        project_name: admin
+        user_domain_name: default
+        project_domain_name: default
+      aodh:
+        role: admin
+        region_name: RegionOne
+        username: aodh
+        password: password
+        project_name: service
+        user_domain_name: service
+        project_domain_name: service
+    hosts:
+      default: keystone
+      internal: keystone-api
+    host_fqdn_override:
+      default: null
+    path:
+      default: /v3
+    scheme:
+      default: 'http'
+    port:
+      api:
+        default: 80
+        internal: 5000
+  alarming:
+    name: aodh
+    hosts:
+      default: aodh-api
+      public: aodh
+    host_fqdn_override:
+      default: null
+    path:
+      default: null
+    scheme:
+      default: 'http'
+    port:
+      api:
+        default: 8042
+        public: 80
+  oslo_db:
+    auth:
+      admin:
+        username: root
+        password: password
+      aodh:
+        username: aodh
+        password: password
+    hosts:
+      default: mariadb
+    host_fqdn_override:
+      default: null
+    path: /aodh
+    scheme: mysql+pymysql
+    port:
+      mysql:
+        default: 3306
+  oslo_cache:
+    auth:
+      # NOTE: this is used to define the value for keystone
+      # authtoken cache encryption key, if not set it will be populated
+      # automatically with a random value, but to take advantage of
+      # this feature all services should be set to use the same key,
+      # and memcache service.
+      memcache_secret_key: null
+    hosts:
+      default: memcached
+    host_fqdn_override:
+      default: null
+    port:
+      memcache:
+        default: 11211
+  oslo_messaging:
+    auth:
+      admin:
+        username: rabbitmq
+        password: password
+      aodh:
+        username: aodh
+        password: password
+    hosts:
+      default: rabbitmq
+    host_fqdn_override:
+      default: null
+    path: /aodh
+    scheme: rabbit
+    port:
+      amqp:
+        default: 5672
+      http:
+        default: 15672
+  fluentd:
+    namespace: null
+    name: fluentd
+    hosts:
+      default: fluentd-logging
+    host_fqdn_override:
+      default: null
+    path:
+      default: null
+    scheme: 'http'
+    port:
+      service:
+        default: 24224
+      metrics:
+        default: 24220
+
+manifests:
+  configmap_bin: true
+  configmap_etc: true
+  cron_job_alarms_cleaner: true
+  deployment_api: true
+  deployment_evaluator: true
+  deployment_listener: true
+  deployment_notifier: true
+  ingress_api: true
+  job_bootstrap: true
+  job_db_drop: false
+  job_db_init: true
+  job_image_repo_sync: true
+  job_rabbit_init: true
+  job_db_sync: true
+  job_ks_endpoints: true
+  job_ks_service: true
+  job_ks_user: true
+  pdb_api: true
+  pod_aodh_test: true
+  secret_db: true
+  secret_keystone: true
+  secret_rabbitmq: true
+  service_api: true
+  service_ingress_api: true
