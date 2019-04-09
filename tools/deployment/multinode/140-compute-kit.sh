@@ -88,9 +88,18 @@ conf:
       ovs:
         bridge_mappings: public:br-ex
 EOF
+
+if [ -n "$OSH_OPENSTACK_RELEASE" ]; then
+  if [ -e "./neutron/values_overrides/${OSH_OPENSTACK_RELEASE}.yaml" ] ; then
+    echo "Adding release overrides for ${OSH_OPENSTACK_RELEASE}"
+    OSH_RELEASE_OVERRIDES_NEUTRON="--values=./neutron/values_overrides/${OSH_OPENSTACK_RELEASE}.yaml"
+  fi
+fi
+
 helm upgrade --install neutron ./neutron \
     --namespace=openstack \
     --values=/tmp/neutron.yaml \
+    ${OSH_RELEASE_OVERRIDES_NEUTRON} \
     ${OSH_EXTRA_HELM_ARGS} \
     ${OSH_EXTRA_HELM_ARGS_NEUTRON}
 
