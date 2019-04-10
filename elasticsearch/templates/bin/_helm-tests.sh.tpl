@@ -49,7 +49,7 @@ function check_snapshot_repositories () {
      echo "FAIL: The snapshot repository $respository does not exist! Exiting now";
      exit 1;
   fi
-{{ end }}
+  {{ end }}
 }
 
 function remove_test_index () {
