@@ -785,7 +785,7 @@ conf:
     composite:neutronapi_v2_0:
       use: call:neutron.auth:pipeline_factory
       noauth: cors http_proxy_to_wsgi request_id catch_errors extensions neutronapiapp_v2_0
-      keystone: cors http_proxy_to_wsgi request_id catch_errors authtoken keystonecontext extensions neutronapiapp_v2_0
+      keystone: cors http_proxy_to_wsgi request_id catch_errors authtoken audit keystonecontext extensions neutronapiapp_v2_0
     composite:neutronversions_composite:
       use: call:neutron.auth:pipeline_factory
       noauth: cors http_proxy_to_wsgi neutronversions
@@ -803,6 +803,9 @@ conf:
       paste.filter_factory: neutron.auth:NeutronKeystoneContext.factory
     filter:authtoken:
       paste.filter_factory: keystonemiddleware.auth_token:filter_factory
+    filter:audit:
+      paste.filter_factory: keystonemiddleware.audit:filter_factory
+      audit_map_file: /etc/neutron/api_audit_map.conf
     filter:extensions:
       paste.filter_factory: neutron.api.extensions:plugin_aware_extension_middleware_factory
     app:neutronversions:
@@ -1001,6 +1004,31 @@ conf:
     get_subports: ''
     add_subports: rule:admin_or_owner
     remove_subports: rule:admin_or_owner
+  api_audit_map:
+    DEFAULT:
+      target_endpoint_type: None
+    custom_actions:
+      add_router_interface: update/add
+      remove_router_interface: update/remove
+    path_keywords:
+      floatingips: ip
+      healthmonitors: healthmonitor
+      health_monitors: health_monitor
+      lb: None
+      members: member
+      metering-labels: label
+      metering-label-rules: rule
+      networks: network
+      pools: pool
+      ports: port
+      routers: router
+      quotas: quota
+      security-groups: security-group
+      security-group-rules: rule
+      subnets: subnet
+      vips: vip
+    service_endpoints:
+      network: service/network
   neutron_sudoers: |
     # This sudoers file supports rootwrap for both Kolla and LOCI Images.
     Defaults !requiretty
