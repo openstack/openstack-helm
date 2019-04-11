@@ -220,7 +220,7 @@ conf:
     </VirtualHost>
   paste:
     pipeline:main:
-      pipeline: cors http_proxy_to_wsgi request_id authtoken api-server
+      pipeline: cors http_proxy_to_wsgi request_id authtoken audit api-server
     app:api-server:
       paste.app_factory: panko.api.app:app_factory
     filter:authtoken:
@@ -234,6 +234,9 @@ conf:
     filter:http_proxy_to_wsgi:
       paste.filter_factory: oslo_middleware.http_proxy_to_wsgi:HTTPProxyToWSGI.factory
       oslo_config_project: panko
+    filter:audit:
+      paste.filter_factory: keystonemiddleware.audit:filter_factory
+      audit_map_file: /etc/panko/api_audit_map.conf
   policy:
     context_is_admin: role:admin
     segregation: rule:context_is_admin
@@ -310,6 +313,16 @@ conf:
       class: oslo_log.formatters.ContextFormatter
     formatter_default:
       format: "%(message)s"
+  api_audit_map:
+    DEFAULT:
+      target_endpoint_type: event
+    path_keywords:
+      events: message_id
+      capabilities: None
+      event_types: event_type
+      traits: event_type
+    service_endpoints:
+      event: service/event
 
 # typically overriden by environmental
 # values, but should include all endpoints
