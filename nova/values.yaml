@@ -696,11 +696,11 @@ conf:
     composite:openstack_compute_api_v21:
       use: call:nova.api.auth:pipeline_factory_v21
       noauth2: cors http_proxy_to_wsgi compute_req_id faultwrap sizelimit noauth2 osapi_compute_app_v21
-      keystone: cors http_proxy_to_wsgi compute_req_id faultwrap sizelimit authtoken keystonecontext osapi_compute_app_v21
+      keystone: cors http_proxy_to_wsgi compute_req_id faultwrap sizelimit authtoken audit keystonecontext osapi_compute_app_v21
     composite:openstack_compute_api_v21_legacy_v2_compatible:
       use: call:nova.api.auth:pipeline_factory_v21
       noauth2: cors http_proxy_to_wsgi compute_req_id faultwrap sizelimit noauth2 legacy_v2_compatible osapi_compute_app_v21
-      keystone: cors http_proxy_to_wsgi compute_req_id faultwrap sizelimit authtoken keystonecontext legacy_v2_compatible osapi_compute_app_v21
+      keystone: cors http_proxy_to_wsgi compute_req_id faultwrap sizelimit authtoken audit keystonecontext legacy_v2_compatible osapi_compute_app_v21
     filter:request_id:
       paste.filter_factory: oslo_middleware:RequestId.factory
     filter:compute_req_id:
@@ -728,6 +728,9 @@ conf:
       paste.filter_factory: nova.api.auth:NovaKeystoneContext.factory
     filter:authtoken:
       paste.filter_factory: keystonemiddleware.auth_token:filter_factory
+    filter:audit:
+      paste.filter_factory: keystonemiddleware.audit:filter_factory
+      audit_map_file: /etc/nova/api_audit_map.conf
   policy:
     os_compute_api:os-admin-actions:discoverable: "@"
     os_compute_api:os-admin-actions:reset_state: rule:admin_api
@@ -991,6 +994,72 @@ conf:
     Defaults !requiretty
     Defaults secure_path="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin:/var/lib/openstack/bin:/var/lib/kolla/venv/bin"
     nova ALL = (root) NOPASSWD: /var/lib/kolla/venv/bin/nova-rootwrap /etc/nova/rootwrap.conf *, /var/lib/openstack/bin/nova-rootwrap /etc/nova/rootwrap.conf *
+  api_audit_map:
+    DEFAULT:
+      target_endpoint_type: None
+    custom_actions:
+      enable: enable
+      disable: disable
+      delete: delete
+      startup: start/startup
+      shutdown: stop/shutdown
+      reboot: start/reboot
+      os-migrations/get: read
+      os-server-password/post: update
+    path_keywords:
+      add: None
+      action: None
+      enable: None
+      disable: None
+      configure-project: None
+      defaults: None
+      delete: None
+      detail: None
+      diagnostics: None
+      entries: entry
+      extensions: alias
+      flavors: flavor
+      images: image
+      ips: label
+      limits: None
+      metadata: key
+      os-agents: os-agent
+      os-aggregates: os-aggregate
+      os-availability-zone: None
+      os-certificates: None
+      os-cloudpipe: None
+      os-fixed-ips: ip
+      os-extra_specs: key
+      os-flavor-access: None
+      os-floating-ip-dns: domain
+      os-floating-ips-bulk: host
+      os-floating-ip-pools: None
+      os-floating-ips: floating-ip
+      os-hosts: host
+      os-hypervisors: hypervisor
+      os-instance-actions: instance-action
+      os-keypairs: keypair
+      os-migrations: None
+      os-networks: network
+      os-quota-sets: tenant
+      os-security-groups: security_group
+      os-security-group-rules: rule
+      os-server-password: None
+      os-services: None
+      os-simple-tenant-usage: tenant
+      os-virtual-interfaces: None
+      os-volume_attachments: attachment
+      os-volumes_boot: None
+      os-volumes: volume
+      os-volume-types: volume-type
+      os-snapshots: snapshot
+      reboot: None
+      servers: server
+      shutdown: None
+      startup: None
+      statistics: None
+    service_endpoints:
+      compute: service/compute
   rootwrap: |
     # Configuration for nova-rootwrap
     # This file should be owned by (and only-writeable by) the root user
