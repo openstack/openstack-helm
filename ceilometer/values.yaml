@@ -1268,6 +1268,9 @@ conf:
     'filter:authtoken':
       paste.filter_factory: 'keystonemiddleware.auth_token:filter_factory'
       oslo_config_project: 'ceilometer'
+    'filter:audit':
+      paste.filter_factory: 'keystonemiddleware.audit:filter_factory'
+      audit_map_file: '/etc/ceilometer/api_audit_map.conf'
     'filter:cors':
       oslo_config_project: 'ceilometer'
       paste.filter_factory: 'oslo_middleware.cors:filter_factory'
@@ -1278,7 +1281,7 @@ conf:
       oslo_config_project: 'ceilometer'
       paste.filter_factory: 'oslo_middleware:RequestId.factory'
     'pipeline:main':
-      pipeline: cors http_proxy_to_wsgi request_id authtoken api-server
+      pipeline: cors http_proxy_to_wsgi request_id authtoken audit api-server
   polling:
     sources:
       - name: all_pollsters
@@ -1387,6 +1390,16 @@ conf:
     'telemetry:get_sample': ''
     'telemetry:get_samples': ''
     'telemetry:query_sample': ''
+  audit_api_map:
+    DEFAULT:
+      target_endpoint_type: None
+    path_keywords:
+      meters: meter_name
+      resources: resource_id
+      statistics: None
+      samples: sample_id
+    service_endpoints:
+      metering: service/metering
   wsgi_ceilometer: |
     Listen 0.0.0.0:{{ tuple "metering" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
 
