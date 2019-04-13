@@ -164,11 +164,11 @@ conf:
     pipeline:glance-api-cachemanagement:
       pipeline: cors healthcheck http_proxy_to_wsgi versionnegotiation osprofiler unauthenticated-context cache cachemanage rootapp
     pipeline:glance-api-keystone:
-      pipeline: cors healthcheck http_proxy_to_wsgi versionnegotiation osprofiler authtoken context  rootapp
+      pipeline: cors healthcheck http_proxy_to_wsgi versionnegotiation osprofiler authtoken audit context  rootapp
     pipeline:glance-api-keystone+caching:
-      pipeline: cors healthcheck http_proxy_to_wsgi versionnegotiation osprofiler authtoken context cache rootapp
+      pipeline: cors healthcheck http_proxy_to_wsgi versionnegotiation osprofiler authtoken audit context cache rootapp
     pipeline:glance-api-keystone+cachemanagement:
-      pipeline: cors healthcheck http_proxy_to_wsgi versionnegotiation osprofiler authtoken context cache cachemanage rootapp
+      pipeline: cors healthcheck http_proxy_to_wsgi versionnegotiation osprofiler authtoken audit context cache cachemanage rootapp
     pipeline:glance-api-trusted-auth:
       pipeline: cors healthcheck http_proxy_to_wsgi versionnegotiation osprofiler context rootapp
     pipeline:glance-api-trusted-auth+cachemanagement:
@@ -201,6 +201,9 @@ conf:
     filter:authtoken:
       paste.filter_factory: keystonemiddleware.auth_token:filter_factory
       delay_auth_decision: true
+    filter:audit:
+      paste.filter_factory: keystonemiddleware.audit:filter_factory
+      audit_map_file: /etc/glance/api_audit_map.conf
     filter:gzip:
       paste.filter_factory: glance.api.middleware.gzip:GzipMiddleware.factory
     filter:osprofiler:
@@ -356,11 +359,22 @@ conf:
     formatter_default:
       format: "%(message)s"
       datefmt: "%Y-%m-%d %H:%M:%S"
+  api_audit_map:
+    DEFAULT:
+      target_endpoint_type: None
+    path_keywords:
+      detail: None
+      file: None
+      images: image
+      members: member
+      tags: tag
+    service_endpoints:
+      image: 'service/storage/image'
   paste_registry:
     pipeline:glance-registry:
       pipeline: healthcheck osprofiler unauthenticated-context registryapp
     pipeline:glance-registry-keystone:
-      pipeline: healthcheck osprofiler authtoken context registryapp
+      pipeline: healthcheck osprofiler authtoken audit context registryapp
     pipeline:glance-registry-trusted-auth:
       pipeline: healthcheck osprofiler context registryapp
     app:registryapp:
@@ -379,6 +393,9 @@ conf:
       paste.filter_factory: osprofiler.web:WsgiMiddleware.factory
       hmac_keys: SECRET_KEY  # DEPRECATED
       enabled: yes  # DEPRECATED
+    filter:audit:
+      paste.filter_factory: keystonemiddleware.audit:filter_factory
+      audit_map_file: /etc/glance/api_audit_map.conf
   glance_registry:
     DEFAULT:
       # NOTE(portdirect): the bind port should not be defined, and is manipulated
