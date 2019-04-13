@@ -283,17 +283,17 @@ conf:
                 length: 40
   paste:
     pipeline:heat-api:
-      pipeline: cors request_id faultwrap http_proxy_to_wsgi versionnegotiation osprofiler authurl authtoken context apiv1app
+      pipeline: cors request_id faultwrap http_proxy_to_wsgi versionnegotiation osprofiler authurl authtoken audit context apiv1app
     pipeline:heat-api-standalone:
       pipeline: cors request_id faultwrap http_proxy_to_wsgi versionnegotiation authurl authpassword context apiv1app
     pipeline:heat-api-custombackend:
       pipeline: cors request_id faultwrap versionnegotiation context custombackendauth apiv1app
     pipeline:heat-api-cfn:
-      pipeline: cors http_proxy_to_wsgi cfnversionnegotiation osprofiler ec2authtoken authtoken context apicfnv1app
+      pipeline: cors http_proxy_to_wsgi cfnversionnegotiation osprofiler ec2authtoken authtoken audit context apicfnv1app
     pipeline:heat-api-cfn-standalone:
       pipeline: cors http_proxy_to_wsgi cfnversionnegotiation ec2authtoken context apicfnv1app
     pipeline:heat-api-cloudwatch:
-      pipeline: cors versionnegotiation osprofiler ec2authtoken authtoken context apicwapp
+      pipeline: cors versionnegotiation osprofiler ec2authtoken authtoken audit context apicwapp
     pipeline:heat-api-cloudwatch-standalone:
       pipeline: cors versionnegotiation ec2authtoken context apicwapp
     app:apiv1app:
@@ -334,6 +334,9 @@ conf:
       paste.filter_factory: heat.common.auth_password:filter_factory
     filter:custombackendauth:
       paste.filter_factory: heat.common.custom_backend_auth:filter_factory
+    filter:audit:
+      paste.filter_factory: keystonemiddleware.audit:filter_factory
+      audit_map_file: /etc/heat/api_audit_map.conf
     filter:request_id:
       paste.filter_factory: oslo_middleware.request_id:RequestId.factory
     filter:osprofiler:
@@ -471,6 +474,33 @@ conf:
       enable_proxy_headers_parsing: true
     oslo_messaging_rabbit:
       rabbit_ha_queues: True
+  audit_api_map:
+    DEFAULT:
+      target_endpoint_type: None
+    path_keywords:
+      stacks: stack
+      resources: resource
+      preview: None
+      detail: None
+      abandon: None
+      snapshots: snapshot
+      restore: None
+      outputs: output
+      metadata: server
+      signal: None
+      events: event
+      template: None
+      template_versions: template_version
+      functions: None
+      validate: None
+      resource_types: resource_type
+      build_info: None
+      actions: None
+      software_configs: software_config
+      software_deployments: software_deployment
+      services: None
+    service_endpoints:
+      orchestration:service/orchestration
   logging:
     loggers:
       keys:
