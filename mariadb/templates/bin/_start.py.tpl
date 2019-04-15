@@ -724,15 +724,6 @@ def run_mysqld(cluster='existing'):
     mysqld_cmd = ['mysqld']
     if cluster == 'new':
         mysqld_cmd.append('--wsrep-new-cluster')
-    else:
-        if int(instance_number) == 0:
-            active_endpoints = get_active_endpoints()
-            if active_endpoints and len(active_endpoints) == (
-                    int(mariadb_replicas) - 1):
-                run_cmd_with_logging([
-                    'mysql_upgrade',
-                    '--defaults-file=/etc/mysql/admin_user.cnf'
-                ], logger)
 
     mysql_data_dir = '/var/lib/mysql'
     db_test_dir = "{0}/mysql".format(mysql_data_dir)
