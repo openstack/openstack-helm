@@ -18,11 +18,10 @@ set -xe
 
 #NOTE: Lint and package chart
 : ${OSH_INFRA_PATH:="../openstack-helm-infra"}
+: ${OSH_EXTRA_HELM_ARGS:=""}
 make -C ${OSH_INFRA_PATH} ingress
 
 #NOTE: Deploy command
-: ${OSH_INFRA_PATH:="../openstack-helm-infra"}
-: ${OSH_EXTRA_HELM_ARGS:=""}
 tee /tmp/ingress-kube-system.yaml << EOF
 deployment:
   mode: cluster
