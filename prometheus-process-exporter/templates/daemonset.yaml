@@ -54,8 +54,7 @@ spec:
 {{ dict "envAll" $envAll "podName" "process-exporter" "containerNames" (list "process-exporter") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
 {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
     spec:
-      securityContext:
-        readOnlyRootFilesystem: true
+{{ dict "envAll" $envAll "application" "metrics" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
       serviceAccountName: {{ $serviceAccountName }}
 {{ if .Values.pod.tolerations.process_exporter.enabled }}
 {{ tuple $envAll "process_exporter" | include "helm-toolkit.snippets.kubernetes_tolerations" | indent 6 }}
@@ -71,6 +70,7 @@ spec:
         - name: process-exporter
 {{ tuple $envAll "process_exporter" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.process_exporter | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "metrics" "container" "process_exporter" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           args:
             - -procnames
             - {{ .Values.conf.processes }}
