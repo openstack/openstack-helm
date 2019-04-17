@@ -90,6 +90,33 @@ spec:
             - name: cinder-coordination
               mountPath: {{ ( split "://" .Values.conf.cinder.coordination.backend_url )._1 }}
         {{ end }}
+        - name: init-cinder-conf
+          image: {{ .Values.images.tags.ks_user }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+          securityContext:
+            runAsUser: 0
+          command:
+            - /tmp/retrieve-internal-tenant.sh
+          volumeMounts:
+            - name: cinder-bin
+              mountPath: /tmp/retrieve-internal-tenant.sh
+              subPath: retrieve-internal-tenant.sh
+              readOnly: true
+            - name: pod-shared
+              mountPath: /tmp/pod-shared
+          env:
+{{- with $env := dict "ksUserSecret" .Values.secrets.identity.admin }}
+{{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 12 }}
+{{- end }}
+            - name: INTERNAL_PROJECT_NAME
+              value: {{ .Values.conf.cinder.DEFAULT.internal_project_name | quote }}
+            - name: INTERNAL_USER_NAME
+              value: {{ .Values.conf.cinder.DEFAULT.internal_user_name | quote }}
+
+{{- with $env := dict "ksUserSecret" (index .Values.secrets.identity "cinder" ) }}
+{{- include "helm-toolkit.snippets.keystone_user_create_env_vars" $env | indent 12 }}
+{{- end }}
+
       containers:
         - name: cinder-volume
 {{ tuple $envAll "cinder_volume" | include "helm-toolkit.snippets.image" | indent 10 }}
@@ -102,6 +129,8 @@ spec:
               mountPath: /tmp/cinder-volume.sh
               subPath: cinder-volume.sh
               readOnly: true
+            - name: pod-shared
+              mountPath: /tmp/pod-shared
             - name: cinder-etc
               mountPath: /etc/cinder/cinder.conf
               subPath: cinder.conf
@@ -167,6 +196,8 @@ spec:
             defaultMode: 0444
         {{- if include "cinder.utils.is_ceph_volume_configured" $envAll }}
         - name: etcceph
+          emptyDir: {}
+        - name: pod-shared
           emptyDir: {}
         - name: ceph-etc
           configMap:

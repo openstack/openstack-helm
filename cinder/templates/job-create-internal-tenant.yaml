@@ -1,0 +1,83 @@
+{{/*
+Copyright 2019 The Openstack-Helm Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.job_create_internal_tenant }}
+{{- $envAll := . }}
+
+{{- $serviceName := "cinder" }}
+{{- $nodeSelector := index . "nodeSelector" | default ( dict $envAll.Values.labels.job.node_selector_key $envAll.Values.labels.job.node_selector_value ) -}}
+{{- $configMapBin := index . "configMapBin" | default (printf "%s-%s" $serviceName "bin" ) -}}
+{{- $serviceUser := index . "serviceUser" | default $serviceName -}}
+{{- $serviceUserPretty := $serviceUser | replace "_" "-" -}}
+
+{{- $serviceAccountName := printf "%s-%s" $serviceUserPretty "create-internal-tenant" }}
+{{ tuple $envAll "create-internal-tenant" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ printf "%s-%s" $serviceUserPretty "create-internal-tenant" | quote }}
+spec:
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll $serviceName "create-internal-tenant" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+    spec:
+      serviceAccountName: {{ $serviceAccountName | quote }}
+      restartPolicy: OnFailure
+      nodeSelector:
+{{ toYaml $nodeSelector | indent 8 }}
+      initContainers:
+{{ tuple $envAll "create_internal_tenant" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+      containers:
+        - name: create-internal-tenant
+          image: {{ $envAll.Values.images.tags.ks_user }}
+          imagePullPolicy: {{ $envAll.Values.images.pull_policy }}
+{{ tuple $envAll $envAll.Values.pod.resources.jobs.ks_user | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          command:
+            - /tmp/create-internal-tenant.sh
+          volumeMounts:
+            - name: create-internal-tenant-sh
+              mountPath: /tmp/create-internal-tenant.sh
+              subPath: create-internal-tenant.sh
+              readOnly: true
+          env:
+{{- with $env := dict "ksUserSecret" $envAll.Values.secrets.identity.admin }}
+{{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 12 }}
+{{- end }}
+            - name: SERVICE_OS_SERVICE_NAME
+              value: {{ $serviceName | quote }}
+            - name: INTERNAL_PROJECT_NAME
+              value: {{ .Values.conf.cinder.DEFAULT.internal_project_name | quote }}
+            - name: INTERNAL_USER_NAME
+              value: {{ .Values.conf.cinder.DEFAULT.internal_user_name | quote }}
+
+{{- with $env := dict "ksUserSecret" (index $envAll.Values.secrets.identity $serviceUser ) }}
+{{- include "helm-toolkit.snippets.keystone_user_create_env_vars" $env | indent 12 }}
+{{- end }}
+            - name: SERVICE_OS_ROLES
+            {{- $serviceOsRoles := index $envAll.Values.endpoints.identity.auth $serviceUser "role" }}
+            {{- if kindIs "slice" $serviceOsRoles }}
+              value: {{ include "helm-toolkit.utils.joinListWithComma" $serviceOsRoles | quote }}
+            {{- else }}
+              value: {{ $serviceOsRoles | quote }}
+            {{- end }}
+      volumes:
+        - name: create-internal-tenant-sh
+          configMap:
+            name: {{ $configMapBin | quote }}
+            defaultMode: 0555
+{{- end -}}

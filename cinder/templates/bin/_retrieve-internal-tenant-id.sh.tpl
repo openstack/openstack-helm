@@ -1,7 +1,7 @@
 #!/bin/bash
 
 {{/*
-Copyright 2017 The Openstack-Helm Authors.
+Copyright 2019 The Openstack-Helm Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,7 +17,16 @@ limitations under the License.
 */}}
 
 set -ex
-exec cinder-volume \
-     --config-file /etc/cinder/cinder.conf \
-     --config-file /etc/cinder/conf/backends.conf \
-     --config-file /tmp/pod-shared/internal_tenant.conf
+
+
+USER_PROJECT_ID=$(openstack project show -f value -c id \
+    "${INTERNAL_PROJECT_NAME}");
+
+USER_ID=$(openstack user show -f value -c id \
+    "${INTERNAL_USER_NAME}");
+
+tee /tmp/pod-shared/internal_tenant.conf <<EOF
+[DEFAULT]
+cinder_internal_tenant_project_id = ${USER_PROJECT_ID}
+cinder_internal_tenant_user_id = ${USER_ID}
+EOF
