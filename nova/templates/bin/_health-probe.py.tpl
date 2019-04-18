@@ -94,7 +94,7 @@ def tcp_socket_status(process, port):
                 if parentId == 0:
                     parentId = p.pid
                 else:
-                    if p.ppid() == parentId:
+                    if p.ppid() == parentId and not cfg.CONF.check_all_pids:
                         continue
                 pcon = p.connections()
                 for con in pcon:
@@ -173,6 +173,8 @@ def test_rpc_liveness():
     cfg.CONF.register_group(rabbit_group)
     cfg.CONF.register_cli_opt(cfg.StrOpt('service-queue-name'))
     cfg.CONF.register_cli_opt(cfg.BoolOpt('liveness-probe', default=False,
+                                          required=False))
+    cfg.CONF.register_cli_opt(cfg.BoolOpt('check-all-pids', default=False,
                                           required=False))
 
     cfg.CONF(sys.argv[1:])
