@@ -49,10 +49,31 @@ spec:
       hostNetwork: true
       initContainers:
 {{ tuple $envAll "db" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+        - name: openvswitch-db-perms
+{{ tuple $envAll "openvswitch_db_server" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.ovs.db | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          securityContext:
+            runAsUser: 0
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+          command:
+            - chown
+            - -R
+            - "42424:42424"
+            - /run/openvswitch
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: run
+              mountPath: /run/openvswitch
       containers:
         - name: openvswitch-db
 {{ tuple $envAll "openvswitch_db_server" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.ovs.db | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          securityContext:
+            runAsUser: 42424
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
           readinessProbe:
             exec:
               command:
@@ -62,8 +83,6 @@ spec:
             initialDelaySeconds: 90
             periodSeconds: 30
             timeoutSeconds: 5
-          securityContext:
-            runAsUser: 0
           livenessProbe:
             exec:
               command:
@@ -88,10 +107,8 @@ spec:
               mountPath: /tmp/openvswitch-db-server.sh
               subPath: openvswitch-db-server.sh
               readOnly: true
-            - name: varlibopenvswitch
-              mountPath: /var/lib/openvswitch/
             - name: run
-              mountPath: /run
+              mountPath: /run/openvswitch
       volumes:
         - name: pod-tmp
           emptyDir: {}
@@ -99,9 +116,7 @@ spec:
           configMap:
             name: openvswitch-bin
             defaultMode: 0555
-        - name: varlibopenvswitch
-          emptyDir: {}
         - name: run
           hostPath:
-            path: /run
+            path: /run/openvswitch
 {{- end }}
