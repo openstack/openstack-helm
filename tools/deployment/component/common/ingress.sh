@@ -33,6 +33,7 @@ helm upgrade --install ingress-kube-system ${OSH_INFRA_PATH}/ingress \
   --namespace=kube-system \
   --values=/tmp/ingress-kube-system.yaml \
   ${OSH_EXTRA_HELM_ARGS} \
+  ${OSH_VALUES_OVERRIDES_HELM_ARGS:=} \
   ${OSH_EXTRA_HELM_ARGS_INGRESS_KUBE_SYSTEM}
 
 #NOTE: Wait for deploy
@@ -45,6 +46,7 @@ helm status ingress-kube-system
 helm upgrade --install ingress-openstack ${OSH_INFRA_PATH}/ingress \
   --namespace=openstack \
   ${OSH_EXTRA_HELM_ARGS} \
+  ${OSH_VALUES_OVERRIDES_HELM_ARGS:=} \
   ${OSH_EXTRA_HELM_ARGS_INGRESS_OPENSTACK}
 
 #NOTE: Wait for deploy
