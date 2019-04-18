@@ -19,27 +19,35 @@ set -xe
 #NOTE: Lint and package chart
 make kibana
 
-tee /tmp/kibana.yaml <<EOF
-manifests:
-  network_policy: true
+#NOTE: Deploy command
+tee /tmp/kibana.yaml << EOF
 network_policy:
   kibana:
     ingress:
       - from:
         - podSelector:
             matchLabels:
+              application: elasticsearch
+        - podSelector:
+            matchLabels:
               application: kibana
+        - podSelector:
+            matchLabels:
+              application: ingress
         ports:
         - protocol: TCP
-          port: 5601
-        - protocol: TCP
           port: 80
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 5601
+manifests:
+  network_policy: true
 EOF
-
-#NOTE: Deploy command
 helm upgrade --install kibana ./kibana \
     --namespace=osh-infra \
     --values=/tmp/kibana.yaml
+
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh osh-infra
 

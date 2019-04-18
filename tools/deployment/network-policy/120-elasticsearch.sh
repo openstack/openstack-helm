@@ -21,9 +21,46 @@ make elasticsearch
 
 #NOTE: Deploy command
 tee /tmp/elasticsearch.yaml << EOF
-monitoring:
-  prometheus:
-    enabled: true
+network_policy:
+  prometheus-elasticsearch-exporter:
+    ingress:
+      - from:
+        - podSelector:
+            matchLabels:
+              application: prometheus
+        ports:
+        - protocol: TCP
+          port: 9108
+  elasticsearch:
+    ingress:
+      - from:
+        - podSelector:
+            matchLabels:
+              application: elasticsearch
+        - podSelector:
+            matchLabels:
+              application: prometheus-elasticsearch-exporter
+        - podSelector:
+            matchLabels:
+              application: fluentd
+        - podSelector:
+            matchLabels:
+              application: ingress
+        - podSelector:
+            matchLabels:
+              application: kibana
+        - podSelector:
+            matchLabels:
+              application: nagios
+        ports:
+        - protocol: TCP
+          port: 80
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 9200
+        - protocol: TCP
+          port: 9300
 pod:
   replicas:
     data: 1
@@ -53,12 +90,14 @@ conf:
               timestring: '%Y.%m.%d'
               unit: days
               unit_count: 365
+monitoring:
+  prometheus:
+    enabled: true
 manifests:
   network_policy: true
-network_policy:
-  elasticsearch:
-    ingress:
-      - from:
+  monitoring:
+    prometheus:
+      network_policy_exporter: true
 EOF
 
 helm upgrade --install elasticsearch ./elasticsearch \
