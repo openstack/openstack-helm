@@ -40,6 +40,7 @@ images:
     keystone_fernet_rotate: docker.io/openstackhelm/keystone:ocata
     keystone_credential_setup: docker.io/openstackhelm/keystone:ocata
     keystone_credential_rotate: docker.io/openstackhelm/keystone:ocata
+    keystone_credential_cleanup: docker.io/openstackhelm/heat:ocata
     keystone_api: docker.io/openstackhelm/keystone:ocata
     keystone_domain_manage: docker.io/openstackhelm/keystone:ocata
     dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.3.1
@@ -113,6 +114,10 @@ dependencies:
       jobs:
         - keystone-credential-setup
     credential_setup: null
+    credential_cleanup:
+      services:
+        - endpoint: internal
+          service: oslo_db
     db_drop:
       services:
         - endpoint: internal
@@ -210,6 +215,11 @@ pod:
     keystone_credential_rotate:
       init_container: null
       keystone_credential_rotate:
+        volumeMounts:
+        volumes:
+    keystone_credential_cleanup:
+      init_container: null
+      keystone_credential_cleanup:
         volumeMounts:
         volumes:
     keystone_domain_manage:
@@ -314,6 +324,13 @@ pod:
           memory: "1024Mi"
           cpu: "2000m"
       credential_rotate:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      credential_cleanup:
         requests:
           memory: "128Mi"
           cpu: "100m"
@@ -1245,6 +1262,7 @@ manifests:
   deployment_api: true
   ingress_api: true
   job_bootstrap: true
+  job_credential_cleanup: true
   job_credential_setup: true
   job_db_init: true
   job_db_sync: true
