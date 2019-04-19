@@ -103,5 +103,8 @@ openstack service list
 sleep 30 #NOTE(portdirect): Wait for ingress controller to update rules and restart Nginx
 openstack compute service list
 openstack network agent list
+# Delete the test pods if they still exist
+kubectl delete pods -l application=nova,release_group=nova,component=test --namespace=openstack --ignore-not-found
+kubectl delete pods -l application=neutron,release_group=neutron,component=test --namespace=openstack --ignore-not-found
 helm test nova --timeout 900
 helm test neutron --timeout 900

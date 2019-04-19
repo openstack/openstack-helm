@@ -58,4 +58,6 @@ openstack service list
 sleep 30 #NOTE(portdirect): Wait for ingress controller to update rules and restart Nginx
 openstack image list
 openstack image show 'Cirros 0.3.5 64-bit'
+# Delete the test pod if it still exists
+kubectl delete pods -l application=glance,release_group=glance,component=test --namespace=openstack --ignore-not-found
 helm test glance --timeout 900

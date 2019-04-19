@@ -31,4 +31,6 @@ helm upgrade --install mistral ./mistral \
 #NOTE: Validate Deployment
 export OS_CLOUD=openstack_helm
 openstack service list
+# Delete the test pod if it still exists
+kubectl delete pods -l application=mistral,release_group=mistral,component=test --namespace=openstack --ignore-not-found
 helm test mistral
