@@ -63,31 +63,33 @@ spec:
           readinessProbe:
             exec:
               command:
-              - python
-              - /tmp/health-probe.py
-              - --config-file
-              - /etc/nova/nova.conf
-              - --service-queue-name
-              - consoleauth
+                - python
+                - /tmp/health-probe.py
+                - --config-file
+                - /etc/nova/nova.conf
+                - --service-queue-name
+                - consoleauth
             initialDelaySeconds: 80
             periodSeconds: 90
             timeoutSeconds: 70
           livenessProbe:
             exec:
               command:
-              - python
-              - /tmp/health-probe.py
-              - --config-file
-              - /etc/nova/nova.conf
-              - --service-queue-name
-              - consoleauth
-              - --liveness-probe
+                - python
+                - /tmp/health-probe.py
+                - --config-file
+                - /etc/nova/nova.conf
+                - --service-queue-name
+                - consoleauth
+                - --liveness-probe
             initialDelaySeconds: 120
             periodSeconds: 90
             timeoutSeconds: 70
           command:
             - /tmp/nova-consoleauth.sh
           volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
             - name: nova-bin
               mountPath: /tmp/nova-consoleauth.sh
               subPath: nova-consoleauth.sh
@@ -110,6 +112,8 @@ spec:
               readOnly: true
 {{ if $mounts_nova_consoleauth.volumeMounts }}{{ toYaml $mounts_nova_consoleauth.volumeMounts | indent 12 }}{{ end }}
       volumes:
+        - name: pod-tmp
+          emptyDir: {}
         - name: nova-bin
           configMap:
             name: nova-bin

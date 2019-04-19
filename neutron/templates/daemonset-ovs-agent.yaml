@@ -70,6 +70,8 @@ spec:
           command:
             - /tmp/neutron-openvswitch-agent-init-modules.sh
           volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
             - name: neutron-bin
               mountPath: /tmp/neutron-openvswitch-agent-init-modules.sh
               subPath: neutron-openvswitch-agent-init-modules.sh
@@ -86,6 +88,8 @@ spec:
           command:
             - /tmp/neutron-openvswitch-agent-init.sh
           volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
             - name: neutron-bin
               mountPath: /tmp/neutron-openvswitch-agent-init.sh
               subPath: neutron-openvswitch-agent-init.sh
@@ -165,19 +169,21 @@ spec:
           livenessProbe:
             exec:
               command:
-              - python
-              - /tmp/health-probe.py
-              - --config-file
-              - /etc/neutron/neutron.conf
-              - --config-file
-              - /etc/neutron/plugins/ml2/openvswitch_agent.ini
-              - --agent-queue-name
-              - q-agent-notifier-tunnel-update
-              - --liveness-probe
+                - python
+                - /tmp/health-probe.py
+                - --config-file
+                - /etc/neutron/neutron.conf
+                - --config-file
+                - /etc/neutron/plugins/ml2/openvswitch_agent.ini
+                - --agent-queue-name
+                - q-agent-notifier-tunnel-update
+                - --liveness-probe
             initialDelaySeconds: 120
             periodSeconds: 90
             timeoutSeconds: 70
           volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
             - name: neutron-bin
               mountPath: /tmp/neutron-openvswitch-agent.sh
               subPath: neutron-openvswitch-agent.sh
@@ -239,6 +245,8 @@ spec:
               mountPath: /run
 {{ if $mounts_neutron_ovs_agent.volumeMounts }}{{ toYaml $mounts_neutron_ovs_agent.volumeMounts | indent 12 }}{{ end }}
       volumes:
+        - name: pod-tmp
+          emptyDir: {}
         - name: varlibopenvswitch
           emptyDir: {}
         - name: pod-shared

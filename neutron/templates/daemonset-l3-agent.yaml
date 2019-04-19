@@ -69,35 +69,37 @@ spec:
           readinessProbe:
             exec:
               command:
-              - python
-              - /tmp/health-probe.py
-              - --config-file
-              - /etc/neutron/neutron.conf
-              - --config-file
-              - /etc/neutron/l3_agent.ini
-              - --agent-queue-name
-              - l3_agent
+                - python
+                - /tmp/health-probe.py
+                - --config-file
+                - /etc/neutron/neutron.conf
+                - --config-file
+                - /etc/neutron/l3_agent.ini
+                - --agent-queue-name
+                - l3_agent
             initialDelaySeconds: 30
             periodSeconds: 15
             timeoutSeconds: 65
           livenessProbe:
             exec:
               command:
-              - python
-              - /tmp/health-probe.py
-              - --config-file
-              - /etc/neutron/neutron.conf
-              - --config-file
-              - /etc/neutron/l3_agent.ini
-              - --agent-queue-name
-              - l3_agent
-              - --liveness-probe
+                - python
+                - /tmp/health-probe.py
+                - --config-file
+                - /etc/neutron/neutron.conf
+                - --config-file
+                - /etc/neutron/l3_agent.ini
+                - --agent-queue-name
+                - l3_agent
+                - --liveness-probe
             initialDelaySeconds: 120
             periodSeconds: 90
             timeoutSeconds: 70
           command:
             - /tmp/neutron-l3-agent.sh
           volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
             - name: neutron-bin
               mountPath: /tmp/neutron-l3-agent.sh
               subPath: neutron-l3-agent.sh
@@ -165,6 +167,8 @@ spec:
             {{- end }}
 {{ if $mounts_neutron_l3_agent.volumeMounts }}{{ toYaml $mounts_neutron_l3_agent.volumeMounts | indent 12 }}{{ end }}
       volumes:
+        - name: pod-tmp
+          emptyDir: {}
         - name: neutron-bin
           configMap:
             name: neutron-bin

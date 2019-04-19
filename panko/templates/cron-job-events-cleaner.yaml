@@ -54,31 +54,35 @@ spec:
               command:
                 - /tmp/panko-events-cleaner.sh
               volumeMounts:
-              - name: panko-bin
-                mountPath: /tmp/panko-events-cleaner.sh
-                subPath: panko-events-cleaner.sh
-                readOnly: true
-              - name: etcpanko
-                mountPath: /etc/panko
-              - name: panko-etc
-                mountPath: /etc/panko/panko.conf
-                subPath: panko.conf
-                readOnly: true
-              - name: panko-etc
-                mountPath: {{ .Values.conf.panko.DEFAULT.log_config_append }}
-                subPath: {{ base .Values.conf.panko.DEFAULT.log_config_append }}
-                readOnly: true
-{{ if $mounts_panko_events_cleaner.volumeMounts }}{{ toYaml $mounts_panko_events_cleaner.volumeMounts | indent 14 }}{{ end }}
+                - name: pod-tmp
+                  mountPath: /tmp
+                - name: panko-bin
+                  mountPath: /tmp/panko-events-cleaner.sh
+                  subPath: panko-events-cleaner.sh
+                  readOnly: true
+                - name: etcpanko
+                  mountPath: /etc/panko
+                - name: panko-etc
+                  mountPath: /etc/panko/panko.conf
+                  subPath: panko.conf
+                  readOnly: true
+                - name: panko-etc
+                  mountPath: {{ .Values.conf.panko.DEFAULT.log_config_append }}
+                  subPath: {{ base .Values.conf.panko.DEFAULT.log_config_append }}
+                  readOnly: true
+{{ if $mounts_panko_events_cleaner.volumeMounts }}{{ toYaml $mounts_panko_events_cleaner.volumeMounts | indent 16 }}{{ end }}
           volumes:
-          - name: etcpanko
-            emptyDir: {}
-          - name: panko-etc
-            secret:
-              secretName: panko-etc
-              defaultMode: 0444
-          - name: panko-bin
-            configMap:
-              name: panko-bin
-              defaultMode: 0555
-{{ if $mounts_panko_events_cleaner.volumes }}{{ toYaml $mounts_panko_events_cleaner.volumes | indent 10 }}{{ end }}
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: etcpanko
+              emptyDir: {}
+            - name: panko-etc
+              secret:
+                secretName: panko-etc
+                defaultMode: 0444
+            - name: panko-bin
+              configMap:
+                name: panko-bin
+                defaultMode: 0555
+{{ if $mounts_panko_events_cleaner.volumes }}{{ toYaml $mounts_panko_events_cleaner.volumes | indent 12 }}{{ end }}
 {{- end }}

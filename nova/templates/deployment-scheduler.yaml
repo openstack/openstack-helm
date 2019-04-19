@@ -63,33 +63,35 @@ spec:
           readinessProbe:
             exec:
               command:
-              - python
-              - /tmp/health-probe.py
-              - --config-file
-              - /etc/nova/nova.conf
-              - --service-queue-name
-              - scheduler
-              - --check-all-pids
+                - python
+                - /tmp/health-probe.py
+                - --config-file
+                - /etc/nova/nova.conf
+                - --service-queue-name
+                - scheduler
+                - --check-all-pids
             initialDelaySeconds: 80
             periodSeconds: 90
             timeoutSeconds: 70
           livenessProbe:
             exec:
               command:
-              - python
-              - /tmp/health-probe.py
-              - --config-file
-              - /etc/nova/nova.conf
-              - --service-queue-name
-              - scheduler
-              - --liveness-probe
-              - --check-all-pids
+                - python
+                - /tmp/health-probe.py
+                - --config-file
+                - /etc/nova/nova.conf
+                - --service-queue-name
+                - scheduler
+                - --liveness-probe
+                - --check-all-pids
             initialDelaySeconds: 120
             periodSeconds: 90
             timeoutSeconds: 70
           command:
             - /tmp/nova-scheduler.sh
           volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
             - name: nova-bin
               mountPath: /tmp/nova-scheduler.sh
               subPath: nova-scheduler.sh
@@ -112,6 +114,8 @@ spec:
               readOnly: true
 {{ if $mounts_nova_scheduler.volumeMounts }}{{ toYaml $mounts_nova_scheduler.volumeMounts | indent 12 }}{{ end }}
       volumes:
+        - name: pod-tmp
+          emptyDir: {}
         - name: nova-bin
           configMap:
             name: nova-bin

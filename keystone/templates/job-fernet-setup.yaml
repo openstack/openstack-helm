@@ -73,49 +73,53 @@ spec:
 {{ tuple $envAll "keystone_fernet_setup" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.jobs.fernet_setup | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           env:
-          - name: KEYSTONE_USER
-            value: {{ .Values.jobs.fernet_setup.user | quote }}
-          - name: KEYSTONE_GROUP
-            value: {{ .Values.jobs.fernet_setup.group | quote }}
-          - name: KUBERNETES_NAMESPACE
-            value: {{ .Release.Namespace | quote }}
-          - name: KEYSTONE_KEYS_REPOSITORY
-            value: {{ .Values.conf.keystone.fernet_tokens.key_repository | quote }}
+            - name: KEYSTONE_USER
+              value: {{ .Values.jobs.fernet_setup.user | quote }}
+            - name: KEYSTONE_GROUP
+              value: {{ .Values.jobs.fernet_setup.group | quote }}
+            - name: KUBERNETES_NAMESPACE
+              value: {{ .Release.Namespace | quote }}
+            - name: KEYSTONE_KEYS_REPOSITORY
+              value: {{ .Values.conf.keystone.fernet_tokens.key_repository | quote }}
           command:
             - python
             - /tmp/fernet-manage.py
             - fernet_setup
           volumeMounts:
-          - name: etckeystone
-            mountPath: /etc/keystone
-          - name: fernet-keys
-            mountPath: {{ .Values.conf.keystone.fernet_tokens.key_repository | quote }}
-          - name: keystone-etc
-            mountPath: /etc/keystone/keystone.conf
-            subPath: keystone.conf
-            readOnly: true
-          - name: keystone-etc
-            mountPath: {{ .Values.conf.keystone.DEFAULT.log_config_append }}
-            subPath: {{ base .Values.conf.keystone.DEFAULT.log_config_append }}
-            readOnly: true
-          - name: keystone-bin
-            mountPath: /tmp/fernet-manage.py
-            subPath: fernet-manage.py
-            readOnly: true
-{{ if $mounts_keystone_fernet_setup.volumeMounts }}{{ toYaml $mounts_keystone_fernet_setup.volumeMounts | indent 10 }}{{ end }}
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: etckeystone
+              mountPath: /etc/keystone
+            - name: fernet-keys
+              mountPath: {{ .Values.conf.keystone.fernet_tokens.key_repository | quote }}
+            - name: keystone-etc
+              mountPath: /etc/keystone/keystone.conf
+              subPath: keystone.conf
+              readOnly: true
+            - name: keystone-etc
+              mountPath: {{ .Values.conf.keystone.DEFAULT.log_config_append }}
+              subPath: {{ base .Values.conf.keystone.DEFAULT.log_config_append }}
+              readOnly: true
+            - name: keystone-bin
+              mountPath: /tmp/fernet-manage.py
+              subPath: fernet-manage.py
+              readOnly: true
+{{ if $mounts_keystone_fernet_setup.volumeMounts }}{{ toYaml $mounts_keystone_fernet_setup.volumeMounts | indent 12 }}{{ end }}
       volumes:
-      - name: etckeystone
-        emptyDir: {}
-      - name: fernet-keys
-        emptyDir: {}
-      - name: keystone-etc
-        secret:
-          secretName: keystone-etc
-          defaultMode: 0444
-      - name: keystone-bin
-        configMap:
-          name: keystone-bin
-          defaultMode: 0555
-{{ if $mounts_keystone_fernet_setup.volumes }}{{ toYaml $mounts_keystone_fernet_setup.volumes | indent 6 }}{{ end }}
+        - name: pod-tmp
+          emptyDir: {}
+        - name: etckeystone
+          emptyDir: {}
+        - name: fernet-keys
+          emptyDir: {}
+        - name: keystone-etc
+          secret:
+            secretName: keystone-etc
+            defaultMode: 0444
+        - name: keystone-bin
+          configMap:
+            name: keystone-bin
+            defaultMode: 0555
+{{ if $mounts_keystone_fernet_setup.volumes }}{{ toYaml $mounts_keystone_fernet_setup.volumes | indent 8 }}{{ end }}
 {{- end }}
 {{- end }}

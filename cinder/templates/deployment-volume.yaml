@@ -65,6 +65,8 @@ spec:
             - name: RBD_USER
               value: {{ index (index .Values.conf.backends (include "cinder.utils.ceph_volume_section_name" $envAll)) "rbd_user" | quote }}
           volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
             - name: etcceph
               mountPath: /etc/ceph
             - name: cinder-bin
@@ -87,6 +89,8 @@ spec:
             - "cinder:"
             - {{ ( split "://" .Values.conf.cinder.coordination.backend_url )._1 }}
           volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
             - name: cinder-coordination
               mountPath: {{ ( split "://" .Values.conf.cinder.coordination.backend_url )._1 }}
         {{ end }}
@@ -98,6 +102,8 @@ spec:
           command:
             - /tmp/retrieve-internal-tenant.sh
           volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
             - name: cinder-bin
               mountPath: /tmp/retrieve-internal-tenant.sh
               subPath: retrieve-internal-tenant.sh
@@ -125,6 +131,8 @@ spec:
           command:
             - /tmp/cinder-volume.sh
           volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
             - name: cinder-bin
               mountPath: /tmp/cinder-volume.sh
               subPath: cinder-volume.sh
@@ -186,6 +194,8 @@ spec:
             {{- end }}
 {{ if $mounts_cinder_volume.volumeMounts }}{{ toYaml $mounts_cinder_volume.volumeMounts | indent 12 }}{{ end }}
       volumes:
+        - name: pod-tmp
+          emptyDir: {}
         - name: cinder-bin
           configMap:
             name: cinder-bin
