@@ -43,6 +43,7 @@ spec:
     spec:
       shareProcessNamespace: true
       serviceAccountName: {{ $serviceAccountName }}
+{{ dict "envAll" $envAll "application" "openvswitch_vswitchd" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
       nodeSelector:
         {{ .Values.labels.ovs.node_selector_key }}: {{ .Values.labels.ovs.node_selector_value }}
       dnsPolicy: ClusterFirstWithHostNet
@@ -51,11 +52,7 @@ spec:
 {{ tuple $envAll "vswitchd" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
         - name: openvswitch-vswitchd-modules
 {{ tuple $envAll "openvswitch_vswitchd" | include "helm-toolkit.snippets.image" | indent 10 }}
-          securityContext:
-            capabilities:
-              add:
-                - SYS_MODULE
-            runAsUser: 0
+{{ dict "envAll" $envAll "application" "openvswitch_vswitchd" "container" "modules" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
             - /tmp/openvswitch-vswitchd-init-modules.sh
           volumeMounts:
@@ -71,12 +68,8 @@ spec:
       containers:
         - name: openvswitch-vswitchd
 {{ tuple $envAll "openvswitch_vswitchd" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ dict "envAll" $envAll "application" "openvswitch_vswitchd" "container" "vswitchd" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.ovs.vswitchd | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-          securityContext:
-            runAsUser: 0
-            capabilities:
-              add:
-                - NET_ADMIN
           # ensures this container can speak to the ovs database
           # successfully before its marked as ready
           readinessProbe:

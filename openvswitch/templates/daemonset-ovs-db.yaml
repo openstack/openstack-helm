@@ -43,6 +43,7 @@ spec:
     spec:
       shareProcessNamespace: true
       serviceAccountName: {{ $serviceAccountName }}
+{{ dict "envAll" $envAll "application" "openvswitch_db_server" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
       nodeSelector:
         {{ .Values.labels.ovs.node_selector_key }}: {{ .Values.labels.ovs.node_selector_value }}
       dnsPolicy: ClusterFirstWithHostNet
@@ -51,15 +52,12 @@ spec:
 {{ tuple $envAll "db" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
         - name: openvswitch-db-perms
 {{ tuple $envAll "openvswitch_db_server" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ dict "envAll" $envAll "application" "openvswitch_db_server" "container" "perms" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.ovs.db | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-          securityContext:
-            runAsUser: 0
-            allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: true
           command:
             - chown
             - -R
-            - "42424:42424"
+            - {{ $envAll.Values.pod.security_context.openvswitch_db_server.container.server.runAsUser | quote }}
             - /run/openvswitch
           volumeMounts:
             - name: pod-tmp
@@ -69,11 +67,8 @@ spec:
       containers:
         - name: openvswitch-db
 {{ tuple $envAll "openvswitch_db_server" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ dict "envAll" $envAll "application" "openvswitch_db_server" "container" "server" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.ovs.db | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-          securityContext:
-            runAsUser: 42424
-            allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: true
           readinessProbe:
             exec:
               command:
