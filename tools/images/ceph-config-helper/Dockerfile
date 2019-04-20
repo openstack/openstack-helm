@@ -1,7 +1,7 @@
 FROM docker.io/ubuntu:xenial
 MAINTAINER pete.birley@att.com
 
-ARG KUBE_VERSION=v1.10.3
+ARG KUBE_VERSION=v1.14.2
 ARG CEPH_RELEASE=mimic
 
 ADD https://download.ceph.com/keys/release.asc /etc/apt/ceph-release.asc
