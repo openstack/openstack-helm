@@ -65,6 +65,8 @@ spec:
             - name: RBD_USER
               value: {{ .Values.conf.cinder.DEFAULT.backup_ceph_user | quote }}
           volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
             - name: etcceph
               mountPath: /etc/ceph
             - name: cinder-bin
@@ -87,6 +89,8 @@ spec:
             - name: RBD_USER
               value: {{ index (index .Values.conf.backends (include "cinder.utils.ceph_volume_section_name" $envAll)) "rbd_user" | quote }}
           volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
             - name: etcceph
               mountPath: /etc/ceph
             - name: cinder-bin
@@ -109,6 +113,8 @@ spec:
             - "cinder:"
             - {{ .Values.conf.cinder.DEFAULT.backup_posix_path }}
           volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
             - name: cinder-backup
               mountPath: {{ .Values.conf.cinder.DEFAULT.backup_posix_path }}
         {{ end }}
@@ -123,6 +129,8 @@ spec:
             - "cinder:"
             - {{ ( split "://" .Values.conf.cinder.coordination.backend_url )._1 }}
           volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
             - name: cinder-coordination
               mountPath: {{ ( split "://" .Values.conf.cinder.coordination.backend_url )._1 }}
         {{ end }}
@@ -138,6 +146,8 @@ spec:
           command:
             - /tmp/cinder-backup.sh
           volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
             - name: cinder-bin
               mountPath: /tmp/cinder-backup.sh
               subPath: cinder-backup.sh
@@ -205,6 +215,8 @@ spec:
               readOnly: true
 {{ if $mounts_cinder_backup.volumeMounts }}{{ toYaml $mounts_cinder_backup.volumeMounts | indent 12 }}{{ end }}
       volumes:
+        - name: pod-tmp
+          emptyDir: {}
         - name: cinder-etc
           secret:
             secretName: cinder-etc

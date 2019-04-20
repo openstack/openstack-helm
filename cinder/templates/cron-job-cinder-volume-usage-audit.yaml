@@ -60,31 +60,35 @@ spec:
               command:
                 - /tmp/volume-usage-audit.sh
               volumeMounts:
-              - name: etccinder
-                mountPath: /etc/cinder
-              - name: cinder-etc
-                mountPath: /etc/cinder/cinder.conf
-                subPath: cinder.conf
-                readOnly: true
-              - name: cinder-etc
-                mountPath: {{ .Values.conf.cinder.DEFAULT.log_config_append }}
-                subPath: {{ base .Values.conf.cinder.DEFAULT.log_config_append }}
-                readOnly: true
-              - name: cinder-bin
-                mountPath: /tmp/volume-usage-audit.sh
-                subPath: volume-usage-audit.sh
-                readOnly: true
-    {{ if $mounts_cinder_volume_usage_audit.volumeMounts }}{{ toYaml $mounts_cinder_volume_usage_audit.volumeMounts | indent 14 }}{{ end }}
+                - name: pod-tmp
+                  mountPath: /tmp
+                - name: etccinder
+                  mountPath: /etc/cinder
+                - name: cinder-etc
+                  mountPath: /etc/cinder/cinder.conf
+                  subPath: cinder.conf
+                  readOnly: true
+                - name: cinder-etc
+                  mountPath: {{ .Values.conf.cinder.DEFAULT.log_config_append }}
+                  subPath: {{ base .Values.conf.cinder.DEFAULT.log_config_append }}
+                  readOnly: true
+                - name: cinder-bin
+                  mountPath: /tmp/volume-usage-audit.sh
+                  subPath: volume-usage-audit.sh
+                  readOnly: true
+{{ if $mounts_cinder_volume_usage_audit.volumeMounts }}{{ toYaml $mounts_cinder_volume_usage_audit.volumeMounts | indent 16 }}{{ end }}
           volumes:
-          - name: etccinder
-            emptyDir: {}
-          - name: cinder-etc
-            secret:
-              secretName: cinder-etc
-              defaultMode: 0444
-          - name: cinder-bin
-            configMap:
-              name: cinder-bin
-              defaultMode: 0555
-    {{ if $mounts_cinder_volume_usage_audit.volumes }}{{ toYaml $mounts_cinder_volume_usage_audit.volumes | indent 10 }}{{ end }}
+            - name: pod-tmp
+              emptyDir: {}
+            - name: etccinder
+              emptyDir: {}
+            - name: cinder-etc
+              secret:
+                secretName: cinder-etc
+                defaultMode: 0444
+            - name: cinder-bin
+              configMap:
+                name: cinder-bin
+                defaultMode: 0555
+{{ if $mounts_cinder_volume_usage_audit.volumes }}{{ toYaml $mounts_cinder_volume_usage_audit.volumes | indent 12 }}{{ end }}
 {{- end }}

@@ -69,6 +69,8 @@ spec:
           command:
             - /tmp/neutron-sriov-agent-init.sh
           volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
             - name: neutron-bin
               mountPath: /tmp/neutron-sriov-agent-init.sh
               subPath: neutron-sriov-agent-init.sh
@@ -132,16 +134,18 @@ spec:
           readinessProbe:
             exec:
               command:
-              - python
-              - /tmp/health-probe.py
-              - --config-file
-              - /etc/neutron/neutron.conf
-              - --config-file
-              - /etc/neutron/sriov_agent.ini
+                - python
+                - /tmp/health-probe.py
+                - --config-file
+                - /etc/neutron/neutron.conf
+                - --config-file
+                - /etc/neutron/sriov_agent.ini
             initialDelaySeconds: 30
             periodSeconds: 15
             timeoutSeconds: 10
           volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
             - name: neutron-bin
               mountPath: /tmp/neutron-sriov-agent.sh
               subPath: neutron-sriov-agent.sh
@@ -203,6 +207,8 @@ spec:
               mountPath: /run
 {{ if $mounts_neutron_sriov_agent.volumeMounts }}{{ toYaml $mounts_neutron_sriov_agent.volumeMounts | indent 12 }}{{ end }}
       volumes:
+        - name: pod-tmp
+          emptyDir: {}
         - name: pod-shared
           emptyDir: {}
         - name: neutron-bin

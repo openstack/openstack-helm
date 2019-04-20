@@ -71,6 +71,8 @@ spec:
           command:
             - /tmp/neutron-metadata-agent-init.sh
           volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
             - name: neutron-bin
               mountPath: /tmp/neutron-metadata-agent-init.sh
               subPath: neutron-metadata-agent-init.sh
@@ -90,31 +92,33 @@ spec:
           readinessProbe:
             exec:
               command:
-              - python
-              - /tmp/health-probe.py
-              - --config-file
-              - /etc/neutron/neutron.conf
-              - --config-file
-              - /etc/neutron/metadata_agent.ini
+                - python
+                - /tmp/health-probe.py
+                - --config-file
+                - /etc/neutron/neutron.conf
+                - --config-file
+                - /etc/neutron/metadata_agent.ini
             initialDelaySeconds: 30
             periodSeconds: 15
             timeoutSeconds: 35
           livenessProbe:
             exec:
               command:
-              - python
-              - /tmp/health-probe.py
-              - --config-file
-              - /etc/neutron/neutron.conf
-              - --config-file
-              - /etc/neutron/metadata_agent.ini
-              - --liveness-probe
+                - python
+                - /tmp/health-probe.py
+                - --config-file
+                - /etc/neutron/neutron.conf
+                - --config-file
+                - /etc/neutron/metadata_agent.ini
+                - --liveness-probe
             initialDelaySeconds: 90
             periodSeconds: 60
             timeoutSeconds: 45
           command:
             - /tmp/neutron-metadata-agent.sh
           volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
             - name: neutron-bin
               mountPath: /tmp/neutron-metadata-agent.sh
               subPath: neutron-metadata-agent.sh
@@ -175,6 +179,8 @@ spec:
             {{- end }}
 {{ if $mounts_neutron_metadata_agent.volumeMounts }}{{ toYaml $mounts_neutron_metadata_agent.volumeMounts | indent 12 }}{{ end }}
       volumes:
+        - name: pod-tmp
+          emptyDir: {}
         - name: neutron-bin
           configMap:
             name: neutron-bin

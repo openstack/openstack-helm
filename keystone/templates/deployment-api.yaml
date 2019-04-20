@@ -89,98 +89,102 @@ spec:
             periodSeconds: 20
             timeoutSeconds: 5
           volumeMounts:
-          - name: etckeystone
-            mountPath: /etc/keystone
-          - name: logs-apache
-            mountPath: /var/log/apache2
-          - name: run-apache
-            mountPath: /var/run/apache2
-          - name: wsgi-keystone
-            mountPath: /var/www/cgi-bin/keystone
-          - name: keystone-etc
-            mountPath: /etc/keystone/keystone.conf
-            subPath: keystone.conf
-            readOnly: true
-          - name: keystone-etc
-            mountPath: /etc/apache2/ports.conf
-            subPath: ports.conf
-            readOnly: true
-          - name: keystone-etc
-            mountPath: {{ .Values.conf.keystone.DEFAULT.log_config_append }}
-            subPath: {{ base .Values.conf.keystone.DEFAULT.log_config_append }}
-            readOnly: true
-          - name: keystone-etc
-            mountPath: /etc/keystone/keystone-paste.ini
-            subPath: keystone-paste.ini
-            readOnly: true
-          - name: keystone-etc
-            mountPath: /etc/keystone/policy.json
-            subPath: policy.json
-            readOnly: true
-          - name: keystone-etc
-            mountPath: /etc/keystone/sso_callback_template.html
-            subPath: sso_callback_template.html
-            readOnly: true
-          - name: keystone-etc
-            mountPath: {{ .Values.conf.software.apache2.conf_dir }}/wsgi-keystone.conf
-            subPath: wsgi-keystone.conf
-            readOnly: true
-          - name: keystone-etc
-            mountPath: {{ .Values.conf.software.apache2.mods_dir }}/mpm_event.conf
-            subPath: mpm_event.conf
-            readOnly: true
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: etckeystone
+              mountPath: /etc/keystone
+            - name: logs-apache
+              mountPath: /var/log/apache2
+            - name: run-apache
+              mountPath: /var/run/apache2
+            - name: wsgi-keystone
+              mountPath: /var/www/cgi-bin/keystone
+            - name: keystone-etc
+              mountPath: /etc/keystone/keystone.conf
+              subPath: keystone.conf
+              readOnly: true
+            - name: keystone-etc
+              mountPath: /etc/apache2/ports.conf
+              subPath: ports.conf
+              readOnly: true
+            - name: keystone-etc
+              mountPath: {{ .Values.conf.keystone.DEFAULT.log_config_append }}
+              subPath: {{ base .Values.conf.keystone.DEFAULT.log_config_append }}
+              readOnly: true
+            - name: keystone-etc
+              mountPath: /etc/keystone/keystone-paste.ini
+              subPath: keystone-paste.ini
+              readOnly: true
+            - name: keystone-etc
+              mountPath: /etc/keystone/policy.json
+              subPath: policy.json
+              readOnly: true
+            - name: keystone-etc
+              mountPath: /etc/keystone/sso_callback_template.html
+              subPath: sso_callback_template.html
+              readOnly: true
+            - name: keystone-etc
+              mountPath: {{ .Values.conf.software.apache2.conf_dir }}/wsgi-keystone.conf
+              subPath: wsgi-keystone.conf
+              readOnly: true
+            - name: keystone-etc
+              mountPath: {{ .Values.conf.software.apache2.mods_dir }}/mpm_event.conf
+              subPath: mpm_event.conf
+              readOnly: true
 {{- if .Values.conf.security }}
-          - name: keystone-etc
-            mountPath: {{ .Values.conf.software.apache2.conf_dir }}/security.conf
-            subPath: security.conf
-            readOnly: true
+            - name: keystone-etc
+              mountPath: {{ .Values.conf.software.apache2.conf_dir }}/security.conf
+              subPath: security.conf
+              readOnly: true
 {{- end }}
-          - name: keystone-bin
-            mountPath: /tmp/keystone-api.sh
-            subPath: keystone-api.sh
-            readOnly: true
+            - name: keystone-bin
+              mountPath: /tmp/keystone-api.sh
+              subPath: keystone-api.sh
+              readOnly: true
 {{- if .Values.endpoints.ldap.auth.client.tls.ca }}
-          - name: keystone-ldap-tls
-            mountPath: /etc/keystone/ldap/tls.ca
-            subPath: tls.ca
-            readOnly: true
+            - name: keystone-ldap-tls
+              mountPath: /etc/keystone/ldap/tls.ca
+              subPath: tls.ca
+              readOnly: true
 {{- end }}
 {{- if eq .Values.conf.keystone.token.provider "fernet" }}
-          - name: keystone-fernet-keys
-            mountPath: {{ .Values.conf.keystone.fernet_tokens.key_repository }}
+            - name: keystone-fernet-keys
+              mountPath: {{ .Values.conf.keystone.fernet_tokens.key_repository }}
 {{- end }}
-          - name: keystone-credential-keys
-            mountPath: {{ .Values.conf.keystone.credential.key_repository }}
-{{ if $mounts_keystone_api.volumeMounts }}{{ toYaml $mounts_keystone_api.volumeMounts | indent 10 }}{{ end }}
+            - name: keystone-credential-keys
+              mountPath: {{ .Values.conf.keystone.credential.key_repository }}
+{{ if $mounts_keystone_api.volumeMounts }}{{ toYaml $mounts_keystone_api.volumeMounts | indent 12 }}{{ end }}
       volumes:
-      - name: etckeystone
-        emptyDir: {}
-      - name: wsgi-keystone
-        emptyDir: {}
-      - name: logs-apache
-        emptyDir: {}
-      - name: run-apache
-        emptyDir: {}
-      - name: keystone-etc
-        secret:
-          secretName: keystone-etc
-          defaultMode: 0444
-      - name: keystone-bin
-        configMap:
-          name: keystone-bin
-          defaultMode: 0555
+        - name: pod-tmp
+          emptyDir: {}
+        - name: etckeystone
+          emptyDir: {}
+        - name: wsgi-keystone
+          emptyDir: {}
+        - name: logs-apache
+          emptyDir: {}
+        - name: run-apache
+          emptyDir: {}
+        - name: keystone-etc
+          secret:
+            secretName: keystone-etc
+            defaultMode: 0444
+        - name: keystone-bin
+          configMap:
+            name: keystone-bin
+            defaultMode: 0555
 {{- if .Values.endpoints.ldap.auth.client.tls.ca }}
-      - name: keystone-ldap-tls
-        secret:
-          secretName: keystone-ldap-tls
+        - name: keystone-ldap-tls
+          secret:
+            secretName: keystone-ldap-tls
 {{- end }}
 {{- if eq .Values.conf.keystone.token.provider "fernet" }}
-      - name: keystone-fernet-keys
-        secret:
-          secretName: keystone-fernet-keys
+        - name: keystone-fernet-keys
+          secret:
+            secretName: keystone-fernet-keys
 {{- end }}
-      - name: keystone-credential-keys
-        secret:
-          secretName: keystone-credential-keys
-{{ if $mounts_keystone_api.volumes }}{{ toYaml $mounts_keystone_api.volumes | indent 6 }}{{ end }}
+        - name: keystone-credential-keys
+          secret:
+            secretName: keystone-credential-keys
+{{ if $mounts_keystone_api.volumes }}{{ toYaml $mounts_keystone_api.volumes | indent 8 }}{{ end }}
 {{- end }}
