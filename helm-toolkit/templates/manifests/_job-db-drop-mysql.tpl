@@ -88,6 +88,8 @@ spec:
           command:
             - /tmp/db-drop.py
           volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
             - name: db-drop-sh
               mountPath: /tmp/db-drop.py
               subPath: db-drop.py
@@ -106,6 +108,8 @@ spec:
 {{- end }}
 {{- end }}
       volumes:
+        - name: pod-tmp
+          emptyDir: {}
         - name: db-drop-sh
           configMap:
             name: {{ $configMapBin | quote }}

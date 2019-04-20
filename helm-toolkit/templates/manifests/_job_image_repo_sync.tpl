@@ -60,6 +60,8 @@ spec:
           command:
             - /tmp/image-repo-sync.sh
           volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
             - name: bootstrap-sh
               mountPath: /tmp/image-repo-sync.sh
               subPath: image-repo-sync.sh
@@ -70,6 +72,8 @@ spec:
 {{ $podVolMounts | toYaml | indent 12 }}
 {{- end }}
       volumes:
+        - name: pod-tmp
+          emptyDir: {}
         - name: bootstrap-sh
           configMap:
             name: {{ $configMapBin | quote }}

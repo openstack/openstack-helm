@@ -55,6 +55,8 @@ spec:
           command:
             - /tmp/ceph-admin-keyring.sh
           volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
             - name: etcceph
               mountPath: /etc/ceph
             - name: ceph-keyring-sh
@@ -84,6 +86,8 @@ spec:
             - name: RGW_HOST
               value: {{ tuple "ceph_object_store" "internal" "api" $envAll | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" }}
           volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
             - name: create-s3-user-sh
               mountPath: /tmp/create-s3-user.sh
               subPath: create-s3-user.sh
@@ -101,6 +105,8 @@ spec:
               readOnly: true
             {{ end }}
       volumes:
+        - name: pod-tmp
+          emptyDir: {}
         - name: create-s3-user-sh
           configMap:
             name: {{ $configMapBin | quote }}

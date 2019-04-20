@@ -84,9 +84,12 @@ spec:
                     fieldPath: metadata.namespace
               - name: KUBECTL_PARAM
                 value: {{ tuple $envAll "ceph" "ceph-defragosd" | include "helm-toolkit.snippets.kubernetes_kubectl_params" | indent 10 }}
-            command: ["/tmp/utils-defragOSDs.sh"]
-            args: ["cron"]
+            command:
+              - /tmp/utils-defragOSDs.sh
+              - cron
             volumeMounts:
+              - name: pod-tmp
+                mountPath: /tmp
               - name: ceph-osd-bin
                 mountPath: /tmp/utils-defragOSDs.sh
                 subPath: utils-defragOSDs.sh
@@ -94,6 +97,8 @@ spec:
           restartPolicy: Never
           hostNetwork: true
           volumes:
+            - name: pod-tmp
+              emptyDir: {}
             - name: ceph-osd-bin
               configMap:
                 name:  {{ printf "%s-%s" $envAll.Release.Name "bin" | quote }}

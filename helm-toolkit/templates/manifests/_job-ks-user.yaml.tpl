@@ -54,6 +54,8 @@ spec:
           command:
             - /tmp/ks-user.sh
           volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
             - name: ks-user-sh
               mountPath: /tmp/ks-user.sh
               subPath: ks-user.sh
@@ -75,6 +77,8 @@ spec:
               value: {{ $serviceOsRoles | quote }}
             {{- end }}
       volumes:
+        - name: pod-tmp
+          emptyDir: {}
         - name: ks-user-sh
           configMap:
             name: {{ $configMapBin | quote }}

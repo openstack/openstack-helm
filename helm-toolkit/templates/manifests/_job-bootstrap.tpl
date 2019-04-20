@@ -67,6 +67,8 @@ spec:
           command:
             - /tmp/bootstrap.sh
           volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
             - name: bootstrap-sh
               mountPath: /tmp/bootstrap.sh
               subPath: bootstrap.sh
@@ -85,6 +87,8 @@ spec:
 {{ $podVolMounts | toYaml | indent 12 }}
 {{- end }}
       volumes:
+        - name: pod-tmp
+          emptyDir: {}
         - name: bootstrap-sh
           configMap:
             name: {{ $configMapBin | quote }}

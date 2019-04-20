@@ -48,53 +48,57 @@ spec:
           initContainers:
 {{ tuple $envAll "mariadb_backup" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 10 }}
           containers:
-          - command:
-            - /tmp/backup_mariadb.sh
-            env:
-            - name: MARIADB_BACKUP_BASE_DIR
-              value: {{ .Values.conf.backup.base_path | quote }}
-            - name: MYSQL_BACKUP_MYSQLDUMP_OPTIONS
-              value: {{ .Values.conf.backup.mysqldump_options | quote }}
-            - name: MARIADB_BACKUP_DAYS_TO_KEEP
-              value: {{ .Values.conf.backup.days_of_backup_to_keep | quote }}
-            - name: MARIADB_POD_NAMESPACE
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.namespace
-{{ tuple $envAll "mariadb_backup" | include "helm-toolkit.snippets.image" | indent 12 }}
-{{ tuple $envAll $envAll.Values.pod.resources.jobs.mariadb_backup | include "helm-toolkit.snippets.kubernetes_resources" | indent 12 }}
-            name: mariadb-backup
-            volumeMounts:
-            - mountPath: /tmp/backup_mariadb.sh
-              name: mariadb-bin
-              readOnly: true
-              subPath: backup_mariadb.sh
-            - mountPath: {{ .Values.conf.backup.base_path }}
-              name: mariadb-backup-dir
-            - name: mariadb-secrets
-              mountPath: /etc/mysql/admin_user.cnf
-              subPath: admin_user.cnf
-              readOnly: true
+            - name: mariadb-backup
+              command:
+                - /tmp/backup_mariadb.sh
+              env:
+                - name: MARIADB_BACKUP_BASE_DIR
+                  value: {{ .Values.conf.backup.base_path | quote }}
+                - name: MYSQL_BACKUP_MYSQLDUMP_OPTIONS
+                  value: {{ .Values.conf.backup.mysqldump_options | quote }}
+                - name: MARIADB_BACKUP_DAYS_TO_KEEP
+                  value: {{ .Values.conf.backup.days_of_backup_to_keep | quote }}
+                - name: MARIADB_POD_NAMESPACE
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.namespace
+{{ tuple $envAll "mariadb_backup" | include "helm-toolkit.snippets.image" | indent 14 }}
+{{ tuple $envAll $envAll.Values.pod.resources.jobs.mariadb_backup | include "helm-toolkit.snippets.kubernetes_resources" | indent 14 }}
+              volumeMounts:
+                - name: pod-tmp
+                  mountPath: /tmp
+                - mountPath: /tmp/backup_mariadb.sh
+                  name: mariadb-bin
+                  readOnly: true
+                  subPath: backup_mariadb.sh
+                - mountPath: {{ .Values.conf.backup.base_path }}
+                  name: mariadb-backup-dir
+                - name: mariadb-secrets
+                  mountPath: /etc/mysql/admin_user.cnf
+                  subPath: admin_user.cnf
+                  readOnly: true
           restartPolicy: OnFailure
           serviceAccount: {{ $serviceAccountName }}
           serviceAccountName: {{ $serviceAccountName }}
           volumes:
-          - name: mariadb-secrets
-            secret:
-              secretName: mariadb-secrets
-              defaultMode: 384
-          - configMap:
-              defaultMode: 365
+            - name: pod-tmp
+              emptyDir: {}
+            - name: mariadb-secrets
+              secret:
+                secretName: mariadb-secrets
+                defaultMode: 384
+            - configMap:
+                defaultMode: 365
+                name: mariadb-bin
               name: mariadb-bin
-            name: mariadb-bin
-          {{- if and .Values.volume.backup.enabled  .Values.manifests.pvc_backup }}
-          - name: mariadb-backup-dir
-            persistentVolumeClaim:
-              claimName: mariadb-backup-data
-          {{- else }}
-          - hostPath:
-              path: {{ .Values.conf.backup.base_path }}
-              type: DirectoryOrCreate
-            name: mariadb-backup-dir
-          {{- end }}
+            {{- if and .Values.volume.backup.enabled  .Values.manifests.pvc_backup }}
+            - name: mariadb-backup-dir
+              persistentVolumeClaim:
+                claimName: mariadb-backup-data
+            {{- else }}
+            - hostPath:
+                path: {{ .Values.conf.backup.base_path }}
+                type: DirectoryOrCreate
+              name: mariadb-backup-dir
+            {{- end }}
 {{- end }}
