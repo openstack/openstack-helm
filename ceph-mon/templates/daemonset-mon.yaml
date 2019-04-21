@@ -85,15 +85,16 @@ spec:
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
+            - name: pod-run
+              mountPath: /run
+            - name: pod-etc-ceph
+              mountPath: /etc/ceph
             - name: ceph-mon-bin
               mountPath: /tmp/init-dirs.sh
               subPath: init-dirs.sh
               readOnly: true
             - name: pod-var-lib-ceph
               mountPath: /var/lib/ceph
-              readOnly: false
-            - name: pod-run
-              mountPath: /run
               readOnly: false
         - name: ceph-log-ownership
 {{ tuple $envAll "ceph_mon" | include "helm-toolkit.snippets.image" | indent 10 }}
@@ -107,6 +108,10 @@ spec:
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
+            - name: pod-run
+              mountPath: /run
+            - name: pod-etc-ceph
+              mountPath: /etc/ceph
             - name: pod-var-log
               mountPath: /var/log/ceph
               readOnly: false
@@ -170,6 +175,10 @@ spec:
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
+            - name: pod-run
+              mountPath: /run
+            - name: pod-etc-ceph
+              mountPath: /etc/ceph
             - name: ceph-mon-bin
               mountPath: /tmp/mon-start.sh
               subPath: mon-start.sh
@@ -213,14 +222,16 @@ spec:
             - name: pod-var-lib-ceph
               mountPath: /var/lib/ceph
               readOnly: false
-            - name: pod-run
-              mountPath: /run
-              readOnly: false
             - name: pod-var-log
               mountPath: /var/log/ceph
               readOnly: false
       volumes:
         - name: pod-tmp
+          emptyDir: {}
+        - name: pod-run
+          emptyDir:
+            medium: "Memory"
+        - name: pod-etc-ceph
           emptyDir: {}
         - name: pod-var-log
           hostPath:
@@ -236,9 +247,6 @@ spec:
         - name: pod-var-lib-ceph
           hostPath:
             path: {{ .Values.conf.storage.mon.directory }}
-        - name: pod-run
-          emptyDir:
-            medium: "Memory"
         - name: ceph-client-admin-keyring
           secret:
             secretName: {{ .Values.secrets.keyrings.admin }}
