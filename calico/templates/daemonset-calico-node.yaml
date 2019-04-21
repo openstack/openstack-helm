@@ -119,8 +119,7 @@ spec:
 {{ tuple $prometheus_annotations | include "helm-toolkit.snippets.prometheus_pod_annotations" | indent 8 }}
 {{- end }}
     spec:
-      securityContext:
-        readOnlyRootFilesystem: true
+{{ dict "envAll" $envAll "application" "calico_node" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
       nodeSelector:
         beta.kubernetes.io/os: linux
       hostNetwork: true
@@ -144,6 +143,7 @@ spec:
         - name: install-calicoctl
 {{ tuple $envAll "calico_ctl" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.calico_ctl | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "calico_node" "container" "calico_ctl" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
             - /tmp/install-calicoctl.sh
           env:
@@ -206,6 +206,7 @@ spec:
         # and CNI network config file on each node.
         - name: install-cni
 {{ tuple $envAll "calico_cni" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ dict "envAll" $envAll "application" "calico_node" "container" "install_cni" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command: ["/install-cni.sh"]
           env:
             # Prevents the container from sleeping forever.
@@ -310,6 +311,7 @@ spec:
         - name: calico-node
 {{ tuple $envAll "calico_node" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.calico_node | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "calico_node" "container" "calico_node" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           env:
             # Values expanded explicitly from conf.node (some of which
             # might be derived from elsewhere, see values.yaml for an
@@ -348,14 +350,6 @@ spec:
                 fieldRef:
                   fieldPath: spec.nodeName
 
-          securityContext:
-            capabilities:
-              add:
-                - 'NET_ADMIN'
-                - 'SYS_ADMIN'
-          resources:
-            requests:
-              cpu: 250m
           livenessProbe:
             httpGet:
               path: /liveness

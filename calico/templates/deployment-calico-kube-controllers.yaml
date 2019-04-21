@@ -93,8 +93,7 @@ spec:
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
     spec:
-      securityContext:
-        readOnlyRootFilesystem: true
+{{ dict "envAll" $envAll "application" "kube_controllers" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
       nodeSelector:
         beta.kubernetes.io/os: linux
       # The controllers must run in the host network namespace so that
@@ -117,6 +116,7 @@ spec:
         - name: calico-kube-controllers
 {{ tuple $envAll "calico_kube_controllers" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.calico_kube_controllers | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "kube_controllers" "container" "kube_controller" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           env:
             # The location of the Calico etcd cluster.
             - name: ETCD_ENDPOINTS
