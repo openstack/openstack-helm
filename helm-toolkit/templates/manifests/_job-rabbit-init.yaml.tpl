@@ -49,6 +49,8 @@ spec:
           command:
             - /tmp/rabbit-init.sh
           volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
             - name: rabbit-init-sh
               mountPath: /tmp/rabbit-init.sh
               subPath: rabbit-init.sh
@@ -69,6 +71,8 @@ spec:
             value: {{ toJson $envAll.Values.conf.rabbitmq | quote }}
 {{- end }}
       volumes:
+        - name: pod-tmp
+          emptyDir: {}
         - name: rabbit-init-sh
           configMap:
             name: {{ $configMapBin | quote }}

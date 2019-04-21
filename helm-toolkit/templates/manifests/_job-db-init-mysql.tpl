@@ -85,6 +85,8 @@ spec:
           command:
             - /tmp/db-init.py
           volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
             - name: db-init-sh
               mountPath: /tmp/db-init.py
               subPath: db-init.py
@@ -103,6 +105,8 @@ spec:
 {{- end }}
 {{- end }}
       volumes:
+        - name: pod-tmp
+          emptyDir: {}
         - name: db-init-sh
           configMap:
             name: {{ $configMapBin | quote }}

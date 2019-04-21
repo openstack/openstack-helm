@@ -53,6 +53,8 @@ spec:
       command:
         - /tmp/helm-tests.sh
       volumeMounts:
+        - name: pod-tmp
+          mountPath: /tmp
         - name: etcceph
           mountPath: /etc/ceph
         - name: ceph-rgw-bin
@@ -67,7 +69,30 @@ spec:
           mountPath: /etc/ceph/ceph.conf
           subPath: ceph.conf
           readOnly: true
+{{- end }}
+{{ if .Values.conf.rgw_s3.enabled }}
+    - name: ceph-rgw-s3-validation
+{{ tuple $envAll "ceph_rgw" | include "helm-toolkit.snippets.image" | indent 6 }}
+{{ tuple $envAll $envAll.Values.pod.resources.tests | include "helm-toolkit.snippets.kubernetes_resources" | indent 6 }}
+      env:
+{{- with $env := dict "s3AdminSecret" $envAll.Values.secrets.rgw_s3.admin }}
+{{- include "helm-toolkit.snippets.rgw_s3_admin_env_vars" $env | indent 8 }}
+{{- end }}
+        - name: RGW_HOST
+          value: {{ tuple "ceph_object_store" "internal" "api" $envAll | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" }}
+      command:
+        - /tmp/helm-tests.sh
+      volumeMounts:
+        - name: pod-tmp
+          mountPath: /tmp
+        - name: ceph-rgw-bin
+          mountPath: /tmp/helm-tests.sh
+          subPath: helm-tests.sh
+          readOnly: true
+{{- end }}
   volumes:
+    - name: pod-tmp
+      emptyDir: {}
     - name: etcceph
       emptyDir: {}
     - name: ceph-rgw-bin
@@ -81,29 +106,4 @@ spec:
       configMap:
         name: ceph-rgw-etc
         defaultMode: 0444
-{{- end }}
-{{ if .Values.conf.rgw_s3.enabled }}
-  containers:
-    - name: ceph-rgw-s3-validation
-{{ tuple $envAll "ceph_rgw" | include "helm-toolkit.snippets.image" | indent 6 }}
-{{ tuple $envAll $envAll.Values.pod.resources.tests | include "helm-toolkit.snippets.kubernetes_resources" | indent 6 }}
-      env:
-{{- with $env := dict "s3AdminSecret" $envAll.Values.secrets.rgw_s3.admin }}
-{{- include "helm-toolkit.snippets.rgw_s3_admin_env_vars" $env | indent 8 }}
-{{- end }}
-        - name: RGW_HOST
-          value: {{ tuple "ceph_object_store" "internal" "api" $envAll | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" }}
-      command:
-        - /tmp/helm-tests.sh
-      volumeMounts:
-        - name: ceph-rgw-bin
-          mountPath: /tmp/helm-tests.sh
-          subPath: helm-tests.sh
-          readOnly: true
-  volumes:
-    - name: ceph-rgw-bin
-      configMap:
-        name: ceph-rgw-bin
-        defaultMode: 0555
-{{- end }}
 {{- end }}

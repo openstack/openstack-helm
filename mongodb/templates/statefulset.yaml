@@ -61,6 +61,8 @@ spec:
             - "mongodb:"
             - {{ $envAll.Values.volume.host.host_path }}
           volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
             - name: mongodb-data
               mountPath: {{ $envAll.Values.volume.host.host_path }}
 {{- end }}
@@ -100,6 +102,8 @@ spec:
             timeoutSeconds: 5
 {{ tuple $envAll $envAll.Values.pod.resources.server | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
             - name: mongodb-bin
               mountPath: /tmp/start.sh
               subPath: start.sh
@@ -111,24 +115,26 @@ spec:
             - name: mongodb-data
               mountPath: /data/db
       volumes:
-      - name: mongodb-bin
-        configMap:
-          name: mongodb-bin
-          defaultMode: 0555
+        - name: pod-tmp
+          emptyDir: {}
+        - name: mongodb-bin
+          configMap:
+            name: mongodb-bin
+            defaultMode: 0555
 {{- if not .Values.volume.enabled }}
-      - name: mongodb-data
-        hostPath:
-          path: {{ .Values.volume.host_path }}
+        - name: mongodb-data
+          hostPath:
+            path: {{ .Values.volume.host_path }}
 {{- else }}
   volumeClaimTemplates:
-  - metadata:
-      name: mongodb-data
-      annotations:
-        {{ .Values.volume.class_path }}: {{ .Values.volume.class_name }}
-    spec:
-      accessModes: [ "ReadWriteOnce" ]
-      resources:
-        requests:
-          storage: {{ .Values.volume.size }}
+    - metadata:
+        name: mongodb-data
+        annotations:
+          {{ .Values.volume.class_path }}: {{ .Values.volume.class_name }}
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        resources:
+          requests:
+            storage: {{ .Values.volume.size }}
 {{- end }}
 {{- end }}

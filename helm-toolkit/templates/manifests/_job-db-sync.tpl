@@ -63,6 +63,8 @@ spec:
           command:
             - /tmp/db-sync.sh
           volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
             - name: db-sync-sh
               mountPath: /tmp/db-sync.sh
               subPath: db-sync.sh
@@ -81,6 +83,8 @@ spec:
 {{ $podVolMounts | toYaml | indent 12 }}
 {{- end }}
       volumes:
+        - name: pod-tmp
+          emptyDir: {}
         - name: db-sync-sh
           configMap:
             name: {{ $configMapBin | quote }}

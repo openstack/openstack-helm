@@ -56,6 +56,8 @@ spec:
           command:
             - /tmp/ks-endpoints.sh
           volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
             - name: ks-endpoints-sh
               mountPath: /tmp/ks-endpoints.sh
               subPath: ks-endpoints.sh
@@ -75,6 +77,8 @@ spec:
 {{- end }}
 {{- end }}
       volumes:
+        - name: pod-tmp
+          emptyDir: {}
         - name: ks-endpoints-sh
           configMap:
             name: {{ $configMapBin | quote }}

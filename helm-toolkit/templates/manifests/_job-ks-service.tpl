@@ -55,6 +55,8 @@ spec:
           command:
             - /tmp/ks-service.sh
           volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
             - name: ks-service-sh
               mountPath: /tmp/ks-service.sh
               subPath: ks-service.sh
@@ -69,6 +71,8 @@ spec:
               value: {{ $osServiceType | quote }}
 {{- end }}
       volumes:
+        - name: pod-tmp
+          emptyDir: {}
         - name: ks-service-sh
           configMap:
             name: {{ $configMapBin | quote }}

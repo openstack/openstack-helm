@@ -71,6 +71,8 @@ spec:
             - name: RGW_PROTO
               value: {{ tuple "ceph_object_store" "internal" "api" $envAll | include "helm-toolkit.endpoints.keystone_endpoint_scheme_lookup" }}
           volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
             - name: s3-bucket-sh
               mountPath: /tmp/create-s3-bucket.sh
               subPath: create-s3-bucket.sh
@@ -88,6 +90,8 @@ spec:
               readOnly: true
             {{ end }}
       volumes:
+        - name: pod-tmp
+          emptyDir: {}
         - name: s3-bucket-sh
           configMap:
             name: {{ $configMapBin | quote }}
