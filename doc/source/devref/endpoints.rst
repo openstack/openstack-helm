@@ -81,7 +81,7 @@ there is a second convention here. All ``{{ define }}`` macros in charts
 should be pre-fixed with the chart that is defining them. This allows
 developers to easily identify the source of a Helm macro and also avoid
 namespace collisions. In the example above, the macro
-``endpoint_type_look_addr`` is defined in the ``helm-toolkit`` chart.
+``endpoint_type_lookup_addr`` is defined in the ``helm-toolkit`` chart.
 This macro is passing three parameters (aided by the ``tuple`` method
 built into the go/sprig templating library used by Helm):
 

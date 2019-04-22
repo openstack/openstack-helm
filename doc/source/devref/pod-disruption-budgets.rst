@@ -1,14 +1,14 @@
 Pod Disruption Budgets
 ----------------------
 
-OpenStack-Helm leverages PodDistruptionBudgets to enforce quotas
+OpenStack-Helm leverages PodDisruptionBudgets to enforce quotas
 that ensure that a certain number of replicas of a pod are available
 at any given time.  This is particularly important in the case when a Kubernetes
 node needs to be drained.
 
 
 These quotas are configurable by modifying the ``minAvailable`` field
-within each PodDistruptionBudget manifest, which is conveniently mapped
+within each PodDisruptionBudget manifest, which is conveniently mapped
 to a templated variable inside the ``values.yaml`` file.
 The ``min_available`` within each service's ``values.yaml`` file can be
 represented by either a whole number, such as ``1``, or a percentage,
