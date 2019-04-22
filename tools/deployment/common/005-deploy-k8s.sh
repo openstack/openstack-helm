@@ -181,6 +181,9 @@ sudo systemctl daemon-reload
 sudo systemctl restart helm-serve
 sudo systemctl enable helm-serve
 
+# Remove stable repo, if present, to improve build time
+helm repo remove stable || true
+
 # Set up local helm repo
 helm repo add local http://localhost:8879/charts
 helm repo update
