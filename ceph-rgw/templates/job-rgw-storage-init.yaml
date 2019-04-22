@@ -58,6 +58,7 @@ spec:
       labels:
 {{ tuple $envAll "ceph" "rgw-storage-init" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
     spec:
+{{ dict "envAll" $envAll "application" "rgw_storage_init" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
       serviceAccountName: {{ $serviceAccountName }}
       restartPolicy: OnFailure
       nodeSelector:
@@ -66,8 +67,7 @@ spec:
 {{ tuple $envAll "rgw_storage_init" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
         - name: ceph-keyring-placement
 {{ tuple $envAll "ceph_config_helper" | include "helm-toolkit.snippets.image" | indent 10 }}
-          securityContext:
-            runAsUser: 0
+{{ dict "envAll" $envAll "application" "rgw_storage_init" "container" "keyring_placement" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
             - /tmp/ceph-admin-keyring.sh
           volumeMounts:
@@ -87,6 +87,7 @@ spec:
         - name: ceph-rgw-storage-init
 {{ tuple $envAll "ceph_config_helper" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.jobs.rgw_storage_init | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "rgw_storage_init" "container" "rgw_storage_init" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           env:
             - name: NAMESPACE
               valueFrom:
