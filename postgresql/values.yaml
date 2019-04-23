@@ -117,6 +117,13 @@ pod:
         limits:
           memory: "1024Mi"
           cpu: "2000m"
+      ks_user:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
 
 # using dockerhub patroni: https://hub.docker.com/r/openstackhelm/patroni/tags/
 images:
@@ -124,8 +131,10 @@ images:
     postgresql: "docker.io/openstackhelm/patroni:latest-ubuntu_xenial"
     dep_check: quay.io/airshipit/kubernetes-entrypoint:v1.0.0
     image_repo_sync: docker.io/docker:17.07.0
+    ks_user: docker.io/openstackhelm/heat:stein-ubuntu_bionic
     prometheus_postgresql_exporter: docker.io/wrouesnel/postgres_exporter:v0.4.6
     prometheus_postgresql_exporter_create_user: "docker.io/postgres:9.5"
+    postgresql_remote_store: docker.io/openstackhelm/heat:stein-ubuntu_bionic
   pull_policy: "IfNotPresent"
   local_registry:
     active: false
@@ -169,8 +178,9 @@ dependencies:
           - endpoint: node
             service: local_image_registry
   static:
-    postgresql:
-      jobs: null
+    backup_postgresql:
+      jobs:
+        - postgresql-ks-user
     tests:
       services:
         - endpoint: internal
@@ -208,10 +218,17 @@ volume:
 
 jobs:
   backup_postgresql:
+    # activeDeadlineSeconds == 0 means no deadline
+    activeDeadlineSeconds: 0
+    backoffLimit: 6
     cron: "0 0 * * *"
     history:
       success: 3
       failed: 1
+  ks_user:
+    # activeDeadlineSeconds == 0 means no deadline
+    activeDeadlineSeconds: 0
+    backoffLimit: 6
 
 network_policy:
   postgresql:
@@ -350,10 +367,13 @@ conf:
     watchdog:
       mode: off  # Allowed values: off, automatic, required
   backup:
-    enabled: true
+    enabled: false
     base_path: /var/backup
     days_of_backup_to_keep: 3
     pg_dumpall_options: null
+    remote_backup:
+      enabled: false
+      container_name: postgresql
   exporter:
     queries:
       pg_replication:
@@ -397,6 +417,9 @@ secrets:
     server: postgresql-server-pki
     exporter: postgresql-exporter
     audit: postgresql-audit
+  identity:
+    admin: keystone-admin-user
+    postgresql: postgresql-backup-user
 
 endpoints:
   cluster_domain_suffix: cluster.local
@@ -457,12 +480,51 @@ endpoints:
     port:
       metrics:
         default: 9187
+  identity:
+    name: backup-storage-auth
+    namespace: openstack
+    auth:
+      admin:
+        # Auth URL of null indicates local authentication
+        # HTK will form the URL unless specified here
+        auth_url: null
+        region_name: RegionOne
+        username: admin
+        password: password
+        project_name: admin
+        user_domain_name: default
+        project_domain_name: default
+      postgresql:
+        # Auth URL of null indicates local authentication
+        # HTK will form the URL unless specified here
+        auth_url: null
+        role: admin
+        region_name: RegionOne
+        username: postgresql-backup-user
+        password: password
+        project_name: service
+        user_domain_name: service
+        project_domain_name: service
+    hosts:
+      default: keystone
+      internal: keystone-api
+    host_fqdn_override:
+      default: null
+    path:
+      default: /v3
+    scheme:
+      default: 'http'
+    port:
+      api:
+        default: 80
+        internal: 5000
 
 manifests:
   configmap_bin: true
   configmap_etc: true
   job_image_repo_sync: true
   network_policy: false
+  job_ks_user: false
   secret_admin: true
   secret_replica: true
   secret_server: true
