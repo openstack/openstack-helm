@@ -94,6 +94,7 @@ spec:
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
     spec:
+{{ dict "envAll" $envAll "application" "daemon" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
       serviceAccountName: {{ $serviceAccountName }}
 {{ if $envAll.Values.pod.tolerations.fluentbit.enabled }}
 {{ tuple $envAll "fluentbit" | include "helm-toolkit.snippets.kubernetes_tolerations" | indent 6 }}
@@ -110,6 +111,7 @@ spec:
         - name: fluentbit
 {{ tuple $envAll "fluentbit" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.fluentbit | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "daemon" "container" "fluentbit" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
             - /tmp/fluent-bit.sh
           env:
