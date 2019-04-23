@@ -81,6 +81,7 @@ spec:
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
 {{ dict "envAll" $envAll "podName" "elasticsearch-master" "containerNames" (list "elasticsearch-master") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
     spec:
+{{ dict "envAll" $envAll "application" "master" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
       serviceAccountName: {{ $serviceAccountName }}
       affinity:
 {{ tuple $envAll "elasticsearch" "master" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
@@ -92,21 +93,14 @@ spec:
         - name: memory-map-increase
 {{ tuple $envAll "memory_init" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.master | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-          securityContext:
-            privileged: true
-            runAsUser: 0
+{{ dict "envAll" $envAll "application" "master" "container" "memory_map_increase" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
           - sysctl
           - -w
           - vm.max_map_count={{ .Values.conf.init.max_map_count }}
       containers:
         - name: elasticsearch-master
-          securityContext:
-            privileged: true
-            capabilities:
-              add:
-                - IPC_LOCK
-                - SYS_RESOURCE
+{{ dict "envAll" $envAll "application" "master" "container" "elasticsearch_master" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
 {{ tuple $envAll "elasticsearch" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.master | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           command:

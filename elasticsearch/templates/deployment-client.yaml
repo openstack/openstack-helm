@@ -83,6 +83,7 @@ spec:
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
 {{ dict "envAll" $envAll "podName" "elasticsearch-client" "containerNames" (list "elasticsearch-client") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
     spec:
+{{ dict "envAll" $envAll "application" "client" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
       serviceAccountName: {{ $serviceAccountName }}
       affinity:
 {{ tuple $envAll "elasticsearch" "client" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
@@ -94,9 +95,7 @@ spec:
         - name: memory-map-increase
 {{ tuple $envAll "memory_init" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.client | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-          securityContext:
-            privileged: true
-            runAsUser: 0
+{{ dict "envAll" $envAll "application" "client" "container" "memory_map_increase" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
           - sysctl
           - -w
@@ -105,6 +104,7 @@ spec:
         - name: apache-proxy
 {{ tuple $envAll "apache_proxy" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.apache_proxy | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "client" "container" "apache_proxy" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
             - /tmp/apache.sh
             - start
@@ -141,12 +141,7 @@ spec:
         - name: elasticsearch-client
 {{ tuple $envAll "elasticsearch" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.client | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-          securityContext:
-            privileged: true
-            capabilities:
-              add:
-                - IPC_LOCK
-                - SYS_RESOURCE
+{{ dict "envAll" $envAll "application" "client" "container" "elasticsearch_client" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
             - /tmp/elasticsearch.sh
             - start
