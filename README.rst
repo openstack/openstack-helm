@@ -48,4 +48,4 @@ Repository
 Developers wishing to work on the OpenStack-Helm project should always base
 their work on the latest code, available from the OpenStack-Helm git repository.
 
-`OpenStack-Helm git repository <https://git.openstack.org/cgit/openstack/openstack-helm/>`_
+`OpenStack-Helm git repository <https://opendev.org/openstack/openstack-helm/>`_
