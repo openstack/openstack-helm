@@ -179,8 +179,7 @@ spec:
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
         configmap-etc-hash: {{ tuple "configmap-conf.yaml" . | include "helm-toolkit.utils.hash" }}
     spec:
-      securityContext:
-        readOnlyRootFilesystem: true
+{{ dict "envAll" $envAll "application" "server" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
       shareProcessNamespace: true
       serviceAccountName: {{ $serviceAccountName }}
 {{- if eq .Values.deployment.type "Deployment" }}
@@ -199,11 +198,7 @@ spec:
 {{- if and .Values.network.host_namespace .Values.network.vip.manage }}
         - name: ingress-vip-kernel-modules
 {{ tuple $envAll "ingress_module_init" | include "helm-toolkit.snippets.image" | indent 10 }}
-          securityContext:
-            capabilities:
-              add:
-                - SYS_MODULE
-            runAsUser: 0
+{{ dict "envAll" $envAll "application" "server" "container" "ingress_vip_kernel_modules" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
             - /tmp/ingress-vip.sh
             - kernel_modules
@@ -219,11 +214,7 @@ spec:
               readOnly: true
         - name: ingress-vip-init
 {{ tuple $envAll "ingress_routed_vip" | include "helm-toolkit.snippets.image" | indent 10 }}
-          securityContext:
-            capabilities:
-              add:
-                - NET_ADMIN
-            runAsUser: 0
+{{ dict "envAll" $envAll "application" "server" "container" "ingress_vip_init" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           env:
 {{ include "helm-toolkit.utils.to_k8s_env_vars" .Values.network.vip | indent 12 }}
           command:
@@ -241,6 +232,7 @@ spec:
         - name: ingress
 {{ tuple $envAll "ingress" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.ingress | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "server" "container" "ingress" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           readinessProbe:
             httpGet:
               path: /healthz
@@ -316,13 +308,9 @@ spec:
               readOnly: true
 {{- if and .Values.network.host_namespace .Values.network.vip.manage }}
         - name: ingress-vip
-          securityContext:
-            capabilities:
-              add:
-                - NET_ADMIN
-            runAsUser: 0
 {{- if eq .Values.network.vip.mode "routed" }}
 {{ tuple $envAll "ingress_routed_vip" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ dict "envAll" $envAll "application" "server" "container" "ingress_vip" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           env:
 {{ include "helm-toolkit.utils.to_k8s_env_vars" .Values.network.vip | indent 12 }}
           command:
