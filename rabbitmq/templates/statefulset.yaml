@@ -82,8 +82,7 @@ spec:
         secret-rabbit-admin-hash: {{ tuple "secret-rabbit-admin.yaml" . | include "helm-toolkit.utils.hash" }}
         secret-erlang-cookie-hash: {{ tuple "secret-erlang-cookie.yaml" . | include "helm-toolkit.utils.hash" }}
     spec:
-      securityContext:
-        readOnlyRootFilesystem: true
+{{ dict "envAll" $envAll "application" "server" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
       serviceAccountName: {{ $rcControllerName | quote }}
       affinity:
 {{ tuple $envAll "rabbitmq" "server" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
@@ -93,9 +92,8 @@ spec:
 {{ tuple $envAll "rabbitmq" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
         - name: rabbitmq-password
 {{ tuple $envAll "rabbitmq_init" | include "helm-toolkit.snippets.image" | indent 10 }}
-          securityContext:
-            runAsUser: 0
 {{ tuple $envAll $envAll.Values.pod.resources.server | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "server" "container" "rabbitmq_password" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
             - /tmp/rabbitmq-password-hash.py
           env:
@@ -122,9 +120,8 @@ spec:
               readOnly: true
         - name: rabbitmq-cookie
 {{ tuple $envAll "rabbitmq" | include "helm-toolkit.snippets.image" | indent 10 }}
-          securityContext:
-            runAsUser: 0
 {{ tuple $envAll $envAll.Values.pod.resources.server | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "server" "container" "rabbitmq_cookie" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
             - /tmp/rabbitmq-cookie.sh
           volumeMounts:
@@ -143,9 +140,8 @@ spec:
 {{- if $envAll.Values.volume.chown_on_start }}
         - name: rabbitmq-perms
 {{ tuple $envAll "rabbitmq" | include "helm-toolkit.snippets.image" | indent 10 }}
-          securityContext:
-            runAsUser: 0
 {{ tuple $envAll $envAll.Values.pod.resources.server | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "server" "container" "rabbitmq_perms" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
             - chown
             - -R
@@ -161,6 +157,7 @@ spec:
         - name: rabbitmq
 {{ tuple $envAll "rabbitmq" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.server | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "server" "container" "rabbitmq" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
             - /tmp/rabbitmq-start.sh
           ports:
