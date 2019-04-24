@@ -43,6 +43,7 @@ spec:
 {{ dict "envAll" $envAll "podName" "ceph-osd-default" "containerNames" (list "ceph-osd-default") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
 {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
     spec:
+{{ dict "envAll" $envAll "application" "osd" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
       serviceAccountName: {{ $serviceAccountName }}
       nodeSelector:
         {{ .Values.labels.osd.node_selector_key }}: {{ .Values.labels.osd.node_selector_value }}
@@ -53,6 +54,7 @@ spec:
 {{ tuple $envAll "osd" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
         - name: ceph-init-dirs
 {{ tuple $envAll "ceph_osd" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ dict "envAll" $envAll "application" "osd" "container" "ceph_init_dirs" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
             - /tmp/init-dirs.sh
           env:
@@ -102,8 +104,7 @@ spec:
               readOnly: false
         - name: ceph-log-ownership
 {{ tuple $envAll "ceph_osd" | include "helm-toolkit.snippets.image" | indent 10 }}
-          securityContext:
-            runAsUser: 0
+{{ dict "envAll" $envAll "application" "osd" "container" "ceph_log_ownership" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           env:
           # NOTE(portdirect): These environment variables will be populated
           # dynamicly at the point of render and added to all containers in the
@@ -138,8 +139,7 @@ spec:
         - name: osd-init
 {{ tuple $envAll "ceph_osd" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.osd | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-          securityContext:
-            privileged: true
+{{ dict "envAll" $envAll "application" "osd" "container" "osd_init" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           env:
           # NOTE(portdirect): These environment variables will be populated
           # dynamicly at the point of render and added to all containers in the
@@ -214,8 +214,7 @@ spec:
         - name: osd-pod
 {{ tuple $envAll "ceph_osd" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.osd | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-          securityContext:
-            privileged: true
+{{ dict "envAll" $envAll "application" "osd" "container" "osd_pod" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           env:
           # NOTE(portdirect): These environment variables will be populated
           # dynamicly at the point of render.
