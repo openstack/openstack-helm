@@ -206,7 +206,7 @@ for CHART in ceph-mon ceph-client ceph-provisioners; do
 done
   helm upgrade --install ceph-osd ./ceph-osd \
     --namespace=ceph \
-    --set pod.replicas.server=1 \
+    --values=/tmp/ceph.yaml \
     --values=/tmp/ceph-osd.yaml
 
   #NOTE: Wait for deploy
