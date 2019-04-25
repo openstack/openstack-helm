@@ -117,13 +117,75 @@ pod:
     elasticsearch-client:
       elasticsearch-client: localhost/docker-default
   security_context:
-    elasticsearch_exporter:
+    exporter:
       pod:
         runAsUser: 99
       container:
         elasticsearch_exporter:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
+    client:
+      pod:
+        runAsUser: 0
+      container:
+        memory_map_increase:
+          privileged: true
+          readOnlyRootFilesystem: false
+        apache_proxy:
+          readOnlyRootFilesystem: false
+        elasticsearch_client:
+          privileged: true
+          capabilities:
+            add:
+              - IPC_LOCK
+              - SYS_RESOURCE
+          readOnlyRootFilesystem: false
+    master:
+      pod:
+        runAsUser: 0
+      container:
+        memory_map_increase:
+          privileged: true
+          readOnlyRootFilesystem: false
+        elasticsearch_master:
+          privileged: true
+          capabilities:
+            add:
+              - IPC_LOCK
+              - SYS_RESOURCE
+          readOnlyRootFilesystem: false
+    es_cluster_wait:
+      pod:
+        runAsUser: 0
+      container:
+        elasticsearch_cluster_wait:
+          readOnlyRootFilesystem: false
+    snapshot_repository:
+      pod:
+        runAsUser: 0
+      container:
+        register_snapshot_repository:
+          readOnlyRootFilesystem: false
+    test:
+      pod:
+        runAsUser: 0
+      container:
+        helm_test:
+          readOnlyRootFilesystem: false
+    data:
+      pod:
+        runAsUser: 0
+      container:
+        memory_map_increase:
+          privileged: true
+          readOnlyRootFilesystem: false
+        elasticsearch_data:
+          privileged: true
+          capabilities:
+            add:
+              - IPC_LOCK
+              - SYS_RESOURCE
+          readOnlyRootFilesystem: false
   affinity:
       anti:
         type:

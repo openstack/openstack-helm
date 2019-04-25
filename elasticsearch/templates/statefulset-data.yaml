@@ -81,6 +81,7 @@ spec:
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
     spec:
+{{ dict "envAll" $envAll "application" "data" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
       serviceAccountName: {{ $serviceAccountName }}
       affinity:
 {{ tuple $envAll "elasticsearch" "data" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
@@ -92,9 +93,7 @@ spec:
         - name: memory-map-increase
 {{ tuple $envAll "memory_init" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.data | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-          securityContext:
-            privileged: true
-            runAsUser: 0
+{{ dict "envAll" $envAll "application" "data" "container" "memory_map_increase" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
             - sysctl
             - -w
@@ -103,12 +102,7 @@ spec:
         - name: elasticsearch-data
 {{ tuple $envAll "elasticsearch" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.data | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-          securityContext:
-            privileged: true
-            capabilities:
-              add:
-                - IPC_LOCK
-                - SYS_RESOURCE
+{{ dict "envAll" $envAll "application" "data" "container" "elasticsearch_data" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
             - /tmp/elasticsearch.sh
             - start
