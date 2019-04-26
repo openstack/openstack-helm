@@ -24,6 +24,7 @@ make keystone
 helm upgrade --install keystone ./keystone \
     --namespace=openstack \
     ${OSH_EXTRA_HELM_ARGS} \
+    ${OSH_VALUES_OVERRIDES_HELM_ARGS:=} \
     ${OSH_EXTRA_HELM_ARGS_KEYSTONE}
 
 #NOTE: Wait for deploy
