@@ -18,7 +18,7 @@ limitations under the License.
 
 set -e
 
-if [ -f /run/rabbit-disable-readiness ]; then
+if [ -f /tmp/rabbit-disable-readiness ]; then
    exit 1
 else
    exec rabbitmqctl status
