@@ -349,7 +349,7 @@ limitations under the License.
 
   {{- $_ := set $context.Values.__tmpYAML.spec.template.spec "volumes" $context.Values.__tmpPodVols }}
 
-{{ mergeOverwrite $context.Values.__daemonset_yaml $context.Values.__tmpYAML | toYaml }}
+{{ merge $context.Values.__tmpYAML $context.Values.__daemonset_yaml | toYaml }}
 
 {{ end }}
 
