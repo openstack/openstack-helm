@@ -18,10 +18,28 @@ limitations under the License.
 
 set -ex
 
-#NOTE(portdirect): this works round a limitation in Kolla images
-if ! dpkg -l ipxe; then
-  apt-get update
-  apt-get install ipxe -y
+. /etc/os-release
+HOST_OS=${HOST_OS:="${ID}"}
+FILEPATH=${FILEPATH:-/usr/lib/ipxe}
+
+if [ "x$ID" == "xubuntu" ]; then
+  #NOTE(portdirect): this works around a limitation in Kolla images
+  if ! dpkg -l ipxe; then
+    apt-get update
+    apt-get install ipxe -y
+  fi
+
+  FILEPATH=/usr/lib/ipxe
+
+elif [ "x$ID" == "xcentos" ]; then
+
+  if ! yum list installed ipxe-bootimgs >/dev/null 2>&1; then
+    yum update --nogpgcheck -y
+    yum install ipxe-bootimgs --nogpgcheck -y
+  fi
+
+  FILEPATH=/usr/share/ipxe
+
 fi
 
 mkdir -p /var/lib/openstack-helm/tftpboot
