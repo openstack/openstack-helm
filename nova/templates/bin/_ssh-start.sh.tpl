@@ -33,7 +33,6 @@ if [[ $(stat -c %U:%G ~nova/.ssh) != "nova:nova" ]]; then
     chown nova: ~nova/.ssh
 fi
 
-{{- if .Values.network.sshd.enabled }}
 subnet_address="{{- .Values.network.sshd.from_subnet -}}"
 cat > /tmp/sshd_config_extend <<EOF
 
@@ -48,6 +47,5 @@ Match Address $subnet_address
 EOF
 cat /tmp/sshd_config_extend >> /etc/ssh/sshd_config
 rm /tmp/sshd_config_extend
-{{- end }}
 
 exec /usr/sbin/sshd -D -e -o Port=$SSH_PORT
