@@ -27,4 +27,48 @@ function stop () {
   kill -TERM 1
 }
 
+function allocate_data_node () {
+  CLUSTER_SETTINGS=$(curl -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
+    "${ELASTICSEARCH_ENDPOINT}/_cluster/settings")
+  if echo "${CLUSTER_SETTINGS}" | grep -E "${NODE_NAME}"; then
+    echo "Activate node ${NODE_NAME}"
+    curl -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" -XPUT -H 'Content-Type: application/json' \
+     "${ELASTICSEARCH_ENDPOINT}/_cluster/settings" -d "{
+      \"transient\" :{
+          \"cluster.routing.allocation.exclude._name\" : null
+      }
+    }"
+  fi
+  echo "Node ${NODE_NAME} is ready to be used"
+}
+
+function start_data_node () {
+  ulimit -l unlimited
+  allocate_data_node &
+  /docker-entrypoint.sh elasticsearch &
+  function drain_data_node () {
+    echo "Prepare to migrate data off node ${NODE_NAME}"
+    echo "Move all data from node ${NODE_NAME}"
+    curl -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" -XPUT -H 'Content-Type: application/json' \
+     "${ELASTICSEARCH_ENDPOINT}/_cluster/settings" -d "{
+      \"transient\" :{
+          \"cluster.routing.allocation.exclude._name\" : \"${NODE_NAME}\"
+      }
+    }"
+    echo ""
+    while true ; do
+      echo -e "Wait for node ${NODE_NAME} to become empty"
+      SHARDS_ALLOCATION=$(curl -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
+        -XGET "${ELASTICSEARCH_ENDPOINT}/_cat/shards")
+      if ! echo "${SHARDS_ALLOCATION}" | grep -E "${NODE_NAME}"; then
+        break
+      fi
+      sleep 5
+    done
+    echo "Node ${NODE_NAME} is ready to shutdown"
+  }
+  trap drain_data_node TERM EXIT HUP INT
+  wait
+}
+
 $COMMAND
