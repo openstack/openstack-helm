@@ -21,6 +21,9 @@ make fluent-logging
 
 if [ ! -d "/var/log/journal" ]; then
 tee /tmp/fluent-logging.yaml << EOF
+monitoring:
+  prometheus:
+    enabled: true
 pod:
   mounts:
     fluentbit:
