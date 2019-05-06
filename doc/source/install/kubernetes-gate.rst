@@ -141,4 +141,3 @@ On the master node run the playbooks:
     cd /opt/openstack-helm-infra
     make dev-deploy setup-host multinode
     make dev-deploy k8s multinode
-
