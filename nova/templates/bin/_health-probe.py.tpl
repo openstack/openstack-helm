@@ -17,8 +17,8 @@
 """
 Health probe script for OpenStack service that uses RPC/unix domain socket for
 communication. Check's the RPC tcp socket status on the process and send
-message to service through rpc call method and expects a reply. It is expected
-to receive failure from the service's RPC server as the method does not exist.
+message to service through rpc call method and expects a reply.
+Use nova's ping method that is designed just for such simple purpose.
 
 Script returns failure to Kubernetes only when
   a. TCP socket for the RPC communication are not established.
@@ -28,7 +28,7 @@ Script returns failure to Kubernetes only when
 sys.stderr.write() writes to pod's events on failures.
 
 Usage example for Nova Compute:
-# python health-probe-rpc.py --config-file /etc/nova/nova.conf \
+# python health-probe.py --config-file /etc/nova/nova.conf \
 #  --service-queue-name compute
 
 """
@@ -50,12 +50,15 @@ def check_service_status(transport):
     """Verify service status. Return success if service consumes message"""
     try:
         target = oslo_messaging.Target(topic=cfg.CONF.service_queue_name,
-                                       server=socket.gethostname())
+                                       server=socket.gethostname(),
+                                       namespace='baseapi',
+                                       version="1.1")
         client = oslo_messaging.RPCClient(transport, target,
                                           timeout=60,
                                           retry=2)
         client.call(context.RequestContext(),
-                    'pod_health_probe_method_ignore_errors')
+                    'ping',
+                    arg=None)
     except oslo_messaging.exceptions.MessageDeliveryFailure:
         # Log to pod events
         sys.stderr.write("Health probe unable to reach message bus")
