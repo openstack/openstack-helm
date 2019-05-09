@@ -20,7 +20,7 @@ set -ex
 COMMAND="${@:-start}"
 
 function start () {
-  exec go-wrapper run -scrape_uri "$FLUENTD_METRICS_HOST"
+  exec fluentd_exporter --scrape_uri "$FLUENTD_METRICS_HOST"
 }
 
 function stop () {
