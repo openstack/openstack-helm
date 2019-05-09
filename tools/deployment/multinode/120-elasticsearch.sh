@@ -28,7 +28,10 @@ pod:
 conf:
   elasticsearch:
     env:
-      java_opts: "-Xms512m -Xmx512m"
+      java_opts:
+        client: "-Xms512m -Xmx512m"
+        data: "-Xms512m -Xmx512m"
+        master: "-Xms512m -Xmx512m"
     snapshots:
       enabled: true
     curator:
