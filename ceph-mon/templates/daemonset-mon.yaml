@@ -68,6 +68,7 @@ spec:
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
     spec:
+{{ dict "envAll" $envAll "application" "mon" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
       serviceAccountName: {{ $serviceAccountName }}
       nodeSelector:
         {{ .Values.labels.mon.node_selector_key }}: {{ .Values.labels.mon.node_selector_value }}
@@ -77,6 +78,7 @@ spec:
 {{ tuple $envAll "mon" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
         - name: ceph-init-dirs
 {{ tuple $envAll "ceph_mon" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ dict "envAll" $envAll "application" "mon" "container" "ceph_init_dirs" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
             - /tmp/init-dirs.sh
           env:
@@ -98,8 +100,7 @@ spec:
               readOnly: false
         - name: ceph-log-ownership
 {{ tuple $envAll "ceph_mon" | include "helm-toolkit.snippets.image" | indent 10 }}
-          securityContext:
-            runAsUser: 0
+{{ dict "envAll" $envAll "application" "mon" "container" "ceph_log_ownership" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
             - chown
             - -R
@@ -119,6 +120,7 @@ spec:
         - name: ceph-mon
 {{ tuple $envAll "ceph_mon" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.mon | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "mon" "container" "ceph_mon" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           env:
             - name: CLUSTER
               value: "ceph"
