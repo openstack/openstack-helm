@@ -21,6 +21,9 @@ make fluent-logging
 
 if [ ! -d "/var/log/journal" ]; then
 tee /tmp/fluent-logging.yaml << EOF
+monitoring:
+  prometheus:
+    enabled: true
 pod:
   replicas:
     fluentd: 1
@@ -41,7 +44,8 @@ helm upgrade --install fluent-logging ./fluent-logging \
 else
 helm upgrade --install fluent-logging ./fluent-logging \
     --namespace=osh-infra \
-    --set pod.replicas.fluentd=1
+    --set pod.replicas.fluentd=1 \
+    --set monitoring.prometheus.enabled=true
 fi
 
 #NOTE: Wait for deploy
