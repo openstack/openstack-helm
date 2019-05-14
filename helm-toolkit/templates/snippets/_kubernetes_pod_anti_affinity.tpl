@@ -27,6 +27,8 @@ values: |
           default: kubernetes.io/hostname
         type:
           default: requiredDuringSchedulingIgnoredDuringExecution
+        weight:
+          default: 10
 usage: |
   {{ tuple . "appliction_x" "component_y" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" }}
 return: |
@@ -74,7 +76,11 @@ podAntiAffinity:
         matchExpressions:
 {{ $matchExpressions | indent 10 }}
       topologyKey: {{ $antiAffinityKey }}
+{{- if  $envAll.Values.pod.affinity.anti.weight }}
+    weight: {{ index $envAll.Values.pod.affinity.anti.weight $component | default $envAll.Values.pod.affinity.anti.weight.default }}
+{{- else }}
     weight: 10
+{{- end -}}
 {{- else if eq $antiAffinityType "requiredDuringSchedulingIgnoredDuringExecution" }}
   {{ $antiAffinityType }}:
   - labelSelector:
