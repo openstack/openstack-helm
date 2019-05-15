@@ -23,5 +23,13 @@ helm upgrade --install libvirt ./libvirt \
   --namespace=openstack \
   --set network.backend="null"
 
+#NOTE: Please be aware that a network backend might affect
+#The loadability of this, as some need to be asynchronously
+#loaded. See also:
+#https://github.com/openstack/openstack-helm-infra/blob/b69584bd658ae5cb6744e499975f9c5a505774e5/libvirt/values.yaml#L151-L172
+if [[ "${WAIT_FOR_PODS:=True}" == "True" ]]; then
+    ./tools/deployment/common/wait-for-pods.sh openstack
+fi
+
 #NOTE: Validate Deployment info
 helm status libvirt
