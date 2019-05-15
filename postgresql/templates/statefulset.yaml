@@ -57,7 +57,7 @@ spec:
             - "/bin/chown"
             - {{ .Values.pod.security_context.server.pod.runAsUser | quote }}
             - {{ .Values.storage.mount.path | quote }}
-{{ dict "envAll" $envAll "application" "server" "container" "set-volume-perms" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+{{ dict "envAll" $envAll "application" "server" "container" "set_volume_perms" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
@@ -68,6 +68,7 @@ spec:
         - name: postgresql
 {{ tuple $envAll "postgresql" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.server | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "server" "container" "postgresql" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           ports:
             - containerPort: {{ tuple "postgresql" "internal" "postgresql" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
           env:
@@ -100,6 +101,8 @@ spec:
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
+            - name: pg-run
+              mountPath: /var/run/postgresql
             - name: postgresql-bin
               mountPath: /tmp/start.sh
               subPath: start.sh
@@ -114,6 +117,9 @@ spec:
       volumes:
         - name: pod-tmp
           emptyDir: {}
+        - name: pg-run
+          emptyDir:
+            medium: "Memory"
         - name: postgresql-bin
           configMap:
             name: postgresql-bin
