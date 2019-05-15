@@ -48,29 +48,30 @@ function rabbit_check_node_count () {
 # Check node count
 rabbit_check_node_count
 
-function rabbit_find_paritions () {
-  echo "Checking cluster partitions"
-  PARTITIONS=$(rabbitmqadmin \
+function rabbit_find_partitions () {
+  rabbitmqadmin \
     --host="${RABBIT_HOSTNAME}" \
     --port="${RABBIT_PORT}" \
     --username="${RABBITMQ_ADMIN_USERNAME}" \
     --password="${RABBITMQ_ADMIN_PASSWORD}" \
     list nodes -f raw_json | \
-  python -c "import json,sys;
-obj=json.load(sys.stdin);
+  python -c "
+import json, sys, traceback
+print('Checking cluster partitions')
+obj=json.load(sys.stdin)
 for num, node in enumerate(obj):
-  print node['partitions'];")
-
-  for PARTITION in ${PARTITIONS}; do
-    if [[ $PARTITION != '[]' ]]; then
-      echo "Cluster partition found"
-      exit 1
-    fi
-  done
-  echo "No cluster partitions found"
+  try:
+    partition = node['partitions']
+    if partition:
+      raise Exception('cluster partition found: %s' % partition)
+  except KeyError:
+    print('Error: partition key not found for node %s' % node)
+    sys.exit(1)
+print('No cluster partitions found')
+  "
 }
-# Check no nodes report cluster partitioning
-rabbit_find_paritions
+
+rabbit_find_partitions
 
 function rabbit_check_users_match () {
   echo "Checking users match on all nodes"
