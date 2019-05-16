@@ -25,6 +25,7 @@ helm upgrade --install libvirt ${OSH_INFRA_PATH}/libvirt \
   --namespace=openstack \
   --set conf.ceph.enabled=false \
   ${OSH_EXTRA_HELM_ARGS} \
+  ${OSH_VALUES_OVERRIDES_HELM_ARGS:=} \
   ${OSH_EXTRA_HELM_ARGS_LIBVIRT}
 
 #NOTE(portdirect): We don't wait for libvirt pods to come up, as they depend

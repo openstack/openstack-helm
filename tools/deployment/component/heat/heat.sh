@@ -23,6 +23,7 @@ make heat
 helm upgrade --install heat ./heat \
   --namespace=openstack \
   ${OSH_EXTRA_HELM_ARGS} \
+  ${OSH_VALUES_OVERRIDES_HELM_ARGS:=} \
   ${OSH_EXTRA_HELM_ARGS_HEAT}
 
 #NOTE: Wait for deploy

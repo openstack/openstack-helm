@@ -24,6 +24,7 @@ make -C ${OSH_INFRA_PATH} openvswitch
 helm upgrade --install openvswitch ${OSH_INFRA_PATH}/openvswitch \
   --namespace=openstack \
   ${OSH_EXTRA_HELM_ARGS} \
+  ${OSH_VALUES_OVERRIDES_HELM_ARGS:=} \
   ${OSH_EXTRA_HELM_ARGS_OPENVSWITCH}
 
 #NOTE: Wait for deploy
