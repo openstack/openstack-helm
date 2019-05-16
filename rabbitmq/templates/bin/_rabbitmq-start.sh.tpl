@@ -29,10 +29,15 @@ function check_rabbit_node_health () {
   rabbitmq-diagnostics node_health_check -n "${CLUSTER_SEED_NAME}" -t 10 &>/dev/null
 }
 
-function check_rabbit_node_ready () {
+get_node_name () {
   TARGET_POD=$1
   POD_NAME_PREFIX="$(echo "${MY_POD_NAME}" | awk 'BEGIN{FS=OFS="-"}{NF--; print}')"
-  CLUSTER_SEED_NAME="$(echo "${RABBITMQ_NODENAME}" | awk -F "@${MY_POD_NAME}." "{ print \$1 \"@${POD_NAME_PREFIX}-${TARGET_POD}.\" \$2 }")"
+  echo "${RABBITMQ_NODENAME}" | awk -F "@${MY_POD_NAME}." "{ print \$1 \"@${POD_NAME_PREFIX}-${TARGET_POD}.\" \$2 }"
+}
+
+function check_rabbit_node_ready () {
+  TARGET_POD=$1
+  CLUSTER_SEED_NAME="$(get_node_name ${TARGET_POD})"
   CLUSTER_SEED_HOST="$(echo "${CLUSTER_SEED_NAME}" | awk -F '@' '{ print $NF }')"
   check_rabbit_node_health "${CLUSTER_SEED_NAME}" && \
   check_if_open "${CLUSTER_SEED_HOST}" "${PORT_HTTP}" && \
@@ -56,7 +61,39 @@ if ! [ "${POD_INCREMENT}" -eq "0" ] && ! [ -d "/var/lib/rabbitmq/mnesia" ] ; the
       fi
     done
   done
-  rm -fv /run/rabbit-disable-liveness-probe
+
+  function reset_rabbit () {
+    rabbitmqctl shutdown || true
+    rm -rf /var/lib/rabbitmq/*
+    exit 1
+  }
+
+  # Start RabbitMQ, but disable readiness from being reported so the pod is not
+  # marked as up prematurely.
+  touch /run/rabbit-disable-readiness
+  rabbitmq-server &
+
+  # Wait for server to start, and reset if it does not
+  END=$(($(date +%s) + 180))
+  while ! rabbitmqctl -q cluster_status; do
+      sleep 5
+      NOW=$(date +%s)
+      [ $NOW -gt $END ] && reset_rabbit
+  done
+
+  # Wait for server to join cluster, reset if it does not
+  POD_INCREMENT=$(echo "${MY_POD_NAME}" | awk -F '-' '{print $NF}')
+  END=$(($(date +%s) + 180))
+  while ! rabbitmqctl -l --node $(get_node_name 0) -q cluster_status | grep -q "$(get_node_name ${POD_INCREMENT})"; do
+    sleep 5
+    NOW=$(date +%s)
+    [ $NOW -gt $END ] && reset_rabbit
+  done
+
+  # Shutdown the inital server
+  rabbitmqctl shutdown
+
+  rm -fv /run/rabbit-disable-readiness /run/rabbit-disable-liveness-probe
 fi
 
 exec rabbitmq-server

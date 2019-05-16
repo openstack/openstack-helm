@@ -30,13 +30,21 @@ RABBITMQ_ADMIN_USERNAME=`echo $RABBITMQ_ADMIN_CONNECTION | awk -F'[@]' '{print $
 RABBITMQ_ADMIN_PASSWORD=`echo $RABBITMQ_ADMIN_CONNECTION | awk -F'[@]' '{print $1}' \
   | awk -F'[//:]' '{print $5}'`
 
-function active_rabbit_nodes () {
+set -ex
+
+function rabbitmqadmin_authed () {
+  set +x
   rabbitmqadmin \
     --host="${RABBIT_HOSTNAME}" \
     --port="${RABBIT_PORT}" \
     --username="${RABBITMQ_ADMIN_USERNAME}" \
     --password="${RABBITMQ_ADMIN_PASSWORD}" \
-    list nodes -f bash | wc -w
+    $@
+  set -x
+}
+
+function active_rabbit_nodes () {
+  rabbitmqadmin_authed list nodes -f bash | wc -w
 }
 
 until test "$(active_rabbit_nodes)" -ge "$RABBIT_REPLICA_COUNT"; do

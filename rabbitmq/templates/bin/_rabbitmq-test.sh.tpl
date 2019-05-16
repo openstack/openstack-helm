@@ -16,7 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-set -e
+set -ex
 
 # Extract connection details
 RABBIT_HOSTNAME=`echo $RABBITMQ_ADMIN_CONNECTION | awk -F'[@]' '{print $2}' \
@@ -24,22 +24,30 @@ RABBIT_HOSTNAME=`echo $RABBITMQ_ADMIN_CONNECTION | awk -F'[@]' '{print $2}' \
 RABBIT_PORT=`echo $RABBITMQ_ADMIN_CONNECTION | awk -F'[@]' '{print $2}' \
   | awk -F'[:/]' '{print $2}'`
 
+set +x
 # Extract Admin User creadential
 RABBITMQ_ADMIN_USERNAME=`echo $RABBITMQ_ADMIN_CONNECTION | awk -F'[@]' '{print $1}' \
   | awk -F'[//:]' '{print $4}'`
 RABBITMQ_ADMIN_PASSWORD=`echo $RABBITMQ_ADMIN_CONNECTION | awk -F'[@]' '{print $1}' \
   | awk -F'[//:]' '{print $5}'`
+set -x
 
-function rabbit_check_node_count () {
-  echo "Checking node count "
-  NODES_IN_CLUSTER=$(rabbitmqadmin \
+function rabbitmqadmin_authed () {
+  set +x
+  rabbitmqadmin \
     --host="${RABBIT_HOSTNAME}" \
     --port="${RABBIT_PORT}" \
     --username="${RABBITMQ_ADMIN_USERNAME}" \
     --password="${RABBITMQ_ADMIN_PASSWORD}" \
-    list nodes -f bash | wc -w)
+    $@
+  set -x
+}
+
+function rabbit_check_node_count () {
+  echo "Checking node count "
+  NODES_IN_CLUSTER=$(rabbitmqadmin_authed list nodes -f bash | wc -w)
   if [ "$NODES_IN_CLUSTER" -eq "$RABBIT_REPLICA_COUNT" ]; then
-    echo "Number of nodes in cluster match number of desired pods ($NODES_IN_CLUSTER)"
+    echo "Number of nodes in cluster ($NODES_IN_CLUSTER) match number of desired pods ($NODES_IN_CLUSTER)"
   else
     echo "Number of nodes in cluster ($NODES_IN_CLUSTER) does not match number of desired pods ($RABBIT_REPLICA_COUNT)"
     exit 1
@@ -49,13 +57,9 @@ function rabbit_check_node_count () {
 rabbit_check_node_count
 
 function rabbit_find_partitions () {
-  rabbitmqadmin \
-    --host="${RABBIT_HOSTNAME}" \
-    --port="${RABBIT_PORT}" \
-    --username="${RABBITMQ_ADMIN_USERNAME}" \
-    --password="${RABBITMQ_ADMIN_PASSWORD}" \
-    list nodes -f raw_json | \
-  python -c "
+  NODE_INFO=$(mktemp)
+  rabbitmqadmin_authed list nodes -f pretty_json | tee "${NODE_INFO}"
+  cat "${NODE_INFO}" | python -c "
 import json, sys, traceback
 print('Checking cluster partitions')
 obj=json.load(sys.stdin)
@@ -66,31 +70,20 @@ for num, node in enumerate(obj):
       raise Exception('cluster partition found: %s' % partition)
   except KeyError:
     print('Error: partition key not found for node %s' % node)
-    sys.exit(1)
 print('No cluster partitions found')
   "
+  rm -vf "${NODE_INFO}"
 }
-
 rabbit_find_partitions
 
 function rabbit_check_users_match () {
   echo "Checking users match on all nodes"
-  NODES=$(rabbitmqadmin \
-    --host="${RABBIT_HOSTNAME}" \
-    --port="${RABBIT_PORT}" \
-    --username="${RABBITMQ_ADMIN_USERNAME}" \
-    --password="${RABBITMQ_ADMIN_PASSWORD}" \
-    list nodes -f bash)
+  NODES=$(rabbitmqadmin_authed list nodes -f bash)
   USER_LIST=$(mktemp --directory)
   echo "Found the following nodes: ${NODES}"
   for NODE in ${NODES}; do
     echo "Checking Node: ${NODE#*@}"
-    rabbitmqadmin \
-      --host=${NODE#*@} \
-      --port="${RABBIT_PORT}" \
-      --username="${RABBITMQ_ADMIN_USERNAME}" \
-      --password="${RABBITMQ_ADMIN_PASSWORD}" \
-      list users -f bash > ${USER_LIST}/${NODE#*@}
+    rabbitmqadmin_authed list users -f bash > ${USER_LIST}/${NODE#*@}
   done
   cd ${USER_LIST}; diff -q --from-file $(ls ${USER_LIST})
   echo "User lists match for all nodes"
