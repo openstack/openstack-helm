@@ -164,8 +164,10 @@ function udev_settle {
 
   # On occassion udev may not make the correct device symlinks for Ceph, just in case we make them manually
   mkdir -p /dev/disk/by-partuuid
-  for dev in $(timeout 60 blkid -o device | grep -Ev 'block|rbd'); do
-    ln -s "../../$(echo ${dev} | awk -F '/' '{print $3}')" "/dev/disk/by-partuuid/$(blkid -o value -s PARTUUID ${dev})" || true
+  for dev in $(awk '!/rbd/{print $4}' /proc/partitions | grep "[0-9]"); do
+    diskdev=$(echo "${dev//[!a-z]/}")
+    partnum=$(echo "${dev//[!0-9]/}")
+    ln -s "../../${dev}" "/dev/disk/by-partuuid/$(sgdisk -i ${partnum} /dev/${diskdev} | awk '/Partition unique GUID/{print tolower($4)}')" || true
   done
 }
 
