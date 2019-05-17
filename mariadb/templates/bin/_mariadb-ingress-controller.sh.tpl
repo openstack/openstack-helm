@@ -28,6 +28,7 @@ function start () {
       --election-id=${RELEASE_NAME} \
       --ingress-class=${INGRESS_CLASS} \
       --default-backend-service=${POD_NAMESPACE}/${ERROR_PAGE_SERVICE} \
+      --configmap=${POD_NAMESPACE}/mariadb-ingress-conf \
       --tcp-services-configmap=${POD_NAMESPACE}/mariadb-services-tcp
 }
 
