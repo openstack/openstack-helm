@@ -103,347 +103,340 @@ dependencies:
           service: fluentd
 
 conf:
-  fluentbit:
-    - service:
-        header: service
-        Flush: 30
-        Daemon: Off
-        Log_Level: info
-        Parsers_File: parsers.conf
-    - kernel_messages:
-        header: input
-        Name: tail
-        Tag: kernel
-        Path: /var/log/kern.log
-        Mem_Buf_Limit: 5MB
-        Buffer_Chunk_Size: 1M
-        Buffer_Max_Size: 1M
-    - containers_tail:
-        header: input
-        Name: tail
-        Tag: kube.*
-        Path: /var/log/containers/*.log
-        Parser: docker
-        Mem_Buf_Limit: 5MB
-        Buffer_Chunk_Size: 1M
-        Buffer_Max_Size: 1M
-    - libvirt:
-        header: input
-        Name: tail
-        Tag: libvirt
-        Path: /var/log/libvirt/libvirtd.log
-        Mem_Buf_Limit: 5MB
-        Buffer_Chunk_Size: 1M
-        Buffer_Max_Size: 1M
-    - qemu:
-        header: input
-        Name: tail
-        Tag: qemu
-        Path: /var/log/libvirt/qemu/*.log
-        Mem_Buf_Limit: 5MB
-        Buffer_Chunk_Size: 1M
-        Buffer_Max_Size: 1M
-    - kubelet:
-        header: input
-        Name: systemd
-        Tag: journal.*
-        Path: ${JOURNAL_PATH}
-        Systemd_Filter: _SYSTEMD_UNIT=kubelet.service
-        Mem_Buf_Limit: 5MB
-        Buffer_Chunk_Size: 1M
-        Buffer_Max_Size: 1M
-    - docker_daemon:
-        header: input
-        Name: systemd
-        Tag: journal.*
-        Path: ${JOURNAL_PATH}
-        Systemd_Filter: _SYSTEMD_UNIT=docker.service
-        Mem_Buf_Limit: 5MB
-        Buffer_Chunk_Size: 1M
-        Buffer_Max_Size: 1M
-    - throttle_filter:
-        header: filter
-        Name: throttle
-        Match: "**"
-        Rate: 1000
-        Window: 300
-        Interval: 1s
-    - libvirt_record_modifier:
-        header: filter
-        Name: record_modifier
-        Match: libvirt
-        Record: hostname ${HOSTNAME}
-    - qemu_record_modifier:
-        header: filter
-        Name: record_modifier
-        Match: qemu
-        Record: hostname ${HOSTNAME}
-    - kernel_record_modifier:
-        header: filter
-        Name: record_modifier
-        Match: kernel
-        Record: hostname ${HOSTNAME}
-    - systemd_modify_fields:
-        header: filter
-        Name: modify
-        Match: journal.**
-        Rename:
-          _BOOT_ID: BOOT_ID
-          _CAP_EFFECTIVE: CAP_EFFECTIVE
-          _CMDLINE: CMDLINE
-          _COMM: COMM
-          _EXE: EXE
-          _GID: GID
-          _HOSTNAME: HOSTNAME
-          _MACHINE_ID: MACHINE_ID
-          _PID: PID
-          _SYSTEMD_CGROUP: SYSTEMD_CGROUP
-          _SYSTEMD_SLICE: SYSTEMD_SLICE
-          _SYSTEMD_UNIT: SYSTEMD_UNIT
-          _UID: UID
-          _TRANSPORT: TRANSPORT
-    - drop_fluentd_logs:
-        header: output
-        Name: "null"
-        Match: "**.fluentd**"
-    - kube_filter:
-        header: filter
-        Name: kubernetes
-        Match: kube.*
-        Merge_JSON_Log: On
-    - fluentd_output:
-        header: output
-        Name: forward
-        Match: "*"
-        Host: ${FLUENTD_HOST}
-        Port: ${FLUENTD_PORT}
-  parsers:
-    - docker:
-        header: parser
-        Name: docker
-        Format: json
-        Time_Key: time
-        Time_Format: "%Y-%m-%dT%H:%M:%S.%L"
-        Time_Keep: On
-        Decode_Field_As: escaped_utf8 log
   fluentd:
-    - metrics_agent:
-        header: source
-        type: monitor_agent
-        bind: 0.0.0.0
-        port: 24220
-    - fluentbit_forward:
-        header: source
-        type: forward
-        port: "#{ENV['FLUENTD_PORT']}"
-        bind: 0.0.0.0
-    - filter_fluentd_logs:
-        header: match
-        expression: "fluent.**"
-        type: "null"
-      # NOTE(srwilkers): Look for specific keywords in the log key to determine
-      # log level of event
-    - tag_kubernetes_log_level:
-        header: match
-        type: rewrite_tag_filter
-        expression: "kube.var.log.containers.**.log"
-        rule:
-          -
-            - header: rule
-              key: log
-              pattern: /info/i
-              tag: info.${tag}
-            - header: rule
-              key: log
-              pattern: /warn/i
-              tag: warn.${tag}
-            - header: rule
-              key: log
-              pattern: /error/i
-              tag: error.${tag}
-            - header: rule
-              key: log
-              pattern: /critical/i
-              tag: critical.${tag}
-            - header: rule
-              key: log
-              pattern: (.+)
-              tag: info.${tag}
-      # NOTE(srwilkers): Create new key for log level, and use the tag prefix
-      # added previously
-    - add_kubernetes_log_level_and_application_key:
-        header: filter
-        type: record_transformer
-        enable_ruby: true
-        expression: "**.kube.var.log.containers.**.log"
-        record:
-          -
-            - header: record
-              level: ${tag_parts[0]}
-              application: ${record["kubernetes"]["labels"]["application"]}
-    - add_openstack_application_key:
-        header: filter
-        type: record_transformer
-        expression: "openstack.**"
-        record:
-          -
-            - header: record
-              application: ${tag_parts[1]}
-      #NOTE(srwilkers): This prefixes the tag for oslo.log entries from the
-      # fluent handler/formatter with the log level, allowing for lookups on
-      # openstack logs with a particular log level (ie: error.openstack.keystone)
-    - tag_openstack_log_level:
-        header: match
-        type: rewrite_tag_filter
-        expression: "openstack.**"
-        rule:
-          -
-            - header: rule
-              key: level
-              pattern: INFO
-              tag: info.${tag}
-            - header: rule
-              key: level
-              pattern: WARN
-              tag: warn.${tag}
-            - header: rule
-              key: level
-              pattern: ERROR
-              tag: error.${tag}
-            - header: rule
-              key: level
-              pattern: CRITICAL
-              tag: critical.${tag}
-      #NOTE(tp6510): This prefixes the tag for auth entries
-      # it allows for lookups on openstack logs with
-      # a particular auth log (ie: auth.openstack.keystone)
-    - tag_auth_log:
-        header: match
-        type: rewrite_tag_filter
-        expression: "*.openstack.**"
-        rule:
-          -
-            - header: rule
-              key: application
-              pattern: keystone
-              tag: auth.${tag}
-            - header: rule
-              key: application
-              pattern: horizon
-              tag: auth.${tag}
-            - header: rule
-              key: application
-              pattern: mariadb
-              tag: auth.${tag}
-            - header: rule
-              key: application
-              pattern: memcached
-              tag: auth.${tag}
-            - header: rule
-              key: application
-              pattern: rabbitmq
-              tag: auth.${tag}
-    - libvirt_elasticsearch:
-        header: match
-        type: elasticsearch
-        user: "#{ENV['ELASTICSEARCH_USERNAME']}"
-        password: "#{ENV['ELASTICSEARCH_PASSWORD']}"
-        expression: "libvirt"
-        include_tag_key: true
-        host: "#{ENV['ELASTICSEARCH_HOST']}"
-        port: "#{ENV['ELASTICSEARCH_PORT']}"
-        logstash_format: true
-        logstash_prefix: libvirt
-        buffer:
-          -
-            - header: buffer
-              flush_thread_count: 8
-              flush_interval: "15"
-              chunk_limit_size: 8MB
-              queue_limit_length: 256
-              retry_max_interval: 30
-              retry_forever: false
-    - qemu_elasticsearch:
-        header: match
-        type: elasticsearch
-        user: "#{ENV['ELASTICSEARCH_USERNAME']}"
-        password: "#{ENV['ELASTICSEARCH_PASSWORD']}"
-        expression: "qemu"
-        include_tag_key: true
-        host: "#{ENV['ELASTICSEARCH_HOST']}"
-        port: "#{ENV['ELASTICSEARCH_PORT']}"
-        logstash_format: true
-        logstash_prefix: qemu
-        buffer:
-          -
-            - header: buffer
-              flush_thread_count: 8
-              flush_interval: "15"
-              chunk_limit_size: 8MB
-              queue_limit_length: 256
-              retry_max_interval: 30
-              retry_forever: false
-    - journal_elasticsearch:
-        header: match
-        type: elasticsearch
-        user: "#{ENV['ELASTICSEARCH_USERNAME']}"
-        password: "#{ENV['ELASTICSEARCH_PASSWORD']}"
-        expression: "journal.**"
-        include_tag_key: true
-        host: "#{ENV['ELASTICSEARCH_HOST']}"
-        port: "#{ENV['ELASTICSEARCH_PORT']}"
-        logstash_format: true
-        logstash_prefix: journal
-        buffer:
-          -
-            - header: buffer
-              flush_thread_count: 8
-              flush_interval: "15"
-              chunk_limit_size: 8MB
-              queue_limit_length: 256
-              retry_max_interval: 30
-              retry_forever: false
-    - kernel_elasticsearch:
-        header: match
-        type: elasticsearch
-        user: "#{ENV['ELASTICSEARCH_USERNAME']}"
-        password: "#{ENV['ELASTICSEARCH_PASSWORD']}"
-        expression: "kernel"
-        include_tag_key: true
-        host: "#{ENV['ELASTICSEARCH_HOST']}"
-        port: "#{ENV['ELASTICSEARCH_PORT']}"
-        logstash_format: true
-        logstash_prefix: kernel
-        buffer:
-          -
-            - header: buffer
-              flush_thread_count: 8
-              flush_interval: "15"
-              chunk_limit_size: 8MB
-              queue_limit_length: 256
-              retry_max_interval: 30
-              retry_forever: false
-    - elasticsearch:
-        header: match
-        type: elasticsearch
-        user: "#{ENV['ELASTICSEARCH_USERNAME']}"
-        password: "#{ENV['ELASTICSEARCH_PASSWORD']}"
-        expression: "**"
-        include_tag_key: true
-        host: "#{ENV['ELASTICSEARCH_HOST']}"
-        port: "#{ENV['ELASTICSEARCH_PORT']}"
-        logstash_format: true
-        type_name: fluent
-        buffer:
-          -
-            - header: buffer
-              flush_thread_count: 8
-              flush_interval: "15"
-              chunk_limit_size: 8MB
-              queue_limit_length: 256
-              retry_max_interval: 30
-              retry_forever: false
-        flush_interval: "15"
+    template: |
+      <source>
+        bind 0.0.0.0
+        port 24220
+        @type monitor_agent
+      </source>
+
+      <source>
+        bind 0.0.0.0
+        port "#{ENV['FLUENTD_PORT']}"
+        @type forward
+      </source>
+
+      <match fluent.**>
+        @type null
+      </match>
+
+      <match kube.var.log.containers.**.log>
+        <rule>
+          key log
+          pattern /info/i
+          tag info.${tag}
+        </rule>
+        <rule>
+          key log
+          pattern /warn/i
+          tag warn.${tag}
+        </rule>
+        <rule>
+          key log
+          pattern /error/i
+          tag error.${tag}
+        </rule>
+        <rule>
+          key log
+          pattern /critical/i
+          tag critical.${tag}
+        </rule>
+        <rule>
+          key log
+          pattern (.+)
+          tag info.${tag}
+        </rule>
+        @type rewrite_tag_filter
+      </match>
+
+      <filter **.kube.var.log.containers.**.log>
+        enable_ruby true
+        <record>
+          application ${record["kubernetes"]["labels"]["application"]}
+          level ${tag_parts[0]}
+        </record>
+        @type record_transformer
+      </filter>
+
+      <filter openstack.**>
+        <record>
+          application ${tag_parts[1]}
+        </record>
+        @type record_transformer
+      </filter>
+
+      <match openstack.**>
+        <rule>
+          key level
+          pattern INFO
+          tag info.${tag}
+        </rule>
+        <rule>
+          key level
+          pattern WARN
+          tag warn.${tag}
+        </rule>
+        <rule>
+          key level
+          pattern ERROR
+          tag error.${tag}
+        </rule>
+        <rule>
+          key level
+          pattern CRITICAL
+          tag critical.${tag}
+        </rule>
+        @type rewrite_tag_filter
+      </match>
+
+      <match *.openstack.**>
+        <rule>
+          key application
+          pattern keystone
+          tag auth.${tag}
+        </rule>
+        <rule>
+          key application
+          pattern horizon
+          tag auth.${tag}
+        </rule>
+        <rule>
+          key application
+          pattern mariadb
+          tag auth.${tag}
+        </rule>
+        <rule>
+          key application
+          pattern memcached
+          tag auth.${tag}
+        </rule>
+        <rule>
+          key application
+          pattern rabbitmq
+          tag auth.${tag}
+        </rule>
+        @type rewrite_tag_filter
+      </match>
+
+      <match libvirt>
+        <buffer>
+          chunk_limit_size 8MB
+          flush_interval 15s
+          flush_thread_count 8
+          queue_limit_length 256
+          retry_forever false
+          retry_max_interval 30
+        </buffer>
+        host "#{ENV['ELASTICSEARCH_HOST']}"
+        include_tag_key true
+        logstash_format true
+        logstash_prefix libvirt
+        password "#{ENV['ELASTICSEARCH_PASSWORD']}"
+        port "#{ENV['ELASTICSEARCH_PORT']}"
+        @type elasticsearch
+        user "#{ENV['ELASTICSEARCH_USERNAME']}"
+      </match>
+
+      <match qemu>
+        <buffer>
+          chunk_limit_size 8MB
+          flush_interval 15s
+          flush_thread_count 8
+          queue_limit_length 256
+          retry_forever false
+          retry_max_interval 30
+        </buffer>
+        host "#{ENV['ELASTICSEARCH_HOST']}"
+        include_tag_key true
+        logstash_format true
+        logstash_prefix qemu
+        password "#{ENV['ELASTICSEARCH_PASSWORD']}"
+        port "#{ENV['ELASTICSEARCH_PORT']}"
+        @type elasticsearch
+        user "#{ENV['ELASTICSEARCH_USERNAME']}"
+      </match>
+
+      <match journal.**>
+        <buffer>
+          chunk_limit_size 8MB
+          flush_interval 15s
+          flush_thread_count 8
+          queue_limit_length 256
+          retry_forever false
+          retry_max_interval 30
+        </buffer>
+        host "#{ENV['ELASTICSEARCH_HOST']}"
+        include_tag_key true
+        logstash_format true
+        logstash_prefix journal
+        password "#{ENV['ELASTICSEARCH_PASSWORD']}"
+        port "#{ENV['ELASTICSEARCH_PORT']}"
+        @type elasticsearch
+        user "#{ENV['ELASTICSEARCH_USERNAME']}"
+      </match>
+
+      <match kernel>
+        <buffer>
+          chunk_limit_size 8MB
+          flush_interval 15s
+          flush_thread_count 8
+          queue_limit_length 256
+          retry_forever false
+          retry_max_interval 30
+        </buffer>
+        host "#{ENV['ELASTICSEARCH_HOST']}"
+        include_tag_key true
+        logstash_format true
+        logstash_prefix kernel
+        password "#{ENV['ELASTICSEARCH_PASSWORD']}"
+        port "#{ENV['ELASTICSEARCH_PORT']}"
+        @type elasticsearch
+        user "#{ENV['ELASTICSEARCH_USERNAME']}"
+      </match>
+
+      <match **>
+        <buffer>
+          chunk_limit_size 8MB
+          flush_interval 15s
+          flush_thread_count 8
+          queue_limit_length 256
+          retry_forever false
+          retry_max_interval 30
+        </buffer>
+        flush_interval 15s
+        host "#{ENV['ELASTICSEARCH_HOST']}"
+        include_tag_key true
+        logstash_format true
+        password "#{ENV['ELASTICSEARCH_PASSWORD']}"
+        port "#{ENV['ELASTICSEARCH_PORT']}"
+        @type elasticsearch
+        type_name fluent
+        user "#{ENV['ELASTICSEARCH_USERNAME']}"
+      </match>
+  fluentbit:
+    template: |
+      [SERVICE]
+          Daemon false
+          Flush 30
+          Log_Level info
+          Parsers_File parsers.conf
+
+      [INPUT]
+          Buffer_Chunk_Size 1M
+          Buffer_Max_Size 1M
+          Mem_Buf_Limit 5MB
+          Name tail
+          Path /var/log/kern.log
+          Tag kernel
+
+      [INPUT]
+          Buffer_Chunk_Size 1M
+          Buffer_Max_Size 1M
+          Mem_Buf_Limit 5MB
+          Name tail
+          Parser docker
+          Path /var/log/containers/*.log
+          Tag kube.*
+
+      [INPUT]
+          Buffer_Chunk_Size 1M
+          Buffer_Max_Size 1M
+          Mem_Buf_Limit 5MB
+          Name tail
+          Path /var/log/libvirt/libvirtd.log
+          Tag libvirt
+
+      [INPUT]
+          Buffer_Chunk_Size 1M
+          Buffer_Max_Size 1M
+          Mem_Buf_Limit 5MB
+          Name tail
+          Path /var/log/libvirt/qemu/*.log
+          Tag qemu
+
+      [INPUT]
+          Buffer_Chunk_Size 1M
+          Buffer_Max_Size 1M
+          Mem_Buf_Limit 5MB
+          Name systemd
+          Path ${JOURNAL_PATH}
+          Systemd_Filter _SYSTEMD_UNIT=kubelet.service
+          Tag journal.*
+
+      [INPUT]
+          Buffer_Chunk_Size 1M
+          Buffer_Max_Size 1M
+          Mem_Buf_Limit 5MB
+          Name systemd
+          Path ${JOURNAL_PATH}
+          Systemd_Filter _SYSTEMD_UNIT=docker.service
+          Tag journal.*
+
+      [FILTER]
+          Interval 1s
+          Match **
+          Name throttle
+          Rate 1000
+          Window 300
+
+      [FILTER]
+          Match libvirt
+          Name record_modifier
+          Record hostname ${HOSTNAME}
+
+      [FILTER]
+          Match qemu
+          Name record_modifier
+          Record hostname ${HOSTNAME}
+
+      [FILTER]
+          Match kernel
+          Name record_modifier
+          Record hostname ${HOSTNAME}
+
+      [FILTER]
+          Match journal.**
+          Name modify
+          Rename _BOOT_ID BOOT_ID
+          Rename _CAP_EFFECTIVE CAP_EFFECTIVE
+          Rename _CMDLINE CMDLINE
+          Rename _COMM COMM
+          Rename _EXE EXE
+          Rename _GID GID
+          Rename _HOSTNAME HOSTNAME
+          Rename _MACHINE_ID MACHINE_ID
+          Rename _PID PID
+          Rename _SYSTEMD_CGROUP SYSTEMD_CGROUP
+          Rename _SYSTEMD_SLICE SYSTEMD_SLICE
+          Rename _SYSTEMD_UNIT SYSTEMD_UNIT
+          Rename _TRANSPORT TRANSPORT
+          Rename _UID UID
+
+      [OUTPUT]
+          Match **.fluentd**
+          Name null
+
+      [FILTER]
+          Match kube.*
+          Merge_JSON_Log true
+          Name kubernetes
+
+      [OUTPUT]
+          Host ${FLUENTD_HOST}
+          Match *
+          Name forward
+          Port ${FLUENTD_PORT}
+  parsers:
+    template: |
+      [PARSER]
+        Decode_Field_As escaped_utf8 log
+        Format json
+        Name docker
+        Time_Format %Y-%m-%dT%H:%M:%S.%L
+        Time_Keep true
+        Time_Key time
+
   fluentd_exporter:
     log:
       format: "logger:stdout?json=true"
