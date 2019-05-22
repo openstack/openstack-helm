@@ -115,12 +115,7 @@ function manage_pool () {
   TARGET_PG_PER_OSD=$5
   POOL_CRUSH_RULE=$6
   POOL_PROTECTION=$7
-  TOTAL_OSDS=$(ceph --cluster "${CLUSTER}" osd ls | wc -l)
-  if (ceph --cluster "${CLUSTER}" osd crush rule dump "${POOL_CRUSH_RULE}" | awk '/item_name/' | grep -q ssd); then
-    TOTAL_OSDS=$(ceph --cluster "${CLUSTER}" osd tree | grep "ssd" | wc -l)
-  elif (ceph --cluster "${CLUSTER}" osd crush rule dump "${POOL_CRUSH_RULE}" | awk '/item_name/' | grep -q hdd); then
-    TOTAL_OSDS=$(ceph --cluster "${CLUSTER}" osd tree | grep "hdd" | wc -l)
-  fi
+  TOTAL_OSDS={{.Values.conf.pool.target.osd}}
   POOL_PLACEMENT_GROUPS=$(/tmp/pool-calc.py ${POOL_REPLICATION} ${TOTAL_OSDS} ${TOTAL_DATA_PERCENT} ${TARGET_PG_PER_OSD})
   create_pool "${POOL_APPLICATION}" "${POOL_NAME}" "${POOL_REPLICATION}" "${POOL_PLACEMENT_GROUPS}" "${POOL_CRUSH_RULE}" "${POOL_PROTECTION}"
 }
