@@ -46,8 +46,7 @@ examples:
             name: cephfs
           parameters:
             admin_id: admin
-            user_secret_name: "pvc-ceph-cephfs-client-key"
-            admin_secret_name: "pvc-ceph-conf-combined-storageclass"
+            admin_secret_name: "pvc-ceph-cephfs-client-key"
             admin_secret_namespace: ceph
     usage: |
       {{- range $storageclass, $val := .Values.storageclass }}
@@ -77,11 +76,11 @@ examples:
       kind: StorageClass
       metadata:
         name: cephfs
-      provisioner: ceph.com/rbd
+      provisioner: ceph.com/cephfs
       parameters:
         monitors: ceph-mon.<ceph-namespace>.svc.<k8s-domain-name>:6789
         adminId: admin
-        adminSecretName: pvc-ceph-conf-combined-storageclass
+        adminSecretName: pvc-ceph-cephfs-client-key
         adminSecretNamespace: ceph
 */}}
 
