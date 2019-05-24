@@ -67,7 +67,7 @@ spec:
         {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
       initContainers:
 {{ tuple $envAll "backup_storage_init" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
-        {{- if eq .Values.conf.cinder.DEFAULT.backup_driver "cinder.backup.drivers.ceph" }}
+        {{- if (contains "cinder.backup.drivers.ceph" .Values.conf.cinder.DEFAULT.backup_driver) }}
         - name: ceph-keyring-placement
 {{ tuple $envAll "cinder_backup_storage_init" | include "helm-toolkit.snippets.image" | indent 10 }}
           securityContext:
@@ -108,7 +108,7 @@ spec:
                   fieldPath: metadata.namespace
             - name: STORAGE_BACKEND
               value: {{ .Values.conf.cinder.DEFAULT.backup_driver | quote }}
-            {{- if eq .Values.conf.cinder.DEFAULT.backup_driver "cinder.backup.drivers.ceph" }}
+            {{- if (contains "cinder.backup.drivers.ceph" .Values.conf.cinder.DEFAULT.backup_driver) }}
             - name: RBD_POOL_NAME
               value: {{ .Values.conf.cinder.DEFAULT.backup_ceph_pool | quote }}
             - name: RBD_POOL_APP_NAME
@@ -133,7 +133,7 @@ spec:
               mountPath: /tmp/backup-storage-init.sh
               subPath: backup-storage-init.sh
               readOnly: true
-            {{- if eq .Values.conf.cinder.DEFAULT.backup_driver "cinder.backup.drivers.ceph" }}
+            {{- if (contains "cinder.backup.drivers.ceph" .Values.conf.cinder.DEFAULT.backup_driver) }}
             - name: etcceph
               mountPath: /etc/ceph
             {{- if not .Values.backup.external_ceph_rbd.enabled }}
@@ -161,7 +161,7 @@ spec:
           configMap:
             name: cinder-bin
             defaultMode: 0555
-        {{- if eq .Values.conf.cinder.DEFAULT.backup_driver "cinder.backup.drivers.ceph" }}
+        {{- if (contains "cinder.backup.drivers.ceph" .Values.conf.cinder.DEFAULT.backup_driver) }}
         - name: etcceph
           emptyDir: {}
         - name: ceph-etc
