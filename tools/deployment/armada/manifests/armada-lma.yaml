@@ -328,6 +328,81 @@ data:
             master: "-Xms512m -Xmx512m"
         snapshots:
           enabled: true
+      templates:
+        syslog:
+          template: "syslog-*"
+          index_patterns: "syslog-*"
+          settings:
+            number_of_shards: 1
+          mappings:
+            syslog:
+              properties:
+                cluster:
+                  type: keyword
+                app:
+                  type: keyword
+                pid:
+                  type: integer
+                host:
+                  type: keyword
+                log:
+                  type: text
+        oslo_openstack_fluentd:
+          template: "openstack-*"
+          index_patterns: "openstack-*"
+          settings:
+            number_of_shards: 1
+          mappings:
+            oslo_openstack_fluentd:
+              properties:
+                extra:
+                  properties:
+                    project:
+                      type: text
+                      norms: false
+                    version:
+                      type: text
+                      norms: false
+                filename:
+                  type: text
+                  norms: false
+                funcname:
+                  type: text
+                  norms: false
+                message:
+                  type: text
+                  norms: false
+                process_name:
+                  type: keyword
+                  index: false
+        docker_fluentd:
+          template: "logstash-*"
+          index_patterns: "logstash-*"
+          settings:
+            number_of_shards: 1
+          mappings:
+            docker_fluentd:
+              properties:
+                kubernetes:
+                  properties:
+                    container_name:
+                      type: keyword
+                      index: false
+                    docker_id:
+                      type: keyword
+                      index: false
+                    host:
+                      type: keyword
+                      index: false
+                    namespace_name:
+                      type: keyword
+                      index: false
+                    pod_id:
+                      type: keyword
+                      index: false
+                    pod_name:
+                      type: keyword
+                      index: false
   source:
     type: local
     location: ${OSH_INFRA_PATH}
@@ -339,19 +414,17 @@ data:
 schema: armada/Chart/v1
 metadata:
   schema: metadata/Document/v1
-  name: fluent-logging
+  name: fluentbit
 data:
-  chart_name: fluent-logging
-  release: fluent-logging
+  chart_name: fluentbit
+  release: fluentbit
   namespace: osh-infra
   wait:
     timeout: 3600
     labels:
-      release_group: osh-infra-fluent-logging
+      release_group: osh-infra-fluentbit
     resources:
       - type: daemonset
-      - type: deployment
-      - type: job
   test:
     timeout: 600
   install:
@@ -362,10 +435,52 @@ data:
       delete:
         - type: job
           labels:
-            release_group: osh-infra-fluent-logging
+            release_group: osh-infra-fluentbit
         - type: pod
           labels:
-            release_group: osh-infra-fluent-logging
+            release_group: osh-infra-fluentbit
+            component: test
+  values:
+    release_uuid: ${RELEASE_UUID}
+      fluentbit:
+        node_selector_key: openstack-control-plane
+        node_selector_value: enabled
+  source:
+    type: local
+    location: ${OSH_INFRA_PATH}
+    subpath: fluentbit
+    reference: master
+  dependencies:
+    - helm-toolkit
+---
+schema: armada/Chart/v1
+metadata:
+  schema: metadata/Document/v1
+  name: fluentd
+data:
+  chart_name: fluentd
+  release: fluentd
+  namespace: osh-infra
+  wait:
+    timeout: 3600
+    labels:
+      release_group: osh-infra-fluentd
+    resources:
+      - type: deployment
+  test:
+    timeout: 600
+  install:
+    no_hooks: False
+  upgrade:
+    no_hooks: False
+    pre:
+      delete:
+        - type: job
+          labels:
+            release_group: osh-infra-fluentd
+        - type: pod
+          labels:
+            release_group: osh-infra-fluentd
             component: test
   values:
     release_uuid: ${RELEASE_UUID}
@@ -384,9 +499,6 @@ data:
       fluentd:
         node_selector_key: openstack-control-plane
         node_selector_value: enabled
-      fluentbit:
-        node_selector_key: openstack-control-plane
-        node_selector_value: enabled
       prometheus_fluentd_exporter:
         node_selector_key: openstack-control-plane
         node_selector_value: enabled
@@ -396,7 +508,7 @@ data:
   source:
     type: local
     location: ${OSH_INFRA_PATH}
-    subpath: fluent-logging
+    subpath: fluentd
     reference: master
   dependencies:
     - helm-toolkit

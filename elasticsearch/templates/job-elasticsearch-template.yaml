@@ -14,26 +14,26 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if and (.Values.manifests.job_elasticsearch_template) (not (empty .Values.conf.templates)) }}
+{{- if and (.Values.manifests.job_elasticsearch_templates) (not (empty .Values.conf.templates)) }}
 {{- $envAll := . }}
 {{- $esUserSecret := .Values.secrets.elasticsearch.user }}
-{{- $mounts_elasticsearch_template := .Values.pod.mounts.elasticsearch_template.elasticsearch_template }}
-{{- $mounts_elasticsearch_template_init := .Values.pod.mounts.elasticsearch_template.init_container }}
+{{- $mounts_elasticsearch_templates := .Values.pod.mounts.elasticsearch_templates.elasticsearch_templates }}
+{{- $mounts_elasticsearch_templates_init := .Values.pod.mounts.elasticsearch_templates.init_container }}
 
-{{- $serviceAccountName := "fluent-logging-elasticsearch-template" }}
-{{ tuple $envAll "elasticsearch_template" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{- $serviceAccountName := "create-elasticsearch-templates" }}
+{{ tuple $envAll "elasticsearch_templates" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: elasticsearch-template
+  name: create-elasticsearch-templates
   annotations:
     {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
 spec:
   template:
     metadata:
       labels:
-{{ tuple $envAll "fluentd" "elasticsearch-template" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+{{ tuple $envAll "elasticsearch" "create-templates" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
     spec:
 {{ dict "envAll" $envAll "application" "elasticsearch_template" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
       serviceAccountName: {{ $serviceAccountName }}
@@ -41,11 +41,11 @@ spec:
       nodeSelector:
         {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value | quote }}
       initContainers:
-{{ tuple $envAll "elasticsearch_template" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll "elasticsearch_templates" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
-        - name: elasticsearch-template
-{{ tuple $envAll "elasticsearch_template" | include "helm-toolkit.snippets.image" | indent 10 }}
-{{ tuple $envAll $envAll.Values.pod.resources.jobs.elasticsearch_template | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+        - name: create-elasticsearch-templates
+{{ tuple $envAll "elasticsearch_templates" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.jobs.elasticsearch_templates | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
 {{ dict "envAll" $envAll "application" "elasticsearch_template" "container" "elasticsearch_template" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           env:
             - name: ELASTICSEARCH_HOST
@@ -67,27 +67,27 @@ spec:
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
-            - name: fluent-logging-bin
+            - name: elasticsearch-bin
               mountPath: /tmp/create_template.sh
               subPath: create_template.sh
               readOnly: true
             {{ range $template, $fields := .Values.conf.templates }}
-            - name: fluent-logging-etc
+            - name: elasticsearch-templates-etc
               mountPath: /tmp/{{$template}}.json
               subPath: {{$template}}.json
               readOnly: true
             {{ end }}
-{{ if $mounts_elasticsearch_template.volumeMounts }}{{ toYaml $mounts_elasticsearch_template.volumeMounts | indent 12 }}{{ end }}
+{{ if $mounts_elasticsearch_templates.volumeMounts }}{{ toYaml $mounts_elasticsearch_templates.volumeMounts | indent 12 }}{{ end }}
       volumes:
         - name: pod-tmp
           emptyDir: {}
-        - name: fluent-logging-bin
+        - name: elasticsearch-bin
           configMap:
-            name: fluent-logging-bin
+            name: elasticsearch-bin
             defaultMode: 0555
-        - name: fluent-logging-etc
+        - name: elasticsearch-templates-etc
           secret:
-            secretName: fluent-logging-etc
+            secretName: elasticsearch-templates-etc
             defaultMode: 0444
-{{ if $mounts_elasticsearch_template.volumes }}{{ toYaml $mounts_elasticsearch_template.volumes | indent 8 }}{{ end }}
+{{ if $mounts_elasticsearch_templates.volumes }}{{ toYaml $mounts_elasticsearch_templates.volumes | indent 8 }}{{ end }}
 {{- end }}

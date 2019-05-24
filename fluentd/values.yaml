@@ -22,22 +22,12 @@ labels:
   fluentd:
     node_selector_key: openstack-control-plane
     node_selector_value: enabled
-  fluentbit:
-    node_selector_key: openstack-control-plane
-    node_selector_value: enabled
   prometheus_fluentd_exporter:
-    node_selector_key: openstack-control-plane
-    node_selector_value: enabled
-  job:
-    node_selector_key: openstack-control-plane
-    node_selector_value: enabled
-  test:
     node_selector_key: openstack-control-plane
     node_selector_value: enabled
 
 images:
   tags:
-    fluentbit: docker.io/fluent/fluent-bit:0.14.2
     fluentd: docker.io/fluent/fluentd-kubernetes-daemonset:v1.2-debian-elasticsearch
     prometheus_fluentd_exporter: docker.io/bitnami/fluentd-exporter:0.2.0
     dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.3.1
@@ -60,45 +50,19 @@ dependencies:
     common:
       local_image_registry:
         jobs:
-          - fluent-logging-image-repo-sync
+          - fluentd-image-repo-sync
         services:
           - endpoint: node
             service: local_image_registry
   static:
-    elasticsearch_template:
-      services:
-        - endpoint: internal
-          service: elasticsearch
-    fluentbit:
-      jobs:
-        - elasticsearch-template
-      services:
-        - endpoint: internal
-          service: fluentd
     fluentd:
-      jobs:
-        - elasticsearch-template
-      services:
-        - endpoint: internal
-          service: elasticsearch
-    fluentd_with_kafka:
-      services:
-        - endpoint: internal
-          service: elasticsearch
-        - endpoint: public
-          service: kafka
+      services: null
     image_repo_sync:
       services:
         - endpoint: internal
           service: local_image_registry
     prometheus_fluentd_exporter:
       services:
-        - endpoint: internal
-          service: fluentd
-    tests:
-      services:
-        - endpoint: internal
-          service: elasticsearch
         - endpoint: internal
           service: fluentd
 
@@ -436,40 +400,10 @@ conf:
         Time_Format %Y-%m-%dT%H:%M:%S.%L
         Time_Keep true
         Time_Key time
-
   fluentd_exporter:
     log:
       format: "logger:stdout?json=true"
       level: "info"
-  templates:
-    fluent:
-      template: "logstash-*"
-      index_patterns: "logstash-*"
-      settings:
-        number_of_shards: 1
-      mappings:
-        fluent:
-          properties:
-            kubernetes:
-              properties:
-                container_name:
-                  type: keyword
-                  index: false
-                docker_id:
-                  type: keyword
-                  index: false
-                host:
-                  type: keyword
-                  index: false
-                namespace_name:
-                  type: keyword
-                  index: false
-                pod_id:
-                  type: keyword
-                  index: false
-                pod_name:
-                  type: keyword
-                  index: false
 
 endpoints:
   cluster_domain_suffix: cluster.local
@@ -506,21 +440,6 @@ endpoints:
     port:
       http:
         default: 80
-  kafka:
-    namespace: null
-    name: kafka
-    hosts:
-      default: kafka-logging
-      public: kafka
-    host_fqdn_override:
-      default: null
-    path:
-      default: null
-    scheme:
-      default: http
-    port:
-      service:
-        default: 9092
   fluentd:
     namespace: null
     name: fluentd
@@ -577,32 +496,11 @@ network_policy:
 
 pod:
   security_context:
-    daemon:
-      pod:
-        runAsUser: 65534
-      container:
-        fluentbit:
-          runAsUser: 0
-          readOnlyRootFilesystem: true
-    internal:
+    fluentd:
       pod:
         runAsUser: 65534
       container:
         fluentd:
-          allowPrivilegeEscalation: false
-          readOnlyRootFilesystem: true
-    elasticsearch_template:
-      pod:
-        runAsUser: 65534
-      container:
-        elasticsearch_template:
-          allowPrivilegeEscalation: false
-          readOnlyRootFilesystem: true
-    test:
-      pod:
-        runAsUser: 65534
-      container:
-        helm_test:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
     exporter:
@@ -622,12 +520,6 @@ pod:
         default: 10
   lifecycle:
     upgrades:
-      daemonsets:
-        pod_replacement_strategy: RollingUpdate
-        fluentbit:
-          enabled: true
-          min_ready_seconds: 0
-          max_unavailable: 1
       deployments:
         revision_history: 3
         pod_replacement_strategy: RollingUpdate
@@ -644,13 +536,6 @@ pod:
     prometheus_fluentd_exporter: 1
   resources:
     enabled: false
-    fluentbit:
-      limits:
-        memory: '400Mi'
-        cpu: '400m'
-      requests:
-        memory: '100Mi'
-        cpu: '100m'
     fluentd:
       limits:
         memory: '1024Mi'
@@ -665,47 +550,15 @@ pod:
       requests:
         memory: "128Mi"
         cpu: "500m"
-    jobs:
-      image_repo_sync:
-        requests:
-          memory: "128Mi"
-          cpu: "100m"
-        limits:
-          memory: "1024Mi"
-          cpu: "2000m"
-      tests:
-        requests:
-          memory: '128Mi'
-          cpu: '100m'
-        limits:
-          memory: '1024Mi'
-          cpu: '2000m'
-  tolerations:
-    fluentbit:
-      enabled: false
-      tolerations:
-      - key: node-role.kubernetes.io/master
-        operator: Exists
-      - key: node-role.kubernetes.io/node
-        operator: Exists
   mounts:
     fluentd:
       fluentd:
-    fluentbit:
-      fluentbit:
-    fluent_tests:
-      fluent_tests:
-    elasticsearch_template:
-      init_container:
-      elasticsearch_template:
 
 manifests:
   configmap_bin: true
   configmap_etc: true
   deployment_fluentd: true
-  daemonset_fluentbit: true
   job_image_repo_sync: true
-  helm_tests: true
   monitoring:
     prometheus:
       configmap_bin_exporter: true
@@ -715,4 +568,3 @@ manifests:
   network_policy: false
   secret_elasticsearch: true
   service_fluentd: true
-  job_elasticsearch_template: true

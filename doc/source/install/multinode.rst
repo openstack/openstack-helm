@@ -210,10 +210,10 @@ Alternatively, this step can be performed by running the script directly:
 
   ./tools/deployment/multinode/120-elasticsearch.sh
 
-Deploy Fluent-Logging
-^^^^^^^^^^^^^^^^^^^^^
+Deploy Fluentbit
+^^^^^^^^^^^^^^^^
 
-.. literalinclude:: ../../../tools/deployment/multinode/130-fluent-logging.sh
+.. literalinclude:: ../../../tools/deployment/multinode/125-fluentbit.sh
     :language: shell
     :lines: 1,17-
 
@@ -221,4 +221,17 @@ Alternatively, this step can be performed by running the script directly:
 
 .. code-block:: shell
 
-  ./tools/deployment/multinode/130-fluent-logging.sh
+  ./tools/deployment/multinode/125-fluentbit.sh
+
+Deploy Fluentd
+^^^^^^^^^^^^^^
+
+.. literalinclude:: ../../../tools/deployment/multinode/130-fluentd.sh
+    :language: shell
+    :lines: 1,17-
+
+Alternatively, this step can be performed by running the script directly:
+
+.. code-block:: shell
+
+  ./tools/deployment/multinode/130-fluentd.sh
