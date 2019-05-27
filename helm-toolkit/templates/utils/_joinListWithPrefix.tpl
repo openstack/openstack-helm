@@ -16,7 +16,7 @@ limitations under the License.
 
 {{/*
 abstract: |
-  Joins a list of prefixed values into a space seperated string
+  Joins a list of prefixed values into a space separated string
 values: |
   test:
     - foo
