@@ -21,13 +21,14 @@ limitations under the License.
 {{ $fluentd_metrics_path := "api/plugins.json" }}
 {{ $fluentd_metrics_host := printf "http://%s/%s" $fluentd_host $fluentd_metrics_path }}
 
-{{- $serviceAccountName := "prometheus-fluentd-exporter" }}
-{{ tuple $envAll "prometheus_fluentd_exporter" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{- $rcControllerName := printf "%s-%s" $envAll.Release.Name "fluentd-exporter"  }}
+
+{{ tuple $envAll "prometheus_fluentd_exporter" $rcControllerName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: prometheus-fluentd-exporter
+  name: {{ $rcControllerName | quote }}
   labels:
 {{ tuple $envAll "prometheus-fluentd-exporter" "exporter" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 spec:
@@ -42,7 +43,7 @@ spec:
 {{ tuple $envAll "prometheus-fluentd-exporter" "exporter" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
     spec:
 {{ dict "envAll" $envAll "application" "exporter" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
-      serviceAccountName: {{ $serviceAccountName }}
+      serviceAccountName: {{ $rcControllerName | quote }}
       nodeSelector:
         {{ .Values.labels.prometheus_fluentd_exporter.node_selector_key }}: {{ .Values.labels.prometheus_fluentd_exporter.node_selector_value | quote }}
       terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.prometheus_fluentd_exporter.timeout | default "30" }}
@@ -79,6 +80,6 @@ spec:
           emptyDir: {}
         - name: fluentd-exporter-bin
           configMap:
-            name: fluentd-exporter-bin
+            name: {{ printf "%s-%s" $envAll.Release.Name "fluentd-exporter-bin" | quote }}
             defaultMode: 0555
 {{- end }}

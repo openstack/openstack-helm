@@ -20,7 +20,9 @@ set -xe
 make fluentd
 
 if [ ! -d "/var/log/journal" ]; then
-tee /tmp/fluentd.yaml << EOF
+tee /tmp/fluentd-deployment.yaml << EOF
+deployment:
+  type: Deployment
 monitoring:
   prometheus:
     enabled: true
@@ -36,16 +38,24 @@ pod:
           - name: runlog
             mountPath: /run/log
 EOF
-helm upgrade --install fluentd ./fluentd \
-    --namespace=osh-infra \
-    --values=/tmp/fluentd.yaml
 else
-helm upgrade --install fluentd ./fluentd \
-    --namespace=osh-infra
+tee /tmp/fluentd-deployment.yaml << EOF
+deployment:
+  type: Deployment
+monitoring:
+  prometheus:
+    enabled: true
+pod:
+  replicas:
+    fluentd: 1
+EOF
 fi
+helm upgrade --install fluentd-deployment ./fluentd \
+    --namespace=osh-infra \
+    --values=/tmp/fluentd-deployment.yaml
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh osh-infra
 
 #NOTE: Validate Deployment info
-helm status fluentd
+helm status fluentd-deployment

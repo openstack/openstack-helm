@@ -16,30 +16,31 @@ limitations under the License.
 
 {{- if .Values.manifests.deployment_fluentd }}
 {{- $envAll := . }}
-{{- $esUserSecret := .Values.secrets.elasticsearch.user }}
 
 {{- $mounts_fluentd := .Values.pod.mounts.fluentd.fluentd }}
 
-{{- $serviceAccountName := printf "%s-%s" .Release.Name "fluentd" }}
-{{ tuple $envAll "fluentd" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{- $rcControllerName := printf "%s-%s" $envAll.Release.Name "fluentd"  }}
+
+{{ tuple $envAll "fluentd" $rcControllerName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRoleBinding
 metadata:
-  name: {{ $serviceAccountName }}
+  name: {{ $rcControllerName | quote }}
 subjects:
   - kind: ServiceAccount
-    name: {{ $serviceAccountName }}
+    name: {{ $rcControllerName | quote }}
     namespace: {{ .Release.Namespace }}
 roleRef:
   kind: ClusterRole
-  name: {{ $serviceAccountName }}
+  name: {{ $rcControllerName | quote }}
   apiGroup: rbac.authorization.k8s.io
 ---
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: {{ $serviceAccountName }}
+  name: {{ $rcControllerName | quote }}
+rules:
 rules:
   - apiGroups:
       - ""
@@ -51,7 +52,6 @@ rules:
       - replicationcontrollers
       - limitranges
     verbs:
-      - get
       - list
       - watch
   - apiGroups:
@@ -72,20 +72,27 @@ rules:
       - list
       - watch
 ---
+{{- if eq .Values.deployment.type "Deployment" }}
 apiVersion: apps/v1
 kind: Deployment
+{{- else if eq .Values.deployment.type "DaemonSet" }}
+apiVersion: apps/v1
+kind: DaemonSet
+{{- end }}
 metadata:
-  name: fluentd
+  name: {{ $rcControllerName | quote }}
   annotations:
     {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
   labels:
 {{ tuple $envAll "fluentd" "internal" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 spec:
+{{- if eq .Values.deployment.type "Deployment" }}
   replicas: {{ .Values.pod.replicas.fluentd }}
+{{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_deployment" | indent 2 }}
+{{- end }}
   selector:
     matchLabels:
 {{ tuple $envAll "fluentd" "internal" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
-{{ tuple $envAll  | include "helm-toolkit.snippets.kubernetes_upgrades_deployment" | indent 2 }}
   template:
     metadata:
       labels:
@@ -96,9 +103,14 @@ spec:
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
     spec:
 {{ dict "envAll" $envAll "application" "fluentd" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
-      serviceAccountName: {{ $serviceAccountName }}
+      serviceAccountName: {{ $rcControllerName | quote }}
+{{ if and ($envAll.Values.pod.tolerations.fluentd.enabled) (eq .Values.deployment.type "DaemonSet") }}
+{{ tuple $envAll "fluentd" | include "helm-toolkit.snippets.kubernetes_tolerations" | indent 6 }}
+{{ end }}
+{{- if eq .Values.deployment.type "Deployment" }}
       affinity:
 {{ tuple $envAll "fluentd" "internal" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
+{{- end }}
       nodeSelector:
         {{ .Values.labels.fluentd.node_selector_key }}: {{ .Values.labels.fluentd.node_selector_value | quote }}
       terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.fluentd.timeout | default "30" }}
@@ -137,16 +149,24 @@ spec:
             - name: ELASTICSEARCH_USERNAME
               valueFrom:
                 secretKeyRef:
-                  name: {{ $esUserSecret }}
+                  name: {{ printf "%s-%s" $envAll.Release.Name "elasticsearch-user" | quote }}
                   key: ELASTICSEARCH_USERNAME
             - name: ELASTICSEARCH_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ $esUserSecret }}
+                  name: {{ printf "%s-%s" $envAll.Release.Name "elasticsearch-user" | quote }}
                   key: ELASTICSEARCH_PASSWORD
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
+{{- if eq .Values.deployment.type "DaemonSet" }}
+            - name: varlog
+              mountPath: /var/log
+              readOnly: true
+            - name: varlibdockercontainers
+              mountPath: /var/lib/docker/containers
+              readOnly: true
+{{- end }}
             - name: pod-etc-fluentd
               mountPath: /fluentd/etc
             - name: fluentd-etc
@@ -161,15 +181,23 @@ spec:
       volumes:
         - name: pod-tmp
           emptyDir: {}
+{{- if eq .Values.deployment.type "DaemonSet" }}
+        - name: varlog
+          hostPath:
+            path: /var/log
+        - name: varlibdockercontainers
+          hostPath:
+            path: /var/lib/docker/containers
+{{- end }}
         - name: pod-etc-fluentd
           emptyDir: {}
         - name: fluentd-etc
           secret:
-            secretName: fluentd-etc
+            secretName: {{ printf "%s-%s" $envAll.Release.Name "fluentd-etc" | quote }}
             defaultMode: 0444
         - name: fluentd-bin
           configMap:
-            name: fluentd-bin
+            name: {{ printf "%s-%s" $envAll.Release.Name "fluentd-bin" | quote }}
             defaultMode: 0555
 {{- if $mounts_fluentd.volumes }}{{ toYaml $mounts_fluentd.volumes | indent 8 }}{{- end }}
 {{- end }}
