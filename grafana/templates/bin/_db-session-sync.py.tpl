@@ -10,7 +10,6 @@
 
 import os
 import sys
-import ConfigParser
 import logging
 from sqlalchemy import create_engine
 
