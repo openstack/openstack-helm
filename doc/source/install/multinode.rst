@@ -226,7 +226,7 @@ Alternatively, this step can be performed by running the script directly:
 Deploy Fluentd
 ^^^^^^^^^^^^^^
 
-.. literalinclude:: ../../../tools/deployment/multinode/130-fluentd.sh
+.. literalinclude:: ../../../tools/deployment/multinode/135-fluentd-deployment.sh
     :language: shell
     :lines: 1,17-
 
@@ -234,4 +234,4 @@ Alternatively, this step can be performed by running the script directly:
 
 .. code-block:: shell
 
-  ./tools/deployment/multinode/130-fluentd.sh
+  ./tools/deployment/multinode/135-fluentd-deployment.sh

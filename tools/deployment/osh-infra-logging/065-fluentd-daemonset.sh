@@ -1,0 +1,1 @@
+../common/fluentd-daemonset.sh

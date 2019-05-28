@@ -18,6 +18,9 @@
 
 release_group: null
 
+deployment:
+  type: DaemonSet
+
 labels:
   fluentd:
     node_selector_key: openstack-control-plane
@@ -40,10 +43,6 @@ images:
     exclude:
       - dep_check
       - image_repo_sync
-
-secrets:
-  elasticsearch:
-    user: fluentd-elasticsearch-user
 
 dependencies:
   dynamic:
@@ -278,128 +277,6 @@ conf:
         type_name fluent
         user "#{ENV['ELASTICSEARCH_USERNAME']}"
       </match>
-  fluentbit:
-    template: |
-      [SERVICE]
-          Daemon false
-          Flush 30
-          Log_Level info
-          Parsers_File parsers.conf
-
-      [INPUT]
-          Buffer_Chunk_Size 1M
-          Buffer_Max_Size 1M
-          Mem_Buf_Limit 5MB
-          Name tail
-          Path /var/log/kern.log
-          Tag kernel
-
-      [INPUT]
-          Buffer_Chunk_Size 1M
-          Buffer_Max_Size 1M
-          Mem_Buf_Limit 5MB
-          Name tail
-          Parser docker
-          Path /var/log/containers/*.log
-          Tag kube.*
-
-      [INPUT]
-          Buffer_Chunk_Size 1M
-          Buffer_Max_Size 1M
-          Mem_Buf_Limit 5MB
-          Name tail
-          Path /var/log/libvirt/libvirtd.log
-          Tag libvirt
-
-      [INPUT]
-          Buffer_Chunk_Size 1M
-          Buffer_Max_Size 1M
-          Mem_Buf_Limit 5MB
-          Name tail
-          Path /var/log/libvirt/qemu/*.log
-          Tag qemu
-
-      [INPUT]
-          Buffer_Chunk_Size 1M
-          Buffer_Max_Size 1M
-          Mem_Buf_Limit 5MB
-          Name systemd
-          Path ${JOURNAL_PATH}
-          Systemd_Filter _SYSTEMD_UNIT=kubelet.service
-          Tag journal.*
-
-      [INPUT]
-          Buffer_Chunk_Size 1M
-          Buffer_Max_Size 1M
-          Mem_Buf_Limit 5MB
-          Name systemd
-          Path ${JOURNAL_PATH}
-          Systemd_Filter _SYSTEMD_UNIT=docker.service
-          Tag journal.*
-
-      [FILTER]
-          Interval 1s
-          Match **
-          Name throttle
-          Rate 1000
-          Window 300
-
-      [FILTER]
-          Match libvirt
-          Name record_modifier
-          Record hostname ${HOSTNAME}
-
-      [FILTER]
-          Match qemu
-          Name record_modifier
-          Record hostname ${HOSTNAME}
-
-      [FILTER]
-          Match kernel
-          Name record_modifier
-          Record hostname ${HOSTNAME}
-
-      [FILTER]
-          Match journal.**
-          Name modify
-          Rename _BOOT_ID BOOT_ID
-          Rename _CAP_EFFECTIVE CAP_EFFECTIVE
-          Rename _CMDLINE CMDLINE
-          Rename _COMM COMM
-          Rename _EXE EXE
-          Rename _GID GID
-          Rename _HOSTNAME HOSTNAME
-          Rename _MACHINE_ID MACHINE_ID
-          Rename _PID PID
-          Rename _SYSTEMD_CGROUP SYSTEMD_CGROUP
-          Rename _SYSTEMD_SLICE SYSTEMD_SLICE
-          Rename _SYSTEMD_UNIT SYSTEMD_UNIT
-          Rename _TRANSPORT TRANSPORT
-          Rename _UID UID
-
-      [OUTPUT]
-          Match **.fluentd**
-          Name null
-
-      [FILTER]
-          Match kube.*
-          Merge_JSON_Log true
-          Name kubernetes
-
-      [OUTPUT]
-          Host ${FLUENTD_HOST}
-          Match *
-          Name forward
-          Port ${FLUENTD_PORT}
-  parsers:
-    template: |
-      [PARSER]
-        Decode_Field_As escaped_utf8 log
-        Format json
-        Name docker
-        Time_Format %Y-%m-%dT%H:%M:%S.%L
-        Time_Keep true
-        Time_Key time
   fluentd_exporter:
     log:
       format: "logger:stdout?json=true"
@@ -495,6 +372,9 @@ network_policy:
       - {}
 
 pod:
+  tolerations:
+    fluentd:
+      enabled: false
   security_context:
     fluentd:
       pod:
