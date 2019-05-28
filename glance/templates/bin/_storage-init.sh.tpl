@@ -50,7 +50,7 @@ elif [ "x$STORAGE_BACKEND" == "xrbd" ]; then
     ceph osd pool set "$1" size "${RBD_POOL_REPLICATION}"
     ceph osd pool set "$1" crush_rule "${RBD_POOL_CRUSH_RULE}"
   }
-  ensure_pool "${RBD_POOL_NAME}" "${RBD_POOL_CHUNK_SIZE}" "glance-image"
+  ensure_pool "${RBD_POOL_NAME}" "${RBD_POOL_CHUNK_SIZE}" "${RBD_POOL_APP_NAME}"
 
   if USERINFO=$(ceph auth get "client.${RBD_POOL_USER}"); then
     echo "Cephx user client.${RBD_POOL_USER} already exist."
