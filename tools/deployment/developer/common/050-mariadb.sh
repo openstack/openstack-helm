@@ -75,6 +75,9 @@ network_policy:
         - podSelector:
             matchLabels:
               application: mariadb-backup
+        - podSelector:
+            matchLabels:
+              application: prometheus-mysql-exporter
         ports:
         - protocol: TCP
           port: 3306
