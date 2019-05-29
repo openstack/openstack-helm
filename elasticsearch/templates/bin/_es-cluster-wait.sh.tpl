@@ -27,9 +27,9 @@ function check_master_nodes() {
     then
       if [ "$numMasterNodes" -eq 0 ]
       then
-        echo "No Elasticsearch data nodes account for: 0/${expectedMasterNodes}"
+        echo "No Elasticsearch master nodes accounted for: 0/${expectedMasterNodes}"
       else
-        echo "Not all Elasticsearch data nodes accounted for and ready: (${numMasterNodes} / ${expectedMasterNodes})"
+        echo "Not all Elasticsearch master nodes accounted for and ready: (${numMasterNodes} / ${expectedMasterNodes})"
         echo "$currentMasterNodes"
         echo "Sleeping for 10 seconds before next check"
         echo ""
@@ -81,9 +81,9 @@ function check_client_nodes() {
     then
       if [ "$numClientNodes" -eq 0 ]
       then
-        echo "No Elasticsearch data nodes account for: 0/${expectedClientNodes}"
+        echo "No Elasticsearch client nodes accounted for: 0/${expectedClientNodes}"
       else
-        echo "Not all Elasticsearch data nodes accounted for and ready: (${numClientNodes} / ${expectedClientNodes})"
+        echo "Not all Elasticsearch client nodes accounted for and ready: (${numClientNodes} / ${expectedClientNodes})"
         echo "$currentClientNodes"
         echo "Sleeping for 10 seconds before next check"
         echo ""
