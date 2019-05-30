@@ -17,6 +17,8 @@ limitations under the License.
 {{- if .Values.manifests.statefulset_data }}
 {{- $envAll := . }}
 
+{{- $esUserSecret := .Values.secrets.elasticsearch.user }}
+
 {{- $mounts_elasticsearch := .Values.pod.mounts.elasticsearch.elasticsearch }}
 
 {{- $serviceAccountName := printf "%s-%s" .Release.Name "elasticsearch-data" }}
@@ -106,13 +108,7 @@ spec:
 {{ dict "envAll" $envAll "application" "data" "container" "elasticsearch_data" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
             - /tmp/elasticsearch.sh
-            - start
-          lifecycle:
-            preStop:
-              exec:
-                command:
-                  - /tmp/elasticsearch.sh
-                  - stop
+            - start_data_node
           ports:
             - name: transport
               containerPort: {{ tuple "elasticsearch" "internal" "discovery" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
@@ -129,7 +125,19 @@ spec:
             - name: NODE_NAME
               valueFrom:
                 fieldRef:
-                  fieldPath: metadata.name
+                      fieldPath: metadata.name
+            - name: ELASTICSEARCH_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $esUserSecret }}
+                  key: ELASTICSEARCH_USERNAME
+            - name: ELASTICSEARCH_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $esUserSecret }}
+                  key: ELASTICSEARCH_PASSWORD
+            - name: ELASTICSEARCH_ENDPOINT
+              value: {{ tuple "elasticsearch" "internal" "http" . | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" }}
             - name: NODE_MASTER
               value: "false"
             - name: NODE_INGEST
