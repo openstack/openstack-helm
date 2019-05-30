@@ -66,6 +66,7 @@ function start_data_node () {
       sleep 5
     done
     echo "Node ${NODE_NAME} is ready to shutdown"
+    kill -TERM 1
   }
   trap drain_data_node TERM EXIT HUP INT
   wait
