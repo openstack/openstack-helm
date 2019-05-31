@@ -31,10 +31,10 @@ function check_master_nodes() {
       else
         echo "Not all Elasticsearch master nodes accounted for and ready: (${numMasterNodes} / ${expectedMasterNodes})"
         echo "$currentMasterNodes"
-        echo "Sleeping for 10 seconds before next check"
-        echo ""
-        sleep 10
       fi
+      echo "Sleeping for 10 seconds before next check"
+      echo ""
+      sleep 10
     fi
   done
   echo "All Elasticsearch master nodes accounted for and ready: (${numMasterNodes} / ${expectedMasterNodes})"
@@ -58,10 +58,10 @@ function check_data_nodes() {
       else
         echo "Not all Elasticsearch data nodes accounted for and ready: (${numDataNodes} / ${expectedDataNodes})"
         echo "$currentDataNodes"
-        echo "Sleeping for 10 seconds before next check"
-        echo ""
-        sleep 10
       fi
+      echo "Sleeping for 10 seconds before next check"
+      echo ""
+      sleep 10
     fi
   done
   echo "All Elasticsearch data nodes accounted for and ready: (${numDataNodes} / ${expectedDataNodes})"
@@ -85,10 +85,10 @@ function check_client_nodes() {
       else
         echo "Not all Elasticsearch client nodes accounted for and ready: (${numClientNodes} / ${expectedClientNodes})"
         echo "$currentClientNodes"
-        echo "Sleeping for 10 seconds before next check"
-        echo ""
-        sleep 10
       fi
+      echo "Sleeping for 10 seconds before next check"
+      echo ""
+      sleep 10
     fi
   done
   echo "All Elasticsearch client nodes accounted for and ready: (${numClientNodes} / ${expectedClientNodes})"
