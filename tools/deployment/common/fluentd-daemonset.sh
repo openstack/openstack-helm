@@ -48,6 +48,12 @@ conf:
       </source>
 
       <source>
+        bind 0.0.0.0
+        port "#{ENV['FLUENTD_PORT']}"
+        @type forward
+      </source>
+
+      <source>
         <parse>
           time_format %Y-%m-%dT%H:%M:%S.%NZ
           @type json
@@ -58,30 +64,125 @@ conf:
         @type tail
       </source>
 
+      <source>
+        @type tail
+        tag ceph.*
+        path /var/log/ceph/*/*.log
+        read_from_head true
+        <parse>
+          @type none
+        </parse>
+      </source>
+
+      <source>
+        @type tail
+        tag libvirt.*
+        path /var/log/libvirt/**.log
+        read_from_head true
+        <parse>
+          @type none
+        </parse>
+      </source>
+
+      <source>
+        @type tail
+        tag kernel
+        path /var/log/kern.log
+        read_from_head true
+        <parse>
+          @type none
+        </parse>
+      </source>
+
+      <source>
+        @type tail
+        tag auth
+        path /var/log/auth.log
+        read_from_head true
+        <parse>
+          @type none
+        </parse>
+      </source>
+
+      <source>
+        @type systemd
+        tag journal.*
+        path /var/log/journal
+        matches [{ "_SYSTEMD_UNIT": "docker.service" }]
+        read_from_head true
+
+        <entry>
+          fields_strip_underscores true
+          fields_lowercase true
+        </entry>
+      </source>
+
+      <source>
+        @type systemd
+        tag journal.*
+        path /var/log/journal
+        matches [{ "_SYSTEMD_UNIT": "kubelet.service" }]
+        read_from_head true
+
+        <entry>
+          fields_strip_underscores true
+          fields_lowercase true
+        </entry>
+      </source>
+
       <filter kubernetes.**>
         @type kubernetes_metadata
       </filter>
 
-      <source>
-        bind 0.0.0.0
-        port "#{ENV['FLUENTD_PORT']}"
-        @type forward
-      </source>
+      <filter ceph.**>
+        @type record_transformer
+        <record>
+          hostname "#{ENV['NODE_NAME']}"
+          fluentd_pod "#{ENV['POD_NAME']}"
+        </record>
+      </filter>
+
+      <filter libvirt.**>
+        @type record_transformer
+        <record>
+          hostname "#{ENV['NODE_NAME']}"
+          fluentd_pod "#{ENV['POD_NAME']}"
+        </record>
+      </filter>
+
+      <filter kernel>
+        @type record_transformer
+        <record>
+          hostname "#{ENV['NODE_NAME']}"
+          fluentd_pod "#{ENV['POD_NAME']}"
+        </record>
+      </filter>
+
+      <filter auth>
+        @type record_transformer
+        <record>
+          hostname "#{ENV['NODE_NAME']}"
+          fluentd_pod "#{ENV['POD_NAME']}"
+        </record>
+      </filter>
 
       <match fluent.**>
         @type null
       </match>
 
-      <match libvirt>
+      <match libvirt.**>
         <buffer>
-          chunk_limit_size 500K
+          chunk_limit_size 512K
           flush_interval 5s
           flush_thread_count 8
-          queue_limit_length 16
+          queue_limit_length 32
           retry_forever false
           retry_max_interval 30
         </buffer>
         host "#{ENV['ELASTICSEARCH_HOST']}"
+        reload_connections false
+        reconnect_on_error true
+        reload_on_failure true
         include_tag_key true
         logstash_format true
         logstash_prefix libvirt
@@ -91,38 +192,22 @@ conf:
         user "#{ENV['ELASTICSEARCH_USERNAME']}"
       </match>
 
-      <match qemu>
+      <match ceph.**>
         <buffer>
-          chunk_limit_size 500K
+          chunk_limit_size 512K
           flush_interval 5s
           flush_thread_count 8
-          queue_limit_length 16
+          queue_limit_length 32
           retry_forever false
           retry_max_interval 30
         </buffer>
         host "#{ENV['ELASTICSEARCH_HOST']}"
+        reload_connections false
+        reconnect_on_error true
+        reload_on_failure true
         include_tag_key true
         logstash_format true
-        logstash_prefix qemu
-        password "#{ENV['ELASTICSEARCH_PASSWORD']}"
-        port "#{ENV['ELASTICSEARCH_PORT']}"
-        @type elasticsearch
-        user "#{ENV['ELASTICSEARCH_USERNAME']}"
-      </match>
-
-      <match journal.**>
-        <buffer>
-          chunk_limit_size 500K
-          flush_interval 5s
-          flush_thread_count 8
-          queue_limit_length 16
-          retry_forever false
-          retry_max_interval 30
-        </buffer>
-        host "#{ENV['ELASTICSEARCH_HOST']}"
-        include_tag_key true
-        logstash_format true
-        logstash_prefix journal
+        logstash_prefix ceph
         password "#{ENV['ELASTICSEARCH_PASSWORD']}"
         port "#{ENV['ELASTICSEARCH_PORT']}"
         @type elasticsearch
@@ -131,14 +216,17 @@ conf:
 
       <match kernel>
         <buffer>
-          chunk_limit_size 500K
+          chunk_limit_size 512K
           flush_interval 5s
           flush_thread_count 8
-          queue_limit_length 16
+          queue_limit_length 32
           retry_forever false
-          retry_max_interval 30
+          disable_chunk_backup true
         </buffer>
         host "#{ENV['ELASTICSEARCH_HOST']}"
+        reload_connections false
+        reconnect_on_error true
+        reload_on_failure true
         include_tag_key true
         logstash_format true
         logstash_prefix kernel
@@ -148,23 +236,68 @@ conf:
         user "#{ENV['ELASTICSEARCH_USERNAME']}"
       </match>
 
-      <match **>
+      <match auth>
         <buffer>
-          chunk_limit_size 500K
+          chunk_limit_size 512K
           flush_interval 5s
           flush_thread_count 8
-          queue_limit_length 16
+          queue_limit_length 32
           retry_forever false
           retry_max_interval 30
         </buffer>
-        flush_interval 15s
         host "#{ENV['ELASTICSEARCH_HOST']}"
+        reload_connections false
+        reconnect_on_error true
+        reload_on_failure true
+        include_tag_key true
+        logstash_format true
+        logstash_prefix auth
+        password "#{ENV['ELASTICSEARCH_PASSWORD']}"
+        port "#{ENV['ELASTICSEARCH_PORT']}"
+        @type elasticsearch
+        user "#{ENV['ELASTICSEARCH_USERNAME']}"
+      </match>
+
+      <match journal.**>
+        <buffer>
+          chunk_limit_size 512K
+          flush_interval 5s
+          flush_thread_count 8
+          queue_limit_length 32
+          retry_forever false
+          retry_max_interval 30
+        </buffer>
+        host "#{ENV['ELASTICSEARCH_HOST']}"
+        reload_connections false
+        reconnect_on_error true
+        reload_on_failure true
+        include_tag_key true
+        logstash_format true
+        logstash_prefix journal
+        password "#{ENV['ELASTICSEARCH_PASSWORD']}"
+        port "#{ENV['ELASTICSEARCH_PORT']}"
+        @type elasticsearch
+        user "#{ENV['ELASTICSEARCH_USERNAME']}"
+      </match>
+
+      <match **>
+        <buffer>
+          chunk_limit_size 512K
+          flush_interval 5s
+          flush_thread_count 8
+          queue_limit_length 32
+          retry_forever false
+          retry_max_interval 30
+        </buffer>
+        host "#{ENV['ELASTICSEARCH_HOST']}"
+        reload_connections false
+        reconnect_on_error true
+        reload_on_failure true
         include_tag_key true
         logstash_format true
         password "#{ENV['ELASTICSEARCH_PASSWORD']}"
         port "#{ENV['ELASTICSEARCH_PORT']}"
         @type elasticsearch
-        type_name fluent
         user "#{ENV['ELASTICSEARCH_USERNAME']}"
       </match>
 EOF
