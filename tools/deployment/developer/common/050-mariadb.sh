@@ -20,78 +20,10 @@ set -xe
 : ${OSH_INFRA_PATH:="../openstack-helm-infra"}
 make -C ${OSH_INFRA_PATH} mariadb
 
-tee /tmp/mariadb.yaml <<EOF
-manifests:
-  network_policy: true
-network_policy:
-  mariadb:
-    ingress:
-      - from:
-        - podSelector:
-            matchLabels:
-              application: mariadb
-        - podSelector:
-            matchLabels:
-              application: keystone
-        - podSelector:
-            matchLabels:
-              application: heat
-        - podSelector:
-            matchLabels:
-              application: glance
-        - podSelector:
-            matchLabels:
-              application: cinder
-        - podSelector:
-            matchLabels:
-              application: congress
-        - podSelector:
-            matchLabels:
-              application: barbican
-        - podSelector:
-            matchLabels:
-              application: ceilometer
-        - podSelector:
-            matchLabels:
-              application: horizon
-        - podSelector:
-            matchLabels:
-              application: ironic
-        - podSelector:
-            matchLabels:
-              application: magnum
-        - podSelector:
-            matchLabels:
-              application: mistral
-        - podSelector:
-            matchLabels:
-              application: nova
-        - podSelector:
-            matchLabels:
-              application: neutron
-        - podSelector:
-            matchLabels:
-              application: senlin
-        - podSelector:
-            matchLabels:
-              application: mariadb-backup
-        - podSelector:
-            matchLabels:
-              application: prometheus-mysql-exporter
-        ports:
-        - protocol: TCP
-          port: 3306
-        - protocol: TCP
-          port: 4567
-        - protocol: TCP
-          port: 80
-EOF
-
 #NOTE: Deploy command
 : ${OSH_EXTRA_HELM_ARGS:=""}
 helm upgrade --install mariadb ${OSH_INFRA_PATH}/mariadb \
     --namespace=openstack \
-    --values=/tmp/mariadb.yaml \
     --set pod.replicas.server=1 \
     ${OSH_EXTRA_HELM_ARGS} \
     ${OSH_EXTRA_HELM_ARGS_MARIADB}

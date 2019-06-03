@@ -23,7 +23,6 @@ make -C ${OSH_INFRA_PATH} openvswitch
 : ${OSH_EXTRA_HELM_ARGS:=""}
 helm upgrade --install openvswitch ${OSH_INFRA_PATH}/openvswitch \
   --namespace=openstack \
-  --set manifests.network_policy=true \
   ${OSH_EXTRA_HELM_ARGS} \
   ${OSH_EXTRA_HELM_ARGS_OPENVSWITCH}
 

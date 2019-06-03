@@ -26,7 +26,6 @@ if [ "x$(systemd-detect-virt)" == "xnone" ]; then
   helm upgrade --install nova ./nova \
       --namespace=openstack \
       --set conf.ceph.enabled=false \
-      --set manifests.network_policy=true \
       ${OSH_EXTRA_HELM_ARGS} \
       ${OSH_EXTRA_HELM_ARGS_NOVA}
 else
@@ -36,7 +35,6 @@ else
       --set conf.ceph.enabled=false \
       --set conf.nova.libvirt.virt_type=qemu \
       --set conf.nova.libvirt.cpu_mode=none \
-      --set manifests.network_policy=true \
       ${OSH_EXTRA_HELM_ARGS} \
       ${OSH_EXTRA_HELM_ARGS_NOVA}
 fi
@@ -69,7 +67,6 @@ EOF
 helm upgrade --install neutron ./neutron \
     --namespace=openstack \
     --values=/tmp/neutron.yaml \
-    --set manifests.network_policy=true \
     ${OSH_EXTRA_HELM_ARGS} \
     ${OSH_EXTRA_HELM_ARGS_NEUTRON}
 
