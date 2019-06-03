@@ -16,9 +16,9 @@
 set -xe
 
 #NOTE: Lint and package chart
-make fluent-logging
+make fluentbit
 
-tee /tmp/fluent-logging.yaml <<EOF
+tee /tmp/fluentbit.yaml <<EOF
 pod:
   mandatory_access_control:
     type: apparmor
@@ -27,14 +27,14 @@ pod:
 EOF
 
 #NOTE: Deploy command
-helm upgrade --install fluent-logging ./fluent-logging \
+helm upgrade --install fluentbit ./fluentbit \
     --namespace=osh-infra \
-    --values=/tmp/fluent-logging.yaml
+    --values=/tmp/fluentbit.yaml
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh osh-infra
 
 #NOTE: Validate Deployment info
-helm status fluent-logging
+helm status fluentbit
 
-helm test fluent-logging
+helm test fluentbit
