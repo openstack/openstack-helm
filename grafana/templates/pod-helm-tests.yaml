@@ -67,6 +67,32 @@ spec:
           mountPath: /tmp/helm-tests.sh
           subPath: helm-tests.sh
           readOnly: true
+    - name: {{.Release.Name}}-selenium-tests
+{{ tuple $envAll "selenium_tests" | include "helm-toolkit.snippets.image" | indent 6 }}
+{{ tuple $envAll $envAll.Values.pod.resources.jobs.tests | include "helm-toolkit.snippets.kubernetes_resources" | indent 6 }}
+{{ dict "envAll" $envAll "application" "test" "container" "helm_tests" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 6 }}
+      command:
+        - /tmp/selenium-tests.py
+      env:
+        - name: GRAFANA_USER
+          valueFrom:
+            secretKeyRef:
+              name: grafana-admin-creds
+              key: GRAFANA_ADMIN_USERNAME
+        - name: GRAFANA_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: grafana-admin-creds
+              key: GRAFANA_ADMIN_PASSWORD
+        - name: GRAFANA_URI
+          value: {{ tuple "grafana" "public" "grafana" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" }}
+      volumeMounts:
+        - name: pod-tmp
+          mountPath: /tmp
+        - name: grafana-bin
+          mountPath: /tmp/selenium-tests.py
+          subPath: selenium-tests.py
+          readOnly: true
   volumes:
     - name: pod-tmp
       emptyDir: {}
