@@ -21,6 +21,7 @@ images:
     apache_proxy: docker.io/httpd:2.4
     nagios: quay.io/attcomdev/nagios:410fcb08d2586e98e18ced317dab4157eb27456e
     dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.2.1
+    selenium_tests: docker.io/openstackhelm/osh-selenium:latest-ubuntu_xenial
     image_repo_sync: docker.io/docker:17.07.0
   pull_policy: IfNotPresent
   local_registry:
@@ -34,6 +35,9 @@ labels:
     node_selector_key: openstack-control-plane
     node_selector_value: enabled
   job:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  test:
     node_selector_key: openstack-control-plane
     node_selector_value: enabled
 
@@ -52,6 +56,10 @@ dependencies:
           endpoint: internal
     nagios:
       services: null
+    tests:
+      services:
+        - service: nagios
+          endpoint: internal
 
 secrets:
   nagios:
@@ -204,6 +212,8 @@ pod:
           readOnlyRootFilesystem: false
         nagios:
           readOnlyRootFilesystem: false
+        helm_tests:
+          readOnlyRootFilesystem: false
   lifecycle:
     upgrades:
       revision_history: 3
@@ -240,6 +250,13 @@ pod:
         requests:
           memory: "128Mi"
           cpu: "100m"
+      tests:
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
 
 manifests:
   configmap_bin: true
@@ -248,6 +265,7 @@ manifests:
   ingress: true
   job_image_repo_sync: true
   network_policy: false
+  pod_helm_test: true
   secret_nagios: true
   secret_ingress_tls: true
   service: true

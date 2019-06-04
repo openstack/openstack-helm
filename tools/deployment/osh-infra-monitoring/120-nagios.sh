@@ -28,3 +28,5 @@ helm upgrade --install nagios ./nagios \
 
 #NOTE: Validate Deployment info
 helm status nagios
+
+helm test nagios
