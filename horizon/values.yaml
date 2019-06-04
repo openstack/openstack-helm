@@ -23,6 +23,7 @@ images:
     horizon_db_sync: docker.io/openstackhelm/horizon:ocata-ubuntu_xenial
     db_drop: docker.io/openstackhelm/heat:ocata-ubuntu_xenial
     horizon: docker.io/openstackhelm/horizon:ocata-ubuntu_xenial
+    test: docker.io/openstackhelm/osh-selenium:latest-ubuntu_xenial
     dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.3.1
     image_repo_sync: docker.io/docker:17.07.0
   pull_policy: "IfNotPresent"
@@ -39,6 +40,9 @@ labels:
     node_selector_key: openstack-control-plane
     node_selector_value: enabled
   job:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  test:
     node_selector_key: openstack-control-plane
     node_selector_value: enabled
 
@@ -1979,6 +1983,8 @@ dependencies:
           service: oslo_cache
         - endpoint: internal
           service: oslo_db
+        - endpoint: internal
+          service: identity
     db_drop:
       services:
         - endpoint: internal
@@ -1997,6 +2003,10 @@ dependencies:
       services:
         - endpoint: internal
           service: local_image_registry
+    tests:
+      services:
+        - endpoint: internal
+          service: dashboard
 
 pod:
   security_context:
@@ -2029,6 +2039,11 @@ pod:
     horizon:
       init_container: null
       horizon:
+        volumeMounts:
+        volumes:
+    horizon_tests:
+      init_container: null
+      horizon_tests:
         volumeMounts:
         volumes:
   replicas:
@@ -2085,9 +2100,18 @@ pod:
         limits:
           memory: "1024Mi"
           cpu: "2000m"
+      tests:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
 
 # Names of secrets used by bootstrap and environmental checks
 secrets:
+  identity:
+    admin: horizon-keystone-admin
   oslo_db:
     admin: horizon-db-admin
     horizon: horizon-db-user
@@ -2115,6 +2139,14 @@ endpoints:
         node: 5000
   identity:
     name: keystone
+    auth:
+      admin:
+        region_name: RegionOne
+        username: admin
+        password: password
+        project_name: admin
+        user_domain_name: default
+        project_domain_name: default
     hosts:
       default: keystone
       internal: keystone-api
@@ -2215,8 +2247,10 @@ manifests:
   job_db_drop: false
   job_image_repo_sync: true
   pdb: true
+  pod_helm_test: true
   network_policy: false
   secret_db: true
   secret_ingress_tls: true
+  secret_keystone: true
   service_ingress: true
   service: true

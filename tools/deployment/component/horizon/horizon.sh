@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2017 The Openstack-Helm Authors.
+# Copyright 2019 The Openstack-Helm Authors.
 #
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
 #    not use this file except in compliance with the License. You may obtain
@@ -23,8 +23,6 @@ make horizon
 : ${OSH_EXTRA_HELM_ARGS:=""}
 helm upgrade --install horizon ./horizon \
     --namespace=openstack \
-    --set network.node_port.enabled=true \
-    --set network.node_port.port=31000 \
     ${OSH_EXTRA_HELM_ARGS} \
     ${OSH_EXTRA_HELM_ARGS_HORIZON}
 
