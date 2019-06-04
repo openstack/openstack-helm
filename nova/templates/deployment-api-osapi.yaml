@@ -59,8 +59,7 @@ spec:
         - name: nova-osapi
 {{ tuple $envAll "nova_api" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.api | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-          securityContext:
-            allowPrivilegeEscalation: false
+{{ dict "envAll" $envAll "application" "nova" "container" "nova_osapi" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
             - /tmp/nova-api.sh
             - start
@@ -83,6 +82,8 @@ spec:
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
+            - name: pod-var-nova
+              mountPath: /var/lib/nova
             - name: nova-bin
               mountPath: /tmp/nova-api.sh
               subPath: nova-api.sh
@@ -110,6 +111,8 @@ spec:
 {{ if $mounts_nova_api_osapi.volumeMounts }}{{ toYaml $mounts_nova_api_osapi.volumeMounts | indent 12 }}{{ end }}
       volumes:
         - name: pod-tmp
+          emptyDir: {}
+        - name: pod-var-nova
           emptyDir: {}
         - name: nova-bin
           configMap:
