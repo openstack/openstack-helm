@@ -113,4 +113,9 @@ return: |
     secretKeyRef:
       name: {{ $ksUserSecret }}
       key: OS_PASSWORD
+- name: OS_DEFAULT_DOMAIN
+  valueFrom:
+    secretKeyRef:
+      name: {{ $ksUserSecret }}
+      key: OS_DEFAULT_DOMAIN
 {{- end }}

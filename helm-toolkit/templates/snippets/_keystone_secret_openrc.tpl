@@ -27,4 +27,5 @@ OS_PROJECT_NAME: {{ $userContext.project_name | b64enc }}
 OS_USER_DOMAIN_NAME: {{ $userContext.user_domain_name | b64enc }}
 OS_USERNAME: {{ $userContext.username | b64enc }}
 OS_PASSWORD: {{ $userContext.password | b64enc }}
+OS_DEFAULT_DOMAIN: {{ $userContext.default_domain_id | default "default" | b64enc }}
 {{- end }}
