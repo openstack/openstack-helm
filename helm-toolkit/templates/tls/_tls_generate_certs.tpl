@@ -16,7 +16,8 @@ limitations under the License.
 
 {{/*
 abstract: |
-  Produces a certificate from a certificate authority.
+  Produces a certificate from a certificate authority. If the "encode" parameter
+  is true, base64 encode the values for inclusion in a Kubernetes secret.
 values: |
   test:
     hosts:
@@ -46,6 +47,7 @@ return: |
 
 {{- define "helm-toolkit.utils.tls_generate_certs" -}}
 {{- $params := index . "params" -}}
+{{- $encode := index . "encode" | default false -}}
 {{- $local := dict -}}
 
 {{- $_hosts := $params.hosts.names | default list }}
@@ -65,6 +67,17 @@ return: |
 {{- $ca := buildCustomCert ($params.ca.crt | b64enc ) ($params.ca.key | b64enc ) }}
 {{- $expDate := date_in_zone "2006-01-02T15:04:05Z07:00" ( date_modify (printf "+%sh" (mul $params.life 24 |toString)) now ) "UTC" }}
 {{- $rawCert := genSignedCert (first $local.certHosts) ($local.certIps) $local.certHosts (int $params.life) $ca }}
-{{- $certificate := dict "crt" $rawCert.Cert "key" $rawCert.Key "ca" $params.ca.crt "exp" $expDate "" }}
+{{- $certificate := dict -}}
+{{- if $encode -}}
+{{- $_ := b64enc $rawCert.Cert | set $certificate "crt" -}}
+{{- $_ := b64enc $rawCert.Key | set $certificate "key" -}}
+{{- $_ := b64enc $params.ca.crt | set $certificate "ca" -}}
+{{- $_ := b64enc $expDate | set $certificate "exp" -}}
+{{- else -}}
+{{- $_ := set $certificate "crt" $rawCert.Cert -}}
+{{- $_ := set $certificate "key" $rawCert.Key -}}
+{{- $_ := set $certificate "ca" $params.ca.crt -}}
+{{- $_ := set $certificate "exp" $expDate -}}
+{{- end -}}
 {{- $certificate | toYaml }}
 {{- end -}}
