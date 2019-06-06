@@ -59,10 +59,6 @@ endpoints:
 network:
   public: 172.17.0.1/16
   cluster: 172.17.0.1/16
-  port:
-    mon: 6789
-    rgw: 8088
-    mgr: 7000
 deployment:
   storage_secrets: true
   ceph: true
@@ -181,8 +177,6 @@ pod:
     mgr: 1
     rgw: 1
 
-manifests:
-  cronjob_checkPGs: true
 EOF
 
 for CHART in ceph-mon ceph-osd ceph-client ceph-provisioners; do

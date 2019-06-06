@@ -64,8 +64,6 @@ conf:
           type: directory
           location: /var/lib/openstack-helm/ceph/osd/journal-one
 
-manifests:
-  cronjob_checkPGs: true
 EOF
 
 : ${OSH_INFRA_PATH:="../openstack-helm-infra"}
