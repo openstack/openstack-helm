@@ -14,15 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{ define "configmap_etc._nagios_objects" }}
-{{- tuple "contact" $.Values.conf.nagios.contacts | include "nagios.utils.object_definition" }}
-{{- tuple "contactgroup" $.Values.conf.nagios.contactgroups | include "nagios.utils.object_definition" }}
-{{- tuple "host" $.Values.conf.nagios.hosts | include "nagios.utils.object_definition" }}
-{{- tuple "hostgroup" $.Values.conf.nagios.host_groups | include "nagios.utils.object_definition" }}
-{{- tuple "command" $.Values.conf.nagios.commands | include "nagios.utils.object_definition" }}
-{{- tuple "service" $.Values.conf.nagios.services | include "nagios.utils.object_definition" }}
-{{- end }}
-
 {{- if .Values.manifests.configmap_etc }}
 {{- $envAll := . }}
 ---
@@ -32,12 +23,12 @@ metadata:
   name: nagios-etc
 type: Opaque
 data:
-  cgi.cfg: {{ include "nagios.utils.to_nagios_conf" .Values.conf.nagios.cgi | b64enc }}
-  nagios.cfg: {{ include "nagios.utils.to_nagios_conf" .Values.conf.nagios.nagios | b64enc }}
   {{- if not (empty .Values.conf.nagios.query_es_clauses) }}
   query_es_clauses.json: {{ .Values.conf.nagios.query_es_clauses | toJson | b64enc }}
   {{- end }}
-  nagios_objects.cfg: {{ include "configmap_etc._nagios_objects" $ | b64enc }}
+{{- include "helm-toolkit.snippets.values_template_renderer" (dict "envAll" $envAll "template" .Values.conf.nagios.nagios.template "key" "nagios.cfg" "format" "Secret") | indent 2 }}
+{{- include "helm-toolkit.snippets.values_template_renderer" (dict "envAll" $envAll "template" .Values.conf.nagios.cgi.template "key" "cgi.cfg" "format" "Secret") | indent 2 }}
+{{- include "helm-toolkit.snippets.values_template_renderer" (dict "envAll" $envAll "template" .Values.conf.nagios.objects.template "key" "nagios_objects.cfg" "format" "Secret") | indent 2 }}
 #NOTE(portdirect): this must be last, to work round helm ~2.7 bug.
 {{- include "helm-toolkit.snippets.values_template_renderer" (dict "envAll" $envAll "template" .Values.conf.httpd "key" "httpd.conf" "format" "Secret") | indent 2 }}
 {{- end }}
