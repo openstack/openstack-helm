@@ -15,6 +15,8 @@ limitations under the License.
 */}}
 
 {{/*
+Note: This function is deprecated and will be removed in the future.
+
 abstract: |
   Renders kubernetes resource limits for pods
 values: |
@@ -28,6 +30,7 @@ values: |
         limits:
           memory: "1024Mi"
           cpu: "2000m"
+          hugepages-1Gi: "1Gi"
 
 usage: |
   {{ include "helm-toolkit.snippets.kubernetes_resources" ( tuple . .Values.pod.resources.api ) }}
@@ -36,6 +39,7 @@ return: |
     limits:
       cpu: "2000m"
       memory: "1024Mi"
+      hugepages-1Gi: "1Gi"
     requests:
       cpu: "100m"
       memory: "128Mi
@@ -46,23 +50,6 @@ return: |
 {{- $component := index . 1 -}}
 {{- if $envAll.Values.pod.resources.enabled -}}
 resources:
-  {{- if or $component.limits.cpu $component.limits.memory }}
-  limits:
-    {{- if $component.limits.cpu }}
-    cpu: {{ $component.limits.cpu | quote }}
-    {{- end }}
-    {{- if $component.limits.memory }}
-    memory: {{ $component.limits.memory | quote }}
-    {{- end }}
-  {{- end }}
-  {{- if or $component.requests.cpu $component.requests.memory }}
-  requests:
-    {{- if $component.requests.cpu }}
-    cpu: {{ $component.requests.cpu | quote }}
-    {{- end }}
-    {{- if $component.requests.memory }}
-    memory: {{ $component.requests.memory | quote }}
-    {{- end }}
-  {{- end }}
+{{ toYaml $component | trim | indent 2 }}
 {{- end -}}
 {{- end -}}
