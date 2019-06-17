@@ -20,6 +20,7 @@ set -ex
 COMMAND="${@:-start}"
 
 function start () {
+  rm -fv /tmp/prometheus-nginx.socket
   exec /usr/bin/dumb-init \
       /nginx-ingress-controller \
       {{- if eq .Values.deployment.mode "namespace" }}
