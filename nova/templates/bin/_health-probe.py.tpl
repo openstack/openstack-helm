@@ -125,7 +125,7 @@ def configured_port_in_conf():
         with open(sys.argv[2]) as conf_file:
             for line in conf_file:
                 if "transport_url" in line:
-                    rabbitmq_port = int(line.split(':', 3)[3].split('/')[0])
+                    rabbitmq_port = int(line.split(':', 3)[3].split(',')[0].split('/')[0])
                 elif "connection =" in line:
                     service = line.split(':', 3)[3].split('/')[1].rstrip('\n')
                     if service == "nova":
