@@ -115,6 +115,24 @@ def sriov_readiness_check():
     sys.exit(return_status)
 
 
+def get_rabbitmq_ports():
+    "Get RabbitMQ ports"
+
+    rabbitmq_ports = set()
+
+    try:
+        transport_url = oslo_messaging.TransportURL.parse(cfg.CONF)
+        for host in transport_url.hosts:
+            rabbitmq_ports.add(host.port)
+    except Exception as ex:
+        message = getattr(ex, "message", str(ex))
+        sys.stderr.write("Health probe caught exception reading "
+                         "RabbitMQ ports: %s" % message)
+        sys.exit(0)  # return success
+
+    return rabbitmq_ports
+
+
 def tcp_socket_state_check(agentq):
     """Check if the tcp socket to rabbitmq is in Established state"""
     rabbit_sock_count = 0
@@ -127,6 +145,8 @@ def tcp_socket_state_check(agentq):
         proc = "neutron-openvsw"
     else:
         proc = "neutron-metadat"
+
+    rabbitmq_ports = get_rabbitmq_ports()
 
     for pr in psutil.pids():
         try:
@@ -144,7 +164,7 @@ def tcp_socket_state_check(agentq):
                         status = con.status
                     except IndexError:
                         continue
-                    if port == rabbit_port and status == tcp_established:
+                    if port in rabbitmq_ports and status == tcp_established:
                         rabbit_sock_count = rabbit_sock_count + 1
         except psutil.NoSuchProcess:
             continue

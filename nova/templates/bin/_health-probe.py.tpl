@@ -86,7 +86,7 @@ def check_service_status(transport):
         sys.exit(0)
 
 
-def tcp_socket_status(process, port):
+def tcp_socket_status(process, ports):
     """Check the tcp socket status on a process"""
     sock_count = 0
     parentId = 0
@@ -106,7 +106,7 @@ def tcp_socket_status(process, port):
                         status = con.status
                     except IndexError:
                         continue
-                    if rport == port and status == tcp_established:
+                    if rport in ports and status == tcp_established:
                         sock_count = sock_count + 1
         except psutil.NoSuchProcess:
             continue
@@ -119,22 +119,33 @@ def tcp_socket_status(process, port):
 
 def configured_port_in_conf():
     """Get the rabbitmq/Database port configured in config file"""
-    rabbitmq_port = 0
-    database_port = 0
+
+    rabbit_ports = set()
+    database_ports = set()
+
+    try:
+        transport_url = oslo_messaging.TransportURL.parse(cfg.CONF)
+        for host in transport_url.hosts:
+            rabbit_ports.add(host.port)
+    except Exception as ex:
+        message = getattr(ex, "message", str(ex))
+        sys.stderr.write("Health probe caught exception reading "
+                         "RabbitMQ ports: %s" % message)
+        sys.exit(0)  # return success
+
     try:
         with open(sys.argv[2]) as conf_file:
             for line in conf_file:
-                if "transport_url" in line:
-                    rabbitmq_port = int(line.split(':', 3)[3].split(',')[0].split('/')[0])
-                elif "connection =" in line:
+                if "connection =" in line:
                     service = line.split(':', 3)[3].split('/')[1].rstrip('\n')
                     if service == "nova":
-                        database_port = int(
-                            line.split(':', 3)[3].split('/')[0])
-            return rabbitmq_port, database_port
+                        database_ports.add(
+                            int(line.split(':', 3)[3].split('/')[0]))
     except IOError:
         sys.stderr.write("Nova Config file not present")
         sys.exit(1)
+
+    return rabbit_ports, database_ports
 
 
 def test_tcp_socket(service):
@@ -145,11 +156,11 @@ def test_tcp_socket(service):
         "consoleauth": "nova-consoleaut",
         "scheduler": "nova-scheduler"
     }
-    r_port, d_port = configured_port_in_conf()
+    r_ports, d_ports = configured_port_in_conf()
 
     if service in dict_services:
         proc = dict_services[service]
-        if r_port != 0 and tcp_socket_status(proc, r_port) == 0:
+        if r_ports and tcp_socket_status(proc, r_ports) == 0:
             sys.stderr.write("RabbitMQ socket not established")
             # Do not kill the pod if RabbitMQ is not reachable/down
             if not cfg.CONF.liveness_probe:
@@ -157,7 +168,7 @@ def test_tcp_socket(service):
 
         # let's do the db check
         if service != "compute":
-            if d_port != 0 and tcp_socket_status(proc, d_port) == 0:
+            if d_ports and tcp_socket_status(proc, d_ports) == 0:
                 sys.stderr.write("Database socket not established")
                 # Do not kill the pod if database is not reachable/down
                 # there could be no socket as well as typically connections
