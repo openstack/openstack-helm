@@ -16,10 +16,6 @@ limitations under the License.
 
 {{- if .Values.manifests.statefulset }}
 {{- $envAll := . }}
-{{- if empty $envAll.Values.endpoints.oslo_messaging.hosts.discovery }}
-{{- $service_discovery_name := .Release.Name | trunc 12 }}
-{{- $_ := set $envAll.Values.endpoints.oslo_messaging.hosts "discovery" ( printf "%s-%s-%s" $service_discovery_name "dsv" ( $service_discovery_name | sha256sum | trunc 6 )) }}
-{{- end }}
 
 {{- $rcControllerName := printf "%s-%s" $envAll.Release.Name "rabbitmq"  }}
 {{ tuple $envAll "rabbitmq" $rcControllerName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
@@ -65,7 +61,7 @@ metadata:
   labels:
 {{ tuple $envAll "rabbitmq" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 spec:
-  serviceName: {{ tuple "oslo_messaging" "discovery" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
+  serviceName: {{ tuple "oslo_messaging" "internal" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
   replicas: {{ $envAll.Values.pod.replicas.server }}
   podManagementPolicy: "Parallel"
   selector:
@@ -178,13 +174,11 @@ spec:
             - name: RABBITMQ_USE_LONGNAME
               value: "true"
             - name: RABBITMQ_NODENAME
-              value: "rabbit@$(MY_POD_NAME).{{ tuple "oslo_messaging" "discovery" . | include "helm-toolkit.endpoints.hostname_fqdn_endpoint_lookup" }}"
+              value: "rabbit@$(MY_POD_NAME).{{ tuple "oslo_messaging" "internal" . | include "helm-toolkit.endpoints.hostname_fqdn_endpoint_lookup" }}"
             - name: K8S_SERVICE_NAME
-              value: {{ tuple "oslo_messaging" "discovery" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
-            # NOTE(portdirect): We use the discovery fqdn here, as we resolve
-            # nodes via their pods hostname/nodename
+              value: {{ tuple "oslo_messaging" "internal" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
             - name: K8S_HOSTNAME_SUFFIX
-              value: ".{{ tuple "oslo_messaging" "discovery" . | include "helm-toolkit.endpoints.hostname_fqdn_endpoint_lookup" }}"
+              value: ".{{ tuple "oslo_messaging" "internal" . | include "helm-toolkit.endpoints.hostname_fqdn_endpoint_lookup" }}"
             - name: RABBITMQ_ERLANG_COOKIE
               value: "{{ $envAll.Values.endpoints.oslo_messaging.auth.erlang_cookie }}"
             - name: PORT_HTTP
