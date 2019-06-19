@@ -64,8 +64,7 @@ spec:
         - name: neutron-l3-agent
 {{ tuple $envAll "neutron_l3" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.agent.l3 | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-          securityContext:
-            privileged: true
+{{ dict "envAll" $envAll "application" "neutron" "container" "neutron_l3_agent" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           readinessProbe:
             exec:
               command:
@@ -100,6 +99,8 @@ spec:
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
+            - name: pod-var-neutron
+              mountPath: /var/lib/neutron
             - name: neutron-bin
               mountPath: /tmp/neutron-l3-agent.sh
               subPath: neutron-l3-agent.sh
@@ -170,6 +171,8 @@ spec:
 {{ if $mounts_neutron_l3_agent.volumeMounts }}{{ toYaml $mounts_neutron_l3_agent.volumeMounts | indent 12 }}{{ end }}
       volumes:
         - name: pod-tmp
+          emptyDir: {}
+        - name: pod-var-neutron
           emptyDir: {}
         - name: neutron-bin
           configMap:

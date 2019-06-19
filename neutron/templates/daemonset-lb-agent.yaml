@@ -62,11 +62,7 @@ spec:
 {{ tuple $envAll "pod_dependency" $mounts_neutron_lb_agent_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
         - name: neutron-lb-agent-kernel-modules
 {{ tuple $envAll "neutron_linuxbridge_agent" | include "helm-toolkit.snippets.image" | indent 10 }}
-          securityContext:
-            capabilities:
-              add:
-                - SYS_MODULE
-            runAsUser: 0
+{{ dict "envAll" $envAll "application" "neutron" "container" "neutron_lb_agent_kernel_modules" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
             - /tmp/neutron-linuxbridge-agent-init-modules.sh
           volumeMounts:
@@ -80,9 +76,7 @@ spec:
         - name: neutron-lb-agent-init
 {{ tuple $envAll "neutron_linuxbridge_agent" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.agent.lb | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-          securityContext:
-            privileged: true
-            runAsUser: 0
+{{ dict "envAll" $envAll "application" "neutron" "container" "neutron_lb_agent_init" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
             - /tmp/neutron-linuxbridge-agent-init.sh
           volumeMounts:
@@ -138,8 +132,7 @@ spec:
         - name: neutron-lb-agent
 {{ tuple $envAll "neutron_linuxbridge_agent" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.agent.lb | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-          securityContext:
-            privileged: true
+{{ dict "envAll" $envAll "application" "neutron" "container" "neutron_lb_agent" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
             - /tmp/neutron-linuxbridge-agent.sh
           readinessProbe:
