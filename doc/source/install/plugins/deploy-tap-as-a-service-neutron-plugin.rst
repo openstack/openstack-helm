@@ -250,7 +250,7 @@ Neutron and Horizon LOCI images
 
 
 Deploy TaaS Plugin
-====================
+==================
 
 Override images in Neutron chart
 ---------------------------------
@@ -299,7 +299,7 @@ to configure the ``service_provider`` endpoint used by Neutron TaaS plugin:
 
 
 Deploy TaaS Dashboard Plugin
-==============================
+============================
 
 TaaS dashboard plugin can be deployed simply by using custom LOCI images having
 TaaS Dashboard code installed (as explained in above sections), i.e. override
@@ -314,7 +314,7 @@ the :code:`images` section parameters for Horizon charts:
 
 
 Set log level for TaaS
-=======================
+======================
 
 Default log level for Neutron TaaS is :code:`INFO`. For changing it, override
 following parameter:

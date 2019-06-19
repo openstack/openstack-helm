@@ -98,7 +98,7 @@ Ceph status shows that the monitor running on ``voyager3`` is now in quorum.
       pgs:     182 active+clean
 
 Case: A host machine where ceph-mon is running is down
-========================================================
+======================================================
 
 This is for the case when a host machine (where ceph-mon is running) is down.
 
