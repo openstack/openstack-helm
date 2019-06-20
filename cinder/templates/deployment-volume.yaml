@@ -54,7 +54,7 @@ spec:
         {{ .Values.labels.volume.node_selector_key }}: {{ .Values.labels.volume.node_selector_value }}
       initContainers:
 {{ tuple $envAll "volume" $mounts_cinder_volume_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
-        {{- if include "cinder.utils.is_ceph_volume_configured" $envAll }}
+        {{- if include "cinder.utils.has_ceph_backend" $envAll }}
         - name: ceph-keyring-placement
 {{ tuple $envAll "cinder_volume" | include "helm-toolkit.snippets.image" | indent 10 }}
           securityContext:
@@ -153,7 +153,7 @@ spec:
               mountPath: /etc/cinder/conf/backends.conf
               subPath: backends.conf
               readOnly: true
-            {{- if include "cinder.utils.is_ceph_volume_configured" $envAll }}
+            {{- if include "cinder.utils.has_ceph_backend" $envAll }}
             - name: etcceph
               mountPath: /etc/ceph
             - name: ceph-etc
@@ -206,7 +206,7 @@ spec:
           secret:
             secretName: cinder-etc
             defaultMode: 0444
-        {{- if include "cinder.utils.is_ceph_volume_configured" $envAll }}
+        {{- if include "cinder.utils.has_ceph_backend" $envAll }}
         - name: etcceph
           emptyDir: {}
         - name: pod-shared
