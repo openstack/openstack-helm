@@ -89,7 +89,9 @@ spec:
             {{ end }}
         {{ end }}
       containers:
-        - name: cinder-storage-init
+        {{- range $name, $backend := .Values.conf.backends }}
+          {{- if kindIs "map" $backend }}
+        - name: cinder-storage-init-{{$name}}
 {{ tuple $envAll "cinder_storage_init" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.jobs.storage_init | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           env:
@@ -97,23 +99,23 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
-            {{- if include "cinder.utils.has_ceph_backend" $envAll }}
+            {{- if include "cinder.utils.is_ceph_backend" $backend }}
             - name: STORAGE_BACKEND
-              value: {{ index (index .Values.conf.backends (include "cinder.utils.ceph_volume_section_name" $envAll)) "volume_driver" | quote }}
+              value: {{ $backend.volume_driver | quote }}
             - name: RBD_POOL_NAME
-              value: {{ index (index .Values.conf.backends (include "cinder.utils.ceph_volume_section_name" $envAll)) "rbd_pool" | quote }}
+              value: {{ $backend.rbd_pool | quote }}
             - name: RBD_POOL_APP_NAME
-              value: {{ .Values.conf.software.rbd.rbd_pool_app_name | quote }}
+              value: {{ (index $envAll.Values.conf.ceph.pools $backend.rbd_pool).app_name | quote }}
             - name: RBD_POOL_USER
-              value: {{ index (index .Values.conf.backends (include "cinder.utils.ceph_volume_section_name" $envAll)) "rbd_user" | quote }}
+              value: {{ $backend.rbd_user | quote }}
             - name: RBD_POOL_CRUSH_RULE
-              value: {{ .Values.conf.ceph.pools.volume.crush_rule | quote }}
+              value: {{ (index $envAll.Values.conf.ceph.pools $backend.rbd_pool).crush_rule | quote }}
             - name: RBD_POOL_REPLICATION
-              value: {{ .Values.conf.ceph.pools.volume.replication | quote }}
+              value: {{ (index $envAll.Values.conf.ceph.pools $backend.rbd_pool).replication | quote }}
             - name: RBD_POOL_CHUNK_SIZE
-              value: {{ .Values.conf.ceph.pools.volume.chunk_size | quote }}
+              value: {{ (index $envAll.Values.conf.ceph.pools $backend.rbd_pool).chunk_size | quote }}
             - name: RBD_POOL_SECRET
-              value: {{ .Values.secrets.rbd.volume | quote }}
+              value: {{ $envAll.Values.secrets.rbd.volume | quote }}
             {{- end }}
           command:
             - /tmp/storage-init.sh
@@ -124,20 +126,22 @@ spec:
               mountPath: /tmp/storage-init.sh
               subPath: storage-init.sh
               readOnly: true
-            {{- if include "cinder.utils.has_ceph_backend" $envAll }}
+            {{- if include "cinder.utils.is_ceph_backend" $backend }}
             - name: etcceph
               mountPath: /etc/ceph
             - name: ceph-etc
               mountPath: /etc/ceph/ceph.conf
               subPath: ceph.conf
               readOnly: true
-            {{- if empty .Values.conf.ceph.admin_keyring }}
+            {{- if empty $envAll.Values.conf.ceph.admin_keyring }}
             - name: ceph-keyring
               mountPath: /tmp/client-keyring
               subPath: key
               readOnly: true
             {{- end }}
             {{- end }}
+        {{- end }}
+      {{- end }}
       volumes:
         - name: pod-tmp
           emptyDir: {}

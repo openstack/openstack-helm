@@ -54,8 +54,9 @@ spec:
         {{ .Values.labels.volume.node_selector_key }}: {{ .Values.labels.volume.node_selector_value }}
       initContainers:
 {{ tuple $envAll "volume" $mounts_cinder_volume_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
-        {{- if include "cinder.utils.has_ceph_backend" $envAll }}
-        - name: ceph-keyring-placement
+        {{- range $name := rest (splitList "," (include "cinder.utils.ceph_backend_list" $envAll)) }}
+          {{- $backend := index $envAll.Values.conf.backends $name }}
+        - name: ceph-keyring-placement-{{$name}}
 {{ tuple $envAll "cinder_volume" | include "helm-toolkit.snippets.image" | indent 10 }}
           securityContext:
             runAsUser: 0
@@ -63,7 +64,7 @@ spec:
             - /tmp/ceph-keyring.sh
           env:
             - name: RBD_USER
-              value: {{ index (index .Values.conf.backends (include "cinder.utils.ceph_volume_section_name" $envAll)) "rbd_user" | quote }}
+              value: {{ $backend.rbd_user | quote }}
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
@@ -77,7 +78,7 @@ spec:
               mountPath: /tmp/client-keyring
               subPath: key
               readOnly: true
-        {{ end }}
+        {{- end }}
         {{- if eq ( split "://" .Values.conf.cinder.coordination.backend_url )._0 "file" }}
         - name: ceph-coordination-volume-perms
 {{ tuple $envAll "cinder_volume" | include "helm-toolkit.snippets.image" | indent 10 }}
