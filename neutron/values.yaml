@@ -34,6 +34,7 @@ images:
     neutron_dhcp: docker.io/openstackhelm/neutron:ocata-ubuntu_xenial
     neutron_metadata: docker.io/openstackhelm/neutron:ocata-ubuntu_xenial
     neutron_l3: docker.io/openstackhelm/neutron:ocata-ubuntu_xenial
+    neutron_l2gw: docker.io/openstackhelm/neutron:ocata-ubuntu_xenial
     neutron_openvswitch_agent: docker.io/openstackhelm/neutron:ocata-ubuntu_xenial
     neutron_linuxbridge_agent: docker.io/openstackhelm/neutron:ocata-ubuntu_xenial
     neutron_sriov_agent: docker.io/openstackhelm/neutron:ocata-18.04-sriov
@@ -56,6 +57,9 @@ labels:
       node_selector_key: openstack-control-plane
       node_selector_value: enabled
     metadata:
+      node_selector_key: openstack-control-plane
+      node_selector_value: enabled
+    l2gw:
       node_selector_key: openstack-control-plane
       node_selector_value: enabled
   job:
@@ -134,6 +138,7 @@ dependencies:
             service: local_image_registry
     targeted:
       sriov: {}
+      l2gateway: {}
       openvswitch:
         dhcp:
           pod:
@@ -382,6 +387,11 @@ pod:
       neutron_sriov_agent:
         volumeMounts:
         volumes:
+    neutron_l2gw_agent:
+      init_container: null
+      neutron_l2gw_agent:
+        volumeMounts:
+        volumes:
     neutron_tests:
       init_container: null
       neutron_tests:
@@ -481,6 +491,13 @@ pod:
           memory: "1024Mi"
           cpu: "2000m"
       sriov:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      l2gw:
         requests:
           memory: "128Mi"
           cpu: "100m"
@@ -1989,6 +2006,7 @@ manifests:
   daemonset_metadata_agent: true
   daemonset_ovs_agent: true
   daemonset_sriov_agent: true
+  daemonset_l2gw_agent: false
   deployment_server: true
   ingress_server: true
   job_bootstrap: true
