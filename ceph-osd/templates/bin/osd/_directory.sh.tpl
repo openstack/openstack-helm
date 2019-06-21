@@ -100,6 +100,7 @@ for OSD_ID in $(ls /var/lib/ceph/osd | sed 's/.*-//'); do
     chown -R ceph. ${OSD_PATH};
   fi
 
+  crush_location
   echo "${CLUSTER}-${OSD_ID}: /usr/bin/ceph-osd --cluster ${CLUSTER} -f -i ${OSD_ID} --osd-journal ${OSD_JOURNAL} -k ${OSD_KEYRING}" | tee -a /etc/forego/"${CLUSTER}"/Procfile
 done
 
