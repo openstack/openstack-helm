@@ -80,6 +80,10 @@ EOF
 
 configure_resolvconf
 
+# Prepare tmpfs for etcd
+sudo mkdir -p /data
+sudo mount -t tmpfs -o size=512m tmpfs /data
+
 # Install minikube and kubectl
 URL="https://storage.googleapis.com"
 sudo -E curl -sSLo /usr/local/bin/minikube \
