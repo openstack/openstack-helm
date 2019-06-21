@@ -40,7 +40,7 @@ ceph --cluster "${CLUSTER}" -v
 
 # Env. variables matching the pattern "<module>_" will be
 # found and parsed for config-key settings by
-#  ceph config-key set mgr/<module>/<key> <value>
+#  ceph config set mgr mgr/<module>/<key> <value>
 MODULES_TO_DISABLE=`ceph mgr dump | python -c "import json, sys; print ' '.join(json.load(sys.stdin)['modules'])"`
 
 for module in ${ENABLED_MODULES}; do
@@ -54,7 +54,7 @@ for module in ${ENABLED_MODULES}; do
         option=${option/${module}_/}
         key=`echo $option | cut -d= -f1`
         value=`echo $option | cut -d= -f2`
-        ceph --cluster "${CLUSTER}" config-key set mgr/$module/$key $value
+        ceph --cluster "${CLUSTER}" config set mgr mgr/$module/$key $value
     done
     ceph --cluster "${CLUSTER}" mgr module enable ${module} --force
 done
