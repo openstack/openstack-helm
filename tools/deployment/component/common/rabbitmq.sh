@@ -16,17 +16,19 @@
 
 set -xe
 
+#NOTE: Get the over-rides to use
+export HELM_CHART_ROOT_PATH="${HELM_CHART_ROOT_PATH:="${OSH_INFRA_PATH:="../openstack-helm-infra"}"}"
+: ${OSH_EXTRA_HELM_ARGS_RABBITMQ:="$(./tools/deployment/common/get-values-overrides.sh rabbitmq)"}
+
 #NOTE: Lint and package chart
-: ${OSH_INFRA_PATH:="../openstack-helm-infra"}
-make -C ${OSH_INFRA_PATH} rabbitmq
+make -C ${HELM_CHART_ROOT_PATH} rabbitmq
 
 #NOTE: Deploy command
-: ${OSH_EXTRA_HELM_ARGS:=""}
-helm upgrade --install rabbitmq ${OSH_INFRA_PATH}/rabbitmq \
+helm upgrade --install rabbitmq ${HELM_CHART_ROOT_PATH}/rabbitmq \
     --namespace=openstack \
     --set volume.enabled=false \
     --set pod.replicas.server=1 \
-    ${OSH_EXTRA_HELM_ARGS} \
+    ${OSH_EXTRA_HELM_ARGS:=} \
     ${OSH_EXTRA_HELM_ARGS_RABBITMQ}
 
 #NOTE: Wait for deploy

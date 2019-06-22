@@ -16,18 +16,21 @@
 
 set -xe
 
+#NOTE: Get the over-rides to use
+export HELM_CHART_ROOT_PATH="${HELM_CHART_ROOT_PATH:="${OSH_INFRA_PATH:="../openstack-helm-infra"}"}"
+: ${OSH_EXTRA_HELM_ARGS_MARIADB:="$(./tools/deployment/common/get-values-overrides.sh mariadb)"}
+
 #NOTE: Lint and package chart
-: ${OSH_INFRA_PATH:="../openstack-helm-infra"}
-make -C ${OSH_INFRA_PATH} mariadb
+make -C ${HELM_CHART_ROOT_PATH} mariadb
 
 #NOTE: Deploy command
 : ${OSH_EXTRA_HELM_ARGS:=""}
-helm upgrade --install mariadb ${OSH_INFRA_PATH}/mariadb \
+helm upgrade --install mariadb ${HELM_CHART_ROOT_PATH}/mariadb \
     --namespace=openstack \
     --set volume.use_local_path_for_single_pod_cluster.enabled=true \
     --set volume.enabled=false \
     --set pod.replicas.server=1 \
-    ${OSH_EXTRA_HELM_ARGS} \
+    ${OSH_EXTRA_HELM_ARGS:=} \
     ${OSH_EXTRA_HELM_ARGS_MARIADB}
 
 #NOTE: Wait for deploy

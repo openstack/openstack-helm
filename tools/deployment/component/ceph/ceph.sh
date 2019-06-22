@@ -17,14 +17,12 @@
 set -xe
 
 #NOTE: Lint and package chart
-: ${OSH_INFRA_PATH:="../openstack-helm-infra"}
+export HELM_CHART_ROOT_PATH="${HELM_CHART_ROOT_PATH:="${OSH_INFRA_PATH:="../openstack-helm-infra"}"}"
 for CHART in ceph-mon ceph-osd ceph-client ceph-provisioners; do
-  make -C ${OSH_INFRA_PATH} "${CHART}"
+  make -C ${HELM_CHART_ROOT_PATH} "${CHART}"
 done
 
 #NOTE: Deploy command
-
-: ${OSH_EXTRA_HELM_ARGS:=""}
 [ -s /tmp/ceph-fs-uuid.txt ] || uuidgen > /tmp/ceph-fs-uuid.txt
 CEPH_FS_ID="$(cat /tmp/ceph-fs-uuid.txt)"
 #NOTE(portdirect): to use RBD devices with Ubuntu kernels < 4.5 this
@@ -188,11 +186,14 @@ manifests:
 EOF
 
 for CHART in ceph-mon ceph-osd ceph-client ceph-provisioners; do
-  helm upgrade --install ${CHART} ${OSH_INFRA_PATH}/${CHART} \
+  #NOTE: Get the over-rides to use
+  : ${OSH_EXTRA_HELM_ARGS_CEPH:="$(./tools/deployment/common/get-values-overrides.sh ${CHART})"}
+
+  helm upgrade --install ${CHART} ${HELM_CHART_ROOT_PATH}/${CHART} \
     --namespace=ceph \
     --values=/tmp/ceph.yaml \
-    ${OSH_EXTRA_HELM_ARGS} \
-    ${OSH_EXTRA_HELM_ARGS_CEPH_DEPLOY}
+    ${OSH_EXTRA_HELM_ARGS:=} \
+    ${OSH_EXTRA_HELM_ARGS_CEPH}
 
   #NOTE: Wait for deploy
   ./tools/deployment/common/wait-for-pods.sh ceph

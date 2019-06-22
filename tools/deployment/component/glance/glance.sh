@@ -16,6 +16,9 @@
 
 set -xe
 
+#NOTE: Get the over-rides to use
+: ${OSH_EXTRA_HELM_ARGS_GLANCE:="$(./tools/deployment/common/get-values-overrides.sh glance)"}
+
 #NOTE: Lint and package chart
 make glance
 
@@ -45,8 +48,7 @@ fi
 helm upgrade --install glance ./glance \
   --namespace=openstack \
   --values=/tmp/glance.yaml \
-  ${OSH_EXTRA_HELM_ARGS} \
-  ${OSH_VALUES_OVERRIDES_HELM_ARGS:=} \
+  ${OSH_EXTRA_HELM_ARGS:=} \
   ${OSH_EXTRA_HELM_ARGS_GLANCE}
 
 #NOTE: Wait for deploy

@@ -16,14 +16,16 @@
 
 set -xe
 
+#NOTE: Get the over-rides to use
+: ${OSH_EXTRA_HELM_ARGS_HORIZON:="$(./tools/deployment/common/get-values-overrides.sh horizon)"}
+
 #NOTE: Lint and package chart
 make horizon
 
 #NOTE: Deploy command
-: ${OSH_EXTRA_HELM_ARGS:=""}
 helm upgrade --install horizon ./horizon \
     --namespace=openstack \
-    ${OSH_EXTRA_HELM_ARGS} \
+    ${OSH_EXTRA_HELM_ARGS:=} \
     ${OSH_EXTRA_HELM_ARGS_HORIZON}
 
 #NOTE: Wait for deploy

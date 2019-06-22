@@ -16,15 +16,18 @@
 
 set -xe
 
+#NOTE: Get the over-rides to use
+export HELM_CHART_ROOT_PATH="${HELM_CHART_ROOT_PATH:="${OSH_INFRA_PATH:="../openstack-helm-infra"}"}"
+: ${OSH_EXTRA_HELM_ARGS_MARIADB:="$(./tools/deployment/common/get-values-overrides.sh memcached)"}
+
 #NOTE: Lint and package chart
-: ${OSH_INFRA_PATH:="../openstack-helm-infra"}
-make -C ${OSH_INFRA_PATH} memcached
+make -C ${HELM_CHART_ROOT_PATH} memcached
 
 #NOTE: Deploy command
 : ${OSH_EXTRA_HELM_ARGS:=""}
-helm upgrade --install memcached ${OSH_INFRA_PATH}/memcached \
+helm upgrade --install memcached ${HELM_CHART_ROOT_PATH}/memcached \
     --namespace=openstack \
-    ${OSH_EXTRA_HELM_ARGS} \
+    ${OSH_EXTRA_HELM_ARGS:=} \
     ${OSH_EXTRA_HELM_ARGS_MEMCACHED}
 
 #NOTE: Wait for deploy

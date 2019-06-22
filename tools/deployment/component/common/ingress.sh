@@ -16,10 +16,12 @@
 
 set -xe
 
+#NOTE: Get the over-rides to use
+export HELM_CHART_ROOT_PATH="${HELM_CHART_ROOT_PATH:="${OSH_INFRA_PATH:="../openstack-helm-infra"}"}"
+: ${OSH_EXTRA_HELM_ARGS_INGRESS:="$(./tools/deployment/common/get-values-overrides.sh ingress)"}
+
 #NOTE: Lint and package chart
-: ${OSH_INFRA_PATH:="../openstack-helm-infra"}
-: ${OSH_EXTRA_HELM_ARGS:=""}
-make -C ${OSH_INFRA_PATH} ingress
+make -C ${HELM_CHART_ROOT_PATH} ingress
 
 #NOTE: Deploy command
 tee /tmp/ingress-kube-system.yaml << EOF
@@ -29,11 +31,11 @@ deployment:
 network:
   host_namespace: true
 EOF
-helm upgrade --install ingress-kube-system ${OSH_INFRA_PATH}/ingress \
+helm upgrade --install ingress-kube-system ${HELM_CHART_ROOT_PATH}/ingress \
   --namespace=kube-system \
   --values=/tmp/ingress-kube-system.yaml \
-  ${OSH_EXTRA_HELM_ARGS} \
-  ${OSH_VALUES_OVERRIDES_HELM_ARGS:=} \
+  ${OSH_EXTRA_HELM_ARGS:=} \
+  ${OSH_EXTRA_HELM_ARGS_INGRESS} \
   ${OSH_EXTRA_HELM_ARGS_INGRESS_KUBE_SYSTEM}
 
 #NOTE: Wait for deploy
@@ -45,8 +47,8 @@ helm status ingress-kube-system
 #NOTE: Deploy namespace ingress
 helm upgrade --install ingress-openstack ${OSH_INFRA_PATH}/ingress \
   --namespace=openstack \
-  ${OSH_EXTRA_HELM_ARGS} \
-  ${OSH_VALUES_OVERRIDES_HELM_ARGS:=} \
+  ${OSH_EXTRA_HELM_ARGS:=} \
+  ${OSH_EXTRA_HELM_ARGS_INGRESS} \
   ${OSH_EXTRA_HELM_ARGS_INGRESS_OPENSTACK}
 
 #NOTE: Wait for deploy

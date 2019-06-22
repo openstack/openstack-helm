@@ -16,12 +16,14 @@
 
 set -xe
 
+#NOTE: Get the over-rides to use
+export HELM_CHART_ROOT_PATH="${HELM_CHART_ROOT_PATH:="${OSH_INFRA_PATH:="../openstack-helm-infra"}"}"
+: ${OSH_EXTRA_HELM_ARGS_CEPH_NS_ACTIVATE:="$(./tools/deployment/common/get-values-overrides.sh ceph-provisioners)"}
+
 #NOTE: Lint and package chart
-: ${OSH_INFRA_PATH:="../openstack-helm-infra"}
-make -C ${OSH_INFRA_PATH} ceph-provisioners
+make -C ${HELM_CHART_ROOT_PATH} ceph-provisioners
 
 #NOTE: Deploy command
-: ${OSH_EXTRA_HELM_ARGS:=""}
 tee /tmp/ceph-openstack-config.yaml <<EOF
 endpoints:
   identity:
@@ -46,10 +48,10 @@ conf:
   rgw_ks:
     enabled: true
 EOF
-helm upgrade --install ceph-openstack-config ${OSH_INFRA_PATH}/ceph-provisioners \
+helm upgrade --install ceph-openstack-config ${HELM_CHART_ROOT_PATH}/ceph-provisioners \
   --namespace=openstack \
   --values=/tmp/ceph-openstack-config.yaml \
-  ${OSH_EXTRA_HELM_ARGS} \
+  ${OSH_EXTRA_HELM_ARGS:=} \
   ${OSH_EXTRA_HELM_ARGS_CEPH_NS_ACTIVATE}
 
 #NOTE: Wait for deploy

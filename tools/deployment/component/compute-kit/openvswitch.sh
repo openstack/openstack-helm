@@ -15,16 +15,17 @@
 #    under the License.
 set -xe
 
+#NOTE: Get the over-rides to use
+export HELM_CHART_ROOT_PATH="${HELM_CHART_ROOT_PATH:="${OSH_INFRA_PATH:="../openstack-helm-infra"}"}"
+: ${OSH_EXTRA_HELM_ARGS_LIBVIRT:="$(./tools/deployment/common/get-values-overrides.sh openvswitch)"}
+
 #NOTE: Lint and package chart
-: ${OSH_INFRA_PATH:="../openstack-helm-infra"}
-make -C ${OSH_INFRA_PATH} openvswitch
+make -C ${HELM_CHART_ROOT_PATH} openvswitch
 
 #NOTE: Deploy command
-: ${OSH_EXTRA_HELM_ARGS:=""}
-helm upgrade --install openvswitch ${OSH_INFRA_PATH}/openvswitch \
+helm upgrade --install openvswitch ${HELM_CHART_ROOT_PATH}/openvswitch \
   --namespace=openstack \
-  ${OSH_EXTRA_HELM_ARGS} \
-  ${OSH_VALUES_OVERRIDES_HELM_ARGS:=} \
+  ${OSH_EXTRA_HELM_ARGS:=} \
   ${OSH_EXTRA_HELM_ARGS_OPENVSWITCH}
 
 #NOTE: Wait for deploy

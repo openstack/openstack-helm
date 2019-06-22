@@ -15,11 +15,13 @@
 #    under the License.
 set -xe
 
+#NOTE: Get the over-rides to use
+: ${OSH_EXTRA_HELM_ARGS_CINDER:="$(./tools/deployment/common/get-values-overrides.sh cinder)"}
+
 #NOTE: Lint and package chart
 make cinder
 
 #NOTE: Deploy command
-: ${OSH_EXTRA_HELM_ARGS:=""}
 tee /tmp/cinder.yaml <<EOF
 conf:
   ceph:
@@ -36,8 +38,7 @@ EOF
 helm upgrade --install cinder ./cinder \
   --namespace=openstack \
   --values=/tmp/cinder.yaml \
-  ${OSH_EXTRA_HELM_ARGS} \
-  ${OSH_VALUES_OVERRIDES_HELM_ARGS:=} \
+  ${OSH_EXTRA_HELM_ARGS:=} \
   ${OSH_EXTRA_HELM_ARGS_CINDER}
 
 #NOTE: Wait for deploy
