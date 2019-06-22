@@ -78,7 +78,7 @@ spec:
               subPath: key
               readOnly: true
         {{ end }}
-        {{- if include "cinder.utils.is_ceph_volume_configured" $envAll }}
+        {{- if include "cinder.utils.has_ceph_backend" $envAll }}
         - name: ceph-keyring-placement
 {{ tuple $envAll "cinder_backup" | include "helm-toolkit.snippets.image" | indent 10 }}
           securityContext:
@@ -162,7 +162,7 @@ spec:
               subPath: {{ base .Values.conf.cinder.DEFAULT.log_config_append }}
               readOnly: true
             {{- end }}
-            {{ if or (contains "cinder.backup.drivers.ceph" .Values.conf.cinder.DEFAULT.backup_driver) (include "cinder.utils.is_ceph_volume_configured" $envAll) }}
+            {{ if or (contains "cinder.backup.drivers.ceph" .Values.conf.cinder.DEFAULT.backup_driver) (include "cinder.utils.has_ceph_backend" $envAll) }}
             - name: etcceph
               mountPath: /etc/ceph
             {{- if not .Values.backup.external_ceph_rbd.enabled }}
@@ -227,7 +227,7 @@ spec:
           configMap:
             name: cinder-bin
             defaultMode: 0555
-        {{ if or (contains "cinder.backup.drivers.ceph" .Values.conf.cinder.DEFAULT.backup_driver) (include "cinder.utils.is_ceph_volume_configured" $envAll) }}
+        {{ if or (contains "cinder.backup.drivers.ceph" .Values.conf.cinder.DEFAULT.backup_driver) (include "cinder.utils.has_ceph_backend" $envAll) }}
         - name: etcceph
           emptyDir: {}
         - name: ceph-etc
@@ -240,7 +240,7 @@ spec:
           secret:
             secretName: {{ .Values.secrets.rbd.backup | quote }}
         {{ end }}
-        {{- if include "cinder.utils.is_ceph_volume_configured" $envAll }}
+        {{- if include "cinder.utils.has_ceph_backend" $envAll }}
         - name: ceph-keyring
           secret:
             secretName: {{ .Values.secrets.rbd.volume | quote }}

@@ -65,7 +65,7 @@ spec:
         {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
       initContainers:
 {{ tuple $envAll "storage_init" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
-        {{- if include "cinder.utils.is_ceph_volume_configured" $envAll }}
+        {{- if include "cinder.utils.has_ceph_backend" $envAll }}
         - name: ceph-keyring-placement
 {{ tuple $envAll "cinder_storage_init" | include "helm-toolkit.snippets.image" | indent 10 }}
           securityContext:
@@ -97,7 +97,7 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
-            {{- if include "cinder.utils.is_ceph_volume_configured" $envAll }}
+            {{- if include "cinder.utils.has_ceph_backend" $envAll }}
             - name: STORAGE_BACKEND
               value: {{ index (index .Values.conf.backends (include "cinder.utils.ceph_volume_section_name" $envAll)) "volume_driver" | quote }}
             - name: RBD_POOL_NAME
@@ -124,7 +124,7 @@ spec:
               mountPath: /tmp/storage-init.sh
               subPath: storage-init.sh
               readOnly: true
-            {{- if include "cinder.utils.is_ceph_volume_configured" $envAll }}
+            {{- if include "cinder.utils.has_ceph_backend" $envAll }}
             - name: etcceph
               mountPath: /etc/ceph
             - name: ceph-etc
@@ -145,7 +145,7 @@ spec:
           configMap:
             name: cinder-bin
             defaultMode: 0555
-        {{- if include "cinder.utils.is_ceph_volume_configured" $envAll }}
+        {{- if include "cinder.utils.has_ceph_backend" $envAll }}
         - name: etcceph
           emptyDir: {}
         - name: ceph-etc
