@@ -64,11 +64,16 @@ spec:
 EOF
 
   # waiting for pvc to get create
-  sleep 30
-  if ! kubectl get pvc -n $pvc_namespace $pvc_name|grep Bound; then
-    echo "Storageclass is available but can't create PersistentVolumeClaim."
-    exit 1
-  fi
+  end=$(($(date +%s) + 120))
+  while ! kubectl get pvc -n $pvc_namespace $pvc_name|grep Bound; do
+    if [ "$(date +%s)" -gt $end ]; then
+      kubectl get pvc -n $pvc_namespace $pvc_name
+      kubectl get pv
+      echo "Storageclass is available but can't create PersistentVolumeClaim."
+      exit 1
+    fi
+    sleep 10
+  done
 
   tee <<EOF | kubectl apply --namespace $pvc_namespace -f -
 ---
