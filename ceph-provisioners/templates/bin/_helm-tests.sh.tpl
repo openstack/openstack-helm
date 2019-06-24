@@ -40,6 +40,7 @@ function storageclass_validation()
   pod_name=$2
   pvc_name=$3
   storageclass=$4
+
   echo "--> Starting validation"
 
   # storageclass check
@@ -64,9 +65,9 @@ spec:
 EOF
 
   # waiting for pvc to get create
-  end=$(($(date +%s) + 120))
-  while ! kubectl get pvc -n $pvc_namespace $pvc_name|grep Bound; do
-    if [ "$(date +%s)" -gt $end ]; then
+  end=$(($(date +%s) + TEST_POD_WAIT_TIMEOUT))
+  while ! kubectl get pvc -n $pvc_namespace $pvc_name | grep Bound; do
+    if [ "$(date +%s)" -gt "${end}" ]; then
       kubectl get pvc -n $pvc_namespace $pvc_name
       kubectl get pv
       echo "Storageclass is available but can't create PersistentVolumeClaim."
@@ -101,12 +102,16 @@ spec:
       claimName: $pvc_name
 EOF
 
-  # waiting for pod to get create
-  sleep 60
-  if ! kubectl get pods -n $pvc_namespace $pod_name; then
-    echo "Can not create POD with rbd storage class $storageclass based PersistentVolumeClaim."
-    echo 1
-  fi
+  # waiting for pod to get completed
+  end=$(($(date +%s) + TEST_POD_WAIT_TIMEOUT))
+  while ! kubectl get pods -n $pvc_namespace $pod_name | grep -i Completed; do
+    if [ "$(date +%s)" -gt "${end}" ]; then
+      kubectl get pods -n $pvc_namespace $pod_name
+      echo "Cannot create POD with rbd storage class $storageclass based PersistentVolumeClaim."
+      exit 1
+    fi
+    sleep 10
+  done
 
 }
 
