@@ -48,7 +48,7 @@ limitations under the License.
               {{/* apply overrides */}}
               {{- $override_conf_copy := $host_data.conf }}
               {{- $root_conf_copy := omit $context.Values.conf "overrides" }}
-              {{- $merged_dict := mergeOverwrite $root_conf_copy $override_conf_copy }}
+              {{- $merged_dict := merge $override_conf_copy $root_conf_copy }}
               {{- $root_conf_copy2 := dict "conf" $merged_dict }}
               {{- $context_values := omit $context.Values "conf" }}
               {{- $root_conf_copy3 := mergeOverwrite $context_values $root_conf_copy2 }}
@@ -87,7 +87,7 @@ limitations under the License.
               {{/* apply overrides */}}
               {{- $override_conf_copy := $label_data.conf }}
               {{- $root_conf_copy := omit $context.Values.conf "overrides" }}
-              {{- $merged_dict := mergeOverwrite $root_conf_copy $override_conf_copy }}
+              {{- $merged_dict := merge $override_conf_copy $root_conf_copy }}
               {{- $root_conf_copy2 := dict "conf" $merged_dict }}
               {{- $context_values := omit $context.Values "conf" }}
               {{- $root_conf_copy3 := mergeOverwrite $context_values $root_conf_copy2 }}
