@@ -31,6 +31,16 @@ if [[ ! -e ${ADMIN_KEYRING} ]]; then
    exit 1
 fi
 
+function wait_for_inactive_pgs () {
+  echo "#### Start: Checking for inactive pgs ####"
+
+  # Loop until all pgs are active
+  while [[ `ceph --cluster ${CLUSTER} pg ls | tail -n +2 | grep -v "active+"` ]]
+  do
+    sleep 3
+  done
+}
+
 function create_crushrule () {
   CRUSH_NAME=$1
   CRUSH_RULE=$2
@@ -151,3 +161,5 @@ manage_pool {{ .application }} {{ .name }} {{ .replication }} {{ .percent_total_
 {{- if .Values.conf.pool.crush.tunables }}
 ceph --cluster "${CLUSTER}" osd crush tunables {{ .Values.conf.pool.crush.tunables }}
 {{- end }}
+
+wait_for_inactive_pgs
