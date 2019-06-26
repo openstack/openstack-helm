@@ -28,6 +28,8 @@ values: |
         - 127.0.0.1
         - 192.168.0.1
     life: 3
+    # Use ca.crt and ca.key to build a customized ca, if they are provided.
+    # Use hosts.names[0] and life to auto-generate a ca, if ca is not provided.
     ca:
       crt: |
         <CA CRT>
@@ -64,19 +66,30 @@ return: |
 {{- $_ := set $local "certIps" $_ips }}
 {{- end }}
 
+{{- if hasKey $params "ca" }}
+{{- if and (hasKey $params.ca "crt") (hasKey $params.ca "key") }}
 {{- $ca := buildCustomCert ($params.ca.crt | b64enc ) ($params.ca.key | b64enc ) }}
+{{- $_ := set $local "ca" $ca }}
+{{- end }}
+{{- else }}
+{{- $ca := genCA (first $local.certHosts) (int $params.life) }}
+{{- $_ := set $local "ca" $ca }}
+{{- end }}
+
 {{- $expDate := date_in_zone "2006-01-02T15:04:05Z07:00" ( date_modify (printf "+%sh" (mul $params.life 24 |toString)) now ) "UTC" }}
-{{- $rawCert := genSignedCert (first $local.certHosts) ($local.certIps) $local.certHosts (int $params.life) $ca }}
+{{- $rawCert := genSignedCert (first $local.certHosts) ($local.certIps) ($local.certHosts) (int $params.life) $local.ca }}
 {{- $certificate := dict -}}
 {{- if $encode -}}
 {{- $_ := b64enc $rawCert.Cert | set $certificate "crt" -}}
 {{- $_ := b64enc $rawCert.Key | set $certificate "key" -}}
-{{- $_ := b64enc $params.ca.crt | set $certificate "ca" -}}
+{{- $_ := b64enc $local.ca.Cert | set $certificate "ca" -}}
+{{- $_ := b64enc $local.ca.Key | set $certificate "caKey" -}}
 {{- $_ := b64enc $expDate | set $certificate "exp" -}}
 {{- else -}}
 {{- $_ := set $certificate "crt" $rawCert.Cert -}}
 {{- $_ := set $certificate "key" $rawCert.Key -}}
-{{- $_ := set $certificate "ca" $params.ca.crt -}}
+{{- $_ := set $certificate "ca" $local.ca.Cert -}}
+{{- $_ := set $certificate "caKey" $local.ca.Key -}}
 {{- $_ := set $certificate "exp" $expDate -}}
 {{- end -}}
 {{- $certificate | toYaml }}
