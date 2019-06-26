@@ -42,11 +42,9 @@ openstack stack create --wait \
   -t ./tools/gate/files/heat-subnet-pool-deployment.yaml \
   heat-subnet-pool-deployment
 
-IMAGE_NAME=$(openstack image show -f value -c name \
-  $(openstack image list -f csv | awk -F ',' '{ print $2 "," $1 }' | \
-  grep "^\"Cirros" | head -1 | awk -F ',' '{ print $2 }' | tr -d '"'))
 FLAVOR_ID=$(openstack flavor show m1.tiny -f value -c id)
-IMAGE_ID=$(openstack image show "${IMAGE_NAME}" -f value -c id)
+IMAGE_ID=$(openstack image list -f value -c Name -c ID | \
+  grep " Cirros " | head -1 | cut -f 1 -d ' ')
 NETWORK_ID=$(openstack network show public -f value -c id)
 
 if [ "x$(systemd-detect-virt)" == "xnone" ]; then
