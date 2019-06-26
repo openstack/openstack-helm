@@ -73,15 +73,18 @@ template:
 
 ::
 
-    +glance_api_servers = {{ tuple "image" "internal" "api" . | include "helm-toolkit.endpoint_type_lookup_addr" }}
+    {{- if empty .Values.conf.cinder.DEFAULT.glance_api_servers -}}
+    {{- $_ := tuple "image" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup"| set .Values.conf.cinder.DEFAULT "glance_api_servers" -}}
+    {{- end -}}
 
-As an example, this line uses the ``endpoint_type_lookup_addr`` macro in
-the ``helm-toolkit`` chart (since it is used by all charts). Note that
+
+As an example, this line uses the ``endpoints.keystone_endpoint_uri_lookup``
+macro in the ``helm-toolkit`` chart (since it is used by all charts). Note that
 there is a second convention here. All ``{{ define }}`` macros in charts
 should be pre-fixed with the chart that is defining them. This allows
 developers to easily identify the source of a Helm macro and also avoid
 namespace collisions. In the example above, the macro
-``endpoint_type_lookup_addr`` is defined in the ``helm-toolkit`` chart.
+``endpoints.keystone_endpoint_uri_lookup`` is defined in the ``helm-toolkit`` chart.
 This macro is passing three parameters (aided by the ``tuple`` method
 built into the go/sprig templating library used by Helm):
 
