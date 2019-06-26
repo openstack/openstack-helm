@@ -12,8 +12,13 @@
 
 - name: "creating directory for helm release status"
   file:
-    path: "{{ logs_dir }}/helm"
+    path: "{{ logs_dir }}/helm/{{ directory }}"
     state: directory
+  loop_control:
+    loop_var: directory
+  with_items:
+    - values
+    - releases
 
 - name: "retrieve all deployed charts"
   shell: |-
@@ -27,7 +32,8 @@
 - name: "Gather get release status for helm charts"
   shell: |-
           set -e
-          helm status {{ helm_released }}  >> {{ logs_dir }}/helm/{{ helm_release }}.txt
+          helm status {{ helm_released }}  >> {{ logs_dir }}/helm/releases/{{ helm_release }}.txt
+          helm get values {{ helm_released }}  >> {{ logs_dir }}/helm/values/{{ helm_release }}.yaml
   args:
     executable: /bin/bash
   ignore_errors: True
