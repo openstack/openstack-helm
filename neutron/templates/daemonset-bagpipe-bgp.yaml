@@ -1,0 +1,175 @@
+{{/*
+Copyright 2019 The Openstack-Helm Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- define "neutron.bagpipe_bgp.daemonset" }}
+{{- $daemonset := index . 0 }}
+{{- $configMapName := index . 1 }}
+{{- $serviceAccountName := index . 2 }}
+{{- $envAll := index . 3 }}
+{{- with $envAll }}
+
+{{- $mounts_neutron_bagpipe_bgp := .Values.pod.mounts.bagpipe_bgp.bagpipe_bgp }}
+{{- $mounts_neutron_bagpipe_bgp_init := .Values.pod.mounts.bagpipe_bgp.init_container }}
+
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: bagpipe-bgp
+  annotations:
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+  labels:
+{{ tuple $envAll "neutron" "bagpipe-bgp" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  selector:
+    matchLabels:
+{{ tuple $envAll "neutron" "bagpipe-bgp" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
+{{ tuple $envAll "bagpipe_bgp" | include "helm-toolkit.snippets.kubernetes_upgrades_daemonset" | indent 2 }}
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "neutron" "bagpipe-bgp" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+{{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
+        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
+    spec:
+{{ dict "envAll" $envAll "application" "neutron_bagpipe_bgp" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
+      serviceAccountName: {{ $serviceAccountName }}
+      nodeSelector:
+        {{ .Values.labels.bagpipe_bgp.node_selector_key }}: {{ .Values.labels.bagpipe_bgp.node_selector_value }}
+      dnsPolicy: ClusterFirstWithHostNet
+      hostNetwork: true
+      {{- if or ( gt .Capabilities.KubeVersion.Major "1" ) ( ge .Capabilities.KubeVersion.Minor "10" ) }}
+      shareProcessNamespace: true
+      {{- else }}
+      hostPID: true
+      {{- end }}
+      initContainers:
+{{ tuple $envAll "pod_dependency" $mounts_neutron_bagpipe_bgp_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+        - name: neutron-bagpipe-bgp-init
+{{ tuple $envAll "neutron_bagpipe_bgp" | include "helm-toolkit.snippets.image" | indent 10 }}
+          securityContext:
+            privileged: true
+            runAsUser: 0
+          command:
+            - /tmp/neutron-bagpipe-bgp-init.sh
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: neutron-bin
+              mountPath: /tmp/neutron-bagpipe-bgp-init.sh
+              subPath: neutron-bagpipe-bgp-init.sh
+              readOnly: true
+            - name: run
+              mountPath: /run
+      containers:
+        - name: neutron-bagpipe-bgp
+{{ tuple $envAll "neutron_bagpipe_bgp" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.agent.bagpipe_bgp | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "neutron_bagpipe_bgp" "container" "neutron_bagpipe_bgp" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          readinessProbe:
+            tcpSocket:
+              port: {{ tuple "network" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+          livenessProbe:
+            tcpSocket:
+              port: {{ tuple "network" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+            initialDelaySeconds: 60
+          command:
+            - /tmp/neutron-bagpipe-bgp.sh
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: pod-var-neutron
+              mountPath: /var/lib/neutron
+            - name: neutron-bin
+              mountPath: /tmp/neutron-bagpipe-bgp.sh
+              subPath: neutron-bagpipe-bgp.sh
+              readOnly: true
+            - name: neutron-bin
+              mountPath: /tmp/health-probe.py
+              subPath: health-probe.py
+              readOnly: true
+            - name: neutron-etc
+              mountPath: /tmp/auto_bridge_add
+              subPath: auto_bridge_add
+              readOnly: true
+            - name: neutron-etc
+              mountPath: /etc/bagpipe-bgp/bgp.conf
+              subPath: bagpipe_bgp.conf
+              readOnly: true
+            - name: neutron-etc
+              # NOTE (Portdirect): We mount here to override Kollas
+              # custom sudoers file when using Kolla images, this
+              # location will also work fine for other images.
+              mountPath: /etc/sudoers.d/kolla_neutron_sudoers
+              subPath: neutron_sudoers
+              readOnly: true
+            - name: neutron-etc
+              mountPath: /etc/neutron/rootwrap.conf
+              subPath: rootwrap.conf
+              readOnly: true
+            {{- range $key, $value := $envAll.Values.conf.rootwrap_filters }}
+            {{- if ( has "bagpipe_bgp" $value.pods ) }}
+            {{- $filePrefix := replace "_" "-"  $key }}
+            {{- $rootwrapFile := printf "/etc/neutron/rootwrap.d/%s.filters" $filePrefix }}
+            - name: neutron-etc
+              mountPath: {{ $rootwrapFile }}
+              subPath: {{ base $rootwrapFile }}
+              readOnly: true
+            {{- end }}
+            {{- end }}
+            - name: libmodules
+              mountPath: /lib/modules
+              readOnly: true
+            - name: run
+              mountPath: /run
+{{ if $mounts_neutron_bagpipe_bgp.volumeMounts }}{{ toYaml $mounts_neutron_bagpipe_bgp.volumeMounts | indent 12 }}{{ end }}
+      volumes:
+        - name: pod-tmp
+          emptyDir: {}
+        - name: pod-var-neutron
+          emptyDir: {}
+        - name: neutron-bin
+          configMap:
+            name: neutron-bin
+            defaultMode: 0555
+        - name: neutron-etc
+          secret:
+            secretName: {{ $configMapName }}
+            defaultMode: 0444
+        - name: libmodules
+          hostPath:
+            path: /lib/modules
+        - name: run
+          hostPath:
+            path: /run
+{{ if $mounts_neutron_bagpipe_bgp.volumes }}{{ toYaml $mounts_neutron_bagpipe_bgp.volumes | indent 8 }}{{ end }}
+{{- end }}
+{{- end }}
+
+{{- if .Values.manifests.daemonset_bagpipe_bgp }}
+{{- $envAll := . }}
+{{- $daemonset := "bagpipe-bgp" }}
+{{- $configMapName := "neutron-etc" }}
+{{- $serviceAccountName := "neutron-bagpipe-bgp" }}
+{{- $dependencyOpts := dict "envAll" $envAll "dependencyMixinParam" $envAll.Values.network.backend "dependencyKey" "bagpipe_bgp" -}}
+{{- $_ := include "helm-toolkit.utils.dependency_resolver" $dependencyOpts | toString | fromYaml }}
+{{ tuple $envAll "pod_dependency" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{- $daemonset_yaml := list $daemonset $configMapName $serviceAccountName . | include "neutron.bagpipe_bgp.daemonset" | toString | fromYaml }}
+{{- $configmap_yaml := "neutron.configmap.etc" }}
+{{- list $daemonset $daemonset_yaml $configmap_yaml $configMapName . | include "helm-toolkit.utils.daemonset_overrides" }}
+{{- end }}
