@@ -96,6 +96,18 @@ spec:
       {{- end }}
       initContainers:
 {{ tuple $envAll "nagios" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+        - name: define-nagios-hosts
+{{ tuple $envAll "nagios" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.nagios | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          command:
+            - /usr/lib/nagios/plugins/define-nagios-hosts.py
+            - --object_file_loc
+            - /opt/nagios/etc/conf.d/nagios-hosts.cfg
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: nagios-confd
+              mountPath: /opt/nagios/etc/conf.d
       containers:
         - name: apache-proxy
 {{ tuple $envAll "apache_proxy" | include "helm-toolkit.snippets.image" | indent 10 }}
@@ -181,6 +193,8 @@ spec:
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
+            - name: nagios-confd
+              mountPath: /opt/nagios/etc/conf.d
             - name: nagios-etc
               mountPath: /opt/nagios/etc/nagios.cfg
               subPath: nagios.cfg
@@ -209,6 +223,8 @@ spec:
         - name: pod-tmp
           emptyDir: {}
         - name: pod-var-log
+          emptyDir: {}
+        - name: nagios-confd
           emptyDir: {}
         - name: nagios-etc
           secret:
