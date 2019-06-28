@@ -67,7 +67,7 @@ logger.info("Attempting to open Grafana dashboard")
 try:
   browser = webdriver.Chrome('/etc/selenium/chromedriver', chrome_options=options)
   logger.info("Successfully opened Grafana dashboard")
-except exception, e:
+except Exception as e:
   logger.error("Unable to open Grafana")
   browser.close()
   sys.exit(1)
@@ -79,7 +79,7 @@ try:
   browser.find_element_by_name('password').send_keys(grafana_password)
   browser.find_element_by_css_selector('body > grafana-app > div.main-view > div > div:nth-child(1) > div > div > div.login-inner-box > form > div.login-button-group > button').click()
   logger.info("Successfully logged in to Grafana")
-except exception, e:
+except Exception as e:
   logger.error("Failed to log in to Grafana")
   browser.close()
   sys.exit(1)
