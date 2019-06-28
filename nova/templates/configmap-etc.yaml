@@ -212,6 +212,12 @@ limitations under the License.
 {{- $formatter_fluent := dict "class" "oslo_log.formatters.FluentFormatter" -}}
 {{- $_ := set .Values.conf.logging "formatter_fluent" $formatter_fluent -}}
 {{- end -}}
+
+{{ $__nova_compute := dict }}
+{{ $_ := set $__nova_compute "config" .Values.conf.nova  }}
+{{ range .Values.conf.nova_compute_redactions }}
+{{   $_ := set $__nova_compute "config" (omit $__nova_compute.config .) }}
+{{ end }}
 ---
 apiVersion: v1
 kind: Secret
@@ -229,6 +235,7 @@ data:
   {{ printf "%s.filters" $filePrefix }}: {{ $value.content | b64enc }}
 {{- end }}
   nova.conf: {{ include "helm-toolkit.utils.to_oslo_conf" .Values.conf.nova | b64enc }}
+  nova-compute.conf: {{ include "helm-toolkit.utils.to_oslo_conf" $__nova_compute.config | b64enc }}
   logging.conf: {{ include "helm-toolkit.utils.to_oslo_conf" .Values.conf.logging | b64enc }}
   api_audit_map.conf: {{ include "helm-toolkit.utils.to_oslo_conf" .Values.conf.api_audit_map | b64enc }}
   nova-ironic.conf: {{ include "helm-toolkit.utils.to_oslo_conf" .Values.conf.nova_ironic | b64enc }}
