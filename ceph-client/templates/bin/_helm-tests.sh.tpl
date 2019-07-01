@@ -38,11 +38,16 @@ function check_osd_count() {
   num_osd=$(echo $osd_stat_output | jq .num_osds)
   num_in_osds=$(echo $osd_stat_output | jq .num_in_osds)
   num_up_osds=$(echo $osd_stat_output | jq .num_up_osds)
-
-  if [ "x${EXPECTED_OSDS}" == "x${num_osd}" ] && [ "x${EXPECTED_OSDS}" == "x${num_in_osds}" ] && [ "x${EXPECTED_OSDS}" == "x${num_up_osds}"  ]; then
-    echo "All OSDs (${EXPECTED_OSDS}) are in UP and IN status"
+  if [ $EXPECTED_OSDS == 1 ]; then
+    MIN_EXPECTED_OSDS=$EXPECTED_OSDS
   else
-    echo "All expected OSDs (${EXPECTED_OSDS}) are NOT in UP and IN status. Cluster shows OSD count=${num_osd}, UP=${num_up_osds}, IN=${num_in_osds}"
+    MIN_EXPECTED_OSDS=$(($EXPECTED_OSDS*$REQUIRED_PERCENT_OF_OSDS/100))
+  fi
+
+  if [ "${num_osd}" -ge "${MIN_EXPECTED_OSDS}" ] && [ "${num_in_osds}" -ge "${MIN_EXPECTED_OSDS}" ] && [ "${num_up_osds}" -ge "${MIN_EXPECTED_OSDS}"  ]; then
+    echo "Required number of OSDs (${MIN_EXPECTED_OSDS}) are UP and IN status"
+  else
+    echo "Required number of OSDs (${MIN_EXPECTED_OSDS}) are NOT UP and IN status. Cluster shows OSD count=${num_osd}, UP=${num_up_osds}, IN=${num_in_osds}"
     exit 1
   fi
 }
