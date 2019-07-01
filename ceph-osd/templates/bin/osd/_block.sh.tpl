@@ -114,7 +114,7 @@ if [ "x${JOURNAL_TYPE}" == "xdirectory" ]; then
     --osd-data ${OSD_PATH} \
     --osd-journal ${OSD_JOURNAL} \
     -f \
-    -i 0 \
+    -i ${OSD_ID} \
     --setuser ceph \
     --setgroup disk \
     --mkjournal
