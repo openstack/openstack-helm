@@ -27,7 +27,6 @@ function check_cluster_status() {
     echo "Ceph status is HEALTH_OK"
   else
     echo "Ceph cluster status is NOT HEALTH_OK."
-    exit 1
   fi
 }
 
@@ -187,31 +186,15 @@ function pool_failuredomain_validation() {
 }
 
 function pg_validation() {
-  echo "#### Start: Checking placement groups active+clean ####"
-
-  num_pgs=$(echo ${PG_STAT} | jq -r .num_pgs)
-  npoolls=$(echo ${PG_STAT} | jq -r .num_pg_by_state | jq length)
-  i=$[npoolls-1]
-  for n in $(seq 0 ${i})
-  do
-    pg_state=$(echo ${PG_STAT} | jq -r .num_pg_by_state[${n}].name)
-    if [ "xactive+clean" == "x${pg_state}" ]; then
-      active_clean_pg_num=$(echo ${PG_STAT} | jq -r .num_pg_by_state[${n}].num)
-      if [ $num_pgs -eq $active_clean_pg_num ]; then
-        echo "Success: All PGs configured (${num_pgs}) are in active+clean status"
-      else
-        echo "Error: All PGs configured (${num_pgs}) are NOT in active+clean status"
-        exit 1
-      fi
-    else
-      echo "Error: PG state not in active+clean status"
-      exit 1
-    fi
-  done
+  inactive_pgs=(`ceph --cluster ${CLUSTER} pg ls | tail -n +2 | grep -v "active+"|awk '{ print $1 }'`)
+  if [ ${#inactive_pgs[*]} -gt 0 ];then
+    echo "There are few incomplete pgs in the cluster"
+    echo ${inactive_pgs[*]}
+    exit 1
+  fi
 }
 
 
-check_cluster_status
 check_osd_count
 mgr_validation
 
@@ -222,3 +205,4 @@ PG_STAT=$(ceph pg stat -f json-pretty)
 pg_validation
 pool_validation
 pool_failuredomain_validation
+check_cluster_status
