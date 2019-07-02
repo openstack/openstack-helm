@@ -14,6 +14,17 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- define "sriovAgentReadinessProbeTemplate" }}
+exec:
+  command:
+    - python
+    - /tmp/health-probe.py
+    - --config-file
+    - /etc/neutron/neutron.conf
+    - --config-file
+    - /etc/neutron/sriov_agent.ini
+{{- end }}
+
 {{- define "neutron.sriov_agent.daemonset" }}
 {{- $daemonset := index . 0 }}
 {{- $configMapName := index . 1 }}
@@ -64,6 +75,7 @@ spec:
 {{ tuple $envAll "neutron_sriov_agent_init" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.agent.sriov | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
 {{ dict "envAll" $envAll "application" "neutron" "container" "neutron_sriov_agent_init" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+{{ dict "envAll" $envAll "component" "sriov_agent" "container" "sriov_agent" "type" "readiness" "probeTemplate" (include "sriovAgentReadinessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
           command:
             - /tmp/neutron-sriov-agent-init.sh
           volumeMounts:

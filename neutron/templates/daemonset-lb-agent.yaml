@@ -14,6 +14,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- define "lbAgentReadinessProbeTemplate" }}
+exec:
+  command:
+    - bash
+    - -c
+    - 'brctl show'
+{{- end }}
+
 {{- define "neutron.lb_agent.daemonset" }}
 {{- $daemonset := index . 0 }}
 {{- $configMapName := index . 1 }}
@@ -133,14 +141,9 @@ spec:
 {{ tuple $envAll "neutron_linuxbridge_agent" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.agent.lb | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
 {{ dict "envAll" $envAll "application" "neutron" "container" "neutron_lb_agent" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+{{ dict "envAll" $envAll "component" "lb_agent" "container" "lb_agent" "type" "readiness" "probeTemplate" (include "lbAgentReadinessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
           command:
             - /tmp/neutron-linuxbridge-agent.sh
-          readinessProbe:
-            exec:
-              command:
-                - bash
-                - -c
-                - 'brctl show'
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp

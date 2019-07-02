@@ -14,6 +14,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- define "serverReadinessProbeTemplate" }}
+tcpSocket:
+  port: {{ tuple "network" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+{{- end }}
+{{- define "serverLivenessProbeTemplate" }}
+tcpSocket:
+  port: {{ tuple "network" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+{{- end }}
+
 {{- if .Values.manifests.deployment_server }}
 {{- $envAll := . }}
 
@@ -63,6 +72,8 @@ spec:
 {{ tuple $envAll "neutron_server" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.server | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
 {{ dict "envAll" $envAll "application" "neutron" "container" "neutron_server" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+{{ dict "envAll" $envAll "component" "server" "container" "server" "type" "readiness" "probeTemplate" (include "serverReadinessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+{{ dict "envAll" $envAll "component" "server" "container" "server" "type" "liveness" "probeTemplate" (include "serverLivenessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
           command:
             - /tmp/neutron-server.sh
             - start
@@ -75,13 +86,6 @@ spec:
           ports:
             - name: q-api
               containerPort: {{ tuple "network" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-          readinessProbe:
-            tcpSocket:
-              port: {{ tuple "network" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-          livenessProbe:
-            tcpSocket:
-              port: {{ tuple "network" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-            initialDelaySeconds: 60
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp

@@ -14,6 +14,32 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- define "l3AgentReadinessProbeTemplate" }}
+exec:
+  command:
+    - python
+    - /tmp/health-probe.py
+    - --config-file
+    - /etc/neutron/neutron.conf
+    - --config-file
+    - /etc/neutron/l3_agent.ini
+    - --agent-queue-name
+    - l3_agent
+{{- end }}
+{{- define "l3AgentLivenessProbeTemplate" }}
+exec:
+  command:
+    - python
+    - /tmp/health-probe.py
+    - --config-file
+    - /etc/neutron/neutron.conf
+    - --config-file
+    - /etc/neutron/l3_agent.ini
+    - --agent-queue-name
+    - l3_agent
+    - --liveness-probe
+{{- end }}
+
 {{- define "neutron.l3_agent.daemonset" }}
 {{- $daemonset := index . 0 }}
 {{- $configMapName := index . 1 }}
@@ -65,35 +91,8 @@ spec:
 {{ tuple $envAll "neutron_l3" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.agent.l3 | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
 {{ dict "envAll" $envAll "application" "neutron" "container" "neutron_l3_agent" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
-          readinessProbe:
-            exec:
-              command:
-                - python
-                - /tmp/health-probe.py
-                - --config-file
-                - /etc/neutron/neutron.conf
-                - --config-file
-                - /etc/neutron/l3_agent.ini
-                - --agent-queue-name
-                - l3_agent
-            initialDelaySeconds: 30
-            periodSeconds: 15
-            timeoutSeconds: 65
-          livenessProbe:
-            exec:
-              command:
-                - python
-                - /tmp/health-probe.py
-                - --config-file
-                - /etc/neutron/neutron.conf
-                - --config-file
-                - /etc/neutron/l3_agent.ini
-                - --agent-queue-name
-                - l3_agent
-                - --liveness-probe
-            initialDelaySeconds: 120
-            periodSeconds: 90
-            timeoutSeconds: 70
+{{ dict "envAll" $envAll "component" "l3_agent" "container" "l3_agent" "type" "readiness" "probeTemplate" (include "l3AgentReadinessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+{{ dict "envAll" $envAll "component" "l3_agent" "container" "l3_agent" "type" "liveness" "probeTemplate" (include "l3AgentLivenessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
           command:
             - /tmp/neutron-l3-agent.sh
           volumeMounts:

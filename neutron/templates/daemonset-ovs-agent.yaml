@@ -14,6 +14,29 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- define "ovsAgentReadinessProbeTemplate" }}
+# ensures this container can can see a br-int
+# bridge before its marked as ready
+exec:
+  command:
+    - bash
+    - -c
+    - 'ovs-vsctl list-br | grep -q br-int'
+{{- end }}
+{{- define "ovsAgentLivenessProbeTemplate" }}
+exec:
+  command:
+    - python
+    - /tmp/health-probe.py
+    - --config-file
+    - /etc/neutron/neutron.conf
+    - --config-file
+    - /etc/neutron/plugins/ml2/openvswitch_agent.ini
+    - --agent-queue-name
+    - q-agent-notifier-tunnel-update
+    - --liveness-probe
+{{- end }}
+
 {{- define "neutron.ovs_agent.daemonset" }}
 {{- $daemonset := index . 0 }}
 {{- $configMapName := index . 1 }}
@@ -156,33 +179,12 @@ spec:
         - name: neutron-ovs-agent
 {{ tuple $envAll "neutron_openvswitch_agent" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.agent.ovs | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "component" "ovs_agent" "container" "ovs_agent" "type" "readiness" "probeTemplate" (include "ovsAgentReadinessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+{{ dict "envAll" $envAll "component" "ovs_agent" "container" "ovs_agent" "type" "liveness" "probeTemplate" (include "ovsAgentLivenessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
           securityContext:
             privileged: true
           command:
             - /tmp/neutron-openvswitch-agent.sh
-          # ensures this container can can see a br-int
-          # bridge before its marked as ready
-          readinessProbe:
-            exec:
-              command:
-                - bash
-                - -c
-                - 'ovs-vsctl list-br | grep -q br-int'
-          livenessProbe:
-            exec:
-              command:
-                - python
-                - /tmp/health-probe.py
-                - --config-file
-                - /etc/neutron/neutron.conf
-                - --config-file
-                - /etc/neutron/plugins/ml2/openvswitch_agent.ini
-                - --agent-queue-name
-                - q-agent-notifier-tunnel-update
-                - --liveness-probe
-            initialDelaySeconds: 120
-            periodSeconds: 90
-            timeoutSeconds: 70
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp

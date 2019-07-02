@@ -14,6 +14,28 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- define "metadataAgentReadinessProbeTemplate" }}
+exec:
+  command:
+    - python
+    - /tmp/health-probe.py
+    - --config-file
+    - /etc/neutron/neutron.conf
+    - --config-file
+    - /etc/neutron/metadata_agent.ini
+{{- end }}
+{{- define "metadataAgentLivenessProbeTemplate" }}
+exec:
+  command:
+    - python
+    - /tmp/health-probe.py
+    - --config-file
+    - /etc/neutron/neutron.conf
+    - --config-file
+    - /etc/neutron/metadata_agent.ini
+    - --liveness-probe
+{{- end }}
+
 {{- define "neutron.metadata_agent.daemonset" }}
 {{- $daemonset := index . 0 }}
 {{- $configMapName := index . 1 }}
@@ -87,33 +109,10 @@ spec:
         - name: neutron-metadata-agent
 {{ tuple $envAll "neutron_metadata" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.agent.metadata | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "component" "metadata_agent" "container" "metadata_agent" "type" "readiness" "probeTemplate" (include "metadataAgentReadinessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+{{ dict "envAll" $envAll "component" "metadata_agent" "container" "metadata_agent" "type" "liveness" "probeTemplate" (include "metadataAgentLivenessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
           securityContext:
             privileged: true
-          readinessProbe:
-            exec:
-              command:
-                - python
-                - /tmp/health-probe.py
-                - --config-file
-                - /etc/neutron/neutron.conf
-                - --config-file
-                - /etc/neutron/metadata_agent.ini
-            initialDelaySeconds: 30
-            periodSeconds: 15
-            timeoutSeconds: 35
-          livenessProbe:
-            exec:
-              command:
-                - python
-                - /tmp/health-probe.py
-                - --config-file
-                - /etc/neutron/neutron.conf
-                - --config-file
-                - /etc/neutron/metadata_agent.ini
-                - --liveness-probe
-            initialDelaySeconds: 90
-            periodSeconds: 60
-            timeoutSeconds: 45
           command:
             - /tmp/neutron-metadata-agent.sh
           volumeMounts:

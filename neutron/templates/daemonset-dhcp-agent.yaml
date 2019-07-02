@@ -14,6 +14,31 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- define "dhcpAgentReadinessProbeTemplate" }}
+exec:
+  command:
+    - python
+    - /tmp/health-probe.py
+    - --config-file
+    - /etc/neutron/neutron.conf
+    - --config-file
+    - /etc/neutron/dhcp_agent.ini
+    - --agent-queue-name
+    - dhcp_agent
+{{- end }}
+{{- define "dhcpAgentLivenessProbeTemplate" }}
+exec:
+  command:
+    - python
+    - /tmp/health-probe.py
+    - --config-file
+    - /etc/neutron/neutron.conf
+    - --config-file
+    - /etc/neutron/dhcp_agent.ini
+    - --agent-queue-name
+    - dhcp_agent
+{{- end }}
+
 {{- define "neutron.dhcp_agent.daemonset" }}
 {{- $daemonset := index . 0 }}
 {{- $configMapName := index . 1 }}
@@ -65,35 +90,8 @@ spec:
 {{ tuple $envAll "neutron_dhcp" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.agent.dhcp | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
 {{ dict "envAll" $envAll "application" "neutron" "container" "neutron_dhcp_agent" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
-          readinessProbe:
-            exec:
-              command:
-                - python
-                - /tmp/health-probe.py
-                - --config-file
-                - /etc/neutron/neutron.conf
-                - --config-file
-                - /etc/neutron/dhcp_agent.ini
-                - --agent-queue-name
-                - dhcp_agent
-            initialDelaySeconds: 30
-            periodSeconds: 15
-            timeoutSeconds: 65
-          livenessProbe:
-            exec:
-              command:
-                - python
-                - /tmp/health-probe.py
-                - --config-file
-                - /etc/neutron/neutron.conf
-                - --config-file
-                - /etc/neutron/dhcp_agent.ini
-                - --agent-queue-name
-                - dhcp_agent
-                - --liveness-probe
-            initialDelaySeconds: 120
-            periodSeconds: 90
-            timeoutSeconds: 70
+{{ dict "envAll" $envAll "component" "dhcp_agent" "container" "dhcp_agent" "type" "readiness" "probeTemplate" (include "dhcpAgentReadinessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+{{ dict "envAll" $envAll "component" "dhcp_agent" "container" "dhcp_agent" "type" "liveness" "probeTemplate" (include "dhcpAgentLivenessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
           command:
             - /tmp/neutron-dhcp-agent.sh
           volumeMounts:
