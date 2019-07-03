@@ -1,0 +1,152 @@
+{{/*
+Copyright 2019 The Openstack-Helm Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- define "neutron.l2gw_agent.daemonset" }}
+{{- $daemonset := index . 0 }}
+{{- $configMapName := index . 1 }}
+{{- $serviceAccountName := index . 2 }}
+{{- $envAll := index . 3 }}
+{{- with $envAll }}
+
+{{- $mounts_neutron_l2gw_agent := .Values.pod.mounts.neutron_l2gw_agent.neutron_l2gw_agent }}
+{{- $mounts_neutron_l2gw_agent_init := .Values.pod.mounts.neutron_l2gw_agent.init_container }}
+
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: neutron-l2gw-agent
+  annotations:
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+  labels:
+{{ tuple $envAll "neutron" "l2gw-agent" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  selector:
+    matchLabels:
+{{ tuple $envAll "neutron" "l2gw-agent" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
+{{ tuple $envAll "l2gw_agent" | include "helm-toolkit.snippets.kubernetes_upgrades_daemonset" | indent 2 }}
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "neutron" "l2gw-agent" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+{{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
+        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
+    spec:
+{{ dict "envAll" $envAll "application" "neutron" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
+      serviceAccountName: {{ $serviceAccountName }}
+      nodeSelector:
+        {{ .Values.labels.agent.l2gw.node_selector_key }}: {{ .Values.labels.agent.l2gw.node_selector_value }}
+      dnsPolicy: ClusterFirstWithHostNet
+      hostNetwork: true
+      {{- if or ( gt .Capabilities.KubeVersion.Major "1" ) ( ge .Capabilities.KubeVersion.Minor "10" ) }}
+      shareProcessNamespace: true
+      {{- else }}
+      hostPID: true
+      {{- end }}
+      initContainers:
+{{ tuple $envAll "pod_dependency" $mounts_neutron_l2gw_agent_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+      containers:
+        - name: neutron-l2gw-agent
+{{ tuple $envAll "neutron_l2gw" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.agent.l2gw | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          securityContext:
+            privileged: true
+          readinessProbe:
+            exec:
+              command:
+                - python
+                - /tmp/health-probe.py
+                - --config-file
+                - /etc/neutron/neutron.conf
+                - --config-file
+                - /etc/neutron/l2gw_agent.ini
+                - --agent-queue-name
+                - l2gateway_agent
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 65
+          livenessProbe:
+            exec:
+              command:
+                - python
+                - /tmp/health-probe.py
+                - --config-file
+                - /etc/neutron/neutron.conf
+                - --config-file
+                - /etc/neutron/l2gw_agent.ini
+                - --agent-queue-name
+                - l2gateway_agent
+                - --liveness-probe
+            initialDelaySeconds: 120
+            periodSeconds: 90
+            timeoutSeconds: 70
+          command:
+            - /tmp/neutron-l2gw-agent.sh
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: neutron-bin
+              mountPath: /tmp/neutron-l2gw-agent.sh
+              subPath: neutron-l2gw-agent.sh
+              readOnly: true
+            - name: neutron-bin
+              mountPath: /tmp/health-probe.py
+              subPath: health-probe.py
+              readOnly: true
+            - name: neutron-etc
+              mountPath: /etc/neutron/neutron.conf
+              subPath: neutron.conf
+              readOnly: true
+            {{- if .Values.conf.neutron.DEFAULT.log_config_append }}
+            - name: neutron-etc
+              mountPath: {{ .Values.conf.neutron.DEFAULT.log_config_append }}
+              subPath: {{ base .Values.conf.neutron.DEFAULT.log_config_append }}
+              readOnly: true
+            {{- end }}
+            - name: neutron-etc
+              mountPath: /etc/neutron/l2gw_agent.ini
+              subPath: l2gw_agent.ini
+              readOnly: true
+{{ if $mounts_neutron_l2gw_agent.volumeMounts }}{{ toYaml $mounts_neutron_l2gw_agent.volumeMounts | indent 12 }}{{ end }}
+      volumes:
+        - name: pod-tmp
+          emptyDir: {}
+        - name: neutron-bin
+          configMap:
+            name: neutron-bin
+            defaultMode: 0555
+        - name: neutron-etc
+          secret:
+            secretName: {{ $configMapName }}
+            defaultMode: 0444
+{{ if $mounts_neutron_l2gw_agent.volumes }}{{ toYaml $mounts_neutron_l2gw_agent.volumes | indent 8 }}{{ end }}
+{{- end }}
+{{- end }}
+
+{{- if .Values.manifests.daemonset_l2gw_agent }}
+{{- $envAll := . }}
+{{- $daemonset := "l2gw-agent" }}
+{{- $configMapName := "neutron-etc" }}
+{{- $serviceAccountName := "neutron-l2gw-agent" }}
+{{- $dependencyOpts := dict "envAll" $envAll "dependencyMixinParam" $envAll.Values.network.backend "dependencyKey" "l2gateway" -}}
+{{- $_ := include "helm-toolkit.utils.dependency_resolver" $dependencyOpts | toString | fromYaml }}
+{{ tuple $envAll "pod_dependency" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{- $daemonset_yaml := list $daemonset $configMapName $serviceAccountName . | include "neutron.l2gw_agent.daemonset" | toString | fromYaml }}
+{{- $configmap_yaml := "neutron.configmap.etc" }}
+{{- list $daemonset $daemonset_yaml $configmap_yaml $configMapName . | include "helm-toolkit.utils.daemonset_overrides" }}
+{{- end }}
