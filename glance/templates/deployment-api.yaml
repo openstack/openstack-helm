@@ -57,9 +57,8 @@ spec:
 {{ tuple $envAll "api" $mounts_glance_api_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
         - name: glance-perms
 {{ tuple $envAll "glance_api" | include "helm-toolkit.snippets.image" | indent 10 }}
-          securityContext:
-            runAsUser: 0
 {{ tuple $envAll $envAll.Values.pod.resources.api | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "glance" "container" "glance_perms" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
             - chown
             - -R
@@ -73,6 +72,7 @@ spec:
         {{ if eq .Values.storage "rbd" }}
         - name: ceph-keyring-placement
 {{ tuple $envAll "glance_api" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ dict "envAll" $envAll "application" "glance" "container" "ceph_keyring_placement" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           env:
             - name: RBD_STORE_USER
               value: {{ .Values.conf.glance.glance_store.rbd_store_user | quote }}
