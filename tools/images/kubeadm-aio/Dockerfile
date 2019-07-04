@@ -43,7 +43,7 @@ ENV CNI_VERSION ${CNI_VERSION}
 ARG CNI_REPO_URL=https://github.com/containernetworking/plugins/releases/download/$CNI_VERSION
 ENV CNI_REPO_URL ${CNI_REPO_URL}
 
-ARG HELM_VERSION="v2.13.1"
+ARG HELM_VERSION="v2.14.1"
 ENV HELM_VERSION ${HELM_VERSION}
 
 ARG CHARTS="calico,flannel,tiller,kube-dns,kubernetes-keystone-webhook"
