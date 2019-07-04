@@ -47,7 +47,7 @@ spec:
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
     spec:
       serviceAccountName: {{ $serviceAccountName }}
-{{ dict "envAll" $envAll "application" "cinder" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
+{{ dict "envAll" $envAll "application" "cinder_api" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
       affinity:
 {{ tuple $envAll "cinder" "api" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
       nodeSelector:
@@ -58,8 +58,7 @@ spec:
         {{- if eq ( split "://" .Values.conf.cinder.coordination.backend_url )._0 "file" }}
         - name: ceph-coordination-volume-perms
 {{ tuple $envAll "cinder_api" | include "helm-toolkit.snippets.image" | indent 10 }}
-          securityContext:
-            runAsUser: 0
+{{ dict "envAll" $envAll "application" "cinder_api" "container" "ceph_coordination_volume_perms" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
             - chown
             - -R
@@ -75,7 +74,7 @@ spec:
         - name: cinder-api
 {{ tuple $envAll "cinder_api" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.api | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-{{ dict "envAll" $envAll "application" "cinder" "container" "cinder-api" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+{{ dict "envAll" $envAll "application" "cinder_api" "container" "cinder_api" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
             - /tmp/cinder-api.sh
             - start
