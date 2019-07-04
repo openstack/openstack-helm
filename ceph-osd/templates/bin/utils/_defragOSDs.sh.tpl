@@ -18,20 +18,7 @@ limitations under the License.
 
 set -ex
 
-ARG=${1}
-
-if [ "x${ARG}" == "xcron" ]; then
-  PODS=$(kubectl get pods --namespace=${NAMESPACE} \
-  --selector=application=ceph,component=osd --field-selector=status.phase=Running \
-  '--output=jsonpath={range .items[*]}{.metadata.name}{"\n"}{end}')
-
-  for POD in ${PODS}; do
-    kubectl exec -t ${POD} --namespace=${NAMESPACE} -- \
-    sh -c -e "/tmp/utils-defragOSDs.sh defrag"
-  done
-fi
-
-if [ "x${ARG}" == "xdefrag" ] && [ "x${STORAGE_TYPE%-*}" == "xblock" ]; then
+if [ "x${STORAGE_TYPE%-*}" == "xblock" ]; then
   OSD_DEVICE=$(readlink -f ${STORAGE_LOCATION})
   ODEV=$(echo ${OSD_DEVICE} | sed 's/[0-9]//g' | cut -f 3 -d '/')
   OSD_PATH=$(cat /proc/mounts | awk '/ceph-/{print $2}')
