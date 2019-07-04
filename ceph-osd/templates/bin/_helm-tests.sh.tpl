@@ -29,9 +29,14 @@ function check_osd_status() {
   up_osds=$(echo $ceph_osd_stat_output | jq '.num_up_osds')
   in_osds=$(echo $ceph_osd_stat_output | jq '.num_in_osds')
   #
-  # In a correctly deployed cluster the number of UP and IN OSDs must be the same as the total number of OSDs.
-  #
-  if [ "x${num_osds}" == "x${up_osds}" ] && [ "x${num_osds}" == "x${in_osds}" ] ; then
+  #NOTE: This check will fail if deployed OSDs are not running correctly
+  #In a correctly deployed cluster the number of UP and IN OSDs must be
+  #the same as the total number of OSDs
+
+  if [ "x${num_osds}" == "x0" ] ; then
+    echo "There are no osds in the cluster"
+    exit 1
+  elif [ "x${num_osds}" == "x${up_osds}" ] && [ "x${num_osds}" == "x${in_osds}" ] ; then
     echo "Success: Total OSDs=${num_osds} Up=${up_osds} In=${in_osds}"
   else
     echo "Failure: Total OSDs=${num_osds} Up=${up_osds} In=${in_osds}"
