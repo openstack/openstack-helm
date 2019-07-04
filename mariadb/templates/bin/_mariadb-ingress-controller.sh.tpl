@@ -29,6 +29,7 @@ function start () {
       --ingress-class=${INGRESS_CLASS} \
       --default-backend-service=${POD_NAMESPACE}/${ERROR_PAGE_SERVICE} \
       --configmap=${POD_NAMESPACE}/mariadb-ingress-conf \
+      --enable-ssl-chain-completion=false \
       --tcp-services-configmap=${POD_NAMESPACE}/mariadb-services-tcp
 }
 
