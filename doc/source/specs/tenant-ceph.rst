@@ -132,7 +132,6 @@ Update script with following overrides.
     rbd_provisioner: true
     cephfs_provisioner: false
     client_secrets: false
-    rgw_keystone_user_and_endpoints: false
   endpoints:
     ceph_mon:
       namespace: ceph
@@ -532,7 +531,6 @@ Update script's override section with following:
     rbd_provisioner: false
     cephfs_provisioner: false
     client_secrets: false
-    rgw_keystone_user_and_endpoints: false
   labels:
     mon:
       node_selector_key: ceph-mon-tenant
@@ -639,7 +637,6 @@ Update script as following:
     rbd_provisioner: false
     cephfs_provisioner: false
     client_secrets: true
-    rgw_keystone_user_and_endpoints: false
   bootstrap:
     enabled: false
   conf:
@@ -703,7 +700,6 @@ Update script with following overrides:
     rbd_provisioner: false
     cephfs_provisioner: false
     client_secrets: false
-    rgw_keystone_user_and_endpoints: true
   bootstrap:
     enabled: false
   conf:

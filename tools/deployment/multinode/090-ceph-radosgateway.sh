@@ -32,7 +32,6 @@ network:
   cluster: ${CEPH_CLUSTER_NETWORK}
 deployment:
   ceph: true
-  rgw_keystone_user_and_endpoints: true
 bootstrap:
   enabled: false
 conf:
