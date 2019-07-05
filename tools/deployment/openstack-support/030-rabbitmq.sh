@@ -23,7 +23,6 @@ make rabbitmq
 : ${OSH_EXTRA_HELM_ARGS:=""}
 helm upgrade --install rabbitmq ./rabbitmq \
     --namespace=openstack \
-    --set pod.replicas.server=3 \
     --recreate-pods \
     --force \
     ${OSH_EXTRA_HELM_ARGS} \
