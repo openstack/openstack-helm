@@ -47,7 +47,7 @@ spec:
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
     spec:
       serviceAccountName: {{ $serviceAccountName }}
-{{ dict "envAll" $envAll "application" "cinder" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
+{{ dict "envAll" $envAll "application" "cinder_volume" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
       affinity:
 {{ tuple $envAll "cinder" "volume" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
       nodeSelector:
@@ -57,8 +57,7 @@ spec:
         {{- if include "cinder.utils.has_ceph_backend" $envAll }}
         - name: ceph-keyring-placement
 {{ tuple $envAll "cinder_volume" | include "helm-toolkit.snippets.image" | indent 10 }}
-          securityContext:
-            runAsUser: 0
+{{ dict "envAll" $envAll "application" "cinder_volume" "container" "ceph_keyring_placement" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
             - /tmp/ceph-keyring.sh
           env:
@@ -81,8 +80,7 @@ spec:
         {{- if eq ( split "://" .Values.conf.cinder.coordination.backend_url )._0 "file" }}
         - name: ceph-coordination-volume-perms
 {{ tuple $envAll "cinder_volume" | include "helm-toolkit.snippets.image" | indent 10 }}
-          securityContext:
-            runAsUser: 0
+{{ dict "envAll" $envAll "application" "cinder_volume" "container" "ceph_coordination_volume_perms" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
             - chown
             - -R
@@ -95,10 +93,10 @@ spec:
               mountPath: {{ ( split "://" .Values.conf.cinder.coordination.backend_url )._1 }}
         {{ end }}
         - name: init-cinder-conf
+{{ tuple $envAll "cinder_volume" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ dict "envAll" $envAll "application" "cinder_volume" "container" "init_cinder_conf" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           image: {{ .Values.images.tags.ks_user }}
           imagePullPolicy: {{ .Values.images.pull_policy }}
-          securityContext:
-            runAsUser: 0
           command:
             - /tmp/retrieve-internal-tenant.sh
           volumeMounts:
@@ -127,7 +125,7 @@ spec:
         - name: cinder-volume
 {{ tuple $envAll "cinder_volume" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.volume | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-{{ dict "envAll" $envAll "application" "cinder" "container" "cinder-volume" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+{{ dict "envAll" $envAll "application" "cinder_volume" "container" "cinder_volume" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
             - /tmp/cinder-volume.sh
           volumeMounts:

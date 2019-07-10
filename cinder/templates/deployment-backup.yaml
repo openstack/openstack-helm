@@ -47,7 +47,7 @@ spec:
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
     spec:
       serviceAccountName: {{ $serviceAccountName }}
-{{ dict "envAll" $envAll "application" "cinder" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
+{{ dict "envAll" $envAll "application" "cinder_backup" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
       affinity:
 {{ tuple $envAll "cinder" "backup" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
       nodeSelector:
@@ -57,8 +57,7 @@ spec:
         {{- if (contains "cinder.backup.drivers.ceph" .Values.conf.cinder.DEFAULT.backup_driver) }}
         - name: ceph-backup-keyring-placement
 {{ tuple $envAll "cinder_backup" | include "helm-toolkit.snippets.image" | indent 10 }}
-          securityContext:
-            runAsUser: 0
+{{ dict "envAll" $envAll "application" "cinder_backup" "container" "ceph_backup_keyring_placement" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
             - /tmp/ceph-keyring.sh
           env:
@@ -81,8 +80,7 @@ spec:
         {{- if include "cinder.utils.has_ceph_backend" $envAll }}
         - name: ceph-keyring-placement
 {{ tuple $envAll "cinder_backup" | include "helm-toolkit.snippets.image" | indent 10 }}
-          securityContext:
-            runAsUser: 0
+{{ dict "envAll" $envAll "application" "cinder_backup" "container" "ceph_keyring_placement" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
             - /tmp/ceph-keyring.sh
           env:
@@ -105,8 +103,7 @@ spec:
         {{- if (contains "cinder.backup.drivers.posix" .Values.conf.cinder.DEFAULT.backup_driver) }}
         - name: ceph-backup-volume-perms
 {{ tuple $envAll "cinder_backup" | include "helm-toolkit.snippets.image" | indent 10 }}
-          securityContext:
-            runAsUser: 0
+{{ dict "envAll" $envAll "application" "cinder_backup" "container" "ceph_backup_volume_perms" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
             - chown
             - -R
@@ -121,8 +118,7 @@ spec:
         {{- if eq ( split "://" .Values.conf.cinder.coordination.backend_url )._0 "file" }}
         - name: ceph-coordination-volume-perms
 {{ tuple $envAll "cinder_backup" | include "helm-toolkit.snippets.image" | indent 10 }}
-          securityContext:
-            runAsUser: 0
+{{ dict "envAll" $envAll "application" "cinder_backup" "container" "ceph_coordination_volume_perms" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
             - chown
             - -R
@@ -138,11 +134,7 @@ spec:
         - name: cinder-backup
 {{ tuple $envAll "cinder_backup" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.backup | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-{{ dict "envAll" $envAll "application" "cinder" "container" "cinder-backup" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
-          securityContext:
-            capabilities:
-              add:
-                - SYS_ADMIN
+{{ dict "envAll" $envAll "application" "cinder_backup" "container" "cinder_backup" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
             - /tmp/cinder-backup.sh
           volumeMounts:
