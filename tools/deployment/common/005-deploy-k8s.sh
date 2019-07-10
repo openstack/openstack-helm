@@ -125,6 +125,25 @@ kubectl apply -f \
 kubectl apply -f \
   https://docs.projectcalico.org/"${CALICO_VERSION}"/getting-started/kubernetes/installation/hosted/kubernetes-datastore/calico-networking/1.7/calico.yaml
 
+# Note: Patch calico daemonset to enable Prometheus metrics and annotations
+tee /tmp/calico-node.yaml << EOF
+spec:
+  template:
+    metadata:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9091"
+    spec:
+      containers:
+        - name: calico-node
+          env:
+            - name: FELIX_PROMETHEUSMETRICSENABLED
+              value: "true"
+            - name: FELIX_PROMETHEUSMETRICSPORT
+              value: "9091"
+EOF
+kubectl patch daemonset calico-node -n kube-system --patch "$(cat /tmp/calico-node.yaml)"
+
 # NOTE: Wait for node to be ready.
 kubectl wait --timeout=240s --for=condition=Ready nodes/minikube
 
