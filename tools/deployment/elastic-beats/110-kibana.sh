@@ -1,1 +1,1 @@
-../osh-infra-logging/070-kibana.sh
+../osh-infra-logging/075-kibana.sh
