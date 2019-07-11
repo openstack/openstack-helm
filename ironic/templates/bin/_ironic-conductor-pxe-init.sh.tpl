@@ -35,7 +35,7 @@ elif [ "x$ID" == "xcentos" ]; then
 
   if ! yum list installed ipxe-bootimgs >/dev/null 2>&1; then
     yum update --nogpgcheck -y
-    yum install ipxe-bootimgs --nogpgcheck -y
+    yum install ipxe-bootimgs syslinux-tftpboot --nogpgcheck -y
   fi
 
   FILEPATH=/usr/share/ipxe
@@ -45,8 +45,18 @@ fi
 mkdir -p /var/lib/openstack-helm/tftpboot
 mkdir -p /var/lib/openstack-helm/tftpboot/master_images
 
-for FILE in undionly.kpxe ipxe.efi; do
+for FILE in undionly.kpxe ipxe.efi pxelinux.0; do
   if [ -f /usr/lib/ipxe/$FILE ]; then
     cp -v /usr/lib/ipxe/$FILE /var/lib/openstack-helm/tftpboot
+  fi
+
+  # ipxe and pxe support for CentOS
+  if [ "x$ID" == "xcentos" ]; then
+    if [ -f /var/lib/tftpboot/$FILE ]; then
+      cp -v /var/lib/tftpboot/$FILE /var/lib/openstack-helm/tftpboot
+    fi
+    if [ -f /usr/share/ipxe/$FILE ]; then
+      cp -v /usr/share/ipxe/$FILE /var/lib/openstack-helm/tftpboot
+    fi
   fi
 done
