@@ -50,7 +50,7 @@ helm upgrade --install ceph-osh-infra-config ./ceph-provisioners \
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh osh-infra
 
-helm test ceph-osh-infra-config
+helm test ceph-osh-infra-config --timeout 600
 
 #NOTE: Validate Deployment info
 kubectl get -n osh-infra jobs --show-all

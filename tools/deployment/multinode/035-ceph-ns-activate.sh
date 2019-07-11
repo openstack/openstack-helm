@@ -51,4 +51,4 @@ helm upgrade --install ceph-osh-infra-config ./ceph-provisioners \
 #NOTE: Validate Deployment info
 helm status ceph-osh-infra-config
 
-helm test ceph-osh-infra-config
+helm test ceph-osh-infra-config --timeout 600

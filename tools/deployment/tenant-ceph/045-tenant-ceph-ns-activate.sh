@@ -76,4 +76,4 @@ helm upgrade --install tenant-ceph-openstack-config ./ceph-provisioners \
 #NOTE: Validate Deployment info
 helm status tenant-ceph-openstack-config
 
-helm test tenant-ceph-openstack-config
+helm test tenant-ceph-openstack-config --timeout 600
