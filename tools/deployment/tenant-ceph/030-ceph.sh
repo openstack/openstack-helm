@@ -101,8 +101,6 @@ conf:
 storageclass:
   rbd:
     ceph_configmap_name: ceph-etc
-  cephfs:
-    provision_storage_class: false
 ceph_mgr_modules_config:
   prometheus:
     server_port: 9283
