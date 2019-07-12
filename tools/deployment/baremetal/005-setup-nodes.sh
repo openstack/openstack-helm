@@ -94,7 +94,7 @@ OVS_VSWITCHD_PODS=$(kubectl get --namespace openstack pods \
 for OVS_VSWITCHD_POD in ${OVS_VSWITCHD_PODS}; do
   kubectl exec --namespace openstack "${OVS_VSWITCHD_POD}" \
     -- ovs-vsctl add-br "${OSH_IRONIC_PXE_DEV}"
-  if [ "x$(kubectl --namespace openstack get pod "${OVS_VSWITCHD_POD}" -o wide --no-headers | awk '{ print $NF }')" == "x$(hostname -f)" ] ; then
+  if [ "x$(kubectl --namespace openstack get pod "${OVS_VSWITCHD_POD}" -o json | jq -r '.spec.nodeName')" == "x$(hostname -f)" ] ; then
     COUNTER=0
     for NODE_IP in ${NODE_IPS}; do
       if ! [ "x${MASTER_IP}" == "x${NODE_IP}" ]; then
