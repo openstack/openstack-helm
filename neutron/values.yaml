@@ -39,6 +39,7 @@ images:
     neutron_linuxbridge_agent: docker.io/openstackhelm/neutron:ocata-ubuntu_xenial
     neutron_sriov_agent: docker.io/openstackhelm/neutron:ocata-18.04-sriov
     neutron_sriov_agent_init: docker.io/openstackhelm/neutron:ocata-18.04-sriov
+    neutron_bagpipe_bgp: docker.io/openstackhelm/neutron:ocata-ubuntu_xenial
     dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.3.1
     image_repo_sync: docker.io/docker:17.07.0
   pull_policy: "IfNotPresent"
@@ -77,6 +78,9 @@ labels:
     node_selector_value: enabled
   sriov:
     node_selector_key: sriov
+    node_selector_value: enabled
+  bagpipe_bgp:
+    node_selector_key: openstack-compute-node
     node_selector_value: enabled
   server:
     node_selector_key: openstack-control-plane
@@ -139,6 +143,7 @@ dependencies:
     targeted:
       sriov: {}
       l2gateway: {}
+      bagpipe_bgp: {}
       openvswitch:
         dhcp:
           pod:
@@ -392,6 +397,13 @@ pod:
     neutron_l2gw_agent:
       pod:
         runAsUser: 42424
+    neutron_bagpipe_bgp:
+      pod:
+        runAsUser: 42424
+      container:
+        neutron_bagpipe_bgp:
+          readOnlyRootFilesystem: true
+          privileged: true
     neutron_l3_agent:
       pod:
         runAsUser: 42424
@@ -487,6 +499,11 @@ pod:
     neutron_l2gw_agent:
       init_container: null
       neutron_l2gw_agent:
+        volumeMounts:
+        volumes:
+    bagpipe_bgp:
+      init_container: null
+      bagpipe_bgp:
         volumeMounts:
         volumes:
     neutron_tests:
@@ -595,6 +612,13 @@ pod:
           memory: "1024Mi"
           cpu: "2000m"
       l2gw:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      bagpipe_bgp:
         requests:
           memory: "128Mi"
           cpu: "100m"
@@ -1646,6 +1670,57 @@ conf:
         # This is needed to allow taas to insert/remove vlan id to the
         # target vf under /sys/class/net/[device-name]/device/sriov/[vf-index]/[mirror]
         i40e_sysfs_command: RegExpFilter, i40e_sysfs_command, root, i40e_sysfs_command, \w+, .+, .+
+    linux_vxlan:
+      pods:
+        - bagpipe_bgp
+      content: |
+        # bagpipe-bgp-rootwrap command filters for nodes on which bagpipe-bgp is
+        # expected to control VXLAN Linux Bridge dataplane
+        #
+        # This file should be owned by (and only-writeable by) the root user
+
+        # format seems to be
+        # cmd-name: filter-name, raw-command, user, args
+
+        [Filters]
+
+        #
+        modprobe: CommandFilter, modprobe, root
+
+        #
+        brctl: CommandFilter, brctl, root
+        bridge: CommandFilter, bridge, root
+
+        # ip_lib
+        ip: IpFilter, ip, root
+        ip_exec: IpNetnsExecFilter, ip, root
+
+        # shell (for piped commands)
+        sh: CommandFilter, sh, root
+    mpls_ovs_dataplane:
+      pods:
+        - bagpipe_bgp
+      content: |
+        # bagpipe-bgp-rootwrap command filters for nodes on which bagpipe-bgp is
+        # expected to control MPLS OpenVSwitch dataplane
+        #
+        # This file should be owned by (and only-writeable by) the root user
+
+        # format seems to be
+        # cmd-name: filter-name, raw-command, user, args
+
+        [Filters]
+
+        # openvswitch
+        ovs-vsctl: CommandFilter, ovs-vsctl, root
+        ovs-ofctl: CommandFilter, ovs-ofctl, root
+
+        # ip_lib
+        ip: IpFilter, ip, root
+        ip_exec: IpNetnsExecFilter, ip, root
+
+        # shell (for piped commands)
+        sh: CommandFilter, sh, root
   neutron:
     DEFAULT:
       log_config_append: /etc/neutron/logging.conf
@@ -1834,6 +1909,7 @@ conf:
     cache:
       enabled: true
       backend: dogpile.cache.memcached
+  bagpipe_bgp: {}
 
   rabbitmq:
     #NOTE(rk760n): adding rmq policy to mirror messages from notification queues and set expiration time for the ones
@@ -2104,6 +2180,7 @@ manifests:
   daemonset_ovs_agent: true
   daemonset_sriov_agent: true
   daemonset_l2gw_agent: false
+  daemonset_bagpipe_bgp: false
   deployment_server: true
   ingress_server: true
   job_bootstrap: true

@@ -1,0 +1,34 @@
+---
+conf:
+  neutron:
+    DEFAULT:
+      service_plugins: router, bgpvpn
+    service_providers:
+      # BGPVPN:OpenContrail:networking_bgpvpn.neutron.services.service_drivers.opencontrail.opencontrail.OpenContrailBGPVPNDriver:default
+      # BGPVPN:OpenDaylight:networking_odl.bgpvpn.odl_v2.OpenDaylightBgpvpnDriver:default
+      service_provider: BGPVPN:BaGPipe:networking_bgpvpn.neutron.services.service_drivers.bagpipe.bagpipe_v2.BaGPipeBGPVPNDriver:default
+  plugins:
+    openvswitch_agent:
+      agent:
+        extensions: bagpipe_bgpvpn
+  bagpipe_bgp:
+    bgp:
+      local_address: 192.168.143.88 # IP address for mpls/gre tunnels
+      peers: 192.168.143.96 # IP addresses of BGP peers
+      my_as: 23242 # Autonomous System number
+      enable_rtc: true # Enable RT Constraint (RFC4684)
+    common:
+      root_helper: sudo /var/lib/openstack/bin/neutron-rootwrap /etc/neutron/rootwrap.conf
+    api:
+      host: localhost
+      port: 8082
+    dataplane_driver_ipvpn:
+      dataplane_driver: ovs
+      ovs_bridge: br-mpls
+      mpls_interface: '*gre*'
+      proxy_arp: false
+  auto_bridge_add:
+    br-mpls: null
+
+manifests:
+  daemonset_bagpipe_bgp: true
