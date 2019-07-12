@@ -21,8 +21,8 @@ release_group: null
 
 images:
   tags:
-    openvswitch_db_server: docker.io/openstackhelm/openvswitch:latest-debian
-    openvswitch_vswitchd: docker.io/openstackhelm/openvswitch:latest-debian
+    openvswitch_db_server: docker.io/openstackhelm/openvswitch:latest-ubuntu_bionic
+    openvswitch_vswitchd: docker.io/openstackhelm/openvswitch:latest-ubuntu_bionic
     dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.3.1
     image_repo_sync: docker.io/docker:17.07.0
   pull_policy: "IfNotPresent"
@@ -96,6 +96,9 @@ pod:
         limits:
           memory: "1024Mi"
           cpu: "2000m"
+          # set resources to enabled and specify one of the following when using dpdk
+          # hugepages-1Gi: "1Gi"
+          # hugepages-2Mi: "512Mi"
     jobs:
       image_repo_sync:
         requests:
@@ -104,6 +107,9 @@ pod:
         limits:
           memory: "1024Mi"
           cpu: "2000m"
+  user:
+    nova:
+      uid: 42424
 
 endpoints:
   cluster_domain_suffix: cluster.local
@@ -152,3 +158,12 @@ manifests:
 conf:
   openvswitch_db_server:
     ptcp_port: null
+  dpdk:
+    enabled: false
+    socket_memory: 1024
+    hugepages_mountpath: /dev/hugepages
+    # optional parameters for tuning the OVS config
+    # in alignment with the available hardware resources
+    # mem_channels: 4
+    # lcore_mask: 0x1
+    # pmd_cpu_mask: 0x4
