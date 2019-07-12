@@ -71,7 +71,7 @@ sudo -E apt-get install -y \
     rbd-nbd \
     nfs-common \
     bridge-utils \
-    libxtables12
+    iptables
 
 sudo -E tee /etc/modprobe.d/rbd.conf << EOF
 install rbd /bin/true
