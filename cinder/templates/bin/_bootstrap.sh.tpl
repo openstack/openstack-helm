@@ -48,7 +48,7 @@ openstack volume type show {{ $name }} || \
   {{- end }}
 
 {{- /* Check volume type and properties were added */}}
-cinder extra-specs-list
+openstack volume type list --long
 
 {{- end }}
 
