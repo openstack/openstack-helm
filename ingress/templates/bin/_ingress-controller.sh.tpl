@@ -20,7 +20,7 @@ set -ex
 COMMAND="${@:-start}"
 
 function start () {
-  rm -fv /tmp/prometheus-nginx.socket
+  find /tmp/ -maxdepth 1 -writable | grep -v "^/tmp/$" | xargs -L1 -r rm -rfv
   exec /usr/bin/dumb-init \
       /nginx-ingress-controller \
       {{- if eq .Values.deployment.mode "namespace" }}
