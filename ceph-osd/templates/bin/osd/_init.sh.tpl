@@ -24,6 +24,10 @@ source /tmp/osd-common.sh
 # We do not want to zap journal disk. Tracking this option seperatly.
 : "${JOURNAL_FORCE_ZAP:=0}"
 
+if [ "x${STORAGE_TYPE%-*}" == "xbluestore" ]; then
+  export OSD_BLUESTORE=1
+fi
+
 if [ "x${STORAGE_TYPE%-*}" == "xdirectory" ]; then
   export OSD_DEVICE="/var/lib/ceph/osd"
 else
@@ -71,7 +75,7 @@ function osd_disk_prepare {
     if [[ ${OSD_FORCE_REPAIR} -eq 1 ]]; then
       if [ -b "${OSD_DEVICE}1" ]; then
         local cephFSID=$(ceph-conf --lookup fsid)
-        if [ ! -z "${cephFSID}" ]; then
+        if [ ! -z "${cephFSID}"  ]; then
           local tmpmnt=$(mktemp -d)
           mount ${OSD_DEVICE}1 ${tmpmnt}
           if [ "${OSD_BLUESTORE:-0}" -ne 1 ] && [ "x$JOURNAL_TYPE" != "xdirectory" ]; then
@@ -107,22 +111,25 @@ function osd_disk_prepare {
           fi
           if [ -f "${tmpmnt}/ceph_fsid" ]; then
             osdFSID=$(cat "${tmpmnt}/ceph_fsid")
-            umount ${tmpmnt}
             if [ ${osdFSID} != ${cephFSID} ]; then
               echo "It looks like ${OSD_DEVICE} is an OSD belonging to a different (or old) ceph cluster."
               echo "The OSD FSID is ${osdFSID} while this cluster is ${cephFSID}"
               echo "Because OSD_FORCE_REPAIR was set, we will zap this device."
+              zap_extra_partitions ${tmpmnt}
+              umount ${tmpmnt}
               disk_zap ${OSD_DEVICE}
             else
+              umount ${tmpmnt}
               echo "It looks like ${OSD_DEVICE} is an OSD belonging to a this ceph cluster."
               echo "OSD_FORCE_REPAIR is set, but will be ignored and the device will not be zapped."
               echo "Moving on, trying to activate the OSD now."
               return
             fi
           else
-            umount ${tmpmnt}
             echo "It looks like ${OSD_DEVICE} has a ceph data partition but no FSID."
             echo "Because OSD_FORCE_REPAIR was set, we will zap this device."
+            zap_extra_partitions ${tmpmnt}
+            umount ${tmpmnt}
             disk_zap ${OSD_DEVICE}
           fi
         else
@@ -145,22 +152,33 @@ function osd_disk_prepare {
     fi
   fi
 
-  if [ "${OSD_BLUESTORE:-0}" -ne 1 ]; then
+  if [ "${OSD_BLUESTORE:-0}" -eq 1 ]; then
+    CLI_OPTS="${CLI_OPTS} --bluestore"
+
+    if [ ! -z "$BLOCK_DB" ]; then
+      CLI_OPTS="${CLI_OPTS} --block.db ${BLOCK_DB}"
+    fi
+
+    if [ ! -z "$BLOCK_WAL" ]; then
+      CLI_OPTS="${CLI_OPTS} --block.wal ${BLOCK_WAL}"
+    fi
+
+    CLI_OPTS="${CLI_OPTS} ${OSD_DEVICE}"
+  else
     # we only care about journals for filestore.
     osd_journal_prepare
-  else
-    OSD_JOURNAL=''
-    CLI_OPTS="${CLI_OPTS} --bluestore"
+
+    CLI_OPTS="${CLI_OPTS} --journal-uuid ${OSD_JOURNAL_UUID} ${OSD_DEVICE}"
+
+    if [ "x$JOURNAL_TYPE" == "xdirectory" ]; then
+      CLI_OPTS="${CLI_OPTS} --journal-file"
+    else
+      CLI_OPTS="${CLI_OPTS} ${OSD_JOURNAL}"
+    fi
   fi
 
   udev_settle
-
-  if [ "x$JOURNAL_TYPE" == "xdirectory" ]; then
-    ceph-disk -v prepare ${CLI_OPTS} --journal-uuid ${OSD_JOURNAL_UUID} ${OSD_DEVICE} --journal-file
-  else
-    ceph-disk -v prepare ${CLI_OPTS} --journal-uuid ${OSD_JOURNAL_UUID} ${OSD_DEVICE} ${OSD_JOURNAL}
-  fi
-
+  ceph-disk -v prepare ${CLI_OPTS}
 }
 
 function osd_journal_create {

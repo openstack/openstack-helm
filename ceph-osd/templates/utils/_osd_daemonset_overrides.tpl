@@ -303,6 +303,7 @@ limitations under the License.
     {{- $_ := set $context.Values "__tmpPodVols" $newPodDataVols }}
   {{ end }}
 
+  {{- if ne $v.data.type "bluestore" }}
   {{ if eq $v.journal.type "directory" }}
     {{ $journalDirVolume := dict "hostPath" (dict "path" $v.journal.location) "name" "journal" }}
     {{ $newPodDataVols := append $context.Values.__tmpPodVols $journalDirVolume }}
@@ -312,6 +313,11 @@ limitations under the License.
     {{ $newPodDataVols := append $context.Values.__tmpPodVols $dataDirVolume }}
     {{- $_ := set $context.Values "__tmpPodVols" $newPodDataVols }}
   {{ end }}
+  {{ else }}
+    {{ $dataDirVolume := dict "emptyDir" dict "name" "journal" }}
+    {{ $newPodDataVols := append $context.Values.__tmpPodVols $dataDirVolume }}
+    {{- $_ := set $context.Values "__tmpPodVols" $newPodDataVols }}
+  {{- end }}
 
   {{- if not $context.Values.__tmpYAML.spec }}{{- $_ := set $context.Values.__tmpYAML "spec" dict }}{{- end }}
   {{- if not $context.Values.__tmpYAML.spec.template }}{{- $_ := set $context.Values.__tmpYAML.spec "template" dict }}{{- end }}
@@ -330,9 +336,27 @@ limitations under the License.
     {{- if empty $context.Values._tmpYAMLcontainer.env }}
     {{- $_ := set $context.Values._tmpYAMLcontainer "env" ( list ) }}
     {{- end }}
+    {{- $tmpcontainerEnv := omit $context.Values._tmpYAMLcontainer "env" }}
+    {{- if eq $v.data.type "bluestore" }}
+    {{- if and $v.block_db $v.block_wal}}
+    {{ $containerEnv := prepend (prepend (prepend ( prepend (index $context.Values._tmpYAMLcontainer "env") (dict "name" "STORAGE_TYPE" "value" $v.data.type)) (dict "name" "STORAGE_LOCATION" "value" $v.data.location)) (dict "name" "BLOCK_DB" "value" $v.block_db)) (dict "name" "BLOCK_WAL" "value" $v.block_wal) }}
+    {{- $_ := set $tmpcontainerEnv "env" $containerEnv }}
+    {{- else if $v.block_db }}
+    {{ $containerEnv := prepend (prepend ( prepend (index $context.Values._tmpYAMLcontainer "env") (dict "name" "STORAGE_TYPE" "value" $v.data.type)) (dict "name" "STORAGE_LOCATION" "value" $v.data.location)) (dict "name" "BLOCK_DB" "value" $v.block_db) }}
+    {{- $_ := set $tmpcontainerEnv "env" $containerEnv }}
+    {{- else if $v.block_wal }}
+    {{ $containerEnv := prepend (prepend ( prepend (index $context.Values._tmpYAMLcontainer "env") (dict "name" "STORAGE_TYPE" "value" $v.data.type)) (dict "name" "STORAGE_LOCATION" "value" $v.data.location)) (dict "name" "BLOCK_WAL" "value" $v.block_wal) }}
+    {{- $_ := set $tmpcontainerEnv "env" $containerEnv }}
+    {{ else }}
+    {{ $containerEnv := prepend (prepend (index $context.Values._tmpYAMLcontainer "env") (dict "name" "STORAGE_TYPE" "value" $v.data.type)) (dict "name" "STORAGE_LOCATION" "value" $v.data.location) }}
+    {{- $_ := set $tmpcontainerEnv "env" $containerEnv }}
+    {{- end }}
+    {{ else }}
     {{ $containerEnv := prepend (prepend (prepend ( prepend (index $context.Values._tmpYAMLcontainer "env") (dict "name" "STORAGE_TYPE" "value" $v.data.type)) (dict "name" "JOURNAL_TYPE" "value" $v.journal.type)) (dict "name" "STORAGE_LOCATION" "value" $v.data.location)) (dict "name" "JOURNAL_LOCATION" "value" $v.journal.location) }}
+    {{- $_ := set $tmpcontainerEnv "env" $containerEnv }}
+    {{- end }}
     {{- $localInitContainerEnv := omit $context.Values._tmpYAMLcontainer "env" }}
-    {{- $_ := set $localInitContainerEnv "env" $containerEnv }}
+    {{- $_ := set $localInitContainerEnv "env" $tmpcontainerEnv.env }}
     {{ $containerList := append $context.Values.__tmpYAMLcontainers $localInitContainerEnv }}
     {{ $_ := set $context.Values "__tmpYAMLcontainers" $containerList }}
   {{ end }}
@@ -341,9 +365,27 @@ limitations under the License.
   {{- $_ := set $context.Values "__tmpYAMLinitContainers" list }}
   {{- range $podContainer := $context.Values.__daemonset_yaml.spec.template.spec.initContainers }}
     {{- $_ := set $context.Values "_tmpYAMLinitContainer" $podContainer }}
-    {{ $initContainerEnv := prepend (prepend (prepend ( prepend (index $context.Values._tmpYAMLinitContainer "env") (dict "name" "STORAGE_TYPE" "value" $v.data.type)) (dict "name" "JOURNAL_TYPE" "value" $v.journal.type)) (dict "name" "STORAGE_LOCATION" "value" $v.data.location)) (dict "name" "JOURNAL_LOCATION" "value" $v.journal.location) }}
+    {{- $tmpinitcontainerEnv := omit $context.Values._tmpYAMLinitContainer "env" }}
+    {{- if eq $v.data.type "bluestore" }}
+    {{- if and $v.block_db $v.block_wal}}
+    {{ $initcontainerEnv := prepend (prepend (prepend ( prepend (index $context.Values._tmpYAMLinitContainer "env") (dict "name" "STORAGE_TYPE" "value" $v.data.type)) (dict "name" "STORAGE_LOCATION" "value" $v.data.location)) (dict "name" "BLOCK_DB" "value" $v.block_db)) (dict "name" "BLOCK_WAL" "value" $v.block_wal) }}
+    {{- $_ := set $tmpinitcontainerEnv "env" $initcontainerEnv }}
+    {{- else if $v.block_db }}
+    {{ $initcontainerEnv := prepend (prepend ( prepend (index $context.Values._tmpYAMLinitContainer "env") (dict "name" "STORAGE_TYPE" "value" $v.data.type)) (dict "name" "STORAGE_LOCATION" "value" $v.data.location)) (dict "name" "BLOCK_DB" "value" $v.block_db) }}
+    {{- $_ := set $tmpinitcontainerEnv "env" $initcontainerEnv }}
+    {{- else if $v.block_wal }}
+    {{ $initcontainerEnv := prepend (prepend ( prepend (index $context.Values._tmpYAMLinitContainer "env") (dict "name" "STORAGE_TYPE" "value" $v.data.type)) (dict "name" "STORAGE_LOCATION" "value" $v.data.location)) (dict "name" "BLOCK_WAL" "value" $v.block_wal) }}
+    {{- $_ := set $tmpinitcontainerEnv "env" $initcontainerEnv }}
+    {{ else }}
+    {{ $initcontainerEnv := prepend (prepend (index $context.Values._tmpYAMLinitContainer "env") (dict "name" "STORAGE_TYPE" "value" $v.data.type)) (dict "name" "STORAGE_LOCATION" "value" $v.data.location) }}
+    {{- $_ := set $tmpinitcontainerEnv "env" $initcontainerEnv }}
+    {{- end }}
+    {{ else }}
+    {{ $initcontainerEnv := prepend (prepend (prepend ( prepend (index $context.Values._tmpYAMLinitContainer "env") (dict "name" "STORAGE_TYPE" "value" $v.data.type)) (dict "name" "JOURNAL_TYPE" "value" $v.journal.type)) (dict "name" "STORAGE_LOCATION" "value" $v.data.location)) (dict "name" "JOURNAL_LOCATION" "value" $v.journal.location) }}
+    {{- $_ := set $tmpinitcontainerEnv "env" $initcontainerEnv }}
+    {{- end }}
     {{- $localInitContainerEnv := omit $context.Values._tmpYAMLinitContainer "env" }}
-    {{- $_ := set $localInitContainerEnv "env" $initContainerEnv }}
+    {{- $_ := set $localInitContainerEnv "env" $tmpinitcontainerEnv.env }}
     {{ $initContainerList := append $context.Values.__tmpYAMLinitContainers $localInitContainerEnv }}
     {{ $_ := set $context.Values "__tmpYAMLinitContainers" $initContainerList }}
   {{ end }}
