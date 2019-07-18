@@ -48,6 +48,24 @@ function active_rabbit_nodes () {
 }
 
 until test "$(active_rabbit_nodes)" -ge "$RABBIT_REPLICA_COUNT"; do
-    echo "Waiting for number of nodes in cluster to match number of desired pods ($RABBIT_REPLICA_COUNT)"
+    echo "Waiting for number of nodes in cluster to meet or exceed number of desired pods ($RABBIT_REPLICA_COUNT)"
     sleep 10
 done
+
+function sorted_node_list () {
+  rabbitmqadmin_authed list nodes -f bash | tr ' ' '\n' | sort | tr '\n' ' '
+}
+
+if test "$(active_rabbit_nodes)" -gt "$RABBIT_REPLICA_COUNT"; then
+    echo "There are more nodes registed in the cluster than desired, pruning the cluster"
+    PRIMARY_NODE="$(sorted_node_list | awk '{ print $1; exit }')"
+    echo "Current cluster:"
+    rabbitmqctl -l -n "${PRIMARY_NODE}" cluster_status
+    NODES_TO_REMOVE="$(sorted_node_list | awk "{print substr(\$0, index(\$0,\$$((RABBIT_REPLICA_COUNT+1))))}")"
+    for NODE in ${NODES_TO_REMOVE}; do
+      rabbitmqctl -l -n "${NODE}" stop_app || true
+      rabbitmqctl -l -n "${PRIMARY_NODE}" forget_cluster_node "${NODE}"
+    done
+    echo "Updated cluster:"
+    rabbitmqctl -l -n "${PRIMARY_NODE}" cluster_status
+fi
