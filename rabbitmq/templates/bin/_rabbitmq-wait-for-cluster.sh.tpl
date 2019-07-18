@@ -59,6 +59,10 @@ function sorted_node_list () {
 if test "$(active_rabbit_nodes)" -gt "$RABBIT_REPLICA_COUNT"; then
     echo "There are more nodes registed in the cluster than desired, pruning the cluster"
     PRIMARY_NODE="$(sorted_node_list | awk '{ print $1; exit }')"
+    until rabbitmqctl -l -n "${PRIMARY_NODE}" cluster_status >/dev/null 2>&1 ; do
+      echo "Waiting for primary node to return cluster status"
+      sleep 10
+    done
     echo "Current cluster:"
     rabbitmqctl -l -n "${PRIMARY_NODE}" cluster_status
     NODES_TO_REMOVE="$(sorted_node_list | awk "{print substr(\$0, index(\$0,\$$((RABBIT_REPLICA_COUNT+1))))}")"
