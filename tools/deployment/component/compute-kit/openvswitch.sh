@@ -17,7 +17,7 @@ set -xe
 
 #NOTE: Get the over-rides to use
 export HELM_CHART_ROOT_PATH="${HELM_CHART_ROOT_PATH:="${OSH_INFRA_PATH:="../openstack-helm-infra"}"}"
-: ${OSH_EXTRA_HELM_ARGS_LIBVIRT:="$(./tools/deployment/common/get-values-overrides.sh openvswitch)"}
+: ${OSH_EXTRA_HELM_ARGS_OPENVSWITCH:="$(./tools/deployment/common/get-values-overrides.sh openvswitch)"}
 
 #NOTE: Lint and package chart
 make -C ${HELM_CHART_ROOT_PATH} openvswitch
