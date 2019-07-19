@@ -10,7 +10,7 @@ if [[ ! -e ${CEPH_CONF}.template ]]; then
   echo "ERROR- ${CEPH_CONF}.template must exist; get it from your existing mon"
   exit 1
 else
-  ENDPOINT=$(kubectl get endpoints ceph-mon -n ${NAMESPACE} -o json | awk -F'"' -v port=${MON_PORT} '/ip/{print $4":"port}' | paste -sd',')
+  ENDPOINT=$(kubectl get endpoints ceph-mon -n ${NAMESPACE} -o json | awk -F'"' -v port=${MON_PORT} '/"ip"/{print $4":"port}' | paste -sd',')
   if [[ ${ENDPOINT} == "" ]]; then
     /bin/sh -c -e "cat ${CEPH_CONF}.template | tee ${CEPH_CONF}" || true
   else
