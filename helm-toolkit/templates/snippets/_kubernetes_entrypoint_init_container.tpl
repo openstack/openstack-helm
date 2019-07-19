@@ -148,6 +148,17 @@ Values:
 {{- $_ := set $envAll.Values.__kubernetes_entrypoint_init_container "deps" ( index $envAll.Values.dependencies.static $component ) -}}
 {{- end -}}
 {{- end -}}
+
+{{- if and ($envAll.Values.manifests.job_rabbit_init) (hasKey $envAll.Values.dependencies "dynamic") -}}
+{{- if $envAll.Values.dependencies.dynamic.job_rabbit_init -}}
+{{- if eq $component "pod_dependency" -}}
+{{- $_ := include "helm-toolkit.utils.merge" ( tuple $envAll.Values.__kubernetes_entrypoint_init_container.deps ( index $envAll.Values.pod_dependency ) (index $envAll.Values.dependencies.dynamic.job_rabbit_init $component) ) -}}
+{{- else -}}
+{{- $_ := include "helm-toolkit.utils.merge" ( tuple $envAll.Values.__kubernetes_entrypoint_init_container.deps ( index $envAll.Values.dependencies.static $component ) (index $envAll.Values.dependencies.dynamic.job_rabbit_init $component)) -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+
 {{- $deps := $envAll.Values.__kubernetes_entrypoint_init_container.deps }}
 {{- range $deps.custom_resources }}
 {{- $_ := set . "namespace" $envAll.Release.Namespace -}}
