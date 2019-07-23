@@ -37,5 +37,8 @@ mkdir -p /run/ceph
 # Creating rados directories
 mkdir -p "/var/lib/ceph/radosgw/${RGW_NAME}"
 
+# Clean the folder
+rm -f "$(dirname "${RGW_BOOTSTRAP_KEYRING}"/*)"
+
 # Adjust the owner of all those directories
 chown -R ceph. /run/ceph/ /var/lib/ceph/*
