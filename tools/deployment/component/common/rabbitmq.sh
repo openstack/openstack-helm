@@ -27,7 +27,7 @@ make -C ${HELM_CHART_ROOT_PATH} rabbitmq
 helm upgrade --install rabbitmq ${HELM_CHART_ROOT_PATH}/rabbitmq \
     --namespace=openstack \
     --set volume.enabled=false \
-    --set pod.replicas.server=1 \
+    --set pod.replicas.server=2 \
     ${OSH_EXTRA_HELM_ARGS:=} \
     ${OSH_EXTRA_HELM_ARGS_RABBITMQ}
 
