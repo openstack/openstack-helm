@@ -14,7 +14,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- define "nova.templates._job_db_sync.env_vars" -}}
+{{- $envAll := index . 0 }}
+env:
+  - name: TRANSPORT_URL
+    valueFrom:
+      secretKeyRef:
+        name: {{ $envAll.Values.secrets.oslo_messaging.nova }}
+        key: TRANSPORT_URL
+{{- end }}
+
 {{- if .Values.manifests.job_db_sync }}
-{{- $dbSyncJob := dict "envAll" . "serviceName" "nova" "podVolMounts" .Values.pod.mounts.nova_db_sync.nova_db_sync.volumeMounts "podVols" .Values.pod.mounts.nova_db_sync.nova_db_sync.volumes -}}
+{{- $podEnvVars := include "nova.templates._job_db_sync.env_vars" (tuple .) | toString | fromYaml }}
+{{- $dbSyncJob := dict "envAll" . "serviceName" "nova" "podVolMounts" .Values.pod.mounts.nova_db_sync.nova_db_sync.volumeMounts "podVols" .Values.pod.mounts.nova_db_sync.nova_db_sync.volumes "podEnvVars" $podEnvVars.env -}}
 {{ $dbSyncJob | include "helm-toolkit.manifests.job_db_sync" }}
 {{- end }}
