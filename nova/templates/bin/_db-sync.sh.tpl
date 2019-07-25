@@ -27,18 +27,19 @@ function manage_cells () {
     nova-manage cell_v2 list_cells | grep -q " cell1 " || \
       nova-manage cell_v2 create_cell --name=cell1 --verbose
 
-    # NOTE: We do this to allow the transport url to be updated.
     CELL1_ID=$(nova-manage cell_v2 list_cells | awk -F '|' '/ cell1 / { print $3 }' | tr -d ' ')
     set +x
-    if [ -z "${TRANSPORT_URL}" ]; then
-      echo "Error: Transport URL is not set, exiting."
-      exit 1
-    else
-      nova-manage cell_v2 update_cell \
-        --cell_uuid="${CELL1_ID}" \
-        --name="cell1" \
-        --transport-url="${TRANSPORT_URL}"
-    fi
+    for VAR in TRANSPORT_URL DB_CONNECTION; do
+      if [ -z "${!VAR}" ]; then
+        echo "ERROR: missing $VAR variable"
+        exit 1
+      fi
+    done
+    nova-manage cell_v2 update_cell \
+      --cell_uuid="${CELL1_ID}" \
+      --name="cell1" \
+      --transport-url="${TRANSPORT_URL}" \
+      --database_connection="${DB_CONNECTION}"
     set -x
   fi
 }
