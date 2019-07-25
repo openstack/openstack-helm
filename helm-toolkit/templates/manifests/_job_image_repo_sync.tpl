@@ -26,7 +26,9 @@ limitations under the License.
 {{- $podVolMounts := index . "podVolMounts" | default false -}}
 {{- $podVols := index . "podVols" | default false -}}
 {{- $configMapBin := index . "configMapBin" | default (printf "%s-%s" $serviceName "bin" ) -}}
-
+{{- $secretBin := index . "secretBin" -}}
+{{- $backoffLimit := index . "backoffLimit" | default "6" -}}
+{{- $activeDeadlineSeconds := index . "activeDeadlineSeconds" -}}
 {{- $serviceNamePretty := $serviceName | replace "_" "-" -}}
 
 {{- $serviceAccountName := printf "%s-%s" $serviceNamePretty "image-repo-sync" }}
@@ -37,6 +39,10 @@ kind: Job
 metadata:
   name: {{ printf "%s-%s" $serviceNamePretty "image-repo-sync" | quote }}
 spec:
+  backoffLimit: {{ $backoffLimit }}
+{{- if $activeDeadlineSeconds }}
+  activeDeadlineSeconds: {{ $activeDeadlineSeconds }}
+{{- end }}
   template:
     metadata:
       labels:
@@ -58,6 +64,8 @@ spec:
             - name: IMAGE_SYNC_LIST
               value: "{{ include "helm-toolkit.utils.image_sync_list" $envAll }}"
           command:
+            - /bin/bash
+            - -c
             - /tmp/image-repo-sync.sh
           volumeMounts:
             - name: pod-tmp
@@ -75,9 +83,15 @@ spec:
         - name: pod-tmp
           emptyDir: {}
         - name: bootstrap-sh
+{{- if $secretBin }}
+          secret:
+            secretName: {{ $secretBin | quote }}
+            defaultMode: 0555
+{{- else }}
           configMap:
             name: {{ $configMapBin | quote }}
             defaultMode: 0555
+{{- end }}
         - name: docker-socket
           hostPath:
             path: /var/run/docker.sock

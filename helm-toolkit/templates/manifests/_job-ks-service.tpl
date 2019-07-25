@@ -25,6 +25,9 @@ limitations under the License.
 {{- $serviceTypes := index . "serviceTypes" -}}
 {{- $nodeSelector := index . "nodeSelector" | default ( dict $envAll.Values.labels.job.node_selector_key $envAll.Values.labels.job.node_selector_value ) -}}
 {{- $configMapBin := index . "configMapBin" | default (printf "%s-%s" $serviceName "bin" ) -}}
+{{- $secretBin := index . "secretBin" -}}
+{{- $backoffLimit := index . "backoffLimit" | default "6" -}}
+{{- $activeDeadlineSeconds := index . "activeDeadlineSeconds" -}}
 {{- $serviceNamePretty := $serviceName | replace "_" "-" -}}
 
 {{- $serviceAccountName := printf "%s-%s" $serviceNamePretty "ks-service" }}
@@ -35,6 +38,10 @@ kind: Job
 metadata:
   name: {{ printf "%s-%s" $serviceNamePretty "ks-service" | quote }}
 spec:
+  backoffLimit: {{ $backoffLimit }}
+{{- if $activeDeadlineSeconds }}
+  activeDeadlineSeconds: {{ $activeDeadlineSeconds }}
+{{- end }}
   template:
     metadata:
       labels:
@@ -53,6 +60,8 @@ spec:
           imagePullPolicy: {{ $envAll.Values.images.pull_policy }}
 {{ tuple $envAll $envAll.Values.pod.resources.jobs.ks_service | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           command:
+            - /bin/bash
+            - -c
             - /tmp/ks-service.sh
           volumeMounts:
             - name: pod-tmp
@@ -74,7 +83,13 @@ spec:
         - name: pod-tmp
           emptyDir: {}
         - name: ks-service-sh
+{{- if $secretBin }}
+          secret:
+            secretName: {{ $secretBin | quote }}
+            defaultMode: 0555
+{{- else }}
           configMap:
             name: {{ $configMapBin | quote }}
             defaultMode: 0555
+{{- end }}
 {{- end }}

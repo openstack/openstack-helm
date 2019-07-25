@@ -31,7 +31,9 @@ limitations under the License.
 {{- $logConfigFile := index . "logConfigFile" | default (printf "/etc/%s/logging.conf" $serviceName ) -}}
 {{- $keystoneUser := index . "keystoneUser" | default $serviceName -}}
 {{- $openrc := index . "openrc" | default "true" -}}
-
+{{- $secretBin := index . "secretBin" -}}
+{{- $backoffLimit := index . "backoffLimit" | default "6" -}}
+{{- $activeDeadlineSeconds := index . "activeDeadlineSeconds" -}}
 {{- $serviceNamePretty := $serviceName | replace "_" "-" -}}
 
 {{- $serviceAccountName := printf "%s-%s" $serviceNamePretty "bootstrap" }}
@@ -42,6 +44,10 @@ kind: Job
 metadata:
   name: {{ printf "%s-%s" $serviceNamePretty "bootstrap" | quote }}
 spec:
+  backoffLimit: {{ $backoffLimit }}
+{{- if $activeDeadlineSeconds }}
+  activeDeadlineSeconds: {{ $activeDeadlineSeconds }}
+{{- end }}
   template:
     metadata:
       labels:
@@ -65,6 +71,8 @@ spec:
 {{- end }}
 {{- end }}
           command:
+            - /bin/bash
+            - -c
             - /tmp/bootstrap.sh
           volumeMounts:
             - name: pod-tmp
@@ -90,9 +98,15 @@ spec:
         - name: pod-tmp
           emptyDir: {}
         - name: bootstrap-sh
+{{- if $secretBin }}
+          secret:
+            secretName: {{ $secretBin | quote }}
+            defaultMode: 0555
+{{- else }}
           configMap:
             name: {{ $configMapBin | quote }}
             defaultMode: 0555
+{{- end }}
         - name: etc-service
           emptyDir: {}
         - name: bootstrap-conf
