@@ -144,13 +144,13 @@ function rgw_s3_bucket_validation ()
   fi
 }
 
-if [ {{ .Values.conf.rgw_ks.enabled }} == true ];
+if [ "$RGW_TEST_TYPE" == RGW_KS ];
 then
   echo "--> Keystone is enabled. Calling function to test keystone based auth "
   rgw_keystone_bucket_validation
 fi
 
-if [ {{ .Values.conf.rgw_s3.enabled }} == true ];
+if [ "$RGW_TEST_TYPE" == RGW_S3 ];
 then
   echo "--> S3 is enabled. Calling function to test S3 based auth "
   rgw_s3_bucket_validation
