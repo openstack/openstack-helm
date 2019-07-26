@@ -21,6 +21,9 @@ make elasticsearch
 
 #NOTE: Deploy command
 tee /tmp/elasticsearch.yaml << EOF
+jobs:
+  verify_repositories:
+    cron: "*/3 * * * *"
 monitoring:
   prometheus:
     enabled: true
