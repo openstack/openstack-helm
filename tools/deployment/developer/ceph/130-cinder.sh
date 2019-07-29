@@ -28,10 +28,12 @@ conf:
         replication: 1
         crush_rule: same_host
         chunk_size: 8
-      volume:
+        app_name: cinder-backup
+      cinder.volumes:
         replication: 1
         crush_rule: same_host
         chunk_size: 8
+        app_name: cinder-volume
 EOF
 helm upgrade --install cinder ./cinder \
   --namespace=openstack \
