@@ -16,7 +16,7 @@
 set -xe
 
 CURRENT_DIR=$(pwd)
-CFSSLURL=https://pkg.cfssl.org/R1.2
+CFSSLURL=https://pkg.cfssl.org
 
 TDIR=/tmp/certs
 rm -rf $TDIR
