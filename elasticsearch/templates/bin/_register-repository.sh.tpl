@@ -46,6 +46,11 @@ function register_snapshot_repository() {
   fi
 }
 
+function verify_snapshot_repository() {
+  curl -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
+    -XPOST "${ELASTICSEARCH_HOST}/_snapshot/$1/_verify"
+}
+
 # Get names of all current snapshot repositories
 snapshot_repos=$(curl -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
   "${ELASTICSEARCH_HOST}"/_cat/repositories?format=json | jq -r '.[].id')
@@ -56,5 +61,6 @@ if contains "$snapshot_repos" {{$repository.name}}; then
   echo "Snapshot repository {{$repository.name}} exists!"
 else
   register_snapshot_repository {{$repository.name}}
+  verify_snapshot_repository {{$repository.name}}
 fi
 {{ end }}
