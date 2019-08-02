@@ -185,7 +185,6 @@ jobs:
       execPolicy: Forbid
     startingDeadlineSecs: 60
 manifests:
-  cronjob_defragosds: true
   job_bootstrap: false
 EOF
 
