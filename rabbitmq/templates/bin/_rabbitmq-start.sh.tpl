@@ -64,7 +64,7 @@ if ! [ "${POD_INCREMENT}" -eq "0" ] && ! [ -d "/var/lib/rabbitmq/mnesia" ] ; the
 
   function reset_rabbit () {
     rabbitmqctl shutdown || true
-    rm -rf /var/lib/rabbitmq/*
+    find /var/lib/rabbitmq/ ! -name 'definitions.json' ! -name '.erlang.cookie' -exec rm -rf {} +
     exit 1
   }
 
