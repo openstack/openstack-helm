@@ -108,6 +108,8 @@ jobs:
 manifests:
   deployment_mds: false
   cronjob_defragosds: true
+  deployment_cephfs_provisioner: false
+  job_cephfs_client_key: false
 ceph_mgr_modules_config:
   prometheus:
     server_port: 9284
@@ -160,4 +162,4 @@ for CHART in ceph-mon ceph-osd ceph-client; do
 done
 
 helm test tenant-ceph-osd --timeout 900
-helm test ceph-client --timeout 900
+helm test tenant-ceph-client --timeout 900

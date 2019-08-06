@@ -54,7 +54,7 @@ deployment:
   storage_secrets: true
   ceph: true
   rbd_provisioner: true
-  cephfs_provisioner: true
+  cephfs_provisioner: false
   client_secrets: false
   rgw_keystone_user_and_endpoints: false
 jobs:
@@ -73,6 +73,8 @@ jobs:
 manifests:
   deployment_mds: false
   cronjob_defragosds: true
+  deployment_cephfs_provisioner: false
+  job_cephfs_client_key: false
 bootstrap:
   enabled: true
 conf:
@@ -101,6 +103,8 @@ conf:
 storageclass:
   rbd:
     ceph_configmap_name: ceph-etc
+  cephfs:
+    provision_storage_class: false
 ceph_mgr_modules_config:
   prometheus:
     server_port: 9283
