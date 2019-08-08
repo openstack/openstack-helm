@@ -143,12 +143,59 @@ spec:
               /bin/chown {{ .Values.pod.security_context.server.pod.runAsUser }} {{ .Values.storage.mount.path }};
               /bin/chmod 700 {{ .Values.storage.mount.path }};
               /bin/chmod 700 {{ .Values.storage.mount.path }}/*;
+              /bin/cp {{ .Values.secrets.pki.client_cert_path }}_temp/* {{ .Values.secrets.pki.client_cert_path }}/.;
+              /bin/cp {{ .Values.secrets.pki.server_cert_path }}_temp/* {{ .Values.secrets.pki.server_cert_path }}/.;
+              /bin/chown {{ .Values.pod.security_context.server.pod.runAsUser }} {{ .Values.secrets.pki.client_cert_path }};
+              /bin/chown {{ .Values.pod.security_context.server.pod.runAsUser }} {{ .Values.secrets.pki.client_cert_path }}/*;
+              /bin/chown {{ .Values.pod.security_context.server.pod.runAsUser }} {{ .Values.secrets.pki.server_cert_path }};
+              /bin/chown {{ .Values.pod.security_context.server.pod.runAsUser }} {{ .Values.secrets.pki.server_cert_path }}/*;
+              /bin/chmod 700 {{ .Values.secrets.pki.client_cert_path }};
+              /bin/chmod 600 {{ .Values.secrets.pki.client_cert_path }}/*;
+              /bin/chmod 700 {{ .Values.secrets.pki.server_cert_path }};
+              /bin/chmod 600 {{ .Values.secrets.pki.server_cert_path }}/*;
 {{ dict "envAll" $envAll "application" "server" "container" "set_volume_perms" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
             - name: postgresql-data
               mountPath: {{ .Values.storage.mount.path }}
+            - name: server-certs
+              mountPath: {{ .Values.secrets.pki.server_cert_path }}
+              # server-cert-temp mountpoint is temp storage for secrets. We copy the
+              # secrets to server-certs folder and set owner and permissions.
+              # This is needed because the secrets are always created readonly.
+            - name: server-certs-temp
+              mountPath: {{ .Values.secrets.pki.server_cert_path }}_temp
+            - name: postgresql-pki
+              subPath: crt
+              mountPath: {{ .Values.secrets.pki.server_cert_path }}_temp/server.crt
+            - name: postgresql-pki
+              subPath: key
+              mountPath: {{ .Values.secrets.pki.server_cert_path }}_temp/server.key
+            - name: replication-pki
+              subPath: ca
+              mountPath: {{ .Values.secrets.pki.server_cert_path }}_temp/ca.crt
+            - name: replication-pki
+              subPath: caKey
+              mountPath: {{ .Values.secrets.pki.server_cert_path }}_temp/ca.key
+              # client-certs is the permanent folder for the client secrets
+            - name: client-certs
+              mountPath: {{ .Values.secrets.pki.client_cert_path }}
+              # client-certs-temp is temporary folder for the client secrets, before they a copied to their permanent folder
+            - name: client-certs-temp
+              mountPath: {{ .Values.secrets.pki.client_cert_path }}_temp
+            - name: replication-pki
+              subPath: crt
+              mountPath: {{ .Values.secrets.pki.client_cert_path }}_temp/client.crt
+            - name: replication-pki
+              subPath: key
+              mountPath: {{ .Values.secrets.pki.client_cert_path }}_temp/client.key
+            - name: postgresql-pki
+              subPath: ca
+              mountPath: {{ .Values.secrets.pki.client_cert_path }}_temp/ca.crt
+            - name: postgresql-pki
+              subPath: caKey
+              mountPath: {{ .Values.secrets.pki.client_cert_path }}_temp/ca.key
         # This is for non-HA -> Patroni conversion and can be removed in the future
         - name: patroni-conversion
 {{ tuple $envAll "postgresql" | include "helm-toolkit.snippets.image" | indent 10 }}
@@ -191,15 +238,7 @@ spec:
                   name: {{ .Values.secrets.postgresql.admin }}
                   key: 'POSTGRES_PASSWORD'
             - name: PATRONI_REPLICATION_USERNAME
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.secrets.postgresql.replica }}
-                  key: 'REPLICA_USER'
-            - name: PATRONI_REPLICATION_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.secrets.postgresql.replica }}
-                  key: 'REPLICA_PASSWORD'
+              value: {{ index .Values.secrets.pki.replication.hosts.names 0 | quote }}
             - name: PATRONI_RESTAPI_CONNECT_ADDRESS
               value: $(PATRONI_KUBERNETES_POD_IP):{{ tuple "postgresql-restapi" "internal" "restapi" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
             - name: PATRONI_RESTAPI_LISTEN
@@ -278,15 +317,7 @@ spec:
                   name: {{ .Values.secrets.postgresql.admin }}
                   key: 'POSTGRES_PASSWORD'
             - name: PATRONI_REPLICATION_USERNAME
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.secrets.postgresql.replica }}
-                  key: 'REPLICA_USER'
-            - name: PATRONI_REPLICATION_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.secrets.postgresql.replica }}
-                  key: 'REPLICA_PASSWORD'
+              value: {{ index .Values.secrets.pki.replication.hosts.names 0 | quote }}
             - name: PATRONI_RESTAPI_CONNECT_ADDRESS
               value: $(PATRONI_KUBERNETES_POD_IP):{{ tuple "postgresql-restapi" "internal" "restapi" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
             - name: PATRONI_RESTAPI_LISTEN
@@ -299,6 +330,12 @@ spec:
               value: $(PATRONI_SUPERUSER_PASSWORD)
             - name: PATRONI_admin_OPTIONS
               value: 'createrole,createdb'
+            - name: PGSSLROOTCERT
+              value: {{ .Values.secrets.pki.client_cert_path }}/ca.crt
+            - name: PGSSLCERT
+              value: "/home/postgres/.postgresql/postgresql.crt"
+            - name: PGSSLKEY
+              value: "/home/postgres/.postgresql/postgresql.key"
           command:
             - /tmp/start.sh
           livenessProbe:
@@ -338,8 +375,24 @@ spec:
               readOnly: true
             - name: postgresql-data
               mountPath: {{ .Values.storage.mount.path }}
+            - name: server-certs
+              mountPath: {{ .Values.secrets.pki.server_cert_path }}
+            - name: client-certs
+              mountPath: {{ .Values.secrets.pki.client_cert_path }}
+            - name: postgres-home-config
+              mountPath: "/home/postgres/.postgresql"
+            - name: client-certs
+              subPath: "client.crt"
+              mountPath: "/home/postgres/.postgresql/postgresql.crt"
+              readOnly: true
+            - name: client-certs
+              subPath: "client.key"
+              mountPath: "/home/postgres/.postgresql/postgresql.key"
+              readOnly: true
       volumes:
         - name: pod-tmp
+          emptyDir: {}
+        - name: postgres-home-config
           emptyDir: {}
         - name: pg-run
           emptyDir:
@@ -351,6 +404,22 @@ spec:
           secret:
             secretName: postgresql-bin
             defaultMode: 0555
+        - name: client-certs-temp
+          emptyDir: {}
+        - name: server-certs-temp
+          emptyDir: {}
+        - name: client-certs
+          emptyDir: {}
+        - name: server-certs
+          emptyDir: {}
+        - name: replication-pki
+          secret:
+            secretName: {{ .Values.secrets.postgresql.replica }}
+            defaultMode: 0640
+        - name: postgresql-pki
+          secret:
+            secretName: {{ .Values.secrets.postgresql.server }}
+            defaultMode: 0640
         - name: postgresql-etc
           secret:
             secretName: postgresql-etc

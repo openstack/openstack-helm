@@ -29,7 +29,6 @@ cluster="$3"
 PATRONI_SUPERUSER_USERNAME={{ .Values.endpoints.postgresql.auth.admin.username }}
 PATRONI_SUPERUSER_PASSWORD={{ .Values.endpoints.postgresql.auth.admin.password }}
 PATRONI_REPLICATION_USERNAME={{ .Values.endpoints.postgresql.auth.replica.username }}
-PATRONI_REPLICATION_PASSWORD={{ .Values.endpoints.postgresql.auth.replica.password }}
 
 if [[ x${role} == "xmaster" ]]; then
   echo "I have become the patroni master: updating superuser and replication passwords"
@@ -40,12 +39,6 @@ if [[ x${role} == "xmaster" ]]; then
     psql -U $PATRONI_SUPERUSER_USERNAME -p "$PGPORT" -d "$PGDATABASE" -c "ALTER ROLE $PATRONI_SUPERUSER_USERNAME WITH PASSWORD '$PATRONI_SUPERUSER_PASSWORD';"
   else
     echo "WARNING: Did not set superuser password!!!"
-  fi
-
-  if [[ ! -z "$PATRONI_REPLICATION_PASSWORD" && ! -z "$PATRONI_REPLICATION_USERNAME" ]]; then
-    psql -U $PATRONI_SUPERUSER_USERNAME -p "$PGPORT" -d "$PGDATABASE"  -c "ALTER ROLE $PATRONI_REPLICATION_USERNAME WITH PASSWORD '$PATRONI_REPLICATION_PASSWORD';"
-  else
-    echo "WARNING: Did not set replication user password!!!"
   fi
 
   echo "password update complete"

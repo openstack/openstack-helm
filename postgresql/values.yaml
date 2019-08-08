@@ -30,6 +30,10 @@ pod:
     server:
       pod:
         runAsUser: 999
+        # fsGroup used to allows cert file be witten to file.
+        fsGroup: 999
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
       container:
         set_volume_perms:
           runAsUser: 0
@@ -41,10 +45,6 @@ pod:
           runAsUser: 999
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
-      pod:
-        runAsUser: 999
-        allowPrivilegeEscalation: false
-        readOnlyRootFilesystem: true
   affinity:
     anti:
       type:
@@ -253,6 +253,14 @@ conf:
             max_replication_slots: 10
             max_wal_senders: 10
             max_worker_processes: 10
+            ssl: 'on'
+            # These relative paths are relative to data_dir
+            ssl_cert_file: {{ .Values.secrets.pki.server_cert_path }}/server.crt
+            ssl_ca_file: {{ .Values.secrets.pki.server_cert_path }}/ca.crt
+            ssl_key_file: {{ .Values.secrets.pki.server_cert_path }}/server.key
+            ssl_ciphers: 'HIGH:+3DES:!aNULL'
+            tcp_keepalives_idle: 900
+            tcp_keepalives_interval: 100
             timezone: 'UTC'
             track_commit_timestamp: 'on'
             track_functions: all
@@ -268,9 +276,8 @@ conf:
       pg_hba:
       - host all all 127.0.0.1/32 trust
       - host all all 0.0.0.0/0 md5
-      - host replication {{ .Values.endpoints.postgresql.auth.replica.username }} 127.0.0.1/32 md5  # Fixes issue with Postgres 9.5
-      - host replication {{ .Values.endpoints.postgresql.auth.replica.username }} POD_IP_PATTERN/0 md5
-      - local replication {{ .Values.endpoints.postgresql.auth.admin.username }} md5
+      - hostssl replication {{ .Values.endpoints.postgresql.auth.replica.username }} {{ .Values.secrets.pki.pod_cidr }} cert clientcert=1
+      - hostssl replication {{ .Values.endpoints.postgresql.auth.replica.username }} 127.0.0.1/32 cert clientcert=1
       - local all all trust
     postgresql:
       {{/* Note: the postgres pod mounts a volume at /var/lib/postgresql/data,
@@ -300,6 +307,14 @@ conf:
         max_replication_slots: 10
         max_wal_senders: 10
         max_worker_processes: 10
+        ssl: 'on'
+        # These relative paths are relative to data_dir
+        ssl_cert_file: {{ .Values.secrets.pki.server_cert_path }}/server.crt
+        ssl_ca_file: {{ .Values.secrets.pki.server_cert_path }}/ca.crt
+        ssl_key_file: {{ .Values.secrets.pki.server_cert_path }}/server.key
+        ssl_ciphers: 'HIGH:+3DES:!aNULL'
+        tcp_keepalives_idle: 900
+        tcp_keepalives_interval: 100
         timezone: 'UTC'
         track_commit_timestamp: 'on'
         track_functions: all
@@ -309,9 +324,8 @@ conf:
       pg_hba:
       - host all all 127.0.0.1/32 trust
       - host all all 0.0.0.0/0 md5
-      - host replication {{ .Values.endpoints.postgresql.auth.replica.username }} 127.0.0.1/32 md5  # Fixes issue with Postgres 9.5
-      - host replication {{ .Values.endpoints.postgresql.auth.replica.username }} POD_IP_PATTERN/0 md5
-      - local replication {{ .Values.endpoints.postgresql.auth.admin.username }} md5
+      - hostssl replication {{ .Values.endpoints.postgresql.auth.replica.username }} {{ .Values.secrets.pki.pod_cidr }} cert clientcert=1
+      - hostssl replication {{ .Values.endpoints.postgresql.auth.replica.username }} 127.0.0.1/32 cert clientcert=1
       - local all all trust
     watchdog:
       mode: off  # Allowed values: off, automatic, required
@@ -322,9 +336,26 @@ conf:
     pg_dumpall_options: null
 
 secrets:
+  pki:
+    client_cert_path: /client_certs
+    server_cert_path: /server_certs
+    pod_cidr: 0.0.0.0/0
+    server:
+      hosts:
+        names:
+          # this name should be the service name for postgresql
+          - postgresql.ucp.svc.cluster.local
+      life: 365
+    replication:
+      hosts:
+        names:
+          # this name needs to be the same as endpoints.postgres.auth.replica.username
+          - standby
+      life: 365
   postgresql:
     admin: postgresql-admin
-    replica: postgresql-replication
+    replica: postgresql-replication-pki
+    server: postgresql-server-pki
     exporter: postgresql-exporter
 
 endpoints:
@@ -348,7 +379,6 @@ endpoints:
         password: password
       replica:
         username: standby
-        password: password
       exporter:
         username: psql_exporter
         password: psql_exp_pass
@@ -391,6 +421,7 @@ manifests:
   job_image_repo_sync: true
   secret_admin: true
   secret_replica: true
+  secret_server: true
   secret_etc: true
   service: true
   statefulset: true

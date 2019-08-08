@@ -25,7 +25,7 @@ limitations under the License.
 #
 # If any additional conversion steps are found to be needed, they can go here.
 
-set -e
+set -ex
 
 function patroni_started() {
     HOST=$1
@@ -79,8 +79,10 @@ then
 
   if [ ${USER_COUNT} -eq 0 ]; then
     echo "The patroni replication user ${PATRONI_REPLICATION_USERNAME} doesn't exist yet; creating:"
-    ${PSQL} -c "CREATE USER ${PATRONI_REPLICATION_USERNAME} \
-                WITH REPLICATION ENCRYPTED PASSWORD '${PATRONI_REPLICATION_PASSWORD}';"
+    # CREATE ROLE defaults to NOLOGIN not to allow password based login.
+    # Replication user uses SSL Cert to connect.
+    ${PSQL} -c "CREATE ROLE ${PATRONI_REPLICATION_USERNAME} \
+                WITH REPLICATION;"
     echo "done."
   else
     echo "The patroni replication user ${PATRONI_REPLICATION_USERNAME} already exists: nothing to do."
