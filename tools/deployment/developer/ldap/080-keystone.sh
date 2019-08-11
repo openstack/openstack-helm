@@ -16,8 +16,11 @@
 
 set -xe
 
+#NOTE: Get the over-rides to use
+export HELM_CHART_ROOT_PATH="${HELM_CHART_ROOT_PATH:="${OSH_INFRA_PATH:="../openstack-helm-infra"}"}"
+: ${OSH_EXTRA_HELM_ARGS_LDAP:="$(./tools/deployment/common/get-values-overrides.sh ldap)"}
+
 #NOTE: Deploy command
-: ${OSH_INFRA_PATH:="../openstack-helm-infra"}
 : ${OSH_EXTRA_HELM_ARGS:=""}
 
 tee /tmp/ldap.yaml <<EOF
@@ -41,7 +44,7 @@ network_policy:
           port: 389
 EOF
 
-helm upgrade --install ldap ${OSH_INFRA_PATH}/ldap \
+helm upgrade --install ldap ${HELM_CHART_ROOT_PATH}/ldap \
     --namespace=openstack \
     --set pod.replicas.server=1 \
     --set bootstrap.enabled=true \
@@ -54,6 +57,10 @@ helm upgrade --install ldap ${OSH_INFRA_PATH}/ldap \
 
 #NOTE: Validate Deployment info
 helm status ldap
+
+#NOTE: Get the over-rides to use
+export HELM_CHART_ROOT_PATH="../openstack-helm"
+: ${OSH_EXTRA_HELM_ARGS_KEYSTONE:="$(./tools/deployment/common/get-values-overrides.sh keystone)"}
 
 #NOTE: Handle Keystone
 make pull-images keystone

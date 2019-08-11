@@ -19,6 +19,9 @@ set -xe
 #NOTE: Lint and package chart
 make keystone
 
+#NOTE: Get the over-rides to use
+: ${OSH_EXTRA_HELM_ARGS_KEYSTONE:="$(./tools/deployment/common/get-values-overrides.sh keystone)"}
+
 #NOTE: Deploy command
 : ${OSH_EXTRA_HELM_ARGS:=""}
 helm upgrade --install keystone ./keystone \

@@ -15,13 +15,16 @@
 #    under the License.
 set -xe
 
+#NOTE: Get the over-rides to use
+export HELM_CHART_ROOT_PATH="${HELM_CHART_ROOT_PATH:="${OSH_INFRA_PATH:="../openstack-helm-infra"}"}"
+: ${OSH_EXTRA_HELM_ARGS_LOCKDOWN:="$(./tools/deployment/common/get-values-overrides.sh lockdown)"}
+
 #NOTE: Lint and package chart
-make lockdown
+make -C ${HELM_CHART_ROOT_PATH} lockdown
 
 #NOTE: Deploy command
-: ${OSH_INFRA_PATH:="../openstack-helm-infra"}
 : ${OSH_EXTRA_HELM_ARGS:=""}
-helm upgrade --install lockdown ${OSH_INFRA_PATH}/lockdown \
+helm upgrade --install lockdown ${HELM_CHART_ROOT_PATH}/lockdown \
     --namespace=openstack \
     ${OSH_EXTRA_HELM_ARGS} \
     ${OSH_EXTRA_HELM_ARGS_LOCKDOWN}

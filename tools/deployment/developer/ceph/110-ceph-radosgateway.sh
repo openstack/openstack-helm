@@ -16,9 +16,12 @@
 
 set -xe
 
+#NOTE: Get the over-rides to use
+export HELM_CHART_ROOT_PATH="${HELM_CHART_ROOT_PATH:="${OSH_INFRA_PATH:="../openstack-helm-infra"}"}"
+: ${OSH_EXTRA_HELM_ARGS_CEPH_RGW:="$(./tools/deployment/common/get-values-overrides.sh ceph-rgw)"}
+
 #NOTE: Lint and package chart
-: ${OSH_INFRA_PATH:="../openstack-helm-infra"}
-make -C ${OSH_INFRA_PATH} ceph-rgw
+make -C ${HELM_CHART_ROOT_PATH} ceph-rgw
 
 #NOTE: Deploy command
 : ${OSH_EXTRA_HELM_ARGS:=""}
@@ -71,7 +74,7 @@ network_policy:
 manifests:
   network_policy: true
 EOF
-helm upgrade --install radosgw-openstack ${OSH_INFRA_PATH}/ceph-rgw \
+helm upgrade --install radosgw-openstack ${HELM_CHART_ROOT_PATH}/ceph-rgw \
   --namespace=openstack \
   --values=/tmp/radosgw-openstack.yaml \
   ${OSH_EXTRA_HELM_ARGS} \

@@ -24,6 +24,10 @@ make glance
 : ${OSH_OPENSTACK_RELEASE:="newton"}
 #NOTE(portdirect), this could be: radosgw, rbd, swift or pvc
 : ${GLANCE_BACKEND:="swift"}
+
+#NOTE: Get the over-rides to use
+: ${OSH_EXTRA_HELM_ARGS_GLANCE:="$(./tools/deployment/common/get-values-overrides.sh glance)"}
+
 tee /tmp/glance.yaml <<EOF
 storage: ${GLANCE_BACKEND}
 EOF

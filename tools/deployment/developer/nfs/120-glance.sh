@@ -19,6 +19,9 @@ set -xe
 #NOTE: Lint and package chart
 make glance
 
+#NOTE: Get the over-rides to use
+: ${OSH_EXTRA_HELM_ARGS_GLANCE:="$(./tools/deployment/common/get-values-overrides.sh glance)"}
+
 #NOTE: Deploy command
 : ${OSH_EXTRA_HELM_ARGS:=""}
 : ${OSH_OPENSTACK_RELEASE:="newton"}

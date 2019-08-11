@@ -15,9 +15,12 @@
 #    under the License.
 set -xe
 
+#NOTE: Get the over-rides to use
+export HELM_CHART_ROOT_PATH="${HELM_CHART_ROOT_PATH:="${OSH_INFRA_PATH:="../openstack-helm-infra"}"}"
+: ${OSH_EXTRA_HELM_ARGS_LIBVIRT:="$(./tools/deployment/common/get-values-overrides.sh libvirt)"}
+
 #NOTE: Lint and package chart
-: ${OSH_INFRA_PATH:="../openstack-helm-infra"}
-make -C ${OSH_INFRA_PATH} libvirt
+make -C ${HELM_CHART_ROOT_PATH} libvirt
 
 tee /tmp/libvirt.yaml <<EOF
 manifests:
@@ -30,7 +33,7 @@ EOF
 
 #NOTE: Deploy command
 : ${OSH_EXTRA_HELM_ARGS:=""}
-helm upgrade --install libvirt ${OSH_INFRA_PATH}/libvirt \
+helm upgrade --install libvirt ${HELM_CHART_ROOT_PATH}/libvirt \
   --namespace=openstack \
   --set manifests.network_policy=true \
   --values=/tmp/libvirt.yaml \
