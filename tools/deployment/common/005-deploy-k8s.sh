@@ -182,6 +182,20 @@ kubectl --namespace=kube-system wait \
   --for=condition=Ready \
   pod -l app=helm,name=tiller
 
+# Patch tiller-deploy service to expose metrics port
+tee /tmp/tiller-deploy.yaml << EOF
+metadata:
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "44135"
+spec:
+  ports:
+  - name: http
+    port: 44135
+    targetPort: http
+EOF
+kubectl patch service tiller-deploy -n kube-system --patch "$(cat /tmp/tiller-deploy.yaml)"
+
 # Set up local helm server
 sudo -E tee /etc/systemd/system/helm-serve.service << EOF
 [Unit]
