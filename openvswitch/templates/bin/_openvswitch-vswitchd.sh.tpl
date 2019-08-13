@@ -24,8 +24,10 @@ OVS_PID=/run/openvswitch/ovs-vswitchd.pid
 
 # Create vhostuser directory and grant nova user (default UID 42424) access
 # permissions.
-mkdir -p /run/openvswitch/vhostuser
-chown {{ .Values.pod.user.nova.uid }}.{{ .Values.pod.user.nova.uid }} /run/openvswitch/vhostuser
+{{- if .Values.conf.ovs_dpdk.enabled }}
+mkdir -p /run/openvswitch/{{ .Values.conf.ovs_dpdk.vhostuser_socket_dir }}
+chown {{ .Values.pod.user.nova.uid }}.{{ .Values.pod.user.nova.uid }} /run/openvswitch/{{ .Values.conf.ovs_dpdk.vhostuser_socket_dir }}
+{{- end }}
 
 function start () {
   t=0
@@ -41,23 +43,23 @@ function start () {
 
   ovs-vsctl --db=unix:${OVS_SOCKET} --no-wait show
 
-{{- if .Values.conf.dpdk.enabled }}
-    ovs-vsctl --db=unix:${OVS_SOCKET} --no-wait set Open_vSwitch . other_config:dpdk-hugepage-dir={{ .Values.conf.dpdk.hugepages_mountpath | quote }}
-    ovs-vsctl --db=unix:${OVS_SOCKET} --no-wait set Open_vSwitch . other_config:dpdk-socket-mem={{ .Values.conf.dpdk.socket_memory | quote }}
+{{- if .Values.conf.ovs_dpdk.enabled }}
+    ovs-vsctl --db=unix:${OVS_SOCKET} --no-wait set Open_vSwitch . other_config:dpdk-hugepage-dir={{ .Values.conf.ovs_dpdk.hugepages_mountpath | quote }}
+    ovs-vsctl --db=unix:${OVS_SOCKET} --no-wait set Open_vSwitch . other_config:dpdk-socket-mem={{ .Values.conf.ovs_dpdk.socket_memory | quote }}
 
-{{- if .Values.conf.dpdk.mem_channels }}
-    ovs-vsctl --db=unix:${OVS_SOCKET} --no-wait set Open_vSwitch . other_config:dpdk-mem-channels={{ .Values.conf.dpdk.mem_channels | quote }}
+{{- if .Values.conf.ovs_dpdk.mem_channels }}
+    ovs-vsctl --db=unix:${OVS_SOCKET} --no-wait set Open_vSwitch . other_config:dpdk-mem-channels={{ .Values.conf.ovs_dpdk.mem_channels | quote }}
 {{- end }}
 
-{{- if .Values.conf.dpdk.pmd_cpu_mask }}
-    ovs-vsctl --db=unix:${OVS_SOCKET} --no-wait set Open_vSwitch . other_config:pmd-cpu-mask={{ .Values.conf.dpdk.pmd_cpu_mask | quote }}
+{{- if .Values.conf.ovs_dpdk.pmd_cpu_mask }}
+    ovs-vsctl --db=unix:${OVS_SOCKET} --no-wait set Open_vSwitch . other_config:pmd-cpu-mask={{ .Values.conf.ovs_dpdk.pmd_cpu_mask | quote }}
 {{- end }}
 
-{{- if .Values.conf.dpdk.lcore_mask }}
-    ovs-vsctl --db=unix:${OVS_SOCKET} --no-wait set Open_vSwitch . other_config:dpdk-lcore-mask={{ .Values.conf.dpdk.lcore_mask | quote }}
+{{- if .Values.conf.ovs_dpdk.lcore_mask }}
+    ovs-vsctl --db=unix:${OVS_SOCKET} --no-wait set Open_vSwitch . other_config:dpdk-lcore-mask={{ .Values.conf.ovs_dpdk.lcore_mask | quote }}
 {{- end }}
 
-    ovs-vsctl --db=unix:${OVS_SOCKET} --no-wait set Open_vSwitch . other_config:vhost-sock-dir="vhostuser"
+    ovs-vsctl --db=unix:${OVS_SOCKET} --no-wait set Open_vSwitch . other_config:vhost-sock-dir={{ .Values.conf.ovs_dpdk.vhostuser_socket_dir | quote }}
     ovs-vsctl --db=unix:${OVS_SOCKET} --no-wait set Open_vSwitch . other_config:dpdk-init=true
 {{- end }}
 
