@@ -33,6 +33,9 @@ deployment:
   client_secrets: true
 bootstrap:
   enabled: false
+storageclass:
+  cephfs:
+    provision_storage_class: false
 EOF
 
 : ${OSH_INFRA_PATH:="../openstack-helm-infra"}
