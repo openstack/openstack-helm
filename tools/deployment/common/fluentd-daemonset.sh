@@ -90,23 +90,16 @@ conf:
       </source>
 
       <source>
-        @type tail
-        tag kernel
-        path /var/log/kern.log
-        read_from_head true
-        <parse>
-          @type none
-        </parse>
-      </source>
-
-      <source>
-        @type tail
+        @type systemd
         tag auth
-        path /var/log/auth.log
+        path /var/log/journal
+        matches [{ "SYSLOG_FACILITY":"10" }]
         read_from_head true
-        <parse>
-          @type none
-        </parse>
+
+        <entry>
+          fields_strip_underscores true
+          fields_lowercase true
+        </entry>
       </source>
 
       <source>
@@ -135,6 +128,19 @@ conf:
         </entry>
       </source>
 
+      <source>
+        @type systemd
+        tag kernel
+        path /var/log/journal
+        matches [{ "_TRANSPORT": "kernel" }]
+        read_from_head true
+
+        <entry>
+          fields_strip_underscores true
+          fields_lowercase true
+        </entry>
+      </source>
+
       <filter kubernetes.**>
         @type kubernetes_metadata
       </filter>
@@ -148,22 +154,6 @@ conf:
       </filter>
 
       <filter libvirt.**>
-        @type record_transformer
-        <record>
-          hostname "#{ENV['NODE_NAME']}"
-          fluentd_pod "#{ENV['POD_NAME']}"
-        </record>
-      </filter>
-
-      <filter kernel>
-        @type record_transformer
-        <record>
-          hostname "#{ENV['NODE_NAME']}"
-          fluentd_pod "#{ENV['POD_NAME']}"
-        </record>
-      </filter>
-
-      <filter auth>
         @type record_transformer
         <record>
           hostname "#{ENV['NODE_NAME']}"
