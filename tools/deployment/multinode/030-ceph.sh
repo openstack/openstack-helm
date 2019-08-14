@@ -51,7 +51,7 @@ deployment:
   storage_secrets: true
   ceph: true
   rbd_provisioner: true
-  cephfs_provisioner: true
+  cephfs_provisioner: false
   client_secrets: false
   rgw_keystone_user_and_endpoints: false
 bootstrap:
@@ -89,8 +89,13 @@ jobs:
       # Skip new job if previous job still active
       execPolicy: Forbid
     startingDeadlineSecs: 60
+storageclass:
+  cephfs:
+    provision_storage_class: false
 manifests:
   cronjob_defragosds: true
+  deployment_cephfs_provisioner: false
+  job_cephfs_client_key: false
 EOF
 
 for CHART in ceph-mon ceph-osd ceph-client ceph-provisioners; do

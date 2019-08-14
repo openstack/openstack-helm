@@ -33,6 +33,9 @@ deployment:
   cephfs_provisioner: false
   client_secrets: true
   rgw_keystone_user_and_endpoints: false
+storageclass:
+  cephfs:
+    provision_storage_class: false
 bootstrap:
   enabled: false
 conf:
