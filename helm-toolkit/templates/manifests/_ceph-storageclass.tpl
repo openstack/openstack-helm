@@ -107,6 +107,7 @@ parameters:
 {{- range $attr, $value := $storageclassData.parameters }}
   {{ $attr }}: {{ $value | quote }}
 {{- end }}
+allowVolumeExpansion: true
 
 {{- end }}
 {{- end }}
