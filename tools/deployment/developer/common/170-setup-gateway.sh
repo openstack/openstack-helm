@@ -16,8 +16,8 @@
 set -xe
 
 # Assign IP address to br-ex
-OSH_BR_EX_ADDR="172.24.4.1/24"
-OSH_EXT_SUBNET="172.24.4.0/24"
+: ${OSH_EXT_SUBNET:="172.24.4.0/24"}
+: ${OSH_BR_EX_ADDR:="172.24.4.1/24"}
 sudo ip addr add ${OSH_BR_EX_ADDR} dev br-ex
 sudo ip link set br-ex up
 
