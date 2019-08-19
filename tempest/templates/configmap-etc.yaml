@@ -37,6 +37,25 @@ limitations under the License.
 {{- $_ := set .Values.conf.tempest.identity "region" .Values.endpoints.identity.auth.admin.region_name -}}
 {{- end -}}
 
+
+{{- if empty .Values.conf.tempest.dashboard.dashboard_url -}}
+{{- $endpointScheme := tuple "dashboard" "public" "web" . | include "helm-toolkit.endpoints.keystone_endpoint_scheme_lookup" }}
+{{- $endpointHost := tuple "dashboard" "public" . | include "helm-toolkit.endpoints.endpoint_host_lookup" }}
+{{- $endpointPort := tuple "dashboard" "public" "web" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+{{- $endpointPath := tuple "dashboard" "public" "web" . | include "helm-toolkit.endpoints.keystone_endpoint_path_lookup" }}
+    # When CSRF protection is enabled Refferer and Host header should match.
+    # Common browsers doesn't add default ports like 80 and 443 to the headers
+    # Use the same logic here to make sure test passed when CSRF protection is enabled and
+    # we using default port numbers. More info may be found here:
+    # * https://code.djangoproject.com/ticket/26037
+    # * https://stackoverflow.com/questions/27533011/django-csrf-error-casused-by-nginx-x-forwarded-host
+    {{- if eq $endpointPort "80" "443" }}
+        {{- printf "%s://%s%s" $endpointScheme $endpointHost $endpointPath | set .Values.conf.tempest.dashboard "dashboard_url" }}
+    {{- else }}
+        {{- printf "%s://%s:%s%s" $endpointScheme $endpointHost $endpointPort $endpointPath | set .Values.conf.tempest.dashboard "dashboard_url" }}
+    {{- end }}
+{{- end -}}
+
 ---
 apiVersion: v1
 kind: Secret
