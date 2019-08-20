@@ -32,7 +32,9 @@ limitations under the License.
 {{- $configMapEtc := index . "configMapEtc" | default (printf "%s-%s" $serviceName "etc" ) -}}
 {{- $dbToDrop := index . "dbToDrop" | default ( dict "adminSecret" $envAll.Values.secrets.oslo_db.admin "configFile" (printf "/etc/%s/%s.conf" $serviceName $serviceName ) "logConfigFile" (printf "/etc/%s/logging.conf" $serviceName ) "configDbSection" "database" "configDbKey" "connection" ) -}}
 {{- $dbsToDrop := default (list $dbToDrop) (index . "dbsToDrop") }}
-
+{{- $secretBin := index . "secretBin" -}}
+{{- $backoffLimit := index . "backoffLimit" | default "6" -}}
+{{- $activeDeadlineSeconds := index . "activeDeadlineSeconds" -}}
 {{- $serviceNamePretty := $serviceName | replace "_" "-" -}}
 
 {{- $serviceAccountName := printf "%s-%s" $serviceNamePretty "db-drop" }}
@@ -46,6 +48,10 @@ metadata:
     "helm.sh/hook": pre-delete
     "helm.sh/hook-delete-policy": hook-succeeded
 spec:
+  backoffLimit: {{ $backoffLimit }}
+{{- if $activeDeadlineSeconds }}
+  activeDeadlineSeconds: {{ $activeDeadlineSeconds }}
+{{- end }}
   template:
     metadata:
       labels:
@@ -111,9 +117,15 @@ spec:
         - name: pod-tmp
           emptyDir: {}
         - name: db-drop-sh
+{{- if $secretBin }}
+          secret:
+            secretName: {{ $secretBin | quote }}
+            defaultMode: 0555
+{{- else }}
           configMap:
             name: {{ $configMapBin | quote }}
             defaultMode: 0555
+{{- end }}
 {{- $local := dict "configMapBinFirst" true -}}
 {{- range $key1, $dbToDrop := $dbsToDrop }}
 {{- $dbToDropType := default "oslo" $dbToDrop.inputType }}

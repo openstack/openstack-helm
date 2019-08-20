@@ -29,7 +29,9 @@ limitations under the License.
 {{- $podVols := index . "podVols" | default false -}}
 {{- $podEnvVars := index . "podEnvVars" | default false -}}
 {{- $dbToSync := index . "dbToSync" | default ( dict "configFile" (printf "/etc/%s/%s.conf" $serviceName $serviceName ) "logConfigFile" (printf "/etc/%s/logging.conf" $serviceName ) "image" ( index $envAll.Values.images.tags ( printf "%s_db_sync" $serviceName )) ) -}}
-
+{{- $secretBin := index . "secretBin" -}}
+{{- $backoffLimit := index . "backoffLimit" | default "6" -}}
+{{- $activeDeadlineSeconds := index . "activeDeadlineSeconds" -}}
 {{- $serviceNamePretty := $serviceName | replace "_" "-" -}}
 
 {{- $serviceAccountName := printf "%s-%s" $serviceNamePretty "db-sync" }}
@@ -40,6 +42,10 @@ kind: Job
 metadata:
   name: {{ printf "%s-%s" $serviceNamePretty "db-sync" | quote }}
 spec:
+  backoffLimit: {{ $backoffLimit }}
+{{- if $activeDeadlineSeconds }}
+  activeDeadlineSeconds: {{ $activeDeadlineSeconds }}
+{{- end }}
   template:
     metadata:
       labels:
@@ -61,6 +67,8 @@ spec:
 {{ $podEnvVars | toYaml | indent 12 }}
 {{- end }}
           command:
+            - /bin/bash
+            - -c
             - /tmp/db-sync.sh
           volumeMounts:
             - name: pod-tmp
@@ -86,9 +94,15 @@ spec:
         - name: pod-tmp
           emptyDir: {}
         - name: db-sync-sh
+{{- if $secretBin }}
+          secret:
+            secretName: {{ $secretBin | quote }}
+            defaultMode: 0555
+{{- else }}
           configMap:
             name: {{ $configMapBin | quote }}
             defaultMode: 0555
+{{- end }}
         - name: etc-service
           emptyDir: {}
         - name: db-sync-conf

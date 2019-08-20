@@ -25,6 +25,9 @@ limitations under the License.
 {{- $nodeSelector := index . "nodeSelector" | default ( dict $envAll.Values.labels.job.node_selector_key $envAll.Values.labels.job.node_selector_value ) -}}
 {{- $configMapBin := index . "configMapBin" | default (printf "%s-%s" $serviceName "bin" ) -}}
 {{- $configMapCeph := index . "configMapCeph" | default (printf "ceph-etc" ) -}}
+{{- $secretBin := index . "secretBin" -}}
+{{- $backoffLimit := index . "backoffLimit" | default "6" -}}
+{{- $activeDeadlineSeconds := index . "activeDeadlineSeconds" -}}
 {{- $serviceNamePretty := $serviceName | replace "_" "-" -}}
 {{- $s3UserSecret := index $envAll.Values.secrets.rgw $serviceName -}}
 {{- $s3Bucket := index . "s3Bucket" | default $serviceName }}
@@ -39,6 +42,10 @@ metadata:
   annotations:
     {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
 spec:
+  backoffLimit: {{ $backoffLimit }}
+{{- if $activeDeadlineSeconds }}
+  activeDeadlineSeconds: {{ $activeDeadlineSeconds }}
+{{- end }}
   template:
     metadata:
       labels:
@@ -56,6 +63,8 @@ spec:
           imagePullPolicy: {{ $envAll.Values.images.pull_policy }}
 {{ tuple $envAll $envAll.Values.pod.resources.jobs.s3_bucket | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           command:
+            - /bin/bash
+            - -c
             - /tmp/create-s3-bucket.sh
           env:
 {{- with $env := dict "s3AdminSecret" $envAll.Values.secrets.rgw.admin }}
@@ -93,9 +102,15 @@ spec:
         - name: pod-tmp
           emptyDir: {}
         - name: s3-bucket-sh
+{{- if $secretBin }}
+          secret:
+            secretName: {{ $secretBin | quote }}
+            defaultMode: 0555
+{{- else }}
           configMap:
             name: {{ $configMapBin | quote }}
             defaultMode: 0555
+{{- end }}
         - name: etcceph
           emptyDir: {}
         - name: ceph-etc

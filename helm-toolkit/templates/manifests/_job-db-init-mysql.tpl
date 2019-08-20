@@ -32,7 +32,9 @@ limitations under the License.
 {{- $configMapEtc := index . "configMapEtc" | default (printf "%s-%s" $serviceName "etc" ) -}}
 {{- $dbToInit := index . "dbToInit" | default ( dict "adminSecret" $envAll.Values.secrets.oslo_db.admin "configFile" (printf "/etc/%s/%s.conf" $serviceName $serviceName ) "logConfigFile" (printf "/etc/%s/logging.conf" $serviceName ) "configDbSection" "database" "configDbKey" "connection" ) -}}
 {{- $dbsToInit := default (list $dbToInit) (index . "dbsToInit") }}
-
+{{- $secretBin := index . "secretBin" -}}
+{{- $backoffLimit := index . "backoffLimit" | default "6" -}}
+{{- $activeDeadlineSeconds := index . "activeDeadlineSeconds" -}}
 {{- $serviceNamePretty := $serviceName | replace "_" "-" -}}
 
 {{- $serviceAccountName := printf "%s-%s" $serviceNamePretty "db-init" }}
@@ -43,6 +45,10 @@ kind: Job
 metadata:
   name: {{ printf "%s-%s" $serviceNamePretty "db-init" | quote }}
 spec:
+  backoffLimit: {{ $backoffLimit }}
+{{- if $activeDeadlineSeconds }}
+  activeDeadlineSeconds: {{ $activeDeadlineSeconds }}
+{{- end }}
   template:
     metadata:
       labels:
@@ -108,9 +114,15 @@ spec:
         - name: pod-tmp
           emptyDir: {}
         - name: db-init-sh
+{{- if $secretBin }}
+          secret:
+            secretName: {{ $secretBin | quote }}
+            defaultMode: 0555
+{{- else }}
           configMap:
             name: {{ $configMapBin | quote }}
             defaultMode: 0555
+{{- end }}
 {{- $local := dict "configMapBinFirst" true -}}
 {{- range $key1, $dbToInit := $dbsToInit }}
 {{- $dbToInitType := default "oslo" $dbToInit.inputType }}
