@@ -14,6 +14,20 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- define "ovsvswitchlivenessProbeTemplate" }}
+exec:
+  command:
+    - /usr/bin/ovs-appctl
+    - bond/list
+{{- end }}
+{{- define "ovsvswitchreadinessProbeTemplate" }}
+exec:
+  command:
+    - /bin/bash
+    - -c
+    - '! /usr/bin/ovs-vsctl show | grep -q error:'
+{{- end }}
+
 {{- if .Values.manifests.daemonset_ovs_vswitchd }}
 {{- $envAll := . }}
 
@@ -84,19 +98,8 @@ of hugepages must still be defined in the values.yaml.*/}}
 {{ tuple $envAll $envAll.Values.pod.resources.ovs.vswitchd | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           # ensures this container can speak to the ovs database
           # successfully before its marked as ready
-          readinessProbe:
-            exec:
-              command:
-                - /usr/bin/ovs-vsctl
-                - show
-          livenessProbe:
-            exec:
-              command:
-                - /usr/bin/ovs-appctl
-                - bond/list
-            initialDelaySeconds: 60
-            periodSeconds: 30
-            timeoutSeconds: 5
+{{ dict "envAll" $envAll "component" "ovs_vswitch" "container" "ovs_vswitch" "type" "liveness" "probeTemplate" (include "ovsvswitchlivenessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+{{ dict "envAll" $envAll "component" "ovs_vswitch" "container" "ovs_vswitch" "type" "readiness" "probeTemplate" (include "ovsvswitchreadinessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
           command:
             - /tmp/openvswitch-vswitchd.sh
             - start

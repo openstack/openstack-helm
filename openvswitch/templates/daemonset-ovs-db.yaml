@@ -14,6 +14,20 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- define "ovsdblivenessProbeTemplate" }}
+exec:
+  command:
+    - /usr/bin/ovs-vsctl
+    - show
+{{- end }}
+{{- define "ovsdbreadinessProbeTemplate" }}
+exec:
+  command:
+    - /usr/bin/ovs-vsctl
+    - list
+    - Open_Vswitch
+{{- end }}
+
 {{- if .Values.manifests.daemonset_ovs_db }}
 {{- $envAll := . }}
 
@@ -70,23 +84,8 @@ spec:
 {{ tuple $envAll "openvswitch_db_server" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ dict "envAll" $envAll "application" "openvswitch_db_server" "container" "server" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.ovs.db | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-          readinessProbe:
-            exec:
-              command:
-                - /usr/bin/ovs-vsctl
-                - list
-                - Open_Vswitch
-            initialDelaySeconds: 90
-            periodSeconds: 30
-            timeoutSeconds: 5
-          livenessProbe:
-            exec:
-              command:
-                - /usr/bin/ovs-vsctl
-                - show
-            initialDelaySeconds: 60
-            periodSeconds: 30
-            timeoutSeconds: 5
+{{ dict "envAll" $envAll "component" "ovs_db" "container" "ovs_db" "type" "liveness" "probeTemplate" (include "ovsdblivenessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+{{ dict "envAll" $envAll "component" "ovs_db" "container" "ovs_db" "type" "readiness" "probeTemplate" (include "ovsdbreadinessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
           command:
             - /tmp/openvswitch-db-server.sh
             - start
