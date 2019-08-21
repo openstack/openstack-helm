@@ -93,7 +93,7 @@ innodb_flush_log_at_trx_commit=2
 wsrep_cluster_name={{ tuple "oslo_db" "direct" . | include "helm-toolkit.endpoints.hostname_namespaced_endpoint_lookup" | replace "." "_" }}
 wsrep_on=1
 wsrep_provider=/usr/lib/galera/libgalera_smm.so
-wsrep_provider_options="gmcast.listen_addr=tcp://0.0.0.0:{{ tuple "oslo_db" "direct" "wsrep" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}"
+wsrep_provider_options="evs.suspect_timeout=PT30S; gmcast.peer_timeout=PT15S; gmcast.listen_addr=tcp://0.0.0.0:{{ tuple "oslo_db" "direct" "wsrep" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}"
 wsrep_slave_threads=12
 wsrep_sst_auth={{ .Values.endpoints.oslo_db.auth.sst.username }}:{{ .Values.endpoints.oslo_db.auth.sst.password }}
 wsrep_sst_method=mariabackup
