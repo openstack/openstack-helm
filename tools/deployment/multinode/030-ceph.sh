@@ -41,7 +41,7 @@ deployment:
   storage_secrets: true
   ceph: true
   rbd_provisioner: true
-  cephfs_provisioner: true
+  cephfs_provisioner: false
   client_secrets: false
 bootstrap:
   enabled: true
@@ -63,7 +63,12 @@ conf:
         journal:
           type: directory
           location: /var/lib/openstack-helm/ceph/osd/journal-one
-
+storageclass:
+  cephfs:
+    provision_storage_class: false
+manifests:
+  deployment_cephfs_provisioner: false
+  job_cephfs_client_key: false
 EOF
 
 : ${OSH_INFRA_PATH:="../openstack-helm-infra"}
