@@ -172,13 +172,17 @@ EOF
 
 for CHART in ceph-mon ceph-osd ceph-client ceph-provisioners; do
   #NOTE: Get the over-rides to use
-  : ${OSH_EXTRA_HELM_ARGS_CEPH:="$(./tools/deployment/common/get-values-overrides.sh ${CHART})"}
+  if [ -z "${OSH_EXTRA_HELM_ARGS_CEPH}" ]; then
+      OSH_EXTRA_HELM_ARGS_CEPH_TMP="$(./tools/deployment/common/get-values-overrides.sh ${CHART})"
+  else
+      OSH_EXTRA_HELM_ARGS_CEPH_TMP="${OSH_EXTRA_HELM_ARGS_CEPH}"
+  fi
 
   helm upgrade --install ${CHART} ${HELM_CHART_ROOT_PATH}/${CHART} \
     --namespace=ceph \
     --values=/tmp/ceph.yaml \
     ${OSH_EXTRA_HELM_ARGS:=} \
-    ${OSH_EXTRA_HELM_ARGS_CEPH}
+    ${OSH_EXTRA_HELM_ARGS_CEPH_TMP}
 
   #NOTE: Wait for deploy
   ./tools/deployment/common/wait-for-pods.sh ceph
