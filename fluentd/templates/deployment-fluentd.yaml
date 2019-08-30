@@ -19,8 +19,11 @@ limitations under the License.
 
 {{- $mounts_fluentd := .Values.pod.mounts.fluentd.fluentd }}
 
-{{- $rcControllerName := printf "%s-%s" $envAll.Release.Name "fluentd"  }}
+{{- $kafkaBroker := tuple "kafka" "public" . | include "helm-toolkit.endpoints.hostname_fqdn_endpoint_lookup" }}
+{{- $kafkaBrokerPort := tuple "kafka" "public" "broker" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+{{- $kafkaBrokerURI := printf "%s:%s" $kafkaBroker $kafkaBrokerPort }}
 
+{{- $rcControllerName := printf "%s-%s" $envAll.Release.Name "fluentd"  }}
 {{ tuple $envAll "fluentd" $rcControllerName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1
@@ -156,6 +159,8 @@ spec:
               value: {{ tuple "elasticsearch" "internal" . | include "helm-toolkit.endpoints.hostname_fqdn_endpoint_lookup" | quote }}
             - name: ELASTICSEARCH_PORT
               value: {{ tuple "elasticsearch" "internal" "http" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | quote }}
+            - name: KAFKA_BROKER
+              value: {{ $kafkaBrokerURI }}
             - name: ELASTICSEARCH_USERNAME
               valueFrom:
                 secretKeyRef:
@@ -166,6 +171,18 @@ spec:
                 secretKeyRef:
                   name: {{ printf "%s-%s" $envAll.Release.Name "elasticsearch-user" | quote }}
                   key: ELASTICSEARCH_PASSWORD
+{{- if .Values.manifests.secret_kafka }}
+            - name: KAFKA_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ printf "%s-%s" $envAll.Release.Name "kafka-user" | quote }}
+                  key: KAFKA_USERNAME
+            - name: KAFKA_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ printf "%s-%s" $envAll.Release.Name "kafka-user" | quote }}
+                  key: KAFKA_PASSWORD
+{{- end }}
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
