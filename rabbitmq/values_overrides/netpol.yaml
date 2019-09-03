@@ -82,3 +82,27 @@ manifests:
     prometheus:
       network_policy_exporter: true
   network_policy: true
+network_policy:
+  rabbitmq:
+    egress:
+      - to:
+        - podSelector:
+            matchLabels:
+              application: rabbitmq
+        ports:
+          # Erlang port mapper daemon (epmd)
+          - protocol: TCP
+            port: 4369
+          # Rabbit clustering port AMQP + 20000
+          - protocol: TCP
+            port: 25672
+          # NOTE(lamt): Set by inet_dist_listen_{min/max}. Firewalls must
+          # permit traffic in this range to pass between clustered nodes.
+          # - protocol: TCP
+          #  port: 35197
+      - to:
+        - ipBlock:
+            cidr: $API_ADDR/32
+        ports:
+          - protocol: TCP
+            port: $API_PORT
