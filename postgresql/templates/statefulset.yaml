@@ -332,6 +332,18 @@ spec:
               value: $(PATRONI_SUPERUSER_PASSWORD)
             - name: PATRONI_{{ .Values.endpoints.postgresql.auth.admin.username }}_OPTIONS
               value: 'createrole,createdb'
+{{- if .Values.manifests.secret_audit }}
+            - name: AUDIT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.postgresql.audit }}
+                  key: AUDIT_PASSWORD
+            # Adding the audit user with no options just adds the user without
+            # any GRANTs. This means the user gets to do only what default
+            # PUBLIC permissions allow, which is only to SELECT from tables.
+            - name: PATRONI_{{ .Values.endpoints.postgresql.auth.audit.username }}_PASSWORD
+              value: $(AUDIT_PASSWORD)
+{{- end }}
             - name: PGSSLROOTCERT
               value: {{ .Values.secrets.pki.client_cert_path }}/ca.crt
             - name: PGSSLCERT
