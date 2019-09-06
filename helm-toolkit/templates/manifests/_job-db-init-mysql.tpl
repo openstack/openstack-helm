@@ -19,7 +19,7 @@ limitations under the License.
 # {- $dbToInitJob := dict "envAll" . "serviceName" "senlin" -}
 # { $dbToInitJob | include "helm-toolkit.manifests.job_db_init_mysql" }
 #
-# If the service does not use olso then the db can be managed with:
+# If the service does not use oslo then the db can be managed with:
 # {- $dbToInit := dict "inputType" "secret" "adminSecret" .Values.secrets.oslo_db.admin "userSecret" .Values.secrets.oslo_db.horizon -}
 # {- $dbToInitJob := dict "envAll" . "serviceName" "horizon" "dbToInit" $dbToInit -}
 # { $dbToInitJob | include "helm-toolkit.manifests.job_db_init_mysql" }

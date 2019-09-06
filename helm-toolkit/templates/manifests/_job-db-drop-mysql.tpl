@@ -19,7 +19,7 @@ limitations under the License.
 # {- $dbToDropJob := dict "envAll" . "serviceName" "senlin" -}
 # { $dbToDropJob | include "helm-toolkit.manifests.job_db_drop_mysql" }
 #
-# If the service does not use olso then the db can be managed with:
+# If the service does not use oslo then the db can be managed with:
 # {- $dbToDrop := dict "inputType" "secret" "adminSecret" .Values.secrets.oslo_db.admin "userSecret" .Values.secrets.oslo_db.horizon -}
 # {- $dbToDropJob := dict "envAll" . "serviceName" "horizon" "dbToDrop" $dbToDrop -}
 # { $dbToDropJob | include "helm-toolkit.manifests.job_db_drop_mysql" }
