@@ -156,6 +156,24 @@ limitations under the License.
 {{- $formatter_fluent := dict "class" "oslo_log.formatters.FluentFormatter" -}}
 {{- $_ := set .Values.conf.logging "formatter_fluent" $formatter_fluent -}}
 {{- end -}}
+
+{{- if empty .Values.conf.glance.cors.allowed_origin -}}
+{{- $endpointScheme := tuple "dashboard" "public" "web" . | include "helm-toolkit.endpoints.keystone_endpoint_scheme_lookup" }}
+{{- $endpointHost := tuple "dashboard" "public" . | include "helm-toolkit.endpoints.endpoint_host_lookup" }}
+{{- $endpointPort := tuple "dashboard" "public" "web" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+    # Common browsers don't add default ports like 80 and 443 to the headers
+    # and URLs therefore CORS should allow to use URLs both with 80,443 and
+    # without it in the URL.
+    {{- if eq $endpointPort "80" "443" }}
+        {{- $_ := set $envAll.Values.conf.glance.cors "allowed_origin" ( list ) }}
+        {{- $__allowed_origin := append $envAll.Values.conf.glance.cors.allowed_origin (printf "%s://%s" $endpointScheme $endpointHost) }}
+        {{- $_ := set $envAll.Values.conf.glance.cors "allowed_origin" $__allowed_origin }}
+        {{- $__allowed_origin := append $envAll.Values.conf.glance.cors.allowed_origin (printf "%s://%s:%s" $endpointScheme $endpointHost $endpointPort) }}
+        {{- $_ := set $envAll.Values.conf.glance.cors "allowed_origin" $__allowed_origin }}
+    {{- else }}
+        {{- printf "%s://%s:%s" $endpointScheme $endpointHost $endpointPort | set .Values.conf.glance.cors "allowed_origin" }}
+    {{- end }}
+{{- end -}}
 ---
 apiVersion: v1
 kind: Secret
