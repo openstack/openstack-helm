@@ -18,3 +18,7 @@ limitations under the License.
 
 set -ex
 chroot /mnt/host-rootfs modprobe ip6_tables
+
+{{- if .Values.conf.ovs_dpdk.enabled }}
+chroot /mnt/host-rootfs modprobe {{ .Values.conf.ovs_dpdk.driver | quote }}
+{{- end }}

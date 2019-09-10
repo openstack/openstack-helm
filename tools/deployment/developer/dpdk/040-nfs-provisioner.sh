@@ -1,0 +1,1 @@
+../../component/nfs-provisioner/nfs-provisioner.sh
