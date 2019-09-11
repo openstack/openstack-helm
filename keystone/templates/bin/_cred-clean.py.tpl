@@ -23,7 +23,10 @@ limitations under the License.
 
 import os
 import sys
-import ConfigParser
+try:
+    import ConfigParser
+except ImportError:
+    import configparser as ConfigParser
 import logging
 from sqlalchemy import create_engine
 
