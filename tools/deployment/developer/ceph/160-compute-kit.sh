@@ -20,8 +20,6 @@ set -xe
 : ${OSH_EXTRA_HELM_ARGS_NEUTRON:="$(./tools/deployment/common/get-values-overrides.sh neutron)"}
 
 #NOTE: Lint and package chart
-
-#NOTE: Lint and package chart
 make nova
 make neutron
 
