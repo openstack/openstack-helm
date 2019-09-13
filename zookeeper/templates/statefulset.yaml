@@ -1,0 +1,225 @@
+{{/*
+Copyright 2019 The Openstack-Helm Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.statefulset }}
+{{- $envAll := . }}
+
+{{- $mounts_zookeeper := .Values.pod.mounts.zookeeper.zookeeper }}
+{{- $mounts_zookeeper_init := .Values.pod.mounts.zookeeper.init_container }}
+{{- $zookeeperUserSecret := .Values.secrets.zookeeper.admin }}
+
+{{- $serviceAccountName := printf "%s-%s" .Release.Name "zookeeper" }}
+{{ tuple $envAll "zookeeper" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  name: {{ $serviceAccountName }}
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - nodes
+      - nodes/proxy
+      - services
+      - endpoints
+      - pods
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+    verbs:
+      - get
+  - nonResourceURLs:
+      - "/metrics"
+    verbs:
+      - get
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ $serviceAccountName }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ $serviceAccountName }}
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  kind: ClusterRole
+  name: {{ $serviceAccountName }}
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: zookeeper
+  annotations:
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+  labels:
+{{ tuple $envAll "zookeeper" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  serviceName: {{ tuple "zookeeper" "discovery" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
+  replicas: {{ .Values.pod.replicas.zookeeper }}
+  podManagementPolicy: Parallel
+  selector:
+    matchLabels:
+{{ tuple $envAll "zookeeper" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "zookeeper" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+{{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
+        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
+    spec:
+{{ dict "envAll" $envAll "application" "zookeeper" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
+      serviceAccountName: {{ $serviceAccountName }}
+      affinity:
+{{ tuple $envAll "zookeeper" "zookeeper" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
+      nodeSelector:
+        {{ .Values.labels.zookeeper.node_selector_key }}: {{ .Values.labels.zookeeper.node_selector_value | quote }}
+      terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.zookeeper.timeout | default "30" }}
+      initContainers:
+{{ tuple $envAll "zookeeper" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+        - name: zookeeper-perms
+{{ tuple $envAll "zookeeper" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.zookeeper | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "zookeeper" "container" "zookeeper_perms" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          command:
+            - chown
+            - -R
+            - "zookeeper:"
+            - {{ .Values.conf.zookeeper.config.data_directory }}
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: data
+              mountPath: {{ .Values.conf.zookeeper.config.data_directory }}
+        - name: zookeeper-id
+{{ tuple $envAll "zookeeper" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.zookeeper | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "zookeeper" "container" "zookeeper_perms" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          command:
+            - /tmp/generate-myid.sh
+          env:
+            - name: ZOO_DATA_DIR
+              value: "{{ .Values.conf.zookeeper.config.data_directory }}"
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: zookeeper-bin
+              mountPath: /tmp/generate-myid.sh
+              subPath: generate-myid.sh
+              readOnly: true
+            - name: data
+              mountPath: {{ .Values.conf.zookeeper.config.data_directory }}
+      containers:
+        - name: zookeeper
+{{ tuple $envAll "zookeeper" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.zookeeper | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "zookeeper" "container" "zookeeper" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /tmp/zookeeper.sh
+                  - stop
+          ports:
+            - name: client
+              containerPort: {{ tuple "zookeeper" "internal" "client" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+            - name: election
+              containerPort: {{ tuple "zookeeper" "internal" "election" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+            - name: server
+              containerPort: {{ tuple "zookeeper" "internal" "server" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+          env:
+            - name: ZOO_DATA_DIR
+              value: "{{ .Values.conf.zookeeper.config.data_directory }}"
+            - name: ZOO_CLIENT_PORT
+              value: "{{ tuple "zookeeper" "internal" "client" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}"
+          readinessProbe:
+            initialDelaySeconds: 20
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 2
+            successThreshold: 1
+            exec:
+              command:
+              - /tmp/zookeeper-readiness.sh
+          livenessProbe:
+            initialDelaySeconds: 20
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 2
+            successThreshold: 1
+            exec:
+              command:
+              - /tmp/zookeeper-liveness.sh
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: etczookeeper
+              mountPath: /etc/zookeeper
+            - name: zookeeper-etc
+              mountPath: /conf/zoo.cfg
+              subPath: zoo.cfg
+            - name: zookeeper-bin
+              mountPath: /tmp/zookeeper.sh
+              subPath: zookeeper.sh
+              readOnly: true
+            - name: zookeeper-bin
+              mountPath: /tmp/zookeeper-liveness.sh
+              subPath: zookeeper-liveness.sh
+              readOnly: true
+            - name: zookeeper-bin
+              mountPath: /tmp/zookeeper-readiness.sh
+              subPath: zookeeper-readiness.sh
+              readOnly: true
+            - name: data
+              mountPath: {{ .Values.conf.zookeeper.config.data_directory }}
+{{ if $mounts_zookeeper.volumeMounts }}{{ toYaml $mounts_zookeeper.volumeMounts | indent 12 }}{{ end }}
+      volumes:
+        - name: pod-tmp
+          emptyDir: {}
+        - name: etczookeeper
+          emptyDir: {}
+        - name: zookeeper-etc
+          secret:
+            secretName: zookeeper-etc
+            defaultMode: 0444
+        - name: zookeeper-bin
+          configMap:
+            name: zookeeper-bin
+            defaultMode: 0555
+{{ if $mounts_zookeeper.volumes }}{{ toYaml $mounts_zookeeper.volumes | indent 8 }}{{ end }}
+{{- if not .Values.storage.enabled }}
+        - name: data
+          emptyDir: {}
+{{- else }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: {{ .Values.storage.pvc.access_mode }}
+        resources:
+          requests:
+            storage: {{ .Values.storage.requests.storage  }}
+        storageClassName: {{ .Values.storage.storage_class }}
+{{- end }}
+{{- end }}
