@@ -142,6 +142,43 @@ function dev_part {
   fi
 }
 
+function zap_extra_partitions {
+  # Examine temp mount and delete any block.db and block.wal partitions
+  mountpoint=${1}
+  journal_disk=""
+  journal_part=""
+  block_db_disk=""
+  block_db_part=""
+  block_wal_disk=""
+  block_wal_part=""
+
+  # Discover journal, block.db, and block.wal partitions first before deleting anything
+  # If the partitions are on the same disk, deleting one can affect discovery of the other(s)
+  if [ -L "${mountpoint}/journal" ]; then
+    journal_disk=$(readlink -m ${mountpoint}/journal | sed 's/[0-9]*//g')
+    journal_part=$(readlink -m ${mountpoint}/journal | sed 's/[^0-9]*//g')
+  fi
+  if [ -L "${mountpoint}/block.db" ]; then
+    block_db_disk=$(readlink -m ${mountpoint}/block.db | sed 's/[0-9]*//g')
+    block_db_part=$(readlink -m ${mountpoint}/block.db | sed 's/[^0-9]*//g')
+  fi
+  if [ -L "${mountpoint}/block.wal" ]; then
+    block_wal_disk=$(readlink -m ${mountpoint}/block.wal | sed 's/[0-9]*//g')
+    block_wal_part=$(readlink -m ${mountpoint}/block.wal | sed 's/[^0-9]*//g')
+  fi
+
+  # Delete any discovered journal, block.db, and block.wal partitions
+  if [ ! -z "${journal_disk}" ]; then
+    sgdisk -d ${journal_part} ${journal_disk}
+  fi
+  if [ ! -z "${block_db_disk}" ]; then
+    sgdisk -d ${block_db_part} ${block_db_disk}
+  fi
+  if [ ! -z "${block_wal_disk}" ]; then
+    sgdisk -d ${block_wal_part} ${block_wal_disk}
+  fi
+}
+
 function disk_zap {
   # Run all the commands that ceph-disk zap uses to clear a disk
   local device=${1}
@@ -154,10 +191,21 @@ function disk_zap {
 
 function udev_settle {
   partprobe "${OSD_DEVICE}"
-  if [ "x$JOURNAL_TYPE" == "xblock-logical" ]; then
-    OSD_JOURNAL=$(readlink -f ${OSD_JOURNAL})
-    local JDEV=$(echo ${OSD_JOURNAL} | sed 's/[0-9]//g')
-    partprobe "${JDEV}"
+  if [ "${OSD_BLUESTORE:-0}" -eq 1 ]; then
+    if [ ! -z "$BLOCK_DB" ]; then
+      partprobe "${BLOCK_DB}"
+    fi
+    if [ ! -z "$BLOCK_WAL" ] && [ "$BLOCK_WAL" != "$BLOCK_DB" ]; then
+      partprobe "${BLOCK_WAL}"
+    fi
+  else
+    if [ "x$JOURNAL_TYPE" == "xblock-logical" ] && [ ! -z "$OSD_JOURNAL" ]; then
+      OSD_JOURNAL=$(readlink -f ${OSD_JOURNAL})
+      if [ ! -z "$OSD_JOURNAL" ]; then
+        local JDEV=$(echo ${OSD_JOURNAL} | sed 's/[0-9]//g')
+        partprobe "${JDEV}"
+      fi
+    fi
   fi
   # watch the udev event queue, and exit if all current events are handled
   udevadm settle --timeout=600
