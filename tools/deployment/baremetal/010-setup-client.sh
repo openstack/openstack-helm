@@ -16,7 +16,9 @@
 
 set -xe
 
-sudo -H -E pip install python-openstackclient python-heatclient python-ironicclient
+sudo -H -E pip install \
+-c${UPPER_CONSTRAINTS_FILE:=https://releases.openstack.org/constraints/upper/master} \
+python-openstackclient python-heatclient python-ironicclient
 
 sudo -H mkdir -p /etc/openstack
 cat << EOF | sudo -H tee -a /etc/openstack/clouds.yaml

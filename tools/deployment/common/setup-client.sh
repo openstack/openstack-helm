@@ -17,7 +17,9 @@
 set -xe
 
 sudo -H -E pip install "cmd2<=0.8.7"
-sudo -H -E pip install python-openstackclient python-heatclient --ignore-installed
+sudo -H -E pip install \
+-c${UPPER_CONSTRAINTS_FILE:=https://releases.openstack.org/constraints/upper/master} \
+python-openstackclient python-heatclient --ignore-installed
 
 sudo -H mkdir -p /etc/openstack
 sudo -H chown -R $(id -un): /etc/openstack
