@@ -1,0 +1,64 @@
+{{/*
+Copyright 2019 The Openstack-Helm Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.helm_test }}
+{{- $envAll := . }}
+
+{{- $serviceAccountName := print .Release.Name "-test" }}
+{{ tuple $envAll "test" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{.Release.Name}}-test"
+  labels:
+{{ tuple $envAll "kafka" "test" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+  annotations:
+    "helm.sh/hook": test-success
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+spec:
+{{ dict "envAll" $envAll "application" "test" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 2 }}
+  serviceAccountName: {{ $serviceAccountName }}
+  nodeSelector:
+    {{ .Values.labels.test.node_selector_key }}: {{ .Values.labels.test.node_selector_value }}
+  restartPolicy: Never
+  initContainers:
+{{ tuple $envAll "test" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 4 }}
+  containers:
+    - name: {{.Release.Name}}-helm-test
+{{ tuple $envAll "helm_test" | include "helm-toolkit.snippets.image" | indent 6 }}
+{{ tuple $envAll $envAll.Values.pod.resources.jobs.test | include "helm-toolkit.snippets.kubernetes_resources" | indent 6 }}
+{{ dict "envAll" $envAll "application" "test" "container" "helm_test" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 6 }}
+      command:
+        - "/tmp/helm-test.sh"
+      env:
+        - name: KAFKA_BROKERS
+          value: "{{ tuple "kafka" "internal" "broker" $envAll | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" }}"
+      volumeMounts:
+        - name: pod-tmp
+          mountPath: /tmp
+        - name: kafka-bin
+          mountPath: /tmp/helm-test.sh
+          subPath: helm-test.sh
+          readOnly: true
+  volumes:
+    - name: pod-tmp
+      emptyDir: {}
+    - name: kafka-bin
+      configMap:
+        name: kafka-bin
+        defaultMode: 0555
+{{- end }}

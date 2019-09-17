@@ -1,0 +1,178 @@
+{{/*
+Copyright 2019 The Openstack-Helm Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.statefulset }}
+{{- $envAll := . }}
+
+{{- $mounts_kafka := .Values.pod.mounts.kafka.kafka }}
+{{- $mounts_kafka_init := .Values.pod.mounts.kafka.init_container }}
+{{- $kafkaUserSecret := .Values.secrets.kafka.admin }}
+{{- $kafkaBrokerPort := tuple "kafka" "internal" "broker" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+
+{{- $serviceAccountName := printf "%s-%s" .Release.Name "kafka" }}
+{{ tuple $envAll "kafka" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  name: {{ $serviceAccountName }}
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - nodes
+      - nodes/proxy
+      - services
+      - endpoints
+      - pods
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+    verbs:
+      - get
+  - nonResourceURLs:
+      - "/metrics"
+    verbs:
+      - get
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ $serviceAccountName }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ $serviceAccountName }}
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  kind: ClusterRole
+  name: {{ $serviceAccountName }}
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: kafka
+  annotations:
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+  labels:
+{{ tuple $envAll "kafka" "broker" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  serviceName: {{ tuple "kafka" "discovery" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
+  replicas: {{ .Values.pod.replicas.kafka }}
+  updateStrategy:
+    type: OnDelete
+  podManagementPolicy: Parallel
+  selector:
+    matchLabels:
+{{ tuple $envAll "kafka" "broker" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "kafka" "broker" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+{{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
+    spec:
+{{ dict "envAll" $envAll "application" "kafka" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
+      serviceAccountName: {{ $serviceAccountName }}
+      affinity:
+{{ tuple $envAll "kafka" "broker" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
+      nodeSelector:
+        {{ .Values.labels.kafka.node_selector_key }}: {{ .Values.labels.kafka.node_selector_value | quote }}
+      terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.kafka.timeout | default "30" }}
+      initContainers:
+{{ tuple $envAll "kafka" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+      containers:
+        - name: kafka
+          command:
+            - "/tmp/kafka.sh"
+{{ tuple $envAll "kafka" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.kafka | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "kafka" "container" "kafka" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          ports:
+            - name: broker
+              containerPort: {{ $kafkaBrokerPort }}
+          env:
+            - name: KAFKA_PORT
+              value: "{{ $kafkaBrokerPort }}"
+            - name: ZOOKEEPER_PORT
+              value: "{{ tuple "zookeeper" "internal" "client" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}"
+            - name: KAFKA_ZOOKEEPER_CONNECT
+              value: "{{ tuple "zookeeper" "internal" "client" $envAll | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" }}"
+            - name: KAFKA_LISTENERS
+              value: "PLAINTEXT://:{{$kafkaBrokerPort}}"
+            - name: KAFKA_CREATE_TOPICS
+              value: "{{ include "helm-toolkit.utils.joinListWithComma" .Values.conf.kafka.topics }}"
+          readinessProbe:
+            initialDelaySeconds: 20
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 2
+            successThreshold: 1
+            exec:
+              command:
+              - /tmp/kafka-readiness.sh
+          livenessProbe:
+            initialDelaySeconds: 20
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 2
+            successThreshold: 1
+            exec:
+              command:
+              - /tmp/kafka-liveness.sh
+          volumeMounts:
+            - name: kafka-bin
+              mountPath: /tmp/kafka.sh
+              subPath: kafka.sh
+              readOnly: true
+            - name: kafka-bin
+              mountPath: /tmp/kafka-liveness.sh
+              subPath: kafka-liveness.sh
+              readOnly: true
+            - name: kafka-bin
+              mountPath: /tmp/kafka-readiness.sh
+              subPath: kafka-readiness.sh
+              readOnly: true
+            - name: data
+              mountPath: {{ .Values.conf.kafka.config.data_directory }}
+{{ if $mounts_kafka.volumeMounts }}{{ toYaml $mounts_kafka.volumeMounts | indent 12 }}{{ end }}
+      volumes:
+        - name: kafka-bin
+          configMap:
+            name: kafka-bin
+            defaultMode: 0555
+{{ if $mounts_kafka.volumes }}{{ toYaml $mounts_kafka.volumes | indent 8 }}{{ end }}
+{{- if not .Values.storage.enabled }}
+        - name: data
+          emptyDir: {}
+{{- else }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: {{ .Values.storage.pvc.access_mode }}
+        resources:
+          requests:
+            storage: {{ .Values.storage.requests.storage  }}
+        storageClassName: {{ .Values.storage.storage_class }}
+{{- end }}
+{{- end }}
