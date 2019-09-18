@@ -67,13 +67,13 @@ Requirements LOCI image
 
   Add TaaS and TaaS dashboard dependencies in :code:`upper-constraints.txt`
   file in :code:`openstack/requirements` repo, i.e.
-  https://git.openstack.org/openstack/requirements
+  https://opendev.org/openstack/requirements
 
   .. path upper-constraints
   .. code-block:: none
 
-     git+https://git.openstack.org/openstack/tap-as-a-service@master#egg=tap-as-a-service
-     git+https://git.openstack.org/openstack/tap-as-a-service-dashboard@master#egg=tap-as-a-service-dashboard
+     git+https://opendev.org/openstack/tap-as-a-service@master#egg=tap-as-a-service
+     git+https://opendev.org/openstack/tap-as-a-service-dashboard@master#egg=tap-as-a-service-dashboard
 
   .. end
 
@@ -99,7 +99,7 @@ Neutron and Horizon LOCI images
 * Create a patchset for ``openstack/neutron`` repo
 
   Add TaaS dependency in ``requirements.txt`` file in ``openstack/neutron``
-  repo, i.e. https://git.openstack.org/openstack/neutron
+  repo, i.e. https://opendev.org/openstack/neutron
 
   .. path patchset-neutron
   .. code-block:: none
@@ -121,7 +121,7 @@ Neutron and Horizon LOCI images
 * Create a patchset for ``openstack/horizon`` repo
 
   Add TaaS Dashboard dependency in ``requirements.txt`` file in
-  ``openstack/horizon`` repo, i.e. https://git.openstack.org/openstack/horizon
+  ``openstack/horizon`` repo, i.e. https://opendev.org/openstack/horizon
 
   .. path patchset-horizon
   .. code-block:: none
@@ -201,7 +201,7 @@ Neutron and Horizon LOCI images
 
      # Prepare Requirements image
      sudo docker exec docker-in-docker docker build --force-rm --pull --no-cache \
-         https://git.openstack.org/openstack/loci.git \
+         https://opendev.org/openstack/loci.git \
          --network host \
          --build-arg FROM=gcr.io/google_containers/ubuntu-slim:0.14 \
          --build-arg PROJECT=requirements \
@@ -211,7 +211,7 @@ Neutron and Horizon LOCI images
 
      # Prepare Neutron image
      sudo docker exec docker-in-docker docker build --force-rm --pull --no-cache \
-     https://git.openstack.org/openstack/loci.git \
+     https://opendev.org/openstack/loci.git \
      --build-arg PROJECT=neutron \
      --build-arg PROJECT_REF=${NEUTRON_REF_SPEC} \
      --build-arg FROM=gcr.io/google_containers/ubuntu-slim:0.14 \
@@ -223,7 +223,7 @@ Neutron and Horizon LOCI images
 
      # Prepare Neutron sriov image
      sudo docker exec docker-in-docker docker build --force-rm --pull --no-cache \
-     https://git.openstack.org/openstack/loci.git \
+     https://opendev.org/openstack/loci.git \
      --build-arg PROJECT=neutron \
      --build-arg PROJECT_REF=${NEUTRON_REF_SPEC} \
      --build-arg FROM=docker.io/ubuntu:18.04 \
@@ -236,7 +236,7 @@ Neutron and Horizon LOCI images
 
      # Prepare Horizon image
      sudo docker exec docker-in-docker docker build --force-rm --pull --no-cache \
-     https://git.openstack.org/openstack/loci.git \
+     https://opendev.org/openstack/loci.git \
      --build-arg PROJECT=horizon \
      --build-arg PROJECT_REF=${HORIZON_REF_SPEC} \
      --build-arg FROM=gcr.io/google_containers/ubuntu-slim:0.14 \

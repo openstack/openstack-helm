@@ -55,8 +55,8 @@ should be cloned onto each node in the cluster:
     set -xe
 
     sudo chown -R ubuntu: /opt
-    git clone https://git.openstack.org/openstack/openstack-helm-infra.git /opt/openstack-helm-infra
-    git clone https://git.openstack.org/openstack/openstack-helm.git /opt/openstack-helm
+    git clone https://opendev.org/openstack/openstack-helm-infra.git /opt/openstack-helm-infra
+    git clone https://opendev.org/openstack/openstack-helm.git /opt/openstack-helm
 
 
 Create an inventory file
