@@ -50,6 +50,7 @@ spec:
         {{ .Values.labels.osd.node_selector_key }}: {{ .Values.labels.osd.node_selector_value }}
       hostNetwork: true
       hostPID: true
+      hostIPC: true
       dnsPolicy: {{ .Values.pod.dns_policy }}
       initContainers:
 {{ tuple $envAll "osd" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
@@ -180,8 +181,16 @@ spec:
               subPath: osd-init-ceph-disk.sh
               readOnly: true
             - name: ceph-osd-bin
+              mountPath: /tmp/init-ceph-volume.sh
+              subPath: osd-init-ceph-volume.sh
+              readOnly: true
+            - name: ceph-osd-bin
               mountPath: /tmp/osd-common-ceph-disk.sh
               subPath: osd-common-ceph-disk.sh
+              readOnly: true
+            - name: ceph-osd-bin
+              mountPath: /tmp/osd-common-ceph-volume.sh
+              subPath: osd-common-ceph-volume.sh
               readOnly: true
             - name: ceph-osd-etc
               mountPath: /etc/ceph/ceph.conf.template
@@ -207,11 +216,20 @@ spec:
             - name: run-lvm
               mountPath: /run/lvm
               readOnly: false
+            - name: run-udev
+              mountPath: /run/udev
+              readOnly: false
+            - name: pod-etc-lvm
+              mountPath: /etc/lvm
+              readOnly: false
             - name: data
               mountPath: /var/lib/ceph/osd
               readOnly: false
             - name: journal
               mountPath: /var/lib/ceph/journal
+              readOnly: false
+            - name: pod-var-log
+              mountPath: /var/log/ceph
               readOnly: false
       containers:
         - name: ceph-osd-default
@@ -285,8 +303,16 @@ spec:
               subPath: osd-block-ceph-disk.sh
               readOnly: true
             - name: ceph-osd-bin
+              mountPath: /tmp/osd-block-ceph-volume.sh
+              subPath: osd-block-ceph-volume.sh
+              readOnly: true
+            - name: ceph-osd-bin
               mountPath: /tmp/osd-bluestore-ceph-disk.sh
               subPath: osd-bluestore-ceph-disk.sh
+              readOnly: true
+            - name: ceph-osd-bin
+              mountPath: /tmp/osd-bluestore-ceph-volume.sh
+              subPath: osd-bluestore-ceph-volume.sh
               readOnly: true
             - name: ceph-osd-bin
               mountPath: /tmp/osd-check.sh
@@ -303,6 +329,10 @@ spec:
             - name: ceph-osd-bin
               mountPath: /tmp/osd-common-ceph-disk.sh
               subPath: osd-common-ceph-disk.sh
+              readOnly: true
+            - name: ceph-osd-bin
+              mountPath: /tmp/osd-common-ceph-volume.sh
+              subPath: osd-common-ceph-volume.sh
               readOnly: true
             - name: ceph-osd-bin
               mountPath: /tmp/utils-defragOSDs.sh
@@ -329,6 +359,12 @@ spec:
             - name: run-lvm
               mountPath: /run/lvm
               readOnly: false
+            - name: run-udev
+              mountPath: /run/udev
+              readOnly: false
+            - name: pod-etc-lvm
+              mountPath: /etc/lvm
+              readOnly: false
             - name: data
               mountPath: /var/lib/ceph/osd
               readOnly: false
@@ -354,6 +390,11 @@ spec:
         - name: run-lvm
           hostPath:
             path: /run/lvm
+        - name: run-udev
+          hostPath:
+            path: /run/udev
+        - name: pod-etc-lvm
+          emptyDir: {}
         - name: pod-var-lib-ceph
           emptyDir: {}
         - name: pod-var-lib-ceph-tmp
