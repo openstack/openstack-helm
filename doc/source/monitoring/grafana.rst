@@ -35,7 +35,7 @@ to_ini helm-toolkit function will render these values into the appropriate
 format in grafana.ini.  The list of options for these keys can be found in the
 official Grafana configuration_ documentation.
 
-.. _configuration: http://docs.grafana.org/installation/configuration/
+.. _configuration: https://grafana.com/docs/installation/configuration/
 
 Prometheus Data Source
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -64,7 +64,7 @@ the appropriate configuration for the data source.  The key for each data source
 section in the chart's values.yaml, as the data source's URL and authentication
 credentials will be populated by the values defined in the defined endpoint.
 
-.. _sources: http://docs.grafana.org/features/datasources/
+.. _sources: https://grafana.com/docs/features/datasources/
 
 Dashboards
 ~~~~~~~~~~
