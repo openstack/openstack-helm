@@ -33,7 +33,7 @@ options are found under the following keys:
         requestTimeout: 30000
         shardTimeout: 0
         startupTimeout: 5000
-      il8n:
+      i18n:
         defaultLocale: en
       kibana:
         defaultAppId: discover
