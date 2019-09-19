@@ -84,5 +84,6 @@ rally verify delete-verifier --id "${RALLY_ENV_NAME}-tempest" --force
 rally task validate /etc/rally/rally_tests.yaml
 rally task start /etc/rally/rally_tests.yaml
 rally task sla-check
+rally env cleanup
 rally deployment destroy --deployment "${RALLY_ENV_NAME}"
 {{- end }}
