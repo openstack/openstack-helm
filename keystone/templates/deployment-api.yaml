@@ -14,6 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- define "apiProbeTemplate" }}
+httpGet:
+  scheme: HTTP
+  path: /v3/
+  port: {{ tuple "identity" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+{{- end }}
+
 {{- if .Values.manifests.deployment_api }}
 {{- $envAll := . }}
 
@@ -70,24 +77,10 @@ spec:
                   - /tmp/keystone-api.sh
                   - stop
           ports:
-            {{- $portInt := tuple "identity" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
             - name: ks-pub
-              containerPort: {{ $portInt }}
-          readinessProbe:
-            httpGet:
-              scheme: HTTP
-              path: /v3/
-              port: {{ $portInt }}
-            initialDelaySeconds: 15
-            periodSeconds: 10
-          livenessProbe:
-            httpGet:
-              scheme: HTTP
-              path: /v3/
-              port: {{ $portInt }}
-            initialDelaySeconds: 50
-            periodSeconds: 20
-            timeoutSeconds: 5
+              containerPort: {{ tuple "identity" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+{{ dict "envAll" $envAll "component" "api" "container" "api" "type" "readiness" "probeTemplate" (include "apiProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | trim | indent 10 }}
+{{ dict "envAll" $envAll "component" "api" "container" "api" "type" "liveness" "probeTemplate" (include "apiProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | trim | indent 10 }}
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
