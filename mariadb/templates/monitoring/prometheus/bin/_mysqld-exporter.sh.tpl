@@ -18,7 +18,42 @@ limitations under the License.
 
 set -ex
 
+compareVersions() {
+echo $1 $2 | \
+awk '{ split($1, a, ".");
+       split($2, b, ".");
+       res = -1;
+       for (i = 1; i <= 3; i++){
+           if (a[i] < b[i]) {
+               res =-1;
+               break;
+           } else if (a[i] > b[i]) {
+               res = 1;
+               break;
+           } else if (a[i] == b[i]) {
+               if (i == 3) {
+               res = 0;
+               break;
+               } else {
+               continue;
+               }
+           }
+       }
+       print res;
+     }'
+}
+
+MYSQL_EXPORTER_VER=`/bin/mysqld_exporter --version 2>&1 | grep "mysqld_exporter" | awk '{print $3}'`
+
+#in versions greater than 0.10.0 different configuration flags are used:
+#https://github.com/prometheus/mysqld_exporter/commit/66c41ac7eb90a74518a6ecf6c6bb06464eb68db8
+compverResult=`compareVersions "${MYSQL_EXPORTER_VER}" "0.10.0"`
+CONFIG_FLAG_PREFIX='-'
+if [ ${compverResult} -gt 0 ]; then
+    CONFIG_FLAG_PREFIX='--'
+fi
+
 exec /bin/mysqld_exporter \
-  -config.my-cnf=/etc/mysql/mysql_user.cnf \
-  -web.listen-address="${POD_IP}:${LISTEN_PORT}" \
-  -web.telemetry-path="$TELEMETRY_PATH"
+  ${CONFIG_FLAG_PREFIX}config.my-cnf=/etc/mysql/mysql_user.cnf \
+  ${CONFIG_FLAG_PREFIX}web.listen-address="${POD_IP}:${LISTEN_PORT}" \
+  ${CONFIG_FLAG_PREFIX}web.telemetry-path="$TELEMETRY_PATH"
