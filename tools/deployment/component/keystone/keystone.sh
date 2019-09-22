@@ -60,3 +60,7 @@ FEATURE_GATE="ldap"; if [[ ${FEATURE_GATES//,/ } =~ (^|[[:space:]])${FEATURE_GAT
     -H "X-Auth-Token: $token" \
     http://keystone.openstack.svc.cluster.local/v3/domains/${domainId}/config
 fi
+
+# Delete the test pod if it still exists
+kubectl delete pods -l application=keystone,release_group=keystone,component=test --namespace=openstack --ignore-not-found
+helm test keystone --timeout 900

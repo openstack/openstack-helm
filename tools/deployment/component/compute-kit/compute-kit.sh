@@ -91,3 +91,11 @@ sleep 30 #NOTE(portdirect): Wait for ingress controller to update rules and rest
 openstack compute service list
 openstack network agent list
 openstack hypervisor list
+
+# Delete the test pods if they still exist
+kubectl delete pods -l application=nova,release_group=nova,component=test --namespace=openstack --ignore-not-found
+kubectl delete pods -l application=neutron,release_group=neutron,component=test --namespace=openstack --ignore-not-found
+
+timeout=${OSH_TEST_TIMEOUT:-900}
+helm test nova --timeout $timeout
+helm test neutron --timeout $timeout

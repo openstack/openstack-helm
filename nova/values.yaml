@@ -618,6 +618,15 @@ conf:
   ssh_public: 'null'
   rally_tests:
     run_tempest: false
+    clean_up: |
+      FLAVORS=$(openstack flavor list -f value | grep -e "^s_rally_" | awk '{ print $1 }')
+      if [ -n "$FLAVORS" ]; then
+        echo $FLAVORS | xargs openstack flavor delete
+      fi
+      SERVERS=$(openstack server list -f value | grep -e "^s_rally_" | awk '{ print $1 }')
+      if [ -n "$SERVERS" ]; then
+        echo $SERVERS | xargs openstack server delete
+      fi
     tests:
       NovaAgents.list_agents:
         - runner:
