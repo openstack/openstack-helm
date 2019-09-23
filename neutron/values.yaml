@@ -40,6 +40,7 @@ images:
     neutron_sriov_agent: docker.io/openstackhelm/neutron:ocata-18.04-sriov
     neutron_sriov_agent_init: docker.io/openstackhelm/neutron:ocata-18.04-sriov
     neutron_bagpipe_bgp: docker.io/openstackhelm/neutron:ocata-ubuntu_xenial
+    neutron_ironic_agent: docker.io/openstackhelm/neutron:ocata-ubuntu_xenial
     dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.3.1
     image_repo_sync: docker.io/docker:17.07.0
   pull_policy: "IfNotPresent"
@@ -83,6 +84,9 @@ labels:
     node_selector_key: openstack-compute-node
     node_selector_value: enabled
   server:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  ironic_agent:
     node_selector_key: openstack-control-plane
     node_selector_value: enabled
   test:
@@ -299,6 +303,21 @@ dependencies:
           service: oslo_cache
         - endpoint: internal
           service: identity
+    ironic_agent:
+      jobs:
+        - neutron-db-sync
+        - neutron-ks-user
+        - neutron-ks-endpoints
+        - neutron-rabbit-init
+      services:
+        - endpoint: internal
+          service: oslo_db
+        - endpoint: internal
+          service: oslo_messaging
+        - endpoint: internal
+          service: oslo_cache
+        - endpoint: internal
+          service: identity
     tests:
       services:
         - endpoint: internal
@@ -452,6 +471,9 @@ pod:
         neutron_sriov_agent:
           readOnlyRootFilesystem: true
           privileged: true
+    neutron_ironic_agent:
+      pod:
+        runAsUser: 42424
   affinity:
     anti:
       type:
@@ -506,6 +528,11 @@ pod:
       bagpipe_bgp:
         volumeMounts:
         volumes:
+    neutron_ironic_agent:
+      init_container: null
+      neutron_ironic_agent:
+        volumeMounts:
+        volumes:
     neutron_tests:
       init_container: null
       neutron_tests:
@@ -526,6 +553,7 @@ pod:
         volumes:
   replicas:
     server: 1
+    ironic_agent: 1
   lifecycle:
     upgrades:
       deployments:
@@ -565,6 +593,8 @@ pod:
         min_available: 0
     termination_grace_period:
       server:
+        timeout: 30
+      ironic_agent:
         timeout: 30
   resources:
     enabled: false
@@ -626,6 +656,13 @@ pod:
           memory: "1024Mi"
           cpu: "2000m"
     server:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+    ironic_agent:
       requests:
         memory: "128Mi"
         cpu: "100m"
@@ -1767,6 +1804,8 @@ conf:
       auth_version: v3
       endpoint_type: internal
       allow_reverse_dns_lookup: true
+    ironic:
+      endpoint_type: internal
     keystone_authtoken:
       memcache_security_strategy: ENCRYPT
       auth_type: password
@@ -2162,6 +2201,13 @@ endpoints:
         password: password
         user_domain_name: service
         project_domain_name: service
+      ironic:
+        region_name: RegionOne
+        project_name: service
+        username: ironic
+        password: password
+        user_domain_name: service
+        project_domain_name: service
       test:
         role: admin
         region_name: RegionOne
@@ -2235,6 +2281,21 @@ endpoints:
       api:
         default: 9001
         public: 80
+  baremetal:
+    name: ironic
+    hosts:
+      default: ironic-api
+      public: ironic
+    host_fqdn_override:
+      default: null
+    path:
+      default: null
+    scheme:
+      default: 'http'
+    port:
+      api:
+        default: 6385
+        public: 80
 
   #NOTE(tp6510): these endpoints allow for things like DNS lookups and apiserver access.
   # They are using to enable the Egress K8s network policy.
@@ -2269,6 +2330,7 @@ manifests:
   daemonset_sriov_agent: true
   daemonset_l2gw_agent: false
   daemonset_bagpipe_bgp: false
+  deployment_ironic_agent: false
   deployment_server: true
   ingress_server: true
   job_bootstrap: true
