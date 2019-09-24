@@ -18,7 +18,7 @@ sudo docker exec docker-in-docker apk update
 sudo docker exec docker-in-docker apk add git
 
 sudo docker exec docker-in-docker docker build --force-rm --pull --no-cache \
-    https://git.openstack.org/openstack/loci.git \
+    https://opendev.org/openstack/loci.git \
     --network host \
     --build-arg FROM=gcr.io/google_containers/ubuntu-slim:0.14 \
     --build-arg PROJECT=requirements \
@@ -27,7 +27,7 @@ sudo docker exec docker-in-docker docker build --force-rm --pull --no-cache \
 sudo docker exec docker-in-docker docker push docker.io/openstackhelm/requirements:${IMAGE_TAG}
 
 sudo docker exec docker-in-docker docker build --force-rm --pull --no-cache \
-    https://git.openstack.org/openstack/loci.git \
+    https://opendev.org/openstack/loci.git \
     --build-arg PROJECT=keystone \
     --build-arg FROM=gcr.io/google_containers/ubuntu-slim:0.14 \
     --build-arg PROJECT_REF=${OPENSTACK_VERSION} \
@@ -38,7 +38,7 @@ sudo docker exec docker-in-docker docker build --force-rm --pull --no-cache \
 sudo docker exec docker-in-docker docker push docker.io/openstackhelm/keystone:${IMAGE_TAG}
 
 sudo docker exec docker-in-docker docker build --force-rm --pull --no-cache \
-    https://git.openstack.org/openstack/loci.git \
+    https://opendev.org/openstack/loci.git \
     --build-arg PROJECT=heat \
     --build-arg FROM=gcr.io/google_containers/ubuntu-slim:0.14 \
     --build-arg PROJECT_REF=${OPENSTACK_VERSION} \
@@ -50,7 +50,7 @@ sudo docker exec docker-in-docker docker build --force-rm --pull --no-cache \
 sudo docker exec docker-in-docker docker push docker.io/openstackhelm/heat:${IMAGE_TAG}
 
 sudo docker exec docker-in-docker docker build --force-rm --pull --no-cache \
-    https://git.openstack.org/openstack/loci.git \
+    https://opendev.org/openstack/loci.git \
     --build-arg PROJECT=barbican \
     --build-arg FROM=gcr.io/google_containers/ubuntu-slim:0.14 \
     --build-arg PROJECT_REF=${OPENSTACK_VERSION} \
@@ -60,7 +60,7 @@ sudo docker exec docker-in-docker docker build --force-rm --pull --no-cache \
 sudo docker exec docker-in-docker docker push docker.io/openstackhelm/barbican:${IMAGE_TAG}
 
 sudo docker exec docker-in-docker docker build --force-rm --pull --no-cache \
-    https://git.openstack.org/openstack/loci.git \
+    https://opendev.org/openstack/loci.git \
     --build-arg PROJECT=glance \
     --build-arg FROM=gcr.io/google_containers/ubuntu-slim:0.14 \
     --build-arg PROJECT_REF=${OPENSTACK_VERSION} \
@@ -71,7 +71,7 @@ sudo docker exec docker-in-docker docker build --force-rm --pull --no-cache \
 sudo docker exec docker-in-docker docker push docker.io/openstackhelm/glance:${IMAGE_TAG}
 
 sudo docker exec docker-in-docker docker build --force-rm --pull --no-cache \
-    https://git.openstack.org/openstack/loci.git \
+    https://opendev.org/openstack/loci.git \
     --build-arg PROJECT=cinder \
     --build-arg FROM=gcr.io/google_containers/ubuntu-slim:0.14 \
     --build-arg PROJECT_REF=${OPENSTACK_VERSION} \
@@ -82,7 +82,7 @@ sudo docker exec docker-in-docker docker build --force-rm --pull --no-cache \
 sudo docker exec docker-in-docker docker push docker.io/openstackhelm/cinder:${IMAGE_TAG}
 
 sudo docker exec docker-in-docker docker build --force-rm --pull --no-cache \
-    https://git.openstack.org/openstack/loci.git \
+    https://opendev.org/openstack/loci.git \
     --build-arg PROJECT=neutron \
     --build-arg FROM=gcr.io/google_containers/ubuntu-slim:0.14 \
     --build-arg PROJECT_REF=${OPENSTACK_VERSION} \
@@ -93,7 +93,7 @@ sudo docker exec docker-in-docker docker build --force-rm --pull --no-cache \
 sudo docker exec docker-in-docker docker push docker.io/openstackhelm/neutron:${IMAGE_TAG}
 
 sudo docker exec docker-in-docker docker build --force-rm --pull --no-cache \
-    https://git.openstack.org/openstack/loci.git \
+    https://opendev.org/openstack/loci.git \
     --build-arg PROJECT=neutron \
     --build-arg FROM=docker.io/ubuntu:18.04 \
     --build-arg PROJECT_REF=${OPENSTACK_VERSION} \
@@ -105,7 +105,7 @@ sudo docker exec docker-in-docker docker build --force-rm --pull --no-cache \
 sudo docker exec docker-in-docker docker push docker.io/openstackhelm/neutron:${IMAGE_TAG}-sriov-1804
 
 sudo docker exec docker-in-docker docker build --force-rm --pull --no-cache \
-    https://git.openstack.org/openstack/loci.git \
+    https://opendev.org/openstack/loci.git \
     --build-arg PROJECT=nova \
     --build-arg FROM=gcr.io/google_containers/ubuntu-slim:0.14 \
     --build-arg PROJECT_REF=${OPENSTACK_VERSION} \
@@ -116,7 +116,7 @@ sudo docker exec docker-in-docker docker build --force-rm --pull --no-cache \
 sudo docker exec docker-in-docker docker push docker.io/openstackhelm/nova:${IMAGE_TAG}
 
 sudo docker exec docker-in-docker docker build --force-rm --pull --no-cache \
-    https://git.openstack.org/openstack/loci.git \
+    https://opendev.org/openstack/loci.git \
     --build-arg PROJECT=horizon \
     --build-arg FROM=gcr.io/google_containers/ubuntu-slim:0.14 \
     --build-arg PROJECT_REF=${OPENSTACK_VERSION} \
@@ -127,7 +127,7 @@ sudo docker exec docker-in-docker docker build --force-rm --pull --no-cache \
 sudo docker exec docker-in-docker docker push docker.io/openstackhelm/horizon:${IMAGE_TAG}
 
 sudo docker exec docker-in-docker docker build --force-rm --pull --no-cache \
-    https://git.openstack.org/openstack/loci.git \
+    https://opendev.org/openstack/loci.git \
     --build-arg PROJECT=senlin \
     --build-arg FROM=gcr.io/google_containers/ubuntu-slim:0.14 \
     --build-arg PROJECT_REF=${OPENSTACK_VERSION} \
@@ -138,7 +138,7 @@ sudo docker exec docker-in-docker docker build --force-rm --pull --no-cache \
 sudo docker exec docker-in-docker docker push docker.io/openstackhelm/senlin:${IMAGE_TAG}
 
 sudo docker exec docker-in-docker docker build --force-rm --pull --no-cache \
-    https://git.openstack.org/openstack/loci.git \
+    https://opendev.org/openstack/loci.git \
     --build-arg PROJECT=congress \
     --build-arg FROM=gcr.io/google_containers/ubuntu-slim:0.14 \
     --build-arg PROJECT_REF=${OPENSTACK_VERSION} \
@@ -149,7 +149,7 @@ sudo docker exec docker-in-docker docker build --force-rm --pull --no-cache \
 sudo docker exec docker-in-docker docker push docker.io/openstackhelm/congress:${IMAGE_TAG}
 
 sudo docker exec docker-in-docker docker build --force-rm --pull --no-cache \
-    https://git.openstack.org/openstack/loci.git \
+    https://opendev.org/openstack/loci.git \
     --build-arg PROJECT=magnum \
     --build-arg FROM=gcr.io/google_containers/ubuntu-slim:0.14 \
     --build-arg PROJECT_REF=${OPENSTACK_VERSION} \
@@ -160,7 +160,7 @@ sudo docker exec docker-in-docker docker build --force-rm --pull --no-cache \
 sudo docker exec docker-in-docker docker push docker.io/openstackhelm/magnum:${IMAGE_TAG}
 
 sudo docker exec docker-in-docker docker build --force-rm --pull --no-cache \
-    https://git.openstack.org/openstack/loci.git \
+    https://opendev.org/openstack/loci.git \
     --build-arg PROJECT=ironic \
     --build-arg FROM=gcr.io/google_containers/ubuntu-slim:0.14 \
     --build-arg PROJECT_REF=${OPENSTACK_VERSION} \

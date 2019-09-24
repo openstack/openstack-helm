@@ -10,11 +10,11 @@ RUN set -ex ;\
         build-essential \
         python-pip \
         git ;\
-    git clone https://git.openstack.org/openstack/tempest ;\
-    git clone https://git.openstack.org/openstack/cinder-tempest-plugin ;\
-    git clone https://git.openstack.org/openstack/heat-tempest-plugin ;\
-    git clone https://git.openstack.org/openstack/keystone-tempest-plugin ;\
-    git clone https://git.openstack.org/openstack/neutron-tempest-plugin ;\
+    git clone https://opendev.org/openstack/tempest ;\
+    git clone https://opendev.org/openstack/cinder-tempest-plugin ;\
+    git clone https://opendev.org/openstack/heat-tempest-plugin ;\
+    git clone https://opendev.org/openstack/keystone-tempest-plugin ;\
+    git clone https://opendev.org/openstack/neutron-tempest-plugin ;\
     pip install -U setuptools ;\
     pip install wheel ;\
     pip install -e tempest/ \
