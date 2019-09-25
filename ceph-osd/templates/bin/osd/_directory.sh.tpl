@@ -30,7 +30,7 @@ if [[ ! -d /var/lib/ceph/osd ]]; then
 fi
 
 # check if anything is present, if not, create an osd and its directory
-if [[ -n "$(find /var/lib/ceph/osd -prune -empty)" ]]; then
+if [[ -n "$(find /var/lib/ceph/osd -type d  -empty ! -name "lost+found")" ]]; then
   echo "Creating osd"
   UUID=$(uuidgen)
   OSD_SECRET=$(ceph-authtool --gen-print-key)
