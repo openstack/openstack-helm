@@ -908,6 +908,19 @@ conf:
               - __meta_kubernetes_service_name
             target_label: job
             replacement: ${1}
+        - job_name: 'node-exporter'
+          kubernetes_sd_configs:
+          - role: endpoints
+          scrape_interval: 60s
+          relabel_configs:
+          - source_labels:
+              - __meta_kubernetes_service_name
+            action: keep
+            regex: 'node-exporter'
+          - source_labels:
+              - __meta_kubernetes_pod_node_name
+            action: replace
+            target_label: hostname
         - job_name: 'kubernetes-service-endpoints'
           kubernetes_sd_configs:
           - role: endpoints
@@ -916,7 +929,7 @@ conf:
           - source_labels:
               - __meta_kubernetes_service_name
             action: drop
-            regex: '(openstack-metrics|prom-metrics|ceph-mgr)'
+            regex: '(openstack-metrics|prom-metrics|ceph-mgr|node-exporter)'
           - source_labels:
               - __meta_kubernetes_service_annotation_prometheus_io_scrape
             action: keep
