@@ -141,16 +141,10 @@ just set it along with nova_metadata_host.
 {{- end -}}
 
 {{- if empty $envAll.Values.conf.plugins.ml2_conf.ml2.mechanism_drivers -}}
-{{- $_ := set $envAll.Values "__mechanism_drivers" ( list "l2population" ) }}
-{{- if ( has "openvswitch" $envAll.Values.network.backend ) -}}
-{{ $__mechanism_drivers := append $envAll.Values.__mechanism_drivers "openvswitch" }}
-{{- $_ := set $envAll.Values "__mechanism_drivers" $__mechanism_drivers }}
+{{- if (contains "vxlan" $envAll.Values.conf.plugins.ml2_conf.ml2.tenant_network_types) -}}
+{{- $_ := set $envAll.Values "__mechanism_drivers" (append $envAll.Values.network.backend "l2population") -}}
 {{- end -}}
-{{- if ( has "linuxbridge" $envAll.Values.network.backend ) -}}
-{{ $__mechanism_drivers := append $envAll.Values.__mechanism_drivers "linuxbridge" }}
-{{- $_ := set $envAll.Values "__mechanism_drivers" $__mechanism_drivers }}
-{{- end -}}
-{{- $_ := set $envAll.Values.conf.plugins.ml2_conf.ml2 "mechanism_drivers" $envAll.Values.__mechanism_drivers -}}
+{{- $_ := set $envAll.Values.conf.plugins.ml2_conf.ml2 "mechanism_drivers" ($envAll.Values.__mechanism_drivers | default $envAll.Values.network.backend | uniq) -}}
 {{- end -}}
 
 {{- if empty .Values.conf.neutron.DEFAULT.bind_port -}}
