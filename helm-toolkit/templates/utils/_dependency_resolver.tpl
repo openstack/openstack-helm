@@ -27,8 +27,8 @@ limitations under the License.
 {{- $_ := set $envAll.Values "pod_dependency" ( index $envAll.Values.dependencies.static $dependencyKey ) }}
 {{- end }}
 {{- else if kindIs "slice" $dependencyMixinParam }}
+{{- $_ := set $envAll.Values "__deps" ( index $envAll.Values.dependencies.static $dependencyKey ) }}
 {{- range $k, $v := $dependencyMixinParam -}}
-{{- if not $envAll.Values.__deps }}{{- $_ := set $envAll.Values "__deps" ( index $envAll.Values.dependencies.static $dependencyKey ) }}{{- end }}
 {{- $_ := include "helm-toolkit.utils.merge" (tuple $envAll.Values.pod_dependency $envAll.Values.__deps ( index $envAll.Values.dependencies.dynamic.targeted $v $dependencyKey ) ) -}}
 {{- $_ := set $envAll.Values "__deps" $envAll.Values.pod_dependency -}}
 {{- end }}
