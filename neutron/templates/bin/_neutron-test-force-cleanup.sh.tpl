@@ -16,12 +16,7 @@
 
 set -ex
 
-while [ ! -f /tmp/pod-tmp/test_done.log ]
-do
-  sleep 2s
-done
-
-ospurge --purge-project $OS_TEST_PROJECT_NAME
-
-openstack quota set $OS_TEST_PROJECT_NAME --networks $NETWORK_QUOTA --ports $PORT_QUOTA --routers $ROUTER_QUOTA --subnets $SUBNET_QUOTA --secgroups $SEC_GROUP_QUOTA
-
+if openstack project show "${OS_TEST_PROJECT_NAME}"; then
+  ospurge --purge-project "${OS_TEST_PROJECT_NAME}"
+  openstack quota set "${OS_TEST_PROJECT_NAME}" --networks "${NETWORK_QUOTA}" --ports "${PORT_QUOTA}" --routers "${ROUTER_QUOTA}" --subnets "${SUBNET_QUOTA}" --secgroups "${SEC_GROUP_QUOTA}"
+fi

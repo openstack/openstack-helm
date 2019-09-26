@@ -63,9 +63,9 @@ spec:
 {{- end }}
         - name: SERVICE_OS_ROLE
           value: {{ .Values.endpoints.identity.auth.test.role | quote }}
-  containers:
+{{ if $envAll.Values.conf.rally_tests.force_project_purge }}
     - name: {{ .Release.Name }}-reset
-      image: openstackhelm/ospurge
+{{ tuple $envAll "purge_test" | include "helm-toolkit.snippets.image" | indent 6 }}
       env:
 {{- with $env := dict "ksUserSecret" .Values.secrets.identity.admin }}
 {{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 8 }}
@@ -85,14 +85,17 @@ spec:
           value: {{ (first (index .Values.conf.rally_tests.tests "NeutronNetworks.create_and_delete_subnets")).context.quotas.neutron.subnet | quote }}
         - name: SEC_GROUP_QUOTA
           value: {{ (first (index .Values.conf.rally_tests.tests "NeutronSecurityGroup.create_and_list_security_groups")).context.quotas.neutron.security_group | quote }}
-      command: ["/bin/bash", "-c", "/tmp/neutron-cleanup.sh"]
+      command:
+        - /tmp/neutron-test-force-cleanup.sh
       volumeMounts:
         - name: neutron-bin
-          mountPath: /tmp/neutron-cleanup.sh
-          subPath: neutron-cleanup.sh
+          mountPath: /tmp/neutron-test-force-cleanup.sh
+          subPath: neutron-test-force-cleanup.sh
           readOnly: true
         - name: pod-tmp
           mountPath: /tmp/pod-tmp
+{{ end }}
+  containers:
     - name: {{ .Release.Name }}-test
 {{ tuple $envAll "test" | include "helm-toolkit.snippets.image" | indent 6 }}
 {{ tuple $envAll $envAll.Values.pod.resources.jobs.tests | include "helm-toolkit.snippets.kubernetes_resources" | indent 6 }}
@@ -105,8 +108,8 @@ spec:
 {{- end }}
         - name: RALLY_ENV_NAME
           value: {{.Release.Name}}
-      command: ["/bin/bash", "-c"]
-      args: ["/tmp/rally-test.sh; touch /tmp/test_done.log"]
+      command:
+        - /tmp/rally-test.sh
       volumeMounts:
         - name: pod-tmp
           mountPath: /tmp
