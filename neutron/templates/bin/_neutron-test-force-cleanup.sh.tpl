@@ -16,7 +16,9 @@
 
 set -ex
 
-if openstack project show "${OS_TEST_PROJECT_NAME}"; then
-  ospurge --purge-project "${OS_TEST_PROJECT_NAME}"
-  openstack quota set "${OS_TEST_PROJECT_NAME}" --networks "${NETWORK_QUOTA}" --ports "${PORT_QUOTA}" --routers "${ROUTER_QUOTA}" --subnets "${SUBNET_QUOTA}" --secgroups "${SEC_GROUP_QUOTA}"
+
+if openstack project show "${OS_TEST_PROJECT_NAME}" --domain="${OS_TEST_PROJECT_DOMAIN_NAME}" ; then
+  OS_TEST_PROJECT_ID=$(openstack project show "${OS_TEST_PROJECT_NAME}" -f value -c id --domain="${OS_TEST_PROJECT_DOMAIN_NAME}")
+  ospurge --purge-project "${OS_TEST_PROJECT_ID}"
+  openstack quota set "${OS_TEST_PROJECT_ID}" --networks "${NETWORK_QUOTA}" --ports "${PORT_QUOTA}" --routers "${ROUTER_QUOTA}" --subnets "${SUBNET_QUOTA}" --secgroups "${SEC_GROUP_QUOTA}"
 fi
