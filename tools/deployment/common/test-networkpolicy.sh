@@ -15,14 +15,15 @@
 #    under the License.
 
 set -xe
-# test_netpol(namespace, component, target_host, expected_result{fail,success})
+# test_netpol(namespace, application, component, target_host, expected_result{fail,success})
 function test_netpol {
   NS=$1
-  COMPONENT=$2
-  HOST=$3
-  STATUS=$4
-  echo Testing connection from $COMPONENT to host $HOST with namespace $NS
-  POD=$(kubectl -n $NS get pod | grep $COMPONENT | grep Running | awk '{print $1}')
+  APP=$2
+  COMPONENT=$3
+  HOST=$4
+  STATUS=$5
+  echo Testing connection from $APP - $COMPONENT to host $HOST with namespace $NS
+  POD=$(kubectl -n $NS get pod -l application=$APP,component=$COMPONENT | grep Running | cut -f 1 -d " " | head -n 1)
   PID=$(sudo docker inspect --format '{{ .State.Pid }}' $(kubectl get pods --namespace $NS $POD -o jsonpath='{.status.containerStatuses[0].containerID}' | cut -c 10-21))
   if [ "x${STATUS}" == "xfail" ]; then
     if ! sudo nsenter -t $PID -n wget --spider --timeout=5 --tries=1 $HOST ; then
@@ -34,17 +35,30 @@ function test_netpol {
     sudo nsenter -t $PID -n wget --spider --timeout=5 --tries=1 $HOST
   fi
 }
+
+#NOTE(gagehugo): Enable the negative tests once the services policy is defined
+
+# General Netpol Tests
 # Doing negative tests
-test_netpol openstack keystone-api heat-api.openstack.svc.cluster.local fail
-test_netpol openstack keystone-api glance-api.openstack.svc.cluster.local fail
-test_netpol openstack mariadb-server rabbitmq.openstack.svc.cluster.local:5672 fail
-test_netpol openstack rabbitmq-rabbitmq memcached.openstack.svc.cluster.local:11211 fail
-test_netpol openstack memcached mariadb.openstack.svc.cluster.local:3306 fail
-
+#test_netpol openstack mariadb server rabbitmq.openstack.svc.cluster.local:5672 fail
+#test_netpol openstack rabbitmq-rabbitmq server memcached.openstack.svc.cluster.local:11211 fail
+#test_netpol openstack memcached server mariadb.openstack.svc.cluster.local:3306 fail
 # Doing positive tests
-test_netpol openstack keystone-api mariadb.openstack.svc.cluster.local:3306 success
-test_netpol openstack keystone-api rabbitmq.openstack.svc.cluster.local:5672 success
-test_netpol openstack heat-api mariadb.openstack.svc.cluster.local:3306 success
-test_netpol openstack glance-api mariadb.openstack.svc.cluster.local:3306 success
+test_netpol openstack keystone api mariadb.openstack.svc.cluster.local:3306 success
+test_netpol openstack keystone api rabbitmq.openstack.svc.cluster.local:5672 success
 
-echo Test successfully
+if kubectl -n openstack get pod -l application=cinder | grep Running ; then
+# Negative Cinder Tests
+  #test_netpol openstack keystone api cinder-api.openstack.svc.cluster.local fail
+# Positive Cinder Tests
+  test_netpol openstack cinder api rabbitmq.openstack.svc.cluster.local:5672 success
+else
+# Negative Compute-Kit Tests
+  #test_netpol openstack keystone api heat-api.openstack.svc.cluster.local fail
+  #test_netpol openstack keystone api glance-api.openstack.svc.cluster.local fail
+# Positive Compute-Kit Tests
+  test_netpol openstack heat api mariadb.openstack.svc.cluster.local:3306 success
+  test_netpol openstack glance api mariadb.openstack.svc.cluster.local:3306 success
+fi
+
+echo Test Success
