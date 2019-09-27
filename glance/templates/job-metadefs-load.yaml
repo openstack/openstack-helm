@@ -1,0 +1,85 @@
+{{/*
+Copyright 2017 The Openstack-Helm Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.job_metadefs_load }}
+{{- $envAll := . }}
+
+{{- $serviceAccountName := "glance-metadefs-load" }}
+{{ tuple $envAll "metadefs_load" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: glance-metadefs-load
+  annotations:
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+spec:
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "glance" "metadefs_load" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+    spec:
+      serviceAccountName: {{ $serviceAccountName }}
+{{ dict "envAll" $envAll "application" "glance" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
+      restartPolicy: OnFailure
+      nodeSelector:
+        {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
+      initContainers:
+{{ tuple $envAll "metadefs_load" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+      containers:
+        - name: glance-metadefs-load
+{{ tuple $envAll "glance_metadefs_load" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.jobs.metadefs_load | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          env:
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          command:
+            - /tmp/metadefs-load.sh
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: glance-bin
+              mountPath: /tmp/metadefs-load.sh
+              subPath: metadefs-load.sh
+              readOnly: true
+            - name: etcglance
+              mountPath: /etc/glance
+            - name: glance-etc
+              mountPath: /etc/glance/glance-api.conf
+              subPath: glance-api.conf
+              readOnly: true
+            {{- if .Values.conf.glance.DEFAULT.log_config_append }}
+            - name: glance-etc
+              mountPath: {{ .Values.conf.glance.DEFAULT.log_config_append }}
+              subPath: {{ base .Values.conf.glance.DEFAULT.log_config_append }}
+              readOnly: true
+            {{- end }}
+      volumes:
+        - name: pod-tmp
+          emptyDir: {}
+        - name: glance-bin
+          configMap:
+            name: glance-bin
+            defaultMode: 0555
+        - name: etcglance
+          emptyDir: {}
+        - name: glance-etc
+          secret:
+            secretName: glance-etc
+            defaultMode: 0444
+{{- end }}
