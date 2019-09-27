@@ -53,14 +53,34 @@ function start () {
 
 {{- if .Values.conf.ovs_dpdk.pmd_cpu_mask }}
     ovs-vsctl --db=unix:${OVS_SOCKET} --no-wait set Open_vSwitch . other_config:pmd-cpu-mask={{ .Values.conf.ovs_dpdk.pmd_cpu_mask | quote }}
+    PMD_CPU_MASK={{ .Values.conf.ovs_dpdk.pmd_cpu_mask | quote }}
 {{- end }}
 
 {{- if .Values.conf.ovs_dpdk.lcore_mask }}
     ovs-vsctl --db=unix:${OVS_SOCKET} --no-wait set Open_vSwitch . other_config:dpdk-lcore-mask={{ .Values.conf.ovs_dpdk.lcore_mask | quote }}
+    LCORE_MASK={{ .Values.conf.ovs_dpdk.lcore_mask | quote }}
 {{- end }}
 
     ovs-vsctl --db=unix:${OVS_SOCKET} --no-wait set Open_vSwitch . other_config:vhost-sock-dir={{ .Values.conf.ovs_dpdk.vhostuser_socket_dir | quote }}
     ovs-vsctl --db=unix:${OVS_SOCKET} --no-wait set Open_vSwitch . other_config:dpdk-init=true
+
+  # No need to create the cgroup if lcore_mask or pmd_cpu_mask is not set.
+  if [[ -n ${PMD_CPU_MASK} || -n ${LCORE_MASK} ]]; then
+      # Setup Cgroups to use when breaking out of Kubernetes defined groups
+      mkdir -p /sys/fs/cgroup/cpuset/osh-openvswitch
+      target_mems="/sys/fs/cgroup/cpuset/osh-openvswitch/cpuset.mems"
+      target_cpus="/sys/fs/cgroup/cpuset/osh-openvswitch/cpuset.cpus"
+
+      # Ensure the write target for the for cpuset.mem for the pod exists
+      if [[ -f "$target_mems" && -f "$target_cpus" ]]; then
+        # Write cpuset.mem and cpuset.cpus for new cgroup and add current task to new cgroup
+        cat /sys/fs/cgroup/cpuset/cpuset.mems > "$target_mems"
+        cat /sys/fs/cgroup/cpuset/cpuset.cpus > "$target_cpus"
+        echo $$ > /sys/fs/cgroup/cpuset/osh-openvswitch/tasks
+      else
+        echo "ERROR: Could not find write target for either cpuset.mems: $target_mems or cpuset.cpus: $target_cpus"
+      fi
+  fi
 {{- end }}
 
   exec /usr/sbin/ovs-vswitchd unix:${OVS_SOCKET} \
