@@ -29,8 +29,10 @@ import os
 import sys
 try:
     import ConfigParser
+    PARSER_OPTS = {}
 except ImportError:
     import configparser as ConfigParser
+    PARSER_OPTS = {"strict": False}
 import logging
 from sqlalchemy import create_engine
 
@@ -68,7 +70,7 @@ if "OPENSTACK_CONFIG_FILE" in os.environ:
         logger.critical('environment variable OPENSTACK_CONFIG_DB_KEY not set')
         sys.exit(1)
     try:
-        config = ConfigParser.RawConfigParser()
+        config = ConfigParser.RawConfigParser(**PARSER_OPTS)
         logger.info("Using {0} as db config source".format(os_conf))
         config.read(os_conf)
         logger.info("Trying to load db config from {0}:{1}".format(
