@@ -64,7 +64,7 @@ examples:
       {{- include "helm-toolkit.manifests.ingress" ( dict "envAll" . "backendServiceType" "key-manager" "backendPort" "b-api" "endpoint" "public" ) -}}
     return: |
       ---
-      apiVersion: extensions/v1beta1
+      apiVersion: networking.k8s.io/v1beta1
       kind: Ingress
       metadata:
         name: barbican
@@ -96,7 +96,7 @@ examples:
                     serviceName: barbican-api
                     servicePort: b-api
       ---
-      apiVersion: extensions/v1beta1
+      apiVersion: networking.k8s.io/v1beta1
       kind: Ingress
       metadata:
         name: barbican-namespace-fqdn
@@ -118,7 +118,7 @@ examples:
                     serviceName: barbican-api
                     servicePort: b-api
       ---
-      apiVersion: extensions/v1beta1
+      apiVersion: networking.k8s.io/v1beta1
       kind: Ingress
       metadata:
         name: barbican-cluster-fqdn
@@ -184,7 +184,7 @@ examples:
       {{- include "helm-toolkit.manifests.ingress" ( dict "envAll" . "backendServiceType" "key-manager" "backendPort" "b-api" "endpoint" "public" ) -}}
     return: |
       ---
-      apiVersion: extensions/v1beta1
+      apiVersion: networking.k8s.io/v1beta1
       kind: Ingress
       metadata:
         name: barbican
@@ -247,7 +247,7 @@ examples:
 {{- $hostName := tuple $backendServiceType $endpoint $envAll | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
 {{- $hostNameFull := tuple $backendServiceType $endpoint $envAll | include "helm-toolkit.endpoints.hostname_fqdn_endpoint_lookup" }}
 ---
-apiVersion: extensions/v1beta1
+apiVersion: networking.k8s.io/v1beta1
 kind: Ingress
 metadata:
   name: {{ $ingressName }}
@@ -282,7 +282,7 @@ spec:
 {{- range $key2, $ingressController := tuple "namespace" "cluster" }}
 {{- $hostNameFullRules := dict "vHost" $hostNameFull "backendName" $backendName "backendPort" $backendPort }}
 ---
-apiVersion: extensions/v1beta1
+apiVersion: networking.k8s.io/v1beta1
 kind: Ingress
 metadata:
   name: {{ printf "%s-%s-%s" $ingressName $ingressController "fqdn" }}
