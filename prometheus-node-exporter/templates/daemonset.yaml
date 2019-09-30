@@ -17,6 +17,8 @@ limitations under the License.
 {{- if .Values.manifests.daemonset }}
 {{- $envAll := . }}
 
+{{- $mounts_node_exporter := .Values.pod.mounts.node_exporter.node_exporter}}
+
 {{- $serviceAccountName := printf "%s-%s" .Release.Name "node-exporter" }}
 {{ tuple $envAll "node_exporter" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
@@ -101,6 +103,7 @@ spec:
               mountPath: /tmp/node-exporter.sh
               subPath: node-exporter.sh
               readOnly: true
+{{ if $mounts_node_exporter.volumeMounts }}{{ toYaml $mounts_node_exporter.volumeMounts | indent 12 }}{{ end }}
       volumes:
         - name: pod-tmp
           emptyDir: {}
@@ -119,4 +122,5 @@ spec:
           configMap:
             name: node-exporter-bin
             defaultMode: 0555
+{{ if $mounts_node_exporter.volumes }}{{ toYaml $mounts_node_exporter.volumes | indent 8 }}{{ end }}
 {{- end }}
