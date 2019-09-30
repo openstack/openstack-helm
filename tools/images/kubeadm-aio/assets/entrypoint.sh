@@ -19,7 +19,7 @@ if [ "x${ACTION}" == "xgenerate-join-cmd" ]; then
 : ${TTL:="10m"}
 DISCOVERY_TOKEN="$(kubeadm token --kubeconfig /etc/kubernetes/admin.conf create --ttl ${TTL} --usages signing,authentication --groups '')"
 DISCOVERY_TOKEN_CA_HASH="$(openssl x509 -pubkey -in /etc/kubernetes/pki/ca.crt | openssl rsa -pubin -outform der 2>/dev/null | openssl dgst -sha256 -hex | sed 's/^.* /sha256:/')"
-API_SERVER=$(cat /etc/kubernetes/admin.conf | python -c "import sys, yaml; print yaml.safe_load(sys.stdin)['clusters'][0]['cluster']['server'].split(\"//\",1).pop()")
+API_SERVER=$(cat /etc/kubernetes/admin.conf | python -c "import sys, yaml; print(yaml.safe_load(sys.stdin)['clusters'][0]['cluster']['server'].split(\"//\",1).pop())")
 exec echo "kubeadm join \
 --token ${DISCOVERY_TOKEN} \
 --discovery-token-ca-cert-hash ${DISCOVERY_TOKEN_CA_HASH} \

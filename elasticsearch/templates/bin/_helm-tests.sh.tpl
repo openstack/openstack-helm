@@ -28,7 +28,7 @@ function create_test_index () {
       }
     }
   }
-  ' | python -c "import sys, json; print json.load(sys.stdin)['acknowledged']")
+  ' | python -c "import sys, json; print(json.load(sys.stdin)['acknowledged'])")
   if [ "$index_result" == "True" ];
   then
      echo "PASS: Test index created!";
@@ -59,7 +59,7 @@ function check_templates () {
   {{ range $template, $fields := .Values.conf.templates }}
   {{$template}}_total_hits=$(curl -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
               -XGET "${ELASTICSEARCH_ENDPOINT}/_template/{{$template}}" -H 'Content-Type: application/json' \
-              | python -c "import sys, json; print len(json.load(sys.stdin))")
+              | python -c "import sys, json; print(len(json.load(sys.stdin)))")
   if [ "${{$template}}_total_hits" -gt 0 ]; then
      echo "PASS: Successful hits on {{$template}} template!"
   else

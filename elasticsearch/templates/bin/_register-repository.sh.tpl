@@ -36,7 +36,7 @@ function register_snapshot_repository() {
         "access_key": "'"$S3_ACCESS_KEY"'",
         "secret_key": "'"$S3_SECRET_KEY"'"
       }
-    }' | python -c "import sys, json; print json.load(sys.stdin)['acknowledged']")
+    }' | python -c "import sys, json; print(json.load(sys.stdin)['acknowledged'])")
   if [ "$result" == "True" ];
   then
      echo "Snapshot repository $1 created!";

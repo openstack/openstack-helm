@@ -41,6 +41,6 @@ max_pg_num = int(math.pow(2, math.ceil(math.log(raw_pg_num, 2))))
 min_pg_num = int(math.pow(2, math.floor(math.log(raw_pg_num, 2))))
 
 if min_pg_num >= (raw_pg_num * 0.75):
-    print min_pg_num
+    print(min_pg_num)
 else:
-    print max_pg_num
+    print(max_pg_num)
