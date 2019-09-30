@@ -72,7 +72,11 @@ else
   test_netpol openstack mariadb server glance-api.openstack.svc.cluster.local:9292 fail
   test_netpol openstack memcached server glance-api.openstack.svc.cluster.local:9292 fail
   test_netpol openstack keystone api glance-api.openstack.svc.cluster.local:9292 fail
-
+  # Memcached Negative Tests
+  test_netpol openstack mariadb server memcached.openstack.svc.cluster.local:11211 fail
+  test_netpol openstack rabbitmq server memcached.openstack.svc.cluster.local:11211 fail
+  test_netpol openstack openvswitch openvswitch-vswitchd memcached.openstack.svc.cluster.local:11211 fail
+  test_netpol openstack libvirt libvirt memcached.openstack.svc.cluster.local:11211 fail
 # Positive Compute-Kit Tests
   test_netpol openstack heat api mariadb.openstack.svc.cluster.local:3306 success
   test_netpol openstack glance api mariadb.openstack.svc.cluster.local:3306 success
