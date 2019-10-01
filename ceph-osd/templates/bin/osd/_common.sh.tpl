@@ -61,10 +61,18 @@ function is_available {
   command -v $@ &>/dev/null
 }
 
+function ceph_cmd_retry() {
+  cnt=0
+  until "ceph" "$@" || [ $cnt -ge 6 ]; do
+    sleep 10
+    ((cnt++))
+  done
+}
+
 function crush_create_or_move {
   local crush_location=${1}
-  ceph --cluster "${CLUSTER}" --name="osd.${OSD_ID}" --keyring="${OSD_KEYRING}" \
-    osd crush create-or-move -- "${OSD_ID}" "${OSD_WEIGHT}" ${crush_location} || true
+  ceph_cmd_retry --cluster "${CLUSTER}" --name="osd.${OSD_ID}" --keyring="${OSD_KEYRING}" \
+    osd crush create-or-move -- "${OSD_ID}" "${OSD_WEIGHT}" ${crush_location}
 }
 
 function crush_add_and_move {
@@ -72,15 +80,15 @@ function crush_add_and_move {
   local crush_failure_domain_name=${2}
   local crush_location=$(echo "root=default ${crush_failure_domain_type}=${crush_failure_domain_name} host=${HOSTNAME}")
   crush_create_or_move "${crush_location}"
-  local crush_failure_domain_location_check=$(ceph --cluster "${CLUSTER}" --name="osd.${OSD_ID}" --keyring="${OSD_KEYRING}" osd find ${OSD_ID} | grep "${crush_failure_domain_type}" | awk -F '"' '{print $4}')
+  local crush_failure_domain_location_check=$(ceph_cmd_retry --cluster "${CLUSTER}" --name="osd.${OSD_ID}" --keyring="${OSD_KEYRING}" osd find ${OSD_ID} | grep "${crush_failure_domain_type}" | awk -F '"' '{print $4}')
   if [ "x${crush_failure_domain_location_check}" != "x${crush_failure_domain_name}" ];  then
     # NOTE(supamatt): Manually move the buckets for previously configured CRUSH configurations
     # as create-or-move may not appropiately move them.
-    ceph --cluster "${CLUSTER}" --name="osd.${OSD_ID}" --keyring="${OSD_KEYRING}" \
+    ceph_cmd_retry --cluster "${CLUSTER}" --name="osd.${OSD_ID}" --keyring="${OSD_KEYRING}" \
       osd crush add-bucket "${crush_failure_domain_name}" "${crush_failure_domain_type}" || true
-    ceph --cluster "${CLUSTER}" --name="osd.${OSD_ID}" --keyring="${OSD_KEYRING}" \
+    ceph_cmd_retry --cluster "${CLUSTER}" --name="osd.${OSD_ID}" --keyring="${OSD_KEYRING}" \
       osd crush move "${crush_failure_domain_name}" root=default || true
-    ceph --cluster "${CLUSTER}" --name="osd.${OSD_ID}" --keyring="${OSD_KEYRING}" \
+    ceph_cmd_retry --cluster "${CLUSTER}" --name="osd.${OSD_ID}" --keyring="${OSD_KEYRING}" \
       osd crush move "${HOSTNAME}" "${crush_failure_domain_type}=${crush_failure_domain_name}" || true
   fi
 }
