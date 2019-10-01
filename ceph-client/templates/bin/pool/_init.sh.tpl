@@ -137,7 +137,7 @@ function manage_pool () {
   POOL_PLACEMENT_GROUPS=$(/tmp/pool-calc.py ${POOL_REPLICATION} ${TOTAL_OSDS} ${TOTAL_DATA_PERCENT} ${TARGET_PG_PER_OSD})
   create_pool "${POOL_APPLICATION}" "${POOL_NAME}" "${POOL_REPLICATION}" "${POOL_PLACEMENT_GROUPS}" "${POOL_CRUSH_RULE}" "${POOL_PROTECTION}"
   POOL_REPLICAS=$(ceph --cluster "${CLUSTER}" osd pool get "${POOL_NAME}" size | awk '{print $2}')
-  POOL_QUOTA=$(python -c "print int($CLUSTER_CAPACITY * $TOTAL_DATA_PERCENT * $TARGET_QUOTA / $POOL_REPLICAS / 100 / 100)")
+  POOL_QUOTA=$(python -c "print(int($CLUSTER_CAPACITY * $TOTAL_DATA_PERCENT * $TARGET_QUOTA / $POOL_REPLICAS / 100 / 100))")
   ceph --cluster "${CLUSTER}" osd pool set-quota "${POOL_NAME}" max_bytes $POOL_QUOTA
 }
 

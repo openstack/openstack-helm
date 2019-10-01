@@ -41,7 +41,7 @@ ceph --cluster "${CLUSTER}" -v
 # Env. variables matching the pattern "<module>_" will be
 # found and parsed for config-key settings by
 #  ceph config set mgr mgr/<module>/<key> <value>
-MODULES_TO_DISABLE=`ceph mgr dump | python -c "import json, sys; print ' '.join(json.load(sys.stdin)['modules'])"`
+MODULES_TO_DISABLE=`ceph mgr dump | python -c "import json, sys; print(' '.join(json.load(sys.stdin)['modules']))"`
 
 for module in ${ENABLED_MODULES}; do
     # This module may have been enabled in the past

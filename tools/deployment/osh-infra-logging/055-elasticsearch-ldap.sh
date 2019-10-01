@@ -30,7 +30,7 @@ function create_index () {
       }
     }
   }
-  ' | python -c "import sys, json; print json.load(sys.stdin)['acknowledged']")
+  ' | python -c "import sys, json; print(json.load(sys.stdin)['acknowledged'])")
   if [ "$index_result" == "True" ];
   then
      echo "$1's index successfully created!";
@@ -48,7 +48,7 @@ function insert_test_data () {
       "name" : "Elasticsearch",
       "message" : "Test data text entry"
   }
-  ' | python -c "import sys, json; print json.load(sys.stdin)['result']")
+  ' | python -c "import sys, json; print(json.load(sys.stdin)['result'])")
   if [ "$insert_result" == "created" ]; then
      sleep 20
      echo "Test data inserted into $1's index!";
@@ -72,7 +72,7 @@ function check_hits () {
       }
     }
   }
-  ' | python -c "import sys, json; print json.load(sys.stdin)['hits']['total']")
+  ' | python -c "import sys, json; print(json.load(sys.stdin)['hits']['total'])")
   if [ "$total_hits" -gt 0 ]; then
      echo "Successful hits on test data query on $1's index!"
   else
