@@ -28,6 +28,10 @@ function reset_test_env()
     kubectl delete pod -n $pvc_namespace $pod_name
   fi
 
+  if kubectl get cm -n $pvc_namespace ${pod_name}-bin; then
+    kubectl delete cm -n $pvc_namespace ${pod_name}-bin
+  fi
+
   if kubectl get pvc -n $pvc_namespace $pvc_name; then
     kubectl delete pvc -n $pvc_namespace $pvc_name;
   fi
@@ -78,6 +82,51 @@ EOF
 
   tee <<EOF | kubectl apply --namespace $pvc_namespace -f -
 ---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: ${pod_name}-bin
+data:
+  test.sh: |
+    #!/bin/bash
+
+    tmpdir=\$(mktemp -d)
+    declare -a files_list
+    total_files=10
+
+    function check_result ()
+    {
+      red='\033[0;31m'
+      green='\033[0;32m'
+      bw='\033[0m'
+      if [ "\$1" -ne 0 ]; then
+        echo -e "\${red}\$2\${bw}"
+        exit 1
+      else
+        echo -e "\${green}\$3\${bw}"
+      fi
+    }
+
+    echo "Preparing \${total_objects} files for test"
+    for i in \$(seq \$total_files); do
+      files_list[\$i]="\$(mktemp -p "$tmpdir" -t XXXXXXXX)"
+      echo "Creating \${files_list[\$i]} file"
+      dd if=/dev/urandom of="\${files_list[\$i]}" bs=1M count=8
+
+      echo "Writing to /mnt/\${files_list[\$i]##*/}"
+      cp "\${files_list[\$i]}" "/mnt/\${files_list[\$i]##*/}"
+      check_result \$? "The action failed" "The action succeeded"
+    done
+
+    for i in \$(seq \$total_files); do
+      echo "Comparing files: \${files_list[\$i]} and /mnt/\${files_list[\$i]##*/}"
+      cmp "\${files_list[\$i]}" "/mnt/\${files_list[\$i]##*/}"
+      check_result \$? "The files are not equal" "The files are equal"
+    done
+
+    touch /mnt/SUCCESS && exit 0 || exit 1
+
+---
 kind: Pod
 apiVersion: v1
 metadata:
@@ -87,19 +136,25 @@ spec:
   - name: task-pv-storage
     image: {{ .Values.images.tags.ceph_config_helper }}
     command:
-    - "/bin/sh"
-    args:
-    - "-c"
-    - "touch /mnt/SUCCESS && exit 0 || exit 1"
+    - /tmp/test.sh
     volumeMounts:
+    - name: ceph-cm-test
+      mountPath: /tmp/test.sh
+      subPath: test.sh
+      readOnly: true
     - name: pvc
       mountPath: "/mnt"
       readOnly: false
   restartPolicy: "Never"
   volumes:
+  - name: ceph-cm-test
+    configMap:
+      name: ${pod_name}-bin
+      defaultMode: 0555
   - name: pvc
     persistentVolumeClaim:
       claimName: $pvc_name
+...
 EOF
 
   # waiting for pod to get completed
@@ -107,12 +162,14 @@ EOF
   while ! kubectl get pods -n $pvc_namespace $pod_name | grep -i Completed; do
     if [ "$(date +%s)" -gt "${end}" ]; then
       kubectl get pods -n $pvc_namespace $pod_name
+      kubectl logs -n $pvc_namespace $pod_name
       echo "Cannot create POD with rbd storage class $storageclass based PersistentVolumeClaim."
       exit 1
     fi
     sleep 10
   done
 
+  kubectl logs -n $pvc_namespace $pod_name
 }
 
 

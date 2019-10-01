@@ -16,7 +16,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-set -ex
+set -e
+
+tmpdir=$(mktemp -d)
+declare -a objects_list
+total_objects=10
 
 #NOTE: This function tests keystone based auth. It uses ceph_config_helper
 #container image that has openstack and ceph installed
@@ -37,39 +41,28 @@ function rgw_keystone_bucket_validation ()
     exit 1
   else
     echo "--> container openstack_test_container found"
-    echo "Hello world!" | tee /tmp/hello.txt
 
-    echo "--> file uploaded to openstack_test_container container"
-    openstack object create --name hello openstack_test_container /tmp/hello.txt
+    for i in $(seq $total_objects); do
+      openstack object create --name "${objects_list[$i]}" openstack_test_container "${objects_list[$i]}"
+      echo "--> file ${objects_list[$i]} uploaded to openstack_test_container container"
+    done
 
     echo "--> list contents of openstack_test_container container"
     openstack object list openstack_test_container
 
-    echo "--> download object from openstack_test_container container"
-    openstack object save --file /tmp/output.txt openstack_test_container hello
-    if [ $? -ne 0 ]; then
-      echo "Error during openstack CLI execution"
-      exit 1
-    else
-      echo "File downloaded from container"
-    fi
+    for i in $(seq $total_objects); do
+      echo "--> downloading ${objects_list[$i]} object from openstack_test_container container to ${objects_list[$i]}_object${i} file"
+      openstack object save --file "${objects_list[$i]}_object${i}" openstack_test_container "${objects_list[$i]}"
+      check_result $? "Error during openstack CLI execution" "The object downloaded successfully"
 
-    content=$(cat /tmp/output.txt)
-    if [ "Hello world!" == "${content}" ]; then
-      echo "Content matches from downloaded file using openstack CLI"
-    else
-      echo "Content is mismatched from downloaded file using openstack CLI"
-      exit 1
-    fi
+      echo "--> comparing files: ${objects_list[$i]} and ${objects_list[$i]}_object${i}"
+      cmp "${objects_list[$i]}" "${objects_list[$i]}_object${i}"
+      check_result $? "The files are not equal" "The files are equal"
 
-    echo "--> deleting object from openstack_test_container container"
-    openstack object delete openstack_test_container hello
-    if [ $? -ne 0 ]; then
-      echo "Error during openstack CLI execution"
-      exit 1
-    else
-      echo "File from container is deleted"
-    fi
+      echo "--> deleting ${objects_list[$i]} object from openstack_test_container container"
+      openstack object delete openstack_test_container "${objects_list[$i]}"
+      check_result $? "Error during openstack CLI execution" "The object deleted successfully"
+    done
 
     echo "--> deleting openstack_test_container container"
     openstack container delete openstack_test_container
@@ -86,63 +79,65 @@ function rgw_s3_bucket_validation ()
   echo "function: rgw_s3_bucket_validation"
 
   bucket=s3://rgw-test-bucket
-  create_bucket_output=$(s3cmd mb $bucket --host=$RGW_HOST --host-bucket=$RGW_HOST --access_key=$S3_ADMIN_ACCESS_KEY --secret_key=$S3_ADMIN_SECRET_KEY --no-ssl)
+  params="--host=$RGW_HOST --host-bucket=$RGW_HOST --access_key=$S3_ADMIN_ACCESS_KEY --secret_key=$S3_ADMIN_SECRET_KEY --no-ssl"
+  s3cmd mb $bucket $params
 
   if [ $? -eq 0 ]; then
     echo "Bucket $bucket created"
-    echo "Hello world!" | tee /tmp/hello.txt
 
-    s3cmd put /tmp/hello.txt $bucket --host=$RGW_HOST --host-bucket=$RGW_HOST --access_key=$S3_ADMIN_ACCESS_KEY --secret_key=$S3_ADMIN_SECRET_KEY --no-ssl
-    if [ $? -ne 0 ]; then
-      echo "Error during s3cmd execution"
-      exit 1
-    else
-      echo "File uploaded to bucket"
-    fi
+    for i in $(seq $total_objects); do
+      s3cmd put "${objects_list[$i]}" $bucket $params
+      check_result $? "Error during s3cmd execution" "File ${objects_list[$i]##*/} uploaded to bucket"
+    done
 
-    s3cmd get s3://rgw-test-bucket/hello.txt -> /tmp/output.txt --host=$RGW_HOST --host-bucket=$RGW_HOST --access_key=$S3_ADMIN_ACCESS_KEY --secret_key=$S3_ADMIN_SECRET_KEY --no-ssl
-    if [ $? -ne 0 ]; then
-      echo "Error during s3cmd execution"
-      exit 1
-    else
-      echo "File downloaded from bucket"
-    fi
+    s3cmd ls $bucket $params
+    check_result $? "Error during s3cmd execution" "Got list of objects"
 
-    content=$(cat /tmp/output.txt)
-    if [ "Hello world!" == "${content}" ]; then
-      echo "Content matches from downloaded file using s3cmd"
-    else
-      echo "Content is mismatched from downloaded file using s3cmd"
-      exit 1
-    fi
+    for i in $(seq $total_objects); do
+      s3cmd get "${bucket}/${objects_list[$i]##*/}" -> "${objects_list[$i]}_s3_object${i}" $params
+      check_result $? "Error during s3cmd execution" "File ${objects_list[$i]##*/} downloaded from bucket"
 
-    s3cmd ls $bucket --host=$RGW_HOST --host-bucket=$RGW_HOST --access_key=$S3_ADMIN_ACCESS_KEY --secret_key=$S3_ADMIN_SECRET_KEY --no-ssl
-    if [ $? -ne 0 ]; then
-      echo "Error during s3cmd execution"
-      exit 1
-    fi
+      echo "Comparing files: ${objects_list[$i]} and ${objects_list[$i]}_s3_object${i}"
+      cmp "${objects_list[$i]}" "${objects_list[$i]}_s3_object${i}"
+      check_result $? "The files are not equal" "The files are equal"
 
-    s3cmd del s3://rgw-test-bucket/hello.txt --host=$RGW_HOST --host-bucket=$RGW_HOST --access_key=$S3_ADMIN_ACCESS_KEY --secret_key=$S3_ADMIN_SECRET_KEY --no-ssl
-    if [ $? -ne 0 ]; then
-      echo "Error during s3cmd execution"
-      exit 1
-    else
-      echo "File from bucket is deleted"
-    fi
+      s3cmd del "${bucket}/${objects_list[$i]##*/}" $params
+      check_result $? "Error during s3cmd execution" "File from bucket is deleted"
+    done
 
-    s3cmd del --recursive --force $bucket --host=$RGW_HOST --host-bucket=$RGW_HOST --access_key=$S3_ADMIN_ACCESS_KEY --secret_key=$S3_ADMIN_SECRET_KEY --no-ssl
-    if [ $? -ne 0 ]; then
-      echo "Error during s3cmd execution"
-      exit 1
-    else
-      echo "Bucket is deleted"
-    fi
+    s3cmd del --recursive --force $bucket $params
+    check_result $? "Error during s3cmd execution" "Bucket is deleted"
 
   else
     echo "Error during s3cmd execution"
     exit 1
   fi
 }
+
+function check_result ()
+{
+  red='\033[0;31m'
+  green='\033[0;32m'
+  bw='\033[0m'
+  if [ "$1" -ne 0 ]; then
+    echo -e "${red}$2${bw}"
+    exit 1
+  else
+    echo -e "${green}$3${bw}"
+  fi
+}
+
+function prepare_objects ()
+{
+  echo "Preparing ${total_objects} files for test"
+  for i in $(seq $total_objects); do
+    objects_list[$i]="$(mktemp -p "$tmpdir")"
+    echo "${objects_list[$i]}"
+    dd if=/dev/urandom of="${objects_list[$i]}" bs=1M count=8
+  done
+}
+
+prepare_objects
 
 if [ "$RGW_TEST_TYPE" == RGW_KS ];
 then
