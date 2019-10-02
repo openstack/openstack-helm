@@ -17,4 +17,21 @@ limitations under the License.
 */}}
 
 set -ex
+
+{{ $source_base := .Values.bootstrap.image.source_base | default "" }}
+{{ range $name, $opts := .Values.bootstrap.image.structured }}
+{{ $source := empty $source_base | ternary $opts.source (printf "%s/%s" $source_base $opts.source) }}
+openstack image show {{ $name | quote }} -fvalue -cid || (
+  IMAGE_LOC=$(mktemp)
+  curl --fail -sSL {{ $source }} -o ${IMAGE_LOC}
+  openstack image create {{ $name | quote }} \
+  --disk-format {{ $opts.disk_format }} \
+  --container-format {{ $opts.container_format }} \
+  --file ${IMAGE_LOC} \
+  {{ if $opts.properties -}} {{ range $k, $v := $opts.properties }}--property {{$k}}={{$v}} {{ end }}{{ end -}} \
+  --{{ $opts.visibility | default "public" }}
+  rm -f ${IMAGE_LOC}
+)
+{{ else }}
 {{ .Values.bootstrap.image.script | default "echo 'Not Enabled'" }}
+{{ end }}

@@ -228,35 +228,17 @@ bootstrap:
     openstack:
       enabled: true
       ks_user: ironic
-    script: |
-      RELEASE="ocata"
-      IMAGE_URL_BASE="http://tarballs.openstack.org/ironic-python-agent/tinyipa/files"
-      IMAGE_INITRAMFS="ironic-agent.initramfs"
-      IMAGE_INITRAMFS_URL="${IMAGE_URL_BASE}/tinyipa-stable-${RELEASE}.gz"
-      IMAGE_KERNEL="ironic-agent.kernel"
-      IMAGE_KERNEL_URL="${IMAGE_URL_BASE}/tinyipa-stable-${RELEASE}.vmlinuz"
-      openstack image show ${IMAGE_INITRAMFS} || (
-        IMAGE_LOC=$(mktemp)
-        curl -L ${IMAGE_INITRAMFS_URL} -o ${IMAGE_LOC}
-        openstack image create \
-          --file ${IMAGE_LOC} \
-          --disk-format ari \
-          --container-format ari \
-          --public \
-          ${IMAGE_INITRAMFS}
-        rm -f ${IMAGE_LOC}
-        )
-      openstack image show ${IMAGE_KERNEL} || (
-        IMAGE_LOC=$(mktemp)
-        curl -L ${IMAGE_KERNEL_URL} -o ${IMAGE_LOC}
-        openstack image create \
-          --file ${IMAGE_LOC} \
-          --disk-format aki \
-          --container-format aki \
-          --public \
-          ${IMAGE_KERNEL}
-        rm -f ${IMAGE_LOC}
-        )
+    # NOTE: if source_base is null the source will be used as is
+    source_base: http://tarballs.openstack.org/ironic-python-agent/tinyipa/files
+    structured:
+      ironic-agent.initramfs:
+        source: tinyipa-stable-ocata.gz
+        disk_format: ari
+        container_format: ari
+      ironic-agent.kernel:
+        source: tinyipa-stable-ocata.vmlinuz
+        disk_format: aki
+        container_format: aki
   network:
     enabled: true
     openstack:
