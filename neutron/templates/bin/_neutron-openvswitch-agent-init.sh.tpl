@@ -175,13 +175,14 @@ function process_dpdk_nics {
 
     iface=$(get_name_by_pci_id "${pci_id}")
 
-    if [ -n "${vf_index}" ]; then
-      vf_string="vf ${vf_index}"
+    if [ -n "${iface}" ]; then
+      ip link set ${iface} promisc on
+      if [ -n "${vf_index}" ]; then
+        vf_string="vf ${vf_index}"
+        ip link set ${iface} ${vf_string} trust on
+        ip link set ${iface} ${vf_string} spoofchk off
+      fi
     fi
-
-    ip link set ${iface} promisc on
-    ip link set ${iface} ${vf_string} trust on
-    ip link set ${iface} ${vf_string} spoofchk off
 
     # Fetch the PCI to be bound to DPDK driver.
     # In case VF Index is configured then PCI of that particular VF
@@ -258,13 +259,14 @@ function process_dpdk_bonds {
 
       iface=$(get_name_by_pci_id "${pci_id}")
 
-      if [ -n "${vf_index}" ]; then
-        vf_string="vf ${vf_index}"
+      if [ -n "${iface}" ]; then
+        ip link set ${iface} promisc on
+        if [ -n "${vf_index}" ]; then
+          vf_string="vf ${vf_index}"
+          ip link set ${iface} ${vf_string} trust on
+          ip link set ${iface} ${vf_string} spoofchk off
+        fi
       fi
-
-      ip link set ${iface} promisc on
-      ip link set ${iface} ${vf_string} trust on
-      ip link set ${iface} ${vf_string} spoofchk off
 
       # Fetch the PCI to be bound to DPDK driver.
       # In case VF Index is configured then PCI of that particular VF
