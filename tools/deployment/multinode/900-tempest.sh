@@ -86,4 +86,4 @@ helm upgrade --install tempest ./tempest \
 ./tools/deployment/common/wait-for-pods.sh openstack 2400
 
 #NOTE: Validate Deployment info
-kubectl get -n openstack jobs --show-all
+kubectl get -n openstack jobs
