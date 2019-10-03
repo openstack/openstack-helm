@@ -32,7 +32,7 @@ Consider the following (simplified) secret and daemonset pairing example:
     # Simplified daemonset definition
     # ===============================
     ---
-    apiVersion: extensions/v1beta1
+    apiVersion: apps/v1
     kind: DaemonSet
     metadata:
       name: mychart-name
@@ -86,7 +86,7 @@ has been substituted):
     # access any env data needed to build the template (e.g., envAll.Values...)
     {{- with $envAll }}
     ---
-    apiVersion: extensions/v1beta1
+    apiVersion: apps/v1
     kind: DaemonSet
     metadata:
       name: {{ $daemonset }}
