@@ -66,6 +66,20 @@ spec:
       terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.server.timeout | default "30" }}
       initContainers:
 {{ tuple $envAll "pod_dependency" $mounts_neutron_server_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+        {{- if ( has "tungstenfabric" .Values.network.backend ) }}
+        - name: tungstenfabric-neutron-init
+          image: {{ .Values.images.tags.tf_neutron_init }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+{{ tuple $envAll $envAll.Values.pod.resources.server | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          securityContext:
+            runAsUser: {{ .Values.pod.security_context.neutron_server.pod.runAsUser }}
+          env:
+            - name: OPENSTACK_VERSION
+              value: "{{ .Values.conf.openstack_version }}"
+          volumeMounts:
+            - name: neutron-plugin-shared
+              mountPath: /opt/plugin
+        {{- end }}
       containers:
         - name: neutron-server
 {{ tuple $envAll "neutron_server" | include "helm-toolkit.snippets.image" | indent 10 }}
@@ -108,10 +122,35 @@ spec:
               mountPath: /etc/neutron/api_audit_map.conf
               subPath: api_audit_map.conf
               readOnly: true
+            {{- if( has "tungstenfabric" .Values.network.backend ) }}
+            - name: neutron-etc
+              mountPath: /etc/neutron/plugins/tungstenfabric/tf_plugin.ini
+              subPath: tf_plugin.ini
+              readOnly: true
+            - name: neutron-etc
+              mountPath: /etc/contrail/vnc_api_lib.ini
+              subPath: vnc_api_lib.ini
+              readOnly: true
+            - name: neutron-plugin-shared
+              mountPath: /opt/plugin
+            - name: neutron-bin
+              mountPath: /usr/local/lib/python2.7/site-packages/tf-plugin.pth
+              subPath: tf-plugin.pth
+              readOnly: true
+            - name: neutron-bin
+              mountPath: /var/lib/openstack/lib/python2.7/site-packages/tf-plugin.pth
+              subPath: tf-plugin.pth
+              readOnly: true
+            - name: neutron-bin
+              mountPath: /var/lib/openstack/lib/python3.6/site-packages/tf-plugin.pth
+              subPath: tf-plugin.pth
+              readOnly: true
+            {{- else }}
             - name: neutron-etc
               mountPath: /etc/neutron/plugins/ml2/ml2_conf.ini
               subPath: ml2_conf.ini
               readOnly: true
+            {{- end }}
             {{ if ( has "sriov" .Values.network.backend ) }}
             - name: neutron-etc
               mountPath: /etc/neutron/plugins/ml2/sriov_agent.ini
@@ -152,5 +191,9 @@ spec:
           secret:
             secretName: neutron-etc
             defaultMode: 0444
+        {{- if ( has "tungstenfabric" .Values.network.backend ) }}
+        - name: neutron-plugin-shared
+          emptyDir: {}
+        {{- end }}
 {{ if $mounts_neutron_server.volumes }}{{ toYaml $mounts_neutron_server.volumes | indent 8 }}{{ end }}
 {{- end }}

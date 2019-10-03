@@ -205,6 +205,19 @@ spec:
             - name: pod-shared
               mountPath: /tmp/pod-shared
         {{ end }}
+        {{- if ( has "tungstenfabric" .Values.network.backend ) }}
+        - name: tungstenfabric-compute-init
+          image: {{ .Values.images.tags.tf_compute_init }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+{{ tuple $envAll $envAll.Values.pod.resources.compute | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          securityContext:
+            runAsUser: {{ .Values.pod.user.nova.uid }}
+          volumeMounts:
+            - name: tf-plugin-shared
+              mountPath: /opt/plugin
+            - name: tf-plugin-bin
+              mountPath: /opt/plugin/bin
+        {{- end }}
       containers:
         - name: nova-compute
 {{ tuple $envAll "nova_compute" | include "helm-toolkit.snippets.image" | indent 10 }}
@@ -344,6 +357,26 @@ spec:
               mountPath: /usr/local/sbin/iscsiadm
               subPath: iscsiadm
             {{- end }}
+            {{- if ( has "tungstenfabric" .Values.network.backend ) }}
+            - name: tf-plugin-shared
+              mountPath: /opt/plugin
+              readOnly: true
+            - name: tf-plugin-bin
+              mountPath: /usr/sbin
+              readOnly: true
+            - name: nova-bin
+              mountPath: /usr/local/lib/python2.7/site-packages/tf-plugin.pth
+              subPath: tf-plugin.pth
+              readOnly: true
+            - name: nova-bin
+              mountPath: /var/lib/openstack/lib/python2.7/site-packages/tf-plugin.pth
+              subPath: tf-plugin.pth
+              readOnly: true
+            - name: nova-bin
+              mountPath: /var/lib/openstack/lib/python3.6/site-packages/tf-plugin.pth
+              subPath: tf-plugin.pth
+              readOnly: true
+            {{- end }}
 {{ if $mounts_nova_compute.volumeMounts }}{{ toYaml $mounts_nova_compute.volumeMounts | indent 12 }}{{ end }}
         {{- if .Values.network.sshd.enabled }}
         - name: nova-compute-ssh
@@ -440,6 +473,12 @@ spec:
           hostPath:
             path: /dev
         - name: usrlocalsbin
+          emptyDir: {}
+        {{- end }}
+        {{- if ( has "tungstenfabric" .Values.network.backend ) }}
+        - name: tf-plugin-shared
+          emptyDir: {}
+        - name: tf-plugin-bin
           emptyDir: {}
         {{- end }}
 {{ if $mounts_nova_compute.volumes }}{{ toYaml $mounts_nova_compute.volumes | indent 8 }}{{ end }}
