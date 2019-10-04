@@ -46,33 +46,6 @@ conf:
 pod:
   replicas:
     rgw: 1
-network_policy:
-  ceph:
-    ingress:
-      - from:
-        - podSelector:
-            matchLabels:
-              application: glance
-        - podSelector:
-            matchLabels:
-              application: cinder
-        - podSelector:
-            matchLabels:
-              application: libvirt
-        - podSelector:
-            matchLabels:
-              application: nova
-        - podSelector:
-            matchLabels:
-              application: ceph
-        - podSelector:
-            matchLabels:
-              application: ingress
-        ports:
-        - protocol: TCP
-          port: 8088
-manifests:
-  network_policy: true
 EOF
 helm upgrade --install radosgw-openstack ${HELM_CHART_ROOT_PATH}/ceph-rgw \
   --namespace=openstack \

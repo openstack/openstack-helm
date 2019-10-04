@@ -22,21 +22,10 @@ export HELM_CHART_ROOT_PATH="${HELM_CHART_ROOT_PATH:="${OSH_INFRA_PATH:="../open
 #NOTE: Lint and package chart
 make -C ${HELM_CHART_ROOT_PATH} libvirt
 
-tee /tmp/libvirt.yaml <<EOF
-manifests:
-  network_policy: true
-network_policy:
-  libvirt:
-    ingress:
-      - {}
-EOF
-
 #NOTE: Deploy command
 : ${OSH_EXTRA_HELM_ARGS:=""}
 helm upgrade --install libvirt ${HELM_CHART_ROOT_PATH}/libvirt \
   --namespace=openstack \
-  --set manifests.network_policy=true \
-  --values=/tmp/libvirt.yaml \
   ${OSH_EXTRA_HELM_ARGS} \
   ${OSH_EXTRA_HELM_ARGS_LIBVIRT}
 
