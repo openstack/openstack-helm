@@ -14,6 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- define "mariadbReadinessProbe" }}
+exec:
+  command:
+    - /tmp/readiness.sh
+{{- end }}
+
+
 {{- if .Values.manifests.statefulset }}
 {{- $envAll := . }}
 
@@ -170,13 +177,7 @@ spec:
               exec:
                 command:
                   - /tmp/stop.sh
-          readinessProbe:
-            initialDelaySeconds: 30
-            periodSeconds: 30
-            timeoutSeconds: 3
-            exec:
-              command:
-                - /tmp/readiness.sh
+{{ dict "envAll" . "component" "server" "container" "mariadb" "type" "readiness" "probeTemplate" (include "mariadbReadinessProbe" . | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 -}}
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
