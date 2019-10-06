@@ -21,11 +21,19 @@ exec:
     - bond/list
 {{- end }}
 {{- define "ovsvswitchreadinessProbeTemplate" }}
+{{- if not .Values.conf.ovs_dpdk.enabled }}
 exec:
   command:
     - /bin/bash
     - -c
-    - '! /usr/bin/ovs-vsctl show | grep -q error:'
+    - '/usr/bin/ovs-vsctl show'
+{{- else }}
+exec:
+  command:
+    - /bin/bash
+    - -c
+    - '/usr/bin/ovs-vsctl show && [ $(ovs-vsctl get Open_vSwitch . dpdk_initialized) == true ]'
+{{- end }}
 {{- end }}
 
 {{- if .Values.manifests.daemonset_ovs_vswitchd }}
