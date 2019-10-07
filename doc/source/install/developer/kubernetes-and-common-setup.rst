@@ -79,7 +79,7 @@ Alternatively, this step can be performed by running the script directly:
 Deploy the ingress controller
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. literalinclude:: ../../../../tools/deployment/developer/common/030-ingress.sh
+.. literalinclude:: ../../../../tools/deployment/component/common/ingress.sh
     :language: shell
     :lines: 1,17-
 
@@ -87,4 +87,4 @@ Alternatively, this step can be performed by running the script directly:
 
 .. code-block:: shell
 
-  ./tools/deployment/developer/common/030-ingress.sh
+  ./tools/deployment/developer/component/common/ingress.sh

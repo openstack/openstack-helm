@@ -15,51 +15,5 @@
 #    under the License.
 
 set -xe
-
-#NOTE: Deploy global ingress
-: ${OSH_INFRA_PATH:="../openstack-helm-infra"}
-tee /tmp/ingress-kube-system.yaml << EOF
-pod:
-  replicas:
-    error_page: 2
-deployment:
-  mode: cluster
-  type: DaemonSet
-network:
-  host_namespace: true
-EOF
-helm upgrade --install ingress-kube-system ${OSH_INFRA_PATH}/ingress \
-  --namespace=kube-system \
-  --values=/tmp/ingress-kube-system.yaml \
-  ${OSH_EXTRA_HELM_ARGS} \
-  ${OSH_EXTRA_HELM_ARGS_INGRESS_KUBE_SYSTEM}
-
-#NOTE: Wait for deploy
-./tools/deployment/common/wait-for-pods.sh kube-system
-
-#NOTE: Display info
-helm status ingress-kube-system
-
-#NOTE: Deploy namespaced ingress controllers
-for NAMESPACE in openstack ceph; do
-  # Allow $OSH_EXTRA_HELM_ARGS_INGRESS_ceph and $OSH_EXTRA_HELM_ARGS_INGRESS_openstack overrides
-  OSH_EXTRA_HELM_ARGS_INGRESS_NAMESPACE="OSH_EXTRA_HELM_ARGS_INGRESS_${NAMESPACE}"
-  #NOTE: Deploy namespace ingress
-  tee /tmp/ingress-${NAMESPACE}.yaml << EOF
-pod:
-  replicas:
-    ingress: 2
-    error_page: 2
-EOF
-  helm upgrade --install ingress-${NAMESPACE} ${OSH_INFRA_PATH}/ingress \
-    --namespace=${NAMESPACE} \
-    --values=/tmp/ingress-${NAMESPACE}.yaml \
-  ${OSH_EXTRA_HELM_ARGS} \
-  ${!OSH_EXTRA_HELM_ARGS_INGRESS_NAMESPACE}
-
-  #NOTE: Wait for deploy
-  ./tools/deployment/common/wait-for-pods.sh ${NAMESPACE}
-
-  #NOTE: Display info
-  helm status ingress-${NAMESPACE}
-done
+export OSH_DEPLOY_MULTINODE=True
+./tools/deployment/component/common/ingress.sh
