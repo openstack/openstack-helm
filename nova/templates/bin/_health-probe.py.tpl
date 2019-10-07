@@ -90,25 +90,26 @@ def tcp_socket_status(process, ports):
     """Check the tcp socket status on a process"""
     sock_count = 0
     parentId = 0
-    for pr in psutil.pids():
+    for p in psutil.process_iter():
         try:
-            p = psutil.Process(pr)
-            if p.name() == process:
-                if parentId == 0:
-                    parentId = p.pid
-                else:
-                    if p.ppid() == parentId and not cfg.CONF.check_all_pids:
-                        continue
-                pcon = p.connections()
-                for con in pcon:
-                    try:
-                        rport = con.raddr[1]
-                        status = con.status
-                    except IndexError:
-                        continue
-                    if rport in ports and status == tcp_established:
-                        sock_count = sock_count + 1
-        except psutil.NoSuchProcess:
+            with p.oneshot():
+                if process in " ".join(p.cmdline()):
+                    if parentId == 0:
+                        parentId = p.pid
+                    else:
+                        if p.ppid() == parentId and \
+                                not cfg.CONF.check_all_pids:
+                            continue
+                    pcon = p.connections()
+                    for con in pcon:
+                        try:
+                            rport = con.raddr[1]
+                            status = con.status
+                        except IndexError:
+                            continue
+                        if rport in ports and status == tcp_established:
+                            sock_count = sock_count + 1
+        except psutil.Error:
             continue
 
     if sock_count == 0:

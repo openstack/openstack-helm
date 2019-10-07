@@ -148,25 +148,26 @@ def tcp_socket_state_check(agentq):
 
     rabbitmq_ports = get_rabbitmq_ports()
 
-    for pr in psutil.pids():
+    for p in psutil.process_iter():
         try:
-            p = psutil.Process(pr)
-            if p.name() == proc:
-                if parentId == 0:
-                    parentId = p.pid
-                else:
-                    if p.ppid() == parentId:
-                        continue
-                pcon = p.connections()
-                for con in pcon:
-                    try:
-                        port = con.raddr[1]
-                        status = con.status
-                    except IndexError:
-                        continue
-                    if port in rabbitmq_ports and status == tcp_established:
-                        rabbit_sock_count = rabbit_sock_count + 1
-        except psutil.NoSuchProcess:
+            with p.oneshot():
+                if proc in " ".join(p.cmdline()):
+                    if parentId == 0:
+                        parentId = p.pid
+                    else:
+                        if p.ppid() == parentId:
+                            continue
+                    pcon = p.connections()
+                    for con in pcon:
+                        try:
+                            port = con.raddr[1]
+                            status = con.status
+                        except IndexError:
+                            continue
+                        if port in rabbitmq_ports and\
+                                status == tcp_established:
+                            rabbit_sock_count = rabbit_sock_count + 1
+        except psutil.Error:
             continue
 
     if rabbit_sock_count == 0:
