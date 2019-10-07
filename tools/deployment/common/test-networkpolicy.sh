@@ -42,14 +42,24 @@ function test_netpol {
 # Doing negative tests
 #test_netpol openstack mariadb server rabbitmq.openstack.svc.cluster.local:5672 fail
 #test_netpol openstack rabbitmq-rabbitmq server memcached.openstack.svc.cluster.local:11211 fail
-#test_netpol openstack memcached server mariadb.openstack.svc.cluster.local:3306 fail
+
+# Negative Keystone tests
 test_netpol openstack mariadb server keystone-api.openstack.svc.cluster.local:5000 fail
 test_netpol openstack mariadb ingress keystone-api.openstack.svc.cluster.local:5000 fail
 test_netpol openstack memcached server keystone-api.openstack.svc.cluster.local:5000 fail
 test_netpol openstack rabbitmq server keystone-api.openstack.svc.cluster.local:5000 fail
 
+# Negative Mariadb tests
+test_netpol openstack memcached server mariadb.openstack.svc.cluster.local:3306 fail
+test_netpol openstack ingress server mariadb-server.openstack.svc.cluster.local:3306 fail
+
 # Doing positive tests
+
+# Positive Mariadb tests
 test_netpol openstack keystone api mariadb.openstack.svc.cluster.local:3306 success
+test_netpol openstack keystone api mariadb-server.openstack.svc.cluster.local:3306 success
+test_netpol openstack mariadb ingress mariadb-server.openstack.svc.cluster.local:3306 success
+
 test_netpol openstack keystone api rabbitmq.openstack.svc.cluster.local:5672 success
 test_netpol openstack ingress server keystone-api.openstack.svc.cluster.local:5000 success
 test_netpol openstack prometheus-openstack-exporter exporter keystone-api.openstack.svc.cluster.local:5000 success
@@ -64,7 +74,13 @@ if kubectl -n openstack get pod -l application=cinder | grep Running ; then
   test_netpol openstack cinder api horizon.openstack.svc.cluster.local:80 fail
 # Positive Cinder Tests
   test_netpol openstack cinder api rabbitmq.openstack.svc.cluster.local:5672 success
+
+  # Positive Keystone test
   test_netpol openstack cinder api keystone-api.openstack.svc.cluster.local:5000 success
+
+  # Positive Mariadb tests
+  test_netpol openstack cinder api mariadb.openstack.svc.cluster.local:3306 success
+  test_netpol openstack cinder api mariadb-server.openstack.svc.cluster.local:3306 success
 else
 # Negative Compute-Kit Tests
   #test_netpol openstack keystone api heat-api.openstack.svc.cluster.local fail
@@ -78,8 +94,13 @@ else
   test_netpol openstack openvswitch openvswitch-vswitchd memcached.openstack.svc.cluster.local:11211 fail
   test_netpol openstack libvirt libvirt memcached.openstack.svc.cluster.local:11211 fail
 # Positive Compute-Kit Tests
+
+  # Positive Mariadb tests
   test_netpol openstack heat api mariadb.openstack.svc.cluster.local:3306 success
   test_netpol openstack glance api mariadb.openstack.svc.cluster.local:3306 success
+  test_netpol openstack glance api mariadb-server.openstack.svc.cluster.local:3306 success
+
+  # Positive Keystone tests
   test_netpol openstack heat api keystone-api.openstack.svc.cluster.local:5000 success
   test_netpol openstack glance api keystone-api.openstack.svc.cluster.local:5000 success
   test_netpol openstack horizon server keystone-api.openstack.svc.cluster.local:5000 success
