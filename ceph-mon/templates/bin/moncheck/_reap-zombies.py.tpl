@@ -33,8 +33,8 @@ expected_mons = extract_mons_from_kubeapi()
 print("current mons: %s" % current_mons)
 print("expected mons: %s" % expected_mons)
 
+removed_mon = False
 for mon in current_mons:
-    removed_mon = False
     if not mon in expected_mons:
         print("removing zombie mon %s" % mon)
         subprocess.call(["ceph", "--cluster", os.environ["NAMESPACE"], "mon", "remove", mon])
