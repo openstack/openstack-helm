@@ -65,7 +65,7 @@ for target, name in targets:
             )
             logger.info('{} index loaded successfully'.format(name))
             retry = 0
-        except TimeoutException, e:
+        except TimeoutException:
             logger.error('Error occured loading {} index'.format(name))
             prefix = 'Error_'
         browser.save_screenshot(

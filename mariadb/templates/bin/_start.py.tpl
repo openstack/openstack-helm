@@ -1,19 +1,20 @@
 #!/usr/bin/python
-# -*- coding: utf-8 -*-
-# Copyright 2018 The Openstack-Helm Authors.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
 
+{{/*
+Copyright 2018 The Openstack-Helm Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
 
 import errno
 import logging
@@ -461,7 +462,7 @@ def get_grastate_val(key):
     """
     logger.debug("Reading grastate.dat key={0}".format(key))
     with open("/var/lib/mysql/grastate.dat", "r") as myfile:
-        grastate_raw = map(lambda s: s.strip(), myfile.readlines())
+        grastate_raw = [s.strip() for s in myfile.readlines()]
     return [i for i in grastate_raw
             if i.startswith("{0}:".format(key))][0].split(':')[1].strip()
 
@@ -496,7 +497,7 @@ def update_grastate_configmap():
     grastate['seqno'] = get_grastate_val(key='seqno')
     grastate['safe_to_bootstrap'] = get_grastate_val(key='safe_to_bootstrap')
     grastate['sample_time'] = "{0}Z".format(datetime.utcnow().isoformat("T"))
-    for grastate_key, grastate_value in grastate.iteritems():
+    for grastate_key, grastate_value in list(grastate.items()):
         configmap_key = "{0}.{1}".format(grastate_key, local_hostname)
         if get_configmap_value(
                 type='data', key=configmap_key) != grastate_value:
@@ -582,14 +583,14 @@ def check_if_cluster_data_is_fresh():
         name=state_configmap_name, namespace=pod_namespace)
     state_configmap_dict = state_configmap.to_dict()
     sample_times = dict()
-    for key, value in state_configmap_dict['data'].iteritems():
+    for key, value in list(state_configmap_dict['data'].items()):
         keyitems = key.split('.')
         key = keyitems[0]
         node = keyitems[1]
         if key == 'sample_time':
             sample_times[node] = value
     sample_time_ok = True
-    for key, value in sample_times.iteritems():
+    for key, value in list(sample_times.items()):
         sample_time = iso8601.parse_date(value).replace(tzinfo=None)
         sample_cutoff_time = datetime.utcnow().replace(
             tzinfo=None) - timedelta(seconds=20)
@@ -613,14 +614,14 @@ def get_nodes_with_highest_seqno():
         name=state_configmap_name, namespace=pod_namespace)
     state_configmap_dict = state_configmap.to_dict()
     seqnos = dict()
-    for key, value in state_configmap_dict['data'].iteritems():
+    for key, value in list(state_configmap_dict['data'].items()):
         keyitems = key.split('.')
         key = keyitems[0]
         node = keyitems[1]
         if key == 'seqno':
             seqnos[node] = value
     max_seqno = max(seqnos.values())
-    max_seqno_nodes = sorted([k for k, v in seqnos.items() if v == max_seqno])
+    max_seqno_nodes = sorted([k for k, v in list(seqnos.items()) if v == max_seqno])
     return max_seqno_nodes
 
 
