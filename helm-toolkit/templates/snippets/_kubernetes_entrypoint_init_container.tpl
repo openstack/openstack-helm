@@ -21,7 +21,7 @@ abstract: |
 values: |
   images:
     tags:
-      dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.3.1
+      dep_check: quay.io/airshipit/kubernetes-entrypoint:v1.0.0
     pull_policy: IfNotPresent
     local_registry:
       active: true
@@ -78,7 +78,7 @@ usage: |
   {{ tuple . "calico_node" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" }}
 return: |
   - name: init
-    image: "quay.io/stackanetes/kubernetes-entrypoint:v0.3.1"
+    image: "quay.io/airshipit/kubernetes-entrypoint:v1.0.0"
     imagePullPolicy: IfNotPresent
     securityContext:
       allowPrivilegeEscalation: false
@@ -112,8 +112,6 @@ return: |
         value: ""
       - name: DEPENDENCY_CUSTOM_RESOURCE
         value: "[{\"apiVersion\":\"argoproj.io/v1alpha1\",\"kind\":\"Workflow\",\"namespace\":\"default\",\"name\":\"wf-example\",\"fields\":[{\"key\":\"status.phase\",\"value\":\"Succeeded\"}]}]"
-      - name: COMMAND
-        value: "echo done"
     command:
       - kubernetes-entrypoint
     volumeMounts:
@@ -195,8 +193,6 @@ Values:
       value: {{ if $deps.pod }}{{ toJson $deps.pod | quote }}{{ else }}""{{ end }}
     - name: DEPENDENCY_CUSTOM_RESOURCE
       value: {{ if $deps.custom_resources }}{{ toJson $deps.custom_resources | quote }}{{ else }}""{{ end }}
-    - name: COMMAND
-      value: "echo done"
   command:
     - kubernetes-entrypoint
   volumeMounts:
