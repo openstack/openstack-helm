@@ -630,7 +630,7 @@ def resolve_leader_node(nodename_array):
     the end of it. If by chance there are two nodes with the same number
     then the first one encountered will be chosen."""
     logger.info("Returning the node with the lowest hostname")
-    lowest = sys.maxint
+    lowest = sys.maxsize
     leader = nodename_array[0]
     for nodename in nodename_array:
         nodenum = int(nodename[nodename.rindex('-') + 1:])
