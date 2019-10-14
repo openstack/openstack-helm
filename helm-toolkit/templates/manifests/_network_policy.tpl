@@ -91,23 +91,23 @@ metadata:
 spec:
 {{- if hasKey (index $envAll.Values "network_policy") $label }}
   policyTypes:
-{{ $is_egress := false }}
+{{- $is_egress := false -}}
 {{- if hasKey (index $envAll.Values.network_policy $label) "policyTypes" }}
 {{- if has "Egress" (index $envAll.Values.network_policy $label "policyTypes") }}
 {{ $is_egress = true }}
 {{- end }}
 {{- end }}
 {{ if or $is_egress (index $envAll.Values.network_policy $label "egress") }}
-   - Egress
+    - Egress
 {{- end }}
-{{ $is_ingress := false }}
+{{- $is_ingress := false -}}
 {{- if hasKey (index $envAll.Values.network_policy $label) "policyTypes" }}
 {{- if has "Ingress" (index $envAll.Values.network_policy $label "policyTypes") }}
-{{ $is_ingress = true }}
+{{- $is_ingress = true -}}
 {{- end }}
 {{- end }}
 {{ if or $is_ingress (index $envAll.Values.network_policy $label "ingress") }}
-   - Ingress
+    - Ingress
 {{- end }}
 {{- end }}
   podSelector:
