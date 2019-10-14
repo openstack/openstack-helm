@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 {{/*
 Copyright 2019 The Openstack-Helm Authors.
@@ -24,118 +24,114 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.options import Options
+from selenium.common.exceptions import TimeoutException
+from selenium.common.exceptions import NoSuchElementException
+from selenium.common.exceptions import ScreenshotException
 
 # Create logger, console handler and formatter
 logger = logging.getLogger('Nagios Selenium Tests')
 logger.setLevel(logging.DEBUG)
 ch = logging.StreamHandler()
 ch.setLevel(logging.DEBUG)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+formatter = logging.Formatter(
+    '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 
 # Set the formatter and add the handler
 ch.setFormatter(formatter)
 logger.addHandler(ch)
 
-if "NAGIOS_USER" in os.environ:
-  nagios_user = os.environ['NAGIOS_USER']
-  logger.info('Found Nagios username')
-else:
-  logger.critical('Nagios username environment variable not set')
-  sys.exit(1)
+def get_variable(env_var):
+    if env_var in os.environ:
+        logger.info('Found "{}"'.format(env_var))
+        return os.environ[env_var]
+    else:
+        logger.critical('Variable "{}" is not defined!'.format(env_var))
+        sys.exit(1)
 
-if "NAGIOS_PASSWORD" in os.environ:
-  nagios_password = os.environ['NAGIOS_PASSWORD']
-  logger.info('Found Nagios password')
-else:
-  logger.critical('Nagios password environment variable not set')
-  sys.exit(1)
+def click_link_by_name(link_name):
+    try:
+        logger.info("Clicking '{}' link".format(link_name))
+        link = browser.find_element_by_link_text(link_name)
+        link.click()
+    except NoSuchElementException:
+        logger.error("Failed clicking '{}' link".format(link_name))
+        browser.quit()
+        sys.exit(1)
 
-if "NAGIOS_URI" in os.environ:
-  nagios_uri = os.environ['NAGIOS_URI']
-  logger.info('Found Nagios URI')
-else:
-  logger.critical('Nagios URI environment variable not set')
-  sys.exit(1)
+def take_screenshot(page_name, artifacts_dir='/tmp/artifacts/'):
+    file_name = page_name.replace(' ', '_')
+    try:
+        el = WebDriverWait(browser, 15)
+        browser.save_screenshot('{}{}.png'.format(artifacts_dir, file_name))
+        logger.info("Successfully captured {} screenshot".format(page_name))
+    except ScreenshotException:
+        logger.error("Failed to capture {} screenshot".format(page_name))
+        browser.quit()
+        sys.exit(1)
 
+username = get_variable('NAGIOS_USER')
+password = get_variable('NAGIOS_PASSWORD')
+nagios_uri = get_variable('NAGIOS_URI')
+nagios_url = 'http://{0}:{1}@{2}'.format(username, password, nagios_uri)
+
+chrome_driver = '/etc/selenium/chromedriver'
 options = Options()
 options.add_argument('--headless')
 options.add_argument('--no-sandbox')
 options.add_argument('--window-size=1920x1080')
+browser = webdriver.Chrome(chrome_driver, chrome_options=options)
 
-logger.info("Attempting to open Chrome webdriver")
 try:
-  browser = webdriver.Chrome('/etc/selenium/chromedriver', chrome_options=options)
-  logger.info("Successfully opened Chrome webdriver")
-except:
-  logger.error("Unable to open Chrome webdriver")
-  browser.close()
-  sys.exit(1)
+    logger.info('Attempting to connect to Nagios')
+    browser.get(nagios_url)
+    el = WebDriverWait(browser, 15).until(
+        EC.title_contains('Nagios')
+    )
+    logger.info('Connected to Nagios')
+except TimeoutException:
+    logger.critical('Timed out waiting for Nagios')
+    browser.quit()
+    sys.exit(1)
 
-logger.info("Attempting to login to Nagios dashboard")
 try:
-  browser.get('http://'+nagios_user+':'+nagios_password+'@'+nagios_uri)
-  logger.info("Successfully logged in to Nagios dashboard")
-  sideFrame = browser.switch_to.frame('side')
-  try:
-    logger.info("Attempting to access Nagios services link")
-    services = browser.find_element_by_link_text('Services')
-    services.click()
-    logger.info("Successfully accessed Nagios services link")
-    try:
-      logger.info("Attempting to capture Nagios services screen")
-      el = WebDriverWait(browser, 15)
-      browser.save_screenshot('/tmp/artifacts/Nagios_Services.png')
-      logger.info("Successfully captured Nagios services screen")
-    except:
-      logger.error("Unable to capture Nagios services screen")
-      browser.close()
-      sys.exit(1)
-  except:
-    logger.error("Unable to access Nagios services link")
-    browser.close()
+    logger.info('Switching Focus to Navigation side frame')
+    sideFrame = browser.switch_to.frame('side')
+except NoSuchElementException:
+    logger.error('Failed selecting side frame')
+    browser.quit()
     sys.exit(1)
-  try:
-    logger.info("Attempting to access Nagios host groups link")
-    host_groups = browser.find_element_by_link_text('Host Groups')
-    host_groups.click()
-    logger.info("Successfully accessed Nagios host groups link")
-    try:
-      logger.info("Attempting to capture Nagios host groups screen")
-      el = WebDriverWait(browser, 15)
-      browser.save_screenshot('/tmp/artifacts/Nagios_Host_Groups.png')
-      logger.info("Successfully captured Nagios host groups screen")
-    except:
-      logger.error("Unable to capture Nagios host groups screen")
-      browser.close()
-      sys.exit(1)
-  except:
-    logger.error("Unable to access Nagios host groups link")
-    browser.close()
+
+try:
+    logger.info('Attempting to visit Services page')
+    click_link_by_name('Services')
+    take_screenshot('Nagios Services')
+except TimeoutException:
+    logger.error('Failed to load Services page')
+    browser.quit()
     sys.exit(1)
-  try:
-    logger.info("Attempting to access Nagios hosts link")
-    hosts = browser.find_element_by_link_text('Hosts')
-    hosts.click()
-    logger.info("Successfully accessed Nagios hosts link")
-    try:
-      logger.info("Attempting to capture Nagios hosts screen")
-      el = WebDriverWait(browser, 15)
-      browser.save_screenshot('/tmp/artifacts/Nagios_Hosts.png')
-      logger.info("Successfully captured Nagios hosts screen")
-    except:
-      logger.error("Unable to capture Nagios hosts screen")
-      browser.close()
-      sys.exit(1)
-  except:
-    logger.error("Unable to access Nagios hosts link")
-    browser.close()
+
+try:
+    logger.info('Attempting to visit Host Groups page')
+    click_link_by_name('Host Groups')
+    take_screenshot('Nagios Host Groups')
+except TimeoutException:
+    logger.error('Failed to load Host Groups page')
+    browser.quit()
     sys.exit(1)
-  browser.close()
-  logger.info("The following screenshots were captured:")
-  for root, dirs, files in os.walk("/tmp/artifacts/"):
+
+try:
+    logger.info('Attempting to visit Hosts page')
+    click_link_by_name('Hosts')
+    take_screenshot('Nagios Hosts')
+except TimeoutException:
+    logger.error('Failed to load Hosts page')
+    browser.quit()
+    sys.exit(1)
+
+logger.info("The following screenshots were captured:")
+for root, dirs, files in os.walk("/tmp/artifacts/"):
     for name in files:
-      logger.info(os.path.join(root, name))
-except:
-  logger.error("Unable to log in to Nagios dashbaord")
-  browser.close()
-  sys.exit(1)
+        logger.info(os.path.join(root, name))
+
+browser.quit()
