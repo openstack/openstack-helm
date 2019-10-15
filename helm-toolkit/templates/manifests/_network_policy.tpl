@@ -86,7 +86,7 @@ return: |
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: {{ $label }}-netpol
+  name: {{ $label | replace "_" "-" }}-netpol
   namespace: {{ $envAll.Release.Namespace }}
 spec:
 {{- if hasKey (index $envAll.Values "network_policy") $label }}
