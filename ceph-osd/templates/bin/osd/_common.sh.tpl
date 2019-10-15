@@ -178,12 +178,21 @@ function zap_extra_partitions {
   # Delete any discovered journal, block.db, and block.wal partitions
   if [ ! -z "${journal_disk}" ]; then
     sgdisk -d ${journal_part} ${journal_disk}
+    /sbin/udevadm settle --timeout=600
+    /usr/bin/flock -s ${journal_disk} /sbin/partprobe ${journal_disk}
+    /sbin/udevadm settle --timeout=600
   fi
   if [ ! -z "${block_db_disk}" ]; then
     sgdisk -d ${block_db_part} ${block_db_disk}
+    /sbin/udevadm settle --timeout=600
+    /usr/bin/flock -s ${block_db_disk} /sbin/partprobe ${block_db_disk}
+    /sbin/udevadm settle --timeout=600
   fi
   if [ ! -z "${block_wal_disk}" ]; then
     sgdisk -d ${block_wal_part} ${block_wal_disk}
+    /sbin/udevadm settle --timeout=600
+    /usr/bin/flock -s ${block_wal_disk} /sbin/partprobe ${block_wal_disk}
+    /sbin/udevadm settle --timeout=600
   fi
 }
 
