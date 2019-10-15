@@ -10,5 +10,6 @@ Contents:
    kubernetes-and-common-setup
    deploy-with-nfs
    deploy-with-ceph
+   deploy-ovs-dpdk.rst
    exercise-the-cloud
    cleaning-deployment
