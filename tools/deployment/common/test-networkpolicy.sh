@@ -47,15 +47,21 @@ test_netpol openstack mariadb server keystone-api.openstack.svc.cluster.local:50
 test_netpol openstack mariadb ingress keystone-api.openstack.svc.cluster.local:5000 fail
 test_netpol openstack memcached server keystone-api.openstack.svc.cluster.local:5000 fail
 test_netpol openstack rabbitmq server keystone-api.openstack.svc.cluster.local:5000 fail
+
 # Doing positive tests
 test_netpol openstack keystone api mariadb.openstack.svc.cluster.local:3306 success
 test_netpol openstack keystone api rabbitmq.openstack.svc.cluster.local:5672 success
 test_netpol openstack ingress server keystone-api.openstack.svc.cluster.local:5000 success
 test_netpol openstack prometheus-openstack-exporter exporter keystone-api.openstack.svc.cluster.local:5000 success
 
+if kubectl -n openstack get pod -l application=horizon | grep Running ; then
+  test_netpol openstack keystone api horizon.openstack.svc.cluster.local:80 fail
+fi
+
 if kubectl -n openstack get pod -l application=cinder | grep Running ; then
 # Negative Cinder Tests
   #test_netpol openstack keystone api cinder-api.openstack.svc.cluster.local fail
+  test_netpol openstack cinder api horizon.openstack.svc.cluster.local:80 fail
 # Positive Cinder Tests
   test_netpol openstack cinder api rabbitmq.openstack.svc.cluster.local:5672 success
   test_netpol openstack cinder api keystone-api.openstack.svc.cluster.local:5000 success
