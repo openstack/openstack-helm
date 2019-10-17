@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 {{/*
 Copyright 2019 The Openstack-Helm Authors.
@@ -24,64 +24,65 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.options import Options
+from selenium.common.exceptions import TimeoutException
+from selenium.common.exceptions import NoSuchElementException
 
 # Create logger, console handler and formatter
 logger = logging.getLogger('Grafana Selenium Tests')
 logger.setLevel(logging.DEBUG)
 ch = logging.StreamHandler()
 ch.setLevel(logging.DEBUG)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+formatter = logging.Formatter(
+    '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 
 # Set the formatter and add the handler
 ch.setFormatter(formatter)
 logger.addHandler(ch)
 
-# Get Grafana admin user name
-if "GRAFANA_USER" in os.environ:
-  grafana_user = os.environ['GRAFANA_USER']
-  logger.info('Found Grafana username')
-else:
-  logger.critical('Grafana username environment variable not set')
-  sys.exit(1)
+def get_variable(env_var):
+    if env_var in os.environ:
+        logger.info('Found "{}"'.format(env_var))
+        return os.environ[env_var]
+    else:
+        logger.critical('Variable "{}" is not defined!'.format(env_var))
+        sys.exit(1)
 
-if "GRAFANA_PASSWORD" in os.environ:
-  grafana_password = os.environ['GRAFANA_PASSWORD']
-  logger.info('Found Grafana password')
-else:
-  logger.critical('Grafana password environment variable not set')
-  sys.exit(1)
+username = get_variable('GRAFANA_USER')
+password = get_variable('GRAFANA_PASSWORD')
+grafana_uri = get_variable('GRAFANA_URI')
 
-if "GRAFANA_URI" in os.environ:
-  grafana_uri = os.environ['GRAFANA_URI']
-  logger.info('Found Grafana URI')
-else:
-  logger.critical('Grafana URI environment variable not set')
-  sys.exit(1)
-
+chrome_driver = '/etc/selenium/chromedriver'
 options = Options()
 options.add_argument('--headless')
 options.add_argument('--no-sandbox')
 options.add_argument('--window-size=1920x1080')
+browser = webdriver.Chrome(chrome_driver, chrome_options=options)
 
 logger.info("Attempting to open Grafana dashboard")
 try:
-  browser = webdriver.Chrome('/etc/selenium/chromedriver', chrome_options=options)
-  logger.info("Successfully opened Grafana dashboard")
-except Exception as e:
-  logger.error("Unable to open Grafana")
-  browser.close()
-  sys.exit(1)
+    browser.get(grafana_uri)
+    el = WebDriverWait(browser, 15).until(
+    EC.title_contains('Grafana')
+    )
+    logger.info('Connected to Grafana')
+except TimeoutException:
+    logger.critical('Timed out waiting for Grafana')
+    browser.quit()
+    sys.exit(1)
 
 logger.info("Attempting to log into Grafana dashboard")
 try:
-  browser.get(grafana_uri)
-  browser.find_element_by_name('username').send_keys(grafana_user)
-  browser.find_element_by_name('password').send_keys(grafana_password)
-  browser.find_element_by_css_selector('body > grafana-app > div.main-view > div > div:nth-child(1) > div > div > div.login-inner-box > form > div.login-button-group > button').click()
-  logger.info("Successfully logged in to Grafana")
-except Exception as e:
-  logger.error("Failed to log in to Grafana")
-  browser.close()
-  sys.exit(1)
+    browser.find_element_by_name('username').send_keys(username)
+    browser.find_element_by_name('password').send_keys(password)
+    browser.find_element_by_css_selector(
+        'body > grafana-app > div.main-view > div > div:nth-child(1) > div > '
+        'div > div.login-inner-box > form > div.login-button-group > button'
+    ).click()
+    logger.info("Successfully logged in to Grafana")
+except NoSuchElementException:
+    logger.error("Failed to log in to Grafana")
+    browser.quit()
+    sys.exit(1)
 
-browser.close()
+browser.quit()
