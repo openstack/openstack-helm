@@ -9,4 +9,4 @@ export GRAFANA_USER="admin"
 export GRAFANA_PASSWORD="password"
 export GRAFANA_URI="grafana.osh-infra.svc.cluster.local"
 
-python tools/gate/selenium/grafanaSelenium.py
+python3 tools/gate/selenium/grafanaSelenium.py

@@ -13,4 +13,4 @@ export KERNEL_QUERY="discover?_g=()&_a=(columns:!(_source),index:'kernel-*',inte
 export JOURNAL_QUERY="discover?_g=()&_a=(columns:!(_source),index:'journal-*',interval:auto,query:(match_all:()),sort:!('@timestamp',desc))"
 export LOGSTASH_QUERY="discover?_g=()&_a=(columns:!(_source),index:'logstash-*',interval:auto,query:(match_all:()),sort:!('@timestamp',desc))"
 
-python tools/gate/selenium/kibanaSelenium.py
+python3 tools/gate/selenium/kibanaSelenium.py
