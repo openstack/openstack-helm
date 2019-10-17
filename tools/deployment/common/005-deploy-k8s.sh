@@ -118,27 +118,12 @@ sudo -E minikube config set embed-certs true
 export CHANGE_MINIKUBE_NONE_USER=true
 export MINIKUBE_IN_STYLE=false
 sudo -E minikube start \
-  --wait=false \
   --docker-env HTTP_PROXY="${HTTP_PROXY}" \
   --docker-env HTTPS_PROXY="${HTTPS_PROXY}" \
   --docker-env NO_PROXY="${NO_PROXY},10.96.0.0/12" \
-  --extra-config=kubelet.network-plugin=cni \
+  --network-plugin=cni \
   --extra-config=controller-manager.allocate-node-cidrs=true \
   --extra-config=controller-manager.cluster-cidr=192.168.0.0/16
-
-# Note(srwilkers): With newer versions of Minikube, explicitly disabling the wait
-# in the start command is required, as this wait checks the nodes status which
-# will block until the CNI is deployed. Instead, we now wait for the etcd pod to
-# be present, as this seems to be the last static manifest pod launched by
-# minikube. This allows us to move forward with applying the CNI
-END=$(($(date +%s) + 240))
-until kubectl --namespace=kube-system \
-        get pods -l component=etcd --no-headers -o name | grep -q "^pod/etcd-minikube"; do
-  NOW=$(date +%s)
-  [ "${NOW}" -gt "${END}" ] && exit 1
-  echo "Waiting for kubernetes etcd"
-  sleep 10
-done
 
 curl https://docs.projectcalico.org/"${CALICO_VERSION}"/manifests/calico.yaml -o /tmp/calico.yaml
 kubectl apply -f /tmp/calico.yaml
