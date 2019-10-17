@@ -53,6 +53,6 @@ helm upgrade --install ceph-openstack-config ./ceph-provisioners \
 helm test ceph-openstack-config --timeout 600
 
 #NOTE: Validate Deployment info
-kubectl get -n openstack jobs --show-all
+kubectl get -n openstack jobs
 kubectl get -n openstack secrets
 kubectl get -n openstack configmaps

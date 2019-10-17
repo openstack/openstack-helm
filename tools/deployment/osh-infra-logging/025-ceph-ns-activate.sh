@@ -53,6 +53,6 @@ helm upgrade --install ceph-osh-infra-config ./ceph-provisioners \
 helm test ceph-osh-infra-config --timeout 600
 
 #NOTE: Validate Deployment info
-kubectl get -n osh-infra jobs --show-all
+kubectl get -n osh-infra jobs
 kubectl get -n osh-infra secrets
 kubectl get -n osh-infra configmaps
