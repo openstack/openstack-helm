@@ -225,13 +225,6 @@ limitations under the License.
     {{- if not $context.Values.__daemonset_yaml.metadata.name }}{{- $_ := set $context.Values.__daemonset_yaml.metadata "name" dict }}{{- end }}
     {{- $_ := set $context.Values.__daemonset_yaml.metadata "name" $current_dict.dns_1123_name }}
 
-    {{/* set container name
-    assume not more than one container is defined */}}
-    {{- $container := first $context.Values.__daemonset_yaml.spec.template.spec.containers }}
-    {{- $_ := set $container "name" $current_dict.dns_1123_name }}
-    {{- $cont_list := list $container }}
-    {{- $_ := set $context.Values.__daemonset_yaml.spec.template.spec "containers" $cont_list }}
-
     {{/* cross-reference configmap name to container volume definitions */}}
     {{- $_ := set $context.Values "__volume_list" list }}
     {{- range $current_volume := $context.Values.__daemonset_yaml.spec.template.spec.volumes }}
