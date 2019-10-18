@@ -1,95 +1,90 @@
-import logging
-import os
+# Copyright 2019 The Openstack-Helm Authors.
+
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+
+#    http://www.apache.org/licenses/LICENSE-2.0
+
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import sys
-from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.chrome.options import Options
+from selenium.common.exceptions import TimeoutException
+from selenium.common.exceptions import NoSuchElementException
+from seleniumtester import SeleniumTester
 
-# Create logger, console handler and formatter
-logger = logging.getLogger('Grafana Selenium Tests')
-logger.setLevel(logging.DEBUG)
-ch = logging.StreamHandler()
-ch.setLevel(logging.DEBUG)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+st = SeleniumTester('Grafana')
 
-# Set the formatter and add the handler
-ch.setFormatter(formatter)
-logger.addHandler(ch)
+username = st.get_variable('GRAFANA_USER')
+password = st.get_variable('GRAFANA_PASSWORD')
+grafana_uri = st.get_variable('GRAFANA_URI')
+grafana_url = 'http://{}'.format(grafana_uri)
 
-# Get Grafana admin user name
-if "GRAFANA_USER" in os.environ:
-  grafana_user = os.environ['GRAFANA_USER']
-  logger.info('Found Grafana username')
-else:
-  logger.critical('Grafana username environment variable not set')
-  sys.exit(1)
+try:
+    st.logger.info('Attempting to connect to Grafana')
+    st.browser.get(grafana_url)
+    el = WebDriverWait(st.browser, 15).until(
+        EC.title_contains('Grafana')
+    )
+    st.logger.info('Connected to Grafana')
+except TimeoutException:
+    st.logger.critical('Timed out waiting to connect to Grafana')
+    st.browser.quit()
+    sys.exit(1)
 
-if "GRAFANA_PASSWORD" in os.environ:
-  grafana_password = os.environ['GRAFANA_PASSWORD']
-  logger.info('Found Grafana password')
-else:
-  logger.critical('Grafana password environment variable not set')
-  sys.exit(1)
+try:
+    st.logger.info('Attempting to login to Grafana')
+    st.browser.find_element_by_name('username').send_keys(username)
+    st.browser.find_element_by_name('password').send_keys(password)
+    st.browser.find_element_by_css_selector(
+        'body > grafana-app > div.main-view > div > div:nth-child(1) > div > '
+        'div > div.login-inner-box > form > div.login-button-group > button'
+    ).click()
+    st.logger.info("Successfully logged in to Grafana")
+except NoSuchElementException:
+    st.logger.error("Failed to log in to Grafana")
+    st.browser.quit()
+    sys.exit(1)
 
-if "GRAFANA_URI" in os.environ:
-  grafana_uri = os.environ['GRAFANA_URI']
-  logger.info('Found Grafana URI')
-else:
-  logger.critical('Grafana URI environment variable not set')
-  sys.exit(1)
+try:
+    st.logger.info('Attempting to visit Nodes dashboard')
+    st.click_link_by_name('Home')
+    st.click_link_by_name('Nodes')
+    el = WebDriverWait(st.browser, 15).until(
+        EC.presence_of_element_located(
+            (By.XPATH, '/html/body/grafana-app/div[2]/div/div[1]/div/div/'
+            'div[1]/dashboard-grid/div/div[1]/div/plugin-component/'
+            'panel-plugin-graph/grafana-panel/div/div[2]')
+        )
+    )
+    st.take_screenshot('Grafana Nodes')
+except TimeoutException:
+    st.logger.error('Failed to load Nodes dashboard')
+    st.browser.quit()
+    sys.exit(1)
 
-options = Options()
-options.add_argument('--headless')
-options.add_argument('--no-sandbox')
-options.add_argument('--window-size=1920x1080')
+try:
+    st.logger.info('Attempting to visit Cluster Status dashboard')
+    st.click_link_by_name('Nodes')
+    st.click_link_by_name('Kubernetes Cluster Status')
+    el = WebDriverWait(st.browser, 15).until(
+        EC.presence_of_element_located(
+            (By.XPATH, '/html/body/grafana-app/div[2]/div/div[1]/div/'
+            'div/div[1]/dashboard-grid/div/div[5]/div/plugin-component/'
+            'panel-plugin-singlestat/grafana-panel/div')
+        )
+    )
+    st.take_screenshot('Grafana Cluster Status')
+except TimeoutException:
+    st.logger.error('Failed to load Cluster Status dashboard')
+    st.browser.quit()
+    sys.exit(1)
 
-browser = webdriver.Chrome('/etc/selenium/chromedriver', chrome_options=options)
-
-browser.get(grafana_uri)
-username = browser.find_element_by_name('username')
-username.send_keys(grafana_user)
-
-password = browser.find_element_by_name('password')
-password.send_keys(grafana_password)
-
-login = browser.find_element_by_css_selector('body > grafana-app > div.main-view > div > div:nth-child(1) > div > div > div.login-inner-box > form > div.login-button-group > button')
-login.click()
-
-el = WebDriverWait(browser, 15).until(
-    EC.presence_of_element_located((By.LINK_TEXT, 'Home'))
-)
-
-homeBtn = browser.find_element_by_link_text('Home')
-homeBtn.click()
-
-
-el = WebDriverWait(browser, 15).until(
-    EC.presence_of_element_located((By.LINK_TEXT, 'Nodes'))
-)
-
-nodeBtn = browser.find_element_by_link_text('Nodes')
-nodeBtn.click()
-
-el = WebDriverWait(browser, 15).until(
-    EC.presence_of_element_located((By.XPATH, '/html/body/grafana-app/div[2]/div/div[1]/div/div/div[1]/dashboard-grid/div/div[1]/div/plugin-component/panel-plugin-graph/grafana-panel/div/div[2]'))
-)
-
-browser.save_screenshot('/tmp/artifacts/Grafana_Nodes.png')
-
-nodeBtn = browser.find_element_by_link_text('Nodes')
-nodeBtn.click()
-
-el = WebDriverWait(browser, 15).until(
-    EC.presence_of_element_located((By.LINK_TEXT, 'Kubernetes Cluster Status'))
-)
-
-healthBtn = browser.find_element_by_link_text('Kubernetes Cluster Status')
-healthBtn.click()
-
-el = WebDriverWait(browser, 15).until(
-    EC.presence_of_element_located((By.XPATH, '/html/body/grafana-app/div[2]/div/div[1]/div/div/div[1]/dashboard-grid/div/div[5]/div/plugin-component/panel-plugin-singlestat/grafana-panel/div'))
-)
-
-browser.save_screenshot('/tmp/artifacts/Grafana_ClusterStatus.png')
+st.browser.quit()

@@ -1,74 +1,79 @@
-import logging
-import os
+# Copyright 2019 The Openstack-Helm Authors.
+
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+
+#    http://www.apache.org/licenses/LICENSE-2.0
+
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import sys
-from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.chrome.options import Options
 from selenium.common.exceptions import TimeoutException
+from seleniumtester import SeleniumTester
 
-logger = logging.getLogger('Kibana Selenium Tests')
-logger.setLevel(logging.DEBUG)
-ch = logging.StreamHandler()
-ch.setLevel(logging.DEBUG)
-formatter = logging.Formatter(
-    '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+st = SeleniumTester('Kibana')
 
-ch.setFormatter(formatter)
-logger.addHandler(ch)
+username = st.get_variable('KIBANA_USER')
+password = st.get_variable('KIBANA_PASSWORD')
+kibana_uri = st.get_variable('KIBANA_URI')
+kibana_url = 'http://{0}:{1}@{2}'.format(username, password, kibana_uri)
 
-artifacts = '/tmp/artifacts/'
-if not os.path.exists(artifacts):
-    os.makedirs(artifacts)
+try:
+    st.logger.info('Attempting to connect to Kibana')
+    st.browser.get(kibana_url)
+    el = WebDriverWait(st.browser, 45).until(
+        EC.title_contains('Kibana')
+    )
+    st.logger.info('Connected to Kibana')
+except TimeoutException:
+    st.logger.critical('Timed out waiting for Kibana')
+    st.browser.quit()
+    sys.exit(1)
 
+kernel_query = st.get_variable('KERNEL_QUERY')
+journal_query = st.get_variable('JOURNAL_QUERY')
+logstash_query = st.get_variable('LOGSTASH_QUERY')
 
-def get_variable(env_var):
-    if env_var in os.environ:
-        logger.info('Found "{}"'.format(env_var))
-        return os.environ[env_var]
-    else:
-        logger.critical('Variable "{}" is not defined!'.format(env_var))
-        sys.exit(1)
+queries = [(kernel_query, 'Kernel'),
+           (journal_query, 'Journal'),
+           (logstash_query, 'Logstash')]
 
-
-kibana_user = get_variable('KIBANA_USER')
-kibana_password = get_variable('KIBANA_PASSWORD')
-kibana_journal_uri = get_variable('KIBANA_JOURNAL_URI')
-kibana_kernel_uri = get_variable('KIBANA_KERNEL_URI')
-kibana_logstash_uri = get_variable('KIBANA_LOGSTASH_URI')
-
-options = Options()
-options.add_argument('--headless')
-options.add_argument('--no-sandbox')
-options.add_argument('--window-size=1920x1080')
-
-targets = [(kibana_kernel_uri, 'Kernel'),
-           (kibana_journal_uri, 'Journal'),
-           (kibana_logstash_uri, 'Logstash')]
-
-for target, name in targets:
+for query, name in queries:
     retry = 3
     while retry > 0:
-        prefix = ''
-        browser = webdriver.Chrome(
-            '/etc/selenium/chromedriver', chrome_options=options)
-        url = "http://{0}:{1}@{2}".format(kibana_user, kibana_password, target)
-        browser.get(url)
+        query_url = '{}/app/kibana#/{}'.format(kibana_url, query)
 
         try:
-            WebDriverWait(browser, 60).until(
+            st.logger.info('Attempting to query {} index'.format(name))
+            st.browser.get(query_url)
+            WebDriverWait(st.browser, 60).until(
                 EC.presence_of_element_located(
                     (By.XPATH, '//*[@id="kibana-body"]/div[1]/div/div/div[3]/'
-                     'discover-app/div/div[2]/div[2]/div/div[2]/div[2]/'
-                     'doc-table/div/table/tbody/tr[1]/td[2]'))
+                    'discover-app/div/div[2]/div[2]/div/div[2]/div[2]/'
+                    'doc-table/div/table/tbody/tr[1]/td[2]')
+                )
             )
-            logger.info('{} index loaded successfully'.format(name))
+            st.logger.info('{} index loaded successfully'.format(name))
+            st.take_screenshot('Kibana {} Index'.format(name))
             retry = 0
+
         except TimeoutException:
-            logger.error('Error occured loading {} index'.format(name))
-            prefix = 'Error_'
-        browser.save_screenshot(
-            artifacts + '{}Kibana_{}.png'.format(prefix, name))
-        browser.quit()
+            if retry > 1:
+                st.logger.warning('Timed out loading {} index'.format(name))
+            else:
+                st.logger.error('Could not load {} index'.format(name))
+
         retry -= 1
+        if retry <= 0:
+            # Reset test condition
+            st.browser.get(kibana_url)
+
+st.browser.quit()

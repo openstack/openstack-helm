@@ -1,70 +1,76 @@
-import os
-import logging
+# Copyright 2019 The Openstack-Helm Authors.
+
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+
+#    http://www.apache.org/licenses/LICENSE-2.0
+
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import sys
-from selenium import webdriver
-from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.chrome.options import Options
+from selenium.common.exceptions import TimeoutException
+from selenium.common.exceptions import NoSuchElementException
+from seleniumtester import SeleniumTester
 
+st = SeleniumTester('Nagios')
 
-# Create logger, console handler and formatter
-logger = logging.getLogger('Nagios Selenium Tests')
-logger.setLevel(logging.DEBUG)
-ch = logging.StreamHandler()
-ch.setLevel(logging.DEBUG)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+username = st.get_variable('NAGIOS_USER')
+password = st.get_variable('NAGIOS_PASSWORD')
+nagios_uri = st.get_variable('NAGIOS_URI')
+nagios_url = 'http://{0}:{1}@{2}'.format(username, password, nagios_uri)
 
-# Set the formatter and add the handler
-ch.setFormatter(formatter)
-logger.addHandler(ch)
+try:
+    st.logger.info('Attempting to connect to Nagios')
+    st.browser.get(nagios_url)
+    el = WebDriverWait(st.browser, 15).until(
+        EC.title_contains('Nagios')
+    )
+    st.logger.info('Connected to Nagios')
+except TimeoutException:
+    st.logger.critical('Timed out waiting for Nagios')
+    st.browser.quit()
+    sys.exit(1)
 
-# Get Grafana admin user name
-if "NAGIOS_USER" in os.environ:
-  nagios_user = os.environ['NAGIOS_USER']
-  logger.info('Found Nagios username')
-else:
-  logger.critical('Nagios username environment variable not set')
-  sys.exit(1)
+try:
+    st.logger.info('Switching Focus to Navigation side frame')
+    sideFrame = st.browser.switch_to.frame('side')
+except NoSuchElementException:
+    st.logger.error('Failed selecting side frame')
+    st.browser.quit()
+    sys.exit(1)
 
-if "NAGIOS_PASSWORD" in os.environ:
-  nagios_password = os.environ['NAGIOS_PASSWORD']
-  logger.info('Found Nagios password')
-else:
-  logger.critical('Nagios password environment variable not set')
-  sys.exit(1)
+try:
+    st.logger.info('Attempting to visit Services page')
+    st.click_link_by_name('Services')
+    st.take_screenshot('Nagios Services')
+except TimeoutException:
+    st.logger.error('Failed to load Services page')
+    st.browser.quit()
+    sys.exit(1)
 
-if "NAGIOS_URI" in os.environ:
-  nagios_uri = os.environ['NAGIOS_URI']
-  logger.info('Found Nagios URI')
-else:
-  logger.critical('Nagios URI environment variable not set')
-  sys.exit(1)
+try:
+    st.logger.info('Attempting to visit Host Groups page')
+    st.click_link_by_name('Host Groups')
+    st.take_screenshot('Nagios Host Groups')
+except TimeoutException:
+    st.logger.error('Failed to load Host Groups page')
+    st.browser.quit()
+    sys.exit(1)
 
-options = Options()
-options.add_argument('--headless')
-options.add_argument('--no-sandbox')
-options.add_argument('--window-size=1920x1080')
+try:
+    st.logger.info('Attempting to visit Hosts page')
+    st.click_link_by_name('Hosts')
+    st.take_screenshot('Nagios Hosts')
+except TimeoutException:
+    st.logger.error('Failed to load Hosts page')
+    st.browser.quit()
+    sys.exit(1)
 
-browser = webdriver.Chrome('/etc/selenium/chromedriver', chrome_options=options)
-browser.get('http://'+nagios_user+':'+nagios_password+'@'+nagios_uri)
-
-sideFrame = browser.switch_to.frame('side')
-
-services = browser.find_element_by_link_text('Services')
-services.click()
-
-el = WebDriverWait(browser, 15)
-browser.save_screenshot('/tmp/artifacts/Nagios_Services.png')
-
-hostGroups = browser.find_element_by_link_text('Host Groups')
-hostGroups.click()
-
-el = WebDriverWait(browser, 15)
-browser.save_screenshot('/tmp/artifacts/Nagios_HostGroups.png')
-
-hosts = browser.find_element_by_link_text('Hosts')
-hosts.click()
-
-el = WebDriverWait(browser, 15)
-browser.save_screenshot('/tmp/artifacts/Nagios_Hosts.png')
+st.browser.quit()
