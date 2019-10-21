@@ -21,7 +21,7 @@ values: |
   images:
     tags:
       test_image: docker.io/port/test:version-foo
-      image_foo: quay.io/stackanetes/kubernetes-entrypoint:v0.3.1
+      image_foo: quay.io/airshipit/kubernetes-entrypoint:v1.0.0
     pull_policy: IfNotPresent
     local_registry:
       active: true
