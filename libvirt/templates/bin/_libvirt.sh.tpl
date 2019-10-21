@@ -18,9 +18,19 @@ limitations under the License.
 
 set -ex
 
-if [ -n "$(cat /proc/*/comm 2>/dev/null | grep libvirtd)" ]; then
-    echo "ERROR: libvirtd daemon already running on host" 1>&2
-    exit 1
+if [ -n "$(cat /proc/*/comm 2>/dev/null | grep -w libvirtd)" ]; then
+  set +x
+  for proc in $(ls /proc/*/comm 2>/dev/null); do
+    if [ "x$(cat $proc 2>/dev/null | grep -w libvirtd)" == "xlibvirtd" ]; then
+      set -x
+      libvirtpid=$(echo $proc | cut -f 3 -d '/')
+      echo "WARNING: libvirtd daemon already running on host" 1>&2
+      echo "$(cat "/proc/${libvirtpid}/status" 2>/dev/null | grep State)" 1>&2
+      kill -9 "$libvirtpid" || true
+      set +x
+    fi
+  done
+  set -x
 fi
 
 rm -f /var/run/libvirtd.pid
