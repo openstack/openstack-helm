@@ -164,11 +164,14 @@ conf:
 EOF
 
 #NOTE: Deploy command
+: ${OSH_EXTRA_HELM_ARGS_LIBVIRT:="$(./tools/deployment/common/get-values-overrides.sh libvirt)"}
 
 helm upgrade --install libvirt ./libvirt \
   --namespace=openstack \
   --values=/tmp/libvirt.yaml \
-  --set network.backend="null"
+  --set network.backend="null" \
+  ${OSH_EXTRA_HELM_ARGS} \
+  ${OSH_EXTRA_HELM_ARGS_LIBVIRT}
 
 #NOTE: Validate Deployment info
 ./tools/deployment/common/wait-for-pods.sh openstack

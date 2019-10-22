@@ -202,20 +202,21 @@ for CHART in ceph-mon ceph-client ceph-provisioners; do
     --namespace=ceph \
     --values=/tmp/ceph.yaml \
     ${OSH_INFRA_EXTRA_HELM_ARGS} \
-    ${OSH_INFRA_EXTRA_HELM_ARGS_CEPH_DEPLOY}
+    ${OSH_INFRA_EXTRA_HELM_ARGS_CEPH_DEPLOY:-$(./tools/deployment/common/get-values-overrides.sh ${CHART})}
 done
-  helm upgrade --install ceph-osd ./ceph-osd \
-    --namespace=ceph \
-    --values=/tmp/ceph.yaml \
-    --values=/tmp/ceph-osd.yaml
 
-  #NOTE: Wait for deploy
-  ./tools/deployment/common/wait-for-pods.sh ceph
+helm upgrade --install ceph-osd ./ceph-osd \
+  --namespace=ceph \
+  --values=/tmp/ceph.yaml \
+  --values=/tmp/ceph-osd.yaml
 
-  #NOTE: Validate deploy
-  MON_POD=$(kubectl get pods \
-    --namespace=ceph \
-    --selector="application=ceph" \
-    --selector="component=mon" \
-    --no-headers | awk '{ print $1; exit }')
-  kubectl exec -n ceph ${MON_POD} -- ceph -s
+#NOTE: Wait for deploy
+./tools/deployment/common/wait-for-pods.sh ceph
+
+#NOTE: Validate deploy
+MON_POD=$(kubectl get pods \
+  --namespace=ceph \
+  --selector="application=ceph" \
+  --selector="component=mon" \
+  --no-headers | awk '{ print $1; exit }')
+kubectl exec -n ceph ${MON_POD} -- ceph -s

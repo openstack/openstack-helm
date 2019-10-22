@@ -42,6 +42,9 @@ conf:
   rgw_ks:
     enabled: false
 EOF
+
+: ${OSH_INFRA_EXTRA_HELM_ARGS_CEPH_NS_ACTIVATE:="$(./tools/deployment/common/get-values-overrides.sh ceph-provisioners)"}
+
 helm upgrade --install ceph-osh-infra-config ./ceph-provisioners \
   --namespace=osh-infra \
   --values=/tmp/ceph-osh-infra-config.yaml \

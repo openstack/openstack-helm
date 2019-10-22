@@ -16,6 +16,8 @@
 
 set -xe
 
+: ${OSH_INFRA_EXTRA_HELM_ARGS_MARIADB:="$(./tools/deployment/common/get-values-overrides.sh mariadb)"}
+
 #NOTE: Lint and package chart
 make mariadb
 

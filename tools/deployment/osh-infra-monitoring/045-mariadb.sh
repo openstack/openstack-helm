@@ -19,6 +19,8 @@ set -xe
 #NOTE: Lint and package chart
 make mariadb
 
+: ${OSH_INFRA_EXTRA_HELM_ARGS_MARIADB:="$(./tools/deployment/common/get-values-overrides.sh mariadb)"}
+
 #NOTE: Deploy command
 : ${OSH_INFRA_EXTRA_HELM_ARGS:=""}
 helm upgrade --install mariadb ./mariadb \

@@ -64,11 +64,14 @@ storageclass:
       adminSecretNamespace: tenant-ceph
       userSecretName: pvc-tenant-ceph-cephfs-client-key
 EOF
+
+: ${OSH_INFRA_EXTRA_HELM_ARGS_CEPH_NS_ACTIVATE:="$(./tools/deployment/common/get-values-overrides.sh ceph-provisioners)"}
+
 helm upgrade --install tenant-ceph-openstack-config ./ceph-provisioners \
   --namespace=openstack \
   --values=/tmp/tenant-ceph-openstack-config.yaml \
-  ${OSH_EXTRA_HELM_ARGS} \
-  ${OSH_EXTRA_HELM_ARGS_CEPH_NS_ACTIVATE}
+  ${OSH_INFRA_EXTRA_HELM_ARGS} \
+  ${OSH_INFRA_EXTRA_HELM_ARGS_CEPH_NS_ACTIVATE}
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack

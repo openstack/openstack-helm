@@ -59,9 +59,14 @@ conf:
             unit_count: 365
 
 EOF
+
+: ${OSH_INFRA_EXTRA_HELM_ARGS_ELASTICSEARCH:="$(./tools/deployment/common/get-values-overrides.sh elasticsearch)"}
+
 helm upgrade --install elasticsearch ./elasticsearch \
-    --namespace=osh-infra \
-    --values=/tmp/elasticsearch.yaml
+  --namespace=osh-infra \
+  --values=/tmp/elasticsearch.yaml\
+  ${OSH_INFRA_EXTRA_HELM_ARGS} \
+  ${OSH_INFRA_EXTRA_HELM_ARGS_ELASTICSEARCH}
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh osh-infra

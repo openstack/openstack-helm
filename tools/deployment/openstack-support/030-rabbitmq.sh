@@ -16,6 +16,8 @@
 
 set -xe
 
+: ${OSH_INFRA_EXTRA_HELM_ARGS_RABBITMQ:="$(./tools/deployment/common/get-values-overrides.sh rabbitmq)"}
+
 #NOTE: Lint and package chart
 make rabbitmq
 
@@ -25,8 +27,8 @@ helm upgrade --install rabbitmq ./rabbitmq \
     --namespace=openstack \
     --recreate-pods \
     --force \
-    ${OSH_EXTRA_HELM_ARGS} \
-    ${OSH_EXTRA_HELM_ARGS_RABBITMQ}
+    ${OSH_INFRA_EXTRA_HELM_ARGS} \
+    ${OSH_INFRA_EXTRA_HELM_ARGS_RABBITMQ}
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack

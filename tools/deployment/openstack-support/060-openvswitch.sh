@@ -15,6 +15,8 @@
 #    under the License.
 set -xe
 
+: ${OSH_EXTRA_HELM_ARGS_OPENVSWITCH:="$(./tools/deployment/common/get-values-overrides.sh openvswitch)"}
+
 #NOTE: Deploy command
 helm upgrade --install openvswitch ./openvswitch \
   --namespace=openstack \

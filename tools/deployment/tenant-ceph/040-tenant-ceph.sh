@@ -147,7 +147,7 @@ for CHART in ceph-mon ceph-osd ceph-client; do
     --namespace=tenant-ceph \
     --values=/tmp/tenant-ceph.yaml \
     ${OSH_INFRA_EXTRA_HELM_ARGS} \
-    ${OSH_INFRA_EXTRA_HELM_ARGS_CEPH_DEPLOY}
+    ${OSH_INFRA_EXTRA_HELM_ARGS_CEPH_DEPLOY:-$(./tools/deployment/common/get-values-overrides.sh ${CHART})}
 
   #NOTE: Wait for deploy
   ./tools/deployment/common/wait-for-pods.sh tenant-ceph 1200

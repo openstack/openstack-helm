@@ -17,6 +17,7 @@
 set -xe
 
 namespace="osh-infra"
+: ${OSH_INFRA_EXTRA_HELM_ARGS_MEMCACHED:="$(./tools/deployment/common/get-values-overrides.sh memcached)"}
 
 # NOTE: Lint and package chart
 make memcached

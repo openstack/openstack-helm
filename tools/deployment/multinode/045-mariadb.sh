@@ -21,6 +21,8 @@ make mariadb
 
 #NOTE: Deploy command
 : ${OSH_INFRA_EXTRA_HELM_ARGS:=""}
+: ${OSH_INFRA_EXTRA_HELM_ARGS_MARIADB:="$(./tools/deployment/common/get-values-overrides.sh mariadb)"}
+
 helm upgrade --install mariadb ./mariadb \
     --namespace=osh-infra \
     --set monitoring.prometheus.enabled=true \

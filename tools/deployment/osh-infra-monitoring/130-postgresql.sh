@@ -21,6 +21,8 @@ make postgresql
 
 #NOTE: Deploy command
 : ${OSH_INFRA_EXTRA_HELM_ARGS:=""}
+: ${OSH_INFRA_EXTRA_HELM_ARGS_POSTGRESQL:="$(./tools/deployment/common/get-values-overrides.sh postgresql)"}
+
 helm upgrade --install postgresql ./postgresql \
     --namespace=osh-infra \
     --set monitoring.prometheus.enabled=true \
@@ -28,7 +30,7 @@ helm upgrade --install postgresql ./postgresql \
     --set storage.pvc.enabled=true \
     --set pod.replicas.server=3 \
     ${OSH_INFRA_EXTRA_HELM_ARGS} \
-    ${OSH_INFRA_EXTRA_HELM_ARGS_MARIADB}
+    ${OSH_INFRA_EXTRA_HELM_ARGS_POSTGRESQL}
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh osh-infra

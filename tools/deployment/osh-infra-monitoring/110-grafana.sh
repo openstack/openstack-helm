@@ -19,9 +19,13 @@ set -xe
 #NOTE: Lint and package chart
 make grafana
 
+: ${OSH_INFRA_EXTRA_HELM_ARGS_GRAFANA:="$(./tools/deployment/common/get-values-overrides.sh grafana)"}
+
 #NOTE: Deploy command
 helm upgrade --install grafana ./grafana \
-    --namespace=osh-infra
+  --namespace=osh-infra \
+  ${OSH_INFRA_EXTRA_HELM_ARGS} \
+  ${OSH_INFRA_EXTRA_HELM_ARGS_GRAFANA}
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh osh-infra

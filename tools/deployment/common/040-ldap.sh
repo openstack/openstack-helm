@@ -16,13 +16,16 @@
 
 set -xe
 
+: ${OSH_INFRA_EXTRA_HELM_ARGS_LDAP:="$(./tools/deployment/common/get-values-overrides.sh ldap)"}
+
 #NOTE: Pull images and lint chart
 make ldap
 
 #NOTE: Deploy command
 helm upgrade --install ldap ./ldap \
     --namespace=osh-infra \
-    --set bootstrap.enabled=true
+    --set bootstrap.enabled=true \
+    ${OSH_INFRA_EXTRA_HELM_ARGS_LDAP}
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh osh-infra

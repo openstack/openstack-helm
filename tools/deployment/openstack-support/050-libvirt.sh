@@ -15,13 +15,17 @@
 #    under the License.
 set -xe
 
+: ${OSH_INFRA_EXTRA_HELM_ARGS_LIBVIRT:="$(./tools/deployment/common/get-values-overrides.sh libvirt)"}
+
 #NOTE: Lint and package chart
 make libvirt
 
 #NOTE: Deploy command
 helm upgrade --install libvirt ./libvirt \
   --namespace=openstack \
-  --set network.backend="null"
+  --set network.backend="null" \
+  ${OSH_INFRA_EXTRA_HELM_ARGS} \
+  ${OSH_INFRA_EXTRA_HELM_ARGS_LIBVIRT}
 
 #NOTE: Please be aware that a network backend might affect
 #The loadability of this, as some need to be asynchronously

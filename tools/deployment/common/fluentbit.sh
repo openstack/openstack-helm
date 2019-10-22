@@ -19,8 +19,13 @@ set -xe
 #NOTE: Lint and package chart
 make fluentbit
 
+: ${OSH_INFRA_EXTRA_HELM_ARGS_FLUENTBIT:="$(./tools/deployment/common/get-values-overrides.sh fluentbit)"}
+
 helm upgrade --install fluentbit ./fluentbit \
-    --namespace=osh-infra
+  --namespace=osh-infra \
+  ${OSH_INFRA_EXTRA_HELM_ARGS} \
+  ${OSH_INFRA_EXTRA_HELM_ARGS_FLUENTBIT}
+
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh osh-infra

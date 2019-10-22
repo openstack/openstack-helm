@@ -16,6 +16,8 @@
 
 set -xe
 
+: ${OSH_INFRA_EXTRA_HELM_ARGS_MEMCACHED:="$(./tools/deployment/common/get-values-overrides.sh memcached)"}
+
 #NOTE: Lint and package chart
 make memcached
 
@@ -23,8 +25,8 @@ make memcached
 : ${OSH_EXTRA_HELM_ARGS:=""}
 helm upgrade --install memcached ./memcached \
     --namespace=openstack \
-    ${OSH_EXTRA_HELM_ARGS} \
-    ${OSH_EXTRA_HELM_ARGS_MEMCACHED}
+    ${OSH_INFRA_EXTRA_HELM_ARGS} \
+    ${OSH_INFRA_EXTRA_HELM_ARGS_MEMCACHED}
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack
