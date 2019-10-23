@@ -24,21 +24,19 @@ MYSQL="mysql \
 MYSQLDUMP="mysqldump \
    --defaults-file=/etc/mysql/admin_user.cnf"
 
-days_difference() {
+seconds_difference() {
   archive_date=$( date --date="$1" +%s )
   if [ "$?" -ne 0 ]
   then
-    day_delta=0
+    second_delta=0
   fi
   current_date=$( date +%s )
-  date_delta=$(($current_date-$archive_date))
-  if [ "$date_delta" -lt 0 ]
+  second_delta=$(($current_date-$archive_date))
+  if [ "$second_delta" -lt 0 ]
   then
-    day_delta=0
-  else
-    day_delta=$(($date_delta/86400))
+    second_delta=0
   fi
-  echo $day_delta
+  echo $second_delta
 }
 
 DBNAME=( $($MYSQL --silent --skip-column-names -e \
@@ -108,7 +106,7 @@ if [ $ARCHIVE_RET -eq 0 ]
         for archive_file in $(ls -1 $ARCHIVE_DIR/*.gz)
         do
           archive_date=$( echo $archive_file | awk -F/ '{print $NF}' | cut -d'.' -f 3)
-          if [ "$(days_difference $archive_date)" -gt "$MARIADB_BACKUP_DAYS_TO_KEEP" ]
+          if [ "$(seconds_difference $archive_date)" -gt "$(($MARIADB_BACKUP_DAYS_TO_KEEP*86400))" ]
           then
             rm -rf $archive_file
           fi
