@@ -230,17 +230,6 @@ limitations under the License.
     {{- if not $context.Values.__daemonset_yaml.metadata.name }}{{- $_ := set $context.Values.__daemonset_yaml.metadata "name" dict }}{{- end }}
     {{- $_ := set $context.Values.__daemonset_yaml.metadata "name" $current_dict.dns_1123_name }}
 
-    {{/* set container names and add to the list of containers for the pod */}}
-    {{- $_ := set $context.Values "__containers_list" ( list ) }}
-    {{- range $container := $context.Values.__daemonset_yaml.spec.template.spec.containers }}
-    {{- if eq $container.name "osd-pod" }}
-    {{- $_ := set $container "name" $current_dict.dns_1123_name }}
-    {{- end }}
-    {{- $__containers_list := append $context.Values.__containers_list $container }}
-    {{- $_ := set $context.Values "__containers_list" $__containers_list }}
-    {{- end }}
-    {{- $_ := set $context.Values.__daemonset_yaml.spec.template.spec "containers" $context.Values.__containers_list }}
-
     {{/* cross-reference configmap name to container volume definitions */}}
     {{- $_ := set $context.Values "__volume_list" list }}
     {{- range $current_volume := $context.Values.__daemonset_yaml.spec.template.spec.volumes }}
