@@ -26,10 +26,6 @@ ovs-vsctl list-br | grep -q br-int
 [ -z "$(/usr/bin/ovs-vsctl show | grep error:)" ]
 
 {{ if .Values.conf.ovs_dpdk.enabled }}
-
-  # Check if dpdk is initialized
-  [ "$(ovs-vsctl get Open_vSwitch . dpdk_initialized)" == true ]
-
   {{- if hasKey .Values.conf.ovs_dpdk "nics"}}
     # Check if port(s) and bridge(s) are configured.
     {{- range .Values.conf.ovs_dpdk.nics }}
@@ -48,5 +44,4 @@ ovs-vsctl list-br | grep -q br-int
       {{- end }}
     {{- end }}
   {{- end }}
-
 {{ end }}
