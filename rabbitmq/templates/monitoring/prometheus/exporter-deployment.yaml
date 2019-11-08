@@ -52,7 +52,7 @@ spec:
 {{ dict "envAll" $envAll "application" "exporter" "container" "rabbitmq_exporter" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           ports:
             - name: metrics
-              containerPort: {{ $envAll.Values.network.prometheus_rabbitmq_exporter.port }}
+              containerPort: {{ tuple "prometheus_rabbitmq_exporter" "internal" "metrics" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
           env:
           - name: RABBIT_URL
             value: http://{{ tuple "oslo_messaging" "internal" . | include "helm-toolkit.endpoints.hostname_fqdn_endpoint_lookup" }}:15672
@@ -63,7 +63,7 @@ spec:
           - name: RABBIT_CAPABILITIES
             value: {{ include "helm-toolkit.utils.joinListWithComma" $envAll.Values.conf.prometheus_exporter.capabilities | quote }}
           - name: PUBLISH_PORT
-            value: {{ $envAll.Values.network.prometheus_rabbitmq_exporter.port | quote }}
+            value: {{ tuple "prometheus_rabbitmq_exporter" "internal" "metrics" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
           - name: LOG_LEVEL
             value: {{ $envAll.Values.conf.prometheus_exporter.log_level | quote }}
           - name: SKIPVERIFY
