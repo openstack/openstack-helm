@@ -619,7 +619,8 @@ def get_nodes_with_highest_seqno():
         key = keyitems[0]
         node = keyitems[1]
         if key == 'seqno':
-            seqnos[node] = value
+            #Explicit casting to integer to have resulting list of integers for correct comparison
+            seqnos[node] = int(value)
     max_seqno = max(seqnos.values())
     max_seqno_nodes = sorted([k for k, v in list(seqnos.items()) if v == max_seqno])
     return max_seqno_nodes
