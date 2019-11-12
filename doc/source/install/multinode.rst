@@ -90,7 +90,11 @@ Alternatively, this step can be performed by running the script directly:
 Deploy the ingress controller
 -----------------------------
 
-.. literalinclude:: ../../../tools/deployment/multinode/020-ingress.sh
+.. code-block:: shell
+
+  export OSH_DEPLOY_MULTINODE=True
+
+.. literalinclude:: ../../../tools/deployment/component/common/ingress.sh
     :language: shell
     :lines: 1,17-
 
@@ -98,7 +102,7 @@ Alternatively, this step can be performed by running the script directly:
 
 .. code-block:: shell
 
-  ./tools/deployment/multinode/020-ingress.sh
+  OSH_DEPLOY_MULTINODE=True ./tools/deployment/component/common/ingress.sh
 
 
 Deploy Ceph

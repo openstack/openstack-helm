@@ -24,6 +24,7 @@ export HELM_CHART_ROOT_PATH="${HELM_CHART_ROOT_PATH:="${OSH_INFRA_PATH:="../open
 make -C ${HELM_CHART_ROOT_PATH} ingress
 
 #NOTE: Deploy command
+: ${OSH_EXTRA_HELM_ARGS:=""}
 tee /tmp/ingress-kube-system.yaml << EOF
 deployment:
   mode: cluster
@@ -31,10 +32,28 @@ deployment:
 network:
   host_namespace: true
 EOF
+
+touch /tmp/ingress-component.yaml
+
+if [ -n "${OSH_DEPLOY_MULTINODE}" ]; then
+  tee --append /tmp/ingress-kube-system.yaml << EOF
+pod:
+  replicas:
+    error_page: 2
+EOF
+
+  tee /tmp/ingress-component.yaml << EOF
+pod:
+  replicas:
+    ingress: 2
+    error_page: 2
+EOF
+fi
+
 helm upgrade --install ingress-kube-system ${HELM_CHART_ROOT_PATH}/ingress \
   --namespace=kube-system \
   --values=/tmp/ingress-kube-system.yaml \
-  ${OSH_EXTRA_HELM_ARGS:=} \
+  ${OSH_EXTRA_HELM_ARGS} \
   ${OSH_EXTRA_HELM_ARGS_INGRESS} \
   ${OSH_EXTRA_HELM_ARGS_INGRESS_KUBE_SYSTEM}
 
@@ -45,9 +64,10 @@ helm upgrade --install ingress-kube-system ${HELM_CHART_ROOT_PATH}/ingress \
 helm status ingress-kube-system
 
 #NOTE: Deploy namespace ingress
-helm upgrade --install ingress-openstack ${OSH_INFRA_PATH}/ingress \
+helm upgrade --install ingress-openstack ${HELM_CHART_ROOT_PATH}/ingress \
   --namespace=openstack \
-  ${OSH_EXTRA_HELM_ARGS:=} \
+  --values=/tmp/ingress-component.yaml \
+  ${OSH_EXTRA_HELM_ARGS} \
   ${OSH_EXTRA_HELM_ARGS_INGRESS} \
   ${OSH_EXTRA_HELM_ARGS_INGRESS_OPENSTACK}
 
@@ -56,3 +76,16 @@ helm upgrade --install ingress-openstack ${OSH_INFRA_PATH}/ingress \
 
 #NOTE: Display info
 helm status ingress-openstack
+
+helm upgrade --install ingress-ceph ${HELM_CHART_ROOT_PATH}/ingress \
+  --namespace=ceph \
+  --values=/tmp/ingress-component.yaml \
+  ${OSH_EXTRA_HELM_ARGS} \
+  ${OSH_EXTRA_HELM_ARGS_INGRESS} \
+  ${OSH_EXTRA_HELM_ARGS_INGRESS_CEPH}
+
+#NOTE: Wait for deploy
+./tools/deployment/common/wait-for-pods.sh ceph
+
+#NOTE: Display info
+helm status ingress-ceph
