@@ -3,7 +3,15 @@ conf:
     rules:
       nodes:
         groups:
-        - name: nodes.rules
+        - name: node.recording_rules
+          rules:
+          - record: node_filesystem_free_percent
+            expr: 100 * {fstype =~ "xfs|ext[34]"} / node_filesystem_size{fstype =~ "xfs|ext[34]"}
+          - record: node_ram_usage_percent
+            expr: 100 * (node_memory_MemFree + node_memory_Buffers + node_memory_Cached) / node_memory_MemTotal
+          - record: node_swap_usage_percent
+            expr: 100 * (node_memory_SwapFree + node_memory_SwapCached) / node_memory_SwapTotal
+        - name: nodes.alerting_rules
           rules:
           - alert: prom_exporter_node_unavailable
             expr: absent(node_uname_info)
@@ -14,14 +22,13 @@ conf:
               description: node exporter is not collecting metrics or is not available for past 10 minutes
               title: node exporter is not collecting metrics or is not available
           - alert: node_filesystem_full_80percent
-            expr: sort(node_filesystem_free{fstype =~ "xfs|ext[34]"} < node_filesystem_size{fstype =~ "xfs|ext[34]"}
-              * 0.2) / 1024 ^ 3
+            expr: avg_over_time(node_filesystem_free_percent[2m]) > 80
             for: 5m
             labels:
               severity: page
             annotations:
               description: '{{$labels.alias}} device {{$labels.device}} on {{$labels.mountpoint}}
-                got less than 10% space left on its filesystem.'
+                has less than 20% free space left.'
               summary: '{{$labels.alias}}: Filesystem is running out of space soon.'
           - alert: node_filesystem_full_in_4h
             expr: predict_linear(node_filesystem_free{fstype =~ "xfs|ext[34]"}[1h], 4 * 3600) <= 0
@@ -61,8 +68,7 @@ conf:
                 1h.'
               summary: '{{$labels.alias}}: High CPU utilization.'
           - alert: node_ram_using_90percent
-            expr: node_memory_MemFree + node_memory_Buffers + node_memory_Cached < node_memory_MemTotal
-              * 0.1
+            expr: avg_over_time(node_ram_usage_percent[2m]) > 90
             for: 30m
             labels:
               severity: page
@@ -71,8 +77,7 @@ conf:
                 30 minutes now.'
               summary: '{{$labels.alias}}: Using lots of RAM.'
           - alert: node_swap_using_80percent
-            expr: node_memory_SwapTotal - (node_memory_SwapFree + node_memory_SwapCached)
-              > node_memory_SwapTotal * 0.8
+            expr: avg_over_time(node_swap_usage_percent[2m]) > 80
             for: 10m
             labels:
               severity: page
@@ -89,8 +94,7 @@ conf:
               description: '{{$labels.alias}} is running with load15 > 1 for at least 5 minutes: {{$value}}'
               summary: '{{$labels.alias}}: Running on high load: {{$value}}'
           - alert: node_high_memory_load
-            expr: (sum(node_memory_MemTotal) - sum(node_memory_MemFree + node_memory_Buffers
-              + node_memory_Cached)) / sum(node_memory_MemTotal) * 100 > 85
+            expr: avg_over_time(node_ram_usage_percent[2m]) > 85
             for: 1m
             labels:
               severity: warning
@@ -99,8 +103,7 @@ conf:
                 instance {{ $labels.instance }} of job {{ $labels.job }}.
               summary: Server memory is almost full
           - alert: node_high_storage_load
-            expr: (node_filesystem_size{mountpoint="/"} - node_filesystem_free{mountpoint="/"})
-              / node_filesystem_size{mountpoint="/"} * 100 > 85
+            expr: avg_over_time(node_storage_usage_percent{mountpoint="/"}[2m]) > 85
             for: 30s
             labels:
               severity: warning
