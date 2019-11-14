@@ -29,7 +29,7 @@ monitoring:
     enabled: true
 pod:
   replicas:
-    data: 1
+    data: 2
     master: 2
 conf:
   elasticsearch:

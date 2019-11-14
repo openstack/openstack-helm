@@ -18,9 +18,13 @@ set -ex
 
 {{- range .Values.conf.create_kibana_indexes.indexes }}
 curl -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
-  -XPOST "${ELASTICSEARCH_ENDPOINT}/.kibana/index-pattern/{{ . }}-*" -H 'Content-Type: application/json' \
-  -d '{"title":"{{ . }}-*","timeFieldName":"@timestamp","notExpandable":true}'
-{{- end }}
+  -XPOST "${KIBANA_ENDPOINT}/api/saved_objects/index-pattern/{{ . }}*" -H 'kbn-xsrf: true' \
+  -H 'Content-Type: application/json' -d \
+  '{"attributes":{"title":"{{ . }}-*","timeFieldName":"@timestamp"}}'
+
+{{ end }}
+
 curl -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
-  -XPOST "${ELASTICSEARCH_ENDPOINT}/.kibana/config/5.6.4" -H 'Content-Type: application/json' \
-  -d '{"defaultIndex" : "{{ .Values.conf.create_kibana_indexes.default_index }}-*"}'
+  -XPOST "${KIBANA_ENDPOINT}/api/kibana/settings/defaultIndex" -H 'kbn-xsrf: true' \
+  -H 'Content-Type: application/json' -d \
+  '{"value" : "{{ .Values.conf.create_kibana_indexes.default_index }}*"}'

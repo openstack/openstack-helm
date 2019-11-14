@@ -15,14 +15,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-set -ex
+set -e
 COMMAND="${@:-start}"
 
 function start () {
-  exec kibana \
-    --elasticsearch.url="$ELASTICSEARCH_URL" \
-    --elasticsearch.username="$ELASTICSEARCH_USERNAME" \
-    --elasticsearch.password="$ELASTICSEARCH_PASSWORD"
+  exec /usr/share/kibana/bin/kibana \
+    --elasticsearch.hosts="${ELASTICSEARCH_HOSTS}" \
+    --elasticsearch.username="${ELASTICSEARCH_USERNAME}" \
+    --elasticsearch.password="${ELASTICSEARCH_PASSWORD}"
 }
 
 function stop () {
