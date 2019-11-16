@@ -40,6 +40,7 @@ function start () {
 }
 
 function stop () {
+  sleep 5
   kill -TERM 1
 }
 

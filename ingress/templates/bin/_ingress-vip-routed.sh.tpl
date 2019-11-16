@@ -35,6 +35,11 @@ function start () {
    ip addr add ${addr} dev ${interface}
   fi
   ip link set ${interface} up
+  garp_interface=$(ip route list match "${addr}" scope link | \
+                   awk '$2 == "dev" { print $3; exit }')
+  if [ -n "${garp_interface}" ]; then
+    arping -U -c 3 -I "${garp_interface}" "${addr%/*}" || true
+  fi
 }
 
 function sleep () {
