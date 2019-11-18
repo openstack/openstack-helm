@@ -77,8 +77,8 @@ try:
     browser.find_element_by_name('password').send_keys(password)
     browser.find_element_by_css_selector(
         'body > grafana-app > div.main-view > div > div:nth-child(1) > div > '
-        'div > div.login-inner-box > form > div.login-button-group > button'
-    ).click()
+        'div > div.login-outer-box > div.login-inner-box > form > div.login-button-group > button'
+        ).click()
     logger.info("Successfully logged in to Grafana")
 except NoSuchElementException:
     logger.error("Failed to log in to Grafana")

@@ -45,7 +45,7 @@ try:
     st.browser.find_element_by_name('password').send_keys(password)
     st.browser.find_element_by_css_selector(
         'body > grafana-app > div.main-view > div > div:nth-child(1) > div > '
-        'div > div.login-inner-box > form > div.login-button-group > button'
+        'div > div.login-outer-box > div.login-inner-box > form > div.login-button-group > button'
     ).click()
     st.logger.info("Successfully logged in to Grafana")
 except NoSuchElementException:
@@ -59,9 +59,9 @@ try:
     st.click_link_by_name('Nodes')
     el = WebDriverWait(st.browser, 15).until(
         EC.presence_of_element_located(
-            (By.XPATH, '/html/body/grafana-app/div[2]/div/div[1]/div/div/'
-            'div[1]/dashboard-grid/div/div[1]/div/plugin-component/'
-            'panel-plugin-graph/grafana-panel/div/div[2]')
+            (By.XPATH, '/html/body/grafana-app/div/div/div/react-container/div'
+            '/div[2]/div/div[1]/div/div/div[1]/div/div/div/plugin-component'
+            '/panel-plugin-graph/grafana-panel/div/div[2]')
         )
     )
     st.take_screenshot('Grafana Nodes')
@@ -76,9 +76,9 @@ try:
     st.click_link_by_name('Kubernetes Cluster Status')
     el = WebDriverWait(st.browser, 15).until(
         EC.presence_of_element_located(
-            (By.XPATH, '/html/body/grafana-app/div[2]/div/div[1]/div/'
-            'div/div[1]/dashboard-grid/div/div[5]/div/plugin-component/'
-            'panel-plugin-singlestat/grafana-panel/div')
+            (By.XPATH, '/html/body/grafana-app/div/div/div/react-container/div'
+            '/div[2]/div/div[1]/div/div/div[5]/div/div/div/plugin-component'
+            '/panel-plugin-singlestat/grafana-panel/div')
         )
     )
     st.take_screenshot('Grafana Cluster Status')
