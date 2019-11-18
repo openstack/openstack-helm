@@ -16,13 +16,24 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-source /tmp/osd-common.sh
+source /tmp/osd-common-ceph-disk.sh
 
 set -ex
 
 : "${OSD_SOFT_FORCE_ZAP:=1}"
+: "${OSD_JOURNAL_DISK:=}"
 
-export OSD_DEVICE=$(readlink -f ${STORAGE_LOCATION})
+if [ "x${STORAGE_TYPE%-*}" == "xdirectory" ]; then
+  export OSD_DEVICE="/var/lib/ceph/osd"
+else
+  export OSD_DEVICE=$(readlink -f ${STORAGE_LOCATION})
+fi
+
+if [ "x$JOURNAL_TYPE" == "xdirectory" ]; then
+  export OSD_JOURNAL="/var/lib/ceph/journal"
+else
+  export OSD_JOURNAL=$(readlink -f ${JOURNAL_LOCATION})
+fi
 
 if [[ -z "${OSD_DEVICE}" ]];then
   echo "ERROR- You must provide a device to build your OSD ie: /dev/sdb"
@@ -58,10 +69,55 @@ OSD_WEIGHT=0
 # NOTE(supamatt): add or move the OSD's CRUSH location
 crush_location
 
+if [ "${OSD_BLUESTORE:-0}" -ne 1 ]; then
+  if [ -n "${OSD_JOURNAL}" ]; then
+    if [ -b "${OSD_JOURNAL}" ]; then
+      OSD_JOURNAL_DISK="$(readlink -f ${OSD_PATH}/journal)"
+      if [ -z "${OSD_JOURNAL_DISK}" ]; then
+        echo "ERROR: Unable to find journal device ${OSD_JOURNAL_DISK}"
+        exit 1
+      else
+        OSD_JOURNAL="${OSD_JOURNAL_DISK}"
+        if [ -e "${OSD_PATH}/run_mkjournal" ]; then
+          ceph-osd -i ${OSD_ID} --mkjournal
+          rm -rf ${OSD_PATH}/run_mkjournal
+        fi
+      fi
+    fi
+    if [ "x${JOURNAL_TYPE}" == "xdirectory" ]; then
+      OSD_JOURNAL="${OSD_JOURNAL}/journal.${OSD_ID}"
+      touch ${OSD_JOURNAL}
+      wait_for_file "${OSD_JOURNAL}"
+    else
+      if [ ! -b "${OSD_JOURNAL}" ]; then
+        echo "ERROR: Unable to find journal device ${OSD_JOURNAL}"
+        exit 1
+      else
+        chown ceph. "${OSD_JOURNAL}"
+      fi
+    fi
+  else
+    wait_for_file "${OSD_JOURNAL}"
+    chown ceph. "${OSD_JOURNAL}"
+  fi
+fi
 
 # NOTE(supamatt): Just in case permissions do not align up, we recursively set them correctly.
 if [ $(stat -c%U ${OSD_PATH}) != ceph ]; then
   chown -R ceph. ${OSD_PATH};
+fi
+
+if [ "x${JOURNAL_TYPE}" == "xdirectory" ]; then
+  chown -R ceph. /var/lib/ceph/journal
+  ceph-osd \
+    --cluster ceph \
+    --osd-data ${OSD_PATH} \
+    --osd-journal ${OSD_JOURNAL} \
+    -f \
+    -i ${OSD_ID} \
+    --setuser ceph \
+    --setgroup disk \
+    --mkjournal
 fi
 
 exec /usr/bin/ceph-osd \

@@ -19,4 +19,4 @@ limitations under the License.
 set -ex
 
 echo "LAUNCHING OSD: in ${STORAGE_TYPE%-*}:${STORAGE_TYPE#*-} mode"
-exec "/tmp/osd-${STORAGE_TYPE%-*}.sh"
+exec "/tmp/osd-${STORAGE_TYPE%-*}-${DEPLOY_TOOL}.sh"

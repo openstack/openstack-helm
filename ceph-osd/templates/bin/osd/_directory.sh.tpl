@@ -19,7 +19,7 @@ limitations under the License.
 set -ex
 export LC_ALL=C
 
-source /tmp/osd-common.sh
+source /tmp/osd-common-ceph-disk.sh
 
 : "${JOURNAL_DIR:=/var/lib/ceph/journal}"
 
