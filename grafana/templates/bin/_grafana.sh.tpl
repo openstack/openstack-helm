@@ -19,7 +19,7 @@ set -ex
 COMMAND="${@:-start}"
 
 function start () {
-  exec /usr/sbin/grafana-server -homepath=/usr/share/grafana -config=/etc/grafana/grafana.ini
+  exec /usr/share/grafana/bin/grafana-server -homepath=/usr/share/grafana -config=/etc/grafana/grafana.ini
 }
 
 function stop () {
