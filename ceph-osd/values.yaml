@@ -42,6 +42,10 @@ labels:
     node_selector_key: ceph-osd
     node_selector_value: enabled
 
+#We could deploy ceph cluster now with either ceph-volume or ceph-disk however
+#ceph-disk is deprecated from Nautilus.
+#Keeping ceph-disk as default since gate scripts are still directory backed
+#osds, need to change this after moving the gates to disk backed osd.
 deploy:
   tool: "ceph-disk"
 
@@ -209,12 +213,22 @@ conf:
           location: /var/lib/openstack-helm/ceph/osd/journal-one
 
       # - data:
-      #    type: bluestore
-      #    location: /dev/sdb
+      #     type: bluestore
+      #     location: /dev/sdb
       # Separate block devices may be used for block.db and/or block.wal
       # Without these values they will be co-located on the data volume
-      #  block_db: /dev/sdc
-      #  block_wal: /dev/sdc
+      # Specify the location and size in Gb. It is recommended that the
+      # block_db size isn’t smaller than 4% of block. For example, if the
+      # block size is 1TB, then block_db shouldn’t be less than 40GB.
+      # A size suffix of K for kilobytes, M for megabytes, G for gigabytes,
+      # T for terabytes, P for petabytes or E for exabytes is optional.
+      # Default unit is megabytes.
+      #   block_db:
+      #     location: /dev/sdc
+      #     size: "96GB"
+      #   block_wal:
+      #     location: /dev/sdc
+      #     size: "2GB"
 
       # - data:
       #     type: block-logical
