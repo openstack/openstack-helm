@@ -30,8 +30,8 @@ eval CRUSH_FAILURE_DOMAIN_TYPE=$(cat /etc/ceph/storage.json | python -c 'import 
 eval CRUSH_FAILURE_DOMAIN_NAME=$(cat /etc/ceph/storage.json | python -c 'import sys, json; data = json.load(sys.stdin); print(json.dumps(data["failure_domain_name"]))')
 eval CRUSH_FAILURE_DOMAIN_BY_HOSTNAME=$(cat /etc/ceph/storage.json | python -c 'import sys, json; data = json.load(sys.stdin); print(json.dumps(data["failure_domain_by_hostname"]))')
 
-if [[ $(ceph -v | egrep -q "mimic|luminous"; echo $?) -ne 0 ]]; then
-    echo "ERROR- need Luminous/Mimic release"
+if [[ $(ceph -v | egrep -q "nautilus|mimic|luminous"; echo $?) -ne 0 ]]; then
+    echo "ERROR- need Luminous/Mimic/Nautilus release"
     exit 1
 fi
 

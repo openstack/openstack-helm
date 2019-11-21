@@ -35,10 +35,17 @@ function wait_for_inactive_pgs () {
   echo "#### Start: Checking for inactive pgs ####"
 
   # Loop until all pgs are active
-  while [[ `ceph --cluster ${CLUSTER} pg ls | tail -n +2 | grep -v "active+"` ]]
-  do
-    sleep 3
-  done
+  if [[ $(ceph -v | egrep -q "nautilus"; echo $?) -eq 0 ]]; then
+    while [[ `ceph --cluster ${CLUSTER} pg ls | tail -n +2 | head -n -2 | grep -v "active+"` ]]
+    do
+      sleep 3
+    done
+  else
+    while [[ `ceph --cluster ${CLUSTER} pg ls | tail -n +2 | grep -v "active+"` ]]
+    do
+      sleep 3
+    done
+  fi
 }
 
 function create_crushrule () {
@@ -50,6 +57,11 @@ function create_crushrule () {
     ceph --cluster "${CLUSTER}" osd crush rule $CRUSH_RULE $CRUSH_NAME default $CRUSH_FAILURE_DOMAIN $CRUSH_DEVICE_CLASS || true
   fi
 }
+
+# Set mons to use the msgr2 protocol on nautilus
+if [[ $(ceph -v | egrep -q "nautilus"; echo $?) -eq 0 ]]; then
+  ceph --cluster "${CLUSTER}" mon enable-msgr2
+fi
 
 {{- range $crush_rule := .Values.conf.pool.crush_rules -}}
 {{- with $crush_rule }}
@@ -147,7 +159,12 @@ reweight_osds
 {{ $crushRuleDefault := .Values.conf.pool.default.crush_rule }}
 {{ $targetQuota := .Values.conf.pool.target.quota | default 100 }}
 {{ $targetProtection := .Values.conf.pool.target.protected | default "false" | quote | lower }}
-cluster_capacity=$(ceph --cluster "${CLUSTER}" df | head -n3 | tail -n1 | awk '{print $1 substr($2, 1, 1)}' | numfmt --from=iec)
+cluster_capacity=0
+if [[ $(ceph -v | egrep -q "nautilus"; echo $?) -eq 0 ]]; then
+  cluster_capacity=$(ceph --cluster "${CLUSTER}" df | grep "TOTAL" | awk '{print $2 substr($3, 1, 1)}' | numfmt --from=iec)
+else
+  cluster_capacity=$(ceph --cluster "${CLUSTER}" df | head -n3 | tail -n1 | awk '{print $1 substr($2, 1, 1)}' | numfmt --from=iec)
+fi
 {{- range $pool := .Values.conf.pool.spec -}}
 {{- with $pool }}
 {{- if .crush_rule }}

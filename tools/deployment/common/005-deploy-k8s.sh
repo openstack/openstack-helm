@@ -65,7 +65,7 @@ sudo sed -i '/^::1/c\::1 localhost6 localhost6.localdomain6' /etc/hosts
 # Install required packages for K8s on host
 wget -q -O- 'https://download.ceph.com/keys/release.asc' | sudo apt-key add -
 RELEASE_NAME=$(grep 'CODENAME' /etc/lsb-release | awk -F= '{print $2}')
-sudo add-apt-repository "deb https://download.ceph.com/debian-mimic/
+sudo add-apt-repository "deb https://download.ceph.com/debian-nautilus/
 ${RELEASE_NAME} main"
 sudo -E apt-get update
 sudo -E apt-get install -y \
