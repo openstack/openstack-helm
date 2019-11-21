@@ -38,6 +38,26 @@
     executable: /bin/bash
   ignore_errors: True
 
+- name: "Get ceph metrics from ceph-mgr"
+  shell: |-
+          set -e
+          mgr_endpoints=$(kubectl get endpoints -n ceph -l component=manager -o json | jq -r '.items[].subsets[].addresses[].ip')
+          echo "ceph-mgr endpoints: $mgr_endpoints"
+          for endpoint in $mgr_endpoints; do
+            echo "checking ceph-mgr at $endpoint"
+            metrics_curl="curl $endpoint:9283/metrics"
+            op=$(eval "$metrics_curl")
+            if [[ -n $op ]]; then
+              curl $endpoint:9283/metrics >> "{{ logs_dir }}"/prometheus/ceph-ceph-mgr.txt
+              break
+            else
+              echo "$endpoint is a standby ceph-mgr. Trying next endpoint"
+            fi
+          done
+  args:
+    executable: /bin/bash
+  ignore_errors: True
+
 - name: "Downloads logs to executor"
   synchronize:
     src: "{{ logs_dir }}/prometheus"
