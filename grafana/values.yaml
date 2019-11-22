@@ -366,7 +366,6 @@ secrets:
 
 manifests:
   configmap_bin: true
-  configmap_dashboards: true
   configmap_etc: true
   deployment: true
   ingress: true
@@ -432,16 +431,19 @@ conf:
         options:
           path: /etc/grafana/dashboards
     datasources:
-      #NOTE(srwilkers): The top key for each datasource (eg: monitoring) must
-      # map to the key name for the datasource's endpoint entry in the endpoints
-      # tree
-      monitoring:
-        name: prometheus
-        type: prometheus
-        access: proxy
-        orgId: 1
-        editable: true
-        basicAuth: true
+      template: |
+        apiVersion: 1
+        datasources:
+        - name: prometheus
+          type: prometheus
+          access: proxy
+          orgId: 1
+          editable: true
+          basicAuth: true
+          basicAuthUser: {{ .Values.endpoints.monitoring.auth.user.username }}
+          secureJsonData:
+            basicAuthPassword: {{ .Values.endpoints.monitoring.auth.user.password }}
+          url: {{ tuple "monitoring" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" }}
   grafana:
     analytics:
       reporting_enabled: false
@@ -483,7 +485,7 @@ conf:
   dashboards:
     prometheus:
       __inputs:
-      - name: prometheus
+      - name: DS_PROMETHEUS
         label: Prometheus
         description: Prometheus which you want to monitor
         type: datasource
@@ -519,7 +521,7 @@ conf:
           iconColor: rgba(0, 211, 255, 1)
           name: Annotations & Alerts
           type: dashboard
-        - datasource: "$datasource"
+        - datasource: "${DS_PROMETHEUS}"
           enable: true
           expr: count(sum(up{instance="$instance"}) by (instance) < 1)
           hide: false
@@ -532,7 +534,7 @@ conf:
           textFormat: prometheus down
           titleFormat: Downage
           type: alert
-        - datasource: "$datasource"
+        - datasource: "${DS_PROMETHEUS}"
           enable: true
           expr: sum(changes(prometheus_config_last_reload_success_timestamp_seconds[10m]))
             by (instance)
@@ -579,7 +581,7 @@ conf:
           - "#299c46"
           - rgba(237, 129, 40, 0.89)
           - "#bf1b00"
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           decimals: 1
           format: s
           gauge:
@@ -637,7 +639,7 @@ conf:
           - "#299c46"
           - rgba(237, 129, 40, 0.89)
           - "#bf1b00"
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           format: short
           gauge:
             maxValue: 1000000
@@ -694,7 +696,7 @@ conf:
           - "#299c46"
           - rgba(237, 129, 40, 0.89)
           - "#d44a3a"
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           format: none
           gauge:
             maxValue: 100
@@ -751,7 +753,7 @@ conf:
           - "#299c46"
           - rgba(237, 129, 40, 0.89)
           - "#d44a3a"
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           decimals: 2
           format: ms
           gauge:
@@ -818,7 +820,7 @@ conf:
           - "#e6522c"
           - rgba(237, 129, 40, 0.89)
           - "#299c46"
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           decimals: 1
           format: none
           gauge:
@@ -882,7 +884,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: "$datasource"
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 1
@@ -954,7 +956,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: "$datasource"
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 1
@@ -1032,7 +1034,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: "$datasource"
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 1
@@ -1191,7 +1193,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: "$datasource"
+          datasource: "${DS_PROMETHEUS}"
           description: ''
           editable: true
           error: false
@@ -1267,7 +1269,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: "$datasource"
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 1
@@ -1350,7 +1352,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: "$datasource"
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 1
@@ -1422,7 +1424,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: "$datasource"
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 1
@@ -1495,7 +1497,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: "$datasource"
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 1
@@ -1570,7 +1572,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: "$datasource"
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 1
@@ -1663,7 +1665,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: "$datasource"
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 1
@@ -1744,7 +1746,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: "$datasource"
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 1
@@ -1816,7 +1818,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: "$datasource"
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 1
@@ -1903,7 +1905,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           fill: 1
           id: 45
           legend:
@@ -1970,7 +1972,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: "$datasource"
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 1
@@ -2057,7 +2059,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           fill: 1
           id: 36
           legend:
@@ -2124,7 +2126,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: "$datasource"
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 1
@@ -2195,7 +2197,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: "$datasource"
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 1
@@ -2262,7 +2264,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: "$datasource"
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 1
@@ -2344,7 +2346,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: "$datasource"
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 1
@@ -2414,7 +2416,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           fill: 1
           id: 35
           legend:
@@ -2481,7 +2483,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: "$datasource"
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 1
@@ -2562,7 +2564,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           fill: 1
           id: 33
           legend:
@@ -2626,7 +2628,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           fill: 1
           id: 34
           legend:
@@ -2689,7 +2691,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           fill: 1
           id: 37
           legend:
@@ -2752,7 +2754,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           fill: 1
           id: 38
           legend:
@@ -2834,7 +2836,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: "$datasource"
+          datasource: "${DS_PROMETHEUS}"
           decimals:
           editable: true
           error: false
@@ -2927,7 +2929,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: "$datasource"
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 1
@@ -2994,7 +2996,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: "$datasource"
+          datasource: "${DS_PROMETHEUS}"
           decimals: 2
           editable: true
           error: false
@@ -3080,7 +3082,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: "$datasource"
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 1
@@ -3206,7 +3208,7 @@ conf:
           type: interval
         - allValue:
           current: {}
-          datasource: "$datasource"
+          datasource: "${DS_PROMETHEUS}"
           hide: 0
           includeAll: false
           label: Instance
@@ -3227,7 +3229,7 @@ conf:
             value: Prometheus
           hide: 0
           label: Prometheus datasource
-          name: datasource
+          name: DS_PROMETHEUS
           options: []
           query: prometheus
           refresh: 1
@@ -3274,7 +3276,7 @@ conf:
       version: 8
     ceph_cluster:
       __inputs:
-      - name: prometheus
+      - name: DS_PROMETHEUS
         label: Prometheus
         description: Prometheus.IO
         type: datasource
@@ -3319,7 +3321,7 @@ conf:
           - rgba(50, 172, 45, 0.97)
           - rgba(237, 129, 40, 0.89)
           - rgba(245, 54, 54, 0.9)
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           format: none
@@ -3388,7 +3390,7 @@ conf:
           - rgba(245, 54, 54, 0.9)
           - rgba(237, 129, 40, 0.89)
           - rgba(50, 172, 45, 0.97)
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           format: none
@@ -3449,7 +3451,7 @@ conf:
           - rgba(50, 172, 45, 0.97)
           - rgba(237, 129, 40, 0.89)
           - rgba(245, 54, 54, 0.9)
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           format: bytes
@@ -3510,7 +3512,7 @@ conf:
           - rgba(50, 172, 45, 0.97)
           - rgba(237, 129, 40, 0.89)
           - rgba(245, 54, 54, 0.9)
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           format: bytes
@@ -3571,7 +3573,7 @@ conf:
           - rgba(50, 172, 45, 0.97)
           - rgba(237, 129, 40, 0.89)
           - rgba(245, 54, 54, 0.9)
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           format: percentunit
@@ -3637,7 +3639,7 @@ conf:
           - rgba(245, 54, 54, 0.9)
           - rgba(237, 129, 40, 0.89)
           - rgba(50, 172, 45, 0.97)
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           format: none
@@ -3697,7 +3699,7 @@ conf:
           - rgba(50, 172, 45, 0.97)
           - rgba(237, 40, 40, 0.89)
           - rgba(245, 54, 54, 0.9)
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           format: none
@@ -3757,7 +3759,7 @@ conf:
           - rgba(245, 54, 54, 0.9)
           - rgba(237, 129, 40, 0.89)
           - rgba(50, 172, 45, 0.97)
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           format: none
@@ -3817,7 +3819,7 @@ conf:
           - rgba(50, 172, 45, 0.97)
           - rgba(237, 40, 40, 0.89)
           - rgba(245, 54, 54, 0.9)
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           format: none
@@ -3877,7 +3879,7 @@ conf:
           - rgba(50, 172, 45, 0.97)
           - rgba(237, 129, 40, 0.89)
           - rgba(245, 54, 54, 0.9)
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           format: none
@@ -3943,7 +3945,7 @@ conf:
             total_space: "#7EB26D"
             total_used: "#890F02"
           bars: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 4
@@ -4032,7 +4034,7 @@ conf:
             total_space: "#7EB26D"
             total_used: "#890F02"
           bars: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           decimals: 0
           editable: true
           error: false
@@ -4108,7 +4110,7 @@ conf:
             show: true
         - aliasColors: {}
           bars: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 1
@@ -4188,7 +4190,7 @@ conf:
         panels:
         - aliasColors: {}
           bars: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 1
@@ -4256,7 +4258,7 @@ conf:
             show: true
         - aliasColors: {}
           bars: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 1
@@ -4354,7 +4356,7 @@ conf:
             show: true
         - aliasColors: {}
           bars: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 1
@@ -4460,6 +4462,17 @@ conf:
         - 30d
       templating:
         list:
+        - current:
+            text: Prometheus
+            value: Prometheus
+          hide: 0
+          label: Prometheus datasource
+          name: DS_PROMETHEUS
+          options: []
+          query: prometheus
+          refresh: 1
+          regex: ''
+          type: datasource
         - current: {}
           hide: 0
           label: Cluster
@@ -4469,7 +4482,7 @@ conf:
           query: label_values(ceph_health_status, release_group)
           refresh: 1
           sort: 2
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
         - auto: true
           auto_count: 10
           auto_min: 1m
@@ -4530,7 +4543,7 @@ conf:
       description: "Ceph Cluster overview.\r\n"
     ceph_osd:
       __inputs:
-      - name: prometheus
+      - name: DS_PROMETHEUS
         label: Prometheus
         description: Prometheus.IO
         type: datasource
@@ -4575,7 +4588,7 @@ conf:
           - rgba(245, 54, 54, 0.9)
           - rgba(237, 40, 40, 0.89)
           - rgba(50, 172, 45, 0.97)
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           format: none
@@ -4648,7 +4661,7 @@ conf:
           - rgba(245, 54, 54, 0.9)
           - rgba(237, 40, 40, 0.89)
           - rgba(50, 172, 45, 0.97)
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           format: none
@@ -4721,7 +4734,7 @@ conf:
           - rgba(245, 54, 54, 0.9)
           - rgba(237, 129, 40, 0.89)
           - rgba(50, 172, 45, 0.97)
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           format: none
@@ -4788,7 +4801,7 @@ conf:
         panels:
         - aliasColors: {}
           bars: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           decimals: 2
           editable: true
           error: false
@@ -4870,7 +4883,7 @@ conf:
           - rgba(50, 172, 45, 0.97)
           - rgba(237, 129, 40, 0.89)
           - rgba(245, 54, 54, 0.9)
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           format: percent
@@ -4933,7 +4946,7 @@ conf:
         panels:
         - aliasColors: {}
           bars: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           decimals: 2
           editable: true
           error: false
@@ -5009,7 +5022,7 @@ conf:
             show: true
         - aliasColors: {}
           bars: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           decimals: 5
           editable: true
           error: false
@@ -5102,6 +5115,17 @@ conf:
         - 30d
       templating:
         list:
+        - current:
+            text: Prometheus
+            value: Prometheus
+          hide: 0
+          label: Prometheus datasource
+          name: DS_PROMETHEUS
+          options: []
+          query: prometheus
+          refresh: 1
+          regex: ''
+          type: datasource
         - current: {}
           hide: 0
           label: Cluster
@@ -5111,7 +5135,7 @@ conf:
           query: label_values(ceph_health_status, release_group)
           refresh: 1
           sort: 2
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
         - auto: true
           auto_count: 10
           auto_min: 1m
@@ -5163,7 +5187,7 @@ conf:
           refresh: 0
           type: interval
         - current: {}
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           hide: 0
           includeAll: false
           label: OSD
@@ -5184,7 +5208,7 @@ conf:
       description: CEPH OSD Status.
     ceph_pool:
       __inputs:
-      - name: prometheus
+      - name: DS_PROMETHEUS
         label: Prometheus
         description: Prometheus.IO
         type: datasource
@@ -5224,7 +5248,7 @@ conf:
         panels:
         - aliasColors: {}
           bars: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           decimals: 2
           editable: true
           error: false
@@ -5324,7 +5348,7 @@ conf:
           - rgba(245, 54, 54, 0.9)
           - rgba(237, 129, 40, 0.89)
           - rgba(50, 172, 45, 0.97)
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           decimals: 2
           editable: true
           error: false
@@ -5385,7 +5409,7 @@ conf:
         panels:
         - aliasColors: {}
           bars: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 1
@@ -5456,7 +5480,7 @@ conf:
             show: true
         - aliasColors: {}
           bars: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           decimals: 2
           editable: true
           error: false
@@ -5530,7 +5554,7 @@ conf:
             show: false
         - aliasColors: {}
           bars: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           decimals: 2
           editable: true
           error: false
@@ -5629,6 +5653,17 @@ conf:
         - 30d
       templating:
         list:
+        - current:
+            text: Prometheus
+            value: Prometheus
+          hide: 0
+          label: Prometheus datasource
+          name: DS_PROMETHEUS
+          options: []
+          query: prometheus
+          refresh: 1
+          regex: ''
+          type: datasource
         - current: {}
           hide: 0
           label: Cluster
@@ -5638,7 +5673,7 @@ conf:
           query: label_values(ceph_health_status, release_group)
           refresh: 1
           sort: 2
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
         - auto: true
           auto_count: 10
           auto_min: 1m
@@ -5690,7 +5725,7 @@ conf:
           refresh: 0
           type: interval
         - current: {}
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           hide: 0
           includeAll: false
           label: Pool
@@ -5702,7 +5737,7 @@ conf:
           regex: ''
           type: query
         - current: {}
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           hide: 0
           includeAll: false
           label: Pool
@@ -5723,7 +5758,7 @@ conf:
       description: Ceph Pools dashboard.
     elasticsearch:
       __inputs:
-      - name: prometheus
+      - name: DS_PROMETHEUS
         label: Prometheus
         description: ''
         type: datasource
@@ -5773,7 +5808,7 @@ conf:
           - rgba(245, 54, 54, 0.9)
           - rgba(178, 49, 13, 0.89)
           - rgba(50, 172, 45, 0.97)
-          datasource: "prometheus"
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           format: none
@@ -5842,7 +5877,7 @@ conf:
           - rgba(245, 54, 54, 0.9)
           - rgba(237, 129, 40, 0.89)
           - rgba(50, 172, 45, 0.97)
-          datasource: "prometheus"
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           format: none
@@ -5906,7 +5941,7 @@ conf:
           - rgba(245, 54, 54, 0.9)
           - rgba(237, 129, 40, 0.89)
           - rgba(50, 172, 45, 0.97)
-          datasource: "prometheus"
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           format: none
@@ -5970,7 +6005,7 @@ conf:
           - rgba(245, 54, 54, 0.9)
           - rgba(237, 129, 40, 0.89)
           - rgba(50, 172, 45, 0.97)
-          datasource: "prometheus"
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           format: none
@@ -6044,7 +6079,7 @@ conf:
           - rgba(245, 54, 54, 0.9)
           - rgba(237, 129, 40, 0.89)
           - rgba(50, 172, 45, 0.97)
-          datasource: "prometheus"
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           format: none
@@ -6106,7 +6141,7 @@ conf:
           - rgba(245, 54, 54, 0.9)
           - rgba(237, 129, 40, 0.89)
           - rgba(50, 172, 45, 0.97)
-          datasource: "prometheus"
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           format: none
@@ -6167,7 +6202,7 @@ conf:
           - rgba(245, 54, 54, 0.9)
           - rgba(237, 129, 40, 0.89)
           - rgba(50, 172, 45, 0.97)
-          datasource: "prometheus"
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           format: none
@@ -6228,7 +6263,7 @@ conf:
           - rgba(245, 54, 54, 0.9)
           - rgba(237, 129, 40, 0.89)
           - rgba(50, 172, 45, 0.97)
-          datasource: "prometheus"
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           format: none
@@ -6289,7 +6324,7 @@ conf:
           - rgba(245, 54, 54, 0.9)
           - rgba(237, 129, 40, 0.89)
           - rgba(50, 172, 45, 0.97)
-          datasource: "prometheus"
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           format: none
@@ -6356,7 +6391,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: "prometheus"
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 1
@@ -6441,7 +6476,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: "prometheus"
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 0
@@ -6529,7 +6564,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: "prometheus"
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 1
@@ -6614,7 +6649,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: "prometheus"
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 1
@@ -6706,7 +6741,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: "prometheus"
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 1
@@ -6781,7 +6816,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: "prometheus"
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 1
@@ -6856,7 +6891,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: "prometheus"
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 1
@@ -6931,7 +6966,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: "prometheus"
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 1
@@ -7015,7 +7050,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: "prometheus"
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 1
@@ -7122,7 +7157,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: "prometheus"
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 1
@@ -7238,7 +7273,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: "prometheus"
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 1
@@ -7313,7 +7348,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: "prometheus"
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 1
@@ -7388,7 +7423,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: "prometheus"
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 1
@@ -7472,7 +7507,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: "prometheus"
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 1
@@ -7547,7 +7582,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: "prometheus"
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 1
@@ -7622,7 +7657,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: "prometheus"
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 1
@@ -7697,7 +7732,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: "prometheus"
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 1
@@ -7781,7 +7816,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: "prometheus"
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 1
@@ -7850,7 +7885,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: "prometheus"
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 1
@@ -7919,7 +7954,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: "prometheus"
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 1
@@ -7989,7 +8024,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: "prometheus"
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 1
@@ -8067,7 +8102,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: "prometheus"
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 1
@@ -8142,7 +8177,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: "prometheus"
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 1
@@ -8272,9 +8307,20 @@ conf:
           query: 1m,10m,30m,1h,6h,12h,1d,7d,14d,30d
           refresh: 2
           type: interval
+        - current:
+            text: Prometheus
+            value: Prometheus
+          hide: 0
+          label: Prometheus datasource
+          name: DS_PROMETHEUS
+          options: []
+          query: prometheus
+          refresh: 1
+          regex: ''
+          type: datasource
         - allValue:
           current: {}
-          datasource: "prometheus"
+          datasource: "${DS_PROMETHEUS}"
           hide: 0
           includeAll: false
           label: Instance
@@ -8292,7 +8338,7 @@ conf:
           useTags: false
         - allValue:
           current: {}
-          datasource: "prometheus"
+          datasource: "${DS_PROMETHEUS}"
           hide: 0
           includeAll: true
           label: node
@@ -8339,7 +8385,7 @@ conf:
       description: Elasticsearch detailed dashboard
     hosts_containers:
       __inputs:
-      - name: prometheus
+      - name: DS_PROMETHEUS
         label: Prometheus
         description: ''
         type: datasource
@@ -8381,7 +8427,7 @@ conf:
         panels:
         - aliasColors: {}
           bars: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           decimals: 2
           editable: true
           error: false
@@ -8472,7 +8518,7 @@ conf:
           - rgba(50, 172, 45, 0.97)
           - rgba(237, 129, 40, 0.89)
           - rgba(245, 54, 54, 0.9)
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           format: percent
@@ -8534,7 +8580,7 @@ conf:
           - rgba(50, 172, 45, 0.97)
           - rgba(237, 129, 40, 0.89)
           - rgba(245, 54, 54, 0.9)
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           decimals: 2
           editable: true
           error: false
@@ -8596,7 +8642,7 @@ conf:
           - rgba(50, 172, 45, 0.97)
           - rgba(237, 129, 40, 0.89)
           - rgba(245, 54, 54, 0.9)
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           decimals: 2
           editable: true
           error: false
@@ -8661,7 +8707,7 @@ conf:
           - rgba(50, 172, 45, 0.97)
           - rgba(237, 129, 40, 0.89)
           - rgba(245, 54, 54, 0.9)
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           decimals: 2
           editable: true
           error: false
@@ -8722,7 +8768,7 @@ conf:
           - rgba(50, 172, 45, 0.97)
           - rgba(237, 129, 40, 0.89)
           - rgba(245, 54, 54, 0.9)
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           decimals: 2
           editable: true
           error: false
@@ -8783,7 +8829,7 @@ conf:
           - rgba(50, 172, 45, 0.97)
           - rgba(237, 129, 40, 0.89)
           - rgba(245, 54, 54, 0.9)
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           decimals: 2
           editable: true
           error: false
@@ -8844,7 +8890,7 @@ conf:
           - rgba(50, 172, 45, 0.97)
           - rgba(237, 129, 40, 0.89)
           - rgba(245, 54, 54, 0.9)
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           decimals: 2
           editable: true
           error: false
@@ -8905,7 +8951,7 @@ conf:
           - rgba(50, 172, 45, 0.97)
           - rgba(237, 129, 40, 0.89)
           - rgba(245, 54, 54, 0.9)
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           decimals: 2
           editable: true
           error: false
@@ -8966,7 +9012,7 @@ conf:
           - rgba(50, 172, 45, 0.97)
           - rgba(237, 129, 40, 0.89)
           - rgba(245, 54, 54, 0.9)
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           decimals: 2
           editable: true
           error: false
@@ -9028,7 +9074,7 @@ conf:
         panels:
         - aliasColors: {}
           bars: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           decimals: 3
           editable: true
           error: false
@@ -9107,7 +9153,7 @@ conf:
         panels:
         - aliasColors: {}
           bars: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           decimals: 3
           editable: true
           error: false
@@ -9185,7 +9231,7 @@ conf:
         panels:
         - aliasColors: {}
           bars: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           decimals: 3
           editable: true
           error: false
@@ -9283,7 +9329,7 @@ conf:
         panels:
         - aliasColors: {}
           bars: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           decimals: 3
           editable: true
           error: false
@@ -9362,7 +9408,7 @@ conf:
         panels:
         - aliasColors: {}
           bars: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           decimals: 2
           editable: true
           error: false
@@ -9439,7 +9485,7 @@ conf:
         panels:
         - aliasColors: {}
           bars: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           decimals: 2
           editable: true
           error: false
@@ -9516,7 +9562,7 @@ conf:
         panels:
         - aliasColors: {}
           bars: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           decimals: 2
           editable: true
           error: false
@@ -9609,7 +9655,7 @@ conf:
         panels:
         - aliasColors: {}
           bars: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           decimals: 2
           editable: true
           error: false
@@ -9686,7 +9732,7 @@ conf:
         panels:
         - aliasColors: {}
           bars: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           decimals: 2
           editable: true
           error: false
@@ -9771,7 +9817,7 @@ conf:
         panels:
         - aliasColors: {}
           bars: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           decimals: 2
           editable: true
           error: false
@@ -9898,7 +9944,7 @@ conf:
         panels:
         - aliasColors: {}
           bars: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           decimals: 2
           editable: true
           error: false
@@ -10004,9 +10050,20 @@ conf:
         - 30d
       templating:
         list:
+        - current:
+            text: Prometheus
+            value: Prometheus
+          hide: 0
+          label: Prometheus datasource
+          name: DS_PROMETHEUS
+          options: []
+          query: prometheus
+          refresh: 1
+          regex: ''
+          type: datasource
         - allValue: ".*"
           current: {}
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           hide: 0
           includeAll: true
           multi: false
@@ -10024,7 +10081,7 @@ conf:
       gnetId: 315
     rabbitmq:
       __inputs:
-      - name: prometheus
+      - name: DS_PROMETHEUS
         label: Prometheus
         description: ''
         type: datasource
@@ -10067,7 +10124,7 @@ conf:
           - rgba(50, 172, 45, 0.97)
           - rgba(237, 129, 40, 0.89)
           - rgba(245, 54, 54, 0.9)
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           format: none
           gauge:
             maxValue: 100
@@ -10163,7 +10220,7 @@ conf:
             notifications: []
           aliasColors: {}
           bars: true
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           decimals: 0
           fill: 1
           id: 12
@@ -10229,7 +10286,7 @@ conf:
             show: true
         - aliasColors: {}
           bars: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           decimals: 0
           fill: 1
           id: 6
@@ -10290,7 +10347,7 @@ conf:
             show: true
         - aliasColors: {}
           bars: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           decimals: 0
           fill: 1
           id: 4
@@ -10351,7 +10408,7 @@ conf:
             show: true
         - aliasColors: {}
           bars: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           decimals: 0
           fill: 1
           id: 3
@@ -10412,7 +10469,7 @@ conf:
             show: true
         - aliasColors: {}
           bars: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           decimals: 0
           fill: 1
           id: 5
@@ -10472,7 +10529,7 @@ conf:
             show: true
         - aliasColors: {}
           bars: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           fill: 1
           id: 7
           legend:
@@ -10532,7 +10589,7 @@ conf:
             show: true
         - aliasColors: {}
           bars: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           decimals: 0
           fill: 1
           id: 8
@@ -10611,7 +10668,7 @@ conf:
             show: true
         - aliasColors: {}
           bars: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           decimals: 0
           fill: 1
           id: 2
@@ -10673,7 +10730,7 @@ conf:
             show: true
         - aliasColors: {}
           bars: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           fill: 1
           id: 9
           legend:
@@ -10739,7 +10796,7 @@ conf:
             show: true
         - aliasColors: {}
           bars: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           fill: 1
           id: 10
           legend:
@@ -10805,7 +10862,7 @@ conf:
             show: true
         - aliasColors: {}
           bars: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           fill: 1
           id: 11
           legend:
@@ -10882,12 +10939,11 @@ conf:
       templating:
         list:
         - current:
-            tags: []
             text: Prometheus
             value: Prometheus
           hide: 0
-          label:
-          name: datasource
+          label: Prometheus datasource
+          name: DS_PROMETHEUS
           options: []
           query: prometheus
           refresh: 1
@@ -10902,7 +10958,7 @@ conf:
           query: label_values(rabbitmq_up, release_group)
           refresh: 1
           sort: 1
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
       time:
         from: now-5m
         to: now
@@ -10935,7 +10991,7 @@ conf:
         Queues, Messages, Messages per Queue, Memory, File Descriptors, Sockets.'
     kubernetes_capacity_planning:
       __inputs:
-      - name: prometheus
+      - name: DS_PROMETHEUS
         label: prometheus
         description: ''
         type: datasource
@@ -10977,7 +11033,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 1
@@ -11045,7 +11101,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 1
@@ -11134,7 +11190,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 1
@@ -11232,7 +11288,7 @@ conf:
           - rgba(50, 172, 45, 0.97)
           - rgba(237, 129, 40, 0.89)
           - rgba(245, 54, 54, 0.9)
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           format: percent
@@ -11300,7 +11356,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 1
@@ -11387,7 +11443,7 @@ conf:
           - rgba(50, 172, 45, 0.97)
           - rgba(237, 129, 40, 0.89)
           - rgba(245, 54, 54, 0.9)
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           format: percentunit
@@ -11454,7 +11510,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 1
@@ -11525,7 +11581,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 1
@@ -11604,7 +11660,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           fill: 1
           id: 11
           legend:
@@ -11676,7 +11732,7 @@ conf:
           - rgba(50, 172, 45, 0.97)
           - rgba(237, 129, 40, 0.89)
           - rgba(245, 54, 54, 0.9)
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           format: percent
@@ -11741,7 +11797,18 @@ conf:
       style: dark
       tags: []
       templating:
-        list: []
+        list:
+        - current:
+            text: Prometheus
+            value: Prometheus
+          hide: 0
+          label: Prometheus datasource
+          name: DS_PROMETHEUS
+          options: []
+          query: prometheus
+          refresh: 1
+          regex: ''
+          type: datasource
       time:
         from: now-1h
         to: now
@@ -11816,7 +11883,7 @@ conf:
           - rgba(50, 172, 45, 0.97)
           - rgba(237, 129, 40, 0.89)
           - rgba(245, 54, 54, 0.9)
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           format: none
           gauge:
             maxValue: 100
@@ -11874,7 +11941,7 @@ conf:
           - rgba(50, 172, 45, 0.97)
           - rgba(237, 129, 40, 0.89)
           - rgba(245, 54, 54, 0.9)
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           format: none
           gauge:
             maxValue: 100
@@ -11941,7 +12008,7 @@ conf:
           - rgba(245, 54, 54, 0.9)
           - rgba(237, 129, 40, 0.89)
           - rgba(50, 172, 45, 0.97)
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           decimals:
           format: percent
           gauge:
@@ -12001,7 +12068,7 @@ conf:
           - rgba(245, 54, 54, 0.9)
           - rgba(237, 129, 40, 0.89)
           - rgba(50, 172, 45, 0.97)
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           decimals:
           format: percent
           gauge:
@@ -12062,7 +12129,7 @@ conf:
           - rgba(245, 54, 54, 0.9)
           - rgba(237, 129, 40, 0.89)
           - rgba(50, 172, 45, 0.97)
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           decimals:
           format: percent
           gauge:
@@ -12123,7 +12190,7 @@ conf:
           - rgba(50, 172, 45, 0.97)
           - rgba(237, 129, 40, 0.89)
           - rgba(245, 54, 54, 0.9)
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           decimals:
           format: none
           gauge:
@@ -12194,7 +12261,7 @@ conf:
           - rgba(50, 172, 45, 0.97)
           - rgba(237, 129, 40, 0.89)
           - rgba(245, 54, 54, 0.9)
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           format: percent
           gauge:
             maxValue: 100
@@ -12253,7 +12320,7 @@ conf:
           - rgba(50, 172, 45, 0.97)
           - rgba(237, 129, 40, 0.89)
           - rgba(245, 54, 54, 0.9)
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           format: percent
           gauge:
             maxValue: 100
@@ -12312,7 +12379,7 @@ conf:
           - rgba(50, 172, 45, 0.97)
           - rgba(237, 129, 40, 0.89)
           - rgba(245, 54, 54, 0.9)
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           format: percent
           gauge:
             maxValue: 100
@@ -12371,7 +12438,7 @@ conf:
           - rgba(50, 172, 45, 0.97)
           - rgba(237, 129, 40, 0.89)
           - rgba(245, 54, 54, 0.9)
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           format: percent
           gauge:
             maxValue: 100
@@ -12433,7 +12500,18 @@ conf:
       style: dark
       tags: []
       templating:
-        list: []
+        list:
+        - current:
+            text: Prometheus
+            value: Prometheus
+          hide: 0
+          label: Prometheus datasource
+          name: DS_PROMETHEUS
+          options: []
+          query: prometheus
+          refresh: 1
+          regex: ''
+          type: datasource
       time:
         from: now-6h
         to: now
@@ -12512,7 +12590,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 1
@@ -12581,7 +12659,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 1
@@ -12670,7 +12748,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 1
@@ -12768,7 +12846,7 @@ conf:
           - rgba(50, 172, 45, 0.97)
           - rgba(237, 129, 40, 0.89)
           - rgba(245, 54, 54, 0.9)
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           format: percent
@@ -12836,7 +12914,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 1
@@ -12923,7 +13001,7 @@ conf:
           - rgba(50, 172, 45, 0.97)
           - rgba(237, 129, 40, 0.89)
           - rgba(245, 54, 54, 0.9)
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           format: percentunit
@@ -12990,7 +13068,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 1
@@ -13061,7 +13139,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 1
@@ -13138,9 +13216,20 @@ conf:
       tags: []
       templating:
         list:
+        - current:
+            text: Prometheus
+            value: Prometheus
+          hide: 0
+          label: Prometheus datasource
+          name: DS_PROMETHEUS
+          options: []
+          query: prometheus
+          refresh: 1
+          regex: ''
+          type: datasource
         - allValue:
           current: {}
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           hide: 0
           includeAll: false
           label: Server
@@ -13158,7 +13247,7 @@ conf:
           useTags: false
         - allValue:
           current: {}
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           hide: 2
           includeAll: false
           label: Instance
@@ -13257,7 +13346,7 @@ conf:
           - rgba(200, 54, 35, 0.88)
           - rgba(118, 245, 40, 0.73)
           - rgba(225, 177, 40, 0.59)
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           format: none
@@ -13347,7 +13436,7 @@ conf:
           - rgba(200, 54, 35, 0.88)
           - rgba(118, 245, 40, 0.73)
           - rgba(225, 177, 40, 0.59)
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           format: none
@@ -13437,7 +13526,7 @@ conf:
           - rgba(202, 58, 40, 0.86)
           - rgba(118, 245, 40, 0.73)
           - rgba(225, 177, 40, 0.59)
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           format: none
@@ -13527,7 +13616,7 @@ conf:
           - rgba(200, 54, 35, 0.88)
           - rgba(118, 245, 40, 0.73)
           - rgba(225, 177, 40, 0.59)
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           format: none
@@ -13617,7 +13706,7 @@ conf:
           - rgba(208, 53, 34, 0.82)
           - rgba(118, 245, 40, 0.73)
           - rgba(225, 177, 40, 0.59)
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           format: none
@@ -13707,7 +13796,7 @@ conf:
           - rgba(200, 54, 35, 0.88)
           - rgba(118, 245, 40, 0.73)
           - rgba(225, 177, 40, 0.59)
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           format: none
@@ -13797,7 +13886,7 @@ conf:
           - rgba(200, 54, 35, 0.88)
           - rgba(118, 245, 40, 0.73)
           - rgba(225, 177, 40, 0.59)
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           format: none
@@ -13887,7 +13976,7 @@ conf:
           - rgba(200, 54, 35, 0.88)
           - rgba(118, 245, 40, 0.73)
           - rgba(225, 177, 40, 0.59)
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           format: none
@@ -13977,7 +14066,7 @@ conf:
           - rgba(208, 53, 34, 0.82)
           - rgba(118, 245, 40, 0.73)
           - rgba(225, 177, 40, 0.59)
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           format: none
@@ -14066,7 +14155,7 @@ conf:
           - rgba(208, 53, 34, 0.82)
           - rgba(118, 245, 40, 0.73)
           - rgba(225, 177, 40, 0.59)
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           format: none
@@ -14150,7 +14239,7 @@ conf:
           - rgba(225, 177, 40, 0.59)
           - rgba(208, 53, 34, 0.82)
           - rgba(118, 245, 40, 0.73)
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           format: none
@@ -14229,7 +14318,7 @@ conf:
           - rgba(208, 53, 34, 0.82)
           - rgba(118, 245, 40, 0.73)
           - rgba(225, 177, 40, 0.59)
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           format: none
@@ -14324,7 +14413,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 1
@@ -14423,7 +14512,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 1
@@ -14524,7 +14613,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 1
@@ -14623,7 +14712,7 @@ conf:
           bars: false
           dashLength: 10
           dashes": false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 1
@@ -14737,9 +14826,20 @@ conf:
       templating:
         enable: true
         list:
+        - current:
+            text: Prometheus
+            value: Prometheus
+          hide: 0
+          label: Prometheus datasource
+          name: DS_PROMETHEUS
+          options: []
+          query: prometheus
+          refresh: 1
+          regex: ''
+          type: datasource
         - allValue:
           current: {}
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           hide: 0
           includeAll: false
           label:
@@ -14828,7 +14928,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           fill: 1
           id: 7
           legend:
@@ -14904,7 +15004,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           fill: 1
           id: 6
           legend:
@@ -14971,7 +15071,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           fill: 1
           id: 5
           legend:
@@ -15047,7 +15147,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           fill: 1
           id: 1
           legend:
@@ -15112,7 +15212,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           fill: 1
           id: 4
           legend:
@@ -15188,7 +15288,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           fill: 1
           id: 3
           legend:
@@ -15254,7 +15354,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           fill: 1
           id: 2
           legend:
@@ -15329,9 +15429,20 @@ conf:
       - nginx
       templating:
         list:
+        - current:
+            text: Prometheus
+            value: Prometheus
+          hide: 0
+          label: Prometheus datasource
+          name: DS_PROMETHEUS
+          options: []
+          query: prometheus
+          refresh: 1
+          regex: ''
+          type: datasource
         - allValue: ".*"
           current: {}
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           hide: 0
           includeAll: false
           label:
@@ -15349,7 +15460,7 @@ conf:
           useTags: false
         - allValue:
           current: {}
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           hide: 0
           includeAll: false
           label:
@@ -15439,7 +15550,7 @@ conf:
           - rgba(225, 177, 40, 0.59)
           - rgba(200, 54, 35, 0.88)
           - rgba(118, 245, 40, 0.73)
-          datasource: "prometheus"
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           format: none
@@ -15518,7 +15629,7 @@ conf:
           - rgba(200, 54, 35, 0.88)
           - rgba(118, 245, 40, 0.73)
           - rgba(225, 177, 40, 0.59)
-          datasource: "prometheus"
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           format: none
@@ -15592,7 +15703,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: "prometheus"
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 0
@@ -15660,7 +15771,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: "prometheus"
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 1
@@ -15744,7 +15855,7 @@ conf:
           bars: true
           dashLength: 10
           dashes: false
-          datasource: "prometheus"
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 0
@@ -15820,6 +15931,17 @@ conf:
       templating:
         enable: true
         list:
+        - current:
+            text: Prometheus
+            value: Prometheus
+          hide: 0
+          label: Prometheus datasource
+          name: DS_PROMETHEUS
+          options: []
+          query: prometheus
+          refresh: 1
+          regex: ''
+          type: datasource
         - allValue:
           current:
             tags: []
@@ -15925,7 +16047,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 1
@@ -15998,7 +16120,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 1
@@ -16066,7 +16188,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 1
@@ -16137,7 +16259,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 1
@@ -16207,7 +16329,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 1
@@ -16289,7 +16411,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 1
@@ -16380,7 +16502,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 1
@@ -16444,7 +16566,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 1
@@ -16520,7 +16642,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 1
@@ -16605,7 +16727,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 1
@@ -16699,7 +16821,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 1
@@ -16762,7 +16884,7 @@ conf:
           bars: false
           dashLength: 10
           dashes: false
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           editable: true
           error: false
           fill: 1
@@ -16841,9 +16963,20 @@ conf:
       - coredns
       templating:
         list:
+        - current:
+            text: Prometheus
+            value: Prometheus
+          hide: 0
+          label: Prometheus datasource
+          name: DS_PROMETHEUS
+          options: []
+          query: prometheus
+          refresh: 1
+          regex: ''
+          type: datasource
         - allValue: ".*"
           current: {}
-          datasource: prometheus
+          datasource: "${DS_PROMETHEUS}"
           hide: 0
           includeAll: true
           label: Instance
@@ -16941,7 +17074,7 @@ conf:
         bars: false
         dashLength: 10
         dashes: false
-        datasource: prometheus
+        datasource: "${DS_PROMETHEUS}"
         fill: 1
         gridPos:
           h: 7
@@ -17009,7 +17142,7 @@ conf:
         bars: false
         dashLength: 10
         dashes: false
-        datasource: prometheus
+        datasource: "${DS_PROMETHEUS}"
         fill: 1
         gridPos:
           h: 7
@@ -17077,7 +17210,7 @@ conf:
         bars: false
         dashLength: 10
         dashes: false
-        datasource: prometheus
+        datasource: "${DS_PROMETHEUS}"
         fill: 1
         gridPos:
           h: 7
@@ -17145,7 +17278,7 @@ conf:
         bars: false
         dashLength: 10
         dashes: false
-        datasource: prometheus
+        datasource: "${DS_PROMETHEUS}"
         fill: 1
         gridPos:
           h: 7
@@ -17213,7 +17346,7 @@ conf:
         bars: false
         dashLength: 10
         dashes: false
-        datasource: prometheus
+        datasource: "${DS_PROMETHEUS}"
         fill: 1
         gridPos:
           h: 7
@@ -17281,7 +17414,7 @@ conf:
         bars: false
         dashLength: 10
         dashes: false
-        datasource: prometheus
+        datasource: "${DS_PROMETHEUS}"
         fill: 1
         gridPos:
           h: 7
@@ -17349,7 +17482,7 @@ conf:
         bars: false
         dashLength: 10
         dashes: false
-        datasource: prometheus
+        datasource: "${DS_PROMETHEUS}"
         fill: 1
         gridPos:
           h: 7
@@ -17417,7 +17550,7 @@ conf:
         bars: false
         dashLength: 10
         dashes: false
-        datasource: prometheus
+        datasource: "${DS_PROMETHEUS}"
         fill: 1
         gridPos:
           h: 7
@@ -17485,7 +17618,7 @@ conf:
         bars: false
         dashLength: 10
         dashes: false
-        datasource: prometheus
+        datasource: "${DS_PROMETHEUS}"
         fill: 1
         gridPos:
           h: 7
@@ -17553,7 +17686,7 @@ conf:
         bars: false
         dashLength: 10
         dashes: false
-        datasource: prometheus
+        datasource: "${DS_PROMETHEUS}"
         fill: 1
         gridPos:
           h: 7
@@ -17621,7 +17754,7 @@ conf:
         bars: false
         dashLength: 10
         dashes: false
-        datasource: prometheus
+        datasource: "${DS_PROMETHEUS}"
         fill: 1
         gridPos:
           h: 7
@@ -17689,7 +17822,7 @@ conf:
         bars: false
         dashLength: 10
         dashes: false
-        datasource: prometheus
+        datasource: "${DS_PROMETHEUS}"
         fill: 1
         gridPos:
           h: 7
@@ -17757,7 +17890,7 @@ conf:
         bars: false
         dashLength: 10
         dashes: false
-        datasource: prometheus
+        datasource: "${DS_PROMETHEUS}"
         fill: 1
         gridPos:
           h: 7
@@ -17825,7 +17958,7 @@ conf:
         bars: false
         dashLength: 10
         dashes: false
-        datasource: prometheus
+        datasource: "${DS_PROMETHEUS}"
         fill: 1
         gridPos:
           h: 7
@@ -17895,7 +18028,18 @@ conf:
       tags:
       - calico
       templating:
-        list: []
+        list:
+        - current:
+            text: Prometheus
+            value: Prometheus
+          hide: 0
+          label: Prometheus datasource
+          name: DS_PROMETHEUS
+          options: []
+          query: prometheus
+          refresh: 1
+          regex: ''
+          type: datasource
       time:
         from: now-1h
         to: now
