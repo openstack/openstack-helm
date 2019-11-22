@@ -19,9 +19,15 @@ set -xe
 #NOTE: Lint and package chart
 make prometheus
 
+rules_overrides=""
+for rules_file in $(ls ./prometheus/values_overrides); do
+  rules_overrides="$rules_overrides --values=./prometheus/values_overrides/$rules_file"
+done
+
 #NOTE: Deploy command
 helm upgrade --install prometheus ./prometheus \
-    --namespace=osh-infra
+    --namespace=osh-infra \
+    $rules_overrides
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh osh-infra

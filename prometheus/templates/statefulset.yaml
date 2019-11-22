@@ -19,15 +19,14 @@ limitations under the License.
 
 {{- $mounts_prometheus := .Values.pod.mounts.prometheus.prometheus }}
 {{- $mounts_prometheus_init := .Values.pod.mounts.prometheus.init_container }}
-{{- $promUserSecret := .Values.secrets.prometheus.admin }}
 
-{{- $serviceAccountName := printf "%s-%s" .Release.Name "prometheus" }}
-{{ tuple $envAll "prometheus" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{- $rcControllerName := printf "%s-%s" $envAll.Release.Name "prometheus" }}
+{{ tuple $envAll "prometheus" $rcControllerName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRole
 metadata:
-  name: {{ $serviceAccountName }}
+  name: {{ $rcControllerName | quote }}
 rules:
   - apiGroups:
       - ""
@@ -55,20 +54,20 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRoleBinding
 metadata:
-  name: {{ $serviceAccountName }}
+  name: {{ $rcControllerName | quote }}
 subjects:
   - kind: ServiceAccount
-    name: {{ $serviceAccountName }}
+    name: {{ $rcControllerName | quote }}
     namespace: {{ .Release.Namespace }}
 roleRef:
   kind: ClusterRole
-  name: {{ $serviceAccountName }}
+  name: {{ $rcControllerName | quote }}
   apiGroup: rbac.authorization.k8s.io
 ---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: prometheus
+  name: {{ $rcControllerName | quote }}
   annotations:
     {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
   labels:
@@ -90,7 +89,7 @@ spec:
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
     spec:
 {{ dict "envAll" $envAll "application" "api" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
-      serviceAccountName: {{ $serviceAccountName }}
+      serviceAccountName: {{ $rcControllerName | quote }}
       affinity:
 {{ tuple $envAll "prometheus" "api" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
       nodeSelector:
@@ -129,12 +128,12 @@ spec:
             - name: PROMETHEUS_ADMIN_USERNAME
               valueFrom:
                 secretKeyRef:
-                  name: {{ $promUserSecret }}
+                  name: {{ printf "%s-%s" $envAll.Release.Name "admin-user" | quote }}
                   key: PROMETHEUS_ADMIN_USERNAME
             - name: PROMETHEUS_ADMIN_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ $promUserSecret }}
+                  name: {{ printf "%s-%s" $envAll.Release.Name "admin-user" | quote }}
                   key: PROMETHEUS_ADMIN_PASSWORD
           volumeMounts:
             - name: pod-tmp
@@ -169,6 +168,10 @@ spec:
               port: {{ tuple "monitoring" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
             initialDelaySeconds: 30
             timeoutSeconds: 30
+          env:
+{{- if .Values.pod.env.prometheus }}
+{{ include "helm-toolkit.utils.to_k8s_env_vars" .Values.pod.env.prometheus | indent 12 }}
+{{- end }}
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
@@ -202,11 +205,11 @@ spec:
           emptyDir: {}
         - name: prometheus-etc
           secret:
-            secretName: prometheus-etc
+            secretName: {{ printf "%s-%s" $envAll.Release.Name "prometheus-etc" | quote }}
             defaultMode: 0444
         - name: prometheus-bin
           configMap:
-            name: prometheus-bin
+            name: {{ printf "%s-%s" $envAll.Release.Name "prometheus-bin" | quote }}
             defaultMode: 0555
 {{ if $mounts_prometheus.volumes }}{{ toYaml $mounts_prometheus.volumes | indent 8 }}{{ end }}
 {{- if not .Values.storage.enabled }}

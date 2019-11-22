@@ -43,6 +43,8 @@ labels:
     node_selector_value: enabled
 
 pod:
+  env:
+    prometheus: null
   security_context:
     api:
       pod:
@@ -238,8 +240,6 @@ secrets:
     monitoring:
       prometheus:
         public: prometheus-tls-public
-  prometheus:
-    admin: prometheus-admin-creds
 
 storage:
   enabled: true
@@ -346,6 +346,24 @@ conf:
     </IfModule>
 
     <VirtualHost *:80>
+      # Expose metrics to all users, as this is not sensitive information and
+      # circumvents the inability of Prometheus to interpolate environment vars
+      # in its configuration file
+      <Location /metrics>
+          ProxyPass http://localhost:{{ tuple "monitoring" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}/metrics
+          ProxyPassReverse http://localhost:{{ tuple "monitoring" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}/metrics
+          Satisfy Any
+          Allow from all
+      </Location>
+      # Expose the /federate endpoint to all users, as this is also not
+      # sensitive information and circumvents the inability of Prometheus to
+      # interpolate environment vars in its configuration file
+      <Location /federate>
+          ProxyPass http://localhost:{{ tuple "monitoring" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}/metrics
+          ProxyPassReverse http://localhost:{{ tuple "monitoring" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}/metrics
+          Satisfy Any
+          Allow from all
+      </Location>
       # Restrict general user (LDAP) access to the /graph endpoint, as general trusted
       # users should only be able to query Prometheus for metrics and not have access
       # to information like targets, configuration, flags or build info for Prometheus
@@ -486,1779 +504,560 @@ conf:
       # If set to true, allows for http reloads and shutdown of Prometheus
       web.enable_lifecycle: false
     scrape_configs:
-      global:
-        scrape_interval: 60s
-        evaluation_interval: 60s
-      scrape_configs:
-        # NOTE(srwilkers): The job definition for Prometheus should always be
-        # listed first, so we can inject the basic auth username and password
-        # via the endpoints section
-        - job_name: 'prometheus-metrics'
-          kubernetes_sd_configs:
-          - role: endpoints
+      template: |
+        {{- $promHost := tuple "monitoring" "public" . | include "helm-toolkit.endpoints.hostname_fqdn_endpoint_lookup" }}
+        {{- if not (empty .Values.conf.prometheus.rules)}}
+        rule_files:
+        {{- $rulesKeys := keys .Values.conf.prometheus.rules -}}
+        {{- range $rule := $rulesKeys }}
+          {{ printf "- /etc/config/rules/%s.rules" $rule }}
+        {{- end }}
+        {{- end }}
+        global:
           scrape_interval: 60s
-          relabel_configs:
-          - source_labels:
-              - __meta_kubernetes_service_name
-            action: keep
-            regex: "prom-metrics"
-          - source_labels:
-              - __meta_kubernetes_service_annotation_prometheus_io_scrape
-            action: keep
-            regex: true
-          - source_labels:
-              - __meta_kubernetes_service_annotation_prometheus_io_scheme
-            action: replace
-            target_label: __scheme__
-            regex: (https?)
-          - source_labels:
-              - __meta_kubernetes_service_annotation_prometheus_io_path
-            action: replace
-            target_label: __metrics_path__
-            regex: (.+)
-          - source_labels:
-              - __address__
-              - __meta_kubernetes_service_annotation_prometheus_io_port
-            action: replace
-            target_label: __address__
-            regex: ([^:]+)(?::\d+)?;(\d+)
-            replacement: $1:$2
-          - action: labelmap
-            regex: __meta_kubernetes_service_label_(.+)
-          - source_labels:
-              - __meta_kubernetes_namespace
-            action: replace
-            target_label: kubernetes_namespace
-          - source_labels:
-              - __meta_kubernetes_service_name
-            action: replace
-            target_label: instance
-          - source_labels:
-              - __meta_kubernetes_service_name
-            action: replace
-            target_label: kubernetes_name
-          - source_labels:
-              - __meta_kubernetes_service_name
-            target_label: job
-            replacement: ${1}
-        - job_name: kubelet
-          scheme: https
-          # This TLS & bearer token file config is used to connect to the actual scrape
-          # endpoints for cluster components. This is separate to discovery auth
-          # configuration because discovery & scraping are two separate concerns in
-          # Prometheus. The discovery auth config is automatic if Prometheus runs inside
-          # the cluster. Otherwise, more config options have to be provided within the
-          # <kubernetes_sd_config>.
-          tls_config:
-            ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
-          bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
-          kubernetes_sd_configs:
-          - role: node
-          scrape_interval: 45s
-          relabel_configs:
-          - action: labelmap
-            regex: __meta_kubernetes_node_label_(.+)
-          - target_label: __address__
-            replacement: kubernetes.default.svc:443
-          - source_labels:
-              - __meta_kubernetes_node_name
-            regex: (.+)
-            target_label: __metrics_path__
-            replacement: /api/v1/nodes/${1}/proxy/metrics
-          - source_labels:
-              - __meta_kubernetes_node_name
-            action: replace
-            target_label: kubernetes_io_hostname
-          # Scrape config for Kubelet cAdvisor.
-          #
-          # This is required for Kubernetes 1.7.3 and later, where cAdvisor metrics
-          # (those whose names begin with 'container_') have been removed from the
-          # Kubelet metrics endpoint.  This job scrapes the cAdvisor endpoint to
-          # retrieve those metrics.
-          #
-          # In Kubernetes 1.7.0-1.7.2, these metrics are only exposed on the cAdvisor
-          # HTTP endpoint; use "replacement: /api/v1/nodes/${1}:4194/proxy/metrics"
-          # in that case (and ensure cAdvisor's HTTP server hasn't been disabled with
-          # the --cadvisor-port=0 Kubelet flag).
-          #
-          # This job is not necessary and should be removed in Kubernetes 1.6 and
-          # earlier versions, or it will cause the metrics to be scraped twice.
-        - job_name: 'kubernetes-cadvisor'
-
-          # Default to scraping over https. If required, just disable this or change to
-          # `http`.
-          scheme: https
-
-          # This TLS & bearer token file config is used to connect to the actual scrape
-          # endpoints for cluster components. This is separate to discovery auth
-          # configuration because discovery & scraping are two separate concerns in
-          # Prometheus. The discovery auth config is automatic if Prometheus runs inside
-          # the cluster. Otherwise, more config options have to be provided within the
-          # <kubernetes_sd_config>.
-          tls_config:
-            ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
-          bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
-
-          kubernetes_sd_configs:
-          - role: node
-
-          relabel_configs:
-          - action: labelmap
-            regex: __meta_kubernetes_node_label_(.+)
-          - target_label: __address__
-            replacement: kubernetes.default.svc:443
-          - source_labels:
-              - __meta_kubernetes_node_name
-            regex: (.+)
-            target_label: __metrics_path__
-            replacement: /api/v1/nodes/${1}/proxy/metrics/cadvisor
-          metric_relabel_configs:
-          - source_labels:
-              - __name__
-            regex: 'container_network_tcp_usage_total'
-            action: drop
-          - source_labels:
-              - __name__
-            regex: 'container_tasks_state'
-            action: drop
-          - source_labels:
-              - __name__
-            regex: 'container_network_udp_usage_total'
-            action: drop
-          - source_labels:
-              - __name__
-            regex: 'container_memory_failures_total'
-            action: drop
-          - source_labels:
-              - __name__
-            regex: 'container_cpu_load_average_10s'
-            action: drop
-          - source_labels:
-              - __name__
-            regex: 'container_cpu_system_seconds_total'
-            action: drop
-          - source_labels:
-              - __name__
-            regex: 'container_cpu_user_seconds_total'
-            action: drop
-          - source_labels:
-              - __name__
-            regex: 'container_fs_inodes_free'
-            action: drop
-          - source_labels:
-              - __name__
-            regex: 'container_fs_inodes_total'
-            action: drop
-          - source_labels:
-              - __name__
-            regex: 'container_fs_io_current'
-            action: drop
-          - source_labels:
-              - __name__
-            regex: 'container_fs_io_time_seconds_total'
-            action: drop
-          - source_labels:
-              - __name__
-            regex: 'container_fs_io_time_weighted_seconds_total'
-            action: drop
-          - source_labels:
-              - __name__
-            regex: 'container_fs_read_seconds_total'
-            action: drop
-          - source_labels:
-              - __name__
-            regex: 'container_fs_reads_merged_total'
-            action: drop
-          - source_labels:
-              - __name__
-            regex: 'container_fs_reads_merged_total'
-            action: drop
-          - source_labels:
-              - __name__
-            regex: 'container_fs_reads_total'
-            action: drop
-          - source_labels:
-              - __name__
-            regex: 'container_fs_sector_reads_total'
-            action: drop
-          - source_labels:
-              - __name__
-            regex: 'container_fs_sector_writes_total'
-            action: drop
-          - source_labels:
-              - __name__
-            regex: 'container_fs_write_seconds_total'
-            action: drop
-          - source_labels:
-              - __name__
-            regex: 'container_fs_writes_bytes_total'
-            action: drop
-          - source_labels:
-              - __name__
-            regex: 'container_fs_writes_merged_total'
-            action: drop
-          - source_labels:
-              - __name__
-            regex: 'container_fs_writes_total'
-            action: drop
-          - source_labels:
-              - __name__
-            regex: 'container_last_seen'
-            action: drop
-          - source_labels:
-              - __name__
-            regex: 'container_memory_cache'
-            action: drop
-          - source_labels:
-              - __name__
-            regex: 'container_memory_failcnt'
-            action: drop
-          - source_labels:
-              - __name__
-            regex: 'container_memory_max_usage_bytes'
-            action: drop
-          - source_labels:
-              - __name__
-            regex: 'container_memory_rss'
-            action: drop
-          - source_labels:
-              - __name__
-            regex: 'container_memory_swap'
-            action: drop
-          - source_labels:
-              - __name__
-            regex: 'container_memory_usage_bytes'
-            action: drop
-          - source_labels:
-              - __name__
-            regex: 'container_network_receive_errors_total'
-            action: drop
-          - source_labels:
-              - __name__
-            regex: 'container_network_receive_packets_dropped_total'
-            action: drop
-          - source_labels:
-              - __name__
-            regex: 'container_network_receive_packets_total'
-            action: drop
-          - source_labels:
-              - __name__
-            regex: 'container_network_transmit_errors_total'
-            action: drop
-          - source_labels:
-              - __name__
-            regex: 'container_network_transmit_packets_dropped_total'
-            action: drop
-          - source_labels:
-              - __name__
-            regex: 'container_network_transmit_packets_total'
-            action: drop
-          - source_labels:
-              - __name__
-            regex: 'container_spec_cpu_period'
-            action: drop
-          - source_labels:
-              - __name__
-            regex: 'container_spec_cpu_shares'
-            action: drop
-          - source_labels:
-              - __name__
-            regex: 'container_spec_memory_limit_bytes'
-            action: drop
-          - source_labels:
-              - __name__
-            regex: 'container_spec_memory_reservation_limit_bytes'
-            action: drop
-          - source_labels:
-              - __name__
-            regex: 'container_spec_memory_swap_limit_bytes'
-            action: drop
-          - source_labels:
-              - __name__
-            regex: 'container_start_time_seconds'
-            action: drop
-          # Scrape config for API servers.
-          #
-          # Kubernetes exposes API servers as endpoints to the default/kubernetes
-          # service so this uses `endpoints` role and uses relabelling to only keep
-          # the endpoints associated with the default/kubernetes service using the
-          # default named port `https`. This works for single API server deployments as
-          # well as HA API server deployments.
-        - job_name: 'apiserver'
-          kubernetes_sd_configs:
-          - role: endpoints
-          scrape_interval: 45s
-          # Default to scraping over https. If required, just disable this or change to
-          # `http`.
-          scheme: https
-          # This TLS & bearer token file config is used to connect to the actual scrape
-          # endpoints for cluster components. This is separate to discovery auth
-          # configuration because discovery & scraping are two separate concerns in
-          # Prometheus. The discovery auth config is automatic if Prometheus runs inside
-          # the cluster. Otherwise, more config options have to be provided within the
-          # <kubernetes_sd_config>.
-          tls_config:
-            ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
-            # If your node certificates are self-signed or use a different CA to the
-            # master CA, then disable certificate verification below. Note that
-            # certificate verification is an integral part of a secure infrastructure
-            # so this should only be disabled in a controlled environment. You can
-            # disable certificate verification by uncommenting the line below.
+          evaluation_interval: 60s
+          external_labels:
+            prometheus_host: {{$promHost}}
+        scrape_configs:
+          - job_name: kubelet
+            scheme: https
+            # This TLS & bearer token file config is used to connect to the actual scrape
+            # endpoints for cluster components. This is separate to discovery auth
+            # configuration because discovery & scraping are two separate concerns in
+            # Prometheus. The discovery auth config is automatic if Prometheus runs inside
+            # the cluster. Otherwise, more config options have to be provided within the
+            # <kubernetes_sd_config>.
+            tls_config:
+              ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+            bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+            kubernetes_sd_configs:
+            - role: node
+            scrape_interval: 45s
+            relabel_configs:
+            - action: labelmap
+              regex: __meta_kubernetes_node_label_(.+)
+            - target_label: __address__
+              replacement: kubernetes.default.svc:443
+            - source_labels:
+                - __meta_kubernetes_node_name
+              regex: (.+)
+              target_label: __metrics_path__
+              replacement: /api/v1/nodes/${1}/proxy/metrics
+            - source_labels:
+                - __meta_kubernetes_node_name
+              action: replace
+              target_label: kubernetes_io_hostname
+            # Scrape config for Kubelet cAdvisor.
             #
-            # insecure_skip_verify: true
-          bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
-          # Keep only the default/kubernetes service endpoints for the https port. This
-          # will add targets for each API server which Kubernetes adds an endpoint to
-          # the default/kubernetes service.
-          relabel_configs:
-          - source_labels:
-              - __meta_kubernetes_namespace
-              - __meta_kubernetes_service_name
-              - __meta_kubernetes_endpoint_port_name
-            action: keep
-            regex: default;kubernetes;https
-          metric_relabel_configs:
-          - source_labels:
-              - __name__
-            regex: 'apiserver_admission_controller_admission_latencies_seconds_bucket'
-            action: drop
-          - source_labels:
-              - __name__
-            regex: 'rest_client_request_latency_seconds_bucket'
-            action: drop
-          - source_labels:
-              - __name__
-            regex: 'apiserver_response_sizes_bucket'
-            action: drop
-          - source_labels:
-              - __name__
-            regex: 'apiserver_admission_step_admission_latencies_seconds_bucket'
-            action: drop
-          - source_labels:
-              - __name__
-            regex: 'apiserver_admission_controller_admission_latencies_seconds_count'
-            action: drop
-          - source_labels:
-              - __name__
-            regex: 'apiserver_admission_controller_admission_latencies_seconds_sum'
-            action: drop
-          - source_labels:
-              - __name__
-            regex: 'apiserver_request_latencies_summary'
-            action: drop
-        # Scrape config for service endpoints.
-        #
-        # The relabeling allows the actual service scrape endpoint to be configured
-        # via the following annotations:
-        #
-        # * `prometheus.io/scrape`: Only scrape services that have a value of `true`
-        # * `prometheus.io/scheme`: If the metrics endpoint is secured then you will need
-        # to set this to `https` & most likely set the `tls_config` of the scrape config.
-        # * `prometheus.io/path`: If the metrics path is not `/metrics` override this.
-        # * `prometheus.io/port`: If the metrics are exposed on a different port to the
-        # service then set this appropriately.
-        - job_name: 'openstack-exporter'
-          kubernetes_sd_configs:
-          - role: endpoints
-          scrape_interval: 60s
-          relabel_configs:
-          - source_labels:
-              - __meta_kubernetes_service_name
-            action: keep
-            regex: "openstack-metrics"
-          - source_labels:
-              - __meta_kubernetes_service_annotation_prometheus_io_scrape
-            action: keep
-            regex: true
-          - source_labels:
-              - __meta_kubernetes_service_annotation_prometheus_io_scheme
-            action: replace
-            target_label: __scheme__
-            regex: (https?)
-          - source_labels:
-              - __meta_kubernetes_service_annotation_prometheus_io_path
-            action: replace
-            target_label: __metrics_path__
-            regex: (.+)
-          - source_labels:
-              - __address__
-              - __meta_kubernetes_service_annotation_prometheus_io_port
-            action: replace
-            target_label: __address__
-            regex: ([^:]+)(?::\d+)?;(\d+)
-            replacement: $1:$2
-          - action: labelmap
-            regex: __meta_kubernetes_service_label_(.+)
-          - source_labels:
-              - __meta_kubernetes_namespace
-            action: replace
-            target_label: kubernetes_namespace
-          - source_labels:
-              - __meta_kubernetes_service_name
-            action: replace
-            target_label: instance
-          - source_labels:
-              - __meta_kubernetes_service_name
-            action: replace
-            target_label: kubernetes_name
-          - source_labels:
-              - __meta_kubernetes_service_name
-            target_label: job
-            replacement: ${1}
-        - job_name: 'node-exporter'
-          kubernetes_sd_configs:
-          - role: endpoints
-          scrape_interval: 60s
-          relabel_configs:
-          - source_labels:
-              - __meta_kubernetes_service_name
-            action: keep
-            regex: 'node-exporter'
-          - source_labels:
-              - __meta_kubernetes_pod_node_name
-            action: replace
-            target_label: hostname
-        - job_name: 'kubernetes-service-endpoints'
-          kubernetes_sd_configs:
-          - role: endpoints
-          scrape_interval: 60s
-          relabel_configs:
-          - source_labels:
-              - __meta_kubernetes_service_name
-            action: drop
-            regex: '(openstack-metrics|prom-metrics|ceph-mgr|node-exporter)'
-          - source_labels:
-              - __meta_kubernetes_service_annotation_prometheus_io_scrape
-            action: keep
-            regex: true
-          - source_labels:
-              - __meta_kubernetes_service_annotation_prometheus_io_scheme
-            action: replace
-            target_label: __scheme__
-            regex: (https?)
-          - source_labels:
-              - __meta_kubernetes_service_annotation_prometheus_io_path
-            action: replace
-            target_label: __metrics_path__
-            regex: (.+)
-          - source_labels:
-              - __address__
-              - __meta_kubernetes_service_annotation_prometheus_io_port
-            action: replace
-            target_label: __address__
-            regex: ([^:]+)(?::\d+)?;(\d+)
-            replacement: $1:$2
-          - action: labelmap
-            regex: __meta_kubernetes_service_label_(.+)
-          - source_labels:
-              - __meta_kubernetes_namespace
-            action: replace
-            target_label: kubernetes_namespace
-          - source_labels:
-              - __meta_kubernetes_service_name
-            action: replace
-            target_label: kubernetes_name
-          - source_labels:
-              - __meta_kubernetes_service_name
-            target_label: job
-            replacement: ${1}
-        # Example scrape config for pods
-        #
-        # The relabeling allows the actual pod scrape endpoint to be configured via the
-        # following annotations:
-        #
-        # * `prometheus.io/scrape`: Only scrape pods that have a value of `true`
-        # * `prometheus.io/path`: If the metrics path is not `/metrics` override this.
-        # * `prometheus.io/port`: Scrape the pod on the indicated port instead of the
-        # pod's declared ports (default is a port-free target if none are declared).
-        - job_name: 'kubernetes-pods'
-          kubernetes_sd_configs:
-          - role: pod
-          relabel_configs:
-          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
-            action: keep
-            regex: true
-          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
-            action: replace
-            target_label: __metrics_path__
-            regex: (.+)
-          - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
-            action: replace
-            regex: ([^:]+)(?::\d+)?;(\d+)
-            replacement: $1:$2
-            target_label: __address__
-          - action: labelmap
-            regex: __meta_kubernetes_pod_label_(.+)
-          - source_labels: [__meta_kubernetes_namespace]
-            action: replace
-            target_label: kubernetes_namespace
-          - source_labels: [__meta_kubernetes_pod_name]
-            action: replace
-            target_label: kubernetes_pod_name
-        - job_name: calico-etcd
-          kubernetes_sd_configs:
-          - role: service
-          scrape_interval: 20s
-          relabel_configs:
-          - action: labelmap
-            regex: __meta_kubernetes_service_label_(.+)
-          - action: keep
-            source_labels:
-              - __meta_kubernetes_service_name
-            regex: "calico-etcd"
-          - action: keep
-            source_labels:
-              - __meta_kubernetes_namespace
-            regex: kube-system
-            target_label: namespace
-          - source_labels:
-              - __meta_kubernetes_pod_name
-            target_label: pod
-          - source_labels:
-              - __meta_kubernetes_service_name
-            target_label: service
-          - source_labels:
-              - __meta_kubernetes_service_name
-            target_label: job
-            replacement: ${1}
-          - source_labels:
-              - __meta_kubernetes_service_label
-            target_label: job
-            regex: calico-etcd
-            replacement: ${1}
-          - target_label: endpoint
-            replacement: "calico-etcd"
-        - job_name: ceph-mgr
-          kubernetes_sd_configs:
-          - role: service
-          scrape_interval: 20s
-          relabel_configs:
-          - action: labelmap
-            regex: __meta_kubernetes_service_label_(.+)
-          - action: keep
-            source_labels:
-              - __meta_kubernetes_service_name
-            regex: "ceph-mgr"
-          - source_labels:
-              - __meta_kubernetes_service_port_name
-            action: drop
-            regex: 'ceph-mgr'
-          - action: keep
-            source_labels:
-              - __meta_kubernetes_namespace
-            regex: ceph
-            target_label: namespace
-          - source_labels:
-              - __meta_kubernetes_pod_name
-            target_label: pod
-          - source_labels:
-              - __meta_kubernetes_service_name
-            target_label: service
-          - source_labels:
-              - __meta_kubernetes_service_name
-            target_label: job
-            replacement: ${1}
-          - source_labels:
-              - __meta_kubernetes_service_label
-            target_label: job
-            regex: ceph-mgr
-            replacement: ${1}
-          - target_label: endpoint
-            replacement: "ceph-mgr"
-      alerting:
-        alertmanagers:
-        - kubernetes_sd_configs:
+            # This is required for Kubernetes 1.7.3 and later, where cAdvisor metrics
+            # (those whose names begin with 'container_') have been removed from the
+            # Kubelet metrics endpoint.  This job scrapes the cAdvisor endpoint to
+            # retrieve those metrics.
+            #
+            # In Kubernetes 1.7.0-1.7.2, these metrics are only exposed on the cAdvisor
+            # HTTP endpoint; use "replacement: /api/v1/nodes/${1}:4194/proxy/metrics"
+            # in that case (and ensure cAdvisor's HTTP server hasn't been disabled with
+            # the --cadvisor-port=0 Kubelet flag).
+            #
+            # This job is not necessary and should be removed in Kubernetes 1.6 and
+            # earlier versions, or it will cause the metrics to be scraped twice.
+          - job_name: 'kubernetes-cadvisor'
+
+            # Default to scraping over https. If required, just disable this or change to
+            # `http`.
+            scheme: https
+
+            # This TLS & bearer token file config is used to connect to the actual scrape
+            # endpoints for cluster components. This is separate to discovery auth
+            # configuration because discovery & scraping are two separate concerns in
+            # Prometheus. The discovery auth config is automatic if Prometheus runs inside
+            # the cluster. Otherwise, more config options have to be provided within the
+            # <kubernetes_sd_config>.
+            tls_config:
+              ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+            bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+
+            kubernetes_sd_configs:
+            - role: node
+
+            relabel_configs:
+            - action: labelmap
+              regex: __meta_kubernetes_node_label_(.+)
+            - target_label: __address__
+              replacement: kubernetes.default.svc:443
+            - source_labels:
+                - __meta_kubernetes_node_name
+              regex: (.+)
+              target_label: __metrics_path__
+              replacement: /api/v1/nodes/${1}/proxy/metrics/cadvisor
+            metric_relabel_configs:
+            - source_labels:
+                - __name__
+              regex: 'container_network_tcp_usage_total'
+              action: drop
+            - source_labels:
+                - __name__
+              regex: 'container_tasks_state'
+              action: drop
+            - source_labels:
+                - __name__
+              regex: 'container_network_udp_usage_total'
+              action: drop
+            - source_labels:
+                - __name__
+              regex: 'container_memory_failures_total'
+              action: drop
+            - source_labels:
+                - __name__
+              regex: 'container_cpu_load_average_10s'
+              action: drop
+            - source_labels:
+                - __name__
+              regex: 'container_cpu_system_seconds_total'
+              action: drop
+            - source_labels:
+                - __name__
+              regex: 'container_cpu_user_seconds_total'
+              action: drop
+            - source_labels:
+                - __name__
+              regex: 'container_fs_inodes_free'
+              action: drop
+            - source_labels:
+                - __name__
+              regex: 'container_fs_inodes_total'
+              action: drop
+            - source_labels:
+                - __name__
+              regex: 'container_fs_io_current'
+              action: drop
+            - source_labels:
+                - __name__
+              regex: 'container_fs_io_time_seconds_total'
+              action: drop
+            - source_labels:
+                - __name__
+              regex: 'container_fs_io_time_weighted_seconds_total'
+              action: drop
+            - source_labels:
+                - __name__
+              regex: 'container_fs_read_seconds_total'
+              action: drop
+            - source_labels:
+                - __name__
+              regex: 'container_fs_reads_merged_total'
+              action: drop
+            - source_labels:
+                - __name__
+              regex: 'container_fs_reads_merged_total'
+              action: drop
+            - source_labels:
+                - __name__
+              regex: 'container_fs_reads_total'
+              action: drop
+            - source_labels:
+                - __name__
+              regex: 'container_fs_sector_reads_total'
+              action: drop
+            - source_labels:
+                - __name__
+              regex: 'container_fs_sector_writes_total'
+              action: drop
+            - source_labels:
+                - __name__
+              regex: 'container_fs_write_seconds_total'
+              action: drop
+            - source_labels:
+                - __name__
+              regex: 'container_fs_writes_bytes_total'
+              action: drop
+            - source_labels:
+                - __name__
+              regex: 'container_fs_writes_merged_total'
+              action: drop
+            - source_labels:
+                - __name__
+              regex: 'container_fs_writes_total'
+              action: drop
+            - source_labels:
+                - __name__
+              regex: 'container_last_seen'
+              action: drop
+            - source_labels:
+                - __name__
+              regex: 'container_memory_cache'
+              action: drop
+            - source_labels:
+                - __name__
+              regex: 'container_memory_failcnt'
+              action: drop
+            - source_labels:
+                - __name__
+              regex: 'container_memory_max_usage_bytes'
+              action: drop
+            - source_labels:
+                - __name__
+              regex: 'container_memory_rss'
+              action: drop
+            - source_labels:
+                - __name__
+              regex: 'container_memory_swap'
+              action: drop
+            - source_labels:
+                - __name__
+              regex: 'container_memory_usage_bytes'
+              action: drop
+            - source_labels:
+                - __name__
+              regex: 'container_network_receive_errors_total'
+              action: drop
+            - source_labels:
+                - __name__
+              regex: 'container_network_receive_packets_dropped_total'
+              action: drop
+            - source_labels:
+                - __name__
+              regex: 'container_network_receive_packets_total'
+              action: drop
+            - source_labels:
+                - __name__
+              regex: 'container_network_transmit_errors_total'
+              action: drop
+            - source_labels:
+                - __name__
+              regex: 'container_network_transmit_packets_dropped_total'
+              action: drop
+            - source_labels:
+                - __name__
+              regex: 'container_network_transmit_packets_total'
+              action: drop
+            - source_labels:
+                - __name__
+              regex: 'container_spec_cpu_period'
+              action: drop
+            - source_labels:
+                - __name__
+              regex: 'container_spec_cpu_shares'
+              action: drop
+            - source_labels:
+                - __name__
+              regex: 'container_spec_memory_limit_bytes'
+              action: drop
+            - source_labels:
+                - __name__
+              regex: 'container_spec_memory_reservation_limit_bytes'
+              action: drop
+            - source_labels:
+                - __name__
+              regex: 'container_spec_memory_swap_limit_bytes'
+              action: drop
+            - source_labels:
+                - __name__
+              regex: 'container_start_time_seconds'
+              action: drop
+            # Scrape config for API servers.
+            #
+            # Kubernetes exposes API servers as endpoints to the default/kubernetes
+            # service so this uses `endpoints` role and uses relabelling to only keep
+            # the endpoints associated with the default/kubernetes service using the
+            # default named port `https`. This works for single API server deployments as
+            # well as HA API server deployments.
+          - job_name: 'apiserver'
+            kubernetes_sd_configs:
+            - role: endpoints
+            scrape_interval: 45s
+            # Default to scraping over https. If required, just disable this or change to
+            # `http`.
+            scheme: https
+            # This TLS & bearer token file config is used to connect to the actual scrape
+            # endpoints for cluster components. This is separate to discovery auth
+            # configuration because discovery & scraping are two separate concerns in
+            # Prometheus. The discovery auth config is automatic if Prometheus runs inside
+            # the cluster. Otherwise, more config options have to be provided within the
+            # <kubernetes_sd_config>.
+            tls_config:
+              ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+              # If your node certificates are self-signed or use a different CA to the
+              # master CA, then disable certificate verification below. Note that
+              # certificate verification is an integral part of a secure infrastructure
+              # so this should only be disabled in a controlled environment. You can
+              # disable certificate verification by uncommenting the line below.
+              #
+              # insecure_skip_verify: true
+            bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+            # Keep only the default/kubernetes service endpoints for the https port. This
+            # will add targets for each API server which Kubernetes adds an endpoint to
+            # the default/kubernetes service.
+            relabel_configs:
+            - source_labels:
+                - __meta_kubernetes_namespace
+                - __meta_kubernetes_service_name
+                - __meta_kubernetes_endpoint_port_name
+              action: keep
+              regex: default;kubernetes;https
+            metric_relabel_configs:
+            - source_labels:
+                - __name__
+              regex: 'apiserver_admission_controller_admission_latencies_seconds_bucket'
+              action: drop
+            - source_labels:
+                - __name__
+              regex: 'rest_client_request_latency_seconds_bucket'
+              action: drop
+            - source_labels:
+                - __name__
+              regex: 'apiserver_response_sizes_bucket'
+              action: drop
+            - source_labels:
+                - __name__
+              regex: 'apiserver_admission_step_admission_latencies_seconds_bucket'
+              action: drop
+            - source_labels:
+                - __name__
+              regex: 'apiserver_admission_controller_admission_latencies_seconds_count'
+              action: drop
+            - source_labels:
+                - __name__
+              regex: 'apiserver_admission_controller_admission_latencies_seconds_sum'
+              action: drop
+            - source_labels:
+                - __name__
+              regex: 'apiserver_request_latencies_summary'
+              action: drop
+          # Scrape config for service endpoints.
+          #
+          # The relabeling allows the actual service scrape endpoint to be configured
+          # via the following annotations:
+          #
+          # * `prometheus.io/scrape`: Only scrape services that have a value of `true`
+          # * `prometheus.io/scheme`: If the metrics endpoint is secured then you will need
+          # to set this to `https` & most likely set the `tls_config` of the scrape config.
+          # * `prometheus.io/path`: If the metrics path is not `/metrics` override this.
+          # * `prometheus.io/port`: If the metrics are exposed on a different port to the
+          # service then set this appropriately.
+          - job_name: 'openstack-exporter'
+            kubernetes_sd_configs:
+            - role: endpoints
+            scrape_interval: 60s
+            relabel_configs:
+            - source_labels:
+                - __meta_kubernetes_service_name
+              action: keep
+              regex: "openstack-metrics"
+            - source_labels:
+                - __meta_kubernetes_service_annotation_prometheus_io_scrape
+              action: keep
+              regex: true
+            - source_labels:
+                - __meta_kubernetes_service_annotation_prometheus_io_scheme
+              action: replace
+              target_label: __scheme__
+              regex: (https?)
+            - source_labels:
+                - __meta_kubernetes_service_annotation_prometheus_io_path
+              action: replace
+              target_label: __metrics_path__
+              regex: (.+)
+            - source_labels:
+                - __address__
+                - __meta_kubernetes_service_annotation_prometheus_io_port
+              action: replace
+              target_label: __address__
+              regex: ([^:]+)(?::\d+)?;(\d+)
+              replacement: $1:$2
+            - action: labelmap
+              regex: __meta_kubernetes_service_label_(.+)
+            - source_labels:
+                - __meta_kubernetes_namespace
+              action: replace
+              target_label: kubernetes_namespace
+            - source_labels:
+                - __meta_kubernetes_service_name
+              action: replace
+              target_label: instance
+            - source_labels:
+                - __meta_kubernetes_service_name
+              action: replace
+              target_label: kubernetes_name
+            - source_labels:
+                - __meta_kubernetes_service_name
+              target_label: job
+              replacement: ${1}
+          - job_name: 'node-exporter'
+            kubernetes_sd_configs:
+            - role: endpoints
+            scrape_interval: 60s
+            relabel_configs:
+            - source_labels:
+                - __meta_kubernetes_service_name
+              action: keep
+              regex: 'node-exporter'
+            - source_labels:
+                - __meta_kubernetes_pod_node_name
+              action: replace
+              target_label: hostname
+          - job_name: 'kubernetes-service-endpoints'
+            kubernetes_sd_configs:
+            - role: endpoints
+            scrape_interval: 60s
+            relabel_configs:
+            - source_labels:
+                - __meta_kubernetes_service_name
+              action: drop
+              regex: '(openstack-metrics|prom-metrics|ceph-mgr|node-exporter)'
+            - source_labels:
+                - __meta_kubernetes_service_annotation_prometheus_io_scrape
+              action: keep
+              regex: true
+            - source_labels:
+                - __meta_kubernetes_service_annotation_prometheus_io_scheme
+              action: replace
+              target_label: __scheme__
+              regex: (https?)
+            - source_labels:
+                - __meta_kubernetes_service_annotation_prometheus_io_path
+              action: replace
+              target_label: __metrics_path__
+              regex: (.+)
+            - source_labels:
+                - __address__
+                - __meta_kubernetes_service_annotation_prometheus_io_port
+              action: replace
+              target_label: __address__
+              regex: ([^:]+)(?::\d+)?;(\d+)
+              replacement: $1:$2
+            - action: labelmap
+              regex: __meta_kubernetes_service_label_(.+)
+            - source_labels:
+                - __meta_kubernetes_namespace
+              action: replace
+              target_label: kubernetes_namespace
+            - source_labels:
+                - __meta_kubernetes_service_name
+              action: replace
+              target_label: kubernetes_name
+            - source_labels:
+                - __meta_kubernetes_service_name
+              target_label: job
+              replacement: ${1}
+          # Example scrape config for pods
+          #
+          # The relabeling allows the actual pod scrape endpoint to be configured via the
+          # following annotations:
+          #
+          # * `prometheus.io/scrape`: Only scrape pods that have a value of `true`
+          # * `prometheus.io/path`: If the metrics path is not `/metrics` override this.
+          # * `prometheus.io/port`: Scrape the pod on the indicated port instead of the
+          # pod's declared ports (default is a port-free target if none are declared).
+          - job_name: 'kubernetes-pods'
+            kubernetes_sd_configs:
             - role: pod
-          tls_config:
-            ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
-          bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
-          relabel_configs:
-          - source_labels: [__meta_kubernetes_pod_label_application]
-            regex: alertmanager
-            action: keep
-          - source_labels: [__meta_kubernetes_pod_container_port_name]
-            regex: alerts-api
-            action: keep
-          - source_labels: [__meta_kubernetes_pod_container_port_name]
-            regex: peer-mesh
-            action: drop
-    rules:
-      alertmanager:
-        groups:
-        - name: alertmanager.rules
-          rules:
-          - alert: AlertmanagerConfigInconsistent
-            expr: count_values("config_hash", alertmanager_config_hash) BY (service) / ON(service) GROUP_LEFT() label_replace(prometheus_operator_alertmanager_spec_replicas, "service", "alertmanager-$1", "alertmanager", "(.*)") != 1
-            for: 5m
-            labels:
-              severity: critical
-            annotations:
-              description: The configuration of the instances of the Alertmanager cluster `{{$labels.service}}` are out of sync.
-              summary: Alertmanager configurations are inconsistent
-          - alert: AlertmanagerDownOrMissing
-            expr: label_replace(prometheus_operator_alertmanager_spec_replicas, "job", "alertmanager-$1", "alertmanager", "(.*)") / ON(job) GROUP_RIGHT() sum(up) BY (job) != 1
-            for: 5m
-            labels:
-              severity: warning
-            annotations:
-              description: An unexpected number of Alertmanagers are scraped or Alertmanagers disappeared from discovery.
-              summary: Alertmanager down or not discovered
-          - alert: FailedReload
-            expr: alertmanager_config_last_reload_successful == 0
-            for: 10m
-            labels:
-              severity: warning
-            annotations:
-              description: Reloading Alertmanager's configuration has failed for {{ $labels.namespace }}/{{ $labels.pod }}.
-              summary: Alertmanager configuration reload has failed
-      etcd3:
-        groups:
-        - name: etcd3.rules
-          rules:
-          - alert: etcd_InsufficientMembers
-            expr: count(up{job="etcd"} == 0) > (count(up{job="etcd"}) / 2 - 1)
-            for: 3m
-            labels:
-              severity: critical
-            annotations:
-              description: If one more etcd member goes down the cluster will be unavailable
-              summary: etcd cluster insufficient members
-          - alert: etcd_NoLeader
-            expr: etcd_server_has_leader{job="etcd"} == 0
-            for: 1m
-            labels:
-              severity: critical
-            annotations:
-              description: etcd member {{ $labels.instance }} has no leader
-              summary: etcd member has no leader
-          - alert: etcd_HighNumberOfLeaderChanges
-            expr: increase(etcd_server_leader_changes_seen_total{job="etcd"}[1h]) > 3
-            labels:
-              severity: warning
-            annotations:
-              description: etcd instance {{ $labels.instance }} has seen {{ $value }} leader changes within the last hour
-              summary: a high number of leader changes within the etcd cluster are happening
-          - alert: etcd_HighNumberOfFailedGRPCRequests
-            expr: sum(rate(etcd_grpc_requests_failed_total{job="etcd"}[5m])) BY (grpc_method) / sum(rate(etcd_grpc_total{job="etcd"}[5m])) BY (grpc_method) > 0.01
-            for: 10m
-            labels:
-              severity: warning
-            annotations:
-              description: '{{ $value }}% of requests for {{ $labels.grpc_method }} failed on etcd instance {{ $labels.instance }}'
-              summary: a high number of gRPC requests are failing
-          - alert: etcd_HighNumberOfFailedGRPCRequests
-            expr: sum(rate(etcd_grpc_requests_failed_total{job="etcd"}[5m])) BY (grpc_method) / sum(rate(etcd_grpc_total{job="etcd"}[5m])) BY (grpc_method) > 0.05
-            for: 5m
-            labels:
-              severity: critical
-            annotations:
-              description: '{{ $value }}% of requests for {{ $labels.grpc_method }} failed on etcd instance {{ $labels.instance }}'
-              summary: a high number of gRPC requests are failing
-          - alert: etcd_GRPCRequestsSlow
-            expr: histogram_quantile(0.99, rate(etcd_grpc_unary_requests_duration_seconds_bucket[5m])) > 0.15
-            for: 10m
-            labels:
-              severity: critical
-            annotations:
-              description: on etcd instance {{ $labels.instance }} gRPC requests to {{ $labels.grpc_method }} are slow
-              summary: slow gRPC requests
-          - alert: etcd_HighNumberOfFailedHTTPRequests
-            expr: sum(rate(etcd_http_failed_total{job="etcd"}[5m])) BY (method) / sum(rate(etcd_http_received_total{job="etcd"}[5m])) BY (method) > 0.01
-            for: 10m
-            labels:
-              severity: warning
-            annotations:
-              description: '{{ $value }}% of requests for {{ $labels.method }} failed on etcd instance {{ $labels.instance }}'
-              summary: a high number of HTTP requests are failing
-          - alert: etcd_HighNumberOfFailedHTTPRequests
-            expr: sum(rate(etcd_http_failed_total{job="etcd"}[5m])) BY (method) / sum(rate(etcd_http_received_total{job="etcd"}[5m])) BY (method) > 0.05
-            for: 5m
-            labels:
-              severity: critical
-            annotations:
-              description: '{{ $value }}% of requests for {{ $labels.method }} failed on etcd instance {{ $labels.instance }}'
-              summary: a high number of HTTP requests are failing
-          - alert: etcd_HTTPRequestsSlow
-            expr: histogram_quantile(0.99, rate(etcd_http_successful_duration_seconds_bucket[5m])) > 0.15
-            for: 10m
-            labels:
-              severity: warning
-            annotations:
-              description: on etcd instance {{ $labels.instance }} HTTP requests to {{ $labels.method }} are slow
-              summary: slow HTTP requests
-          - alert: etcd_EtcdMemberCommunicationSlow
-            expr: histogram_quantile(0.99, rate(etcd_network_member_round_trip_time_seconds_bucket[5m])) > 0.15
-            for: 10m
-            labels:
-              severity: warning
-            annotations:
-              description: etcd instance {{ $labels.instance }} member communication with {{ $labels.To }} is slow
-              summary: etcd member communication is slow
-          - alert: etcd_HighNumberOfFailedProposals
-            expr: increase(etcd_server_proposals_failed_total{job="etcd"}[1h]) > 5
-            labels:
-              severity: warning
-            annotations:
-              description: etcd instance {{ $labels.instance }} has seen {{ $value }} proposal failures within the last hour
-              summary: a high number of proposals within the etcd cluster are failing
-          - alert: etcd_HighFsyncDurations
-            expr: histogram_quantile(0.99, rate(etcd_disk_wal_fsync_duration_seconds_bucket[5m])) > 0.5
-            for: 10m
-            labels:
-              severity: warning
-            annotations:
-              description: etcd instance {{ $labels.instance }} fync durations are high
-              summary: high fsync durations
-          - alert: etcd_HighCommitDurations
-            expr: histogram_quantile(0.99, rate(etcd_disk_backend_commit_duration_seconds_bucket[5m])) > 0.25
-            for: 10m
-            labels:
-              severity: warning
-            annotations:
-              description: etcd instance {{ $labels.instance }} commit durations are high
-              summary: high commit durations
-      kube_apiserver:
-        groups:
-        - name: kube-apiserver.rules
-          rules:
-          - alert: K8SApiserverDown
-            expr: absent(up{job="apiserver"} == 1)
-            for: 5m
-            labels:
-              severity: critical
-            annotations:
-              description: Prometheus failed to scrape API server(s), or all API servers have disappeared from service discovery.
-              summary: API server unreachable
-          - alert: K8SApiServerLatency
-            expr: histogram_quantile(0.99, sum(apiserver_request_latencies_bucket{verb!~"CONNECT|WATCHLIST|WATCH|PROXY"}) WITHOUT (instance, resource)) / 1e+06 > 1
-            for: 10m
-            labels:
-              severity: warning
-            annotations:
-              description: 99th percentile Latency for {{ $labels.verb }} requests to the kube-apiserver is higher than 1s.
-              summary: Kubernetes apiserver latency is high
-      kube_controller_manager:
-        groups:
-        - name: kube-controller-manager.rules
-          rules:
-          - alert: K8SControllerManagerDown
-            expr: absent(up{job="kube-controller-manager-discovery"} == 1)
-            for: 5m
-            labels:
-              severity: critical
-            annotations:
-              description: There is no running K8S controller manager. Deployments and replication controllers are not making progress.
-              runbook: https://coreos.com/tectonic/docs/latest/troubleshooting/controller-recovery.html#recovering-a-controller-manager
-              summary: Controller manager is down
-      kubelet:
-        groups:
-        - name: kubelet.rules
-          rules:
-          - alert: K8SNodeNotReady
-            expr: kube_node_status_condition{condition="Ready", status="unknown"} == 1 or kube_node_status_condition{condition="Ready", status="false"} == 1
-            for: 1m
-            labels:
-              severity: critical
-            annotations:
-              description: The Kubelet on {{ $labels.node }} has not checked in with the API, or has set itself to NotReady, for more than a minute
-              summary: '{{ $labels.node }} Node status is NotReady and {{ $labels.status }}'
-          - alert: K8SManyNodesNotReady
-            expr: count(kube_node_status_condition{condition="Ready", status="unknown"} == 1) > 1 and (count(kube_node_status_condition{condition="Ready", status="unknown"} == 1) / count(kube_node_status_condition{condition="Ready", status="unknown"})) > 0.2
-            for: 1m
-            labels:
-              severity: critical
-            annotations:
-              description: '{{ $value }} Kubernetes nodes (more than 10% are in the NotReady state).'
-              summary: Many Kubernetes nodes are Not Ready
-          - alert: K8SManyNodesNotReady
-            expr: count(kube_node_status_condition{condition="Ready", status="false"} == 1) > 1 and (count(kube_node_status_condition{condition="Ready", status="false"} == 1) / count(kube_node_status_condition{condition="Ready", status="false"})) > 0.2
-            for: 1m
-            labels:
-              severity: critical
-            annotations:
-              description: '{{ $value }} Kubernetes nodes (more than 10% are in the NotReady state).'
-              summary: Many Kubernetes nodes are Not Ready
-          - alert: K8SNodesNotReady
-            expr: count(kube_node_status_condition{condition="Ready", status="false"} == 1) > 0 or count(kube_node_status_condition{condition="Ready", status="unknown"} == 1) > 0
-            for: 1m
-            labels:
-              severity: critical
-            annotations:
-              description: '{{ $value }} nodes are notReady state.'
-              summary: One or more Kubernetes nodes are Not Ready
-          - alert: K8SKubeletDown
-            expr: count(up{job="kubelet"} == 0) / count(up{job="kubelet"}) > 0.03
-            for: 1m
-            labels:
-              severity: critical
-            annotations:
-              description: Prometheus failed to scrape {{ $value }}% of kubelets.
-              summary: Many Kubelets cannot be scraped
-          - alert: K8SKubeletDown
-            expr: absent(up{job="kubelet"} == 1) or count(up{job="kubelet"} == 0) / count(up{job="kubelet"}) > 0.1
-            for: 1m
-            labels:
-              severity: critical
-            annotations:
-              description: Prometheus failed to scrape {{ $value }}% of kubelets, or all Kubelets have disappeared from service discovery.
-              summary: Many Kubelets cannot be scraped
-          - alert: K8SKubeletTooManyPods
-            expr: kubelet_running_pod_count > 100
-            labels:
-              severity: warning
-            annotations:
-              description: Kubelet {{$labels.instance}} is running {{$value}} pods, close to the limit of 110
-              summary: Kubelet is close to pod limit
-      kubernetes:
-        groups:
-        - name: kubernetes.rules
-          rules:
-          - alert: kube_statefulset_replicas_unavailable
-            expr: kube_statefulset_status_replicas < kube_statefulset_replicas
-            for: 5m
-            labels:
-              severity: page
-            annotations:
-              description: 'statefulset {{$labels.statefulset}} has {{$value}} replicas, which is less than desired'
-              summary: '{{$labels.statefulset}}: has inssuficient replicas.'
-          - alert: daemonsets_misscheduled
-            expr: kube_daemonset_status_number_misscheduled > 0
-            for: 10m
-            labels:
-              severity: warning
-            annotations:
-              description: 'Daemonset {{$labels.daemonset}} is running where it is not supposed to run'
-              summary: 'Daemonsets not scheduled correctly'
-          - alert: daemonsets_not_scheduled
-            expr: kube_daemonset_status_desired_number_scheduled - kube_daemonset_status_current_number_scheduled > 0
-            for: 10m
-            labels:
-              severity: warning
-            annotations:
-              description: '{{ $value }} of Daemonset {{$labels.daemonset}} scheduled which is less than desired number'
-              summary: 'Less than desired number of daemonsets scheduled'
-          - alert: daemonset_pods_unavailable
-            expr: kube_daemonset_status_number_unavailable > 0
-            for: 10m
-            labels:
-              severity: warning
-            annotations:
-              description: 'Daemonset {{$labels.daemonset}} currently has pods unavailable'
-              summary: 'Daemonset pods unavailable, due to one of many reasons'
-          - alert: deployment_replicas_unavailable
-            expr: kube_deployment_status_replicas_unavailable > 0
-            for: 10m
-            labels:
-              severity: page
-            annotations:
-              description: 'deployment {{$labels.deployment}} has {{$value}} replicas unavailable'
-              summary: '{{$labels.deployment}}: has inssuficient replicas.'
-          - alert: rollingupdate_deployment_replica_less_than_spec_max_unavailable
-            expr: kube_deployment_status_replicas_available - kube_deployment_spec_strategy_rollingupdate_max_unavailable < 0
-            for: 10m
-            labels:
-              severity: page
-            annotations:
-              description: 'deployment {{$labels.deployment}} has {{$value}} replicas available which is less than specified as max unavailable during a rolling update'
-              summary: '{{$labels.deployment}}: has inssuficient replicas during a rolling update.'
-          - alert: job_status_failed
-            expr: kube_job_status_failed > 0
-            for: 10m
-            labels:
-              severity: page
-            annotations:
-              description: 'Job {{$labels.exported_job}} is in failed status'
-              summary: '{{$labels.exported_job}} has failed status'
-          - alert: pod_status_pending
-            expr: kube_pod_status_phase{phase="Pending"} == 1
-            for: 10m
-            labels:
-              severity: page
-            annotations:
-              description: 'Pod {{$labels.pod}} in namespace {{$labels.namespace}} has been in pending status for more than 10 minutes'
-              summary: 'Pod {{$labels.pod}} in namespace {{$labels.namespace}} in pending status'
-          - alert: pod_error_image_pull
-            expr: kube_pod_container_status_waiting_reason {reason="ErrImagePull"} == 1
-            for: 10m
-            labels:
-              severity: page
-            annotations:
-              description: 'Pod {{$labels.pod}} in namespace {{$labels.namespace}} has an Image pull error for more than 10 minutes'
-              summary: 'Pod {{$labels.pod}} in namespace {{$labels.namespace}} in error status'
-          - alert: pod_status_error_image_pull_backoff
-            expr: kube_pod_container_status_waiting_reason {reason="ImagePullBackOff"} == 1
-            for: 10m
-            labels:
-              severity: page
-            annotations:
-              description: 'Pod {{$labels.pod}} in namespace {{$labels.namespace}} has an ImagePullBackOff error for more than 10 minutes'
-              summary: 'Pod {{$labels.pod}} in namespace {{$labels.namespace}} in error status'
-          - alert: pod_error_crash_loop_back_off
-            expr: kube_pod_container_status_waiting_reason {reason="CrashLoopBackOff"} == 1
-            for: 10m
-            labels:
-              severity: page
-            annotations:
-              description: 'Pod {{$labels.pod}} in namespace {{$labels.namespace}} has an CrashLoopBackOff  error for more than 10 minutes'
-              summary: 'Pod {{$labels.pod}} in namespace {{$labels.namespace}} in error status'
-          - alert: pod_error_config_error
-            expr: kube_pod_container_status_waiting_reason {reason="CreateContainerConfigError"} == 1
-            for: 10m
-            labels:
-              severity: page
-            annotations:
-              description: 'Pod {{$labels.pod}} in namespace {{$labels.namespace}} has a CreateContainerConfigError error for more than 10 minutes'
-              summary: 'Pod {{$labels.pod}} in namespace {{$labels.namespace}} in error status'
-          - alert: replicaset_missing_replicas
-            expr:  kube_replicaset_spec_replicas -  kube_replicaset_status_ready_replicas > 0
-            for: 10m
-            labels:
-              severity: page
-            annotations:
-              description: 'Replicaset {{$labels.replicaset}} is missing desired number of replicas for more than 10 minutes'
-              summary: 'Replicaset {{$labels.replicaset}} is missing replicas'
-          - alert: pod_container_terminated
-            expr: kube_pod_container_status_terminated_reason{reason=~"OOMKilled|Error|ContainerCannotRun"} > 0
-            for: 10m
-            labels:
-              severity: page
-            annotations:
-              description: 'Pod {{$labels.pod}} in namespace {{$labels.namespace}} has a container terminated for more than 10 minutes'
-              summary: 'Pod {{$labels.pod}} in namespace {{$labels.namespace}} in error status'
-          - alert: volume_claim_capacity_high_utilization
-            expr: 100 * kubelet_volume_stats_used_bytes / kubelet_volume_stats_capacity_bytes > 80
-            for: 5m
-            labels:
-              severity: page
-            annotations:
-              description: 'volume claim {{$labels.persistentvolumeclaim}} usage has exceeded 80% of total capacity'
-              summary: '{{$labels.persistentvolumeclaim}} usage has exceeded 80% of total capacity.'
-      basic_linux:
-        groups:
-        - name: basic_linux.rules
-          rules:
-          - alert: node_filesystem_full_80percent
-            expr: sort(node_filesystem_free{fstype =~ "xfs|ext[34]"} < node_filesystem_size{fstype =~ "xfs|ext[34]"}
-              * 0.2) / 1024 ^ 3
-            for: 5m
-            labels:
-              severity: page
-            annotations:
-              description: '{{$labels.alias}} device {{$labels.device}} on {{$labels.mountpoint}}
-                got less than 10% space left on its filesystem.'
-              summary: '{{$labels.alias}}: Filesystem is running out of space soon.'
-          - alert: node_filesystem_full_in_4h
-            expr: predict_linear(node_filesystem_free{fstype =~ "xfs|ext[34]"}[1h], 4 * 3600) <= 0
-            for: 5m
-            labels:
-              severity: page
-            annotations:
-              description: '{{$labels.alias}} device {{$labels.device}} on {{$labels.mountpoint}}
-                is running out of space of in approx. 4 hours'
-              summary: '{{$labels.alias}}: Filesystem is running out of space in 4 hours.'
-          - alert: node_filedescriptors_full_in_3h
-            expr: predict_linear(node_filefd_allocated[1h], 3 * 3600) >= node_filefd_maximum
-            for: 20m
-            labels:
-              severity: page
-            annotations:
-              description: '{{$labels.alias}} is running out of available file descriptors
-                in approx. 3 hours'
-              summary: '{{$labels.alias}} is running out of available file descriptors in
-                3 hours.'
-          - alert: node_load1_90percent
-            expr: node_load1 / ON(alias) count(node_cpu{mode="system"}) BY (alias) >= 0.9
-            for: 1h
-            labels:
-              severity: page
-            annotations:
-              description: '{{$labels.alias}} is running with > 90% total load for at least
-                1h.'
-              summary: '{{$labels.alias}}: Running on high load.'
-          - alert: node_cpu_util_90percent
-            expr: 100 - (avg(irate(node_cpu{mode="idle"}[5m])) BY (alias) * 100) >= 90
-            for: 1h
-            labels:
-              severity: page
-            annotations:
-              description: '{{$labels.alias}} has total CPU utilization over 90% for at least
-                1h.'
-              summary: '{{$labels.alias}}: High CPU utilization.'
-          - alert: node_ram_using_90percent
-            expr: node_memory_MemFree + node_memory_Buffers + node_memory_Cached < node_memory_MemTotal
-              * 0.1
-            for: 30m
-            labels:
-              severity: page
-            annotations:
-              description: '{{$labels.alias}} is using at least 90% of its RAM for at least
-                30 minutes now.'
-              summary: '{{$labels.alias}}: Using lots of RAM.'
-          - alert: node_swap_using_80percent
-            expr: node_memory_SwapTotal - (node_memory_SwapFree + node_memory_SwapCached)
-              > node_memory_SwapTotal * 0.8
-            for: 10m
-            labels:
-              severity: page
-            annotations:
-              description: '{{$labels.alias}} is using 80% of its swap space for at least
-                10 minutes now.'
-              summary: '{{$labels.alias}}: Running out of swap soon.'
-          - alert: node_high_cpu_load
-            expr: node_load15 / on(alias) count(node_cpu{mode="system"}) by (alias) >= 0
-            for: 1m
-            labels:
-              severity: warning
-            annotations:
-              description: '{{$labels.alias}} is running with load15 > 1 for at least 5 minutes: {{$value}}'
-              summary: '{{$labels.alias}}: Running on high load: {{$value}}'
-          - alert: node_high_memory_load
-            expr: (sum(node_memory_MemTotal) - sum(node_memory_MemFree + node_memory_Buffers
-              + node_memory_Cached)) / sum(node_memory_MemTotal) * 100 > 85
-            for: 1m
-            labels:
-              severity: warning
-            annotations:
-              description: Host memory usage is {{ humanize $value }}%. Reported by
-                instance {{ $labels.instance }} of job {{ $labels.job }}.
-              summary: Server memory is almost full
-          - alert: node_high_storage_load
-            expr: (node_filesystem_size{mountpoint="/"} - node_filesystem_free{mountpoint="/"})
-              / node_filesystem_size{mountpoint="/"} * 100 > 85
-            for: 30s
-            labels:
-              severity: warning
-            annotations:
-              description: Host storage usage is {{ humanize $value }}%. Reported by
-                instance {{ $labels.instance }} of job {{ $labels.job }}.
-              summary: Server storage is almost full
-          - alert: node_high_swap
-            expr: (node_memory_SwapTotal - node_memory_SwapFree) < (node_memory_SwapTotal
-              * 0.4)
-            for: 1m
-            labels:
-              severity: warning
-            annotations:
-              description: Host system has a high swap usage of {{ humanize $value }}. Reported
-                by instance {{ $labels.instance }} of job {{ $labels.job }}.
-              summary: Server has a high swap usage
-          - alert: node_high_network_drop_rcv
-            expr: node_network_receive_drop{device!="lo"} > 3000
-            for: 30s
-            labels:
-              severity: warning
-            annotations:
-              description: Host system has an unusally high drop in network reception ({{
-                humanize $value }}). Reported by instance {{ $labels.instance }} of job {{
-                $labels.job }}
-              summary: Server has a high receive drop
-          - alert: node_high_network_drop_send
-            expr: node_network_transmit_drop{device!="lo"} > 3000
-            for: 30s
-            labels:
-              severity: warning
-            annotations:
-              description: Host system has an unusally high drop in network transmission ({{
-                humanize $value }}). Reported by instance {{ $labels.instance }} of job {{
-                $labels.job }}
-              summary: Server has a high transmit drop
-          - alert: node_high_network_errs_rcv
-            expr: node_network_receive_errs{device!="lo"} > 3000
-            for: 30s
-            labels:
-              severity: warning
-            annotations:
-              description: Host system has an unusally high error rate in network reception
-                ({{ humanize $value }}). Reported by instance {{ $labels.instance }} of job
-                {{ $labels.job }}
-              summary: Server has unusual high reception errors
-          - alert: node_high_network_errs_send
-            expr: node_network_transmit_errs{device!="lo"} > 3000
-            for: 30s
-            labels:
-              severity: warning
-            annotations:
-              description: Host system has an unusally high error rate in network transmission
-                ({{ humanize $value }}). Reported by instance {{ $labels.instance }} of job
-                {{ $labels.job }}
-              summary: Server has unusual high transmission errors
-          - alert: node_network_conntrack_usage_80percent
-            expr: sort(node_nf_conntrack_entries{job="node-exporter"} > node_nf_conntrack_entries_limit{job="node-exporter"}  * 0.8)
-            for: 5m
-            labels:
-              severity: page
-            annotations:
-              description: '{{$labels.instance}} has network conntrack entries of {{ $value }} which is more than 80% of maximum limit'
-              summary: '{{$labels.instance}}: available network conntrack entries are low.'
-          - alert: node_entropy_available_low
-            expr: node_entropy_available_bits < 300
-            for: 5m
-            labels:
-              severity: page
-            annotations:
-              description: '{{$labels.instance}} has available entropy bits of {{ $value }} which is less than required of 300'
-              summary: '{{$labels.instance}}: is low on entropy bits.'
-          - alert: node_hwmon_high_cpu_temp
-            expr: node_hwmon_temp_crit_celsius*0.9 - node_hwmon_temp_celsius < 0 OR node_hwmon_temp_max_celsius*0.95 - node_hwmon_temp_celsius < 0
-            for: 5m
-            labels:
-              severity: page
-            annotations:
-              description: '{{$labels.alias}} reports hwmon sensor {{$labels.sensor}}/{{$labels.chip}} temperature value is nearly critical: {{$value}}'
-              summary: '{{$labels.alias}}: Sensor {{$labels.sensor}}/{{$labels.chip}} temp is high: {{$value}}'
-          - alert: node_vmstat_paging_rate_high
-            expr: irate(node_vmstat_pgpgin[5m]) > 80
-            for: 5m
-            labels:
-              severity: page
-            annotations:
-              description: '{{$labels.alias}} has a memory paging rate of change higher than 80%: {{$value}}'
-              summary: '{{$labels.alias}}: memory paging rate is high: {{$value}}'
-          - alert: node_xfs_block_allocation_high
-            expr: 100*(node_xfs_extent_allocation_blocks_allocated_total{job="node-exporter", instance=~"172.17.0.1.*"} / (node_xfs_extent_allocation_blocks_freed_total{job="node-exporter", instance=~"172.17.0.1.*"} + node_xfs_extent_allocation_blocks_allocated_total{job="node-exporter", instance=~"172.17.0.1.*"})) > 80
-            for: 5m
-            labels:
-              severity: page
-            annotations:
-              description: '{{$labels.alias}} has xfs allocation blocks higher than 80%: {{$value}}'
-              summary: '{{$labels.alias}}: xfs block allocation high: {{$value}}'
-          - alert: node_network_bond_slaves_down
-            expr: node_net_bonding_slaves - node_net_bonding_slaves_active > 0
-            for: 5m
-            labels:
-              severity: page
-            annotations:
-              description: '{{ $labels.master }} is missing {{ $value }} slave interface(s).'
-              summary: 'Instance {{ $labels.instance }}: {{ $labels.master }} missing {{ $value }} slave interface(s)'
-          - alert: node_numa_memory_used
-            expr: 100*node_memory_numa_MemUsed / node_memory_numa_MemTotal > 80
-            for: 5m
-            labels:
-              severity: page
-            annotations:
-              description: '{{$labels.alias}} has more than 80% NUMA memory usage: {{ $value }}'
-              summary: '{{$labels.alias}}: has high NUMA memory usage: {{$value}}'
-          - alert: node_ntp_clock_skew_high
-            expr: abs(node_ntp_drift_seconds) > 2
-            for: 5m
-            labels:
-              severity: page
-            annotations:
-              description: '{{$labels.alias}} has time difference of more than 2 seconds compared to NTP server: {{ $value }}'
-              summary: '{{$labels.alias}}: time is skewed by : {{$value}} seconds'
-          - alert: node_disk_read_latency
-            expr: (rate(node_disk_read_time_ms[5m]) / rate(node_disk_reads_completed[5m])) > 40
-            for: 5m
-            labels:
-              severity: page
-            annotations:
-              description: '{{$labels.device}} has a high read latency of {{ $value }}'
-              summary: 'High read latency observed for device {{ $labels.device }}'
-          - alert: node_disk_write_latency
-            expr: (rate(node_disk_write_time_ms[5m]) / rate(node_disk_writes_completed[5m])) > 40
-            for: 5m
-            labels:
-              severity: page
-            annotations:
-              description: '{{$labels.device}} has a high write latency of {{ $value }}'
-              summary: 'High write latency observed for device {{ $labels.device }}'
-      openstack:
-        groups:
-        - name: openstack.rules
-          rules:
-          - alert: os_glance_api_availability
-            expr:  openstack_check_glance_api != 1
-            for: 5m
-            labels:
-              severity: page
-            annotations:
-              description: 'Glance API is not available at {{$labels.url}} for more than 5 minutes'
-              summary: 'Glance API is not available at {{$labels.url}}'
-          - alert: os_nova_api_availability
-            expr:  openstack_check_nova_api != 1
-            for: 5m
-            labels:
-              severity: page
-            annotations:
-              description: 'Nova API is not available at {{$labels.url}} for more than 5 minutes'
-              summary: 'Nova API is not available at {{$labels.url}}'
-          - alert: os_keystone_api_availability
-            expr:  openstack_check_keystone_api != 1
-            for: 5m
-            labels:
-              severity: page
-            annotations:
-              description: 'Keystone API is not available at {{$labels.url}} for more than 5 minutes'
-              summary: 'Keystone API is not available at {{$labels.url}}'
-          - alert: os_neutron_api_availability
-            expr:  openstack_check_neutron_api != 1
-            for: 5m
-            labels:
-              severity: page
-            annotations:
-              description: 'Neutron API is not available at {{$labels.url}} for more than 5 minutes'
-              summary: 'Neutron API is not available at {{$labels.url}}'
-          - alert: os_neutron_metadata_agent_availability
-            expr:  openstack_services_neutron_metadata_agent_down_total > 0
-            for: 5m
-            labels:
-              severity: page
-            annotations:
-              description: 'One or more neutron metadata_agents are not available for more than 5 minutes'
-              summary: 'One or more neutron metadata_agents are not available'
-          - alert: os_neutron_openvswitch_agent_availability
-            expr:  openstack_services_neutron_openvswitch_agent_down_total > 0
-            for: 5m
-            labels:
-              severity: page
-            annotations:
-              description: 'One or more neutron openvswitch agents are not available for more than 5 minutes'
-              summary: 'One or more neutron openvswitch agents are not available'
-          - alert: os_neutron_dhcp_agent_availability
-            expr:  openstack_services_neutron_dhcp_agent_down_total > 0
-            for: 5m
-            labels:
-              severity: page
-            annotations:
-              description: 'One or more neutron dhcp agents are not available for more than 5 minutes'
-              summary: 'One or more neutron dhcp agents are not available'
-          - alert: os_neutron_l3_agent_availability
-            expr:  openstack_services_neutron_l3_agent_down_total > 0
-            for: 5m
-            labels:
-              severity: page
-            annotations:
-              description: 'One or more neutron L3 agents are not available for more than 5 minutes'
-              summary: 'One or more neutron L3 agents are not available'
-          - alert: os_swift_api_availability
-            expr:  openstack_check_swift_api != 1
-            for: 5m
-            labels:
-              severity: page
-            annotations:
-              description: 'Swift API is not available at {{$labels.url}} for more than 5 minutes'
-              summary: 'Swift API is not available at {{$labels.url}}'
-          - alert: os_cinder_api_availability
-            expr:  openstack_check_cinder_api != 1
-            for: 5m
-            labels:
-              severity: page
-            annotations:
-              description: 'Cinder API is not available at {{$labels.url}} for more than 5 minutes'
-              summary: 'Cinder API is not available at {{$labels.url}}'
-          - alert: os_cinder_scheduler_availability
-            expr:  openstack_services_cinder_cinder_scheduler != 1
-            for: 5m
-            labels:
-              severity: page
-            annotations:
-              description: 'Cinder scheduler is not available for more than 5 minutes'
-              summary: 'Cinder scheduler is not available'
-          - alert: os_heat_api_availability
-            expr:  openstack_check_heat_api != 1
-            for: 5m
-            labels:
-              severity: page
-            annotations:
-              description: 'Heat API is not available at {{$labels.url}} for more than 5 minutes'
-              summary: 'Heat API is not available at {{$labels.url}}'
-          - alert: os_nova_compute_disabled
-            expr:  openstack_services_nova_compute_disabled_total > 0
-            for: 5m
-            labels:
-              severity: page
-            annotations:
-              description: 'nova-compute is disabled on certain hosts for more than 5 minutes'
-              summary: 'Openstack compute service nova-compute is disabled on some hosts'
-          - alert: os_nova_conductor_disabled
-            expr:  openstack_services_nova_conductor_disabled_total > 0
-            for: 5m
-            labels:
-              severity: page
-            annotations:
-              description: 'nova-conductor is disabled on certain hosts for more than 5 minutes'
-              summary: 'Openstack compute service nova-conductor is disabled on some hosts'
-          - alert: os_nova_consoleauth_disabled
-            expr:  openstack_services_nova_consoleauth_disabled_total > 0
-            for: 5m
-            labels:
-              severity: page
-            annotations:
-              description: 'nova-consoleauth is disabled on certain hosts for more than 5 minutes'
-              summary: 'Openstack compute service nova-consoleauth is disabled on some hosts'
-          - alert: os_nova_scheduler_disabled
-            expr:  openstack_services_nova_scheduler_disabled_total > 0
-            for: 5m
-            labels:
-              severity: page
-            annotations:
-              description: 'nova-scheduler is disabled on certain hosts for more than 5 minutes'
-              summary: 'Openstack compute service nova-scheduler is disabled on some hosts'
-          - alert: os_nova_compute_down
-            expr:  openstack_services_nova_compute_down_total > 0
-            for: 5m
-            labels:
-              severity: page
-            annotations:
-              description: 'nova-compute is down on certain hosts for more than 5 minutes'
-              summary: 'Openstack compute service nova-compute is down on some hosts'
-          - alert: os_nova_conductor_down
-            expr:  openstack_services_nova_conductor_down_total > 0
-            for: 5m
-            labels:
-              severity: page
-            annotations:
-              description: 'nova-conductor is down on certain hosts for more than 5 minutes'
-              summary: 'Openstack compute service nova-conductor is down on some hosts'
-          - alert: os_nova_consoleauth_down
-            expr:  openstack_services_nova_consoleauth_down_total > 0
-            for: 5m
-            labels:
-              severity: page
-            annotations:
-              description: 'nova-consoleauth is down on certain hosts for more than 5 minutes'
-              summary: 'Openstack compute service nova-consoleauth is down on some hosts'
-          - alert: os_nova_scheduler_down
-            expr:  openstack_services_nova_scheduler_down_total > 0
-            for: 5m
-            labels:
-              severity: page
-            annotations:
-              description: 'nova-scheduler is down on certain hosts for more than 5 minutes'
-              summary: 'Openstack compute service nova-scheduler is down on some hosts'
-          - alert: os_vm_vcpu_usage_high
-            expr: openstack_total_used_vcpus * 100/(openstack_total_used_vcpus + openstack_total_free_vcpus) > 80
-            for: 5m
-            labels:
-              severity: page
-            annotations:
-              description: 'Openstack VM vcpu usage is hight at {{$value}} percent'
-              summary: 'Openstack VM vcpu usage is high'
-          - alert: os_vm_ram_usage_high
-            expr: openstack_total_used_ram_MB * 100/(openstack_total_used_ram_MB + openstack_total_free_ram_MB) > 80
-            for: 5m
-            labels:
-              severity: page
-            annotations:
-              description: 'Openstack VM RAM usage is hight at {{$value}} percent'
-              summary: 'Openstack VM RAM usage is high'
-          - alert: os_vm_disk_usage_high
-            expr: openstack_total_used_disk_GB * 100/ ( openstack_total_used_disk_GB + openstack_total_free_disk_GB ) > 80
-            for: 5m
-            labels:
-              severity: page
-            annotations:
-              description: 'Openstack VM Disk usage is hight at {{$value}} percent'
-              summary: 'Openstack VM Disk usage is high'
-      ceph:
-        groups:
-        - name: ceph.rules
-          rules:
-          - alert: no_active_ceph_mgr
-            expr: count(up{job="ceph-mgr"} == 1) == 0
-            for: 5m
-            labels:
-              severity: warning
-            annotations:
-              description: 'no ceph active mgr is present or all ceph mgr are down'
-              summary: 'no ceph active mgt is present'
-          - alert: ceph_mon_quorum_low
-            expr:  ceph_mon_quorum_count < 3
-            for: 5m
-            labels:
-              severity: page
-            annotations:
-              description: 'ceph monitor quorum has been less than 3 for more than 5 minutes'
-              summary: 'ceph high availability is at risk'
-          - alert: ceph_cluster_usage_high
-            expr: 100* ceph_cluster_total_used_bytes/ceph_cluster_total_bytes > 80
-            for: 5m
-            labels:
-              severity: page
-            annotations:
-              description: 'ceph cluster capacity usage more than 80 percent'
-              summary: 'ceph cluster usage is more than 80 percent'
-          - alert: ceph_placement_group_degrade_pct_high
-            expr: 100 * sum(ceph_pg_degraded)/sum(ceph_osd_numpg) > 80
-            for: 5m
-            labels:
-              severity: critical
-            annotations:
-              description: 'ceph placement group degradation is more than 80 percent'
-              summary: 'ceph placement groups degraded'
-          - alert: ceph_osd_down_pct_high
-            expr:  100 * count(ceph_osd_up==0)/count(ceph_osd_metadata) > 80
-            for: 5m
-            labels:
-              severity: critical
-            annotations:
-              description: 'ceph OSDs down percent is more than 80 percent'
-              summary: 'ceph OSDs down percent is high'
-          - alert: ceph_osd_down
-            expr: ceph_osd_up == 0
-            for: 1m
-            labels:
-              severity: critical
-            annotations:
-              description: 'ceph OSD {{ $labels.ceph_daemon }} is down in instance {{ $labels.instance }}'
-              summary: 'ceph OSD {{ $labels.ceph_daemon }} is down in instance {{ $labels.instance }}'
-          - alert: ceph_osd_out
-            expr: ceph_osd_in == 0
-            for: 5m
-            labels:
-              severity: page
-            annotations:
-              description: 'ceph OSD {{ $labels.ceph_daemon }} is out in instance {{ $labels.instance }}'
-              summary: 'ceph OSD {{ $labels.ceph_daemon }} is out in instance {{ $labels.instance }}'
-      fluentd:
-        groups:
-        - name: fluentd.rules
-          rules:
-          - alert: fluentd_not_running
-            expr:  fluentd_up == 0
-            for: 5m
-            labels:
-              severity: page
-            annotations:
-              description: 'fluentd is down on {{$labels.instance}} for more than 5 minutes'
-              summary: 'Fluentd is down'
-      calico:
-        groups:
-        - name: calico.rules
-          rules:
-          - alert: calico_datapane_failures_high_1h
-            expr: absent(felix_int_dataplane_failures) OR increase(felix_int_dataplane_failures[1h]) > 5
-            labels:
-              severity: page
-            annotations:
-              description: 'Felix instance {{ $labels.instance }} has seen {{ $value }} dataplane failures within the last hour'
-              summary: 'A high number of dataplane failures within Felix are happening'
-          - alert: calico_datapane_address_msg_batch_size_high_5m
-            expr: absent(felix_int_dataplane_addr_msg_batch_size_sum) OR absent(felix_int_dataplane_addr_msg_batch_size_count) OR (felix_int_dataplane_addr_msg_batch_size_sum/felix_int_dataplane_addr_msg_batch_size_count) > 5
-            for: 5m
-            labels:
-              severity: page
-            annotations:
-              description: 'Felix instance {{ $labels.instance }} has seen a high value of {{ $value }} dataplane address message batch size'
-              summary: 'Felix address message batch size is higher'
-          - alert: calico_datapane_iface_msg_batch_size_high_5m
-            expr: absent(felix_int_dataplane_iface_msg_batch_size_sum) OR absent(felix_int_dataplane_iface_msg_batch_size_count) OR (felix_int_dataplane_iface_msg_batch_size_sum/felix_int_dataplane_iface_msg_batch_size_count) > 5
-            for: 5m
-            labels:
-              severity: page
-            annotations:
-              description: 'Felix instance {{ $labels.instance }} has seen a high value of {{ $value }} dataplane interface message batch size'
-              summary: 'Felix interface message batch size is higher'
-          - alert: calico_ipset_errors_high_1h
-            expr: absent(felix_ipset_errors) OR increase(felix_ipset_errors[1h]) > 5
-            labels:
-              severity: page
-            annotations:
-              description: 'Felix instance {{ $labels.instance }} has seen {{ $value }} ipset errors within the last hour'
-              summary: 'A high number of ipset errors within Felix are happening'
-          - alert: calico_iptable_save_errors_high_1h
-            expr: absent(felix_iptables_save_errors) OR increase(felix_iptables_save_errors[1h]) > 5
-            labels:
-              severity: page
-            annotations:
-              description: 'Felix instance {{ $labels.instance }} has seen {{ $value }} iptable save errors within the last hour'
-              summary: 'A high number of iptable save errors within Felix are happening'
-          - alert: calico_iptable_restore_errors_high_1h
-            expr: absent(felix_iptables_restore_errors) OR increase(felix_iptables_restore_errors[1h]) > 5
-            labels:
-              severity: page
-            annotations:
-              description: 'Felix instance {{ $labels.instance }} has seen {{ $value }} iptable restore errors within the last hour'
-              summary: 'A high number of iptable restore errors within Felix are happening'
-      rabbitmq:
-        groups:
-        - name: rabbitmq.rules
-          rules:
-          - alert: rabbitmq_network_pratitions_detected
-            expr: min(partitions) by(instance) > 0
-            for: 10m
-            labels:
-              severity: warning
-            annotations:
-              description: 'RabbitMQ at {{ $labels.instance }} has {{ $value }} partitions'
-              summary: 'RabbitMQ Network partitions detected'
-          - alert: rabbitmq_down
-            expr:  min(rabbitmq_up) by(instance) != 1
-            for: 10m
-            labels:
-              severity: page
-            annotations:
-              description: 'RabbitMQ Server instance {{ $labels.instance }} is down'
-              summary: 'The RabbitMQ Server instance at {{ $labels.instance }} has been down the last 10 mins'
-          - alert: rabbitmq_file_descriptor_usage_high
-            expr:  fd_used * 100 /fd_total > 80
-            for: 10m
-            labels:
-              severity: warning
-            annotations:
-              description: 'RabbitMQ Server instance {{ $labels.instance }} has high file descriptor usage of {{ $value }} percent.'
-              summary: 'RabbitMQ file descriptors usage is high for last 10 mins'
-          - alert: rabbitmq_node_disk_free_alarm
-            expr:  node_disk_free_alarm > 0
-            for: 10m
-            labels:
-              severity: warning
-            annotations:
-              description: 'RabbitMQ Server instance {{ $labels.instance }} has low disk free space available.'
-              summary: 'RabbitMQ disk space usage is high'
-          - alert: rabbitmq_node_memory_alarm
-            expr:  node_mem_alarm > 0
-            for: 10m
-            labels:
-              severity: warning
-            annotations:
-              description: 'RabbitMQ Server instance {{ $labels.instance }} has low free memory.'
-              summary: 'RabbitMQ memory usage is high'
-          - alert: rabbitmq_less_than_3_nodes
-            expr:  running < 3
-            for: 10m
-            labels:
-              severity: warning
-            annotations:
-              description: 'RabbitMQ Server has less than 3 nodes running.'
-              summary: 'RabbitMQ server is at risk of loosing data'
-          - alert: rabbitmq_queue_messages_returned_high
-            expr:  queue_messages_returned_total/queue_messages_published_total * 100 > 50
-            for: 5m
-            labels:
-              severity: warning
-            annotations:
-              description: 'RabbitMQ Server is returing more than 50 percent of messages received.'
-              summary: 'RabbitMQ server is returning more than 50 percent of messages received.'
-          - alert: rabbitmq_consumers_low_utilization
-            expr:  queue_consumer_utilisation < .4
-            for: 5m
-            labels:
-              severity: warning
-            annotations:
-              description: 'RabbitMQ consumers message consumption speed is low'
-              summary: 'RabbitMQ consumers message consumption speed is low'
-          - alert: rabbitmq_high_message_load
-            expr:  queue_messages_total > 17000 or increase(queue_messages_total[5m]) > 4000
-            for: 5m
-            labels:
-              severity: warning
-            annotations:
-              description: 'RabbitMQ has high message load. Total Queue depth > 17000 or growth more than 4000 messages.'
-              summary: 'RabbitMQ has high message load'
-      elasticsearch:
-        groups:
-        - name: elasticsearch.rules
-          rules:
-          - alert: es_high_process_open_files_count
-            expr: sum(elasticsearch_process_open_files_count) by (host) > 64000
-            for: 10m
-            labels:
-              severity: warning
-            annotations:
-              description: 'Elasticsearch at {{ $labels.host }} has more than 64000 process open file count.'
-              summary: 'Elasticsearch has a very high process open file count.'
-          - alert: es_high_process_cpu_percent
-            expr: elasticsearch_process_cpu_percent > 95
-            for: 10m
-            labels:
-              severity: warning
-            annotations:
-              description: 'Elasticsearch at {{ $labels.instance }} has high process cpu percent of {{ $value }}.'
-              summary: 'Elasticsearch process cpu usage is more than 95 percent.'
-          - alert: es_fs_usage_high
-            expr: (100 * (elasticsearch_filesystem_data_size_bytes - elasticsearch_filesystem_data_free_bytes) / elasticsearch_filesystem_data_size_bytes) > 80
-            for: 10m
-            labels:
-              severity: warning
-            annotations:
-              description: 'Elasticsearch at {{ $labels.instance }} has filesystem usage of {{ $value }}.'
-              summary: 'Elasticsearch filesystem usage is high.'
-          - alert: es_unassigned_shards
-            expr: elasticsearch_cluster_health_unassigned_shards > 0
-            for: 10m
-            labels:
-              severity: warning
-            annotations:
-              description: 'Elasticsearch has {{ $value }} unassigned shards.'
-              summary: 'Elasticsearch has unassigned shards and hence a unhealthy cluster state.'
-          - alert: es_cluster_health_timed_out
-            expr: elasticsearch_cluster_health_timed_out > 0
-            for: 10m
-            labels:
-              severity: warning
-            annotations:
-              description: 'Elasticsearch cluster health status call timedout {{ $value }} times.'
-              summary: 'Elasticsearch cluster health status calls are timing out.'
-          - alert: es_cluster_health_status_alert
-            expr: (sum(elasticsearch_cluster_health_status{color="green"})*2)+sum(elasticsearch_cluster_health_status{color="yellow"}) < 2
-            for: 10m
-            labels:
-              severity: warning
-            annotations:
-              description: 'Elasticsearch cluster health status is {{ $value }}, not 2 (green). One or more shards or replicas are unallocated.'
-              summary: 'Elasticsearch cluster health status is not green.'
-          - alert: es_cluster_health_too_few_nodes_running
-            expr: elasticsearch_cluster_health_number_of_nodes < 3
-            for: 10m
-            labels:
-              severity: warning
-            annotations:
-              description: 'There are only {{$value}} < 3 ElasticSearch nodes running'
-              summary: 'ElasticSearch running on less than 3 nodes'
-          - alert: es_cluster_health_too_few_data_nodes_running
-            expr: elasticsearch_cluster_health_number_of_data_nodes < 3
-            for: 10m
-            labels:
-              severity: warning
-            annotations:
-              description: 'There are only {{$value}} < 3 ElasticSearch data nodes running'
-              summary: 'ElasticSearch running on less than 3 data nodes'
-          - alert: es_cluster_health_too_few_data_nodes_running
-            expr: elasticsearch_cluster_health_number_of_data_nodes < 3
-            for: 10m
-            labels:
-              severity: warning
-            annotations:
-              description: 'There are only {{$value}} < 3 ElasticSearch data nodes running'
-              summary: 'ElasticSearch running on less than 3 data nodes'
-      mariadb:
-        groups:
-        - name: mariadb.rules
-          rules:
-          - alert: mariadb_table_lock_wait_high
-            expr: 100 * mysql_global_status_table_locks_waited/(mysql_global_status_table_locks_waited + mysql_global_status_table_locks_immediate) > 30
-            for: 10m
-            labels:
-              severity: warning
-            annotations:
-              description: 'Mariadb has high table lock waits of {{ $value }} percentage'
-              summary: 'Mariadb table lock waits are high'
-          - alert: mariadb_node_not_ready
-            expr:  mysql_global_status_wsrep_ready != 1
-            for: 10m
-            labels:
-              severity: warning
-            annotations:
-              description: '{{$labels.job}} on {{$labels.instance}} is not ready.'
-              summary: 'Galera cluster node not ready'
-          - alert: mariadb_galera_node_out_of_sync
-            expr:  mysql_global_status_wsrep_local_state != 4 AND mysql_global_variables_wsrep_desync == 0
-            for: 10m
-            labels:
-              severity: warning
-            annotations:
-              description: '{{$labels.job}} on {{$labels.instance}} is not in sync ({{$value}} != 4)'
-              summary: 'Galera cluster node out of sync'
-          - alert: mariadb_innodb_replication_fallen_behind
-            expr:  (mysql_global_variables_innodb_replication_delay > 30) AND on (instance) (predict_linear(mysql_global_variables_innodb_replication_delay[5m], 60*2) > 0)
-            for: 10m
-            labels:
-              severity: warning
-            annotations:
-              description: 'The mysql innodb replication has fallen behind and is not recovering'
-              summary: 'MySQL innodb replication is lagging'
-      postgresql:
-        groups:
-        - name: postgresql.rules
-          rules:
-          - alert: pg_replication_fallen_behind
-            expr: (pg_replication_lag > 120) and ON(instance) (pg_replication_is_replica ==  1)
-            for: 5m
-            labels:
-              severity: warning
-            annotations:
-              description: Replication lag on server {{$labels.instance}} is currently {{$value | humanizeDuration }}
-              title: Postgres Replication lag is over 2 minutes
-          - alert: pg_connections_too_high
-            expr: sum(pg_stat_activity_count) BY (environment, fqdn) > ON(fqdn) pg_settings_max_connections * 0.95
-            for: 5m
-            labels:
-              severity: warn
-              channel: database
-            annotations:
-              title: Postgresql has {{$value}} connections on {{$labels.fqdn}} which is close to the maximum
-          - alert: pg_deadlocks_detected
-            expr: sum by(datname) (rate(pg_stat_database_deadlocks[1m])) > 0
-            for: 5m
-            labels:
-              severity: warn
-            annotations:
-              description: postgresql at {{$labels.instance}} is showing {{$value}} rate of deadlocks for database {{$labels.datname}}
-              title: Postgres server is experiencing deadlocks
-      prometheus_exporters:
-        groups:
-        - name: prometheus_exporters.rules
-          rules:
-          - alert: prom_exporter_ceph_unavailable
-            expr: absent(ceph_health_status)
-            for: 10m
-            labels:
-              severity: warning
-            annotations:
-              description: Ceph exporter is not collecting metrics or is not available for past 10 minutes
-              title: Ceph exporter is not collecting metrics or is not available
-          - alert: prom_exporter_openstack_unavailable
-            expr: absent(openstack_exporter_cache_refresh_duration_seconds)
-            for: 10m
-            labels:
-              severity: warning
-            annotations:
-              description: Openstack exporter is not collecting metrics or is not available for past 10 minutes
-              title: Openstack exporter is not collecting metrics or is not available
-          - alert: prom_exporter_mariadb_unavailable
-            expr: absent(mysql_up)
-            for: 10m
-            labels:
-              severity: warning
-            annotations:
-              description: MariaDB exporter is not collecting metrics or is not available for past 10 minutes
-              title: MariaDB exporter is not collecting metrics or is not available
-          - alert: prom_exporter_kube_state_metrics_unavailable
-            expr: absent(kube_node_info)
-            for: 10m
-            labels:
-              severity: warning
-            annotations:
-              description: kube-state-metrics exporter is not collecting metrics or is not available for past 10 minutes
-              title: kube-state-metrics exporter is not collecting metrics or is not available
-          - alert: prom_exporter_postgresql_unavailable
-            expr: absent(pg_static)
-            for: 10m
-            labels:
-              severity: warning
-            annotations:
-              description: postgresql exporter is not collecting metrics or is not available for past 10 minutes
-              title: postgresql exporter is not collecting metrics or is not available
-          - alert: prom_exporter_node_unavailable
-            expr: absent(node_uname_info)
-            for: 10m
-            labels:
-              severity: warning
-            annotations:
-              description: node exporter is not collecting metrics or is not available for past 10 minutes
-              title: node exporter is not collecting metrics or is not available
-          - alert: prom_exporter_calico_unavailable
-            expr: absent(felix_host)
-            for: 10m
-            labels:
-              severity: warning
-            annotations:
-              description: Calico exporter is not collecting metrics or is not available for past 10 minutes
-              title: Calico exporter is not collecting metrics or is not available
-          - alert: prom_exporter_elasticsearch_unavailable
-            expr: absent(elasticsearch_cluster_health_status)
-            for: 10m
-            labels:
-              severity: warning
-            annotations:
-              description: Elasticsearch exporter is not collecting metrics or is not available for past 10 minutes
-              title: Elasticsearch exporter is not collecting metrics or is not available
-          - alert: prom_exporter_fluentd_unavailable
-            expr: absent(fluentd_up)
-            for: 10m
-            labels:
-              severity: warning
-            annotations:
-              description: Fluentd exporter is not collecting metrics or is not available for past 10 minutes
-              title: Fluentd exporter is not collecting metrics or is not available
+            relabel_configs:
+            - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+              action: keep
+              regex: true
+            - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+              action: replace
+              target_label: __metrics_path__
+              regex: (.+)
+            - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+              action: replace
+              regex: ([^:]+)(?::\d+)?;(\d+)
+              replacement: $1:$2
+              target_label: __address__
+            - action: labelmap
+              regex: __meta_kubernetes_pod_label_(.+)
+            - source_labels: [__meta_kubernetes_namespace]
+              action: replace
+              target_label: kubernetes_namespace
+            - source_labels: [__meta_kubernetes_pod_name]
+              action: replace
+              target_label: kubernetes_pod_name
+          - job_name: calico-etcd
+            kubernetes_sd_configs:
+            - role: service
+            scrape_interval: 20s
+            relabel_configs:
+            - action: labelmap
+              regex: __meta_kubernetes_service_label_(.+)
+            - action: keep
+              source_labels:
+                - __meta_kubernetes_service_name
+              regex: "calico-etcd"
+            - action: keep
+              source_labels:
+                - __meta_kubernetes_namespace
+              regex: kube-system
+              target_label: namespace
+            - source_labels:
+                - __meta_kubernetes_pod_name
+              target_label: pod
+            - source_labels:
+                - __meta_kubernetes_service_name
+              target_label: service
+            - source_labels:
+                - __meta_kubernetes_service_name
+              target_label: job
+              replacement: ${1}
+            - source_labels:
+                - __meta_kubernetes_service_label
+              target_label: job
+              regex: calico-etcd
+              replacement: ${1}
+            - target_label: endpoint
+              replacement: "calico-etcd"
+          - job_name: ceph-mgr
+            kubernetes_sd_configs:
+            - role: service
+            scrape_interval: 20s
+            relabel_configs:
+            - action: labelmap
+              regex: __meta_kubernetes_service_label_(.+)
+            - action: keep
+              source_labels:
+                - __meta_kubernetes_service_name
+              regex: "ceph-mgr"
+            - source_labels:
+                - __meta_kubernetes_service_port_name
+              action: drop
+              regex: 'ceph-mgr'
+            - action: keep
+              source_labels:
+                - __meta_kubernetes_namespace
+              regex: ceph
+              target_label: namespace
+            - source_labels:
+                - __meta_kubernetes_pod_name
+              target_label: pod
+            - source_labels:
+                - __meta_kubernetes_service_name
+              target_label: service
+            - source_labels:
+                - __meta_kubernetes_service_name
+              target_label: job
+              replacement: ${1}
+            - source_labels:
+                - __meta_kubernetes_service_label
+              target_label: job
+              regex: ceph-mgr
+              replacement: ${1}
+            - target_label: endpoint
+              replacement: "ceph-mgr"
+        alerting:
+          alertmanagers:
+          - kubernetes_sd_configs:
+              - role: pod
+            tls_config:
+              ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+            bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+            relabel_configs:
+            - source_labels: [__meta_kubernetes_pod_label_application]
+              regex: alertmanager
+              action: keep
+            - source_labels: [__meta_kubernetes_pod_container_port_name]
+              regex: alerts-api
+              action: keep
+            - source_labels: [__meta_kubernetes_pod_container_port_name]
+              regex: peer-mesh
+              action: drop
+    rules: []

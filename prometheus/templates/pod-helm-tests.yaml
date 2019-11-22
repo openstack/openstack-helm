@@ -16,7 +16,6 @@ limitations under the License.
 
 {{- if .Values.manifests.helm_tests }}
 {{- $envAll := . }}
-{{- $promUserSecret := .Values.secrets.prometheus.admin }}
 
 {{- $serviceAccountName := print .Release.Name "-test" }}
 {{ tuple $envAll "tests" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
@@ -47,12 +46,12 @@ spec:
         - name: PROMETHEUS_ADMIN_USERNAME
           valueFrom:
             secretKeyRef:
-              name: {{ $promUserSecret }}
+              name: {{ printf "%s-%s" $envAll.Release.Name "admin-user" | quote }}
               key: PROMETHEUS_ADMIN_USERNAME
         - name: PROMETHEUS_ADMIN_PASSWORD
           valueFrom:
             secretKeyRef:
-              name: {{ $promUserSecret }}
+              name: {{ printf "%s-%s" $envAll.Release.Name "admin-user" | quote }}
               key: PROMETHEUS_ADMIN_PASSWORD
         - name: PROMETHEUS_ENDPOINT
           value: {{ tuple "monitoring" "internal" "http" $envAll | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" }}
@@ -68,6 +67,6 @@ spec:
       emptyDir: {}
     - name: prometheus-bin
       configMap:
-        name: prometheus-bin
+        name: {{ printf "%s-%s" $envAll.Release.Name "prometheus-bin" | quote }}
         defaultMode: 0555
 {{- end }}
