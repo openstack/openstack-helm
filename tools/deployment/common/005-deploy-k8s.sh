@@ -38,7 +38,6 @@ function configure_resolvconf {
   # minikube start command, regardless of being passed in here
   sudo ln -s /run/systemd/resolve/resolv.conf /etc/resolv.conf
 
-  sudo bash -c "echo 'search svc.cluster.local cluster.local' >> /etc/resolv.conf"
   sudo bash -c "echo 'nameserver 10.96.0.10' >> /etc/resolv.conf"
 
   # NOTE(drewwalters96): Use the Google DNS servers to prevent local addresses in
@@ -53,7 +52,9 @@ function configure_resolvconf {
     done
   fi
 
+  sudo bash -c "echo 'search svc.cluster.local cluster.local' >> /etc/resolv.conf"
   sudo bash -c "echo 'options ndots:5 timeout:1 attempts:1' >> /etc/resolv.conf"
+
   sudo rm /etc/resolv.conf.backup
 }
 
