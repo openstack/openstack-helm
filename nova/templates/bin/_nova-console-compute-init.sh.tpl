@@ -32,8 +32,8 @@ fi
 
 if [ -z "${client_address}" ] ; then
     if [ -z "${client_interface}" ] ; then
-        # search for interface with default routing
-        client_interface=$(ip r | grep default | awk '{print $5}')
+        # search for interface with default routing, if multiple default routes exist then select the one with the lowest metric.
+        client_interface=$(route -n | awk '/^0.0.0.0/ { print $5 " " $NF }' | sort | awk '{ print $NF; exit }')
     fi
 
     # determine client ip dynamically based on interface provided
