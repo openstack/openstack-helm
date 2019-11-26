@@ -81,11 +81,7 @@ spec:
 {{ tuple $envAll "pod_dependency" $mounts_neutron_ovs_agent_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
         - name: neutron-openvswitch-agent-kernel-modules
 {{ tuple $envAll "neutron_openvswitch_agent" | include "helm-toolkit.snippets.image" | indent 10 }}
-          securityContext:
-            capabilities:
-              add:
-                - SYS_MODULE
-            runAsUser: 0
+{{ dict "envAll" $envAll "application" "neutron_ovs_agent" "container" "neutron_openvswitch_agent_kernel_modules" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
             - /tmp/neutron-openvswitch-agent-init-modules.sh
           volumeMounts:
@@ -105,9 +101,7 @@ spec:
         - name: neutron-ovs-agent-init
 {{ tuple $envAll "neutron_openvswitch_agent" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.agent.ovs | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-          securityContext:
-            privileged: true
-            runAsUser: 0
+{{ dict "envAll" $envAll "application" "neutron_ovs_agent" "container" "neutron_ovs_agent_init" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
             - /tmp/neutron-openvswitch-agent-init.sh
           volumeMounts:
@@ -183,8 +177,7 @@ spec:
 {{ tuple $envAll $envAll.Values.pod.resources.agent.ovs | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
 {{ dict "envAll" $envAll "component" "ovs_agent" "container" "ovs_agent" "type" "readiness" "probeTemplate" (include "ovsAgentReadinessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
 {{ dict "envAll" $envAll "component" "ovs_agent" "container" "ovs_agent" "type" "liveness" "probeTemplate" (include "ovsAgentLivenessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
-          securityContext:
-            privileged: true
+{{ dict "envAll" $envAll "application" "neutron_ovs_agent" "container" "neutron_ovs_agent" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
             - /tmp/neutron-openvswitch-agent.sh
           volumeMounts:
