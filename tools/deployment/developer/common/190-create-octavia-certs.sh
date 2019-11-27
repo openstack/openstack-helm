@@ -39,8 +39,7 @@ EOF
 }
 
 rm -rf /tmp/octavia
-git clone https://github.com/openstack/octavia.git /tmp/octavia
-
+git clone -b stable/stein https://github.com/openstack/octavia.git /tmp/octavia
 cd /tmp/octavia/bin
 
 rm -rf /tmp/octavia_certs
