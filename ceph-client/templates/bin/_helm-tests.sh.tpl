@@ -51,6 +51,24 @@ function check_osd_count() {
   fi
 }
 
+function check_failure_domain_count_per_pool() {
+  echo "#### Start: Checking failure domain count per pool ####"
+  pools=$(ceph osd pool ls)
+  for pool in ${pools}
+  do
+    crush_rule=$(ceph osd pool get ${pool} crush_rule | awk '{print $2}')
+    bucket_type=$(ceph osd crush rule dump ${crush_rule} | grep '"type":' | awk -F'"' 'NR==2 {print $4}')
+    num_failure_domains=$(ceph osd tree | grep ${bucket_type} | wc -l)
+    pool_replica_size=$(ceph osd pool get ${pool} size | awk '{print $2}')
+    if [[ ${num_failure_domains} -ge ${pool_replica_size} ]]; then
+      echo "--> Info: Pool ${pool} is configured with enough failure domains ${num_failure_domains} to satisfy pool replica size ${pool_replica_size}"
+    else
+      echo "--> Error : Pool ${pool} is NOT configured with enough failure domains ${num_failure_domains} to satisfy pool replica size ${pool_replica_size}"
+      exit 1
+    fi
+  done
+}
+
 function mgr_validation() {
   echo "#### Start: MGR validation ####"
   mgr_dump=$(ceph mgr dump -f json-pretty)
@@ -202,7 +220,9 @@ OSD_POOLS_DETAILS=$(ceph osd pool ls detail -f json-pretty)
 OSD_CRUSH_RULE_DUMP=$(ceph osd crush rule dump -f json-pretty)
 PG_STAT=$(ceph pg stat -f json-pretty)
 
+
 pg_validation
 pool_validation
 pool_failuredomain_validation
+check_failure_domain_count_per_pool
 check_cluster_status
