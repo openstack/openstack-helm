@@ -139,6 +139,11 @@ endpoints:
         default: 9404
       zookeeper_exporter:
         default: 9141
+  kafka:
+    auth:
+      admin:
+        username: admin
+        password: changeme
 
 dependencies:
   dynamic:
@@ -245,3 +250,22 @@ conf:
       {{- $ensembleCount := add $podInt 1 }}
       server.{{$ensembleCount}}=zookeeper-{{$podInt}}.{{$domain}}:{{$serverPort}}:{{$electionPort}}:participant;{{$clientPort}}
       {{- end }}
+      authProvider.1=org.apache.zookeeper.server.auth.SASLAuthenticationProvider
+      jaasLoginRenew=3600000
+      requireClientAuthScheme=sasl
+    jaas:
+      template: |
+        {{- $admin := .Values.endpoints.kafka.auth.admin }}
+        Server {
+          org.apache.zookeeper.server.auth.DigestLoginModule required
+          user_{{ $admin.username }}={{ $admin.password | quote }}
+          {{- printf ";" }}
+        };
+        Client {
+          org.apache.zookeeper.server.auth.DigestLoginModule required
+          username={{ $admin.username | quote }}
+          password={{ $admin.password | quote }}
+          {{- printf ";" }}
+        };
+    jvm_options:
+      - -Djava.security.auth.login.config=/conf/jaas.conf

@@ -19,6 +19,7 @@ limitations under the License.
 
 {{- $mounts_zookeeper := .Values.pod.mounts.zookeeper.zookeeper }}
 {{- $mounts_zookeeper_init := .Values.pod.mounts.zookeeper.init_container }}
+
 {{- $zookeeperUserSecret := .Values.secrets.zookeeper.admin }}
 
 {{- $serviceAccountName := printf "%s-%s" .Release.Name "zookeeper" }}
@@ -153,6 +154,8 @@ spec:
               value: "{{ .Values.conf.zookeeper.config.data_directory }}"
             - name: ZOO_CLIENT_PORT
               value: "{{ tuple "zookeeper" "internal" "client" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}"
+            - name: SERVER_JVMFLAGS
+              value: {{ include "helm-toolkit.utils.joinListWithSpace" .Values.conf.zookeeper.jvm_options | quote }}
           readinessProbe:
             initialDelaySeconds: 20
             periodSeconds: 30
@@ -179,6 +182,9 @@ spec:
             - name: zookeeper-etc
               mountPath: /conf/zoo.cfg
               subPath: zoo.cfg
+            - name: zookeeper-etc
+              mountPath: /conf/jaas.conf
+              subPath: jaas.conf
             - name: zookeeper-bin
               mountPath: /tmp/zookeeper.sh
               subPath: zookeeper.sh

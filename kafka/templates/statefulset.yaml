@@ -111,6 +111,11 @@ spec:
             - name: broker
               containerPort: {{ $kafkaBrokerPort }}
           env:
+            - name: ADMIN_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $kafkaUserSecret }}
+                  key: KAFKA_ADMIN_USERNAME
             - name: KAFKA_PORT
               value: "{{ $kafkaBrokerPort }}"
             - name: ZOOKEEPER_PORT
@@ -121,6 +126,8 @@ spec:
               value: "PLAINTEXT://:{{$kafkaBrokerPort}}"
             - name: KAFKA_CREATE_TOPICS
               value: "{{ include "helm-toolkit.utils.joinListWithComma" .Values.conf.kafka.topics }}"
+            - name: KAFKA_OPTS
+              value: {{ include "helm-toolkit.utils.joinListWithSpace" .Values.conf.kafka.jvm_options | quote }}
           readinessProbe:
             initialDelaySeconds: 20
             periodSeconds: 30
@@ -152,6 +159,10 @@ spec:
               mountPath: /tmp/kafka-readiness.sh
               subPath: kafka-readiness.sh
               readOnly: true
+            - name: kafka-etc
+              mountPath: /opt/kafka/config/jaas.conf
+              subPath: jaas.conf
+              readOnly: true
             - name: data
               mountPath: {{ .Values.conf.kafka.config.data_directory }}
 {{ if $mounts_kafka.volumeMounts }}{{ toYaml $mounts_kafka.volumeMounts | indent 12 }}{{ end }}
@@ -160,6 +171,10 @@ spec:
           configMap:
             name: kafka-bin
             defaultMode: 0555
+        - name: kafka-etc
+          secret:
+            secretName: kafka-etc
+            defaultMode: 0444
 {{ if $mounts_kafka.volumes }}{{ toYaml $mounts_kafka.volumes | indent 8 }}{{ end }}
 {{- if not .Values.storage.enabled }}
         - name: data

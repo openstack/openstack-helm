@@ -1,4 +1,3 @@
-#!/bin/bash
 {{/*
 Copyright 2019 The Openstack-Helm Authors.
 
@@ -15,23 +14,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if not (empty .Values.conf.kafka.server_settings) }}
-{{- range $key, $value := .Values.conf.kafka.server_settings }}
-{{- $varName := printf "%s%s" "KAFKA_" ($key | upper) }}
-{{- $varValue := ternary ($value | quote) ($value | int) (kindIs "string" $value) }}
-export {{ $varName }}={{ $varValue }}
+{{- if .Values.manifests.configmap_etc }}
+{{- $envAll := . }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: kafka-etc
+type: Opaque
+data:
+{{- include "helm-toolkit.snippets.values_template_renderer" (dict "envAll" $envAll "template" .Values.conf.kafka.jaas.template "key" "jaas.conf" "format" "Secret") | indent 2 }}
 {{- end }}
-{{- end }}
-export KAFKA_SUPER_USERS="User:$ADMIN_USERNAME"
-
-COMMAND="${@:-start}"
-
-function start() {
-  ./usr/bin/start-kafka.sh
-}
-
-function stop () {
-  kill -TERM 1
-}
-
-$COMMAND

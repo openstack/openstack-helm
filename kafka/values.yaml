@@ -24,6 +24,7 @@ images:
     dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.3.1
     image_repo_sync: docker.io/docker:17.07.0
     helm_test: docker.io/wurstmeister/kafka:2.12-2.3.0
+    generate_acl: docker.io/wurstmeister/kafka:2.12-2.3.0
   pull_policy: IfNotPresent
   local_registry:
     active: false
@@ -53,6 +54,10 @@ pod:
       pod: {}
       container:
         kafka_exporter: {}
+    generate_acl:
+      pod: {}
+      container:
+        generate_acl: {}
   affinity:
     anti:
       type:
@@ -95,6 +100,13 @@ pod:
         cpu: "2000m"
     jobs:
       image_repo_sync:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      generate_acl:
         requests:
           memory: "128Mi"
           cpu: "100m"
@@ -155,6 +167,9 @@ endpoints:
       jmx-exporter:
         default: 9404
   kafka_exporter:
+    auth:
+      username: kafka-exporter
+      password: changeme
     namespace: null
     hosts:
       default: kafka-exporter
@@ -204,11 +219,15 @@ dependencies:
     kafka:
       services:
         - endpoint: internal
-          service: zookeeper-int
+          service: zookeeper
     kafka_exporter:
       services:
         - endpoint: internal
-          service: kafka-broker
+          service: kafka
+    generate_acl:
+      services:
+        - endpoint: internal
+          service: kafka
 
 monitoring:
   prometheus:
@@ -271,10 +290,12 @@ manifests:
   helm_test: true
   ingress: true
   job_image_repo_sync: true
+  job_generate_acl: true
   monitoring:
     prometheus:
       configmap_bin: true
       deployment: true
+      secret_exporter: true
       service: true
       network_policy: false
   network_policy: false
@@ -286,15 +307,73 @@ manifests:
   service: true
   statefulset: true
 
+jobs:
+  generate_acl:
+    backoffLimit: 6
+    activeDeadlineSeconds: 600
+
 conf:
   kafka:
     config:
       data_directory: /var/lib/kafka/data
-    server_settings: {}
-      # Optionally provide configuration overrides for
-      # Kafka's server.properties file ie:
-      # message_max_bytes: 5000000
-    topics: []
+    server_settings:
+      # Optionally provide configuration overrides for Kafka's
+      # server.properties file. Replace '.' with '_' ie:
+      # for message.max.bytes enter message_max_bytes
+      message_max_bytes: 5000000
+      authorizer_class_name: kafka.security.auth.SimpleAclAuthorizer
+      listeners: SASL_PLAINTEXT://:9092
+      security_protocol: SASL_PLAINTEXT
+      security_inter_broker_protocol: SASL_PLAINTEXT
+      sasl_mechanism: PLAIN
+      sasl_enabled_mechanisms: PLAIN
+      sasl_mechanism_inter_broker_protocol: PLAIN
+    topics:
       # List of topic strings formatted like:
       # topic_name:number_of_partitions:replication_factor
       # - "mytopic:1:1"
+    jaas: # Define Authentication Details in this section
+      producers:
+        # region_a: # Just an ID used to iterate through the dict of producers
+        #   username: region-a-producer
+        #   password: changeme
+        #   topic: region-a # Used in generate-acl.sh to provide access
+      consumers:
+        # region_a: # Just an ID used to iterate through the dict of consumers
+        #   username: region-a-consumer
+        #   password: changeme
+        #   topic: region-a # Used in generate-acl.sh to provide access
+        #   group: region-a # Used in generate-acl.sh to provide access
+      template: |
+        KafkaServer {
+            org.apache.kafka.common.security.plain.PlainLoginModule required
+            {{- $admin := .Values.endpoints.kafka.auth.admin }}
+            username={{ $admin.username | quote}}
+            password={{ $admin.password | quote}}
+            user_{{ $admin.username }}={{ $admin.password | quote }}
+        {{- if .Values.monitoring.prometheus.enabled }}
+            {{- $exporter := .Values.endpoints.kafka_exporter.auth }}
+            user_{{ $exporter.username }}={{ $exporter.password | quote }}
+        {{- end }}
+        {{- range $producer, $credentials := .Values.conf.kafka.jaas.producers }}
+            user_{{ $credentials.username }}={{ $credentials.password | quote }}
+        {{- end }}
+        {{- range $consumer, $credentials := .Values.conf.kafka.jaas.producers }}
+            user_{{ $credentials.username }}={{ $credentials.password | quote }}
+        {{- end }}
+            {{- printf ";" }}
+        };
+        KafkaClient {
+            org.apache.kafka.common.security.plain.PlainLoginModule required
+            username={{ $admin.username | quote}}
+            password={{ $admin.password | quote}}
+            {{- printf ";" }}
+        };
+        Client {
+            org.apache.kafka.common.security.plain.PlainLoginModule required
+            username={{ $admin.username | quote}}
+            password={{ $admin.password | quote}}
+            {{- printf ";" }}
+        };
+    jvm_options:
+      - -Djava.security.auth.login.config=/opt/kafka/config/jaas.conf

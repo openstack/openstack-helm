@@ -20,7 +20,10 @@ COMMAND="${@:-start}"
 
 function start () {
   exec /bin/kafka_exporter \
-        --kafka.server={{ tuple "kafka" "internal" "broker" . | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" }}
+        --sasl.enabled \
+        --sasl.username=$KAFKA_EXPORTER_USERNAME \
+        --sasl.password=$KAFKA_EXPORTER_PASSWORD \
+        --kafka.server=$KAFKA_BROKERS
 }
 
 function stop () {
