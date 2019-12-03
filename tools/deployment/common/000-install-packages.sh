@@ -22,4 +22,5 @@ sudo apt-get install --no-install-recommends -y \
         git \
         make \
         nmap \
-        curl
+        curl \
+        bc
