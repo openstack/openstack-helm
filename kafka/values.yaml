@@ -1,0 +1,300 @@
+# Copyright 2019 The Openstack-Helm Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Default values for kafka.
+# This is a YAML-formatted file.
+# Declare name/value pairs to be passed into your templates.
+# name: value
+
+images:
+  tags:
+    kafka: docker.io/wurstmeister/kafka:2.12-2.3.0
+    kafka_exporter: docker.io/danielqsj/kafka-exporter:latest
+    dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.3.1
+    image_repo_sync: docker.io/docker:17.07.0
+    helm_test: docker.io/wurstmeister/kafka:2.12-2.3.0
+  pull_policy: IfNotPresent
+  local_registry:
+    active: false
+    exclude:
+      - dep_check
+      - image_repo_sync
+
+labels:
+  kafka:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  job:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  test:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+
+pod:
+  security_context:
+    kafka:
+      pod: {}
+      container:
+        kafka: {}
+        kafka-init: {}
+    kafka_exporter:
+      pod: {}
+      container:
+        kafka_exporter: {}
+  affinity:
+    anti:
+      type:
+        default: preferredDuringSchedulingIgnoredDuringExecution
+      topologyKey:
+        default: kubernetes.io/hostname
+      weight:
+        default: 10
+  mounts:
+    kafka:
+      kafka:
+      init_container: null
+  replicas:
+    kafka: 3
+    kafka_exporter: 1
+  lifecycle:
+    upgrades:
+      statefulsets:
+        pod_replacement_strategy: RollingUpdate
+    termination_grace_period:
+      kafka:
+        timeout: 30
+      kafka_exporter:
+        timeout: 30
+  resources:
+    enabled: false
+    kafka:
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+      requests:
+        memory: "128Mi"
+        cpu: "500m"
+    kafka_exporter:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+    jobs:
+      image_repo_sync:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      test:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+
+endpoints:
+  cluster_domain_suffix: cluster.local
+  local_image_registry:
+    name: docker-registry
+    namespace: docker-registry
+    hosts:
+      default: localhost
+      internal: docker-registry
+      node: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        node: 5000
+  kafka:
+    name: kafka
+    namespace: null
+    auth:
+      admin:
+        username: admin
+        password: changeme
+    hosts:
+      default: kafka-broker
+      discovery: kafka-discovery
+      public: kafka
+    host_fqdn_override:
+      default: null
+      # NOTE(srwilkers): this chart supports TLS for fqdn over-ridden public
+      # endpoints using the following format:
+      # public:
+      #   host: null
+      #   tls:
+      #     crt: null
+      #     key: null
+    path:
+      default: null
+    scheme:
+      default: 'http'
+    port:
+      broker:
+        default: 9092
+      kafka-exporter:
+        default: 9141
+      jmx-exporter:
+        default: 9404
+  kafka_exporter:
+    namespace: null
+    hosts:
+      default: kafka-exporter
+    host_fqdn_override:
+      default: null
+    scheme:
+      default: 'http'
+    port:
+      exporter:
+        default: 9308
+  zookeeper:
+    name: zookeeper
+    namespace: null
+    auth:
+      admin:
+        username: admin
+        password: changeme
+    hosts:
+      default: zookeeper-int
+      public: zookeeper
+    host_fqdn_override:
+      default: null
+    path:
+      default: null
+    scheme:
+      default: 'http'
+    port:
+      client:
+        default: 2181
+      server:
+        default: 2888
+
+dependencies:
+  dynamic:
+    common:
+      local_image_registry:
+        jobs:
+          - kafka-image-repo-sync
+        services:
+          - endpoint: node
+            service: local_image_registry
+  static:
+    image_repo_sync:
+      services:
+        - endpoint: internal
+          service: local_image_registry
+    kafka:
+      services:
+        - endpoint: internal
+          service: zookeeper-int
+    kafka_exporter:
+      services:
+        - endpoint: internal
+          service: kafka-broker
+
+monitoring:
+  prometheus:
+    enabled: true
+    kafka_exporter:
+      scrape: true
+
+network:
+  kafka:
+    ingress:
+      public: true
+      classes:
+        namespace: "nginx"
+        cluster: "nginx-cluster"
+      annotations:
+        nginx.ingress.kubernetes.io/rewrite-target: /
+        nginx.ingress.kubernetes.io/affinity: cookie
+        nginx.ingress.kubernetes.io/session-cookie-name: kube-ingress-session-kafka
+        nginx.ingress.kubernetes.io/session-cookie-hash: sha1
+        nginx.ingress.kubernetes.io/session-cookie-expires: "600"
+        nginx.ingress.kubernetes.io/session-cookie-max-age: "600"
+    node_port:
+      enabled: false
+      port: 31033
+
+network_policy:
+  kafka:
+    ingress:
+      - {}
+    egress:
+      - {}
+  kafka_exporter:
+    ingress:
+      - {}
+    egress:
+      - {}
+
+secrets:
+  tls:
+    kafka:
+      kafka:
+        public: kafka-tls-public
+  kafka:
+    admin: kafka-admin-creds
+  kafka_exporter:
+    user: kafka-exporter-creds
+
+storage:
+  enabled: true
+  pvc:
+    name: kafka-pvc
+    access_mode: [ "ReadWriteOnce" ]
+  requests:
+    storage: 5Gi
+  storage_class: general
+
+manifests:
+  configmap_bin: true
+  configmap_etc: true
+  helm_test: true
+  ingress: true
+  job_image_repo_sync: true
+  monitoring:
+    prometheus:
+      configmap_bin: true
+      deployment: true
+      service: true
+      network_policy: false
+  network_policy: false
+  secret_ingress_tls: true
+  secret_kafka: true
+  secret_zookeeper: true
+  service_discovery: true
+  service_ingress: true
+  service: true
+  statefulset: true
+
+conf:
+  kafka:
+    config:
+      data_directory: /var/lib/kafka/data
+    server_settings: {}
+      # Optionally provide configuration overrides for
+      # Kafka's server.properties file ie:
+      # message_max_bytes: 5000000
+    topics: []
+      # List of topic strings formatted like:
+      # topic_name:number_of_partitions:replication_factor
+      # - "mytopic:1:1"
