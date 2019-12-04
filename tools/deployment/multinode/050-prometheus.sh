@@ -19,10 +19,15 @@ set -xe
 #NOTE: Lint and package chart
 make prometheus
 
+FEATURE_GATES="alertmanager,ceph,elasticsearch,kubernetes,nodes,openstack,postgresql"
+: ${OSH_INFRA_EXTRA_HELM_ARGS_PROMETHEUS:="$({ ./tools/deployment/common/get-values-overrides.sh prometheus;} 2> /dev/null)"}
+
 #NOTE: Deploy command
 helm upgrade --install prometheus ./prometheus \
     --namespace=osh-infra \
-    --set pod.replicas.prometheus=2
+    --set pod.replicas.prometheus=2 \
+    ${OSH_INFRA_EXTRA_HELM_ARGS} \
+    ${OSH_INFRA_EXTRA_HELM_ARGS_PROMETHEUS}
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh osh-infra
