@@ -43,7 +43,10 @@ function check_osd_count() {
     MIN_EXPECTED_OSDS=$(($EXPECTED_OSDS*$REQUIRED_PERCENT_OF_OSDS/100))
   fi
 
-  if [ "${num_osd}" -ge "${MIN_EXPECTED_OSDS}" ] && [ "${num_in_osds}" -ge "${MIN_EXPECTED_OSDS}" ] && [ "${num_up_osds}" -ge "${MIN_EXPECTED_OSDS}"  ]; then
+  if [ "${num_osd}" -eq 0 ]; then
+    echo "There are no osds in the cluster"
+    exit 1
+  elif [ "${num_in_osds}" -ge "${MIN_EXPECTED_OSDS}" ] && [ "${num_up_osds}" -ge "${MIN_EXPECTED_OSDS}"  ]; then
     echo "Required number of OSDs (${MIN_EXPECTED_OSDS}) are UP and IN status"
   else
     echo "Required number of OSDs (${MIN_EXPECTED_OSDS}) are NOT UP and IN status. Cluster shows OSD count=${num_osd}, UP=${num_up_osds}, IN=${num_in_osds}"
