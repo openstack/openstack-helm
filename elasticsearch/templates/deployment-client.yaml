@@ -18,6 +18,7 @@ limitations under the License.
 {{- $envAll := . }}
 
 {{- $esUserSecret := .Values.secrets.elasticsearch.user }}
+{{- $s3UserSecret := .Values.secrets.rgw.elasticsearch }}
 
 {{- $mounts_elasticsearch := .Values.pod.mounts.elasticsearch.elasticsearch }}
 
@@ -177,7 +178,7 @@ spec:
             - name: NODE_MASTER
               value: "false"
             - name: NODE_INGEST
-              value: "false"
+              value: "true"
             - name: NODE_DATA
               value: "false"
             - name: HTTP_ENABLE
@@ -186,6 +187,19 @@ spec:
               value: {{ tuple "elasticsearch" "discovery" $envAll | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
             - name: ES_JAVA_OPTS
               value: "{{ .Values.conf.elasticsearch.env.java_opts.client }}"
+            - name: S3_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $s3UserSecret }}
+                  key: S3_ACCESS_KEY
+            - name: S3_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $s3UserSecret }}
+                  key: S3_SECRET_KEY
+{{- if .Values.pod.env.client }}
+{{ include "helm-toolkit.utils.to_k8s_env_vars" .Values.pod.env.client | indent 12 }}
+{{- end }}
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
@@ -195,8 +209,6 @@ spec:
               mountPath: /tmp/elasticsearch.sh
               subPath: elasticsearch.sh
               readOnly: true
-            - name: elasticsearch-config
-              mountPath: /usr/share/elasticsearch/config
             - name: elasticsearch-etc
               mountPath: /usr/share/elasticsearch/config/elasticsearch.yml
               subPath: elasticsearch.yml
@@ -205,13 +217,15 @@ spec:
               mountPath: /usr/share/elasticsearch/config/log4j2.properties
               subPath: log4j2.properties
               readOnly: true
+            - name: elasticsearch-etc
+              mountPath: /usr/share/elasticsearch/config/jvm.options
+              subPath: jvm.options
+              readOnly: true
             - name: storage
               mountPath: {{ .Values.conf.elasticsearch.config.path.data }}
 {{ if $mounts_elasticsearch.volumeMounts }}{{ toYaml $mounts_elasticsearch.volumeMounts | indent 12 }}{{ end }}
       volumes:
         - name: pod-tmp
-          emptyDir: {}
-        - name: elasticsearch-config
           emptyDir: {}
         - name: elasticsearch-logs
           emptyDir: {}

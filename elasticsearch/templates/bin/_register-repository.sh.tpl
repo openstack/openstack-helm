@@ -32,9 +32,7 @@ function register_snapshot_repository() {
       "settings": {
         "endpoint": "'"$RGW_HOST"'",
         "protocol": "http",
-        "bucket": "'"$S3_BUCKET"'",
-        "access_key": "'"$S3_ACCESS_KEY"'",
-        "secret_key": "'"$S3_SECRET_KEY"'"
+        "bucket": "'"$S3_BUCKET"'"
       }
     }' | python -c "import sys, json; print(json.load(sys.stdin)['acknowledged'])")
   if [ "$result" == "True" ];

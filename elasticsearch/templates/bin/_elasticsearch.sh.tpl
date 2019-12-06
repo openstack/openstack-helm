@@ -15,12 +15,21 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-set -ex
+{{- $envAll := . }}
+
+set -e
 COMMAND="${@:-start}"
+
+function initiate_keystore () {
+  bin/elasticsearch-keystore create
+  echo ${S3_ACCESS_KEY} | /usr/share/elasticsearch/bin/elasticsearch-keystore add -xf s3.client.default.access_key
+  echo ${S3_SECRET_KEY} | /usr/share/elasticsearch/bin/elasticsearch-keystore add -xf s3.client.default.secret_key
+}
 
 function start () {
   ulimit -l unlimited
-  exec /docker-entrypoint.sh elasticsearch
+  initiate_keystore
+  exec /usr/local/bin/docker-entrypoint.sh elasticsearch
 }
 
 function stop () {
@@ -42,10 +51,32 @@ function allocate_data_node () {
   echo "Node ${NODE_NAME} is ready to be used"
 }
 
+function start_master_node () {
+  ulimit -l unlimited
+  initiate_keystore
+  if [ ! -f {{ $envAll.Values.conf.elasticsearch.config.path.data }}/cluster-bootstrap.txt ];
+  then
+    {{ if empty $envAll.Values.conf.elasticsearch.config.cluster.initial_master_nodes -}}
+    {{- $_ := set $envAll.Values "__eligible_masters" ( list ) }}
+    {{- range $podInt := until ( atoi (print $envAll.Values.pod.replicas.master ) ) }}
+    {{- $eligibleMaster := printf "elasticsearch-master-%s" (toString $podInt) }}
+    {{- $__eligible_masters := append $envAll.Values.__eligible_masters $eligibleMaster }}
+    {{- $_ := set $envAll.Values "__eligible_masters" $__eligible_masters }}
+    {{- end -}}
+    {{- $masters := include "helm-toolkit.utils.joinListWithComma" $envAll.Values.__eligible_masters -}}
+    echo {{$masters}} >> {{ $envAll.Values.conf.elasticsearch.config.path.data }}/cluster-bootstrap.txt
+    exec /usr/local/bin/docker-entrypoint.sh elasticsearch -Ecluster.initial_master_nodes={{$masters}}
+    {{- end }}
+  else
+    exec /usr/local/bin/docker-entrypoint.sh elasticsearch
+  fi
+}
+
 function start_data_node () {
   ulimit -l unlimited
+  initiate_keystore
   allocate_data_node &
-  /docker-entrypoint.sh elasticsearch &
+  /usr/local/bin/docker-entrypoint.sh elasticsearch &
   function drain_data_node () {
     echo "Prepare to migrate data off node ${NODE_NAME}"
     echo "Move all data from node ${NODE_NAME}"

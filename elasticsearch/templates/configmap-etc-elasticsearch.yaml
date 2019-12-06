@@ -17,23 +17,18 @@ limitations under the License.
 {{- if .Values.manifests.configmap_etc_elasticsearch }}
 {{- $envAll := . }}
 
-{{- if empty .Values.conf.elasticsearch.config.cloud.aws.access_key -}}
-{{- set .Values.conf.elasticsearch.config.cloud.aws "access_key" .Values.endpoints.ceph_object_store.auth.elasticsearch.access_key -}}
-{{- end -}}
-
-{{- if empty .Values.conf.elasticsearch.config.cloud.aws.secret_key -}}
-{{- set .Values.conf.elasticsearch.config.cloud.aws "secret_key" .Values.endpoints.ceph_object_store.auth.elasticsearch.secret_key -}}
-{{- end -}}
-
 {{- if empty .Values.endpoints.ceph_object_store.path.default -}}
 {{- set .Values.endpoints.ceph_object_store.path "default" .Values.conf.elasticsearch.snapshots.bucket -}}
 {{- end -}}
 
-{{- if empty .Values.conf.elasticsearch.config.cloud.aws.s3.endpoint -}}
+{{- if empty .Values.conf.elasticsearch.config.s3.client.default.endpoint -}}
 {{- $radosgw_host := tuple "ceph_object_store" "internal" "api" . | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" -}}
-{{- $bucket_path := tuple "ceph_object_store" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_path_lookup" -}}
-{{- $s3_endpoint := printf "%s/%s" $radosgw_host $bucket_path -}}
-{{- set .Values.conf.elasticsearch.config.cloud.aws.s3 "endpoint" $s3_endpoint -}}
+{{- set .Values.conf.elasticsearch.config.s3.client.default "endpoint" $radosgw_host -}}
+{{- end -}}
+
+{{- if empty .Values.conf.elasticsearch.config.discovery.seed_hosts -}}
+{{- $discovery_svc := tuple "elasticsearch" "discovery" . | include "helm-toolkit.endpoints.hostname_fqdn_endpoint_lookup" -}}
+{{- set .Values.conf.elasticsearch.config.discovery "seed_hosts" $discovery_svc -}}
 {{- end -}}
 ---
 apiVersion: v1
@@ -46,4 +41,5 @@ data:
 #NOTE(portdirect): this must be last, to work round helm ~2.7 bug.
 {{- include "helm-toolkit.snippets.values_template_renderer" (dict "envAll" $envAll "template" .Values.conf.httpd "key" "httpd.conf" "format" "Secret") | indent 2 }}
 {{- include "helm-toolkit.snippets.values_template_renderer" (dict "envAll" $envAll "template" .Values.conf.log4j2 "key" "log4j2.properties" "format" "Secret") | indent 2 }}
+{{- include "helm-toolkit.snippets.values_template_renderer" (dict "envAll" $envAll "template" .Values.conf.jvm_options "key" "jvm.options" "format" "Secret") | indent 2 }}
 {{- end }}

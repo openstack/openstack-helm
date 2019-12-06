@@ -14,8 +14,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if .Values.manifests.deployment_master }}
+{{- if .Values.manifests.statefulset_master }}
 {{- $envAll := . }}
+
+{{- $s3UserSecret := .Values.secrets.rgw.elasticsearch }}
 
 {{- $mounts_elasticsearch := .Values.pod.mounts.elasticsearch.elasticsearch }}
 
@@ -58,7 +60,7 @@ rules:
     - get
 ---
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: elasticsearch-master
   annotations:
@@ -66,6 +68,8 @@ metadata:
   labels:
 {{ tuple $envAll "elasticsearch" "master" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 spec:
+  serviceName: {{ tuple "elasticsearch" "discovery" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
+  podManagementPolicy: "Parallel"
   replicas: {{ .Values.pod.replicas.master }}
   selector:
     matchLabels:
@@ -98,6 +102,19 @@ spec:
           - sysctl
           - -w
           - vm.max_map_count={{ .Values.conf.init.max_map_count }}
+        - name: elasticsearch-perms
+{{ tuple $envAll "elasticsearch" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.prometheus | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          securityContext:
+            runAsUser: 0
+          command:
+            - chown
+            - -R
+            - "elasticsearch:"
+            - {{ .Values.conf.elasticsearch.config.path.data }}
+          volumeMounts:
+            - name: storage
+              mountPath: {{ .Values.conf.elasticsearch.config.path.data }}
       containers:
         - name: elasticsearch-master
 {{ dict "envAll" $envAll "application" "master" "container" "elasticsearch_master" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
@@ -105,7 +122,7 @@ spec:
 {{ tuple $envAll $envAll.Values.pod.resources.master | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           command:
             - /tmp/elasticsearch.sh
-            - start
+            - start_master_node
           lifecycle:
             preStop:
               exec:
@@ -141,6 +158,19 @@ spec:
               value: {{ tuple "elasticsearch" "discovery" $envAll | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
             - name: ES_JAVA_OPTS
               value: "{{ .Values.conf.elasticsearch.env.java_opts.master }}"
+            - name: S3_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $s3UserSecret }}
+                  key: S3_ACCESS_KEY
+            - name: S3_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $s3UserSecret }}
+                  key: S3_SECRET_KEY
+{{- if .Values.pod.env.master }}
+{{ include "helm-toolkit.utils.to_k8s_env_vars" .Values.pod.env.master | indent 12 }}
+{{- end }}
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
@@ -150,8 +180,6 @@ spec:
               mountPath: /tmp/elasticsearch.sh
               subPath: elasticsearch.sh
               readOnly: true
-            - name: elasticsearch-config
-              mountPath: /usr/share/elasticsearch/config
             - name: elasticsearch-etc
               mountPath: /usr/share/elasticsearch/config/elasticsearch.yml
               subPath: elasticsearch.yml
@@ -159,6 +187,10 @@ spec:
             - name: elasticsearch-etc
               mountPath: /usr/share/elasticsearch/config/log4j2.properties
               subPath: log4j2.properties
+              readOnly: true
+            - name: elasticsearch-etc
+              mountPath: /usr/share/elasticsearch/config/jvm.options
+              subPath: jvm.options
               readOnly: true
             - name: storage
               mountPath: {{ .Values.conf.elasticsearch.config.path.data }}
@@ -168,8 +200,6 @@ spec:
           emptyDir: {}
         - name: elasticsearch-logs
           emptyDir: {}
-        - name: elasticsearch-config
-          emptyDir: {}
         - name: elasticsearch-bin
           configMap:
             name: elasticsearch-bin
@@ -178,7 +208,19 @@ spec:
           secret:
             secretName: elasticsearch-etc
             defaultMode: 0444
+{{ if $mounts_elasticsearch.volumes }}{{ toYaml $mounts_elasticsearch.volumes | indent 8 }}{{ end }}
+{{- if not .Values.storage.master.enabled }}
         - name: storage
           emptyDir: {}
-{{ if $mounts_elasticsearch.volumes }}{{ toYaml $mounts_elasticsearch.volumes | indent 8 }}{{ end }}
+{{- else }}
+  volumeClaimTemplates:
+    - metadata:
+        name: storage
+      spec:
+        accessModes: {{ .Values.storage.master.pvc.access_mode }}
+        resources:
+          requests:
+            storage: {{ .Values.storage.master.requests.storage  }}
+        storageClassName: {{ .Values.storage.master.storage_class }}
+{{- end }}
 {{- end }}

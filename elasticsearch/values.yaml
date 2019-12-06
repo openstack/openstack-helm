@@ -20,8 +20,8 @@ images:
   tags:
     apache_proxy: docker.io/httpd:2.4
     memory_init: docker.io/openstackhelm/heat:newton-ubuntu_xenial
+    elasticsearch: docker.io/openstackhelm/elasticsearch-s3:7_1_0-20191119
     curator:  docker.io/bobrik/curator:5.6.0
-    elasticsearch: docker.io/openstackhelm/elasticsearch-s3:5_6_4-20191119
     ceph_key_placement: docker.io/openstackhelm/ceph-config-helper:ubuntu_xenial-20191119
     s3_bucket: docker.io/openstackhelm/ceph-daemon:ubuntu_xenial-20191119
     s3_user: docker.io/openstackhelm/ceph-config-helper:ubuntu_xenial-20191119
@@ -123,6 +123,10 @@ dependencies:
         - elasticsearch-register-snapshot-repository
 
 pod:
+  env:
+    client: null
+    data: null
+    master: null
   mandatory_access_control:
     type: apparmor
     elasticsearch-master:
@@ -154,7 +158,7 @@ pod:
             add:
               - IPC_LOCK
               - SYS_RESOURCE
-          readOnlyRootFilesystem: true
+          readOnlyRootFilesystem: false
     master:
       pod:
         runAsUser: 0
@@ -168,7 +172,7 @@ pod:
             add:
               - IPC_LOCK
               - SYS_RESOURCE
-          readOnlyRootFilesystem: true
+          readOnlyRootFilesystem: false
     es_cluster_wait:
       pod:
         runAsUser: 0
@@ -418,6 +422,7 @@ conf:
     LoadModule unixd_module modules/mod_unixd.so
     LoadModule status_module modules/mod_status.so
     LoadModule autoindex_module modules/mod_autoindex.so
+    LoadModule rewrite_module modules/mod_rewrite.so
 
     <IfModule unixd_module>
     User daemon
@@ -480,10 +485,6 @@ conf:
           Require valid-user
       </Location>
 
-      # Restrict access to the Elasticsearch Update API endpoint to prevent modification of indexed documents
-      <Location /*/_doc/*/_update*>
-          Require all denied
-      </Location>
       # Restrict access to the Elasticsearch Update By Query API Endpoint to prevent modification of indexed documents
       <Location /*/_update_by_query*>
           Require all denied
@@ -492,30 +493,49 @@ conf:
       <Location /*/_delete_by_query*>
           Require all denied
       </Location>
-
-      # Prohibit DELETE methods on the document API endpoint
-      <Location /*/_doc/*>
-          AllowMethods GET POST OPTIONS
-          ProxyPass http://localhost:{{ tuple "elasticsearch" "internal" "client" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}/
-          ProxyPassReverse http://localhost:{{ tuple "elasticsearch" "internal" "client" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}/
-          AuthName "Elasticsearch"
-          AuthType Basic
-          AuthBasicProvider file ldap
-          AuthUserFile /usr/local/apache2/conf/.htpasswd
-          AuthLDAPBindDN {{ .Values.endpoints.ldap.auth.admin.bind }}
-          AuthLDAPBindPassword {{ .Values.endpoints.ldap.auth.admin.password }}
-          AuthLDAPURL {{ tuple "ldap" "default" "ldap" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" | quote }}
-          Require valid-user
-      </Location>
     </VirtualHost>
   log4j2: |
     status = error
     appender.console.type = Console
     appender.console.name = console
     appender.console.layout.type = PatternLayout
-    appender.console.layout.pattern = [%d{ISO8601}][%-5p][%-25c{1.}] %marker%m%n
+    appender.console.layout.pattern = [%d{ISO8601}][%-5p][%-25c{1.}] [%node_name]%marker%m%n
     rootLogger.level = info
     rootLogger.appenderRef.console.ref = console
+  jvm_options: |
+    -Xms1g
+    -Xmx1g
+    -XX:+UseConcMarkSweepGC
+    -XX:CMSInitiatingOccupancyFraction=75
+    -XX:+UseCMSInitiatingOccupancyOnly
+    -Des.networkaddress.cache.ttl=60
+    -Des.networkaddress.cache.negative.ttl=10
+    -XX:+AlwaysPreTouch
+    -Xss1m
+    -Djava.awt.headless=true
+    -Dfile.encoding=UTF-8
+    -Djna.nosys=true
+    -XX:-OmitStackTraceInFastThrow
+    -Dio.netty.noUnsafe=true
+    -Dio.netty.noKeySetOptimization=true
+    -Dio.netty.recycler.maxCapacityPerThread=0
+    -Dlog4j.shutdownHookEnabled=false
+    -Dlog4j2.disable.jmx=true
+    -Djava.io.tmpdir=${ES_TMPDIR}
+    -XX:+HeapDumpOnOutOfMemoryError
+    -XX:HeapDumpPath=data
+    -XX:ErrorFile=logs/hs_err_pid%p.log
+    8:-XX:+PrintGCDetails
+    8:-XX:+PrintGCDateStamps
+    8:-XX:+PrintTenuringDistribution
+    8:-XX:+PrintGCApplicationStoppedTime
+    8:-Xloggc:logs/gc.log
+    8:-XX:+UseGCLogFileRotation
+    8:-XX:NumberOfGCLogFiles=32
+    8:-XX:GCLogFileSize=64m
+    9-:-Xlog:gc*,gc+age=trace,safepoint:file=logs/gc.log:utctime,pid,tags:filecount=32,filesize=64m
+    9-:-Djava.locale.providers=COMPAT
+    10-:-XX:UseAVX=2
   init:
     max_map_count: 262144
   ceph:
@@ -636,21 +656,17 @@ conf:
       cluster:
         name: elasticsearch
       discovery:
-        zen:
-          ping.unicast.hosts: ${DISCOVERY_SERVICE}
-          minimum_master_nodes: 2
-      http:
-        enabled: ${HTTP_ENABLE}
-        compression: true
+        # NOTE(srwilkers): This gets configured dynamically via endpoint lookups
+        seed_hosts: null
       network:
         host: 0.0.0.0
-      cloud:
-        aws:
-          protocol: http
-          s3:
+      s3:
+        client:
+          default:
             # NOTE(srwilkers): This gets configured dynamically via endpoint
             # lookups
             endpoint: null
+            protocol: http
       node:
         ingest: ${NODE_INGEST}
         master: ${NODE_MASTER}
@@ -658,8 +674,8 @@ conf:
         name: ${NODE_NAME}
         max_local_storage_nodes: 3
       path:
-        data: /usr/share/elasticsearch/data
-        logs: /usr/share/elasticsearch/logs
+        data: /data
+        logs: /logs
     snapshots:
       enabled: false
       # NOTE(srwilkers): The path for the radosgw s3 endpoint gets populated
@@ -680,33 +696,32 @@ conf:
       timeout: 20s
   templates:
     fluent:
-      template: "logstash-*"
       index_patterns: "logstash-*"
       settings:
-        number_of_shards: 1
+        index:
+          number_of_shards: 1
       mappings:
-        fluent:
-          properties:
-            kubernetes:
-              properties:
-                container_name:
-                  type: keyword
-                  index: false
-                docker_id:
-                  type: keyword
-                  index: false
-                host:
-                  type: keyword
-                  index: false
-                namespace_name:
-                  type: keyword
-                  index: false
-                pod_id:
-                  type: keyword
-                  index: false
-                pod_name:
-                  type: keyword
-                  index: false
+        properties:
+          kubernetes:
+            properties:
+              container_name:
+                type: keyword
+                index: false
+              docker_id:
+                type: keyword
+                index: false
+              host:
+                type: keyword
+                index: false
+              namespace_name:
+                type: keyword
+                index: false
+              pod_id:
+                type: keyword
+                index: false
+              pod_name:
+                type: keyword
+                index: false
 
 endpoints:
   cluster_domain_suffix: cluster.local
@@ -829,13 +844,22 @@ network:
       port: 30920
 
 storage:
-  enabled: true
-  pvc:
-    name: pvc-elastic
-    access_mode: [ "ReadWriteOnce" ]
-  requests:
-    storage: 5Gi
-  storage_class: general
+  data:
+    enabled: true
+    pvc:
+      name: pvc-elastic
+      access_mode: [ "ReadWriteOnce" ]
+    requests:
+      storage: 5Gi
+    storage_class: general
+  master:
+    enabled: true
+    pvc:
+      name: pvc-elastic
+      access_mode: [ "ReadWriteOnce" ]
+    requests:
+      storage: 1Gi
+    storage_class: general
 
 
 manifests:
@@ -847,7 +871,6 @@ manifests:
   cron_curator: true
   cron_verify_repositories: true
   deployment_client: true
-  deployment_master: true
   ingress: true
   job_cluster_wait: true
   job_elasticsearch_templates: true
@@ -870,3 +893,4 @@ manifests:
   service_ingress: true
   service_logging: true
   statefulset_data: true
+  statefulset_master: true

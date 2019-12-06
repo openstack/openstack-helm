@@ -18,6 +18,7 @@ limitations under the License.
 {{- $envAll := . }}
 
 {{- $esUserSecret := .Values.secrets.elasticsearch.user }}
+{{- $s3UserSecret := .Values.secrets.rgw.elasticsearch }}
 
 {{- $mounts_elasticsearch := .Values.pod.mounts.elasticsearch.elasticsearch }}
 
@@ -70,6 +71,7 @@ metadata:
 spec:
 {{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_statefulset" | indent 2 }}
   serviceName: {{ tuple "elasticsearch" "data" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
+  podManagementPolicy: "Parallel"
   replicas: {{ .Values.pod.replicas.data }}
   selector:
     matchLabels:
@@ -101,6 +103,19 @@ spec:
             - sysctl
             - -w
             - vm.max_map_count={{ .Values.conf.init.max_map_count }}
+        - name: elasticsearch-perms
+{{ tuple $envAll "elasticsearch" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.prometheus | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          securityContext:
+            runAsUser: 0
+          command:
+            - chown
+            - -R
+            - "elasticsearch:"
+            - {{ .Values.conf.elasticsearch.config.path.data }}
+          volumeMounts:
+            - name: storage
+              mountPath: {{ .Values.conf.elasticsearch.config.path.data }}
       containers:
         - name: elasticsearch-data
 {{ tuple $envAll "elasticsearch" | include "helm-toolkit.snippets.image" | indent 10 }}
@@ -148,8 +163,21 @@ spec:
               value: "false"
             - name: ES_JAVA_OPTS
               value: "{{ .Values.conf.elasticsearch.env.java_opts.data }}"
+            - name: S3_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $s3UserSecret }}
+                  key: S3_ACCESS_KEY
+            - name: S3_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $s3UserSecret }}
+                  key: S3_SECRET_KEY
             - name: DISCOVERY_SERVICE
               value: {{ tuple "elasticsearch" "discovery" $envAll | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
+{{- if .Values.pod.env.data }}
+{{ include "helm-toolkit.utils.to_k8s_env_vars" .Values.pod.env.data | indent 12 }}
+{{- end }}
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
@@ -159,8 +187,6 @@ spec:
               mountPath: /tmp/elasticsearch.sh
               subPath: elasticsearch.sh
               readOnly: true
-            - name: elasticsearch-config
-              mountPath: /usr/share/elasticsearch/config
             - name: elasticsearch-etc
               mountPath: /usr/share/elasticsearch/config/elasticsearch.yml
               subPath: elasticsearch.yml
@@ -169,6 +195,10 @@ spec:
               mountPath: /usr/share/elasticsearch/config/log4j2.properties
               subPath: log4j2.properties
               readOnly: true
+            - name: elasticsearch-etc
+              mountPath: /usr/share/elasticsearch/config/jvm.options
+              subPath: jvm.options
+              readOnly: true
             - name: storage
               mountPath: {{ .Values.conf.elasticsearch.config.path.data }}
 {{ if $mounts_elasticsearch.volumeMounts }}{{ toYaml $mounts_elasticsearch.volumeMounts | indent 12 }}{{ end }}
@@ -176,8 +206,6 @@ spec:
         - name: pod-tmp
           emptyDir: {}
         - name: elasticsearch-logs
-          emptyDir: {}
-        - name: elasticsearch-config
           emptyDir: {}
         - name: elasticsearch-bin
           configMap:
@@ -188,7 +216,7 @@ spec:
             secretName: elasticsearch-etc
             defaultMode: 0444
 {{ if $mounts_elasticsearch.volumes }}{{ toYaml $mounts_elasticsearch.volumes | indent 8 }}{{ end }}
-{{- if not .Values.storage.enabled }}
+{{- if not .Values.storage.data.enabled }}
         - name: storage
           emptyDir: {}
 {{- else }}
@@ -196,10 +224,10 @@ spec:
     - metadata:
         name: storage
       spec:
-        accessModes: {{ .Values.storage.pvc.access_mode }}
+        accessModes: {{ .Values.storage.data.pvc.access_mode }}
         resources:
           requests:
-            storage: {{ .Values.storage.requests.storage  }}
-        storageClassName: {{ .Values.storage.storage_class }}
+            storage: {{ .Values.storage.data.requests.storage  }}
+        storageClassName: {{ .Values.storage.data.storage_class }}
 {{- end }}
 {{- end }}
