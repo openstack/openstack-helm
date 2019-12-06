@@ -16,7 +16,8 @@ limitations under the License.
 
 {{/*
 abstract: |
-  This function helps resolve uri style endpoints
+  This function helps resolve uri style endpoints. It will omit the port for
+  http when 80 is used, and 443 in the case of https.
 values: |
   endpoints:
     cluster_domain_suffix: cluster.local
@@ -45,5 +46,9 @@ return: |
 {{- $endpointHost := tuple $type $endpoint $context | include "helm-toolkit.endpoints.endpoint_host_lookup" }}
 {{- $endpointPort := tuple $type $endpoint $port $context | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
 {{- $endpointPath := tuple $type $endpoint $port $context | include "helm-toolkit.endpoints.keystone_endpoint_path_lookup" }}
+{{- if or ( and ( eq $endpointScheme "http" ) ( eq $endpointPort "80" ) ) ( and ( eq $endpointScheme "https" ) ( eq $endpointPort "443" ) ) -}}
+{{- printf "%s://%s%s" $endpointScheme $endpointHost $endpointPath -}}
+{{- else -}}
 {{- printf "%s://%s:%s%s" $endpointScheme $endpointHost $endpointPort $endpointPath -}}
+{{- end -}}
 {{- end -}}
