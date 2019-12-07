@@ -54,7 +54,11 @@ for module in ${ENABLED_MODULES}; do
         option=${option/${module}_/}
         key=`echo $option | cut -d= -f1`
         value=`echo $option | cut -d= -f2`
-        ceph --cluster "${CLUSTER}" config set mgr mgr/$module/$key $value
+        if [[ $(ceph -v | egrep -q "nautilus"; echo $?) -eq 0 ]]; then
+          ceph --cluster "${CLUSTER}" config set mgr mgr/$module/$key $value --force
+        else
+          ceph --cluster "${CLUSTER}" config set mgr mgr/$module/$key $value
+        fi
     done
     ceph --cluster "${CLUSTER}" mgr module enable ${module} --force
 done
