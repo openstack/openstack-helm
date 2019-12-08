@@ -20,3 +20,9 @@ set -ex
 chroot /mnt/host-rootfs modprobe openvswitch
 chroot /mnt/host-rootfs modprobe gre
 chroot /mnt/host-rootfs modprobe vxlan
+
+{{- if .Values.conf.ovs_dpdk.enabled }}
+{{- if hasKey .Values.conf.ovs_dpdk "driver"}}
+chroot /mnt/host-rootfs modprobe {{ .Values.conf.ovs_dpdk.driver | quote }}
+{{- end }}
+{{- end }}
