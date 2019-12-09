@@ -51,14 +51,18 @@ function start () {
     ovs-vsctl --db=unix:${OVS_SOCKET} --no-wait set Open_vSwitch . other_config:dpdk-mem-channels={{ .Values.conf.ovs_dpdk.mem_channels | quote }}
 {{- end }}
 
-{{- if .Values.conf.ovs_dpdk.pmd_cpu_mask }}
+{{- if hasKey .Values.conf.ovs_dpdk "pmd_cpu_mask" }}
     ovs-vsctl --db=unix:${OVS_SOCKET} --no-wait set Open_vSwitch . other_config:pmd-cpu-mask={{ .Values.conf.ovs_dpdk.pmd_cpu_mask | quote }}
     PMD_CPU_MASK={{ .Values.conf.ovs_dpdk.pmd_cpu_mask | quote }}
 {{- end }}
 
-{{- if .Values.conf.ovs_dpdk.lcore_mask }}
+{{- if hasKey .Values.conf.ovs_dpdk "lcore_mask" }}
     ovs-vsctl --db=unix:${OVS_SOCKET} --no-wait set Open_vSwitch . other_config:dpdk-lcore-mask={{ .Values.conf.ovs_dpdk.lcore_mask | quote }}
     LCORE_MASK={{ .Values.conf.ovs_dpdk.lcore_mask | quote }}
+{{- end }}
+
+{{- if hasKey .Values.conf.ovs_dpdk "vhost_iommu_support" }}
+    ovs-vsctl --db=unix:${OVS_SOCKET} --no-wait set Open_vSwitch . other_config:vhost-iommu-support={{ .Values.conf.ovs_dpdk.vhost_iommu_support }}
 {{- end }}
 
     ovs-vsctl --db=unix:${OVS_SOCKET} --no-wait set Open_vSwitch . other_config:vhost-sock-dir={{ .Values.conf.ovs_dpdk.vhostuser_socket_dir | quote }}
