@@ -31,11 +31,16 @@ monitoring:
   prometheus:
     enabled: true
 pod:
+  env:
+    fluentd:
+      vars:
+        MY_TEST_VAR: FOO
+      secrets:
+        MY_TEST_SECRET: BAR
   security_context:
     fluentd:
       pod:
         runAsUser: 0
-
 deployment:
   type: DaemonSet
 conf:
