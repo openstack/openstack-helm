@@ -86,9 +86,6 @@ function create_pool () {
   if ! ceph --cluster "${CLUSTER}" osd pool stats "${POOL_NAME}" > /dev/null 2>&1; then
     ceph --cluster "${CLUSTER}" osd pool create "${POOL_NAME}" ${POOL_PLACEMENT_GROUPS}
     while [ $(ceph --cluster "${CLUSTER}" -s | grep creating -c) -gt 0 ]; do echo -n .;sleep 1; done
-    if [ "x${POOL_NAME}" == "xrbd" ]; then
-      rbd --cluster "${CLUSTER}" pool init ${POOL_NAME}
-    fi
     ceph --cluster "${CLUSTER}" osd pool application enable "${POOL_NAME}" "${POOL_APPLICATION}"
   fi
 #
