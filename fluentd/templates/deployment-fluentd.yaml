@@ -157,8 +157,11 @@ spec:
               value: {{ tuple "elasticsearch" "internal" "http" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | quote }}
             - name: KAFKA_BROKER
               value: {{ $kafkaBrokerURI }}
-{{- if .Values.pod.env.fluentd }}
-{{ include "helm-toolkit.utils.to_k8s_env_vars" .Values.pod.env.fluentd | indent 12 }}
+{{- if .Values.pod.env.fluentd.vars }}
+{{ include "helm-toolkit.utils.to_k8s_env_vars" .Values.pod.env.fluentd.vars | indent 12 }}
+{{- end }}
+{{- if .Values.pod.env.fluentd.secrets }}
+{{ tuple $envAll .Values.pod.env.fluentd.secrets | include "helm-toolkit.utils.to_k8s_env_secret_vars" | indent 12 }}
 {{- end }}
             - name: ELASTICSEARCH_USERNAME
               valueFrom:
@@ -216,6 +219,12 @@ spec:
 {{- end }}
         - name: pod-etc-fluentd
           emptyDir: {}
+{{ if and (.Values.manifests.secret_fluentd_env) (.Values.pod.env.fluentd.secrets) }}
+        - name: {{ printf "%s-%s" $envAll.Release.Name "env-secret" | quote }}
+          secret:
+            secretName: {{ printf "%s-%s" $envAll.Release.Name "env-secret" | quote }}
+            defaultMode: 0444
+{{- end }}
         - name: fluentd-etc
           secret:
             secretName: {{ printf "%s-%s" $envAll.Release.Name "fluentd-etc" | quote }}
