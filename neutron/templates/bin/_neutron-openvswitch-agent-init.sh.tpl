@@ -206,13 +206,17 @@ function process_dpdk_nics {
     if [ -n "${n_rxq}" ]; then
       dpdk_options+='options:n_rxq=${n_rxq} '
     fi
+    n_txq=$(get_dpdk_config_value ${nic} '.n_txq')
+    if [ -n "${n_txq}" ]; then
+      dpdk_options+='options:n_txq=${n_txq} '
+    fi
     pmd_rxq_affinity=$(get_dpdk_config_value ${nic} '.pmd_rxq_affinity')
     if [ -n "${pmd_rxq_affinity}" ]; then
       dpdk_options+='other_config:pmd-rxq-affinity=${pmd_rxq_affinity} '
     fi
     mtu=$(get_dpdk_config_value ${nic} '.mtu')
     if [ -n "${mtu}" ]; then
-      dpdk_options+='mtu_request=${mtu} '
+      dpdk_options+='options:mtu_request=${mtu} '
     fi
     n_rxq_size=$(get_dpdk_config_value ${nic} '.n_rxq_size')
     if [ -n "${n_rxq_size}" ]; then
@@ -221,6 +225,10 @@ function process_dpdk_nics {
     n_txq_size=$(get_dpdk_config_value ${nic} '.n_txq_size')
     if [ -n "${n_txq_size}" ]; then
       dpdk_options+='options:n_txq_desc=${n_txq_size} '
+    fi
+    vhost_iommu_support=$(get_dpdk_config_value ${nic} '.vhost-iommu-support')
+    if [ -n "${vhost_iommu_support}" ]; then
+      dpdk_options+='options:vhost-iommu-support=${vhost_iommu_support} '
     fi
 
     ovs-vsctl --db=unix:${OVS_SOCKET} --may-exist add-port ${bridge} ${port_name} \
@@ -239,9 +247,11 @@ function process_dpdk_bonds {
     local migrate_ip=$(get_dpdk_config_value ${bond} '.migrate_ip')
     local mtu=$(get_dpdk_config_value ${bond} '.mtu')
     local n_rxq=$(get_dpdk_config_value ${bond} '.n_rxq')
+    local n_txq=$(get_dpdk_config_value ${bond} '.n_txq')
     local ofport_request=$(get_dpdk_config_value ${bond} '.ofport_request')
     local n_rxq_size=$(get_dpdk_config_value ${bond} '.n_rxq_size')
     local n_txq_size=$(get_dpdk_config_value ${bond} '.n_txq_size')
+    local vhost_iommu_support=$(get_dpdk_config_value ${bond} '.vhost-iommu-support')
     local ovs_options=$(get_dpdk_config_value ${bond} '.ovs_options')
 
     local nic_name_str=""
@@ -283,11 +293,15 @@ function process_dpdk_bonds {
       dev_args_str+=" -- set Interface "${nic_name}" type=dpdk options:dpdk-devargs=""${dpdk_pci_id}"
 
       if [[ -n ${mtu} ]]; then
-        dev_args_str+=" -- set Interface "${nic_name}" mtu_request=${mtu}"
+        dev_args_str+=" -- set Interface "${nic_name}" options:mtu_request=${mtu}"
       fi
 
       if [[ -n ${n_rxq} ]]; then
         dev_args_str+=" -- set Interface "${nic_name}" options:n_rxq=${n_rxq}"
+      fi
+
+      if [[ -n ${n_txq} ]]; then
+        dev_args_str+=" -- set Interface "${nic_name}" options:n_txq=${n_txq}"
       fi
 
       if [[ -n ${ofport_request} ]]; then
@@ -304,6 +318,10 @@ function process_dpdk_bonds {
 
       if [[ -n ${n_txq_size} ]]; then
         dev_args_str+=" -- set Interface "${nic_name}" options:n_txq_desc=${n_txq_size}"
+      fi
+
+      if [[ -n ${vhost_iommu_support} ]]; then
+        dev_args_str+=" -- set Interface "${nic_name}" options:vhost-iommu-support=${vhost_iommu_support}"
       fi
     done < /tmp/nics_array
 
