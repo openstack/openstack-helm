@@ -157,13 +157,23 @@ function pool_validation() {
     pg_placement_num=$(echo ${pool_obj} | jq -r .pg_placement_num)
     crush_rule=$(echo ${pool_obj} | jq -r .crush_rule)
     name=$(echo ${pool_obj} | jq -r .pool_name)
-
-    if [ "x${size}" != "x${RBD}" ] || [ "x${min_size}" != "x${EXPECTED_POOLMINSIZE}" ] \
-      || [ "x${pg_num}" != "x${pg_placement_num}" ] || [ "x${crush_rule}" != "x${expectedCrushRuleId}" ]; then
-      echo "Pool ${name} has incorrect parameters!!! Size=${size}, Min_Size=${min_size}, PG=${pg_num}, PGP=${pg_placement_num}, Rule=${crush_rule}"
-      exit 1
+    if [[ $(ceph -v | egrep -q "nautilus"; echo $?) -eq 0 ]]; then
+      pg_placement_num_target=$(echo ${pool_obj} | jq -r .pg_placement_num_target)
+      if [ "x${size}" != "x${RBD}" ] || [ "x${min_size}" != "x${EXPECTED_POOLMINSIZE}" ] \
+      || [ "x${pg_num}" != "x${pg_placement_num_target}" ] || [ "x${crush_rule}" != "x${expectedCrushRuleId}" ]; then
+        echo "Pool ${name} has incorrect parameters!!! Size=${size}, Min_Size=${min_size}, PG=${pg_num}, TARGET_PGP=${pg_placement_num_target}, Rule=${crush_rule}"
+        exit 1
+      else
+        echo "Pool ${name} seems configured properly. Size=${size}, Min_Size=${min_size}, PG=${pg_num}, PGP_TARGET=${pg_placement_num_target}, Rule=${crush_rule}"
+      fi
     else
-      echo "Pool ${name} seems configured properly. Size=${size}, Min_Size=${min_size}, PG=${pg_num}, PGP=${pg_placement_num}, Rule=${crush_rule}"
+      if [ "x${size}" != "x${RBD}" ] || [ "x${min_size}" != "x${EXPECTED_POOLMINSIZE}" ] \
+      || [ "x${pg_num}" != "x${pg_placement_num}" ] || [ "x${crush_rule}" != "x${expectedCrushRuleId}" ]; then
+        echo "Pool ${name} has incorrect parameters!!! Size=${size}, Min_Size=${min_size}, PG=${pg_num}, PGP=${pg_placement_num}, Rule=${crush_rule}"
+        exit 1
+      else
+        echo "Pool ${name} seems configured properly. Size=${size}, Min_Size=${min_size}, PG=${pg_num}, PGP=${pg_placement_num}, Rule=${crush_rule}"
+      fi
     fi
   done
 }
