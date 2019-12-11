@@ -16,7 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-set -e
+set -ex
 
 tmpdir=$(mktemp -d)
 declare -a objects_list
@@ -29,14 +29,20 @@ function rgw_keystone_bucket_validation ()
   echo "function: rgw_keystone_bucket_validation"
   openstack service list
 
+  bucket_stat="$(openstack container list | grep openstack_test_container || true)"
+  if [[ -n "${bucket_stat}" ]]; then
+    echo "--> deleting openstack_test_container container"
+    openstack container delete --recursive openstack_test_container
+  fi
+
   echo "--> creating openstack_test_container container"
   openstack container create 'openstack_test_container'
 
   echo "--> list containers"
   openstack container list
 
-  bucket_stat=$(openstack container list | grep "openstack_test_container")
-  if [[ -z ${bucket_stat} ]]; then
+  bucket_stat="$(openstack container list | grep openstack_test_container || true)"
+  if [[ -z "${bucket_stat}" ]]; then
     echo "--> container openstack_test_container not found"
     exit 1
   else
@@ -65,7 +71,7 @@ function rgw_keystone_bucket_validation ()
     done
 
     echo "--> deleting openstack_test_container container"
-    openstack container delete openstack_test_container
+    openstack container delete --recursive openstack_test_container
 
     echo "--> bucket list after deleting container"
     openstack container list
@@ -80,8 +86,14 @@ function rgw_s3_bucket_validation ()
 
   bucket=s3://rgw-test-bucket
   params="--host=$RGW_HOST --host-bucket=$RGW_HOST --access_key=$S3_ADMIN_ACCESS_KEY --secret_key=$S3_ADMIN_SECRET_KEY --no-ssl"
-  s3cmd mb $bucket $params
 
+  bucket_stat="$(s3cmd ls $params | grep ${bucket} || true)"
+  if [[ -n "${bucket_stat}" ]]; then
+    s3cmd del --recursive --force $bucket $params
+    check_result $? "Error during s3cmd execution" "Bucket is deleted"
+  fi
+
+  s3cmd mb $bucket $params
   if [ $? -eq 0 ]; then
     echo "Bucket $bucket created"
 
