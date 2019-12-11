@@ -28,13 +28,16 @@ else
   IRONIC_NEUTRON_CLEANING_NET_ID=$(openstack network show ${neutron_network_name} -f value -c id)
 fi
 
-for SUBNET in $(openstack network show $IRONIC_NEUTRON_CLEANING_NET_ID -f value -c subnets); do
-  CURRENT_SUBNET=$(openstack subnet show $SUBNET -f value -c name)
-  if [ "x${CURRENT_SUBNET}" == "x${neutron_subnet_name}" ]; then
-    openstack subnet show ${neutron_subnet_name}
-    SUBNET_EXISTS=true
-  fi
-done
+SUBNETS=$(openstack network show $IRONIC_NEUTRON_CLEANING_NET_ID -f value -c subnets)
+if [ "x${SUBNETS}" != "x[]" ]; then
+  for SUBNET in ${SUBNETS}; do
+    CURRENT_SUBNET=$(openstack subnet show $SUBNET -f value -c name)
+    if [ "x${CURRENT_SUBNET}" == "x${neutron_subnet_name}" ]; then
+      openstack subnet show ${neutron_subnet_name}
+      SUBNET_EXISTS=true
+    fi
+  done
+fi
 
 if [ "x${SUBNET_EXISTS}" != "xtrue" ]; then
   openstack subnet create \
