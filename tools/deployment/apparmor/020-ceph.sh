@@ -220,3 +220,68 @@ MON_POD=$(kubectl get pods \
   --selector="component=mon" \
   --no-headers | awk '{ print $1; exit }')
 kubectl exec -n ceph ${MON_POD} -- ceph -s
+
+## Validate AppArmor For Ceph-Mon
+expected_profile="docker-default (enforce)"
+profile=`kubectl -n ceph exec $MON_POD -- cat /proc/1/attr/current`
+echo "Profile running: $profile"
+  if test "$profile" != "$expected_profile"
+  then
+    if test "$proc_name" == "pause"
+    then
+      echo "Root process (pause) can run docker-default, it's ok."
+    else
+      echo "$profile is the WRONG PROFILE!!"
+      return 1
+    fi
+  fi
+
+## Validate AppArmor For Ceph-Mon-Check
+sleep 60
+MON_CHECK_POD=$(kubectl get pods --namespace=ceph  -o wide | grep mon-check | awk '{print $1}')
+expected_profile="docker-default (enforce)"
+profile=`kubectl -n ceph exec $MON_CHECK_POD -- cat /proc/1/attr/current`
+echo "Profile running: $profile"
+  if test "$profile" != "$expected_profile"
+  then
+    if test "$proc_name" == "pause"
+    then
+      echo "Root process (pause) can run docker-default, it's ok."
+    else
+      echo "$profile is the WRONG PROFILE!!"
+      return 1
+    fi
+  fi
+
+## Validate AppArmor For Ceph-MDS
+MDS_POD=$(kubectl get pods --namespace=ceph | grep 1/1 | grep mds | awk '{print $1}')
+expected_profile="docker-default (enforce)"
+profile=`kubectl -n ceph exec $MDS_POD -- cat /proc/1/attr/current`
+echo "Profile running: $profile"
+  if test "$profile" != "$expected_profile"
+  then
+    if test "$proc_name" == "pause"
+    then
+      echo "Root process (pause) can run docker-default, it's ok."
+    else
+      echo "$profile is the WRONG PROFILE!!"
+      return 1
+    fi
+  fi
+
+## Validate AppArmor For Ceph-Mgr
+MGR_POD=$(kubectl get pods --namespace=ceph  -o wide |grep 1/1 | grep mgr | awk '{print $1}')
+expected_profile="docker-default (enforce)"
+profile=`kubectl -n ceph exec $MGR_POD -- cat /proc/1/attr/current`
+echo "Profile running: $profile"
+  if test "$profile" != "$expected_profile"
+  then
+    if test "$proc_name" == "pause"
+    then
+      echo "Root process (pause) can run docker-default, it's ok."
+    else
+      echo "$profile is the WRONG PROFILE!!"
+      return 1
+    fi
+  fi
+
