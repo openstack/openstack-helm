@@ -56,3 +56,15 @@ variables.
   export no_proxy=${no_proxy},172.17.0.1,.svc.cluster.local
   export NO_PROXY=${NO_PROXY},172.17.0.1,.svc.cluster.local
 
+By default, this installation will use Google DNS Server IPs (8.8.8.8, 8.8.4.4)
+and will update resolv.conf as a result. If those IPs are blocked by the proxy,
+this will overwrite the original DNS entries and result in the inability to
+connect to anything on the network behind the proxy. These DNS nameserver entries
+can be changed by updating the ``external_dns_nameservers`` entry in this file:
+
+.. code-block:: bash
+
+  openstack-helm-infra/tools/images/kubeadm-aio/assets/opt/playbooks/vars.yaml
+
+It is recommended to add your own existing DNS nameserver entries to avoid
+losing connection.
