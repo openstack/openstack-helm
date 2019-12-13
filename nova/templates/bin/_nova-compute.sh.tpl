@@ -22,4 +22,7 @@ exec nova-compute \
       --config-file /etc/nova/nova.conf \
       --config-file /tmp/pod-shared/nova-console.conf \
       --config-file /tmp/pod-shared/nova-libvirt.conf \
+{{- if and ( empty .Values.conf.nova.DEFAULT.host ) ( .Values.pod.use_fqdn.compute ) }}
+      --config-file /tmp/pod-shared/nova-compute-fqdn.conf \
+{{- end }}
       --config-file /tmp/pod-shared/nova-hypervisor.conf

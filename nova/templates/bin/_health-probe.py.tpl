@@ -46,13 +46,22 @@ import oslo_messaging
 tcp_established = "ESTABLISHED"
 
 
+def _get_hostname(topic, use_fqdn):
+    if use_fqdn and topic == "compute":
+        return socket.getfqdn()
+    return socket.gethostname()
+
+
 def check_service_status(transport):
     """Verify service status. Return success if service consumes message"""
     try:
-        target = oslo_messaging.Target(topic=cfg.CONF.service_queue_name,
-                                       server=socket.gethostname(),
-                                       namespace='baseapi',
-                                       version="1.1")
+        service_queue_name = cfg.CONF.service_queue_name
+        use_fqdn = cfg.CONF.use_fqdn
+        target = oslo_messaging.Target(
+            topic=service_queue_name,
+            server=_get_hostname(service_queue_name, use_fqdn),
+            namespace='baseapi',
+            version="1.1")
         client = oslo_messaging.RPCClient(transport, target,
                                           timeout=60,
                                           retry=2)
@@ -190,6 +199,8 @@ def test_rpc_liveness():
     cfg.CONF.register_cli_opt(cfg.BoolOpt('liveness-probe', default=False,
                                           required=False))
     cfg.CONF.register_cli_opt(cfg.BoolOpt('check-all-pids', default=False,
+                                          required=False))
+    cfg.CONF.register_cli_opt(cfg.BoolOpt('use-fqdn', default=False,
                                           required=False))
 
     cfg.CONF(sys.argv[1:])

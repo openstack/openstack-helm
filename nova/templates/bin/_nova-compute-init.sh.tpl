@@ -56,3 +56,10 @@ tee > /tmp/pod-shared/nova-hypervisor.conf << EOF
 [DEFAULT]
 my_ip  = $hypervisor_address
 EOF
+
+{{- if and ( empty .Values.conf.nova.DEFAULT.host ) ( .Values.pod.use_fqdn.compute ) }}
+tee > /tmp/pod-shared/nova-compute-fqdn.conf << EOF
+[DEFAULT]
+host = $(hostname --fqdn)
+EOF
+{{- end }}
