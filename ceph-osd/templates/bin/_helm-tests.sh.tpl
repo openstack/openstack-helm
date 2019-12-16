@@ -18,30 +18,28 @@ limitations under the License.
 
 set -ex
 
-# Check OSD status
-function check_osd_status() {
-  echo "--Start: Checking OSD status--"
-  ceph_osd_stat_output=$(ceph osd stat -f json)
-  #
-  # Extract each value needed to check correct deployment of the OSDs
-  #
-  num_osds=$(echo $ceph_osd_stat_output | jq '.num_osds')
-  up_osds=$(echo $ceph_osd_stat_output | jq '.num_up_osds')
-  in_osds=$(echo $ceph_osd_stat_output | jq '.num_in_osds')
-  #
-  #NOTE: This check will fail if deployed OSDs are not running correctly
-  #In a correctly deployed cluster the number of UP and IN OSDs must be
-  #the same as the total number of OSDs
+function check_osd_count() {
+  echo "#### Start: Checking OSD count ####"
+  osd_stat_output=$(ceph osd stat -f json-pretty)
+  num_osd=$(echo $osd_stat_output | jq .num_osds)
+  num_in_osds=$(echo $osd_stat_output | jq .num_in_osds)
+  num_up_osds=$(echo $osd_stat_output | jq .num_up_osds)
 
-  if [ "x${num_osds}" == "x0" ] ; then
+  if [ ${num_osd} -eq 1 ]; then
+    MIN_OSDS=${num_osd}
+  else
+    MIN_OSDS=$((${num_osd}*$REQUIRED_PERCENT_OF_OSDS/100))
+  fi
+
+  if [ "${num_osd}" -eq 0 ]; then
     echo "There are no osds in the cluster"
     exit 1
-  elif [ "x${num_osds}" == "x${up_osds}" ] && [ "x${num_osds}" == "x${in_osds}" ] ; then
-    echo "Success: Total OSDs=${num_osds} Up=${up_osds} In=${in_osds}"
+  elif [ "${num_in_osds}" -ge "${MIN_OSDS}" ] && [ "${num_up_osds}" -ge "${MIN_OSDS}"  ]; then
+    echo "Required number of OSDs (${MIN_OSDS}) are UP and IN status"
   else
-    echo "Failure: Total OSDs=${num_osds} Up=${up_osds} In=${in_osds}"
+    echo "Required number of OSDs (${MIN_OSDS}) are NOT UP and IN status. Cluster shows OSD count=${num_osd}, UP=${num_up_osds}, IN=${num_in_osds}"
     exit 1
   fi
 }
 
-check_osd_status
+check_osd_count
