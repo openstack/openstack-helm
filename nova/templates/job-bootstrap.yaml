@@ -14,7 +14,122 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if and .Values.manifests.job_bootstrap .Values.bootstrap.enabled }}
-{{- $bootstrapJob := dict "envAll" . "serviceName" "nova" "keystoneUser" .Values.bootstrap.ks_user "logConfigFile" .Values.conf.nova.DEFAULT.log_config_append -}}
-{{ $bootstrapJob | include "helm-toolkit.manifests.job_bootstrap" }}
+{{- $envAll := . }}
+{{- if and $envAll.Values.manifests.job_bootstrap $envAll.Values.bootstrap.enabled }}
+{{- $serviceName := "nova" -}}
+{{- $keystoneUser := $envAll.Values.bootstrap.ks_user -}}
+{{- $configMapBin := printf "%s-%s" $serviceName "bin" -}}
+{{- $configMapEtc := printf "%s-%s" $serviceName "etc" -}}
+{{- $configFile := printf "/etc/%s/%s.conf" $serviceName $serviceName -}}
+{{- $logConfigFile := $envAll.Values.conf.nova.DEFAULT.log_config_append -}}
+{{- $nodeSelector := index . "nodeSelector" | default ( dict $envAll.Values.labels.job.node_selector_key $envAll.Values.labels.job.node_selector_value ) -}}
+{{- $serviceAccountName := printf "%s-%s" $serviceName "bootstrap" -}}
+{{ tuple $envAll "bootstrap" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ $serviceAccountName | quote }}
+spec:
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "nova" "bootstrap" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+{{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
+    spec:
+      serviceAccountName: {{ $serviceAccountName }}
+      restartPolicy: OnFailure
+      nodeSelector:
+{{ toYaml $nodeSelector | indent 8 }}
+      initContainers:
+{{ tuple $envAll "bootstrap" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container"  | indent 8 }}
+{{- if $envAll.Values.bootstrap.wait_for_computes.enabled }}
+        - name: nova-wait-for-computes-init
+{{ tuple $envAll "nova_wait_for_computes_init" | include "helm-toolkit.snippets.image" | indent 10 }}
+          command:
+            - /bin/bash
+            - -c
+            - /tmp/wait-for-computes-init.sh
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: bootstrap-sh
+              mountPath: /tmp/wait-for-computes-init.sh
+              subPath: wait-for-computes-init.sh
+              readOnly: true
+{{- end }}
+      containers:
+        - name: bootstrap
+          image: {{ $envAll.Values.images.tags.bootstrap }}
+          imagePullPolicy: {{ $envAll.Values.images.pull_policy }}
+{{ tuple $envAll $envAll.Values.pod.resources.jobs.bootstrap | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          env:
+{{- with $env := dict "ksUserSecret" ( index $envAll.Values.secrets.identity $keystoneUser ) }}
+{{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 12 }}
+{{- end }}
+            - name: WAIT_PERCENTAGE
+              value: "{{ .Values.bootstrap.wait_for_computes.wait_percentage }}"
+            - name: REMAINING_WAIT
+              value: "{{ .Values.bootstrap.wait_for_computes.remaining_wait }}"
+          command:
+            - /bin/bash
+            - -c
+            - /tmp/bootstrap.sh
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: bootstrap-sh
+              mountPath: /tmp/bootstrap.sh
+              subPath: bootstrap.sh
+              readOnly: true
+            - name: etc-service
+              mountPath: {{ dir $configFile | quote }}
+            - name: bootstrap-conf
+              mountPath: {{ $configFile | quote }}
+              subPath: {{ base $configFile | quote }}
+              readOnly: true
+            - name: bootstrap-conf
+              mountPath: {{ $logConfigFile | quote }}
+              subPath: {{ base $logConfigFile | quote }}
+              readOnly: true
+      volumes:
+        - name: pod-tmp
+          emptyDir: {}
+        - name: bootstrap-sh
+          configMap:
+            name: {{ $configMapBin | quote }}
+            defaultMode: 0555
+        - name: etc-service
+          emptyDir: {}
+        - name: bootstrap-conf
+          secret:
+            secretName: {{ $configMapEtc | quote }}
+            defaultMode: 0444
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: {{ $serviceAccountName }}
+rules:
+  - apiGroups:
+      - ''
+    resources:
+      - nodes
+    verbs:
+      - get
+      - list
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ $serviceAccountName }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ $serviceAccountName }}
+    namespace: {{ $envAll.Release.Namespace }}
+roleRef:
+  kind: ClusterRole
+  name: {{ $serviceAccountName }}
+  apiGroup: rbac.authorization.k8s.io
 {{- end }}

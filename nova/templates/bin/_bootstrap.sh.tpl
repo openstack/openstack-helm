@@ -30,4 +30,10 @@ openstack flavor show {{ .name }} || \
 {{ end }}
 {{ end }}
 
-{{ .Values.bootstrap.script | default "echo 'Not Enabled'" }}
+{{ if .Values.bootstrap.wait_for_computes.enabled }}
+{{ .Values.bootstrap.wait_for_computes.scripts.wait_script }}
+{{ else }}
+echo 'Wait for Computes script not enabled'
+{{ end }}
+
+{{ .Values.bootstrap.script | default "echo 'No other bootstrap customizations found.'" }}
