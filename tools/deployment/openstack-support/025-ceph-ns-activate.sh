@@ -40,9 +40,6 @@ bootstrap:
 conf:
   rgw_ks:
     enabled: false
-storageclass:
-  cephfs:
-    provision_storage_class: false
 EOF
 
 : ${OSH_INFRA_EXTRA_HELM_ARGS_CEPH_NS_ACTIVATE:="$(./tools/deployment/common/get-values-overrides.sh ceph-provisioners)"}

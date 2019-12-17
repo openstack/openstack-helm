@@ -20,10 +20,9 @@ set -ex
 
 function check_osd_count() {
   echo "#### Start: Checking OSD count ####"
-  osd_stat_output=$(ceph osd stat -f json-pretty)
-  num_osd=$(echo $osd_stat_output | jq .num_osds)
-  num_in_osds=$(echo $osd_stat_output | jq .num_in_osds)
-  num_up_osds=$(echo $osd_stat_output | jq .num_up_osds)
+  num_osd=$(ceph osd stat | tr ' ' '\n' | grep -x -E '[0-9]+' | head -n1)
+  num_in_osds=$(ceph osd stat | tr ' ' '\n' | grep -x -E '[0-9]+' | tail -n1)
+  num_up_osds=$(ceph osd stat | tr ' ' '\n' | grep -x -E '[0-9]+' | head -n2 | tail -n1)
 
   if [ ${num_osd} -eq 1 ]; then
     MIN_OSDS=${num_osd}
