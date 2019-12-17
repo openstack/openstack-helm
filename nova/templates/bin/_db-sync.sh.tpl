@@ -17,7 +17,7 @@ limitations under the License.
 */}}
 
 set -ex
-NOVA_VERSION=$(nova-manage --version 2>&1)
+NOVA_VERSION=$(nova-manage --version 2>&1 | grep -Eo '[0-9]+[.][0-9]+[.][0-9]+')
 
 function manage_cells () {
   # NOTE(portdirect): check if nova fully supports cells v2, and manage
