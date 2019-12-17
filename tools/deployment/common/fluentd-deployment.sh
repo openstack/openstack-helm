@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2017 The Openstack-Helm Authors.
+# Copyright 2019 The Openstack-Helm Authors.
 #
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
 #    not use this file except in compliance with the License. You may obtain
@@ -21,6 +21,8 @@ make fluentd
 
 if [ ! -d "/var/log/journal" ]; then
 tee /tmp/fluentd.yaml << EOF
+deployment:
+  type: Deployment
 monitoring:
   prometheus:
     enabled: true
@@ -42,11 +44,20 @@ helm upgrade --install fluentd ./fluentd \
     --namespace=osh-infra \
     --values=/tmp/fluentd.yaml
 else
+tee /tmp/fluentd.yaml << EOF
+deployment:
+  type: Deployment
+monitoring:
+  prometheus:
+    enabled: true
+pod:
+  replicas:
+    fluentd: 1
+EOF
+fi
 helm upgrade --install fluentd ./fluentd \
     --namespace=osh-infra \
-    --set pod.replicas.fluentd=1 \
-    --set monitoring.prometheus.enabled=true
-fi
+    --values=/tmp/fluentd.yaml
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh osh-infra

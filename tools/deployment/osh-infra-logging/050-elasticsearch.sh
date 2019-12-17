@@ -23,13 +23,14 @@ make elasticsearch
 tee /tmp/elasticsearch.yaml << EOF
 jobs:
   verify_repositories:
-    cron: "*/3 * * * *"
+    cron: "*/10 * * * *"
 monitoring:
   prometheus:
     enabled: true
 pod:
   replicas:
-    data: 2
+    client: 1
+    data: 1
     master: 2
 conf:
   elasticsearch:
