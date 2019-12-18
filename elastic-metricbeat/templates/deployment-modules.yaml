@@ -19,8 +19,53 @@ limitations under the License.
 
 {{- $esUserSecret := .Values.secrets.elasticsearch.user }}
 
-{{- $serviceAccountName := "metricbeat" }}
+{{- $serviceAccountName := printf "%s-%s" .Release.Name "metricbeat-deployments" }}
 {{ tuple $envAll "metricbeat" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ $serviceAccountName }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ $serviceAccountName }}
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  kind: ClusterRole
+  name: {{ $serviceAccountName }}
+  apiGroup: rbac.authorization.k8s.io
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: {{ $serviceAccountName }}
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - namespaces
+      - nodes
+      - pods
+      - services
+      - endpoints
+      - replicationcontrollers
+      - limitranges
+      - events
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - apps
+    resources:
+      - statefulsets
+      - daemonsets
+      - deployments
+      - replicasets
+    verbs:
+      - get
+      - list
+      - watch
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -57,7 +102,7 @@ spec:
 {{ tuple $envAll $envAll.Values.pod.resources.metricbeat | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           args:
             - "-c"
-            - "/etc/metricbeat.yml"
+            - "/usr/share/metricbeat/metricbeat.yml"
             - "-e"
           env:
             - name: ELASTICSEARCH_HOST
@@ -68,6 +113,10 @@ spec:
               value: {{ tuple "kube_state_metrics" "internal" . | include "helm-toolkit.endpoints.hostname_namespaced_endpoint_lookup" | quote }}
             - name: KUBE_STATE_METRICS_PORT
               value: {{ tuple "kube_state_metrics" "internal" "metrics" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | quote }}
+            - name: KIBANA_HOST
+              value: {{ tuple "kibana" "internal" . | include "helm-toolkit.endpoints.hostname_namespaced_endpoint_lookup" | quote }}
+            - name: KIBANA_PORT
+              value: {{ tuple "kibana" "internal" "http" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | quote }}
             - name: ELASTICSEARCH_USERNAME
               valueFrom:
                 secretKeyRef:
@@ -86,7 +135,7 @@ spec:
             - name: pod-tmp
               mountPath: /tmp
             - name: metricbeat-etc
-              mountPath: /etc/metricbeat.yml
+              mountPath: /usr/share/metricbeat/metricbeat.yml
               subPath: metricbeat.yml
               readOnly: true
             - name: metricbeat-etc

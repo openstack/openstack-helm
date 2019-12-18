@@ -28,7 +28,7 @@ labels:
 
 images:
   tags:
-    packetbeat: docker.elastic.co/beats/packetbeat:6.3.1
+    packetbeat: docker.elastic.co/beats/packetbeat-oss:7.1.0
     dep_check: quay.io/airshipit/kubernetes-entrypoint:v1.0.0
     image_repo_sync: docker.io/docker:17.07.0
   pull_policy: IfNotPresent
@@ -63,28 +63,30 @@ conf:
   packetbeat:
     setup:
       kibana:
-        host: ['${KIBANA_HOST}:${KIBANA_PORT}']
+        host: "${KIBANA_HOST}:${KIBANA_PORT}"
+        username: "${ELASTICSEARCH_USERNAME}"
+        password: "${ELASTICSEARCH_PASSWORD}"
       dashboards:
         enabled: true
+        index: "packetbeat-*"
         retry:
           enabled: true
           interval: 5
     packetbeat:
+      flows:
+        timeout: 30s
+        period: 10s
       interfaces:
         device: any
       protocols:
+        - type: dhcpv4
+          ports: [67, 68]
         - type: dns
           ports: [53]
           include_authorities: true
           include_additionals: true
         - type: http
-          ports: [80, 8080, 8081, 5000, 8002]
-        - type: memcache
-          ports: [11211]
-        - type: mysql
-          ports: [3306]
-        - type: rabbit
-          ports: [5672, 15672]
+          ports: [80, 8080, 8081, 5000, 8002, 6666, 3000, 5601, 9100, 9090, 44134]
     output:
       elasticsearch:
         hosts: ['${ELASTICSEARCH_HOST}:${ELASTICSEARCH_PORT}']

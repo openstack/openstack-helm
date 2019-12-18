@@ -28,7 +28,7 @@ labels:
 
 images:
   tags:
-    metricbeat: docker.elastic.co/beats/metricbeat:6.3.1
+    metricbeat: docker.elastic.co/beats/metricbeat-oss:7.1.0
     dep_check: quay.io/airshipit/kubernetes-entrypoint:v1.0.0
     image_repo_sync: docker.io/docker:17.07.0
   pull_policy: IfNotPresent
@@ -53,7 +53,9 @@ dependencies:
             service: local_image_registry
   static:
     metricbeat:
-      services: null
+      services:
+        - endpoint: internal
+          service: kibana
     image_repo_sync:
       services:
         - endpoint: internal
@@ -64,9 +66,14 @@ conf:
     setup:
       dashboards:
         enabled: true
+        index: metricbeat-*
         retry:
           enabled: true
           interval: 5
+      kibana:
+        host: "${KIBANA_HOST}:${KIBANA_PORT}"
+        username: "${ELASTICSEARCH_USERNAME}"
+        password: "${ELASTICSEARCH_PASSWORD}"
     metricbeat:
       config:
         modules:
@@ -79,35 +86,20 @@ conf:
         username: ${ELASTICSEARCH_USERNAME}
         password: ${ELASTICSEARCH_PASSWORD}
   modules:
-    mysql:
-      - module: mysql
-        metricsets: ["status"]
-        hosts: ["tcp(mariadb.openstack.svc.cluster.local:3306)/"]
-        username: root
-        password: password
-    rabbitmq:
-      - module: rabbitmq
-        metricsets: ["node", "queue", "connection"]
+    docker:
+      - module: docker
+        metricsets:
+          - "container"
+          - "cpu"
+          - "diskio"
+          - "healthcheck"
+          - "info"
+          - "image"
+          - "memory"
+          - "network"
+        hosts: ["unix:///var/run/docker.sock"]
+        period: 10s
         enabled: true
-        period: 30s
-        hosts: ["rabbitmq.openstack.svc.cluster.local:15672"]
-        username: rabbitmq
-        password: password
-    # docker:
-    #   - module: docker
-    #     metricsets:
-    #       - "container"
-    #       - "cpu"
-    #       - "diskio"
-    #       - "healthcheck"
-    #       - "info"
-    #       - "image"
-    #       - "memory"
-    #       - "network"
-    #     hosts: ["unix:///var/run/docker.sock"]
-    #     period: 10s
-    #     enabled: false
-    #     labels.dedot: true
     system:
       - module: system
         period: 10s
@@ -121,18 +113,15 @@ conf:
           - core
           - diskio
           - socket
+          - filesystem
+          - fsstat
         processes: ['.*']
+        cpu.metrics:  ["percentages"]
+        core.metrics: ["percentages"]
         process.include_top_n:
           by_cpu: 5
           by_memory: 5
-      - module: system
-        period: 1m
-        metricsets:
-          - filesystem
-          - fsstat
-        processors:
-        - drop_event.when.regexp:
-            system.filesystem.mount_point: '^/(sys|cgroup|proc|dev|etc|host|lib)($|/)'
+        enabled: true
     daemonset_kubernetes:
       - module: kubernetes
         metricsets:
@@ -143,6 +132,9 @@ conf:
           - volume
         period: 10s
         hosts: ["localhost:10255"]
+        add_metadata: true
+        in_cluster: true
+        enabled: true
     deployment_kubernetes:
       - module: kubernetes
         metricsets:
@@ -154,6 +146,9 @@ conf:
           - event
         period: 10s
         hosts: ['${KUBE_STATE_METRICS_HOST}:${KUBE_STATE_METRICS_PORT}']
+        add_metadata: true
+        in_cluster: true
+        enabled: true
 
 endpoints:
   cluster_domain_suffix: cluster.local
@@ -201,6 +196,23 @@ endpoints:
     scheme:
       default: http
     port:
+      http:
+        default: 80
+  kibana:
+    name: kibana
+    namespace: osh-infra
+    hosts:
+      default: kibana-dash
+      public: kibana
+    host_fqdn_override:
+      default: null
+    path:
+      default: null
+    scheme:
+      default: http
+    port:
+      kibana:
+        default: 5601
       http:
         default: 80
 

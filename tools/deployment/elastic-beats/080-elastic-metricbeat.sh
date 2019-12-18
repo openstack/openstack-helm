@@ -17,15 +17,31 @@
 set -xe
 
 #NOTE: Lint and package chart
-make elastic-apm-server
+make elastic-metricbeat
+
+tee /tmp/metricbeat.yaml << EOF
+images:
+  tags:
+    metricbeat: docker.elastic.co/beats/metricbeat:7.1.0
+conf:
+  metricbeat:
+    setup:
+      ilm:
+        enabled: false
+endpoints:
+  elasticsearch:
+    namespace: osh-infra
+  kibana:
+    namespace: osh-infra
+EOF
 
 #NOTE: Deploy command
-helm upgrade --install elastic-apm-server ./elastic-apm-server \
+helm upgrade --install elastic-metricbeat ./elastic-metricbeat \
     --namespace=kube-system \
-    --set endpoints.elasticsearch.namespace=osh-infra
+    --values=/tmp/metricbeat.yaml
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh kube-system
 
 #NOTE: Validate Deployment info
-helm status elastic-apm-server
+helm status elastic-metricbeat

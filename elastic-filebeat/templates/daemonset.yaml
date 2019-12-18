@@ -48,6 +48,7 @@ rules:
       - nodes
       - pods
       - services
+      - endpoints
       - replicationcontrollers
       - limitranges
     verbs:
@@ -105,10 +106,18 @@ spec:
             - name: filebeat
               containerPort: {{ tuple "filebeat" "internal" "service" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
           env:
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
             - name: ELASTICSEARCH_HOST
               value: {{ tuple "elasticsearch" "internal" . | include "helm-toolkit.endpoints.hostname_namespaced_endpoint_lookup" | quote }}
             - name: ELASTICSEARCH_PORT
               value: {{ tuple "elasticsearch" "internal" "http" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | quote }}
+            - name: KIBANA_HOST
+              value: {{ tuple "kibana" "internal" . | include "helm-toolkit.endpoints.hostname_namespaced_endpoint_lookup" | quote }}
+            - name: KIBANA_PORT
+              value: {{ tuple "kibana" "internal" "http" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | quote }}
             - name: ELASTICSEARCH_USERNAME
               valueFrom:
                 secretKeyRef:
@@ -133,6 +142,10 @@ spec:
               mountPath: /usr/share/filebeat/filebeat.yml
               readOnly: true
               subPath: filebeat.yml
+            - name: filebeat-etc
+              mountPath: /usr/share/filebeat/modules.d/system.yml
+              subPath: system.yml
+              readOnly: true
 {{ if $mounts_filebeat.volumeMounts }}{{ toYaml $mounts_filebeat.volumeMounts | indent 8 }}{{ end }}
       volumes:
         - name: pod-tmp

@@ -17,16 +17,31 @@
 set -xe
 
 #NOTE: Lint and package chart
-make elastic-metricbeat
+make elastic-filebeat
+
+tee /tmp/filebeat.yaml << EOF
+images:
+  tags:
+    filebeat: docker.elastic.co/beats/filebeat:7.1.0
+conf:
+  filebeat:
+    setup:
+      ilm:
+        enabled: false
+endpoints:
+  elasticsearch:
+    namespace: osh-infra
+  kibana:
+    namespace: osh-infra
+EOF
 
 #NOTE: Deploy command
-helm upgrade --install elastic-metricbeat ./elastic-metricbeat \
+helm upgrade --install elastic-filebeat ./elastic-filebeat \
     --namespace=kube-system \
-    --set endpoints.kube_state_metrics.namespace=kube-system \
-    --set endpoints.elasticsearch.namespace=osh-infra
+    --values=/tmp/filebeat.yaml
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh kube-system
 
 #NOTE: Validate Deployment info
-helm status elastic-metricbeat
+helm status elastic-filebeat
