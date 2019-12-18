@@ -391,16 +391,50 @@ fi
 
 # determine local-ip dynamically based on interface provided but only if tunnel_types is not null
 if [[ -n "${tunnel_types}" ]] ; then
-LOCAL_IP=$(get_ip_address_from_interface ${tunnel_interface})
-if [ -z "${LOCAL_IP}" ] ; then
-  echo "Var LOCAL_IP is empty"
-  exit 1
-fi
+  LOCAL_IP=$(get_ip_address_from_interface ${tunnel_interface})
+  if [ -z "${LOCAL_IP}" ] ; then
+    echo "Var LOCAL_IP is empty"
+    exit 1
+  fi
 
 tee > /tmp/pod-shared/ml2-local-ip.ini << EOF
 [ovs]
 local_ip = "${LOCAL_IP}"
 EOF
+
+  if [[ "${DPDK_ENABLED}" == "true" ]]; then
+    PREFIX=$(get_ip_prefix_from_interface "${tunnel_interface}")
+
+    # loop over all nics
+    echo $DPDK_CONFIG | jq -r -c '.bridges[]' | \
+    while IFS= read -r br; do
+      local bridge_name=$(get_dpdk_config_value ${br} '.name')
+      local tunnel_underlay_vlan=$(get_dpdk_config_value ${br} '.tunnel_underlay_vlan')
+
+      if [[ "${bridge_name}" == "${tunnel_interface}" ]]; then
+        # Route the tunnel traffic via the physical bridge
+        if [[ -n "${LOCAL_IP}" && -n "${PREFIX}" ]]; then
+          if [[ -n $(ovs-appctl ovs/route/show | grep "${LOCAL_IP}") ]]; then
+            ovs-appctl ovs/route/del "${LOCAL_IP}"/"${PREFIX}"
+          fi
+          ovs-appctl ovs/route/add "${LOCAL_IP}"/"${PREFIX}" "${tunnel_interface}"
+
+          if [[ -n "${tunnel_underlay_vlan}" ]]; then
+            # If there is not tunnel network gateway, exit
+            IFS=. read -r i1 i2 i3 i4 <<< "${LOCAL_IP}"
+            IFS=. read -r xx m1 m2 m3 m4 <<< $(for a in $(seq 1 32); do if [ $(((a - 1) % 8)) -eq 0 ]; then echo -n .; fi; if [ $a -le ${PREFIX} ]; then echo -n 1; else echo -n 0; fi; done)
+            tunnel_network_cidr=$(printf "%d.%d.%d.%d\n" "$((i1 & (2#$m1)))" "$((i2 & (2#$m2)))" "$((i3 & (2#$m3)))" "$((i4 & (2#$m4)))") || exit 1
+            # Put a new flow to tag all the tunnel traffic with configured vlan-id
+            if [[ -n $(ovs-ofctl dump-flows "${tunnel_interface}" | grep "nw_dst=${tunnel_network_cidr}") ]]; then
+              ovs-ofctl del-flows "${tunnel_interface}" "cookie=0x9999/-1, table=0, ip,nw_dst=${tunnel_network_cidr}"
+            fi
+            ovs-ofctl add-flow "${tunnel_interface}" "cookie=0x9999, table=0, priority=8, ip,nw_dst=${tunnel_network_cidr}, actions=mod_vlan_vid:${tunnel_underlay_vlan},NORMAL"
+          fi
+        fi
+        break
+      fi
+    done
+  fi
 fi
 
 {{- if and ( empty .Values.conf.neutron.DEFAULT.host ) ( .Values.pod.use_fqdn.neutron_agent ) }}
