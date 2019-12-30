@@ -182,7 +182,7 @@ function osd_disk_prepare {
       block_wal_string=$(echo ${BLOCK_WAL} | awk -F "/" '{print $2}{print $3}' | paste -s -d'-')
     fi
     exec {lock_fd}>/var/lib/ceph/tmp/init-osd.lock || exit 1
-    flock -w 60 -E 0 --verbose "${lock_fd}"
+    flock -w 60 --verbose "${lock_fd}"
     if [[ ${BLOCK_DB} && ${BLOCK_WAL} ]]; then
        if [[ ${block_db_string} == ${block_wal_string} ]]; then
          if [[ $(vgdisplay  | grep "VG Name" | awk '{print $3}' | grep "${block_db_string}") ]]; then
