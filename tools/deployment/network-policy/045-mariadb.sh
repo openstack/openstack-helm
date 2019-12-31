@@ -25,35 +25,6 @@ manifests:
   monitoring:
     prometheus:
       network_policy_exporter: true
-network_policy:
-  prometheus-mysql-exporter:
-    ingress:
-      - from:
-        - podSelector:
-            matchLabels:
-              application: prometheus
-        ports:
-        - protocol: TCP
-          port: 9104
-  mariadb:
-    ingress:
-      - from:
-        - podSelector:
-            matchLabels:
-              application: grafana
-        - podSelector:
-            matchLabels:
-              application: mariadb
-        - podSelector:
-            matchLabels:
-              application: prometheus-mysql-exporter
-        ports:
-        - protocol: TCP
-          port: 3306
-        - protocol: TCP
-          port: 4567
-        - protocol: TCP
-          port: 80
 EOF
 
 #NOTE: Deploy command
