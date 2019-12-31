@@ -62,7 +62,19 @@ spec:
                 command:
                   - /tmp/kafka-exporter.sh
                   - stop
-          # env: {}
+          env:
+            - name: KAFKA_BROKERS
+              value: {{ tuple "kafka" "internal" "broker" . | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" | quote }}
+            - name: KAFKA_EXPORTER_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $kafkaExporterUserSecret }}
+                  key: KAFKA_EXPORTER_USERNAME
+            - name: KAFKA_EXPORTER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $kafkaExporterUserSecret }}
+                  key: KAFKA_EXPORTER_PASSWORD
           ports:
             - name: exporter
               containerPort: {{ tuple "kafka_exporter" "internal" "exporter" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
