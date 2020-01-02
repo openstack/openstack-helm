@@ -349,6 +349,11 @@ function osd_disk_prepare {
        BLOCK_DB=${VG}/ceph-db-${osd_dev_string}
     flock -u "${lock_fd}"
     fi
+    if [ -z ${BLOCK_DB} ] && [ -z ${BLOCK_WAL} ]; then
+      if pvdisplay ${OSD_DEVICE} | grep "VG Name" | awk '{print $3}' | grep "ceph"; then
+        CEPH_LVM_PREPARE=0
+      fi
+    fi
   else
     if pvdisplay ${OSD_DEVICE} | grep "VG Name" | awk '{print $3}' | grep "ceph"; then
       CEPH_LVM_PREPARE=0
