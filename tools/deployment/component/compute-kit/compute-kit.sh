@@ -90,3 +90,4 @@ openstack service list
 sleep 30 #NOTE(portdirect): Wait for ingress controller to update rules and restart Nginx
 openstack compute service list
 openstack network agent list
+openstack hypervisor list
