@@ -21,6 +21,20 @@ COMMAND="${@:-start}"
 
 function start () {
   find /tmp/ -maxdepth 1 -writable | grep -v "^/tmp/$" | xargs -L1 -r rm -rfv
+
+  declare -A desired_opts
+  desired_opts["--stream-port"]="${PORT_STREAM}"
+  desired_opts["--profiler-port"]="${PORT_PROFILER}"
+
+  possible_opts=$(/nginx-ingress-controller --help 2>&1 | awk '/^      --/ { print $1 }')
+
+  extra_opts=()
+  for k in "${!desired_opts[@]}"; do
+    if echo "$possible_opts" | grep -q -- ^${k}$; then
+      extra_opts+=($k=${desired_opts[$k]})
+    fi
+  done
+
   exec /usr/bin/dumb-init \
       /nginx-ingress-controller \
       {{- if eq .Values.deployment.mode "namespace" }}
@@ -36,7 +50,8 @@ function start () {
       --default-backend-service=${POD_NAMESPACE}/${ERROR_PAGE_SERVICE} \
       --configmap=${POD_NAMESPACE}/ingress-conf \
       --tcp-services-configmap=${POD_NAMESPACE}/ingress-services-tcp \
-      --udp-services-configmap=${POD_NAMESPACE}/ingress-services-udp
+      --udp-services-configmap=${POD_NAMESPACE}/ingress-services-udp \
+      "${extra_opts[@]}"
 }
 
 function stop () {
