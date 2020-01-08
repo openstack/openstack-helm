@@ -19,15 +19,14 @@ set -xe
 #NOTE: Lint and package chart
 make prometheus
 
-rules_overrides=""
-for rules_file in $(ls ./prometheus/values_overrides); do
-  rules_overrides="$rules_overrides --values=./prometheus/values_overrides/$rules_file"
-done
+FEATURE_GATES="alertmanager,ceph,elasticsearch,kubernetes,nodes,openstack,postgresql"
+: ${OSH_INFRA_EXTRA_HELM_ARGS_PROMETHEUS:="$({ ./tools/deployment/common/get-values-overrides.sh prometheus;} 2> /dev/null)"}
 
 #NOTE: Deploy command
 helm upgrade --install prometheus ./prometheus \
     --namespace=osh-infra \
-    $rules_overrides
+    ${OSH_INFRA_EXTRA_HELM_ARGS} \
+    ${OSH_INFRA_EXTRA_HELM_ARGS_PROMETHEUS}
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh osh-infra
