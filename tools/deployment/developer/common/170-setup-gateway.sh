@@ -28,8 +28,10 @@ sudo ip link set br-ex up
 # VMs to reach the outside world correctly this needs to be set to ACCEPT.
 sudo iptables -P FORWARD ACCEPT
 
-# Setup masquerading on default route dev to public subnet
-DEFAULT_ROUTE_DEV="$(sudo ip -4 route list 0/0 | awk '{ print $5; exit }')"
+# Setup masquerading on default route dev to public subnet by searching for the
+# interface with default routing, if multiple default routes exist then select
+# the one with the lowest metric.
+DEFAULT_ROUTE_DEV=$(route -n | awk '/^0.0.0.0/ { print $5 " " $NF }' | sort | awk '{ print $NF; exit }')
 sudo iptables -t nat -A POSTROUTING -o ${DEFAULT_ROUTE_DEV} -s ${OSH_EXT_SUBNET} -j MASQUERADE
 
 # NOTE(portdirect): Setup DNS for public endpoints
