@@ -54,11 +54,18 @@ tcp_established = "ESTABLISHED"
 log.logging.basicConfig(level=log.ERROR)
 
 
+def _get_hostname(use_fqdn):
+    if use_fqdn:
+        return socket.getfqdn()
+    return socket.gethostname()
+
 def check_agent_status(transport):
     """Verify agent status. Return success if agent consumes message"""
     try:
-        target = oslo_messaging.Target(topic=cfg.CONF.agent_queue_name,
-                                       server=socket.gethostname())
+        use_fqdn = cfg.CONF.use_fqdn
+        target = oslo_messaging.Target(
+            topic=cfg.CONF.agent_queue_name,
+            server=_get_hostname(use_fqdn))
         client = oslo_messaging.RPCClient(transport, target,
                                           timeout=60,
                                           retry=2)
@@ -199,6 +206,8 @@ def test_socket_liveness():
     """Test if agent can respond to message over the socket"""
     cfg.CONF.register_cli_opt(cfg.BoolOpt('liveness-probe', default=False,
                                           required=False))
+    cfg.CONF.register_cli_opt(cfg.BoolOpt('use-fqdn', default=False,
+                                          required=False))
     cfg.CONF(sys.argv[1:])
 
     agentq = "metadata_agent"
@@ -252,6 +261,8 @@ def test_rpc_liveness():
     cfg.CONF.register_group(rabbit_group)
     cfg.CONF.register_cli_opt(cfg.StrOpt('agent-queue-name'))
     cfg.CONF.register_cli_opt(cfg.BoolOpt('liveness-probe', default=False,
+                                          required=False))
+    cfg.CONF.register_cli_opt(cfg.BoolOpt('use-fqdn', default=False,
                                           required=False))
 
     cfg.CONF(sys.argv[1:])

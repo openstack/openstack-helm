@@ -22,4 +22,7 @@ exec neutron-linuxbridge-agent \
   --config-file /etc/neutron/neutron.conf \
   --config-file /etc/neutron/plugins/ml2/ml2_conf.ini \
   --config-file /tmp/pod-shared/ml2-local-ip.ini \
+{{- if and ( empty .Values.conf.neutron.DEFAULT.host ) ( .Values.pod.use_fqdn.neutron_agent ) }}
+  --config-file /tmp/pod-shared/neutron-agent.ini \
+{{- end }}
   --config-file /etc/neutron/plugins/ml2/linuxbridge_agent.ini

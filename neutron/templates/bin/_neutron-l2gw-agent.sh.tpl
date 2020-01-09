@@ -19,4 +19,7 @@ limitations under the License.
 set -x
 exec neutron-l2gateway-agent \
       --config-file=/etc/neutron/neutron.conf \
+{{- if and ( empty .Values.conf.neutron.DEFAULT.host ) ( .Values.pod.use_fqdn.neutron_agent ) }}
+  --config-file /tmp/pod-shared/neutron-agent.ini \
+{{- end }}
       --config-file=/etc/neutron/l2gw_agent.ini

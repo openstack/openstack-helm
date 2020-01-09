@@ -19,3 +19,11 @@ limitations under the License.
 set -ex
 
 chown ${NEUTRON_USER_UID} /var/lib/neutron/openstack-helm
+
+{{- if and ( empty .Values.conf.neutron.DEFAULT.host ) ( .Values.pod.use_fqdn.neutron_agent ) }}
+mkdir -p /tmp/pod-shared
+tee > /tmp/pod-shared/neutron-agent.ini << EOF
+[DEFAULT]
+host = $(hostname --fqdn)
+EOF
+{{- end }}

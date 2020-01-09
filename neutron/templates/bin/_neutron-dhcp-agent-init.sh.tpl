@@ -7,7 +7,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-   http://www.apache.org/licenses/LICENSE-2.0
+  http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -18,13 +18,10 @@ limitations under the License.
 
 set -ex
 
-exec neutron-sriov-nic-agent \
-  --config-file /etc/neutron/neutron.conf \
-  --config-file /etc/neutron/plugins/ml2/ml2_conf.ini \
 {{- if and ( empty .Values.conf.neutron.DEFAULT.host ) ( .Values.pod.use_fqdn.neutron_agent ) }}
-  --config-file /tmp/pod-shared/neutron-agent.ini \
+mkdir -p /tmp/pod-shared
+tee > /tmp/pod-shared/neutron-agent.ini << EOF
+[DEFAULT]
+host = $(hostname --fqdn)
+EOF
 {{- end }}
-{{- if .Values.conf.plugins.taas.taas.enabled }}
-  --config-file /etc/neutron/plugins/ml2/taas.ini \
-{{- end }}
-  --config-file /etc/neutron/plugins/ml2/sriov_agent.ini

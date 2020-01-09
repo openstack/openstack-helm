@@ -22,6 +22,9 @@ COMMAND="${@:-start}"
 function start () {
   exec ironic-neutron-agent \
         --config-file /etc/neutron/neutron.conf \
+{{- if and ( empty .Values.conf.neutron.DEFAULT.host ) ( .Values.pod.use_fqdn.neutron_agent ) }}
+  --config-file /tmp/pod-shared/neutron-agent.ini \
+{{- end }}
         --config-file /etc/neutron/plugins/ml2/ml2_conf.ini
 
 function stop () {
