@@ -1,0 +1,1 @@
+../osh-infra-logging/050-elasticsearch.sh

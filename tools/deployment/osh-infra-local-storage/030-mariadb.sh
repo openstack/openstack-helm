@@ -1,0 +1,1 @@
+../osh-infra-monitoring/045-mariadb.sh
