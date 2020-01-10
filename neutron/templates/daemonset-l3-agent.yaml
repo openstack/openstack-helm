@@ -25,6 +25,9 @@ exec:
     - /etc/neutron/l3_agent.ini
     - --agent-queue-name
     - l3_agent
+{{- if .Values.pod.use_fqdn.neutron_agent }}
+    - --use-fqdn
+{{- end }}
 {{- end }}
 {{- define "l3AgentLivenessProbeTemplate" }}
 exec:
@@ -38,6 +41,9 @@ exec:
     - --agent-queue-name
     - l3_agent
     - --liveness-probe
+{{- if .Values.pod.use_fqdn.neutron_agent }}
+    - --use-fqdn
+{{- end }}
 {{- end }}
 
 {{- define "neutron.l3_agent.daemonset" }}
@@ -86,6 +92,66 @@ spec:
       {{- end }}
       initContainers:
 {{ tuple $envAll "pod_dependency" $mounts_neutron_l3_agent_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+        - name: neutron-l3-agent-init
+{{ tuple $envAll "neutron_l3" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.agent.l3 | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "neutron_l3_agent" "container" "neutron_l3_agent_init" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          command:
+            - /tmp/neutron-l3-agent-init.sh
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: neutron-bin
+              mountPath: /tmp/neutron-l3-agent-init.sh
+              subPath: neutron-l3-agent-init.sh
+              readOnly: true
+            - name: pod-shared
+              mountPath: /tmp/pod-shared
+            - name: neutron-etc
+              mountPath: /etc/neutron/l3_agent.ini
+              subPath: l3_agent.ini
+              readOnly: true
+            - name: neutron-etc
+              mountPath: /etc/neutron/neutron.conf
+              subPath: neutron.conf
+              readOnly: true
+            - name: neutron-etc
+              mountPath: /etc/neutron/metadata_agent.ini
+              subPath: metadata_agent.ini
+              readOnly: true
+            - name: neutron-etc
+              mountPath: /etc/neutron/plugins/ml2/ml2_conf.ini
+              subPath: ml2_conf.ini
+              readOnly: true
+            - name: neutron-etc
+              mountPath: /etc/neutron/plugins/ml2/openvswitch_agent.ini
+              subPath: openvswitch_agent.ini
+              readOnly: true
+            - name: neutron-etc
+              # NOTE (Portdirect): We mount here to override Kollas
+              # custom sudoers file when using Kolla images, this
+              # location will also work fine for other images.
+              mountPath: /etc/sudoers.d/kolla_neutron_sudoers
+              subPath: neutron_sudoers
+              readOnly: true
+            - name: neutron-etc
+              mountPath: /tmp/auto_bridge_add
+              subPath: auto_bridge_add
+              readOnly: true
+            - name: neutron-etc
+              mountPath: /etc/neutron/rootwrap.conf
+              subPath: rootwrap.conf
+              readOnly: true
+            {{- range $key, $value := $envAll.Values.conf.rootwrap_filters }}
+            {{- if ( has "l3_agent" $value.pods ) }}
+            {{- $filePrefix := replace "_" "-"  $key }}
+            {{- $rootwrapFile := printf "/etc/neutron/rootwrap.d/%s.filters" $filePrefix }}
+            - name: neutron-etc
+              mountPath: {{ $rootwrapFile }}
+              subPath: {{ base $rootwrapFile }}
+              readOnly: true
+            {{- end }}
+            {{- end }}
       containers:
         - name: neutron-l3-agent
 {{ tuple $envAll "neutron_l3" | include "helm-toolkit.snippets.image" | indent 10 }}
@@ -98,6 +164,8 @@ spec:
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
+            - name: pod-shared
+              mountPath: /tmp/pod-shared
             - name: pod-var-neutron
               mountPath: {{ .Values.conf.neutron.DEFAULT.state_path }}
             - name: neutron-bin
@@ -189,6 +257,8 @@ spec:
         - name: iptables-lockfile
           hostPath:
             path: /run/xtables.lock
+        - name: pod-shared
+          emptyDir: {}
         - name: socket
           hostPath:
             path: /var/lib/neutron/openstack-helm

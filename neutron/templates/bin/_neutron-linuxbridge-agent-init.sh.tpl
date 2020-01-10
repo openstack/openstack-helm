@@ -58,3 +58,11 @@ tee > /tmp/pod-shared/ml2-local-ip.ini << EOF
 [vxlan]
 local_ip = "${LOCAL_IP}"
 EOF
+
+{{- if and ( empty .Values.conf.neutron.DEFAULT.host ) ( .Values.pod.use_fqdn.neutron_agent ) }}
+mkdir -p /tmp/pod-shared
+tee > /tmp/pod-shared/neutron-agent.ini << EOF
+[DEFAULT]
+host = $(hostname --fqdn)
+EOF
+{{- end }}

@@ -67,3 +67,11 @@ ethtool --set-priv-flags ${NIC_FIRST_PORT} vf-true-promisc-support ${promisc_mod
 {{- if ( has "besteffort" .Values.conf.sriov_init ) }}
 exit 0
 {{ end }}
+
+{{- if and ( empty .Values.conf.neutron.DEFAULT.host ) ( .Values.pod.use_fqdn.neutron_agent ) }}
+mkdir -p /tmp/pod-shared
+tee > /tmp/pod-shared/neutron-agent.ini << EOF
+[DEFAULT]
+host = $(hostname --fqdn)
+EOF
+{{- end }}

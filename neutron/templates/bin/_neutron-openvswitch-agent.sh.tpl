@@ -20,11 +20,14 @@ set -ex
 
 exec neutron-openvswitch-agent \
   --config-file /etc/neutron/neutron.conf \
-  --config-file /etc/neutron/plugins/ml2/ml2_conf.ini
-{{- if .Values.conf.plugins.openvswitch_agent.agent.tunnel_types }} \
-  --config-file /tmp/pod-shared/ml2-local-ip.ini
-{{- end }} \
-  --config-file /etc/neutron/plugins/ml2/openvswitch_agent.ini
-{{- if .Values.conf.plugins.taas.taas.enabled }} \
-  --config-file /etc/neutron/plugins/ml2/taas.ini
+{{- if and ( empty .Values.conf.neutron.DEFAULT.host ) ( .Values.pod.use_fqdn.neutron_agent ) }}
+  --config-file /tmp/pod-shared/neutron-agent.ini \
 {{- end }}
+{{- if .Values.conf.plugins.openvswitch_agent.agent.tunnel_types }}
+  --config-file /tmp/pod-shared/ml2-local-ip.ini \
+{{- end }}
+{{- if .Values.conf.plugins.taas.taas.enabled }}
+  --config-file /etc/neutron/plugins/ml2/taas.ini \
+{{- end }}
+  --config-file /etc/neutron/plugins/ml2/openvswitch_agent.ini \
+  --config-file /etc/neutron/plugins/ml2/ml2_conf.ini
