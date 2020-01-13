@@ -69,6 +69,10 @@ else
 # Negative Compute-Kit Tests
   #test_netpol openstack keystone api heat-api.openstack.svc.cluster.local fail
   #test_netpol openstack keystone api glance-api.openstack.svc.cluster.local fail
+  test_netpol openstack mariadb server glance-api.openstack.svc.cluster.local:9292 fail
+  test_netpol openstack memcached server glance-api.openstack.svc.cluster.local:9292 fail
+  test_netpol openstack keystone api glance-api.openstack.svc.cluster.local:9292 fail
+
 # Positive Compute-Kit Tests
   test_netpol openstack heat api mariadb.openstack.svc.cluster.local:3306 success
   test_netpol openstack glance api mariadb.openstack.svc.cluster.local:3306 success
@@ -78,6 +82,11 @@ else
   test_netpol openstack nova os-api keystone-api.openstack.svc.cluster.local:5000 success
   test_netpol openstack nova compute keystone-api.openstack.svc.cluster.local:5000 success
   test_netpol openstack neutron l3-agent keystone-api.openstack.svc.cluster.local:5000 success
+  test_netpol openstack ingress server glance-api.openstack.svc.cluster.local:9292 success
+  test_netpol openstack nova os-api glance-api.openstack.svc.cluster.local:9292 success
+  test_netpol openstack nova compute glance-api.openstack.svc.cluster.local:9292 success
+  test_netpol openstack heat api glance-api.openstack.svc.cluster.local:9292 success
+  test_netpol openstack horizon server glance-api.openstack.svc.cluster.local:9292 success
 fi
 
 echo Test Success
