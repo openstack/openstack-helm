@@ -23,7 +23,7 @@ pod:
   mandatory_access_control:
     type: apparmor
     fluentbit:
-      fluentbit: localhost/docker-default
+      fluentbit: runtime/default
 EOF
 
 #NOTE: Deploy command

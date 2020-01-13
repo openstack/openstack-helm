@@ -32,7 +32,7 @@ pod:
   mandatory_access_control:
     type: apparmor
     prometheus-openstack-exporter:
-      openstack-metrics-exporter: localhost/docker-default
+      openstack-metrics-exporter: runtime/default
 EOF
 helm upgrade --install prometheus-openstack-exporter ./prometheus-openstack-exporter \
     --namespace=openstack \

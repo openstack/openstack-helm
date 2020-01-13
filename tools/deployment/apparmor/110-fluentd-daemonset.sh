@@ -29,7 +29,7 @@ pod:
   mandatory_access_control:
     type: apparmor
     fluentd:
-      fluentd: localhost/docker-default
+      fluentd: runtime/default
 conf:
   fluentd:
     template: |

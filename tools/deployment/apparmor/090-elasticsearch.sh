@@ -31,11 +31,11 @@ pod:
   mandatory_access_control:
     type: apparmor
     elasticsearch-master:
-      elasticsearch-master: localhost/docker-default
+      elasticsearch-master: runtime/default
     elasticsearch-data:
-      elasticsearch-data: localhost/docker-default
+      elasticsearch-data: runtime/default
     elasticsearch-client:
-      elasticsearch-client: localhost/docker-default
+      elasticsearch-client: runtime/default
   replicas:
     data: 1
     master: 2

@@ -25,7 +25,7 @@ pod:
   mandatory_access_control:
     type: apparmor
     alertmanager:
-      alertmanager: localhost/docker-default
+      alertmanager: runtime/default
 storage:
   enabled: false
 EOF

@@ -30,7 +30,7 @@ pod:
   mandatory_access_control:
     type: apparmor
     memcached:
-      memcached: localhost/docker-default
+      memcached: runtime/default
 EOF
 
 # NOTE: Deploy command

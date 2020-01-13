@@ -194,7 +194,7 @@ pod:
   mandatory_access_control:
     type: apparmor
     ceph-osd-default:
-      ceph-osd-default: localhost/docker-default
+      ceph-osd-default: runtime/default
 EOF
 
 for CHART in ceph-mon ceph-client ceph-provisioners; do

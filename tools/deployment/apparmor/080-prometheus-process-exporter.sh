@@ -25,7 +25,7 @@ pod:
   mandatory_access_control:
     type: apparmor
     process-exporter:
-      process-exporter: localhost/docker-default
+      process-exporter: runtime/default
 EOF
 helm upgrade --install prometheus-process-exporter ./prometheus-process-exporter \
     --namespace=kube-system \

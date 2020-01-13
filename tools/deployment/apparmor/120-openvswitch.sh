@@ -25,9 +25,9 @@ pod:
   mandatory_access_control:
     type: apparmor
     openvswitch-vswitchd:
-      openvswitch-vswitchd: localhost/docker-default
+      openvswitch-vswitchd: runtime/default
     openvswitch-db:
-      openvswitch-db: localhost/docker-default
+      openvswitch-db: runtime/default
 EOF
 
 #NOTE: Deploy command

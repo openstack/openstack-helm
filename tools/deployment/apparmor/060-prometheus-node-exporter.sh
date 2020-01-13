@@ -25,7 +25,7 @@ pod:
   mandatory_access_control:
     type: apparmor
     node-exporter:
-      node-exporter: localhost/docker-default
+      node-exporter: runtime/default
 EOF
 helm upgrade --install prometheus-node-exporter ./prometheus-node-exporter \
     --namespace=kube-system \
