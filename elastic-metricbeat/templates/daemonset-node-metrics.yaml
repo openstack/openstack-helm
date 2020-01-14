@@ -48,8 +48,10 @@ rules:
       - nodes
       - pods
       - services
+      - endpoints
       - replicationcontrollers
       - limitranges
+      - events
     verbs:
       - get
       - list
@@ -104,7 +106,7 @@ spec:
 {{ tuple $envAll $envAll.Values.pod.resources.metricbeat | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           args:
             - "-c"
-            - "/etc/metricbeat.yml"
+            - "/usr/share/metricbeat/metricbeat.yml"
             - "-e"
             - "-system.hostfs=/hostfs"
           env:
@@ -112,6 +114,10 @@ spec:
               value: {{ tuple "elasticsearch" "internal" . | include "helm-toolkit.endpoints.hostname_namespaced_endpoint_lookup" | quote }}
             - name: ELASTICSEARCH_PORT
               value: {{ tuple "elasticsearch" "internal" "http" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | quote }}
+            - name: KIBANA_HOST
+              value: {{ tuple "kibana" "internal" . | include "helm-toolkit.endpoints.hostname_namespaced_endpoint_lookup" | quote }}
+            - name: KIBANA_PORT
+              value: {{ tuple "kibana" "internal" "http" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | quote }}
             - name: ELASTICSEARCH_USERNAME
               valueFrom:
                 secretKeyRef:
@@ -130,7 +136,7 @@ spec:
             - name: pod-tmp
               mountPath: /tmp
             - name: metricbeat-etc
-              mountPath: /etc/metricbeat.yml
+              mountPath: /usr/share/metricbeat/metricbeat.yml
               subPath: metricbeat.yml
               readOnly: true
             - name: metricbeat-etc

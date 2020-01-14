@@ -19,11 +19,26 @@ set -xe
 #NOTE: Lint and package chart
 make elastic-packetbeat
 
+tee /tmp/packetbeat.yaml << EOF
+images:
+  tags:
+    filebeat: docker.elastic.co/beats/packetbeat:7.1.0
+conf:
+  packetbeat:
+    setup:
+      ilm:
+        enabled: false
+endpoints:
+  elasticsearch:
+    namespace: osh-infra
+  kibana:
+    namespace: osh-infra
+EOF
+
 #NOTE: Deploy command
 helm upgrade --install elastic-packetbeat ./elastic-packetbeat \
     --namespace=kube-system \
-    --set endpoints.elasticsearch.namespace=osh-infra \
-    --set endpoints.kibana.namespace=osh-infra
+    --values=/tmp/packetbeat.yaml
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh kube-system

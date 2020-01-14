@@ -17,51 +17,44 @@
 set -xe
 
 #NOTE: Lint and package chart
-make elasticsearch
+make kibana
 
-#NOTE: Deploy command
-tee /tmp/elasticsearch.yaml << EOF
-manifests:
-  cron_curator: false
-  configmap_bin_curator: false
-  configmap_etc_curator: false
+: ${OSH_INFRA_EXTRA_HELM_ARGS_KIBANA:="$(./tools/deployment/common/get-values-overrides.sh kibana)"}
+
+tee /tmp/kibana.yaml << EOF
 images:
   tags:
-    elasticsearch: docker.io/openstackhelm/elasticsearch-s3:7_1_0-20191115
-storage:
-  data:
-    requests:
-      storage: 20Gi
-  master:
-    requests:
-      storage: 5Gi
-jobs:
-  verify_repositories:
-    cron: "*/10 * * * *"
-monitoring:
-  prometheus:
-    enabled: false
-pod:
-  replicas:
-    client: 1
-    data: 1
-    master: 2
+    kibana: docker.elastic.co/kibana/kibana:7.1.0
 conf:
-  elasticsearch:
-    config:
-      xpack:
-        security:
-          enabled: false
-        ilm:
-          enabled: false
-
+  kibana:
+    xpack:
+      security:
+        enabled: false
+      spaces:
+        enabled: false
+      apm:
+        enabled: false
+      graph:
+        enabled: false
+      ml:
+        enabled: false
+      monitoring:
+        enabled: false
+      reporting:
+        enabled: false
+      canvas:
+        enabled: false
 EOF
-helm upgrade --install elasticsearch ./elasticsearch \
-    --namespace=osh-infra \
-    --values=/tmp/elasticsearch.yaml
+
+#NOTE: Deploy command
+helm upgrade --install kibana ./kibana \
+  --namespace=osh-infra \
+  --values=/tmp/kibana.yaml
+  ${OSH_INFRA_EXTRA_HELM_ARGS} \
+  ${OSH_INFRA_EXTRA_HELM_ARGS_KIBANA}
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh osh-infra
 
 #NOTE: Validate Deployment info
-helm status elasticsearch
+helm status kibana
