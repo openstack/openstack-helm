@@ -43,6 +43,13 @@ function start () {
 
   ovs-vsctl --db=unix:${OVS_SOCKET} --no-wait show
 
+{{- if .Values.conf.ovs_other_config.handler_threads }}
+  ovs-vsctl --db=unix:${OVS_SOCKET} --no-wait set Open_vSwitch . other_config:n-handler-threads={{ .Values.conf.ovs_other_config.handler_threads }}
+{{- end }}
+{{- if .Values.conf.ovs_other_config.revalidator_threads }}
+  ovs-vsctl --db=unix:${OVS_SOCKET} --no-wait set Open_vSwitch . other_config:n-revalidator-threads={{ .Values.conf.ovs_other_config.revalidator_threads }}
+{{- end }}
+
 {{- if .Values.conf.ovs_dpdk.enabled }}
     ovs-vsctl --db=unix:${OVS_SOCKET} --no-wait set Open_vSwitch . other_config:dpdk-hugepage-dir={{ .Values.conf.ovs_dpdk.hugepages_mountpath | quote }}
     ovs-vsctl --db=unix:${OVS_SOCKET} --no-wait set Open_vSwitch . other_config:dpdk-socket-mem={{ .Values.conf.ovs_dpdk.socket_memory | quote }}
