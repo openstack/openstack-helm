@@ -524,7 +524,7 @@ conf:
           }
 
           define service {
-            check_command check_prom_alert_with_labels!replicas_unavailable_statefulset!statefulset="prometheus"!statefulset {statefulset} has lesser than configured replicas
+            check_command check_prom_alert_with_labels!kube_statefulset_replicas_unavailable!statefulset="prometheus"!statefulset {statefulset} has lesser than configured replicas
             check_interval 60
             hostgroup_name prometheus-hosts
             service_description Prometheus_replica-count
@@ -532,7 +532,7 @@ conf:
           }
 
           define service {
-            check_command check_prom_alert_with_labels!replicas_unavailable_statefulset!statefulset="alertmanager"!statefulset {statefulset} has lesser than configured replicas
+            check_command check_prom_alert_with_labels!kube_statefulset_replicas_unavailable!statefulset="alertmanager"!statefulset {statefulset} has lesser than configured replicas
             check_interval 60
             hostgroup_name prometheus-hosts
             service_description PrometheusAlertmanager_replica-count
@@ -540,7 +540,7 @@ conf:
           }
 
           define service {
-            check_command check_prom_alert!replicas_unavailable_statefulset!CRITICAL- statefulset {statefulset} has lesser than configured replicas!OK- All statefulsets have configured amount of replicas
+            check_command check_prom_alert!kube_statefulset_replicas_unavailable!CRITICAL- statefulset {statefulset} has lesser than configured replicas!OK- All statefulsets have configured amount of replicas
             check_interval 60
             hostgroup_name prometheus-hosts
             service_description Statefulset_replica-count
@@ -752,7 +752,7 @@ conf:
           }
 
           define command {
-            command_line $USER1$/query_prometheus_alerts.py --prometheus_api $USER2$ --alertname 'high_memory_load' --labels_csv 'instance=~"$HOSTADDRESS$.*"' --msg_format 'CRITICAL- Node memory usage is more than 85%' --ok_message 'OK- Node memory usage is less than 85%'
+            command_line $USER1$/query_prometheus_alerts.py --prometheus_api $USER2$ --alertname 'node_high_memory_load' --labels_csv 'instance=~"$HOSTADDRESS$.*"' --msg_format 'CRITICAL- Node memory usage is more than 85%' --ok_message 'OK- Node memory usage is less than 85%'
             command_name check_memory_usage
           }
 
@@ -782,22 +782,22 @@ conf:
           }
 
           define command {
-            command_line $USER1$/query_prometheus_alerts.py --prometheus_api $USER2$ --alertname 'high_network_drop_rcv' --labels_csv 'instance=~"$HOSTADDRESS$.*"' --msg_format 'CRITICAL- Host system has an unusally high drop in network reception.' --ok_message 'OK- network packet receive drops not high.'
+            command_line $USER1$/query_prometheus_alerts.py --prometheus_api $USER2$ --alertname 'node_high_network_drop_rcv' --labels_csv 'instance=~"$HOSTADDRESS$.*"' --msg_format 'CRITICAL- Host system has an unusally high drop in network reception.' --ok_message 'OK- network packet receive drops not high.'
             command_name check_network_receive_drop_high
           }
 
           define command {
-            command_line $USER1$/query_prometheus_alerts.py --prometheus_api $USER2$ --alertname 'high_network_drop_send' --labels_csv 'instance=~"$HOSTADDRESS$.*"' --msg_format 'CRITICAL- Host system has an unusally high drop in network transmission.' --ok_message 'OK- network packet tramsmit drops not high.'
+            command_line $USER1$/query_prometheus_alerts.py --prometheus_api $USER2$ --alertname 'node_high_network_drop_send' --labels_csv 'instance=~"$HOSTADDRESS$.*"' --msg_format 'CRITICAL- Host system has an unusally high drop in network transmission.' --ok_message 'OK- network packet tramsmit drops not high.'
             command_name check_network_transmit_drop_high
           }
 
           define command {
-            command_line $USER1$/query_prometheus_alerts.py --prometheus_api $USER2$ --alertname 'high_network_drop_send' --labels_csv 'instance=~"$HOSTADDRESS$.*"' --msg_format 'CRITICAL- Host system has an unusally high error rate in network reception.' --ok_message 'OK- network reception errors not high.'
+            command_line $USER1$/query_prometheus_alerts.py --prometheus_api $USER2$ --alertname 'node_high_network_errs_rcv' --labels_csv 'instance=~"$HOSTADDRESS$.*"' --msg_format 'CRITICAL- Host system has an unusally high error rate in network reception.' --ok_message 'OK- network reception errors not high.'
             command_name check_network_receive_errors_high
           }
 
           define command {
-            command_line $USER1$/query_prometheus_alerts.py --prometheus_api $USER2$ --alertname 'high_network_drop_send' --labels_csv 'instance=~"$HOSTADDRESS$.*"' --msg_format 'CRITICAL- Host system has an unusally high error rate in network transmission.' --ok_message 'OK- network transmission errors not high.'
+            command_line $USER1$/query_prometheus_alerts.py --prometheus_api $USER2$ --alertname 'node_high_network_errs_send' --labels_csv 'instance=~"$HOSTADDRESS$.*"' --msg_format 'CRITICAL- Host system has an unusally high error rate in network transmission.' --ok_message 'OK- network transmission errors not high.'
             command_name check_network_transmit_errors_high
           }
 
@@ -990,7 +990,7 @@ conf:
           }
 
           define service {
-            check_command check_prom_alert!ceph_monitor_quorum_low!CRITICAL- ceph monitor quorum does not exist!OK- ceph monitor quorum exists
+            check_command check_prom_alert!ceph_mon_quorum_low!CRITICAL- ceph monitor quorum does not exist!OK- ceph monitor quorum exists
             check_interval 60
             hostgroup_name prometheus-hosts
             service_description CEPH_quorum
@@ -1022,7 +1022,7 @@ conf:
           }
 
           define service {
-            check_command check_prom_alert!ceph_monitor_clock_skew_high!CRITICAL- CEPH clock skew is more than 2 seconds!OK- CEPH clock skew is less than 2 seconds
+            check_command check_prom_alert_with_labels!node_ntp_clock_skew_high!ceph-mon="enabled"!CRITICAL- CEPH clock skew is more than 2 seconds!OK- CEPH clock skew is less than 2 seconds
             check_interval 60
             hostgroup_name prometheus-hosts
             service_description CEPH_Clock-skew
