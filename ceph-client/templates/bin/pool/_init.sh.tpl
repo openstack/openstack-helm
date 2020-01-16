@@ -35,7 +35,7 @@ function wait_for_inactive_pgs () {
   echo "#### Start: Checking for inactive pgs ####"
 
   # Loop until all pgs are active
-  if [[ $(ceph -v | egrep -q "nautilus"; echo $?) -eq 0 ]]; then
+  if [[ $(ceph tell mon.* version | egrep -q "nautilus"; echo $?) -eq 0 ]]; then
     while [[ `ceph --cluster ${CLUSTER} pg ls | tail -n +2 | head -n -2 | grep -v "active+"` ]]
     do
       sleep 3
@@ -59,7 +59,7 @@ function create_crushrule () {
 }
 
 # Set mons to use the msgr2 protocol on nautilus
-if [[ $(ceph -v | egrep -q "nautilus"; echo $?) -eq 0 ]]; then
+if [[ -z "$(ceph mon versions | grep ceph\ version | grep -v nautilus)" ]]; then
   ceph --cluster "${CLUSTER}" mon enable-msgr2
 fi
 
@@ -157,7 +157,7 @@ reweight_osds
 {{ $targetQuota := .Values.conf.pool.target.quota | default 100 }}
 {{ $targetProtection := .Values.conf.pool.target.protected | default "false" | quote | lower }}
 cluster_capacity=0
-if [[ $(ceph -v | egrep -q "nautilus"; echo $?) -eq 0 ]]; then
+if [[ $(ceph tell osd.* version | egrep -q "nautilus"; echo $?) -eq 0 ]]; then
   cluster_capacity=$(ceph --cluster "${CLUSTER}" df | grep "TOTAL" | awk '{print $2 substr($3, 1, 1)}' | numfmt --from=iec)
 else
   cluster_capacity=$(ceph --cluster "${CLUSTER}" df | head -n3 | tail -n1 | awk '{print $1 substr($2, 1, 1)}' | numfmt --from=iec)
