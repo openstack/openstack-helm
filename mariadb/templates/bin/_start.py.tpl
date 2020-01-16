@@ -21,7 +21,7 @@ import logging
 import os
 import select
 import signal
-import subprocess
+import subprocess  # nosec
 import socket
 import sys
 import tempfile
@@ -142,7 +142,7 @@ def run_cmd_with_logging(popenargs,
                          stderr_log_level=logging.INFO,
                          **kwargs):
     """Run subprocesses and stream output to logger."""
-    child = subprocess.Popen(
+    child = subprocess.Popen(  # nosec
         popenargs, stdout=subprocess.PIPE, stderr=subprocess.PIPE, **kwargs)
     log_level = {
         child.stdout: stdout_log_level,
@@ -266,7 +266,7 @@ def mysqld_bootstrap():
         ], logger)
         if not mysql_dbaudit_username:
             template = (
-                "DELETE FROM mysql.user ;\n"
+                "DELETE FROM mysql.user ;\n"  # nosec
                 "CREATE OR REPLACE USER '{0}'@'%' IDENTIFIED BY \'{1}\' ;\n"
                 "GRANT ALL ON *.* TO '{0}'@'%' WITH GRANT OPTION ;\n"
                 "DROP DATABASE IF EXISTS test ;\n"
@@ -277,7 +277,7 @@ def mysqld_bootstrap():
                                     mysql_dbsst_username, mysql_dbsst_password))
         else:
             template = (
-                "DELETE FROM mysql.user ;\n"
+                "DELETE FROM mysql.user ;\n"  # nosec
                 "CREATE OR REPLACE USER '{0}'@'%' IDENTIFIED BY \'{1}\' ;\n"
                 "GRANT ALL ON *.* TO '{0}'@'%' WITH GRANT OPTION ;\n"
                 "DROP DATABASE IF EXISTS test ;\n"
@@ -537,7 +537,7 @@ def update_grastate_on_restart():
 
             def recover_wsrep_position():
                 """Extract recoved wsrep position from uncleanly exited node."""
-                wsrep_recover = subprocess.Popen(
+                wsrep_recover = subprocess.Popen(  # nosec
                     [
                         'mysqld', '--bind-address=127.0.0.1',
                         '--wsrep_cluster_address=gcomm://', '--wsrep-recover'

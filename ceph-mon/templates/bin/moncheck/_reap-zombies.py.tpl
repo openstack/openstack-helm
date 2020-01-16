@@ -1,7 +1,7 @@
 #!/usr/bin/python
 import re
 import os
-import subprocess
+import subprocess  # nosec
 import json
 
 MON_REGEX = r"^\d: ([0-9\.]*):\d+/\d* mon.([^ ]*)$"
@@ -15,7 +15,7 @@ monmap_command = "ceph --cluster=${NAMESPACE} mon getmap > /tmp/monmap && monmap
 
 
 def extract_mons_from_monmap():
-    monmap = subprocess.check_output(monmap_command, shell=True)
+    monmap = subprocess.check_output(monmap_command, shell=True)  # nosec
     mons = {}
     for line in monmap.split("\n"):
         m = re.match(MON_REGEX, line)
@@ -24,7 +24,7 @@ def extract_mons_from_monmap():
     return mons
 
 def extract_mons_from_kubeapi():
-    kubemap = subprocess.check_output(kubectl_command, shell=True)
+    kubemap = subprocess.check_output(kubectl_command, shell=True)  # nosec
     return json.loads(kubemap)
 
 current_mons = extract_mons_from_monmap()
@@ -37,11 +37,11 @@ removed_mon = False
 for mon in current_mons:
     if not mon in expected_mons:
         print("removing zombie mon %s" % mon)
-        subprocess.call(["ceph", "--cluster", os.environ["NAMESPACE"], "mon", "remove", mon])
+        subprocess.call(["ceph", "--cluster", os.environ["NAMESPACE"], "mon", "remove", mon])  # nosec
         removed_mon = True
     elif current_mons[mon] != expected_mons[mon]: # check if for some reason the ip of the mon changed
         print("ip change detected for pod %s" % mon)
-        subprocess.call(["kubectl", "--namespace", os.environ["NAMESPACE"], "delete", "pod", mon])
+        subprocess.call(["kubectl", "--namespace", os.environ["NAMESPACE"], "delete", "pod", mon])  # nosec
         removed_mon = True
         print("deleted mon %s via the kubernetes api" % mon)
 
