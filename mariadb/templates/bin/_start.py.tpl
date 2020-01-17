@@ -99,6 +99,12 @@ if check_env_var("MYSQL_DBSST_USERNAME"):
     mysql_dbsst_username = os.environ['MYSQL_DBSST_USERNAME']
 if check_env_var("MYSQL_DBSST_PASSWORD"):
     mysql_dbsst_password = os.environ['MYSQL_DBSST_PASSWORD']
+if check_env_var("MYSQL_DBAUDIT_USERNAME"):
+    mysql_dbaudit_username = os.environ['MYSQL_DBAUDIT_USERNAME']
+else:
+    mysql_dbaudit_username = ''
+if check_env_var("MYSQL_DBAUDIT_PASSWORD"):
+    mysql_dbaudit_password = os.environ['MYSQL_DBAUDIT_PASSWORD']
 
 if mysql_dbadmin_username == mysql_dbsst_username:
     logger.critical(
@@ -258,16 +264,31 @@ def mysqld_bootstrap():
             'mysql_install_db', '--user=mysql',
             "--datadir={0}".format(mysql_data_dir)
         ], logger)
-        template = (
-            "DELETE FROM mysql.user ;\n"
-            "CREATE OR REPLACE USER '{0}'@'%' IDENTIFIED BY \'{1}\' ;\n"
-            "GRANT ALL ON *.* TO '{0}'@'%' WITH GRANT OPTION ;\n"
-            "DROP DATABASE IF EXISTS test ;\n"
-            "CREATE OR REPLACE USER '{2}'@'127.0.0.1' IDENTIFIED BY '{3}' ;\n"
-            "GRANT PROCESS, RELOAD, LOCK TABLES, REPLICATION CLIENT ON *.* TO '{2}'@'127.0.0.1' ;\n"
-            "FLUSH PRIVILEGES ;\n"
-            "SHUTDOWN ;".format(mysql_dbadmin_username, mysql_dbadmin_password,
-                                mysql_dbsst_username, mysql_dbsst_password))
+        if not mysql_dbaudit_username:
+            template = (
+                "DELETE FROM mysql.user ;\n"
+                "CREATE OR REPLACE USER '{0}'@'%' IDENTIFIED BY \'{1}\' ;\n"
+                "GRANT ALL ON *.* TO '{0}'@'%' WITH GRANT OPTION ;\n"
+                "DROP DATABASE IF EXISTS test ;\n"
+                "CREATE OR REPLACE USER '{2}'@'127.0.0.1' IDENTIFIED BY '{3}' ;\n"
+                "GRANT PROCESS, RELOAD, LOCK TABLES, REPLICATION CLIENT ON *.* TO '{2}'@'127.0.0.1' ;\n"
+                "FLUSH PRIVILEGES ;\n"
+                "SHUTDOWN ;".format(mysql_dbadmin_username, mysql_dbadmin_password,
+                                    mysql_dbsst_username, mysql_dbsst_password))
+        else:
+            template = (
+                "DELETE FROM mysql.user ;\n"
+                "CREATE OR REPLACE USER '{0}'@'%' IDENTIFIED BY \'{1}\' ;\n"
+                "GRANT ALL ON *.* TO '{0}'@'%' WITH GRANT OPTION ;\n"
+                "DROP DATABASE IF EXISTS test ;\n"
+                "CREATE OR REPLACE USER '{2}'@'127.0.0.1' IDENTIFIED BY '{3}' ;\n"
+                "GRANT PROCESS, RELOAD, LOCK TABLES, REPLICATION CLIENT ON *.* TO '{2}'@'127.0.0.1' ;\n"
+                "CREATE OR REPLACE USER '{4}'@'%' IDENTIFIED BY '{5}' ;\n"
+                "GRANT SELECT ON mysql.user TO '{4}'@'%' ;\n"
+                "FLUSH PRIVILEGES ;\n"
+                "SHUTDOWN ;".format(mysql_dbadmin_username, mysql_dbadmin_password,
+                                    mysql_dbsst_username, mysql_dbsst_password,
+                                    mysql_dbaudit_username, mysql_dbaudit_password))
         bootstrap_sql_file = tempfile.NamedTemporaryFile(suffix='.sql').name
         with open(bootstrap_sql_file, 'w') as f:
             f.write(template)
@@ -731,14 +752,27 @@ def run_mysqld(cluster='existing'):
     db_test_dir = "{0}/mysql".format(mysql_data_dir)
     if os.path.isdir(db_test_dir):
         logger.info("Setting the admin passwords to the current value")
-        template = (
-            "CREATE OR REPLACE USER '{0}'@'%' IDENTIFIED BY \'{1}\' ;\n"
-            "GRANT ALL ON *.* TO '{0}'@'%' WITH GRANT OPTION ;\n"
-            "CREATE OR REPLACE USER '{2}'@'127.0.0.1' IDENTIFIED BY '{3}' ;\n"
-            "GRANT PROCESS, RELOAD, LOCK TABLES, REPLICATION CLIENT ON *.* TO '{2}'@'127.0.0.1' ;\n"
-            "FLUSH PRIVILEGES ;\n"
-            "SHUTDOWN ;".format(mysql_dbadmin_username, mysql_dbadmin_password,
-                                mysql_dbsst_username, mysql_dbsst_password))
+        if not mysql_dbaudit_username:
+            template = (
+                "CREATE OR REPLACE USER '{0}'@'%' IDENTIFIED BY \'{1}\' ;\n"
+                "GRANT ALL ON *.* TO '{0}'@'%' WITH GRANT OPTION ;\n"
+                "CREATE OR REPLACE USER '{2}'@'127.0.0.1' IDENTIFIED BY '{3}' ;\n"
+                "GRANT PROCESS, RELOAD, LOCK TABLES, REPLICATION CLIENT ON *.* TO '{2}'@'127.0.0.1' ;\n"
+                "FLUSH PRIVILEGES ;\n"
+                "SHUTDOWN ;".format(mysql_dbadmin_username, mysql_dbadmin_password,
+                                    mysql_dbsst_username, mysql_dbsst_password))
+        else:
+            template = (
+                "CREATE OR REPLACE USER '{0}'@'%' IDENTIFIED BY \'{1}\' ;\n"
+                "GRANT ALL ON *.* TO '{0}'@'%' WITH GRANT OPTION ;\n"
+                "CREATE OR REPLACE USER '{2}'@'127.0.0.1' IDENTIFIED BY '{3}' ;\n"
+                "GRANT PROCESS, RELOAD, LOCK TABLES, REPLICATION CLIENT ON *.* TO '{2}'@'127.0.0.1' ;\n"
+                "CREATE OR REPLACE USER '{4}'@'%' IDENTIFIED BY '{5}' ;\n"
+                "GRANT SELECT ON mysql.user TO '{4}'@'%' ;\n"
+                "FLUSH PRIVILEGES ;\n"
+                "SHUTDOWN ;".format(mysql_dbadmin_username, mysql_dbadmin_password,
+                                    mysql_dbsst_username, mysql_dbsst_password,
+                                    mysql_dbaudit_username, mysql_dbaudit_password))
         bootstrap_sql_file = tempfile.NamedTemporaryFile(suffix='.sql').name
         with open(bootstrap_sql_file, 'w') as f:
             f.write(template)
