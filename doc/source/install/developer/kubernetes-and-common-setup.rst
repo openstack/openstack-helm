@@ -87,4 +87,4 @@ Alternatively, this step can be performed by running the script directly:
 
 .. code-block:: shell
 
-  ./tools/deployment/developer/component/common/ingress.sh
+  ./tools/deployment/component/common/ingress.sh
