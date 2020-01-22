@@ -254,7 +254,6 @@
         - ./tools/deployment/network-policy/openstack-exporter.sh
         - ./tools/deployment/network-policy/901-test-networkpolicy.sh
 
-
 - job:
     name: openstack-helm-infra-apparmor
     parent: openstack-helm-infra-functional
@@ -287,6 +286,7 @@
         - ./tools/deployment/apparmor/095-nagios.sh
         - ./tools/deployment/apparmor/120-openvswitch.sh
         - ./tools/deployment/apparmor/130-postgresql.sh
+
 - job:
     name: openstack-helm-infra-aio-logging-apparmor
     parent: openstack-helm-infra-functional
@@ -316,16 +316,14 @@
         - ./tools/deployment/osh-infra-logging/070-kibana.sh
         - ./tools/deployment/osh-infra-logging/600-kibana-selenium.sh || true
 
-
-
 - job:
-    name: openstack-helm-infra-aio-logging-apparmor
+    name: openstack-helm-infra-openstack-support-apparmor
     parent: openstack-helm-infra-functional
     timeout: 7200
-    pre-run:
-      - playbooks/osh-infra-upgrade-host.yaml
-      - playbooks/osh-infra-deploy-selenium.yaml
+    pre-run: playbooks/osh-infra-upgrade-host.yaml
     run: playbooks/osh-infra-gate-runner.yaml
+    required-projects:
+      - openstack/openstack-helm
     post-run: playbooks/osh-infra-collect-logs.yaml
     nodeset: openstack-helm-single-node
     vars:
@@ -334,17 +332,15 @@
         container_distro_version: bionic
         feature_gates: apparmor
       gate_scripts:
-        - ./tools/deployment/osh-infra-logging/000-install-packages.sh
-        - ./tools/deployment/osh-infra-logging/005-deploy-k8s.sh
-        - ./tools/deployment/osh-infra-logging/010-ingress.sh
-        - ./tools/deployment/osh-infra-logging/020-ceph.sh
-        - ./tools/deployment/osh-infra-logging/025-ceph-ns-activate.sh
-        - ./tools/deployment/osh-infra-logging/030-radosgw-osh-infra.sh
-        - ./tools/deployment/osh-infra-logging/040-ldap.sh
-        - ./tools/deployment/osh-infra-logging/050-elasticsearch.sh
-        - ./tools/deployment/osh-infra-logging/060-fluentd-daemonset.sh
-        - ./tools/deployment/osh-infra-logging/065-fluentd-deployment.sh
-        - ./tools/deployment/osh-infra-logging/070-kibana.sh
+        - ./tools/deployment/openstack-support/000-install-packages.sh
+        - ./tools/deployment/openstack-support/005-deploy-k8s.sh
+        - ./tools/deployment/openstack-support/007-namespace-config.sh
+        - ./tools/deployment/openstack-support/010-ingress.sh
+        - ./tools/deployment/openstack-support/020-ceph.sh
+        - ./tools/deployment/openstack-support/025-ceph-ns-activate.sh
+        - ./tools/deployment/openstack-support/030-rabbitmq.sh
+        - ./tools/deployment/openstack-support/040-memcached.sh
+        - ./tools/deployment/openstack-support/050-libvirt.sh
 
 - job:
     name: openstack-helm-infra-metacontroller
