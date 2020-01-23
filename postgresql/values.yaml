@@ -237,6 +237,12 @@ conf:
       - name: {{ tuple "postgresql" "internal" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
         port: {{ tuple "postgresql" "internal" "postgresql" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
     bootstrap:
+      users:
+        {{ .Values.endpoints.postgresql.auth.admin.username }}:
+          password: {{ .Values.endpoints.postgresql.auth.admin.password }}
+          options:
+          - createrole
+          - createdb
       dcs:
         ttl: 30
         loop_wait: 10
@@ -294,6 +300,10 @@ conf:
            Patroni moves this directory to a backup under the parent directory
            (/var/lib/postgresql) under certain failure recovery scenarios, so
            /var/lib/postgres itself must be exposed to the pod as a pvc mount.*/}}
+      authentication:
+        superuser:
+          username: {{ .Values.endpoints.postgresql.auth.admin.username }}
+          password: {{ .Values.endpoints.postgresql.auth.admin.password }}
       data_dir: '{{ .Values.storage.mount.path }}/pgdata'
       pgpass: '{{ .Values.storage.mount.path }}/pgpass'
       callbacks:
