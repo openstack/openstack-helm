@@ -43,6 +43,13 @@ else
   echo "${NUM_VFS}" > /sys/class/net/{{ $sriov.device }}/device/sriov_numvfs
 fi
 
+{{- if hasKey $sriov "qos" -}}
+{{- range $v, $qos := $sriov.qos }}
+echo "{{ $qos.share }}" > /sys/class/net/{{ $sriov.device }}/device/sriov/{{ $qos.vf_num }}/qos/share
+{{- end}}
+echo "1" > /sys/class/net/{{ $sriov.device }}/device/sriov/qos/apply
+{{- end }}
+
 {{- if $sriov.mtu }}
 ip link set dev {{ $sriov.device }} mtu {{ $sriov.mtu }}
 {{- end }}
