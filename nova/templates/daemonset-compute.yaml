@@ -64,6 +64,7 @@ spec:
               value: "{{ .Values.pod.user.nova.uid }}"
           command:
             - /tmp/nova-compute-init.sh
+          terminationMessagePath: /var/log/termination-log
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
@@ -84,6 +85,7 @@ spec:
             - -R
             - "nova:"
             - /etc/ceph
+          terminationMessagePath: /var/log/termination-log
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
@@ -95,6 +97,7 @@ spec:
 {{ dict "envAll" $envAll "application" "nova" "container" "ceph_admin_keyring_placement" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
             - /tmp/ceph-admin-keyring.sh
+          terminationMessagePath: /var/log/termination-log
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
@@ -125,6 +128,7 @@ spec:
               value: "{{ .Values.conf.ceph.secret_uuid }}"
           command:
             - /tmp/ceph-keyring.sh
+          terminationMessagePath: /var/log/termination-log
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
@@ -145,6 +149,7 @@ spec:
 {{ dict "envAll" $envAll "application" "nova" "container" "nova_compute_vnc_init" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
             - /tmp/nova-console-compute-init.sh
+          terminationMessagePath: /var/log/termination-log
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
@@ -162,6 +167,7 @@ spec:
 {{ dict "envAll" $envAll "application" "nova" "container" "nova_compute_spice_init" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
             - /tmp/nova-console-compute-init.sh
+          terminationMessagePath: /var/log/termination-log
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
@@ -223,6 +229,7 @@ spec:
             timeoutSeconds: 580
           command:
             - /tmp/nova-compute.sh
+          terminationMessagePath: /var/log/termination-log
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
@@ -316,6 +323,25 @@ spec:
             - name: machine-id
               mountPath: /etc/machine-id
               readOnly: true
+            {{- if .Values.conf.enable_iscsi }}
+            - name: host-rootfs
+              mountPath: /mnt/host-rootfs
+            - name: usrlocalsbin
+              mountPath: /usr/local/sbin
+            - name: etciscsi
+              mountPath: /etc/iscsi
+              {{- if or ( gt .Capabilities.KubeVersion.Major "1" ) ( ge .Capabilities.KubeVersion.Minor "10" ) }}
+              mountPropagation: Bidirectional
+              {{- end }}
+            - name: dev
+              mountPath: /dev
+              {{- if or ( gt .Capabilities.KubeVersion.Major "1" ) ( ge .Capabilities.KubeVersion.Minor "10" ) }}
+              mountPropagation: Bidirectional
+              {{- end }}
+            - name: nova-bin
+              mountPath: /usr/local/sbin/iscsiadm
+              subPath: iscsiadm
+            {{- end }}
 {{ if $mounts_nova_compute.volumeMounts }}{{ toYaml $mounts_nova_compute.volumeMounts | indent 12 }}{{ end }}
         {{- if .Values.network.sshd.enabled }}
         - name: nova-compute-ssh
@@ -333,6 +359,7 @@ spec:
             - containerPort: {{ .Values.network.ssh.port }}
           command:
             - /tmp/ssh-start.sh
+          terminationMessagePath: /var/log/termination-log
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
@@ -400,6 +427,19 @@ spec:
         - name: machine-id
           hostPath:
             path: /etc/machine-id
+        {{- if .Values.conf.enable_iscsi }}
+        - name: host-rootfs
+          hostPath:
+            path: /
+        - name: etciscsi
+          hostPath:
+            path: /etc/iscsi
+        - name: dev
+          hostPath:
+            path: /dev
+        - name: usrlocalsbin
+          emptyDir: {}
+        {{- end }}
 {{ if $mounts_nova_compute.volumes }}{{ toYaml $mounts_nova_compute.volumes | indent 8 }}{{ end }}
 {{- end }}
 {{- end }}

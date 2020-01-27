@@ -52,6 +52,9 @@ spec:
 {{ tuple $envAll "cinder" "volume" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
       nodeSelector:
         {{ .Values.labels.volume.node_selector_key }}: {{ .Values.labels.volume.node_selector_value }}
+{{- if .Values.pod.useHostNetwork.volume }}
+      hostNetwork: true
+{{- end }}
       initContainers:
 {{ tuple $envAll "volume" $mounts_cinder_volume_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
         {{- range $name := rest (splitList "," (include "cinder.utils.ceph_backend_list" $envAll)) }}
@@ -195,6 +198,22 @@ spec:
               readOnly: true
             {{- end }}
             {{- end }}
+            {{- if .Values.conf.enable_iscsi }}
+            - name: host-rootfs
+              mountPath: /mnt/host-rootfs
+            - name: runlock
+              mountPath: /run/lock
+            - name: etciscsi
+              mountPath: /etc/iscsi
+              {{- if or ( gt .Capabilities.KubeVersion.Major "1" ) ( ge .Capabilities.KubeVersion.Minor "10" ) }}
+              mountPropagation: Bidirectional
+              {{- end }}
+            - name: usrlocalsbin
+              mountPath: /usr/local/sbin
+            - name: cinder-bin
+              mountPath: /usr/local/sbin/iscsiadm
+              subPath: iscsiadm
+            {{- end }}
 {{ if $mounts_cinder_volume.volumeMounts }}{{ toYaml $mounts_cinder_volume.volumeMounts | indent 12 }}{{ end }}
       volumes:
         - name: pod-tmp
@@ -226,6 +245,19 @@ spec:
         #NOTE (portdirect): this will need to be set to a shared mount amongst all cinder
         # pods for the coordination backend to be fully functional.
         - name: cinder-coordination
+          emptyDir: {}
+        {{- end }}
+        {{- if .Values.conf.enable_iscsi }}
+        - name: host-rootfs
+          hostPath:
+            path: /
+        - name: runlock
+          hostPath:
+            path: /run/lock
+        - name: etciscsi
+          hostPath:
+            path: /etc/iscsi
+        - name: usrlocalsbin
           emptyDir: {}
         {{- end }}
 {{ if $mounts_cinder_volume.volumes }}{{ toYaml $mounts_cinder_volume.volumes | indent 8 }}{{ end }}
