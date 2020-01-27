@@ -26,7 +26,10 @@ dependencies:
     tests:
       jobs: null
 storage:
-  enabled: false
+  data:
+    enabled: false
+  master:
+    enabled: false
 pod:
   mandatory_access_control:
     type: apparmor
@@ -37,6 +40,7 @@ pod:
     elasticsearch-client:
       elasticsearch-client: runtime/default
   replicas:
+    client: 1
     data: 1
     master: 2
 conf:
