@@ -25,6 +25,7 @@ release_group: null
 images:
   pull_policy: IfNotPresent
   tags:
+    ceph_bootstrap: 'docker.io/openstackhelm/ceph-daemon:ubuntu_bionic-20191216'
     ceph_config_helper: 'docker.io/openstackhelm/ceph-config-helper:ubuntu_bionic-20191216'
     ceph_rgw: 'docker.io/openstackhelm/ceph-daemon:ubuntu_bionic-20191216'
     dep_check: 'quay.io/airshipit/kubernetes-entrypoint:v1.0.0'
@@ -85,6 +86,16 @@ pod:
         create_s3_admin:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
+    bootstrap:
+      pod:
+        runAsUser: 65534
+      container:
+        keyring_placement:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+        bootstrap:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
   dns_policy: "ClusterFirstWithHostNet"
   replicas:
     rgw: 2
@@ -106,6 +117,13 @@ pod:
         memory: "512Mi"
         cpu: "1000m"
     jobs:
+      bootstrap:
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+        requests:
+          memory: "128Mi"
+          cpu: "500m"
       ceph-rgw-storage-init:
         requests:
           memory: "128Mi"
@@ -379,11 +397,6 @@ dependencies:
       s3:
         rgw: {}
   static:
-    bootstrap:
-      jobs: null
-      services:
-        - endpoint: internal
-          service: ceph_mon
     rgw:
       jobs:
         - ceph-rgw-storage-init
@@ -559,6 +572,7 @@ manifests:
   configmap_etc: true
   deployment_rgw: true
   ingress_rgw: true
+  job_bootstrap: false
   job_ceph_rgw_storage_init: true
   job_image_repo_sync: true
   job_ks_endpoints: true

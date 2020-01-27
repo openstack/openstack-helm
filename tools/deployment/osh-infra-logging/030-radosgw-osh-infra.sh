@@ -37,7 +37,7 @@ deployment:
   client_secrets: false
   rgw_keystone_user_and_endpoints: false
 bootstrap:
-  enabled: false
+  enabled: true
 conf:
   rgw_ks:
     enabled: false
@@ -46,6 +46,8 @@ conf:
 pod:
   replicas:
     rgw: 1
+manifests:
+  job_bootstrap: true
 EOF
 helm upgrade --install radosgw-osh-infra ./ceph-rgw \
   --namespace=osh-infra \
