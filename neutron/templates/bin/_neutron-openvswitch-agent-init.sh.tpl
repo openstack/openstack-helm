@@ -216,7 +216,7 @@ function process_dpdk_nics {
     fi
     mtu=$(get_dpdk_config_value ${nic} '.mtu')
     if [ -n "${mtu}" ]; then
-      dpdk_options+='options:mtu_request=${mtu} '
+      dpdk_options+='mtu_request=${mtu} '
     fi
     n_rxq_size=$(get_dpdk_config_value ${nic} '.n_rxq_size')
     if [ -n "${n_rxq_size}" ]; then
@@ -293,7 +293,7 @@ function process_dpdk_bonds {
       dev_args_str+=" -- set Interface "${nic_name}" type=dpdk options:dpdk-devargs=""${dpdk_pci_id}"
 
       if [[ -n ${mtu} ]]; then
-        dev_args_str+=" -- set Interface "${nic_name}" options:mtu_request=${mtu}"
+        dev_args_str+=" -- set Interface "${nic_name}" mtu_request=${mtu}"
       fi
 
       if [[ -n ${n_rxq} ]]; then
