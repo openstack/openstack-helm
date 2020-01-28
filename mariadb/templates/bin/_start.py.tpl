@@ -284,7 +284,7 @@ def mysqld_bootstrap():
                 "CREATE OR REPLACE USER '{2}'@'127.0.0.1' IDENTIFIED BY '{3}' ;\n"
                 "GRANT PROCESS, RELOAD, LOCK TABLES, REPLICATION CLIENT ON *.* TO '{2}'@'127.0.0.1' ;\n"
                 "CREATE OR REPLACE USER '{4}'@'%' IDENTIFIED BY '{5}' ;\n"
-                "GRANT SELECT ON mysql.user TO '{4}'@'%' ;\n"
+                "GRANT SELECT ON *.* TO '{4}'@'%' ;\n"
                 "FLUSH PRIVILEGES ;\n"
                 "SHUTDOWN ;".format(mysql_dbadmin_username, mysql_dbadmin_password,
                                     mysql_dbsst_username, mysql_dbsst_password,
@@ -768,7 +768,7 @@ def run_mysqld(cluster='existing'):
                 "CREATE OR REPLACE USER '{2}'@'127.0.0.1' IDENTIFIED BY '{3}' ;\n"
                 "GRANT PROCESS, RELOAD, LOCK TABLES, REPLICATION CLIENT ON *.* TO '{2}'@'127.0.0.1' ;\n"
                 "CREATE OR REPLACE USER '{4}'@'%' IDENTIFIED BY '{5}' ;\n"
-                "GRANT SELECT ON mysql.user TO '{4}'@'%' ;\n"
+                "GRANT SELECT ON *.* TO '{4}'@'%' ;\n"
                 "FLUSH PRIVILEGES ;\n"
                 "SHUTDOWN ;".format(mysql_dbadmin_username, mysql_dbadmin_password,
                                     mysql_dbsst_username, mysql_dbsst_password,
