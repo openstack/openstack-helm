@@ -1,0 +1,74 @@
+{{/*
+Copyright 2020 The Openstack-Helm Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.job_add_home_dashboard }}
+{{- $envAll := . }}
+
+{{- $serviceAccountName := "add-home-dashboard" }}
+{{ tuple $envAll "add_home_dashboard" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: grafana-add-home-dashboard
+  annotations:
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+spec:
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "grafana" "add_home_dashboard" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+    spec:
+      serviceAccountName: {{ $serviceAccountName }}
+      restartPolicy: OnFailure
+      nodeSelector:
+        {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value | quote }}
+      initContainers:
+{{ tuple $envAll "add_home_dashboard" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+      containers:
+        - name: add-home-dashboard
+{{ tuple $envAll "add_home_dashboard" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.jobs.add_home_dashboard | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          env:
+            - name: GF_SECURITY_ADMIN_USER
+              valueFrom:
+                secretKeyRef:
+                  name: grafana-admin-creds
+                  key: GRAFANA_ADMIN_USERNAME
+            - name: GF_SECURITY_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: grafana-admin-creds
+                  key: GRAFANA_ADMIN_PASSWORD
+            - name: GRAFANA_URI
+              value: {{ tuple "grafana" "internal" "grafana" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" }}
+          command:
+            - /tmp/add-home-dashboard.sh
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: grafana-bin
+              mountPath: /tmp/add-home-dashboard.sh
+              subPath: add-home-dashboard.sh
+              readOnly: true
+      volumes:
+        - name: pod-tmp
+          emptyDir: {}
+        - name: grafana-bin
+          configMap:
+            name: grafana-bin
+            defaultMode: 0555
+{{- end }}
