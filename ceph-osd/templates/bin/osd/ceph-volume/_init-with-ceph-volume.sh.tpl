@@ -61,6 +61,7 @@ function osd_disk_prepare {
   CEPH_DISK_USED=0
   CEPH_LVM_PREPARE=1
   osd_dev_string=$(echo ${OSD_DEVICE} | awk -F "/" '{print $2}{print $3}' | paste -s -d'-')
+  udev_settle
   OSD_ID=$(ceph-volume inventory ${OSD_DEVICE} | grep "osd id" | awk '{print $3}')
   if [ "${OSD_BLUESTORE:-0}" -ne 1 ]; then
     if [[ ! -z ${OSD_ID} ]]; then
@@ -82,12 +83,20 @@ function osd_disk_prepare {
     fi
   else
     if [[ ! -z ${OSD_ID} ]]; then
-      echo "Running bluestore mode and ${OSD_DEVICE} already bootstrapped"
+      if ceph osd ls |grep ${OSD_ID}; then
+        echo "Running bluestore mode and ${OSD_DEVICE} already bootstrapped"
+      else
+        echo "found the wrong osd id which does not belong to current ceph cluster"
+        exit 1
+      fi
     elif [[ $(sgdisk --print ${OSD_DEVICE} | grep "F800") ]]; then
       DM_DEV=${OSD_DEVICE}$(sgdisk --print ${OSD_DEVICE} | grep "F800" | awk '{print $1}')
       CEPH_DISK_USED=1
     else
-      if [[ ${OSD_FORCE_REPAIR} -eq 1 ]]; then
+      if dmsetup ls |grep -i ${OSD_DEVICE}; then
+        CEPH_DISK_USED=1
+      fi
+      if [[ ${OSD_FORCE_REPAIR} -eq 1 ]] && [ ${CEPH_DISK_USED} -ne 1 ]; then
         echo "It looks like ${OSD_DEVICE} isn't consistent, however OSD_FORCE_REPAIR is enabled so we are zapping the device anyway"
         disk_zap ${OSD_DEVICE}
       else
