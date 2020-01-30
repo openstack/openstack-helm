@@ -83,7 +83,7 @@ function osd_disk_prepare {
     fi
   else
     if [[ ! -z ${OSD_ID} ]]; then
-      if ceph osd ls |grep ${OSD_ID}; then
+      if ceph --name client.bootstrap-osd --keyring $OSD_BOOTSTRAP_KEYRING osd ls |grep ${OSD_ID}; then
         echo "Running bluestore mode and ${OSD_DEVICE} already bootstrapped"
       else
         echo "found the wrong osd id which does not belong to current ceph cluster"
@@ -93,7 +93,8 @@ function osd_disk_prepare {
       DM_DEV=${OSD_DEVICE}$(sgdisk --print ${OSD_DEVICE} | grep "F800" | awk '{print $1}')
       CEPH_DISK_USED=1
     else
-      if dmsetup ls |grep -i ${OSD_DEVICE}; then
+      osd_dev_split=$(basename ${OSD_DEVICE})
+      if dmsetup ls |grep -i ${osd_dev_split}; then
         CEPH_DISK_USED=1
       fi
       if [[ ${OSD_FORCE_REPAIR} -eq 1 ]] && [ ${CEPH_DISK_USED} -ne 1 ]; then
