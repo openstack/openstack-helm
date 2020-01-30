@@ -33,7 +33,7 @@ limitations under the License.
 {{- $dbToInit := index . "dbToInit" | default ( dict "adminSecret" $envAll.Values.secrets.oslo_db.admin "configFile" (printf "/etc/%s/%s.conf" $serviceName $serviceName ) "logConfigFile" (printf "/etc/%s/logging.conf" $serviceName ) "configDbSection" "database" "configDbKey" "connection" ) -}}
 {{- $dbsToInit := default (list $dbToInit) (index . "dbsToInit") }}
 {{- $secretBin := index . "secretBin" -}}
-{{- $backoffLimit := index . "backoffLimit" | default "6" -}}
+{{- $backoffLimit := index . "backoffLimit" | default "1000" -}}
 {{- $activeDeadlineSeconds := index . "activeDeadlineSeconds" -}}
 {{- $serviceNamePretty := $serviceName | replace "_" "-" -}}
 

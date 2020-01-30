@@ -26,7 +26,7 @@ limitations under the License.
 {{- $nodeSelector := index . "nodeSelector" | default ( dict $envAll.Values.labels.job.node_selector_key $envAll.Values.labels.job.node_selector_value ) -}}
 {{- $configMapBin := index . "configMapBin" | default (printf "%s-%s" $serviceName "bin" ) -}}
 {{- $secretBin := index . "secretBin" -}}
-{{- $backoffLimit := index . "backoffLimit" | default "6" -}}
+{{- $backoffLimit := index . "backoffLimit" | default "1000" -}}
 {{- $activeDeadlineSeconds := index . "activeDeadlineSeconds" -}}
 {{- $serviceNamePretty := $serviceName | replace "_" "-" -}}
 

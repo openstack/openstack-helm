@@ -26,7 +26,7 @@ limitations under the License.
 {{- $configMapBin := index . "configMapBin" | default (printf "%s-%s" $serviceName "bin" ) -}}
 {{- $configMapCeph := index . "configMapCeph" | default (printf "ceph-etc" ) -}}
 {{- $secretBin := index . "secretBin" -}}
-{{- $backoffLimit := index . "backoffLimit" | default "6" -}}
+{{- $backoffLimit := index . "backoffLimit" | default "1000" -}}
 {{- $activeDeadlineSeconds := index . "activeDeadlineSeconds" -}}
 {{- $serviceNamePretty := $serviceName | replace "_" "-" -}}
 {{- $s3UserSecret := index $envAll.Values.secrets.rgw $serviceName -}}

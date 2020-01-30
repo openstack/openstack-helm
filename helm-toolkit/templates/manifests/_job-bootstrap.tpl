@@ -32,7 +32,7 @@ limitations under the License.
 {{- $keystoneUser := index . "keystoneUser" | default $serviceName -}}
 {{- $openrc := index . "openrc" | default "true" -}}
 {{- $secretBin := index . "secretBin" -}}
-{{- $backoffLimit := index . "backoffLimit" | default "6" -}}
+{{- $backoffLimit := index . "backoffLimit" | default "1000" -}}
 {{- $activeDeadlineSeconds := index . "activeDeadlineSeconds" -}}
 {{- $serviceNamePretty := $serviceName | replace "_" "-" -}}
 
