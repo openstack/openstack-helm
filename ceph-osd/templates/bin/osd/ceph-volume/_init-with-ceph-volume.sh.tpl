@@ -83,7 +83,7 @@ function osd_disk_prepare {
     fi
   else
     if [[ ! -z ${OSD_ID} ]]; then
-      if ceph --name client.bootstrap-osd --keyring $OSD_BOOTSTRAP_KEYRING osd ls |grep ${OSD_ID}; then
+      if ceph --name client.bootstrap-osd --keyring $OSD_BOOTSTRAP_KEYRING osd ls |grep -w ${OSD_ID}; then
         echo "Running bluestore mode and ${OSD_DEVICE} already bootstrapped"
       else
         echo "found the wrong osd id which does not belong to current ceph cluster"
@@ -94,7 +94,7 @@ function osd_disk_prepare {
       CEPH_DISK_USED=1
     else
       osd_dev_split=$(basename ${OSD_DEVICE})
-      if dmsetup ls |grep -i ${osd_dev_split}; then
+      if dmsetup ls |grep -i ${osd_dev_split}|grep -v "db--wal"; then
         CEPH_DISK_USED=1
       fi
       if [[ ${OSD_FORCE_REPAIR} -eq 1 ]] && [ ${CEPH_DISK_USED} -ne 1 ]; then
@@ -197,7 +197,7 @@ function osd_disk_prepare {
        if [[ ${block_db_string} == ${block_wal_string} ]]; then
          if [[ $(vgdisplay  | grep "VG Name" | awk '{print $3}' | grep "${block_db_string}") ]]; then
            VG=$(vgdisplay  | grep "VG Name" | awk '{print $3}' | grep "${block_db_string}")
-           WAL_OSD_ID=$(ceph-volume lvm list /dev/ceph-db-wal-${block_db_string}/ceph-db-${osd_dev_string} | grep "osd id" | awk '{print $3}')
+           WAL_OSD_ID=$(ceph-volume lvm list /dev/ceph-db-wal-${block_wal_string}/ceph-wal-${osd_dev_string} | grep "osd id" | awk '{print $3}')
            DB_OSD_ID=$(ceph-volume lvm list /dev/ceph-db-wal-${block_db_string}/ceph-db-${osd_dev_string} | grep "osd id" | awk '{print $3}')
            if [ ! -z ${OSD_ID} ] && ([ ${WAL_OSD_ID} != ${OSD_ID} ] || [ ${DB_OSD_ID} != ${OSD_ID} ]); then
              echo "Found VG, but corresponding DB || WAL are not, zapping the ${OSD_DEVICE}"
