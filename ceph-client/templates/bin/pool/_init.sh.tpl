@@ -76,6 +76,11 @@ function reweight_osds () {
   done
 }
 
+function enable_autoscaling () {
+  ceph mgr module enable pg_autoscaler
+  ceph config set global osd_pool_default_pg_autoscale_mode on
+}
+
 function create_pool () {
   POOL_APPLICATION=$1
   POOL_NAME=$2
@@ -87,6 +92,10 @@ function create_pool () {
     ceph --cluster "${CLUSTER}" osd pool create "${POOL_NAME}" ${POOL_PLACEMENT_GROUPS}
     while [ $(ceph --cluster "${CLUSTER}" -s | grep creating -c) -gt 0 ]; do echo -n .;sleep 1; done
     ceph --cluster "${CLUSTER}" osd pool application enable "${POOL_NAME}" "${POOL_APPLICATION}"
+  else
+    if [[ -z "$(ceph osd versions | grep ceph\ version | grep -v nautilus)" ]]; then
+      ceph --cluster "${CLUSTER}" osd pool set "${POOL_NAME}" pg_autoscale_mode on
+    fi
   fi
 #
 # Make sure pool is not protected after creation AND expansion so we can manipulate its settings.
@@ -122,12 +131,10 @@ function create_pool () {
 #
 # Note: If the /etc/ceph/ceph.conf file modifies the defaults the deployment will fail on pool creation
 # - nosizechange = Do not allow size and min_size changes on the pool
-# - nopgchange   = Do not allow pg_num and pgp_num changes on the pool
 # - nodelete     = Do not allow deletion of the pool
 #
   if [ "x${POOL_PROTECTION}" == "xtrue" ] ||  [ "x${POOL_PROTECTION}" == "x1" ]; then
     ceph --cluster "${CLUSTER}" osd pool set "${POOL_NAME}" nosizechange true
-    ceph --cluster "${CLUSTER}" osd pool set "${POOL_NAME}" nopgchange true
     ceph --cluster "${CLUSTER}" osd pool set "${POOL_NAME}" nodelete true
   fi
 }
@@ -157,8 +164,9 @@ reweight_osds
 {{ $targetQuota := .Values.conf.pool.target.quota | default 100 }}
 {{ $targetProtection := .Values.conf.pool.target.protected | default "false" | quote | lower }}
 cluster_capacity=0
-if [[ $(ceph tell osd.* version | egrep -q "nautilus"; echo $?) -eq 0 ]]; then
+if [[ -z "$(ceph osd versions | grep ceph\ version | grep -v nautilus)" ]]; then
   cluster_capacity=$(ceph --cluster "${CLUSTER}" df | grep "TOTAL" | awk '{print $2 substr($3, 1, 1)}' | numfmt --from=iec)
+  enable_autoscaling
 else
   cluster_capacity=$(ceph --cluster "${CLUSTER}" df | head -n3 | tail -n1 | awk '{print $1 substr($2, 1, 1)}' | numfmt --from=iec)
 fi

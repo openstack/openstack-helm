@@ -157,14 +157,14 @@ function pool_validation() {
     pg_placement_num=$(echo ${pool_obj} | jq -r .pg_placement_num)
     crush_rule=$(echo ${pool_obj} | jq -r .crush_rule)
     name=$(echo ${pool_obj} | jq -r .pool_name)
+    pg_autoscale_mode=$(echo ${pool_obj} | jq -r .pg_autoscale_mode)
     if [[ $(ceph tell mon.* version | egrep -q "nautilus"; echo $?) -eq 0 ]]; then
-      pg_placement_num_target=$(echo ${pool_obj} | jq -r .pg_placement_num_target)
       if [ "x${size}" != "x${RBD}" ] || [ "x${min_size}" != "x${EXPECTED_POOLMINSIZE}" ] \
-      || [ "x${pg_num}" != "x${pg_placement_num_target}" ] || [ "x${crush_rule}" != "x${expectedCrushRuleId}" ]; then
-        echo "Pool ${name} has incorrect parameters!!! Size=${size}, Min_Size=${min_size}, PG=${pg_num}, TARGET_PGP=${pg_placement_num_target}, Rule=${crush_rule}"
+        || [ "${pg_autoscale_mode}" != "on" ] || [ "x${crush_rule}" != "x${expectedCrushRuleId}" ]; then
+        echo "Pool ${name} has incorrect parameters!!! Size=${size}, Min_Size=${min_size}, Rule=${crush_rule}, PG_Autoscale_Mode=${pg_autoscale_mode}"
         exit 1
       else
-        echo "Pool ${name} seems configured properly. Size=${size}, Min_Size=${min_size}, PG=${pg_num}, PGP_TARGET=${pg_placement_num_target}, Rule=${crush_rule}"
+        echo "Pool ${name} seems configured properly. Size=${size}, Min_Size=${min_size}, Rule=${crush_rule}, PG_Autoscale_Mode=${pg_autoscale_mode}"
       fi
     else
       if [ "x${size}" != "x${RBD}" ] || [ "x${min_size}" != "x${EXPECTED_POOLMINSIZE}" ] \
