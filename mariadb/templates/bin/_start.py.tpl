@@ -436,7 +436,8 @@ def get_cluster_state():
                         "openstackhelm.openstack.org/cluster.state": state,
                         "openstackhelm.openstack.org/leader.node": leader,
                         "openstackhelm.openstack.org/leader.expiry":
-                        leader_expiry
+                        leader_expiry,
+                        "openstackhelm.openstack.org/reboot.node": ""
                     }
                 },
                 "data": {}
@@ -685,9 +686,17 @@ def check_if_i_lead():
             "{1}".format(counter, count))
     max_seqno_nodes = get_nodes_with_highest_seqno()
     leader_node = resolve_leader_node(max_seqno_nodes)
-    if local_hostname == leader_node:
-        logger.info("I lead the cluster")
+    if (local_hostname == leader_node and not check_for_active_nodes()
+            and get_cluster_state() == 'live'):
+        logger.info("I lead the cluster. Setting cluster state to reboot.")
+        set_configmap_annotation(
+            key='openstackhelm.openstack.org/cluster.state', value='reboot')
+        set_configmap_annotation(
+            key='openstackhelm.openstack.org/reboot.node', value=local_hostname)
         return True
+    elif local_hostname == leader_node:
+        logger.info("The cluster is already rebooting")
+        return False
     else:
         logger.info("{0} leads the cluster".format(leader_node))
         return False
@@ -866,6 +875,28 @@ elif get_cluster_state() == 'live':
                 while not check_for_active_nodes():
                     time.sleep(default_sleep)
                 run_mysqld()
+elif get_cluster_state() == 'reboot':
+    reboot_node = get_configmap_value(
+        type='annotation', key='openstackhelm.openstack.org/reboot.node')
+    if reboot_node == local_hostname:
+        logger.info(
+        "Cluster reboot procedure wasn`t finished. Trying again.")
+        update_grastate_on_restart()
+        launch_leader_election()
+        launch_cluster_monitor()
+        mysqld_reboot()
+    else:
+        logger.info(
+            "Waiting for the lead node to come online before joining "
+            "it")
+        update_grastate_on_restart()
+        launch_leader_election()
+        launch_cluster_monitor()
+        while not check_for_active_nodes():
+            time.sleep(default_sleep)
+        set_configmap_annotation(
+            key='openstackhelm.openstack.org/cluster.state', value='live')
+        run_mysqld()
 else:
     logger.critical("Dont understand cluster state, exiting with error status")
     sys.exit(1)
