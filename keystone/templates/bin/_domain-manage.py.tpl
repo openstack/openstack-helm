@@ -46,7 +46,8 @@ def main(args):
 
 
     print("Response code on action [%s]: %s" % (action, response.status_code))
-    if (int(response.status_code) / 100) != 2:
+    # Put and Patch can return 200 or 201. If it is not a 2XX code, error out.
+    if (response.status_code // 100) != 2:
         sys.exit(1)
 
 if __name__ == "__main__":
