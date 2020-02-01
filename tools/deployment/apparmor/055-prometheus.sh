@@ -1,0 +1,1 @@
+../osh-infra-monitoring/050-prometheus.sh
