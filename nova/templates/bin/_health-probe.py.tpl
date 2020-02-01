@@ -97,18 +97,10 @@ def check_service_status(transport):
 
 def tcp_socket_status(process, ports):
     """Check the tcp socket status on a process"""
-    sock_count = 0
-    parentId = 0
     for p in psutil.process_iter():
         try:
             with p.oneshot():
                 if process in " ".join(p.cmdline()):
-                    if parentId == 0:
-                        parentId = p.pid
-                    else:
-                        if p.ppid() == parentId and \
-                                not cfg.CONF.check_all_pids:
-                            continue
                     pcon = p.connections()
                     for con in pcon:
                         try:
@@ -117,14 +109,10 @@ def tcp_socket_status(process, ports):
                         except IndexError:
                             continue
                         if rport in ports and status == tcp_established:
-                            sock_count = sock_count + 1
+                            return 1
         except psutil.Error:
             continue
-
-    if sock_count == 0:
-        return 0
-    else:
-        return 1
+    return 0
 
 
 def configured_port_in_conf():
@@ -197,8 +185,6 @@ def test_rpc_liveness():
     cfg.CONF.register_group(rabbit_group)
     cfg.CONF.register_cli_opt(cfg.StrOpt('service-queue-name'))
     cfg.CONF.register_cli_opt(cfg.BoolOpt('liveness-probe', default=False,
-                                          required=False))
-    cfg.CONF.register_cli_opt(cfg.BoolOpt('check-all-pids', default=False,
                                           required=False))
     cfg.CONF.register_cli_opt(cfg.BoolOpt('use-fqdn', default=False,
                                           required=False))
