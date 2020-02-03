@@ -106,6 +106,10 @@ class cephCRUSH():
         """Replica of the pool.  Initialize to 0."""
         self.poolSize = 0
 
+    def isNautilus(self):
+        grepResult = int(subprocess.check_output('ceph mon versions | egrep -q "nautilus" | echo $?', shell=True))
+        return True if grepResult == 0 else False
+
     def getPoolSize(self, poolName):
         """
         size (number of replica) is an attribute of a pool
@@ -125,11 +129,12 @@ class cephCRUSH():
         return
 
     def checkPGs(self, poolName):
-        if not len(self.poolPGs) > 0:
+        poolPGs = self.poolPGs['pg_stats'] if self.isNautilus() else self.poolPGs
+        if len(poolPGs) == 0:
             return
         print('Checking PGs in pool {} ...'.format(poolName)),
         badPGs = False
-        for pg in self.poolPGs:
+        for pg in poolPGs:
             osdUp = pg['up']
             """
             Construct the OSD path from the leaf to the root.  If the
