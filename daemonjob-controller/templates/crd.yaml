@@ -1,0 +1,393 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.crds_create }}
+{{ $groupName := .Values.crds.group_name }}
+{{ $groupVersion := .Values.crds.group_version }}
+{{ $groupVersionFormat := printf "%s/%s" $groupName $groupVersion }}
+{{ $crdName := printf "%s.%s" "daemonjobs" $groupName }}
+{{- if not (.Capabilities.APIVersions.Has $groupVersionFormat) }}
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: {{ $crdName }}
+spec:
+  group: {{ $groupName }}
+  versions:
+    - name: {{ $groupVersion }}
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                selector:
+                  type: object
+                  properties:
+                    matchLabels:
+                      type: object
+                      additionalProperties:
+                        type: string
+                template:
+                  type: object
+                  properties:
+                    metadata:
+                      type: object
+                      properties:
+                        annotations:
+                          type: object
+                          additionalProperties:
+                            type: string
+                        labels:
+                          type: object
+                          additionalProperties:
+                            type: string
+                    spec:
+                      type: object
+                      properties:
+                        containers:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              name:
+                                type: string
+                              image:
+                                type: string
+                              imagePullPolicy:
+                                type: string
+                              command:
+                                type: array
+                                items:
+                                  type: string
+                              workingDir:
+                                type: string
+                              lifecycle:
+                                type: object
+                                properties:
+                                  postStart:
+                                    type: object
+                                    properties:
+                                      exec:
+                                        type: object
+                                        properties:
+                                          command:
+                                            type: array
+                                            items:
+                                              type: string
+                                      httpGet:
+                                        type: object
+                                        properties:
+                                          host:
+                                            type: string
+                                          httpHeaders:
+                                            type: array
+                                            items:
+                                              type: object
+                                            properties:
+                                              name:
+                                                type: string
+                                              value:
+                                                type: string
+                                          path:
+                                            type: string
+                                          port:
+                                            type: string
+                                          scheme:
+                                            type: string
+                                      tcpSocket:
+                                        type: object
+                                        additionalProperties:
+                                          type: string
+                                  preStop:
+                                    type: object
+                                    properties:
+                                      exec:
+                                        type: object
+                                        properties:
+                                          command:
+                                            type: array
+                                            items:
+                                              type: string
+                                      httpGet:
+                                        type: object
+                                        properties:
+                                          host:
+                                            type: string
+                                          httpHeaders:
+                                            type: array
+                                            items:
+                                              type: object
+                                            properties:
+                                              name:
+                                                type: string
+                                              value:
+                                                type: string
+                                          path:
+                                            type: string
+                                          port:
+                                            type: string
+                                          scheme:
+                                            type: string
+                                      tcpSocket:
+                                        type: object
+                                        additionalProperties:
+                                          type: string
+                              env:
+                                type: array
+                                items:
+                                  type: object
+                                  properties:
+                                    name:
+                                      type: string
+                                    value:
+                                      type: string
+                                    valueFrom:
+                                      type: object
+                                      properties:
+                                        configMapKeyRef:
+                                          type: object
+                                          additionalProperties:
+                                            type: string
+                                        fieldRef:
+                                          type: object
+                                          additionalProperties:
+                                            type: string
+                                        resourceFieldRef:
+                                          type: object
+                                          additionalProperties:
+                                            type: string
+                                        secretKeyRef:
+                                          type: object
+                                          additionalProperties:
+                                            type: string
+                              envFrom:
+                                type: array
+                                items:
+                                  type: object
+                                  properties:
+                                    configMapKeyRef:
+                                      type: object
+                                      additionalProperties:
+                                        type: string
+                                    fieldRef:
+                                      type: object
+                                      additionalProperties:
+                                        type: string
+                                    resourceFieldRef:
+                                      type: object
+                                      additionalProperties:
+                                        type: string
+                                    secretKeyRef:
+                                      type: object
+                                      additionalProperties:
+                                        type: string
+                              livenessProbe:
+                                type: object
+                                properties:
+                                  exec:
+                                    type: object
+                                    properties:
+                                      command:
+                                        type: array
+                                        items:
+                                          type: string
+                                  initialDelaySeconds:
+                                    type: integer
+                                  periodSeconds:
+                                    type: integer
+                              startupProbe:
+                                type: object
+                                properties:
+                                  exec:
+                                    type: object
+                                    properties:
+                                      command:
+                                        type: array
+                                        items:
+                                          type: string
+                                  initialDelaySeconds:
+                                    type: integer
+                                  periodSeconds:
+                                    type: integer
+                              securityContext:
+                                type: object
+                                properties:
+                                  allowPrivilegeEscalation:
+                                    type: boolean
+                                  privileged:
+                                    type: boolean
+                                  procMount:
+                                    type: string
+                                  readOnlyRootFilesystem:
+                                    type: boolean
+                                  runAsGroup:
+                                    type: integer
+                                  runAsNonRoot:
+                                    type: boolean
+                                  runAsUser:
+                                    type: integer
+                                  capabilities:
+                                    type: object
+                                    properties:
+                                      add:
+                                        type: array
+                                        items:
+                                          type: string
+                                      drop:
+                                        type: array
+                                        items:
+                                          type: string
+                                  seLinuxOptions:
+                                    type: object
+                                    properties:
+                                      level:
+                                        type: string
+                                      role:
+                                        type: string
+                                      type:
+                                        type: string
+                                      user:
+                                        type: string
+                                  windowsOptions:
+                                    type: object
+                                    properties:
+                                      gmsaCredentialSpec:
+                                        type: string
+                                      gmsaCredentialSpecName:
+                                        type: string
+                                      runAsUserName:
+                                        type: string
+                              ports:
+                                type: array
+                                items:
+                                  type: object
+                                  properties:
+                                    containerPort:
+                                      type: integer
+                                    hostIP:
+                                      type: string
+                                    hostPort:
+                                      type: integer
+                                    name:
+                                      type: string
+                                    protocol:
+                                      type: string
+                              readinessProbe:
+                                type: object
+                                properties:
+                                  exec:
+                                    type: object
+                                    properties:
+                                      command:
+                                        type: array
+                                        items:
+                                          type: string
+                                  initialDelaySeconds:
+                                    type: integer
+                                  periodSeconds:
+                                    type: integer
+                              resources:
+                                type: object
+                                properties:
+                                  requests:
+                                    type: object
+                                    properties:
+                                      cpu:
+                                        type: string
+                              volumeMounts:
+                                type: array
+                                items:
+                                  type: object
+                                  properties:
+                                    mountPath:
+                                      type: string
+                                    name:
+                                      type: string
+                                    mountPropagation:
+                                      type: string
+                                    readOnly:
+                                      type: boolean
+                                    subPath:
+                                      type: string
+                                    subPathExpr:
+                                      type: string
+                        volumes:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              name:
+                                type: string
+                              hostPath:
+                                type: object
+                                additionalProperties:
+                                  type: string
+                              configMap:
+                                type: object
+                                additionalProperties:
+                                  type: string
+                        restartPolicy:
+                          type: string
+                        tty:
+                          type: boolean
+                        terminationMessagePolicy:
+                          type: string
+                        terminationMessagePath:
+                          type: string
+                        stdinOnce:
+                          type: boolean
+                        stdin:
+                          type: boolean
+                    terminationGracePeriodSeconds:
+                      type: integer
+            status:
+              type: object
+              properties:
+                conditions:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      status:
+                        type: string
+                      type:
+                        type: string
+                currentNumberScheduled:
+                  type: integer
+                desiredNumberScheduled:
+                  type: integer
+                numberMisscheduled:
+                  type: integer
+                numberReady:
+                  type: integer
+                numberUnavailable:
+                  type: integer
+                observedGeneration:
+                  type: integer
+                updatedNumberScheduled:
+                  type: integer
+      subresources:
+        status: {}
+  scope: Namespaced
+  names:
+    plural: daemonjobs
+    singular: daemonjob
+    kind: DaemonJob
+    shortNames: ["dj"]
+{{- end }}
+{{- end }}
