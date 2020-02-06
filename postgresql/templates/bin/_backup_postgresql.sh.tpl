@@ -14,26 +14,19 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+export PGPASSWORD=$(cat /etc/postgresql/admin_user.conf \
+                    | grep postgres | awk -F: '{print $5}')
+
 set -x
-export PGPASSFILE=/etc/postgresql/admin_user.conf
+
 PG_DUMPALL_OPTIONS=$POSTGRESQL_BACKUP_PG_DUMPALL_OPTIONS
 BACKUPS_DIR=${POSTGRESQL_BACKUP_BASE_DIR}/db/${POSTGRESQL_POD_NAMESPACE}/postgres/current
 ARCHIVE_DIR=${POSTGRESQL_BACKUP_BASE_DIR}/db/${POSTGRESQL_POD_NAMESPACE}/postgres/archive
-POSTGRESQL_HOST=$(cat /etc/postgresql/admin_user.conf | cut -d: -f 1)
-PG_DUMPALL="pg_dumpall -U $POSTGRESQL_BACKUP_USER -h $POSTGRESQL_HOST"
-
-#Delete files
-delete_files() {
-  files_to_delete=("$@")
-  for f in "${files_to_delete[@]}"
-  do
-    if [ -f $f ]
-    then
-      echo "Deleting file $f."
-      rm -rf $f
-    fi
-  done
-}
+LOG_FILE=/tmp/dberror.log
+PG_DUMPALL="pg_dumpall \
+              $POSTGRESQL_BACKUP_PG_DUMPALL_OPTIONS \
+              -U $POSTGRESQL_BACKUP_USER \
+              -h $POSTGRESQL_SERVICE_HOST"
 
 #Get the day delta since the archive file backup
 seconds_difference() {
@@ -56,8 +49,7 @@ mkdir -p $BACKUPS_DIR $ARCHIVE_DIR
 
 #Dump all databases
 DATE=$(date +"%Y-%m-%dT%H:%M:%SZ")
-pg_dumpall $POSTGRESQL_BACKUP_PG_DUMPALL_OPTIONS -U $POSTGRESQL_BACKUP_USER \
-   -h  $POSTGRESQL_HOST --file=$BACKUPS_DIR/postgres.all.sql 2>dberror.log
+$PG_DUMPALL --file=$BACKUPS_DIR/postgres.all.sql 2>>$LOG_FILE
 if [[ $? -eq 0 && -s "$BACKUPS_DIR/postgres.all.sql" ]]
 then
   #Archive the current databases files
@@ -73,26 +65,27 @@ then
 else
   #TODO: This can be convert into mail alert of alert send to a monitoring system
   echo "Backup of postgresql failed and need attention."
-  cat dberror.log
+  cat $LOG_FILE
   exit 1
 fi
 
 #Only delete the old archive after a successful archive
 if [ $ARCHIVE_RET -eq 0 ]
+then
+  if [ "$POSTGRESQL_BACKUP_DAYS_TO_KEEP" -gt 0 ]
   then
-    if [ "$POSTGRESQL_BACKUP_DAYS_TO_KEEP" -gt 0 ]
+    echo "Deleting backups older than $POSTGRESQL_BACKUP_DAYS_TO_KEEP days"
+    if [ -d $ARCHIVE_DIR ]
     then
-      echo "Deleting backups older than $POSTGRESQL_BACKUP_DAYS_TO_KEEP days"
-      if [ -d $ARCHIVE_DIR ]
-      then
-        for archive_file in $(ls -1 $ARCHIVE_DIR/*.gz)
-        do
-          archive_date=$( echo $archive_file | awk -F/ '{print $NF}' | cut -d'.' -f 3)
-          if [ "$(seconds_difference $archive_date)" -gt "$(($POSTGRESQL_BACKUP_DAYS_TO_KEEP*86400))" ]
-          then
-            rm -rf $archive_file
-          fi
-        done
-      fi
+      for archive_file in $(ls -1 $ARCHIVE_DIR/*.gz)
+      do
+        archive_date=$( echo $archive_file | awk -F/ '{print $NF}' | cut -d'.' -f 3)
+        if [ "$(seconds_difference $archive_date)" -gt "$(($POSTGRESQL_BACKUP_DAYS_TO_KEEP*86400))" ]
+        then
+          rm -rf $archive_file
+        fi
+      done
     fi
+  fi
 fi
+
