@@ -90,7 +90,7 @@ spec:
         {{ end }}
       containers:
         {{- range $name, $backend := .Values.conf.backends }}
-          {{- if kindIs "map" $backend }}
+          {{- if (eq "true" ( dict "backend" $backend | include "cinder.utils.is_ceph_backend" )) }}
         - name: cinder-storage-init-{{$name}}
 {{ tuple $envAll "cinder_storage_init" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.jobs.storage_init | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
@@ -99,7 +99,6 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
-            {{- if include "cinder.utils.is_ceph_backend" $backend }}
             - name: STORAGE_BACKEND
               value: {{ $backend.volume_driver | quote }}
             - name: RBD_POOL_NAME
@@ -116,7 +115,6 @@ spec:
               value: {{ (index $envAll.Values.conf.ceph.pools $backend.rbd_pool).chunk_size | quote }}
             - name: RBD_POOL_SECRET
               value: {{ $envAll.Values.secrets.rbd.volume | quote }}
-            {{- end }}
           command:
             - /tmp/storage-init.sh
           volumeMounts:
@@ -126,7 +124,6 @@ spec:
               mountPath: /tmp/storage-init.sh
               subPath: storage-init.sh
               readOnly: true
-            {{- if include "cinder.utils.is_ceph_backend" $backend }}
             - name: etcceph
               mountPath: /etc/ceph
             - name: ceph-etc
@@ -138,7 +135,6 @@ spec:
               mountPath: /tmp/client-keyring
               subPath: key
               readOnly: true
-            {{- end }}
             {{- end }}
         {{- end }}
       {{- end }}

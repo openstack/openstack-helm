@@ -15,7 +15,6 @@ limitations under the License.
 */}}
 
 {{- define "cinder.utils.is_ceph_backend" -}}
-  {{- if kindIs "map" . -}}
-    {{- eq .volume_driver "cinder.volume.drivers.rbd.RBDDriver" -}}
-  {{- end -}}
+{{- $backend := index . "backend" -}}
+{{- printf "%v" (and ( kindIs "map" $backend ) ( eq $backend.volume_driver "cinder.volume.drivers.rbd.RBDDriver" )) -}}
 {{- end -}}
