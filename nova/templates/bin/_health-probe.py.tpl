@@ -33,7 +33,10 @@ Usage example for Nova Compute:
 
 """
 
+import json
+import os
 import psutil
+import signal
 import socket
 import sys
 
@@ -218,8 +221,36 @@ def test_rpc_liveness():
 
     check_service_status(transport)
 
+def check_pid_running(pid):
+    if psutil.pid_exists(int(pid)):
+       return True
+    else:
+       return False
 
 if __name__ == "__main__":
+
+    if "liveness-probe" in ','.join(sys.argv):
+        pidfile = "/tmp/liveness.pid"  #nosec
+    else:
+        pidfile = "/tmp/readiness.pid"  #nosec
+    data = {}
+    if os.path.isfile(pidfile):
+        with open(pidfile,'r') as f:
+            data = json.load(f)
+        if check_pid_running(data['pid']):
+            if data['exit_count'] > 1:
+                # Third time in, kill the previous process
+                os.kill(int(data['pid']), signal.SIGTERM)
+            else:
+                data['exit_count'] = data['exit_count'] + 1
+                with open(pidfile, 'w') as f:
+                    json.dump(data, f)
+                sys.exit(0)
+    data['pid'] = os.getpid()
+    data['exit_count'] = 0
+    with open(pidfile, 'w') as f:
+        json.dump(data, f)
+
     test_rpc_liveness()
 
     sys.exit(0)  # return success
