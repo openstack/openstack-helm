@@ -14,6 +14,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- define "bagpipeBgpLivenessProbeTemplate" }}
+tcpSocket:
+  port: {{ tuple "network" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+{{- end }}
+
+{{- define "bagpipeBgpReadinessProbeTemplate" }}
+tcpSocket:
+  port: {{ tuple "network" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+{{- end }}
+
 {{- define "neutron.bagpipe_bgp.daemonset" }}
 {{- $daemonset := index . 0 }}
 {{- $configMapName := index . 1 }}
@@ -81,13 +91,8 @@ spec:
 {{ tuple $envAll "neutron_bagpipe_bgp" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.agent.bagpipe_bgp | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
 {{ dict "envAll" $envAll "application" "neutron_bagpipe_bgp" "container" "neutron_bagpipe_bgp" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
-          readinessProbe:
-            tcpSocket:
-              port: {{ tuple "network" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-          livenessProbe:
-            tcpSocket:
-              port: {{ tuple "network" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-            initialDelaySeconds: 60
+{{ dict "envAll" $envAll "component" "bagpipe_bgp" "container" "bagpipe_bgp" "type" "liveness" "probeTemplate" (include "bagpipeBgpLivenessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+{{ dict "envAll" $envAll "component" "bagpipe_bgp" "container" "bagpipe_bgp" "type" "readiness" "probeTemplate" (include "bagpipeBgpReadinessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
           command:
             - /tmp/neutron-bagpipe-bgp.sh
           volumeMounts:

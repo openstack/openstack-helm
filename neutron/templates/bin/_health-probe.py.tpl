@@ -51,6 +51,8 @@ from oslo_context import context
 from oslo_log import log
 import oslo_messaging
 
+rpc_timeout = int(os.getenv('RPC_PROBE_TIMEOUT', '60'))
+rpc_retries = int(os.getenv('RPC_PROBE_RETRIES', '2'))
 rabbit_port = 5672
 tcp_established = "ESTABLISHED"
 log.logging.basicConfig(level=log.ERROR)
@@ -69,8 +71,8 @@ def check_agent_status(transport):
             topic=cfg.CONF.agent_queue_name,
             server=_get_hostname(use_fqdn))
         client = oslo_messaging.RPCClient(transport, target,
-                                          timeout=60,
-                                          retry=2)
+                                          timeout=rpc_timeout,
+                                          retry=rpc_retries)
         client.call(context.RequestContext(),
                     'pod_health_probe_method_ignore_errors')
     except oslo_messaging.exceptions.MessageDeliveryFailure:

@@ -14,6 +14,39 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- define "l2gwAgentLivenessProbeTemplate" }}
+exec:
+  command:
+    - python
+    - /tmp/health-probe.py
+    - --config-file
+    - /etc/neutron/neutron.conf
+    - --config-file
+    - /etc/neutron/l2gw_agent.ini
+    - --agent-queue-name
+    - l2gateway_agent
+    - --liveness-probe
+{{- if .Values.pod.use_fqdn.neutron_agent }}
+    - --use-fqdn
+{{- end }}
+{{- end }}
+
+{{- define "l2gwAgentReadinessProbeTemplate" }}
+exec:
+  command:
+    - python
+    - /tmp/health-probe.py
+    - --config-file
+    - /etc/neutron/neutron.conf
+    - --config-file
+    - /etc/neutron/l2gw_agent.ini
+    - --agent-queue-name
+    - l2gateway_agent
+{{- if .Values.pod.use_fqdn.neutron_agent }}
+    - --use-fqdn
+{{- end }}
+{{- end }}
+
 {{- define "neutron.l2gw_agent.daemonset" }}
 {{- $daemonset := index . 0 }}
 {{- $configMapName := index . 1 }}
@@ -66,41 +99,13 @@ spec:
 {{ tuple $envAll $envAll.Values.pod.resources.agent.l2gw | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           securityContext:
             privileged: true
-          readinessProbe:
-            exec:
-              command:
-                - python
-                - /tmp/health-probe.py
-                - --config-file
-                - /etc/neutron/neutron.conf
-                - --config-file
-                - /etc/neutron/l2gw_agent.ini
-                - --agent-queue-name
-                - l2gateway_agent
-{{- if .Values.pod.use_fqdn.neutron_agent }}
-                - --use-fqdn
-{{- end }}
-            initialDelaySeconds: 30
-            periodSeconds: 190
-            timeoutSeconds: 185
-          livenessProbe:
-            exec:
-              command:
-                - python
-                - /tmp/health-probe.py
-                - --config-file
-                - /etc/neutron/neutron.conf
-                - --config-file
-                - /etc/neutron/l2gw_agent.ini
-                - --agent-queue-name
-                - l2gateway_agent
-                - --liveness-probe
-{{- if .Values.pod.use_fqdn.neutron_agent }}
-                - --use-fqdn
-{{- end }}
-            initialDelaySeconds: 120
-            periodSeconds: 600
-            timeoutSeconds: 580
+          env:
+            - name: RPC_PROBE_TIMEOUT
+              value: "{{ .Values.pod.probes.rpc_timeout }}"
+            - name: RPC_PROBE_RETRIES
+              value: "{{ .Values.pod.probes.rpc_retries }}"
+{{ dict "envAll" $envAll "component" "l2gw_agent" "container" "l2gw_agent" "type" "liveness" "probeTemplate" (include "l2gwAgentLivenessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+{{ dict "envAll" $envAll "component" "l2gw_agent" "container" "l2gw_agent" "type" "readiness" "probeTemplate" (include "l2gwAgentReadinessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
           command:
             - /tmp/neutron-l2gw-agent.sh
           volumeMounts:
