@@ -14,6 +14,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- define "novaSpiceproxyLivenessProbeTemplate" }}
+tcpSocket:
+  port: {{ tuple "compute_spice_proxy" "internal" "spice_proxy" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+{{- end }}
+
+{{- define "novaSpiceproxyReadynessProbeTemplate" }}
+tcpSocket:
+  port: {{ tuple "compute_spice_proxy" "internal" "spice_proxy" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+{{- end }}
+
 {{- if and .Values.manifests.deployment_spiceproxy ( eq .Values.console.console_kind "spice" )}}
 {{- $envAll := . }}
 
@@ -101,14 +111,8 @@ spec:
 {{ tuple $envAll "nova_spiceproxy" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.spiceproxy | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
 {{ dict "envAll" $envAll "application" "nova" "container" "nova_spiceproxy" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
-          readinessProbe:
-            tcpSocket:
-              port: {{ tuple "compute_spice_proxy" "internal" "spice_proxy" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-            initialDelaySeconds: 30
-          livenessProbe:
-            tcpSocket:
-              port: {{ tuple "compute_spice_proxy" "internal" "spice_proxy" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-            initialDelaySeconds: 30
+{{ dict "envAll" $envAll "component" "compute-spice-proxy" "container" "default" "type" "liveness" "probeTemplate" (include "novaSpiceproxyLivenessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+{{ dict "envAll" $envAll "component" "compute-spice-proxy" "container" "default" "type" "readiness" "probeTemplate" (include "novaSpiceproxyReadinessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
           command:
             - /tmp/nova-console-proxy.sh
           ports:

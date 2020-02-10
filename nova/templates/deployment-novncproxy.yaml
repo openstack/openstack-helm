@@ -14,6 +14,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- define "novaNovncproxyLivenessProbeTemplate" }}
+tcpSocket:
+  port: {{ tuple "compute_novnc_proxy" "internal" "novnc_proxy" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+{{- end }}
+
+{{- define "novaNovncproxyReadinessProbeTemplate" }}
+tcpSocket:
+  port: {{ tuple "compute_novnc_proxy" "internal" "novnc_proxy" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+{{- end }}
+
 {{- if and .Values.manifests.deployment_novncproxy ( eq .Values.console.console_kind "novnc" )}}
 {{- $envAll := . }}
 
@@ -104,14 +114,8 @@ spec:
 {{ tuple $envAll "nova_novncproxy" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.novncproxy | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
 {{ dict "envAll" $envAll "application" "nova" "container" "nova_novncproxy" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
-          readinessProbe:
-            tcpSocket:
-              port: {{ tuple "compute_novnc_proxy" "internal" "novnc_proxy" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-            initialDelaySeconds: 30
-          livenessProbe:
-            tcpSocket:
-              port: {{ tuple "compute_novnc_proxy" "internal" "novnc_proxy" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-            initialDelaySeconds: 30
+{{ dict "envAll" $envAll "component" "novncproxy" "container" "default" "type" "liveness" "probeTemplate" (include "novaNovncproxyLivenessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+{{ dict "envAll" $envAll "component" "novncproxy" "container" "default" "type" "readiness" "probeTemplate" (include "novaNovncproxyReadinessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
           command:
             - /tmp/nova-console-proxy.sh
           ports:
