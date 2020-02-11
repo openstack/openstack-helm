@@ -14,23 +14,31 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-#set -x
-export PGPASSFILE=/etc/postgresql/admin_user.conf
+export PGPASSWORD=$(cat /etc/postgresql/admin_user.conf \
+                    | grep postgres | awk -F: '{print $5}')
+
+log_error() {
+  echo $1
+  exit 1
+}
+
 ARCHIVE_DIR=${POSTGRESQL_BACKUP_BASE_DIR}/db/${POSTGRESQL_POD_NAMESPACE}/postgres/archive
 RESTORE_DIR=${POSTGRESQL_BACKUP_BASE_DIR}/db/${POSTGRESQL_POD_NAMESPACE}/postgres/restore
 POSTGRESQL_HOST=$(cat /etc/postgresql/admin_user.conf | cut -d: -f 1)
-LIST_OPTIONS=(list_archives list_databases)
+LOG_FILE=/tmp/dbrestore.log
 ARGS=("$@")
 PSQL="psql -U $POSTGRESQL_BACKUP_USER -h $POSTGRESQL_HOST"
 
 usage() {
+  ret_val=$1
   echo "Usage:"
-  echo "$0 options"
+  echo "Restore command options"
   echo "============================="
-  echo "options: "
+  echo "help"
   echo "list_archives"
-  echo "list_databases archive_filename"
-  echo "restore archive_filename [DB_NAME or ALL/all]"
+  echo "list_databases <archive_filename>"
+  echo "restore <archive_filename> [<db_name> | ALL]"
+  exit $ret_val
 }
 
 #Delete file
@@ -63,10 +71,8 @@ list_archives() {
     do
       echo $archive | cut -d '/' -f 8
     done
-    exit 0
   else
-    echo "Archive directory is not available."
-    exit 1
+    log_error "Archive directory is not available."
   fi
 }
 
@@ -122,8 +128,7 @@ restore_single_db() {
   single_db_name=$1
   if [ -z "$single_db_name" ]
   then
-    usage
-    exit 1
+    usage 1
   fi
   if [ -f ${ARCHIVE_DIR}/${archive_file} ]
   then
@@ -136,21 +141,21 @@ restore_single_db() {
       if [[ -f ${RESTORE_DIR}/${single_db_name}.sql && -s ${RESTORE_DIR}/${single_db_name}.sql ]]
       then
         create_db_if_not_exist $single_db_name
-        $PSQL -d $single_db_name -f ${RESTORE_DIR}/${single_db_name}.sql 2>dbrestore.log
+        $PSQL -d $single_db_name -f ${RESTORE_DIR}/${single_db_name}.sql 2>>$LOG_FILE
         if [ "$?" -eq 0 ]
         then
           echo "Database Restore Successful."
         else
-          echo "Database Restore Failed."
+          log_error "Database Restore Failed."
         fi
       else
-        echo "Database Dump For $single_db_name is empty or not available."
+        log_error "Database Dump For $single_db_name is empty or not available."
       fi
     else
-      echo "Database file for dump_all not available to restore from"
+      log_error "Database file for dump_all not available to restore from"
     fi
   else
-    echo "Archive does not exist"
+    log_error "Archive does not exist"
   fi
 }
 
@@ -163,18 +168,18 @@ restore_all_dbs() {
     tar zxvf ${ARCHIVE_DIR}/${archive_file} -C ${RESTORE_DIR} 1>/dev/null
     if [ -f ${RESTORE_DIR}/postgres.all.sql ]
     then
-      $PSQL postgres -f ${RESTORE_DIR}/postgres.all.sql 2>dbrestore.log
+      $PSQL postgres -f ${RESTORE_DIR}/postgres.all.sql 2>>$LOG_FILE
       if [ "$?" -eq 0 ]
       then
         echo "Database Restore successful."
       else
-        echo "Database Restore failed."
+        log_error "Database Restore failed."
       fi
     else
-      echo "There is no database file available to restore from"
+      log_error "There is no database file available to restore from"
     fi
   else
-    echo "Archive does not exist"
+    log_error "Archive does not exist"
  fi
 }
 
@@ -198,52 +203,48 @@ is_Option() {
 mkdir -p $RESTORE_DIR
 if [ ${#ARGS[@]} -gt 3 ]
 then
-  usage
-  exit
+  usage 0
 elif [ ${#ARGS[@]} -eq 1 ]
 then
-  if [ $(is_Option "$LIST_OPTIONS" ${ARGS[0]}) -eq 1 ]
+  if [ "${ARGS[0]}" == "list_archives" ]
   then
-    ${ARGS[0]}
-    exit
+    list_archives
+  elif [ "${ARGS[0]}" == "help" ]
+  then
+    usage 0
   else
-    usage
-    exit
+    usage 1
   fi
 elif [ ${#ARGS[@]} -eq 2 ]
 then
   if [ "${ARGS[0]}" == "list_databases" ]
   then
     list_databases ${ARGS[1]}
-    exit 0
   else
-    usage
-    exit
+    usage 1
   fi
 elif [ ${#ARGS[@]} -eq 3 ]
 then
   if [ "${ARGS[0]}" != "restore" ]
   then
-    usage
-    exit 1
+    usage 1
   else
     if [ -f ${ARCHIVE_DIR}/${ARGS[1]} ]
     then
       #Get all the databases in that archive
       get_databases ${ARGS[1]}
+
       #check if the requested database is available in the archive
       if [ $(is_Option "$DBS" ${ARGS[2]}) -eq 1 ]
       then
         echo "Restoring Database ${ARGS[2]} And Grants"
         restore_single_db ${ARGS[2]}
-        echo "Tail dbrestore.log for restore log."
-        exit 0
+        echo "Tail ${LOG_FILE} for restore log."
       elif [ "$( echo ${ARGS[2]} | tr '[a-z]' '[A-Z]')" == "ALL" ]
       then
         echo "Restoring All The Database."
         restore_all_dbs
-        echo "Tail dbrestore.log for restore log."
-        exit 0
+        echo "Tail ${LOG_FILE} for restore log."
       else
         echo "There is no database with that name"
       fi
@@ -252,7 +253,7 @@ then
     fi
   fi
 else
-  usage
-  exit
+  usage 1
 fi
 
+exit 0
