@@ -15,10 +15,22 @@ else
   fi
 fi
 
+function check_mon_msgr2 {
+ if [[ -z "$(ceph mon versions | grep ceph\ version | grep -v nautilus)" ]]; then
+   if ceph health detail|grep -i "MON_MSGR2_NOT_ENABLED"; then
+     echo "ceph-mon msgr v2 not enabled on all ceph mons so enabling"
+     ceph mon enable-msgr2
+   fi
+ fi
+}
+
+
 function watch_mon_health {
   while [ true ]; do
     echo "checking for zombie mons"
     /tmp/moncheck-reap-zombies.py || true
+    echo "checking for ceph-mon msgr v2"
+    check_mon_msgr2
     echo "sleep 30 sec"
     sleep 30
   done
