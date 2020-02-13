@@ -354,6 +354,25 @@ conf:
     base_path: /var/backup
     days_of_backup_to_keep: 3
     pg_dumpall_options: null
+  exporter:
+    queries:
+      pg_replication:
+        query: "SELECT EXTRACT(epoch FROM (now() - pg_last_xact_replay_timestamp()))::int AS lag, CASE WHEN pg_is_in_recovery() THEN 1 ELSE 0 END AS is_replica"
+        master: true
+        metrics:
+          - lag:
+              usage: "GAUGE"
+              description: "Replication lag behind master in seconds"
+          - is_replica:
+              usage: "GAUGE"
+              description: "Indicates if this host is a replica"
+      pg_postmaster:
+        query: "SELECT pg_postmaster_start_time as start_time_seconds from pg_postmaster_start_time()"
+        master: true
+        metrics:
+          - start_time_seconds:
+              usage: "GAUGE"
+              description: "Time at which postmaster started"
 
 secrets:
   pki:
@@ -456,6 +475,7 @@ manifests:
   monitoring:
     prometheus:
       configmap_bin: true
+      configmap_etc: true
       deployment_exporter: true
       job_user_create: true
       secret_etc: true
