@@ -34,6 +34,9 @@ helm upgrade --install ldap ./ldap \
 helm status ldap
 
 # Install Keystone
+cd ${OSH_PATH}
+make keystone
+cd -
 helm upgrade --install keystone ${OSH_PATH}/keystone \
     --namespace=openstack \
     --values=${OSH_PATH}/keystone/values_overrides/ldap.yaml \
