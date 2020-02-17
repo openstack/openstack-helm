@@ -705,7 +705,10 @@ def check_if_i_lead():
 def monitor_cluster():
     """Function to kick off grastate configmap updating thread"""
     while True:
-        update_grastate_configmap()
+        try:
+            update_grastate_configmap()
+        except kubernetes.client.rest.ApiException as error:
+            logger.error("Error updating grastate configmap: {0}".format(error))
         time.sleep(state_configmap_update_period)
 
 
@@ -723,7 +726,10 @@ def launch_cluster_monitor():
 def leader_election():
     """Function to kick off leader election thread"""
     while True:
-        deadmans_leader_election()
+        try:
+            deadmans_leader_election()
+        except kubernetes.client.rest.ApiException as error:
+            logger.error("Error electing leader: {0}".format(error))
         time.sleep(cluster_leader_ttl / 2)
 
 
