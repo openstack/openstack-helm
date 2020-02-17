@@ -19,7 +19,7 @@ set -xe
 #NOTE: Lint and package chart
 make prometheus
 
-FEATURE_GATES="alertmanager,ceph,elasticsearch,kubernetes,nodes,openstack,postgresql"
+FEATURE_GATES="alertmanager,ceph,elasticsearch,kubernetes,nodes,openstack,postgresql,apparmor"
 : ${OSH_INFRA_EXTRA_HELM_ARGS_PROMETHEUS:="$({ ./tools/deployment/common/get-values-overrides.sh prometheus;} 2> /dev/null)"}
 
 #NOTE: Deploy command

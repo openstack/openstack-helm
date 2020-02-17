@@ -1,0 +1,1 @@
+../osh-infra-logging/025-ceph-ns-activate.sh
