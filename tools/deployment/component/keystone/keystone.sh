@@ -44,6 +44,8 @@ FEATURE_GATE="ldap"; if [[ ${FEATURE_GATES//,/ } =~ (^|[[:space:]])${FEATURE_GAT
   openstack user list
   openstack user list --domain ldapdomain
 
+  openstack group list --domain ldapdomain
+
   openstack role add --user bob --project admin --user-domain ldapdomain --project-domain default admin
 
   domain="ldapdomain"
