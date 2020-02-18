@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-import subprocess
+import subprocess  # nosec
 import json
 import sys
 import collections
@@ -11,7 +11,7 @@ if (int(len(sys.argv)) == 1):
 else:
     poolName = sys.argv[1]
     cmdRep = 'ceph osd map' + ' ' + str(poolName) + ' ' +  'testreplication -f json-pretty'
-    objectRep  = subprocess.check_output(cmdRep, shell=True)
+    objectRep  = subprocess.check_output(cmdRep, shell=True)  # nosec
     repOut = json.loads(objectRep)
     osdNumbers = repOut['up']
     print("Test object got replicated on these osds: %s" % str(osdNumbers))
@@ -19,7 +19,7 @@ else:
     osdHosts= []
     for osd in osdNumbers:
         cmdFind = 'ceph osd find' +  ' ' + str(osd)
-        osdFind = subprocess.check_output(cmdFind , shell=True)
+        osdFind = subprocess.check_output(cmdFind , shell=True)  # nosec
         osdHost = json.loads(osdFind)
         osdHostLocation = osdHost['crush_location']
         osdHosts.append(osdHostLocation['host'])

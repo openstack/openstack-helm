@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-import subprocess
+import subprocess  # nosec
 import json
 import sys
 from argparse import *
@@ -60,7 +60,7 @@ class cephCRUSH():
         if 'all' in poolName or 'All' in poolName:
             try:
                 poolLs = 'ceph osd pool ls -f json-pretty'
-                poolstr = subprocess.check_output(poolLs, shell=True)
+                poolstr = subprocess.check_output(poolLs, shell=True)  # nosec
                 self.listPoolName = json.loads(poolstr)
             except subprocess.CalledProcessError as e:
                 print('{}'.format(e))
@@ -72,7 +72,7 @@ class cephCRUSH():
         try:
             """Retrieve the crush hierarchies"""
             crushTree = "ceph osd crush tree -f json-pretty | jq .nodes"
-            chstr = subprocess.check_output(crushTree, shell=True)
+            chstr = subprocess.check_output(crushTree, shell=True)  # nosec
             self.crushHierarchy = json.loads(chstr)
         except subprocess.CalledProcessError as e:
             print('{}'.format(e))
@@ -107,8 +107,8 @@ class cephCRUSH():
         self.poolSize = 0
 
     def isNautilus(self):
-        grepResult = int(subprocess.check_output('ceph mon versions | egrep -q "nautilus" | echo $?', shell=True))
-        return True if grepResult == 0 else False
+        grepResult = int(subprocess.check_output('ceph mon versions | egrep -q "nautilus" | echo $?', shell=True))  # nosec
+        return grepResult == 0
 
     def getPoolSize(self, poolName):
         """
@@ -119,7 +119,7 @@ class cephCRUSH():
         """Get the size attribute of the poolName"""
         try:
             poolGet = 'ceph osd pool get ' + poolName + ' size -f json-pretty'
-            szstr = subprocess.check_output(poolGet, shell=True)
+            szstr = subprocess.check_output(poolGet, shell=True)  # nosec
             pSize = json.loads(szstr)
             self.poolSize = pSize['size']
         except subprocess.CalledProcessError as e:
@@ -130,7 +130,7 @@ class cephCRUSH():
 
     def checkPGs(self, poolName):
         poolPGs = self.poolPGs['pg_stats'] if self.isNautilus() else self.poolPGs
-        if len(poolPGs) == 0:
+        if not poolPGs:
             return
         print('Checking PGs in pool {} ...'.format(poolName)),
         badPGs = False
@@ -160,7 +160,8 @@ class cephCRUSH():
                     """traverse up (to the root) one level"""
                     traverseID = self.crushFD[traverseID]['id']
                     traverseLevel += 1
-                assert (traverseLevel == self.osd_depth), "OSD depth mismatch"
+                if not (traverseLevel == self.osd_depth):
+                    raise Exception("OSD depth mismatch")
             """
             check_FD should have
             {
@@ -214,12 +215,13 @@ class cephCRUSH():
             elif self.poolSize == 0:
                 print('Pool {} was not found.'.format(pool))
                 continue
-            assert (self.poolSize > 1), "Pool size was incorrectly set"
+            if not self.poolSize > 1:
+                raise Exception("Pool size was incorrectly set")
 
             try:
                 """Get the list of PGs in the pool"""
                 lsByPool = 'ceph pg ls-by-pool ' + pool + ' -f json-pretty'
-                pgstr = subprocess.check_output(lsByPool, shell=True)
+                pgstr = subprocess.check_output(lsByPool, shell=True)  # nosec
                 self.poolPGs = json.loads(pgstr)
                 """Check that OSDs in the PG are in separate failure domains"""
                 self.checkPGs(pool)

@@ -59,7 +59,7 @@ def click_link_by_name(link_name):
         browser.quit()
         sys.exit(1)
 
-def take_screenshot(page_name, artifacts_dir='/tmp/artifacts/'):
+def take_screenshot(page_name, artifacts_dir='/tmp/artifacts/'):  # nosec
     file_name = page_name.replace(' ', '_')
     try:
         el = WebDriverWait(browser, 15)
@@ -130,7 +130,7 @@ except TimeoutException:
     sys.exit(1)
 
 logger.info("The following screenshots were captured:")
-for root, dirs, files in os.walk("/tmp/artifacts/"):
+for root, dirs, files in os.walk("/tmp/artifacts/"):  # nosec
     for name in files:
         logger.info(os.path.join(root, name))
 
