@@ -23,6 +23,8 @@ make elasticsearch
 tee /tmp/elasticsearch.yaml << EOF
 jobs:
   verify_repositories:
+    cron: "*/3 * * * *"
+  curator:
     cron: "*/10 * * * *"
 monitoring:
   prometheus:
@@ -47,11 +49,53 @@ conf:
             timeout_override:
             continue_if_exception: False
             ignore_empty_list: True
-            disable_action: True
+            disable_action: False
           filters:
           - filtertype: pattern
             kind: prefix
             value: logstash-
+          - filtertype: age
+            source: name
+            direction: older
+            timestring: '%Y.%m.%d'
+            unit: days
+            unit_count: 365
+        2:
+          action: snapshot
+          description: >-
+            "Snapshot all indices older than 365 days"
+          options:
+            repository: logstash_snapshots
+            name: "snapshot-%Y-.%m.%d"
+            wait_for_completion: True
+            max_wait: 36000
+            wait_interval: 30
+            ignore_empty_list: True
+            continue_if_exception: False
+            disable_action: False
+          filters:
+          - filtertype: age
+            source: name
+            direction: older
+            timestring: '%Y.%m.%d'
+            unit: days
+            unit_count: 365
+        3:
+          action: delete_snapshots
+          description: >-
+            "Delete index snapshots older than 365 days"
+          options:
+            repository: logstash_snapshots
+            timeout_override: 1200
+            retry_interval: 120
+            retry_count: 5
+            ignore_empty_list: True
+            continue_if_exception: False
+            disable_action: False
+          filters:
+          - filtertype: pattern
+            kind: prefix
+            value: snapshot-
           - filtertype: age
             source: name
             direction: older
