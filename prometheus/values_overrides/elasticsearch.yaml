@@ -3,11 +3,11 @@ conf:
     rules:
       elasticsearch:
         groups:
-        - name: elasticsearch.rules
+        - name: elasticsearch.alerting_rules
           rules:
           - alert: prom_exporter_elasticsearch_unavailable
-            expr: absent(elasticsearch_cluster_health_status)
-            for: 10m
+            expr: avg_over_time(up{job="elasticsearch-exporter"}[5m]) == 0
+            for: 5m
             labels:
               severity: warning
             annotations:
@@ -85,3 +85,15 @@ conf:
             annotations:
               description: 'There are only {{$value}} < 3 ElasticSearch data nodes running'
               summary: 'ElasticSearch running on less than 3 data nodes'
+      fluentd:
+        groups:
+        - name: fluentd.alerting_rules
+          rules:
+          - alert: prom_exporter_fluentd_unavailable
+            expr: avg_over_time(up{job="fluentd-daemonset-exporter"}[5m]) == 0
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              description: Fluentd exporter is not collecting metrics or is not available for past 10 minutes
+              title: Fluentd exporter is not collecting metrics or is not available

@@ -5,13 +5,21 @@ conf:
         groups:
         - name: mariadb.rules
           rules:
-          - alert: prom_exporter_mariadb_unavailable
-            expr: absent(mysql_up)
-            for: 10m
+          - alert: prom_exporter_mariadb_openstack_unavailable
+            expr: avg_over_time(up{job="mysql-exporter",kubernetes_namespace="openstack"}[5m]) == 0
+            for: 5m
             labels:
               severity: warning
             annotations:
-              description: MariaDB exporter is not collecting metrics or is not available for past 10 minutes
+              description: MariaDB exporter in  {{ $labels.kubernetes_namespace }} is not collecting metrics or is not available for past 10 minutes
+              title: MariaDB exporter is not collecting metrics or is not available
+          - alert: prom_exporter_mariadb_osh_infra_unavailable
+            expr: avg_over_time(up{job="mysql-exporter",kubernetes_namespace="osh-infra"}[5m]) == 0
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              description: MariaDB exporter in  {{ $labels.kubernetes_namespace }} is not collecting metrics or is not available for past 10 minutes
               title: MariaDB exporter is not collecting metrics or is not available
           - alert: mariadb_table_lock_wait_high
             expr: 100 * mysql_global_status_table_locks_waited/(mysql_global_status_table_locks_waited + mysql_global_status_table_locks_immediate) > 30
@@ -48,8 +56,8 @@ conf:
         - name: openstack.rules
           rules:
           - alert: prom_exporter_openstack_unavailable
-            expr: absent(openstack_exporter_cache_refresh_duration_seconds)
-            for: 10m
+            expr: avg_over_time(up{job="openstack-metrics"}[5m]) == 0
+            for: 5m
             labels:
               severity: warning
             annotations:
