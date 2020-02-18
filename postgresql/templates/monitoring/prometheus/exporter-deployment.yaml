@@ -47,6 +47,8 @@ spec:
 {{ tuple $envAll "prometheus_postgresql_exporter" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.prometheus_postgresql_exporter | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
 {{ dict "envAll" $envAll "application" "prometheus_postgresql_exporter" "container" "postgresql_exporter" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          args:
+            - "--extend.query-path=/queries.yaml"
           ports:
             - name: metrics
               containerPort: {{ tuple "prometheus_postgresql_exporter" "internal" "metrics" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
@@ -56,4 +58,13 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.secrets.postgresql.exporter }}
                   key: DATA_SOURCE_NAME
+          volumeMounts:
+            - name: postgresql-exporter-etc
+              mountPath: /queries.yaml
+              subPath: queries.yaml
+      volumes:
+      - name: postgresql-exporter-etc
+        secret:
+          secretName: postgresql-exporter-etc
+          defaultMode: 0444
 {{- end }}
