@@ -42,6 +42,7 @@ images:
     neutron_sriov_agent_init: docker.io/openstackhelm/neutron:stein-18.04-sriov
     neutron_bagpipe_bgp: docker.io/openstackhelm/neutron:stein-ubuntu_bionic
     neutron_ironic_agent: docker.io/openstackhelm/neutron:stein-ubuntu_bionic
+    neutron_netns_cleanup_cron: docker.io/openstackhelm/neutron:stein-ubuntu_bionic
     dep_check: quay.io/airshipit/kubernetes-entrypoint:v1.0.0
     image_repo_sync: docker.io/docker:17.07.0
   pull_policy: "IfNotPresent"
@@ -88,6 +89,9 @@ labels:
     node_selector_key: openstack-control-plane
     node_selector_value: enabled
   ironic_agent:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  netns_cleanup_cron:
     node_selector_key: openstack-control-plane
     node_selector_value: enabled
   test:
@@ -500,6 +504,13 @@ pod:
     neutron_ironic_agent:
       pod:
         runAsUser: 42424
+    neutron_netns_cleanup_cron:
+      pod:
+        runAsUser: 42424
+      container:
+        neutron_netns_cleanup_cron:
+          readOnlyRootFilesystem: true
+          privileged: true
   affinity:
     anti:
       type:
@@ -559,6 +570,11 @@ pod:
       neutron_ironic_agent:
         volumeMounts:
         volumes:
+    neutron_netns_cleanup_cron:
+      init_container: null
+      neutron_netns_cleanup_cron:
+        volumeMounts:
+        volumes:
     neutron_tests:
       init_container: null
       neutron_tests:
@@ -611,6 +627,10 @@ pod:
           min_ready_seconds: 0
           max_unavailable: 1
         sriov_agent:
+          enabled: true
+          min_ready_seconds: 0
+          max_unavailable: 1
+        netns_cleanup_cron:
           enabled: true
           min_ready_seconds: 0
           max_unavailable: 1
@@ -689,6 +709,13 @@ pod:
         memory: "1024Mi"
         cpu: "2000m"
     ironic_agent:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+    netns_cleanup_cron:
       requests:
         memory: "128Mi"
         cpu: "100m"
@@ -1487,6 +1514,7 @@ conf:
         - metadata_agent
         - ovs_agent
         - sriov_agent
+        - netns_cleanup_cron
       content: |
         # neutron-rootwrap command filters for nodes on which neutron is
         # expected to control network
@@ -1508,6 +1536,7 @@ conf:
         - metadata_agent
         - ovs_agent
         - sriov_agent
+        - netns_cleanup_cron
       content: |
         # neutron-rootwrap command filters for nodes on which neutron is
         # expected to control network
@@ -1685,6 +1714,7 @@ conf:
         - metadata_agent
         - ovs_agent
         - sriov_agent
+        - netns_cleanup_cron
       content: |
         # Command filters to allow privsep daemon to be started via rootwrap.
         #
@@ -2370,6 +2400,7 @@ manifests:
   daemonset_sriov_agent: true
   daemonset_l2gw_agent: false
   daemonset_bagpipe_bgp: false
+  daemonset_netns_cleanup_cron: true
   deployment_ironic_agent: false
   deployment_server: true
   ingress_server: true

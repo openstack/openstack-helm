@@ -1,0 +1,179 @@
+{{/*
+Copyright 2017 The Openstack-Helm Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- define "neutron.netns_cleanup_cron.daemonset" }}
+{{- $daemonset := index . 0 }}
+{{- $configMapName := index . 1 }}
+{{- $serviceAccountName := index . 2 }}
+{{- $envAll := index . 3 }}
+{{- with $envAll }}
+
+{{- $mounts_neutron_netns_cleanup_cron := .Values.pod.mounts.neutron_netns_cleanup_cron.neutron_netns_cleanup_cron }}
+{{- $mounts_neutron_netns_cleanup_cron_init := .Values.pod.mounts.neutron_netns_cleanup_cron.init_container }}
+
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: neutron-netns-cleanup-cron
+  annotations:
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+  labels:
+{{ tuple $envAll "neutron" "netns-cleanup-cron" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  selector:
+    matchLabels:
+{{ tuple $envAll "neutron" "netns-cleanup-cron" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
+{{ tuple $envAll "netns_cleanup_cron" | include "helm-toolkit.snippets.kubernetes_upgrades_daemonset" | indent 2 }}
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "neutron" "netns-cleanup-cron" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+{{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
+        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
+    spec:
+{{ dict "envAll" $envAll "application" "neutron_netns_cleanup_cron" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
+      serviceAccountName: {{ $serviceAccountName }}
+      nodeSelector:
+        {{ .Values.labels.netns_cleanup_cron.node_selector_key }}: {{ .Values.labels.netns_cleanup_cron.node_selector_value }}
+      dnsPolicy: ClusterFirstWithHostNet
+      hostNetwork: true
+      {{- if or ( gt .Capabilities.KubeVersion.Major "1" ) ( ge .Capabilities.KubeVersion.Minor "10" ) }}
+      shareProcessNamespace: true
+      {{- else }}
+      hostPID: true
+      {{- end }}
+      initContainers:
+{{ tuple $envAll "pod_dependency" $mounts_neutron_netns_cleanup_cron_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+      containers:
+        - name: neutron-netns-cleanup-cron
+{{ tuple $envAll "neutron_netns_cleanup_cron" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.netns_cleanup_cron | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "neutron_netns_cleanup_cron" "container" "neutron_netns_cleanup_cron" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          command:
+            - python
+            - /tmp/neutron-netns-cleanup-cron.py
+            - --config-file
+            -  /etc/neutron/neutron.conf
+            - --config-file
+            - /etc/neutron/dhcp_agent.ini
+            - --config-file
+            - /etc/neutron/l3_agent.ini
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: neutron-bin
+              mountPath: /tmp/neutron-netns-cleanup-cron.py
+              subPath: neutron-netns-cleanup-cron.py
+              readOnly: true
+            - name: neutron-etc
+              mountPath: /etc/neutron/neutron.conf
+              subPath: neutron.conf
+              readOnly: true
+            {{- if .Values.conf.neutron.DEFAULT.log_config_append }}
+            - name: neutron-etc
+              mountPath: {{ .Values.conf.neutron.DEFAULT.log_config_append }}
+              subPath: {{ base .Values.conf.neutron.DEFAULT.log_config_append }}
+              readOnly: true
+            {{- end }}
+            - name: neutron-etc
+              mountPath: /etc/neutron/dhcp_agent.ini
+              subPath: dhcp_agent.ini
+              readOnly: true
+            - name: neutron-etc
+              mountPath: /etc/neutron/l3_agent.ini
+              subPath: l3_agent.ini
+              readOnly: true
+            - name: neutron-etc
+              # NOTE (Portdirect): We mount here to override Kollas
+              # custom sudoers file when using Kolla images, this
+              # location will also work fine for other images.
+              mountPath: /etc/sudoers.d/kolla_neutron_sudoers
+              subPath: neutron_sudoers
+              readOnly: true
+            - name: neutron-etc
+              mountPath: /etc/neutron/rootwrap.conf
+              subPath: rootwrap.conf
+              readOnly: true
+            {{- range $key, $value := $envAll.Values.conf.rootwrap_filters }}
+            {{- if ( has "netns_cleanup_cron" $value.pods ) }}
+            {{- $filePrefix := replace "_" "-"  $key }}
+            {{- $rootwrapFile := printf "/etc/neutron/rootwrap.d/%s.filters" $filePrefix }}
+            - name: neutron-etc
+              mountPath: {{ $rootwrapFile }}
+              subPath: {{ base $rootwrapFile }}
+              readOnly: true
+            {{- end }}
+            {{- end }}
+            - name: libmodules
+              mountPath: /lib/modules
+              readOnly: true
+            - name: iptables-lockfile
+              mountPath: /run/xtables.lock
+            - name: socket
+              mountPath: /var/lib/neutron/openstack-helm
+            {{- if .Values.network.share_namespaces }}
+            - name: host-run-netns
+              mountPath: /run/netns
+              mountPropagation: Bidirectional
+            {{- end }}
+{{ if $mounts_neutron_netns_cleanup_cron.volumeMounts }}{{ toYaml $mounts_neutron_netns_cleanup_cron.volumeMounts | indent 12 }}{{ end }}
+      volumes:
+        - name: pod-tmp
+          emptyDir: {}
+        - name: pod-var-neutron
+          emptyDir: {}
+        - name: neutron-bin
+          configMap:
+            name: neutron-bin
+            defaultMode: 0555
+        - name: neutron-etc
+          secret:
+            secretName: {{ $configMapName }}
+            defaultMode: 0444
+        - name: libmodules
+          hostPath:
+            path: /lib/modules
+        - name: iptables-lockfile
+          hostPath:
+            path: /run/xtables.lock
+        - name: socket
+          hostPath:
+            path: /var/lib/neutron/openstack-helm
+        {{- if .Values.network.share_namespaces }}
+        - name: host-run-netns
+          hostPath:
+            path: /run/netns
+        {{- end }}
+#{{ if $mounts_neutron_netns_cleanup_cron.volumes }}{{ toYaml $mounts_neutron_netns_cleanup_cron.volumes | indent 8 }}{{ end }}
+{{- end }}
+{{- end }}
+
+{{- if .Values.manifests.daemonset_netns_cleanup_cron}}
+{{- $envAll := . }}
+{{- $daemonset := "netns-cleanup-cron" }}
+{{- $configMapName := "neutron-etc" }}
+{{- $serviceAccountName := "neutron-netns-cleanup-cron" }}
+{{- $dependencyOpts := dict "envAll" $envAll "dependencyMixinParam" $envAll.Values.network.backend "dependencyKey" "netns_cleanup_cron" -}}
+{{- $_ := include "helm-toolkit.utils.dependency_resolver" $dependencyOpts | toString | fromYaml }}
+{{ tuple $envAll "pod_dependency" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{- $daemonset_yaml := list $daemonset $configMapName $serviceAccountName . | include "neutron.netns_cleanup_cron.daemonset" | toString | fromYaml }}
+{{- $configmap_yaml := "neutron.configmap.etc" }}
+{{- list $daemonset $daemonset_yaml $configmap_yaml $configMapName . | include "helm-toolkit.utils.daemonset_overrides" }}
+{{- end }}
+
