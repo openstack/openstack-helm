@@ -14,6 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- define "exporterProbeTemplate" }}
+httpGet:
+  scheme: HTTP
+  path: /metrics
+  port: {{ tuple "prometheus_rabbitmq_exporter" "internal" "metrics" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+{{- end }}
+
 {{- if and .Values.manifests.monitoring.prometheus.deployment_exporter .Values.monitoring.prometheus.enabled }}
 {{- $envAll := . }}
 
@@ -50,6 +57,8 @@ spec:
 {{ tuple $envAll "prometheus_rabbitmq_exporter" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.prometheus_rabbitmq_exporter | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
 {{ dict "envAll" $envAll "application" "exporter" "container" "rabbitmq_exporter" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+{{ dict "envAll" $envAll "component" "prometheus_rabbitmq_exporter" "container" "rabbitmq_exporter" "type" "readiness" "probeTemplate" (include "exporterProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | trim | indent 10 }}
+{{ dict "envAll" $envAll "component" "prometheus_rabbitmq_exporter" "container" "rabbitmq_exporter" "type" "liveness" "probeTemplate" (include "exporterProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | trim | indent 10 }}
           ports:
             - name: metrics
               containerPort: {{ tuple "prometheus_rabbitmq_exporter" "internal" "metrics" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
