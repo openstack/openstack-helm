@@ -19,7 +19,7 @@ set -xe
 #NOTE: Lint and package chart
 make grafana
 
-FEATURE_GATES="calico,ceph,containers,coredns,elasticsearch,kubernetes,nginx,nodes,openstack,prometheus"
+FEATURE_GATES="calico,ceph,containers,coredns,elasticsearch,kubernetes,nginx,nodes,openstack,prometheus,apparmor"
 : ${OSH_INFRA_EXTRA_HELM_ARGS_GRAFANA:="$({ ./tools/deployment/common/get-values-overrides.sh grafana;} 2> /dev/null)"}
 
 #NOTE: Deploy command
