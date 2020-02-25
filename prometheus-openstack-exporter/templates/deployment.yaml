@@ -69,12 +69,18 @@ spec:
           ports:
             - name: metrics
               containerPort: {{ tuple "prometheus_openstack_exporter" "internal" "exporter" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+          livenessProbe:
+            httpGet:
+              path: /metrics
+              port: {{ tuple "prometheus_openstack_exporter" "internal" "exporter" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+            initialDelaySeconds: 180
+            periodSeconds: 60
           readinessProbe:
             httpGet:
               path: /metrics
               port: {{ tuple "prometheus_openstack_exporter" "internal" "exporter" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
             initialDelaySeconds: 20
-            periodSeconds: 10
+            periodSeconds: 30
           env:
             - name: LISTEN_PORT
               value: {{ tuple "prometheus_openstack_exporter" "internal" "exporter" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | quote }}
