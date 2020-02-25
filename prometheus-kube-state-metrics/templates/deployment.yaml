@@ -14,6 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- define "kubeMetricsReadinessProbe" }}
+httpGet:
+  path: /metrics
+  port: {{ tuple "kube_state_metrics" "internal" "http" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+{{- end }}
+
 {{- if .Values.manifests.deployment }}
 {{- $envAll := . }}
 
@@ -125,12 +131,7 @@ spec:
           ports:
             - name: metrics
               containerPort: {{ tuple "kube_state_metrics" "internal" "http" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-          readinessProbe:
-            httpGet:
-              path: /metrics
-              port: {{ tuple "kube_state_metrics" "internal" "http" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-            initialDelaySeconds: 20
-            periodSeconds: 10
+{{ dict "envAll" . "component" "server" "container" "kube_metrics" "type" "readiness" "probeTemplate" (include "kubeMetricsReadinessProbe" . | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 -}}
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
