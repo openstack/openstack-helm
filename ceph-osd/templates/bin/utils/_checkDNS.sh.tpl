@@ -17,17 +17,14 @@ limitations under the License.
 */}}
 
 : "${CEPH_CONF:="/etc/ceph/${CLUSTER}.conf"}"
-ENDPOINT=$1
+ENDPOINT="{$1}"
 
 function check_mon_dns () {
   GREP_CMD=$(grep -rl 'ceph-mon' ${CEPH_CONF})
 
-  if [[ ${ENDPOINT} == "up" ]]; then
-    # If DNS is working, we simply clean up the ${CEPH_CONF} file
-    if [[ ${GREP_CMD} == "" ]]; then
-      sh -c -e "cat ${CEPH_CONF}.template | tee ${CEPH_CONF}" > /dev/null 2>&1
-    fi
-  elif [[ ${ENDPOINT} != "" ]]; then
+  if [[ "${ENDPOINT}" == "up" ]]; then
+    echo "If DNS is working, we are good here"
+  elif [[ "${ENDPOINT}" != "" ]]; then
     if [[ ${GREP_CMD} != "" ]]; then
       # No DNS, write CEPH MONs IPs into ${CEPH_CONF}
       sh -c -e "cat ${CEPH_CONF}.template | sed 's/mon_host.*/mon_host = ${ENDPOINT}/g' | tee ${CEPH_CONF}" > /dev/null 2>&1

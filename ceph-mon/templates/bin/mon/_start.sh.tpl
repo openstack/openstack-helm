@@ -12,7 +12,7 @@ if [[ ! -e ${CEPH_CONF}.template ]]; then
   echo "ERROR- ${CEPH_CONF}.template must exist; get it from your existing mon"
   exit 1
 else
-  ENDPOINT=$(kubectl get endpoints ceph-mon -n ${NAMESPACE} -o json | awk -F'"' -v port=${MON_PORT} \
+  ENDPOINT=$(kubectl get endpoints ceph-mon-discovery -n ${NAMESPACE} -o json | awk -F'"' -v port=${MON_PORT} \
              -v version=v1 -v msgr_version=v2 \
              -v msgr2_port=${MON_PORT_V2} \
              '/"ip"/{print "["version":"$4":"port"/"0","msgr_version":"$4":"msgr2_port"/"0"]"}' | paste -sd',')
@@ -54,9 +54,9 @@ function get_mon_config {
   while [[ -z "${MONMAP_ADD// }" && "${timeout}" -gt 0 ]]; do
     # Get the ceph mon pods (name and IP) from the Kubernetes API. Formatted as a set of monmap params
     if [[ ${K8S_HOST_NETWORK} -eq 0 ]]; then
-        MONMAP_ADD=$(kubectl get pods --namespace=${NAMESPACE} ${KUBECTL_PARAM} -o template --template="{{`{{range .items}}`}}{{`{{if .status.podIP}}`}}--add {{`{{.metadata.name}}`}} {{`{{.status.podIP}}`}}:${MON_PORT} {{`{{end}}`}} {{`{{end}}`}}")
+        MONMAP_ADD=$(kubectl get pods --namespace=${NAMESPACE} ${KUBECTL_PARAM} -o template --template="{{`{{range .items}}`}}{{`{{if .status.podIP}}`}}--addv {{`{{.metadata.name}}`}} [v1:{{`{{.status.podIP}}`}}:${MON_PORT},v2:{{`{{.status.podIP}}`}}:${MON_PORT_V2}] {{`{{end}}`}} {{`{{end}}`}}")
     else
-        MONMAP_ADD=$(kubectl get pods --namespace=${NAMESPACE} ${KUBECTL_PARAM} -o template --template="{{`{{range .items}}`}}{{`{{if .status.podIP}}`}}--add {{`{{.spec.nodeName}}`}} {{`{{.status.podIP}}`}}:${MON_PORT} {{`{{end}}`}} {{`{{end}}`}}")
+        MONMAP_ADD=$(kubectl get pods --namespace=${NAMESPACE} ${KUBECTL_PARAM} -o template --template="{{`{{range .items}}`}}{{`{{if .status.podIP}}`}}--addv {{`{{.spec.nodeName}}`}} [v1:{{`{{.status.podIP}}`}}:${MON_PORT},v2:{{`{{.status.podIP}}`}}:${MON_PORT_V2}] {{`{{end}}`}} {{`{{end}}`}}")
     fi
     (( timeout-- ))
     sleep 1
@@ -99,7 +99,7 @@ else
   # no mons are up and running yet
   timeout 5 ceph --cluster "${CLUSTER}" mon getmap -o ${MONMAP} || true
   ceph-mon --setuser ceph --setgroup ceph --cluster "${CLUSTER}" -i ${MON_NAME} --inject-monmap ${MONMAP} --keyring ${MON_KEYRING} --mon-data "${MON_DATA_DIR}"
-  timeout 7 ceph --cluster "${CLUSTER}" mon add "${MON_NAME}" "${MON_IP}:${MON_PORT}" || true
+  timeout 7 ceph --cluster "${CLUSTER}" mon add "${MON_NAME}" "${MON_IP}:${MON_PORT_V2}" || true
 fi
 
 # start MON
@@ -110,4 +110,4 @@ exec /usr/bin/ceph-mon \
   -d \
   -i ${MON_NAME} \
   --mon-data "${MON_DATA_DIR}" \
-  --public-addr "${MON_IP}:${MON_PORT}"
+  --public-addr "${MON_IP}:${MON_PORT_V2}"
