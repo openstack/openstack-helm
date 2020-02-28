@@ -1,0 +1,66 @@
+{{/*
+Copyright 2019 Intel Corporation.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.configmap_etc }}
+{{- $envAll := . }}
+
+{{- if empty .Values.conf.placement.placement_database.connection -}}
+{{- $_ := tuple "oslo_db" "internal" "placement" "mysql" . | include "helm-toolkit.endpoints.authenticated_endpoint_uri_lookup" | set .Values.conf.placement.placement_database "connection" -}}
+{{- end -}}
+
+{{- if empty .Values.conf.placement.keystone_authtoken.auth_uri -}}
+{{- $_ := tuple "identity" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" | set .Values.conf.placement.keystone_authtoken "auth_uri" -}}
+{{- end -}}
+{{- if empty .Values.conf.placement.keystone_authtoken.auth_url -}}
+{{- $_ := tuple "identity" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" | set .Values.conf.placement.keystone_authtoken "auth_url" -}}
+{{- end -}}
+
+{{- if empty .Values.conf.placement.keystone_authtoken.os_region_name -}}
+{{- $_ := set .Values.conf.placement.keystone_authtoken "os_region_name" .Values.endpoints.identity.auth.placement.region_name -}}
+{{- end -}}
+{{- if empty .Values.conf.placement.keystone_authtoken.project_name -}}
+{{- $_ := set .Values.conf.placement.keystone_authtoken "project_name" .Values.endpoints.identity.auth.placement.project_name -}}
+{{- end -}}
+{{- if empty .Values.conf.placement.keystone_authtoken.project_domain_name -}}
+{{- $_ := set .Values.conf.placement.keystone_authtoken "project_domain_name" .Values.endpoints.identity.auth.placement.project_domain_name -}}
+{{- end -}}
+{{- if empty .Values.conf.placement.keystone_authtoken.user_domain_name -}}
+{{- $_ := set .Values.conf.placement.keystone_authtoken "user_domain_name" .Values.endpoints.identity.auth.placement.user_domain_name -}}
+{{- end -}}
+{{- if empty .Values.conf.placement.keystone_authtoken.username -}}
+{{- $_ := set .Values.conf.placement.keystone_authtoken "username" .Values.endpoints.identity.auth.placement.username -}}
+{{- end -}}
+{{- if empty .Values.conf.placement.keystone_authtoken.password -}}
+{{- $_ := set .Values.conf.placement.keystone_authtoken "password" .Values.endpoints.identity.auth.placement.password -}}
+{{- end -}}
+{{- if empty .Values.conf.placement.keystone_authtoken.memcached_servers -}}
+{{- $_ := tuple "oslo_cache" "internal" "memcache" . | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" | set .Values.conf.placement.keystone_authtoken "memcached_servers" -}}
+{{- end -}}
+{{- if empty .Values.conf.placement.keystone_authtoken.memcache_secret_key -}}
+{{- $_ := set .Values.conf.placement.keystone_authtoken "memcache_secret_key" ( default ( randAlphaNum 64 ) .Values.endpoints.oslo_cache.auth.memcache_secret_key ) -}}
+{{- end -}}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: placement-etc
+type: Opaque
+data:
+  policy.yaml: {{ toYaml .Values.conf.policy | b64enc }}
+  placement.conf: {{ include "helm-toolkit.utils.to_oslo_conf" .Values.conf.placement | b64enc }}
+  logging.conf: {{ include "helm-toolkit.utils.to_oslo_conf" .Values.conf.logging | b64enc }}
+{{- include "helm-toolkit.snippets.values_template_renderer" (dict "envAll" $envAll "template" .Values.conf.wsgi_placement "key" "wsgi-placement.conf" "format" "Secret" ) | indent 2 }}
+{{- end }}
