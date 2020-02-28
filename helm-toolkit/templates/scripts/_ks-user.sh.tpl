@@ -33,13 +33,25 @@ limitations under the License.
 
 set -ex
 
-# Manage project domain
-PROJECT_DOMAIN_ID=$(openstack domain create --or-show --enable -f value -c id \
+if [[ "${SERVICE_OS_PROJECT_DOMAIN_NAME}" == "Default" ]]
+then
+  PROJECT_DOMAIN_ID="default"
+else
+  # Manage project domain
+  PROJECT_DOMAIN_ID=$(openstack domain create --or-show --enable -f value -c id \
     --description="Domain for ${SERVICE_OS_REGION_NAME}/${SERVICE_OS_PROJECT_DOMAIN_NAME}" \
     "${SERVICE_OS_PROJECT_DOMAIN_NAME}")
+fi
 
-# Display project domain
-openstack domain show "${PROJECT_DOMAIN_ID}"
+if [[ "${SERVICE_OS_USER_DOMAIN_NAME}" == "Default" ]]
+then
+  USER_DOMAIN_ID="default"
+else
+  # Manage user domain
+  USER_DOMAIN_ID=$(openstack domain create --or-show --enable -f value -c id \
+    --description="Domain for ${SERVICE_OS_REGION_NAME}/${SERVICE_OS_USER_DOMAIN_NAME}" \
+    "${SERVICE_OS_USER_DOMAIN_NAME}")
+fi
 
 # Manage user project
 USER_PROJECT_DESC="Service Project for ${SERVICE_OS_REGION_NAME}/${SERVICE_OS_PROJECT_DOMAIN_NAME}"
@@ -47,17 +59,6 @@ USER_PROJECT_ID=$(openstack project create --or-show --enable -f value -c id \
     --domain="${PROJECT_DOMAIN_ID}" \
     --description="${USER_PROJECT_DESC}" \
     "${SERVICE_OS_PROJECT_NAME}");
-
-# Display project
-openstack project show "${USER_PROJECT_ID}"
-
-# Manage user domain
-USER_DOMAIN_ID=$(openstack domain create --or-show --enable -f value -c id \
-    --description="Domain for ${SERVICE_OS_REGION_NAME}/${SERVICE_OS_USER_DOMAIN_NAME}" \
-    "${SERVICE_OS_USER_DOMAIN_NAME}")
-
-# Display user domain
-openstack domain show "${USER_DOMAIN_ID}"
 
 # Manage user
 USER_DESC="Service User for ${SERVICE_OS_REGION_NAME}/${SERVICE_OS_USER_DOMAIN_NAME}/${SERVICE_OS_SERVICE_NAME}"
@@ -74,13 +75,13 @@ echo "Setting user password via: openstack user set --password=xxxxxxx ${USER_ID
 openstack user set --password="${SERVICE_OS_PASSWORD}" "${USER_ID}"
 set -x
 
-# Display user
-openstack user show "${USER_ID}"
-
 function ks_assign_user_role () {
-  # Get user role
-  USER_ROLE_ID=$(openstack role create --or-show -f value -c id \
-      "${SERVICE_OS_ROLE}");
+  if [[ "$SERVICE_OS_ROLE" == "admin" ]]
+  then
+    USER_ROLE_ID="$SERVICE_OS_ROLE"
+  else
+    USER_ROLE_ID=$(openstack role create --or-show -f value -c id "${SERVICE_OS_ROLE}");
+  fi
 
   # Manage user role assignment
   openstack role add \
@@ -89,12 +90,6 @@ function ks_assign_user_role () {
       --project-domain="${PROJECT_DOMAIN_ID}" \
       --project="${USER_PROJECT_ID}" \
       "${USER_ROLE_ID}"
-
-  # Display user role assignment
-  openstack role assignment list \
-      --role="${USER_ROLE_ID}" \
-      --user-domain="${USER_DOMAIN_ID}" \
-      --user="${USER_ID}"
 }
 
 # Manage user service role
@@ -103,9 +98,7 @@ for SERVICE_OS_ROLE in ${SERVICE_OS_ROLES}; do
   ks_assign_user_role
 done
 
-# Manage user member role
-: ${MEMBER_OS_ROLE:="member"}
-export USER_ROLE_ID=$(openstack role create --or-show -f value -c id \
-    "${MEMBER_OS_ROLE}");
+# Manage member role for keystone pre-rocky
+SERVICE_OS_ROLE="member"
 ks_assign_user_role
 {{- end }}
