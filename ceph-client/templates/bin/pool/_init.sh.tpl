@@ -107,12 +107,17 @@ function create_pool () {
 #
   ceph --cluster "${CLUSTER}" osd pool set "${POOL_NAME}" size ${POOL_REPLICATION}
   ceph --cluster "${CLUSTER}" osd pool set "${POOL_NAME}" crush_rule "${POOL_CRUSH_RULE}"
-  for PG_PARAM in pg_num pgp_num; do
-    CURRENT_PG_VALUE=$(ceph --cluster "${CLUSTER}" osd pool get "${POOL_NAME}" "${PG_PARAM}" | awk "/^${PG_PARAM}:/ { print \$NF }")
-    if [ "${POOL_PLACEMENT_GROUPS}" -gt "${CURRENT_PG_VALUE}" ]; then
-      ceph --cluster "${CLUSTER}" osd pool set "${POOL_NAME}" "${PG_PARAM}" "${POOL_PLACEMENT_GROUPS}"
-    fi
-  done
+# set pg_num to pool
+  if [[ -z "$(ceph osd versions | grep ceph\ version | grep -v nautilus)" ]]; then
+    ceph --cluster "${CLUSTER}" osd pool set "${POOL_NAME}" "pg_num" "${POOL_PLACEMENT_GROUPS}"
+  else
+    for PG_PARAM in pg_num pgp_num; do
+      CURRENT_PG_VALUE=$(ceph --cluster "${CLUSTER}" osd pool get "${POOL_NAME}" "${PG_PARAM}" | awk "/^${PG_PARAM}:/ { print \$NF }")
+      if [ "${POOL_PLACEMENT_GROUPS}" -gt "${CURRENT_PG_VALUE}" ]; then
+        ceph --cluster "${CLUSTER}" osd pool set "${POOL_NAME}" "${PG_PARAM}" "${POOL_PLACEMENT_GROUPS}"
+      fi
+    done
+  fi
 
 #This is to handle cluster expansion case where replication may change from intilization
   if [ ${POOL_REPLICATION} -gt 1 ]; then
