@@ -37,5 +37,5 @@ clouds:
       auth_url: 'http://keystone.openstack.svc.cluster.local/v3'
 EOF
 
-#NOTE: Build charts
-make all
+#NOTE: Build helm-toolkit, most charts depend on helm-toolkit
+make helm-toolkit
