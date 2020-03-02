@@ -87,8 +87,6 @@ manifest should be declared on Kubernetes API, for example
 .. code-block:: yaml
 
     {{- if .Values.manifests.daemonset_ovs_agent }}
-    # Copyright 2017 The Openstack-Helm Authors.
-    #
     # Licensed under the Apache License, Version 2.0 (the "License");
 
     ...
