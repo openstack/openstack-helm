@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 
 {{/*
 Copyright 2018 The Openstack-Helm Authors.
