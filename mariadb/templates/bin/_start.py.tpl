@@ -327,6 +327,10 @@ def safe_update_configmap(configmap_dict, configmap_patch):
             # This status code indicates a collision trying to write to the
             # config map while another instance is also trying the same.
             logger.warning("Collision writing configmap: {0}".format(error))
+            # This often happens when the replicas were started at the same
+            # time, and tends to be persistent. Sleep briefly to break the
+            # synchronization.
+            time.sleep(1)
             return True
         else:
             logger.error("Failed to set configmap: {0}".format(error))
