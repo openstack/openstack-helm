@@ -14,6 +14,19 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- define "kibanaProbeTemplate" }}
+{{- $kibanaPort := tuple "kibana" "internal" "http" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+{{- $esUser := .Values.endpoints.elasticsearch.auth.admin.username }}
+{{- $esPass := .Values.endpoints.elasticsearch.auth.admin.password }}
+{{- $authHeader := printf "%s:%s" $esUser $esPass | b64enc }}
+httpGet:
+  path: /status
+  port: {{ $kibanaPort }}
+  httpHeaders:
+    - name: Authorization
+      value: Basic {{ $authHeader }}
+{{- end }}
+
 {{- if .Values.manifests.deployment }}
 {{- $envAll := . }}
 
@@ -28,6 +41,8 @@ limitations under the License.
 
 {{- $serviceAccountName := "kibana" }}
 {{ tuple $envAll "kibana" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+
+{{- $kibanaPort := tuple "kibana" "internal" "http" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -70,15 +85,10 @@ spec:
             - start
           ports:
             - name: http
-              containerPort: {{ tuple "kibana" "internal" "http" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-          livenessProbe:
-            tcpSocket:
-              port: {{ tuple "kibana" "internal" "http" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-            initialDelaySeconds: 180
-            periodSeconds: 60
+              containerPort: {{ $kibanaPort }}
           readinessProbe:
             tcpSocket:
-              port: {{ tuple "kibana" "internal" "http" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+              port: {{ $kibanaPort }}
             initialDelaySeconds: 20
             periodSeconds: 30
           env:
@@ -113,15 +123,8 @@ spec:
           ports:
             - name: kibana
               containerPort: {{ tuple "kibana" "internal" "kibana" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-          readinessProbe:
-            httpGet:
-              path: /status
-              port: {{ tuple "kibana" "internal" "http" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-              httpHeaders:
-                - name: Authorization
-                  value: Basic {{ $authHeader }}
-            initialDelaySeconds: 20
-            periodSeconds: 10
+{{ dict "envAll" . "component" "kibana" "container" "kibana" "type" "liveness" "probeTemplate" (include "kibanaProbeTemplate" . | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+{{ dict "envAll" . "component" "kibana" "container" "kibana" "type" "readiness" "probeTemplate" (include "kibanaProbeTemplate" . | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
           env:
             - name: ELASTICSEARCH_HOSTS
               value: {{ $esHosts }}
