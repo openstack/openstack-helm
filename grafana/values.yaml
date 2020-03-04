@@ -23,6 +23,7 @@ images:
     db_init: docker.io/openstackhelm/heat:newton-ubuntu_xenial
     grafana_db_session_sync: docker.io/openstackhelm/heat:newton-ubuntu_xenial
     selenium_tests: docker.io/openstackhelm/osh-selenium:ubuntu_bionic-20191017
+    add_home_dashboard: docker.io/openstackhelm/heat:stein-ubuntu_bionic
     image_repo_sync: docker.io/docker:17.07.0
   pull_policy: IfNotPresent
   local_registry:
@@ -71,6 +72,13 @@ pod:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
     set_admin_user:
+      pod:
+        runAsUser: 104
+      container:
+        grafana_set_admin_password:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+    add_home_dashboard:
       pod:
         runAsUser: 104
       container:
@@ -148,6 +156,13 @@ pod:
           memory: "1024Mi"
           cpu: "2000m"
       set_admin_user:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      add_home_dashboard:
         requests:
           memory: "128Mi"
           cpu: "100m"
@@ -329,6 +344,10 @@ dependencies:
       services:
         - endpoint: internal
           service: grafana
+    add_home_dashboard:
+      services:
+        - endpoint: internal
+          service: grafana
 
 network:
   grafana:
@@ -375,6 +394,7 @@ manifests:
   job_db_session_sync: true
   job_image_repo_sync: true
   job_set_admin_user: true
+  job_add_home_dashboard: false
   network_policy: false
   secret_db: true
   secret_db_session: true
