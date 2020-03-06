@@ -38,6 +38,10 @@ deployment:
   client_secrets: true
 bootstrap:
   enabled: false
+conf:
+  ceph:
+    global:
+      mon_host: ceph-mon-discovery.ceph.svc.cluster.local:6789
 EOF
 helm upgrade --install ceph-openstack-config ${HELM_CHART_ROOT_PATH}/ceph-provisioners \
   --namespace=openstack \
