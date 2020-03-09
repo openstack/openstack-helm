@@ -73,6 +73,13 @@ function ceph_cmd_retry() {
   done
 }
 
+function locked() {
+  exec {lock_fd}>/var/lib/ceph/tmp/init-osd.lock || exit 1
+  flock -w 600 --verbose "${lock_fd}"
+  "$@"
+  flock -u "${lock_fd}"
+}
+
 function crush_create_or_move {
   local crush_location=${1}
   ceph_cmd_retry --cluster "${CLUSTER}" --name="osd.${OSD_ID}" --keyring="${OSD_KEYRING}" \
@@ -206,23 +213,29 @@ function zap_extra_partitions {
 function disk_zap {
   # Run all the commands that ceph-disk zap uses to clear a disk
   local device=${1}
-  local osd_device_lvm=$(lsblk ${device} -o name,type -l | grep "lvm" | grep "ceph"| awk '{print $1}')
-  if [[ ! -z ${osd_device_lvm} ]]; then
-    dmsetup remove ${osd_device_lvm}
-  fi
-  if [[ $(pvdisplay ${OSD_DEVICE} | grep "VG Name" | awk '{print $3}' | grep "ceph") ]]; then
-    local LOCAL_VG=$(pvdisplay ${OSD_DEVICE} | grep "VG Name" | awk '{print $3}' | grep "ceph")
-    if [[ $(lvdisplay | grep ${LOCAL_VG} | grep "LV Path" | awk '{print $3}') ]]; then
-      echo "y" | lvremove $(lvdisplay | grep ${LOCAL_VG} | grep "LV Path" | awk '{print $3}')
+  local device_filter=$(echo $device | cut -d'/' -f3)
+  local dm_devices=$(lsblk -o name,type -l | grep "lvm" | grep "$device_filter" | awk '/ceph/{print $1}' | tr '\n' ' ')
+  for dm_device in ${dm_devices}; do
+    if [[ ! -z ${dm_device} ]]; then
+      dmsetup remove ${dm_device}
     fi
-    vgremove ${LOCAL_VG}
-    pvremove ${OSD_DEVICE}
+  done
+  local logical_volumes=$(locked lvdisplay | grep "LV Path" | grep "$device_filter" | awk '/ceph/{print $3}' | tr '\n' ' ')
+  for logical_volume in ${logical_volumes}; do
+    if [[ ! -z ${logical_volume} ]]; then
+      locked lvremove -y ${logical_volume}
+    fi
+  done
+  local volume_group=$(pvdisplay ${device} | grep "VG Name" | awk '/ceph/{print $3}' | grep "ceph")
+  if [[ ${volume_group} ]]; then
+    vgremove ${volume_group}
+    pvremove ${device}
     ceph-volume lvm zap ${device} --destroy
   fi
   wipefs --all ${device}
+  sgdisk --zap-all -- ${device}
   # Wipe the first 200MB boundary, as Bluestore redeployments will not work otherwise
   dd if=/dev/zero of=${device} bs=1M count=200
-  sgdisk --zap-all -- ${device}
 }
 
 function udev_settle {
@@ -231,11 +244,23 @@ function udev_settle {
   if [ "${OSD_BLUESTORE:-0}" -eq 1 ]; then
     if [ ! -z "$BLOCK_DB" ]; then
       osd_devices="${osd_devices}\|${BLOCK_DB}"
-      partprobe "${BLOCK_DB}"
+      # BLOCK_DB could be a physical or logical device here
+      local block_db="$BLOCK_DB"
+      local db_vg="$(echo $block_db | cut -d'/' -f1)"
+      if [ ! -z "$db_vg" ]; then
+        block_db=$(locked pvdisplay | grep -B1 "$db_vg" | awk '/PV Name/{print $3}')
+      fi
+      locked partprobe "${block_db}"
     fi
     if [ ! -z "$BLOCK_WAL" ] && [ "$BLOCK_WAL" != "$BLOCK_DB" ]; then
       osd_devices="${osd_devices}\|${BLOCK_WAL}"
-      partprobe "${BLOCK_WAL}"
+      # BLOCK_WAL could be a physical or logical device here
+      local block_wal="$BLOCK_WAL"
+      local wal_vg="$(echo $block_wal | cut -d'/' -f1)"
+      if [ ! -z "$wal_vg" ]; then
+        block_wal=$(locked pvdisplay | grep -B1 "$wal_vg" | awk '/PV Name/{print $3}')
+      fi
+      locked partprobe "${block_wal}"
     fi
   else
     if [ "x$JOURNAL_TYPE" == "xblock-logical" ] && [ ! -z "$OSD_JOURNAL" ]; then
@@ -243,7 +268,7 @@ function udev_settle {
       if [ ! -z "$OSD_JOURNAL" ]; then
         local JDEV=$(echo ${OSD_JOURNAL} | sed 's/[0-9]//g')
         osd_devices="${osd_devices}\|${JDEV}"
-        partprobe "${JDEV}"
+        locked partprobe "${JDEV}"
       fi
     fi
   fi
@@ -275,7 +300,7 @@ function get_lvm_tag_from_volume {
     echo
   else
     # Get and return the specified tag from the logical volume
-    lvs -o lv_tags ${logical_volume} | tr ',' '\n' | grep ${tag} | cut -d'=' -f2
+    locked lvs -o lv_tags ${logical_volume} | tr ',' '\n' | grep ${tag} | cut -d'=' -f2
   fi
 }
 
@@ -284,7 +309,7 @@ function get_lvm_tag_from_device {
   device="$1"
   tag="$2"
   # Attempt to get a logical volume for the physical device
-  logical_volume="$(pvdisplay -m ${device} | awk '/Logical volume/{print $3}')"
+  logical_volume="$(locked pvdisplay -m ${device} | awk '/Logical volume/{print $3}')"
 
   # Use get_lvm_tag_from_volume to get the specified tag from the logical volume
   get_lvm_tag_from_volume ${logical_volume} ${tag}
