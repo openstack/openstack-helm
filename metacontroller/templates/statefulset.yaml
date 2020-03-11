@@ -64,12 +64,8 @@ spec:
 {{ tuple $envAll "metacontroller" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
   serviceName: {{ tuple "metacontroller" "internal" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
   podManagementPolicy: "Parallel"
-  affinity:
-{{ tuple $envAll "metacontroller" "server" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 4 }}
   replicas: {{ .Values.pod.replicas.metacontroller }}
   terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.server.timeout | default "30" }}
-  nodeSelector:
-    {{ .Values.labels.server.node_selector_key }}: {{ .Values.labels.server.node_selector_value | quote }}
   template:
     metadata:
       labels:
@@ -79,6 +75,8 @@ spec:
     spec:
 {{ dict "envAll" . "application" "metacontroller" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
       serviceAccountName: {{ $serviceAccountName }}
+      nodeSelector:
+        {{ .Values.labels.server.node_selector_key }}: {{ .Values.labels.server.node_selector_value | quote }}
       containers:
       - name: metacontroller
 {{ tuple $envAll "metacontroller" | include "helm-toolkit.snippets.image" | indent 8 }}
