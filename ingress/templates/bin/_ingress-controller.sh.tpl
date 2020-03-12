@@ -18,7 +18,7 @@ set -ex
 COMMAND="${@:-start}"
 
 function start () {
-  find /tmp/ -maxdepth 1 -writable | grep -v "^/tmp/$" | xargs -L1 -r rm -rfv
+  find /tmp -maxdepth 1 \! -path /tmp -perm /222 -exec rm -rfv {} \;
 
   declare -A desired_opts
   desired_opts["--stream-port"]="${PORT_STREAM}"
