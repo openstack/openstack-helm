@@ -98,7 +98,9 @@ for SERVICE_OS_ROLE in ${SERVICE_OS_ROLES}; do
   ks_assign_user_role
 done
 
-# Manage member role for keystone pre-rocky
-SERVICE_OS_ROLE="member"
+# Manage user member role
+: ${MEMBER_OS_ROLE:="member"}
+export USER_ROLE_ID=$(openstack role create --or-show -f value -c id \
+    "${MEMBER_OS_ROLE}");
 ks_assign_user_role
 {{- end }}
