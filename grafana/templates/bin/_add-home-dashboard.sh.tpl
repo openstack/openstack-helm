@@ -15,15 +15,25 @@
 #    under the License.
 
 set -xe
+home_dashboard_id=[]
+counter=0
 
-home_dashboard_id=$(curl -K- <<< "--user ${GF_SECURITY_ADMIN_USER}:${GF_SECURITY_ADMIN_PASSWORD}" -XGET "${GRAFANA_URI}api/search?query=OSH%20Home" | sed 's/\[{.id":"*\([0-9a-zA-Z]*\)*,*.*}[]]/\1/')
+#Loop until home_dashboard_id value is not null. If null sleep for 15s. Retry for 5 times.
+until [ $home_dashboard_id != "[]" ]
+do
+    echo "Waiting for Home Dashboard to load in Grafana"
+    sleep 15s
+    home_dashboard_id=$(curl -K- <<< "--user ${GF_SECURITY_ADMIN_USER}:${GF_SECURITY_ADMIN_PASSWORD}" -XGET "${GRAFANA_URI}api/search?query=OSH%20Home" | sed 's/\[{.id":"*\([0-9a-zA-Z]*\)*,*.*}[]]/\1/')
+    echo $home_dashboard_id
+    if [ $counter -ge 5 ]; then
+      echo "Exiting.. Exceeded the wait."
+      break
+    fi
+    counter=$((counter + 1));
+done
 
-echo $home_dashboard_id
-
-if [ $home_dashboard_id == "[]" ]
+if [ $home_dashboard_id != "[]" ]
 then
-    echo "Failed. Verify Home Dashboard is present in Grafana"
-else
 #Set Customized Home Dashboard id as Org preference
   curl -K- <<< "--user ${GF_SECURITY_ADMIN_USER}:${GF_SECURITY_ADMIN_PASSWORD}" \
    -XPUT "${GRAFANA_URI}api/org/preferences"  -H "Content-Type: application/json" \
