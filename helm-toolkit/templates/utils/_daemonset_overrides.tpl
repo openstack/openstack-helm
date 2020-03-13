@@ -16,11 +16,10 @@ limitations under the License.
 
 {{- define "helm-toolkit.utils.daemonset_overrides" }}
   {{- $daemonset := index . 0 }}
-  {{- $daemonset_include := index . 1 }}
+  {{- $daemonset_yaml := index . 1 }}
   {{- $configmap_include := index . 2 }}
   {{- $configmap_name := index . 3 }}
   {{- $context := index . 4 }}
-  {{- $serviceAccountName := index . 5 }}
   {{- $_ := unset $context ".Files" }}
   {{- $daemonset_root_name := printf (print $context.Chart.Name "_" $daemonset) }}
   {{- $_ := set $context.Values "__daemonset_list" list }}
@@ -202,7 +201,6 @@ limitations under the License.
     {{- $merged_dict := mergeOverwrite $context_novalues $current_dict.nodeData }}
     {{- $_ := set $current_dict "nodeData" $merged_dict }}
     {{/* Deep copy original daemonset_yaml */}}
-    {{- $daemonset_yaml := list $daemonset $configmap_name $serviceAccountName $current_dict.nodeData | include $daemonset_include | toString | fromYaml }}
     {{- $_ := set $context.Values "__daemonset_yaml" ($daemonset_yaml | toYaml | fromYaml) }}
 
     {{/* name needs to be a DNS-1123 compliant name. Ensure lower case */}}
