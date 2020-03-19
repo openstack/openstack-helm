@@ -93,6 +93,12 @@ else
   test_netpol openstack rabbitmq server memcached.openstack.svc.cluster.local:11211 fail
   test_netpol openstack openvswitch openvswitch-vswitchd memcached.openstack.svc.cluster.local:11211 fail
   test_netpol openstack libvirt libvirt memcached.openstack.svc.cluster.local:11211 fail
+  # Heat Negative Tests
+  test_netpol openstack keystone api heat-api.openstack.svc.cluster.local:8004 fail
+  test_netpol openstack nova os-api heat-api.openstack.svc.cluster.local:8004 fail
+  test_netpol openstack neutron server heat-api.openstack.svc.cluster.local:8004 fail
+  test_netpol openstack glance api heat-api.openstack.svc.cluster.local:8004 fail
+
 # Positive Compute-Kit Tests
 
   # Positive Mariadb tests
@@ -112,6 +118,9 @@ else
   test_netpol openstack nova compute glance-api.openstack.svc.cluster.local:9292 success
   test_netpol openstack heat api glance-api.openstack.svc.cluster.local:9292 success
   test_netpol openstack horizon server glance-api.openstack.svc.cluster.local:9292 success
+  test_netpol openstack horizon server heat-api.openstack.svc.cluster.local:8004 success
+  test_netpol openstack horizon server heat-cfn.openstack.svc.cluster.local:8000 success
+  test_netpol openstack heat api heat-api.openstack.svc.cluster.local:8004 success
 fi
 
 echo Test Success
