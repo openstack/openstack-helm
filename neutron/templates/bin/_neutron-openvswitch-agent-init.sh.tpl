@@ -184,6 +184,10 @@ function process_dpdk_nics {
       if [ -n "${vf_index}" ]; then
         vf_string="vf ${vf_index}"
         ip link set ${iface} ${vf_string} trust on
+
+        # NOTE: To ensure proper toggle of spoofchk,
+        # turn it on then off.
+        ip link set ${iface} ${vf_string} spoofchk on
         ip link set ${iface} ${vf_string} spoofchk off
       fi
     fi
@@ -278,6 +282,10 @@ function process_dpdk_bonds {
         if [ -n "${vf_index}" ]; then
           vf_string="vf ${vf_index}"
           ip link set ${iface} ${vf_string} trust on
+
+          # NOTE: To ensure proper toggle of spoofchk,
+          # turn it on then off.
+          ip link set ${iface} ${vf_string} spoofchk on
           ip link set ${iface} ${vf_string} spoofchk off
         fi
       fi
