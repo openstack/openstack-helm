@@ -32,6 +32,9 @@ case "${OPENSTACK_RELEASE}" in
   "rocky")
     DEPLOY_SEPARATE_PLACEMENT="no"
     ;;
+  "stein")
+    DEPLOY_SEPARATE_PLACEMENT="no"
+    ;;
   *)
     DEPLOY_SEPARATE_PLACEMENT="yes"
     ;;
@@ -55,10 +58,10 @@ fi
 # TODO: Revert this reasoning when gates are pointing to more up to
 # date openstack release. When doing so, we should revert the default
 # values of the nova chart to NOT use placement by default, and
-# have a ocata/pike/queens/rocky override to enable placement in the nova chart deploy
+# have a ocata/pike/queens/rocky/stein override to enable placement in the nova chart deploy
 
 if [[ "${DEPLOY_SEPARATE_PLACEMENT}" == "yes" ]]; then
-  OSH_EXTRA_HELM_ARGS_NOVA="${OSH_EXTRA_HELM_ARGS_NOVA} --values=./nova/values_overrides/stein-disable-nova-placement.yaml"
+  OSH_EXTRA_HELM_ARGS_NOVA="${OSH_EXTRA_HELM_ARGS_NOVA} --values=./nova/values_overrides/train-disable-nova-placement.yaml"
 fi
 
 #NOTE: Lint and package chart
