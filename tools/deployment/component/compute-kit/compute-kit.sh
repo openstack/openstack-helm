@@ -34,7 +34,7 @@ case "${OPENSTACK_RELEASE}" in
     DEPLOY_SEPARATE_PLACEMENT="no"
     ;;
   "stein")
-    DEPLOY_SEPARATE_PLACEMENT="no"
+    DEPLOY_SEPARATE_PLACEMENT="yes"
     ;;
   *)
     DEPLOY_SEPARATE_PLACEMENT="yes"
