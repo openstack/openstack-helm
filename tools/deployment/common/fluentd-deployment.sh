@@ -19,6 +19,8 @@ set -xe
 #NOTE: Lint and package chart
 make fluentd
 
+: ${OSH_INFRA_EXTRA_HELM_ARGS_FLUENTD:="$(./tools/deployment/common/get-values-overrides.sh fluentd)"}
+
 if [ ! -d "/var/log/journal" ]; then
 tee /tmp/fluentd.yaml << EOF
 deployment:
@@ -42,7 +44,10 @@ pod:
 EOF
 helm upgrade --install fluentd ./fluentd \
     --namespace=osh-infra \
-    --values=/tmp/fluentd.yaml
+    --values=/tmp/fluentd.yaml \
+  ${OSH_INFRA_EXTRA_HELM_ARGS} \
+  ${OSH_INFRA_EXTRA_HELM_ARGS_FLUENTD}
+
 else
 tee /tmp/fluentd.yaml << EOF
 deployment:
@@ -57,7 +62,10 @@ EOF
 fi
 helm upgrade --install fluentd ./fluentd \
     --namespace=osh-infra \
-    --values=/tmp/fluentd.yaml
+    --values=/tmp/fluentd.yaml \
+  ${OSH_INFRA_EXTRA_HELM_ARGS} \
+  ${OSH_INFRA_EXTRA_HELM_ARGS_FLUENTD}
+
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh osh-infra

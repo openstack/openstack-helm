@@ -18,6 +18,7 @@ set -xe
 
 #NOTE: Lint and package chart
 make fluentd
+: ${OSH_INFRA_EXTRA_HELM_ARGS_FLUENTD:="$(./tools/deployment/common/get-values-overrides.sh fluentd)"}
 
 tee /tmp/fluentd-daemonset.yaml << EOF
 endpoints:
@@ -298,7 +299,9 @@ conf:
 EOF
 helm upgrade --install fluentd-daemonset ./fluentd \
     --namespace=osh-infra \
-    --values=/tmp/fluentd-daemonset.yaml
+    --values=/tmp/fluentd-daemonset.yaml \
+  ${OSH_INFRA_EXTRA_HELM_ARGS} \
+  ${OSH_INFRA_EXTRA_HELM_ARGS_FLUENTD}
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh osh-infra
