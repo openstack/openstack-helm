@@ -207,9 +207,6 @@ spec:
               value: "{{ tuple "oslo_messaging" "internal" "amqp" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}"
             - name: PORT_CLUSTERING
               value: "{{ add (tuple "oslo_messaging" "internal" "amqp" . | include "helm-toolkit.endpoints.endpoint_port_lookup") 20000 }}"
-            - name: RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS
-              {{- $erlvm_scheduler_num := include "get_erlvm_scheduler_num" .Values.pod.resources.server.limits.cpu }}
-              value: {{ printf "+S %s:%s" $erlvm_scheduler_num $erlvm_scheduler_num | quote }}
           readinessProbe:
             initialDelaySeconds: 10
             timeoutSeconds: 10
@@ -247,6 +244,16 @@ spec:
               mountPath: /etc/rabbitmq/rabbitmq.conf
               subPath: rabbitmq.conf
               readOnly: true
+            - name: rabbitmq-etc
+              mountPath: /etc/rabbitmq/rabbitmq-env.conf
+              subPath: rabbitmq-env.conf
+              readOnly: true
+{{- if .Values.manifests.config_ipv6 }}
+            - name: rabbitmq-etc
+              mountPath: /etc/rabbitmq/erl_inetrc
+              subPath: erl_inetrc
+              readOnly: true
+{{- end }}
       volumes:
         - name: pod-tmp
           emptyDir: {}
