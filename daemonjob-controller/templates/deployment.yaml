@@ -24,7 +24,6 @@ metadata:
   name: daemonjob-controller
   annotations:
 {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 4 }}
-    configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
   namespace: {{ .Release.Namespace }}
   labels:
 {{ tuple $envAll "daemonjob-controller" "controller" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
@@ -37,10 +36,13 @@ spec:
     metadata:
       annotations:
 {{ dict "envAll" $envAll "podName" "daemonjob-controller" "containerNames" (list "controller") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
       labels:
 {{ tuple $envAll "daemonjob-controller" "controller" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
     spec:
       serviceAccountName: {{ $serviceAccountName }}
+      nodeSelector:
+        {{ .Values.labels.daemonjob_controller.node_selector_key }}: {{ .Values.labels.daemonjob_controller.node_selector_value | quote }}
       containers:
       - name: controller
 {{ tuple $envAll "python" | include "helm-toolkit.snippets.image" | indent 8 }}

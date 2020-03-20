@@ -56,7 +56,14 @@ apiVersion: ctl.example.com/v1
 kind: DaemonJob
 metadata:
   name: hello-world
+  annotations:
+    imageregistry: "https://hub.docker.com/"
+  labels:
+    app: hello-world
 spec:
+  selector:
+    matchLabels:
+      app: hello-world
   template:
     metadata:
       labels:
@@ -90,6 +97,7 @@ until [[ "$(kubectl get $dj hello-world -o 'jsonpath={.status.conditions[0].stat
   else
     daemonset_pod_status=$(kubectl get pods | awk '/hello-world-dj/{print $3}')
     if [ $daemonset_pod_status == 'Init:0/1' ]; then
+      kubectl describe dj hello-world
       init_container_status=$(kubectl get pod $daemonset_pod -o 'jsonpath={.status.initContainerStatuses[0].state.running}')
       if [ ! -z "$init_container_status" ]; then
         expected_log=$(kubectl logs $daemonset_pod -c hello-world)
