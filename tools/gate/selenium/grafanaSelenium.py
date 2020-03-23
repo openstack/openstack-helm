@@ -55,7 +55,7 @@ except NoSuchElementException:
 
 try:
     st.logger.info('Attempting to visit Nodes dashboard')
-    st.click_link_by_name('Home')
+    st.click_link_by_name('OSH Home')
     st.click_link_by_name('Nodes')
     el = WebDriverWait(st.browser, 15).until(
         EC.presence_of_element_located(
