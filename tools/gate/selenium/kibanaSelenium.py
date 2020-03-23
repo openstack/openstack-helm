@@ -56,8 +56,8 @@ for query, name in queries:
             st.browser.get(query_url)
             WebDriverWait(st.browser, 60).until(
                 EC.presence_of_element_located(
-                    (By.XPATH, '//*[@id="kibana-body"]/div[1]/div/div/div[3]/'
-                    'discover-app/div/div[2]/div[2]/div/div[2]/div[2]/'
+                    (By.XPATH, '/html/body/div[2]/div/div/div/div[3]/'
+                    'discover-app/main/div/div[2]/div/div[2]/section[2]/'
                     'doc-table/div/table/tbody/tr[1]/td[2]')
                 )
             )
