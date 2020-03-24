@@ -20,9 +20,9 @@
           set -e
           NAMESPACES=$(kubectl get namespaces -o json | jq -r '.items[].metadata.name')
           for NS in $NAMESPACES; do
-            SERVICES=$(kubectl get svc -l component=metrics -n $NS -o json | jq -r '.items[].metadata.name')
+            SERVICES=$(kubectl get svc -n $NS -o json | jq -r '.items[] | select(.spec.ports[].name=="metrics") | .metadata.name')
             for SVC in $SERVICES; do
-              PORT=$(kubectl get svc $SVC -n $NS -o json | jq -r '.spec.ports[].port')
+              PORT=$(kubectl get svc $SVC -n $NS -o json | jq -r '.spec.ports[] | select(.name=="metrics") | .port')
               curl "$SVC.$NS:$PORT/metrics" >> "{{ logs_dir }}"/prometheus/$NS-$SVC.txt || true
             done
           done
