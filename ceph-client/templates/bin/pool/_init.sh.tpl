@@ -85,11 +85,9 @@ function create_pool () {
   POOL_APPLICATION=$1
   POOL_NAME=$2
   POOL_REPLICATION=$3
-  TOTAL_DATA_PERCENT=$4
-  POOL_PLACEMENT_GROUPS=$5
-  POOL_CRUSH_RULE=$6
-  POOL_PROTECTION=$7
-  TARGET_SIZE_RATIO=$(python -c "print((float($TOTAL_DATA_PERCENT) / 100.0))")
+  POOL_PLACEMENT_GROUPS=$4
+  POOL_CRUSH_RULE=$5
+  POOL_PROTECTION=$6
   if ! ceph --cluster "${CLUSTER}" osd pool stats "${POOL_NAME}" > /dev/null 2>&1; then
     ceph --cluster "${CLUSTER}" osd pool create "${POOL_NAME}" ${POOL_PLACEMENT_GROUPS}
     while [ $(ceph --cluster "${CLUSTER}" -s | grep creating -c) -gt 0 ]; do echo -n .;sleep 1; done
@@ -111,7 +109,7 @@ function create_pool () {
   ceph --cluster "${CLUSTER}" osd pool set "${POOL_NAME}" crush_rule "${POOL_CRUSH_RULE}"
 # set pg_num to pool
   if [[ -z "$(ceph osd versions | grep ceph\ version | grep -v nautilus)" ]]; then
-    ceph --cluster "${CLUSTER}" osd pool set "${POOL_NAME}" target_size_ratio "${TARGET_SIZE_RATIO}"
+    ceph --cluster "${CLUSTER}" osd pool set "${POOL_NAME}" "pg_num" "${POOL_PLACEMENT_GROUPS}"
   else
     for PG_PARAM in pg_num pgp_num; do
       CURRENT_PG_VALUE=$(ceph --cluster "${CLUSTER}" osd pool get "${POOL_NAME}" "${PG_PARAM}" | awk "/^${PG_PARAM}:/ { print \$NF }")
@@ -157,8 +155,14 @@ function manage_pool () {
   POOL_PROTECTION=$8
   CLUSTER_CAPACITY=$9
   TOTAL_OSDS={{.Values.conf.pool.target.osd}}
-  POOL_PLACEMENT_GROUPS=$(/tmp/pool-calc.py ${POOL_REPLICATION} ${TOTAL_OSDS} ${TOTAL_DATA_PERCENT} ${TARGET_PG_PER_OSD})
-  create_pool "${POOL_APPLICATION}" "${POOL_NAME}" "${POOL_REPLICATION}" "${TOTAL_DATA_PERCENT}" "${POOL_PLACEMENT_GROUPS}" "${POOL_CRUSH_RULE}" "${POOL_PROTECTION}"
+  # This is a workaround for a pg merging bug in ceph. The only reason this works is because the
+  # autoscaler is set to work unconditionally. This needs to change once the autoscaler is optional.
+  if [[ -z "$(ceph osd versions | grep ceph\ version | grep -v nautilus)" ]]; then
+    POOL_PLACEMENT_GROUPS=4
+  else
+    POOL_PLACEMENT_GROUPS=$(/tmp/pool-calc.py ${POOL_REPLICATION} ${TOTAL_OSDS} ${TOTAL_DATA_PERCENT} ${TARGET_PG_PER_OSD})
+  fi
+  create_pool "${POOL_APPLICATION}" "${POOL_NAME}" "${POOL_REPLICATION}" "${POOL_PLACEMENT_GROUPS}" "${POOL_CRUSH_RULE}" "${POOL_PROTECTION}"
   POOL_REPLICAS=$(ceph --cluster "${CLUSTER}" osd pool get "${POOL_NAME}" size | awk '{print $2}')
   POOL_QUOTA=$(python -c "print(int($CLUSTER_CAPACITY * $TOTAL_DATA_PERCENT * $TARGET_QUOTA / $POOL_REPLICAS / 100 / 100))")
   ceph --cluster "${CLUSTER}" osd pool set-quota "${POOL_NAME}" max_bytes $POOL_QUOTA
