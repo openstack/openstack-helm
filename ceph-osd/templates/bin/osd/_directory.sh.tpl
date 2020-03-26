@@ -76,6 +76,9 @@ fi
 mkdir -p /etc/forego/"${CLUSTER}"
 echo "" > /etc/forego/"${CLUSTER}"/Procfile
 
+# NOTE(gagehugo): Writing the OSD_ID to tmp for logging
+echo "${OSD_ID}" > /tmp/osd-id
+
 for OSD_ID in $(ls /var/lib/ceph/osd | sed 's/.*-//'); do
   OSD_PATH="$OSD_PATH_BASE-$OSD_ID/"
   OSD_KEYRING="${OSD_PATH%/}/keyring"
