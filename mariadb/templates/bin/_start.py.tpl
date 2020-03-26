@@ -549,11 +549,14 @@ def update_grastate_on_restart():
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE)
                 out, err = wsrep_recover.communicate()
+                wsrep_rec_pos = '-1'
                 for item in err.split("\n"):
                     logger.info("Recovering wsrep position: {0}".format(item))
                     if "WSREP: Recovered position:" in item:
                         line = item.strip().split()
                         wsrep_rec_pos = line[-1].split(':')[-1]
+                if wsrep_rec_pos == '-1':
+                    logger.info("Setting wsrep position to -1.")
                 return wsrep_rec_pos
 
             set_grastate_val(key='seqno', value=recover_wsrep_position())
