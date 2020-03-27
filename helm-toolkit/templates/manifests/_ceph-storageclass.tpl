@@ -88,7 +88,7 @@ examples:
 {{- $envAll := index . "envAll" -}}
 {{- $monHost := $envAll.Values.conf.ceph.global.mon_host -}}
 {{- if empty $monHost -}}
-{{- $monHost = tuple "ceph_mon" "internal" "mon_msgr2" $envAll | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" -}}
+{{- $monHost = tuple "ceph_mon" "internal" "mon" $envAll | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" -}}
 {{- end -}}
 {{- $storageclassData := index . "storageclass_data" -}}
 ---
