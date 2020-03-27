@@ -616,13 +616,17 @@ def get_active_endpoints(endpoints_name=direct_svc_name,
                       (default direct_svc_name)
     namespace -- namespace to check for endpoints (default pod_namespace)
     """
-    endpoints = k8s_api_instance.read_namespaced_endpoints(
-        name=endpoints_name, namespace=pod_namespace)
+    try:
+        endpoints = k8s_api_instance.read_namespaced_endpoints(
+            name=endpoints_name, namespace=pod_namespace)
+    except kubernetes.client.rest.ApiException as error:
+        logger.error("Failed to get mariadb service with error: {0}".format(error))
+        raise error
     endpoints_dict = endpoints.to_dict()
-    addresses_index = [
-        i for i, s in enumerate(endpoints_dict['subsets']) if 'addresses' in s
-    ][0]
-    active_endpoints = endpoints_dict['subsets'][addresses_index]['addresses']
+    active_endpoints = []
+    if endpoints_dict['subsets']:
+        active_endpoints = [s['addresses'] for s in endpoints_dict['subsets'] if 'addresses' in s
+        ][0]
     return active_endpoints
 
 
@@ -638,8 +642,10 @@ def check_for_active_nodes(endpoints_name=direct_svc_name,
     logger.info("Checking for active nodes")
     active_endpoints = get_active_endpoints()
     if active_endpoints and len(active_endpoints) >= 1:
+        logger.info("Amount of active endpoints:  {0}".format(len(active_endpoints)))
         return True
     else:
+        logger.info("Amount of active endpoints:  0")
         return False
 
 
