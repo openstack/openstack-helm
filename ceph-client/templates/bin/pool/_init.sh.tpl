@@ -77,8 +77,10 @@ function reweight_osds () {
 }
 
 function enable_autoscaling () {
-  ceph mgr module enable pg_autoscaler
-  ceph config set global osd_pool_default_pg_autoscale_mode on
+  if [[ "${ENABLE_AUTOSCALER}" == "true" ]]; then
+    ceph mgr module enable pg_autoscaler
+    ceph config set global osd_pool_default_pg_autoscale_mode on
+  fi
 }
 
 function create_pool () {
@@ -93,7 +95,7 @@ function create_pool () {
     while [ $(ceph --cluster "${CLUSTER}" -s | grep creating -c) -gt 0 ]; do echo -n .;sleep 1; done
     ceph --cluster "${CLUSTER}" osd pool application enable "${POOL_NAME}" "${POOL_APPLICATION}"
   else
-    if [[ -z "$(ceph osd versions | grep ceph\ version | grep -v nautilus)" ]]; then
+    if [[ -z "$(ceph osd versions | grep ceph\ version | grep -v nautilus)" ]] && [[ $"{ENABLE_AUTOSCALER}" == "true" ]] ; then
       ceph --cluster "${CLUSTER}" osd pool set "${POOL_NAME}" pg_autoscale_mode on
     fi
   fi
@@ -155,13 +157,7 @@ function manage_pool () {
   POOL_PROTECTION=$8
   CLUSTER_CAPACITY=$9
   TOTAL_OSDS={{.Values.conf.pool.target.osd}}
-  # This is a workaround for a pg merging bug in ceph. The only reason this works is because the
-  # autoscaler is set to work unconditionally. This needs to change once the autoscaler is optional.
-  if [[ -z "$(ceph osd versions | grep ceph\ version | grep -v nautilus)" ]]; then
-    POOL_PLACEMENT_GROUPS=4
-  else
-    POOL_PLACEMENT_GROUPS=$(/tmp/pool-calc.py ${POOL_REPLICATION} ${TOTAL_OSDS} ${TOTAL_DATA_PERCENT} ${TARGET_PG_PER_OSD})
-  fi
+  POOL_PLACEMENT_GROUPS=$(/tmp/pool-calc.py ${POOL_REPLICATION} ${TOTAL_OSDS} ${TOTAL_DATA_PERCENT} ${TARGET_PG_PER_OSD})
   create_pool "${POOL_APPLICATION}" "${POOL_NAME}" "${POOL_REPLICATION}" "${POOL_PLACEMENT_GROUPS}" "${POOL_CRUSH_RULE}" "${POOL_PROTECTION}"
   POOL_REPLICAS=$(ceph --cluster "${CLUSTER}" osd pool get "${POOL_NAME}" size | awk '{print $2}')
   POOL_QUOTA=$(python -c "print(int($CLUSTER_CAPACITY * $TOTAL_DATA_PERCENT * $TARGET_QUOTA / $POOL_REPLICAS / 100 / 100))")
