@@ -14,7 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-
 {{- define "ceph.osd.daemonset" }}
 {{- $daemonset := index . 0 }}
 {{- $configMapName := index . 1 }}
@@ -236,6 +235,30 @@ spec:
               mountPath: /var/log/ceph
               readOnly: false
       containers:
+        - name: log-runner
+{{ tuple $envAll "ceph_osd" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ dict "envAll" $envAll "application" "osd" "container" "log_runner" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          env:
+            - name: DAEMON_NAME
+              value: "ceph-osd"
+            - name: TRUNCATE_SIZE
+              value: {{ .Values.logging.truncate.size | quote }}
+            - name: TRUNCATE_PERIOD
+              value: {{ .Values.logging.truncate.period | quote }}
+            - name: WAIT_FOR_OSD_ID_TIMEOUT
+              value: {{ .Values.logging.osd_id.timeout | quote }}
+          command:
+            - /tmp/log-tail.sh
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: ceph-osd-bin
+              mountPath: /tmp/log-tail.sh
+              subPath: log-tail.sh
+              readOnly: true
+            - name: pod-var-log
+              mountPath: /var/log/ceph
+              readOnly: false
         - name: ceph-osd-default
 {{ tuple $envAll "ceph_osd" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.osd | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}

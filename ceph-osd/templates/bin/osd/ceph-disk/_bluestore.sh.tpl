@@ -64,6 +64,9 @@ if [ $(stat -c%U ${OSD_PATH}) != ceph ]; then
   chown -R ceph. ${OSD_PATH};
 fi
 
+# NOTE(gagehugo): Writing the OSD_ID to tmp for logging
+echo "${OSD_ID}" > /tmp/osd-id
+
 exec /usr/bin/ceph-osd \
     --cluster ${CLUSTER} \
     ${CEPH_OSD_OPTIONS} \
