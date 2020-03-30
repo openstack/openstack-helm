@@ -158,9 +158,15 @@ function pool_validation() {
     crush_rule=$(echo ${pool_obj} | jq -r .crush_rule)
     name=$(echo ${pool_obj} | jq -r .pool_name)
     pg_autoscale_mode=$(echo ${pool_obj} | jq -r .pg_autoscale_mode)
+    if [[ "${ENABLE_AUTOSCALER}" == "true" ]]; then
+      if [[ "${pg_autoscale_mode}" != "on" ]]; then
+        echo "pg autoscaler not enabled on ${name} pool"
+        exit 1
+      fi
+    fi
     if [[ $(ceph tell mon.* version | egrep -q "nautilus"; echo $?) -eq 0 ]]; then
       if [ "x${size}" != "x${RBD}" ] || [ "x${min_size}" != "x${EXPECTED_POOLMINSIZE}" ] \
-        || [ "${pg_autoscale_mode}" != "on" ] || [ "x${crush_rule}" != "x${expectedCrushRuleId}" ]; then
+        || [ "x${crush_rule}" != "x${expectedCrushRuleId}" ]; then
         echo "Pool ${name} has incorrect parameters!!! Size=${size}, Min_Size=${min_size}, Rule=${crush_rule}, PG_Autoscale_Mode=${pg_autoscale_mode}"
         exit 1
       else
