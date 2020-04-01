@@ -77,16 +77,6 @@ conf:
 
       <source>
         @type tail
-        tag ceph.*
-        path /var/log/ceph/*/*.log
-        read_from_head true
-        <parse>
-          @type none
-        </parse>
-      </source>
-
-      <source>
-        @type tail
         tag libvirt.*
         path /var/log/libvirt/**.log
         read_from_head true
@@ -151,14 +141,6 @@ conf:
         @type kubernetes_metadata
       </filter>
 
-      <filter ceph.**>
-        @type record_transformer
-        <record>
-          hostname "#{ENV['NODE_NAME']}"
-          fluentd_pod "#{ENV['POD_NAME']}"
-        </record>
-      </filter>
-
       <filter libvirt.**>
         @type record_transformer
         <record>
@@ -187,28 +169,6 @@ conf:
         include_tag_key true
         logstash_format true
         logstash_prefix libvirt
-        password "#{ENV['ELASTICSEARCH_PASSWORD']}"
-        port "#{ENV['ELASTICSEARCH_PORT']}"
-        @type elasticsearch
-        user "#{ENV['ELASTICSEARCH_USERNAME']}"
-      </match>
-
-      <match ceph.**>
-        <buffer>
-          chunk_limit_size 512K
-          flush_interval 5s
-          flush_thread_count 8
-          queue_limit_length 32
-          retry_forever false
-          retry_max_interval 30
-        </buffer>
-        host "#{ENV['ELASTICSEARCH_HOST']}"
-        reload_connections false
-        reconnect_on_error true
-        reload_on_failure true
-        include_tag_key true
-        logstash_format true
-        logstash_prefix ceph
         password "#{ENV['ELASTICSEARCH_PASSWORD']}"
         port "#{ENV['ELASTICSEARCH_PORT']}"
         @type elasticsearch
