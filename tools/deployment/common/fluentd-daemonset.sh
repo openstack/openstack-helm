@@ -25,12 +25,6 @@ endpoints:
   fluentd:
     hosts:
       default: fluentd-daemonset
-  prometheus_fluentd_exporter:
-    hosts:
-      default: fluentd-daemonset-exporter
-monitoring:
-  prometheus:
-    enabled: true
 pod:
   env:
     fluentd:
@@ -48,9 +42,20 @@ conf:
   fluentd:
     template: |
       <source>
-        bind 0.0.0.0
-        port 24220
-        @type monitor_agent
+        @type prometheus
+        port 24231
+      </source>
+
+      <source>
+        @type prometheus_monitor
+      </source>
+
+      <source>
+        @type prometheus_output_monitor
+      </source>
+
+      <source>
+        @type prometheus_tail_monitor
       </source>
 
       <source>

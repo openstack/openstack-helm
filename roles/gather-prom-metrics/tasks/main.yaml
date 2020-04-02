@@ -15,7 +15,7 @@
     path: "{{ logs_dir }}/prometheus"
     state: directory
 
-- name: "Get prometheus metrics from exporters in all namespaces"
+- name: "Get metrics from exporter services in all namespaces"
   shell: |-
           set -e
           NAMESPACES=$(kubectl get namespaces -o json | jq -r '.items[].metadata.name')
@@ -23,6 +23,7 @@
             SERVICES=$(kubectl get svc -n $NS -o json | jq -r '.items[] | select(.spec.ports[].name=="metrics") | .metadata.name')
             for SVC in $SERVICES; do
               PORT=$(kubectl get svc $SVC -n $NS -o json | jq -r '.spec.ports[] | select(.name=="metrics") | .port')
+              echo "Scraping $SVC.$NS:$PORT/metrics:"
               curl "$SVC.$NS:$PORT/metrics" >> "{{ logs_dir }}"/prometheus/$NS-$SVC.txt || true
             done
           done
@@ -53,6 +54,22 @@
             else
               echo "$endpoint is a standby ceph-mgr. Trying next endpoint"
             fi
+          done
+  args:
+    executable: /bin/bash
+  ignore_errors: True
+
+- name: "Get metrics from fluentd pods"
+  shell: |-
+          set -e
+          NAMESPACE="osh-infra"
+          APP_LABEL="fluentd"
+          PODS=$(kubectl get pods -n $NAMESPACE -l application=$APP_LABEL -o json | jq -r '.items[].metadata.name')
+          for POD in $PODS; do
+            IP=$(kubectl get pod -n $NAMESPACE $POD -o json | jq -r '.status.podIP')
+            PORT=$(kubectl get pod -n $NAMESPACE $POD -o json |  jq -r '.spec.containers[0].ports[] | select(.name=="metrics") | .containerPort')
+            echo "Scraping $POD at $IP:$PORT/metrics"
+            curl "$IP:$PORT/metrics" >> "{{ logs_dir }}"/prometheus/$POD.txt || true
           done
   args:
     executable: /bin/bash

@@ -18,6 +18,7 @@ limitations under the License.
 {{- $envAll := . }}
 
 {{- $mounts_fluentd := .Values.pod.mounts.fluentd.fluentd }}
+{{- $prometheus_annotations := $envAll.Values.monitoring.prometheus.fluentd }}
 
 {{- $kafkaBroker := tuple "kafka" "internal" . | include "helm-toolkit.endpoints.hostname_fqdn_endpoint_lookup" }}
 {{- $kafkaBrokerPort := tuple "kafka" "internal" "broker" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
@@ -100,6 +101,9 @@ spec:
 {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
+{{- if .Values.monitoring.prometheus.enabled }}
+{{ tuple $prometheus_annotations | include "helm-toolkit.snippets.prometheus_pod_annotations" | indent 8 }}
+{{- end }}
 {{ dict "envAll" $envAll "podName" "fluentd" "containerNames" (list "fluentd" "init") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
     spec:
 {{ dict "envAll" $envAll "application" "fluentd" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}

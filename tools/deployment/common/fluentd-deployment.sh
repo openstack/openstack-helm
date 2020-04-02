@@ -25,9 +25,6 @@ if [ ! -d "/var/log/journal" ]; then
 tee /tmp/fluentd.yaml << EOF
 deployment:
   type: Deployment
-monitoring:
-  prometheus:
-    enabled: true
 pod:
   replicas:
     fluentd: 1
@@ -52,9 +49,6 @@ else
 tee /tmp/fluentd.yaml << EOF
 deployment:
   type: Deployment
-monitoring:
-  prometheus:
-    enabled: true
 pod:
   replicas:
     fluentd: 1
@@ -65,7 +59,6 @@ helm upgrade --install fluentd ./fluentd \
     --values=/tmp/fluentd.yaml \
   ${OSH_INFRA_EXTRA_HELM_ARGS} \
   ${OSH_INFRA_EXTRA_HELM_ARGS_FLUENTD}
-
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh osh-infra
