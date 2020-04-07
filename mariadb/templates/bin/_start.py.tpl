@@ -487,10 +487,15 @@ def get_grastate_val(key):
     key -- the key to extract the value of
     """
     logger.debug("Reading grastate.dat key={0}".format(key))
-    with open("/var/lib/mysql/grastate.dat", "r") as myfile:
-        grastate_raw = [s.strip() for s in myfile.readlines()]
-    return [i for i in grastate_raw
-            if i.startswith("{0}:".format(key))][0].split(':')[1].strip()
+    try:
+        with open("/var/lib/mysql/grastate.dat", "r") as myfile:
+            grastate_raw = [s.strip() for s in myfile.readlines()]
+        return [i for i in grastate_raw
+                if i.startswith("{0}:".format(key))][0].split(':')[1].strip()
+    except IndexError:
+        logger.warn("IndexError: Unable to find %s with ':' in grastate.dat",
+                    key)
+        return []
 
 
 def set_grastate_val(key, value):
