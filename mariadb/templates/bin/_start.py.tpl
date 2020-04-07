@@ -547,7 +547,8 @@ def update_grastate_on_restart():
                         '--wsrep_cluster_address=gcomm://', '--wsrep-recover'
                     ],
                     stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE)
+                    stderr=subprocess.PIPE,
+                    encoding="utf-8")
                 out, err = wsrep_recover.communicate()
                 wsrep_rec_pos = '-1'
                 for item in err.split("\n"):
