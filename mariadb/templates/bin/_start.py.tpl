@@ -495,7 +495,7 @@ def get_grastate_val(key):
     except IndexError:
         logger.warn("IndexError: Unable to find %s with ':' in grastate.dat",
                     key)
-        return []
+        return None
 
 
 def set_grastate_val(key, value):
@@ -530,8 +530,11 @@ def update_grastate_configmap():
     grastate['sample_time'] = "{0}Z".format(datetime.utcnow().isoformat("T"))
     for grastate_key, grastate_value in list(grastate.items()):
         configmap_key = "{0}.{1}".format(grastate_key, local_hostname)
-        if get_configmap_value(
-                type='data', key=configmap_key) != grastate_value:
+        # NOTE(lamt): In the event the grastate_value is none, treat it as the
+        # string "None" for processing.
+        if grastate_value is None:
+            grastate_value = "None"
+        if get_configmap_value(type='data', key=configmap_key) != grastate_value:
             set_configmap_data(key=configmap_key, value=grastate_value)
 
 
