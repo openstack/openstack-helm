@@ -24,6 +24,7 @@ function start () {
   --config-file /tmp/pod-shared/neutron-agent.ini \
 {{- end }}
         --config-file /etc/neutron/plugins/ml2/ml2_conf.ini
+}
 
 function stop () {
   kill -TERM 1
