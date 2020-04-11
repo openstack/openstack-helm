@@ -26,8 +26,6 @@ extensions = [
 
 # openstackdocstheme options
 repository_name = 'openstack/openstack-helm'
-bug_project = '886'
-bug_tag = 'docs'
 use_storyboard = True
 
 # autodoc generation is a bit aggressive and a nuisance when doing heavy
