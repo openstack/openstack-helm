@@ -61,6 +61,7 @@ for db in "${DBNAME[@]}"
 do
   echo $($MYSQL --skip-column-names -e "select concat('show grants for ',user,';') \
         from mysql.db where ucase(db)=ucase('$db');") | \
+        sed -r "s/show grants for ([a-zA-Z0-9_-]*)/show grants for '\1'/" | \
         $MYSQL --silent --skip-column-names 2>grant_err.log > $BACKUPS_DIR/${db}_grant.sql
   if [ "$?" -eq 0 ]
   then
