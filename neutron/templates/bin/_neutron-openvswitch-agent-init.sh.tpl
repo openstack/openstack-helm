@@ -338,6 +338,20 @@ function process_dpdk_bonds {
   done < "/tmp/bonds_array"
 }
 
+function set_dpdk_module_log_level {
+  # loop over all target modules
+  if [ -n "$(get_dpdk_config_value ${DPDK_CONFIG} '.modules')" ]; then
+    echo $DPDK_CONFIG | jq -r -c '.modules[]' > /tmp/modules_array
+    while IFS= read -r module; do
+      local mod_name=$(get_dpdk_config_value ${module} '.name')
+      local mod_level=$(get_dpdk_config_value ${module} '.log_level')
+
+      ovs-appctl -t ${OVS_CTL} vlog/set ${mod_name}:${mod_level}
+      ovs-appctl -t ${OVS_CTL} vlog/list|grep ${mod_name}
+    done < /tmp/modules_array
+  fi
+}
+
 function get_driver_by_address {
   if [[ -e /sys/bus/pci/devices/$1/driver ]]; then
     echo $(ls /sys/bus/pci/devices/$1/driver -al | awk '{n=split($NF,a,"/"); print a[n]}')
@@ -393,6 +407,7 @@ if [[ "${DPDK_ENABLED}" == "true" ]]; then
   init_ovs_dpdk_bridges
   process_dpdk_nics
   process_dpdk_bonds
+  set_dpdk_module_log_level
 fi
 
 # determine local-ip dynamically based on interface provided but only if tunnel_types is not null
@@ -420,10 +435,10 @@ EOF
       if [[ "${bridge_name}" == "${tunnel_interface}" ]]; then
         # Route the tunnel traffic via the physical bridge
         if [[ -n "${LOCAL_IP}" && -n "${PREFIX}" ]]; then
-          if [[ -n $(ovs-appctl ovs/route/show | grep "${LOCAL_IP}") ]]; then
-            ovs-appctl ovs/route/del "${LOCAL_IP}"/"${PREFIX}"
+          if [[ -n $(ovs-appctl -t ${OVS_CTL} ovs/route/show | grep "${LOCAL_IP}") ]]; then
+            ovs-appctl -t ${OVS_CTL} ovs/route/del "${LOCAL_IP}"/"${PREFIX}"
           fi
-          ovs-appctl ovs/route/add "${LOCAL_IP}"/"${PREFIX}" "${tunnel_interface}"
+          ovs-appctl -t ${OVS_CTL} ovs/route/add "${LOCAL_IP}"/"${PREFIX}" "${tunnel_interface}"
 
           if [[ -n "${tunnel_underlay_vlan}" ]]; then
             # If there is not tunnel network gateway, exit
