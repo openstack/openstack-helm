@@ -491,9 +491,9 @@ def get_grastate_val(key):
         return [i for i in grastate_raw
                 if i.startswith("{0}:".format(key))][0].split(':')[1].strip()
     except IndexError:
-        logger.warn("IndexError: Unable to find %s with ':' in grastate.dat",
-                    key)
-        return None
+        logger.error(
+            "IndexError: Unable to find %s with ':' in grastate.dat", key)
+        raise
 
 
 def set_grastate_val(key, value):
@@ -528,10 +528,6 @@ def update_grastate_configmap():
     grastate['sample_time'] = "{0}Z".format(datetime.utcnow().isoformat("T"))
     for grastate_key, grastate_value in list(grastate.items()):
         configmap_key = "{0}.{1}".format(grastate_key, local_hostname)
-        # NOTE(lamt): In the event the grastate_value is none, treat it as the
-        # string "None" for processing.
-        if grastate_value is None:
-            grastate_value = "None"
         if get_configmap_value(type='data', key=configmap_key) != grastate_value:
             set_configmap_data(key=configmap_key, value=grastate_value)
 
@@ -546,7 +542,7 @@ def update_grastate_on_restart():
             )
 
             def recover_wsrep_position():
-                """Extract recoved wsrep position from uncleanly exited node."""
+                """Extract recovered wsrep position from uncleanly exited node."""
                 wsrep_recover = subprocess.Popen(  # nosec
                     [
                         'mysqld', '--bind-address=127.0.0.1',
@@ -556,14 +552,21 @@ def update_grastate_on_restart():
                     stderr=subprocess.PIPE,
                     encoding="utf-8")
                 out, err = wsrep_recover.communicate()
-                wsrep_rec_pos = '-1'
+                wsrep_rec_pos = None
+                # NOTE: communicate() returns a tuple (stdout_data, stderr_data).
+                # The data will be strings if streams were opened in text mode;
+                # otherwise, bytes. If it is bytes, we should decode and get a
+                # str for the err.split() to not error below.
+                if isinstance(err, bytes):
+                    err = err.decode('utf-8')
                 for item in err.split("\n"):
                     logger.info("Recovering wsrep position: {0}".format(item))
                     if "WSREP: Recovered position:" in item:
                         line = item.strip().split()
                         wsrep_rec_pos = line[-1].split(':')[-1]
-                if wsrep_rec_pos == '-1':
-                    logger.info("Setting wsrep position to -1.")
+                if wsrep_rec_pos is None:
+                    logger.error("WSREP_REC_POS position could not be found.")
+                    raise Exception("WSREP_REC_POS position could not be found.")
                 return wsrep_rec_pos
 
             set_grastate_val(key='seqno', value=recover_wsrep_position())
