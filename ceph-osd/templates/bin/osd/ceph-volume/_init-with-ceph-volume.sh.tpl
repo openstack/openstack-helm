@@ -192,7 +192,7 @@ function osd_disk_prepare {
       block_wal_string=$(echo ${BLOCK_WAL} | awk -F "/" '{print $2}{print $3}' | paste -s -d'-')
     fi
     exec {lock_fd}>/var/lib/ceph/tmp/init-osd.lock || exit 1
-    flock -w 60 --verbose "${lock_fd}"
+    flock -w 600 --verbose "${lock_fd}"
     if [[ ${BLOCK_DB} && ${BLOCK_WAL} ]]; then
        if [[ ${block_db_string} == ${block_wal_string} ]]; then
          if [[ $(vgdisplay  | grep "VG Name" | awk '{print $3}' | grep "${block_db_string}") ]]; then
@@ -357,8 +357,8 @@ function osd_disk_prepare {
          lvcreate -L ${BLOCK_DB_SIZE} -n ceph-db-${osd_dev_string} ${VG}
        fi
        BLOCK_DB=${VG}/ceph-db-${osd_dev_string}
-    flock -u "${lock_fd}"
     fi
+    flock -u "${lock_fd}"
     if [ -z ${BLOCK_DB} ] && [ -z ${BLOCK_WAL} ]; then
       if pvdisplay ${OSD_DEVICE} | grep "VG Name" | awk '{print $3}' | grep "ceph"; then
         CEPH_LVM_PREPARE=0
