@@ -11,7 +11,7 @@ if int(os.getenv('K8S_HOST_NETWORK', 0)) > 0:
 else:
     kubectl_command = 'kubectl get pods --namespace=${NAMESPACE} -l component=mon,application=ceph -o template --template="{ {{"{{"}}range  \$i, \$v  := .items{{"}}"}} {{"{{"}} if \$i{{"}}"}} , {{"{{"}} end {{"}}"}} \\"{{"{{"}}\$v.metadata.name{{"}}"}}\\": \\"{{"{{"}}\$v.status.podIP{{"}}"}}\\" {{"{{"}}end{{"}}"}} }"'
 
-monmap_command = "ceph --cluster=${NAMESPACE} mon getmap > /tmp/monmap && monmaptool -f /tmp/monmap --print"
+monmap_command = "ceph --cluster=${CLUSTER} mon getmap > /tmp/monmap && monmaptool -f /tmp/monmap --print"
 
 
 def extract_mons_from_monmap():
