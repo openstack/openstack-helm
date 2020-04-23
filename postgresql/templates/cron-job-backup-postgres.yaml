@@ -29,6 +29,12 @@ metadata:
   labels:
 {{ tuple $envAll "postgresql-backup" "backup" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 spec:
+{{- if .Values.jobs.backup_postgresql.backoffLimit }}
+  backoffLimit: {{ .Values.jobs.backup_postgresql.backoffLimit }}
+{{- end }}
+{{- if .Values.jobs.backup_postgresql.activeDeadlineSeconds }}
+  activeDeadlineSeconds: {{ .Values.jobs.backup_postgresql.activeDeadlineSeconds }}
+{{- end }}
   schedule: {{ .Values.jobs.backup_postgresql.cron | quote }}
   successfulJobsHistoryLimit: {{ .Values.jobs.backup_postgresql.history.success }}
   failedJobsHistoryLimit: {{ .Values.jobs.backup_postgresql.history.failed }}
@@ -79,6 +85,10 @@ spec:
               volumeMounts:
                 - name: pod-tmp
                   mountPath: /tmp
+                - mountPath: /tmp/common_backup_restore.sh
+                  name: postgresql-bin
+                  readOnly: true
+                  subPath: common_backup_restore.sh
                 - mountPath: /tmp/backup_postgresql.sh
                   name: postgresql-bin
                   readOnly: true
@@ -89,6 +99,33 @@ spec:
                   mountPath: /etc/postgresql/admin_user.conf
                   subPath: admin_user.conf
                   readOnly: true
+            - name: postgresql-remote-store
+{{ tuple $envAll "postgresql_remote_store" | include "helm-toolkit.snippets.image" | indent 14 }}
+              command:
+                - /tmp/remote_store_postgresql.sh
+              env:
+{{- with $env := dict "ksUserSecret" $envAll.Values.secrets.identity.postgresql }}
+{{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 16 }}
+{{- end }}
+                - name: POSTGRESQL_BACKUP_BASE_DIR
+                  value: {{ .Values.conf.backup.base_path }}
+                - name: POSTGRESQL_BACKUP_DAYS_TO_KEEP
+                  value: "{{ .Values.conf.backup.days_of_backup_to_keep }}"
+                - name: POSTGRESQL_POD_NAMESPACE
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.namespace
+              volumeMounts:
+                - mountPath: /tmp/common_backup_restore.sh
+                  name: postgresql-bin
+                  readOnly: true
+                  subPath: common_backup_restore.sh
+                - mountPath: /tmp/remote_store_postgresql.sh
+                  name: postgresql-bin
+                  readOnly: true
+                  subPath: remote_store_postgresql.sh
+                - mountPath: {{ .Values.conf.backup.base_path }}
+                  name: postgresql-backup-dir
           restartPolicy: OnFailure
           serviceAccount: {{ $serviceAccountName }}
           serviceAccountName: {{ $serviceAccountName }}

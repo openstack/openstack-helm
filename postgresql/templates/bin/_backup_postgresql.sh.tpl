@@ -17,9 +17,12 @@
 export PGPASSWORD=$(cat /etc/postgresql/admin_user.conf \
                     | grep postgres | awk -F: '{print $5}')
 
+# Note: not using set -e in this script because more elaborate error handling
+# is needed.
 set -x
 
 PG_DUMPALL_OPTIONS=$POSTGRESQL_BACKUP_PG_DUMPALL_OPTIONS
+TMP_DIR=/tmp/pg_backup
 BACKUPS_DIR=${POSTGRESQL_BACKUP_BASE_DIR}/db/${POSTGRESQL_POD_NAMESPACE}/postgres/current
 ARCHIVE_DIR=${POSTGRESQL_BACKUP_BASE_DIR}/db/${POSTGRESQL_POD_NAMESPACE}/postgres/archive
 LOG_FILE=/tmp/dberror.log
@@ -28,64 +31,101 @@ PG_DUMPALL="pg_dumpall \
               -U $POSTGRESQL_BACKUP_USER \
               -h $POSTGRESQL_SERVICE_HOST"
 
-#Get the day delta since the archive file backup
-seconds_difference() {
-  archive_date=$( date --date="$1" +%s )
-  if [ "$?" -ne 0 ]
-  then
-    second_delta=0
-  fi
-  current_date=$( date +%s )
-  second_delta=$(($current_date-$archive_date))
-  if [ "$second_delta" -lt 0 ]
-  then
-    second_delta=0
-  fi
-  echo $second_delta
-}
+source /tmp/common_backup_restore.sh
 
-#Create backups directory if it does not exists.
-mkdir -p $BACKUPS_DIR $ARCHIVE_DIR
+# Create necessary directories if they do not exist.
+mkdir -p $BACKUPS_DIR || log_backup_error_exit "Cannot create directory ${BACKUPS_DIR}!"
+mkdir -p $ARCHIVE_DIR || log_backup_error_exit "Cannot create directory ${ARCHIVE_DIR}!"
+mkdir -p $TMP_DIR || log_backup_error_exit "Cannot create directory ${TMP_DIR}!"
+
+# Remove temporary directory contents.
+rm -rf $BACKUPS_DIR/* || log_backup_error_exit "Cannot clear ${BACKUPS_DIR} directory contents!"
+rm -rf $TMP_DIR/* || log_backup_error_exit "Cannot clear ${TMP_DIR} directory contents!"
+
+NOW=$(date +"%Y-%m-%dT%H:%M:%SZ")
+SQL_FILE=postgres.$POSTGRESQL_POD_NAMESPACE.all
+TARBALL_FILE=${SQL_FILE}.${NOW}.tar.gz
+
+cd $TMP_DIR || log_backup_error_exit "Cannot change to directory $TMP_DIR"
+
+rm -f $LOG_FILE
 
 #Dump all databases
-DATE=$(date +"%Y-%m-%dT%H:%M:%SZ")
-$PG_DUMPALL --file=$BACKUPS_DIR/postgres.all.sql 2>>$LOG_FILE
-if [[ $? -eq 0 && -s "$BACKUPS_DIR/postgres.all.sql" ]]
+$PG_DUMPALL --file=${TMP_DIR}/${SQL_FILE}.sql 2>>$LOG_FILE
+if [[ $? -eq 0 && -s "${TMP_DIR}/${SQL_FILE}.sql" ]]
 then
-  #Archive the current databases files
-  pushd $BACKUPS_DIR 1>/dev/null
-  tar zcvf $ARCHIVE_DIR/postgres.all.${DATE}.tar.gz *
-  ARCHIVE_RET=$?
-  popd 1>/dev/null
-  #Remove the current backup
-  if [ -d $BACKUPS_DIR ]
+  log INFO postgresql_backup "Databases dumped successfully. Creating tarball..."
+
+  #Archive the current database files
+  tar zcvf $ARCHIVE_DIR/$TARBALL_FILE *
+  if [[ $? -ne 0 ]]
   then
-    rm -rf $BACKUPS_DIR/*.sql
+    log_backup_error_exit "Backup tarball could not be created."
+  fi
+
+  log INFO postgresql_backup "Tarball $TARBALL_FILE created successfully."
+
+  # Remove the sql files as they are no longer needed.
+  rm -rf $TMP_DIR/*
+
+  if {{ .Values.conf.backup.remote_backup.enabled }}
+  then
+    # Copy the tarball back to the BACKUPS_DIR so that the other container
+    # can access it for sending it to remote storage.
+    cp $ARCHIVE_DIR/$TARBALL_FILE $BACKUPS_DIR/$TARBALL_FILE
+
+    if [[ $? -ne 0 ]]
+    then
+      log_backup_error_exit "Backup tarball could not be copied to backup directory ${BACKUPS_DIR}."
+    fi
+
+    # Sleep for a few seconds to allow the file system to get caught up...also to
+    # help prevent race condition where the other container grabs the backup_completed
+    # token and the backup file hasn't completed writing to disk.
+    sleep 30
+
+    # Note: this next line is the trigger that tells the other container to
+    # start sending to remote storage. After this backup is sent to remote
+    # storage, the other container will delete the "current" backup.
+    touch $BACKUPS_DIR/backup_completed
+  else
+    # Remote backup is not enabled. This is ok; at least we have a local backup.
+    log INFO postgresql_backup "Skipping remote backup, as it is not enabled."
   fi
 else
-  #TODO: This can be convert into mail alert of alert send to a monitoring system
-  echo "Backup of postgresql failed and need attention."
   cat $LOG_FILE
-  exit 1
+  rm $LOG_FILE
+  log_backup_error_exit "Backup of the postgresql database failed and needs attention."
 fi
 
 #Only delete the old archive after a successful archive
-if [ $ARCHIVE_RET -eq 0 ]
+if [ "$POSTGRESQL_BACKUP_DAYS_TO_KEEP" -gt 0 ]
 then
-  if [ "$POSTGRESQL_BACKUP_DAYS_TO_KEEP" -gt 0 ]
+  log INFO postgresql_backup "Deleting backups older than ${POSTGRESQL_BACKUP_DAYS_TO_KEEP} days"
+  if [ -d $ARCHIVE_DIR ]
   then
-    echo "Deleting backups older than $POSTGRESQL_BACKUP_DAYS_TO_KEEP days"
-    if [ -d $ARCHIVE_DIR ]
-    then
-      for archive_file in $(ls -1 $ARCHIVE_DIR/*.gz)
-      do
-        archive_date=$( echo $archive_file | awk -F/ '{print $NF}' | cut -d'.' -f 3)
-        if [ "$(seconds_difference $archive_date)" -gt "$(($POSTGRESQL_BACKUP_DAYS_TO_KEEP*86400))" ]
-        then
-          rm -rf $archive_file
+    for ARCHIVE_FILE in $(ls -1 $ARCHIVE_DIR/*.gz)
+    do
+      ARCHIVE_DATE=$( echo $ARCHIVE_FILE | awk -F/ '{print $NF}' | cut -d'.' -f 4)
+      if [ "$(seconds_difference $ARCHIVE_DATE)" -gt "$(($POSTGRESQL_BACKUP_DAYS_TO_KEEP*86400))" ]
+      then
+        log INFO postgresql_backup "Deleting file $ARCHIVE_FILE."
+        rm -rf $ARCHIVE_FILE
+        if [[ $? -ne 0 ]]
+        fhen
+          rm -rf $BACKUPS_DIR/*
+          log_backup_error_exit "Cannot remove ${ARCHIVE_FILE}"
         fi
-      done
-    fi
+      else
+        log INFO postgresql_backup "Keeping file ${ARCHIVE_FILE}."
+      fi
+    done
   fi
 fi
 
+# Turn off trace just for a clearer printout of backup status - for manual backups, mainly.
+set +x
+echo "=================================================================="
+echo "Backup successful!"
+echo "Backup archive name: $TARBALL_FILE"
+echo "=================================================================="
