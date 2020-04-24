@@ -6,7 +6,7 @@ Contents:
 .. toctree::
    :maxdepth: 2
 
-   contributing
+   contributor/contributing
    devref/index
    gates
    install/index
