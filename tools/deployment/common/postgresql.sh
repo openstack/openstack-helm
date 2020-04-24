@@ -26,7 +26,7 @@ helm upgrade --install postgresql ./postgresql \
     --set monitoring.prometheus.enabled=true \
     --set storage.pvc.size=1Gi \
     --set storage.pvc.enabled=true \
-    --set pod.replicas.server=3 \
+    --set pod.replicas.server=1 \
     ${OSH_INFRA_EXTRA_HELM_ARGS} \
     ${OSH_INFRA_EXTRA_HELM_ARGS_POSTGRESQL}
 

@@ -40,10 +40,6 @@ pod:
         postgresql:
           readOnlyRootFilesystem: true
           allowPrivilegeEscalation: false
-        patroni_conversion:
-          runAsUser: 999
-          allowPrivilegeEscalation: false
-          readOnlyRootFilesystem: true
     postgresql_backup:
       pod:
         runAsUser: 65534
@@ -73,7 +69,8 @@ pod:
       weight:
         default: 10
   replicas:
-    server: 3
+    # only 1 replica currently supported
+    server: 1
     prometheus_postgresql_exporter: 1
   lifecycle:
     upgrades:
@@ -144,10 +141,10 @@ pod:
           memory: "1024Mi"
           cpu: "2000m"
 
-# using dockerhub patroni: https://hub.docker.com/r/openstackhelm/patroni/tags/
+# using dockerhub postgresql: https://hub.docker.com/r/library/postgres/tags/
 images:
   tags:
-    postgresql: "docker.io/openstackhelm/patroni:latest-ubuntu_xenial"
+    postgresql: "docker.io/postgres:9.6"
     dep_check: quay.io/airshipit/kubernetes-entrypoint:v1.0.0
     image_repo_sync: docker.io/docker:17.07.0
     ks_user: docker.io/openstackhelm/heat:stein-ubuntu_bionic
@@ -257,133 +254,42 @@ network_policy:
 
 conf:
   debug: false
+  pg_hba: |
+    host all all 127.0.0.1/32 trust
+    host all all 0.0.0.0/0 md5
+    local all all trust
+
   postgresql:
-    shared_buffers: 128MB
-    max_connections: 100
-  patroni: |
-    scope: {{ tuple "postgresql" "internal" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
-    kubernetes:
-      labels:
-        application: {{ tuple "postgresql" "internal" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
-        component: server
-      use_endpoints: true
-      ports:
-      - name: {{ tuple "postgresql" "internal" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
-        port: {{ tuple "postgresql" "internal" "postgresql" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-    bootstrap:
-      users:
-        {{ .Values.endpoints.postgresql.auth.admin.username }}:
-          password: {{ .Values.endpoints.postgresql.auth.admin.password }}
-          options:
-          - createrole
-          - createdb
-      dcs:
-        ttl: 30
-        loop_wait: 10
-        retry_timeout: 10
-        maximum_lag_on_failover: 1048576
-        postgresql:
-          data_dir: '{{ .Values.storage.mount.path }}/pgdata'
-          pgpass: '{{ .Values.storage.mount.path }}/pgpass'
-          use_pg_rewind: true
-          parameters:
-            archive_mode: 'off'
-            datestyle: 'iso, mdy'
-            external_pid_file: '/tmp/postgres.pid'
-            hot_standby: 'on'
-            log_checkpoints: 'on'
-            log_connections: 'on'
-            log_disconnections: 'on'
-            log_line_prefix: 'postgresql: %t [%p]: [%l-1] %c %x %d %u %a %h %m '
-            log_lock_waits: 'on'
-            log_temp_files: 0
-            log_timezone: 'UTC'
-            max_connections: {{ .Values.conf.postgresql.max_connections }}
-            max_replication_slots: 10
-            max_wal_senders: 10
-            max_worker_processes: 10
-            ssl: 'on'
-            # These relative paths are relative to data_dir
-            ssl_cert_file: {{ .Values.secrets.pki.server_cert_path }}/server.crt
-            ssl_ca_file: {{ .Values.secrets.pki.server_cert_path }}/ca.crt
-            ssl_key_file: {{ .Values.secrets.pki.server_cert_path }}/server.key
-            ssl_ciphers: 'HIGH:+3DES:!aNULL'
-            tcp_keepalives_idle: 900
-            tcp_keepalives_interval: 100
-            timezone: 'UTC'
-            track_commit_timestamp: 'on'
-            track_functions: all
-            wal_keep_segments: 8
-            wal_level: hot_standby
-            wal_log_hints: 'on'
-      initdb:
-      - auth-host: md5
-      - auth-local: trust
-      - encoding: UTF8
-      - locale: en_US.UTF-8
-      - data-checksums
-      pg_hba:
-      - host all all 127.0.0.1/32 trust
-      - host all all 0.0.0.0/0 md5
-      - hostssl replication {{ .Values.endpoints.postgresql.auth.replica.username }} {{ .Values.secrets.pki.pod_cidr }} cert clientcert=1
-      - hostssl replication {{ .Values.endpoints.postgresql.auth.replica.username }} 127.0.0.1/32 cert clientcert=1
-      - local all all trust
-    postgresql:
-      {{/* Note: the postgres pod mounts a volume at /var/lib/postgresql/data,
-           so let's just avoid it and use /var/lib/postgresql/pgdata instead.
-           Patroni moves this directory to a backup under the parent directory
-           (/var/lib/postgresql) under certain failure recovery scenarios, so
-           /var/lib/postgres itself must be exposed to the pod as a pvc mount.*/}}
-      authentication:
-        superuser:
-          username: {{ .Values.endpoints.postgresql.auth.admin.username }}
-          password: {{ .Values.endpoints.postgresql.auth.admin.password }}
-      data_dir: '{{ .Values.storage.mount.path }}/pgdata'
-      pgpass: '{{ .Values.storage.mount.path }}/pgpass'
-      callbacks:
-        on_role_change: /tmp/set_password.sh
-        on_start: /tmp/set_password.sh
-      use_pg_rewind: true
-      remove_data_directory_on_rewind_failure: true
-      remove_data_directory_on_diverged_timelines: true
-      parameters:
-        archive_mode: 'off'
-        datestyle: 'iso, mdy'
-        external_pid_file: '/tmp/postgres.pid'
-        hot_standby: 'on'
-        log_checkpoints: 'on'
-        log_connections: 'on'
-        log_disconnections: 'on'
-        log_line_prefix: 'postgresql: %t [%p]: [%l-1] %c %x %d %u %a %h %m '
-        log_lock_waits: 'on'
-        log_temp_files: 0
-        log_timezone: 'UTC'
-        max_connections: {{ .Values.conf.postgresql.max_connections }}
-        max_replication_slots: 10
-        max_wal_senders: 10
-        max_worker_processes: 10
-        ssl: 'on'
-        # These relative paths are relative to data_dir
-        ssl_cert_file: {{ .Values.secrets.pki.server_cert_path }}/server.crt
-        ssl_ca_file: {{ .Values.secrets.pki.server_cert_path }}/ca.crt
-        ssl_key_file: {{ .Values.secrets.pki.server_cert_path }}/server.key
-        ssl_ciphers: 'HIGH:+3DES:!aNULL'
-        tcp_keepalives_idle: 900
-        tcp_keepalives_interval: 100
-        timezone: 'UTC'
-        track_commit_timestamp: 'on'
-        track_functions: all
-        wal_keep_segments: 8
-        wal_level: hot_standby
-        wal_log_hints: 'on'
-      pg_hba:
-      - host all all 127.0.0.1/32 trust
-      - host all all 0.0.0.0/0 md5
-      - hostssl replication {{ .Values.endpoints.postgresql.auth.replica.username }} {{ .Values.secrets.pki.pod_cidr }} cert clientcert=1
-      - hostssl replication {{ .Values.endpoints.postgresql.auth.replica.username }} 127.0.0.1/32 cert clientcert=1
-      - local all all trust
-    watchdog:
-      mode: off  # Allowed values: off, automatic, required
+    archive_mode: 'off'
+    cluster_name: 'postgresql'
+    datestyle: 'iso, mdy'
+    external_pid_file: '/tmp/postgres.pid'
+    fsync: 'on'
+    listen_addresses: '0.0.0.0'
+    log_checkpoints: 'on'
+    log_connections: 'on'
+    log_disconnections: 'on'
+    log_line_prefix: 'postgresql: %t [%p]: [%l-1] %c %x %d %u %a %h %m '
+    log_lock_waits: 'on'
+    log_temp_files: '0'
+    log_timezone: 'UTC'
+    max_connections: '1000'
+    max_locks_per_transaction: '64'
+    max_prepared_transactions: '0'
+    max_wal_senders: '16'
+    max_worker_processes: '10'
+    port: '5432'
+    shared_buffers: '2GB'
+    tcp_keepalives_idle: '900'
+    tcp_keepalives_interval: '100'
+    timezone: 'UTC'
+    track_commit_timestamp: 'on'
+    track_functions: 'all'
+    wal_keep_segments: '16'
+    wal_level: 'hot_standby'
+    wal_log_hints: 'on'
+    hba_file: '/tmp/pg_hba.conf'
+    ident_file: '/tmp/pg_ident.conf'
   backup:
     enabled: false
     base_path: /var/backup
@@ -397,16 +303,6 @@ conf:
 
   exporter:
     queries:
-      pg_replication:
-        query: "SELECT EXTRACT(epoch FROM (now() - pg_last_xact_replay_timestamp()))::int AS lag, CASE WHEN pg_is_in_recovery() THEN 1 ELSE 0 END AS is_replica"
-        master: true
-        metrics:
-          - lag:
-              usage: "GAUGE"
-              description: "Replication lag behind master in seconds"
-          - is_replica:
-              usage: "GAUGE"
-              description: "Indicates if this host is a replica"
       pg_postmaster:
         query: "SELECT pg_postmaster_start_time as start_time_seconds from pg_postmaster_start_time()"
         master: true
@@ -416,26 +312,8 @@ conf:
               description: "Time at which postmaster started"
 
 secrets:
-  pki:
-    client_cert_path: /client_certs
-    server_cert_path: /server_certs
-    pod_cidr: 0.0.0.0/0
-    server:
-      hosts:
-        names:
-          # this name should be the service name for postgresql
-          - postgresql.ucp.svc.cluster.local
-      life: 365
-    replication:
-      hosts:
-        names:
-          # this name needs to be the same as endpoints.postgres.auth.replica.username
-          - standby
-      life: 365
   postgresql:
     admin: postgresql-admin
-    replica: postgresql-replication-pki
-    server: postgresql-server-pki
     exporter: postgresql-exporter
     audit: postgresql-audit
     backup_restore: postgresql-backup-restore
@@ -462,8 +340,6 @@ endpoints:
       admin:
         username: postgres
         password: password
-      replica:
-        username: standby
       exporter:
         username: psql_exporter
         password: psql_exp_pass
@@ -548,8 +424,6 @@ manifests:
   network_policy: false
   job_ks_user: false
   secret_admin: true
-  secret_replica: true
-  secret_server: true
   secret_etc: true
   secret_audit: true
   secret_backup_restore: false

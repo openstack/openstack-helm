@@ -17,10 +17,14 @@ limitations under the License.
 
 ---
 apiVersion: v1
-kind: Secret
+kind: ConfigMap
 metadata:
   name: postgresql-etc
-type: Opaque
 data:
-{{- include "helm-toolkit.snippets.values_template_renderer" (dict "envAll" $envAll "template" .Values.conf.patroni "key" "patroni.yaml" "format" "Secret") | indent 2 }}
+  postgresql.conf: |
+{{- range $key, $value := default dict .Values.conf.postgresql }}
+    {{ $key | snakecase }} = '{{ $value }}'
+{{- end }}
+  pg_hba.conf: |
+{{ .Values.conf.pg_hba | indent 4 }}
 {{- end }}

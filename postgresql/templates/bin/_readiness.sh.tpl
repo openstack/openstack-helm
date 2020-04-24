@@ -16,8 +16,4 @@ limitations under the License.
 
 set -ex
 
-if [ -f /tmp/postgres-disable-liveness-probe ]; then
-  exit 0
-else
-  pg_isready -U ${PATRONI_SUPERUSER_USERNAME}
-fi
+pg_isready -U ${POSTGRES_USER}

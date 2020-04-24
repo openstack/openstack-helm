@@ -35,9 +35,6 @@ rules:
       - patch
       - update
       - watch
-      # delete and deletecollection are required only for 'patronictl remove'
-      - delete
-      - deletecollection
   - apiGroups:
       - ""
     resources:
@@ -50,9 +47,6 @@ rules:
       - create
       - list
       - watch
-      # delete and deletecollection are required only for 'patronictl remove'
-      - delete
-      - deletecollection
   - apiGroups:
       - ""
     resources:
@@ -122,7 +116,6 @@ spec:
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
 {{ dict "envAll" $envAll "podName" "postgresql" "containerNames" (list "postgresql" "set-volume-perms" "init") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
         configmap-admin-hash: {{ tuple "secret-admin.yaml" . | include "helm-toolkit.utils.hash" }}
-        configmap-replica-hash: {{ tuple "secret-replica.yaml" . | include "helm-toolkit.utils.hash" }}
         configmap-secrets-etc-hash: {{ tuple "secrets-etc.yaml" . | include "helm-toolkit.utils.hash" }}
     spec:
       serviceAccountName: {{ $serviceAccountName }}
@@ -144,132 +137,13 @@ spec:
               /bin/chown {{ .Values.pod.security_context.server.pod.runAsUser }} {{ .Values.storage.mount.path }};
               /bin/chmod 700 {{ .Values.storage.mount.path }};
               /bin/chmod 700 {{ .Values.storage.mount.path }}/*;
-              /bin/cp {{ .Values.secrets.pki.client_cert_path }}_temp/* {{ .Values.secrets.pki.client_cert_path }}/.;
-              /bin/cp {{ .Values.secrets.pki.server_cert_path }}_temp/* {{ .Values.secrets.pki.server_cert_path }}/.;
-              /bin/chown {{ .Values.pod.security_context.server.pod.runAsUser }} {{ .Values.secrets.pki.client_cert_path }};
-              /bin/chown {{ .Values.pod.security_context.server.pod.runAsUser }} {{ .Values.secrets.pki.client_cert_path }}/*;
-              /bin/chown {{ .Values.pod.security_context.server.pod.runAsUser }} {{ .Values.secrets.pki.server_cert_path }};
-              /bin/chown {{ .Values.pod.security_context.server.pod.runAsUser }} {{ .Values.secrets.pki.server_cert_path }}/*;
-              /bin/chmod 700 {{ .Values.secrets.pki.client_cert_path }};
-              /bin/chmod 600 {{ .Values.secrets.pki.client_cert_path }}/*;
-              /bin/chmod 700 {{ .Values.secrets.pki.server_cert_path }};
-              /bin/chmod 600 {{ .Values.secrets.pki.server_cert_path }}/*;
 {{ dict "envAll" $envAll "application" "server" "container" "set_volume_perms" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
             - name: postgresql-data
               mountPath: {{ .Values.storage.mount.path }}
-            - name: server-certs
-              mountPath: {{ .Values.secrets.pki.server_cert_path }}
-              # server-cert-temp mountpoint is temp storage for secrets. We copy the
-              # secrets to server-certs folder and set owner and permissions.
-              # This is needed because the secrets are always created readonly.
-            - name: server-certs-temp
-              mountPath: {{ .Values.secrets.pki.server_cert_path }}_temp
-            - name: postgresql-pki
-              subPath: crt
-              mountPath: {{ .Values.secrets.pki.server_cert_path }}_temp/server.crt
-            - name: postgresql-pki
-              subPath: key
-              mountPath: {{ .Values.secrets.pki.server_cert_path }}_temp/server.key
-            - name: replication-pki
-              subPath: ca
-              mountPath: {{ .Values.secrets.pki.server_cert_path }}_temp/ca.crt
-            - name: replication-pki
-              subPath: caKey
-              mountPath: {{ .Values.secrets.pki.server_cert_path }}_temp/ca.key
-              # client-certs is the permanent folder for the client secrets
-            - name: client-certs
-              mountPath: {{ .Values.secrets.pki.client_cert_path }}
-              # client-certs-temp is temporary folder for the client secrets, before they a copied to their permanent folder
-            - name: client-certs-temp
-              mountPath: {{ .Values.secrets.pki.client_cert_path }}_temp
-            - name: replication-pki
-              subPath: crt
-              mountPath: {{ .Values.secrets.pki.client_cert_path }}_temp/client.crt
-            - name: replication-pki
-              subPath: key
-              mountPath: {{ .Values.secrets.pki.client_cert_path }}_temp/client.key
-            - name: postgresql-pki
-              subPath: ca
-              mountPath: {{ .Values.secrets.pki.client_cert_path }}_temp/ca.crt
-            - name: postgresql-pki
-              subPath: caKey
-              mountPath: {{ .Values.secrets.pki.client_cert_path }}_temp/ca.key
-        # This is for non-HA -> Patroni conversion and can be removed in the future
-        - name: patroni-conversion
-{{ tuple $envAll "postgresql" | include "helm-toolkit.snippets.image" | indent 10 }}
-{{ tuple $envAll $envAll.Values.pod.resources.server | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-          env:
-            - name: PGDATA
-              value: "{{ .Values.storage.mount.path }}/pgdata"
-            - name: PATRONI_KUBERNETES_POD_IP
-              valueFrom:
-                fieldRef:
-                  fieldPath: status.podIP
-            - name: PATRONI_KUBERNETES_NAMESPACE
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.namespace
-            - name: KUBERNETES_NAMESPACE
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.namespace
-            - name: PATRONI_NAME
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.name
-            - name: POD_NAME
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.name
-            - name: PATRONI_KUBERNETES_POD_IP
-              valueFrom:
-                fieldRef:
-                  fieldPath: status.podIP
-            - name: PATRONI_SUPERUSER_USERNAME
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.secrets.postgresql.admin }}
-                  key: 'POSTGRES_USER'
-            - name: PATRONI_SUPERUSER_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.secrets.postgresql.admin }}
-                  key: 'POSTGRES_PASSWORD'
-            - name: PATRONI_REPLICATION_USERNAME
-              value: {{ index .Values.secrets.pki.replication.hosts.names 0 | quote }}
-            - name: PATRONI_RESTAPI_CONNECT_ADDRESS
-              value: $(PATRONI_KUBERNETES_POD_IP):{{ tuple "postgresql-restapi" "internal" "restapi" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-            - name: PATRONI_RESTAPI_LISTEN
-              value: 0.0.0.0:{{ tuple "postgresql-restapi" "internal" "restapi" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-            - name: PATRONI_POSTGRESQL_CONNECT_ADDRESS
-              value: $(PATRONI_KUBERNETES_POD_IP):{{ tuple "postgresql" "internal" "postgresql" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-            - name: PATRONI_POSTGRESQL_LISTEN
-              value: 0.0.0.0:{{ tuple "postgresql" "internal" "postgresql" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-            - name: PATRONI_admin_PASSWORD
-              value: $(PATRONI_SUPERUSER_PASSWORD)
-            - name: PATRONI_admin_OPTIONS
-              value: 'createrole,createdb'
-          command:
-            - /tmp/patroni_conversion.sh
-{{ dict "envAll" $envAll "application" "server" "container" "patroni_conversion" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
-          volumeMounts:
-            - name: pod-tmp
-              mountPath: /tmp
-            - name: patroni-conversion-tmp
-              mountPath: /var/run/postgresql
-            - name: postgresql-bin
-              mountPath: /tmp/patroni_conversion.sh
-              subPath: patroni_conversion.sh
-              readOnly: true
-            - name: postgresql-data
-              mountPath: {{ .Values.storage.mount.path }}
-            - name: postgresql-etc
-              mountPath: /tmp/patroni-templated.yaml
-              subPath: patroni.yaml
-              readOnly: true
+              subPath: {{ .Values.storage.mount.subpath }}
       containers:
         - name: postgresql
 {{ tuple $envAll "postgresql" | include "helm-toolkit.snippets.image" | indent 10 }}
@@ -283,72 +157,24 @@ spec:
           env:
             - name: PGDATA
               value: "{{ .Values.storage.mount.path }}/pgdata"
-            - name: PATRONI_KUBERNETES_POD_IP
-              valueFrom:
-                fieldRef:
-                  fieldPath: status.podIP
-            - name: PATRONI_KUBERNETES_NAMESPACE
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.namespace
             - name: KUBERNETES_NAMESPACE
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
-            - name: PATRONI_NAME
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.name
             - name: POD_NAME
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
-            - name: PATRONI_KUBERNETES_POD_IP
-              valueFrom:
-                fieldRef:
-                  fieldPath: status.podIP
-            - name: PATRONI_SUPERUSER_USERNAME
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.secrets.postgresql.admin }}
-                  key: 'POSTGRES_USER'
-            - name: PATRONI_SUPERUSER_PASSWORD
+            - name: 'POSTGRES_PASSWORD'
               valueFrom:
                 secretKeyRef:
                   name: {{ .Values.secrets.postgresql.admin }}
                   key: 'POSTGRES_PASSWORD'
-            - name: PATRONI_REPLICATION_USERNAME
-              value: {{ index .Values.secrets.pki.replication.hosts.names 0 | quote }}
-            - name: PATRONI_RESTAPI_CONNECT_ADDRESS
-              value: $(PATRONI_KUBERNETES_POD_IP):{{ tuple "postgresql-restapi" "internal" "restapi" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-            - name: PATRONI_RESTAPI_LISTEN
-              value: 0.0.0.0:{{ tuple "postgresql-restapi" "internal" "restapi" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-            - name: PATRONI_POSTGRESQL_CONNECT_ADDRESS
-              value: $(PATRONI_KUBERNETES_POD_IP):{{ tuple "postgresql" "internal" "postgresql" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-            - name: PATRONI_POSTGRESQL_LISTEN
-              value: 0.0.0.0:{{ tuple "postgresql" "internal" "postgresql" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-            - name: PATRONI_{{ .Values.endpoints.postgresql.auth.admin.username }}_PASSWORD
-              value: $(PATRONI_SUPERUSER_PASSWORD)
-            - name: PATRONI_{{ .Values.endpoints.postgresql.auth.admin.username }}_OPTIONS
-              value: 'createrole,createdb'
-{{- if .Values.manifests.secret_audit }}
-            - name: AUDIT_PASSWORD
+            - name: 'POSTGRES_USER'
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.secrets.postgresql.audit }}
-                  key: AUDIT_PASSWORD
-            # Adding the audit user with no options just adds the user without
-            # any GRANTs. This means the user gets to do only what default
-            # PUBLIC permissions allow, which is only to SELECT from tables.
-            - name: PATRONI_{{ .Values.endpoints.postgresql.auth.audit.username }}_PASSWORD
-              value: $(AUDIT_PASSWORD)
-{{- end }}
-            - name: PGSSLROOTCERT
-              value: {{ .Values.secrets.pki.client_cert_path }}/ca.crt
-            - name: PGSSLCERT
-              value: "/home/postgres/.postgresql/postgresql.crt"
-            - name: PGSSLKEY
-              value: "/home/postgres/.postgresql/postgresql.key"
+                  name: {{ .Values.secrets.postgresql.admin }}
+                  key: 'POSTGRES_USER'
           command:
             - /tmp/start.sh
           livenessProbe:
@@ -371,10 +197,6 @@ spec:
             - name: pg-run
               mountPath: /var/run/postgresql
             - name: postgresql-bin
-              mountPath: /tmp/set_password.sh
-              subPath: set_password.sh
-              readOnly: true
-            - name: postgresql-bin
               mountPath: /tmp/start.sh
               subPath: start.sh
               readOnly: true
@@ -383,25 +205,16 @@ spec:
               subPath: readiness.sh
               readOnly: true
             - name: postgresql-etc
-              mountPath: /tmp/patroni-templated.yaml
-              subPath: patroni.yaml
+              mountPath: /tmp/postgresql.conf
+              subPath: postgresql.conf
+              readOnly: true
+            - name: postgresql-etc
+              mountPath: /tmp/pg_hba.conf
+              subPath: pg_hba.conf
               readOnly: true
             - name: postgresql-data
               mountPath: {{ .Values.storage.mount.path }}
-            - name: server-certs
-              mountPath: {{ .Values.secrets.pki.server_cert_path }}
-            - name: client-certs
-              mountPath: {{ .Values.secrets.pki.client_cert_path }}
-            - name: postgres-home-config
-              mountPath: "/home/postgres/.postgresql"
-            - name: client-certs
-              subPath: "client.crt"
-              mountPath: "/home/postgres/.postgresql/postgresql.crt"
-              readOnly: true
-            - name: client-certs
-              subPath: "client.key"
-              mountPath: "/home/postgres/.postgresql/postgresql.key"
-              readOnly: true
+              subPath: {{ .Values.storage.mount.subpath }}
       volumes:
         - name: pod-tmp
           emptyDir: {}
@@ -410,32 +223,13 @@ spec:
         - name: pg-run
           emptyDir:
             medium: "Memory"
-        # This is for non-HA -> Patroni conversion and can be removed in the future
-        - name: patroni-conversion-tmp
-          emptyDir: {}
         - name: postgresql-bin
           secret:
             secretName: postgresql-bin
             defaultMode: 0555
-        - name: client-certs-temp
-          emptyDir: {}
-        - name: server-certs-temp
-          emptyDir: {}
-        - name: client-certs
-          emptyDir: {}
-        - name: server-certs
-          emptyDir: {}
-        - name: replication-pki
-          secret:
-            secretName: {{ .Values.secrets.postgresql.replica }}
-            defaultMode: 0640
-        - name: postgresql-pki
-          secret:
-            secretName: {{ .Values.secrets.postgresql.server }}
-            defaultMode: 0640
         - name: postgresql-etc
-          secret:
-            secretName: postgresql-etc
+          configMap:
+            name: postgresql-etc
             defaultMode: 0444
 {{- if not .Values.storage.pvc.enabled }}
         - name: postgresql-data
