@@ -251,3 +251,74 @@ function udev_settle {
   done
 }
 
+# Helper function to get an lvm tag from a logical volume
+function get_lvm_tag_from_volume {
+  logical_volume="$1"
+  tag="$2"
+
+  if [[ -z "${logical_volume}" ]]; then
+    # Return an empty string if the logical volume doesn't exist
+    echo
+  else
+    # Get and return the specified tag from the logical volume
+    echo "$(lvs -o lv_tags ${logical_volume} | tr ',' '\n' | grep ${tag} | cut -d'=' -f2)"
+  fi
+}
+
+function get_lvm_tag_from_device {
+  device="$1"
+  tag="$2"
+  # Attempt to get a logical volume for the physical device
+  logical_volume="$(pvdisplay -m ${device} | awk '/Logical volume/{print $3}')"
+
+  # Use get_lvm_tag_from_volume to get the specified tag from the logical volume
+  echo "$(get_lvm_tag_from_volume ${logical_volume} ${tag})"
+}
+
+# Helper function get a cluster FSID from a physical device
+function get_cluster_fsid_from_device {
+  device="$1"
+
+  # Use get_lvm_tag_from_device to get the cluster FSID from the device
+  echo "$(get_lvm_tag_from_device ${device} ceph.cluster_fsid)"
+}
+
+# Helper function to get an OSD ID from a logical volume
+function get_osd_id_from_volume {
+  logical_volume="$1"
+
+  # Use get_lvm_tag_from_volume to get the OSD ID from the logical volume
+  echo "$(get_lvm_tag_from_volume ${logical_volume} ceph.osd_id)"
+}
+
+# Helper function get an OSD ID from a physical device
+function get_osd_id_from_device {
+  device="$1"
+
+  # Use get_lvm_tag_from_device to get the OSD ID from the device
+  echo "$(get_lvm_tag_from_device ${device} ceph.osd_id)"
+}
+
+# Helper function get an OSD FSID from a physical device
+function get_osd_fsid_from_device {
+  device="$1"
+
+  # Use get_lvm_tag_from_device to get the OSD FSID from the device
+  echo "$(get_lvm_tag_from_device ${device} ceph.osd_fsid)"
+}
+
+# Helper function get an OSD DB device from a physical device
+function get_osd_db_device_from_device {
+  device="$1"
+
+  # Use get_lvm_tag_from_device to get the OSD DB device from the device
+  echo "$(get_lvm_tag_from_device ${device} ceph.db_device)"
+}
+
+# Helper function get an OSD WAL device from a physical device
+function get_osd_wal_device_from_device {
+  device="$1"
+
+  # Use get_lvm_tag_from_device to get the OSD WAL device from the device
+  echo "$(get_lvm_tag_from_device ${device} ceph.wal_device)"
+}

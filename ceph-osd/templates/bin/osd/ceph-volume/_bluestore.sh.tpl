@@ -39,7 +39,7 @@ CEPH_OSD_OPTIONS=""
 
 udev_settle
 
-OSD_ID=$(ceph-volume inventory ${OSD_DEVICE} | grep "osd id" | awk '{print $3}')
+OSD_ID=$(get_osd_id_from_device ${OSD_DEVICE})
 simple_activate=0
 if [[ -z ${OSD_ID} ]]; then
   echo "Looks like ceph-disk has been used earlier to activate the OSD."
@@ -49,7 +49,7 @@ if [[ -z ${OSD_ID} ]]; then
   umount ${tmpmnt}
   simple_activate=1
 fi
-OSD_FSID=$(ceph-volume inventory ${OSD_DEVICE} | grep "osd fsid" | awk '{print $3}')
+OSD_FSID=$(get_osd_fsid_from_device ${OSD_DEVICE})
 if [[ -z ${OSD_FSID} ]]; then
   echo "Looks like ceph-disk has been used earlier to activate the OSD."
   tmpmnt=$(mktemp -d)
@@ -73,7 +73,7 @@ else
     --auto-detect-objectstore \
     --no-systemd ${OSD_ID} ${OSD_FSID}
   # Cross check the db and wal symlinks if missed
-  DB_DEV=$(ceph-volume lvm list ${OSD_DEVICE} | grep "db device" | awk '{print $3}')
+  DB_DEV=$(get_osd_db_device_from_device ${OSD_DEVICE})
   if [[ ! -z ${DB_DEV} ]]; then
     if [[ ! -h /var/lib/ceph/osd/ceph-${OSD_ID}/block.db ]]; then
       ln -snf ${DB_DEV} /var/lib/ceph/osd/ceph-${OSD_ID}/block.db
@@ -81,7 +81,7 @@ else
       chown -h ceph:ceph /var/lib/ceph/osd/ceph-${OSD_ID}/block.db
     fi
   fi
-  WAL_DEV=$(ceph-volume lvm list ${OSD_DEVICE} | grep "wal device" | awk '{print $3}')
+  WAL_DEV=$(get_osd_wal_device_from_device ${OSD_DEVICE})
   if [[ ! -z ${WAL_DEV} ]]; then
     if [[ ! -h /var/lib/ceph/osd/ceph-${OSD_ID}/block.wal ]]; then
       ln -snf ${WAL_DEV} /var/lib/ceph/osd/ceph-${OSD_ID}/block.wal
