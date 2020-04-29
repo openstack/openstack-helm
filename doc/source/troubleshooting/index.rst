@@ -2,7 +2,8 @@
 Troubleshooting
 ===============
 
-Sometimes things go wrong. These guides will help you solve many common issues with the following:
+Sometimes things go wrong. These guides will help you solve many common
+issues with the following:
 
 .. toctree::
    :maxdepth: 2
@@ -18,12 +19,12 @@ Getting help
 Channels
 --------
 
-* Join us on `Slack <http://slack.k8s.io/>`_ - #openstack-helm
 * Join us on `IRC <irc://chat.freenode.net:6697/openstack-helm>`_:
   #openstack-helm on freenode
+* Join us on `Slack <http://slack.k8s.io/>`_ - #openstack-helm
 
 Bugs and Feature requests
 -------------------------
 
-When discovering a new bug, please report a bug in `Storyboard
-<https://storyboard.openstack.org/#!/project/886>`_.
+Please, refer to
+`Contribution guidelines <../contributor/contributing.html>`_.
