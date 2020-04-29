@@ -13,6 +13,9 @@
 #    under the License.
 set -xe
 
+ : ${CEPH_ENABLED:=false}
+ : ${RUN_HELM_TESTS:="yes"}
+
 #NOTE: Get the overrides to use for placement, should placement be deployed.
 case "${OPENSTACK_RELEASE}" in
   "newton")
@@ -72,7 +75,7 @@ if [ "x$(systemd-detect-virt)" == "xnone" ]; then
   helm upgrade --install nova ./nova \
       --namespace=openstack \
       --set bootstrap.wait_for_computes.enabled=true \
-      --set conf.ceph.enabled=false \
+      --set conf.ceph.enabled=${CEPH_ENABLED} \
       ${OSH_EXTRA_HELM_ARGS:=} \
       ${OSH_EXTRA_HELM_ARGS_NOVA}
 else
@@ -80,7 +83,7 @@ else
   helm upgrade --install nova ./nova \
       --namespace=openstack \
       --set bootstrap.wait_for_computes.enabled=true \
-      --set conf.ceph.enabled=false \
+      --set conf.ceph.enabled=${CEPH_ENABLED} \
       --set conf.nova.libvirt.virt_type=qemu \
       --set conf.nova.libvirt.cpu_mode=none \
       ${OSH_EXTRA_HELM_ARGS:=} \
@@ -135,6 +138,10 @@ sleep 30 #NOTE(portdirect): Wait for ingress controller to update rules and rest
 openstack compute service list
 openstack network agent list
 openstack hypervisor list
+
+if [ "x${RUN_HELM_TESTS}" == "xno" ]; then
+    exit 0
+fi
 
 # Delete the test pods if they still exist
 kubectl delete pods -l application=nova,release_group=nova,component=test --namespace=openstack --ignore-not-found
