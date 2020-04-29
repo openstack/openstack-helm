@@ -7,6 +7,7 @@ Contents:
    :maxdepth: 2
 
    install/index
+   contributor/contributing
    testing/index
    monitoring/index
    logging/index
