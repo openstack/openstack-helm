@@ -107,4 +107,12 @@ function stop () {
   ovs-appctl -T1 -t /run/openvswitch/ovs-vswitchd.${PID}.ctl exit
 }
 
+function poststart () {
+  # This enables the usage of 'ovs-appctl' from neutron-ovs-agent pod.
+
+  PID=$(cat $OVS_PID)
+  OVS_CTL=/run/openvswitch/ovs-vswitchd.${PID}.ctl
+  chown {{ .Values.pod.user.nova.uid }}.{{ .Values.pod.user.nova.uid }} ${OVS_CTL}
+}
+
 $COMMAND
