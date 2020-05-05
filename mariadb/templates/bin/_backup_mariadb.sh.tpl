@@ -12,104 +12,76 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 set -x
-BACKUPS_DIR=${MARIADB_BACKUP_BASE_DIR}/db/${MARIADB_POD_NAMESPACE}/mariadb/current
-ARCHIVE_DIR=${MARIADB_BACKUP_BASE_DIR}/db/${MARIADB_POD_NAMESPACE}/mariadb/archive
 
-MYSQL="mysql \
-   --defaults-file=/etc/mysql/admin_user.cnf \
-   --connect-timeout 10"
+source /tmp/backup_main.sh
 
-MYSQLDUMP="mysqldump \
-   --defaults-file=/etc/mysql/admin_user.cnf"
+# Export the variables required by the framework
+# Note: REMOTE_BACKUP_ENABLED, STORAGE_POLICY  and CONTAINER_NAME are already
+#       exported.
+export DB_NAMESPACE=${MARIADB_POD_NAMESPACE}
+export DB_NAME="mariadb"
+export LOCAL_DAYS_TO_KEEP=${MARIADB_LOCAL_BACKUP_DAYS_TO_KEEP}
+export REMOTE_DAYS_TO_KEEP=${MARIADB_REMOTE_BACKUP_DAYS_TO_KEEP}
+export ARCHIVE_DIR=${MARIADB_BACKUP_BASE_DIR}/db/${DB_NAMESPACE}/${DB_NAME}/archive
 
-seconds_difference() {
-  archive_date=$( date --date="$1" +%s )
-  if [ "$?" -ne 0 ]
+# Dump all the database files to existing $TMP_DIR and save logs to $LOG_FILE
+dump_databases_to_directory() {
+  TMP_DIR=$1
+  LOG_FILE=$2
+
+  MYSQL="mysql \
+     --defaults-file=/etc/mysql/admin_user.cnf \
+     --connect-timeout 10"
+
+  MYSQLDUMP="mysqldump \
+     --defaults-file=/etc/mysql/admin_user.cnf"
+
+  MYSQL_DBNAMES=( $($MYSQL --silent --skip-column-names -e \
+     "show databases;" | \
+     egrep -vi 'information_schema|performance_schema') )
+
+  #check if there is a database to backup, otherwise exit
+  if [[ -z "${MYSQL_DBNAMES// }" ]]
   then
-    second_delta=0
+    log INFO "There is no database to backup"
+    return 0
   fi
-  current_date=$( date +%s )
-  second_delta=$(($current_date-$archive_date))
-  if [ "$second_delta" -lt 0 ]
+
+  #Create a list of Databases
+  printf "%s\n" "${MYSQL_DBNAMES[@]}" > $TMP_DIR/db.list
+
+  #Retrieve and create the GRANT files per DB
+  for db in "${MYSQL_DBNAMES[@]}"
+  do
+    echo $($MYSQL --skip-column-names -e "select concat('show grants for ',user,';') \
+          from mysql.db where ucase(db)=ucase('$db');") | \
+          sed -r "s/show grants for ([a-zA-Z0-9_-]*)/show grants for '\1'/" | \
+          $MYSQL --silent --skip-column-names 2>>$LOG_FILE > $TMP_DIR/${db}_grant.sql
+    if [ "$?" -eq 0 ]
+    then
+      sed -i 's/$/;/' $TMP_DIR/${db}_grant.sql
+    else
+      log ERROR "Failed to create GRANT files for ${db}"
+    fi
+  done
+
+  #Dumping the database
+  DATE=$(date +'%Y-%m-%dT%H:%M:%SZ')
+
+  SQL_FILE=mariadb.$MARIADB_POD_NAMESPACE.all
+  TARBALL_FILE=${SQL_FILE}.${DATE}.tar.gz
+
+  $MYSQLDUMP $MYSQL_BACKUP_MYSQLDUMP_OPTIONS "${MYSQL_DBNAMES[@]}"  \
+            > $TMP_DIR/${SQL_FILE}.sql 2>>$LOG_FILE
+  if [[ $? -eq 0 && -s $TMP_DIR/${SQL_FILE}.sql ]]
   then
-    second_delta=0
+    log INFO "Databases dumped successfully."
+    return 0
+  else
+    log ERROR "Backup failed and need attention."
+    return 1
   fi
-  echo $second_delta
 }
 
-DBNAME=( $($MYSQL --silent --skip-column-names -e \
-   "show databases;" | \
-   egrep -vi 'information_schema|performance_schema|mysql') )
-
-#check if there is a database to backup, otherwise exit
-if [[ -z "${DBNAME// }" ]]
-then
-  echo "There is no database to backup"
-  exit 0
-fi
-
-#Create archive and backup directories.
-mkdir -p $BACKUPS_DIR $ARCHIVE_DIR
-
-#Create a list of Databases
-printf "%s\n" "${DBNAME[@]}" > $BACKUPS_DIR/db.list
-
-#Retrieve and create the GRANT files per DB
-for db in "${DBNAME[@]}"
-do
-  echo $($MYSQL --skip-column-names -e "select concat('show grants for ',user,';') \
-        from mysql.db where ucase(db)=ucase('$db');") | \
-        sed -r "s/show grants for ([a-zA-Z0-9_-]*)/show grants for '\1'/" | \
-        $MYSQL --silent --skip-column-names 2>grant_err.log > $BACKUPS_DIR/${db}_grant.sql
-  if [ "$?" -eq 0 ]
-  then
-    sed -i 's/$/;/' $BACKUPS_DIR/${db}_grant.sql
-  else
-    cat grant_err.log
-  fi
-done
-
-#Dumping the database
-#DATE=$(date +"%Y_%m_%d_%H_%M_%S")
-DATE=$(date +'%Y-%m-%dT%H:%M:%SZ')
-$MYSQLDUMP $MYSQL_BACKUP_MYSQLDUMP_OPTIONS "${DBNAME[@]}"  \
-          > $BACKUPS_DIR/mariadb.all.sql 2>dberror.log
-if [[ $? -eq 0 && -s $BACKUPS_DIR/mariadb.all.sql ]]
-then
-  #Archive the current db files
-  pushd $BACKUPS_DIR 1>/dev/null
-  tar zcvf $ARCHIVE_DIR/mariadb.all.${DATE}.tar.gz *
-  ARCHIVE_RET=$?
-  popd 1>/dev/null
-else
-  #TODO: This can be convert into mail alert of alert send to a monitoring system
-  echo "Backup failed and need attention."
-  cat dberror.log
-  exit 1
-fi
-
-#Remove the current backup
-if [ -d $BACKUPS_DIR ]
-then
-  rm -rf $BACKUPS_DIR/*.sql
-fi
-
-#Only delete the old archive after a successful archive
-if [ $ARCHIVE_RET -eq 0 ]
-  then
-    if [ "$MARIADB_BACKUP_DAYS_TO_KEEP" -gt 0 ]
-    then
-      echo "Deleting backups older than $MARIADB_BACKUP_DAYS_TO_KEEP days"
-      if [ -d $ARCHIVE_DIR ]
-      then
-        for archive_file in $(ls -1 $ARCHIVE_DIR/*.gz)
-        do
-          archive_date=$( echo $archive_file | awk -F/ '{print $NF}' | cut -d'.' -f 3)
-          if [ "$(seconds_difference $archive_date)" -gt "$(($MARIADB_BACKUP_DAYS_TO_KEEP*86400))" ]
-          then
-            rm -rf $archive_file
-          fi
-        done
-      fi
-    fi
-fi
+# Call main program to start the database backup
+backup_databases
