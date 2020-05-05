@@ -68,11 +68,6 @@ NIC_FIRST_PORT=$(lshw -c network -businfo | awk "/${NIC_BUS%%.*}/ { print \$2; e
 ethtool --set-priv-flags ${NIC_FIRST_PORT} vf-true-promisc-support ${promisc_mode}
 {{- end }}
 
-
-{{- if ( has "besteffort" .Values.conf.sriov_init ) }}
-exit 0
-{{ end }}
-
 {{- if and ( empty .Values.conf.neutron.DEFAULT.host ) ( .Values.pod.use_fqdn.neutron_agent ) }}
 mkdir -p /tmp/pod-shared
 tee > /tmp/pod-shared/neutron-agent.ini << EOF
@@ -80,3 +75,7 @@ tee > /tmp/pod-shared/neutron-agent.ini << EOF
 host = $(hostname --fqdn)
 EOF
 {{- end }}
+
+{{- if ( has "besteffort" .Values.conf.sriov_init ) }}
+exit 0
+{{ end }}
