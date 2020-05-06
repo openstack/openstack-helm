@@ -32,6 +32,7 @@ def is_job_finished(job):
 
 
 def new_daemon(job):
+    pause_image = {{ .Values.images.tags.pause | quote }}
     daemon = copy.deepcopy(job)
     daemon['apiVersion'] = 'apps/v1'
     daemon['kind'] = 'DaemonSet'
@@ -45,7 +46,7 @@ def new_daemon(job):
         job['spec']['template']['spec']['containers'])
     daemon['spec']['template']['spec']['containers'] = [
         {'name': "pause", 'image': job['spec'].get(
-            'pauseImage', 'gcr.io/google_containers/pause'),
+            'pauseImage', pause_image),
          'resources': {'requests': {'cpu': '10m'}}}]
     daemon['spec']['selector'] = {'matchLabels': copy.deepcopy(
         job['spec']['template']['metadata']['labels'])}
