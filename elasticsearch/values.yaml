@@ -58,6 +58,9 @@ labels:
   test:
     node_selector_key: openstack-control-plane
     node_selector_value: enabled
+  gateway:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
 
 dependencies:
   dynamic:
@@ -84,6 +87,10 @@ dependencies:
         - endpoint: discovery
           service: elasticsearch
       jobs: null
+    elasticsearch_gateway:
+      services:
+        - endpoint: discovery
+          service: elasticsearch
     elasticsearch_data:
       services:
         - endpoint: internal
@@ -136,6 +143,18 @@ pod:
     client: null
     data: null
     master: null
+    gateway: null
+    secrets: null
+  mandatory_access_control:
+    type: apparmor
+    elasticsearch-master:
+      elasticsearch-master: runtime/default
+    elasticsearch-data:
+      elasticsearch-data: runtime/default
+    elasticsearch-client:
+      elasticsearch-client: runtime/default
+    elasticsearch-gateway:
+      elasticsearch-gateway: runtime/default
   security_context:
     exporter:
       pod:
@@ -209,6 +228,22 @@ pod:
           # recovery scenarios when the data pods are unexpectedly lost due to
           # node outages and shard/index recovery is required
           readOnlyRootFilesystem: false
+    gateway:
+      pod:
+        runAsUser: 0
+      container:
+        memory_map_increase:
+          privileged: true
+          readOnlyRootFilesystem: true
+        apache_proxy:
+          readOnlyRootFilesystem: false
+        elasticsearch_gateway:
+          privileged: true
+          capabilities:
+            add:
+              - IPC_LOCK
+              - SYS_RESOURCE
+          readOnlyRootFilesystem: false
   affinity:
     anti:
       type:
@@ -221,6 +256,7 @@ pod:
     master: 3
     data: 3
     client: 3
+    gateway: 3
   lifecycle:
     upgrades:
       statefulsets:
@@ -276,6 +312,13 @@ pod:
         memory: "1024Mi"
         cpu: "2000m"
     prometheus_elasticsearch_exporter:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+    gateway:
       requests:
         memory: "128Mi"
         cpu: "100m"
@@ -656,6 +699,8 @@ conf:
         memory_lock: true
       cluster:
         name: elasticsearch
+        remote:
+          connect: ${NODE_GATEWAY}
       discovery:
         # NOTE(srwilkers): This gets configured dynamically via endpoint lookups
         seed_hosts: null
@@ -749,6 +794,7 @@ endpoints:
       data: elasticsearch-data
       default: elasticsearch-logging
       discovery: elasticsearch-discovery
+      gateway: elasticsaerch-gateway
       public: elasticsearch
     host_fqdn_override:
       default: null
@@ -763,6 +809,7 @@ endpoints:
       default: null
     scheme:
       default: http
+      gateway: tcp
     port:
       client:
         default: 9200
@@ -843,6 +890,10 @@ network:
     node_port:
       enabled: false
       port: 30920
+  remote_clustering:
+    enabled: false
+    node_port:
+      port: 30930
 
 storage:
   data:
@@ -889,6 +940,7 @@ manifests:
       network_policy_exporter: false
       service_exporter: true
   network_policy: false
+  secret_ingress_tls: true
   service_data: true
   service_discovery: true
   service_ingress: true

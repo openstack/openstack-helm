@@ -1,6 +1,4 @@
 {{/*
-Copyright 2017 The Openstack-Helm Authors.
-
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -14,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if .Values.manifests.deployment_client }}
+{{- if .Values.network.remote_clustering.enabled }}
 {{- $envAll := . }}
 
 {{- $esUserSecret := .Values.secrets.elasticsearch.user }}
@@ -22,92 +20,56 @@ limitations under the License.
 
 {{- $mounts_elasticsearch := .Values.pod.mounts.elasticsearch.elasticsearch }}
 
-{{- $serviceAccountName := printf "%s-%s" .Release.Name "elasticsearch-client" }}
-{{ tuple $envAll "elasticsearch_client" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{- $serviceAccountName := printf "%s-%s" .Release.Name "elasticsearch-remote-gateway" }}
+{{ tuple $envAll "elasticsearch_gateway" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: elasticsearch-client
+  name: elasticsearch-gateway
   annotations:
     {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
   labels:
-{{ tuple $envAll "elasticsearch" "client" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+{{ tuple $envAll "elasticsearch" "gateway" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 spec:
-  replicas: {{ .Values.pod.replicas.client }}
+{{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_deployment" | indent 2 }}
+  replicas: {{ .Values.pod.replicas.gateway }}
   selector:
     matchLabels:
-{{ tuple $envAll "elasticsearch" "client" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
+{{ tuple $envAll "elasticsearch" "gateway" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
 {{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_deployment" | indent 2 }}
   template:
     metadata:
       labels:
-{{ tuple $envAll "elasticsearch" "client" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+{{ tuple $envAll "elasticsearch" "gateway" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
       annotations:
 {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
         configmap-bin-hash: {{ tuple "configmap-bin-elasticsearch.yaml" . | include "helm-toolkit.utils.hash" }}
         configmap-etc-hash: {{ tuple "configmap-etc-elasticsearch.yaml" . | include "helm-toolkit.utils.hash" }}
-{{ dict "envAll" $envAll "podName" "elasticsearch-client" "containerNames" (list "elasticsearch-client") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
+{{ dict "envAll" $envAll "podName" "elasticsearch-gateway" "containerNames" (list "elasticsearch-remote-gateway") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
     spec:
-{{ dict "envAll" $envAll "application" "client" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
+{{ dict "envAll" $envAll "application" "gateway" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
       serviceAccountName: {{ $serviceAccountName }}
       affinity:
-{{ tuple $envAll "elasticsearch" "client" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
+{{ tuple $envAll "elasticsearch" "gateway" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
       nodeSelector:
-        {{ .Values.labels.client.node_selector_key }}: {{ .Values.labels.client.node_selector_value | quote }}
+        {{ .Values.labels.gateway.node_selector_key }}: {{ .Values.labels.gateway.node_selector_value | quote }}
       terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.client.timeout | default "600" }}
       initContainers:
-{{ tuple $envAll "elasticsearch_client" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container"  | indent 8 }}
+{{ tuple $envAll "elasticsearch" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container"  | indent 8 }}
         - name: memory-map-increase
 {{ tuple $envAll "memory_init" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.client | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-{{ dict "envAll" $envAll "application" "client" "container" "memory_map_increase" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+{{ dict "envAll" $envAll "application" "gateway" "container" "memory_map_increase" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
           - sysctl
           - -w
           - vm.max_map_count={{ .Values.conf.init.max_map_count }}
       containers:
-        - name: apache-proxy
-{{ tuple $envAll "apache_proxy" | include "helm-toolkit.snippets.image" | indent 10 }}
-{{ tuple $envAll $envAll.Values.pod.resources.apache_proxy | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-{{ dict "envAll" $envAll "application" "client" "container" "apache_proxy" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
-          command:
-            - /tmp/apache.sh
-            - start
-          ports:
-            - name: http
-              containerPort: {{ tuple "elasticsearch" "internal" "http" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-          readinessProbe:
-            tcpSocket:
-              port: {{ tuple "elasticsearch" "internal" "http" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-            initialDelaySeconds: 20
-            periodSeconds: 10
-          env:
-            - name: ELASTICSEARCH_USERNAME
-              valueFrom:
-                secretKeyRef:
-                  name: {{ $esUserSecret }}
-                  key: ELASTICSEARCH_USERNAME
-            - name: ELASTICSEARCH_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: {{ $esUserSecret }}
-                  key: ELASTICSEARCH_PASSWORD
-          volumeMounts:
-            - name: pod-tmp
-              mountPath: /tmp
-            - name: elasticsearch-bin
-              mountPath: /tmp/apache.sh
-              subPath: apache.sh
-              readOnly: true
-            - name: elasticsearch-etc
-              mountPath: /usr/local/apache2/conf/httpd.conf
-              subPath: httpd.conf
-              readOnly: true
-        - name: elasticsearch-client
+        - name: elasticsearch-gateway
 {{ tuple $envAll "elasticsearch" | include "helm-toolkit.snippets.image" | indent 10 }}
-{{ tuple $envAll $envAll.Values.pod.resources.client | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-{{ dict "envAll" $envAll "application" "client" "container" "elasticsearch_client" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.gateway | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "gateway" "container" "elasticsearch_gateway" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
             - /tmp/elasticsearch.sh
             - start
@@ -118,8 +80,6 @@ spec:
                   - /tmp/elasticsearch.sh
                   - stop
           ports:
-            - name: http
-              containerPort: {{ tuple "elasticsearch" "internal" "http" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
             - name: transport
               containerPort: {{ tuple "elasticsearch" "internal" "discovery" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
           livenessProbe:
@@ -128,9 +88,10 @@ spec:
             initialDelaySeconds: 20
             periodSeconds: 10
           readinessProbe:
-            httpGet:
-              path: /_cluster/health
-              port: {{ tuple "elasticsearch" "internal" "client" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+            tcpSocket:
+              port: {{ tuple "elasticsearch" "internal" "discovery" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+            initialDelaySeconds: 20
+            periodSeconds: 10
           env:
             - name: NAMESPACE
               valueFrom:
@@ -147,9 +108,9 @@ spec:
             - name: NODE_DATA
               value: "false"
             - name: NODE_GATEWAY
-              value: "false"
-            - name: HTTP_ENABLE
               value: "true"
+            - name: HTTP_ENABLE
+              value: "false"
             - name: DISCOVERY_SERVICE
               value: {{ tuple "elasticsearch" "discovery" $envAll | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
             - name: ES_JAVA_OPTS
@@ -164,8 +125,8 @@ spec:
                 secretKeyRef:
                   name: {{ $s3UserSecret }}
                   key: S3_SECRET_KEY
-{{- if .Values.pod.env.client }}
-{{ include "helm-toolkit.utils.to_k8s_env_vars" .Values.pod.env.client | indent 12 }}
+{{- if .Values.pod.env.gateway }}
+{{ include "helm-toolkit.utils.to_k8s_env_vars" .Values.pod.env.gateway | indent 12 }}
 {{- end }}
           volumeMounts:
             - name: pod-tmp
