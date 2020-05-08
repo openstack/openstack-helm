@@ -48,6 +48,7 @@ spec:
 {{ tuple $envAll "postgresql-backup" "backup" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 12 }}
         spec:
           securityContext:
+            runAsUser: 65534
             fsGroup: 999
           serviceAccountName: {{ $serviceAccountName }}
           restartPolicy: OnFailure
@@ -55,17 +56,17 @@ spec:
             {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
           containers:
             - name: postgresql-backup
-{{ tuple $envAll "postgresql" | include "helm-toolkit.snippets.image" | indent 14 }}
+{{ tuple $envAll "postgresql_backup" | include "helm-toolkit.snippets.image" | indent 14 }}
 {{ tuple $envAll $envAll.Values.pod.resources.jobs.postgresql_backup | include "helm-toolkit.snippets.kubernetes_resources" | indent 14 }}
               command:
                 - /tmp/backup_postgresql.sh
               env:
-                - name: POSTGRESQL_BACKUP_PASSWORD
+                - name: POSTGRESQL_ADMIN_PASSWORD
                   valueFrom:
                     secretKeyRef:
                       key: POSTGRES_PASSWORD
                       name: postgresql-admin
-                - name: POSTGRESQL_BACKUP_USER
+                - name: POSTGRESQL_ADMIN_USER
                   valueFrom:
                     secretKeyRef:
                       key: POSTGRES_USER
@@ -74,56 +75,42 @@ spec:
                   value: {{ .Values.conf.backup.base_path }}
                 - name: POSTGRESQL_BACKUP_PG_DUMPALL_OPTIONS
                   value: {{ .Values.conf.backup.pg_dumpall_options }}
-                - name: POSTGRESQL_BACKUP_DAYS_TO_KEEP
-                  value: "{{ .Values.conf.backup.days_of_backup_to_keep }}"
+                - name: POSTGRESQL_LOCAL_BACKUP_DAYS_TO_KEEP
+                  value: "{{ .Values.conf.backup.days_to_keep }}"
                 - name: POSTGRESQL_POD_NAMESPACE
                   valueFrom:
                     fieldRef:
                       fieldPath: metadata.namespace
+                - name: REMOTE_BACKUP_ENABLED
+                  value: "{{ .Values.conf.backup.remote_backup.enabled }}"
+{{- if .Values.conf.backup.remote_backup.enabled }}
+                - name: POSTGRESQL_REMOTE_BACKUP_DAYS_TO_KEEP
+                  value: "{{ .Values.conf.backup.remote_backup.days_to_keep }}"
+                - name: CONTAINER_NAME
+                  value: "{{ .Values.conf.backup.remote_backup.container_name }}"
+                - name: STORAGE_POLICY
+                  value: "{{ .Values.conf.backup.remote_backup.storage_policy }}"
+{{- with $env := dict "ksUserSecret" $envAll.Values.secrets.identity.postgresql }}
+{{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 16 }}
+{{- end }}
+{{- end }}
               volumeMounts:
                 - name: pod-tmp
                   mountPath: /tmp
-                - mountPath: /tmp/common_backup_restore.sh
-                  name: postgresql-bin
-                  readOnly: true
-                  subPath: common_backup_restore.sh
                 - mountPath: /tmp/backup_postgresql.sh
                   name: postgresql-bin
                   readOnly: true
                   subPath: backup_postgresql.sh
+                - mountPath: /tmp/backup_main.sh
+                  name: postgresql-bin
+                  readOnly: true
+                  subPath: backup_main.sh
                 - mountPath: {{ .Values.conf.backup.base_path }}
                   name: postgresql-backup-dir
                 - name: postgresql-secrets
                   mountPath: /etc/postgresql/admin_user.conf
                   subPath: admin_user.conf
                   readOnly: true
-            - name: postgresql-remote-store
-{{ tuple $envAll "postgresql_remote_store" | include "helm-toolkit.snippets.image" | indent 14 }}
-              command:
-                - /tmp/remote_store_postgresql.sh
-              env:
-{{- with $env := dict "ksUserSecret" $envAll.Values.secrets.identity.postgresql }}
-{{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 16 }}
-{{- end }}
-                - name: POSTGRESQL_BACKUP_BASE_DIR
-                  value: {{ .Values.conf.backup.base_path }}
-                - name: POSTGRESQL_BACKUP_DAYS_TO_KEEP
-                  value: "{{ .Values.conf.backup.days_of_backup_to_keep }}"
-                - name: POSTGRESQL_POD_NAMESPACE
-                  valueFrom:
-                    fieldRef:
-                      fieldPath: metadata.namespace
-              volumeMounts:
-                - mountPath: /tmp/common_backup_restore.sh
-                  name: postgresql-bin
-                  readOnly: true
-                  subPath: common_backup_restore.sh
-                - mountPath: /tmp/remote_store_postgresql.sh
-                  name: postgresql-bin
-                  readOnly: true
-                  subPath: remote_store_postgresql.sh
-                - mountPath: {{ .Values.conf.backup.base_path }}
-                  name: postgresql-backup-dir
           restartPolicy: OnFailure
           serviceAccount: {{ $serviceAccountName }}
           serviceAccountName: {{ $serviceAccountName }}
