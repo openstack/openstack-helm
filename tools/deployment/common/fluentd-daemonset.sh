@@ -40,10 +40,11 @@ deployment:
   type: DaemonSet
 conf:
   fluentd:
+    # This field is now rendered as a helm template!
     template: |
       <source>
         @type prometheus
-        port 24231
+        port {{ tuple "fluentd" "internal" "metrics" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
       </source>
 
       <source>
