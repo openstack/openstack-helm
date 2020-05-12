@@ -2,8 +2,17 @@
 Kubernetes and Common Setup
 ===========================
 
+Install Basic Utilities
+^^^^^^^^^^^^^^^^^^^^^^^
+
+To get started with OSH, we will need both ``git`` and ``curl``.
+
+.. code-block:: shell
+
+  sudo apt install git curl
+
 Clone the OpenStack-Helm Repos
-------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Once the host has been configured the repos containing the OpenStack-Helm charts
 should be cloned:
@@ -16,15 +25,49 @@ should be cloned:
     git clone https://opendev.org/openstack/openstack-helm-infra.git
     git clone https://opendev.org/openstack/openstack-helm.git
 
+OSH Proxy & DNS Configuration
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. warning::
-  This installation, by default will use Google DNS servers, 8.8.8.8 or 8.8.4.4
-  and updates ``resolv.conf``. These DNS nameserver entries can be changed by
-  updating file ``openstack-helm-infra/tools/images/kubeadm-aio/assets/opt/playbooks/vars.yaml``
-  under section ``external_dns_nameservers``.
+.. note::
+
+  If you are not deploying OSH behind a proxy, skip this step and
+  continue with "Deploy Kubernetes & Helm".
+
+In order to deploy OSH behind a proxy, add the following entries to
+``openstack-helm-infra/tools/gate/devel/local-vars.yaml``:
+
+.. code-block:: shell
+
+  proxy:
+    http: http://PROXY_URL:PORT
+    https: https://PROXY_URL:PORT
+    noproxy: 127.0.0.1,localhost,172.17.0.1,.svc.cluster.local
+
+.. note::
+  Depending on your specific proxy, https_proxy may be the same as http_proxy.
+  Refer to your specific proxy documentation.
+
+By default OSH will use Google DNS Server IPs (8.8.8.8, 8.8.4.4) and will
+update resolv.conf as a result. If those IPs are blocked by your proxy, running
+the OSH scripts will result in the inability to connect to anything on the
+network. These DNS nameserver entries can be changed by updating the
+external_dns_nameservers entry in the file
+``openstack-helm-infra/tools/images/kubeadm-aio/assets/opt/playbooks/vars.yaml``.
+
+.. code-block:: shell
+
+  external_dns_nameservers:
+    - YOUR_PROXY_DNS_IP
+    - ALT_PROXY_DNS_IP
+
+These values can be retrieved by running:
+
+.. code-block:: shell
+
+  systemd-resolve --status
 
 Deploy Kubernetes & Helm
-------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^
 
 You may now deploy kubernetes, and helm onto your machine, first move into the
 ``openstack-helm`` directory and then run the following:
@@ -75,7 +118,6 @@ Alternatively, this step can be performed by running the script directly:
 
   ./tools/deployment/developer/common/020-setup-client.sh
 
-
 Deploy the ingress controller
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -88,3 +130,6 @@ Alternatively, this step can be performed by running the script directly:
 .. code-block:: shell
 
   ./tools/deployment/component/common/ingress.sh
+
+To continue to deploy OpenStack on Kubernetes via OSH, see
+:doc:`Deploy NFS<./deploy-with-nfs>` or :doc:`Deploy Ceph<./deploy-with-ceph>`.
