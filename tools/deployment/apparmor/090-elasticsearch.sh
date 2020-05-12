@@ -19,23 +19,31 @@ make elasticsearch
 
 #NOTE: Deploy command
 tee /tmp/elasticsearch.yaml << EOF
-jobs:
-  verify_repositories:
-    cron: "*/3 * * * *"
+dependencies:
+  static:
+    tests:
+      jobs: null
+storage:
+  data:
+    enabled: false
+  master:
+    enabled: false
 pod:
+  mandatory_access_control:
+    type: apparmor
+    elasticsearch-master:
+      elasticsearch-master: runtime/default
+    elasticsearch-data:
+      elasticsearch-data: runtime/default
+    elasticsearch-client:
+      elasticsearch-client: runtime/default
   replicas:
-    data: 2
+    client: 1
+    data: 1
     master: 2
 conf:
-  elasticsearch:
-    env:
-      java_opts:
-        client: "-Xms512m -Xmx512m"
-        data: "-Xms512m -Xmx512m"
-        master: "-Xms512m -Xmx512m"
-    snapshots:
-      enabled: true
   curator:
+    schedule:  "0 */6 * * *"
     action_file:
       actions:
         1:
@@ -57,9 +65,6 @@ conf:
             timestring: '%Y.%m.%d'
             unit: days
             unit_count: 365
-monitoring:
-  prometheus:
-    enabled: true
 
 EOF
 helm upgrade --install elasticsearch ./elasticsearch \
@@ -72,5 +77,4 @@ helm upgrade --install elasticsearch ./elasticsearch \
 #NOTE: Validate Deployment info
 helm status elasticsearch
 
-#NOTE: Run helm tests
 helm test elasticsearch
