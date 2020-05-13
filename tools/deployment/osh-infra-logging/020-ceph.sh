@@ -159,16 +159,22 @@ conf:
   storage:
     osd:
       - data:
-          type: directory
-          location: /var/lib/openstack-helm/ceph/osd/osd-one
-        journal:
-          type: directory
-          location: /var/lib/openstack-helm/ceph/osd/journal-one
+          type: bluestore
+          location: /dev/loop0
+        block_db:
+          location: /dev/loop1
+          size: "5GB"
+        block_wal:
+          location: /dev/loop1
+          size: "2GB"
+
 pod:
   replicas:
     mds: 1
     mgr: 1
     rgw: 1
+deploy:
+  tool: "ceph-volume"
 jobs:
   ceph_defragosds:
     # Execute every 15 minutes for gates

@@ -93,11 +93,14 @@ conf:
   storage:
     osd:
       - data:
-          type: directory
-          location: /var/lib/openstack-helm/ceph/osd/osd-one
-        journal:
-          type: directory
-          location: /var/lib/openstack-helm/ceph/osd/journal-one
+          type: bluestore
+          location: /dev/loop0
+        block_db:
+          location: /dev/loop1
+          size: "5GB"
+        block_wal:
+          location: /dev/loop1
+          size: "2GB"
 storageclass:
   rbd:
     ceph_configmap_name: ceph-etc
@@ -111,6 +114,8 @@ monitoring:
     enabled: true
     ceph_mgr:
       port: 9283
+deploy:
+  tool: "ceph-volume"
 EOF
 
 for CHART in ceph-mon ceph-osd ceph-client ceph-provisioners; do
