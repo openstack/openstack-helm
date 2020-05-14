@@ -33,6 +33,10 @@ function start () {
     htpasswd -cb /usr/local/apache2/conf/.htpasswd "$ELASTICSEARCH_USERNAME" "$ELASTICSEARCH_PASSWORD"
   fi
 
+  if [ ! -z $ELASTICSEARCH_LOGGING_USERNAME ]; then
+    htpasswd -b /usr/local/apache2/conf/.htpasswd "$ELASTICSEARCH_LOGGING_USERNAME" "$ELASTICSEARCH_LOGGING_PASSWORD"
+  fi
+
   #Launch Apache on Foreground
   exec httpd -DFOREGROUND
 }
