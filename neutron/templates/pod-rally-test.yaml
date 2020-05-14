@@ -31,6 +31,7 @@ metadata:
 {{ tuple $envAll "neutron" "test" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
   annotations:
     "helm.sh/hook": test-success
+{{ dict "envAll" $envAll "podName" "neutron-test" "containerNames" (list "init" "neutron-test" "neutron-test-ks-user") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 4 }}
 spec:
   nodeSelector:
     {{ .Values.labels.test.node_selector_key }}: {{ .Values.labels.test.node_selector_value }}
@@ -38,7 +39,7 @@ spec:
   serviceAccountName: {{ $serviceAccountName }}
   initContainers:
 {{ tuple $envAll "tests" $mounts_tests_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 4 }}
-    - name: {{ .Release.Name }}-test-ks-user
+    - name: neutron-test-ks-user
 {{ tuple $envAll "ks_user" | include "helm-toolkit.snippets.image" | indent 6 }}
 {{ tuple $envAll $envAll.Values.pod.resources.jobs.ks_user | include "helm-toolkit.snippets.kubernetes_resources" | indent 6 }}
       command:
@@ -96,7 +97,7 @@ spec:
           mountPath: /tmp/pod-tmp
 {{ end }}
   containers:
-    - name: {{ .Release.Name }}-test
+    - name: neutron-test
 {{ tuple $envAll "test" | include "helm-toolkit.snippets.image" | indent 6 }}
 {{ tuple $envAll $envAll.Values.pod.resources.jobs.tests | include "helm-toolkit.snippets.kubernetes_resources" | indent 6 }}
       env:
