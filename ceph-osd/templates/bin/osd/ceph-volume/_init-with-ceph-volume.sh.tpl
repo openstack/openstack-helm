@@ -384,6 +384,11 @@ function osd_disk_prepare {
     CLI_OPTS="${CLI_OPTS} --data ${OSD_DEVICE} --journal ${OSD_JOURNAL}"
     udev_settle
   fi
+
+  if [ ! -z "$DEVICE_CLASS" ]; then
+    CLI_OPTS="${CLI_OPTS} --crush-device-class ${DEVICE_CLASS}"
+  fi
+
   if [[ ${CEPH_DISK_USED} -eq 1 ]]; then
     CLI_OPTS="${CLI_OPTS} --data ${OSD_DEVICE}"
     ceph-volume simple scan --force ${OSD_DEVICE}$(sgdisk --print ${OSD_DEVICE} | grep "F800" | awk '{print $1}')

@@ -177,6 +177,12 @@ function osd_disk_prepare {
 
   udev_settle
   ceph-disk -v prepare ${CLI_OPTS}
+
+  if [ ! -z "$DEVICE_CLASS" ]; then
+    local osd_id=$(cat "/var/lib/ceph/osd/*/whoami")
+    ceph osd crush rm-device-class osd."${osd_id}"
+    ceph osd crush set-device-class "${DEVICE_CLASS}" osd."${osd_id}"
+  fi
 }
 
 function osd_journal_create {
