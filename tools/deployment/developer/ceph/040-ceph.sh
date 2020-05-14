@@ -14,6 +14,18 @@
 
 set -xe
 
+# Create loop back devices for ceph osds.
+sudo df -lh
+sudo lsblk
+sudo mkdir -p /var/lib/openstack-helm/ceph
+sudo truncate -s 10G /var/lib/openstack-helm/ceph/ceph-osd-data-loopbackfile.img
+sudo truncate -s 8G /var/lib/openstack-helm/ceph/ceph-osd-db-wal-loopbackfile.img
+sudo losetup /dev/loop0 /var/lib/openstack-helm/ceph/ceph-osd-data-loopbackfile.img
+sudo losetup /dev/loop1 /var/lib/openstack-helm/ceph/ceph-osd-db-wal-loopbackfile.img
+# lets check the devices
+sudo df -lh
+sudo lsblk
+
 #NOTE: Lint and package chart
 export HELM_CHART_ROOT_PATH="${HELM_CHART_ROOT_PATH:="${OSH_INFRA_PATH:="../openstack-helm-infra"}"}"
 for CHART in ceph-mon ceph-osd ceph-client ceph-provisioners; do
@@ -143,13 +155,16 @@ conf:
         replication: 1
         percent_total_data: 34.8
   storage:
-    osd:
+   osd:
       - data:
-          type: directory
-          location: /var/lib/openstack-helm/ceph/osd/osd-one
-        journal:
-          type: directory
-          location: /var/lib/openstack-helm/ceph/osd/journal-one
+          type: bluestore
+          location: /dev/loop0
+        block_db:
+          location: /dev/loop1
+          size: "5GB"
+        block_wal:
+          location: /dev/loop1
+          size: "2GB"
 
 pod:
   replicas:

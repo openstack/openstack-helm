@@ -54,6 +54,11 @@ containers before removing the directories used on the host by pods.
   sudo rm -rf /var/lib/nova/*
   sudo rm -rf /var/lib/libvirt/*
   sudo rm -rf /etc/libvirt/qemu/*
+  #NOTE(chinasubbareddy) cleanup LVM volume groups in case of disk backed ceph osd deployments
+  for VG in `vgs|grep -v VG|grep -i ceph|awk '{print $1}'`; do
+    echo $VG
+    vgremove -y $VG
+  done
 
   # NOTE(portdirect): Clean up mounts left behind by kubernetes pods
   sudo findmnt --raw | awk '/^\/var\/lib\/kubelet\/pods/ { print $1 }' | xargs -r -L1 -P16 sudo umount -f -l

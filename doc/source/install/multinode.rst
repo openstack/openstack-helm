@@ -104,11 +104,20 @@ Alternatively, this step can be performed by running the script directly:
 
   OSH_DEPLOY_MULTINODE=True ./tools/deployment/component/common/ingress.sh
 
+Create loopback devices for CEPH
+--------------------------------
+
+Create two loopback devices for ceph as one disk for OSD data and other disk for
+block DB and block WAL.
+
+.. code-block:: shell
+
+  ansible all -i /opt/openstack-helm-infra/tools/gate/devel/multinode-inventory.yaml -m shell -s -a "/opt/openstack-helm/tools/deployment/common/setup-ceph-loopback-device.sh"
 
 Deploy Ceph
 -----------
 
-The script below configures Ceph to use filesystem directory-based storage.
+The script below configures Ceph to use loopback devices created in previous step as backend for ceph osds.
 To configure a custom block device-based backend, please refer
 to the ``ceph-osd`` `values.yaml <https://github.com/openstack/openstack-helm/blob/master/ceph-osd/values.yaml>`_.
 
