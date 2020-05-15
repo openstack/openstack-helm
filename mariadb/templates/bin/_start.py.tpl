@@ -264,7 +264,11 @@ def mysqld_bootstrap():
         ], logger)
         if not mysql_dbaudit_username:
             template = (
-                "DELETE FROM mysql.user ;\n"  # nosec
+                # NOTE: since mariadb 10.4.13 definer of view
+                # mysql.user is not root but mariadb.sys user
+                # it is safe not to remove it because the account by default
+                # is locked and cannot login
+                "DELETE FROM mysql.user WHERE user != 'mariadb.sys' ;\n"  # nosec
                 "CREATE OR REPLACE USER '{0}'@'%' IDENTIFIED BY \'{1}\' ;\n"
                 "GRANT ALL ON *.* TO '{0}'@'%' WITH GRANT OPTION ;\n"
                 "DROP DATABASE IF EXISTS test ;\n"
@@ -275,7 +279,7 @@ def mysqld_bootstrap():
                                     mysql_dbsst_username, mysql_dbsst_password))
         else:
             template = (
-                "DELETE FROM mysql.user ;\n"  # nosec
+                "DELETE FROM mysql.user WHERE user != 'mariadb.sys' ;\n"  # nosec
                 "CREATE OR REPLACE USER '{0}'@'%' IDENTIFIED BY \'{1}\' ;\n"
                 "GRANT ALL ON *.* TO '{0}'@'%' WITH GRANT OPTION ;\n"
                 "DROP DATABASE IF EXISTS test ;\n"
