@@ -21,3 +21,14 @@
       failed_when: _found_whitespaces.stdout != ""
       args:
         chdir: "{{ ansible_user_dir }}/src/{{ zuul.project.canonical_name }}"
+
+    - name: Check if yamllint.conf exists
+      stat:
+        path: "{{ ansible_user_dir }}/src/{{ zuul.project.canonical_name }}/yamllint.conf"
+      register: yamllintconf
+
+    - name: Execute yamllint check for values* yaml files
+      command: tox -e lint
+      args:
+        chdir: "{{ ansible_user_dir }}/src/{{ zuul.project.canonical_name }}"
+      when: yamllintconf.stat.exists == True
