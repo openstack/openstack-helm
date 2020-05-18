@@ -19,6 +19,8 @@ set -xe
 #NOTE: Lint and package chart
 make ingress
 
+export HELM_CHART_ROOT_PATH="${HELM_CHART_ROOT_PATH:="${OSH_INFRA_PATH:="../openstack-helm-infra"}"}"
+
 : ${OSH_INFRA_EXTRA_HELM_ARGS_KUBE_SYSTEM:="$(./tools/deployment/common/get-values-overrides.sh ingress)"}
 : ${OSH_INFRA_EXTRA_HELM_ARGS_OPENSTACK:="$(./tools/deployment/common/get-values-overrides.sh ingress)"}
 : ${OSH_INFRA_EXTRA_HELM_ARGS_CEPH:="$(./tools/deployment/common/get-values-overrides.sh ingress)"}
@@ -34,7 +36,7 @@ deployment:
 network:
   host_namespace: true
 EOF
-helm upgrade --install ingress-kube-system ./ingress \
+helm upgrade --install ingress-kube-system ${HELM_CHART_ROOT_PATH}/ingress \
   --namespace=kube-system \
   --values=/tmp/ingress-kube-system.yaml \
   ${OSH_INFRA_EXTRA_HELM_ARGS} \
@@ -47,7 +49,7 @@ helm upgrade --install ingress-kube-system ./ingress \
 helm status ingress-kube-system
 
 #NOTE: Deploy namespace ingress
-helm upgrade --install ingress-osh-infra ./ingress \
+helm upgrade --install ingress-osh-infra ${HELM_CHART_ROOT_PATH}/ingress \
   --namespace=osh-infra \
   ${OSH_INFRA_EXTRA_HELM_ARGS} \
   ${OSH_INFRA_EXTRA_HELM_ARGS_INGRESS_OPENSTACK}
@@ -58,7 +60,7 @@ helm upgrade --install ingress-osh-infra ./ingress \
 #NOTE: Display info
 helm status ingress-osh-infra
 
-helm upgrade --install ingress-ceph ./ingress \
+helm upgrade --install ingress-ceph ${HELM_CHART_ROOT_PATH}/ingress \
   --namespace=ceph \
   ${OSH_INFRA_EXTRA_HELM_ARGS} \
   ${OSH_INFRA_EXTRA_HELM_ARGS_INGRESS_CEPH}
