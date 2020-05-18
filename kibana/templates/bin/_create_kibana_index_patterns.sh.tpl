@@ -14,13 +14,14 @@ limitations under the License.
 */}}
 set -ex
 
-{{- range .Values.conf.create_kibana_indexes.indexes }}
+{{- range $objectType, $indices := .Values.conf.create_kibana_indexes.indexes }}
+{{- range $indices }}
 curl -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
   -XPOST "${KIBANA_ENDPOINT}/api/saved_objects/index-pattern/{{ . }}*" -H 'kbn-xsrf: true' \
   -H 'Content-Type: application/json' -d \
   '{"attributes":{"title":"{{ . }}-*","timeFieldName":"@timestamp"}}'
-
-{{ end }}
+{{- end }}
+{{- end }}
 
 curl -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
   -XPOST "${KIBANA_ENDPOINT}/api/kibana/settings/defaultIndex" -H 'kbn-xsrf: true' \
