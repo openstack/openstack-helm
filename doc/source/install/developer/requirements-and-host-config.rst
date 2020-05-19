@@ -6,16 +6,12 @@ Overview
 ========
 
 Below are some instructions and suggestions to help you get started with a
-Kubeadm All-in-One environment on Ubuntu 16.04.
+Kubeadm All-in-One environment on Ubuntu 18.04.
 Other supported versions of Linux can also be used, with the appropriate changes
 to package installation.
 
 Requirements
 ============
-
-.. warning:: Until the Ubuntu kernel shipped with 16.04 supports CephFS
-   subvolume mounts by default the `HWE Kernel
-   <../../troubleshooting/ubuntu-hwe-kernel.html>`__ is required to use CephFS.
 
 System Requirements
 -------------------
@@ -57,3 +53,48 @@ matches:
 .. code-block:: ini
 
   hosts:          files dns
+
+Host Proxy & DNS Configuration
+------------------------------
+
+.. note::
+
+  If you are not deploying OSH behind a proxy, skip this step.
+
+Set your local environment variables to use the proxy information. This
+involves adding or setting the following values in ``/etc/environment``:
+
+.. code-block:: shell
+
+  export http_proxy="YOUR_PROXY_ADDRESS:PORT"
+  export https_proxy="YOUR_PROXY_ADDRESS:PORT"
+  export ftp_proxy="YOUR_PROXY_ADDRESS:PORT"
+  export no_proxy="localhost,127.0.0.1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,172.17.0.1,.svc.cluster.local,$YOUR_ACTUAL_IP"
+  export HTTP_PROXY="YOUR_PROXY_ADDRESS:PORT"
+  export HTTPS_PROXY="YOUR_PROXY_ADDRESS:PORT"
+  export FTP_PROXY="YOUR_PROXY_ADDRESS:PORT"
+  export NO_PROXY="localhost,127.0.0.1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,172.17.0.1,.svc.cluster.local,$YOUR_ACTUAL_IP"
+
+
+.. note::
+  Depending on your specific proxy, https_proxy may be the same as http_proxy.
+  Refer to your specific proxy documentation.
+
+Your changes to `/etc/environment` will not be applied until you source them:
+
+.. code-block:: shell
+
+  source /etc/environment
+
+OSH runs updates for local apt packages, so we will need to set the proxy for
+apt as well by adding these lines to `/etc/apt/apt.conf`:
+
+.. code-block:: shell
+
+  Acquire::http::proxy "YOUR_PROXY_ADDRESS:PORT";
+  Acquire::https::proxy "YOUR_PROXY_ADDRESS:PORT";
+  Acquire::ftp::proxy "YOUR_PROXY_ADDRESS:PORT";
+
+.. note::
+  Depending on your specific proxy, https_proxy may be the same as http_proxy.
+  Refer to your specific proxy documentation.
