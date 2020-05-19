@@ -53,14 +53,38 @@ spec:
 {{ tuple $envAll $envAll.Values.pod.resources.exporter | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
 {{ dict "envAll" $envAll "application" "exporter" "container" "elasticsearch_exporter" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
-            - /tmp/elasticsearch-exporter.sh
-            - start
-          lifecycle:
-            preStop:
-              exec:
-                command:
-                  - /tmp/elasticsearch-exporter.sh
-                  - stop
+            - "elasticsearch_exporter"
+            - '--es.uri=$(ELASTICSEARCH_URI)'
+            - '--web.telemetry-path={{ .Values.endpoints.prometheus_elasticsearch_exporter.path.default }}'
+            - '--web.listen-address=:{{ .Values.endpoints.prometheus_elasticsearch_exporter.port.metrics.default }}'
+            - '--es.timeout={{ .Values.conf.prometheus_elasticsearch_exporter.es.timeout }}'
+            {{- if .Values.conf.prometheus_elasticsearch_exporter.es.all }}
+            - '--es.all'
+            {{- end }}
+            {{- if .Values.conf.prometheus_elasticsearch_exporter.es.indices }}
+            - '--es.indices'
+            {{- end }}
+            {{- if .Values.conf.prometheus_elasticsearch_exporter.es.indices_settings }}
+            - '--es.indices_settings'
+            {{- end }}
+            {{- if .Values.conf.prometheus_elasticsearch_exporter.es.shards }}
+            - '--es.shards'
+            {{- end }}
+            {{- if .Values.conf.prometheus_elasticsearch_exporter.es.snapshots }}
+            - '--es.snapshots'
+            {{- end }}
+            {{- if .Values.conf.prometheus_elasticsearch_exporter.es.ssl_skip_verify }}
+            - '--es.ssl-skip-verify'
+            {{- end }}
+            {{- if .Values.conf.prometheus_elasticsearch_exporter.es.ca }}
+            - '--es.ca={{ .Values.conf.prometheus_elasticsearch_exporter.es.ca }}'
+            {{- end }}
+            {{- if .Values.conf.prometheus_elasticsearch_exporter.es.client_private_key }}
+            - '--es.client-private-key={{ .Values.conf.prometheus_elasticsearch_exporter.es.client_private_key }}'
+            {{- end }}
+            {{- if .Values.conf.prometheus_elasticsearch_exporter.es.client_cert }}
+            - '--es.client-cert={{ .Values.conf.prometheus_elasticsearch_exporter.es.client_cert }}'
+            {{- end }}
           env:
             - name: ELASTICSEARCH_URI
               valueFrom:
@@ -78,15 +102,7 @@ spec:
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
-            - name: elasticsearch-exporter-bin
-              mountPath: /tmp/elasticsearch-exporter.sh
-              subPath: elasticsearch-exporter.sh
-              readOnly: true
       volumes:
         - name: pod-tmp
           emptyDir: {}
-        - name: elasticsearch-exporter-bin
-          configMap:
-            name: elasticsearch-exporter-bin
-            defaultMode: 0555
 {{- end }}
