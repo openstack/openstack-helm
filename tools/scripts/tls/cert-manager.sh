@@ -86,7 +86,7 @@ data:
   tls.crt: $crt
   tls.key: $key
 ---
-apiVersion: cert-manager.io/v1alpha2
+apiVersion: cert-manager.io/v1alpha3
 kind: Issuer
 metadata:
   name: ca-issuer
