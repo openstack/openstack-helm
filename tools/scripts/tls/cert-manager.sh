@@ -2,6 +2,8 @@
 
 set -eux
 
+: ${CERT_MANAGER_VERSION:="v0.15.0"}
+
 cert_path="/etc/openstack-helm"
 ca_cert_root="$cert_path/certs/ca"
 
@@ -66,10 +68,19 @@ helm repo add jetstack https://charts.jetstack.io
 helm repo update
 
 # helm 2 command
-helm install --name cert-manager --namespace cert-manager --version v0.15.0 jetstack/cert-manager --set installCRDs=true
+helm install --name cert-manager --namespace cert-manager \
+  --version ${CERT_MANAGER_VERSION} jetstack/cert-manager \
+  --set installCRDs=true \
+  --set featureGates=ExperimentalCertificateControllers=true \
+  --set extraArgs[0]="--enable-certificate-owner-ref=true"
 
 # helm 3 command
-# helm install cert-manager jetstack/cert-manager --namespace cert-manager --version v0.15.0 --set installCRDs=true
+# helm install cert-manager jetstack/cert-manager --namespace cert-manager \
+#   --version ${CERT_MANAGER_VERSION} \
+#   --set installCRDs=true \
+#.  --set featureGates=ExperimentalCertificateControllers=true \
+#   --set extraArgs[0]="--enable-certificate-owner-ref=true"
+
 helm repo remove jetstack
 
 key=$(cat /etc/openstack-helm/certs/ca/ca-key.pem | base64 | tr -d "\n")
