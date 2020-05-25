@@ -89,8 +89,8 @@ else
   fi
 fi
 
-# NOTE(stevetaylor): Set the OSD's crush weight (use noin flag to prevent rebalancing if necessary)
-OSD_WEIGHT=$(get_osd_crush_weight_from_device ${OSD_DEVICE})
+# NOTE(supamatt): set the initial crush weight of the OSD to 0 to prevent automatic rebalancing
+OSD_WEIGHT=0
 # NOTE(supamatt): add or move the OSD's CRUSH location
 crush_location
 
