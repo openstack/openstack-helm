@@ -213,8 +213,8 @@ function zap_extra_partitions {
 function disk_zap {
   # Run all the commands that ceph-disk zap uses to clear a disk
   local device=${1}
-  local device_filter=$(echo $device | cut -d'/' -f3)
-  local dm_devices=$(lsblk -o name,type -l | grep "lvm" | grep "$device_filter" | awk '/ceph/{print $1}' | tr '\n' ' ')
+  local device_filter=$(basename "${device}")
+  local dm_devices=$(get_lvm_path_from_device "pv_name=~${device_filter},lv_name=~ceph")
   for dm_device in ${dm_devices}; do
     if [[ ! -z ${dm_device} ]]; then
       dmsetup remove ${dm_device}
@@ -382,6 +382,13 @@ function get_osd_wal_device_from_device {
 
   # Use get_lvm_tag_from_device to get the OSD WAL device from the device
   get_lvm_tag_from_device ${device} ceph.wal_device
+}
+
+function get_lvm_path_from_device {
+  select="$1"
+
+  options="--noheadings -o lv_dm_path"
+  pvs ${options} -S "${select}" | tr -d ' '
 }
 
 function set_device_class {
