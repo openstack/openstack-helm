@@ -57,3 +57,6 @@ export OS_CLOUD=openstack_helm
 openstack service list
 sleep 30 #NOTE(portdirect): Wait for ingress controller to update rules and restart Nginx
 openstack volume type list
+
+kubectl delete pods -l application=cinder,release_group=cinder,component=test --namespace=openstack --ignore-not-found
+helm test cinder --timeout 900
