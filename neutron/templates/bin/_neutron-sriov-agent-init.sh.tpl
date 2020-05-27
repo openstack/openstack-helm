@@ -17,8 +17,10 @@ limitations under the License.
 #NOTE: Please limit "besteffort" to dev env with mixed hardware computes only
 #      For prod env, the target nic should be there, if not, script should error out.
 set -ex
+BESTEFFORT=false
 {{- if ( has "besteffort" .Values.conf.sriov_init ) }}
 set +e
+BESTEFFORT=true
 {{- end }}
 
 {{- range $k, $sriov := .Values.network.interface.sriov }}
@@ -46,6 +48,31 @@ fi
 echo "{{ $qos.share }}" > /sys/class/net/{{ $sriov.device }}/device/sriov/{{ $qos.vf_num }}/qos/share
 {{- end}}
 echo "1" > /sys/class/net/{{ $sriov.device }}/device/sriov/qos/apply
+{{- end }}
+
+# Set number of queues is best effort in case where VF is already binded,
+# NIC will not allow to set, in such case, a node reboot will allow all
+# VF to set properly.
+{{- if hasKey $sriov "queues_per_vf" }}
+set +e
+{{- range $v, $qvf := $sriov.queues_per_vf }}
+SMOKE=','
+MIRROR=' '
+SKIPLIST={{ $qvf.exclude_vf }}
+SKIPLIST=${SKIPLIST//$SMOKE/$MIRROR}
+
+NUMVF={{ $sriov.num_vfs }}
+for vf in `seq 0 $[$NUMVF - 1]`
+do
+  if ! ( echo ${SKIPLIST[@]} | grep -q -w "$vf" ); then
+    echo "{{ $qvf.num_queues }}" > /sys/class/net/{{ $sriov.device }}/device/sriov/$vf/num_queues
+  fi
+done
+
+{{- end }}
+if ! $BESTEFFORT; then
+  set -e
+fi
 {{- end }}
 
 {{- if $sriov.mtu }}
@@ -76,6 +103,6 @@ host = $(hostname --fqdn)
 EOF
 {{- end }}
 
-{{- if ( has "besteffort" .Values.conf.sriov_init ) }}
-exit 0
-{{ end }}
+if $BESTEFFORT; then
+  exit 0
+fi
