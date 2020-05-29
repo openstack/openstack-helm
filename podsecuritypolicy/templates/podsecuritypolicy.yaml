@@ -1,4 +1,4 @@
-{{/*
+{{- /*
 Copyright 2018, AT&T Intellectual Property
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,8 +17,9 @@ limitations under the License.
 {{- if .Values.manifests.podsecuritypolicy }}
 {{- $envAll := . }}
 
-{{/* Create one ClusterRole and PSP per PSP definition in values */}}
+{{- /* Create one ClusterRole and PSP per PSP definition in values */}}
 {{- range $pspName, $pspDetails := .Values.data }}
+{{- if and $pspName $pspDetails }}
 ---
 apiVersion: policy/v1beta1
 kind: PodSecurityPolicy
@@ -46,19 +47,21 @@ rules:
   resourceNames:
   - {{ $pspName }}
 {{- end }}
+{{- end }}
 
-{{/* Configure ClusterRoles to bind to different subjects as defaults */}}
+{{- /* Configure ClusterRoles to bind to different subjects as defaults */}}
+{{- if .Values.conf.defaults }}
 {{- range $rbacSubject, $defaultRole := .Values.conf.defaults }}
-{{ if and $defaultRole (not (eq "nil" $defaultRole)) }}
+{{- if and $defaultRole (not (eq "nil" $defaultRole)) }}
 ---
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-{{/* NOTE: the role name is included in the name of the binding below
+{{- /* NOTE: the role name is included in the name of the binding below
      for the sake of chart upgrades.  The roleRef for a binding is immutable,
      so if the the defaultRole changes, we need a different binding to
      reflect that. This issue was only sporadic! */}}
-  name: psp-binding-for-{{- $rbacSubject -}}-{{- $defaultRole }}
+  name: psp-binding-for-{{- $rbacSubject | replace ":" "-" -}}-{{- $defaultRole }}
   labels:
 {{ tuple $envAll "podsecuritypolicy" "policy" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 roleRef:
@@ -69,6 +72,35 @@ subjects:
 - kind: Group
   name: system:{{- $rbacSubject }}
   apiGroup: rbac.authorization.k8s.io
+{{- end }}
+{{- end }}
+{{- end }}
+{{- /* Configure ClusterRoles to bind to non-default subjects */}}
+{{- if .Values.conf.serviceaccounts }}
+{{- range $rbacSubject, $rbacRole := .Values.conf.serviceaccounts }}
+{{- if and $rbacSubject (not (eq "nil" $rbacRole)) }}
+{{- $subjectName := ( $rbacSubject | split ":" )._1 | default "default" }}
+{{- $subjectNamespace := ($rbacSubject | split ":" )._0 }}
+---
+apiVersion: "rbac.authorization.k8s.io/v1"
+kind: "ClusterRoleBinding"
+metadata:
+{{- /* NOTE: the role name is included in the name of the binding below
+     for the sake of chart upgrades.  The roleRef for a binding is immutable,
+     so if the the defaultRole changes, we need a different binding to
+     reflect that. This issue was only sporadic! */}}
+  name: psp-binding-for-{{- $subjectNamespace -}}-{{- $subjectName -}}-{{- $rbacRole }}
+  labels:
+{{ tuple $envAll "podsecuritypolicy" "policy" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+roleRef:
+  kind: "ClusterRole"
+  name: {{ $rbacRole | quote }}
+  apiGroup: "rbac.authorization.k8s.io"
+subjects:
+- kind: "ServiceAccount"
+  name: {{ $subjectName | quote }}
+  namespace: {{ $subjectNamespace| quote }}
+{{- end }}
 {{- end }}
 {{- end }}
 {{- end }}
