@@ -12,6 +12,23 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{/*
+(aostapenko) rounds cpu limit in any permissible format to integer value (min 1)
+"100m"   -> 1
+"1100m"  -> 1
+"10900m" -> 10
+0.3      -> 1
+5.4      -> 5
+*/}}
+{{- define "get_erlvm_scheduler_num" -}}
+{{- $val := . | toString -}}
+{{- if regexMatch "^[0-9]*m$" $val -}}
+{{- $val = div (float64 (trimSuffix "m" $val)) 1000 -}}
+{{- end -}}
+{{/* NOTE(aostapenko) String with floating number does not convert well to int*/}}
+{{- $val | float64 | int | default 1 -}}
+{{- end -}}
+
 {{- if .Values.manifests.statefulset }}
 {{- $envAll := . }}
 
@@ -190,6 +207,9 @@ spec:
               value: "{{ tuple "oslo_messaging" "internal" "amqp" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}"
             - name: PORT_CLUSTERING
               value: "{{ add (tuple "oslo_messaging" "internal" "amqp" . | include "helm-toolkit.endpoints.endpoint_port_lookup") 20000 }}"
+            - name: RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS
+              {{- $erlvm_scheduler_num := include "get_erlvm_scheduler_num" .Values.pod.resources.server.limits.cpu }}
+              value: {{ printf "+S %s:%s" $erlvm_scheduler_num $erlvm_scheduler_num | quote }}
           readinessProbe:
             initialDelaySeconds: 10
             timeoutSeconds: 10
