@@ -25,8 +25,9 @@ extensions = [
 ]
 
 # openstackdocstheme options
-repository_name = 'openstack/openstack-helm'
-use_storyboard = True
+openstackdocs_repo_name = 'openstack/openstack-helm'
+openstackdocs_auto_name = False
+openstackdocs_use_storyboard = True
 
 # autodoc generation is a bit aggressive and a nuisance when doing heavy
 # text edit cycles.
@@ -54,7 +55,7 @@ add_module_names = True
 show_authors = True
 
 # The name of the Pygments (syntax highlighting) style to use.
-pygments_style = 'sphinx'
+pygments_style = 'native'
 
 # -- Options for HTML output --------------------------------------------------
 # The theme to use for HTML and HTML Help pages.  See the documentation for
