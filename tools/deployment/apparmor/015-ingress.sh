@@ -15,18 +15,20 @@
 #    under the License.
 
 set -xe
+export HELM_CHART_ROOT_PATH="${HELM_CHART_ROOT_PATH:="${OSH_INFRA_PATH:="../openstack-helm-infra"}"}"
 
 #NOTE: Lint and package chart
-make ingress
+make -C ${HELM_CHART_ROOT_PATH} ingress
+
+#NOTE: Deploy command
+: ${OSH_EXTRA_HELM_ARGS:=""}
+cd ${HELM_CHART_ROOT_PATH}
 
 export HELM_CHART_ROOT_PATH="${HELM_CHART_ROOT_PATH:="${OSH_INFRA_PATH:="../openstack-helm-infra"}"}"
 
 : ${OSH_INFRA_EXTRA_HELM_ARGS_KUBE_SYSTEM:="$(./tools/deployment/common/get-values-overrides.sh ingress)"}
 : ${OSH_INFRA_EXTRA_HELM_ARGS_OPENSTACK:="$(./tools/deployment/common/get-values-overrides.sh ingress)"}
 : ${OSH_INFRA_EXTRA_HELM_ARGS_CEPH:="$(./tools/deployment/common/get-values-overrides.sh ingress)"}
-
-#NOTE: Deploy command
-: ${OSH_INFRA_EXTRA_HELM_ARGS:=""}
 
 #NOTE: Deploy global ingress
 tee /tmp/ingress-kube-system.yaml << EOF

@@ -30,6 +30,7 @@ metadata:
   annotations:
     "helm.sh/hook": test-success
     {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+{{ dict "envAll" $envAll "podName" "cinder-test" "containerNames" (list "init" "cinder-test" "cinder-test-ks-user") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 4 }}
 spec:
   restartPolicy: Never
   nodeSelector:
@@ -37,7 +38,7 @@ spec:
   serviceAccountName: {{ $serviceAccountName }}
   initContainers:
 {{ tuple $envAll "tests" $mounts_tests_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 4 }}
-    - name: {{ .Release.Name }}-test-ks-user
+    - name: cinder-test-ks-user
 {{ tuple $envAll "ks_user" | include "helm-toolkit.snippets.image" | indent 6 }}
 {{ tuple $envAll $envAll.Values.pod.resources.jobs.ks_user | include "helm-toolkit.snippets.kubernetes_resources" | indent 6 }}
       command:
@@ -61,7 +62,7 @@ spec:
         - name: SERVICE_OS_ROLE
           value: {{ .Values.endpoints.identity.auth.test.role | quote }}
   containers:
-    - name: {{ .Release.Name }}-test
+    - name: cinder-test
 {{ tuple $envAll "test" | include "helm-toolkit.snippets.image" | indent 6 }}
 {{ tuple $envAll $envAll.Values.pod.resources.jobs.tests | include "helm-toolkit.snippets.kubernetes_resources" | indent 6 }}
       env:

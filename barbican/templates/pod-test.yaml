@@ -31,6 +31,7 @@ metadata:
   annotations:
     "helm.sh/hook": test-success
     {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+{{ dict "envAll" $envAll "podName" "barbican-test" "containerNames" (list "init" "barbican-test") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 4 }}
 spec:
   serviceAccountName: {{ $serviceAccountName }}
   nodeSelector:
@@ -39,7 +40,7 @@ spec:
   initContainers:
 {{ tuple $envAll "tests" $mounts_barbican_tests_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
   containers:
-    - name: {{.Release.Name}}-barbican-test
+    - name: barbican-test
 {{ tuple $envAll "scripted_test" | include "helm-toolkit.snippets.image" | indent 6 }}
       env:
 {{- with $env := dict "ksUserSecret" .Values.secrets.identity.admin }}
