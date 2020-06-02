@@ -48,6 +48,50 @@
 #       should be written to the given "db_file", one database name per
 #       line.
 #
+#   get_tables
+#         <db_name>     is the name of the database to get the tables from
+#         <tmp_dir>     is the full directory path where the decompressed
+#                       database files reside
+#         <table_file>  is the full path of the file to write the table
+#                       names into, one table per line
+#       returns: 0 if no errors; 1 if any errors occurred
+#
+#       This function is expected to extract the table names from the given
+#       database, found in the uncompressed database files located in the
+#       given "tmp_dir", which is the staging directory for database restore.
+#       The table names should be written to the given "table_file", one
+#       table name per line.
+#
+#   get_rows
+#         <table_name>  is the name of the table to get the rows from
+#         <db_name>     is the name of the database the table resides in
+#         <tmp_dir>     is the full directory path where the decompressed
+#                       database files reside
+#         <rows_file>   is the full path of the file to write the table
+#                       row data into, one row (INSERT statement) per line
+#       returns: 0 if no errors; 1 if any errors occurred
+#
+#       This function is expected to extract the rows from the given table
+#       in the given database, found in the uncompressed database files
+#       located in the given "tmp_dir", which is the staging directory for
+#       database restore. The table rows should be written to the given
+#       "rows_file", one row (INSERT statement) per line.
+#
+#   get_schema
+#         <table_name>  is the name of the table to get the schema from
+#         <db_name>     is the name of the database the table resides in
+#         <tmp_dir>     is the full directory path where the decompressed
+#                       database files reside
+#         <schema_file> is the full path of the file to write the table
+#                       schema data into
+#       returns: 0 if no errors; 1 if any errors occurred
+#
+#       This function is expected to extract the schema from the given table
+#       in the given database, found in the uncompressed database files
+#       located in the given "tmp_dir", which is the staging directory for
+#       database restore. The table schema and related alterations and
+#       grant information should be written to the given "schema_file".
+#
 #   restore_single_db
 #       where:
 #         <db_name>     is the name of the database to be restored
@@ -82,7 +126,8 @@
 #   5) The framework will call "get_databases" when it needs a list of
 #      databases when the user requests a database list or when the user
 #      requests to restore a single database (to ensure it exists in the
-#      archive).
+#      archive). Similarly, the framework will call "get_tables", "get_rows",
+#      or "get_schema" when it needs that data requested by the user.
 #
 
 export LOG_FILE=/tmp/dbrestore.log
@@ -95,6 +140,9 @@ usage() {
   echo "help"
   echo "list_archives [remote]"
   echo "list_databases <archive_filename> [remote]"
+  echo "list_tables <archive_filename> <dbname> [remote]"
+  echo "list_rows <archive_filename> <dbname> <table_name> [remote]"
+  echo "list_schema <archive_filename> <dbname> <table_name> [remote]"
   echo "restore <archive_filename> <db_specifier> [remote]"
   echo "        where <db_specifier> = <dbname> | ALL"
   clean_and_exit $ret_val ""
@@ -107,7 +155,7 @@ clean_and_exit() {
 
   # Clean/remove temporary directories/files
   rm -rf $TMP_DIR
-  rm -f $DB_FILE
+  rm -f $RESULT_FILE
 
   if [[ "x${MSG}" != "x" ]]; then
     echo $MSG
@@ -258,18 +306,113 @@ list_databases() {
 
   # Expectation is that the database listing will be put into
   # the given file one database per line
-  get_databases $TMP_DIR $DB_FILE
+  get_databases $TMP_DIR $RESULT_FILE
   if [[ "$?" -ne 0 ]]; then
-    clean_and_exit 1 "ERROR: Could not list databases."
+    clean_and_exit 1 "ERROR: Could not retrieve databases from $WHERE archive $ARCHIVE_FILE."
   fi
 
-  if [[ -f "$DB_FILE" ]]; then
+  if [[ -f "$RESULT_FILE" ]]; then
     echo " "
     echo "Databases in the $WHERE archive $ARCHIVE_FILE"
     echo "================================================================================"
-    cat $DB_FILE
+    cat $RESULT_FILE
   else
-    echo "There is no database in the archive."
+    clean_and_exit 1 "ERROR: Databases file missing. Could not list databases from $WHERE archive $ARCHIVE_FILE."
+  fi
+}
+
+# Display all tables of a database from an archive
+list_tables() {
+  ARCHIVE_FILE=$1
+  DATABASE=$2
+  REMOTE=$3
+  WHERE="local"
+
+  if [[ "x${REMOTE}" != "x" ]]; then
+    WHERE="remote"
+  fi
+
+  # Get the archive from the source location (local/remote)
+  get_archive $ARCHIVE_FILE $REMOTE
+
+  # Expectation is that the database listing will be put into
+  # the given file one table per line
+  get_tables $DATABASE $TMP_DIR $RESULT_FILE
+  if [[ "$?" -ne 0 ]]; then
+    clean_and_exit 1 "ERROR: Could not retrieve tables for database ${DATABASE} from $WHERE archive $ARCHIVE_FILE."
+  fi
+
+  if [[ -f "$RESULT_FILE" ]]; then
+    echo " "
+    echo "Tables in database $DATABASE from $WHERE archive $ARCHIVE_FILE"
+    echo "================================================================================"
+    cat $RESULT_FILE
+  else
+    clean_and_exit 1 "ERROR: Tables file missing. Could not list tables of database ${DATABASE} from $WHERE archive $ARCHIVE_FILE."
+  fi
+}
+
+# Display all rows of the given database table from an archive
+list_rows() {
+  ARCHIVE_FILE=$1
+  DATABASE=$2
+  TABLE=$3
+  REMOTE=$4
+  WHERE="local"
+
+  if [[ "x${REMOTE}" != "x" ]]; then
+    WHERE="remote"
+  fi
+
+  # Get the archive from the source location (local/remote)
+  get_archive $ARCHIVE_FILE $REMOTE
+
+  # Expectation is that the database listing will be put into
+  # the given file one table per line
+  get_rows $DATABASE $TABLE $TMP_DIR $RESULT_FILE
+  if [[ "$?" -ne 0 ]]; then
+    clean_and_exit 1 "ERROR: Could not retrieve rows in table ${TABLE} of database ${DATABASE} from $WHERE archive $ARCHIVE_FILE."
+  fi
+
+  if [[ -f "$RESULT_FILE" ]]; then
+    echo " "
+    echo "Rows in table $TABLE of database $DATABASE from $WHERE archive $ARCHIVE_FILE"
+    echo "================================================================================"
+    cat $RESULT_FILE
+  else
+    clean_and_exit 1 "ERROR: Rows file missing. Could not list rows in table ${TABLE} of database ${DATABASE} from $WHERE archive $ARCHIVE_FILE."
+  fi
+}
+
+# Display the schema information of the given database table from an archive
+list_schema() {
+  ARCHIVE_FILE=$1
+  DATABASE=$2
+  TABLE=$3
+  REMOTE=$4
+  WHERE="local"
+
+  if [[ "x${REMOTE}" != "x" ]]; then
+    WHERE="remote"
+  fi
+
+  # Get the archive from the source location (local/remote)
+  get_archive $ARCHIVE_FILE $REMOTE
+
+  # Expectation is that the schema information will be placed into
+  # the given schema file.
+  get_schema $DATABASE $TABLE $TMP_DIR $RESULT_FILE
+  if [[ "$?" -ne 0 ]]; then
+    clean_and_exit 1 "ERROR: Could not retrieve schema for table ${TABLE} of database ${DATABASE} from $WHERE archive $ARCHIVE_FILE."
+  fi
+
+  if [[ -f "$RESULT_FILE" ]]; then
+    echo " "
+    echo "Schema for table $TABLE of database $DATABASE from $WHERE archive $ARCHIVE_FILE"
+    echo "================================================================================"
+    cat $RESULT_FILE
+  else
+    clean_and_exit 1 "ERROR: Schema file missing. Could not list schema for table ${TABLE} of database ${DATABASE} from $WHERE archive $ARCHIVE_FILE."
   fi
 }
 
@@ -277,7 +420,7 @@ list_databases() {
 database_exists() {
   DB=$1
 
-  grep "${DB}" ${DB_FILE}
+  grep "${DB}" ${RESULT_FILE}
   if [[ $? -eq 0 ]]; then
     return 1
   fi
@@ -292,42 +435,64 @@ cli_main() {
   export TMP_DIR=$(mktemp -d)
 
   # Create a temp file for storing list of databases (if needed)
-  export DB_FILE=$(mktemp -p /tmp)
+  export RESULT_FILE=$(mktemp -p /tmp)
 
-  if [[ ${#ARGS[@]} -gt 4 ]]; then
-    usage 1
-  elif [[ ${#ARGS[@]} -eq 1 ]]; then
-    if [[ "${ARGS[0]}" == "list_archives" ]]; then
-      list_archives
-      clean_and_exit 0 ""
-    elif [[ "${ARGS[0]}" == "help" ]]; then
+  case "${ARGS[0]}" in
+    "help")
       usage 0
-    else
-      usage 1
-    fi
-  elif [[ ${#ARGS[@]} -eq 2 ]]; then
-    if [[ "${ARGS[0]}" == "list_databases" ]]; then
-      list_databases ${ARGS[1]}
-      clean_and_exit 0 ""
-    elif [[ "${ARGS[0]}" == "list_archives" ]]; then
-      list_archives ${ARGS[1]}
-      clean_and_exit 0 ""
-    else
-      usage 1
-    fi
-  elif [[ ${#ARGS[@]} -eq 3 || ${#ARGS[@]} -eq 4 ]]; then
-    if [[ "${ARGS[0]}" == "list_databases" ]]; then
-      list_databases ${ARGS[1]} ${ARGS[2]}
-      clean_and_exit 0 ""
-    elif [[ "${ARGS[0]}" != "restore" ]]; then
-      usage 1
-    else
-      ARCHIVE=${ARGS[1]}
-      DB_SPEC=${ARGS[2]}
+      ;;
+
+    "list_archives")
+      if [[ ${#ARGS[@]} -gt 2 ]]; then
+        usage 1
+      elif [[ ${#ARGS[@]} -eq 1 ]]; then
+        list_archives
+      else
+        list_archives ${ARGS[1]}
+      fi
+      clean_and_exit 0
+      ;;
+
+    "list_databases")
+      if [[ ${#ARGS[@]} -lt 2 || ${#ARGS[@]} -gt 3 ]]; then
+        usage 1
+      elif [[ ${#ARGS[@]} -eq 2 ]]; then
+        list_databases ${ARGS[1]}
+      else
+        list_databases ${ARGS[1]} ${ARGS[2]}
+      fi
+      ;;
+
+    "list_tables")
+      if [[ ${#ARGS[@]} -lt 3 || ${#ARGS[@]} -gt 4 ]]; then
+        usage 1
+      elif [[ ${#ARGS[@]} -eq 3 ]]; then
+        list_tables ${ARGS[1]} ${ARGS[2]}
+      else
+        list_tables ${ARGS[1]} ${ARGS[2]} ${ARGS[3]}
+      fi
+      ;;
+
+    "list_rows")
+      if [[ ${#ARGS[@]} -lt 4 || ${#ARGS[@]} -gt 5 ]]; then
+        usage 1
+      elif [[ ${#ARGS[@]} -eq 4 ]]; then
+        list_rows ${ARGS[1]} ${ARGS[2]} ${ARGS[3]}
+      else
+        list_rows ${ARGS[1]} ${ARGS[2]} ${ARGS[3]} ${ARGS[4]}
+      fi
+      ;;
+
+    "restore")
       REMOTE=""
-      if [[ ${#ARGS[@]} -eq 4 ]]; then
+      if [[ ${#ARGS[@]} -lt 3 || ${#ARGS[@]} -gt 4 ]]; then
+        usage 1
+      elif [[ ${#ARGS[@]} -eq 4 ]]; then
         REMOTE=${ARGS[3]}
       fi
+
+      ARCHIVE=${ARGS[1]}
+      DB_SPEC=${ARGS[2]}
 
       #Get all the databases in that archive
       get_archive $ARCHIVE $REMOTE
@@ -335,7 +500,7 @@ cli_main() {
       if [[ "$( echo $DB_SPEC | tr '[a-z]' '[A-Z]')" != "ALL" ]]; then
         # Expectation is that the database listing will be put into
         # the given file one database per line
-        get_databases $TMP_DIR $DB_FILE
+        get_databases $TMP_DIR $RESULT_FILE
         if [[ "$?" -ne 0 ]]; then
           clean_and_exit 1 "ERROR: Could not get the list of databases to restore."
         fi
@@ -365,10 +530,11 @@ cli_main() {
         fi
         clean_and_exit 0 "Tail ${LOG_FILE} for restore log."
       fi
-    fi
-  else
-    usage 1
-  fi
+      ;;
+    *)
+      usage 1
+      ;;
+  esac
 
   clean_and_exit 0 "Done"
 }

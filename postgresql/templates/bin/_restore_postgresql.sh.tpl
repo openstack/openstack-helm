@@ -41,8 +41,74 @@ get_databases() {
   if [[ -e $TMP_DIR/$SQL_FILE ]]; then
     grep 'CREATE DATABASE' $TMP_DIR/$SQL_FILE | awk '{ print $3 }' > $DB_FILE
   else
-    # no databases - just touch the file
-    touch $DB_FILE
+    # Error, cannot report the databases
+    echo "No SQL file found - cannot extract the databases"
+    return 1
+  fi
+}
+
+# Extract all tables of a database from an archive and put them in the requested
+# file.
+get_tables() {
+  DATABASE=$1
+  TMP_DIR=$2
+  TABLE_FILE=$3
+
+  SQL_FILE=postgres.$POSTGRESQL_POD_NAMESPACE.all.sql
+  if [[ -e $TMP_DIR/$SQL_FILE ]]; then
+    cat $TMP_DIR/$SQL_FILE | sed -n /'\\connect '$DATABASE/,/'\\connect'/p | grep "CREATE TABLE" | awk -F'[. ]' '{print $4}' > TABLE_FILE
+  else
+    # Error, cannot report the tables
+    echo "No SQL file found - cannot extract the tables"
+    return 1
+  fi
+}
+
+# Extract all rows in the given table of a database from an archive and put them in the requested
+# file.
+get_rows() {
+  TABLE=$1
+  DATABASE=$2
+  TMP_DIR=$3
+  ROW_FILE=$4
+
+  SQL_FILE=postgres.$POSTGRESQL_POD_NAMESPACE.all.sql
+  if [[ -e $TMP_DIR/$SQL_FILE ]]; then
+    cat $TMP_DIR/$SQL_FILE | sed -n /'\\connect '${DATABASE}/,/'\\connect'/p > /tmp/db.sql
+    cat /tmp/db.sql | grep "INSERT INTO public.${TABLE} VALUES" > $ROW_FILE
+    rm /tmp/db.sql
+  else
+    # Error, cannot report the rows
+    echo "No SQL file found - cannot extract the rows"
+    return 1
+  fi
+}
+
+# Extract the schema for the given table in the given database belonging to the archive file
+# found in the TMP_DIR.
+get_schema() {
+  TABLE=$1
+  DATABASE=$2
+  TMP_DIR=$3
+  SCHEMA_FILE=$4
+
+  SQL_FILE=postgres.$POSTGRESQL_POD_NAMESPACE.all.sql
+  if [[ -e $TMP_DIR/$SQL_FILE ]]; then
+    DB_FILE=$(mktemp -p /tmp)
+    cat $TMP_DIR/$SQL_FILE | sed -n /'\\connect '${DATABASE}/,/'\\connect'/p > ${DB_FILE}
+    cat ${DB_FILE} | sed -n /'CREATE TABLE public.'${TABLE}/,/'--'/p > ${SCHEMA_FILE}
+    cat ${DB_FILE} | sed -n /'CREATE SEQUENCE public.'${TABLE}/,/'--'/p >> ${SCHEMA_FILE}
+    cat ${DB_FILE} | sed -n /'ALTER TABLE public.'${TABLE}/,/'--'/p >> ${SCHEMA_FILE}
+    cat ${DB_FILE} | sed -n /'ALTER TABLE ONLY public.'${TABLE}/,/'--'/p >> ${SCHEMA_FILE}
+    cat ${DB_FILE} | sed -n /'ALTER SEQUENCE public.'${TABLE}/,/'--'/p >> ${SCHEMA_FILE}
+    cat ${DB_FILE} | sed -n /'SELECT pg_catalog.*public.'${TABLE}/,/'--'/p >> ${SCHEMA_FILE}
+    cat ${DB_FILE} | sed -n /'CREATE INDEX.*public.'${TABLE}/,/'--'/p >> ${SCHEMA_FILE}
+    cat ${DB_FILE} | sed -n /'GRANT.*public.'${TABLE}/,/'--'/p >> ${SCHEMA_FILE}
+    rm -f ${DB_FILE}
+  else
+    # Error, cannot report the rows
+    echo "No SQL file found - cannot extract the schema"
+    return 1
   fi
 }
 
