@@ -225,12 +225,15 @@ function disk_zap {
 }
 
 function udev_settle {
+  osd_devices="${OSD_DEVICE}"
   partprobe "${OSD_DEVICE}"
   if [ "${OSD_BLUESTORE:-0}" -eq 1 ]; then
     if [ ! -z "$BLOCK_DB" ]; then
+      osd_devices="${osd_devices}\|${BLOCK_DB}"
       partprobe "${BLOCK_DB}"
     fi
     if [ ! -z "$BLOCK_WAL" ] && [ "$BLOCK_WAL" != "$BLOCK_DB" ]; then
+      osd_devices="${osd_devices}\|${BLOCK_WAL}"
       partprobe "${BLOCK_WAL}"
     fi
   else
@@ -238,6 +241,7 @@ function udev_settle {
       OSD_JOURNAL=$(readlink -f ${OSD_JOURNAL})
       if [ ! -z "$OSD_JOURNAL" ]; then
         local JDEV=$(echo ${OSD_JOURNAL} | sed 's/[0-9]//g')
+        osd_devices="${osd_devices}\|${JDEV}"
         partprobe "${JDEV}"
       fi
     fi
@@ -247,11 +251,17 @@ function udev_settle {
 
   # On occassion udev may not make the correct device symlinks for Ceph, just in case we make them manually
   mkdir -p /dev/disk/by-partuuid
-  for dev in $(awk '!/rbd/{print $4}' /proc/partitions | grep "[0-9]"); do
+  for dev in $(awk '!/rbd/{print $4}' /proc/partitions | grep "${osd_devices}" | grep "[0-9]"); do
     diskdev=$(echo "${dev//[!a-z]/}")
     partnum=$(echo "${dev//[!0-9]/}")
-    ln -s "../../${dev}" "/dev/disk/by-partuuid/$(sgdisk -i ${partnum} /dev/${diskdev} | awk '/Partition unique GUID/{print tolower($4)}')" || true
+    symlink="/dev/disk/by-partuuid/$(sgdisk -i ${partnum} /dev/${diskdev} | awk '/Partition unique GUID/{print tolower($4)}')"
+    if [ ! -e "${symlink}" ]; then
+      ln -s "../../${dev}" "${symlink}"
+    fi
   done
+
+  # Give udev another chance now that all symlinks exist for devices we care about
+  udevadm settle --timeout=600
 }
 
 # Helper function to get an lvm tag from a logical volume
