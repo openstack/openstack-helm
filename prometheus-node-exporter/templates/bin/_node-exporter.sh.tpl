@@ -16,9 +16,16 @@ limitations under the License.
 set -ex
 
 exec /bin/node_exporter \
+  {{- if .Values.conf.collectors.enable }}
   {{ tuple "--collector." .Values.conf.collectors.enable | include "helm-toolkit.utils.joinListWithPrefix" }} \
+  {{- end }}
+  {{- if  .Values.conf.collectors.disable }}
   {{ tuple "--no-collector." .Values.conf.collectors.disable | include "helm-toolkit.utils.joinListWithPrefix" }} \
-  {{ if .Values.conf.collectors.textfile.directory }} \
+  {{- end }}
+  {{- if .Values.conf.collectors.textfile.directory }}
   --collector.textfile.directory={{.Values.conf.collectors.textfile.directory }} \
+  {{- end }}
+  {{- if .Values.conf.collectors.filesystem.ignored_mount_points }}
+  --collector.filesystem.ignored-mount-points={{ .Values.conf.collectors.filesystem.ignored_mount_points }} \
   {{- end }}
   --collector.ntp.server={{ .Values.conf.ntp_server_ip }}
