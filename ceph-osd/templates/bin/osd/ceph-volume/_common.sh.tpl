@@ -289,6 +289,27 @@ function get_lvm_tag_from_device {
   get_lvm_tag_from_volume ${logical_volume} ${tag}
 }
 
+# Helper function to get the size of a logical volume
+function get_lv_size_from_device {
+  device="$1"
+  logical_volume="$(get_lv_from_device ${device})"
+
+  lvs ${logical_volume} -o LV_SIZE --noheadings --units k --nosuffix | xargs | cut -d'.' -f1
+}
+
+# Helper function to get the crush weight for an osd device
+function get_osd_crush_weight_from_device {
+  device="$1"
+  lv_size="$(get_lv_size_from_device ${device})" # KiB
+
+  if [[ ! -z "${BLOCK_DB_SIZE}" ]]; then
+    db_size=$(echo "${BLOCK_DB_SIZE}" | cut -d'B' -f1 | numfmt --from=iec | awk '{print $1/1024}') # KiB
+    lv_size=$((lv_size+db_size)) # KiB
+  fi
+
+  echo ${lv_size} | awk '{printf("%.2f\n", $1/1073741824)}' # KiB to TiB
+}
+
 # Helper function to get a cluster FSID from a physical device
 function get_cluster_fsid_from_device {
   device="$1"

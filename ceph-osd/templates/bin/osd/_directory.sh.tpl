@@ -64,9 +64,6 @@ if [[ -n "$(find /var/lib/ceph/osd -type d  -empty ! -name "lost+found")" ]]; th
   # init data directory
   ceph-osd -i ${OSD_ID} --mkfs --osd-uuid ${UUID} --mkjournal --osd-journal ${OSD_JOURNAL} --setuser ceph --setgroup ceph
   # add the osd to the crush map
-  # NOTE(supamatt): set the initial crush weight of the OSD to 0 to prevent automatic rebalancing
-  OSD_WEIGHT=0
-  # NOTE(supamatt): add or move the OSD's CRUSH location
   crush_location
 fi
 
