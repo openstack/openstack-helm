@@ -14,6 +14,8 @@
 
 set -xe
 
+export CEPH_ENABLED=true
+
 #NOTE: Lint and package chart
 export HELM_CHART_ROOT_PATH="${HELM_CHART_ROOT_PATH:="${OSH_INFRA_PATH:="../openstack-helm-infra"}"}"
 for CHART in ceph-mon ceph-osd ceph-client ceph-provisioners; do

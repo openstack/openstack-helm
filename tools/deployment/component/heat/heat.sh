@@ -32,5 +32,12 @@ helm upgrade --install heat ./heat \
 #NOTE: Validate Deployment info
 export OS_CLOUD=openstack_helm
 openstack service list
+openstack endpoint list
 sleep 30 #NOTE(portdirect): Wait for ingress controller to update rules and restart Nginx
-openstack orchestration service list
+
+openstack --os-interface internal orchestration service list
+
+FEATURE_GATE="tls"; if [[ ${FEATURE_GATES//,/ } =~ (^|[[:space:]])${FEATURE_GATE}($|[[:space:]]) ]]; then
+  curl --cacert /etc/openstack-helm/certs/ca/ca.pem -L https://heat.openstack.svc.cluster.local
+  curl --cacert /etc/openstack-helm/certs/ca/ca.pem -L https://heat-api.openstack.svc.cluster.local:8004
+fi

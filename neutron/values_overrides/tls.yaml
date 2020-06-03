@@ -1,0 +1,145 @@
+---
+network:
+  server:
+    ingress:
+      annotations:
+        nginx.ingress.kubernetes.io/backend-protocol: "https"
+pod:
+  security_context:
+    neutron_server:
+      pod:
+        runAsUser: 0
+      container:
+        neutron_server:
+          readOnlyRootFilesystem: false
+        neutron_rpc_server:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: false
+  resources:
+    rpc_server:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+conf:
+  software:
+    apache2:
+      binary: apache2
+      start_parameters: -DFOREGROUND
+      conf_dir: /etc/apache2/conf-enabled
+      site_dir: /etc/apache2/sites-available
+      mods_dir: /etc/apache2/mods-available
+      a2enmod:
+        - ssl
+      a2dismod: null
+      a2ensite:
+        - wsgi-server
+  mpm_event: |
+    <IfModule mpm_event_module>
+      ServerLimit         1024
+      StartServers        32
+      MinSpareThreads     32
+      MaxSpareThreads     256
+      ThreadsPerChild     25
+      MaxRequestsPerChild 128
+      ThreadLimit         720
+    </IfModule>
+  wsgi_neutron_server: |
+    <Directory /usr/local/bin>
+      Require all granted
+    </Directory>
+
+    {{- $portInt := tuple "network" "internal" "api" $ | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+    Listen {{ $portInt }}
+    <VirtualHost *:{{ $portInt }}>
+      ServerName {{ printf "%s.%s.svc.%s" "neutron-server" .Release.Namespace .Values.endpoints.cluster_domain_suffix }}
+      WSGIDaemonProcess neutron-server processes=1 threads=1 user=neutron display-name=%{GROUP}
+      WSGIProcessGroup neutron-server
+      WSGIScriptAlias /  /var/www/cgi-bin/neutron/neutron-api
+      WSGIApplicationGroup %{GLOBAL}
+      WSGIPassAuthorization On
+      AllowEncodedSlashes On
+      <IfVersion >= 2.4>
+        ErrorLogFormat "%{cu}t %M"
+      </IfVersion>
+      SetEnvIf X-Forwarded-For "^.*\..*\..*\..*" forwarded
+      ErrorLog /dev/stdout
+      CustomLog /dev/stdout combined env=!forwarded
+      CustomLog /dev/stdout proxy env=forwarded
+
+      SSLEngine on
+      SSLCertificateFile      /etc/neutron/certs/tls.crt
+      SSLCertificateKeyFile   /etc/neutron/certs/tls.key
+      SSLProtocol             all -SSLv3 -TLSv1 -TLSv1.1
+      SSLCipherSuite          ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256
+      SSLHonorCipherOrder     on
+    </VirtualHost>
+    Alias /networking /var/www/cgi-bin/neutron/neutron-api
+    <Location /networking>
+      SetHandler wsgi-script
+      Options +ExecCGI
+      WSGIProcessGroup neutron-server
+      WSGIApplicationGroup %{GLOBAL}
+      WSGIPassAuthorization On
+    </Location>
+
+    WSGISocketPrefix /var/run/apache2
+  neutron:
+    nova:
+      cafile: /etc/neutron/certs/ca.crt
+    keystone_authtoken:
+      cafile: /etc/neutron/certs/ca.crt
+  metadata_agent:
+    DEFAULT:
+      auth_ca_cert: /etc/ssl/certs/openstack-helm.crt
+      nova_metadata_port: 443
+      nova_metadata_protocol: https
+endpoints:
+  compute:
+    scheme:
+      default: https
+    port:
+      api:
+        public: 443
+  compute_metadata:
+    scheme:
+      default: https
+    port:
+      metadata:
+        public: 443
+  identity:
+    auth:
+      admin:
+        cacert: /etc/ssl/certs/openstack-helm.crt
+      neutron:
+        cacert: /etc/ssl/certs/openstack-helm.crt
+      nova:
+        cacert: /etc/ssl/certs/openstack-helm.crt
+      test:
+        cacert: /etc/ssl/certs/openstack-helm.crt
+    scheme:
+      default: https
+    port:
+      api:
+        default: 443
+  network:
+    host_fqdn_override:
+      default:
+        tls:
+          secretName: neutron-tls-server
+          issuerRef:
+            name: ca-issuer
+    scheme:
+      default: https
+    port:
+      api:
+        public: 443
+  ingress:
+    port:
+      ingress:
+        default: 443
+manifests:
+  certificates: true
+...

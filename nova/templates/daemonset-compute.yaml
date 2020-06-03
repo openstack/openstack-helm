@@ -240,6 +240,10 @@ spec:
               value: "{{ .Values.pod.probes.rpc_timeout }}"
             - name: RPC_PROBE_RETRIES
               value: "{{ .Values.pod.probes.rpc_retries }}"
+{{- if .Values.manifests.certificates }}
+            - name: REQUESTS_CA_BUNDLE
+              value: "/etc/nova/certs/ca.crt"
+{{- end }}
 {{ dict "envAll" $envAll "component" "compute" "container" "default" "type" "liveness" "probeTemplate" (include "novaComputeLivenessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
 {{ dict "envAll" $envAll "component" "compute" "container" "default" "type" "readiness" "probeTemplate" (include "novaComputeReadinessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
           command:
@@ -377,6 +381,7 @@ spec:
               subPath: tf-plugin.pth
               readOnly: true
             {{- end }}
+{{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.compute.osapi.internal "path" "/etc/nova/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
 {{ if $mounts_nova_compute.volumeMounts }}{{ toYaml $mounts_nova_compute.volumeMounts | indent 12 }}{{ end }}
         {{- if .Values.network.sshd.enabled }}
         - name: nova-compute-ssh
@@ -390,6 +395,10 @@ spec:
               value: {{ include "helm-toolkit.utils.joinListWithComma" .Values.ssh.key_types | quote }}
             - name: SSH_PORT
               value: {{ .Values.network.ssh.port | quote }}
+{{- if .Values.manifests.certificates }}
+            - name: REQUESTS_CA_BUNDLE
+              value: "/etc/nova/certs/ca.crt"
+{{- end }}
           ports:
             - containerPort: {{ .Values.network.ssh.port }}
           command:
@@ -412,6 +421,7 @@ spec:
               mountPath: /tmp/ssh-start.sh
               subPath: ssh-start.sh
               readOnly: true
+{{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.compute.osapi.internal "path" "/etc/nova/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
         {{ end }}
       volumes:
         - name: pod-tmp
@@ -481,6 +491,7 @@ spec:
         - name: tf-plugin-bin
           emptyDir: {}
         {{- end }}
+{{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.compute.osapi.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 {{ if $mounts_nova_compute.volumes }}{{ toYaml $mounts_nova_compute.volumes | indent 8 }}{{ end }}
 {{- end }}
 {{- end }}

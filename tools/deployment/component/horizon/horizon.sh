@@ -33,3 +33,8 @@ helm upgrade --install horizon ./horizon \
 helm status horizon
 
 helm test horizon
+
+FEATURE_GATE="tls"; if [[ ${FEATURE_GATES//,/ } =~ (^|[[:space:]])${FEATURE_GATE}($|[[:space:]]) ]]; then
+  curl --cacert /etc/openstack-helm/certs/ca/ca.pem -L https://horizon.openstack.svc.cluster.local
+  curl --cacert /etc/openstack-helm/certs/ca/ca.pem -L https://horizon-int.openstack.svc.cluster.local
+fi

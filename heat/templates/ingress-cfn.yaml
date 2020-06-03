@@ -13,6 +13,11 @@ limitations under the License.
 */}}
 
 {{- if and .Values.manifests.ingress_cfn .Values.network.cfn.ingress.public }}
-{{- $ingressOpts := dict "envAll" . "backendService" "cfn" "backendServiceType" "cloudformation" "backendPort" "h-cfn" -}}
+{{- $envAll := . }}
+{{- $ingressOpts := dict "envAll" $envAll "backendService" "cfn" "backendServiceType" "cloudformation" "backendPort" "h-cfn" -}}
+{{- $secretName := $envAll.Values.secrets.tls.cloudformation.cfn.internal -}}
+{{- if and .Values.manifests.certificates $secretName -}}
+{{- $_ := set $ingressOpts "certIssuer" .Values.endpoints.cloudformation.host_fqdn_override.default.tls.issuerRef.name -}}
+{{- end -}}
 {{ $ingressOpts | include "helm-toolkit.manifests.ingress" }}
 {{- end }}

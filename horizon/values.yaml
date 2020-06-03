@@ -183,6 +183,7 @@ conf:
         # values will not work
         horizon_secret_key: 9aee62c0-5253-4a86-b189-e0fb71fa503c
         debug: "False"
+        use_ssl: "False"
         keystone_multidomain_support: "True"
         keystone_default_domain: Default
         disable_password_reveal: "True"
@@ -266,6 +267,7 @@ conf:
 
         # If Horizon is being served through SSL, then uncomment the following two
         # settings to better secure the cookies from security exploits
+        USE_SSL = {{ .Values.conf.horizon.local_settings.config.use_ssl }}
         CSRF_COOKIE_SECURE = {{ .Values.conf.horizon.local_settings.config.csrf_cookie_secure }}
         SESSION_COOKIE_SECURE = {{ .Values.conf.horizon.local_settings.config.session_cookie_secure }}
 
@@ -425,8 +427,10 @@ conf:
         # Disable SSL certificate checks (useful for self-signed certificates):
         #OPENSTACK_SSL_NO_VERIFY = True
 
+        {{- if .Values.manifests.certificates }}
         # The CA certificate to use to verify SSL connections
-        #OPENSTACK_SSL_CACERT = '/path/to/cacert.pem'
+        OPENSTACK_SSL_CACERT = '/etc/openstack-dashboard/certs/ca.crt'
+        {{- end }}
 
         # The OPENSTACK_KEYSTONE_BACKEND settings can be used to identify the
         # capabilities of the auth backend for Keystone.
@@ -2133,6 +2137,7 @@ secrets:
     dashboard:
       dashboard:
         public: horizon-tls-public
+        internal: horizon-tls-web
 
 # typically overridden by environmental
 # values, but should include all endpoints
@@ -2253,6 +2258,7 @@ network_policy:
       - {}
 
 manifests:
+  certificates: false
   configmap_bin: true
   configmap_etc: true
   deployment: true
