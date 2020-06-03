@@ -128,7 +128,7 @@ send_to_remote_server() {
     echo $RESULT | grep $CONTAINER_NAME
     if [[ $? -ne 0 ]]; then
       # Find the swift URL from the keystone endpoint list
-      SWIFT_URL=$(openstack catalog list -f value | grep -A5 swift | grep public | awk '{print $2}')
+      SWIFT_URL=$(openstack catalog list -f value | grep swift | grep public | awk '{print $2}')
 
       # Get a token from keystone
       TOKEN=$(openstack token issue -f value -c id)
@@ -187,7 +187,7 @@ send_to_remote_server() {
 # This function attempts to store the built tarball to the remote gateway,
 # with built-in logic to handle error cases like:
 #   1) Network connectivity issues - retries for a specific amount of time
-#   2) Authorization errors - immediately logs an ERROR and exits
+#   2) Authorization errors - immediately logs an ERROR and returns
 store_backup_remotely() {
   FILEPATH=$1
   FILE=$2
@@ -327,17 +327,30 @@ backup_databases() {
   rm -f $ERR_LOG_FILE
 
   #Only delete the old archive after a successful archive
+  export LOCAL_DAYS_TO_KEEP=$(echo $LOCAL_DAYS_TO_KEEP | sed 's/"//g')
   if [[ "$LOCAL_DAYS_TO_KEEP" -gt 0 ]]; then
     remove_old_local_archives
   fi
 
-  if $REMOTE_BACKUP_ENABLED; then
+  REMOTE_BACKUP=$(echo $REMOTE_BACKUP_ENABLED | sed 's/"//g')
+  if $REMOTE_BACKUP; then
     store_backup_remotely $ARCHIVE_DIR $TARBALL_FILE
     if [[ $? -ne 0 ]]; then
-      log_backup_error_exit "Backup could not be sent to remote RGW."
+      # This error should print first, then print the summary as the last
+      # thing that the user sees in the output.
+      log ERROR "${DB_NAME}_backup" "Backup could not be sent to remote RGW."
+      set +x
+      echo "=================================================================="
+      echo "Local backup successful, but could not send to remote RGW."
+      echo "Backup archive name: $TARBALL_FILE"
+      echo "Backup archive size: $ARCHIVE_SIZE"
+      echo "=================================================================="
+      set -x
+      exit 1
     fi
 
     #Only delete the old archive after a successful archive
+    export REMOTE_DAYS_TO_KEEP=$(echo $REMOTE_DAYS_TO_KEEP | sed 's/"//g')
     if [[ "$REMOTE_DAYS_TO_KEEP" -gt 0 ]]; then
       remove_old_remote_archives
     fi

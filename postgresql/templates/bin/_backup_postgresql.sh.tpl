@@ -41,9 +41,9 @@ dump_databases_to_directory() {
   TMP_DIR=$1
   LOG_FILE=$2
 
-  PG_DUMPALL_OPTIONS=$POSTGRESQL_BACKUP_PG_DUMPALL_OPTIONS
+  PG_DUMPALL_OPTIONS=$(echo $POSTGRESQL_BACKUP_PG_DUMPALL_OPTIONS | sed 's/"//g')
   PG_DUMPALL="pg_dumpall \
-                $POSTGRESQL_BACKUP_PG_DUMPALL_OPTIONS \
+                $PG_DUMPALL_OPTIONS \
                 -U $POSTGRESQL_ADMIN_USER \
                 -h $POSTGRESQL_SERVICE_HOST"
 
