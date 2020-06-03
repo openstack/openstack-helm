@@ -12,6 +12,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- define "novaApiMetadataLivenessProbeTemplate" }}
+tcpSocket:
+  port: {{ .Values.network.metadata.port }}
+{{- end }}
+
+{{- define "novaApiMetadataReadinessProbeTemplate" }}
+tcpSocket:
+  port: {{ .Values.network.metadata.port }}
+{{- end }}
+
 {{- if .Values.manifests.deployment_api_metadata }}
 {{- $envAll := . }}
 
@@ -89,13 +99,8 @@ spec:
                   - stop
           ports:
             - containerPort: {{ .Values.network.metadata.port }}
-          readinessProbe:
-            tcpSocket:
-              port: {{ .Values.network.metadata.port }}
-          livenessProbe:
-            tcpSocket:
-              port: {{ .Values.network.metadata.port }}
-            initialDelaySeconds: 30
+{{ dict "envAll" $envAll "component" "api-metadata" "container" "default" "type" "liveness" "probeTemplate" (include "novaApiMetadataLivenessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+{{ dict "envAll" $envAll "component" "api-metadata" "container" "default" "type" "readiness" "probeTemplate" (include "novaApiMetadataReadinessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp

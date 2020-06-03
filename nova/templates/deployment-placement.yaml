@@ -12,6 +12,17 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- define "novaPlacementLivenessProbeTemplate" }}
+tcpSocket:
+  port: {{ tuple "placement" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+{{- end }}
+
+{{- define "novaPlacementReadinessProbeTemplate" }}
+#NOTE(portdirect): use tcpSocket check as HTTP will return 401
+tcpSocket:
+  port: {{ tuple "placement" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+{{- end }}
+
 {{- if .Values.manifests.deployment_placement }}
 {{- $envAll := . }}
 
@@ -70,17 +81,8 @@ spec:
           ports:
             - name: p-api
               containerPort: {{ tuple "placement" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-          readinessProbe:
-            #NOTE(portdirect): use tcpSocket check as HTTP will return 401
-            tcpSocket:
-              port: {{ tuple "placement" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-            initialDelaySeconds: 15
-            periodSeconds: 10
-          livenessProbe:
-            tcpSocket:
-              port: {{ tuple "placement" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-            initialDelaySeconds: 50
-            periodSeconds: 10
+{{ dict "envAll" $envAll "component" "placement" "container" "default" "type" "liveness" "probeTemplate" (include "novaPlacementLivenessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+{{ dict "envAll" $envAll "component" "placement" "container" "default" "type" "readiness" "probeTemplate" (include "novaPlacementReadinessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp

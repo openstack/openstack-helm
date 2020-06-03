@@ -12,6 +12,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- define "novaApiOsapiLivenessProbeTemplate" }}
+tcpSocket:
+  port: {{ tuple "compute" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+{{- end }}
+
+{{- define "novaApiOsapiReadinessProbeTemplate" }}
+tcpSocket:
+  port: {{ tuple "compute" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+{{- end }}
+
 {{- if .Values.manifests.deployment_api_osapi }}
 {{- $envAll := . }}
 
@@ -71,13 +81,8 @@ spec:
           ports:
             - name: n-api
               containerPort: {{ tuple "compute" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-          readinessProbe:
-            tcpSocket:
-              port: {{ tuple "compute" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-          livenessProbe:
-            tcpSocket:
-              port: {{ tuple "compute" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-            initialDelaySeconds: 30
+{{ dict "envAll" $envAll "component" "api-osapi" "container" "default" "type" "liveness" "probeTemplate" (include "novaApiOsapiLivenessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+{{ dict "envAll" $envAll "component" "api-osapi" "container" "default" "type" "readiness" "probeTemplate" (include "novaApiOsapiReadinessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp

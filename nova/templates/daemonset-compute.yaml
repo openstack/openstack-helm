@@ -12,6 +12,35 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- define "novaComputeLivenessProbeTemplate" }}
+exec:
+  command:
+    - python
+    - /tmp/health-probe.py
+    - --config-file
+    - /etc/nova/nova.conf
+    - --service-queue-name
+    - compute
+    - --liveness-probe
+    {{- if .Values.pod.use_fqdn.compute }}
+    - --use-fqdn
+    {{- end }}
+{{- end }}
+
+{{- define "novaComputeReadinessProbeTemplate" }}
+exec:
+  command:
+    - python
+    - /tmp/health-probe.py
+    - --config-file
+    - /etc/nova/nova.conf
+    - --service-queue-name
+    - compute
+    {{- if .Values.pod.use_fqdn.compute }}
+    - --use-fqdn
+    {{- end }}
+{{- end }}
+
 {{- define "nova.compute.daemonset" }}
 {{- $daemonset := index . 0 }}
 {{- $configMapName := index . 1 }}
@@ -183,8 +212,8 @@ spec:
 {{ dict "envAll" $envAll "application" "nova" "container" "nova_compute" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           securityContext:
             privileged: true
-          {{- if .Values.conf.ceph.enabled }}
           env:
+          {{- if .Values.conf.ceph.enabled }}
             - name: CEPH_CINDER_USER
               value: "{{ .Values.conf.ceph.cinder.user }}"
             {{- if .Values.conf.ceph.cinder.keyring }}
@@ -194,37 +223,12 @@ spec:
             - name: LIBVIRT_CEPH_SECRET_UUID
               value: "{{ .Values.conf.ceph.secret_uuid }}"
           {{ end }}
-          readinessProbe:
-            exec:
-              command:
-                - python
-                - /tmp/health-probe.py
-                - --config-file
-                - /etc/nova/nova.conf
-                - --service-queue-name
-                - compute
-                {{- if .Values.pod.use_fqdn.compute }}
-                - --use-fqdn
-                {{- end }}
-            initialDelaySeconds: 80
-            periodSeconds: 190
-            timeoutSeconds: 185
-          livenessProbe:
-            exec:
-              command:
-                - python
-                - /tmp/health-probe.py
-                - --config-file
-                - /etc/nova/nova.conf
-                - --service-queue-name
-                - compute
-                - --liveness-probe
-                {{- if .Values.pod.use_fqdn.compute }}
-                - --use-fqdn
-                {{- end }}
-            initialDelaySeconds: 120
-            periodSeconds: 600
-            timeoutSeconds: 580
+            - name: RPC_PROBE_TIMEOUT
+              value: "{{ .Values.pod.probes.rpc_timeout }}"
+            - name: RPC_PROBE_RETRIES
+              value: "{{ .Values.pod.probes.rpc_retries }}"
+{{ dict "envAll" $envAll "component" "compute" "container" "default" "type" "liveness" "probeTemplate" (include "novaComputeLivenessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+{{ dict "envAll" $envAll "component" "compute" "container" "default" "type" "readiness" "probeTemplate" (include "novaComputeReadinessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
           command:
             - /tmp/nova-compute.sh
           terminationMessagePath: /var/log/termination-log

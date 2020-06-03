@@ -12,6 +12,29 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- define "novaSchedulerLivenessProbeTemplate" }}
+exec:
+  command:
+    - python
+    - /tmp/health-probe.py
+    - --config-file
+    - /etc/nova/nova.conf
+    - --service-queue-name
+    - scheduler
+    - --liveness-probe
+{{- end }}
+
+{{- define "novaSchedulerReadinessProbeTemplate" }}
+exec:
+  command:
+    - python
+    - /tmp/health-probe.py
+    - --config-file
+    - /etc/nova/nova.conf
+    - --service-queue-name
+    - scheduler
+{{- end }}
+
 {{- if .Values.manifests.deployment_scheduler }}
 {{- $envAll := . }}
 
@@ -58,31 +81,13 @@ spec:
 {{ tuple $envAll "nova_scheduler" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.scheduler | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
 {{ dict "envAll" $envAll "application" "nova" "container" "nova_scheduler" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
-          readinessProbe:
-            exec:
-              command:
-                - python
-                - /tmp/health-probe.py
-                - --config-file
-                - /etc/nova/nova.conf
-                - --service-queue-name
-                - scheduler
-            initialDelaySeconds: 80
-            periodSeconds: 190
-            timeoutSeconds: 185
-          livenessProbe:
-            exec:
-              command:
-                - python
-                - /tmp/health-probe.py
-                - --config-file
-                - /etc/nova/nova.conf
-                - --service-queue-name
-                - scheduler
-                - --liveness-probe
-            initialDelaySeconds: 120
-            periodSeconds: 600
-            timeoutSeconds: 580
+{{ dict "envAll" $envAll "component" "scheduler" "container" "default" "type" "liveness" "probeTemplate" (include "novaSchedulerLivenessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+{{ dict "envAll" $envAll "component" "scheduler" "container" "default" "type" "readiness" "probeTemplate" (include "novaSchedulerReadinessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+          env:
+            - name: RPC_PROBE_TIMEOUT
+              value: "{{ .Values.pod.probes.rpc_timeout }}"
+            - name: RPC_PROBE_RETRIES
+              value: "{{ .Values.pod.probes.rpc_retries }}"
           command:
             - /tmp/nova-scheduler.sh
           volumeMounts:

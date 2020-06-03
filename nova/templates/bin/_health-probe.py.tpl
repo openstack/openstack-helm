@@ -43,6 +43,8 @@ from oslo_context import context
 from oslo_log import log
 import oslo_messaging
 
+rpc_timeout = int(os.getenv('RPC_PROBE_TIMEOUT', '60'))
+rpc_retries = int(os.getenv('RPC_PROBE_RETRIES', '2'))
 
 tcp_established = "ESTABLISHED"
 
@@ -64,8 +66,8 @@ def check_service_status(transport):
             namespace='baseapi',
             version="1.1")
         client = oslo_messaging.RPCClient(transport, target,
-                                          timeout=60,
-                                          retry=2)
+                                          timeout=rpc_timeout,
+                                          retry=rpc_retries)
         client.call(context.RequestContext(),
                     'ping',
                     arg=None)
