@@ -34,19 +34,29 @@ function stop () {
   kill -TERM 1
 }
 
+function wait_to_join() {
+  joined=$(curl -s -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" "${ELASTICSEARCH_ENDPOINT}/_cat/nodes" | grep -w $NODE_NAME || true )
+
+  while [ -z "$joined" ]; do
+    sleep 5
+    joined=$(curl -s -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" "${ELASTICSEARCH_ENDPOINT}/_cat/nodes" | grep -w $NODE_NAME || true )
+  done
+}
+
 function allocate_data_node () {
-  CLUSTER_SETTINGS=$(curl -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
-    "${ELASTICSEARCH_ENDPOINT}/_cluster/settings")
-  if echo "${CLUSTER_SETTINGS}" | grep -E "${NODE_NAME}"; then
-    echo "Activate node ${NODE_NAME}"
-    curl -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" -XPUT -H 'Content-Type: application/json' \
+  if [ -f /data/restarting ]; then
+    rm /data/restarting
+    echo "Node ${NODE_NAME} has restarted. Waiting to rejoin the cluster."
+    wait_to_join
+
+    echo "Re-enabling Replica Shard Allocation"
+    curl -s -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" -XPUT -H 'Content-Type: application/json' \
      "${ELASTICSEARCH_ENDPOINT}/_cluster/settings" -d "{
-      \"transient\" :{
-          \"cluster.routing.allocation.exclude._name\" : null
+      \"persistent\": {
+        \"cluster.routing.allocation.enable\": null
       }
     }"
   fi
-  echo "Node ${NODE_NAME} is ready to be used"
 }
 
 function start_master_node () {
@@ -76,24 +86,37 @@ function start_data_node () {
   allocate_data_node &
   /usr/local/bin/docker-entrypoint.sh elasticsearch &
   function drain_data_node () {
-    echo "Prepare to migrate data off node ${NODE_NAME}"
-    echo "Move all data from node ${NODE_NAME}"
-    curl -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" -XPUT -H 'Content-Type: application/json' \
+
+    # Implement the Rolling Restart Protocol Described Here:
+    # https://www.elastic.co/guide/en/elasticsearch/reference/7.x/restart-cluster.html#restart-cluster-rolling
+
+    echo "Disabling Replica Shard Allocation"
+    curl -s -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" -XPUT -H 'Content-Type: application/json' \
      "${ELASTICSEARCH_ENDPOINT}/_cluster/settings" -d "{
-      \"transient\" :{
-          \"cluster.routing.allocation.exclude._name\" : \"${NODE_NAME}\"
+      \"persistent\": {
+        \"cluster.routing.allocation.enable\": \"primaries\"
       }
     }"
-    echo ""
-    while true ; do
-      echo -e "Wait for node ${NODE_NAME} to become empty"
-      SHARDS_ALLOCATION=$(curl -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
-        -XGET "${ELASTICSEARCH_ENDPOINT}/_cat/shards")
-      if ! echo "${SHARDS_ALLOCATION}" | grep -E "${NODE_NAME}"; then
-        break
-      fi
-      sleep 5
-    done
+
+    # If version < 7.6 use _flush/synced; otherwise use _flush
+    # https://www.elastic.co/guide/en/elasticsearch/reference/current/indices-synced-flush-api.html#indices-synced-flush-api
+
+    version=$(curl -s -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" "${ELASTICSEARCH_ENDPOINT}/" | jq -r .version.number)
+
+    if [[ $version =~ "7.1" ]]; then
+      action="_flush/synced"
+    else
+      action="_flush"
+    fi
+
+    curl -s -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" -XPOST "${ELASTICSEARCH_ENDPOINT}/$action"
+
+    # TODO: Check the response of synced flush operations to make sure there are no failures.
+    # Synced flush operations that fail due to pending indexing operations are listed in the response body,
+    # although the request itself still returns a 200 OK status. If there are failures, reissue the request.
+    # (The only side effect of not doing so is slower start up times. See flush documentation linked above)
+
+    touch /data/restarting
     echo "Node ${NODE_NAME} is ready to shutdown"
     kill -TERM 1
   }
