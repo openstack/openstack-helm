@@ -80,4 +80,6 @@ helm status radosgw-openstack
 
 #NOTE: Run Tests
 export OS_CLOUD=openstack_helm
+# Delete the test pod if it still exists
+kubectl delete pods -l application=radosgw-openstack,release_group=radosgw-openstack,component=test --namespace=openstack --ignore-not-found
 helm test radosgw-openstack
