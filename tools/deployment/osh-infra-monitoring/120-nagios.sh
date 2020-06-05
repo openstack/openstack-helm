@@ -31,4 +31,6 @@ helm upgrade --install nagios ./nagios \
 #NOTE: Validate Deployment info
 helm status nagios
 
+# Delete the test pod if it still exists
+kubectl delete pods -l application=nagios,release_group=nagios,component=test --namespace=osh-infra --ignore-not-found
 helm test nagios

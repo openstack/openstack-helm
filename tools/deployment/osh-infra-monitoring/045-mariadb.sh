@@ -33,5 +33,7 @@ helm upgrade --install mariadb ./mariadb \
 #NOTE: Validate Deployment info
 helm status mariadb
 
+# Delete the test pod if it still exists
+kubectl delete pods -l application=mariadb,release_group=mariadb,component=test --namespace=osh-infra --ignore-not-found
 #NOTE: Validate the deployment
 helm test mariadb

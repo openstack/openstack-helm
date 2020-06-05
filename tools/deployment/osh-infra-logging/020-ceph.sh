@@ -204,5 +204,10 @@ for CHART in ceph-mon ceph-osd ceph-client ceph-provisioners; do
     --no-headers | awk '{ print $1; exit }')
   kubectl exec -n ceph ${MON_POD} -- ceph -s
 done
+
+# Delete the test pod if it still exists
+kubectl delete pods -l application=ceph-osd,release_group=ceph-osd,component=test --namespace=ceph --ignore-not-found
 helm test ceph-osd --timeout 900
+# Delete the test pod if it still exists
+kubectl delete pods -l application=ceph-client,release_group=ceph-client,component=test --namespace=ceph --ignore-not-found
 helm test ceph-client --timeout 900

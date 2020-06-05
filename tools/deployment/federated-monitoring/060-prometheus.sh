@@ -62,5 +62,7 @@ for release in prometheus-one prometheus-two prometheus-three; do
       #NOTE: Validate Deployment info
       helm status prometheus-$release
 
+      # Delete the test pod if it still exists
+      kubectl delete pods -l application=prometheus,release_group=prometheus-$release,component=test --namespace=osh-infra --ignore-not-found
       helm test prometheus-$release
 done
