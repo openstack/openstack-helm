@@ -27,6 +27,7 @@ set -ex
 eval CRUSH_FAILURE_DOMAIN_TYPE=$(cat /etc/ceph/storage.json | python -c 'import sys, json; data = json.load(sys.stdin); print(json.dumps(data["failure_domain"]))')
 eval CRUSH_FAILURE_DOMAIN_NAME=$(cat /etc/ceph/storage.json | python -c 'import sys, json; data = json.load(sys.stdin); print(json.dumps(data["failure_domain_name"]))')
 eval CRUSH_FAILURE_DOMAIN_BY_HOSTNAME=$(cat /etc/ceph/storage.json | python -c 'import sys, json; data = json.load(sys.stdin); print(json.dumps(data["failure_domain_by_hostname"]))')
+eval CRUSH_FAILURE_DOMAIN_FROM_HOSTNAME_MAP=$(cat /etc/ceph/storage.json | jq '.failure_domain_by_hostname_map."'$HOSTNAME'"')
 eval DEVICE_CLASS=$(cat /etc/ceph/storage.json | python -c 'import sys, json; data = json.load(sys.stdin); print(json.dumps(data["device_class"]))')
 
 if [[ $(ceph -v | egrep -q "nautilus|mimic|luminous"; echo $?) -ne 0 ]]; then
@@ -102,6 +103,8 @@ function crush_location {
       crush_add_and_move "${CRUSH_FAILURE_DOMAIN_TYPE}" "${CRUSH_FAILURE_DOMAIN_NAME}"
     elif [ "x${CRUSH_FAILURE_DOMAIN_BY_HOSTNAME}" != "xfalse" ]; then
       crush_add_and_move "${CRUSH_FAILURE_DOMAIN_TYPE}" "$(echo ${CRUSH_FAILURE_DOMAIN_TYPE}_$(echo ${HOSTNAME} | cut -c ${CRUSH_FAILURE_DOMAIN_BY_HOSTNAME}))"
+    elif [ "x${CRUSH_FAILURE_DOMAIN_FROM_HOSTNAME_MAP}" != "xnull" ]; then
+      crush_add_and_move "${CRUSH_FAILURE_DOMAIN_TYPE}" "${CRUSH_FAILURE_DOMAIN_FROM_HOSTNAME_MAP}"
     else
       # NOTE(supamatt): neither variables are defined then we fall back to default behavior
       crush_create_or_move "${CRUSH_LOCATION}"
