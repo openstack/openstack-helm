@@ -21,4 +21,5 @@ sudo apt-get install --no-install-recommends -y \
         make \
         nmap \
         curl \
-        bc
+        bc \
+        python3-pip
