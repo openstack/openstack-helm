@@ -147,7 +147,7 @@ function restart_by_rack() {
 }
 
 require_upgrade=0
-
+max_release=0
 
 for ds in `kubectl get ds --namespace=$CEPH_NAMESPACE -l component=osd --no-headers=true|awk '{print $1}'`
 do
@@ -156,15 +156,15 @@ do
   if [[ $updatedNumberScheduled != $desiredNumberScheduled ]]; then
     if kubectl get ds -n $CEPH_NAMESPACE  $ds -o json|jq -r .status|grep -i "numberAvailable" ;then
       require_upgrade=$((require_upgrade+1))
+      _release=`kubectl get ds -n $CEPH_NAMESPACE $ds  -o json|jq -r .status.observedGeneration`
+      max_release=$(( max_release > _release ? max_release : _release ))
     fi
   fi
 done
 
-ds=`kubectl get ds -n $CEPH_NAMESPACE -l release_group=$RELEASE_GROUP_NAME --no-headers|awk '{print $1}'|head -n 1`
-TARGET_HELM_RELEASE=`kubectl get ds -n $CEPH_NAMESPACE $ds  -o json|jq -r .status.observedGeneration`
-echo "Latest revision of the helm chart $RELEASE_GROUP_NAME  is : $TARGET_HELM_RELEASE"
+echo "Latest revision of the helm chart(s) is : $max_release"
 
-if [[ $TARGET_HELM_RELEASE -gt 1  ]]; then
+if [[ $max_release -gt 1  ]]; then
   if [[  $require_upgrade -gt 0 ]]; then
     echo "waiting for inactive pgs and degraded obejcts before upgrade"
     wait_for_inactive_pgs
