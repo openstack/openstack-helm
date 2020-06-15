@@ -178,10 +178,11 @@ spec:
 {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
         configmap-etc-hash: {{ tuple "configmap-conf.yaml" . | include "helm-toolkit.utils.hash" }}
-{{- $containers := (list "init" "ingress") }}
+{{- $containers := "init ingress" }}
 {{- if and .Values.network.host_namespace .Values.network.vip.manage }}
-{{- $containers = append $containers "ingress-vip" }}
+{{- $containers = printf "%s ingress-vip-kernel-modules ingress-vip-init ingress-vip" $containers }}
 {{- end }}
+{{- $containers = splitList " " $containers }}
 {{ dict "envAll" $envAll "podName" "ingress-server" "containerNames" $containers | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
     spec:
 {{ dict "envAll" $envAll "application" "server" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
