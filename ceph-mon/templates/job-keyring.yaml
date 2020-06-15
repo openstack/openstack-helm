@@ -15,7 +15,8 @@ limitations under the License.
 {{- if and .Values.manifests.job_keyring .Values.deployment.storage_secrets }}
 {{- $envAll := . }}
 {{- range $key1, $cephBootstrapKey := tuple "mds" "osd" "mon" "mgr" }}
-{{- $jobName := print $cephBootstrapKey "-keyring-generator" }}
+{{- $component := print $cephBootstrapKey "-keyring-generator" }}
+{{- $jobName := print "ceph-" $component }}
 
 {{- $serviceAccountName := print "ceph-" $jobName }}
 {{ tuple $envAll "job_keyring_generator" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
@@ -50,7 +51,7 @@ subjects:
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: ceph-{{ $jobName }}
+  name: {{ $jobName }}
   annotations:
     {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
 spec:
@@ -59,6 +60,7 @@ spec:
       labels:
 {{ tuple $envAll "ceph" $jobName | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
     spec:
+{{ dict "envAll" $envAll "application" "ceph" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
       serviceAccountName: {{ $serviceAccountName }}
       restartPolicy: OnFailure
       nodeSelector:
@@ -66,9 +68,10 @@ spec:
       initContainers:
 {{ tuple $envAll "job_keyring_generator" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
-        - name:  ceph-{{ $jobName }}
+        - name:  {{ $jobName }}
 {{ tuple $envAll "ceph_config_helper" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.jobs.secret_provisioning | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "ceph" "container" "$jobName" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           env:
             - name: DEPLOYMENT_NAMESPACE
               valueFrom:
