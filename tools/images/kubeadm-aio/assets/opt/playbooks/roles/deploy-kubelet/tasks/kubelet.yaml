@@ -10,6 +10,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+---
 - name: ubuntu or debian | installing kubelet support packages
   when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
   apt:
@@ -101,22 +102,22 @@
         dest: /usr/bin/kubelet
         owner: root
         group: root
-        mode: 0555
+        mode: 365
     - name: copying base systemd unit to host
       template:
         src: kubelet.service.j2
         dest: /etc/systemd/system/kubelet.service
-        mode: 0640
+        mode: 416
     - name: copying kubeadm drop-in systemd unit to host
       template:
         src: 10-kubeadm.conf.j2
         dest: /etc/systemd/system/kubelet.service.d/10-kubeadm.conf
-        mode: 0640
+        mode: 416
     - name: copying kubelet DNS config to host
       template:
         src: kubelet-resolv.conf.j2
         dest: /etc/kubernetes/kubelet-resolv.conf
-        mode: 0640
+        mode: 416
 
 - name: base cni support
   block:
@@ -132,7 +133,7 @@
         dest: /opt/cni/bin/{{ item }}
         owner: root
         group: root
-        mode: 0555
+        mode: 365
       with_items:
         - flannel
         - ptp
@@ -154,7 +155,7 @@
       template:
         src: 0-crio.conf.j2
         dest: /etc/systemd/system/kubelet.service.d/0-crio.conf
-        mode: 0640
+        mode: 416
     - name: CRI-O | ensure service is restarted and enabled
       systemd:
         name: crio
@@ -174,7 +175,7 @@
     - name: Setup DNS redirector | Populating new kubelet resolv.conf
       copy:
         dest: "/etc/kubernetes/kubelet-resolv.conf"
-        mode: 0640
+        mode: 416
         content: |
           nameserver 172.17.0.1
     - name: Setup DNS redirector | Ensuring static manifests dir exists
@@ -190,12 +191,12 @@
       template:
         src: resolv-upstream.conf.j2
         dest: /etc/resolv-upstream.conf
-        mode: 0664
+        mode: 436
     - name: Setup DNS redirector | Placing pod manifest on host
       template:
         src: osh-dns-redirector.yaml.j2
         dest: /etc/kubernetes/manifests/osh-dns-redirector.yaml
-        mode: 0640
+        mode: 416
 
 - name: docker | ensure service is started and enabled
   when: kubelet.container_runtime == 'docker'
@@ -212,3 +213,4 @@
     daemon_reload: yes
     enabled: yes
     masked: no
+...
