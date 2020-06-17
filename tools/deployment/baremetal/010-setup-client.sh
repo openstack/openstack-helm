@@ -14,7 +14,7 @@
 
 set -xe
 
-sudo -H -E pip install \
+sudo -H -E pip3 install \
 -c${UPPER_CONSTRAINTS_FILE:=https://releases.openstack.org/constraints/upper/master} \
 python-openstackclient python-heatclient python-ironicclient
 

@@ -24,7 +24,7 @@ export OS_CLOUD=openstack_helm
 : ${OSH_LB_AMPHORA_IMAGE_NAME:="amphora-x64-haproxy"}
 : ${OSH_AMPHORA_IMAGE_FILE_PATH:=""}
 
-sudo pip install python-octaviaclient==1.6.0
+sudo pip3 install python-octaviaclient==1.6.0
 
 # NOTE(hagun.kim): These resources are required to use Octavia service.
 
