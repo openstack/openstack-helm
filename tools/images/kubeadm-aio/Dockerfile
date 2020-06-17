@@ -71,16 +71,16 @@ RUN set -ex ;\
         ca-certificates \
         curl \
         jq \
-        python-pip \
+        python3-pip \
         gawk ;\
-    pip --no-cache-dir install --upgrade pip==18.1 ;\
+    pip3 --no-cache-dir install --upgrade pip==18.1 ;\
     hash -r ;\
-    pip --no-cache-dir install --upgrade setuptools ;\
+    pip3 --no-cache-dir install --upgrade setuptools ;\
     # NOTE(srwilkers): Pinning ansible to 2.5.5, as pip installs 2.6 by default.
     # 2.6 introduces a new command flag (init) for the docker_container module
     # that is incompatible with what we have currently. 2.5.5 ensures we match
     # what's deployed in the gates
-    pip --no-cache-dir install --upgrade \
+    pip3 --no-cache-dir install --upgrade \
       requests \
       kubernetes \
       "ansible==2.5.5" ;\
