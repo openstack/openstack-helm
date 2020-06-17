@@ -97,18 +97,18 @@ spec:
 {{- if $secretBin }}
           secret:
             secretName: {{ $secretBin | quote }}
-            defaultMode: 0555
+            defaultMode: 365
 {{- else }}
           configMap:
             name: {{ $configMapBin | quote }}
-            defaultMode: 0555
+            defaultMode: 365
 {{- end }}
         - name: etc-service
           emptyDir: {}
         - name: db-sync-conf
           secret:
             secretName: {{ $configMapEtc | quote }}
-            defaultMode: 0444
+            defaultMode: 292
 {{- if $podVols }}
 {{ $podVols | toYaml | indent 8 }}
 {{- end }}

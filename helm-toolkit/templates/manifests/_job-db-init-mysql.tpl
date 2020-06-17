@@ -117,11 +117,11 @@ spec:
 {{- if $secretBin }}
           secret:
             secretName: {{ $secretBin | quote }}
-            defaultMode: 0555
+            defaultMode: 365
 {{- else }}
           configMap:
             name: {{ $configMapBin | quote }}
-            defaultMode: 0555
+            defaultMode: 365
 {{- end }}
 {{- $local := dict "configMapBinFirst" true -}}
 {{- range $key1, $dbToInit := $dbsToInit }}
@@ -133,7 +133,7 @@ spec:
         - name: db-init-conf
           secret:
             secretName: {{ $configMapEtc | quote }}
-            defaultMode: 0444
+            defaultMode: 292
 {{- end -}}
 {{- end -}}
 {{- end -}}
