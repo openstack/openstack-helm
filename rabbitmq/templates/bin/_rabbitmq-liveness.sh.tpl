@@ -20,5 +20,5 @@ if [ -f /tmp/rabbit-disable-liveness-probe ]; then
    exit 0
 else
    timeout 5 bash -c "true &>/dev/null </dev/tcp/${MY_POD_IP}/${PORT_AMPQ}"
-   exec rabbitmqctl status
+   exec rabbitmqctl node_health_check
 fi
