@@ -15,6 +15,7 @@ limitations under the License.
 */}}
 
 set -ex
+export PS4='+${BASH_SOURCE:+$(basename ${BASH_SOURCE}):${LINENO}:}${FUNCNAME:+${FUNCNAME}():} '
 
 : "${CRUSH_LOCATION:=root=default host=${HOSTNAME}}"
 : "${OSD_PATH_BASE:=/var/lib/ceph/osd/${CLUSTER}}"
