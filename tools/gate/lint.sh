@@ -7,10 +7,10 @@ HELM_VERSION=$(yq -r '.version.helm' ${HELM_DATA_YAML})
 GOOGLE_HELM_REPO_URL=$(yq -r '.url.google_helm_repo' ${HELM_DATA_YAML})
 LINT_DIR=.yamllint
 
+rm -rf */charts/helm-toolkit
 mkdir ${LINT_DIR}
 cp -r * ${LINT_DIR}
 rm -rf ${LINT_DIR}/*/templates
-rm -rf */charts/helm-toolkit
 wget -qO ${LINT_DIR}/helm.tgz ${GOOGLE_HELM_REPO_URL}/helm-${HELM_VERSION}-linux-amd64.tar.gz
 tar xzf ${LINT_DIR}/helm.tgz -C ${LINT_DIR} --strip-components=1 linux-amd64/helm
 
