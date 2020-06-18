@@ -26,9 +26,9 @@ function ansible_install {
   if [ "x$ID" == "xubuntu" ]; then
     sudo apt-get update -y
     sudo apt-get install -y --no-install-recommends \
-      python-pip \
+      python3-pip \
       libssl-dev \
-      python-dev \
+      python3-dev \
       build-essential \
       jq \
       curl
@@ -36,7 +36,7 @@ function ansible_install {
     sudo yum install -y \
       epel-release
     sudo yum install -y \
-      python-pip \
+      python3-pip \
       python-devel \
       redhat-rpm-config \
       gcc \
@@ -52,18 +52,18 @@ function ansible_install {
       jq
   fi
 
-  sudo -H -E pip install --upgrade pip
-  sudo -H -E pip install --upgrade setuptools
+  sudo -H -E pip3 install --upgrade pip
+  sudo -H -E pip3 install --upgrade setuptools
   # NOTE(lamt) Preinstalling a capped version of cmd2 to address bug:
   # https://github.com/python-cmd2/cmd2/issues/421
-  sudo -H -E pip install --upgrade "cmd2<=0.8.7"
-  sudo -H -E pip install --upgrade pyopenssl
+  sudo -H -E pip3 install --upgrade "cmd2<=0.8.7"
+  sudo -H -E pip3 install --upgrade pyopenssl
   # NOTE(srwilkers): Pinning ansible to 2.5.5, as pip installs 2.6 by default.
   # 2.6 introduces a new command flag (init) for the docker_container module
   # that is incompatible with what we have currently. 2.5.5 ensures we match
   # what's deployed in the gates
-  sudo -H -E pip install --upgrade "ansible==2.5.5"
-  sudo -H -E pip install --upgrade \
+  sudo -H -E pip3 install --upgrade "ansible==2.5.5"
+  sudo -H -E pip3 install --upgrade \
     ara \
     yq
 }
