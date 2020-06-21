@@ -70,9 +70,15 @@ return: |
       secretKeyRef:
         name: example-keystone-admin
         key: OS_PASSWORD
+  - name: OS_CACERT
+    valueFrom:
+      secretKeyRef:
+        name: example-keystone-admin
+        key: OS_CACERT
 */}}
 
 {{- define "helm-toolkit.snippets.keystone_openrc_env_vars" }}
+{{- $useCA := .useCA -}}
 {{- $ksUserSecret := .ksUserSecret }}
 - name: OS_IDENTITY_API_VERSION
   value: "3"
@@ -126,4 +132,11 @@ return: |
     secretKeyRef:
       name: {{ $ksUserSecret }}
       key: OS_DEFAULT_DOMAIN
+{{- if $useCA }}
+- name: OS_CACERT
+  valueFrom:
+    secretKeyRef:
+      name: {{ $ksUserSecret }}
+      key: OS_CACERT
+{{- end }}
 {{- end }}

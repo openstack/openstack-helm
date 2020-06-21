@@ -219,6 +219,97 @@ examples:
                   backend:
                     serviceName: barbican-api
                     servicePort: b-api
+  - values: |
+      network:
+        api:
+          ingress:
+            public: true
+            classes:
+              namespace: "nginx"
+              cluster: "nginx-cluster"
+            annotations:
+              nginx.ingress.kubernetes.io/secure-backends: "true"
+              nginx.ingress.kubernetes.io/backend-protocol: "https"
+      secrets:
+        tls:
+          key_manager:
+            api:
+              public: barbican-tls-public
+              internal: barbican-tls-api
+      endpoints:
+        cluster_domain_suffix: cluster.local
+        key_manager:
+          name: barbican
+          hosts:
+            default: barbican-api
+            public:
+              host: barbican
+              tls:
+                crt: |
+                  FOO-CRT
+                key: |
+                  FOO-KEY
+                ca: |
+                  FOO-CA_CRT
+          host_fqdn_override:
+            default: null
+          path:
+            default: /
+          scheme:
+            default: http
+            public: https
+          port:
+            api:
+              default: 9311
+              public: 80
+          certs:
+            barbican_tls_api:
+              secretName: barbican-tls-api
+              issuerRef:
+                name: ca-issuer
+                kind: Issuer
+    usage: |
+      {{- include "helm-toolkit.manifests.ingress" ( dict "envAll" . "backendServiceType" "key-manager" "backendPort" "b-api" "endpoint" "public" "certIssuer" "ca-issuer" ) -}}
+    return: |
+      ---
+      apiVersion: extensions/v1beta1
+      kind: Ingress
+      metadata:
+        name: barbican
+        annotations:
+          kubernetes.io/ingress.class: "nginx"
+          cert-manager.io/issuer: ca-issuer
+          nginx.ingress.kubernetes.io/backend-protocol: https
+          nginx.ingress.kubernetes.io/secure-backends: "true"
+      spec:
+        tls:
+          - secretName: barbican-tls-public-certmanager
+            hosts:
+              - barbican
+              - barbican.default
+              - barbican.default.svc.cluster.local
+        rules:
+          - host: barbican
+            http:
+              paths:
+                - path: /
+                  backend:
+                    serviceName: barbican-api
+                    servicePort: b-api
+          - host: barbican.default
+            http:
+              paths:
+                - path: /
+                  backend:
+                    serviceName: barbican-api
+                    servicePort: b-api
+          - host: barbican.default.svc.cluster.local
+            http:
+              paths:
+                - path: /
+                  backend:
+                    serviceName: barbican-api
+                    servicePort: b-api
 */}}
 
 {{- define "helm-toolkit.manifests.ingress._host_rules" -}}
@@ -240,6 +331,7 @@ examples:
 {{- $backendServiceType := index . "backendServiceType" -}}
 {{- $backendPort := index . "backendPort" -}}
 {{- $endpoint := index . "endpoint" | default "public" -}}
+{{- $certIssuer := index . "certIssuer" | default "" -}}
 {{- $ingressName := tuple $backendServiceType $endpoint $envAll | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
 {{- $backendName := tuple $backendServiceType "internal" $envAll | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
 {{- $hostName := tuple $backendServiceType $endpoint $envAll | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
@@ -251,9 +343,22 @@ metadata:
   name: {{ $ingressName }}
   annotations:
     kubernetes.io/ingress.class: {{ index $envAll.Values.network $backendService "ingress" "classes" "namespace" | quote }}
+{{- if $certIssuer }}
+    cert-manager.io/issuer: {{ $certIssuer }}
+{{- end }}
 {{ toYaml (index $envAll.Values.network $backendService "ingress" "annotations") | indent 4 }}
 spec:
 {{- $host := index $envAll.Values.endpoints ( $backendServiceType | replace "-" "_" ) "hosts" }}
+{{- if $certIssuer }}
+{{- $secretName := index $envAll.Values.secrets "tls" ( $backendServiceType | replace "-" "_" ) $backendService $endpoint }}
+{{- $_ := required "You need to specify a secret in your values for the endpoint" $secretName }}
+  tls:
+    - secretName: {{ printf "%s-ing" $secretName }}
+      hosts:
+{{- range $key1, $vHost := tuple $hostName (printf "%s.%s" $hostName $envAll.Release.Namespace) (printf "%s.%s.svc.%s" $hostName $envAll.Release.Namespace $envAll.Values.endpoints.cluster_domain_suffix) }}
+        - {{ $vHost }}
+{{- end }}
+{{- else }}
 {{- if hasKey $host $endpoint }}
 {{- $endpointHost := index $host $endpoint }}
 {{- if kindIs "map" $endpointHost }}
@@ -266,6 +371,7 @@ spec:
       hosts:
 {{- range $key1, $vHost := tuple $hostName (printf "%s.%s" $hostName $envAll.Release.Namespace) (printf "%s.%s.svc.%s" $hostName $envAll.Release.Namespace $envAll.Values.endpoints.cluster_domain_suffix) }}
         - {{ $vHost }}
+{{- end }}
 {{- end }}
 {{- end }}
 {{- end }}

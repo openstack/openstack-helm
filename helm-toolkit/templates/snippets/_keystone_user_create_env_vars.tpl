@@ -21,7 +21,7 @@ values: |
     identity:
       service_user: example-keystone-user
 usage: |
-  {{ include "helm-toolkit.snippets.keystone_user_create_env_vars" ( dict "ksUserSecret" .Values.secrets.identity.service_user ) }}
+  {{ include "helm-toolkit.snippets.keystone_user_create_env_vars" ( dict "ksUserSecret" .Values.secrets.identity.service_user "useCA" true ) }}
 return: |
   - name: SERVICE_OS_REGION_NAME
     valueFrom:

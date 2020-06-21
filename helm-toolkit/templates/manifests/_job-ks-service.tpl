@@ -24,6 +24,7 @@ limitations under the License.
 {{- $nodeSelector := index . "nodeSelector" | default ( dict $envAll.Values.labels.job.node_selector_key $envAll.Values.labels.job.node_selector_value ) -}}
 {{- $configMapBin := index . "configMapBin" | default (printf "%s-%s" $serviceName "bin" ) -}}
 {{- $secretBin := index . "secretBin" -}}
+{{- $tlsSecret := index . "tlsSecret" | default "" -}}
 {{- $backoffLimit := index . "backoffLimit" | default "1000" -}}
 {{- $activeDeadlineSeconds := index . "activeDeadlineSeconds" -}}
 {{- $serviceNamePretty := $serviceName | replace "_" "-" -}}
@@ -70,8 +71,9 @@ spec:
               mountPath: /tmp/ks-service.sh
               subPath: ks-service.sh
               readOnly: true
+{{ dict "enabled" true "name" $tlsSecret "ca" true | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
           env:
-{{- with $env := dict "ksUserSecret" $envAll.Values.secrets.identity.admin }}
+{{- with $env := dict "ksUserSecret" $envAll.Values.secrets.identity.admin "useCA" (ne $tlsSecret "") }}
 {{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 12 }}
 {{- end }}
             - name: OS_SERVICE_NAME
@@ -92,4 +94,5 @@ spec:
             name: {{ $configMapBin | quote }}
             defaultMode: 365
 {{- end }}
+{{- dict "enabled" true "name" $tlsSecret | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 {{- end }}

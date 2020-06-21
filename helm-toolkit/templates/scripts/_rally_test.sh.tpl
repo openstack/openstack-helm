@@ -66,7 +66,7 @@ cat > /tmp/rally-config.json << EOF
             }
         ],
         "https_insecure": false,
-        "https_cacert": ""
+        "https_cacert": "${OS_CACERT}"
     }
 }
 EOF

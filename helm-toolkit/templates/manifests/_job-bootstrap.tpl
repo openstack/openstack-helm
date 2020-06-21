@@ -27,6 +27,7 @@ limitations under the License.
 {{- $configMapEtc := index . "configMapEtc" | default (printf "%s-%s" $serviceName "etc" ) -}}
 {{- $configFile := index . "configFile" | default (printf "/etc/%s/%s.conf" $serviceName $serviceName ) -}}
 {{- $logConfigFile := index . "logConfigFile" | default (printf "/etc/%s/logging.conf" $serviceName ) -}}
+{{- $tlsSecret := index . "tlsSecret" | default "" -}}
 {{- $keystoneUser := index . "keystoneUser" | default $serviceName -}}
 {{- $openrc := index . "openrc" | default "true" -}}
 {{- $secretBin := index . "secretBin" -}}
@@ -66,7 +67,7 @@ spec:
 {{ tuple $envAll $envAll.Values.pod.resources.jobs.bootstrap | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
 {{- if eq $openrc "true" }}
           env:
-{{- with $env := dict "ksUserSecret" ( index $envAll.Values.secrets.identity $keystoneUser ) }}
+{{- with $env := dict "ksUserSecret" ( index $envAll.Values.secrets.identity $keystoneUser ) "useCA" (ne $tlsSecret "") }}
 {{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 12 }}
 {{- end }}
 {{- end }}
@@ -91,6 +92,7 @@ spec:
               mountPath: {{ $logConfigFile | quote }}
               subPath: {{ base $logConfigFile | quote }}
               readOnly: true
+{{ dict "enabled" (ne $tlsSecret "") "name" $tlsSecret | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
 {{- if $podVolMounts }}
 {{ $podVolMounts | toYaml | indent 12 }}
 {{- end }}
@@ -112,7 +114,8 @@ spec:
         - name: bootstrap-conf
           secret:
             secretName: {{ $configMapEtc | quote }}
-            defaultMode: 292
+            defaultMode: 0444
+{{- dict "enabled" (ne $tlsSecret "") "name" $tlsSecret | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 {{- if $podVols }}
 {{ $podVols | toYaml | indent 8 }}
 {{- end }}

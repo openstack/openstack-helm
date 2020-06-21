@@ -19,44 +19,46 @@ examples:
   - values: |
       endpoints:
         dashboard:
-          certs:
-            horizon-internal-cert:
-              secretName: horizon-tls-apache
-              duration: 2160h
-              organization:
-                - ACME
-              commonName: horizon-int.openstack.svc.cluster.local
-              keySize: 2048
-              usages:
-                - server auth
-                - client auth
-              dnsNames:
-                - cluster.local
-              issuerRef:
-                name: ca-issuer
-                kind: Issuer
+          host_fqdn_override:
+            default:
+              host: null
+              tls:
+                secretName: keystone-tls-api
+                issuerRef:
+                  name: ca-issuer
+                  duration: 2160h
+                  organization:
+                    - ACME
+                  commonName: keystone-api.openstack.svc.cluster.local
+                  keySize: 2048
+                  usages:
+                    - server auth
+                    - client auth
+                  dnsNames:
+                    - cluster.local
+                  issuerRef:
+                    name: ca-issuer
     usage: |
-      {{- $opts := dict "envAll" . "service" "dashboard" "type" "internal" "certName" "horizon-internal-cert" -}}
+      {{- $opts := dict "envAll" . "service" "dashboard" "type" "internal" -}}
       {{ $opts | include "helm-toolkit.manifests.certificates" }}
     return: |
       ---
       apiVersion: cert-manager.io/v1alpha3
       kind: Certificate
       metadata:
-        name: horizon_internal_cert
+        name: keystone-tls-api
         namespace: NAMESPACE
       spec:
-        commonName: horizon-int.openstack.svc.cluster.local
+        commonName: keystone-api.openstack.svc.cluster.local
         dnsNames:
         - cluster.local
         duration: 2160h
         issuerRef:
-          kind: Issuer
           name: ca-issuer
         keySize: 2048
         organization:
         - ACME
-        secretName: horizon-tls-apache
+        secretName: keystone-tls-api
         usages:
         - server auth
         - client auth
@@ -66,37 +68,36 @@ examples:
 {{- $envAll := index . "envAll" -}}
 {{- $service := index . "service" -}}
 {{- $type := index . "type" | default "" -}}
-{{- $name := index . "certName" -}}
-{{- $slice := index $envAll.Values.endpoints $service "certs" $name -}}
+{{- $slice := index $envAll.Values.endpoints $service "host_fqdn_override" "default" "tls" -}}
 {{/* Put in some sensible default value if one is not provided by values.yaml */}}
 {{/* If a dnsNames list is not in the values.yaml, it can be overridden by a passed-in parameter.
   This allows user to use other HTK method to determine the URI and pass that into this method.*/}}
 {{- if not (hasKey $slice "dnsNames") -}}
 {{- $hostName := tuple $service $type $envAll | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" -}}
 {{- $dnsNames := list $hostName (printf "%s.%s" $hostName $envAll.Release.Namespace) (printf "%s.%s.svc.%s" $hostName $envAll.Release.Namespace $envAll.Values.endpoints.cluster_domain_suffix) -}}
-{{- $_ := $dnsNames | set (index $envAll.Values.endpoints $service "certs" $name) "dnsNames" -}}
+{{- $_ := $dnsNames | set (index $envAll.Values.endpoints $service "host_fqdn_override" "default" "tls") "dnsNames" -}}
 {{- end -}}
 {{/* Default keySize to 4096. This can be overridden. */}}
 {{- if not (hasKey $slice "keySize") -}}
-{{- $_ := ( printf "%d" 4096 | atoi ) | set (index $envAll.Values.endpoints $service "certs" $name) "keySize" -}}
+{{- $_ := ( printf "%d" 4096 | atoi ) | set (index $envAll.Values.endpoints $service "host_fqdn_override" "default" "tls") "keySize" -}}
 {{- end -}}
 {{/* Default keySize to 3 months. Note the min is 720h. This can be overridden. */}}
 {{- if not (hasKey $slice "duration") -}}
-{{- $_ := printf "%s" "2190h" | set (index $envAll.Values.endpoints $service "certs" $name) "duration" -}}
+{{- $_ := printf "%s" "2190h" | set (index $envAll.Values.endpoints $service "host_fqdn_override" "default" "tls") "duration" -}}
 {{- end -}}
 {{/* Default renewBefore to 15 days. This can be overridden. */}}
 {{- if not (hasKey $slice "renewBefore") -}}
-{{- $_ := printf "%s" "360h" | set (index $envAll.Values.endpoints $service "certs" $name) "renewBefore" -}}
+{{- $_ := printf "%s" "360h" | set (index $envAll.Values.endpoints $service "host_fqdn_override" "default" "tls") "renewBefore" -}}
 {{- end -}}
 {{/* Default the usage to server auth and client auth. This can be overridden. */}}
 {{- if not (hasKey $slice "usages") -}}
-{{- $_ := (list "server auth" "client auth") | set (index $envAll.Values.endpoints $service "certs" $name) "usages" -}}
+{{- $_ := (list "server auth" "client auth") | set (index $envAll.Values.endpoints $service "host_fqdn_override" "default" "tls") "usages" -}}
 {{- end -}}
 ---
 apiVersion: cert-manager.io/v1alpha3
 kind: Certificate
 metadata:
-  name: {{ $name | replace "_" "-" }}
+  name: {{ index $envAll.Values.endpoints $service "host_fqdn_override" "default" "tls" "secretName" }}
   namespace: {{ $envAll.Release.Namespace }}
 spec:
 {{ $slice | toYaml | indent 2 }}

@@ -24,6 +24,7 @@ limitations under the License.
 {{- $configMapBin := index . "configMapBin" | default (printf "%s-%s" $serviceName "bin" ) -}}
 {{- $serviceUser := index . "serviceUser" | default $serviceName -}}
 {{- $secretBin := index . "secretBin" -}}
+{{- $tlsSecret := index . "tlsSecret" | default "" -}}
 {{- $backoffLimit := index . "backoffLimit" | default "1000" -}}
 {{- $activeDeadlineSeconds := index . "activeDeadlineSeconds" -}}
 {{- $serviceUserPretty := $serviceUser | replace "_" "-" -}}
@@ -69,8 +70,9 @@ spec:
               mountPath: /tmp/ks-user.sh
               subPath: ks-user.sh
               readOnly: true
+{{ dict "enabled" true "name" $tlsSecret "ca" true | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
           env:
-{{- with $env := dict "ksUserSecret" $envAll.Values.secrets.identity.admin }}
+{{- with $env := dict "ksUserSecret" $envAll.Values.secrets.identity.admin "useCA" (ne $tlsSecret "") }}
 {{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 12 }}
 {{- end }}
             - name: SERVICE_OS_SERVICE_NAME
@@ -98,4 +100,5 @@ spec:
             name: {{ $configMapBin | quote }}
             defaultMode: 365
 {{- end }}
+{{- dict "enabled" true "name" $tlsSecret | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 {{- end -}}
