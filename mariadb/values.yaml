@@ -20,7 +20,6 @@ release_group: null
 
 images:
   tags:
-    # 10.2.31
     mariadb: openstackhelm/mariadb@sha256:5f05ce5dce71c835c6361a05705da5cce31114934689ec87dfa48b8f8c600f70
     ingress: quay.io/kubernetes-ingress-controller/nginx-ingress-controller:0.9.0
     error_pages: gcr.io/google_containers/defaultbackend:1.4
@@ -416,6 +415,15 @@ conf:
       wsrep_sst_auth={{ .Values.endpoints.oslo_db.auth.sst.username }}:{{ .Values.endpoints.oslo_db.auth.sst.password }}
       wsrep_sst_method=mariabackup
 
+      {{ if .Values.manifests.certificates }}
+      # TLS
+      ssl_ca=/etc/mysql/certs/ca.crt
+      ssl_key=/etc/mysql/certs/tls.key
+      ssl_cert=/etc/mysql/certs/tls.crt
+      # tls_version = TLSv1.2,TLSv1.3
+      {{ end }}
+
+
       [mysqldump]
       max-allowed-packet=16M
 
@@ -423,6 +431,15 @@ conf:
       default_character_set=utf8
       protocol=tcp
       port={{ tuple "oslo_db" "direct" "mysql" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+      {{ if .Values.manifests.certificates }}
+      # TLS
+      ssl_ca=/etc/mysql/certs/ca.crt
+      ssl_key=/etc/mysql/certs/tls.key
+      ssl_cert=/etc/mysql/certs/tls.crt
+      # tls_version = TLSv1.2,TLSv1.3
+      ssl-verify-server-cert
+      {{ end }}
+
     config_override: null
     # Any configuration here will override the base config.
     # config_override: |-
@@ -445,6 +462,11 @@ secrets:
     remote_rgw_user: mariadb-backup-user
   mariadb:
     backup_restore: mariadb-backup-restore
+  tls:
+    oslo_db:
+      server:
+        public: mariadb-tls-server
+        internal: mariadb-tls-direct
 
 # typically overridden by environmental
 # values, but should include all endpoints
@@ -589,6 +611,7 @@ network_policy:
       - {}
 
 manifests:
+  certificates: false
   configmap_bin: true
   configmap_etc: true
   configmap_ingress_conf: true

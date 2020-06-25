@@ -136,6 +136,10 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
+            {{- if $envAll.Values.manifests.certificates }}
+            - name: MARIADB_X509
+              value: "REQUIRE X509"
+            {{- end }}
             - name: MARIADB_REPLICAS
               value: {{ .Values.pod.replicas.server | quote }}
             - name: POD_NAME_PREFIX
@@ -229,6 +233,7 @@ spec:
               readOnly: true
             - name: mysql-data
               mountPath: /var/lib/mysql
+{{ dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.secrets.tls.oslo_db.server.internal "path" "/etc/mysql/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
       volumes:
         - name: pod-tmp
           emptyDir: {}
@@ -248,6 +253,7 @@ spec:
           secret:
             secretName: mariadb-secrets
             defaultMode: 0444
+{{ dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.secrets.tls.oslo_db.server.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
         {{- if not .Values.volume.enabled }}
         - name: mysql-data
         {{- if .Values.volume.use_local_path_for_single_pod_cluster.enabled }}
