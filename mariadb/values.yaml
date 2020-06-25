@@ -29,7 +29,8 @@ images:
     prometheus_mysql_exporter_helm_tests: docker.io/openstackhelm/heat:newton-ubuntu_xenial
     dep_check: quay.io/airshipit/kubernetes-entrypoint:v1.0.0
     image_repo_sync: docker.io/docker:17.07.0
-    mariadb_backup: docker.io/openstackhelm/mariadb:ubuntu_xenial-20191031
+    mariadb_backup: quay.io/airshipit/porthole-mysqlclient-utility:latest-ubuntu_bionic
+    ks_user: docker.io/openstackhelm/heat:stein-ubuntu_bionic
     scripted_test: docker.io/openstackhelm/mariadb:ubuntu_xenial-20191031
   pull_policy: "IfNotPresent"
   local_registry:
@@ -109,6 +110,17 @@ pod:
         main:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
+    mariadb_backup:
+      pod:
+        runAsUser: 65534
+      container:
+        backup_perms:
+          runAsUser: 0
+          readOnlyRootFilesystem: true
+        mariadb_backup:
+          runAsUser: 65534
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
     tests:
       pod:
         runAsUser: 999
@@ -190,6 +202,13 @@ pod:
         limits:
           memory: "1024Mi"
           cpu: "2000m"
+      ks_user:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
 
 dependencies:
   dynamic:
@@ -208,8 +227,9 @@ dependencies:
       services:
         - endpoint: error_pages
           service: oslo_db
-    mariadb:
-      jobs: null
+    backup_mariadb:
+      jobs:
+        - mariadb-ks-user
       services: null
     prometheus_create_mysql_user:
       services:
@@ -260,10 +280,17 @@ jobs:
     backoffLimit: 87600
     activeDeadlineSeconds: 3600
   backup_mariadb:
+    # activeDeadlineSeconds == 0 means no deadline
+    activeDeadlineSeconds: 0
+    backoffLimit: 6
     cron: "0 0 * * *"
     history:
       success: 3
       failed: 1
+  ks_user:
+    # activeDeadlineSeconds == 0 means no deadline
+    activeDeadlineSeconds: 0
+    backoffLimit: 6
 
 conf:
   tests:
@@ -284,12 +311,17 @@ conf:
   ingress_conf:
     worker-processes: "auto"
   backup:
-    enabled: true
+    enabled: false
     base_path: /var/backup
     mysqldump_options: >
       --single-transaction --quick --add-drop-database
       --add-drop-table --add-locks --databases
-    days_of_backup_to_keep: 3
+    days_to_keep: 3
+    remote_backup:
+      enabled: false
+      container_name: mariadb
+      days_to_keep: 14
+      storage_policy: default-placement
   database:
     my: |
       [mysqld]
@@ -407,6 +439,13 @@ monitoring:
     mysqld_exporter:
       scrape: true
 
+secrets:
+  identity:
+    remote_ks_admin: keystone-admin-user
+    remote_rgw_user: mariadb-backup-user
+  mariadb:
+    backup_restore: mariadb-backup-restore
+
 # typically overridden by environmental
 # values, but should include all endpoints
 # required by this chart
@@ -498,6 +537,44 @@ endpoints:
       dns:
         default: 53
         protocol: UDP
+  identity:
+    name: backup-storage-auth
+    namespace: openstack
+    auth:
+      remote_ks_admin:
+        # Auth URL of null indicates local authentication
+        # HTK will form the URL unless specified here
+        auth_url: null
+        region_name: RegionOne
+        username: admin
+        password: password
+        project_name: admin
+        user_domain_name: default
+        project_domain_name: default
+      remote_rgw_user:
+        # Auth URL of null indicates local authentication
+        # HTK will form the URL unless specified here
+        auth_url: null
+        role: admin
+        region_name: RegionOne
+        username: mariadb-backup-user
+        password: password
+        project_name: service
+        user_domain_name: service
+        project_domain_name: service
+    hosts:
+      default: keystone
+      internal: keystone-api
+    host_fqdn_override:
+      default: null
+    path:
+      default: /v3
+    scheme:
+      default: 'http'
+    port:
+      api:
+        default: 80
+        internal: 5000
 
 network_policy:
   mariadb:
@@ -521,6 +598,7 @@ manifests:
   deployment_ingress: true
   job_image_repo_sync: true
   cron_job_mariadb_backup: false
+  job_ks_user: false
   pvc_backup: false
   monitoring:
     prometheus:
@@ -536,6 +614,7 @@ manifests:
   secret_dbadmin_password: true
   secret_sst_password: true
   secret_dbaudit_password: true
+  secret_backup_restore: false
   secret_etc: true
   service_discovery: true
   service_ingress: true

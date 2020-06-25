@@ -27,6 +27,12 @@ metadata:
   labels:
 {{ tuple $envAll "mariadb-backup" "backup" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 spec:
+{{- if .Values.jobs.backup_mariadb.backoffLimit }}
+  backoffLimit: {{ .Values.jobs.backup_mariadb.backoffLimit }}
+{{- end }}
+{{- if .Values.jobs.backup_mariadb.activeDeadlineSeconds }}
+  activeDeadlineSeconds: {{ .Values.jobs.backup_mariadb.activeDeadlineSeconds }}
+{{- end }}
   schedule: {{ .Values.jobs.backup_mariadb.cron | quote }}
   successfulJobsHistoryLimit: {{ .Values.jobs.backup_mariadb.history.success }}
   failedJobsHistoryLimit: {{ .Values.jobs.backup_mariadb.history.failed }}
@@ -36,7 +42,7 @@ spec:
       labels:
 {{ tuple $envAll "mariadb-backup" "backup" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
       annotations:
-{{ dict "envAll" $envAll "podName" "mariadb-backup" "containerNames" (list "init" "mariadb-backup") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
+{{ dict "envAll" $envAll "podName" "mariadb-backup" "containerNames" (list "init" "backup-perms" "mariadb-backup") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
     spec:
       template:
         metadata:
@@ -48,7 +54,24 @@ spec:
           nodeSelector:
             {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
           initContainers:
-{{ tuple $envAll "mariadb_backup" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 10 }}
+{{ tuple $envAll "mariadb_backup" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 12 }}
+            - name: backup-perms
+{{ tuple $envAll "mariadb_backup" | include "helm-toolkit.snippets.image" | indent 14 }}
+{{ tuple $envAll $envAll.Values.pod.resources.jobs.mariadb_backup | include "helm-toolkit.snippets.kubernetes_resources" | indent 14 }}
+{{ dict "envAll" $envAll "application" "mariadb_backup" "container" "backup_perms" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 14 }}
+              command:
+                - chown
+                - -R
+                - "65534:65534"
+                - $(MARIADB_BACKUP_BASE_DIR)
+              env:
+                - name: MARIADB_BACKUP_BASE_DIR
+                  value: {{ .Values.conf.backup.base_path | quote }}
+              volumeMounts:
+                - mountPath: /tmp
+                  name: pod-tmp
+                - mountPath: {{ .Values.conf.backup.base_path }}
+                  name: mariadb-backup-dir
           containers:
             - name: mariadb-backup
               command:
@@ -58,14 +81,28 @@ spec:
                   value: {{ .Values.conf.backup.base_path | quote }}
                 - name: MYSQL_BACKUP_MYSQLDUMP_OPTIONS
                   value: {{ .Values.conf.backup.mysqldump_options | quote }}
-                - name: MARIADB_BACKUP_DAYS_TO_KEEP
-                  value: {{ .Values.conf.backup.days_of_backup_to_keep | quote }}
+                - name: MARIADB_LOCAL_BACKUP_DAYS_TO_KEEP
+                  value: {{ .Values.conf.backup.days_to_keep | quote }}
                 - name: MARIADB_POD_NAMESPACE
                   valueFrom:
                     fieldRef:
                       fieldPath: metadata.namespace
+                - name: REMOTE_BACKUP_ENABLED
+                  value: "{{ .Values.conf.backup.remote_backup.enabled }}"
+{{- if .Values.conf.backup.remote_backup.enabled }}
+                - name: MARIADB_REMOTE_BACKUP_DAYS_TO_KEEP
+                  value: {{ .Values.conf.backup.remote_backup.days_to_keep | quote }}
+                - name: CONTAINER_NAME
+                  value: {{ .Values.conf.backup.remote_backup.container_name | quote }}
+                - name: STORAGE_POLICY
+                  value: "{{ .Values.conf.backup.remote_backup.storage_policy }}"
+{{- with $env := dict "ksUserSecret" $envAll.Values.secrets.identity.remote_rgw_user }}
+{{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 16 }}
+{{- end }}
+{{- end }}
 {{ tuple $envAll "mariadb_backup" | include "helm-toolkit.snippets.image" | indent 14 }}
 {{ tuple $envAll $envAll.Values.pod.resources.jobs.mariadb_backup | include "helm-toolkit.snippets.kubernetes_resources" | indent 14 }}
+{{ dict "envAll" $envAll "application" "mariadb_backup" "container" "mariadb_backup" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 14 }}
               volumeMounts:
                 - name: pod-tmp
                   mountPath: /tmp
@@ -73,6 +110,10 @@ spec:
                   name: mariadb-bin
                   readOnly: true
                   subPath: backup_mariadb.sh
+                - mountPath: /tmp/backup_main.sh
+                  name: mariadb-bin
+                  readOnly: true
+                  subPath: backup_main.sh
                 - mountPath: {{ .Values.conf.backup.base_path }}
                   name: mariadb-backup-dir
                 - name: mariadb-secrets
@@ -88,7 +129,7 @@ spec:
             - name: mariadb-secrets
               secret:
                 secretName: mariadb-secrets
-                defaultMode: 384
+                defaultMode: 420
             - configMap:
                 defaultMode: 365
                 name: mariadb-bin
