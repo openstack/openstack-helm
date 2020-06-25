@@ -130,8 +130,6 @@
 #      or "get_schema" when it needs that data requested by the user.
 #
 
-export LOG_FILE=/tmp/dbrestore.log
-
 usage() {
   ret_val=$1
   echo "Usage:"
@@ -235,14 +233,14 @@ list_archives() {
       echo
       echo "All Archives from RGW Data Store"
       echo "=============================================="
-      cat $TMP_DIR/archive_list
+      cat $TMP_DIR/archive_list | sort
       clean_and_exit 0 ""
     else
       clean_and_exit 1 "ERROR: Archives could not be retrieved from the RGW."
     fi
   elif [[ "x${REMOTE}" == "x" ]]; then
     if [[ -d $ARCHIVE_DIR ]]; then
-      archives=$(find $ARCHIVE_DIR/ -iname "*.gz" -print)
+      archives=$(find $ARCHIVE_DIR/ -iname "*.gz" -print | sort)
       echo
       echo "All Local Archives"
       echo "=============================================="
@@ -266,6 +264,7 @@ get_archive() {
   REMOTE=$2
 
   if [[ "x$REMOTE" == "xremote" ]]; then
+    echo "Retrieving archive ${ARCHIVE_FILE} from the remote RGW..."
     retrieve_remote_archive $ARCHIVE_FILE
     if [[ $? -ne 0 ]]; then
       clean_and_exit 1 "ERROR: Could not retrieve remote archive: $ARCHIVE_FILE"
@@ -431,6 +430,9 @@ database_exists() {
 cli_main() {
   ARGS=("$@")
 
+  # Create the ARCHIVE DIR if it's not already there.
+  mkdir -p $ARCHIVE_DIR
+
   # Create temp directory for a staging area to decompress files into
   export TMP_DIR=$(mktemp -d)
 
@@ -483,6 +485,16 @@ cli_main() {
       fi
       ;;
 
+    "list_schema")
+      if [[ ${#ARGS[@]} -lt 4 || ${#ARGS[@]} -gt 5 ]]; then
+        usage 1
+      elif [[ ${#ARGS[@]} -eq 4 ]]; then
+        list_schema ${ARGS[1]} ${ARGS[2]} ${ARGS[3]}
+      else
+        list_schema ${ARGS[1]} ${ARGS[2]} ${ARGS[3]} ${ARGS[4]}
+      fi
+      ;;
+
     "restore")
       REMOTE=""
       if [[ ${#ARGS[@]} -lt 3 || ${#ARGS[@]} -gt 4 ]]; then
@@ -505,10 +517,12 @@ cli_main() {
           clean_and_exit 1 "ERROR: Could not get the list of databases to restore."
         fi
 
-        #check if the requested database is available in the archive
-        database_exists $DB_SPEC
-        if [[ $? -ne 1 ]]; then
-          clean_and_exit 1 "ERROR: Database ${DB_SPEC} does not exist."
+        if [[ ! $DB_NAMESPACE == "kube-system" ]]; then
+          #check if the requested database is available in the archive
+          database_exists $DB_SPEC
+          if [[ $? -ne 1 ]]; then
+            clean_and_exit 1 "ERROR: Database ${DB_SPEC} does not exist."
+          fi
         fi
 
         echo "Restoring Database $DB_SPEC And Grants"
@@ -518,7 +532,6 @@ cli_main() {
         else
           clean_and_exit 1 "ERROR: Single database restore failed."
         fi
-        echo "Tail ${LOG_FILE} for restore log."
         clean_and_exit 0 ""
       else
         echo "Restoring All The Databases. This could take a few minutes..."
@@ -528,7 +541,7 @@ cli_main() {
         else
           clean_and_exit 1 "ERROR: Database restore failed."
         fi
-        clean_and_exit 0 "Tail ${LOG_FILE} for restore log."
+        clean_and_exit 0 ""
       fi
       ;;
     *)
@@ -536,6 +549,6 @@ cli_main() {
       ;;
   esac
 
-  clean_and_exit 0 "Done"
+  clean_and_exit 0 ""
 }
 {{- end }}

@@ -30,6 +30,7 @@ export ARCHIVE_DIR=${POSTGRESQL_BACKUP_BASE_DIR}/db/${DB_NAMESPACE}/${DB_NAME}/a
 # Define variables needed in this file
 POSTGRESQL_HOST=$(cat /etc/postgresql/admin_user.conf | cut -d: -f 1)
 export PSQL="psql -U $POSTGRESQL_ADMIN_USER -h $POSTGRESQL_HOST"
+export LOG_FILE=/tmp/dbrestore.log
 
 # Extract all databases from an archive and put them in the requested
 # file.
@@ -56,7 +57,7 @@ get_tables() {
 
   SQL_FILE=postgres.$POSTGRESQL_POD_NAMESPACE.all.sql
   if [[ -e $TMP_DIR/$SQL_FILE ]]; then
-    cat $TMP_DIR/$SQL_FILE | sed -n /'\\connect '$DATABASE/,/'\\connect'/p | grep "CREATE TABLE" | awk -F'[. ]' '{print $4}' > TABLE_FILE
+    cat $TMP_DIR/$SQL_FILE | sed -n /'\\connect '$DATABASE/,/'\\connect'/p | grep "CREATE TABLE" | awk -F'[. ]' '{print $4}' > $TABLE_FILE
   else
     # Error, cannot report the tables
     echo "No SQL file found - cannot extract the tables"
@@ -67,8 +68,8 @@ get_tables() {
 # Extract all rows in the given table of a database from an archive and put them in the requested
 # file.
 get_rows() {
-  TABLE=$1
-  DATABASE=$2
+  DATABASE=$1
+  TABLE=$2
   TMP_DIR=$3
   ROW_FILE=$4
 
@@ -87,8 +88,8 @@ get_rows() {
 # Extract the schema for the given table in the given database belonging to the archive file
 # found in the TMP_DIR.
 get_schema() {
-  TABLE=$1
-  DATABASE=$2
+  DATABASE=$1
+  TABLE=$2
   TMP_DIR=$3
   SCHEMA_FILE=$4
 
@@ -96,14 +97,14 @@ get_schema() {
   if [[ -e $TMP_DIR/$SQL_FILE ]]; then
     DB_FILE=$(mktemp -p /tmp)
     cat $TMP_DIR/$SQL_FILE | sed -n /'\\connect '${DATABASE}/,/'\\connect'/p > ${DB_FILE}
-    cat ${DB_FILE} | sed -n /'CREATE TABLE public.'${TABLE}/,/'--'/p > ${SCHEMA_FILE}
+    cat ${DB_FILE} | sed -n /'CREATE TABLE public.'${TABLE}' ('/,/'--'/p > ${SCHEMA_FILE}
     cat ${DB_FILE} | sed -n /'CREATE SEQUENCE public.'${TABLE}/,/'--'/p >> ${SCHEMA_FILE}
     cat ${DB_FILE} | sed -n /'ALTER TABLE public.'${TABLE}/,/'--'/p >> ${SCHEMA_FILE}
     cat ${DB_FILE} | sed -n /'ALTER TABLE ONLY public.'${TABLE}/,/'--'/p >> ${SCHEMA_FILE}
     cat ${DB_FILE} | sed -n /'ALTER SEQUENCE public.'${TABLE}/,/'--'/p >> ${SCHEMA_FILE}
     cat ${DB_FILE} | sed -n /'SELECT pg_catalog.*public.'${TABLE}/,/'--'/p >> ${SCHEMA_FILE}
-    cat ${DB_FILE} | sed -n /'CREATE INDEX.*public.'${TABLE}/,/'--'/p >> ${SCHEMA_FILE}
-    cat ${DB_FILE} | sed -n /'GRANT.*public.'${TABLE}/,/'--'/p >> ${SCHEMA_FILE}
+    cat ${DB_FILE} | sed -n /'CREATE INDEX.*public.'${TABLE}' USING'/,/'--'/p >> ${SCHEMA_FILE}
+    cat ${DB_FILE} | sed -n /'GRANT.*public.'${TABLE}' TO'/,/'--'/p >> ${SCHEMA_FILE}
     rm -f ${DB_FILE}
   else
     # Error, cannot report the rows
@@ -126,6 +127,9 @@ restore_single_db() {
   if [[ -f $TMP_DIR/$SQL_FILE ]]; then
     extract_single_db_dump $TMP_DIR/$SQL_FILE $SINGLE_DB_NAME $TMP_DIR
     if [[ -f $TMP_DIR/$SINGLE_DB_NAME.sql && -s $TMP_DIR/$SINGLE_DB_NAME.sql ]]; then
+      # First drop the database
+      $PSQL -tc "DROP DATABASE $SINGLE_DB_NAME;"
+
       # Postgresql does not have the concept of creating database if condition.
       # This next command creates the database in case it does not exist.
       $PSQL -tc "SELECT 1 FROM pg_database WHERE datname = '$SINGLE_DB_NAME'" | grep -q 1 || \
@@ -138,7 +142,9 @@ restore_single_db() {
       if [[ "$?" -eq 0 ]]; then
         echo "Database restore Successful."
       else
-        echo "Database restore Failed."
+        # Dump out the log file for debugging
+        cat $LOG_FILE
+        echo -e "\nDatabase restore Failed."
         return 1
       fi
     else
@@ -162,7 +168,9 @@ restore_all_dbs() {
     if [[ "$?" -eq 0 ]]; then
       echo "Database Restore successful."
     else
-      echo "Database Restore failed."
+      # Dump out the log file for debugging
+      cat $LOG_FILE
+      echo -e "\nDatabase Restore failed."
       return 1
     fi
   else
