@@ -75,6 +75,13 @@ pod:
         rgw_storage_init:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
+    rgw_restart:
+      pod:
+        runAsUser: 65534
+      container:
+        ceph-rgw-restart:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
     rgw_s3_admin:
       pod:
         runAsUser: 64045
@@ -173,6 +180,13 @@ pod:
         limits:
           memory: "1024Mi"
           cpu: "2000m"
+      rgw_restart:
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+        requests:
+          memory: "128Mi"
+          cpu: "500m"
     tests:
       requests:
         memory: "128Mi"
@@ -365,6 +379,8 @@ conf:
       rgw_dynamic_resharding: false
       rgw_num_rados_handles: 4
       rgw_override_bucket_index_max_shards: 8
+  rgw_restart:
+    timeout: 600
   rgw_ks:
     enabled: false
     config:
@@ -425,6 +441,10 @@ dependencies:
     rgw:
       jobs:
         - ceph-rgw-storage-init
+    rgw_restart:
+      services:
+        - endpoint: internal
+          service: ceph_object_store
     image_repo_sync:
       services:
         - endpoint: internal
@@ -601,6 +621,7 @@ manifests:
   deployment_rgw: true
   ingress_rgw: true
   job_bootstrap: false
+  job_rgw_restart: false
   job_ceph_rgw_storage_init: true
   job_image_repo_sync: true
   job_ks_endpoints: true
