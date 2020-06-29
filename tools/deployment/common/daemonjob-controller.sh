@@ -22,6 +22,7 @@ make daemonjob-controller
 #NOTE: Deploy command
 helm upgrade --install daemonjob-controller ./daemonjob-controller \
     --namespace=$namespace \
+    --set pod.replicas.daemonjob_controller=4 \
     ${HELM_ARGS_DAEMONJOB_CONTROLLER}
 
 #NOTE: Wait for deploy
@@ -78,7 +79,7 @@ spec:
         resources:
           requests:
             cpu: 10m
-    terminationGracePeriodSeconds: 10
+      terminationGracePeriodSeconds: 10
 EOF
 
 dj="daemonjobs"
