@@ -16,14 +16,14 @@ set -xe
 
 #NOTE: Lint and package chart
 make prometheus-openstack-exporter
+: ${OSH_INFRA_EXTRA_HELM_ARGS_OS_EXPORTER:="$(./tools/deployment/common/get-values-overrides.sh prometheus-openstack-exporter)"}
 
 #NOTE: Deploy command
 : ${OSH_EXTRA_HELM_ARGS:=""}
 helm upgrade --install prometheus-openstack-exporter \
     ./prometheus-openstack-exporter \
     --namespace=openstack \
-    ${OSH_EXTRA_HELM_ARGS} \
-    ${OSH_EXTRA_HELM_ARGS_OS_EXPORTER}
+    ${OSH_INFRA_EXTRA_HELM_ARGS_OS_EXPORTER}
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack
 
