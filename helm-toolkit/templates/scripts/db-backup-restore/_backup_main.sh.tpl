@@ -346,7 +346,10 @@ backup_databases() {
       echo "Backup archive size: $ARCHIVE_SIZE"
       echo "=================================================================="
       set -x
-      exit 1
+      # Because the local backup was successful, exit with 0 so the pod will not
+      # continue to restart and fill the disk with more backups. The ERRORs are
+      # logged and alerting system should catch those errors and flag the operator.
+      exit 0
     fi
 
     #Only delete the old archive after a successful archive
