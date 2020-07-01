@@ -115,7 +115,110 @@ get_schema() {
 
 # Extract Single Database SQL Dump from pg_dumpall dump file
 extract_single_db_dump() {
-  sed  "/connect.*$2/,\$!d" $1 | sed "/PostgreSQL database dump complete/,\$d" > ${3}/$2.sql
+  ARCHIVE=$1
+  DATABASE=$2
+  DIR=$3
+  sed -n '/\\connect'" ${DATABASE}/,/PostgreSQL database dump complete/p" ${ARCHIVE} > ${DIR}/${DATABASE}.sql
+}
+
+# Re-enable connections to a database
+reenable_connections() {
+  SINGLE_DB_NAME=$1
+
+  # First make sure this is not the main postgres database or either of the
+  # two template databases that should not be touched.
+  if [[ ${SINGLE_DB_NAME} == "postgres" ||
+        ${SINGLE_DB_NAME} == "template0" ||
+        ${SINGLE_DB_NAME} == "template1" ]]; then
+    echo "Cannot re-enable connections on an postgres internal db ${SINGLE_DB_NAME}"
+    return 1
+  fi
+
+  # Re-enable connections to the DB
+  $PSQL -tc "UPDATE pg_database SET datallowconn = 'true' WHERE datname = '${SINGLE_DB_NAME}';" > /dev/null 2>&1
+  if [[ "$?" -ne 0 ]]; then
+    echo "Could not re-enable connections for database ${SINGLE_DB_NAME}"
+    return 1
+  fi
+  return 0
+}
+
+# Drop connections from a database
+drop_connections() {
+  SINGLE_DB_NAME=$1
+
+  # First make sure this is not the main postgres database or either of the
+  # two template databases that should not be touched.
+  if [[ ${SINGLE_DB_NAME} == "postgres" ||
+        ${SINGLE_DB_NAME} == "template0" ||
+        ${SINGLE_DB_NAME} == "template1" ]]; then
+    echo "Cannot drop connections on an postgres internal db ${SINGLE_DB_NAME}"
+    return 1
+  fi
+
+  # First, prevent any new connections from happening on this database.
+  $PSQL -tc "UPDATE pg_database SET datallowconn = 'false' WHERE datname = '${SINGLE_DB_NAME}';" > /dev/null 2>&1
+  if [[ "$?" -ne 0 ]]; then
+    echo "Could not prevent new connections before restoring database ${SINGLE_DB_NAME}."
+    return 1
+  fi
+
+  # Next, force disconnection of all clients currently connected to this database.
+  $PSQL -tc "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '${SINGLE_DB_NAME}';" > /dev/null 2>&1
+  if [[ "$?" -ne 0 ]]; then
+    echo "Could not drop existing connections before restoring database ${SINGLE_DB_NAME}."
+    reenable_connections ${SINGLE_DB_NAME}
+    return 1
+  fi
+  return 0
+}
+
+# Re-enable connections for all of the databases within Postgresql
+reenable_connections_on_all_dbs() {
+  # Get a list of the databases
+  DB_LIST=$($PSQL -tc "\l" | grep "| postgres |" | awk '{print $1}')
+
+  RET=0
+
+  # Re-enable the connections for each of the databases.
+  for DB in $DB_LIST; do
+    if [[ ${DB} != "postgres" && ${DB} != "template0" && ${DB} != "template1" ]]; then
+      reenable_connections $DB
+      if [[ "$?" -ne 0 ]]; then
+        RET=1
+      fi
+    fi
+  done
+
+  return $RET
+}
+
+# Drop connections in all of the databases within Postgresql
+drop_connections_on_all_dbs() {
+  # Get a list of the databases
+  DB_LIST=$($PSQL -tc "\l" | grep "| postgres |" | awk '{print $1}')
+
+  RET=0
+
+  # Drop the connections for each of the databases.
+  for DB in $DB_LIST; do
+    # Make sure this is not the main postgres database or either of the
+    # two template databases that should not be touched.
+    if [[ ${DB} != "postgres" && ${DB} != "template0" && ${DB} != "template1" ]]; then
+      drop_connections $DB
+      if [[ "$?" -ne 0 ]]; then
+        RET=1
+      fi
+    fi
+  done
+
+  # If there was a failure to drop any connections, go ahead and re-enable
+  # them all to prevent a lock-out condition
+  if [[ $RET -ne 0 ]]; then
+    reenable_connections_on_all_dbs
+  fi
+
+  return $RET
 }
 
 # Restore a single database dump from pg_dumpall sql dumpfile.
@@ -123,12 +226,36 @@ restore_single_db() {
   SINGLE_DB_NAME=$1
   TMP_DIR=$2
 
+  # Reset the logfile incase there was some older log there
+  rm -rf ${LOG_FILE}
+  touch ${LOG_FILE}
+
+  # First make sure this is not the main postgres database or either of the
+  # two template databases that should not be touched.
+  if [[ ${SINGLE_DB_NAME} == "postgres" ||
+        ${SINGLE_DB_NAME} == "template0" ||
+        ${SINGLE_DB_NAME} == "template1" ]]; then
+    echo "Cannot restore an postgres internal db ${SINGLE_DB_NAME}"
+    return 1
+  fi
+
   SQL_FILE=postgres.$POSTGRESQL_POD_NAMESPACE.all.sql
   if [[ -f $TMP_DIR/$SQL_FILE ]]; then
     extract_single_db_dump $TMP_DIR/$SQL_FILE $SINGLE_DB_NAME $TMP_DIR
     if [[ -f $TMP_DIR/$SINGLE_DB_NAME.sql && -s $TMP_DIR/$SINGLE_DB_NAME.sql ]]; then
-      # First drop the database
+      # Drop connections first
+      drop_connections ${SINGLE_DB_NAME}
+      if [[ "$?" -ne 0 ]]; then
+        return 1
+      fi
+
+      # Next, drop the database
       $PSQL -tc "DROP DATABASE $SINGLE_DB_NAME;"
+      if [[ "$?" -ne 0 ]]; then
+        echo "Could not drop the old ${SINGLE_DB_NAME} database before restoring it."
+        reenable_connections ${SINGLE_DB_NAME}
+        return 1
+      fi
 
       # Postgresql does not have the concept of creating database if condition.
       # This next command creates the database in case it does not exist.
@@ -136,15 +263,30 @@ restore_single_db() {
             $PSQL -c "CREATE DATABASE $SINGLE_DB_NAME"
       if [[ "$?" -ne 0 ]]; then
         echo "Could not create the single database being restored: ${SINGLE_DB_NAME}."
+        reenable_connections ${SINGLE_DB_NAME}
         return 1
       fi
       $PSQL -d $SINGLE_DB_NAME -f ${TMP_DIR}/${SINGLE_DB_NAME}.sql 2>>$LOG_FILE >> $LOG_FILE
       if [[ "$?" -eq 0 ]]; then
-        echo "Database restore Successful."
+        if grep "ERROR:" ${LOG_FILE} > /dev/null 2>&1; then
+          cat $LOG_FILE
+          echo "Errors occurred during the restore of database ${SINGLE_DB_NAME}"
+          reenable_connections ${SINGLE_DB_NAME}
+          return 1
+        else
+          echo "Database restore Successful."
+        fi
       else
         # Dump out the log file for debugging
         cat $LOG_FILE
         echo -e "\nDatabase restore Failed."
+        reenable_connections ${SINGLE_DB_NAME}
+        return 1
+      fi
+
+      # Re-enable connections to the DB
+      reenable_connections ${SINGLE_DB_NAME}
+      if [[ "$?" -ne 0 ]]; then
         return 1
       fi
     else
@@ -162,15 +304,39 @@ restore_single_db() {
 restore_all_dbs() {
   TMP_DIR=$1
 
+  # Reset the logfile incase there was some older log there
+  rm -rf ${LOG_FILE}
+  touch ${LOG_FILE}
+
   SQL_FILE=postgres.$POSTGRESQL_POD_NAMESPACE.all.sql
   if [[ -f $TMP_DIR/$SQL_FILE ]]; then
+    # First drop all connections on all databases
+    drop_connections_on_all_dbs
+    if [[ "$?" -ne 0 ]]; then
+      return 1
+    fi
+
     $PSQL postgres -f $TMP_DIR/$SQL_FILE 2>>$LOG_FILE >> $LOG_FILE
     if [[ "$?" -eq 0 ]]; then
-      echo "Database Restore successful."
+      if grep "ERROR:" ${LOG_FILE} > /dev/null 2>&1; then
+        cat ${LOG_FILE}
+        echo "Errors occurred during the restore of the databases."
+        reenable_connections_on_all_dbs
+        return 1
+      else
+        echo "Database Restore Successful."
+      fi
     else
       # Dump out the log file for debugging
-      cat $LOG_FILE
+      cat ${LOG_FILE}
       echo -e "\nDatabase Restore failed."
+      reenable_connections_on_all_dbs
+      return 1
+    fi
+
+    # Re-enable connections on all databases
+    reenable_connections_on_all_dbs
+    if [[ "$?" -ne 0 ]]; then
       return 1
     fi
   else
