@@ -98,8 +98,6 @@ manifests:
   cronjob_defragosds: true
   deployment_cephfs_provisioner: false
   job_cephfs_client_key: false
-deploy:
-  tool: "ceph-volume"
 EOF
 
 for CHART in ceph-mon ceph-osd ceph-client ceph-provisioners; do

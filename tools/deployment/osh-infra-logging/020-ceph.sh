@@ -173,8 +173,6 @@ pod:
     mds: 1
     mgr: 1
     rgw: 1
-deploy:
-  tool: "ceph-volume"
 jobs:
   ceph_defragosds:
     # Execute every 15 minutes for gates

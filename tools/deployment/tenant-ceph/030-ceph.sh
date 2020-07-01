@@ -114,8 +114,6 @@ monitoring:
     enabled: true
     ceph_mgr:
       port: 9283
-deploy:
-  tool: "ceph-volume"
 EOF
 
 for CHART in ceph-mon ceph-osd ceph-client ceph-provisioners; do
