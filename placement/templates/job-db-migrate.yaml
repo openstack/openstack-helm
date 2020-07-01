@@ -58,6 +58,10 @@ spec:
               value: {{ .Values.endpoints.oslo_db.auth.placement.password | quote }}
             - name: PLACEMENT_DB_HOST
               value: {{ tuple "oslo_db" "internal" . | include "helm-toolkit.endpoints.endpoint_host_lookup" | quote }}
+{{- if $envAll.Values.manifests.certificates }}
+            - name: MARIADB_X509
+              value: "REQUIRE X509"
+{{- end }}
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
@@ -74,6 +78,7 @@ spec:
               subPath: placement.conf
               readOnly: true
 {{ dict "enabled" .Values.manifests.certificates "name" $envAll.Values.secrets.tls.placement.api.internal | include "helm-toolkit.snippets.tls_volume_mount"  | indent 12 }}
+{{- dict "enabled" .Values.manifests.certificates "name" .Values.endpoints.oslo_db.auth.admin.secret.tls.internal "path" "/etc/mysql/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
       volumes:
         - name: pod-tmp
           emptyDir: {}
@@ -85,5 +90,6 @@ spec:
           secret:
             secretName: placement-etc
             defaultMode: 0444
+{{- dict "enabled" .Values.manifests.certificates "name" .Values.endpoints.oslo_db.auth.admin.secret.tls.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 {{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.placement.api.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 {{- end }}

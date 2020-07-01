@@ -19,5 +19,8 @@ limitations under the License.
 {{- $dbCell := dict "adminSecret" .Values.secrets.oslo_db.admin "configFile" (printf "/etc/%s/%s.conf" $serviceName $serviceName ) "logConfigFile" (printf "/etc/%s/logging.conf" $serviceName ) "configDbSection" "cell0_database" "configDbKey" "connection" -}}
 {{- $dbsToDrop := list $dbSvc $dbApi $dbCell }}
 {{- $dbDropJob := dict "envAll" . "serviceName" $serviceName "dbsToDrop" $dbsToDrop -}}
+{{- if .Values.manifests.certificates -}}
+{{- $_ := set $dbDropJob "dbAdminTlsSecret" .Values.endpoints.oslo_db.auth.admin.secret.tls.internal -}}
+{{- end -}}
 {{ $dbDropJob | include "helm-toolkit.manifests.job_db_drop_mysql" }}
 {{- end }}

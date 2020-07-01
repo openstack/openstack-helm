@@ -15,6 +15,8 @@ limitations under the License.
 {{- if .Values.manifests.job_db_sync }}
 {{- $dbToSync := index . "dbToSync" | default ( dict "configFile" (printf "/etc/%s/%s.conf" "glance" "glance-api" ) "logConfigFile" (printf "/etc/%s/logging.conf" "glance" ) "image" ( index .Values.images.tags ( printf "%s_db_sync" "glance" )) ) -}}
 {{- $dbSyncJob := dict "envAll" . "serviceName" "glance" "podVolMounts" .Values.pod.mounts.glance_db_sync.glance_db_sync.volumeMounts "podVols" .Values.pod.mounts.glance_db_sync.glance_db_sync.volumes "dbToSync" $dbToSync -}}
-
+{{- if .Values.manifests.certificates -}}
+{{- $_ := set $dbSyncJob "dbAdminTlsSecret" .Values.endpoints.oslo_db.auth.admin.secret.tls.internal -}}
+{{- end -}}
 {{ $dbSyncJob | include "helm-toolkit.manifests.job_db_sync" }}
 {{- end }}

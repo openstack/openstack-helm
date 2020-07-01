@@ -90,7 +90,14 @@ function mysql_command() {
         command="mysql --skip-column-names"
     fi
 
-    $command -h$host -u$user -p$pass $db $* 2>$LAST_MYSQL_ERR
+    if [ ! -z "$MARIADB_X509" ]; then
+        local ca=/etc/mysql/certs/ca.crt
+        local cert=/etc/mysql/certs/tls.crt
+        local key=/etc/mysql/certs/tls.key
+        $command -h$host -u$user -p$pass $db --ssl-ca=$ca --ssl-cert=$cert --ssl-key=$key $* 2>$LAST_MYSQL_ERR
+    else
+        $command -h$host -u$user -p$pass $db $* 2>$LAST_MYSQL_ERR
+    fi
 }
 
 function show_error() {

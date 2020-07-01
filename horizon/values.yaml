@@ -367,6 +367,15 @@ conf:
                 'PASSWORD': '{{ .Values.endpoints.oslo_db.auth.horizon.password }}',
                 'HOST': '{{ tuple "oslo_db" "internal" . | include "helm-toolkit.endpoints.hostname_fqdn_endpoint_lookup" }}',
                 'default-character-set': 'utf8',
+                {{- if .Values.manifests.certificates }}
+                'OPTIONS':{
+                    'ssl': {
+                        'ca': '/etc/mysql/certs/ca.crt',
+                        'cert': '/etc/mysql/certs/tls.crt',
+                        'key': '/etc/mysql/certs/tls.key'
+                    }
+                },
+                {{- end }}
                 'PORT': '{{ tuple "oslo_db" "internal" "mysql" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}'
             }
         }
@@ -2213,6 +2222,9 @@ endpoints:
       admin:
         username: root
         password: password
+        secret:
+          tls:
+            internal: mariadb-tls-direct
       horizon:
         username: horizon
         password: password

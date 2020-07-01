@@ -51,6 +51,11 @@ else:
     logger.critical('environment variable ROOT_DB_CONNECTION not set')
     sys.exit(1)
 
+mysql_x509 = os.getenv('MARIADB_X509', "")
+ssl_args = {}
+if mysql_x509:
+    ssl_args = {'ssl': {'ca': '/etc/mysql/certs/ca.crt', 'key': '/etc/mysql/certs/tls.key', 'cert': '/etc/mysql/certs/tls.crt'}}
+
 # Get the connection string for the service db
 if "OPENSTACK_CONFIG_FILE" in os.environ:
     os_conf = os.environ['OPENSTACK_CONFIG_FILE']
@@ -91,7 +96,7 @@ try:
     host = root_engine_full.url.host
     port = root_engine_full.url.port
     root_engine_url = ''.join([drivername, '://', root_user, ':', root_password, '@', host, ':', str (port)])
-    root_engine = create_engine(root_engine_url)
+    root_engine = create_engine(root_engine_url, connect_args=ssl_args)
     connection = root_engine.connect()
     connection.close()
     logger.info("Tested connection to DB @ {0}:{1} as {2}".format(
@@ -102,7 +107,7 @@ except:
 
 # User DB engine
 try:
-    user_engine = create_engine(user_db_conn)
+    user_engine = create_engine(user_db_conn, connect_args=ssl_args)
     # Get our user data out of the user_engine
     database = user_engine.url.database
     user = user_engine.url.username

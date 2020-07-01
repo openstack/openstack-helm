@@ -16,5 +16,8 @@ limitations under the License.
 {{- $serviceName := "glance" -}}
 {{- $dbToDrop := dict "adminSecret" .Values.secrets.oslo_db.admin "configFile" (printf "/etc/%s/%s.conf" $serviceName "glance-api" ) "logConfigFile" (printf "/etc/%s/logging.conf" $serviceName ) "configDbSection" "database" "configDbKey" "connection" -}}
 {{- $dbDropJob := dict "envAll" . "serviceName" $serviceName "dbToDrop" $dbToDrop -}}
+{{- if .Values.manifests.certificates -}}
+{{- $_ := set $dbToDrop "dbAdminTlsSecret" .Values.endpoints.oslo_db.auth.admin.secret.tls.internal -}}
+{{- end -}}
 {{ $dbDropJob | include "helm-toolkit.manifests.job_db_drop_mysql" }}
 {{- end }}
