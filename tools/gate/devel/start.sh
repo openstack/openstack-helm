@@ -64,7 +64,7 @@ function ansible_install {
   # what's deployed in the gates
   sudo -H -E pip3 install --upgrade "ansible==2.5.5"
   sudo -H -E pip3 install --upgrade \
-    ara \
+    ara==0.16.5 \
     yq
 }
 
@@ -84,7 +84,7 @@ else
 fi
 
 cd ${WORK_DIR}
-export ANSIBLE_CALLBACK_PLUGINS="$(python -c 'import os,ara; print(os.path.dirname(ara.__file__))')/plugins/callbacks"
+export ANSIBLE_CALLBACK_PLUGINS="$(python3 -m ara.setup.callback_plugins)"
 rm -rf ${HOME}/.ara
 
 function dump_logs () {
