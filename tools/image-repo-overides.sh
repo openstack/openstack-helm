@@ -31,4 +31,4 @@ ALL_IMAGES="${KUBE_IMAGES} ${CHART_IMAGES}"
 jq -n -c -M \
 --arg devclass "$(echo ${ALL_IMAGES})" \
 '{"bootstrap": {"preload_images": ($devclass|split(" "))}}' | \
-python -c 'import sys, yaml, json; yaml.safe_dump(json.load(sys.stdin), sys.stdout, default_flow_style=False)'
+python3 -c 'import sys, yaml, json; yaml.safe_dump(json.load(sys.stdin), sys.stdout, default_flow_style=False)'

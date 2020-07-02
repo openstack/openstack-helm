@@ -10,7 +10,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM docker.io/ubuntu:xenial
+FROM docker.io/ubuntu:bionic
 MAINTAINER pete.birley@att.com
 
 ARG UBUNTU_URL=http://archive.ubuntu.com/ubuntu/
