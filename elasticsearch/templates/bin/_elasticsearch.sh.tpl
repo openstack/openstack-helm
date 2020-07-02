@@ -35,28 +35,31 @@ function stop () {
 }
 
 function wait_to_join() {
+  # delay 5 seconds before the first check
+  sleep 5
   joined=$(curl -s -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" "${ELASTICSEARCH_ENDPOINT}/_cat/nodes" | grep -w $NODE_NAME || true )
-
+  i=0
   while [ -z "$joined" ]; do
     sleep 5
     joined=$(curl -s -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" "${ELASTICSEARCH_ENDPOINT}/_cat/nodes" | grep -w $NODE_NAME || true )
+    i=$((i+1))
+    # Waiting for up to 60 minutes
+    if [ $i -gt 720 ]; then
+      break
+    fi
   done
 }
 
 function allocate_data_node () {
-  if [ -f /data/restarting ]; then
-    rm /data/restarting
-    echo "Node ${NODE_NAME} has restarted. Waiting to rejoin the cluster."
-    wait_to_join
-
-    echo "Re-enabling Replica Shard Allocation"
-    curl -s -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" -XPUT -H 'Content-Type: application/json' \
-     "${ELASTICSEARCH_ENDPOINT}/_cluster/settings" -d "{
-      \"persistent\": {
-        \"cluster.routing.allocation.enable\": null
-      }
-    }"
-  fi
+  echo "Node ${NODE_NAME} has started. Waiting to rejoin the cluster."
+  wait_to_join
+  echo "Re-enabling Replica Shard Allocation"
+  curl -s -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" -XPUT -H 'Content-Type: application/json' \
+    "${ELASTICSEARCH_ENDPOINT}/_cluster/settings" -d "{
+    \"persistent\": {
+      \"cluster.routing.allocation.enable\": null
+    }
+  }"
 }
 
 function start_master_node () {
@@ -116,12 +119,12 @@ function start_data_node () {
     # although the request itself still returns a 200 OK status. If there are failures, reissue the request.
     # (The only side effect of not doing so is slower start up times. See flush documentation linked above)
 
-    touch /data/restarting
     echo "Node ${NODE_NAME} is ready to shutdown"
     kill -TERM 1
   }
   trap drain_data_node TERM EXIT HUP INT
   wait
+
 }
 
 $COMMAND
