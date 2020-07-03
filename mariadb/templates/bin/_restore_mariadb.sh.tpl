@@ -221,6 +221,10 @@ restore_single_db() {
       $MYSQL < ${TMP_DIR}/${SINGLE_DB_NAME}_grant.sql 2>>$RESTORE_LOG
       if [[ "$?" -eq 0 ]]
       then
+        if ! $MYSQL --execute="FLUSH PRIVILEGES;"; then
+          echo "Failed to flush privileges for $SINGLE_DB_NAME."
+          return 1
+        fi
         echo "Database $SINGLE_DB_NAME Permission Restore successful."
       else
         cat $RESTORE_LOG
@@ -254,26 +258,24 @@ restore_all_dbs() {
       echo "Databases $( echo $DBS | tr -d '\n') Restore failed."
       return 1
     fi
-    if [ -n "$DBS" ]
+    if [[ -f ${TMP_DIR}/grants.sql ]]
     then
-      for db in $DBS
-      do
-        if [ -f ${TMP_DIR}/${db}_grant.sql ]
-        then
-          $MYSQL < ${TMP_DIR}/${db}_grant.sql 2>>$RESTORE_LOG
-          if [[ "$?" -eq 0 ]]
-          then
-            echo "Database $db Permission Restore successful."
-          else
-            cat $RESTORE_LOG
-            echo "Database $db Permission Restore failed."
-            return 1
-          fi
-        else
-          echo "There is no permission file available for $db"
+      $MYSQL < ${TMP_DIR}/grants.sql 2>$RESTORE_LOG
+      if [[ "$?" -eq 0 ]]
+      then
+        if ! $MYSQL --execute="FLUSH PRIVILEGES;"; then
+          echo "Failed to flush privileges."
           return 1
         fi
-      done
+        echo "Databases Permission Restore successful."
+      else
+        cat $RESTORE_LOG
+        echo "Databases Permission Restore failed."
+        return 1
+      fi
+    else
+      echo "There is no permission file available"
+      return 1
     fi
   else
     echo "There is no database file available to restore from"
