@@ -27,6 +27,7 @@ metadata:
     "helm.sh/hook": test-success
 {{ dict "envAll" $envAll "podName" "ceph-rgw-test" "containerNames" (list "ceph-rgw-ks-validation" "ceph-rgw-s3-validation") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 4 }}
 spec:
+{{ dict "envAll" $envAll "application" "rgw_test" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 2 }}
   restartPolicy: Never
   serviceAccountName: {{ $serviceAccountName }}
   nodeSelector:
@@ -36,6 +37,7 @@ spec:
     - name: ceph-rgw-ks-validation
 {{ tuple $envAll "ceph_config_helper" | include "helm-toolkit.snippets.image" | indent 6 }}
 {{ tuple $envAll $envAll.Values.pod.resources.tests | include "helm-toolkit.snippets.kubernetes_resources" | indent 6 }}
+{{ dict "envAll" $envAll "application" "rgw_test" "container" "ceph_rgw_ks_validation" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 6 }}
       env:
 {{- with $env := dict "ksUserSecret" .Values.secrets.identity.user_rgw }}
 {{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 8 }}
