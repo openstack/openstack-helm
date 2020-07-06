@@ -118,11 +118,11 @@ spec:
 {{- if $secretBin }}
           secret:
             secretName: {{ $secretBin | quote }}
-            defaultMode: 365
+            defaultMode: 0555
 {{- else }}
           configMap:
             name: {{ $configMapBin | quote }}
-            defaultMode: 365
+            defaultMode: 0555
 {{- end }}
 {{- $local := dict "configMapBinFirst" true -}}
 {{- range $key1, $dbToDrop := $dbsToDrop }}
@@ -134,7 +134,7 @@ spec:
         - name: db-drop-conf
           secret:
             secretName: {{ $configMapEtc | quote }}
-            defaultMode: 292
+            defaultMode: 0444
 {{- end -}}
 {{- end -}}
 {{- end -}}

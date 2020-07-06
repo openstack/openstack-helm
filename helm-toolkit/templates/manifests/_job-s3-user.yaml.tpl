@@ -118,22 +118,22 @@ spec:
 {{- if $secretBin }}
           secret:
             secretName: {{ $secretBin | quote }}
-            defaultMode: 365
+            defaultMode: 0555
 {{- else }}
           configMap:
             name: {{ $configMapBin | quote }}
-            defaultMode: 365
+            defaultMode: 0555
 {{- end }}
         - name: ceph-keyring-sh
           configMap:
             name: {{ $configMapBin | quote }}
-            defaultMode: 365
+            defaultMode: 0555
         - name: etcceph
           emptyDir: {}
         - name: ceph-etc
           configMap:
             name: {{ $configMapCeph | quote }}
-            defaultMode: 292
+            defaultMode: 0444
         {{- if empty $envAll.Values.conf.ceph.admin_keyring }}
         - name: ceph-keyring
           secret:

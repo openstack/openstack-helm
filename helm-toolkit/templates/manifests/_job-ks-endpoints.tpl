@@ -94,11 +94,11 @@ spec:
 {{- if $secretBin }}
           secret:
             secretName: {{ $secretBin | quote }}
-            defaultMode: 365
+            defaultMode: 0555
 {{- else }}
           configMap:
             name: {{ $configMapBin | quote }}
-            defaultMode: 365
+            defaultMode: 0555
 {{- end }}
 {{- dict "enabled" true "name" $tlsSecret | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 {{- end }}
