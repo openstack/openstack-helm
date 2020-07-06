@@ -28,4 +28,7 @@ exec /bin/node_exporter \
   {{- if .Values.conf.collectors.filesystem.ignored_mount_points }}
   --collector.filesystem.ignored-mount-points={{ .Values.conf.collectors.filesystem.ignored_mount_points }} \
   {{- end }}
+  {{- if .Values.conf.collectors.filesystem.rootfs_mount_point }}
+  --path.rootfs={{ .Values.conf.collectors.filesystem.rootfs_mount_point }} \
+  {{- end }}
   --collector.ntp.server={{ .Values.conf.ntp_server_ip }}
