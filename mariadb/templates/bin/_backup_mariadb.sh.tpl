@@ -38,7 +38,7 @@ dump_databases_to_directory() {
 
   MYSQL_DBNAMES=( $($MYSQL --silent --skip-column-names -e \
      "show databases;" | \
-     egrep -vi 'information_schema|performance_schema') )
+     egrep -vi 'information_schema|performance_schema|mysql') )
 
   #check if there is a database to backup, otherwise exit
   if [[ -z "${MYSQL_DBNAMES// }" ]]
@@ -49,6 +49,13 @@ dump_databases_to_directory() {
 
   #Create a list of Databases
   printf "%s\n" "${MYSQL_DBNAMES[@]}" > $TMP_DIR/db.list
+
+  #Retrieve and create the GRANT file for all the users
+  if ! pt-show-grants --defaults-file=/etc/mysql/admin_user.cnf \
+       2>>"$LOG_FILE" > "$TMP_DIR"/grants.sql; then
+    log ERROR "Failed to create GRANT for all the users"
+    return 1
+  fi
 
   #Retrieve and create the GRANT files per DB
   for db in "${MYSQL_DBNAMES[@]}"
@@ -62,6 +69,7 @@ dump_databases_to_directory() {
       sed -i 's/$/;/' $TMP_DIR/${db}_grant.sql
     else
       log ERROR "Failed to create GRANT files for ${db}"
+      return 1
     fi
   done
 
