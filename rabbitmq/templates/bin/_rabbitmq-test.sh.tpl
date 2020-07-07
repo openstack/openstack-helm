@@ -57,7 +57,7 @@ rabbit_check_node_count
 function rabbit_find_partitions () {
   NODE_INFO=$(mktemp)
   rabbitmqadmin_authed list nodes -f pretty_json | tee "${NODE_INFO}"
-  cat "${NODE_INFO}" | python -c "
+  cat "${NODE_INFO}" | python3 -c "
 import json, sys, traceback
 print('Checking cluster partitions')
 obj=json.load(sys.stdin)
