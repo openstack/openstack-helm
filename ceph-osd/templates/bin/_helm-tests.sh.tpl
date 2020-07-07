@@ -22,10 +22,9 @@ function check_osd_count() {
   num_in_osds=$(ceph osd stat | tr ' ' '\n' | grep -x -E '[0-9]+' | tail -n1)
   num_up_osds=$(ceph osd stat | tr ' ' '\n' | grep -x -E '[0-9]+' | head -n2 | tail -n1)
 
-  if [ ${num_osd} -eq 1 ]; then
-    MIN_OSDS=${num_osd}
-  else
-    MIN_OSDS=$((${num_osd}*$REQUIRED_PERCENT_OF_OSDS/100))
+  MIN_OSDS=$((${num_osd}*$REQUIRED_PERCENT_OF_OSDS/100))
+  if [ ${MIN_OSDS} -lt 1 ]; then
+    MIN_OSDS=1
   fi
 
   if [ "${num_osd}" -eq 0 ]; then
