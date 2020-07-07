@@ -27,12 +27,14 @@
       file:
         path: "/tmp/artifacts"
         state: directory
+
     - name: Run gate scripts
       include_role:
-        name: osh-run-script
+        name: "{{ ([item] | flatten | length == 1) | ternary('osh-run-script', 'osh-run-script-set') }}"
       vars:
-        gate_script_path: "{{ item }}"
-      with_items: "{{ gate_scripts }}"
+        workload: "{{ [item] | flatten }}"
+      loop: "{{ gate_scripts }}"
+
     - name: "Downloads artifacts to executor"
       synchronize:
         src: "/tmp/artifacts"
