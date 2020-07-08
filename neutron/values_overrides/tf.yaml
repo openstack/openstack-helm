@@ -1,0 +1,70 @@
+---
+images:
+  tags:
+    tf_neutron_init: opencontrailnightly/contrail-openstack-neutron-init:master-latest
+labels:
+  job:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  server:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  test:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+network:
+  backend:
+    - tungstenfabric
+dependencies:
+  dynamic:
+    targeted:
+      tungstenfabric:
+        server:
+          daemonset: []
+conf:
+  openstack_version: queens
+  neutron:
+    DEFAULT:
+      core_plugin: neutron_plugin_contrail.plugins.opencontrail.contrail_plugin.NeutronPluginContrailCoreV2
+      service_plugins: neutron_plugin_contrail.plugins.opencontrail.loadbalancer.v2.plugin.LoadBalancerPluginV2
+      l3_ha: False
+      api_extensions_path: /opt/plugin/site-packages/neutron_plugin_contrail/extensions:/opt/plugin/site-packages/neutron_lbaas/extensions
+      interface_driver: null
+    quotas:
+      quota_driver: neutron_plugin_contrail.plugins.opencontrail.quota.driver.QuotaDriver
+  plugins:
+    tungstenfabric:
+      APISERVER:
+        api_server_ip: config-api-server.tungsten-fabric.svc.cluster.local
+        api_server_port: 8082
+        contrail_extensions: "ipam:neutron_plugin_contrail.plugins.opencontrail.contrail_plugin_ipam.NeutronPluginContrailIpam,policy:neutron_plugin_contrail.plugins.opencontrail.contrail_plugin_policy.NeutronPluginContrailPolicy,route-table:neutron_plugin_contrail.plugins.opencontrail.contrail_plugin_vpc.NeutronPluginContrailVpc,contrail:None,service-interface:None,vf-binding:None"
+        multi_tenancy: True
+      KEYSTONE:
+        insecure: True
+    tf_vnc_api_lib:
+      global:
+        WEB_SERVER: config-api-server.tungsten-fabric.svc.cluster.local
+        WEB_PORT: 8082
+      auth:
+        AUTHN_TYPE: keystone
+        AUTHN_PROTOCOL: http
+        AUTHN_URL: /v3/auth/tokens
+manifests:
+  daemonset_dhcp_agent: false
+  daemonset_l3_agent: false
+  daemonset_lb_agent: false
+  daemonset_metadata_agent: false
+  daemonset_ovs_agent: false
+  daemonset_sriov_agent: false
+  pod_rally_test: false
+pod:
+  mounts:
+    neutron_db_sync:
+      neutron_db_sync:
+        volumeMounts:
+          - name: db-sync-conf
+            mountPath: /etc/neutron/plugins/tungstenfabric/tf_plugin.ini
+            subPath: tf_plugin.ini
+            readOnly: true
+        volumes:
+...
