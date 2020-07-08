@@ -146,6 +146,8 @@ function restart_by_rack() {
   done
 }
 
+wait_for_pods $CEPH_NAMESPACE
+
 require_upgrade=0
 max_release=0
 
