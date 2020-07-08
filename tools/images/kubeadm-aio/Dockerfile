@@ -24,7 +24,10 @@ COPY ./tools/images/kubeadm-aio/sources.list /etc/apt/
 RUN sed -i \
         -e "s|%%UBUNTU_URL%%|${UBUNTU_URL}|g" \
         /etc/apt/sources.list ;\
-    echo "APT::Get::AllowUnauthenticated \"${ALLOW_UNAUTHENTICATED}\";" > /etc/apt/apt.conf.d/allow-unathenticated
+    echo "APT::Get::AllowUnauthenticated \"${ALLOW_UNAUTHENTICATED}\";\n\
+Acquire::AllowInsecureRepositories \"${ALLOW_UNAUTHENTICATED}\";\n\
+Acquire::AllowDowngradeToInsecureRepositories \"${ALLOW_UNAUTHENTICATED}\";" \
+    >> /etc/apt/apt.conf.d/allow-unathenticated
 
 ARG GOOGLE_KUBERNETES_REPO_URL=https://storage.googleapis.com/kubernetes-release/release/${KUBE_VERSION}/bin/linux/amd64
 ENV GOOGLE_KUBERNETES_REPO_URL ${GOOGLE_KUBERNETES_REPO_URL}
