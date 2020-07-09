@@ -19,9 +19,9 @@ COMMAND="${@:-start}"
 
 function start () {
   exec /bin/alertmanager \
-    -config.file=/etc/alertmanager/config.yml \
-    -storage.path={{ .Values.conf.command_flags.storage.path }} \
-    -mesh.listen-address={{ .Values.conf.command_flags.mesh.listen_address }} \
+    --config.file=/etc/alertmanager/config.yml \
+    --storage.path={{ .Values.conf.command_flags.storage.path }} \
+    --cluster.listen-address={{ .Values.conf.command_flags.cluster.listen_address }} \
     $(generate_peers)
 }
 
@@ -29,7 +29,7 @@ function generate_peers () {
   final_pod_suffix=$(( {{ .Values.pod.replicas.alertmanager }}-1 ))
   for pod_suffix in `seq 0 "$final_pod_suffix"`
   do
-    echo -mesh.peer={{ .Release.Name }}-$pod_suffix.$DISCOVERY_SVC:$MESH_PORT
+    echo --cluster.peer={{ .Release.Name }}-$pod_suffix.$DISCOVERY_SVC:$MESH_PORT
   done
 }
 
