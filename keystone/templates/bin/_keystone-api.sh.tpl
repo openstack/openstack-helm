@@ -51,6 +51,10 @@ function start () {
 }
 
 function stop () {
+  if [ -f /etc/apache2/envvars ]; then
+     # Loading Apache2 ENV variables
+     source /etc/apache2/envvars
+  fi
   {{ .Values.conf.software.apache2.binary }} -k graceful-stop
 }
 

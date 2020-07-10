@@ -13,6 +13,11 @@ limitations under the License.
 */}}
 
 {{- if and .Values.manifests.ingress_api .Values.network.api.ingress.public }}
-{{- $ingressOpts := dict "envAll" . "backendServiceType" "identity" "backendPort" "ks-pub" -}}
+{{- $envAll := . }}
+{{- $ingressOpts := dict "envAll" $envAll "backendServiceType" "identity" "backendPort" "ks-pub" -}}
+{{- $secretName := $envAll.Values.secrets.tls.identity.api.internal -}}
+{{- if and .Values.manifests.certificates $secretName -}}
+{{- $_ := set $ingressOpts "certIssuer" .Values.endpoints.identity.host_fqdn_override.default.tls.issuerRef.name -}}
+{{- end -}}
 {{ $ingressOpts | include "helm-toolkit.manifests.ingress" }}
 {{- end }}

@@ -92,6 +92,45 @@ spec:
               readOnly: true
         {{ end }}
       containers:
+        {{- if $envAll.Values.manifests.certificates }}
+        - name: nginx
+{{ tuple $envAll "nginx" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.nginx | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          ports:
+            - name: g-api
+              containerPort: {{ tuple "image" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+          env:
+            - name: PORT
+              value: {{ tuple "image" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | quote }}
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: SHORTNAME
+              value: {{ tuple "image" "internal" .  | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" | quote }}
+          readinessProbe:
+            tcpSocket:
+              port: {{ tuple "image" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+          command:
+            - /tmp/nginx.sh
+            - start
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /tmp/nginx.sh
+                  - stop
+          volumeMounts:
+            - name: glance-bin
+              mountPath: /tmp/nginx.sh
+              subPath: nginx.sh
+              readOnly: true
+            - name: glance-etc
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
+              readOnly: true
+{{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.image.api.internal "path" "/etc/nginx/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
+        {{- end }}
         - name: glance-api
 {{ tuple $envAll "glance_api" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.api | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
@@ -105,6 +144,21 @@ spec:
                 command:
                   - /tmp/glance-api.sh
                   - stop
+          {{- if $envAll.Values.manifests.certificates }}
+          readinessProbe:
+            exec:
+              command:
+                - python
+                - -c
+                - "import requests; requests.get('http://127.0.0.1:{{ tuple "image" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}')"
+          livenessProbe:
+            exec:
+              command:
+                - python
+                - -c
+                - "import requests; requests.get('http://127.0.0.1:{{ tuple "image" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}')"
+            initialDelaySeconds: 30
+          {{- else }}
           ports:
             - name: g-api
               containerPort: {{ tuple "image" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
@@ -114,7 +168,7 @@ spec:
           livenessProbe:
             tcpSocket:
               port: {{ tuple "image" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-            initialDelaySeconds: 30
+          {{- end }}
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
@@ -164,6 +218,7 @@ spec:
               subPath: key
               readOnly: true
 {{- end }}
+{{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.image.api.internal "path" "/etc/glance/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
 {{ if $mounts_glance_api.volumeMounts }}{{ toYaml $mounts_glance_api.volumeMounts | indent 12 }}{{ end }}
       volumes:
         - name: pod-tmp
@@ -197,5 +252,6 @@ spec:
           secret:
             secretName: {{ .Values.secrets.rbd | quote }}
 {{- end }}
+{{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.image.api.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 {{ if $mounts_glance_api.volumes }}{{ toYaml $mounts_glance_api.volumes | indent 8 }}{{ end }}
 {{- end }}

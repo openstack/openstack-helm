@@ -63,6 +63,61 @@ EOF
 cfssl gencert -initca ca-csr.json | cfssljson -bare ca -
 check_cert ca.pem ca-key.pem
 
+
+cat > cfssl.json <<EOF
+{
+  "signing": {
+    "default": {
+      "expiry": "8760h"
+    },
+    "profiles": {
+      "intermediate_ca": {
+        "expiry": "8760h",
+        "usages": [
+          "signing",
+          "digital signature",
+          "cert sign",
+          "crl sign",
+          "key encipherment",
+          "server auth",
+          "client auth"
+        ],
+        "ca_constraint": {
+          "is_ca": true
+        }
+      }
+    }
+  }
+}
+EOF
+
+cat > intermediate-ca.json <<EOF
+{
+  "CN": "OpenStack Helm CA",
+  "key": {
+    "algo": "rsa",
+    "size": 4096
+  },
+  "names": [
+    {
+      "C": "GB",
+      "L": "Space",
+      "ST": "Earth",
+      "O": "OSH",
+      "OU": "OSH"
+    }
+  ],
+  "ca": {
+    "expiry": "8760h"
+  }
+}
+EOF
+
+cfssl gencert -initca intermediate-ca.json | cfssljson -bare intermediate-ca -
+cfssl sign -ca ca.pem -ca-key ca-key.pem -config cfssl.json -profile intermediate_ca \
+  intermediate-ca.csr | cfssljson -bare intermediate-ca
+check_cert intermediate-ca.pem intermediate-ca-key.pem
+
 kubectl create ns cert-manager
 helm repo add jetstack https://charts.jetstack.io
 helm repo update

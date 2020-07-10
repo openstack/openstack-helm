@@ -177,10 +177,64 @@ spec:
               mountPath: /etc/neutron/policy.json
               subPath: policy.json
               readOnly: true
+            {{- if .Values.manifests.certificates }}
+            - name: wsgi-neutron
+              mountPath: /var/www/cgi-bin/neutron
+            - name: neutron-etc
+              mountPath: {{ .Values.conf.software.apache2.site_dir }}/wsgi-server.conf
+              subPath: wsgi-server.conf
+              readOnly: true
+            - name: neutron-etc
+              mountPath: {{ .Values.conf.software.apache2.mods_dir }}/mpm_event.conf
+              subPath: mpm_event.conf
+              readOnly: true
+            {{ end }}
+{{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.network.server.internal "path" "/etc/neutron/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
 {{ if $mounts_neutron_server.volumeMounts }}{{ toYaml $mounts_neutron_server.volumeMounts | indent 12 }}{{ end }}
+{{- if .Values.manifests.certificates }}
+        - name: neutron-rpc-server
+{{ tuple $envAll "neutron_rpc_server" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.rpc_server | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "neutron_server" "container" "neutron_rpc_server" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+{{ dict "envAll" $envAll "component" "server" "container" "server" "type" "readiness" "probeTemplate" (include "serverReadinessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+{{ dict "envAll" $envAll "component" "server" "container" "server" "type" "liveness" "probeTemplate" (include "serverLivenessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+          command:
+            - /tmp/neutron-rpc-server.sh
+            - start
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /tmp/neutron-rpc-server.sh
+                  - stop
+          volumeMounts:
+            - name: neutron-bin
+              mountPath: /tmp/neutron-rpc-server.sh
+              subPath: neutron-rpc-server.sh
+              readOnly: true
+            - name: neutron-etc
+              mountPath: /etc/neutron/neutron.conf
+              subPath: neutron.conf
+              readOnly: true
+            {{- if .Values.conf.neutron.DEFAULT.log_config_append }}
+            - name: neutron-etc
+              mountPath: {{ .Values.conf.neutron.DEFAULT.log_config_append }}
+              subPath: {{ base .Values.conf.neutron.DEFAULT.log_config_append }}
+              readOnly: true
+            {{- end }}
+            - name: neutron-etc
+              mountPath: /etc/neutron/plugins/ml2/ml2_conf.ini
+              subPath: ml2_conf.ini
+              readOnly: true
+{{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.network.server.internal "path" "/etc/neutron/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
+{{- end }}
       volumes:
         - name: pod-tmp
           emptyDir: {}
+        {{- if .Values.manifests.certificates }}
+        - name: wsgi-neutron
+          emptyDir: {}
+        {{- end }}
         - name: pod-var-neutron
           emptyDir: {}
         - name: neutron-bin
@@ -195,5 +249,6 @@ spec:
         - name: neutron-plugin-shared
           emptyDir: {}
         {{- end }}
+{{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.network.server.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 {{ if $mounts_neutron_server.volumes }}{{ toYaml $mounts_neutron_server.volumes | indent 8 }}{{ end }}
 {{- end }}

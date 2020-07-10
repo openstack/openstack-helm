@@ -42,7 +42,7 @@ spec:
 {{ tuple $envAll "nova_cell_setup_init" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.jobs.cell_setup | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           env:
-{{- with $env := dict "ksUserSecret" $envAll.Values.secrets.identity.admin }}
+{{- with $env := dict "ksUserSecret" $envAll.Values.secrets.identity.admin "useCA" .Values.manifests.certificates }}
 {{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 12 }}
 {{- end }}
           command:
@@ -54,6 +54,7 @@ spec:
               mountPath: /tmp/cell-setup-init.sh
               subPath: cell-setup-init.sh
               readOnly: true
+{{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.compute.osapi.internal (tuple "ca.crt") | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
       containers:
         - name: nova-cell-setup
 {{ tuple $envAll "nova_cell_setup" | include "helm-toolkit.snippets.image" | indent 10 }}
@@ -96,4 +97,5 @@ spec:
           configMap:
             name: nova-bin
             defaultMode: 0555
+{{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.compute.osapi.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 {{- end }}

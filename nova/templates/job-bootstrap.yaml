@@ -63,7 +63,7 @@ spec:
           imagePullPolicy: {{ $envAll.Values.images.pull_policy }}
 {{ tuple $envAll $envAll.Values.pod.resources.jobs.bootstrap | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           env:
-{{- with $env := dict "ksUserSecret" ( index $envAll.Values.secrets.identity $keystoneUser ) }}
+{{- with $env := dict "ksUserSecret" ( index $envAll.Values.secrets.identity $keystoneUser ) "useCA" .Values.manifests.certificates }}
 {{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 12 }}
 {{- end }}
             - name: WAIT_PERCENTAGE
@@ -91,6 +91,7 @@ spec:
               mountPath: {{ $logConfigFile | quote }}
               subPath: {{ base $logConfigFile | quote }}
               readOnly: true
+{{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.compute.osapi.internal | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
       volumes:
         - name: pod-tmp
           emptyDir: {}
@@ -104,6 +105,7 @@ spec:
           secret:
             secretName: {{ $configMapEtc | quote }}
             defaultMode: 0444
+{{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.compute.osapi.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 ---
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1

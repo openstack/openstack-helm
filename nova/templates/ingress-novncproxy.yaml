@@ -13,6 +13,11 @@ limitations under the License.
 */}}
 
 {{- if and .Values.manifests.ingress_novncproxy .Values.network.novncproxy.ingress.public }}
-{{- $ingressOpts := dict "envAll" . "backendService" "novncproxy" "backendServiceType" "compute_novnc_proxy" "backendPort" "n-novnc" -}}
+{{- $envAll := . }}
+{{- $ingressOpts := dict "envAll" $envAll "backendService" "novncproxy" "backendServiceType" "compute_novnc_proxy" "backendPort" "n-novnc" -}}
+{{- $secretName := $envAll.Values.secrets.tls.compute_novnc_proxy.novncproxy.internal -}}
+{{- if and .Values.manifests.certificates $secretName }}
+{{- $_ := set $ingressOpts "certIssuer" .Values.endpoints.compute_novnc_proxy.host_fqdn_override.default.tls.issuerRef.name -}}
+{{- end }}
 {{ $ingressOpts | include "helm-toolkit.manifests.ingress" }}
 {{- end }}

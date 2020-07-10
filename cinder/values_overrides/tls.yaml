@@ -1,0 +1,136 @@
+---
+pod:
+  security_context:
+    cinder_api:
+      container:
+        cinder_api:
+          runAsUser: 0
+          readOnlyRootFilesystem: false
+network:
+  api:
+    ingress:
+      annotations:
+        nginx.ingress.kubernetes.io/backend-protocol: "https"
+conf:
+  software:
+    apache2:
+      binary: apache2
+      start_parameters: -DFOREGROUND
+      site_dir: /etc/apache2/sites-enabled
+      conf_dir: /etc/apache2/conf-enabled
+      mods_dir: /etc/apache2/mods-available
+      a2enmod:
+        - ssl
+      a2dismod: null
+  mpm_event: |
+    <IfModule mpm_event_module>
+      ServerLimit         1024
+      StartServers        32
+      MinSpareThreads     32
+      MaxSpareThreads     256
+      ThreadsPerChild     25
+      MaxRequestsPerChild 128
+      ThreadLimit         720
+    </IfModule>
+  wsgi_cinder: |
+    {{- $portInt := tuple "volume" "internal" "api" $ | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+    Listen {{ $portInt }}
+    <VirtualHost *:{{ $portInt }}>
+      ServerName {{ printf "%s.%s.svc.%s" "cinder-api" .Release.Namespace .Values.endpoints.cluster_domain_suffix }}
+      WSGIDaemonProcess cinder-api processes=1 threads=1 user=cinder display-name=%{GROUP}
+      WSGIProcessGroup cinder-api
+      WSGIScriptAlias /  /var/www/cgi-bin/cinder/cinder-wsgi
+      WSGIApplicationGroup %{GLOBAL}
+      WSGIPassAuthorization On
+      AllowEncodedSlashes On
+      <IfVersion >= 2.4>
+        ErrorLogFormat "%{cu}t %M"
+      </IfVersion>
+      SetEnvIf X-Forwarded-For "^.*\..*\..*\..*" forwarded
+      ErrorLog /dev/stdout
+      CustomLog /dev/stdout combined env=!forwarded
+      CustomLog /dev/stdout proxy env=forwarded
+
+      SSLEngine on
+      SSLCertificateFile      /etc/cinder/certs/tls.crt
+      SSLCertificateKeyFile   /etc/cinder/certs/tls.key
+      SSLProtocol             all -SSLv3 -TLSv1 -TLSv1.1
+      SSLCipherSuite          ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256
+      SSLHonorCipherOrder     on
+    </VirtualHost>
+  cinder:
+    keystone_authtoken:
+      cafile: /etc/cinder/certs/ca.crt
+
+endpoints:
+  identity:
+    auth:
+      admin:
+        cacert: /etc/ssl/certs/openstack-helm.crt
+      cinder:
+        cacert: /etc/ssl/certs/openstack-helm.crt
+      test:
+        cacert: /etc/ssl/certs/openstack-helm.crt
+    scheme:
+      default: https
+    port:
+      api:
+        default: 443
+  image:
+    scheme:
+      default: https
+    port:
+      api:
+        public: 443
+  image_registry:
+    scheme:
+      default: https
+    port:
+      api:
+        public: 443
+  volume:
+    host_fqdn_override:
+      default:
+        tls:
+          secretName: cinder-tls-api
+          issuerRef:
+            name: ca-issuer
+    scheme:
+      default: https
+      internal: https
+    port:
+      api:
+        public: 443
+  volumev2:
+    host_fqdn_override:
+      default:
+        tls:
+          secretName: cinder-tls-api
+          issuerRef:
+            name: ca-issuer
+    scheme:
+      default: https
+      internal: https
+    port:
+      api:
+        public: 443
+  volumev3:
+    host_fqdn_override:
+      default:
+        tls:
+          secretName: cinder-tls-api
+          issuerRef:
+            name: ca-issuer
+    scheme:
+      default: https
+      internal: https
+    port:
+      api:
+        public: 443
+  ingress:
+    port:
+      ingress:
+        default: 443
+manifests:
+  certificates: true
+...

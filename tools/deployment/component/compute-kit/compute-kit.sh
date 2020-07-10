@@ -13,8 +13,8 @@
 #    under the License.
 set -xe
 
- : ${CEPH_ENABLED:=false}
- : ${RUN_HELM_TESTS:="yes"}
+: ${CEPH_ENABLED:=false}
+: ${RUN_HELM_TESTS:="yes"}
 
 #NOTE: Get the overrides to use for placement, should placement be deployed.
 case "${OPENSTACK_RELEASE}" in
