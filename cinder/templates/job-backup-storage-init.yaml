@@ -61,7 +61,7 @@ spec:
 {{ dict "envAll" $envAll "podName" "cinder-backup-storage-init" "containerNames" (list "cinder-backup-storage-init" "init") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
     spec:
       serviceAccountName: {{ $serviceAccountName }}
-{{ dict "envAll" $envAll "application" "cinder" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
+{{ dict "envAll" $envAll "application" "storage_init" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
       restartPolicy: OnFailure
       nodeSelector:
         {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
@@ -70,8 +70,7 @@ spec:
         {{- if (contains "cinder.backup.drivers.ceph" .Values.conf.cinder.DEFAULT.backup_driver) }}
         - name: ceph-keyring-placement
 {{ tuple $envAll "cinder_backup_storage_init" | include "helm-toolkit.snippets.image" | indent 10 }}
-          securityContext:
-            runAsUser: 0
+{{ dict "envAll" $envAll "application" "storage_init" "container" "ceph_keyring_placement" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
             - /tmp/ceph-admin-keyring.sh
           volumeMounts:
@@ -101,6 +100,7 @@ spec:
         - name: cinder-backup-storage-init
 {{ tuple $envAll "cinder_backup_storage_init" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.jobs.backup_storage_init | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "storage_init" "container" "cinder_backup_storage_init" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           env:
             - name: NAMESPACE
               valueFrom:
