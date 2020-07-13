@@ -37,6 +37,7 @@ spec:
 {{ dict "envAll" $envAll "podName" "keystone-domain-manage" "containerNames" (list "keystone-domain-manage" "keystone-domain-manage-init") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
     spec:
       serviceAccountName: {{ $serviceAccountName }}
+{{ dict "envAll" $envAll "application" "domain_manage" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
       restartPolicy: OnFailure
       nodeSelector:
         {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
@@ -62,6 +63,7 @@ spec:
         - name: keystone-domain-manage
 {{ tuple $envAll "keystone_domain_manage" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.jobs.domain_manage | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "domain_manage" "container" "keystone_domain_manage" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           env:
 {{- with $env := dict "ksUserSecret" .Values.secrets.identity.admin }}
 {{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 12 }}
