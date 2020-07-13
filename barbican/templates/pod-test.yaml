@@ -34,6 +34,7 @@ metadata:
 {{ dict "envAll" $envAll "podName" "barbican-test" "containerNames" (list "init" "barbican-test") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 4 }}
 spec:
   serviceAccountName: {{ $serviceAccountName }}
+{{ dict "envAll" $envAll "application" "test" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 2 }}
   nodeSelector:
     {{ .Values.labels.test.node_selector_key }}: {{ .Values.labels.test.node_selector_value }}
   restartPolicy: Never
@@ -42,6 +43,7 @@ spec:
   containers:
     - name: barbican-test
 {{ tuple $envAll "scripted_test" | include "helm-toolkit.snippets.image" | indent 6 }}
+{{ dict "envAll" $envAll "application" "test" "container" "barbican_test" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 6 }}
       env:
 {{- with $env := dict "ksUserSecret" .Values.secrets.identity.admin }}
 {{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 8 }}
