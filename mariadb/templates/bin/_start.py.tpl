@@ -104,6 +104,8 @@ else:
 if check_env_var("MYSQL_DBAUDIT_PASSWORD"):
     mysql_dbaudit_password = os.environ['MYSQL_DBAUDIT_PASSWORD']
 
+mysql_x509 = os.getenv('MARIADB_X509', "")
+
 if mysql_dbadmin_username == mysql_dbsst_username:
     logger.critical(
         "The dbadmin username should not match the sst user username")
@@ -270,33 +272,35 @@ def mysqld_bootstrap():
                 # is locked and cannot login
                 "DELETE FROM mysql.user WHERE user != 'mariadb.sys' ;\n"  # nosec
                 "CREATE OR REPLACE USER '{0}'@'%' IDENTIFIED BY \'{1}\' ;\n"
-                "GRANT ALL ON *.* TO '{0}'@'%' WITH GRANT OPTION ;\n"
+                "GRANT ALL ON *.* TO '{0}'@'%' {4} WITH GRANT OPTION; \n"
                 "DROP DATABASE IF EXISTS test ;\n"
-                "CREATE OR REPLACE USER '{2}'@'127.0.0.1' IDENTIFIED BY '{3}' ;\n"
-                "GRANT PROCESS, RELOAD, LOCK TABLES, REPLICATION CLIENT ON *.* TO '{2}'@'127.0.0.1' ;\n"
+                "CREATE OR REPLACE USER '{2}'@'127.0.0.1' IDENTIFIED BY '{3}';\n"
+                "GRANT PROCESS, RELOAD, LOCK TABLES, REPLICATION CLIENT ON *.* TO '{2}'@'127.0.0.1';\n"
                 "FLUSH PRIVILEGES ;\n"
                 "SHUTDOWN ;".format(mysql_dbadmin_username, mysql_dbadmin_password,
-                                    mysql_dbsst_username, mysql_dbsst_password))
+                                    mysql_dbsst_username, mysql_dbsst_password,
+                                    mysql_x509))
         else:
             template = (
                 "DELETE FROM mysql.user WHERE user != 'mariadb.sys' ;\n"  # nosec
                 "CREATE OR REPLACE USER '{0}'@'%' IDENTIFIED BY \'{1}\' ;\n"
-                "GRANT ALL ON *.* TO '{0}'@'%' WITH GRANT OPTION ;\n"
+                "GRANT ALL ON *.* TO '{0}'@'%' {6} WITH GRANT OPTION;\n"
                 "DROP DATABASE IF EXISTS test ;\n"
-                "CREATE OR REPLACE USER '{2}'@'127.0.0.1' IDENTIFIED BY '{3}' ;\n"
+                "CREATE OR REPLACE USER '{2}'@'127.0.0.1' IDENTIFIED BY '{3}';\n"
                 "GRANT PROCESS, RELOAD, LOCK TABLES, REPLICATION CLIENT ON *.* TO '{2}'@'127.0.0.1' ;\n"
-                "CREATE OR REPLACE USER '{4}'@'%' IDENTIFIED BY '{5}' ;\n"
-                "GRANT SELECT ON *.* TO '{4}'@'%' ;\n"
+                "CREATE OR REPLACE USER '{4}'@'%' IDENTIFIED BY '{5}';\n"
+                "GRANT SELECT ON *.* TO '{4}'@'%' {6};\n"
                 "FLUSH PRIVILEGES ;\n"
                 "SHUTDOWN ;".format(mysql_dbadmin_username, mysql_dbadmin_password,
                                     mysql_dbsst_username, mysql_dbsst_password,
-                                    mysql_dbaudit_username, mysql_dbaudit_password))
+                                    mysql_dbaudit_username, mysql_dbaudit_password,
+                                    mysql_x509))
         bootstrap_sql_file = tempfile.NamedTemporaryFile(suffix='.sql').name
         with open(bootstrap_sql_file, 'w') as f:
             f.write(template)
             f.close()
         run_cmd_with_logging([
-            'mysqld', '--bind-address=127.0.0.1',
+            'mysqld', '--user=mysql', '--bind-address=127.0.0.1',
             '--wsrep_cluster_address=gcomm://',
             "--init-file={0}".format(bootstrap_sql_file)
         ], logger)
@@ -780,7 +784,7 @@ def run_mysqld(cluster='existing'):
     mysqld_write_cluster_conf(mode='run')
     launch_leader_election()
     launch_cluster_monitor()
-    mysqld_cmd = ['mysqld']
+    mysqld_cmd = ['mysqld', '--user=mysql']
     if cluster == 'new':
         mysqld_cmd.append('--wsrep-new-cluster')
 
@@ -791,24 +795,26 @@ def run_mysqld(cluster='existing'):
         if not mysql_dbaudit_username:
             template = (
                 "CREATE OR REPLACE USER '{0}'@'%' IDENTIFIED BY \'{1}\' ;\n"
-                "GRANT ALL ON *.* TO '{0}'@'%' WITH GRANT OPTION ;\n"
+                "GRANT ALL ON *.* TO '{0}'@'%' {4} WITH GRANT OPTION ;\n"
                 "CREATE OR REPLACE USER '{2}'@'127.0.0.1' IDENTIFIED BY '{3}' ;\n"
                 "GRANT PROCESS, RELOAD, LOCK TABLES, REPLICATION CLIENT ON *.* TO '{2}'@'127.0.0.1' ;\n"
-                "FLUSH PRIVILEGES ;\n"
-                "SHUTDOWN ;".format(mysql_dbadmin_username, mysql_dbadmin_password,
-                                    mysql_dbsst_username, mysql_dbsst_password))
-        else:
-            template = (
-                "CREATE OR REPLACE USER '{0}'@'%' IDENTIFIED BY \'{1}\' ;\n"
-                "GRANT ALL ON *.* TO '{0}'@'%' WITH GRANT OPTION ;\n"
-                "CREATE OR REPLACE USER '{2}'@'127.0.0.1' IDENTIFIED BY '{3}' ;\n"
-                "GRANT PROCESS, RELOAD, LOCK TABLES, REPLICATION CLIENT ON *.* TO '{2}'@'127.0.0.1' ;\n"
-                "CREATE OR REPLACE USER '{4}'@'%' IDENTIFIED BY '{5}' ;\n"
-                "GRANT SELECT ON *.* TO '{4}'@'%' ;\n"
                 "FLUSH PRIVILEGES ;\n"
                 "SHUTDOWN ;".format(mysql_dbadmin_username, mysql_dbadmin_password,
                                     mysql_dbsst_username, mysql_dbsst_password,
-                                    mysql_dbaudit_username, mysql_dbaudit_password))
+                                    mysql_x509))
+        else:
+            template = (
+                "CREATE OR REPLACE USER '{0}'@'%' IDENTIFIED BY \'{1}\' ;\n"
+                "GRANT ALL ON *.* TO '{0}'@'%' {6} WITH GRANT OPTION ;\n"
+                "CREATE OR REPLACE USER '{2}'@'127.0.0.1' IDENTIFIED BY '{3}' ;\n"
+                "GRANT PROCESS, RELOAD, LOCK TABLES, REPLICATION CLIENT ON *.* TO '{2}'@'127.0.0.1' ;\n"
+                "CREATE OR REPLACE USER '{4}'@'%' IDENTIFIED BY '{5}' ;\n"
+                "GRANT SELECT ON *.* TO '{4}'@'%' {6};\n"
+                "FLUSH PRIVILEGES ;\n"
+                "SHUTDOWN ;".format(mysql_dbadmin_username, mysql_dbadmin_password,
+                                    mysql_dbsst_username, mysql_dbsst_password,
+                                    mysql_dbaudit_username, mysql_dbaudit_password,
+                                    mysql_x509))
         bootstrap_sql_file = tempfile.NamedTemporaryFile(suffix='.sql').name
         with open(bootstrap_sql_file, 'w') as f:
             f.write(template)

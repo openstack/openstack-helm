@@ -34,6 +34,9 @@ limitations under the License.
 {{- $backoffLimit := index . "backoffLimit" | default "1000" -}}
 {{- $activeDeadlineSeconds := index . "activeDeadlineSeconds" -}}
 {{- $serviceNamePretty := $serviceName | replace "_" "-" -}}
+{{- $tlsPath := index . "tlsPath" | default (printf "/etc/%s/certs" $serviceNamePretty ) -}}
+{{- $tlsSecret := index . "tlsSecret" | default "" -}}
+{{- $dbAdminTlsSecret := index . "dbAdminTlsSecret" | default "" -}}
 
 {{- $serviceAccountName := printf "%s-%s" $serviceNamePretty "db-drop" }}
 {{ tuple $envAll "db_drop" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
@@ -82,6 +85,12 @@ spec:
             - name: OPENSTACK_CONFIG_DB_KEY
               value: {{ $dbToDrop.configDbKey | quote }}
 {{- end }}
+{{- if $envAll.Values.manifests.certificates }}
+            - name: MARIADB_X509
+              value: "REQUIRE X509"
+            - name: USER_CERT_PATH
+              value: {{ $tlsPath | quote }}
+{{- end }}
 {{- if eq $dbToDropType "secret" }}
             - name: DB_CONNECTION
               valueFrom:
@@ -98,6 +107,7 @@ spec:
               mountPath: /tmp/db-drop.py
               subPath: db-drop.py
               readOnly: true
+
 {{- if eq $dbToDropType "oslo" }}
             - name: etc-service
               mountPath: {{ dir $dbToDrop.configFile | quote }}
@@ -109,6 +119,10 @@ spec:
               mountPath: {{ $dbToDrop.logConfigFile | quote }}
               subPath: {{ base $dbToDrop.logConfigFile | quote }}
               readOnly: true
+{{- end }}
+{{- if $envAll.Values.manifests.certificates }}
+{{- dict "enabled" $envAll.Values.manifests.certificates "name" $tlsSecret "path" $tlsPath | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
+{{- dict "enabled" $envAll.Values.manifests.certificates "name" $dbAdminTlsSecret "path" "/etc/mysql/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
 {{- end }}
 {{- end }}
       volumes:
@@ -123,6 +137,10 @@ spec:
           configMap:
             name: {{ $configMapBin | quote }}
             defaultMode: 0555
+{{- end }}
+{{- if $envAll.Values.manifests.certificates }}
+{{- dict "enabled" $envAll.Values.manifests.certificates "name" $tlsSecret | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
+{{- dict "enabled" $envAll.Values.manifests.certificates "name" $dbAdminTlsSecret | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 {{- end }}
 {{- $local := dict "configMapBinFirst" true -}}
 {{- range $key1, $dbToDrop := $dbsToDrop }}

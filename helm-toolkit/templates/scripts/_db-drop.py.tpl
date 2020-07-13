@@ -54,6 +54,13 @@ else:
     logger.critical('environment variable ROOT_DB_CONNECTION not set')
     sys.exit(1)
 
+mysql_x509 = os.getenv('MARIADB_X509', "")
+if mysql_x509:
+    user_tls_cert_path = os.getenv('USER_CERT_PATH', "")
+    if not user_tls_cert_path:
+        logger.critical('environment variable USER_CERT_PATH not set')
+        sys.exit(1)
+
 # Get the connection string for the service db
 if "OPENSTACK_CONFIG_FILE" in os.environ:
     os_conf = os.environ['OPENSTACK_CONFIG_FILE']
@@ -94,7 +101,13 @@ try:
     host = root_engine_full.url.host
     port = root_engine_full.url.port
     root_engine_url = ''.join([drivername, '://', root_user, ':', root_password, '@', host, ':', str (port)])
-    root_engine = create_engine(root_engine_url)
+    if mysql_x509:
+        ssl_args = {'ssl': {'ca': '/etc/mysql/certs/ca.crt',
+                            'key': '/etc/mysql/certs/tls.key',
+                            'cert': '/etc/mysql/certs/tls.crt'}}
+        root_engine = create_engine(root_engine_url, connect_args=ssl_args)
+    else:
+        root_engine = create_engine(root_engine_url)
     connection = root_engine.connect()
     connection.close()
     logger.info("Tested connection to DB @ {0}:{1} as {2}".format(
@@ -105,7 +118,13 @@ except:
 
 # User DB engine
 try:
-    user_engine = create_engine(user_db_conn)
+    if mysql_x509:
+        ssl_args = {'ssl': {'ca': '{0}/ca.crt'.format(user_tls_cert_path),
+                            'key': '{0}/tls.key'.format(user_tls_cert_path),
+                            'cert': '{0}/tls.crt'.format(user_tls_cert_path)}}
+        user_engine = create_engine(user_db_conn, connect_args=ssl_args)
+    else:
+        user_engine = create_engine(user_db_conn)
     # Get our user data out of the user_engine
     database = user_engine.url.database
     user = user_engine.url.username
