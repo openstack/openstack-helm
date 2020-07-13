@@ -14,13 +14,15 @@ limitations under the License.
 */}}
 
 function check_cluster_health() {
-  STATUS=$(curl -s -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
-    "${ELASTICSEARCH_HOST}/_cat/health?format=json&pretty" | jq -r .[].status)
+  RESPONSE=$(curl -s -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
+    "${ELASTICSEARCH_HOST}/_cat/health?format=json&pretty" )
+  echo "Response: $RESPONSE"
+  STATUS=$(echo $RESPONSE | jq -r .[].status)
   echo "Status: $STATUS"
 }
 
 check_cluster_health
-while [[ $STATUS == "red" ]]; do
+while [[ $STATUS != "yellow" ]] && [[ $STATUS != "green" ]]; do
   echo "Waiting for cluster to become ready."
   sleep 30
   check_cluster_health
