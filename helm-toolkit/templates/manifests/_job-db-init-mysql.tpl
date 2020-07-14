@@ -34,8 +34,6 @@ limitations under the License.
 {{- $backoffLimit := index . "backoffLimit" | default "1000" -}}
 {{- $activeDeadlineSeconds := index . "activeDeadlineSeconds" -}}
 {{- $serviceNamePretty := $serviceName | replace "_" "-" -}}
-{{- $tlsPath := index . "tlsPath" | default (printf "/etc/%s/certs" $serviceNamePretty ) -}}
-{{- $tlsSecret := index . "tlsSecret" | default "" -}}
 {{- $dbAdminTlsSecret := index . "dbAdminTlsSecret" | default "" -}}
 
 {{- $serviceAccountName := printf "%s-%s" $serviceNamePretty "db-init" }}
@@ -94,8 +92,6 @@ spec:
 {{- if $envAll.Values.manifests.certificates }}
             - name: MARIADB_X509
               value: "REQUIRE X509"
-            - name: USER_CERT_PATH
-              value: {{ $tlsPath | quote }}
 {{- end }}
           command:
             - /tmp/db-init.py
@@ -119,7 +115,6 @@ spec:
               readOnly: true
 {{- end }}
 {{- if $envAll.Values.manifests.certificates }}
-{{- dict "enabled" $envAll.Values.manifests.certificates "name" $tlsSecret "path" $tlsPath | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
 {{- dict "enabled" $envAll.Values.manifests.certificates "name" $dbAdminTlsSecret "path" "/etc/mysql/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
 {{- end }}
 {{- end }}
@@ -137,7 +132,6 @@ spec:
             defaultMode: 0555
 {{- end }}
 {{- if $envAll.Values.manifests.certificates }}
-{{- dict "enabled" $envAll.Values.manifests.certificates "name" $tlsSecret | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 {{- dict "enabled" $envAll.Values.manifests.certificates "name" $dbAdminTlsSecret | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 {{- end }}
 {{- $local := dict "configMapBinFirst" true -}}
