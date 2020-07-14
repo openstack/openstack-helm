@@ -59,3 +59,5 @@ openstack service list
 sleep 30 #NOTE(portdirect): Wait for ingress controller to update rules and restart Nginx
 openstack image list
 openstack image show 'Cirros 0.3.5 64-bit'
+
+helm test glance --timeout 900
