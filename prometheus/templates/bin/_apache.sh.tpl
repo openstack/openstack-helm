@@ -33,6 +33,10 @@ function start () {
     htpasswd -cb /usr/local/apache2/conf/.htpasswd "$PROMETHEUS_ADMIN_USERNAME" "$PROMETHEUS_ADMIN_PASSWORD"
   fi
 
+  if [ -n "$PROMETHEUS_FEDERATE_USERNAME" ]; then
+    htpasswd -b /usr/local/apache2/conf/.htpasswd "$PROMETHEUS_FEDERATE_USERNAME" "$PROMETHEUS_FEDERATE_PASSWORD"
+  fi
+
   #Launch Apache on Foreground
   exec httpd -DFOREGROUND
 }
