@@ -31,8 +31,6 @@ limitations under the License.
 {{- $backoffLimit := index . "backoffLimit" | default "1000" -}}
 {{- $activeDeadlineSeconds := index . "activeDeadlineSeconds" -}}
 {{- $serviceNamePretty := $serviceName | replace "_" "-" -}}
-{{- $tlsPath := index . "tlsPath" | default (printf "/etc/%s/certs" $serviceNamePretty ) -}}
-{{- $tlsSecret := index . "tlsSecret" | default "" -}}
 {{- $dbAdminTlsSecret := index . "dbAdminTlsSecret" | default "" -}}
 
 {{- $serviceAccountName := printf "%s-%s" $serviceNamePretty "db-sync" }}
@@ -90,7 +88,6 @@ spec:
               mountPath: {{ $dbToSync.logConfigFile | quote }}
               subPath: {{ base $dbToSync.logConfigFile | quote }}
               readOnly: true
-{{- dict "enabled" $envAll.Values.manifests.certificates "name" $tlsSecret "path" $tlsPath | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
 {{- dict "enabled" $envAll.Values.manifests.certificates "name" $dbAdminTlsSecret "path" "/etc/mysql/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
 {{- if $podVolMounts }}
 {{ $podVolMounts | toYaml | indent 12 }}
@@ -114,7 +111,6 @@ spec:
           secret:
             secretName: {{ $configMapEtc | quote }}
             defaultMode: 0444
-{{- dict "enabled" $envAll.Values.manifests.certificates "name" $tlsSecret | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 {{- dict "enabled" $envAll.Values.manifests.certificates "name" $dbAdminTlsSecret | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 {{- if $podVols }}
 {{ $podVols | toYaml | indent 8 }}
