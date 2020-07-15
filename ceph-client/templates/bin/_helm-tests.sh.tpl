@@ -33,19 +33,19 @@ function check_osd_count() {
   num_osd=$(ceph osd stat | tr ' ' '\n' | grep -x -E '[0-9]+' | head -n1)
   num_in_osds=$(ceph osd stat | tr ' ' '\n' | grep -x -E '[0-9]+' | tail -n1)
   num_up_osds=$(ceph osd stat | tr ' ' '\n' | grep -x -E '[0-9]+' | head -n2 | tail -n1)
-  if [ $EXPECTED_OSDS == 1 ]; then
-    MIN_EXPECTED_OSDS=$EXPECTED_OSDS
-  else
-    MIN_EXPECTED_OSDS=$(($EXPECTED_OSDS*$REQUIRED_PERCENT_OF_OSDS/100))
+
+  MIN_OSDS=$((${num_osd}*$REQUIRED_PERCENT_OF_OSDS/100))
+  if [ ${MIN_OSDS} -lt 1 ]; then
+    MIN_OSDS=1
   fi
 
   if [ "${num_osd}" -eq 0 ]; then
     echo "There are no osds in the cluster"
     exit 1
-  elif [ "${num_in_osds}" -ge "${MIN_EXPECTED_OSDS}" ] && [ "${num_up_osds}" -ge "${MIN_EXPECTED_OSDS}"  ]; then
-    echo "Required number of OSDs (${MIN_EXPECTED_OSDS}) are UP and IN status"
+  elif [ "${num_in_osds}" -ge "${MIN_OSDS}" ] && [ "${num_up_osds}" -ge "${MIN_OSDS}"  ]; then
+    echo "Required number of OSDs (${MIN_OSDS}) are UP and IN status"
   else
-    echo "Required number of OSDs (${MIN_EXPECTED_OSDS}) are NOT UP and IN status. Cluster shows OSD count=${num_osd}, UP=${num_up_osds}, IN=${num_in_osds}"
+    echo "Required number of OSDs (${MIN_OSDS}) are NOT UP and IN status. Cluster shows OSD count=${num_osd}, UP=${num_up_osds}, IN=${num_in_osds}"
     exit 1
   fi
 }
