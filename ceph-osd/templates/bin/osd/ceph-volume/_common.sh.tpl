@@ -299,6 +299,13 @@ function udev_settle {
   udevadm settle --timeout=600
 }
 
+# Helper function to get a logical volume from a physical volume
+function get_lv_from_device {
+  device="$1"
+
+  locked pvdisplay -m ${device} | awk '/Logical volume/{print $3}'
+}
+
 # Helper function to get an lvm tag from a logical volume
 function get_lvm_tag_from_volume {
   logical_volume="$1"
@@ -318,7 +325,7 @@ function get_lvm_tag_from_device {
   device="$1"
   tag="$2"
   # Attempt to get a logical volume for the physical device
-  logical_volume="$(locked pvdisplay -m ${device} | awk '/Logical volume/{print $3}')"
+  logical_volume="$(get_lv_from_device ${device})"
 
   # Use get_lvm_tag_from_volume to get the specified tag from the logical volume
   get_lvm_tag_from_volume ${logical_volume} ${tag}
