@@ -109,10 +109,12 @@ Create loopback devices for CEPH
 
 Create two loopback devices for ceph as one disk for OSD data and other disk for
 block DB and block WAL.
+If loop0 and loop1  devices are busy in your case , feel free to change them in parameters
+by using --ceph-osd-data and --ceph-osd-dbwal options.
 
 .. code-block:: shell
 
-  ansible all -i /opt/openstack-helm-infra/tools/gate/devel/multinode-inventory.yaml -m shell -s -a "/opt/openstack-helm/tools/deployment/common/setup-ceph-loopback-device.sh"
+  ansible all -i /opt/openstack-helm-infra/tools/gate/devel/multinode-inventory.yaml -m shell -s -a "/opt/openstack-helm/tools/deployment/common/setup-ceph-loopback-device.sh --ceph-osd-data /dev/loop0 --ceph-osd-dbwal /dev/loop1"
 
 Deploy Ceph
 -----------

@@ -2,6 +2,11 @@
 Deployment With Ceph
 ====================
 
+This script will create two loopback devices for ceph as one disk for OSD data and other disk for
+block DB and block WAL.
+If loop0 and loop1  devices are busy in your case , feel free to change them in
+parameters.
+
 .. note::
   For other deployment options, select appropriate ``Deployment with ...``
   option from `Index <../developer/index.html>`__ page.
@@ -17,7 +22,7 @@ Alternatively, this step can be performed by running the script directly:
 
 .. code-block:: shell
 
-  ./tools/deployment/developer/ceph/040-ceph.sh
+  ./tools/deployment/developer/ceph/040-ceph.sh /dev/loop0 /dev/loop1
 
 Activate the OpenStack namespace to be able to use Ceph
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

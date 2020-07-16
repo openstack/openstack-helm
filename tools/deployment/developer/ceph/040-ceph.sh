@@ -14,17 +14,10 @@
 
 set -xe
 
+export CEPH_OSD_DATA_DEVICE="$1"
+export CEPH_OSD_DB_WAL_DEVICE="$2"
 # Create loop back devices for ceph osds.
-sudo df -lh
-sudo lsblk
-sudo mkdir -p /var/lib/openstack-helm/ceph
-sudo truncate -s 10G /var/lib/openstack-helm/ceph/ceph-osd-data-loopbackfile.img
-sudo truncate -s 8G /var/lib/openstack-helm/ceph/ceph-osd-db-wal-loopbackfile.img
-sudo losetup /dev/loop0 /var/lib/openstack-helm/ceph/ceph-osd-data-loopbackfile.img
-sudo losetup /dev/loop1 /var/lib/openstack-helm/ceph/ceph-osd-db-wal-loopbackfile.img
-# lets check the devices
-sudo df -lh
-sudo lsblk
+./tools/deployment/common/setup-ceph-loopback-device.sh --ceph-osd-data ${CEPH_OSD_DATA_DEVICE} --ceph-osd-dbwal ${CEPH_OSD_DB_WAL_DEVICE}
 
 #NOTE: Lint and package chart
 export HELM_CHART_ROOT_PATH="${HELM_CHART_ROOT_PATH:="${OSH_INFRA_PATH:="../openstack-helm-infra"}"}"

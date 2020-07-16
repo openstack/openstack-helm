@@ -169,8 +169,6 @@ pod:
     mds: 1
     mgr: 1
     rgw: 1
-deploy:
-  tool: "ceph-volume"
 
 EOF
 
