@@ -76,7 +76,7 @@ set -x
 log_backup_error_exit() {
   MSG=$1
   ERRCODE=$2
-  log ERROR "${DB_NAME}_backup" "${MSG}"
+  log ERROR "${DB_NAME}_backup" "${DB_NAMESPACE} namespace: ${MSG}"
   rm -f $ERR_LOG_FILE
   rm -rf $TMP_DIR
   exit $ERRCODE
@@ -338,7 +338,7 @@ backup_databases() {
     if [[ $? -ne 0 ]]; then
       # This error should print first, then print the summary as the last
       # thing that the user sees in the output.
-      log ERROR "${DB_NAME}_backup" "Backup could not be sent to remote RGW."
+      log ERROR "${DB_NAME}_backup" "Backup ${TARBALL_FILE} could not be sent to remote RGW."
       set +x
       echo "=================================================================="
       echo "Local backup successful, but could not send to remote RGW."
