@@ -181,38 +181,41 @@ def stop_mysqld():
         else:
             return False
 
-    if os.path.isfile(mysqld_pidfile_path):
-        logger.info(
-            "Previous pid file found for mysqld, attempting to shut it down")
-        with open(mysqld_pidfile_path, "r") as mysqld_pidfile:
-            mysqld_pid = int(mysqld_pidfile.readlines()[0].rstrip('\n'))
-        if is_pid_running(mysqld_pid):
-            if is_pid_mysqld(mysqld_pid):
-                logger.info("pid from pidfile is mysqld")
-                os.kill(mysqld_pid, 15)
-                try:
-                    pid, status = os.waitpid(mysqld_pid, 0)
-                except OSError as err:
-                    # The process has already exited
-                    if err.errno == errno.ECHILD:
-                        return
-                    else:
-                        raise
-                logger.info("Mysqld stopped: pid = {0}, "
-                            "exit status = {1}".format(pid, status))
-            else:
-                logger.error(
-                    "pidfile process is not mysqld, removing pidfile and panic"
-                )
-                os.remove(mysqld_pidfile_path)
-                sys.exit(1)
-        else:
-            logger.info(
-                "Mysqld was not running with pid {0}, going to remove stale "
-                "file".format(mysqld_pid))
-            os.remove(mysqld_pidfile_path)
-    else:
+    if not os.path.isfile(mysqld_pidfile_path):
         logger.debug("No previous pid file found for mysqld")
+        return
+    logger.info("Previous pid file found for mysqld, attempting to shut it down")
+    if os.stat(mysqld_pidfile_path).st_size == 0:
+        logger.info(
+            "{0} file is empty, removing it".format(mysqld_pidfile_path))
+        os.remove(mysqld_pidfile_path)
+        return
+    with open(mysqld_pidfile_path, "r") as mysqld_pidfile:
+        mysqld_pid = int(mysqld_pidfile.readlines()[0].rstrip('\n'))
+    if not is_pid_running(mysqld_pid):
+        logger.info(
+            "Mysqld was not running with pid {0}, going to remove stale "
+            "file".format(mysqld_pid))
+        os.remove(mysqld_pidfile_path)
+        return
+    if not is_pid_mysqld(mysqld_pid):
+        logger.error(
+            "pidfile process is not mysqld, removing pidfile and panic")
+        os.remove(mysqld_pidfile_path)
+        sys.exit(1)
+
+    logger.info("pid from pidfile is mysqld")
+    os.kill(mysqld_pid, 15)
+    try:
+        pid, status = os.waitpid(mysqld_pid, 0)
+    except OSError as err:
+        # The process has already exited
+        if err.errno == errno.ECHILD:
+            return
+        else:
+            raise
+    logger.info("Mysqld stopped: pid = {0}, "
+                "exit status = {1}".format(pid, status))
 
 
 def mysqld_write_cluster_conf(mode='run'):
