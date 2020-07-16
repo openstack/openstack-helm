@@ -36,6 +36,7 @@ spec:
 {{ dict "envAll" $envAll "podName" "horizon-db-sync" "containerNames" (list "horizon-db-sync" "init" ) | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
     spec:
       serviceAccountName: {{ $serviceAccountName }}
+{{ dict "envAll" $envAll "application" "db_sync" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
       restartPolicy: OnFailure
       nodeSelector:
         {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
@@ -45,6 +46,7 @@ spec:
         - name: horizon-db-sync
 {{ tuple $envAll "horizon_db_sync" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.jobs.db_sync | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "db_sync" "container" "horizon_db_sync" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
             - /tmp/db-sync.sh
           volumeMounts:
