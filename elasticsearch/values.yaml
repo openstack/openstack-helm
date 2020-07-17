@@ -28,7 +28,6 @@ images:
     prometheus_elasticsearch_exporter: docker.io/justwatch/elasticsearch_exporter:1.1.0
     dep_check: quay.io/airshipit/kubernetes-entrypoint:v1.0.0
     snapshot_repository: docker.io/openstackhelm/ceph-config-helper:ubuntu_bionic-20191216
-    es_cluster_wait: docker.io/openstackhelm/ceph-config-helper:ubuntu_bionic-20191216
     elasticsearch_templates: docker.io/openstackhelm/heat:newton
     image_repo_sync: docker.io/docker:17.07.0
   pull_policy: "IfNotPresent"
@@ -100,14 +99,10 @@ dependencies:
     elasticsearch_master:
       services: null
       jobs: null
-    es_cluster_wait:
+    elasticsearch_templates:
       services:
         - endpoint: internal
           service: elasticsearch
-    elasticsearch_templates:
-      services: null
-      jobs:
-        - elasticsearch-cluster-wait
     image_repo_sync:
       services:
         - endpoint: internal
@@ -117,10 +112,11 @@ dependencies:
         - endpoint: internal
           service: elasticsearch
     snapshot_repository:
-      services: null
+      services:
+        - endpoint: internal
+          service: elasticsearch
       jobs:
         - elasticsearch-s3-bucket
-        - elasticsearch-cluster-wait
     verify_repositories:
       services: null
       jobs:
@@ -194,12 +190,6 @@ pod:
               - IPC_LOCK
               - SYS_RESOURCE
           readOnlyRootFilesystem: false
-    es_cluster_wait:
-      pod:
-        runAsUser: 0
-      container:
-        elasticsearch_cluster_wait:
-          readOnlyRootFilesystem: true
     snapshot_repository:
       pod:
         runAsUser: 0
@@ -375,13 +365,6 @@ pod:
         limits:
           memory: "1024Mi"
           cpu: "2000m"
-      es_cluster_wait:
-        requests:
-          memory: "128Mi"
-          cpu: "100m"
-        limits:
-          memory: "1024Mi"
-          cpu: "2000m"
       storage_init:
         requests:
           memory: "128Mi"
@@ -440,9 +423,6 @@ jobs:
     history:
       success: 3
       failed: 1
-  es_cluster_wait:
-    backoffLimit: 6
-    activeDeadlineSeconds: 1200
   verify_repositories:
     cron: "*/30 * * * *"
     history:
@@ -953,7 +933,6 @@ manifests:
   cron_verify_repositories: true
   deployment_client: true
   ingress: true
-  job_cluster_wait: true
   job_elasticsearch_templates: true
   job_image_repo_sync: true
   job_snapshot_repository: true
