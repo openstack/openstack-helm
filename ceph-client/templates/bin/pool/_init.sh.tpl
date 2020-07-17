@@ -67,6 +67,17 @@ create_crushrule {{ .name }} {{ .crush_rule }} {{ .failure_domain }} {{ .device_
 {{- end }}
 {{- end }}
 
+function reweight_osds () {
+  OSD_DF_OUTPUT=$(ceph --cluster "${CLUSTER}" osd df --format json-pretty)
+  for OSD_ID in $(ceph --cluster "${CLUSTER}" osd ls); do
+    OSD_EXPECTED_WEIGHT=$(echo "${OSD_DF_OUTPUT}" | grep -A7 "\bosd.${OSD_ID}\b" | awk '/"kb"/{ gsub(",",""); d= $2/1073741824 ; r = sprintf("%.2f", d); print r }');
+    OSD_WEIGHT=$(echo "${OSD_DF_OUTPUT}" | grep -A3 "\bosd.${OSD_ID}\b" | awk '/crush_weight/{print $2}' | cut -d',' -f1)
+    if [[ "${OSD_WEIGHT}" != "${OSD_EXPECTED_WEIGHT}" ]]; then
+      ceph --cluster "${CLUSTER}" osd crush reweight osd.${OSD_ID} ${OSD_EXPECTED_WEIGHT};
+    fi
+  done
+}
+
 function enable_autoscaling () {
   if [[ "${ENABLE_AUTOSCALER}" == "true" ]]; then
     ceph mgr module enable pg_autoscaler
@@ -170,6 +181,8 @@ function manage_pool () {
   POOL_QUOTA=$(python -c "print(int($CLUSTER_CAPACITY * $TOTAL_DATA_PERCENT * $TARGET_QUOTA / $POOL_REPLICAS / 100 / 100))")
   ceph --cluster "${CLUSTER}" osd pool set-quota "${POOL_NAME}" max_bytes $POOL_QUOTA
 }
+
+reweight_osds
 
 {{ $targetPGperOSD := .Values.conf.pool.target.pg_per_osd }}
 {{ $crushRuleDefault := .Values.conf.pool.default.crush_rule }}
