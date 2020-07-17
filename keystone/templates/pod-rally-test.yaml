@@ -33,6 +33,7 @@ metadata:
 {{ dict "envAll" $envAll "podName" "keystone-test" "containerNames" (list "init" "keystone-test" "keystone-test-ks-user") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 4 }}
 spec:
   restartPolicy: Never
+{{ dict "envAll" $envAll "application" "test" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 2 }}
   nodeSelector:
     {{ .Values.labels.test.node_selector_key }}: {{ .Values.labels.test.node_selector_value }}
   serviceAccountName: {{ $serviceAccountName }}
@@ -41,6 +42,7 @@ spec:
     - name: keystone-test-ks-user
 {{ tuple $envAll "ks_user" | include "helm-toolkit.snippets.image" | indent 6 }}
 {{ tuple $envAll $envAll.Values.pod.resources.jobs.ks_user | include "helm-toolkit.snippets.kubernetes_resources" | indent 6 }}
+{{ dict "envAll" $envAll "application" "test" "container" "keystone_test_ks_user" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 6 }}
       command:
         - /tmp/ks-user.sh
       volumeMounts:
@@ -66,6 +68,7 @@ spec:
     - name: keystone-test
 {{ tuple $envAll "test" | include "helm-toolkit.snippets.image" | indent 6 }}
 {{ tuple $envAll $envAll.Values.pod.resources.jobs.tests | include "helm-toolkit.snippets.kubernetes_resources" | indent 6 }}
+{{ dict "envAll" $envAll "application" "test" "container" "keystone_test" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 6}}
       env:
 {{- with $env := dict "ksUserSecret" .Values.secrets.identity.admin "useCA" .Values.manifests.certificates }}
 {{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 8 }}
@@ -90,6 +93,8 @@ spec:
           readOnly: true
         - name: rally-db
           mountPath: /var/lib/rally
+        - name: rally-work
+          mountPath: /home/rally/.rally
 {{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.identity.api.internal | include "helm-toolkit.snippets.tls_volume_mount"  | indent 8 }}
 {{ if $mounts_tests.volumeMounts }}{{ toYaml $mounts_tests.volumeMounts | indent 8 }}{{ end }}
   volumes:
@@ -104,6 +109,8 @@ spec:
         name: keystone-bin
         defaultMode: 0555
     - name: rally-db
+      emptyDir: {}
+    - name: rally-work
       emptyDir: {}
 {{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.identity.api.internal | include "helm-toolkit.snippets.tls_volume" | indent 4 }}
 {{ if $mounts_tests.volumes }}{{ toYaml $mounts_tests.volumes | indent 4 }}{{ end }}
