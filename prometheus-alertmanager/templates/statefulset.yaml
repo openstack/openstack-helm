@@ -18,45 +18,45 @@ limitations under the License.
 {{- $mounts_alertmanager := .Values.pod.mounts.alertmanager.alertmanager }}
 {{- $mounts_alertmanager_init := .Values.pod.mounts.alertmanager.init_container }}
 
-{{- $serviceAccountName := "alertmanager" }}
-{{ tuple $envAll "alertmanager" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{- $serviceAccountName := "prometheus-alertmanager" }}
+{{ tuple $envAll "prometheus-alertmanager" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: alertmanager
+  name: prometheus-alertmanager
   annotations:
     {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
   labels:
-{{ tuple $envAll "alertmanager" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+{{ tuple $envAll "prometheus-alertmanager" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 spec:
-  serviceName: {{ tuple "alerts" "discovery" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
+  serviceName: {{ tuple "alertmanager" "discovery" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
   podManagementPolicy: "Parallel"
   replicas: {{ .Values.pod.replicas.alertmanager }}
   selector:
     matchLabels:
-{{ tuple $envAll "alertmanager" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
+{{ tuple $envAll "prometheus-alertmanager" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
   template:
     metadata:
       labels:
-{{ tuple $envAll "alertmanager" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+{{ tuple $envAll "prometheus-alertmanager" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
       annotations:
 {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
-{{ dict "envAll" $envAll "podName" "alertmanager" "containerNames" (list "alertmanager" "alertmanager-perms" "init") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
+{{ dict "envAll" $envAll "podName" "alertmanager" "containerNames" (list "alertmanager" "alertmanager_perms" "init") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
     spec:
 {{ dict "envAll" $envAll "application" "server" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
       serviceAccountName: {{ $serviceAccountName }}
       affinity:
-{{ tuple $envAll "alertmanager" "server" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
+{{ tuple $envAll "prometheus-alertmanager" "server" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
       nodeSelector:
         {{ .Values.labels.alertmanager.node_selector_key }}: {{ .Values.labels.alertmanager.node_selector_value | quote }}
       terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.alertmanager.timeout | default "30" }}
       initContainers:
 {{ tuple $envAll "alertmanager" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
-        - name: alertmanager-perms
-{{ tuple $envAll "alertmanager" | include "helm-toolkit.snippets.image" | indent 10 }}
+        - name: prometheus-alertmanager-perms
+{{ tuple $envAll "prometheus-alertmanager" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.alertmanager | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
 {{ dict "envAll" $envAll "application" "server" "container" "alertmanager_perms" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
@@ -70,8 +70,8 @@ spec:
             - name: alertmanager-data
               mountPath: /var/lib/alertmanager/data
       containers:
-        - name: alertmanager
-{{ tuple $envAll "alertmanager" | include "helm-toolkit.snippets.image" | indent 10 }}
+        - name: prometheus-alertmanager
+{{ tuple $envAll "prometheus-alertmanager" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.alertmanager | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
 {{ dict "envAll" $envAll "application" "server" "container" "alertmanager" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
@@ -85,18 +85,18 @@ spec:
                   - stop
           env:
             - name: DISCOVERY_SVC
-              value: {{ tuple "alerts" "discovery" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
+              value: {{ tuple "alertmanager" "discovery" . | include "helm-toolkit.endpoints.hostname_fqdn_endpoint_lookup" }}
             - name: MESH_PORT
-              value: {{ tuple "alerts" "internal" "mesh" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | quote }}
+              value: {{ tuple "alertmanager" "internal" "mesh" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | quote }}
           ports:
             - name: alerts-api
-              containerPort: {{ tuple "alerts" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+              containerPort: {{ tuple "alertmanager" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
             - name: peer-mesh
-              containerPort: {{ tuple "alerts" "internal" "mesh" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+              containerPort: {{ tuple "alertmanager" "internal" "mesh" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
           readinessProbe:
             httpGet:
               path: /#/status
-              port: {{ tuple "alerts" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+              port: {{ tuple "alertmanager" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
             initialDelaySeconds: 30
             timeoutSeconds: 30
           volumeMounts:

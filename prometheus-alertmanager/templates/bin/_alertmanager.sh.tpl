@@ -29,7 +29,7 @@ function generate_peers () {
   final_pod_suffix=$(( {{ .Values.pod.replicas.alertmanager }}-1 ))
   for pod_suffix in `seq 0 "$final_pod_suffix"`
   do
-    echo --cluster.peer={{ .Release.Name }}-$pod_suffix.$DISCOVERY_SVC:$MESH_PORT
+    echo --cluster.peer=prometheus-alertmanager-$pod_suffix.$DISCOVERY_SVC:$MESH_PORT
   done
 }
 

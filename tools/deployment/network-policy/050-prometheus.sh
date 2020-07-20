@@ -48,7 +48,7 @@ network_policy:
         - protocol: TCP
           port: 9090
         - protocol: TCP
-          port: 6783
+          port: 9094
         - protocol: TCP
           port: 9108
         - protocol: TCP
