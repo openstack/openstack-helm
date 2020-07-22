@@ -15,7 +15,7 @@ limitations under the License.
 
 set -ex
 
-exec /node-problem-detector \
+exec /opt/node-problem-detector/bin/node-problem-detector \
   {{- range $monitor, $monitorConfig := .Values.conf.monitors }}
   {{- if $monitorConfig.enabled }}
   --config.{{$monitor}}={{ include "helm-toolkit.utils.joinListWithComma" $monitorConfig.enabled }} \
