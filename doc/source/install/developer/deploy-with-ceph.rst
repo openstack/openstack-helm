@@ -2,17 +2,26 @@
 Deployment With Ceph
 ====================
 
-This script will create two loopback devices for ceph as one disk for OSD data and other disk for
-block DB and block WAL.
-If loop0 and loop1  devices are busy in your case , feel free to change them in
-parameters.
-
 .. note::
   For other deployment options, select appropriate ``Deployment with ...``
   option from `Index <../developer/index.html>`__ page.
 
 Deploy Ceph
 ^^^^^^^^^^^
+
+We are going to install Ceph OSDs backed by loopback devices as this will
+help us not to attach extra disks, in case if you have enough disks
+on the node then feel free to adjust below script part of Ceph overrides.
+
+We are also going to seperate Ceph metadata and data onto a different devices
+to replicate the ideal scenario of fast disks for metadata and slow disks to store data.
+You can change this as per your design by referring to the documentation explained in
+../openstack-helm-infra/ceph-osd/values.yaml
+
+This script will create two loopback devices for Ceph as one disk for OSD data
+and other disk for block DB and block WAL. If default devices (loop0 and loop1) are busy in
+your case, feel free to change them by exporting environment variables(CEPH_OSD_DATA_DEVICE
+and CEPH_OSD_DB_WAL_DEVICE).
 
 .. literalinclude:: ../../../../tools/deployment/developer/ceph/040-ceph.sh
     :language: shell
@@ -22,7 +31,7 @@ Alternatively, this step can be performed by running the script directly:
 
 .. code-block:: shell
 
-  ./tools/deployment/developer/ceph/040-ceph.sh /dev/loop0 /dev/loop1
+  ./tools/deployment/developer/ceph/040-ceph.sh
 
 Activate the OpenStack namespace to be able to use Ceph
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
