@@ -14,7 +14,7 @@ limitations under the License.
 
 {{/*
 abstract: |
-  Resolves either the fully qualified hostname, of if defined in the host feild
+  Resolves either the fully qualified hostname, of if defined in the host field
   IPv4 for an endpoint.
 examples:
   - values: |
