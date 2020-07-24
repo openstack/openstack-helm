@@ -31,7 +31,7 @@ network_policy:
         - protocol: TCP
           port: 9093
         - protocol: TCP
-          port: 6783
+          port: 9094
         - protocol: TCP
           port: 80
 EOF
