@@ -12,8 +12,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- define "fluentd_main" }}
+{{- $path := .Values.conf.fluentd.path}}
+{{- range $name, $conf := .Values.conf.fluentd.conf }}
+{{ printf "%s %s/%s.conf" "@include" $path $name | indent 4}}
+{{- end }}
+{{- end }}
+
 {{- if .Values.manifests.configmap_etc }}
-{{- $envAll := . }}
+{{ $envAll := .}}
 ---
 apiVersion: v1
 kind: Secret
@@ -22,6 +29,12 @@ metadata:
   annotations:
     {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
 type: Opaque
+stringData:
+  main.conf: |
+{{- template "fluentd_main" . }}
 data:
-{{- include "helm-toolkit.snippets.values_template_renderer" (dict "envAll" $envAll "template" .Values.conf.fluentd.template "key" "fluent.conf" "format" "Secret") | indent 2 }}
+{{- range $name, $config := .Values.conf.fluentd.conf }}
+{{- $filename := printf "%s.conf" $name}}
+{{- include "helm-toolkit.snippets.values_template_renderer" (dict "envAll" $envAll "template" $config "key" $filename "format" "Secret") | indent 2 }}
+{{- end }}
 {{- end }}

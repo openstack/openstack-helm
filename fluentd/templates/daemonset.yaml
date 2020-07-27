@@ -15,6 +15,7 @@ limitations under the License.
 {{- if .Values.manifests.daemonset }}
 {{- $envAll := . }}
 
+{{- $config_path := .Values.conf.fluentd.path }}
 {{- $mounts_fluentd := .Values.pod.mounts.fluentd.fluentd }}
 {{- $prometheus_annotations := $envAll.Values.monitoring.prometheus.fluentd }}
 
@@ -183,9 +184,15 @@ spec:
             - name: pod-etc-fluentd
               mountPath: /fluentd/etc
             - name: fluentd-etc
-              mountPath: /fluentd/etc/fluent.conf
-              subPath: fluent.conf
+              mountPath: {{ printf "%s/%s.conf" $config_path "main" }}
+              subPath: {{ printf "%s.conf" "main"}}
               readOnly: true
+{{- range $name, $config := .Values.conf.fluentd.conf }}
+            - name: fluentd-etc
+              mountPath: {{ printf "%s/%s.conf" $config_path $name }}
+              subPath: {{ printf "%s.conf" $name }}
+              readOnly: true
+{{- end }}
             - name: fluentd-bin
               mountPath: /tmp/fluentd.sh
               subPath: fluentd.sh

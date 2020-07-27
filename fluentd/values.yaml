@@ -54,243 +54,51 @@ dependencies:
 
 conf:
   fluentd:
-    # This field is now rendered as a helm template!
-    template: |
-      <source>
-        @type prometheus
-        port {{ tuple "fluentd" "internal" "metrics" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-      </source>
-
-      <source>
-        @type prometheus_monitor
-      </source>
-
-      <source>
-        @type prometheus_output_monitor
-      </source>
-
-      <source>
-        @type prometheus_tail_monitor
-      </source>
-
-      <source>
-        bind 0.0.0.0
-        port "#{ENV['FLUENTD_PORT']}"
-        @type forward
-      </source>
-
-      <match fluent.**>
-        @type null
-      </match>
-
-      <match kube.var.log.containers.**.log>
-        <rule>
-          key log
-          pattern /info/i
-          tag info.${tag}
-        </rule>
-        <rule>
-          key log
-          pattern /warn/i
-          tag warn.${tag}
-        </rule>
-        <rule>
-          key log
-          pattern /error/i
-          tag error.${tag}
-        </rule>
-        <rule>
-          key log
-          pattern /critical/i
-          tag critical.${tag}
-        </rule>
-        <rule>
-          key log
-          pattern (.+)
-          tag info.${tag}
-        </rule>
-        @type rewrite_tag_filter
-      </match>
-
-      <filter **.kube.var.log.containers.**.log>
-        enable_ruby true
-        <record>
-          application ${record["kubernetes"]["labels"]["application"]}
-          level ${tag_parts[0]}
-        </record>
-        @type record_transformer
-      </filter>
-
-      <filter openstack.**>
-        <record>
-          application ${tag_parts[1]}
-        </record>
-        @type record_transformer
-      </filter>
-
-      <match openstack.**>
-        <rule>
-          key level
-          pattern INFO
-          tag info.${tag}
-        </rule>
-        <rule>
-          key level
-          pattern WARN
-          tag warn.${tag}
-        </rule>
-        <rule>
-          key level
-          pattern ERROR
-          tag error.${tag}
-        </rule>
-        <rule>
-          key level
-          pattern CRITICAL
-          tag critical.${tag}
-        </rule>
-        @type rewrite_tag_filter
-      </match>
-
-      <match *.openstack.**>
-        <rule>
-          key application
-          pattern keystone
-          tag auth.${tag}
-        </rule>
-        <rule>
-          key application
-          pattern horizon
-          tag auth.${tag}
-        </rule>
-        <rule>
-          key application
-          pattern mariadb
-          tag auth.${tag}
-        </rule>
-        <rule>
-          key application
-          pattern memcached
-          tag auth.${tag}
-        </rule>
-        <rule>
-          key application
-          pattern rabbitmq
-          tag auth.${tag}
-        </rule>
-        @type rewrite_tag_filter
-      </match>
-
-      <match libvirt>
-        <buffer>
-          chunk_limit_size 8MB
-          flush_interval 15s
-          flush_thread_count 8
-          queue_limit_length 256
-          retry_forever false
-          retry_max_interval 30
-        </buffer>
-        host "#{ENV['ELASTICSEARCH_HOST']}"
-        reload_connections false
-        reconnect_on_error true
-        reload_on_failure true
-        include_tag_key true
-        logstash_format true
-        logstash_prefix libvirt
-        password "#{ENV['ELASTICSEARCH_PASSWORD']}"
-        port "#{ENV['ELASTICSEARCH_PORT']}"
-        @type elasticsearch
-        user "#{ENV['ELASTICSEARCH_USERNAME']}"
-      </match>
-
-      <match qemu>
-        <buffer>
-          chunk_limit_size 8MB
-          flush_interval 15s
-          flush_thread_count 8
-          queue_limit_length 256
-          retry_forever false
-          retry_max_interval 30
-        </buffer>
-        host "#{ENV['ELASTICSEARCH_HOST']}"
-        reload_connections false
-        reconnect_on_error true
-        reload_on_failure true
-        include_tag_key true
-        logstash_format true
-        logstash_prefix qemu
-        password "#{ENV['ELASTICSEARCH_PASSWORD']}"
-        port "#{ENV['ELASTICSEARCH_PORT']}"
-        @type elasticsearch
-        user "#{ENV['ELASTICSEARCH_USERNAME']}"
-      </match>
-
-      <match journal.**>
-        <buffer>
-          chunk_limit_size 8MB
-          flush_interval 15s
-          flush_thread_count 8
-          queue_limit_length 256
-          retry_forever false
-          retry_max_interval 30
-        </buffer>
-        host "#{ENV['ELASTICSEARCH_HOST']}"
-        reload_connections false
-        reconnect_on_error true
-        reload_on_failure true
-        include_tag_key true
-        logstash_format true
-        logstash_prefix journal
-        password "#{ENV['ELASTICSEARCH_PASSWORD']}"
-        port "#{ENV['ELASTICSEARCH_PORT']}"
-        @type elasticsearch
-        user "#{ENV['ELASTICSEARCH_USERNAME']}"
-      </match>
-
-      <match kernel>
-        <buffer>
-          chunk_limit_size 8MB
-          flush_interval 15s
-          flush_thread_count 8
-          queue_limit_length 256
-          retry_forever false
-          retry_max_interval 30
-        </buffer>
-        host "#{ENV['ELASTICSEARCH_HOST']}"
-        reload_connections false
-        reconnect_on_error true
-        reload_on_failure true
-        include_tag_key true
-        logstash_format true
-        logstash_prefix kernel
-        password "#{ENV['ELASTICSEARCH_PASSWORD']}"
-        port "#{ENV['ELASTICSEARCH_PORT']}"
-        @type elasticsearch
-        user "#{ENV['ELASTICSEARCH_USERNAME']}"
-      </match>
-
-      <match **>
-        <buffer>
-          chunk_limit_size 8MB
-          flush_interval 15s
-          flush_thread_count 8
-          queue_limit_length 256
-          retry_forever false
-          retry_max_interval 30
-        </buffer>
-        host "#{ENV['ELASTICSEARCH_HOST']}"
-        reload_connections false
-        reconnect_on_error true
-        reload_on_failure true
-        include_tag_key true
-        logstash_format true
-        password "#{ENV['ELASTICSEARCH_PASSWORD']}"
-        port "#{ENV['ELASTICSEARCH_PORT']}"
-        @type elasticsearch
-        type_name fluent
-        user "#{ENV['ELASTICSEARCH_USERNAME']}"
-      </match>
-
+    path: /fluentd/etc
+    conf:
+      input: |
+        <source>
+          bind 0.0.0.0
+          port "#{ENV['FLUENTD_PORT']}"
+          @type forward
+        </source>
+        <source>
+          <parse>
+            time_format %Y-%m-%dT%H:%M:%S.%NZ
+            @type json
+          </parse>
+          path /var/log/containers/*.log
+          read_from_head true
+          tag kubernetes.*
+          @type tail
+        </source>
+        <match **>
+          @type relabel
+          @label @output
+        </match>
+      output: |
+        <label @output>
+          <match **>
+            <buffer>
+              chunk_limit_size 512K
+              flush_interval 5s
+              flush_thread_count 8
+              queue_limit_length 32
+              retry_forever false
+              retry_max_interval 30
+            </buffer>
+            host "#{ENV['ELASTICSEARCH_HOST']}"
+            reload_connections false
+            reconnect_on_error true
+            reload_on_failure true
+            include_tag_key true
+            logstash_format true
+            password "#{ENV['ELASTICSEARCH_PASSWORD']}"
+            port "#{ENV['ELASTICSEARCH_PORT']}"
+            @type elasticsearch
+            user "#{ENV['ELASTICSEARCH_USERNAME']}"
+          </match>
+        </label>
 endpoints:
   cluster_domain_suffix: cluster.local
   local_image_registry:
