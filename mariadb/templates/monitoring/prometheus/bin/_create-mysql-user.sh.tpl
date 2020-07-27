@@ -18,7 +18,7 @@ set -e
 
 if ! mysql --defaults-file=/etc/mysql/admin_user.cnf -e \
   "CREATE OR REPLACE USER '${EXPORTER_USER}'@'%' IDENTIFIED BY '${EXPORTER_PASSWORD}'; \
-   GRANT PROCESS, REPLICATION CLIENT, SELECT ON *.* TO '${EXPORTER_USER}'@'%'; \
+   GRANT PROCESS, REPLICATION CLIENT, SELECT ON *.* TO '${EXPORTER_USER}'@'%' ${MARIADB_X509}; \
    FLUSH PRIVILEGES;" ; then
   echo "ERROR: Could not create user: ${EXPORTER_USER}"
   exit 1
