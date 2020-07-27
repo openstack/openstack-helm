@@ -204,6 +204,10 @@ spec:
               readOnly: true
             - name: storage
               mountPath: /var/lib/prometheus/data
+{{- if .Values.tls_configs }}
+            - name: tls-configs
+              mountPath: /tls_configs
+{{- end }}
 {{ if $mounts_prometheus.volumeMounts }}{{ toYaml $mounts_prometheus.volumeMounts | indent 12 }}{{ end }}
       volumes:
         - name: pod-tmp
@@ -220,6 +224,12 @@ spec:
           configMap:
             name: {{ printf "%s-%s" $envAll.Release.Name "prometheus-bin" | quote }}
             defaultMode: 0555
+{{- if .Values.tls_configs }}
+        - name: tls-configs
+          secret:
+            secretName: {{ printf "%s-%s" $envAll.Release.Name "tls-configs" | quote }}
+            defaultMode: 0444
+{{- end }}
 {{ if $mounts_prometheus.volumes }}{{ toYaml $mounts_prometheus.volumes | indent 8 }}{{ end }}
 {{- if not .Values.storage.enabled }}
         - name: storage
