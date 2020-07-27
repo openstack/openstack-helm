@@ -47,7 +47,7 @@ spec:
 {{ tuple $envAll "bootstrap" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.jobs.domain_manage | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           env:
-{{- with $env := dict "ksUserSecret" .Values.secrets.identity.admin }}
+{{- with $env := dict "ksUserSecret" .Values.secrets.identity.admin "useCA" .Values.manifests.certificates }}
 {{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 12 }}
 {{- end }}
           command:
@@ -59,13 +59,14 @@ spec:
               mountPath: /tmp/domain-manage-init.sh
               subPath: domain-manage-init.sh
               readOnly: true
+{{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.identity.api.internal | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
       containers:
         - name: keystone-domain-manage
 {{ tuple $envAll "keystone_domain_manage" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.jobs.domain_manage | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
 {{ dict "envAll" $envAll "application" "domain_manage" "container" "keystone_domain_manage" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           env:
-{{- with $env := dict "ksUserSecret" .Values.secrets.identity.admin }}
+{{- with $env := dict "ksUserSecret" .Values.secrets.identity.admin "useCA" .Values.manifests.certificates }}
 {{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 12 }}
 {{- end }}
           command:
@@ -107,6 +108,7 @@ spec:
 {{- end }}
             - name: keystone-credential-keys
               mountPath: {{ .Values.conf.keystone.credential.key_repository }}
+{{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.identity.api.internal | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
 {{ if $mounts_keystone_domain_manage.volumeMounts }}{{ toYaml $mounts_keystone_domain_manage.volumeMounts | indent 12 }}{{ end }}
       volumes:
         - name: pod-tmp
@@ -131,5 +133,6 @@ spec:
         - name: keystone-credential-keys
           secret:
             secretName: keystone-credential-keys
+{{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.identity.api.internal | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
 {{ if $mounts_keystone_domain_manage.volumes }}{{ toYaml $mounts_keystone_domain_manage.volumes | indent 9 }}{{ end }}
 {{- end }}
