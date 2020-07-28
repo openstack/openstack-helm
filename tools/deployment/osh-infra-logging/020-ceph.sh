@@ -14,6 +14,10 @@
 
 set -xe
 
+# setup loopback devices for ceph
+./tools/deployment/common/setup-ceph-loopback-device.sh --ceph-osd-data \
+${CEPH_OSD_DATA_DEVICE:=/dev/loop0} --ceph-osd-dbwal ${CEPH_OSD_DB_WAL_DEVICE:=/dev/loop1}
+
 #NOTE: Lint and package chart
 for CHART in ceph-mon ceph-osd ceph-client ceph-provisioners; do
   make "${CHART}"
@@ -26,8 +30,9 @@ CEPH_FS_ID="$(cat /tmp/ceph-fs-uuid.txt)"
 #NOTE(portdirect): to use RBD devices with Ubuntu kernels < 4.5 this
 # should be set to 'hammer'
 . /etc/os-release
-if [ "x${ID}" == "xubuntu" ] && \
-   [ "$(uname -r | awk -F "." '{ print $2 }')" -lt "5" ]; then
+if [ "x${ID}" == "xcentos" ] || \
+   ([ "x${ID}" == "xubuntu" ] && \
+   dpkg --compare-versions "$(uname -r)" "lt" "4.5"); then
   CRUSH_TUNABLES=hammer
 else
   CRUSH_TUNABLES=null
@@ -160,12 +165,12 @@ conf:
     osd:
       - data:
           type: bluestore
-          location: /dev/loop0
+          location: ${CEPH_OSD_DATA_DEVICE}
         block_db:
-          location: /dev/loop1
+          location: ${CEPH_OSD_DB_WAL_DEVICE}
           size: "5GB"
         block_wal:
-          location: /dev/loop1
+          location: ${CEPH_OSD_DB_WAL_DEVICE}
           size: "2GB"
 
 pod:

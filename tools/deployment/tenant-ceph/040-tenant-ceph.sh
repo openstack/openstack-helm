@@ -14,6 +14,15 @@
 
 set -xe
 
+: "${CEPH_OSD_DATA_DEVICE:=/dev/loop2}"
+: "${CEPH_OSD_DB_WAL_DEVICE:=/dev/loop3}"
+# setup loopback devices for ceph
+export CEPH_NAMESPACE="tenant-ceph"
+./tools/deployment/common/setup-ceph-loopback-device.sh --ceph-osd-data ${CEPH_OSD_DATA_DEVICE} --ceph-osd-dbwal ${CEPH_OSD_DB_WAL_DEVICE}
+
+# setup loopback devices for ceph osds
+setup_loopback_devices $OSD_DATA_DEVICE $OSD_DB_WAL_DEVICE
+
 #NOTE: Deploy command
 [ -s /tmp/tenant-ceph-fs-uuid.txt ] || uuidgen > /tmp/tenant-ceph-fs-uuid.txt
 CEPH_PUBLIC_NETWORK="$(./tools/deployment/multinode/kube-node-subnet.sh)"
@@ -132,12 +141,12 @@ conf:
     osd:
       - data:
           type: bluestore
-          location: /dev/loop2
+          location: ${CEPH_OSD_DATA_DEVICE}
         block_db:
-          location: /dev/loop3
+          location: ${CEPH_OSD_DB_WAL_DEVICE}
           size: "5GB"
         block_wal:
-          location: /dev/loop3
+          location: ${CEPH_OSD_DB_WAL_DEVICE}
           size: "2GB"
     mon:
       directory: /var/lib/openstack-helm/tenant-ceph/mon
