@@ -14,6 +14,7 @@ limitations under the License.
 */}}
 
 import json
+import os
 import requests
 import sys
 
@@ -28,7 +29,9 @@ def main(args):
         'Cache-Control': "no-cache"
     }
 
-    response = requests.request("GET", url, headers=headers)
+    verify = os.getenv('OS_CACERT', True)
+
+    response = requests.request("GET", url, headers=headers, verify=verify)
 
     if response.status_code == 404:
         print("domain config not found - put")
@@ -42,7 +45,7 @@ def main(args):
 
     response = requests.request(action, url,
                                 data=json.dumps(data),
-                                headers=headers)
+                                headers=headers, verify=verify)
 
 
     print("Response code on action [%s]: %s" % (action, response.status_code))
