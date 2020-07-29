@@ -29,21 +29,31 @@ if [[ ! -e ${ADMIN_KEYRING} ]]; then
    exit 1
 fi
 
-function wait_for_inactive_pgs () {
-  echo "#### Start: Checking for inactive pgs ####"
+function wait_for_pgs () {
+  echo "#### Start: Checking pgs ####"
+
+  pgs_ready=0
+  query='map({state: .state}) | group_by(.state) | map({state: .[0].state, count: length}) | .[] | select(.state | startswith("active+") | not)'
+
+  if [[ $(ceph tell mon.* version | egrep -q "nautilus"; echo $?) -eq 0 ]]; then
+    query=".pg_stats | ${query}"
+  fi
 
   # Loop until all pgs are active
-  if [[ $(ceph tell mon.* version | egrep -q "nautilus"; echo $?) -eq 0 ]]; then
-    while [[ `ceph --cluster ${CLUSTER} pg ls | tail -n +2 | head -n -2 | grep -v "active+"` ]]
-    do
-      sleep 3
-    done
-  else
-    while [[ `ceph --cluster ${CLUSTER} pg ls | tail -n +2 | grep -v "active+"` ]]
-    do
-      sleep 3
-    done
-  fi
+  while [[ $pgs_ready -lt 3 ]]; do
+    pgs_state=$(ceph --cluster ${CLUSTER} pg ls -f json | jq -c "${query}")
+    if [[ $(jq -c '. | select(.state | contains("peering") | not)' <<< "${pgs_state}") ]]; then
+      # If inactive PGs aren't peering, fail
+      echo "Failure, found inactive PGs that aren't peering"
+      exit 1
+    fi
+    if [[ "${pgs_state}" ]]; then
+      pgs_ready=0
+    else
+      (( pgs_ready+=1 ))
+    fi
+    sleep 3
+  done
 }
 
 function check_recovery_flags () {
@@ -265,5 +275,5 @@ manage_pool {{ .application }} {{ .name }} {{ .replication }} {{ .percent_total_
 ceph --cluster "${CLUSTER}" osd crush tunables {{ .Values.conf.pool.crush.tunables }}
 {{- end }}
 
-wait_for_inactive_pgs
+wait_for_pgs
 check_recovery_flags
