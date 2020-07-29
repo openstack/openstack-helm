@@ -15,7 +15,7 @@
 set -xe
 
 sudo -H -E pip3 install \
-  -c${UPPER_CONSTRAINTS_FILE:=https://releases.openstack.org/constraints/upper/${OPENSTACK_RELEASE}} \
+  -c${UPPER_CONSTRAINTS_FILE:=https://releases.openstack.org/constraints/upper/${OPENSTACK_RELEASE:-stein}} \
   cmd2 python-openstackclient python-heatclient --ignore-installed
 
 sudo -H mkdir -p /etc/openstack
