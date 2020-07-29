@@ -98,7 +98,7 @@ spec:
                   apiVersion: v1
                   fieldPath: metadata.name
 {{ if .Values.conf.rgw_ks.enabled }}
-{{- with $env := dict "ksUserSecret" .Values.secrets.identity.user_rgw }}
+{{- with $env := dict "ksUserSecret" .Values.secrets.identity.user_rgw "useCA" .Values.manifests.certificates }}
 {{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 12 }}
 {{- end }}
             - name: KEYSTONE_URL
@@ -123,6 +123,9 @@ spec:
               mountPath: /etc/ceph/ceph.conf.template
               subPath: ceph.conf
               readOnly: true
+{{ if .Values.conf.rgw_ks.enabled }}
+{{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.object_store.api.internal | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
+{{- end }}
       containers:
         - name: ceph-rgw
 {{ tuple $envAll "ceph_rgw" | include "helm-toolkit.snippets.image" | indent 10 }}
@@ -191,4 +194,7 @@ spec:
         - name: ceph-bootstrap-rgw-keyring
           secret:
             secretName: {{ .Values.secrets.keyrings.rgw }}
+{{ if .Values.conf.rgw_ks.enabled }}
+{{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.object_store.api.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
+{{- end }}
 {{- end }}

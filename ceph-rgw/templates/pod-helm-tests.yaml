@@ -39,7 +39,7 @@ spec:
 {{ tuple $envAll $envAll.Values.pod.resources.tests | include "helm-toolkit.snippets.kubernetes_resources" | indent 6 }}
 {{ dict "envAll" $envAll "application" "rgw_test" "container" "ceph_rgw_ks_validation" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 6 }}
       env:
-{{- with $env := dict "ksUserSecret" .Values.secrets.identity.user_rgw }}
+{{- with $env := dict "ksUserSecret" .Values.secrets.identity.user_rgw "useCA" .Values.manifests.certificates }}
 {{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 8 }}
         - name: OS_AUTH_TYPE
           valueFrom:
@@ -73,6 +73,7 @@ spec:
           mountPath: /etc/ceph/ceph.conf
           subPath: ceph.conf
           readOnly: true
+{{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.object_store.api.internal | include "helm-toolkit.snippets.tls_volume_mount" | indent 8 }}
 {{- end }}
 {{ if .Values.conf.rgw_s3.enabled }}
     - name: ceph-rgw-s3-validation
@@ -115,4 +116,7 @@ spec:
       configMap:
         name: ceph-rgw-etc
         defaultMode: 0444
+{{- if .Values.conf.rgw_ks.enabled }}
+{{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.object_store.api.internal | include "helm-toolkit.snippets.tls_volume" | indent 4 }}
+{{- end }}
 {{- end }}
