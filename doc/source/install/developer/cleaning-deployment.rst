@@ -59,6 +59,22 @@ containers before removing the directories used on the host by pods.
     echo $VG
     vgremove -y $VG
   done
+  # lets delete loopback devices setup for ceph, if the device names are different in your case,
+  # please update them here as environmental variables as shown below.
+  : "${CEPH_OSD_DATA_DEVICE:=/dev/loop0}"
+  : "${CEPH_OSD_DB_WAL_DEVICE:=/dev/loop1}"
+  if [ ! -z "$CEPH_OSD_DATA_DEVICE" ]; then
+    ceph_osd_disk_name=`basename "$CEPH_OSD_DATA_DEVICE"`
+    if losetup -a|grep $ceph_osd_disk_name; then
+       losetup -d "$CEPH_OSD_DATA_DEVICE"
+    fi
+  fi
+  if [ ! -z "$CEPH_OSD_DB_WAL_DEVICE" ]; then
+    ceph_db_wal_disk_name=`basename "$CEPH_OSD_DB_WAL_DEVICE"`
+    if losetup -a|grep $ceph_db_wal_disk_name; then
+       losetup -d "$CEPH_OSD_DB_WAL_DEVICE"
+    fi
+  fi
 
   # NOTE(portdirect): Clean up mounts left behind by kubernetes pods
   sudo findmnt --raw | awk '/^\/var\/lib\/kubelet\/pods/ { print $1 }' | xargs -r -L1 -P16 sudo umount -f -l
