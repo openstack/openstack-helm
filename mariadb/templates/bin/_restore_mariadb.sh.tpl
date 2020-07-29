@@ -100,6 +100,7 @@ get_rows() {
   if [[ -e $TMP_DIR/$SQL_FILE ]]; then
     current_db_desc ${DATABASE} ${TMP_DIR}/${SQL_FILE} \
         | grep "INSERT INTO \`${TABLE}\` VALUES" > $ROW_FILE
+    return 0
   else
     # Error, cannot report the rows
     echo "No SQL file found - cannot extract the rows"
