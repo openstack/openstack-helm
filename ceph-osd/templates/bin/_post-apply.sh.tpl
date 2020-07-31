@@ -30,37 +30,26 @@ fi
 
 ceph --cluster ${CLUSTER}  -s
 function wait_for_pods() {
-  end=$(date +%s)
   timeout=${2:-1800}
-  end=$((end + timeout))
+  end=$(date -ud "${timeout} seconds" +%s)
+  # Sorting out the pods which are not in Running or Succeeded state.
+  # In a query the status of containers is checked thus the check
+  # of init containers is not required.
+  fields="{name: .metadata.name, \
+           status: .status.containerStatuses[].ready, \
+           phase: .status.phase}"
+  select="select((.status) or (.phase==\"Succeeded\") | not)"
+  query=".items | map( ${fields} | ${select}) | .[]"
   while true; do
-      kubectl get pods --namespace=$1 -l component=osd -o json | jq -r \
-          '.items[].status.phase' | grep Pending > /dev/null && \
-          PENDING="True" || PENDING="False"
-      query='.items[]|select(.status.phase=="Running")'
-      pod_query="$query|.status.containerStatuses[].ready"
-      init_query="$query|.status.initContainerStatuses[].ready"
-      kubectl get pods --namespace=$1 -l component=osd -o json | jq -r "$pod_query" | \
-          grep false > /dev/null && READY="False" || READY="True"
-      kubectl get pods --namespace=$1 -o json | jq -r "$init_query" | \
-          grep false > /dev/null && INIT_READY="False" || INIT_READY="True"
-      kubectl get pods --namespace=$1  | grep -E 'Terminating|PodInitializing' \
-          > /dev/null && UNKNOWN="True" || UNKNOWN="False"
-      [ $INIT_READY == "True" -a $UNKNOWN == "False" -a $PENDING == "False" -a $READY == "True" ] && \
-          break || true
+      if [[ $(kubectl get pods --namespace="${1}" -o json | jq -c "${query}") ]]; then
+        break
+      fi
       sleep 5
-      now=$(date +%s)
-      if [ $now -gt $end ] ; then
-          echo "Containers failed to start after $timeout seconds"
-          echo
-          kubectl get pods --namespace $1 -o wide
-          echo
-          if [ $PENDING == "True" ] ; then
-              echo "Some pods are in pending state:"
-              kubectl get pods --field-selector=status.phase=Pending -n $1 -o wide
-          fi
-          [ $READY == "False" ] && echo "Some pods are not ready"
-          exit -1
+
+      if [ $(date -u +%s) -gt $end ] ; then
+          echo -e "Containers failed to start after $timeout seconds\n"
+          kubectl get pods --namespace "${1}" -o wide
+          exit 1
       fi
   done
 }
@@ -89,23 +78,31 @@ function check_ds() {
  done
 }
 
-function wait_for_inactive_pgs () {
-  echo "#### Start: Checking for inactive pgs ####"
+function wait_for_pgs () {
+  echo "#### Start: Checking pgs ####"
+
+  pgs_ready=0
+  query='map({state: .state}) | group_by(.state) | map({state: .[0].state, count: length}) | .[] | select(.state | startswith("active+") | not)'
+
+  if [[ $(ceph tell mon.* version | egrep -q "nautilus"; echo $?) -eq 0 ]]; then
+    query=".pg_stats | ${query}"
+  fi
 
   # Loop until all pgs are active
-  if [[ $(ceph tell mon.* version | egrep -q "nautilus"; echo $?) -eq 0 ]]; then
-    while [[ `ceph --cluster ${CLUSTER} pg ls | tail -n +2 | head -n -2 | grep -v "active+"` ]]
-    do
-      sleep 3
-      ceph -s
-    done
-  else
-    while [[ `ceph --cluster ${CLUSTER} pg ls | tail -n +2 | grep -v "active+"` ]]
-    do
-      sleep 3
-      ceph -s
-    done
-  fi
+  while [[ $pgs_ready -lt 3 ]]; do
+    pgs_state=$(ceph --cluster ${CLUSTER} pg ls -f json | jq -c "${query}")
+    if [[ $(jq -c '. | select(.state | contains("peering") | not)' <<< "${pgs_state}") ]]; then
+      # If inactive PGs aren't peering, fail
+      echo "Failure, found inactive PGs that aren't peering"
+      exit 1
+    fi
+    if [[ "${pgs_state}" ]]; then
+      pgs_ready=0
+    else
+      (( pgs_ready+=1 ))
+    fi
+    sleep 3
+  done
 }
 
 function wait_for_degraded_objects () {
@@ -140,7 +137,7 @@ function restart_by_rack() {
      echo "waiting for the pods under rack $rack from restart"
      wait_for_pods $CEPH_NAMESPACE
      echo "waiting for inactive pgs after osds restarted from rack $rack"
-     wait_for_inactive_pgs
+     wait_for_pgs
      wait_for_degraded_objects
      ceph -s
   done
@@ -169,7 +166,7 @@ echo "Latest revision of the helm chart(s) is : $max_release"
 if [[ $max_release -gt 1  ]]; then
   if [[  $require_upgrade -gt 0 ]]; then
     echo "waiting for inactive pgs and degraded obejcts before upgrade"
-    wait_for_inactive_pgs
+    wait_for_pgs
     wait_for_degraded_objects
     ceph -s
     ceph osd "set" noout
