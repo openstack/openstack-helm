@@ -24,7 +24,37 @@ function check_cluster_status() {
   if [ "x${ceph_health_status}" == "xHEALTH_OK" ]; then
     echo "Ceph status is HEALTH_OK"
   else
-    echo "Ceph cluster status is NOT HEALTH_OK."
+    echo "Ceph cluster status is not HEALTH_OK, checking PG states"
+    retries=0
+    # If all PGs are active, pass
+    # This grep is just as robust as jq and is Ceph-version agnostic unlike jq
+    while [[ $(ceph pg ls -f json-pretty | grep '"state":' | grep -v "active") ]] && [[ retries -lt 60 ]]; do
+      # If all inactive PGs are peering, wait for peering to complete
+      # Run 'ceph pg ls' again before failing in case PG states have changed
+      if [[ $(ceph pg ls -f json-pretty | grep '"state":' | grep -v -e "active" -e "peering") ]]; then
+        # If inactive PGs aren't peering, fail
+        echo "Failure, found inactive PGs that aren't peering"
+        exit 1
+      fi
+      sleep 3
+      ((retries=retries+1))
+    done
+    # If peering PGs haven't gone active after retries have expired, fail
+    if [[ retries -ge 60 ]]; then
+      echo "PGs appear to be stuck peering"
+      exit 1
+    fi
+  fi
+}
+
+function check_recovery_flags() {
+  echo "### Start: Checking for flags that will prevent recovery"
+
+  # Ensure there are no flags set that will prevent recovery of degraded PGs
+  if [[ $(ceph osd stat | grep "norecover\|nobackfill\|norebalance") ]]; then
+    ceph osd stat
+    echo "Flags are set that prevent recovery of degraded PGs"
+    exit 1
   fi
 }
 
@@ -257,3 +287,4 @@ pool_validation
 pool_failuredomain_validation
 check_failure_domain_count_per_pool
 check_cluster_status
+check_recovery_flags

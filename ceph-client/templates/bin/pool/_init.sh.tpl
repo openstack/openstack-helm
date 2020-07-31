@@ -46,6 +46,17 @@ function wait_for_inactive_pgs () {
   fi
 }
 
+function check_recovery_flags () {
+  echo "### Start: Checking for flags that will prevent recovery"
+
+  # Ensure there are no flags set that will prevent recovery of degraded PGs
+  if [[ $(ceph osd stat | grep "norecover\|nobackfill\|norebalance") ]]; then
+    ceph osd stat
+    echo "Flags are set that prevent recovery of degraded PGs"
+    exit 1
+  fi
+}
+
 function check_osd_count() {
   echo "#### Start: Checking OSD count ####"
   noup_flag=$(ceph osd stat | awk '/noup/ {print $2}')
@@ -119,10 +130,12 @@ function reweight_osds () {
   done
 }
 
-function enable_autoscaling () {
+function enable_or_disable_autoscaling () {
   if [[ "${ENABLE_AUTOSCALER}" == "true" ]]; then
     ceph mgr module enable pg_autoscaler
     ceph config set global osd_pool_default_pg_autoscale_mode on
+  else
+    ceph mgr module disable pg_autoscaler
   fi
 }
 
@@ -232,7 +245,7 @@ reweight_osds
 cluster_capacity=0
 if [[ -z "$(ceph osd versions | grep ceph\ version | grep -v nautilus)" ]]; then
   cluster_capacity=$(ceph --cluster "${CLUSTER}" df | grep "TOTAL" | awk '{print $2 substr($3, 1, 1)}' | numfmt --from=iec)
-  enable_autoscaling
+  enable_or_disable_autoscaling
 else
   cluster_capacity=$(ceph --cluster "${CLUSTER}" df | head -n3 | tail -n1 | awk '{print $1 substr($2, 1, 1)}' | numfmt --from=iec)
 fi
@@ -253,3 +266,4 @@ ceph --cluster "${CLUSTER}" osd crush tunables {{ .Values.conf.pool.crush.tunabl
 {{- end }}
 
 wait_for_inactive_pgs
+check_recovery_flags
