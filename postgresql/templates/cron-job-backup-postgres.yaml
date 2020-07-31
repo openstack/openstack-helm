@@ -27,15 +27,9 @@ metadata:
   labels:
 {{ tuple $envAll "postgresql-backup" "backup" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 spec:
-{{- if .Values.jobs.backup_postgresql.backoffLimit }}
-  backoffLimit: {{ .Values.jobs.backup_postgresql.backoffLimit }}
-{{- end }}
-{{- if .Values.jobs.backup_postgresql.activeDeadlineSeconds }}
-  activeDeadlineSeconds: {{ .Values.jobs.backup_postgresql.activeDeadlineSeconds }}
-{{- end }}
-  schedule: {{ .Values.jobs.backup_postgresql.cron | quote }}
-  successfulJobsHistoryLimit: {{ .Values.jobs.backup_postgresql.history.success }}
-  failedJobsHistoryLimit: {{ .Values.jobs.backup_postgresql.history.failed }}
+  schedule: {{ .Values.jobs.postgresql_backup.cron | quote }}
+  successfulJobsHistoryLimit: {{ .Values.jobs.postgresql_backup.history.success }}
+  failedJobsHistoryLimit: {{ .Values.jobs.postgresql_backup.history.failed }}
   concurrencyPolicy: Forbid
   jobTemplate:
     metadata:
@@ -44,6 +38,12 @@ spec:
       annotations:
 {{ dict "envAll" $envAll "podName" "postgresql-backup" "containerNames" (list "init" "backup-perms" "postgresql-backup") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
     spec:
+{{- if .Values.jobs.postgresql_backup.backoffLimit }}
+      backoffLimit: {{ .Values.jobs.postgresql_backup.backoffLimit }}
+{{- end }}
+{{- if .Values.jobs.postgresql_backup.activeDeadlineSeconds }}
+      activeDeadlineSeconds: {{ .Values.jobs.postgresql_backup.activeDeadlineSeconds }}
+{{- end }}
       template:
         metadata:
           labels:
