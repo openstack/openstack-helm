@@ -226,6 +226,30 @@ spec:
               mountPath: /etc/neutron/plugins/ml2/ml2_conf.ini
               subPath: ml2_conf.ini
               readOnly: true
+            {{- if( has "tungstenfabric" .Values.network.backend ) }}
+            - name: neutron-etc
+              mountPath: /etc/neutron/plugins/tungstenfabric/tf_plugin.ini
+              subPath: tf_plugin.ini
+              readOnly: true
+            {{ end }}
+            {{ if ( has "sriov" .Values.network.backend ) }}
+            - name: neutron-etc
+              mountPath: /etc/neutron/plugins/ml2/sriov_agent.ini
+              subPath: sriov_agent.ini
+              readOnly: true
+            {{ end }}
+            {{- if .Values.conf.plugins.taas.taas.enabled }}
+            - name: neutron-etc
+              mountPath: /etc/neutron/taas_plugin.ini
+              subPath: taas_plugin.ini
+              readOnly: true
+            {{ end }}
+            {{- if .Values.conf.plugins.l2gateway }}
+            - name: neutron-etc
+              mountPath: /etc/neutron/l2gw_plugin.ini
+              subPath: l2gw_plugin.ini
+              readOnly: true
+            {{ end }}
 {{- dict "enabled" .Values.manifests.certificates "name" .Values.endpoints.oslo_db.auth.admin.secret.tls.internal "path" "/etc/mysql/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
 {{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.network.server.internal "path" "/etc/neutron/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
 {{- end }}

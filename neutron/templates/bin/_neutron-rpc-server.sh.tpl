@@ -20,7 +20,20 @@ COMMAND="${@:-start}"
 function start () {
   exec neutron-rpc-server \
         --config-file /etc/neutron/neutron.conf \
+{{- if ( has "tungstenfabric" .Values.network.backend ) }}
+        --config-file /etc/neutron/plugins/tungstenfabric/tf_plugin.ini
+{{- else }}
         --config-file /etc/neutron/plugins/ml2/ml2_conf.ini
+{{- end }}
+{{- if .Values.conf.plugins.taas.taas.enabled }} \
+        --config-file /etc/neutron/taas_plugin.ini
+{{- end }}
+{{- if ( has "sriov" .Values.network.backend ) }} \
+        --config-file /etc/neutron/plugins/ml2/sriov_agent.ini
+{{- end }}
+{{- if .Values.conf.plugins.l2gateway }} \
+        --config-file /etc/neutron/l2gw_plugin.ini
+{{- end }}
 }
 
 function stop () {
