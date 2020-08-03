@@ -19,6 +19,11 @@ set -ex
 OVS_SOCKET=/run/openvswitch/db.sock
 chown neutron: ${OVS_SOCKET}
 
+# This enables the usage of 'ovs-appctl' from neutron pod.
+OVS_PID=$(cat /run/openvswitch/ovs-vswitchd.pid)
+OVS_CTL=/run/openvswitch/ovs-vswitchd.${OVS_PID}.ctl
+chown neutron: ${OVS_CTL}
+
 function get_dpdk_config_value {
   values=$1
   filter=$2
