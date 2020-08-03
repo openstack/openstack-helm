@@ -77,6 +77,11 @@ function check_osd_count() {
   EXPECTED_OSDS={{.Values.conf.pool.target.osd}}
   REQUIRED_PERCENT_OF_OSDS={{.Values.conf.pool.target.required_percent_of_osds}}
 
+  if [ ${num_up_osds} -gt ${EXPECTED_OSDS} ]; then
+    echo "The expected amount of OSDs (${EXPECTED_OSDS}) is less than available OSDs (${num_up_osds}). Please, correct the value (.Values.conf.pool.target.osd)."
+    exit 1
+  fi
+
   MIN_OSDS=$(($EXPECTED_OSDS*$REQUIRED_PERCENT_OF_OSDS/100))
   if [ ${MIN_OSDS} -lt 1 ]; then
     MIN_OSDS=1
