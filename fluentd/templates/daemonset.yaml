@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if .Values.manifests.deployment_fluentd }}
+{{- if .Values.manifests.daemonset }}
 {{- $envAll := . }}
 
 {{- $mounts_fluentd := .Values.pod.mounts.fluentd.fluentd }}
@@ -68,13 +68,8 @@ rules:
       - list
       - watch
 ---
-{{- if eq .Values.deployment.type "Deployment" }}
-apiVersion: apps/v1
-kind: Deployment
-{{- else if eq .Values.deployment.type "DaemonSet" }}
 apiVersion: apps/v1
 kind: DaemonSet
-{{- end }}
 metadata:
   name: {{ $rcControllerName | quote }}
   annotations:
@@ -82,12 +77,7 @@ metadata:
   labels:
 {{ tuple $envAll "fluentd" "internal" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 spec:
-{{- if eq .Values.deployment.type "Deployment" }}
-  replicas: {{ .Values.pod.replicas.fluentd }}
-{{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_deployment" | indent 2 }}
-{{- else }}
 {{ tuple $envAll "fluentd" | include "helm-toolkit.snippets.kubernetes_upgrades_daemonset" | indent 2 }}
-{{- end }}
   selector:
     matchLabels:
 {{ tuple $envAll "fluentd" "internal" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
@@ -106,13 +96,9 @@ spec:
     spec:
 {{ dict "envAll" $envAll "application" "fluentd" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
       serviceAccountName: {{ $rcControllerName | quote }}
-{{ if and ($envAll.Values.pod.tolerations.fluentd.enabled) (eq .Values.deployment.type "DaemonSet") }}
+{{ if $envAll.Values.pod.tolerations.fluentd.enabled }}
 {{ tuple $envAll "fluentd" | include "helm-toolkit.snippets.kubernetes_tolerations" | indent 6 }}
 {{ end }}
-{{- if eq .Values.deployment.type "Deployment" }}
-      affinity:
-{{ tuple $envAll "fluentd" "internal" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
-{{- end }}
       nodeSelector:
         {{ .Values.labels.fluentd.node_selector_key }}: {{ .Values.labels.fluentd.node_selector_value | quote }}
       terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.fluentd.timeout | default "30" }}
@@ -131,7 +117,6 @@ spec:
               containerPort: {{ tuple "fluentd" "internal" "service" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
             - name: metrics
               containerPort: {{ tuple "fluentd" "internal" "metrics" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-{{- if eq .Values.deployment.type "Deployment" }}
           readinessProbe:
             tcpSocket:
               port: {{ tuple "fluentd" "internal" "service" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
@@ -142,7 +127,6 @@ spec:
               port: {{ tuple "fluentd" "internal" "service" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
             initialDelaySeconds: 60
             timeoutSeconds: 10
-{{- end }}
           env:
             - name: NODE_NAME
               valueFrom:
@@ -191,13 +175,11 @@ spec:
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
-{{- if eq .Values.deployment.type "DaemonSet" }}
             - name: varlog
               mountPath: /var/log
             - name: varlibdockercontainers
               mountPath: /var/lib/docker/containers
               readOnly: true
-{{- end }}
             - name: pod-etc-fluentd
               mountPath: /fluentd/etc
             - name: fluentd-etc
@@ -212,14 +194,12 @@ spec:
       volumes:
         - name: pod-tmp
           emptyDir: {}
-{{- if eq .Values.deployment.type "DaemonSet" }}
         - name: varlog
           hostPath:
             path: /var/log
         - name: varlibdockercontainers
           hostPath:
             path: /var/lib/docker/containers
-{{- end }}
         - name: pod-etc-fluentd
           emptyDir: {}
 {{ if and (.Values.manifests.secret_fluentd_env) (.Values.pod.env.fluentd.secrets) }}

@@ -17,9 +17,6 @@
 ---
 release_group: null
 
-deployment:
-  type: DaemonSet
-
 labels:
   fluentd:
     node_selector_key: openstack-control-plane
@@ -397,28 +394,13 @@ pod:
   security_context:
     fluentd:
       pod:
-        runAsUser: 65534
+        runAsUser: 0
       container:
         fluentd:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
-
-  affinity:
-    anti:
-      type:
-        default: preferredDuringSchedulingIgnoredDuringExecution
-      topologyKey:
-        default: kubernetes.io/hostname
-      weight:
-        default: 10
   lifecycle:
     upgrades:
-      deployments:
-        revision_history: 3
-        pod_replacement_strategy: RollingUpdate
-        rolling_update:
-          max_unavailable: 1
-          max_surge: 3
       daemonsets:
         pod_replacement_strategy: RollingUpdate
         fluentd:
@@ -428,8 +410,6 @@ pod:
     termination_grace_period:
       fluentd:
         timeout: 30
-  replicas:
-    fluentd: 3
   resources:
     enabled: false
     fluentd:
@@ -446,7 +426,7 @@ pod:
 manifests:
   configmap_bin: true
   configmap_etc: true
-  deployment_fluentd: true
+  daemonset: true
   job_image_repo_sync: true
   network_policy: false
   secret_elasticsearch: true
