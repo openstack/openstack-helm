@@ -18,11 +18,7 @@ set -xe
 make fluentd
 : ${OSH_INFRA_EXTRA_HELM_ARGS_FLUENTD:="$(./tools/deployment/common/get-values-overrides.sh fluentd)"}
 
-tee /tmp/fluentd-daemonset.yaml << EOF
-endpoints:
-  fluentd:
-    hosts:
-      default: fluentd-daemonset
+tee /tmp/fluentd.yaml << EOF
 pod:
   env:
     fluentd:
@@ -30,12 +26,6 @@ pod:
         MY_TEST_VAR: FOO
       secrets:
         MY_TEST_SECRET: BAR
-  security_context:
-    fluentd:
-      pod:
-        runAsUser: 0
-deployment:
-  type: DaemonSet
 conf:
   fluentd:
     # This field is now rendered as a helm template!
@@ -261,9 +251,9 @@ conf:
         user "#{ENV['ELASTICSEARCH_USERNAME']}"
       </match>
 EOF
-helm upgrade --install fluentd-daemonset ./fluentd \
+helm upgrade --install fluentd ./fluentd \
     --namespace=osh-infra \
-    --values=/tmp/fluentd-daemonset.yaml \
+    --values=/tmp/fluentd.yaml \
   ${OSH_INFRA_EXTRA_HELM_ARGS} \
   ${OSH_INFRA_EXTRA_HELM_ARGS_FLUENTD}
 
@@ -271,4 +261,4 @@ helm upgrade --install fluentd-daemonset ./fluentd \
 ./tools/deployment/common/wait-for-pods.sh osh-infra
 
 #NOTE: Validate Deployment info
-helm status fluentd-daemonset
+helm status fluentd
