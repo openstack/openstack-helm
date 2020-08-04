@@ -19,12 +19,17 @@ COMMAND="${@:-start}"
 
 function start () {
 {{- if .Values.manifests.certificates }}
-  add_config=""
+  add_config="neutron.conf;"
+{{- if ( has "tungstenfabric" .Values.network.backend ) }}
+  add_config+='plugins/tungstenfabric/tf_plugin.ini;'
+{{- else }}
+  add_config+='plugins/ml2/ml2_conf.ini;'
+{{- end }}
 {{- if .Values.conf.plugins.taas.taas.enabled }}
   add_config+='taas_plugin.ini;'
 {{- end }}
 {{- if ( has "sriov" .Values.network.backend ) }}
-  add_config+='sriov_agent.ini;'
+  add_config+='plugins/ml2/sriov_agent.ini;'
 {{- end }}
 {{- if .Values.conf.plugins.l2gateway }}
   add_config+='l2gw_plugin.ini;'

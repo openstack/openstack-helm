@@ -47,7 +47,7 @@ spec:
       command:
         - /tmp/selenium-test.py
       env:
-{{- with $env := dict "ksUserSecret" .Values.secrets.identity.admin }}
+{{- with $env := dict "ksUserSecret" .Values.secrets.identity.admin "useCA" .Values.manifests.certificates }}
 {{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 8 }}
 {{- end }}
         - name: HORIZON_URI
@@ -59,6 +59,7 @@ spec:
           mountPath: /tmp/selenium-test.py
           subPath: selenium-test.py
           readOnly: true
+{{- dict "enabled" $envAll.Values.manifests.certificates "name" .Values.secrets.tls.dashboard.dashboard.internal | include "helm-toolkit.snippets.tls_volume_mount" | indent 8 }}
 {{ if $mounts_tests.volumeMounts }}{{ toYaml $mounts_tests.volumeMounts | indent 8 }}{{ end }}
   volumes:
     - name: pod-tmp
@@ -67,5 +68,6 @@ spec:
       configMap:
         name: horizon-bin
         defaultMode: 0555
+{{- dict "enabled" $envAll.Values.manifests.certificates "name" .Values.secrets.tls.dashboard.dashboard.internal | include "helm-toolkit.snippets.tls_volume" | indent 4 }}
 {{ if $mounts_tests.volumes }}{{ toYaml $mounts_tests.volumes | indent 4 }}{{ end }}
 {{- end }}
