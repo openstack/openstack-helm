@@ -38,6 +38,44 @@ else
   export OSD_JOURNAL=$(readlink -f ${JOURNAL_LOCATION})
 fi
 
+function prep_device {
+  local BLOCK_DEVICE=$1
+  local BLOCK_DEVICE_SIZE=$2
+  local device_type=$3
+  local device_string VG DEVICE_OSD_ID logical_devices logical_volume
+  device_string=$(echo "${BLOCK_DEVICE#/}" | tr '/' '-')
+  VG=$(vgs --noheadings -o vg_name -S "vg_name=ceph-vg-${device_string}" | tr -d '[:space:]')
+  if [[ $VG ]]; then
+    DEVICE_OSD_ID=$(get_osd_id_from_volume "/dev/ceph-vg-${device_string}/ceph-${device_type}-${osd_dev_string}")
+    CEPH_LVM_PREPARE=1
+    if [ -n "${OSD_ID}" ]; then
+      if [ "${DEVICE_OSD_ID}" == "${OSD_ID}" ]; then
+        CEPH_LVM_PREPARE=0
+      else
+        disk_zap "${OSD_DEVICE}"
+      fi
+    fi
+  else
+    logical_devices=$(get_lvm_path_from_device "pv_name=~${BLOCK_DEVICE},lv_name=~dev-${osd_dev_split}")
+    if [[ -n "$logical_devices" ]]; then
+      dmsetup remove $logical_devices
+      disk_zap "${OSD_DEVICE}"
+      CEPH_LVM_PREPARE=1
+    fi
+    VG=ceph-vg-${device_string}
+    locked vgcreate "$VG" "${BLOCK_DEVICE}"
+  fi
+  logical_volume=$(lvs --noheadings -o lv_name -S "lv_name=ceph-${device_type}-${osd_dev_string}" | tr -d '[:space:]')
+  if [[ $logical_volume != "ceph-${device_type}-${osd_dev_string}" ]]; then
+    locked lvcreate -L "${BLOCK_DEVICE_SIZE}" -n "ceph-${device_type}-${osd_dev_string}" "${VG}"
+  fi
+  if [[ "${device_type}" == "db" ]]; then
+    BLOCK_DB="${VG}/ceph-${device_type}-${osd_dev_string}"
+  elif [[ "${device_type}" == "wal" ]]; then
+    BLOCK_WAL="${VG}/ceph-${device_type}-${osd_dev_string}"
+  fi
+}
+
 function osd_disk_prepare {
   if [[ -z "${OSD_DEVICE}" ]];then
     echo "ERROR- You must provide a device to build your OSD ie: /dev/sdb"
@@ -59,6 +97,7 @@ function osd_disk_prepare {
   CEPH_DISK_USED=0
   CEPH_LVM_PREPARE=1
   osd_dev_string=$(echo ${OSD_DEVICE} | awk -F "/" '{print $2}{print $3}' | paste -s -d'-')
+  osd_dev_split=$(basename "${OSD_DEVICE}")
   udev_settle
   OSD_ID=$(get_osd_id_from_device ${OSD_DEVICE})
   OSD_FSID=$(get_cluster_fsid_from_device ${OSD_DEVICE})
@@ -105,8 +144,7 @@ function osd_disk_prepare {
       DM_DEV=${OSD_DEVICE}$(sgdisk --print ${OSD_DEVICE} | grep "F800" | awk '{print $1}')
       CEPH_DISK_USED=1
     else
-      osd_dev_split=$(basename ${OSD_DEVICE})
-      if dmsetup ls |grep -i ${osd_dev_split}|grep -v "db--wal"; then
+      if dmsetup ls |grep -i ${osd_dev_split}|grep -v "db--dev\|wal--dev"; then
         CEPH_DISK_USED=1
       fi
       if [[ ${OSD_FORCE_REPAIR} -eq 1 ]] && [ ${CEPH_DISK_USED} -ne 1 ]; then
@@ -203,169 +241,12 @@ function osd_disk_prepare {
       block_wal_string=$(echo ${BLOCK_WAL} | awk -F "/" '{print $2}{print $3}' | paste -s -d'-')
     fi
     if [[ ${BLOCK_DB} && ${BLOCK_WAL} ]]; then
-       if [[ ${block_db_string} == ${block_wal_string} ]]; then
-         if [[ $(locked vgdisplay  | grep "VG Name" | awk '{print $3}' | grep "${block_db_string}") ]]; then
-           VG=$(locked vgdisplay  | grep "VG Name" | awk '{print $3}' | grep "${block_db_string}")
-           WAL_OSD_ID=$(get_osd_id_from_volume /dev/ceph-db-wal-${block_wal_string}/ceph-wal-${osd_dev_string})
-           DB_OSD_ID=$(get_osd_id_from_volume /dev/ceph-db-wal-${block_db_string}/ceph-db-${osd_dev_string})
-           if [ ! -z ${OSD_ID} ] && ([ ${WAL_OSD_ID} != ${OSD_ID} ] || [ ${DB_OSD_ID} != ${OSD_ID} ]); then
-             echo "Found VG, but corresponding DB || WAL are not, zapping the ${OSD_DEVICE}"
-             disk_zap ${OSD_DEVICE}
-             CEPH_LVM_PREPARE=1
-           elif [ ! -z ${OSD_ID} ] && ([ -z ${WAL_OSD_ID} ] || [ -z ${DB_OSD_ID} ]); then
-             disk_zap ${OSD_DEVICE}
-             CEPH_LVM_PREPARE=1
-           elif [ -z ${OSD_ID} ]; then
-             CEPH_LVM_PREPARE=1
-           else
-             CEPH_LVM_PREPARE=0
-           fi
-         else
-           osd_dev_split=$(echo ${OSD_DEVICE} | awk -F "/" '{print $3}')
-           if [[ ! -z $(lsblk ${BLOCK_DB} -o name,type -l | grep "lvm" | grep "ceph"| awk '{print $1}' | grep ${osd_dev_split}) ]]; then
-             echo "dmsetup reference found but disks mismatch, removing all dmsetup references for ${BLOCK_DB}"
-             for item in $(lsblk ${BLOCK_DB} -o name,type -l | grep "lvm" | grep "ceph"| awk '{print $1}');
-             do
-               dmsetup remove ${item}
-             done
-             disk_zap ${OSD_DEVICE}
-             CEPH_LVM_PREPARE=1
-           fi
-           locked vgcreate ceph-db-wal-${block_db_string} ${BLOCK_DB}
-           VG=ceph-db-wal-${block_db_string}
-         fi
-         if [[ $(locked lvdisplay  | grep "LV Name" | awk '{print $3}' | grep "ceph-db-${osd_dev_string}") != "ceph-db-${osd_dev_string}" ]]; then
-           locked lvcreate -L ${BLOCK_DB_SIZE} -n ceph-db-${osd_dev_string} ${VG}
-         fi
-         BLOCK_DB=${VG}/ceph-db-${osd_dev_string}
-         if [[ $(locked lvdisplay  | grep "LV Name" | awk '{print $3}' | grep "ceph-wal-${osd_dev_string}") != "ceph-wal-${osd_dev_string}" ]]; then
-           locked lvcreate -L ${BLOCK_WAL_SIZE} -n ceph-wal-${osd_dev_string} ${VG}
-         fi
-         BLOCK_WAL=${VG}/ceph-wal-${osd_dev_string}
-       else
-         if [[ $(locked vgdisplay  | grep "VG Name" | awk '{print $3}' | grep "${block_db_string}") ]]; then
-           VG=$(locked vgdisplay  | grep "VG Name" | awk '{print $3}' | grep "${block_db_string}")
-           DB_OSD_ID=$(get_osd_id_from_volume /dev/ceph-db-wal-${block_db_string}/ceph-db-${block_db_string})
-           if [ ! -z ${OSD_ID} ] && [ ! -z ${DB_OSD_ID} ] && [ ${DB_OSD_ID} != ${OSD_ID} ]; then
-             echo "Found VG, but corresponding DB is not, zapping the ${OSD_DEVICE}"
-             disk_zap ${OSD_DEVICE}
-             CEPH_LVM_PREPARE=1
-           elif [ ! -z ${OSD_ID} ] && [ -z ${DB_OSD_ID} ]; then
-             disk_zap ${OSD_DEVICE}
-             CEPH_LVM_PREPARE=1
-           elif [ -z ${OSD_ID} ]; then
-             CEPH_LVM_PREPARE=1
-           else
-             CEPH_LVM_PREPARE=0
-           fi
-         else
-           osd_dev_split=$(echo ${OSD_DEVICE} | awk -F "/" '{print $3}')
-           if [[ ! -z $(lsblk ${BLOCK_DB} -o name,type -l | grep "lvm" | grep "ceph"| awk '{print $1}' | grep ${osd_dev_split}) ]]; then
-             echo "dmsetup reference found but disks mismatch"
-             dmsetup remove $(lsblk ${BLOCK_DB} -o name,type -l | grep "lvm" | grep "ceph"| awk '{print $1}' | grep ${osd_dev_split})
-             disk_zap ${OSD_DEVICE}
-             CEPH_LVM_PREPARE=1
-           fi
-           locked vgcreate ceph-db-wal-${block_db_string} ${BLOCK_DB}
-           VG=ceph-db-wal-${block_db_string}
-         fi
-         if [[ $(locked vgdisplay  | grep "VG Name" | awk '{print $3}' | grep "${block_wal_string}") ]]; then
-           VG=$(locked vgdisplay  | grep "VG Name" | awk '{print $3}' | grep "${block_wal_string}")
-           WAL_OSD_ID=$(get_osd_id_from_volume /dev/ceph-db-wal-${block_wal_string}/ceph-wal-${block_wal_string})
-           if [ ! -z ${OSD_ID} ] && [ ${WAL_OSD_ID} != ${OSD_ID} ]; then
-             echo "Found VG, but corresponding WAL is not, zapping the ${OSD_DEVICE}"
-             disk_zap ${OSD_DEVICE}
-             CEPH_LVM_PREPARE=1
-           elif [ ! -z ${OSD_ID} ] && [ -z ${WAL_OSD_ID} ]; then
-             disk_zap ${OSD_DEVICE}
-             CEPH_LVM_PREPARE=1
-           elif [ -z ${OSD_ID} ]; then
-             CEPH_LVM_PREPARE=1
-           else
-             CEPH_LVM_PREPARE=0
-           fi
-         else
-           osd_dev_split=$(echo ${OSD_DEVICE} | awk -F "/" '{print $3}')
-           if [[ ! -z $(lsblk ${BLOCK_WAL} -o name,type -l | grep "lvm" | grep "ceph"| awk '{print $1}' | grep ${osd_dev_split}) ]]; then
-             echo "dmsetup reference found but disks mismatch"
-             dmsetup remove $(lsblk ${BLOCK_WAL} -o name,type -l | grep "lvm" | grep "ceph"| awk '{print $1}' | grep ${osd_dev_split})
-             disk_zap ${OSD_DEVICE}
-             CEPH_LVM_PREPARE=1
-           fi
-           locked vgcreate ceph-db-wal-${block_wal_string} ${BLOCK_WAL}
-           VG=ceph-db-wal-${block_wal_string}
-         fi
-         if [[ $(locked lvdisplay  | grep "LV Name" | awk '{print $3}' | grep "ceph-db-${block_db_string}") != "ceph-db-${block_db_string}" ]]; then
-           locked lvcreate -L ${BLOCK_DB_SIZE} -n ceph-db-${block_db_string} ${VG}
-         fi
-         BLOCK_DB=${VG}/ceph-db-${block_db_string}
-         if [[ $(locked lvdisplay  | grep "LV Name" | awk '{print $3}' | grep "ceph-db-${block_wal_string}") != "ceph-db-${block_wal_string}" ]]; then
-           locked lvcreate -L ${BLOCK_WAL_SIZE} -n ceph-wal-${block_wal_string} ${VG}
-         fi
-         BLOCK_WAL=${VG}/ceph-wal-${block_wal_string}
-       fi
+      prep_device "${BLOCK_DB}" "${BLOCK_DB_SIZE}" "db"
+      prep_device "${BLOCK_WAL}" "${BLOCK_WAL_SIZE}" "wal"
     elif [[ -z ${BLOCK_DB} && ${BLOCK_WAL} ]]; then
-       if [[ $(locked vgdisplay  | grep "VG Name" | awk '{print $3}' | grep "${block_wal_string}") ]]; then
-         VG=$(locked vgdisplay  | grep "VG Name" | awk '{print $3}' | grep "${block_wal_string}")
-         WAL_OSD_ID=$(get_osd_id_from_volume /dev/ceph-wal-${block_wal_string}/ceph-wal-${osd_dev_string})
-         if [ ! -z ${OSD_ID} ] && [ ${WAL_OSD_ID} != ${OSD_ID} ]; then
-           echo "Found VG, but corresponding WAL is not, zapping the ${OSD_DEVICE}"
-           disk_zap ${OSD_DEVICE}
-           CEPH_LVM_PREPARE=1
-         elif [ ! -z ${OSD_ID} ] && [ -z ${WAL_OSD_ID} ]; then
-           disk_zap ${OSD_DEVICE}
-           CEPH_LVM_PREPARE=1
-         elif [ -z ${OSD_ID} ]; then
-           CEPH_LVM_PREPARE=1
-         else
-           CEPH_LVM_PREPARE=0
-         fi
-       else
-         osd_dev_split=$(echo ${OSD_DEVICE} | awk -F "/" '{print $3}')
-         if [[ ! -z $(lsblk ${BLOCK_WAL} -o name,type -l | grep "lvm" | grep "ceph"| awk '{print $1}' | grep ${osd_dev_split}) ]]; then
-           echo "dmsetup reference found but disks mismatch"
-           dmsetup remove $(lsblk ${BLOCK_WAL} -o name,type -l | grep "lvm" | grep "ceph"| awk '{print $1}' | grep ${osd_dev_split})
-           disk_zap ${OSD_DEVICE}
-           CEPH_LVM_PREPARE=1
-         fi
-         locked vgcreate ceph-wal-${block_wal_string} ${BLOCK_WAL}
-         VG=ceph-wal-${block_wal_string}
-       fi
-       if [[ $(locked lvdisplay  | grep "LV Name" | awk '{print $3}' | grep "ceph-wal-${osd_dev_string}") != "ceph-wal-${osd_dev_string}" ]]; then
-         locked lvcreate -L ${BLOCK_WAL_SIZE} -n ceph-wal-${osd_dev_string} ${VG}
-       fi
-       BLOCK_WAL=${VG}/ceph-wal-${osd_dev_string}
+      prep_device "${BLOCK_WAL}" "${BLOCK_WAL_SIZE}" "wal"
     elif [[ ${BLOCK_DB} && -z ${BLOCK_WAL} ]]; then
-       if [[ $(locked vgdisplay  | grep "VG Name" | awk '{print $3}' | grep "${block_db_string}") ]]; then
-         VG=$(locked vgdisplay  | grep "VG Name" | awk '{print $3}' | grep "${block_db_string}")
-         DB_OSD_ID=$(get_osd_id_from_volume /dev/ceph-db-${block_db_string}/ceph-db-${osd_dev_string})
-         if [ ! -z ${OSD_ID} ] && [ ${DB_OSD_ID} != ${OSD_ID} ]; then
-           echo "Found VG, but corresponding DB is not, zapping the ${OSD_DEVICE}"
-           disk_zap ${OSD_DEVICE}
-           CEPH_LVM_PREPARE=1
-         elif [ ! -z ${OSD_ID} ] && [ -z ${DB_OSD_ID} ]; then
-           disk_zap ${OSD_DEVICE}
-           CEPH_LVM_PREPARE=1
-         elif [ -z ${OSD_ID} ]; then
-           CEPH_LVM_PREPARE=1
-         else
-           CEPH_LVM_PREPARE=0
-         fi
-       else
-         osd_dev_split=$(echo ${OSD_DEVICE} | awk -F "/" '{print $3}')
-         if [[ ! -z $(lsblk ${BLOCK_DB} -o name,type -l | grep "lvm" | grep "ceph"| awk '{print $1}' | grep ${osd_dev_split}) ]]; then
-           echo "dmsetup reference found but disks mismatch"
-           dmsetup remove $(lsblk ${BLOCK_WAL} -o name,type -l | grep "lvm" | grep "ceph"| awk '{print $1}' | grep ${osd_dev_split})
-           disk_zap ${OSD_DEVICE}
-           CEPH_LVM_PREPARE=1
-         fi
-         locked vgcreate ceph-db-${block_db_string} ${BLOCK_DB}
-         VG=ceph-db-${block_db_string}
-       fi
-       if [[ $(locked lvdisplay  | grep "LV Name" | awk '{print $3}' | grep "ceph-db-${osd_dev_string}") != "ceph-db-${osd_dev_string}" ]]; then
-         locked lvcreate -L ${BLOCK_DB_SIZE} -n ceph-db-${osd_dev_string} ${VG}
-       fi
-       BLOCK_DB=${VG}/ceph-db-${osd_dev_string}
+      prep_device "${BLOCK_DB}" "${BLOCK_DB_SIZE}" "db"
     fi
     if [ -z ${BLOCK_DB} ] && [ -z ${BLOCK_WAL} ]; then
       if pvdisplay ${OSD_DEVICE} | grep "VG Name" | awk '{print $3}' | grep "ceph"; then
