@@ -18,7 +18,7 @@ set -ex
 COMMAND="${@:-start}"
 
 function start () {
-  exec fluentd -c /fluentd/etc/fluent.conf
+  exec fluentd -c /fluentd/etc/main.conf
 }
 
 function stop () {
