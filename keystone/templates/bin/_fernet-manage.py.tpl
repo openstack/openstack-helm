@@ -150,9 +150,9 @@ def main():
                  FERNET_DIR)
         write_to_files(secret['data'])
 
-    if args.command == 'credential_setup':
+    if args.command in ('credential_setup', 'fernet_setup'):
         if secret.get('data', False):
-            LOG.info('Credential keys already exist, skipping setup...')
+            LOG.info('Keys already exist, skipping setup...')
             sys.exit(0)
 
     execute_command(args.command)
