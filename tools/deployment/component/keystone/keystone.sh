@@ -16,6 +16,7 @@ set -xe
 
 #NOTE: Get the over-rides to use
 : ${OSH_EXTRA_HELM_ARGS_KEYSTONE:="$(./tools/deployment/common/get-values-overrides.sh keystone)"}
+: ${RUN_HELM_TESTS:="yes"}
 
 #NOTE: Lint and package chart
 make keystone
@@ -61,9 +62,9 @@ FEATURE_GATE="ldap"; if [[ ${FEATURE_GATES//,/ } =~ (^|[[:space:]])${FEATURE_GAT
     http://keystone.openstack.svc.cluster.local/v3/domains/${domainId}/config
 fi
 
-# Delete the test pod if it still exists
-kubectl delete pods -l application=keystone,release_group=keystone,component=test --namespace=openstack --ignore-not-found
-helm test keystone --timeout 900
+if [ "x${RUN_HELM_TESTS}" != "xno" ]; then
+    ./tools/deployment/common/run-helm-tests.sh keystone
+fi
 
 FEATURE_GATE="tls"; if [[ ${FEATURE_GATES//,/ } =~ (^|[[:space:]])${FEATURE_GATE}($|[[:space:]]) ]]; then
   curl --cacert /etc/openstack-helm/certs/ca/ca.pem -L https://keystone.openstack.svc.cluster.local

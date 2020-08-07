@@ -148,10 +148,5 @@ if [ "x${RUN_HELM_TESTS}" == "xno" ]; then
     exit 0
 fi
 
-# Delete the test pods if they still exist
-kubectl delete pods -l application=nova,release_group=nova,component=test --namespace=openstack --ignore-not-found
-kubectl delete pods -l application=neutron,release_group=neutron,component=test --namespace=openstack --ignore-not-found
-
-timeout=${OSH_TEST_TIMEOUT:-900}
-helm test nova --timeout $timeout
-helm test neutron --timeout $timeout
+./tools/deployment/common/run-helm-tests.sh nova
+./tools/deployment/common/run-helm-tests.sh neutron
