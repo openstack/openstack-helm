@@ -16,8 +16,10 @@ set -xe
 
 export CEPH_ENABLED=true
 
-./tools/deployment/common/setup-ceph-loopback-device.sh --ceph-osd-data ${CEPH_OSD_DATA_DEVICE:=/dev/loop0} \
---ceph-osd-dbwal ${CEPH_OSD_DB_WAL_DEVICE:=/dev/loop1}
+if [ "${CREATE_LOOPBACK_DEVICES_FOR_CEPH:=true}" == "true" ]; then
+  ./tools/deployment/common/setup-ceph-loopback-device.sh --ceph-osd-data ${CEPH_OSD_DATA_DEVICE:=/dev/loop0} \
+  --ceph-osd-dbwal ${CEPH_OSD_DB_WAL_DEVICE:=/dev/loop1}
+fi
 
 #NOTE: Lint and package chart
 export HELM_CHART_ROOT_PATH="${HELM_CHART_ROOT_PATH:="${OSH_INFRA_PATH:="../openstack-helm-infra"}"}"
