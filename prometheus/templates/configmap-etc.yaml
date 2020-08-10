@@ -22,8 +22,9 @@ metadata:
 type: Opaque
 data:
 {{- include "helm-toolkit.snippets.values_template_renderer" (dict "envAll" $envAll "template" .Values.conf.prometheus.scrape_configs.template "key" "prometheus.yml" "format" "Secret") | indent 2 }}
-{{ range $key, $value := .Values.conf.prometheus.rules }}
-  {{ $key }}.rules: {{ toYaml $value | b64enc }}
+{{ range $name, $config := .Values.conf.prometheus.rules }}
+{{- $filename := printf "%s.rules" $name}}
+{{- include "helm-toolkit.snippets.values_template_renderer" (dict "envAll" $envAll "template" $config "key" $filename "format" "Secret") | indent 2 }}
 {{ end }}
   # NOTE(srwilkers): this must be last, to work round helm ~2.7 bug.
 {{- include "helm-toolkit.snippets.values_template_renderer" (dict "envAll" $envAll "template" .Values.conf.httpd "key" "httpd.conf" "format" "Secret") | indent 2 }}
