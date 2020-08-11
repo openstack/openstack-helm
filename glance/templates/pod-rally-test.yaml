@@ -51,8 +51,9 @@ spec:
           mountPath: /tmp/ks-user.sh
           subPath: ks-user.sh
           readOnly: true
+{{ dict "enabled" .Values.manifests.certificates "name" $envAll.Values.secrets.tls.image.api.internal | include "helm-toolkit.snippets.tls_volume_mount"  | indent 8 }}
       env:
-{{- with $env := dict "ksUserSecret" .Values.secrets.identity.admin }}
+{{- with $env := dict "ksUserSecret" .Values.secrets.identity.admin "useCA" .Values.manifests.certificates }}
 {{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 8 }}
 {{- end }}
         - name: SERVICE_OS_SERVICE_NAME
@@ -68,7 +69,7 @@ spec:
 {{ tuple $envAll $envAll.Values.pod.resources.jobs.tests | include "helm-toolkit.snippets.kubernetes_resources" | indent 6 }}
 {{ dict "envAll" $envAll "application" "test" "container" "glance_test" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 6 }}
       env:
-{{- with $env := dict "ksUserSecret" .Values.secrets.identity.admin }}
+{{- with $env := dict "ksUserSecret" .Values.secrets.identity.admin "useCA" .Values.manifests.certificates }}
 {{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 8 }}
 {{- end }}
 {{- with $env := dict "ksUserSecret" .Values.secrets.identity.test }}
@@ -93,6 +94,7 @@ spec:
           mountPath: /var/lib/rally
         - name: rally-work
           mountPath: /home/rally/.rally
+{{ dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.image.api.internal | include "helm-toolkit.snippets.tls_volume_mount"  | indent 8 }}
 {{ if $mounts_tests.volumeMounts }}{{ toYaml $mounts_tests.volumeMounts | indent 8 }}{{ end }}
   volumes:
     - name: pod-tmp
@@ -109,5 +111,6 @@ spec:
       emptyDir: {}
     - name: rally-work
       emptyDir: {}
+{{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.image.api.internal | include "helm-toolkit.snippets.tls_volume" | indent 4 }}
 {{ if $mounts_tests.volumes }}{{ toYaml $mounts_tests.volumes | indent 4 }}{{ end }}
 {{- end }}
