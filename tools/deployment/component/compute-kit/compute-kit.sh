@@ -13,8 +13,14 @@
 #    under the License.
 set -xe
 
-: ${CEPH_ENABLED:=false}
 : ${RUN_HELM_TESTS:="yes"}
+
+export OS_CLOUD=openstack_helm
+CEPH_ENABLED=false
+if openstack service list -f value -c Type | grep -q "^volume" && \
+    openstack volume type list -f value -c Name | grep -q "rbd"; then
+  CEPH_ENABLED=true
+fi
 
 #NOTE: Get the overrides to use for placement, should placement be deployed.
 case "${OPENSTACK_RELEASE}" in

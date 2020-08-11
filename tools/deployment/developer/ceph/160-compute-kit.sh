@@ -14,7 +14,6 @@
 set -xe
 
 export RUN_HELM_TESTS="no"
-export CEPH_ENABLED=true
 export OSH_EXTRA_HELM_ARGS_NOVA="--set manifests.network_policy=true $(./tools/deployment/common/get-values-overrides.sh nova)"
 
 # Deploy nova and neutron charts
