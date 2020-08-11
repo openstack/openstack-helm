@@ -20,8 +20,8 @@ COMMAND="${@:-start}"
 function start () {
   exec /bin/alertmanager \
     --config.file=/etc/alertmanager/config.yml \
-    --storage.path={{ .Values.conf.command_flags.storage.path }} \
-    --cluster.listen-address={{ .Values.conf.command_flags.cluster.listen_address }} \
+    --storage.path={{ .Values.conf.command_flags.alertmanager.storage.path }} \
+    --cluster.listen-address={{ .Values.conf.command_flags.alertmanager.cluster.listen_address }} \
     $(generate_peers)
 }
 

@@ -19,8 +19,7 @@ make prometheus-alertmanager
 
 #NOTE: Deploy command
 helm upgrade --install alertmanager ./prometheus-alertmanager \
-    --namespace=osh-infra \
-    --set pod.replicas.alertmanager=3
+    --namespace=osh-infra
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh osh-infra

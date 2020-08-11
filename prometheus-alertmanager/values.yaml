@@ -19,6 +19,7 @@
 images:
   tags:
     prometheus-alertmanager: docker.io/prom/alertmanager:v0.20.0
+    snmpnotifier: docker.io/maxwo/snmp-notifier:v1.0.0
     dep_check: quay.io/airshipit/kubernetes-entrypoint:v1.0.0
     image_repo_sync: docker.io/docker:17.07.0
   pull_policy: IfNotPresent
@@ -30,6 +31,9 @@ images:
 
 labels:
   alertmanager:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  snmpnotifier:
     node_selector_key: openstack-control-plane
     node_selector_value: enabled
   job:
@@ -60,14 +64,22 @@ pod:
     alertmanager:
       alertmanager:
       init_container: null
+    snmpnotifier:
+      snmpnotifier:
+      init_container: null
   replicas:
     alertmanager: 1
+    snmpnotifier: 1
   lifecycle:
     upgrades:
+      deployment:
+        pod_replacement_strategy: RollingUpdate
       statefulsets:
         pod_replacement_strategy: RollingUpdate
     termination_grace_period:
       alertmanager:
+        timeout: 30
+      snmpnotifier:
         timeout: 30
   resources:
     enabled: false
@@ -86,6 +98,13 @@ pod:
         limits:
           memory: "1024Mi"
           cpu: "2000m"
+    snmpnotifier:
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+      requests:
+        memory: "128Mi"
+        cpu: "500m"
 
 endpoints:
   cluster_domain_suffix: cluster.local
@@ -127,6 +146,20 @@ endpoints:
         public: 80
       mesh:
         default: 9094
+  snmpnotifier:
+    name: snmpnotifier
+    namespace: null
+    hosts:
+      default: snmp-engine
+    host_fqdn_override:
+      default: null
+    path:
+      default: /alerts
+    scheme:
+      default: 'http'
+    port:
+      api:
+        default: 9464
 
 dependencies:
   dynamic:
@@ -157,6 +190,10 @@ network:
     node_port:
       enabled: false
       port: 30903
+  snmpnotifier:
+    node_port:
+      enabled: false
+      port: 30464
 
 secrets:
   tls:
@@ -165,12 +202,13 @@ secrets:
         public: alerts-tls-public
 
 storage:
-  enabled: true
-  pvc:
-    access_mode: ["ReadWriteOnce"]
-  requests:
-    storage: 5Gi
-  storage_class: general
+  alertmanager:
+    enabled: true
+    pvc:
+      access_mode: ["ReadWriteOnce"]
+    requests:
+      storage: 5Gi
+    storage_class: general
 
 manifests:
   clusterrolebinding: true
@@ -184,6 +222,9 @@ manifests:
   service_discovery: true
   service_ingress: true
   statefulset: true
+  snmpnotifier:
+    service: true
+    deployment: true
 
 network_policy:
   alertmanager:
@@ -194,11 +235,21 @@ network_policy:
 
 conf:
   command_flags:
-    storage:
-      path: /var/lib/alertmanager/data
-    cluster:
-      listen_address: "0.0.0.0:9094"
-  alertmanager:
+    alertmanager:
+      storage:
+        path: /var/lib/alertmanager/data
+      cluster:
+        listen_address: "0.0.0.0:9094"
+    snmpnotifier:
+      alert_severity_label: severity
+      alert_default_severity: crititcal
+      snmp_version: V2c
+      snmp_desination: 192.168.89.128:162
+      snmp_trap_default_oid: 1.3.6.1.4.1.98789.0.1
+      snmp_trap_description_template: /etc/snmp_notifier/description-template.tpl
+      snmp_community: public
+      log_level: debug
+  alertmanager: |
     global:
       # The smarthost and SMTP sender used for mail notifications.
       smtp_smarthost: 'localhost:25'
@@ -234,7 +285,8 @@ conf:
       # resend them.
       repeat_interval: 3h
       # A default receiver
-      receiver: team-X-mails
+      # receiver: team-X-mails
+      receiver: snmp_notifier
       # All the above attributes are inherited by all child routes and can
       # overwritten on each.
       # The child route trees.
@@ -291,6 +343,11 @@ conf:
           - cluster
           - service
     receivers:
+      - name: 'snmp_notifier'
+        webhook_configs:
+        - send_resolved: true
+          #url: http://snmp-engine.osh-infra.svc.cluster.local:9464/alerts
+          url: {{ tuple "snmpnotifier" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" }}
       - name: 'team-X-mails'
         email_configs:
           - to: 'team-X+alerts@example.org'
@@ -313,6 +370,6 @@ conf:
           - auth_token: <auth_token>
             room_id: 85
             message_format: html
-            notify: true
+            notify: false
   alert_templates: null
 ...
