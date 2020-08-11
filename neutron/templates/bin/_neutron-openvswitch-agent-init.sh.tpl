@@ -197,8 +197,6 @@ function process_dpdk_nics {
 
     bind_dpdk_nic ${target_driver} "${dpdk_pci_id}"
 
-    ovs-vsctl --db=unix:${OVS_SOCKET} --if-exists del-port ${port_name}
-
     dpdk_options=""
     ofport_request=$(get_dpdk_config_value ${nic} '.ofport_request')
     if [ -n "${ofport_request}" ]; then
@@ -331,7 +329,6 @@ function process_dpdk_bonds {
       fi
     done < /tmp/nics_array
 
-    ovs-vsctl --db=unix:${OVS_SOCKET} --if-exists del-port "${bond_name}"
     ovs-vsctl --db=unix:${OVS_SOCKET} --may-exist add-bond "${dpdk_bridge}" "${bond_name}" \
       ${nic_name_str} \
       "${ovs_options}" ${dev_args_str}
