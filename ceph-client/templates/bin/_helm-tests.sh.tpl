@@ -273,6 +273,15 @@ function pg_validation() {
   fi
 }
 
+function check_ceph_osd_crush_weight(){
+  OSDS_WITH_ZERO_WEIGHT=(`ceph --cluster ${CLUSTER} osd df -f json-pretty | awk -F"[, ]*" '/"crush_weight":/{if ($3 == 0) print $3}'`)
+  if [[ ${#OSDS_WITH_ZERO_WEIGHT[*]} -eq 0 ]]; then
+    echo "All OSDs from namespace have crush weight!"
+  else
+    echo "OSDs from namespace have zero crush weight"
+    exit 1
+  fi
+}
 
 check_osd_count
 mgr_validation
@@ -288,3 +297,4 @@ pool_failuredomain_validation
 check_failure_domain_count_per_pool
 check_cluster_status
 check_recovery_flags
+check_ceph_osd_crush_weight
