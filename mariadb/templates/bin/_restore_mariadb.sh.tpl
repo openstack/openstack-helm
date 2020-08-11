@@ -12,6 +12,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+{{- $envAll := . }}
+
 # Capture the user's command line arguments
 ARGS=("$@")
 
@@ -44,6 +46,12 @@ RESTORE_CMD="mysql \
              --user=${RESTORE_USER} \
              --password=${RESTORE_PW} \
              --host=$MARIADB_SERVER_SERVICE_HOST \
+{{- if .Values.manifests.certificates }}
+             --ssl-verify-server-cert=false \
+             --ssl-ca=/etc/mysql/certs/ca.crt \
+             --ssl-key=/etc/mysql/certs/tls.key \
+             --ssl-cert=/etc/mysql/certs/tls.crt \
+{{- end }}
              --connect-timeout 10"
 
 # Get a single database data from the SQL file.
