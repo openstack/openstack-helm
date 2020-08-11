@@ -1,1 +1,0 @@
-../osh-infra-monitoring/130-postgresql.sh

@@ -1,0 +1,102 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.alerta.deployment }}
+{{- $envAll := . }}
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alerta
+  annotations:
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+  labels:
+{{ tuple $envAll "alerta" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  podManagementPolicy: "Parallel"
+  replicas: {{ .Values.pod.replicas.alerta }}
+  selector:
+    matchLabels:
+{{ tuple $envAll "alerta" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "alerta" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+{{ dict "envAll" $envAll "podName" "alerta" "containerNames" (list "alerta" "init") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
+        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
+    spec:
+{{ dict "envAll" $envAll "application" "server" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
+      affinity:
+{{ tuple $envAll "alerta" "server" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
+      nodeSelector:
+        {{ .Values.labels.alerta.node_selector_key }}: {{ .Values.labels.alerta.node_selector_value | quote }}
+      terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.alerta.timeout | default "30" }}
+      containers:
+        - name: alerta
+{{ tuple $envAll "alerta" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.alerta | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "server" "container" "alerta" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          env:
+            - name: ADMIN_USERS
+              valueFrom:
+                secretKeyRef:
+                  name: {{ printf "%s-%s" $envAll.Release.Name "admin-cert" | quote }}
+                  key: alerta-admin-user
+            - name: ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ printf "%s-%s" $envAll.Release.Name "admin-cert" | quote }}
+                  key: alerta-admin-password
+            - name: ADMIN_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ printf "%s-%s" $envAll.Release.Name "admin-cert" | quote }}
+                  key: alerta-admin-key
+            - name: ALERTA_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ printf "%s-%s" $envAll.Release.Name "admin-cert" | quote }}
+                  key: alerta-api-key
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 180
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 120
+          volumeMounts:
+            - name: alerta-etc
+              mountPath: /app/alertad.conf
+              subPath: alertad.conf
+            - name: alerta-etc
+              mountPath: /app/config.js
+              subPath: config.js
+          resources:
+{{ toYaml .Values.pod.resources | indent 12 }}
+      volumes:
+        - name: alerta-etc
+          configMap:
+            name: alerta-etc
+            defaultMode: 0444
+{{- end }}
