@@ -41,7 +41,8 @@ function wait_for_pods() {
   select="select((.status) or (.phase==\"Succeeded\") | not)"
   query=".items | map( ${fields} | ${select}) | .[]"
   while true; do
-      if [[ $(kubectl get pods --namespace="${1}" -o json | jq -c "${query}") ]]; then
+      unhealthy_pods=$(kubectl get pods --namespace="${1}" -o json | jq -c "${query}")
+      if [[ -z "${unhealthy_pods}" ]]; then
         break
       fi
       sleep 5
