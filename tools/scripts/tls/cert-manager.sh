@@ -28,8 +28,8 @@ else
   temp_bin=$(mktemp --directory)
   cd $temp_bin
   CFSSLURL=https://pkg.cfssl.org/R1.2
-  curl -sSL -o cfssl $CFSSLURL/cfssl_linux-amd64
-  curl -sSL -o cfssljson $CFSSLURL/cfssljson_linux-amd64
+  curl --retry 3 --retry-connrefused -sSL -o cfssl $CFSSLURL/cfssl_linux-amd64
+  curl --retry 3 --retry-connrefused -sSL -o cfssljson $CFSSLURL/cfssljson_linux-amd64
   chmod +x {cfssl,cfssljson}
   export PATH=$PATH:$temp_bin
 fi
