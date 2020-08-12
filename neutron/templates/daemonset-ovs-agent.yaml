@@ -104,6 +104,14 @@ spec:
 {{ tuple $envAll "neutron_openvswitch_agent" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.agent.ovs | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
 {{ dict "envAll" $envAll "application" "neutron_ovs_agent" "container" "neutron_ovs_agent_init" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          {{- if .Values.conf.ovs_dpdk.enabled }}
+          env:
+            - name: UPDATE_DPDK_BOND_CONFIG
+              valueFrom:
+                secretKeyRef:
+                  name: neutron-ovs-agent-default
+                  key: update_dpdk_bond_config
+          {{- end }}
           command:
             - /tmp/neutron-openvswitch-agent-init.sh
           volumeMounts:
