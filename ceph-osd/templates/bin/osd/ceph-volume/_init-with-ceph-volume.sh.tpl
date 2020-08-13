@@ -44,9 +44,9 @@ function prep_device {
   local device_type=$3
   local device_string VG DEVICE_OSD_ID logical_devices logical_volume
   device_string=$(echo "${BLOCK_DEVICE#/}" | tr '/' '-')
-  VG=$(vgs --noheadings -o vg_name -S "vg_name=ceph-vg-${device_string}" | tr -d '[:space:]')
+  VG=$(vgs --noheadings -o vg_name -S "vg_name=ceph-db-wal-${device_string}" | tr -d '[:space:]')
   if [[ $VG ]]; then
-    DEVICE_OSD_ID=$(get_osd_id_from_volume "/dev/ceph-vg-${device_string}/ceph-${device_type}-${osd_dev_string}")
+    DEVICE_OSD_ID=$(get_osd_id_from_volume "/dev/ceph-db-wal-${device_string}/ceph-${device_type}-${osd_dev_string}")
     CEPH_LVM_PREPARE=1
     if [ -n "${OSD_ID}" ]; then
       if [ "${DEVICE_OSD_ID}" == "${OSD_ID}" ]; then
@@ -62,7 +62,7 @@ function prep_device {
       disk_zap "${OSD_DEVICE}"
       CEPH_LVM_PREPARE=1
     fi
-    VG=ceph-vg-${device_string}
+    VG=ceph-db-wal-${device_string}
     locked vgcreate "$VG" "${BLOCK_DEVICE}"
   fi
   logical_volume=$(lvs --noheadings -o lv_name -S "lv_name=ceph-${device_type}-${osd_dev_string}" | tr -d '[:space:]')
