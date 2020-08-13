@@ -139,7 +139,7 @@ function reweight_osds () {
   for OSD_ID in $(ceph --cluster "${CLUSTER}" osd ls); do
     OSD_EXPECTED_WEIGHT=$(echo "${OSD_DF_OUTPUT}" | grep -A7 "\bosd.${OSD_ID}\b" | awk '/"kb"/{ gsub(",",""); d= $2/1073741824 ; r = sprintf("%.2f", d); print r }');
     OSD_WEIGHT=$(echo "${OSD_DF_OUTPUT}" | grep -A3 "\bosd.${OSD_ID}\b" | awk '/crush_weight/{print $2}' | cut -d',' -f1)
-    if [[ "${OSD_EXPECTED_WEIGHT}" != "0" ]] && [[ "${OSD_WEIGHT}" != "${OSD_EXPECTED_WEIGHT}" ]]; then
+    if [[ "${OSD_EXPECTED_WEIGHT}" != "0.00" ]] && [[ "${OSD_WEIGHT}" != "${OSD_EXPECTED_WEIGHT}" ]]; then
       ceph --cluster "${CLUSTER}" osd crush reweight osd.${OSD_ID} ${OSD_EXPECTED_WEIGHT};
     fi
   done
