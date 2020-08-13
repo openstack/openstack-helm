@@ -1,5 +1,7 @@
 #!/bin/bash
 
+SCOPE=${1:-"all"}
+
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
 #    not use this file except in compliance with the License. You may obtain
 #    a copy of the License at
@@ -28,6 +30,7 @@ export ARCHIVE_DIR=${MARIADB_BACKUP_BASE_DIR}/db/${DB_NAMESPACE}/${DB_NAME}/arch
 dump_databases_to_directory() {
   TMP_DIR=$1
   LOG_FILE=$2
+  SCOPE=${3:-"all"}
 
   MYSQL="mysql \
      --defaults-file=/etc/mysql/admin_user.cnf \
@@ -36,9 +39,18 @@ dump_databases_to_directory() {
   MYSQLDUMP="mysqldump \
      --defaults-file=/etc/mysql/admin_user.cnf"
 
-  MYSQL_DBNAMES=( $($MYSQL --silent --skip-column-names -e \
-     "show databases;" | \
-     egrep -vi 'information_schema|performance_schema|mysql') )
+  if [[ "${SCOPE}" == "all" ]]; then
+    MYSQL_DBNAMES=( $($MYSQL --silent --skip-column-names -e \
+       "show databases;" | \
+       egrep -vi 'information_schema|performance_schema|mysql') )
+  else
+    if [[ "${SCOPE}" != "information_schema" && "${SCOPE}" != "performance_schema" && "${SCOPE}" != "mysql" ]]; then
+      MYSQL_DBNAMES=( ${SCOPE} )
+    else
+      log ERROR "It is not allowed to backup database ${SCOPE}."
+      return 1
+    fi
+  fi
 
   #check if there is a database to backup, otherwise exit
   if [[ -z "${MYSQL_DBNAMES// }" ]]
@@ -50,19 +62,21 @@ dump_databases_to_directory() {
   #Create a list of Databases
   printf "%s\n" "${MYSQL_DBNAMES[@]}" > $TMP_DIR/db.list
 
-  #Retrieve and create the GRANT file for all the users
+  if [[ "${SCOPE}" == "all" ]]; then
+    #Retrieve and create the GRANT file for all the users
 {{- if .Values.manifests.certificates }}
-  SSL_DSN=";mysql_ssl=1"
-  SSL_DSN="$SSL_DSN;mysql_ssl_client_key=/etc/mysql/certs/tls.key"
-  SSL_DSN="$SSL_DSN;mysql_ssl_client_cert=/etc/mysql/certs/tls.crt"
-  SSL_DSN="$SSL_DSN;mysql_ssl_ca_file=/etc/mysql/certs/ca.crt"
-  if ! pt-show-grants --defaults-file=/etc/mysql/admin_user.cnf $SSL_DSN \
+    SSL_DSN=";mysql_ssl=1"
+    SSL_DSN="$SSL_DSN;mysql_ssl_client_key=/etc/mysql/certs/tls.key"
+    SSL_DSN="$SSL_DSN;mysql_ssl_client_cert=/etc/mysql/certs/tls.crt"
+    SSL_DSN="$SSL_DSN;mysql_ssl_ca_file=/etc/mysql/certs/ca.crt"
+    if ! pt-show-grants --defaults-file=/etc/mysql/admin_user.cnf $SSL_DSN \
 {{- else }}
-  if ! pt-show-grants --defaults-file=/etc/mysql/admin_user.cnf \
+    if ! pt-show-grants --defaults-file=/etc/mysql/admin_user.cnf \
 {{- end }}
-       2>>"$LOG_FILE" > "$TMP_DIR"/grants.sql; then
-    log ERROR "Failed to create GRANT for all the users"
-    return 1
+         2>>"$LOG_FILE" > "$TMP_DIR"/grants.sql; then
+      log ERROR "Failed to create GRANT for all the users"
+      return 1
+    fi
   fi
 
   #Retrieve and create the GRANT files per DB
@@ -82,22 +96,20 @@ dump_databases_to_directory() {
   done
 
   #Dumping the database
-  DATE=$(date +'%Y-%m-%dT%H:%M:%SZ')
 
-  SQL_FILE=mariadb.$MARIADB_POD_NAMESPACE.all
-  TARBALL_FILE=${SQL_FILE}.${DATE}.tar.gz
+  SQL_FILE=mariadb.$MARIADB_POD_NAMESPACE.${SCOPE}
 
   $MYSQLDUMP $MYSQL_BACKUP_MYSQLDUMP_OPTIONS "${MYSQL_DBNAMES[@]}"  \
             > $TMP_DIR/${SQL_FILE}.sql 2>>$LOG_FILE
   if [[ $? -eq 0 && -s $TMP_DIR/${SQL_FILE}.sql ]]
   then
-    log INFO "Databases dumped successfully."
+    log INFO "Database(s) dumped successfully. (SCOPE = ${SCOPE})"
     return 0
   else
-    log ERROR "Backup failed and need attention."
+    log ERROR "Backup failed and need attention. (SCOPE = ${SCOPE})"
     return 1
   fi
 }
 
 # Call main program to start the database backup
-backup_databases
+backup_databases ${SCOPE}

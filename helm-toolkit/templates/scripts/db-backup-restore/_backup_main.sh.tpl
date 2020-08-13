@@ -9,10 +9,12 @@
 #   source /tmp/backup_main.sh
 #
 # Then the script should call the main backup function (backup_databases):
-#   backup_databases
+#   backup_databases [scope]
+#       [scope] is an optional parameter, defaulted to "all". If only one specific
+#               database is required to be backed up then this parameter will
+#               contain the name of the database; otherwise all are backed up.
 #
-#       No arguments required. However, the framework will require the
-#       following variables to be exported:
+#       The framework will require the following variables to be exported:
 #
 #         export DB_NAMESPACE          Namespace where the database(s) reside
 #         export DB_NAME               Name of the database system
@@ -44,12 +46,15 @@
 #                                      is 1800 (30 minutes).
 #
 # The database-specific functions that need to be implemented are:
-#   dump_databases_to_directory <directory> <err_logfile>
+#   dump_databases_to_directory <directory> <err_logfile> [scope]
 #       where:
 #         <directory>   is the full directory path to dump the database files
 #                       into. This is a temporary directory for this backup only.
 #         <err_logfile> is the full directory path where error logs are to be
 #                       written by the application.
+#         [scope]       set to "all" if all databases are to be backed up; or
+#                       set to the name of a specific database to be backed up.
+#                       This optional parameter is defaulted to "all".
 #       returns: 0 if no errors; 1 if any errors occurred
 #
 #       This function is expected to dump the database file(s) to the specified
@@ -285,7 +290,11 @@ remove_old_remote_archives() {
 #  1) The directory where the final backup will be kept after it is compressed.
 #  2) A temporary directory to use for placing database files to be compressed.
 #     Note: this temp directory will be deleted after backup is done.
+#  3) Optional "scope" parameter indicating what database to back up. Defaults
+#     to "all".
 backup_databases() {
+  SCOPE=${1:-"all"}
+
   # Create necessary directories if they do not exist.
   mkdir -p $ARCHIVE_DIR || log_backup_error_exit "Cannot create directory ${ARCHIVE_DIR}!"
   export TMP_DIR=$(mktemp -d) || log_backup_error_exit "Cannot create temp directory!"
@@ -294,7 +303,7 @@ backup_databases() {
   export ERR_LOG_FILE=$(mktemp -p /tmp) || log_backup_error_exit "Cannot create log file!"
 
   # It is expected that this function will dump the database files to the $TMP_DIR
-  dump_databases_to_directory $TMP_DIR $ERR_LOG_FILE
+  dump_databases_to_directory $TMP_DIR $ERR_LOG_FILE $SCOPE
 
   # If successful, there should be at least one file in the TMP_DIR
   if [[ $? -ne 0 || $(ls $TMP_DIR | wc -w) -eq 0 ]]; then
@@ -305,7 +314,7 @@ backup_databases() {
   log INFO "${DB_NAME}_backup" "Databases dumped successfully. Creating tarball..."
 
   NOW=$(date +"%Y-%m-%dT%H:%M:%SZ")
-  TARBALL_FILE="${DB_NAME}.${DB_NAMESPACE}.all.${NOW}.tar.gz"
+  TARBALL_FILE="${DB_NAME}.${DB_NAMESPACE}.${SCOPE}.${NOW}.tar.gz"
 
   cd $TMP_DIR || log_backup_error_exit "Cannot change to directory $TMP_DIR"
 

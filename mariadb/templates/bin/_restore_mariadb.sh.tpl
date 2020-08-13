@@ -83,9 +83,9 @@ get_tables() {
   TMP_DIR=$2
   TABLE_FILE=$3
 
-  SQL_FILE=mariadb.$MARIADB_POD_NAMESPACE.all.sql
-  if [[ -e $TMP_DIR/$SQL_FILE ]]; then
-    current_db_desc ${DATABASE} ${TMP_DIR}/${SQL_FILE} \
+  SQL_FILE=$TMP_DIR/mariadb.$MARIADB_POD_NAMESPACE.*.sql
+  if [ -f $SQL_FILE ]; then
+    current_db_desc ${DATABASE} ${SQL_FILE} \
         | grep "^CREATE TABLE" | awk -F '`' '{print $2}' \
         > $TABLE_FILE
   else
@@ -103,9 +103,9 @@ get_rows() {
   TMP_DIR=$3
   ROW_FILE=$4
 
-  SQL_FILE=mariadb.$MARIADB_POD_NAMESPACE.all.sql
-  if [[ -e $TMP_DIR/$SQL_FILE ]]; then
-    current_db_desc ${DATABASE} ${TMP_DIR}/${SQL_FILE} \
+  SQL_FILE=$TMP_DIR/mariadb.$MARIADB_POD_NAMESPACE.*.sql
+  if [ -f $SQL_FILE ]; then
+    current_db_desc ${DATABASE} ${SQL_FILE} \
         | grep "INSERT INTO \`${TABLE}\` VALUES" > $ROW_FILE
     return 0
   else
@@ -123,10 +123,10 @@ get_schema() {
   TMP_DIR=$3
   SCHEMA_FILE=$4
 
-  SQL_FILE=mariadb.$MARIADB_POD_NAMESPACE.all.sql
-  if [[ -e $TMP_DIR/$SQL_FILE ]]; then
+  SQL_FILE=$TMP_DIR/mariadb.$MARIADB_POD_NAMESPACE.*.sql
+  if [ -f $SQL_FILE ]; then
     DB_FILE=$(mktemp -p /tmp)
-    current_db_desc ${DATABASE} ${TMP_DIR}/${SQL_FILE} > ${DB_FILE}
+    current_db_desc ${DATABASE} ${SQL_FILE} > ${DB_FILE}
     sed -n /'CREATE TABLE `'$TABLE'`'/,/'--'/p ${DB_FILE} > ${SCHEMA_FILE}
     if [[ ! (-s ${SCHEMA_FILE}) ]]; then
       sed -n /'CREATE TABLE IF NOT EXISTS `'$TABLE'`'/,/'--'/p ${DB_FILE} \
@@ -193,8 +193,8 @@ restore_single_db() {
     return 1
   fi
 
-  SQL_FILE=mariadb.$MARIADB_POD_NAMESPACE.all.sql
-  if [[ -f ${TMP_DIR}/$SQL_FILE ]]
+  SQL_FILE=$TMP_DIR/mariadb.$MARIADB_POD_NAMESPACE.*.sql
+  if [ -f $SQL_FILE ]
   then
     # Restoring a single database requires us to create a temporary user
     # which has capability to only restore that ONE database. One gotcha
@@ -208,7 +208,7 @@ restore_single_db() {
       echo "Restore $SINGLE_DB_NAME failed create restore user."
       return 1
     fi
-    $RESTORE_CMD --force < ${TMP_DIR}/$SQL_FILE 2>>$RESTORE_LOG
+    $RESTORE_CMD --force < $SQL_FILE 2>>$RESTORE_LOG
     if [[ "$?" -eq 0 ]]
     then
       echo "Database $SINGLE_DB_NAME Restore successful."
@@ -254,10 +254,20 @@ restore_single_db() {
 restore_all_dbs() {
   TMP_DIR=$1
 
-  SQL_FILE=mariadb.$MARIADB_POD_NAMESPACE.all.sql
-  if [[ -f ${TMP_DIR}/$SQL_FILE ]]
+  SQL_FILE=$TMP_DIR/mariadb.$MARIADB_POD_NAMESPACE.*.sql
+  if [ -f $SQL_FILE ]
   then
-    $MYSQL < ${TMP_DIR}/$SQL_FILE 2>$RESTORE_LOG
+    # Check the scope of the archive.
+    SCOPE=$(echo ${SQL_FILE} | awk -F'.' '{print $(NF-1)}')
+    if [[ "${SCOPE}" != "all" ]]; then
+      # This is just a single database backup. The user should
+      # instead use the single database restore option.
+      echo "Cannot use the restore all option for an archive containing only a single database."
+      echo "Please use the single database restore option."
+      return 1
+    fi
+
+    $MYSQL < $SQL_FILE 2>$RESTORE_LOG
     if [[ "$?" -eq 0 ]]
     then
       echo "Databases $( echo $DBS | tr -d '\n') Restore successful."
