@@ -46,6 +46,11 @@ function start () {
       --election-id=${RELEASE_NAME} \
       --ingress-class=${INGRESS_CLASS} \
       --default-backend-service=${POD_NAMESPACE}/${ERROR_PAGE_SERVICE} \
+      {{- if .Values.conf.default_ssl_certificate.enabled }}
+      {{- $ns := .Values.conf.default_ssl_certificate.namespace | default .Release.Namespace }}
+      {{- $secret := .Values.conf.default_ssl_certificate.name | default .Values.secrets.tls.ingress.api.public }}
+      --default-ssl-certificate={{ $ns }}/{{ $secret }} \
+      {{- end }}
       --configmap=${POD_NAMESPACE}/ingress-conf \
       --tcp-services-configmap=${POD_NAMESPACE}/ingress-services-tcp \
       --udp-services-configmap=${POD_NAMESPACE}/ingress-services-udp \

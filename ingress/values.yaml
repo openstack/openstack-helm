@@ -200,6 +200,13 @@ endpoints:
       error_pages: ingress-error-pages
     host_fqdn_override:
       default: null
+      # NOTE: The values under .endpoints.ingress.host_fqdn_override.public.tls
+      # will be used for the default SSL certificate.
+      # See also the .conf.default_ssl_certificate options below.
+      public:
+        tls:
+          crt: ""
+          key: ""
     port:
       http:
         default: 80
@@ -252,6 +259,14 @@ network_policy:
     egress:
       - {}
 
+secrets:
+  tls:
+    ingress:
+      api:
+        # .secrets.tls.ingress.api.public="name of the TLS secret to create for the default cert"
+        # NOTE: The contents of the secret are from .endpoints.ingress.host_fqdn_override.public.tls
+        public: default-tls-public
+
 conf:
   controller:
     # NOTE(portdirect): if left blank this is populated from
@@ -267,6 +282,23 @@ conf:
     bind-address: null
     enable-vts-status: "true"
     server-tokens: "false"
+  # This block sets the --default-ssl-certificate option
+  # https://kubernetes.github.io/ingress-nginx/user-guide/tls/#default-ssl-certificate
+  default_ssl_certificate:
+    # .conf.default_ssl_certificate.enabled=true: use a default certificate
+    enabled: false
+    # If referencing an existing TLS secret with the default cert
+    # .conf.default_ssl_certificate.name="name of the secret"
+    #     (defaults to value of .secrets.tls.ingress.api.public)
+    # .conf.default_ssl_certificate.namespace="namespace of the secret"
+    #     (optional, defaults to release namespace)
+    name: ""
+    namespace: ""
+    # NOTE: To create a new secret to hold the default certificate, leave the
+    # above values empty, and specify:
+    # .endpoints.ingress.host_fqdn_override.public.tls.crt="PEM cert data"
+    # .endpoints.ingress.host_fqdn_override.public.tls.key="PEM key data"
+    # .manifests.secret_ingress_tls=true
   services:
     tcp: null
     udp: null
@@ -280,6 +312,7 @@ manifests:
   deployment_ingress: true
   endpoints_ingress: true
   ingress: true
+  secret_ingress_tls: false
   service_error: true
   service_ingress: true
   job_image_repo_sync: true
