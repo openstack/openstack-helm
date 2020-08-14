@@ -265,7 +265,8 @@ function pool_failuredomain_validation() {
 }
 
 function pg_validation() {
-  inactive_pgs=(`ceph --cluster ${CLUSTER} pg ls | tail -n +2 | grep -v "active+"|awk '{ print $1 }'`)
+  ceph pg ls
+  inactive_pgs=(`ceph --cluster ${CLUSTER} pg ls -f json-pretty | grep '"pgid":\|"state":' | grep -v "active" | grep -B1 '"state":' | awk -F "\"" '/pgid/{print $4}'`)
   if [ ${#inactive_pgs[*]} -gt 0 ];then
     echo "There are few incomplete pgs in the cluster"
     echo ${inactive_pgs[*]}
@@ -290,7 +291,7 @@ OSD_POOLS_DETAILS=$(ceph osd pool ls detail -f json-pretty)
 OSD_CRUSH_RULE_DUMP=$(ceph osd crush rule dump -f json-pretty)
 PG_STAT=$(ceph pg stat -f json-pretty)
 
-
+ceph -s
 pg_validation
 pool_validation
 pool_failuredomain_validation
