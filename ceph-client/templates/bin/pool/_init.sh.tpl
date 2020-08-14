@@ -33,7 +33,7 @@ function wait_for_pgs () {
   echo "#### Start: Checking pgs ####"
 
   pgs_ready=0
-  query='map({state: .state}) | group_by(.state) | map({state: .[0].state, count: length}) | .[] | select(.state | startswith("active+") | not)'
+  query='map({state: .state}) | group_by(.state) | map({state: .[0].state, count: length}) | .[] | select(.state | contains("active") | not)'
 
   if [[ $(ceph tell mon.* version | egrep -q "nautilus"; echo $?) -eq 0 ]]; then
     query=".pg_stats | ${query}"

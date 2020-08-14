@@ -83,7 +83,7 @@ function wait_for_pgs () {
   echo "#### Start: Checking pgs ####"
 
   pgs_ready=0
-  query='map({state: .state}) | group_by(.state) | map({state: .[0].state, count: length}) | .[] | select(.state | startswith("active+") | not)'
+  query='map({state: .state}) | group_by(.state) | map({state: .[0].state, count: length}) | .[] | select(.state | contains("active") | not)'
 
   if [[ $(ceph tell mon.* version | egrep -q "nautilus"; echo $?) -eq 0 ]]; then
     query=".pg_stats | ${query}"
@@ -136,6 +136,9 @@ function restart_by_rack() {
        fi
      done
      echo "waiting for the pods under rack $rack from restart"
+     # The pods will not be ready in first 60 seconds. Thus we can reduce
+     # amount of queries to kubernetes.
+     sleep 60
      wait_for_pods $CEPH_NAMESPACE
      echo "waiting for inactive pgs after osds restarted from rack $rack"
      wait_for_pgs
