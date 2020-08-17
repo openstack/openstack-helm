@@ -51,7 +51,15 @@ dump_databases_to_directory() {
   printf "%s\n" "${MYSQL_DBNAMES[@]}" > $TMP_DIR/db.list
 
   #Retrieve and create the GRANT file for all the users
+{{- if .Values.manifests.certificates }}
+  SSL_DSN=";mysql_ssl=1"
+  SSL_DSN="$SSL_DSN;mysql_ssl_client_key=/etc/mysql/certs/tls.key"
+  SSL_DSN="$SSL_DSN;mysql_ssl_client_cert=/etc/mysql/certs/tls.crt"
+  SSL_DSN="$SSL_DSN;mysql_ssl_ca_file=/etc/mysql/certs/ca.crt"
+  if ! pt-show-grants --defaults-file=/etc/mysql/admin_user.cnf $SSL_DSN \
+{{- else }}
   if ! pt-show-grants --defaults-file=/etc/mysql/admin_user.cnf \
+{{- end }}
        2>>"$LOG_FILE" > "$TMP_DIR"/grants.sql; then
     log ERROR "Failed to create GRANT for all the users"
     return 1
