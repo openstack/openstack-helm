@@ -51,6 +51,8 @@ helm upgrade --install ceph-osh-infra-config ./ceph-provisioners \
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh osh-infra
 
+# Delete the test pod if it still exists
+kubectl delete pods -l application=ceph,release_group=ceph-osh-infra-config,component=provisioner-test --namespace=osh-infra --ignore-not-found
 helm test ceph-osh-infra-config --timeout 600
 
 #NOTE: Validate Deployment info

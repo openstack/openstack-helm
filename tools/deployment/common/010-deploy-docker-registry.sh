@@ -57,5 +57,7 @@ helm status docker-registry-nfs-provisioner
 helm status docker-registry-redis
 helm status docker-registry
 
+# Delete the test pod if it still exists
+kubectl delete pods -l application=redis,release_group=docker-registry-redis,component=test --namespace=docker-registry --ignore-not-found
 #NOTE: Run helm tests
 helm test docker-registry-redis

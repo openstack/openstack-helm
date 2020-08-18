@@ -27,5 +27,7 @@ helm upgrade --install kafka ./kafka \
 #NOTE: Validate deployment info
 helm status kafka
 
+# Delete the test pod if it still exists
+kubectl delete pods -l application=kafka,release_group=kafka,component=test --namespace=osh-infra --ignore-not-found
 #NOTE: Test deployment
 helm test kafka
