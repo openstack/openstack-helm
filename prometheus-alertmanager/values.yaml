@@ -160,6 +160,20 @@ endpoints:
     port:
       api:
         default: 9464
+  alerta:
+    name: alerta
+    namespace: null
+    hosts:
+      default: alerta
+    host_fqdn_override:
+      default: null
+    path:
+      default: /api/webhooks/prometheus
+    scheme:
+      default: 'http'
+    port:
+      api:
+        default: 8080
 
 dependencies:
   dynamic:
@@ -294,6 +308,10 @@ conf:
         # This routes performs a regular expression match on alert
         # labels to catch alerts that are related to a list of
         # services.
+        - receiver: "alerta"
+          continue: true
+        - receiver: "snmp_notifier"
+          continue: true
         - match_re:
             service: ^(foo1|foo2|baz)$
           receiver: team-X-mails
@@ -348,6 +366,15 @@ conf:
         - send_resolved: true
           #url: http://snmp-engine.osh-infra.svc.cluster.local:9464/alerts
           url: {{ tuple "snmpnotifier" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" }}
+      - name: 'alerta'
+        webhook_configs:
+        - send_resolved: true
+          #url: 'http://alerta:8080/api/webhooks/prometheus'
+          url: {{ tuple "alerta" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" }}
+          http_config:
+            basic_auth:
+              username: admin
+              password: changeme
       - name: 'team-X-mails'
         email_configs:
           - to: 'team-X+alerts@example.org'
