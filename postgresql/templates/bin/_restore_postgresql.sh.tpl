@@ -38,9 +38,9 @@ get_databases() {
   TMP_DIR=$1
   DB_FILE=$2
 
-  SQL_FILE=postgres.$POSTGRESQL_POD_NAMESPACE.all.sql
-  if [[ -e $TMP_DIR/$SQL_FILE ]]; then
-    grep 'CREATE DATABASE' $TMP_DIR/$SQL_FILE | awk '{ print $3 }' > $DB_FILE
+  SQL_FILE=$TMP_DIR/postgres.$POSTGRESQL_POD_NAMESPACE.*.sql
+  if [ -f $SQL_FILE ]; then
+    grep 'CREATE DATABASE' $SQL_FILE | awk '{ print $3 }' > $DB_FILE
   else
     # Error, cannot report the databases
     echo "No SQL file found - cannot extract the databases"
@@ -55,9 +55,9 @@ get_tables() {
   TMP_DIR=$2
   TABLE_FILE=$3
 
-  SQL_FILE=postgres.$POSTGRESQL_POD_NAMESPACE.all.sql
-  if [[ -e $TMP_DIR/$SQL_FILE ]]; then
-    cat $TMP_DIR/$SQL_FILE | sed -n /'\\connect '$DATABASE/,/'\\connect'/p | grep "CREATE TABLE" | awk -F'[. ]' '{print $4}' > $TABLE_FILE
+  SQL_FILE=$TMP_DIR/postgres.$POSTGRESQL_POD_NAMESPACE.*.sql
+  if [ -f $SQL_FILE ]; then
+    cat $SQL_FILE | sed -n /'\\connect '$DATABASE/,/'\\connect'/p | grep "CREATE TABLE" | awk -F'[. ]' '{print $4}' > $TABLE_FILE
   else
     # Error, cannot report the tables
     echo "No SQL file found - cannot extract the tables"
@@ -73,9 +73,9 @@ get_rows() {
   TMP_DIR=$3
   ROW_FILE=$4
 
-  SQL_FILE=postgres.$POSTGRESQL_POD_NAMESPACE.all.sql
-  if [[ -e $TMP_DIR/$SQL_FILE ]]; then
-    cat $TMP_DIR/$SQL_FILE | sed -n /'\\connect '${DATABASE}/,/'\\connect'/p > /tmp/db.sql
+  SQL_FILE=$TMP_DIR/postgres.$POSTGRESQL_POD_NAMESPACE.*.sql
+  if [ -f $SQL_FILE ]; then
+    cat $SQL_FILE | sed -n /'\\connect '${DATABASE}/,/'\\connect'/p > /tmp/db.sql
     cat /tmp/db.sql | grep "INSERT INTO public.${TABLE} VALUES" > $ROW_FILE
     rm /tmp/db.sql
   else
@@ -93,10 +93,10 @@ get_schema() {
   TMP_DIR=$3
   SCHEMA_FILE=$4
 
-  SQL_FILE=postgres.$POSTGRESQL_POD_NAMESPACE.all.sql
-  if [[ -e $TMP_DIR/$SQL_FILE ]]; then
+  SQL_FILE=$TMP_DIR/postgres.$POSTGRESQL_POD_NAMESPACE.*.sql
+  if [ -f $SQL_FILE ]; then
     DB_FILE=$(mktemp -p /tmp)
-    cat $TMP_DIR/$SQL_FILE | sed -n /'\\connect '${DATABASE}/,/'\\connect'/p > ${DB_FILE}
+    cat $SQL_FILE | sed -n /'\\connect '${DATABASE}/,/'\\connect'/p > ${DB_FILE}
     cat ${DB_FILE} | sed -n /'CREATE TABLE public.'${TABLE}' ('/,/'--'/p > ${SCHEMA_FILE}
     cat ${DB_FILE} | sed -n /'CREATE SEQUENCE public.'${TABLE}/,/'--'/p >> ${SCHEMA_FILE}
     cat ${DB_FILE} | sed -n /'ALTER TABLE public.'${TABLE}/,/'--'/p >> ${SCHEMA_FILE}
@@ -239,9 +239,9 @@ restore_single_db() {
     return 1
   fi
 
-  SQL_FILE=postgres.$POSTGRESQL_POD_NAMESPACE.all.sql
-  if [[ -f $TMP_DIR/$SQL_FILE ]]; then
-    extract_single_db_dump $TMP_DIR/$SQL_FILE $SINGLE_DB_NAME $TMP_DIR
+  SQL_FILE=$TMP_DIR/postgres.$POSTGRESQL_POD_NAMESPACE.*.sql
+  if [ -f $SQL_FILE ]; then
+    extract_single_db_dump $SQL_FILE $SINGLE_DB_NAME $TMP_DIR
     if [[ -f $TMP_DIR/$SINGLE_DB_NAME.sql && -s $TMP_DIR/$SINGLE_DB_NAME.sql ]]; then
       # Drop connections first
       drop_connections ${SINGLE_DB_NAME}
@@ -308,15 +308,26 @@ restore_all_dbs() {
   rm -rf ${LOG_FILE}
   touch ${LOG_FILE}
 
-  SQL_FILE=postgres.$POSTGRESQL_POD_NAMESPACE.all.sql
-  if [[ -f $TMP_DIR/$SQL_FILE ]]; then
+  SQL_FILE=$TMP_DIR/postgres.$POSTGRESQL_POD_NAMESPACE.*.sql
+  if [ -f $SQL_FILE ]; then
+
+    # Check the scope of the archive.
+    SCOPE=$(echo ${SQL_FILE} | awk -F'.' '{print $(NF-1)}')
+    if [[ "${SCOPE}" != "all" ]]; then
+      # This is just a single database backup. The user should
+      # instead use the single database restore option.
+      echo "Cannot use the restore all option for an archive containing only a single database."
+      echo "Please use the single database restore option."
+      return 1
+    fi
+
     # First drop all connections on all databases
     drop_connections_on_all_dbs
     if [[ "$?" -ne 0 ]]; then
       return 1
     fi
 
-    $PSQL postgres -f $TMP_DIR/$SQL_FILE 2>>$LOG_FILE >> $LOG_FILE
+    $PSQL postgres -f $SQL_FILE 2>>$LOG_FILE >> $LOG_FILE
     if [[ "$?" -eq 0 ]]; then
       if grep "ERROR:" ${LOG_FILE} > /dev/null 2>&1; then
         cat ${LOG_FILE}
