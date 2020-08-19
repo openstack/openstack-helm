@@ -329,9 +329,27 @@ function process_dpdk_bonds {
       fi
     done < /tmp/nics_array
 
-    ovs-vsctl --db=unix:${OVS_SOCKET} --may-exist add-bond "${dpdk_bridge}" "${bond_name}" \
-      ${nic_name_str} \
-      "${ovs_options}" ${dev_args_str}
+    if [ "${UPDATE_DPDK_BOND_CONFIG}" == "true" ]; then
+      echo -e "NOTE: UPDATE_DPDK_BOND_CONFIG is set to true.\
+      \nThis might cause disruptions in ovs traffic.\
+      \nTo avoid this disruption set UPDATE_DPDK_BOND_CONFIG to false."
+      ovs-vsctl --db=unix:${OVS_SOCKET} set Bridge "${dpdk_bridge}" other_config:update_config=true
+      ovs_update_config=true
+    else
+      ovs_update_config=$(ovs-vsctl --columns=other_config --no-heading -d json list bridge "${dpdk_bridge}" \
+        | jq -r '.[1][] as $list | if $list[0] == "update_config" then $list[1] else empty end')
+    fi
+
+
+    if [ "${ovs_update_config}" == "true" ] || [ "${ovs_update_config}" == "" ];
+    then
+      ovs-vsctl --db=unix:${OVS_SOCKET} --if-exists del-port "${bond_name}"
+      ovs-vsctl --db=unix:${OVS_SOCKET} set Bridge "${dpdk_bridge}" other_config:update_config=false
+      ovs-vsctl --db=unix:${OVS_SOCKET} --may-exist add-bond "${dpdk_bridge}" "${bond_name}" \
+        ${nic_name_str} \
+        "${ovs_options}" ${dev_args_str}
+    fi
+
   done < "/tmp/bonds_array"
 }
 
