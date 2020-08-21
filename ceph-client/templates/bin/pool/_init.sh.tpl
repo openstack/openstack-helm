@@ -184,6 +184,8 @@ function create_pool () {
   else
     if [[ -z "$(ceph osd versions | grep ceph\ version | grep -v nautilus)" ]] && [[ $"{ENABLE_AUTOSCALER}" == "true" ]] ; then
       ceph --cluster "${CLUSTER}" osd pool set "${POOL_NAME}" pg_autoscale_mode on
+    else
+      ceph --cluster "${CLUSTER}" osd pool set "${POOL_NAME}" pg_autoscale_mode off
     fi
   fi
 #
