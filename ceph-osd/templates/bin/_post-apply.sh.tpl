@@ -40,6 +40,13 @@ function wait_for_pods() {
            phase: .status.phase}"
   select="select((.status) or (.phase==\"Succeeded\") | not)"
   query=".items | map( ${fields} | ${select}) | .[]"
+  # Selecting containers with "ceph-osd-default" name and
+  # counting them based on "ready" field.
+  count_pods=".items | map(.status.containerStatuses | .[] | \
+              select(.name==\"ceph-osd-default\")) | \
+              group_by(.ready) | map({(.[0].ready | tostring): length}) | .[]"
+  min_osds="add | if .true >= (.false + .true)*${REQUIRED_PERCENT_OF_OSDS}/100 \
+           then \"pass\" else \"fail\" end"
   while true; do
       unhealthy_pods=$(kubectl get pods --namespace="${1}" -o json | jq -c "${query}")
       if [[ -z "${unhealthy_pods}" ]]; then
@@ -50,6 +57,15 @@ function wait_for_pods() {
       if [ $(date -u +%s) -gt $end ] ; then
           echo -e "Containers failed to start after $timeout seconds\n"
           kubectl get pods --namespace "${1}" -o wide
+          # Leaving while loop if minimum amount of OSDs are ready.
+          # It allows to proceed even if some OSDs are not ready
+          # or in "CrashLoopBackOff" state
+          state=$(kubectl get pods --namespace="${1}" -l component=osd -o json | jq "${count_pods}")
+          osd_state=$(jq -s "${min_osds}" <<< "${state}")
+          non_osd_state=$(kubectl get pods --namespace="${1}" -l component!=osd -o json | jq -c "${query}")
+          if [[ -z "${non_osd_state}" && "${osd_state}" == "pass" ]]; then
+            break
+          fi
           exit 1
       fi
   done
