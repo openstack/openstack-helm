@@ -12,6 +12,23 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{/*
+(aostapenko) rounds cpu limit in any permissible format to integer value (min 1)
+"100m"   -> 1
+"1100m"  -> 1
+"10900m" -> 10
+0.3      -> 1
+5.4      -> 5
+*/}}
+{{- define "get_erlvm_scheduler_num" -}}
+{{- $val := . | toString -}}
+{{- if regexMatch "^[0-9]*m$" $val -}}
+{{- $val = div (float64 (trimSuffix "m" $val)) 1000 -}}
+{{- end -}}
+{{/* NOTE(aostapenko) String with floating number does not convert well to int*/}}
+{{- $val | float64 | int | default 1 -}}
+{{- end -}}
+
 {{- if .Values.manifests.configmap_etc }}
 {{- $envAll := . }}
 
@@ -19,7 +36,9 @@ limitations under the License.
 {{- $_ := print "kubernetes.default.svc." $envAll.Values.endpoints.cluster_domain_suffix | set $envAll.Values.conf.rabbitmq.cluster_formation.k8s "host" -}}
 {{- end -}}
 
-{{- $_ := print "0.0.0.0:" ( tuple "oslo_messaging" "internal" "amqp" . | include "helm-toolkit.endpoints.endpoint_port_lookup") | set $envAll.Values.conf.rabbitmq.listeners.tcp "1" -}}
+{{- $_ := print ":::" ( tuple "oslo_messaging" "internal" "amqp" . | include "helm-toolkit.endpoints.endpoint_port_lookup") | set $envAll.Values.conf.rabbitmq.listeners.tcp "1" -}}
+
+{{- $_ := tuple "oslo_messaging" "internal" "http" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | set $envAll.Values.conf.rabbitmq "management.listener.port" -}}
 
 ---
 apiVersion: v1
@@ -31,4 +50,17 @@ data:
 {{ tuple "etc/_enabled_plugins.tpl" . | include  "helm-toolkit.utils.template" | indent 4 }}
   rabbitmq.conf: |
 {{ include "rabbitmq.utils.to_rabbit_config" $envAll.Values.conf.rabbitmq | indent 4 }}
+
+{{- $erlvm_scheduler_num := include "get_erlvm_scheduler_num" .Values.pod.resources.server.limits.cpu }}
+{{- $erlvm_scheduler_conf := printf "+S %s:%s" $erlvm_scheduler_num $erlvm_scheduler_num }}
+{{- if .Values.manifests.config_ipv6 }}
+  rabbitmq-env.conf: |
+    SERVER_ADDITIONAL_ERL_ARGS={{ printf "+A 128 -kernel inetrc '/etc/rabbitmq/erl_inetrc' -proto_dist inet6_tcp %s" $erlvm_scheduler_conf | quote }}
+    CTL_ERL_ARGS="-proto_dist inet6_tcp"
+  erl_inetrc: |
+    {inet6, true}.
+{{- else }}
+  rabbitmq-env.conf: |
+    SERVER_ADDITIONAL_ERL_ARGS={{ $erlvm_scheduler_conf | quote }}
+{{- end }}
 {{ end }}
