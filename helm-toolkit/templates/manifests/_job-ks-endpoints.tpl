@@ -28,6 +28,13 @@ limitations under the License.
 {{- $backoffLimit := index . "backoffLimit" | default "1000" -}}
 {{- $activeDeadlineSeconds := index . "activeDeadlineSeconds" -}}
 {{- $serviceNamePretty := $serviceName | replace "_" "-" -}}
+{{- $restartPolicy_ := "OnFailure" -}}
+{{- if hasKey $envAll.Values "jobs" -}}
+{{- if hasKey $envAll.Values.jobs "ks_endpoints" -}}
+{{- $restartPolicy_ = $envAll.Values.jobs.ks_endpoints.restartPolicy | default $restartPolicy_ }}
+{{- end }}
+{{- end }}
+{{- $restartPolicy := index . "restartPolicy" | default $restartPolicy_ -}}
 
 {{- $serviceAccountName := printf "%s-%s" $serviceNamePretty "ks-endpoints" }}
 {{ tuple $envAll "ks_endpoints" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
@@ -49,7 +56,7 @@ spec:
 {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
     spec:
       serviceAccountName: {{ $serviceAccountName }}
-      restartPolicy: OnFailure
+      restartPolicy: {{ $restartPolicy }}
       nodeSelector:
 {{ toYaml $nodeSelector | indent 8 }}
       initContainers:
