@@ -34,7 +34,7 @@ limitations under the License.
 {{- define "prometheus.utils.command_line_flags" -}}
 {{- range $flag, $value := . -}}
 {{- $flag := $flag | replace "_" "-" }}
-{{- if eq $flag "web.enable-admin-api" "web.enable-lifecycle" -}}
+{{- if eq $flag "web.enable-admin-api" "web.enable-lifecycle" "storage.tsdb.wal-compression" -}}
 {{- if $value }}
 {{- printf " --%s" $flag -}}
 {{- end -}}
