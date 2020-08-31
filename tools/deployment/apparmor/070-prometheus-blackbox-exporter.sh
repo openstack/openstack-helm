@@ -15,19 +15,19 @@
 set -xe
 
 #NOTE: Lint and package chart
-make alerta
+make prometheus-blackbox-exporter
+
+: ${OSH_INFRA_EXTRA_HELM_ARGS_PROMETHEUS_BLACKBOX_EXPORTER:="$(./tools/deployment/common/get-values-overrides.sh prometheus-blackbox-exporter)"}
 
 #NOTE: Deploy command
-: ${OSH_INFRA_EXTRA_HELM_ARGS:=""}
-: ${OSH_INFRA_EXTRA_HELM_ARGS_ALERTA:="$(./tools/deployment/common/get-values-overrides.sh alerta)"}
-
-helm upgrade --install alerta ./alerta \
-    --namespace=osh-infra \
-    ${OSH_INFRA_EXTRA_HELM_ARGS} \
-    ${OSH_INFRA_EXTRA_HELM_ARGS_ALERTA}
+helm upgrade --install prometheus-blackbox-exporter \
+    ./prometheus-blackbox-exporter \
+    --namespace=openstack \
+     ${OSH_INFRA_EXTRA_HELM_ARGS} \
+     ${OSH_INFRA_EXTRA_HELM_ARGS_PROMETHEUS_BLACKBOX_EXPORTER}
 
 #NOTE: Wait for deploy
-./tools/deployment/common/wait-for-pods.sh osh-infra
+./tools/deployment/common/wait-for-pods.sh openstack
 
 #NOTE: Validate Deployment info
-helm status alerta
+helm status prometheus-blackbox-exporter
