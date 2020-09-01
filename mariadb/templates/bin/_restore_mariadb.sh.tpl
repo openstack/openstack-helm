@@ -76,6 +76,28 @@ get_databases() {
   echo $DBS > $DB_FILE
 }
 
+# Determine sql file from 2 options - current and legacy one
+# if current is not found check that there is no other namespaced dump file
+# before falling back to legacy one
+_get_sql_file() {
+  TMP_DIR=$1
+  SQL_FILE="${TMP_DIR}/mariadb.${MARIADB_POD_NAMESPACE}.*.sql"
+  LEGACY_SQL_FILE="${TMP_DIR}/mariadb.*.sql"
+  INVALID_SQL_FILE="${TMP_DIR}/mariadb.*.*.sql"
+  if [ -f ${SQL_FILE} ]
+  then
+    echo "Found $(ls ${SQL_FILE})" > /dev/stderr
+    printf ${SQL_FILE}
+  elif [ -f ${INVALID_SQL_FILE} ]
+  then
+    echo "Expected to find ${SQL_FILE} or ${LEGACY_SQL_FILE}, but found $(ls ${INVALID_SQL_FILE})" > /dev/stderr
+  elif [ -f ${LEGACY_SQL_FILE} ]
+  then
+    echo "Falling back to legacy naming ${LEGACY_SQL_FILE}. Found $(ls ${LEGACY_SQL_FILE})" > /dev/stderr
+    printf ${LEGACY_SQL_FILE}
+  fi
+}
+
 # Extract all tables of a database from an archive and put them in the requested
 # file.
 get_tables() {
@@ -83,8 +105,8 @@ get_tables() {
   TMP_DIR=$2
   TABLE_FILE=$3
 
-  SQL_FILE=$TMP_DIR/mariadb.$MARIADB_POD_NAMESPACE.*.sql
-  if [ -f $SQL_FILE ]; then
+  SQL_FILE=$(_get_sql_file $TMP_DIR)
+  if [ ! -z $SQL_FILE ]; then
     current_db_desc ${DATABASE} ${SQL_FILE} \
         | grep "^CREATE TABLE" | awk -F '`' '{print $2}' \
         > $TABLE_FILE
@@ -103,8 +125,8 @@ get_rows() {
   TMP_DIR=$3
   ROW_FILE=$4
 
-  SQL_FILE=$TMP_DIR/mariadb.$MARIADB_POD_NAMESPACE.*.sql
-  if [ -f $SQL_FILE ]; then
+  SQL_FILE=$(_get_sql_file $TMP_DIR)
+  if [ ! -z $SQL_FILE ]; then
     current_db_desc ${DATABASE} ${SQL_FILE} \
         | grep "INSERT INTO \`${TABLE}\` VALUES" > $ROW_FILE
     return 0
@@ -123,8 +145,8 @@ get_schema() {
   TMP_DIR=$3
   SCHEMA_FILE=$4
 
-  SQL_FILE=$TMP_DIR/mariadb.$MARIADB_POD_NAMESPACE.*.sql
-  if [ -f $SQL_FILE ]; then
+  SQL_FILE=$(_get_sql_file $TMP_DIR)
+  if [ ! -z $SQL_FILE ]; then
     DB_FILE=$(mktemp -p /tmp)
     current_db_desc ${DATABASE} ${SQL_FILE} > ${DB_FILE}
     sed -n /'CREATE TABLE `'$TABLE'`'/,/'--'/p ${DB_FILE} > ${SCHEMA_FILE}
@@ -193,9 +215,8 @@ restore_single_db() {
     return 1
   fi
 
-  SQL_FILE=$TMP_DIR/mariadb.$MARIADB_POD_NAMESPACE.*.sql
-  if [ -f $SQL_FILE ]
-  then
+  SQL_FILE=$(_get_sql_file $TMP_DIR)
+  if [ ! -z $SQL_FILE ]; then
     # Restoring a single database requires us to create a temporary user
     # which has capability to only restore that ONE database. One gotcha
     # is that the mysql command to restore the database is going to throw
@@ -254,9 +275,8 @@ restore_single_db() {
 restore_all_dbs() {
   TMP_DIR=$1
 
-  SQL_FILE=$TMP_DIR/mariadb.$MARIADB_POD_NAMESPACE.*.sql
-  if [ -f $SQL_FILE ]
-  then
+  SQL_FILE=$(_get_sql_file $TMP_DIR)
+  if [ ! -z $SQL_FILE ]; then
     # Check the scope of the archive.
     SCOPE=$(echo ${SQL_FILE} | awk -F'.' '{print $(NF-1)}')
     if [[ "${SCOPE}" != "all" ]]; then
