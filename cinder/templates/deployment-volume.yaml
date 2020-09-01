@@ -15,6 +15,8 @@ limitations under the License.
 {{- if .Values.manifests.deployment_volume }}
 {{- $envAll := . }}
 
+{{- $internal_ceph_backend := .Values.ceph_client.internal_ceph_backend }}
+
 {{- $mounts_cinder_volume := .Values.pod.mounts.cinder_volume.cinder_volume }}
 {{- $mounts_cinder_volume_init := .Values.pod.mounts.cinder_volume.init_container }}
 
@@ -58,6 +60,7 @@ spec:
 {{ tuple $envAll "volume" $mounts_cinder_volume_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
         {{- range $name := rest (splitList "," (include "cinder.utils.ceph_backend_list" $envAll)) }}
           {{- $backend := index $envAll.Values.conf.backends $name }}
+            {{- if eq $internal_ceph_backend $name }}
         - name: ceph-keyring-placement-{{$name}}
 {{ tuple $envAll "cinder_volume" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ dict "envAll" $envAll "application" "cinder_volume" "container" "ceph_keyring_placement" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
@@ -79,6 +82,13 @@ spec:
               mountPath: /tmp/client-keyring
               subPath: key
               readOnly: true
+            {{- if $envAll.Values.ceph_client.enable_external_ceph_backend }}
+            - name: external-ceph-keyring
+              mountPath: /tmp/external-ceph-client-keyring
+              subPath: key
+              readOnly: true
+            {{- end }}
+            {{- end }}
         {{- end }}
         {{- if eq ( split "://" .Values.conf.cinder.coordination.backend_url )._0 "file" }}
         - name: ceph-coordination-volume-perms
@@ -165,6 +175,16 @@ spec:
               mountPath: /tmp/client-keyring
               subPath: key
               readOnly: true
+            {{- if .Values.ceph_client.enable_external_ceph_backend }}
+            - name: external-ceph-etc
+              mountPath: /etc/ceph/external-ceph.conf
+              subPath: ceph.conf
+              readOnly: true
+            - name: external-ceph-keyring
+              mountPath: /tmp/external-ceph-client-keyring
+              subPath: key
+              readOnly: true
+            {{- end }}
             {{- end }}
             {{- if eq ( split "://" .Values.conf.cinder.coordination.backend_url )._0 "file" }}
             - name: cinder-coordination
@@ -239,6 +259,15 @@ spec:
         - name: ceph-keyring
           secret:
             secretName: {{ .Values.secrets.rbd.volume | quote }}
+        {{- if .Values.ceph_client.enable_external_ceph_backend }}
+        - name: external-ceph-etc
+          configMap:
+            name: {{ .Values.ceph_client.external_ceph.configmap }}
+            defaultMode: 0444
+        - name: external-ceph-keyring
+          secret:
+            secretName: {{ .Values.ceph_client.external_ceph.cinder_user_secret_name | quote }}
+        {{ end }}
         {{ end }}
         {{- if eq ( split "://" .Values.conf.cinder.coordination.backend_url )._0 "file" }}
         # NOTE (portdirect): this will need to be set to a shared mount amongst all cinder

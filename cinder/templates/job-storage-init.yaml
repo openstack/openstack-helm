@@ -15,6 +15,8 @@ limitations under the License.
 {{- if .Values.manifests.job_storage_init }}
 {{- $envAll := . }}
 
+{{- $internal_ceph_backend := .Values.ceph_client.internal_ceph_backend }}
+
 {{- $serviceAccountName := "cinder-storage-init" }}
 {{ tuple $envAll "storage_init" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
@@ -89,6 +91,7 @@ spec:
       containers:
         {{- range $name, $backend := .Values.conf.backends }}
           {{- if (eq "true" ( dict "backend" $backend | include "cinder.utils.is_ceph_backend" )) }}
+            {{- if eq $internal_ceph_backend $name }}
         - name: cinder-storage-init-{{$name}}
 {{ tuple $envAll "cinder_storage_init" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.jobs.storage_init | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
@@ -133,6 +136,7 @@ spec:
               mountPath: /tmp/client-keyring
               subPath: key
               readOnly: true
+            {{- end }}
             {{- end }}
         {{- end }}
       {{- end }}
