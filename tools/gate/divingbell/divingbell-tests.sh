@@ -18,6 +18,6 @@ git clone https://opendev.org/airship/divingbell
 cd divingbell
 mkdir build
 ln -s ../openstack-helm-infra build/openstack-helm-infra
-export HELM_ARTIFACT_URL=https://storage.googleapis.com/kubernetes-helm/helm-v2.14.1-linux-amd64.tar.gz
+export HELM_ARTIFACT_URL=https://storage.googleapis.com/kubernetes-helm/helm-v2.16.9-linux-amd64.tar.gz
 ./tools/gate/scripts/010-build-charts.sh
 sudo SKIP_BASE_TESTS=true ./tools/gate/scripts/020-test-divingbell.sh
