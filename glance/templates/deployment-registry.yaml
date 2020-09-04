@@ -55,45 +55,6 @@ spec:
       initContainers:
 {{ tuple $envAll "registry" $mounts_glance_registry_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
-        {{- if $envAll.Values.manifests.certificates }}
-        - name: nginx
-{{ tuple $envAll "nginx" | include "helm-toolkit.snippets.image" | indent 10 }}
-{{ tuple $envAll $envAll.Values.pod.resources.nginx | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-          ports:
-            - name: g-reg
-              containerPort: {{ tuple "image_registry" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-          env:
-            - name: PORT
-              value: {{ tuple "image_registry" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | quote }}
-            - name: POD_IP
-              valueFrom:
-                fieldRef:
-                  fieldPath: status.podIP
-            - name: SHORTNAME
-              value: {{ tuple "image_registry" "internal" .  | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" | quote }}
-          readinessProbe:
-            tcpSocket:
-              port: {{ tuple "image_registry" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-          command:
-            - /tmp/nginx.sh
-            - start
-          lifecycle:
-            preStop:
-              exec:
-                command:
-                  - /tmp/nginx.sh
-                  - stop
-          volumeMounts:
-            - name: glance-bin
-              mountPath: /tmp/nginx.sh
-              subPath: nginx.sh
-              readOnly: true
-            - name: glance-etc
-              mountPath: /etc/nginx/nginx.conf
-              subPath: nginx.conf
-              readOnly: true
-{{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.image_registry.api.internal "path" "/etc/nginx/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
-        {{- end }}
         - name: glance-registry
 {{ tuple $envAll "glance_registry" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.registry | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
@@ -107,21 +68,6 @@ spec:
                 command:
                   - /tmp/glance-registry.sh
                   - stop
-          {{- if $envAll.Values.manifests.certificates }}
-          readinessProbe:
-            exec:
-              command:
-                - python
-                - -c
-                - "import requests; requests.get('http://127.0.0.1:{{ tuple "image_registry" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}')"
-          livenessProbe:
-            exec:
-              command:
-                - python
-                - -c
-                - "import requests; requests.get('http://127.0.0.1:{{ tuple "image_registry" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}')"
-            initialDelaySeconds: 30
-          {{- else }}
           ports:
             - name: g-reg
               containerPort: {{ tuple "image_registry" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
@@ -131,7 +77,6 @@ spec:
           livenessProbe:
             tcpSocket:
               port: {{ tuple "image_registry" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-          {{- end }}
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
