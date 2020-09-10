@@ -411,25 +411,19 @@ conf:
             #!/bin/bash
 
             # This plugin checks for common network issues. Currently, it only checks
-            # if the conntrack table is full.
+            # if the conntrack table is 50% full.
+            set -eu
+            set -o pipefail
 
-            OK=0
-            NONOK=1
-            UNKNOWN=2
+            conntrack_threshold=$(($(cat /proc/sys/net/netfilter/nf_conntrack_max)/2 ))
+            conntrack_count=$(cat /proc/sys/net/netfilter/nf_conntrack_count)
 
-            [ -f /proc/sys/net/ipv4/netfilter/ip_conntrack_max ] || exit $UNKNOWN
-            [ -f /proc/sys/net/ipv4/netfilter/ip_conntrack_count ] || exit $UNKNOWN
-
-            conntrack_max=$(cat /proc/sys/net/ipv4/netfilter/ip_conntrack_max)
-            conntrack_count=$(cat /proc/sys/net/ipv4/netfilter/ip_conntrack_count)
-
-            if (( conntrack_count >= conntrack_max )); then
-              echo "Conntrack table full"
-              exit $NONOK
+            if [ "$conntrack_count" -ge "$conntrack_threshold" ]; then
+              echo "Conntrack table approaching full"
+              exit 1
             fi
 
-            echo "Conntrack table available"
-            exit $OK
+            exit 0
       config:
         network-problem-monitor:
           plugin: custom
