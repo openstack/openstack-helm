@@ -172,6 +172,7 @@ EOF
 
 
 reset_test_env $PVC_NAMESPACE $RBD_TEST_POD_NAME $RBD_TEST_PVC_NAME
+reset_test_env $PVC_NAMESPACE $CSI_RBD_TEST_POD_NAME $CSI_RBD_TEST_PVC_NAME
 reset_test_env $PVC_NAMESPACE $CEPHFS_TEST_POD_NAME $CEPHFS_TEST_PVC_NAME
 
 {{- range $storageclass, $val := .Values.storageclass }}
@@ -182,6 +183,14 @@ then
 
   storageclass_validation $PVC_NAMESPACE $RBD_TEST_POD_NAME $RBD_TEST_PVC_NAME $storageclass
   reset_test_env $PVC_NAMESPACE $RBD_TEST_POD_NAME $RBD_TEST_PVC_NAME
+fi
+
+if [ {{ $val.provisioner }} == "ceph.rbd.csi.ceph.com" ] && [ {{ $val.provision_storage_class }} == true ];
+then
+  echo "--> Checking CSI RBD storage class."
+  storageclass={{ $val.metadata.name }}
+  storageclass_validation $PVC_NAMESPACE $CSI_RBD_TEST_POD_NAME $CSI_RBD_TEST_PVC_NAME $storageclass
+  reset_test_env $PVC_NAMESPACE $CSI_RBD_TEST_POD_NAME $CSI_RBD_TEST_PVC_NAME
 fi
 
 if [ {{ $val.provisioner }} == "ceph.com/cephfs" ] && [ {{ $val.provision_storage_class }} == true ];

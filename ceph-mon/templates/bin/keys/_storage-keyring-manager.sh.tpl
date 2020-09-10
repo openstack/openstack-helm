@@ -73,6 +73,8 @@ metadata:
 type: kubernetes.io/rbd
 data:
   key: $( echo ${CEPH_KEYRING} | base64 | tr -d '\n' )
+  userID: $( echo -n "admin" | base64 | tr -d '\n' )
+  userKey: $( echo -n ${CEPH_KEYRING} | base64 | tr -d '\n' )
 EOF
     } | kubectl apply --namespace ${DEPLOYMENT_NAMESPACE} -f -
   fi

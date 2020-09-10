@@ -46,5 +46,5 @@ if ! kubectl get --namespace ${DEPLOYMENT_NAMESPACE} secrets ${PVC_CEPH_CEPHFS_S
     ${DEPLOYMENT_NAMESPACE} \
     "kubernetes.io/cephfs" \
     ${PVC_CEPH_CEPHFS_STORAGECLASS_USER_SECRET_NAME} \
-    "$(echo ${CEPH_CEPHFS_KEY} | jq -r '.data | .[]')"
+    "$(echo ${CEPH_CEPHFS_KEY} | jq -r '.data.key')"
 fi

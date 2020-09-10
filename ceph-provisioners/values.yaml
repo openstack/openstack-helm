@@ -20,6 +20,7 @@ deployment:
   ceph: true
   client_secrets: false
   rbd_provisioner: true
+  csi: true
   cephfs_provisioner: true
 
 release_group: null
@@ -31,6 +32,12 @@ images:
     ceph_cephfs_provisioner: 'docker.io/openstackhelm/ceph-cephfs-provisioner:ubuntu_bionic-20200521'
     ceph_config_helper: 'docker.io/openstackhelm/ceph-config-helper:change_770201_ubuntu_bionic-20210113'
     ceph_rbd_provisioner: 'docker.io/openstackhelm/ceph-rbd-provisioner:change_770201_ubuntu_bionic-20210113'
+    csi_provisioner: 'quay.io/k8scsi/csi-provisioner:v1.6.0'
+    csi_snapshotter: 'quay.io/k8scsi/csi-snapshotter:v2.1.1'
+    csi_attacher: 'quay.io/k8scsi/csi-attacher:v2.1.1'
+    csi_resizer: 'quay.io/k8scsi/csi-resizer:v0.4.0'
+    csi_registrar: 'quay.io/k8scsi/csi-node-driver-registrar:v1.2.0'
+    cephcsi: 'quay.io/cephcsi/cephcsi:v3.1.0'
     dep_check: 'quay.io/airshipit/kubernetes-entrypoint:v1.0.0'
     image_repo_sync: 'docker.io/docker:17.07.0'
   local_registry:
@@ -49,6 +56,9 @@ labels:
   provisioner:
     node_selector_key: openstack-control-plane
     node_selector_value: enabled
+  csi_rbd_plugin:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
 
 pod:
   test_pod:
@@ -56,6 +66,9 @@ pod:
     rbd:
       name: rbd-prov-test-pod
       pvc_name: rbd-prov-test-pvc
+    csi_rbd:
+      name: csi-rbd-prov-test-pod
+      pvc_name: csi-rbd-prov-test-pvc
     cephfs:
       name: cephfs-prov-test-pod
       pvc_name: cephfs-prov-test-pvc
@@ -70,6 +83,29 @@ pod:
         ceph_rbd_provisioner:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
+        ceph_rbd_snapshotter:
+          privileged: true
+        ceph_rbd_attacher:
+          privileged: true
+        ceph_rbd_resizer:
+          privileged: true
+        ceph_rbd_cephcsi:
+          privileged: true
+          capabilities:
+            add: ["SYS_ADMIN"]
+    plugin:
+      pod:
+        runAsUser: 0
+      container:
+        ceph_rbd_registrar:
+          privileged: true
+          capabilities:
+            add: ["SYS_ADMIN"]
+        ceph_csi_rbd_plugin:
+          privileged: true
+          capabilities:
+            add: ["SYS_ADMIN"]
+          allowPrivilegeEscalation: true
     bootstrap:
       pod:
         runAsUser: 99
@@ -112,6 +148,12 @@ pod:
     upgrades:
       deployments:
         pod_replacement_strategy: Recreate
+      daemonsets:
+        pod_replacement_strategy: RollingUpdate
+        plugin:
+          enabled: true
+          min_ready_seconds: 0
+          max_unavailable: 1
   affinity:
     anti:
       type:
@@ -130,6 +172,41 @@ pod:
         memory: "50Mi"
         cpu: "500m"
     cephfs_provisioner:
+      requests:
+        memory: "5Mi"
+        cpu: "250m"
+      limits:
+        memory: "50Mi"
+        cpu: "500m"
+    rbd_attacher:
+      requests:
+        memory: "5Mi"
+        cpu: "250m"
+      limits:
+        memory: "50Mi"
+        cpu: "500m"
+    rbd_registrar:
+      requests:
+        memory: "5Mi"
+        cpu: "250m"
+      limits:
+        memory: "50Mi"
+        cpu: "500m"
+    rbd_resizer:
+      requests:
+        memory: "5Mi"
+        cpu: "250m"
+      limits:
+        memory: "50Mi"
+        cpu: "500m"
+    rbd_snapshotter:
+      requests:
+        memory: "5Mi"
+        cpu: "250m"
+      limits:
+        memory: "50Mi"
+        cpu: "500m"
+    rbd_cephcsi:
       requests:
         memory: "5Mi"
         cpu: "250m"
@@ -263,8 +340,7 @@ storageclass:
     provisioner: ceph.com/rbd
     ceph_configmap_name: ceph-etc
     metadata:
-      default_storage_class: true
-      name: general
+      name: general-rbd
     parameters:
       pool: rbd
       adminId: admin
@@ -274,6 +350,24 @@ storageclass:
       userSecretName: pvc-ceph-client-key
       imageFormat: "2"
       imageFeatures: layering
+  csi_rbd:
+    provision_storage_class: true
+    provisioner: ceph.rbd.csi.ceph.com
+    metadata:
+      default_storage_class: true
+      name: general
+    parameters:
+      clusterID: ceph
+      csi.storage.k8s.io/controller-expand-secret-name: pvc-ceph-conf-combined-storageclass
+      csi.storage.k8s.io/controller-expand-secret-namespace: ceph
+      csi.storage.k8s.io/fstype: ext4
+      csi.storage.k8s.io/node-stage-secret-name: pvc-ceph-conf-combined-storageclass
+      csi.storage.k8s.io/node-stage-secret-namespace: ceph
+      csi.storage.k8s.io/provisioner-secret-name: pvc-ceph-conf-combined-storageclass
+      csi.storage.k8s.io/provisioner-secret-namespace: ceph
+      imageFeatures: layering
+      imageFormat: "2"
+      pool: rbd
   cephfs:
     provision_storage_class: true
     provisioner: ceph.com/cephfs
@@ -317,6 +411,7 @@ manifests:
   configmap_bin_common: true
   configmap_etc: true
   deployment_rbd_provisioner: true
+  deployment_csi_rbd_provisioner: true
   deployment_cephfs_provisioner: true
   job_bootstrap: false
   job_cephfs_client_key: true
