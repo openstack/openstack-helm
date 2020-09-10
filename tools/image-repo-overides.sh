@@ -18,7 +18,7 @@ gcr.io/google_containers/kube-controller-manager-amd64:${KUBE_VERSION}
 gcr.io/google_containers/kube-proxy-amd64:${KUBE_VERSION}
 gcr.io/google_containers/kube-scheduler-amd64:${KUBE_VERSION}
 gcr.io/google_containers/pause-amd64:3.0
-gcr.io/google_containers/etcd-amd64:3.0.17"
+gcr.io/google_containers/etcd-amd64:3.4.3"
 
 CHART_IMAGES=""
 for CHART_DIR in ./*/ ; do
