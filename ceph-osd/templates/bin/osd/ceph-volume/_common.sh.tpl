@@ -232,7 +232,7 @@ function disk_zap {
   local device_filter=$(basename "${device}")
   local dm_devices=$(get_lvm_path_from_device "pv_name=~${device_filter},lv_name=~ceph")
   for dm_device in ${dm_devices}; do
-    if [[ ! -z ${dm_device} ]]; then
+    if [[ ! -z ${dm_device} ]] && [[ ! -z $(dmsetup ls | grep ${dm_device}) ]]; then
       dmsetup remove ${dm_device}
     fi
   done
@@ -244,8 +244,8 @@ function disk_zap {
   done
   local volume_group=$(pvdisplay ${device} | grep "VG Name" | awk '/ceph/{print $3}' | grep "ceph")
   if [[ ${volume_group} ]]; then
-    vgremove ${volume_group}
-    pvremove ${device}
+    vgremove -y ${volume_group}
+    pvremove -y ${device}
     ceph-volume lvm zap ${device} --destroy
   fi
   wipefs --all ${device}
@@ -257,6 +257,9 @@ function disk_zap {
 function udev_settle {
   osd_devices="${OSD_DEVICE}"
   partprobe "${OSD_DEVICE}"
+  locked pvscan --cache
+  locked vgscan --cache
+  locked lvscan --cache
   if [ "${OSD_BLUESTORE:-0}" -eq 1 ]; then
     if [ ! -z "$BLOCK_DB" ]; then
       osd_devices="${osd_devices}\|${BLOCK_DB}"
@@ -407,11 +410,36 @@ function get_osd_wal_device_from_device {
   get_lvm_tag_from_device ${device} ceph.wal_device
 }
 
+function get_block_uuid_from_device {
+  device="$1"
+
+  get_lvm_tag_from_device ${device} ceph.block_uuid
+}
+
 function get_lvm_path_from_device {
   select="$1"
 
   options="--noheadings -o lv_dm_path"
   pvs ${options} -S "${select}" | tr -d ' '
+}
+
+function get_vg_name_from_device {
+  device="$1"
+  pv_uuid=$(pvdisplay ${device} | awk '/PV UUID/{print $3}')
+
+  if [[ "${pv_uuid}" ]]; then
+    echo "ceph-vg-${pv_uuid}"
+  fi
+}
+
+function get_lv_name_from_device {
+  device="$1"
+  device_type="$2"
+  pv_uuid=$(pvdisplay ${device} | awk '/PV UUID/{print $3}')
+
+  if [[ "${pv_uuid}" ]]; then
+    echo "ceph-${device_type}-${pv_uuid}"
+  fi
 }
 
 function set_device_class {
