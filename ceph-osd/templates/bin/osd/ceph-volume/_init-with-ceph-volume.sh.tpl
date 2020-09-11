@@ -417,11 +417,6 @@ function osd_disk_prepare {
     elif [[ ${BLOCK_DB} && -z ${BLOCK_WAL} ]]; then
       prep_device "${BLOCK_DB}" "${BLOCK_DB_SIZE}" "db" "${OSD_DEVICE}"
     fi
-    if [ -z ${BLOCK_DB} ] && [ -z ${BLOCK_WAL} ]; then
-      if pvdisplay ${OSD_DEVICE} | awk '/VG Name/{print $3}' | grep "ceph"; then
-        CEPH_LVM_PREPARE=0
-      fi
-    fi
   else
     if pvdisplay ${OSD_DEVICE} | awk '/VG Name/{print $3}' | grep "ceph"; then
       CEPH_LVM_PREPARE=0
