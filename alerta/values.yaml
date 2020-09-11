@@ -151,6 +151,10 @@ endpoints:
 secrets:
   postgresql:
     admin: postgresql-admin
+  tls:
+    alerta:
+      alerta:
+        public: alerta-tls-public
 
 storage: []
 
@@ -160,6 +164,18 @@ jobs: []
 
 network:
   alerta:
+    ingress:
+      public: true
+      classes:
+        namespace: "nginx"
+        cluster: "nginx-cluster"
+      annotations:
+        nginx.ingress.kubernetes.io/rewrite-target: /
+        nginx.ingress.kubernetes.io/affinity: cookie
+        nginx.ingress.kubernetes.io/session-cookie-name: kube-ingress-session-alerta
+        nginx.ingress.kubernetes.io/session-cookie-hash: sha1
+        nginx.ingress.kubernetes.io/session-cookie-expires: "600"
+        nginx.ingress.kubernetes.io/session-cookie-max-age: "600"
     node_port:
       enabled: true
       port: 30480
@@ -171,8 +187,11 @@ manifests:
     configmap_bin: true
     configmap_etc: true
     deployment: true
+    ingress: false
     secret: true
+    secret_ingress_tls: false
     service: true
+    service_ingress: false
     create_db: true
 
 conf:
