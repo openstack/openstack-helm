@@ -123,6 +123,12 @@ spec:
             {{ end }}
             - name: LIBVIRT_CEPH_CINDER_SECRET_UUID
               value: "{{ .Values.conf.ceph.cinder.secret_uuid }}"
+            {{- if .Values.conf.ceph.cinder.external_ceph.enabled }}
+            - name: EXTERNAL_CEPH_CINDER_USER
+              value: "{{ .Values.conf.ceph.cinder.external_ceph.user }}"
+            - name: LIBVIRT_EXTERNAL_CEPH_CINDER_SECRET_UUID
+              value: "{{ .Values.conf.ceph.cinder.external_ceph.secret_uuid }}"
+            {{ end }}
           {{ end }}
           readinessProbe:
             exec:
@@ -199,6 +205,12 @@ spec:
               subPath: key
               readOnly: true
             {{- end }}
+            {{- if .Values.conf.ceph.cinder.external_ceph.enabled }}
+            - name: external-ceph-keyring
+              mountPath: /tmp/external-ceph-client-keyring
+              subPath: key
+              readOnly: true
+            {{- end }}
             {{- end }}
 {{ if $mounts_libvirt.volumeMounts }}{{ toYaml $mounts_libvirt.volumeMounts | indent 12 }}{{ end }}
       volumes:
@@ -224,6 +236,11 @@ spec:
         - name: ceph-keyring
           secret:
             secretName: {{ .Values.ceph_client.user_secret_name }}
+        {{ end }}
+        {{- if .Values.conf.ceph.cinder.external_ceph.enabled }}
+        - name: external-ceph-keyring
+          secret:
+            secretName: {{ .Values.conf.ceph.cinder.external_ceph.user_secret_name }}
         {{ end }}
         {{ end }}
         - name: libmodules

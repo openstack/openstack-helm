@@ -107,8 +107,14 @@ if [ -n "${LIBVIRT_CEPH_CINDER_SECRET_UUID}" ] ; then
   cgexec -g ${CGROUPS%,}:/osh-libvirt systemd-run --scope --slice=system libvirtd --listen &
 
   tmpsecret=$(mktemp --suffix .xml)
+  if [ -n "${LIBVIRT_EXTERNAL_CEPH_CINDER_SECRET_UUID}" ] ; then
+    tmpsecret2=$(mktemp --suffix .xml)
+  fi
   function cleanup {
-      rm -f "${tmpsecret}"
+    rm -f "${tmpsecret}"
+    if [ -n "${LIBVIRT_EXTERNAL_CEPH_CINDER_SECRET_UUID}" ] ; then
+      rm -f "${tmpsecret2}"
+    fi
   }
   trap cleanup EXIT
 
@@ -137,21 +143,31 @@ if [ -n "${LIBVIRT_CEPH_CINDER_SECRET_UUID}" ] ; then
     fi
   done
 
-  if [ -z "${CEPH_CINDER_KEYRING}" ] ; then
-    CEPH_CINDER_KEYRING=$(awk '/key/{print $3}' /etc/ceph/ceph.client.${CEPH_CINDER_USER}.keyring)
-  fi
-
-  cat > ${tmpsecret} <<EOF
+  function create_virsh_libvirt_secret {
+    sec_user=$1
+    sec_uuid=$2
+    sec_ceph_keyring=$3
+    cat > ${tmpsecret} <<EOF
 <secret ephemeral='no' private='no'>
-  <uuid>${LIBVIRT_CEPH_CINDER_SECRET_UUID}</uuid>
+  <uuid>${sec_uuid}</uuid>
   <usage type='ceph'>
-    <name>client.${CEPH_CINDER_USER}. secret</name>
+    <name>client.${sec_user}. secret</name>
   </usage>
 </secret>
 EOF
+    virsh secret-define --file ${tmpsecret}
+    virsh secret-set-value --secret "${sec_uuid}" --base64 "${sec_ceph_keyring}"
+  }
 
-  virsh secret-define --file ${tmpsecret}
-  virsh secret-set-value --secret "${LIBVIRT_CEPH_CINDER_SECRET_UUID}" --base64 "${CEPH_CINDER_KEYRING}"
+  if [ -z "${CEPH_CINDER_KEYRING}" ] ; then
+    CEPH_CINDER_KEYRING=$(awk '/key/{print $3}' /etc/ceph/ceph.client.${CEPH_CINDER_USER}.keyring)
+  fi
+  create_virsh_libvirt_secret ${CEPH_CINDER_USER} ${LIBVIRT_CEPH_CINDER_SECRET_UUID} ${CEPH_CINDER_KEYRING}
+
+  if [ -n "${LIBVIRT_EXTERNAL_CEPH_CINDER_SECRET_UUID}" ] ; then
+    EXTERNAL_CEPH_CINDER_KEYRING=$(cat /tmp/external-ceph-client-keyring)
+    create_virsh_libvirt_secret ${EXTERNAL_CEPH_CINDER_USER} ${LIBVIRT_EXTERNAL_CEPH_CINDER_SECRET_UUID} ${EXTERNAL_CEPH_CINDER_KEYRING}
+  fi
 
   # rejoin libvirtd
   wait
