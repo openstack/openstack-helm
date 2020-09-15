@@ -161,6 +161,15 @@
         container_distro_version: bionic
 
 - job:
+    name: openstack-helm-cinder-ussuri-ubuntu_bionic
+    parent: openstack-helm-cinder
+    vars:
+      osh_params:
+        openstack_release: ussuri
+        container_distro_name: ubuntu
+        container_distro_version: bionic
+
+- job:
     name: openstack-helm-compute-kit
     parent: openstack-helm-chart-deploy
     vars:
@@ -257,6 +266,15 @@
     vars:
       osh_params:
         openstack_release: train
+        container_distro_name: ubuntu
+        container_distro_version: bionic
+
+- job:
+    name: openstack-helm-compute-kit-ussuri-ubuntu_bionic
+    parent: openstack-helm-compute-kit
+    vars:
+      osh_params:
+        openstack_release: ussuri
         container_distro_name: ubuntu
         container_distro_version: bionic
 
@@ -404,8 +422,42 @@
         - ./tools/deployment/common/openstack-exporter.sh
         - ./tools/deployment/developer/common/900-use-it.sh
         - ./tools/deployment/common/test-networkpolicy.sh
+
 - job:
-    name: openstack-helm-tungsten-fabric
+    name: openstack-helm-netpol-compute-kit-ussuri
+    parent: openstack-helm-chart-deploy
+    timeout: 7200
+    vars:
+      osh_params:
+        openstack_release: ussuri
+        container_distro_name: ubuntu
+        container_distro_version: bionic
+        feature_gates: netpol
+      gate_scripts_relative_path: ../openstack-helm
+      gate_scripts:
+        - ./tools/deployment/common/install-packages.sh
+        - ./tools/deployment/common/deploy-k8s.sh
+        - ./tools/deployment/common/setup-client.sh
+        - ./tools/deployment/component/common/ingress.sh
+        - ./tools/deployment/common/lockdown-netpol.sh
+        - ./tools/deployment/component/common/mariadb.sh
+        - ./tools/deployment/component/common/memcached.sh
+        - ./tools/deployment/component/common/rabbitmq.sh
+        - ./tools/deployment/component/nfs-provisioner/nfs-provisioner.sh
+        - ./tools/deployment/component/keystone/keystone.sh
+        - ./tools/deployment/component/heat/heat.sh
+        - ./tools/deployment/component/glance/glance.sh
+        - ./tools/deployment/component/compute-kit/openvswitch.sh
+        - ./tools/deployment/component/compute-kit/libvirt.sh
+        - ./tools/deployment/component/compute-kit/compute-kit.sh
+        - ./tools/deployment/developer/common/170-setup-gateway.sh
+        - ./tools/deployment/component/horizon/horizon.sh
+        - ./tools/deployment/common/openstack-exporter.sh
+        - ./tools/deployment/developer/common/900-use-it.sh
+        - ./tools/deployment/common/test-networkpolicy.sh
+
+- job:
+    name: openstack-helm-tungsten-fabric-train
     parent: openstack-helm-compute-kit
     timeout: 9600
     nodeset: openstack-helm-single-16GB-node
@@ -418,6 +470,42 @@
       osh_params:
         feature_gates: tf
         openstack_release: train
+        container_distro_name: ubuntu
+        container_distro_version: bionic
+      gate_scripts_relative_path: ../openstack-helm
+      gate_scripts:
+        - ./tools/deployment/common/install-packages.sh
+        - - ./tools/deployment/common/deploy-k8s.sh
+          - ./tools/deployment/common/setup-client.sh
+        - ./tools/deployment/component/common/ingress.sh
+        - - ./tools/deployment/component/common/mariadb.sh
+          - ./tools/deployment/component/common/memcached.sh
+          - ./tools/deployment/component/common/rabbitmq.sh
+          - ./tools/deployment/component/nfs-provisioner/nfs-provisioner.sh
+        - - ./tools/deployment/component/compute-kit/tungsten-fabric.sh checkdns
+          - ./tools/deployment/component/compute-kit/tungsten-fabric.sh setupdns
+          - ./tools/deployment/component/keystone/keystone.sh
+        - - ./tools/deployment/component/heat/heat.sh
+          - ./tools/deployment/component/glance/glance.sh
+          - ./tools/deployment/component/compute-kit/tungsten-fabric.sh prepare
+          - ./tools/deployment/component/compute-kit/libvirt.sh
+        - ./tools/deployment/component/compute-kit/compute-kit.sh
+        - ./tools/deployment/component/compute-kit/tungsten-fabric.sh deploy
+
+- job:
+    name: openstack-helm-tungsten-fabric-ussuri
+    parent: openstack-helm-compute-kit
+    timeout: 9600
+    nodeset: openstack-helm-single-16GB-node
+    roles:
+      - zuul: openstack/openstack-helm-infra
+    required-projects:
+      - openstack/openstack-helm-infra
+    vars:
+      zuul_osh_infra_relative_path: ../openstack-helm-infra/
+      osh_params:
+        feature_gates: tf
+        openstack_release: ussuri
         container_distro_name: ubuntu
         container_distro_version: bionic
       gate_scripts_relative_path: ../openstack-helm
