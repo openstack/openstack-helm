@@ -205,16 +205,21 @@ spec:
               subPath: readiness.sh
               readOnly: true
             - name: postgresql-etc
-              mountPath: /tmp/postgresql.conf
-              subPath: postgresql.conf
-              readOnly: true
-            - name: postgresql-etc
               mountPath: /tmp/pg_hba.conf
               subPath: pg_hba.conf
+              readOnly: true
+            - name: postgresql-etc
+              mountPath: /tmp/postgresql.conf
+              subPath: postgresql.conf
               readOnly: true
             - name: postgresql-data
               mountPath: {{ .Values.storage.mount.path }}
               subPath: {{ .Values.storage.mount.subpath }}
+{{- if  eq .Values.conf.postgresql.archive_mode "on" }}
+            - name: postgresql-archive
+              mountPath: {{ .Values.storage.archive.mount_path }}
+              subPath: {{ .Values.storage.mount.subpath }}
+{{- end }}
       volumes:
         - name: pod-tmp
           emptyDir: {}
@@ -235,8 +240,10 @@ spec:
         - name: postgresql-data
           hostPath:
             path: {{ .Values.storage.host.host_path }}
-{{- else }}
+{{- end }}
+{{- if or (eq .Values.conf.postgresql.archive_mode "on" )  (eq .Values.storage.pvc.enabled true) }}
   volumeClaimTemplates:
+{{- if  .Values.storage.pvc.enabled }}
     - metadata:
         name: postgresql-data
         annotations:
@@ -246,5 +253,17 @@ spec:
         resources:
           requests:
             storage: {{ .Values.storage.pvc.size }}
+{{- end }}
+{{- if  eq .Values.conf.postgresql.archive_mode "on" }}
+    - metadata:
+        name: postgresql-archive
+        annotations:
+          {{ .Values.storage.archive_pvc.class_path }}: {{ .Values.storage.archive_pvc.class_name }}
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: {{ .Values.storage.archive_pvc.size }}
+{{- end }}
 {{- end }}
 {{- end }}
