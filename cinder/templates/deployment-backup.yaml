@@ -15,6 +15,8 @@ limitations under the License.
 {{- if .Values.manifests.deployment_backup }}
 {{- $envAll := . }}
 
+{{- $internal_ceph_backend := .Values.ceph_client.internal_ceph_backend }}
+
 {{- $mounts_cinder_backup := .Values.pod.mounts.cinder_backup.cinder_backup }}
 {{- $mounts_cinder_backup_init := .Values.pod.mounts.cinder_backup.init_container }}
 
@@ -78,6 +80,7 @@ spec:
         {{ end }}
         {{- range $name := rest (splitList "," (include "cinder.utils.ceph_backend_list" $envAll)) }}
           {{- $backend := index $envAll.Values.conf.backends $name }}
+            {{- if eq $internal_ceph_backend $name }}
         - name: ceph-keyring-placement-{{$name}}
 {{ tuple $envAll "cinder_backup" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ dict "envAll" $envAll "application" "cinder_backup" "container" "ceph_keyring_placement" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
@@ -86,6 +89,10 @@ spec:
           env:
             - name: RBD_USER
               value: {{ $backend.rbd_user | quote }}
+{{- if and $envAll.Values.ceph_client.enable_external_ceph_backend $envAll.Values.ceph_client.external_ceph.rbd_user }}
+            - name: EXTERNAL_RBD_USER
+              value: {{ $envAll.Values.ceph_client.external_ceph.rbd_user | quote }}
+{{- end }}
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
@@ -99,6 +106,13 @@ spec:
               mountPath: /tmp/client-keyring
               subPath: key
               readOnly: true
+           {{- if and $envAll.Values.ceph_client.enable_external_ceph_backend $envAll.Values.ceph_client.external_ceph.rbd_user }}
+            - name: external-ceph-keyring
+              mountPath: /tmp/external-ceph-client-keyring
+              subPath: key
+              readOnly: true
+            {{- end }}
+            {{- end }}
         {{- end }}
         {{- if (contains "cinder.backup.drivers.posix" .Values.conf.cinder.DEFAULT.backup_driver) }}
         - name: ceph-backup-volume-perms
@@ -181,6 +195,18 @@ spec:
               subPath: key
               readOnly: true
             {{- end }}
+            {{- if .Values.ceph_client.enable_external_ceph_backend }}
+            - name: cinder-etc
+              mountPath: /etc/ceph/external-ceph.conf
+              subPath: external-ceph.conf
+              readOnly: true
+            {{- if .Values.ceph_client.external_ceph.rbd_user }}
+            - name: external-ceph-keyring
+              mountPath: /tmp/external-ceph-client-keyring
+              subPath: key
+              readOnly: true
+            {{- end }}
+            {{- end }}
             {{- end }}
             {{- if (contains "cinder.backup.drivers.posix" .Values.conf.cinder.DEFAULT.backup_driver) }}
             - name: cinder-backup
@@ -241,6 +267,11 @@ spec:
         - name: ceph-keyring
           secret:
             secretName: {{ .Values.secrets.rbd.volume | quote }}
+        {{- if and .Values.ceph_client.enable_external_ceph_backend .Values.ceph_client.external_ceph.rbd_user }}
+        - name: external-ceph-keyring
+          secret:
+            secretName: {{ .Values.secrets.rbd.volume_external | quote }}
+        {{ end }}
         {{ end }}
         {{- if (contains "cinder.backup.drivers.posix" .Values.conf.cinder.DEFAULT.backup_driver) }}
         - name: cinder-backup

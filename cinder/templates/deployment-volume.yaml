@@ -69,6 +69,10 @@ spec:
           env:
             - name: RBD_USER
               value: {{ $backend.rbd_user | quote }}
+{{- if and $envAll.Values.ceph_client.enable_external_ceph_backend $envAll.Values.ceph_client.external_ceph.rbd_user }}
+            - name: EXTERNAL_RBD_USER
+              value: {{ $envAll.Values.ceph_client.external_ceph.rbd_user | quote }}
+{{- end }}
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
@@ -82,7 +86,7 @@ spec:
               mountPath: /tmp/client-keyring
               subPath: key
               readOnly: true
-            {{- if $envAll.Values.ceph_client.enable_external_ceph_backend }}
+            {{- if and $envAll.Values.ceph_client.enable_external_ceph_backend $envAll.Values.ceph_client.external_ceph.rbd_user }}
             - name: external-ceph-keyring
               mountPath: /tmp/external-ceph-client-keyring
               subPath: key
@@ -176,14 +180,16 @@ spec:
               subPath: key
               readOnly: true
             {{- if .Values.ceph_client.enable_external_ceph_backend }}
-            - name: external-ceph-etc
+            - name: cinder-etc
               mountPath: /etc/ceph/external-ceph.conf
-              subPath: ceph.conf
+              subPath: external-ceph.conf
               readOnly: true
+            {{- if .Values.ceph_client.external_ceph.rbd_user }}
             - name: external-ceph-keyring
               mountPath: /tmp/external-ceph-client-keyring
               subPath: key
               readOnly: true
+            {{- end }}
             {{- end }}
             {{- end }}
             {{- if eq ( split "://" .Values.conf.cinder.coordination.backend_url )._0 "file" }}
@@ -259,14 +265,10 @@ spec:
         - name: ceph-keyring
           secret:
             secretName: {{ .Values.secrets.rbd.volume | quote }}
-        {{- if .Values.ceph_client.enable_external_ceph_backend }}
-        - name: external-ceph-etc
-          configMap:
-            name: {{ .Values.ceph_client.external_ceph.configmap }}
-            defaultMode: 0444
+        {{- if and .Values.ceph_client.enable_external_ceph_backend .Values.ceph_client.external_ceph.rbd_user }}
         - name: external-ceph-keyring
           secret:
-            secretName: {{ .Values.ceph_client.external_ceph.cinder_user_secret_name | quote }}
+            secretName: {{ .Values.secrets.rbd.volume_external | quote }}
         {{ end }}
         {{ end }}
         {{- if eq ( split "://" .Values.conf.cinder.coordination.backend_url )._0 "file" }}
