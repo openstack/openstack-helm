@@ -16,23 +16,16 @@ limitations under the License.
 
 set -ex
 
-IFS=','
-for KEY_TYPE in $KEY_TYPES; do
-    KEY_PATH=/etc/ssh/ssh_host_${KEY_TYPE}_key
-    if [[ ! -f "${KEY_PATH}" ]]; then
-        ssh-keygen -q -t ${KEY_TYPE} -f ${KEY_PATH} -N ""
-    fi
-done
-IFS=''
+mkdir -p ~nova/.ssh
+chown -R nova:nova ~nova/.ssh
 
-subnet_address="{{- .Values.network.ssh.from_subnet -}}"
-cat > /tmp/sshd_config_extend <<EOF
-PasswordAuthentication no
-Match Address $subnet_address
-    PermitRootLogin without-password
+cat > ~nova/.ssh/config <<EOF
+Host *
+  StrictHostKeyChecking no
+  UserKnownHostsFile /dev/null
+  port $SSH_PORT
+  IdentitiesOnly yes
 EOF
-cat /tmp/sshd_config_extend >> /etc/ssh/sshd_config
 
-rm /tmp/sshd_config_extend
-
-exec /usr/sbin/sshd -D -e -o Port=$SSH_PORT
+cp /tmp/nova-ssh/* ~nova/.ssh/
+chmod 600 ~nova/.ssh/id_rsa
