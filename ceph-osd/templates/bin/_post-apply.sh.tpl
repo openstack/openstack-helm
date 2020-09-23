@@ -48,7 +48,7 @@ function wait_for_pods() {
   min_osds="add | if .true >= (.false + .true)*${REQUIRED_PERCENT_OF_OSDS}/100 \
            then \"pass\" else \"fail\" end"
   while true; do
-      unhealthy_pods=$(kubectl get pods --namespace="${1}" -o json | jq -c "${query}")
+      unhealthy_pods=$(kubectl get pods --namespace="${1}" -o json -l component=osd| jq -c "${query}")
       if [[ -z "${unhealthy_pods}" ]]; then
         break
       fi
@@ -56,7 +56,7 @@ function wait_for_pods() {
 
       if [ $(date -u +%s) -gt $end ] ; then
           echo -e "Containers failed to start after $timeout seconds\n"
-          kubectl get pods --namespace "${1}" -o wide
+          kubectl get pods --namespace "${1}" -o wide -l component=osd
           # Leaving while loop if minimum amount of OSDs are ready.
           # It allows to proceed even if some OSDs are not ready
           # or in "CrashLoopBackOff" state
