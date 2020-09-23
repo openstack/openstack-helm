@@ -310,6 +310,134 @@ examples:
                   backend:
                     serviceName: barbican-api
                     servicePort: b-api
+  # Sample usage for multiple DNS names associated with the same public
+  # endpoint and certificate
+  - values: |
+      endpoints:
+        cluster_domain_suffix: cluster.local
+        grafana:
+          name: grafana
+          hosts:
+            default: grafana-dashboard
+            public: grafana
+          host_fqdn_override:
+            public:
+              host: grafana.openstackhelm.example
+              tls:
+                dnsNames:
+                  - grafana-alt.openstackhelm.example
+                crt: "BASE64 ENCODED CERT"
+                key: "BASE64 ENCODED KEY"
+      network:
+        grafana:
+          ingress:
+            classes:
+              namespace: "nginx"
+              cluster: "nginx-cluster"
+            annotations:
+              nginx.ingress.kubernetes.io/rewrite-target: /
+      secrets:
+        tls:
+          grafana:
+            grafana:
+              public: grafana-tls-public
+    usage: |
+      {{- $ingressOpts := dict "envAll" . "backendService" "grafana" "backendServiceType" "grafana" "backendPort" "dashboard" -}}
+      {{ $ingressOpts | include "helm-toolkit.manifests.ingress" }}
+    return: |
+      ---
+      apiVersion: extensions/v1beta1
+      kind: Ingress
+      metadata:
+        name: grafana
+        annotations:
+          kubernetes.io/ingress.class: "nginx"
+          nginx.ingress.kubernetes.io/rewrite-target: /
+
+      spec:
+        rules:
+          - host: grafana
+            http:
+              paths:
+                - path: /
+                  backend:
+                    serviceName: grafana-dashboard
+                    servicePort: dashboard
+          - host: grafana.default
+            http:
+              paths:
+                - path: /
+                  backend:
+                    serviceName: grafana-dashboard
+                    servicePort: dashboard
+          - host: grafana.default.svc.cluster.local
+            http:
+              paths:
+                - path: /
+                  backend:
+                    serviceName: grafana-dashboard
+                    servicePort: dashboard
+      ---
+      apiVersion: extensions/v1beta1
+      kind: Ingress
+      metadata:
+        name: grafana-namespace-fqdn
+        annotations:
+          kubernetes.io/ingress.class: "nginx"
+          nginx.ingress.kubernetes.io/rewrite-target: /
+
+      spec:
+        tls:
+          - secretName: grafana-tls-public
+            hosts:
+              - grafana.openstackhelm.example
+              - grafana-alt.openstackhelm.example
+        rules:
+          - host: grafana.openstackhelm.example
+            http:
+              paths:
+                - path: /
+                  backend:
+                    serviceName: grafana-dashboard
+                    servicePort: dashboard
+          - host: grafana-alt.openstackhelm.example
+            http:
+              paths:
+                - path: /
+                  backend:
+                    serviceName: grafana-dashboard
+                    servicePort: dashboard
+      ---
+      apiVersion: extensions/v1beta1
+      kind: Ingress
+      metadata:
+        name: grafana-cluster-fqdn
+        annotations:
+          kubernetes.io/ingress.class: "nginx-cluster"
+          nginx.ingress.kubernetes.io/rewrite-target: /
+
+      spec:
+        tls:
+          - secretName: grafana-tls-public
+            hosts:
+              - grafana.openstackhelm.example
+              - grafana-alt.openstackhelm.example
+        rules:
+          - host: grafana.openstackhelm.example
+            http:
+              paths:
+                - path: /
+                  backend:
+                    serviceName: grafana-dashboard
+                    servicePort: dashboard
+          - host: grafana-alt.openstackhelm.example
+            http:
+              paths:
+                - path: /
+                  backend:
+                    serviceName: grafana-dashboard
+                    servicePort: dashboard
+
 */}}
 
 {{- define "helm-toolkit.manifests.ingress._host_rules" -}}
@@ -384,7 +512,7 @@ spec:
 {{- end }}
 {{- if not ( hasSuffix ( printf ".%s.svc.%s" $envAll.Release.Namespace $envAll.Values.endpoints.cluster_domain_suffix) $hostNameFull) }}
 {{- range $key2, $ingressController := tuple "namespace" "cluster" }}
-{{- $hostNameFullRules := dict "vHost" $hostNameFull "backendName" $backendName "backendPort" $backendPort }}
+{{- $vHosts := list $hostNameFull }}
 ---
 apiVersion: extensions/v1beta1
 kind: Ingress
@@ -399,19 +527,27 @@ spec:
 {{- $endpointHost := index $host $endpoint }}
 {{- if kindIs "map" $endpointHost }}
 {{- if hasKey $endpointHost "tls" }}
+{{- range $v := without (index $endpointHost.tls "dnsNames" | default list) $hostNameFull }}
+{{- $vHosts = append $vHosts $v }}
+{{- end }}
 {{- if and ( not ( empty $endpointHost.tls.key ) ) ( not ( empty $endpointHost.tls.crt ) ) }}
 {{- $secretName := index $envAll.Values.secrets "tls" ( $backendServiceType | replace "-" "_" ) $backendService $endpoint }}
 {{- $_ := required "You need to specify a secret in your values for the endpoint" $secretName }}
   tls:
     - secretName: {{ $secretName }}
       hosts:
-        - {{ index $hostNameFullRules "vHost" }}
+{{- range $vHost := $vHosts }}
+        - {{ $vHost }}
+{{- end }}
 {{- end }}
 {{- end }}
 {{- end }}
 {{- end }}
   rules:
+{{- range $vHost := $vHosts }}
+{{- $hostNameFullRules := dict "vHost" $vHost "backendName" $backendName "backendPort" $backendPort }}
 {{ $hostNameFullRules | include "helm-toolkit.manifests.ingress._host_rules" | indent 4 }}
+{{- end }}
 {{- end }}
 {{- end }}
 {{- end }}
