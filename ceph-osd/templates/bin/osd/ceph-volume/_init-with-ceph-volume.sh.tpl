@@ -199,7 +199,7 @@ function prep_device {
       fi
     fi
   else
-    logical_devices=$(get_lvm_path_from_device "pv_name=~${BLOCK_DEVICE},lv_name=~dev-${osd_dev_split}")
+    logical_devices=$(get_lvm_path_from_device "pv_name=~${BLOCK_DEVICE},lv_name=~${lv_name}")
     if [[ -n "$logical_devices" ]]; then
       dmsetup remove $logical_devices
       disk_zap "${OSD_DEVICE}"
@@ -241,7 +241,6 @@ function osd_disk_prepare {
   #search for some ceph metadata on the disk based on the status of the disk/lvm in filestore
   CEPH_DISK_USED=0
   CEPH_LVM_PREPARE=1
-  osd_dev_split=$(basename "${OSD_DEVICE}")
   udev_settle
   OSD_ID=$(get_osd_id_from_device ${OSD_DEVICE})
   OSD_FSID=$(get_cluster_fsid_from_device ${OSD_DEVICE})
@@ -288,7 +287,8 @@ function osd_disk_prepare {
       DM_DEV=${OSD_DEVICE}$(sgdisk --print ${OSD_DEVICE} | grep "F800" | awk '{print $1}')
       CEPH_DISK_USED=1
     else
-      if dmsetup ls |grep -i ${osd_dev_split}|grep -v "db--dev\|wal--dev"; then
+      dm_lv_name="$(get_lv_name_from_device ${OSD_DEVICE} lv | sed 's/-/--/g')"
+      if [[ ! -z "${dm_lv_name}" ]] && [[ ! -z "$(dmsetup ls | grep ${dm_lv_name})" ]]; then
         CEPH_DISK_USED=1
       fi
       if [[ ${OSD_FORCE_REPAIR} -eq 1 ]] && [ ${CEPH_DISK_USED} -ne 1 ]; then
