@@ -11,13 +11,30 @@
 # limitations under the License.
 
 ---
-- name: Create test images overrides
+- name: Use buildset registry
+  include_role:
+    name: use-buildset-registry
+
+- name: Print zuul
+  debug:
+    var: zuul
+
+- name: Override proposed images from artifacts
   shell: >
-    find {{ work_dir }}/../openstack-helm*/*/values* -type f -exec sed -i
-    's#\({{ item.repository }}\):\({{ item.tags[0] }}\)#\1:{{ prefix }}_\2#g' {} +
-  loop: "{{ docker_images }}"
+    find {{ override_paths | join(" ") }} -type f -exec sed -Ei
+    "s#['\"]?docker\.io/({{ repo }}):({{ tag }})['\"]?\$#{{ buildset_registry_alias }}:{{ buildset_registry.port }}/\1:\2#g" {} +
+  loop: "{{ zuul.artifacts | default([]) }}"
+  args:
+    chdir: "{{ work_dir }}"
+  loop_control:
+    loop_var: zj_zuul_artifact
+  when: "'metadata' in zj_zuul_artifact and zj_zuul_artifact.metadata.type | default('') == 'container_image'"
   vars:
-    prefix: "{{ zuul.change | default(false) | ternary('change_' + zuul.change, 'periodic') }}"
+    tag: "{{ zj_zuul_artifact.metadata.tag }}"
+    repo: "{{ zj_zuul_artifact.metadata.repository }}"
+    override_paths:
+      - ../openstack-helm*/*/values*
+      - ../openstack-helm-infra/tools/deployment/
 
 - name: Diff
   shell: |

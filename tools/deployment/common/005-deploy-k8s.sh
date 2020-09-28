@@ -15,7 +15,8 @@
 
 set -xe
 
-: ${MINIKUBE_AIO:="docker.io/openstackhelm/minikube-aio:latest-ubuntu_bionic"}
+MINIKUBE_AIO_DEFAULT="docker.io/openstackhelm/minikube-aio:latest-ubuntu_bionic"
+: ${MINIKUBE_AIO:=${MINIKUBE_AIO_DEFAULT}}
 
 export DEBCONF_NONINTERACTIVE_SEEN=true
 export DEBIAN_FRONTEND=noninteractive
