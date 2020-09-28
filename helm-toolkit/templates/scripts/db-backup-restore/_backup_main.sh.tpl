@@ -133,7 +133,7 @@ send_to_remote_server() {
     echo $RESULT | grep $CONTAINER_NAME
     if [[ $? -ne 0 ]]; then
       # Find the swift URL from the keystone endpoint list
-      SWIFT_URL=$(openstack catalog list -f value | grep swift | grep public | awk '{print $2}')
+      SWIFT_URL=$(openstack catalog show object-store -c endpoints | grep public | awk '{print $4}')
 
       # Get a token from keystone
       TOKEN=$(openstack token issue -f value -c id)
