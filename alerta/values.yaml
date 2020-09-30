@@ -20,7 +20,7 @@
 
 images:
   tags:
-    alerta: docker.io/alerta/alerta-web:8.0.2
+    alerta: docker.io/openstackhelm/alerta:8.0.2
     dep_check: quay.io/airshipit/kubernetes-entrypoint:v1.0.0
     image_repo_sync: docker.io/docker:17.07.0
     ks_user: docker.io/openstackhelm/heat:stein-ubuntu_bionic
@@ -119,6 +119,19 @@ endpoints:
     port:
       registry:
         node: 5000
+  alertmanager:
+    name: prometheus-alertmanager
+    namespace: null
+    hosts:
+      default: alerts-engine
+    host_fqdn_override:
+      default: null
+    path:
+      default: null
+    scheme: http
+    port:
+      api:
+        default: 9093
   alerta:
     name: alerta
     namespace: null
@@ -202,10 +215,12 @@ conf:
     alertaAdminKey: changeme
     alertaAPIKey: changeme
     alertadb: alerta_db
-    alerta_configs: |
-      # ref: http://docs.alerta.io/en/latest/configuration.html
-        DEBUG: false
-        AUTH_REQUIRED: true
+    alertad_conf: |
+      DEBUG = True
+      PLUGINS = ['enhance', 'forward', 'normalise', 'prometheus']
+      ALERTMANAGER_SILENCE_FROM_ACK = True
+      ALERTMANAGER_API_URL = '{{ tuple "alertmanager" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_scheme_lookup" }}://{{ tuple "alertmanager" "internal" "api" . | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" }}'
+      DATABASE_URL = {{ tuple "postgresql" "internal" "admin" "postgresql" . | include "helm-toolkit.endpoints.authenticated_endpoint_uri_lookup" |quote}}
     alerta_webui_config: |
       # ref: http://docs.alerta.io/en/latest/webui.html
       'use strict';
