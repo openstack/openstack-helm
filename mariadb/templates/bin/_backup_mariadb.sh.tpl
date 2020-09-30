@@ -84,7 +84,7 @@ dump_databases_to_directory() {
   do
     echo $($MYSQL --skip-column-names -e "select concat('show grants for ',user,';') \
           from mysql.db where ucase(db)=ucase('$db');") | \
-          sed -r "s/show grants for ([a-zA-Z0-9_-]*)/show grants for '\1'/" | \
+          sed -r "s/show grants for ([a-zA-Z0-9_-]*)/show grants for '\1'/g" | \
           $MYSQL --silent --skip-column-names 2>>$LOG_FILE > $TMP_DIR/${db}_grant.sql
     if [ "$?" -eq 0 ]
     then
