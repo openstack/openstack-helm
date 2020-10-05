@@ -30,46 +30,9 @@ metadata:
   name: {{ $serviceAccountName }}
 rules:
   - apiGroups:
-      - ""
+      - "*"
     resources:
-      - configmaps
-      - secrets
-      - nodes
-      - pods
-      - services
-      - resourcequotas
-      - replicationcontrollers
-      - limitranges
-      - persistentvolumeclaims
-      - persistentvolumes
-      - namespaces
-      - endpoints
-    verbs:
-      - list
-      - watch
-  - apiGroups:
-      - apps
-    resources:
-      - statefulsets
-      - daemonsets
-      - deployments
-      - replicasets
-    verbs:
-      - get
-      - list
-      - watch
-  - apiGroups:
-      - batch
-    resources:
-      - cronjobs
-      - jobs
-    verbs:
-      - list
-      - watch
-  - apiGroups:
-      - autoscaling
-    resources:
-      - horizontalpodautoscalers
+      - "*"
     verbs:
       - list
       - watch
@@ -124,8 +87,6 @@ spec:
 {{ tuple $envAll "kube_state_metrics" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.kube_state_metrics | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
 {{ dict "envAll" $envAll "application" "exporter" "container" "kube_state_metrics" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
-          command:
-            - /tmp/kube-state-metrics.sh
           ports:
             - name: metrics
               containerPort: {{ tuple "kube_state_metrics" "internal" "http" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
@@ -133,15 +94,7 @@ spec:
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
-            - name: kube-state-metrics-bin
-              mountPath: /tmp/kube-state-metrics.sh
-              subPath: kube-state-metrics.sh
-              readOnly: true
       volumes:
         - name: pod-tmp
           emptyDir: {}
-        - name: kube-state-metrics-bin
-          configMap:
-            name: kube-state-metrics-bin
-            defaultMode: 0555
 {{- end }}
