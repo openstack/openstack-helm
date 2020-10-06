@@ -1,0 +1,56 @@
+# Note: This yaml file serves as an example for overriding the manifest
+# to enable additional externally managed Ceph Cinder backend.
+# libvirt/values_overrides/cinder-external-ceph-backend.yaml in repo
+# openstack-helm-infra is also needed for the attachment of ceph volumes.
+---
+ceph_client:
+  enable_external_ceph_backend: True
+  external_ceph:
+    rbd_user: cinder2
+    rbd_user_keyring: RBDUserKeyRing
+    conf:
+      global:
+        auth client required: none
+        auth cluster required: none
+        auth service required: none
+        cluster network: 172.31.0.128/25
+        fsid: 538fe375-1ee2-4719-a89e-1ff2cd851a1f
+        log_to_syslog: False
+        mon_host: "[v2:172.31.0.187:3300,v1:172.31.0.187:6789],[v2:172.31.0.188:3300,v1:172.31.0.188:6789],[v2:172.31.0.189:3300,v1:172.31.0.189:6789]"
+        mon initial members: "host1,host2,host3"
+        mon_allow_pool_delete: True
+        mon_compact_on_trim: False
+        mutex_perf_counter: False
+        osd pool default crush rule: -1
+        public network: 172.31.0.128/25
+      osd:
+        ms_dispatch_throttle_bytes: 1048576000
+        objecter_inflight_op_bytes: 1048576000
+        objecter_inflight_ops: 102400
+        osd memory target: 17599882854
+        osd_max_pg_log_entries: 10
+        osd_min_pg_log_entries: 10
+        osd_pg_log_dups_tracked: 10
+        osd_pg_log_trim_min: 10
+
+conf:
+  cinder:
+    DEFAULT:
+      enabled_backends: "rbd1,rbd2"
+  backends:
+    rbd2:
+      volume_driver: cinder.volume.drivers.rbd.RBDDriver
+      volume_backend_name: rbd2
+      rbd_pool: cinder2.volumes
+      rbd_ceph_conf: "/etc/ceph/external-ceph.conf"
+      rbd_flatten_volume_from_snapshot: False
+      report_discard_supported: True
+      rbd_max_clone_depth: 5
+      rbd_store_chunk_size: 4
+      rados_connect_timeout: -1
+      rbd_user: cinder2
+      rbd_secret_uuid: 3f0133e4-8384-4743-9473-fecacc095c74
+      image_volume_cache_enabled: True
+      image_volume_cache_max_size_gb: 200
+      image_volume_cache_max_count: 50
+...
