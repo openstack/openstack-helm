@@ -12,6 +12,20 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- define "probeTemplate" }}
+{{- $probePort := tuple "monitoring" "internal" "http" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+{{- $probeUser := .Values.endpoints.monitoring.auth.admin.username }}
+{{- $probePass := .Values.endpoints.monitoring.auth.admin.password }}
+{{- $authHeader := printf "%s:%s" $probeUser $probePass | b64enc }}
+httpGet:
+  path: /status
+  port: {{ $probePort }}
+  httpHeaders:
+    - name: Authorization
+      value: Basic {{ $authHeader }}
+{{- end }}
+
+
 {{- if .Values.manifests.statefulset_prometheus }}
 {{- $envAll := . }}
 
@@ -171,12 +185,8 @@ spec:
           ports:
             - name: prom-metrics
               containerPort: {{ tuple "monitoring" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-          readinessProbe:
-            httpGet:
-              path: /status
-              port: {{ tuple "monitoring" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-            initialDelaySeconds: 30
-            timeoutSeconds: 30
+{{ dict "envAll" . "component" "prometheus" "container" "prometheus" "type" "readiness" "probeTemplate" (include "probeTemplate" . | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+{{ dict "envAll" . "component" "prometheus" "container" "prometheus" "type" "liveness" "probeTemplate" (include "probeTemplate" . | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
           env:
 {{- if .Values.pod.env.prometheus }}
 {{ include "helm-toolkit.utils.to_k8s_env_vars" .Values.pod.env.prometheus | indent 12 }}
