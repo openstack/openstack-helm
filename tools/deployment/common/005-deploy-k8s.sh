@@ -41,6 +41,7 @@ sudo -E apt-get install -y \
     rbd-nbd \
     nfs-common \
     bridge-utils \
+    conntrack \
     iptables
 
 sudo -E tee /etc/modprobe.d/rbd.conf << EOF
