@@ -70,6 +70,40 @@ spec:
             - name: alertmanager-data
               mountPath: /var/lib/alertmanager/data
       containers:
+        - name: apache-proxy
+{{ tuple $envAll "apache_proxy" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.apache_proxy | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "server" "container" "apache_proxy" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          command:
+            - /tmp/apache.sh
+            - start
+          ports:
+            - name: http
+              containerPort: 80
+          env:
+            - name: ALERTMANAGER_PORT
+              value: {{ tuple "alertmanager" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | quote }}
+            - name: ALERTMANAGER_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ printf "%s-%s" $envAll.Release.Name "admin-user" | quote }}
+                  key: ALERTMANAGER_USERNAME
+            - name: ALERTMANAGER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ printf "%s-%s" $envAll.Release.Name "admin-user" | quote }}
+                  key: ALERTMANAGER_PASSWORD
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: alertmanager-bin
+              mountPath: /tmp/apache.sh
+              subPath: apache.sh
+              readOnly: true
+            - name: alertmanager-etc
+              mountPath: /usr/local/apache2/conf/httpd.conf
+              subPath: httpd.conf
+              readOnly: true
         - name: prometheus-alertmanager
 {{ tuple $envAll "prometheus-alertmanager" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.alertmanager | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
@@ -104,10 +138,12 @@ spec:
               mountPath: /tmp
             - name: etc-alertmanager
               mountPath: /etc/config
+            {{- if .Values.conf.alert_templates }}
             - name: alertmanager-etc
               mountPath: /etc/alertmanager/template/alert-templates.tmpl
               subPath: alert-templates.tmpl
               readOnly: true
+            {{- end }}
             - name: alertmanager-etc
               mountPath: /etc/alertmanager/config.yml
               subPath: config.yml
@@ -125,11 +161,12 @@ spec:
         - name: etc-alertmanager
           emptyDir: {}
         - name: alertmanager-etc
-          configMap:
-            name: alertmanager-etc
+          secret:
+            secretName: {{ printf "%s-%s" $envAll.Release.Name "alertmanager-etc" | quote }}
+            defaultMode: 0444
         - name: alertmanager-bin
           configMap:
-            name: alertmanager-bin
+            name: {{ printf "%s-%s" $envAll.Release.Name "alertmanager-bin" | quote }}
             defaultMode: 0555
 {{ if $mounts_alertmanager.volumes }}{{ toYaml $mounts_alertmanager.volumes | indent 8 }}{{ end }}
 {{- if not .Values.storage.alertmanager.enabled }}
