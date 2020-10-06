@@ -272,6 +272,7 @@ function osd_disk_prepare {
         if [[ ! -z "${OSD_ID}" ]]; then
           if ceph --name client.bootstrap-osd --keyring $OSD_BOOTSTRAP_KEYRING osd ls |grep -w ${OSD_ID}; then
             echo "Running bluestore mode and ${OSD_DEVICE} already bootstrapped"
+            CEPH_LVM_PREPARE=0
           elif [[ $OSD_FORCE_REPAIR -eq 1 ]]; then
             echo "OSD initialized for this cluster, but OSD ID not found in the cluster, reinitializing"
           else
