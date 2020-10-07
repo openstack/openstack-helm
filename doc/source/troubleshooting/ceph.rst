@@ -28,12 +28,12 @@ apply to any other services using PVCs eg. RabbitMQ, Postgres.
 
     export CEPH_MON_NAME="ceph-mon-discovery.ceph.svc.cluster.local"
 
-    # create snapshot and  export to a file
+    # create snapshot and export to a file
 
     rbd snap create rbd/${RBD_NAME}@snap1 -m ${CEPH_MON_NAME}
     rbd snap list rbd/${RBD_NAME} -m ${CEPH_MON_NAME}
 
-    # Export the snapshot and compress , make sure we have enough space on host to accomidate big files that we are working .
+    # Export the snapshot and compress, make sure we have enough space on host to accommodate big files that we are working .
 
     # a. if we have enough space on host
 
