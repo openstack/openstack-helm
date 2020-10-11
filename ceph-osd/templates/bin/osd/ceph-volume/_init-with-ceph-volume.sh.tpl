@@ -185,6 +185,7 @@ function prep_device {
   local device_type=$3
   local data_disk=$4
   local vg_name lv_name VG DEVICE_OSD_ID logical_devices logical_volume
+  udev_settle
   vg_name=$(get_vg_name_from_device ${BLOCK_DEVICE})
   lv_name=$(get_lv_name_from_device ${data_disk} ${device_type})
   VG=$(vgs --noheadings -o vg_name -S "vg_name=${vg_name}" | tr -d '[:space:]')
@@ -219,6 +220,7 @@ function prep_device {
   elif [[ "${device_type}" == "wal" ]]; then
     BLOCK_WAL="${VG}/${lv_name}"
   fi
+  udev_settle
 }
 
 function osd_disk_prepare {
@@ -379,6 +381,7 @@ function osd_disk_prepare {
   fi
 
   if [[ ${CEPH_DISK_USED} -eq 1 ]]; then
+    udev_settle
     CLI_OPTS="${CLI_OPTS} --data ${OSD_DEVICE}"
     ceph-volume simple scan --force ${OSD_DEVICE}$(sgdisk --print ${OSD_DEVICE} | grep "F800" | awk '{print $1}')
   elif [[ ${CEPH_LVM_PREPARE} -eq 1 ]] || [[ ${DISK_ZAPPED} -eq 1 ]]; then
@@ -411,12 +414,12 @@ function osd_disk_prepare {
       block_wal_string=$(echo ${BLOCK_WAL} | awk -F "/" '{print $2 "-" $3}')
     fi
     if [[ ${BLOCK_DB} && ${BLOCK_WAL} ]]; then
-      prep_device "${BLOCK_DB}" "${BLOCK_DB_SIZE}" "db" "${OSD_DEVICE}"
-      prep_device "${BLOCK_WAL}" "${BLOCK_WAL_SIZE}" "wal" "${OSD_DEVICE}"
+      global_locked prep_device "${BLOCK_DB}" "${BLOCK_DB_SIZE}" "db" "${OSD_DEVICE}"
+      global_locked prep_device "${BLOCK_WAL}" "${BLOCK_WAL_SIZE}" "wal" "${OSD_DEVICE}"
     elif [[ -z ${BLOCK_DB} && ${BLOCK_WAL} ]]; then
-      prep_device "${BLOCK_WAL}" "${BLOCK_WAL_SIZE}" "wal" "${OSD_DEVICE}"
+      global_locked prep_device "${BLOCK_WAL}" "${BLOCK_WAL_SIZE}" "wal" "${OSD_DEVICE}"
     elif [[ ${BLOCK_DB} && -z ${BLOCK_WAL} ]]; then
-      prep_device "${BLOCK_DB}" "${BLOCK_DB_SIZE}" "db" "${OSD_DEVICE}"
+      global_locked prep_device "${BLOCK_DB}" "${BLOCK_DB_SIZE}" "db" "${OSD_DEVICE}"
     fi
   else
     if pvdisplay ${OSD_DEVICE} | awk '/VG Name/{print $3}' | grep "ceph"; then
