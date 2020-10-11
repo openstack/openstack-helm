@@ -80,6 +80,12 @@ function locked() {
   "$@"
   flock -u "${lock_fd}"
 }
+function global_locked() {
+  exec {global_lock_fd}>/var/lib/ceph/tmp/init-osd-global.lock || exit 1
+  flock -w 600 --verbose "${global_lock_fd}"
+  "$@"
+  flock -u "${global_lock_fd}"
+}
 
 function crush_create_or_move {
   local crush_location=${1}
