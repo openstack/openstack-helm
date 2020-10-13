@@ -13,120 +13,112 @@
 #    under the License.
 set -xe
 
-#NOTE: Deploy nova
-tee /tmp/nova.yaml << EOF
-labels:
-  api_metadata:
-    node_selector_key: openstack-helm-node-class
-    node_selector_value: primary
+: ${RUN_HELM_TESTS:="yes"}
+
+export OS_CLOUD=openstack_helm
+CEPH_ENABLED=false
+if openstack service list -f value -c Type | grep -q "^volume" && \
+    openstack volume type list -f value -c Name | grep -q "rbd"; then
+  CEPH_ENABLED=true
+fi
+
+#NOTE: Get the overrides to use for placement, should placement be deployed.
+case "${OPENSTACK_RELEASE}" in
+  "queens")
+    DEPLOY_SEPARATE_PLACEMENT="no"
+    ;;
+  "rocky")
+    DEPLOY_SEPARATE_PLACEMENT="no"
+    ;;
+  "stein")
+    DEPLOY_SEPARATE_PLACEMENT="yes"
+    ;;
+  *)
+    DEPLOY_SEPARATE_PLACEMENT="yes"
+    ;;
+esac
+
+if [[ "${DEPLOY_SEPARATE_PLACEMENT}" == "yes" ]]; then
+    # Get overrides
+    : ${OSH_EXTRA_HELM_ARGS_PLACEMENT:="$(./tools/deployment/common/get-values-overrides.sh placement)"}
+
+    # Lint and package
+    make placement
+
+    tee /tmp/placement.yaml << EOF
 pod:
   replicas:
-    api_metadata: 1
-    placement: 2
+    api: 2
+EOF
+    # Deploy
+    helm upgrade --install placement ./placement \
+        --namespace=openstack \
+	--values=/tmp/placement.yaml \
+        ${OSH_EXTRA_HELM_ARGS:=} \
+       	${OSH_EXTRA_HELM_ARGS_PLACEMENT}
+fi
+
+#NOTE: Get the over-rides to use
+: ${OSH_EXTRA_HELM_ARGS_NOVA:="$(./tools/deployment/common/get-values-overrides.sh nova)"}
+
+# TODO: Revert this reasoning when gates are pointing to more up to
+# date openstack release. When doing so, we should revert the default
+# values of the nova chart to NOT use placement by default, and
+# have a ocata/pike/queens/rocky/stein override to enable placement in the nova chart deploy
+
+if [[ "${DEPLOY_SEPARATE_PLACEMENT}" == "yes" ]]; then
+  OSH_EXTRA_HELM_ARGS_NOVA="${OSH_EXTRA_HELM_ARGS_NOVA} --values=./nova/values_overrides/train-disable-nova-placement.yaml"
+fi
+
+#NOTE: Lint and package chart
+make nova
+
+#NOTE: Deploy nova
+tee /tmp/nova.yaml << EOF
+pod:
+  replicas:
     osapi: 2
     conductor: 2
     consoleauth: 2
-    scheduler: 1
-    novncproxy: 1
 EOF
+if [[ "${DEPLOY_SEPARATE_PLACEMENT}" == "no" ]]; then
+  echo "    placement: 2" >> /tmp/nova.yaml
+fi
 
-function kvm_check () {
-  POD_NAME="tmp-$(cat /dev/urandom | env LC_CTYPE=C tr -dc a-z | head -c 5; echo)"
-  cat <<EOF | kubectl apply -f - 1>&2;
-apiVersion: v1
-kind: Pod
-metadata:
-  name: ${POD_NAME}
-spec:
-  hostPID: true
-  restartPolicy: Never
-  containers:
-  - name: util
-    securityContext:
-      privileged: true
-    image: docker.io/busybox:latest
-    command:
-      - sh
-      - -c
-      - |
-        nsenter -t1 -m -u -n -i -- sh -c "kvm-ok >/dev/null && echo yes || echo no"
-EOF
-  end=$(($(date +%s) + 900))
-  until kubectl get pod/${POD_NAME} -o go-template='{{.status.phase}}' | grep -q Succeeded; do
-    now=$(date +%s)
-    [ $now -gt $end ] && echo containers failed to start. && \
-        kubectl get pod/${POD_NAME} -o wide && exit 1
-  done
-  kubectl logs pod/${POD_NAME}
-  kubectl delete pod/${POD_NAME} 1>&2;
-}
-
-if [ "x$(kvm_check)" == "xyes" ]; then
+#NOTE: Deploy nova
+: ${OSH_EXTRA_HELM_ARGS:=""}
+if [ "x$(systemd-detect-virt)" == "xnone" ]; then
   echo 'OSH is not being deployed in virtualized environment'
   helm upgrade --install nova ./nova \
       --namespace=openstack \
       --values=/tmp/nova.yaml \
-      ${OSH_EXTRA_HELM_ARGS} \
+      --set bootstrap.wait_for_computes.enabled=true \
+      --set conf.ceph.enabled=${CEPH_ENABLED} \
+      ${OSH_EXTRA_HELM_ARGS:=} \
       ${OSH_EXTRA_HELM_ARGS_NOVA}
 else
   echo 'OSH is being deployed in virtualized environment, using qemu for nova'
   helm upgrade --install nova ./nova \
       --namespace=openstack \
       --values=/tmp/nova.yaml \
+      --set bootstrap.wait_for_computes.enabled=true \
+      --set conf.ceph.enabled=${CEPH_ENABLED} \
       --set conf.nova.libvirt.virt_type=qemu \
       --set conf.nova.libvirt.cpu_mode=none \
-      ${OSH_EXTRA_HELM_ARGS} \
+      ${OSH_EXTRA_HELM_ARGS:=} \
       ${OSH_EXTRA_HELM_ARGS_NOVA}
 fi
 
-#NOTE: Deploy neutron, for simplicity we will assume the default route device
-# should be used for tunnels
-function network_tunnel_dev () {
-  POD_NAME="tmp-$(cat /dev/urandom | env LC_CTYPE=C tr -dc a-z | head -c 5; echo)"
-  cat <<EOF | kubectl apply -f - 1>&2;
-apiVersion: v1
-kind: Pod
-metadata:
-  name: ${POD_NAME}
-spec:
-  hostNetwork: true
-  restartPolicy: Never
-  containers:
-  - name: util
-    image: docker.io/busybox:latest
-    command:
-    - 'ip'
-    - '-4'
-    - 'route'
-    - 'list'
-    - '0/0'
-EOF
-  end=$(($(date +%s) + 900))
-  until kubectl get pod/${POD_NAME} -o go-template='{{.status.phase}}' | grep -q Succeeded; do
-    now=$(date +%s)
-    [ $now -gt $end ] && echo containers failed to start. && \
-        kubectl get pod/${POD_NAME} -o wide && exit 1
-  done
-  kubectl logs pod/${POD_NAME} | awk '{ print $5; exit }'
-  kubectl delete pod/${POD_NAME} 1>&2;
-}
+#NOTE: Get the over-rides to use
+: ${OSH_EXTRA_HELM_ARGS_NEUTRON:="$(./tools/deployment/common/get-values-overrides.sh neutron)"}
 
-NETWORK_TUNNEL_DEV="$(network_tunnel_dev)"
+#NOTE: Lint and package chart
+make neutron
+
 tee /tmp/neutron.yaml << EOF
 network:
   interface:
-    tunnel: "${NETWORK_TUNNEL_DEV}"
-labels:
-  agent:
-    dhcp:
-      node_selector_key: openstack-helm-node-class
-      node_selector_value: primary
-    l3:
-      node_selector_key: openstack-helm-node-class
-      node_selector_value: primary
-    metadata:
-      node_selector_key: openstack-helm-node-class
-      node_selector_value: primary
+    tunnel: docker0
 pod:
   replicas:
     server: 2
@@ -146,14 +138,10 @@ conf:
         tunnel_types: vxlan
       ovs:
         bridge_mappings: public:br-ex
+    linuxbridge_agent:
+      linux_bridge:
+        bridge_mappings: public:br-ex
 EOF
-
-if [ -n "$OSH_OPENSTACK_RELEASE" ]; then
-  if [ -e "./neutron/values_overrides/${OSH_OPENSTACK_RELEASE}.yaml" ] ; then
-    echo "Adding release overrides for ${OSH_OPENSTACK_RELEASE}"
-    OSH_RELEASE_OVERRIDES_NEUTRON="--values=./neutron/values_overrides/${OSH_OPENSTACK_RELEASE}.yaml"
-  fi
-fi
 
 helm upgrade --install neutron ./neutron \
     --namespace=openstack \
@@ -162,6 +150,10 @@ helm upgrade --install neutron ./neutron \
     ${OSH_EXTRA_HELM_ARGS} \
     ${OSH_EXTRA_HELM_ARGS_NEUTRON}
 
+# If compute kit installed using Tungsten Fubric, it will be alive when Tunsten Fabric become active.
+if [[ "$FEATURE_GATES" =~ (,|^)tf(,|$) ]]; then
+  exit 0
+fi
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack
 
@@ -171,10 +163,11 @@ openstack service list
 sleep 30 #NOTE(portdirect): Wait for ingress controller to update rules and restart Nginx
 openstack compute service list
 openstack network agent list
-# Delete the test pods if they still exist
-kubectl delete pods -l application=nova,release_group=nova,component=test --namespace=openstack --ignore-not-found
-kubectl delete pods -l application=neutron,release_group=neutron,component=test --namespace=openstack --ignore-not-found
+openstack hypervisor list
 
-timeout=${OSH_TEST_TIMEOUT:-900}
-helm test nova --timeout $timeout
-helm test neutron --timeout $timeout
+if [ "x${RUN_HELM_TESTS}" == "xno" ]; then
+    exit 0
+fi
+
+./tools/deployment/common/run-helm-tests.sh nova
+./tools/deployment/common/run-helm-tests.sh neutron

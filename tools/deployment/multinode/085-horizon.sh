@@ -17,14 +17,22 @@
 
 set -xe
 
+#NOTE: Get the over-rides to use
+: ${OSH_EXTRA_HELM_ARGS_HORIZON:="$(./tools/deployment/common/get-values-overrides.sh horizon)"}
+
 #NOTE: Lint and package chart
 make horizon
 
 #NOTE: Deploy command
+tee /tmp/horizon.yaml <<EOF
+pod:
+  replicas:
+    server: 2
+EOF
 : ${OSH_EXTRA_HELM_ARGS:=""}
 helm upgrade --install horizon ./horizon \
     --namespace=openstack \
-    --set manifests.network_policy=true \
+    --values=/tmp/horizon.yaml \
     ${OSH_EXTRA_HELM_ARGS} \
     ${OSH_EXTRA_HELM_ARGS_HORIZON}
 
@@ -33,3 +41,5 @@ helm upgrade --install horizon ./horizon \
 
 #NOTE: Validate Deployment info
 helm status horizon
+
+helm test horizon

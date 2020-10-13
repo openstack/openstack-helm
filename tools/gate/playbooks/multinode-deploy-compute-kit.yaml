@@ -1,0 +1,84 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+- hosts: primary
+  vars_files:
+    - vars.yaml
+  tasks:
+    - name: Setup OS and K8s Clients
+      environment: "{{ multinode_env }}"
+      shell: |
+        set -xe;
+        ./tools/deployment/multinode/010-setup-client.sh
+      args:
+        chdir: "{{ zuul_osh_relative_path | default(zuul.project.src_dir) }}"
+    - name: Deploy Ingress
+      environment: "{{ multinode_env }}"
+      shell: |
+        set -xe;
+        ./tools/deployment/component/common/ingress.sh
+      args:
+        chdir: "{{ zuul_osh_relative_path | default(zuul.project.src_dir) }}"
+    - name: Deploy MariaDB RabbitMQ and Memcached
+      environment: "{{ multinode_env }}"
+      shell: |
+        set -xe;
+        ./tools/deployment/multinode/050-mariadb.sh
+        ./tools/deployment/multinode/060-rabbitmq.sh
+        ./tools/deployment/multinode/070-memcached.sh
+      args:
+        chdir: "{{ zuul_osh_relative_path | default(zuul.project.src_dir) }}"
+    - name: Deploy NFS and Keystone
+      environment: "{{ multinode_env }}"
+      shell: |
+        set -xe;
+        ./tools/deployment/multinode/045-nfs-provisioner.sh
+        ./tools/deployment/multinode/080-keystone.sh
+      args:
+        chdir: "{{ zuul_osh_relative_path | default(zuul.project.src_dir) }}"
+    - name: Deploy Glance Heat and OpenVswitch
+      environment: "{{ multinode_env }}"
+      shell: |
+        set -xe;
+        ./tools/deployment/multinode/100-glance.sh
+        ./tools/deployment/multinode/150-heat.sh
+        ./tools/deployment/multinode/120-openvswitch.sh
+      args:
+        chdir: "{{ zuul_osh_relative_path | default(zuul.project.src_dir) }}"
+    - name: Deploy Libvirt
+      environment: "{{ multinode_env }}"
+      shell: |
+        set -xe;
+        ./tools/deployment/multinode/130-libvirt.sh
+      args:
+        chdir: "{{ zuul_osh_relative_path | default(zuul.project.src_dir) }}"
+    - name: Deploy ComputeKit
+      environment: "{{ multinode_env }}"
+      shell: |
+        set -xe;
+        ./tools/deployment/multinode/140-compute-kit.sh
+      args:
+        chdir: "{{ zuul_osh_relative_path | default(zuul.project.src_dir) }}"
+    - name: Deploy Horizon
+      environment: "{{ multinode_env }}"
+      shell: |
+        set -xe;
+        ./tools/deployment/multinode/085-horizon.sh
+      args:
+        chdir: "{{ zuul_osh_relative_path | default(zuul.project.src_dir) }}"
+    - name: Exercise the Cloud
+      environment: "{{ multinode_env }}"
+      shell: |
+        set -xe;
+        ./tools/deployment/multinode/900-use-it.sh
+      args:
+        chdir: "{{ zuul_osh_relative_path | default(zuul.project.src_dir) }}"

@@ -13,10 +13,24 @@
 #    under the License.
 set -xe
 
-#NOTE: Deploy libvirt
+export OS_CLOUD=openstack_helm
+CEPH_ENABLED=false
+if openstack service list -f value -c Type | grep -q "^volume" && \
+    openstack volume type list -f value -c Name | grep -q "rbd"; then
+  CEPH_ENABLED=true
+fi
+
+#NOTE: Get the over-rides to use
 : ${OSH_INFRA_PATH:="../openstack-helm-infra"}
+: ${OSH_EXTRA_HELM_ARGS_LIBVIRT:="$(./tools/deployment/common/get-values-overrides.sh libvirt)"}
+
+#NOTE: Lint and package chart
+make -C ${OSH_INFRA_PATH} libvirt
+
+#NOTE: Deploy libvirt
 helm upgrade --install libvirt ${OSH_INFRA_PATH}/libvirt \
   --namespace=openstack \
+  --set conf.ceph.enabled=${CEPH_ENABLED} \
   ${OSH_EXTRA_HELM_ARGS} \
   ${OSH_EXTRA_HELM_ARGS_LIBVIRT}
 

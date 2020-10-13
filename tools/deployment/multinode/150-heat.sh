@@ -13,7 +13,12 @@
 #    under the License.
 set -xe
 
-#NOTE: Deploy command
+#NOTE: Get the over-rides to use
+: ${OSH_EXTRA_HELM_ARGS_HEAT:="$(./tools/deployment/common/get-values-overrides.sh heat)"}
+
+#NOTE: Lint and package chart
+make heat
+
 tee /tmp/heat.yaml << EOF
 pod:
   replicas:
@@ -22,6 +27,9 @@ pod:
     cloudwatch: 2
     engine: 2
 EOF
+
+#NOTE: Deploy command
+: ${OSH_EXTRA_HELM_ARGS:=""}
 helm upgrade --install heat ./heat \
   --namespace=openstack \
   --values=/tmp/heat.yaml \
@@ -34,8 +42,7 @@ helm upgrade --install heat ./heat \
 #NOTE: Validate Deployment info
 export OS_CLOUD=openstack_helm
 openstack service list
+openstack endpoint list
 sleep 30 #NOTE(portdirect): Wait for ingress controller to update rules and restart Nginx
-openstack orchestration service list
-# Delete the test pod if it still exists
-kubectl delete pods -l application=heat,release_group=heat,component=test --namespace=openstack --ignore-not-found
-helm test heat --timeout 900
+
+openstack --os-interface internal orchestration service list

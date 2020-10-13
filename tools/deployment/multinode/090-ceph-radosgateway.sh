@@ -14,7 +14,15 @@
 
 set -xe
 
+#NOTE: Get the over-rides to use
+export HELM_CHART_ROOT_PATH="${HELM_CHART_ROOT_PATH:="${OSH_INFRA_PATH:="../openstack-helm-infra"}"}"
+: ${OSH_EXTRA_HELM_ARGS_CEPH_RGW:="$(./tools/deployment/common/get-values-overrides.sh ceph-rgw)"}
+
+#NOTE: Lint and package chart
+make -C ${HELM_CHART_ROOT_PATH} ceph-rgw
+
 #NOTE: Deploy command
+: ${OSH_EXTRA_HELM_ARGS:=""}
 CEPH_PUBLIC_NETWORK="$(./tools/deployment/multinode/kube-node-subnet.sh)"
 CEPH_CLUSTER_NETWORK="$(./tools/deployment/multinode/kube-node-subnet.sh)"
 tee /tmp/radosgw-openstack.yaml <<EOF
@@ -35,39 +43,14 @@ bootstrap:
 conf:
   rgw_ks:
     enabled: true
-network_policy:
-  ceph:
-    ingress:
-      - from:
-        - podSelector:
-            matchLabels:
-              application: glance
-        - podSelector:
-            matchLabels:
-              application: cinder
-        - podSelector:
-            matchLabels:
-              application: libvirt
-        - podSelector:
-            matchLabels:
-              application: nova
-        - podSelector:
-            matchLabels:
-              application: ceph
-        - podSelector:
-            matchLabels:
-              application: ingress
-        ports:
-        - protocol: TCP
-          port: 8088
-manifests:
-  network_policy: true
+pod:
+  replicas:
+    rgw: 1
 EOF
 
 : ${OSH_INFRA_PATH:="../openstack-helm-infra"}
 helm upgrade --install radosgw-openstack ${OSH_INFRA_PATH}/ceph-rgw \
   --namespace=openstack \
-  --set manifests.network_policy=true \
   --values=/tmp/radosgw-openstack.yaml \
   ${OSH_EXTRA_HELM_ARGS} \
   ${OSH_EXTRA_HELM_ARGS_HEAT}
