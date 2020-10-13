@@ -248,7 +248,7 @@ function disk_zap {
       locked lvremove -y ${logical_volume}
     fi
   done
-  local volume_group=$(pvdisplay ${device} | grep "VG Name" | awk '/ceph/{print $3}' | grep "ceph")
+  local volume_group=$(pvdisplay -ddd -v ${device} | grep "VG Name" | awk '/ceph/{print $3}' | grep "ceph")
   if [[ ${volume_group} ]]; then
     vgremove -y ${volume_group}
     pvremove -y ${device}
@@ -262,6 +262,7 @@ function disk_zap {
 
 function udev_settle {
   osd_devices="${OSD_DEVICE}"
+  udevadm settle --timeout=600
   partprobe "${OSD_DEVICE}"
   locked pvscan --cache
   locked vgscan --cache
@@ -273,7 +274,7 @@ function udev_settle {
       local block_db="$BLOCK_DB"
       local db_vg="$(echo $block_db | cut -d'/' -f1)"
       if [ ! -z "$db_vg" ]; then
-        block_db=$(locked pvdisplay | grep -B1 "$db_vg" | awk '/PV Name/{print $3}')
+        block_db=$(locked pvdisplay -ddd -v | grep -B1 "$db_vg" | awk '/PV Name/{print $3}')
       fi
       locked partprobe "${block_db}"
     fi
@@ -283,7 +284,7 @@ function udev_settle {
       local block_wal="$BLOCK_WAL"
       local wal_vg="$(echo $block_wal | cut -d'/' -f1)"
       if [ ! -z "$wal_vg" ]; then
-        block_wal=$(locked pvdisplay | grep -B1 "$wal_vg" | awk '/PV Name/{print $3}')
+        block_wal=$(locked pvdisplay -ddd -v | grep -B1 "$wal_vg" | awk '/PV Name/{print $3}')
       fi
       locked partprobe "${block_wal}"
     fi
@@ -319,7 +320,7 @@ function udev_settle {
 function get_lv_from_device {
   device="$1"
 
-  locked pvdisplay -m ${device} | awk '/Logical volume/{print $3}'
+  locked pvdisplay -ddd -v -m ${device} | awk '/Logical volume/{print $3}'
 }
 
 # Helper function to get an lvm tag from a logical volume
@@ -431,7 +432,7 @@ function get_lvm_path_from_device {
 
 function get_vg_name_from_device {
   device="$1"
-  pv_uuid=$(pvdisplay ${device} | awk '/PV UUID/{print $3}')
+  pv_uuid=$(pvdisplay -ddd -v ${device} | awk '/PV UUID/{print $3}')
 
   if [[ "${pv_uuid}" ]]; then
     echo "ceph-vg-${pv_uuid}"
@@ -441,7 +442,7 @@ function get_vg_name_from_device {
 function get_lv_name_from_device {
   device="$1"
   device_type="$2"
-  pv_uuid=$(pvdisplay ${device} | awk '/PV UUID/{print $3}')
+  pv_uuid=$(pvdisplay -ddd -v ${device} | awk '/PV UUID/{print $3}')
 
   if [[ "${pv_uuid}" ]]; then
     echo "ceph-${device_type}-${pv_uuid}"

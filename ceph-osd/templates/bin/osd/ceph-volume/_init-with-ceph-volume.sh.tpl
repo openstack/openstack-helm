@@ -18,7 +18,7 @@ set -ex
 
 source /tmp/osd-common-ceph-volume.sh
 
-: "${OSD_FORCE_REPAIR:=1}"
+: "${OSD_FORCE_REPAIR:=0}"
 # We do not want to zap journal disk. Tracking this option seperatly.
 : "${JOURNAL_FORCE_ZAP:=0}"
 
@@ -41,7 +41,7 @@ fi
 # Renames a single VG if necessary
 function rename_vg {
   local physical_disk=$1
-  local old_vg_name=$(locked pvdisplay ${physical_disk} | awk '/VG Name/{print $3}')
+  local old_vg_name=$(locked pvdisplay -ddd -v ${physical_disk} | awk '/VG Name/{print $3}')
   local vg_name=$(get_vg_name_from_device ${physical_disk})
 
   if [[ "${old_vg_name}" ]] && [[ "${vg_name}" != "${old_vg_name}" ]]; then
@@ -52,7 +52,7 @@ function rename_vg {
 # Renames all LVs associated with an OSD as necesasry
 function rename_lvs {
   local data_disk=$1
-  local vg_name=$(locked pvdisplay ${data_disk} | awk '/VG Name/{print $3}')
+  local vg_name=$(locked pvdisplay -ddd -v ${data_disk} | awk '/VG Name/{print $3}')
 
   if [[ "${vg_name}" ]]; then
     # Rename the OSD volume if necessary
@@ -104,7 +104,7 @@ function rename_lvs {
 #       renaming should be completed prior to calling this
 function update_lv_tags {
   local data_disk=$1
-  local pv_uuid=$(pvdisplay ${data_disk} | awk '/PV UUID/{print $3}')
+  local pv_uuid=$(pvdisplay -ddd -v ${data_disk} | awk '/PV UUID/{print $3}')
 
   if [[ "${pv_uuid}" ]]; then
     local volumes="$(lvs --no-headings | grep -e "${pv_uuid}")"
@@ -289,6 +289,8 @@ function osd_disk_prepare {
     elif [[ $(sgdisk --print ${OSD_DEVICE} | grep "F800") ]]; then
       DM_DEV=${OSD_DEVICE}$(sgdisk --print ${OSD_DEVICE} | grep "F800" | awk '{print $1}')
       CEPH_DISK_USED=1
+    elif [[ $(lsblk ${OSD_DEVICE}|grep -i ceph) ]]; then
+      CEPH_DISK_USED=1
     else
       dm_lv_name="$(get_lv_name_from_device ${OSD_DEVICE} lv | sed 's/-/--/g')"
       if [[ ! -z "${dm_lv_name}" ]] && [[ ! -z "$(dmsetup ls | grep ${dm_lv_name})" ]]; then
@@ -422,7 +424,7 @@ function osd_disk_prepare {
       global_locked prep_device "${BLOCK_DB}" "${BLOCK_DB_SIZE}" "db" "${OSD_DEVICE}"
     fi
   else
-    if pvdisplay ${OSD_DEVICE} | awk '/VG Name/{print $3}' | grep "ceph"; then
+    if pvdisplay -ddd -v ${OSD_DEVICE} | awk '/VG Name/{print $3}' | grep "ceph"; then
       CEPH_LVM_PREPARE=0
     fi
   fi
