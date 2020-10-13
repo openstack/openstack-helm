@@ -444,13 +444,13 @@ EOF
     # loop over all nics
     echo $DPDK_CONFIG | jq -r -c '.bridges[]' | \
     while IFS= read -r br; do
-      local bridge_name=$(get_dpdk_config_value ${br} '.name')
-      local tunnel_underlay_vlan=$(get_dpdk_config_value ${br} '.tunnel_underlay_vlan')
+      bridge_name=$(get_dpdk_config_value ${br} '.name')
+      tunnel_underlay_vlan=$(get_dpdk_config_value ${br} '.tunnel_underlay_vlan')
 
       if [[ "${bridge_name}" == "${tunnel_interface}" ]]; then
         # Route the tunnel traffic via the physical bridge
         if [[ -n "${LOCAL_IP}" && -n "${PREFIX}" ]]; then
-          if [[ -n $(ovs-appctl -t ${OVS_CTL} ovs/route/show | grep "${LOCAL_IP}") ]]; then
+          if [[ -n $(ovs-appctl -t ${OVS_CTL} ovs/route/show | grep "${LOCAL_IP}" | grep -v '^Cached:') ]]; then
             ovs-appctl -t ${OVS_CTL} ovs/route/del "${LOCAL_IP}"/"${PREFIX}"
           fi
           ovs-appctl -t ${OVS_CTL} ovs/route/add "${LOCAL_IP}"/"${PREFIX}" "${tunnel_interface}"
