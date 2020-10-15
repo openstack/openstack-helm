@@ -31,6 +31,8 @@ limitations under the License.
 
 set -ex
 
+shopt -s nocasematch
+
 if [[ "${SERVICE_OS_PROJECT_DOMAIN_NAME}" == "Default" ]]
 then
   PROJECT_DOMAIN_ID="default"
@@ -50,6 +52,8 @@ else
     --description="Domain for ${SERVICE_OS_REGION_NAME}/${SERVICE_OS_USER_DOMAIN_NAME}" \
     "${SERVICE_OS_USER_DOMAIN_NAME}")
 fi
+
+shopt -u nocasematch
 
 # Manage user project
 USER_PROJECT_DESC="Service Project for ${SERVICE_OS_REGION_NAME}/${SERVICE_OS_PROJECT_DOMAIN_NAME}"
