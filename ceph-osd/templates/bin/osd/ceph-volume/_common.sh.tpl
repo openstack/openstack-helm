@@ -76,15 +76,15 @@ function ceph_cmd_retry() {
 
 function locked() {
   exec {lock_fd}>/var/lib/ceph/tmp/init-osd.lock || exit 1
-  flock -w 600 --verbose "${lock_fd}"
+  flock -w 600 --verbose "${lock_fd}" &> /dev/null
   "$@"
-  flock -u "${lock_fd}"
+  flock -u "${lock_fd}" &> /dev/null
 }
 function global_locked() {
   exec {global_lock_fd}>/var/lib/ceph/tmp/init-osd-global.lock || exit 1
-  flock -w 600 --verbose "${global_lock_fd}"
+  flock -w 600 --verbose "${global_lock_fd}" &> /dev/null
   "$@"
-  flock -u "${global_lock_fd}"
+  flock -u "${global_lock_fd}" &> /dev/null
 }
 
 function crush_create_or_move {
@@ -248,7 +248,7 @@ function disk_zap {
       locked lvremove -y ${logical_volume}
     fi
   done
-  local volume_group=$(pvdisplay -ddd -v ${device} | grep "VG Name" | awk '/ceph/{print $3}' | grep "ceph")
+  local volume_group=$(locked pvdisplay -ddd -v ${device} | grep "VG Name" | awk '/ceph/{print $3}' | grep "ceph")
   if [[ ${volume_group} ]]; then
     vgremove -y ${volume_group}
     pvremove -y ${device}
@@ -260,13 +260,21 @@ function disk_zap {
   dd if=/dev/zero of=${device} bs=1M count=200
 }
 
+# This should be run atomically to prevent unexpected cache states
+function lvm_scan {
+  pvscan --cache
+  vgscan --cache
+  lvscan --cache
+  pvscan
+  vgscan
+  lvscan
+}
+
 function udev_settle {
   osd_devices="${OSD_DEVICE}"
   udevadm settle --timeout=600
   partprobe "${OSD_DEVICE}"
-  locked pvscan --cache
-  locked vgscan --cache
-  locked lvscan --cache
+  locked lvm_scan
   if [ "${OSD_BLUESTORE:-0}" -eq 1 ]; then
     if [ ! -z "$BLOCK_DB" ]; then
       osd_devices="${osd_devices}\|${BLOCK_DB}"
@@ -353,7 +361,7 @@ function get_lv_size_from_device {
   device="$1"
   logical_volume="$(get_lv_from_device ${device})"
 
-  lvs ${logical_volume} -o LV_SIZE --noheadings --units k --nosuffix | xargs | cut -d'.' -f1
+  locked lvs ${logical_volume} -o LV_SIZE --noheadings --units k --nosuffix | xargs | cut -d'.' -f1
 }
 
 # Helper function to get the crush weight for an osd device
@@ -427,12 +435,12 @@ function get_lvm_path_from_device {
   select="$1"
 
   options="--noheadings -o lv_dm_path"
-  pvs ${options} -S "${select}" | tr -d ' '
+  locked pvs ${options} -S "${select}" | tr -d ' '
 }
 
 function get_vg_name_from_device {
   device="$1"
-  pv_uuid=$(pvdisplay -ddd -v ${device} | awk '/PV UUID/{print $3}')
+  pv_uuid=$(locked pvdisplay -ddd -v ${device} | awk '/PV UUID/{print $3}')
 
   if [[ "${pv_uuid}" ]]; then
     echo "ceph-vg-${pv_uuid}"
@@ -442,7 +450,7 @@ function get_vg_name_from_device {
 function get_lv_name_from_device {
   device="$1"
   device_type="$2"
-  pv_uuid=$(pvdisplay -ddd -v ${device} | awk '/PV UUID/{print $3}')
+  pv_uuid=$(locked pvdisplay -ddd -v ${device} | awk '/PV UUID/{print $3}')
 
   if [[ "${pv_uuid}" ]]; then
     echo "ceph-${device_type}-${pv_uuid}"
