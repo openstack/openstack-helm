@@ -181,12 +181,12 @@ function create_pool () {
     ceph --cluster "${CLUSTER}" osd pool create "${POOL_NAME}" ${POOL_PLACEMENT_GROUPS}
     while [ $(ceph --cluster "${CLUSTER}" -s | grep creating -c) -gt 0 ]; do echo -n .;sleep 1; done
     ceph --cluster "${CLUSTER}" osd pool application enable "${POOL_NAME}" "${POOL_APPLICATION}"
+  fi
+
+  if [[ -z "$(ceph osd versions | grep ceph\ version | grep -v nautilus)" ]] && [[ "${ENABLE_AUTOSCALER}" == "true" ]] ; then
+    ceph --cluster "${CLUSTER}" osd pool set "${POOL_NAME}" pg_autoscale_mode on
   else
-    if [[ -z "$(ceph osd versions | grep ceph\ version | grep -v nautilus)" ]] && [[ "${ENABLE_AUTOSCALER}" == "true" ]] ; then
-      ceph --cluster "${CLUSTER}" osd pool set "${POOL_NAME}" pg_autoscale_mode on
-    else
-      ceph --cluster "${CLUSTER}" osd pool set "${POOL_NAME}" pg_autoscale_mode off
-    fi
+    ceph --cluster "${CLUSTER}" osd pool set "${POOL_NAME}" pg_autoscale_mode off
   fi
 #
 # Make sure pool is not protected after creation AND expansion so we can manipulate its settings.
