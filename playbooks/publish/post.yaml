@@ -24,11 +24,20 @@
 
     - name: Create a new index
       when: _get_url.status_code == 404
-      shell: helm repo index {{ zuul.project.src_dir }}
+      shell: helm repo index {{ zuul.project.src_dir }} --url https://tarballs.opendev.org/openstack/openstack-helm-infra
 
     - name: Merge into existing index
       when: _get_url.status_code == 200
-      shell: helm repo index {{ zuul.project.src_dir }} --merge {{ zuul.project.src_dir }}/index.yaml
+      shell: helm repo index {{ zuul.project.src_dir }} --merge {{ zuul.project.src_dir }}/index.yaml --url https://tarballs.opendev.org/openstack/openstack-helm-infra
+
+    # TODO: Remove this once HTK is seeded in tarballs.o.o
+    - name: Update the HTK dependencies
+      shell: |
+        sed -i 's#file://../helm-toolkit#https://tarballs.opendev.org/openstack/openstack-helm-infra#g' index.yaml
+      chdir:
+      args:
+        executable: /bin/bash
+        chdir: "{{ zuul.project.src_dir }}"
 
     - name: Update Helm repository
       synchronize:
