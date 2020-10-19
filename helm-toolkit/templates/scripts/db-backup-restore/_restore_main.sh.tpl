@@ -143,6 +143,7 @@ usage() {
   echo "list_schema <archive_filename> <dbname> <table_name> [remote]"
   echo "restore <archive_filename> <db_specifier> [remote]"
   echo "        where <db_specifier> = <dbname> | ALL"
+  echo "delete_archive <archive_filename> [remote]"
   clean_and_exit $ret_val ""
 }
 
@@ -161,6 +162,42 @@ clean_and_exit() {
   exit $RETCODE
 }
 
+determine_resulting_error_code() {
+  RESULT="$1"
+
+  echo ${RESULT} | grep "HTTP 404"
+  if [[ $? -eq 0 ]]; then
+    echo "Could not find the archive: ${RESULT}"
+    return 1
+  else
+    echo ${RESULT} | grep "HTTP 401"
+    if [[ $? -eq 0 ]]; then
+      echo "Could not access the archive: ${RESULT}"
+      return 1
+    else
+      echo ${RESULT} | grep "HTTP 503"
+      if [[ $? -eq 0 ]]; then
+        echo "RGW service is unavailable. ${RESULT}"
+        # In this case, the RGW may be temporarily down.
+        # Return slightly different error code so the calling code can retry
+        return 2
+      else
+        echo ${RESULT} | grep "ConnectionError"
+        if [[ $? -eq 0 ]]; then
+          echo "Could not reach the RGW: ${RESULT}"
+          # In this case, keystone or the site/node may be temporarily down.
+          # Return slightly different error code so the calling code can retry
+          return 2
+        else
+          echo "Archive ${ARCHIVE} could not be retrieved: ${RESULT}"
+          return 1
+        fi
+      fi
+    fi
+  fi
+  return 0
+}
+
 # Retrieve a list of archives from the RGW.
 retrieve_remote_listing() {
   RESULT=$(openstack container show $CONTAINER_NAME 2>&1)
@@ -175,22 +212,8 @@ retrieve_remote_listing() {
       echo "Archive listing successfully retrieved."
     fi
   else
-    echo $RESULT | grep "HTTP 401"
-    if [[ $? -eq 0 ]]; then
-      echo "Could not access the container: ${RESULT}"
-      return 1
-    else
-      echo $RESULT | grep "ConnectionError"
-      if [[ $? -eq 0 ]]; then
-        echo "Could not reach the RGW: ${RESULT}"
-        # In this case, keystone or the site/node may be temporarily down.
-        # Return slightly different error code so the calling code can retry
-        return 2
-      else
-        echo "Container $CONTAINER_NAME does not exist: ${RESULT}"
-        return 1
-      fi
-    fi
+    determine_resulting_error_code "${RESULT}"
+    return $?
   fi
   return 0
 }
@@ -201,24 +224,24 @@ retrieve_remote_archive() {
 
   RESULT=$(openstack object save --file $TMP_DIR/$ARCHIVE $CONTAINER_NAME $ARCHIVE 2>&1)
   if [[ $? -ne 0 ]]; then
-    echo $RESULT | grep "HTTP 401"
-    if [[ $? -eq 0 ]]; then
-      echo "Could not access the archive: ${RESULT}"
-      return 1
-    else
-      echo $RESULT | grep "ConnectionError"
-      if [[ $? -eq 0 ]]; then
-        echo "Could not reach the RGW: ${RESULT}"
-        # In this case, keystone or the site/node may be temporarily down.
-        # Return slightly different error code so the calling code can retry
-        return 2
-      else
-        echo "Archive ${ARCHIVE} could not be retrieved: ${RESULT}"
-        return 1
-      fi
-    fi
+    determine_resulting_error_code "${RESULT}"
+    return $?
   else
     echo "Archive $ARCHIVE successfully retrieved."
+  fi
+  return 0
+}
+
+# Delete an archive from the RGW.
+delete_remote_archive() {
+  ARCHIVE=$1
+
+  RESULT=$(openstack object delete ${CONTAINER_NAME} ${ARCHIVE} 2>&1)
+  if [[ $? -ne 0 ]]; then
+    determine_resulting_error_code "${RESULT}"
+    return $?
+  else
+    echo "Archive ${ARCHIVE} successfully deleted."
   fi
   return 0
 }
@@ -296,7 +319,7 @@ list_databases() {
   REMOTE=$2
   WHERE="local"
 
-  if [[ "x${REMOTE}" != "x" ]]; then
+  if [[ -n ${REMOTE} ]]; then
     WHERE="remote"
   fi
 
@@ -327,7 +350,7 @@ list_tables() {
   REMOTE=$3
   WHERE="local"
 
-  if [[ "x${REMOTE}" != "x" ]]; then
+  if [[ -n ${REMOTE} ]]; then
     WHERE="remote"
   fi
 
@@ -359,7 +382,7 @@ list_rows() {
   REMOTE=$4
   WHERE="local"
 
-  if [[ "x${REMOTE}" != "x" ]]; then
+  if [[ -n ${REMOTE} ]]; then
     WHERE="remote"
   fi
 
@@ -391,7 +414,7 @@ list_schema() {
   REMOTE=$4
   WHERE="local"
 
-  if [[ "x${REMOTE}" != "x" ]]; then
+  if [[ -n ${REMOTE} ]]; then
     WHERE="remote"
   fi
 
@@ -414,6 +437,36 @@ list_schema() {
     clean_and_exit 1 "ERROR: Schema file missing. Could not list schema for table ${TABLE} of database ${DATABASE} from $WHERE archive $ARCHIVE_FILE."
   fi
 }
+
+# Delete an archive
+delete_archive() {
+  ARCHIVE_FILE=$1
+  REMOTE=$2
+  WHERE="local"
+
+  if [[ -n ${REMOTE} ]]; then
+    WHERE="remote"
+  fi
+
+  if [[ "${WHERE}" == "remote" ]]; then
+    delete_remote_archive ${ARCHIVE_FILE}
+    if [[ $? -ne 0 ]]; then
+      clean_and_exit 1 "ERROR: Could not delete remote archive: ${ARCHIVE_FILE}"
+    fi
+  else # Local
+    if [[ -e ${ARCHIVE_DIR}/${ARCHIVE_FILE} ]]; then
+      rm -f ${ARCHIVE_DIR}/${ARCHIVE_FILE}
+      if [[ $? -ne 0 ]]; then
+        clean_and_exit 1 "ERROR: Could not delete local archive."
+      fi
+    else
+      clean_and_exit 1 "ERROR: Local archive file could not be found."
+    fi
+  fi
+
+  echo "Successfully deleted archive ${ARCHIVE_FILE} from ${WHERE} storage."
+}
+
 
 # Return 1 if the given database exists in the database file. 0 otherwise.
 database_exists() {
@@ -542,6 +595,15 @@ cli_main() {
           clean_and_exit 1 "ERROR: Database restore failed."
         fi
         clean_and_exit 0 ""
+      fi
+      ;;
+    "delete_archive")
+      if [[ ${#ARGS[@]} -lt 2 || ${#ARGS[@]} -gt 3 ]]; then
+        usage 1
+      elif [[ ${#ARGS[@]} -eq 2 ]]; then
+        delete_archive ${ARGS[1]}
+      else
+        delete_archive ${ARGS[1]} ${ARGS[2]}
       fi
       ;;
     *)
