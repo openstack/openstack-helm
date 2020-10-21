@@ -13,12 +13,30 @@ limitations under the License.
 */}}
 
 {{- define "serverReadinessProbeTemplate" }}
+{{- if .Values.manifests.certificates }}
+exec:
+  command:
+    - python
+    - -c
+    - "import requests; requests.get('http://127.0.0.1:{{ tuple "network" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}')"
+initialDelaySeconds: 30
+{{- else }}
 tcpSocket:
   port: {{ tuple "network" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
 {{- end }}
+{{- end }}
 {{- define "serverLivenessProbeTemplate" }}
+{{- if .Values.manifests.certificates }}
+exec:
+  command:
+    - python
+    - -c
+    - "import requests; requests.get('http://127.0.0.1:{{ tuple "network" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}')"
+initialDelaySeconds: 30
+{{- else }}
 tcpSocket:
   port: {{ tuple "network" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+{{- end }}
 {{- end }}
 
 {{- if .Values.manifests.deployment_server }}
@@ -81,6 +99,46 @@ spec:
               mountPath: /opt/plugin
         {{- end }}
       containers:
+        {{- if $envAll.Values.manifests.certificates }}
+        - name: nginx
+{{ tuple $envAll "nginx" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.nginx | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "neutron" "container" "nginx" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          ports:
+            - name: q-api
+              containerPort: {{ tuple "network" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+          env:
+            - name: PORT
+              value: {{ tuple "network" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | quote }}
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: SHORTNAME
+              value: {{ tuple "network" "internal" .  | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" | quote }}
+          readinessProbe:
+            tcpSocket:
+              port: {{ tuple "network" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+          command:
+            - /tmp/nginx.sh
+            - start
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /tmp/nginx.sh
+                  - stop
+          volumeMounts:
+            - name: neutron-bin
+              mountPath: /tmp/nginx.sh
+              subPath: nginx.sh
+              readOnly: true
+            - name: neutron-etc
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
+              readOnly: true
+{{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.network.server.internal "path" "/etc/nginx/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
+        {{- end }}
         - name: neutron-server
 {{ tuple $envAll "neutron_server" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.server | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
@@ -177,83 +235,9 @@ spec:
               mountPath: /etc/neutron/policy.json
               subPath: policy.json
               readOnly: true
-            {{- if .Values.manifests.certificates }}
-            - name: wsgi-neutron
-              mountPath: /var/www/cgi-bin/neutron
-            - name: neutron-etc
-              mountPath: {{ .Values.conf.software.apache2.site_dir }}/wsgi-server.conf
-              subPath: wsgi-server.conf
-              readOnly: true
-            - name: neutron-etc
-              mountPath: {{ .Values.conf.software.apache2.mods_dir }}/mpm_event.conf
-              subPath: mpm_event.conf
-              readOnly: true
-            {{ end }}
 {{- dict "enabled" .Values.manifests.certificates "name" .Values.endpoints.oslo_db.auth.admin.secret.tls.internal "path" "/etc/mysql/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
 {{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.network.server.internal "path" "/etc/neutron/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
 {{ if $mounts_neutron_server.volumeMounts }}{{ toYaml $mounts_neutron_server.volumeMounts | indent 12 }}{{ end }}
-{{- if .Values.manifests.certificates }}
-        - name: neutron-rpc-server
-{{ tuple $envAll "neutron_rpc_server" | include "helm-toolkit.snippets.image" | indent 10 }}
-{{ tuple $envAll $envAll.Values.pod.resources.rpc_server | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-{{ dict "envAll" $envAll "application" "neutron_server" "container" "neutron_rpc_server" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
-{{ dict "envAll" $envAll "component" "server" "container" "server" "type" "readiness" "probeTemplate" (include "serverReadinessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
-{{ dict "envAll" $envAll "component" "server" "container" "server" "type" "liveness" "probeTemplate" (include "serverLivenessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
-          command:
-            - /tmp/neutron-rpc-server.sh
-            - start
-          lifecycle:
-            preStop:
-              exec:
-                command:
-                  - /tmp/neutron-rpc-server.sh
-                  - stop
-          volumeMounts:
-            - name: neutron-bin
-              mountPath: /tmp/neutron-rpc-server.sh
-              subPath: neutron-rpc-server.sh
-              readOnly: true
-            - name: neutron-etc
-              mountPath: /etc/neutron/neutron.conf
-              subPath: neutron.conf
-              readOnly: true
-            {{- if .Values.conf.neutron.DEFAULT.log_config_append }}
-            - name: neutron-etc
-              mountPath: {{ .Values.conf.neutron.DEFAULT.log_config_append }}
-              subPath: {{ base .Values.conf.neutron.DEFAULT.log_config_append }}
-              readOnly: true
-            {{- end }}
-            - name: neutron-etc
-              mountPath: /etc/neutron/plugins/ml2/ml2_conf.ini
-              subPath: ml2_conf.ini
-              readOnly: true
-            {{- if( has "tungstenfabric" .Values.network.backend ) }}
-            - name: neutron-etc
-              mountPath: /etc/neutron/plugins/tungstenfabric/tf_plugin.ini
-              subPath: tf_plugin.ini
-              readOnly: true
-            {{ end }}
-            {{ if ( has "sriov" .Values.network.backend ) }}
-            - name: neutron-etc
-              mountPath: /etc/neutron/plugins/ml2/sriov_agent.ini
-              subPath: sriov_agent.ini
-              readOnly: true
-            {{ end }}
-            {{- if .Values.conf.plugins.taas.taas.enabled }}
-            - name: neutron-etc
-              mountPath: /etc/neutron/taas_plugin.ini
-              subPath: taas_plugin.ini
-              readOnly: true
-            {{ end }}
-            {{- if .Values.conf.plugins.l2gateway }}
-            - name: neutron-etc
-              mountPath: /etc/neutron/l2gw_plugin.ini
-              subPath: l2gw_plugin.ini
-              readOnly: true
-            {{ end }}
-{{- dict "enabled" .Values.manifests.certificates "name" .Values.endpoints.oslo_db.auth.admin.secret.tls.internal "path" "/etc/mysql/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
-{{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.network.server.internal "path" "/etc/neutron/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
-{{- end }}
       volumes:
         - name: pod-tmp
           emptyDir: {}
