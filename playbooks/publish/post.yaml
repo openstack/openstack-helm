@@ -38,14 +38,26 @@
         executable: /bin/bash
         chdir: "{{ zuul.project.src_dir }}"
 
+    - name: Ensure artifact directory exists
+      file:
+        path: "{{ zuul.executor.work_root }}/artifacts/"
+        state: directory
+      delegate_to: localhost
+
+    - name: Gather the artifacts
+      find:
+        file_type: file
+        paths: "{{ zuul.project.src_dir }}"
+        patterns: "*.tar.gz,*.tgz,index.yaml"
+      register: result
+
     - name: Update Helm repository
       synchronize:
         mode: pull
-        src: "{{ zuul.project.src_dir }}"
+        src: "{{ item.path }}"
         dest: "{{ zuul.executor.work_root }}/artifacts/"
         verify_host: true
-        rsync_opts:
-          - "--include=index.yaml"
-          - "--include=*.tgz"
-          - "--exclude=*"
+        owner: no
+        group: no
+      with_items: "{{ result.files }}"
 ...
