@@ -36,7 +36,7 @@ limitations under the License.
 {{- $flag := $flag | replace "_" "-" }}
 {{- if eq $flag "web.enable-admin-api" "web.enable-lifecycle" "storage.tsdb.wal-compression" -}}
 {{- if $value }}
-{{- printf " --%s" $flag -}}
+{{- printf "--%s " $flag -}}
 {{- end -}}
 {{- else -}}
 {{- $value := $value | toString }}
