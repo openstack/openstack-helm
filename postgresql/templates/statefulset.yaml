@@ -12,6 +12,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- define "livenessProbeTemplate" -}}
+exec:
+  command:
+    - /tmp/readiness.sh
+{{- end -}}
+
+{{- define "readinessProbeTemplate" -}}
+exec:
+  command:
+    - /tmp/readiness.sh
+{{- end -}}
+
 {{- if .Values.manifests.statefulset }}
 {{- $envAll := . }}
 
@@ -177,20 +189,8 @@ spec:
                   key: 'POSTGRES_USER'
           command:
             - /tmp/start.sh
-          livenessProbe:
-            exec:
-              command:
-                - /tmp/readiness.sh
-            initialDelaySeconds: 30
-            timeoutSeconds: 5
-            failureThreshold: 10
-          readinessProbe:
-            exec:
-              command:
-                - /tmp/readiness.sh
-            initialDelaySeconds: 30
-            timeoutSeconds: 5
-            failureThreshold: 10
+{{ dict "envAll" . "component" "server" "container" "postgresql" "type" "liveness" "probeTemplate" (include "livenessProbeTemplate" . | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | trim | indent 10 }}
+{{ dict "envAll" . "component" "server" "container" "postgresql" "type" "readiness" "probeTemplate" (include "readinessProbeTemplate" . | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | trim | indent 10 }}
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
