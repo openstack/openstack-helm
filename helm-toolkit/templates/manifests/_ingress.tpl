@@ -279,6 +279,100 @@ examples:
         annotations:
           kubernetes.io/ingress.class: "nginx"
           cert-manager.io/issuer: ca-issuer
+          certmanager.k8s.io/issuer: ca-issuer
+          nginx.ingress.kubernetes.io/backend-protocol: https
+          nginx.ingress.kubernetes.io/secure-backends: "true"
+      spec:
+        tls:
+          - secretName: barbican-tls-public-certmanager
+            hosts:
+              - barbican
+              - barbican.default
+              - barbican.default.svc.cluster.local
+        rules:
+          - host: barbican
+            http:
+              paths:
+                - path: /
+                  backend:
+                    serviceName: barbican-api
+                    servicePort: b-api
+          - host: barbican.default
+            http:
+              paths:
+                - path: /
+                  backend:
+                    serviceName: barbican-api
+                    servicePort: b-api
+          - host: barbican.default.svc.cluster.local
+            http:
+              paths:
+                - path: /
+                  backend:
+                    serviceName: barbican-api
+                    servicePort: b-api
+
+  - values: |
+      network:
+        api:
+          ingress:
+            public: true
+            classes:
+              namespace: "nginx"
+              cluster: "nginx-cluster"
+            annotations:
+              nginx.ingress.kubernetes.io/secure-backends: "true"
+              nginx.ingress.kubernetes.io/backend-protocol: "https"
+      secrets:
+        tls:
+          key_manager:
+            api:
+              public: barbican-tls-public
+              internal: barbican-tls-api
+      endpoints:
+        cluster_domain_suffix: cluster.local
+        key_manager:
+          name: barbican
+          hosts:
+            default: barbican-api
+            public:
+              host: barbican
+              tls:
+                crt: |
+                  FOO-CRT
+                key: |
+                  FOO-KEY
+                ca: |
+                  FOO-CA_CRT
+          host_fqdn_override:
+            default: null
+          path:
+            default: /
+          scheme:
+            default: http
+            public: https
+          port:
+            api:
+              default: 9311
+              public: 80
+          certs:
+            barbican_tls_api:
+              secretName: barbican-tls-api
+              issuerRef:
+                name: ca-issuer
+                kind: ClusterIssuer
+    usage: |
+      {{- include "helm-toolkit.manifests.ingress" ( dict "envAll" . "backendServiceType" "key-manager" "backendPort" "b-api" "endpoint" "public" "certIssuer" "ca-issuer" "certIssuer" "cluster-issuer") -}}
+    return: |
+      ---
+      apiVersion: extensions/v1beta1
+      kind: Ingress
+      metadata:
+        name: barbican
+        annotations:
+          kubernetes.io/ingress.class: "nginx"
+          cert-manager.io/cluster-issuer: ca-issuer
+          certmanager.k8s.io/cluster-issuer: ca-issuer
           nginx.ingress.kubernetes.io/backend-protocol: https
           nginx.ingress.kubernetes.io/secure-backends: "true"
       spec:
@@ -460,6 +554,10 @@ examples:
 {{- $backendPort := index . "backendPort" -}}
 {{- $endpoint := index . "endpoint" | default "public" -}}
 {{- $certIssuer := index . "certIssuer" | default "" -}}
+{{- $certIssuerType := index . "certIssuerType" | default "issuer" -}}
+{{- if and (ne $certIssuerType "issuer") (ne $certIssuerType "cluster-issuer") }}
+{{- $certIssuerType = "issuer" -}}
+{{- end }}
 {{- $ingressName := tuple $backendServiceType $endpoint $envAll | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
 {{- $backendName := tuple $backendServiceType "internal" $envAll | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
 {{- $hostName := tuple $backendServiceType $endpoint $envAll | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
@@ -472,7 +570,8 @@ metadata:
   annotations:
     kubernetes.io/ingress.class: {{ index $envAll.Values.network $backendService "ingress" "classes" "namespace" | quote }}
 {{- if $certIssuer }}
-    cert-manager.io/issuer: {{ $certIssuer }}
+    cert-manager.io/{{ $certIssuerType }}: {{ $certIssuer }}
+    certmanager.k8s.io/{{ $certIssuerType }}: {{ $certIssuer }}
 {{- end }}
 {{ toYaml (index $envAll.Values.network $backendService "ingress" "annotations") | indent 4 }}
 spec:
