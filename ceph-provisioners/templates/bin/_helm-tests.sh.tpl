@@ -174,19 +174,21 @@ EOF
 reset_test_env $PVC_NAMESPACE $RBD_TEST_POD_NAME $RBD_TEST_PVC_NAME
 reset_test_env $PVC_NAMESPACE $CEPHFS_TEST_POD_NAME $CEPHFS_TEST_PVC_NAME
 
-if [ {{ .Values.storageclass.rbd.provision_storage_class }} == true ];
+{{- range $storageclass, $val := .Values.storageclass }}
+if [ {{ $val.provisioner }} == "ceph.com/rbd" ] && [ {{ $val.provision_storage_class }} == true ];
 then
   echo "--> Checking RBD storage class."
-  storageclass={{ .Values.storageclass.rbd.metadata.name }}
+  storageclass={{ $val.metadata.name }}
 
   storageclass_validation $PVC_NAMESPACE $RBD_TEST_POD_NAME $RBD_TEST_PVC_NAME $storageclass
   reset_test_env $PVC_NAMESPACE $RBD_TEST_POD_NAME $RBD_TEST_PVC_NAME
 fi
 
-if [ {{ .Values.storageclass.cephfs.provision_storage_class }} == true ];
+if [ {{ $val.provisioner }} == "ceph.com/cephfs" ] && [ {{ $val.provision_storage_class }} == true ];
 then
   echo "--> Checking cephfs storage class."
-  storageclass={{ .Values.storageclass.cephfs.metadata.name }}
+  storageclass={{ $val.metadata.name }}
   storageclass_validation $PVC_NAMESPACE $CEPHFS_TEST_POD_NAME $CEPHFS_TEST_PVC_NAME $storageclass
   reset_test_env $PVC_NAMESPACE $CEPHFS_TEST_POD_NAME $CEPHFS_TEST_PVC_NAME
 fi
+{{- end }}
