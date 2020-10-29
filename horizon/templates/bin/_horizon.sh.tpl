@@ -78,7 +78,7 @@ function start () {
   /tmp/manage.py collectstatic --noinput
   /tmp/manage.py compress --force
   rm -rf /tmp/_tmp_.secret_key_store.lock /tmp/.secret_key_store
-
+  chmod +x ${SITE_PACKAGES_ROOT}/django/core/wsgi.py
   exec {{ .Values.conf.software.apache2.binary }} {{ .Values.conf.software.apache2.start_parameters }}
 }
 
