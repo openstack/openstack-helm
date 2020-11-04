@@ -12,13 +12,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if .Values.manifests.configmap_bin }}
-{{- $envAll := . }}
+{{- define "libvirt.configmap.bin" }}
+{{- $configMapName := index . 0 }}
+{{- $envAll := index . 1 }}
+{{- with $envAll }}
 ---
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: libvirt-bin
+  name: {{ $configMapName }}
 data:
 {{- if .Values.images.local_registry.active }}
   image-repo-sync.sh: |
@@ -38,4 +40,8 @@ data:
 {{- end }}
 {{- include "helm-toolkit.snippets.values_template_renderer" (dict "envAll" $envAll "template" .Values.conf.init_modules.script "key" "libvirt-init-modules.sh") | indent 2 }}
 {{- include "helm-toolkit.snippets.values_template_renderer" (dict "envAll" $envAll "template" .Values.conf.dynamic_options.script "key" "init-dynamic-options.sh") | indent 2 }}
+{{- end }}
+{{- end }}
+{{- if .Values.manifests.configmap_bin }}
+{{- list "libvirt-bin" . | include "libvirt.configmap.bin" }}
 {{- end }}
