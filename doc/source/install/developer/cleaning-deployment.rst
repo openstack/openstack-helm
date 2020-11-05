@@ -75,6 +75,12 @@ containers before removing the directories used on the host by pods.
        losetup -d "$CEPH_OSD_DB_WAL_DEVICE"
     fi
   fi
+  echo "let's disable the service"
+  sudo systemctl disable loops-setup
+  echo "let's remove the service to setup loopback devices"
+  if [ -f "/etc/systemd/system/loops-setup.service" ]; then
+    rm /etc/systemd/system/loops-setup.service
+  fi
 
   # NOTE(portdirect): Clean up mounts left behind by kubernetes pods
   sudo findmnt --raw | awk '/^\/var\/lib\/kubelet\/pods/ { print $1 }' | xargs -r -L1 -P16 sudo umount -f -l
