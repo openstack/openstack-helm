@@ -21,6 +21,9 @@ MINIKUBE_AIO_DEFAULT="docker.io/openstackhelm/minikube-aio:latest-ubuntu_bionic"
 export DEBCONF_NONINTERACTIVE_SEEN=true
 export DEBIAN_FRONTEND=noninteractive
 
+echo "DefaultLimitMEMLOCK=16384" | sudo tee -a /etc/systemd/system.conf
+sudo systemctl daemon-reexec
+
 # Install required packages for K8s on host
 wget -q -O- 'https://download.ceph.com/keys/release.asc' | sudo apt-key add -
 RELEASE_NAME=$(grep 'CODENAME' /etc/lsb-release | awk -F= '{print $2}')
