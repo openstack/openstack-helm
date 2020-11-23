@@ -40,9 +40,9 @@ return: |
 {{- $context := index . 3 -}}
 {{- $endpointMap := index $context.Values.endpoints ( $type | replace "-" "_" ) }}
 {{- if kindIs "string" $endpointMap.path }}
-{{- printf "%s" $endpointMap.path | default "/" -}}
+{{- printf "%s" $endpointMap.path | default "" -}}
 {{- else -}}
-{{- $endpointPath := index $endpointMap.path $endpoint | default $endpointMap.path.default | default "/" }}
+{{- $endpointPath := index $endpointMap.path $endpoint | default $endpointMap.path.default | default "" }}
 {{- printf "%s" $endpointPath -}}
 {{- end -}}
 {{- end -}}
