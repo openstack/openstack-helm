@@ -148,9 +148,8 @@ function restart_by_rack() {
      # The pods will not be ready in first 60 seconds. Thus we can reduce
      # amount of queries to kubernetes.
      sleep 60
-     wait_for_pods $CEPH_NAMESPACE
-     echo "waiting for inactive pgs after osds restarted from rack $rack"
-     wait_for_pgs
+     # Degraded objects won't recover with noout set unless pods come back and
+     # PGs become healthy, so simply wait for 0 degraded objects
      wait_for_degraded_objects
      ceph -s
   done
