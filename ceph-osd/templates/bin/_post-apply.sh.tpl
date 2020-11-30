@@ -115,11 +115,11 @@ function wait_for_pgs () {
   done
 }
 
-function wait_for_degraded_objects () {
-  echo "#### Start: Checking for degraded objects ####"
+function wait_for_degraded_and_misplaced_objects () {
+  echo "#### Start: Checking for degraded and misplaced objects ####"
 
   # Loop until no degraded objects
-    while [[ ! -z "`ceph --cluster ${CLUSTER} -s | grep degraded`" ]]
+    while [[ ! -z "`ceph --cluster ${CLUSTER} -s | grep 'degraded\|misplaced'`" ]]
     do
       sleep 3
       ceph -s
@@ -150,7 +150,7 @@ function restart_by_rack() {
      sleep 60
      # Degraded objects won't recover with noout set unless pods come back and
      # PGs become healthy, so simply wait for 0 degraded objects
-     wait_for_degraded_objects
+     wait_for_degraded_and_misplaced_objects
      ceph -s
   done
 }
@@ -179,7 +179,7 @@ if [[ $max_release -gt 1  ]]; then
   if [[  $require_upgrade -gt 0 ]]; then
     echo "waiting for inactive pgs and degraded obejcts before upgrade"
     wait_for_pgs
-    wait_for_degraded_objects
+    wait_for_degraded_and_misplaced_objects
     ceph -s
     ceph osd "set" noout
     echo "lets restart the osds rack by rack"
