@@ -12,6 +12,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- define "probeTemplate" }}
+tcpSocket:
+  port: {{ tuple "fluentd" "internal" "service" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+{{- end }}
+
 {{- if .Values.manifests.daemonset }}
 {{- $envAll := . }}
 
@@ -118,16 +123,8 @@ spec:
               containerPort: {{ tuple "fluentd" "internal" "service" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
             - name: metrics
               containerPort: {{ tuple "fluentd" "internal" "metrics" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-          readinessProbe:
-            tcpSocket:
-              port: {{ tuple "fluentd" "internal" "service" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-            initialDelaySeconds: 20
-            periodSeconds: 10
-          livenessProbe:
-            tcpSocket:
-              port: {{ tuple "fluentd" "internal" "service" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-            initialDelaySeconds: 60
-            timeoutSeconds: 10
+{{ dict "envAll" . "component" "fluentd" "container" "fluentd" "type" "readiness" "probeTemplate" (include "probeTemplate" . | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+{{ dict "envAll" . "component" "fluentd" "container" "fluentd" "type" "liveness" "probeTemplate" (include "probeTemplate" . | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
           env:
             - name: NODE_NAME
               valueFrom:
