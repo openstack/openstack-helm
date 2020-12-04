@@ -38,6 +38,10 @@ lint-%: init-%
 build-%: lint-%
 	if [ -d $* ]; then helm package $*; fi
 
+# This is used exclusively with helm3 building in the gate to publish
+package-%: init-%
+	if [ -d $* ]; then helm package $*; fi
+
 clean:
 	@echo "Clean all build artifacts"
 	rm -f */templates/_partials.tpl */templates/_globals.tpl
