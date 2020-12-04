@@ -38,7 +38,7 @@ ENV GOOGLE_HELM_REPO_URL ${GOOGLE_HELM_REPO_URL}
 ARG KUBE_VERSION="v1.18.9"
 ENV KUBE_VERSION ${KUBE_VERSION}
 
-ARG CNI_VERSION="v0.6.0"
+ARG CNI_VERSION="v0.8.5"
 ENV CNI_VERSION ${CNI_VERSION}
 
 ARG CNI_REPO_URL=https://github.com/containernetworking/plugins/releases/download/$CNI_VERSION
@@ -97,7 +97,7 @@ RUN set -ex ;\
       ${GOOGLE_KUBERNETES_REPO_URL}/kubelet ;\
     chmod +x /opt/assets/usr/bin/kubelet ;\
     mkdir -p /opt/assets${CNI_BIN_DIR} ;\
-    curl -sSL ${CNI_REPO_URL}/cni-plugins-amd64-$CNI_VERSION.tgz | \
+    curl -sSL ${CNI_REPO_URL}/cni-plugins-linux-amd64-$CNI_VERSION.tgz | \
       tar -zxv --strip-components=1 -C /opt/assets${CNI_BIN_DIR} ;\
     TMP_DIR=$(mktemp -d) ;\
     curl -sSL ${GOOGLE_HELM_REPO_URL}/helm-${HELM_VERSION}-linux-amd64.tar.gz | tar -zxv --strip-components=1 -C ${TMP_DIR} ;\
