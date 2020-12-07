@@ -38,7 +38,7 @@ fi
 : ${PVC_SUPPORT_NFS:="false"}
 : ${HELM_TILLER_IMAGE:="gcr.io/kubernetes-helm/tiller:${HELM_VERSION}"}
 : ${KUBE_VERSION:="${KUBE_VERSION}"}
-: ${KUBE_IMAGE_REPO:="gcr.io/google_containers"}
+: ${KUBE_IMAGE_REPO:="k8s.gcr.io"}
 : ${KUBE_API_BIND_PORT:="6443"}
 : ${KUBE_NET_DNS_DOMAIN:="cluster.local"}
 : ${KUBE_NET_POD_SUBNET:="192.168.0.0/16"}
