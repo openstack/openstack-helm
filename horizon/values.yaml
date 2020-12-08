@@ -189,6 +189,10 @@ conf:
         disable_password_reveal: "True"
         csrf_cookie_secure: "False"
         enforce_password_check: "True"
+        # Set enable_pwd_validator to true to enforce password validator settings.
+        enable_pwd_validator: false
+        pwd_validator_regex: '(?=.*[a-zA-Z])(?=.*\d).{8,}|(?=.*\d)(?=.*\W).{8,}|(?=.*\W)(?=.*[a-zA-Z]).{8,}'
+        pwd_validator_help_text: '_("Your password must be at least eight (8) characters in length and must include characters from at least two (2) of these groupings: alpha, numeric, and special characters.")'
         session_cookie_secure: "False"
         session_cookie_httponly: "False"
         secure_proxy_ssl_header: false
@@ -323,11 +327,13 @@ conf:
             'js_spec_files': [],
         }
 
+        {{- if .Values.conf.horizon.local_settings.config.enable_pwd_validator }}
         # Specify a regular expression to validate user passwords.
-        #HORIZON_CONFIG["password_validator"] = {
-        #    "regex": '.*',
-        #    "help_text": _("Your password does not meet the requirements."),
-        #}
+        HORIZON_CONFIG["password_validator"] = {
+            "regex": '{{ .Values.conf.horizon.local_settings.config.pwd_validator_regex }}',
+            "help_text": {{ .Values.conf.horizon.local_settings.config.pwd_validator_help_text }},
+        }
+        {{- end }}
 
         # Disable simplified floating IP address management for deployments with
         # multiple floating IP pools or complex network requirements.
