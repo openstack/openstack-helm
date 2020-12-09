@@ -43,7 +43,7 @@ examples:
       {{ $opts | include "helm-toolkit.manifests.certificates" }}
     return: |
       ---
-      apiVersion: cert-manager.io/v1alpha3
+      apiVersion: cert-manager.io/v1
       kind: Certificate
       metadata:
         name: keystone-tls-api
@@ -94,7 +94,7 @@ examples:
 {{- $_ := (list "server auth" "client auth") | set (index $envAll.Values.endpoints $service "host_fqdn_override" "default" "tls") "usages" -}}
 {{- end -}}
 ---
-apiVersion: cert-manager.io/v1alpha3
+apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
   name: {{ index $envAll.Values.endpoints $service "host_fqdn_override" "default" "tls" "secretName" }}
