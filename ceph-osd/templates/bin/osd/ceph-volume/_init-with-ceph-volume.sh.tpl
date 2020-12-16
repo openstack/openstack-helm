@@ -38,36 +38,42 @@ else
   export OSD_JOURNAL=$(readlink -f ${JOURNAL_LOCATION})
 fi
 
+# Set up aliases for functions that require disk synchronization
+alias rename_vg='locked rename_vg'
+alias rename_lvs='locked rename_lvs'
+alias update_lv_tags='locked update_lv_tags'
+alias prep_device='locked prep_device'
+
 # Renames a single VG if necessary
 function rename_vg {
   local physical_disk=$1
-  local old_vg_name=$(locked pvdisplay -ddd -v ${physical_disk} | awk '/VG Name/{print $3}')
+  local old_vg_name=$(pvdisplay -ddd -v ${physical_disk} | awk '/VG Name/{print $3}')
   local vg_name=$(get_vg_name_from_device ${physical_disk})
 
   if [[ "${old_vg_name}" ]] && [[ "${vg_name}" != "${old_vg_name}" ]]; then
-    locked vgrename ${old_vg_name} ${vg_name}
+    vgrename ${old_vg_name} ${vg_name}
   fi
 }
 
 # Renames all LVs associated with an OSD as necesasry
 function rename_lvs {
   local data_disk=$1
-  local vg_name=$(locked pvdisplay -ddd -v ${data_disk} | awk '/VG Name/{print $3}')
+  local vg_name=$(pvdisplay -ddd -v ${data_disk} | awk '/VG Name/{print $3}')
 
   if [[ "${vg_name}" ]]; then
     # Rename the OSD volume if necessary
-    local old_lv_name=$(locked lvdisplay ${vg_name} | awk '/LV Name/{print $3}')
+    local old_lv_name=$(lvdisplay ${vg_name} | awk '/LV Name/{print $3}')
     local lv_name=$(get_lv_name_from_device ${data_disk} lv)
 
     if [[ "${old_lv_name}" ]] && [[ "${lv_name}" != "${old_lv_name}" ]]; then
-      locked lvrename ${vg_name} ${old_lv_name} ${lv_name}
+      lvrename ${vg_name} ${old_lv_name} ${lv_name}
     fi
 
     # Rename the OSD's block.db volume if necessary, referenced by UUID
     local lv_tag=$(get_lvm_tag_from_device ${data_disk} ceph.db_uuid)
 
     if [[ "${lv_tag}" ]]; then
-      local lv_device=$(locked lvdisplay | grep -B4 "${lv_tag}" | awk '/LV Path/{print $3}')
+      local lv_device=$(lvdisplay | grep -B4 "${lv_tag}" | awk '/LV Path/{print $3}')
 
       if [[ "${lv_device}" ]]; then
         local db_vg=$(echo ${lv_device} | awk -F "/" '{print $3}')
@@ -75,7 +81,7 @@ function rename_lvs {
         local db_name=$(get_lv_name_from_device ${data_disk} db)
 
         if [[ "${old_lv_name}" ]] && [[ "${db_name}" != "${old_lv_name}" ]]; then
-          locked lvrename ${db_vg} ${old_lv_name} ${db_name}
+          lvrename ${db_vg} ${old_lv_name} ${db_name}
         fi
       fi
     fi
@@ -84,7 +90,7 @@ function rename_lvs {
     lv_tag=$(get_lvm_tag_from_device ${data_disk} ceph.wal_uuid)
 
     if [[ "${lv_tag}" ]]; then
-      local lv_device=$(locked lvdisplay | grep -B4 "${lv_tag}" | awk '/LV Path/{print $3}')
+      local lv_device=$(lvdisplay | grep -B4 "${lv_tag}" | awk '/LV Path/{print $3}')
 
       if [[ "${lv_device}" ]]; then
         local wal_vg=$(echo ${lv_device} | awk -F "/" '{print $3}')
@@ -92,7 +98,7 @@ function rename_lvs {
         local wal_name=$(get_lv_name_from_device ${data_disk} wal)
 
         if [[ "${old_lv_name}" ]] && [[ "${wal_name}" != "${old_lv_name}" ]]; then
-          locked lvrename ${wal_vg} ${old_lv_name} ${wal_name}
+          lvrename ${wal_vg} ${old_lv_name} ${wal_name}
         fi
       fi
     fi
@@ -104,10 +110,10 @@ function rename_lvs {
 #       renaming should be completed prior to calling this
 function update_lv_tags {
   local data_disk=$1
-  local pv_uuid=$(locked pvdisplay -ddd -v ${data_disk} | awk '/PV UUID/{print $3}')
+  local pv_uuid=$(pvdisplay -ddd -v ${data_disk} | awk '/PV UUID/{print $3}')
 
   if [[ "${pv_uuid}" ]]; then
-    local volumes="$(locked lvs --no-headings | grep -e "${pv_uuid}")"
+    local volumes="$(lvs --no-headings | grep -e "${pv_uuid}")"
     local block_device db_device wal_device vg_name
     local old_block_device old_db_device old_wal_device
 
@@ -131,21 +137,21 @@ function update_lv_tags {
     while read lv vg other_stuff; do
       if [[ "${block_device}" ]]; then
         if [[ "${old_block_device}" ]]; then
-          locked lvchange --deltag "ceph.block_device=${old_block_device}" /dev/${vg}/${lv}
+          lvchange --deltag "ceph.block_device=${old_block_device}" /dev/${vg}/${lv}
         fi
-        locked lvchange --addtag "ceph.block_device=${block_device}" /dev/${vg}/${lv}
+        lvchange --addtag "ceph.block_device=${block_device}" /dev/${vg}/${lv}
       fi
       if [[ "${db_device}" ]]; then
         if [[ "${old_db_device}" ]]; then
-          locked lvchange --deltag "ceph.db_device=${old_db_device}" /dev/${vg}/${lv}
+          lvchange --deltag "ceph.db_device=${old_db_device}" /dev/${vg}/${lv}
         fi
-        locked lvchange --addtag "ceph.db_device=${db_device}" /dev/${vg}/${lv}
+        lvchange --addtag "ceph.db_device=${db_device}" /dev/${vg}/${lv}
       fi
       if [[ "${wal_device}" ]]; then
         if [[ "${old_wal_device}" ]]; then
-          locked lvchange --deltag "ceph.wal_device=${old_wal_device}" /dev/${vg}/${lv}
+          lvchange --deltag "ceph.wal_device=${old_wal_device}" /dev/${vg}/${lv}
         fi
-        locked lvchange --addtag "ceph.wal_device=${wal_device}" /dev/${vg}/${lv}
+        lvchange --addtag "ceph.wal_device=${wal_device}" /dev/${vg}/${lv}
       fi
     done <<< ${volumes}
   fi
@@ -188,7 +194,7 @@ function prep_device {
   udev_settle
   vg_name=$(get_vg_name_from_device ${BLOCK_DEVICE})
   lv_name=$(get_lv_name_from_device ${data_disk} ${device_type})
-  VG=$(locked vgs --noheadings -o vg_name -S "vg_name=${vg_name}" | tr -d '[:space:]')
+  VG=$(vgs --noheadings -o vg_name -S "vg_name=${vg_name}" | tr -d '[:space:]')
   if [[ $VG ]]; then
     DEVICE_OSD_ID=$(get_osd_id_from_volume "/dev/${vg_name}/${lv_name}")
     CEPH_LVM_PREPARE=1
@@ -207,13 +213,13 @@ function prep_device {
       CEPH_LVM_PREPARE=1
     fi
     random_uuid=$(uuidgen)
-    locked vgcreate "ceph-vg-${random_uuid}" "${BLOCK_DEVICE}"
+    vgcreate "ceph-vg-${random_uuid}" "${BLOCK_DEVICE}"
     VG=$(get_vg_name_from_device ${BLOCK_DEVICE})
-    locked vgrename "ceph-vg-${random_uuid}" "${VG}"
+    vgrename "ceph-vg-${random_uuid}" "${VG}"
   fi
-  logical_volume=$(locked lvs --noheadings -o lv_name -S "lv_name=${lv_name}" | tr -d '[:space:]')
+  logical_volume=$(lvs --noheadings -o lv_name -S "lv_name=${lv_name}" | tr -d '[:space:]')
   if [[ $logical_volume != "${lv_name}" ]]; then
-    locked lvcreate -L "${BLOCK_DEVICE_SIZE}" -n "${lv_name}" "${VG}"
+    lvcreate -L "${BLOCK_DEVICE_SIZE}" -n "${lv_name}" "${VG}"
   fi
   if [[ "${device_type}" == "db" ]]; then
     BLOCK_DB="${VG}/${lv_name}"
@@ -399,7 +405,7 @@ function osd_disk_prepare {
       OSD_VG=${vg_name}
     fi
     lv_name=$(get_lv_name_from_device ${OSD_DEVICE} lv)
-    if [[ ! "$(locked lvdisplay | awk '/LV Name/{print $3}' | grep ${lv_name})" ]]; then
+    if [[ ! "$(lvdisplay | awk '/LV Name/{print $3}' | grep ${lv_name})" ]]; then
       lvcreate --yes -l 100%FREE -n ${lv_name} ${OSD_VG}
     fi
     OSD_LV=${OSD_VG}/${lv_name}
@@ -416,15 +422,15 @@ function osd_disk_prepare {
       block_wal_string=$(echo ${BLOCK_WAL} | awk -F "/" '{print $2 "-" $3}')
     fi
     if [[ ${BLOCK_DB} && ${BLOCK_WAL} ]]; then
-      global_locked prep_device "${BLOCK_DB}" "${BLOCK_DB_SIZE}" "db" "${OSD_DEVICE}"
-      global_locked prep_device "${BLOCK_WAL}" "${BLOCK_WAL_SIZE}" "wal" "${OSD_DEVICE}"
+      prep_device "${BLOCK_DB}" "${BLOCK_DB_SIZE}" "db" "${OSD_DEVICE}"
+      prep_device "${BLOCK_WAL}" "${BLOCK_WAL_SIZE}" "wal" "${OSD_DEVICE}"
     elif [[ -z ${BLOCK_DB} && ${BLOCK_WAL} ]]; then
-      global_locked prep_device "${BLOCK_WAL}" "${BLOCK_WAL_SIZE}" "wal" "${OSD_DEVICE}"
+      prep_device "${BLOCK_WAL}" "${BLOCK_WAL_SIZE}" "wal" "${OSD_DEVICE}"
     elif [[ ${BLOCK_DB} && -z ${BLOCK_WAL} ]]; then
-      global_locked prep_device "${BLOCK_DB}" "${BLOCK_DB_SIZE}" "db" "${OSD_DEVICE}"
+      prep_device "${BLOCK_DB}" "${BLOCK_DB_SIZE}" "db" "${OSD_DEVICE}"
     fi
   else
-    if locked pvdisplay -ddd -v ${OSD_DEVICE} | awk '/VG Name/{print $3}' | grep "ceph"; then
+    if pvdisplay -ddd -v ${OSD_DEVICE} | awk '/VG Name/{print $3}' | grep "ceph"; then
       CEPH_LVM_PREPARE=0
     fi
   fi
@@ -451,7 +457,7 @@ function osd_disk_prepare {
   fi
 
   if [[ CEPH_LVM_PREPARE -eq 1 ]]; then
-    locked ceph-volume lvm -v prepare ${CLI_OPTS}
+    ceph-volume lvm -v prepare ${CLI_OPTS}
     udev_settle
   fi
 }
@@ -502,3 +508,6 @@ function osd_journal_prepare {
 if ! [ "x${STORAGE_TYPE%-*}" == "xdirectory" ]; then
   osd_disk_prepare
 fi
+
+# Clean up resources held by the common script
+common_cleanup

@@ -15,6 +15,9 @@ limitations under the License.
 */}}
 
 set -ex
+shopt -s expand_aliases
+export lock_fd=''
+export ALREADY_LOCKED=0
 export PS4='+${BASH_SOURCE:+$(basename ${BASH_SOURCE}):${LINENO}:}${FUNCNAME:+${FUNCNAME}():} '
 
 : "${CRUSH_LOCATION:=root=default host=${HOSTNAME}}"
@@ -24,6 +27,85 @@ export PS4='+${BASH_SOURCE:+$(basename ${BASH_SOURCE}):${LINENO}:}${FUNCNAME:+${
 : "${OSD_JOURNAL_UUID:=$(uuidgen)}"
 : "${OSD_JOURNAL_SIZE:=$(awk '/^osd_journal_size/{print $3}' ${CEPH_CONF}.template)}"
 : "${OSD_WEIGHT:=1.0}"
+
+# Obtain a global lock on /var/lib/ceph/tmp/init-osd.lock
+function lock() {
+  # Open a file descriptor for the lock file if there isn't one already
+  if [[ -z "${lock_fd}" ]]; then
+    exec {lock_fd}>/var/lib/ceph/tmp/init-osd.lock || exit 1
+  fi
+  flock -w 600 "${lock_fd}" &> /dev/null
+  ALREADY_LOCKED=1
+}
+
+# Release the global lock on /var/lib/ceph/tmp/init-osd.lock
+function unlock() {
+  flock -u "${lock_fd}" &> /dev/null
+  ALREADY_LOCKED=0
+}
+
+# "Destructor" for common.sh, must be called by scripts that source this one
+function common_cleanup() {
+  # Close the file descriptor for the lock file
+  if [[ ! -z "${lock_fd}" ]]; then
+    if [[ ${ALREADY_LOCKED} -ne 0 ]]; then
+      unlock
+    fi
+    eval "exec ${lock_fd}>&-"
+  fi
+}
+
+# Run a command within the global synchronization lock
+function locked() {
+  local LOCK_SCOPE=0
+
+  # Allow locks to be re-entrant to avoid deadlocks
+  if [[ ${ALREADY_LOCKED} -eq 0 ]]; then
+    lock
+    LOCK_SCOPE=1
+  fi
+
+  # Execute the synchronized command
+  "$@"
+
+  # Only unlock if the lock was obtained in this scope
+  if [[ ${LOCK_SCOPE} -ne 0 ]]; then
+    unlock
+  fi
+}
+
+# Alias commands that interact with disks so they are always synchronized
+alias dmsetup='locked dmsetup'
+alias pvs='locked pvs'
+alias vgs='locked vgs'
+alias lvs='locked lvs'
+alias pvdisplay='locked pvdisplay'
+alias vgdisplay='locked vgdisplay'
+alias lvdisplay='locked lvdisplay'
+alias pvcreate='locked pvcreate'
+alias vgcreate='locked vgcreate'
+alias lvcreate='locked lvcreate'
+alias pvremove='locked pvremove'
+alias vgremove='locked vgremove'
+alias lvremove='locked lvremove'
+alias pvrename='locked pvrename'
+alias vgrename='locked vgrename'
+alias lvrename='locked lvrename'
+alias pvchange='locked pvchange'
+alias vgchange='locked vgchange'
+alias lvchange='locked lvchange'
+alias pvscan='locked pvscan'
+alias vgscan='locked vgscan'
+alias lvscan='locked lvscan'
+alias lvm_scan='locked lvm_scan'
+alias partprobe='locked partprobe'
+alias ceph-volume='locked ceph-volume'
+alias disk_zap='locked disk_zap'
+alias zap_extra_partitions='locked zap_extra_partitions'
+alias udev_settle='locked udev_settle'
+alias wipefs='locked wipefs'
+alias sgdisk='locked sgdisk'
+alias dd='locked dd'
 
 eval CRUSH_FAILURE_DOMAIN_TYPE=$(cat /etc/ceph/storage.json | python -c 'import sys, json; data = json.load(sys.stdin); print(json.dumps(data["failure_domain"]))')
 eval CRUSH_FAILURE_DOMAIN_NAME=$(cat /etc/ceph/storage.json | python -c 'import sys, json; data = json.load(sys.stdin); print(json.dumps(data["failure_domain_name"]))')
@@ -72,19 +154,6 @@ function ceph_cmd_retry() {
     sleep 10
     ((cnt++))
   done
-}
-
-function locked() {
-  exec {lock_fd}>/var/lib/ceph/tmp/init-osd.lock || exit 1
-  flock -w 600 --verbose "${lock_fd}" &> /dev/null
-  "$@"
-  flock -u "${lock_fd}" &> /dev/null
-}
-function global_locked() {
-  exec {global_lock_fd}>/var/lib/ceph/tmp/init-osd-global.lock || exit 1
-  flock -w 600 --verbose "${global_lock_fd}" &> /dev/null
-  "$@"
-  flock -u "${global_lock_fd}" &> /dev/null
 }
 
 function crush_create_or_move {
@@ -242,13 +311,13 @@ function disk_zap {
       dmsetup remove ${dm_device}
     fi
   done
-  local logical_volumes=$(locked lvdisplay | grep "LV Path" | grep "$device_filter" | awk '/ceph/{print $3}' | tr '\n' ' ')
+  local logical_volumes=$(lvdisplay | grep "LV Path" | grep "$device_filter" | awk '/ceph/{print $3}' | tr '\n' ' ')
   for logical_volume in ${logical_volumes}; do
     if [[ ! -z ${logical_volume} ]]; then
-      locked lvremove -y ${logical_volume}
+      lvremove -y ${logical_volume}
     fi
   done
-  local volume_group=$(locked pvdisplay -ddd -v ${device} | grep "VG Name" | awk '/ceph/{print $3}' | grep "ceph")
+  local volume_group=$(pvdisplay -ddd -v ${device} | grep "VG Name" | awk '/ceph/{print $3}' | grep "ceph")
   if [[ ${volume_group} ]]; then
     vgremove -y ${volume_group}
     pvremove -y ${device}
@@ -274,7 +343,7 @@ function udev_settle {
   osd_devices="${OSD_DEVICE}"
   udevadm settle --timeout=600
   partprobe "${OSD_DEVICE}"
-  locked lvm_scan
+  lvm_scan
   if [ "${OSD_BLUESTORE:-0}" -eq 1 ]; then
     if [ ! -z "$BLOCK_DB" ]; then
       osd_devices="${osd_devices}\|${BLOCK_DB}"
@@ -282,9 +351,9 @@ function udev_settle {
       local block_db="$BLOCK_DB"
       local db_vg="$(echo $block_db | cut -d'/' -f1)"
       if [ ! -z "$db_vg" ]; then
-        block_db=$(locked pvdisplay -ddd -v | grep -B1 "$db_vg" | awk '/PV Name/{print $3}')
+        block_db=$(pvdisplay -ddd -v | grep -B1 "$db_vg" | awk '/PV Name/{print $3}')
       fi
-      locked partprobe "${block_db}"
+      partprobe "${block_db}"
     fi
     if [ ! -z "$BLOCK_WAL" ] && [ "$BLOCK_WAL" != "$BLOCK_DB" ]; then
       osd_devices="${osd_devices}\|${BLOCK_WAL}"
@@ -292,9 +361,9 @@ function udev_settle {
       local block_wal="$BLOCK_WAL"
       local wal_vg="$(echo $block_wal | cut -d'/' -f1)"
       if [ ! -z "$wal_vg" ]; then
-        block_wal=$(locked pvdisplay -ddd -v | grep -B1 "$wal_vg" | awk '/PV Name/{print $3}')
+        block_wal=$(pvdisplay -ddd -v | grep -B1 "$wal_vg" | awk '/PV Name/{print $3}')
       fi
-      locked partprobe "${block_wal}"
+      partprobe "${block_wal}"
     fi
   else
     if [ "x$JOURNAL_TYPE" == "xblock-logical" ] && [ ! -z "$OSD_JOURNAL" ]; then
@@ -302,7 +371,7 @@ function udev_settle {
       if [ ! -z "$OSD_JOURNAL" ]; then
         local JDEV=$(echo ${OSD_JOURNAL} | sed 's/[0-9]//g')
         osd_devices="${osd_devices}\|${JDEV}"
-        locked partprobe "${JDEV}"
+        partprobe "${JDEV}"
       fi
     fi
   fi
@@ -328,7 +397,7 @@ function udev_settle {
 function get_lv_from_device {
   device="$1"
 
-  locked pvdisplay -ddd -v -m ${device} | awk '/Logical volume/{print $3}'
+  pvdisplay -ddd -v -m ${device} | awk '/Logical volume/{print $3}'
 }
 
 # Helper function to get an lvm tag from a logical volume
@@ -341,7 +410,7 @@ function get_lvm_tag_from_volume {
     echo
   else
     # Get and return the specified tag from the logical volume
-    locked lvs -o lv_tags ${logical_volume} | tr ',' '\n' | grep ${tag} | cut -d'=' -f2
+    lvs -o lv_tags ${logical_volume} | tr ',' '\n' | grep ${tag} | cut -d'=' -f2
   fi
 }
 
@@ -361,7 +430,7 @@ function get_lv_size_from_device {
   device="$1"
   logical_volume="$(get_lv_from_device ${device})"
 
-  locked lvs ${logical_volume} -o LV_SIZE --noheadings --units k --nosuffix | xargs | cut -d'.' -f1
+  lvs ${logical_volume} -o LV_SIZE --noheadings --units k --nosuffix | xargs | cut -d'.' -f1
 }
 
 # Helper function to get the crush weight for an osd device
@@ -435,12 +504,12 @@ function get_lvm_path_from_device {
   select="$1"
 
   options="--noheadings -o lv_dm_path"
-  locked pvs ${options} -S "${select}" | tr -d ' '
+  pvs ${options} -S "${select}" | tr -d ' '
 }
 
 function get_vg_name_from_device {
   device="$1"
-  pv_uuid=$(locked pvdisplay -ddd -v ${device} | awk '/PV UUID/{print $3}')
+  pv_uuid=$(pvdisplay -ddd -v ${device} | awk '/PV UUID/{print $3}')
 
   if [[ "${pv_uuid}" ]]; then
     echo "ceph-vg-${pv_uuid}"
@@ -450,7 +519,7 @@ function get_vg_name_from_device {
 function get_lv_name_from_device {
   device="$1"
   device_type="$2"
-  pv_uuid=$(locked pvdisplay -ddd -v ${device} | awk '/PV UUID/{print $3}')
+  pv_uuid=$(pvdisplay -ddd -v ${device} | awk '/PV UUID/{print $3}')
 
   if [[ "${pv_uuid}" ]]; then
     echo "ceph-${device_type}-${pv_uuid}"

@@ -111,3 +111,6 @@ exec /usr/bin/ceph-osd \
     --setuser ceph \
     --setgroup disk & echo $! > /run/ceph-osd.pid
 wait
+
+# Clean up resources held by the common script
+common_cleanup
