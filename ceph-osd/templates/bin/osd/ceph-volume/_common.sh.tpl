@@ -305,18 +305,21 @@ function disk_zap {
   # Run all the commands that ceph-disk zap uses to clear a disk
   local device=${1}
   local device_filter=$(basename "${device}")
+  local lv_name=$(get_lv_name_from_device "${device}" lv)
   local dm_devices=$(get_lvm_path_from_device "pv_name=~${device_filter},lv_name=~ceph")
   for dm_device in ${dm_devices}; do
     if [[ ! -z ${dm_device} ]] && [[ ! -z $(dmsetup ls | grep ${dm_device}) ]]; then
       dmsetup remove ${dm_device}
     fi
   done
-  local logical_volumes=$(lvdisplay | grep "LV Path" | grep "$device_filter" | awk '/ceph/{print $3}' | tr '\n' ' ')
-  for logical_volume in ${logical_volumes}; do
-    if [[ ! -z ${logical_volume} ]]; then
-      lvremove -y ${logical_volume}
-    fi
-  done
+  if [[ ! -z "${lv_name}" ]]; then
+    local logical_volumes=$(lvdisplay | grep "LV Path" | grep "${lv_name}" | awk '/ceph/{print $3}' | tr '\n' ' ')
+    for logical_volume in ${logical_volumes}; do
+      if [[ ! -z ${logical_volume} ]]; then
+        lvremove -y ${logical_volume}
+      fi
+    done
+  fi
   local volume_group=$(pvdisplay -ddd -v ${device} | grep "VG Name" | awk '/ceph/{print $3}' | grep "ceph")
   if [[ ${volume_group} ]]; then
     vgremove -y ${volume_group}
