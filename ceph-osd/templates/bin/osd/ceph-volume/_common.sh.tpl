@@ -57,6 +57,9 @@ function common_cleanup() {
 
 # Run a command within the global synchronization lock
 function locked() {
+  # Don't log every command inside locked() to keep logs cleaner
+  { set +x; } 2>/dev/null
+
   local LOCK_SCOPE=0
 
   # Allow locks to be re-entrant to avoid deadlocks
@@ -66,12 +69,17 @@ function locked() {
   fi
 
   # Execute the synchronized command
+  set -x
   "$@"
+  { set +x; } 2>/dev/null
 
   # Only unlock if the lock was obtained in this scope
   if [[ ${LOCK_SCOPE} -ne 0 ]]; then
     unlock
   fi
+
+  # Re-enable command logging
+  set -x
 }
 
 # Alias commands that interact with disks so they are always synchronized
@@ -304,21 +312,15 @@ function zap_extra_partitions {
 function disk_zap {
   # Run all the commands that ceph-disk zap uses to clear a disk
   local device=${1}
-  local device_filter=$(basename "${device}")
-  local lv_name=$(get_lv_name_from_device "${device}" lv)
-  local dm_devices=$(get_lvm_path_from_device "pv_name=~${device_filter},lv_name=~ceph")
+  local dm_devices=$(get_dm_devices_from_osd_device "${device}" | xargs)
   for dm_device in ${dm_devices}; do
-    if [[ ! -z ${dm_device} ]] && [[ ! -z $(dmsetup ls | grep ${dm_device}) ]]; then
+    if [[ "$(dmsetup ls | grep ${dm_device})" ]]; then
       dmsetup remove ${dm_device}
     fi
   done
-  if [[ ! -z "${lv_name}" ]]; then
-    local logical_volumes=$(lvdisplay | grep "LV Path" | grep "${lv_name}" | awk '/ceph/{print $3}' | tr '\n' ' ')
-    for logical_volume in ${logical_volumes}; do
-      if [[ ! -z ${logical_volume} ]]; then
-        lvremove -y ${logical_volume}
-      fi
-    done
+  local logical_volumes=$(get_lv_paths_from_osd_device "${device}" | xargs)
+  if [[ "${logical_volumes}" ]]; then
+    lvremove -y ${logical_volumes}
   fi
   local volume_group=$(pvdisplay -ddd -v ${device} | grep "VG Name" | awk '/ceph/{print $3}' | grep "ceph")
   if [[ ${volume_group} ]]; then
@@ -503,11 +505,24 @@ function get_block_uuid_from_device {
   get_lvm_tag_from_device ${device} ceph.block_uuid
 }
 
-function get_lvm_path_from_device {
-  select="$1"
+function get_dm_devices_from_osd_device {
+  device="$1"
+  pv_uuid=$(pvdisplay -ddd -v ${device} | awk '/PV UUID/{print $3}')
 
-  options="--noheadings -o lv_dm_path"
-  pvs ${options} -S "${select}" | tr -d ' '
+  # Return the list of dm devices that belong to the osd
+  if [[ "${pv_uuid}" ]]; then
+    dmsetup ls | grep "$(echo "${pv_uuid}" | sed 's/-/--/g')" | awk '{print $1}'
+  fi
+}
+
+function get_lv_paths_from_osd_device {
+  device="$1"
+  pv_uuid=$(pvdisplay -ddd -v ${device} | awk '/PV UUID/{print $3}')
+
+  # Return the list of lvs that belong to the osd
+  if [[ "${pv_uuid}" ]]; then
+    lvdisplay | grep "LV Path" | grep "${pv_uuid}" | awk '{print $3}'
+  fi
 }
 
 function get_vg_name_from_device {

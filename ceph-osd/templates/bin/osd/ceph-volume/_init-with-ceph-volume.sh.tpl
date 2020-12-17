@@ -195,28 +195,41 @@ function prep_device {
   vg_name=$(get_vg_name_from_device ${BLOCK_DEVICE})
   lv_name=$(get_lv_name_from_device ${data_disk} ${device_type})
   VG=$(vgs --noheadings -o vg_name -S "vg_name=${vg_name}" | tr -d '[:space:]')
-  if [[ $VG ]]; then
+  if [[ "${VG}" ]]; then
     DEVICE_OSD_ID=$(get_osd_id_from_volume "/dev/${vg_name}/${lv_name}")
     CEPH_LVM_PREPARE=1
-    if [ -n "${OSD_ID}" ]; then
-      if [ "${DEVICE_OSD_ID}" == "${OSD_ID}" ]; then
+    if [[ -n "${DEVICE_OSD_ID}" ]] && [[ -n "${OSD_ID}" ]]; then
+      if [[ "${DEVICE_OSD_ID}" == "${OSD_ID}" ]]; then
         CEPH_LVM_PREPARE=0
       else
         disk_zap "${OSD_DEVICE}"
       fi
     fi
+    logical_volumes="$(lvs --noheadings -o lv_name ${VG} | xargs)"
+    for volume in ${logical_volumes}; do
+      data_volume=$(echo ${volume} | sed -E -e 's/db|wal/lv/g')
+      if [[ -z $(lvs --noheadings -o lv_name -S "lv_name=${data_volume}") ]]; then
+        # DB or WAL volume without a corresponding data volume, remove it
+        lvremove -y /dev/${VG}/${volume}
+      fi
+    done
   else
-    logical_devices=$(get_lvm_path_from_device "pv_name=~${BLOCK_DEVICE},lv_name=~${lv_name}")
-    if [[ -n "$logical_devices" ]]; then
-      dmsetup remove $logical_devices
-      disk_zap "${OSD_DEVICE}"
-      CEPH_LVM_PREPARE=1
+    if [[ "${vg_name}" ]]; then
+      logical_devices=$(get_dm_devices_from_osd_device "${data_disk}")
+      device_filter=$(echo "${vg_name}" | sed 's/-/--/g')
+      logical_devices=$(echo "${logical_devices}" | grep "${device_filter}" | xargs)
+      if [[ "$logical_devices" ]]; then
+        dmsetup remove $logical_devices
+        disk_zap "${OSD_DEVICE}"
+        CEPH_LVM_PREPARE=1
+      fi
     fi
     random_uuid=$(uuidgen)
     vgcreate "ceph-vg-${random_uuid}" "${BLOCK_DEVICE}"
     VG=$(get_vg_name_from_device ${BLOCK_DEVICE})
     vgrename "ceph-vg-${random_uuid}" "${VG}"
   fi
+  udev_settle
   logical_volume=$(lvs --noheadings -o lv_name -S "lv_name=${lv_name}" | tr -d '[:space:]')
   if [[ $logical_volume != "${lv_name}" ]]; then
     lvcreate -L "${BLOCK_DEVICE_SIZE}" -n "${lv_name}" "${VG}"
@@ -295,20 +308,16 @@ function osd_disk_prepare {
     elif [[ $(sgdisk --print ${OSD_DEVICE} | grep "F800") ]]; then
       DM_DEV=${OSD_DEVICE}$(sgdisk --print ${OSD_DEVICE} | grep "F800" | awk '{print $1}')
       CEPH_DISK_USED=1
-    elif [[ $(lsblk ${OSD_DEVICE}|grep -i ceph) ]]; then
-      CEPH_DISK_USED=1
     else
-      dm_lv_name="$(get_lv_name_from_device ${OSD_DEVICE} lv | sed 's/-/--/g')"
-      if [[ ! -z "${dm_lv_name}" ]] && [[ ! -z "$(dmsetup ls | grep ${dm_lv_name})" ]]; then
-        CEPH_DISK_USED=1
-      fi
-      if [[ ${OSD_FORCE_REPAIR} -eq 1 ]] && [ ${CEPH_DISK_USED} -ne 1 ]; then
-        echo "${OSD_DEVICE} isn't clean, zapping it because OSD_FORCE_REPAIR is enabled"
-        disk_zap ${OSD_DEVICE}
-      else
-        echo "${OSD_DEVICE} isn't clean, but OSD_FORCE_REPAIR isn't enabled."
-        echo "Please set OSD_FORCE_REPAIR to '1' if you want to zap this disk."
-        exit 1
+      if [[ ${CEPH_DISK_USED} -eq 1 ]]; then
+        if [[ ${OSD_FORCE_REPAIR} -eq 1 ]]; then
+          echo "${OSD_DEVICE} isn't clean, zapping it because OSD_FORCE_REPAIR is enabled"
+          disk_zap ${OSD_DEVICE}
+        else
+          echo "${OSD_DEVICE} isn't clean, but OSD_FORCE_REPAIR isn't enabled."
+          echo "Please set OSD_FORCE_REPAIR to '1' if you want to zap this disk."
+          exit 1
+        fi
       fi
     fi
   fi
@@ -456,7 +465,7 @@ function osd_disk_prepare {
     CLI_OPTS="${CLI_OPTS} --crush-device-class ${DEVICE_CLASS}"
   fi
 
-  if [[ CEPH_LVM_PREPARE -eq 1 ]]; then
+  if [[ ${CEPH_LVM_PREPARE} -eq 1 ]]; then
     ceph-volume lvm -v prepare ${CLI_OPTS}
     udev_settle
   fi
