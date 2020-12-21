@@ -62,7 +62,7 @@ examples:
       {{- include "helm-toolkit.manifests.ingress" ( dict "envAll" . "backendServiceType" "key-manager" "backendPort" "b-api" "endpoint" "public" ) -}}
     return: |
       ---
-      apiVersion: extensions/v1beta1
+      apiVersion: networking.k8s.io/v1beta1
       kind: Ingress
       metadata:
         name: barbican
@@ -94,7 +94,7 @@ examples:
                     serviceName: barbican-api
                     servicePort: b-api
       ---
-      apiVersion: extensions/v1beta1
+      apiVersion: networking.k8s.io/v1beta1
       kind: Ingress
       metadata:
         name: barbican-namespace-fqdn
@@ -116,7 +116,7 @@ examples:
                     serviceName: barbican-api
                     servicePort: b-api
       ---
-      apiVersion: extensions/v1beta1
+      apiVersion: networking.k8s.io/v1beta1
       kind: Ingress
       metadata:
         name: barbican-cluster-fqdn
@@ -182,7 +182,7 @@ examples:
       {{- include "helm-toolkit.manifests.ingress" ( dict "envAll" . "backendServiceType" "key-manager" "backendPort" "b-api" "endpoint" "public" ) -}}
     return: |
       ---
-      apiVersion: extensions/v1beta1
+      apiVersion: networking.k8s.io/v1beta1
       kind: Ingress
       metadata:
         name: barbican
@@ -272,7 +272,7 @@ examples:
       {{- include "helm-toolkit.manifests.ingress" ( dict "envAll" . "backendServiceType" "key-manager" "backendPort" "b-api" "endpoint" "public" "certIssuer" "ca-issuer" ) -}}
     return: |
       ---
-      apiVersion: extensions/v1beta1
+      apiVersion: networking.k8s.io/v1beta1
       kind: Ingress
       metadata:
         name: barbican
@@ -365,7 +365,7 @@ examples:
       {{- include "helm-toolkit.manifests.ingress" ( dict "envAll" . "backendServiceType" "key-manager" "backendPort" "b-api" "endpoint" "public" "certIssuer" "ca-issuer" "certIssuer" "cluster-issuer") -}}
     return: |
       ---
-      apiVersion: extensions/v1beta1
+      apiVersion: networking.k8s.io/v1beta1
       kind: Ingress
       metadata:
         name: barbican
@@ -440,7 +440,7 @@ examples:
       {{ $ingressOpts | include "helm-toolkit.manifests.ingress" }}
     return: |
       ---
-      apiVersion: extensions/v1beta1
+      apiVersion: networking.k8s.io/v1beta1
       kind: Ingress
       metadata:
         name: grafana
@@ -472,7 +472,7 @@ examples:
                     serviceName: grafana-dashboard
                     servicePort: dashboard
       ---
-      apiVersion: extensions/v1beta1
+      apiVersion: networking.k8s.io/v1beta1
       kind: Ingress
       metadata:
         name: grafana-namespace-fqdn
@@ -502,7 +502,7 @@ examples:
                     serviceName: grafana-dashboard
                     servicePort: dashboard
       ---
-      apiVersion: extensions/v1beta1
+      apiVersion: networking.k8s.io/v1beta1
       kind: Ingress
       metadata:
         name: grafana-cluster-fqdn
@@ -563,7 +563,7 @@ examples:
 {{- $hostName := tuple $backendServiceType $endpoint $envAll | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
 {{- $hostNameFull := tuple $backendServiceType $endpoint $envAll | include "helm-toolkit.endpoints.hostname_fqdn_endpoint_lookup" }}
 ---
-apiVersion: extensions/v1beta1
+apiVersion: networking.k8s.io/v1beta1
 kind: Ingress
 metadata:
   name: {{ $ingressName }}
@@ -613,7 +613,7 @@ spec:
 {{- range $key2, $ingressController := tuple "namespace" "cluster" }}
 {{- $vHosts := list $hostNameFull }}
 ---
-apiVersion: extensions/v1beta1
+apiVersion: networking.k8s.io/v1beta1
 kind: Ingress
 metadata:
   name: {{ printf "%s-%s-%s" $ingressName $ingressController "fqdn" }}
