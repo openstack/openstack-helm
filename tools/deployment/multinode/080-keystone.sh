@@ -14,7 +14,15 @@
 
 set -xe
 
+#NOTE: Get the over-rides to use
+: ${OSH_EXTRA_HELM_ARGS_KEYSTONE:="$(./tools/deployment/common/get-values-overrides.sh keystone)"}
+: ${RUN_HELM_TESTS:="yes"}
+
+#NOTE: Lint and package chart
+make keystone
+
 #NOTE: Deploy command
+: ${OSH_EXTRA_HELM_ARGS:=""}
 helm upgrade --install keystone ./keystone \
     --namespace=openstack \
     --set pod.replicas.api=2 \
@@ -29,6 +37,7 @@ helm status keystone
 export OS_CLOUD=openstack_helm
 sleep 30 #NOTE(portdirect): Wait for ingress controller to update rules and restart Nginx
 openstack endpoint list
-# Delete the test pod if it still exists
-kubectl delete pods -l application=keystone,release_group=keystone,component=test --namespace=openstack --ignore-not-found
-helm test keystone --timeout 900
+
+if [ "x${RUN_HELM_TESTS}" != "xno" ]; then
+    ./tools/deployment/common/run-helm-tests.sh keystone
+fi

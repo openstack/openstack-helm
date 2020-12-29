@@ -14,10 +14,16 @@
 
 set -xe
 
+#NOTE: Get the over-rides to use
+: ${OSH_EXTRA_HELM_ARGS_GLANCE:="$(./tools/deployment/common/get-values-overrides.sh glance)"}
+: ${RUN_HELM_TESTS:="yes"}
+
+#NOTE: Lint and package chart
+make glance
+
 #NOTE: Deploy command
-: ${OSH_OPENSTACK_RELEASE:="newton"}
-#NOTE(portdirect), this could be: radosgw, rbd, swift or pvc
-: ${GLANCE_BACKEND:="swift"}
+: ${OSH_EXTRA_HELM_ARGS:=""}
+: ${GLANCE_BACKEND:="pvc"}
 tee /tmp/glance.yaml <<EOF
 storage: ${GLANCE_BACKEND}
 pod:
@@ -25,25 +31,11 @@ pod:
     api: 2
     registry: 2
 EOF
-if [ "x${OSH_OPENSTACK_RELEASE}" == "xnewton" ]; then
-# NOTE(portdirect): glance APIv1 is required for heat in Newton
-  tee -a /tmp/glance.yaml <<EOF
-conf:
-  glance:
-    DEFAULT:
-      enable_v1_api: true
-      enable_v2_registry: true
-manifests:
-  deployment_registry: true
-  ingress_registry: true
-  pdb_registry: true
-  service_ingress_registry: true
-EOF
-fi
+
 helm upgrade --install glance ./glance \
   --namespace=openstack \
   --values=/tmp/glance.yaml \
-  ${OSH_EXTRA_HELM_ARGS} \
+  ${OSH_EXTRA_HELM_ARGS:=} \
   ${OSH_EXTRA_HELM_ARGS_GLANCE}
 
 #NOTE: Wait for deploy
@@ -56,6 +48,9 @@ openstack service list
 sleep 30 #NOTE(portdirect): Wait for ingress controller to update rules and restart Nginx
 openstack image list
 openstack image show 'Cirros 0.3.5 64-bit'
-# Delete the test pod if it still exists
-kubectl delete pods -l application=glance,release_group=glance,component=test --namespace=openstack --ignore-not-found
-helm test glance --timeout 900
+
+if [ "x${RUN_HELM_TESTS}" == "xno" ]; then
+    exit 0
+fi
+
+./tools/deployment/common/run-helm-tests.sh glance

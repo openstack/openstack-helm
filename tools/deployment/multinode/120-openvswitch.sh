@@ -13,8 +13,14 @@
 #    under the License.
 set -xe
 
-#NOTE: Deploy command
+#NOTE: Get the over-rides to use
 : ${OSH_INFRA_PATH:="../openstack-helm-infra"}
+: ${OSH_EXTRA_HELM_ARGS_OPENVSWITCH:="$(./tools/deployment/common/get-values-overrides.sh openvswitch)"}
+
+#NOTE: Lint and package chart
+make -C ${OSH_INFRA_PATH} openvswitch
+
+#NOTE: Deploy command
 helm upgrade --install openvswitch ${OSH_INFRA_PATH}/openvswitch \
   --namespace=openstack \
   ${OSH_EXTRA_HELM_ARGS} \
