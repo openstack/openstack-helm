@@ -56,6 +56,9 @@ spec:
 {{- if .Values.pod.useHostNetwork.volume }}
       hostNetwork: true
 {{- end }}
+{{- if .Values.conf.enable_iscsi }}
+      hostIPC: true
+{{- end }}
       initContainers:
 {{ tuple $envAll "volume" $mounts_cinder_volume_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
         {{- range $name := rest (splitList "," (include "cinder.utils.ceph_backend_list" $envAll)) }}
@@ -224,6 +227,14 @@ spec:
             {{- if .Values.conf.enable_iscsi }}
             - name: host-rootfs
               mountPath: /mnt/host-rootfs
+              {{- if or ( gt .Capabilities.KubeVersion.Major "1" ) ( ge .Capabilities.KubeVersion.Minor "10" ) }}
+              mountPropagation: HostToContainer
+              {{- end }}
+            - name: host-dev
+              mountPath: /dev
+              {{- if or ( gt .Capabilities.KubeVersion.Major "1" ) ( ge .Capabilities.KubeVersion.Minor "10" ) }}
+              mountPropagation: Bidirectional
+              {{- end }}
             - name: runlock
               mountPath: /run/lock
             - name: etciscsi
@@ -281,6 +292,9 @@ spec:
         - name: host-rootfs
           hostPath:
             path: /
+        - name: host-dev
+          hostPath:
+            path: /dev
         - name: runlock
           hostPath:
             path: /run/lock
