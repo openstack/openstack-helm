@@ -19,10 +19,10 @@ set -ex
 function check_osd_count() {
   echo "#### Start: Checking OSD count ####"
   noup_flag=$(ceph osd stat | awk '/noup/ {print $2}')
-  osd_stat=$(ceph osd stat -f json)
-  num_osd=$(jq '.osdmap.num_osds' <<< "$osd_stat")
-  num_in_osds=$(jq '.osdmap.num_in_osds' <<< "$osd_stat")
-  num_up_osds=$(jq '.osdmap.num_up_osds' <<< "$osd_stat")
+  osd_stat=$(ceph osd stat -f json-pretty)
+  num_osd=$(awk '/"num_osds"/{print $2}' <<< "$osd_stat" | cut -d, -f1)
+  num_in_osds=$(awk '/"num_in_osds"/{print $2}' <<< "$osd_stat" | cut -d, -f1)
+  num_up_osds=$(awk '/"num_up_osds"/{print $2}' <<< "$osd_stat" | cut -d, -f1)
 
   MIN_OSDS=$((${num_osd}*$REQUIRED_PERCENT_OF_OSDS/100))
   if [ ${MIN_OSDS} -lt 1 ]; then

@@ -31,8 +31,8 @@ eval CRUSH_FAILURE_DOMAIN_BY_HOSTNAME=$(cat /etc/ceph/storage.json | python -c '
 eval CRUSH_FAILURE_DOMAIN_FROM_HOSTNAME_MAP=$(cat /etc/ceph/storage.json | jq '.failure_domain_by_hostname_map."'$HOSTNAME'"')
 eval DEVICE_CLASS=$(cat /etc/ceph/storage.json | python -c 'import sys, json; data = json.load(sys.stdin); print(json.dumps(data["device_class"]))')
 
-if [[ $(ceph -v | egrep -q "nautilus|mimic|luminous"; echo $?) -ne 0 ]]; then
-    echo "ERROR- need Luminous/Mimic/Nautilus release"
+if [[ $(ceph -v | egrep "octopus|nautilus|mimic|luminous" > /dev/null 2>&1; echo $?) -ne 0 ]]; then
+    echo "ERROR- need Luminous/Mimic/Nautilus/Octopus release"
     exit 1
 fi
 

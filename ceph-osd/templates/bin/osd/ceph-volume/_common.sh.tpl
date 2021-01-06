@@ -115,15 +115,15 @@ alias wipefs='locked wipefs'
 alias sgdisk='locked sgdisk'
 alias dd='locked dd'
 
-eval CRUSH_FAILURE_DOMAIN_TYPE=$(cat /etc/ceph/storage.json | python -c 'import sys, json; data = json.load(sys.stdin); print(json.dumps(data["failure_domain"]))')
-eval CRUSH_FAILURE_DOMAIN_NAME=$(cat /etc/ceph/storage.json | python -c 'import sys, json; data = json.load(sys.stdin); print(json.dumps(data["failure_domain_name"]))')
-eval CRUSH_FAILURE_DOMAIN_NAME=$(cat /etc/ceph/storage.json | python -c 'import sys, json; data = json.load(sys.stdin); print(json.dumps(data["failure_domain_name"]))')
-eval CRUSH_FAILURE_DOMAIN_BY_HOSTNAME=$(cat /etc/ceph/storage.json | python -c 'import sys, json; data = json.load(sys.stdin); print(json.dumps(data["failure_domain_by_hostname"]))')
+eval CRUSH_FAILURE_DOMAIN_TYPE=$(cat /etc/ceph/storage.json | python3 -c 'import sys, json; data = json.load(sys.stdin); print(json.dumps(data["failure_domain"]))')
+eval CRUSH_FAILURE_DOMAIN_NAME=$(cat /etc/ceph/storage.json | python3 -c 'import sys, json; data = json.load(sys.stdin); print(json.dumps(data["failure_domain_name"]))')
+eval CRUSH_FAILURE_DOMAIN_NAME=$(cat /etc/ceph/storage.json | python3 -c 'import sys, json; data = json.load(sys.stdin); print(json.dumps(data["failure_domain_name"]))')
+eval CRUSH_FAILURE_DOMAIN_BY_HOSTNAME=$(cat /etc/ceph/storage.json | python3 -c 'import sys, json; data = json.load(sys.stdin); print(json.dumps(data["failure_domain_by_hostname"]))')
 eval CRUSH_FAILURE_DOMAIN_FROM_HOSTNAME_MAP=$(cat /etc/ceph/storage.json | jq '.failure_domain_by_hostname_map."'$HOSTNAME'"')
-eval DEVICE_CLASS=$(cat /etc/ceph/storage.json | python -c 'import sys, json; data = json.load(sys.stdin); print(json.dumps(data["device_class"]))')
+eval DEVICE_CLASS=$(cat /etc/ceph/storage.json | python3 -c 'import sys, json; data = json.load(sys.stdin); print(json.dumps(data["device_class"]))')
 
-if [[ $(ceph -v | egrep -q "nautilus|mimic|luminous"; echo $?) -ne 0 ]]; then
-    echo "ERROR- need Luminous/Mimic/Nautilus release"
+if [[ $(ceph -v | awk '/version/{print $3}' | cut -d. -f1) -lt 12 ]]; then
+    echo "ERROR - The minimum Ceph version supported is Luminous 12.x.x"
     exit 1
 fi
 

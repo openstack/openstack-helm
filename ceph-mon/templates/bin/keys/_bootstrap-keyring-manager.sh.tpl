@@ -20,7 +20,7 @@ set -ex
 {{- $envAll := . }}
 
 function ceph_gen_key () {
-  python ${CEPH_GEN_DIR}/keys-bootstrap-keyring-generator.py
+  python3 ${CEPH_GEN_DIR}/keys-bootstrap-keyring-generator.py
 }
 
 function kube_ceph_keyring_gen () {

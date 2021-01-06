@@ -106,9 +106,9 @@ class cephCRUSH():
         """Replica of the pool.  Initialize to 0."""
         self.poolSize = 0
 
-    def isNautilus(self):
-        grepResult = int(subprocess.check_output('ceph mon versions | egrep -q "nautilus" | echo $?', shell=True))  # nosec
-        return grepResult == 0
+    def isSupportedRelease(self):
+        cephMajorVer = int(subprocess.check_output("ceph mon versions | awk '/version/{print $3}' | cut -d. -f1", shell=True))  # nosec
+        return cephMajorVer >= 14
 
     def getPoolSize(self, poolName):
         """
@@ -129,7 +129,7 @@ class cephCRUSH():
         return
 
     def checkPGs(self, poolName):
-        poolPGs = self.poolPGs['pg_stats'] if self.isNautilus() else self.poolPGs
+        poolPGs = self.poolPGs['pg_stats'] if self.isSupportedRelease() else self.poolPGs
         if not poolPGs:
             return
         print('Checking PGs in pool {} ...'.format(poolName)),
