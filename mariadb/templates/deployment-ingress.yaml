@@ -21,6 +21,82 @@ limitations under the License.
 {{ tuple $envAll "ingress" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ $serviceAccountName }}
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+      - endpoints
+      - nodes
+      - pods
+      - secrets
+    verbs:
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - nodes
+    verbs:
+      - get
+  - apiGroups:
+      - ""
+    resources:
+      - services
+    verbs:
+      - get
+      - list
+      - watch
+      - update
+  - apiGroups:
+      - ""
+    resources:
+      - events
+    verbs:
+      - create
+      - patch
+  - apiGroups:
+      - "extensions"
+      - "networking.k8s.io"
+    resources:
+      - ingresses
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - "extensions"
+      - "networking.k8s.io"
+    resources:
+      - ingresses/status
+    verbs:
+      - update
+  - apiGroups:
+      - "networking.k8s.io"
+    resources:
+      - ingressclasses
+    verbs:
+      - get
+      - list
+      - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ $serviceAccountName }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ $serviceAccountName }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ $serviceAccountName }}
+    namespace: {{ $envAll.Release.Namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: {{ $serviceAccountName }}
@@ -123,6 +199,13 @@ metadata:
     {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
   labels:
 {{ tuple $envAll "mariadb" "ingress" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+    app.kubernetes.io/instance: {{ $serviceAccountName }}
+    app.kubernetes.io/name: "mariadb"
+    app.kubernetes.io/component: "ingress"
+    app.kubernetes.io/managed-by: {{ $envAll.Release.Service }}
+{{- if $envAll.Chart.AppVersion }}
+    app.kubernetes.io/version: {{ $envAll.Chart.AppVersion | quote }}
+{{- end }}
 spec:
   replicas: {{ .Values.pod.replicas.ingress }}
   selector:
@@ -133,6 +216,13 @@ spec:
     metadata:
       labels:
 {{ tuple $envAll "mariadb" "ingress" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+        app.kubernetes.io/instance: {{ $serviceAccountName }}
+        app.kubernetes.io/name: "mariadb"
+        app.kubernetes.io/component: "ingress"
+        app.kubernetes.io/managed-by: {{ $envAll.Release.Service }}
+{{- if $envAll.Chart.AppVersion }}
+        app.kubernetes.io/version: {{ $envAll.Chart.AppVersion | quote }}
+{{- end }}
       annotations:
 {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
