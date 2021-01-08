@@ -53,6 +53,12 @@ spec:
 {{ tuple $envAll "cinder" "backup" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
       nodeSelector:
         {{ .Values.labels.backup.node_selector_key }}: {{ .Values.labels.backup.node_selector_value }}
+{{- if .Values.pod.useHostNetwork.backup }}
+      hostNetwork: true
+{{- end }}
+{{- if .Values.conf.enable_iscsi }}
+      hostIPC: true
+{{- end }}
       initContainers:
 {{ tuple $envAll "backup" $mounts_cinder_backup_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
         {{- if (contains "cinder.backup.drivers.ceph" .Values.conf.cinder.DEFAULT.backup_driver) }}
@@ -151,6 +157,7 @@ spec:
 {{ dict "envAll" $envAll "application" "cinder_backup" "container" "cinder_backup" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
             - /tmp/cinder-backup.sh
+          terminationMessagePath: /var/log/termination-log
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
@@ -235,6 +242,30 @@ spec:
               mountPath: /etc/cinder/rootwrap.d/volume.filters
               subPath: volume.filters
               readOnly: true
+            {{- if .Values.conf.enable_iscsi }}
+            - name: host-rootfs
+              mountPath: /mnt/host-rootfs
+              {{- if or ( gt .Capabilities.KubeVersion.Major "1" ) ( ge .Capabilities.KubeVersion.Minor "10" ) }}
+              mountPropagation: HostToContainer
+              {{- end }}
+            - name: host-dev
+              mountPath: /dev
+              {{- if or ( gt .Capabilities.KubeVersion.Major "1" ) ( ge .Capabilities.KubeVersion.Minor "10" ) }}
+              mountPropagation: Bidirectional
+              {{- end }}
+            - name: runlock
+              mountPath: /run/lock
+            - name: etciscsi
+              mountPath: /etc/iscsi
+              {{- if or ( gt .Capabilities.KubeVersion.Major "1" ) ( ge .Capabilities.KubeVersion.Minor "10" ) }}
+              mountPropagation: Bidirectional
+              {{- end }}
+            - name: usrlocalsbin
+              mountPath: /usr/local/sbin
+            - name: cinder-bin
+              mountPath: /usr/local/sbin/iscsiadm
+              subPath: iscsiadm
+            {{- end }}
 {{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.oslo_db.auth.admin.secret.tls.internal "path" "/etc/mysql/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
 {{ if $mounts_cinder_backup.volumeMounts }}{{ toYaml $mounts_cinder_backup.volumeMounts | indent 12 }}{{ end }}
       volumes:
@@ -282,6 +313,22 @@ spec:
         # NOTE (portdirect): this will need to be set to a shared mount amongst all cinder
         # pods for the coordination backend to be fully functional.
         - name: cinder-coordination
+          emptyDir: {}
+        {{- end }}
+        {{- if .Values.conf.enable_iscsi }}
+        - name: host-rootfs
+          hostPath:
+            path: /
+        - name: host-dev
+          hostPath:
+            path: /dev
+        - name: runlock
+          hostPath:
+            path: /run/lock
+        - name: etciscsi
+          hostPath:
+            path: /etc/iscsi
+        - name: usrlocalsbin
           emptyDir: {}
         {{- end }}
 {{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.oslo_db.auth.admin.secret.tls.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
