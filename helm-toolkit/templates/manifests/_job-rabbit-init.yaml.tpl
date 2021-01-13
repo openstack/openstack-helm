@@ -24,6 +24,9 @@ limitations under the License.
 {{- $backoffLimit := index . "backoffLimit" | default "1000" -}}
 {{- $activeDeadlineSeconds := index . "activeDeadlineSeconds" -}}
 {{- $serviceUserPretty := $serviceUser | replace "_" "-" -}}
+{{- $serviceNamePretty := $serviceName | replace "_" "-" -}}
+{{- $tlsPath := index . "tlsPath" | default "/etc/rabbitmq/certs" -}}
+{{- $tlsSecret := index . "tlsSecret" | default "" -}}
 
 {{- $serviceAccountName := printf "%s-%s" $serviceUserPretty "rabbit-init" }}
 {{ tuple $envAll "rabbit_init" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
@@ -73,6 +76,9 @@ spec:
               mountPath: /tmp/rabbit-init.sh
               subPath: rabbit-init.sh
               readOnly: true
+{{- if $envAll.Values.manifests.certificates }}
+{{- dict "enabled" $envAll.Values.manifests.certificates "name" $tlsSecret "path" $tlsPath | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
+{{- end }}
           env:
           - name: RABBITMQ_ADMIN_CONNECTION
             valueFrom:
@@ -88,6 +94,12 @@ spec:
           - name: RABBITMQ_AUXILIARY_CONFIGURATION
             value: {{ toJson $envAll.Values.conf.rabbitmq | quote }}
 {{- end }}
+{{- if $envAll.Values.manifests.certificates }}
+          - name: RABBITMQ_X509
+            value: "REQUIRE X509"
+          - name: USER_CERT_PATH
+            value: {{ $tlsPath | quote }}
+{{- end }}
       volumes:
         - name: pod-tmp
           emptyDir: {}
@@ -100,5 +112,8 @@ spec:
           configMap:
             name: {{ $configMapBin | quote }}
             defaultMode: 0555
+{{- end }}
+{{- if $envAll.Values.manifests.certificates }}
+{{- dict "enabled" $envAll.Values.manifests.certificates "name" $tlsSecret | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 {{- end }}
 {{- end -}}
