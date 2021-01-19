@@ -25,25 +25,7 @@ function check_cluster_status() {
     echo "Ceph status is HEALTH_OK"
   else
     echo "Ceph cluster status is not HEALTH_OK, checking PG states"
-    retries=0
-    # If all PGs are active, pass
-    # This grep is just as robust as jq and is Ceph-version agnostic unlike jq
-    while [[ $(ceph pg ls -f json-pretty | grep '"state":' | grep -v "active") ]] && [[ retries -lt 60 ]]; do
-      # If all inactive PGs are peering, wait for peering to complete
-      # Run 'ceph pg ls' again before failing in case PG states have changed
-      if [[ $(ceph pg ls -f json-pretty | grep '"state":' | grep -v -e "active" -e "peering") ]]; then
-        # If inactive PGs aren't peering, fail
-        echo "Failure, found inactive PGs that aren't peering"
-        exit 1
-      fi
-      sleep 3
-      ((retries=retries+1))
-    done
-    # If peering PGs haven't gone active after retries have expired, fail
-    if [[ retries -ge 60 ]]; then
-      echo "PGs appear to be stuck peering"
-      exit 1
-    fi
+    pg_validation
   fi
 }
 
@@ -264,12 +246,81 @@ function pool_failuredomain_validation() {
   done
 }
 
-function pg_validation() {
-  ceph pg ls
-  inactive_pgs=(`ceph --cluster ${CLUSTER} pg ls -f json-pretty | grep '"pgid":\|"state":' | grep -v "active" | grep -B1 '"state":' | awk -F "\"" '/pgid/{print $4}'`)
-  if [ ${#inactive_pgs[*]} -gt 0 ];then
-    echo "There are few incomplete pgs in the cluster"
+function check_pgs() {
+  pgs_transitioning=false
+
+  ceph --cluster ${CLUSTER} pg dump_stuck -f json-pretty > ${stuck_pgs_file}
+
+  # Check if there are any stuck PGs, which could indicate a serious problem
+  # if it does not resolve itself soon.
+  stuck_pgs=(`cat ${stuck_pgs_file} | awk -F "\"" '/pgid/{print $4}'`)
+  if [[ ${#stuck_pgs[*]} -gt 0 ]]; then
+    # We have at least one stuck pg
+    echo "Some PGs are stuck: "
+    echo ${stuck_pgs[*]}
+    # Not a critical error - yet
+    pgs_transitioning=true
+  else
+    ceph --cluster ${CLUSTER} pg ls -f json-pretty | grep '"pgid":\|"state":' | grep -v "active" | grep -B1 '"state":' > ${inactive_pgs_file} || true
+
+    # If the inactive pgs file is non-empty, there are some inactive pgs in the cluster.
+    inactive_pgs=(`cat ${inactive_pgs_file} | awk -F "\"" '/pgid/{print $4}'`)
+    echo "There is at least one inactive pg in the cluster: "
     echo ${inactive_pgs[*]}
+
+    echo "Very likely the cluster is rebalancing or recovering some PG's. Checking..."
+
+    down_pgs=(`cat ${inactive_pgs_file} | grep -B1 'down' | awk -F "\"" '/pgid/{print $4}'`)
+    if [[ ${#down_pgs[*]} -gt 0 ]]; then
+      # Some PGs could be down. This is really bad situation and test must fail.
+      echo "Some PGs are down: "
+      echo ${down_pgs[*]}
+      echo "This is critical error, exiting. "
+      exit 1
+    fi
+
+    non_peer_recover_pgs=(`cat ${inactive_pgs_file} | grep '"state":' | grep -v -E 'peer|recover' || true`)
+    if [[ ${#non_peer_recover_pgs[*]} -gt 0 ]]; then
+      # Some PGs could be inactive and not peering. Better we fail.
+      echo "We are unsure what's happening: we don't have down/stuck PGs,"
+      echo "but we have some inactive pgs that are not peering/recover: "
+      pg_list=(`sed -n '/recover\|peer/{s/.*//;x;d;};x;p;${x;p;}' ${inactive_pgs_file} | sed '/^$/d' | awk -F "\"" '/pgid/{print $4}'`)
+      echo ${pg_list[*]}
+      # Critical error. Fail/exit the script
+      exit 1
+    fi
+
+    peer_recover_pgs=(`cat ${inactive_pgs_file} | grep -B1 -E 'peer|recover' | awk -F "\"" '/pgid/{print $4}'`)
+    if [[ ${#peer_recover_pgs[*]} -gt 0 ]]; then
+      # Some PGs are not in an active state but peering and/or cluster is recovering
+      echo "Some PGs are peering and/or cluster is recovering: "
+      echo ${peer_recover_pgs[*]}
+      echo "This is normal but will wait a while to verify the PGs are not stuck in peering."
+      # not critical, just wait
+      pgs_transitioning=true
+    fi
+  fi
+}
+
+function pg_validation() {
+  retries=0
+  time_between_retries=3
+  max_retries=60
+  pgs_transitioning=false
+  stuck_pgs_file=$(mktemp -p /tmp)
+  inactive_pgs_file=$(mktemp -p /tmp)
+
+  # Check this over a period of retries. Fail/stop if any critical errors found.
+  while check_pgs && [[ "${pgs_transitioning}" == "true" ]] && [[ retries -lt ${max_retries} ]]; do
+    echo "Sleep for a bit waiting on the pg(s) to become active/unstuck..."
+    sleep ${time_between_retries}
+    ((retries=retries+1))
+  done
+
+  # If peering PGs haven't gone active after retries have expired, fail
+  if [[ retries -ge ${max_retries} ]]; then
+    ((timeout_sec=${time_between_retries}*${max_retries}))
+    echo "Some PGs have not become active or have been stuck after ${timeout_sec} seconds. Exiting..."
     exit 1
   fi
 }
