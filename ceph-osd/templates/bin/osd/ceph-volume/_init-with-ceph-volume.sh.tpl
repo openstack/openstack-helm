@@ -207,7 +207,7 @@ function prep_device {
     fi
     logical_volumes="$(lvs --noheadings -o lv_name ${VG} | xargs)"
     for volume in ${logical_volumes}; do
-      data_volume=$(echo ${volume} | sed -E -e 's/db|wal/lv/g')
+      data_volume=$(echo ${volume} | sed -E -e 's/-db-|-wal-/-lv-/g')
       if [[ -z $(lvs --noheadings -o lv_name -S "lv_name=${data_volume}") ]]; then
         # DB or WAL volume without a corresponding data volume, remove it
         lvremove -y /dev/${VG}/${volume}
