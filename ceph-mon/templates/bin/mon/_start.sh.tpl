@@ -42,7 +42,7 @@ MON_DATA_DIR="/var/lib/ceph/mon/${CLUSTER}-${MON_NAME}"
 MONMAP="/etc/ceph/monmap-${CLUSTER}"
 
 # Make the monitor directory
-su -s /bin/sh -c "mkdir -p \"${MON_DATA_DIR}\"" ceph
+/bin/sh -c "mkdir -p \"${MON_DATA_DIR}\""
 
 function get_mon_config {
   # Get fsid from ceph.conf
