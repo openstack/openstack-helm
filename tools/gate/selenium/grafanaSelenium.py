@@ -23,11 +23,10 @@ st = SeleniumTester('Grafana')
 username = st.get_variable('GRAFANA_USER')
 password = st.get_variable('GRAFANA_PASSWORD')
 grafana_uri = st.get_variable('GRAFANA_URI')
-grafana_url = 'http://{}'.format(grafana_uri)
 
 try:
     st.logger.info('Attempting to connect to Grafana')
-    st.browser.get(grafana_url)
+    st.browser.get(grafana_uri)
     el = WebDriverWait(st.browser, 15).until(
         EC.title_contains('Grafana')
     )
@@ -37,52 +36,15 @@ except TimeoutException:
     st.browser.quit()
     sys.exit(1)
 
+logger.info("Attempting to log into Grafana dashboard")
 try:
-    st.logger.info('Attempting to login to Grafana')
-    st.browser.find_element_by_name('username').send_keys(username)
-    st.browser.find_element_by_name('password').send_keys(password)
-    st.browser.find_element_by_css_selector(
-        'body > grafana-app > div.main-view > div > div:nth-child(1) > div > '
-        'div > div.login-outer-box > div.login-inner-box > form > div.login-button-group > button'
-    ).click()
-    st.logger.info("Successfully logged in to Grafana")
+    browser.find_element_by_name('user').send_keys(username)
+    browser.find_element_by_name('password').send_keys(password)
+    browser.find_element_by_class_name('css-6ntnx5-button').click()
+    logger.info("Successfully logged in to Grafana")
 except NoSuchElementException:
-    st.logger.error("Failed to log in to Grafana")
-    st.browser.quit()
-    sys.exit(1)
-
-try:
-    st.logger.info('Attempting to visit Nodes dashboard')
-    st.click_link_by_name('OSH Home')
-    st.click_link_by_name('Nodes')
-    el = WebDriverWait(st.browser, 15).until(
-        EC.presence_of_element_located(
-            (By.XPATH, '/html/body/grafana-app/div/div/div/react-container/div'
-            '/div[2]/div/div[1]/div/div/div[1]/div/div/div/plugin-component'
-            '/panel-plugin-graph/grafana-panel/div/div[2]')
-        )
-    )
-    st.take_screenshot('Grafana Nodes')
-except TimeoutException:
-    st.logger.error('Failed to load Nodes dashboard')
-    st.browser.quit()
-    sys.exit(1)
-
-try:
-    st.logger.info('Attempting to visit Cluster Status dashboard')
-    st.click_link_by_name('Nodes')
-    st.click_link_by_name('Kubernetes Cluster Status')
-    el = WebDriverWait(st.browser, 15).until(
-        EC.presence_of_element_located(
-            (By.XPATH, '/html/body/grafana-app/div/div/div/react-container/div'
-            '/div[2]/div/div[1]/div/div/div[5]/div/div/div/plugin-component'
-            '/panel-plugin-singlestat/grafana-panel/div')
-        )
-    )
-    st.take_screenshot('Grafana Cluster Status')
-except TimeoutException:
-    st.logger.error('Failed to load Cluster Status dashboard')
-    st.browser.quit()
+    logger.error("Failed to log in to Grafana")
+    browser.quit()
     sys.exit(1)
 
 st.browser.quit()
