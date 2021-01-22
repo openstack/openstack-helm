@@ -12,6 +12,7 @@
 
 # It's necessary to set this because some environments don't link sh -> bash.
 SHELL := /bin/bash
+HELM  := helm
 TASK  := build
 
 EXCLUDES := helm-toolkit doc tests tools logs tmp zuul.d releasenotes
@@ -30,13 +31,13 @@ $(CHARTS):
 
 init-%:
 	if [ -f $*/Makefile ]; then make -C $*; fi
-	if [ -f $*/requirements.yaml ]; then helm dep up $*; fi
+	if [ -f $*/requirements.yaml ]; then $(HELM) dep up $*; fi
 
 lint-%: init-%
-	if [ -d $* ]; then helm lint $*; fi
+	if [ -d $* ]; then $(HELM) lint $*; fi
 
 build-%: lint-%
-	if [ -d $* ]; then helm package $*; fi
+	if [ -d $* ]; then $(HELM) package $*; fi
 
 # This is used exclusively with helm3 building in the gate to publish
 package-%: init-%
