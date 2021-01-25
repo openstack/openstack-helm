@@ -249,7 +249,7 @@ function pool_failuredomain_validation() {
 function check_pgs() {
   pgs_transitioning=false
 
-  ceph --cluster ${CLUSTER} pg dump_stuck -f json-pretty > ${stuck_pgs_file}
+  ceph --cluster ${CLUSTER} pg dump_stuck inactive -f json-pretty > ${stuck_pgs_file}
 
   # Check if there are any stuck PGs, which could indicate a serious problem
   # if it does not resolve itself soon.
