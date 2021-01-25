@@ -18,8 +18,13 @@ set -xe
 make alerta
 
 #NOTE: Deploy command
+: ${OSH_INFRA_EXTRA_HELM_ARGS:=""}
+: ${OSH_INFRA_EXTRA_HELM_ARGS_ALERTA:="$(./tools/deployment/common/get-values-overrides.sh alerta)"}
+
 helm upgrade --install alerta ./alerta \
-    --namespace=osh-infra
+    --namespace=osh-infra \
+    ${OSH_INFRA_EXTRA_HELM_ARGS} \
+    ${OSH_INFRA_EXTRA_HELM_ARGS_ALERTA}
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh osh-infra

@@ -18,8 +18,11 @@ set -xe
 make prometheus-kube-state-metrics
 
 #NOTE: Deploy command
+: ${OSH_INFRA_EXTRA_HELM_ARGS_KUBE_STATE_METRICS:="$(./tools/deployment/common/get-values-overrides.sh prometheus-kube-state-metrics)"}
+
 helm upgrade --install prometheus-kube-state-metrics \
-    ./prometheus-kube-state-metrics --namespace=kube-system
+    ./prometheus-kube-state-metrics --namespace=kube-system \
+    ${OSH_INFRA_EXTRA_HELM_ARGS_KUBE_STATE_METRICS}
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh kube-system

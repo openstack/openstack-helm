@@ -18,8 +18,11 @@ set -xe
 make prometheus-node-exporter
 
 #NOTE: Deploy command
+: ${OSH_INFRA_EXTRA_HELM_ARGS_NODE_EXPORTER:="$(./tools/deployment/common/get-values-overrides.sh prometheus-node-exporter)"}
+
 helm upgrade --install prometheus-node-exporter \
-    ./prometheus-node-exporter --namespace=kube-system
+    ./prometheus-node-exporter --namespace=kube-system \
+    ${OSH_INFRA_EXTRA_HELM_ARGS_NODE_EXPORTER}
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh kube-system
