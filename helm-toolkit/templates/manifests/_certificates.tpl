@@ -43,6 +43,54 @@ examples:
       {{ $opts | include "helm-toolkit.manifests.certificates" }}
     return: |
       ---
+      apiVersion: cert-manager.io/v1
+      kind: Certificate
+      metadata:
+        name: keystone-tls-api
+        namespace: NAMESPACE
+      spec:
+        commonName: keystone-api.openstack.svc.cluster.local
+        dnsNames:
+        - cluster.local
+        duration: 2160h
+        issuerRef:
+          name: ca-issuer
+        keySize: 2048
+        organization:
+        - ACME
+        secretName: keystone-tls-api
+        usages:
+        - server auth
+        - client auth
+
+  - values: |
+      cert_manager_version: v0.15.0
+      endpoints:
+        dashboard:
+          host_fqdn_override:
+            default:
+              host: null
+              tls:
+                secretName: keystone-tls-api
+                issuerRef:
+                  name: ca-issuer
+                  duration: 2160h
+                  organization:
+                    - ACME
+                  commonName: keystone-api.openstack.svc.cluster.local
+                  keySize: 2048
+                  usages:
+                    - server auth
+                    - client auth
+                  dnsNames:
+                    - cluster.local
+                  issuerRef:
+                    name: ca-issuer
+    usage: |
+      {{- $opts := dict "envAll" . "service" "dashboard" "type" "internal" -}}
+      {{ $opts | include "helm-toolkit.manifests.certificates" }}
+    return: |
+      ---
       apiVersion: cert-manager.io/v1alpha3
       kind: Certificate
       metadata:
@@ -93,8 +141,16 @@ examples:
 {{- if not (hasKey $slice "usages") -}}
 {{- $_ := (list "server auth" "client auth") | set (index $envAll.Values.endpoints $service "host_fqdn_override" "default" "tls") "usages" -}}
 {{- end -}}
+{{- $cert_manager_version := "v1.0.0" -}}
+{{- if $envAll.Values.cert_manager_version -}}
+{{- $cert_manager_version = $envAll.Values.cert_manager_version -}}
+{{- end -}}
 ---
+{{- if semverCompare "< v1.0.0"  $cert_manager_version }}
 apiVersion: cert-manager.io/v1alpha3
+{{- else }}
+apiVersion: cert-manager.io/v1
+{{- end }}
 kind: Certificate
 metadata:
   name: {{ index $envAll.Values.endpoints $service "host_fqdn_override" "default" "tls" "secretName" }}
