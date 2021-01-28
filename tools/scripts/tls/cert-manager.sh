@@ -2,7 +2,7 @@
 
 set -eux
 
-: ${CERT_MANAGER_VERSION:="v1.1.0"}
+: ${CERT_MANAGER_VERSION:="v0.15.0"}
 
 cert_path="/etc/openstack-helm"
 ca_cert_root="$cert_path/certs/ca"
@@ -126,12 +126,14 @@ helm repo update
 helm install --name cert-manager --namespace cert-manager \
   --version ${CERT_MANAGER_VERSION} jetstack/cert-manager \
   --set installCRDs=true \
+  --set featureGates=ExperimentalCertificateControllers=true \
   --set extraArgs[0]="--enable-certificate-owner-ref=true"
 
 # helm 3 command
 # helm install cert-manager jetstack/cert-manager --namespace cert-manager \
 #   --version ${CERT_MANAGER_VERSION} \
 #   --set installCRDs=true \
+#.  --set featureGates=ExperimentalCertificateControllers=true \
 #   --set extraArgs[0]="--enable-certificate-owner-ref=true"
 
 helm repo remove jetstack
@@ -145,15 +147,16 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: ca-key-pair
-  namespace: cert-manager
+  namespace: openstack
 data:
   tls.crt: $crt
   tls.key: $key
 ---
-apiVersion: cert-manager.io/v1
-kind: ClusterIssuer
+apiVersion: cert-manager.io/v1alpha3
+kind: Issuer
 metadata:
   name: ca-issuer
+  namespace: openstack
 spec:
   ca:
     secretName: ca-key-pair
