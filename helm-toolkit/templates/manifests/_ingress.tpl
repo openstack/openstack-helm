@@ -554,9 +554,9 @@ examples:
 {{- $backendPort := index . "backendPort" -}}
 {{- $endpoint := index . "endpoint" | default "public" -}}
 {{- $certIssuer := index . "certIssuer" | default "" -}}
-{{- $certIssuerType := index . "certIssuerType" | default "cluster-issuer" -}}
+{{- $certIssuerType := index . "certIssuerType" | default "issuer" -}}
 {{- if and (ne $certIssuerType "issuer") (ne $certIssuerType "cluster-issuer") }}
-{{- $certIssuerType = "cluster-issuer" -}}
+{{- $certIssuerType = "issuer" -}}
 {{- end }}
 {{- $ingressName := tuple $backendServiceType $endpoint $envAll | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
 {{- $backendName := tuple $backendServiceType "internal" $envAll | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
