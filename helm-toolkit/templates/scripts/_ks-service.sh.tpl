@@ -36,16 +36,29 @@ OS_SERVICE_DESC="${OS_REGION_NAME}: ${OS_SERVICE_NAME} (${OS_SERVICE_TYPE}) serv
 
 # Get Service ID if it exists
 unset OS_SERVICE_ID
-OS_SERVICE_ID=$( openstack service list -f csv --quote none | \
-                 grep ",${OS_SERVICE_NAME},${OS_SERVICE_TYPE}$" | \
-                 sed -e "s/,${OS_SERVICE_NAME},${OS_SERVICE_TYPE}//g" )
 
-# If a Service ID was not found, then create the service
-if [[ -z ${OS_SERVICE_ID} ]]; then
-  OS_SERVICE_ID=$(openstack service create -f value -c id \
-                  --name="${OS_SERVICE_NAME}" \
-                  --description "${OS_SERVICE_DESC}" \
-                  --enable \
-                  "${OS_SERVICE_TYPE}")
-fi
+# If OS_SERVICE_ID is blank (due to the service not being ready yet)
+# then wait a few seconds to give it additional time to be ready
+# and try again
+for i in {1...3}
+do
+  OS_SERVICE_ID=$( openstack service list -f csv --quote none | \
+                   grep ",${OS_SERVICE_NAME},${OS_SERVICE_TYPE}$" | \
+                   sed -e "s/,${OS_SERVICE_NAME},${OS_SERVICE_TYPE}//g" )
+
+  # If the service was found, go ahead and exit successfully.
+  if [[ -n "${OS_SERVICE_ID}" ]]; then
+    exit 0
+  fi
+
+  sleep 2
+done
+
+# If we've reached this point and a Service ID was not found,
+# then create the service
+OS_SERVICE_ID=$(openstack service create -f value -c id \
+                --name="${OS_SERVICE_NAME}" \
+                --description "${OS_SERVICE_DESC}" \
+                --enable \
+                "${OS_SERVICE_TYPE}")
 {{- end }}
