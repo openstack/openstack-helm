@@ -18,6 +18,8 @@ set -xe
 make prometheus-openstack-exporter
 
 #NOTE: Deploy command
+: ${OSH_INFRA_EXTRA_HELM_ARGS_OS_EXPORTER:="$(./tools/deployment/common/get-values-overrides.sh prometheus-openstack-exporter)"}
+
 tee /tmp/prometheus-openstack-exporter.yaml << EOF
 manifests:
   job_ks_user: false
@@ -27,10 +29,12 @@ dependencies:
       jobs: null
       services: null
 EOF
+
 helm upgrade --install prometheus-openstack-exporter \
     ./prometheus-openstack-exporter \
     --namespace=openstack \
-    --values=/tmp/prometheus-openstack-exporter.yaml
+    --values=/tmp/prometheus-openstack-exporter.yaml \
+    ${OSH_INFRA_EXTRA_HELM_ARGS_OS_EXPORTER}
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack
