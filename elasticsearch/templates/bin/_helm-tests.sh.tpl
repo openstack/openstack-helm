@@ -50,21 +50,18 @@ function check_snapshot_repositories () {
   {{ end }}
 }
 
-{{ if and (.Values.manifests.job_elasticsearch_templates) (not (empty .Values.conf.templates)) }}
+{{ if .Values.manifests.job_elasticsearch_templates }}
 # Tests whether elasticsearch has successfully generated the elasticsearch index mapping
 # templates defined by values.yaml
 function check_templates () {
-  {{ range $template, $fields := .Values.conf.templates }}
-  {{$template}}_total_hits=$(curl -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
-              -XGET "${ELASTICSEARCH_ENDPOINT}/_template/{{$template}}" -H 'Content-Type: application/json' \
-              | python -c "import sys, json; print(len(json.load(sys.stdin)))")
-  if [ "${{$template}}_total_hits" -gt 0 ]; then
-     echo "PASS: Successful hits on {{$template}} template!"
+  total_hits=$(curl -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
+              -XGET "${ELASTICSEARCH_ENDPOINT}/_template" | jq length)
+  if [ "$total_hits" -gt 0 ]; then
+     echo "PASS: Successful hits on templates!"
   else
-     echo "FAIL: No hits on query for {{$template}} template! Exiting";
+     echo "FAIL: No hits on query for templates! Exiting";
      exit 1;
   fi
-  {{ end }}
 }
 {{ end }}
 

@@ -24,11 +24,11 @@ images:
     ceph_key_placement: docker.io/openstackhelm/ceph-config-helper:ubuntu_bionic-20191216
     s3_bucket: docker.io/openstackhelm/ceph-daemon:ubuntu_bionic-20191216
     s3_user: docker.io/openstackhelm/ceph-config-helper:ubuntu_bionic-20191216
-    helm_tests: docker.io/openstackhelm/heat:newton-ubuntu_xenial
+    helm_tests: docker.io/openstackhelm/elasticsearch-s3:latest-7_6_2
     prometheus_elasticsearch_exporter: docker.io/justwatch/elasticsearch_exporter:1.1.0
     dep_check: quay.io/airshipit/kubernetes-entrypoint:v1.0.0
     snapshot_repository: docker.io/openstackhelm/ceph-config-helper:ubuntu_bionic-20191216
-    elasticsearch_templates: docker.io/openstackhelm/heat:newton
+    elasticsearch_templates: docker.io/openstackhelm/elasticsearch-s3:latest-7_6_2
     image_repo_sync: docker.io/docker:17.07.0
   pull_policy: "IfNotPresent"
   local_registry:
@@ -746,75 +746,77 @@ conf:
       ca: null
       client_private_key: null
       client_cert: null
-  templates:
-    fluent:
-      index_patterns: "logstash-*"
-      settings:
-        index:
-          number_of_shards: 1
-      mappings:
-        properties:
-          kubernetes:
-            properties:
-              container_name:
-                type: keyword
-                index: false
-              docker_id:
-                type: keyword
-                index: false
-              host:
-                type: keyword
-                index: false
-              namespace_name:
-                type: keyword
-                index: false
-              pod_id:
-                type: keyword
-                index: false
-              pod_name:
-                type: keyword
-                index: false
-  snapshot_policies:
-    non-security-snapshots:
-      schedule: "0 30 1 * * ?"
-      name: "<non-security-logs-snapshot-{now/d}>"
-      repository: logstash_snapshots
-      config:
-        indices: ["^(.*calico-|.*ceph-|.*jenkins-|.*journal-|.*kernel_syslog-|.*kubernetes-|.*libvirt-|.*logstash-|.*openvswitch-|.*utility_access-).*$"]
-        ignore_unavailable: true
-        include_global_state: false
-        wait_for_completion: true
-        max_wait: 64800
-        wait_interval: 30
-        ignore_empty_list: true
-        continue_if_exception: true
-        disable_action: false
-      retention:
-        expire_after: 29d
-    security-snapshots:
-      schedule: "0 30 1 * * ?"
-      name: "<security-logs-snapshot-{now/d}>"
-      repository: logstash_snapshots
-      config:
-        indices: ["^(.*airship-|.*audit_tsee-|.*auth-|.*flows-|.*lma-|.*openstack-).*$"]
-        ignore_unavailable: true
-        include_global_state: false
-        wait_for_completion: true
-        max_wait: 18000
-        wait_interval: 30
-        ignore_empty_list: true
-        continue_if_exception: true
-        disable_action: false
-      retention:
-        expire_after: 179d
-  index_policies:
-    delete_all_indexes:
-      policy:
-        phases:
-          delete:
-            min_age: 14d
-            actions:
-              delete: {}
+  api_objects:
+    - endpoint: _template/fluent
+      body:
+        index_patterns: "logstash-*"
+        settings:
+          index:
+            number_of_shards: 1
+        mappings:
+          properties:
+            kubernetes:
+              properties:
+                container_name:
+                  type: keyword
+                  index: false
+                docker_id:
+                  type: keyword
+                  index: false
+                host:
+                  type: keyword
+                  index: false
+                namespace_name:
+                  type: keyword
+                  index: false
+                pod_id:
+                  type: keyword
+                  index: false
+                pod_name:
+                  type: keyword
+                  index: false
+    - endpoint: _ilm/policy/delete_all_indexes
+      body:
+        policy:
+          phases:
+            delete:
+              min_age: 14d
+              actions:
+                delete: {}
+    - endpoint: _slm/policy/non-security-snapshots
+      body:
+        schedule: "0 30 1 * * ?"
+        name: "<non-security-logs-snapshot-{now/d}>"
+        repository: logstash_snapshots
+        config:
+          indices: ["^(.*calico-|.*ceph-|.*jenkins-|.*journal-|.*kernel_syslog-|.*kubernetes-|.*libvirt-|.*logstash-|.*openvswitch-|.*utility_access-).*$"]
+          ignore_unavailable: true
+          include_global_state: false
+          wait_for_completion: true
+          max_wait: 64800
+          wait_interval: 30
+          ignore_empty_list: true
+          continue_if_exception: true
+          disable_action: false
+        retention:
+          expire_after: 29d
+    - endpoint: _slm/policy/security-snapshots
+      body:
+        schedule: "0 30 1 * * ?"
+        name: "<security-logs-snapshot-{now/d}>"
+        repository: logstash_snapshots
+        config:
+          indices: ["^(.*airship-|.*audit_tsee-|.*auth-|.*flows-|.*lma-|.*openstack-).*$"]
+          ignore_unavailable: true
+          include_global_state: false
+          wait_for_completion: true
+          max_wait: 18000
+          wait_interval: 30
+          ignore_empty_list: true
+          continue_if_exception: true
+          disable_action: false
+        retention:
+          expire_after: 179d
 endpoints:
   cluster_domain_suffix: cluster.local
   local_image_registry:
