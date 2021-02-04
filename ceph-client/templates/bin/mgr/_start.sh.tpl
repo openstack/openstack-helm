@@ -44,7 +44,7 @@ ceph --cluster "${CLUSTER}" -v
 # Env. variables matching the pattern "<module>_" will be
 # found and parsed for config-key settings by
 #  ceph config set mgr mgr/<module>/<key> <value>
-MODULES_TO_DISABLE=`ceph mgr dump | python -c "import json, sys; print(' '.join(json.load(sys.stdin)['modules']))"`
+MODULES_TO_DISABLE=`ceph mgr dump | python3 -c "import json, sys; print(' '.join(json.load(sys.stdin)['modules']))"`
 
 for module in ${ENABLED_MODULES}; do
     # This module may have been enabled in the past
@@ -57,7 +57,7 @@ for module in ${ENABLED_MODULES}; do
         option=${option/${module}_/}
         key=`echo $option | cut -d= -f1`
         value=`echo $option | cut -d= -f2`
-        if [[ $(ceph tell mon.* version | egrep -q "nautilus"; echo $?) -eq 0 ]]; then
+        if [[ $(ceph mon versions | awk '/version/{print $3}' | cut -d. -f1) -ge 14 ]]; then
           ceph --cluster "${CLUSTER}" config set mgr mgr/$module/$key $value --force
         else
           ceph --cluster "${CLUSTER}" config set mgr mgr/$module/$key $value

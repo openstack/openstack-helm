@@ -89,7 +89,7 @@ function wait_for_pgs () {
   pgs_inactive=0
   query='map({state: .state}) | group_by(.state) | map({state: .[0].state, count: length}) | .[] | select(.state | contains("active") | not)'
 
-  if [[ $(ceph tell mon.* version | egrep -q "nautilus"; echo $?) -eq 0 ]]; then
+  if [[ $(ceph mon versions | awk '/version/{print $3}' | cut -d. -f1) -ge 14 ]]; then
     query=".pg_stats | ${query}"
   fi
 

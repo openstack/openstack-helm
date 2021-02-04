@@ -23,10 +23,10 @@ deployment:
 images:
   pull_policy: IfNotPresent
   tags:
-    ceph_bootstrap: 'docker.io/openstackhelm/ceph-daemon:ubuntu_bionic-20200521'
-    ceph_config_helper: 'docker.io/openstackhelm/ceph-config-helper:ubuntu_bionic-20200521'
-    ceph_mon: 'docker.io/openstackhelm/ceph-daemon:ubuntu_bionic-20200521'
-    ceph_mon_check: 'docker.io/openstackhelm/ceph-config-helper:ubuntu_bionic-20200521'
+    ceph_bootstrap: 'docker.io/openstackhelm/ceph-daemon:change_770201_ubuntu_bionic-20210113'
+    ceph_config_helper: 'docker.io/openstackhelm/ceph-config-helper:change_770201_ubuntu_bionic-20210113'
+    ceph_mon: 'docker.io/openstackhelm/ceph-daemon:change_770201_ubuntu_bionic-20210113'
+    ceph_mon_check: 'docker.io/openstackhelm/ceph-config-helper:change_770201_ubuntu_bionic-20210113'
     dep_check: 'quay.io/airshipit/kubernetes-entrypoint:v1.0.0'
     image_repo_sync: 'docker.io/docker:17.07.0'
   local_registry:
@@ -292,8 +292,7 @@ bootstrap:
     ceph -s
     function ensure_pool () {
       ceph osd pool stats $1 || ceph osd pool create $1 $2
-      local test_version=$(ceph tell osd.* version | egrep -c "nautilus|mimic|luminous" | xargs echo)
-      if [[ ${test_version} -gt 0 ]]; then
+      if [[ $(ceph mon versions | awk '/version/{print $3}' | cut -d. -f1) -ge 12 ]]; then
         ceph osd pool application enable $1 $3
       fi
     }

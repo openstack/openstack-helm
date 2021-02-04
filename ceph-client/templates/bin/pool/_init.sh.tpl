@@ -35,7 +35,7 @@ function wait_for_pgs () {
   pgs_ready=0
   query='map({state: .state}) | group_by(.state) | map({state: .[0].state, count: length}) | .[] | select(.state | contains("active") | not)'
 
-  if [[ $(ceph tell mon.* version | egrep -q "nautilus"; echo $?) -eq 0 ]]; then
+  if [[ $(ceph mon versions | awk '/version/{print $3}' | cut -d. -f1) -ge 14 ]]; then
     query=".pg_stats | ${query}"
   fi
 
@@ -70,10 +70,11 @@ function check_recovery_flags () {
 function check_osd_count() {
   echo "#### Start: Checking OSD count ####"
   noup_flag=$(ceph osd stat | awk '/noup/ {print $2}')
-  osd_stat=$(ceph osd stat -f json)
-  num_osd=$(jq '.osdmap.num_osds' <<< "$osd_stat")
-  num_in_osds=$(jq '.osdmap.num_in_osds' <<< "$osd_stat")
-  num_up_osds=$(jq '.osdmap.num_up_osds' <<< "$osd_stat")
+  osd_stat=$(ceph osd stat -f json-pretty)
+  num_osd=$(awk '/"num_osds"/{print $2}' <<< "$osd_stat" | cut -d, -f1)
+  num_in_osds=$(awk '/"num_in_osds"/{print $2}' <<< "$osd_stat" | cut -d, -f1)
+  num_up_osds=$(awk '/"num_up_osds"/{print $2}' <<< "$osd_stat" | cut -d, -f1)
+
   EXPECTED_OSDS={{.Values.conf.pool.target.osd}}
   REQUIRED_PERCENT_OF_OSDS={{.Values.conf.pool.target.required_percent_of_osds}}
 
@@ -123,7 +124,7 @@ function create_crushrule () {
 }
 
 # Set mons to use the msgr2 protocol on nautilus
-if [[ -z "$(ceph mon versions | grep ceph\ version | grep -v nautilus)" ]]; then
+if [[ $(ceph mon versions | awk '/version/{print $3}' | cut -d. -f1) -ge 14 ]]; then
   ceph --cluster "${CLUSTER}" mon enable-msgr2
 fi
 
@@ -183,7 +184,7 @@ function create_pool () {
     ceph --cluster "${CLUSTER}" osd pool application enable "${POOL_NAME}" "${POOL_APPLICATION}"
   fi
 
-  if [[ -z "$(ceph osd versions | grep ceph\ version | grep -v nautilus)" ]] && [[ "${ENABLE_AUTOSCALER}" == "true" ]] ; then
+  if [[ $(ceph osd versions | awk '/version/{print $3}' | cut -d. -f1) -ge 14 ]] && [[ "${ENABLE_AUTOSCALER}" == "true" ]] ; then
     ceph --cluster "${CLUSTER}" osd pool set "${POOL_NAME}" pg_autoscale_mode on
   else
     ceph --cluster "${CLUSTER}" osd pool set "${POOL_NAME}" pg_autoscale_mode off
@@ -199,7 +200,7 @@ function create_pool () {
   ceph --cluster "${CLUSTER}" osd pool set "${POOL_NAME}" size ${POOL_REPLICATION}
   ceph --cluster "${CLUSTER}" osd pool set "${POOL_NAME}" crush_rule "${POOL_CRUSH_RULE}"
 # set pg_num to pool
-  if [[ -z "$(ceph osd versions | grep ceph\ version | grep -v nautilus)" ]]; then
+  if [[ $(ceph osd versions | awk '/version/{print $3}' | cut -d. -f1) -ge 14 ]]; then
     ceph --cluster "${CLUSTER}" osd pool set "${POOL_NAME}" "pg_num" "${POOL_PLACEMENT_GROUPS}"
   else
     for PG_PARAM in pg_num pgp_num; do
@@ -246,10 +247,10 @@ function manage_pool () {
   POOL_PROTECTION=$8
   CLUSTER_CAPACITY=$9
   TOTAL_OSDS={{.Values.conf.pool.target.osd}}
-  POOL_PLACEMENT_GROUPS=$(/tmp/pool-calc.py ${POOL_REPLICATION} ${TOTAL_OSDS} ${TOTAL_DATA_PERCENT} ${TARGET_PG_PER_OSD})
+  POOL_PLACEMENT_GROUPS=$(python3 /tmp/pool-calc.py ${POOL_REPLICATION} ${TOTAL_OSDS} ${TOTAL_DATA_PERCENT} ${TARGET_PG_PER_OSD})
   create_pool "${POOL_APPLICATION}" "${POOL_NAME}" "${POOL_REPLICATION}" "${POOL_PLACEMENT_GROUPS}" "${POOL_CRUSH_RULE}" "${POOL_PROTECTION}"
   POOL_REPLICAS=$(ceph --cluster "${CLUSTER}" osd pool get "${POOL_NAME}" size | awk '{print $2}')
-  POOL_QUOTA=$(python -c "print(int($CLUSTER_CAPACITY * $TOTAL_DATA_PERCENT * $TARGET_QUOTA / $POOL_REPLICAS / 100 / 100))")
+  POOL_QUOTA=$(python3 -c "print(int($CLUSTER_CAPACITY * $TOTAL_DATA_PERCENT * $TARGET_QUOTA / $POOL_REPLICAS / 100 / 100))")
   ceph --cluster "${CLUSTER}" osd pool set-quota "${POOL_NAME}" max_bytes $POOL_QUOTA
 }
 
@@ -262,12 +263,16 @@ reweight_osds
 {{ $targetQuota := .Values.conf.pool.target.quota | default 100 }}
 {{ $targetProtection := .Values.conf.pool.target.protected | default "false" | quote | lower }}
 cluster_capacity=0
-if [[ -z "$(ceph osd versions | grep ceph\ version | grep -v nautilus)" ]]; then
+if [[ $(ceph -v | awk '/version/{print $3}' | cut -d. -f1) -ge 14 ]]; then
   cluster_capacity=$(ceph --cluster "${CLUSTER}" df | grep "TOTAL" | awk '{print $2 substr($3, 1, 1)}' | numfmt --from=iec)
-  enable_or_disable_autoscaling
 else
   cluster_capacity=$(ceph --cluster "${CLUSTER}" df | head -n3 | tail -n1 | awk '{print $1 substr($2, 1, 1)}' | numfmt --from=iec)
 fi
+
+if [[ $(ceph mgr versions | awk '/version/{print $3}' | cut -d. -f1) -eq 14 ]]; then
+  enable_or_disable_autoscaling
+fi
+
 {{- range $pool := .Values.conf.pool.spec -}}
 {{- with $pool }}
 {{- if .crush_rule }}

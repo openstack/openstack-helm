@@ -16,7 +16,7 @@ else
 fi
 
 function check_mon_msgr2 {
- if [[ -z "$(ceph mon versions | grep ceph\ version | grep -v nautilus)" ]]; then
+ if [[ $(ceph mon versions | awk '/version/{print $3}' | cut -d. -f1) -ge 14 ]]; then
    if ceph health detail|grep -i "MON_MSGR2_NOT_ENABLED"; then
      echo "ceph-mon msgr v2 not enabled on all ceph mons so enabling"
      ceph mon enable-msgr2

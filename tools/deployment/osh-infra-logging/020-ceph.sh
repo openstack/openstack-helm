@@ -86,6 +86,11 @@ conf:
     default:
       crush_rule: same_host
     spec:
+      # Health metrics pool
+      - name: device_health_metrics
+        application: mgr_devicehealth
+        replication: 1
+        percent_total_data: 5
       # RBD pool
       - name: rbd
         application: rbd
@@ -160,7 +165,7 @@ conf:
       - name: default.rgw.buckets.data
         application: rgw
         replication: 1
-        percent_total_data: 34.8
+        percent_total_data: 29
   storage:
     osd:
       - data:
