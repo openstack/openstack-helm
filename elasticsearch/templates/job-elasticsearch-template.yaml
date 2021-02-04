@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if and (.Values.manifests.job_elasticsearch_templates) (not (empty .Values.conf.templates)) }}
+{{- if .Values.manifests.job_elasticsearch_templates }}
 {{- $envAll := . }}
 {{- $esUserSecret := .Values.secrets.elasticsearch.user }}
 {{- $mounts_elasticsearch_templates := .Values.pod.mounts.elasticsearch_templates.elasticsearch_templates }}
@@ -72,24 +72,6 @@ spec:
               mountPath: /tmp/create_template.sh
               subPath: create_template.sh
               readOnly: true
-            {{ range $template, $fields := .Values.conf.templates }}
-            - name: elasticsearch-templates-etc
-              mountPath: /tmp/{{$template}}.json
-              subPath: {{$template}}.json
-              readOnly: true
-            {{ end }}
-            {{ range $policy_name, $fields := .Values.conf.snapshot_policies }}
-            - name: elasticsearch-templates-etc
-              mountPath: /tmp/{{$policy_name}}.json
-              subPath: {{$policy_name}}.json
-              readOnly: true
-            {{ end }}
-            {{ range $policy_name, $fields := .Values.conf.index_policies }}
-            - name: elasticsearch-templates-etc
-              mountPath: /tmp/{{$policy_name}}.json
-              subPath: {{$policy_name}}.json
-              readOnly: true
-            {{ end }}
 {{ if $mounts_elasticsearch_templates.volumeMounts }}{{ toYaml $mounts_elasticsearch_templates.volumeMounts | indent 12 }}{{ end }}
       volumes:
         - name: pod-tmp
@@ -98,9 +80,5 @@ spec:
           configMap:
             name: elasticsearch-bin
             defaultMode: 0555
-        - name: elasticsearch-templates-etc
-          secret:
-            secretName: elasticsearch-templates-etc
-            defaultMode: 0444
 {{ if $mounts_elasticsearch_templates.volumes }}{{ toYaml $mounts_elasticsearch_templates.volumes | indent 8 }}{{ end }}
 {{- end }}
