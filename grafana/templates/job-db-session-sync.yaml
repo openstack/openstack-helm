@@ -52,6 +52,10 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.secrets.oslo_db_session.user }}
                   key: DB_CONNECTION
+{{- if $envAll.Values.manifests.certificates }}
+            - name: MARIADB_X509
+              value: "REQUIRE X509"
+{{- end }}
           command:
             - /tmp/db-session-sync.py
           volumeMounts:
@@ -61,6 +65,7 @@ spec:
               mountPath: /tmp/db-session-sync.py
               subPath: db-session-sync.py
               readOnly: true
+{{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.oslo_db_session.auth.admin.secret.tls.internal "path" "/etc/mysql/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
       volumes:
         - name: pod-tmp
           emptyDir: {}
@@ -68,4 +73,5 @@ spec:
           configMap:
             name: grafana-bin
             defaultMode: 0555
+{{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.oslo_db_session.auth.admin.secret.tls.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 {{- end }}

@@ -16,7 +16,14 @@ limitations under the License.
 {{- $envAll := . }}
 
 {{- if and (empty .Values.conf.grafana.database.url) (not (eq .Values.conf.grafana.database.type "sqlite3") ) -}}
-{{- $_ := tuple "oslo_db" "internal" "user" "mysql" . | include "helm-toolkit.endpoints.authenticated_endpoint_uri_lookup" | replace "mysql+pymysql://" "mysql://" | set .Values.conf.grafana.database "url" }}
+
+{{- $url := tuple "oslo_db" "internal" "user" "mysql" . | include "helm-toolkit.endpoints.authenticated_endpoint_uri_lookup" | replace "mysql+pymysql://" "mysql://" -}}
+{{- if .Values.manifests.certificates -}}
+{{- $_ := (printf "%s?charset=utf8" $url ) | set .Values.conf.grafana.database "url" -}}
+{{- $_ := tuple "oslo_db" "internal" . | include "helm-toolkit.endpoints.endpoint_host_lookup" | set .Values.conf.grafana.database "server_cert_name" -}}
+{{- else -}}
+{{- $_ := set .Values.conf.grafana.database "url" $url -}}
+{{- end -}}
 {{- end -}}
 
 {{- if empty .Values.conf.grafana.session.provider_config -}}
