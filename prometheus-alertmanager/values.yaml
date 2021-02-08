@@ -20,7 +20,6 @@ images:
   tags:
     apache_proxy: docker.io/httpd:2.4
     prometheus-alertmanager: docker.io/prom/alertmanager:v0.20.0
-    snmpnotifier: docker.io/maxwo/snmp-notifier:v1.0.0
     dep_check: quay.io/airshipit/kubernetes-entrypoint:v1.0.0
     image_repo_sync: docker.io/docker:17.07.0
   pull_policy: IfNotPresent
@@ -32,9 +31,6 @@ images:
 
 labels:
   alertmanager:
-    node_selector_key: openstack-control-plane
-    node_selector_value: enabled
-  snmpnotifier:
     node_selector_key: openstack-control-plane
     node_selector_value: enabled
   job:
@@ -68,12 +64,8 @@ pod:
     alertmanager:
       alertmanager:
       init_container: null
-    snmpnotifier:
-      snmpnotifier:
-      init_container: null
   replicas:
     alertmanager: 1
-    snmpnotifier: 1
   lifecycle:
     upgrades:
       deployment:
@@ -82,8 +74,6 @@ pod:
         pod_replacement_strategy: RollingUpdate
     termination_grace_period:
       alertmanager:
-        timeout: 30
-      snmpnotifier:
         timeout: 30
   resources:
     enabled: false
@@ -109,13 +99,6 @@ pod:
         limits:
           memory: "1024Mi"
           cpu: "2000m"
-    snmpnotifier:
-      limits:
-        memory: "1024Mi"
-        cpu: "2000m"
-      requests:
-        memory: "128Mi"
-        cpu: "500m"
 
 endpoints:
   cluster_domain_suffix: cluster.local
@@ -179,20 +162,6 @@ endpoints:
     port:
       ldap:
         default: 389
-  snmpnotifier:
-    name: snmpnotifier
-    namespace: null
-    hosts:
-      default: snmp-engine
-    host_fqdn_override:
-      default: null
-    path:
-      default: /alerts
-    scheme:
-      default: 'http'
-    port:
-      api:
-        default: 9464
   alerta:
     name: alerta
     namespace: null
@@ -237,10 +206,6 @@ network:
     node_port:
       enabled: false
       port: 30903
-  snmpnotifier:
-    node_port:
-      enabled: false
-      port: 30464
 
 secrets:
   tls:
@@ -270,9 +235,6 @@ manifests:
   service_discovery: true
   service_ingress: true
   statefulset: true
-  snmpnotifier:
-    service: true
-    deployment: true
 
 network_policy:
   alertmanager:
@@ -385,16 +347,6 @@ conf:
     alertmanager:
       storage.path: /var/lib/alertmanager/data
       cluster.listen_address: "0.0.0.0:9094"
-    snmpnotifier:
-      alert_default_severity: crititcal
-      alert_severities: "critical,warning,info,page"
-      alert_severity_label: severity
-      log_level: debug
-      snmp_community: public
-      snmp_desination: 127.0.0.1:162
-      snmp_trap_default_oid: 1.3.6.1.4.1.98789.0.1
-      snmp_trap_description_template: /etc/snmp_notifier/description-template.tpl
-      snmp_version: V2c
   alertmanager: |
     global:
       # The smarthost and SMTP sender used for mail notifications.
@@ -432,7 +384,7 @@ conf:
       repeat_interval: 3h
       # A default receiver
       # receiver: team-X-mails
-      receiver: snmp_notifier
+      receiver: alerta
       # All the above attributes are inherited by all child routes and can
       # overwritten on each.
       # The child route trees.
@@ -441,8 +393,6 @@ conf:
         # labels to catch alerts that are related to a list of
         # services.
         - receiver: "alerta"
-          continue: true
-        - receiver: "snmp_notifier"
           continue: true
         - match_re:
             service: ^(foo1|foo2|baz)$
@@ -493,11 +443,6 @@ conf:
           - cluster
           - service
     receivers:
-      - name: 'snmp_notifier'
-        webhook_configs:
-        - send_resolved: true
-          #url: http://snmp-engine.osh-infra.svc.cluster.local:9464/alerts
-          url: {{ tuple "snmpnotifier" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" }}
       - name: 'alerta'
         webhook_configs:
         - send_resolved: true
