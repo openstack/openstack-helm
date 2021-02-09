@@ -653,4 +653,70 @@
         - ./tools/deployment/openstack-support/090-keystone.sh
         - ./tools/deployment/openstack-support/110-openstack-exporter.sh
         - ./tools/deployment/apparmor/140-ceph-radosgateway.sh
+
+- job:
+    name: openstack-helm-infra-aio-monitoring-tls
+    parent: openstack-helm-infra-functional
+    timeout: 7200
+    pre-run:
+      - playbooks/osh-infra-upgrade-host.yaml
+      - playbooks/osh-infra-deploy-selenium.yaml
+    post-run: playbooks/osh-infra-collect-logs.yaml
+    nodeset: openstack-helm-single-node
+    required-projects:
+      - openstack/openstack-helm
+    vars:
+      osh_params:
+        feature_gates: tls
+      gate_scripts_relative_path: ../openstack-helm-infra
+      gate_scripts:
+        - ./tools/deployment/osh-infra-monitoring-tls/000-install-packages.sh
+        - ./tools/deployment/osh-infra-monitoring-tls/005-deploy-k8s.sh
+        - ./tools/deployment/osh-infra-monitoring-tls/015-cert-manager.sh
+        - - ./tools/deployment/osh-infra-monitoring-tls/020-ingress.sh
+          - ./tools/deployment/osh-infra-monitoring-tls/030-nfs-provisioner.sh
+          - ./tools/deployment/osh-infra-monitoring-tls/040-ldap.sh
+          - ./tools/deployment/osh-infra-monitoring-tls/045-mariadb.sh
+        - - ./tools/deployment/osh-infra-monitoring-tls/050-prometheus.sh
+          - ./tools/deployment/osh-infra-monitoring-tls/060-alertmanager.sh
+          - ./tools/deployment/osh-infra-monitoring-tls/070-kube-state-metrics.sh
+          - ./tools/deployment/osh-infra-monitoring-tls/075-node-problem-detector.sh
+          - ./tools/deployment/osh-infra-monitoring-tls/080-node-exporter.sh
+        - - ./tools/deployment/osh-infra-monitoring-tls/090-process-exporter.sh
+          # - ./tools/deployment/osh-infra-monitoring-tls/100-openstack-exporter.sh
+          - ./tools/deployment/osh-infra-monitoring-tls/105-blackbox-exporter.sh
+        - - ./tools/deployment/osh-infra-monitoring-tls/110-grafana.sh
+          - ./tools/deployment/osh-infra-monitoring-tls/120-nagios.sh
+          - ./tools/deployment/osh-infra-monitoring-tls/170-postgresql.sh
+          - ./tools/deployment/osh-infra-monitoring-tls/600-grafana-selenium.sh || true
+          - ./tools/deployment/osh-infra-monitoring-tls/610-prometheus-selenium.sh || true
+          - ./tools/deployment/osh-infra-monitoring-tls/620-nagios-selenium.sh || true
+- job:
+    name: openstack-helm-infra-aio-logging-tls
+    parent: openstack-helm-infra-functional
+    timeout: 7200
+    pre-run:
+      - playbooks/osh-infra-upgrade-host.yaml
+      - playbooks/osh-infra-deploy-selenium.yaml
+    post-run: playbooks/osh-infra-collect-logs.yaml
+    nodeset: openstack-helm-single-node
+    required-projects:
+      - openstack/openstack-helm
+    vars:
+      osh_params:
+        feature_gates: tls
+      gate_scripts_relative_path: ../openstack-helm-infra
+      gate_scripts:
+        - ./tools/deployment/osh-infra-logging-tls/000-install-packages.sh
+        - ./tools/deployment/osh-infra-logging-tls/005-deploy-k8s.sh
+        - ./tools/deployment/osh-infra-logging-tls/015-cert-manager.sh
+        - - ./tools/deployment/osh-infra-logging-tls/010-ingress.sh
+          - ./tools/deployment/osh-infra-logging-tls/020-ceph.sh
+        - - ./tools/deployment/osh-infra-logging-tls/025-ceph-ns-activate.sh
+          - ./tools/deployment/osh-infra-logging-tls/030-radosgw-osh-infra.sh
+          - ./tools/deployment/osh-infra-logging-tls/040-ldap.sh
+          - ./tools/deployment/osh-infra-logging-tls/050-elasticsearch.sh
+        - - ./tools/deployment/osh-infra-logging-tls/060-fluentd.sh
+          - ./tools/deployment/osh-infra-logging-tls/070-kibana.sh
+        - ./tools/deployment/osh-infra-logging-tls/600-kibana-selenium.sh || true
 ...
