@@ -243,42 +243,73 @@ function manage_pool () {
   TOTAL_DATA_PERCENT=$4
   TARGET_PG_PER_OSD=$5
   POOL_CRUSH_RULE=$6
-  TARGET_QUOTA=$7
+  POOL_QUOTA=$7
   POOL_PROTECTION=$8
   CLUSTER_CAPACITY=$9
   TOTAL_OSDS={{.Values.conf.pool.target.osd}}
   POOL_PLACEMENT_GROUPS=$(python3 /tmp/pool-calc.py ${POOL_REPLICATION} ${TOTAL_OSDS} ${TOTAL_DATA_PERCENT} ${TARGET_PG_PER_OSD})
   create_pool "${POOL_APPLICATION}" "${POOL_NAME}" "${POOL_REPLICATION}" "${POOL_PLACEMENT_GROUPS}" "${POOL_CRUSH_RULE}" "${POOL_PROTECTION}"
   POOL_REPLICAS=$(ceph --cluster "${CLUSTER}" osd pool get "${POOL_NAME}" size | awk '{print $2}')
-  POOL_QUOTA=$(python3 -c "print(int($CLUSTER_CAPACITY * $TOTAL_DATA_PERCENT * $TARGET_QUOTA / $POOL_REPLICAS / 100 / 100))")
   ceph --cluster "${CLUSTER}" osd pool set-quota "${POOL_NAME}" max_bytes $POOL_QUOTA
+}
+
+# Helper to convert TiB, TB, GiB, GB, MiB, MB, KiB, KB, or bytes to bytes
+function convert_to_bytes() {
+  value=${1}
+  value="$(echo "${value}" | sed 's/TiB/ \* 1024GiB/g')"
+  value="$(echo "${value}" | sed 's/TB/ \* 1000GB/g')"
+  value="$(echo "${value}" | sed 's/GiB/ \* 1024MiB/g')"
+  value="$(echo "${value}" | sed 's/GB/ \* 1000MB/g')"
+  value="$(echo "${value}" | sed 's/MiB/ \* 1024KiB/g')"
+  value="$(echo "${value}" | sed 's/MB/ \* 1000KB/g')"
+  value="$(echo "${value}" | sed 's/KiB/ \* 1024/g')"
+  value="$(echo "${value}" | sed 's/KB/ \* 1000/g')"
+  python3 -c "print(int(${value}))"
 }
 
 set_cluster_flags
 unset_cluster_flags
 reweight_osds
 
+{{ $targetOSDCount := .Values.conf.pool.target.osd }}
+{{ $targetFinalOSDCount := .Values.conf.pool.target.final_osd }}
 {{ $targetPGperOSD := .Values.conf.pool.target.pg_per_osd }}
 {{ $crushRuleDefault := .Values.conf.pool.default.crush_rule }}
 {{ $targetQuota := .Values.conf.pool.target.quota | default 100 }}
 {{ $targetProtection := .Values.conf.pool.target.protected | default "false" | quote | lower }}
-cluster_capacity=0
-if [[ $(ceph -v | awk '/version/{print $3}' | cut -d. -f1) -ge 14 ]]; then
-  cluster_capacity=$(ceph --cluster "${CLUSTER}" df | grep "TOTAL" | awk '{print $2 substr($3, 1, 1)}' | numfmt --from=iec)
-else
-  cluster_capacity=$(ceph --cluster "${CLUSTER}" df | head -n3 | tail -n1 | awk '{print $1 substr($2, 1, 1)}' | numfmt --from=iec)
-fi
+cluster_capacity=$(ceph --cluster "${CLUSTER}" df -f json-pretty | grep '"total_bytes":' | head -n1 | awk '{print $2}' | tr -d ',')
 
 if [[ $(ceph mgr versions | awk '/version/{print $3}' | cut -d. -f1) -eq 14 ]]; then
   enable_or_disable_autoscaling
 fi
 
+# Check to make sure pool quotas don't exceed the expected cluster capacity in its final state
+target_quota=$(python3 -c "print(int(${cluster_capacity} * {{ $targetFinalOSDCount }} / {{ $targetOSDCount }} * {{ $targetQuota }} / 100))")
+quota_sum=0
+
 {{- range $pool := .Values.conf.pool.spec -}}
 {{- with $pool }}
+# Read the pool quota from the pool spec (no quota if absent)
+# Set pool_quota to 0 if target_quota is 0
+[[ ${target_quota} -eq 0 ]] && pool_quota=0 || pool_quota="$(convert_to_bytes {{ .pool_quota | default 0 }})"
+quota_sum=$(python3 -c "print(int(${quota_sum} + (${pool_quota} * {{ .replication }})))")
+{{- end }}
+{{- end }}
+
+if [[ ${quota_sum} -gt ${target_quota} ]]; then
+  echo "The sum of all pool quotas exceeds the target quota for the cluster"
+  exit 1
+fi
+
+{{- range $pool := .Values.conf.pool.spec -}}
+{{- with $pool }}
+# Read the pool quota from the pool spec (no quota if absent)
+# Set pool_quota to 0 if target_quota is 0
+[[ ${target_quota} -eq 0 ]] && pool_quota=0 || pool_quota="$(convert_to_bytes {{ .pool_quota | default 0 }})"
 {{- if .crush_rule }}
-manage_pool {{ .application }} {{ .name }} {{ .replication }} {{ .percent_total_data }} {{ $targetPGperOSD }} {{ .crush_rule }} {{ $targetQuota }} {{ $targetProtection }} ${cluster_capacity}
+manage_pool {{ .application }} {{ .name }} {{ .replication }} {{ .percent_total_data }} {{ $targetPGperOSD }} {{ .crush_rule }} $pool_quota {{ $targetProtection }} ${cluster_capacity}
 {{ else }}
-manage_pool {{ .application }} {{ .name }} {{ .replication }} {{ .percent_total_data }} {{ $targetPGperOSD }} {{ $crushRuleDefault }} {{ $targetQuota }} {{ $targetProtection }} ${cluster_capacity}
+manage_pool {{ .application }} {{ .name }} {{ .replication }} {{ .percent_total_data }} {{ $targetPGperOSD }} {{ $crushRuleDefault }} $pool_quota {{ $targetProtection }} ${cluster_capacity}
 {{- end }}
 {{- end }}
 {{- end }}

@@ -272,8 +272,13 @@ conf:
       tunables: null
     target:
       # NOTE(portdirect): arbitrarily we set the default number of expected OSD's to 5
-      # to match the number of nodes in the OSH gate (used only for helm tests).
+      # to match the number of nodes in the OSH gate.
       osd: 5
+      # This the number of OSDs expected in the final state. This is to allow the above
+      # target to be smaller initially in the event of a partial deployment. This way
+      # helm tests can still pass at deployment time and pool quotas can be set based on
+      # the expected final state (actual target quota = final_osd / osd * quota).
+      final_osd: 5
       # This is  just for helm tests to proceed the deployment if  we have mentioned % of
       # osds are up and running.
       required_percent_of_osds: 75
@@ -282,6 +287,7 @@ conf:
       # NOTE(st053q): target quota should be set to the overall cluster full percentage
       # to be tolerated as a quota (percent full to allow in order to tolerate some
       # level of failure)
+      # Set target quota to "0" (must be quoted) to remove quotas for all pools
       quota: 100
     default:
       # NOTE(supamatt): Accepted values are taken from `crush_rules` list.
@@ -336,6 +342,10 @@ conf:
         application: rbd
         replication: 3
         percent_total_data: 40
+        # Example of 100 GiB pool_quota for rbd pool (no pool quota if absent)
+        # May be specified in TiB, TB, GiB, GB, MiB, MB, KiB, KB, or bytes
+        # NOTE: This should always be a string value to avoid Helm issues with large integers
+        # pool_quota: "100GiB"
       # NOTE(supamatt): By default the crush rules used to create each pool will be
       # taken from the pool default `crush_rule` unless a pool specific `crush_rule`
       # is specified. The rule MUST exist for it to be defined here.
