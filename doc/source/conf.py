@@ -37,7 +37,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'openstack-helm-infra'
-copyright = u'2016, OpenStack Foundation'
+copyright = u'2016-2021, OpenStack Foundation'
 
 openstackdocs_repo_name = 'openstack/openstack-helm-infra'
 openstackdocs_use_storyboard = True
