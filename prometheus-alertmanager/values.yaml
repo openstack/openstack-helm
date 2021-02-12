@@ -162,20 +162,6 @@ endpoints:
     port:
       ldap:
         default: 389
-  alerta:
-    name: alerta
-    namespace: null
-    hosts:
-      default: alerta
-    host_fqdn_override:
-      default: null
-    path:
-      default: /api/webhooks/prometheus
-    scheme:
-      default: 'http'
-    port:
-      api:
-        default: 8080
 
 dependencies:
   dynamic:
@@ -390,7 +376,7 @@ conf:
       repeat_interval: 3h
       # A default receiver
       # receiver: team-X-mails
-      receiver: alerta
+      receiver: 'team-X-mails'
       # All the above attributes are inherited by all child routes and can
       # overwritten on each.
       # The child route trees.
@@ -398,7 +384,7 @@ conf:
         # This routes performs a regular expression match on alert
         # labels to catch alerts that are related to a list of
         # services.
-        - receiver: "alerta"
+        - receiver: 'team-X-mails'
           continue: true
         - match_re:
             service: ^(foo1|foo2|baz)$
@@ -449,15 +435,6 @@ conf:
           - cluster
           - service
     receivers:
-      - name: 'alerta'
-        webhook_configs:
-        - send_resolved: true
-          #url: 'http://alerta:8080/api/webhooks/prometheus'
-          url: {{ tuple "alerta" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" }}
-          http_config:
-            basic_auth:
-              username: admin
-              password: changeme
       - name: 'team-X-mails'
         email_configs:
           - to: 'team-X+alerts@example.org'
