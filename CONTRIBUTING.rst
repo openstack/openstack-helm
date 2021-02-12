@@ -17,3 +17,10 @@ For more specific information about contributing to this repository, see the
 openstack-helm contributor guide:
 
    https://docs.openstack.org/openstack-helm/latest/contributor/contributing.html
+
+Chart tarballs are published and can be found at the respective sub folder under
+
+   https://tarballs.opendev.org/openstack/
+
+Versioning and release notes for each chart update are now required in order to
+better support the evolving nature of the OpenStack platform.
