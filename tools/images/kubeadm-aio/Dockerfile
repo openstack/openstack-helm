@@ -76,7 +76,7 @@ RUN set -ex ;\
         jq \
         python3-pip \
         gawk ;\
-    pip3 --no-cache-dir install --upgrade pip==18.1 ;\
+    pip3 --no-cache-dir install --upgrade pip==21.0.1 ;\
     hash -r ;\
     pip3 --no-cache-dir install --upgrade setuptools ;\
     # NOTE(srwilkers): Pinning ansible to 2.5.5, as pip installs 2.6 by default.
