@@ -149,6 +149,13 @@ spec:
               /bin/chown {{ .Values.pod.security_context.server.pod.runAsUser }} {{ .Values.storage.mount.path }};
               /bin/chmod 700 {{ .Values.storage.mount.path }};
               /bin/chmod 700 {{ .Values.storage.mount.path }}/*;
+{{- if .Values.manifests.certificates }}
+              /bin/cp /server_certs_temp/* /server_certs/.;
+              /bin/chown {{ .Values.pod.security_context.server.pod.runAsUser }} /server_certs;
+              /bin/chown {{ .Values.pod.security_context.server.pod.runAsUser }} /server_certs/*;
+              /bin/chmod 700 /server_certs;
+              /bin/chmod 600 /server_certs/*;
+{{- end }}
 {{ dict "envAll" $envAll "application" "server" "container" "set_volume_perms" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           volumeMounts:
             - name: pod-tmp
@@ -156,6 +163,14 @@ spec:
             - name: postgresql-data
               mountPath: {{ .Values.storage.mount.path }}
               subPath: {{ .Values.storage.mount.subpath }}
+{{- if .Values.manifests.certificates }}
+            - name: server-certs
+              mountPath: /server_certs
+              # server-cert-temp mountpoint is temp storage for secrets. We copy the
+              # secrets to server-certs folder and set owner and permissions.
+              # This is needed because the secrets are always created readonly.
+{{ dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.secrets.postgresql.tls.server.internal "path" "/server_certs_temp" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
+{{- end }}
       containers:
         - name: postgresql
 {{ tuple $envAll "postgresql" | include "helm-toolkit.snippets.image" | indent 10 }}
@@ -235,6 +250,10 @@ spec:
               subPath: archive_cleanup.sh
               readOnly: true
 {{- end }}
+{{- if .Values.manifests.certificates }}
+            - name: server-certs
+              mountPath: /server_certs
+{{- end }}
       volumes:
         - name: pod-tmp
           emptyDir: {}
@@ -247,6 +266,11 @@ spec:
           secret:
             secretName: postgresql-bin
             defaultMode: 0555
+{{- if .Values.manifests.certificates }}
+        - name: server-certs
+          emptyDir: {}
+{{ dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.secrets.postgresql.tls.server.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
+{{- end }}
         - name: postgresql-etc
           configMap:
             name: postgresql-etc
