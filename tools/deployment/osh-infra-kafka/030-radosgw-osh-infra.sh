@@ -1,1 +1,0 @@
-../osh-infra-logging/030-radosgw-osh-infra.sh

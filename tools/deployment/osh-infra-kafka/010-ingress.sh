@@ -1,1 +1,0 @@
-../osh-infra-logging/010-ingress.sh
