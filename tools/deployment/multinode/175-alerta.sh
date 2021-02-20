@@ -1,1 +1,0 @@
-../common/alerta.sh
