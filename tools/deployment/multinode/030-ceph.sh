@@ -74,6 +74,7 @@ EOF
 
 : ${OSH_INFRA_PATH:="../openstack-helm-infra"}
 for CHART in ceph-mon ceph-osd ceph-client ceph-provisioners; do
+  make -C ${OSH_INFRA_PATH} ${CHART}
   helm upgrade --install ${CHART} ${OSH_INFRA_PATH}/${CHART} \
     --namespace=ceph \
     --values=/tmp/ceph.yaml \
