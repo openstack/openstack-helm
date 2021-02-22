@@ -1,4 +1,7 @@
 #!/bin/bash
+
+set -e
+
 function setup_loopback_devices() {
   osd_data_device="$1"
   osd_wal_db_device="$2"
@@ -6,10 +9,47 @@ function setup_loopback_devices() {
   sudo mkdir -p /var/lib/openstack-helm/$namespace
   sudo truncate -s 10G /var/lib/openstack-helm/$namespace/ceph-osd-data-loopbackfile.img
   sudo truncate -s 8G /var/lib/openstack-helm/$namespace/ceph-osd-db-wal-loopbackfile.img
-  sudo losetup $osd_data_device /var/lib/openstack-helm/$namespace/ceph-osd-data-loopbackfile.img
-  sudo losetup $osd_wal_db_device /var/lib/openstack-helm/$namespace/ceph-osd-db-wal-loopbackfile.img
-  #lets verify the devices
+  sudo -E bash -c "cat <<EOF > /etc/systemd/system/loops-setup.service
+[Unit]
+Description=Setup loop devices
+DefaultDependencies=no
+Conflicts=umount.target
+Before=local-fs.target
+After=systemd-udevd.service
+Required=systemd-udevd.service
+
+[Service]
+Type=oneshot
+ExecStart=/sbin/losetup $osd_data_device '/var/lib/openstack-helm/$namespace/ceph-osd-data-loopbackfile.img'
+ExecStart=/sbin/losetup $osd_wal_db_device '/var/lib/openstack-helm/$namespace/ceph-osd-db-wal-loopbackfile.img'
+ExecStop=/sbin/losetup -d $osd_data_device
+ExecStop=/sbin/losetup -d $osd_wal_db_device
+TimeoutSec=60
+RemainAfterExit=yes
+
+[Install]
+WantedBy=local-fs.target
+Also=systemd-udevd.service
+EOF"
+
+  sudo systemctl daemon-reload
+  sudo systemctl start loops-setup
+  sudo systemctl status loops-setup
+  sudo systemctl enable loops-setup
+  # let's verify the devices
   sudo losetup -a
+  if losetup |grep -i $osd_data_device; then
+    echo "ceph osd data disk got created successfully"
+  else
+    echo "could not find ceph osd data disk so exiting"
+    exit 1
+  fi
+  if losetup |grep -i $osd_wal_db_device; then
+    echo "ceph osd wal/db disk got created successfully"
+  else
+    echo "could not find ceph osd wal/db  disk so exiting"
+    exit 1
+  fi
 }
 
 while [[ "$#" > 0 ]]; do case $1 in
