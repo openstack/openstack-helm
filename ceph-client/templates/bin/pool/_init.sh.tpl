@@ -146,11 +146,13 @@ function reweight_osds () {
   done
 }
 
-function enable_autoscaling () {
-  if [[ $(ceph mgr versions | awk '/version/{print $3}' | cut -d. -f1) -eq 14 ]]; then
-    ceph mgr module enable pg_autoscaler # only required for nautilus
+function enable_or_disable_autoscaling () {
+  if [[ "${ENABLE_AUTOSCALER}" == "true" ]]; then
+    ceph mgr module enable pg_autoscaler
+    ceph config set global osd_pool_default_pg_autoscale_mode on
+  else
+    ceph mgr module disable pg_autoscaler
   fi
-  ceph config set global osd_pool_default_pg_autoscale_mode on
 }
 
 function set_cluster_flags () {
@@ -182,8 +184,10 @@ function create_pool () {
     ceph --cluster "${CLUSTER}" osd pool application enable "${POOL_NAME}" "${POOL_APPLICATION}"
   fi
 
-  if [[ $(ceph osd versions | awk '/version/{print $3}' | cut -d. -f1) -ge 14 ]] ; then
+  if [[ $(ceph osd versions | awk '/version/{print $3}' | cut -d. -f1) -ge 14 ]] && [[ "${ENABLE_AUTOSCALER}" == "true" ]] ; then
     ceph --cluster "${CLUSTER}" osd pool set "${POOL_NAME}" pg_autoscale_mode on
+  else
+    ceph --cluster "${CLUSTER}" osd pool set "${POOL_NAME}" pg_autoscale_mode off
   fi
 #
 # Make sure pool is not protected after creation AND expansion so we can manipulate its settings.
@@ -265,8 +269,8 @@ else
   cluster_capacity=$(ceph --cluster "${CLUSTER}" df | head -n3 | tail -n1 | awk '{print $1 substr($2, 1, 1)}' | numfmt --from=iec)
 fi
 
-if [[ $(ceph mgr versions | awk '/version/{print $3}' | cut -d. -f1) -ge 14 ]]; then
-  enable_autoscaling
+if [[ $(ceph mgr versions | awk '/version/{print $3}' | cut -d. -f1) -eq 14 ]]; then
+  enable_or_disable_autoscaling
 fi
 
 {{- range $pool := .Values.conf.pool.spec -}}
