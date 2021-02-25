@@ -220,6 +220,7 @@ examples:
                     serviceName: barbican-api
                     servicePort: b-api
   - values: |
+      cert_issuer_type: issuer
       network:
         api:
           ingress:
@@ -362,7 +363,7 @@ examples:
                 name: ca-issuer
                 kind: ClusterIssuer
     usage: |
-      {{- include "helm-toolkit.manifests.ingress" ( dict "envAll" . "backendServiceType" "key-manager" "backendPort" "b-api" "endpoint" "public" "certIssuer" "ca-issuer" "certIssuer" "cluster-issuer") -}}
+      {{- include "helm-toolkit.manifests.ingress" ( dict "envAll" . "backendServiceType" "key-manager" "backendPort" "b-api" "endpoint" "public" "certIssuer" "ca-issuer") -}}
     return: |
       ---
       apiVersion: networking.k8s.io/v1beta1
@@ -554,14 +555,14 @@ examples:
 {{- $backendPort := index . "backendPort" -}}
 {{- $endpoint := index . "endpoint" | default "public" -}}
 {{- $certIssuer := index . "certIssuer" | default "" -}}
-{{- $certIssuerType := index . "certIssuerType" | default "issuer" -}}
-{{- if and (ne $certIssuerType "issuer") (ne $certIssuerType "cluster-issuer") }}
-{{- $certIssuerType = "issuer" -}}
-{{- end }}
 {{- $ingressName := tuple $backendServiceType $endpoint $envAll | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
 {{- $backendName := tuple $backendServiceType "internal" $envAll | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
 {{- $hostName := tuple $backendServiceType $endpoint $envAll | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
 {{- $hostNameFull := tuple $backendServiceType $endpoint $envAll | include "helm-toolkit.endpoints.hostname_fqdn_endpoint_lookup" }}
+{{- $certIssuerType := "cluster-issuer" -}}
+{{- if $envAll.Values.cert_issuer_type }}
+{{- $certIssuerType = $envAll.Values.cert_issuer_type }}
+{{- end }}
 ---
 apiVersion: networking.k8s.io/v1beta1
 kind: Ingress
