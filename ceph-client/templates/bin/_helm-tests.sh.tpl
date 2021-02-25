@@ -181,7 +181,13 @@ function pool_validation() {
     pg_placement_num=$(echo ${pool_obj} | jq -r .pg_placement_num)
     crush_rule=$(echo ${pool_obj} | jq -r .crush_rule)
     name=$(echo ${pool_obj} | jq -r .pool_name)
-
+    pg_autoscale_mode=$(echo ${pool_obj} | jq -r .pg_autoscale_mode)
+    if [[ "${ENABLE_AUTOSCALER}" == "true" ]]; then
+      if [[ "${pg_autoscale_mode}" != "on" ]]; then
+        echo "pg autoscaler not enabled on ${name} pool"
+        exit 1
+      fi
+    fi
     if [[ $(ceph mon versions | awk '/version/{print $3}' | cut -d. -f1) -ge 14 ]]; then
       if [ "x${size}" != "x${RBD}" ] || [ "x${min_size}" != "x${EXPECTED_POOLMINSIZE}" ] \
         || [ "x${crush_rule}" != "x${expectedCrushRuleId}" ]; then
