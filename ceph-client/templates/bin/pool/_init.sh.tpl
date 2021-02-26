@@ -148,10 +148,15 @@ function reweight_osds () {
 
 function enable_or_disable_autoscaling () {
   if [[ "${ENABLE_AUTOSCALER}" == "true" ]]; then
-    ceph mgr module enable pg_autoscaler
+    if [[ $(ceph mgr versions | awk '/version/{print $3}' | cut -d. -f1) -eq 14 ]]; then
+      ceph mgr module enable pg_autoscaler # only required for nautilus
+    fi
     ceph config set global osd_pool_default_pg_autoscale_mode on
   else
-    ceph mgr module disable pg_autoscaler
+    if [[ $(ceph mgr versions | awk '/version/{print $3}' | cut -d. -f1) -eq 14 ]]; then
+      ceph mgr module disable pg_autoscaler # only required for nautilus
+    fi
+    ceph config set global osd_pool_default_pg_autoscale_mode off
   fi
 }
 
@@ -178,16 +183,30 @@ function create_pool () {
   POOL_PLACEMENT_GROUPS=$4
   POOL_CRUSH_RULE=$5
   POOL_PROTECTION=$6
+  PG_NUM_MIN={{.Values.conf.pool.target.pg_num_min}}
   if ! ceph --cluster "${CLUSTER}" osd pool stats "${POOL_NAME}" > /dev/null 2>&1; then
-    ceph --cluster "${CLUSTER}" osd pool create "${POOL_NAME}" ${POOL_PLACEMENT_GROUPS}
+    if [[ ${POOL_PLACEMENT_GROUPS} -gt 0 ]]; then
+      ceph --cluster "${CLUSTER}" osd pool create "${POOL_NAME}" ${POOL_PLACEMENT_GROUPS}
+    else
+      ceph --cluster "${CLUSTER}" osd pool create "${POOL_NAME}" ${PG_NUM_MIN} --pg-num-min ${PG_NUM_MIN}
+    fi
     while [ $(ceph --cluster "${CLUSTER}" -s | grep creating -c) -gt 0 ]; do echo -n .;sleep 1; done
     ceph --cluster "${CLUSTER}" osd pool application enable "${POOL_NAME}" "${POOL_APPLICATION}"
   fi
 
-  if [[ $(ceph osd versions | awk '/version/{print $3}' | cut -d. -f1) -ge 14 ]] && [[ "${ENABLE_AUTOSCALER}" == "true" ]] ; then
-    ceph --cluster "${CLUSTER}" osd pool set "${POOL_NAME}" pg_autoscale_mode on
-  else
-    ceph --cluster "${CLUSTER}" osd pool set "${POOL_NAME}" pg_autoscale_mode off
+  if [[ $(ceph mgr versions | awk '/version/{print $3}' | cut -d. -f1) -ge 14 ]]; then
+    if [[ "${ENABLE_AUTOSCALER}" == "true" ]]; then
+      pool_values=$(ceph --cluster "${CLUSTER}" osd pool get "${POOL_NAME}" all -f json)
+      pg_num=$(jq '.pg_num' <<< "${pool_values}")
+      pg_num_min=$(jq '.pg_num_min' <<< "${pool_values}")
+      # set pg_num_min to PG_NUM_MIN before enabling autoscaler
+      if [[ ${pg_num_min} -gt ${PG_NUM_MIN} ]] || [[ ${pg_num} -gt ${PG_NUM_MIN} ]]; then
+        ceph --cluster "${CLUSTER}" osd pool set "${POOL_NAME}" pg_num_min ${PG_NUM_MIN}
+      fi
+      ceph --cluster "${CLUSTER}" osd pool set "${POOL_NAME}" pg_autoscale_mode on
+    else
+      ceph --cluster "${CLUSTER}" osd pool set "${POOL_NAME}" pg_autoscale_mode off
+    fi
   fi
 #
 # Make sure pool is not protected after creation AND expansion so we can manipulate its settings.
@@ -200,9 +219,7 @@ function create_pool () {
   ceph --cluster "${CLUSTER}" osd pool set "${POOL_NAME}" size ${POOL_REPLICATION}
   ceph --cluster "${CLUSTER}" osd pool set "${POOL_NAME}" crush_rule "${POOL_CRUSH_RULE}"
 # set pg_num to pool
-  if [[ $(ceph osd versions | awk '/version/{print $3}' | cut -d. -f1) -ge 14 ]]; then
-    ceph --cluster "${CLUSTER}" osd pool set "${POOL_NAME}" "pg_num" "${POOL_PLACEMENT_GROUPS}"
-  else
+  if [[ ${POOL_PLACEMENT_GROUPS} -gt 0 ]]; then
     for PG_PARAM in pg_num pgp_num; do
       CURRENT_PG_VALUE=$(ceph --cluster "${CLUSTER}" osd pool get "${POOL_NAME}" "${PG_PARAM}" | awk "/^${PG_PARAM}:/ { print \$NF }")
       if [ "${POOL_PLACEMENT_GROUPS}" -gt "${CURRENT_PG_VALUE}" ]; then
@@ -247,7 +264,12 @@ function manage_pool () {
   POOL_PROTECTION=$8
   CLUSTER_CAPACITY=$9
   TOTAL_OSDS={{.Values.conf.pool.target.osd}}
-  POOL_PLACEMENT_GROUPS=$(python3 /tmp/pool-calc.py ${POOL_REPLICATION} ${TOTAL_OSDS} ${TOTAL_DATA_PERCENT} ${TARGET_PG_PER_OSD})
+  POOL_PLACEMENT_GROUPS=0
+  if [[ -n "${TOTAL_DATA_PERCENT}" ]]; then
+    if [[ "${ENABLE_AUTOSCALER}" == "false" ]] || [[ $(ceph mgr versions | awk '/version/{print $3}' | cut -d. -f1) -lt 14 ]]; then
+      POOL_PLACEMENT_GROUPS=$(python3 /tmp/pool-calc.py ${POOL_REPLICATION} ${TOTAL_OSDS} ${TOTAL_DATA_PERCENT} ${TARGET_PG_PER_OSD})
+    fi
+  fi
   create_pool "${POOL_APPLICATION}" "${POOL_NAME}" "${POOL_REPLICATION}" "${POOL_PLACEMENT_GROUPS}" "${POOL_CRUSH_RULE}" "${POOL_PROTECTION}"
   POOL_REPLICAS=$(ceph --cluster "${CLUSTER}" osd pool get "${POOL_NAME}" size | awk '{print $2}')
   ceph --cluster "${CLUSTER}" osd pool set-quota "${POOL_NAME}" max_bytes $POOL_QUOTA
@@ -279,10 +301,6 @@ reweight_osds
 {{ $targetProtection := .Values.conf.pool.target.protected | default "false" | quote | lower }}
 cluster_capacity=$(ceph --cluster "${CLUSTER}" df -f json-pretty | grep '"total_bytes":' | head -n1 | awk '{print $2}' | tr -d ',')
 
-if [[ $(ceph mgr versions | awk '/version/{print $3}' | cut -d. -f1) -eq 14 ]]; then
-  enable_or_disable_autoscaling
-fi
-
 # Check to make sure pool quotas don't exceed the expected cluster capacity in its final state
 target_quota=$(python3 -c "print(int(${cluster_capacity} * {{ $targetFinalOSDCount }} / {{ $targetOSDCount }} * {{ $targetQuota }} / 100))")
 quota_sum=0
@@ -313,6 +331,10 @@ manage_pool {{ .application }} {{ .name }} {{ .replication }} {{ .percent_total_
 {{- end }}
 {{- end }}
 {{- end }}
+
+if [[ $(ceph mgr versions | awk '/version/{print $3}' | cut -d. -f1) -ge 14 ]]; then
+  enable_or_disable_autoscaling
+fi
 
 {{- if .Values.conf.pool.crush.tunables }}
 ceph --cluster "${CLUSTER}" osd crush tunables {{ .Values.conf.pool.crush.tunables }}
