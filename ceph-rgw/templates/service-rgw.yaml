@@ -14,6 +14,10 @@ limitations under the License.
 
 {{- if and .Values.manifests.service_rgw ( and .Values.deployment.ceph .Values.conf.features.rgw ) }}
 {{- $envAll := . }}
+{{ $object_store_name := "object_store" }}
+{{- if .Values.conf.rgw_s3.enabled }}
+{{ $object_store_name = "ceph_object_store" }}
+{{- end }}
 ---
 apiVersion: v1
 kind: Service
@@ -22,9 +26,9 @@ metadata:
 spec:
   ports:
   - name: ceph-rgw
-    port: {{ tuple "object_store" "internal" "api" $envAll | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+    port: {{ tuple $object_store_name "internal" "api" $envAll | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
     protocol: TCP
-    targetPort: {{ tuple "object_store" "internal" "api" $envAll | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+    targetPort: {{ tuple $object_store_name "internal" "api" $envAll | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
   {{ if .Values.network.api.node_port.enabled }}
     nodePort: {{ .Values.network.api.node_port.port }}
   {{ end }}
