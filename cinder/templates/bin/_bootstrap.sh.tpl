@@ -19,9 +19,14 @@ export HOME=/tmp
 
 {{- if .Values.bootstrap.enabled | default "echo 'Not Enabled'" }}
 
-  {{- /* Create volumes defined in Values.bootstrap */}}
-  {{- range $name, $properties := .Values.bootstrap.volume_types }}
-    {{- if $properties.volume_backend_name }}
+  {{- /* Create volume types defined in Values.bootstrap */}}
+  {{- /* Types can only be created for backends defined in Values.conf */}}
+  {{- $volumeTypes := .Values.bootstrap.volume_types }}
+  {{- range $backend_name, $backend_properties := .Values.conf.backends }}
+    {{- if $backend_properties }}
+      {{- range $name, $properties := $volumeTypes }}
+        {{- if $properties.volume_backend_name }}
+          {{- if (eq $properties.volume_backend_name $backend_properties.volume_backend_name) }}
 openstack volume type show {{ $name }} || \
   openstack volume type create \
     --public \
@@ -29,6 +34,9 @@ openstack volume type show {{ $name }} || \
     --property {{ $key }}={{ $value }} \
       {{- end }}
     {{ $name }}
+          {{- end }}
+        {{- end }}
+      {{- end }}
     {{- end }}
   {{- end }}
 
