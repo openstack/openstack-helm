@@ -18,10 +18,9 @@ set -ex
 COMMAND="${@:-start}"
 
 function start () {
-  find /tmp/ -maxdepth 1 -writable | grep -v "^/tmp/$" | xargs -L1 -r rm -rfv
+  find /tmp -maxdepth 1 \! -path /tmp -perm /222 -exec rm -rfv {} \;
   exec /usr/bin/dumb-init \
       /nginx-ingress-controller \
-      --force-namespace-isolation \
       --watch-namespace ${POD_NAMESPACE} \
       --election-id=${RELEASE_NAME} \
       --ingress-class=${INGRESS_CLASS} \
