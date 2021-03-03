@@ -53,7 +53,7 @@ helm upgrade --install radosgw-openstack ${OSH_INFRA_PATH}/ceph-rgw \
   --namespace=openstack \
   --values=/tmp/radosgw-openstack.yaml \
   ${OSH_EXTRA_HELM_ARGS} \
-  ${OSH_EXTRA_HELM_ARGS_HEAT}
+  ${OSH_EXTRA_HELM_ARGS_CEPH_RGW}
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack
