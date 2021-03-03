@@ -20,6 +20,8 @@ limitations under the License.
 {{- define "helm-toolkit.manifests.job_image_repo_sync" -}}
 {{- $envAll := index . "envAll" -}}
 {{- $serviceName := index . "serviceName" -}}
+{{- $jobAnnotations := index . "jobAnnotations" -}}
+{{- $jobLabels := index . "jobLabels" -}}
 {{- $nodeSelector := index . "nodeSelector" | default ( dict $envAll.Values.labels.job.node_selector_key $envAll.Values.labels.job.node_selector_value ) -}}
 {{- $podVolMounts := index . "podVolMounts" | default false -}}
 {{- $podVols := index . "podVols" | default false -}}
@@ -36,6 +38,16 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: {{ printf "%s-%s" $serviceNamePretty "image-repo-sync" | quote }}
+  annotations:
+    "helm.sh/hook-delete-policy": before-hook-creation
+{{- if $jobAnnotations }}
+{{ toYaml $jobAnnotations | indent 4 }}
+{{- end }}
+  labels:
+    application: {{ $serviceName }}
+{{- if $jobLabels }}
+{{ toYaml $jobLabels | indent 4 }}
+{{- end }}
 spec:
   backoffLimit: {{ $backoffLimit }}
 {{- if $activeDeadlineSeconds }}
