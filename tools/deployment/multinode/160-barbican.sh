@@ -13,6 +13,9 @@
 #    under the License.
 set -xe
 
+#NOTE: Lint and package chart
+make barbican
+
 #NOTE: Deploy command
 helm upgrade --install barbican ./barbican \
   --namespace=openstack \
