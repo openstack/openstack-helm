@@ -13,6 +13,9 @@
 #    under the License.
 set -xe
 
+#NOTE: Lint and package chart
+make ceilometer
+
 #NOTE: Wait for deploy
 helm upgrade --install ceilometer ./ceilometer \
   --namespace=openstack \
