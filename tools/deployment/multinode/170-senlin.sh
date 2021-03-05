@@ -13,6 +13,9 @@
 #    under the License.
 set -xe
 
+#NOTE: Lint and package chart
+make senlin
+
 #NOTE: Deploy command
 helm upgrade --install senlin ./senlin \
   --namespace=openstack \
