@@ -13,6 +13,9 @@
 #    under the License.
 set -xe
 
+#NOTE: Lint and package chart
+make magnum
+
 #NOTE: Deploy command
 helm upgrade --install magnum ./magnum \
   --namespace=openstack \
