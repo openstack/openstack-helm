@@ -13,6 +13,9 @@
 #    under the License.
 set -xe
 
+#NOTE: Lint and package chart
+make panko
+
 #NOTE: Wait for deploy
 helm upgrade --install panko ./panko \
   --namespace=openstack \
