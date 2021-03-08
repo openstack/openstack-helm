@@ -30,6 +30,7 @@ images:
     dep_check: 'quay.io/airshipit/kubernetes-entrypoint:v1.0.0'
     image_repo_sync: 'docker.io/docker:17.07.0'
     rgw_s3_admin: 'docker.io/openstackhelm/ceph-config-helper:change_770201_ubuntu_bionic-20210113'
+    rgw_placement_targets: 'docker.io/openstackhelm/ceph-config-helper:change_770201_ubuntu_bionic-20210113'
     ks_endpoints: 'docker.io/openstackhelm/heat:newton-ubuntu_xenial'
     ks_service: 'docker.io/openstackhelm/heat:newton-ubuntu_xenial'
     ks_user: 'docker.io/openstackhelm/heat:newton-ubuntu_xenial'
@@ -90,6 +91,16 @@ pod:
           runAsUser: 0
           readOnlyRootFilesystem: true
         create_s3_admin:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+    rgw_placement_targets:
+      pod:
+        runAsUser: 64045
+      container:
+        keyring_placement:
+          runAsUser: 0
+          readOnlyRootFilesystem: true
+        create_rgw_placement_targets:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
     rgw_test:
@@ -184,6 +195,13 @@ pod:
           memory: "1024Mi"
           cpu: "2000m"
       rgw_s3_admin:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      rgw_placement_targets:
         requests:
           memory: "128Mi"
           cpu: "100m"
@@ -379,6 +397,9 @@ conf:
         application: rgw
         replication: 3
         percent_total_data: 34.8
+  rgw_placement_targets:
+    - name: default-placement
+      data_pool: default.rgw.buckets.data
   rgw:
     config:
       # NOTE (portdirect): See http://tracker.ceph.com/issues/21226
@@ -475,6 +496,10 @@ dependencies:
         - endpoint: internal
           service: identity
     rgw_s3_admin:
+      services:
+        - endpoint: internal
+          service: ceph_object_store
+    rgw_placement_targets:
       services:
         - endpoint: internal
           service: ceph_object_store
@@ -639,6 +664,7 @@ manifests:
   job_ks_service: true
   job_ks_user: true
   job_s3_admin: true
+  job_rgw_placement_targets: false
   secret_s3_rgw: true
   secret_keystone_rgw: true
   secret_ingress_tls: true
