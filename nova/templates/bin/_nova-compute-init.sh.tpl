@@ -25,7 +25,7 @@ chown ${NOVA_USER_UID} /var/lib/nova /var/lib/nova/instances
 migration_interface="{{- .Values.conf.libvirt.live_migration_interface -}}"
 if [[ -n $migration_interface ]]; then
     # determine ip dynamically based on interface provided
-    migration_address=$(ip a s $migration_interface | grep 'inet ' | awk '{print $2}' | awk -F "/" '{print $1}')
+    migration_address=$(ip a s $migration_interface | grep 'inet ' | awk '{print $2}' | awk -F "/" '{print $1}' | head -1)
 fi
 
 touch /tmp/pod-shared/nova-libvirt.conf
@@ -43,7 +43,7 @@ if [[ -z $hypervisor_interface ]]; then
     hypervisor_interface=$(ip -4 route list 0/0 | awk -F 'dev' '{ print $2; exit }' | awk '{ print $1 }') || exit 1
 fi
 
-hypervisor_address=$(ip a s $hypervisor_interface | grep 'inet ' | awk '{print $2}' | awk -F "/" '{print $1}')
+hypervisor_address=$(ip a s $hypervisor_interface | grep 'inet ' | awk '{print $2}' | awk -F "/" '{print $1}' | head -1)
 
 if [ -z "${hypervisor_address}" ] ; then
   echo "Var my_ip is empty"
