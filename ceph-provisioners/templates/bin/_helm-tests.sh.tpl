@@ -130,6 +130,8 @@ apiVersion: v1
 metadata:
   name: $pod_name
 spec:
+  nodeSelector:
+    {{ .Values.labels.test.node_selector_key }}: {{ .Values.labels.test.node_selector_value }}
   containers:
   - name: task-pv-storage
     image: {{ .Values.images.tags.ceph_config_helper }}
