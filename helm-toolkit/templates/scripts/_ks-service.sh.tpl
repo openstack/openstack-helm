@@ -52,7 +52,7 @@ unset OS_SERVICE_ID
 
 # If OS_SERVICE_ID is blank then wait a few seconds to give it
 # additional time and try again
-for i in {1...3}
+for i in $(seq 3)
 do
   OS_SERVICE_ID=$( openstack service list -f csv --quote none | \
                    grep ",${OS_SERVICE_NAME},${OS_SERVICE_TYPE}$" | \
