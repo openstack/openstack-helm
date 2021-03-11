@@ -146,18 +146,18 @@ function reweight_osds () {
   done
 }
 
-function enable_or_disable_autoscaling () {
-  if [[ "${ENABLE_AUTOSCALER}" == "true" ]]; then
-    if [[ $(ceph mgr versions | awk '/version/{print $3}' | cut -d. -f1) -eq 14 ]]; then
-      ceph mgr module enable pg_autoscaler # only required for nautilus
-    fi
-    ceph config set global osd_pool_default_pg_autoscale_mode on
-  else
-    if [[ $(ceph mgr versions | awk '/version/{print $3}' | cut -d. -f1) -eq 14 ]]; then
-      ceph mgr module disable pg_autoscaler # only required for nautilus
-    fi
-    ceph config set global osd_pool_default_pg_autoscale_mode off
+function enable_autoscaling () {
+  if [[ $(ceph mgr versions | awk '/version/{print $3}' | cut -d. -f1) -eq 14 ]]; then
+    ceph mgr module enable pg_autoscaler # only required for nautilus
   fi
+  ceph config set global osd_pool_default_pg_autoscale_mode on
+}
+
+function disable_autoscaling () {
+  if [[ $(ceph mgr versions | awk '/version/{print $3}' | cut -d. -f1) -eq 14 ]]; then
+    ceph mgr module disable pg_autoscaler # only required for nautilus
+  fi
+  ceph config set global osd_pool_default_pg_autoscale_mode off
 }
 
 function set_cluster_flags () {
@@ -319,6 +319,10 @@ if [[ ${quota_sum} -gt ${target_quota} ]]; then
   exit 1
 fi
 
+if [[ $(ceph mgr versions | awk '/version/{print $3}' | cut -d. -f1) -ge 14 ]] && [[ "${ENABLE_AUTOSCALER}" != "true" ]]; then
+  disable_autoscaling
+fi
+
 {{- range $pool := .Values.conf.pool.spec -}}
 {{- with $pool }}
 # Read the pool quota from the pool spec (no quota if absent)
@@ -332,8 +336,8 @@ manage_pool {{ .application }} {{ .name }} {{ .replication }} {{ .percent_total_
 {{- end }}
 {{- end }}
 
-if [[ $(ceph mgr versions | awk '/version/{print $3}' | cut -d. -f1) -ge 14 ]]; then
-  enable_or_disable_autoscaling
+if [[ $(ceph mgr versions | awk '/version/{print $3}' | cut -d. -f1) -ge 14 ]] && [[ "${ENABLE_AUTOSCALER}" == "true" ]]; then
+  enable_autoscaling
 fi
 
 {{- if .Values.conf.pool.crush.tunables }}
