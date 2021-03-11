@@ -19,7 +19,7 @@ set -xe
 sudo ip addr add ${OSH_BR_EX_ADDR} dev br-ex
 sudo ip link set br-ex up
 
-: ${DNSMASQ_IMAGE:=docker.io/openstackhelm/neutron:ocata}
+: ${DNSMASQ_IMAGE:=docker.io/openstackhelm/neutron:train-ubuntu_bionic}
 
 # NOTE(portdirect): With Docker >= 1.13.1 the default FORWARD chain policy is
 # configured to DROP, for the l3 agent to function as expected and for
