@@ -13,6 +13,9 @@
 #    under the License.
 set -xe
 
+#NOTE: Lint and package chart
+make mistral
+
 #NOTE: Deploy command
 helm upgrade --install mistral ./mistral \
   --namespace=openstack \
