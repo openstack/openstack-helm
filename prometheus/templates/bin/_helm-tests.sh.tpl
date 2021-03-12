@@ -17,7 +17,7 @@ limitations under the License.
 set -ex
 
 function endpoints_up () {
-  endpoints_result=$(curl -K- <<< "--user ${PROMETHEUS_ADMIN_USERNAME}:${PROMETHEUS_ADMIN_PASSWORD}" \
+  endpoints_result=$(curl ${CACERT_OPTION} -K- <<< "--user ${PROMETHEUS_ADMIN_USERNAME}:${PROMETHEUS_ADMIN_PASSWORD}" \
     "${PROMETHEUS_ENDPOINT}/api/v1/query?query=up" \
     | python -c "import sys, json; print(json.load(sys.stdin)['status'])")
   if [ "$endpoints_result" = "success" ];
@@ -30,7 +30,7 @@ function endpoints_up () {
 }
 
 function get_targets () {
-  targets_result=$(curl -K- <<< "--user ${PROMETHEUS_ADMIN_USERNAME}:${PROMETHEUS_ADMIN_PASSWORD}" \
+  targets_result=$(curl ${CACERT_OPTION} -K- <<< "--user ${PROMETHEUS_ADMIN_USERNAME}:${PROMETHEUS_ADMIN_PASSWORD}" \
     "${PROMETHEUS_ENDPOINT}/api/v1/targets" \
     | python -c "import sys, json; print(json.load(sys.stdin)['status'])")
   if [ "$targets_result" = "success" ];
@@ -43,7 +43,7 @@ function get_targets () {
 }
 
 function get_alertmanagers () {
-  alertmanager=$(curl -K- <<< "--user ${PROMETHEUS_ADMIN_USERNAME}:${PROMETHEUS_ADMIN_PASSWORD}" \
+  alertmanager=$(curl ${CACERT_OPTION} -K- <<< "--user ${PROMETHEUS_ADMIN_USERNAME}:${PROMETHEUS_ADMIN_PASSWORD}" \
     "${PROMETHEUS_ENDPOINT}/api/v1/alertmanagers" \
     |  python -c "import sys, json; print(json.load(sys.stdin)['status'])")
   if [ "$alertmanager" = "success" ];
