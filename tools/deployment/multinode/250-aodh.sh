@@ -13,6 +13,9 @@
 #    under the License.
 set -xe
 
+#NOTE: Lint and package chart
+make aodh
+
 #NOTE: Wait for deploy
 helm upgrade --install aodh ./aodh \
   --namespace=openstack \
