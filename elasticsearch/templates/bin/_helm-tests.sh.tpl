@@ -4,7 +4,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-   http://www.apache.org/licenses/LICENSE-2.0
+    http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -29,26 +29,46 @@ function create_test_index () {
   ' | python -c "import sys, json; print(json.load(sys.stdin)['acknowledged'])")
   if [ "$index_result" == "True" ];
   then
-     echo "PASS: Test index created!";
+    echo "PASS: Test index created!";
   else
-     echo "FAIL: Test index not created!";
-     exit 1;
+    echo "FAIL: Test index not created!";
+    exit 1;
   fi
 }
 
-function check_snapshot_repositories () {
-  {{ range $repository := .Values.conf.elasticsearch.snapshots.repositories }}
-  repository={{$repository.name}}
-  repository_search_result=$(curl -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
-  "${ELASTICSEARCH_ENDPOINT}/_cat/repositories" | awk '{print $1}' | grep "\<$repository\>")
-  if [ "$repository_search_result" == "$repository" ]; then
-     echo "PASS: The snapshot repository $repository exists!"
+{{ if .Values.conf.elasticsearch.snapshots.enabled }}
+function check_snapshot_repositories_registered () {
+  total_hits=$(curl -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
+  "${ELASTICSEARCH_ENDPOINT}/_snapshot" | jq length)
+  if [ "$total_hits" -gt 0 ]; then
+    echo "PASS: $total_hits Snapshot repositories have been registered!"
   else
-     echo "FAIL: The snapshot repository $respository does not exist! Exiting now";
-     exit 1;
+    echo "FAIL: No snapshot repositories found! Exiting";
+    exit 1;
   fi
-  {{ end }}
 }
+{{ end }}
+
+{{ if .Values.conf.elasticsearch.snapshots.enabled }}
+function check_snapshot_repositories_verified () {
+  repositories=$(curl -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
+                  "${ELASTICSEARCH_ENDPOINT}/_snapshot" | jq -r "keys | @sh" )
+
+  repositories=$(echo $repositories | sed "s/'//g") # Strip single quotes from jq output
+
+  for repository in $repositories; do
+    error=$(curl -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
+            -XPOST "${ELASTICSEARCH_ENDPOINT}/_snapshot/${repository}/_verify" | jq -r '.error')
+
+    if [ $error == "null" ]; then
+      echo "PASS: $repository is verified."
+    else
+      echo "FAIL: Error for $repository: $(echo $error | jq -r)"
+      exit 1;
+    fi
+  done
+}
+{{ end }}
 
 {{ if .Values.manifests.job_elasticsearch_templates }}
 # Tests whether elasticsearch has successfully generated the elasticsearch index mapping
@@ -57,10 +77,10 @@ function check_templates () {
   total_hits=$(curl -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
               -XGET "${ELASTICSEARCH_ENDPOINT}/_template" | jq length)
   if [ "$total_hits" -gt 0 ]; then
-     echo "PASS: Successful hits on templates!"
+    echo "PASS: Successful hits on templates!"
   else
-     echo "FAIL: No hits on query for templates! Exiting";
-     exit 1;
+    echo "FAIL: No hits on query for templates! Exiting";
+    exit 1;
   fi
 }
 {{ end }}
@@ -74,7 +94,8 @@ function remove_test_index () {
 remove_test_index || true
 create_test_index
 {{ if .Values.conf.elasticsearch.snapshots.enabled }}
-check_snapshot_repositories
+check_snapshot_repositories_registered
+check_snapshot_repositories_verified
 {{ end }}
 check_templates
 remove_test_index

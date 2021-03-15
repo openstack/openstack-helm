@@ -13,10 +13,17 @@ limitations under the License.
 */}}
 
 {{- define "helm-toolkit.snippets.rgw_s3_secret_creds" }}
-{{- $userClass := index . 0 -}}
-{{- $context := index . 1 -}}
-{{- $userContext := index $context.Values.endpoints.ceph_object_store.auth $userClass }}
-S3_USERNAME: {{ $userContext.username | b64enc }}
-S3_ACCESS_KEY: {{ $userContext.access_key | b64enc }}
-S3_SECRET_KEY: {{ $userContext.secret_key | b64enc }}
+{{- range $client, $config := .Values.storage.s3.clients -}}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ printf "%s-s3-user-secret" ( $client | replace "_" "-" | lower ) }}
+type: Opaque
+data:
+{{- range $key, $value := $config.auth }}
+  {{ $key | upper }}: {{ $value | toString | b64enc}}
+{{- end }}
+
+{{ end }}
 {{- end }}

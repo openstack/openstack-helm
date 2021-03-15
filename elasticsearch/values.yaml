@@ -103,6 +103,8 @@ dependencies:
       services:
         - endpoint: internal
           service: elasticsearch
+      jobs:
+        - elasticsearch-s3-bucket
     image_repo_sync:
       services:
         - endpoint: internal
@@ -120,7 +122,7 @@ dependencies:
     verify_repositories:
       services: null
       jobs:
-        - elasticsearch-register-snapshot-repository
+        - create-elasticsearch-templates
     s3_user:
       services:
         - endpoint: internal
@@ -131,7 +133,7 @@ dependencies:
     tests:
       services: null
       jobs:
-        - elasticsearch-register-snapshot-repository
+        - create-elasticsearch-templates
 
 pod:
   env:
@@ -705,12 +707,7 @@ conf:
       network:
         host: 0.0.0.0
       s3:
-        client:
-          default:
-            # NOTE(srwilkers): This gets configured dynamically via endpoint
-            # lookups
-            endpoint: null
-            protocol: http
+        client: {}
       node:
         ingest: ${NODE_INGEST}
         master: ${NODE_MASTER}
@@ -722,13 +719,6 @@ conf:
         logs: /logs
     snapshots:
       enabled: false
-      # NOTE(srwilkers): The path for the radosgw s3 endpoint gets populated
-      # dynamically with this value to ensure the bucket name and s3 compatible
-      # radosgw endpoint/path match
-      bucket: elasticsearch_bucket
-      repositories:
-        logstash:
-          name: logstash_snapshots
     env:
       java_opts:
         client: "-Xms256m -Xmx256m"
@@ -783,40 +773,7 @@ conf:
               min_age: 14d
               actions:
                 delete: {}
-    - endpoint: _slm/policy/non-security-snapshots
-      body:
-        schedule: "0 30 1 * * ?"
-        name: "<non-security-logs-snapshot-{now/d}>"
-        repository: logstash_snapshots
-        config:
-          indices: ["^(.*calico-|.*ceph-|.*jenkins-|.*journal-|.*kernel_syslog-|.*kubernetes-|.*libvirt-|.*logstash-|.*openvswitch-|.*utility_access-).*$"]
-          ignore_unavailable: true
-          include_global_state: false
-          wait_for_completion: true
-          max_wait: 64800
-          wait_interval: 30
-          ignore_empty_list: true
-          continue_if_exception: true
-          disable_action: false
-        retention:
-          expire_after: 29d
-    - endpoint: _slm/policy/security-snapshots
-      body:
-        schedule: "0 30 1 * * ?"
-        name: "<security-logs-snapshot-{now/d}>"
-        repository: logstash_snapshots
-        config:
-          indices: ["^(.*airship-|.*audit_tsee-|.*auth-|.*flows-|.*lma-|.*openstack-).*$"]
-          ignore_unavailable: true
-          include_global_state: false
-          wait_for_completion: true
-          max_wait: 18000
-          wait_interval: 30
-          ignore_empty_list: true
-          continue_if_exception: true
-          disable_action: false
-        retention:
-          expire_after: 179d
+
 endpoints:
   cluster_domain_suffix: cluster.local
   local_image_registry:
@@ -900,15 +857,6 @@ endpoints:
   ceph_object_store:
     name: radosgw
     namespace: null
-    auth:
-      elasticsearch:
-        username: elasticsearch
-        access_key: "elastic_access_key"
-        secret_key: "elastic_secret_key"
-      admin:
-        username: s3_admin
-        access_key: "admin_access_key"
-        secret_key: "admin_secret_key"
     hosts:
       default: ceph-rgw
       public: radosgw
@@ -963,7 +911,43 @@ storage:
     requests:
       storage: 1Gi
     storage_class: general
-
+  s3:
+    clients: {}
+    # These values configure the s3 clients section of elasticsearch.yml
+    # See: https://www.elastic.co/guide/en/elasticsearch/plugins/current/repository-s3-client.html
+    #   default:
+    #     auth:
+    #       # Values under auth are written to the Secret $client-s3-user-secret
+    #       # and the access & secret keys are added to the elasticsearch keystore
+    #       username: elasticsearch
+    #       access_key: "elastic_access_key"
+    #       secret_key: "elastic_secret_key"
+    #     settings:
+    #       # Configure Client Settings here (https://www.elastic.co/guide/en/elasticsearch/plugins/current/repository-s3-client.html)
+    #       # endpoint: Defaults to the ceph-rgw endpoint
+    #       # protocol: Defaults to http
+    #       path_style_access: true # Required for ceph-rgw S3 API
+    #     create_user: true # Attempt to create the user at the ceph_object_store endpoint, authenticating using the secret named at .Values.secrets.rgw.admin
+    #   backup:
+    #     auth:
+    #       username: elasticsearch
+    #       access_key: "backup_access_key"
+    #       secret_key: "backup_secret_key"
+    #     settings:
+    #       endpoint: s3.example.com # Specify your own s3 endpoint (defaults to the ceph_object_store endpoint)
+    #       path_style_access: false
+    #     create_user: false
+    buckets: {}
+    # List of buckets to create (if required).
+    # (The client field references one of the clients defined above)
+    #   - name: elasticsearch-bucket
+    #     client: default
+    #     options: # list of extra options for s3cmd
+    #       - --region="default:osh-infra"
+    #   - name: backup-bucket
+    #     client: backup
+    #     options: # list of extra options for s3cmd
+    #       - --region="default:backup"
 
 manifests:
   configmap_bin_curator: false

@@ -15,19 +15,22 @@ limitations under the License.
 {{- if .Values.manifests.configmap_etc_elasticsearch }}
 {{- $envAll := . }}
 
-{{- if empty .Values.endpoints.ceph_object_store.path.default -}}
-{{- set .Values.endpoints.ceph_object_store.path "default" .Values.conf.elasticsearch.snapshots.bucket -}}
+{{- if .Values.conf.elasticsearch.snapshots.enabled }}
+{{- range $client, $config := $envAll.Values.storage.s3.clients }}
+{{- $settings := $config.settings }}
+{{- $endpoint := $settings.endpoint | default (tuple "ceph_object_store" "internal" "api" $envAll | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup") }}
+{{- $_ := set $settings "endpoint" $endpoint }}
+{{- $protocol := $settings.protocol | default (tuple "ceph_object_store" "internal" "api" $envAll | include "helm-toolkit.endpoints.keystone_endpoint_scheme_lookup") }}
+{{- $_ := set $settings "protocol" $protocol }}
+{{- $_:= set $envAll.Values.conf.elasticsearch.config.s3.client $client $settings }}
 {{- end -}}
-
-{{- if empty .Values.conf.elasticsearch.config.s3.client.default.endpoint -}}
-{{- $radosgw_host := tuple "ceph_object_store" "internal" "api" . | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" -}}
-{{- set .Values.conf.elasticsearch.config.s3.client.default "endpoint" $radosgw_host -}}
 {{- end -}}
 
 {{- if empty .Values.conf.elasticsearch.config.discovery.seed_hosts -}}
 {{- $discovery_svc := tuple "elasticsearch" "discovery" . | include "helm-toolkit.endpoints.hostname_fqdn_endpoint_lookup" -}}
-{{- set .Values.conf.elasticsearch.config.discovery "seed_hosts" $discovery_svc -}}
+{{- $_:= set .Values.conf.elasticsearch.config.discovery "seed_hosts" $discovery_svc -}}
 {{- end -}}
+
 ---
 apiVersion: v1
 kind: Secret

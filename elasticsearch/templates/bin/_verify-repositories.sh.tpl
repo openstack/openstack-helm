@@ -22,6 +22,17 @@ function verify_snapshot_repository() {
     -XPOST "${ELASTICSEARCH_HOST}/_snapshot/$1/_verify"
 }
 
-{{ range $repository := $envAll.Values.conf.elasticsearch.snapshots.repositories }}
-  verify_snapshot_repository {{$repository.name}}
-{{ end }}
+repositories=$(curl -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
+                "${ELASTICSEARCH_HOST}/_snapshot" | jq -r 'keys | @sh')
+
+repositories=$(echo $repositories | sed "s/'//g") # Strip single quotes from jq output
+
+for repository in $repositories; do
+  error=$(verify_snapshot_repository $repository | jq -r '.error' )
+  if [ $error == "null" ]; then
+    echo "$repository is verified."
+  else
+    echo "Error for $repository: $(echo $error | jq -r)"
+    exit 1;
+  fi
+done

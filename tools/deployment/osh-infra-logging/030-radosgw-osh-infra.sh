@@ -41,11 +41,24 @@ conf:
     enabled: false
   rgw_s3:
     enabled: true
+    config:
+      rgw_relaxed_s3_bucket_names: false
+  rgw_placement_targets:
+    - name: osh-infra
+      index_pool: default.rgw.osh-infra.index
+      data_pool: default.rgw.osh-infra.data
+      data-extra-pool: default.rgw.osh-infra.non-ec
+    - name: backup
+      index_pool: default.rgw.backup.index
+      data_pool: default.rgw.backup.data
+      data-extra-pool: default.rgw.backup.non-ec
 pod:
   replicas:
     rgw: 1
 manifests:
   job_bootstrap: true
+  job_rgw_placement_targets: true
+
 EOF
 helm upgrade --install radosgw-osh-infra ./ceph-rgw \
   --namespace=osh-infra \
@@ -61,3 +74,6 @@ helm status radosgw-osh-infra
 kubectl delete pods -l application=ceph,release_group=radosgw-osh-infra,component=rgw-test --namespace=osh-infra --ignore-not-found
 #NOTE: Test Deployment
 helm test radosgw-osh-infra --timeout 900
+
+#NOTE: RGW needs to be restarted for placement-targets to become accessible
+kubectl delete pods -l application=ceph,component=rgw -n osh-infra

@@ -77,15 +77,7 @@ spec:
 {{- with $env := dict "s3AdminSecret" $envAll.Values.secrets.rgw.admin }}
 {{- include "helm-toolkit.snippets.rgw_s3_admin_env_vars" $env | indent 12 }}
 {{- end }}
-{{- with $env := dict "s3UserSecret" $s3UserSecret }}
-{{- include "helm-toolkit.snippets.rgw_s3_user_env_vars" $env | indent 12 }}
-{{- end }}
-            - name: S3_BUCKET
-              value: {{ $s3Bucket }}
-            - name: RGW_HOST
-              value: {{ tuple "ceph_object_store" "internal" "api" $envAll | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" }}
-            - name: RGW_PROTO
-              value: {{ tuple "ceph_object_store" "internal" "api" $envAll | include "helm-toolkit.endpoints.keystone_endpoint_scheme_lookup" }}
+{{- include "helm-toolkit.snippets.rgw_s3_user_env_vars" $envAll | indent 12 }}
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp

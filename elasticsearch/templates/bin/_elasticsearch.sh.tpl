@@ -4,7 +4,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-   http://www.apache.org/licenses/LICENSE-2.0
+    http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -19,9 +19,17 @@ set -e
 COMMAND="${@:-start}"
 
 function initiate_keystore () {
+  set -ex
   bin/elasticsearch-keystore create
-  echo ${S3_ACCESS_KEY} | /usr/share/elasticsearch/bin/elasticsearch-keystore add -xf s3.client.default.access_key
-  echo ${S3_SECRET_KEY} | /usr/share/elasticsearch/bin/elasticsearch-keystore add -xf s3.client.default.secret_key
+
+  {{- if .Values.conf.elasticsearch.snapshots.enabled }}
+  {{- range $client, $settings := .Values.storage.s3.clients -}}
+  {{- $access_key := printf "%s_S3_ACCESS_KEY" ( $client | replace "-" "_" | upper) }}
+  {{- $secret_key := printf "%s_S3_SECRET_KEY" ( $client | replace "-" "_" | upper) }}
+  echo ${{$access_key}} | /usr/share/elasticsearch/bin/elasticsearch-keystore add -xf s3.client.{{ $client }}.access_key
+  echo ${{$secret_key}} | /usr/share/elasticsearch/bin/elasticsearch-keystore add -xf s3.client.{{ $client }}.secret_key
+  {{- end }}
+  {{- end }}
 }
 
 function start () {
@@ -95,7 +103,7 @@ function start_data_node () {
 
     echo "Disabling Replica Shard Allocation"
     curl -s -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" -XPUT -H 'Content-Type: application/json' \
-     "${ELASTICSEARCH_ENDPOINT}/_cluster/settings" -d "{
+      "${ELASTICSEARCH_ENDPOINT}/_cluster/settings" -d "{
       \"persistent\": {
         \"cluster.routing.allocation.enable\": \"primaries\"
       }

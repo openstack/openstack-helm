@@ -34,6 +34,70 @@ conf:
   elasticsearch:
     snapshots:
       enabled: true
+  api_objects:
+    - endpoint: _snapshot/ceph-rgw
+      body:
+        type: s3
+        settings:
+          client: default
+          bucket: elasticsearch-bucket
+    - endpoint: _snapshot/backup
+      body:
+        type: s3
+        settings:
+          client: backup
+          bucket: backup-bucket
+    - endpoint: _slm/policy/rgw-snapshots
+      body:
+        schedule: "0 */3 * * * ?"
+        name: "<snapshot-{now/d}>"
+        repository: ceph-rgw
+        config:
+          indices: ["*"]
+        retention:
+          expire_after: 30d
+    - endpoint: _slm/policy/backup-snapshots
+      body:
+        schedule: "0 */3 * * * ?"
+        name: "<snapshot-{now/d}>"
+        repository: backup
+        config:
+          indices: ["*"]
+        retention:
+          expire_after: 180d
+storage:
+  s3:
+    clients:
+      # These values configure the s3 clients section of elasticsearch.yml, with access_key and secret_key being saved to the keystore
+      default:
+        auth:
+          username: elasticsearch
+          access_key: "elastic_access_key"
+          secret_key: "elastic_secret_key"
+        settings:
+          # endpoint: Defaults to the ceph-rgw endpoint
+          # protocol: Defaults to http
+          path_style_access: true # Required for ceph-rgw S3 API
+        create_user: true # Attempt to create the user at the ceph_object_store endpoint, authenticating using the secret named at .Values.secrets.rgw.admin
+      backup: # Change this as you'd like
+        auth:
+          username: backup
+          access_key: "backup_access_key"
+          secret_key: "backup_secret_key"
+        settings:
+          endpoint: radosgw.osh-infra.svc.cluster.local # Using the ingress here to test the endpoint override
+          path_style_access: true
+        create_user: true
+    buckets: # List of buckets to create (if required).
+      - name: elasticsearch-bucket
+        client: default
+        options: # list of extra options for s3cmd
+          - --region="default:osh-infra"
+      - name: backup-bucket
+        client: backup
+        options: # list of extra options for s3cmd
+          - --region="default:backup"
+
 EOF
 
 : ${OSH_INFRA_EXTRA_HELM_ARGS_ELASTICSEARCH:="$(./tools/deployment/common/get-values-overrides.sh elasticsearch)"}
