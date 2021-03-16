@@ -13,6 +13,11 @@
 #    under the License.
 set -xe
 
+export HELM_CHART_ROOT_PATH="${HELM_CHART_ROOT_PATH:="${OSH_INFRA_PATH:="../openstack-helm-infra"}"}"
+
+#NOTE: Lint and package chart
+make -C ${HELM_CHART_ROOT_PATH} mongodb
+
 #NOTE: Wait for deploy
 : ${OSH_INFRA_PATH:="../openstack-helm-infra"}
 helm upgrade --install mongodb ${OSH_INFRA_PATH}/mongodb \
