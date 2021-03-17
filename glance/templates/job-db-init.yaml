@@ -12,6 +12,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- define "metadata.annotations.job.db_init" }}
+helm.sh/hook: post-install,post-upgrade
+helm.sh/hook-weight: "-5"
+{{- end }}
+
 {{- if .Values.manifests.job_db_init }}
 {{- $serviceName := "glance" -}}
 {{- $dbToInit := dict "adminSecret" .Values.secrets.oslo_db.admin "configFile" (printf "/etc/%s/%s.conf" $serviceName "glance-api" ) "logConfigFile" (printf "/etc/%s/logging.conf" $serviceName ) "configDbSection" "database" "configDbKey" "connection" -}}
@@ -19,5 +24,8 @@ limitations under the License.
 {{- if .Values.manifests.certificates -}}
 {{- $_ := set $dbInitJob "dbAdminTlsSecret" .Values.endpoints.oslo_db.auth.admin.secret.tls.internal -}}
 {{- end -}}
+{{- if .Values.helm3_hook }}
+{{- $_ := set $dbInitJob "jobAnnotations" (include "metadata.annotations.job.db_init" . | fromYaml) }}
+{{- end }}
 {{ $dbInitJob | include "helm-toolkit.manifests.job_db_init_mysql" }}
 {{- end }}
