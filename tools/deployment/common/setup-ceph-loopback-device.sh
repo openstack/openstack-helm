@@ -16,7 +16,7 @@ DefaultDependencies=no
 Conflicts=umount.target
 Before=local-fs.target
 After=systemd-udevd.service
-Required=systemd-udevd.service
+Requires=systemd-udevd.service
 
 [Service]
 Type=oneshot
