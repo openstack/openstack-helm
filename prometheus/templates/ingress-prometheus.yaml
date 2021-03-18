@@ -13,6 +13,11 @@ limitations under the License.
 */}}
 
 {{- if and .Values.manifests.ingress .Values.network.prometheus.ingress.public }}
-{{- $ingressOpts := dict "envAll" . "backendService" "prometheus" "backendServiceType" "monitoring" "backendPort" "http" -}}
+{{- $envAll := . -}}
+{{- $ingressOpts := dict "envAll" $envAll "backendService" "prometheus" "backendServiceType" "monitoring" "backendPort" "https" -}}
+{{- $secretName := $envAll.Values.secrets.tls.monitoring.prometheus.internal -}}
+{{- if and .Values.manifests.certificates $secretName -}}
+{{- $_ := set $ingressOpts "certIssuer" .Values.endpoints.monitoring.host_fqdn_override.default.tls.issuerRef.name -}}
+{{- end -}}
 {{ $ingressOpts | include "helm-toolkit.manifests.ingress" }}
 {{- end }}

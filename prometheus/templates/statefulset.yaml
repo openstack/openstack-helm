@@ -19,6 +19,7 @@ limitations under the License.
 {{- $authHeader := printf "%s:%s" $probeUser $probePass | b64enc }}
 httpGet:
   path: /status
+  scheme: {{ tuple "monitoring" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_scheme_lookup" | upper }}
   port: {{ $probePort }}
   httpHeaders:
     - name: Authorization
@@ -133,8 +134,8 @@ spec:
             - /tmp/apache.sh
             - start
           ports:
-            - name: http
-              containerPort: 80
+            - name: {{ tuple "monitoring" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_scheme_lookup" }}
+              containerPort: {{ tuple "monitoring" "internal" "http" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
           env:
             - name: PROMETHEUS_PORT
               value: {{ tuple "monitoring" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | quote }}
@@ -169,6 +170,7 @@ spec:
               mountPath: /usr/local/apache2/conf/httpd.conf
               subPath: httpd.conf
               readOnly: true
+{{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.monitoring.prometheus.internal "path" "/etc/prometheus/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
         - name: prometheus
 {{ tuple $envAll "prometheus" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.prometheus | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
@@ -230,6 +232,7 @@ spec:
           secret:
             secretName: {{ printf "%s-%s" $envAll.Release.Name "prometheus-etc" | quote }}
             defaultMode: 0444
+{{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.monitoring.prometheus.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
         - name: prometheus-bin
           configMap:
             name: {{ printf "%s-%s" $envAll.Release.Name "prometheus-bin" | quote }}
