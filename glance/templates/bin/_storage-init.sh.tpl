@@ -24,6 +24,11 @@ if [ "x$STORAGE_BACKEND" == "xrbd" ]; then
   trap cleanup EXIT
 fi
 
+SCHEME={{ tuple "object_store" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_scheme_lookup" }}
+if [[ "$SCHEME" == "https" && -f /etc/ssl/certs/openstack-helm.crt ]]; then
+  export CURL_CA_BUNDLE="/etc/ssl/certs/openstack-helm.crt"
+fi
+
 set -ex
 if [ "x$STORAGE_BACKEND" == "xpvc" ]; then
   echo "No action required."
