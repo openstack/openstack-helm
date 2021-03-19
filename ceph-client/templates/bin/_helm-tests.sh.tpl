@@ -261,7 +261,10 @@ function check_pgs() {
     # Not a critical error - yet
     pgs_transitioning=true
   else
-    ceph --cluster ${CLUSTER} pg ls -f json-pretty | grep '"pgid":\|"state":' | grep -v "active" | grep -B1 '"state":' > ${inactive_pgs_file} || true
+    # Examine the PGs that have non-active states. Consider those PGs that
+    # are in a "premerge" state to be similar to active. "premerge" PGs may
+    # stay in that state for several minutes, and this is considered ok.
+    ceph --cluster ${CLUSTER} pg ls -f json-pretty | grep '"pgid":\|"state":' | grep -v -E "active|premerge" | grep -B1 '"state":' > ${inactive_pgs_file} || true
 
     # If the inactive pgs file is non-empty, there are some inactive pgs in the cluster.
     inactive_pgs=(`cat ${inactive_pgs_file} | awk -F "\"" '/pgid/{print $4}'`)
@@ -270,6 +273,7 @@ function check_pgs() {
 
     echo "Very likely the cluster is rebalancing or recovering some PG's. Checking..."
 
+    # Check for PGs that are down. These are critical errors.
     down_pgs=(`cat ${inactive_pgs_file} | grep -B1 'down' | awk -F "\"" '/pgid/{print $4}'`)
     if [[ ${#down_pgs[*]} -gt 0 ]]; then
       # Some PGs could be down. This is really bad situation and test must fail.
@@ -279,23 +283,32 @@ function check_pgs() {
       exit 1
     fi
 
-    non_peer_recover_pgs=(`cat ${inactive_pgs_file} | grep '"state":' | grep -v -E 'peer|recover' || true`)
-    if [[ ${#non_peer_recover_pgs[*]} -gt 0 ]]; then
+    # Check for PGs that are in some transient state due to rebalancing,
+    # peering or backfilling. If we see other states which are not in the
+    # following list of states, then we likely have a problem and need to
+    # exit.
+    transient_states='peer|recover|activating|creating|unknown'
+    non_transient_pgs=(`cat ${inactive_pgs_file} | grep '"state":' | grep -v -E "${transient_states}" || true`)
+    if [[ ${#non_transient_pgs[*]} -gt 0 ]]; then
       # Some PGs could be inactive and not peering. Better we fail.
-      echo "We are unsure what's happening: we don't have down/stuck PGs,"
-      echo "but we have some inactive pgs that are not peering/recover: "
-      pg_list=(`sed -n '/recover\|peer/{s/.*//;x;d;};x;p;${x;p;}' ${inactive_pgs_file} | sed '/^$/d' | awk -F "\"" '/pgid/{print $4}'`)
+      echo "We don't have down/stuck PGs, but we have some inactive pgs that"
+      echo "are not in the list of allowed transient states: "
+      pg_list=(`sed -n '/peer\|recover\|activating\|creating\|unknown/{s/.*//;x;d;};x;p;${x;p;}' ${inactive_pgs_file} | sed '/^$/d' | awk -F "\"" '/pgid/{print $4}'`)
       echo ${pg_list[*]}
+      echo ${non_transient_pgs[*]}
       # Critical error. Fail/exit the script
       exit 1
     fi
 
-    peer_recover_pgs=(`cat ${inactive_pgs_file} | grep -B1 -E 'peer|recover' | awk -F "\"" '/pgid/{print $4}'`)
-    if [[ ${#peer_recover_pgs[*]} -gt 0 ]]; then
+    # Check and note which PGs are in a transient state. This script
+    # will allow these transient states for a period of time
+    # (time_between_retries * max_retries seconds).
+    transient_pgs=(`cat ${inactive_pgs_file} | grep -B1 -E "${transient_states}" | awk -F "\"" '/pgid/{print $4}'`)
+    if [[ ${#transient_pgs[*]} -gt 0 ]]; then
       # Some PGs are not in an active state but peering and/or cluster is recovering
       echo "Some PGs are peering and/or cluster is recovering: "
-      echo ${peer_recover_pgs[*]}
-      echo "This is normal but will wait a while to verify the PGs are not stuck in peering."
+      echo ${transient_pgs[*]}
+      echo "This is normal but will wait a while to verify the PGs are not stuck in a transient state."
       # not critical, just wait
       pgs_transitioning=true
     fi
