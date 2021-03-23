@@ -14,6 +14,9 @@
 
 set -xe
 
+#NOTE: Lint and package chart
+make tempest
+
 #NOTE: Deploy command
 export OS_CLOUD=openstack_helm
 
