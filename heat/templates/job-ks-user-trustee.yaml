@@ -12,10 +12,17 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- define "metadata.annotations.job.heat_trust" }}
+helm.sh/hook: post-install,post-upgrade
+{{- end }}
+
 {{- if .Values.manifests.job_ks_user_trustee }}
 {{- $ksUserJob := dict "envAll" . "serviceName" "heat" "serviceUser" "heat_trustee" -}}
 {{- if .Values.manifests.certificates -}}
 {{- $_ := set $ksUserJob "tlsSecret" .Values.secrets.tls.orchestration.api.internal -}}
 {{- end -}}
+{{- if .Values.helm3_hook }}
+{{- $_ := set $ksUserJob "jobAnnotations" (include "metadata.annotations.job.heat_trust" . | fromYaml) }}
+{{- end }}
 {{ $ksUserJob | include "helm-toolkit.manifests.job_ks_user" }}
 {{- end }}
