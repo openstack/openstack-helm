@@ -12,8 +12,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- define "metadata.annotations.job.bootstrap" }}
+helm.sh/hook: post-install,post-upgrade
+helm.sh/hook-weight: "5"
+{{- end }}
+
 {{- if and .Values.manifests.job_bootstrap .Values.bootstrap.enabled }}
-{{- $bootstrapJob := dict "envAll" . "serviceName" "neutron" "keystoneUser" .Values.bootstrap.ks_user "logConfigFile" .Values.conf.neutron.DEFAULT.log_config_append -}}
+{{- $bootstrapJob := dict "envAll" . "serviceName" "neutron" "keystoneUser" .Values.bootstrap.ks_user "logConfigFile" .Values.conf.neutron.DEFAULT.log_config_append "jobAnnotations" (include "metadata.annotations.job.bootstrap" . | fromYaml) -}}
 {{- if .Values.manifests.certificates -}}
 {{- $_ := set $bootstrapJob "tlsSecret" .Values.secrets.tls.network.server.internal -}}
 {{- end -}}
