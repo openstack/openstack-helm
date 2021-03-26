@@ -47,20 +47,12 @@ function combination () {
   done
 }
 
-function replace_variables() {
-  for key in $(env); do
-    local arr=( $(echo $key | awk -F'=' '{ print $1, $2}') )
-    sed -i "s#%%%REPLACE_${arr[0]}%%%#${arr[1]}#g" $@
-  done
-}
-
 function override_file_args () {
   OVERRIDE_ARGS=""
   echoerr "We will attempt to use values-override files with the following paths:"
   for FILE in $(combination ${1//,/ } | uniq | tac); do
     FILE_PATH="${HELM_CHART_ROOT_PATH}/${HELM_CHART}/values_overrides/${FILE}.yaml"
     if [ -f "${FILE_PATH}" ]; then
-      replace_variables ${FILE_PATH}
       OVERRIDE_ARGS+=" --values=${FILE_PATH} "
     fi
       echoerr "${FILE_PATH}"
