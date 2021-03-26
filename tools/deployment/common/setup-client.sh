@@ -18,6 +18,8 @@ sudo -H -E pip3 install \
   -c${UPPER_CONSTRAINTS_FILE:=https://releases.openstack.org/constraints/upper/${OPENSTACK_RELEASE:-stein}} \
   cmd2 python-openstackclient python-heatclient --ignore-installed
 
+export HELM_CHART_ROOT_PATH="${HELM_CHART_ROOT_PATH:="${OSH_INFRA_PATH:="../openstack-helm-infra"}"}"
+
 sudo -H mkdir -p /etc/openstack
 sudo -H chown -R $(id -un): /etc/openstack
 FEATURE_GATE="tls"; if [[ ${FEATURE_GATES//,/ } =~ (^|[[:space:]])${FEATURE_GATE}($|[[:space:]]) ]]; then
@@ -52,4 +54,4 @@ EOF
 fi
 
 #NOTE: Build helm-toolkit, most charts depend on helm-toolkit
-make helm-toolkit
+make -C ${HELM_CHART_ROOT_PATH} helm-toolkit
