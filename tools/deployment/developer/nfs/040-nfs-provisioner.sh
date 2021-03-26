@@ -14,6 +14,11 @@
 
 set -xe
 
+export HELM_CHART_ROOT_PATH="${HELM_CHART_ROOT_PATH:="${OSH_INFRA_PATH:="../openstack-helm-infra"}"}"
+
+#NOTE: Lint and package chart
+make -C ${HELM_CHART_ROOT_PATH} nfs-provisioner
+
 #NOTE: Deploy command
 : ${OSH_INFRA_PATH:="../openstack-helm-infra"}
 helm upgrade --install nfs-provisioner ${OSH_INFRA_PATH}/nfs-provisioner \
