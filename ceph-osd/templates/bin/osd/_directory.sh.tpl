@@ -56,21 +56,16 @@ if [[ -n "$(find /var/lib/ceph/osd -type d  -empty ! -name "lost+found")" ]]; th
   fi
   # create the folder and own it
   mkdir -p "${OSD_PATH}"
-  chown "${CHOWN_OPT[@]}" ceph. "${OSD_PATH}"
   echo "created folder ${OSD_PATH}"
   # write the secret to the osd keyring file
   ceph-authtool --create-keyring ${OSD_PATH%/}/keyring --name osd.${OSD_ID} --add-key ${OSD_SECRET}
+  chown -R "${CHOWN_OPT[@]}" ceph. "${OSD_PATH}"
   OSD_KEYRING="${OSD_PATH%/}/keyring"
   # init data directory
   ceph-osd -i ${OSD_ID} --mkfs --osd-uuid ${UUID} --mkjournal --osd-journal ${OSD_JOURNAL} --setuser ceph --setgroup ceph
   # add the osd to the crush map
   crush_location
 fi
-
-# create the directory and an empty Procfile
-mkdir -p /etc/forego/"${CLUSTER}"
-echo "" > /etc/forego/"${CLUSTER}"/Procfile
-
 
 for OSD_ID in $(ls /var/lib/ceph/osd | sed 's/.*-//'); do
   # NOTE(gagehugo): Writing the OSD_ID to tmp for logging
@@ -99,7 +94,13 @@ for OSD_ID in $(ls /var/lib/ceph/osd | sed 's/.*-//'); do
   fi
 
   crush_location
-  echo "${CLUSTER}-${OSD_ID}: /usr/bin/ceph-osd --cluster ${CLUSTER} -f -i ${OSD_ID} --osd-journal ${OSD_JOURNAL} -k ${OSD_KEYRING}" | tee -a /etc/forego/"${CLUSTER}"/Procfile
 done
 
-exec /usr/local/bin/forego start -f /etc/forego/"${CLUSTER}"/Procfile
+exec /usr/bin/ceph-osd \
+    --cluster ${CLUSTER} \
+    -f \
+    -i ${OSD_ID} \
+    --osd-journal ${OSD_JOURNAL} \
+    -k ${OSD_KEYRING}
+    --setuser ceph \
+    --setgroup disk $! > /run/ceph-osd.pid

@@ -25,11 +25,11 @@ export PS4='+${BASH_SOURCE:+$(basename ${BASH_SOURCE}):${LINENO}:}${FUNCNAME:+${
 : "${OSD_JOURNAL_SIZE:=$(awk '/^osd_journal_size/{print $3}' ${CEPH_CONF}.template)}"
 : "${OSD_WEIGHT:=1.0}"
 
-eval CRUSH_FAILURE_DOMAIN_TYPE=$(cat /etc/ceph/storage.json | python -c 'import sys, json; data = json.load(sys.stdin); print(json.dumps(data["failure_domain"]))')
-eval CRUSH_FAILURE_DOMAIN_NAME=$(cat /etc/ceph/storage.json | python -c 'import sys, json; data = json.load(sys.stdin); print(json.dumps(data["failure_domain_name"]))')
-eval CRUSH_FAILURE_DOMAIN_BY_HOSTNAME=$(cat /etc/ceph/storage.json | python -c 'import sys, json; data = json.load(sys.stdin); print(json.dumps(data["failure_domain_by_hostname"]))')
+eval CRUSH_FAILURE_DOMAIN_TYPE=$(cat /etc/ceph/storage.json | python3 -c 'import sys, json; data = json.load(sys.stdin); print(json.dumps(data["failure_domain"]))')
+eval CRUSH_FAILURE_DOMAIN_NAME=$(cat /etc/ceph/storage.json | python3 -c 'import sys, json; data = json.load(sys.stdin); print(json.dumps(data["failure_domain_name"]))')
+eval CRUSH_FAILURE_DOMAIN_BY_HOSTNAME=$(cat /etc/ceph/storage.json | python3 -c 'import sys, json; data = json.load(sys.stdin); print(json.dumps(data["failure_domain_by_hostname"]))')
 eval CRUSH_FAILURE_DOMAIN_FROM_HOSTNAME_MAP=$(cat /etc/ceph/storage.json | jq '.failure_domain_by_hostname_map."'$HOSTNAME'"')
-eval DEVICE_CLASS=$(cat /etc/ceph/storage.json | python -c 'import sys, json; data = json.load(sys.stdin); print(json.dumps(data["device_class"]))')
+eval DEVICE_CLASS=$(cat /etc/ceph/storage.json | python3 -c 'import sys, json; data = json.load(sys.stdin); print(json.dumps(data["device_class"]))')
 
 if [[ $(ceph -v | egrep "octopus|nautilus|mimic|luminous" > /dev/null 2>&1; echo $?) -ne 0 ]]; then
     echo "ERROR- need Luminous/Mimic/Nautilus/Octopus release"
