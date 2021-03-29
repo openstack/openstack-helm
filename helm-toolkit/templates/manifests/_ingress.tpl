@@ -573,6 +573,10 @@ metadata:
 {{- if $certIssuer }}
     cert-manager.io/{{ $certIssuerType }}: {{ $certIssuer }}
     certmanager.k8s.io/{{ $certIssuerType }}: {{ $certIssuer }}
+{{- $slice := index $envAll.Values.endpoints $backendServiceType "host_fqdn_override" "default" "tls" -}}
+{{- if (hasKey $slice "duration") }}
+    cert-manager.io/duration: {{ index $slice "duration" }}
+{{- end }}
 {{- end }}
 {{ toYaml (index $envAll.Values.network $backendService "ingress" "annotations") | indent 4 }}
 spec:
