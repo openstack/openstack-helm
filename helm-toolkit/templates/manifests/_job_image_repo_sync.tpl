@@ -43,11 +43,6 @@ metadata:
 {{- if $jobAnnotations }}
 {{ toYaml $jobAnnotations | indent 4 }}
 {{- end }}
-  labels:
-    application: {{ $serviceName }}
-{{- if $jobLabels }}
-{{ toYaml $jobLabels | indent 4 }}
-{{- end }}
 spec:
   backoffLimit: {{ $backoffLimit }}
 {{- if $activeDeadlineSeconds }}
@@ -57,6 +52,9 @@ spec:
     metadata:
       labels:
 {{ tuple $envAll $serviceName "image-repo-sync" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+{{- if $jobLabels }}
+{{ toYaml $jobLabels | indent 8 }}
+{{- end }}
     spec:
       serviceAccountName: {{ $serviceAccountName }}
       restartPolicy: OnFailure
