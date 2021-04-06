@@ -12,7 +12,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if and .Values.manifests.ingress_rgw ( and .Values.deployment.ceph (and .Values.network.api.ingress.public .Values.conf.features.rgw ) ) }}
-{{- $ingressOpts := dict "envAll" . "backendServiceType" "object_store" "backendPort" "ceph-rgw" -}}
+{{- if and .Values.manifests.ingress_rgw ( and .Values.deployment.ceph (and .Values.network.api.ingress.public .Values.conf.features.rgw) ) }}
+{{- $ingressOpts := dict "envAll" . "backendServiceType" "object_store"  "backendPort" "ceph-rgw" -}}
+{{- if .Values.manifests.certificates }}
+{{- if .Values.conf.rgw_ks.enabled }}
+{{- $ingressOpts = dict "envAll" . "backendServiceType" "object_store" "backendPort" "ceph-rgw" "certIssuer" .Values.endpoints.object_store.host_fqdn_override.default.tls.issuerRef.name -}}
+{{- end }}
+{{- if .Values.conf.rgw_s3.enabled }}
+{{- $ingressOpts = dict "envAll" . "backendServiceType" "ceph_object_store" "backendPort" "ceph-rgw" "certIssuer" .Values.endpoints.ceph_object_store.host_fqdn_override.default.tls.issuerRef.name -}}
+{{- end }}
+{{- end }}
 {{ $ingressOpts | include "helm-toolkit.manifests.ingress" }}
 {{- end }}

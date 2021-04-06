@@ -28,8 +28,12 @@ cat >> /etc/ceph/ceph.conf <<EOF
 {{ $key }} = {{ $value | quote  }}
 {{ end -}}
 {{- end -}}
-{{ if .Values.conf.rgw_ks.enabled }}
+{{- if .Values.conf.rgw_ks.enabled }}
+{{- if .Values.manifests.certificates }}
+rgw_frontends = "beast ssl_port=${RGW_FRONTEND_PORT} ssl_certificate=/etc/tls/tls.crt ssl_private_key=/etc/tls/tls.key"
+{{- else }}
 rgw_frontends = "civetweb port=${RGW_FRONTEND_PORT}"
+{{- end }}
 rgw_keystone_url = "${KEYSTONE_URL}"
 rgw_keystone_admin_user = "${OS_USERNAME}"
 rgw_keystone_admin_password = "${OS_PASSWORD}"
@@ -43,8 +47,12 @@ rgw_keystone_admin_domain = "${OS_USER_DOMAIN_NAME}"
 {{ end -}}
 {{- end -}}
 {{ end }}
-{{ if .Values.conf.rgw_s3.enabled }}
+{{- if .Values.conf.rgw_s3.enabled }}
+{{- if .Values.manifests.certificates }}
+rgw_frontends = "beast ssl_port=${RGW_FRONTEND_PORT} ssl_certificate=/etc/tls/tls.crt ssl_private_key=/etc/tls/tls.key"
+{{- else }}
 rgw_frontends = "beast port=${RGW_FRONTEND_PORT}"
+{{- end }}
 {{ range $key, $value := .Values.conf.rgw_s3.config -}}
 {{- if kindIs "slice" $value -}}
 {{ $key }} = {{ include "helm-toolkit.joinListWithComma" $value | quote }}

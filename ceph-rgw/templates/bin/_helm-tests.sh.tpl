@@ -83,7 +83,11 @@ function rgw_s3_bucket_validation ()
   echo "function: rgw_s3_bucket_validation"
 
   bucket=s3://rgw-test-bucket
+{{- if .Values.manifests.certificates }}
+  params="--host=$RGW_HOST --host-bucket=$RGW_HOST --access_key=$S3_ADMIN_ACCESS_KEY --secret_key=$S3_ADMIN_SECRET_KEY --no-check-certificate"
+{{- else }}
   params="--host=$RGW_HOST --host-bucket=$RGW_HOST --access_key=$S3_ADMIN_ACCESS_KEY --secret_key=$S3_ADMIN_SECRET_KEY --no-ssl"
+{{- end }}
 
   bucket_stat="$(s3cmd ls $params | grep ${bucket} || true)"
   if [[ -n "${bucket_stat}" ]]; then
