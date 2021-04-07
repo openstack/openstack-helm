@@ -20,5 +20,8 @@ memcached --version
 exec memcached -v \
   -p ${MEMCACHED_PORT} \
   -U 0 \
+{{- if not .Values.conf.memcached.stats_cachedump.enabled }}
+  -X \
+{{- end }}
   -c ${MEMCACHED_MAX_CONNECTIONS} \
   -m ${MEMCACHED_MEMORY}
