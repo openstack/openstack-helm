@@ -21,9 +21,9 @@ NUM_ERRORS=0
 {{ if not (empty $object) }}
 
 echo "creating {{$name}}"
-error=$(curl -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
+error=$(curl ${CACERT_OPTION} -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
    -X{{ $object.method | default "PUT" | upper }} \
-   "${ELASTICSEARCH_HOST}:${ELASTICSEARCH_PORT}/{{ $object.endpoint }}" \
+   "${ELASTICSEARCH_ENDPOINT}/{{ $object.endpoint }}" \
    -H 'Content-Type: application/json' -d '{{ $object.body | toJson }}' | jq -r '.error')
 
 if [ $error == "null" ]; then

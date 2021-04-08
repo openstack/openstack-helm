@@ -53,6 +53,8 @@ RGW_PROTO={{ $client.settings.protocol | default (tuple "ceph_object_store" "int
 CONNECTION_ARGS="--host=$RGW_HOST --host-bucket=$RGW_HOST"
 if [ "$RGW_PROTO" = "http" ]; then
   CONNECTION_ARGS+=" --no-ssl"
+else
+  CONNECTION_ARGS+=" --no-check-certificate"
 fi
 
 USER_AUTH_ARGS=" --access_key=$S3_ACCESS_KEY --secret_key=$S3_SECRET_KEY"

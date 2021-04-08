@@ -18,12 +18,12 @@ limitations under the License.
 set -ex
 
 function verify_snapshot_repository() {
-  curl -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
-    -XPOST "${ELASTICSEARCH_HOST}/_snapshot/$1/_verify"
+  curl ${CACERT_OPTION} -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
+    -XPOST "${ELASTICSEARCH_ENDPOINT}/_snapshot/$1/_verify"
 }
 
-repositories=$(curl -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
-                "${ELASTICSEARCH_HOST}/_snapshot" | jq -r 'keys | @sh')
+repositories=$(curl ${CACERT_OPTION} -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
+                "${ELASTICSEARCH_ENDPOINT}/_snapshot" | jq -r 'keys | @sh')
 
 repositories=$(echo $repositories | sed "s/'//g") # Strip single quotes from jq output
 
