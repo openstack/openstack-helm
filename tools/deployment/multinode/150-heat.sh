@@ -45,4 +45,4 @@ openstack service list
 openstack endpoint list
 sleep 30 #NOTE(portdirect): Wait for ingress controller to update rules and restart Nginx
 
-openstack --os-interface internal orchestration service list
+openstack --os-interface public orchestration service list
