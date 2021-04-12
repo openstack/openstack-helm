@@ -170,7 +170,7 @@ hugepage for NUMA socket 0 and socket 1.
 To allocate PMD threads to NUMA sockets in OVS, ensure that the ``pmd_cpu_mask``
 attribute in values.yaml includes CPU sockets on the corresponding NUMA socket.
 In the example below, the mask of 0xf covers the first 4 CPU cores which are
-dsitributed across NUMA sockets 0 and 1.
+distributed across NUMA sockets 0 and 1.
 
 .. code-block::
 
