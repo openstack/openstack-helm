@@ -35,36 +35,34 @@ conf:
     snapshots:
       enabled: true
   api_objects:
-    - endpoint: _snapshot/ceph-rgw
+    snapshot_repo:
+      endpoint: _snapshot/ceph-rgw
       body:
         type: s3
         settings:
           client: default
           bucket: elasticsearch-bucket
-    - endpoint: _snapshot/backup
-      body:
-        type: s3
-        settings:
-          client: backup
-          bucket: backup-bucket
-    - endpoint: _slm/policy/rgw-snapshots
+    slm_policy:
+      endpoint: _slm/policy/snapshots
       body:
         schedule: "0 */3 * * * ?"
         name: "<snapshot-{now/d}>"
         repository: ceph-rgw
         config:
-          indices: ["*"]
+          indices:
+            - "<*-{now/d}>"
         retention:
           expire_after: 30d
-    - endpoint: _slm/policy/backup-snapshots
+    ilm_policy:
+      endpoint: _ilm/policy/cleanup
       body:
-        schedule: "0 */3 * * * ?"
-        name: "<snapshot-{now/d}>"
-        repository: backup
-        config:
-          indices: ["*"]
-        retention:
-          expire_after: 180d
+        policy:
+          phases:
+            delete:
+              min_age: 5d
+              actions:
+                delete: {}
+    test_empty: {}
 storage:
   s3:
     clients:
