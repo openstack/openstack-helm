@@ -18,156 +18,139 @@ set -ex
 
 export OSD_DEVICE=$(readlink -f ${STORAGE_LOCATION})
 export OSD_BLUESTORE=1
+alias prep_device='locked prep_device'
 
-function osd_disk_prepare {
-  if [[ -z "${OSD_DEVICE}" ]]; then
-    echo "ERROR- You must provide a device to build your OSD ie: /dev/sdb"
-    exit 1
-  fi
+function check_block_device_for_zap {
+  local block_device=$1
+  local device_type=$2
 
-  if [[ ! -b "${OSD_DEVICE}" ]]; then
-    echo "ERROR- The device pointed by OSD_DEVICE ($OSD_DEVICE) doesn't exist !"
-    exit 1
-  fi
-
-  if [ ! -e $OSD_BOOTSTRAP_KEYRING ]; then
-    echo "ERROR- $OSD_BOOTSTRAP_KEYRING must exist. You can extract it from your current monitor by running 'ceph auth get client.bootstrap-osd -o $OSD_BOOTSTRAP_KEYRING'"
-    exit 1
-  fi
-  timeout 10 ceph ${CLI_OPTS} --name client.bootstrap-osd --keyring $OSD_BOOTSTRAP_KEYRING health || exit 1
-
-  #search for some ceph metadata on the disk based on the status of the disk/lvm in filestore
-  CEPH_DISK_USED=0
-  CEPH_LVM_PREPARE=1
-  udev_settle
-  OSD_ID=$(get_osd_id_from_device ${OSD_DEVICE})
-  OSD_FSID=$(get_cluster_fsid_from_device ${OSD_DEVICE})
-  CLUSTER_FSID=$(ceph-conf --lookup fsid)
-  DISK_ZAPPED=0
-
-  if [[ ! -z "${OSD_FSID}" ]]; then
-    if [[ "${OSD_FSID}" == "${CLUSTER_FSID}" ]]; then
-      if [[ ! -z "${OSD_ID}" ]]; then
-        if ceph --name client.bootstrap-osd --keyring $OSD_BOOTSTRAP_KEYRING osd ls |grep -w ${OSD_ID}; then
-          echo "Running bluestore mode and ${OSD_DEVICE} already bootstrapped"
+  if [[ ${block_device} ]]; then
+    local vg_name=$(get_vg_name_from_device ${block_device})
+    local lv_name=$(get_lv_name_from_device ${OSD_DEVICE} ${device_type})
+    local vg=$(vgs --noheadings -o vg_name -S "vg_name=${vg_name}" | tr -d '[:space:]')
+    if [[ "${vg}" ]]; then
+      local device_osd_id=$(get_osd_id_from_volume "/dev/${vg_name}/${lv_name}")
+      CEPH_LVM_PREPARE=1
+      if [[ -n "${device_osd_id}" ]] && [[ -n "${OSD_ID}" ]]; then
+        if [[ "${device_osd_id}" == "${OSD_ID}" ]]; then
+          echo "OSD Init: OSD ID matches the OSD ID already on the data volume. LVM prepare does not need to be called."
           CEPH_LVM_PREPARE=0
-        elif [[ $OSD_FORCE_REPAIR -eq 1 ]]; then
+        else
+          echo "OSD Init: OSD ID does match the OSD ID on the data volume. Device needs to be zapped."
+          ZAP_DEVICE=1
+        fi
+      fi
+
+      # Check if this device (db or wal) has no associated data volume
+      local logical_volumes="$(lvs --noheadings -o lv_name ${vg} | xargs)"
+      for volume in ${logical_volumes}; do
+        local data_volume=$(echo ${volume} | sed -E -e 's/-db-|-wal-/-lv-/g')
+        if [[ -z $(lvs --noheadings -o lv_name -S "lv_name=${data_volume}") ]]; then
+          # DB or WAL volume without a corresponding data volume, remove it
+          lvremove -y /dev/${vg}/${volume}
+          echo "OSD Init: LV /dev/${vg}/${volume} was removed as it did not have a data volume."
+        fi
+      done
+    else
+      if [[ "${vg_name}" ]]; then
+        local logical_devices=$(get_dm_devices_from_osd_device "${OSD_DEVICE}")
+        local device_filter=$(echo "${vg_name}" | sed 's/-/--/g')
+        local logical_devices=$(echo "${logical_devices}" | grep "${device_filter}" | xargs)
+        if [[ "$logical_devices" ]]; then
+          echo "OSD Init: No VG resources found with name ${vg_name}. Device needs to be zapped."
+          ZAP_DEVICE=1
+        fi
+      fi
+    fi
+  fi
+}
+
+function determine_what_needs_zapping {
+
+  local osd_fsid=$(get_cluster_fsid_from_device ${OSD_DEVICE})
+  local cluster_fsid=$(ceph-conf --lookup fsid)
+
+  # If the OSD FSID is defined within the device, check if we're already bootstrapped.
+  if [[ ! -z "${osd_fsid}" ]]; then
+    # Check if the OSD FSID is the same as the cluster FSID. If so, then we're
+    # already bootstrapped; otherwise, this is an old disk and needs to
+    # be zapped.
+    if [[ "${osd_fsid}" == "${cluster_fsid}" ]]; then
+      if [[ ! -z "${OSD_ID}" ]]; then
+        # Check to see what needs to be done to prepare the disk. If the OSD
+        # ID is in the Ceph OSD list, then LVM prepare does not need to be done.
+        if ceph --name client.bootstrap-osd --keyring $OSD_BOOTSTRAP_KEYRING osd ls |grep -w ${OSD_ID}; then
+          echo "OSD Init: Running bluestore mode and ${OSD_DEVICE} already bootstrapped. LVM prepare does not need to be called."
+          CEPH_LVM_PREPARE=0
+        elif [[ ${OSD_FORCE_REPAIR} -eq 1 ]]; then
           echo "OSD initialized for this cluster, but OSD ID not found in the cluster, reinitializing"
         else
           echo "OSD initialized for this cluster, but OSD ID not found in the cluster"
         fi
       fi
     else
-      echo "OSD initialized for a different cluster, zapping it"
-      disk_zap ${OSD_DEVICE}
-      udev_settle
+      echo "OSD Init: OSD FSID ${osd_fsid} initialized for a different cluster. It needs to be zapped."
+      ZAP_DEVICE=1
     fi
   elif [[ $(sgdisk --print ${OSD_DEVICE} | grep "F800") ]]; then
-    DM_DEV=${OSD_DEVICE}$(sgdisk --print ${OSD_DEVICE} | grep "F800" | awk '{print $1}')
-    CEPH_DISK_USED=1
-  else
-    if [[ ${CEPH_DISK_USED} -eq 1 ]]; then
-      if [[ ${OSD_FORCE_REPAIR} -eq 1 ]]; then
-        echo "${OSD_DEVICE} isn't clean, zapping it because OSD_FORCE_REPAIR is enabled"
-        disk_zap ${OSD_DEVICE}
-      else
-        echo "${OSD_DEVICE} isn't clean, but OSD_FORCE_REPAIR isn't enabled."
-        echo "Please set OSD_FORCE_REPAIR to '1' if you want to zap this disk."
-        exit 1
-      fi
-    fi
+    # Ceph-disk was used to initialize the disk, but this is not supported
+    echo "ceph-disk was used to initialize the disk, but this is no longer supported"
+    exit 1
   fi
 
-  if [ ${OSD_FORCE_REPAIR} -eq 1 ] && [ ! -z ${DM_DEV} ]; then
-    if [ -b $DM_DEV ]; then
-      local cephFSID=$(ceph-conf --lookup fsid)
-      if [ ! -z "${cephFSID}"  ]; then
-        local tmpmnt=$(mktemp -d)
-        mount ${DM_DEV} ${tmpmnt}
-        if [ -f "${tmpmnt}/ceph_fsid" ]; then
-          osdFSID=$(cat "${tmpmnt}/ceph_fsid")
-          if [ ${osdFSID} != ${cephFSID} ]; then
-            echo "It looks like ${OSD_DEVICE} is an OSD belonging to a different (or old) ceph cluster."
-            echo "The OSD FSID is ${osdFSID} while this cluster is ${cephFSID}"
-            echo "Because OSD_FORCE_REPAIR was set, we will zap this device."
-            zap_extra_partitions ${tmpmnt}
-            umount ${tmpmnt}
-            disk_zap ${OSD_DEVICE}
-          else
-            umount ${tmpmnt}
-            echo "It looks like ${OSD_DEVICE} is an OSD belonging to a this ceph cluster."
-            echo "OSD_FORCE_REPAIR is set, but will be ignored and the device will not be zapped."
-            echo "Moving on, trying to activate the OSD now."
-          fi
-        else
-          echo "It looks like ${OSD_DEVICE} has a ceph data partition but no FSID."
-          echo "Because OSD_FORCE_REPAIR was set, we will zap this device."
-          zap_extra_partitions ${tmpmnt}
-          umount ${tmpmnt}
-          disk_zap ${OSD_DEVICE}
-        fi
-      else
-        echo "Unable to determine the FSID of the current cluster."
-        echo "OSD_FORCE_REPAIR is set, but this OSD will not be zapped."
-        echo "Moving on, trying to activate the OSD now."
-        return
-      fi
-    else
-      echo "parted says ${DM_DEV} should exist, but we do not see it."
-      echo "We will ignore OSD_FORCE_REPAIR and try to use the device as-is"
-      echo "Moving on, trying to activate the OSD now."
-      return
-    fi
-  else
-    echo "INFO- It looks like ${OSD_DEVICE} is an OSD LVM"
-    echo "Moving on, trying to prepare and activate the OSD LVM now."
-  fi
+  check_block_device_for_zap "${BLOCK_DB}" db
+  check_block_device_for_zap "${BLOCK_WAL}" wal
 
-  if [[ ${CEPH_DISK_USED} -eq 1 ]]; then
+  # Zapping extra partitions isn't done for bluestore
+  ZAP_EXTRA_PARTITIONS=0
+}
+
+function prep_device {
+  local block_device=$1
+  local block_device_size=$2
+  local device_type=$3
+  local vg_name lv_name vg device_osd_id logical_devices logical_volume
+  RESULTING_VG=""; RESULTING_LV="";
+
+  udev_settle
+  vg_name=$(get_vg_name_from_device ${block_device})
+  lv_name=$(get_lv_name_from_device ${OSD_DEVICE} ${device_type})
+  vg=$(vgs --noheadings -o vg_name -S "vg_name=${vg_name}" | tr -d '[:space:]')
+  if [[ -z "${vg}" ]]; then
+    create_vg_if_needed "${block_device}"
+    vg=${RESULTING_VG}
+  fi
+  udev_settle
+
+  create_lv_if_needed "${block_device}" "${vg}" "-L ${block_device_size}" "${lv_name}"
+  if [[ "${device_type}" == "db" ]]; then
+    BLOCK_DB=${RESULTING_LV}
+  elif [[ "${device_type}" == "wal" ]]; then
+    BLOCK_WAL=${RESULTING_LV}
+  fi
+  udev_settle
+}
+
+function osd_disk_prepare {
+
+  if [[ ${CEPH_LVM_PREPARE} -eq 1 ]] || [[ ${DISK_ZAPPED} -eq 1 ]]; then
     udev_settle
-    CLI_OPTS="${CLI_OPTS} --data ${OSD_DEVICE}"
-    ceph-volume simple scan --force ${OSD_DEVICE}$(sgdisk --print ${OSD_DEVICE} | grep "F800" | awk '{print $1}')
-  elif [[ ${CEPH_LVM_PREPARE} -eq 1 ]] || [[ ${DISK_ZAPPED} -eq 1 ]]; then
-    udev_settle
-    vg_name=$(get_vg_name_from_device ${OSD_DEVICE})
-    if [[ "${vg_name}" ]]; then
-      OSD_VG=${vg_name}
-    else
-      random_uuid=$(uuidgen)
-      vgcreate ceph-vg-${random_uuid} ${OSD_DEVICE}
-      vg_name=$(get_vg_name_from_device ${OSD_DEVICE})
-      vgrename ceph-vg-${random_uuid} ${vg_name}
-      OSD_VG=${vg_name}
-    fi
-    lv_name=$(get_lv_name_from_device ${OSD_DEVICE} lv)
-    if [[ ! "$(lvdisplay | awk '/LV Name/{print $3}' | grep ${lv_name})" ]]; then
-      lvcreate --yes -l 100%FREE -n ${lv_name} ${OSD_VG}
-    fi
-    OSD_LV=${OSD_VG}/${lv_name}
-    CLI_OPTS="${CLI_OPTS} --data ${OSD_LV}"
+    RESULTING_VG=""; RESULTING_LV="";
+    create_vg_if_needed "${OSD_DEVICE}"
+    create_lv_if_needed "${OSD_DEVICE}" "${RESULTING_VG}" "--yes -l 100%FREE"
+
+    CLI_OPTS="${CLI_OPTS} --data ${RESULTING_LV}"
     CEPH_LVM_PREPARE=1
     udev_settle
   fi
 
-  if [ ${CEPH_DISK_USED} -eq 0 ]; then
-    if [[ ${BLOCK_DB} ]]; then
-      block_db_string=$(echo ${BLOCK_DB} | awk -F "/" '{print $2 "-" $3}')
-    fi
-    if [[ ${BLOCK_WAL} ]]; then
-      block_wal_string=$(echo ${BLOCK_WAL} | awk -F "/" '{print $2 "-" $3}')
-    fi
-    if [[ ${BLOCK_DB} && ${BLOCK_WAL} ]]; then
-      prep_device "${BLOCK_DB}" "${BLOCK_DB_SIZE}" "db" "${OSD_DEVICE}"
-      prep_device "${BLOCK_WAL}" "${BLOCK_WAL_SIZE}" "wal" "${OSD_DEVICE}"
-    elif [[ -z ${BLOCK_DB} && ${BLOCK_WAL} ]]; then
-      prep_device "${BLOCK_WAL}" "${BLOCK_WAL_SIZE}" "wal" "${OSD_DEVICE}"
-    elif [[ ${BLOCK_DB} && -z ${BLOCK_WAL} ]]; then
-      prep_device "${BLOCK_DB}" "${BLOCK_DB_SIZE}" "db" "${OSD_DEVICE}"
-    fi
-  else
-    if pvdisplay -ddd -v ${OSD_DEVICE} | awk '/VG Name/{print $3}' | grep "ceph"; then
-      CEPH_LVM_PREPARE=0
-    fi
+  if [[ ${BLOCK_DB} && ${BLOCK_WAL} ]]; then
+    prep_device "${BLOCK_DB}" "${BLOCK_DB_SIZE}" "db" "${OSD_DEVICE}"
+    prep_device "${BLOCK_WAL}" "${BLOCK_WAL_SIZE}" "wal" "${OSD_DEVICE}"
+  elif [[ -z ${BLOCK_DB} && ${BLOCK_WAL} ]]; then
+    prep_device "${BLOCK_WAL}" "${BLOCK_WAL_SIZE}" "wal" "${OSD_DEVICE}"
+  elif [[ ${BLOCK_DB} && -z ${BLOCK_WAL} ]]; then
+    prep_device "${BLOCK_DB}" "${BLOCK_DB_SIZE}" "db" "${OSD_DEVICE}"
   fi
 
   CLI_OPTS="${CLI_OPTS} --bluestore"
@@ -185,6 +168,7 @@ function osd_disk_prepare {
   fi
 
   if [[ ${CEPH_LVM_PREPARE} -eq 1 ]]; then
+    echo "OSD Init: Calling ceph-volume lvm-v prepare ${CLI_OPTS}"
     ceph-volume lvm -v prepare ${CLI_OPTS}
     udev_settle
   fi

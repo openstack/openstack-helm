@@ -310,7 +310,7 @@ function zap_extra_partitions {
 }
 
 function disk_zap {
-  # Run all the commands that ceph-disk zap uses to clear a disk
+  # Run all the commands to clear a disk
   local device=${1}
   local dm_devices=$(get_dm_devices_from_osd_device "${device}" | xargs)
   for dm_device in ${dm_devices}; do

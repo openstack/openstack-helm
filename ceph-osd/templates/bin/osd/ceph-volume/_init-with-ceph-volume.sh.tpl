@@ -16,17 +16,17 @@ limitations under the License.
 
 set -ex
 
+: "${OSD_FORCE_REPAIR:=0}"
+
 source /tmp/osd-common-ceph-volume.sh
 
 source /tmp/init-ceph-volume-helper-${STORAGE_TYPE}.sh
 
-: "${OSD_FORCE_REPAIR:=0}"
 
 # Set up aliases for functions that require disk synchronization
 alias rename_vg='locked rename_vg'
 alias rename_lvs='locked rename_lvs'
 alias update_lv_tags='locked update_lv_tags'
-alias prep_device='locked prep_device'
 
 # Renames a single VG if necessary
 function rename_vg {
@@ -36,6 +36,7 @@ function rename_vg {
 
   if [[ "${old_vg_name}" ]] && [[ "${vg_name}" != "${old_vg_name}" ]]; then
     vgrename ${old_vg_name} ${vg_name}
+    echo "OSD Init: Renamed volume group ${old_vg_name} to ${vg_name}."
   fi
 }
 
@@ -51,6 +52,7 @@ function rename_lvs {
 
     if [[ "${old_lv_name}" ]] && [[ "${lv_name}" != "${old_lv_name}" ]]; then
       lvrename ${vg_name} ${old_lv_name} ${lv_name}
+      echo "OSD Init: Renamed logical volume ${old_lv_name} (from group ${vg_name}) to ${lv_name}."
     fi
 
     # Rename the OSD's block.db volume if necessary, referenced by UUID
@@ -66,6 +68,7 @@ function rename_lvs {
 
         if [[ "${old_lv_name}" ]] && [[ "${db_name}" != "${old_lv_name}" ]]; then
           lvrename ${db_vg} ${old_lv_name} ${db_name}
+          echo "OSD Init: Renamed DB logical volume ${old_lv_name} (from group ${db_vg}) to ${db_name}."
         fi
       fi
     fi
@@ -83,6 +86,7 @@ function rename_lvs {
 
         if [[ "${old_lv_name}" ]] && [[ "${wal_name}" != "${old_lv_name}" ]]; then
           lvrename ${wal_vg} ${old_lv_name} ${wal_name}
+          echo "OSD Init: Renamed WAL logical volume ${old_lv_name} (from group ${wal_vg}) to ${wal_name}."
         fi
       fi
     fi
@@ -124,79 +128,83 @@ function update_lv_tags {
           lvchange --deltag "ceph.block_device=${old_block_device}" /dev/${vg}/${lv}
         fi
         lvchange --addtag "ceph.block_device=${block_device}" /dev/${vg}/${lv}
+        echo "OSD Init: Updated lv tags for data volume ${block_device}."
       fi
       if [[ "${db_device}" ]]; then
         if [[ "${old_db_device}" ]]; then
           lvchange --deltag "ceph.db_device=${old_db_device}" /dev/${vg}/${lv}
         fi
         lvchange --addtag "ceph.db_device=${db_device}" /dev/${vg}/${lv}
+        echo "OSD Init: Updated lv tags for DB volume ${db_device}."
       fi
       if [[ "${wal_device}" ]]; then
         if [[ "${old_wal_device}" ]]; then
           lvchange --deltag "ceph.wal_device=${old_wal_device}" /dev/${vg}/${lv}
         fi
         lvchange --addtag "ceph.wal_device=${wal_device}" /dev/${vg}/${lv}
+        echo "OSD Init: Updated lv tags for WAL volume ${wal_device}."
       fi
     done <<< ${volumes}
   fi
 }
 
-function prep_device {
-  local BLOCK_DEVICE=$1
-  local BLOCK_DEVICE_SIZE=$2
-  local device_type=$3
-  local data_disk=$4
-  local vg_name lv_name VG DEVICE_OSD_ID logical_devices logical_volume
-  udev_settle
-  vg_name=$(get_vg_name_from_device ${BLOCK_DEVICE})
-  lv_name=$(get_lv_name_from_device ${data_disk} ${device_type})
-  VG=$(vgs --noheadings -o vg_name -S "vg_name=${vg_name}" | tr -d '[:space:]')
-  if [[ "${VG}" ]]; then
-    DEVICE_OSD_ID=$(get_osd_id_from_volume "/dev/${vg_name}/${lv_name}")
-    CEPH_LVM_PREPARE=1
-    if [[ -n "${DEVICE_OSD_ID}" ]] && [[ -n "${OSD_ID}" ]]; then
-      if [[ "${DEVICE_OSD_ID}" == "${OSD_ID}" ]]; then
-        CEPH_LVM_PREPARE=0
-      else
-        disk_zap "${OSD_DEVICE}"
-      fi
-    fi
-    logical_volumes="$(lvs --noheadings -o lv_name ${VG} | xargs)"
-    for volume in ${logical_volumes}; do
-      data_volume=$(echo ${volume} | sed -E -e 's/-db-|-wal-/-lv-/g')
-      if [[ -z $(lvs --noheadings -o lv_name -S "lv_name=${data_volume}") ]]; then
-        # DB or WAL volume without a corresponding data volume, remove it
-        lvremove -y /dev/${VG}/${volume}
-      fi
-    done
-  else
-    if [[ "${vg_name}" ]]; then
-      logical_devices=$(get_dm_devices_from_osd_device "${data_disk}")
-      device_filter=$(echo "${vg_name}" | sed 's/-/--/g')
-      logical_devices=$(echo "${logical_devices}" | grep "${device_filter}" | xargs)
-      if [[ "$logical_devices" ]]; then
-        dmsetup remove $logical_devices
-        disk_zap "${OSD_DEVICE}"
-        CEPH_LVM_PREPARE=1
-      fi
-    fi
-    random_uuid=$(uuidgen)
-    vgcreate "ceph-vg-${random_uuid}" "${BLOCK_DEVICE}"
-    VG=$(get_vg_name_from_device ${BLOCK_DEVICE})
-    vgrename "ceph-vg-${random_uuid}" "${VG}"
+function create_vg_if_needed {
+  local bl_device=$1
+  local vg_name=$(get_vg_name_from_device ${bl_device})
+  if [[ -z "${vg_name}" ]]; then
+    local random_uuid=$(uuidgen)
+    vgcreate ceph-vg-${random_uuid} ${bl_device}
+    vg_name=$(get_vg_name_from_device ${bl_device})
+    vgrename ceph-vg-${random_uuid} ${vg_name}
+    echo "OSD Init: Created volume group ${vg_name} for device ${bl_device}."
   fi
-  udev_settle
-  logical_volume=$(lvs --noheadings -o lv_name -S "lv_name=${lv_name}" | tr -d '[:space:]')
-  if [[ $logical_volume != "${lv_name}" ]]; then
-    lvcreate -L "${BLOCK_DEVICE_SIZE}" -n "${lv_name}" "${VG}"
+  RESULTING_VG=${vg_name}
+}
+
+function create_lv_if_needed {
+  local bl_device=$1
+  local vg_name=$2
+  local options=$3
+  local lv_name=${4:-$(get_lv_name_from_device ${bl_device} lv)}
+
+  if [[ ! "$(lvdisplay | awk '/LV Name/{print $3}' | grep ${lv_name})" ]]; then
+    lvcreate ${options} -n ${lv_name} ${vg_name}
+    echo "OSD Init: Created logical volume ${lv_name} in group ${vg_name} for device ${bl_device}."
   fi
-  if [[ "${device_type}" == "db" ]]; then
-    BLOCK_DB="${VG}/${lv_name}"
-  elif [[ "${device_type}" == "wal" ]]; then
-    BLOCK_WAL="${VG}/${lv_name}"
+  RESULTING_LV=${vg_name}/${lv_name}
+}
+
+function osd_disk_prechecks {
+  if [[ -z "${OSD_DEVICE}" ]]; then
+    echo "ERROR- You must provide a device to build your OSD ie: /dev/sdb"
+    exit 1
   fi
+
+  if [[ ! -b "${OSD_DEVICE}" ]]; then
+    echo "ERROR- The device pointed by OSD_DEVICE ($OSD_DEVICE) doesn't exist !"
+    exit 1
+  fi
+
+  if [ ! -e $OSD_BOOTSTRAP_KEYRING ]; then
+    echo "ERROR- $OSD_BOOTSTRAP_KEYRING must exist. You can extract it from your current monitor by running 'ceph auth get client.bootstrap-osd -o $OSD_BOOTSTRAP_KEYRING'"
+    exit 1
+  fi
+
+  timeout 10 ceph ${CLI_OPTS} --name client.bootstrap-osd --keyring $OSD_BOOTSTRAP_KEYRING health || exit 1
+}
+
+function perform_zap {
+  if [[ ${ZAP_EXTRA_PARTITIONS} != "" ]]; then
+    # This used for filestore/blockstore only
+    echo "OSD Init: Zapping extra partitions ${ZAP_EXTRA_PARTITIONS}"
+    zap_extra_partitions "${ZAP_EXTRA_PARTITIONS}"
+  fi
+  echo "OSD Init: Zapping device ${OSD_DEVICE}..."
+  disk_zap ${OSD_DEVICE}
+  DISK_ZAPPED=1
   udev_settle
 }
+
 
 #######################################################################
 # Main program
@@ -213,11 +221,13 @@ if [[ "${STORAGE_TYPE}" != "directory" ]]; then
     rename_vg ${OSD_DEVICE}
   fi
 
+  # Rename block DB device VG next
   if [[ "${BLOCK_DB}" ]]; then
     BLOCK_DB=$(readlink -f ${BLOCK_DB})
     rename_vg ${BLOCK_DB}
   fi
 
+  # Rename block WAL device VG next
   if [[ "${BLOCK_WAL}" ]]; then
     BLOCK_WAL=$(readlink -f ${BLOCK_WAL})
     rename_vg ${BLOCK_WAL}
@@ -232,6 +242,25 @@ if [[ "${STORAGE_TYPE}" != "directory" ]]; then
   # Settle LVM changes again after any changes have been made
   udev_settle
 
+  # Check to make sure we have what we need to continue
+  osd_disk_prechecks
+
+  # Initialize some important global variables
+  CEPH_LVM_PREPARE=1
+  OSD_ID=$(get_osd_id_from_device ${OSD_DEVICE})
+  DISK_ZAPPED=0
+  ZAP_DEVICE=0
+  ZAP_EXTRA_PARTITIONS=""
+
+  # The disk may need to be zapped or some LVs may need to be deleted before
+  # moving on with the disk preparation.
+  determine_what_needs_zapping
+
+  if [[ ${ZAP_DEVICE} -eq 1 ]]; then
+    perform_zap
+  fi
+
+  # Prepare the disk for use
   osd_disk_prepare
 
   # Clean up resources held by the common script

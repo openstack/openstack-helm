@@ -32,60 +32,47 @@ if [[ ! -b "${OSD_DEVICE}" ]]; then
   exit 1
 fi
 
-CEPH_DISK_OPTIONS=""
+ACTIVATE_OPTIONS=""
 CEPH_OSD_OPTIONS=""
 
 udev_settle
 
 OSD_ID=$(get_osd_id_from_device ${OSD_DEVICE})
-simple_activate=0
 if [[ -z ${OSD_ID} ]]; then
-  echo "Looks like ceph-disk has been used earlier to activate the OSD."
-  tmpmnt=$(mktemp -d)
-  mount ${OSD_DEVICE}1 ${tmpmnt}
-  OSD_ID=$(cat ${tmpmnt}/whoami)
-  umount ${tmpmnt}
-  simple_activate=1
+  echo "OSD_ID not found from device ${OSD_DEVICE}"
+  exit 1
 fi
 OSD_FSID=$(get_osd_fsid_from_device ${OSD_DEVICE})
 if [[ -z ${OSD_FSID} ]]; then
-  echo "Looks like ceph-disk has been used earlier to activate the OSD."
-  tmpmnt=$(mktemp -d)
-  mount ${OSD_DEVICE}1 ${tmpmnt}
-  OSD_FSID=$(cat ${tmpmnt}/fsid)
-  umount ${tmpmnt}
-  simple_activate=1
+  echo "OSD_FSID not found from device ${OSD_DEVICE}"
+  exit 1
 fi
 OSD_PATH="${OSD_PATH_BASE}-${OSD_ID}"
 OSD_KEYRING="${OSD_PATH}/keyring"
 
 mkdir -p ${OSD_PATH}
 
-if [[ ${simple_activate} -eq 1 ]]; then
-  ceph-volume simple activate --no-systemd ${OSD_ID} ${OSD_FSID}
-else
-  ceph-volume lvm -v \
-    --setuser ceph \
-    --setgroup disk \
-    activate ${CEPH_DISK_OPTIONS} \
-    --auto-detect-objectstore \
-    --no-systemd ${OSD_ID} ${OSD_FSID}
-  # Cross check the db and wal symlinks if missed
-  DB_DEV=$(get_osd_db_device_from_device ${OSD_DEVICE})
-  if [[ ! -z ${DB_DEV} ]]; then
-    if [[ ! -h /var/lib/ceph/osd/ceph-${OSD_ID}/block.db ]]; then
-      ln -snf ${DB_DEV} /var/lib/ceph/osd/ceph-${OSD_ID}/block.db
-      chown -h ceph:ceph ${DB_DEV}
-      chown -h ceph:ceph /var/lib/ceph/osd/ceph-${OSD_ID}/block.db
-    fi
+ceph-volume lvm -v \
+  --setuser ceph \
+  --setgroup disk \
+  activate ${ACTIVATE_OPTIONS} \
+  --auto-detect-objectstore \
+  --no-systemd ${OSD_ID} ${OSD_FSID}
+# Cross check the db and wal symlinks if missed
+DB_DEV=$(get_osd_db_device_from_device ${OSD_DEVICE})
+if [[ ! -z ${DB_DEV} ]]; then
+  if [[ ! -h /var/lib/ceph/osd/ceph-${OSD_ID}/block.db ]]; then
+    ln -snf ${DB_DEV} /var/lib/ceph/osd/ceph-${OSD_ID}/block.db
+    chown -h ceph:ceph ${DB_DEV}
+    chown -h ceph:ceph /var/lib/ceph/osd/ceph-${OSD_ID}/block.db
   fi
-  WAL_DEV=$(get_osd_wal_device_from_device ${OSD_DEVICE})
-  if [[ ! -z ${WAL_DEV} ]]; then
-    if [[ ! -h /var/lib/ceph/osd/ceph-${OSD_ID}/block.wal ]]; then
-      ln -snf ${WAL_DEV} /var/lib/ceph/osd/ceph-${OSD_ID}/block.wal
-      chown -h ceph:ceph ${WAL_DEV}
-      chown -h ceph:ceph /var/lib/ceph/osd/ceph-${OSD_ID}/block.wal
-    fi
+fi
+WAL_DEV=$(get_osd_wal_device_from_device ${OSD_DEVICE})
+if [[ ! -z ${WAL_DEV} ]]; then
+  if [[ ! -h /var/lib/ceph/osd/ceph-${OSD_ID}/block.wal ]]; then
+    ln -snf ${WAL_DEV} /var/lib/ceph/osd/ceph-${OSD_ID}/block.wal
+    chown -h ceph:ceph ${WAL_DEV}
+    chown -h ceph:ceph /var/lib/ceph/osd/ceph-${OSD_ID}/block.wal
   fi
 fi
 

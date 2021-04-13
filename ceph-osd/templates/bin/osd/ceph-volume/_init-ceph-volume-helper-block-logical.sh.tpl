@@ -28,168 +28,112 @@ else
   export OSD_JOURNAL=$(readlink -f ${JOURNAL_LOCATION})
 fi
 
-function osd_disk_prepare {
-  if [[ -z "${OSD_DEVICE}" ]]; then
-    echo "ERROR- You must provide a device to build your OSD ie: /dev/sdb"
-    exit 1
+# Check OSD FSID and journalling metadata
+# Returns 1 if the disk should be zapped; 0 otherwise.
+function check_osd_metadata {
+  local ceph_fsid=$1
+  retcode=0
+  local tmpmnt=$(mktemp -d)
+  mount ${DM_DEV} ${tmpmnt}
+
+  if [ "x$JOURNAL_TYPE" != "xdirectory" ]; then
+    if [  -f "${tmpmnt}/whoami" ]; then
+      OSD_JOURNAL_DISK=$(readlink -f "${tmpmnt}/journal")
+      local osd_id=$(cat "${tmpmnt}/whoami")
+      if [ ! -b "${OSD_JOURNAL_DISK}" ]; then
+        OSD_JOURNAL=$(readlink -f ${OSD_JOURNAL})
+        local jdev=$(echo ${OSD_JOURNAL} | sed 's/[0-9]//g')
+        if [ ${jdev} == ${OSD_JOURNAL} ]; then
+          echo "OSD Init: It appears that ${OSD_DEVICE} is missing the journal at ${OSD_JOURNAL}."
+          echo "OSD Init: Because OSD_FORCE_REPAIR is set, we will wipe the metadata of the OSD and zap it."
+          rm -rf ${tmpmnt}/ceph_fsid
+        else
+          echo "OSD Init: It appears that ${OSD_DEVICE} is missing the journal at ${OSD_JOURNAL_DISK}."
+          echo "OSD Init: Because OSD_FORCE_REPAIR is set and paritions are manually defined, we will"
+          echo "OSD Init: attempt to recreate the missing journal device partitions."
+          osd_journal_create ${OSD_JOURNAL}
+          ln -sf /dev/disk/by-partuuid/${OSD_JOURNAL_UUID} ${tmpmnt}/journal
+          echo ${OSD_JOURNAL_UUID} | tee ${tmpmnt}/journal_uuid
+          chown ceph. ${OSD_JOURNAL}
+          # During OSD start we will format the journal and set the fsid
+          touch ${tmpmnt}/run_mkjournal
+        fi
+      fi
+    else
+      echo "OSD Init: It looks like ${OSD_DEVICE} has a ceph data partition but is missing it's metadata."
+      echo "OSD Init: The device may contain inconsistent metadata or be corrupted."
+      echo "OSD Init: Because OSD_FORCE_REPAIR is set, we will wipe the metadata of the OSD and zap it."
+      rm -rf ${tmpmnt}/ceph_fsid
+    fi
   fi
 
-  if [[ ! -b "${OSD_DEVICE}" ]]; then
-    echo "ERROR- The device pointed by OSD_DEVICE ($OSD_DEVICE) doesn't exist !"
-    exit 1
-  fi
+  if [ -f "${tmpmnt}/ceph_fsid" ]; then
+    local osd_fsid=$(cat "${tmpmnt}/ceph_fsid")
 
-  if [ ! -e $OSD_BOOTSTRAP_KEYRING ]; then
-    echo "ERROR- $OSD_BOOTSTRAP_KEYRING must exist. You can extract it from your current monitor by running 'ceph auth get client.bootstrap-osd -o $OSD_BOOTSTRAP_KEYRING'"
-    exit 1
+    if [ ${osd_fsid} != ${ceph_fsid} ]; then
+      echo "OSD Init: ${OSD_DEVICE} is an OSD belonging to a different (or old) ceph cluster."
+      echo "OSD Init: The OSD FSID is ${osd_fsid} while this cluster is ${ceph_fsid}"
+      echo "OSD Init: Because OSD_FORCE_REPAIR was set, we will zap this device."
+      ZAP_EXTRA_PARTITIONS=${tmpmnt}
+      retcode=1
+    else
+      echo "It looks like ${OSD_DEVICE} is an OSD belonging to a this ceph cluster."
+      echo "OSD_FORCE_REPAIR is set, but will be ignored and the device will not be zapped."
+      echo "Moving on, trying to activate the OSD now."
+    fi
+  else
+    echo "OSD Init: ${OSD_DEVICE} has a ceph data partition but no FSID."
+    echo "OSD Init: Because OSD_FORCE_REPAIR was set, we will zap this device."
+    ZAP_EXTRA_PARTITIONS=${tmpmnt}
+    retcode=1
   fi
-  timeout 10 ceph ${CLI_OPTS} --name client.bootstrap-osd --keyring $OSD_BOOTSTRAP_KEYRING health || exit 1
+  umount ${tmpmnt}
+  return ${retcode}
+}
 
-  #search for some ceph metadata on the disk based on the status of the disk/lvm in filestore
-  CEPH_DISK_USED=0
-  CEPH_LVM_PREPARE=1
-  udev_settle
-  OSD_ID=$(get_osd_id_from_device ${OSD_DEVICE})
-  OSD_FSID=$(get_cluster_fsid_from_device ${OSD_DEVICE})
-  CLUSTER_FSID=$(ceph-conf --lookup fsid)
-  DISK_ZAPPED=0
+function determine_what_needs_zapping {
 
   if [[ ! -z ${OSD_ID} ]]; then
-    DM_NUM=$(dmsetup ls | grep $(lsblk -J ${OSD_DEVICE} | jq -r '.blockdevices[].children[].name') | awk '{print $2}' | cut -d':' -f2 | cut -d')' -f1)
-    DM_DEV="/dev/dm-"${DM_NUM}
+    local dm_num=$(dmsetup ls | grep $(lsblk -J ${OSD_DEVICE} | jq -r '.blockdevices[].children[].name') | awk '{print $2}' | cut -d':' -f2 | cut -d')' -f1)
+    DM_DEV="/dev/dm-"${dm_num}
   elif [[ $(sgdisk --print ${OSD_DEVICE} | grep "F800") ]]; then
-    DM_DEV=${OSD_DEVICE}$(sgdisk --print ${OSD_DEVICE} | grep "F800" | awk '{print $1}')
-    CEPH_DISK_USED=1
+    # Ceph-disk was used to initialize the disk, but this is not supported
+    echo "OSD Init: ceph-disk was used to initialize the disk, but this is no longer supported"
+    exit 1
   else
     if [[ ${OSD_FORCE_REPAIR} -eq 1 ]]; then
-      echo "It looks like ${OSD_DEVICE} isn't consistent, however OSD_FORCE_REPAIR is enabled so we are zapping the device anyway"
-      disk_zap ${OSD_DEVICE}
-      DISK_ZAPPED=1
+      echo "OSD Init: It looks like ${OSD_DEVICE} isn't consistent, however OSD_FORCE_REPAIR is enabled so we are zapping the device anyway"
+      ZAP_DEVICE=1
     else
-      echo "Regarding parted, device ${OSD_DEVICE} is inconsistent/broken/weird."
-      echo "It would be too dangerous to destroy it without any notification."
-      echo "Please set OSD_FORCE_REPAIR to '1' if you really want to zap this disk."
+      echo "OSD Init: Regarding parted, device ${OSD_DEVICE} is inconsistent/broken/weird."
+      echo "OSD Init: It would be too dangerous to destroy it without any notification."
+      echo "OSD Init: Please set OSD_FORCE_REPAIR to '1' if you really want to zap this disk."
       exit 1
     fi
   fi
 
   if [ ${OSD_FORCE_REPAIR} -eq 1 ] && [ ! -z ${DM_DEV} ]; then
     if [ -b $DM_DEV ]; then
-      local cephFSID=$(ceph-conf --lookup fsid)
-      if [ ! -z "${cephFSID}"  ]; then
-        local tmpmnt=$(mktemp -d)
-        mount ${DM_DEV} ${tmpmnt}
-        if [ "x$JOURNAL_TYPE" != "xdirectory" ]; then
-          if [  -f "${tmpmnt}/whoami" ]; then
-            OSD_JOURNAL_DISK=$(readlink -f "${tmpmnt}/journal")
-            local osd_id=$(cat "${tmpmnt}/whoami")
-            if [ ! -b "${OSD_JOURNAL_DISK}" ]; then
-              OSD_JOURNAL=$(readlink -f ${OSD_JOURNAL})
-              local jdev=$(echo ${OSD_JOURNAL} | sed 's/[0-9]//g')
-              if [ ${jdev} == ${OSD_JOURNAL} ]; then
-                echo "It appears that ${OSD_DEVICE} is missing the journal at ${OSD_JOURNAL}."
-                echo "Because OSD_FORCE_REPAIR is set, we will wipe the metadata of the OSD and zap it."
-                rm -rf ${tmpmnt}/ceph_fsid
-              else
-                echo "It appears that ${OSD_DEVICE} is missing the journal at ${OSD_JOURNAL_DISK}."
-                echo "Because OSD_FORCE_REPAIR is set and paritions are manually defined, we will"
-                echo "attempt to recreate the missing journal device partitions."
-                osd_journal_create ${OSD_JOURNAL}
-                ln -sf /dev/disk/by-partuuid/${OSD_JOURNAL_UUID} ${tmpmnt}/journal
-                echo ${OSD_JOURNAL_UUID} | tee ${tmpmnt}/journal_uuid
-                chown ceph. ${OSD_JOURNAL}
-                # During OSD start we will format the journal and set the fsid
-                touch ${tmpmnt}/run_mkjournal
-              fi
-            fi
-          else
-            echo "It looks like ${OSD_DEVICE} has a ceph data partition but is missing it's metadata."
-            echo "The device may contain inconsistent metadata or be corrupted."
-            echo "Because OSD_FORCE_REPAIR is set, we will wipe the metadata of the OSD and zap it."
-            rm -rf ${tmpmnt}/ceph_fsid
-          fi
-        fi
-        if [ -f "${tmpmnt}/ceph_fsid" ]; then
-          osdFSID=$(cat "${tmpmnt}/ceph_fsid")
-          if [ ${osdFSID} != ${cephFSID} ]; then
-            echo "It looks like ${OSD_DEVICE} is an OSD belonging to a different (or old) ceph cluster."
-            echo "The OSD FSID is ${osdFSID} while this cluster is ${cephFSID}"
-            echo "Because OSD_FORCE_REPAIR was set, we will zap this device."
-            zap_extra_partitions ${tmpmnt}
-            umount ${tmpmnt}
-            disk_zap ${OSD_DEVICE}
-          else
-            umount ${tmpmnt}
-            echo "It looks like ${OSD_DEVICE} is an OSD belonging to a this ceph cluster."
-            echo "OSD_FORCE_REPAIR is set, but will be ignored and the device will not be zapped."
-            echo "Moving on, trying to activate the OSD now."
-          fi
-        else
-          echo "It looks like ${OSD_DEVICE} has a ceph data partition but no FSID."
-          echo "Because OSD_FORCE_REPAIR was set, we will zap this device."
-          zap_extra_partitions ${tmpmnt}
-          umount ${tmpmnt}
-          disk_zap ${OSD_DEVICE}
+      local ceph_fsid=$(ceph-conf --lookup fsid)
+      if [ ! -z "${ceph_fsid}"  ]; then
+        # Check the OSD metadata and zap the disk if necessary
+        if [[ $(check_osd_metadata ${ceph_fsid}) -eq 1 ]]; then
+          echo "OSD Init: ${OSD_DEVICE} needs to be zapped..."
+          ZAP_DEVICE=1
         fi
       else
         echo "Unable to determine the FSID of the current cluster."
         echo "OSD_FORCE_REPAIR is set, but this OSD will not be zapped."
         echo "Moving on, trying to activate the OSD now."
-        return
       fi
     else
       echo "parted says ${DM_DEV} should exist, but we do not see it."
       echo "We will ignore OSD_FORCE_REPAIR and try to use the device as-is"
       echo "Moving on, trying to activate the OSD now."
-      return
     fi
   else
     echo "INFO- It looks like ${OSD_DEVICE} is an OSD LVM"
     echo "Moving on, trying to prepare and activate the OSD LVM now."
-  fi
-
-  if [[ ${CEPH_DISK_USED} -eq 1 ]]; then
-    udev_settle
-    CLI_OPTS="${CLI_OPTS} --data ${OSD_DEVICE}"
-    ceph-volume simple scan --force ${OSD_DEVICE}$(sgdisk --print ${OSD_DEVICE} | grep "F800" | awk '{print $1}')
-  elif [[ ${CEPH_LVM_PREPARE} -eq 1 ]] || [[ ${DISK_ZAPPED} -eq 1 ]]; then
-    udev_settle
-    vg_name=$(get_vg_name_from_device ${OSD_DEVICE})
-    if [[ "${vg_name}" ]]; then
-      OSD_VG=${vg_name}
-    else
-      random_uuid=$(uuidgen)
-      vgcreate ceph-vg-${random_uuid} ${OSD_DEVICE}
-      vg_name=$(get_vg_name_from_device ${OSD_DEVICE})
-      vgrename ceph-vg-${random_uuid} ${vg_name}
-      OSD_VG=${vg_name}
-    fi
-    lv_name=$(get_lv_name_from_device ${OSD_DEVICE} lv)
-    if [[ ! "$(lvdisplay | awk '/LV Name/{print $3}' | grep ${lv_name})" ]]; then
-      lvcreate --yes -l 100%FREE -n ${lv_name} ${OSD_VG}
-    fi
-    OSD_LV=${OSD_VG}/${lv_name}
-    CLI_OPTS="${CLI_OPTS} --data ${OSD_LV}"
-    CEPH_LVM_PREPARE=1
-    udev_settle
-  fi
-  if [ ${CEPH_DISK_USED} -eq 0 ] ; then
-    if pvdisplay -ddd -v ${OSD_DEVICE} | awk '/VG Name/{print $3}' | grep "ceph"; then
-      CEPH_LVM_PREPARE=0
-    fi
-  fi
-
-  osd_journal_prepare
-  CLI_OPTS="${CLI_OPTS} --data ${OSD_DEVICE} --journal ${OSD_JOURNAL}"
-  udev_settle
-
-  if [ ! -z "$DEVICE_CLASS" ]; then
-    CLI_OPTS="${CLI_OPTS} --crush-device-class ${DEVICE_CLASS}"
-  fi
-
-  if [[ ${CEPH_LVM_PREPARE} -eq 1 ]]; then
-    ceph-volume lvm -v prepare ${CLI_OPTS}
-    udev_settle
   fi
 }
 
@@ -205,7 +149,7 @@ function osd_journal_create {
     OSD_JOURNAL=$(dev_part ${jdev} ${osd_journal_partition})
     udev_settle
   else
-    echo "The backing device ${jdev} for ${OSD_JOURNAL} does not exist on this system."
+    echo "OSD Init: The backing device ${jdev} for ${OSD_JOURNAL} does not exist on this system."
     exit 1
   fi
 }
@@ -235,3 +179,36 @@ function osd_journal_prepare {
   fi
   CLI_OPTS="${CLI_OPTS} --filestore"
 }
+
+function osd_disk_prepare {
+
+  if [[ ${CEPH_LVM_PREPARE} -eq 1 ]] || [[ ${DISK_ZAPPED} -eq 1 ]]; then
+    udev_settle
+    RESULTING_VG=""; RESULTING_LV="";
+    create_vg_if_needed "${OSD_DEVICE}"
+    create_lv_if_needed "${OSD_DEVICE}" "${RESULTING_VG}" "--yes -l 100%FREE"
+
+    CLI_OPTS="${CLI_OPTS} --data ${RESULTING_LV}"
+    CEPH_LVM_PREPARE=1
+    udev_settle
+  fi
+  if pvdisplay -ddd -v ${OSD_DEVICE} | awk '/VG Name/{print $3}' | grep "ceph"; then
+    echo "OSD Init: Device is already set up. LVM prepare does not need to be called."
+    CEPH_LVM_PREPARE=0
+  fi
+
+  osd_journal_prepare
+  CLI_OPTS="${CLI_OPTS} --data ${OSD_DEVICE} --journal ${OSD_JOURNAL}"
+  udev_settle
+
+  if [ ! -z "$DEVICE_CLASS" ]; then
+    CLI_OPTS="${CLI_OPTS} --crush-device-class ${DEVICE_CLASS}"
+  fi
+
+  if [[ ${CEPH_LVM_PREPARE} -eq 1 ]]; then
+    echo "OSD Init: Calling ceph-volume lvm-v prepare ${CLI_OPTS}"
+    ceph-volume lvm -v prepare ${CLI_OPTS}
+    udev_settle
+  fi
+}
+

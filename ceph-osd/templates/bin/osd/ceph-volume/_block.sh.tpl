@@ -43,45 +43,32 @@ if [[ ! -b "${OSD_DEVICE}" ]]; then
   exit 1
 fi
 
-CEPH_DISK_OPTIONS=""
+ACTIVATE_OPTIONS=""
 CEPH_OSD_OPTIONS=""
 
 udev_settle
 
 OSD_ID=$(ceph-volume inventory ${OSD_DEVICE} | grep "osd id" | awk '{print $3}')
-simple_activate=0
 if [[ -z ${OSD_ID} ]]; then
-  echo "Looks like ceph-disk has been used earlier to activate the OSD."
-  tmpmnt=$(mktemp -d)
-  mount ${OSD_DEVICE}1 ${tmpmnt}
-  OSD_ID=$(cat ${tmpmnt}/whoami)
-  umount ${tmpmnt}
-  simple_activate=1
+  echo "OSD_ID not found from device ${OSD_DEVICE}"
+  exit 1
 fi
 OSD_FSID=$(ceph-volume inventory ${OSD_DEVICE} | grep "osd fsid" | awk '{print $3}')
 if [[ -z ${OSD_FSID} ]]; then
-  echo "Looks like ceph-disk has been used earlier to activate the OSD."
-  tmpmnt=$(mktemp -d)
-  mount ${OSD_DEVICE}1 ${tmpmnt}
-  OSD_FSID=$(cat ${tmpmnt}/fsid)
-  umount ${tmpmnt}
-  simple_activate=1
+  echo "OSD_FSID not found from device ${OSD_DEVICE}"
+  exit 1
 fi
 OSD_PATH="${OSD_PATH_BASE}-${OSD_ID}"
 OSD_KEYRING="${OSD_PATH}/keyring"
 
 mkdir -p ${OSD_PATH}
 
-if [[ ${simple_activate} -eq 1 ]]; then
-  ceph-volume simple activate --no-systemd ${OSD_ID} ${OSD_FSID}
-else
-  ceph-volume lvm -v \
-    --setuser ceph \
-    --setgroup disk \
-    activate ${CEPH_DISK_OPTIONS} \
-    --auto-detect-objectstore \
-    --no-systemd ${OSD_ID} ${OSD_FSID}
-fi
+ceph-volume lvm -v \
+  --setuser ceph \
+  --setgroup disk \
+  activate ${ACTIVATE_OPTIONS} \
+  --auto-detect-objectstore \
+  --no-systemd ${OSD_ID} ${OSD_FSID}
 
 # NOTE(stevetaylor): Set the OSD's crush weight (use noin flag to prevent rebalancing if necessary)
 OSD_WEIGHT=$(get_osd_crush_weight_from_device ${OSD_DEVICE})
