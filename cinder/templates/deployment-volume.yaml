@@ -248,6 +248,22 @@ spec:
             - name: cinder-bin
               mountPath: /usr/local/sbin/iscsiadm
               subPath: iscsiadm
+            - name: cinder-bin
+              mountPath: /usr/local/sbin/multipath
+              subPath: multipath
+            - name: cinder-bin
+              mountPath: /usr/local/sbin/multipathd
+              subPath: multipathd
+            - name: etcmultipath
+              mountPath: /etc/multipath
+              {{- if or ( gt .Capabilities.KubeVersion.Major "1" ) ( ge .Capabilities.KubeVersion.Minor "10" ) }}
+              mountPropagation: Bidirectional
+              {{- end }}
+            - name: sys
+              mountPath: /sys
+              {{- if or ( gt .Capabilities.KubeVersion.Major "1" ) ( ge .Capabilities.KubeVersion.Minor "10" ) }}
+              mountPropagation: HostToContainer
+              {{- end }}
             {{- end }}
 {{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.volume.api.internal "path" "/etc/cinder/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
 {{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.oslo_db.auth.admin.secret.tls.internal "path" "/etc/mysql/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
@@ -304,6 +320,12 @@ spec:
             path: /etc/iscsi
         - name: usrlocalsbin
           emptyDir: {}
+        - name: etcmultipath
+          hostPath:
+            path: /etc/multipath
+        - name: sys
+          hostPath:
+            path: /sys
         {{- end }}
 {{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.oslo_db.auth.admin.secret.tls.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 {{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.volume.api.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}

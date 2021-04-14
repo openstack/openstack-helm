@@ -384,6 +384,24 @@ spec:
             - name: nova-bin
               mountPath: /usr/local/sbin/iscsiadm
               subPath: iscsiadm
+            - name: runlock
+              mountPath: /run/lock
+            - name: nova-bin
+              mountPath: /usr/local/sbin/multipath
+              subPath: multipath
+            - name: nova-bin
+              mountPath: /usr/local/sbin/multipathd
+              subPath: multipathd
+            - name: etcmultipath
+              mountPath: /etc/multipath
+              {{- if or ( gt .Capabilities.KubeVersion.Major "1" ) ( ge .Capabilities.KubeVersion.Minor "10" ) }}
+              mountPropagation: Bidirectional
+              {{- end }}
+            - name: sysblock
+              mountPath: /sys/block
+              {{- if or ( gt .Capabilities.KubeVersion.Major "1" ) ( ge .Capabilities.KubeVersion.Minor "10" ) }}
+              mountPropagation: HostToContainer
+              {{- end }}
             {{- end }}
             {{- if ( has "tungstenfabric" .Values.network.backend ) }}
             - name: tf-plugin-shared
@@ -503,6 +521,13 @@ spec:
             path: /dev
         - name: usrlocalsbin
           emptyDir: {}
+        - name: etcmultipath
+          hostPath:
+            path: /etc/multipath
+        - name: sysblock
+          hostPath:
+            path: /sys/block
+
         {{- end }}
         {{- if ( has "tungstenfabric" .Values.network.backend ) }}
         - name: tf-plugin-shared
