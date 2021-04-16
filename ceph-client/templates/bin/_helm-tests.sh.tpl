@@ -246,6 +246,62 @@ function pool_failuredomain_validation() {
   done
 }
 
+function check_transient_pgs_file() {
+  current_time=$1
+  pg_failed_list=()
+
+  # Remove the lines NOT having the word "current" as these are the old
+  # PGs that are no longer in transition.
+  sed -i '/current/!d' ${transient_pgs_file}
+
+  # For all remaining lines (PGs currently inactive), check for PGs which
+  # are older than the limit.
+  IFS=$'\n' read -d '' -r -a lines < ${transient_pgs_file} || true
+  for pg_data in "${lines[@]}"; do
+    pg=$(echo ${pg_data} | awk '{print $1}')
+    pg_ts=$(echo ${pg_data} | awk '{print $2}')
+    if [[ $((${current_time} - ${pg_ts})) -gt ${pg_inactive_timeout} ]]; then
+      pg_failed_list+=("${pg}")
+    fi
+  done
+
+  # Remove the current designation for all PGs, as we no longer need it
+  # for this check.
+  sed -i 's/ current//g' ${transient_pgs_file}
+
+  cat ${transient_pgs_file}
+  if [[ ${#pg_failed_list[@]} -gt 0 ]]; then
+    echo "The following PGs have been in a transient state for longer than ${pg_inactive_timeout} seconds:"
+    echo ${pg_failed_list[*]}
+    exit 1
+  fi
+}
+
+function update_transient_pgs_file() {
+  pg=$1
+  current_ts=$2
+
+  pg_data=$(grep "${pg} " ${transient_pgs_file} || true)
+  if [[ "${pg_data}" == "" ]]; then
+    echo "${pg} ${current_ts} current" >> ${transient_pgs_file}
+  else
+    # Add the word "current" to the end of the line which has this PG
+    sed -i '/^'"${pg} "'/s/$/ current/' ${transient_pgs_file}
+  fi
+}
+
+function check_transient_pgs() {
+  local -n pg_array=$1
+
+  # Use a temporary transient PGs file to track the amount of time PGs
+  # are spending in a transitional state.
+  now=$(date +%s)
+  for pg in "${pg_array[@]}"; do
+    update_transient_pgs_file ${pg} ${now}
+  done
+  check_transient_pgs_file ${now}
+}
+
 function check_pgs() {
   pgs_transitioning=false
 
@@ -260,6 +316,9 @@ function check_pgs() {
     echo ${stuck_pgs[*]}
     # Not a critical error - yet
     pgs_transitioning=true
+
+    # Check to see if any transitioning PG has been stuck for too long
+    check_transient_pgs stuck_pgs
   else
     # Examine the PGs that have non-active states. Consider those PGs that
     # are in a "premerge" state to be similar to active. "premerge" PGs may
@@ -268,10 +327,10 @@ function check_pgs() {
 
     # If the inactive pgs file is non-empty, there are some inactive pgs in the cluster.
     inactive_pgs=(`cat ${inactive_pgs_file} | awk -F "\"" '/pgid/{print $4}'`)
-    echo "There is at least one inactive pg in the cluster: "
+    echo "This is the list of inactive pgs in the cluster: "
     echo ${inactive_pgs[*]}
 
-    echo "Very likely the cluster is rebalancing or recovering some PG's. Checking..."
+    echo "Checking to see if the cluster is rebalancing or recovering some PG's..."
 
     # Check for PGs that are down. These are critical errors.
     down_pgs=(`cat ${inactive_pgs_file} | grep -B1 'down' | awk -F "\"" '/pgid/{print $4}'`)
@@ -311,6 +370,9 @@ function check_pgs() {
       echo "This is normal but will wait a while to verify the PGs are not stuck in a transient state."
       # not critical, just wait
       pgs_transitioning=true
+
+      # Check to see if any transitioning PG has been stuck for too long
+      check_transient_pgs transient_pgs
     fi
   fi
 }
@@ -319,9 +381,11 @@ function pg_validation() {
   retries=0
   time_between_retries=3
   max_retries=60
+  pg_inactive_timeout=30
   pgs_transitioning=false
   stuck_pgs_file=$(mktemp -p /tmp)
   inactive_pgs_file=$(mktemp -p /tmp)
+  transient_pgs_file=$(mktemp -p /tmp)
 
   # Check this over a period of retries. Fail/stop if any critical errors found.
   while check_pgs && [[ "${pgs_transitioning}" == "true" ]] && [[ retries -lt ${max_retries} ]]; do
@@ -330,11 +394,11 @@ function pg_validation() {
     ((retries=retries+1))
   done
 
-  # If peering PGs haven't gone active after retries have expired, fail
+  # Check if transitioning PGs have gone active after retries have expired
   if [[ retries -ge ${max_retries} ]]; then
     ((timeout_sec=${time_between_retries}*${max_retries}))
-    echo "Some PGs have not become active or have been stuck after ${timeout_sec} seconds. Exiting..."
-    exit 1
+    echo "Some PGs have not become active after ${timeout_sec} seconds. Exiting..."
+    # This is ok, as the autoscaler might still be adjusting the PGs.
   fi
 }
 
