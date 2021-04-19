@@ -497,8 +497,19 @@ def get_grastate_val(key):
     """
     logger.debug("Reading grastate.dat key={0}".format(key))
     try:
-        with open("/var/lib/mysql/grastate.dat", "r") as myfile:
-            grastate_raw = [s.strip() for s in myfile.readlines()]
+        # This attempts to address a potential race condition with the initial
+        # creation of the grastate.date file where the file would exist
+        # however, it is not immediately populated. Testing indicated it could
+        # take 15-20 seconds for the file to be populated. So loop and keep
+        # checking up to 60 seconds. If it still isn't populated afterwards,
+        # the IndexError will still occur as we are seeing now without the loop.
+        time_end = time.time() + 60
+        while time.time() < time_end:
+            with open("/var/lib/mysql/grastate.dat", "r") as myfile:
+                grastate_raw = [s.strip() for s in myfile.readlines()]
+            if grastate_raw:
+                break
+            time.sleep(1)
         return [i for i in grastate_raw
                 if i.startswith("{0}:".format(key))][0].split(':')[1].strip()
     except IndexError:
