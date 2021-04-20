@@ -36,32 +36,6 @@ function create_test_index () {
   fi
 }
 
-{{ if not (empty .Values.conf.api_objects) }}
-
-function test_api_object_creation () {
-  NUM_ERRORS=0
-  {{ range $object, $config := .Values.conf.api_objects }}
-  error=$(curl -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
-            -XGET "${ELASTICSEARCH_ENDPOINT}/{{ $config.endpoint }}" | jq -r '.error')
-
-  if [ $error == "null" ]; then
-      echo "PASS: {{ $object }} is verified."
-    else
-      echo "FAIL: Error for {{ $object }}: $(echo $error | jq -r)"
-      NUM_ERRORS=$(($NUM_ERRORS+1))
-    fi
-  {{ end }}
-
-  if [ $NUM_ERRORS -gt 0 ]; then
-    echo "FAIL: Some API Objects were not created!"
-    exit 1
-  else
-    echo "PASS: API Objects are verified!"
-  fi
-}
-
-{{ end }}
-
 {{ if .Values.conf.elasticsearch.snapshots.enabled }}
 function check_snapshot_repositories_verified () {
   repositories=$(curl -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
@@ -92,7 +66,6 @@ function remove_test_index () {
 remove_test_index || true
 create_test_index
 remove_test_index
-test_api_object_creation
 {{ if .Values.conf.elasticsearch.snapshots.enabled }}
 check_snapshot_repositories_verified
 {{ end }}
