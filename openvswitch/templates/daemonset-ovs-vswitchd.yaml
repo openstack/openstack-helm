@@ -15,19 +15,24 @@ limitations under the License.
 {{- define "ovsvswitchlivenessProbeTemplate" }}
 exec:
   command:
+{{- if .Values.pod.probes.ovs_vswitch.ovs_vswitch.liveness.exec }}
+{{ .Values.pod.probes.ovs_vswitch.ovs_vswitch.liveness.exec | toYaml | indent 4 }}
+{{- else }}
     - /usr/bin/ovs-appctl
     - bond/list
 {{- end }}
+{{- end }}
+
 {{- define "ovsvswitchreadinessProbeTemplate" }}
-{{- if not .Values.conf.ovs_dpdk.enabled }}
 exec:
   command:
+{{- if .Values.pod.probes.ovs_vswitch.ovs_vswitch.readiness.exec }}
+{{ .Values.pod.probes.ovs_vswitch.ovs_vswitch.readiness.exec | toYaml | indent 4 }}
+{{- else if not .Values.conf.ovs_dpdk.enabled }}
     - /bin/bash
     - -c
     - '/usr/bin/ovs-vsctl show'
 {{- else }}
-exec:
-  command:
     - /bin/bash
     - -c
     - '/usr/bin/ovs-vsctl show && ! /usr/bin/ovs-vsctl list Open_vSwitch | grep -q dpdk_initialized.*false'
