@@ -46,7 +46,6 @@ kind: Job
 metadata:
   name: {{ printf "%s-%s" $serviceNamePretty "ks-endpoints" | quote }}
   annotations:
-    "helm.sh/hook-delete-policy": before-hook-creation
 {{- if $jobAnnotations }}
 {{ toYaml $jobAnnotations | indent 4 }}
 {{- end }}
