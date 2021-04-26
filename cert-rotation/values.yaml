@@ -1,0 +1,61 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+images:
+  tags:
+    cert_rotation: 'docker.io/openstackhelm/ceph-config-helper:latest-ubuntu_bionic'
+    dep_check: 'quay.io/airshipit/kubernetes-entrypoint:v1.0.0'
+  local_registry:
+    active: false
+labels:
+  job:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+jobs:
+  rotate:
+    # Run at 1:00AM on 1st of each month
+    cron: "0 1 1 * *"
+    starting_deadline: 600
+    history:
+      success: 3
+      failed: 1
+    # Number of day before expiry should certs be rotated.
+    max_days_to_expiry: 45
+    suspend: false
+pod:
+  security_context:
+    cert_rotate:
+      pod:
+        runAsUser: 42424
+      container:
+        cert_rotate:
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
+  resources:
+    enabled: false
+    jobs:
+      cert_rotate:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+dependencies:
+  static:
+    cert_rotate: null
+manifests:
+  configmap_bin: true
+  cron_job_cert_rotate: false
+  job_cert_rotate: false
+...
