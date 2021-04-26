@@ -15,8 +15,6 @@ limitations under the License.
 {{- if .Values.manifests.statefulset_master }}
 {{- $envAll := . }}
 
-{{- $s3UserSecret := .Values.secrets.rgw.elasticsearch }}
-
 {{- $mounts_elasticsearch := .Values.pod.mounts.elasticsearch.elasticsearch }}
 
 {{- $serviceAccountName := "elasticsearch-master" }}
@@ -122,6 +120,15 @@ spec:
               value: {{ tuple "elasticsearch" "discovery" $envAll | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
             - name: ES_JAVA_OPTS
               value: "{{ .Values.conf.elasticsearch.env.java_opts.master }}"
+{{- if .Values.manifests.certificates }}
+            - name: JAVA_KEYSTORE_CERT_PATH
+              value: "/usr/share/elasticsearch/config/ca.crt"
+            - name: ELASTICSEARCH_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.elasticsearch.user }}
+                  key: ELASTICSEARCH_PASSWORD
+{{- end }}
 {{- if .Values.conf.elasticsearch.snapshots.enabled }}
 {{- include "helm-toolkit.snippets.rgw_s3_user_env_vars" . | indent 12 }}
 {{- end }}
@@ -151,6 +158,7 @@ spec:
               readOnly: true
             - name: storage
               mountPath: {{ .Values.conf.elasticsearch.config.path.data }}
+{{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.elasticsearch.elasticsearch.internal "path" "/usr/share/elasticsearch/config" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
 {{ if $mounts_elasticsearch.volumeMounts }}{{ toYaml $mounts_elasticsearch.volumeMounts | indent 12 }}{{ end }}
       volumes:
         - name: pod-tmp
@@ -165,6 +173,7 @@ spec:
           secret:
             secretName: elasticsearch-etc
             defaultMode: 0444
+{{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.elasticsearch.elasticsearch.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 {{ if $mounts_elasticsearch.volumes }}{{ toYaml $mounts_elasticsearch.volumes | indent 8 }}{{ end }}
 {{- if not .Values.storage.master.enabled }}
         - name: storage
