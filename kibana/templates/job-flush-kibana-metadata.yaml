@@ -75,7 +75,11 @@ spec:
             - name: KIBANA_ENDPOINT
               value: {{ tuple "kibana" "internal" "http" . | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" }}
             - name: ELASTICSEARCH_ENDPOINT
-              value: {{ tuple "elasticsearch" "internal" "client" . | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" }}
+              value: {{ printf "%s://%s" (tuple "elasticsearch" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_scheme_lookup") (tuple "elasticsearch" "internal" . | include "helm-toolkit.endpoints.hostname_fqdn_endpoint_lookup") }}
+{{- if .Values.manifests.certificates }}
+            - name: CACERT_OPTION
+              value: "--cacert /etc/elasticsearch/certs/ca.crt"
+{{- end }}
           command:
             - /tmp/flush_kibana_metadata.sh
           volumeMounts:
@@ -87,6 +91,7 @@ spec:
               mountPath: /tmp/flush_kibana_metadata.sh
               subPath: flush_kibana_metadata.sh
               readOnly: false
+{{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.elasticsearch.auth.admin.secret.tls.internal "path" "/etc/elasticsearch/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
       volumes:
         - name: pod-tmp
           emptyDir: {}
@@ -97,4 +102,5 @@ spec:
           configMap:
             name: kibana-bin
             defaultMode: 0755
+{{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.elasticsearch.auth.admin.secret.tls.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 {{- end }}

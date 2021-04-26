@@ -16,7 +16,7 @@ limitations under the License.
 set -ex
 
 function create_test_index () {
-  index_result=$(curl -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
+  index_result=$(curl ${CACERT_OPTION} -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
   -XPUT "${ELASTICSEARCH_ENDPOINT}/test_index?pretty" -H 'Content-Type: application/json' -d'
   {
     "settings" : {
@@ -38,13 +38,13 @@ function create_test_index () {
 
 {{ if .Values.conf.elasticsearch.snapshots.enabled }}
 function check_snapshot_repositories_verified () {
-  repositories=$(curl -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
+  repositories=$(curl ${CACERT_OPTION} -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
                   "${ELASTICSEARCH_ENDPOINT}/_snapshot" | jq -r "keys | @sh" )
 
   repositories=$(echo $repositories | sed "s/'//g") # Strip single quotes from jq output
 
   for repository in $repositories; do
-    error=$(curl -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
+    error=$(curl ${CACERT_OPTION} -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
             -XPOST "${ELASTICSEARCH_ENDPOINT}/_snapshot/${repository}/_verify" | jq -r '.error')
 
     if [ $error == "null" ]; then
@@ -59,7 +59,7 @@ function check_snapshot_repositories_verified () {
 
 function remove_test_index () {
   echo "Deleting index created for service testing"
-  curl -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
+  curl ${CACERT_OPTION} -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
   -XDELETE "${ELASTICSEARCH_ENDPOINT}/test_index"
 }
 

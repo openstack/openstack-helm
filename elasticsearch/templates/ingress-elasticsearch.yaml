@@ -13,6 +13,12 @@ limitations under the License.
 */}}
 
 {{- if and .Values.manifests.ingress .Values.network.elasticsearch.ingress.public }}
-{{- $ingressOpts := dict "envAll" . "backendService" "elasticsearch" "backendServiceType" "elasticsearch" "backendPort" "http" -}}
+{{- $envAll := . -}}
+{{- $port := tuple "elasticsearch" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_scheme_lookup" }}
+{{- $ingressOpts := dict "envAll" $envAll "backendService" "elasticsearch" "backendServiceType" "elasticsearch" "backendPort" $port -}}
+{{- $secretName := $envAll.Values.secrets.tls.elasticsearch.elasticsearch.internal -}}
+{{- if and .Values.manifests.certificates $secretName -}}
+{{- $_ := set $ingressOpts "certIssuer" .Values.endpoints.elasticsearch.host_fqdn_override.default.tls.issuerRef.name -}}
+{{- end -}}
 {{ $ingressOpts | include "helm-toolkit.manifests.ingress" }}
 {{- end }}

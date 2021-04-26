@@ -45,11 +45,11 @@ function stop () {
 function wait_to_join() {
   # delay 5 seconds before the first check
   sleep 5
-  joined=$(curl -s -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" "${ELASTICSEARCH_ENDPOINT}/_cat/nodes" | grep -w $NODE_NAME || true )
+  joined=$(curl -s ${CACERT_OPTION} -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" "${ELASTICSEARCH_ENDPOINT}/_cat/nodes" | grep -w $NODE_NAME || true )
   i=0
   while [ -z "$joined" ]; do
     sleep 5
-    joined=$(curl -s -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" "${ELASTICSEARCH_ENDPOINT}/_cat/nodes" | grep -w $NODE_NAME || true )
+    joined=$(curl -s ${CACERT_OPTION} -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" "${ELASTICSEARCH_ENDPOINT}/_cat/nodes" | grep -w $NODE_NAME || true )
     i=$((i+1))
     # Waiting for up to 60 minutes
     if [ $i -gt 720 ]; then
@@ -62,7 +62,7 @@ function allocate_data_node () {
   echo "Node ${NODE_NAME} has started. Waiting to rejoin the cluster."
   wait_to_join
   echo "Re-enabling Replica Shard Allocation"
-  curl -s -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" -XPUT -H 'Content-Type: application/json' \
+  curl -s ${CACERT_OPTION} -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" -XPUT -H 'Content-Type: application/json' \
     "${ELASTICSEARCH_ENDPOINT}/_cluster/settings" -d "{
     \"persistent\": {
       \"cluster.routing.allocation.enable\": null
@@ -102,7 +102,7 @@ function start_data_node () {
     # https://www.elastic.co/guide/en/elasticsearch/reference/7.x/restart-cluster.html#restart-cluster-rolling
 
     echo "Disabling Replica Shard Allocation"
-    curl -s -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" -XPUT -H 'Content-Type: application/json' \
+    curl -s ${CACERT_OPTION} -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" -XPUT -H 'Content-Type: application/json' \
       "${ELASTICSEARCH_ENDPOINT}/_cluster/settings" -d "{
       \"persistent\": {
         \"cluster.routing.allocation.enable\": \"primaries\"
@@ -112,7 +112,7 @@ function start_data_node () {
     # If version < 7.6 use _flush/synced; otherwise use _flush
     # https://www.elastic.co/guide/en/elasticsearch/reference/current/indices-synced-flush-api.html#indices-synced-flush-api
 
-    version=$(curl -s -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" "${ELASTICSEARCH_ENDPOINT}/" | jq -r .version.number)
+    version=$(curl -s ${CACERT_OPTION} -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" "${ELASTICSEARCH_ENDPOINT}/" | jq -r .version.number)
 
     if [[ $version =~ "7.1" ]]; then
       action="_flush/synced"
@@ -120,7 +120,7 @@ function start_data_node () {
       action="_flush"
     fi
 
-    curl -s -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" -XPOST "${ELASTICSEARCH_ENDPOINT}/$action"
+    curl -s ${CACERT_OPTION} -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" -XPOST "${ELASTICSEARCH_ENDPOINT}/$action"
 
     # TODO: Check the response of synced flush operations to make sure there are no failures.
     # Synced flush operations that fail due to pending indexing operations are listed in the response body,
