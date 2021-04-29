@@ -84,7 +84,7 @@ function rgw_s3_bucket_validation ()
 
   bucket=s3://rgw-test-bucket
 {{- if .Values.manifests.certificates }}
-  params="--host=$RGW_HOST --host-bucket=$RGW_HOST --access_key=$S3_ADMIN_ACCESS_KEY --secret_key=$S3_ADMIN_SECRET_KEY --no-check-certificate"
+  params="--host=$RGW_HOST --host-bucket=$RGW_HOST --access_key=$S3_ADMIN_ACCESS_KEY --secret_key=$S3_ADMIN_SECRET_KEY --ca-certs=/etc/tls/ca.crt"
 {{- else }}
   params="--host=$RGW_HOST --host-bucket=$RGW_HOST --access_key=$S3_ADMIN_ACCESS_KEY --secret_key=$S3_ADMIN_SECRET_KEY --no-ssl"
 {{- end }}
