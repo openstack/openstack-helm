@@ -41,7 +41,6 @@ metadata:
   name: {{ printf "%s-%s" $serviceNamePretty "s3-bucket" | quote }}
   annotations:
     {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
-    "helm.sh/hook-delete-policy": before-hook-creation
 {{- if $jobAnnotations }}
 {{ toYaml $jobAnnotations | indent 4 }}
 {{- end }}
