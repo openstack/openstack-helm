@@ -54,9 +54,7 @@ function ansible_install {
 
   sudo -H -E pip3 install --upgrade pip
   sudo -H -E pip3 install --upgrade setuptools
-  # NOTE(lamt) Preinstalling a capped version of cmd2 to address bug:
-  # https://github.com/python-cmd2/cmd2/issues/421
-  sudo -H -E pip3 install --upgrade "cmd2<=0.8.7"
+  sudo -H -E pip3 install --upgrade cmd2
   sudo -H -E pip3 install --upgrade pyopenssl
   # NOTE(srwilkers): Pinning ansible to 2.5.5, as pip installs 2.6 by default.
   # 2.6 introduces a new command flag (init) for the docker_container module
