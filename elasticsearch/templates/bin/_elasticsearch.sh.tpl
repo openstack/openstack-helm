@@ -19,7 +19,6 @@ set -e
 COMMAND="${@:-start}"
 
 function initiate_keystore () {
-  set -ex
   bin/elasticsearch-keystore create
 
   {{- if .Values.conf.elasticsearch.snapshots.enabled }}
@@ -29,6 +28,12 @@ function initiate_keystore () {
   echo ${{$access_key}} | /usr/share/elasticsearch/bin/elasticsearch-keystore add -xf s3.client.{{ $client }}.access_key
   echo ${{$secret_key}} | /usr/share/elasticsearch/bin/elasticsearch-keystore add -xf s3.client.{{ $client }}.secret_key
   {{- end }}
+  {{- end }}
+
+  {{- if .Values.manifests.certificates }}
+  {{- $alias := .Values.secrets.tls.elasticsearch.elasticsearch.internal }}
+  /usr/share/elasticsearch/jdk/bin/keytool -storepasswd -cacerts -new ${ELASTICSEARCH_PASSWORD} -storepass changeit
+  /usr/share/elasticsearch/jdk/bin/keytool -importcert -alias {{$alias}} -cacerts -trustcacerts -noprompt -file ${JAVA_KEYSTORE_CERT_PATH} -storepass ${ELASTICSEARCH_PASSWORD}
   {{- end }}
 }
 

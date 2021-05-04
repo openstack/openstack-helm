@@ -172,6 +172,15 @@ spec:
               value: {{ tuple "elasticsearch" "discovery" $envAll | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
             - name: ES_JAVA_OPTS
               value: "{{ .Values.conf.elasticsearch.env.java_opts.client }}"
+{{- if .Values.manifests.certificates }}
+            - name: JAVA_KEYSTORE_CERT_PATH
+              value: "/usr/share/elasticsearch/config/ca.crt"
+            - name: ELASTICSEARCH_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $esUserSecret }}
+                  key: ELASTICSEARCH_PASSWORD
+{{- end }}
 {{- if .Values.conf.elasticsearch.snapshots.enabled }}
 {{- include "helm-toolkit.snippets.rgw_s3_user_env_vars" . | indent 12 }}
 {{- end }}
@@ -204,6 +213,7 @@ spec:
               readOnly: true
             - name: storage
               mountPath: {{ .Values.conf.elasticsearch.config.path.data }}
+{{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.elasticsearch.elasticsearch.internal "path" "/usr/share/elasticsearch/config" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
 {{ if $mounts_elasticsearch.volumeMounts }}{{ toYaml $mounts_elasticsearch.volumeMounts | indent 12 }}{{ end }}
       volumes:
         - name: pod-tmp

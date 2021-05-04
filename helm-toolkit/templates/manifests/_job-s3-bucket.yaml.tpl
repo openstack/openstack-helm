@@ -31,6 +31,8 @@ limitations under the License.
 {{- $serviceNamePretty := $serviceName | replace "_" "-" -}}
 {{- $s3UserSecret := index $envAll.Values.secrets.rgw $serviceName -}}
 {{- $s3Bucket := index . "s3Bucket" | default $serviceName }}
+{{- $tlsCertificateSecret := index . "tlsCertificateSecret" -}}
+{{- $tlsCertificatePath := index . "tlsCertificatePath" -}}
 
 {{- $serviceAccountName := printf "%s-%s" $serviceNamePretty "s3-bucket" }}
 {{ tuple $envAll "s3_bucket" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
@@ -73,6 +75,10 @@ spec:
             - -c
             - /tmp/create-s3-bucket.sh
           env:
+{{- if and ($tlsCertificatePath) ($tlsCertificateSecret) }}
+            - name: TLS_OPTION
+              value: {{ printf "--ca-certs=%s" $tlsCertificatePath | quote }}
+{{- end }}
 {{- with $env := dict "s3AdminSecret" $envAll.Values.secrets.rgw.admin }}
 {{- include "helm-toolkit.snippets.rgw_s3_admin_env_vars" $env | indent 12 }}
 {{- end }}
@@ -96,6 +102,12 @@ spec:
               subPath: key
               readOnly: true
             {{ end }}
+{{- if and ($tlsCertificatePath) ($tlsCertificateSecret) }}
+            - name: {{ $tlsCertificateSecret }}
+              mountPath: {{ $tlsCertificatePath }}
+              subPath: ca.crt
+              readOnly: true
+{{- end }}
       volumes:
         - name: pod-tmp
           emptyDir: {}
@@ -120,4 +132,10 @@ spec:
           secret:
             secretName: pvc-ceph-client-key
         {{ end }}
+{{- if and ($tlsCertificatePath) ($tlsCertificateSecret) }}
+        - name: {{ $tlsCertificateSecret }}
+          secret:
+            secretName: {{ $tlsCertificateSecret }}
+            defaultMode: 292
+{{- end }}
 {{- end -}}

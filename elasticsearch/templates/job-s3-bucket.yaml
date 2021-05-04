@@ -15,5 +15,9 @@ limitations under the License.
 {{- if and (.Values.manifests.job_s3_bucket) (.Values.conf.elasticsearch.snapshots.enabled) }}
 {{- $esBucket := .Values.conf.elasticsearch.snapshots.bucket }}
 {{- $s3BucketJob := dict "envAll" . "serviceName" "elasticsearch" "s3Bucket" $esBucket -}}
+{{- if .Values.manifests.certificates }}
+{{- $_ := set $s3BucketJob "tlsCertificateSecret" .Values.secrets.tls.elasticsearch.elasticsearch.internal -}}
+{{- $_ := set $s3BucketJob "tlsCertificatePath" "/etc/elasticsearch/certs/ca.crt" -}}
+{{- end }}
 {{ $s3BucketJob | include "helm-toolkit.manifests.job_s3_bucket" }}
 {{- end -}}

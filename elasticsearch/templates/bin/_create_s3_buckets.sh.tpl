@@ -54,7 +54,7 @@ CONNECTION_ARGS="--host=$RGW_HOST --host-bucket=$RGW_HOST"
 if [ "$RGW_PROTO" = "http" ]; then
   CONNECTION_ARGS+=" --no-ssl"
 else
-  CONNECTION_ARGS+=" --no-check-certificate"
+  CONNECTION_ARGS+=" ${TLS_OPTION}"
 fi
 
 USER_AUTH_ARGS=" --access_key=$S3_ACCESS_KEY --secret_key=$S3_SECRET_KEY"
