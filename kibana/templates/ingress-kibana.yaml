@@ -12,7 +12,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+
 {{- if and .Values.manifests.ingress .Values.network.kibana.ingress.public }}
-{{- $ingressOpts := dict "envAll" . "backendService" "kibana" "backendServiceType" "kibana" "backendPort" "http" -}}
+{{- $envAll := . -}}
+{{- $ingressOpts := dict "envAll" $envAll "backendService" "kibana" "backendServiceType" "kibana" "backendPort" "http" -}}
+{{- if .Values.manifests.certificates -}}
+{{- $_ := set $ingressOpts "certIssuer" .Values.endpoints.kibana.host_fqdn_override.default.tls.issuerRef.name -}}
+{{- end -}}
 {{ $ingressOpts | include "helm-toolkit.manifests.ingress" }}
 {{- end }}
