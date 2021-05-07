@@ -17,6 +17,7 @@ limitations under the License.
 import errno
 import logging
 import os
+import secrets
 import select
 import signal
 import subprocess  # nosec
@@ -58,6 +59,8 @@ kubernetes_version = kubernetes.client.VersionApi().get_code().git_version
 logger.info("Kubernetes API Version: {0}".format(kubernetes_version))
 k8s_api_instance = kubernetes.client.CoreV1Api()
 
+# Setup secrets generator
+secretsGen = secrets.SystemRandom()
 
 def check_env_var(env_var):
     """Check if an env var exists.
@@ -325,26 +328,33 @@ def safe_update_configmap(configmap_dict, configmap_patch):
     # ensure nothing else has modified the confimap since we read it.
     configmap_patch['metadata']['resourceVersion'] = configmap_dict[
         'metadata']['resource_version']
-    try:
-        api_response = k8s_api_instance.patch_namespaced_config_map(
-            name=state_configmap_name,
-            namespace=pod_namespace,
-            body=configmap_patch)
-        return True
-    except kubernetes.client.rest.ApiException as error:
-        if error.status == 409:
-            # This status code indicates a collision trying to write to the
-            # config map while another instance is also trying the same.
-            logger.warning("Collision writing configmap: {0}".format(error))
-            # This often happens when the replicas were started at the same
-            # time, and tends to be persistent. Sleep briefly to break the
-            # synchronization.
-            time.sleep(1)
-            return True
-        else:
-            logger.error("Failed to set configmap: {0}".format(error))
-            return error
 
+    # Retry up to 8 times in case of 409 only.  Each retry has a ~1 second
+    # sleep in between so do not want to exceed the roughly 10 second
+    # write interval per cm update.
+    for i in range(8):
+        try:
+            api_response = k8s_api_instance.patch_namespaced_config_map(
+                name=state_configmap_name,
+                namespace=pod_namespace,
+                body=configmap_patch)
+            return True
+        except kubernetes.client.rest.ApiException as error:
+            if error.status == 409:
+                # This status code indicates a collision trying to write to the
+                # config map while another instance is also trying the same.
+                logger.warning("Collision writing configmap: {0}".format(error))
+                # This often happens when the replicas were started at the same
+                # time, and tends to be persistent. Sleep with some random
+                # jitter value briefly to break the synchronization.
+                naptime = secretsGen.uniform(0.8,1.2)
+                time.sleep(naptime)
+            else:
+                logger.error("Failed to set configmap: {0}".format(error))
+                return error
+        logger.info("Retry writing configmap attempt={0} sleep={1}".format(
+            i+1, naptime))
+    return True
 
 def set_configmap_annotation(key, value):
     """Update a configmap's annotations via patching.
@@ -842,6 +852,14 @@ def run_mysqld(cluster='existing'):
         logger.info(
             "This is a fresh node joining the cluster for the 1st time, not attempting to set admin passwords"
         )
+
+    # Node ready to start MariaDB, update cluster state to live and remove
+    # reboot node info, if set previously.
+    if cluster == 'new':
+        set_configmap_annotation(
+            key='openstackhelm.openstack.org/cluster.state', value='live')
+        set_configmap_annotation(
+            key='openstackhelm.openstack.org/reboot.node', value='')
 
     logger.info("Launching MariaDB")
     run_cmd_with_logging(mysqld_cmd, logger)
