@@ -19,14 +19,6 @@ kind: Service
 apiVersion: v1
 metadata:
   name: {{ tuple "ceph_mon" "discovery" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
-  annotations:
-    # In kubernetes 1.6 and beyond, it seems there was a change in behavior
-    # requiring us to tolerate unready endpoints to form a quorum.  I can only
-    # guess at some small timing change causing statefulset+2 to not see the
-    # now ready statefulset+1, and because we do not tolerate unready endpoints
-    # a newly provisioned ceph-mon will most certainly never see itself in the
-    # peer list.  This change allows us to form a quorum reliably everytime
-    service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
 spec:
   ports:
   - name: mon
@@ -40,4 +32,5 @@ spec:
   selector:
 {{ tuple $envAll "ceph" "mon" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
   clusterIP: None
+  publishNotReadyAddresses: true
 {{- end }}
