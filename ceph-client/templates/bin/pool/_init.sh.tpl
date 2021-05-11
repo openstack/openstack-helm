@@ -325,13 +325,27 @@ fi
 
 {{- range $pool := .Values.conf.pool.spec -}}
 {{- with $pool }}
+pool_name="{{ .name }}"
+{{- if .rename }}
+# If a renamed pool exists, that name should be used for idempotence
+if [[ -n "$(ceph --cluster ${CLUSTER} osd pool ls | grep ^{{ .rename }}$)" ]]; then
+  pool_name="{{ .rename }}"
+fi
+{{- end }}
 # Read the pool quota from the pool spec (no quota if absent)
 # Set pool_quota to 0 if target_quota is 0
 [[ ${target_quota} -eq 0 ]] && pool_quota=0 || pool_quota="$(convert_to_bytes {{ .pool_quota | default 0 }})"
 {{- if .crush_rule }}
-manage_pool {{ .application }} {{ .name }} {{ .replication }} {{ .percent_total_data }} {{ $targetPGperOSD }} {{ .crush_rule }} $pool_quota {{ $targetProtection }} ${cluster_capacity}
+manage_pool {{ .application }} ${pool_name} {{ .replication }} {{ .percent_total_data }} {{ $targetPGperOSD }} {{ .crush_rule }} $pool_quota {{ $targetProtection }} ${cluster_capacity}
 {{ else }}
-manage_pool {{ .application }} {{ .name }} {{ .replication }} {{ .percent_total_data }} {{ $targetPGperOSD }} {{ $crushRuleDefault }} $pool_quota {{ $targetProtection }} ${cluster_capacity}
+manage_pool {{ .application }} ${pool_name} {{ .replication }} {{ .percent_total_data }} {{ $targetPGperOSD }} {{ $crushRuleDefault }} $pool_quota {{ $targetProtection }} ${cluster_capacity}
+{{- end }}
+{{- if .rename }}
+# If a rename value exists, the pool exists, and a pool with the rename value doesn't exist, rename the pool
+if [[ -n "$(ceph --cluster ${CLUSTER} osd pool ls | grep ^{{ .name }}$)" ]] &&
+   [[ -z "$(ceph --cluster ${CLUSTER} osd pool ls | grep ^{{ .rename }}$)" ]]; then
+  ceph --cluster "${CLUSTER}" osd pool rename "{{ .name }}" "{{ .rename }}"
+fi
 {{- end }}
 {{- end }}
 {{- end }}
