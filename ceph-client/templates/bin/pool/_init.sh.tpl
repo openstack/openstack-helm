@@ -42,9 +42,9 @@ function wait_for_pgs () {
   # Loop until all pgs are active
   while [[ $pgs_ready -lt 3 ]]; do
     pgs_state=$(ceph --cluster ${CLUSTER} pg ls -f json | jq -c "${query}")
-    if [[ $(jq -c '. | select(.state | contains("peer") or contains("activating") | not)' <<< "${pgs_state}") ]]; then
-      # If inactive PGs aren't peering, fail
-      echo "Failure, found inactive PGs that aren't peering"
+    if [[ $(jq -c '. | select(.state | contains("peer") or contains("activating") or contains("recover") or contains("unknown") or contains("creating") | not)' <<< "${pgs_state}") ]]; then
+      # If inactive PGs aren't in the allowed set of states above, fail
+      echo "Failure, found inactive PGs that aren't in the allowed set of states"
       exit 1
     fi
     if [[ "${pgs_state}" ]]; then
