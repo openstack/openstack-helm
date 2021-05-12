@@ -58,11 +58,7 @@ function ansible_install {
   # https://github.com/python-cmd2/cmd2/issues/421
   sudo -H -E pip3 install --upgrade "cmd2<=0.8.7"
   sudo -H -E pip3 install --upgrade pyopenssl
-  # NOTE(srwilkers): Pinning ansible to 2.5.5, as pip installs 2.6 by default.
-  # 2.6 introduces a new command flag (init) for the docker_container module
-  # that is incompatible with what we have currently. 2.5.5 ensures we match
-  # what's deployed in the gates
-  sudo -H -E pip3 install --upgrade "ansible==2.5.5"
+  sudo -H -E pip3 install --upgrade "ansible==2.9"
   sudo -H -E pip3 install --upgrade \
     ara==0.16.5 \
     yq
