@@ -372,5 +372,5 @@ In order to add support for more SDNs, these steps need to be performed:
 
 Nova config dependency
 ~~~~~~~~~~~~~~~~~~~~~~
-Whenever we change the L2 agent, it should be reflected in `nova/values.yaml`
+Whenever we change the L2 agent, it should be reflected in ``nova/values.yaml``
 in dependency resolution for nova-compute.
