@@ -73,7 +73,7 @@ logger.info("Attempting to log into Grafana dashboard")
 try:
     browser.find_element_by_name('user').send_keys(username)
     browser.find_element_by_name('password').send_keys(password)
-    browser.find_element_by_class_name('css-6ntnx5-button').click()
+    browser.find_element_by_css_selector('[aria-label="Login button"]').click()
     logger.info("Successfully logged in to Grafana")
 except NoSuchElementException:
     logger.error("Failed to log in to Grafana")
