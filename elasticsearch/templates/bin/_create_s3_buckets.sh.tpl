@@ -38,6 +38,7 @@ ADMIN_AUTH_ARGS=" --access_key=$S3_ADMIN_ACCESS_KEY --secret_key=$S3_ADMIN_SECRE
 
 S3_BUCKET={{ $bucket.name }}
 S3_BUCKET_OPTS={{ $bucket.options | default nil | include "helm-toolkit.utils.joinListWithSpace" }}
+S3_SSL_OPT={{ $bucket.ssl_connection_option | default "" }}
 
 S3_USERNAME=${{ printf "%s_S3_USERNAME" ( $bucket.client | replace "-" "_" | upper) }}
 S3_ACCESS_KEY=${{ printf "%s_S3_ACCESS_KEY" ( $bucket.client | replace "-" "_" | upper) }}
@@ -54,7 +55,7 @@ CONNECTION_ARGS="--host=$RGW_HOST --host-bucket=$RGW_HOST"
 if [ "$RGW_PROTO" = "http" ]; then
   CONNECTION_ARGS+=" --no-ssl"
 else
-  CONNECTION_ARGS+=" ${TLS_OPTION}"
+  CONNECTION_ARGS+=" $S3_SSL_OPT"
 fi
 
 USER_AUTH_ARGS=" --access_key=$S3_ACCESS_KEY --secret_key=$S3_SECRET_KEY"

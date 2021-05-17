@@ -75,10 +75,6 @@ spec:
             - -c
             - /tmp/create-s3-bucket.sh
           env:
-{{- if and ($tlsCertificatePath) ($tlsCertificateSecret) }}
-            - name: TLS_OPTION
-              value: {{ printf "--ca-certs=%s" $tlsCertificatePath | quote }}
-{{- end }}
 {{- with $env := dict "s3AdminSecret" $envAll.Values.secrets.rgw.admin }}
 {{- include "helm-toolkit.snippets.rgw_s3_admin_env_vars" $env | indent 12 }}
 {{- end }}
