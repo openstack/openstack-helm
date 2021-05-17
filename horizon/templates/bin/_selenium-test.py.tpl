@@ -17,6 +17,7 @@ limitations under the License.
 import os
 import sys
 import logging
+
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -37,6 +38,7 @@ formatter = logging.Formatter(
 ch.setFormatter(formatter)
 logger.addHandler(ch)
 
+
 def get_variable(env_var):
     if env_var in os.environ:
         logger.info('Found "{}"'.format(env_var))
@@ -44,6 +46,7 @@ def get_variable(env_var):
     else:
         logger.critical('Variable "{}" is not defined!'.format(env_var))
         sys.exit(1)
+
 
 keystone_user = get_variable('OS_USERNAME')
 keystone_password = get_variable('OS_PASSWORD')
