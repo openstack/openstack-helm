@@ -11,15 +11,12 @@ rolling updates of containers, replacing them with the updating image.
 
 As Helm stands today, several issues exist when you update images within
 charts that might have been used by jobs that already ran to completion
-or are still in flight. OpenStack-Helm developers will continue to work
-with the Helm community or develop charts that will support job removal
-prior to an upgrade, which will recreate services with updated images.
-An example of where this behavior would be desirable is when an updated
-db\_sync image has updated to point from a Mitaka image to a Newton
-image. In this case, the operator will likely want a db\_sync job, which
-was already run and completed during site installation, to run again
-with the updated image to bring the schema inline with the Newton
-release.
+or are still in flight. An example of where this behavior would be
+desirable is when an updated db\_sync image has updated to point from
+one openstack release to another. In this case, the operator will likely
+want a db\_sync job, which was already run and completed during site
+installation, to run again with the updated image to bring the schema
+inline with the Newton release.
 
 The OpenStack-Helm project also implements annotations across all chart
 configmaps so that changing resources inside containers, such as
