@@ -19,7 +19,7 @@ import requests
 import sys
 
 def main(args):
-    base_url, token, domainId, domainName, filename = args[1], args[2], args[3], args[4], args[5]
+    base_url, token, domainId, filename = args[1], args[2], args[3], args[5]
     url = "%s/domains/%s/config" % (base_url, domainId)
     print("Connecting to url: %r" % url)
 
@@ -47,11 +47,11 @@ def main(args):
                                 data=json.dumps(data),
                                 headers=headers, verify=verify)
 
-
     print("Response code on action [%s]: %s" % (action, response.status_code))
     # Put and Patch can return 200 or 201. If it is not a 2XX code, error out.
     if (response.status_code // 100) != 2:
         sys.exit(1)
+
 
 if __name__ == "__main__":
     if len(sys.argv) != 6:

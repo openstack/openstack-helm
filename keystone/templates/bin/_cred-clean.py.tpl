@@ -36,7 +36,8 @@ logger = logging.getLogger('OpenStack-Helm DB Drop')
 logger.setLevel(logging.DEBUG)
 ch = logging.StreamHandler()
 ch.setLevel(logging.DEBUG)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+formatter = logging.Formatter(
+    '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 # Set the formatter and add the handler
 ch.setFormatter(formatter)
@@ -54,7 +55,9 @@ else:
 mysql_x509 = os.getenv('MARIADB_X509', "")
 ssl_args = {}
 if mysql_x509:
-    ssl_args = {'ssl': {'ca': '/etc/mysql/certs/ca.crt', 'key': '/etc/mysql/certs/tls.key', 'cert': '/etc/mysql/certs/tls.crt'}}
+    ssl_args = {'ssl': {'ca': '/etc/mysql/certs/ca.crt',
+                        'key': '/etc/mysql/certs/tls.key',
+                        'cert': '/etc/mysql/certs/tls.crt'}}
 
 # Get the connection string for the service db
 if "OPENSTACK_CONFIG_FILE" in os.environ:
@@ -62,7 +65,8 @@ if "OPENSTACK_CONFIG_FILE" in os.environ:
     if "OPENSTACK_CONFIG_DB_SECTION" in os.environ:
         os_conf_section = os.environ['OPENSTACK_CONFIG_DB_SECTION']
     else:
-        logger.critical('environment variable OPENSTACK_CONFIG_DB_SECTION not set')
+        logger.critical(
+            'environment variable OPENSTACK_CONFIG_DB_SECTION not set')
         sys.exit(1)
     if "OPENSTACK_CONFIG_DB_KEY" in os.environ:
         os_conf_key = os.environ['OPENSTACK_CONFIG_DB_KEY']
@@ -78,13 +82,15 @@ if "OPENSTACK_CONFIG_FILE" in os.environ:
         user_db_conn = config.get(os_conf_section, os_conf_key)
         logger.info("Got config from {0}".format(os_conf))
     except:
-        logger.critical("Tried to load config from {0} but failed.".format(os_conf))
+        logger.critical(
+            "Tried to load config from {0} but failed.".format(os_conf))
         raise
 elif "DB_CONNECTION" in os.environ:
     user_db_conn = os.environ['DB_CONNECTION']
     logger.info('Got config from DB_CONNECTION env var')
 else:
-    logger.critical('Could not get db config, either from config file or env var')
+    logger.critical(
+        'Could not get db config, either from config file or env var')
     sys.exit(1)
 
 # Root DB engine
@@ -95,7 +101,8 @@ try:
     drivername = root_engine_full.url.drivername
     host = root_engine_full.url.host
     port = root_engine_full.url.port
-    root_engine_url = ''.join([drivername, '://', root_user, ':', root_password, '@', host, ':', str (port)])
+    root_engine_url = ''.join([drivername, '://', root_user, ':',
+                               root_password, '@', host, ':', str(port)])
     root_engine = create_engine(root_engine_url, connect_args=ssl_args)
     connection = root_engine.connect()
     connection.close()
