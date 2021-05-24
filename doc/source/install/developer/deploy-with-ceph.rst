@@ -15,7 +15,7 @@ on the node then feel free to skip creating loopback devices by exporting
 CREATE_LOOPBACK_DEVICES_FOR_CEPH to false and export the  block devices names
 as environment variables(CEPH_OSD_DATA_DEVICE and CEPH_OSD_DB_WAL_DEVICE).
 
-We are also going to seperate Ceph metadata and data onto a different devices
+We are also going to separate Ceph metadata and data onto a different devices
 to replicate the ideal scenario of fast disks for metadata and slow disks to store data.
 You can change this as per your design by referring to the documentation explained in
 ../openstack-helm-infra/ceph-osd/values.yaml
