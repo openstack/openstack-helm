@@ -31,14 +31,31 @@ RABBITMQ_ADMIN_PASSWORD=`echo $RABBITMQ_ADMIN_CONNECTION | awk -F'[@]' '{print $
 set -ex
 
 function rabbitmqadmin_authed () {
-  set +x
-  rabbitmqadmin \
-    --host="${RABBIT_HOSTNAME}" \
-    --port="${RABBIT_PORT}" \
-    --username="${RABBITMQ_ADMIN_USERNAME}" \
-    --password="${RABBITMQ_ADMIN_PASSWORD}" \
-    $@
-  set -x
+  if [ -n "$RABBITMQ_X509" ]
+  then
+    set +x
+    rabbitmqadmin \
+      --ssl \
+      --ssl-disable-hostname-verification \
+      --ssl-ca-cert-file="/etc/rabbitmq/certs/ca.crt" \
+      --ssl-cert-file="/etc/rabbitmq/certs/tls.crt" \
+      --ssl-key-file="/etc/rabbitmq/certs/tls.key" \
+      --host="${RABBIT_HOSTNAME}" \
+      --port="${RABBIT_PORT}" \
+      --username="${RABBITMQ_ADMIN_USERNAME}" \
+      --password="${RABBITMQ_ADMIN_PASSWORD}" \
+      ${@}
+    set -x
+  else
+    set +x
+    rabbitmqadmin \
+      --host="${RABBIT_HOSTNAME}" \
+      --port="${RABBIT_PORT}" \
+      --username="${RABBITMQ_ADMIN_USERNAME}" \
+      --password="${RABBITMQ_ADMIN_PASSWORD}" \
+      $@
+    set -x
+  fi
 }
 
 function active_rabbit_nodes () {
