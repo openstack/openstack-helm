@@ -138,8 +138,8 @@ Adding a DPDK port to Openvswitch fails
 When adding a DPDK port (a NIC bound to DPDK) to OVS fails, one source of error
 is related to an incorrect configuration with regards to the NUMA topology of
 the underlying hardware. Every NIC is connected to one specific NUMA socket. In
-order to use a NIC as DPDK port in OVS, the OVS configuration regarding
-hugepages and PMD threas needs to match the NUMA topology.
+order to use a NIC as DPDK port in OVS, the OVS configurations regarding
+hugepage(s) and PMD thread(s) need to match the NUMA topology.
 
 The NUMA socket a given NIC is connected to can be found in the ovs-vswitchd log:
 
