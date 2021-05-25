@@ -345,6 +345,17 @@ manage_pool {{ .application }} ${pool_name} {{ .replication }} {{ .percent_total
 if [[ -n "$(ceph --cluster ${CLUSTER} osd pool ls | grep ^{{ .name }}$)" ]] &&
    [[ -z "$(ceph --cluster ${CLUSTER} osd pool ls | grep ^{{ .rename }}$)" ]]; then
   ceph --cluster "${CLUSTER}" osd pool rename "{{ .name }}" "{{ .rename }}"
+  pool_name="{{ .rename }}"
+fi
+{{- end }}
+{{- if and .delete .delete_all_pool_data }}
+# If delete is set to true and delete_all_pool_data is also true, delete the pool
+if [[ "true" == "{{ .delete }}" ]] &&
+   [[ "true" == "{{ .delete_all_pool_data }}" ]]; then
+  ceph --cluster "${CLUSTER}" tell mon.* injectargs '--mon-allow-pool-delete=true'
+  ceph --cluster "${CLUSTER}" osd pool set "${pool_name}" nodelete false
+  ceph --cluster "${CLUSTER}" osd pool delete "${pool_name}" "${pool_name}" --yes-i-really-really-mean-it
+  ceph --cluster "${CLUSTER}" tell mon.* injectargs '--mon-allow-pool-delete=false'
 fi
 {{- end }}
 {{- end }}
