@@ -22,6 +22,7 @@
 #         export REMOTE_DAYS_TO_KEEP   Number of days to keep the remote backups
 #         export ARCHIVE_DIR           Local location where the backup tarballs should
 #                                      be stored. (full directory path)
+#         export BACK_UP_MODE          Determines the mode of backup taken.
 #         export REMOTE_BACKUP_ENABLED "true" if remote backup enabled; false
 #                                      otherwise
 #         export CONTAINER_NAME        Name of the container on the RGW to store
@@ -314,7 +315,11 @@ backup_databases() {
   log INFO "${DB_NAME}_backup" "Databases dumped successfully. Creating tarball..."
 
   NOW=$(date +"%Y-%m-%dT%H:%M:%SZ")
-  TARBALL_FILE="${DB_NAME}.${DB_NAMESPACE}.${SCOPE}.${NOW}.tar.gz"
+  if [[ -z "${BACK_UP_MODE}" ]]; then
+    TARBALL_FILE="${DB_NAME}.${DB_NAMESPACE}.${SCOPE}.${NOW}.tar.gz"
+  else
+    TARBALL_FILE="${DB_NAME}.${DB_NAMESPACE}.${SCOPE}.${BACK_UP_MODE}.${NOW}.tar.gz"
+  fi
 
   cd $TMP_DIR || log_backup_error_exit "Cannot change to directory $TMP_DIR"
 
