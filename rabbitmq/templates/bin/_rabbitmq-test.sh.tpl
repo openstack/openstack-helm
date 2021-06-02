@@ -32,12 +32,27 @@ set -x
 
 function rabbitmqadmin_authed () {
   set +x
-  rabbitmqadmin \
-    --host="${RABBIT_HOSTNAME}" \
-    --port="${RABBIT_PORT}" \
-    --username="${RABBITMQ_ADMIN_USERNAME}" \
-    --password="${RABBITMQ_ADMIN_PASSWORD}" \
-    $@
+  if [ -n "$RABBITMQ_X509" ]
+  then
+    rabbitmqadmin \
+      --ssl \
+      --ssl-disable-hostname-verification \
+      --ssl-ca-cert-file="/etc/rabbitmq/certs/ca.crt" \
+      --ssl-cert-file="/etc/rabbitmq/certs/tls.crt" \
+      --ssl-key-file="/etc/rabbitmq/certs/tls.key" \
+      --host="${RABBIT_HOSTNAME}" \
+      --port="${RABBIT_PORT}" \
+      --username="${RABBITMQ_ADMIN_USERNAME}" \
+      --password="${RABBITMQ_ADMIN_PASSWORD}" \
+      ${@}
+  else
+    rabbitmqadmin \
+      --host="${RABBIT_HOSTNAME}" \
+      --port="${RABBIT_PORT}" \
+      --username="${RABBITMQ_ADMIN_USERNAME}" \
+      --password="${RABBITMQ_ADMIN_PASSWORD}" \
+      $@
+  fi
   set -x
 }
 
