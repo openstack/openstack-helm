@@ -19,8 +19,8 @@ Getting help
 Channels
 --------
 
-* Join us on `IRC <irc://chat.freenode.net:6697/openstack-helm>`_:
-  #openstack-helm on freenode
+* Join us on `IRC <irc://chat.oftc.net/openstack-helm>`_:
+  #openstack-helm on oftc
 * Join us on `Slack <http://slack.k8s.io/>`_ - #openstack-helm
 
 Bugs and Feature requests
