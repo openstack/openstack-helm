@@ -470,6 +470,44 @@ conf:
       bind_port: null
     oslo_policy:
       policy_file: /etc/barbican/policy.yaml
+    # When using the simple_crypto_plugin, a kek must be provided as:
+    #   .conf.barbican.simple_crypto_plugin.kek
+    # If no kek is provided, barbican will use a well-known default.
+    # If upgrading the chart with a new kek, the old kek must be provided as:
+    #   .conf.simple_crypto_plugin_rewrap.old_kek
+    # Please refer to the .conf.simple_crypto_key_rewrap section below.
+    # The barbican defaults are included here as a reference:
+    #   secretstore:
+    #     enabled_secretstore_plugins:
+    #       - store_crypto
+    #   crypto:
+    #     enabled_crypto_plugins:
+    #       - simple_crypto
+    #   simple_crypto_plugin:
+    #     # The kek should be a 32-byte value which is base64 encoded.
+    #     kek: "dGhpcnR5X3R3b19ieXRlX2tleWJsYWhibGFoYmxhaGg="
+  # KEK rotation for the simple_crypto plugin
+  simple_crypto_kek_rewrap:
+
+    # To allow for chart upgrades when modifying the Key Encryption Key, the
+    # db-sync job can rewrap the existing project keys with the new kek, leaving
+    # each secret’s encrypted data unchanged.
+
+    # This feature is enabled automatically, if a kek is specified at:
+    #   .conf.barbican.simple_crypto_plugin.kek
+    # and the previous kek is also specified at:
+    #   .conf.simple_crypto_kek_rewrap.old_kek
+
+    # The project keys are decrypted with 'old_kek' and re-encrypted with the
+    # target kek (as defined in barbican.conf).
+    # This resembles the lightweight rotation described here, which was never
+    # implemented for the simple crypto plugin:
+    # https://specs.openstack.org/openstack/barbican-specs/specs/liberty/add-crypto-mkek-rotation-support-lightweight.html
+
+    # The KEK value "dGhpcnR5X3R3b19ieXRlX2tleWJsYWhibGFoYmxhaGg=" matches the
+    # plugin default, and is retained here for convenience, in case the chart was
+    # previously installed without explicitly specifying a kek.
+    old_kek: "dGhpcnR5X3R3b19ieXRlX2tleWJsYWhibGFoYmxhaGg="
   logging:
     loggers:
       keys:
