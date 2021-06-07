@@ -24,6 +24,12 @@ httpGet:
 
 {{- $rcControllerName := printf "%s-%s" $envAll.Release.Name "rabbitmq-exporter"  }}
 {{ tuple $envAll "prometheus_rabbitmq_exporter" $rcControllerName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+
+{{- $protocol := "http" }}
+{{- if $envAll.Values.manifests.certificates }}
+{{- $protocol = "https" }}
+{{- end }}
+
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -67,7 +73,7 @@ spec:
           - name: RABBIT_TIMEOUT
             value: "{{ .Values.conf.rabbitmq_exporter.rabbit_timeout }}"
           - name: RABBIT_URL
-            value: http://{{ tuple "oslo_messaging" "internal" . | include "helm-toolkit.endpoints.hostname_fqdn_endpoint_lookup" }}:15672
+            value: {{  printf "%s" $protocol }}://{{ tuple "oslo_messaging" "internal" . | include "helm-toolkit.endpoints.hostname_fqdn_endpoint_lookup" }}:{{ tuple "oslo_messaging" "internal" $protocol . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
           - name: RABBIT_USER
             valueFrom:
               secretKeyRef:
@@ -92,4 +98,16 @@ spec:
             value: {{ $envAll.Values.conf.prometheus_exporter.include_queues | default ".*" | quote }}
           - name: RABBIT_EXPORTERS
             value: {{ $envAll.Values.conf.prometheus_exporter.rabbit_exporters | default "overview,exchange,node,queue" | quote }}
+{{- if $envAll.Values.manifests.certificates }}
+          - name: CAFILE
+            value: "/etc/rabbitmq/certs/ca.crt"
+          - name: CERTFILE
+            value: "/etc/rabbitmq/certs/tls.crt"
+          - name: KEYFILE
+            value: "/etc/rabbitmq/certs/tls.key"
+          volumeMounts:
+{{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.oslo_messaging.server.internal "path" "/etc/rabbitmq/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
+      volumes:
+{{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.oslo_messaging.server.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
+{{- end }}
 {{- end }}

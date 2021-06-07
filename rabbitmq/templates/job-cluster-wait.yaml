@@ -17,6 +17,11 @@ limitations under the License.
 
 {{- $serviceAccountName := print .Release.Name "-cluster-wait" }}
 {{ tuple $envAll "cluster_wait" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+
+{{- $protocol := "http" }}
+{{- if $envAll.Values.manifests.certificates }}
+{{- $protocol = "https" }}
+{{- end }}
 ---
 apiVersion: batch/v1
 kind: Job
@@ -68,13 +73,9 @@ spec:
 {{ dict "envAll" $envAll "application" "cluster_wait" "container" "rabbitmq_cluster_wait" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           env:
             - name: RABBITMQ_ADMIN_CONNECTION
-              value: {{ tuple "oslo_messaging" "internal" "user" "http" $envAll | include "helm-toolkit.endpoints.authenticated_endpoint_uri_lookup" | quote }}
+              value: {{ tuple "oslo_messaging" "internal" "user" $protocol $envAll | include "helm-toolkit.endpoints.authenticated_endpoint_uri_lookup" | quote }}
             - name: RABBIT_REPLICA_COUNT
               value: {{ $envAll.Values.pod.replicas.server | quote }}
-{{- if $envAll.Values.manifests.certificates }}
-            - name: RABBITMQ_X509
-              value: "REQUIRE X509"
-{{- end }}
           command:
             - /tmp/rabbitmq-wait-for-cluster.sh
           volumeMounts:

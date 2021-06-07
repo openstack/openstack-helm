@@ -34,6 +34,11 @@ limitations under the License.
 
 {{- $rcControllerName := printf "%s-%s" $envAll.Release.Name "rabbitmq" }}
 {{ tuple $envAll "rabbitmq" $rcControllerName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+
+{{- $protocol := "http" }}
+{{- if $envAll.Values.manifests.certificates }}
+{{- $protocol = "https" }}
+{{- end }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -173,9 +178,9 @@ spec:
           command:
             - /tmp/rabbitmq-start.sh
           ports:
-            - name: http
+            - name: {{  printf "%s" $protocol }}
               protocol: TCP
-              containerPort: {{ tuple "oslo_messaging" "internal" "http" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+              containerPort: {{ tuple "oslo_messaging" "internal" $protocol . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
             - name: amqp
               protocol: TCP
               containerPort: {{ tuple "oslo_messaging" "internal" "amqp" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
@@ -202,7 +207,7 @@ spec:
             - name: RABBITMQ_ERLANG_COOKIE
               value: "{{ $envAll.Values.endpoints.oslo_messaging.auth.erlang_cookie }}"
             - name: PORT_HTTP
-              value: "{{ tuple "oslo_messaging" "internal" "http" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}"
+              value: "{{ tuple "oslo_messaging" "internal" $protocol . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}"
             - name: PORT_AMPQ
               value: "{{ tuple "oslo_messaging" "internal" "amqp" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}"
             - name: PORT_CLUSTERING

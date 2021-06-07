@@ -31,31 +31,21 @@ RABBITMQ_ADMIN_PASSWORD=`echo $RABBITMQ_ADMIN_CONNECTION | awk -F'[@]' '{print $
 set -ex
 
 function rabbitmqadmin_authed () {
-  if [ -n "$RABBITMQ_X509" ]
-  then
-    set +x
-    rabbitmqadmin \
-      --ssl \
-      --ssl-disable-hostname-verification \
-      --ssl-ca-cert-file="/etc/rabbitmq/certs/ca.crt" \
-      --ssl-cert-file="/etc/rabbitmq/certs/tls.crt" \
-      --ssl-key-file="/etc/rabbitmq/certs/tls.key" \
-      --host="${RABBIT_HOSTNAME}" \
-      --port="${RABBIT_PORT}" \
-      --username="${RABBITMQ_ADMIN_USERNAME}" \
-      --password="${RABBITMQ_ADMIN_PASSWORD}" \
-      ${@}
-    set -x
-  else
-    set +x
-    rabbitmqadmin \
-      --host="${RABBIT_HOSTNAME}" \
-      --port="${RABBIT_PORT}" \
-      --username="${RABBITMQ_ADMIN_USERNAME}" \
-      --password="${RABBITMQ_ADMIN_PASSWORD}" \
-      $@
-    set -x
-  fi
+  set +x
+  rabbitmqadmin \
+{{- if .Values.manifests.certificates }}
+    --ssl \
+    --ssl-disable-hostname-verification \
+    --ssl-ca-cert-file="/etc/rabbitmq/certs/ca.crt" \
+    --ssl-cert-file="/etc/rabbitmq/certs/tls.crt" \
+    --ssl-key-file="/etc/rabbitmq/certs/tls.key" \
+{{- end }}
+    --host="${RABBIT_HOSTNAME}" \
+    --port="${RABBIT_PORT}" \
+    --username="${RABBITMQ_ADMIN_USERNAME}" \
+    --password="${RABBITMQ_ADMIN_PASSWORD}" \
+    ${@}
+  set -x
 }
 
 function active_rabbit_nodes () {
