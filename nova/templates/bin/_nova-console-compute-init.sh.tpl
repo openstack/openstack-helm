@@ -19,7 +19,7 @@ set -ex
 console_kind="{{- .Values.console.console_kind -}}"
 
 if [ "${console_kind}" == "novnc" ] ; then
-    client_address="{{- .Values.conf.nova.vnc.vncserver_proxyclient_address -}}"
+    client_address="{{- .Values.conf.nova.vnc.server_proxyclient_address -}}"
     client_interface="{{- .Values.console.novnc.compute.vncserver_proxyclient_interface -}}"
     listen_ip="{{- .Values.conf.nova.vnc.server_listen -}}"
 elif [ "${console_kind}" == "spice" ] ; then
@@ -52,7 +52,7 @@ touch /tmp/pod-shared/nova-console.conf
 if [ "${console_kind}" == "novnc" ] ; then
   cat > /tmp/pod-shared/nova-console.conf <<EOF
 [vnc]
-vncserver_proxyclient_address = $client_address
+server_proxyclient_address = $client_address
 vncserver_listen = $listen_ip
 EOF
 elif [ "${console_kind}" == "spice" ] ; then
