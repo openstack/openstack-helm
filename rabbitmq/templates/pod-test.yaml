@@ -23,6 +23,11 @@ limitations under the License.
 
 {{- $serviceAccountName := print .Release.Name "-test" }}
 {{ tuple $envAll "tests" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+
+{{- $protocol := "http" }}
+{{- if $envAll.Values.manifests.certificates }}
+{{- $protocol = "https" }}
+{{- end }}
 ---
 apiVersion: v1
 kind: Pod
@@ -48,7 +53,7 @@ spec:
 {{ dict "envAll" $envAll "application" "test" "container" "rabbitmq_test" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 6 }}
       env:
         - name: RABBITMQ_ADMIN_CONNECTION
-          value: {{ tuple "oslo_messaging" "internal" "user" "http" $envAll | include "helm-toolkit.endpoints.authenticated_endpoint_uri_lookup" | quote }}
+          value: {{ tuple "oslo_messaging" "internal" "user" $protocol $envAll | include "helm-toolkit.endpoints.authenticated_endpoint_uri_lookup" | quote }}
         - name: RABBIT_REPLICA_COUNT
           value: {{ $envAll.Values.pod.replicas.server | quote }}
       command:
