@@ -56,7 +56,8 @@ network:
 deployment:
   storage_secrets: true
   ceph: true
-  rbd_provisioner: true
+  rbd_provisioner: false
+  csi_rbd_provisioner: true
   cephfs_provisioner: false
   client_secrets: false
   rgw_keystone_user_and_endpoints: false
@@ -107,8 +108,10 @@ conf:
           location: ${CEPH_OSD_DB_WAL_DEVICE}
           size: "2GB"
 storageclass:
-  rbd:
+  csi_rbd:
     ceph_configmap_name: ceph-etc
+  rbd:
+    provision_storage_class: false
   cephfs:
     provision_storage_class: false
 ceph_mgr_modules_config:

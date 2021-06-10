@@ -30,6 +30,7 @@ deployment:
   storage_secrets: false
   ceph: false
   rbd_provisioner: false
+  csi_rbd_provisioner: false
   cephfs_provisioner: false
   client_secrets: true
   rgw_keystone_user_and_endpoints: false
