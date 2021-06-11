@@ -34,6 +34,7 @@ deployment:
   ceph: false
   rbd_provisioner: false
   cephfs_provisioner: false
+  csi_rbd_provisioner: false
   client_secrets: true
 bootstrap:
   enabled: false

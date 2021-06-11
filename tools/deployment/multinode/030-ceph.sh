@@ -39,6 +39,7 @@ deployment:
   storage_secrets: true
   ceph: true
   rbd_provisioner: true
+  csi_rbd_provisioner: true
   cephfs_provisioner: false
   client_secrets: false
 bootstrap:
