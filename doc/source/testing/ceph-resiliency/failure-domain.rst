@@ -696,6 +696,7 @@ An example of a lab enviroment had the following paramters set for the ceph yaml
     storage_secrets: true
     ceph: true
     rbd_provisioner: true
+    csi_rbd_provisioner: true
     cephfs_provisioner: true
     client_secrets: false
     rgw_keystone_user_and_endpoints: false

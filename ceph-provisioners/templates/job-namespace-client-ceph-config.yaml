@@ -52,7 +52,11 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: {{ printf "%s-%s" $serviceAccountName $randStringSuffix }}
+{{- if eq .Values.storageclass.csi_rbd.provision_storage_class true }}
+  namespace: {{ .Values.storageclass.csi_rbd.parameters.adminSecretNamespace }}
+{{- else }}
   namespace: {{ .Values.storageclass.rbd.parameters.adminSecretNamespace }}
+{{- end }}
 rules:
   - apiGroups:
       - ""
@@ -66,7 +70,11 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: {{ printf "%s-%s" $serviceAccountName $randStringSuffix }}
+{{- if eq .Values.storageclass.csi_rbd.provision_storage_class true }}
+  namespace: {{ .Values.storageclass.csi_rbd.parameters.adminSecretNamespace }}
+{{- else }}
   namespace: {{ .Values.storageclass.rbd.parameters.adminSecretNamespace }}
+{{- end }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
@@ -102,13 +110,21 @@ spec:
 {{ dict "envAll" $envAll "application" "client_ceph_config_generator" "container" "ceph_storage_keys_generator" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           env:
             - name: CEPH_CONF_ETC
+{{- if eq .Values.storageclass.csi_rbd.provision_storage_class true }}
+              value: {{ .Values.storageclass.csi_rbd.ceph_configmap_name }}
+{{- else }}
               value: {{ .Values.storageclass.rbd.ceph_configmap_name }}
+{{- end }}
             - name: DEPLOYMENT_NAMESPACE
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
             - name: PVC_CEPH_RBD_STORAGECLASS_DEPLOYED_NAMESPACE
+{{- if eq .Values.storageclass.csi_rbd.provision_storage_class true }}
+              value: {{ .Values.storageclass.csi_rbd.parameters.adminSecretNamespace }}
+{{- else }}
               value: {{ .Values.storageclass.rbd.parameters.adminSecretNamespace }}
+{{- end }}
             - name: MON_PORT
               value: {{ tuple "ceph_mon" "internal" "mon" $envAll | include "helm-toolkit.endpoints.endpoint_port_lookup" | quote }}
             - name: MON_PORT_V2

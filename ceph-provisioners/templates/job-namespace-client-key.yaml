@@ -52,7 +52,11 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: {{ printf "%s-%s" $serviceAccountName $randStringSuffix }}
+{{- if eq .Values.storageclass.csi_rbd.provision_storage_class true }}
+  namespace: {{ .Values.storageclass.csi_rbd.parameters.adminSecretNamespace }}
+{{- else }}
   namespace: {{ .Values.storageclass.rbd.parameters.adminSecretNamespace }}
+{{- end }}
 rules:
   - apiGroups:
       - ""
@@ -66,7 +70,11 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: {{ printf "%s-%s" $serviceAccountName $randStringSuffix }}
+{{- if eq .Values.storageclass.csi_rbd.provision_storage_class true }}
+  namespace: {{ .Values.storageclass.csi_rbd.parameters.adminSecretNamespace }}
+{{- else }}
   namespace: {{ .Values.storageclass.rbd.parameters.adminSecretNamespace }}
+{{- end }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
@@ -105,12 +113,21 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
+{{- if eq .Values.storageclass.csi_rbd.provision_storage_class true }}
+            - name: PVC_CEPH_RBD_STORAGECLASS_USER_SECRET_NAME
+              value: {{ .Values.storageclass.csi_rbd.parameters.userSecretName }}
+            - name: PVC_CEPH_RBD_STORAGECLASS_ADMIN_SECRET_NAME
+              value: {{ .Values.storageclass.csi_rbd.parameters.adminSecretName }}
+            - name: PVC_CEPH_RBD_STORAGECLASS_DEPLOYED_NAMESPACE
+              value: {{ .Values.storageclass.csi_rbd.parameters.adminSecretNamespace }}
+{{- else }}
             - name: PVC_CEPH_RBD_STORAGECLASS_USER_SECRET_NAME
               value: {{ .Values.storageclass.rbd.parameters.userSecretName }}
             - name: PVC_CEPH_RBD_STORAGECLASS_ADMIN_SECRET_NAME
               value: {{ .Values.storageclass.rbd.parameters.adminSecretName }}
             - name: PVC_CEPH_RBD_STORAGECLASS_DEPLOYED_NAMESPACE
               value: {{ .Values.storageclass.rbd.parameters.adminSecretNamespace }}
+{{- end }}
           command:
             - /tmp/provisioner-rbd-namespace-client-key-manager.sh
           volumeMounts:

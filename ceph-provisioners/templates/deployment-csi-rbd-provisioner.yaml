@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if and .Values.manifests.deployment_csi_rbd_provisioner .Values.deployment.rbd_provisioner }}
+{{- if and .Values.manifests.deployment_csi_rbd_provisioner .Values.deployment.csi_rbd_provisioner }}
 {{- $envAll := . }}
 
 {{- $serviceAccountName := printf "%s-%s" .Release.Name "ceph-rbd-csi-provisioner" }}
@@ -112,7 +112,7 @@ metadata:
   labels:
 {{ tuple $envAll "rbd" "provisioner" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 spec:
-  replicas: {{ .Values.pod.replicas.rbd_provisioner }}
+  replicas: {{ .Values.pod.replicas.csi_rbd_provisioner }}
   selector:
     matchLabels:
 {{ tuple $envAll "rbd" "provisioner" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
@@ -129,7 +129,7 @@ spec:
       serviceAccountName: {{ $serviceAccountName }}
       affinity:
 {{ tuple $envAll "rbd" "provisioner" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
-{{ tuple $envAll "rbd_provisioner" | include "helm-toolkit.snippets.kubernetes_tolerations" | indent 6 }}
+{{ tuple $envAll "csi_rbd_provisioner" | include "helm-toolkit.snippets.kubernetes_tolerations" | indent 6 }}
       nodeSelector:
         {{ .Values.labels.provisioner.node_selector_key }}: {{ .Values.labels.provisioner.node_selector_value }}
       initContainers:
@@ -137,7 +137,7 @@ spec:
       containers:
         - name: ceph-rbd-provisioner
 {{ tuple $envAll "csi_provisioner" | include "helm-toolkit.snippets.image" | indent 10 }}
-{{ tuple $envAll $envAll.Values.pod.resources.rbd_provisioner | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.csi_rbd_provisioner | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
 {{ dict "envAll" $envAll "application" "provisioner" "container" "ceph_rbd_provisioner" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           env:
             - name: DEPLOYMENT_NAMESPACE
