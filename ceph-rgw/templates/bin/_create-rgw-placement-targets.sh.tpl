@@ -55,6 +55,7 @@ RGW_PLACEMENT_TARGET_EXISTS=$(radosgw-admin zonegroup placement get --placement-
 if [[ -z "$RGW_PLACEMENT_TARGET_EXISTS" ]]; then
   create_rgw_placement_target "$RGW_ZONEGROUP" "$RGW_PLACEMENT_TARGET"
   add_rgw_zone_placement "$RGW_ZONE" "$RGW_PLACEMENT_TARGET" "$RGW_PLACEMENT_TARGET_DATA_POOL" "$RGW_PLACEMENT_TARGET_INDEX_POOL" "$RGW_PLACEMENT_TARGET_DATA_EXTRA_POOL"
+  RGW_PLACEMENT_TARGET_EXISTS=$(radosgw-admin zonegroup placement get --placement-id "$RGW_PLACEMENT_TARGET" 2>/dev/null || true)
 fi
 if [[ -n "$RGW_PLACEMENT_TARGET_EXISTS" ]] &&
    [[ "true" == "$RGW_DELETE_PLACEMENT_TARGET" ]]; then
