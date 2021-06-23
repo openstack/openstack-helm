@@ -36,7 +36,7 @@ function check_osd_metadata {
   local tmpmnt=$(mktemp -d)
   mount ${DM_DEV} ${tmpmnt}
 
-  if [ "x$JOURNAL_TYPE" != "xdirectory" ]; then
+  if [ "x${JOURNAL_TYPE}" != "xdirectory" ]; then
     if [  -f "${tmpmnt}/whoami" ]; then
       OSD_JOURNAL_DISK=$(readlink -f "${tmpmnt}/journal")
       local osd_id=$(cat "${tmpmnt}/whoami")
@@ -113,7 +113,7 @@ function determine_what_needs_zapping {
   fi
 
   if [ ${OSD_FORCE_REPAIR} -eq 1 ] && [ ! -z ${DM_DEV} ]; then
-    if [ -b $DM_DEV ]; then
+    if [ -b ${DM_DEV} ]; then
       local ceph_fsid=$(ceph-conf --lookup fsid)
       if [ ! -z "${ceph_fsid}"  ]; then
         # Check the OSD metadata and zap the disk if necessary
@@ -165,7 +165,7 @@ function osd_journal_prepare {
       else
         OSD_JOURNAL=${OSD_JOURNAL}
       fi
-    elif [ "x$JOURNAL_TYPE" != "xdirectory" ]; then
+    elif [ "x${JOURNAL_TYPE}" != "xdirectory" ]; then
       # The block device exists but doesn't appear to be paritioned, we will proceed with parititioning the device.
       OSD_JOURNAL=$(readlink -f ${OSD_JOURNAL})
       until [ -b ${OSD_JOURNAL} ]; do
@@ -173,7 +173,7 @@ function osd_journal_prepare {
       done
     fi
     chown ceph. ${OSD_JOURNAL};
-  elif [ "x$JOURNAL_TYPE" != "xdirectory" ]; then
+  elif [ "x${JOURNAL_TYPE}" != "xdirectory" ]; then
     echo "No journal device specified. OSD and journal will share ${OSD_DEVICE}"
     echo "For better performance on HDD, consider moving your journal to a separate device"
   fi
