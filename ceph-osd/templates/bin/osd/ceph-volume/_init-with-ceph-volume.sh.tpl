@@ -181,16 +181,16 @@ function osd_disk_prechecks {
   fi
 
   if [[ ! -b "${OSD_DEVICE}" ]]; then
-    echo "ERROR- The device pointed by OSD_DEVICE ($OSD_DEVICE) doesn't exist !"
+    echo "ERROR- The device pointed by OSD_DEVICE (${OSD_DEVICE}) doesn't exist !"
     exit 1
   fi
 
-  if [ ! -e $OSD_BOOTSTRAP_KEYRING ]; then
-    echo "ERROR- $OSD_BOOTSTRAP_KEYRING must exist. You can extract it from your current monitor by running 'ceph auth get client.bootstrap-osd -o $OSD_BOOTSTRAP_KEYRING'"
+  if [ ! -e ${OSD_BOOTSTRAP_KEYRING} ]; then
+    echo "ERROR- ${OSD_BOOTSTRAP_KEYRING} must exist. You can extract it from your current monitor by running 'ceph auth get client.bootstrap-osd -o ${OSD_BOOTSTRAP_KEYRING}'"
     exit 1
   fi
 
-  timeout 10 ceph ${CLI_OPTS} --name client.bootstrap-osd --keyring $OSD_BOOTSTRAP_KEYRING health || exit 1
+  timeout 10 ceph --name client.bootstrap-osd --keyring ${OSD_BOOTSTRAP_KEYRING} health || exit 1
 }
 
 function perform_zap {
@@ -211,6 +211,9 @@ function perform_zap {
 #######################################################################
 
 if [[ "${STORAGE_TYPE}" != "directory" ]]; then
+
+  # Check to make sure we have what we need to continue
+  osd_disk_prechecks
 
   # Settle LVM changes before inspecting volumes
   udev_settle
@@ -241,9 +244,6 @@ if [[ "${STORAGE_TYPE}" != "directory" ]]; then
 
   # Settle LVM changes again after any changes have been made
   udev_settle
-
-  # Check to make sure we have what we need to continue
-  osd_disk_prechecks
 
   # Initialize some important global variables
   CEPH_LVM_PREPARE=1
