@@ -13,63 +13,16 @@
 #    under the License.
 set -xe
 
-CFSSLURL=https://pkg.cfssl.org/R1.2
-for CFSSL_BIN in cfssl cfssljson; do
-  if ! type -p "${CFSSL_BIN}"; then
-    sudo curl -sSL -o "/usr/local/bin/${CFSSL_BIN}" "${CFSSLURL}/${CFSSL_BIN}_linux-amd64"
-    sudo chmod +x "/usr/local/bin/${CFSSL_BIN}"
-    ls "/usr/local/bin/${CFSSL_BIN}"
-  fi
-done
-
 OSH_CONFIG_ROOT="/etc/openstack-helm"
 OSH_CA_ROOT="${OSH_CONFIG_ROOT}/certs/ca"
-OSH_SERVER_TLS_ROOT="${OSH_CONFIG_ROOT}/certs/server"
 
 sudo mkdir -p ${OSH_CONFIG_ROOT}
 sudo chown $(whoami): -R ${OSH_CONFIG_ROOT}
 
 mkdir -p "${OSH_CA_ROOT}"
-tee ${OSH_CA_ROOT}/ca-config.json << EOF
-{
-    "signing": {
-        "default": {
-            "expiry": "1y"
-        },
-        "profiles": {
-            "server": {
-                "expiry": "1y",
-                "usages": [
-                    "signing",
-                    "key encipherment",
-                    "server auth"
-                ]
-            }
-        }
-    }
-}
-EOF
-
-tee ${OSH_CA_ROOT}/ca-csr.json << EOF
-{
-  "CN": "ACME Company",
-  "key": {
-    "algo": "rsa",
-    "size": 2048
-  },
-  "names": [
-    {
-      "C": "US",
-      "L": "SomeState",
-      "ST": "SomeCity",
-      "O": "SomeOrg",
-      "OU": "SomeUnit"
-    }
-  ]
-}
-EOF
-
-cfssl gencert -initca ${OSH_CA_ROOT}/ca-csr.json | cfssljson -bare ${OSH_CA_ROOT}/ca -
+openssl req -x509 -nodes -sha256 -days 1 -newkey rsa:2048 \
+  -keyout ${OSH_CA_ROOT}/ca-key.pem -out ${OSH_CA_ROOT}/ca.pem \
+  -subj "/C=US/L=SomeState/ST=SomeCity/O=SomeOrg/OU=SomeUnit/CN=ACME Company"
 
 function check_cert_and_key () {
   TLS_CERT=$1
@@ -86,4 +39,5 @@ function check_cert_and_key () {
     echo "Pass: ${TLS_CERT} is valid with ${TLS_KEY}"
   fi
 }
+
 check_cert_and_key ${OSH_CA_ROOT}/ca.pem ${OSH_CA_ROOT}/ca-key.pem
