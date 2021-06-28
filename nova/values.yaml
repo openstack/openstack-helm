@@ -67,6 +67,7 @@ images:
     rabbit_init: docker.io/rabbitmq:3.7-management
     ks_user: docker.io/openstackhelm/heat:stein-ubuntu_bionic
     ks_service: docker.io/openstackhelm/heat:stein-ubuntu_bionic
+    nova_archive_deleted_rows: docker.io/openstackhelm/nova:stein-ubuntu_bionic
     ks_endpoints: docker.io/openstackhelm/heat:stein-ubuntu_bionic
     nova_api: docker.io/openstackhelm/nova:stein-ubuntu_bionic
     nova_cell_setup: docker.io/openstackhelm/nova:stein-ubuntu_bionic
@@ -105,6 +106,12 @@ jobs:
       success: 3
       failed: 1
   service_cleaner:
+    cron: "0 */1 * * *"
+    starting_deadline: 600
+    history:
+      success: 3
+      failed: 1
+  archive_deleted_rows:
     cron: "0 */1 * * *"
     starting_deadline: 600
     history:
@@ -434,6 +441,10 @@ dependencies:
       services:
         - endpoint: internal
           service: oslo_db
+    archive_deleted_rows:
+      jobs:
+        - nova-db-init
+        - nova-db-sync
     db_init:
       services:
         - endpoint: internal
@@ -1831,6 +1842,16 @@ conf:
         apply-to: all
         pattern: '^(?!(amq\.|reply_)).*'
   enable_iscsi: false
+  archive_deleted_rows:
+    purge_deleted_rows: false
+    until_completion: true
+    all_cells: false
+    max_rows:
+      enabled: False
+      rows: 1000
+    before:
+      enabled: false
+      date: 'nil'
 
 # Names of secrets used by bootstrap and environmental checks
 secrets:
@@ -2448,6 +2469,16 @@ pod:
         nova_cell_setup:
           readOnlyRootFilesystem: true
           allowPrivilegeEscalation: false
+    archive_deleted_rows:
+      pod:
+        runAsUser: 42424
+      container:
+        nova_archive_deleted_rows_init:
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
+        nova_archive_deleted_rows:
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
     cell_setup:
       pod:
         runAsUser: 42424
@@ -2691,6 +2722,13 @@ pod:
         limits:
           memory: "1024Mi"
           cpu: "2000m"
+      archive_deleted_rows:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
       db_drop:
         requests:
           memory: "128Mi"
@@ -2768,6 +2806,7 @@ manifests:
   configmap_etc: true
   cron_job_cell_setup: true
   cron_job_service_cleaner: true
+  cron_job_archive_deleted_rows: false
   daemonset_compute: true
   deployment_api_metadata: true
   deployment_api_osapi: true
