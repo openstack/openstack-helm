@@ -21,7 +21,7 @@ export LC_ALL=C
 mkdir -p "$(dirname "${OSD_BOOTSTRAP_KEYRING}")"
 
 # Let's create the ceph directories
-for DIRECTORY in osd tmp; do
+for DIRECTORY in osd tmp crash; do
   mkdir -p "/var/lib/ceph/${DIRECTORY}"
 done
 

@@ -27,7 +27,7 @@ for keyring in ${OSD_BOOTSTRAP_KEYRING} ${MDS_BOOTSTRAP_KEYRING}; do
 done
 
 # Let's create the ceph directories
-for DIRECTORY in mds tmp mgr; do
+for DIRECTORY in mds tmp mgr crash; do
   mkdir -p "/var/lib/ceph/${DIRECTORY}"
 done
 
