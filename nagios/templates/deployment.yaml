@@ -200,6 +200,10 @@ spec:
                 secretKeyRef:
                   name: {{ $nagiosUserSecret }}
                   key: NAGIOSADMIN_PASS
+{{- if .Values.manifests.certificates }}
+            - name: CA_CERT_PATH
+              value: "/etc/ssl/certs/ca.crt"
+{{- end }}
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
@@ -232,6 +236,7 @@ spec:
 {{- end }}
             - name: pod-var-log
               mountPath: /opt/nagios/var/log
+{{- dict "enabled" .Values.manifests.certificates "name" $envAll.Values.endpoints.monitoring.auth.admin.secret.tls.internal "path" "/etc/ssl/certs" "certs" tuple "ca.crt" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
       volumes:
         - name: pod-tmp
           emptyDir: {}
@@ -247,4 +252,5 @@ spec:
           configMap:
             name: nagios-bin
             defaultMode: 0555
+{{- dict "enabled" .Values.manifests.certificates "name" $envAll.Values.endpoints.monitoring.auth.admin.secret.tls.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 {{- end }}
