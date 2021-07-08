@@ -25,7 +25,7 @@ for keyring in ${RGW_BOOTSTRAP_KEYRING}; do
 done
 
 # Let's create the ceph directories
-for DIRECTORY in radosgw tmp crash; do
+for DIRECTORY in radosgw tmp; do
   mkdir -p "/var/lib/ceph/${DIRECTORY}"
 done
 
