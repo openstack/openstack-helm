@@ -94,7 +94,7 @@ spec:
           - name: RABBITMQ_AUXILIARY_CONFIGURATION
             value: {{ toJson $envAll.Values.conf.rabbitmq | quote }}
 {{- end }}
-{{- if $envAll.Values.manifests.certificates }}
+{{- if and $envAll.Values.manifests.certificates (ne $tlsSecret "") }}
           - name: RABBITMQ_X509
             value: "REQUIRE X509"
           - name: USER_CERT_PATH
