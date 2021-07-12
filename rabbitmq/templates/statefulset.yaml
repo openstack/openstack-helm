@@ -212,6 +212,10 @@ spec:
               value: "{{ tuple "oslo_messaging" "internal" "amqp" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}"
             - name: PORT_CLUSTERING
               value: "{{ add (tuple "oslo_messaging" "internal" "amqp" . | include "helm-toolkit.endpoints.endpoint_port_lookup") 20000 }}"
+{{- if ne (.Values.conf.feature_flags | default "") "default" }}
+            - name: RABBITMQ_FEATURE_FLAGS
+              value: "{{ .Values.conf.feature_flags }}"
+{{- end }}
           readinessProbe:
             initialDelaySeconds: 10
             timeoutSeconds: 10
@@ -224,6 +228,12 @@ spec:
             exec:
               command:
               - /tmp/rabbitmq-liveness.sh
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - rabbitmqctl
+                  - stop_app
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
