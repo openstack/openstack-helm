@@ -12,6 +12,21 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- define "libvirtReadinessProbeTemplate" }}
+exec:
+  command:
+    - bash
+    - -c
+    - /usr/bin/virsh list
+{{- end }}
+{{- define "libvirtLivenessProbeTemplate" }}
+exec:
+  command:
+    - bash
+    - -c
+    - /usr/bin/virsh list
+{{- end }}
+
 {{- define "libvirt.daemonset" }}
 {{- $daemonset := index . 0 }}
 {{- $configMapName := index . 1 }}
@@ -134,18 +149,8 @@ spec:
               value: "{{ .Values.conf.ceph.cinder.external_ceph.secret_uuid }}"
             {{ end }}
           {{ end }}
-          readinessProbe:
-            exec:
-              command:
-              - bash
-              - -c
-              - /usr/bin/virsh list
-          livenessProbe:
-            exec:
-              command:
-              - bash
-              - -c
-              - /usr/bin/virsh list
+{{ dict "envAll" . "component" "libvirt" "container" "libvirt" "type" "readiness" "probeTemplate" (include "libvirtReadinessProbeTemplate" . | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+{{ dict "envAll" . "component" "libvirt" "container" "libvirt" "type" "liveness" "probeTemplate" (include "libvirtLivenessProbeTemplate" . | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
           command:
             - /tmp/libvirt.sh
           lifecycle:
