@@ -53,8 +53,34 @@ openstack volume type show {{ $name }} || \
     {{- end }}
   {{- end }}
 
+  {{- /* Create and associate volume QoS if defined */}}
+  {{- if .Values.bootstrap.volume_qos}}
+    {{- range $qos_name, $qos_properties := .Values.bootstrap.volume_qos }}
+type_defined=true
+      {{- /* If the volume type to associate with is not defined, skip the qos */}}
+      {{- range $qos_properties.associates }}
+if ! openstack volume type show {{ . }}; then
+  type_defined=false
+fi
+      {{- end }}
+if $type_defined; then
+  openstack volume qos show {{ $qos_name }} || \
+    openstack volume qos create \
+      --consumer {{ $qos_properties.consumer }} \
+      {{- range $key, $value := $qos_properties.properties }}
+      --property {{ $key }}={{ $value }} \
+      {{- end }}
+      {{ $qos_name }}
+      {{- range $qos_properties.associates }}
+  openstack volume qos associate {{ $qos_name }} {{ . }}
+      {{- end }}
+fi
+    {{- end }}
+  {{- end }}
+
 {{- /* Check volume type and properties were added */}}
 openstack volume type list --long
+openstack volume qos list
 
 {{- end }}
 
