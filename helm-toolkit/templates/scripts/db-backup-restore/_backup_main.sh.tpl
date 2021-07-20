@@ -165,7 +165,7 @@ send_to_remote_server() {
       log ERROR "${DB_NAME}_backup" "Access denied by keystone: ${RESULT}"
       return 1
     else
-      echo $RESULT | grep -E "ConnectionError|Failed to discover available identity versions"
+      echo $RESULT | grep -E "ConnectionError|Failed to discover available identity versions|Service Unavailable"
       if [[ $? -eq 0 ]]; then
         log ERROR "${DB_NAME}_backup" "Could not reach the RGW: ${RESULT}"
         # In this case, keystone or the site/node may be temporarily down.
