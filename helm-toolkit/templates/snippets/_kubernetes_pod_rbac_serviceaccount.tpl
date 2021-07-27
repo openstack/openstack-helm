@@ -57,6 +57,8 @@ metadata:
 {{- $_ := set $allNamespace $saNamespace  (printf "%s%s" "daemonsets," ((index $allNamespace $saNamespace) | default "")) }}
 {{- else if and (eq $k "pod") $v }}
 {{- $_ := set $allNamespace $saNamespace  (printf "%s%s" "pods," ((index $allNamespace $saNamespace) | default "")) }}
+{{- else if and (eq $k "secret") $v }}
+{{- $_ := set $allNamespace $saNamespace  (printf "%s%s" "secrets," ((index $allNamespace $saNamespace) | default "")) }}
 {{- end -}}
 {{- end -}}
 {{- $_ := unset $allNamespace $randomKey }}

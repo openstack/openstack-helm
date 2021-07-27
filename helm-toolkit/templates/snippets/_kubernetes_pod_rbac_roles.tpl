@@ -62,5 +62,8 @@ rules:
       - services
       - endpoints
       {{- end -}}
+      {{ if eq $v "secrets" }}
+      - secrets
+      {{- end -}}
       {{- end -}}
 {{- end -}}
