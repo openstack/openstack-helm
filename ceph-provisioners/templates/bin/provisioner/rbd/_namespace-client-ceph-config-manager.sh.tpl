@@ -23,7 +23,12 @@ ENDPOINT=$(kubectl get endpoints ceph-mon-discovery -n ${PVC_CEPH_RBD_STORAGECLA
            -v msgr2_port=${MON_PORT_V2} \
            '/"ip"/{print "["version":"$4":"port"/"0","msgr_version":"$4":"msgr2_port"/"0"]"}' | paste -sd',')
 
-echo $ENDPOINT
+if [ -z "$ENDPOINT" ]; then
+  echo "Ceph Mon endpoint is empty"
+  exit 1
+else
+  echo $ENDPOINT
+fi
 
 kubectl get cm ${CEPH_CONF_ETC} -n  ${DEPLOYMENT_NAMESPACE}  -o yaml | \
   sed "s#mon_host.*#mon_host = ${ENDPOINT}#g" | \
