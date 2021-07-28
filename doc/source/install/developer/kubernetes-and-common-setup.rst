@@ -5,11 +5,11 @@ Kubernetes and Common Setup
 Install Basic Utilities
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-To get started with OSH, we will need both ``git`` and ``curl``.
+To get started with OSH, we will need  ``git``,  ``curl`` and ``make``.
 
 .. code-block:: shell
 
-  sudo apt install git curl
+  sudo apt install git curl make
 
 Clone the OpenStack-Helm Repos
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
