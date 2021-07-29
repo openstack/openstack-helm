@@ -63,4 +63,7 @@ pgsql_superuser_cmd "SELECT * FROM pg_roles WHERE rolname = '$USER_DB_USER';" &&
 
 #give permissions to user
 pgsql_superuser_cmd "GRANT ALL PRIVILEGES ON DATABASE $USER_DB_NAME to $USER_DB_USER;"
+
+#revoke all privileges from PUBLIC role
+pgsql_superuser_cmd "REVOKE ALL ON DATABASE $USER_DB_NAME FROM PUBLIC;"
 {{- end }}
