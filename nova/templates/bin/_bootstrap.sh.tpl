@@ -19,9 +19,15 @@ export HOME=/tmp
 
 {{ if .Values.bootstrap.structured.flavors.enabled }}
 {{ range .Values.bootstrap.structured.flavors.options }}
+# NOTE(aostapenko) Since Wallaby with switch of osc to sdk '--id auto' is no
+# longer treated specially. Though the same behavior can be achieved w/o specifying
+#--id flag.
+# https://review.opendev.org/c/openstack/python-openstackclient/+/750151
 openstack flavor show {{ .name }} || \
  openstack flavor create {{ .name }} \
+{{ if .id }} \
  --id {{ .id }} \
+{{ end }} \
  --ram {{ .ram }} \
  --disk {{ .disk }} \
  --vcpus {{ .vcpus }}

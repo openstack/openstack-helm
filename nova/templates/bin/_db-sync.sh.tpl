@@ -55,15 +55,11 @@ function manage_cells () {
   fi
 }
 
-# NOTE(portdirect): if the db has been populated we should setup cells if
-# required, otherwise we should poulate the api db, and then setup cells.
-if [ "$(nova-manage api_db version)" -gt "0" ]; then
-  manage_cells
-  nova-manage api_db sync
-else
-  nova-manage api_db sync
-  manage_cells
-fi
+# NOTE(aostapenko) Starting Wallaby nova-manage api_db version returns init version for empty database
+# greater than 0 # https://opendev.org/openstack/nova/src/branch/stable/wallaby/nova/db/sqlalchemy/migration.py#L32
+# thus logic prior to this commit does not work. We need to either remove or justify and alter previous logic.
+nova-manage api_db sync
+manage_cells
 
 nova-manage db sync
 
