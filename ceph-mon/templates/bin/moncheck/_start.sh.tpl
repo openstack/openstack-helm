@@ -28,7 +28,7 @@ function check_mon_msgr2 {
 function watch_mon_health {
   while [ true ]; do
     echo "checking for zombie mons"
-    /tmp/moncheck-reap-zombies.py || true
+    python3 /tmp/moncheck-reap-zombies.py || true
     echo "checking for ceph-mon msgr v2"
     check_mon_msgr2
     echo "sleep 30 sec"

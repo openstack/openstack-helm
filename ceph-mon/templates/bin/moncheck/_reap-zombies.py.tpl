@@ -4,7 +4,7 @@ import os
 import subprocess  # nosec
 import json
 
-MON_REGEX = r"^\d: ([0-9\.]*):\d+/\d* mon.([^ ]*)$"
+MON_REGEX = r"^\d: \[((v\d+:([0-9\.]*):\d+\/\d+,*)+)] mon.([^ ]*)$"
 # kubctl_command = 'kubectl get pods --namespace=${NAMESPACE} -l component=mon,application=ceph -o template --template="{ {{"}}"}}range .items{{"}}"}} \\"{{"}}"}}.metadata.name{{"}}"}}\\": \\"{{"}}"}}.status.podIP{{"}}"}}\\" ,   {{"}}"}}end{{"}}"}} }"'
 if int(os.getenv('K8S_HOST_NETWORK', 0)) > 0:
     kubectl_command = 'kubectl get pods --namespace=${NAMESPACE} -l component=mon,application=ceph -o template --template="{ {{"{{"}}range  \$i, \$v  := .items{{"}}"}} {{"{{"}} if \$i{{"}}"}} , {{"{{"}} end {{"}}"}} \\"{{"{{"}}\$v.spec.nodeName{{"}}"}}\\": \\"{{"{{"}}\$v.status.podIP{{"}}"}}\\" {{"{{"}}end{{"}}"}} }"'
@@ -15,16 +15,16 @@ monmap_command = "ceph --cluster=${CLUSTER} mon getmap > /tmp/monmap && monmapto
 
 
 def extract_mons_from_monmap():
-    monmap = subprocess.check_output(monmap_command, shell=True)  # nosec
+    monmap = subprocess.check_output(monmap_command, shell=True).decode('utf-8')  # nosec
     mons = {}
     for line in monmap.split("\n"):
         m = re.match(MON_REGEX, line)
         if m is not None:
-            mons[m.group(2)] = m.group(1)
+            mons[m.group(4)] = m.group(3)
     return mons
 
 def extract_mons_from_kubeapi():
-    kubemap = subprocess.check_output(kubectl_command, shell=True)  # nosec
+    kubemap = subprocess.check_output(kubectl_command, shell=True).decode('utf-8')  # nosec
     return json.loads(kubemap)
 
 current_mons = extract_mons_from_monmap()
