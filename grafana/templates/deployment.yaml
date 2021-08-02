@@ -125,6 +125,13 @@ spec:
               mountPath: /etc/grafana/dashboards/{{$key}}.json
               subPath: {{$key}}.json
             {{- end }}
+{{- if .Values.manifests.configmap_dashboards_alertmanager }}
+            {{- range $key, $value := .Values.conf.dashboards_alertmanager }}
+            - name: grafana-dashboards-alertmanager
+              mountPath: /etc/grafana/dashboards/{{$key}}.json
+              subPath: {{$key}}.json
+            {{- end }}
+{{- end }}
 {{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.oslo_db.auth.admin.secret.tls.internal "path" "/etc/mysql/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
 {{ if $mounts_grafana.volumeMounts }}{{ toYaml $mounts_grafana.volumeMounts | indent 12 }}{{ end }}
       volumes:
@@ -150,6 +157,12 @@ spec:
           configMap:
             name: grafana-dashboards
             defaultMode: 0555
+{{- if .Values.manifests.configmap_dashboards_alertmanager }}
+        - name: grafana-dashboards-alertmanager
+          configMap:
+            name: grafana-dashboards-alertmanager
+            defaultMode: 0555
+{{- end }}
         - name: data
           emptyDir: {}
 {{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.oslo_db.auth.admin.secret.tls.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
