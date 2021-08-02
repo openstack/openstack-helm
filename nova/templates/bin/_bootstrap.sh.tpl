@@ -23,15 +23,18 @@ export HOME=/tmp
 # longer treated specially. Though the same behavior can be achieved w/o specifying
 #--id flag.
 # https://review.opendev.org/c/openstack/python-openstackclient/+/750151
-openstack flavor show {{ .name }} || \
- openstack flavor create {{ .name }} \
+{
+  openstack flavor show {{ .name }} || \
+   openstack flavor create {{ .name }} \
 {{ if .id }} \
- --id {{ .id }} \
+   --id {{ .id }} \
 {{ end }} \
- --ram {{ .ram }} \
- --disk {{ .disk }} \
- --vcpus {{ .vcpus }}
+   --ram {{ .ram }} \
+   --disk {{ .disk }} \
+   --vcpus {{ .vcpus }}
+} &
 {{ end }}
+wait
 {{ end }}
 
 {{ if .Values.bootstrap.wait_for_computes.enabled }}
