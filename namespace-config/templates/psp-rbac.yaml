@@ -1,0 +1,29 @@
+{{- if (not (empty .Values.podSecurityPolicy.existingPsp)) -}}
+{{- $name := printf "psp:%s:%s" .Release.Name .Values.podSecurityPolicy.existingPsp -}}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ $name }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ $name }}
+subjects:
+- kind: Group
+  name: system:serviceaccounts:{{ .Release.Namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ $name }}
+rules:
+- apiGroups:
+  - policy
+  resources:
+  - podsecuritypolicies
+  verbs:
+  - use
+  resourceNames:
+  - {{ .Values.podSecurityPolicy.existingPsp }}
+{{- end -}}
