@@ -22,6 +22,9 @@ function start () {
   rm -f ${SITE_PACKAGES_ROOT}/openstack_dashboard/local/local_settings.py
   ln -s /etc/openstack-dashboard/local_settings ${SITE_PACKAGES_ROOT}/openstack_dashboard/local/local_settings.py
   ln -s  ${SITE_PACKAGES_ROOT}/openstack_dashboard/conf/default_policies  /etc/openstack-dashboard/default_policies
+  {{- range $key, $value := .Values.conf.horizon.local_settings_d }}
+  ln -s /etc/openstack-dashboard/local_settings.d/{{ $key }}.py ${SITE_PACKAGES_ROOT}/openstack_dashboard/local/local_settings.d/{{ $key }}.py
+  {{- end }}
   # wsgi/horizon-http needs open files here, including secret_key_store
   chown -R horizon ${SITE_PACKAGES_ROOT}/openstack_dashboard/local/
 
