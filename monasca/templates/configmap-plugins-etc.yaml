@@ -1,0 +1,54 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if or .Values.manifests.deployment_agent .Values.manifests.daemonset_agent }}
+{{- $envAll := . }}
+
+{{- if hasKey .Values.conf.agent_plugins.libvirt.config "init_config" -}}
+{{- if empty .Values.conf.agent_plugins.libvirt.config.init_config.auth_url -}}
+{{- $_ := tuple "identity" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup"| set .Values.conf.agent_plugins.libvirt.config.init_config "auth_url" -}}
+{{- end -}}
+{{- if empty .Values.conf.agent_plugins.libvirt.config.init_config.region_name -}}
+{{- $_ := set .Values.conf.agent_plugins.libvirt.config.init_config "region_name" .Values.endpoints.identity.auth.monasca.region_name -}}
+{{- end -}}
+{{- if empty .Values.conf.agent_plugins.libvirt.config.init_config.project_name -}}
+{{- $_ := set .Values.conf.agent_plugins.libvirt.config.init_config "project_name" .Values.endpoints.identity.auth.monasca.project_name -}}
+{{- end -}}
+{{- if empty .Values.conf.agent_plugins.libvirt.config.init_config.project_domain_name -}}
+{{- $_ := set .Values.conf.agent_plugins.libvirt.config.init_config "project_domain_name" .Values.endpoints.identity.auth.monasca.project_domain_name -}}
+{{- end -}}
+{{- if empty .Values.conf.agent_plugins.libvirt.config.init_config.user_domain_name -}}
+{{- $_ := set .Values.conf.agent_plugins.libvirt.config.init_config "user_domain_name" .Values.endpoints.identity.auth.monasca.user_domain_name -}}
+{{- end -}}
+{{- if empty .Values.conf.agent_plugins.libvirt.config.init_config.username -}}
+{{- $_ := set .Values.conf.agent_plugins.libvirt.config.init_config "username" .Values.endpoints.identity.auth.monasca.username -}}
+{{- end -}}
+{{- if empty .Values.conf.agent_plugins.libvirt.config.init_config.password -}}
+{{- $_ := set .Values.conf.agent_plugins.libvirt.config.init_config "password" .Values.endpoints.identity.auth.monasca.password -}}
+{{- end -}}
+{{- end -}}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: monasca-agent-plugin-config
+type: Opaque
+data:
+{{- range $k, $v := .Values.conf.agent_plugins }}
+{{- if not $v.auto_detect }}
+  {{- $fileName := printf "%s.yaml" $k }}
+  {{ $fileName }}: {{ toYaml $v.config | b64enc }}
+{{- end }}
+{{- end }}
+{{- end }}

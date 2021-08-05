@@ -1,0 +1,151 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.configmap_etc }}
+{{- $envAll := . }}
+
+{{- if empty .Values.conf.monasca_api.keystone_authtoken.auth_uri -}}
+{{- $_ := tuple "identity" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup"| set .Values.conf.monasca_api.keystone_authtoken "auth_uri" -}}
+{{- end -}}
+{{- if empty .Values.conf.monasca_api.keystone_authtoken.auth_url -}}
+{{- $_ := tuple "identity" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup"| set .Values.conf.monasca_api.keystone_authtoken "auth_url" -}}
+{{- end -}}
+{{- if empty .Values.conf.monasca_api.keystone_authtoken.region_name -}}
+{{- $_ := set .Values.conf.monasca_api.keystone_authtoken "region_name" .Values.endpoints.identity.auth.monasca.region_name -}}
+{{- end -}}
+{{- if empty .Values.conf.monasca_api.keystone_authtoken.project_name -}}
+{{- $_ := set .Values.conf.monasca_api.keystone_authtoken "project_name" .Values.endpoints.identity.auth.monasca.project_name -}}
+{{- end -}}
+{{- if empty .Values.conf.monasca_api.keystone_authtoken.project_domain_name -}}
+{{- $_ := set .Values.conf.monasca_api.keystone_authtoken "project_domain_name" .Values.endpoints.identity.auth.monasca.project_domain_name -}}
+{{- end -}}
+{{- if empty .Values.conf.monasca_api.keystone_authtoken.user_domain_name -}}
+{{- $_ := set .Values.conf.monasca_api.keystone_authtoken "user_domain_name" .Values.endpoints.identity.auth.monasca.user_domain_name -}}
+{{- end -}}
+{{- if empty .Values.conf.monasca_api.keystone_authtoken.username -}}
+{{- $_ := set .Values.conf.monasca_api.keystone_authtoken "username" .Values.endpoints.identity.auth.monasca.username -}}
+{{- end -}}
+{{- if empty .Values.conf.monasca_api.keystone_authtoken.password -}}
+{{- $_ := set .Values.conf.monasca_api.keystone_authtoken "password" .Values.endpoints.identity.auth.monasca.password -}}
+{{- end -}}
+{{- if empty .Values.conf.monasca_api.keystone_authtoken.memcached_servers -}}
+{{- $_ := tuple "oslo_cache" "internal" "memcache" . | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" | set .Values.conf.monasca_api.keystone_authtoken "memcached_servers" -}}
+{{- end -}}
+{{- if empty .Values.conf.monasca_api.keystone_authtoken.memcache_secret_key -}}
+{{- $_ := set .Values.conf.monasca_api.keystone_authtoken "memcache_secret_key" ( default ( randAlphaNum 64 ) .Values.endpoints.oslo_cache.auth.memcache_secret_key ) -}}
+{{- end -}}
+
+{{- if empty .Values.conf.monasca_api.database.connection -}}
+{{- $_ := tuple "oslo_db" "internal" "monasca" "mysql" . | include "helm-toolkit.endpoints.authenticated_endpoint_uri_lookup" | set .Values.conf.monasca_api.database "connection" -}}
+{{- end -}}
+
+{{- if empty .Values.conf.notification_config.keystone.auth_url -}}
+{{- $_ := tuple "identity" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" | set .Values.conf.notification_config.keystone "auth_url" -}}
+{{- end -}}
+{{- if empty .Values.conf.notification_config.mysql.host -}}
+{{- $_ := tuple "oslo_db" "internal" . | include "helm-toolkit.endpoints.endpoint_host_lookup" | set .Values.conf.notification_config.mysql "host" -}}
+{{- end -}}
+{{- if empty .Values.conf.notification_config.mysql.user -}}
+{{- $_ := set .Values.conf.notification_config.mysql "user" .Values.endpoints.oslo_db.auth.monasca.username -}}
+{{- end -}}
+{{- if empty .Values.conf.notification_config.mysql.passwd -}}
+{{- $_ := set .Values.conf.notification_config.mysql "passwd" .Values.endpoints.oslo_db.auth.monasca.password -}}
+{{- end -}}
+{{- if empty .Values.conf.notification_config.mysql.db -}}
+{{- $_ := set .Values.conf.notification_config.mysql "db" (trimPrefix "/" .Values.endpoints.oslo_db.path) -}}
+{{- end -}}
+
+{{- if and (empty .Values.conf.logging.handler_fluent) (has "fluent" .Values.conf.logging.handlers.keys) -}}
+{{- $fluentd_host := tuple "fluentd" "internal" $envAll | include "helm-toolkit.endpoints.hostname_namespaced_endpoint_lookup" }}
+{{- $fluentd_port := tuple "fluentd" "internal" "service" $envAll | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+{{- $fluent_args := printf "('%s.%s', '%s', %s)" .Release.Namespace .Release.Name $fluentd_host $fluentd_port }}
+{{- $handler_fluent := dict "class" "fluent.handler.FluentHandler" "formatter" "fluent" "args" $fluent_args -}}
+{{- $_ := set .Values.conf.logging "handler_fluent" $handler_fluent -}}
+{{- end -}}
+{{- if and (empty .Values.conf.logging.formatter_fluent) (has "fluent" .Values.conf.logging.formatters.keys) -}}
+{{- $formatter_fluent := dict "class" "oslo_log.formatters.FluentFormatter" -}}
+{{- $_ := set .Values.conf.logging "formatter_fluent" $formatter_fluent -}}
+{{- end -}}
+
+{{- if empty .Values.conf.agent.Api.keystone_url -}}
+{{- $_ := tuple "identity" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup"| set .Values.conf.agent.Api "keystone_url" -}}
+{{- end -}}
+{{- if empty .Values.conf.agent.Api.region_name -}}
+{{- $_ := set .Values.conf.agent.Api "region_name" .Values.endpoints.identity.auth.monasca_agent.region_name -}}
+{{- end -}}
+{{- if empty .Values.conf.agent.Api.project_name -}}
+{{- $_ := set .Values.conf.agent.Api "project_name" .Values.endpoints.identity.auth.monasca_agent.project_name -}}
+{{- end -}}
+{{- if empty .Values.conf.agent.Api.project_domain_name -}}
+{{- $_ := set .Values.conf.agent.Api "project_domain_name" .Values.endpoints.identity.auth.monasca_agent.project_domain_name -}}
+{{- end -}}
+{{- if empty .Values.conf.agent.Api.user_domain_name -}}
+{{- $_ := set .Values.conf.agent.Api "user_domain_name" .Values.endpoints.identity.auth.monasca_agent.user_domain_name -}}
+{{- end -}}
+{{- if empty .Values.conf.agent.Api.username -}}
+{{- $_ := set .Values.conf.agent.Api "username" .Values.endpoints.identity.auth.monasca_agent.username -}}
+{{- end -}}
+{{- if empty .Values.conf.agent.Api.password -}}
+{{- $_ := set .Values.conf.agent.Api "password" .Values.endpoints.identity.auth.monasca_agent.password -}}
+{{- end -}}
+{{- if empty .Values.conf.agent.Api.service_type -}}
+{{- $_ := set .Values.conf.agent.Api "service_type" .Values.endpoints.identity.auth.monasca_agent.interface -}}
+{{- end -}}
+{{- if empty .Values.conf.agent.Api.url -}}
+{{- $_ := tuple "monitoring" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" | set .Values.conf.agent.Api "url" -}}
+{{- end -}}
+
+{{- if empty .Values.conf.persister_config.influxdb.ip_address -}}
+{{- $_ := tuple "metrics_db" "internal" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" | set .Values.conf.persister_config.influxdb "ip_address" -}}
+{{- end -}}
+{{- if empty .Values.conf.persister_config.influxdb.port -}}
+{{- $_ := tuple "metrics_db" "internal" "influxdb" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | set .Values.conf.persister_config.influxdb "port" -}}
+{{- end -}}
+{{- if empty .Values.conf.persister_config.influxdb.user -}}
+{{- $_ := set .Values.conf.persister_config.influxdb "user" .Values.endpoints.metrics_db.auth.monasca_persister.username -}}
+{{- end -}}
+{{- if empty .Values.conf.persister_config.influxdb.password -}}
+{{- $_ := set .Values.conf.persister_config.influxdb "password" .Values.endpoints.metrics_db.auth.monasca_persister.password -}}
+{{- end -}}
+
+{{- if empty .Values.conf.monasca_api.influxdb.ip_address -}}
+{{- $_ := tuple "metrics_db" "internal" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" | set .Values.conf.monasca_api.influxdb "ip_address" -}}
+{{- end -}}
+{{- if empty .Values.conf.monasca_api.influxdb.port -}}
+{{- $_ := tuple "metrics_db" "internal" "influxdb" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | set .Values.conf.monasca_api.influxdb "port" -}}
+{{- end -}}
+{{- if empty .Values.conf.monasca_api.influxdb.user -}}
+{{- $_ := set .Values.conf.monasca_api.influxdb "user" .Values.endpoints.metrics_db.auth.monasca_api.username -}}
+{{- end -}}
+{{- if empty .Values.conf.monasca_api.influxdb.password -}}
+{{- $_ := set .Values.conf.monasca_api.influxdb "password" .Values.endpoints.metrics_db.auth.monasca_api.password -}}
+{{- end -}}
+---
+
+apiVersion: v1
+kind: Secret
+metadata:
+  name: monasca-etc
+type: Opaque
+data:
+  monasca-api.conf: {{ include "helm-toolkit.utils.to_oslo_conf" .Values.conf.monasca_api | b64enc }}
+  api-config.ini: {{ include "helm-toolkit.utils.to_oslo_conf" .Values.conf.monasca_api_paste | b64enc }}
+  api-logging.conf: {{ include "helm-toolkit.utils.to_oslo_conf" .Values.conf.logging | b64enc }}
+  notification-config.conf: {{ include "helm-toolkit.utils.to_oslo_conf" .Values.conf.notification_config | b64enc }}
+  thresh-config.yml: {{ toYaml .Values.conf.thresh_config | b64enc }}
+  monasca-persister.conf: {{ include "helm-toolkit.utils.to_oslo_conf" .Values.conf.persister_config | b64enc }}
+  storm.yaml: {{ toYaml .Values.conf.storm | b64enc }}
+  agent.yaml: {{ toYaml .Values.conf.agent | b64enc }}
+{{- include "helm-toolkit.snippets.values_template_renderer" (dict "envAll" $envAll "template" .Values.conf.wsgi_monasca_api "key" "wsgi-monasca.conf" "format" "Secret" ) | indent 2 }}
+{{- end }}

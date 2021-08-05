@@ -1,0 +1,222 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- define "monasca StatsdLivenessProbeTemplate" }}
+tcpSocket:
+  port: {{ tuple "monitoring" "internal" "statsd" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+{{- end }}
+
+{{- define "monascaStatsdReadinessProbeTemplate" }}
+tcpSocket:
+  port: {{ tuple "monitoring" "internal" "statsd" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+{{- end }}
+
+{{- define "monascaForwarderLivenessProbeTemplate" }}
+tcpSocket:
+  port: {{ tuple "monitoring" "internal" "forwarder" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+{{- end }}
+
+{{- define "monascaForwarderReadinessProbeTemplate" }}
+tcpSocket:
+  port: {{ tuple "monitoring" "internal" "forwarder" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+{{- end }}
+
+{{- if .Values.manifests.daemonset_agent }}
+{{- $envAll := . }}
+
+{{- $mounts_monasca_agent_init := .Values.pod.mounts.monasca_agent.init_container }}
+{{- $mounts_monasca_collector := .Values.pod.mounts.monasca_agent.monasca_collector }}
+{{- $mounts_monasca_forwarder := .Values.pod.mounts.monasca_agent.monasca_forwarder }}
+{{- $mounts_monasca_statsd := .Values.pod.mounts.monasca_agent.monasca_statsd }}
+
+{{- $serviceAccountName := "monasca-agent" }}
+{{ tuple $envAll "agent" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: monasca-agent
+  annotations:
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+  labels:
+{{ tuple $envAll "monasca" "agent" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  selector:
+    matchLabels:
+{{ tuple $envAll "monasca" "agent" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
+{{ tuple $envAll "agent" | include "helm-toolkit.snippets.kubernetes_upgrades_daemonset" | indent 2 }}
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "monasca" "agent" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+{{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
+        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
+{{ dict "envAll" $envAll "podName" "monasca-agent" "containerNames" (list "monasca-agent" "init" ) | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
+    spec:
+      serviceAccountName: {{ $serviceAccountName }}
+{{ dict "envAll" $envAll "application" "agent" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
+      affinity:
+{{ tuple $envAll "monasca" "agent" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
+      nodeSelector:
+        {{ .Values.labels.agent.node_selector_key }}: {{ .Values.labels.agent.node_selector_value }}
+      terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.monasca.timeout | default "30" }}
+      hostNetwork: true
+      dnsPolicy: {{ .Values.pod.dns_policy }}
+      initContainers:
+{{ tuple $envAll "agent" $mounts_monasca_agent_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+        - name: monasca-agent-init
+{{ tuple $envAll "monasca_collector" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.agent_init | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "agent" "container" "agent_init" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          command:
+            - /tmp/monasca-agent-init.sh
+          env:
+          - name: MY_POD_IP
+            valueFrom:
+              fieldRef:
+                fieldPath: status.podIP
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: monasca-bin
+              mountPath: /tmp/monasca-agent-init.sh
+              subPath: monasca-agent-init.sh
+              readOnly: true
+            - name: monasca-etc
+              mountPath: /tmp/agent.yaml
+              subPath: agent.yaml
+              readOnly: true
+            - name: etcmonasca
+              mountPath: /etc/monasca
+      containers:
+        - name: monasca-collector
+{{ tuple $envAll "monasca_collector" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.collector | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "agent" "container" "monasca_collector" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          command:
+            - /tmp/monasca-collector.sh
+          env:
+          - name: MY_POD_IP
+            valueFrom:
+              fieldRef:
+                fieldPath: status.podIP
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: etcmonasca
+              mountPath: /etc/monasca
+            - name: plugin-config
+              mountPath: /tmp/conf.d
+              readOnly: true
+            - name: plugin-check-scripts
+              mountPath: /usr/lib/monasca/agent/custom_checks.d/
+              readOnly: true
+            - name: plugin-detection-scripts
+              mountPath: /usr/lib/monasca/agent/custom_detect.d/
+              readOnly: true
+            - name: monasca-bin
+              mountPath: /tmp/monasca-collector.sh
+              subPath: monasca-collector.sh
+              readOnly: true
+            - name: run
+              mountPath: /run
+            - name: dev
+              mountPath: /dev
+{{ if $mounts_monasca_collector.volumeMounts }}{{ toYaml $mounts_monasca_collector.volumeMounts | indent 12 }}{{ end }}
+        - name: monasca-forwarder
+{{ tuple $envAll "monasca_forwarder" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.forwarder | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "agent" "container" "monasca_forwarder" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          command:
+            - /tmp/monasca-forwarder.sh
+          env:
+          - name: MY_POD_IP
+            valueFrom:
+              fieldRef:
+                fieldPath: status.podIP
+          ports:
+            - name: m-forwarder
+              containerPort: {{ tuple "monitoring" "internal" "forwarder" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+{{ dict "envAll" $envAll "component" "forwarder" "container" "default" "type" "liveness" "probeTemplate" (include "monascaForwarderLivenessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+{{ dict "envAll" $envAll "component" "forwarder" "container" "default" "type" "readiness" "probeTemplate" (include "monascaForwarderReadinessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: etcmonasca
+              mountPath: /etc/monasca
+            - name: monasca-bin
+              mountPath: /tmp/monasca-forwarder.sh
+              subPath: monasca-forwarder.sh
+              readOnly: true
+{{ if $mounts_monasca_forwarder.volumeMounts }}{{ toYaml $mounts_monasca_forwarder.volumeMounts | indent 12 }}{{ end }}
+        - name: monasca-statsd
+{{ tuple $envAll "monasca_statsd" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.statsd | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "agent" "container" "monasca_statsd" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          command:
+            - /tmp/monasca-statsd.sh
+          ports:
+            - name: m-statsd
+              containerPort: {{ tuple "monitoring" "internal" "statsd" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+{{ dict "envAll" $envAll "component" "statsd" "container" "default" "type" "liveness" "probeTemplate" (include "monascaStatsdLivenessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+{{ dict "envAll" $envAll "component" "statsd" "container" "default" "type" "readiness" "probeTemplate" (include "monascaStatsdReadinessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: etcmonasca
+              mountPath: /etc/monasca
+            - name: monasca-bin
+              mountPath: /tmp/monasca-statsd.sh
+              subPath: monasca-statsd.sh
+              readOnly: true
+{{ if $mounts_monasca_statsd.volumeMounts }}{{ toYaml $mounts_monasca_statsd.volumeMounts | indent 12 }}{{ end }}
+{{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.secrets.tls.monitoring.statsd.internal "path" "/etc/monasca/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
+      volumes:
+        - name: pod-tmp
+          emptyDir: {}
+        - name: etcmonasca
+          emptyDir: {}
+        - name: dev
+          hostPath:
+            path: /dev
+        - name: run
+          hostPath:
+            path: /run
+        - name: monasca-bin
+          configMap:
+            name: monasca-bin
+            defaultMode: 0555
+        - name: plugin-check-scripts
+          configMap:
+            name: monasca-agent-check-scripts
+            defaultMode: 0555
+        - name: plugin-detection-scripts
+          configMap:
+            name: monasca-agent-detection-scripts
+            defaultMode: 0555
+        - name: monasca-etc
+          secret:
+            secretName: monasca-etc
+            defaultMode: 0444
+        - name: plugin-config
+          secret:
+            secretName: monasca-agent-plugin-config
+            defaultMode: 0444
+{{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.secrets.tls.monitoring.statsd.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
+{{ if $mounts_monasca_collector.volumes }}{{ toYaml $mounts_monasca_collector.volumes | indent 8 }}{{ end }}
+{{ if $mounts_monasca_forwarder.volumes }}{{ toYaml $mounts_monasca_forwarder.volumes | indent 8 }}{{ end }}
+{{ if $mounts_monasca_statsd.volumes }}{{ toYaml $mounts_monasca_statsd.volumes | indent 8 }}{{ end }}
+{{- end }}
