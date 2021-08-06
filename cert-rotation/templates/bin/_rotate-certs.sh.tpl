@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e
+set -x
 
 {{/*
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,9 +23,6 @@ namespace={{ .Release.Namespace }}
 minDaysToExpiry={{ .Values.jobs.rotate.max_days_to_expiry }}
 
 rotateBefore=$(($(date +%s) + (86400*$minDaysToExpiry)))
-
-# Return Code, initialized to success
-rc=0
 
 function rotate_and_get_certs_list(){
     # Rotate the certificates if the expiry date of certificates is within the
@@ -64,9 +61,7 @@ function rotate_and_get_certs_list(){
                 if [ ${counter} -ge 30 ]
                 then
                     echo "ERROR: Rotated certificate  ${cert} in ${namespace} is not ready."
-                    # Set return code to error and continue so that the certificates that are
-                    # rotated successfully are deployed.
-                    rc=1
+                    # Continue so that the certificates that are rotated successfully are deployed.
                     break
                 fi
                 echo "Rotated certificate ${cert} in ${namespace} is not ready yet ... waiting"
@@ -126,7 +121,7 @@ function restart_the_pods(){
         # - find if tls.crt was mounted to the container: get the subpaths of volumeMount in
         #   the container and grep for tls.crt. (This will be index 2 = idx+2)
 
-        resource=($(kubectl get ${kind} -n ${namespace} -o custom-columns='NAME:.metadata.name,SECRETS:.spec.template.spec.volumes[*].secret.secretName,TLS:.spec.template.spec.containers[*].volumeMounts[*].subPath' --no-headers | grep tls.crt))
+        resource=($(kubectl get ${kind} -n ${namespace} -o custom-columns='NAME:.metadata.name,SECRETS:.spec.template.spec.volumes[*].secret.secretName,TLS:.spec.template.spec.containers[*].volumeMounts[*].subPath' --no-headers | grep tls.crt || true))
 
         idx=0
         while [[ $idx -lt ${#resource[@]} ]]
@@ -204,4 +199,4 @@ function rotate_job(){
 }
 
 $COMMAND
-exit ${rc}
+exit 0
