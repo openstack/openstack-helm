@@ -73,17 +73,10 @@ spec:
             {{- if .Values.conf.prometheus_elasticsearch_exporter.es.snapshots }}
             - '--es.snapshots'
             {{- end }}
-            {{- if .Values.conf.prometheus_elasticsearch_exporter.es.ssl_skip_verify }}
+            {{- if .Values.manifests.certificates }}
+            - '--es.ca=/tmp/elasticsearch/certs/ca.crt'
+            {{- else }}
             - '--es.ssl-skip-verify'
-            {{- end }}
-            {{- if .Values.conf.prometheus_elasticsearch_exporter.es.ca }}
-            - '--es.ca={{ .Values.conf.prometheus_elasticsearch_exporter.es.ca }}'
-            {{- end }}
-            {{- if .Values.conf.prometheus_elasticsearch_exporter.es.client_private_key }}
-            - '--es.client-private-key={{ .Values.conf.prometheus_elasticsearch_exporter.es.client_private_key }}'
-            {{- end }}
-            {{- if .Values.conf.prometheus_elasticsearch_exporter.es.client_cert }}
-            - '--es.client-cert={{ .Values.conf.prometheus_elasticsearch_exporter.es.client_cert }}'
             {{- end }}
           env:
             - name: ELASTICSEARCH_URI
@@ -102,7 +95,9 @@ spec:
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
+{{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.elasticsearch.elasticsearch.internal "path" "/tmp/elasticsearch/certs" "certs" tuple "ca.crt" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
       volumes:
         - name: pod-tmp
           emptyDir: {}
+{{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.elasticsearch.elasticsearch.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 {{- end }}
