@@ -19,5 +19,5 @@ set -e
 if [ -f /tmp/rabbit-disable-readiness ]; then
    exit 1
 else
-   exec rabbitmqctl node_health_check
+   exec rabbitmq-diagnostics ping
 fi
