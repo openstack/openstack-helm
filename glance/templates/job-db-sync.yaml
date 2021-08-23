@@ -12,11 +12,19 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- define "metadata.annotations.job.db_sync" }}
+helm.sh/hook: post-install,post-upgrade
+helm.sh/hook-weight: "-4"
+{{- end }}
+
 {{- if .Values.manifests.job_db_sync }}
 {{- $dbToSync := index . "dbToSync" | default ( dict "configFile" (printf "/etc/%s/%s.conf" "glance" "glance-api" ) "logConfigFile" (printf "/etc/%s/logging.conf" "glance" ) "image" ( index .Values.images.tags ( printf "%s_db_sync" "glance" )) ) -}}
 {{- $dbSyncJob := dict "envAll" . "serviceName" "glance" "podVolMounts" .Values.pod.mounts.glance_db_sync.glance_db_sync.volumeMounts "podVols" .Values.pod.mounts.glance_db_sync.glance_db_sync.volumes "dbToSync" $dbToSync -}}
 {{- if .Values.manifests.certificates -}}
 {{- $_ := set $dbSyncJob "dbAdminTlsSecret" .Values.endpoints.oslo_db.auth.admin.secret.tls.internal -}}
 {{- end -}}
+{{- if .Values.helm3_hook }}
+{{- $_ := set $dbSyncJob "jobAnnotations" (include "metadata.annotations.job.db_sync" . | fromYaml) }}
+{{- end }}
 {{ $dbSyncJob | include "helm-toolkit.manifests.job_db_sync" }}
 {{- end }}
