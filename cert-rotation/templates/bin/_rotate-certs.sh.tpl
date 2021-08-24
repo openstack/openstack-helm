@@ -55,17 +55,34 @@ function rotate_and_get_certs_list(){
         for cert in ${certRotated[@]}
         do
             counter=0
+            retried=false
             while [ "$(kubectl get certificate -n ${namespace} ${cert} -o json | jq -r '.status.conditions[].status')" != "True" ]
             do
                 # Wait for secret to become ready. Wait for 300 seconds maximum. Sleep for 10 seconds
                 if [ ${counter} -ge 30 ]
                 then
-                    echo "ERROR: Rotated certificate  ${cert} in ${namespace} is not ready."
-                    # Continue so that the certificates that are rotated successfully are deployed.
-                    break
+                    # Seems certificate is not in ready state yet, may be there is an issue be renewing the certificate.
+                    # Try one more time before failing it. The name of the secret would be different at this time (when in
+                    # process of issuing)
+                    priSeckeyName=$(kubectl get certificate -n ${namespace} ${cert} -o json | jq -r '.status["nextPrivateKeySecretName"]')
+
+                    if [ ${retried} = false ] && [ ! -z ${priSeckeyName} ]
+                    then
+                        echo "Deleting interim failed secret ${priSeckeyName} in namespace ${namespace}"
+                        kubectl delete secret -n ${namespace} ${priSeckeyName}
+                        retried=true
+                        counter=0
+                    else
+                        # Tried 2 times to renew the certificate, something is not right. Log error and
+                        # continue to check the status of next certificate. Once the status of all the
+                        # certificates has been checked, the pods need to be restarted so that the successfully
+                        # renewed certificates can be deployed.
+                        echo "ERROR: Rotated certificate  ${cert} in ${namespace} is not ready."
+                        break
+                    fi
                 fi
                 echo "Rotated certificate ${cert} in ${namespace} is not ready yet ... waiting"
-                counter+=(${counter+=1})
+                counter=$((counter+1))
                 sleep 10
             done
 
