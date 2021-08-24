@@ -20,7 +20,7 @@ ENDPOINT="{$1}"
 function check_mon_dns () {
   GREP_CMD=$(grep -rl 'ceph-mon' ${CEPH_CONF})
 
-  if [[ "${ENDPOINT}" == "up" ]]; then
+  if [[ "${ENDPOINT}" == "{up}" ]]; then
     echo "If DNS is working, we are good here"
   elif [[ "${ENDPOINT}" != "" ]]; then
     if [[ ${GREP_CMD} != "" ]]; then
