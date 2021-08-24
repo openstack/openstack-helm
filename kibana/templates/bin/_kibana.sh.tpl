@@ -17,6 +17,10 @@ set -e
 COMMAND="${@:-start}"
 
 function start () {
+
+  curl --cacert /etc/elasticsearch/certs/ca.crt -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
+      -XDELETE "${ELASTICSEARCH_HOSTS}/.kibana*"
+
   exec /usr/share/kibana/bin/kibana \
     --elasticsearch.hosts="${ELASTICSEARCH_HOSTS}" \
     --elasticsearch.username="${ELASTICSEARCH_USERNAME}" \
