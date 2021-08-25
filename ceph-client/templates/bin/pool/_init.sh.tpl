@@ -200,9 +200,12 @@ function create_pool () {
       pg_num=$(jq '.pg_num' <<< "${pool_values}")
       pg_num_min=$(jq '.pg_num_min' <<< "${pool_values}")
       # set pg_num_min to PG_NUM_MIN before enabling autoscaler
-      if [[ ${pg_num_min} -gt ${PG_NUM_MIN} ]] || [[ ${pg_num} -gt ${PG_NUM_MIN} ]]; then
-        ceph --cluster "${CLUSTER}" osd pool set "${POOL_NAME}" pg_num_min ${PG_NUM_MIN}
+      if [[ ${pg_num} -lt ${PG_NUM_MIN} ]]; then
+        ceph --cluster "${CLUSTER}" osd pool set "${POOL_NAME}" pg_autoscale_mode off
+        ceph --cluster "${CLUSTER}" osd pool set "${POOL_NAME}" pg_num ${PG_NUM_MIN}
+        ceph --cluster "${CLUSTER}" osd pool set "${POOL_NAME}" pgp_num ${PG_NUM_MIN}
       fi
+      ceph --cluster "${CLUSTER}" osd pool set "${POOL_NAME}" pg_num_min ${PG_NUM_MIN}
       ceph --cluster "${CLUSTER}" osd pool set "${POOL_NAME}" pg_autoscale_mode on
     else
       ceph --cluster "${CLUSTER}" osd pool set "${POOL_NAME}" pg_autoscale_mode off
