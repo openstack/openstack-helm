@@ -27,13 +27,22 @@ export HOME=/tmp
       {{- range $name, $properties := $volumeTypes }}
         {{- if $properties.volume_backend_name }}
           {{- if (eq $properties.volume_backend_name $backend_properties.volume_backend_name) }}
-openstack volume type show {{ $name }} || \
+if [[ $(openstack volume type list -f value -c Name | grep -w {{ $name }}) ]]; then
+  if [[ ! $(openstack volume type show {{ $name }} | grep volume_backend_name) ]]; then
+    openstack volume type set \
+      {{- range $key, $value := $properties }}
+      --property {{ $key }}={{ $value }} \
+      {{- end }}
+      {{ $name }}
+  fi
+else
   openstack volume type create \
     --public \
       {{- range $key, $value := $properties }}
     --property {{ $key }}={{ $value }} \
       {{- end }}
     {{ $name }}
+fi
           {{- end }}
         {{- end }}
       {{- end }}
