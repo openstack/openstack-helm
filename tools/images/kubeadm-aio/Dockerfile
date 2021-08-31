@@ -85,6 +85,7 @@ RUN set -ex ;\
     # what's deployed in the gates
     pip3 --no-cache-dir install --upgrade \
       requests \
+      docker \
       kubernetes \
       "ansible==2.5.5" ;\
     for BINARY in kubectl kubeadm; do \

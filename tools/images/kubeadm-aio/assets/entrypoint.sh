@@ -36,7 +36,7 @@ fi
 : ${NET_SUPPORT_LINUXBRIDGE:="true"}
 : ${PVC_SUPPORT_CEPH:="false"}
 : ${PVC_SUPPORT_NFS:="false"}
-: ${HELM_TILLER_IMAGE:="gcr.io/kubernetes-helm/tiller:${HELM_VERSION}"}
+: ${HELM_TILLER_IMAGE:="ghcr.io/helm/tiller:${HELM_VERSION}"}
 : ${KUBE_VERSION:="${KUBE_VERSION}"}
 : ${KUBE_IMAGE_REPO:="k8s.gcr.io"}
 : ${KUBE_API_BIND_PORT:="6443"}
