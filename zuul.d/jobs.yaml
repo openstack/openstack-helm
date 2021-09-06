@@ -44,6 +44,21 @@
       - ^releasenotes/.*$
 
 - job:
+    name: openstack-helm-infra-deploy
+    parent: openstack-helm-infra-functional
+    timeout: 7200
+    roles:
+      - zuul: zuul/zuul-jobs
+    pre-run: playbooks/osh-infra-upgrade-host.yaml
+    post-run: playbooks/osh-infra-collect-logs.yaml
+    nodeset: openstack-helm-single-node
+    vars:
+      gate_scripts_relative_path: ../openstack-helm-infra
+      gate_scripts:
+        - ./tools/deployment/common/000-install-packages.sh
+        - ./tools/gate/deploy-k8s.sh
+
+- job:
     name: openstack-helm-infra-bandit
     run: playbooks/osh-infra-bandit.yaml
     nodeset: openstack-helm-single-node

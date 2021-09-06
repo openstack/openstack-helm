@@ -1,0 +1,237 @@
+#!/bin/bash
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+set -ex
+
+: "${HELM_VERSION:="v3.6.3"}"
+: "${KUBE_VERSION:="v1.22.0"}"
+: "${MINIKUBE_VERSION:="v1.22.0"}"
+: "${CALICO_VERSION:="v3.20"}"
+: "${YQ_VERSION:="v4.6.0"}"
+
+: "${HTTP_PROXY:=""}"
+: "${HTTPS_PROXY:=""}"
+: "${NO_PROXY:=""}"
+
+export DEBCONF_NONINTERACTIVE_SEEN=true
+export DEBIAN_FRONTEND=noninteractive
+
+sudo swapoff -a
+
+# Note: Including fix from https://review.opendev.org/c/openstack/openstack-helm-infra/+/763619/
+echo "DefaultLimitMEMLOCK=16384" | sudo tee -a /etc/systemd/system.conf
+sudo systemctl daemon-reexec
+
+# Function to help generate a resolv.conf formatted file.
+# Arguments are positional:
+#    1st is location of file to be generated
+#    2nd is a custom nameserver that should be used exclusively if avalible.
+function generate_resolvconf() {
+  local target
+  target="${1}"
+  local priority_nameserver
+  priority_nameserver="${2}"
+  if [[ ${priority_nameserver} ]]; then
+  sudo -E tee "${target}" <<EOF
+nameserver ${priority_nameserver}
+EOF
+  fi
+  local nameservers_systemd
+  nameservers_systemd="$(awk '/^nameserver/ { print $2 }' /run/systemd/resolve/resolv.conf | sed '/^127.0.0./d')"
+  if [[ ${nameservers_systemd} ]]; then
+    for nameserver in ${nameservers_systemd}; do
+      sudo -E tee --append "${target}" <<EOF
+nameserver ${nameserver}
+EOF
+    done
+  else
+    sudo -E tee --append "${target}" <<EOF
+nameserver 1.0.0.1
+nameserver 8.8.8.8
+EOF
+  fi
+  if [[ ${priority_nameserver} ]]; then
+  sudo -E tee --append "${target}" <<EOF
+options timeout:1 attempts:1
+EOF
+  fi
+}
+
+# NOTE: Clean Up hosts file
+sudo sed -i '/^127.0.0.1/c\127.0.0.1 localhost localhost.localdomain localhost4localhost4.localdomain4' /etc/hosts
+sudo sed -i '/^::1/c\::1 localhost6 localhost6.localdomain6' /etc/hosts
+
+# shellcheck disable=SC1091
+. /etc/os-release
+
+# NOTE: Add docker repo
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+sudo apt-key fingerprint 0EBFCD88
+sudo add-apt-repository \
+  "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
+  $(lsb_release -cs) \
+  stable"
+
+# NOTE: Configure docker
+docker_resolv="$(mktemp -d)/resolv.conf"
+generate_resolvconf "${docker_resolv}"
+docker_dns_list="$(awk '/^nameserver/ { printf "%s%s",sep,"\"" $NF "\""; sep=", "} END{print ""}' "${docker_resolv}")"
+
+sudo -E mkdir -p /etc/docker
+sudo -E tee /etc/docker/daemon.json <<EOF
+{
+  "exec-opts": ["native.cgroupdriver=systemd"],
+  "log-driver": "json-file",
+  "log-opts": {
+    "max-size": "100m"
+  },
+  "storage-driver": "overlay2",
+  "live-restore": true,
+  "dns": [${docker_dns_list}]
+}
+EOF
+
+if [ -n "${HTTP_PROXY}" ]; then
+  sudo mkdir -p /etc/systemd/system/docker.service.d
+  cat <<EOF | sudo -E tee /etc/systemd/system/docker.service.d/http-proxy.conf
+[Service]
+Environment="HTTP_PROXY=${HTTP_PROXY}"
+Environment="HTTPS_PROXY=${HTTPS_PROXY}"
+Environment="NO_PROXY=${NO_PROXY}"
+EOF
+fi
+
+sudo -E apt-get update
+sudo -E apt-get install -y \
+  docker-ce \
+  docker-ce-cli \
+  containerd.io \
+  socat \
+  jq \
+  util-linux \
+  bridge-utils \
+  iptables \
+  conntrack \
+  libffi-dev \
+  ipvsadm \
+  make \
+  bc \
+  git-review \
+  notary
+
+# Prepare tmpfs for etcd when running on CI
+# CI VMs can have slow I/O causing issues for etcd
+# Only do this on CI (when user is zuul), so that local development can have a kubernetes
+# environment that will persist on reboot since etcd data will stay intact
+if [ "$USER" = "zuul" ]; then
+  sudo mkdir -p /var/lib/minikube/etcd
+  sudo mount -t tmpfs -o size=512m tmpfs /var/lib/minikube/etcd
+fi
+
+# Install YQ
+wget https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64.tar.gz -O - | tar xz && sudo mv yq_linux_amd64 /usr/local/bin/yq
+
+# Install minikube and kubectl
+URL="https://storage.googleapis.com"
+sudo -E curl -sSLo /usr/local/bin/minikube "${URL}"/minikube/releases/"${MINIKUBE_VERSION}"/minikube-linux-amd64
+sudo -E curl -sSLo /usr/local/bin/kubectl "${URL}"/kubernetes-release/release/"${KUBE_VERSION}"/bin/linux/amd64/kubectl
+sudo -E chmod +x /usr/local/bin/minikube
+sudo -E chmod +x /usr/local/bin/kubectl
+
+# Install Helm
+TMP_DIR=$(mktemp -d)
+sudo -E bash -c \
+  "curl -sSL https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz | tar -zxv --strip-components=1 -C ${TMP_DIR}"
+sudo -E mv "${TMP_DIR}"/helm /usr/local/bin/helm
+rm -rf "${TMP_DIR}"
+
+sudo -E mkdir -p /etc/kubernetes
+generate_resolvconf /etc/kubernetes/kubelet_resolv.conf
+
+# NOTE: Deploy kubernetes using minikube. A CNI that supports network policy is
+# required for validation; use calico for simplicity.
+sudo -E minikube config set kubernetes-version "${KUBE_VERSION}"
+sudo -E minikube config set vm-driver none
+
+export CHANGE_MINIKUBE_NONE_USER=true
+export MINIKUBE_IN_STYLE=false
+sudo -E minikube start \
+  --docker-env HTTP_PROXY="${HTTP_PROXY}" \
+  --docker-env HTTPS_PROXY="${HTTPS_PROXY}" \
+  --docker-env NO_PROXY="${NO_PROXY},10.96.0.0/12" \
+  --network-plugin=cni \
+  --wait=apiserver,system_pods \
+  --apiserver-names="$(hostname -f)" \
+  --extra-config=controller-manager.allocate-node-cidrs=true \
+  --extra-config=controller-manager.cluster-cidr=192.168.0.0/16 \
+  --extra-config=kube-proxy.mode=ipvs \
+  --extra-config=apiserver.service-node-port-range=1-65535 \
+  --extra-config=kubelet.resolv-conf=/etc/kubernetes/kubelet_resolv.conf \
+  --extra-config=kubelet.cgroup-driver=systemd \
+  --embed-certs
+sudo -E systemctl enable --now kubelet
+
+sudo -E minikube addons list
+
+curl https://docs.projectcalico.org/"${CALICO_VERSION}"/manifests/calico.yaml -o /tmp/calico.yaml
+
+sed -i -e 's#docker.io/calico/#quay.io/calico/#g' /tmp/calico.yaml
+
+# Download images needed for calico before applying manifests, so that `kubectl wait` timeout
+# for `k8s-app=kube-dns` isn't reached by slow download speeds
+awk '/image:/ { print $2 }' /tmp/calico.yaml | xargs -I{} sudo docker pull {}
+
+kubectl apply -f /tmp/calico.yaml
+
+# Note: Patch calico daemonset to enable Prometheus metrics and annotations
+tee /tmp/calico-node.yaml << EOF
+spec:
+  template:
+    metadata:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9091"
+    spec:
+      containers:
+        - name: calico-node
+          env:
+            - name: FELIX_PROMETHEUSMETRICSENABLED
+              value: "true"
+            - name: FELIX_PROMETHEUSMETRICSPORT
+              value: "9091"
+            - name: FELIX_IGNORELOOSERPF
+              value: "true"
+EOF
+kubectl -n kube-system patch daemonset calico-node --patch "$(cat /tmp/calico-node.yaml)"
+
+kubectl get pod -A
+kubectl -n kube-system get pod -l k8s-app=kube-dns
+
+# NOTE: Wait for dns to be running.
+END=$(($(date +%s) + 240))
+until kubectl --namespace=kube-system \
+        get pods -l k8s-app=kube-dns --no-headers -o name | grep -q "^pod/coredns"; do
+  NOW=$(date +%s)
+  [ "${NOW}" -gt "${END}" ] && exit 1
+  echo "still waiting for dns"
+  sleep 10
+done
+kubectl -n kube-system wait --timeout=240s --for=condition=Ready pods -l k8s-app=kube-dns
+
+# Remove stable repo, if present, to improve build time
+helm repo remove stable || true
+
+# Add labels to the core namespaces
+kubectl label --overwrite namespace default name=default
+kubectl label --overwrite namespace kube-system name=kube-system
+kubectl label --overwrite namespace kube-public name=kube-public
