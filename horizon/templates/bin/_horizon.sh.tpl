@@ -21,7 +21,7 @@ function start () {
   SITE_PACKAGES_ROOT=$(python -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())")
   rm -f ${SITE_PACKAGES_ROOT}/openstack_dashboard/local/local_settings.py
   ln -s /etc/openstack-dashboard/local_settings ${SITE_PACKAGES_ROOT}/openstack_dashboard/local/local_settings.py
-
+  ln -s  ${SITE_PACKAGES_ROOT}/openstack_dashboard/conf/default_policies  /etc/openstack-dashboard/default_policies
   # wsgi/horizon-http needs open files here, including secret_key_store
   chown -R horizon ${SITE_PACKAGES_ROOT}/openstack_dashboard/local/
 
