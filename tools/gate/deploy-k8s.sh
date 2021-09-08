@@ -14,62 +14,51 @@
 set -ex
 
 : "${HELM_VERSION:="v3.6.3"}"
-: "${KUBE_VERSION:="v1.22.0"}"
+: "${KUBE_VERSION:="v1.21.5"}"
 : "${MINIKUBE_VERSION:="v1.22.0"}"
 : "${CALICO_VERSION:="v3.20"}"
 : "${YQ_VERSION:="v4.6.0"}"
-
-: "${HTTP_PROXY:=""}"
-: "${HTTPS_PROXY:=""}"
-: "${NO_PROXY:=""}"
 
 export DEBCONF_NONINTERACTIVE_SEEN=true
 export DEBIAN_FRONTEND=noninteractive
 
 sudo swapoff -a
 
-# Note: Including fix from https://review.opendev.org/c/openstack/openstack-helm-infra/+/763619/
 echo "DefaultLimitMEMLOCK=16384" | sudo tee -a /etc/systemd/system.conf
 sudo systemctl daemon-reexec
 
-# Function to help generate a resolv.conf formatted file.
-# Arguments are positional:
-#    1st is location of file to be generated
-#    2nd is a custom nameserver that should be used exclusively if avalible.
-function generate_resolvconf() {
-  local target
-  target="${1}"
-  local priority_nameserver
-  priority_nameserver="${2}"
-  if [[ ${priority_nameserver} ]]; then
-  sudo -E tee "${target}" <<EOF
-nameserver ${priority_nameserver}
-EOF
-  fi
-  local nameservers_systemd
-  nameservers_systemd="$(awk '/^nameserver/ { print $2 }' /run/systemd/resolve/resolv.conf | sed '/^127.0.0./d')"
-  if [[ ${nameservers_systemd} ]]; then
-    for nameserver in ${nameservers_systemd}; do
-      sudo -E tee --append "${target}" <<EOF
-nameserver ${nameserver}
-EOF
-    done
+function configure_resolvconf {
+  # here with systemd-resolved disabled, we'll have 2 separate resolv.conf
+  # 1 - /run/systemd/resolve/resolv.conf automatically passed by minikube
+  # to coredns via kubelet.resolv-conf extra param
+  # 2 - /etc/resolv.conf - to be used for resolution on host
+
+  kube_dns_ip="10.96.0.10"
+  # keep all nameservers from both resolv.conf excluding local addresses
+  old_ns=$(grep -P --no-filename "^nameserver\s+(?!127\.0\.0\.|${kube_dns_ip})" \
+           /etc/resolv.conf /run/systemd/resolve/resolv.conf | sort | uniq)
+
+  # Add kube-dns ip to /etc/resolv.conf for local usage
+  sudo bash -c "echo 'nameserver ${kube_dns_ip}' > /etc/resolv.conf"
+  if [ -z "${HTTP_PROXY}" ]; then
+    sudo bash -c "printf 'nameserver 8.8.8.8\nnameserver 8.8.4.4\n' > /run/systemd/resolve/resolv.conf"
+    sudo bash -c "printf 'nameserver 8.8.8.8\nnameserver 8.8.4.4\n' >> /etc/resolv.conf"
   else
-    sudo -E tee --append "${target}" <<EOF
-nameserver 1.0.0.1
-nameserver 8.8.8.8
-EOF
+    sudo bash -c "echo \"${old_ns}\" > /run/systemd/resolve/resolv.conf"
+    sudo bash -c "echo \"${old_ns}\" >> /etc/resolv.conf"
   fi
-  if [[ ${priority_nameserver} ]]; then
-  sudo -E tee --append "${target}" <<EOF
-options timeout:1 attempts:1
-EOF
-  fi
+
+  for file in /etc/resolv.conf /run/systemd/resolve/resolv.conf; do
+    sudo bash -c "echo 'search svc.cluster.local cluster.local' >> ${file}"
+    sudo bash -c "echo 'options ndots:5 timeout:1 attempts:1' >> ${file}"
+  done
 }
 
 # NOTE: Clean Up hosts file
 sudo sed -i '/^127.0.0.1/c\127.0.0.1 localhost localhost.localdomain localhost4localhost4.localdomain4' /etc/hosts
 sudo sed -i '/^::1/c\::1 localhost6 localhost6.localdomain6' /etc/hosts
+
+configure_resolvconf
 
 # shellcheck disable=SC1091
 . /etc/os-release
@@ -83,8 +72,7 @@ sudo add-apt-repository \
   stable"
 
 # NOTE: Configure docker
-docker_resolv="$(mktemp -d)/resolv.conf"
-generate_resolvconf "${docker_resolv}"
+docker_resolv="/run/systemd/resolve/resolv.conf"
 docker_dns_list="$(awk '/^nameserver/ { printf "%s%s",sep,"\"" $NF "\""; sep=", "} END{print ""}' "${docker_resolv}")"
 
 sudo -E mkdir -p /etc/docker
@@ -155,9 +143,6 @@ sudo -E bash -c \
 sudo -E mv "${TMP_DIR}"/helm /usr/local/bin/helm
 rm -rf "${TMP_DIR}"
 
-sudo -E mkdir -p /etc/kubernetes
-generate_resolvconf /etc/kubernetes/kubelet_resolv.conf
-
 # NOTE: Deploy kubernetes using minikube. A CNI that supports network policy is
 # required for validation; use calico for simplicity.
 sudo -E minikube config set kubernetes-version "${KUBE_VERSION}"
@@ -176,8 +161,8 @@ sudo -E minikube start \
   --extra-config=controller-manager.cluster-cidr=192.168.0.0/16 \
   --extra-config=kube-proxy.mode=ipvs \
   --extra-config=apiserver.service-node-port-range=1-65535 \
-  --extra-config=kubelet.resolv-conf=/etc/kubernetes/kubelet_resolv.conf \
   --extra-config=kubelet.cgroup-driver=systemd \
+  --extra-config=kubelet.resolv-conf=/run/systemd/resolve/resolv.conf \
   --embed-certs
 sudo -E systemctl enable --now kubelet
 
@@ -231,7 +216,32 @@ kubectl -n kube-system wait --timeout=240s --for=condition=Ready pods -l k8s-app
 # Remove stable repo, if present, to improve build time
 helm repo remove stable || true
 
-# Add labels to the core namespaces
+# Add labels to the core namespaces & nodes
 kubectl label --overwrite namespace default name=default
 kubectl label --overwrite namespace kube-system name=kube-system
 kubectl label --overwrite namespace kube-public name=kube-public
+kubectl label nodes --all openstack-control-plane=enabled
+kubectl label nodes --all openstack-compute-node=enabled
+kubectl label nodes --all openvswitch=enabled
+kubectl label nodes --all linuxbridge=enabled
+kubectl label nodes --all ceph-mon=enabled
+kubectl label nodes --all ceph-osd=enabled
+kubectl label nodes --all ceph-mds=enabled
+kubectl label nodes --all ceph-rgw=enabled
+kubectl label nodes --all ceph-mgr=enabled
+
+for NAMESPACE in ceph openstack osh-infra; do
+tee /tmp/${NAMESPACE}-ns.yaml << EOF
+apiVersion: v1
+kind: Namespace
+metadata:
+  labels:
+    kubernetes.io/metadata.name: ${NAMESPACE}
+    name: ${NAMESPACE}
+  name: ${NAMESPACE}
+EOF
+
+kubectl create -f /tmp/${NAMESPACE}-ns.yaml
+done
+
+make all
