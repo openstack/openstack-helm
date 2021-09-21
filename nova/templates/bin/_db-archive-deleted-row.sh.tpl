@@ -30,6 +30,6 @@ exec nova-manage db archive_deleted_rows \
    --max_rows {{ .Values.conf.archive_deleted_rows.max_rows.rows }} \
 {{- end }}
 {{- if .Values.conf.archive_deleted_rows.before.enabled }}
-   --before {{ .Values.conf.archive_deleted_rows.before.date }} \
+   --before "{{ .Values.conf.archive_deleted_rows.before.date }}" \
 {{- end }}
    --verbose
