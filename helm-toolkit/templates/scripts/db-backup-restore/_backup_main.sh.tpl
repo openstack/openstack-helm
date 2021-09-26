@@ -210,12 +210,13 @@ store_backup_remotely() {
   while [[ $DONE == "false" ]]; do
     # Store the new archive to the remote backup storage facility.
     send_to_remote_server $FILEPATH $FILE
+    SEND_RESULT="$?"
 
     # Check if successful
-    if [[ $? -eq 0 ]]; then
+    if [[ $SEND_RESULT -eq 0 ]]; then
       log INFO "${DB_NAME}_backup" "Backup file ${FILE} successfully sent to RGW."
       DONE=true
-    elif [[ $? -eq 2 ]]; then
+    elif [[ $SEND_RESULT -eq 2 ]]; then
       # Temporary failure occurred. We need to retry if we have not timed out
       log WARN "${DB_NAME}_backup" "Backup file ${FILE} could not be sent to RGW due to connection issue."
       DELTA=$(( TIMEOUT_EXP - $(date +%s) ))
