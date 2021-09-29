@@ -1,0 +1,591 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+images:
+  tags:
+    db_init: docker.io/openstackhelm/heat:stein-ubuntu_bionic
+    db_sync: docker.io/xuxant/masakari:wallaby
+    db_drop: quay.io/vexxhost/heat:ussuri
+    ks_endpoints: quay.io/vexxhost/heat:wallaby
+    ks_service: quay.io/vexxhost/heat:wallaby
+    ks_user: quay.io/vexxhost/heat:wallaby
+    masakari_api: docker.io/openstackhelm/masakari:master-ubuntu_focal
+    masakari_engine: docker.io/openstackhelm/masakari:master-ubuntu_focal
+    masakari_host_monitor: docker.io/xuxant/masakari-monitors:focal
+    masakari_process_monitor: docker.io/xuxant/masakari-monitors:focal
+    masakari_instance_monitor: docker.io/xuxant/masakari-monitors:focal
+    rabbit_init: docker.io/rabbitmq:3.7-management
+    dep_check: 'quay.io/airshipit/kubernetes-entrypoint:v1.0.0'
+  pull_policy: "IfNotPresent"
+  local_registry:
+    active: false
+    exclude:
+      - dep_check
+      - image_repo_sync
+
+labels:
+  masakari:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  job:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  test:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+
+endpoints:
+  cluster_domain_suffix: cluster.local
+  local_image_registry:
+    name: docker-registry
+    namespace: docker-registry
+    hosts:
+      default: localhost
+      internal: docker-registry
+      node: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        node: 5000
+  instance_ha:
+    name: masakari
+    hosts:
+      default: masakari-api
+      public: masakari-api
+    host_fqdn_override:
+      default: null
+    path:
+      default: "/v1/%(tenant_id)s"
+    scheme:
+      default: 'http'
+    port:
+      api:
+        default: 15868
+        public: 80
+  oslo_db:
+    auth:
+      admin:
+        username: root
+        password: password
+        secret:
+          tls:
+            internal: mariadb-tls-direct
+      masakari:
+        username: masakari
+        password: password
+    hosts:
+      default: mariadb
+    host_fqdn_override:
+      default: null
+    path: /masakari
+    scheme: mysql+pymysql
+    port:
+      mysql:
+        default: 3306
+  identity:
+    name: keystone
+    auth:
+      admin:
+        region_name: RegionOne
+        username: admin
+        password: password
+        project_name: admin
+        user_domain_name: default
+        project_domain_name: default
+      masakari:
+        role: admin
+        region_name: RegionOne
+        username: masakari
+        password: password
+        project_name: service
+        user_domain_name: service
+        project_domain_name: service
+      test:
+        role: admin
+        region_name: RegionOne
+        username: neutron-test
+        password: password
+        project_name: test
+        user_domain_name: service
+        project_domain_name: service
+    hosts:
+      default: keystone
+      internal: keystone-api
+    host_fqdn_override:
+      default: null
+    path:
+      default: /v3
+    scheme:
+      default: http
+    port:
+      api:
+        default: 80
+        internal: 5000
+  oslo_messaging:
+    auth:
+      admin:
+        username: rabbitmq
+        password: password
+        secret:
+          tls:
+            internal: rabbitmq-tls-direct
+      masakari:
+        username: masakari
+        password: password
+    statefulset:
+      replicas: 2
+      name: rabbitmq-rabbitmq
+    hosts:
+      default: rabbitmq
+    host_fqdn_override:
+      default: null
+    path: /masakari
+    scheme: rabbit
+    port:
+      amqp:
+        default: 5672
+      http:
+        default: 15672
+  oslo_cache:
+    auth:
+      # NOTE(portdirect): this is used to define the value for keystone
+      # authtoken cache encryption key, if not set it will be populated
+      # automatically with a random value, but to take advantage of
+      # this feature all services should be set to use the same key,
+      # and memcache service.
+      memcache_secret_key: null
+    hosts:
+      default: memcached
+    host_fqdn_override:
+      default: null
+    port:
+      memcache:
+        default: 11211
+  fluentd:
+    namespace: null
+    name: fluentd
+    hosts:
+      default: fluentd-logging
+    host_fqdn_override:
+      default: null
+    path:
+      default: null
+    scheme: 'http'
+    port:
+      service:
+        default: 24224
+      metrics:
+        default: 24220
+  # NOTE(tp6510): these endpoints allow for things like DNS lookups and ingress
+  # They are using to enable the Egress K8s network policy.
+  kube_dns:
+    namespace: kube-system
+    name: kubernetes-dns
+    hosts:
+      default: kube-dns
+    host_fqdn_override:
+      default: null
+    path:
+      default: null
+    scheme: http
+    port:
+      dns:
+        default: 53
+        protocol: UDP
+  ingress:
+    namespace: null
+    name: ingress
+    hosts:
+      default: ingress
+    port:
+      ingress:
+        default: 80
+
+secrets:
+  identity:
+    admin: masakari-keystone-admin
+    masakari: masakari-keystone-user
+    test: masakari-keystone-test
+  oslo_db:
+    admin: masakari-db-admin
+    masakari: masakari-db-user
+  oslo_messaging:
+    admin: masakari-rabbitmq-admin
+    masakari: masakari-rabbitmq-user
+
+dependencies:
+  static:
+    masakari_api:
+      jobs:
+        - masakari-db-sync
+        - masakari-ks-user
+        - masakari-ks-endpoints
+        - masakari-ks-service
+      services:
+        - endpoint: internal
+          service: identity
+    masakari_engine:
+      jobs:
+        - masakari-db-sync
+        - masakari-ks-user
+        - masakari-ks-endpoints
+        - masakari-ks-service
+      services:
+        - endpoint: internal
+          service: identity
+    db_init:
+      services:
+        - endpoint: internal
+          service: oslo_db
+    db_sync:
+      jobs:
+        - masakari-db-init
+      services:
+        - endpoint: internal
+          service: oslo_db
+    ks_endpoints:
+      jobs:
+        - masakari-ks-service
+      services:
+        - endpoint: internal
+          service: identity
+    ks_service:
+      services:
+        - endpoint: internal
+          service: identity
+    ks_user:
+      services:
+        - endpoint: internal
+          service: identity
+
+pod:
+  security_context:
+    masakari:
+      pod:
+        runAsUser: 42424
+      container:
+        masakari_api:
+          readOnlyRootFilesystem: false
+          allowPrivilegeEscalation: false
+          runAsUser: 0
+        masakari_engine:
+          readOnlyRootFilesystem: false
+          allowPrivilegeEscalation: false
+          runAsUser: 0
+        masakari_db_sync:
+          readOnlyRootFilesystem: false
+          allowPrivilegeEscalation: false
+          runAsUser: 0
+        masakari_host_monitor:
+          readOnlyRootFilesystem: false
+          allowPrivilegeEscalation: false
+          runAsUser: 0
+        masakari_process_monitir:
+          readOnlyRootFilesystem: false
+          allowPrivilegeEscalation: false
+          runAsUser: 0
+        masakari_instance_monitor:
+          readOnlyRootFilesystem: false
+          allowPrivilegeEscalation: false
+          runAsUser: 0
+    test:
+      pod:
+        runAsUser: 42424
+      container:
+        horizon_test:
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
+  probes:
+    rpc_timeout: 60
+    rpc_retries: 2
+    masakari:
+      default:
+        liveness:
+          enabled: true
+          params:
+            initialDelaySeconds: 120
+            periodSeconds: 90
+            timeoutSeconds: 70
+        readiness:
+          enabled: true
+          params:
+            initialDelaySeconds: 80
+            periodSeconds: 90
+            timeoutSeconds: 70
+    masakari-engine:
+      default:
+        liveness:
+          enabled: true
+          params:
+            initialDelaySeconds: 30
+            periodSeconds: 60
+            timeoutSeconds: 15
+        readiness:
+          enabled: true
+          params:
+            initialDelaySeconds: 30
+            periodSeconds: 60
+            timeoutSeconds: 15
+  affinity:
+    anti:
+      type:
+        default: preferredDuringSchedulingIgnoredDuringExecution
+      topologyKey:
+        default: kubernetes.io/hostname
+      weight:
+        default: 10
+  replicas:
+    masakari_api: 1
+    masakari_engine: 1
+  lifecycle:
+    upgrades:
+      deployments:
+        revision_history: 3
+        pod_replacement_strategy: RollingUpdate
+        rolling_update:
+          max_unavailable: 1
+          max_surge: 3
+      daemonsets:
+        pod_replacement_strategy: RollingUpdate
+        compute:
+          enabled: true
+          min_ready_seconds: 0
+          max_unavailable: 1
+    disruption_budget:
+      masakari_api:
+        min_available: 0
+      masakari_engine:
+        min_available: 0
+    termination_grace_period:
+      masakari_api:
+        timeout: 30
+      masakari_engine:
+        timeout: 30
+  mounts:
+    masakari_api:
+      init_container: null
+      masakari_api:
+        volumeMounts:
+        volumes:
+    masakari_engine:
+      init_container: null
+      masakari_engine:
+        volumeMounts:
+        volumes:
+    masakari_instance_monitor:
+      init_container: null
+      masakari_instance_monitor:
+        volumeMounts:
+        volumes:
+    masakari_host_monitor:
+      init_container: null
+      masakari_host_monitor:
+        volumeMounts:
+        volumes:
+    masakari_process_monitor:
+      init_container: null
+      masakari_process_monitor:
+        volumeMounts:
+        volumes:
+    masakari_db_sync:
+      masakari_db_sync:
+        volumeMounts:
+        volumes:
+    masakari_db_init:
+      masakari_db_sync:
+        volumeMounts:
+        volumes:
+    masakari_ks_users:
+      masakari_db_sync:
+        volumeMounts:
+        volumes:
+    masakari_ks_service:
+      masakari_db_sync:
+        volumeMounts:
+        volumes:
+  resources:
+    enabled: false
+    masakari_api:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+    masakari_engine:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+    masakari_host_monitor:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+    masakari_instance_monitor:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+    masakari_process_monitor:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+    jobs:
+      rabbit_init:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      db_init:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      db_sync:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      db_drop:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      ks_endpoints:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      ks_service:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      ks_user:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+conf:
+  paste:
+    composite:masakari_api:
+      use: call:masakari.api.urlmap:urlmap_factory
+      /: apiversions
+      /v1: masakari_api_v1
+    composite:masakari_api_v1:
+      use: call:masakari.api.auth:pipeline_factory_v1
+      keystone: cors http_proxy_to_wsgi request_id faultwrap sizelimit authtoken keystonecontext osapi_masakari_app_v1
+      noauth2: cors http_proxy_to_wsgi request_id faultwrap sizelimit noauth2 osapi_masakari_app_v1
+    filter:cors:
+      paste.filter_factory: oslo_middleware.cors:filter_factory
+      oslo_config_project: masakari
+    filter:http_proxy_to_wsgi:
+      paste.filter_factory: oslo_middleware.http_proxy_to_wsgi:HTTPProxyToWSGI.factory
+    filter:request_id:
+      paste.filter_factory: oslo_middleware:RequestId.factory
+    filter:faultwrap:
+      paste.filter_factory: masakari.api.openstack:FaultWrapper.factory
+    filter:sizelimit:
+      paste.filter_factory: oslo_middleware:RequestBodySizeLimiter.factory
+    filter:authtoken:
+      paste.filter_factory: keystonemiddleware.auth_token:filter_factory
+    filter:keystonecontext:
+      paste.filter_factory: masakari.api.auth:MasakariKeystoneContext.factory
+    filter:noauth2:
+      paste.filter_factory: masakari.api.auth:NoAuthMiddleware.factory
+    app:osapi_masakari_app_v1:
+      paste.app_factory: masakari.api.openstack.ha:APIRouterV1.factory
+    pipeline:apiversions:
+      pipeline: faultwrap http_proxy_to_wsgi apiversionsapp
+    app:apiversionsapp:
+      paste.app_factory: masakari.api.openstack.ha.versions:Versions.factory
+  masakari:
+    DEFAULT:
+      auth_strategy: keystone
+      duplicate_notification_detection_interval: 180
+      host_failure_recovery_threads: 1
+      masakari_api_workers: 1
+      graceful_shutdown_timeout: 5
+      api_paste_config: /etc/masakari/api-paste.ini
+    keystone_authtoken:
+      auth_type: password
+    database:
+      max_retries: -1
+    # Connection string is evaluated though the endpoints for taskflow.
+    taskflow:
+      connection: null
+  masakarimonitors:
+    DEFAULT:
+      debug: False
+    api:
+      api_version: v1
+      api_interface: internal
+    callback:
+      retry_max: 10
+      retry_interval: 10
+    introspectiveinstancemonitor:
+      guest_monitor_interval: 10
+      guest_monitor_timeout: 5
+
+network:
+  masakari_api:
+    node_port:
+      enabled: false
+      port: 33033
+    external_policy_local: false
+
+manifests:
+  job_ks_user: true
+  job_db_sync: true
+  job_db_init: true
+  job_db_drop: false
+  job_ks_endpoints: true
+  job_ks_service: true
+  deployment_api: true
+  deployment_engine: true
+  configmap_bin: true
+  configmap_etc: true
+  secret_db: true
+  secret_rabbitmq: true
+  secret_keystone: true
+  job_rabbit_init: true
+  service_api: true
+  pdb_api: true
+  host_monitor: true
+  instance_monitor: true
+  process_monitor: true
