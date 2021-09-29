@@ -18,9 +18,12 @@ helm.sh/hook-weight: "-3"
 {{- end }}
 
 {{- if .Values.manifests.job_ks_service }}
-{{- $ksServiceJob := dict "envAll" . "serviceName" "neutron" "serviceTypes" ( tuple "network" ) "jobAnnotations" (include "metadata.annotations.job.ks_service" . | fromYaml) -}}
+{{- $ksServiceJob := dict "envAll" . "serviceName" "neutron" "serviceTypes" ( tuple "network" ) -}}
 {{- if .Values.manifests.certificates -}}
 {{- $_ := set $ksServiceJob "tlsSecret" .Values.secrets.tls.network.server.internal -}}
 {{- end -}}
+{{- if .Values.helm3_hook }}
+{{- $_ := set $ksServiceJob "jobAnnotations" (include "metadata.annotations.job.ks_service" . | fromYaml) }}
+{{- end }}
 {{ $ksServiceJob | include "helm-toolkit.manifests.job_ks_service" }}
 {{- end }}
