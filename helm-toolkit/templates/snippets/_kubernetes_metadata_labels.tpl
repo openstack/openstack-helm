@@ -17,12 +17,20 @@ abstract: |
   Renders a set of standardised labels
 values: |
   release_group: null
+  pod:
+    labels:
+      default:
+        label1.example.com: value
+      bar:
+        label2.example.com: bar
 usage: |
   {{ tuple . "foo" "bar" | include "helm-toolkit.snippets.kubernetes_metadata_labels" }}
 return: |
   release_group: RELEASE-NAME
   application: foo
   component: bar
+  label1.example.com: value
+  label2.example.com: bar
 */}}
 
 {{- define "helm-toolkit.snippets.kubernetes_metadata_labels" -}}
@@ -32,4 +40,12 @@ return: |
 release_group: {{ $envAll.Values.release_group | default $envAll.Release.Name }}
 application: {{ $application }}
 component: {{ $component }}
+{{- if ($envAll.Values.pod).labels }}
+{{- if hasKey $envAll.Values.pod.labels $component }}
+{{ index $envAll.Values.pod "labels" $component | toYaml }}
+{{- end -}}
+{{- if hasKey $envAll.Values.pod.labels "default" }}
+{{ $envAll.Values.pod.labels.default | toYaml }}
+{{- end -}}
+{{- end -}}
 {{- end -}}
