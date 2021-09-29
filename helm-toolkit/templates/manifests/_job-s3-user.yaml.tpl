@@ -38,6 +38,11 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: {{ printf "%s-%s" $serviceNamePretty "s3-user" | quote }}
+  labels:
+{{ tuple $envAll $serviceName "s3-user" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+{{- if $jobLabels }}
+{{ toYaml $jobLabels | indent 4 }}
+{{- end }}
   annotations:
     "helm.sh/hook-delete-policy": before-hook-creation
     {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}

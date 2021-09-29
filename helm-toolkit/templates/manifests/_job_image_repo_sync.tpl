@@ -38,6 +38,11 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: {{ printf "%s-%s" $serviceNamePretty "image-repo-sync" | quote }}
+  labels:
+{{ tuple $envAll $serviceName "image-repo-sync" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+{{- if $jobLabels }}
+{{ toYaml $jobLabels | indent 4 }}
+{{- end }}
   annotations:
     "helm.sh/hook-delete-policy": before-hook-creation
 {{- if $jobAnnotations }}

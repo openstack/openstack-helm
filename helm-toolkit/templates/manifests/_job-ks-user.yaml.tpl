@@ -45,6 +45,11 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: {{ printf "%s-%s" $serviceUserPretty "ks-user" | quote }}
+  labels:
+{{ tuple $envAll $serviceName "ks-user" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+{{- if $jobLabels }}
+{{ toYaml $jobLabels | indent 4 }}
+{{- end }}
   annotations:
 {{- if $jobAnnotations }}
 {{ toYaml $jobAnnotations | indent 4 }}

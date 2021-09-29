@@ -45,6 +45,11 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: {{ printf "%s-%s" $serviceNamePretty "db-drop" | quote }}
+  labels:
+{{ tuple $envAll $serviceName "db-drop" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+{{- if $jobLabels }}
+{{ toYaml $jobLabels | indent 4 }}
+{{- end }}
   annotations:
     "helm.sh/hook": pre-delete
     "helm.sh/hook-delete-policy": hook-succeeded
