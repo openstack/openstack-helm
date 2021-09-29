@@ -21,6 +21,12 @@ CEPH_RBD_KEY=$(kubectl get secret ${PVC_CEPH_RBD_STORAGECLASS_ADMIN_SECRET_NAME}
     --namespace=${PVC_CEPH_RBD_STORAGECLASS_DEPLOYED_NAMESPACE} \
     -o json )
 
+if [[ ${CONNECT_TO_ROOK_CEPH_CLUSTER} == "true" ]] ; then
+  CEPH_CLUSTER_KEY=$(echo "${CEPH_RBD_KEY}" | jq -r '.data["ceph-secret"]')
+else
+  CEPH_CLUSTER_KEY=$(echo "${CEPH_RBD_KEY}" | jq -r '.data.key')
+fi
+
 ceph_activate_namespace() {
   kube_namespace=$1
   secret_type=$2
@@ -41,4 +47,4 @@ EOF
   } | kubectl apply --namespace ${kube_namespace} -f -
 }
 
-ceph_activate_namespace ${DEPLOYMENT_NAMESPACE} "kubernetes.io/rbd" ${PVC_CEPH_RBD_STORAGECLASS_USER_SECRET_NAME} "$(echo ${CEPH_RBD_KEY} | jq -r '.data.key')"
+ceph_activate_namespace ${DEPLOYMENT_NAMESPACE} "kubernetes.io/rbd" ${PVC_CEPH_RBD_STORAGECLASS_USER_SECRET_NAME} "${CEPH_CLUSTER_KEY}"
