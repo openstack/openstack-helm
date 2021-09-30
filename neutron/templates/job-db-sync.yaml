@@ -18,9 +18,12 @@ helm.sh/hook-weight: "-4"
 {{- end }}
 
 {{- if .Values.manifests.job_db_sync }}
-{{- $dbSyncJob := dict "envAll" . "serviceName" "neutron" "podVolMounts" .Values.pod.mounts.neutron_db_sync.neutron_db_sync.volumeMounts "podVols" .Values.pod.mounts.neutron_db_sync.neutron_db_sync.volumes "jobAnnotations" (include "metadata.annotations.job.db_sync" . | fromYaml) -}}
+{{- $dbSyncJob := dict "envAll" . "serviceName" "neutron" "podVolMounts" .Values.pod.mounts.neutron_db_sync.neutron_db_sync.volumeMounts "podVols" .Values.pod.mounts.neutron_db_sync.neutron_db_sync.volumes -}}
 {{- if .Values.manifests.certificates -}}
 {{- $_ := set $dbSyncJob "dbAdminTlsSecret" .Values.endpoints.oslo_db.auth.admin.secret.tls.internal -}}
 {{- end -}}
+{{- if .Values.helm3_hook }}
+{{- $_ := set $dbSyncJob "jobAnnotations" (include "metadata.annotations.job.db_sync" . | fromYaml) }}
+{{- end }}
 {{ $dbSyncJob | include "helm-toolkit.manifests.job_db_sync" }}
 {{- end }}
