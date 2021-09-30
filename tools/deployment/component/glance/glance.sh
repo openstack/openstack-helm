@@ -27,6 +27,8 @@ make glance
 : ${GLANCE_BACKEND:="pvc"}
 tee /tmp/glance.yaml <<EOF
 storage: ${GLANCE_BACKEND}
+volume:
+  class_name: standard
 EOF
 if [ "x${OSH_OPENSTACK_RELEASE}" == "xnewton" ]; then
 # NOTE(portdirect): glance APIv1 is required for heat in Newton
