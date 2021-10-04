@@ -16,7 +16,7 @@ limitations under the License.
 
 set -e
 endpt={{ tuple "identity" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" }}
-path={{ .Values.conf.keystone.identity.domain_config_dir | default "/etc/keystonedomains" }}
+path={{ .Values.conf.keystone.identity.domain_config_dir | default "/etc/keystone/domains" }}
 
 {{- range $k, $v := .Values.conf.ks_domains }}
 
