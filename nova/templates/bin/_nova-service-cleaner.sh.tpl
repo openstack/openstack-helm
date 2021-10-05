@@ -16,6 +16,13 @@ limitations under the License.
 
 set -xe
 
+# If any non-compute service is down, then sleep for 2 times the report_interval
+# to confirm service is still down.
+DISABLED_SVC="$(openstack compute service list -f value | grep -v 'nova-compute' | grep 'down')"
+if [ ! -z "${DISABLED_SVC}" ]; then
+  sleep $((2 * {{ .Values.conf.nova.DEFAULT.report_interval }}))
+fi
+
 NOVA_SERVICES_TO_CLEAN="$(openstack compute service list -f value -c Binary | sort | uniq | grep -v '^nova-compute$')"
 for NOVA_SERVICE in ${NOVA_SERVICES_TO_CLEAN}; do
   DEAD_SERVICE_IDS=$(openstack compute service list --service ${NOVA_SERVICE} -f json | jq -r '.[] | select(.State == "down") | .ID')
