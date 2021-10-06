@@ -18,9 +18,9 @@ set -xe
 
 # If any non-compute service is down, then sleep for 2 times the report_interval
 # to confirm service is still down.
-DISABLED_SVC="$(openstack compute service list -f value | grep -v 'nova-compute' | grep 'down')"
+DISABLED_SVC="$(openstack compute service list -f value | grep -v 'nova-compute' | grep 'down' || true)"
 if [ ! -z "${DISABLED_SVC}" ]; then
-  sleep $((2 * {{ .Values.jobs.service_cleaner.sleep_time }}))
+  sleep {{ .Values.jobs.service_cleaner.sleep_time }}
 fi
 
 NOVA_SERVICES_TO_CLEAN="$(openstack compute service list -f value -c Binary | sort | uniq | grep -v '^nova-compute$')"
