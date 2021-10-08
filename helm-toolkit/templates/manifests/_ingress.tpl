@@ -62,7 +62,7 @@ examples:
       {{- include "helm-toolkit.manifests.ingress" ( dict "envAll" . "backendServiceType" "key-manager" "backendPort" "b-api" "endpoint" "public" ) -}}
     return: |
       ---
-      apiVersion: networking.k8s.io/v1beta1
+      apiVersion: networking.k8s.io/v1
       kind: Ingress
       metadata:
         name: barbican
@@ -76,25 +76,34 @@ examples:
             http:
               paths:
                 - path: /
+                  pathType: ImplementationSpecific
                   backend:
-                    serviceName: barbican-api
-                    servicePort: b-api
+                    service:
+                      name: barbican-api
+                      port:
+                        name: b-api
           - host: barbican.default
             http:
               paths:
                 - path: /
+                  pathType: ImplementationSpecific
                   backend:
-                    serviceName: barbican-api
-                    servicePort: b-api
+                    service:
+                      name: barbican-api
+                      port:
+                        name: b-api
           - host: barbican.default.svc.cluster.local
             http:
               paths:
                 - path: /
+                  pathType: ImplementationSpecific
                   backend:
-                    serviceName: barbican-api
-                    servicePort: b-api
+                    service:
+                      name: barbican-api
+                      port:
+                        name: b-api
       ---
-      apiVersion: networking.k8s.io/v1beta1
+      apiVersion: networking.k8s.io/v1
       kind: Ingress
       metadata:
         name: barbican-namespace-fqdn
@@ -112,11 +121,14 @@ examples:
             http:
               paths:
                 - path: /
+                  pathType: ImplementationSpecific
                   backend:
-                    serviceName: barbican-api
-                    servicePort: b-api
+                    service:
+                      name: barbican-api
+                      port:
+                        name: b-api
       ---
-      apiVersion: networking.k8s.io/v1beta1
+      apiVersion: networking.k8s.io/v1
       kind: Ingress
       metadata:
         name: barbican-cluster-fqdn
@@ -134,9 +146,12 @@ examples:
             http:
               paths:
                 - path: /
+                  pathType: ImplementationSpecific
                   backend:
-                    serviceName: barbican-api
-                    servicePort: b-api
+                    service:
+                      name: barbican-api
+                      port:
+                        name: b-api
   - values: |
       network:
         api:
@@ -182,7 +197,7 @@ examples:
       {{- include "helm-toolkit.manifests.ingress" ( dict "envAll" . "backendServiceType" "key-manager" "backendPort" "b-api" "endpoint" "public" ) -}}
     return: |
       ---
-      apiVersion: networking.k8s.io/v1beta1
+      apiVersion: networking.k8s.io/v1
       kind: Ingress
       metadata:
         name: barbican
@@ -202,23 +217,32 @@ examples:
             http:
               paths:
                 - path: /
+                  pathType: ImplementationSpecific
                   backend:
-                    serviceName: barbican-api
-                    servicePort: b-api
+                    service:
+                      name: barbican-api
+                      port:
+                        name: b-api
           - host: barbican.default
             http:
               paths:
                 - path: /
+                  pathType: ImplementationSpecific
                   backend:
-                    serviceName: barbican-api
-                    servicePort: b-api
+                    service:
+                      name: barbican-api
+                      port:
+                        name: b-api
           - host: barbican.default.svc.cluster.local
             http:
               paths:
                 - path: /
+                  pathType: ImplementationSpecific
                   backend:
-                    serviceName: barbican-api
-                    servicePort: b-api
+                    service:
+                      name: barbican-api
+                      port:
+                        name: b-api
   - values: |
       cert_issuer_type: issuer
       network:
@@ -273,7 +297,7 @@ examples:
       {{- include "helm-toolkit.manifests.ingress" ( dict "envAll" . "backendServiceType" "key-manager" "backendPort" "b-api" "endpoint" "public" "certIssuer" "ca-issuer" ) -}}
     return: |
       ---
-      apiVersion: networking.k8s.io/v1beta1
+      apiVersion: networking.k8s.io/v1
       kind: Ingress
       metadata:
         name: barbican
@@ -295,23 +319,32 @@ examples:
             http:
               paths:
                 - path: /
+                  pathType: ImplementationSpecific
                   backend:
-                    serviceName: barbican-api
-                    servicePort: b-api
+                    service:
+                      name: barbican-api
+                      port:
+                        name: b-api
           - host: barbican.default
             http:
               paths:
                 - path: /
+                  pathType: ImplementationSpecific
                   backend:
-                    serviceName: barbican-api
-                    servicePort: b-api
+                    service:
+                      name: barbican-api
+                      port:
+                        name: b-api
           - host: barbican.default.svc.cluster.local
             http:
               paths:
                 - path: /
+                  pathType: ImplementationSpecific
                   backend:
-                    serviceName: barbican-api
-                    servicePort: b-api
+                    service:
+                      name: barbican-api
+                      port:
+                        name: b-api
 
   - values: |
       network:
@@ -366,7 +399,7 @@ examples:
       {{- include "helm-toolkit.manifests.ingress" ( dict "envAll" . "backendServiceType" "key-manager" "backendPort" "b-api" "endpoint" "public" "certIssuer" "ca-issuer") -}}
     return: |
       ---
-      apiVersion: networking.k8s.io/v1beta1
+      apiVersion: networking.k8s.io/v1
       kind: Ingress
       metadata:
         name: barbican
@@ -388,23 +421,32 @@ examples:
             http:
               paths:
                 - path: /
+                  pathType: ImplementationSpecific
                   backend:
-                    serviceName: barbican-api
-                    servicePort: b-api
+                    service:
+                      name: barbican-api
+                      port:
+                        name: b-api
           - host: barbican.default
             http:
               paths:
                 - path: /
+                  pathType: ImplementationSpecific
                   backend:
-                    serviceName: barbican-api
-                    servicePort: b-api
+                    service:
+                      name: barbican-api
+                      port:
+                        name: b-api
           - host: barbican.default.svc.cluster.local
             http:
               paths:
                 - path: /
+                  pathType: ImplementationSpecific
                   backend:
-                    serviceName: barbican-api
-                    servicePort: b-api
+                    service:
+                      name: barbican-api
+                      port:
+                        name: b-api
   # Sample usage for multiple DNS names associated with the same public
   # endpoint and certificate
   - values: |
@@ -441,7 +483,7 @@ examples:
       {{ $ingressOpts | include "helm-toolkit.manifests.ingress" }}
     return: |
       ---
-      apiVersion: networking.k8s.io/v1beta1
+      apiVersion: networking.k8s.io/v1
       kind: Ingress
       metadata:
         name: grafana
@@ -455,25 +497,34 @@ examples:
             http:
               paths:
                 - path: /
+                  pathType: ImplementationSpecific
                   backend:
-                    serviceName: grafana-dashboard
-                    servicePort: dashboard
+                    service:
+                      name: grafana-dashboard
+                      port:
+                        name: dashboard
           - host: grafana.default
             http:
               paths:
                 - path: /
+                  pathType: ImplementationSpecific
                   backend:
-                    serviceName: grafana-dashboard
-                    servicePort: dashboard
+                    service:
+                      name: grafana-dashboard
+                      port:
+                        name: dashboard
           - host: grafana.default.svc.cluster.local
             http:
               paths:
                 - path: /
+                  pathType: ImplementationSpecific
                   backend:
-                    serviceName: grafana-dashboard
-                    servicePort: dashboard
+                    service:
+                      name: grafana-dashboard
+                      port:
+                        name: dashboard
       ---
-      apiVersion: networking.k8s.io/v1beta1
+      apiVersion: networking.k8s.io/v1
       kind: Ingress
       metadata:
         name: grafana-namespace-fqdn
@@ -492,18 +543,24 @@ examples:
             http:
               paths:
                 - path: /
+                  pathType: ImplementationSpecific
                   backend:
-                    serviceName: grafana-dashboard
-                    servicePort: dashboard
+                    service:
+                      name: grafana-dashboard
+                      port:
+                        name: dashboard
           - host: grafana-alt.openstackhelm.example
             http:
               paths:
                 - path: /
+                  pathType: ImplementationSpecific
                   backend:
-                    serviceName: grafana-dashboard
-                    servicePort: dashboard
+                    service:
+                      name: grafana-dashboard
+                      port:
+                        name: dashboard
       ---
-      apiVersion: networking.k8s.io/v1beta1
+      apiVersion: networking.k8s.io/v1
       kind: Ingress
       metadata:
         name: grafana-cluster-fqdn
@@ -522,16 +579,22 @@ examples:
             http:
               paths:
                 - path: /
+                  pathType: ImplementationSpecific
                   backend:
-                    serviceName: grafana-dashboard
-                    servicePort: dashboard
+                    service:
+                      name: grafana-dashboard
+                      port:
+                        name: dashboard
           - host: grafana-alt.openstackhelm.example
             http:
               paths:
                 - path: /
+                  pathType: ImplementationSpecific
                   backend:
-                    serviceName: grafana-dashboard
-                    servicePort: dashboard
+                    service:
+                      name: grafana-dashboard
+                      port:
+                        name: dashboard
 
 */}}
 
@@ -543,9 +606,16 @@ examples:
   http:
     paths:
       - path: /
+        pathType: ImplementationSpecific
         backend:
-          serviceName: {{ $backendName }}
-          servicePort: {{ $backendPort }}
+          service:
+            name: {{ $backendName }}
+            port:
+{{- if or (kindIs "int" $backendPort) (regexMatch "^[0-9]{1,5}$" $backendPort) }}
+              number: {{ $backendPort | int }}
+{{- else }}
+              name: {{ $backendPort | quote }}
+{{- end }}
 {{- end }}
 
 {{- define "helm-toolkit.manifests.ingress" -}}
@@ -564,7 +634,7 @@ examples:
 {{- $certIssuerType = $envAll.Values.cert_issuer_type }}
 {{- end }}
 ---
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: {{ $ingressName }}
@@ -618,7 +688,7 @@ spec:
 {{- range $key2, $ingressController := tuple "namespace" "cluster" }}
 {{- $vHosts := list $hostNameFull }}
 ---
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: {{ printf "%s-%s-%s" $ingressName $ingressController "fqdn" }}
