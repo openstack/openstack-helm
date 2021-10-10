@@ -23,6 +23,3 @@ helm upgrade --install nfs-provisioner ${OSH_INFRA_PATH}/nfs-provisioner \
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh nfs
-
-#NOTE: Display info
-helm status nfs-provisioner

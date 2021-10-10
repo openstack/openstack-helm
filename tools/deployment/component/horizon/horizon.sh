@@ -29,9 +29,6 @@ helm upgrade --install horizon ./horizon \
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack
 
-#NOTE: Validate Deployment info
-helm status horizon
-
 helm test horizon
 
 FEATURE_GATE="tls"; if [[ ${FEATURE_GATES//,/ } =~ (^|[[:space:]])${FEATURE_GATE}($|[[:space:]]) ]]; then

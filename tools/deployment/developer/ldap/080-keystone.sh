@@ -31,9 +31,6 @@ helm upgrade --install ldap ${HELM_CHART_ROOT_PATH}/ldap \
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack
 
-#NOTE: Validate Deployment info
-helm status ldap
-
 #NOTE: Get the over-rides to use
 export HELM_CHART_ROOT_PATH="../openstack-helm"
 : ${OSH_EXTRA_HELM_ARGS_KEYSTONE:="$(./tools/deployment/common/get-values-overrides.sh keystone)"}
@@ -53,7 +50,6 @@ helm upgrade --install keystone ./keystone \
 ./tools/deployment/common/wait-for-pods.sh openstack
 
 #NOTE: Validate Deployment info
-helm status keystone
 export OS_CLOUD=openstack_helm
 sleep 30 #NOTE(portdirect): Wait for ingress controller to update rules and restart Nginx
 openstack endpoint list

@@ -29,7 +29,4 @@ helm upgrade --install barbican ./barbican \
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack
 
-#NOTE: Validate Deployment info
-helm status barbican
-
 helm test barbican

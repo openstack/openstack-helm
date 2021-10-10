@@ -30,8 +30,6 @@ helm upgrade --install keystone ./keystone \
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack
 
-#NOTE: Validate Deployment info
-helm status keystone
 export OS_CLOUD=openstack_helm
 sleep 30 #NOTE(portdirect): Wait for ingress controller to update rules and restart Nginx
 openstack endpoint list

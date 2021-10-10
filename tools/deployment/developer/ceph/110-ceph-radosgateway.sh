@@ -55,7 +55,6 @@ helm upgrade --install radosgw-openstack ${HELM_CHART_ROOT_PATH}/ceph-rgw \
 ./tools/deployment/common/wait-for-pods.sh openstack
 
 #NOTE: Validate Deployment info
-helm status radosgw-openstack
 export OS_CLOUD=openstack_helm
 sleep 30 #NOTE(portdirect): Wait for ingress controller to update rules and restart Nginx
 openstack service list

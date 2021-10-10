@@ -29,6 +29,3 @@ helm upgrade --install lockdown ${HELM_CHART_ROOT_PATH}/lockdown \
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack
-
-#NOTE: Validate Deployment info
-helm status lockdown

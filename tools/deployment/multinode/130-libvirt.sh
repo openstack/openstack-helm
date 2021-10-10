@@ -33,9 +33,3 @@ helm upgrade --install libvirt ${OSH_INFRA_PATH}/libvirt \
   --set conf.ceph.enabled=${CEPH_ENABLED} \
   ${OSH_EXTRA_HELM_ARGS} \
   ${OSH_EXTRA_HELM_ARGS_LIBVIRT}
-
-#NOTE(portdirect): We don't wait for libvirt pods to come up, as they depend
-# on the neutron agents being up.
-
-#NOTE: Validate Deployment info
-helm status libvirt

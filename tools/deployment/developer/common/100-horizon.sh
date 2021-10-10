@@ -32,9 +32,6 @@ helm upgrade --install horizon ./horizon \
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack
 
-#NOTE: Validate Deployment info
-helm status horizon
-
 # Delete the test pod if it still exists
 kubectl delete pods -l application=horizon,release_group=horizon,component=test --namespace=openstack --ignore-not-found
 helm test horizon

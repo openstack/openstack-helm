@@ -47,9 +47,6 @@ helm upgrade --install ingress-kube-system ${HELM_CHART_ROOT_PATH}/ingress \
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh kube-system
 
-#NOTE: Display info
-helm status ingress-kube-system
-
 #NOTE: Deploy namespace ingress
 helm upgrade --install ingress-osh-infra ${HELM_CHART_ROOT_PATH}/ingress \
   --namespace=osh-infra \
@@ -59,9 +56,6 @@ helm upgrade --install ingress-osh-infra ${HELM_CHART_ROOT_PATH}/ingress \
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh osh-infra
 
-#NOTE: Display info
-helm status ingress-osh-infra
-
 helm upgrade --install ingress-ceph ${HELM_CHART_ROOT_PATH}/ingress \
   --namespace=ceph \
   ${OSH_INFRA_EXTRA_HELM_ARGS} \
@@ -69,6 +63,3 @@ helm upgrade --install ingress-ceph ${HELM_CHART_ROOT_PATH}/ingress \
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh ceph
-
-#NOTE: Display info
-helm status ingress-ceph

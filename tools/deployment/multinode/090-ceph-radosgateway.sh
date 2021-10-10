@@ -58,9 +58,6 @@ helm upgrade --install radosgw-openstack ${OSH_INFRA_PATH}/ceph-rgw \
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack
 
-#NOTE: Validate Deployment info
-helm status radosgw-openstack
-
 #NOTE: Run Tests
 export OS_CLOUD=openstack_helm
 # Delete the test pod if it still exists

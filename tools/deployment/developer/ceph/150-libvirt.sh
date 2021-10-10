@@ -26,9 +26,3 @@ helm upgrade --install libvirt ${HELM_CHART_ROOT_PATH}/libvirt \
   --namespace=openstack \
   ${OSH_EXTRA_HELM_ARGS} \
   ${OSH_EXTRA_HELM_ARGS_LIBVIRT}
-
-#NOTE(portdirect): We don't wait for libvirt pods to come up, as they depend
-# on the neutron agents being up.
-
-#NOTE: Validate Deployment info
-helm status libvirt

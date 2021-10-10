@@ -30,6 +30,5 @@ helm upgrade --install aodh ./aodh \
 ./tools/deployment/common/wait-for-pods.sh openstack
 
 #NOTE: Validate Deployment info
-helm status aodh
 export OS_CLOUD=openstack_helm
 openstack service list

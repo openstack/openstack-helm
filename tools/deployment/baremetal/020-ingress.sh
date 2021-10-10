@@ -41,8 +41,3 @@ helm install ${OSH_INFRA_PATH}/ingress \
 ./tools/deployment/common/wait-for-pods.sh kube-system
 ./tools/deployment/common/wait-for-pods.sh ceph
 ./tools/deployment/common/wait-for-pods.sh openstack
-
-#NOTE: Display info
-helm status ingress-kube-system
-helm status ingress-ceph
-helm status ingress-openstack

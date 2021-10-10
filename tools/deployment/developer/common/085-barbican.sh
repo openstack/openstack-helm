@@ -29,9 +29,6 @@ helm upgrade --install barbican ./barbican \
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack
 
-#NOTE: Validate Deployment info
-helm status barbican
-
 # Delete the test pod if it still exists
 kubectl delete pods -l application=barbican,release_group=barbican,component=test --namespace=openstack --ignore-not-found
 helm test barbican
