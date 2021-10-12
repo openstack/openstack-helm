@@ -24,13 +24,42 @@ function check_mon_msgr2 {
  fi
 }
 
+function get_mon_count {
+  ceph mon count-metadata hostname | jq '. | length'
+}
+
+function check_mon_addrs {
+  local mon_dump=$(ceph mon dump)
+  local mon_hostnames=$(echo "${mon_dump}" | awk '/mon\./{print $3}' | sed 's/mon\.//g')
+  local mon_endpoints=$(kubectl get endpoints ceph-mon-discovery -n ceph -o json)
+  local v1_port=$(jq '.subsets[0].ports[] | select(.name == "mon") | .port' <<< ${mon_endpoints})
+  local v2_port=$(jq '.subsets[0].ports[] | select(.name == "mon-msgr2") | .port' <<< ${mon_endpoints})
+
+  for mon in ${mon_hostnames}; do
+    local mon_endpoint=$(echo "${mon_dump}" | awk "/${mon}/{print \$2}")
+    local mon_ip=$(jq -r ".subsets[0].addresses[] | select(.nodeName == \"${mon}\") | .ip" <<< ${mon_endpoints})
+    local desired_endpoint=$(printf '[v1:%s:%s/0,v2:%s:%s/0]' ${mon_ip} ${v1_port} ${mon_ip} ${v2_port})
+
+    if [[ "${mon_endpoint}" != "${desired_endpoint}" ]]; then
+      echo "endpoint for ${mon} is ${mon_endpoint}, setting it to ${desired_endpoint}"
+      ceph mon set-addrs ${mon} ${desired_endpoint}
+    fi
+  done
+}
 
 function watch_mon_health {
+  previous_mon_count=$(get_mon_count)
   while [ true ]; do
-    echo "checking for zombie mons"
-    python3 /tmp/moncheck-reap-zombies.py || true
+    mon_count=$(get_mon_count)
+    if [[ ${mon_count} -ne ${previous_mon_count} ]]; then
+      echo "checking for zombie mons"
+      python3 /tmp/moncheck-reap-zombies.py || true
+    fi
+    previous_mon_count=${mon_count}
     echo "checking for ceph-mon msgr v2"
     check_mon_msgr2
+    echo "checking mon endpoints in monmap"
+    check_mon_addrs
     echo "sleep 30 sec"
     sleep 30
   done
