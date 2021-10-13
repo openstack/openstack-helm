@@ -26,6 +26,3 @@ helm upgrade --install powerdns ./powerdns \
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack
-
-#NOTE: Validate Deployment info
-helm status powerdns

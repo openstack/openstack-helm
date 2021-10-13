@@ -27,6 +27,3 @@ helm upgrade --install prometheus-openstack-exporter \
     ${OSH_INFRA_EXTRA_HELM_ARGS_OS_EXPORTER}
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack
-
-#NOTE: Validate Deployment info
-helm status prometheus-openstack-exporter
