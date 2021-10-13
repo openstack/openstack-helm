@@ -29,9 +29,6 @@ helm upgrade --install mariadb ./mariadb \
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack
 
-#NOTE: Validate Deployment info
-helm status mariadb
-
 # Delete the test pod if it still exists
 kubectl delete pods -l application=mariadb,release_group=mariadb,component=test --namespace=openstack --ignore-not-found
 #NOTE: Validate the deployment
