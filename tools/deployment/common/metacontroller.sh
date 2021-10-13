@@ -52,5 +52,3 @@ done
 if test $COUNTER -eq 3; then
   echo "crds created succesfully"
 fi
-
-helm status metacontroller

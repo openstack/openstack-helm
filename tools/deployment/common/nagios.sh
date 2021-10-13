@@ -35,9 +35,6 @@ helm upgrade --install nagios ./nagios \
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh osh-infra
 
-#NOTE: Validate Deployment info
-helm status nagios
-
 #NOTE: Verify elasticsearch query clauses are functional by execing into pod
 NAGIOS_POD=$(kubectl -n osh-infra get pods -l='application=nagios,component=monitoring' --output=jsonpath='{.items[0].metadata.name}')
 kubectl exec $NAGIOS_POD  -n osh-infra -c nagios -- cat /opt/nagios/etc/objects/query_es_clauses.json | python -m json.tool
