@@ -28,6 +28,3 @@ helm upgrade --install rabbitmq ./rabbitmq \
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh osh-infra
-
-#NOTE: Validate Deployment info
-helm status rabbitmq

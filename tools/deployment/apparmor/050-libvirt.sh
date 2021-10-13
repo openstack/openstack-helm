@@ -173,5 +173,3 @@ helm upgrade --install libvirt ./libvirt \
 
 #NOTE: Validate Deployment info
 ./tools/deployment/common/wait-for-pods.sh openstack
-
-helm status libvirt
