@@ -40,6 +40,3 @@ helm upgrade --install kubernetes-node-problem-detector \
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh kube-system
-
-#NOTE: Validate Deployment info
-helm status kubernetes-node-problem-detector
