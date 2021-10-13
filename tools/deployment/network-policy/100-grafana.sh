@@ -42,6 +42,3 @@ helm upgrade --install grafana ./grafana \
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh osh-infra
-
-#NOTE: Validate Deployment info
-helm status grafana

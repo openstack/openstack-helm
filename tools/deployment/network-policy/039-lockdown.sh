@@ -22,6 +22,3 @@ helm upgrade --install lockdown ./lockdown \
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack
-
-#NOTE: Validate Deployment info
-helm status lockdown
