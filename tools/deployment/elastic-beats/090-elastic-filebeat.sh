@@ -40,6 +40,3 @@ helm upgrade --install elastic-filebeat ./elastic-filebeat \
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh kube-system
-
-#NOTE: Validate Deployment info
-helm status elastic-filebeat

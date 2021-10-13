@@ -53,6 +53,3 @@ helm upgrade --install kibana ./kibana \
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh osh-infra
-
-#NOTE: Validate Deployment info
-helm status kibana
