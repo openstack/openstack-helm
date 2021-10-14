@@ -384,6 +384,8 @@ if [[ -n $(grep ^{{ .name }}$ <<< "${pool_list}") ]] &&
 fi
 {{- end }}
 {{- if and .delete .delete_all_pool_data }}
+# Wait for manage_pool() to finish for this pool before trying to delete the pool
+wait_for_pid $MANAGE_POOL_PID
 # If delete is set to true and delete_all_pool_data is also true, delete the pool
 if [[ "true" == "{{ .delete }}" ]] &&
    [[ "true" == "{{ .delete_all_pool_data }}" ]]; then
