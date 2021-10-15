@@ -78,7 +78,7 @@ the following key:
       dashboards:
 
 
-These YAML definitiions are transformed to JSON are added to Grafana's
+These YAML definitions are transformed to JSON are added to Grafana's
 configuration configmap and mounted to the Grafana pods dynamically, allowing for
 flexibility in defining and adding custom dashboards to Grafana.  Dashboards can
 be added by inserting a new key along with a YAML dashboard definition as the
