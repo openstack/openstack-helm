@@ -41,11 +41,15 @@ function check_mon_addrs {
   for mon in ${mon_hostnames}; do
     local mon_endpoint=$(echo "${mon_dump}" | awk "/${mon}/{print \$2}")
     local mon_ip=$(jq -r ".subsets[0].addresses[] | select(.nodeName == \"${mon}\") | .ip" <<< ${mon_endpoints})
-    local desired_endpoint=$(printf '[v1:%s:%s/0,v2:%s:%s/0]' ${mon_ip} ${v1_port} ${mon_ip} ${v2_port})
 
-    if [[ "${mon_endpoint}" != "${desired_endpoint}" ]]; then
-      echo "endpoint for ${mon} is ${mon_endpoint}, setting it to ${desired_endpoint}"
-      ceph mon set-addrs ${mon} ${desired_endpoint}
+    # Skip this mon if it doesn't appear in the list of kubernetes endpoints
+    if [[ -n "${mon_ip}" ]]; then
+      local desired_endpoint=$(printf '[v1:%s:%s/0,v2:%s:%s/0]' ${mon_ip} ${v1_port} ${mon_ip} ${v2_port})
+
+      if [[ "${mon_endpoint}" != "${desired_endpoint}" ]]; then
+        echo "endpoint for ${mon} is ${mon_endpoint}, setting it to ${desired_endpoint}"
+        ceph mon set-addrs ${mon} ${desired_endpoint}
+      fi
     fi
   done
 }
