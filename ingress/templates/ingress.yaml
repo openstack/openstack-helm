@@ -18,8 +18,10 @@ limitations under the License.
 {{- if empty (index .Values.network.ingress.annotations "kubernetes.io/ingress.class") -}}
 {{- $_ := set .Values.network.ingress.annotations "kubernetes.io/ingress.class" .Values.deployment.cluster.class -}}
 {{- end -}}
+{{- $serviceName := tuple "ingress" "internal" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" -}}
+{{- $servicePort := tuple "ingress" "internal" "http" . | include "helm-toolkit.endpoints.endpoint_port_lookup" -}}
 ---
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: {{ .Release.Namespace }}-{{ .Release.Name }}
@@ -31,8 +33,15 @@ spec:
     http:
       paths:
       - path: /
+        pathType: ImplementationSpecific
         backend:
-          serviceName: {{ tuple "ingress" "internal" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
-          servicePort: {{ tuple "ingress" "internal" "http" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+          service:
+            name: {{ $serviceName }}
+            port:
+{{- if or (kindIs "int" $servicePort) (regexMatch "^[0-9]{1,5}$" $servicePort) }}
+              number: {{ $servicePort | int }}
+{{- else }}
+              name: {{ $servicePort | quote }}
+{{- end }}
 {{- end }}
 {{- end }}
