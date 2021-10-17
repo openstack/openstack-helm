@@ -13,6 +13,8 @@
 #    under the License.
 set -xe
 
+: ${RUN_HELM_TESTS:="yes"}
+
 #NOTE: Lint and package chart
 make barbican
 
@@ -30,6 +32,8 @@ helm upgrade --install barbican ./barbican \
 export OS_CLOUD=openstack_helm
 openstack service list
 sleep 30 #NOTE(portdirect): Wait for ingress controller to update rules and restart Nginx
-# Delete the test pod if it still exists
-kubectl delete pods -l application=barbican,release_group=barbican,component=test --namespace=openstack --ignore-not-found
-helm test barbican
+
+# Run helm tests
+if [ "x${RUN_HELM_TESTS}" != "xno" ]; then
+    ./tools/deployment/common/run-helm-tests.sh barbican
+fi
