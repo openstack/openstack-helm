@@ -19,6 +19,7 @@ set -xe
 
 #NOTE: Get the over-rides to use
 : ${OSH_EXTRA_HELM_ARGS_HORIZON:="$(./tools/deployment/common/get-values-overrides.sh horizon)"}
+: ${RUN_HELM_TESTS:="yes"}
 
 #NOTE: Lint and package chart
 make horizon
@@ -39,4 +40,7 @@ helm upgrade --install horizon ./horizon \
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack
 
-helm test horizon
+# Run helm tests
+if [ "x${RUN_HELM_TESTS}" != "xno" ]; then
+    ./tools/deployment/common/run-helm-tests.sh horizon
+fi
