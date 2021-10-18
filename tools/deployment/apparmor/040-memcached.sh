@@ -43,9 +43,6 @@ helm upgrade --install memcached ./memcached \
 # NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh $namespace
 
-# NOTE: Validate Deployment info
-helm status memcached
-
 # Run a test. Note: the simple "cat /proc/1/attr/current" verification method
 # will not work, as memcached has multiple processes running, so we have to
 # find out which one is the memcached application process.

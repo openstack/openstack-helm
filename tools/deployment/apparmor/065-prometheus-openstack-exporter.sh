@@ -28,6 +28,3 @@ helm upgrade --install prometheus-openstack-exporter \
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack
-
-#NOTE: Validate Deployment info
-helm status prometheus-openstack-exporter
