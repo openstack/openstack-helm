@@ -48,9 +48,6 @@ until [[ $daemonjob_controller_status == 'Running' ]] || [ $NEXT_WAIT_TIME -eq 5
   NEXT_WAIT_TIME=$((NEXT_WAIT_TIME+1))
 done
 
-#NOTE: Validate DaemonjobController Deployment info
-helm status daemonjob-controller
-
 #NOTE: Create sample-daemonjob.yaml
 tee /tmp/sample-daemonjob.yaml << EOF
 apiVersion: ctl.example.com/v1

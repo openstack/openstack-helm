@@ -23,6 +23,3 @@ helm upgrade --install falco ./falco \
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh kube-system
-
-#NOTE: Validate Deployment info
-helm status falco

@@ -26,6 +26,3 @@ helm upgrade --install prometheus-process-exporter \
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh kube-system
-
-#NOTE: Validate Deployment info
-helm status prometheus-process-exporter
