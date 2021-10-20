@@ -1,0 +1,139 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- define "masakari.configmap.etc" }}
+{{- $configMapName := index . 0 }}
+{{- $envAll := index . 1 }}
+{{- with $envAll }}
+
+{{- if empty .Values.conf.masakari.keystone_authtoken.auth_url -}}
+{{- $_ := tuple "identity" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" | set .Values.conf.masakari.keystone_authtoken "auth_url" -}}
+{{- end -}}
+
+{{- if empty .Values.conf.masakari.keystone_authtoken.region_name -}}
+{{- $_ := set .Values.conf.masakari.keystone_authtoken "region_name" .Values.endpoints.identity.auth.masakari.region_name -}}
+{{- end -}}
+{{- if empty .Values.conf.masakari.keystone_authtoken.project_name -}}
+{{- $_ := set .Values.conf.masakari.keystone_authtoken "project_name" .Values.endpoints.identity.auth.masakari.project_name -}}
+{{- end -}}
+{{- if empty .Values.conf.masakari.keystone_authtoken.project_domain_name -}}
+{{- $_ := set .Values.conf.masakari.keystone_authtoken "project_domain_name" .Values.endpoints.identity.auth.masakari.project_domain_name -}}
+{{- end -}}
+{{- if empty .Values.conf.masakari.keystone_authtoken.user_domain_name -}}
+{{- $_ := set .Values.conf.masakari.keystone_authtoken "user_domain_name" .Values.endpoints.identity.auth.masakari.user_domain_name -}}
+{{- end -}}
+{{- if empty .Values.conf.masakari.keystone_authtoken.username -}}
+{{- $_ := set .Values.conf.masakari.keystone_authtoken "username" .Values.endpoints.identity.auth.masakari.username -}}
+{{- end -}}
+{{- if empty .Values.conf.masakari.keystone_authtoken.password -}}
+{{- $_ := set .Values.conf.masakari.keystone_authtoken "password" .Values.endpoints.identity.auth.masakari.password -}}
+{{- end -}}
+
+{{- if empty .Values.conf.masakari.keystone_authtoken.memcached_servers -}}
+{{- $_ := tuple "oslo_cache" "internal" "memcache" . | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" | set .Values.conf.masakari.keystone_authtoken "memcached_servers" -}}
+{{- end -}}
+{{- if empty .Values.conf.masakari.keystone_authtoken.memcache_secret_key -}}
+{{- $_ := set .Values.conf.masakari.keystone_authtoken "memcache_secret_key" ( default ( randAlphaNum 64 ) .Values.endpoints.oslo_cache.auth.memcache_secret_key ) -}}
+{{- end -}}
+
+{{- if empty .Values.conf.masakari.database.connection -}}
+{{- $connection := tuple "oslo_db" "internal" "masakari" "mysql" . | include "helm-toolkit.endpoints.authenticated_endpoint_uri_lookup" -}}
+{{- if .Values.manifests.certificates -}}
+{{- $_ := (printf "%s?charset=utf8&ssl_ca=/etc/mysql/certs/ca.crt&ssl_key=/etc/mysql/certs/tls.key&ssl_cert=/etc/mysql/certs/tls.crt&ssl_verify_cert" $connection ) | set .Values.conf.masakari.database "connection" -}}
+{{- else -}}
+{{- $_ := set .Values.conf.masakari.database "connection" $connection -}}
+{{- end -}}
+{{- end -}}
+
+{{- if empty .Values.conf.masakari.DEFAULT.transport_url -}}
+{{- $_ := tuple "oslo_messaging" "internal" "masakari" "amqp" . | include "helm-toolkit.endpoints.authenticated_transport_endpoint_uri_lookup" | set .Values.conf.masakari.DEFAULT "transport_url" -}}
+{{- end -}}
+
+{{- if empty .Values.conf.masakari.DEFAULT.os_privileged_user_name -}}
+{{- $_ := set .Values.conf.masakari.DEFAULT "os_privileged_user_name" .Values.endpoints.identity.auth.masakari.username }}
+{{- end -}}
+{{- if empty .Values.conf.masakari.DEFAULT.os_privileged_user_password -}}
+{{- $_ := set .Values.conf.masakari.DEFAULT "os_privileged_user_password" .Values.endpoints.identity.auth.masakari.password }}
+{{- end -}}
+{{- if empty .Values.conf.masakari.DEFAULT.os_privileged_user_auth_url -}}
+{{- $_ := tuple "identity" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" | set .Values.conf.masakari.DEFAULT "os_privileged_user_auth_url" }}
+{{- end -}}
+{{- if empty .Values.conf.masakari.DEFAULT.os_privileged_user_tenant -}}
+{{- $_ := set .Values.conf.masakari.DEFAULT "os_privileged_user_tenant" .Values.endpoints.identity.auth.masakari.project_name }}
+{{- end -}}
+
+{{- if empty .Values.conf.masakari.DEFAULT.os_region_name -}}
+{{- $_ := set .Values.conf.masakari.DEFAULT "os_region_name" .Values.endpoints.identity.auth.masakari.region_name }}
+{{- end -}}
+
+{{- if empty .Values.conf.masakari.DEFAULT.os_user_domain_name -}}
+{{- $_ := set .Values.conf.masakari.DEFAULT "os_user_domain_name" .Values.endpoints.identity.auth.masakari.user_domain_name }}
+{{- end -}}
+
+{{- if empty .Values.conf.masakari.DEFAULT.os_project_domain_name -}}
+{{- $_ := set .Values.conf.masakari.DEFAULT "os_project_domain_name" .Values.endpoints.identity.auth.masakari.user_domain_name }}
+{{- end -}}
+
+{{- if empty .Values.conf.masakarimonitors.api.region -}}
+{{- $_ := set .Values.conf.masakarimonitors.api "region" .Values.endpoints.identity.auth.masakari.region_name -}}
+{{- end -}}
+
+{{- if empty .Values.conf.masakarimonitors.api.auth_url -}}
+{{- $_ := tuple "identity" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" | set .Values.conf.masakarimonitors.api "auth_url" }}
+{{- end -}}
+
+{{- if empty .Values.conf.masakarimonitors.api.project_name -}}
+{{- $_ := set .Values.conf.masakarimonitors.api "project_name" .Values.endpoints.identity.auth.masakari.project_name }}
+{{- end -}}
+
+{{- if empty .Values.conf.masakarimonitors.api.project_domain_name -}}
+{{- $_ := set .Values.conf.masakarimonitors.api "project_domain_name" .Values.endpoints.identity.auth.masakari.project_name }}
+{{- end -}}
+
+{{- if empty .Values.conf.masakarimonitors.api.username -}}
+{{- $_ := set .Values.conf.masakarimonitors.api "username" .Values.endpoints.identity.auth.masakari.username }}
+{{- end -}}
+
+{{- if empty .Values.conf.masakarimonitors.api.user_domain_name -}}
+{{- $_ := set .Values.conf.masakarimonitors.api "user_domain_name" .Values.endpoints.identity.auth.masakari.user_domain_name }}
+{{- end -}}
+
+{{- if empty .Values.conf.masakarimonitors.api.password -}}
+{{- $_ := set .Values.conf.masakarimonitors.api "password" .Values.endpoints.identity.auth.masakari.password }}
+{{- end -}}
+
+{{- if empty .Values.conf.masakari.taskflow.connection -}}
+{{- $connection := tuple "oslo_db" "internal" "masakari" "mysql" . | include "helm-toolkit.endpoints.authenticated_endpoint_uri_lookup" -}}
+{{- if .Values.manifests.certificates -}}
+{{- $_ := (printf "%s?charset=utf8&ssl_ca=/etc/mysql/certs/ca.crt&ssl_key=/etc/mysql/certs/tls.key&ssl_cert=/etc/mysql/certs/tls.crt&ssl_verify_cert" $connection ) | set .Values.conf.masakari.database "connection" -}}
+{{- else -}}
+{{- $_ := set .Values.conf.masakari.taskflow "connection" $connection -}}
+{{- end -}}
+{{- end -}}
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ $configMapName }}
+type: Opaque
+data:
+  masakari.conf: {{ include "helm-toolkit.utils.to_oslo_conf" .Values.conf.masakari | b64enc }}
+  api-paste.ini: {{ include "helm-toolkit.utils.to_oslo_conf" .Values.conf.paste | b64enc }}
+  masakarimonitors.conf: {{ include "helm-toolkit.utils.to_oslo_conf" .Values.conf.masakarimonitors | b64enc }}
+{{- end }}
+{{- end }}
+{{- if .Values.manifests.configmap_etc }}
+{{- list "masakari-etc" . | include "masakari.configmap.etc" }}
+{{- end }}
