@@ -61,6 +61,23 @@ spec:
       terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.api.timeout | default "30" }}
       initContainers:
 {{ tuple $envAll "api" $mounts_keystone_api_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+        - name: link-keys
+          image: {{ .Values.images.tags.keystone_api }}
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -c
+          args:
+            - set -xe;
+              find /etc/keystone/mounted-keys -type l -exec ln -sfn {} {{ .Values.conf.keystone.fernet_tokens.key_repository }} \; ;
+              chmod o-wrx {{ .Values.conf.keystone.fernet_tokens.key_repository }} ;
+          securityContext:
+            runAsUser: 0
+          volumeMounts:
+            - name: keystone-fernet-keys
+              mountPath: /etc/keystone/mounted-keys
+            - name: post-keystone-fernet-keys
+              mountPath: {{ .Values.conf.keystone.fernet_tokens.key_repository }}
       containers:
         - name: keystone-api
 {{ tuple $envAll "keystone_api" | include "helm-toolkit.snippets.image" | indent 10 }}
@@ -143,6 +160,8 @@ spec:
 {{- end }}
 {{- if eq .Values.conf.keystone.token.provider "fernet" }}
             - name: keystone-fernet-keys
+              mountPath: /etc/keystone/mounted-keys
+            - name: post-keystone-fernet-keys
               mountPath: {{ .Values.conf.keystone.fernet_tokens.key_repository }}
 {{- end }}
             - name: keystone-credential-keys
@@ -171,7 +190,7 @@ spec:
         - name: keystone-etc
           secret:
             secretName: keystone-etc
-            defaultMode: 0444
+            defaultMode: 0440
         - name: keystone-bin
           configMap:
             name: keystone-bin
@@ -182,9 +201,12 @@ spec:
             secretName: keystone-ldap-tls
 {{- end }}
 {{- if eq .Values.conf.keystone.token.provider "fernet" }}
+        - name: post-keystone-fernet-keys
+          emptyDir: {}
         - name: keystone-fernet-keys
           secret:
             secretName: keystone-fernet-keys
+            defaultMode: 0440
 {{- end }}
         - name: keystone-credential-keys
           secret:
