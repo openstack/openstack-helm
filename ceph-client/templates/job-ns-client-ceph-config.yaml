@@ -15,9 +15,7 @@ limitations under the License.
 {{- if and .Values.manifests.job_ns_client_ceph_config .Values.manifests.configmap_etc }}
 {{- $envAll := . }}
 
-{{- $randStringSuffix := randAlphaNum 5 | lower }}
-
-{{- $serviceAccountName := print $envAll.Release.Name "-ceph-ns-ceph-config-update" }}
+{{- $serviceAccountName := "ceph-ns-client-ceph-config" }}
 {{ tuple $envAll "namespace_client_ceph_config_update" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -34,26 +32,6 @@ rules:
       - create
       - update
       - patch
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: {{ $serviceAccountName }}
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: {{ $serviceAccountName }}
-subjects:
-  - kind: ServiceAccount
-    name: {{ $serviceAccountName }}
-    namespace: {{ $envAll.Release.Namespace }}
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
-metadata:
-  name: {{ printf "%s-%s" $serviceAccountName $randStringSuffix }}
-  namespace: {{ $envAll.Release.Namespace }}
-rules:
   - apiGroups:
       - ""
     resources:
@@ -65,12 +43,11 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: {{ printf "%s-%s" $serviceAccountName $randStringSuffix }}
-  namespace: {{ $envAll.Release.Namespace }}
+  name: {{ $serviceAccountName }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: {{ printf "%s-%s" $serviceAccountName $randStringSuffix }}
+  name: {{ $serviceAccountName }}
 subjects:
   - kind: ServiceAccount
     name: {{ $serviceAccountName }}
