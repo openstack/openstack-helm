@@ -30,9 +30,6 @@ helm upgrade --install prometheus ./prometheus \
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh osh-infra
 
-#NOTE: Validate Deployment info
-helm status prometheus
-
 # Delete the test pod if it still exists
 kubectl delete pods -l application=prometheus,release_group=prometheus,component=test --namespace=osh-infra --ignore-not-found
 #NOTE: Run helm tests

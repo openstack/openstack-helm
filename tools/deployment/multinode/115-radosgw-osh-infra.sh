@@ -67,9 +67,6 @@ helm upgrade --install radosgw-osh-infra ./ceph-rgw \
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh osh-infra
 
-#NOTE: Validate Deployment info
-helm status radosgw-osh-infra
-
 # Delete the test pod if it still exists
 kubectl delete pods -l application=ceph,release_group=radosgw-osh-infra,component=rgw-test --namespace=osh-infra --ignore-not-found
 helm test radosgw-osh-infra --timeout 900
