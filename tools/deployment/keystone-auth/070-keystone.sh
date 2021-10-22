@@ -28,9 +28,6 @@ helm upgrade --install ldap ./ldap \
     ${OSH_INFRA_EXTRA_HELM_ARGS} \
     ${OSH_INFRA_EXTRA_HELM_ARGS_LDAP}
 
-./tools/deployment/common/wait-for-pods.sh openstack
-helm status ldap
-
 # Install Keystone
 cd ${OSH_PATH}
 make keystone
@@ -42,7 +39,6 @@ helm upgrade --install keystone ${OSH_PATH}/keystone \
     ${OSH_EXTRA_HELM_ARGS_KEYSTONE}
 
 ./tools/deployment/common/wait-for-pods.sh openstack
-helm status keystone
 
 # Testing basic functionality
 export OS_CLOUD=openstack_helm

@@ -32,9 +32,6 @@ helm upgrade --install ingress-kube-system ./ingress \
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh kube-system
 
-#NOTE: Display info
-helm status ingress-kube-system
-
 #NOTE: Deploy namespace ingress
 for NAMESPACE in openstack; do
   helm upgrade --install ingress-${NAMESPACE} ./ingress \
@@ -44,7 +41,4 @@ for NAMESPACE in openstack; do
 
   #NOTE: Wait for deploy
   ./tools/deployment/common/wait-for-pods.sh ${NAMESPACE}
-
-  #NOTE: Display info
-  helm status ingress-${NAMESPACE}
 done
