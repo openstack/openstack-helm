@@ -72,4 +72,4 @@ helm upgrade --install elasticsearch ./elasticsearch \
 # Delete the test pod if it still exists
 kubectl delete pods -l application=elasticsearch,release_group=elasticsearch,component=test --namespace=osh-infra --ignore-not-found
 #NOTE: Run helm tests
-helm test elasticsearch
+helm test elasticsearch --namespace osh-infra

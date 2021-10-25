@@ -32,4 +32,4 @@ helm upgrade --install mariadb ./mariadb \
 # Delete the test pod if it still exists
 kubectl delete pods -l application=mariadb,release_group=mariadb,component=test --namespace=openstack --ignore-not-found
 #NOTE: Validate the deployment
-helm test mariadb
+helm test mariadb --namespace openstack

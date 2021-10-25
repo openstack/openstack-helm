@@ -40,4 +40,4 @@ helm upgrade --install mariadb ./mariadb \
 ./tools/deployment/common/wait-for-pods.sh osh-infra
 
 #NOTE: Validate the deployment
-helm test mariadb
+helm test mariadb --namespace osh-infra

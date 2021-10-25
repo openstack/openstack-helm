@@ -59,4 +59,4 @@ sleep 60 #NOTE(portdirect): Wait for ingress controller to update rules and rest
 openstack service list
 openstack endpoint list
 
-helm test radosgw-openstack --timeout 900
+helm test radosgw-openstack --namespace openstack --timeout 900s

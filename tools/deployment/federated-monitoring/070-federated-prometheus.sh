@@ -60,4 +60,4 @@ helm upgrade --install federated-prometheus ./prometheus \
 
 # Delete the test pod if it still exists
 kubectl delete pods -l application=prometheus,release_group=federated-prometheus,component=test --namespace=osh-infra --ignore-not-found
-helm test federated-prometheus
+helm test federated-prometheus --namespace osh-infra
