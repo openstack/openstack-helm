@@ -32,6 +32,3 @@ helm upgrade --install libvirt ./libvirt \
 if [[ "${WAIT_FOR_PODS:=True}" == "True" ]]; then
     ./tools/deployment/common/wait-for-pods.sh openstack
 fi
-
-#NOTE: Validate Deployment info
-helm status libvirt

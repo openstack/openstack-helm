@@ -21,7 +21,4 @@ make namespace-config
 for NAMESPACE in kube-system ceph openstack; do
   helm upgrade --install ${NAMESPACE}-namespace-config ./namespace-config \
     --namespace=${NAMESPACE}
-
-  #NOTE: Display info
-  helm status ${NAMESPACE}-namespace-config
 done

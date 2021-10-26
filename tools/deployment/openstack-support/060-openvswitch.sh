@@ -23,6 +23,3 @@ helm upgrade --install openvswitch ./openvswitch \
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack
-
-#NOTE: Validate Deployment info
-helm status openvswitch
