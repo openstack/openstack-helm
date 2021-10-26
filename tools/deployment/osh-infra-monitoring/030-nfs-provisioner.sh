@@ -30,6 +30,3 @@ helm upgrade --install nfs-provisioner \
 
 #NOTE: Wait for deployment
 ./tools/deployment/common/wait-for-pods.sh nfs
-
-#NOTE: Validate Deployment info
-helm status nfs-provisioner
