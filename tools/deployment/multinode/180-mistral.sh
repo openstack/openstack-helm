@@ -13,6 +13,8 @@
 #    under the License.
 set -xe
 
+: ${RUN_HELM_TESTS:="yes"}
+
 #NOTE: Lint and package chart
 make mistral
 
@@ -32,6 +34,8 @@ helm upgrade --install mistral ./mistral \
 #NOTE: Validate Deployment
 export OS_CLOUD=openstack_helm
 openstack service list
-# Delete the test pod if it still exists
-kubectl delete pods -l application=mistral,release_group=mistral,component=test --namespace=openstack --ignore-not-found
-helm test mistral
+
+# Run helm test
+if [ "x${RUN_HELM_TESTS}" != "xno" ]; then
+    ./tools/deployment/common/run-helm-tests.sh mistral
+fi
