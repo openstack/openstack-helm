@@ -34,9 +34,6 @@ helm upgrade --install ingress-kube-system ./ingress \
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh kube-system
 
-#NOTE: Display info
-helm status ingress-kube-system
-
 #NOTE: Deploy namespaced ingress controllers
 for NAMESPACE in osh-infra ceph tenant-ceph; do
   #NOTE: Deploy namespace ingress
@@ -45,7 +42,4 @@ for NAMESPACE in osh-infra ceph tenant-ceph; do
 
   #NOTE: Wait for deploy
   ./tools/deployment/common/wait-for-pods.sh ${NAMESPACE}
-
-  #NOTE: Display info
-  helm status ingress-${NAMESPACE}
 done
