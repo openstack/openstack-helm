@@ -40,9 +40,6 @@ helm upgrade --install podsecuritypolicy ./podsecuritypolicy \
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh kube-system
 
-#NOTE: Display info
-helm status podsecuritypolicy
-
 # Test that host networking is disallowed
 if kubectl apply -f /tmp/psp-test-pod.yaml; then
   echo "ERROR: podsecuritypolicy incorrectly admitted a privileged pod"
@@ -61,9 +58,6 @@ helm upgrade --install podsecuritypolicy ./podsecuritypolicy \
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh kube-system
-
-#NOTE: Display info
-helm status podsecuritypolicy
 
 # Test that host networking is allowed
 kubectl apply -f /tmp/psp-test-pod.yaml
