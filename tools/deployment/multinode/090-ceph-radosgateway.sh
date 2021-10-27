@@ -17,6 +17,7 @@ set -xe
 #NOTE: Get the over-rides to use
 export HELM_CHART_ROOT_PATH="${HELM_CHART_ROOT_PATH:="${OSH_INFRA_PATH:="../openstack-helm-infra"}"}"
 : ${OSH_EXTRA_HELM_ARGS_CEPH_RGW:="$(./tools/deployment/common/get-values-overrides.sh ceph-rgw)"}
+: ${RUN_HELM_TESTS:="yes"}
 
 #NOTE: Lint and package chart
 make -C ${HELM_CHART_ROOT_PATH} ceph-rgw
@@ -58,8 +59,7 @@ helm upgrade --install radosgw-openstack ${OSH_INFRA_PATH}/ceph-rgw \
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack
 
-#NOTE: Run Tests
-export OS_CLOUD=openstack_helm
-# Delete the test pod if it still exists
-kubectl delete pods -l application=radosgw-openstack,release_group=radosgw-openstack,component=test --namespace=openstack --ignore-not-found
-helm test radosgw-openstack
+# Run helm tests
+if [ "x${RUN_HELM_TESTS}" != "xno" ]; then
+    ./tools/deployment/common/run-helm-tests.sh radosgw-openstack
+fi
