@@ -40,6 +40,22 @@ spec:
         {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
       initContainers:
 {{ tuple $envAll "cell_setup" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{- if $envAll.Values.bootstrap.wait_for_computes.enabled }}
+        - name: nova-wait-for-computes-init
+{{ tuple $envAll "nova_wait_for_computes_init" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ dict "envAll" $envAll "application" "bootstrap" "container" "nova_wait_for_computes_init" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          command:
+            - /bin/bash
+            - -c
+            - /tmp/wait-for-computes-init.sh
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: nova-bin
+              mountPath: /tmp/wait-for-computes-init.sh
+              subPath: wait-for-computes-init.sh
+              readOnly: true
+{{- end }}
         - name: nova-cell-setup-init
 {{ tuple $envAll "nova_cell_setup_init" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.jobs.cell_setup | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
@@ -104,4 +120,30 @@ spec:
             defaultMode: 0555
 {{- dict "enabled" .Values.manifests.certificates "name" .Values.endpoints.oslo_db.auth.admin.secret.tls.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 {{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.compute.osapi.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: {{ $serviceAccountName }}
+rules:
+  - apiGroups:
+      - ''
+    resources:
+      - nodes
+    verbs:
+      - get
+      - list
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ $serviceAccountName }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ $serviceAccountName }}
+    namespace: {{ $envAll.Release.Namespace }}
+roleRef:
+  kind: ClusterRole
+  name: {{ $serviceAccountName }}
+  apiGroup: rbac.authorization.k8s.io
 {{- end }}
