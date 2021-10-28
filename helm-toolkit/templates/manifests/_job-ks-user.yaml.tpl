@@ -70,6 +70,15 @@ spec:
 {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
     spec:
       serviceAccountName: {{ $serviceAccountName | quote }}
+{{- if hasKey $envAll.Values "pod" -}}
+{{- if hasKey $envAll.Values.pod "security_context" -}}
+{{- range $service, $value := $envAll.Values.pod.security_context }}
+{{- if  (($value).pod) }}
+{{ dict "envAll" $envAll "application" $service | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
       restartPolicy: {{ $restartPolicy }}
       nodeSelector:
 {{ toYaml $nodeSelector | indent 8 }}
