@@ -52,6 +52,11 @@ spec:
           env:
             - name: CLUSTER
               value: "ceph"
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.namespace
             - name: ENABLE_AUTOSCALER
               value: {{ .Values.conf.features.pg_autoscaler | quote }}
             - name: CLUSTER_SET_FLAGS
@@ -71,8 +76,11 @@ spec:
               mountPath: /tmp/pool-calc.py
               subPath: pool-calc.py
               readOnly: true
+            - name: pod-etc-ceph
+              mountPath: /etc/ceph
+              readOnly: false
             - name: ceph-client-etc
-              mountPath: /etc/ceph/ceph.conf
+              mountPath: /etc/ceph/ceph.conf.template
               subPath: ceph.conf
               readOnly: true
             - name: ceph-client-admin-keyring
@@ -87,6 +95,8 @@ spec:
               readOnly: false
       volumes:
         - name: pod-tmp
+          emptyDir: {}
+        - name: pod-etc-ceph
           emptyDir: {}
         - name: ceph-client-etc
           configMap:

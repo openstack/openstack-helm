@@ -17,21 +17,20 @@ limitations under the License.
 set -ex
 {{- $envAll := . }}
 
-ENDPOINTS=$(kubectl get endpoints ceph-mon-discovery -n ${DEPLOYMENT_NAMESPACE} -o json)
-MON_IPS=$(jq -r '.subsets[0].addresses[].ip?' <<< ${ENDPOINTS})
-V1_PORT=$(jq '.subsets[0].ports[] | select(.name == "mon") | .port' <<< ${ENDPOINTS})
-V2_PORT=$(jq '.subsets[0].ports[] | select(.name == "mon-msgr2") | .port' <<< ${ENDPOINTS})
-ENDPOINT=$(for ip in $MON_IPS; do printf '[v1:%s:%s/0,v2:%s:%s/0]\n' ${ip} ${V1_PORT} ${ip} ${V2_PORT}; done | paste -sd',')
+{{ include "ceph-client.snippets.mon_host_from_k8s_ep" . }}
 
-if [[ -z "${V1_PORT}" ]] || [[ -z "${V2_PORT}" ]] || [[ -z "${ENDPOINT}" ]]; then
+ENDPOINT=$(mon_host_from_k8s_ep "${DEPLOYMENT_NAMESPACE}" ceph-mon-discovery)
+
+if [[ -z "${ENDPOINT}" ]]; then
   echo "Ceph Mon endpoint is empty"
   exit 1
 else
-  echo ${ENDPOINT}
+  echo "${ENDPOINT}"
 fi
 
-kubectl get cm ${CEPH_CONF_ETC} -n  ${DEPLOYMENT_NAMESPACE}  -o yaml | \
-  sed "s#mon_host.*#mon_host = ${ENDPOINT}#g" | \
-  kubectl apply -f -
+# Update the ceph-client-etc configmap
+kubectl get cm "${CEPH_CONF_ETC}" -n "${DEPLOYMENT_NAMESPACE}" -o json |
+  jq '.data."ceph.conf" |= sub("mon_host = .*";"mon_host = '"${ENDPOINT}"'")' |
+  kubectl apply -n "${DEPLOYMENT_NAMESPACE}" -f -
 
-kubectl get cm ${CEPH_CONF_ETC} -n  ${DEPLOYMENT_NAMESPACE}  -o yaml
+kubectl get cm "${CEPH_CONF_ETC}" -n "${DEPLOYMENT_NAMESPACE}" -o yaml

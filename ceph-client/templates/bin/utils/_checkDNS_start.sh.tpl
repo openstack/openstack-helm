@@ -16,14 +16,13 @@ limitations under the License.
 
 set -xe
 
+{{ include "ceph-client.snippets.mon_host_from_k8s_ep" . }}
+
 function check_mon_dns {
   DNS_CHECK=$(getent hosts ceph-mon | head -n1)
   PODS=$(kubectl get pods --namespace=${NAMESPACE} --selector=application=ceph --field-selector=status.phase=Running \
          --output=jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | grep -E 'ceph-mon|ceph-osd|ceph-mgr|ceph-mds')
-  ENDPOINT=$(kubectl get endpoints ceph-mon-discovery -n ${NAMESPACE} -o json | awk -F'"' -v port=${MON_PORT} \
-             -v version=v1 -v msgr_version=v2 \
-             -v msgr2_port=${MON_PORT_V2} \
-             '/"ip"/{print "["version":"$4":"port"/"0","msgr_version":"$4":"msgr2_port"/"0"]"}' | paste -sd',')
+  ENDPOINT=$(mon_host_from_k8s_ep "${NAMESPACE}" ceph-mon-discovery)
 
   if [[ ${PODS} == "" || "${ENDPOINT}" == "" ]]; then
     echo "Something went wrong, no PODS or ENDPOINTS are available!"

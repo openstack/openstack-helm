@@ -18,10 +18,20 @@ set -ex
 export LC_ALL=C
 
 : "${ADMIN_KEYRING:=/etc/ceph/${CLUSTER}.client.admin.keyring}"
+: "${CEPH_CONF:="/etc/ceph/${CLUSTER}.conf"}"
 
-if [[ ! -e /etc/ceph/${CLUSTER}.conf ]]; then
-  echo "ERROR- /etc/ceph/${CLUSTER}.conf must exist; get it from your existing mon"
+{{ include "ceph-client.snippets.mon_host_from_k8s_ep" . }}
+
+if [[ ! -e ${CEPH_CONF}.template ]]; then
+  echo "ERROR- ${CEPH_CONF}.template must exist; get it from your existing mon"
   exit 1
+else
+  ENDPOINT=$(mon_host_from_k8s_ep "${NAMESPACE}" ceph-mon-discovery)
+  if [[ "${ENDPOINT}" == "" ]]; then
+    /bin/sh -c -e "cat ${CEPH_CONF}.template | tee ${CEPH_CONF}" || true
+  else
+    /bin/sh -c -e "cat ${CEPH_CONF}.template | sed 's#mon_host.*#mon_host = ${ENDPOINT}#g' | tee ${CEPH_CONF}" || true
+  fi
 fi
 
 if [[ ! -e ${ADMIN_KEYRING} ]]; then
