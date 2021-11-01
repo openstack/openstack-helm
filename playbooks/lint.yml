@@ -31,6 +31,12 @@
         chdir: "{{ zuul.project.src_dir }}"
         target: all
 
+    - name: make all osh
+      make:
+        chdir: "{{ zuul.project.src_dir }}/{{ zuul_osh_relative_path | default('../openstack-helm/') }}"
+        target: all
+      when: lint_osh is defined
+
     - name: Prevent trailing whitespaces
       shell: find . \! \( -path "*/\.*" -o -path "*/doc/build/*" -o -name "*.tgz" -o -name "*.png" \) -type f -exec egrep -l " +$" {} \;
       register: _found_whitespaces
@@ -66,4 +72,10 @@
       args:
         chdir: "{{ ansible_user_dir }}/src/{{ zuul.project.canonical_name }}"
       when: yamllintconf.stat.exists == True
+
+    - name: Execute yamllint check for osh values* yaml files
+      command: tox -e lint
+      args:
+        chdir: "{{ zuul.project.src_dir }}/{{ zuul_osh_relative_path | default('../openstack-helm/') }}"
+      when: yamllintconf.stat.exists == True and lint_osh is defined
 ...
