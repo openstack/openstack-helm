@@ -15,6 +15,7 @@ set -xe
 
 #NOTE: Get the over-rides to use
 : ${OSH_EXTRA_HELM_ARGS_CINDER:="$(./tools/deployment/common/get-values-overrides.sh cinder)"}
+: ${RUN_HELM_TESTS:="yes"}
 
 #NOTE: Lint and package chart
 make cinder
@@ -75,4 +76,7 @@ openstack volume type list --default
 
 # Delete the test pod if it still exists
 kubectl delete pods -l application=cinder,release_group=cinder,component=test --namespace=openstack --ignore-not-found
-helm test cinder --timeout 900
+
+if [ "x${RUN_HELM_TESTS}" != "xno" ]; then
+    ./tools/deployment/common/run-helm-tests.sh cinder
+fi

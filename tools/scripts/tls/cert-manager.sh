@@ -122,17 +122,11 @@ kubectl create ns cert-manager
 helm repo add jetstack https://charts.jetstack.io
 helm repo update
 
-# helm 2 command
-helm install --name cert-manager --namespace cert-manager \
-  --version ${CERT_MANAGER_VERSION} jetstack/cert-manager \
-  --set installCRDs=true \
-  --set extraArgs[0]="--enable-certificate-owner-ref=true"
 
-# helm 3 command
-# helm install cert-manager jetstack/cert-manager --namespace cert-manager \
-#   --version ${CERT_MANAGER_VERSION} \
-#   --set installCRDs=true \
-#   --set extraArgs[0]="--enable-certificate-owner-ref=true"
+helm install cert-manager jetstack/cert-manager --namespace cert-manager \
+   --version ${CERT_MANAGER_VERSION} \
+   --set installCRDs=true \
+   --set extraArgs[0]="--enable-certificate-owner-ref=true"
 
 helm repo remove jetstack
 
@@ -166,5 +160,4 @@ kubectl wait --for=condition=Ready pods --all -n cert-manager --timeout=180s
 # [0] https://github.com/jetstack/cert-manager/issues/2602
 sleep 45
 
-kubectl create ns openstack
 kubectl apply -f /tmp/ca-issuers.yaml
