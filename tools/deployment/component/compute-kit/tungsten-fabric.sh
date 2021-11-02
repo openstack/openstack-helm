@@ -15,6 +15,7 @@ set -xe
 
 stages="prepare deploy checkdns setupdns"
 OSH_INFRA_PATH=${OSH_INFRA_PATH:="../openstack-helm-infra"}
+: ${RUN_HELM_TESTS:="yes"}
 
 function get_node_ip() {
   local phys_int=$(ip route get 1 | grep -o 'dev.*' | awk '{print($2)}')
@@ -227,11 +228,10 @@ EOF
   # run couple of openstack commands and nova tests
   openstack compute service list
   openstack hypervisor list
-  if [ "x${RUN_HELM_TESTS}" == "xno" ]; then
-    exit 0
+  if [ "x${RUN_HELM_TESTS}" != "xno" ]; then
+    ./tools/deployment/common/run-helm-tests.sh nova
+    ./tools/deployment/common/run-helm-tests.sh neutron
   fi
-  helm test nova --timeout 900
-  helm test neutron --timeout 900
 }
 
 if [[ $# == 0 ]] ; then
