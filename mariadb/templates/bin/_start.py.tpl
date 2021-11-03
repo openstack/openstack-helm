@@ -756,7 +756,7 @@ def monitor_cluster():
     while True:
         try:
             update_grastate_configmap()
-        except kubernetes.client.rest.ApiException as error:
+        except Exception as error:
             logger.error("Error updating grastate configmap: {0}".format(error))
         time.sleep(state_configmap_update_period)
 
@@ -777,7 +777,7 @@ def leader_election():
     while True:
         try:
             deadmans_leader_election()
-        except kubernetes.client.rest.ApiException as error:
+        except Exception as error:
             logger.error("Error electing leader: {0}".format(error))
         time.sleep(cluster_leader_ttl / 2)
 
