@@ -1,0 +1,554 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+images:
+  tags:
+    db_init: docker.io/openstackhelm/heat:master-ubuntu_focal
+    cyborg_db_sync: docker.io/openstackhelm/cyborg:wallaby
+    db_drop: docker.io/openstackhelm/heat:master-ubuntu_focal
+    ks_endpoints: docker.io/openstackhelm/heat:master-ubuntu_focal
+    ks_service: docker.io/openstackhelm/heat:master-ubuntu_focal
+    ks_user: docker.io/openstackhelm/heat:master-ubuntu_focal
+    cyborg_api: docker.io/openstackhelm/cyborg:master-ubuntu_focal
+    cyborg_conductor: docker.io/openstackhelm/cyborg:master-ubuntu_focal
+    cyborg_agent: docker.io/openstackhelm/cyborg:focal
+    rabbit_init: docker.io/rabbitmq:3.7-management
+    dep_check: 'quay.io/airshipit/kubernetes-entrypoint:v1.0.0'
+  pull_policy: "IfNotPresent"
+  local_registry:
+    active: false
+    exclude:
+      - dep_check
+      - image_repo_sync
+
+labels:
+  api:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  conductor:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  agent:
+    node_selector_key: openstack-compute-node
+    node_selector_value: enabled
+  job:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  test:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+
+endpoints:
+  cluster_domain_suffix: cluster.local
+  local_image_registry:
+    name: docker-registry
+    namespace: docker-registry
+    hosts:
+      default: localhost
+      internal: docker-registry
+      node: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        node: 5000
+  accelerator:
+    name: cyborg
+    hosts:
+      default: cyborg-api
+      admin: cyborg
+      public: cyborg
+    host_fqdn_override:
+      default: null
+    path:
+      default: /v2
+    scheme:
+      default: http
+    port:
+      api:
+        default: 6666
+        admin: 80
+        public: 80
+  oslo_db:
+    auth:
+      admin:
+        username: root
+        password: password
+        secret:
+          tls:
+            internal: mariadb-tls-direct
+      cyborg:
+        username: cyborg
+        password: password
+    hosts:
+      default: mariadb
+    host_fqdn_override:
+      default: null
+    path: /cyborg
+    scheme: mysql+pymysql
+    port:
+      mysql:
+        default: 3306
+  identity:
+    name: keystone
+    auth:
+      admin:
+        region_name: RegionOne
+        username: admin
+        password: password
+        project_name: admin
+        user_domain_name: default
+        project_domain_name: default
+      cyborg:
+        role: admin
+        region_name: RegionOne
+        username: cyborg
+        password: password
+        project_name: service
+        user_domain_name: service
+        project_domain_name: service
+      placement:
+        role: admin
+        region_name: RegionOne
+        username: placement
+        password: password
+        project_name: service
+        user_domain_name: service
+        project_domain_name: service
+      nova:
+        role: admin
+        region_name: RegionOne
+        username: nova
+        password: password
+        project_name: service
+        user_domain_name: service
+        project_domain_name: service
+      test:
+        role: admin
+        region_name: RegionOne
+        username: neutron-test
+        password: password
+        project_name: test
+        user_domain_name: service
+        project_domain_name: service
+    hosts:
+      default: keystone
+      internal: keystone-api
+    host_fqdn_override:
+      default: null
+    path:
+      default: /v3
+    scheme:
+      default: http
+    port:
+      api:
+        default: 80
+        internal: 5000
+  oslo_messaging:
+    auth:
+      admin:
+        username: rabbitmq
+        password: password
+        secret:
+          tls:
+            internal: rabbitmq-tls-direct
+      cyborg:
+        username: cyborg
+        password: password
+    statefulset:
+      replicas: 2
+      name: rabbitmq-rabbitmq
+    hosts:
+      default: rabbitmq
+    host_fqdn_override:
+      default: null
+    path: /cyborg
+    scheme: rabbit
+    port:
+      amqp:
+        default: 5672
+      http:
+        default: 15672
+  oslo_cache:
+    auth:
+      # NOTE(portdirect): this is used to define the value for keystone
+      # authtoken cache encryption key, if not set it will be populated
+      # automatically with a random value, but to take advantage of
+      # this feature all services should be set to use the same key,
+      # and memcache service.
+      memcache_secret_key: null
+    hosts:
+      default: memcached
+    host_fqdn_override:
+      default: null
+    port:
+      memcache:
+        default: 11211
+  fluentd:
+    namespace: null
+    name: fluentd
+    hosts:
+      default: fluentd-logging
+    host_fqdn_override:
+      default: null
+    path:
+      default: null
+    scheme: 'http'
+    port:
+      service:
+        default: 24224
+      metrics:
+        default: 24220
+  # NOTE(tp6510): these endpoints allow for things like DNS lookups and ingress
+  # They are using to enable the Egress K8s network policy.
+  kube_dns:
+    namespace: kube-system
+    name: kubernetes-dns
+    hosts:
+      default: kube-dns
+    host_fqdn_override:
+      default: null
+    path:
+      default: null
+    scheme: http
+    port:
+      dns:
+        default: 53
+        protocol: UDP
+  ingress:
+    namespace: null
+    name: ingress
+    hosts:
+      default: ingress
+    port:
+      ingress:
+        default: 80
+
+secrets:
+  identity:
+    admin: cyborg-keystone-admin
+    cyborg: cyborg-keystone-user
+    test: cyborg-keystone-test
+  oslo_db:
+    admin: cyborg-db-admin
+    cyborg: cyborg-db-user
+  oslo_messaging:
+    admin: cyborg-rabbitmq-admin
+    cyborg: cyborg-rabbitmq-user
+
+dependencies:
+  static:
+    api:
+      jobs:
+        - cyborg-db-sync
+        - cyborg-ks-user
+        - cyborg-ks-endpoints
+        - cyborg-ks-service
+      services:
+        - endpoint: internal
+          service: oslo_db
+        - endpoint: internal
+          service: identity
+        - endpoint: internal
+          service: oslo_messaging
+    conductor:
+      jobs:
+        - cyborg-db-sync
+        - cyborg-rabbit-init
+      services:
+        - endpoint: internal
+          service: oslo_messaging
+        - endpoint: internal
+          service: oslo_db
+        - endpoint: internal
+          service: identity
+    agent:
+      jobs:
+        - cyborg-db-sync
+        - cyborg-rabbit-init
+      services:
+        - endpoint: internal
+          service: oslo_messaging
+        - endpoint: internal
+          service: oslo_db
+        - endpoint: internal
+          service: identity
+        - endpoint: internal
+          service: placement
+    db_drop:
+      services:
+        - endpoint: internal
+          service: oslo_db
+    db_init:
+      services:
+        - endpoint: internal
+          service: oslo_db
+    db_sync:
+      jobs:
+        - cyborg-db-init
+      services:
+        - endpoint: internal
+          service: oslo_db
+    ks_endpoints:
+      jobs:
+        - cyborg-ks-service
+      services:
+        - endpoint: internal
+          service: identity
+    ks_service:
+      services:
+        - endpoint: internal
+          service: identity
+    ks_user:
+      services:
+        - endpoint: internal
+          service: identity
+
+pod:
+  affinity:
+    anti:
+      type:
+        default: preferredDuringSchedulingIgnoredDuringExecution
+        conductor: requiredDuringSchedulingIgnoredDuringExecution
+      topologyKey:
+        default: kubernetes.io/hostname
+      weight:
+        default: 10
+  mounts:
+    cyborg_api:
+      init_container: null
+      cyborg_api:
+        volumeMounts:
+        volumes:
+    cyborg_conductor:
+      init_container: null
+      cyborg_conductor:
+        volumeMounts:
+        volumes:
+    cyborg_agent:
+      init_container: null
+      cyborg_agent:
+        volumeMounts:
+        volumes:
+    cyborg_db_sync:
+      cyborg_db_sync:
+        volumeMounts:
+          - name: db-sync-sh
+            mountPath: /tmp/env.py
+            subPath: env.py
+            readOnly: true
+        volumes:
+  replicas:
+    api: 3
+    conductor: 3
+  lifecycle:
+    upgrades:
+      deployments:
+        revision_history: 3
+        pod_replacement_strategy: RollingUpdate
+        rolling_update:
+          max_unavailable: 1
+          max_surge: 3
+      daemonsets:
+        pod_replacement_strategy: RollingUpdate
+        cyborg:
+          enabled: true
+          min_ready_seconds: 0
+          max_unavailable: 1
+    disruption_budget:
+      api:
+        min_available: 0
+    termination_grace_period:
+      api:
+        timeout: 30
+  resources:
+    enabled: true
+    api:
+      requests:
+        memory: "128Mi"
+      limits:
+        memory: "1024Mi"
+    conductor:
+      requests:
+        memory: "128Mi"
+      limits:
+        memory: "1024Mi"
+    agent:
+      requests:
+        memory: "128Mi"
+      limits:
+        memory: "1024Mi"
+    jobs:
+      db_drop:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      db_init:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      db_sync:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      ks_endpoints:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      ks_service:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      ks_user:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      rabbit_init:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      tests:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      image_repo_sync:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+
+conf:
+  paste:
+    pipeline:main:
+      pipeline: cors request_id authtoken api_v2
+    app:api_v2:
+      paste.app_factory: cyborg.api.app:app_factory
+    filter:authtoken:
+      acl_public_routes: /, /v2
+      paste.filter_factory: cyborg.api.middleware.auth_token:AuthTokenMiddleware.factory
+    filter:osprofiler:
+      paste.filter_factory: cyborg.common.profiler:WsgiMiddleware.factory
+    filter:request_id:
+      paste.filter_factory: oslo_middleware:RequestId.factory
+    filter:cors:
+      paste.filter_factory: oslo_middleware.cors:filter_factory
+      oslo_config_project: cyborg
+
+  policy: {}
+  cyborg:
+    DEFAULT:
+      use_syslog: false
+      state_path: /var/lib/cyborg
+      debug: true
+    api:
+      host_ip: 0.0.0.0
+      api_workers: 3
+    database:
+      connection: null
+    service_catalog:
+      auth_type: password
+    oslo_messaging_rabbit:
+      rabbit_ha_queues: true
+      amqp_durable_queues: true
+    placement:
+      auth_type: password
+    nova:
+      auth_type: password
+    keystone_authtoken:
+      auth_type: password
+      endpoint_type: internal
+      www_authenticate_uri: null
+    agent:
+      enabled_drivers:
+        - nvidia_gpu_driver
+    gpu_devices:
+      enabled_vgpu_types: []
+    cyborg_sys_admin:
+      helper_command: /var/lib/openstack/bin/privsep-helper
+  rabbitmq:
+    policies:
+      - vhost: "cyborg"
+        name: "ha_ttl_cyborg"
+        definition:
+          ha-mode: "all"
+          ha-sync-mode: "automatic"
+          message-ttl: 70000
+        priority: 0
+        apply-to: all
+        pattern: '^(?!(amq\.|reply_)).*'
+
+network:
+  api:
+    port: 6666
+    istio:
+      public: true
+    ingress:
+      public: false
+      classes:
+        namespace: "nginx"
+        cluster: "nginx-cluster"
+      annotations:
+        nginx.ingress.kubernetes.io/rewrite-target: /
+    node_port:
+      enabled: false
+      port: 30666
+
+manifests:
+  certificates: false
+  configmap_bin: true
+  configmap_etc: true
+  daemonset_agent: true
+  deployment_api: true
+  deployment_conductor: true
+  ingress_api: true
+  job_db_drop: false
+  job_db_init: true
+  job_db_sync: true
+  job_image_repo_sync: true
+  job_ks_endpoints: true
+  job_ks_service: true
+  job_ks_user: true
+  job_rabbit_init: true
+  pdb_api: true
+  network_policy: false
+  secret_db: true
+  secret_keystone: true
+  secret_rabbitmq: true
+  service_ingress_api: false
+  service_api: true

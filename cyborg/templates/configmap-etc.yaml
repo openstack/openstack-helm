@@ -1,0 +1,137 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- define "cyborg.etc" }}
+{{- $configMapName := index . 0 }}
+{{- $envAll := index . 1 }}
+{{- with $envAll }}
+
+{{- if empty .Values.conf.cyborg.keystone_authtoken.auth_uri -}}
+{{- $_ := tuple "identity" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup"| set .Values.conf.cyborg.keystone_authtoken "auth_uri" -}}
+{{- end -}}
+{{- if empty .Values.conf.cyborg.keystone_authtoken.auth_url -}}
+{{- $_ := tuple "identity" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup"| set .Values.conf.cyborg.keystone_authtoken "auth_url" -}}
+{{- end -}}
+{{- if empty .Values.conf.cyborg.keystone_authtoken.region_name -}}
+{{- $_ := set .Values.conf.cyborg.keystone_authtoken "region_name" .Values.endpoints.identity.auth.cyborg.region_name -}}
+{{- end -}}
+{{- if empty .Values.conf.cyborg.keystone_authtoken.project_name -}}
+{{- $_ := set .Values.conf.cyborg.keystone_authtoken "password" .Values.endpoints.identity.auth.cyborg.password -}}
+{{- $_ := set .Values.conf.cyborg.keystone_authtoken "project_name" .Values.endpoints.identity.auth.cyborg.project_name -}}
+{{- end -}}
+{{- if empty .Values.conf.cyborg.keystone_authtoken.project_domain_name -}}
+{{- $_ := set .Values.conf.cyborg.keystone_authtoken "password" .Values.endpoints.identity.auth.cyborg.password -}}
+{{- $_ := set .Values.conf.cyborg.keystone_authtoken "project_domain_name" .Values.endpoints.identity.auth.cyborg.project_domain_name -}}
+{{- end -}}
+{{- if empty .Values.conf.cyborg.keystone_authtoken.user_domain_name -}}
+{{- $_ := set .Values.conf.cyborg.keystone_authtoken "password" .Values.endpoints.identity.auth.cyborg.password -}}
+{{- $_ := set .Values.conf.cyborg.keystone_authtoken "user_domain_name" .Values.endpoints.identity.auth.cyborg.user_domain_name -}}
+{{- end -}}
+{{- if empty .Values.conf.cyborg.keystone_authtoken.username -}}
+{{- $_ := set .Values.conf.cyborg.keystone_authtoken "password" .Values.endpoints.identity.auth.cyborg.password -}}
+{{- $_ := set .Values.conf.cyborg.keystone_authtoken "username" .Values.endpoints.identity.auth.cyborg.username -}}
+{{- end -}}
+{{- if empty .Values.conf.cyborg.keystone_authtoken.password -}}
+{{- $_ := set .Values.conf.cyborg.keystone_authtoken "password" .Values.endpoints.identity.auth.cyborg.password -}}
+{{- end -}}
+
+{{- if empty .Values.conf.cyborg.keystone_authtoken.memcached_servers -}}
+{{- $_ := tuple "oslo_cache" "internal" "memcache" . | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" | set .Values.conf.cyborg.keystone_authtoken "memcached_servers" -}}
+{{- end -}}
+{{- if empty .Values.conf.cyborg.keystone_authtoken.memcache_secret_key -}}
+{{- $_ := set .Values.conf.cyborg.keystone_authtoken "memcache_secret_key" ( default ( randAlphaNum 64 ) .Values.endpoints.oslo_cache.auth.memcache_secret_key ) -}}
+{{- end -}}
+
+{{- if empty .Values.conf.cyborg.database.connection -}}
+{{- $_ := tuple "oslo_db" "internal" "cyborg" "mysql" . | include "helm-toolkit.endpoints.authenticated_endpoint_uri_lookup"| set .Values.conf.cyborg.database "connection" -}}
+{{- end -}}
+
+{{- if empty .Values.conf.cyborg.DEFAULT.transport_url -}}
+{{- $_ := tuple "oslo_messaging" "internal" "cyborg" "amqp" . | include "helm-toolkit.endpoints.authenticated_transport_endpoint_uri_lookup" | set .Values.conf.cyborg.DEFAULT "transport_url" -}}
+{{- end -}}
+
+{{- if empty .Values.conf.cyborg.placement.auth_url -}}
+{{- $_ := tuple "identity" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup"| set .Values.conf.cyborg.placement "auth_url" -}}
+{{- end -}}
+{{- if empty .Values.conf.cyborg.placement.project_name -}}
+{{- $_ := set .Values.conf.cyborg.placement "project_name" .Values.endpoints.identity.auth.placement.project_name -}}
+{{- end -}}
+{{- if empty .Values.conf.cyborg.placement.project_domain_name -}}
+{{- $_ := set .Values.conf.cyborg.placement "project_domain_name" .Values.endpoints.identity.auth.placement.project_domain_name -}}
+{{- end -}}
+{{- if empty .Values.conf.cyborg.placement.user_domain_name -}}
+{{- $_ := set .Values.conf.cyborg.placement "user_domain_name" .Values.endpoints.identity.auth.placement.user_domain_name -}}
+{{- end -}}
+{{- if empty .Values.conf.cyborg.placement.username -}}
+{{- $_ := set .Values.conf.cyborg.placement "username" .Values.endpoints.identity.auth.placement.username -}}
+{{- end -}}
+{{- if empty .Values.conf.cyborg.placement.password -}}
+{{- $_ := set .Values.conf.cyborg.placement "password" .Values.endpoints.identity.auth.placement.password -}}
+{{- end -}}
+
+{{- if empty .Values.conf.cyborg.nova.auth_url -}}
+{{- $_ := tuple "identity" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup"| set .Values.conf.cyborg.nova "auth_url" -}}
+{{- end -}}
+{{- if empty .Values.conf.cyborg.nova.project_name -}}
+{{- $_ := set .Values.conf.cyborg.nova "project_name" .Values.endpoints.identity.auth.nova.project_name -}}
+{{- end -}}
+{{- if empty .Values.conf.cyborg.nova.project_domain_name -}}
+{{- $_ := set .Values.conf.cyborg.nova "project_domain_name" .Values.endpoints.identity.auth.nova.project_domain_name -}}
+{{- end -}}
+{{- if empty .Values.conf.cyborg.nova.user_domain_name -}}
+{{- $_ := set .Values.conf.cyborg.nova "user_domain_name" .Values.endpoints.identity.auth.nova.user_domain_name -}}
+{{- end -}}
+{{- if empty .Values.conf.cyborg.nova.username -}}
+{{- $_ := set .Values.conf.cyborg.nova "username" .Values.endpoints.identity.auth.nova.username -}}
+{{- end -}}
+{{- if empty .Values.conf.cyborg.nova.password -}}
+{{- $_ := set .Values.conf.cyborg.nova "password" .Values.endpoints.identity.auth.nova.password -}}
+{{- end -}}
+
+{{- if empty .Values.conf.cyborg.service_catalog.auth_url -}}
+{{- $_ := tuple "identity" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup"| set .Values.conf.cyborg.service_catalog "auth_url" -}}
+{{- end -}}
+{{- if empty .Values.conf.cyborg.service_catalog.project_name -}}
+{{- $_ := set .Values.conf.cyborg.service_catalog "project_name" .Values.endpoints.identity.auth.cyborg.project_name -}}
+{{- end -}}
+{{- if empty .Values.conf.cyborg.service_catalog.project_domain_name -}}
+{{- $_ := set .Values.conf.cyborg.service_catalog "project_domain_name" .Values.endpoints.identity.auth.cyborg.project_domain_name -}}
+{{- end -}}
+{{- if empty .Values.conf.cyborg.service_catalog.user_domain_name -}}
+{{- $_ := set .Values.conf.cyborg.service_catalog "user_domain_name" .Values.endpoints.identity.auth.cyborg.user_domain_name -}}
+{{- end -}}
+{{- if empty .Values.conf.cyborg.service_catalog.username -}}
+{{- $_ := set .Values.conf.cyborg.service_catalog "username" .Values.endpoints.identity.auth.cyborg.username -}}
+{{- end -}}
+{{- if empty .Values.conf.cyborg.service_catalog.password -}}
+{{- $_ := set .Values.conf.cyborg.service_catalog "password" .Values.endpoints.identity.auth.cyborg.password -}}
+{{- end -}}
+
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ $configMapName }}
+type: Opaque
+data:
+  cyborg.conf: {{ include "helm-toolkit.utils.to_oslo_conf" .Values.conf.cyborg | b64enc }}
+  policy.yaml: {{ toYaml .Values.conf.policy | b64enc }}
+  api-paste.ini: {{ include "helm-toolkit.utils.to_ini" .Values.conf.paste | b64enc }}
+{{- end }}
+{{- end }}
+
+{{- if .Values.manifests.configmap_etc }}
+{{- list "cyborg-etc" . | include "cyborg.etc" }}
+{{- end }}
