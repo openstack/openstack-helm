@@ -30,7 +30,8 @@ examples:
                   organization:
                     - ACME
                   commonName: keystone-api.openstack.svc.cluster.local
-                  keySize: 2048
+                  privateKey:
+                    size: 2048
                   usages:
                     - server auth
                     - client auth
@@ -55,55 +56,8 @@ examples:
         duration: 2160h
         issuerRef:
           name: ca-issuer
-        keySize: 2048
-        organization:
-        - ACME
-        secretName: keystone-tls-api
-        usages:
-        - server auth
-        - client auth
-
-  - values: |
-      cert_manager_version: v0.15.0
-      endpoints:
-        dashboard:
-          host_fqdn_override:
-            default:
-              host: null
-              tls:
-                secretName: keystone-tls-api
-                issuerRef:
-                  name: ca-issuer
-                  duration: 2160h
-                  organization:
-                    - ACME
-                  commonName: keystone-api.openstack.svc.cluster.local
-                  keySize: 2048
-                  usages:
-                    - server auth
-                    - client auth
-                  dnsNames:
-                    - cluster.local
-                  issuerRef:
-                    name: ca-issuer
-    usage: |
-      {{- $opts := dict "envAll" . "service" "dashboard" "type" "internal" -}}
-      {{ $opts | include "helm-toolkit.manifests.certificates" }}
-    return: |
-      ---
-      apiVersion: cert-manager.io/v1alpha3
-      kind: Certificate
-      metadata:
-        name: keystone-tls-api
-        namespace: NAMESPACE
-      spec:
-        commonName: keystone-api.openstack.svc.cluster.local
-        dnsNames:
-        - cluster.local
-        duration: 2160h
-        issuerRef:
-          name: ca-issuer
-        keySize: 2048
+        privateKey:
+          size: 2048
         organization:
         - ACME
         secretName: keystone-tls-api
@@ -125,11 +79,13 @@ examples:
 {{- $dnsNames := list $hostName (printf "%s.%s" $hostName $envAll.Release.Namespace) (printf "%s.%s.svc.%s" $hostName $envAll.Release.Namespace $envAll.Values.endpoints.cluster_domain_suffix) -}}
 {{- $_ := $dnsNames | set (index $envAll.Values.endpoints $service "host_fqdn_override" "default" "tls") "dnsNames" -}}
 {{- end -}}
-{{/* Default keySize to 4096. This can be overridden. */}}
-{{- if not (hasKey $slice "keySize") -}}
-{{- $_ := ( printf "%d" 4096 | atoi ) | set (index $envAll.Values.endpoints $service "host_fqdn_override" "default" "tls") "keySize" -}}
+{{/* Default privateKey size to 4096. This can be overridden. */}}
+{{- if not (hasKey $slice "privateKey") -}}
+{{- $_ := dict "size" ( printf "%d" 4096 | atoi ) | set (index $envAll.Values.endpoints $service "host_fqdn_override" "default" "tls") "privateKey" -}}
+{{- else if empty (index $envAll.Values.endpoints $service "host_fqdn_override" "default" "tls" "privateKey" "size") -}}
+{{- $_ := ( printf "%d" 4096 | atoi ) | set (index $envAll.Values.endpoints $service "host_fqdn_override" "default" "tls" "privateKey") "size" -}}
 {{- end -}}
-{{/* Default keySize to 3 months. Note the min is 720h. This can be overridden. */}}
+{{/* Default duration to 3 months. Note the min is 720h. This can be overridden. */}}
 {{- if not (hasKey $slice "duration") -}}
 {{- $_ := printf "%s" "2190h" | set (index $envAll.Values.endpoints $service "host_fqdn_override" "default" "tls") "duration" -}}
 {{- end -}}
@@ -141,16 +97,8 @@ examples:
 {{- if not (hasKey $slice "usages") -}}
 {{- $_ := (list "server auth" "client auth") | set (index $envAll.Values.endpoints $service "host_fqdn_override" "default" "tls") "usages" -}}
 {{- end -}}
-{{- $cert_manager_version := "v1.0.0" -}}
-{{- if $envAll.Values.cert_manager_version -}}
-{{- $cert_manager_version = $envAll.Values.cert_manager_version -}}
-{{- end -}}
 ---
-{{- if semverCompare "< v1.0.0"  $cert_manager_version }}
-apiVersion: cert-manager.io/v1alpha3
-{{- else }}
 apiVersion: cert-manager.io/v1
-{{- end }}
 kind: Certificate
 metadata:
   name: {{ index $envAll.Values.endpoints $service "host_fqdn_override" "default" "tls" "secretName" }}
