@@ -17,6 +17,28 @@ limitations under the License.
 # {- $ksUserJob := dict "envAll" . "serviceName" "senlin" }
 # { $ksUserJob | include "helm-toolkit.manifests.job_ks_user" }
 
+{{/*
+  # To enable PodSecuritycontext (PodSecurityContext/v1) define the below in values.yaml:
+  # example:
+  #  values: |
+  #    pod:
+  #      security_context:
+  #        ks_user:
+  #          pod:
+  #            runAsUser: 65534
+  # To enable Container SecurityContext(SecurityContext/v1) for ks-user container define the values:
+  # example:
+  #   values: |
+  #     pod:
+  #       security_context:
+  #         ks_user:
+  #           container:
+  #             ks-user:
+  #               runAsUser: 65534
+  #               readOnlyRootFilesystem: true
+  #               allowPrivilegeEscalation: false
+*/}}
+
 {{- define "helm-toolkit.manifests.job_ks_user" -}}
 {{- $envAll := index . "envAll" -}}
 {{- $serviceName := index . "serviceName" -}}
@@ -70,6 +92,7 @@ spec:
 {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
     spec:
       serviceAccountName: {{ $serviceAccountName | quote }}
+{{ dict "envAll" $envAll "application" "ks_user" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
       restartPolicy: {{ $restartPolicy }}
       nodeSelector:
 {{ toYaml $nodeSelector | indent 8 }}
@@ -80,6 +103,7 @@ spec:
           image: {{ $envAll.Values.images.tags.ks_user }}
           imagePullPolicy: {{ $envAll.Values.images.pull_policy }}
 {{ tuple $envAll $envAll.Values.pod.resources.jobs.ks_user | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "ks_user" "container" "ks_user" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
             - /bin/bash
             - -c
