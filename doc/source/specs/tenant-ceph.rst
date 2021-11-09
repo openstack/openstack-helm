@@ -1019,10 +1019,8 @@ Update script overrides as following:
     | ID                               | Name     | Type         |
     +----------------------------------+----------+--------------+
     | 0eddeb6af4fd43ea8f73f63a1ae01438 | swift    | object-store |
-    | 66bd0179eada4ab8899a58356fd4d508 | cinder   | volume       |
     | 67cc6b945e934246b25d31a9374a64af | keystone | identity     |
     | 81a61ec8eff74070bb3c2f0118c1bcd5 | glance   | image        |
-    | c126046fc5ec4c52acfc8fee0e2f4dda | cinderv2 | volumev2     |
     | f89b99a31a124b7790e3bb60387380b1 | cinderv3 | volumev3     |
     +----------------------------------+----------+--------------+
     + sleep 30

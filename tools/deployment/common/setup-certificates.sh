@@ -282,38 +282,6 @@ $(cat ${GLANCE_API_CRT} | sed 's/^/            /')
 $(cat ${GLANCE_API_KEY} | sed 's/^/            /')
           ca: |
 $(cat ${OSH_CA_ROOT}/ca.pem | sed 's/^/            /')
-  volume:
-    scheme:
-      public: https
-    port:
-      api:
-        public: 443
-    host_fqdn_override:
-      public:
-        host: "$(cat "${CINDER_CSR}" | jq -r '.CN')"
-        tls:
-          crt: |
-$(cat ${CINDER_CRT} | sed 's/^/            /')
-          key: |
-$(cat ${CINDER_KEY} | sed 's/^/            /')
-          ca: |
-$(cat ${OSH_CA_ROOT}/ca.pem | sed 's/^/            /')
-  volumev2:
-    scheme:
-      public: https
-    port:
-      api:
-        public: 443
-    host_fqdn_override:
-      public:
-        host: "$(cat "${CINDER_CSR}" | jq -r '.CN')"
-        tls:
-          crt: |
-$(cat ${CINDER_CRT} | sed 's/^/            /')
-          key: |
-$(cat ${CINDER_KEY} | sed 's/^/            /')
-          ca: |
-$(cat ${OSH_CA_ROOT}/ca.pem | sed 's/^/            /')
   volumev3:
     scheme:
       public: https
