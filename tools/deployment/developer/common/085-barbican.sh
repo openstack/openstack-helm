@@ -16,6 +16,7 @@ set -xe
 
 #NOTE: Get the over-rides to use
 : ${OSH_EXTRA_HELM_ARGS_BARBICAN:="$(./tools/deployment/common/get-values-overrides.sh barbican)"}
+: ${RUN_HELM_TESTS:="yes"}
 
 #NOTE: Lint and package chart
 make barbican
@@ -29,6 +30,7 @@ helm upgrade --install barbican ./barbican \
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack
 
-# Delete the test pod if it still exists
-kubectl delete pods -l application=barbican,release_group=barbican,component=test --namespace=openstack --ignore-not-found
-helm test barbican
+# Run helm tests
+if [ "x${RUN_HELM_TESTS}" != "xno" ]; then
+    ./tools/deployment/common/run-helm-tests.sh barbican
+fi
