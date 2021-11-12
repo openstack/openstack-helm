@@ -40,11 +40,14 @@
 #           export OS_PROJECT_DOMAIN_NAME  Keystone domain the user belongs to
 #           export OS_IDENTITY_API_VERSION Keystone API version to use
 #
-#       The following variables are optional:
-#         export RGW_TIMEOUT           Number of seconds to wait for the
-#                                      connection to the RGW to be available
-#                                      when sending a backup to the RGW. Default
-#                                      is 1800 (30 minutes).
+#           export REMOTE_BACKUP_RETRIES   Number of retries to send backup to remote
+#                                          in case of any temporary failures.
+#           export MIN_DELAY_SEND_REMOTE   Minimum seconds to delay before sending backup
+#                                          to remote to stagger backups being sent to RGW
+#           export MAX_DELAY_SEND_REMOTE   Maximum seconds to delay before sending backup
+#                                          to remote to stagger backups being sent to RGW.
+#                                          A random number between min and max delay is generated
+#                                          to set the delay.
 #
 # The database-specific functions that need to be implemented are:
 #   dump_databases_to_directory <directory> <err_logfile> [scope]
@@ -81,7 +84,7 @@ set -x
 
 log_backup_error_exit() {
   MSG=$1
-  ERRCODE=$2
+  ERRCODE=${2:-0}
   log ERROR "${DB_NAME}_backup" "${DB_NAMESPACE} namespace: ${MSG}"
   rm -f $ERR_LOG_FILE
   rm -rf $TMP_DIR
@@ -105,6 +108,13 @@ log() {
   else
     echo "${DATE} ${LEVEL}: $(hostname) ${SERVICE}: ${MSG}" >>$DEST
   fi
+}
+
+# Generate a random number between MIN_DELAY_SEND_REMOTE and
+# MAX_DELAY_SEND_REMOTE
+random_number() {
+  diff=$((${MAX_DELAY_SEND_REMOTE} - ${MIN_DELAY_SEND_REMOTE} + 1))
+  echo $(($(( ${RANDOM} % ${diff} )) + ${MIN_DELAY_SEND_REMOTE} ))
 }
 
 #Get the day delta since the archive file backup
@@ -135,9 +145,17 @@ send_to_remote_server() {
     if [[ $? -ne 0 ]]; then
       # Find the swift URL from the keystone endpoint list
       SWIFT_URL=$(openstack catalog show object-store -c endpoints | grep public | awk '{print $4}')
+      if [[ $? -ne 0 ]]; then
+        log WARN "${DB_NAME}_backup" "Unable to get object-store enpoints from keystone catalog."
+        return 2
+      fi
 
       # Get a token from keystone
       TOKEN=$(openstack token issue -f value -c id)
+      if [[ $? -ne 0 ]]; then
+        log WARN "${DB_NAME}_backup" "Unable to get  keystone token."
+        return 2
+      fi
 
       # Create the container
       RES_FILE=$(mktemp -p /tmp)
@@ -146,28 +164,28 @@ send_to_remote_server() {
            -H "X-Storage-Policy: ${STORAGE_POLICY}" 2>&1 > $RES_FILE
 
       if [[ $? -ne 0 || $(grep "HTTP" $RES_FILE | awk '{print $2}') -ge 400 ]]; then
-        log ERROR "${DB_NAME}_backup" "Error creating container ${CONTAINER_NAME}"
+        log WARN "${DB_NAME}_backup" "Unable to create container ${CONTAINER_NAME}"
         cat $RES_FILE
         rm -f $RES_FILE
-        return 1
+        return 2
       fi
       rm -f $RES_FILE
 
       swift stat $CONTAINER_NAME
       if [[ $? -ne 0 ]]; then
-        log ERROR "${DB_NAME}_backup" "Error retrieving container ${CONTAINER_NAME} details after creation."
-        return 1
+        log WARN "${DB_NAME}_backup" "Unable to retrieve container ${CONTAINER_NAME} details after creation."
+        return 2
       fi
     fi
   else
-    echo $RESULT | grep "HTTP 401"
+    echo $RESULT | grep -E "HTTP 401|HTTP 403"
     if [[ $? -eq 0 ]]; then
       log ERROR "${DB_NAME}_backup" "Access denied by keystone: ${RESULT}"
       return 1
     else
-      echo $RESULT | grep -E "ConnectionError|Failed to discover available identity versions|Service Unavailable"
+      echo $RESULT | grep -E "ConnectionError|Failed to discover available identity versions|Service Unavailable|HTTP 50"
       if [[ $? -eq 0 ]]; then
-        log ERROR "${DB_NAME}_backup" "Could not reach the RGW: ${RESULT}"
+        log WARN "${DB_NAME}_backup" "Could not reach the RGW: ${RESULT}"
         # In this case, keystone or the site/node may be temporarily down.
         # Return slightly different error code so the calling code can retry
         return 2
@@ -179,11 +197,15 @@ send_to_remote_server() {
   fi
 
   # Create an object to store the file
-  openstack object create --name $FILE $CONTAINER_NAME $FILEPATH/$FILE || log ERROR "${DB_NAME}_backup" "Cannot create container object ${FILE}!"
+  openstack object create --name $FILE $CONTAINER_NAME $FILEPATH/$FILE
+  if [[ $? -ne 0 ]]; then
+    log WARN "${DB_NAME}_backup" "Cannot create container object ${FILE}!"
+    return 2
+  fi
   openstack object show $CONTAINER_NAME $FILE
   if [[ $? -ne 0 ]]; then
-    log ERROR "${DB_NAME}_backup" "Error retrieving container object $FILE after creation."
-    return 1
+    log WARN "${DB_NAME}_backup" "Unable to retrieve container object $FILE after creation."
+    return 2
   fi
 
   log INFO "${DB_NAME}_backup" "Created file $FILE in container $CONTAINER_NAME successfully."
@@ -198,16 +220,8 @@ store_backup_remotely() {
   FILEPATH=$1
   FILE=$2
 
-  # If the RGW_TIMEOUT has already been set, use that value, otherwise give it
-  # a default value.
-  if [[ -z $RGW_TIMEOUT ]]; then
-    RGW_TIMEOUT=1800
-  fi
-
-  ERROR_SEEN=false
-  DONE=false
-  TIMEOUT_EXP=$(( $(date +%s) + $RGW_TIMEOUT ))
-  while [[ $DONE == "false" ]]; do
+  count=1
+  while [[ ${count} -le ${REMOTE_BACKUP_RETRIES} ]]; do
     # Store the new archive to the remote backup storage facility.
     send_to_remote_server $FILEPATH $FILE
     SEND_RESULT="$?"
@@ -215,32 +229,29 @@ store_backup_remotely() {
     # Check if successful
     if [[ $SEND_RESULT -eq 0 ]]; then
       log INFO "${DB_NAME}_backup" "Backup file ${FILE} successfully sent to RGW."
-      DONE=true
+      return 0
     elif [[ $SEND_RESULT -eq 2 ]]; then
-      # Temporary failure occurred. We need to retry if we have not timed out
-      log WARN "${DB_NAME}_backup" "Backup file ${FILE} could not be sent to RGW due to connection issue."
-      DELTA=$(( TIMEOUT_EXP - $(date +%s) ))
-      if [[ $DELTA -lt 0 ]]; then
-        DONE=true
-        log ERROR "${DB_NAME}_backup" "Timed out waiting for RGW to become available."
-        ERROR_SEEN=true
-      else
-        log INFO "${DB_NAME}_backup" "Sleeping 30 seconds waiting for RGW to become available..."
-        sleep 30
-        log INFO "${DB_NAME}_backup" "Retrying..."
+      if [[ ${count} -ge ${REMOTE_BACKUP_RETRIES} ]]; then
+        log ERROR "${DB_NAME}_backup" "Backup file ${FILE} could not be sent to the RGW in " \
+        "${REMOTE_BACKUP_RETRIES} retries. Errors encountered. Exiting."
+        break
       fi
+      # Temporary failure occurred. We need to retry
+      log WARN "${DB_NAME}_backup" "Backup file ${FILE} could not be sent to RGW due to connection issue."
+      sleep_time=$(random_number)
+      log INFO "${DB_NAME}_backup" "Sleeping ${sleep_time} seconds waiting for RGW to become available..."
+      sleep ${sleep_time}
+      log INFO "${DB_NAME}_backup" "Retrying..."
     else
-      log ERROR "${DB_NAME}_backup" "Backup file ${FILE} could not be sent to the RGW."
-      ERROR_SEEN=true
-      DONE=true
+      log ERROR "${DB_NAME}_backup" "Backup file ${FILE} could not be sent to the RGW. Errors encountered. Exiting."
+      break
     fi
+
+    # Increment the counter
+    count=$((count+1))
   done
 
-  if [[ $ERROR_SEEN == "true" ]]; then
-    log ERROR "${DB_NAME}_backup" "Errors encountered. Exiting."
-    return 1
-  fi
-  return 0
+  return 1
 }
 
 remove_old_local_archives() {
@@ -270,7 +281,7 @@ remove_old_remote_archives() {
 
   openstack object list $CONTAINER_NAME > $BACKUP_FILES
   if [[ $? -ne 0 ]]; then
-    log_backup_error_exit "Could not obtain a list of current backup files in the RGW" 1
+    log_backup_error_exit "Could not obtain a list of current backup files in the RGW"
   fi
 
   # Filter out other types of backup files
@@ -280,7 +291,7 @@ remove_old_remote_archives() {
     ARCHIVE_DATE=$( echo $ARCHIVE_FILE | awk -F/ '{print $NF}' | cut -d'.' -f 4)
     if [[ "$(seconds_difference ${ARCHIVE_DATE})" -gt "$((${REMOTE_DAYS_TO_KEEP}*86400))" ]]; then
       log INFO "${DB_NAME}_backup" "Deleting file ${ARCHIVE_FILE} from the RGW"
-      openstack object delete $CONTAINER_NAME $ARCHIVE_FILE || log_backup_error_exit "Cannot delete container object ${ARCHIVE_FILE}!" 1
+      openstack object delete $CONTAINER_NAME $ARCHIVE_FILE || log_backup_error_exit "Cannot delete container object ${ARCHIVE_FILE}!"
     fi
   done
 
@@ -349,6 +360,13 @@ backup_databases() {
 
   REMOTE_BACKUP=$(echo $REMOTE_BACKUP_ENABLED | sed 's/"//g')
   if $REMOTE_BACKUP; then
+    # Remove Quotes from the constants which were added due to reading
+    # from secret.
+    export REMOTE_BACKUP_RETRIES=$(echo $REMOTE_BACKUP_RETRIES | sed 's/"//g')
+    export MIN_DELAY_SEND_REMOTE=$(echo $MIN_DELAY_SEND_REMOTE | sed 's/"//g')
+    export MAX_DELAY_SEND_REMOTE=$(echo $MAX_DELAY_SEND_REMOTE | sed 's/"//g')
+    export REMOTE_DAYS_TO_KEEP=$(echo $REMOTE_DAYS_TO_KEEP | sed 's/"//g')
+
     store_backup_remotely $ARCHIVE_DIR $TARBALL_FILE
     if [[ $? -ne 0 ]]; then
       # This error should print first, then print the summary as the last
@@ -368,7 +386,6 @@ backup_databases() {
     fi
 
     #Only delete the old archive after a successful archive
-    export REMOTE_DAYS_TO_KEEP=$(echo $REMOTE_DAYS_TO_KEEP | sed 's/"//g')
     if [[ "$REMOTE_DAYS_TO_KEEP" -gt 0 ]]; then
       remove_old_remote_archives
     fi
