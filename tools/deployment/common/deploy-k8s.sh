@@ -17,5 +17,5 @@ set -xe
 CURRENT_DIR="$(pwd)"
 : ${OSH_INFRA_PATH:="../openstack-helm-infra"}
 cd ${OSH_INFRA_PATH}
-./tools/deployment/common/005-deploy-k8s.sh
+./tools/gate/deploy-k8s.sh
 cd ${CURRENT_DIR}
