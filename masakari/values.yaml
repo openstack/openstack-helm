@@ -25,7 +25,7 @@ images:
     masakari_process_monitor: docker.io/xuxant/masakari-monitors:focal
     masakari_instance_monitor: docker.io/xuxant/masakari-monitors:focal
     rabbit_init: docker.io/rabbitmq:3.7-management
-    dep_check: 'quay.io/airshipit/kubernetes-entrypoint:v1.0.0'
+    dep_check: quay.io/airshipit/kubernetes-entrypoint:v1.0.0
   pull_policy: "IfNotPresent"
   local_registry:
     active: false
@@ -71,7 +71,7 @@ endpoints:
     path:
       default: "/v1/%(tenant_id)s"
     scheme:
-      default: 'http'
+      default: "http"
     port:
       api:
         default: 15868
@@ -184,7 +184,7 @@ endpoints:
       default: null
     path:
       default: null
-    scheme: 'http'
+    scheme: "http"
     port:
       service:
         default: 24224
@@ -281,23 +281,23 @@ pod:
         masakari_api:
           readOnlyRootFilesystem: false
           allowPrivilegeEscalation: false
-          runAsUser: 0
+          runAsUser: 42424
         masakari_engine:
           readOnlyRootFilesystem: false
           allowPrivilegeEscalation: false
-          runAsUser: 0
+          runAsUser: 42424
         masakari_db_sync:
           readOnlyRootFilesystem: false
           allowPrivilegeEscalation: false
-          runAsUser: 0
+          runAsUser: 42424
         masakari_host_monitor:
           readOnlyRootFilesystem: false
-          allowPrivilegeEscalation: false
-          runAsUser: 0
+          allowPrivilegeEscalation: true
+          runAsUser: 42424
         masakari_process_monitir:
           readOnlyRootFilesystem: false
           allowPrivilegeEscalation: false
-          runAsUser: 0
+          runAsUser: 42424
         masakari_instance_monitor:
           readOnlyRootFilesystem: false
           allowPrivilegeEscalation: false
@@ -564,6 +564,17 @@ conf:
     introspectiveinstancemonitor:
       guest_monitor_interval: 10
       guest_monitor_timeout: 5
+    host:
+      monitoring_driver: default
+      monitoring_interval: 120
+      monitoring_samples: 1
+      disable_ipmi_checks: true
+      corosync_multicast_ports: 5405
+      pacemaker_node_type: remote
+
+# Note(xuxant): Hooks will break the upgrade for helm2
+# Set to false if using helm2.
+helm3_hook: true
 
 network:
   masakari_api:
@@ -589,6 +600,7 @@ manifests:
   job_rabbit_init: true
   service_api: true
   pdb_api: true
-  host_monitor: true
+  # Host Monitors in containers needs pacemaker remote.
+  host_monitor: false
   instance_monitor: true
-  process_monitor: true
+  process_monitor: false
