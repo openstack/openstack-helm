@@ -1,1 +1,1 @@
-../../common/memcached.sh
+../../component/common/memcached.sh
