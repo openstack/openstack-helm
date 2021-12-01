@@ -14,37 +14,14 @@
 
 set -xe
 
-#NOTE: Lint and package chart
 make glance
 
-#NOTE: Deploy command
 : ${OSH_EXTRA_HELM_ARGS:=""}
-: ${OSH_OPENSTACK_RELEASE:="newton"}
-#NOTE(portdirect), this could be: radosgw, rbd, swift or pvc
 : ${GLANCE_BACKEND:="swift"}
-
-#NOTE: Get the over-rides to use
 : ${OSH_EXTRA_HELM_ARGS_GLANCE:="$(./tools/deployment/common/get-values-overrides.sh glance)"}
-
 tee /tmp/glance.yaml <<EOF
 storage: ${GLANCE_BACKEND}
 EOF
-if [ "x${OSH_OPENSTACK_RELEASE}" == "xnewton" ]; then
-# NOTE(portdirect): glance APIv1 is required for heat in Newton
-  tee -a /tmp/glance.yaml <<EOF
-conf:
-  glance:
-    DEFAULT:
-      enable_v1_api: true
-      enable_v2_registry: true
-manifests:
-  deployment_registry: true
-  ingress_registry: true
-  pdb_registry: true
-  service_ingress_registry: true
-  service_registry: true
-EOF
-fi
 helm upgrade --install glance ./glance \
   --namespace=openstack \
   --values=/tmp/glance.yaml \
@@ -52,10 +29,8 @@ helm upgrade --install glance ./glance \
   ${OSH_EXTRA_HELM_ARGS} \
   ${OSH_EXTRA_HELM_ARGS_GLANCE}
 
-#NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack
 
-#NOTE: Validate Deployment info
 export OS_CLOUD=openstack_helm
 openstack service list
 sleep 30 #NOTE(portdirect): Wait for ingress controller to update rules and restart Nginx

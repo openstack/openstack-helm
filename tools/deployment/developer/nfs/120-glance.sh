@@ -22,27 +22,10 @@ make glance
 
 #NOTE: Deploy command
 : ${OSH_EXTRA_HELM_ARGS:=""}
-: ${OSH_OPENSTACK_RELEASE:="newton"}
 : ${GLANCE_BACKEND:="pvc"}
 tee /tmp/glance.yaml <<EOF
 storage: ${GLANCE_BACKEND}
 EOF
-if [ "x${OSH_OPENSTACK_RELEASE}" == "xnewton" ]; then
-# NOTE(portdirect): glance APIv1 is required for heat in Newton
-  tee -a /tmp/glance.yaml <<EOF
-conf:
-  glance:
-    DEFAULT:
-      enable_v1_api: true
-      enable_v2_registry: true
-manifests:
-  deployment_registry: true
-  ingress_registry: true
-  pdb_registry: true
-  service_ingress_registry: true
-  service_registry: true
-EOF
-fi
 helm upgrade --install glance ./glance \
   --namespace=openstack \
   --values=/tmp/glance.yaml \
