@@ -26,8 +26,7 @@ conf:
       ssl_cert_file: /etc/rabbitmq/certs/tls.crt
       ssl_key_file: /etc/rabbitmq/certs/tls.key
   wsgi_keystone: |
-    {{- $portInt := tuple "identity" "internal" "api" $ | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-    {{- $vh := tuple "identity" "internal" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
+    {{- $portInt := tuple "identity" "service" "api" $ | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
 
     Listen 0.0.0.0:{{ $portInt }}
 
@@ -38,7 +37,7 @@ conf:
     CustomLog /dev/stdout combined env=!forwarded
     CustomLog /dev/stdout proxy env=forwarded
 
-    <VirtualHost *:{{ tuple "identity" "internal" "api" $ | include "helm-toolkit.endpoints.endpoint_port_lookup" }}>
+    <VirtualHost *:{{ tuple "identity" "service" "api" $ | include "helm-toolkit.endpoints.endpoint_port_lookup" }}>
       ServerName {{ printf "%s.%s.svc.%s" "keystone-api" .Release.Namespace .Values.endpoints.cluster_domain_suffix }}
       WSGIDaemonProcess keystone-public processes=1 threads=1 user=keystone group=keystone display-name=%{GROUP}
       WSGIProcessGroup keystone-public
@@ -78,6 +77,7 @@ endpoints:
     scheme:
       default: https
       public: https
+      service: https
     port:
       api:
         default: 443
