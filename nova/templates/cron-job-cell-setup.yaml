@@ -59,6 +59,11 @@ spec:
 {{ dict "envAll" $envAll "application" "cell_setup" "container" "nova_cell_setup" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 14 }}
               command:
                 - /tmp/cell-setup.sh
+{{- if or .Values.manifests.certificates .Values.tls.identity }}
+              env:
+                - name: REQUESTS_CA_BUNDLE
+                  value: "/etc/nova/certs/ca.crt"
+{{- end }}
               volumeMounts:
                 - name: pod-tmp
                   mountPath: /tmp
@@ -82,7 +87,9 @@ spec:
                   mountPath: /etc/nova/policy.yaml
                   subPath: policy.yaml
                   readOnly: true
+{{- dict "enabled" (or .Values.manifests.certificates .Values.tls.identity) "name" .Values.secrets.tls.compute.osapi.internal "path" "/etc/nova/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 16 }}
 {{- dict "enabled" .Values.manifests.certificates "name" .Values.endpoints.oslo_db.auth.admin.secret.tls.internal "path" "/etc/mysql/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 16 }}
+
           volumes:
             - name: pod-tmp
               emptyDir: {}
@@ -96,5 +103,7 @@ spec:
               configMap:
                 name: nova-bin
                 defaultMode: 0555
+{{- dict "enabled" (or .Values.manifests.certificates .Values.tls.identity) "name" .Values.secrets.tls.compute.osapi.internal | include "helm-toolkit.snippets.tls_volume" | indent 12 }}
 {{- dict "enabled" .Values.manifests.certificates "name" .Values.endpoints.oslo_db.auth.admin.secret.tls.internal | include "helm-toolkit.snippets.tls_volume" | indent 12 }}
+
 {{- end }}

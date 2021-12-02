@@ -59,6 +59,11 @@ spec:
 {{ dict "envAll" $envAll "application" "archive_deleted_rows" "container" "nova_archive_deleted_rows" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 14 }}
               command:
                 - /tmp/archive-deleted-rows.sh
+{{- if or .Values.manifests.certificates .Values.tls.identity }}
+              env:
+                - name: REQUESTS_CA_BUNDLE
+                  value: "/etc/nova/certs/ca.crt"
+{{- end }}
               volumeMounts:
                 - name: pod-tmp
                   mountPath: /tmp
@@ -74,6 +79,7 @@ spec:
                   mountPath: /tmp/archive-deleted-rows.sh
                   readOnly: true
                   subPath: archive-deleted-rows.sh
+{{- dict "enabled" (or .Values.manifests.certificates .Values.tls.identity) "name" .Values.secrets.tls.compute.osapi.internal "path" "/etc/nova/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 16 }}
 {{- dict "enabled" .Values.manifests.certificates "name" .Values.endpoints.oslo_db.auth.admin.secret.tls.internal "path" "/etc/mysql/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 16 }}
           volumes:
             - name: pod-tmp
@@ -85,4 +91,6 @@ spec:
             - name: archive-deleted-rows-conf
               secret:
                 secretName: nova-etc
+{{- dict "enabled" (or .Values.manifests.certificates .Values.tls.identity) "name" .Values.secrets.tls.compute.osapi.internal | include "helm-toolkit.snippets.tls_volume" | indent 12 }}
+{{- dict "enabled" .Values.manifests.certificates "name" .Values.endpoints.oslo_db.auth.admin.secret.tls.internal | include "helm-toolkit.snippets.tls_volume" | indent 12 }}
 {{- end }}
