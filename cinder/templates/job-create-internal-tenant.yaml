@@ -68,9 +68,9 @@ spec:
               mountPath: /tmp/create-internal-tenant.sh
               subPath: create-internal-tenant.sh
               readOnly: true
-{{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.volumev3.api.internal | include "helm-toolkit.snippets.tls_volume_mount"  | indent 12 }}
+{{- dict "enabled" (or .Values.manifests.certificates .Values.tls.identity) "name" .Values.secrets.tls.volumev3.api.internal | include "helm-toolkit.snippets.tls_volume_mount"  | indent 12 }}
           env:
-{{- with $env := dict "ksUserSecret" $envAll.Values.secrets.identity.admin "useCA" .Values.manifests.certificates }}
+{{- with $env := dict "ksUserSecret" $envAll.Values.secrets.identity.admin "useCA" (or .Values.manifests.certificates .Values.tls.identity) }}
 {{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 12 }}
 {{- end }}
             - name: SERVICE_OS_SERVICE_NAME
@@ -97,5 +97,5 @@ spec:
           configMap:
             name: {{ $configMapBin | quote }}
             defaultMode: 0555
-{{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.volumev3.api.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
+{{- dict "enabled" (or .Values.manifests.certificates .Values.tls.identity) "name" .Values.secrets.tls.volumev3.api.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 {{- end -}}
