@@ -102,10 +102,10 @@ spec:
 {{ dict "envAll" $envAll "application" "glance" "container" "nginx" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           ports:
             - name: g-api
-              containerPort: {{ tuple "image" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+              containerPort: {{ tuple "image" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
           env:
             - name: PORT
-              value: {{ tuple "image" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | quote }}
+              value: {{ tuple "image" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | quote }}
             - name: POD_IP
               valueFrom:
                 fieldRef:
@@ -114,7 +114,7 @@ spec:
               value: {{ tuple "image" "internal" .  | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" | quote }}
           readinessProbe:
             tcpSocket:
-              port: {{ tuple "image" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+              port: {{ tuple "image" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
           command:
             - /tmp/nginx.sh
             - start
@@ -159,24 +159,24 @@ spec:
               command:
                 - python
                 - -c
-                - "import requests; requests.get('http://127.0.0.1:{{ tuple "image" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}')"
+                - "import requests; requests.get('http://127.0.0.1:{{ tuple "image" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}')"
           livenessProbe:
             exec:
               command:
                 - python
                 - -c
-                - "import requests; requests.get('http://127.0.0.1:{{ tuple "image" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}')"
+                - "import requests; requests.get('http://127.0.0.1:{{ tuple "image" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}')"
             initialDelaySeconds: 30
           {{- else }}
           ports:
             - name: g-api
-              containerPort: {{ tuple "image" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+              containerPort: {{ tuple "image" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
           readinessProbe:
             tcpSocket:
-              port: {{ tuple "image" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+              port: {{ tuple "image" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
           livenessProbe:
             tcpSocket:
-              port: {{ tuple "image" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+              port: {{ tuple "image" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
           {{- end }}
           volumeMounts:
             - name: pod-tmp
