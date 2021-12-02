@@ -68,10 +68,10 @@ spec:
               mountPath: /tmp/trusts.sh
               subPath: trusts.sh
               readOnly: true
-{{ dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.orchestration.api.internal | include "helm-toolkit.snippets.tls_volume_mount"  | indent 12 }}
+{{ dict "enabled" (or .Values.manifests.certificates .Values.tls.identity) "name" .Values.secrets.tls.orchestration.api.internal | include "helm-toolkit.snippets.tls_volume_mount"  | indent 12 }}
 {{ if $mounts_heat_trusts.volumeMounts }}{{ toYaml $mounts_heat_trusts.volumeMounts | indent 12 }}{{ end }}
           env:
-{{- with $env := dict "ksUserSecret" $envAll.Values.secrets.identity.admin "useCA" $envAll.Values.manifests.certificates }}
+{{- with $env := dict "ksUserSecret" $envAll.Values.secrets.identity.admin "useCA" (or .Values.manifests.certificates .Values.tls.identity) }}
 {{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 12 }}
 {{- end }}
             - name: SERVICE_OS_ROLES
@@ -87,5 +87,5 @@ spec:
           configMap:
             name: heat-bin
             defaultMode: 0555
-{{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.orchestration.api.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
+{{- dict "enabled" (or .Values.manifests.certificates .Values.tls.identity) "name" .Values.secrets.tls.orchestration.api.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 {{ if $mounts_heat_trusts.volumes }}{{ toYaml $mounts_heat_trusts.volumes | indent 8 }}{{ end }}

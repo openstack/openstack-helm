@@ -62,6 +62,11 @@ spec:
 {{ tuple $envAll "heat_api" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.api | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
 {{ dict "envAll" $envAll "application" "heat" "container" "heat_api" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+{{- if or .Values.manifests.certificates .Values.tls.identity }}
+          env:
+            - name: REQUESTS_CA_BUNDLE
+              value: "/etc/heat/certs/ca.crt"
+{{- end }}
           command:
             - /tmp/heat-api.sh
             - start
@@ -124,7 +129,7 @@ spec:
               subPath: mpm_event.conf
               readOnly: true
             {{- end }}
-{{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.orchestration.api.internal "path" "/etc/heat/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
+{{- dict "enabled" (or .Values.manifests.certificates .Values.tls.identity) "name" .Values.secrets.tls.orchestration.api.internal "path" "/etc/heat/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
 {{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.oslo_messaging.auth.admin.secret.tls.internal "path" "/etc/rabbitmq/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
 {{ if $mounts_heat_api.volumeMounts }}{{ toYaml $mounts_heat_api.volumeMounts | indent 12 }}{{ end }}
       volumes:
@@ -142,7 +147,7 @@ spec:
           secret:
             secretName: heat-etc
             defaultMode: 0444
-{{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.orchestration.api.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
+{{- dict "enabled" (or .Values.manifests.certificates .Values.tls.identity) "name" .Values.secrets.tls.orchestration.api.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 {{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.oslo_messaging.auth.admin.secret.tls.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 {{ if $mounts_heat_api.volumes }}{{ toYaml $mounts_heat_api.volumes | indent 8 }}{{ end }}
 {{- end }}
