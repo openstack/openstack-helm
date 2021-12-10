@@ -17,11 +17,9 @@ limitations under the License.
 set -ex
 {{- $envAll := . }}
 
+{{ include "helm-toolkit.snippets.mon_host_from_k8s_ep" . }}
 
-ENDPOINT=$(kubectl get endpoints ceph-mon-discovery -n ${PVC_CEPH_RBD_STORAGECLASS_DEPLOYED_NAMESPACE} -o json | awk -F'"' -v port=${MON_PORT} \
-           -v version=v1 -v msgr_version=v2 \
-           -v msgr2_port=${MON_PORT_V2} \
-           '/"ip"/{print "["version":"$4":"port"/"0","msgr_version":"$4":"msgr2_port"/"0"]"}' | paste -sd',')
+ENDPOINT=$(mon_host_from_k8s_ep ${PVC_CEPH_RBD_STORAGECLASS_DEPLOYED_NAMESPACE} ceph-mon-discovery)
 
 if [ -z "$ENDPOINT" ]; then
   echo "Ceph Mon endpoint is empty"

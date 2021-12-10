@@ -28,6 +28,8 @@ export PS4='+${BASH_SOURCE:+$(basename ${BASH_SOURCE}):${LINENO}:}${FUNCNAME:+${
 : "${OSD_JOURNAL_SIZE:=$(awk '/^osd_journal_size/{print $3}' ${CEPH_CONF}.template)}"
 : "${OSD_WEIGHT:=1.0}"
 
+{{ include "helm-toolkit.snippets.mon_host_from_k8s_ep" . }}
+
 # Obtain a global lock on /var/lib/ceph/tmp/init-osd.lock
 function lock() {
   # Open a file descriptor for the lock file if there isn't one already
@@ -136,11 +138,8 @@ if [[ ! -e ${CEPH_CONF}.template ]]; then
   echo "ERROR- ${CEPH_CONF}.template must exist; get it from your existing mon"
   exit 1
 else
-  ENDPOINT=$(kubectl get endpoints ceph-mon-discovery -n ${NAMESPACE} -o json | awk -F'"' -v port=${MON_PORT} \
-             -v version=v1 -v msgr_version=v2 \
-             -v msgr2_port=${MON_PORT_V2} \
-             '/"ip"/{print "["version":"$4":"port"/"0","msgr_version":"$4":"msgr2_port"/"0"]"}' | paste -sd',')
-  if [[ "${ENDPOINT}" == "" ]]; then
+  ENDPOINT=$(mon_host_from_k8s_ep "${NAMESPACE}" ceph-mon-discovery)
+  if [[ -z "${ENDPOINT}" ]]; then
     /bin/sh -c -e "cat ${CEPH_CONF}.template | tee ${CEPH_CONF}" || true
   else
     /bin/sh -c -e "cat ${CEPH_CONF}.template | sed 's#mon_host.*#mon_host = ${ENDPOINT}#g' | tee ${CEPH_CONF}" || true

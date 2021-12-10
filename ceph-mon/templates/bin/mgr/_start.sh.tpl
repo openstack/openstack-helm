@@ -6,7 +6,7 @@ set -ex
 : "${ADMIN_KEYRING:=/etc/ceph/${CLUSTER}.client.admin.keyring}"
 : "${CEPH_CONF:="/etc/ceph/${CLUSTER}.conf"}"
 
-{{ include "ceph-mon.snippets.mon_host_from_k8s_ep" . }}
+{{ include "helm-toolkit.snippets.mon_host_from_k8s_ep" . }}
 
 if [[ ! -e ${CEPH_CONF}.template ]]; then
   echo "ERROR- ${CEPH_CONF}.template must exist; get it from your existing mon"

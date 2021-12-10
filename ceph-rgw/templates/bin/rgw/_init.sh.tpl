@@ -15,10 +15,32 @@ limitations under the License.
 */}}
 
 set -ex
+export LC_ALL=C
 
-cp -va /etc/ceph/ceph.conf.template /etc/ceph/ceph.conf
+: "${CEPH_CONF:="/etc/ceph/${CLUSTER}.conf"}"
+: "${EP:=ceph-mon-discovery}"
+{{- if empty .Values.endpoints.ceph_mon.namespace -}}
+MON_NS=ceph
+{{ else }}
+MON_NS={{ .Values.endpoints.ceph_mon.namespace }}
+{{- end }}
 
-cat >> /etc/ceph/ceph.conf <<EOF
+{{ include "helm-toolkit.snippets.mon_host_from_k8s_ep" . }}
+
+if [[ ! -e ${CEPH_CONF}.template ]]; then
+  echo "ERROR- ${CEPH_CONF}.template must exist."
+  exit 1
+fi
+
+ENDPOINT=$(mon_host_from_k8s_ep "${MON_NS}" "${EP}")
+
+if [[ -z "${ENDPOINT}" ]]; then
+   /bin/sh -c -e "cat ${CEPH_CONF}.template | tee ${CEPH_CONF}" || true
+else
+   /bin/sh -c -e "cat ${CEPH_CONF}.template | sed 's#mon_host.*#mon_host = ${ENDPOINT}#g' | tee ${CEPH_CONF}" || true
+fi
+
+cat >> ${CEPH_CONF} <<EOF
 
 [client.rgw.$(hostname -s)]
 {{ range $key, $value := .Values.conf.rgw.config -}}

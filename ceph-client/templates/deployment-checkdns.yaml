@@ -16,12 +16,19 @@ limitations under the License.
 {{- $envAll := . }}
 
 {{- $serviceAccountName := "ceph-checkdns" }}
+{{/*
+We will give different name to the RoleBinding resource (see $cephRoleBindingName variable below).
+This is neccessary, because the RoleBinding with the default name "ceph-checkdns" exists in the system,
+and its reference can not be changed.
+*/}}
+{{- $cephRoleBindingName := "ceph-checkdns-rolebinding" }}
+
 {{ tuple $envAll "checkdns" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
+kind: ClusterRole
 metadata:
-  name: {{ $serviceAccountName }}
+  name: clusterrole-checkdns
 rules:
   - apiGroups:
       - ""
@@ -29,25 +36,29 @@ rules:
       - pods
       - endpoints
       - pods/exec
+      - namespaces
     verbs:
       - get
       - list
       - watch
       - create
 ---
+
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: {{ $serviceAccountName }}
+  name: {{ printf "%s-for-%s" $cephRoleBindingName $envAll.Release.Namespace }}
+  namespace: {{ $envAll.Release.Namespace }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: {{ $serviceAccountName }}
+  kind: ClusterRole
+  name: clusterrole-checkdns
 subjects:
   - kind: ServiceAccount
     name: {{ $serviceAccountName }}
     namespace: {{ $envAll.Release.Namespace }}
 ---
+
 kind: Deployment
 apiVersion: apps/v1
 metadata:

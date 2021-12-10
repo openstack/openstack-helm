@@ -1,4 +1,4 @@
-{{- define "ceph-client.snippets.mon_host_from_k8s_ep" -}}
+{{- define "helm-toolkit.snippets.mon_host_from_k8s_ep" -}}
 {{/*
 
 Inserts a bash function definition mon_host_from_k8s_ep() which can be used
@@ -10,7 +10,7 @@ Usage (e.g. in _script.sh.tpl):
     : "${NS:=ceph}"
     : "${EP:=ceph-mon-discovery}"
 
-    {{ include "ceph-client.snippets.mon_host_from_k8s_ep" . }}
+    {{ include "helm-toolkit.snippets.mon_host_from_k8s_ep" . }}
 
     MON_HOST=$(mon_host_from_k8s_ep "$NS" "$EP")
 

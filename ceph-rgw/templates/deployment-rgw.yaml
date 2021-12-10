@@ -23,6 +23,7 @@ limitations under the License.
 {{- end }}
 
 {{- $serviceAccountName := "ceph-rgw" }}
+{{- $checkDnsServiceAccountName := "ceph-checkdns" }}
 
 {{- $_ := set $envAll.Values "__depParams" ( list ) }}
 {{- if .Values.conf.rgw_ks.enabled -}}
@@ -36,6 +37,52 @@ limitations under the License.
 {{- $dependencyOpts := dict "envAll" $envAll "dependencyMixinParam" $envAll.Values.__depParams "dependencyKey" "rgw" -}}
 {{- $_ := include "helm-toolkit.utils.dependency_resolver" $dependencyOpts | toString | fromYaml }}
 {{ tuple $envAll "pod_dependency" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ $serviceAccountName }}
+  namespace: {{ .Values.endpoints.ceph_mon.namespace }}
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - endpoints
+    verbs:
+      - get
+      - list
+      - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ $serviceAccountName }}
+  namespace: {{ .Values.endpoints.ceph_mon.namespace }}
+roleRef:
+  kind: Role
+  name: {{ $serviceAccountName }}
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+  - kind: ServiceAccount
+    name: {{ $serviceAccountName }}
+    namespace: {{ $envAll.Release.Namespace }}
+---
+# This role bindig refers to the ClusterRole for
+# check-dns deployment.
+# See: openstack-helm-infra/ceph-client/deployment-checkdns.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ printf "%s-from-%s-to-%s" $checkDnsServiceAccountName $envAll.Values.endpoints.ceph_mon.namespace $envAll.Release.Namespace }}
+  namespace: {{ $envAll.Release.Namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: clusterrole-checkdns
+subjects:
+  - kind: ServiceAccount
+    name: {{ $checkDnsServiceAccountName }}
+    namespace:  {{ .Values.endpoints.ceph_mon.namespace }}
 ---
 kind: Deployment
 apiVersion: apps/v1
@@ -171,6 +218,10 @@ spec:
             - name: ceph-rgw-bin
               mountPath: /tmp/rgw-start.sh
               subPath: rgw-start.sh
+              readOnly: true
+            - name: ceph-rgw-bin
+              mountPath: /tmp/utils-checkDNS.sh
+              subPath: utils-checkDNS.sh
               readOnly: true
             - name: ceph-rgw-etc
               mountPath: /etc/ceph/ceph.conf.template
