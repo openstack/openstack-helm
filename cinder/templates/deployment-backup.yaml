@@ -189,6 +189,11 @@ spec:
               mountPath: /etc/ceph/ceph.conf
               subPath: ceph.conf
               readOnly: true
+            {{- else if .Values.backup.external_ceph_rbd.configmap }}
+            - name: external-backup-ceph-etc
+              mountPath: /etc/ceph/ceph.conf
+              subPath: ceph.conf
+              readOnly: true
             {{- else }}
             - name: cinder-etc
               mountPath: /etc/ceph/ceph.conf
@@ -207,10 +212,17 @@ spec:
               readOnly: true
             {{- end }}
             {{- if .Values.ceph_client.enable_external_ceph_backend }}
+            {{- if .Values.ceph_client.external_ceph.configmap }}
+            - name: external-ceph-etc
+              mountPath: /etc/ceph/external-ceph.conf
+              subPath: external-ceph.conf
+              readOnly: true
+            {{- else }}
             - name: cinder-etc
               mountPath: /etc/ceph/external-ceph.conf
               subPath: external-ceph.conf
               readOnly: true
+            {{- end }}
             {{- if .Values.ceph_client.external_ceph.rbd_user }}
             - name: external-ceph-keyring
               mountPath: /tmp/external-ceph-client-keyring
@@ -289,10 +301,22 @@ spec:
         {{ if or (contains "cinder.backup.drivers.ceph" .Values.conf.cinder.DEFAULT.backup_driver) (eq "true" (include "cinder.utils.has_ceph_backend" $envAll)) }}
         - name: etcceph
           emptyDir: {}
+        {{- if and .Values.backup.external_ceph_rbd.enabled .Values.backup.external_ceph_rbd.configmap }}
+        - name: external-backup-ceph-etc
+          configMap:
+            name: {{ .Values.backup.external_ceph_rbd.configmap }}
+            defaultMode: 0444
+        {{- end }}
         - name: ceph-etc
           configMap:
             name: {{ .Values.ceph_client.configmap }}
             defaultMode: 0444
+        {{- if and .Values.ceph_client.enable_external_ceph_backend .Values.ceph_client.external_ceph.configmap }}
+        - name: external-ceph-etc
+          configMap:
+            name: {{ .Values.ceph_client.external_ceph.configmap }}
+            defaultMode: 0444
+        {{- end }}
         {{ end }}
         {{- if (contains "cinder.backup.drivers.ceph" .Values.conf.cinder.DEFAULT.backup_driver) }}
         - name: ceph-backup-keyring
