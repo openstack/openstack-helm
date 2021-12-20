@@ -71,6 +71,7 @@ spec:
     spec:
       serviceAccountName: {{ $serviceAccountName }}
       restartPolicy: {{ $restartPolicy }}
+      {{ tuple $envAll "ks_endpoints" | include "helm-toolkit.snippets.kubernetes_image_pull_secrets" | indent 6 }}
       nodeSelector:
 {{ toYaml $nodeSelector | indent 8 }}
       initContainers:

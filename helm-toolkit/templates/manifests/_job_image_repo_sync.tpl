@@ -63,6 +63,7 @@ spec:
     spec:
       serviceAccountName: {{ $serviceAccountName }}
       restartPolicy: OnFailure
+      {{ tuple $envAll "image_repo_sync" | include "helm-toolkit.snippets.kubernetes_image_pull_secrets" | indent 6 }}
       nodeSelector:
 {{ toYaml $nodeSelector | indent 8 }}
       initContainers:

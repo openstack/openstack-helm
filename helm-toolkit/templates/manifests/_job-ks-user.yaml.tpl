@@ -94,6 +94,7 @@ spec:
       serviceAccountName: {{ $serviceAccountName | quote }}
 {{ dict "envAll" $envAll "application" "ks_user" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
       restartPolicy: {{ $restartPolicy }}
+      {{ tuple $envAll "ks_user" | include "helm-toolkit.snippets.kubernetes_image_pull_secrets" | indent 6 }}
       nodeSelector:
 {{ toYaml $nodeSelector | indent 8 }}
       initContainers:
