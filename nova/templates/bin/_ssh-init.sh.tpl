@@ -16,10 +16,13 @@ limitations under the License.
 
 set -ex
 
-mkdir -p ~nova/.ssh
-chown -R nova:nova ~nova/.ssh
+export NOVA_USERNAME=$(id -u ${NOVA_USER_UID} -n)
+export NOVA_USER_HOME=$(eval echo ~${NOVA_USERNAME})
 
-cat > ~nova/.ssh/config <<EOF
+mkdir -p ${NOVA_USER_HOME}/.ssh
+chown -R ${NOVA_USERNAME}:${NOVA_USERNAME} ${NOVA_USER_HOME}/.ssh
+
+cat > ${NOVA_USER_HOME}/.ssh/config <<EOF
 Host *
   StrictHostKeyChecking no
   UserKnownHostsFile /dev/null
@@ -27,5 +30,5 @@ Host *
   IdentitiesOnly yes
 EOF
 
-cp /tmp/nova-ssh/* ~nova/.ssh/
-chmod 600 ~nova/.ssh/id_rsa
+cp /tmp/nova-ssh/* ${NOVA_USER_HOME}/.ssh/
+chmod 600 ${NOVA_USER_HOME}/.ssh/id_rsa
