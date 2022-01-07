@@ -265,7 +265,7 @@ remove_old_local_archives() {
         if [[ $? -ne 0 ]]; then
           # Log error but don't exit so we can finish the script
           # because at this point we haven't sent backup to RGW yet
-          log ERROR "${DB_NAME}_backup" "Cannot remove ${ARCHIVE_FILE}"
+          log ERROR "${DB_NAME}_backup" "Failed to cleanup local backup. Cannot remove ${ARCHIVE_FILE}"
         fi
       else
         log INFO "${DB_NAME}_backup" "Keeping file ${ARCHIVE_FILE}."
@@ -281,7 +281,8 @@ remove_old_remote_archives() {
 
   openstack object list $CONTAINER_NAME > $BACKUP_FILES
   if [[ $? -ne 0 ]]; then
-    log_backup_error_exit "Could not obtain a list of current backup files in the RGW"
+    log_backup_error_exit \
+      "Failed to cleanup remote backup. Could not obtain a list of current backup files in the RGW"
   fi
 
   # Filter out other types of backup files
@@ -291,7 +292,8 @@ remove_old_remote_archives() {
     ARCHIVE_DATE=$( echo $ARCHIVE_FILE | awk -F/ '{print $NF}' | cut -d'.' -f 4)
     if [[ "$(seconds_difference ${ARCHIVE_DATE})" -gt "$((${REMOTE_DAYS_TO_KEEP}*86400))" ]]; then
       log INFO "${DB_NAME}_backup" "Deleting file ${ARCHIVE_FILE} from the RGW"
-      openstack object delete $CONTAINER_NAME $ARCHIVE_FILE || log_backup_error_exit "Cannot delete container object ${ARCHIVE_FILE}!"
+      openstack object delete $CONTAINER_NAME $ARCHIVE_FILE || log_backup_error_exit \
+        "Failed to cleanup remote backup. Cannot delete container object ${ARCHIVE_FILE}!"
     fi
   done
 
@@ -309,11 +311,14 @@ backup_databases() {
   SCOPE=${1:-"all"}
 
   # Create necessary directories if they do not exist.
-  mkdir -p $ARCHIVE_DIR || log_backup_error_exit "Cannot create directory ${ARCHIVE_DIR}!"
-  export TMP_DIR=$(mktemp -d) || log_backup_error_exit "Cannot create temp directory!"
+  mkdir -p $ARCHIVE_DIR || log_backup_error_exit \
+    "Backup of the ${DB_NAME} database failed. Cannot create directory ${ARCHIVE_DIR}!"
+  export TMP_DIR=$(mktemp -d) || log_backup_error_exit \
+    "Backup of the ${DB_NAME} database failed. Cannot create temp directory!"
 
   # Create temporary log file
-  export ERR_LOG_FILE=$(mktemp -p /tmp) || log_backup_error_exit "Cannot create log file!"
+  export ERR_LOG_FILE=$(mktemp -p /tmp) || log_backup_error_exit \
+    "Backup of the ${DB_NAME} database failed. Cannot create log file!"
 
   # It is expected that this function will dump the database files to the $TMP_DIR
   dump_databases_to_directory $TMP_DIR $ERR_LOG_FILE $SCOPE
@@ -333,12 +338,14 @@ backup_databases() {
     TARBALL_FILE="${DB_NAME}.${DB_NAMESPACE}.${SCOPE}.${BACK_UP_MODE}.${NOW}.tar.gz"
   fi
 
-  cd $TMP_DIR || log_backup_error_exit "Cannot change to directory $TMP_DIR"
+  cd $TMP_DIR || log_backup_error_exit \
+    "Backup of the ${DB_NAME} database failed. Cannot change to directory $TMP_DIR"
 
   #Archive the current database files
   tar zcvf $ARCHIVE_DIR/$TARBALL_FILE *
   if [[ $? -ne 0 ]]; then
-    log_backup_error_exit "Backup tarball could not be created."
+    log_backup_error_exit \
+      "Backup ${DB_NAME} to local file system failed. Backup tarball could not be created."
   fi
 
   # Get the size of the file
