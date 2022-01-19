@@ -1,0 +1,122 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.deployment_api }}
+{{- $envAll := . }}
+
+{{- $mounts_cyborg_api := .Values.pod.mounts.cyborg_api.cyborg_api }}
+{{- $mounts_cyborg_api_init := .Values.pod.mounts.cyborg_api.init_container }}
+
+{{- $serviceAccountName := "cyborg-api" }}
+{{ tuple $envAll "api" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cyborg-api
+  annotations:
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+  labels:
+{{ tuple $envAll "cyborg" "api" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  replicas: {{ .Values.pod.replicas.api }}
+  selector:
+    matchLabels:
+{{ tuple $envAll "cyborg" "api" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
+{{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_deployment" | indent 2 }}
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "cyborg" "api" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+{{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
+        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
+{{ dict "envAll" $envAll "podName" "cyborg-api" "containerNames" (list "cyborg" "init") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
+    spec:
+      serviceAccountName: {{ $serviceAccountName }}
+{{ dict "envAll" $envAll "application" "cyborg" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
+      affinity:
+{{ tuple $envAll "cyborg" "api" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
+      nodeSelector:
+        {{ .Values.labels.api.node_selector_key }}: {{ .Values.labels.api.node_selector_value }}
+      terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.api.timeout | default "30" }}
+      initContainers:
+{{ tuple $envAll "api" $mounts_cyborg_api_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+      containers:
+        - name: cyborg
+{{ tuple $envAll "cyborg_api" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.api | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "cyborg" "container" "cyborg" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          env:
+          - name: HOST_IP
+            valueFrom:
+              fieldRef:
+                apiVersion: v1
+                fieldPath: status.hostIP
+          command:
+            - /tmp/cyborg-api.sh
+            - start
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /tmp/cyborg-api.sh
+                  - stop
+          ports:
+            - name: cyborg-api
+              containerPort: {{ tuple "accelerator" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+          readinessProbe:
+            tcpSocket:
+              port: {{ tuple "accelerator" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+          livenessProbe:
+            tcpSocket:
+              port: {{ tuple "accelerator" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: pod-var-cyborg
+              mountPath: /var/lib/cyborg
+            - name: cyborg-bin
+              mountPath: /tmp/cyborg-api.sh
+              subPath: cyborg-api.sh
+              readOnly: true
+            - name: cyborg-etc
+              mountPath: /etc/cyborg/cyborg.conf
+              subPath: cyborg.conf
+              readOnly: true
+            - name: cyborg-etc
+              mountPath: /etc/cyborg/api-paste.ini
+              subPath: api-paste.ini
+              readOnly: true
+            - name: cyborg-etc
+              mountPath: /etc/cyborg/policy.yaml
+              subPath: policy.yaml
+              readOnly: true
+{{ if $mounts_cyborg_api.volumeMounts }}{{ toYaml $mounts_cyborg_api.volumeMounts | indent 12 }}{{ end }}
+      volumes:
+        - name: pod-tmp
+          emptyDir: {}
+        - name: pod-var-cyborg
+          emptyDir: {}
+        - name: cyborg-bin
+          configMap:
+            name: cyborg-bin
+            defaultMode: 0555
+        - name: cyborg-etc
+          secret:
+            secretName: cyborg-etc
+            defaultMode: 0444
+{{ if $mounts_cyborg_api.volumes}}{{ toYaml $mounts_cyborg_api.volumes | indent 8 }}{{ end }}
+{{- end }}
