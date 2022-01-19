@@ -28,7 +28,7 @@ tee /tmp/glance.yaml <<EOF
 storage: ${GLANCE_BACKEND}
 pod:
   replicas:
-    api: 2
+    api: 1
     registry: 2
 EOF
 
