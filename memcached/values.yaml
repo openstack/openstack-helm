@@ -41,10 +41,6 @@ dependencies:
       services:
         - endpoint: internal
           service: local_image_registry
-    prometheus_memcached_exporter:
-      services:
-        - endpoint: internal
-          service: oslo_cache
 
 endpoints:
   cluster_domain_suffix: cluster.local
@@ -69,17 +65,6 @@ endpoints:
     port:
       memcache:
         default: 11211
-  prometheus_memcached_exporter:
-    namespace: null
-    hosts:
-      default: memcached-exporter
-    host_fqdn_override:
-      default: null
-    path:
-      default: /metrics
-    scheme:
-      default: 'http'
-    port:
       metrics:
         default: 9150
   kube_dns:
@@ -129,9 +114,6 @@ labels:
   server:
     node_selector_key: openstack-control-plane
     node_selector_value: enabled
-  prometheus_memcached_exporter:
-    node_selector_key: openstack-control-plane
-    node_selector_value: enabled
 
 manifests:
   configmap_bin: true
@@ -139,26 +121,17 @@ manifests:
   job_image_repo_sync: true
   network_policy: false
   service: true
-  monitoring:
-    prometheus:
-      configmap_bin: true
-      deployment_exporter: true
-      service_exporter: true
 
 pod:
   security_context:
-    memcached_exporter:
-      pod:
-        runAsUser: 65534
-      container:
-        memcached_exporter:
-          readOnlyRootFilesystem: true
-          allowPrivilegeEscalation: false
     server:
       pod:
         runAsUser: 65534
       container:
         memcached:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+        memcached_exporter:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
   affinity:
@@ -180,11 +153,8 @@ pod:
     termination_grace_period:
       memcached:
         timeout: 30
-      prometheus_memcached_exporter:
-        timeout: 30
   replicas:
     server: 1
-    prometheus_memcached_exporter: 1
   resources:
     enabled: false
     memcached:

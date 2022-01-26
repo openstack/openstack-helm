@@ -80,6 +80,29 @@ spec:
               mountPath: /tmp/memcached.sh
               subPath: memcached.sh
               readOnly: true
+{{- if .Values.monitoring.prometheus.enabled }}
+        - name: memcached-exporter
+          image: {{ .Values.images.tags.prometheus_memcached_exporter }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+{{ tuple $envAll $envAll.Values.pod.resources.prometheus_memcached_exporter | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "server" "container" "memcached_exporter" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          command:
+            - /tmp/memcached-exporter.sh
+            - start
+          ports:
+            - name: metrics
+              containerPort: {{ tuple "oslo_cache" "internal" "metrics" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+          readinessProbe:
+            tcpSocket:
+              port: {{ tuple "oslo_cache" "internal" "metrics" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: memcached-bin
+              mountPath: /tmp/memcached-exporter.sh
+              subPath: memcached-exporter.sh
+              readOnly: true
+{{- end }}
       volumes:
         - name: pod-tmp
           emptyDir: {}

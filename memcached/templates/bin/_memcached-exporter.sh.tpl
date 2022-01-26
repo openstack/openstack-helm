@@ -1,3 +1,5 @@
+#!/bin/sh
+
 {{/*
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -12,15 +14,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if and .Values.manifests.monitoring.prometheus.configmap_bin .Values.monitoring.prometheus.enabled }}
-{{- $envAll := . }}
+set -ex
+COMMAND="${@:-start}"
 
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name:  {{ printf "%s-%s" $envAll.Release.Name "memcached-exporter-bin" | quote }}
-data:
-  memcached-exporter.sh: |
-{{ tuple "bin/_memcached-exporter.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
-{{- end }}
+function start () {
+  exec /bin/memcached_exporter
+}
+
+function stop () {
+  kill -TERM 1
+}
+
+$COMMAND
