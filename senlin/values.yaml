@@ -20,7 +20,13 @@ labels:
   api:
     node_selector_key: openstack-control-plane
     node_selector_value: enabled
+  conductor:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
   engine:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  health_manager:
     node_selector_key: openstack-control-plane
     node_selector_value: enabled
   job:
@@ -44,8 +50,10 @@ images:
     ks_service: docker.io/openstackhelm/heat:ocata-ubuntu_xenial
     ks_endpoints: docker.io/openstackhelm/heat:ocata-ubuntu_xenial
     senlin_api: docker.io/openstackhelm/senlin:ocata-ubuntu_xenial
+    senlin_conductor: docker.io/openstackhelm/senlin:ocata-ubuntu_xenial
     senlin_engine: docker.io/openstackhelm/senlin:ocata-ubuntu_xenial
     senlin_engine_cleaner: docker.io/openstackhelm/senlin:ocata-ubuntu_xenial
+    senlin_health_manager: docker.io/openstackhelm/senlin:ocata-ubuntu_xenial
     dep_check: quay.io/airshipit/kubernetes-entrypoint:v1.0.0
     image_repo_sync: docker.io/docker:17.07.0
   pull_policy: "IfNotPresent"
@@ -319,6 +327,28 @@ dependencies:
           service: oslo_db
         - endpoint: internal
           service: identity
+    conductor:
+      jobs:
+        - senlin-db-sync
+        - senlin-ks-user
+        - senlin-ks-endpoints
+        - senlin-rabbit-init
+      services:
+        - endpoint: internal
+          service: oslo_db
+        - endpoint: internal
+          service: identity
+    health_manager:
+      jobs:
+        - senlin-db-sync
+        - senlin-ks-user
+        - senlin-ks-endpoints
+        - senlin-rabbit-init
+      services:
+        - endpoint: internal
+          service: oslo_db
+        - endpoint: internal
+          service: identity
     ks_endpoints:
       jobs:
         - senlin-ks-service
@@ -519,9 +549,19 @@ pod:
       senlin_api:
         volumeMounts:
         volumes:
+    senlin_conductor:
+      init_container: null
+      senlin_conductor:
+        volumeMounts:
+        volumes:
     senlin_engine:
       init_container: null
       senlin_engine:
+        volumeMounts:
+        volumes:
+    senlin_health_manager:
+      init_container: null
+      senlin_health_manager:
         volumeMounts:
         volumes:
     senlin_bootstrap:
@@ -545,7 +585,9 @@ pod:
         volumes:
   replicas:
     api: 1
+    conductor: 1
     engine: 1
+    health_manager: 1
   lifecycle:
     upgrades:
       deployments:
@@ -569,7 +611,21 @@ pod:
       limits:
         memory: "1024Mi"
         cpu: "2000m"
+    conductor:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
     engine:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+    health_manager:
       requests:
         memory: "128Mi"
         cpu: "100m"
@@ -667,7 +723,9 @@ manifests:
   configmap_etc: true
   cron_job_engine_cleaner: true
   deployment_api: true
+  deployment_conductor: true
   deployment_engine: true
+  deployment_health_manager: true
   ingress_api: true
   job_bootstrap: true
   job_db_init: true

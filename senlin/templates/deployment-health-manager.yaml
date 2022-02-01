@@ -1,0 +1,102 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.deployment_health_manager }}
+{{- $envAll := . }}
+
+{{- $mounts_senlin_health_manager := .Values.pod.mounts.senlin_health_manager.senlin_health_manager }}
+{{- $mounts_senlin_health_manager_init := .Values.pod.mounts.senlin_health_manager.init_container }}
+
+{{- $serviceAccountName := "senlin-health-manager" }}
+{{ tuple $envAll "health_manager" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: senlin-health-manager
+  annotations:
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+  labels:
+{{ tuple $envAll "senlin" "health_manager" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  replicas: {{ .Values.pod.replicas.health_manager }}
+  selector:
+    matchLabels:
+{{ tuple $envAll "senlin" "health_manager" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
+{{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_deployment" | indent 2 }}
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "senlin" "health_manager" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+{{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
+        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
+    spec:
+      serviceAccountName: {{ $serviceAccountName }}
+      affinity:
+{{ tuple $envAll "senlin" "health_manager" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
+      nodeSelector:
+        {{ .Values.labels.health_manager.node_selector_key }}: {{ .Values.labels.health_manager.node_selector_value }}
+      initContainers:
+{{ tuple $envAll "health_manager" $mounts_senlin_health_manager_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+      containers:
+        - name: senlin-health-manager
+{{ tuple $envAll "senlin_health_manager" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.health_manager | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          securityContext:
+            runAsUser: {{ .Values.pod.user.senlin.uid }}
+          command:
+            - /tmp/senlin-health-manager.sh
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: senlin-bin
+              mountPath: /tmp/senlin-health-manager.sh
+              subPath: senlin-health-manager.sh
+              readOnly: true
+            - name: pod-etc-senlin
+              mountPath: /etc/senlin
+            - name: senlin-etc
+              mountPath: /etc/senlin/senlin.conf
+              subPath: senlin.conf
+              readOnly: true
+            {{- if .Values.conf.senlin.DEFAULT.log_config_append }}
+            - name: senlin-etc
+              mountPath: {{ .Values.conf.senlin.DEFAULT.log_config_append }}
+              subPath: {{ base .Values.conf.senlin.DEFAULT.log_config_append }}
+              readOnly: true
+            {{- end }}
+            - name: senlin-etc
+              mountPath: /etc/senlin/policy.json
+              subPath: policy.json
+              readOnly: true
+{{ if $mounts_senlin_health_manager.volumeMounts }}{{ toYaml $mounts_senlin_health_manager.volumeMounts | indent 12 }}{{ end }}
+      volumes:
+        - name: pod-tmp
+          emptyDir: {}
+        - name: pod-etc-senlin
+          emptyDir: {}
+        - name: pod-var-cache-senlin
+          emptyDir: {}
+        - name: senlin-bin
+          configMap:
+            name: senlin-bin
+            defaultMode: 0555
+        - name: senlin-etc
+          secret:
+            secretName: senlin-etc
+            defaultMode: 0444
+{{ if $mounts_senlin_health_manager.volumes }}{{ toYaml $mounts_senlin_health_manager.volumes | indent 8 }}{{ end }}
+{{- end }}
