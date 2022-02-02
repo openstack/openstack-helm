@@ -40,7 +40,7 @@ spec:
       annotations:
 {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
-        configmap-etc-client-hash: {{ tuple "configmap-etc-client.yaml" . | include "helm-toolkit.utils.hash" }}
+        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
 {{ dict "envAll" $envAll "podName" "ceph-mgr" "containerNames" (list "ceph-mgr" "ceph-init-dirs") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
     spec:
 {{ dict "envAll" $envAll "application" "mgr" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
@@ -56,7 +56,7 @@ spec:
       initContainers:
 {{ tuple $envAll "mgr" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
         - name: ceph-init-dirs
-{{ tuple $envAll "ceph_mds" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll "ceph_mgr" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ dict "envAll" $envAll "application" "mgr" "container" "init_dirs" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
             - /tmp/init-dirs.sh
@@ -70,7 +70,7 @@ spec:
               mountPath: /run
             - name: pod-etc-ceph
               mountPath: /etc/ceph
-            - name: ceph-client-bin
+            - name: ceph-mon-bin
               mountPath: /tmp/init-dirs.sh
               subPath: init-dirs.sh
               readOnly: true
@@ -142,23 +142,19 @@ spec:
               mountPath: /run
             - name: pod-etc-ceph
               mountPath: /etc/ceph
-            - name: ceph-client-bin
+            - name: ceph-mon-bin
               mountPath: /mgr-start.sh
               subPath: mgr-start.sh
               readOnly: true
-            - name: ceph-client-bin
+            - name: ceph-mon-bin
               mountPath: /tmp/mgr-check.sh
               subPath: mgr-check.sh
               readOnly: true
-            - name: ceph-client-bin
-              mountPath: /tmp/utils-checkDNS.sh
-              subPath: utils-checkDNS.sh
-              readOnly: true
-            - name: ceph-client-etc
+            - name: ceph-mon-etc
               mountPath: /etc/ceph/ceph.conf.template
               subPath: ceph.conf
               readOnly: true
-            - name: ceph-client-admin-keyring
+            - name: ceph-mon-admin-keyring
               mountPath: /etc/ceph/ceph.client.admin.keyring
               subPath: ceph.client.admin.keyring
               readOnly: true
@@ -172,13 +168,9 @@ spec:
             - name: pod-var-lib-ceph-crash
               mountPath: /var/lib/ceph/crash
               readOnly: false
-            - name: ceph-client-bin
+            - name: ceph-mon-bin
               mountPath: /tmp/utils-checkPGs.py
               subPath: utils-checkPGs.py
-              readOnly: true
-            - name: ceph-client-bin
-              mountPath: /tmp/utils-checkPGs.sh
-              subPath: utils-checkPGs.sh
               readOnly: true
       volumes:
         - name: pod-tmp
@@ -188,13 +180,13 @@ spec:
             medium: "Memory"
         - name: pod-etc-ceph
           emptyDir: {}
-        - name: ceph-client-bin
+        - name: ceph-mon-bin
           configMap:
-            name: ceph-client-bin
+            name: ceph-mon-bin
             defaultMode: 0555
-        - name: ceph-client-etc
+        - name: ceph-mon-etc
           configMap:
-            name: ceph-client-etc
+            name: ceph-mon-etc
             defaultMode: 0444
         - name: pod-var-lib-ceph
           emptyDir: {}
@@ -202,7 +194,7 @@ spec:
           hostPath:
             path: /var/lib/openstack-helm/ceph/crash
             type: DirectoryOrCreate
-        - name: ceph-client-admin-keyring
+        - name: ceph-mon-admin-keyring
           secret:
             secretName: {{ .Values.secrets.keyrings.admin }}
         - name: ceph-bootstrap-mgr-keyring

@@ -27,7 +27,6 @@ images:
     ceph_bootstrap: 'docker.io/openstackhelm/ceph-daemon:change_770201_ubuntu_bionic-20210113'
     ceph_config_helper: 'docker.io/openstackhelm/ceph-config-helper:change_770201_ubuntu_bionic-20210113'
     ceph_mds: 'docker.io/openstackhelm/ceph-daemon:change_770201_ubuntu_bionic-20210113'
-    ceph_mgr: 'docker.io/openstackhelm/ceph-daemon:change_770201_ubuntu_bionic-20210113'
     ceph_rbd_pool: 'docker.io/openstackhelm/ceph-config-helper:change_770201_ubuntu_bionic-20210113'
     dep_check: 'quay.io/airshipit/kubernetes-entrypoint:v1.0.0'
     image_repo_sync: 'docker.io/library/docker:17.07.0'
@@ -44,11 +43,11 @@ labels:
   test:
     node_selector_key: openstack-control-plane
     node_selector_value: enabled
-  mds:
-    node_selector_key: ceph-mds
-    node_selector_value: enabled
   mgr:
     node_selector_key: ceph-mgr
+    node_selector_value: enabled
+  mds:
+    node_selector_key: ceph-mds
     node_selector_value: enabled
   checkdns:
     node_selector_key: ceph-mon
@@ -71,17 +70,6 @@ pod:
           runAsUser: 0
           readOnlyRootFilesystem: true
         mds:
-          runAsUser: 64045
-          readOnlyRootFilesystem: true
-          allowPrivilegeEscalation: false
-    mgr:
-      pod:
-        runAsUser: 65534
-      container:
-        init_dirs:
-          runAsUser: 0
-          readOnlyRootFilesystem: true
-        mgr:
           runAsUser: 64045
           readOnlyRootFilesystem: true
           allowPrivilegeEscalation: false
@@ -109,7 +97,6 @@ pod:
   dns_policy: "ClusterFirstWithHostNet"
   replicas:
     mds: 2
-    mgr: 2
   lifecycle:
     upgrades:
       deployments:
@@ -118,9 +105,6 @@ pod:
         rolling_update:
           max_surge: 25%
           max_unavailable: 25%
-  updateStrategy:
-    mgr:
-      type: Recreate
   affinity:
     anti:
       type:
@@ -134,13 +118,6 @@ pod:
     mds:
       requests:
         memory: "10Mi"
-        cpu: "250m"
-      limits:
-        memory: "50Mi"
-        cpu: "500m"
-    mgr:
-      requests:
-        memory: "5Mi"
         cpu: "250m"
       limits:
         memory: "50Mi"
@@ -202,16 +179,6 @@ pod:
         key: node.kubernetes.io/unreachable
         operator: Exists
         tolerationSeconds: 60
-    mgr:
-      tolerations:
-      - effect: NoExecute
-        key: node.kubernetes.io/not-ready
-        operator: Exists
-        tolerationSeconds: 60
-      - effect: NoExecute
-        key: node.kubernetes.io/unreachable
-        operator: Exists
-        tolerationSeconds: 60
 
 secrets:
   keyrings:
@@ -259,7 +226,6 @@ jobs:
 conf:
   features:
     mds: true
-    mgr: true
     pg_autoscaler: true
     cluster_flags:
       # List of flags to set or unset separated by spaces
@@ -489,13 +455,6 @@ dependencies:
       services:
         - endpoint: internal
           service: ceph_mon
-    mgr:
-      jobs:
-        - ceph-storage-keys-generator
-        - ceph-mgr-keyring-generator
-      services:
-        - endpoint: internal
-          service: ceph_mon
     pool_checkpgs:
       jobs:
         - ceph-rbd-pool
@@ -542,38 +501,6 @@ bootstrap:
     }
     #ensure_pool volumes 8 cinder
 
-# Uncomment below to enable mgr modules
-# For a list of available modules:
-#  http://docs.ceph.com/docs/master/mgr/
-# This overrides mgr_initial_modules (default: restful, status)
-# Any module not listed here will be disabled
-ceph_mgr_enabled_modules:
-  - restful
-  - status
-  - prometheus
-  - balancer
-  - iostat
-  - pg_autoscaler
-
-# You can configure your mgr modules
-# below. Each module has its own set
-# of key/value. Refer to the doc
-# above for more info. For example:
-ceph_mgr_modules_config:
-#  balancer:
-#    active: 1
-#  prometheus:
-    # server_port: 9283
-#    server_addr: 0.0.0.0
-#  dashboard:
-#    port: 7000
-#  localpool:
-#    failure_domain: host
-#    subtree: rack
-#    pg_num: "128"
-#    num_rep: "3"
-#    min_size: "2"
-
 endpoints:
   cluster_domain_suffix: cluster.local
   local_image_registry:
@@ -614,26 +541,17 @@ endpoints:
     scheme:
       default: http
 
-monitoring:
-  prometheus:
-    enabled: true
-    ceph_mgr:
-      scrape: true
-      port: 9283
-
 manifests:
   configmap_bin: true
   configmap_test_bin: true
   configmap_etc: true
   deployment_mds: true
-  deployment_mgr: true
   deployment_checkdns: true
   job_bootstrap: false
   job_ns_client_ceph_config: true
   job_cephfs_client_key: true
   job_image_repo_sync: true
   job_rbd_pool: true
-  service_mgr: true
   helm_tests: true
   cronjob_checkPGs: true
   cronjob_defragosds: true
