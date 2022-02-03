@@ -61,6 +61,10 @@ spec:
           command:
             - /tmp/run-tests.sh
           env:
+{{- if or .Values.manifests.certificates .Values.tls.identity }}
+            - name: REQUESTS_CA_BUNDLE
+              value: "/etc/tempest/certs/ca.crt"
+{{- end }}
 {{- with $env := dict "ksUserSecret" .Values.secrets.identity.admin }}
 {{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 12 }}
 {{- end }}
@@ -95,6 +99,7 @@ spec:
 {{- end }}
             - name: tempest-reports
               mountPath: /var/lib/tempest/data
+{{- dict "enabled" (or .Values.manifests.certificates .Values.tls.identity) "name" .Values.secrets.tls.identity.api.internal "path" "/etc/tempest/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
       volumes:
         - name: pod-tmp
           emptyDir: {}
@@ -115,4 +120,5 @@ spec:
           persistentVolumeClaim:
             claimName: {{ .Values.pvc.name }}
         {{- end }}
+{{- dict "enabled" (or .Values.manifests.certificates .Values.tls.identity) "name" .Values.secrets.tls.identity.api.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 {{- end }}
