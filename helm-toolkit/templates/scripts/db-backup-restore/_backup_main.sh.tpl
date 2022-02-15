@@ -253,51 +253,106 @@ store_backup_remotely() {
   return 1
 }
 
+# This function takes a list of archives' names as an input
+# and creates a hash table where keys are number of seconds
+# between current date and archive date (see seconds_difference),
+# and values are space separated archives' names
+#
+# +------------+---------------------------------------------------------------------------------------------------------+
+# | 1265342678 | "tmp/mysql.backup.auto.2022-02-14T10:13:13Z.tar.gz"                                                     |
+# +------------+---------------------------------------------------------------------------------------------------------+
+# | 2346254257 | "tmp/mysql.backup.auto.2022-02-11T10:13:13Z.tar.gz tmp/mysql.backup.manual.2022-02-11T10:13:13Z.tar.gz" |
+# +------------+---------------------------------------------------------------------------------------------------------+
+# <...>
+# +------------+---------------------------------------------------------------------------------------------------------+
+# | 6253434567 | "tmp/mysql.backup.manual.2022-02-01T10:13:13Z.tar.gz"                                                   |
+# +------------+---------------------------------------------------------------------------------------------------------+
+# We will use the explained above data stracture to cover rare, but still
+# possible case, when we have several backups of the same date. E.g.
+# one manual, and one automatic.
+
+declare -A FILETABLE
+create_hash_table() {
+unset FILETABLE
+fileList=$@
+  for ARCHIVE_FILE in ${fileList}; do
+    ARCHIVE_DATE=$( echo $ARCHIVE_FILE | awk -F/ '{print $NF}' | cut -d'.' -f 4)
+    # Creating index, we will round given ARCHIVE_DATE to the midnight (00:00:00)
+    # to take in account a possibility, that we can have more than one scheduled
+    # backup per day.
+    INDEX=$(seconds_difference $(date --date $ARCHIVE_DATE +"%D"))
+    if [[ -z FILETABLE[${INDEX}] ]]; then
+      FILETABLE[${INDEX}]=${ARCHIVE_FILE}
+    else
+      FILETABLE[${INDEX}]="${FILETABLE[${INDEX}]} ${ARCHIVE_FILE}"
+    fi
+    echo "INDEX: ${INDEX} VALUE:  ${FILETABLE[${INDEX}]}"
+ done
+}
+
 remove_old_local_archives() {
-  log INFO "${DB_NAME}_backup" "Deleting backups older than ${LOCAL_DAYS_TO_KEEP} days"
   if [[ -d $ARCHIVE_DIR ]]; then
-    for ARCHIVE_FILE in $(ls -1 $ARCHIVE_DIR/*.gz); do
-      ARCHIVE_DATE=$( echo $ARCHIVE_FILE | awk -F/ '{print $NF}' | cut -d'.' -f 4)
-      if [[ "$(seconds_difference $ARCHIVE_DATE)" -gt "$(($LOCAL_DAYS_TO_KEEP*86400))" ]]; then
-        log INFO "${DB_NAME}_backup" "Deleting file $ARCHIVE_FILE."
-        rm -rf $ARCHIVE_FILE
-        if [[ $? -ne 0 ]]; then
-          # Log error but don't exit so we can finish the script
-          # because at this point we haven't sent backup to RGW yet
-          log ERROR "${DB_NAME}_backup" "Failed to cleanup local backup. Cannot remove ${ARCHIVE_FILE}"
-        fi
+    count=0
+    SECONDS_TO_KEEP=$((${LOCAL_DAYS_TO_KEEP}*86400))
+    log INFO "${DB_NAME}_backup" "Deleting backups older than ${LOCAL_DAYS_TO_KEEP} days"
+    # We iterate over the hash table, checking the delta in seconds (hash keys),
+    # and minimum number of backups we must have in place. List of keys has to be sorted.
+    for INDEX in $(tr " " "\n" <<< ${!FILETABLE[@]} | sort -n -); do
+      ARCHIVE_FILE=${FILETABLE[${INDEX}]}
+      if [[ ${INDEX} -le ${SECONDS_TO_KEEP} || ${count} -lt ${LOCAL_DAYS_TO_KEEP} ]]; then
+        ((count++))
+        log INFO "${DB_NAME}_backup" "Keeping file(s) ${ARCHIVE_FILE}."
       else
-        log INFO "${DB_NAME}_backup" "Keeping file ${ARCHIVE_FILE}."
+        log INFO "${DB_NAME}_backup" "Deleting file(s) ${ARCHIVE_FILE}."
+          rm -rf $ARCHIVE_FILE
+          if [[ $? -ne 0 ]]; then
+            # Log error but don't exit so we can finish the script
+            # because at this point we haven't sent backup to RGW yet
+            log ERROR "${DB_NAME}_backup" "Failed to cleanup local backup. Cannot remove some of ${ARCHIVE_FILE}"
+          fi
       fi
     done
+  else
+    log WARN "${DB_NAME}_backup" "The local backup directory ${$ARCHIVE_DIR} does not exist."
   fi
 }
 
-remove_old_remote_archives() {
-  log INFO "${DB_NAME}_backup" "Deleting backups older than ${REMOTE_DAYS_TO_KEEP} days"
+prepare_list_of_remote_backups() {
   BACKUP_FILES=$(mktemp -p /tmp)
   DB_BACKUP_FILES=$(mktemp -p /tmp)
-
   openstack object list $CONTAINER_NAME > $BACKUP_FILES
   if [[ $? -ne 0 ]]; then
     log_backup_error_exit \
       "Failed to cleanup remote backup. Could not obtain a list of current backup files in the RGW"
   fi
-
   # Filter out other types of backup files
   cat $BACKUP_FILES | grep $DB_NAME | grep $DB_NAMESPACE | awk '{print $2}' > $DB_BACKUP_FILES
+}
 
-  for ARCHIVE_FILE in $(cat $DB_BACKUP_FILES); do
-    ARCHIVE_DATE=$( echo $ARCHIVE_FILE | awk -F/ '{print $NF}' | cut -d'.' -f 4)
-    if [[ "$(seconds_difference ${ARCHIVE_DATE})" -gt "$((${REMOTE_DAYS_TO_KEEP}*86400))" ]]; then
-      log INFO "${DB_NAME}_backup" "Deleting file ${ARCHIVE_FILE} from the RGW"
-      openstack object delete $CONTAINER_NAME $ARCHIVE_FILE || log_backup_error_exit \
+# The logic implemented with this function is absolutely similar
+# to the function remove_old_local_archives (see above)
+remove_old_remote_archives() {
+  log INFO "${DB_NAME}_backup" "Deleting backups older than ${REMOTE_DAYS_TO_KEEP} days"
+  count=0
+  SECONDS_TO_KEEP=$((${REMOTE_DAYS_TO_KEEP}*86400))
+  for INDEX in $(tr " " "\n" <<< ${!FILETABLE[@]} | sort -n -); do
+    ARCHIVE_FILE=${FILETABLE[${INDEX}]}
+    if [[ ${INDEX} -le ${SECONDS_TO_KEEP} || ${count} -lt ${REMOTE_DAYS_TO_KEEP} ]]; then
+      ((count++))
+      log INFO "${DB_NAME}_backup" "Keeping remote backup(s) ${ARCHIVE_FILE}."
+    else
+      log INFO "${DB_NAME}_backup" "Deleting remote backup(s) ${ARCHIVE_FILE} from the RGW"
+      openstack object delete ${CONTAINER_NAME} ${ARCHIVE_FILE} || log_backup_error_exit \
         "Failed to cleanup remote backup. Cannot delete container object ${ARCHIVE_FILE}!"
     fi
   done
 
   # Cleanup now that we're done.
-  rm -f $BACKUP_FILES $DB_BACKUP_FILES
+  for fd in ${BACKUP_FILES} ${DB_BACKUP_FILES}; do
+  if [[ -f fd ]]; then
+    rm -f fd
+  else
+    log WARN "${DB_NAME}_backup" "Can not delete a temporary file ${fd}"
 }
 
 # Main function to backup the databases. Calling functions need to supply:
@@ -361,6 +416,7 @@ backup_databases() {
   #Only delete the old archive after a successful archive
   export LOCAL_DAYS_TO_KEEP=$(echo $LOCAL_DAYS_TO_KEEP | sed 's/"//g')
   if [[ "$LOCAL_DAYS_TO_KEEP" -gt 0 ]]; then
+    create_hash_table $(ls -1 $ARCHIVE_DIR/*.gz)
     remove_old_local_archives
   fi
 
@@ -391,6 +447,8 @@ backup_databases() {
 
     #Only delete the old archive after a successful archive
     if [[ "$REMOTE_DAYS_TO_KEEP" -gt 0 ]]; then
+      prepare_list_of_remote_backups
+      create_hash_table $(cat $DB_BACKUP_FILES)
       remove_old_remote_archives
     fi
 
