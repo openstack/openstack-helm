@@ -1,1 +1,1 @@
-../common/000-install-packages.sh
+../../common/install-packages.sh
