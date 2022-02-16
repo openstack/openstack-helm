@@ -270,8 +270,6 @@ Continue with OSH multinode guide to install other Openstack charts.
   cinder-volume-75bf4cc9bd-6298x                 1/1       Running   0          51m
   glance-api-68f6df4d5d-q84hs                    1/1       Running   0          1h
   glance-api-68f6df4d5d-qbfwb                    1/1       Running   0          1h
-  glance-registry-5957979dc5-h54tc               1/1       Running   0          1h
-  glance-registry-5957979dc5-sglg7               1/1       Running   0          1h
   ingress-7b4bc84cdd-84dtj                       1/1       Running   0          2h
   ingress-7b4bc84cdd-ws45r                       1/1       Running   0          2h
   ingress-error-pages-586c7f86d6-dlpm2           1/1       Running   0          2h
@@ -493,8 +491,6 @@ pods are running. No interruption to OSH pods.
   cinder-volume-75bf4cc9bd-6298x                 1/1       Running   0          1h
   glance-api-68f6df4d5d-q84hs                    1/1       Running   0          2h
   glance-api-68f6df4d5d-qbfwb                    1/1       Running   0          2h
-  glance-registry-5957979dc5-h54tc               1/1       Running   0          2h
-  glance-registry-5957979dc5-sglg7               1/1       Running   0          2h
   ingress-7b4bc84cdd-84dtj                       1/1       Running   0          2h
   ingress-7b4bc84cdd-ws45r                       1/1       Running   0          2h
   ingress-error-pages-586c7f86d6-dlpm2           1/1       Running   0          2h

@@ -31,7 +31,6 @@ endpoints are defined:
         scheme: 'http'
         port:
           api: 9292
-          registry: 9191
       compute:
         hosts:
           default: nova-api
@@ -93,9 +92,7 @@ built into the go/sprig templating library used by Helm):
    OpenStack.
 -  internal: This is the OpenStack endpoint type we are looking for -
    valid values would be ``internal``, ``admin``, and ``public``
--  api: This is the port to map to for the service. Some components,
-   such as glance, provide an ``api`` port and a ``registry`` port, for
-   example.
+-  api: This is the port to map to for the service.
 
 Charts should not use hard coded values such as
 ``http://keystone-api:5000`` because these are not compatible with

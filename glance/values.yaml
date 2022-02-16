@@ -26,9 +26,6 @@ labels:
   job:
     node_selector_key: openstack-control-plane
     node_selector_value: enabled
-  registry:
-    node_selector_key: openstack-control-plane
-    node_selector_value: enabled
   test:
     node_selector_key: openstack-control-plane
     node_selector_value: enabled
@@ -48,7 +45,6 @@ images:
     ks_endpoints: docker.io/openstackhelm/heat:stein-ubuntu_bionic
     rabbit_init: docker.io/rabbitmq:3.7-management
     glance_api: docker.io/openstackhelm/glance:stein-ubuntu_bionic
-    glance_registry: docker.io/openstackhelm/glance:stein-ubuntu_bionic
     # Bootstrap image requires curl
     bootstrap: docker.io/openstackhelm/heat:stein-ubuntu_bionic
     dep_check: quay.io/airshipit/kubernetes-entrypoint:v1.0.0
@@ -256,7 +252,6 @@ conf:
       bind_port: null
       workers: 1
       enable_v1_api: False
-      enable_v2_registry: False
     oslo_middleware:
       enable_proxy_headers_parsing: true
     keystone_authtoken:
@@ -358,48 +353,6 @@ conf:
       tags: tag
     service_endpoints:
       image: 'service/storage/image'
-  paste_registry:
-    pipeline:glance-registry:
-      pipeline: healthcheck osprofiler unauthenticated-context registryapp
-    pipeline:glance-registry-keystone:
-      pipeline: healthcheck osprofiler authtoken audit context registryapp
-    pipeline:glance-registry-trusted-auth:
-      pipeline: healthcheck osprofiler context registryapp
-    app:registryapp:
-      paste.app_factory: glance.registry.api:API.factory
-    filter:healthcheck:
-      paste.filter_factory: oslo_middleware:Healthcheck.factory
-      backends: disable_by_file
-      disable_by_file_path: /etc/glance/healthcheck_disable
-    filter:context:
-      paste.filter_factory: glance.api.middleware.context:ContextMiddleware.factory
-    filter:unauthenticated-context:
-      paste.filter_factory: glance.api.middleware.context:UnauthenticatedContextMiddleware.factory
-    filter:authtoken:
-      paste.filter_factory: keystonemiddleware.auth_token:filter_factory
-    filter:osprofiler:
-      paste.filter_factory: osprofiler.web:WsgiMiddleware.factory
-      hmac_keys: SECRET_KEY  # DEPRECATED
-      enabled: yes  # DEPRECATED
-    filter:audit:
-      paste.filter_factory: keystonemiddleware.audit:filter_factory
-      audit_map_file: /etc/glance/api_audit_map.conf
-  glance_registry:
-    DEFAULT:
-      # NOTE(portdirect): the bind port should not be defined, and is manipulated
-      # via the endpoints section.
-      bind_port: null
-      workers: 1
-    keystone_authtoken:
-      auth_type: password
-      auth_version: v3
-      memcache_security_strategy: ENCRYPT
-    paste_deploy:
-      flavor: keystone
-    database:
-      max_retries: -1
-    oslo_messaging_notifications:
-      driver: messagingv2
   swift_store: |
     [{{ .Values.conf.glance.glance_store.default_swift_reference }}]
     {{- if eq .Values.storage "radosgw" }}
@@ -447,18 +400,6 @@ network:
     node_port:
       enabled: false
       port: 30092
-  registry:
-    ingress:
-      public: true
-      classes:
-        namespace: "nginx"
-        cluster: "nginx-cluster"
-      annotations:
-        nginx.ingress.kubernetes.io/rewrite-target: /
-    external_policy_local: false
-    node_port:
-      enabled: false
-      port: 30091
 
 volume:
   class_name: general
@@ -529,20 +470,6 @@ dependencies:
       services:
         - endpoint: internal
           service: oslo_messaging
-    registry:
-      jobs:
-        - glance-storage-init
-        - glance-db-sync
-        - glance-rabbit-init
-        - glance-ks-user
-        - glance-ks-endpoints
-      services:
-        - endpoint: internal
-          service: oslo_db
-        - endpoint: internal
-          service: identity
-        - endpoint: internal
-          service: image
     storage_init:
       jobs:
         - glance-ks-user
@@ -582,10 +509,6 @@ secrets:
       api:
         public: glance-tls-public
         internal: glance-tls-api
-    image_registry:
-      api:
-        public: glance-tls-reg-public
-        internal: glance-tls-reg
 
 # typically overridden by environmental
 # values, but should include all endpoints
@@ -664,21 +587,6 @@ endpoints:
     port:
       api:
         default: 9292
-        public: 80
-  image_registry:
-    name: glance-registry
-    hosts:
-      default: glance-registry
-      public: glance-reg
-    host_fqdn_override:
-      default: null
-    path:
-      default: null
-    scheme:
-      default: 'http'
-    port:
-      api:
-        default: 9191
         public: 80
   oslo_db:
     auth:
@@ -861,9 +769,6 @@ pod:
         nginx:
           readOnlyRootFilesystem: false
           runAsUser: 0
-        glance_registry:
-          readOnlyRootFilesystem: true
-          allowPrivilegeEscalation: false
     clean:
       pod:
         runAsUser: 42424
@@ -913,11 +818,6 @@ pod:
       glance_api:
         volumeMounts:
         volumes:
-    glance_registry:
-      init_container: null
-      glance_registry:
-        volumeMounts:
-        volumes:
     glance_tests:
       init_container: null
       glance_tests:
@@ -929,7 +829,6 @@ pod:
         volumes:
   replicas:
     api: 1
-    registry: 1
   lifecycle:
     upgrades:
       deployments:
@@ -941,23 +840,12 @@ pod:
     disruption_budget:
       api:
         min_available: 0
-      registry:
-        min_available: 0
     termination_grace_period:
       api:
-        timeout: 600
-      registry:
         timeout: 600
   resources:
     enabled: false
     api:
-      requests:
-        memory: "128Mi"
-        cpu: "100m"
-      limits:
-        memory: "1024Mi"
-        cpu: "2000m"
-    registry:
       requests:
         memory: "128Mi"
         cpu: "100m"
@@ -1059,9 +947,7 @@ manifests:
   configmap_bin: true
   configmap_etc: true
   deployment_api: true
-  deployment_registry: false
   ingress_api: true
-  ingress_registry: false
   job_bootstrap: true
   job_clean: true
   job_db_init: true
@@ -1075,7 +961,6 @@ manifests:
   job_metadefs_load: true
   job_rabbit_init: true
   pdb_api: true
-  pdb_registry: false
   pod_rally_test: true
   pvc_images: true
   network_policy: false
@@ -1084,7 +969,5 @@ manifests:
   secret_keystone: true
   secret_rabbitmq: true
   service_ingress_api: true
-  service_ingress_registry: false
   service_api: true
-  service_registry: false
 ...

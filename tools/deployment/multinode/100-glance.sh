@@ -29,7 +29,6 @@ storage: ${GLANCE_BACKEND}
 pod:
   replicas:
     api: 1
-    registry: 2
 EOF
 
 helm upgrade --install glance ./glance \
