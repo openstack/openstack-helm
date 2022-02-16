@@ -1,0 +1,1 @@
+../../common/deploy-k8s-kubeadm.sh
