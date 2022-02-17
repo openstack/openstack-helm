@@ -19,7 +19,6 @@ kubectl get nodes -o json | jq -r '.items[].status.addresses[] | select(.type=="
 function run_and_log_ipcalc {
   POD_NAME="tmp-$(cat /dev/urandom | env LC_CTYPE=C tr -dc a-z | head -c 5; echo)"
   kubectl run ${POD_NAME} \
-    --generator=run-pod/v1 \
     --wait \
     --image ${UTILS_IMAGE} \
     --restart=Never \
