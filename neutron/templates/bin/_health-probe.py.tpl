@@ -53,7 +53,7 @@ rpc_timeout = int(os.getenv('RPC_PROBE_TIMEOUT', '60'))
 rpc_retries = int(os.getenv('RPC_PROBE_RETRIES', '2'))
 rabbit_port = 5672
 tcp_established = "ESTABLISHED"
-log.logging.basicConfig(level=log.ERROR)
+log.logging.basicConfig(level=log.{{ .Values.health_probe.logging.level }})
 
 
 def _get_hostname(use_fqdn):

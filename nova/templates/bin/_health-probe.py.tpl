@@ -161,8 +161,10 @@ def test_tcp_socket(service):
 
     if service in dict_services:
         proc = dict_services[service]
+        transport = oslo_messaging.TransportURL.parse(cfg.CONF)
         if r_ports and tcp_socket_status(proc, r_ports) == 0:
-            sys.stderr.write("RabbitMQ socket not established")
+            sys.stderr.write("RabbitMQ socket not established for service "
+                             "%s with transport %s" % (proc, transport))
             # Do not kill the pod if RabbitMQ is not reachable/down
             if not cfg.CONF.liveness_probe:
                 sys.exit(1)
@@ -170,7 +172,8 @@ def test_tcp_socket(service):
         # let's do the db check
         if service != "compute":
             if d_ports and tcp_socket_status(proc, d_ports) == 0:
-                sys.stderr.write("Database socket not established")
+                sys.stderr.write("Database socket not established for service "
+                                 "%s with transport %s" % (proc, transport))
                 # Do not kill the pod if database is not reachable/down
                 # there could be no socket as well as typically connections
                 # get closed after an idle timeout
@@ -194,7 +197,7 @@ def test_rpc_liveness():
 
     cfg.CONF(sys.argv[1:])
 
-    log.logging.basicConfig(level=log.ERROR)
+    log.logging.basicConfig(level=log.{{ .Values.health_probe.logging.level }})
 
     try:
         transport = oslo_messaging.get_transport(cfg.CONF)
