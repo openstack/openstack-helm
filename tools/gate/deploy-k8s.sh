@@ -18,6 +18,7 @@ set -ex
 : "${MINIKUBE_VERSION:="v1.22.0"}"
 : "${CALICO_VERSION:="v3.20"}"
 : "${YQ_VERSION:="v4.6.0"}"
+: "${KUBE_DNS_IP="10.96.0.10"}"
 
 export DEBCONF_NONINTERACTIVE_SEEN=true
 export DEBIAN_FRONTEND=noninteractive
@@ -33,7 +34,7 @@ function configure_resolvconf {
   # to coredns via kubelet.resolv-conf extra param
   # 2 - /etc/resolv.conf - to be used for resolution on host
 
-  kube_dns_ip="10.96.0.10"
+  kube_dns_ip="${KUBE_DNS_IP}"
   # keep all nameservers from both resolv.conf excluding local addresses
   old_ns=$(grep -P --no-filename "^nameserver\s+(?!127\.0\.0\.|${kube_dns_ip})" \
            /etc/resolv.conf /run/systemd/resolve/resolv.conf | sort | uniq)
@@ -212,6 +213,13 @@ until kubectl --namespace=kube-system \
   sleep 10
 done
 kubectl -n kube-system wait --timeout=240s --for=condition=Ready pods -l k8s-app=kube-dns
+
+# Validate DNS now to save a lot of headaches later
+sleep 5
+if ! dig svc.cluster.local ${KUBE_DNS_IP} | grep ^cluster.local. >& /dev/null; then
+  echo k8s DNS Failure. Are you sure you disabled systemd-resolved before running this script?
+  exit 1
+fi
 
 # Remove stable repo, if present, to improve build time
 helm repo remove stable || true
