@@ -283,8 +283,6 @@ Step 1: Initial Ceph and OpenStack deployment
   cinder-volume-79b9bd8bb9-qsxdk                 1/1       Running   0          12m       192.168.4.40    mnode2
   glance-api-676fd49d4d-j4bdb                    1/1       Running   0          16m       192.168.3.37    mnode3
   glance-api-676fd49d4d-wtxqt                    1/1       Running   0          16m       192.168.4.31    mnode2
-  glance-registry-6f45f5bcf7-lhnrs               1/1       Running   0          16m       192.168.3.34    mnode3
-  glance-registry-6f45f5bcf7-pbsnl               1/1       Running   0          16m       192.168.0.196   mnode1
   ingress-7b4bc84cdd-9fs78                       1/1       Running   0          1h        192.168.5.3     mnode4
   ingress-7b4bc84cdd-wztz7                       1/1       Running   0          1h        192.168.1.4     mnode6
   ingress-error-pages-586c7f86d6-2jl5q           1/1       Running   0          1h        192.168.2.4     mnode5
@@ -328,7 +326,6 @@ In this test env, let's shutdown ``mnode3`` node.
   kube-system                kube-proxy-gqpz5                            0 (0%)        0 (0%)      0 (0%)           0 (0%)
   openstack                  cinder-api-66f4f9678-2lgwk                  0 (0%)        0 (0%)      0 (0%)           0 (0%)
   openstack                  glance-api-676fd49d4d-j4bdb                 0 (0%)        0 (0%)      0 (0%)           0 (0%)
-  openstack                  glance-registry-6f45f5bcf7-lhnrs            0 (0%)        0 (0%)      0 (0%)           0 (0%)
   openstack                  ingress-error-pages-586c7f86d6-455j5        0 (0%)        0 (0%)      0 (0%)           0 (0%)
   openstack                  keystone-api-5bcc7cb698-vvwwr               0 (0%)        0 (0%)      0 (0%)           0 (0%)
   openstack                  mariadb-ingress-84894687fd-dfnkm            0 (0%)        0 (0%)      0 (0%)           0 (0%)
@@ -592,9 +589,6 @@ In this test env, let's shutdown ``mnode3`` node.
   glance-api-676fd49d4d-4tnm6                    1/1       Running   0          1m        192.168.0.212   mnode1
   glance-api-676fd49d4d-j4bdb                    1/1       Unknown   0          26m       192.168.3.37    mnode3
   glance-api-676fd49d4d-wtxqt                    1/1       Running   0          26m       192.168.4.31    mnode2
-  glance-registry-6f45f5bcf7-7s8dn               1/1       Running   0          1m        192.168.4.46    mnode2
-  glance-registry-6f45f5bcf7-lhnrs               1/1       Unknown   0          26m       192.168.3.34    mnode3
-  glance-registry-6f45f5bcf7-pbsnl               1/1       Running   0          26m       192.168.0.196   mnode1
   ingress-7b4bc84cdd-9fs78                       1/1       Running   0          1h        192.168.5.3     mnode4
   ingress-7b4bc84cdd-wztz7                       1/1       Running   0          1h        192.168.1.4     mnode6
   ingress-error-pages-586c7f86d6-2jl5q           1/1       Running   0          1h        192.168.2.4     mnode5
@@ -886,9 +880,6 @@ After applying labels, let's check status
   glance-api-676fd49d4d-4tnm6                    1/1       Running   0          11m       192.168.0.212   mnode1
   glance-api-676fd49d4d-j4bdb                    1/1       Unknown   0          36m       192.168.3.37    mnode3
   glance-api-676fd49d4d-wtxqt                    1/1       Running   0          36m       192.168.4.31    mnode2
-  glance-registry-6f45f5bcf7-7s8dn               1/1       Running   0          11m       192.168.4.46    mnode2
-  glance-registry-6f45f5bcf7-lhnrs               1/1       Unknown   0          36m       192.168.3.34    mnode3
-  glance-registry-6f45f5bcf7-pbsnl               1/1       Running   0          36m       192.168.0.196   mnode1
   ingress-7b4bc84cdd-9fs78                       1/1       Running   0          1h        192.168.5.3     mnode4
   ingress-7b4bc84cdd-wztz7                       1/1       Running   0          1h        192.168.1.4     mnode6
   ingress-error-pages-586c7f86d6-2jl5q           1/1       Running   0          1h        192.168.2.4     mnode5
@@ -1217,9 +1208,6 @@ Above output shows Ceph cluster in HEALTH_OK with all OSDs and MONs up and runni
   glance-api-676fd49d4d-4tnm6                    1/1       Running   0          26m       192.168.0.212   mnode1
   glance-api-676fd49d4d-j4bdb                    1/1       Unknown   0          51m       192.168.3.37    mnode3
   glance-api-676fd49d4d-wtxqt                    1/1       Running   0          51m       192.168.4.31    mnode2
-  glance-registry-6f45f5bcf7-7s8dn               1/1       Running   0          26m       192.168.4.46    mnode2
-  glance-registry-6f45f5bcf7-lhnrs               1/1       Unknown   0          51m       192.168.3.34    mnode3
-  glance-registry-6f45f5bcf7-pbsnl               1/1       Running   0          51m       192.168.0.196   mnode1
   ingress-7b4bc84cdd-9fs78                       1/1       Running   0          2h        192.168.5.3     mnode4
   ingress-7b4bc84cdd-wztz7                       1/1       Running   0          2h        192.168.1.4     mnode6
   ingress-error-pages-586c7f86d6-2jl5q           1/1       Running   0          2h        192.168.2.4     mnode5
