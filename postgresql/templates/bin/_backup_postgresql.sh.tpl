@@ -22,7 +22,6 @@ export PGPASSWORD=$(cat /etc/postgresql/admin_user.conf \
 
 # Note: not using set -e in this script because more elaborate error handling
 # is needed.
-set -x
 
 source /tmp/backup_main.sh
 

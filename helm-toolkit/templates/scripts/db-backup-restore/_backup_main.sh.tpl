@@ -80,7 +80,6 @@
 
 # Note: not using set -e in this script because more elaborate error handling
 # is needed.
-set -x
 
 log_backup_error_exit() {
   MSG=$1
@@ -379,13 +378,11 @@ backup_databases() {
       # This error should print first, then print the summary as the last
       # thing that the user sees in the output.
       log ERROR "${DB_NAME}_backup" "Backup ${TARBALL_FILE} could not be sent to remote RGW."
-      set +x
       echo "=================================================================="
       echo "Local backup successful, but could not send to remote RGW."
       echo "Backup archive name: $TARBALL_FILE"
       echo "Backup archive size: $ARCHIVE_SIZE"
       echo "=================================================================="
-      set -x
       # Because the local backup was successful, exit with 0 so the pod will not
       # continue to restart and fill the disk with more backups. The ERRORs are
       # logged and alerting system should catch those errors and flag the operator.
@@ -397,26 +394,20 @@ backup_databases() {
       remove_old_remote_archives
     fi
 
-    # Turn off trace just for a clearer printout of backup status - for manual backups, mainly.
-    set +x
     echo "=================================================================="
     echo "Local backup and backup to remote RGW successful!"
     echo "Backup archive name: $TARBALL_FILE"
     echo "Backup archive size: $ARCHIVE_SIZE"
     echo "=================================================================="
-    set -x
   else
     # Remote backup is not enabled. This is ok; at least we have a local backup.
     log INFO "${DB_NAME}_backup" "Skipping remote backup, as it is not enabled."
 
-    # Turn off trace just for a clearer printout of backup status - for manual backups, mainly.
-    set +x
     echo "=================================================================="
     echo "Local backup successful!"
     echo "Backup archive name: $TARBALL_FILE"
     echo "Backup archive size: $ARCHIVE_SIZE"
     echo "=================================================================="
-    set -x
   fi
 }
 {{- end }}
