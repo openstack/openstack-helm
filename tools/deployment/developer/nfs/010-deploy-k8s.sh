@@ -1,1 +1,1 @@
-../common/010-deploy-k8s.sh
+../../common/deploy-k8s.sh
