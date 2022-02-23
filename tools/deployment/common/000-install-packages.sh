@@ -22,4 +22,5 @@ sudo apt-get install --no-install-recommends -y \
         nmap \
         curl \
         bc \
-        python3-pip
+        python3-pip \
+        dnsutils
