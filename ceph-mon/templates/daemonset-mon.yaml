@@ -15,7 +15,7 @@ limitations under the License.
 {{- if and .Values.manifests.daemonset_mon .Values.deployment.ceph }}
 {{- $envAll := . }}
 
-{{- $serviceAccountName := "ceph-mon" }}
+{{- $serviceAccountName := (printf "%s" .Release.Name) }}
 {{ tuple $envAll "mon" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -44,6 +44,14 @@ subjects:
   - kind: ServiceAccount
     name: {{ $serviceAccountName }}
     namespace: {{ $envAll.Release.Namespace }}
+{{- end }}
+
+{{- define "ceph.mon.daemonset" }}
+{{- $daemonset := index . 0 }}
+{{- $configMapName := index . 1 }}
+{{- $serviceAccountName := index . 2 }}
+{{- $envAll := index . 3 }}
+{{- with $envAll }}
 ---
 kind: DaemonSet
 apiVersion: apps/v1
@@ -249,11 +257,11 @@ spec:
           emptyDir: {}
         - name: ceph-mon-bin
           configMap:
-            name: ceph-mon-bin
+            name: {{ printf "%s-%s" $envAll.Release.Name "bin" | quote }}
             defaultMode: 0555
         - name: ceph-mon-etc
           configMap:
-            name: ceph-mon-etc
+            name: {{ $configMapName }}
             defaultMode: 0444
         - name: pod-var-lib-ceph
           hostPath:
@@ -274,4 +282,14 @@ spec:
         - name: ceph-bootstrap-mds-keyring
           secret:
             secretName: {{ .Values.secrets.keyrings.mds }}
+{{- end }}
+{{- end }}
+
+{{- if .Values.manifests.daemonset_mon }}
+{{- $daemonset := .Values.daemonset.prefix_name }}
+{{- $configMapName := (printf "%s-%s" .Release.Name "etc") }}
+{{- $serviceAccountName := (printf "%s" .Release.Name) }}
+{{- $daemonset_yaml := list $daemonset $configMapName $serviceAccountName . | include "ceph.mon.daemonset" | toString | fromYaml }}
+{{- $configmap_yaml := "ceph.mon.configmap.etc" }}
+{{- list $daemonset $daemonset_yaml $configmap_yaml $configMapName . | include "ceph.utils.mon_daemonset_overrides" }}
 {{- end }}
