@@ -120,9 +120,6 @@ Alternatively, this step can be performed by running the script directly:
 Deploy Horizon
 ^^^^^^^^^^^^^^
 
-.. warning:: Horizon deployment is not tested in the OSH development environment
-   community gates
-
 .. literalinclude:: ../../../../tools/deployment/developer/ceph/100-horizon.sh
     :language: shell
     :lines: 1,17-
@@ -161,9 +158,6 @@ Alternatively, this step can be performed by running the script directly:
 
 Deploy Cinder
 ^^^^^^^^^^^^^
-
-.. warning:: Cinder deployment is not tested in the OSH development environment
-   community gates
 
 .. literalinclude:: ../../../../tools/deployment/developer/ceph/130-cinder.sh
     :language: shell
