@@ -1,1 +1,1 @@
-../common/020-setup-client.sh
+../../common/setup-client.sh

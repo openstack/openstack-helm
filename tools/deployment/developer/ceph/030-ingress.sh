@@ -1,1 +1,1 @@
-../common/030-ingress.sh
+../../component/common/ingress.sh
