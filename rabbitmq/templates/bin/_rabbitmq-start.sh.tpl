@@ -94,4 +94,7 @@ if ! [ "${POD_INCREMENT}" -eq "0" ] && ! [ -d "/var/lib/rabbitmq/mnesia" ] ; the
   rm -fv /tmp/rabbit-disable-readiness /tmp/rabbit-disable-liveness-probe
 fi
 
+{{- if .Values.forceBoot.enabled }}
+if [ "${POD_INCREMENT}" -eq "0" ] && [ -d "/var/lib/rabbitmq/mnesia/${RABBITMQ_NODENAME}" ]; then rabbitmqctl force_boot; fi
+{{- end}}
 exec rabbitmq-server
