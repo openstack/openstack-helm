@@ -117,8 +117,8 @@ function mgr_validation() {
     then
       echo "Cluster has 1 Active MGR, $mgr_stdby_count Standbys MGR"
     else
-      echo "Cluster Standbys MGR: Expected count= $expected_standbys Available=$mgr_stdby_count"
-      retcode=1
+      echo "Warning. Cluster Standbys MGR: Expected count= $expected_standbys Available=$mgr_stdby_count"
+      echo "If this is not expected behavior, please investigate and take some additional actions."
     fi
 
   else
