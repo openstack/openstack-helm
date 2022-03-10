@@ -17,8 +17,10 @@ if __name__ == "__main__":
             sys.stderr.write(
                 "Cleaning network namespaces caught an exception %s"
                 % str(ex))
+            time.sleep(30)
         except:
             sys.stderr.write(
                 "Cleaning network namespaces caught an exception")
+            time.sleep(30)
         finally:
             cfg.CONF.clear()
