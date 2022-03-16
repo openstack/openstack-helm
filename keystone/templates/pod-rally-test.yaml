@@ -12,19 +12,25 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- if (.Values.global).subchart_release_name }}
+{{- $_ := set . "deployment_name" .Chart.Name }}
+{{- else }}
+{{- $_ := set . "deployment_name" .Release.Name }}
+{{- end }}
+
 {{- if .Values.manifests.pod_rally_test }}
 {{- $envAll := . }}
 
 {{- $mounts_tests := .Values.pod.mounts.keystone_tests.keystone_tests }}
 {{- $mounts_tests_init := .Values.pod.mounts.keystone_tests.init_container }}
 
-{{- $serviceAccountName := print $envAll.Release.Name "-test" }}
+{{- $serviceAccountName := print $envAll.deployment_name "-test" }}
 {{ tuple $envAll "tests" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: v1
 kind: Pod
 metadata:
-  name: {{ print $envAll.Release.Name "-test" }}
+  name: {{ print $envAll.deployment_name "-test" }}
   labels:
 {{ tuple $envAll "keystone" "test" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
   annotations:
@@ -79,7 +85,7 @@ spec:
 {{- include "helm-toolkit.snippets.keystone_user_create_env_vars" $env | indent 8 }}
 {{- end }}
         - name: RALLY_ENV_NAME
-          value: {{.Release.Name}}
+          value: {{.deployment_name}}
       command:
         - /tmp/rally-test.sh
       volumeMounts:

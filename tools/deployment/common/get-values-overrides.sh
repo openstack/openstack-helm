@@ -20,6 +20,7 @@
 
 set -e
 HELM_CHART="$1"
+SUBCHART="$2"
 : "${HELM_CHART_ROOT_PATH:="../openstack-helm"}"
 : "${OPENSTACK_RELEASE:="train"}"
 : "${CONTAINER_DISTRO_NAME:="ubuntu"}"
@@ -61,17 +62,32 @@ function replace_variables() {
 
 function override_file_args () {
     OVERRIDE_ARGS=""
-    echoerr "We will attempt to use values-override files with the following paths:"
-    for FILE in $(combination ${1//,/ } | uniq | tac); do
-      FILE_PATH="${HELM_CHART_ROOT_PATH}/${HELM_CHART}/values_overrides/${FILE}.yaml"
-      if [ -f "${FILE_PATH}" ]; then
-        replace_variables ${FILE_PATH}
-        OVERRIDE_ARGS+=" --values=${FILE_PATH} "
-      fi
-        echoerr "${FILE_PATH}"
-    done
+    if [ -z "$SUBCHART" ];then
+      echoerr "We will attempt to use values-override files with the following paths:"
+      for FILE in $(combination ${1//,/ } | uniq | tac); do
+        FILE_PATH="${HELM_CHART_ROOT_PATH}/${HELM_CHART}/values_overrides/${FILE}.yaml"
+        if [ -f "${FILE_PATH}" ]; then
+          replace_variables ${FILE_PATH}
+          OVERRIDE_ARGS+=" --values=${FILE_PATH} "
+        fi
+          echoerr "${FILE_PATH}"
+      done
+    else
+      echoerr "running as subchart"
+      echoerr "We will attempt to use values-override files with the following paths:"
+      for FILE in $(combination ${1//,/ } | uniq | tac); do
+        FILE_PATH="${HELM_CHART_ROOT_PATH}/values_overrides/${HELM_CHART}/${FILE}.yaml"
+        if [ -f "${FILE_PATH}" ]; then
+          replace_variables ${FILE_PATH}
+          OVERRIDE_ARGS+=" --values=${FILE_PATH} "
+        fi
+          echoerr "${FILE_PATH}"
+      done
+    fi
+
     echo "${OVERRIDE_ARGS}"
 }
+
 
 echoerr "We are going to deploy the service ${HELM_CHART} for the OpenStack ${OPENSTACK_RELEASE} release, using ${CONTAINER_DISTRO_NAME} (${CONTAINER_DISTRO_VERSION}) distribution containers."
 source ../openstack-helm/tools/deployment/common/env-variables.sh

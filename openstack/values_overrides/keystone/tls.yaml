@@ -1,0 +1,91 @@
+---
+keystone:
+  network:
+    api:
+      ingress:
+        annotations:
+          nginx.ingress.kubernetes.io/rewrite-target: null
+          nginx.ingress.kubernetes.io/backend-protocol: "https"
+  pod:
+    security_context:
+      keystone:
+        pod:
+          runAsUser: 0
+        container:
+          keystone_api:
+            readOnlyRootFilesystem: false
+            allowPrivilegeEscalation: false
+  conf:
+    software:
+      apache2:
+        a2enmod:
+          - ssl
+    keystone:
+      oslo_messaging_rabbit:
+        ssl: true
+        ssl_ca_file: /etc/rabbitmq/certs/ca.crt
+        ssl_cert_file: /etc/rabbitmq/certs/tls.crt
+        ssl_key_file: /etc/rabbitmq/certs/tls.key
+    wsgi_keystone: |
+      {{- $portInt := tuple "identity" "internal" "api" $ | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+      {{- $vh := tuple "identity" "internal" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
+
+      Listen 0.0.0.0:{{ $portInt }}
+
+      LogFormat "%h %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\"" combined
+      LogFormat "%{X-Forwarded-For}i %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\"" proxy
+
+      SetEnvIf X-Forwarded-For "^.*\..*\..*\..*" forwarded
+      CustomLog /dev/stdout combined env=!forwarded
+      CustomLog /dev/stdout proxy env=forwarded
+
+      <VirtualHost *:{{ tuple "identity" "internal" "api" $ | include "helm-toolkit.endpoints.endpoint_port_lookup" }}>
+        ServerName {{ printf "%s.%s.svc.%s" "keystone-api" .Release.Namespace .Values.endpoints.cluster_domain_suffix }}
+        WSGIDaemonProcess keystone-public processes=1 threads=1 user=keystone group=keystone display-name=%{GROUP}
+        WSGIProcessGroup keystone-public
+        WSGIScriptAlias / /var/www/cgi-bin/keystone/keystone-wsgi-public
+        WSGIApplicationGroup %{GLOBAL}
+        WSGIPassAuthorization On
+        <IfVersion >= 2.4>
+          ErrorLogFormat "%{cu}t %M"
+        </IfVersion>
+        ErrorLog /dev/stdout
+
+        SetEnvIf X-Forwarded-For "^.*\..*\..*\..*" forwarded
+        CustomLog /dev/stdout combined env=!forwarded
+        CustomLog /dev/stdout proxy env=forwarded
+
+        SSLEngine on
+        SSLCertificateFile      /etc/keystone/certs/tls.crt
+        SSLCertificateKeyFile   /etc/keystone/certs/tls.key
+        SSLProtocol             all -SSLv3 -TLSv1 -TLSv1.1
+        SSLCipherSuite          ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256
+        SSLHonorCipherOrder     on
+      </VirtualHost>
+  endpoints:
+    identity:
+      auth:
+        admin:
+          cacert: /etc/ssl/certs/openstack-helm.crt
+        test:
+          cacert: /etc/ssl/certs/openstack-helm.crt
+      host_fqdn_override:
+        default:
+          tls:
+            secretName: keystone-tls-api
+            issuerRef:
+              name: ca-issuer
+              kind: ClusterIssuer
+      scheme:
+        default: https
+        public: https
+      port:
+        api:
+          default: 443
+    oslo_messaging:
+      port:
+        https:
+          default: 15680
+  manifests:
+    certificates: true
+...

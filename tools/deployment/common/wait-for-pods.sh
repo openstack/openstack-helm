@@ -12,11 +12,14 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 set -e
+if [[ "$2" -gt 0 ]];then
+    seconds=$2
+else
+    seconds=900
+fi
 
-# From Kolla-Kubernetes, orginal authors Kevin Fox & Serguei Bezverkhi
-# Default wait timeout is 900 seconds
 end=$(date +%s)
-timeout=${2:-900}
+timeout=${2:-$seconds}
 end=$((end + timeout))
 while true; do
     kubectl get pods --namespace=$1 -o json | jq -r \

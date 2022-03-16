@@ -1,0 +1,191 @@
+---
+heat:
+  conf:
+    software:
+      apache2:
+        binary: apache2
+        start_parameters: -DFOREGROUND
+        site_dir: /etc/apache2/sites-enabled
+        conf_dir: /etc/apache2/conf-enabled
+        mods_dir: /etc/apache2/mods-available
+        a2enmod:
+          - ssl
+        a2dismod: null
+    mpm_event: |
+      <IfModule mpm_event_module>
+        ServerLimit         1024
+        StartServers        32
+        MinSpareThreads     32
+        MaxSpareThreads     256
+        ThreadsPerChild     25
+        MaxRequestsPerChild 128
+        ThreadLimit         720
+      </IfModule>
+    wsgi_heat: |
+      {{- $portInt := tuple "orchestration" "internal" "api" $ | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+      Listen {{ $portInt }}
+      <VirtualHost *:{{ $portInt }}>
+        ServerName {{ printf "%s.%s.svc.%s" "heat-api" .Release.Namespace .Values.endpoints.cluster_domain_suffix }}
+        WSGIDaemonProcess heat-api processes=1 threads=1 user=heat display-name=%{GROUP}
+        WSGIProcessGroup heat-api
+        WSGIScriptAlias /  /var/www/cgi-bin/heat/heat-wsgi-api
+        WSGIApplicationGroup %{GLOBAL}
+        WSGIPassAuthorization On
+        AllowEncodedSlashes On
+        <IfVersion >= 2.4>
+          ErrorLogFormat "%{cu}t %M"
+        </IfVersion>
+        SetEnvIf X-Forwarded-For "^.*\..*\..*\..*" forwarded
+        ErrorLog /dev/stdout
+        CustomLog /dev/stdout combined env=!forwarded
+        CustomLog /dev/stdout proxy env=forwarded
+
+        SSLEngine on
+        SSLCertificateFile      /etc/heat/certs/tls.crt
+        SSLCertificateKeyFile   /etc/heat/certs/tls.key
+        SSLProtocol             all -SSLv3 -TLSv1 -TLSv1.1
+        SSLCipherSuite          ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256
+        SSLHonorCipherOrder     on
+      </VirtualHost>
+
+    wsgi_cfn: |
+      {{- $portInt := tuple "cloudformation" "internal" "api" $ | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+      Listen {{ $portInt }}
+      <VirtualHost *:{{ $portInt }}>
+        ServerName {{ printf "%s.%s.svc.%s" "heat-api-cfn" .Release.Namespace .Values.endpoints.cluster_domain_suffix }}
+        WSGIDaemonProcess heat-api-cfn processes=1 threads=1 user=heat display-name=%{GROUP}
+        WSGIProcessGroup heat-api-cfn
+        WSGIScriptAlias / /var/www/cgi-bin/heat/heat-wsgi-api-cfn
+        WSGIApplicationGroup %{GLOBAL}
+        WSGIPassAuthorization On
+        AllowEncodedSlashes On
+        <IfVersion >= 2.4>
+          ErrorLogFormat "%{cu}t %M"
+        </IfVersion>
+        SetEnvIf X-Forwarded-For "^.*\..*\..*\..*" forwarded
+        ErrorLog /dev/stdout
+        CustomLog /dev/stdout combined env=!forwarded
+        CustomLog /dev/stdout proxy env=forwarded
+
+        SSLEngine on
+        SSLCertificateFile      /etc/heat/certs/tls.crt
+        SSLCertificateKeyFile   /etc/heat/certs/tls.key
+        SSLProtocol             all -SSLv3 -TLSv1 -TLSv1.1
+        SSLCipherSuite          ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256
+        SSLHonorCipherOrder     on
+      </VirtualHost>
+
+    heat:
+      clients_neutron:
+        ca_file: /etc/heat/certs/ca.crt
+      clients_cinder:
+        ca_file: /etc/heat/certs/ca.crt
+      clients_glance:
+        ca_file: /etc/heat/certs/ca.crt
+      clients_nova:
+        ca_file: /etc/heat/certs/ca.crt
+      clients_swift:
+        ca_file: /etc/heat/certs/ca.crt
+      ssl:
+        ca_file: /etc/heat/certs/ca.crt
+      keystone_authtoken:
+        cafile: /etc/heat/certs/ca.crt
+      clients:
+        ca_file: /etc/heat/certs/ca.crt
+      clients_keystone:
+        ca_file: /etc/heat/certs/ca.crt
+      oslo_messaging_rabbit:
+        ssl: true
+        ssl_ca_file: /etc/rabbitmq/certs/ca.crt
+        ssl_cert_file: /etc/rabbitmq/certs/tls.crt
+        ssl_key_file: /etc/rabbitmq/certs/tls.key
+
+  network:
+    api:
+      ingress:
+        annotations:
+          nginx.ingress.kubernetes.io/backend-protocol: "https"
+    cfn:
+      ingress:
+        annotations:
+          nginx.ingress.kubernetes.io/backend-protocol: "https"
+    cloudwatch:
+      ingress:
+        annotations:
+          nginx.ingress.kubernetes.io/backend-protocol: "https"
+
+  pod:
+    security_context:
+      heat:
+        container:
+          heat_api:
+            readOnlyRootFilesystem: false
+            runAsUser: 0
+          heat_cfn:
+            readOnlyRootFilesystem: false
+            runAsUser: 0
+
+  endpoints:
+    identity:
+      auth:
+        admin:
+          cacert: /etc/ssl/certs/openstack-helm.crt
+        heat:
+          cacert: /etc/ssl/certs/openstack-helm.crt
+        heat_trustee:
+          cacert: /etc/ssl/certs/openstack-helm.crt
+        heat_stack_user:
+          cacert: /etc/ssl/certs/openstack-helm.crt
+        test:
+          cacert: /etc/ssl/certs/openstack-helm.crt
+      scheme:
+        default: https
+      port:
+        api:
+          default: 443
+    orchestration:
+      host_fqdn_override:
+        default:
+          tls:
+            secretName: heat-tls-api
+            issuerRef:
+              name: ca-issuer
+              kind: ClusterIssuer
+      scheme:
+        default: https
+      port:
+        api:
+          public: 443
+    cloudformation:
+      host_fqdn_override:
+        default:
+          tls:
+            secretName: heat-tls-cfn
+            issuerRef:
+              name: ca-issuer
+              kind: ClusterIssuer
+      scheme:
+        default: https
+      port:
+        api:
+          public: 443
+    # Cloudwatch does not get an entry in the keystone service catalog
+    cloudwatch:
+      host_fqdn_override:
+        default:
+          tls:
+            secretName: heat-tls-cloudwatch
+            issuerRef:
+              name: ca-issuer
+              kind: ClusterIssuer
+    ingress:
+      port:
+        ingress:
+          default: 443
+    oslo_messaging:
+      port:
+        https:
+          default: 15680
+  manifests:
+    certificates: true
+...

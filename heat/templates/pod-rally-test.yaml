@@ -12,19 +12,25 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- if (.Values.global).subchart_release_name }}
+{{- $_ := set . "deployment_name" .Chart.Name }}
+{{- else }}
+{{- $_ := set . "deployment_name" .Release.Name }}
+{{- end }}
+
 {{- if .Values.manifests.pod_rally_test }}
 {{- $envAll := . }}
 
 {{- $mounts_tests := .Values.pod.mounts.heat_tests.heat_tests }}
 {{- $mounts_tests_init := .Values.pod.mounts.heat_tests.init_container }}
 
-{{- $serviceAccountName := print $envAll.Release.Name "-test" }}
+{{- $serviceAccountName := print $envAll.deployment_name "-test" }}
 {{ tuple $envAll "tests" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: v1
 kind: Pod
 metadata:
-  name: {{ print $envAll.Release.Name "-test" }}
+  name: {{ print $envAll.deployment_name "-test" }}
   labels:
 {{ tuple $envAll "heat" "test" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
   annotations:
@@ -40,7 +46,7 @@ spec:
   serviceAccountName: {{ $serviceAccountName }}
   initContainers:
 {{ tuple $envAll "tests" $mounts_tests_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 4 }}
-    - name: {{ .Release.Name }}-test-ks-user
+    - name: {{ .deployment_name }}-test-ks-user
 {{ tuple $envAll "ks_user" | include "helm-toolkit.snippets.image" | indent 6 }}
 {{ tuple $envAll $envAll.Values.pod.resources.jobs.ks_user | include "helm-toolkit.snippets.kubernetes_resources" | indent 6 }}
       command:
@@ -65,7 +71,7 @@ spec:
         - name: SERVICE_OS_ROLE
           value: {{ .Values.endpoints.identity.auth.test.role | quote }}
   containers:
-    - name: {{ .Release.Name }}-test
+    - name: {{ .deployment_name }}-test
 {{ tuple $envAll "test" | include "helm-toolkit.snippets.image" | indent 6 }}
 {{ tuple $envAll $envAll.Values.pod.resources.jobs.tests | include "helm-toolkit.snippets.kubernetes_resources" | indent 6 }}
       env:
@@ -76,7 +82,7 @@ spec:
 {{- include "helm-toolkit.snippets.keystone_user_create_env_vars" $env | indent 8 }}
 {{- end }}
         - name: RALLY_ENV_NAME
-          value: {{.Release.Name}}
+          value: {{.deployment_name}}
       command:
         - /tmp/rally-test.sh
       volumeMounts:
