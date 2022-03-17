@@ -169,9 +169,14 @@ EOF
     create_virsh_libvirt_secret ${EXTERNAL_CEPH_CINDER_USER} ${LIBVIRT_EXTERNAL_CEPH_CINDER_SECRET_UUID} ${EXTERNAL_CEPH_CINDER_KEYRING}
   fi
 
-  # rejoin libvirtd
-  wait
-else
-  #NOTE(portdirect): run libvirtd as a transient unit on the host with the osh-libvirt cgroups applied.
-  exec cgexec -g ${CGROUPS%,}:/osh-libvirt systemd-run --scope --slice=system libvirtd --listen
+  cleanup
+
+  # stop libvirtd; we needed it up to create secrets
+  LIBVIRTD_PID=$(cat /var/run/libvirtd.pid)
+  kill $LIBVIRTD_PID
+  tail --pid=$LIBVIRTD_PID -f /dev/null
+
 fi
+
+#NOTE(portdirect): run libvirtd as a transient unit on the host with the osh-libvirt cgroups applied.
+exec cgexec -g ${CGROUPS%,}:/osh-libvirt systemd-run --scope --slice=system libvirtd --listen
