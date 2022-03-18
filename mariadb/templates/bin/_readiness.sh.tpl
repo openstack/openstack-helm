@@ -36,7 +36,8 @@ mysql_status_query () {
 if ! $MYSQL -e 'select 1' > /dev/null 2>&1 ; then
   exit 1
 fi
-{{- if gt .Values.pod.replicas.server 1.0  }}
+
+{{- if gt (int .Values.pod.replicas.server) 1 }}
 if [ "x$(mysql_status_query wsrep_ready)" != "xON" ]; then
   # WSREP says the node can receive queries
   exit 1
