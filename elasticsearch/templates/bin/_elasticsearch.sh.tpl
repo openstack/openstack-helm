@@ -133,7 +133,16 @@ function start_data_node () {
     # (The only side effect of not doing so is slower start up times. See flush documentation linked above)
 
     echo "Node ${NODE_NAME} is ready to shutdown"
-    kill -TERM 1
+
+    echo "Killing Elasticsearch background processes"
+    jobs -p | xargs -t -r kill -TERM
+    wait
+
+    # remove the trap handler
+    trap - TERM EXIT HUP INT
+
+    echo "Node ${NODE_NAME} shutdown is complete"
+    exit 0
   }
   trap drain_data_node TERM EXIT HUP INT
   wait
