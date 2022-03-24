@@ -1,0 +1,4498 @@
+REVISION: 1
+RELEASED: Thu Mar 24 21:09:35 2022
+CHART: triliovault-0.1.0
+USER-SUPPLIED VALUES:
+{}
+
+COMPUTED VALUES:
+bootstrap:
+  enabled: false
+  ks_user: triliovault
+  script: |
+    openstack token issue
+conf:
+  alembic:
+    alembic:
+      script_location: /usr/share/workloadmgr/migrate_repo
+      version_locations: /usr/share/workloadmgr/migrate_repo/versions
+  datamover:
+    DEFAULT:
+      log_file: /tmp/tvault-datamover.log
+      use_virt_qemu: false
+      vault_storage_das_device: none
+      vault_storage_nfs_export: TrilioVault
+      vault_storage_type: s3
+      verbose: true
+    backends:
+      override_block: cinder
+    ceph:
+      ceph_dir: /etc/ceph
+    contego_sys_admin:
+      helper_command: sudo /usr/bin/nova-rootwrap /etc/nova/rootwrap.conf privsep-helper
+    dmapi_database:
+      connection_recycle_time: 300
+      max_overflow: 30
+      max_pool_size: 10
+      max_retries: -1
+    libvirt:
+      images_rbd_ceph_conf: /etc/ceph/ceph.conf
+      rbd_user: nova
+  dmapi:
+    DEFAULT:
+      bindir: /usr/bin
+      dmapi_enabled_apis: dmapi
+      dmapi_listen: 0.0.0.0
+      dmapi_workers: 2
+      instance_name_template: instance-%08x
+      log_dir: /tmp
+      log_file: /tmp/dmapi.log
+      rootwrap_config: /etc/dmapi/rootwrap.conf
+      verbose: true
+    conductor:
+      use_local: true
+    database:
+      connection_recycle_time: 300
+      max_overflow: 30
+      max_pool_size: 10
+      max_retries: -1
+    keystone_authtoken:
+      auth_type: password
+      auth_version: v3
+      memcache_secret_key: x4DuDDNYR0AphdXw
+      memcache_security_strategy: ENCRYPT
+    oslo_messaging_notifications:
+      driver: messagingv2
+      topics: notifications,stacklight_notifications
+    oslo_messaging_rabbit:
+      rabbit_qos_prefetch_count: 64
+    oslo_middleware:
+      enable_proxy_headers_parsing: true
+    service_credentials:
+      auth_type: password
+      auth_version: v3
+      interface: internal
+  fuse: |
+    # /etc/fuse.conf - Configuration file for Filesystem in Userspace (FUSE)
+
+    # Set the maximum number of FUSE mounts allowed to non-root users.
+    # The default is 1000.
+    mount_max = 2000
+
+    # Allow non-root users to specify the allow_other or allow_root mount options.
+    user_allow_other
+  logging:
+    formatter_context:
+      class: oslo_log.formatters.ContextFormatter
+      datefmt: '%Y-%m-%d %H:%M:%S'
+    formatter_default:
+      datefmt: '%Y-%m-%d %H:%M:%S'
+      format: '%(message)s'
+    formatters:
+      keys:
+      - context
+      - default
+    handler_null:
+      args: ()
+      class: logging.NullHandler
+      formatter: default
+    handler_stderr:
+      args: (sys.stderr,)
+      class: StreamHandler
+      formatter: context
+    handler_stdout:
+      args: (sys.stdout,)
+      class: StreamHandler
+      formatter: context
+    handlers:
+      keys:
+      - stdout
+      - stderr
+      - "null"
+    logger_amqp:
+      handlers: ""
+      level: WARNING
+      qualname: amqp
+    logger_amqplib:
+      handlers: ""
+      level: WARNING
+      qualname: amqplib
+    logger_boto:
+      handlers: ""
+      level: WARNING
+      qualname: boto
+    logger_datamover:
+      handlers: ""
+      level: INFO
+      qualname: datamover
+    logger_eventletwsgi:
+      handlers: ""
+      level: WARNING
+      qualname: eventlet.wsgi.server
+    logger_os.brick:
+      handlers: ""
+      level: INFO
+      qualname: os.brick
+    logger_root:
+      handlers: stdout
+      level: WARNING
+    logger_sqlalchemy:
+      handlers: ""
+      level: WARNING
+      qualname: sqlalchemy
+    loggers:
+      keys:
+      - root
+      - datamover
+      - os.brick
+  paste:
+    app:apiv1:
+      paste.app_factory: workloadmgr.api.v1.router:APIRouter.factory
+    app:osworkloadsversionapp:
+      paste.app_factory: workloadmgr.api.versions:Versions.factory
+    composite:openstack_workloads_api_v1:
+      keystone: faultwrap sizelimit authtoken keystonecontext apiv1
+      keystone_nolimit: faultwrap sizelimit authtoken keystonecontext apiv1
+      noauth: faultwrap sizelimit noauth apiv1
+      use: call:workloadmgr.api.middleware.auth:pipeline_factory
+    composite:osapi_workloads:
+      /: apiversions
+      /v1: openstack_workloads_api_v1
+      use: call:workloadmgr.api:root_app_factory
+    filter:authtoken:
+      interface: internal
+      paste.filter_factory: keystonemiddleware.auth_token:filter_factory
+    filter:faultwrap:
+      paste.filter_factory: workloadmgr.api.middleware.fault:FaultWrapper.factory
+    filter:keystonecontext:
+      paste.filter_factory: workloadmgr.api.middleware.auth:WorkloadMgrKeystoneContext.factory
+    filter:noauth:
+      paste.filter_factory: workloadmgr.api.middleware.auth:NoAuthMiddleware.factory
+    filter:sizelimit:
+      paste.filter_factory: oslo_middleware.sizelimit:RequestBodySizeLimiter.factory
+    pipeline:apiversions:
+      pipeline: faultwrap osworkloadsversionapp
+  triliovault_object_store:
+    DEFAULT:
+      log_file: /tmp/tvault-object-store.log
+      vault_data_directory: /var/triliovault-mounts
+      vault_s3_access_key_id: <INSERT DATA>
+      vault_s3_auth_version: DEFAULT
+      vault_s3_bucket: trilio-<INSERT DATA>
+      vault_s3_endpoint_url: https://rook-ceph-rgw-openstack-store.rook-ceph.svc:8443/
+      vault_s3_region: openstack-store
+      vault_s3_secret_access_key: <INSERT DATA>
+      vault_s3_ssl_cert: /etc/s3.cert
+      vault_storage_das_device: none
+      vault_storage_type: s3
+      verbose: true
+    s3fuse_sys_admin:
+      helper_command: sudo /usr/bin/workloadmgr-rootwrap /etc/workloadmgr/rootwrap.conf
+        privsep-helper
+  workloadmgr:
+    DEFAULT:
+      api_paste_config: /etc/workloadmgr/api-paste.ini
+      api_workers: 2
+      cinder_production_endpoint_template: http://cinder-api.openstack.svc.cluster.local:8776/v3/%(tenant_id)s
+      cloud_admin_domain: default
+      cloud_admin_project_id: <INSERT DATA>
+      cloud_admin_role: admin
+      cloud_admin_user_id: <INSERT DATA>
+      cloud_unique_id: <INSERT DATA>
+      compute_driver: libvirt.LibvirtDriver
+      config_status: configured
+      domain_name: service
+      glance_api_version: 2
+      glance_production_api_servers: http://glance-api.openstack.svc.cluster.local:9292
+      glance_production_host: glance-api.openstack.svc.cluster.local
+      global_job_scheduler_override: false
+      keystone_auth_version: 3
+      keystone_endpoint_url: http://keystone-api.openstack.svc.cluster.local:5000/v3
+      log_dir: /tmp
+      neutron_admin_auth_url: http://keystone-api.openstack.svc.cluster.local:5000/v3
+      neutron_production_url: http://neutron-server.openstack.svc.cluster.local:9696
+      nova_admin_auth_url: http://keystone-api.openstack.svc.cluster.local:5000/v3
+      nova_production_endpoint_template: http://nova-api.openstack.svc.cluster.local:8774/v2.1/%(tenant_id)s
+      region_name_for_services: RegionOne
+      rootwrap_config: /etc/workloadmgr/rootwrap.conf
+      state_path: /var/lib/workloadmgr
+      triliovault_hostnames: tvault-wlm-api
+      triliovault_user_domain_id: <INSERT DATA>
+      trustee_role: admin
+      use_stderr: false
+      use_syslog: false
+      vault_storage_das_device: none
+      vault_storage_type: s3
+      verbose: true
+      workloads_workers: 2
+    clients:
+      client_retry_limit: 3
+      endpoint_type: internal
+    global_job_scheduler:
+      misfire_grace_time: 600
+    keystone_authtoken:
+      auth_type: password
+      auth_version: v3
+      memcache_secret_key: x4DuDDNYR0AphdXw
+      memcache_security_strategy: ENCRYPT
+      project_domain_id: <INSERT DATA>
+      user_domain_id: <INSERT DATA>
+dependencies:
+  dynamic:
+    common:
+      local_image_registry:
+        jobs:
+        - triliovault-image-repo-sync
+        services:
+        - endpoint: node
+          service: local_image_registry
+  static:
+    api:
+      jobs:
+      - triliovault-db-sync
+      - triliovault-ks-user
+      - triliovault-ks-endpoints
+      services:
+      - endpoint: internal
+        service: oslo_db
+      - endpoint: internal
+        service: identity
+    contego:
+      jobs:
+      - triliovault-db-sync
+      - triliovault-ks-user
+      - triliovault-ks-endpoints
+      services:
+      - endpoint: internal
+        service: oslo_db
+      - endpoint: internal
+        service: identity
+    db_drop:
+      services:
+      - endpoint: internal
+        service: oslo_db
+    db_init:
+      services:
+      - endpoint: internal
+        service: oslo_db
+    db_sync:
+      jobs:
+      - tvault-db-init
+      services:
+      - endpoint: internal
+        service: oslo_db
+    image_repo_sync:
+      services:
+      - endpoint: internal
+        service: local_image_registry
+    ks_endpoints:
+      jobs:
+      - triliovault-ks-service
+      services:
+      - endpoint: internal
+        service: identity
+    ks_service:
+      services:
+      - endpoint: internal
+        service: identity
+    ks_user:
+      services:
+      - endpoint: internal
+        service: identity
+    rabbit_init:
+      services:
+      - endpoint: internal
+        service: oslo_messaging
+    tests:
+      jobs:
+      - triliovault-db-sync
+      services:
+      - endpoint: internal
+        service: identity
+      - endpoint: internal
+        service: oslo_db
+    wlm_api:
+      jobs:
+      - triliovault-db-sync
+      - triliovault-ks-user
+      - triliovault-ks-endpoints
+      services:
+      - endpoint: internal
+        service: oslo_db
+      - endpoint: internal
+        service: identity
+    wlm_cron:
+      services:
+      - endpoint: internal
+        service: workloads
+    wlm_scheduler:
+      services:
+      - endpoint: internal
+        service: workloads
+    wlm_workloads:
+      services:
+      - endpoint: internal
+        service: workloads
+endpoints:
+  cluster_domain_suffix: cluster.local
+  datamover:
+    host_fqdn_override:
+      default: null
+    hosts:
+      default: triliovault-api
+      public: triliovault
+    name: triliovault
+    path:
+      default: /v2
+    port:
+      api:
+        default: 8785
+        public: 80
+    scheme:
+      default: http
+  identity:
+    auth:
+      admin:
+        password: password
+        project_domain_name: default
+        project_name: admin
+        region_name: RegionOne
+        user_domain_name: default
+        username: admin
+      dmapi:
+        password: password
+        project_domain_name: service
+        project_name: service
+        region_name: RegionOne
+        role: admin
+        user_domain_name: service
+        username: triliovault
+      test:
+        password: password
+        project_domain_name: service
+        project_name: test
+        region_name: RegionOne
+        role: admin
+        user_domain_name: service
+        username: triliovault-test
+      triliovault:
+        password: password
+        project_domain_name: service
+        project_name: service
+        region_name: RegionOne
+        role: admin
+        user_domain_name: service
+        username: triliovault
+    host_fqdn_override:
+      default: null
+    hosts:
+      default: keystone
+      internal: keystone-api
+    name: keystone
+    path:
+      default: /v3
+    port:
+      api:
+        default: 80
+        internal: 5000
+    scheme:
+      default: http
+  local_image_registry:
+    host_fqdn_override:
+      default: null
+    hosts:
+      default: localhost
+      internal: docker-registry
+      node: localhost
+    name: docker-registry
+    namespace: docker-registry
+    port:
+      registry:
+        node: 5000
+  oslo_cache:
+    auth:
+      memcache_secret_key: null
+    host_fqdn_override:
+      default: null
+    hosts:
+      default: memcached
+    port:
+      memcache:
+        default: 11211
+  oslo_db:
+    auth:
+      admin:
+        password: password
+        username: root
+      dmapi:
+        password: password
+        username: triliovault
+    host_fqdn_override:
+      default: null
+    hosts:
+      default: mariadb
+    path: /nova
+    port:
+      mysql:
+        default: 3306
+    scheme: mysql+pymysql
+  oslo_db_wlm:
+    auth:
+      admin:
+        password: password
+        username: root
+      wlm:
+        password: password
+        username: wlm
+    host_fqdn_override:
+      default: null
+    hosts:
+      default: mariadb
+    path: /workloadmgr
+    port:
+      mysql:
+        default: 3306
+    scheme: mysql+pymysql
+  oslo_messaging:
+    auth:
+      admin:
+        password: password
+        username: rabbitmq
+      triliovault:
+        password: password
+        username: triliovault
+    host_fqdn_override:
+      default: null
+    hosts:
+      default: rabbitmq
+    path: /triliovault
+    port:
+      amqp:
+        default: 5672
+      http:
+        default: 15672
+    scheme: rabbit
+    statefulset:
+      name: rabbitmq-rabbitmq
+      replicas: 2
+  workloads:
+    host_fqdn_override:
+      default: null
+    hosts:
+      default: workloadmgr-api
+      public: workloadmgr
+    name: workloadmgr
+    path:
+      default: /v1/$(tenant_id)s
+    port:
+      api:
+        default: 8780
+        public: 80
+    scheme:
+      default: http
+helm-toolkit:
+  global: {}
+helm3_hook: true
+images:
+  local_registry:
+    active: false
+    exclude:
+    - dep_check
+    - image_repo_sync
+  pull_policy: IfNotPresent
+  tags:
+    bootstrap: docker.io/openstackhelm/heat:ocata-ubuntu_xenial
+    db_drop: docker.io/openstackhelm/heat:ocata-ubuntu_xenial
+    db_init: docker.io/openstackhelm/heat:ocata-ubuntu_xenial
+    dep_check: quay.io/airshipit/kubernetes-entrypoint:v1.0.0
+    image_repo_sync: docker.io/docker:17.07.0
+    ks_endpoints: docker.io/openstackhelm/heat:ocata-ubuntu_xenial
+    ks_service: docker.io/openstackhelm/heat:ocata-ubuntu_xenial
+    ks_user: docker.io/openstackhelm/heat:ocata-ubuntu_xenial
+    rabbit_init: docker.io/rabbitmq:3.7-management
+    triliovault_api: docker.io/kolla/ubuntu-source-tvault-api:ocata
+    triliovault_datamover: docker.io/kolla/ubuntu-source-tvault-api:ocata
+    triliovault_db_sync: docker.io/kolla/ubuntu-source-tvault-api:ocata
+labels:
+  datamover:
+    node_selector_key: openstack-compute-node
+    node_selector_value: enabled
+  dmapi:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  job:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  test:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  wlm_api:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  workloads:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+manifests:
+  certificates: false
+  configmap_bin: true
+  configmap_etc: true
+  daemonset_datamover: true
+  deployment_api: true
+  deployment_scheduler: true
+  deployment_workloads: true
+  ingress_api: true
+  job_bootstrap: true
+  job_db_drop: false
+  job_db_init: true
+  job_db_sync: true
+  job_image_repo_sync: true
+  job_ks_endpoints: true
+  job_ks_service: true
+  job_ks_user: true
+  job_rabbit_init: true
+  network_policy: false
+  pdb_api: true
+  secret_db: true
+  secret_ingress_tls: true
+  secret_keystone: true
+  secret_rabbitmq: true
+  service_api: true
+  service_ingress_api: true
+network:
+  api:
+    external_policy_local: false
+    ingress:
+      annotations:
+        nginx.ingress.kubernetes.io/rewrite-target: /
+      classes:
+        cluster: nginx-cluster
+        namespace: nginx
+      public: true
+    node_port:
+      enabled: false
+      port: 8042
+pod:
+  affinity:
+    anti:
+      topologyKey:
+        default: kubernetes.io/hostname
+      type:
+        default: preferredDuringSchedulingIgnoredDuringExecution
+      weight:
+        default: 10
+  lifecycle:
+    disruption_budget:
+      api:
+        min_available: 0
+    termination_grace_period:
+      api:
+        timeout: 30
+    upgrades:
+      daemonsets:
+        datamover:
+          enabled: true
+          max_unavailable: 1
+          min_ready_seconds: 0
+        pod_replacement_strategy: RollingUpdate
+      deployments:
+        pod_replacement_strategy: RollingUpdate
+        revision_history: 3
+        rolling_update:
+          max_surge: 3
+          max_unavailable: 1
+  mounts:
+    triliovault_api:
+      init_container: null
+      triliovault_api:
+        volumeMounts: null
+        volumes: null
+    triliovault_datamover:
+      init_container: null
+      tvault_datamover:
+        volumeMounts: null
+        volumes: null
+    triliovault_db_sync:
+      tvault_db_sync:
+        volumeMounts: null
+        volumes: null
+    triliovault_tests:
+      init_container: null
+      tvault_tests:
+        volumeMounts: null
+        volumes: null
+  replicas:
+    cron: 1
+    dmapi: 3
+    scheduler: 1
+    wlm_api: 3
+    workloads: 3
+  resources:
+    api:
+      limits:
+        cpu: 2000m
+        memory: 1024Mi
+      requests:
+        cpu: 100m
+        memory: 128Mi
+    enabled: false
+    jobs:
+      bootstrap:
+        limits:
+          cpu: 2000m
+          memory: 1024Mi
+        requests:
+          cpu: 100m
+          memory: 128Mi
+      db_drop:
+        limits:
+          cpu: 2000m
+          memory: 1024Mi
+        requests:
+          cpu: 100m
+          memory: 128Mi
+      db_init:
+        limits:
+          cpu: 2000m
+          memory: 1024Mi
+        requests:
+          cpu: 100m
+          memory: 128Mi
+      db_sync:
+        limits:
+          cpu: 2000m
+          memory: 1024Mi
+        requests:
+          cpu: 100m
+          memory: 128Mi
+      image_repo_sync:
+        limits:
+          cpu: 2000m
+          memory: 1024Mi
+        requests:
+          cpu: 100m
+          memory: 128Mi
+      ks_endpoints:
+        limits:
+          cpu: 2000m
+          memory: 1024Mi
+        requests:
+          cpu: 100m
+          memory: 128Mi
+      ks_service:
+        limits:
+          cpu: 2000m
+          memory: 1024Mi
+        requests:
+          cpu: 100m
+          memory: 128Mi
+      ks_user:
+        limits:
+          cpu: 2000m
+          memory: 1024Mi
+        requests:
+          cpu: 100m
+          memory: 128Mi
+      rabbit_init:
+        limits:
+          cpu: 2000m
+          memory: 1024Mi
+        requests:
+          cpu: 100m
+          memory: 128Mi
+      tests:
+        limits:
+          cpu: 2000m
+          memory: 1024Mi
+        requests:
+          cpu: 100m
+          memory: 128Mi
+  security_context:
+    volume_usage_audit:
+      container:
+        triliovault_api:
+          runAsUser: 63630
+        triliovault_datamover:
+          privileged: true
+          runAsUser: 0
+        triliovault_volume_usage_audit:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+        triliovault_wlm_api:
+          allowPrivilegeEscalation: true
+          privileged: true
+          readOnlyRootFilesystem: false
+          runAsUser: 0
+        triliovault_wlm_cron:
+          allowPrivilegeEscalation: true
+          privileged: true
+          readOnlyRootFilesystem: true
+          runAsUser: 0
+        triliovault_wlm_scheduler:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsUser: 64060
+        triliovault_wlm_workloads:
+          allowPrivilegeEscalation: true
+          privileged: true
+          readOnlyRootFilesystem: false
+          runAsUser: 0
+      pod:
+        runAsUser: 42424
+release_group: null
+secrets:
+  identity:
+    admin: triliovault-keystone-admin
+    dmapi: triliovault-keystone-user
+    test: triliovault-keystone-test
+    triliovault: triliovault-keystone-user
+  oslo_db:
+    admin: triliovault-db-admin
+    triliovault: triliovault-db-user
+  oslo_db_wlm:
+    admin: triliovault-db-wlm-admin
+    wlm: triliovault-db-wlm-user
+  oslo_messaging:
+    admin: triliovault-rabbitmq-admin
+    triliovault: triliovault-rabbitmq-user
+  tls:
+    datamover:
+      api:
+        internal: triliovault-tls-api
+        public: triliovault-tls-public
+    workloads:
+      api:
+        internal: triliovault-tls-api
+        public: triliovault-tls-public
+
+HOOKS:
+MANIFEST:
+
+---
+# Source: triliovault/templates/pdb-api.yaml
+
+---
+apiVersion: policy/v1beta1
+kind: PodDisruptionBudget
+metadata:
+  name: wlm-api
+spec:
+  minAvailable: 0
+  selector:
+    matchLabels:
+      release_group: release-name
+      application: triliovault
+      component: api
+
+---
+# Source: triliovault/templates/configmap-etc.yaml
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: dmapi-etc
+type: Opaque
+data:
+  dmapi.conf: W0RFRkFVTFRdCmJpbmRpciA9IC91c3IvYmluCmRtYXBpX2VuYWJsZWRfYXBpcyA9IGRtYXBpCmRtYXBpX2xpc3RlbiA9IDAuMC4wLjAKZG1hcGlfd29ya2VycyA9IDIKaW5zdGFuY2VfbmFtZV90ZW1wbGF0ZSA9IGluc3RhbmNlLSUwOHgKbG9nX2RpciA9IC90bXAKbG9nX2ZpbGUgPSAvdG1wL2RtYXBpLmxvZwpyb290d3JhcF9jb25maWcgPSAvZXRjL2RtYXBpL3Jvb3R3cmFwLmNvbmYKdHJhbnNwb3J0X3VybCA9IHJhYmJpdDovL3RyaWxpb3ZhdWx0OnBhc3N3b3JkQHJhYmJpdG1xLXJhYmJpdG1xLTAucmFiYml0bXEuZGVmYXVsdC5zdmMuY2x1c3Rlci5sb2NhbDo1NjcyLHRyaWxpb3ZhdWx0OnBhc3N3b3JkQHJhYmJpdG1xLXJhYmJpdG1xLTEucmFiYml0bXEuZGVmYXVsdC5zdmMuY2x1c3Rlci5sb2NhbDo1NjcyL3RyaWxpb3ZhdWx0CnZlcmJvc2UgPSB0cnVlCltjb25kdWN0b3JdCnVzZV9sb2NhbCA9IHRydWUKW2RhdGFiYXNlXQpjb25uZWN0aW9uID0gbXlzcWwrcHlteXNxbDovL3RyaWxpb3ZhdWx0OnBhc3N3b3JkQG1hcmlhZGIuZGVmYXVsdC5zdmMuY2x1c3Rlci5sb2NhbDozMzA2L25vdmEKY29ubmVjdGlvbl9yZWN5Y2xlX3RpbWUgPSAzMDAKbWF4X292ZXJmbG93ID0gMzAKbWF4X3Bvb2xfc2l6ZSA9IDEwCm1heF9yZXRyaWVzID0gLTEKW2tleXN0b25lX2F1dGh0b2tlbl0KYXV0aF90eXBlID0gcGFzc3dvcmQKYXV0aF91cmkgPSBodHRwOi8va2V5c3RvbmUtYXBpLmRlZmF1bHQuc3ZjLmNsdXN0ZXIubG9jYWw6NTAwMC92MwphdXRoX3VybCA9IGh0dHA6Ly9rZXlzdG9uZS1hcGkuZGVmYXVsdC5zdmMuY2x1c3Rlci5sb2NhbDo1MDAwL3YzCmF1dGhfdmVyc2lvbiA9IHYzCm1lbWNhY2hlX3NlY3JldF9rZXkgPSB4NER1REROWVIwQXBoZFh3Cm1lbWNhY2hlX3NlY3VyaXR5X3N0cmF0ZWd5ID0gRU5DUllQVAptZW1jYWNoZWRfc2VydmVycyA9IG1lbWNhY2hlZC5kZWZhdWx0LnN2Yy5jbHVzdGVyLmxvY2FsOjExMjExCnBhc3N3b3JkID0gcGFzc3dvcmQKcHJvamVjdF9kb21haW5fbmFtZSA9IHNlcnZpY2UKcHJvamVjdF9uYW1lID0gc2VydmljZQpyZWdpb25fbmFtZSA9IFJlZ2lvbk9uZQp1c2VyX2RvbWFpbl9uYW1lID0gc2VydmljZQp1c2VybmFtZSA9IHRyaWxpb3ZhdWx0Cltvc2xvX21lc3NhZ2luZ19ub3RpZmljYXRpb25zXQpkcml2ZXIgPSBtZXNzYWdpbmd2Mgp0b3BpY3MgPSBub3RpZmljYXRpb25zLHN0YWNrbGlnaHRfbm90aWZpY2F0aW9ucwpbb3Nsb19tZXNzYWdpbmdfcmFiYml0XQpyYWJiaXRfcW9zX3ByZWZldGNoX2NvdW50ID0gNjQKW29zbG9fbWlkZGxld2FyZV0KZW5hYmxlX3Byb3h5X2hlYWRlcnNfcGFyc2luZyA9IHRydWUKW3NlcnZpY2VfY3JlZGVudGlhbHNdCmF1dGhfdHlwZSA9IHBhc3N3b3JkCmF1dGhfdXJsID0gaHR0cDovL2tleXN0b25lLWFwaS5kZWZhdWx0LnN2Yy5jbHVzdGVyLmxvY2FsOjUwMDAvdjMKYXV0aF92ZXJzaW9uID0gdjMKaW50ZXJmYWNlID0gaW50ZXJuYWwKcGFzc3dvcmQgPSBwYXNzd29yZApwcm9qZWN0X2RvbWFpbl9uYW1lID0gc2VydmljZQpwcm9qZWN0X25hbWUgPSBzZXJ2aWNlCnJlZ2lvbl9uYW1lID0gUmVnaW9uT25lCnVzZXJfZG9tYWluX25hbWUgPSBzZXJ2aWNlCnVzZXJuYW1lID0gdHJpbGlvdmF1bHQK
+  datamover.conf: W0RFRkFVTFRdCmRtYXBpX3RyYW5zcG9ydF91cmwgPSByYWJiaXQ6Ly90cmlsaW92YXVsdDpwYXNzd29yZEByYWJiaXRtcS1yYWJiaXRtcS0wLnJhYmJpdG1xLmRlZmF1bHQuc3ZjLmNsdXN0ZXIubG9jYWw6NTY3Mix0cmlsaW92YXVsdDpwYXNzd29yZEByYWJiaXRtcS1yYWJiaXRtcS0xLnJhYmJpdG1xLmRlZmF1bHQuc3ZjLmNsdXN0ZXIubG9jYWw6NTY3Mi90cmlsaW92YXVsdApsb2dfZmlsZSA9IC90bXAvdHZhdWx0LWRhdGFtb3Zlci5sb2cKdXNlX3ZpcnRfcWVtdSA9IGZhbHNlCnZhdWx0X3N0b3JhZ2VfZGFzX2RldmljZSA9IG5vbmUKdmF1bHRfc3RvcmFnZV9uZnNfZXhwb3J0ID0gVHJpbGlvVmF1bHQKdmF1bHRfc3RvcmFnZV90eXBlID0gczMKdmVyYm9zZSA9IHRydWUKW2JhY2tlbmRzXQpvdmVycmlkZV9ibG9jayA9IGNpbmRlcgpbY2VwaF0KY2VwaF9kaXIgPSAvZXRjL2NlcGgKW2NvbnRlZ29fc3lzX2FkbWluXQpoZWxwZXJfY29tbWFuZCA9IHN1ZG8gL3Vzci9iaW4vbm92YS1yb290d3JhcCAvZXRjL25vdmEvcm9vdHdyYXAuY29uZiBwcml2c2VwLWhlbHBlcgpbZG1hcGlfZGF0YWJhc2VdCmNvbm5lY3Rpb24gPSBteXNxbCtweW15c3FsOi8vdHJpbGlvdmF1bHQ6cGFzc3dvcmRAbWFyaWFkYi5kZWZhdWx0LnN2Yy5jbHVzdGVyLmxvY2FsOjMzMDYvbm92YQpjb25uZWN0aW9uX3JlY3ljbGVfdGltZSA9IDMwMAptYXhfb3ZlcmZsb3cgPSAzMAptYXhfcG9vbF9zaXplID0gMTAKbWF4X3JldHJpZXMgPSAtMQpbbGlidmlydF0KaW1hZ2VzX3JiZF9jZXBoX2NvbmYgPSAvZXRjL2NlcGgvY2VwaC5jb25mCnJiZF91c2VyID0gbm92YQo=
+  workloadmgr.conf: W0RFRkFVTFRdCmFwaV9wYXN0ZV9jb25maWcgPSAvZXRjL3dvcmtsb2FkbWdyL2FwaS1wYXN0ZS5pbmkKYXBpX3dvcmtlcnMgPSAyCmNpbmRlcl9wcm9kdWN0aW9uX2VuZHBvaW50X3RlbXBsYXRlID0gaHR0cDovL2NpbmRlci1hcGkub3BlbnN0YWNrLnN2Yy5jbHVzdGVyLmxvY2FsOjg3NzYvdjMvJSh0ZW5hbnRfaWQpcwpjbG91ZF9hZG1pbl9kb21haW4gPSBkZWZhdWx0CmNsb3VkX2FkbWluX3Byb2plY3RfaWQgPSA8SU5TRVJUIERBVEE+CmNsb3VkX2FkbWluX3JvbGUgPSBhZG1pbgpjbG91ZF9hZG1pbl91c2VyX2lkID0gPElOU0VSVCBEQVRBPgpjbG91ZF91bmlxdWVfaWQgPSA8SU5TRVJUIERBVEE+CmNvbXB1dGVfZHJpdmVyID0gbGlidmlydC5MaWJ2aXJ0RHJpdmVyCmNvbmZpZ19zdGF0dXMgPSBjb25maWd1cmVkCmRvbWFpbl9uYW1lID0gc2VydmljZQpnbGFuY2VfYXBpX3ZlcnNpb24gPSAyCmdsYW5jZV9wcm9kdWN0aW9uX2FwaV9zZXJ2ZXJzID0gaHR0cDovL2dsYW5jZS1hcGkub3BlbnN0YWNrLnN2Yy5jbHVzdGVyLmxvY2FsOjkyOTIKZ2xhbmNlX3Byb2R1Y3Rpb25faG9zdCA9IGdsYW5jZS1hcGkub3BlbnN0YWNrLnN2Yy5jbHVzdGVyLmxvY2FsCmdsb2JhbF9qb2Jfc2NoZWR1bGVyX292ZXJyaWRlID0gZmFsc2UKa2V5c3RvbmVfYXV0aF92ZXJzaW9uID0gMwprZXlzdG9uZV9lbmRwb2ludF91cmwgPSBodHRwOi8va2V5c3RvbmUtYXBpLm9wZW5zdGFjay5zdmMuY2x1c3Rlci5sb2NhbDo1MDAwL3YzCmxvZ19kaXIgPSAvdG1wCm5ldXRyb25fYWRtaW5fYXV0aF91cmwgPSBodHRwOi8va2V5c3RvbmUtYXBpLm9wZW5zdGFjay5zdmMuY2x1c3Rlci5sb2NhbDo1MDAwL3YzCm5ldXRyb25fcHJvZHVjdGlvbl91cmwgPSBodHRwOi8vbmV1dHJvbi1zZXJ2ZXIub3BlbnN0YWNrLnN2Yy5jbHVzdGVyLmxvY2FsOjk2OTYKbm92YV9hZG1pbl9hdXRoX3VybCA9IGh0dHA6Ly9rZXlzdG9uZS1hcGkub3BlbnN0YWNrLnN2Yy5jbHVzdGVyLmxvY2FsOjUwMDAvdjMKbm92YV9wcm9kdWN0aW9uX2VuZHBvaW50X3RlbXBsYXRlID0gaHR0cDovL25vdmEtYXBpLm9wZW5zdGFjay5zdmMuY2x1c3Rlci5sb2NhbDo4Nzc0L3YyLjEvJSh0ZW5hbnRfaWQpcwpyZWdpb25fbmFtZV9mb3Jfc2VydmljZXMgPSBSZWdpb25PbmUKcm9vdHdyYXBfY29uZmlnID0gL2V0Yy93b3JrbG9hZG1nci9yb290d3JhcC5jb25mCnNxbF9jb25uZWN0aW9uID0gbXlzcWwrcHlteXNxbDovL3dsbTpwYXNzd29yZEBtYXJpYWRiLmRlZmF1bHQuc3ZjLmNsdXN0ZXIubG9jYWw6MzMwNi93b3JrbG9hZG1ncgpzdGF0ZV9wYXRoID0gL3Zhci9saWIvd29ya2xvYWRtZ3IKdHJhbnNwb3J0X3VybCA9IHJhYmJpdDovL3RyaWxpb3ZhdWx0OnBhc3N3b3JkQHJhYmJpdG1xLXJhYmJpdG1xLTAucmFiYml0bXEuZGVmYXVsdC5zdmMuY2x1c3Rlci5sb2NhbDo1NjcyLHRyaWxpb3ZhdWx0OnBhc3N3b3JkQHJhYmJpdG1xLXJhYmJpdG1xLTEucmFiYml0bXEuZGVmYXVsdC5zdmMuY2x1c3Rlci5sb2NhbDo1NjcyL3RyaWxpb3ZhdWx0CnRyaWxpb3ZhdWx0X2hvc3RuYW1lcyA9IHR2YXVsdC13bG0tYXBpCnRyaWxpb3ZhdWx0X3VzZXJfZG9tYWluX2lkID0gPElOU0VSVCBEQVRBPgp0cnVzdGVlX3JvbGUgPSBhZG1pbgp1c2Vfc3RkZXJyID0gZmFsc2UKdXNlX3N5c2xvZyA9IGZhbHNlCnZhdWx0X3N0b3JhZ2VfZGFzX2RldmljZSA9IG5vbmUKdmF1bHRfc3RvcmFnZV90eXBlID0gczMKdmVyYm9zZSA9IHRydWUKd29ya2xvYWRzX3dvcmtlcnMgPSAyCltjbGllbnRzXQpjbGllbnRfcmV0cnlfbGltaXQgPSAzCmVuZHBvaW50X3R5cGUgPSBpbnRlcm5hbApbZ2xvYmFsX2pvYl9zY2hlZHVsZXJdCm1pc2ZpcmVfZ3JhY2VfdGltZSA9IDYwMApba2V5c3RvbmVfYXV0aHRva2VuXQphZG1pbl9wYXNzd29yZCA9IHBhc3N3b3JkCmFkbWluX3RlbmFudF9uYW1lID0gc2VydmljZQphZG1pbl91c2VyID0gdHJpbGlvdmF1bHQKYXV0aF90eXBlID0gcGFzc3dvcmQKYXV0aF91cmkgPSBodHRwOi8va2V5c3RvbmUtYXBpLmRlZmF1bHQuc3ZjLmNsdXN0ZXIubG9jYWw6NTAwMC92MwphdXRoX3VybCA9IGh0dHA6Ly9rZXlzdG9uZS1hcGkuZGVmYXVsdC5zdmMuY2x1c3Rlci5sb2NhbDo1MDAwL3YzCmF1dGhfdmVyc2lvbiA9IHYzCm1lbWNhY2hlX3NlY3JldF9rZXkgPSB4NER1REROWVIwQXBoZFh3Cm1lbWNhY2hlX3NlY3VyaXR5X3N0cmF0ZWd5ID0gRU5DUllQVAptZW1jYWNoZWRfc2VydmVycyA9IG1lbWNhY2hlZC5kZWZhdWx0LnN2Yy5jbHVzdGVyLmxvY2FsOjExMjExCnBhc3N3b3JkID0gcGFzc3dvcmQKcHJvamVjdF9kb21haW5faWQgPSA8SU5TRVJUIERBVEE+CnByb2plY3RfZG9tYWluX25hbWUgPSBzZXJ2aWNlCnByb2plY3RfbmFtZSA9IHNlcnZpY2UKcmVnaW9uX25hbWUgPSBSZWdpb25PbmUKdXNlcl9kb21haW5faWQgPSA8SU5TRVJUIERBVEE+CnVzZXJfZG9tYWluX25hbWUgPSBzZXJ2aWNlCnVzZXJuYW1lID0gdHJpbGlvdmF1bHQK
+  logging.conf: W2Zvcm1hdHRlcl9jb250ZXh0XQpjbGFzcyA9IG9zbG9fbG9nLmZvcm1hdHRlcnMuQ29udGV4dEZvcm1hdHRlcgpkYXRlZm10ID0gJVktJW0tJWQgJUg6JU06JVMKW2Zvcm1hdHRlcl9kZWZhdWx0XQpkYXRlZm10ID0gJVktJW0tJWQgJUg6JU06JVMKZm9ybWF0ID0gJShtZXNzYWdlKXMKW2Zvcm1hdHRlcnNdCmtleXMgPSBjb250ZXh0LGRlZmF1bHQKW2hhbmRsZXJfbnVsbF0KYXJncyA9ICgpCmNsYXNzID0gbG9nZ2luZy5OdWxsSGFuZGxlcgpmb3JtYXR0ZXIgPSBkZWZhdWx0CltoYW5kbGVyX3N0ZGVycl0KYXJncyA9IChzeXMuc3RkZXJyLCkKY2xhc3MgPSBTdHJlYW1IYW5kbGVyCmZvcm1hdHRlciA9IGNvbnRleHQKW2hhbmRsZXJfc3Rkb3V0XQphcmdzID0gKHN5cy5zdGRvdXQsKQpjbGFzcyA9IFN0cmVhbUhhbmRsZXIKZm9ybWF0dGVyID0gY29udGV4dApbaGFuZGxlcnNdCmtleXMgPSBzdGRvdXQsc3RkZXJyLG51bGwKW2xvZ2dlcl9hbXFwXQpoYW5kbGVycyA9IApsZXZlbCA9IFdBUk5JTkcKcXVhbG5hbWUgPSBhbXFwCltsb2dnZXJfYW1xcGxpYl0KaGFuZGxlcnMgPSAKbGV2ZWwgPSBXQVJOSU5HCnF1YWxuYW1lID0gYW1xcGxpYgpbbG9nZ2VyX2JvdG9dCmhhbmRsZXJzID0gCmxldmVsID0gV0FSTklORwpxdWFsbmFtZSA9IGJvdG8KW2xvZ2dlcl9kYXRhbW92ZXJdCmhhbmRsZXJzID0gCmxldmVsID0gSU5GTwpxdWFsbmFtZSA9IGRhdGFtb3ZlcgpbbG9nZ2VyX2V2ZW50bGV0d3NnaV0KaGFuZGxlcnMgPSAKbGV2ZWwgPSBXQVJOSU5HCnF1YWxuYW1lID0gZXZlbnRsZXQud3NnaS5zZXJ2ZXIKW2xvZ2dlcl9vcy5icmlja10KaGFuZGxlcnMgPSAKbGV2ZWwgPSBJTkZPCnF1YWxuYW1lID0gb3MuYnJpY2sKW2xvZ2dlcl9yb290XQpoYW5kbGVycyA9IHN0ZG91dApsZXZlbCA9IFdBUk5JTkcKW2xvZ2dlcl9zcWxhbGNoZW15XQpoYW5kbGVycyA9IApsZXZlbCA9IFdBUk5JTkcKcXVhbG5hbWUgPSBzcWxhbGNoZW15Cltsb2dnZXJzXQprZXlzID0gcm9vdCxkYXRhbW92ZXIsb3MuYnJpY2sK
+  api-paste.ini: W2FwcDphcGl2MV0KcGFzdGUuYXBwX2ZhY3RvcnkgPSB3b3JrbG9hZG1nci5hcGkudjEucm91dGVyOkFQSVJvdXRlci5mYWN0b3J5ClthcHA6b3N3b3JrbG9hZHN2ZXJzaW9uYXBwXQpwYXN0ZS5hcHBfZmFjdG9yeSA9IHdvcmtsb2FkbWdyLmFwaS52ZXJzaW9uczpWZXJzaW9ucy5mYWN0b3J5Cltjb21wb3NpdGU6b3BlbnN0YWNrX3dvcmtsb2Fkc19hcGlfdjFdCmtleXN0b25lID0gZmF1bHR3cmFwIHNpemVsaW1pdCBhdXRodG9rZW4ga2V5c3RvbmVjb250ZXh0IGFwaXYxCmtleXN0b25lX25vbGltaXQgPSBmYXVsdHdyYXAgc2l6ZWxpbWl0IGF1dGh0b2tlbiBrZXlzdG9uZWNvbnRleHQgYXBpdjEKbm9hdXRoID0gZmF1bHR3cmFwIHNpemVsaW1pdCBub2F1dGggYXBpdjEKdXNlID0gY2FsbDp3b3JrbG9hZG1nci5hcGkubWlkZGxld2FyZS5hdXRoOnBpcGVsaW5lX2ZhY3RvcnkKW2NvbXBvc2l0ZTpvc2FwaV93b3JrbG9hZHNdCi8gPSBhcGl2ZXJzaW9ucwovdjEgPSBvcGVuc3RhY2tfd29ya2xvYWRzX2FwaV92MQp1c2UgPSBjYWxsOndvcmtsb2FkbWdyLmFwaTpyb290X2FwcF9mYWN0b3J5CltmaWx0ZXI6YXV0aHRva2VuXQppbnRlcmZhY2UgPSBpbnRlcm5hbApwYXN0ZS5maWx0ZXJfZmFjdG9yeSA9IGtleXN0b25lbWlkZGxld2FyZS5hdXRoX3Rva2VuOmZpbHRlcl9mYWN0b3J5CltmaWx0ZXI6ZmF1bHR3cmFwXQpwYXN0ZS5maWx0ZXJfZmFjdG9yeSA9IHdvcmtsb2FkbWdyLmFwaS5taWRkbGV3YXJlLmZhdWx0OkZhdWx0V3JhcHBlci5mYWN0b3J5CltmaWx0ZXI6a2V5c3RvbmVjb250ZXh0XQpwYXN0ZS5maWx0ZXJfZmFjdG9yeSA9IHdvcmtsb2FkbWdyLmFwaS5taWRkbGV3YXJlLmF1dGg6V29ya2xvYWRNZ3JLZXlzdG9uZUNvbnRleHQuZmFjdG9yeQpbZmlsdGVyOm5vYXV0aF0KcGFzdGUuZmlsdGVyX2ZhY3RvcnkgPSB3b3JrbG9hZG1nci5hcGkubWlkZGxld2FyZS5hdXRoOk5vQXV0aE1pZGRsZXdhcmUuZmFjdG9yeQpbZmlsdGVyOnNpemVsaW1pdF0KcGFzdGUuZmlsdGVyX2ZhY3RvcnkgPSBvc2xvX21pZGRsZXdhcmUuc2l6ZWxpbWl0OlJlcXVlc3RCb2R5U2l6ZUxpbWl0ZXIuZmFjdG9yeQpbcGlwZWxpbmU6YXBpdmVyc2lvbnNdCnBpcGVsaW5lID0gZmF1bHR3cmFwIG9zd29ya2xvYWRzdmVyc2lvbmFwcAo=
+  alembic.ini: W2FsZW1iaWNdCnNjcmlwdF9sb2NhdGlvbiA9IC91c3Ivc2hhcmUvd29ya2xvYWRtZ3IvbWlncmF0ZV9yZXBvCnZlcnNpb25fbG9jYXRpb25zID0gL3Vzci9zaGFyZS93b3JrbG9hZG1nci9taWdyYXRlX3JlcG8vdmVyc2lvbnMK
+  triliovault_object_store.conf: W0RFRkFVTFRdCmxvZ19maWxlID0gL3RtcC90dmF1bHQtb2JqZWN0LXN0b3JlLmxvZwp2YXVsdF9kYXRhX2RpcmVjdG9yeSA9IC92YXIvdHJpbGlvdmF1bHQtbW91bnRzCnZhdWx0X3MzX2FjY2Vzc19rZXlfaWQgPSA8SU5TRVJUIERBVEE+CnZhdWx0X3MzX2F1dGhfdmVyc2lvbiA9IERFRkFVTFQKdmF1bHRfczNfYnVja2V0ID0gdHJpbGlvLTxJTlNFUlQgREFUQT4KdmF1bHRfczNfZW5kcG9pbnRfdXJsID0gaHR0cHM6Ly9yb29rLWNlcGgtcmd3LW9wZW5zdGFjay1zdG9yZS5yb29rLWNlcGguc3ZjOjg0NDMvCnZhdWx0X3MzX3JlZ2lvbiA9IG9wZW5zdGFjay1zdG9yZQp2YXVsdF9zM19zZWNyZXRfYWNjZXNzX2tleSA9IDxJTlNFUlQgREFUQT4KdmF1bHRfczNfc3NsX2NlcnQgPSAvZXRjL3MzLmNlcnQKdmF1bHRfc3RvcmFnZV9kYXNfZGV2aWNlID0gbm9uZQp2YXVsdF9zdG9yYWdlX3R5cGUgPSBzMwp2ZXJib3NlID0gdHJ1ZQpbczNmdXNlX3N5c19hZG1pbl0KaGVscGVyX2NvbW1hbmQgPSBzdWRvIC91c3IvYmluL3dvcmtsb2FkbWdyLXJvb3R3cmFwIC9ldGMvd29ya2xvYWRtZ3Ivcm9vdHdyYXAuY29uZiBwcml2c2VwLWhlbHBlcgo=
+  fuse.conf: IyAvZXRjL2Z1c2UuY29uZiAtIENvbmZpZ3VyYXRpb24gZmlsZSBmb3IgRmlsZXN5c3RlbSBpbiBVc2Vyc3BhY2UgKEZVU0UpCgojIFNldCB0aGUgbWF4aW11bSBudW1iZXIgb2YgRlVTRSBtb3VudHMgYWxsb3dlZCB0byBub24tcm9vdCB1c2Vycy4KIyBUaGUgZGVmYXVsdCBpcyAxMDAwLgptb3VudF9tYXggPSAyMDAwCgojIEFsbG93IG5vbi1yb290IHVzZXJzIHRvIHNwZWNpZnkgdGhlIGFsbG93X290aGVyIG9yIGFsbG93X3Jvb3QgbW91bnQgb3B0aW9ucy4KdXNlcl9hbGxvd19vdGhlcgo=
+  s3cert: 
+
+---
+# Source: triliovault/templates/secret-db-wlm.yaml
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: triliovault-db-wlm-admin
+type: Opaque
+data:
+  DB_CONNECTION: bXlzcWwrcHlteXNxbDovL3Jvb3Q6cGFzc3dvcmRAbWFyaWFkYi5kZWZhdWx0LnN2Yy5jbHVzdGVyLmxvY2FsOjMzMDYvd29ya2xvYWRtZ3I=
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: triliovault-db-wlm-user
+type: Opaque
+data:
+  DB_CONNECTION: bXlzcWwrcHlteXNxbDovL3dsbTpwYXNzd29yZEBtYXJpYWRiLmRlZmF1bHQuc3ZjLmNsdXN0ZXIubG9jYWw6MzMwNi93b3JrbG9hZG1ncg==
+
+---
+# Source: triliovault/templates/secret-db.yaml
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: triliovault-db-admin
+type: Opaque
+data:
+  DB_CONNECTION: bXlzcWwrcHlteXNxbDovL3Jvb3Q6cGFzc3dvcmRAbWFyaWFkYi5kZWZhdWx0LnN2Yy5jbHVzdGVyLmxvY2FsOjMzMDYvbm92YQ==
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: 
+type: Opaque
+data:
+  DB_CONNECTION: bXlzcWwrcHlteXNxbDovL3RyaWxpb3ZhdWx0OnBhc3N3b3JkQG1hcmlhZGIuZGVmYXVsdC5zdmMuY2x1c3Rlci5sb2NhbDozMzA2L25vdmE=
+
+---
+# Source: triliovault/templates/secret-keystone.yaml
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: triliovault-keystone-admin
+type: Opaque
+data:  
+  OS_AUTH_URL: aHR0cDovL2tleXN0b25lLWFwaS5kZWZhdWx0LnN2Yy5jbHVzdGVyLmxvY2FsOjUwMDAvdjM=
+  OS_REGION_NAME: UmVnaW9uT25l
+  OS_INTERFACE: aW50ZXJuYWw=
+  OS_PROJECT_DOMAIN_NAME: ZGVmYXVsdA==
+  OS_PROJECT_NAME: YWRtaW4=
+  OS_USER_DOMAIN_NAME: ZGVmYXVsdA==
+  OS_USERNAME: YWRtaW4=
+  OS_PASSWORD: cGFzc3dvcmQ=
+  OS_DEFAULT_DOMAIN: ZGVmYXVsdA==
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: triliovault-keystone-user
+type: Opaque
+data:  
+  OS_AUTH_URL: aHR0cDovL2tleXN0b25lLWFwaS5kZWZhdWx0LnN2Yy5jbHVzdGVyLmxvY2FsOjUwMDAvdjM=
+  OS_REGION_NAME: UmVnaW9uT25l
+  OS_INTERFACE: aW50ZXJuYWw=
+  OS_PROJECT_DOMAIN_NAME: c2VydmljZQ==
+  OS_PROJECT_NAME: c2VydmljZQ==
+  OS_USER_DOMAIN_NAME: c2VydmljZQ==
+  OS_USERNAME: dHJpbGlvdmF1bHQ=
+  OS_PASSWORD: cGFzc3dvcmQ=
+  OS_DEFAULT_DOMAIN: ZGVmYXVsdA==
+
+---
+# Source: triliovault/templates/secret-rabbitmq.yaml
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: triliovault-rabbitmq-admin
+type: Opaque
+data:
+  RABBITMQ_CONNECTION: cmFiYml0Oi8vcmFiYml0bXE6cGFzc3dvcmRAcmFiYml0bXEuZGVmYXVsdC5zdmMuY2x1c3Rlci5sb2NhbDoxNTY3Mi90cmlsaW92YXVsdA==
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: triliovault-rabbitmq-user
+type: Opaque
+data:
+  RABBITMQ_CONNECTION: cmFiYml0Oi8vdHJpbGlvdmF1bHQ6cGFzc3dvcmRAcmFiYml0bXEuZGVmYXVsdC5zdmMuY2x1c3Rlci5sb2NhbDoxNTY3Mi90cmlsaW92YXVsdA==
+
+---
+# Source: triliovault/templates/configmap-bin.yaml
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: triliovault-bin
+data:
+  db-init.py: |    
+    #!/usr/bin/env python
+    
+    # Creates db and user for an OpenStack Service:
+    # Set ROOT_DB_CONNECTION and DB_CONNECTION environment variables to contain
+    # SQLAlchemy strings for the root connection to the database and the one you
+    # wish the service to use. Alternatively, you can use an ini formatted config
+    # at the location specified by OPENSTACK_CONFIG_FILE, and extract the string
+    # from the key OPENSTACK_CONFIG_DB_KEY, in the section specified by
+    # OPENSTACK_CONFIG_DB_SECTION.
+    
+    import os
+    import sys
+    try:
+        import ConfigParser
+        PARSER_OPTS = {}
+    except ImportError:
+        import configparser as ConfigParser
+        PARSER_OPTS = {"strict": False}
+    import logging
+    from sqlalchemy import create_engine
+    
+    # Create logger, console handler and formatter
+    logger = logging.getLogger('OpenStack-Helm DB Init')
+    logger.setLevel(logging.DEBUG)
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.DEBUG)
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    
+    # Set the formatter and add the handler
+    ch.setFormatter(formatter)
+    logger.addHandler(ch)
+    
+    
+    # Get the connection string for the service db root user
+    if "ROOT_DB_CONNECTION" in os.environ:
+        db_connection = os.environ['ROOT_DB_CONNECTION']
+        logger.info('Got DB root connection')
+    else:
+        logger.critical('environment variable ROOT_DB_CONNECTION not set')
+        sys.exit(1)
+    
+    mysql_x509 = os.getenv('MARIADB_X509', "")
+    ssl_args = {}
+    if mysql_x509:
+        ssl_args = {'ssl': {'ca': '/etc/mysql/certs/ca.crt',
+                    'key': '/etc/mysql/certs/tls.key',
+                    'cert': '/etc/mysql/certs/tls.crt'}}
+    
+    # Get the connection string for the service db
+    if "OPENSTACK_CONFIG_FILE" in os.environ:
+        os_conf = os.environ['OPENSTACK_CONFIG_FILE']
+        if "OPENSTACK_CONFIG_DB_SECTION" in os.environ:
+            os_conf_section = os.environ['OPENSTACK_CONFIG_DB_SECTION']
+        else:
+            logger.critical('environment variable OPENSTACK_CONFIG_DB_SECTION not set')
+            sys.exit(1)
+        if "OPENSTACK_CONFIG_DB_KEY" in os.environ:
+            os_conf_key = os.environ['OPENSTACK_CONFIG_DB_KEY']
+        else:
+            logger.critical('environment variable OPENSTACK_CONFIG_DB_KEY not set')
+            sys.exit(1)
+        try:
+            config = ConfigParser.RawConfigParser(**PARSER_OPTS)
+            logger.info("Using {0} as db config source".format(os_conf))
+            config.read(os_conf)
+            logger.info("Trying to load db config from {0}:{1}".format(
+                os_conf_section, os_conf_key))
+            user_db_conn = config.get(os_conf_section, os_conf_key)
+            logger.info("Got config from {0}".format(os_conf))
+        except:
+            logger.critical("Tried to load config from {0} but failed.".format(os_conf))
+            raise
+    elif "DB_CONNECTION" in os.environ:
+        user_db_conn = os.environ['DB_CONNECTION']
+        logger.info('Got config from DB_CONNECTION env var')
+    else:
+        logger.critical('Could not get db config, either from config file or env var')
+        sys.exit(1)
+    
+    # Root DB engine
+    try:
+        root_engine_full = create_engine(db_connection)
+        root_user = root_engine_full.url.username
+        root_password = root_engine_full.url.password
+        drivername = root_engine_full.url.drivername
+        host = root_engine_full.url.host
+        port = root_engine_full.url.port
+        root_engine_url = ''.join([drivername, '://', root_user, ':', root_password, '@', host, ':', str (port)])
+        root_engine = create_engine(root_engine_url, connect_args=ssl_args)
+        connection = root_engine.connect()
+        connection.close()
+        logger.info("Tested connection to DB @ {0}:{1} as {2}".format(
+            host, port, root_user))
+    except:
+        logger.critical('Could not connect to database as root user')
+        raise
+    
+    # User DB engine
+    try:
+        user_engine = create_engine(user_db_conn, connect_args=ssl_args)
+        # Get our user data out of the user_engine
+        database = user_engine.url.database
+        user = user_engine.url.username
+        password = user_engine.url.password
+        logger.info('Got user db config')
+    except:
+        logger.critical('Could not get user database config')
+        raise
+    
+    # Create DB
+    try:
+        root_engine.execute("CREATE DATABASE IF NOT EXISTS {0}".format(database))
+        logger.info("Created database {0}".format(database))
+    except:
+        logger.critical("Could not create database {0}".format(database))
+        raise
+    
+    # Create DB User
+    try:
+        root_engine.execute(
+            "GRANT ALL ON `{0}`.* TO \'{1}\'@\'%%\' IDENTIFIED BY \'{2}\' {3}".format(
+                database, user, password, mysql_x509))
+        logger.info("Created user {0} for {1}".format(user, database))
+    except:
+        logger.critical("Could not create user {0} for {1}".format(user, database))
+        raise
+    
+    # Test connection
+    try:
+        connection = user_engine.connect()
+        connection.close()
+        logger.info("Tested connection to DB @ {0}:{1}/{2} as {3}".format(
+            host, port, database, user))
+    except:
+        logger.critical('Could not connect to database as user')
+        raise
+    
+    logger.info('Finished DB Management')
+  db-sync.sh: |
+    #!/bin/bash
+    
+    
+    
+    set -ex
+    exec dmapi-dbsync
+    
+  db-drop.py: |    
+    #!/usr/bin/env python
+    
+    # Drops db and user for an OpenStack Service:
+    # Set ROOT_DB_CONNECTION and DB_CONNECTION environment variables to contain
+    # SQLAlchemy strings for the root connection to the database and the one you
+    # wish the service to use. Alternatively, you can use an ini formatted config
+    # at the location specified by OPENSTACK_CONFIG_FILE, and extract the string
+    # from the key OPENSTACK_CONFIG_DB_KEY, in the section specified by
+    # OPENSTACK_CONFIG_DB_SECTION.
+    
+    import os
+    import sys
+    try:
+        import ConfigParser
+        PARSER_OPTS = {}
+    except ImportError:
+        import configparser as ConfigParser
+        PARSER_OPTS = {"strict": False}
+    import logging
+    from sqlalchemy import create_engine
+    
+    # Create logger, console handler and formatter
+    logger = logging.getLogger('OpenStack-Helm DB Drop')
+    logger.setLevel(logging.DEBUG)
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.DEBUG)
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    
+    # Set the formatter and add the handler
+    ch.setFormatter(formatter)
+    logger.addHandler(ch)
+    
+    
+    # Get the connection string for the service db root user
+    if "ROOT_DB_CONNECTION" in os.environ:
+        db_connection = os.environ['ROOT_DB_CONNECTION']
+        logger.info('Got DB root connection')
+    else:
+        logger.critical('environment variable ROOT_DB_CONNECTION not set')
+        sys.exit(1)
+    
+    mysql_x509 = os.getenv('MARIADB_X509', "")
+    ssl_args = {}
+    if mysql_x509:
+        ssl_args = {'ssl': {'ca': '/etc/mysql/certs/ca.crt',
+                            'key': '/etc/mysql/certs/tls.key',
+                            'cert': '/etc/mysql/certs/tls.crt'}}
+    
+    # Get the connection string for the service db
+    if "OPENSTACK_CONFIG_FILE" in os.environ:
+        os_conf = os.environ['OPENSTACK_CONFIG_FILE']
+        if "OPENSTACK_CONFIG_DB_SECTION" in os.environ:
+            os_conf_section = os.environ['OPENSTACK_CONFIG_DB_SECTION']
+        else:
+            logger.critical('environment variable OPENSTACK_CONFIG_DB_SECTION not set')
+            sys.exit(1)
+        if "OPENSTACK_CONFIG_DB_KEY" in os.environ:
+            os_conf_key = os.environ['OPENSTACK_CONFIG_DB_KEY']
+        else:
+            logger.critical('environment variable OPENSTACK_CONFIG_DB_KEY not set')
+            sys.exit(1)
+        try:
+            config = ConfigParser.RawConfigParser(**PARSER_OPTS)
+            logger.info("Using {0} as db config source".format(os_conf))
+            config.read(os_conf)
+            logger.info("Trying to load db config from {0}:{1}".format(
+                os_conf_section, os_conf_key))
+            user_db_conn = config.get(os_conf_section, os_conf_key)
+            logger.info("Got config from {0}".format(os_conf))
+        except:
+            logger.critical("Tried to load config from {0} but failed.".format(os_conf))
+            raise
+    elif "DB_CONNECTION" in os.environ:
+        user_db_conn = os.environ['DB_CONNECTION']
+        logger.info('Got config from DB_CONNECTION env var')
+    else:
+        logger.critical('Could not get db config, either from config file or env var')
+        sys.exit(1)
+    
+    # Root DB engine
+    try:
+        root_engine_full = create_engine(db_connection)
+        root_user = root_engine_full.url.username
+        root_password = root_engine_full.url.password
+        drivername = root_engine_full.url.drivername
+        host = root_engine_full.url.host
+        port = root_engine_full.url.port
+        root_engine_url = ''.join([drivername, '://', root_user, ':', root_password, '@', host, ':', str (port)])
+        root_engine = create_engine(root_engine_url, connect_args=ssl_args)
+        connection = root_engine.connect()
+        connection.close()
+        logger.info("Tested connection to DB @ {0}:{1} as {2}".format(
+            host, port, root_user))
+    except:
+        logger.critical('Could not connect to database as root user')
+        raise
+    
+    # User DB engine
+    try:
+        user_engine = create_engine(user_db_conn, connect_args=ssl_args)
+        # Get our user data out of the user_engine
+        database = user_engine.url.database
+        user = user_engine.url.username
+        password = user_engine.url.password
+        logger.info('Got user db config')
+    except:
+        logger.critical('Could not get user database config')
+        raise
+    
+    # Delete DB
+    try:
+        root_engine.execute("DROP DATABASE IF EXISTS {0}".format(database))
+        logger.info("Deleted database {0}".format(database))
+    except:
+        logger.critical("Could not drop database {0}".format(database))
+        raise
+    
+    # Delete DB User
+    try:
+        root_engine.execute("DROP USER IF EXISTS {0}".format(user))
+        logger.info("Deleted user {0}".format(user))
+    except:
+        logger.critical("Could not delete user {0}".format(user))
+        raise
+    
+    logger.info('Finished DB Management')
+  triliovault-api.sh: |
+    #!/bin/bash
+    
+    
+    
+    set -ex
+    exec /usr/bin/dmapi-api
+    
+  triliovault-contego.sh: |
+    #!/bin/bash
+    
+    
+    
+    set -ex
+    apt update && apt install -y python3-rbd python3-rados ceph-common sg3-utils multipath-tools
+    sed -i 's/stack-volumes-lvmdriver-1/cinder-vol/' /usr/lib/python3/dist-packages/contego/nova/extension/driver/backends/cinder_backend.py
+    /usr/bin/s3vaultfuse.py --config-file=/etc/tvault-object-store.conf &
+    exec /usr/bin/tvault-contego --config-file=/etc/nova/nova.conf --config-file=/etc/tvault-contego/tvault-contego.conf
+    
+  wlm.sh: |
+    #!/bin/bash
+    
+    
+    
+    set -ex
+    ACTION="${@:-api}"
+    
+    case "$ACTION" in
+      api)
+        alembic --config=/etc/workloadmgr/alembic.ini upgrade head
+        ;;&
+      api|workloads)
+        sed -i "s/'service', 'tvault-object-store', 'status'/'echo', 'running'/" /usr/lib/python3/dist-packages/workloadmgr/vault/vault.py
+        /usr/bin/s3vaultfuse.py --config-file=/etc/tvault-object-store.conf &
+        ;;
+      cron)
+        sed -i "s/shutil.which('systemctl'), 'status', 'wlm-cron'/'true'/" /usr/lib/python3/dist-packages/workloadmgr/service.py
+        ;;
+    esac
+    
+    exec /usr/bin/workloadmgr-${ACTION} --config-file=/etc/workloadmgr/workloadmgr.conf
+    
+  ks-service.sh: |    
+    #!/bin/bash
+    
+    # Copyright 2017 Pete Birley
+    #
+    # Licensed under the Apache License, Version 2.0 (the "License");
+    # you may not use this file except in compliance with the License.
+    # You may obtain a copy of the License at
+    #
+    # http://www.apache.org/licenses/LICENSE-2.0
+    #
+    # Unless required by applicable law or agreed to in writing, software
+    # distributed under the License is distributed on an "AS IS" BASIS,
+    # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    # See the License for the specific language governing permissions and
+    # limitations under the License.
+    
+    set -ex
+    
+    # Service boilerplate description
+    OS_SERVICE_DESC="${OS_REGION_NAME}: ${OS_SERVICE_NAME} (${OS_SERVICE_TYPE}) service"
+    
+    # Get Service ID if it exists
+    unset OS_SERVICE_ID
+    
+    # FIXME - There seems to be an issue once in a while where the
+    # openstack service list fails and encounters an error message such as:
+    #   Unable to establish connection to
+    #   https://keystone-api.openstack.svc.cluster.local:5000/v3/auth/tokens:
+    #   ('Connection aborted.', OSError("(104, 'ECONNRESET')",))
+    # During an upgrade scenario, this would cause the OS_SERVICE_ID to be blank
+    # and it would attempt to create a new service when it was not needed.
+    # This duplciate service would sometimes be used by other services such as
+    # Horizon and would give an 'Invalid Service Catalog' error.
+    # This loop allows for a 'retry' of the openstack service list in an
+    # attempt to get the service list as expected if it does ecounter an error.
+    # This loop and recheck can be reverted once the underlying issue is addressed.
+    
+    # If OS_SERVICE_ID is blank then wait a few seconds to give it
+    # additional time and try again
+    for i in $(seq 3)
+    do
+      OS_SERVICE_ID=$( openstack service list -f csv --quote none | \
+                       grep ",${OS_SERVICE_NAME},${OS_SERVICE_TYPE}$" | \
+                       sed -e "s/,${OS_SERVICE_NAME},${OS_SERVICE_TYPE}//g" )
+    
+      # If the service was found, go ahead and exit successfully.
+      if [[ -n "${OS_SERVICE_ID}" ]]; then
+        exit 0
+      fi
+    
+      sleep 2
+    done
+    
+    # If we've reached this point and a Service ID was not found,
+    # then create the service
+    OS_SERVICE_ID=$(openstack service create -f value -c id \
+                    --name="${OS_SERVICE_NAME}" \
+                    --description "${OS_SERVICE_DESC}" \
+                    --enable \
+                    "${OS_SERVICE_TYPE}")
+  ks-endpoints.sh: |    
+    #!/bin/bash
+    
+    # Copyright 2017 Pete Birley
+    #
+    # Licensed under the Apache License, Version 2.0 (the "License");
+    # you may not use this file except in compliance with the License.
+    # You may obtain a copy of the License at
+    #
+    # http://www.apache.org/licenses/LICENSE-2.0
+    #
+    # Unless required by applicable law or agreed to in writing, software
+    # distributed under the License is distributed on an "AS IS" BASIS,
+    # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    # See the License for the specific language governing permissions and
+    # limitations under the License.
+    
+    set -ex
+    
+    # Get Service ID
+    OS_SERVICE_ID=$( openstack service list -f csv --quote none | \
+                      grep ",${OS_SERVICE_NAME},${OS_SERVICE_TYPE}$" | \
+                        sed -e "s/,${OS_SERVICE_NAME},${OS_SERVICE_TYPE}//g" )
+    
+    # Get Endpoint ID if it exists
+    OS_ENDPOINT_ID=$( openstack endpoint list  -f csv --quote none | \
+                      grep "^[a-z0-9]*,${OS_REGION_NAME},${OS_SERVICE_NAME},${OS_SERVICE_TYPE},True,${OS_SVC_ENDPOINT}," | \
+                      awk -F ',' '{ print $1 }' )
+    
+    # Making sure only a single endpoint exists for a service within a region
+    if [ "$(echo $OS_ENDPOINT_ID | wc -w)" -gt "1" ]; then
+      echo "More than one endpoint found, cleaning up"
+      for ENDPOINT_ID in $OS_ENDPOINT_ID; do
+        openstack endpoint delete ${ENDPOINT_ID}
+      done
+      unset OS_ENDPOINT_ID
+    fi
+    
+    # Determine if Endpoint needs updated
+    if [[ ${OS_ENDPOINT_ID} ]]; then
+      OS_ENDPOINT_URL_CURRENT=$(openstack endpoint show ${OS_ENDPOINT_ID} -f value -c url)
+      if [ "${OS_ENDPOINT_URL_CURRENT}" == "${OS_SERVICE_ENDPOINT}" ]; then
+        echo "Endpoints Match: no action required"
+        OS_ENDPOINT_UPDATE="False"
+      else
+        echo "Endpoints Dont Match: removing existing entries"
+        openstack endpoint delete ${OS_ENDPOINT_ID}
+        OS_ENDPOINT_UPDATE="True"
+      fi
+    else
+      OS_ENDPOINT_UPDATE="True"
+    fi
+    
+    # Update Endpoint if required
+    if [[ "${OS_ENDPOINT_UPDATE}" == "True" ]]; then
+      OS_ENDPOINT_ID=$( openstack endpoint create -f value -c id \
+        --region="${OS_REGION_NAME}" \
+        "${OS_SERVICE_ID}" \
+        ${OS_SVC_ENDPOINT} \
+        "${OS_SERVICE_ENDPOINT}" )
+    fi
+    
+    # Display the Endpoint
+    openstack endpoint show ${OS_ENDPOINT_ID}
+  ks-user.sh: |    
+    #!/bin/bash
+    
+    # Copyright 2017 Pete Birley
+    #
+    # Licensed under the Apache License, Version 2.0 (the "License");
+    # you may not use this file except in compliance with the License.
+    # You may obtain a copy of the License at
+    #
+    # http://www.apache.org/licenses/LICENSE-2.0
+    #
+    # Unless required by applicable law or agreed to in writing, software
+    # distributed under the License is distributed on an "AS IS" BASIS,
+    # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    # See the License for the specific language governing permissions and
+    # limitations under the License.
+    
+    set -ex
+    
+    shopt -s nocasematch
+    
+    if [[ "${SERVICE_OS_PROJECT_DOMAIN_NAME}" == "Default" ]]
+    then
+      PROJECT_DOMAIN_ID="default"
+    else
+      # Manage project domain
+      PROJECT_DOMAIN_ID=$(openstack domain create --or-show --enable -f value -c id \
+        --description="Domain for ${SERVICE_OS_REGION_NAME}/${SERVICE_OS_PROJECT_DOMAIN_NAME}" \
+        "${SERVICE_OS_PROJECT_DOMAIN_NAME}")
+    fi
+    
+    if [[ "${SERVICE_OS_USER_DOMAIN_NAME}" == "Default" ]]
+    then
+      USER_DOMAIN_ID="default"
+    else
+      # Manage user domain
+      USER_DOMAIN_ID=$(openstack domain create --or-show --enable -f value -c id \
+        --description="Domain for ${SERVICE_OS_REGION_NAME}/${SERVICE_OS_USER_DOMAIN_NAME}" \
+        "${SERVICE_OS_USER_DOMAIN_NAME}")
+    fi
+    
+    shopt -u nocasematch
+    
+    # Manage user project
+    USER_PROJECT_DESC="Service Project for ${SERVICE_OS_REGION_NAME}/${SERVICE_OS_PROJECT_DOMAIN_NAME}"
+    USER_PROJECT_ID=$(openstack project create --or-show --enable -f value -c id \
+        --domain="${PROJECT_DOMAIN_ID}" \
+        --description="${USER_PROJECT_DESC}" \
+        "${SERVICE_OS_PROJECT_NAME}");
+    
+    # Manage user
+    USER_DESC="Service User for ${SERVICE_OS_REGION_NAME}/${SERVICE_OS_USER_DOMAIN_NAME}/${SERVICE_OS_SERVICE_NAME}"
+    USER_ID=$(openstack user create --or-show --enable -f value -c id \
+        --domain="${USER_DOMAIN_ID}" \
+        --project-domain="${PROJECT_DOMAIN_ID}" \
+        --project="${USER_PROJECT_ID}" \
+        --description="${USER_DESC}" \
+        "${SERVICE_OS_USERNAME}");
+    
+    # Manage user password (we do this in a seperate step to ensure the password is updated if required)
+    set +x
+    echo "Setting user password via: openstack user set --password=xxxxxxx ${USER_ID}"
+    openstack user set --password="${SERVICE_OS_PASSWORD}" "${USER_ID}"
+    set -x
+    
+    function ks_assign_user_role () {
+      if [[ "$SERVICE_OS_ROLE" == "admin" ]]
+      then
+        USER_ROLE_ID="$SERVICE_OS_ROLE"
+      else
+        USER_ROLE_ID=$(openstack role create --or-show -f value -c id "${SERVICE_OS_ROLE}");
+      fi
+    
+      # Manage user role assignment
+      openstack role add \
+          --user="${USER_ID}" \
+          --user-domain="${USER_DOMAIN_ID}" \
+          --project-domain="${PROJECT_DOMAIN_ID}" \
+          --project="${USER_PROJECT_ID}" \
+          "${USER_ROLE_ID}"
+    }
+    
+    # Manage user service role
+    IFS=','
+    for SERVICE_OS_ROLE in ${SERVICE_OS_ROLES}; do
+      ks_assign_user_role
+    done
+    
+    # Manage user member role
+    : ${MEMBER_OS_ROLE:="member"}
+    export USER_ROLE_ID=$(openstack role create --or-show -f value -c id \
+        "${MEMBER_OS_ROLE}");
+    ks_assign_user_role
+  rabbit-init.sh: |    
+    #!/bin/bash
+    set -e
+    # Extract connection details
+    RABBIT_HOSTNAME=$(echo "${RABBITMQ_ADMIN_CONNECTION}" | \
+      awk -F'[@]' '{print $2}' | \
+      awk -F'[:/]' '{print $1}')
+    RABBIT_PORT=$(echo "${RABBITMQ_ADMIN_CONNECTION}" | \
+      awk -F'[@]' '{print $2}' | \
+      awk -F'[:/]' '{print $2}')
+    
+    # Extract Admin User creadential
+    RABBITMQ_ADMIN_USERNAME=$(echo "${RABBITMQ_ADMIN_CONNECTION}" | \
+      awk -F'[@]' '{print $1}' | \
+      awk -F'[//:]' '{print $4}')
+    RABBITMQ_ADMIN_PASSWORD=$(echo "${RABBITMQ_ADMIN_CONNECTION}" | \
+      awk -F'[@]' '{print $1}' | \
+      awk -F'[//:]' '{print $5}')
+    
+    # Extract User creadential
+    RABBITMQ_USERNAME=$(echo "${RABBITMQ_USER_CONNECTION}" | \
+      awk -F'[@]' '{print $1}' | \
+      awk -F'[//:]' '{print $4}')
+    RABBITMQ_PASSWORD=$(echo "${RABBITMQ_USER_CONNECTION}" | \
+      awk -F'[@]' '{print $1}' | \
+      awk -F'[//:]' '{print $5}')
+    
+    # Extract User vHost
+    RABBITMQ_VHOST=$(echo "${RABBITMQ_USER_CONNECTION}" | \
+      awk -F'[@]' '{print $2}' | \
+      awk -F'[:/]' '{print $3}')
+    # Resolve vHost to / if no value is set
+    RABBITMQ_VHOST="${RABBITMQ_VHOST:-/}"
+    
+    function rabbitmqadmin_cli () {
+      if [ -n "$RABBITMQ_X509" ]
+      then
+        rabbitmqadmin \
+          --ssl \
+          --ssl-disable-hostname-verification \
+          --ssl-ca-cert-file="${USER_CERT_PATH}/ca.crt" \
+          --ssl-cert-file="${USER_CERT_PATH}/tls.crt" \
+          --ssl-key-file="${USER_CERT_PATH}/tls.key" \
+          --host="${RABBIT_HOSTNAME}" \
+          --port="${RABBIT_PORT}" \
+          --username="${RABBITMQ_ADMIN_USERNAME}" \
+          --password="${RABBITMQ_ADMIN_PASSWORD}" \
+          ${@}
+      else
+        rabbitmqadmin \
+          --host="${RABBIT_HOSTNAME}" \
+          --port="${RABBIT_PORT}" \
+          --username="${RABBITMQ_ADMIN_USERNAME}" \
+          --password="${RABBITMQ_ADMIN_PASSWORD}" \
+          ${@}
+      fi
+    }
+    
+    echo "Managing: User: ${RABBITMQ_USERNAME}"
+    rabbitmqadmin_cli \
+      declare user \
+      name="${RABBITMQ_USERNAME}" \
+      password="${RABBITMQ_PASSWORD}" \
+      tags="user"
+    
+    if [ "${RABBITMQ_VHOST}" != "/" ]
+    then
+      echo "Managing: vHost: ${RABBITMQ_VHOST}"
+      rabbitmqadmin_cli \
+        declare vhost \
+        name="${RABBITMQ_VHOST}"
+    else
+      echo "Skipping root vHost declaration: vHost: ${RABBITMQ_VHOST}"
+    fi
+    
+    echo "Managing: Permissions: ${RABBITMQ_USERNAME} on ${RABBITMQ_VHOST}"
+    rabbitmqadmin_cli \
+      declare permission \
+      vhost="${RABBITMQ_VHOST}" \
+      user="${RABBITMQ_USERNAME}" \
+      configure=".*" \
+      write=".*" \
+      read=".*"
+    
+    if [ ! -z "$RABBITMQ_AUXILIARY_CONFIGURATION" ]
+    then
+      echo "Applying additional configuration"
+      echo "${RABBITMQ_AUXILIARY_CONFIGURATION}" > /tmp/rmq_definitions.json
+      rabbitmqadmin_cli import /tmp/rmq_definitions.json
+    fi
+
+---
+# Source: triliovault/templates/daemonset-datamover.yaml
+
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: triliovault-datamover
+  namespace: default
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: triliovault-datamover
+  annotations:
+    "openstackhelm.openstack.org/release_uuid": ""
+  labels:
+    release_group: release-name
+    application: triliovault
+    component: datamover
+spec:
+  selector:
+    matchLabels:
+      release_group: release-name
+      application: triliovault
+      component: datamover
+  
+  minReadySeconds: 0
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        release_group: release-name
+        application: triliovault
+        component: datamover
+      annotations:
+        "openstackhelm.openstack.org/release_uuid": ""
+        configmap-bin-hash: "2fd5562aa2863a84adc560620fad3d716076259c432288dd24009f1f0ef945f9"
+        configmap-etc-hash: "912be64ae6643472bb0378de708a736c1c2f715f53ad7afe4a95bb700661ca25"
+    spec:
+      serviceAccountName: triliovault-datamover
+      securityContext:
+      affinity:
+        
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                  - key: release_group
+                    operator: In
+                    values:
+                    - release-name
+                  - key: application
+                    operator: In
+                    values:
+                    - triliovault
+                  - key: component
+                    operator: In
+                    values:
+                    - datamover
+                  
+              topologyKey: kubernetes.io/hostname
+            weight: 10
+      hostNetwork: true
+      hostPID: true
+      hostIPC: true
+      dnsPolicy: ClusterFirstWithHostNet
+      nodeSelector:
+        openstack-compute-node: enabled
+      initContainers:
+        
+        - name: init
+          image: "quay.io/airshipit/kubernetes-entrypoint:v1.0.0"
+          imagePullPolicy: IfNotPresent  
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsUser: 65534
+            
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.name
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.namespace
+            - name: INTERFACE_NAME
+              value: eth0
+            - name: PATH
+              value: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/
+            - name: DEPENDENCY_SERVICE
+              value: ""
+            - name: DEPENDENCY_DAEMONSET
+              value: ""
+            - name: DEPENDENCY_CONTAINER
+              value: ""
+            - name: DEPENDENCY_POD_JSON
+              value: ""
+            - name: DEPENDENCY_CUSTOM_RESOURCE
+              value: ""
+          command:
+            - kubernetes-entrypoint
+          volumeMounts:
+            null
+            
+      containers:
+        - name: triliovault-datamover
+          image: "docker.io/kolla/ubuntu-source-tvault-api:ocata"
+          imagePullPolicy: IfNotPresent
+          
+          
+          command:
+            - /tmp/triliovault-datamover.sh
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: trilio-mounts
+              mountPath: /var/triliovault-mounts
+            - name: triliovault-etc
+              mountPath: /etc/triliovault-datamover/triliovault-datamover.conf
+              subPath: datamover.conf
+              readOnly: true
+            - mountPath: /etc/triliovault-object-store.conf
+              name: triliovault-etc
+              readOnly: true
+              subPath: tvostore.conf
+            - mountPath: /etc/fuse.conf
+              name: triliovault-etc
+              readOnly: true
+              subPath: fuse.conf
+            - mountPath: /etc/s3.cert
+              name: triliovault-etc
+              readOnly: true
+              subPath: s3cert
+            - name: triliovault-bin
+              mountPath: /tmp/triliovault-datamover.sh
+              subPath: triliovault-datamover.sh
+              readOnly: true
+            - name: varlibnova
+              mountPath: /var/lib/nova
+            - name: varliblibvirt
+              mountPath: /var/lib/libvirt
+            - name: run
+              mountPath: /run
+            - name: cgroup
+              mountPath: /sys/fs/cgroup
+            - name: machine-id
+              mountPath: /etc/machine-id
+              readOnly: true
+            - name: nova-etc
+              mountPath: /etc/nova/nova.conf
+              subPath: nova-compute.conf
+              readOnly: true
+            - name: nova-etc
+              mountPath: /etc/nova/api-paste.ini
+              subPath: api-paste.ini
+              readOnly: true
+            - name: triliovault-etc
+              mountPath: /etc/nova/logging.conf
+              subPath: logging.conf
+              readOnly: true
+            - name: nova-etc
+              mountPath: /etc/nova/policy.yaml
+              subPath: policy.yaml
+              readOnly: true
+            - name: nova-etc
+              mountPath: /etc/sudoers.d/kolla_nova_sudoers
+              subPath: nova_sudoers
+              readOnly: true
+            - name: etcceph
+              mountPath: /etc/ceph
+              mountPropagation: Bidirectional
+            - name: dev
+              mountPath: /dev
+              mountPropagation: HostToContainer
+
+      volumes:
+        - name: pod-tmp
+          emptyDir: {}
+        - name: trilio-mounts
+          emptyDir: {}
+        - name: triliovault-etc
+          secret:
+            secretName: triliovault-etc
+            defaultMode: 0444
+        - name: triliovault-bin
+          configMap:
+            name: triliovault-bin
+            defaultMode: 0555
+        - name: varlibnova
+          hostPath:
+            path: /var/lib/nova
+        - name: varliblibvirt
+          hostPath:
+            path: /var/lib/libvirt
+        - name: run
+          hostPath:
+            path: /run
+        - name: cgroup
+          hostPath:
+            path: /sys/fs/cgroup
+        - name: machine-id
+          hostPath:
+            path: /etc/machine-id
+        - name: nova-etc
+          secret:
+            secretName: nova-compute-default
+            defaultMode: 0444
+        - name: etcceph
+          hostPath:
+            path: /var/lib/openstack-helm/compute/nova
+        - name: libmodules
+          hostPath:
+            path: /lib/modules
+        - name: dev
+          hostPath:
+            path: /dev
+
+
+---
+# Source: triliovault/templates/deployment-dmapi.yaml
+
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: dm-api
+  namespace: default
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: release-name-dm-api
+  namespace: default
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: release-name-default-dm-api
+subjects:
+  - kind: ServiceAccount
+    name: dm-api
+    namespace: default
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: release-name-default-dm-api
+  namespace: default
+rules:
+  - apiGroups:
+      - ""
+      - extensions
+      - batch
+      - apps
+    verbs:
+      - get
+      - list
+    resources:
+      - services
+      - endpoints
+      - jobs
+      - pods
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dm-api
+  annotations:
+    "openstackhelm.openstack.org/release_uuid": ""
+  labels:
+    release_group: release-name
+    application: triliovault
+    component: api
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      release_group: release-name
+      application: triliovault
+      component: api
+  revisionHistoryLimit: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 3
+  template:
+    metadata:
+      labels:
+        release_group: release-name
+        application: triliovault
+        component: api
+      annotations:
+        "openstackhelm.openstack.org/release_uuid": ""
+        configmap-bin-hash: "2fd5562aa2863a84adc560620fad3d716076259c432288dd24009f1f0ef945f9"
+        configmap-etc-hash: "912be64ae6643472bb0378de708a736c1c2f715f53ad7afe4a95bb700661ca25"
+    spec:
+      serviceAccountName: dm-api
+      securityContext:
+      affinity:
+        
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                  - key: release_group
+                    operator: In
+                    values:
+                    - release-name
+                  - key: application
+                    operator: In
+                    values:
+                    - triliovault
+                  - key: component
+                    operator: In
+                    values:
+                    - api
+                  
+              topologyKey: kubernetes.io/hostname
+            weight: 10
+      nodeSelector:
+        openstack-control-plane: enabled
+      terminationGracePeriodSeconds: 30
+      initContainers:
+        
+        - name: init
+          image: "quay.io/airshipit/kubernetes-entrypoint:v1.0.0"
+          imagePullPolicy: IfNotPresent  
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsUser: 65534
+            
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.name
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.namespace
+            - name: INTERFACE_NAME
+              value: eth0
+            - name: PATH
+              value: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/
+            - name: DEPENDENCY_SERVICE
+              value: "default:mariadb,default:keystone-api"
+            - name: DEPENDENCY_JOBS
+              value: "triliovault-db-sync,triliovault-ks-user,triliovault-ks-endpoints"
+            - name: DEPENDENCY_DAEMONSET
+              value: ""
+            - name: DEPENDENCY_CONTAINER
+              value: ""
+            - name: DEPENDENCY_POD_JSON
+              value: ""
+            - name: DEPENDENCY_CUSTOM_RESOURCE
+              value: ""
+          command:
+            - kubernetes-entrypoint
+          volumeMounts:
+            null
+            
+      containers:
+        - name: dm-api
+          image: "docker.io/kolla/ubuntu-source-tvault-api:ocata"
+          imagePullPolicy: IfNotPresent
+          
+          
+          command:
+            - /tmp/dm-api.sh
+          ports:
+            - name: t-api
+              containerPort: 8785
+          readinessProbe:
+            tcpSocket:
+              port: 8785
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: triliovault-etc
+              mountPath: /etc/dmapi/dmapi.conf
+              subPath: dmapi.conf
+              readOnly: true
+            - name: triliovault-etc
+              mountPath: /etc/dmapi/logging.conf
+              subPath: logging.conf
+              readOnly: true
+            - name: triliovault-bin
+              mountPath: /tmp/dm-api.sh
+              subPath: dm-api.sh
+              readOnly: true
+
+      volumes:
+        - name: pod-tmp
+          emptyDir: {}
+        - name: triliovault-etc
+          secret:
+            secretName: triliovault-etc
+            defaultMode: 0444
+        - name: triliovault-bin
+          configMap:
+            name: triliovault-bin
+            defaultMode: 0555
+
+
+---
+# Source: triliovault/templates/deployment-wlm-api.yaml
+
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: triliovault-wlm-api
+  namespace: default
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: release-name-triliovault-wlm-api
+  namespace: default
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: release-name-default-triliovault-wlm-api
+subjects:
+  - kind: ServiceAccount
+    name: triliovault-wlm-api
+    namespace: default
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: release-name-default-triliovault-wlm-api
+  namespace: default
+rules:
+  - apiGroups:
+      - ""
+      - extensions
+      - batch
+      - apps
+    verbs:
+      - get
+      - list
+    resources:
+      - services
+      - endpoints
+      - jobs
+      - pods
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: triliovault-wlm-api
+  annotations:
+    "openstackhelm.openstack.org/release_uuid": ""
+  labels:
+    release_group: release-name
+    application: triliovault
+    component: wlm-api
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      release_group: release-name
+      application: triliovault
+      component: wlm-api
+  revisionHistoryLimit: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 3
+  template:
+    metadata:
+      labels:
+        release_group: release-name
+        application: triliovault
+        component: wlm-api
+      annotations:
+        "openstackhelm.openstack.org/release_uuid": ""
+        configmap-bin-hash: "2fd5562aa2863a84adc560620fad3d716076259c432288dd24009f1f0ef945f9"
+        configmap-etc-hash: "912be64ae6643472bb0378de708a736c1c2f715f53ad7afe4a95bb700661ca25"
+    spec:
+      serviceAccountName: triliovault-wlm-api
+      securityContext:
+      affinity:
+        
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                  - key: release_group
+                    operator: In
+                    values:
+                    - release-name
+                  - key: application
+                    operator: In
+                    values:
+                    - triliovault
+                  - key: component
+                    operator: In
+                    values:
+                    - api
+                  
+              topologyKey: kubernetes.io/hostname
+            weight: 10
+      nodeSelector:
+        openstack-control-plane: enabled
+      terminationGracePeriodSeconds: 30
+      initContainers:
+        
+        - name: init
+          image: "quay.io/airshipit/kubernetes-entrypoint:v1.0.0"
+          imagePullPolicy: IfNotPresent  
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsUser: 65534
+            
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.name
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.namespace
+            - name: INTERFACE_NAME
+              value: eth0
+            - name: PATH
+              value: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/
+            - name: DEPENDENCY_SERVICE
+              value: "default:mariadb,default:keystone-api"
+            - name: DEPENDENCY_JOBS
+              value: "triliovault-db-sync,triliovault-ks-user,triliovault-ks-endpoints"
+            - name: DEPENDENCY_DAEMONSET
+              value: ""
+            - name: DEPENDENCY_CONTAINER
+              value: ""
+            - name: DEPENDENCY_POD_JSON
+              value: ""
+            - name: DEPENDENCY_CUSTOM_RESOURCE
+              value: ""
+          command:
+            - kubernetes-entrypoint
+          volumeMounts:
+            null
+            
+      containers:
+        - name: triliovault-wlm-api
+          image: "docker.io/kolla/ubuntu-source-tvault-api:ocata"
+          imagePullPolicy: IfNotPresent
+          
+          
+          command:
+            - /tmp/triliovault-wlm-api.sh
+          ports:
+            - name: w-api
+              containerPort: 8780
+          readinessProbe:
+            tcpSocket:
+              port: 8780
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: trilio-mounts
+              mountPath: /var/triliovault-mounts
+            - name: triliovault-etc
+              mountPath: /etc/workloadmgr/workloadmgr.conf
+              subPath: workloadmgr.conf
+              readOnly: true
+            - name: triliovault-etc
+              mountPath: /etc/workloadmgr/api-paste.ini
+              subPath: api-paste.ini
+              readOnly: true
+            - name: triliovault-etc
+              mountPath: /etc/workloadmgr/alembic.ini
+              subPath: alembic.ini
+              readOnly: true
+            - mountPath: /etc/triliovault-object-store.conf
+              name: triliovault-etc
+              readOnly: true
+              subPath: tvostore.conf
+            - mountPath: /etc/fuse.conf
+              name: triliovault-etc
+              readOnly: true
+              subPath: fuse.conf
+            - mountPath: /etc/s3.cert
+              name: triliovault-etc
+              readOnly: true
+              subPath: s3cert
+            - name: triliovault-bin
+              mountPath: /tmp/triliovault-wlm-api.sh
+              subPath: wlm.sh
+              readOnly: true
+
+      volumes:
+        - name: pod-tmp
+          emptyDir: {}
+        - name: trilio-mounts
+          emptyDir: {}
+        - name: triliovault-etc
+          secret:
+            secretName: triliovault-etc
+            defaultMode: 0444
+        - name: triliovault-bin
+          configMap:
+            name: triliovault-bin
+            defaultMode: 0555
+
+
+---
+# Source: triliovault/templates/deployment-wlm-cron.yaml
+
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: triliovault-wlm-cron
+  namespace: default
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: release-name-triliovault-wlm-cron
+  namespace: default
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: release-name-default-triliovault-wlm-cron
+subjects:
+  - kind: ServiceAccount
+    name: triliovault-wlm-cron
+    namespace: default
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: release-name-default-triliovault-wlm-cron
+  namespace: default
+rules:
+  - apiGroups:
+      - ""
+      - extensions
+      - batch
+      - apps
+    verbs:
+      - get
+      - list
+    resources:
+      - services
+      - endpoints
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: triliovault-wlm-cron
+  annotations:
+    "openstackhelm.openstack.org/release_uuid": ""
+  labels:
+    release_group: release-name
+    application: triliovault
+    component: wlm-cron
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      release_group: release-name
+      application: triliovault
+      component: wlm-cron
+  revisionHistoryLimit: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 3
+  template:
+    metadata:
+      labels:
+        release_group: release-name
+        application: triliovault
+        component: wlm-cron
+      annotations:
+        "openstackhelm.openstack.org/release_uuid": ""
+        configmap-bin-hash: "2fd5562aa2863a84adc560620fad3d716076259c432288dd24009f1f0ef945f9"
+        configmap-etc-hash: "912be64ae6643472bb0378de708a736c1c2f715f53ad7afe4a95bb700661ca25"
+    spec:
+      serviceAccountName: triliovault-wlm-cron
+      securityContext:
+      affinity:
+        
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                  - key: release_group
+                    operator: In
+                    values:
+                    - release-name
+                  - key: application
+                    operator: In
+                    values:
+                    - triliovault
+                  - key: component
+                    operator: In
+                    values:
+                    - api
+                  
+              topologyKey: kubernetes.io/hostname
+            weight: 10
+      nodeSelector:
+        openstack-control-plane: enabled
+      terminationGracePeriodSeconds: 30
+      hostPID: true
+      hostIPC: true
+      initContainers:
+        
+        - name: init
+          image: "quay.io/airshipit/kubernetes-entrypoint:v1.0.0"
+          imagePullPolicy: IfNotPresent  
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsUser: 65534
+            
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.name
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.namespace
+            - name: INTERFACE_NAME
+              value: eth0
+            - name: PATH
+              value: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/
+            - name: DEPENDENCY_SERVICE
+              value: "default:workloadmgr-api"
+            - name: DEPENDENCY_DAEMONSET
+              value: ""
+            - name: DEPENDENCY_CONTAINER
+              value: ""
+            - name: DEPENDENCY_POD_JSON
+              value: ""
+            - name: DEPENDENCY_CUSTOM_RESOURCE
+              value: ""
+          command:
+            - kubernetes-entrypoint
+          volumeMounts:
+            null
+            
+      containers:
+        - name: triliovault-wlm-cron
+          image: "docker.io/kolla/ubuntu-source-tvault-api:ocata"
+          imagePullPolicy: IfNotPresent
+          
+          
+          command:
+            - /tmp/triliovault-wlm-cron.sh
+            - cron
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: triliovault-etc
+              mountPath: /etc/workloadmgr/workloadmgr.conf
+              subPath: workloadmgr.conf
+              readOnly: true
+            - name: triliovault-etc
+              mountPath: /etc/workloadmgr/api-paste.ini
+              subPath: api-paste.ini
+              readOnly: true
+            - name: triliovault-etc
+              mountPath: /etc/workloadmgr/alembic.ini
+              subPath: alembic.ini
+              readOnly: true
+            - name: triliovault-bin
+              mountPath: /tmp/triliovault-wlm-cron.sh
+              subPath: wlm.sh
+              readOnly: true
+
+      volumes:
+        - name: pod-tmp
+          emptyDir: {}
+        - name: triliovault-etc
+          secret:
+            secretName: triliovault-etc
+            defaultMode: 0444
+        - name: triliovault-bin
+          configMap:
+            name: triliovault-bin
+            defaultMode: 0555
+
+
+---
+# Source: triliovault/templates/deployment-wlm-scheduler.yaml
+
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: triliovault-wlm-scheduler
+  namespace: default
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: release-name-triliovault-wlm-scheduler
+  namespace: default
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: release-name-default-triliovault-wlm-scheduler
+subjects:
+  - kind: ServiceAccount
+    name: triliovault-wlm-scheduler
+    namespace: default
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: release-name-default-triliovault-wlm-scheduler
+  namespace: default
+rules:
+  - apiGroups:
+      - ""
+      - extensions
+      - batch
+      - apps
+    verbs:
+      - get
+      - list
+    resources:
+      - services
+      - endpoints
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: triliovault-wlm-scheduler
+  annotations:
+    "openstackhelm.openstack.org/release_uuid": ""
+  labels:
+    release_group: release-name
+    application: triliovault
+    component: wlm-scheduler
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      release_group: release-name
+      application: triliovault
+      component: wlm-scheduler
+  revisionHistoryLimit: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 3
+  template:
+    metadata:
+      labels:
+        release_group: release-name
+        application: triliovault
+        component: wlm-scheduler
+      annotations:
+        "openstackhelm.openstack.org/release_uuid": ""
+        configmap-bin-hash: "2fd5562aa2863a84adc560620fad3d716076259c432288dd24009f1f0ef945f9"
+        configmap-etc-hash: "912be64ae6643472bb0378de708a736c1c2f715f53ad7afe4a95bb700661ca25"
+    spec:
+      serviceAccountName: triliovault-wlm-scheduler
+      securityContext:
+      affinity:
+        
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                  - key: release_group
+                    operator: In
+                    values:
+                    - release-name
+                  - key: application
+                    operator: In
+                    values:
+                    - triliovault
+                  - key: component
+                    operator: In
+                    values:
+                    - api
+                  
+              topologyKey: kubernetes.io/hostname
+            weight: 10
+      nodeSelector:
+        openstack-control-plane: enabled
+      terminationGracePeriodSeconds: 30
+      initContainers:
+        
+        - name: init
+          image: "quay.io/airshipit/kubernetes-entrypoint:v1.0.0"
+          imagePullPolicy: IfNotPresent  
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsUser: 65534
+            
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.name
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.namespace
+            - name: INTERFACE_NAME
+              value: eth0
+            - name: PATH
+              value: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/
+            - name: DEPENDENCY_SERVICE
+              value: "default:workloadmgr-api"
+            - name: DEPENDENCY_DAEMONSET
+              value: ""
+            - name: DEPENDENCY_CONTAINER
+              value: ""
+            - name: DEPENDENCY_POD_JSON
+              value: ""
+            - name: DEPENDENCY_CUSTOM_RESOURCE
+              value: ""
+          command:
+            - kubernetes-entrypoint
+          volumeMounts:
+            null
+            
+      containers:
+        - name: triliovault-wlm-scheduler
+          image: "docker.io/kolla/ubuntu-source-tvault-api:ocata"
+          imagePullPolicy: IfNotPresent
+          
+          
+          command:
+            - /tmp/triliovault-wlm-scheduler.sh
+            - scheduler
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: trilio-mounts
+              mountPath: /var/triliovault-mounts
+            - name: triliovault-etc
+              mountPath: /etc/workloadmgr/workloadmgr.conf
+              subPath: workloadmgr.conf
+              readOnly: true
+            - name: triliovault-etc
+              mountPath: /etc/workloadmgr/api-paste.ini
+              subPath: api-paste.ini
+              readOnly: true
+            - name: triliovault-etc
+              mountPath: /etc/workloadmgr/alembic.ini
+              subPath: alembic.ini
+              readOnly: true
+            - name: triliovault-bin
+              mountPath: /tmp/triliovault-wlm-scheduler.sh
+              subPath: wlm.sh
+              readOnly: true
+
+      volumes:
+        - name: pod-tmp
+          emptyDir: {}
+        - name: trilio-mounts
+          emptyDir: {}
+        - name: triliovault-etc
+          secret:
+            secretName: triliovault-etc
+            defaultMode: 0444
+        - name: triliovault-bin
+          configMap:
+            name: triliovault-bin
+            defaultMode: 0555
+
+
+---
+# Source: triliovault/templates/deployment-wlm-workloads.yaml
+
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: triliovault-wlm-workloads
+  namespace: default
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: release-name-triliovault-wlm-workloads
+  namespace: default
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: release-name-default-triliovault-wlm-workloads
+subjects:
+  - kind: ServiceAccount
+    name: triliovault-wlm-workloads
+    namespace: default
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: release-name-default-triliovault-wlm-workloads
+  namespace: default
+rules:
+  - apiGroups:
+      - ""
+      - extensions
+      - batch
+      - apps
+    verbs:
+      - get
+      - list
+    resources:
+      - services
+      - endpoints
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: triliovault-wlm-workloads
+  annotations:
+    "openstackhelm.openstack.org/release_uuid": ""
+  labels:
+    release_group: release-name
+    application: triliovault
+    component: wlm-workloads
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      release_group: release-name
+      application: triliovault
+      component: wlm-workloads
+  revisionHistoryLimit: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 3
+  template:
+    metadata:
+      labels:
+        release_group: release-name
+        application: triliovault
+        component: wlm-workloads
+      annotations:
+        "openstackhelm.openstack.org/release_uuid": ""
+        configmap-bin-hash: "2fd5562aa2863a84adc560620fad3d716076259c432288dd24009f1f0ef945f9"
+        configmap-etc-hash: "912be64ae6643472bb0378de708a736c1c2f715f53ad7afe4a95bb700661ca25"
+    spec:
+      serviceAccountName: triliovault-wlm-workloads
+      securityContext:
+      affinity:
+        
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                  - key: release_group
+                    operator: In
+                    values:
+                    - release-name
+                  - key: application
+                    operator: In
+                    values:
+                    - triliovault
+                  - key: component
+                    operator: In
+                    values:
+                    - api
+                  
+              topologyKey: kubernetes.io/hostname
+            weight: 10
+      nodeSelector:
+        openstack-control-plane: enabled
+      terminationGracePeriodSeconds: 30
+      initContainers:
+        
+        - name: init
+          image: "quay.io/airshipit/kubernetes-entrypoint:v1.0.0"
+          imagePullPolicy: IfNotPresent  
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsUser: 65534
+            
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.name
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.namespace
+            - name: INTERFACE_NAME
+              value: eth0
+            - name: PATH
+              value: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/
+            - name: DEPENDENCY_SERVICE
+              value: "default:workloadmgr-api"
+            - name: DEPENDENCY_DAEMONSET
+              value: ""
+            - name: DEPENDENCY_CONTAINER
+              value: ""
+            - name: DEPENDENCY_POD_JSON
+              value: ""
+            - name: DEPENDENCY_CUSTOM_RESOURCE
+              value: ""
+          command:
+            - kubernetes-entrypoint
+          volumeMounts:
+            null
+            
+      containers:
+        - name: triliovault-wlm-workloads
+          image: "docker.io/kolla/ubuntu-source-tvault-api:ocata"
+          imagePullPolicy: IfNotPresent
+          
+          
+          command:
+            - /tmp/triliovault-wlm-workloads.sh
+            - workloads
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: trilio-mounts
+              mountPath: /var/triliovault-mounts
+            - name: triliovault-etc
+              mountPath: /etc/workloadmgr/workloadmgr.conf
+              subPath: workloadmgr.conf
+              readOnly: true
+            - name: triliovault-etc
+              mountPath: /etc/workloadmgr/api-paste.ini
+              subPath: api-paste.ini
+              readOnly: true
+            - name: triliovault-etc
+              mountPath: /etc/workloadmgr/alembic.ini
+              subPath: alembic.ini
+              readOnly: true
+            - mountPath: /etc/triliovault-object-store.conf
+              name: triliovault-etc
+              readOnly: true
+              subPath: tvostore.conf
+            - mountPath: /etc/fuse.conf
+              name: triliovault-etc
+              readOnly: true
+              subPath: fuse.conf
+            - mountPath: /etc/s3.cert
+              name: triliovault-etc
+              readOnly: true
+              subPath: s3cert
+            - name: triliovault-bin
+              mountPath: /tmp/triliovault-wlm-workloads.sh
+              subPath: wlm.sh
+              readOnly: true
+
+      volumes:
+        - name: pod-tmp
+          emptyDir: {}
+        - name: trilio-mounts
+          emptyDir: {}
+        - name: triliovault-etc
+          secret:
+            secretName: triliovault-etc
+            defaultMode: 0444
+        - name: triliovault-bin
+          configMap:
+            name: triliovault-bin
+            defaultMode: 0555
+
+
+---
+# Source: triliovault/templates/job-db-init.yaml
+
+
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: tvault-db-init
+  namespace: default
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: release-name-tvault-db-init
+  namespace: default
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: release-name-default-tvault-db-init
+subjects:
+  - kind: ServiceAccount
+    name: tvault-db-init
+    namespace: default
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: release-name-default-tvault-db-init
+  namespace: default
+rules:
+  - apiGroups:
+      - ""
+      - extensions
+      - batch
+      - apps
+    verbs:
+      - get
+      - list
+    resources:
+      - services
+      - endpoints
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "tvault-db-init"
+  labels:
+    release_group: release-name
+    application: tvault
+    component: db-init
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-weight: "-5"
+    
+spec:
+  backoffLimit: 1000
+  template:
+    metadata:
+      labels:
+        release_group: release-name
+        application: tvault
+        component: db-init
+      annotations:
+        "openstackhelm.openstack.org/release_uuid": ""
+    spec:
+      serviceAccountName: tvault-db-init
+      restartPolicy: OnFailure
+            
+      nodeSelector:
+        openstack-control-plane: enabled
+        
+      initContainers:
+        
+        - name: init
+          image: "quay.io/airshipit/kubernetes-entrypoint:v1.0.0"
+          imagePullPolicy: IfNotPresent  
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsUser: 65534
+            
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.name
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.namespace
+            - name: INTERFACE_NAME
+              value: eth0
+            - name: PATH
+              value: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/
+            - name: DEPENDENCY_SERVICE
+              value: "default:mariadb"
+            - name: DEPENDENCY_DAEMONSET
+              value: ""
+            - name: DEPENDENCY_CONTAINER
+              value: ""
+            - name: DEPENDENCY_POD_JSON
+              value: ""
+            - name: DEPENDENCY_CUSTOM_RESOURCE
+              value: ""
+          command:
+            - kubernetes-entrypoint
+          volumeMounts:
+            []
+            
+      containers:
+
+        - name: "tvault-db-init-0"
+          image: docker.io/openstackhelm/heat:ocata-ubuntu_xenial
+          imagePullPolicy: IfNotPresent
+          
+          env:
+            - name: ROOT_DB_CONNECTION
+              valueFrom:
+                secretKeyRef:
+                  name: "triliovault-db-admin"
+                  key: DB_CONNECTION
+            - name: OPENSTACK_CONFIG_FILE
+              value: "/etc/workloadmgr/workloadmgr.conf"
+            - name: OPENSTACK_CONFIG_DB_SECTION
+              value: "DEFAULT"
+            - name: OPENSTACK_CONFIG_DB_KEY
+              value: "sql_connection"
+          command:
+            - /tmp/db-init.py
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: db-init-sh
+              mountPath: /tmp/db-init.py
+              subPath: db-init.py
+              readOnly: true
+            - name: etc-service
+              mountPath: "/etc/workloadmgr"
+            - name: db-init-conf
+              mountPath: "/etc/workloadmgr/workloadmgr.conf"
+              subPath: "workloadmgr.conf"
+              readOnly: true
+            - name: db-init-conf
+              mountPath: "/etc/workloadmgr/logging.conf"
+              subPath: "logging.conf"
+              readOnly: true
+
+        - name: "tvault-db-init-1"
+          image: docker.io/openstackhelm/heat:ocata-ubuntu_xenial
+          imagePullPolicy: IfNotPresent
+          
+          env:
+            - name: ROOT_DB_CONNECTION
+              valueFrom:
+                secretKeyRef:
+                  name: "triliovault-db-admin"
+                  key: DB_CONNECTION
+            - name: OPENSTACK_CONFIG_FILE
+              value: "/etc/dmapi/dmapi.conf"
+            - name: OPENSTACK_CONFIG_DB_SECTION
+              value: "database"
+            - name: OPENSTACK_CONFIG_DB_KEY
+              value: "connection"
+          command:
+            - /tmp/db-init.py
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: db-init-sh
+              mountPath: /tmp/db-init.py
+              subPath: db-init.py
+              readOnly: true
+            - name: etc-service
+              mountPath: "/etc/dmapi"
+            - name: db-init-conf
+              mountPath: "/etc/dmapi/dmapi.conf"
+              subPath: "dmapi.conf"
+              readOnly: true
+            - name: db-init-conf
+              mountPath: "/etc/dmapi/logging.conf"
+              subPath: "logging.conf"
+              readOnly: true
+      volumes:
+        - name: pod-tmp
+          emptyDir: {}
+        - name: db-init-sh
+          configMap:
+            name: "tvault-bin"
+            defaultMode: 0555
+        - name: etc-service
+          emptyDir: {}
+        - name: db-init-conf
+          secret:
+            secretName: "tvault-etc"
+            defaultMode: 0444
+
+
+
+---
+# Source: triliovault/templates/job-db-sync.yaml
+
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: tvault-db-sync
+  namespace: default
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: release-name-tvault-db-sync
+  namespace: default
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: release-name-default-tvault-db-sync
+subjects:
+  - kind: ServiceAccount
+    name: tvault-db-sync
+    namespace: default
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: release-name-default-tvault-db-sync
+  namespace: default
+rules:
+  - apiGroups:
+      - ""
+      - extensions
+      - batch
+      - apps
+    verbs:
+      - get
+      - list
+    resources:
+      - services
+      - endpoints
+      - jobs
+      - pods
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "tvault-db-sync"
+  labels:
+    release_group: release-name
+    application: tvault
+    component: db-sync
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-weight: "-4"
+    
+spec:
+  backoffLimit: 1000
+  template:
+    metadata:
+      labels:
+        release_group: release-name
+        application: tvault
+        component: db-sync
+      annotations:
+        "openstackhelm.openstack.org/release_uuid": ""
+    spec:
+      serviceAccountName: tvault-db-sync
+      restartPolicy: OnFailure
+            
+      nodeSelector:
+        openstack-control-plane: enabled
+        
+      initContainers:
+        
+        - name: init
+          image: "quay.io/airshipit/kubernetes-entrypoint:v1.0.0"
+          imagePullPolicy: IfNotPresent  
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsUser: 65534
+            
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.name
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.namespace
+            - name: INTERFACE_NAME
+              value: eth0
+            - name: PATH
+              value: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/
+            - name: DEPENDENCY_SERVICE
+              value: "default:mariadb"
+            - name: DEPENDENCY_JOBS
+              value: "tvault-db-init"
+            - name: DEPENDENCY_DAEMONSET
+              value: ""
+            - name: DEPENDENCY_CONTAINER
+              value: ""
+            - name: DEPENDENCY_POD_JSON
+              value: ""
+            - name: DEPENDENCY_CUSTOM_RESOURCE
+              value: ""
+          command:
+            - kubernetes-entrypoint
+          volumeMounts:
+            []
+            
+      containers:
+        - name: "tvault-db-sync"
+          image: 
+          imagePullPolicy: "IfNotPresent"
+          
+          command:
+            - /bin/bash
+            - -c
+            - /tmp/db-sync.sh
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: db-sync-sh
+              mountPath: /tmp/db-sync.sh
+              subPath: db-sync.sh
+              readOnly: true
+            - name: etc-service
+              mountPath: "/etc/dmapi"
+            - name: db-sync-conf
+              mountPath: "/etc/dmapi/dmapi.conf"
+              subPath: "dmapi.conf"
+              readOnly: true
+            - name: db-sync-conf
+              mountPath: "/etc/dmapi/logging.conf"
+              subPath: "logging.conf"
+              readOnly: true            
+      volumes:
+        - name: pod-tmp
+          emptyDir: {}
+        - name: db-sync-sh
+          configMap:
+            name: "tvault-bin"
+            defaultMode: 0555
+        - name: etc-service
+          emptyDir: {}
+        - name: db-sync-conf
+          secret:
+            secretName: "tvault-etc"
+            defaultMode: 0444        
+
+
+
+
+---
+# Source: triliovault/templates/job-ks-endpoints.yaml
+
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: tvault-ks-endpoints
+  namespace: default
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: release-name-tvault-ks-endpoints
+  namespace: default
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: release-name-default-tvault-ks-endpoints
+subjects:
+  - kind: ServiceAccount
+    name: tvault-ks-endpoints
+    namespace: default
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: release-name-default-tvault-ks-endpoints
+  namespace: default
+rules:
+  - apiGroups:
+      - ""
+      - extensions
+      - batch
+      - apps
+    verbs:
+      - get
+      - list
+    resources:
+      - services
+      - endpoints
+      - jobs
+      - pods
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "tvault-ks-endpoints"
+  labels:
+    release_group: release-name
+    application: tvault
+    component: ks-endpoints
+  annotations:
+spec:
+  backoffLimit: 1000
+  template:
+    metadata:
+      labels:
+        release_group: release-name
+        application: tvault
+        component: ks-endpoints
+      annotations:
+        "openstackhelm.openstack.org/release_uuid": ""
+    spec:
+      serviceAccountName: tvault-ks-endpoints
+      restartPolicy: OnFailure
+            
+      nodeSelector:
+        openstack-control-plane: enabled
+        
+      initContainers:
+        
+        - name: init
+          image: "quay.io/airshipit/kubernetes-entrypoint:v1.0.0"
+          imagePullPolicy: IfNotPresent  
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsUser: 65534
+            
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.name
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.namespace
+            - name: INTERFACE_NAME
+              value: eth0
+            - name: PATH
+              value: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/
+            - name: DEPENDENCY_SERVICE
+              value: "default:keystone-api"
+            - name: DEPENDENCY_JOBS
+              value: "triliovault-ks-service"
+            - name: DEPENDENCY_DAEMONSET
+              value: ""
+            - name: DEPENDENCY_CONTAINER
+              value: ""
+            - name: DEPENDENCY_POD_JSON
+              value: ""
+            - name: DEPENDENCY_CUSTOM_RESOURCE
+              value: ""
+          command:
+            - kubernetes-entrypoint
+          volumeMounts:
+            []
+            
+      containers:
+        - name: "datamover-ks-endpoints-admin"
+          image: docker.io/openstackhelm/heat:ocata-ubuntu_xenial
+          imagePullPolicy: IfNotPresent
+          
+          command:
+            - /bin/bash
+            - -c
+            - /tmp/ks-endpoints.sh
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: ks-endpoints-sh
+              mountPath: /tmp/ks-endpoints.sh
+              subPath: ks-endpoints.sh
+              readOnly: true
+            
+          env:            
+            - name: OS_IDENTITY_API_VERSION
+              value: "3"
+            - name: OS_AUTH_URL
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_AUTH_URL
+            - name: OS_REGION_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_REGION_NAME
+            - name: OS_INTERFACE
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_INTERFACE
+            - name: OS_ENDPOINT_TYPE
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_INTERFACE
+            - name: OS_PROJECT_DOMAIN_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_PROJECT_DOMAIN_NAME
+            - name: OS_PROJECT_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_PROJECT_NAME
+            - name: OS_USER_DOMAIN_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_USER_DOMAIN_NAME
+            - name: OS_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_USERNAME
+            - name: OS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_PASSWORD
+            - name: OS_DEFAULT_DOMAIN
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_DEFAULT_DOMAIN
+            - name: OS_SVC_ENDPOINT
+              value: "admin"
+            - name: OS_SERVICE_NAME
+              value: "triliovault"
+            - name: OS_SERVICE_TYPE
+              value: "datamover"
+            - name: OS_SERVICE_ENDPOINT
+              value: "http://triliovault-api.default.svc.cluster.local:8785/v2"
+        - name: "datamover-ks-endpoints-internal"
+          image: docker.io/openstackhelm/heat:ocata-ubuntu_xenial
+          imagePullPolicy: IfNotPresent
+          
+          command:
+            - /bin/bash
+            - -c
+            - /tmp/ks-endpoints.sh
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: ks-endpoints-sh
+              mountPath: /tmp/ks-endpoints.sh
+              subPath: ks-endpoints.sh
+              readOnly: true
+            
+          env:            
+            - name: OS_IDENTITY_API_VERSION
+              value: "3"
+            - name: OS_AUTH_URL
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_AUTH_URL
+            - name: OS_REGION_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_REGION_NAME
+            - name: OS_INTERFACE
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_INTERFACE
+            - name: OS_ENDPOINT_TYPE
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_INTERFACE
+            - name: OS_PROJECT_DOMAIN_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_PROJECT_DOMAIN_NAME
+            - name: OS_PROJECT_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_PROJECT_NAME
+            - name: OS_USER_DOMAIN_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_USER_DOMAIN_NAME
+            - name: OS_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_USERNAME
+            - name: OS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_PASSWORD
+            - name: OS_DEFAULT_DOMAIN
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_DEFAULT_DOMAIN
+            - name: OS_SVC_ENDPOINT
+              value: "internal"
+            - name: OS_SERVICE_NAME
+              value: "triliovault"
+            - name: OS_SERVICE_TYPE
+              value: "datamover"
+            - name: OS_SERVICE_ENDPOINT
+              value: "http://triliovault-api.default.svc.cluster.local:8785/v2"
+        - name: "datamover-ks-endpoints-public"
+          image: docker.io/openstackhelm/heat:ocata-ubuntu_xenial
+          imagePullPolicy: IfNotPresent
+          
+          command:
+            - /bin/bash
+            - -c
+            - /tmp/ks-endpoints.sh
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: ks-endpoints-sh
+              mountPath: /tmp/ks-endpoints.sh
+              subPath: ks-endpoints.sh
+              readOnly: true
+            
+          env:            
+            - name: OS_IDENTITY_API_VERSION
+              value: "3"
+            - name: OS_AUTH_URL
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_AUTH_URL
+            - name: OS_REGION_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_REGION_NAME
+            - name: OS_INTERFACE
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_INTERFACE
+            - name: OS_ENDPOINT_TYPE
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_INTERFACE
+            - name: OS_PROJECT_DOMAIN_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_PROJECT_DOMAIN_NAME
+            - name: OS_PROJECT_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_PROJECT_NAME
+            - name: OS_USER_DOMAIN_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_USER_DOMAIN_NAME
+            - name: OS_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_USERNAME
+            - name: OS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_PASSWORD
+            - name: OS_DEFAULT_DOMAIN
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_DEFAULT_DOMAIN
+            - name: OS_SVC_ENDPOINT
+              value: "public"
+            - name: OS_SERVICE_NAME
+              value: "triliovault"
+            - name: OS_SERVICE_TYPE
+              value: "datamover"
+            - name: OS_SERVICE_ENDPOINT
+              value: "http://triliovault.default.svc.cluster.local/v2"
+        - name: "workloads-ks-endpoints-admin"
+          image: docker.io/openstackhelm/heat:ocata-ubuntu_xenial
+          imagePullPolicy: IfNotPresent
+          
+          command:
+            - /bin/bash
+            - -c
+            - /tmp/ks-endpoints.sh
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: ks-endpoints-sh
+              mountPath: /tmp/ks-endpoints.sh
+              subPath: ks-endpoints.sh
+              readOnly: true
+            
+          env:            
+            - name: OS_IDENTITY_API_VERSION
+              value: "3"
+            - name: OS_AUTH_URL
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_AUTH_URL
+            - name: OS_REGION_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_REGION_NAME
+            - name: OS_INTERFACE
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_INTERFACE
+            - name: OS_ENDPOINT_TYPE
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_INTERFACE
+            - name: OS_PROJECT_DOMAIN_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_PROJECT_DOMAIN_NAME
+            - name: OS_PROJECT_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_PROJECT_NAME
+            - name: OS_USER_DOMAIN_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_USER_DOMAIN_NAME
+            - name: OS_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_USERNAME
+            - name: OS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_PASSWORD
+            - name: OS_DEFAULT_DOMAIN
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_DEFAULT_DOMAIN
+            - name: OS_SVC_ENDPOINT
+              value: "admin"
+            - name: OS_SERVICE_NAME
+              value: "workloadmgr"
+            - name: OS_SERVICE_TYPE
+              value: "workloads"
+            - name: OS_SERVICE_ENDPOINT
+              value: "http://workloadmgr-api.default.svc.cluster.local:8780/v1/$(tenant_id)s"
+        - name: "workloads-ks-endpoints-internal"
+          image: docker.io/openstackhelm/heat:ocata-ubuntu_xenial
+          imagePullPolicy: IfNotPresent
+          
+          command:
+            - /bin/bash
+            - -c
+            - /tmp/ks-endpoints.sh
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: ks-endpoints-sh
+              mountPath: /tmp/ks-endpoints.sh
+              subPath: ks-endpoints.sh
+              readOnly: true
+            
+          env:            
+            - name: OS_IDENTITY_API_VERSION
+              value: "3"
+            - name: OS_AUTH_URL
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_AUTH_URL
+            - name: OS_REGION_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_REGION_NAME
+            - name: OS_INTERFACE
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_INTERFACE
+            - name: OS_ENDPOINT_TYPE
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_INTERFACE
+            - name: OS_PROJECT_DOMAIN_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_PROJECT_DOMAIN_NAME
+            - name: OS_PROJECT_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_PROJECT_NAME
+            - name: OS_USER_DOMAIN_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_USER_DOMAIN_NAME
+            - name: OS_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_USERNAME
+            - name: OS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_PASSWORD
+            - name: OS_DEFAULT_DOMAIN
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_DEFAULT_DOMAIN
+            - name: OS_SVC_ENDPOINT
+              value: "internal"
+            - name: OS_SERVICE_NAME
+              value: "workloadmgr"
+            - name: OS_SERVICE_TYPE
+              value: "workloads"
+            - name: OS_SERVICE_ENDPOINT
+              value: "http://workloadmgr-api.default.svc.cluster.local:8780/v1/$(tenant_id)s"
+        - name: "workloads-ks-endpoints-public"
+          image: docker.io/openstackhelm/heat:ocata-ubuntu_xenial
+          imagePullPolicy: IfNotPresent
+          
+          command:
+            - /bin/bash
+            - -c
+            - /tmp/ks-endpoints.sh
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: ks-endpoints-sh
+              mountPath: /tmp/ks-endpoints.sh
+              subPath: ks-endpoints.sh
+              readOnly: true
+            
+          env:            
+            - name: OS_IDENTITY_API_VERSION
+              value: "3"
+            - name: OS_AUTH_URL
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_AUTH_URL
+            - name: OS_REGION_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_REGION_NAME
+            - name: OS_INTERFACE
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_INTERFACE
+            - name: OS_ENDPOINT_TYPE
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_INTERFACE
+            - name: OS_PROJECT_DOMAIN_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_PROJECT_DOMAIN_NAME
+            - name: OS_PROJECT_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_PROJECT_NAME
+            - name: OS_USER_DOMAIN_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_USER_DOMAIN_NAME
+            - name: OS_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_USERNAME
+            - name: OS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_PASSWORD
+            - name: OS_DEFAULT_DOMAIN
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_DEFAULT_DOMAIN
+            - name: OS_SVC_ENDPOINT
+              value: "public"
+            - name: OS_SERVICE_NAME
+              value: "workloadmgr"
+            - name: OS_SERVICE_TYPE
+              value: "workloads"
+            - name: OS_SERVICE_ENDPOINT
+              value: "http://workloadmgr.default.svc.cluster.local/v1/$(tenant_id)s"
+      volumes:
+        - name: pod-tmp
+          emptyDir: {}
+        - name: ks-endpoints-sh
+          configMap:
+            name: "tvault-bin"
+            defaultMode: 0555        
+
+---
+# Source: triliovault/templates/job-ks-service.yaml
+
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: tvault-ks-service
+  namespace: default
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: release-name-tvault-ks-service
+  namespace: default
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: release-name-default-tvault-ks-service
+subjects:
+  - kind: ServiceAccount
+    name: tvault-ks-service
+    namespace: default
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: release-name-default-tvault-ks-service
+  namespace: default
+rules:
+  - apiGroups:
+      - ""
+      - extensions
+      - batch
+      - apps
+    verbs:
+      - get
+      - list
+    resources:
+      - services
+      - endpoints
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "tvault-ks-service"
+  labels:
+    release_group: release-name
+    application: tvault
+    component: ks-service
+  annotations:
+spec:
+  backoffLimit: 1000
+  template:
+    metadata:
+      labels:
+        release_group: release-name
+        application: tvault
+        component: ks-service
+      annotations:
+        "openstackhelm.openstack.org/release_uuid": ""
+    spec:
+      serviceAccountName: tvault-ks-service
+      restartPolicy: OnFailure
+            
+      nodeSelector:
+        openstack-control-plane: enabled
+        
+      initContainers:
+        
+        - name: init
+          image: "quay.io/airshipit/kubernetes-entrypoint:v1.0.0"
+          imagePullPolicy: IfNotPresent  
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsUser: 65534
+            
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.name
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.namespace
+            - name: INTERFACE_NAME
+              value: eth0
+            - name: PATH
+              value: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/
+            - name: DEPENDENCY_SERVICE
+              value: "default:keystone-api"
+            - name: DEPENDENCY_DAEMONSET
+              value: ""
+            - name: DEPENDENCY_CONTAINER
+              value: ""
+            - name: DEPENDENCY_POD_JSON
+              value: ""
+            - name: DEPENDENCY_CUSTOM_RESOURCE
+              value: ""
+          command:
+            - kubernetes-entrypoint
+          volumeMounts:
+            []
+            
+      containers:
+        - name: "datamover-ks-service-registration"
+          image: docker.io/openstackhelm/heat:ocata-ubuntu_xenial
+          imagePullPolicy: IfNotPresent
+          
+          command:
+            - /bin/bash
+            - -c
+            - /tmp/ks-service.sh
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: ks-service-sh
+              mountPath: /tmp/ks-service.sh
+              subPath: ks-service.sh
+              readOnly: true
+            
+          env:            
+            - name: OS_IDENTITY_API_VERSION
+              value: "3"
+            - name: OS_AUTH_URL
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_AUTH_URL
+            - name: OS_REGION_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_REGION_NAME
+            - name: OS_INTERFACE
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_INTERFACE
+            - name: OS_ENDPOINT_TYPE
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_INTERFACE
+            - name: OS_PROJECT_DOMAIN_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_PROJECT_DOMAIN_NAME
+            - name: OS_PROJECT_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_PROJECT_NAME
+            - name: OS_USER_DOMAIN_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_USER_DOMAIN_NAME
+            - name: OS_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_USERNAME
+            - name: OS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_PASSWORD
+            - name: OS_DEFAULT_DOMAIN
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_DEFAULT_DOMAIN
+            - name: OS_SERVICE_NAME
+              value: "triliovault"
+            - name: OS_SERVICE_TYPE
+              value: "datamover"
+        - name: "workloads-ks-service-registration"
+          image: docker.io/openstackhelm/heat:ocata-ubuntu_xenial
+          imagePullPolicy: IfNotPresent
+          
+          command:
+            - /bin/bash
+            - -c
+            - /tmp/ks-service.sh
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: ks-service-sh
+              mountPath: /tmp/ks-service.sh
+              subPath: ks-service.sh
+              readOnly: true
+            
+          env:            
+            - name: OS_IDENTITY_API_VERSION
+              value: "3"
+            - name: OS_AUTH_URL
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_AUTH_URL
+            - name: OS_REGION_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_REGION_NAME
+            - name: OS_INTERFACE
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_INTERFACE
+            - name: OS_ENDPOINT_TYPE
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_INTERFACE
+            - name: OS_PROJECT_DOMAIN_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_PROJECT_DOMAIN_NAME
+            - name: OS_PROJECT_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_PROJECT_NAME
+            - name: OS_USER_DOMAIN_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_USER_DOMAIN_NAME
+            - name: OS_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_USERNAME
+            - name: OS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_PASSWORD
+            - name: OS_DEFAULT_DOMAIN
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_DEFAULT_DOMAIN
+            - name: OS_SERVICE_NAME
+              value: "workloadmgr"
+            - name: OS_SERVICE_TYPE
+              value: "workloads"
+      volumes:
+        - name: pod-tmp
+          emptyDir: {}
+        - name: ks-service-sh
+          configMap:
+            name: "tvault-bin"
+            defaultMode: 0555        
+
+---
+# Source: triliovault/templates/job-ks-user.yaml
+
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: triliovault-ks-user
+  namespace: default
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: release-name-triliovault-ks-user
+  namespace: default
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: release-name-default-triliovault-ks-user
+subjects:
+  - kind: ServiceAccount
+    name: triliovault-ks-user
+    namespace: default
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: release-name-default-triliovault-ks-user
+  namespace: default
+rules:
+  - apiGroups:
+      - ""
+      - extensions
+      - batch
+      - apps
+    verbs:
+      - get
+      - list
+    resources:
+      - services
+      - endpoints
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "triliovault-ks-user"
+  labels:
+    release_group: release-name
+    application: triliovault
+    component: ks-user
+  annotations:
+spec:
+  backoffLimit: 1000
+  template:
+    metadata:
+      labels:
+        release_group: release-name
+        application: triliovault
+        component: ks-user
+      annotations:
+        "openstackhelm.openstack.org/release_uuid": ""
+    spec:
+      serviceAccountName: "triliovault-ks-user"
+      securityContext:
+      restartPolicy: OnFailure
+            
+      nodeSelector:
+        openstack-control-plane: enabled
+        
+      initContainers:
+        
+        - name: init
+          image: "quay.io/airshipit/kubernetes-entrypoint:v1.0.0"
+          imagePullPolicy: IfNotPresent  
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsUser: 65534
+            
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.name
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.namespace
+            - name: INTERFACE_NAME
+              value: eth0
+            - name: PATH
+              value: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/
+            - name: DEPENDENCY_SERVICE
+              value: "default:keystone-api"
+            - name: DEPENDENCY_DAEMONSET
+              value: ""
+            - name: DEPENDENCY_CONTAINER
+              value: ""
+            - name: DEPENDENCY_POD_JSON
+              value: ""
+            - name: DEPENDENCY_CUSTOM_RESOURCE
+              value: ""
+          command:
+            - kubernetes-entrypoint
+          volumeMounts:
+            []
+            
+      containers:
+        - name: ks-user
+          image: docker.io/openstackhelm/heat:ocata-ubuntu_xenial
+          imagePullPolicy: IfNotPresent
+          
+          
+          command:
+            - /bin/bash
+            - -c
+            - /tmp/ks-user.sh
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: ks-user-sh
+              mountPath: /tmp/ks-user.sh
+              subPath: ks-user.sh
+              readOnly: true
+            
+          env:            
+            - name: OS_IDENTITY_API_VERSION
+              value: "3"
+            - name: OS_AUTH_URL
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_AUTH_URL
+            - name: OS_REGION_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_REGION_NAME
+            - name: OS_INTERFACE
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_INTERFACE
+            - name: OS_ENDPOINT_TYPE
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_INTERFACE
+            - name: OS_PROJECT_DOMAIN_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_PROJECT_DOMAIN_NAME
+            - name: OS_PROJECT_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_PROJECT_NAME
+            - name: OS_USER_DOMAIN_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_USER_DOMAIN_NAME
+            - name: OS_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_USERNAME
+            - name: OS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_PASSWORD
+            - name: OS_DEFAULT_DOMAIN
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-admin
+                  key: OS_DEFAULT_DOMAIN
+            - name: SERVICE_OS_SERVICE_NAME
+              value: "triliovault"            
+            - name: SERVICE_OS_REGION_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-user
+                  key: OS_REGION_NAME
+            - name: SERVICE_OS_PROJECT_DOMAIN_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-user
+                  key: OS_PROJECT_DOMAIN_NAME
+            - name: SERVICE_OS_PROJECT_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-user
+                  key: OS_PROJECT_NAME
+            - name: SERVICE_OS_USER_DOMAIN_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-user
+                  key: OS_USER_DOMAIN_NAME
+            - name: SERVICE_OS_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-user
+                  key: OS_USERNAME
+            - name: SERVICE_OS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: triliovault-keystone-user
+                  key: OS_PASSWORD
+            - name: SERVICE_OS_ROLES
+              value: "admin"
+      volumes:
+        - name: pod-tmp
+          emptyDir: {}
+        - name: ks-user-sh
+          configMap:
+            name: "triliovault-bin"
+            defaultMode: 0555        
+
+---
+# Source: triliovault/templates/job-rabbit-init.yaml
+
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: tvault-rabbit-init
+  namespace: default
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: release-name-tvault-rabbit-init
+  namespace: default
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: release-name-default-tvault-rabbit-init
+subjects:
+  - kind: ServiceAccount
+    name: tvault-rabbit-init
+    namespace: default
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: release-name-default-tvault-rabbit-init
+  namespace: default
+rules:
+  - apiGroups:
+      - ""
+      - extensions
+      - batch
+      - apps
+    verbs:
+      - get
+      - list
+    resources:
+      - services
+      - endpoints
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "tvault-rabbit-init"
+  labels:
+    release_group: release-name
+    application: tvault
+    component: rabbit-init
+  annotations:
+spec:
+  backoffLimit: 1000
+  template:
+    metadata:
+      labels:
+        release_group: release-name
+        application: tvault
+        component: rabbit-init
+      annotations:
+        "openstackhelm.openstack.org/release_uuid": ""
+    spec:
+      serviceAccountName: "tvault-rabbit-init"
+      restartPolicy: OnFailure
+            
+      nodeSelector:
+        openstack-control-plane: enabled
+        
+      initContainers:
+        
+        - name: init
+          image: "quay.io/airshipit/kubernetes-entrypoint:v1.0.0"
+          imagePullPolicy: IfNotPresent  
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsUser: 65534
+            
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.name
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.namespace
+            - name: INTERFACE_NAME
+              value: eth0
+            - name: PATH
+              value: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/
+            - name: DEPENDENCY_SERVICE
+              value: "default:rabbitmq"
+            - name: DEPENDENCY_DAEMONSET
+              value: ""
+            - name: DEPENDENCY_CONTAINER
+              value: ""
+            - name: DEPENDENCY_POD_JSON
+              value: ""
+            - name: DEPENDENCY_CUSTOM_RESOURCE
+              value: ""
+          command:
+            - kubernetes-entrypoint
+          volumeMounts:
+            []
+            
+      containers:
+        - name: rabbit-init
+          image: "docker.io/rabbitmq:3.7-management"
+          imagePullPolicy: "IfNotPresent"
+          
+          command:
+            - /bin/bash
+            - -c
+            - /tmp/rabbit-init.sh
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: rabbit-init-sh
+              mountPath: /tmp/rabbit-init.sh
+              subPath: rabbit-init.sh
+              readOnly: true
+          env:
+          - name: RABBITMQ_ADMIN_CONNECTION
+            valueFrom:
+              secretKeyRef:
+                name: triliovault-rabbitmq-admin
+                key: RABBITMQ_CONNECTION
+          - name: RABBITMQ_USER_CONNECTION
+            valueFrom:
+              secretKeyRef:
+                name: 
+                key: RABBITMQ_CONNECTION
+      volumes:
+        - name: pod-tmp
+          emptyDir: {}
+        - name: rabbit-init-sh
+          configMap:
+            name: "tvault-bin"
+            defaultMode: 0555
+
+---
+# Source: triliovault/templates/service-api.yaml
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: triliovault-api
+spec:
+  ports:
+    - name: t-api
+      port: 8785
+      
+  selector:
+    release_group: release-name
+    application: tvault
+    component: api
+  
+
+---
+# Source: triliovault/templates/service-ingress-api.yaml
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: triliovault
+spec:
+  ports:
+    - name: http
+      port: 80
+    - name: https
+      port: 443
+  selector:
+    app: ingress-api
+
+---
+# Source: triliovault/templates/service-ingress-wlm.yaml
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: workloadmgr
+spec:
+  ports:
+    - name: http
+      port: 80
+    - name: https
+      port: 443
+  selector:
+    app: ingress-api
+
+---
+# Source: triliovault/templates/service-wlm.yaml
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: workloadmgr-api
+spec:
+  ports:
+    - name: w-api
+      port: 8780
+      
+  selector:
+    release_group: release-name
+    application: triliovault
+    component: wlm_api
+  
+
+---
+# Source: triliovault/templates/ingress-api.yaml
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: triliovault
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    
+spec:
+  rules:
+    - host: triliovault
+      http:
+        paths:
+          - path: /
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: triliovault-api
+                port:
+                  name: "t-api"
+    - host: triliovault.default
+      http:
+        paths:
+          - path: /
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: triliovault-api
+                port:
+                  name: "t-api"
+    - host: triliovault.default.svc.cluster.local
+      http:
+        paths:
+          - path: /
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: triliovault-api
+                port:
+                  name: "t-api"
+
+---
+# Source: triliovault/templates/ingress-wlm.yaml
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: workloadmgr
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    
+spec:
+  rules:
+    - host: workloadmgr
+      http:
+        paths:
+          - path: /
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: workloadmgr-api
+                port:
+                  name: "w-api"
+    - host: workloadmgr.default
+      http:
+        paths:
+          - path: /
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: workloadmgr-api
+                port:
+                  name: "w-api"
+    - host: workloadmgr.default.svc.cluster.local
+      http:
+        paths:
+          - path: /
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: workloadmgr-api
+                port:
+                  name: "w-api"
+
+---
+# Source: triliovault/templates/job-bootstrap.yaml
+
+
+---
+# Source: triliovault/templates/job-db-drop.yaml
+
+
+---
+# Source: triliovault/templates/job-image-repo-sync.yaml
+
+
+---
+# Source: triliovault/templates/network_policy.yaml
+
+---
+# Source: triliovault/templates/secret-ingress-tls.yaml
+
+

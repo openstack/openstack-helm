@@ -1,0 +1,97 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.deployment_api }}
+{{- $envAll := . }}
+
+{{- $mounts_triliovault_api := .Values.pod.mounts.triliovault_api.triliovault_api }}
+{{- $mounts_triliovault_api_init := .Values.pod.mounts.triliovault_api.init_container }}
+
+{{- $serviceAccountName := "dm-api" }}
+{{ tuple $envAll "api" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dm-api
+  annotations:
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+  labels:
+{{ tuple $envAll "triliovault" "api" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  replicas: {{ .Values.pod.replicas.dmapi }}
+  selector:
+    matchLabels:
+{{ tuple $envAll "triliovault" "api" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
+{{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_deployment" | indent 2 }}
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "triliovault" "api" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+{{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
+        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
+    spec:
+      serviceAccountName: {{ $serviceAccountName }}
+{{ dict "envAll" $envAll "application" "triliovault" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
+      affinity:
+{{ tuple $envAll "triliovault" "api" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
+      nodeSelector:
+        {{ .Values.labels.dmapi.node_selector_key }}: {{ .Values.labels.dmapi.node_selector_value }}
+      terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.api.timeout | default "30" }}
+      initContainers:
+{{ tuple $envAll "api" $mounts_triliovault_api_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+      containers:
+        - name: dm-api
+{{ tuple $envAll "triliovault_api" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.api | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "triliovault" "container" "triliovault_api" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          command:
+            - /tmp/dm-api.sh
+          ports:
+            - name: t-api
+              containerPort: {{ tuple "datamover" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+          readinessProbe:
+            tcpSocket:
+              port: {{ tuple "datamover" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: triliovault-etc
+              mountPath: /etc/dmapi/dmapi.conf
+              subPath: dmapi.conf
+              readOnly: true
+            - name: triliovault-etc
+              mountPath: /etc/dmapi/logging.conf
+              subPath: logging.conf
+              readOnly: true
+            - name: triliovault-bin
+              mountPath: /tmp/dm-api.sh
+              subPath: dm-api.sh
+              readOnly: true
+{{ if $mounts_triliovault_api.volumeMounts }}{{ toYaml $mounts_triliovault_api.volumeMounts | indent 12 }}{{ end }}
+      volumes:
+        - name: pod-tmp
+          emptyDir: {}
+        - name: triliovault-etc
+          secret:
+            secretName: triliovault-etc
+            defaultMode: 0444
+        - name: triliovault-bin
+          configMap:
+            name: triliovault-bin
+            defaultMode: 0555
+{{ if $mounts_triliovault_api.volumes }}{{ toYaml $mounts_triliovault_api.volumes | indent 8 }}{{ end }}
+{{- end }}

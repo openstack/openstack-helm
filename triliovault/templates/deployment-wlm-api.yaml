@@ -1,0 +1,123 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.deployment_api }}
+{{- $envAll := . }}
+
+{{- $mounts_triliovault_api := .Values.pod.mounts.triliovault_api.triliovault_api }}
+{{- $mounts_triliovault_api_init := .Values.pod.mounts.triliovault_api.init_container }}
+
+{{- $serviceAccountName := "triliovault-wlm-api" }}
+{{ tuple $envAll "wlm_api" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: triliovault-wlm-api
+  annotations:
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+  labels:
+{{ tuple $envAll "triliovault" "wlm-api" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  replicas: {{ .Values.pod.replicas.wlm_api }}
+  selector:
+    matchLabels:
+{{ tuple $envAll "triliovault" "wlm-api" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
+{{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_deployment" | indent 2 }}
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "triliovault" "wlm-api" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+{{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
+        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
+    spec:
+      serviceAccountName: {{ $serviceAccountName }}
+{{ dict "envAll" $envAll "application" "triliovault" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
+      affinity:
+{{ tuple $envAll "triliovault" "api" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
+      nodeSelector:
+        {{ .Values.labels.wlm_api.node_selector_key }}: {{ .Values.labels.wlm_api.node_selector_value }}
+      terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.api.timeout | default "30" }}
+      initContainers:
+{{ tuple $envAll "wlm_api" $mounts_triliovault_api_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+      containers:
+        - name: triliovault-wlm-api
+{{ tuple $envAll "triliovault_api" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.api | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "triliovault" "container" "triliovault_wlm_api" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          command:
+            - /tmp/triliovault-wlm-api.sh
+          ports:
+            - name: w-api
+              containerPort: {{ tuple "workloads" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+          readinessProbe:
+            tcpSocket:
+              port: {{ tuple "workloads" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: trilio-mounts
+              mountPath: /var/triliovault-mounts
+            - name: triliovault-etc
+              mountPath: /etc/workloadmgr/workloadmgr.conf
+              subPath: workloadmgr.conf
+              readOnly: true
+            {{- if .Values.conf.workloadmgr.DEFAULT.log_config_append }}
+            - name: triliovault-etc
+              mountPath: {{ .Values.conf.workloadmgr.DEFAULT.log_config_append }}
+              subPath: {{ base .Values.conf.workloadmgr.DEFAULT.log_config_append }}
+              readOnly: true
+            {{- end }}
+            - name: triliovault-etc
+              mountPath: /etc/workloadmgr/api-paste.ini
+              subPath: api-paste.ini
+              readOnly: true
+            - name: triliovault-etc
+              mountPath: /etc/workloadmgr/alembic.ini
+              subPath: alembic.ini
+              readOnly: true
+            - mountPath: /etc/triliovault-object-store.conf
+              name: triliovault-etc
+              readOnly: true
+              subPath: tvostore.conf
+            - mountPath: /etc/fuse.conf
+              name: triliovault-etc
+              readOnly: true
+              subPath: fuse.conf
+            - mountPath: /etc/s3.cert
+              name: triliovault-etc
+              readOnly: true
+              subPath: s3cert
+            - name: triliovault-bin
+              mountPath: /tmp/triliovault-wlm-api.sh
+              subPath: wlm.sh
+              readOnly: true
+{{ if $mounts_triliovault_api.volumeMounts }}{{ toYaml $mounts_triliovault_api.volumeMounts | indent 12 }}{{ end }}
+      volumes:
+        - name: pod-tmp
+          emptyDir: {}
+        - name: trilio-mounts
+          emptyDir: {}
+        - name: triliovault-etc
+          secret:
+            secretName: triliovault-etc
+            defaultMode: 0444
+        - name: triliovault-bin
+          configMap:
+            name: triliovault-bin
+            defaultMode: 0555
+{{ if $mounts_triliovault_api.volumes }}{{ toYaml $mounts_triliovault_api.volumes | indent 8 }}{{ end }}
+{{- end }}
