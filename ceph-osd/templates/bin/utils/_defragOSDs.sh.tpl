@@ -16,6 +16,8 @@ limitations under the License.
 
 set -ex
 
+source /tmp/utils-resolveLocations.sh
+
 if [ "x${STORAGE_TYPE%-*}" == "xblock" ]; then
   OSD_DEVICE=$(readlink -f ${STORAGE_LOCATION})
   ODEV=$(echo ${OSD_DEVICE} | sed 's/[0-9]//g' | cut -f 3 -d '/')
