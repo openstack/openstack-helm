@@ -269,7 +269,7 @@ list_archives() {
       echo "=============================================="
       for archive in $archives
       do
-        echo $archive | cut -d '/' -f 8
+        echo $archive | cut -d '/' -f8-
       done
       clean_and_exit 0 ""
     else
