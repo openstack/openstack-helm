@@ -62,4 +62,4 @@ openstack endpoint list
 
 # Delete the test pod if it still exists
 kubectl delete pods -l application=ceph,release_group=radosgw-openstack,component=rgw-test --namespace=openstack --ignore-not-found
-helm test radosgw-openstack --timeout 900
+helm test radosgw-openstack --namespace openstack --timeout 900s

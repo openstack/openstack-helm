@@ -159,7 +159,7 @@ helm upgrade --install grafana ./grafana \
 # Delete the test pod if it still exists
 kubectl delete pods -l application=grafana,release_group=grafana,component=test --namespace=osh-infra --ignore-not-found
 
-helm test grafana
+helm test grafana --namespace osh-infra
 
 echo "Get list of all configured datasources in Grafana"
 curl -u admin:password http://grafana.osh-infra.svc.cluster.local/api/datasources | jq -r .

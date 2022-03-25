@@ -83,4 +83,4 @@ helm upgrade --install tenant-ceph-openstack-config ./ceph-provisioners \
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack
 
-helm test tenant-ceph-openstack-config --timeout 600
+helm test tenant-ceph-openstack-config --namespace openstack --timeout 600s

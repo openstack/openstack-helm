@@ -19,6 +19,20 @@ make nfs-provisioner
 make redis
 make registry
 
+for NAMESPACE in docker-nfs docker-registry; do
+tee /tmp/${NAMESPACE}-ns.yaml << EOF
+apiVersion: v1
+kind: Namespace
+metadata:
+  labels:
+    kubernetes.io/metadata.name: ${NAMESPACE}
+    name: ${NAMESPACE}
+  name: ${NAMESPACE}
+EOF
+
+kubectl create -f /tmp/${NAMESPACE}-ns.yaml
+done
+
 #NOTE: Deploy nfs for the docker registry
 tee /tmp/docker-registry-nfs-provisioner.yaml << EOF
 labels:
@@ -55,4 +69,4 @@ helm upgrade --install docker-registry ./registry \
 # Delete the test pod if it still exists
 kubectl delete pods -l application=redis,release_group=docker-registry-redis,component=test --namespace=docker-registry --ignore-not-found
 #NOTE: Run helm tests
-helm test docker-registry-redis
+helm test docker-registry-redis --namespace docker-registry

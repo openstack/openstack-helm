@@ -71,7 +71,7 @@ helm upgrade --install radosgw-osh-infra ./ceph-rgw \
 # Delete the test pod if it still exists
 kubectl delete pods -l application=ceph,release_group=radosgw-osh-infra,component=rgw-test --namespace=osh-infra --ignore-not-found
 #NOTE: Test Deployment
-helm test radosgw-osh-infra --timeout 900
+helm test radosgw-osh-infra --namespace osh-infra --timeout 900s
 
 #NOTE: RGW needs to be restarted for placement-targets to become accessible
 kubectl delete pods -l application=ceph,component=rgw -n osh-infra

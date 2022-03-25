@@ -14,7 +14,7 @@
 set -ex
 
 : "${HELM_VERSION:="v3.6.3"}"
-: "${KUBE_VERSION:="v1.21.5"}"
+: "${KUBE_VERSION:="v1.19.16"}"
 : "${MINIKUBE_VERSION:="v1.22.0"}"
 : "${CALICO_VERSION:="v3.20"}"
 : "${YQ_VERSION:="v4.6.0"}"
@@ -100,6 +100,12 @@ Environment="NO_PROXY=${NO_PROXY}"
 EOF
 fi
 
+# Install required packages for K8s on host
+wget -q -O- 'https://download.ceph.com/keys/release.asc' | sudo apt-key add -
+RELEASE_NAME=$(grep 'CODENAME' /etc/lsb-release | awk -F= '{print $2}')
+sudo add-apt-repository "deb https://download.ceph.com/debian-nautilus/
+${RELEASE_NAME} main"
+
 sudo -E apt-get update
 sudo -E apt-get install -y \
   docker-ce \
@@ -116,7 +122,14 @@ sudo -E apt-get install -y \
   make \
   bc \
   git-review \
-  notary
+  notary \
+  ceph-common \
+  rbd-nbd \
+  nfs-common
+
+sudo -E tee /etc/modprobe.d/rbd.conf << EOF
+install rbd /bin/true
+EOF
 
 # Prepare tmpfs for etcd when running on CI
 # CI VMs can have slow I/O causing issues for etcd

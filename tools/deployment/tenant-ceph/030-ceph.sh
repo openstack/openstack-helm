@@ -145,7 +145,7 @@ done
 
 # Delete the test pod if it still exists
 kubectl delete pods -l application=ceph-osd,release_group=ceph-osd,component=test --namespace=ceph --ignore-not-found
-helm test ceph-osd --timeout 900
+helm test ceph-osd --namespace ceph --timeout 900s
 # Delete the test pod if it still exists
 kubectl delete pods -l application=ceph-client,release_group=ceph-client,component=test --namespace=ceph --ignore-not-found
-helm test ceph-client --timeout 900
+helm test ceph-client --namespace ceph --timeout 900s

@@ -1,1 +1,1 @@
-../common/005-deploy-k8s.sh
+../../gate/deploy-k8s.sh

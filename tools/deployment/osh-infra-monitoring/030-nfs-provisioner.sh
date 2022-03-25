@@ -16,6 +16,18 @@ set -xe
 
 make nfs-provisioner
 
+tee /tmp/nfs-ns.yaml << EOF
+apiVersion: v1
+kind: Namespace
+metadata:
+  labels:
+    kubernetes.io/metadata.name: nfs
+    name: nfs
+  name: nfs
+EOF
+
+kubectl create -f /tmp/nfs-ns.yaml
+
 #NOTE: Deploy nfs instance for logging, monitoring and alerting components
 tee /tmp/nfs-provisioner.yaml << EOF
 labels:

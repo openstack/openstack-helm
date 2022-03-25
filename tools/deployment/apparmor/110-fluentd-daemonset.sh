@@ -169,4 +169,4 @@ helm upgrade --install fluentd-daemonset ./fluentd \
 
 # Delete the test pod if it still exists
 kubectl delete pods -l application=fluentd,release_group=fluentd-daemonset,component=test --namespace=osh-infra --ignore-not-found
-helm test fluentd-daemonset
+helm test fluentd-daemonset --namespace osh-infra

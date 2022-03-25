@@ -52,7 +52,7 @@ helm upgrade --install ceph-openstack-config ./ceph-provisioners \
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack
 
-helm test ceph-openstack-config --timeout 600
+helm test ceph-openstack-config --namespace openstack --timeout 600s
 
 #NOTE: Validate Deployment info
 kubectl get -n openstack jobs

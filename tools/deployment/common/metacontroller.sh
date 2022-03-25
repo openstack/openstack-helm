@@ -26,6 +26,18 @@ if [ -z "$crds" ]; then
   echo "No crd exists of APIGroup metacontroller.k8s.io"
 fi
 
+tee /tmp/${namespace}-ns.yaml << EOF
+apiVersion: v1
+kind: Namespace
+metadata:
+  labels:
+    kubernetes.io/metadata.name: ${namespace}
+    name: ${namespace}
+  name: ${namespace}
+EOF
+
+kubectl create -f /tmp/${namespace}-ns.yaml
+
 #NOTE: Deploy command
 helm upgrade --install metacontroller ./metacontroller \
     --namespace=$namespace \

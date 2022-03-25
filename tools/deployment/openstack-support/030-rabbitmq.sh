@@ -31,4 +31,4 @@ helm upgrade --install rabbitmq ./rabbitmq \
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack
 
-helm test rabbitmq
+helm test rabbitmq --namespace openstack
