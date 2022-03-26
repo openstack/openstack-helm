@@ -79,7 +79,6 @@ pod:
   replicas:
     osapi: 2
     conductor: 2
-    consoleauth: 2
 EOF
 if [[ "${DEPLOY_SEPARATE_PLACEMENT}" == "no" ]]; then
   echo "    placement: 2" >> /tmp/nova.yaml

@@ -154,7 +154,6 @@ def test_tcp_socket(service):
     dict_services = {
         "compute": "nova-compute",
         "conductor": "nova-conductor",
-        "consoleauth": "nova-consoleaut",
         "scheduler": "nova-scheduler"
     }
     r_ports, d_ports = configured_port_in_conf()

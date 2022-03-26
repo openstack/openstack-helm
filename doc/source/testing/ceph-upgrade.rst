@@ -299,8 +299,6 @@ Continue with OSH multinode guide to install other Openstack charts.
   nova-compute-default-mr24c                     1/1       Running   0          16m
   nova-conductor-64457cf995-lbv65                1/1       Running   0          16m
   nova-conductor-64457cf995-zts48                1/1       Running   0          16m
-  nova-consoleauth-c595f68bc-2269j               1/1       Running   0          16m
-  nova-consoleauth-c595f68bc-tbmcn               1/1       Running   0          16m
   nova-novncproxy-54467b9c66-vp49j               1/1       Running   0          16m
   nova-placement-api-655cd9fcf6-5p5sc            1/1       Running   0          16m
   nova-placement-api-655cd9fcf6-r46dk            1/1       Running   0          16m
@@ -520,8 +518,6 @@ pods are running. No interruption to OSH pods.
   nova-compute-default-mr24c                     1/1       Running   0          52m
   nova-conductor-64457cf995-lbv65                1/1       Running   0          52m
   nova-conductor-64457cf995-zts48                1/1       Running   0          52m
-  nova-consoleauth-c595f68bc-2269j               1/1       Running   0          52m
-  nova-consoleauth-c595f68bc-tbmcn               1/1       Running   0          52m
   nova-novncproxy-54467b9c66-vp49j               1/1       Running   0          52m
   nova-placement-api-655cd9fcf6-5p5sc            1/1       Running   0          52m
   nova-placement-api-655cd9fcf6-r46dk            1/1       Running   0          52m

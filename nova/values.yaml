@@ -32,9 +32,6 @@ labels:
   conductor:
     node_selector_key: openstack-control-plane
     node_selector_value: enabled
-  consoleauth:
-    node_selector_key: openstack-control-plane
-    node_selector_value: enabled
   job:
     node_selector_key: openstack-control-plane
     node_selector_value: enabled
@@ -76,7 +73,6 @@ images:
     nova_compute_ironic: 'docker.io/kolla/ubuntu-source-nova-compute-ironic:ocata'
     nova_compute_ssh: docker.io/openstackhelm/nova:ussuri-ubuntu_bionic
     nova_conductor: docker.io/openstackhelm/nova:ussuri-ubuntu_bionic
-    nova_consoleauth: docker.io/openstackhelm/nova:ussuri-ubuntu_bionic
     nova_db_sync: docker.io/openstackhelm/nova:ussuri-ubuntu_bionic
     nova_novncproxy: docker.io/openstackhelm/nova:ussuri-ubuntu_bionic
     nova_novncproxy_assets: 'docker.io/kolla/ubuntu-source-nova-novncproxy:ocata'
@@ -415,19 +411,6 @@ dependencies:
         - nova-db-sync
         - nova-rabbit-init
         - placement-ks-endpoints
-      services:
-        - endpoint: internal
-          service: oslo_messaging
-        - endpoint: internal
-          service: oslo_db
-        - endpoint: internal
-          service: identity
-        - endpoint: internal
-          service: compute
-    consoleauth:
-      jobs:
-        - nova-db-sync
-        - nova-rabbit-init
       services:
         - endpoint: internal
           service: oslo_messaging
@@ -2056,20 +2039,6 @@ pod:
             initialDelaySeconds: 80
             periodSeconds: 90
             timeoutSeconds: 70
-    consoleauth:
-      default:
-        liveness:
-          enabled: True
-          params:
-            initialDelaySeconds: 120
-            periodSeconds: 90
-            timeoutSeconds: 70
-        readiness:
-          enabled: True
-          params:
-            initialDelaySeconds: 80
-            periodSeconds: 90
-            timeoutSeconds: 70
     novncproxy:
       default:
         liveness:
@@ -2169,9 +2138,6 @@ pod:
           readOnlyRootFilesystem: true
           allowPrivilegeEscalation: false
         nova_conductor:
-          readOnlyRootFilesystem: true
-          allowPrivilegeEscalation: false
-        nova_consoleauth:
           readOnlyRootFilesystem: true
           allowPrivilegeEscalation: false
         nova_novncproxy_init:
@@ -2287,11 +2253,6 @@ pod:
       nova_api_osapi:
         volumeMounts:
         volumes:
-    nova_consoleauth:
-      init_container: null
-      nova_consoleauth:
-        volumeMounts:
-        volumes:
     nova_conductor:
       init_container: null
       nova_conductor:
@@ -2334,7 +2295,6 @@ pod:
     placement: 1
     osapi: 1
     conductor: 1
-    consoleauth: 1
     scheduler: 1
     novncproxy: 1
     spiceproxy: 1
@@ -2404,13 +2364,6 @@ pod:
         memory: "1024Mi"
         cpu: "2000m"
     conductor:
-      requests:
-        memory: "128Mi"
-        cpu: "100m"
-      limits:
-        memory: "1024Mi"
-        cpu: "2000m"
-    consoleauth:
       requests:
         memory: "128Mi"
         cpu: "100m"
@@ -2572,7 +2525,6 @@ manifests:
   deployment_api_osapi: true
   deployment_placement: true
   deployment_conductor: true
-  deployment_consoleauth: true
   deployment_novncproxy: true
   deployment_spiceproxy: true
   deployment_scheduler: true
