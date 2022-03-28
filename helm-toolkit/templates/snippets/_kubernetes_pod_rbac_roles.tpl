@@ -17,7 +17,7 @@ limitations under the License.
 {{- $deps := index . 1 -}}
 {{- $saName := index . 2 | replace "_" "-" }}
 {{- $saNamespace := index . 3 -}}
-{{- $releaseName := $envAll.Chart.Name }}
+{{- $releaseName := $envAll.Release.Name }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding

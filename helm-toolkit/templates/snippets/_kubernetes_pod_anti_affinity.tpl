@@ -53,7 +53,7 @@ return: |
 {{- $envAll := index . "envAll" -}}
 {{- $application := index . "application" -}}
 {{- $component := index . "component" -}}
-{{- $expressionRelease := dict "key" "release_group" "operator" "In"  "values" ( list ( $envAll.Values.release_group | default $envAll.Chart.Name ) ) -}}
+{{- $expressionRelease := dict "key" "release_group" "operator" "In"  "values" ( list ( $envAll.Values.release_group | default $envAll.Release.Name ) ) -}}
 {{- $expressionApplication := dict "key" "application" "operator" "In"  "values" ( list $application ) -}}
 {{- $expressionComponent := dict "key" "component" "operator" "In"  "values" ( list $component ) -}}
 {{- list $expressionRelease $expressionApplication $expressionComponent | toYaml }}

@@ -40,7 +40,7 @@ return: |
 - name: {{ $key }}
   valueFrom:
     secretKeyRef:
-      name: {{ printf "%s-%s" $context.Chart.Name "env-secret" | quote }}
+      name: {{ printf "%s-%s" $context.Release.Name "env-secret" | quote }}
       key: {{ $key }}
 {{ end -}}
 {{- end -}}

@@ -15,7 +15,7 @@ limitations under the License.
 {{- if .Values.manifests.job_cluster_wait }}
 {{- $envAll := . }}
 
-{{- $serviceAccountName := print .Chart.Name "-cluster-wait" }}
+{{- $serviceAccountName := print .Release.Name "-cluster-wait" }}
 {{ tuple $envAll "cluster_wait" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 
 {{- $protocol := "http" }}
@@ -26,7 +26,7 @@ limitations under the License.
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: "{{.Chart.Name}}-cluster-wait"
+  name: "{{.Release.Name}}-cluster-wait"
   labels:
 {{ tuple $envAll "rabbitmq" "cluster-wait" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
   annotations:
@@ -100,11 +100,11 @@ spec:
           emptyDir: {}
         - name: rabbitmq-bin
           configMap:
-            name: {{ printf "%s-%s" $envAll.Chart.Name "rabbitmq-bin" | quote }}
+            name: {{ printf "%s-%s" $envAll.Release.Name "rabbitmq-bin" | quote }}
             defaultMode: 0555
         - name: rabbitmq-erlang-cookie
           secret:
-            secretName: {{ printf "%s-%s" $envAll.Chart.Name "erlang-cookie" | quote }}
+            secretName: {{ printf "%s-%s" $envAll.Release.Name "erlang-cookie" | quote }}
             defaultMode: 0444
 {{ dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.secrets.tls.oslo_messaging.server.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 {{- end }}

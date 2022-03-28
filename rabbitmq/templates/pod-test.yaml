@@ -17,11 +17,11 @@ limitations under the License.
 
 {{ if kindIs "string" $envAll.Values.dependencies.static.tests.jobs }}
 {{ if eq $envAll.Values.dependencies.static.tests.jobs "cluster_wait" }}
-{{ $_ := set $envAll.Values.dependencies.static.tests "jobs" ( list ( print $envAll.Chart.Name "-cluster-wait" ) ) }}
+{{ $_ := set $envAll.Values.dependencies.static.tests "jobs" ( list ( print $envAll.Release.Name "-cluster-wait" ) ) }}
 {{ end }}
 {{ end }}
 
-{{- $serviceAccountName := print .Chart.Name "-test" }}
+{{- $serviceAccountName := print .Release.Name "-test" }}
 {{ tuple $envAll "tests" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 
 {{- $protocol := "http" }}
@@ -32,7 +32,7 @@ limitations under the License.
 apiVersion: v1
 kind: Pod
 metadata:
-  name: "{{.Chart.Name}}-test"
+  name: "{{.Release.Name}}-test"
   labels:
 {{ tuple $envAll "rabbitmq" "test" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
   annotations:
@@ -71,7 +71,7 @@ spec:
       emptyDir: {}
     - name: rabbitmq-bin
       configMap:
-        name: {{ printf "%s-%s" $envAll.Chart.Name "rabbitmq-bin" | quote }}
+        name: {{ printf "%s-%s" $envAll.Release.Name "rabbitmq-bin" | quote }}
         defaultMode: 0555
 {{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.oslo_messaging.server.internal | include "helm-toolkit.snippets.tls_volume" | indent 4 }}
 {{- end }}

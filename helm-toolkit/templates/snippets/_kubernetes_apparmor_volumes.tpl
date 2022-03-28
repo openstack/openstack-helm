@@ -42,7 +42,7 @@ return: |
 {{- $envAll := index . "envAll" -}}
 {{- $component := index . "component" -}}
 {{- $requireSys := index . "requireSys" | default false -}}
-{{- $configName := printf "%s-%s-%s" $envAll.Chart.Name $component "apparmor" -}}
+{{- $configName := printf "%s-%s-%s" $envAll.Release.Name $component "apparmor" -}}
 {{- if hasKey $envAll.Values.pod "mandatory_access_control" -}}
 {{- if hasKey $envAll.Values.pod.mandatory_access_control "type" -}}
 {{- if hasKey $envAll.Values.pod.mandatory_access_control "configmap_apparmor" -}}

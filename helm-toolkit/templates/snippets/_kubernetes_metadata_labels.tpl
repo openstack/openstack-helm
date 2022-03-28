@@ -37,7 +37,7 @@ return: |
 {{- $envAll := index . 0 -}}
 {{- $application := index . 1 -}}
 {{- $component := index . 2 -}}
-release_group: {{ $envAll.Values.release_group | default $envAll.Chart.Name }}
+release_group: {{ $envAll.Values.release_group | default $envAll.Release.Name }}
 application: {{ $application }}
 component: {{ $component }}
 {{- if ($envAll.Values.pod).labels }}

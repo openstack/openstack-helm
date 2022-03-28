@@ -28,7 +28,7 @@ values: |
         {{ include "helm-toolkit.utils.joinListWithComma" .Values.conf.inputs }}
       config_to_complete:
         #here we can fill out params, but things need to be valid yaml as input
-        '{{ .Chart.Name }}': '{{ printf "%s-%s" .Release.Namespace "namespace" }}'
+        '{{ .Release.Name }}': '{{ printf "%s-%s" .Release.Namespace "namespace" }}'
       static_config:
         #this is just passed though as yaml to the configmap
         foo: bar

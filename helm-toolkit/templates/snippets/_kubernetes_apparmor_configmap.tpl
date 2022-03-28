@@ -49,7 +49,7 @@ data:
 {{- if eq $envAll.Values.pod.mandatory_access_control.type "apparmor" -}}
 {{- if hasKey $envAll.Values.pod.mandatory_access_control "configmap_apparmor" -}}
 {{- if $envAll.Values.pod.mandatory_access_control.configmap_apparmor }}
-{{- $mapName := printf "%s-%s-%s" $envAll.Chart.Name $component "apparmor" -}}
+{{- $mapName := printf "%s-%s-%s" $envAll.Release.Name $component "apparmor" -}}
 {{- if $envAll.Values.conf.apparmor_profiles }}
 ---
 apiVersion: v1
