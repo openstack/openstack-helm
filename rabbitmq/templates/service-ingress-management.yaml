@@ -12,10 +12,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- if (.Values.global).subchart_release_name }}
+{{- $_ := set . "deployment_name" .Chart.Name }}
+{{- else }}
+{{- $_ := set . "deployment_name" .Release.Name }}
+{{- end }}
+
 {{- if and .Values.manifests.service_ingress_management .Values.network.management.ingress.public }}
 {{- $envAll := . }}
 {{- if empty $envAll.Values.endpoints.oslo_messaging.hosts.public }}
-{{- $service_public_name := .Release.Name | trunc 12 }}
+{{- $service_public_name := .deployment_name | trunc 12 }}
 {{- $_ := set $envAll.Values.endpoints.oslo_messaging.hosts "public" ( printf "%s-%s-%s" $service_public_name "mgr" ( $service_public_name | sha256sum | trunc 6 )) }}
 {{- end }}
 {{- $serviceIngressOpts := dict "envAll" . "backendService" "management" "backendServiceType" "oslo_messaging" "backendPort" "http" -}}

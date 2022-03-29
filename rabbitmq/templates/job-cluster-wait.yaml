@@ -12,10 +12,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- if (.Values.global).subchart_release_name }}
+{{- $_ := set . "deployment_name" .Chart.Name }}
+{{- else }}
+{{- $_ := set . "deployment_name" .Release.Name }}
+{{- end }}
+
 {{- if .Values.manifests.job_cluster_wait }}
 {{- $envAll := . }}
 
-{{- $serviceAccountName := print .Release.Name "-cluster-wait" }}
+{{- $serviceAccountName := print .deployment_name "-cluster-wait" }}
 {{ tuple $envAll "cluster_wait" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 
 {{- $protocol := "http" }}
@@ -26,7 +32,7 @@ limitations under the License.
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: "{{.Release.Name}}-cluster-wait"
+  name: "{{.deployment_name}}-cluster-wait"
   labels:
 {{ tuple $envAll "rabbitmq" "cluster-wait" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
   annotations:
@@ -103,11 +109,11 @@ spec:
           emptyDir: {}
         - name: rabbitmq-bin
           configMap:
-            name: {{ printf "%s-%s" $envAll.Release.Name "rabbitmq-bin" | quote }}
+            name: {{ printf "%s-%s" $envAll.deployment_name "rabbitmq-bin" | quote }}
             defaultMode: 0555
         - name: rabbitmq-erlang-cookie
           secret:
-            secretName: {{ printf "%s-%s" $envAll.Release.Name "erlang-cookie" | quote }}
+            secretName: {{ printf "%s-%s" $envAll.deployment_name "erlang-cookie" | quote }}
             defaultMode: 0444
 {{ dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.secrets.tls.oslo_messaging.server.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 {{- end }}

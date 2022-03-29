@@ -12,12 +12,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- if (.Values.global).subchart_release_name }}
+{{- $_ := set . "deployment_name" .Chart.Name }}
+{{- else }}
+{{- $_ := set . "deployment_name" .Release.Name }}
+{{- end }}
+
 {{- if .Values.manifests.deployment_ingress }}
 {{- $envAll := . }}
 
-{{- $ingressClass := printf "%s-%s" .Release.Name "mariadb-ingress" }}
+{{- $ingressClass := printf "%s-%s" .deployment_name "mariadb-ingress" }}
 
-{{- $serviceAccountName := printf "%s-%s" .Release.Name "ingress" }}
+{{- $serviceAccountName := printf "%s-%s" .deployment_name "ingress" }}
 {{ tuple $envAll "ingress" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -156,7 +162,7 @@ rules:
   - apiGroups:
       - ""
     resourceNames:
-      - {{ printf "%s-%s" .Release.Name $ingressClass | quote }}
+      - {{ printf "%s-%s" .deployment_name $ingressClass | quote }}
     resources:
       - configmaps
     verbs:
@@ -267,7 +273,7 @@ spec:
                 fieldRef:
                   fieldPath: metadata.namespace
             - name: RELEASE_NAME
-              value: {{ .Release.Name | quote }}
+              value: {{ .deployment_name | quote }}
             - name: INGRESS_CLASS
               value: {{ $ingressClass | quote }}
             - name: ERROR_PAGE_SERVICE

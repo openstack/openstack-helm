@@ -12,6 +12,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- if (.Values.global).subchart_release_name }}
+{{- $_ := set . "deployment_name" .Chart.Name }}
+{{- else }}
+{{- $_ := set . "deployment_name" .Release.Name }}
+{{- end }}
+
 {{/*
 (aostapenko) rounds cpu limit in any permissible format to integer value (min 1)
 "100m"   -> 1
@@ -49,7 +55,7 @@ limitations under the License.
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ printf "%s-%s" $envAll.Release.Name "rabbitmq-etc" | quote }}
+  name: {{ printf "%s-%s" $envAll.deployment_name "rabbitmq-etc" | quote }}
 data:
   enabled_plugins: |
 {{ tuple "etc/_enabled_plugins.tpl" . | include  "helm-toolkit.utils.template" | indent 4 }}

@@ -12,6 +12,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- if (.Values.global).subchart_release_name }}
+{{- $_ := set . "deployment_name" .Chart.Name }}
+{{- else }}
+{{- $_ := set . "deployment_name" .Release.Name }}
+{{- end }}
+
 {{- define "exporterProbeTemplate" }}
 httpGet:
   scheme: HTTP
@@ -22,7 +28,7 @@ httpGet:
 {{- if and .Values.manifests.monitoring.prometheus.deployment_exporter .Values.monitoring.prometheus.enabled }}
 {{- $envAll := . }}
 
-{{- $rcControllerName := printf "%s-%s" $envAll.Release.Name "rabbitmq-exporter"  }}
+{{- $rcControllerName := printf "%s-%s" $envAll.deployment_name "rabbitmq-exporter"  }}
 {{ tuple $envAll "prometheus_rabbitmq_exporter" $rcControllerName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 
 {{- $protocol := "http" }}
@@ -77,12 +83,12 @@ spec:
           - name: RABBIT_USER
             valueFrom:
               secretKeyRef:
-                name: {{ printf "%s-%s" $envAll.Release.Name "admin-user" | quote }}
+                name: {{ printf "%s-%s" $envAll.deployment_name "admin-user" | quote }}
                 key: RABBITMQ_ADMIN_USERNAME
           - name: RABBIT_PASSWORD
             valueFrom:
               secretKeyRef:
-                name: {{ printf "%s-%s" $envAll.Release.Name "admin-user" | quote }}
+                name: {{ printf "%s-%s" $envAll.deployment_name "admin-user" | quote }}
                 key: RABBITMQ_ADMIN_PASSWORD
           - name: RABBIT_CAPABILITIES
             value: {{ include "helm-toolkit.utils.joinListWithComma" $envAll.Values.conf.prometheus_exporter.capabilities | quote }}

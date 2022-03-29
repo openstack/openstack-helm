@@ -12,17 +12,23 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- if (.Values.global).subchart_release_name }}
+{{- $_ := set . "deployment_name" .Chart.Name }}
+{{- else }}
+{{- $_ := set . "deployment_name" .Release.Name }}
+{{- end }}
+
 {{- if .Values.manifests.pod_test }}
 {{- $envAll := . }}
 {{- $dependencies := .Values.dependencies.static.tests }}
 
-{{- $serviceAccountName := print .Release.Name "-test" }}
+{{- $serviceAccountName := print .deployment_name "-test" }}
 {{ tuple $envAll "tests" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: v1
 kind: Pod
 metadata:
-  name: "{{.Release.Name}}-test"
+  name: "{{.deployment_name}}-test"
   labels:
 {{ tuple $envAll "mariadb" "test" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
   annotations:

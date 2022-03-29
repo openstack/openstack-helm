@@ -12,16 +12,22 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- if (.Values.global).subchart_release_name }}
+{{- $_ := set . "deployment_name" .Chart.Name }}
+{{- else }}
+{{- $_ := set . "deployment_name" .Release.Name }}
+{{- end }}
+
 {{- if .Values.manifests.pod_test }}
 {{- $envAll := . }}
 
 {{ if kindIs "string" $envAll.Values.dependencies.static.tests.jobs }}
 {{ if eq $envAll.Values.dependencies.static.tests.jobs "cluster_wait" }}
-{{ $_ := set $envAll.Values.dependencies.static.tests "jobs" ( list ( print $envAll.Release.Name "-cluster-wait" ) ) }}
+{{ $_ := set $envAll.Values.dependencies.static.tests "jobs" ( list ( print $envAll.deployment_name "-cluster-wait" ) ) }}
 {{ end }}
 {{ end }}
 
-{{- $serviceAccountName := print .Release.Name "-test" }}
+{{- $serviceAccountName := print .deployment_name "-test" }}
 {{ tuple $envAll "tests" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 
 {{- $protocol := "http" }}
@@ -32,7 +38,7 @@ limitations under the License.
 apiVersion: v1
 kind: Pod
 metadata:
-  name: "{{.Release.Name}}-test"
+  name: "{{.deployment_name}}-test"
   labels:
 {{ tuple $envAll "rabbitmq" "test" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
   annotations:
@@ -74,7 +80,7 @@ spec:
       emptyDir: {}
     - name: rabbitmq-bin
       configMap:
-        name: {{ printf "%s-%s" $envAll.Release.Name "rabbitmq-bin" | quote }}
+        name: {{ printf "%s-%s" $envAll.deployment_name "rabbitmq-bin" | quote }}
         defaultMode: 0555
 {{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.oslo_messaging.server.internal | include "helm-toolkit.snippets.tls_volume" | indent 4 }}
 {{- end }}
