@@ -16,6 +16,8 @@ limitations under the License.
 
 set -ex
 
+source /tmp/utils-resolveLocations.sh
+
 if [ "x${STORAGE_TYPE%-*}" == "xblock" ]; then
   OSD_DEVICE=$(readlink -f ${STORAGE_LOCATION})
   OSD_JOURNAL=$(readlink -f ${JOURNAL_LOCATION})

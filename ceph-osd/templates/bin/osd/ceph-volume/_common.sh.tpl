@@ -20,6 +20,8 @@ export lock_fd=''
 export ALREADY_LOCKED=0
 export PS4='+${BASH_SOURCE:+$(basename ${BASH_SOURCE}):${LINENO}:}${FUNCNAME:+${FUNCNAME}():} '
 
+source /tmp/utils-resolveLocations.sh
+
 : "${CRUSH_LOCATION:=root=default host=${HOSTNAME}}"
 : "${OSD_PATH_BASE:=/var/lib/ceph/osd/${CLUSTER}}"
 : "${CEPH_CONF:="/etc/ceph/${CLUSTER}.conf"}"
