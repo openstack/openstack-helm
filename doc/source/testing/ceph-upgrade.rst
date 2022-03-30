@@ -300,8 +300,6 @@ Continue with OSH multinode guide to install other Openstack charts.
   nova-conductor-64457cf995-lbv65                1/1       Running   0          16m
   nova-conductor-64457cf995-zts48                1/1       Running   0          16m
   nova-novncproxy-54467b9c66-vp49j               1/1       Running   0          16m
-  nova-placement-api-655cd9fcf6-5p5sc            1/1       Running   0          16m
-  nova-placement-api-655cd9fcf6-r46dk            1/1       Running   0          16m
   nova-scheduler-59647c6d9f-vm78p                1/1       Running   0          16m
   openvswitch-db-cv47r                           1/1       Running   0          41m
   openvswitch-db-dq7rc                           1/1       Running   0          41m
@@ -519,8 +517,6 @@ pods are running. No interruption to OSH pods.
   nova-conductor-64457cf995-lbv65                1/1       Running   0          52m
   nova-conductor-64457cf995-zts48                1/1       Running   0          52m
   nova-novncproxy-54467b9c66-vp49j               1/1       Running   0          52m
-  nova-placement-api-655cd9fcf6-5p5sc            1/1       Running   0          52m
-  nova-placement-api-655cd9fcf6-r46dk            1/1       Running   0          52m
   nova-scheduler-59647c6d9f-vm78p                1/1       Running   0          52m
   openvswitch-db-cv47r                           1/1       Running   0          1h
   openvswitch-db-dq7rc                           1/1       Running   0          1h

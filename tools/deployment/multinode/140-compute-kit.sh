@@ -25,8 +25,6 @@ fi
 #NOTE: Get the over-rides to use
 : ${OSH_EXTRA_HELM_ARGS_NOVA:="$(./tools/deployment/common/get-values-overrides.sh nova)"}
 
-OSH_EXTRA_HELM_ARGS_NOVA="${OSH_EXTRA_HELM_ARGS_NOVA} --values=./nova/values_overrides/train-disable-nova-placement.yaml"
-
 #NOTE: Lint and package chart
 make nova
 
