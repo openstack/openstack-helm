@@ -188,14 +188,24 @@ echo "Latest revision of the helm chart(s) is : $max_release"
 
 if [[ $max_release -gt 1  ]]; then
   if [[  $require_upgrade -gt 0 ]]; then
-    echo "waiting for inactive pgs and degraded objects before upgrade"
-    wait_for_pgs
-    wait_for_degraded_and_misplaced_objects
-    ceph -s
-    ceph osd "set" noout
-    echo "lets restart the osds rack by rack"
-    restart_by_rack
-    ceph osd "unset" noout
+    if [[ "$DISRUPTIVE_OSD_RESTART" == "true" ]]; then
+      echo "restarting all osds simultaneously"
+      kubectl -n $CEPH_NAMESPACE delete pod -l component=osd
+      sleep 60
+      echo "waiting for pgs to become active and for degraded objects to recover"
+      wait_for_pgs
+      wait_for_degraded_objects
+      ceph -s
+    else
+      echo "waiting for inactive pgs and degraded objects before upgrade"
+      wait_for_pgs
+      wait_for_degraded_and_misplaced_objects
+      ceph -s
+      ceph osd "set" noout
+      echo "lets restart the osds rack by rack"
+      restart_by_rack
+      ceph osd "unset" noout
+    fi
   fi
 
   #lets check all the ceph-osd daemonsets
