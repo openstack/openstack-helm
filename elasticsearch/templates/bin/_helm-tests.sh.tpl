@@ -15,6 +15,10 @@ limitations under the License.
 
 set -ex
 
+if [[ $(which python3) ]]; then
+    alias python=python3
+fi
+
 function create_test_index () {
   index_result=$(curl ${CACERT_OPTION} -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
   -XPUT "${ELASTICSEARCH_ENDPOINT}/test_index?pretty" -H 'Content-Type: application/json' -d'
