@@ -29,9 +29,3 @@ sudo -E minikube start \
 
 # NOTE: Wait for node to be ready.
 kubectl wait --timeout=240s --for=condition=Ready nodes/minikube
-
-kubectl --namespace=kube-system wait \
-  --timeout=240s \
-  --for=condition=Ready \
-  pod -l app=helm,name=tiller
-
