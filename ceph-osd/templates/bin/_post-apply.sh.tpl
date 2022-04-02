@@ -166,7 +166,9 @@ function restart_by_rack() {
   done
 }
 
-wait_for_pods $CEPH_NAMESPACE
+if [[ "$DISRUPTIVE_OSD_RESTART" != "true" ]]; then
+  wait_for_pods $CEPH_NAMESPACE
+fi
 
 require_upgrade=0
 max_release=0
