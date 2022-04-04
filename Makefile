@@ -38,12 +38,6 @@ lint-%: init-%
 build-%: lint-%
 	if [ -d $* ]; then $(HELM) package $*; fi
 
-# Note: user running helm3 can package the charts, but can run into helm lint
-# issue due to stricter logic in helm3. This adds a target to package charts
-# without executing a lint until the issues are fixed.
-package-%: init-%
-	if [ -d $* ]; then $(HELM) package $*; fi
-
 clean:
 	@echo "Removed .b64, _partials.tpl, and _globals.tpl files"
 	rm -f helm-toolkit/secrets/*.b64
