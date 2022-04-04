@@ -188,31 +188,37 @@ done
 
 echo "Latest revision of the helm chart(s) is : $max_release"
 
-if [[ $max_release -gt 1  ]]; then
-  if [[  $require_upgrade -gt 0 ]]; then
-    if [[ "$DISRUPTIVE_OSD_RESTART" == "true" ]]; then
-      echo "restarting all osds simultaneously"
-      kubectl -n $CEPH_NAMESPACE delete pod -l component=osd
-      sleep 60
-      echo "waiting for pgs to become active and for degraded objects to recover"
-      wait_for_pgs
-      wait_for_degraded_objects
-      ceph -s
-    else
-      echo "waiting for inactive pgs and degraded objects before upgrade"
-      wait_for_pgs
-      wait_for_degraded_and_misplaced_objects
-      ceph -s
-      ceph osd "set" noout
-      echo "lets restart the osds rack by rack"
-      restart_by_rack
-      ceph osd "unset" noout
+# If flags are set that will prevent recovery, don't restart OSDs
+ceph -s | grep "noup\|noin\|nobackfill\|norebalance\|norecover" > /dev/null
+if [[ $? -ne 0 ]]; then
+  if [[ "$UNCONDITIONAL_OSD_RESTART" == "true" ]] || [[ $max_release -gt 1  ]]; then
+    if [[ "$UNCONDITIONAL_OSD_RESTART" == "true" ]] || [[  $require_upgrade -gt 0 ]]; then
+      if [[ "$DISRUPTIVE_OSD_RESTART" == "true" ]]; then
+        echo "restarting all osds simultaneously"
+        kubectl -n $CEPH_NAMESPACE delete pod -l component=osd
+        sleep 60
+        echo "waiting for pgs to become active and for degraded objects to recover"
+        wait_for_pgs
+        wait_for_degraded_objects
+        ceph -s
+      else
+        echo "waiting for inactive pgs and degraded objects before upgrade"
+        wait_for_pgs
+        wait_for_degraded_and_misplaced_objects
+        ceph -s
+        ceph osd "set" noout
+        echo "lets restart the osds rack by rack"
+        restart_by_rack
+        ceph osd "unset" noout
+      fi
     fi
-  fi
 
-  #lets check all the ceph-osd daemonsets
-  echo "checking DS"
-  check_ds
+    #lets check all the ceph-osd daemonsets
+    echo "checking DS"
+    check_ds
+  else
+    echo "No revisions found for upgrade"
+  fi
 else
-  echo "No revisions found for upgrade"
+  echo "Skipping OSD restarts because flags are set that would prevent recovery"
 fi
