@@ -14,11 +14,19 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- define "metadata.annotations.job.db_sync" }}
+helm.sh/hook: post-install,post-upgrade
+helm.sh/hook-weight: "-3"
+{{- end }}
+
 {{- if .Values.manifests.job_db_sync }}
 {{- $dbSyncJob := dict "envAll" . "serviceName" "placement" -}}
 {{- if .Values.manifests.certificates -}}
 {{- $_ := set $dbSyncJob "dbAdminTlsSecret" .Values.endpoints.oslo_db.auth.admin.secret.tls.internal -}}
 {{- end -}}
+{{- if .Values.helm3_hook }}
+{{- $_ := set $dbSyncJob "jobAnnotations" (include "metadata.annotations.job.db_sync" . | fromYaml) }}
+{{- end }}
 {{- if .Values.pod.tolerations.placement.enabled -}}
 {{- $_ := set $dbSyncJob "tolerationsEnabled" true -}}
 {{- end -}}
