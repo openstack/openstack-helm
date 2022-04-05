@@ -484,6 +484,30 @@ endpoints:
       mysql:
         default: 3306
 conf:
+  triliovault:
+    backup_target_type: "nfs"
+    nfs:
+      nfs_shares:
+        - "192.168.122.101:/opt/tvault1"
+        - "192.168.122.102:/opt/tvault2"
+      nfs_options: "nolock,soft,timeo=180,intr,lookupcache=none"
+    s3:
+      access_key: ''
+      secret_key: ''
+      ## S3 region, if your s3 does not have any region, just keep the parameter as it is
+      region_name: ''
+      bucket: ''
+      endpoint_url: ''
+      signature_version: 'default'
+      auth_version: 'DEFAULT'
+      ## If S3 backend is not Amazon S3 and SSL is enabled on S3 endpoint url then change it to 'True', otherwise keep it as 'False'
+      ssl_enabled: False
+
+    ## Configure 'dmapi_workers' parameter of '/etc/dmapi/dmapi.conf' file
+    ## This parameter value used to spawn the number of dmapi processes to handle the incoming api requests.
+    ## If your dmapi node has ‘n' cpu cores, It is recommended, to set this parameter to '4*n’.
+    ## If dmapi_workers field is not present in config file. The Default value will be equals to number of cores present on the node
+    datamover_api_workers: 16
   fuse: |
     # /etc/fuse.conf - Configuration file for Filesystem in Userspace (FUSE)
 
@@ -540,40 +564,121 @@ conf:
     filter:authtoken:
       paste.filter_factory: keystonemiddleware.auth_token:filter_factory
       interface: internal
-  dmapi:
+  datamover_api:
     DEFAULT:
-      dmapi_workers: 2
+      dmapi_workers:
+      transport_url: <NOVA_TRANSPORT_URL>
+      dmapi_link_prefix: http://{{ api_interface_address }}:{{ triliovault_datamover_api_port }}
+      dmapi_enabled_ssl_apis:
+      dmapi_listen_port: {{ triliovault_datamover_api_port }}
       dmapi_enabled_apis: dmapi
       bindir: /usr/bin
       instance_name_template: instance-%08x
-      dmapi_listen: 0.0.0.0
+      dmapi_listen: {{ api_interface_address }}
+      my_ip: {{ api_interface_address }}
       rootwrap_config: /etc/dmapi/rootwrap.conf
-      verbose: true
-      log_file: /tmp/dmapi.log
-      log_dir: /tmp
-    oslo_middleware:
-      enable_proxy_headers_parsing: true
-    conductor:
-      use_local: True
+      debug: False
+      log_file: /var/log/kolla/triliovault-datamover-api/dmapi.log
+      log_dir: /var/log/kolla/triliovault-datamover-api
+    wsgi:
+      ## TODO
+      ssl_cert_file:
+      ssl_key_file:
+      api_paste_config: /etc/dmapi/api-paste.ini
     database:
       connection_recycle_time: 300
       max_overflow: 30
       max_pool_size: 10
       max_retries: -1
+      connection:
     keystone_authtoken:
-      auth_version: v3
+      www_authenticate_uri:
+      auth_url:
       auth_type: password
+      project_name: service
+      username:
+      password:
+       ## TODO
+      cafile:
       memcache_security_strategy: ENCRYPT
-      memcache_secret_key: x4DuDDNYR0AphdXw
-    service_credentials:
-      auth_type: password
-      interface: internal
-      auth_version: v3
+      memcache_secret_key:
+      memcached_servers:
+      signing_dir: /var/cache/dmapi
+      project_domain_name:
+      user_domain_name:
+      insecure: True
     oslo_messaging_notifications:
+      transport_url:
       driver: messagingv2
       topics: notifications,stacklight_notifications
+    oslo_middleware:
+      enable_proxy_headers_parsing: True
     oslo_messaging_rabbit:
       rabbit_qos_prefetch_count: 64
+  datamover:
+    DEFAULT:
+      vault_storage_type:
+      vault_storage_nfs_export:
+      vault_storage_nfs_options:
+      vault_storage_nfs_export: TrilioVault
+      vault_s3_auth_version: DEFAULT
+      vault_s3_access_key_id:
+      vault_s3_secret_access_key:
+      vault_s3_region_name:
+      vault_s3_bucket:
+      vault_s3_signature_version:
+      vault_s3_auth_version:
+      vault_s3_endpoint_url:
+      vault_s3_ssl:
+      vault_s3_ssl_cert: "/etc/triliovault/s3-cert.pem"
+      vault_data_directory_old: /var/triliovault
+      vault_data_directory:
+      log_file: /tmp/tvault-datamover.log
+      debug: False
+      verbose: True
+      max_uploads_pending: 3
+      max_commit_pending: 3
+      dmapi_transport_url:  <NOVA TRANSPORT_URL>
+    dmapi_database:
+      connection_recycle_time: 300
+      max_overflow: 30
+      max_pool_size: 10
+      max_retries: -1
+      connection:
+    libvirt:
+      images_rbd_ceph_conf: /etc/ceph/ceph.conf
+      rbd_user:
+    ceph:
+      keyring_ext:
+    contego_sys_admin:
+      helper_command: sudo /usr/bin/privsep-helper
+    s3fuse_sys_admin:
+      helper_command: sudo /usr/bin/privsep-helper
+    conductor:
+      use_local: True
+    oslo_messaging_rabbit:
+      ssl: false
+    cinder:
+      http_retries:
+
+    DEFAULT:
+      use_virt_qemu: False
+      log_file: /tmp/tvault-datamover.log
+      verbose: true
+      vault_storage_das_device: none
+      vault_storage_type: s3
+      vault_storage_nfs_export: TrilioVault
+    dmapi_database:
+
+    contego_sys_admin:
+      helper_command: sudo /usr/bin/nova-rootwrap /etc/nova/rootwrap.conf privsep-helper
+    ceph:
+      ceph_dir: /etc/ceph
+    libvirt:
+      rbd_user: nova
+      images_rbd_ceph_conf: /etc/ceph/ceph.conf
+    backends:
+      override_block: cinder
   workloadmgr:
     DEFAULT:
       api_workers: 2
@@ -622,28 +727,6 @@ conf:
       memcache_secret_key: x4DuDDNYR0AphdXw
       project_domain_id: <INSERT DATA>
       user_domain_id: <INSERT DATA>
-  datamover:
-    DEFAULT:
-      use_virt_qemu: False
-      log_file: /tmp/tvault-datamover.log
-      verbose: true
-      vault_storage_das_device: none
-      vault_storage_type: s3
-      vault_storage_nfs_export: TrilioVault
-    dmapi_database:
-      connection_recycle_time: 300
-      max_overflow: 30
-      max_pool_size: 10
-      max_retries: -1
-    contego_sys_admin:
-      helper_command: sudo /usr/bin/nova-rootwrap /etc/nova/rootwrap.conf privsep-helper
-    ceph:
-      ceph_dir: /etc/ceph
-    libvirt:
-      rbd_user: nova
-      images_rbd_ceph_conf: /etc/ceph/ceph.conf
-    backends:
-      override_block: cinder
   logging:
     loggers:
       keys:
