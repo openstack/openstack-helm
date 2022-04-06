@@ -64,17 +64,22 @@ limitations under the License.
 
 
 {{- if empty .Values.conf.datamover_api.database.connection -}}
-{{- $_ := tuple "oslo_db" "internal" "datamover_api" "mysql" . | include "helm-toolkit.endpoints.authenticated_endpoint_uri_lookup" | set .Values.conf.datamover_api.database "connection" -}}
+{{- $connection := tuple "oslo_db" "internal" "triliovault" "mysql" . | include "helm-toolkit.endpoints.authenticated_endpoint_uri_lookup" -}}
+{{- if .Values.manifests.certificates -}}
+{{- $_ := (printf "%s?charset=utf8&ssl_ca=/etc/mysql/certs/ca.crt&ssl_key=/etc/mysql/certs/tls.key&ssl_cert=/etc/mysql/certs/tls.crt&ssl_verify_cert" $connection ) | set .Values.conf.datamover_api.database "connection" -}}
+{{- else -}}
+{{- $_ := set .Values.conf.datamover_api.database "connection" $connection -}}
+{{- end -}}
 {{- end -}}
 
 
-
-{{- if empty .Values.conf.datamover_api.DEFAULT.transport_url -}}
-{{- $_ := tuple "oslo_messaging" "internal" "triliovault" "amqp" . | include "helm-toolkit.endpoints.authenticated_transport_endpoint_uri_lookup" | set .Values.conf.datamover_api.DEFAULT "transport_url" -}}
-{{- end -}}
 
 {{- if empty .Values.conf.datamover_api.DEFAULT.dmapi_workers -}}
 {{- $_ := set .Values.conf.datamover_api.DEFAULT "dmapi_workers" .Values.conf.triliovault.datamover_api_workers -}}
+{{- end -}}
+
+{{- if empty .Values.conf.datamover_api.DEFAULT.transport_url -}}
+{{- $_ := tuple "oslo_messaging" "internal" "nova" "amqp" . | include "helm-toolkit.endpoints.authenticated_transport_endpoint_uri_lookup" | set .Values.conf.datamover_api.DEFAULT "transport_url" -}}
 {{- end -}}
 
 
@@ -157,19 +162,24 @@ limitations under the License.
 {{- end -}}
 
 
-
-
-{{- if empty .Values.conf.datamover.DEFAULT.datamover_api_transport_url -}}
-{{- $_ := tuple "oslo_messaging" "internal" "triliovault" "amqp" . | include "helm-toolkit.endpoints.authenticated_transport_endpoint_uri_lookup" | set .Values.conf.datamover.DEFAULT "datamover_api_transport_url" -}}
+{{- if empty .Values.conf.datamover.DEFAULT.dmapi_transport_url -}}
+{{- $_ := tuple "oslo_messaging" "internal" "nova" "amqp" . | include "helm-toolkit.endpoints.authenticated_transport_endpoint_uri_lookup" | set .Values.conf.datamover.DEFAULT "dmapi_transport_url" -}}
 {{- end -}}
 
 
-{{- if empty .Values.conf.datamover.datamover_api_database.connection -}}
-{{- $_ := tuple "oslo_db" "internal" "datamover_api" "mysql" . | include "helm-toolkit.endpoints.authenticated_endpoint_uri_lookup" | set .Values.conf.datamover.datamover_api_database "connection" -}}
+
+{{- if empty .Values.conf.datamover.dmapi_database.connection -}}
+{{- $connection := tuple "oslo_db" "internal" "triliovault" "mysql" . | include "helm-toolkit.endpoints.authenticated_endpoint_uri_lookup" -}}
+{{- if .Values.manifests.certificates -}}
+{{- $_ := (printf "%s?charset=utf8&ssl_ca=/etc/mysql/certs/ca.crt&ssl_key=/etc/mysql/certs/tls.key&ssl_cert=/etc/mysql/certs/tls.crt&ssl_verify_cert" $connection ) | set .Values.conf.datamover.dmapi_database "connection" -}}
+{{- else -}}
+{{- $_ := set .Values.conf.datamover.dmapi_database "connection" $connection -}}
 {{- end -}}
+{{- end -}}
+
 
 {{- if empty .Values.conf.datamover.oslo_messaging_notifications.transport_url -}}
-{{- $_ := tuple "oslo_messaging" "internal" "triliovault" "amqp" . | include "helm-toolkit.endpoints.authenticated_transport_endpoint_uri_lookup" | set .Values.conf.datamover.oslo_messaging_notifications "transport_url" -}}
+{{- $_ := tuple "oslo_messaging" "internal" "nova" "amqp" . | include "helm-toolkit.endpoints.authenticated_transport_endpoint_uri_lookup" | set .Values.conf.datamover.oslo_messaging_notifications "transport_url" -}}
 {{- end -}}
 
 

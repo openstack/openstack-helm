@@ -60,7 +60,7 @@ helm3_hook: true
 
 pod:
   security_context:
-    volume_usage_audit:
+    triliovault:
       pod:
         runAsUser: 42424
       container:
@@ -331,15 +331,15 @@ endpoints:
         project_name: admin
         user_domain_name: default
         project_domain_name: default
-      triliovault:
+      triliovault-datamover:
         role: admin
         region_name: RegionOne
-        username: triliovault
+        username: dmapi
         password: password
         project_name: service
         user_domain_name: service
         project_domain_name: service
-      dmapi:
+      triliovault-wlm:
         role: admin
         region_name: RegionOne
         username: triliovault
@@ -405,11 +405,11 @@ endpoints:
         default: 5672
       http:
         default: 15672
-  datamover:
-    name: triliovault
+  triliovault-datamover:
+    name: triliovault-datamover
     hosts:
-      default: triliovault-api
-      public: triliovault
+      default: triliovault-datamover-api
+      public: triliovault-datamover
     host_fqdn_override:
       default: null
       # NOTE: this chart supports TLS for fqdn over-ridden public
@@ -425,13 +425,13 @@ endpoints:
       default: 'http'
     port:
       api:
-        default: 8785
+        default: 8784
         public: 80
-  workloads:
-    name: workloadmgr
+  triliovault-wlm:
+    name: triliovault-wlm
     hosts:
-      default: workloadmgr-api
-      public: workloadmgr
+      default: triliovault-wlm-api
+      public: triliovault-wlm
     host_fqdn_override:
       default: null
       # NOTE: this chart supports TLS for fqdn over-ridden public
@@ -454,31 +454,14 @@ endpoints:
       admin:
         username: root
         password: password
-      dmapi:
+      triliovault:
         username: triliovault
         password: password
     hosts:
       default: mariadb
     host_fqdn_override:
       default: null
-    path: /nova
-    scheme: mysql+pymysql
-    port:
-      mysql:
-        default: 3306
-  oslo_db_wlm:
-    auth:
-      admin:
-        username: root
-        password: password
-      wlm:
-        username: wlm
-        password: password
-    hosts:
-      default: mariadb
-    host_fqdn_override:
-      default: null
-    path: /workloadmgr
+    path: /triliovault
     scheme: mysql+pymysql
     port:
       mysql:
@@ -566,49 +549,35 @@ conf:
       interface: internal
   datamover_api:
     DEFAULT:
-      dmapi_workers:
-      transport_url: <NOVA_TRANSPORT_URL>
-      dmapi_link_prefix: http://{{ api_interface_address }}:{{ triliovault_datamover_api_port }}
-      dmapi_enabled_ssl_apis:
-      dmapi_listen_port: {{ triliovault_datamover_api_port }}
+      log_config_append: /etc/glance/logging.conf
+      dmapi_link_prefix: http://{{ api_interface_address }}:8784
+      ## Don't delete this parameter. Keep it empty
+      dmapi_enabled_ssl_apis: ""
+      dmapi_listen_port: 8784
       dmapi_enabled_apis: dmapi
       bindir: /usr/bin
       instance_name_template: instance-%08x
       dmapi_listen: {{ api_interface_address }}
       my_ip: {{ api_interface_address }}
-      rootwrap_config: /etc/dmapi/rootwrap.conf
+      rootwrap_config: /etc/triliovault/rootwrap.conf
       debug: False
-      log_file: /var/log/kolla/triliovault-datamover-api/dmapi.log
-      log_dir: /var/log/kolla/triliovault-datamover-api
     wsgi:
-      ## TODO
-      ssl_cert_file:
-      ssl_key_file:
+      ## Don't delete these entries. We need to keep them with empty values
+      ssl_cert_file: ""
+      ssl_key_file: ""
       api_paste_config: /etc/dmapi/api-paste.ini
     database:
       connection_recycle_time: 300
       max_overflow: 30
       max_pool_size: 10
       max_retries: -1
-      connection:
     keystone_authtoken:
-      www_authenticate_uri:
-      auth_url:
       auth_type: password
       project_name: service
-      username:
-      password:
-       ## TODO
-      cafile:
       memcache_security_strategy: ENCRYPT
-      memcache_secret_key:
-      memcached_servers:
       signing_dir: /var/cache/dmapi
-      project_domain_name:
-      user_domain_name:
       insecure: True
     oslo_messaging_notifications:
-      transport_url:
       driver: messagingv2
       topics: notifications,stacklight_notifications
     oslo_middleware:
@@ -617,23 +586,12 @@ conf:
       rabbit_qos_prefetch_count: 64
   datamover:
     DEFAULT:
-      vault_storage_type:
-      vault_storage_nfs_export:
-      vault_storage_nfs_options:
+      log_config_append: /etc/glance/logging.conf
       vault_storage_nfs_export: TrilioVault
       vault_s3_auth_version: DEFAULT
-      vault_s3_access_key_id:
-      vault_s3_secret_access_key:
-      vault_s3_region_name:
-      vault_s3_bucket:
-      vault_s3_signature_version:
-      vault_s3_auth_version:
-      vault_s3_endpoint_url:
-      vault_s3_ssl:
       vault_s3_ssl_cert: "/etc/triliovault/s3-cert.pem"
-      vault_data_directory_old: /var/triliovault
-      vault_data_directory:
-      log_file: /tmp/tvault-datamover.log
+      vault_data_directory_old: "/var/triliovault"
+      vault_data_directory: "/var/triliovault-mounts"
       debug: False
       verbose: True
       max_uploads_pending: 3
@@ -644,12 +602,11 @@ conf:
       max_overflow: 30
       max_pool_size: 10
       max_retries: -1
-      connection:
     libvirt:
       images_rbd_ceph_conf: /etc/ceph/ceph.conf
-      rbd_user:
+      rbd_user: cinder
     ceph:
-      keyring_ext:
+      keyring_ext: .cinder.keyring
     contego_sys_admin:
       helper_command: sudo /usr/bin/privsep-helper
     s3fuse_sys_admin:
@@ -659,7 +616,7 @@ conf:
     oslo_messaging_rabbit:
       ssl: false
     cinder:
-      http_retries:
+      http_retries: 10
 
     DEFAULT:
       use_virt_qemu: False
@@ -682,6 +639,7 @@ conf:
   workloadmgr:
     DEFAULT:
       api_workers: 2
+      log_config_append: /etc/glance/logging.conf
       workloads_workers: 2
       triliovault_hostnames: tvault-wlm-api
       api_paste_config: /etc/workloadmgr/api-paste.ini
