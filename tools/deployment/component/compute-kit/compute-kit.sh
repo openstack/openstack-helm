@@ -22,54 +22,10 @@ if openstack service list -f value -c Type | grep -q "^volume" && \
   CEPH_ENABLED=true
 fi
 
-#NOTE: Get the overrides to use for placement, should placement be deployed.
-case "${OPENSTACK_RELEASE}" in
-  "newton")
-    DEPLOY_SEPARATE_PLACEMENT="no"
-    ;;
-  "ocata")
-    DEPLOY_SEPARATE_PLACEMENT="no"
-    ;;
-  "pike")
-    DEPLOY_SEPARATE_PLACEMENT="no"
-    ;;
-  "queens")
-    DEPLOY_SEPARATE_PLACEMENT="no"
-    ;;
-  "rocky")
-    DEPLOY_SEPARATE_PLACEMENT="no"
-    ;;
-  "stein")
-    DEPLOY_SEPARATE_PLACEMENT="yes"
-    ;;
-  *)
-    DEPLOY_SEPARATE_PLACEMENT="yes"
-    ;;
-esac
-
-if [[ "${DEPLOY_SEPARATE_PLACEMENT}" == "yes" ]]; then
-    # Get overrides
-    : ${OSH_EXTRA_HELM_ARGS_PLACEMENT:="$(./tools/deployment/common/get-values-overrides.sh placement)"}
-
-    # Lint and package
-    make placement
-
-    # Deploy
-    helm upgrade --install placement ./placement --namespace=openstack \
-        ${OSH_EXTRA_HELM_ARGS:=} ${OSH_EXTRA_HELM_ARGS_PLACEMENT}
-fi
-
 #NOTE: Get the over-rides to use
 : ${OSH_EXTRA_HELM_ARGS_NOVA:="$(./tools/deployment/common/get-values-overrides.sh nova)"}
 
-# TODO: Revert this reasoning when gates are pointing to more up to
-# date openstack release. When doing so, we should revert the default
-# values of the nova chart to NOT use placement by default, and
-# have a ocata/pike/queens/rocky/stein override to enable placement in the nova chart deploy
-
-if [[ "${DEPLOY_SEPARATE_PLACEMENT}" == "yes" ]]; then
-  OSH_EXTRA_HELM_ARGS_NOVA="${OSH_EXTRA_HELM_ARGS_NOVA} --values=./nova/values_overrides/train-disable-nova-placement.yaml"
-fi
+OSH_EXTRA_HELM_ARGS_NOVA="${OSH_EXTRA_HELM_ARGS_NOVA} --values=./nova/values_overrides/train-disable-nova-placement.yaml"
 
 #NOTE: Lint and package chart
 make nova
@@ -95,6 +51,16 @@ else
       ${OSH_EXTRA_HELM_ARGS:=} \
       ${OSH_EXTRA_HELM_ARGS_NOVA}
 fi
+
+# Get overrides
+: ${OSH_EXTRA_HELM_ARGS_PLACEMENT:="$(./tools/deployment/common/get-values-overrides.sh placement)"}
+
+# Lint and package
+make placement
+
+# Deploy placement
+helm upgrade --install placement ./placement --namespace=openstack \
+    ${OSH_EXTRA_HELM_ARGS:=} ${OSH_EXTRA_HELM_ARGS_PLACEMENT}
 
 #NOTE: Get the over-rides to use
 : ${OSH_EXTRA_HELM_ARGS_NEUTRON:="$(./tools/deployment/common/get-values-overrides.sh neutron)"}
