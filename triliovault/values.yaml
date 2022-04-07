@@ -337,16 +337,16 @@ endpoints:
         username: dmapi
         password: password
         project_name: service
-        user_domain_name: service
-        project_domain_name: service
+        user_domain_name: default
+        project_domain_name: default
       triliovault-wlm:
         role: admin
         region_name: RegionOne
         username: triliovault
         password: password
         project_name: service
-        user_domain_name: service
-        project_domain_name: service
+        user_domain_id: default
+        project_domain_id: default
       test:
         role: admin
         region_name: RegionOne
@@ -449,19 +449,36 @@ endpoints:
       api:
         default: 8780
         public: 80
-  oslo_db:
+  oslo_db_triliovault_datamover:
     auth:
       admin:
         username: root
         password: password
-      triliovault:
-        username: triliovault
+      triliovault_datamover:
+        username: dmapi
         password: password
     hosts:
       default: mariadb
     host_fqdn_override:
       default: null
-    path: /triliovault
+    path: /dmapi
+    scheme: mysql+pymysql
+    port:
+      mysql:
+        default: 3306
+  oslo_db_triliovault_wlm:
+    auth:
+      admin:
+        username: root
+        password: password
+      triliovault_wlm:
+        username: workloadmgr
+        password: password
+    hosts:
+      default: mariadb
+    host_fqdn_override:
+      default: null
+    path: /workloadmgr
     scheme: mysql+pymysql
     port:
       mysql:
@@ -469,11 +486,20 @@ endpoints:
 conf:
   triliovault:
     backup_target_type: "nfs"
+    ## Valid values are "nfs" and "s3"
     nfs:
       nfs_shares:
-        - "192.168.122.101:/opt/tvault1"
-        - "192.168.122.102:/opt/tvault2"
-      nfs_options: "nolock,soft,timeo=180,intr,lookupcache=none"
+        - /opt/share1:
+            192.168.122.101:
+              node_selector: kubernetes_node_label1
+            192.168.122.102:
+              node_selector: kubernetes_node_label2
+        - /opt/share2:
+            192.168.122.201:
+              node_selector: kubernetes_node_label1
+            192.168.122.202:
+              node_selector: kubernetes_node_label2
+      nfs_options: "nolock,soft,vers=3,timeo=180,intr,lookupcache=none"
     s3:
       access_key: ''
       secret_key: ''
@@ -485,6 +511,9 @@ conf:
       auth_version: 'DEFAULT'
       ## If S3 backend is not Amazon S3 and SSL is enabled on S3 endpoint url then change it to 'True', otherwise keep it as 'False'
       ssl_enabled: False
+      ## Provide s3 cert file content as multiline string
+      s3_cert: |
+        ""
 
     ## Configure 'dmapi_workers' parameter of '/etc/dmapi/dmapi.conf' file
     ## This parameter value used to spawn the number of dmapi processes to handle the incoming api requests.
@@ -503,7 +532,7 @@ conf:
   triliovault_object_store:
     DEFAULT:
       verbose: true
-      log_file: /tmp/tvault-object-store.log
+      log_config_append: /etc/triliovault/logging.conf
       vault_data_directory: /var/triliovault-mounts
       vault_s3_access_key_id: <INSERT DATA>
       vault_s3_auth_version: DEFAULT
@@ -549,7 +578,7 @@ conf:
       interface: internal
   datamover_api:
     DEFAULT:
-      log_config_append: /etc/glance/logging.conf
+      log_config_append: /etc/triliovault/logging.conf
       dmapi_link_prefix: http://{{ api_interface_address }}:8784
       ## Don't delete this parameter. Keep it empty
       dmapi_enabled_ssl_apis: ""
@@ -586,8 +615,7 @@ conf:
       rabbit_qos_prefetch_count: 64
   datamover:
     DEFAULT:
-      log_config_append: /etc/glance/logging.conf
-      vault_storage_nfs_export: TrilioVault
+      log_config_append: /etc/triliovault/logging.conf
       vault_s3_auth_version: DEFAULT
       vault_s3_ssl_cert: "/etc/triliovault/s3-cert.pem"
       vault_data_directory_old: "/var/triliovault"
@@ -617,62 +645,52 @@ conf:
       ssl: false
     cinder:
       http_retries: 10
-
+  wlm:
     DEFAULT:
-      use_virt_qemu: False
-      log_file: /tmp/tvault-datamover.log
-      verbose: true
-      vault_storage_das_device: none
-      vault_storage_type: s3
-      vault_storage_nfs_export: TrilioVault
-    dmapi_database:
-
-    contego_sys_admin:
-      helper_command: sudo /usr/bin/nova-rootwrap /etc/nova/rootwrap.conf privsep-helper
-    ceph:
-      ceph_dir: /etc/ceph
-    libvirt:
-      rbd_user: nova
-      images_rbd_ceph_conf: /etc/ceph/ceph.conf
-    backends:
-      override_block: cinder
-  workloadmgr:
-    DEFAULT:
-      api_workers: 2
-      log_config_append: /etc/glance/logging.conf
-      workloads_workers: 2
-      triliovault_hostnames: tvault-wlm-api
-      api_paste_config: /etc/workloadmgr/api-paste.ini
+      api_workers: 4
+      osapi_workloads_listen_port: 8781
+      log_config_append: /etc/triliovault/logging.conf
+      workloads_workers: 4
+      triliovault_hostnames: <TODO: Waiting for input from Abhijeet>
+      api_paste_config: /etc/triliovault/api-paste.ini
+      rootwrap_config: /etc/triliovault/rootwrap.conf
       cinder_production_endpoint_template: http://cinder-api.openstack.svc.cluster.local:8776/v3/%(tenant_id)s
-      cloud_admin_domain: default
-      cloud_admin_project_id: <INSERT DATA>
-      cloud_admin_role: admin
-      cloud_admin_user_id:  <INSERT DATA>
-      cloud_unique_id:  <INSERT DATA>
+	    cloud_admin_user_id: ""
+      cloud_admin_domain: ""
+      cloud_admin_project_id: ""
+      cloud_admin_role: ""
+	    # Cloud admin user's domain id
+	    domain_name: ""
+      cloud_unique_id: <TODO: Set in config_etc>
       compute_driver: libvirt.LibvirtDriver
       config_status: configured
-      verbose: true
-      domain_name: service
+      verbose: True
+	    debug: False
+      domain_name:
       glance_api_version: 2
-      glance_production_api_servers: http://glance-api.openstack.svc.cluster.local:9292
-      glance_production_host: glance-api.openstack.svc.cluster.local
-      global_job_scheduler_override: false
+      glance_production_api_servers: <TODO: Set in config_etc>
+      glance_production_host: <TODO: Set in config_etc>
+      global_job_scheduler_override: False
       keystone_auth_version: 3
-      keystone_endpoint_url: http://keystone-api.openstack.svc.cluster.local:5000/v3
-      log_dir: /tmp
-      neutron_admin_auth_url: http://keystone-api.openstack.svc.cluster.local:5000/v3
-      neutron_production_url: http://neutron-server.openstack.svc.cluster.local:9696
-      nova_admin_auth_url: http://keystone-api.openstack.svc.cluster.local:5000/v3
-      nova_production_endpoint_template: http://nova-api.openstack.svc.cluster.local:8774/v2.1/%(tenant_id)s
-      region_name_for_services: RegionOne
-      rootwrap_config: /etc/workloadmgr/rootwrap.conf
-      state_path: /var/lib/workloadmgr
-      triliovault_user_domain_id: <INSERT DATA>
-      trustee_role: admin
-      use_stderr: false
-      use_syslog: false
+      keystone_endpoint_url: <TODO: Set in config_etc>
+      neutron_admin_auth_url: <TODO: Set in config_etc>
+      neutron_production_url: <TODO: Set in config_etc>
+	    neutron_api_insecure: False
+      nova_admin_auth_url: <TODO: Set in config_etc>
+      nova_production_endpoint_template: <TODO: Set in config_etc>
+      region_name_for_services: <TODO: Set in config_etc> <trilio_user_domain_id>
+      state_path: /opt/stack/data/workloadmgr
+      triliovault_user_domain_id: <TODO: Set in config_etc> <trilio_user_domain_id>
+      trustee_role: creater
+      use_syslog: False
       vault_storage_das_device: none
-      vault_storage_type: s3
+      vault_s3_auth_version: DEFAULT
+      vault_s3_ssl_cert: "/etc/triliovault/s3-cert.pem"
+      vault_data_directory_old: "/var/triliovault"
+      vault_data_directory: "/var/triliovault-mounts"
+	    #The amount of time(in hrs) that snapshot upload operation should wait for the upload
+	    max_wait_for_upload: 48
+      helper_command: sudo /usr/bin/workloadmgr-rootwrap /etc/triliovault/rootwrap.conf privsep-helper
     clients:
       client_retry_limit: 3
       endpoint_type: internal
@@ -681,10 +699,13 @@ conf:
     keystone_authtoken:
       auth_version: v3
       auth_type: password
-      memcache_security_strategy: ENCRYPT
-      memcache_secret_key: x4DuDDNYR0AphdXw
-      project_domain_id: <INSERT DATA>
-      user_domain_id: <INSERT DATA>
+      auth_plugin: password
+      username: triliovault
+      admin_user: triliovault
+      signing_dir: /var/cache/workloadmgr
+      insecure: False
+      service_token_roles_required: True
+      cafile: ""
   logging:
     loggers:
       keys:
