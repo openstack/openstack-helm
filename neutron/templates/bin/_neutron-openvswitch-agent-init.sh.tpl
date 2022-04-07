@@ -87,44 +87,57 @@ function migrate_ip {
 
   local src_nic=$(get_name_by_pci_id ${pci_id})
   if [ -n "${src_nic}" ] ; then
-    set +e
-    ip=$(get_ip_address_from_interface ${src_nic})
-    prefix=$(get_ip_prefix_from_interface ${src_nic})
-
-    # Enabling explicit error handling: We must avoid to lose the IP
-    # address in the migration process. Hence, on every error, we
-    # attempt to assign the IP back to the original NIC and exit.
     bridge_exists=$(ip a s "${bridge_name}" | grep "${bridge_name}" | cut -f2 -d':' 2> /dev/null)
     if [ -z "${bridge_exists}" ] ; then
       echo "Bridge "${bridge_name}" does not exist. Creating it on demand."
       init_ovs_dpdk_bridge "${bridge_name}"
     fi
 
-    bridge_ip=$(get_ip_address_from_interface "${bridge_name}")
-    bridge_prefix=$(get_ip_prefix_from_interface "${bridge_name}")
+    migrate_ip_from_nic ${src_nic} ${bridge_name}
+  fi
+}
 
-    if [[ -n "${ip}" && -n "${prefix}" ]]; then
-      ip addr flush dev ${src_nic}
-      if [ $? -ne 0 ] ; then
-        ip addr add ${ip}/${prefix} dev ${src_nic}
-        echo "Error while flushing IP from ${src_nic}."
-        exit 1
-      fi
+function migrate_ip_from_nic {
+  src_nic=$1
+  bridge_name=$2
 
-      ip addr add ${ip}/${prefix} dev "${bridge_name}"
-      if [ $? -ne 0 ] ; then
-        echo "Error assigning IP to bridge "${bridge_name}"."
-        ip addr add ${ip}/${prefix} dev ${src_nic}
-        exit 1
-      fi
-    elif [[ -n "${bridge_ip}" && -n "${bridge_prefix}" ]]; then
-      echo "Bridge '${bridge_name}' already has IP assigned. Keeping the same:: IP:[${bridge_ip}]; Prefix:[${bridge_prefix}]..."
-    else
-      echo "Interface ${name} has invalid IP address. IP:[${ip}]; Prefix:[${prefix}]..."
+  # Enabling explicit error handling: We must avoid to lose the IP
+  # address in the migration process. Hence, on every error, we
+  # attempt to assign the IP back to the original NIC and exit.
+  set +e
+
+  ip=$(get_ip_address_from_interface ${src_nic})
+  prefix=$(get_ip_prefix_from_interface ${src_nic})
+
+  bridge_ip=$(get_ip_address_from_interface "${bridge_name}")
+  bridge_prefix=$(get_ip_prefix_from_interface "${bridge_name}")
+
+  ip link set ${bridge_name} up
+
+  if [[ -n "${ip}" && -n "${prefix}" ]]; then
+    ip addr flush dev ${src_nic}
+    if [ $? -ne 0 ] ; then
+      ip addr add ${ip}/${prefix} dev ${src_nic}
+      echo "Error while flushing IP from ${src_nic}."
       exit 1
     fi
-    set -e
+
+    ip addr add ${ip}/${prefix} dev "${bridge_name}"
+    if [ $? -ne 0 ] ; then
+      echo "Error assigning IP to bridge "${bridge_name}"."
+      ip addr add ${ip}/${prefix} dev ${src_nic}
+      exit 1
+    fi
+  elif [[ -n "${bridge_ip}" && -n "${bridge_prefix}" ]]; then
+    echo "Bridge '${bridge_name}' already has IP assigned. Keeping the same:: IP:[${bridge_ip}]; Prefix:[${bridge_prefix}]..."
+  elif [[ -z "${bridge_ip}" && -z "${ip}" ]]; then
+    echo "Interface and bridge have no ips configured. Leaving as is."
+  else
+    echo "Interface ${name} has invalid IP address. IP:[${ip}]; Prefix:[${prefix}]..."
+    exit 1
   fi
+
+  set -e
 }
 
 function get_pf_or_vf_pci {
@@ -397,6 +410,7 @@ do
   if [ -n "$iface" ] && [ "$iface" != "null" ]
   then
     ovs-vsctl --no-wait --may-exist add-port $bridge $iface
+    migrate_ip_from_nic $iface $bridge
     if [[ $(get_dpdk_config_value ${DPDK_CONFIG} '.enabled') != "true" ]]; then
       ip link set dev $iface up
     fi
