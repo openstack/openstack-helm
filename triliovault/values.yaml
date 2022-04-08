@@ -368,6 +368,73 @@ endpoints:
       api:
         default: 80
         internal: 5000
+  image:
+    name: glance
+    hosts:
+      default: glance-api
+      public: glance
+    host_fqdn_override:
+      default: null
+    path:
+      default: null
+    scheme:
+      default: http
+    port:
+      api:
+        default: 9292
+        public: 80
+  volumev3:
+    name: cinder
+    hosts:
+      default: cinder-api
+      public: cinder
+    host_fqdn_override:
+      default: null
+      # NOTE(portdirect): this chart supports TLS for fqdn over-ridden public
+      # endpoints using the following format:
+      # public:
+      #   host: null
+      #   tls:
+      #     crt: null
+      #     key: null
+    path:
+      default: '/v3/%(tenant_id)s'
+    scheme:
+      default: 'http'
+    port:
+      api:
+        default: 8776
+        public: 80
+  network:
+    name: neutron
+    hosts:
+      default: neutron-server
+      public: neutron
+    host_fqdn_override:
+      default: null
+    path:
+      default: null
+    scheme:
+      default: http
+    port:
+      api:
+        default: 9696
+        public: 80
+  compute:
+    name: nova
+    hosts:
+      default: nova-api
+      public: nova
+    host_fqdn_override:
+      default: null
+    path:
+      default: "/v2.1/%(tenant_id)s"
+    scheme:
+      default: 'http'
+    port:
+      api:
+        default: 8774
+        public: 80
   oslo_cache:
     auth:
       # NOTE: this is used to define the value for keystone
@@ -533,18 +600,12 @@ conf:
     DEFAULT:
       verbose: true
       log_config_append: /etc/triliovault/logging.conf
-      vault_data_directory: /var/triliovault-mounts
-      vault_s3_access_key_id: <INSERT DATA>
-      vault_s3_auth_version: DEFAULT
-      vault_s3_bucket: trilio-<INSERT DATA>
-      vault_s3_endpoint_url: https://rook-ceph-rgw-openstack-store.rook-ceph.svc:8443/
-      vault_s3_region: openstack-store
-      vault_s3_secret_access_key: <INSERT DATA>
-      vault_storage_das_device: none
       vault_storage_type: s3
-      vault_s3_ssl_cert: /etc/s3.cert
+      vault_s3_auth_version: DEFAULT
+      vault_s3_ssl_cert: "/etc/triliovault/s3-cert.pem"
+      vault_storage_nfs_export: TrilioVault
     s3fuse_sys_admin:
-      helper_command: sudo /usr/bin/workloadmgr-rootwrap /etc/workloadmgr/rootwrap.conf privsep-helper
+      helper_command: sudo /usr/bin/workloadmgr-rootwrap /etc/triliovault/rootwrap.conf privsep-helper
   paste:
     composite:osapi_workloads:
       use: call:workloadmgr.api:root_app_factory
@@ -570,8 +631,17 @@ conf:
     filter:keystonecontext:
       paste.filter_factory: workloadmgr.api.middleware.auth:WorkloadMgrKeystoneContext.factory
     filter:authtoken:
-      paste.filter_factory: keystonemiddleware.auth_token:filter_factory
-      interface: internal
+      paste.filter_factory:  keystonemiddleware.auth_token:filter_factory
+      auth_host: <TODO>
+      auth_port: <TODO>
+      auth_protocol: <TODO>
+      admin_tenant_name: <TODO>
+      admin_user: triliovault
+      admin_password: <TODO>
+      admin_user_domain_id: <TODO>
+      signing_dir: /var/cache/workloadmgr
+      insecure: True
+      interface: <TODO>
   datamover_api:
     DEFAULT:
       log_config_append: /etc/triliovault/logging.conf
@@ -620,7 +690,6 @@ conf:
       verbose: True
       max_uploads_pending: 3
       max_commit_pending: 3
-      dmapi_transport_url:  <NOVA TRANSPORT_URL>
     dmapi_database:
       connection_recycle_time: 300
       max_overflow: 30
@@ -647,34 +716,23 @@ conf:
       osapi_workloads_listen_port: 8781
       log_config_append: /etc/triliovault/logging.conf
       workloads_workers: 4
+      global_job_scheduler_override: False
       triliovault_hostnames: ""
       api_paste_config: /etc/triliovault/api-paste.ini
       rootwrap_config: /etc/triliovault/rootwrap.conf
-      cinder_production_endpoint_template: http://cinder-api.openstack.svc.cluster.local:8776/v3/%(tenant_id)s
 	    cloud_admin_user_id: ""
       cloud_admin_domain: ""
       cloud_admin_project_id: ""
       cloud_admin_role: admin
-	    # Cloud admin user's domain id
-	    domain_name: ""
       cloud_unique_id: <TODO: Set in config_etc>
       compute_driver: libvirt.LibvirtDriver
       config_status: configured
       verbose: True
 	    debug: False
       domain_name:
-      glance_api_version: 2
-      glance_production_api_servers: <TODO: Set in config_etc>
-      glance_production_host: <TODO: Set in config_etc>
-      global_job_scheduler_override: False
       keystone_auth_version: 3
-      keystone_endpoint_url: <TODO: Set in config_etc>
-      neutron_admin_auth_url: <TODO: Set in config_etc>
-      neutron_production_url: <TODO: Set in config_etc>
+      glance_api_version: 2
 	    neutron_api_insecure: False
-      nova_admin_auth_url: <TODO: Set in config_etc>
-      nova_production_endpoint_template: <TODO: Set in config_etc>
-      region_name_for_services: <TODO: Set in config_etc> <trilio_user_domain_id>
       state_path: /opt/stack/data/workloadmgr
       triliovault_user_domain_id: <TODO: Set in config_etc> <trilio_user_domain_id>
       trustee_role: creater

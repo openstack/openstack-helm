@@ -185,6 +185,46 @@ limitations under the License.
 {{- end -}}
 
 
+{{/* **********************************************************************
+     set triliovault_object_store.conf services conf parameters
+     **********************************************************************
+*/}}
+
+
+{{- if empty .Values.conf.triliovault_object_store.DEFAULT.vault_s3_access_key_id -}}
+{{- $_ := set .Values.conf.triliovault_object_store.DEFAULT "vault_s3_access_key_id" .Values.conf.triliovault.s3.access_key -}}
+{{- end -}}
+
+{{- if empty .Values.conf.triliovault_object_store.DEFAULT.vault_s3_secret_access_key -}}
+{{- $_ := set .Values.conf.triliovault_object_store.DEFAULT "vault_s3_secret_access_key" .Values.conf.triliovault.s3.secret_key -}}
+{{- end -}}
+
+{{- if empty .Values.conf.triliovault_object_store.DEFAULT.vault_s3_region_name -}}
+{{- $_ := set .Values.conf.triliovault_object_store.DEFAULT "vault_s3_region_name" .Values.conf.triliovault.s3.region_name -}}
+{{- end -}}
+
+{{- if empty .Values.conf.triliovault_object_store.DEFAULT.vault_s3_bucket -}}
+{{- $_ := set .Values.conf.triliovault_object_store.DEFAULT "vault_s3_bucket" .Values.conf.triliovault.s3.bucket -}}
+{{- end -}}
+
+{{- if empty .Values.conf.triliovault_object_store.DEFAULT.vault_s3_signature_version -}}
+{{- $_ := set .Values.conf.triliovault_object_store.DEFAULT "vault_s3_signature_version" .Values.conf.triliovault.s3.signature_version -}}
+{{- end -}}
+
+{{- if empty .Values.conf.triliovault_object_store.DEFAULT.vault_s3_auth_version -}}
+{{- $_ := set .Values.conf.triliovault_object_store.DEFAULT "vault_s3_auth_version" .Values.conf.triliovault.s3.auth_version -}}
+{{- end -}}
+
+{{- if empty .Values.conf.triliovault_object_store.DEFAULT.vault_s3_endpoint_url -}}
+{{- $_ := set .Values.conf.triliovault_object_store.DEFAULT "vault_s3_endpoint_url" .Values.conf.triliovault.s3.endpoint_url -}}
+{{- end -}}
+
+{{- if empty .Values.conf.triliovault_object_store.DEFAULT.vault_s3_ssl -}}
+{{- $_ := set .Values.conf.triliovault_object_store.DEFAULT "vault_s3_ssl" .Values.conf.triliovault.s3.ssl_enabled -}}
+{{- end -}}
+
+
+
 
 
 {{/* **********************************************************************
@@ -289,14 +329,57 @@ limitations under the License.
 {{- $_ := tuple "oslo_messaging" "internal" "triliovault" "amqp" . | include "helm-toolkit.endpoints.authenticated_transport_endpoint_uri_lookup" | set .Values.conf.wlm.DEFAULT "transport_url" -}}
 {{- end -}}
 
-{{- if empty .Values.conf.wlm.alembic.sqlalchemy.url -}}
-{{- $_ := tuple "oslo_db_triliovault_wlm" "internal" "triliovault_wlm" "mysql" . | include "helm-toolkit.endpoints.authenticated_endpoint_uri_lookup" | set .Values.conf.wlm.alembic "sqlalchemy.url" -}}
+
+{{- if empty .Values.conf.wlm.DEFAULT.keystone_endpoint_url -}}
+{{- $_ := tuple "identity" .Values.conf.wlm.clients.endpoint_type "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" | set .Values.conf.wlm.DEFAULT "keystone_endpoint_url" -}}
+{{- end -}}
+
+{{- if empty .Values.conf.wlm.DEFAULT.nova_production_endpoint_template -}}
+{{- $_ := tuple "compute" .Values.conf.wlm.clients.endpoint_type "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" | set .Values.conf.wlm.DEFAULT "nova_production_endpoint_template" -}}
+{{- end -}}
+
+{{- if empty .Values.conf.wlm.DEFAULT.nova_admin_auth_url -}}
+{{- $_ := tuple "compute" "admin" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" | set .Values.conf.wlm.DEFAULT "nova_admin_auth_url" -}}
+{{- end -}}
+
+
+{{- if empty .Values.conf.wlm.DEFAULT.cinder_production_endpoint_template -}}
+{{- $_ := tuple "volumev3" .Values.conf.wlm.clients.endpoint_type "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" | set .Values.conf.wlm.DEFAULT "cinder_production_endpoint_template" -}}
+{{- end -}}
+
+{{- if empty .Values.conf.wlm.DEFAULT.neutron_production_url -}}
+{{- $_ := tuple "network" .Values.conf.wlm.clients.endpoint_type "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" | set .Values.conf.wlm.DEFAULT "neutron_production_url" -}}
+{{- end -}}
+
+{{- if empty .Values.conf.wlm.DEFAULT.neutron_admin_auth_url -}}
+{{- $_ := tuple "network" "admin" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" | set .Values.conf.wlm.DEFAULT "neutron_admin_auth_url" -}}
+{{- end -}}
+
+{{- if empty .Values.conf.wlm.DEFAULT.glance_production_api_servers -}}
+{{- $_ := tuple "image" .Values.conf.wlm.clients.endpoint_type "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" | set .Values.conf.wlm.DEFAULT "glance_production_api_servers" -}}
+{{- end -}}
+
+{{- if empty .Values.conf.wlm.DEFAULT.glance_production_host -}}
+{{- $_ := tuple "image" .Values.conf.wlm.clients.endpoint_type . | include "helm-toolkit.endpoints.endpoint_host_lookup" | set .Values.conf.wlm.DEFAULT "glance_production_host" -}}
+{{- end -}}
+
+{{- if empty .Values.conf.wlm.DEFAULT.domain_name -}}
+{{- $_ := set .Values.conf.wlm.DEFAULT "domain_name" .Values.conf.wlm.DEFAULT.cloud_admin_domain  -}}
 {{- end -}}
 
 
 
 
 
+
+{{- if empty .Values.conf.wlm.alembic.sqlalchemy.url -}}
+{{- $_ := tuple "oslo_db_triliovault_wlm" "internal" "triliovault_wlm" "mysql" . | include "helm-toolkit.endpoints.authenticated_endpoint_uri_lookup" | set .Values.conf.wlm.alembic "sqlalchemy.url" -}}
+{{- end -}}
+
+
+{{- if empty .Values.conf.wlm.DEFAULT.region_name_for_services -}}
+{{- $_ := set .Values.conf.wlm.DEFAULT "region_name_for_services" .Values.endpoints.identity.auth.admin.region_name -}}
+{{- end -}}
 
 
 {{/* **********************************************************************
