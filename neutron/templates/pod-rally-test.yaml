@@ -12,19 +12,25 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- if (.Values.global).subchart_release_name }}
+{{- $_ := set . "deployment_name" .Chart.Name }}
+{{- else }}
+{{- $_ := set . "deployment_name" .Release.Name }}
+{{- end }}
+
 {{- if .Values.manifests.pod_rally_test }}
 {{- $envAll := . }}
 
 {{- $mounts_tests := .Values.pod.mounts.neutron_tests.neutron_tests }}
 {{- $mounts_tests_init := .Values.pod.mounts.neutron_tests.init_container }}
 
-{{- $serviceAccountName := print $envAll.Release.Name "-test" }}
+{{- $serviceAccountName := print .deployment_name "-test" }}
 {{ tuple $envAll "tests" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: v1
 kind: Pod
 metadata:
-  name: {{ print $envAll.Release.Name "-test" }}
+  name: {{ print .deployment_name "-test" }}
   annotations:
     "helm.sh/hook": test-success
     {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
@@ -66,7 +72,7 @@ spec:
         - name: SERVICE_OS_ROLE
           value: {{ .Values.endpoints.identity.auth.test.role | quote }}
 {{ if $envAll.Values.conf.rally_tests.force_project_purge }}
-    - name: {{ .Release.Name }}-reset
+    - name: {{ .deployment_name }}-reset
 {{ tuple $envAll "purge_test" | include "helm-toolkit.snippets.image" | indent 6 }}
       env:
 {{- with $env := dict "ksUserSecret" .Values.secrets.identity.admin "useCA" .Values.manifests.certificates }}

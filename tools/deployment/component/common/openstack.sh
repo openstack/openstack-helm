@@ -13,28 +13,110 @@
 #    under the License.
 
 set -xe
-namespace=openstack
-chart=$namespace
-export HELM_CHART_ROOT_PATH="${HELM_CHART_ROOT_PATH:="${OSH_INFRA_PATH:="../openstack-helm/openstack"}"}"
+
+export OSH_TEST_TIMEOUT=1200
+export OS_CLOUD=openstack_helm
+: "${RUN_HELM_TESTS:="no"}"
+: "${CEPH_ENABLED:="false"}"
+: "${OSH_EXTRA_HELM_ARGS:=""}"
+release=openstack
+namespace=$release
+
+: ${GLANCE_BACKEND:="pvc"}
+tee /tmp/glance.yaml <<EOF
+glance:
+  storage: ${GLANCE_BACKEND}
+  volume:
+    class_name: standard
+EOF
+#NOTE: Deploy neutron
+tee /tmp/neutron.yaml << EOF
+neutron:
+  release_group: neutron
+  enabled: true
+  network:
+    interface:
+      tunnel: docker0
+  conf:
+    neutron:
+      DEFAULT:
+        l3_ha: False
+        max_l3_agents_per_router: 1
+        l3_ha_network_type: vxlan
+        dhcp_agents_per_network: 1
+    plugins:
+      ml2_conf:
+        ml2_type_flat:
+          flat_networks: public
+      openvswitch_agent:
+        agent:
+          tunnel_types: vxlan
+        ovs:
+          bridge_mappings: public:br-ex
+      linuxbridge_agent:
+        linux_bridge:
+          bridge_mappings: public:br-ex
+EOF
+## includes second argument 'subchart' to indicate a different path
+export HELM_CHART_ROOT_PATH="../openstack-helm/openstack"
 : ${OSH_EXTRA_HELM_ARGS_MARIADB:="$(./tools/deployment/common/get-values-overrides.sh mariadb subchart)"}
 : ${OSH_EXTRA_HELM_ARGS_RABBITMQ:="$(./tools/deployment/common/get-values-overrides.sh rabbitmq subchart)"}
 : ${OSH_EXTRA_HELM_ARGS_MEMCACHED:="$(./tools/deployment/common/get-values-overrides.sh memcached subchart)"}
 : ${OSH_EXTRA_HELM_ARGS_KEYSTONE:="$(./tools/deployment/common/get-values-overrides.sh keystone subchart)"}
 : ${OSH_EXTRA_HELM_ARGS_HEAT:="$(./tools/deployment/common/get-values-overrides.sh heat subchart)"}
 : ${OSH_EXTRA_HELM_ARGS_GLANCE:="$(./tools/deployment/common/get-values-overrides.sh glance subchart)"}
+: ${OSH_EXTRA_HELM_ARGS_OPENVSWITCH:="$(./tools/deployment/common/get-values-overrides.sh openvswitch subchart)"}
+: ${OSH_EXTRA_HELM_ARGS_LIBVIRT:="$(./tools/deployment/common/get-values-overrides.sh libvirt subchart)"}
+: ${OSH_EXTRA_HELM_ARGS_NOVA:="$(./tools/deployment/common/get-values-overrides.sh nova subchart)"}
+: ${OSH_EXTRA_HELM_ARGS_PLACEMENT:="$(./tools/deployment/common/get-values-overrides.sh placement subchart)"}
+: ${OSH_EXTRA_HELM_ARGS_NEUTRON:="$(./tools/deployment/common/get-values-overrides.sh neutron subchart)"}
 
 #NOTE: Lint and package chart
 make -C ${HELM_CHART_ROOT_PATH} .
 
-echo "helm installing ..."
-helm upgrade --install $chart $chart/ \
-    ${OSH_EXTRA_HELM_ARGS_MARIADB} \
-    ${OSH_EXTRA_HELM_ARGS_RABBITMQ} \
-    ${OSH_EXTRA_HELM_ARGS_MEMCACHED} \
-    ${OSH_EXTRA_HELM_ARGS_KEYSTONE} \
-    ${OSH_EXTRA_HELM_ARGS_HEAT} \
-    ${OSH_EXTRA_HELM_ARGS_GLANCE} \
-    ${OSH_EXTRA_HELM_ARGS:=} \
-    --namespace=$namespace
+if [ "x$(systemd-detect-virt)" != "xnone" ]; then
+  echo 'OSH is being deployed in virtualized environment, using qemu for nova'
+  OSH_EXTRA_HELM_ARGS=( "--set nova.conf.nova.libvirt.virt_type=qemu" \
+                        "--set nova.conf.nova.libvirt.cpu_mode=none" )
+fi
+echo "helm installing openstack..."
+helm upgrade --install $release openstack/ \
+  ${OSH_EXTRA_HELM_ARGS_MARIADB} \
+  ${OSH_EXTRA_HELM_ARGS_RABBITMQ} \
+  ${OSH_EXTRA_HELM_ARGS_MEMCACHED} \
+  ${OSH_EXTRA_HELM_ARGS_KEYSTONE} \
+  ${OSH_EXTRA_HELM_ARGS_HEAT} \
+  ${OSH_EXTRA_HELM_ARGS_GLANCE} \
+  ${OSH_EXTRA_HELM_ARGS_OPENVSWITCH} \
+  ${OSH_EXTRA_HELM_ARGS_LIBVIRT} \
+  ${OSH_EXTRA_HELM_ARGS_NOVA} \
+  ${OSH_EXTRA_HELM_ARGS_PLACEMENT} \
+  ${OSH_EXTRA_HELM_ARGS_NEUTRON} \
+  ${OSH_EXTRA_HELM_ARGS} \
+  --set nova.bootstrap.wait_for_computes.enabled=true \
+  --set libvirt.conf.ceph.enabled=${CEPH_ENABLED} \
+  --set nova.conf.ceph.enabled=${CEPH_ENABLED} \
+  --values=/tmp/neutron.yaml \
+  --values=/tmp/glance.yaml \
+  --namespace=$namespace
+
+# If compute kit installed using Tungsten Fubric, it will be alive when Tunsten Fabric become active.
+if [[ "$FEATURE_GATES" =~ (,|^)tf(,|$) ]]; then
+  exit 0
+fi
+
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh $namespace 1800
+
+#NOTE: Validate Deployment info
+openstack service list
+sleep 30 #NOTE(portdirect): Wait for ingress controller to update rules and restart Nginx
+openstack compute service list
+openstack network agent list
+openstack hypervisor list
+
+if [ "${RUN_HELM_TESTS}" == "no" ]; then
+    exit 0
+fi
+
+./tools/deployment/common/run-helm-tests.sh $chart $release

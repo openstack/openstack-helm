@@ -1,0 +1,79 @@
+---
+nova:
+  images:
+    tags:
+      tf_compute_init: opencontrailnightly/contrail-openstack-compute-init:master-latest
+  conf:
+    nova:
+      libvirt:
+        virt_type: qemu
+        cpu_mode: host-model
+    agent:
+      compute:
+        node_selector_key: openstack-compute-node
+        node_selector_value: enabled
+      compute_ironic:
+        node_selector_key: openstack-compute-node
+        node_selector_value: enabled
+    api_metadata:
+      node_selector_key: openstack-control-plane
+      node_selector_value: enabled
+    conductor:
+      node_selector_key: openstack-control-plane
+      node_selector_value: enabled
+    job:
+      node_selector_key: openstack-control-plane
+      node_selector_value: enabled
+    novncproxy:
+      node_selector_key: openstack-control-plane
+      node_selector_value: enabled
+    osapi:
+      node_selector_key: openstack-control-plane
+      node_selector_value: enabled
+    scheduler:
+      node_selector_key: openstack-control-plane
+      node_selector_value: enabled
+    spiceproxy:
+      node_selector_key: openstack-control-plane
+      node_selector_value: enabled
+    test:
+      node_selector_key: openstack-control-plane
+      node_selector_value: enabled
+    rootwrap: |
+      # Configuration for nova-rootwrap
+      # This file should be owned by (and only-writeable by) the root user
+
+      [DEFAULT]
+      # List of directories to load filter definitions from (separated by ',').
+      # These directories MUST all be only writeable by root !
+      filters_path=/etc/nova/rootwrap.d,/usr/share/nova/rootwrap
+
+      # List of directories to search executables in, in case filters do not
+      # explicitely specify a full path (separated by ',')
+      # If not specified, defaults to system PATH environment variable.
+      # These directories MUST all be only writeable by root !
+      exec_dirs=/sbin,/usr/sbin,/bin,/usr/bin,/usr/local/bin,/usr/local/sbin,/var/lib/openstack/bin,/var/lib/kolla/venv/bin,/opt/plugin/bin
+
+      # Enable logging to syslog
+      # Default value is False
+      use_syslog=False
+
+      # Which syslog facility to use.
+      # Valid values include auth, authpriv, syslog, local0, local1...
+      # Default value is 'syslog'
+      syslog_log_facility=syslog
+
+      # Which messages to log.
+      # INFO means log all usage
+      # ERROR means only log unsuccessful attempts
+      syslog_log_level=ERROR
+  network:
+    backend:
+      - tungstenfabric
+  dependencies:
+    dynamic:
+      targeted:
+        tungstenfabric:
+          compute:
+            daemonset: []
+...
