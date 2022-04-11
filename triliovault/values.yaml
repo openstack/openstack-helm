@@ -134,7 +134,9 @@ pod:
           min_ready_seconds: 0
           max_unavailable: 1
     disruption_budget:
-      api:
+      datamover_api:
+        min_available: 0
+      wlm_api:
         min_available: 0
     termination_grace_period:
       api:
@@ -231,15 +233,22 @@ manifests:
   daemonset_datamover: true
   ingress_api: true
   job_bootstrap: false
-  job_db_drop: false
-  job_db_init: true
+  job_triliovault_datamover_db_drop: false
+  job_triliovault_wlm_db_drop: false
+  job_triliovault_datamover_db_init: true
+  job_triliovault_wlm_db_init: true
+  job_triliovault_datamover_db_sync: true
+  job_triliovault_wlm_db_sync: true
+  job_triliovault_wlm_rabbit_init: true
+  job_triliovault_datamover_ks_endpoints: true
+  job_triliovault_datamover_ks_service: true
+  job_triliovault_datamover_ks_user: true
+  job_triliovault_wlm_ks_endpoints: true
+  job_triliovault_wlm_ks_service: true
+  job_triliovault_wlm_ks_user: true
   job_image_repo_sync: true
-  job_rabbit_init: false
-  job_db_sync: true
-  job_ks_endpoints: true
-  job_ks_service: true
-  job_ks_user: true
-  pdb_api: true
+  pdb_triliovault_datamover_api: true
+  pdb_triliovault_wlm_api: true
   certificates: false
   configmap_bin: true
   configmap_etc: true
@@ -257,9 +266,11 @@ manifests:
   job_ks_user: true
   pdb_api: true
   network_policy: false
-  secret_db: true
+  secret_db_datamover: true
+  secret_db_wlm: true
   secret_ingress_tls: true
-  secret_keystone: true
+  secret_triliovault_wlm_keystone: true
+  secret_triliovault_datamover_keystone: true
   secret_rabbitmq: true
   service_api: true
   service_ingress_api: true
@@ -282,19 +293,16 @@ network:
 secrets:
   identity:
     admin: triliovault-keystone-admin
-    triliovault: triliovault-keystone-user
-    dmapi: triliovault-keystone-user
+    triliovault-datamover: triliovault-datamover-keystone-user
+    triliovault-wlm: triliovault-wlm-keystone-user
     test: triliovault-keystone-test
   oslo_db:
     admin: triliovault-db-admin
-    triliovault: triliovault-db-user
-    dmapi: dmapi-db-user
+    triliovault-datamover: triliovault-datamover-db-user
+    triliovault-wlm: triliovault-wlm-db-user
   oslo_messaging:
     admin: triliovault-rabbitmq-admin
-    triliovault: triliovault-rabbitmq-user
-  oslo_db_wlm:
-    admin: triliovault-db-wlm-admin
-    wlm: triliovault-db-wlm-user
+    triliovault-wlm: triliovault-wlm-rabbitmq-user
   tls:
     datamover:
       api:
@@ -455,7 +463,10 @@ endpoints:
       admin:
         username: rabbitmq
         password: password
-      triliovault:
+        secret:
+          tls:
+            internal: rabbitmq-tls-direct
+      triliovault-wlm:
         username: triliovault
         password: password
     statefulset:
@@ -472,8 +483,8 @@ endpoints:
         default: 5672
       http:
         default: 15672
-  triliovault-datamover:
-    name: triliovault-datamover
+  datamover:
+    name: dmapi
     hosts:
       default: triliovault-datamover-api
       public: triliovault-datamover
@@ -494,8 +505,8 @@ endpoints:
       api:
         default: 8784
         public: 80
-  triliovault-wlm:
-    name: triliovault-wlm
+  workloads:
+    name: workloadmgr
     hosts:
       default: triliovault-wlm-api
       public: triliovault-wlm
@@ -521,7 +532,7 @@ endpoints:
       admin:
         username: root
         password: password
-      triliovault_datamover:
+      triliovault-datamover:
         username: dmapi
         password: password
     hosts:
@@ -538,7 +549,7 @@ endpoints:
       admin:
         username: root
         password: password
-      triliovault_wlm:
+      triliovault-wlm:
         username: workloadmgr
         password: password
     hosts:
