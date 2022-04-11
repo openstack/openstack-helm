@@ -15,4 +15,4 @@ limitations under the License.
 */}}
 
 set -ex
-exec /usr/bin/dmapi-api
+exec /usr/bin/python3 /usr/bin/dmapi-api
