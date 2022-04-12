@@ -79,6 +79,8 @@ if test "$(active_rabbit_nodes)" -gt "$RABBIT_REPLICA_COUNT"; then
     rabbitmqctl -l -n "${PRIMARY_NODE}" cluster_status
 fi
 
+# Get current node list
+PRIMARY_NODE="$(sorted_node_list | awk '{ print $1; exit }')"
 # Delete guest admin user
 echo "Removing Guest admin user account"
 rabbitmqctl -l -n "${PRIMARY_NODE}" delete_user guest || true
