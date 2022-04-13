@@ -40,8 +40,8 @@ spec:
 {{ tuple $envAll "triliovault" "datamover" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
       annotations:
 {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
-        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
-        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
+        configmap-bin-hash: {{ tuple "configmap-bin-datamover.yaml" . | include "helm-toolkit.utils.hash" }}
+        configmap-etc-hash: {{ tuple "configmap-etc-datamover.yaml" . | include "helm-toolkit.utils.hash" }}
     spec:
       serviceAccountName: {{ $serviceAccountName }}
 {{ dict "envAll" $envAll "application" "triliovault" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
@@ -67,23 +67,23 @@ spec:
               mountPath: /tmp
             - name: trilio-mounts
               mountPath: /var/triliovault-mounts
-            - name: triliovault-etc
-              mountPath: /etc/triliovault/triliovault-datamover.conf
-              subPath: datamover.conf
+            - name: triliovault-datamover-etc
+              mountPath: /etc/triliovault-datamover/triliovault-datamover.conf
+              subPath: triliovault-datamover.conf
               readOnly: true
-            - mountPath: /etc/triliovault/triliovault-object-store.conf
-              name: triliovault-etc
+            - mountPath: /etc/triliovault-object-store/triliovault-object-store.conf
+              name: triliovault-datamover-etc
               readOnly: true
-              subPath: tvostore.conf
+              subPath: triliovault-object-store.conf
             - mountPath: /etc/fuse.conf
-              name: triliovault-etc
+              name: triliovault-datamover-etc
               readOnly: true
               subPath: fuse.conf
-            - mountPath: /etc/triliovault/s3-cert.pem
-              name: triliovault-etc
+            - mountPath: /etc/triliovault-datamover/s3-cert.pem
+              name: triliovault-datamover-etc
               readOnly: true
               subPath: s3-cert.pem
-            - name: triliovault-bin
+            - name: triliovault-datamover-bin
               mountPath: /tmp/triliovault-datamover.sh
               subPath: triliovault-datamover.sh
               readOnly: true
@@ -106,12 +106,12 @@ spec:
               mountPath: /etc/nova/api-paste.ini
               subPath: api-paste.ini
               readOnly: true
-            - name: triliovault-etc
-              mountPath: /etc/nova/logging.conf
+            - name: triliovault-datamover-etc
+              mountPath: /etc/triliovault-datamover/logging.conf
               subPath: logging.conf
               readOnly: true
             - name: nova-etc
-              mountPath: /etc/nova/policy.yaml
+              mountPath: /etc/triliovault-datamover/policy.yaml
               subPath: policy.yaml
               readOnly: true
             - name: nova-etc
@@ -132,13 +132,13 @@ spec:
           emptyDir: {}
         - name: trilio-mounts
           emptyDir: {}
-        - name: triliovault-etc
+        - name: triliovault-datamover-etc
           secret:
-            secretName: triliovault-etc
+            secretName: triliovault-datamover-etc
             defaultMode: 0444
-        - name: triliovault-bin
+        - name: triliovault-datamover-bin
           configMap:
-            name: triliovault-bin
+            name: triliovault-datamover-bin
             defaultMode: 0555
         - name: varlibnova
           hostPath:
