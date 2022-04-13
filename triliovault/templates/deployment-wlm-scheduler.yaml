@@ -12,11 +12,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if .Values.manifests.deployment_api }}
+{{- if .Values.manifests.deployment_triliovault_wlm_scheduler }}
 {{- $envAll := . }}
 
-{{- $mounts_triliovault_api := .Values.pod.mounts.triliovault_api.triliovault_api }}
-{{- $mounts_triliovault_api_init := .Values.pod.mounts.triliovault_api.init_container }}
+{{- $mounts_triliovault_wlm_scheduler := .Values.pod.mounts.triliovault_wlm_scheduler.triliovault_wlm_scheduler }}
+{{- $mounts_triliovault_wlm_scheduler_init := .Values.pod.mounts.triliovault_wlm_scheduler.init_container }}
 
 {{- $serviceAccountName := "triliovault-wlm-scheduler" }}
 {{ tuple $envAll "wlm_scheduler" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
@@ -30,7 +30,7 @@ metadata:
   labels:
 {{ tuple $envAll "triliovault" "wlm-scheduler" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 spec:
-  replicas: {{ .Values.pod.replicas.scheduler }}
+  replicas: {{ .Values.pod.replicas.triliovault_wlm_scheduler }}
   selector:
     matchLabels:
 {{ tuple $envAll "triliovault" "wlm-scheduler" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
@@ -41,22 +41,22 @@ spec:
 {{ tuple $envAll "triliovault" "wlm-scheduler" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
       annotations:
 {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
-        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
-        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
+        configmap-bin-hash: {{ tuple "configmap-bin-wlm.yaml" . | include "helm-toolkit.utils.hash" }}
+        configmap-etc-hash: {{ tuple "configmap-etc-wlm.yaml" . | include "helm-toolkit.utils.hash" }}
     spec:
       serviceAccountName: {{ $serviceAccountName }}
 {{ dict "envAll" $envAll "application" "triliovault" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
       affinity:
-{{ tuple $envAll "triliovault" "api" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
+{{ tuple $envAll "triliovault" "wlm-scheduler" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
       nodeSelector:
-        {{ .Values.labels.wlm_api.node_selector_key }}: {{ .Values.labels.wlm_api.node_selector_value }}
-      terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.api.timeout | default "30" }}
+        {{ .Values.labels.wlm_scheduler.node_selector_key }}: {{ .Values.labels.wlm_scheduler.node_selector_value }}
+      terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.wlm_scheduler.timeout | default "30" }}
       initContainers:
-{{ tuple $envAll "wlm_scheduler" $mounts_triliovault_api_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll "wlm_scheduler" $mounts_triliovault_wlm_scheduler_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
         - name: triliovault-wlm-scheduler
 {{ tuple $envAll "triliovault_api" | include "helm-toolkit.snippets.image" | indent 10 }}
-{{ tuple $envAll $envAll.Values.pod.resources.api | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.wlm_scheduler | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
 {{ dict "envAll" $envAll "application" "triliovault" "container" "triliovault_wlm_scheduler" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
             - /tmp/triliovault-wlm-scheduler.sh
@@ -66,41 +66,37 @@ spec:
               mountPath: /tmp
             - name: trilio-mounts
               mountPath: /var/triliovault-mounts
-            - name: triliovault-etc
-              mountPath: /etc/workloadmgr/workloadmgr.conf
-              subPath: workloadmgr.conf
+            - name: triliovault-wlm-etc
+              mountPath: /etc/triliovault-wlm/triliovault-wlm.conf
+              subPath: triliovault-wlm.conf
               readOnly: true
-            {{- if .Values.conf.workloadmgr.DEFAULT.log_config_append }}
+            {{- if .Values.conf.wlm.DEFAULT.log_config_append }}
             - name: triliovault-etc
-              mountPath: {{ .Values.conf.workloadmgr.DEFAULT.log_config_append }}
-              subPath: {{ base .Values.conf.workloadmgr.DEFAULT.log_config_append }}
+              mountPath: {{ .Values.conf.wlm.DEFAULT.log_config_append }}
+              subPath: {{ base .Values.conf.wlm.DEFAULT.log_config_append }}
               readOnly: true
             {{- end }}
-            - name: triliovault-etc
-              mountPath: /etc/workloadmgr/api-paste.ini
+            - name: triliovault-wlm-etc
+              mountPath: /etc/triliovault-wlm/api-paste.ini
               subPath: api-paste.ini
               readOnly: true
-            - name: triliovault-etc
-              mountPath: /etc/workloadmgr/alembic.ini
-              subPath: alembic.ini
-              readOnly: true
-            - name: triliovault-bin
+            - name: triliovault-wlm-bin
               mountPath: /tmp/triliovault-wlm-scheduler.sh
-              subPath: wlm.sh
+              subPath: triliovault-wlm-scheduler.sh
               readOnly: true
-{{ if $mounts_triliovault_api.volumeMounts }}{{ toYaml $mounts_triliovault_api.volumeMounts | indent 12 }}{{ end }}
+{{ if $mounts_triliovault_wlm_scheduler.volumeMounts }}{{ toYaml $mounts_triliovault_wlm_scheduler.volumeMounts | indent 12 }}{{ end }}
       volumes:
         - name: pod-tmp
           emptyDir: {}
         - name: trilio-mounts
           emptyDir: {}
-        - name: triliovault-etc
+        - name: triliovault-wlm-etc
           secret:
-            secretName: triliovault-etc
+            secretName: triliovault-wlm-etc
             defaultMode: 0444
-        - name: triliovault-bin
+        - name: triliovault-wlm-bin
           configMap:
-            name: triliovault-bin
+            name: triliovault-wlm-bin
             defaultMode: 0555
-{{ if $mounts_triliovault_api.volumes }}{{ toYaml $mounts_triliovault_api.volumes | indent 8 }}{{ end }}
+{{ if $mounts_triliovault_wlm_scheduler.volumes }}{{ toYaml $mounts_triliovault_wlm_scheduler.volumes | indent 8 }}{{ end }}
 {{- end }}

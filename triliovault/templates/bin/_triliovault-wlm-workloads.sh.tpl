@@ -15,4 +15,26 @@ limitations under the License.
 */}}
 
 set -ex
-exec /usr/bin/python3 /usr/bin/workloadmgr-workloads --config-file=/etc/triliovault-wlm/triliovault-wlm.conf
+
+{{- $backup_target_type := .Values.conf.triliovault.backup_target_type }}
+
+{{ if eq $backup_target_type "s3" }}
+
+## Start triliovault object store service if backup target type is s3
+/usr/bin/python3 /usr/bin/s3vaultfuse.py --config-file=/etc/triliovault-object-store/triliovault-object-store.conf
+status=$?
+if [ $status -ne 0 ]; then
+  echo "Failed to start tvault-object-store service: $status"
+  exit $status
+fi
+
+{{ end }}
+
+
+# Start workloadmgr workloads service
+/usr/bin/python3 /usr/bin/workloadmgr-workloads --config-file=/etc/triliovault-wlm/triliovault-wlm.conf &
+status=$?
+if [ $status -ne 0 ]; then
+  echo "Failed to start tvault contego service: $status"
+  exit $status
+fi

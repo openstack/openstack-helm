@@ -18,14 +18,20 @@ labels:
   wlm_api:
     node_selector_key: openstack-control-plane
     node_selector_value: enabled
-  dmapi:
+  wlm_cron:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  wlm_scheduler:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  wlm_workloads:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  datamover_api:
     node_selector_key: openstack-control-plane
     node_selector_value: enabled
   datamover:
     node_selector_key: openstack-compute-node
-    node_selector_value: enabled
-  workloads:
-    node_selector_key: openstack-control-plane
     node_selector_value: enabled
   job:
     node_selector_key: openstack-control-plane
@@ -100,23 +106,47 @@ pod:
       weight:
         default: 10
   mounts:
-    triliovault_api:
+    triliovault_wlm_api:
       init_container: null
-      triliovault_api:
+      triliovault_wlm_api:
+        volumeMounts:
+        volumes:
+    triliovault_wlm_cron:
+      init_container: null
+      triliovault_wlm_cron:
+        volumeMounts:
+        volumes:
+    triliovault_wlm_scheduler:
+      init_container: null
+      triliovault_wlm_scheduler:
+        volumeMounts:
+        volumes:
+    triliovault_wlm_workloads:
+      init_container: null
+      triliovault_wlm_workloads:
+        volumeMounts:
+        volumes:
+    triliovault_datamover_api:
+      init_container: null
+      triliovault_datamover_api:
         volumeMounts:
         volumes:
     triliovault_datamover:
       init_container: null
-      tvault_datamover:
+      triliovault_datamover:
         volumeMounts:
         volumes:
     triliovault_tests:
       init_container: null
-      tvault_tests:
+      triliovault_tests:
         volumeMounts:
         volumes:
-    triliovault_db_sync:
-      tvault_db_sync:
+    triliovault_datamover_db_sync:
+      triliovault_wlm_db_sync:
+        volumeMounts:
+        volumes:
+    triliovault_wlm_db_sync:
+      triliovault_wlm_db_sync:
         volumeMounts:
         volumes:
   lifecycle:
@@ -139,17 +169,62 @@ pod:
       wlm_api:
         min_available: 0
     termination_grace_period:
-      api:
+      wlm_api:
+        timeout: 30
+      wlm_cron:
+        timeout: 30
+      wlm_scheduler:
+        timeout: 30
+      wlm_workloads:
+        timeout: 30
+      datamover_api:
+        timeout: 30
+      datamover:
         timeout: 30
   replicas:
-    wlm_api: 3
-    dmapi: 3
-    workloads: 3
-    cron: 1
-    scheduler: 1
+    triliovault_wlm_api: 3
+    triliovault_datamover_api: 3
+    triliovault_wlm_workloads: 3
+    triliovault_wlm_cron: 1
+    triliovault_wlm_scheduler: 1
   resources:
     enabled: false
-    api:
+    wlm_api:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+    wlm_cron:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+    wlm_scheduler:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+    wlm_workloads:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+    datamover_api:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+    datamover:
       requests:
         memory: "128Mi"
         cpu: "100m"
@@ -229,8 +304,12 @@ pod:
           cpu: "2000m"
 
 manifests:
-  deployment_api: true
-  daemonset_datamover: true
+  deployment_triliovault_wlm_api: true
+  deployment_triliovault_wlm_cron: true
+  deployment_triliovault_wlm_scheduler: 
+  deployment_triliovault_wlm_workloads: true
+  deployment_triliovault_datamover_api: true
+  daemonset_triliovault_datamover: true
   ingress_api: true
   job_bootstrap: false
   job_triliovault_datamover_db_drop: false
@@ -250,20 +329,12 @@ manifests:
   pdb_triliovault_datamover_api: true
   pdb_triliovault_wlm_api: true
   certificates: false
-  configmap_bin: true
-  configmap_etc: true
-  deployment_api: true
-  deployment_scheduler: true
-  deployment_workloads: true
+  triliovault_wlm_configmap_bin: true
+  triliovault_wlm_configmap_etc: true
+  triliovault_datamover_configmap_bin: true
+  triliovault_datamover_configmap_etc: true
   ingress_api: true
   job_bootstrap: true
-  job_db_init: true
-  job_rabbit_init: true
-  job_db_sync: true
-  job_db_drop: false
-  job_ks_endpoints: true
-  job_ks_service: true
-  job_ks_user: true
   pdb_api: true
   network_policy: false
   secret_db_datamover: true
@@ -608,10 +679,10 @@ conf:
   triliovault_object_store:
     DEFAULT:
       verbose: true
-      log_config_append: /etc/triliovault/logging.conf
+      log_config_append: /etc/triliovault-object-store/logging.conf
       vault_storage_type: s3
       vault_s3_auth_version: DEFAULT
-      vault_s3_ssl_cert: "/etc/triliovault/s3-cert.pem"
+      vault_s3_ssl_cert: "/etc/triliovault-wlm/s3-cert.pem"
       vault_storage_nfs_export: TrilioVault
     s3fuse_sys_admin:
       helper_command: sudo /usr/bin/workloadmgr-rootwrap /etc/triliovault/rootwrap.conf privsep-helper
@@ -653,7 +724,7 @@ conf:
       interface: <TODO>
   datamover_api:
     DEFAULT:
-      log_config_append: /etc/triliovault/logging.conf
+      log_config_append: /etc/triliovault-datamover/logging.conf
       dmapi_link_prefix: http://{{ api_interface_address }}:8784
       ## Don't delete this parameter. Keep it empty
       dmapi_enabled_ssl_apis: ""
@@ -663,13 +734,13 @@ conf:
       instance_name_template: instance-%08x
       dmapi_listen: {{ api_interface_address }}
       my_ip: {{ api_interface_address }}
-      rootwrap_config: /etc/triliovault/rootwrap.conf
+      rootwrap_config: /etc/triliovault-datamover/rootwrap.conf
       debug: False
     wsgi:
       ## Don't delete these entries. We need to keep them with empty values
       ssl_cert_file: ""
       ssl_key_file: ""
-      api_paste_config: /etc/dmapi/api-paste.ini
+      api_paste_config: /etc/triliovault-datamover/api-paste.ini
     database:
       connection_recycle_time: 300
       max_overflow: 30
@@ -690,9 +761,9 @@ conf:
       rabbit_qos_prefetch_count: 64
   datamover:
     DEFAULT:
-      log_config_append: /etc/triliovault/logging.conf
+      log_config_append: /etc/triliovault-datamover/logging.conf
       vault_s3_auth_version: DEFAULT
-      vault_s3_ssl_cert: "/etc/triliovault/s3-cert.pem"
+      vault_s3_ssl_cert: "/etc/triliovault-datamover/s3-cert.pem"
       vault_data_directory_old: "/var/triliovault"
       vault_data_directory: "/var/triliovault-mounts"
       debug: False
@@ -723,12 +794,12 @@ conf:
     DEFAULT:
       api_workers: 4
       osapi_workloads_listen_port: 8781
-      log_config_append: /etc/triliovault/logging.conf
+      log_config_append: /etc/triliovault-wlm/logging.conf
       workloads_workers: 4
       global_job_scheduler_override: False
       triliovault_hostnames: ""
-      api_paste_config: /etc/triliovault/api-paste.ini
-      rootwrap_config: /etc/triliovault/rootwrap.conf
+      api_paste_config: /etc/triliovault-wlm/api-paste.ini
+      rootwrap_config: /etc/triliovault-wlm/rootwrap.conf
 	    cloud_admin_user_id: ""
       cloud_admin_domain: ""
       cloud_admin_project_id: ""
