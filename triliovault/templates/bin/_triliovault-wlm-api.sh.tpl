@@ -1,3 +1,5 @@
+#!/bin/bash
+
 {{/*
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -12,17 +14,5 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if .Values.manifests.secret_keystone }}
-{{- $envAll := . }}
-{{- range $key1, $userClass := tuple "admin" "triliovault" }}
-{{- $secretName := index $envAll.Values.secrets.identity $userClass }}
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: {{ $secretName }}
-type: Opaque
-data:
-{{- tuple $userClass "internal" $envAll | include "helm-toolkit.snippets.keystone_secret_openrc" | indent 2 -}}
-{{- end }}
-{{- end }}
+set -ex
+exec /usr/bin/python3 /usr/bin/workloadmgr-api --config-file=/etc/triliovault-wlm/triliovault-wlm.conf

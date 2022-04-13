@@ -1,3 +1,5 @@
+#!/bin/bash
+
 {{/*
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -12,7 +14,5 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if .Values.manifests.job_ks_endpoints }}
-{{- $ksServiceJob := dict "envAll" . "serviceName" "tvault" "serviceTypes" ( tuple "datamover" "workloads" ) -}}
-{{ $ksServiceJob | include "helm-toolkit.manifests.job_ks_endpoints" }}
-{{- end }}
+set -ex
+exec alembic --config /etc/workloadmgr/workloadmgr.conf upgrade head

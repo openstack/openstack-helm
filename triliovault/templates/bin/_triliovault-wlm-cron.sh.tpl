@@ -1,3 +1,5 @@
+#!/bin/bash
+
 {{/*
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -12,17 +14,5 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if .Values.manifests.secret_rabbitmq }}
-{{- $envAll := . }}
-{{- range $key1, $userClass := tuple "admin" "triliovault" }}
-{{- $secretName := index $envAll.Values.secrets.oslo_messaging $userClass }}
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: {{ $secretName }}
-type: Opaque
-data:
-  RABBITMQ_CONNECTION: {{ tuple "oslo_messaging" "internal" $userClass "http" $envAll | include "helm-toolkit.endpoints.authenticated_endpoint_uri_lookup" | b64enc }}
-{{- end }}
-{{- end }}
+set -ex
+exec /usr/bin/python3 /usr/bin/workloadmgr-cron --config-file=/etc/triliovault-wlm/triliovault-wlm.conf

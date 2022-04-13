@@ -12,20 +12,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{/*
-This single job will sync all images of triliovault. 
-Don't need to create two separate jobs for datamover and wlm service images.
-*/}}
-
-{{- define "metadata.annotations.job.repo_sync" }}
+{{- define "metadata.annotations.job.triliovault_datamover_ks_endpoints" }}
 helm.sh/hook: post-install,post-upgrade
+helm.sh/hook-weight: "-2"
 {{- end }}
 
-{{- if and .Values.manifests.job_image_repo_sync .Values.images.local_registry.active }}
-{{- $imageRepoSyncJob := dict "envAll" . "serviceName" "triliovault-wlm" -}}
+{{- if .Values.manifests.job_triliovault_datamover_ks_endpoints }}
+{{- $ksServiceJob := dict "envAll" . "serviceName" "triliovault-wlm" "serviceTypes" ( tuple "datamover" ) -}}
+{{- if .Values.manifests.certificates -}}
+{{- $_ := set $ksServiceJob "tlsSecret" .Values.secrets.tls.image.api.internal -}}
+{{- end -}}
 {{- if .Values.helm3_hook }}
-{{- $_ := $imageRepoSyncJob "jobAnnotations" (include "metadata.annotations.job.repo_sync" . | fromYaml) }}
+{{- $_ := set $ksServiceJob "jobAnnotations" (include "metadata.annotations.job.triliovault_datamover_ks_endpoints" . | fromYaml) }}
 {{- end }}
-{{ $imageRepoSyncJob | include "helm-toolkit.manifests.job_image_repo_sync" }}
+{{ $ksServiceJob | include "helm-toolkit.manifests.job_ks_endpoints" }}
 {{- end }}
-
