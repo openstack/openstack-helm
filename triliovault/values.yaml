@@ -310,7 +310,8 @@ manifests:
   deployment_triliovault_wlm_workloads: true
   deployment_triliovault_datamover_api: true
   daemonset_triliovault_datamover: true
-  ingress_api: true
+  ingress_triliovault_wlm_api: true
+  ingress_triliovault_datamover_api: true
   job_bootstrap: false
   job_triliovault_datamover_db_drop: false
   job_triliovault_wlm_db_drop: false
@@ -347,7 +348,19 @@ manifests:
   service_ingress_api: true
 
 network:
-  api:
+  wlm_api:
+    ingress:
+      public: true
+      classes:
+        namespace: "nginx"
+        cluster: "nginx-cluster"
+      annotations:
+        nginx.ingress.kubernetes.io/rewrite-target: /
+    external_policy_local: false
+    node_port:
+      enabled: false
+      port: 8042
+  datamover_api:
     ingress:
       public: true
       classes:
@@ -375,14 +388,16 @@ secrets:
     admin: triliovault-rabbitmq-admin
     triliovault-wlm: triliovault-wlm-rabbitmq-user
   tls:
-    datamover:
-      api:
-        public: triliovault-tls-public
-        internal: triliovault-tls-api
-    workloads:
-      api:
-        public: triliovault-tls-public
-        internal: triliovault-tls-api
+    image:
+      datamover:
+        api:
+          public: triliovault-datamover-tls-public
+          internal: triliovault-datamover-tls-api
+      workloads:
+        api:
+          public: triliovault-wlm-tls-public
+          internal: triliovault-wlm-tls-api
+
 # We use a different layout of the endpoints here to account for versioning
 # this swaps the service name and type, and should be rolled out to other
 # services.
