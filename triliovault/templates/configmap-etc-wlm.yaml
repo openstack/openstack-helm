@@ -167,11 +167,11 @@ limitations under the License.
 
 
 {{- if empty .Values.conf.wlm.DEFAULT.keystone_endpoint_url -}}
-{{- $_ := tuple "identity" .Values.conf.wlm.clients.endpoint_type "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" | set .Values.conf.wlm.DEFAULT "keystone_endpoint_url" -}}
+{{- $_ := tuple "identity" .Values.conf.triliovault.interface "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" | set .Values.conf.wlm.DEFAULT "keystone_endpoint_url" -}}
 {{- end -}}
 
 {{- if empty .Values.conf.wlm.DEFAULT.nova_production_endpoint_template -}}
-{{- $_ := tuple "compute" .Values.conf.wlm.clients.endpoint_type "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" | set .Values.conf.wlm.DEFAULT "nova_production_endpoint_template" -}}
+{{- $_ := tuple "compute" .Values.conf.triliovault.interface "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" | set .Values.conf.wlm.DEFAULT "nova_production_endpoint_template" -}}
 {{- end -}}
 
 {{- if empty .Values.conf.wlm.DEFAULT.nova_admin_auth_url -}}
@@ -180,11 +180,11 @@ limitations under the License.
 
 
 {{- if empty .Values.conf.wlm.DEFAULT.cinder_production_endpoint_template -}}
-{{- $_ := tuple "volumev3" .Values.conf.wlm.clients.endpoint_type "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" | set .Values.conf.wlm.DEFAULT "cinder_production_endpoint_template" -}}
+{{- $_ := tuple "volumev3" .Values.conf.triliovault.interface "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" | set .Values.conf.wlm.DEFAULT "cinder_production_endpoint_template" -}}
 {{- end -}}
 
 {{- if empty .Values.conf.wlm.DEFAULT.neutron_production_url -}}
-{{- $_ := tuple "network" .Values.conf.wlm.clients.endpoint_type "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" | set .Values.conf.wlm.DEFAULT "neutron_production_url" -}}
+{{- $_ := tuple "network" .Values.conf.triliovault.interface "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" | set .Values.conf.wlm.DEFAULT "neutron_production_url" -}}
 {{- end -}}
 
 {{- if empty .Values.conf.wlm.DEFAULT.neutron_admin_auth_url -}}
@@ -192,11 +192,11 @@ limitations under the License.
 {{- end -}}
 
 {{- if empty .Values.conf.wlm.DEFAULT.glance_production_api_servers -}}
-{{- $_ := tuple "image" .Values.conf.wlm.clients.endpoint_type "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" | set .Values.conf.wlm.DEFAULT "glance_production_api_servers" -}}
+{{- $_ := tuple "image" .Values.conf.triliovault.interface "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" | set .Values.conf.wlm.DEFAULT "glance_production_api_servers" -}}
 {{- end -}}
 
 {{- if empty .Values.conf.wlm.DEFAULT.glance_production_host -}}
-{{- $_ := tuple "image" .Values.conf.wlm.clients.endpoint_type . | include "helm-toolkit.endpoints.endpoint_host_lookup" | set .Values.conf.wlm.DEFAULT "glance_production_host" -}}
+{{- $_ := tuple "image" .Values.conf.triliovault.interface . | include "helm-toolkit.endpoints.endpoint_host_lookup" | set .Values.conf.wlm.DEFAULT "glance_production_host" -}}
 {{- end -}}
 
 {{- if empty .Values.conf.wlm.DEFAULT.domain_name -}}
@@ -204,8 +204,9 @@ limitations under the License.
 {{- end -}}
 
 
-
-
+{{- if empty .Values.conf.wlm.clients.endpoint_type -}}
+{{- $_ := set .Values.conf.wlm.clients "endpoint_type " .Values.conf.triliovault.interface  -}}
+{{- end -}}
 
 
 {{- if empty .Values.conf.wlm.alembic.sqlalchemy.url -}}
@@ -216,6 +217,31 @@ limitations under the License.
 {{- if empty .Values.conf.wlm.DEFAULT.region_name_for_services -}}
 {{- $_ := set .Values.conf.wlm.DEFAULT "region_name_for_services" .Values.endpoints.identity.auth.admin.region_name -}}
 {{- end -}}
+
+
+{{/* **********************************************************************
+     set api-paste.ini conf parameters
+     **********************************************************************
+*/}}
+
+{{- if empty .Values.conf.paste.filter:authtoken.auth_host -}}
+{{- $_ := tuple "identity" .Values.conf.triliovault.interface . | include "helm-toolkit.endpoints.endpoint_host_lookup" | set .Values.conf.paste.filter:authtoken "auth_host" -}}
+{{- end -}}
+
+{{- if empty .Values.conf.paste.filter:authtoken.auth_port -}}
+{{- $_ := tuple "identity" .Values.conf.triliovault.interface "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | set .Values.conf.paste.filter:authtoken "auth_port" -}}
+{{- end -}}
+
+
+{{- if empty .Values.conf.paste.filter:authtoken.auth_protocol -}}
+{{- $_ := tuple "identity" .Values.conf.triliovault.interface "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | set .Values.conf.paste.filter:authtoken "auth_protocol" -}}
+{{- end -}}
+
+
+{{- if empty .Values.conf.paste.filter:authtoken.interface -}}
+{{- $_ := set .Values.conf.wlm.filter:authtoken "interface" .Values.conf.triliovault.interface -}}
+{{- end -}}
+
 
 
 {{/* **********************************************************************
