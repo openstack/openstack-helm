@@ -20,6 +20,18 @@ limitations under the License.
 
 {{- $serviceAccountName := "triliovault-wlm-workloads" }}
 {{ tuple $envAll "wlm_workloads" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+
+{{- if eq .Values.conf.triliovault.backup_target_type "nfs" -}}
+{{- $share_path := index .Values.conf.triliovault.nfs.nfs_shares 0 "path" -}}
+{{- $share_ip := index .Values.conf.triliovault.nfs.nfs_shares 0 "ip" -}}
+{{- $node_selector_key := index .Values.conf.triliovault.nfs.nfs_shares 0 "node_selector_key" -}}
+{{- $node_selector_value := index .Values.conf.triliovault.nfs.nfs_shares 0 "node_selector_value" -}}
+{{- $nfs_mount_point_endcoded := $share_path | b64enc }}
+{{- $nfs_mount_point := printf "%s/%s" .Values.conf.datamover.DEFAULT.vault_data_directory $nfs_mount_point_endcoded }}
+{{- end -}}
+
+
+
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -100,6 +112,10 @@ spec:
               mountPath: /tmp/triliovault-wlm-workloads.sh
               subPath: triliovault-wlm-workloads.sh
               readOnly: true
+            {{- if eq .Values.conf.triliovault.backup_target_type "nfs" }}
+            - name: triliovault-nfs-pv-{{ $share_ip}}-{{ $share_path }}
+              mountPath: {{ $nfs_mount_point | quote }}
+            {{- end }}
 {{ if $mounts_triliovault_wlm_workloads.volumeMounts }}{{ toYaml $mounts_triliovault_wlm_workloads.volumeMounts | indent 12 }}{{ end }}
       volumes:
         - name: pod-tmp
@@ -114,5 +130,10 @@ spec:
           configMap:
             name: triliovault-wlm-bin
             defaultMode: 0555
+        {{- if eq .Values.conf.triliovault.backup_target_type "nfs" }}
+        - name: triliovault-nfs-pv-{{ $share_ip}}-{{ $share_path }}
+          persistentVolumeClaim:
+            claimName: triliovault-nfs-pvc-{{ $share_ip}}-{{ $share_path }}
+        {{- end }}
 {{ if $mounts_triliovault_wlm_workloads.volumes }}{{ toYaml $mounts_triliovault_wlm_workloads.volumes | indent 8 }}{{ end }}
 {{- end }}
