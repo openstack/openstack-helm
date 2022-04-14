@@ -121,8 +121,13 @@ limitations under the License.
 {{- $_ := set .Values.conf.datamover.DEFAULT "vault_storage_type" .Values.conf.triliovault.backup_target_type -}}
 {{- end -}}
 
+
 {{- if eq .Values.conf.triliovault.backup_target_type "nfs" -}}
-{{- $_ := .Values.conf.triliovault.nfs.nfs_shares | join "," | quote | set .Values.conf.datamover.DEFAULT "vault_storage_nfs_export" -}}
+{{- range $share := .Values.conf.triliovault.nfs_shares }}
+{{- range $ip, $label := . }}
+{{- $_ :=  printf "%s:%s" $ip $share | quote | set .Values.conf.datamover.DEFAULT "vault_storage_nfs_export" -}}
+{{ end }}
+{{ end }}
 {{- else -}}
 {{- $_ := set .Values.conf.datamover.DEFAULT "vault_storage_nfs_export" "TrilioVault" -}}
 {{- end -}}

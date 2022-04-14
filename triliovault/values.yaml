@@ -336,16 +336,22 @@ manifests:
   triliovault_datamover_configmap_etc: true
   ingress_api: true
   job_bootstrap: true
-  pdb_api: true
+  pdb_datamover_api: true
+  pdb_wlm_api: true
   network_policy: false
   secret_db_datamover: true
   secret_db_wlm: true
-  secret_ingress_tls: true
+  secret_ingress_tls_datamover: true
+  secret_ingress_tls_wlm: true
   secret_triliovault_wlm_keystone: true
   secret_triliovault_datamover_keystone: true
   secret_rabbitmq: true
-  service_api: true
-  service_ingress_api: true
+  service_datamover_api: true
+  service_wlm_api: true
+  service_ingress_datamover_api: true
+  service_ingress_wlm_api: true
+  nfs_pv: true
+  nfs_pvc: true
 
 network:
   wlm_api:
@@ -359,7 +365,7 @@ network:
     external_policy_local: false
     node_port:
       enabled: false
-      port: 8042
+      port: 30901
   datamover_api:
     ingress:
       public: true
@@ -371,7 +377,7 @@ network:
     external_policy_local: false
     node_port:
       enabled: false
-      port: 8042
+      port: 30902
 
 # Names of secrets used by bootstrap and environmental checks
 secrets:
@@ -652,17 +658,11 @@ conf:
     backup_target_type: "nfs"
     ## Valid values are "nfs" and "s3"
     nfs:
-      nfs_shares:
-        - /opt/share1:
-            192.168.122.101:
-              node_selector: kubernetes_node_label1
-            192.168.122.102:
-              node_selector: kubernetes_node_label2
-        - /opt/share2:
-            192.168.122.201:
-              node_selector: kubernetes_node_label1
-            192.168.122.202:
-              node_selector: kubernetes_node_label2
+      nfs_shares: 
+      - path: /opt/share1
+        ip: 192.168.122.101
+        node_selector_key: openstack-compute-node
+        node_selector_value: enabled
       nfs_options: "nolock,soft,vers=3,timeo=180,intr,lookupcache=none"
     s3:
       access_key: ''
@@ -727,28 +727,24 @@ conf:
       paste.filter_factory: workloadmgr.api.middleware.auth:WorkloadMgrKeystoneContext.factory
     filter:authtoken:
       paste.filter_factory:  keystonemiddleware.auth_token:filter_factory
-      auth_host: <TODO>
-      auth_port: <TODO>
-      auth_protocol: <TODO>
-      admin_tenant_name: <TODO>
+      admin_tenant_name: service
       admin_user: triliovault
-      admin_password: <TODO>
+      admin_password: password
       admin_user_domain_id: <TODO>
       signing_dir: /var/cache/workloadmgr
       insecure: True
-      interface: <TODO>
   datamover_api:
     DEFAULT:
       log_config_append: /etc/triliovault-datamover/logging.conf
-      dmapi_link_prefix: http://{{ api_interface_address }}:8784
+      dmapi_link_prefix: http://{{ api_interface_address }}:8784 <TODO>
       ## Don't delete this parameter. Keep it empty
       dmapi_enabled_ssl_apis: ""
       dmapi_listen_port: 8784
       dmapi_enabled_apis: dmapi
       bindir: /usr/bin
       instance_name_template: instance-%08x
-      dmapi_listen: {{ api_interface_address }}
-      my_ip: {{ api_interface_address }}
+      dmapi_listen: {{ api_interface_address }} <TODO>
+      my_ip: {{ api_interface_address }} <TODO>
       rootwrap_config: /etc/triliovault-datamover/rootwrap.conf
       debug: False
     wsgi:
@@ -815,11 +811,11 @@ conf:
       triliovault_hostnames: ""
       api_paste_config: /etc/triliovault-wlm/api-paste.ini
       rootwrap_config: /etc/triliovault-wlm/rootwrap.conf
-	    cloud_admin_user_id: ""
-      cloud_admin_domain: ""
-      cloud_admin_project_id: ""
+	    cloud_admin_user_id: <TODO>
+      cloud_admin_domain: <TODO>
+      cloud_admin_project_id: <TODO>
       cloud_admin_role: admin
-      cloud_unique_id: <TODO: Set in config_etc>
+      cloud_unique_id: <TODO: Set in config_etc> triliovault user id
       compute_driver: libvirt.LibvirtDriver
       config_status: configured
       verbose: True
@@ -843,7 +839,6 @@ conf:
     clients:
       client_retry_limit: 3
       insecure: False
-      endpoint_type: internal
     global_job_scheduler:
       misfire_grace_time: 600
     keystone_authtoken:
