@@ -32,9 +32,13 @@ if [ -z "${datamover_api_ip_address}" ] ; then
   exit 1
 fi
 
-tee > /tmp/pod-shared/triliovault-datamover-api-my-ip.conf << EOF
+tee > /tmp/pod-shared-triliovault-datamover-api/triliovault-datamover-api-my-ip.conf << EOF
 [DEFAULT]
 dmapi_link_prefix = http://${datamover_api_ip_address}:8784
 dmapi_listen = $datamover_api_ip_address
 my_ip = $datamover_api_ip_address
 EOF
+
+
+
+
