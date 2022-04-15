@@ -65,6 +65,22 @@ spec:
       terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.api.timeout | default "30" }}
       initContainers:
 {{ tuple $envAll "wlm_workloads" $mounts_triliovault_wlm_workloads_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+        - name: triliovault-wlm-workloads-init
+{{ tuple $envAll "triliovault_wlm_workloads" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ dict "envAll" $envAll "application" "triliovault" "container" "triliovault_wlm_workloads_init" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          env:
+            - name: POD_NAME
+              value: "triliovault-wlm-workloads"
+          command:
+            - /tmp/triliovault-wlm-workloads-init.sh
+          terminationMessagePath: /var/log/termination-log
+          volumeMounts:
+            - name: triliovault-wlm-bin
+              mountPath: /tmp/triliovault-wlm-workloads-init.sh
+              subPath: triliovault-wlm-init.sh
+              readOnly: true
+            - name: pod-shared-triliovault-wlm-workloads
+              mountPath: /tmp/pod-shared-triliovault-wlm-workloads
       containers:
         - name: triliovault-wlm-workloads
 {{ tuple $envAll "triliovault_api" | include "helm-toolkit.snippets.image" | indent 10 }}
@@ -116,6 +132,8 @@ spec:
             - name: triliovault-nfs-pv-{{ $share_ip}}-{{ $share_path }}
               mountPath: {{ $nfs_mount_point | quote }}
             {{- end }}
+            - name: pod-shared-triliovault-wlm-workloads
+              mountPath: /tmp/pod-shared-triliovault-wlm-workloads
 {{ if $mounts_triliovault_wlm_workloads.volumeMounts }}{{ toYaml $mounts_triliovault_wlm_workloads.volumeMounts | indent 12 }}{{ end }}
       volumes:
         - name: pod-tmp
@@ -135,5 +153,7 @@ spec:
           persistentVolumeClaim:
             claimName: triliovault-nfs-pvc-{{ $share_ip}}-{{ $share_path }}
         {{- end }}
+	      - name: pod-shared-triliovault-wlm-workloads
+          emptyDir: {}
 {{ if $mounts_triliovault_wlm_workloads.volumes }}{{ toYaml $mounts_triliovault_wlm_workloads.volumes | indent 8 }}{{ end }}
 {{- end }}

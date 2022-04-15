@@ -32,7 +32,10 @@ fi
 
 
 # Start workloadmgr workloads service
-/usr/bin/python3 /usr/bin/workloadmgr-workloads --config-file=/etc/triliovault-wlm/triliovault-wlm.conf &
+/usr/bin/python3 /usr/bin/workloadmgr-workloads \
+     --config-file=/etc/triliovault-wlm/triliovault-wlm.conf \
+     --config-file=/tmp/pod-shared-triliovault-wlm-workloads/triliovault-wlm-ids.conf &
+     
 status=$?
 if [ $status -ne 0 ]; then
   echo "Failed to start tvault contego service: $status"
