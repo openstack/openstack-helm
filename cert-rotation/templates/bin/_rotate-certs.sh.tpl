@@ -136,9 +136,10 @@ function restart_the_pods(){
         # - get the name of the kind (which will index 1 = idx=0 of the output)
         # - get the names of the secrets mounted on this kind (which will be index 2 = idx+1)
         # - find if tls.crt was mounted to the container: get the subpaths of volumeMount in
-        #   the container and grep for tls.crt. (This will be index 2 = idx+2)
+        #   the container and grep for tls.crt. (This will be index 3 = idx+2)
+        # - or, find if tls.crt was mounted to the initContainer (This will be index 4 = idx+3)
 
-        resource=($(kubectl get ${kind} -n ${namespace} -o custom-columns='NAME:.metadata.name,SECRETS:.spec.template.spec.volumes[*].secret.secretName,TLS:.spec.template.spec.containers[*].volumeMounts[*].subPath' --no-headers | grep tls.crt || true))
+        resource=($(kubectl get ${kind} -n ${namespace} -o custom-columns='NAME:.metadata.name,SECRETS:.spec.template.spec.volumes[*].secret.secretName,TLS-CONTAINER:.spec.template.spec.containers[*].volumeMounts[*].subPath,TLS-INIT:.spec.template.spec.initContainers[*].volumeMounts[*].subPath' --no-headers | grep tls.crt || true))
 
         idx=0
         while [[ $idx -lt ${#resource[@]} ]]
@@ -161,9 +162,9 @@ function restart_the_pods(){
                 fi
             done
 
-            # Since we have 3 custom colums in the output, every 4th index will be start of new tuple.
+            # Since we have 4 custom columns in the output, every 5th index will be start of new tuple.
             # Jump to the next tuple.
-            idx=$((idx+3))
+            idx=$((idx+4))
         done
     done
 }
