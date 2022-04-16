@@ -53,13 +53,27 @@ spec:
       terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.datamover_api.timeout | default "30" }}
       initContainers:
 {{ tuple $envAll "api" $mounts_triliovault_datamover_api_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+        - name: triliovault-datamover-api-init
+{{ tuple $envAll "triliovault_datamover_api" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ dict "envAll" $envAll "application" "triliovault" "container" "triliovault_datamover_api_init" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          command:
+            - /tmp/triliovault-datamover-api-init.sh
+          terminationMessagePath: /var/log/termination-log
+          volumeMounts:
+            - name: triliovault-datamover-bin
+              mountPath: /tmp/triliovault-datamover-api-init.sh
+              subPath: triliovault-datamover-api-init.sh
+              readOnly: true
+            - name: pod-shared-triliovault-datamover-api
+              mountPath: /tmp/pod-shared-triliovault-datamover-api
+{{ if $mounts_triliovault_datamover_api.volumeMounts }}{{ toYaml $mounts_triliovault_datamover_api.volumeMounts | indent 12 }}{{ end }}
       containers:
-        - name: dm-api
+        - name: triliovault-datamover-api
 {{ tuple $envAll "triliovault_datamover_api" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.datamover_api | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
 {{ dict "envAll" $envAll "application" "triliovault" "container" "triliovault_datamover_api" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
-            - /tmp/triliovault_datamover_api.sh
+            - /tmp/triliovault-datamover-api.sh
           ports:
             - name: d-api
               containerPort: {{ tuple "datamover" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
@@ -78,9 +92,11 @@ spec:
               subPath: logging.conf
               readOnly: true
             - name: triliovault-datamover-bin
-              mountPath: /tmp/triliovault_datamover_api.sh
-              subPath: triliovault_datamover_api.sh
+              mountPath: /tmp/triliovault-datamover-api.sh
+              subPath: triliovault-datamover-api.sh
               readOnly: true
+            - name: pod-shared
+              mountPath: /tmp/pod-shared-triliovault-datamover-api
 {{ if $mounts_triliovault_datamover_api.volumeMounts }}{{ toYaml $mounts_triliovault_datamover_api.volumeMounts | indent 12 }}{{ end }}
       volumes:
         - name: pod-tmp
@@ -93,5 +109,7 @@ spec:
           configMap:
             name: triliovault-datamover-bin
             defaultMode: 0555
+	      - name: pod-shared-triliovault-datamover-api
+          emptyDir: {}
 {{ if $mounts_triliovault_datamover_api.volumes }}{{ toYaml $mounts_triliovault_datamover_api.volumes | indent 8 }}{{ end }}
 {{- end }}

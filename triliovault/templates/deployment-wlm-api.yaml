@@ -53,6 +53,22 @@ spec:
       terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.api.timeout | default "30" }}
       initContainers:
 {{ tuple $envAll "wlm_api" $mounts_triliovault_wlm_api_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+        - name: triliovault-wlm-api-init
+{{ tuple $envAll "triliovault_wlm_api" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ dict "envAll" $envAll "application" "triliovault" "container" "triliovault_wlm_api_init" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          env:
+            - name: POD_NAME
+              value: "triliovault-wlm-api"
+          command:
+            - /tmp/triliovault-wlm-api-init.sh
+          terminationMessagePath: /var/log/termination-log
+          volumeMounts:
+            - name: triliovault-wlm-bin
+              mountPath: /tmp/triliovault-wlm-api-init.sh
+              subPath: triliovault-wlm-init.sh
+              readOnly: true
+            - name: pod-shared-triliovault-wlm-api
+              mountPath: /tmp/pod-shared-triliovault-wlm-api
       containers:
         - name: triliovault-wlm-api
 {{ tuple $envAll "triliovault_api" | include "helm-toolkit.snippets.image" | indent 10 }}
@@ -101,6 +117,8 @@ spec:
               mountPath: /tmp/triliovault-wlm-api.sh
               subPath: wlm.sh
               readOnly: true
+            - name: pod-shared-triliovault-wlm-api
+              mountPath: /tmp/pod-shared-triliovault-wlm-api
 {{ if $mounts_triliovault_wlm_api.volumeMounts }}{{ toYaml $mounts_triliovault_wlm_api.volumeMounts | indent 12 }}{{ end }}
       volumes:
         - name: pod-tmp
@@ -115,5 +133,7 @@ spec:
           configMap:
             name: triliovault-wlm-bin
             defaultMode: 0555
+	      - name: pod-shared-triliovault-wlm-api
+          emptyDir: {}
 {{ if $mounts_triliovault_wlm_api.volumes }}{{ toYaml $mounts_triliovault_wlm_api.volumes | indent 8 }}{{ end }}
 {{- end }}

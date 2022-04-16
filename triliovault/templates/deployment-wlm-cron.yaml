@@ -55,6 +55,22 @@ spec:
       hostIPC: true
       initContainers:
 {{ tuple $envAll "wlm_cron" $mounts_triliovault_wlm_cron_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+        - name: triliovault-wlm-cron-init
+{{ tuple $envAll "triliovault_wlm_cron" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ dict "envAll" $envAll "application" "triliovault" "container" "triliovault_wlm_cron_init" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          env:
+            - name: POD_NAME
+              value: "triliovault-wlm-cron"
+          command:
+            - /tmp/triliovault-wlm-cron-init.sh
+          terminationMessagePath: /var/log/termination-log
+          volumeMounts:
+            - name: triliovault-wlm-bin
+              mountPath: /tmp/triliovault-wlm-cron-init.sh
+              subPath: triliovault-wlm-init.sh
+              readOnly: true
+            - name: pod-shared-triliovault-wlm-cron
+              mountPath: /tmp/pod-shared-triliovault-wlm-cron
       containers:
         - name: triliovault-wlm-cron
 {{ tuple $envAll "triliovault_api" | include "helm-toolkit.snippets.image" | indent 10 }}
@@ -84,6 +100,8 @@ spec:
               mountPath: /tmp/triliovault-wlm-cron.sh
               subPath: triliovault-wlm-cron.sh
               readOnly: true
+            - name: pod-shared-triliovault-wlm-cron
+              mountPath: /tmp/pod-shared-triliovault-wlm-cron
 {{ if $mounts_triliovault_wlm_cron.volumeMounts }}{{ toYaml $mounts_triliovault_wlm_cron.volumeMounts | indent 12 }}{{ end }}
       volumes:
         - name: pod-tmp
@@ -96,5 +114,7 @@ spec:
           configMap:
             name: triliovault-wlm-bin
             defaultMode: 0555
+	      - name: pod-shared-triliovault-wlm-cron
+          emptyDir: {}
 {{ if $mounts_triliovault_wlm_cron.volumes }}{{ toYaml $mounts_triliovault_wlm_cron.volumes | indent 8 }}{{ end }}
 {{- end }}

@@ -15,4 +15,6 @@ limitations under the License.
 */}}
 
 set -ex
-exec /usr/bin/python3 /usr/bin/workloadmgr-api --config-file=/etc/triliovault-wlm/triliovault-wlm.conf
+exec /usr/bin/python3 /usr/bin/workloadmgr-api \
+        --config-file=/etc/triliovault-wlm/triliovault-wlm.conf \
+        --config-file=/tmp/pod-shared-triliovault-wlm-api/triliovault-wlm-ids.conf

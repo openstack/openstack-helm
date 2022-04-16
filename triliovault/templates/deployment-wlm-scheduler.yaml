@@ -53,6 +53,22 @@ spec:
       terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.wlm_scheduler.timeout | default "30" }}
       initContainers:
 {{ tuple $envAll "wlm_scheduler" $mounts_triliovault_wlm_scheduler_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+        - name: triliovault-wlm-scheduler-init
+{{ tuple $envAll "triliovault_wlm_scheduler" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ dict "envAll" $envAll "application" "triliovault" "container" "triliovault_wlm_scheduler_init" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          env:
+            - name: POD_NAME
+              value: "triliovault-wlm-scheduler"
+          command:
+            - /tmp/triliovault-wlm-scheduler-init.sh
+          terminationMessagePath: /var/log/termination-log
+          volumeMounts:
+            - name: triliovault-wlm-bin
+              mountPath: /tmp/triliovault-wlm-scheduler-init.sh
+              subPath: triliovault-wlm-init.sh
+              readOnly: true
+            - name: pod-shared-triliovault-wlm-scheduler
+              mountPath: /tmp/pod-shared-triliovault-wlm-scheduler
       containers:
         - name: triliovault-wlm-scheduler
 {{ tuple $envAll "triliovault_api" | include "helm-toolkit.snippets.image" | indent 10 }}
@@ -84,6 +100,8 @@ spec:
               mountPath: /tmp/triliovault-wlm-scheduler.sh
               subPath: triliovault-wlm-scheduler.sh
               readOnly: true
+            - name: pod-shared-triliovault-wlm-scheduler
+              mountPath: /tmp/pod-shared-triliovault-wlm-scheduler
 {{ if $mounts_triliovault_wlm_scheduler.volumeMounts }}{{ toYaml $mounts_triliovault_wlm_scheduler.volumeMounts | indent 12 }}{{ end }}
       volumes:
         - name: pod-tmp
@@ -98,5 +116,7 @@ spec:
           configMap:
             name: triliovault-wlm-bin
             defaultMode: 0555
+	      - name: pod-shared-triliovault-wlm-scheduler
+          emptyDir: {}
 {{ if $mounts_triliovault_wlm_scheduler.volumes }}{{ toYaml $mounts_triliovault_wlm_scheduler.volumes | indent 8 }}{{ end }}
 {{- end }}
