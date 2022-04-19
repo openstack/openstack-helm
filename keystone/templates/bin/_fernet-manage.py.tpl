@@ -22,7 +22,6 @@ import logging
 import os
 import pwd
 import re
-import six
 import subprocess  #nosec
 import sys
 import time
@@ -96,7 +95,7 @@ def read_from_files():
 def get_keys_data():
     keys = read_from_files()
     return dict([(key, base64.b64encode(value.encode()).decode())
-                for (key, value) in six.iteritems(keys)])
+                for (key, value) in keys.items()])
 
 
 def write_to_files(data):
@@ -110,7 +109,7 @@ def write_to_files(data):
         gid = grp.getgrnam(KEYSTONE_GROUP).gr_gid
         os.chown(FERNET_DIR, uid, gid)
 
-    for (key, value) in six.iteritems(data):
+    for (key, value) in data.items():
         with open(FERNET_DIR + key, 'w') as f:
             decoded_value = base64.b64decode(value).decode()
             f.write(decoded_value)
