@@ -304,48 +304,48 @@ pod:
           cpu: "2000m"
 
 manifests:
-  deployment_triliovault_wlm_api: true
-  deployment_triliovault_wlm_cron: true
-  deployment_triliovault_wlm_scheduler: 
-  deployment_triliovault_wlm_workloads: true
-  deployment_triliovault_datamover_api: true
-  daemonset_triliovault_datamover: true
-  ingress_triliovault_wlm_api: true
-  ingress_triliovault_datamover_api: true
+  deployment_wlm_api: true
+  deployment_wlm_cron: true
+  deployment_wlm_scheduler: 
+  deployment_wlm_workloads: true
+  deployment_datamover_api: true
+  daemonset_datamover: true
+  ingress_wlm_api: true
+  ingress_datamover_api: true
   job_bootstrap: false
-  job_triliovault_datamover_db_drop: false
-  job_triliovault_wlm_db_drop: false
-  job_triliovault_datamover_db_init: true
-  job_triliovault_wlm_db_init: true
-  job_triliovault_datamover_db_sync: true
-  job_triliovault_wlm_db_sync: true
-  job_triliovault_wlm_rabbit_init: true
-  job_triliovault_datamover_ks_endpoints: true
-  job_triliovault_datamover_ks_service: true
-  job_triliovault_datamover_ks_user: true
-  job_triliovault_wlm_ks_endpoints: true
-  job_triliovault_wlm_ks_service: true
-  job_triliovault_wlm_ks_user: true
+  job_datamover_db_drop: false
+  job_wlm_db_drop: false
+  job_datamover_db_init: true
+  job_wlm_db_init: true
+  job_datamover_db_sync: true
+  job_wlm_db_sync: true
+  job_wlm_rabbit_init: true
+  job_datamover_ks_endpoints: true
+  job_datamover_ks_service: true
+  job_datamover_ks_user: true
+  job_wlm_ks_endpoints: true
+  job_wlm_ks_service: true
+  job_wlm_ks_user: true
   job_image_repo_sync: true
-  pdb_triliovault_datamover_api: true
-  pdb_triliovault_wlm_api: true
+  pdb_datamover_api: true
+  pdb_wlm_api: true
   certificates: false
-  triliovault_wlm_configmap_bin: true
-  triliovault_wlm_configmap_etc: true
-  triliovault_datamover_configmap_bin: true
-  triliovault_datamover_configmap_etc: true
+  wlm_configmap_bin: true
+  wlm_configmap_etc: true
+  datamover_configmap_bin: true
+  datamover_configmap_etc: true
   ingress_api: true
   job_bootstrap: true
   pdb_datamover_api: true
   pdb_wlm_api: true
-  network_policy: false
+  network_policy_wlm: false
+  network_policy_datamover: false
   secret_db_datamover: true
   secret_db_wlm: true
   secret_ingress_tls_datamover: true
   secret_ingress_tls_wlm: true
-  secret_triliovault_wlm_keystone: true
-  secret_triliovault_datamover_keystone: true
-  secret_rabbitmq: true
+  secret_keystone: true
+  secret_rabbitmq_wlm: true
   service_datamover_api: true
   service_wlm_api: true
   service_ingress_datamover_api: true
@@ -383,26 +383,25 @@ network:
 secrets:
   identity:
     admin: triliovault-keystone-admin
-    triliovault-datamover: triliovault-datamover-keystone-user
-    triliovault-wlm: triliovault-wlm-keystone-user
+    triliovault_datamover: triliovault-datamover-keystone-user
+    triliovault_wlm: triliovault-wlm-keystone-user
     test: triliovault-keystone-test
   oslo_db:
     admin: triliovault-db-admin
-    triliovault-datamover: triliovault-datamover-db-user
-    triliovault-wlm: triliovault-wlm-db-user
+    triliovault_datamover: triliovault-datamover-db-user
+    triliovault_wlm: triliovault-wlm-db-user
   oslo_messaging:
     admin: triliovault-rabbitmq-admin
-    triliovault-wlm: triliovault-wlm-rabbitmq-user
+    triliovault_wlm: triliovault-wlm-rabbitmq-user
   tls:
-    image:
-      datamover:
-        api:
-          public: triliovault-datamover-tls-public
-          internal: triliovault-datamover-tls-api
-      workloads:
-        api:
-          public: triliovault-wlm-tls-public
-          internal: triliovault-wlm-tls-api
+    datamover:
+      datamover_api:
+        public: triliovault-datamover-tls-public
+        internal: triliovault-datamover-tls-api
+    workloads:
+      wlm_api:
+        public: triliovault-wlm-tls-public
+        internal: triliovault-wlm-tls-api
 
 # We use a different layout of the endpoints here to account for versioning
 # this swaps the service name and type, and should be rolled out to other
@@ -431,7 +430,7 @@ endpoints:
         project_name: service
         user_domain_name: service
         project_domain_name: service
-      triliovault-datamover:
+      triliovault_datamover:
         role: admin
         region_name: RegionOne
         username: dmapi
@@ -439,14 +438,14 @@ endpoints:
         project_name: service
         user_domain_name: service
         project_domain_name: service
-      triliovault-wlm:
+      triliovault_wlm:
         role: admin
         region_name: RegionOne
         username: triliovault
         password: password
         project_name: service
-        user_domain_id: service
-        project_domain_id: service
+        user_domain_name: service
+        project_domain_name: service
       test:
         role: admin
         region_name: RegionOne
@@ -558,7 +557,7 @@ endpoints:
         secret:
           tls:
             internal: rabbitmq-tls-direct
-      triliovault-wlm:
+      triliovault_wlm:
         username: triliovault
         password: password
     statefulset:
@@ -624,7 +623,10 @@ endpoints:
       admin:
         username: root
         password: password
-      triliovault-datamover:
+        secret:
+          tls:
+            internal: mariadb-tls-direct
+      triliovault_datamover:
         username: dmapi
         password: password
     hosts:
@@ -641,7 +643,10 @@ endpoints:
       admin:
         username: root
         password: password
-      triliovault-wlm:
+        secret:
+          tls:
+            internal: mariadb-tls-direct
+      triliovault_wlm:
         username: workloadmgr
         password: password
     hosts:
@@ -660,7 +665,7 @@ conf:
     nfs:
       nfs_shares: 
       - path: /opt/share1
-        ip: 192.168.122.101
+        ip: "192.168.122.101"
         node_selector_key: openstack-compute-node
         node_selector_value: enabled
       nfs_options: "nolock,soft,vers=3,timeo=180,intr,lookupcache=none"
@@ -825,11 +830,11 @@ conf:
       compute_driver: libvirt.LibvirtDriver
       config_status: configured
       verbose: True
-	    debug: False
+      debug: False
       domain_name:
       keystone_auth_version: 3
       glance_api_version: 2
-	    neutron_api_insecure: False
+      neutron_api_insecure: False
       state_path: /opt/stack/data/workloadmgr
       trustee_role: creater
       use_syslog: False
@@ -838,8 +843,8 @@ conf:
       vault_s3_ssl_cert: "/etc/triliovault/s3-cert.pem"
       vault_data_directory_old: "/var/triliovault"
       vault_data_directory: "/var/triliovault-mounts"
-	    #The amount of time(in hrs) that snapshot upload operation should wait for the upload
-	    max_wait_for_upload: 48
+      #The amount of time(in hrs) that snapshot upload operation should wait for the upload
+      max_wait_for_upload: 48
       helper_command: sudo /usr/bin/workloadmgr-rootwrap /etc/triliovault/rootwrap.conf privsep-helper
     clients:
       client_retry_limit: 3

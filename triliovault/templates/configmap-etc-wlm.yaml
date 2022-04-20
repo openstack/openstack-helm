@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if .Values.manifests.configmap_etc }}
+{{- if .Values.manifests.wlm_configmap_etc }}
 {{- $envAll := . }}
 
 
@@ -73,40 +73,40 @@ limitations under the License.
 {{- end -}}
 
 {{- if empty .Values.conf.wlm.keystone_authtoken.region_name -}}
-{{- $_ := set .Values.conf.wlm.keystone_authtoken "region_name" .Values.endpoints.identity.auth.triliovault-wlm.region_name -}}
+{{- $_ := set .Values.conf.wlm.keystone_authtoken "region_name" .Values.endpoints.identity.auth.triliovault_wlm.region_name -}}
 {{- end -}}
 
 {{- if empty .Values.conf.wlm.keystone_authtoken.project_name -}}
-{{- $_ := set .Values.conf.wlm.keystone_authtoken "project_name" .Values.endpoints.identity.auth.triliovault-wlm.project_name -}}
+{{- $_ := set .Values.conf.wlm.keystone_authtoken "project_name" .Values.endpoints.identity.auth.triliovault_wlm.project_name -}}
 {{- end -}}
 
 {{- if empty .Values.conf.wlm.keystone_authtoken.admin_tenant_name -}}
-{{- $_ := set .Values.conf.wlm.keystone_authtoken "admin_tenant_name" .Values.endpoints.identity.auth.triliovault-wlm.project_name -}}
+{{- $_ := set .Values.conf.wlm.keystone_authtoken "admin_tenant_name" .Values.endpoints.identity.auth.triliovault_wlm.project_name -}}
 {{- end -}}
 
 {{- if empty .Values.conf.wlm.keystone_authtoken.project_domain_id -}}
-{{- $_ := set .Values.conf.wlm.keystone_authtoken "project_domain_id" .Values.endpoints.identity.auth.triliovault-wlm.project_domain_id -}}
+{{- $_ := set .Values.conf.wlm.keystone_authtoken "project_domain_id" .Values.endpoints.identity.auth.triliovault_wlm.project_domain_id -}}
 {{- end -}}
 
 {{- if empty .Values.conf.wlm.keystone_authtoken.user_domain_id -}}
-{{- $_ := set .Values.conf.wlm.keystone_authtoken "user_domain_id" .Values.endpoints.identity.auth.triliovault-wlm.user_domain_id -}}
+{{- $_ := set .Values.conf.wlm.keystone_authtoken "user_domain_id" .Values.endpoints.identity.auth.triliovault_wlm.user_domain_id -}}
 {{- end -}}
 
 {{- if empty .Values.conf.wlm.keystone_authtoken.username -}}
-{{- $_ := set .Values.conf.wlm.keystone_authtoken "username" .Values.endpoints.identity.auth.triliovault-wlm.username -}}
+{{- $_ := set .Values.conf.wlm.keystone_authtoken "username" .Values.endpoints.identity.auth.triliovault_wlm.username -}}
 {{- end -}}
 
 {{- if empty .Values.conf.wlm.keystone_authtoken.password -}}
-{{- $_ := set .Values.conf.wlm.keystone_authtoken "password" .Values.endpoints.identity.auth.triliovault-wlm.password -}}
+{{- $_ := set .Values.conf.wlm.keystone_authtoken "password" .Values.endpoints.identity.auth.triliovault_wlm.password -}}
 {{- end -}}
 
 {{- if empty .Values.conf.wlm.keystone_authtoken.admin_password -}}
-{{- $_ := set .Values.conf.wlm.keystone_authtoken "admin_password" .Values.endpoints.identity.auth.triliovault-wlm.password -}}
+{{- $_ := set .Values.conf.wlm.keystone_authtoken "admin_password" .Values.endpoints.identity.auth.triliovault_wlm.password -}}
 {{- end -}}
 
 
 {{- if empty .Values.conf.wlm.DEFAULT.vault_storage_type -}}
-{{- $_ := set .Values.conf.wlmr.DEFAULT "vault_storage_type" .Values.conf.triliovault.backup_target_type -}}
+{{- $_ := set .Values.conf.wlm.DEFAULT "vault_storage_type" .Values.conf.triliovault.backup_target_type -}}
 {{- end -}}
 
 
@@ -162,7 +162,7 @@ limitations under the License.
 {{- end -}}
 
 {{- if empty .Values.conf.wlm.DEFAULT.transport_url -}}
-{{- $_ := tuple "oslo_messaging" "internal" "triliovault" "amqp" . | include "helm-toolkit.endpoints.authenticated_transport_endpoint_uri_lookup" | set .Values.conf.wlm.DEFAULT "transport_url" -}}
+{{- $_ := tuple "oslo_messaging" "internal" "triliovault_wlm" "amqp" . | include "helm-toolkit.endpoints.authenticated_transport_endpoint_uri_lookup" | set .Values.conf.wlm.DEFAULT "transport_url" -}}
 {{- end -}}
 
 
@@ -209,7 +209,7 @@ limitations under the License.
 {{- end -}}
 
 
-{{- if empty .Values.conf.wlm.alembic.sqlalchemy.url -}}
+{{- if empty (index .Values.conf.wlm.alembic "sqlalchemy.url") -}}
 {{- $_ := tuple "oslo_db_triliovault_wlm" "internal" "triliovault_wlm" "mysql" . | include "helm-toolkit.endpoints.authenticated_endpoint_uri_lookup" | set .Values.conf.wlm.alembic "sqlalchemy.url" -}}
 {{- end -}}
 
@@ -224,22 +224,22 @@ limitations under the License.
      **********************************************************************
 */}}
 
-{{- if empty .Values.conf.paste.filter:authtoken.auth_host -}}
-{{- $_ := tuple "identity" .Values.conf.triliovault.interface . | include "helm-toolkit.endpoints.endpoint_host_lookup" | set .Values.conf.paste.filter:authtoken "auth_host" -}}
+{{- if empty (index .Values.conf.paste "filter:authtoken").auth_host -}}
+{{- $_ := tuple "identity" .Values.conf.triliovault.interface . | include "helm-toolkit.endpoints.endpoint_host_lookup" | (set .Values.conf.paste "filter:authtoken").auth_host -}}
 {{- end -}}
 
-{{- if empty .Values.conf.paste.filter:authtoken.auth_port -}}
-{{- $_ := tuple "identity" .Values.conf.triliovault.interface "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | set .Values.conf.paste.filter:authtoken "auth_port" -}}
-{{- end -}}
-
-
-{{- if empty .Values.conf.paste.filter:authtoken.auth_protocol -}}
-{{- $_ := tuple "identity" .Values.conf.triliovault.interface "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | set .Values.conf.paste.filter:authtoken "auth_protocol" -}}
+{{- if empty (index .Values.conf.paste "filter:authtoken").auth_port -}}
+{{- $_ := tuple "identity" .Values.conf.triliovault.interface "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | set .Values.conf.paste "filter:authtoken" "auth_port" -}}
 {{- end -}}
 
 
-{{- if empty .Values.conf.paste.filter:authtoken.interface -}}
-{{- $_ := set .Values.conf.wlm.filter:authtoken "interface" .Values.conf.triliovault.interface -}}
+{{- if empty (index .Values.conf.paste "filter:authtoken").auth_protocol -}}
+{{- $_ := tuple "identity" .Values.conf.triliovault.interface "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | set .Values.conf.paste "filter:authtoken" "auth_protocol" -}}
+{{- end -}}
+
+
+{{- if empty (index .Values.conf.paste "filter:authtoken").interface -}}
+{{- $_ := set .Values.conf.wlm "filter:authtoken" "interface" .Values.conf.triliovault.interface -}}
 {{- end -}}
 
 
