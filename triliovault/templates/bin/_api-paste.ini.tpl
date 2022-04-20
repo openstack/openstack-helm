@@ -33,10 +33,12 @@ paste.filter_factory = workloadmgr.api.middleware.auth:WorkloadMgrKeystoneContex
 
 [filter:authtoken]
 paste.filter_factory =  keystonemiddleware.auth_token:filter_factory
-admin_tenant_name = service
-admin_user = triliovault
-admin_password = password
-admin_user_domain_id = <TODO>
+auth_host = {{ tuple "identity" .Values.conf.triliovault.interface . | include "helm-toolkit.endpoints.endpoint_host_lookup" }}
+auth_port = {{ tuple "identity" .Values.conf.triliovault.interface "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+auth_protocol = {{ tuple "identity" .Values.conf.triliovault.interface "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+admin_tenant_name = {{ .Values.endpoints.identity.auth.triliovault_wlm.project_name }}
+project_name = {{ .Values.endpoints.identity.auth.triliovault_wlm.project_name }}
+admin_user = {{ .Values.endpoints.identity.auth.triliovault_wlm.username }}
+admin_password = {{ .Values.endpoints.identity.auth.triliovault_wlm.password }}
 signing_dir = /var/cache/workloadmgr
 insecure = True
-auth_host = {{ tuple "identity" .Values.conf.triliovault.interface . | include "helm-toolkit.endpoints.endpoint_host_lookup" }}
