@@ -133,10 +133,6 @@ spec:
               mountPath: /etc/triliovault-datamover/policy.yaml
               subPath: policy.yaml
               readOnly: true
-            - name: nova-etc
-              mountPath: /etc/sudoers.d/kolla_nova_sudoers
-              subPath: nova_sudoers
-              readOnly: true
             - name: etcceph
               mountPath: /etc/ceph
               {{- if or ( gt .Capabilities.KubeVersion.Major "1" ) ( ge .Capabilities.KubeVersion.Minor "10" ) }}
@@ -144,7 +140,27 @@ spec:
               {{- end }}
             - name: dev
               mountPath: /dev
+              {{- if or ( gt .Capabilities.KubeVersion.Major "1" ) ( ge .Capabilities.KubeVersion.Minor "10" ) }}
               mountPropagation: HostToContainer
+              {{- end }}
+            - name: etciscsi
+              mountPath: /etc/iscsi
+              {{- if or ( gt .Capabilities.KubeVersion.Major "1" ) ( ge .Capabilities.KubeVersion.Minor "10" ) }}
+              mountPropagation: HostToContainer
+              {{- end }}
+            - mountPath: /lib/modules
+              name: libmodules
+              readOnly: true
+            - name: nova-bin
+              mountPath: /usr/local/sbin/multipath
+              subPath: multipath
+            - name: nova-bin
+              mountPath: /usr/local/sbin/multipathd
+              subPath: multipathd
+            - name: etcmultipath
+              mountPath: /etc/multipath
+              {{- if or ( gt .Capabilities.KubeVersion.Major "1" ) ( ge .Capabilities.KubeVersion.Minor "10" ) }}
+              mountPropagation: Bidirectional
             {{- if eq .Values.conf.triliovault.backup_target_type "nfs" }}
             - name: triliovault-nfs-pv-{{ $share_ip}}-{{ $share_path }}
               mountPath: {{ $nfs_mount_point | quote }}
@@ -178,9 +194,13 @@ spec:
         - name: machine-id
           hostPath:
             path: /etc/machine-id
+        - name: nova-bin
+          configMap:
+            name: nova-bin
+            defaultMode: 0555
         - name: nova-etc
           secret:
-            secretName: nova-compute-default
+            secretName: nova-etc
             defaultMode: 0444
         - name: etcceph
           hostPath:
@@ -191,6 +211,9 @@ spec:
         - name: dev
           hostPath:
             path: /dev
+        - name: etciscsi
+          hostPath:
+            path: /etc/iscsi
         {{- if eq .Values.conf.triliovault.backup_target_type "nfs" }}
         - name: triliovault-nfs-pv-{{ $share_ip}}-{{ $share_path }}
           persistentVolumeClaim:
