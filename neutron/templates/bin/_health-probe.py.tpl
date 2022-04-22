@@ -36,7 +36,7 @@ Usage example for Neutron metadata agent:
 """
 
 import httplib2
-from six.moves import http_client as httplib
+from http import client as httplib
 import json
 import os
 import psutil
