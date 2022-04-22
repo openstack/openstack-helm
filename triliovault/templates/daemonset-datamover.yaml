@@ -22,22 +22,12 @@ limitations under the License.
 {{ tuple $envAll "datamover" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 
 
-{{- $share_path := "" }}
-{{- $share_ip := "" }}
-{{- $node_selector_key := "" }}
-{{- $node_selector_value := "" }}
-{{- $nfs_mount_point_endcoded := "" }}
-{{- $nfs_mount_point := "" }}
-
-
-{{- if eq .Values.conf.triliovault.backup_target_type "nfs" -}}
-{{- $share_path := index .Values.conf.triliovault.nfs.nfs_shares 0 "path" -}}
-{{- $share_ip := index .Values.conf.triliovault.nfs.nfs_shares 0 "ip" -}}
+{{- $share_path := index .Values.conf.triliovault.nfs.nfs_shares 0 "path"  | replace "/" "-" -}}
+{{- $share_ip := index .Values.conf.triliovault.nfs.nfs_shares 0 "ip" | replace "." "-" -}}
 {{- $node_selector_key := index .Values.conf.triliovault.nfs.nfs_shares 0 "node_selector_key" -}}
 {{- $node_selector_value := index .Values.conf.triliovault.nfs.nfs_shares 0 "node_selector_value" -}}
 {{- $nfs_mount_point_endcoded := $share_path | b64enc }}
 {{- $nfs_mount_point := printf "%s/%s" .Values.conf.datamover.DEFAULT.vault_data_directory $nfs_mount_point_endcoded }}
-{{- end -}}
 
 ---
 apiVersion: apps/v1
@@ -71,7 +61,11 @@ spec:
       hostIPC: true
       dnsPolicy: ClusterFirstWithHostNet
       nodeSelector:
+        {{- if eq .Values.conf.triliovault.backup_target_type "nfs" }}
         {{ $node_selector_key }}: {{ $node_selector_value }}
+        {{- else }}
+        {{ .Values.labels.datamover.node_selector_key }}: {{ .Values.labels.datamover.node_selector_value }}
+        {{- end }}
       initContainers:
 {{ tuple $envAll "datamover" $mounts_triliovault_datamover_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
@@ -163,7 +157,7 @@ spec:
               mountPropagation: Bidirectional
               {{- end }}
             {{- if eq .Values.conf.triliovault.backup_target_type "nfs" }}
-            - name: triliovault-nfs-pv-{{ $share_ip}}-{{ $share_path }}
+            - name: triliovault-nfs-pv-{{ $share_ip}}{{ $share_path }}
               mountPath: {{ $nfs_mount_point | quote }}
             {{- end }}
 {{ if $mounts_triliovault_datamover.volumeMounts }}{{ toYaml $mounts_triliovault_datamover.volumeMounts | indent 12 }}{{ end }}
@@ -216,9 +210,9 @@ spec:
           hostPath:
             path: /etc/iscsi
         {{- if eq .Values.conf.triliovault.backup_target_type "nfs" }}
-        - name: triliovault-nfs-pv-{{ $share_ip}}-{{ $share_path }}
+        - name: triliovault-nfs-pv-{{ $share_ip}}{{ $share_path }}
           persistentVolumeClaim:
-            claimName: triliovault-nfs-pvc-{{ $share_ip}}-{{ $share_path }}
+            claimName: triliovault-nfs-pvc-{{ $share_ip}}{{ $share_path }}
         {{- end }}
 {{ if $mounts_triliovault_datamover.volumes }}{{ toYaml $mounts_triliovault_datamover.volumes | indent 8 }}{{ end }}
 {{- end }}
