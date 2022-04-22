@@ -15,6 +15,17 @@ limitations under the License.
 */}}
 
 set -ex
-exec /usr/bin/python3 /usr/bin/workloadmgr-scheduler \
+
+COMMAND="${@:-start}"
+
+function start () {
+  exec /usr/bin/python3 /usr/bin/workloadmgr-scheduler \
        --config-file=/etc/triliovault-wlm/triliovault-wlm.conf \
        --config-file=/tmp/pod-shared-triliovault-wlm-scheduler/triliovault-wlm-ids.conf
+}
+
+function stop () {
+  kill -TERM 1
+}
+
+$COMMAND

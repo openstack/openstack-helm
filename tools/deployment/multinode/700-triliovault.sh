@@ -20,14 +20,16 @@ set -xe
 #NOTE: Lint and package chart
 make triliovault
 
+: ${OSH_EXTRA_HELM_ARGS:=""}
+
 #NOTE: Deploy command
 tee /tmp/triliovault.yaml << EOF
 EOF
 helm upgrade --install triliovault ./triliovault \
   --namespace=openstack \
   --values=/tmp/triliovault.yaml \
-  ${OSH_EXTRA_HELM_ARGS} \
-  ${OSH_EXTRA_HELM_ARGS_CINDER}
+  ${OSH_EXTRA_HELM_ARGS:=} \
+  ${OSH_EXTRA_HELM_ARGS_TRILIOVAULT}
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh openstack
@@ -36,8 +38,9 @@ helm upgrade --install triliovault ./triliovault \
 export OS_CLOUD=openstack_helm
 openstack service list
 sleep 30 #NOTE(portdirect): Wait for ingress controller to update rules and restart Nginx
-openstack workloads type list
-openstack workloads type list --default
+kubectl get pods -n openstack | grep triliovault
+#openstack workloads type list
+#openstack workloads type list --default
 
 # Run helm tests
 if [ "x${RUN_HELM_TESTS}" != "xno" ]; then

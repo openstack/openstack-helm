@@ -16,27 +16,45 @@ limitations under the License.
 
 set -ex
 
-{{- $backup_target_type := .Values.conf.triliovault.backup_target_type }}
 
-{{ if eq $backup_target_type "s3" }}
+COMMAND="${@:-start}"
 
-## Start triliovault object store service
-/usr/bin/python3 /usr/bin/s3vaultfuse.py --config-file=/etc/triliovault-object-store/triliovault-object-store.conf &
-status=$?
-if [ $status -ne 0 ]; then
-  echo "Failed to start tvault-object-store service: $status"
-  exit $status
-fi
+function start () {
+  exec /usr/bin/python3 /usr/bin/dmapi-api \
+       --config-file /etc/triliovault-datamover/triliovault-datamover-api.conf \
+       --config-file /tmp/pod-shared-triliovault-datamover-api/triliovault-datamover-api-my-ip.conf
 
-{{ end }}
+  {{- $backup_target_type := .Values.conf.triliovault.backup_target_type }}
 
-# Start triliovault datamover service
-/usr/bin/python3 /usr/bin/tvault-contego \
---config-file=/usr/share/nova/nova-dist.conf --config-file=/etc/nova/nova.conf \
---config-file=/etc/triliovault-datamover/triliovault-datamover.conf &
+  {{ if eq $backup_target_type "s3" }}
 
-status=$?
-if [ $status -ne 0 ]; then
-  echo "Failed to start tvault contego service: $status"
-  exit $status
-fi
+  ## Start triliovault object store service
+  /usr/bin/python3 /usr/bin/s3vaultfuse.py --config-file=/etc/triliovault-object-store/triliovault-object-store.conf &
+  status=$?
+  if [ $status -ne 0 ]; then
+    echo "Failed to start tvault-object-store service: $status"
+    exit $status
+  fi
+  {{ end }}
+
+  # Start triliovault datamover service
+  /usr/bin/python3 /usr/bin/tvault-contego \
+    --config-file=/usr/share/nova/nova-dist.conf --config-file=/etc/nova/nova.conf \
+    --config-file=/etc/triliovault-datamover/triliovault-datamover.conf &
+
+  status=$?
+  if [ $status -ne 0 ]; then
+    echo "Failed to start tvault contego service: $status"
+    exit $status
+  fi
+
+
+}
+
+function stop () {
+  kill -TERM 1
+}
+
+$COMMAND
+
+

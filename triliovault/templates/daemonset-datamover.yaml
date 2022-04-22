@@ -22,22 +22,12 @@ limitations under the License.
 {{ tuple $envAll "datamover" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 
 
-{{- $share_path := "" }}
-{{- $share_ip := "" }}
-{{- $node_selector_key := "" }}
-{{- $node_selector_value := "" }}
-{{- $nfs_mount_point_endcoded := "" }}
-{{- $nfs_mount_point := "" }}
-
-
-{{- if eq .Values.conf.triliovault.backup_target_type "nfs" -}}
-{{- $share_path := index .Values.conf.triliovault.nfs.nfs_shares 0 "path" -}}
-{{- $share_ip := index .Values.conf.triliovault.nfs.nfs_shares 0 "ip" -}}
+{{- $share_path := index .Values.conf.triliovault.nfs.nfs_shares 0 "path"  | replace "/" "-" -}}
+{{- $share_ip := index .Values.conf.triliovault.nfs.nfs_shares 0 "ip" | replace "." "-" -}}
 {{- $node_selector_key := index .Values.conf.triliovault.nfs.nfs_shares 0 "node_selector_key" -}}
 {{- $node_selector_value := index .Values.conf.triliovault.nfs.nfs_shares 0 "node_selector_value" -}}
 {{- $nfs_mount_point_endcoded := $share_path | b64enc }}
 {{- $nfs_mount_point := printf "%s/%s" .Values.conf.datamover.DEFAULT.vault_data_directory $nfs_mount_point_endcoded }}
-{{- end -}}
 
 ---
 apiVersion: apps/v1
@@ -71,7 +61,11 @@ spec:
       hostIPC: true
       dnsPolicy: ClusterFirstWithHostNet
       nodeSelector:
+        {{- if eq .Values.conf.triliovault.backup_target_type "nfs" }}
         {{ $node_selector_key }}: {{ $node_selector_value }}
+        {{- else }}
+        {{ .Values.labels.datamover.node_selector_key }}: {{ .Values.labels.datamover.node_selector_value }}
+        {{- end }}
       initContainers:
 {{ tuple $envAll "datamover" $mounts_triliovault_datamover_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
@@ -81,11 +75,18 @@ spec:
 {{ dict "envAll" $envAll "application" "triliovault" "container" "triliovault_datamover" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
             - /tmp/triliovault-datamover.sh
+            - start
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /tmp/triliovault-datamover.sh
+                  - stop
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
-            - name: trilio-mounts
-              mountPath: /var/triliovault-mounts
+            - name: vartrilio
+              mountPath: /var/trilio
             - name: triliovault-datamover-etc
               mountPath: /etc/triliovault-datamover/triliovault-datamover.conf
               subPath: triliovault-datamover.conf
@@ -133,10 +134,6 @@ spec:
               mountPath: /etc/triliovault-datamover/policy.yaml
               subPath: policy.yaml
               readOnly: true
-            - name: nova-etc
-              mountPath: /etc/sudoers.d/kolla_nova_sudoers
-              subPath: nova_sudoers
-              readOnly: true
             - name: etcceph
               mountPath: /etc/ceph
               {{- if or ( gt .Capabilities.KubeVersion.Major "1" ) ( ge .Capabilities.KubeVersion.Minor "10" ) }}
@@ -144,17 +141,42 @@ spec:
               {{- end }}
             - name: dev
               mountPath: /dev
+              {{- if or ( gt .Capabilities.KubeVersion.Major "1" ) ( ge .Capabilities.KubeVersion.Minor "10" ) }}
               mountPropagation: HostToContainer
+              {{- end }}
+            - name: etciscsi
+              mountPath: /etc/iscsi
+              {{- if or ( gt .Capabilities.KubeVersion.Major "1" ) ( ge .Capabilities.KubeVersion.Minor "10" ) }}
+              mountPropagation: HostToContainer
+              {{- end }}
+            - mountPath: /lib/modules
+              name: libmodules
+              readOnly: true
+            - name: nova-bin
+              mountPath: /usr/local/sbin/multipath
+              subPath: multipath
+            - name: nova-bin
+              mountPath: /usr/local/sbin/multipathd
+              subPath: multipathd
+            - name: etcmultipath
+              mountPath: /etc/multipath
+              {{- if or ( gt .Capabilities.KubeVersion.Major "1" ) ( ge .Capabilities.KubeVersion.Minor "10" ) }}
+              mountPropagation: Bidirectional
+              {{- end }}
             {{- if eq .Values.conf.triliovault.backup_target_type "nfs" }}
-            - name: triliovault-nfs-pv-{{ $share_ip}}-{{ $share_path }}
+            - name: triliovault-nfs-pv-{{ $share_ip}}{{ $share_path }}
               mountPath: {{ $nfs_mount_point | quote }}
             {{- end }}
+{{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.oslo_db_triliovault_datamover.auth.admin.secret.tls.internal "path" "/etc/mysql/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
+{{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.secrets.tls.datamover.datamover_api.internal "path" "/etc/triliovault_datamover/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
+{{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.oslo_messaging.auth.admin.secret.tls.internal "path" "/etc/rabbitmq/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
 {{ if $mounts_triliovault_datamover.volumeMounts }}{{ toYaml $mounts_triliovault_datamover.volumeMounts | indent 12 }}{{ end }}
       volumes:
         - name: pod-tmp
           emptyDir: {}
-        - name: trilio-mounts
-          emptyDir: {}
+        - name: vartrilio
+          hostPath:
+            path: /var/trilio
         - name: triliovault-datamover-etc
           secret:
             secretName: triliovault-datamover-etc
@@ -178,9 +200,13 @@ spec:
         - name: machine-id
           hostPath:
             path: /etc/machine-id
+        - name: nova-bin
+          configMap:
+            name: nova-bin
+            defaultMode: 0555
         - name: nova-etc
           secret:
-            secretName: nova-compute-default
+            secretName: nova-etc
             defaultMode: 0444
         - name: etcceph
           hostPath:
@@ -191,10 +217,16 @@ spec:
         - name: dev
           hostPath:
             path: /dev
+        - name: etciscsi
+          hostPath:
+            path: /etc/iscsi
         {{- if eq .Values.conf.triliovault.backup_target_type "nfs" }}
-        - name: triliovault-nfs-pv-{{ $share_ip}}-{{ $share_path }}
+        - name: triliovault-nfs-pv-{{ $share_ip}}{{ $share_path }}
           persistentVolumeClaim:
-            claimName: triliovault-nfs-pvc-{{ $share_ip}}-{{ $share_path }}
+            claimName: triliovault-nfs-pvc-{{ $share_ip}}{{ $share_path }}
         {{- end }}
+{{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.oslo_db_triliovault_datamover.auth.admin.secret.tls.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
+{{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.secrets.tls.datamover.datamover_api.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
+{{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.oslo_messaging.auth.admin.secret.tls.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 {{ if $mounts_triliovault_datamover.volumes }}{{ toYaml $mounts_triliovault_datamover.volumes | indent 8 }}{{ end }}
 {{- end }}

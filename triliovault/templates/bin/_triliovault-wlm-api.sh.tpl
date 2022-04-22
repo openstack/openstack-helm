@@ -15,6 +15,17 @@ limitations under the License.
 */}}
 
 set -ex
-exec /usr/bin/python3 /usr/bin/workloadmgr-api \
-        --config-file=/etc/triliovault-wlm/triliovault-wlm.conf \
-        --config-file=/tmp/pod-shared-triliovault-wlm-api/triliovault-wlm-ids.conf
+
+COMMAND="${@:-start}"
+
+function start () {
+  exec /usr/bin/python3 /usr/bin/workloadmgr-api \
+       --config-file=/etc/triliovault-wlm/triliovault-wlm.conf \
+       --config-file=/tmp/pod-shared-triliovault-wlm-api/triliovault-wlm-ids.conf
+}
+
+function stop () {
+  kill -TERM 1
+}
+
+$COMMAND
