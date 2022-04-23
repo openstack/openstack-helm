@@ -133,8 +133,10 @@ except:
 # Create DB User
 try:
     root_engine.execute(
-        "GRANT ALL ON `{0}`.* TO \'{1}\'@\'%%\' IDENTIFIED BY \'{2}\' {3}".format(
-            database, user, password, mysql_x509))
+        "CREATE USER IF NOT EXISTS \'{0}\'@\'%%\' IDENTIFIED BY \'{1}\' {2}".format(
+            user, password, mysql_x509))
+    root_engine.execute(
+        "GRANT ALL ON `{0}`.* TO \'{1}\'@\'%%\'".format(database, user))
     logger.info("Created user {0} for {1}".format(user, database))
 except:
     logger.critical("Could not create user {0} for {1}".format(user, database))
