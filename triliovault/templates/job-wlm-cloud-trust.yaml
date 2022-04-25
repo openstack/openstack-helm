@@ -32,6 +32,14 @@ helm.sh/hook-weight: "-1"
 {{- $restartPolicy_ := "OnFailure" -}}
 {{- $serviceAccountName := printf "%s-%s" $serviceNamePretty "wlm-cloud-trust" }}
 
+
+{{ $jobAnnotations := "" }}
+
+{{- if .Values.helm3_hook }}
+{{ $jobAnnotations := include "metadata.annotations.job.triliovault_wlm_cloud_trust" . | fromYaml }}
+{{- end }}
+
+
 ---
 apiVersion: batch/v1
 kind: Job
@@ -42,8 +50,8 @@ metadata:
     application: triliovault-wlm
     component: cloud-trust
   annotations:
-{{- if .Values.helm3_hook }}
-{{ include "metadata.annotations.job.triliovault_wlm_cloud_trust" . | toYaml | indent 4 }}
+{{- if $jobAnnotations }}
+{{ toYaml $jobAnnotations | indent 4 }}
 {{- end }}
 spec:
   backoffLimit: 1000
@@ -53,8 +61,6 @@ spec:
         release_group: release-name
         application: triliovault-datamover
         component: ks-service
-      annotations:
-        "openstackhelm.openstack.org/release_uuid": ""
     spec:
       serviceAccountName: triliovault-datamover-ks-service
       restartPolicy: OnFailure
@@ -62,7 +68,7 @@ spec:
 {{ toYaml $nodeSelector | indent 8 }}
       initContainers:
 {{ tuple $envAll "ks_service" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
-     containers:
+      containers:
         - name: "wlm-cloud-trust-creation"
           image: {{ .Values.images.tags.triliovault_wlm_cloud_trust }}
           imagePullPolicy: IfNotPresent
