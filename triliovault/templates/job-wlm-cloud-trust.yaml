@@ -21,13 +21,17 @@ helm.sh/hook-weight: "-1"
 
 
 {{- if .Values.manifests.job_wlm_cloud_trust }}
-{{- $envAll := . -}}
-{{- $serviceName := index . "triliovault_wlm" -}}
-{{- $nodeSelector := index . "nodeSelector" | default ( dict $envAll.Values.labels.job.node_selector_key $envAll.Values.labels.job.node_selector_value ) -}}
+{{- $envAll := . }}
+{{- $serviceName := "triliovault_wlm" -}}
+{{- $nodeSelector := dict .Values.labels.job.node_selector_key .Values.labels.job.node_selector_value -}}
 {{- $tlsSecret := index . "tlsSecret" | default "" -}}
-{{- $serviceNamePretty := $serviceName | replace "_" "-" -}}
+{{- if .Values.manifests.certificates -}}
+{{- $tlsSecret := .Values.secrets.tls.workloads.wlm_api.internal -}}
+{{- end -}}
+{{- $serviceNamePretty := $serviceName | replace "_" "-" }}
 {{- $restartPolicy_ := "OnFailure" -}}
 {{- $serviceAccountName := printf "%s-%s" $serviceNamePretty "wlm-cloud-trust" }}
+
 ---
 apiVersion: batch/v1
 kind: Job
@@ -75,7 +79,7 @@ spec:
               readOnly: true
 {{ dict "enabled" true "name" $tlsSecret "ca" true | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
           env:
-{{- with $env := dict "ksUserSecret" $envAll.Values.secrets.identity.admin "useCA" (ne $tlsSecret "") }}
+{{- with $env := dict "ksUserSecret" .Values.secrets.identity.admin "useCA" (ne $tlsSecret "") }}
 {{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 12 }}
 {{- end }}
       volumes:
