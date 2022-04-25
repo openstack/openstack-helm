@@ -1,0 +1,97 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+
+{{- define "metadata.annotations.job.triliovault_wlm_cloud_trust" }}
+helm.sh/hook: post-install,post-upgrade
+helm.sh/hook-weight: "-1"
+{{- end }}
+
+
+
+{{- if .Values.manifests.job_wlm_cloud_trust }}
+{{- $envAll := . }}
+{{- $serviceName := "triliovault_wlm" -}}
+{{- $nodeSelector := dict .Values.labels.job.node_selector_key .Values.labels.job.node_selector_value -}}
+{{- $tlsSecret := index . "tlsSecret" | default "" -}}
+{{- if .Values.manifests.certificates -}}
+{{- $tlsSecret := .Values.secrets.tls.workloads.wlm_api.internal -}}
+{{- end -}}
+{{- $serviceNamePretty := $serviceName | replace "_" "-" }}
+{{- $restartPolicy_ := "OnFailure" -}}
+{{- $serviceAccountName := printf "%s-%s" $serviceNamePretty "wlm-cloud-trust" }}
+
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "triliovault-wlm-cloud-trust"
+  labels:
+    release_group: release-name
+    application: triliovault-wlm
+    component: cloud-trust
+  annotations:
+{{- if .Values.helm3_hook }}
+{{ include "metadata.annotations.job.triliovault_wlm_cloud_trust" . | toYaml | indent 4 }}
+{{- end }}
+spec:
+  backoffLimit: 1000
+  template:
+    metadata:
+      labels:
+        release_group: release-name
+        application: triliovault-datamover
+        component: ks-service
+      annotations:
+        "openstackhelm.openstack.org/release_uuid": ""
+    spec:
+      serviceAccountName: triliovault-datamover-ks-service
+      restartPolicy: OnFailure
+      nodeSelector:
+{{ toYaml $nodeSelector | indent 8 }}
+      initContainers:
+{{ tuple $envAll "ks_service" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+     containers:
+        - name: "wlm-cloud-trust-creation"
+          image: {{ .Values.images.tags.triliovault_wlm_cloud_trust }}
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/bash
+            - -c
+            - /tmp/triliovault-wlm-cloud-trust.sh
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: wlm-cloud-trust-sh
+              mountPath: /tmp/triliovault-wlm-cloud-trust.sh
+              subPath: triliovault-wlm-cloud-trust.sh
+              readOnly: true
+{{ dict "enabled" true "name" $tlsSecret "ca" true | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
+          env:
+{{- with $env := dict "ksUserSecret" .Values.secrets.identity.admin "useCA" (ne $tlsSecret "") }}
+{{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 12 }}
+{{- end }}
+      volumes:
+        - name: pod-tmp
+          emptyDir: {}
+        - name: triliovault-wlm-cloud-trust-sh
+          configMap:
+            name: "triliovault-datamover-bin"
+            defaultMode: 0555
+        - name: triliovault-datamover-tls-api
+          secret:
+            secretName: triliovault-datamover-tls-api
+            defaultMode: 292
+{{- dict "enabled" true "name" $tlsSecret | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
+{{- end }}
