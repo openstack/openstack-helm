@@ -33,7 +33,7 @@ spec:
   replicas: {{ .Values.pod.replicas.triliovault_datamover_api }}
   selector:
     matchLabels:
-{{ tuple $envAll "triliovault" "datamover-pi" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
+{{ tuple $envAll "triliovault" "datamover-api" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
 {{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_deployment" | indent 2 }}
   template:
     metadata:
@@ -51,6 +51,10 @@ spec:
       nodeSelector:
         {{ .Values.labels.datamover_api.node_selector_key }}: {{ .Values.labels.datamover_api.node_selector_value }}
       terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.datamover_api.timeout | default "30" }}
+{{ if .Values.conf.triliovault.docker_registry_auth_enabled }}
+      imagePullSecrets:
+        - name: triliovault-image-registry
+{{ end }}
       initContainers:
 {{ tuple $envAll "api" $mounts_triliovault_datamover_api_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
         - name: triliovault-datamover-api-init

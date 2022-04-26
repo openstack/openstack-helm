@@ -66,6 +66,10 @@ spec:
       restartPolicy: OnFailure
       nodeSelector:
 {{ toYaml $nodeSelector | indent 8 }}
+{{ if .Values.conf.triliovault.docker_registry_auth_enabled }}
+      imagePullSecrets:
+        - name: triliovault-image-registry
+{{ end }}
       initContainers:
 {{ tuple $envAll "ks_service" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
@@ -79,7 +83,7 @@ spec:
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
-            - name: wlm-cloud-trust-sh
+            - name: triliovault-wlm-cloud-trust-sh
               mountPath: /tmp/triliovault-wlm-cloud-trust.sh
               subPath: triliovault-wlm-cloud-trust.sh
               readOnly: true

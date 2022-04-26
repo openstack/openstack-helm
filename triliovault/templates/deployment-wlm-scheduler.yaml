@@ -51,6 +51,10 @@ spec:
       nodeSelector:
         {{ .Values.labels.wlm_scheduler.node_selector_key }}: {{ .Values.labels.wlm_scheduler.node_selector_value }}
       terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.wlm_scheduler.timeout | default "30" }}
+{{ if .Values.conf.triliovault.docker_registry_auth_enabled }}
+      imagePullSecrets:
+        - name: triliovault-image-registry
+{{ end }}
       initContainers:
 {{ tuple $envAll "wlm_scheduler" $mounts_triliovault_wlm_scheduler_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
         - name: triliovault-wlm-scheduler-init
@@ -93,7 +97,7 @@ spec:
               subPath: triliovault-wlm.conf
               readOnly: true
             {{- if .Values.conf.wlm.DEFAULT.log_config_append }}
-            - name: triliovault-etc
+            - name: triliovault-wlm-etc
               mountPath: {{ .Values.conf.wlm.DEFAULT.log_config_append }}
               subPath: {{ base .Values.conf.wlm.DEFAULT.log_config_append }}
               readOnly: true

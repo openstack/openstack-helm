@@ -66,6 +66,10 @@ spec:
         {{- else }}
         {{ .Values.labels.datamover.node_selector_key }}: {{ .Values.labels.datamover.node_selector_value }}
         {{- end }}
+{{ if .Values.conf.triliovault.docker_registry_auth_enabled }}
+      imagePullSecrets:
+        - name: triliovault-image-registry
+{{ end }}
       initContainers:
 {{ tuple $envAll "datamover" $mounts_triliovault_datamover_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
@@ -164,7 +168,7 @@ spec:
               mountPropagation: Bidirectional
               {{- end }}
             {{- if eq .Values.conf.triliovault.backup_target_type "nfs" }}
-            - name: triliovault-nfs-pv-{{ $share_ip}}{{ $share_path }}
+            - name: triliovault-nfs-pv-datamover
               mountPath: {{ $nfs_mount_point | quote }}
             {{- end }}
 {{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.oslo_db_triliovault_datamover.auth.admin.secret.tls.internal "path" "/etc/mysql/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
@@ -211,6 +215,9 @@ spec:
         - name: etcceph
           hostPath:
             path: /var/lib/openstack-helm/compute/nova
+        - name: etcmultipath
+          hostPath:
+            path: /etc/multipath
         - name: libmodules
           hostPath:
             path: /lib/modules
@@ -221,7 +228,7 @@ spec:
           hostPath:
             path: /etc/iscsi
         {{- if eq .Values.conf.triliovault.backup_target_type "nfs" }}
-        - name: triliovault-nfs-pv-{{ $share_ip}}{{ $share_path }}
+        - name: triliovault-nfs-pv-datamover
           persistentVolumeClaim:
             claimName: triliovault-nfs-pvc-{{ $share_ip}}{{ $share_path }}
         {{- end }}
