@@ -22,24 +22,12 @@ limitations under the License.
 {{ tuple $envAll "wlm_workloads" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 
 
-{{- $share_path := "" }}
-{{- $share_ip := "" }}
-{{- $node_selector_key := "" }}
-{{- $node_selector_value := "" }}
-{{- $nfs_mount_point_endcoded := "" }}
-{{- $nfs_mount_point := "" }}
-
-
-
-{{- if eq .Values.conf.triliovault.backup_target_type "nfs" -}}
-{{- $share_path := index .Values.conf.triliovault.nfs.nfs_shares 0 "path" }}
-{{- $share_ip := index .Values.conf.triliovault.nfs.nfs_shares 0 "ip" }}
+{{- $share_path := index .Values.conf.triliovault.nfs.nfs_shares 0 "path"  | replace "/" "-" -}}
+{{- $share_ip := index .Values.conf.triliovault.nfs.nfs_shares 0 "ip" | replace "." "-" -}}
 {{- $node_selector_key := index .Values.conf.triliovault.nfs.nfs_shares 0 "node_selector_key" -}}
 {{- $node_selector_value := index .Values.conf.triliovault.nfs.nfs_shares 0 "node_selector_value" -}}
 {{- $nfs_mount_point_endcoded := $share_path | b64enc }}
 {{- $nfs_mount_point := printf "%s/%s" .Values.conf.datamover.DEFAULT.vault_data_directory $nfs_mount_point_endcoded }}
-{{- end -}}
-
 
 
 ---
@@ -145,7 +133,7 @@ spec:
               subPath: triliovault-wlm-workloads.sh
               readOnly: true
             {{- if eq .Values.conf.triliovault.backup_target_type "nfs" }}
-            - name: triliovault-nfs-pv-{{ $share_ip }}-{{ $share_path }}
+            - name: triliovault-nfs-pv-wlm
               mountPath: {{ $nfs_mount_point | quote }}
             {{- end }}
             - name: pod-shared-triliovault-wlm-workloads
@@ -169,9 +157,9 @@ spec:
             name: triliovault-wlm-bin
             defaultMode: 0555
         {{- if eq .Values.conf.triliovault.backup_target_type "nfs" }}
-        - name: triliovault-nfs-pv-{{ $share_ip }}-{{ $share_path }}
+        - name: triliovault-nfs-pv-wlm
           persistentVolumeClaim:
-            claimName: triliovault-nfs-pvc-{{ $share_ip }}-{{ $share_path }}
+            claimName: triliovault-nfs-pvc-{{ $share_ip }}{{ $share_path }}
         {{- end }}
         - name: pod-shared-triliovault-wlm-workloads
           emptyDir: {}
