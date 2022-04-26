@@ -20,10 +20,6 @@ set -ex
 COMMAND="${@:-start}"
 
 function start () {
-  exec /usr/bin/python3 /usr/bin/dmapi-api \
-       --config-file /etc/triliovault-datamover/triliovault-datamover-api.conf \
-       --config-file /tmp/pod-shared-triliovault-datamover-api/triliovault-datamover-api-my-ip.conf
-
   {{- $backup_target_type := .Values.conf.triliovault.backup_target_type }}
 
   {{ if eq $backup_target_type "s3" }}
