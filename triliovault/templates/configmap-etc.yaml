@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if .Values.manifests.datamover_configmap_etc }}
+{{- if .Values.manifests.configmap_etc }}
 {{- $envAll := . }}
 
 {{/* **********************************************************************
@@ -219,15 +219,238 @@ limitations under the License.
 
 
 {{/* **********************************************************************
-     DONE
+     set triliovault_object_store.conf services conf parameters
      **********************************************************************
 */}}
 
+
+{{- if empty .Values.conf.triliovault_object_store.DEFAULT.vault_s3_access_key_id -}}
+{{- $_ := set .Values.conf.triliovault_object_store.DEFAULT "vault_s3_access_key_id" .Values.conf.triliovault.s3.access_key -}}
+{{- end -}}
+
+{{- if empty .Values.conf.triliovault_object_store.DEFAULT.vault_s3_secret_access_key -}}
+{{- $_ := set .Values.conf.triliovault_object_store.DEFAULT "vault_s3_secret_access_key" .Values.conf.triliovault.s3.secret_key -}}
+{{- end -}}
+
+{{- if empty .Values.conf.triliovault_object_store.DEFAULT.vault_s3_region_name -}}
+{{- $_ := set .Values.conf.triliovault_object_store.DEFAULT "vault_s3_region_name" .Values.conf.triliovault.s3.region_name -}}
+{{- end -}}
+
+{{- if empty .Values.conf.triliovault_object_store.DEFAULT.vault_s3_bucket -}}
+{{- $_ := set .Values.conf.triliovault_object_store.DEFAULT "vault_s3_bucket" .Values.conf.triliovault.s3.bucket -}}
+{{- end -}}
+
+{{- if empty .Values.conf.triliovault_object_store.DEFAULT.vault_s3_signature_version -}}
+{{- $_ := set .Values.conf.triliovault_object_store.DEFAULT "vault_s3_signature_version" .Values.conf.triliovault.s3.signature_version -}}
+{{- end -}}
+
+{{- if empty .Values.conf.triliovault_object_store.DEFAULT.vault_s3_auth_version -}}
+{{- $_ := set .Values.conf.triliovault_object_store.DEFAULT "vault_s3_auth_version" .Values.conf.triliovault.s3.auth_version -}}
+{{- end -}}
+
+{{- if empty .Values.conf.triliovault_object_store.DEFAULT.vault_s3_endpoint_url -}}
+{{- $_ := set .Values.conf.triliovault_object_store.DEFAULT "vault_s3_endpoint_url" .Values.conf.triliovault.s3.endpoint_url -}}
+{{- end -}}
+
+{{- if empty .Values.conf.triliovault_object_store.DEFAULT.vault_s3_ssl -}}
+{{- $_ := set .Values.conf.triliovault_object_store.DEFAULT "vault_s3_ssl" .Values.conf.triliovault.s3.ssl_enabled -}}
+{{- end -}}
+
+
+
+
+
+{{/* **********************************************************************
+     set triliovault_wlm_*.conf services conf parameters
+     **********************************************************************
+*/}}
+
+
+{{- if empty .Values.conf.wlm.keystone_authtoken.www_authenticate_uri -}}
+{{- $_ := tuple "identity" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" | set .Values.conf.wlm.keystone_authtoken "www_authenticate_uri" -}}
+{{- end -}}
+
+{{- if empty .Values.conf.wlm.keystone_authtoken.auth_url -}}
+{{- $_ := tuple "identity" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" | set .Values.conf.wlm.keystone_authtoken "auth_url" -}}
+{{- end -}}
+
+{{- if empty .Values.conf.wlm.keystone_authtoken.region_name -}}
+{{- $_ := set .Values.conf.wlm.keystone_authtoken "region_name" .Values.endpoints.identity.auth.triliovault_wlm.region_name -}}
+{{- end -}}
+
+{{- if empty .Values.conf.wlm.keystone_authtoken.project_name -}}
+{{- $_ := set .Values.conf.wlm.keystone_authtoken "project_name" .Values.endpoints.identity.auth.triliovault_wlm.project_name -}}
+{{- end -}}
+
+{{- if empty .Values.conf.wlm.keystone_authtoken.admin_tenant_name -}}
+{{- $_ := set .Values.conf.wlm.keystone_authtoken "admin_tenant_name" .Values.endpoints.identity.auth.triliovault_wlm.project_name -}}
+{{- end -}}
+
+{{- if empty .Values.conf.wlm.keystone_authtoken.project_domain_id -}}
+{{- $_ := set .Values.conf.wlm.keystone_authtoken "project_domain_id" .Values.endpoints.identity.auth.triliovault_wlm.project_domain_id -}}
+{{- end -}}
+
+{{- if empty .Values.conf.wlm.keystone_authtoken.user_domain_id -}}
+{{- $_ := set .Values.conf.wlm.keystone_authtoken "user_domain_id" .Values.endpoints.identity.auth.triliovault_wlm.user_domain_id -}}
+{{- end -}}
+
+{{- if empty .Values.conf.wlm.keystone_authtoken.username -}}
+{{- $_ := set .Values.conf.wlm.keystone_authtoken "username" .Values.endpoints.identity.auth.triliovault_wlm.username -}}
+{{- end -}}
+
+{{- if empty .Values.conf.wlm.keystone_authtoken.password -}}
+{{- $_ := set .Values.conf.wlm.keystone_authtoken "password" .Values.endpoints.identity.auth.triliovault_wlm.password -}}
+{{- end -}}
+
+{{- if empty .Values.conf.wlm.keystone_authtoken.admin_password -}}
+{{- $_ := set .Values.conf.wlm.keystone_authtoken "admin_password" .Values.endpoints.identity.auth.triliovault_wlm.password -}}
+{{- end -}}
+
+
+{{- if empty .Values.conf.wlm.DEFAULT.vault_storage_type -}}
+{{- $_ := set .Values.conf.wlm.DEFAULT "vault_storage_type" .Values.conf.triliovault.backup_target_type -}}
+{{- end -}}
+
+
+{{- if eq .Values.conf.triliovault.backup_target_type "nfs" -}}
+{{- range $share := .Values.conf.triliovault.nfs_shares }}
+{{- range $ip, $label := . }}
+{{- $_ :=  printf "%s:%s" $ip $share | quote | set .Values.conf.wlm.DEFAULT "vault_storage_nfs_export" -}}
+{{ end }}
+{{ end }}
+{{- else -}}
+{{- $_ := set .Values.conf.datamover.DEFAULT "vault_storage_nfs_export" "TrilioVault" -}}
+{{- end -}}
+
+{{- if empty .Values.conf.wlm.DEFAULT.vault_storage_nfs_options -}}
+{{- $_ := set .Values.conf.wlm.DEFAULT "vault_storage_nfs_options" .Values.conf.triliovault.nfs.nfs_options -}}
+{{- end -}}
+
+{{- if empty .Values.conf.wlm.DEFAULT.vault_s3_access_key_id -}}
+{{- $_ := set .Values.conf.wlm.DEFAULT "vault_s3_access_key_id" .Values.conf.triliovault.s3.access_key -}}
+{{- end -}}
+
+{{- if empty .Values.conf.datamover.DEFAULT.vault_s3_secret_access_key -}}
+{{- $_ := set .Values.conf.datamover.DEFAULT "vault_s3_secret_access_key" .Values.conf.triliovault.s3.secret_key -}}
+{{- end -}}
+
+{{- if empty .Values.conf.wlm.DEFAULT.vault_s3_region_name -}}
+{{- $_ := set .Values.conf.wlm.DEFAULT "vault_s3_region_name" .Values.conf.triliovault.s3.region_name -}}
+{{- end -}}
+
+{{- if empty .Values.conf.wlm.DEFAULT.vault_s3_bucket -}}
+{{- $_ := set .Values.conf.wlm.DEFAULT "vault_s3_bucket" .Values.conf.triliovault.s3.bucket -}}
+{{- end -}}
+
+{{- if empty .Values.conf.wlm.DEFAULT.vault_s3_signature_version -}}
+{{- $_ := set .Values.conf.wlm.DEFAULT "vault_s3_signature_version" .Values.conf.triliovault.s3.signature_version -}}
+{{- end -}}
+
+{{- if empty .Values.conf.wlm.DEFAULT.vault_s3_auth_version -}}
+{{- $_ := set .Values.conf.wlm.DEFAULT "vault_s3_auth_version" .Values.conf.triliovault.s3.auth_version -}}
+{{- end -}}
+
+{{- if empty .Values.conf.wlm.DEFAULT.vault_s3_endpoint_url -}}
+{{- $_ := set .Values.conf.wlm.DEFAULT "vault_s3_endpoint_url" .Values.conf.triliovault.s3.endpoint_url -}}
+{{- end -}}
+
+{{- if empty .Values.conf.wlm.DEFAULT.vault_s3_ssl -}}
+{{- $_ := set .Values.conf.wlm.DEFAULT "vault_s3_ssl" .Values.conf.triliovault.s3.ssl_enabled -}}
+{{- end -}}
+
+
+{{- if empty .Values.conf.wlm.DEFAULT.sql_connection -}}
+{{- $_ := tuple "oslo_db_triliovault_wlm" "internal" "triliovault_wlm" "mysql" . | include "helm-toolkit.endpoints.authenticated_endpoint_uri_lookup" | set .Values.conf.wlm.DEFAULT "sql_connection" -}}
+{{- end -}}
+
+{{- if empty .Values.conf.wlm.DEFAULT.transport_url -}}
+{{- $_ := tuple "oslo_messaging" "internal" "triliovault_wlm" "amqp" . | include "helm-toolkit.endpoints.authenticated_transport_endpoint_uri_lookup" | set .Values.conf.wlm.DEFAULT "transport_url" -}}
+{{- end -}}
+
+
+{{- if empty .Values.conf.wlm.DEFAULT.keystone_endpoint_url -}}
+{{- $_ := tuple "identity" .Values.conf.triliovault.interface "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" | set .Values.conf.wlm.DEFAULT "keystone_endpoint_url" -}}
+{{- end -}}
+
+{{- if empty .Values.conf.wlm.DEFAULT.nova_production_endpoint_template -}}
+{{- $_ := tuple "compute" .Values.conf.triliovault.interface "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" | set .Values.conf.wlm.DEFAULT "nova_production_endpoint_template" -}}
+{{- end -}}
+
+{{- if empty .Values.conf.wlm.DEFAULT.nova_admin_auth_url -}}
+{{- $_ := tuple "compute" "admin" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" | set .Values.conf.wlm.DEFAULT "nova_admin_auth_url" -}}
+{{- end -}}
+
+
+{{- if empty .Values.conf.wlm.DEFAULT.cinder_production_endpoint_template -}}
+{{- $_ := tuple "volumev3" .Values.conf.triliovault.interface "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" | set .Values.conf.wlm.DEFAULT "cinder_production_endpoint_template" -}}
+{{- end -}}
+
+{{- if empty .Values.conf.wlm.DEFAULT.neutron_production_url -}}
+{{- $_ := tuple "network" .Values.conf.triliovault.interface "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" | set .Values.conf.wlm.DEFAULT "neutron_production_url" -}}
+{{- end -}}
+
+{{- if empty .Values.conf.wlm.DEFAULT.neutron_admin_auth_url -}}
+{{- $_ := tuple "network" "admin" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" | set .Values.conf.wlm.DEFAULT "neutron_admin_auth_url" -}}
+{{- end -}}
+
+{{- if empty .Values.conf.wlm.DEFAULT.glance_production_api_servers -}}
+{{- $_ := tuple "image" .Values.conf.triliovault.interface "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" | set .Values.conf.wlm.DEFAULT "glance_production_api_servers" -}}
+{{- end -}}
+
+{{- if empty .Values.conf.wlm.DEFAULT.glance_production_host -}}
+{{- $_ := tuple "image" .Values.conf.triliovault.interface . | include "helm-toolkit.endpoints.endpoint_host_lookup" | set .Values.conf.wlm.DEFAULT "glance_production_host" -}}
+{{- end -}}
+
+{{- if empty .Values.conf.wlm.DEFAULT.domain_name -}}
+{{- $_ := set .Values.conf.wlm.DEFAULT "domain_name" .Values.conf.wlm.DEFAULT.cloud_admin_domain  -}}
+{{- end -}}
+
+
+{{- if empty .Values.conf.wlm.clients.endpoint_type -}}
+{{- $_ := set .Values.conf.wlm.clients "endpoint_type " .Values.conf.triliovault.interface  -}}
+{{- end -}}
+
+
+{{- if empty (index .Values.conf.wlm.alembic "sqlalchemy.url") -}}
+{{- $_ := tuple "oslo_db_triliovault_wlm" "internal" "triliovault_wlm" "mysql" . | include "helm-toolkit.endpoints.authenticated_endpoint_uri_lookup" | set .Values.conf.wlm.alembic "sqlalchemy.url" -}}
+{{- end -}}
+
+
+{{- if empty .Values.conf.wlm.DEFAULT.region_name_for_services -}}
+{{- $_ := set .Values.conf.wlm.DEFAULT "region_name_for_services" .Values.endpoints.identity.auth.admin.region_name -}}
+{{- end -}}
+
+
+
+{{/* **********************************************************************
+     set logging.conf conf parameters
+     **********************************************************************
+*/}}
+
+
+{{- if and (empty .Values.conf.logging.handler_fluent) (has "fluent" .Values.conf.logging.handlers.keys) -}}
+{{- $fluentd_host := tuple "fluentd" "internal" $envAll | include "helm-toolkit.endpoints.hostname_namespaced_endpoint_lookup" }}
+{{- $fluentd_port := tuple "fluentd" "internal" "service" $envAll | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+{{- $fluent_args := printf "('%s.%s', '%s', %s)" .Release.Namespace .Release.Name $fluentd_host $fluentd_port }}
+{{- $handler_fluent := dict "class" "fluent.handler.FluentHandler" "formatter" "fluent" "args" $fluent_args -}}
+{{- $_ := set .Values.conf.logging "handler_fluent" $handler_fluent -}}
+{{- end -}}
+
+{{- if and (empty .Values.conf.logging.formatter_fluent) (has "fluent" .Values.conf.logging.formatters.keys) -}}
+{{- $formatter_fluent := dict "class" "oslo_log.formatters.FluentFormatter" -}}
+{{- $_ := set .Values.conf.logging "formatter_fluent" $formatter_fluent -}}
+{{- end -}}
+
+
+{{/* **********************************************************************
+     DONE
+     **********************************************************************
+*/}}
 ---
 apiVersion: v1
 kind: Secret
 metadata:
-  name: triliovault_datamover-etc
+  name: triliovault-etc
 type: Opaque
 data:
   triliovault-datamover-api.conf: {{ include "helm-toolkit.utils.to_oslo_conf" .Values.conf.datamover_api | b64enc }}
@@ -237,4 +460,6 @@ data:
   triliovault-object-store.conf: {{ include "helm-toolkit.utils.to_ini" .Values.conf.triliovault_object_store | b64enc }}
   fuse.conf: {{ .Values.conf.fuse | b64enc }}
   s3-cert.pem: {{ .Files.Get "files/s3-cert.pem" | default "" | b64enc }}
+  triliovault-wlm.conf: {{ include "helm-toolkit.utils.to_oslo_conf" .Values.conf.wlm | b64enc }}
+  api-paste.ini: {{ tuple "bin/_api-paste.ini.tpl" . | include "helm-toolkit.utils.template" | b64enc }}
 {{- end }}
