@@ -12,12 +12,20 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- define "metadata.annotations.job.db_init" }}
+helm.sh/hook: post-install,post-upgrade
+helm.sh/hook-weight: "-5"
+{{- end }}
+
 {{- if .Values.manifests.job_db_init }}
 {{- $dbToInit := dict "inputType" "secret" "adminSecret" .Values.secrets.oslo_db.admin "userSecret" .Values.secrets.oslo_db.horizon -}}
 {{- $dbInitJob := dict "envAll" . "serviceName" "horizon" "dbToInit" $dbToInit -}}
 {{- if .Values.manifests.certificates -}}
 {{- $_ := set $dbInitJob "dbAdminTlsSecret" .Values.endpoints.oslo_db.auth.admin.secret.tls.internal -}}
 {{- end -}}
+{{- if .Values.helm3_hook }}
+{{- $_ := set $dbInitJob "jobAnnotations" (include "metadata.annotations.job.db_init" . | fromYaml) }}
+{{- end }}
 {{- if .Values.pod.tolerations.horizon.enabled -}}
 {{- $_ := set $dbInitJob "tolerationsEnabled" true -}}
 {{- end -}}
