@@ -15,4 +15,4 @@ limitations under the License.
 */}}
 
 set -ex
-exec dmapi-dbsync
+exec /var/lib/openstack/bin/python3 /usr/bin/dmapi-dbsync
