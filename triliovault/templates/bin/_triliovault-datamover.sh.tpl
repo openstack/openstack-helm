@@ -20,16 +20,12 @@ set -ex
 COMMAND="${@:-start}"
 
 function start () {
-  exec /usr/bin/python3 /usr/bin/dmapi-api \
-       --config-file /etc/triliovault-datamover/triliovault-datamover-api.conf \
-       --config-file /tmp/pod-shared-triliovault-datamover-api/triliovault-datamover-api-my-ip.conf
-
   {{- $backup_target_type := .Values.conf.triliovault.backup_target_type }}
 
   {{ if eq $backup_target_type "s3" }}
 
   ## Start triliovault object store service
-  /usr/bin/python3 /usr/bin/s3vaultfuse.py --config-file=/etc/triliovault-object-store/triliovault-object-store.conf &
+  /var/lib/openstack/bin/python3 /usr/bin/s3vaultfuse.py --config-file=/etc/triliovault-object-store/triliovault-object-store.conf &
   status=$?
   if [ $status -ne 0 ]; then
     echo "Failed to start tvault-object-store service: $status"
@@ -38,7 +34,7 @@ function start () {
   {{ end }}
 
   # Start triliovault datamover service
-  /usr/bin/python3 /usr/bin/tvault-contego \
+  /var/lib/openstack/bin/python3 /usr/bin/tvault-contego \
     --config-file=/usr/share/nova/nova-dist.conf --config-file=/etc/nova/nova.conf \
     --config-file=/etc/triliovault-datamover/triliovault-datamover.conf &
 

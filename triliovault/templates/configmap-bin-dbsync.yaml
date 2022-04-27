@@ -12,7 +12,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if and .Values.manifests.job_bootstrap .Values.bootstrap.enabled }}
-{{- $bootstrapJob := dict "envAll" . "serviceName" "triliovault_datamover" "keystoneUser" .Values.bootstrap.ks_user "configMapBin" "triliovault-bin" "configMapEtc" "triliovault-etc" -}}
-{{ $bootstrapJob | include "helm-toolkit.manifests.job_bootstrap" }}
+{{- if .Values.manifests.configmap_bin }}
+{{- $envAll := . }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: triliovault-wlm-dbsync-bin
+data:
+  db-sync.sh: |
+{{ tuple "bin/_triliovault-wlm-db-sync.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
 {{- end }}

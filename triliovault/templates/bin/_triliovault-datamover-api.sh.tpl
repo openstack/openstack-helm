@@ -19,7 +19,7 @@ set -ex
 COMMAND="${@:-start}"
 
 function start () {
-  exec /usr/bin/python3 /usr/bin/dmapi-api \
+  exec /var/lib/openstack/bin/python3 /usr/bin/dmapi-api \
        --config-file /etc/triliovault-datamover/triliovault-datamover-api.conf \
        --config-file /tmp/pod-shared-triliovault-datamover-api/triliovault-datamover-api-my-ip.conf
 }

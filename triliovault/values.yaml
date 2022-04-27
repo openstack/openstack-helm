@@ -76,6 +76,9 @@ pod:
     triliovault:
       pod:
         runAsUser: 42424
+        image_pull_secrets:
+          default:
+            - name: triliovault-image-registry
       container:
         triliovault_volume_usage_audit:
           readOnlyRootFilesystem: true
@@ -350,10 +353,8 @@ manifests:
   pdb_datamover_api: true
   pdb_wlm_api: true
   certificates: false
-  wlm_configmap_bin: true
-  wlm_configmap_etc: true
-  datamover_configmap_bin: true
-  datamover_configmap_etc: true
+  configmap_bin: true
+  configmap_etc: true
   ingress_api: true
   job_bootstrap: true
   pdb_datamover_api: true
@@ -964,24 +965,34 @@ dependencies:
           - endpoint: node
             service: local_image_registry
   static:
-    api:
+    datamover_api:
       jobs:
-        - triliovault-db-sync
-        - triliovault-ks-user
-        - triliovault-ks-endpoints
+        - triliovault-datamover-db-sync
+        - triliovault-datamover-ks-user
+        - triliovault-datamover-ks-endpoints
       services:
         - endpoint: internal
-          service: oslo_db
+          service: oslo_db_triliovault_datamover
+        - endpoint: internal
+          service: identity
+    datamover:
+      jobs:
+        - triliovault-datamover-db-sync
+      services:
+        - endpoint: internal
+          service: oslo_db_triliovault_datamover
         - endpoint: internal
           service: identity
     wlm_api:
       jobs:
-        - triliovault-db-sync
-        - triliovault-ks-user
-        - triliovault-ks-endpoints
+        - triliovault-wlm-db-sync
+        - triliovault-wlm-rabbit-init
+        - triliovault-wlm-ks-service
+        - triliovault-wlm-ks-endpoints
+        - triliovault-wlm-ks-user
       services:
         - endpoint: internal
-          service: oslo_db
+          service: oslo_db_triliovault_wlm
         - endpoint: internal
           service: identity
     wlm_scheduler:
@@ -989,6 +1000,12 @@ dependencies:
         - endpoint: internal
           service: workloads
     wlm_workloads:
+      jobs:
+        - triliovault-wlm-db-sync
+        - triliovault-wlm-rabbit-init
+        - triliovault-wlm-ks-service
+        - triliovault-wlm-ks-endpoints
+        - triliovault-wlm-ks-user
       services:
         - endpoint: internal
           service: workloads
@@ -996,16 +1013,10 @@ dependencies:
       services:
         - endpoint: internal
           service: workloads
-    contego:
-      jobs:
-        - triliovault-db-sync
-        - triliovault-ks-user
-        - triliovault-ks-endpoints
+    wlm_cloud_trust:
       services:
         - endpoint: internal
-          service: oslo_db
-        - endpoint: internal
-          service: identity
+          service: workloads
     rabbit_init:
       services:
         - service: oslo_messaging
@@ -1013,20 +1024,22 @@ dependencies:
     db_init:
       services:
         - endpoint: internal
-          service: oslo_db
+          service: oslo_db_triliovault_datamover
     db_sync:
       jobs:
-        - tvault-db-init
+        - triliovault-wlm-db-init
+        - triliovault-datamover-db-init
       services:
         - endpoint: internal
-          service: oslo_db
+          service: oslo_db_triliovault_datamover
     db_drop:
       services:
         - endpoint: internal
-          service: oslo_db
+          service: oslo_db_triliovault_datamover
     ks_endpoints:
       jobs:
-        - triliovault-ks-service
+        - triliovault-wlm-ks-service
+        - triliovault-datamover-ks-service
       services:
         - endpoint: internal
           service: identity
@@ -1044,10 +1057,10 @@ dependencies:
           service: local_image_registry
     tests:
       jobs:
-        - triliovault-db-sync
+        - triliovault-wlm-db-sync
       services:
         - endpoint: internal
           service: identity
         - endpoint: internal
-          service: oslo_db
+          service: oslo_db_triliovault_datamover
 ...
