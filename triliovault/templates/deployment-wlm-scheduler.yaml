@@ -18,6 +18,13 @@ limitations under the License.
 {{- $mounts_triliovault_wlm_scheduler := .Values.pod.mounts.triliovault_wlm_scheduler.triliovault_wlm_scheduler }}
 {{- $mounts_triliovault_wlm_scheduler_init := .Values.pod.mounts.triliovault_wlm_scheduler.init_container }}
 
+{{- $tlsSecret := "" -}}
+{{- if .Values.manifests.certificates -}}
+{{- $tlsSecret := .Values.secrets.tls.workloads.wlm_api.internal -}}
+{{- end -}}
+
+
+
 {{- $serviceAccountName := "triliovault-wlm-scheduler" }}
 {{ tuple $envAll "wlm_scheduler" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
@@ -61,6 +68,9 @@ spec:
 {{ tuple $envAll "triliovault_wlm_scheduler" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ dict "envAll" $envAll "application" "triliovault" "container" "triliovault_wlm_scheduler_init" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           env:
+{{- with $env := dict "ksUserSecret" .Values.secrets.identity.admin "useCA" (ne $tlsSecret "") }}
+{{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 12 }}
+{{- end }}
             - name: POD_NAME
               value: "triliovault-wlm-scheduler"
           command:
