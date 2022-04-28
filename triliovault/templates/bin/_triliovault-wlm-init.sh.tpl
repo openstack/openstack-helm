@@ -36,13 +36,6 @@ CLOUD_ADMIN_PROJECT_NAME="{{- .Values.conf.triliovault.cloud_admin_project_name 
 CLOUD_ADMIN_DOMAIN_NAME="{{- .Values.conf.triliovault.cloud_admin_domain_name -}}"
 WLM_USER_NAME="{{- .Values.endpoints.identity.auth.triliovault_wlm.username -}}"
 
-# If we have reached this point and a Service ID was not found,
-# then create the service
-OS_SERVICE_ID=$(openstack service create -f value -c id \
-                --name="${OS_SERVICE_NAME}" \
-                --description "${OS_SERVICE_DESC}" \
-                --enable \
-                "${OS_SERVICE_TYPE}")
 
 CLOUD_ADMIN_USER_ID=$(openstack user show -f value -c id \
                 "${CLOUD_ADMIN_USER_NAME}")

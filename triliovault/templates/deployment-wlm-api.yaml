@@ -20,6 +20,10 @@ limitations under the License.
 
 {{- $serviceAccountName := "triliovault-wlm-api" }}
 {{ tuple $envAll "wlm_api" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{- $tlsSecret := "" -}}
+{{- if .Values.manifests.certificates -}}
+{{- $tlsSecret := .Values.secrets.tls.workloads.wlm_api.internal -}}
+{{- end -}}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -61,6 +65,9 @@ spec:
 {{ tuple $envAll "triliovault_wlm_api" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ dict "envAll" $envAll "application" "triliovault" "container" "triliovault_wlm_api_init" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           env:
+{{- with $env := dict "ksUserSecret" .Values.secrets.identity.admin "useCA" (ne $tlsSecret "") }}
+{{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 12 }}
+{{- end }}
             - name: POD_NAME
               value: "triliovault-wlm-api"
           command:
