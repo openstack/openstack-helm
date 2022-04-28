@@ -16,7 +16,7 @@ limitations under the License.
 
 set -ex
 
-touch /tmp/pod-shared/triliovault-datamover-api-my-ip.conf
+touch /tmp/pod-shared-triliovault-datamover-api/triliovault-datamover-api-my-ip.conf
 
 host_interface="{{- .Values.conf.my_ip.host_interface -}}"
 if [[ -z $host_interface ]]; then
