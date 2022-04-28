@@ -31,10 +31,9 @@ function start () {
     exit $status
   fi
   {{ end }}
-  sleep 300m
   # Start triliovault datamover service
   /var/lib/openstack/bin/python3 /usr/bin/tvault-contego \
-    --config-file=/usr/share/nova/nova-dist.conf --config-file=/etc/nova/nova.conf \
+    --config-file=/etc/nova/nova.conf \
     --config-file=/etc/triliovault-datamover/triliovault-datamover.conf &
 
   status=$?
