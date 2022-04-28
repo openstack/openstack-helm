@@ -36,6 +36,8 @@ CLOUD_ADMIN_PROJECT_NAME="{{- .Values.conf.triliovault.cloud_admin_project_name 
 CLOUD_ADMIN_DOMAIN_NAME="{{- .Values.conf.triliovault.cloud_admin_domain_name -}}"
 WLM_USER_NAME="{{- .Values.endpoints.identity.auth.triliovault_wlm.username -}}"
 
+WLM_PROJECT_DOMAIN_NAME="{{- .Values.endpoints.identity.auth.triliovault_wlm.project_domain_name -}}"
+
 
 CLOUD_ADMIN_USER_ID=$(openstack user show -f value -c id \
                 "${CLOUD_ADMIN_USER_NAME}")
@@ -46,7 +48,13 @@ CLOUD_ADMIN_DOMAIN_ID=$(openstack domain show -f value -c id \
 CLOUD_ADMIN_PROJECT_ID=$(openstack project show -f value -c id \
                 "${CLOUD_ADMIN_PROJECT_NAME}")
 
+WLM_PROJECT_DOMAIN_ID=$(openstack project show -f value -c domain_id \
+                "${WLM_PROJECT_DOMAIN_NAME}")
+
 WLM_USER_ID=$(openstack user show -f value -c id \
+                "${WLM_USER_NAME}")
+
+WLM_USER_DOMAIN_ID=$(openstack user show -f value -c domain_id \
                 "${WLM_USER_NAME}")
 
 WLM_USER_DOMAIN_ID=$(openstack user show -f value -c domain_id \
@@ -62,4 +70,10 @@ cloud_admin_domain = $CLOUD_ADMIN_DOMAIN_ID
 cloud_admin_project_id = $CLOUD_ADMIN_PROJECT_ID
 cloud_unique_id = $WLM_USER_ID
 triliovault_user_domain_id = $WLM_USER_DOMAIN_ID
+domain_name = $CLOUD_ADMIN_DOMAIN_ID
+
+[keystone_authtoken]
+project_domain_id = $WLM_PROJECT_DOMAIN_ID
+user_domain_id = $WLM_USER_DOMAIN_ID
+
 EOF
