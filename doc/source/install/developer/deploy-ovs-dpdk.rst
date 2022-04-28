@@ -98,13 +98,9 @@ overrides before running the deployment scripts, for instance,
 
 .. code-block:: shell
 
-  export OPENSTACK_RELEASE=rocky
+  export OPENSTACK_RELEASE=wallaby
   export CONTAINER_DISTRO_NAME=ubuntu
-  export CONTAINER_DISTRO_VERSION=bionic
-
-Note that OVS-DPDK deployment has been tested with Openstack Rocky release and Ubuntu
-Bionic container distributions. If the above variables aren't set, the defaults (currently
-Openstack Ocata and Ubuntu Xenial) will be used.
+  export CONTAINER_DISTRO_VERSION=focal
 
 Troubleshooting
 ===============
