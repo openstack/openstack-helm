@@ -16,10 +16,14 @@ limitations under the License.
 {{- $envAll := . }}
 
 {{- $mounts_triliovault_wlm_workloads := .Values.pod.mounts.triliovault_wlm_workloads.triliovault_wlm_workloads }}
+
 {{- $mounts_triliovault_wlm_workloads_init := .Values.pod.mounts.triliovault_wlm_workloads.init_container }}
 
-{{- $serviceAccountName := "triliovault-wlm-workloads" }}
-{{ tuple $envAll "wlm_workloads" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{- $tlsSecret := "" -}}
+{{- if .Values.manifests.certificates -}}
+{{- $tlsSecret := .Values.secrets.tls.workloads.wlm_api.internal -}}
+{{- end -}}
+
 
 {{- $share_path_original := index .Values.conf.triliovault.nfs.nfs_shares 0 "path"  | replace "/" "-" -}}
 {{- $share_path := index .Values.conf.triliovault.nfs.nfs_shares 0 "path"  | replace "/" "-" -}}
@@ -30,6 +34,9 @@ limitations under the License.
 {{- $nfs_mount_point := printf "%s/%s" .Values.conf.datamover.DEFAULT.vault_data_directory $nfs_mount_point_endcoded }}
 
 
+
+{{- $serviceAccountName := "triliovault-wlm-workloads" }}
+{{ tuple $envAll "wlm_workloads" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -71,6 +78,9 @@ spec:
 {{ tuple $envAll "triliovault_wlm_workloads" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ dict "envAll" $envAll "application" "triliovault" "container" "triliovault_wlm_workloads_init" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           env:
+{{- with $env := dict "ksUserSecret" .Values.secrets.identity.admin "useCA" (ne $tlsSecret "") }}
+{{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 12 }}
+{{- end }}
             - name: POD_NAME
               value: "triliovault-wlm-workloads"
           command:
