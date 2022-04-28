@@ -28,6 +28,8 @@ EOF
 helm upgrade --install triliovault ./triliovault \
   --namespace=openstack \
   --values=/tmp/triliovault.yaml \
+  --values=./triliovault/values_overrides/image_pull_secrets.yaml \
+  --values=./triliovault/values_overrides/conf_triliovault.yaml \
   ${OSH_EXTRA_HELM_ARGS:=} \
   ${OSH_EXTRA_HELM_ARGS_TRILIOVAULT}
 
