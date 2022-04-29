@@ -24,7 +24,7 @@ function start () {
 
   {{ if eq $backup_target_type "s3" }}
   ## Start triliovault object store service
-  /var/lib/openstack/bin/python3 /usr/bin/s3vaultfuse.py --config-file=/etc/triliovault-object-store/triliovault-object-store.conf &
+  /usr/bin/python3 /usr/bin/s3vaultfuse.py --config-file=/etc/triliovault-object-store/triliovault-object-store.conf &
   status=$?
   if [ $status -ne 0 ]; then
     echo "Failed to start tvault-object-store service: $status"
@@ -32,9 +32,9 @@ function start () {
   fi
   {{ end }}
   # Start triliovault datamover service
-  /var/lib/openstack/bin/python3 /usr/bin/tvault-contego \
+  /usr/bin/python3 /usr/bin/tvault-contego \
     --config-file=/etc/nova/nova.conf \
-    --config-file=/etc/triliovault-datamover/triliovault-datamover.conf &
+    --config-file=/etc/triliovault-datamover/triliovault-datamover.conf
 
   status=$?
   if [ $status -ne 0 ]; then
