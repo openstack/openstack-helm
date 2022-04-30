@@ -54,3 +54,4 @@ function stop () {
   kill -TERM 1
 }
 
+$COMMAND

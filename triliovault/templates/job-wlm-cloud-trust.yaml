@@ -30,7 +30,6 @@ helm.sh/hook-weight: "-1"
 {{- end -}}
 {{- $serviceNamePretty := $serviceName | replace "_" "-" }}
 {{- $restartPolicy_ := "OnFailure" -}}
-{{- $serviceAccountName := printf "%s-%s" $serviceNamePretty "wlm-cloud-trust" }}
 
 
 {{ $jobAnnotations := "" }}
@@ -40,6 +39,9 @@ helm.sh/hook-weight: "-1"
 {{- end }}
 
 
+
+{{- $serviceAccountName := "triliovault-wlm-cloud-trust" }}
+{{ tuple $envAll "wlm_api" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: batch/v1
 kind: Job
@@ -47,7 +49,7 @@ metadata:
   name: "triliovault-wlm-cloud-trust"
   labels:
     release_group: release-name
-    application: triliovault-wlm
+    application: triliovault
     component: cloud-trust
   annotations:
 {{- if $jobAnnotations }}
@@ -59,10 +61,10 @@ spec:
     metadata:
       labels:
         release_group: release-name
-        application: triliovault-datamover
-        component: ks-service
+        application: triliovault
+        component: wlm-cloud-trust
     spec:
-      serviceAccountName: triliovault-datamover-ks-service
+      serviceAccountName: {{ $serviceAccountName }}
       restartPolicy: OnFailure
       nodeSelector:
 {{ toYaml $nodeSelector | indent 8 }}
@@ -71,7 +73,7 @@ spec:
         - name: triliovault-image-registry
 {{ end }}
       initContainers:
-{{ tuple $envAll "ks_service" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll "wlm_cloud_trust" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
         - name: "wlm-cloud-trust-creation"
           image: {{ .Values.images.tags.triliovault_wlm_cloud_trust }}
@@ -99,9 +101,5 @@ spec:
           configMap:
             name: "triliovault-bin"
             defaultMode: 0555
-        - name: triliovault-datamover-tls-api
-          secret:
-            secretName: triliovault-datamover-tls-api
-            defaultMode: 292
 {{- dict "enabled" true "name" $tlsSecret | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 {{- end }}
