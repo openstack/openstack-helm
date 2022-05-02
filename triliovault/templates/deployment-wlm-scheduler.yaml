@@ -52,7 +52,8 @@ spec:
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
     spec:
       serviceAccountName: {{ $serviceAccountName }}
-{{ dict "envAll" $envAll "application" "triliovault" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
+      securityContext:
+        runAsUser: 42424
       affinity:
 {{ tuple $envAll "triliovault" "wlm-scheduler" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
       nodeSelector:
@@ -66,7 +67,7 @@ spec:
 {{ tuple $envAll "wlm_scheduler" $mounts_triliovault_wlm_scheduler_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
         - name: triliovault-wlm-scheduler-init
 {{ tuple $envAll "triliovault_wlm_scheduler" | include "helm-toolkit.snippets.image" | indent 10 }}
-{{ dict "envAll" $envAll "application" "triliovault" "container" "triliovault_wlm_scheduler_init" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+{{ dict "envAll" $envAll "application" "triliovault" "container" "triliovault_wlm_init" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           env:
 {{- with $env := dict "ksUserSecret" .Values.secrets.identity.admin "useCA" (ne $tlsSecret "") }}
 {{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 12 }}
