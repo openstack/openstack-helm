@@ -292,21 +292,15 @@ function zap_extra_partitions {
   # Delete any discovered journal, block.db, and block.wal partitions
   if [ ! -z "${journal_disk}" ]; then
     sgdisk -d ${journal_part} ${journal_disk}
-    /sbin/udevadm settle --timeout=600
     /usr/bin/flock -s ${journal_disk} /sbin/partprobe ${journal_disk}
-    /sbin/udevadm settle --timeout=600
   fi
   if [ ! -z "${block_db_disk}" ]; then
     sgdisk -d ${block_db_part} ${block_db_disk}
-    /sbin/udevadm settle --timeout=600
     /usr/bin/flock -s ${block_db_disk} /sbin/partprobe ${block_db_disk}
-    /sbin/udevadm settle --timeout=600
   fi
   if [ ! -z "${block_wal_disk}" ]; then
     sgdisk -d ${block_wal_part} ${block_wal_disk}
-    /sbin/udevadm settle --timeout=600
     /usr/bin/flock -s ${block_wal_disk} /sbin/partprobe ${block_wal_disk}
-    /sbin/udevadm settle --timeout=600
   fi
 }
 
@@ -345,9 +339,19 @@ function lvm_scan {
   lvscan
 }
 
+function wait_for_device {
+  local device="$1"
+
+  echo "Waiting for block device ${device} to appear"
+  for countdown in {1..600}; do
+    test -b "${device}" && break
+    sleep 1
+  done
+  test -b "${device}" || exit 1
+}
+
 function udev_settle {
   osd_devices="${OSD_DEVICE}"
-  udevadm settle --timeout=600
   partprobe "${OSD_DEVICE}"
   lvm_scan
   if [ "${OSD_BLUESTORE:-0}" -eq 1 ]; then
@@ -378,11 +382,10 @@ function udev_settle {
         local JDEV=$(echo ${OSD_JOURNAL} | sed 's/[0-9]//g')
         osd_devices="${osd_devices}\|${JDEV}"
         partprobe "${JDEV}"
+        wait_for_device "${JDEV}"
       fi
     fi
   fi
-  # watch the udev event queue, and exit if all current events are handled
-  udevadm settle --timeout=600
 
   # On occassion udev may not make the correct device symlinks for Ceph, just in case we make them manually
   mkdir -p /dev/disk/by-partuuid
@@ -394,9 +397,6 @@ function udev_settle {
       ln -s "../../${dev}" "${symlink}"
     fi
   done
-
-  # Give udev another chance now that all symlinks exist for devices we care about
-  udevadm settle --timeout=600
 }
 
 # Helper function to get a logical volume from a physical volume
