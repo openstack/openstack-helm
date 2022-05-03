@@ -368,8 +368,8 @@ remove_old_remote_archives() {
   count=0
   SECONDS_TO_KEEP=$((${REMOTE_DAYS_TO_KEEP}*86400))
   log INFO "${DB_NAME}_backup" "Deleting backups older than ${REMOTE_DAYS_TO_KEEP} days (${SECONDS_TO_KEEP} seconds)"
-  for INDEX in $(tr " " "\n" <<< ${!FILETABLE[@]} | sort -n -); do
-    ARCHIVE_FILE=${FILETABLE[${INDEX}]}
+  for INDEX in $(tr " " "\n" <<< ${!fileTable[@]} | sort -n -); do
+    ARCHIVE_FILE=${fileTable[${INDEX}]}
     if [[ ${INDEX} -lt ${SECONDS_TO_KEEP} || ${count} -lt ${REMOTE_DAYS_TO_KEEP} ]]; then
       ((count++))
       log INFO "${DB_NAME}_backup" "Keeping remote backup(s) ${ARCHIVE_FILE}."
