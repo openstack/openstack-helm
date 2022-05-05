@@ -13,7 +13,8 @@ kubectl delete job triliovault-wlm-ks-service -n openstack
 kubectl delete job triliovault-wlm-ks-user -n openstack
 kubectl delete job triliovault-wlm-rabbit-init -n openstack
 
-sleep 30s
+sleep 50s
 
 kubectl get pods -n openstack | grep trilio
 kubectl get jobs -n openstack | grep trilio
+kubectl get pv -n openstack | grep trilio
