@@ -58,10 +58,13 @@ WLM_USER_DOMAIN_ID=$(openstack user show --domain "${WLM_PROJECT_DOMAIN_NAME}" -
                 "${WLM_USER_NAME}")
 
 
+host_interface=$(ip -4 route list 0/0 | awk -F 'dev' '{ print $2; exit }' | awk '{ print $1 }') || exit 1
 
+POD_IP=$(ip a s $host_interface | grep 'inet ' | awk '{print $2}' | awk -F "/" '{print $1}' | head -1)
 
 tee > /tmp/pod-shared-${POD_NAME}/triliovault-wlm-ids.conf << EOF
 [DEFAULT]
+triliovault_hostnames = ${POD_IP}
 cloud_admin_user_id = $CLOUD_ADMIN_USER_ID
 cloud_admin_domain = $CLOUD_ADMIN_DOMAIN_ID
 cloud_admin_project_id = $CLOUD_ADMIN_PROJECT_ID
@@ -74,3 +77,4 @@ project_domain_id = $WLM_PROJECT_DOMAIN_ID
 user_domain_id = $WLM_USER_DOMAIN_ID
 
 EOF
+
