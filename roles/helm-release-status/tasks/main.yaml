@@ -21,28 +21,25 @@
     - values
     - releases
 
-- name: "retrieve all deployed charts"
-  shell: |-
-          set -e
-          helm ls --short
-  args:
-    executable: /bin/bash
-  register: helm_releases
-  ignore_errors: True
-
 - name: "Gather get release status for helm charts"
   shell: |-
           set -e
-          helm status {{ helm_released }}  >> {{ logs_dir }}/helm/releases/{{ helm_release }}.txt
-          helm get values {{ helm_released }}  >> {{ logs_dir }}/helm/values/{{ helm_release }}.yaml
+
+          for namespace in $(kubectl get namespaces --no-headers --output custom-columns=":metadata.name"); do
+                # get all Helm releases including pending and failed releases
+                for release in $(helm list --all --short --namespace $namespace); do
+                        # Make respective directories only when a Helm release actually exists in the namespace
+                        # to prevent uploading a bunch of empty directories for namespaces without a Helm release.
+                        mkdir -p {{ logs_dir }}/helm/releases/$namespace
+                        mkdir -p {{ logs_dir }}/helm/values/$namespace
+
+                        helm status $release --namespace $namespace >> {{ logs_dir }}/helm/releases/$namespace/$release.txt
+                        helm get values $release --namespace $namespace --all >> {{ logs_dir }}/helm/values/$namespace/$release.yaml
+                done
+          done
   args:
     executable: /bin/bash
   ignore_errors: True
-  vars:
-    helm_release: "{{ helm_released }}"
-  loop_control:
-    loop_var: helm_released
-  with_items: "{{ helm_releases.stdout_lines }}"
 
 - name: "Downloads logs to executor"
   synchronize:
