@@ -14,8 +14,8 @@
 set -ex
 
 : "${HELM_VERSION:="v3.6.3"}"
-: "${KUBE_VERSION:="v1.19.16"}"
-: "${MINIKUBE_VERSION:="v1.22.0"}"
+: "${KUBE_VERSION:="v1.23.0"}"
+: "${MINIKUBE_VERSION:="v1.23.0"}"
 : "${CALICO_VERSION:="v3.20"}"
 : "${YQ_VERSION:="v4.6.0"}"
 : "${KUBE_DNS_IP="10.96.0.10"}"
@@ -162,6 +162,10 @@ rm -rf "${TMP_DIR}"
 sudo -E minikube config set kubernetes-version "${KUBE_VERSION}"
 sudo -E minikube config set vm-driver none
 
+# NOTE: set RemoveSelfLink to false, to enable it as it is required by the ceph-rbd-provisioner.
+# SelfLinks were deprecated in k8s v1.16, and in k8s v1.20, they are
+# disabled by default.
+# https://github.com/kubernetes/enhancements/issues/1164
 export CHANGE_MINIKUBE_NONE_USER=true
 export MINIKUBE_IN_STYLE=false
 sudo -E minikube start \
@@ -177,6 +181,7 @@ sudo -E minikube start \
   --extra-config=apiserver.service-node-port-range=1-65535 \
   --extra-config=kubelet.cgroup-driver=systemd \
   --extra-config=kubelet.resolv-conf=/run/systemd/resolve/resolv.conf \
+  --feature-gates=RemoveSelfLink=false \
   --embed-certs
 sudo -E systemctl enable --now kubelet
 
