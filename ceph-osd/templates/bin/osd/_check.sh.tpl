@@ -25,17 +25,13 @@ cond=1
 for sock in $SOCKDIR/$SBASE.*.$SSUFFIX; do
  if [ -S $sock ]; then
   OSD_ID=$(echo $sock | awk -F. '{print $2}')
-  OSD_STATE=$(ceph -f json-pretty --connect-timeout 1 --admin-daemon "${sock}" status|grep state|sed 's/.*://;s/[^a-z]//g')
-  NOUP_FLAG=$(ceph --name client.bootstrap-osd --keyring /var/lib/ceph/bootstrap-osd/ceph.keyring status | awk '/flags/{print $2}' | grep noup)
+  OSD_STATE=$(ceph -f json --connect-timeout 1 --admin-daemon "${sock}" status|jq -r '.state')
   echo "OSD ${OSD_ID} ${OSD_STATE}";
-  # this might be a stricter check than we actually want.  what are the
-  # other values for the "state" field?
-  if [ "x${OSD_STATE}x" = 'xactivex' ]; then
-   cond=0
-  elif [ "${NOUP_FLAG}" ] && [ "x${OSD_STATE}x" = 'xprebootx' ]; then
+  # Succeed if the OSD state is active (running) or preboot (starting)
+  if [ "${OSD_STATE}" = "active" ] || [ "${OSD_STATE}" = "preboot" ]; then
    cond=0
   else
-   # one's not ready, so the whole pod's not ready.
+   # Any other state is unexpected and the probe fails
    exit 1
   fi
  else
