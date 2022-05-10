@@ -79,6 +79,5 @@ user_domain_id = $WLM_USER_DOMAIN_ID
 EOF
 
 chown nova:nova /tmp/pod-shared-${POD_NAME}/triliovault-wlm-ids.conf
-mkdir -p /var/log/triliovault/wlm-api
-mkdir -p /var/log/triliovault/wlm-workloads
+mkdir -p /var/log/triliovault/wlm-api /var/log/triliovault/wlm-workloads /var/log/triliovault/wlm-scheduler
 chown -R nova:nova /var/log/triliovault/
