@@ -78,6 +78,8 @@ spec:
             - /tmp/triliovault-wlm-scheduler-init.sh
           terminationMessagePath: /var/log/termination-log
           volumeMounts:
+            - name: varlogtriliovault
+              mountPath: /var/log/triliovault
             - name: triliovault-wlm-bin
               mountPath: /tmp/triliovault-wlm-scheduler-init.sh
               subPath: triliovault-wlm-init.sh
@@ -105,12 +107,26 @@ spec:
               readOnly: true
             - name: pod-tmp
               mountPath: /tmp
-            - name: trilio-mounts
-              mountPath: /var/triliovault-mounts
+            - name: varlogtriliovault
+              mountPath: /var/log/triliovault
             - name: triliovault-wlm-etc
               mountPath: /etc/triliovault-wlm/triliovault-wlm.conf
               subPath: triliovault-wlm.conf
               readOnly: true
+            {{- if eq .Values.conf.triliovault.backup_target_type "s3" }}
+            - mountPath: /etc/triliovault-object-store/triliovault-object-store.conf
+              name: triliovault-wlm-etc
+              readOnly: true
+              subPath: triliovault-object-store-wlm-scheduler.conf
+            - mountPath: /etc/fuse.conf
+              name: triliovault-wlm-etc
+              readOnly: true
+              subPath: fuse.conf
+            - mountPath: /etc/triliovault-wlm/s3-cert.pem
+              name: triliovault-wlm-etc
+              readOnly: true
+              subPath: s3-cert.pem
+            {{- end }}
             {{- if .Values.conf.wlm.DEFAULT.log_config_append }}
             - name: triliovault-wlm-etc
               mountPath: {{ .Values.conf.wlm.DEFAULT.log_config_append }}
@@ -134,8 +150,9 @@ spec:
       volumes:
         - name: pod-tmp
           emptyDir: {}
-        - name: trilio-mounts
-          emptyDir: {}
+        - name: varlogtriliovault
+          hostPath:
+            path: /var/log/triliovault
         - name: triliovault-wlm-etc
           secret:
             secretName: triliovault-etc

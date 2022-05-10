@@ -55,6 +55,7 @@ spec:
       serviceAccountName: {{ $serviceAccountName }}
       securityContext:
         runAsUser: 42424
+        fsGroup: 42424
       affinity:
 {{ tuple $envAll "triliovault" "datamover" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
       hostNetwork: true
@@ -73,6 +74,20 @@ spec:
 {{ end }}
       initContainers:
 {{ tuple $envAll "datamover" $mounts_triliovault_datamover_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+        - name: triliovault-datamover-init
+{{ tuple $envAll "triliovault_datamover" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ dict "envAll" $envAll "application" "triliovault" "container" "triliovault_datamover_init" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          command:
+            - /tmp/triliovault-datamover-init.sh
+          terminationMessagePath: /var/log/termination-log
+          volumeMounts:
+            - name: varlogtriliovault
+              mountPath: /var/log/triliovault
+            - name: triliovault-datamover-bin
+              mountPath: /tmp/triliovault-datamover-init.sh
+              subPath: triliovault-datamover-init.sh
+              readOnly: true
+{{ if $mounts_triliovault_datamover_init.volumeMounts }}{{ toYaml $mounts_triliovault_datamover_init.volumeMounts | indent 12 }}{{ end }}
       containers:
         - name: triliovault-datamover
 {{ tuple $envAll "triliovault_datamover" | include "helm-toolkit.snippets.image" | indent 10 }}
@@ -90,16 +105,17 @@ spec:
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
-            - name: vartrilio
-              mountPath: /var/trilio
+            - name: varlogtriliovault
+              mountPath: /var/log/triliovault
             - name: triliovault-datamover-etc
               mountPath: /etc/triliovault-datamover/triliovault-datamover.conf
               subPath: triliovault-datamover.conf
               readOnly: true
+            {{- if eq .Values.conf.triliovault.backup_target_type "s3" }}
             - mountPath: /etc/triliovault-object-store/triliovault-object-store.conf
               name: triliovault-datamover-etc
               readOnly: true
-              subPath: triliovault-object-store.conf
+              subPath: triliovault-object-store-datamover.conf
             - mountPath: /etc/fuse.conf
               name: triliovault-datamover-etc
               readOnly: true
@@ -108,6 +124,7 @@ spec:
               name: triliovault-datamover-etc
               readOnly: true
               subPath: s3-cert.pem
+            {{- end }}
             - name: triliovault-datamover-bin
               mountPath: /tmp/triliovault-datamover.sh
               subPath: triliovault-datamover.sh
@@ -183,9 +200,9 @@ spec:
       volumes:
         - name: pod-tmp
           emptyDir: {}
-        - name: vartrilio
+        - name: varlogtriliovault
           hostPath:
-            path: /var/trilio
+            path: /var/log/triliovault
         - name: triliovault-datamover-etc
           secret:
             secretName: triliovault-etc

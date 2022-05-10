@@ -116,12 +116,19 @@ pod:
           fsGroup: 42424
         triliovault_wlm_init:
           readOnlyRootFilesystem: false
-          runAsUser: 42424
+          runAsUser: 0
           runAsGroup: 42424
           fsGroup: 42424
         triliovault_datamover_api_init:
           readOnlyRootFilesystem: false
           runAsUser: 63630
+          runAsGroup: 63630
+          fsGroup: 63630
+        triliovault_datamover_init:
+          readOnlyRootFilesystem: false
+          runAsUser: 0
+          runAsGroup: 42424
+          fsGroup: 42424
   affinity:
     anti:
       type:
@@ -770,15 +777,62 @@ conf:
 
     # Allow non-root users to specify the allow_other or allow_root mount options.
     user_allow_other
-  triliovault_object_store:
+  triliovault_object_store_wlm_api:
     DEFAULT:
       verbose: true
       vault_storage_type: s3
       vault_s3_auth_version: DEFAULT
       vault_s3_ssl_cert: "/etc/triliovault-wlm/s3-cert.pem"
       vault_storage_nfs_export: TrilioVault
+      vault_data_directory: /var/trilio/triliovault-mounts
+      vault_s3_max_pool_connections: 500
+      vault_data_directory_old: /var/triliovault
+      log_file: /var/log/triliovault/wlm-api/triliovault-object-store.log
+      debug: true
     s3fuse_sys_admin:
-      helper_command: sudo /usr/bin/workloadmgr-rootwrap /etc/triliovault/rootwrap.conf privsep-helper
+      helper_command: sudo /usr/bin/workloadmgr-rootwrap /etc/triliovault-wlm/rootwrap.conf privsep-helper
+  triliovault_object_store_wlm_scheduler:
+    DEFAULT:
+      verbose: true
+      vault_storage_type: s3
+      vault_s3_auth_version: DEFAULT
+      vault_s3_ssl_cert: "/etc/triliovault-wlm/s3-cert.pem"
+      vault_storage_nfs_export: TrilioVault
+      vault_data_directory: /var/trilio/triliovault-mounts
+      vault_s3_max_pool_connections: 500
+      vault_data_directory_old: /var/triliovault
+      log_file: /var/log/triliovault/wlm-scheduler/triliovault-object-store.log
+      debug: true
+    s3fuse_sys_admin:
+      helper_command: sudo /usr/bin/workloadmgr-rootwrap /etc/triliovault-wlm/rootwrap.conf privsep-helper
+  triliovault_object_store_wlm_workloads:
+    DEFAULT:
+      verbose: true
+      vault_storage_type: s3
+      vault_s3_auth_version: DEFAULT
+      vault_s3_ssl_cert: "/etc/triliovault-wlm/s3-cert.pem"
+      vault_storage_nfs_export: TrilioVault
+      vault_data_directory: /var/trilio/triliovault-mounts
+      vault_s3_max_pool_connections: 500
+      vault_data_directory_old: /var/triliovault
+      log_file: /var/log/triliovault/wlm-workloads/triliovault-object-store.log
+      debug: true
+    s3fuse_sys_admin:
+      helper_command: sudo /usr/bin/workloadmgr-rootwrap /etc/triliovault-wlm/rootwrap.conf privsep-helper
+  triliovault_object_store_datamover:
+    DEFAULT:
+      verbose: true
+      vault_storage_type: s3
+      vault_s3_auth_version: DEFAULT
+      vault_s3_ssl_cert: "/etc/triliovault-datamover/s3-cert.pem"
+      vault_storage_nfs_export: TrilioVault
+      vault_data_directory: /var/trilio/triliovault-mounts
+      vault_s3_max_pool_connections: 500
+      vault_data_directory_old: /var/triliovault
+      log_file: /var/log/triliovault/datamover/triliovault-object-store.log
+      debug: true
+    s3fuse_sys_admin:
+      helper_command: sudo /usr/bin/privsep-helper
   datamover_api:
     DEFAULT:
       log_config_append: /etc/triliovault-datamover/logging.conf
@@ -874,7 +928,7 @@ conf:
       vault_data_directory: "/var/trilio/triliovault-mounts"
       #The amount of time(in hrs) that snapshot upload operation should wait for the upload
       max_wait_for_upload: 48
-      helper_command: sudo /usr/bin/workloadmgr-rootwrap /etc/triliovault/rootwrap.conf privsep-helper
+      helper_command: sudo /usr/bin/workloadmgr-rootwrap /etc/triliovault-wlm/rootwrap.conf privsep-helper
     clients:
       client_retry_limit: 3
       insecure: False
@@ -895,6 +949,8 @@ conf:
       version_locations: /usr/share/workloadmgr/migrate_repo/versions
     filesearch:
       process_timeout: 300
+    s3fuse_sys_admin:
+      helper_command: sudo /usr/bin/workloadmgr-rootwrap /etc/triliovault-wlm/rootwrap.conf privsep-helper
   logging:
     loggers:
       keys:

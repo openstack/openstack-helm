@@ -64,6 +64,7 @@ spec:
       serviceAccountName: {{ $serviceAccountName }}
       securityContext:
         runAsUser: 42424
+        fsGroup: 42424
       affinity:
 {{ tuple $envAll "triliovault" "wlm-workloads" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
       nodeSelector:
@@ -94,6 +95,8 @@ spec:
               readOnly: true
             - name: pod-shared-triliovault-wlm-workloads
               mountPath: /tmp/pod-shared-triliovault-wlm-workloads
+            - name: varlogtriliovault
+              mountPath: /var/log/triliovault
       containers:
         - name: triliovault-wlm-workloads
 {{ tuple $envAll "triliovault_wlm_workloads" | include "helm-toolkit.snippets.image" | indent 10 }}
@@ -115,8 +118,8 @@ spec:
               readOnly: true
             - name: pod-tmp
               mountPath: /tmp
-            - name: vartrilio
-              mountPath: /var/trilio/
+            - name: varlogtriliovault
+              mountPath: /var/log/triliovault
             - name: triliovault-wlm-etc
               mountPath: /etc/triliovault-wlm/triliovault-wlm.conf
               subPath: triliovault-wlm.conf
@@ -131,14 +134,11 @@ spec:
               mountPath: /etc/triliovault-wlm/api-paste.ini
               subPath: api-paste.ini
               readOnly: true
+            {{- if eq .Values.conf.triliovault.backup_target_type "s3" }}
             - mountPath: /etc/triliovault-object-store/triliovault-object-store.conf
               name: triliovault-wlm-etc
               readOnly: true
-              subPath: triliovault-object-store.conf
-            - mountPath: /etc/triliovault-object-store/logging.conf
-              name: triliovault-wlm-etc
-              readOnly: true
-              subPath: logging.conf
+              subPath: triliovault-object-store-wlm-workloads.conf
             - mountPath: /etc/fuse.conf
               name: triliovault-wlm-etc
               readOnly: true
@@ -147,6 +147,11 @@ spec:
               name: triliovault-wlm-etc
               readOnly: true
               subPath: s3-cert.pem
+            {{- end }}
+            - mountPath: /etc/triliovault-object-store/logging.conf
+              name: triliovault-wlm-etc
+              readOnly: true
+              subPath: logging.conf
             - name: triliovault-wlm-bin
               mountPath: /tmp/triliovault-wlm-workloads.sh
               subPath: triliovault-wlm-workloads.sh
@@ -164,9 +169,9 @@ spec:
       volumes:
         - name: pod-tmp
           emptyDir: {}
-        - name: vartrilio
+        - name: varlogtriliovault
           hostPath:
-            path: /var/trilio
+            path: /var/log/triliovault
         - name: triliovault-wlm-etc
           secret:
             secretName: triliovault-etc

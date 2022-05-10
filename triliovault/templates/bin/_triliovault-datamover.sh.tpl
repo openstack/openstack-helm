@@ -16,7 +16,6 @@ limitations under the License.
 
 set -ex
 
-
 COMMAND="${@:-start}"
 
 function start () {
@@ -26,6 +25,7 @@ function start () {
   ## Start triliovault object store service
   /usr/bin/python3 /usr/bin/s3vaultfuse.py --config-file=/etc/triliovault-object-store/triliovault-object-store.conf &
   status=$?
+  sleep 20s
   if [ $status -ne 0 ]; then
     echo "Failed to start tvault-object-store service: $status"
     exit $status
