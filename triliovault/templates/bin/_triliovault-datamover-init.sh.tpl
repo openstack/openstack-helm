@@ -17,4 +17,4 @@ limitations under the License.
 set -ex
 
 mkdir -p /var/log/triliovault/datamover
-chown -R nova:nova /var/log/triliovault
+chown -R nova:nova /var/log/triliovault /var/trilio
