@@ -2,7 +2,7 @@
 
 set -eux
 
-: ${CERT_MANAGER_VERSION:="v1.2.0"}
+: ${CERT_MANAGER_VERSION:="v1.8.0"}
 
 cert_path="/etc/openstack-helm"
 ca_cert_root="$cert_path/certs/ca"
