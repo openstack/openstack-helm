@@ -29,10 +29,15 @@ MYSQL_DBADMIN_PASSWORD=$(kubectl get secrets/mariadb-dbadmin-password --template
 ## Rabbitmq creds
 RABBITMQ_ADMIN_PASSWORD=$(kubectl get secrets/openstack-rabbitmq-admin-user --template={{.data.RABBITMQ_ADMIN_PASSWORD}} | base64 -d)
 RABBITMQ_ADMIN_USERNAME=$(kubectl get secrets/openstack-rabbitmq-admin-user --template={{.data.RABBITMQ_ADMIN_USERNAME}} | base64 -d)
+NOVA_TRANSPORT_URL=$(kubectl get secret nova-rabbitmq-user --template={{.data.TRANSPORT_URL}} | base64 -d)
 
 cd ../
 
 tee > values_overrides/admin_creds.yaml  << EOF
+conf:
+  datamover:
+    DEFAULT:
+      dmapi_transport_url: $NOVA_TRANSPORT_URL
 endpoints:
   identity:
     name: keystone
