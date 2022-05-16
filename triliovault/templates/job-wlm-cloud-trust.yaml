@@ -41,7 +41,7 @@ helm.sh/hook-weight: "-1"
 
 
 {{- $serviceAccountName := "triliovault-wlm-cloud-trust" }}
-{{ tuple $envAll "wlm_api" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{ tuple $envAll "wlm_cloud_trust" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: batch/v1
 kind: Job
@@ -64,6 +64,9 @@ spec:
         application: triliovault
         component: wlm-cloud-trust
     spec:
+      securityContext:
+        runAsUser: 42424
+        fsGroup: 42424
       serviceAccountName: {{ $serviceAccountName }}
       restartPolicy: OnFailure
       nodeSelector:
@@ -76,6 +79,7 @@ spec:
 {{ tuple $envAll "wlm_cloud_trust" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
         - name: "wlm-cloud-trust-creation"
+{{ dict "envAll" $envAll "application" "triliovault" "container" "wlm_cloud_trust_creation" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           image: {{ .Values.images.tags.triliovault_wlm_cloud_trust }}
           imagePullPolicy: IfNotPresent
           command:
