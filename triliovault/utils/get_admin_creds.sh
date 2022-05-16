@@ -32,6 +32,8 @@ RABBITMQ_ADMIN_USERNAME=$(kubectl -n openstack get secrets/openstack-rabbitmq-ad
 
 NOVA_TRANSPORT_URL=$(kubectl -n openstack get secret nova-rabbitmq-user --template={{.data.TRANSPORT_URL}} | base64 -d)
 
+kubectl -n openstack get secret/nova-etc -o "jsonpath={.data['nova-compute\.conf']}" | base64 -d > ../templates/bin/_triliovault-nova-compute.conf.tpl
+
 cd ../
 
 tee > values_overrides/admin_creds.yaml  << EOF
