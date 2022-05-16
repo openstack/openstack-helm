@@ -29,6 +29,7 @@ MYSQL_DBADMIN_PASSWORD=$(kubectl get secrets/mariadb-dbadmin-password --template
 ## Rabbitmq creds
 RABBITMQ_ADMIN_PASSWORD=$(kubectl get secrets/openstack-rabbitmq-admin-user --template={{.data.RABBITMQ_ADMIN_PASSWORD}} | base64 -d)
 RABBITMQ_ADMIN_USERNAME=$(kubectl get secrets/openstack-rabbitmq-admin-user --template={{.data.RABBITMQ_ADMIN_USERNAME}} | base64 -d)
+
 NOVA_TRANSPORT_URL=$(kubectl get secret nova-rabbitmq-user --template={{.data.TRANSPORT_URL}} | base64 -d)
 
 cd ../
@@ -66,7 +67,7 @@ endpoints:
             internal: rabbitmq-tls-direct
     host_fqdn_override:
       default:
-        host: rabbitmq.openstack.openstack.svc.$INTERNAL_DOMAIN_NAME
+        host: rabbitmq.openstack.svc.$INTERNAL_DOMAIN_NAME
   oslo_messaging_nova:
     auth:
       admin:
@@ -141,3 +142,4 @@ endpoints:
       default:
         host: memcached.openstack.svc.$INTERNAL_DOMAIN_NAME
 EOF
+
