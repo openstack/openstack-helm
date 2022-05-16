@@ -18,7 +18,13 @@ helm.sh/hook-weight: "-3"
 {{- end }}
 
 {{- if .Values.manifests.job_ks_service }}
-{{- $ksServiceJob := dict "envAll" . "serviceName" "cinder" "serviceTypes" ( tuple "volumev3" ) -}}
+{{- $serviceTypes := list }}
+{{- range $_, $v := keys .Values.endpoints | sortAlpha }}
+{{- if $v | hasPrefix "volume" }}
+{{- $serviceTypes = append $serviceTypes $v }}
+{{- end }}
+{{- end }}
+{{- $ksServiceJob := dict "envAll" . "serviceName" "cinder" "serviceTypes" $serviceTypes -}}
 {{- if .Values.manifests.certificates -}}
 {{- $_ := set $ksServiceJob "tlsSecret" .Values.secrets.tls.volumev3.api.internal -}}
 {{- end -}}
