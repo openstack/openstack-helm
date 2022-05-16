@@ -169,13 +169,9 @@ spec:
             - name: machine-id
               mountPath: /etc/machine-id
               readOnly: true
-            - name: nova-etc
+            - name: triliovault-datamover-etc
               mountPath: /etc/nova/nova.conf
               subPath: nova-compute.conf
-              readOnly: true
-            - name: nova-etc
-              mountPath: /etc/nova/api-paste.ini
-              subPath: api-paste.ini
               readOnly: true
             - name: triliovault-datamover-etc
               mountPath: /etc/triliovault-datamover/logging.conf
@@ -185,7 +181,7 @@ spec:
               mountPath: /etc/triliovault-object-store/logging.conf
               subPath: logging.conf
               readOnly: true
-            - name: nova-etc
+            - name: triliovault-datamover-etc
               mountPath: /etc/triliovault-datamover/policy.yaml
               subPath: policy.yaml
               readOnly: true
@@ -215,14 +211,16 @@ spec:
             - mountPath: /lib/modules
               name: libmodules
               readOnly: true
-            - name: nova-bin
-              mountPath: /usr/local/sbin/multipath
-              subPath: multipath
-            - name: nova-bin
-              mountPath: /usr/local/sbin/multipathd
-              subPath: multipathd
+            {{- if .Values.multipathd_enabled }}
             - name: etcmultipath
               mountPath: /etc/multipath
+            - name: multipathconf
+              mountPath: /usr/local/sbin/multipath
+              subPath: multipath
+            - name: triliovault-datamover-bin
+              mountPath: /usr/local/sbin/multipathd
+              subPath: multipathd
+            {{ end }}
               {{- if or ( gt .Capabilities.KubeVersion.Major "1" ) ( ge .Capabilities.KubeVersion.Minor "10" ) }}
               mountPropagation: Bidirectional
               {{- end }}
@@ -266,14 +264,6 @@ spec:
         - name: machine-id
           hostPath:
             path: /etc/machine-id
-        - name: nova-bin
-          configMap:
-            name: nova-bin
-            defaultMode: 0555
-        - name: nova-etc
-          secret:
-            secretName: nova-etc
-            defaultMode: 0444
         {{- if .Values.ceph.enabled }}
         - name: etcceph
           emptyDir: {}
@@ -285,9 +275,11 @@ spec:
           secret:
             secretName: triliovault-ceph-keyring
         {{ end }}
+        {{- if .Values.multipathd_enabled }}
         - name: etcmultipath
           hostPath:
             path: /etc/multipath
+        {{ end }}
         - name: libmodules
           hostPath:
             path: /lib/modules
