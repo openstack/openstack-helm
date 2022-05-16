@@ -16,28 +16,28 @@
 
 labels:
   wlm_api:
-    node_selector_key: openstack-control-plane
+    node_selector_key: triliovault-control-plane
     node_selector_value: enabled
   wlm_cron:
-    node_selector_key: openstack-control-plane
+    node_selector_key: triliovault-control-plane
     node_selector_value: enabled
   wlm_scheduler:
-    node_selector_key: openstack-control-plane
+    node_selector_key: triliovault-control-plane
     node_selector_value: enabled
   wlm_workloads:
-    node_selector_key: openstack-control-plane
+    node_selector_key: triliovault-control-plane
     node_selector_value: enabled
   datamover_api:
-    node_selector_key: openstack-control-plane
+    node_selector_key: triliovault-control-plane
     node_selector_value: enabled
   datamover:
     node_selector_key: openstack-compute-node
     node_selector_value: enabled
   job:
-    node_selector_key: openstack-control-plane
+    node_selector_key: triliovault-control-plane
     node_selector_value: enabled
   test:
-    node_selector_key: openstack-control-plane
+    node_selector_key: triliovault-control-plane
     node_selector_value: enabled
 
 images:
@@ -71,15 +71,12 @@ images:
 release_group: null
 helm3_hook: true
 
+multipathd_enabled: false
+
 ceph:
   enabled: true
-  configmap: ceph-etc
+  conf: ""
   rbd_user: "cinder"
-## If ceph user's keyring is already defined in a secret then provide secret's name to followig parameter.
-## If keyring is not defined in a secret then don't need to change this parameter value, provide actual keyring value to 
-## parameter 'keyring'
-  keyring_secret_name: cinder-volume-rbd-keyring
-## If ceph user's keyring is not defined in a secret then provide actual keyring value to following parameter as a string.
   keyring: null
 
 pod:
@@ -131,6 +128,10 @@ pod:
         triliovault_datamover_init:
           readOnlyRootFilesystem: false
           runAsUser: 0
+          runAsGroup: 42424
+        wlm_cloud_trust_creation:
+          readOnlyRootFilesystem: false
+          runAsUser: 42424
           runAsGroup: 42424
         ceph_keyring_placement_triliovault:
           readOnlyRootFilesystem: false
@@ -746,6 +747,7 @@ conf:
         node_selector_key: openstack-compute-node
         node_selector_value: enabled
       nfs_options: "nolock,soft,vers=3,timeo=180,intr,lookupcache=none"
+      storage_class_name: nfs
     s3:
       access_key: ''
       secret_key: ''
@@ -958,6 +960,7 @@ conf:
       process_timeout: 300
     s3fuse_sys_admin:
       helper_command: sudo /usr/bin/workloadmgr-rootwrap /etc/triliovault-wlm/rootwrap.conf privsep-helper
+  nova_compute:
   logging:
     loggers:
       keys:
@@ -1044,21 +1047,12 @@ dependencies:
         - triliovault-datamover-db-sync
         - triliovault-datamover-ks-user
         - triliovault-datamover-ks-endpoints
-      services:
-        - endpoint: internal
-          service: oslo_db_triliovault_datamover
-        - endpoint: internal
-          service: identity
     datamover:
       jobs:
         - triliovault-datamover-db-sync
         - triliovault-datamover-ks-user
         - triliovault-datamover-ks-endpoints
       services:
-        - endpoint: internal
-          service: oslo_db_triliovault_datamover
-        - endpoint: internal
-          service: identity
         - endpoint: internal
           service: datamover
     wlm_api:
@@ -1067,13 +1061,6 @@ dependencies:
         - triliovault-wlm-rabbit-init
         - triliovault-wlm-ks-endpoints
         - triliovault-wlm-ks-user
-      services:
-        - endpoint: internal
-          service: oslo_messaging
-        - endpoint: internal
-          service: oslo_db_triliovault_wlm
-        - endpoint: internal
-          service: identity
     wlm_scheduler:
       jobs:
         - triliovault-wlm-db-sync
@@ -1090,12 +1077,6 @@ dependencies:
         - triliovault-wlm-ks-endpoints
         - triliovault-wlm-ks-user
       services:
-        - endpoint: internal
-          service: oslo_messaging
-        - endpoint: internal
-          service: oslo_db_triliovault_wlm
-        - endpoint: internal
-          service: identity
         - endpoint: internal
           service: workloads
     wlm_cron:
@@ -1116,52 +1097,15 @@ dependencies:
       services:
         - endpoint: internal
           service: workloads
-        - endpoint: internal
-          service: identity
-    rabbit_init:
-      services:
-        - service: oslo_messaging
-          endpoint: internal
-    db_init:
-      services:
-        - endpoint: internal
-          service: oslo_db_triliovault_datamover
     db_sync:
       jobs:
         - triliovault-wlm-db-init
         - triliovault-datamover-db-init
-      services:
-        - endpoint: internal
-          service: oslo_db_triliovault_datamover
-    db_drop:
-      services:
-        - endpoint: internal
-          service: oslo_db_triliovault_datamover
     ks_endpoints:
       jobs:
         - triliovault-wlm-ks-service
         - triliovault-datamover-ks-service
-      services:
-        - endpoint: internal
-          service: identity
-    ks_service:
-      services:
-        - endpoint: internal
-          service: identity
-    ks_user:
-      services:
-        - endpoint: internal
-          service: identity
-    image_repo_sync:
-      services:
-        - endpoint: internal
-          service: local_image_registry
     tests:
       jobs:
         - triliovault-wlm-db-sync
-      services:
-        - endpoint: internal
-          service: identity
-        - endpoint: internal
-          service: oslo_db_triliovault_datamover
 ...

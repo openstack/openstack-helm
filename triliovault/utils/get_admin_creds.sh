@@ -13,24 +13,26 @@ INTERNAL_DOMAIN_NAME=$1
 PUBLIC_DOMAIN_NAME=$2
 
 ## Keystone creds
-OS_AUTH_URL=$(kubectl get secrets/nova-keystone-admin --template={{.data.OS_AUTH_URL}} | base64 -d)
-OS_DEFAULT_DOMAIN=$(kubectl get secrets/nova-keystone-admin --template={{.data.OS_DEFAULT_DOMAIN}} | base64 -d)
-OS_INTERFACE=$(kubectl get secrets/nova-keystone-admin --template={{.data.OS_INTERFACE}} | base64 -d)
-OS_PASSWORD=$(kubectl get secrets/nova-keystone-admin --template={{.data.OS_PASSWORD}} | base64 -d)
-OS_PROJECT_DOMAIN_NAME=$(kubectl get secrets/nova-keystone-admin --template={{.data.OS_PROJECT_DOMAIN_NAME}} | base64 -d)
-OS_PROJECT_NAME=$(kubectl get secrets/nova-keystone-admin --template={{.data.OS_PROJECT_NAME}} | base64 -d)
-OS_REGION_NAME=$(kubectl get secrets/nova-keystone-admin --template={{.data.OS_REGION_NAME}} | base64 -d)
-OS_USER_DOMAIN_NAME=$(kubectl get secrets/nova-keystone-admin --template={{.data.OS_USER_DOMAIN_NAME}} | base64 -d)
-OS_USERNAME=$(kubectl get secrets/nova-keystone-admin --template={{.data.OS_USERNAME}} | base64 -d)
+OS_AUTH_URL=$(kubectl -n openstack get secrets/nova-keystone-admin --template={{.data.OS_AUTH_URL}} | base64 -d)
+OS_DEFAULT_DOMAIN=$(kubectl -n openstack get secrets/nova-keystone-admin --template={{.data.OS_DEFAULT_DOMAIN}} | base64 -d)
+OS_INTERFACE=$(kubectl -n openstack get secrets/nova-keystone-admin --template={{.data.OS_INTERFACE}} | base64 -d)
+OS_PASSWORD=$(kubectl -n openstack get secrets/nova-keystone-admin --template={{.data.OS_PASSWORD}} | base64 -d)
+OS_PROJECT_DOMAIN_NAME=$(kubectl -n openstack get secrets/nova-keystone-admin --template={{.data.OS_PROJECT_DOMAIN_NAME}} | base64 -d)
+OS_PROJECT_NAME=$(kubectl -n openstack get secrets/nova-keystone-admin --template={{.data.OS_PROJECT_NAME}} | base64 -d)
+OS_REGION_NAME=$(kubectl -n openstack get secrets/nova-keystone-admin --template={{.data.OS_REGION_NAME}} | base64 -d)
+OS_USER_DOMAIN_NAME=$(kubectl -n openstack get secrets/nova-keystone-admin --template={{.data.OS_USER_DOMAIN_NAME}} | base64 -d)
+OS_USERNAME=$(kubectl -n openstack get secrets/nova-keystone-admin --template={{.data.OS_USERNAME}} | base64 -d)
 
 ## DB creds
-MYSQL_DBADMIN_PASSWORD=$(kubectl get secrets/mariadb-dbadmin-password --template={{.data.MYSQL_DBADMIN_PASSWORD}} | base64 -d)
+MYSQL_DBADMIN_PASSWORD=$(kubectl -n openstack get secrets/mariadb-dbadmin-password --template={{.data.MYSQL_DBADMIN_PASSWORD}} | base64 -d)
 
 ## Rabbitmq creds
-RABBITMQ_ADMIN_PASSWORD=$(kubectl get secrets/openstack-rabbitmq-admin-user --template={{.data.RABBITMQ_ADMIN_PASSWORD}} | base64 -d)
-RABBITMQ_ADMIN_USERNAME=$(kubectl get secrets/openstack-rabbitmq-admin-user --template={{.data.RABBITMQ_ADMIN_USERNAME}} | base64 -d)
+RABBITMQ_ADMIN_PASSWORD=$(kubectl -n openstack get secrets/openstack-rabbitmq-admin-user --template={{.data.RABBITMQ_ADMIN_PASSWORD}} | base64 -d)
+RABBITMQ_ADMIN_USERNAME=$(kubectl -n openstack get secrets/openstack-rabbitmq-admin-user --template={{.data.RABBITMQ_ADMIN_USERNAME}} | base64 -d)
 
-NOVA_TRANSPORT_URL=$(kubectl get secret nova-rabbitmq-user --template={{.data.TRANSPORT_URL}} | base64 -d)
+NOVA_TRANSPORT_URL=$(kubectl -n openstack get secret nova-rabbitmq-user --template={{.data.TRANSPORT_URL}} | base64 -d)
+
+kubectl -n openstack get secret/nova-etc -o "jsonpath={.data['nova-compute\.conf']}" | base64 -d > ../templates/bin/_triliovault-nova-compute.conf.tpl
 
 cd ../
 

@@ -26,7 +26,7 @@ make triliovault
 tee /tmp/triliovault.yaml << EOF
 EOF
 helm upgrade --install triliovault ./triliovault \
-  --namespace=openstack \
+  --namespace=triliovault \
   --values=/tmp/triliovault.yaml \
   --values=./triliovault/values_overrides/image_pull_secrets.yaml \
   --values=./triliovault/values_overrides/conf_triliovault.yaml \
@@ -34,13 +34,13 @@ helm upgrade --install triliovault ./triliovault \
   ${OSH_EXTRA_HELM_ARGS_TRILIOVAULT}
 
 #NOTE: Wait for deploy
-./tools/deployment/common/wait-for-pods.sh openstack
+./tools/deployment/common/wait-for-pods.sh triliovault
 
 #NOTE: Validate Deployment info
 export OS_CLOUD=openstack_helm
 openstack service list
 sleep 30 #NOTE(portdirect): Wait for ingress controller to update rules and restart Nginx
-kubectl get pods -n openstack | grep triliovault
+kubectl get pods -n triliovault | grep triliovault
 #openstack workloads type list
 #openstack workloads type list --default
 

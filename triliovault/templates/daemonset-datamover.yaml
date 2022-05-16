@@ -111,7 +111,7 @@ spec:
               readOnly: true
             - name: ceph-keyring
               mountPath: /tmp/client-keyring
-              subPath: key
+              subPath: keyring
               readOnly: true
 {{ if $mounts_triliovault_datamover_init.volumeMounts }}{{ toYaml $mounts_triliovault_datamover_init.volumeMounts | indent 12 }}{{ end }}
         {{ end }}
@@ -169,13 +169,9 @@ spec:
             - name: machine-id
               mountPath: /etc/machine-id
               readOnly: true
-            - name: nova-etc
+            - name: triliovault-datamover-etc
               mountPath: /etc/nova/nova.conf
               subPath: nova-compute.conf
-              readOnly: true
-            - name: nova-etc
-              mountPath: /etc/nova/api-paste.ini
-              subPath: api-paste.ini
               readOnly: true
             - name: triliovault-datamover-etc
               mountPath: /etc/triliovault-datamover/logging.conf
@@ -185,23 +181,21 @@ spec:
               mountPath: /etc/triliovault-object-store/logging.conf
               subPath: logging.conf
               readOnly: true
-            - name: nova-etc
+            - name: triliovault-datamover-etc
               mountPath: /etc/triliovault-datamover/policy.yaml
               subPath: policy.yaml
               readOnly: true
             {{- if .Values.ceph.enabled }}
             - name: etcceph
               mountPath: /etc/ceph
-            - name: ceph-etc
+            - name: triliovault-datamover-etc
               mountPath: /etc/ceph/ceph.conf
               subPath: ceph.conf
               readOnly: true
-            {{- if ( empty .Values.ceph.keyring ) }}
             - name: ceph-keyring
               mountPath: /tmp/client-keyring
-              subPath: key
+              subPath: keyring
               readOnly: true
-            {{ end }}
             {{ end }}
             - name: dev
               mountPath: /dev
@@ -216,14 +210,16 @@ spec:
             - mountPath: /lib/modules
               name: libmodules
               readOnly: true
-            - name: nova-bin
-              mountPath: /usr/local/sbin/multipath
-              subPath: multipath
-            - name: nova-bin
-              mountPath: /usr/local/sbin/multipathd
-              subPath: multipathd
+            {{- if .Values.multipathd_enabled }}
             - name: etcmultipath
               mountPath: /etc/multipath
+            - name: multipathconf
+              mountPath: /usr/local/sbin/multipath
+              subPath: multipath
+            - name: triliovault-datamover-bin
+              mountPath: /usr/local/sbin/multipathd
+              subPath: multipathd
+            {{ end }}
               {{- if or ( gt .Capabilities.KubeVersion.Major "1" ) ( ge .Capabilities.KubeVersion.Minor "10" ) }}
               mountPropagation: Bidirectional
               {{- end }}
@@ -267,30 +263,18 @@ spec:
         - name: machine-id
           hostPath:
             path: /etc/machine-id
-        - name: nova-bin
-          configMap:
-            name: nova-bin
-            defaultMode: 0555
-        - name: nova-etc
-          secret:
-            secretName: nova-etc
-            defaultMode: 0444
         {{- if .Values.ceph.enabled }}
         - name: etcceph
           emptyDir: {}
-        - name: ceph-etc
-          configMap:
-            name: {{ .Values.ceph.configmap }}
-            defaultMode: 0444
-        {{- if ( empty .Values.ceph.keyring ) }}
         - name: ceph-keyring
           secret:
-            secretName: {{ .Values.ceph.keyring_secret_name }}
+            secretName: triliovault-ceph-keyring
         {{ end }}
-        {{ end }}
+        {{- if .Values.multipathd_enabled }}
         - name: etcmultipath
           hostPath:
             path: /etc/multipath
+        {{ end }}
         - name: libmodules
           hostPath:
             path: /lib/modules
