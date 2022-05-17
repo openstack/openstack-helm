@@ -56,7 +56,7 @@ function ansible_install {
   sudo -H -E pip3 install --upgrade setuptools
   sudo -H -E pip3 install --upgrade cmd2
   sudo -H -E pip3 install --upgrade pyopenssl
-  sudo -H -E pip3 install --upgrade "ansible==2.9"
+  sudo -H -E pip3 install --upgrade ansible
   sudo -H -E pip3 install --upgrade \
     ara==0.16.5 \
     yq
