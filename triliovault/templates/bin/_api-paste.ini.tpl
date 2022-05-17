@@ -42,3 +42,4 @@ admin_user = {{ .Values.endpoints.identity.auth.triliovault_wlm.username }}
 admin_password = {{ .Values.endpoints.identity.auth.triliovault_wlm.password }}
 signing_dir = /var/cache/workloadmgr
 insecure = True
+interface = {{ .Values.conf.triliovault.interface }}
