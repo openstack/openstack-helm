@@ -145,3 +145,5 @@ endpoints:
         host: memcached.openstack.svc.$INTERNAL_DOMAIN_NAME
 EOF
 
+
+echo "Output written to ../values_overrides/admin_creds.yaml"
