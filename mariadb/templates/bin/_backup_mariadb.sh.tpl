@@ -44,9 +44,9 @@ dump_databases_to_directory() {
   if [[ "${SCOPE}" == "all" ]]; then
     MYSQL_DBNAMES=( $($MYSQL --silent --skip-column-names -e \
        "show databases;" | \
-       egrep -vi 'information_schema|performance_schema|mysql') )
+       grep -ivE 'information_schema|performance_schema|mysql|sys') )
   else
-    if [[ "${SCOPE}" != "information_schema" && "${SCOPE}" != "performance_schema" && "${SCOPE}" != "mysql" ]]; then
+    if [[ "${SCOPE}" != "information_schema" && "${SCOPE}" != "performance_schema" && "${SCOPE}" != "mysql" && "${SCOPE}" != "sys" ]]; then
       MYSQL_DBNAMES=( ${SCOPE} )
     else
       log ERROR "It is not allowed to backup database ${SCOPE}."

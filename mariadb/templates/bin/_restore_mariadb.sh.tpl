@@ -68,7 +68,8 @@ get_databases() {
 
   if [[ -e ${TMP_DIR}/db.list ]]
   then
-    DBS=$(cat ${TMP_DIR}/db.list )
+    DBS=$(cat ${TMP_DIR}/db.list | \
+              grep -ivE 'information_schema|performance_schema|mysql|sys' )
   else
     DBS=" "
   fi
