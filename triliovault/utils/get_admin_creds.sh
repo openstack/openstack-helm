@@ -41,6 +41,9 @@ conf:
   datamover:
     DEFAULT:
       dmapi_transport_url: $NOVA_TRANSPORT_URL
+  datamover_api:
+    DEFAULT:
+      transport_url: $NOVA_TRANSPORT_URL
 endpoints:
   identity:
     name: keystone
@@ -106,13 +109,13 @@ endpoints:
   datamover:
     host_fqdn_override:
       default:
-        host: triliovault-datamover-api.openstack.svc.$INTERNAL_DOMAIN_NAME
+        host: triliovault-datamover-api.triliovault.svc.$INTERNAL_DOMAIN_NAME
       public:
         host: triliovault-datamover.$PUBLIC_DOMAIN_NAME
   workloads:
     host_fqdn_override:
       default:
-        host: triliovault-wlm-api.openstack.svc.$INTERNAL_DOMAIN_NAME
+        host: triliovault-wlm-api.triliovault.svc.$INTERNAL_DOMAIN_NAME
       public:
         host: triliovault-wlm.$PUBLIC_DOMAIN_NAME
   image:
@@ -145,3 +148,5 @@ endpoints:
         host: memcached.openstack.svc.$INTERNAL_DOMAIN_NAME
 EOF
 
+
+echo "Output written to ../values_overrides/admin_creds.yaml"
