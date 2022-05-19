@@ -41,6 +41,9 @@ conf:
   datamover:
     DEFAULT:
       dmapi_transport_url: $NOVA_TRANSPORT_URL
+  datamover_api:
+    DEFAULT:
+      transport_url: $NOVA_TRANSPORT_URL
 endpoints:
   identity:
     name: keystone
