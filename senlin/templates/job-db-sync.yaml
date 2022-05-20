@@ -12,7 +12,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- define "metadata.annotations.job.db_sync" }}
+helm.sh/hook: post-install,post-upgrade
+helm.sh/hook-weight: "-4"
+{{- end }}
+
 {{- if .Values.manifests.job_db_sync }}
 {{- $dbSyncJob := dict "envAll" . "serviceName" "senlin" "podVolMounts" .Values.pod.mounts.senlin_db_sync.senlin_db_sync.volumeMounts "podVols" .Values.pod.mounts.senlin_db_sync.senlin_db_sync.volumes -}}
+{{- if .Values.helm3_hook }}
+{{- $_ := set $dbSyncJob "jobAnnotations" (include "metadata.annotations.job.db_sync" . | fromYaml) }}
+{{- end }}
 {{ $dbSyncJob | include "helm-toolkit.manifests.job_db_sync" }}
 {{- end }}
