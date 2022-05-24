@@ -1,0 +1,213 @@
+---
+nova:
+  network:
+    osapi:
+      ingress:
+        annotations:
+          nginx.ingress.kubernetes.io/backend-protocol: "https"
+    metadata:
+      ingress:
+        annotations:
+          nginx.ingress.kubernetes.io/backend-protocol: "https"
+    novncproxy:
+      ingress:
+        annotations:
+          nginx.ingress.kubernetes.io/backend-protocol: "https"
+  conf:
+    mpm_event: |
+      <IfModule mpm_event_module>
+        ServerLimit         1024
+        StartServers        32
+        MinSpareThreads     32
+        MaxSpareThreads     256
+        ThreadsPerChild     25
+        MaxRequestsPerChild 128
+        ThreadLimit         720
+      </IfModule>
+    wsgi_nova_api: |
+      {{- $portInt := tuple "compute" "internal" "api" $ | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+      Listen {{ $portInt }}
+      <VirtualHost *:{{ $portInt }}>
+        ServerName {{ printf "%s.%s.svc.%s" "nova-api" .Release.Namespace .Values.endpoints.cluster_domain_suffix }}
+        WSGIDaemonProcess nova-api processes=1 threads=1 user=nova display-name=%{GROUP}
+        WSGIProcessGroup nova-api
+        WSGIScriptAlias /  /var/www/cgi-bin/nova/nova-api-wsgi
+        WSGIApplicationGroup %{GLOBAL}
+        WSGIPassAuthorization On
+        AllowEncodedSlashes On
+        <IfVersion >= 2.4>
+          ErrorLogFormat "%{cu}t %M"
+        </IfVersion>
+        SetEnvIf X-Forwarded-For "^.*\..*\..*\..*" forwarded
+        ErrorLog /dev/stdout
+        CustomLog /dev/stdout combined env=!forwarded
+        CustomLog /dev/stdout proxy env=forwarded
+
+        SSLEngine on
+        SSLCertificateFile      /etc/nova/certs/tls.crt
+        SSLCertificateKeyFile   /etc/nova/certs/tls.key
+        SSLProtocol             all -SSLv3 -TLSv1 -TLSv1.1
+        SSLCipherSuite          ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256
+        SSLHonorCipherOrder     on
+      </VirtualHost>
+    wsgi_nova_metadata: |
+      {{- $portInt := tuple "compute_metadata" "internal" "metadata" $ | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+      Listen {{ $portInt }}
+      <VirtualHost *:{{ $portInt }}>
+        ServerName {{ printf "%s.%s.svc.%s" "nova-metadata" .Release.Namespace .Values.endpoints.cluster_domain_suffix }}
+        WSGIDaemonProcess nova-metadata processes=1 threads=1 user=nova display-name=%{GROUP}
+        WSGIProcessGroup nova-metadata
+        WSGIScriptAlias /  /var/www/cgi-bin/nova/nova-metadata-wsgi
+        WSGIApplicationGroup %{GLOBAL}
+        WSGIPassAuthorization On
+        AllowEncodedSlashes On
+        <IfVersion >= 2.4>
+          ErrorLogFormat "%{cu}t %M"
+        </IfVersion>
+        SetEnvIf X-Forwarded-For "^.*\..*\..*\..*" forwarded
+        ErrorLog /dev/stdout
+        CustomLog /dev/stdout combined env=!forwarded
+        CustomLog /dev/stdout proxy env=forwarded
+
+        SSLEngine on
+        SSLCertificateFile      /etc/nova/certs/tls.crt
+        SSLCertificateKeyFile   /etc/nova/certs/tls.key
+        SSLProtocol             all -SSLv3 -TLSv1 -TLSv1.1
+        SSLCipherSuite          ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256
+        SSLHonorCipherOrder     on
+      </VirtualHost>
+    software:
+      apache2:
+        a2enmod:
+          - ssl
+    nova:
+      console:
+        ssl_minimum_version: tlsv1_2
+      glance:
+        cafile: /etc/nova/certs/ca.crt
+      ironic:
+        cafile: /etc/nova/certs/ca.crt
+      neutron:
+        cafile: /etc/nova/certs/ca.crt
+      keystone_authtoken:
+        cafile: /etc/nova/certs/ca.crt
+      cinder:
+        cafile: /etc/nova/certs/ca.crt
+      placement:
+        cafile: /etc/nova/certs/ca.crt
+      keystone:
+        cafile: /etc/nova/certs/ca.crt
+      oslo_messaging_rabbit:
+        ssl: true
+        ssl_ca_file: /etc/rabbitmq/certs/ca.crt
+        ssl_cert_file: /etc/rabbitmq/certs/tls.crt
+        ssl_key_file: /etc/rabbitmq/certs/tls.key
+  endpoints:
+    identity:
+      auth:
+        admin:
+          cacert: /etc/ssl/certs/openstack-helm.crt
+        nova:
+          cacert: /etc/ssl/certs/openstack-helm.crt
+        neutron:
+          cacert: /etc/ssl/certs/openstack-helm.crt
+        placement:
+          cacert: /etc/ssl/certs/openstack-helm.crt
+        test:
+          cacert: /etc/ssl/certs/openstack-helm.crt
+      scheme:
+        default: https
+      port:
+        api:
+          default: 443
+    image:
+      scheme:
+        default: https
+      port:
+        api:
+          public: 443
+    compute:
+      host_fqdn_override:
+        default:
+          tls:
+            secretName: nova-tls-api
+            issuerRef:
+              name: ca-issuer
+              kind: ClusterIssuer
+      scheme:
+        default: 'https'
+      port:
+        api:
+          public: 443
+    compute_metadata:
+      host_fqdn_override:
+        default:
+          tls:
+            secretName: metadata-tls-metadata
+            issuerRef:
+              name: ca-issuer
+              kind: ClusterIssuer
+      scheme:
+        default: https
+      port:
+        metadata:
+          public: 443
+    compute_novnc_proxy:
+      host_fqdn_override:
+        default:
+          tls:
+            secretName: nova-novncproxy-tls-proxy
+            issuerRef:
+              name: ca-issuer
+              kind: ClusterIssuer
+      scheme:
+        default: https
+      port:
+        novnc_proxy:
+          public: 443
+    compute_spice_proxy:
+      host_fqdn_override:
+        default:
+          tls:
+            secretName: nova-tls-spiceproxy
+            issuerRef:
+              name: ca-issuer
+              kind: ClusterIssuer
+      scheme:
+        default: https
+    placement:
+      host_fqdn_override:
+        default:
+          tls:
+            secretName: placement-tls-api
+            issuerRef:
+              name: ca-issuer
+              kind: ClusterIssuer
+      scheme:
+        default: https
+      port:
+        api:
+          public: 443
+    network:
+      scheme:
+        default: https
+      port:
+        api:
+          public: 443
+    oslo_messaging:
+      port:
+        https:
+          default: 15680
+  pod:
+    security_context:
+      nova:
+        container:
+          nova_api:
+            runAsUser: 0
+            readOnlyRootFilesystem: false
+          nova_osapi:
+            runAsUser: 0
+            readOnlyRootFilesystem: false
+  manifests:
+    certificates: true
+...

@@ -1,0 +1,97 @@
+---
+neutron:
+  network:
+    interface:
+      sriov:
+        - device: enp3s0f0
+          num_vfs: 32
+          promisc: false
+        - device: enp66s0f1
+          num_vfs: 32
+          promisc: false
+      tunnel: br-phy-bond0
+    backend:
+      - openvswitch
+      - sriov
+  conf:
+    auto_bridge_add:
+      br-ex: null
+    neutron:
+      DEFAULT:
+        l3_ha: False
+        max_l3_agents_per_router: 1
+        l3_ha_network_type: vxlan
+        dhcp_agents_per_network: 1
+        service_plugins: router
+    plugins:
+      ml2_conf:
+        ml2:
+          mechanism_drivers: l2population,openvswitch,sriovnicswitch
+          type_drivers: vlan,flat,vxlan
+          tenant_network_types: vxlan
+        ml2_type_flat:
+          flat_networks: public
+        ml2_type_vlan:
+          network_vlan_ranges: ovsnet:2:4094,sriovnet1:100:4000,sriovnet2:100:4000
+      openvswitch_agent:
+        default:
+          ovs_vsctl_timeout: 30
+        agent:
+          tunnel_types: vxlan
+        securitygroup:
+          enable_security_group: False
+          firewall_driver: neutron.agent.firewall.NoopFirewallDriver
+        ovs:
+          bridge_mappings: public:br-ex,ovsnet:br-phy-bond0
+          datapath_type: netdev
+          vhostuser_socket_dir: /var/run/openvswitch/vhostuser
+          of_connect_timeout: 60
+          of_request_timeout: 30
+      sriov_agent:
+        securitygroup:
+          firewall_driver: neutron.agent.firewall.NoopFirewallDriver
+        sriov_nic:
+          physical_device_mappings: sriovnet1:enp3s0f0,sriovnet2:enp66s0f1
+          exclude_devices: enp3s0f0:0000:00:05.1,enp66s0f1:0000:00:06.1
+    ovs_dpdk:
+      enabled: true
+      driver: uio_pci_generic
+      nics: []
+      bonds:
+        # CHANGE-ME: modify below parameters according to your hardware
+        - name: dpdkbond0
+          bridge: br-phy-bond0
+          mtu: 9000
+          # The IP from the first nic in nics list shall be used
+          migrate_ip: true
+          n_rxq: 2
+          n_rxq_size: 1024
+          n_txq_size: 1024
+          ovs_options: "bond_mode=active-backup"
+          nics:
+            - name: dpdk_b0s0
+              pci_id: '0000:00:05.0'
+              vf_index: 0
+            - name: dpdk_b0s1
+              pci_id: '0000:00:06.0'
+              vf_index: 0
+      bridges:
+        - name: br-phy-bond0
+      modules:
+        - name: dpdk
+          log_level: info
+
+  # In case of shared profile (sriov + ovs-dpdk), sriov agent should finish
+  # first so as to let it configure the SRIOV VFs before ovs-agent tries to
+  # bind it with DPDK driver.
+  dependencies:
+    dynamic:
+      targeted:
+        openvswitch:
+          ovs_agent:
+            pod:
+              - requireSameNode: true
+                labels:
+                  application: neutron
+                  component: neutron-sriov-agent
+...
