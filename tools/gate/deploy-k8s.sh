@@ -187,7 +187,7 @@ sudo -E systemctl enable --now kubelet
 
 sudo -E minikube addons list
 
-curl https://docs.projectcalico.org/"${CALICO_VERSION}"/manifests/calico.yaml -o /tmp/calico.yaml
+curl -L https://docs.projectcalico.org/"${CALICO_VERSION}"/manifests/calico.yaml -o /tmp/calico.yaml
 
 sed -i -e 's#docker.io/calico/#quay.io/calico/#g' /tmp/calico.yaml
 
