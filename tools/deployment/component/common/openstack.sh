@@ -76,7 +76,7 @@ make -C ${HELM_CHART_ROOT_PATH} .
 
 if [ "x$(systemd-detect-virt)" != "xnone" ]; then
   echo 'OSH is being deployed in virtualized environment, using qemu for nova'
-  OSH_EXTRA_HELM_ARGS=( "--set nova.conf.nova.libvirt.virt_type=qemu" \
+  OSH_EXTRA_HELM_VIRT_ARGS=( "--set nova.conf.nova.libvirt.virt_type=qemu" \
                         "--set nova.conf.nova.libvirt.cpu_mode=none" )
 fi
 echo "helm installing openstack..."
@@ -92,6 +92,7 @@ helm upgrade --install $release openstack/ \
   ${OSH_EXTRA_HELM_ARGS_NOVA} \
   ${OSH_EXTRA_HELM_ARGS_PLACEMENT} \
   ${OSH_EXTRA_HELM_ARGS_NEUTRON} \
+  ${OSH_EXTRA_HELM_VIRT_ARGS} \
   ${OSH_EXTRA_HELM_ARGS} \
   --set nova.bootstrap.wait_for_computes.enabled=true \
   --set libvirt.conf.ceph.enabled=${CEPH_ENABLED} \
