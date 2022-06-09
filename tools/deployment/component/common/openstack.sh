@@ -79,6 +79,13 @@ if [ "x$(systemd-detect-virt)" != "xnone" ]; then
   OSH_EXTRA_HELM_VIRT_ARGS=( "--set nova.conf.nova.libvirt.virt_type=qemu" \
                         "--set nova.conf.nova.libvirt.cpu_mode=none" )
 fi
+
+# Check if Hugepages is enabled
+hgpgs_available="$(awk '/HugePages_Total/{print $2}' /proc/meminfo)"
+if [ "x$hgpgs_available" != "x0" ]; then
+  OSH_EXTRA_HELM_ARGS_LIBVIRT_CGROUP="--set libvirt.conf.kubernetes.cgroup=."
+fi
+
 echo "helm installing openstack..."
 helm upgrade --install $release openstack/ \
   ${OSH_EXTRA_HELM_ARGS_MARIADB} \
@@ -92,6 +99,7 @@ helm upgrade --install $release openstack/ \
   ${OSH_EXTRA_HELM_ARGS_NOVA} \
   ${OSH_EXTRA_HELM_ARGS_PLACEMENT} \
   ${OSH_EXTRA_HELM_ARGS_NEUTRON} \
+  ${OSH_EXTRA_HELM_ARGS_LIBVIRT_CGROUP} \
   ${OSH_EXTRA_HELM_VIRT_ARGS} \
   ${OSH_EXTRA_HELM_ARGS} \
   --set nova.bootstrap.wait_for_computes.enabled=true \
