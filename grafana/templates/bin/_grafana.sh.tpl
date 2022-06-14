@@ -13,15 +13,29 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-set -ex
+set -exo pipefail
 COMMAND="${@:-start}"
+PORT={{ tuple "grafana" "internal" "grafana" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+PIDFILE=/tmp/pid
 
 function start () {
-  exec /usr/share/grafana/bin/grafana-server -homepath=/usr/share/grafana -config=/etc/grafana/grafana.ini
+  exec /usr/share/grafana/bin/grafana-server -homepath=/usr/share/grafana -config=/etc/grafana/grafana.ini --pidfile="$PIDFILE"
+}
+
+function run_migrator () {
+  start &
+  timeout 60 bash -c "until timeout 5 bash -c '</dev/tcp/127.0.0.1/${PORT}'; do sleep 1; done"
+  stop
 }
 
 function stop () {
-  kill -TERM 1
+  if [ -f "$PIDFILE" ]; then
+    echo -e "Found pidfile, killing running grafana-server"
+    kill -9 `cat $PIDFILE`
+    rm $PIDFILE
+  else
+    kill -TERM 1
+  fi
 }
 
 $COMMAND
