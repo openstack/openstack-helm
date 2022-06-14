@@ -16,7 +16,7 @@ set -xe
 
 sudo -H -E pip3 install --upgrade pip
 sudo -H -E pip3 install \
-  -c${UPPER_CONSTRAINTS_FILE:=https://releases.openstack.org/constraints/upper/${OPENSTACK_RELEASE:-stein}} \
+  -c${UPPER_CONSTRAINTS_FILE:=https://releases.openstack.org/constraints/upper/${OPENSTACK_RELEASE:-xena}} \
   cmd2 python-openstackclient python-heatclient --ignore-installed
 
 export HELM_CHART_ROOT_PATH="${HELM_CHART_ROOT_PATH:="${OSH_INFRA_PATH:="../openstack-helm-infra"}"}"
