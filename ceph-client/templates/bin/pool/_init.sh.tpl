@@ -49,7 +49,7 @@ function wait_for_pgs () {
   pgs_ready=0
   query='map({state: .state}) | group_by(.state) | map({state: .[0].state, count: length}) | .[] | select(.state | contains("active") or contains("premerge") | not)'
 
-  if [[ $(ceph mon versions | awk '/version/{print $3}' | cut -d. -f1) -ge 14 ]]; then
+  if [[ $(ceph mon versions | awk '/version/{print $3}' | sort -n | head -n 1 | cut -d. -f1) -ge 14 ]]; then
     query=".pg_stats | ${query}"
   fi
 
