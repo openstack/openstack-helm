@@ -118,8 +118,8 @@ done
 
 echo "Latest revision of the helm chart(s) is : $max_release"
 
-if [[ $max_release -gt 1  ]]; then
-  if [[  $require_upgrade -gt 0 ]]; then
+if [[ "$UNCONDITIONAL_MON_RESTART" == "true" ]] || [[ $max_release -gt 1  ]]; then
+  if [[ "$UNCONDITIONAL_MON_RESTART" == "true" ]] || [[  $require_upgrade -gt 0 ]]; then
     echo "Restart ceph-mon pods one at a time to prevent disruption"
     restart_mons
   fi
