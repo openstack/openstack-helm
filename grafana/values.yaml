@@ -76,6 +76,13 @@ pod:
         grafana_set_admin_password:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
+    run_migrator:
+      pod:
+        runAsUser: 104
+      container:
+        grafana_set_admin_password:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
     test:
       pod:
         runAsUser: 104
@@ -147,6 +154,13 @@ pod:
           memory: "1024Mi"
           cpu: "2000m"
       set_admin_user:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      run_migrator:
         requests:
           memory: "128Mi"
           cpu: "100m"
@@ -310,6 +324,7 @@ dependencies:
         - grafana-db-init
         - grafana-db-session-sync
         - grafana-set-admin-user
+        - grafana-run-migrator
       services:
         - endpoint: internal
           service: oslo_db
@@ -320,6 +335,12 @@ dependencies:
     set_admin_user:
       jobs:
         - grafana-db-init
+      services:
+        - endpoint: internal
+          service: oslo_db
+    run_migrator:
+      jobs:
+        - grafana-set-admin-user
       services:
         - endpoint: internal
           service: oslo_db
@@ -375,6 +396,7 @@ manifests:
   job_db_session_sync: true
   job_image_repo_sync: true
   job_set_admin_user: true
+  job_run_migrator: true
   network_policy: false
   secret_db: true
   secret_db_session: true
