@@ -39,8 +39,11 @@ function configure_resolvconf {
   old_ns=$(grep -P --no-filename "^nameserver\s+(?!127\.0\.0\.|${kube_dns_ip})" \
            /etc/resolv.conf /run/systemd/resolve/resolv.conf | sort | uniq)
 
-  # Add kube-dns ip to /etc/resolv.conf for local usage
-  sudo bash -c "echo 'nameserver ${kube_dns_ip}' > /etc/resolv.conf"
+  sudo cp --remove-destination /run/systemd/resolve/resolv.conf /etc/resolv.conf
+  # Insert kube DNS as first nameserver instead of entirely overwriting /etc/resolv.conf
+  grep -q "nameserver ${kube_dns_ip}" /etc/resolv.conf || \
+    sudo sed -i -e "1inameserver ${kube_dns_ip}" /etc/resolv.conf
+
   if [ -z "${HTTP_PROXY}" ]; then
     sudo bash -c "printf 'nameserver 8.8.8.8\nnameserver 8.8.4.4\n' > /run/systemd/resolve/resolv.conf"
     sudo bash -c "printf 'nameserver 8.8.8.8\nnameserver 8.8.4.4\n' >> /etc/resolv.conf"
@@ -53,12 +56,17 @@ function configure_resolvconf {
     sudo bash -c "echo 'search svc.cluster.local cluster.local' >> ${file}"
     sudo bash -c "echo 'options ndots:5 timeout:1 attempts:1' >> ${file}"
   done
+
+  sudo systemctl disable systemd-resolved
+  sudo systemctl stop systemd-resolved
 }
 
 # NOTE: Clean Up hosts file
 sudo sed -i '/^127.0.0.1/c\127.0.0.1 localhost localhost.localdomain localhost4localhost4.localdomain4' /etc/hosts
 sudo sed -i '/^::1/c\::1 localhost6 localhost6.localdomain6' /etc/hosts
-
+if ! grep -qF "127.0.1.1" /etc/hosts; then
+  echo "127.0.1.1 $(hostname)" | sudo tee -a /etc/hosts
+fi
 configure_resolvconf
 
 # shellcheck disable=SC1091
