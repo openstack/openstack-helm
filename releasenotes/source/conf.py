@@ -38,5 +38,3 @@ master_doc = 'index'
 
 # -- Options for Internationalization output ------------------------------
 locale_dirs = ['locale/']
-
-
