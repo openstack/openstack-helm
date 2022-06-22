@@ -102,6 +102,7 @@ helm upgrade --install $release openstack/ \
   ${OSH_EXTRA_HELM_ARGS_LIBVIRT_CGROUP} \
   ${OSH_EXTRA_HELM_VIRT_ARGS} \
   ${OSH_EXTRA_HELM_ARGS} \
+  --set glance.conf.glance.keystone_authtoken.memcache_secret_key="$(openssl rand -hex 64)" \
   --set nova.bootstrap.wait_for_computes.enabled=true \
   --set libvirt.conf.ceph.enabled=${CEPH_ENABLED} \
   --set nova.conf.ceph.enabled=${CEPH_ENABLED} \
