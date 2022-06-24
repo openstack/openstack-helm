@@ -15,8 +15,9 @@ limitations under the License.
 
 set -ex
 
+python='python'
 if [[ $(which python3) ]]; then
-    alias python=python3
+    python='python3'
 fi
 
 function create_test_index () {
@@ -30,7 +31,7 @@ function create_test_index () {
       }
     }
   }
-  ' | python -c "import sys, json; print(json.load(sys.stdin)['acknowledged'])")
+  ' | $python -c "import sys, json; print(json.load(sys.stdin)['acknowledged'])")
   if [ "$index_result" == "True" ];
   then
     echo "PASS: Test index created!";
