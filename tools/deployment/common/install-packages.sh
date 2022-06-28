@@ -24,4 +24,6 @@ sudo apt-get install --no-install-recommends -y \
         curl \
         uuid-runtime \
         bc \
+        python3-dev \
+        net-tools \
         python3-pip
