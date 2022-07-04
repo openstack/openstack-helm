@@ -86,6 +86,8 @@ if [ "x$hgpgs_available" != "x0" ]; then
   OSH_EXTRA_HELM_ARGS_LIBVIRT_CGROUP="--set libvirt.conf.kubernetes.cgroup=."
 fi
 
+helm dependency update openstack
+
 echo "helm installing openstack..."
 helm upgrade --install $release openstack/ \
   ${OSH_EXTRA_HELM_ARGS_MARIADB} \
