@@ -39,26 +39,46 @@ function configure_resolvconf {
   old_ns=$(grep -P --no-filename "^nameserver\s+(?!127\.0\.0\.|${kube_dns_ip})" \
            /etc/resolv.conf /run/systemd/resolve/resolv.conf | sort | uniq)
 
-  sudo cp --remove-destination /run/systemd/resolve/resolv.conf /etc/resolv.conf
+  if [[ -f "/run/systemd/resolve/resolv.conf" ]]; then
+    sudo cp --remove-destination /run/systemd/resolve/resolv.conf /etc/resolv.conf
+  fi
+
+  sudo systemctl disable systemd-resolved
+  sudo systemctl stop systemd-resolved
+
+  # Remove localhost as a nameserver, since we stopped systemd-resolved
+  sudo sed -i  "/^nameserver\s\+127.*/d" /etc/resolv.conf
+
   # Insert kube DNS as first nameserver instead of entirely overwriting /etc/resolv.conf
   grep -q "nameserver ${kube_dns_ip}" /etc/resolv.conf || \
     sudo sed -i -e "1inameserver ${kube_dns_ip}" /etc/resolv.conf
 
+  local dns_servers
   if [ -z "${HTTP_PROXY}" ]; then
-    sudo bash -c "printf 'nameserver 8.8.8.8\nnameserver 8.8.4.4\n' > /run/systemd/resolve/resolv.conf"
-    sudo bash -c "printf 'nameserver 8.8.8.8\nnameserver 8.8.4.4\n' >> /etc/resolv.conf"
+    dns_servers="nameserver 8.8.8.8\nnameserver 8.8.4.4\n"
   else
-    sudo bash -c "echo \"${old_ns}\" > /run/systemd/resolve/resolv.conf"
-    sudo bash -c "echo \"${old_ns}\" >> /etc/resolv.conf"
+    dns_servers="${old_ns}"
   fi
 
-  for file in /etc/resolv.conf /run/systemd/resolve/resolv.conf; do
-    sudo bash -c "echo 'search svc.cluster.local cluster.local' >> ${file}"
-    sudo bash -c "echo 'options ndots:5 timeout:1 attempts:1' >> ${file}"
-  done
+  grep -q "${dns_servers}" /etc/resolv.conf || \
+    echo -e ${dns_servers} | sudo tee -a /etc/resolv.conf
 
-  sudo systemctl disable systemd-resolved
-  sudo systemctl stop systemd-resolved
+  grep -q "${dns_servers}" /run/systemd/resolve/resolv.conf || \
+    echo -e ${dns_servers} | sudo tee /run/systemd/resolve/resolv.conf
+
+  local search_options='search svc.cluster.local cluster.local'
+  grep -q "${search_options}" /etc/resolv.conf || \
+    echo "${search_options}" | sudo tee -a /etc/resolv.conf
+
+  grep -q "${search_options}" /run/systemd/resolve/resolv.conf || \
+    echo "${search_options}" | sudo tee -a /run/systemd/resolve/resolv.conf
+
+  local dns_options='options ndots:5 timeout:1 attempts:1'
+  grep -q "${dns_options}" /etc/resolv.conf || \
+    echo ${dns_options} | sudo tee -a /etc/resolv.conf
+
+  grep -q "${dns_options}" /run/systemd/resolve/resolv.conf || \
+    echo ${dns_options} | sudo tee -a /run/systemd/resolve/resolv.conf
 }
 
 # NOTE: Clean Up hosts file
@@ -176,21 +196,29 @@ sudo -E minikube config set vm-driver none
 # https://github.com/kubernetes/enhancements/issues/1164
 export CHANGE_MINIKUBE_NONE_USER=true
 export MINIKUBE_IN_STYLE=false
-sudo -E minikube start \
-  --docker-env HTTP_PROXY="${HTTP_PROXY}" \
-  --docker-env HTTPS_PROXY="${HTTPS_PROXY}" \
-  --docker-env NO_PROXY="${NO_PROXY},10.96.0.0/12" \
-  --network-plugin=cni \
-  --wait=apiserver,system_pods \
-  --apiserver-names="$(hostname -f)" \
-  --extra-config=controller-manager.allocate-node-cidrs=true \
-  --extra-config=controller-manager.cluster-cidr=192.168.0.0/16 \
-  --extra-config=kube-proxy.mode=ipvs \
-  --extra-config=apiserver.service-node-port-range=1-65535 \
-  --extra-config=kubelet.cgroup-driver=systemd \
-  --extra-config=kubelet.resolv-conf=/run/systemd/resolve/resolv.conf \
-  --feature-gates=RemoveSelfLink=false \
-  --embed-certs
+
+set +e
+api_server_status="$(set +e; sudo -E minikube status --format='{{.APIServer}}')"
+set -e
+echo "Minikube api server status is \"${api_server_status}\""
+if [[ "${api_server_status}" != "Running" ]]; then
+  sudo -E minikube start \
+    --docker-env HTTP_PROXY="${HTTP_PROXY}" \
+    --docker-env HTTPS_PROXY="${HTTPS_PROXY}" \
+    --docker-env NO_PROXY="${NO_PROXY},10.96.0.0/12" \
+    --network-plugin=cni \
+    --wait=apiserver,system_pods \
+    --apiserver-names="$(hostname -f)" \
+    --extra-config=controller-manager.allocate-node-cidrs=true \
+    --extra-config=controller-manager.cluster-cidr=192.168.0.0/16 \
+    --extra-config=kube-proxy.mode=ipvs \
+    --extra-config=apiserver.service-node-port-range=1-65535 \
+    --extra-config=kubelet.cgroup-driver=systemd \
+    --extra-config=kubelet.resolv-conf=/run/systemd/resolve/resolv.conf \
+    --feature-gates=RemoveSelfLink=false \
+    --embed-certs
+fi
+
 sudo -E systemctl enable --now kubelet
 
 sudo -E minikube addons list
@@ -254,15 +282,15 @@ helm repo remove stable || true
 kubectl label --overwrite namespace default name=default
 kubectl label --overwrite namespace kube-system name=kube-system
 kubectl label --overwrite namespace kube-public name=kube-public
-kubectl label nodes --all openstack-control-plane=enabled
-kubectl label nodes --all openstack-compute-node=enabled
-kubectl label nodes --all openvswitch=enabled
-kubectl label nodes --all linuxbridge=enabled
-kubectl label nodes --all ceph-mon=enabled
-kubectl label nodes --all ceph-osd=enabled
-kubectl label nodes --all ceph-mds=enabled
-kubectl label nodes --all ceph-rgw=enabled
-kubectl label nodes --all ceph-mgr=enabled
+kubectl label --overwrite nodes --all openstack-control-plane=enabled
+kubectl label --overwrite nodes --all openstack-compute-node=enabled
+kubectl label --overwrite nodes --all openvswitch=enabled
+kubectl label --overwrite nodes --all linuxbridge=enabled
+kubectl label --overwrite nodes --all ceph-mon=enabled
+kubectl label --overwrite nodes --all ceph-osd=enabled
+kubectl label --overwrite nodes --all ceph-mds=enabled
+kubectl label --overwrite nodes --all ceph-rgw=enabled
+kubectl label --overwrite nodes --all ceph-mgr=enabled
 
 for NAMESPACE in ceph openstack osh-infra; do
 tee /tmp/${NAMESPACE}-ns.yaml << EOF
@@ -275,7 +303,7 @@ metadata:
   name: ${NAMESPACE}
 EOF
 
-kubectl create -f /tmp/${NAMESPACE}-ns.yaml
+kubectl apply -f /tmp/${NAMESPACE}-ns.yaml
 done
 
 make all
