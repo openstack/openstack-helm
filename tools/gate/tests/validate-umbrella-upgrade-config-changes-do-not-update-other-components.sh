@@ -26,6 +26,11 @@ validate_only_expected_application_changes () {
     --output custom-columns=Kind:.kind,Name:.metadata.name,Generation:.status.observedGeneration \
     > "$before_apps_list"
 
+  kubectl delete jobs \
+    --namespace openstack \
+    -l "application=$app_name" \
+    --wait
+
   helm upgrade openstack ./openstack \
     --namespace openstack \
     --reuse-values \
@@ -56,9 +61,14 @@ validate_only_expected_application_changes () {
   fi
 }
 
-
+validate_only_expected_application_changes "glance" "--set glance.conf.logging.logger_glance.level=WARN"
+validate_only_expected_application_changes "heat" "--set heat.conf.logging.logger_heat.level=WARN"
+validate_only_expected_application_changes "keystone" "--set keystone.conf.logging.logger_keystone.level=WARN"
 validate_only_expected_application_changes "libvirt" "--set libvirt.conf.libvirt.log_level=2"
 validate_only_expected_application_changes "mariadb" "--set mariadb.conf.database.config_override=[mysqld]\nlog_warnings=3"
 validate_only_expected_application_changes "memcached" "--set memcached.conf.memcached.stats_cachedump.enabled=false"
+validate_only_expected_application_changes "neutron" "--set neutron.conf.logging.logger_neutron.level=WARN"
+validate_only_expected_application_changes "nova" "--set nova.conf.logging.logger_nova.level=WARN"
 validate_only_expected_application_changes "openvswitch" "--set openvswitch.pod.user.nova.uid=42425"
+validate_only_expected_application_changes "placement" "--set placement.conf.logging.logger_placement.level=WARN"
 validate_only_expected_application_changes "rabbitmq" "--set rabbitmq.conf.rabbitmq.log.file.level=info"
