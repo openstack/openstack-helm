@@ -10,7 +10,8 @@ for i in ${CRONJOBS}; do
 
   # avoid scheduled runs to prevent case when our manual job is deleted by history limit.
   kubectl patch cj/"${CJ}" -n"${NS}"  -p '{"spec" : {"suspend" : true }}'
-  kubectl create job -n"${NS}" --from=cj/"${CJ}" "${CJ}-${TEST_POSTFIX}"
+  kubectl get job -n"${NS}" "${CJ}-${TEST_POSTFIX}" || \
+    kubectl create job -n"${NS}" --from=cj/"${CJ}" "${CJ}-${TEST_POSTFIX}"
 done
 
 echo "Waiting for all test jobs to complete."
