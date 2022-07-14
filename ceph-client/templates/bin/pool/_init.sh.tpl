@@ -175,7 +175,7 @@ function disable_autoscaling () {
 }
 
 function set_cluster_flags () {
-  if [[ ! -z "${CLUSTER_SET_FLAGS}" ]]; then
+  if [[ -n "${CLUSTER_SET_FLAGS}" ]]; then
     for flag in ${CLUSTER_SET_FLAGS}; do
       ceph osd set ${flag}
     done
@@ -183,11 +183,17 @@ function set_cluster_flags () {
 }
 
 function unset_cluster_flags () {
-  if [[ ! -z "${CLUSTER_UNSET_FLAGS}" ]]; then
+  if [[ -n "${CLUSTER_UNSET_FLAGS}" ]]; then
     for flag in ${CLUSTER_UNSET_FLAGS}; do
       ceph osd unset ${flag}
     done
   fi
+}
+
+function run_cluster_commands () {
+  {{- range .Values.conf.features.cluster_commands }}
+    ceph --cluster "${CLUSTER}" {{ . }}
+  {{- end }}
 }
 
 # Helper function to set pool properties only if the target value differs from
@@ -328,6 +334,7 @@ function convert_to_bytes() {
 
 set_cluster_flags
 unset_cluster_flags
+run_cluster_commands
 reweight_osds
 
 {{ $targetOSDCount := .Values.conf.pool.target.osd }}
