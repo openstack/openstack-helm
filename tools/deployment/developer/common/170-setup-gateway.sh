@@ -32,19 +32,25 @@ sudo iptables -P FORWARD ACCEPT
 DEFAULT_ROUTE_DEV=$(route -n | awk '/^0.0.0.0/ { print $5 " " $NF }' | sort | awk '{ print $NF; exit }')
 sudo iptables -t nat -A POSTROUTING -o ${DEFAULT_ROUTE_DEV} -s ${OSH_EXT_SUBNET} -j MASQUERADE
 
+
+container_id="$(sudo docker ps -f name=br-ex-dns-server -q -a)"
 # NOTE(portdirect): Setup DNS for public endpoints
-sudo docker run -d \
-  --name br-ex-dns-server \
-  --net host \
-  --cap-add=NET_ADMIN \
-  --volume /etc/kubernetes/kubelet-resolv.conf:/etc/kubernetes/kubelet-resolv.conf:ro \
-  --entrypoint dnsmasq \
-  ${DNSMASQ_IMAGE} \
-    --keep-in-foreground \
-    --no-hosts \
-    --bind-interfaces \
-    --resolv-file=/etc/kubernetes/kubelet-resolv.conf \
-    --address="/svc.cluster.local/${OSH_BR_EX_ADDR%/*}" \
-    --listen-address="${OSH_BR_EX_ADDR%/*}"
+if [ -z $container_id ]; then
+  sudo docker run -d \
+    --name br-ex-dns-server \
+    --net host \
+    --cap-add=NET_ADMIN \
+    --volume /etc/kubernetes/kubelet-resolv.conf:/etc/kubernetes/kubelet-resolv.conf:ro \
+    --entrypoint dnsmasq \
+    ${DNSMASQ_IMAGE} \
+      --keep-in-foreground \
+      --no-hosts \
+      --bind-interfaces \
+      --resolv-file=/etc/kubernetes/kubelet-resolv.conf \
+      --address="/svc.cluster.local/${OSH_BR_EX_ADDR%/*}" \
+      --listen-address="${OSH_BR_EX_ADDR%/*}"
+else
+  echo "external bridge for dns already exists"
+fi
 sleep 1
 sudo docker top br-ex-dns-server
