@@ -88,7 +88,7 @@ def read_from_files():
     if len(list(keys)):
         LOG.debug("Keys read from files: %s", keys)
     else:
-        LOG.warn("No keys were read from files.")
+        LOG.warning("No keys were read from files.")
     return data
 
 
