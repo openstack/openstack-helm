@@ -20,6 +20,20 @@ curl -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
   -XPOST "${KIBANA_ENDPOINT}/api/saved_objects/index-pattern/{{ . }}*" -H 'kbn-xsrf: true' \
   -H 'Content-Type: application/json' -d \
   '{"attributes":{"title":"{{ . }}-*","timeFieldName":"@timestamp"}}'
+while true
+do
+if [[ $(curl -s -o /dev/null -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
+  -w "%{http_code}" -XGET "${KIBANA_ENDPOINT}/api/saved_objects/index-pattern/{{ . }}*") == '200' ]]
+then
+break
+else
+curl -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
+  -XPOST "${KIBANA_ENDPOINT}/api/saved_objects/index-pattern/{{ . }}*" -H 'kbn-xsrf: true' \
+  -H 'Content-Type: application/json' -d \
+  '{"attributes":{"title":"{{ . }}-*","timeFieldName":"@timestamp"}}'
+sleep 30
+fi
+done
 {{- end }}
 {{- end }}
 
