@@ -14,7 +14,7 @@ limitations under the License.
 
 {{- if .Values.manifests.job_clean }}
 {{- $envAll := . }}
-{{ if or (contains "cinder.backup.drivers.ceph" .Values.conf.cinder.DEFAULT.backup_driver) (include "cinder.utils.has_ceph_backend" $envAll) }}
+{{ if or (contains "cinder.backup.drivers.ceph" .Values.conf.cinder.DEFAULT.backup_driver) (eq "true" (include "cinder.utils.has_ceph_backend" $envAll)) }}
 
 {{- $serviceAccountName := print "cinder-clean" }}
 {{ tuple $envAll "clean" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
@@ -72,7 +72,7 @@ spec:
       initContainers:
 {{ tuple $envAll "clean" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
-        {{- if include "cinder.utils.has_ceph_backend" $envAll }}
+        {{- if eq "true" (include "cinder.utils.has_ceph_backend" $envAll) }}
         - name: cinder-volume-rbd-secret-clean
 {{ tuple $envAll "cinder_storage_init" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.jobs.clean | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
