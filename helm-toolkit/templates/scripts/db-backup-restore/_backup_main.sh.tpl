@@ -66,6 +66,14 @@
 #       framework will automatically tar/zip the files in that directory and
 #       name the tarball appropriately according to the proper conventions.
 #
+#   verify_databases_backup_archives [scope]
+#       returns: 0 if no errors; 1 if any errors occurred
+#
+#       This function is expected to verify the database backup archives. If this function
+#        completes successfully (returns 0), the
+#       framework will automatically starts remote backup upload.
+#
+#
 # The functions in this file will take care of:
 #   1) Calling "dump_databases_to_directory" and then compressing the files,
 #      naming the tarball properly, and then storing it locally at the specified
@@ -89,6 +97,16 @@ log_backup_error_exit() {
   rm -rf $TMP_DIR
   exit $ERRCODE
 }
+
+log_verify_backup_exit() {
+  MSG=$1
+  ERRCODE=${2:-0}
+  log ERROR "${DB_NAME}_verify_backup" "${DB_NAMESPACE} namespace: ${MSG}"
+  rm -f $ERR_LOG_FILE
+  # rm -rf $TMP_DIR
+  exit $ERRCODE
+}
+
 
 log() {
   #Log message to a file or stdout
@@ -201,11 +219,35 @@ send_to_remote_server() {
     log WARN "${DB_NAME}_backup" "Cannot create container object ${FILE}!"
     return 2
   fi
+
   openstack object show $CONTAINER_NAME $FILE
   if [[ $? -ne 0 ]]; then
     log WARN "${DB_NAME}_backup" "Unable to retrieve container object $FILE after creation."
     return 2
   fi
+
+  # Calculation remote file SHA256 hash
+  REMOTE_FILE=$(mktemp -p /tmp)
+  openstack object save --file ${REMOTE_FILE} $CONTAINER_NAME $FILE
+  if [[ $? -ne 0 ]]; then
+    log WARN "${DB_NAME}_backup" "Unable to save container object $FILE for SHA256 hash verification."
+    rm -rf ${REMOTE_FILE}
+    return 1
+  fi
+
+  # Remote backup verification
+  SHA256_REMOTE=$(cat ${REMOTE_FILE} | sha256sum | awk '{print $1}')
+  SHA256_LOCAL=$(cat ${FILEPATH}/${FILE} | sha256sum | awk '{print $1}')
+  log INFO "${DB_NAME}_backup" "Calculated SHA256 hashes for the file $FILE in container $CONTAINER_NAME."
+  log INFO "${DB_NAME}_backup" "Local SHA256 hash is ${SHA256_LOCAL}."
+  log INFO "${DB_NAME}_backup" "Remote SHA256 hash is ${SHA256_REMOTE}."
+  if [[ "${SHA256_LOCAL}" == "${SHA256_REMOTE}" ]]; then
+      log INFO "${DB_NAME}_backup" "The local backup & remote backup SHA256 hash values are matching for file $FILE in container $CONTAINER_NAME."
+  else
+      log ERROR "${DB_NAME}_backup" "Mismatch between the local backup & remote backup sha256 hash values"
+      return 1
+  fi
+  rm -rf ${REMOTE_FILE}
 
   log INFO "${DB_NAME}_backup" "Created file $FILE in container $CONTAINER_NAME successfully."
   return 0
@@ -382,8 +424,8 @@ remove_old_remote_archives() {
 
   # Cleanup now that we're done.
   for fd in ${BACKUP_FILES} ${DB_BACKUP_FILES}; do
-    if [[ -f fd ]]; then
-      rm -f fd
+    if [[ -f ${fd} ]]; then
+      rm -f ${fd}
     else
       log WARN "${DB_NAME}_backup" "Can not delete a temporary file ${fd}"
     fi
@@ -444,10 +486,6 @@ backup_databases() {
 
   cd $ARCHIVE_DIR
 
-  # Remove the temporary directory and files as they are no longer needed.
-  rm -rf $TMP_DIR
-  rm -f $ERR_LOG_FILE
-
   #Only delete the old archive after a successful archive
   export LOCAL_DAYS_TO_KEEP=$(echo $LOCAL_DAYS_TO_KEEP | sed 's/"//g')
   if [[ "$LOCAL_DAYS_TO_KEEP" -gt 0 ]]; then
@@ -459,6 +497,25 @@ backup_databases() {
     done
   fi
 
+  # Local backup verification process
+
+  # It is expected that this function will verify the database backup files
+  if verify_databases_backup_archives ${SCOPE}; then
+    log INFO "${DB_NAME}_backup_verify" "Databases backup verified successfully. Uploading verified backups to remote location..."
+  else
+    # If successful, there should be at least one file in the TMP_DIR
+    if [[ $(ls $TMP_DIR | wc -w) -eq 0 ]]; then
+      cat $ERR_LOG_FILE
+    fi
+    log_verify_backup_exit "Verify of the ${DB_NAME} database backup failed and needs attention."
+    exit 1
+  fi
+
+  # Remove the temporary directory and files as they are no longer needed.
+  rm -rf $TMP_DIR
+  rm -f $ERR_LOG_FILE
+
+  # Remote backup
   REMOTE_BACKUP=$(echo $REMOTE_BACKUP_ENABLED | sed 's/"//g')
   if $REMOTE_BACKUP; then
     # Remove Quotes from the constants which were added due to reading
@@ -490,7 +547,7 @@ backup_databases() {
       get_backup_prefix $(cat $DB_BACKUP_FILES)
       for ((i=0; i<${#PREFIXES[@]}; i++)); do
         echo "Working with prefix: ${PREFIXES[i]}"
-        create_hash_table $(cat $DB_BACKUP_FILES | grep ${PREFIXES[i]})
+        create_hash_table $(cat ${DB_BACKUP_FILES} | grep ${PREFIXES[i]})
         remove_old_remote_archives
       done
     fi

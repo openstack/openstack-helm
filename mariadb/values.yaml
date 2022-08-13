@@ -122,7 +122,14 @@ pod:
         backup_perms:
           runAsUser: 0
           readOnlyRootFilesystem: true
+        verify_perms:
+          runAsUser: 0
+          readOnlyRootFilesystem: true
         mariadb_backup:
+          runAsUser: 65534
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
+        mariadb_verify_server:
           runAsUser: 65534
           readOnlyRootFilesystem: true
           allowPrivilegeEscalation: false
@@ -328,9 +335,15 @@ conf:
   ingress_conf:
     worker-processes: "auto"
     log-format-stream: "\"$remote_addr [$time_local] $protocol $status $bytes_received $bytes_sent $upstream_addr $upstream_connect_time $upstream_first_byte_time $upstream_session_time $session_time\""
+  mariadb_server:
+    setup_wait:
+      iteration: 30
+      duration: 5
   backup:
     enabled: false
     base_path: /var/backup
+    validateData:
+      ageOffset: 120
     mysqldump_options: >
       --single-transaction --quick --add-drop-database
       --add-drop-table --add-locks --databases

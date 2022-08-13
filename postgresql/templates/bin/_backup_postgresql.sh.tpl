@@ -82,5 +82,13 @@ dump_databases_to_directory() {
   fi
 }
 
+# Verify all the databases backup archives
+verify_databases_backup_archives() {
+  ####################################
+  # TODO: add implementation of local backup verification
+  ####################################
+  return 0
+}
+
 # Call main program to start the database backup
 backup_databases ${SCOPE}
