@@ -685,7 +685,7 @@ spec:
 {{ $hostRules | include "helm-toolkit.manifests.ingress._host_rules" | indent 4 }}
 {{- end }}
 {{- if not ( hasSuffix ( printf ".%s.svc.%s" $envAll.Release.Namespace $envAll.Values.endpoints.cluster_domain_suffix) $hostNameFull) }}
-{{- $ingressConf := $envAll.Values.network -}}
+{{- $ingressConf := $envAll.Values.network.kibana.ingress -}}
 {{- $ingressClasses := ternary (tuple "namespace") (tuple "namespace" "cluster") (and (hasKey $ingressConf "use_external_ingress_controller") $ingressConf.use_external_ingress_controller) }}
 {{- range $key2, $ingressController := $ingressClasses }}
 {{- $vHosts := list $hostNameFull }}
