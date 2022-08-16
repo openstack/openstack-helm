@@ -66,6 +66,11 @@ spec:
 {{- with $env := dict "ksUserSecret" .Values.secrets.identity.admin }}
 {{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 12 }}
 {{- end }}
+
+{{- if or .Values.manifests.certificates .Values.tls.identity }}
+            - name: REQUESTS_CA_BUNDLE
+              value: "/etc/rally/certs/ca.crt"
+{{- end }}
             - name: ENABLED_TESTS
               value: {{ include "helm-toolkit.utils.joinListWithComma" .Values.enabled_tasks }}
           volumeMounts:
@@ -89,6 +94,7 @@ spec:
               readOnly: true
             - name: rally-reports
               mountPath: /var/lib/rally/data
+{{- dict "enabled" (or .Values.manifests.certificates .Values.tls.identity) "name" .Values.secrets.tls.identity.api.internal "path" "/etc/rally/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
       volumes:
         - name: pod-tmp
           emptyDir: {}
@@ -112,4 +118,5 @@ spec:
         - name: rally-reports
           persistentVolumeClaim:
             claimName: {{ .Values.pvc.name }}
+{{- dict "enabled" (or .Values.manifests.certificates .Values.tls.identity) "name" .Values.secrets.tls.identity.api.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 {{- end }}
