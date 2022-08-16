@@ -68,8 +68,8 @@ make placement
 
 tee /tmp/placement.yaml << EOF
 pod:
-replicas:
-  api: 2
+  replicas:
+    api: 2
 EOF
 # Deploy
 helm upgrade --install placement ./placement \
