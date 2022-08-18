@@ -13,13 +13,13 @@ conf:
     keystone_authtoken:
       cafile: /etc/placement/certs/ca.crt
   wsgi_placement: |
-    Listen 0.0.0.0:{{ tuple "placement" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+    Listen 0.0.0.0:{{ tuple "placement" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
     LogFormat "%h %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\"" combined
     LogFormat "%{X-Forwarded-For}i %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\"" proxy
     SetEnvIf X-Forwarded-For "^.*\..*\..*\..*" forwarded
     CustomLog /dev/stdout combined env=!forwarded
     CustomLog /dev/stdout proxy env=forwarded
-    <VirtualHost *:{{ tuple "placement" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}>
+    <VirtualHost *:{{ tuple "placement" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}>
       ServerName {{ printf "%s.%s.svc.%s" "placement-api" .Release.Namespace .Values.endpoints.cluster_domain_suffix }}
       WSGIDaemonProcess placement-api processes=4 threads=1 user=placement group=placement display-name=%{GROUP}
       WSGIProcessGroup placement-api
@@ -71,6 +71,7 @@ endpoints:
             kind: ClusterIssuer
     scheme:
       default: https
+      service: https
     port:
       api:
         public: 443
