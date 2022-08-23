@@ -17,7 +17,7 @@
 ---
 images:
   tags:
-    grafana: docker.io/grafana/grafana:7.4.5
+    grafana: docker.io/grafana/grafana:8.5.10
     dep_check: quay.io/airshipit/kubernetes-entrypoint:v1.0.0
     db_init: docker.io/openstackhelm/heat:stein-ubuntu_bionic
     grafana_db_session_sync: docker.io/openstackhelm/heat:stein-ubuntu_bionic
@@ -44,6 +44,8 @@ labels:
 pod:
   env:
     grafana: null
+    grafana_run_migrator:
+      GF_DEFAULT_FORCE_MIGRATION: false
   security_context:
     dashboard:
       pod:
@@ -485,6 +487,10 @@ conf:
             basicAuthPassword: {{ .Values.endpoints.monitoring.auth.user.password }}
           url: {{ tuple "monitoring" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" }}
   grafana:
+    alerting:
+      enabled: false
+    unified_alerting:
+      enabled: true
     analytics:
       reporting_enabled: false
       check_for_updates: false
@@ -494,6 +500,8 @@ conf:
     paths:
       data: /var/lib/grafana/data
       plugins: /var/lib/grafana/plugins
+      alerting: /var/lib/grafana/alerting
+      csv: /var/lib/grafana/csv
       provisioning: /etc/grafana/provisioning
     server:
       protocol: http
