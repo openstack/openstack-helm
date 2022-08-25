@@ -36,8 +36,8 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'openstack-helm-infra'
-copyright = u'2016-2021, OpenStack Foundation'
+project = 'openstack-helm-infra'
+copyright = '2016-2021, OpenStack Foundation'
 
 openstackdocs_repo_name = 'openstack/openstack-helm-infra'
 openstackdocs_use_storyboard = True
@@ -81,8 +81,8 @@ htmlhelp_basename = '%sdoc' % project
 latex_documents = [
     ('index',
      '%s.tex' % project,
-     u'%s Documentation' % project,
-     u'OpenStack Foundation', 'manual'),
+     '%s Documentation' % project,
+     'OpenStack Foundation', 'manual'),
 ]
 
 # Example configuration for intersphinx: refer to the Python standard library.
