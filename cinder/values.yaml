@@ -55,6 +55,7 @@ images:
     cinder_scheduler: docker.io/openstackhelm/cinder:ussuri-ubuntu_bionic
     cinder_volume: docker.io/openstackhelm/cinder:ussuri-ubuntu_bionic
     cinder_volume_usage_audit: docker.io/openstackhelm/cinder:ussuri-ubuntu_bionic
+    cinder_service_cleaner: docker.io/openstackhelm/cinder:ussuri-ubuntu_bionic
     cinder_storage_init: docker.io/openstackhelm/ceph-config-helper:latest-ubuntu_bionic
     cinder_backup: docker.io/openstackhelm/cinder:ussuri-ubuntu_bionic
     cinder_backup_storage_init: docker.io/openstackhelm/ceph-config-helper:latest-ubuntu_bionic
@@ -68,6 +69,13 @@ images:
       - image_repo_sync
 
 jobs:
+  service_cleaner:
+    cron: "0 */1 * * *"
+    starting_deadline: 600
+    history:
+      success: 3
+      failed: 1
+    sleep_time: 60
   volume_usage_audit:
     cron: "5 * * * *"
     starting_deadline: 600
@@ -124,6 +132,13 @@ pod:
           runAsUser: 0
           readOnlyRootFilesystem: true
         cinder_scheduler:
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
+    service_cleaner:
+      pod:
+        runAsUser: 42424
+      container:
+        cinder_service_cleaner:
           readOnlyRootFilesystem: true
           allowPrivilegeEscalation: false
     cinder_volume:
@@ -356,6 +371,13 @@ pod:
           memory: "1024Mi"
           cpu: "2000m"
       image_repo_sync:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      service_cleaner:
         requests:
           memory: "128Mi"
           cpu: "100m"
@@ -893,7 +915,6 @@ conf:
       osapi_volume_workers: 1
       glance_api_version: 2
       os_region_name: RegionOne
-      host: cinder-volume-worker
       # NOTE(portdirect): the bind port should not be defined, and is manipulated
       # via the endpoints section.
       osapi_volume_listen_port: null
@@ -1204,6 +1225,19 @@ dependencies:
           service: identity
         - endpoint: internal
           service: volumev3
+    service_cleaner:
+      jobs:
+        - cinder-db-sync
+        - cinder-rabbit-init
+      services:
+        - endpoint: internal
+          service: oslo_messaging
+        - endpoint: internal
+          service: oslo_db
+        - endpoint: internal
+          service: identity
+        - endpoint: internal
+          service: volumev3
     storage_init:
       jobs: null
     tests:
@@ -1496,6 +1530,7 @@ manifests:
   configmap_bin: true
   configmap_etc: true
   cron_volume_usage_audit: true
+  cron_job_service_cleaner: true
   deployment_api: true
   deployment_backup: true
   deployment_scheduler: true
