@@ -1,0 +1,112 @@
+---
+horizon:
+  network:
+    dashboard:
+      ingress:
+        annotations:
+          nginx.ingress.kubernetes.io/backend-protocol: "https"
+  conf:
+    software:
+      apache2:
+        a2enmod:
+          - headers
+          - rewrite
+          - ssl
+    horizon:
+      apache: |
+        <IfVersion < 2.4>
+        Listen 0.0.0.0:{{ tuple "dashboard" "internal" "web" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+        </IfVersion>
+        LogFormat "%h %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\"" combined
+        LogFormat "%{X-Forwarded-For}i %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\"" proxy
+
+        SetEnvIf X-Forwarded-For "^.*\..*\..*\..*" forwarded
+        CustomLog /dev/stdout combined env=!forwarded
+        CustomLog /dev/stdout proxy env=forwarded
+
+        <VirtualHost *:80>
+          ServerName horizon-int.openstack.svc.cluster.local
+          RewriteEngine On
+          RewriteCond %{HTTPS} off
+          RewriteRule (.*) https://%{HTTP_HOST}%{REQUEST_URI} [R,L]
+        </Virtualhost>
+
+        <VirtualHost *:{{ tuple "dashboard" "internal" "web" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}>
+          ServerName horizon-int.openstack.svc.cluster.local
+          WSGIScriptReloading On
+          WSGIDaemonProcess horizon-http processes=5 threads=1 user=horizon group=horizon display-name=%{GROUP} python-path=/var/lib/kolla/venv/lib/python2.7/site-packages
+          WSGIProcessGroup horizon-http
+          WSGIScriptAlias / /var/www/cgi-bin/horizon/django.wsgi
+          WSGIPassAuthorization On
+
+          RewriteEngine On
+          RewriteCond %{REQUEST_METHOD} !^(POST|PUT|GET|DELETE|PATCH)
+          RewriteRule .* - [F]
+
+          <Location "/">
+            Require all granted
+          </Location>
+
+          Alias /static /var/www/html/horizon
+          <Location "/static">
+            SetHandler static
+          </Location>
+
+          <IfVersion >= 2.4>
+            ErrorLogFormat "%{cu}t %M"
+          </IfVersion>
+          ErrorLog /dev/stdout
+          TransferLog /dev/stdout
+
+          SetEnvIf X-Forwarded-For "^.*\..*\..*\..*" forwarded
+          CustomLog /dev/stdout combined env=!forwarded
+          CustomLog /dev/stdout proxy env=forwarded
+
+          ErrorLog /dev/stdout
+          SSLEngine on
+          SSLCertificateFile      /etc/openstack-dashboard/certs/tls.crt
+          SSLCertificateKeyFile   /etc/openstack-dashboard/certs/tls.key
+          SSLProtocol             all -SSLv3 -TLSv1 -TLSv1.1
+          SSLCipherSuite          ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256
+          SSLHonorCipherOrder     on
+        </VirtualHost>
+      local_settings:
+        config:
+          use_ssl: "True"
+          csrf_cookie_secure: "True"
+          csrf_cookie_httponly: "True"
+          enforce_password_check: "True"
+          session_cookie_secure: "True"
+          session_cookie_httponly: "True"
+  endpoints:
+    identity:
+      auth:
+        admin:
+          cacert: /etc/ssl/certs/openstack-helm.crt
+      scheme:
+        default: https
+      port:
+        api:
+          default: 443
+    dashboard:
+      host_fqdn_override:
+        default:
+          tls:
+            secretName: horizon-tls-web
+            issuerRef:
+              name: ca-issuer
+              kind: ClusterIssuer
+      scheme:
+        default: https
+        public: https
+      port:
+        web:
+          default: 443
+          public: 443
+    ingress:
+      port:
+        ingress:
+          default: 443
+  manifests:
+    certificates: true
+...
