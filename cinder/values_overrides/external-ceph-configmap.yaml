@@ -1,0 +1,39 @@
+# Note: This yaml file serves as an example for overriding the manifest
+# to enable additional externally managed Ceph Cinder backend.
+# Configuration of external ceph cluster is provided by a pre-existing configmap.
+# For backup external ceph, backup-external-ceph configmap with ceph.conf data field.
+# For 2nd tier external ceph, external-ceph configmap with external-ceph.conf data field.
+---
+backup:
+  external_ceph_rbd:
+    enabled: true
+    configmap: backup-external-ceph
+
+ceph_client:
+  enable_external_ceph_backend: True
+  external_ceph:
+    rbd_user: cinder2
+    rbd_user_keyring: RBDUserKeyRing
+    configmap: external-ceph
+
+conf:
+  cinder:
+    DEFAULT:
+      enabled_backends: "rbd1,rbd2"
+  backends:
+    rbd2:
+      volume_driver: cinder.volume.drivers.rbd.RBDDriver
+      volume_backend_name: rbd2
+      rbd_pool: cinder2.volumes
+      rbd_ceph_conf: "/etc/ceph/external-ceph.conf"
+      rbd_flatten_volume_from_snapshot: False
+      report_discard_supported: True
+      rbd_max_clone_depth: 5
+      rbd_store_chunk_size: 4
+      rados_connect_timeout: -1
+      rbd_user: cinder2
+      rbd_secret_uuid: 3f0133e4-8384-4743-9473-fecacc095c74
+      image_volume_cache_enabled: True
+      image_volume_cache_max_size_gb: 200
+      image_volume_cache_max_count: 50
+...

@@ -193,10 +193,17 @@ spec:
               subPath: key
               readOnly: true
             {{- if .Values.ceph_client.enable_external_ceph_backend }}
+            {{- if .Values.ceph_client.external_ceph.configmap }}
+            - name: external-ceph-etc
+              mountPath: /etc/ceph/external-ceph.conf
+              subPath: external-ceph.conf
+              readOnly: true
+            {{- else }}
             - name: cinder-etc
               mountPath: /etc/ceph/external-ceph.conf
               subPath: external-ceph.conf
               readOnly: true
+            {{- end }}
             {{- if .Values.ceph_client.external_ceph.rbd_user }}
             - name: external-ceph-keyring
               mountPath: /tmp/external-ceph-client-keyring
@@ -300,6 +307,12 @@ spec:
           configMap:
             name: {{ .Values.ceph_client.configmap }}
             defaultMode: 0444
+        {{- if and .Values.ceph_client.enable_external_ceph_backend .Values.ceph_client.external_ceph.configmap }}
+        - name: external-ceph-etc
+          configMap:
+            name: {{ .Values.ceph_client.external_ceph.configmap }}
+            defaultMode: 0444
+        {{- end }}
         - name: ceph-keyring
           secret:
             secretName: {{ .Values.secrets.rbd.volume | quote }}
