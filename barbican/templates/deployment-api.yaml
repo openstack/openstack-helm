@@ -64,6 +64,11 @@ spec:
           command:
             - /tmp/barbican.sh
             - start
+          env:
+{{- if .Values.manifests.certificates }}
+            - name: REQUESTS_CA_BUNDLE
+              value: "/etc/barbican/certs/ca.crt"
+{{- end }}
           lifecycle:
             preStop:
               exec:
@@ -114,6 +119,9 @@ spec:
               subPath: barbican.sh
               readOnly: true
 {{- dict "enabled" .Values.manifests.certificates "name" .Values.endpoints.oslo_db.auth.admin.secret.tls.internal "path" "/etc/mysql/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
+{{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.key_manager.api.internal "path" "/etc/barbican/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
+{{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.oslo_messaging.auth.admin.secret.tls.internal "path" "/etc/rabbitmq/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
+
 {{ if $mounts_barbican_api.volumeMounts }}{{ toYaml $mounts_barbican_api.volumeMounts | indent 12 }}{{ end }}
       volumes:
         - name: pod-tmp
@@ -129,5 +137,8 @@ spec:
             name: barbican-bin
             defaultMode: 0555
 {{- dict "enabled" .Values.manifests.certificates "name" .Values.endpoints.oslo_db.auth.admin.secret.tls.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
+{{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.key_manager.api.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
+{{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.oslo_messaging.auth.admin.secret.tls.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
+
 {{ if $mounts_barbican_api.volumes }}{{ toYaml $mounts_barbican_api.volumes | indent 8 }}{{ end }}
 {{- end }}
