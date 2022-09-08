@@ -244,6 +244,60 @@ conf:
     add_metadef_tags: rule:metadef_admin
     delete_metadef_tag: rule:metadef_admin
     delete_metadef_tags: rule:metadef_admin
+  glance_sudoers: |
+    # This sudoers file supports rootwrap for both Kolla and LOCI Images.
+    Defaults !requiretty
+    Defaults secure_path="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin:/var/lib/openstack/bin:/var/lib/kolla/venv/bin"
+    glance ALL = (root) NOPASSWD: /var/lib/kolla/venv/bin/glance-rootwrap /etc/glance/rootwrap.conf *, /var/lib/openstack/bin/glance-rootwrap /etc/glance/rootwrap.conf *
+  rootwrap: |
+    # Configuration for glance-rootwrap
+    # This file should be owned by (and only-writable by) the root user
+
+    [DEFAULT]
+    # List of directories to load filter definitions from (separated by ',').
+    # These directories MUST all be only writeable by root !
+    filters_path=/etc/glance/rootwrap.d,/usr/share/glance/rootwrap
+
+    # List of directories to search executables in, in case filters do not
+    # explicitely specify a full path (separated by ',')
+    # If not specified, defaults to system PATH environment variable.
+    # These directories MUST all be only writeable by root !
+    exec_dirs=/sbin,/usr/sbin,/bin,/usr/bin,/usr/local/bin,/usr/local/sbin,/var/lib/openstack/bin,/var/lib/kolla/venv/bin
+
+    # Enable logging to syslog
+    # Default value is False
+    use_syslog=False
+
+    # Which syslog facility to use.
+    # Valid values include auth, authpriv, syslog, local0, local1...
+    # Default value is 'syslog'
+    syslog_log_facility=syslog
+
+    # Which messages to log.
+    # INFO means log all usage
+    # ERROR means only log unsuccessful attempts
+    syslog_log_level=ERROR
+  rootwrap_filters:
+    glance_cinder_store:
+      pods:
+        - api
+      content: |
+        # glance-rootwrap command filters for glance cinder store
+        # This file should be owned by (and only-writable by) the root user
+
+        [Filters]
+        # cinder store driver
+        disk_chown: RegExpFilter, chown, root, chown, \d+, /dev/(?!.*/\.\.).*
+
+        # os-brick library commands
+        # os_brick.privileged.run_as_root oslo.privsep context
+        # This line ties the superuser privs with the config files, context name,
+        # and (implicitly) the actual python code invoked.
+        privsep-rootwrap: RegExpFilter, privsep-helper, root, privsep-helper, --config-file, /etc/(?!\.\.).*, --privsep_context, os_brick.privileged.default, --privsep_sock_path, /tmp/.*
+
+        chown: CommandFilter, chown, root
+        mount: CommandFilter, mount, root
+        umount: CommandFilter, umount, root
   glance:
     DEFAULT:
       log_config_append: /etc/glance/logging.conf
@@ -259,6 +313,7 @@ conf:
       auth_version: v3
       memcache_security_strategy: ENCRYPT
     glance_store:
+      cinder_catalog_info: volumev3::internalURL
       rbd_store_chunk_size: 8
       rbd_store_replication: 3
       rbd_store_crush_rule: replicated_rule
@@ -275,6 +330,8 @@ conf:
       flavor: keystone
     database:
       max_retries: -1
+    oslo_concurrency:
+      lock_path: "/var/lib/glance/tmp"
     oslo_messaging_notifications:
       driver: messagingv2
     oslo_messaging_rabbit:
@@ -837,6 +894,8 @@ pod:
       - key: node-role.kubernetes.io/master
         operator: Exists
         effect: NoSchedule
+  useHostNetwork:
+    api: false
   mounts:
     glance_api:
       init_container: null

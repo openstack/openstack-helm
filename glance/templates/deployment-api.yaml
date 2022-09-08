@@ -55,6 +55,13 @@ spec:
       nodeSelector:
         {{ .Values.labels.api.node_selector_key }}: {{ .Values.labels.api.node_selector_value }}
       terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.api.timeout | default "30" }}
+{{- if .Values.pod.useHostNetwork.api }}
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+{{- end }}
+{{- if eq .Values.storage "cinder" }}
+      hostIPC: true
+{{- end }}
       initContainers:
 {{ tuple $envAll "api" $mounts_glance_api_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
         - name: glance-perms
@@ -185,6 +192,8 @@ spec:
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
+            - name: glance-tmp
+              mountPath: /var/lib/glance/tmp
             - name: etcglance
               mountPath: /etc/glance
             - name: glance-bin
@@ -214,11 +223,72 @@ spec:
               subPath: api_audit_map.conf
               readOnly: true
             - name: glance-etc
+              # NOTE (Portdirect): We mount here to override Kollas
+              # custom sudoers file when using Kolla images, this
+              # location will also work fine for other images.
+              mountPath: /etc/sudoers.d/kolla_glance_sudoers
+              subPath: glance_sudoers
+              readOnly: true
+            - name: glance-etc
+              mountPath: /etc/glance/rootwrap.conf
+              subPath: rootwrap.conf
+              readOnly: true
+            {{- range $key, $value := $envAll.Values.conf.rootwrap_filters }}
+            {{- if ( has "api" $value.pods ) }}
+            {{- $filePrefix := replace "_" "-"  $key }}
+            {{- $rootwrapFile := printf "/etc/glance/rootwrap.d/%s.filters" $filePrefix }}
+            - name: glance-etc
+              mountPath: {{ $rootwrapFile }}
+              subPath: {{ base $rootwrapFile }}
+              readOnly: true
+            {{- end }}
+            {{- end }}
+            - name: glance-etc
               mountPath: {{ .Values.conf.glance.glance_store.swift_store_config_file }}
               subPath: swift-store.conf
               readOnly: true
             - name: glance-images
               mountPath: {{ .Values.conf.glance.glance_store.filesystem_store_datadir }}
+{{- if eq .Values.storage "cinder" }}
+            - name: host-rootfs
+              mountPath: /mnt/host-rootfs
+              {{- if or ( gt .Capabilities.KubeVersion.Major "1" ) ( ge .Capabilities.KubeVersion.Minor "10" ) }}
+              mountPropagation: HostToContainer
+              {{- end }}
+            - name: host-dev
+              mountPath: /dev
+              {{- if or ( gt .Capabilities.KubeVersion.Major "1" ) ( ge .Capabilities.KubeVersion.Minor "10" ) }}
+              mountPropagation: HostToContainer
+              {{- end }}
+            - name: runlock
+              mountPath: /run/lock
+            - name: etciscsi
+              mountPath: /etc/iscsi
+              {{- if or ( gt .Capabilities.KubeVersion.Major "1" ) ( ge .Capabilities.KubeVersion.Minor "10" ) }}
+              mountPropagation: HostToContainer
+              {{- end }}
+            - name: usrlocalsbin
+              mountPath: /usr/local/sbin
+            - name: glance-bin
+              mountPath: /usr/local/sbin/iscsiadm
+              subPath: iscsiadm
+            - name: glance-bin
+              mountPath: /usr/local/sbin/multipath
+              subPath: multipath
+            - name: glance-bin
+              mountPath: /usr/local/sbin/multipathd
+              subPath: multipathd
+            - name: etcmultipath
+              mountPath: /etc/multipath
+              {{- if or ( gt .Capabilities.KubeVersion.Major "1" ) ( ge .Capabilities.KubeVersion.Minor "10" ) }}
+              mountPropagation: Bidirectional
+              {{- end }}
+            - name: sys
+              mountPath: /sys
+              {{- if or ( gt .Capabilities.KubeVersion.Major "1" ) ( ge .Capabilities.KubeVersion.Minor "10" ) }}
+              mountPropagation: HostToContainer
+              {{- end }}
+{{- end }}
 {{- if eq .Values.storage "rbd" }}
             - name: etcceph
               mountPath: /etc/ceph
@@ -237,6 +307,8 @@ spec:
 {{ if $mounts_glance_api.volumeMounts }}{{ toYaml $mounts_glance_api.volumeMounts | indent 12 }}{{ end }}
       volumes:
         - name: pod-tmp
+          emptyDir: {}
+        - name: glance-tmp
           emptyDir: {}
         - name: etcglance
           emptyDir: {}
@@ -266,6 +338,28 @@ spec:
         - name: ceph-keyring
           secret:
             secretName: {{ .Values.secrets.rbd | quote }}
+{{- end }}
+{{- if eq .Values.storage "cinder" }}
+        - name: host-rootfs
+          hostPath:
+            path: /
+        - name: host-dev
+          hostPath:
+            path: /dev
+        - name: runlock
+          hostPath:
+            path: /run/lock
+        - name: etciscsi
+          hostPath:
+            path: /etc/iscsi
+        - name: usrlocalsbin
+          emptyDir: {}
+        - name: etcmultipath
+          hostPath:
+            path: /etc/multipath
+        - name: sys
+          hostPath:
+            path: /sys
 {{- end }}
 {{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.oslo_db.auth.admin.secret.tls.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 {{- dict "enabled" (or .Values.manifests.certificates .Values.tls.identity) "name" $envAll.Values.secrets.tls.image.api.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
