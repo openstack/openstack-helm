@@ -37,4 +37,4 @@ set -x
 
 bash /tmp/archive_cleanup.sh &
 
-exec /docker-entrypoint.sh postgres -c config_file=/tmp/postgresql.conf
+exec /usr/local/bin/docker-entrypoint.sh postgres -c config_file=/tmp/postgresql.conf
