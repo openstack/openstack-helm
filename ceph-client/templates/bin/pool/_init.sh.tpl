@@ -161,17 +161,31 @@ function reweight_osds () {
 }
 
 function enable_autoscaling () {
-  if [[ $(ceph mgr versions | awk '/version/{print $3}' | cut -d. -f1) -eq 14 ]]; then
-    ceph mgr module enable pg_autoscaler # only required for nautilus
+  CEPH_MAJOR_VERSION=$(ceph mgr versions | awk '/version/{print $3}' | cut -d. -f1)
+
+  if [[ ${CEPH_MAJOR_VERSION} -ge 16 ]]; then
+    # Pacific introduced the noautoscale flag to make this simpler
+    ceph osd pool unset noautoscale
+  else
+    if [[ ${CEPH_MAJOR_VERSION} -eq 14 ]]; then
+      ceph mgr module enable pg_autoscaler # only required for nautilus
+    fi
+    ceph config set global osd_pool_default_pg_autoscale_mode on
   fi
-  ceph config set global osd_pool_default_pg_autoscale_mode on
 }
 
 function disable_autoscaling () {
-  if [[ $(ceph mgr versions | awk '/version/{print $3}' | cut -d. -f1) -eq 14 ]]; then
-    ceph mgr module disable pg_autoscaler # only required for nautilus
+  CEPH_MAJOR_VERSION=$(ceph mgr versions | awk '/version/{print $3}' | cut -d. -f1)
+
+  if [[ ${CEPH_MAJOR_VERSION} -ge 16 ]]; then
+    # Pacific introduced the noautoscale flag to make this simpler
+    ceph osd pool set noautoscale
+  else
+    if [[ ${CEPH_MAJOR_VERSION} -eq 14 ]]; then
+      ceph mgr module disable pg_autoscaler # only required for nautilus
+    fi
+    ceph config set global osd_pool_default_pg_autoscale_mode off
   fi
-  ceph config set global osd_pool_default_pg_autoscale_mode off
 }
 
 function set_cluster_flags () {
