@@ -70,6 +70,7 @@ export HELM_CHART_ROOT_PATH="../openstack-helm/openstack"
 : ${OSH_EXTRA_HELM_ARGS_NOVA:="$(./tools/deployment/common/get-values-overrides.sh nova subchart)"}
 : ${OSH_EXTRA_HELM_ARGS_PLACEMENT:="$(./tools/deployment/common/get-values-overrides.sh placement subchart)"}
 : ${OSH_EXTRA_HELM_ARGS_NEUTRON:="$(./tools/deployment/common/get-values-overrides.sh neutron subchart)"}
+: ${OSH_EXTRA_HELM_ARGS_HORIZON:="$(./tools/deployment/common/get-values-overrides.sh horizon subchart)"}
 
 #NOTE: Lint and package chart
 make -C ${HELM_CHART_ROOT_PATH} .
@@ -95,6 +96,7 @@ helm upgrade --install $release openstack/ \
   ${OSH_EXTRA_HELM_ARGS_MEMCACHED} \
   ${OSH_EXTRA_HELM_ARGS_KEYSTONE} \
   ${OSH_EXTRA_HELM_ARGS_HEAT} \
+  ${OSH_EXTRA_HELM_ARGS_HORIZON} \
   ${OSH_EXTRA_HELM_ARGS_GLANCE} \
   ${OSH_EXTRA_HELM_ARGS_OPENVSWITCH} \
   ${OSH_EXTRA_HELM_ARGS_LIBVIRT} \
@@ -119,6 +121,16 @@ fi
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh $namespace 1800
+
+# list pods and services
+echo "------------------ List kube-system pods and servics ------------"
+kubectl -n kube-system get pods
+kubectl -n kube-system get services
+
+echo
+echo "----------------- List openstack pods and services ---------------"
+kubectl -n openstack get pods
+kubectl -n openstack get services
 
 #NOTE: Validate Deployment info
 openstack service list
