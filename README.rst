@@ -16,7 +16,7 @@ Communication
   #openstack-helm on oftc
 * Community `IRC Meetings
   <http://eavesdrop.openstack.org/#OpenStack-Helm_Team_Meeting>`_:
-  [Every Tuesday @ 3PM UTC], #openstack-meeting-alt on oftc
+  [Every Tuesday @ 1500 UTC], #openstack-helm in IRC (OFTC)
 * Meeting Agenda Items: `Agenda
   <https://etherpad.openstack.org/p/openstack-helm-meeting-agenda>`_
 * Join us on `Slack <https://kubernetes.slack.com/messages/C3WERB7DE/>`_
@@ -33,9 +33,9 @@ Installation and Development
 
 Please review our
 `documentation <https://docs.openstack.org/openstack-helm/latest/>`_.
-For quick installation, evaluation, and convenience, we have a kubeadm
-based all-in-one solution that runs in a Docker container. The Kubeadm-AIO set
-up can be found
+For quick installation, evaluation, and convenience, we have a minikube
+based all-in-one solution that runs in a Docker container. The set up
+can be found
 `here <https://docs.openstack.org/openstack-helm/latest/install/developer/index.html>`_.
 
 This project is under active development. We encourage anyone interested in
