@@ -77,6 +77,11 @@ rabbitmqadmin_cli \
   password="${RABBITMQ_PASSWORD}" \
   tags="user"
 
+echo "Deleting Guest User"
+rabbitmqadmin_cli \
+  delete user \
+  name="guest" || true
+
 if [ "${RABBITMQ_VHOST}" != "/" ]
 then
   echo "Managing: vHost: ${RABBITMQ_VHOST}"
