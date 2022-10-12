@@ -14,8 +14,8 @@
 set -ex
 
 : "${HELM_VERSION:="v3.6.3"}"
-: "${KUBE_VERSION:="v1.23.0"}"
-: "${MINIKUBE_VERSION:="v1.23.0"}"
+: "${KUBE_VERSION:="v1.23.12"}"
+: "${MINIKUBE_VERSION:="v1.25.2"}"
 : "${CALICO_VERSION:="v3.20"}"
 : "${YQ_VERSION:="v4.6.0"}"
 : "${KUBE_DNS_IP="10.96.0.10"}"
