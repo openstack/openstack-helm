@@ -22,6 +22,16 @@ if openstack service list -f value -c Type | grep -q "^volume" && \
   CEPH_ENABLED=true
 fi
 
+# Get overrides
+: ${OSH_EXTRA_HELM_ARGS_PLACEMENT:="$(./tools/deployment/common/get-values-overrides.sh placement)"}
+
+# Lint and package
+make placement
+
+# Deploy placement
+helm upgrade --install placement ./placement --namespace=openstack \
+    ${OSH_EXTRA_HELM_ARGS:=} ${OSH_EXTRA_HELM_ARGS_PLACEMENT}
+
 #NOTE: Get the over-rides to use
 : ${OSH_EXTRA_HELM_ARGS_NOVA:="$(./tools/deployment/common/get-values-overrides.sh nova)"}
 
@@ -49,16 +59,6 @@ else
       ${OSH_EXTRA_HELM_ARGS:=} \
       ${OSH_EXTRA_HELM_ARGS_NOVA}
 fi
-
-# Get overrides
-: ${OSH_EXTRA_HELM_ARGS_PLACEMENT:="$(./tools/deployment/common/get-values-overrides.sh placement)"}
-
-# Lint and package
-make placement
-
-# Deploy placement
-helm upgrade --install placement ./placement --namespace=openstack \
-    ${OSH_EXTRA_HELM_ARGS:=} ${OSH_EXTRA_HELM_ARGS_PLACEMENT}
 
 #NOTE: Get the over-rides to use
 : ${OSH_EXTRA_HELM_ARGS_NEUTRON:="$(./tools/deployment/common/get-values-overrides.sh neutron)"}
