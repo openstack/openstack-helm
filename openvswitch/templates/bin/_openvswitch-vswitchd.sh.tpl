@@ -40,7 +40,9 @@ function start () {
   done
 
   ovs-vsctl --db=unix:${OVS_SOCKET} --no-wait show
-
+{{- if .Values.conf.ovs_hw_offload.enabled }}
+  ovs-vsctl --db=unix:${OVS_SOCKET} --no-wait set Open_vSwitch . other_config:hw-offload={{ .Values.conf.ovs_hw_offload.enabled }}
+{{- end }}
 {{- if .Values.conf.ovs_other_config.handler_threads }}
   ovs-vsctl --db=unix:${OVS_SOCKET} --no-wait set Open_vSwitch . other_config:n-handler-threads={{ .Values.conf.ovs_other_config.handler_threads }}
 {{- end }}
