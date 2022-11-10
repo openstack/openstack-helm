@@ -1,0 +1,103 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.job_influxdb_init }}
+{{- $envAll := . }}
+
+{{- $serviceAccountName := "monasca-influxdb-init" }}
+{{ tuple $envAll "influxdb_init" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{- $secretName := index $envAll.Values.secrets "metrics_db" }}
+{{- $influxdbUrl := tuple "metrics_db" "internal" "influxdb" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  annotations:
+    "helm.sh/hook-delete-policy": hook-succeeded
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-weight: "-5"
+  name: monasca-influxdb-init
+spec:
+  backoffLimit: 1000
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "monasca" "influxdb-init" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+{{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
+    spec:
+      serviceAccountName: {{ $serviceAccountName }}
+{{ dict "envAll" $envAll "application" "monasca" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
+      nodeSelector:
+        {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
+      terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.monasca.timeout | default "30" }}
+      restartPolicy: OnFailure
+      initContainers:
+{{ tuple $envAll "influxdb_init" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+      containers:
+        - name: influxdb-init
+{{ tuple $envAll "influxdb_init" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.jobs.influxdb_init | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "monasca" "container" "influxdb_init" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          env:
+            - name: INFLUXDB_URL
+              value: {{ $influxdbUrl }}
+            - name: INFLUXDB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $secretName }}
+                  key: influxdb-admin-user
+            - name: INFLUXDB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $secretName }}
+                  key: influxdb-admin-password
+            - name: INFLUXDB_API_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $secretName }}
+                  key: influxdb-api-user
+            - name: INFLUXDB_API_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $secretName }}
+                  key: influxdb-api-password
+            - name: INFLUXDB_PERSISTER_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $secretName }}
+                  key: influxdb-persister-user
+            - name: INFLUXDB_PERSISTER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $secretName }}
+                  key: influxdb-persister-password
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: monasca-bin
+              mountPath: /tmp/influxdb-init.sh
+              subPath: influxdb-init.sh
+              readOnly: true
+          command:
+            - /bin/sh
+            - /tmp/influxdb-init.sh
+      volumes:
+        - name: pod-tmp
+          emptyDir: {}
+        - name: monasca-bin
+          configMap:
+            name: monasca-bin
+            defaultMode: 0555
+{{- end }}

@@ -1,0 +1,93 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.job_thresh }}
+{{- $envAll := . }}
+
+{{- $mounts_monasca_thresh := .Values.pod.mounts.monasca_thresh.monasca_thresh }}
+{{- $mounts_monasca_thresh_init := .Values.pod.mounts.monasca_thresh.init_container }}
+
+{{- $serviceAccountName := "monasca-thresh" }}
+{{ tuple $envAll "thresh" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: monasca-thresh-upload
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-weight: "1"
+    "helm.sh/hook-delete-policy": hook-succeeded
+spec:
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "monasca" "thresh" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+{{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
+        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
+{{ dict "envAll" $envAll "podName" "monasca-thresh" "containerNames" (list "monasca-thresh" "init" ) | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
+    spec:
+      serviceAccountName: {{ $serviceAccountName }}
+      restartPolicy: Never
+{{ dict "envAll" $envAll "application" "thresh" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
+      nodeSelector:
+        {{ .Values.labels.thresh.node_selector_key }}: {{ .Values.labels.thresh.node_selector_value }}
+      terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.monasca.timeout | default "30" }}
+      initContainers:
+{{ tuple $envAll "thresh" $mounts_monasca_thresh_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+      containers:
+        - name: monasca-thresh
+{{ tuple $envAll "monasca_thresh" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.thresh | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "thresh" "container" "monasca-thresh" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          env:
+            - name: DEBUG
+              value: "true"
+          command:
+            - /tmp/monasca-thresh.sh
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: etcmonasca
+              mountPath: /etc/monasca
+            - name: monasca-bin
+              mountPath: /tmp/monasca-thresh.sh
+              subPath: monasca-thresh.sh
+              readOnly: true
+            - name: monasca-etc
+              mountPath: /tmp/thresh-config.yml
+              subPath: thresh-config.yml
+              readOnly: true
+            - name: monasca-etc
+              mountPath: /conf/storm.yaml
+              subPath: storm.yaml
+              readOnly: true
+{{ if $mounts_monasca_thresh.volumeMounts }}{{ toYaml $mounts_monasca_thresh.volumeMounts | indent 12 }}{{ end }}
+      volumes:
+        - name: pod-tmp
+          emptyDir: {}
+        - name: etcmonasca
+          emptyDir: {}
+        - name: monasca-bin
+          configMap:
+            name: monasca-bin
+            defaultMode: 0555
+        - name: monasca-etc
+          secret:
+            secretName: monasca-etc
+            defaultMode: 0444
+{{ if $mounts_monasca_thresh.volumes }}{{ toYaml $mounts_monasca_thresh.volumes | indent 8 }}{{ end }}
+{{- end }}

@@ -1,0 +1,149 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- define "monascaApiLivenessProbeTemplate" }}
+tcpSocket:
+  port: {{ tuple "monitoring" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+{{- end }}
+
+{{- define "monascaApiReadinessProbeTemplate" }}
+tcpSocket:
+  port: {{ tuple "monitoring" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+{{- end }}
+
+{{- if .Values.manifests.deployment_api }}
+{{- $envAll := . }}
+
+{{- $mounts_monasca_api := .Values.pod.mounts.monasca_api.monasca_api }}
+{{- $mounts_monasca_api_init := .Values.pod.mounts.monasca_api.init_container }}
+
+{{- $serviceAccountName := "monasca-api" }}
+{{ tuple $envAll "api" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: monasca-api
+  annotations:
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+  labels:
+{{ tuple $envAll "monasca" "api" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  replicas: {{ .Values.pod.replicas.api }}
+  selector:
+    matchLabels:
+{{ tuple $envAll "monasca" "api" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
+{{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_deployment" | indent 2 }}
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "monasca" "api" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+{{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
+        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
+{{ dict "envAll" $envAll "podName" "monasca-api" "containerNames" (list "monasca-api" "init" ) | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
+    spec:
+      serviceAccountName: {{ $serviceAccountName }}
+{{ dict "envAll" $envAll "application" "api" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
+      affinity:
+{{ tuple $envAll "monasca" "api" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
+      nodeSelector:
+        {{ .Values.labels.api.node_selector_key }}: {{ .Values.labels.api.node_selector_value }}
+      terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.monasca.timeout | default "30" }}
+      initContainers:
+{{ tuple $envAll "api" $mounts_monasca_api_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+      containers:
+        - name: monasca-api
+{{ tuple $envAll "monasca_api" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.api | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "api" "container" "monasca-api" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          command:
+            - /tmp/monasca-api.sh
+            - start
+          env:
+          - name: MY_POD_IP
+            valueFrom:
+              fieldRef:
+                fieldPath: status.podIP
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /tmp/monasca-api.sh
+                  - stop
+          ports:
+            - name: m-api
+              containerPort: {{ tuple "monitoring" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+{{ dict "envAll" $envAll "component" "api" "container" "default" "type" "liveness" "probeTemplate" (include "monascaApiLivenessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+{{ dict "envAll" $envAll "component" "api" "container" "default" "type" "readiness" "probeTemplate" (include "monascaApiReadinessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: etcmonasca
+              mountPath: /etc/monasca
+            - name: monasca-bin
+              mountPath: /tmp/monasca-api.sh
+              subPath: monasca-api.sh
+              readOnly: true
+            - name: logs-apache
+              mountPath: /var/log/apache2
+            - name: run-apache
+              mountPath: /var/run/apache2
+            - name: wsgi-monasca
+              mountPath: /var/www/cgi-bin/monasca
+            - name: monasca-etc
+              mountPath: /etc/monasca/monasca-api.conf
+              subPath: monasca-api.conf
+              readOnly: true
+            - name: monasca-etc
+              mountPath: /etc/monasca/api-config.ini
+              subPath: api-config.ini
+              readOnly: true
+            - name: monasca-etc
+              mountPath: {{ .Values.conf.software.apache2.conf_dir }}/wsgi-monasca.conf
+              subPath: wsgi-monasca.conf
+              readOnly: true
+            {{- if .Values.conf.monasca_api.DEFAULT.log_config_append }}
+            - name: monasca-etc
+              mountPath: {{ .Values.conf.monasca_api.DEFAULT.log_config_append }}
+              subPath: {{ base .Values.conf.monasca_api.DEFAULT.log_config_append }}
+              readOnly: true
+            {{- end }}
+{{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.secrets.tls.monitoring.api.internal "path" "/etc/monasca/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
+{{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.oslo_db.auth.admin.secret.tls.internal "path" "/etc/mysql/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
+{{ if $mounts_monasca_api.volumeMounts }}{{ toYaml $mounts_monasca_api.volumeMounts | indent 12 }}{{ end }}
+      volumes:
+        - name: pod-tmp
+          emptyDir: {}
+        - name: etcmonasca
+          emptyDir: {}
+        - name: wsgi-monasca
+          emptyDir: {}
+        - name: logs-apache
+          emptyDir: {}
+        - name: run-apache
+          emptyDir: {}
+        - name: monasca-bin
+          configMap:
+            name: monasca-bin
+            defaultMode: 0555
+        - name: monasca-etc
+          secret:
+            secretName: monasca-etc
+            defaultMode: 0444
+{{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.oslo_db.auth.admin.secret.tls.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
+{{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.secrets.tls.monitoring.api.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
+{{ if $mounts_monasca_api.volumes }}{{ toYaml $mounts_monasca_api.volumes | indent 8 }}{{ end }}
+{{- end }}
