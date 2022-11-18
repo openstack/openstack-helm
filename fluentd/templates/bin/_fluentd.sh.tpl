@@ -18,6 +18,7 @@ set -ex
 COMMAND="${@:-start}"
 
 function start () {
+  chmod 1777 /tmp
   exec fluentd -c /fluentd/etc/main.conf
 }
 
