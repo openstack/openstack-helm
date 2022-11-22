@@ -74,9 +74,9 @@ Steps:
       images:
         tags:
           ceph_bootstrap: 'docker.io/ceph/daemon:master-0351083-luminous-ubuntu-16.04-x86_64'
-          ceph_config_helper: 'docker.io/openstackhelm/ceph-config-helper:latest-ubuntu_focal'
-          ceph_rbd_pool: 'docker.io/openstackhelm/ceph-config-helper:latest-ubuntu_focal'
-          ceph_mon_check: 'docker.io/openstackhelm/ceph-config-helper:latest-ubuntu_focal'
+          ceph_config_helper: 'docker.io/openstackhelm/ceph-config-helper:latest-ubuntu_bionic'
+          ceph_rbd_pool: 'docker.io/openstackhelm/ceph-config-helper:latest-ubuntu_bionic'
+          ceph_mon_check: 'docker.io/openstackhelm/ceph-config-helper:latest-ubuntu_bionic'
           ceph_mon: 'docker.io/ceph/daemon:master-0351083-luminous-ubuntu-16.04-x86_64'
           ceph_osd: 'docker.io/ceph/daemon:master-0351083-luminous-ubuntu-16.04-x86_64'
           ceph_mds: 'docker.io/ceph/daemon:master-0351083-luminous-ubuntu-16.04-x86_64'
@@ -215,7 +215,7 @@ Steps:
   Containers:
     ceph-mon:
       Container ID:  docker://d5a3396f99704038ab8ef6bfe329013ed46472ebb8e26dddc140b621329f0f92
-      Image:         docker.io/openstackhelm/ceph-config-helper:latest-ubuntu_focal
+      Image:         docker.io/openstackhelm/ceph-config-helper:latest-ubuntu_bionic
 
 
 6) Install Openstack charts
@@ -326,9 +326,9 @@ Update, image section in new overrides ``ceph-update.yaml`` as shown below
   images:
     tags:
       ceph_bootstrap: 'docker.io/ceph/daemon:master-0351083-luminous-ubuntu-16.04-x86_64'
-      ceph_config_helper: 'docker.io/openstackhelm/ceph-config-helper:latest-ubuntu_focal'
-      ceph_rbd_pool: 'docker.io/openstackhelm/ceph-config-helper:latest-ubuntu_focal'
-      ceph_mon_check: 'docker.io/openstackhelm/ceph-config-helper:latest-ubuntu_focal'
+      ceph_config_helper: 'docker.io/openstackhelm/ceph-config-helper:latest-ubuntu_bionic'
+      ceph_rbd_pool: 'docker.io/openstackhelm/ceph-config-helper:latest-ubuntu_bionic'
+      ceph_mon_check: 'docker.io/openstackhelm/ceph-config-helper:latest-ubuntu_bionic'
       ceph_mon: 'docker.io/ceph/daemon:master-a8d20ed-luminous-ubuntu-16.04-x86_64'
       ceph_osd: 'docker.io/ceph/daemon:master-a8d20ed-luminous-ubuntu-16.04-x86_64'
       ceph_mds: 'docker.io/ceph/daemon:master-a8d20ed-luminous-ubuntu-16.04-x86_64'
@@ -574,7 +574,7 @@ pods are running. No interruption to OSH pods.
   Containers:
     ceph-mon:
       Container ID:  docker://d5a3396f99704038ab8ef6bfe329013ed46472ebb8e26dddc140b621329f0f92
-      Image:         docker.io/openstackhelm/ceph-config-helper:latest-ubuntu_focal
+      Image:         docker.io/openstackhelm/ceph-config-helper:latest-ubuntu_bionic
 
 Conclusion:
 ===========
