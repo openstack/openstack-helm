@@ -53,6 +53,7 @@ conf:
       tunables: ${CRUSH_TUNABLES}
     target:
       osd: ${NUMBER_OF_OSDS}
+      final_osd: ${NUMBER_OF_OSDS}
       pg_per_osd: 100
   storage:
     osd:

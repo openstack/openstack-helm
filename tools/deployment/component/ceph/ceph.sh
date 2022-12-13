@@ -75,6 +75,7 @@ conf:
       tunables: ${CRUSH_TUNABLES}
     target:
       osd: 1
+      final_osd: 1
       pg_per_osd: 100
     default:
       crush_rule: same_host
