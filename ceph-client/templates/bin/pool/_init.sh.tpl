@@ -89,11 +89,12 @@ function check_osd_count() {
   num_in_osds=$(awk '/"num_in_osds"/{print $2}' <<< "$osd_stat" | cut -d, -f1)
   num_up_osds=$(awk '/"num_up_osds"/{print $2}' <<< "$osd_stat" | cut -d, -f1)
 
-  EXPECTED_OSDS={{.Values.conf.pool.target.final_osd}}
+  EXPECTED_OSDS={{.Values.conf.pool.target.osd}}
+  EXPECTED_FINAL_OSDS={{.Values.conf.pool.target.final_osd}}
   REQUIRED_PERCENT_OF_OSDS={{.Values.conf.pool.target.required_percent_of_osds}}
 
-  if [ ${num_up_osds} -gt ${EXPECTED_OSDS} ]; then
-    echo "More running OSDs (${num_up_osds}) than expected (${EXPECTED_OSDS}). Please correct the expected value (.Values.conf.pool.target.final_osd)."
+  if [ ${num_up_osds} -gt ${EXPECTED_FINAL_OSDS} ]; then
+    echo "More running OSDs (${num_up_osds}) than expected (${EXPECTED_FINAL_OSDS}). Please correct the expected value (.Values.conf.pool.target.final_osd)."
     exit 1
   fi
 
