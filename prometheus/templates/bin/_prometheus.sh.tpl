@@ -15,15 +15,23 @@ limitations under the License.
 */}}
 
 set -ex
-COMMAND="${@:-start}"
 
-function start () {
-{{ $flags := include "prometheus.utils.command_line_flags" .Values.conf.prometheus.command_line_flags }}
-  exec /bin/prometheus --config.file=/etc/config/prometheus.yml {{ $flags }}
-}
+# Two ways how to launch init process in container: by default and custom (defined in override values).
+{{ $deflaunch := .Values.proc_launch.prometheus.default }}
+if [ "{{ $deflaunch }}" = true ]
+then
+  COMMAND="${@:-start}"
 
-function stop () {
-  kill -TERM 1
-}
+  function start () {
+  {{ $flags := include "prometheus.utils.command_line_flags" .Values.conf.prometheus.command_line_flags }}
+    exec /bin/prometheus --config.file=/etc/config/prometheus.yml {{ $flags }}
+  }
 
-$COMMAND
+  function stop () {
+    kill -TERM 1
+  }
+
+  $COMMAND
+else
+  {{ tpl (.Values.proc_launch.prometheus.custom_launch) . }}
+fi
