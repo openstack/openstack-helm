@@ -37,10 +37,16 @@ spec:
     port: {{ tuple "ingress" "internal" "http" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
     protocol: TCP
     targetPort: {{ tuple "ingress" "internal" "http" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+    {{- if .Values.network.ingress.node_port.enabled }}
+    nodePort: {{ .Values.network.ingress.node_port.http_port }}
+    {{- end }}
   - name: https
     port: {{ tuple "ingress" "internal" "https" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
     protocol: TCP
     targetPort: {{ tuple "ingress" "internal" "https" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+    {{- if .Values.network.ingress.node_port.enabled }}
+    nodePort: {{ .Values.network.ingress.node_port.https_port }}
+    {{- end }}
   - name: status
     port: {{ tuple "ingress" "internal" "status" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
     protocol: TCP
@@ -64,5 +70,8 @@ spec:
 {{- if not (and .Values.network.host_namespace .Values.network.vip.manage) }}
   selector:
 {{ tuple $envAll "ingress" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+{{- end }}
+{{- if .Values.network.ingress.node_port.enabled }}
+  type: NodePort
 {{- end }}
 {{- end }}
