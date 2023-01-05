@@ -706,7 +706,6 @@ spec:
 {{- range $v := without (index $endpointHost.tls "dnsNames" | default list) $hostNameFull }}
 {{- $vHosts = append $vHosts $v }}
 {{- end }}
-{{- if and ( not ( empty $endpointHost.tls.key ) ) ( not ( empty $endpointHost.tls.crt ) ) }}
 {{- $secretName := index $envAll.Values.secrets "tls" ( $backendServiceType | replace "-" "_" ) $backendService $endpoint }}
 {{- $_ := required "You need to specify a secret in your values for the endpoint" $secretName }}
   tls:
@@ -714,7 +713,6 @@ spec:
       hosts:
 {{- range $vHost := $vHosts }}
         - {{ $vHost }}
-{{- end }}
 {{- end }}
 {{- end }}
 {{- end }}
