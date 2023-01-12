@@ -17,10 +17,17 @@ helm.sh/hook: post-install,post-upgrade
 helm.sh/hook-weight: "-2"
 {{- end }}
 
+{{- $volTypes := list "volumev3" -}}
+{{- if .Values.conf.cinder.DEFAULT.enable_v1_api }}
+{{- $volTypes = append $volTypes "volume" }}
+{{- end }}
+{{- if .Values.conf.cinder.DEFAULT.enable_v2_api }}
+{{- $volTypes = append $volTypes "volumev2" }}
+{{- end }}
 {{- if .Values.manifests.job_ks_endpoints }}
-{{- $ksServiceJob := dict "envAll" . "serviceName" "cinder" "serviceTypes" ( tuple "volumev3" ) -}}
+{{- $ksServiceJob := dict "envAll" . "serviceName" "cinder" "serviceTypes" ( $volTypes ) -}}
 {{- if or .Values.manifests.certificates .Values.tls.identity -}}
-{{- $_ := set $ksServiceJob "tlsSecret" .Values.secrets.tls.volumev3.api.internal -}}
+{{- $_ := set $ksServiceJob "tlsSecret" .Values.secrets.tls.volume.api.internal -}}
 {{- end -}}
 {{- if .Values.helm3_hook }}
 {{- $_ := set $ksServiceJob "jobAnnotations" (include "metadata.annotations.job.ks_endpoints" . | fromYaml) }}
