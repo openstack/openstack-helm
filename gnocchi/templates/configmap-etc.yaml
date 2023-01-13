@@ -1,0 +1,101 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.configmap_etc }}
+
+{{- if empty .Values.conf.gnocchi.keystone_authtoken.auth_uri -}}
+{{- $_ := tuple "identity" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" | set .Values.conf.gnocchi.keystone_authtoken "auth_uri" -}}
+{{- end -}}
+
+{{- if empty .Values.conf.gnocchi.keystone_authtoken.auth_url -}}
+{{- $_ := tuple "identity" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" | set .Values.conf.gnocchi.keystone_authtoken "auth_url" -}}
+{{- end -}}
+
+{{- if empty .Values.conf.gnocchi.keystone_authtoken.memcached_servers -}}
+{{- $_ := tuple "oslo_cache" "internal" "memcache" . | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" | set .Values.conf.gnocchi.keystone_authtoken "memcached_servers" -}}
+{{- end -}}
+{{- if empty .Values.conf.gnocchi.keystone_authtoken.memcache_secret_key -}}
+{{- $_ := set .Values.conf.gnocchi.keystone_authtoken "memcache_secret_key" ( default ( randAlphaNum 64 ) .Values.endpoints.oslo_cache.auth.memcache_secret_key ) -}}
+{{- end -}}
+
+{{- if empty .Values.conf.gnocchi.keystone_authtoken.region_name -}}
+{{- $_ := set .Values.conf.gnocchi.keystone_authtoken "region_name" .Values.endpoints.identity.auth.gnocchi.region_name -}}
+{{- end -}}
+{{- if empty .Values.conf.gnocchi.keystone_authtoken.project_name -}}
+{{- $_ := set .Values.conf.gnocchi.keystone_authtoken "project_name" .Values.endpoints.identity.auth.gnocchi.project_name -}}
+{{- end -}}
+{{- if empty .Values.conf.gnocchi.keystone_authtoken.project_domain_name -}}
+{{- $_ := set .Values.conf.gnocchi.keystone_authtoken "project_domain_name" .Values.endpoints.identity.auth.gnocchi.project_domain_name -}}
+{{- end -}}
+{{- if empty .Values.conf.gnocchi.keystone_authtoken.user_domain_name -}}
+{{- $_ := set .Values.conf.gnocchi.keystone_authtoken "user_domain_name" .Values.endpoints.identity.auth.gnocchi.user_domain_name -}}
+{{- end -}}
+{{- if empty .Values.conf.gnocchi.keystone_authtoken.username -}}
+{{- $_ := set .Values.conf.gnocchi.keystone_authtoken "username" .Values.endpoints.identity.auth.gnocchi.username -}}
+{{- end -}}
+{{- if empty .Values.conf.gnocchi.keystone_authtoken.password -}}
+{{- $_ := set .Values.conf.gnocchi.keystone_authtoken "password" .Values.endpoints.identity.auth.gnocchi.password -}}
+{{- end -}}
+
+{{- if empty .Values.conf.gnocchi.DEFAULT.coordination_url -}}
+{{- $endpointUrl := tuple "oslo_cache" "internal" "memcache" . | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" }}
+{{- $driver := .Values.endpoints.oslo_cache.hosts.default -}}
+{{- $_ := printf "%s://%s" $driver $endpointUrl | set .Values.conf.gnocchi.DEFAULT "coordination_url" -}}
+{{- end -}}
+
+{{- if empty .Values.conf.gnocchi.database.connection -}}
+{{- $_ := tuple "oslo_db" "internal" "gnocchi" "mysql" . | include "helm-toolkit.endpoints.authenticated_endpoint_uri_lookup" | set .Values.conf.gnocchi.database "connection" -}}
+{{- end -}}
+
+{{- if empty .Values.conf.gnocchi.indexer.url -}}
+{{ if eq .Values.conf.gnocchi.indexer.driver "postgresql" }}
+{{- $_ := tuple "oslo_db_postgresql" "internal" "gnocchi" "postgresql" . | include "helm-toolkit.endpoints.authenticated_endpoint_uri_lookup" | set .Values.conf.gnocchi.indexer "url" -}}
+{{ else }}
+{{- $_ := tuple "oslo_db" "internal" "gnocchi" "mysql" . | include "helm-toolkit.endpoints.authenticated_endpoint_uri_lookup" | set .Values.conf.gnocchi.indexer "url" -}}
+{{ end }}
+{{- end -}}
+
+{{- if empty .Values.conf.gnocchi.statsd.resource_id -}}
+{{- $_ := uuidv4 | set .Values.conf.gnocchi.statsd "resource_id" -}}
+{{- end -}}
+
+{{- if empty .Values.conf.gnocchi.statsd.user_id -}}
+{{- $_ := uuidv4 | set .Values.conf.gnocchi.statsd "user_id" -}}
+{{- end -}}
+
+{{- if empty .Values.conf.gnocchi.statsd.project_id -}}
+{{- $_ := uuidv4 | set .Values.conf.gnocchi.statsd "project_id" -}}
+{{- end -}}
+
+{{- if empty .Values.conf.gnocchi.api.port -}}
+{{- $_ := tuple "metric" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | set .Values.conf.gnocchi.api "port" -}}
+{{- end -}}
+
+{{- if empty .Values.conf.gnocchi.statsd.port -}}
+{{- $_ := tuple "metric_statsd" "internal" "statsd" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | set .Values.conf.gnocchi.statsd "port" -}}
+{{- end -}}
+
+{{- $envAll := . }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: gnocchi-etc
+type: Opaque
+data:
+  gnocchi.conf: {{ include "helm-toolkit.utils.to_oslo_conf" .Values.conf.gnocchi | b64enc }}
+  api-paste.ini: {{ include "helm-toolkit.utils.to_ini" .Values.conf.paste | b64enc }}
+  policy.json: {{ toJson .Values.conf.policy | b64enc }}
+{{- include "helm-toolkit.snippets.values_template_renderer" (dict "envAll" $envAll "template" .Values.conf.apache "key" "wsgi-gnocchi.conf" "format" "Secret" ) | indent 2 }}
+{{- end }}

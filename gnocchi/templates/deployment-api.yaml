@@ -1,0 +1,150 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.deployment_api }}
+{{- $envAll := . }}
+
+{{- $mounts_gnocchi_api := .Values.pod.mounts.gnocchi_api.gnocchi_api }}
+{{- $mounts_gnocchi_api_init := .Values.pod.mounts.gnocchi_api.init_container }}
+
+{{- $serviceAccountName := "gnocchi-api" }}
+{{ tuple $envAll "api" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gnocchi-api
+  labels:
+{{ tuple $envAll "gnocchi" "api" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  replicas: {{ .Values.pod.replicas.api }}
+  selector:
+    matchLabels:
+{{ tuple $envAll "gnocchi" "api" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
+{{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_deployment" | indent 2 }}
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "gnocchi" "api" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+{{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
+        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
+    spec:
+      serviceAccountName: {{ $serviceAccountName }}
+      affinity:
+{{ tuple $envAll "gnocchi" "api" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
+      nodeSelector:
+        {{ .Values.labels.api.node_selector_key }}: {{ .Values.labels.api.node_selector_value }}
+{{ if $envAll.Values.pod.tolerations.gnocchi.enabled }}
+{{ tuple $envAll "gnocchi" | include "helm-toolkit.snippets.kubernetes_tolerations" | indent 6 }}
+{{ end }}
+      terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.api.timeout | default "30" }}
+      initContainers:
+{{ tuple $envAll "api" $mounts_gnocchi_api_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+        - name: ceph-keyring-placement
+{{ tuple $envAll "gnocchi_api" | include "helm-toolkit.snippets.image" | indent 10 }}
+          command:
+            - /tmp/ceph-keyring.sh
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: etcceph
+              mountPath: /etc/ceph
+            - name: gnocchi-bin
+              mountPath: /tmp/ceph-keyring.sh
+              subPath: ceph-keyring.sh
+              readOnly: true
+            - name: ceph-keyring
+              mountPath: /tmp/client-keyring
+              subPath: key
+              readOnly: true
+      containers:
+        - name: gnocchi-api
+{{ tuple $envAll "gnocchi_api" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.api | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          command:
+            - /tmp/gnocchi-api.sh
+            - start
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /tmp/gnocchi-api.sh
+                  - stop
+          ports:
+            - name: gn-api
+              containerPort: {{ tuple "metric" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+          readinessProbe:
+            tcpSocket:
+              port: {{ tuple "metric" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: pod-etc-gnocchi
+              mountPath: /etc/gnocchi
+            - name: gnocchi-etc
+              mountPath: /etc/gnocchi/gnocchi.conf
+              subPath: gnocchi.conf
+              readOnly: true
+            - name: gnocchi-etc
+              mountPath: /etc/gnocchi/api-paste.ini
+              subPath: api-paste.ini
+              readOnly: true
+            - name: gnocchi-etc
+              mountPath: /etc/gnocchi/policy.json
+              subPath: policy.json
+              readOnly: true
+            - name: gnocchi-etc
+              mountPath: /etc/apache2/conf-enabled/wsgi-gnocchi.conf
+              subPath: wsgi-gnocchi.conf
+              readOnly: true
+            - name: etcceph
+              mountPath: /etc/ceph
+            - name: ceph-etc
+              mountPath: /etc/ceph/ceph.conf
+              subPath: ceph.conf
+              readOnly: true
+            - name: ceph-keyring
+              mountPath: /tmp/client-keyring
+              subPath: key
+              readOnly: true
+            - name: gnocchi-bin
+              mountPath: /tmp/gnocchi-api.sh
+              subPath: gnocchi-api.sh
+              readOnly: true
+{{ if $mounts_gnocchi_api.volumeMounts }}{{ toYaml $mounts_gnocchi_api.volumeMounts | indent 12 }}{{ end }}
+      volumes:
+        - name: pod-tmp
+          emptyDir: {}
+        - name: pod-etc-gnocchi
+          emptyDir: {}
+        - name: gnocchi-etc
+          secret:
+            secretName: gnocchi-etc
+            defaultMode: 0444
+        - name: gnocchi-bin
+          configMap:
+            name: gnocchi-bin
+            defaultMode: 0555
+        - name: etcceph
+          emptyDir: {}
+        - name: ceph-etc
+          configMap:
+            name: {{ .Values.ceph_client.configmap }}
+        - name: ceph-keyring
+          secret:
+            secretName: {{ .Values.secrets.rbd | quote }}
+{{ if $mounts_gnocchi_api.volumes }}{{ toYaml $mounts_gnocchi_api.volumes | indent 8 }}{{ end }}
+{{- end }}
