@@ -14,6 +14,18 @@
 
 set -xe
 
+tee /tmp/nfs-ns.yaml << EOF
+apiVersion: v1
+kind: Namespace
+metadata:
+  labels:
+    kubernetes.io/metadata.name: nfs
+    name: nfs
+  name: nfs
+EOF
+
+kubectl create -f /tmp/nfs-ns.yaml
+
 #NOTE: Deploy command
 : ${OSH_INFRA_PATH:="../openstack-helm-infra"}
 helm upgrade --install nfs-provisioner ${OSH_INFRA_PATH}/nfs-provisioner \
