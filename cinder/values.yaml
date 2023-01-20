@@ -434,7 +434,19 @@ conf:
     composite:osapi_volume:
       use: call:cinder.api:root_app_factory
       /: apiversions
+      /v1: openstack_volume_api_v1
+      /v2: openstack_volume_api_v2
       /v3: openstack_volume_api_v3
+    composite:openstack_volume_api_v1:
+      use: call:cinder.api.middleware.auth:pipeline_factory
+      noauth: cors http_proxy_to_wsgi request_id faultwrap sizelimit osprofiler noauth apiv1
+      keystone: cors http_proxy_to_wsgi request_id faultwrap sizelimit osprofiler authtoken audit keystonecontext apiv1
+      keystone_nolimit: cors http_proxy_to_wsgi request_id faultwrap sizelimit osprofiler authtoken audit keystonecontext apiv1
+    composite:openstack_volume_api_v2:
+      use: call:cinder.api.middleware.auth:pipeline_factory
+      noauth: cors http_proxy_to_wsgi request_id faultwrap sizelimit osprofiler noauth apiv2
+      keystone: cors http_proxy_to_wsgi request_id faultwrap sizelimit osprofiler authtoken audit keystonecontext apiv2
+      keystone_nolimit: cors http_proxy_to_wsgi request_id faultwrap sizelimit osprofiler authtoken audit keystonecontext apiv2
     composite:openstack_volume_api_v3:
       use: call:cinder.api.middleware.auth:pipeline_factory
       noauth: cors http_proxy_to_wsgi request_id faultwrap sizelimit osprofiler noauth apiv3
@@ -455,6 +467,10 @@ conf:
       paste.filter_factory: cinder.api.middleware.auth:NoAuthMiddleware.factory
     filter:sizelimit:
       paste.filter_factory: oslo_middleware.sizelimit:RequestBodySizeLimiter.factory
+    app:apiv1:
+      paste.app_factory: cinder.api.v1.router:APIRouter.factory
+    app:apiv2:
+      paste.app_factory: cinder.api.v2.router:APIRouter.factory
     app:apiv3:
       paste.app_factory: cinder.api.v3.router:APIRouter.factory
     pipeline:apiversions:
@@ -487,6 +503,8 @@ conf:
       types: type
       volumes: volume
     service_endpoints:
+      volume: service/storage/block
+      volumev2: service/storage/block
       volumev3: service/storage/block
   cinder_sudoers: |
     # This sudoers file supports rootwrap for both Kolla and LOCI Images.
@@ -774,6 +792,7 @@ conf:
       use_syslog: false
       use_stderr: true
       enable_v1_api: false
+      enable_v2_api: false
       volume_name_template: "%s"
       osapi_volume_workers: 1
       glance_api_version: 2
@@ -911,7 +930,7 @@ conf:
       rados_connect_timeout: -1
       rbd_user: cinder
       rbd_secret_uuid: 457eb676-33da-42ec-9a8c-9293d545c337
-      image_volume_cache_enabled: True
+      image_volume_cache_enabled: true
       image_volume_cache_max_size_gb: 200
       image_volume_cache_max_count: 50
   rally_tests:
@@ -1029,7 +1048,7 @@ dependencies:
         - endpoint: internal
           service: identity
         - endpoint: internal
-          service: volumev3
+          service: volume
     backup_storage_init:
       jobs: null
     bootstrap:
@@ -1037,7 +1056,7 @@ dependencies:
         - endpoint: internal
           service: identity
         - endpoint: internal
-          service: volumev3
+          service: volume
       pod:
         - requireSameNode: false
           labels:
@@ -1088,7 +1107,7 @@ dependencies:
         - endpoint: internal
           service: identity
         - endpoint: internal
-          service: volumev3
+          service: volume
     storage_init:
       jobs: null
     tests:
@@ -1096,7 +1115,7 @@ dependencies:
         - endpoint: internal
           service: identity
         - endpoint: internal
-          service: volumev3
+          service: volume
     volume:
       jobs:
         - cinder-db-sync
@@ -1108,7 +1127,7 @@ dependencies:
         - endpoint: internal
           service: identity
         - endpoint: internal
-          service: volumev3
+          service: volume
     volume_usage_audit:
       jobs:
         - cinder-db-sync
@@ -1120,7 +1139,7 @@ dependencies:
         - endpoint: internal
           service: identity
         - endpoint: internal
-          service: volumev3
+          service: volume
     image_repo_sync:
       services:
         - endpoint: internal
@@ -1147,7 +1166,7 @@ secrets:
     admin: cinder-rabbitmq-admin
     cinder: cinder-rabbitmq-user
   tls:
-    volumev3:
+    volume:
       api:
         public: cinder-tls-public
         internal: cinder-tls-api
@@ -1240,8 +1259,52 @@ endpoints:
       api:
         default: 9292
         public: 80
-  volumev3:
+  volume:
     name: cinder
+    hosts:
+      default: cinder-api
+      public: cinder
+    host_fqdn_override:
+      default: null
+      # NOTE(portdirect): this chart supports TLS for fqdn over-ridden public
+      # endpoints using the following format:
+      # public:
+      #   host: null
+      #   tls:
+      #     crt: null
+      #     key: null
+    path:
+      default: '/v1/%(tenant_id)s'
+    scheme:
+      default: 'http'
+    port:
+      api:
+        default: 8776
+        public: 80
+  volumev2:
+    name: cinderv2
+    hosts:
+      default: cinder-api
+      public: cinder
+    host_fqdn_override:
+      default: null
+      # NOTE(portdirect): this chart supports TLS for fqdn over-ridden public
+      # endpoints using the following format:
+      # public:
+      #   host: null
+      #   tls:
+      #     crt: null
+      #     key: null
+    path:
+      default: '/v2/%(tenant_id)s'
+    scheme:
+      default: 'http'
+    port:
+      api:
+        default: 8776
+        public: 80
+  volumev3:
+    name: cinderv3
     hosts:
       default: cinder-api
       public: cinder

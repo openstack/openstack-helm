@@ -24,9 +24,16 @@ helm.sh/hook-weight: "-3"
 {{- $serviceTypes = append $serviceTypes $v }}
 {{- end }}
 {{- end }}
-{{- $ksServiceJob := dict "envAll" . "serviceName" "cinder" "serviceTypes" $serviceTypes -}}
+{{- $volTypes := list "volumev3" -}}
+{{- if .Values.conf.cinder.DEFAULT.enable_v1_api }}
+{{- $volTypes = append $volTypes "volume" }}
+{{- end }}
+{{- if .Values.conf.cinder.DEFAULT.enable_v2_api }}
+{{- $volTypes = append $volTypes "volumev2" }}
+{{- end }}
+{{- $ksServiceJob := dict "envAll" . "serviceName" "cinder" "serviceTypes" ( $volTypes ) -}}
 {{- if or .Values.manifests.certificates .Values.tls.identity -}}
-{{- $_ := set $ksServiceJob "tlsSecret" .Values.secrets.tls.volumev3.api.internal -}}
+{{- $_ := set $ksServiceJob "tlsSecret" .Values.secrets.tls.volume.api.internal -}}
 {{- end -}}
 {{- if .Values.helm3_hook }}
 {{- $_ := set $ksServiceJob "jobAnnotations" (include "metadata.annotations.job.ks_service" . | fromYaml) }}
