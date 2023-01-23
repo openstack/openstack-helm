@@ -213,6 +213,11 @@ send_to_remote_server() {
     fi
   fi
 
+  # load balance delay
+  DELAY=$((1 + ${RANDOM} % 300))
+  echo "Sleeping for ${DELAY} seconds to spread the load in time..."
+  sleep ${DELAY}
+
   # Create an object to store the file
   openstack object create --name $FILE $CONTAINER_NAME $FILEPATH/$FILE
   if [[ $? -ne 0 ]]; then
@@ -225,6 +230,11 @@ send_to_remote_server() {
     log WARN "${DB_NAME}_backup" "Unable to retrieve container object $FILE after creation."
     return 2
   fi
+
+  # load balance delay
+  DELAY=$((1 + ${RANDOM} % 300))
+  echo "Sleeping for ${DELAY} seconds to spread the load in time..."
+  sleep ${DELAY}
 
   # Calculation remote file SHA256 hash
   REMOTE_FILE=$(mktemp -p /tmp)
