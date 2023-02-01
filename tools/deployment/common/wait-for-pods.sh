@@ -42,8 +42,13 @@ while true; do
             echo "Some pods are in pending state:"
             kubectl get pods --field-selector=status.phase=Pending -n $1 -o wide
         fi
+
         [ $READY == "False" ] && echo "Some pods are not ready"
         [ $JOBR == "False" ] && echo "Some jobs have not succeeded"
+        echo
+        echo "=== DEBUG ==="
+        echo
+        kubectl get pods -n $1 | tail -n +2 | awk '{print $1}' | while read pname; do kubectl describe po $pname -n $1; echo; done
         exit -1
     fi
 done
