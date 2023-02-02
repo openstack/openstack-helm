@@ -138,7 +138,7 @@ sudo -E apt-get update
 sudo -E apt-get install -y \
   docker-ce \
   docker-ce-cli \
-  containerd.io=1.5.11-1 \
+  containerd.io \
   socat \
   jq \
   util-linux \
