@@ -82,7 +82,7 @@ conf:
       crush_rule: same_host
     spec:
       # Health metrics pool
-      - name: device_health_metrics
+      - name: .mgr
         application: mgr_devicehealth
         replication: 1
         percent_total_data: 5
