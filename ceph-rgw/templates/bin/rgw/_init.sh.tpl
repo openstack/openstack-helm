@@ -54,7 +54,7 @@ cat >> ${CEPH_CONF} <<EOF
 {{- if .Values.manifests.certificates }}
 rgw_frontends = "beast ssl_port=${RGW_FRONTEND_PORT} ssl_certificate=/etc/tls/tls.crt ssl_private_key=/etc/tls/tls.key"
 {{- else }}
-rgw_frontends = "civetweb port=${RGW_FRONTEND_PORT}"
+rgw_frontends = "beast port=${RGW_FRONTEND_PORT}"
 {{- end }}
 rgw_keystone_url = "${KEYSTONE_URL}"
 rgw_keystone_admin_user = "${OS_USERNAME}"
