@@ -26,4 +26,5 @@ sudo apt-get install --no-install-recommends -y \
         bc \
         python3-dev \
         net-tools \
-        python3-pip
+        python3-pip \
+        lvm2
