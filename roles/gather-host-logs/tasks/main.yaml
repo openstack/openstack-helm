@@ -29,6 +29,13 @@
           brctl show > {{ logs_dir }}/system/brctl-show.txt
           ps aux --sort=-%mem > {{ logs_dir }}/system/ps.txt
           dpkg -l > {{ logs_dir }}/system/packages.txt
+          CONTAINERS=($(docker ps -a --format {% raw %}'{{ .Names }}'{% endraw %} --filter label=zuul))
+          if [ ! -z "$CONTAINERS" ]; then
+            mkdir -p "{{ logs_dir }}/system/containers"
+            for CONTAINER in ${CONTAINERS}; do
+              docker logs "${CONTAINER}" > "{{ logs_dir }}/system/containers/${CONTAINER}.txt"
+            done
+          fi
   args:
     executable: /bin/bash
   ignore_errors: True
