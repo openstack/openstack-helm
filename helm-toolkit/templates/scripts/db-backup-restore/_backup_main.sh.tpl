@@ -214,7 +214,7 @@ send_to_remote_server() {
   fi
 
   # load balance delay
-  DELAY=$((1 + ${RANDOM} % 300))
+  DELAY=$((1 + ${RANDOM} % 30))
   echo "Sleeping for ${DELAY} seconds to spread the load in time..."
   sleep ${DELAY}
 
@@ -231,31 +231,17 @@ send_to_remote_server() {
     return 2
   fi
 
-  # load balance delay
-  DELAY=$((1 + ${RANDOM} % 300))
-  echo "Sleeping for ${DELAY} seconds to spread the load in time..."
-  sleep ${DELAY}
-
-  # Calculation remote file SHA256 hash
-  REMOTE_FILE=$(mktemp -p /tmp)
-  openstack object save --file ${REMOTE_FILE} $CONTAINER_NAME $FILE
-  if [[ $? -ne 0 ]]; then
-    log WARN "${DB_NAME}_backup" "Unable to save container object $FILE for SHA256 hash verification."
-    rm -rf ${REMOTE_FILE}
-    return 1
-  fi
-
   # Remote backup verification
-  SHA256_REMOTE=$(cat ${REMOTE_FILE} | sha256sum | awk '{print $1}')
-  SHA256_LOCAL=$(cat ${FILEPATH}/${FILE} | sha256sum | awk '{print $1}')
-  log INFO "${DB_NAME}_backup" "Calculated SHA256 hashes for the file $FILE in container $CONTAINER_NAME."
-  log INFO "${DB_NAME}_backup" "Local SHA256 hash is ${SHA256_LOCAL}."
-  log INFO "${DB_NAME}_backup" "Remote SHA256 hash is ${SHA256_REMOTE}."
-  if [[ "${SHA256_LOCAL}" == "${SHA256_REMOTE}" ]]; then
-      log INFO "${DB_NAME}_backup" "The local backup & remote backup SHA256 hash values are matching for file $FILE in container $CONTAINER_NAME."
+  MD5_REMOTE=$(openstack object show $CONTAINER_NAME $FILE -f json | jq -r ".etag")
+  MD5_LOCAL=$(cat ${FILEPATH}/${FILE} | md5sum | awk '{print $1}')
+  log INFO "${DB_NAME}_backup" "Obtained MD5 hash for the file $FILE in container $CONTAINER_NAME."
+  log INFO "${DB_NAME}_backup" "Local MD5 hash is ${MD5_LOCAL}."
+  log INFO "${DB_NAME}_backup" "Remote MD5 hash is ${MD5_REMOTE}."
+  if [[ "${MD5_LOCAL}" == "${MD5_REMOTE}" ]]; then
+      log INFO "${DB_NAME}_backup" "The local backup & remote backup MD5 hash values are matching for file $FILE in container $CONTAINER_NAME."
   else
-      log ERROR "${DB_NAME}_backup" "Mismatch between the local backup & remote backup sha256 hash values"
-      return 1
+      log ERROR "${DB_NAME}_backup" "Mismatch between the local backup & remote backup MD5 hash values"
+      return 2
   fi
   rm -rf ${REMOTE_FILE}
 
