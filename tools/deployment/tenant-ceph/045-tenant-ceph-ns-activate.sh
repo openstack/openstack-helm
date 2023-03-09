@@ -34,9 +34,7 @@ network:
 deployment:
   storage_secrets: false
   ceph: false
-  rbd_provisioner: false
   csi_rbd_provisioner: false
-  cephfs_provisioner: false
   client_secrets: true
   rgw_keystone_user_and_endpoints: false
 bootstrap:
@@ -46,7 +44,7 @@ conf:
     enabled: true
 storageclass:
   rbd:
-    provision_storage_class: true
+    provision_storage_class: false
     metadata:
       name: tenant-rbd
     parameters:
@@ -63,7 +61,7 @@ storageclass:
       adminSecretNamespace: tenant-ceph
       userSecretName: pvc-tenant-ceph-client-key
   cephfs:
-    provision_storage_class: true
+    provision_storage_class: false
     metadata:
       name: cephfs
     parameters:

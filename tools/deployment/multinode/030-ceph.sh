@@ -55,9 +55,7 @@ network:
 deployment:
   storage_secrets: true
   ceph: true
-  rbd_provisioner: true
   csi_rbd_provisioner: true
-  cephfs_provisioner: false
   client_secrets: false
   rgw_keystone_user_and_endpoints: false
 bootstrap:
@@ -104,7 +102,6 @@ storageclass:
     provision_storage_class: false
 manifests:
   cronjob_defragosds: true
-  deployment_cephfs_provisioner: false
   job_cephfs_client_key: false
 EOF
 

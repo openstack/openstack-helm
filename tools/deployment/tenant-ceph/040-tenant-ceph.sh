@@ -64,9 +64,7 @@ network:
 deployment:
   storage_secrets: true
   ceph: true
-  rbd_provisioner: false
   csi_rbd_provisioner: false
-  cephfs_provisioner: false
   client_secrets: false
   rgw_keystone_user_and_endpoints: false
 labels:
@@ -116,7 +114,6 @@ jobs:
 manifests:
   deployment_mds: false
   cronjob_defragosds: true
-  deployment_cephfs_provisioner: false
   job_cephfs_client_key: false
 ceph_mgr_modules_config:
   prometheus:
