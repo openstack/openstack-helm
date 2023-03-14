@@ -22,6 +22,8 @@ function start () {
         --config-file /etc/neutron/neutron.conf \
 {{- if ( has "tungstenfabric" .Values.network.backend ) }}
         --config-file /etc/neutron/plugins/tungstenfabric/tf_plugin.ini
+{{- else if ( has "ovn" .Values.network.backend ) }}
+        --config-file /tmp/pod-shared/ml2_conf.ini
 {{- else }}
         --config-file /etc/neutron/plugins/ml2/ml2_conf.ini
 {{- end }}

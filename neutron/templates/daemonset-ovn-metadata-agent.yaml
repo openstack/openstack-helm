@@ -1,0 +1,243 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- define "ovnMetadataAgentReadinessProbeTemplate" }}
+exec:
+  command:
+    - python
+    - /tmp/health-probe.py
+    - --config-file
+    - /etc/neutron/neutron.conf
+    - --config-file
+    - /etc/neutron/ovn_metadata_agent.ini
+{{- if .Values.pod.use_fqdn.neutron_agent }}
+    - --use-fqdn
+{{- end }}
+{{- end }}
+{{- define "ovnMetadataAgentLivenessProbeTemplate" }}
+exec:
+  command:
+    - python
+    - /tmp/health-probe.py
+    - --config-file
+    - /etc/neutron/neutron.conf
+    - --config-file
+    - /etc/neutron/ovn_metadata_agent.ini
+    - --liveness-probe
+{{- if .Values.pod.use_fqdn.neutron_agent }}
+    - --use-fqdn
+{{- end }}
+{{- end }}
+
+{{- define "neutron.ovn_metadata_agent.daemonset" }}
+{{- $daemonset := index . 0 }}
+{{- $configMapName := index . 1 }}
+{{- $serviceAccountName := index . 2 }}
+{{- $envAll := index . 3 }}
+{{- with $envAll }}
+
+{{- $mounts_neutron_ovn_metadata_agent := .Values.pod.mounts.neutron_ovn_metadata_agent.neutron_ovn_metadata_agent }}
+{{- $mounts_neutron_ovn_metadata_agent_init := .Values.pod.mounts.neutron_ovn_metadata_agent.init_container }}
+
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: neutron-ovn-metadata-agent
+  annotations:
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+  labels:
+{{ tuple $envAll "neutron" "ovn-metadata-agent" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  selector:
+    matchLabels:
+{{ tuple $envAll "neutron" "ovn-metadata-agent" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
+{{ tuple $envAll "ovn_metadata_agent" | include "helm-toolkit.snippets.kubernetes_upgrades_daemonset" | indent 2 }}
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "neutron" "ovn-metadata-agent" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+{{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
+        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
+{{ dict "envAll" $envAll "podName" "neutron-ovn-metadata-agent-default" "containerNames" (list "neutron-ovn-metadata-agent" "neutron-ovn-metadata-agent-init" "init") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
+    spec:
+{{ dict "envAll" $envAll "application" "neutron_ovn_metadata_agent" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
+      serviceAccountName: {{ $serviceAccountName }}
+{{ if $envAll.Values.pod.tolerations.neutron.enabled }}
+{{ tuple $envAll "neutron" | include "helm-toolkit.snippets.kubernetes_tolerations" | indent 6 }}
+{{ end }}
+      nodeSelector:
+        {{ .Values.labels.agent.ovn_metadata.node_selector_key }}: {{ .Values.labels.agent.ovn_metadata.node_selector_value }}
+      dnsPolicy: ClusterFirstWithHostNet
+      hostNetwork: true
+      {{- if or ( gt .Capabilities.KubeVersion.Major "1" ) ( ge .Capabilities.KubeVersion.Minor "10" ) }}
+      shareProcessNamespace: true
+      {{- else }}
+      hostPID: true
+      {{- end }}
+      initContainers:
+{{ tuple $envAll "pod_dependency" $mounts_neutron_ovn_metadata_agent_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+        - name: neutron-ovn-metadata-agent-init
+{{ tuple $envAll "neutron_ovn_metadata" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.agent.ovn_metadata | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "neutron_ovn_metadata_agent" "container" "neutron_ovn_metadata_agent_init" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          env:
+            - name: NEUTRON_USER_UID
+              value: "{{ .Values.pod.security_context.neutron_ovn_metadata_agent.pod.runAsUser }}"
+          command:
+            - /tmp/neutron-ovn-metadata-agent-init.sh
+          volumeMounts:
+            - name: run
+              mountPath: /run
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: neutron-bin
+              mountPath: /tmp/neutron-ovn-metadata-agent-init.sh
+              subPath: neutron-ovn-metadata-agent-init.sh
+              readOnly: true
+            - name: neutron-etc
+              mountPath: /etc/neutron/neutron.conf
+              subPath: neutron.conf
+              readOnly: true
+            - name: socket
+              mountPath: /var/lib/neutron/openstack-helm
+      containers:
+        - name: neutron-ovn-metadata-agent
+{{ tuple $envAll "neutron_metadata" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.agent.ovn_metadata | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          env:
+            - name: RPC_PROBE_TIMEOUT
+              value: "{{ .Values.pod.probes.rpc_timeout }}"
+            - name: RPC_PROBE_RETRIES
+              value: "{{ .Values.pod.probes.rpc_retries }}"
+{{ dict "envAll" $envAll "component" "ovn_metadata_agent" "container" "ovn_metadata_agent" "type" "readiness" "probeTemplate" (include "ovnMetadataAgentReadinessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+{{ dict "envAll" $envAll "component" "ovn_metadata_agent" "container" "ovn_metadata_agent" "type" "liveness" "probeTemplate" (include "ovnMetadataAgentLivenessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+          securityContext:
+            privileged: true
+          command:
+            - /tmp/neutron-ovn-metadata-agent.sh
+          volumeMounts:
+            - name: run
+              mountPath: /run
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: pod-var-neutron
+              mountPath: {{ .Values.conf.neutron.DEFAULT.state_path }}
+            - name: neutron-bin
+              mountPath: /tmp/neutron-ovn-metadata-agent.sh
+              subPath: neutron-ovn-metadata-agent.sh
+              readOnly: true
+            - name: neutron-bin
+              mountPath: /tmp/health-probe.py
+              subPath: health-probe.py
+              readOnly: true
+            - name: neutron-etc
+              mountPath: /etc/neutron/neutron.conf
+              subPath: neutron.conf
+              readOnly: true
+            {{- if .Values.conf.neutron.DEFAULT.log_config_append }}
+            - name: neutron-etc
+              mountPath: {{ .Values.conf.neutron.DEFAULT.log_config_append }}
+              subPath: {{ base .Values.conf.neutron.DEFAULT.log_config_append }}
+              readOnly: true
+            {{- end }}
+            - name: neutron-etc
+              mountPath: /etc/neutron/plugins/ml2/ml2_conf.ini
+              subPath: ml2_conf.ini
+              readOnly: true
+            {{- if ( has "openvswitch" .Values.network.backend ) }}
+            - name: neutron-etc
+              mountPath: /etc/neutron/plugins/ml2/openvswitch_agent.ini
+              subPath: openvswitch_agent.ini
+              readOnly: true
+            {{- end }}
+            - name: neutron-etc
+              mountPath: /etc/neutron/ovn_metadata_agent.ini
+              subPath: ovn_metadata_agent.ini
+              readOnly: true
+            - name: neutron-etc
+              # NOTE (Portdirect): We mount here to override Kollas
+              # custom sudoers file when using Kolla images, this
+              # location will also work fine for other images.
+              mountPath: /etc/sudoers.d/kolla_neutron_sudoers
+              subPath: neutron_sudoers
+              readOnly: true
+            - name: neutron-etc
+              mountPath: /etc/neutron/rootwrap.conf
+              subPath: rootwrap.conf
+              readOnly: true
+            {{- range $key, $value := $envAll.Values.conf.rootwrap_filters }}
+            {{- if ( has "ovn_metadata_agent" $value.pods ) }}
+            {{- $filePrefix := replace "_" "-"  $key }}
+            {{- $rootwrapFile := printf "/etc/neutron/rootwrap.d/%s.filters" $filePrefix }}
+            - name: neutron-etc
+              mountPath: {{ $rootwrapFile }}
+              subPath: {{ base $rootwrapFile }}
+              readOnly: true
+            {{- end }}
+            {{- end }}
+            - name: socket
+              mountPath: /var/lib/neutron/openstack-helm
+            {{- if .Values.network.share_namespaces }}
+            - name: host-run-netns
+              mountPath: /run/netns
+              mountPropagation: Bidirectional
+            {{- end }}
+{{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.compute_metadata.metadata.internal | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
+{{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.oslo_messaging.auth.admin.secret.tls.internal "path" "/etc/rabbitmq/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
+{{ if $mounts_neutron_ovn_metadata_agent.volumeMounts }}{{ toYaml $mounts_neutron_ovn_metadata_agent.volumeMounts | indent 12 }}{{ end }}
+      volumes:
+        - name: pod-tmp
+          emptyDir: {}
+        - name: pod-var-neutron
+          emptyDir: {}
+        - name: run
+          hostPath:
+            path: /run
+        - name: neutron-bin
+          configMap:
+            name: neutron-bin
+            defaultMode: 0555
+        - name: neutron-etc
+          secret:
+            secretName: {{ $configMapName }}
+            defaultMode: 0444
+        - name: socket
+          hostPath:
+            path: /var/lib/neutron/openstack-helm
+        {{- if .Values.network.share_namespaces }}
+        - name: host-run-netns
+          hostPath:
+            path: /run/netns
+        {{- end }}
+{{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.compute_metadata.metadata.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
+{{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.oslo_messaging.auth.admin.secret.tls.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
+{{ if $mounts_neutron_ovn_metadata_agent.volumes }}{{ toYaml $mounts_neutron_ovn_metadata_agent.volumes | indent 8 }}{{ end }}
+{{- end }}
+{{- end }}
+
+{{- if .Values.manifests.daemonset_ovn_metadata_agent }}
+{{- $envAll := . }}
+{{- $daemonset := "ovn-metadata-agent" }}
+{{- $configMapName := "neutron-etc" }}
+{{- $serviceAccountName := "neutron-ovn-metadata-agent" }}
+{{- $dependencyOpts := dict "envAll" $envAll "dependencyMixinParam" $envAll.Values.network.backend "dependencyKey" "ovn-metadata" -}}
+{{- $_ := include "helm-toolkit.utils.dependency_resolver" $dependencyOpts | toString | fromYaml }}
+{{ tuple $envAll "pod_dependency" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{- $daemonset_yaml := list $daemonset $configMapName $serviceAccountName . | include "neutron.ovn_metadata_agent.daemonset" | toString | fromYaml }}
+{{- $configmap_yaml := "neutron.configmap.etc" }}
+{{- list $daemonset $daemonset_yaml $configmap_yaml $configMapName . | include "helm-toolkit.utils.daemonset_overrides" }}
+{{- end }}
