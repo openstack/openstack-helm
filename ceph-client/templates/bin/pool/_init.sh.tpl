@@ -218,9 +218,14 @@ function set_pool_property() {
   PROPERTY_NAME=$2
   CURRENT_PROPERTY_VALUE=$3
   TARGET_PROPERTY_VALUE=$4
+  REALLY_MEAN_IT=""
+
+  if [[ "${PROPERTY_NAME}" == "size" ]]; then
+    REALLY_MEAN_IT="--yes-i-really-mean-it"
+  fi
 
   if [[ "${CURRENT_PROPERTY_VALUE}" != "${TARGET_PROPERTY_VALUE}" ]]; then
-    ceph --cluster "${CLUSTER}" osd pool set "${POOL_NAME}" "${PROPERTY_NAME}" "${TARGET_PROPERTY_VALUE}"
+    ceph --cluster "${CLUSTER}" osd pool set "${POOL_NAME}" "${PROPERTY_NAME}" "${TARGET_PROPERTY_VALUE}" ${REALLY_MEAN_IT}
   fi
 
   echo "${TARGET_PROPERTY_VALUE}"

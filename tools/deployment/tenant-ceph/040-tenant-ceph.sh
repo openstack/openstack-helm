@@ -127,6 +127,7 @@ conf:
   ceph:
     global:
       fsid: ${TENANT_CEPH_FS_ID}
+      mon_allow_pool_size_one: true
   rgw_ks:
     enabled: true
   pool:

@@ -82,6 +82,7 @@ conf:
   ceph:
     global:
       fsid: ${CEPH_FS_ID}
+      mon_allow_pool_size_one: true
     mon:
       mon_clock_drift_allowed: 2.0
   rgw_ks:
