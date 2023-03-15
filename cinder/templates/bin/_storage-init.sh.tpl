@@ -34,7 +34,7 @@ if [ "x$STORAGE_BACKEND" == "xcinder.volume.drivers.rbd.RBDDriver" ]; then
     fi
     size_protection=$(ceph osd pool get $1 nosizechange | cut -f2 -d: | tr -d '[:space:]')
     ceph osd pool set $1 nosizechange 0
-    ceph osd pool set $1 size ${RBD_POOL_REPLICATION}
+    ceph osd pool set $1 size ${RBD_POOL_REPLICATION} --yes-i-really-mean-it
     ceph osd pool set $1 nosizechange ${size_protection}
     ceph osd pool set $1 crush_rule "${RBD_POOL_CRUSH_RULE}"
   }

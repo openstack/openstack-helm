@@ -41,6 +41,7 @@ conf:
   ceph:
     global:
       mon_host: ceph-mon-discovery.ceph.svc.cluster.local:6789
+      mon_allow_pool_size_one: true
 EOF
 helm upgrade --install ceph-openstack-config ${HELM_CHART_ROOT_PATH}/ceph-provisioners \
   --namespace=openstack \

@@ -67,6 +67,7 @@ conf:
     global:
       fsid: ${CEPH_FS_ID}
       mon_addr: :6789
+      mon_allow_pool_size_one: true
       osd_pool_default_size: 1
     osd:
       osd_crush_chooseleaf_type: 0

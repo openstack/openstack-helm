@@ -49,7 +49,7 @@ elif [ "x$STORAGE_BACKEND" == "xrbd" ]; then
     if [[ $(ceph mgr versions | awk '/version/{print $3}' | cut -d. -f1) -ge 12 ]]; then
         ceph osd pool application enable $1 $3
     fi
-    ceph osd pool set "$1" size "${RBD_POOL_REPLICATION}"
+    ceph osd pool set "$1" size "${RBD_POOL_REPLICATION}" --yes-i-really-mean-it
     ceph osd pool set "$1" crush_rule "${RBD_POOL_CRUSH_RULE}"
   }
   ensure_pool "${RBD_POOL_NAME}" "${RBD_POOL_CHUNK_SIZE}" "${RBD_POOL_APP_NAME}"

@@ -48,6 +48,7 @@ conf:
   ceph:
     global:
       fsid: ${CEPH_FS_ID}
+      mon_allow_pool_size_one: true
   pool:
     crush:
       tunables: ${CRUSH_TUNABLES}
