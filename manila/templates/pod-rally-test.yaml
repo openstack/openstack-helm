@@ -1,0 +1,129 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if (.Values.global).subchart_release_name }}
+{{- $_ := set . "deployment_name" .Chart.Name }}
+{{- else }}
+{{- $_ := set . "deployment_name" .Release.Name }}
+{{- end }}
+
+{{- if .Values.manifests.pod_rally_test }}
+{{- $envAll := . }}
+
+{{- $mounts_tests := .Values.pod.mounts.manila_tests.manila_tests }}
+{{- $mounts_tests_init := .Values.pod.mounts.manila_tests.init_container }}
+
+{{- $serviceAccountName := print $envAll.deployment_name "-test" }}
+{{ tuple $envAll "tests" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{ print $envAll.deployment_name "-test" }}
+  labels:
+{{ tuple $envAll "manila" "test" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+  annotations:
+    "helm.sh/hook": test-success
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+{{ dict "envAll" $envAll "podName" "manila-test" "containerNames" (list "init" "manila-test" "manila-test-ks-user") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 4 }}
+spec:
+  restartPolicy: Never
+{{ dict "envAll" $envAll "application" "test" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 2 }}
+  nodeSelector:
+    {{ .Values.labels.test.node_selector_key }}: {{ .Values.labels.test.node_selector_value }}
+  serviceAccountName: {{ $serviceAccountName }}
+  initContainers:
+{{ tuple $envAll "tests" $mounts_tests_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 4 }}
+    - name: manila-test-ks-user
+{{ tuple $envAll "ks_user" | include "helm-toolkit.snippets.image" | indent 6 }}
+{{ tuple $envAll $envAll.Values.pod.resources.jobs.ks_user | include "helm-toolkit.snippets.kubernetes_resources" | indent 6 }}
+{{ dict "envAll" $envAll "application" "test" "container" "manila_test_ks_user" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 6 }}
+      command:
+        - /tmp/ks-user.sh
+      volumeMounts:
+        - name: pod-tmp
+          mountPath: /tmp
+        - name: manila-bin
+          mountPath: /tmp/ks-user.sh
+          subPath: ks-user.sh
+          readOnly: true
+{{- if and .Values.manifests.certificates .Values.secrets.tls.share.api.internal }}
+{{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.share.api.internal | include "helm-toolkit.snippets.tls_volume_mount"  | indent 8 }}
+{{- end }}
+      env:
+{{- with $env := dict "ksUserSecret" .Values.secrets.share.admin "useCA" (and .Values.manifests.certificates .Values.secrets.tls.share.api.internal) }}
+{{- include "helm-toolkit.snippets.manila_openrc_env_vars" $env | indent 8 }}
+{{- end }}
+        - name: SERVICE_OS_SERVICE_NAME
+          value: "test"
+{{- with $env := dict "ksUserSecret" .Values.secrets.share.test }}
+{{- include "helm-toolkit.snippets.manila_user_create_env_vars" $env | indent 8 }}
+{{- end }}
+        - name: SERVICE_OS_ROLE
+          value: {{ .Values.endpoints.share.auth.test.role | quote }}
+  containers:
+    - name: manila-test
+{{ tuple $envAll "test" | include "helm-toolkit.snippets.image" | indent 6 }}
+{{ tuple $envAll $envAll.Values.pod.resources.jobs.tests | include "helm-toolkit.snippets.kubernetes_resources" | indent 6 }}
+{{ dict "envAll" $envAll "application" "test" "container" "manila_test" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 6}}
+      env:
+{{- with $env := dict "ksUserSecret" .Values.secrets.share.admin "useCA" (and .Values.manifests.certificates .Values.secrets.tls.share.api.internal) }}
+{{- include "helm-toolkit.snippets.manila_openrc_env_vars" $env | indent 8 }}
+{{- end }}
+{{- with $env := dict "ksUserSecret" .Values.secrets.share.test }}
+{{- include "helm-toolkit.snippets.manila_user_create_env_vars" $env | indent 8 }}
+{{- end }}
+        - name: RALLY_ENV_NAME
+          value: {{.deployment_name}}
+      command:
+        - /tmp/rally-test.sh
+      volumeMounts:
+        - name: pod-tmp
+          mountPath: /tmp
+        - name: manila-etc
+          mountPath: /etc/rally/rally_tests.yaml
+          subPath: rally_tests.yaml
+          readOnly: true
+        - name: manila-bin
+          mountPath: /tmp/rally-test.sh
+          subPath: rally-test.sh
+          readOnly: true
+        - name: rally-db
+          mountPath: /var/lib/rally
+        - name: rally-work
+          mountPath: /home/rally/.rally
+{{- if and  .Values.manifests.certificates .Values.secrets.tls.share.api.internal }}
+{{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.share.api.internal | include "helm-toolkit.snippets.tls_volume_mount"  | indent 8 }}
+{{- end }}
+{{ if $mounts_tests.volumeMounts }}{{ toYaml $mounts_tests.volumeMounts | indent 8 }}{{ end }}
+  volumes:
+    - name: pod-tmp
+      emptyDir: {}
+    - name: manila-etc
+      secret:
+        secretName: manila-etc
+        defaultMode: 0444
+    - name: manila-bin
+      configMap:
+        name: manila-bin
+        defaultMode: 0555
+    - name: rally-db
+      emptyDir: {}
+    - name: rally-work
+      emptyDir: {}
+{{- if and .Values.manifests.certificates .Values.secrets.tls.share.api.internal }}
+{{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.share.api.internal | include "helm-toolkit.snippets.tls_volume" | indent 4 }}
+{{- end }}
+{{ if $mounts_tests.volumes }}{{ toYaml $mounts_tests.volumes | indent 4 }}{{ end }}
+{{- end }}

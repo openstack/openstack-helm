@@ -1,0 +1,31 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- define "metadata.annotations.job.bootstrap" }}
+{{- if .Values.helm3_hook }}
+helm.sh/hook: post-install,post-upgrade
+helm.sh/hook-weight: "5"
+{{- end }}
+{{- end }}
+
+{{- if and .Values.manifests.job_bootstrap .Values.bootstrap.enabled }}
+{{- $bootstrapJob := dict "envAll" . "serviceName" "manila" "keystoneUser" .Values.bootstrap.ks_user "logConfigFile" .Values.conf.manila.DEFAULT.log_config_append "jobAnnotations" (include "metadata.annotations.job.bootstrap" . | fromYaml) -}}
+{{- if .Values.pod.tolerations.manila.enabled -}}
+{{- $_ := set $bootstrapJob "tolerationsEnabled" true -}}
+{{- end -}}
+{{- if or .Values.manifests.certificates .Values.tls.identity -}}
+{{- $_ := set $bootstrapJob "tlsSecret" .Values.secrets.tls.share.api.internal -}}
+{{- end -}}
+{{ $bootstrapJob | include "helm-toolkit.manifests.job_bootstrap" }}
+{{- end }}
