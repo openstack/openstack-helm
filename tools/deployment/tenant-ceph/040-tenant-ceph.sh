@@ -14,11 +14,12 @@
 
 set -xe
 
-: "${CEPH_OSD_DATA_DEVICE:=/dev/loop2}"
-: "${CEPH_OSD_DB_WAL_DEVICE:=/dev/loop3}"
 # setup loopback devices for ceph
+free_loop_devices=( $(ls -1 /dev/loop[0-7] | while read loopdev; do losetup | grep -q $loopdev || echo $loopdev; done) )
 export CEPH_NAMESPACE="tenant-ceph"
-./tools/deployment/common/setup-ceph-loopback-device.sh --ceph-osd-data ${CEPH_OSD_DATA_DEVICE} --ceph-osd-dbwal ${CEPH_OSD_DB_WAL_DEVICE}
+./tools/deployment/common/setup-ceph-loopback-device.sh \
+    --ceph-osd-data ${CEPH_OSD_DATA_DEVICE:=${free_loop_devices[0]}} \
+    --ceph-osd-dbwal ${CEPH_OSD_DB_WAL_DEVICE:=${free_loop_devices[1]}}
 
 # setup loopback devices for ceph osds
 setup_loopback_devices $OSD_DATA_DEVICE $OSD_DB_WAL_DEVICE
