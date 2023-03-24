@@ -62,6 +62,14 @@ function start () {
     done
   fi
   unset PANEL_DIR
+  PANEL_DIR="${SITE_PACKAGES_ROOT}/{{ . }}/local/enabled"
+  if [ -d ${PANEL_DIR} ];then
+    for panel in `ls -1 ${PANEL_DIR}/_[1-9]*.py`
+    do
+      ln -s ${panel} ${SITE_PACKAGES_ROOT}/openstack_dashboard/local/enabled/$(basename ${panel})
+    done
+  fi
+  unset PANEL_DIR
   {{- end }}
 
   # If the image has support for it, compile the translations
