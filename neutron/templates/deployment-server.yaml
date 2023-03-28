@@ -91,29 +91,6 @@ spec:
       terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.server.timeout | default "30" }}
       initContainers:
 {{ tuple $envAll "pod_dependency" $mounts_neutron_server_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
-        {{- if ( has "ovn" .Values.network.backend ) }}
-        - name: ovn-neutron-init
-{{ tuple $envAll "neutron_server" | include "helm-toolkit.snippets.image" | indent 10 }}
-          command:
-            - /tmp/neutron-server-ovn-init.sh
-          volumeMounts:
-            - name: pod-tmp
-              mountPath: /tmp
-            - name: pod-shared
-              mountPath: /tmp/pod-shared
-            - name: neutron-bin
-              mountPath: /tmp/neutron-server-ovn-init.sh
-              subPath: neutron-server-ovn-init.sh
-              readOnly: true
-            - name: neutron-etc
-              mountPath: /etc/nginx/nginx.conf
-              subPath: nginx.conf
-              readOnly: true
-            - name: neutron-etc
-              mountPath: /etc/neutron/plugins/ml2/ml2_conf.ini
-              subPath: ml2_conf.ini
-              readOnly: true
-        {{- end }}
         {{- if ( has "tungstenfabric" .Values.network.backend ) }}
         - name: tungstenfabric-neutron-init
           image: {{ .Values.images.tags.tf_neutron_init }}
@@ -199,8 +176,6 @@ spec:
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
-            - name: pod-shared
-              mountPath: /tmp/pod-shared
             - name: pod-var-neutron
               mountPath: {{ .Values.conf.neutron.DEFAULT.state_path }}
             - name: neutron-bin
@@ -276,14 +251,24 @@ spec:
               mountPath: /etc/neutron/policy.yaml
               subPath: policy.yaml
               readOnly: true
+            {{- if .Values.conf.fwaas_driver }}
+            - name: neutron-etc
+              mountPath: /etc/neutron/fwaas_driver.ini
+              subPath: fwaas_driver.ini
+              readOnly: true
+            {{ end }}
+            {{- if .Values.conf.neutron_vpnaas }}
+            - name: neutron-etc
+              mountPath: /etc/neutron/neutron_vpnaas.conf
+              subPath: neutron_vpnaas.conf
+              readOnly: true
+            {{ end }}
 {{- dict "enabled" .Values.manifests.certificates "name" .Values.endpoints.oslo_db.auth.admin.secret.tls.internal "path" "/etc/mysql/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
 {{- dict "enabled" (or .Values.manifests.certificates .Values.tls.identity) "name" .Values.secrets.tls.network.server.internal "path" "/etc/neutron/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
 {{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.oslo_messaging.auth.admin.secret.tls.internal "path" "/etc/rabbitmq/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
 {{ if $mounts_neutron_server.volumeMounts }}{{ toYaml $mounts_neutron_server.volumeMounts | indent 12 }}{{ end }}
       volumes:
         - name: pod-tmp
-          emptyDir: {}
-        - name: pod-shared
           emptyDir: {}
         {{- if .Values.manifests.certificates }}
         - name: wsgi-neutron

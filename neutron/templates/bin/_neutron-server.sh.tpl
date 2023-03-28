@@ -22,8 +22,6 @@ function start () {
         --config-file /etc/neutron/neutron.conf \
 {{- if ( has "tungstenfabric" .Values.network.backend ) }}
         --config-file /etc/neutron/plugins/tungstenfabric/tf_plugin.ini
-{{- else if ( has "ovn" .Values.network.backend ) }}
-        --config-file /tmp/pod-shared/ml2_conf.ini
 {{- else }}
         --config-file /etc/neutron/plugins/ml2/ml2_conf.ini
 {{- end }}
@@ -35,6 +33,12 @@ function start () {
 {{- end }}
 {{- if .Values.conf.plugins.l2gateway }} \
         --config-file /etc/neutron/l2gw_plugin.ini
+{{- end }}
+{{- if .Values.conf.fwaas_driver }} \
+        --config-file /etc/neutron/fwaas_driver.ini
+{{- end }}
+{{- if .Values.conf.neutron_vpnaas }} \
+        --config-file /etc/neutron/neutron_vpnaas.conf
 {{- end }}
 }
 

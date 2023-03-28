@@ -32,3 +32,18 @@ neutron-db-manage \
   --subproject tap-as-a-service \
   upgrade head
 {{- end }}
+
+{{- if .Values.conf.fwaas_driver }}
+neutron-db-manage \
+  --config-file /etc/neutron/neutron.conf \
+  --config-file /etc/neutron/plugins/ml2/ml2_conf.ini \
+  --subproject neutron-fwaas \
+  upgrade head
+{{- end }}
+
+{{- if .Values.conf.neutron_vpnaas }}
+neutron-db-manage \
+  --config-file /etc/neutron/neutron.conf \
+  --subproject neutron-vpnaas \
+  upgrade head
+{{- end }}

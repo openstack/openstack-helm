@@ -33,7 +33,6 @@ images:
     neutron_server: docker.io/openstackhelm/neutron:stein-ubuntu_bionic
     neutron_dhcp: docker.io/openstackhelm/neutron:stein-ubuntu_bionic
     neutron_metadata: docker.io/openstackhelm/neutron:stein-ubuntu_bionic
-    neutron_ovn_metadata: docker.io/openstackhelm/neutron:stein-ubuntu_bionic
     neutron_l3: docker.io/openstackhelm/neutron:stein-ubuntu_bionic
     neutron_l2gw: docker.io/openstackhelm/neutron:stein-ubuntu_bionic
     neutron_openvswitch_agent: docker.io/openstackhelm/neutron:stein-ubuntu_bionic
@@ -61,9 +60,6 @@ labels:
       node_selector_key: openstack-control-plane
       node_selector_value: enabled
     metadata:
-      node_selector_key: openstack-control-plane
-      node_selector_value: enabled
-    ovn_metadata:
       node_selector_key: openstack-control-plane
       node_selector_value: enabled
     l2gw:
@@ -160,7 +156,6 @@ dependencies:
       sriov: {}
       l2gateway: {}
       bagpipe_bgp: {}
-      ovn: {}
       openvswitch:
         dhcp:
           pod:
@@ -284,19 +279,6 @@ dependencies:
           service: compute
         - endpoint: public
           service: compute_metadata
-    ovn_metadata:
-      pod: null
-      jobs:
-        - neutron-rabbit-init
-      services:
-        - endpoint: internal
-          service: oslo_messaging
-        - endpoint: internal
-          service: network
-        - endpoint: internal
-          service: compute
-        - endpoint: public
-          service: compute_metadata
     ovs_agent:
       jobs:
         - neutron-rabbit-init
@@ -304,7 +286,11 @@ dependencies:
         - requireSameNode: true
           labels:
             application: openvswitch
-            component: server
+            component: openvswitch-vswitchd
+        - requireSameNode: true
+          labels:
+            application: openvswitch
+            component: openvswitch-vswitchd-db
       services:
         - endpoint: internal
           service: oslo_messaging
@@ -391,20 +377,6 @@ pod:
           enabled: true
     metadata_agent:
       metadata_agent:
-        readiness:
-          enabled: true
-          params:
-            initialDelaySeconds: 30
-            periodSeconds: 190
-            timeoutSeconds: 185
-        liveness:
-          enabled: true
-          params:
-            initialDelaySeconds: 120
-            periodSeconds: 600
-            timeoutSeconds: 580
-    ovn_metadata_agent:
-      ovn_metadata_agent:
         readiness:
           enabled: true
           params:
@@ -522,13 +494,6 @@ pod:
         neutron_metadata_agent_init:
           runAsUser: 0
           readOnlyRootFilesystem: true
-    neutron_ovn_metadata_agent:
-      pod:
-        runAsUser: 42424
-      container:
-        neutron_ovn_metadata_agent_init:
-          runAsUser: 0
-          readOnlyRootFilesystem: true
     neutron_ovs_agent:
       pod:
         runAsUser: 42424
@@ -597,9 +562,6 @@ pod:
       - key: node-role.kubernetes.io/master
         operator: Exists
         effect: NoSchedule
-      - key: node-role.kubernetes.io/control-plane
-        operator: Exists
-        effect: NoSchedule
   mounts:
     neutron_server:
       init_container: null
@@ -624,11 +586,6 @@ pod:
     neutron_metadata_agent:
       init_container: null
       neutron_metadata_agent:
-        volumeMounts:
-        volumes:
-    neutron_ovn_metadata_agent:
-      init_container: null
-      neutron_ovn_metadata_agent:
         volumeMounts:
         volumes:
     neutron_ovs_agent:
@@ -708,10 +665,6 @@ pod:
           enabled: true
           min_ready_seconds: 0
           max_unavailable: 1
-        ovn_metadata_agent:
-          enabled: true
-          min_ready_seconds: 0
-          max_unavailable: 1
         ovs_agent:
           enabled: true
           min_ready_seconds: 0
@@ -757,13 +710,6 @@ pod:
           memory: "1024Mi"
           cpu: "2000m"
       metadata:
-        requests:
-          memory: "128Mi"
-          cpu: "100m"
-        limits:
-          memory: "1024Mi"
-          cpu: "2000m"
-      ovn_metadata:
         requests:
           memory: "128Mi"
           cpu: "100m"
@@ -1291,7 +1237,6 @@ conf:
         - l3_agent
         - lb_agent
         - metadata_agent
-        - ovn_metadata_agent
         - ovs_agent
         - sriov_agent
       content: |
@@ -1319,7 +1264,6 @@ conf:
         - l3_agent
         - lb_agent
         - metadata_agent
-        - ovn_metadata_agent
         - ovs_agent
         - sriov_agent
       content: |
@@ -1345,7 +1289,6 @@ conf:
         - l3_agent
         - lb_agent
         - metadata_agent
-        - ovn_metadata_agent
         - ovs_agent
         - sriov_agent
       content: |
@@ -1367,7 +1310,6 @@ conf:
         - l3_agent
         - lb_agent
         - metadata_agent
-        - ovn_metadata_agent
         - ovs_agent
         - sriov_agent
       content: |
@@ -1458,7 +1400,6 @@ conf:
         - l3_agent
         - lb_agent
         - metadata_agent
-        - ovn_metadata_agent
         - ovs_agent
         - sriov_agent
         - netns_cleanup_cron
@@ -1481,7 +1422,6 @@ conf:
         - l3_agent
         - lb_agent
         - metadata_agent
-        - ovn_metadata_agent
         - ovs_agent
         - sriov_agent
         - netns_cleanup_cron
@@ -1531,7 +1471,6 @@ conf:
         - l3_agent
         - lb_agent
         - metadata_agent
-        - ovn_metadata_agent
         - ovs_agent
         - sriov_agent
       content: |
@@ -1552,7 +1491,6 @@ conf:
         - l3_agent
         - lb_agent
         - metadata_agent
-        - ovn_metadata_agent
         - ovs_agent
         - sriov_agent
       content: |
@@ -1589,7 +1527,6 @@ conf:
         - l3_agent
         - lb_agent
         - metadata_agent
-        - ovn_metadata_agent
         - ovs_agent
         - sriov_agent
       content: |
@@ -1627,7 +1564,6 @@ conf:
         - l3_agent
         - lb_agent
         - metadata_agent
-        - ovn_metadata_agent
         - ovs_agent
         - sriov_agent
       content: |
@@ -1665,7 +1601,6 @@ conf:
         - l3_agent
         - lb_agent
         - metadata_agent
-        - ovn_metadata_agent
         - ovs_agent
         - sriov_agent
         - netns_cleanup_cron
@@ -1883,7 +1818,7 @@ conf:
         # (NOTE)portdirect: if unset this is populated dyanmicly from the value
         # in 'network.backend' to sane defaults.
         mechanism_drivers: null
-        type_drivers: flat,vlan,vxlan,local
+        type_drivers: flat,vlan,vxlan
         tenant_network_types: vxlan
       ml2_type_vxlan:
         vni_ranges: 1:1000
@@ -1972,7 +1907,6 @@ conf:
       enabled: true
       backend: dogpile.cache.memcached
   bagpipe_bgp: {}
-  ovn_metadata_agent: {}
 
   rabbitmq:
     # NOTE(rk760n): adding rmq policy to mirror messages from notification queues and set expiration time for the ones
