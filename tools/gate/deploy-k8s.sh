@@ -14,9 +14,13 @@
 set -ex
 
 : "${HELM_VERSION:="v3.6.3"}"
-: "${KUBE_VERSION:="v1.23.12"}"
-: "${MINIKUBE_VERSION:="v1.25.2"}"
-: "${CALICO_VERSION:="v3.20"}"
+: "${KUBE_VERSION:="v1.26.3"}"
+: "${CRICTL_VERSION:="v1.26.0"}"
+: "${CRI_DOCKERD_VERSION:="v0.3.1"}"
+: "${CRI_DOCKERD_PACKAGE_VERSION:="0.3.1.3-0.ubuntu-focal"}"
+: "${MINIKUBE_VERSION:="v1.29.0"}"
+: "${CALICO_VERSION:="v3.25"}"
+: "${CORE_DNS_VERSION:="v1.9.4"}"
 : "${YQ_VERSION:="v4.6.0"}"
 : "${KUBE_DNS_IP="10.96.0.10"}"
 
@@ -153,7 +157,8 @@ sudo -E apt-get install -y \
   notary \
   ceph-common \
   rbd-nbd \
-  nfs-common
+  nfs-common \
+  ethtool
 
 sudo -E tee /etc/modprobe.d/rbd.conf << EOF
 install rbd /bin/true
@@ -177,6 +182,25 @@ sudo -E curl -sSLo /usr/local/bin/minikube "${URL}"/minikube/releases/"${MINIKUB
 sudo -E curl -sSLo /usr/local/bin/kubectl "${URL}"/kubernetes-release/release/"${KUBE_VERSION}"/bin/linux/amd64/kubectl
 sudo -E chmod +x /usr/local/bin/minikube
 sudo -E chmod +x /usr/local/bin/kubectl
+
+
+# Install cri-dockerd
+# from https://github.com/Mirantis/cri-dockerd/releases
+CRI_TEMP_DIR=$(mktemp -d)
+pushd "${CRI_TEMP_DIR}"
+wget https://github.com/Mirantis/cri-dockerd/releases/download/${CRI_DOCKERD_VERSION}/cri-dockerd_${CRI_DOCKERD_PACKAGE_VERSION}_amd64.deb
+sudo dpkg -i "cri-dockerd_${CRI_DOCKERD_PACKAGE_VERSION}_amd64.deb"
+sudo dpkg --configure -a
+popd
+if [ -d "${CRI_TEMP_DIR}" ]; then
+  rm -rf mkdir "${CRI_TEMP_DIR}"
+fi
+
+# Install cri-tools
+wget https://github.com/kubernetes-sigs/cri-tools/releases/download/${CRICTL_VERSION}/crictl-${CRICTL_VERSION}-linux-amd64.tar.gz
+sudo tar zxvf "crictl-${CRICTL_VERSION}-linux-amd64.tar.g"z -C /usr/local/bin
+rm -f "crictl-${CRICTL_VERSION}-linux-amd64.tar.gz"
+
 
 # Install Helm
 TMP_DIR=$(mktemp -d)
@@ -213,9 +237,6 @@ if [[ "${api_server_status}" != "Running" ]]; then
     --extra-config=controller-manager.cluster-cidr=192.168.0.0/16 \
     --extra-config=kube-proxy.mode=ipvs \
     --extra-config=apiserver.service-node-port-range=1-65535 \
-    --extra-config=kubelet.cgroup-driver=systemd \
-    --extra-config=kubelet.resolv-conf=/run/systemd/resolve/resolv.conf \
-    --feature-gates=RemoveSelfLink=false \
     --embed-certs
 fi
 
@@ -305,5 +326,13 @@ EOF
 
 kubectl apply -f /tmp/${NAMESPACE}-ns.yaml
 done
+
+# Update CoreDNS and enable recursive queries
+PATCH=$(mktemp)
+kubectl get configmap coredns -n kube-system -o json | jq -r "{data: .data}"  | sed 's/ready\\n/header \{\\n        response set ra\\n    \}\\n    ready\\n/g' > "${PATCH}"
+kubectl patch configmap coredns -n kube-system --patch-file "${PATCH}"
+kubectl set image deployment coredns -n kube-system "coredns=registry.k8s.io/coredns/coredns:${CORE_DNS_VERSION}"
+rm -f "${PATCH}"
+kubectl rollout restart -n kube-system deployment/coredns
 
 make all
