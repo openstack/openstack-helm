@@ -238,7 +238,7 @@ function create_pool () {
   POOL_PLACEMENT_GROUPS=$4
   POOL_CRUSH_RULE=$5
   POOL_PROTECTION=$6
-  PG_NUM_MIN={{.Values.conf.pool.target.pg_num_min}}
+  PG_NUM_MIN=$7
   if ! ceph --cluster "${CLUSTER}" osd pool stats "${POOL_NAME}" > /dev/null 2>&1; then
     if [[ ${POOL_PLACEMENT_GROUPS} -gt 0 ]]; then
       ceph --cluster "${CLUSTER}" osd pool create "${POOL_NAME}" ${POOL_PLACEMENT_GROUPS}
@@ -327,6 +327,7 @@ function manage_pool () {
   POOL_QUOTA=$7
   POOL_PROTECTION=$8
   CLUSTER_CAPACITY=$9
+  POOL_PG_NUM_MIN=${10}
   TOTAL_OSDS={{.Values.conf.pool.target.osd}}
   POOL_PLACEMENT_GROUPS=0
   if [[ -n "${TOTAL_DATA_PERCENT}" ]]; then
@@ -334,7 +335,7 @@ function manage_pool () {
       POOL_PLACEMENT_GROUPS=$(python3 /tmp/pool-calc.py ${POOL_REPLICATION} ${TOTAL_OSDS} ${TOTAL_DATA_PERCENT} ${TARGET_PG_PER_OSD})
     fi
   fi
-  create_pool "${POOL_APPLICATION}" "${POOL_NAME}" "${POOL_REPLICATION}" "${POOL_PLACEMENT_GROUPS}" "${POOL_CRUSH_RULE}" "${POOL_PROTECTION}"
+  create_pool "${POOL_APPLICATION}" "${POOL_NAME}" "${POOL_REPLICATION}" "${POOL_PLACEMENT_GROUPS}" "${POOL_CRUSH_RULE}" "${POOL_PROTECTION}" "${POOL_PG_NUM_MIN}"
   ceph --cluster "${CLUSTER}" osd pool set-quota "${POOL_NAME}" max_bytes $POOL_QUOTA
 }
 
@@ -363,6 +364,7 @@ reweight_osds
 {{ $crushRuleDefault := .Values.conf.pool.default.crush_rule }}
 {{ $targetQuota := .Values.conf.pool.target.quota | default 100 }}
 {{ $targetProtection := .Values.conf.pool.target.protected | default "false" | quote | lower }}
+{{ $targetPGNumMin := .Values.conf.pool.target.pg_num_min }}
 cluster_capacity=$(ceph --cluster "${CLUSTER}" df -f json-pretty | grep '"total_bytes":' | head -n1 | awk '{print $2}' | tr -d ',')
 
 # Check to make sure pool quotas don't exceed the expected cluster capacity in its final state
@@ -402,11 +404,15 @@ fi
 # Read the pool quota from the pool spec (no quota if absent)
 # Set pool_quota to 0 if target_quota is 0
 [[ ${target_quota} -eq 0 ]] && pool_quota=0 || pool_quota="$(convert_to_bytes {{ .pool_quota | default 0 }})"
+pool_crush_rule="{{ $crushRuleDefault }}"
 {{- if .crush_rule }}
-manage_pool {{ .application }} ${pool_name} {{ .replication }} {{ .percent_total_data }} {{ $targetPGperOSD }} {{ .crush_rule }} $pool_quota {{ $targetProtection }} ${cluster_capacity} &
-{{ else }}
-manage_pool {{ .application }} ${pool_name} {{ .replication }} {{ .percent_total_data }} {{ $targetPGperOSD }} {{ $crushRuleDefault }} $pool_quota {{ $targetProtection }} ${cluster_capacity} &
+pool_crush_rule="{{ .crush_rule }}"
 {{- end }}
+pool_pg_num_min={{ $targetPGNumMin }}
+{{- if .pg_num_min }}
+pool_pg_num_min={{ .pg_num_min }}
+{{- end }}
+manage_pool {{ .application }} ${pool_name} {{ .replication }} {{ .percent_total_data }} {{ $targetPGperOSD }} $pool_crush_rule $pool_quota {{ $targetProtection }} ${cluster_capacity} ${pool_pg_num_min} &
 MANAGE_POOL_PID=$!
 MANAGE_POOL_PIDS+=( $MANAGE_POOL_PID )
 {{- if .rename }}
