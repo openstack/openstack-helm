@@ -21,7 +21,7 @@ console_kind="{{- .Values.console.console_kind -}}"
 if [ "${console_kind}" == "novnc" ] ; then
     client_address="{{- .Values.conf.nova.vnc.vncserver_proxyclient_address -}}"
     client_interface="{{- .Values.console.novnc.vncproxy.vncserver_proxyclient_interface -}}"
-    listen_ip="{{- .Values.conf.nova.vnc.vncserver_listen -}}"
+    listen_ip="{{- .Values.conf.nova.vnc.server_listen -}}"
 elif [ "${console_kind}" == "spice" ] ; then
     client_address="{{- .Values.conf.nova.spice.server_proxyclient_address -}}"
     client_interface="{{- .Values.console.spice.proxy.server_proxyclient_interface -}}"
@@ -50,7 +50,7 @@ if [ "${console_kind}" == "novnc" ] ; then
 cat <<EOF>/tmp/pod-shared/nova-vnc.ini
 [vnc]
 vncserver_proxyclient_address = $client_address
-vncserver_listen = $listen_ip
+server_listen = $listen_ip
 novncproxy_host = $listen_ip
 EOF
 elif [ "${console_kind}" == "spice" ] ; then
