@@ -212,8 +212,9 @@ def test_socket_liveness():
                                           required=False))
     cfg.CONF(sys.argv[1:])
 
-    agentq = "metadata_agent"
-    tcp_socket_state_check(agentq)
+    if "ovn_metadata_agent.ini" not in ','.join(sys.argv):
+        agentq = "metadata_agent"
+        tcp_socket_state_check(agentq)
 
     try:
         metadata_proxy_socket = cfg.CONF.metadata_proxy_socket
