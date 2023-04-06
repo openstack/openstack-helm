@@ -39,5 +39,11 @@ volumes:
 {{- if .Values.pod.tolerations.glance.enabled -}}
 {{- $_ := set $bootstrapJob "tolerationsEnabled" true -}}
 {{- end -}}
+# The configFile path shouble be /etc/glance/glance-api.conf
+# not default /etc/glance/glance.conf defined by helm-toolkit,
+# since secrets mounted in '/etc/glance' have glance-api.conf not glance.conf in it.
+# The wrong path '/etc/glance/glance.conf' would be dir in bootstarp container,
+# and lead to all config files in '/etc/glance' dir unreachable.
+{{- $_ := set $bootstrapJob "configFile" "/etc/glance/glance-api.conf" -}}
 {{ $bootstrapJob | include "helm-toolkit.manifests.job_bootstrap" }}
 {{- end }}
