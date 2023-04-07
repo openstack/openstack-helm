@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- define "probeTemplate" }}
+{{- define "readinessProbeTemplate" }}
 {{- $probePort := tuple "elasticsearch" "internal" "http" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
 {{- $probeUser := .Values.endpoints.elasticsearch.auth.admin.username }}
 {{- $probePass := .Values.endpoints.elasticsearch.auth.admin.password }}
@@ -24,6 +24,11 @@ httpGet:
   httpHeaders:
     - name: Authorization
       value: Basic {{ $authHeader }}
+{{- end }}
+{{- define "livenessProbeTemplate" }}
+{{- $probePort := tuple "elasticsearch" "internal" "discovery" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+tcpSocket:
+  port: {{ $probePort }}
 {{- end }}
 
 {{- if .Values.manifests.deployment_client }}
@@ -143,12 +148,8 @@ spec:
           ports:
             - name: transport
               containerPort: {{ tuple "elasticsearch" "internal" "discovery" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-          livenessProbe:
-            tcpSocket:
-              port: {{ tuple "elasticsearch" "internal" "discovery" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-            initialDelaySeconds: 20
-            periodSeconds: 10
-{{ dict "envAll" . "component" "elasticsearch" "container" "elasticsearch-client" "type" "readiness" "probeTemplate" (include "probeTemplate" . | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+{{ dict "envAll" . "component" "elasticsearch" "container" "elasticsearch-client" "type" "liveness" "probeTemplate" (include "livenessProbeTemplate" . | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+{{ dict "envAll" . "component" "elasticsearch" "container" "elasticsearch-client" "type" "readiness" "probeTemplate" (include "readinessProbeTemplate" . | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
           env:
             - name: NAMESPACE
               valueFrom:
