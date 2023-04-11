@@ -13,12 +13,12 @@
 # limitations under the License.
 
 KUBE_VERSION=$(yq -r '.version.kubernetes' ./tools/gate/playbooks/vars.yaml)
-KUBE_IMAGES="k8s.gcr.io/kube-apiserver-amd64:${KUBE_VERSION}
-k8s.gcr.io/kube-controller-manager-amd64:${KUBE_VERSION}
-k8s.gcr.io/kube-proxy-amd64:${KUBE_VERSION}
-k8s.gcr.io/kube-scheduler-amd64:${KUBE_VERSION}
-k8s.gcr.io/pause-amd64:3.0
-k8s.gcr.io/etcd-amd64:3.4.3"
+KUBE_IMAGES="registry.k8s.io/kube-apiserver-amd64:${KUBE_VERSION}
+registry.k8s.io/kube-controller-manager-amd64:${KUBE_VERSION}
+registry.k8s.io/kube-proxy-amd64:${KUBE_VERSION}
+registry.k8s.io/kube-scheduler-amd64:${KUBE_VERSION}
+registry.k8s.io/pause-amd64:3.0
+registry.k8s.io/etcd-amd64:3.4.3"
 
 CHART_IMAGES=""
 for CHART_DIR in ./*/ ; do
