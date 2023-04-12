@@ -18,8 +18,10 @@ set -xe
 : ${OSH_BR_EX_ADDR:="172.24.4.1/24"}
 sudo ip addr replace ${OSH_BR_EX_ADDR} dev br-ex
 sudo ip link set br-ex up
-
-: ${DNSMASQ_IMAGE:=docker.io/openstackhelm/neutron:xena-ubuntu_focal}
+: ${OPENSTACK_RELEASE:=xena}
+: ${CONTAINER_DISTRO_NAME:=ubuntu}
+: ${CONTAINER_DISTRO_VERSION:=focal}
+: ${DNSMASQ_IMAGE:=docker.io/openstackhelm/neutron:${OPENSTACK_RELEASE}-${CONTAINER_DISTRO_NAME}_${CONTAINER_DISTRO_VERSION}}
 
 # NOTE(portdirect): With Docker >= 1.13.1 the default FORWARD chain policy is
 # configured to DROP, for the l3 agent to function as expected and for
