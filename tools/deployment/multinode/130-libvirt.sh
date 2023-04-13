@@ -27,9 +27,20 @@ fi
 #NOTE: Lint and package chart
 make -C ${OSH_INFRA_PATH} libvirt
 
+#NOTE: Get resource_type of kubernetes cgroup
+KUBERNETES_CGROUP=$(sudo docker info | grep "Cgroup Driver"  | awk -F': ' '{print $2}' | grep -q systemd && echo kubepods.slice || echo kubepods)
+
+#NOTE: Deploy libvirt
+tee /tmp/libvirt.yaml << EOF
+conf:
+  kubernetes:
+    cgroup: ${KUBERNETES_CGROUP}
+EOF
+
 #NOTE: Deploy libvirt
 helm upgrade --install libvirt ${OSH_INFRA_PATH}/libvirt \
   --namespace=openstack \
+  --values=/tmp/libvirt.yaml \
   --set conf.ceph.enabled=${CEPH_ENABLED} \
   ${OSH_EXTRA_HELM_ARGS} \
   ${OSH_EXTRA_HELM_ARGS_LIBVIRT}
