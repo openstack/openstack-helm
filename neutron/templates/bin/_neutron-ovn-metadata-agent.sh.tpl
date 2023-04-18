@@ -23,6 +23,7 @@ sed -i -e "s|__OVN_NB_DB_SERVICE_HOST__|$OVN_NB_DB_SERVICE_HOST|g" /tmp/ovn_meta
 sed -i -e "s|__OVN_NB_DB_SERVICE_PORT__|$OVN_NB_DB_SERVICE_PORT|g" /tmp/ovn_metadata_agent.ini
 sed -i -e "s|__OVN_SB_DB_SERVICE_HOST__|$OVN_SB_DB_SERVICE_HOST|g" /tmp/ovn_metadata_agent.ini
 sed -i -e "s|__OVN_SB_DB_SERVICE_PORT__|$OVN_SB_DB_SERVICE_PORT|g" /tmp/ovn_metadata_agent.ini
+sed -i -e "s|__NOVA_METADATA_SERVICE_HOST__|$NOVA_METADATA_SERVICE_HOST|g" /tmp/ovn_metadata_agent.ini
 
 exec neutron-ovn-metadata-agent \
       --config-file /etc/neutron/neutron.conf \
