@@ -35,4 +35,6 @@ cat /tmp/sshd_config_extend >> /etc/ssh/sshd_config
 
 rm /tmp/sshd_config_extend
 
+mkdir -p /run/sshd
+
 exec /usr/sbin/sshd -D -e -o Port=$SSH_PORT
