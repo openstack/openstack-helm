@@ -20,18 +20,7 @@ exec:
 {{- define "ovsAgentLivenessProbeTemplate" }}
 exec:
   command:
-    - python
-    - /tmp/health-probe.py
-    - --config-file
-    - /etc/neutron/neutron.conf
-    - --config-file
-    - /etc/neutron/plugins/ml2/openvswitch_agent.ini
-    - --agent-queue-name
-    - q-agent-notifier-tunnel-update
-    - --liveness-probe
-{{- if .Values.pod.use_fqdn.neutron_agent }}
-    - --use-fqdn
-{{- end }}
+    - /tmp/neutron-openvswitch-agent-liveness.sh
 {{- end }}
 
 {{- define "neutron.ovs_agent.daemonset" }}
@@ -211,6 +200,10 @@ spec:
             - name: neutron-bin
               mountPath: /tmp/neutron-openvswitch-agent-readiness.sh
               subPath: neutron-openvswitch-agent-readiness.sh
+              readOnly: true
+            - name: neutron-bin
+              mountPath: /tmp/neutron-openvswitch-agent-liveness.sh
+              subPath: neutron-openvswitch-agent-liveness.sh
               readOnly: true
             - name: neutron-bin
               mountPath: /tmp/health-probe.py
