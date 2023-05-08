@@ -28,6 +28,7 @@ extensions = [
 openstackdocs_repo_name = 'openstack/openstack-helm'
 openstackdocs_auto_name = False
 openstackdocs_use_storyboard = True
+openstackdocs_pdf_link = True
 
 # autodoc generation is a bit aggressive and a nuisance when doing heavy
 # text edit cycles.
@@ -86,7 +87,7 @@ htmlhelp_basename = '%sdoc' % project
 # [howto/manual]).
 latex_documents = [
     ('index',
-     '%s.tex' % project,
+     'doc-%s.tex' % project,
      '%s Documentation' % project,
      'OpenStack Foundation', 'manual'),
 ]
