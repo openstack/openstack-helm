@@ -249,7 +249,9 @@ function create_pool () {
     ceph --cluster "${CLUSTER}" osd pool application enable "${POOL_NAME}" "${POOL_APPLICATION}"
   fi
 
-  pool_values=$(ceph --cluster "${CLUSTER}" osd pool get "${POOL_NAME}" all -f json)
+  # 'tr' and 'awk' are needed here to strip off text that is echoed before the JSON string.
+  # In some cases, errors/warnings are written to stdout and the JSON doesn't parse correctly.
+  pool_values=$(ceph --cluster "${CLUSTER}" osd pool get "${POOL_NAME}" all -f json | tr -d '\n' | awk -F{ '{print "{" $2}')
 
   if [[ $(ceph mgr versions | awk '/version/{print $3}' | cut -d. -f1) -ge 14 ]]; then
     if [[ "${ENABLE_AUTOSCALER}" == "true" ]]; then
