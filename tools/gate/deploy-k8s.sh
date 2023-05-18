@@ -14,11 +14,11 @@
 set -ex
 
 : "${HELM_VERSION:="v3.6.3"}"
-: "${KUBE_VERSION:="v1.26.3"}"
-: "${CRICTL_VERSION:="v1.26.0"}"
+: "${KUBE_VERSION:="v1.27.1"}"
+: "${CRICTL_VERSION:="v1.27.0"}"
 : "${CRI_DOCKERD_VERSION:="v0.3.1"}"
 : "${CRI_DOCKERD_PACKAGE_VERSION:="0.3.1.3-0.ubuntu-focal"}"
-: "${MINIKUBE_VERSION:="v1.29.0"}"
+: "${MINIKUBE_VERSION:="v1.30.1"}"
 : "${CALICO_VERSION:="v3.25"}"
 : "${CORE_DNS_VERSION:="v1.9.4"}"
 : "${YQ_VERSION:="v4.6.0"}"
