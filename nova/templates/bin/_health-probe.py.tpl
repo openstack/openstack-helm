@@ -65,9 +65,14 @@ def check_service_status(transport):
             server=_get_hostname(service_queue_name, use_fqdn),
             namespace='baseapi',
             version="1.1")
-        client = oslo_messaging.RPCClient(transport, target,
-                                          timeout=rpc_timeout,
-                                          retry=rpc_retries)
+        if hasattr(oslo_messaging, 'get_rpc_client'):
+            client = oslo_messaging.get_rpc_client(transport, target,
+                                                   timeout=rpc_timeout,
+                                                   retry=rpc_retries)
+        else:
+            client = oslo_messaging.RPCClient(transport, target,
+                                              timeout=rpc_timeout,
+                                              retry=rpc_retries)
         client.call(context.RequestContext(),
                     'ping',
                     arg=None)
