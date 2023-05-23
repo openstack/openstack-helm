@@ -199,7 +199,7 @@ def test_rpc_liveness():
     log.logging.basicConfig(level=log.{{ .Values.health_probe.logging.level }})
 
     try:
-        transport = oslo_messaging.get_notification_transport(cfg.CONF)
+        transport = oslo_messaging.get_rpc_transport(cfg.CONF)
     except Exception as ex:
         message = getattr(ex, "message", str(ex))
         sys.stderr.write("Message bus driver load error: %s" % message)
