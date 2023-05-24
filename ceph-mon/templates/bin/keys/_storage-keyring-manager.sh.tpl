@@ -28,7 +28,17 @@ function kube_ceph_keyring_gen () {
   sed "s|{{"{{"}} key {{"}}"}}|${CEPH_KEY}|" ${CEPH_TEMPLATES_DIR}/${CEPH_KEY_TEMPLATE} | base64 -w0 | tr -d '\n'
 }
 
-CEPH_CLIENT_KEY=$(ceph_gen_key)
+CEPH_CLIENT_KEY=""
+ROOK_CEPH_TOOLS_POD=$(kubectl -n ${DEPLOYMENT_NAMESPACE} get pods --no-headers | awk '/rook-ceph-tools/{print $1}')
+
+if [[ -n "${ROOK_CEPH_TOOLS_POD}" ]]; then
+  CEPH_AUTH_KEY_NAME=$(echo "${CEPH_KEYRING_NAME}" | awk -F. '{print $2 "." $3}')
+  CEPH_CLIENT_KEY=$(kubectl -n ${DEPLOYMENT_NAMESPACE} exec ${ROOK_CEPH_TOOLS_POD} -- ceph auth ls | grep -A1 "${CEPH_AUTH_KEY_NAME}" | awk '/key:/{print $2}')
+fi
+
+if [[ -z "${CEPH_CLIENT_KEY}" ]]; then
+  CEPH_CLIENT_KEY=$(ceph_gen_key)
+fi
 
 function create_kube_key () {
   CEPH_KEYRING=$1
