@@ -11,12 +11,12 @@
 # limitations under the License.
 
 ---
-- name: "creating selenium configuration directory"
+- name: Create selenium configuration directory
   file:
     path: /etc/selenium
     state: directory
 
-- name: install selenium dependencies
+- name: Install selenium dependencies
   when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
   apt:
     name: "{{ packages }}"
@@ -26,30 +26,43 @@
       - wget
       - xvfb
 
-- name: install selenium
+- name: Install selenium
   pip:
     name: selenium
     state: latest
     executable: pip3
 
-- name: Get selenium chrome driver
-  shell: |-
-          set -ex
-          wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add -
-          sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list'
-          wget --directory-prefix=/tmp/ https://chromedriver.storage.googleapis.com/2.44/chromedriver_linux64.zip
-  args:
-    executable: /bin/bash
+- name: Add google chrome signing key
+  get_url:
+    url: https://dl-ssl.google.com/linux/linux_signing_key.pub
+    dest: /etc/apt/trusted.gpg.d/google-chrome.asc
 
-- name: unarchive selenium chrome driver
-  unarchive:
-    src: /tmp/chromedriver_linux64.zip
-    dest: /etc/selenium
-    remote_src: yes
+- name: Add google chrome repository
+  apt_repository:
+    repo: "deb [arch=amd64 signed-by=/etc/apt/trusted.gpg.d/google-chrome.asc] http://dl.google.com/linux/chrome/deb/ stable main"
+    filename: google-chrome
+    state: present
 
-- name: install google chrome
+- name: Install google chrome
   when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
   apt:
     name: google-chrome-stable
     update_cache: yes
+    install_recommends: false
+
+# We need to install ChromeDriver compatible with Google Chrome version
+- name: Get selenium chromedriver archive
+  shell: |-
+    set -ex
+    CHROME_VERSION=$(dpkg -s google-chrome-stable | grep -Po '(?<=^Version: ).*' | awk -F'.' '{print $1"."$2"."$3}')
+    DRIVER_PATH=$(wget -qO- https://chromedriver.storage.googleapis.com | grep -Po "(?<=<Key>)${CHROME_VERSION}[^<]*?chromedriver_linux64\.zip(?=</Key>)" | tail -1)
+    wget -O /tmp/chromedriver.zip "https://chromedriver.storage.googleapis.com/${DRIVER_PATH}"
+  args:
+    executable: /bin/bash
+
+- name: Unarchive selenium chromedriver
+  unarchive:
+    src: /tmp/chromedriver.zip
+    dest: /etc/selenium
+    remote_src: yes
 ...

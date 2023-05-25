@@ -75,7 +75,7 @@ class SeleniumTester():
                 EC.presence_of_element_located((By.LINK_TEXT, link_name))
             )
             self.logger.info("Clicking '{}' link".format(link_name))
-            link = self.browser.find_element_by_link_text(link_name)
+            link = self.browser.find_element(By.LINK_TEXT, link_name)
             link.click()
         except (TimeoutException, NoSuchElementException):
             self.logger.error("Failed clicking '{}' link".format(link_name))

@@ -23,10 +23,11 @@ st = SeleniumTester('Grafana')
 username = st.get_variable('GRAFANA_USER')
 password = st.get_variable('GRAFANA_PASSWORD')
 grafana_uri = st.get_variable('GRAFANA_URI')
+grafana_url = 'http://{0}'.format(grafana_uri)
 
 try:
     st.logger.info('Attempting to connect to Grafana')
-    st.browser.get(grafana_uri)
+    st.browser.get(grafana_url)
     el = WebDriverWait(st.browser, 15).until(
         EC.title_contains('Grafana')
     )
@@ -36,15 +37,15 @@ except TimeoutException:
     st.browser.quit()
     sys.exit(1)
 
-logger.info("Attempting to log into Grafana dashboard")
+st.logger.info("Attempting to log into Grafana dashboard")
 try:
-    browser.find_element_by_name('user').send_keys(username)
-    browser.find_element_by_name('password').send_keys(password)
-    browser.find_element_by_class_name('css-6ntnx5-button').click()
-    logger.info("Successfully logged in to Grafana")
+    st.browser.find_element(By.NAME, 'user').send_keys(username)
+    st.browser.find_element(By.NAME, 'password').send_keys(password)
+    st.browser.find_element(By.CLASS_NAME, 'css-1mhnkuh').click()
+    st.logger.info("Successfully logged in to Grafana")
 except NoSuchElementException:
-    logger.error("Failed to log in to Grafana")
-    browser.quit()
+    st.logger.error("Failed to log in to Grafana")
+    st.browser.quit()
     sys.exit(1)
 
 st.browser.quit()
