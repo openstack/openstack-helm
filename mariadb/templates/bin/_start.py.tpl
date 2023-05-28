@@ -762,18 +762,23 @@ def check_if_i_lead():
         return False
 
 
-def monitor_cluster():
+def monitor_cluster(stop_event):
     """Function to kick off grastate configmap updating thread"""
     while True:
+        if stop_event.is_set():
+            logger.info("Stopped monitor_cluster thread")
+            break
         try:
             update_grastate_configmap()
         except Exception as error:
             logger.error("Error updating grastate configmap: {0}".format(error))
         time.sleep(state_configmap_update_period)
 
+# Stop event
+stop_event = threading.Event()
 
 # Setup the thread for the cluster monitor
-monitor_cluster_thread = threading.Thread(target=monitor_cluster, args=())
+monitor_cluster_thread = threading.Thread(target=monitor_cluster, args=(stop_event,))
 monitor_cluster_thread.daemon = True
 
 
@@ -783,9 +788,12 @@ def launch_cluster_monitor():
         monitor_cluster_thread.start()
 
 
-def leader_election():
+def leader_election(stop_event):
     """Function to kick off leader election thread"""
     while True:
+        if stop_event.is_set():
+            logger.info("Stopped leader_election thread")
+            break
         try:
             deadmans_leader_election()
         except Exception as error:
@@ -794,7 +802,7 @@ def leader_election():
 
 
 # Setup the thread for the leader election
-leader_election_thread = threading.Thread(target=leader_election, args=())
+leader_election_thread = threading.Thread(target=leader_election, args=(stop_event,))
 leader_election_thread.daemon = True
 
 
@@ -886,7 +894,11 @@ def mysqld_reboot():
 def sigterm_shutdown(x, y):
     """Shutdown the instance of mysqld on shutdown signal."""
     logger.info("Got a sigterm from the container runtime, time to go.")
+    stop_event.set()
     stop_mysqld()
+    monitor_cluster_thread.join()
+    leader_election_thread.join()
+    sys.exit(0)
 
 
 # Register the signal to the handler
