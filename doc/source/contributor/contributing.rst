@@ -22,13 +22,8 @@ Communication
 
 * Join us on `IRC <irc://chat.oftc.net/openstack-helm>`_:
   #openstack-helm on oftc
-* Community `IRC Meetings
-  <http://eavesdrop.openstack.org/#OpenStack-Helm_Team_Meeting>`_:
-  [Every Tuesday @ 3PM UTC], #openstack-meeting-alt on oftc
-* Meeting Agenda Items: `Agenda
-  <https://etherpad.openstack.org/p/openstack-helm-meeting-agenda>`_
 * Join us on `Slack <https://kubernetes.slack.com/messages/C3WERB7DE/>`_
-  - #openstack-helm
+  (this is preferable way of communication): #openstack-helm
 
 Contacting the Core Team
 ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -36,10 +31,8 @@ Contacting the Core Team
    etc. If all this info is maintained elsewhere (i.e. a wiki), you can link to
    that instead of enumerating everyone here.
 
-Project's Core Team could be contacted via IRC or Slack, usually during weekly
-meetings. List of current Cores could be found on a Members tab of
-`openstack-helm-core <https://review.opendev.org/#/admin/groups/1749,info>`_
-Gerrit group.
+Project's Core Team could be contacted via IRC or Slack. List of current core reviewers
+could be found here `openstack-helm-core <https://review.opendev.org/#/admin/groups/1749,members>`_.
 
 New Feature Planning
 ~~~~~~~~~~~~~~~~~~~~
@@ -74,10 +67,18 @@ Reporting a Bug
 You found an issue and want to make sure we are aware of it? You can do so on our
 Storyboard_.
 
-If issue is on one of other OpenStack-Helm components, report it to the
+If an issue is on one of other OpenStack-Helm components, report it to the
 appropriate `group Storyboard`_.
 
 Bugs should be filed as stories in Storyboard, not GitHub.
+
+Please be as much specific as possible while describing an issue. Usually having
+more context in the bug description means less efforts for a developer to
+reproduce the bug and understand how to fix it.
+
+Also before filing a bug to the Openstack-Helm `_Storyboard` please try to identify
+if the issue is indeed related to the deployment process and not to the deployable
+software.
 
 Getting Your Patch Merged
 ~~~~~~~~~~~~~~~~~~~~~~~~~
