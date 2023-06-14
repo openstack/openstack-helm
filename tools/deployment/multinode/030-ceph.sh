@@ -14,6 +14,9 @@
 
 set -xe
 
+: ${CEPH_OSD_DATA_DEVICE:=/dev/loop0}
+: ${CEPH_OSD_DB_WAL_DEVICE:=/dev/loop1}
+
 #NOTE: Deploy command
 [ -s /tmp/ceph-fs-uuid.txt ] || uuidgen > /tmp/ceph-fs-uuid.txt
 CEPH_PUBLIC_NETWORK="$(./tools/deployment/multinode/kube-node-subnet.sh)"
@@ -60,12 +63,12 @@ conf:
     osd:
       - data:
           type: bluestore
-          location: /dev/loop0
+          location: ${CEPH_OSD_DATA_DEVICE}
         block_db:
-          location: /dev/loop1
+          location: ${CEPH_OSD_DB_WAL_DEVICE}
           size: "5GB"
         block_wal:
-          location: /dev/loop1
+          location: ${CEPH_OSD_DB_WAL_DEVICE}
           size: "2GB"
 storageclass:
   cephfs:
