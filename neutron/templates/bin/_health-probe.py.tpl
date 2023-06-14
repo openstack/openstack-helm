@@ -68,9 +68,14 @@ def check_agent_status(transport):
         target = oslo_messaging.Target(
             topic=cfg.CONF.agent_queue_name,
             server=_get_hostname(use_fqdn))
-        client = oslo_messaging.RPCClient(transport, target,
-                                          timeout=rpc_timeout,
-                                          retry=rpc_retries)
+        if hasattr(oslo_messaging, 'get_rpc_client'):
+            client = oslo_messaging.get_rpc_client(transport, target,
+                                                   timeout=rpc_timeout,
+                                                   retry=rpc_retries)
+        else:
+            client = oslo_messaging.RPCClient(transport, target,
+                                              timeout=rpc_timeout,
+                                              retry=rpc_retries)
         client.call(context.RequestContext(),
                     'pod_health_probe_method_ignore_errors')
     except oslo_messaging.exceptions.MessageDeliveryFailure:
@@ -271,7 +276,7 @@ def test_rpc_liveness():
     cfg.CONF(sys.argv[1:])
 
     try:
-        transport = oslo_messaging.get_transport(cfg.CONF)
+        transport = oslo_messaging.get_rpc_transport(cfg.CONF)
     except Exception as ex:
         message = getattr(ex, "message", str(ex))
         sys.stderr.write("Message bus driver load error: %s" % message)
