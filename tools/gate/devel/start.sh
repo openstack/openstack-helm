@@ -52,12 +52,12 @@ function ansible_install {
       jq
   fi
 
-  sudo -H -E pip3 install --upgrade pip
-  sudo -H -E pip3 install --upgrade setuptools
-  sudo -H -E pip3 install --upgrade cmd2
-  sudo -H -E pip3 install --upgrade pyopenssl
-  sudo -H -E pip3 install --upgrade ansible
-  sudo -H -E pip3 install --upgrade \
+  sudo -H -E pip3 install --ignore-installed --upgrade pip
+  sudo -H -E pip3 install --ignore-installed --upgrade setuptools
+  sudo -H -E pip3 install --ignore-installed --upgrade cmd2
+  sudo -H -E pip3 install --ignore-installed --upgrade pyopenssl
+  sudo -H -E pip3 install --ignore-installed --upgrade ansible
+  sudo -H -E pip3 install --ignore-installed --upgrade \
     ara==0.16.5 \
     yq
 }
