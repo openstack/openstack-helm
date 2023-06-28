@@ -109,7 +109,11 @@ function stop () {
 
 function poststart () {
   # This enables the usage of 'ovs-appctl' from neutron-ovs-agent pod.
-
+  until [ -f $OVS_PID ]
+  do
+      echo "Waiting for file $OVS_PID"
+      sleep 1
+  done
   PID=$(cat $OVS_PID)
   OVS_CTL=/run/openvswitch/ovs-vswitchd.${PID}.ctl
   chown {{ .Values.pod.user.nova.uid }}.{{ .Values.pod.user.nova.uid }} ${OVS_CTL}
