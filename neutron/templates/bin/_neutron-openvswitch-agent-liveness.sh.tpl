@@ -26,7 +26,6 @@ python \
     /etc/neutron/plugins/ml2/openvswitch_agent.ini \
     --agent-queue-name \
     q-agent-notifier-tunnel-update \
-    --liveness-probe
 {{- if .Values.pod.use_fqdn.neutron_agent }}
     --use-fqdn \
 {{- end }}
