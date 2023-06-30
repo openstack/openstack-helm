@@ -18,6 +18,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
 from selenium.common.exceptions import TimeoutException
 from selenium.common.exceptions import NoSuchElementException
 from selenium.common.exceptions import ScreenshotException
@@ -59,7 +60,8 @@ class SeleniumTester():
         options.add_argument('--headless')
         options.add_argument('--no-sandbox')
         options.add_argument('--window-size=1920x1080')
-        browser = webdriver.Chrome(self.chrome_driver, chrome_options=options)
+        service = Service(executable_path=self.chrome_driver)
+        browser = webdriver.Chrome(service=service, options=options)
         return browser
 
     def initialize_artifiacts_dir(self):
