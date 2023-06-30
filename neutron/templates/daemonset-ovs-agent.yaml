@@ -93,6 +93,26 @@ spec:
             - name: pci-devices
               mountPath: /sys/bus/pci/devices
 {{- end }}
+{{- if .Values.conf.netoffload.enabled }}
+        - name: netoffload
+{{ tuple $envAll "netoffload" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ dict "envAll" $envAll "application" "neutron_ovs_agent" "container" "netoffload" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          command:
+            - /tmp/neutron-openvswitch-agent-init-netoffload.sh
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: neutron-bin
+              mountPath: /tmp/neutron-openvswitch-agent-init-netoffload.sh
+              subPath: neutron-openvswitch-agent-init-netoffload.sh
+              readOnly: true
+            - name: neutron-etc
+              mountPath: /tmp/netoffload
+              subPath: netoffload
+              readOnly: true
+            - name: run
+              mountPath: /run
+{{- end }}
         - name: neutron-ovs-agent-init
 {{ tuple $envAll "neutron_openvswitch_agent" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.agent.ovs | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
