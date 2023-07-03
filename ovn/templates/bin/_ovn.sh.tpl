@@ -970,7 +970,11 @@ ovn-master() {
 }
 
 add-external-id-configs() {
-  ovs-vsctl set open . external-ids:system-id="$ovn_pod_host"
+  ovs-vsctl get open . external-ids:system-id
+  if [ $? -eq 1 ]; then
+    ovs-vsctl set open . external-ids:system-id="$(uuidgen)"
+  fi
+
   ovs-vsctl set open . external-ids:rundir="/var/run/openvswitch"
   ovs-vsctl set open . external_ids:ovn-encap-ip="$ovn_encap_ip"
   ovs-vsctl set open . external-ids:ovn-remote="{{ .Values.conf.ovn_remote }}"

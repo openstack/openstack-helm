@@ -12,20 +12,23 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if .Values.manifests.configmap_bin }}
-{{- $envAll := . }}
+{{- define "ovn.configmap.etc" }}
+{{- $configMapName := index . 0 }}
+{{- $envAll := index . 1 }}
+{{- with $envAll }}
+
 ---
 apiVersion: v1
-kind: ConfigMap
+kind: Secret
 metadata:
-  name: ovn-bin
+  name: {{ $configMapName }}
+type: Opaque
 data:
-{{- if .Values.images.local_registry.active }}
-  image-repo-sync.sh: |
-{{- include "helm-toolkit.scripts.image_repo_sync" . | indent 4 }}
+  auto_bridge_add: {{ toJson $envAll.Values.conf.auto_bridge_add | b64enc }}
+
 {{- end }}
-  ovn.sh: |
-{{ tuple "bin/_ovn.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
-  ovn-setup-bridges-init.sh: |
-{{ tuple "bin/_ovn-setup-bridges-init.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
+{{- end }}
+
+{{- if .Values.manifests.configmap_etc }}
+{{- list "ovn-etc" . | include "ovn.configmap.etc" }}
 {{- end }}

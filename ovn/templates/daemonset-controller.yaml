@@ -15,6 +15,7 @@ limitations under the License.
 {{- if .Values.manifests.daemonset_controller }}
 {{- $envAll := . }}
 
+{{- $configMapName := "ovn-etc" }}
 {{- $serviceAccountName := "ovn-controller" }}
 {{ tuple $envAll "ovn_controller" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
@@ -43,6 +44,21 @@ spec:
         {{ .Values.labels.ovn_controller.node_selector_key }}: {{ .Values.labels.ovn_controller.node_selector_value }}
       initContainers:
 {{- tuple $envAll "ovn_controller" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+        - name: ovn-setup-bridge
+{{ tuple $envAll "ovn_controller" | include "helm-toolkit.snippets.image" | indent 10 }}
+          command:
+            - /tmp/ovn-setup-bridges-init.sh
+          volumeMounts:
+            - name: ovn-bin
+              mountPath: /tmp/ovn-setup-bridges-init.sh
+              subPath: ovn-setup-bridges-init.sh
+              readOnly: true
+            - name: run-openvswitch
+              mountPath: /run/openvswitch
+            - name: ovn-etc
+              mountPath: /tmp/auto_bridge_add
+              subPath: auto_bridge_add
+              readOnly: true
       containers:
         - name: ovn-controller
 {{ tuple $envAll "ovn_controller" | include "helm-toolkit.snippets.image" | indent 10 }}
@@ -70,9 +86,13 @@ spec:
         - name: ovn-bin
           configMap:
             name: ovn-bin
-            defaultMode: 0555
+            defaultMode: 0777
         - name: run-openvswitch
           hostPath:
             path: /run/openvswitch
             type: DirectoryOrCreate
+        - name: ovn-etc
+          secret:
+            secretName: {{ $configMapName }}
+            defaultMode: 0444
 {{- end }}
