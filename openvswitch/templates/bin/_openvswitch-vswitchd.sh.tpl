@@ -116,6 +116,12 @@ function poststart () {
   done
   PID=$(cat $OVS_PID)
   OVS_CTL=/run/openvswitch/ovs-vswitchd.${PID}.ctl
+
+  until [ -S $OVS_CTL ]
+  do
+      echo "Waiting for file $OVS_CTL"
+      sleep 1
+  done
   chown {{ .Values.pod.user.nova.uid }}.{{ .Values.pod.user.nova.uid }} ${OVS_CTL}
 }
 
