@@ -97,8 +97,8 @@ function wait_for_pgs () {
   while [[ $pgs_ready -lt 3 ]]; do
     pgs_state=$(ceph --cluster ${CLUSTER} pg ls -f json | jq -c "${query}")
     if [[ $(jq -c '. | select(.state | contains("peering") | not)' <<< "${pgs_state}") ]]; then
-      if [[ $pgs_inactive -gt 10 ]]; then
-        # If inactive PGs aren't peering, fail
+      if [[ $pgs_inactive -gt 200 ]]; then
+        # If inactive PGs aren't peering after ~10 minutes, fail
         echo "Failure, found inactive PGs that aren't peering"
         exit 1
       fi
