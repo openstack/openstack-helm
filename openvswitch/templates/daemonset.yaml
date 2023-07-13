@@ -56,6 +56,9 @@ exec:
 
 {{- if .Values.manifests.daemonset }}
 {{- $envAll := . }}
+
+{{- $serviceAccountName := "openvswitch-server" }}
+{{ tuple $envAll "vswitchd" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: apps/v1
 kind: DaemonSet
@@ -80,6 +83,7 @@ spec:
 {{ dict "envAll" $envAll "podName" "openvswitch" "containerNames" (list "openvswitch-db" "openvswitch-db-perms" "openvswitch-vswitchd" "openvswitch-vswitchd-modules" "init") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
     spec:
       shareProcessNamespace: true
+      serviceAccountName: {{ $serviceAccountName }}
 {{ dict "envAll" $envAll "application" "ovs" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
       nodeSelector:
         {{ .Values.labels.ovs.node_selector_key }}: {{ .Values.labels.ovs.node_selector_value }}
