@@ -79,6 +79,43 @@ spec:
       initContainers:
 {{ tuple $envAll "pod_dependency" $mounts_libvirt_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
 {{ dict "envAll" $envAll | include "helm-toolkit.snippets.kubernetes_apparmor_loader_init_container" | indent 8 }}
+{{- if eq .Values.conf.qemu.vnc_tls "1" }}
+        - name: cert-init-vnc
+{{ tuple $envAll "kubectl" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ dict "envAll" $envAll "application" "libvirt" "container" "cert_init" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          command:
+            - /tmp/cert-init.sh
+          env:
+            - name: TYPE
+              value: vnc
+            - name: ISSUER_KIND
+              value: {{ .Values.conf.vencrypt.issuer.kind }}
+            - name: ISSUER_NAME
+              value: {{ .Values.conf.vencrypt.issuer.name }}
+            - name: POD_UID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.uid
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: libvirt-bin
+              mountPath: /tmp/cert-init.sh
+              subPath: cert-init.sh
+              readOnly: true
+{{- end }}
 {{- if .Values.conf.ceph.enabled }}
         {{- if empty .Values.conf.ceph.cinder.keyring }}
         - name: ceph-admin-keyring-placement

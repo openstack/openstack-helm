@@ -16,6 +16,14 @@ limitations under the License.
 
 set -ex
 
+# NOTE(mnaser): This will move the VNC certificates into the expected location.
+if [ -f /tmp/vnc.crt ]; then
+  mkdir -p /etc/pki/libvirt-vnc
+  mv /tmp/vnc.key /etc/pki/libvirt-vnc/server-key.pem
+  mv /tmp/vnc.crt /etc/pki/libvirt-vnc/server-cert.pem
+  mv /tmp/vnc-ca.crt /etc/pki/libvirt-vnc/ca-cert.pem
+fi
+
 # TODO: We disable cgroup functionality for cgroup v2, we should fix this in the future
 if $(stat -fc %T /sys/fs/cgroup/ | grep -q cgroup2fs); then
   CGROUP_VERSION=v2
