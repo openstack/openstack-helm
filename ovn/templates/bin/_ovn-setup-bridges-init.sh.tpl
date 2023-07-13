@@ -1,3 +1,5 @@
+#!/bin/bash
+
 {{/*
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -11,21 +13,17 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */}}
+set -ex
 
-{{- if .Values.manifests.configmap_bin }}
-{{- $envAll := . }}
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: ovn-bin
-data:
-{{- if .Values.images.local_registry.active }}
-  image-repo-sync.sh: |
-{{- include "helm-toolkit.scripts.image_repo_sync" . | indent 4 }}
-{{- end }}
-  ovn.sh: |
-{{ tuple "bin/_ovn.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
-  ovn-setup-bridges-init.sh: |
-{{ tuple "bin/_ovn-setup-bridges-init.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
-{{- end }}
+# handle any bridge mappings
+# /tmp/auto_bridge_add is one line json file: {"br-ex1":"eth1","br-ex2":"eth2"}
+for bmap in `sed 's/[{}"]//g' /tmp/auto_bridge_add | tr "," "\n"`
+do
+  bridge=${bmap%:*}
+  iface=${bmap#*:}
+  ovs-vsctl --may-exist add-br $bridge -- set bridge $bridge protocols=OpenFlow13
+  if [ -n "$iface" ] && [ "$iface" != "null" ]
+  then
+    ovs-vsctl --may-exist add-port $bridge $iface
+  fi
+done
