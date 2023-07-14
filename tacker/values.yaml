@@ -1,0 +1,612 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Default values for tacker.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+labels:
+  server:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  conductor:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  job:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+
+images:
+  pull_policy: IfNotPresent
+  tags:
+    tacker_server: docker.io/openstackhelm/tacker:2023.1-ubuntu_focal
+    tacker_conductor: docker.io/openstackhelm/tacker:2023.1-ubuntu_focal
+    db_init: docker.io/openstackhelm/heat:2023.1-ubuntu_focal
+    db_drop: docker.io/openstackhelm/heat:2023.1-ubuntu_focal
+    tacker_db_sync: docker.io/openstackhelm/tacker:2023.1-ubuntu_focal
+    ks_endpoints: docker.io/openstackhelm/heat:2023.1-ubuntu_focal
+    ks_service: docker.io/openstackhelm/heat:2023.1-ubuntu_focal
+    ks_user: docker.io/openstackhelm/heat:2023.1-ubuntu_focal
+    rabbit_init: docker.io/rabbitmq:3.7-management
+    dep_check: quay.io/airshipit/kubernetes-entrypoint:v1.0.0
+  local_registry:
+    active: false
+    exclude:
+      - dep_check
+      - image_repo_sync
+
+dependencies:
+  static:
+    server:
+      jobs:
+        - tacker-db-sync
+        - tacker-ks-user
+        - tacker-ks-endpoints
+        - tacker-rabbit-init
+      services:
+        - endpoint: internal
+          service: oslo_db
+        - endpoint: internal
+          service: identity
+        - endpoint: internal
+          service: key_manager
+    conductor:
+      jobs:
+        - tacker-db-sync
+        - tacker-ks-user
+        - tacker-ks-endpoints
+        - tacker-rabbit-init
+      services:
+        - endpoint: internal
+          service: oslo_db
+        - endpoint: internal
+          service: identity
+        - endpoint: internal
+          service: key_manager
+    db_drop:
+      services:
+        - endpoint: internal
+          service: oslo_db
+    db_init:
+      services:
+        - endpoint: internal
+          service: oslo_db
+    db_sync:
+      jobs:
+        - tacker-db-init
+      services:
+        - endpoint: internal
+          service: oslo_db
+    ks_endpoints:
+      jobs:
+        - tacker-ks-service
+      services:
+        - endpoint: internal
+          service: identity
+    ks_service:
+      services:
+        - endpoint: internal
+          service: identity
+    ks_user:
+      services:
+        - endpoint: internal
+          service: identity
+
+pod:
+  security_context:
+    server:
+      pod:
+        runAsUser: 42424
+        runAsNonRoot: true
+    conductor:
+      pod:
+        runAsUser: 42424
+        runAsNonRoot: true
+  lifecycle:
+    termination_grace_period:
+      server:
+        timeout: 30
+      conductor:
+        timeout: 30
+  replicas:
+    conductor: 1
+    server: 1
+  tolerations:
+    tacker:
+      enabled: false
+      tolerations:
+      - key: node-role.kubernetes.io/master
+        operator: Exists
+        effect: NoSchedule
+      - key: node-role.kubernetes.io/control-plane
+        operator: Exists
+        effect: NoSchedule
+  resources:
+    enabled: false
+    jobs:
+      db_sync:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      db_init:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      db_drop:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      ks_user:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      ks_service:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      ks_endpoints:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+  mounts:
+    tacker_db_sync:
+      tacker_db_sync:
+        volumeMounts:
+        volumes:
+
+storage:
+  storageClass: general
+  volumes:
+    csar_files:
+      name: tacker-csar-files
+      size: 2Gi
+      mount_path: "/var/lib/tacker/csar_files"
+    vnfpackages:
+      name: tacker-vnfpackages
+      size: 2Gi
+      mount_path: "/var/lib/tacker/vnfpackages"
+    logs:
+      name: tacker-logs
+      size: 2Gi
+      mount_path: "/var/log/openstackhelm/tacker"
+
+network:
+  api:
+    ingress:
+      public: true
+      classes:
+        namespace: "nginx"
+        cluster: "nginx-cluster"
+      annotations:
+        nginx.ingress.kubernetes.io/rewrite-target: /
+    external_policy_local: false
+    node_port:
+      enabled: false
+      port: 30900
+  conductor:
+    ingress:
+      public: true
+      classes:
+        namespace: "nginx"
+        cluster: "nginx-cluster"
+      annotations:
+        nginx.ingress.kubernetes.io/rewrite-target: /
+    external_policy_local: false
+    node_port:
+      enabled: false
+      port: 30901
+
+secrets:
+  identity:
+    admin: tacker-keystone-admin
+    tacker: tacker-keystone-user
+  oslo_db:
+    admin: tacker-db-admin
+    tacker: tacker-db-user
+  oslo_messaging:
+    admin: tacker-rabbitmq-admin
+    tacker: tacker-rabbitmq-user
+  oci_image_registry:
+    tacker: tacker-oci-image-registry
+  tls:
+    nfv_orchestration:
+      api:
+        public: tacker-tls-public
+        internal: tacker-tls-internal
+
+endpoints:
+  cluster_domain_suffix: cluster.local
+  oslo_db:
+    auth:
+      admin:
+        username: root
+        password: password
+        secret:
+          tls:
+            internal: mariadb-tls-direct
+      tacker:
+        username: tacker
+        password: password
+    hosts:
+      default: mariadb
+    host_fqdn_override:
+      default: null
+    path: /tacker
+    scheme: mysql+pymysql
+    port:
+      mysql:
+        default: 3306
+  identity:
+    name: keystone
+    auth:
+      admin:
+        region_name: RegionOne
+        username: admin
+        password: password
+        project_name: admin
+        user_domain_name: default
+        project_domain_name: default
+      tacker:
+        role: admin
+        region_name: RegionOne
+        username: tacker
+        password: password
+        project_name: service
+        user_domain_name: service
+        project_domain_name: service
+    hosts:
+      default: keystone
+      internal: keystone-api
+    host_fqdn_override:
+      default: null
+    path:
+      default: /v3
+    scheme:
+      default: http
+    port:
+      api:
+        default: 80
+        internal: 5000
+  oslo_messaging:
+    auth:
+      admin:
+        username: rabbitmq
+        password: password
+        secret:
+          tls:
+            internal: rabbitmq-tls-direct
+      tacker:
+        username: tacker
+        password: password
+    statefulset:
+      replicas: 2
+      name: rabbitmq-rabbitmq
+    hosts:
+      default: rabbitmq
+    host_fqdn_override:
+      default: null
+    path: /tacker
+    scheme: rabbit
+    port:
+      amqp:
+        default: 5672
+      http:
+        default: 15672
+  oslo_cache:
+    auth:
+      # NOTE(portdirect): this is used to define the value for keystone
+      # authtoken cache encryption key, if not set it will be populated
+      # automatically with a random value, but to take advantage of
+      # this feature all services should be set to use the same key,
+      # and memcache service.
+      memcache_secret_key: null
+    hosts:
+      default: memcached
+    host_fqdn_override:
+      default: null
+    port:
+      memcache:
+        default: 11211
+  nfv_orchestration:
+    name: tacker
+    hosts:
+      default: tacker-api
+      conductor: tacker-conductor
+      public: tacker
+    host_fqdn_override:
+      default: null
+    path:
+      default: null
+    scheme:
+      default: http
+    port:
+      api:
+        default: 9890
+        public: 80
+      conductor:
+        default: 5672
+  key_manager:
+    name: barbican
+    hosts:
+      default: barbican-api
+      public: barbican
+    host_fqdn_override:
+      default: null
+    path:
+      default: /v1
+    scheme:
+      default: http
+    port:
+      api:
+        default: 9311
+        public: 80
+
+conf:
+  tacker:
+    DEFAULT:
+      log_config_append: /etc/tacker/logging.conf
+      debug: false
+      log_dir: /var/log/openstackhelm/tacker
+      api_workers: 5
+      service_plugins: "nfvo,vnfm"
+    nfvo:
+      vim_drivers: openstack
+    openstack_vim:
+      stack_retries: 60
+      stack_retry_wait: 10
+    vim_keys:
+      use_barbican: true
+    tacker:
+      monitor_driver: "ping,http_ping"
+      alarm_monitor_driver: ceilometer
+    cors:
+      enabled: true
+      allowed_origin: "*"
+      max_age: 3600
+      allow_methods: "GET,POST,PUT,DELETE,PATCH,OPTIONS"
+      allow_headers: "Content-Type,Version,Accept,X-Auth-Token"
+      expose_headers: "Content-Type,Accept,Cache-Control,Content-Language,X-Subject-Token"
+    database:
+      connection_recycle_time: 10
+      max_pool_size: 1
+      max_retries: "-1"
+    keystone_authtoken:
+      service_type: nfv-orchestration
+      auth_type: password
+      auth_version: v3
+      service_token_roles_required: true
+      cafile: ""
+      memcache_security_strategy: ENCRYPT
+    alarm_auth: {}
+    ceilometer:
+      host: tacker-api.openstack.svc.cluster.local
+      port: 9890
+    oslo_messaging_notifications:
+      driver: noop
+    glance_store:
+      filesystem_store_datadir: /var/lib/tacker/csar_files
+  server:
+    command: "tacker-server --config-file /etc/tacker/tacker.conf"
+    config_files:
+      - source: "/etc/tacker/tacker.conf"
+        dest: "/etc/tacker/tacker.conf"
+        owner: "tacker"
+        perm: "0600"
+    permissions:
+      - path: "/var/log/openstackhelm/tacker"
+        owner: "tacker:tacker"
+        recurse: true
+      - path: "/var/lib/tacker/csar_files"
+        owner: "tacker:tacker"
+  conductor:
+    command: "tacker-conductor --config-file /etc/tacker/tacker.conf"
+    config_files:
+      - source: "/etc/tacker/tacker.conf"
+        dest: "/etc/tacker/tacker.conf"
+        owner: "tacker"
+        perm: "0600"
+    permissions:
+      - path: "/var/log/openstackhelm/tacker"
+        owner: "tacker:tacker"
+        recurse: true
+      - path: "/var/lib/tacker/vnfpackages"
+        owner: "tacker:tacker"
+      - path: "/var/lib/tacker/csar_files"
+        owner: "tacker:tacker"
+  paste:
+    composite:tacker:
+      use: egg:Paste#urlmap
+      /: tackerversions
+      /v1.0: tackerapi_v1_0
+      /vnfpkgm/v1: vnfpkgmapi_v1
+      /vnflcm: vnflcm_versions
+      /vnflcm/v1: vnflcm_v1
+      /vnflcm/v2: vnflcm_v2
+      /vnffm/v1: vnffm_v1
+      /vnfpm/v2: vnfpm_v2
+      /alert/vnf_instances: prometheus_auto_scaling
+      /alert: prometheus_fm
+      /pm_event: prometheus_pm
+      /server_notification: server_notification
+    composite:tackerapi_v1_0:
+      use: call:tacker.auth:pipeline_factory
+      noauth: cors request_id catch_errors extensions tackerapiapp_v1_0
+      keystone: cors request_id catch_errors alarm_receiver authtoken keystonecontext extensions tackerapiapp_v1_0
+    composite:vnfpkgmapi_v1:
+      use: call:tacker.auth:pipeline_factory
+      noauth: cors request_id catch_errors vnfpkgmapp_v1
+      keystone: cors request_id catch_errors authtoken keystonecontext vnfpkgmapp_v1
+    composite:vnflcm_v1:
+      use: call:tacker.auth:pipeline_factory
+      noauth: cors request_id catch_errors vnflcmaapp_v1
+      keystone: cors request_id catch_errors authtoken keystonecontext vnflcmaapp_v1
+    composite:vnflcm_v2:
+      use: call:tacker.auth:pipeline_factory
+      noauth: cors request_id catch_errors vnflcmaapp_v2
+      keystone: cors request_id catch_errors authtoken keystonecontext vnflcmaapp_v2
+    composite:vnfpm_v2:
+      use: call:tacker.auth:pipeline_factory
+      noauth: cors request_id catch_errors vnfpmaapp_v2
+      keystone: cors request_id catch_errors authtoken keystonecontext vnfpmaapp_v2
+    composite:vnflcm_versions:
+      use: call:tacker.auth:pipeline_factory
+      noauth: cors request_id catch_errors vnflcm_api_versions
+      keystone: cors request_id catch_errors authtoken keystonecontext vnflcm_api_versions
+    composite:vnffm_v1:
+      use: call:tacker.auth:pipeline_factory
+      noauth: cors request_id catch_errors vnffmaapp_v1
+      keystone: cors request_id catch_errors authtoken keystonecontext vnffmaapp_v1
+    filter:cors:
+      paste.filter_factory: oslo_middleware.cors:filter_factory
+      oslo_config_project: tacker
+    filter:request_id:
+      paste.filter_factory: oslo_middleware:RequestId.factory
+    filter:catch_errors:
+      paste.filter_factory: oslo_middleware:CatchErrors.factory
+    filter:alarm_receiver:
+      paste.filter_factory: tacker.alarm_receiver:AlarmReceiver.factory
+    filter:keystonecontext:
+      paste.filter_factory: tacker.auth:TackerKeystoneContext.factory
+    filter:authtoken:
+      paste.filter_factory: keystonemiddleware.auth_token:filter_factory
+    filter:extensions:
+      paste.filter_factory: tacker.api.extensions:extension_middleware_factory
+    app:tackerversions:
+      paste.app_factory: tacker.api.versions:Versions.factory
+    app:tackerapiapp_v1_0:
+      paste.app_factory: tacker.api.v1.router:APIRouter.factory
+    app:vnfpkgmapp_v1:
+      paste.app_factory: tacker.api.vnfpkgm.v1.router:VnfpkgmAPIRouter.factory
+    app:vnflcmaapp_v1:
+      paste.app_factory: tacker.api.vnflcm.v1.router:VnflcmAPIRouter.factory
+    app:vnflcmaapp_v2:
+      paste.app_factory: tacker.sol_refactored.api.router:VnflcmAPIRouterV2.factory
+    app:vnfpmaapp_v2:
+      paste.app_factory: tacker.sol_refactored.api.router:VnfPmAPIRouterV2.factory
+    app:vnflcm_api_versions:
+      paste.app_factory: tacker.sol_refactored.api.router:VnflcmVersions.factory
+    app:vnffmaapp_v1:
+      paste.app_factory: tacker.sol_refactored.api.router:VnffmAPIRouterV1.factory
+    app:prometheus_auto_scaling:
+      paste.app_factory: tacker.sol_refactored.api.prometheus_plugin_router:AutoScalingRouter.factory
+    app:prometheus_fm:
+      paste.app_factory: tacker.sol_refactored.api.prometheus_plugin_router:FmAlertRouter.factory
+    app:prometheus_pm:
+      paste.app_factory: tacker.sol_refactored.api.prometheus_plugin_router:PmEventRouter.factory
+    app:server_notification:
+      paste.app_factory: tacker.sol_refactored.api.server_notification_router:ServerNotificationRouter.factory
+  logging:
+    loggers:
+      keys:
+        - root
+        - tacker
+    handlers:
+      keys:
+        - stdout
+        - stderr
+        - "null"
+    formatters:
+      keys:
+        - context
+        - default
+    logger_root:
+      level: WARNING
+      handlers: 'null'
+    logger_tacker:
+      level: INFO
+      handlers:
+        - stdout
+      qualname: tacker
+    logger_amqp:
+      level: WARNING
+      handlers: stderr
+      qualname: amqp
+    logger_amqplib:
+      level: WARNING
+      handlers: stderr
+      qualname: amqplib
+    logger_eventletwsgi:
+      level: WARNING
+      handlers: stderr
+      qualname: eventlet.wsgi.server
+    logger_sqlalchemy:
+      level: WARNING
+      handlers: stderr
+      qualname: sqlalchemy
+    logger_boto:
+      level: WARNING
+      handlers: stderr
+      qualname: boto
+    handler_null:
+      class: logging.NullHandler
+      formatter: default
+      args: ()
+    handler_stdout:
+      class: StreamHandler
+      args: (sys.stdout,)
+      formatter: context
+    handler_stderr:
+      class: StreamHandler
+      args: (sys.stderr,)
+      formatter: context
+    formatter_context:
+      class: oslo_log.formatters.ContextFormatter
+      datefmt: "%Y-%m-%d %H:%M:%S"
+    formatter_default:
+      format: "%(message)s"
+      datefmt: "%Y-%m-%d %H:%M:%S"
+
+tls:
+  identity: false
+  oslo_messaging: false
+  oslo_db: false
+
+manifests:
+  certificates: false
+  configmap_etc: true
+  configmap_bin: true
+  deployment_server: true
+  deployment_conductor: true
+  job_db_init: true
+  job_db_drop: false
+  job_db_sync: true
+  job_ks_endpoints: true
+  job_ks_service: true
+  job_ks_user: true
+  job_rabbit_init: true
+  pvc: true
+  secret_db: true
+  secret_keystone: true
+  secret_rabbitmq: true
+  service_api: true
+  service_conductor: true
+  ingress_api: true
+  service_ingress_api: true
+...

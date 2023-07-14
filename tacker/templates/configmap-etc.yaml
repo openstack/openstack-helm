@@ -1,0 +1,91 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.configmap_etc }}
+{{- $envAll := . }}
+
+{{- if empty .Values.conf.tacker.database.connection -}}
+{{- $connection := tuple "oslo_db" "internal" "tacker" "mysql" . | include "helm-toolkit.endpoints.authenticated_endpoint_uri_lookup" -}}
+{{- if .Values.manifests.certificates -}}
+{{- $_ := (printf "%s?charset=utf8&ssl_ca=/etc/mysql/certs/ca.crt&ssl_key=/etc/mysql/certs/tls.key&ssl_cert=/etc/mysql/certs/tls.crt&ssl_verify_cert" $connection ) | set .Values.conf.tacker.database "connection" -}}
+{{- else -}}
+{{- $_ := set .Values.conf.tacker.database "connection" $connection -}}
+{{- end -}}
+{{- end -}}
+
+{{- if empty .Values.conf.tacker.DEFAULT.transport_url -}}
+{{- $_ := tuple "oslo_messaging" "internal" "tacker" "amqp" . | include "helm-toolkit.endpoints.authenticated_transport_endpoint_uri_lookup" | set .Values.conf.tacker.DEFAULT "transport_url" -}}
+{{- end -}}
+{{- if empty .Values.conf.tacker.oslo_messaging_notifications.transport_url -}}
+{{- $_ := tuple "oslo_messaging" "internal" "tacker" "amqp" . | include "helm-toolkit.endpoints.authenticated_transport_endpoint_uri_lookup" | set .Values.conf.tacker.oslo_messaging_notifications "transport_url" -}}
+{{- end -}}
+
+{{- if empty .Values.conf.tacker.keystone_authtoken.www_authenticate_uri -}}
+{{- $_ := tuple "identity" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup"| set .Values.conf.tacker.keystone_authtoken "www_authenticate_uri" -}}
+{{- end -}}
+{{- if empty .Values.conf.tacker.keystone_authtoken.auth_url -}}
+{{- $_ := tuple "identity" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup"| set .Values.conf.tacker.keystone_authtoken "auth_url" -}}
+{{- end -}}
+{{- if empty .Values.conf.tacker.keystone_authtoken.region_name -}}
+{{- $_ := set .Values.conf.tacker.keystone_authtoken "region_name" .Values.endpoints.identity.auth.tacker.region_name -}}
+{{- end -}}
+{{- if empty .Values.conf.tacker.keystone_authtoken.project_name -}}
+{{- $_ := set .Values.conf.tacker.keystone_authtoken "project_name" .Values.endpoints.identity.auth.tacker.project_name -}}
+{{- end -}}
+{{- if empty .Values.conf.tacker.keystone_authtoken.project_domain_name -}}
+{{- $_ := set .Values.conf.tacker.keystone_authtoken "project_domain_name" .Values.endpoints.identity.auth.tacker.project_domain_name -}}
+{{- end -}}
+{{- if empty .Values.conf.tacker.keystone_authtoken.user_domain_name -}}
+{{- $_ := set .Values.conf.tacker.keystone_authtoken "user_domain_name" .Values.endpoints.identity.auth.tacker.user_domain_name -}}
+{{- end -}}
+{{- if empty .Values.conf.tacker.keystone_authtoken.username -}}
+{{- $_ := set .Values.conf.tacker.keystone_authtoken "username" .Values.endpoints.identity.auth.tacker.username -}}
+{{- end -}}
+{{- if empty .Values.conf.tacker.keystone_authtoken.password -}}
+{{- $_ := set .Values.conf.tacker.keystone_authtoken "password" .Values.endpoints.identity.auth.tacker.password -}}
+{{- end -}}
+
+{{- if empty .Values.conf.tacker.keystone_authtoken.memcached_servers -}}
+{{- $_ := tuple "oslo_cache" "internal" "memcache" . | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" | set .Values.conf.tacker.keystone_authtoken "memcached_servers" -}}
+{{- end -}}
+{{- if empty .Values.conf.tacker.keystone_authtoken.memcache_secret_key -}}
+{{- $_ := set .Values.conf.tacker.keystone_authtoken "memcache_secret_key" ( default ( randAlphaNum 64 ) .Values.endpoints.oslo_cache.auth.memcache_secret_key ) -}}
+{{- end -}}
+
+{{- if empty .Values.conf.tacker.alarm_auth.url -}}
+{{- $_ := tuple "identity" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup"| set .Values.conf.tacker.alarm_auth "url" -}}
+{{- end -}}
+{{- if empty .Values.conf.tacker.alarm_auth.project_name -}}
+{{- $_ := set .Values.conf.tacker.alarm_auth "project_name" .Values.endpoints.identity.auth.tacker.project_name -}}
+{{- end -}}
+{{- if empty .Values.conf.tacker.alarm_auth.username -}}
+{{- $_ := set .Values.conf.tacker.alarm_auth "username" .Values.endpoints.identity.auth.tacker.username -}}
+{{- end -}}
+{{- if empty .Values.conf.tacker.alarm_auth.password -}}
+{{- $_ := set .Values.conf.tacker.alarm_auth "password" .Values.endpoints.identity.auth.tacker.password -}}
+{{- end -}}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: tacker-etc
+  namespace: openstack
+type: Opaque
+data:
+  config.json: {{ toPrettyJson .Values.conf.server | b64enc }}
+  config-conductor.json: {{ toPrettyJson .Values.conf.conductor | b64enc }}
+  tacker.conf: {{ include "helm-toolkit.utils.to_oslo_conf" .Values.conf.tacker | b64enc }}
+  api-paste.ini: {{ include "helm-toolkit.utils.to_ini" .Values.conf.paste | b64enc }}
+  logging.conf: {{ include "helm-toolkit.utils.to_oslo_conf" .Values.conf.logging | b64enc }}
+{{- end }}

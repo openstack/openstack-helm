@@ -1,0 +1,100 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.deployment_server }}
+{{- $envAll := . }}
+{{- $serviceAccountName := "tacker-server" }}
+{{ tuple $envAll "server" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tacker-server
+  labels:
+{{ tuple $envAll "tacker" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  selector:
+    matchLabels:
+{{ tuple $envAll "tacker" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
+  replicas: {{ .Values.pod.replicas.server }}
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "tacker" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+    spec:
+      nodeSelector:
+        {{ .Values.labels.server.node_selector_key }}: {{ .Values.labels.server.node_selector_value }}
+      serviceAccountName: tacker-server
+{{ dict "envAll" $envAll "application" "server" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
+      terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.server.timeout | default "30" }}
+      containers:
+        - name: tacker-server
+          image: {{ .Values.images.tags.tacker_server }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+          command:
+            - /bin/bash
+            - -c
+            - /tmp/tacker-server.sh
+          volumeMounts:
+          - name: localtime
+            mountPath: "/etc/localtime"
+            readOnly: yes
+          - name: tacker-etc
+            mountPath: "/etc/tacker/config.json"
+            readOnly: yes
+            subPath: config-server.json
+          - name: tacker-etc
+            mountPath: "/etc/tacker/api-paste.ini"
+            readOnly: yes
+            subPath: api-paste.ini
+          - name: tacker-etc
+            mountPath: "/etc/tacker/tacker.conf"
+            readOnly: yes
+            subPath: tacker.conf
+          - name: tacker-etc
+            mountPath: "/etc/tacker/logging.conf"
+            readOnly: yes
+            subPath: logging.conf
+{{- range $key, $volume := $envAll.Values.storage.volumes }}
+          - name: {{ $key | replace "_" "-" }}
+            mountPath: {{ $volume.mount_path | quote }}
+            readOnly: false
+{{- end }}
+          - name: tacker-server-sh
+            mountPath: /tmp/tacker-server.sh
+            subPath: tacker-server.sh
+            readOnly: true
+          ports:
+          - name: t-api
+            containerPort: 9890
+      initContainers:
+{{ tuple $envAll "server" tuple | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+      volumes:
+        - name: localtime
+          hostPath:
+            path: "/etc/localtime"
+        - name: tacker-etc
+          secret:
+            defaultMode: 292
+            secretName: tacker-etc
+{{- range $key, $volume := $envAll.Values.storage.volumes }}
+        - name: {{ $key | replace "_" "-" }}
+          persistentVolumeClaim:
+            claimName: {{ $volume.name }}
+{{- end }}
+        - name: tacker-server-sh
+          configMap:
+            name: tacker-bin
+            defaultMode: 0555
+{{- end }}

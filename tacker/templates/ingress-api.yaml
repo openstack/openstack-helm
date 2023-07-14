@@ -1,0 +1,23 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if and .Values.manifests.ingress_api .Values.network.api.ingress.public }}
+{{- $envAll := . }}
+{{- $ingressOpts := dict "envAll" $envAll "backendServiceType" "nfv_orchestration" "backendPort" "t-api" -}}
+{{- $secretName := $envAll.Values.secrets.tls.nfv_orchestration.api.internal -}}
+{{- if and .Values.manifests.certificates $secretName -}}
+{{- $_ := set $ingressOpts "certIssuer" .Values.endpoints.nfv_orchestratio.host_fqdn_override.default.tls.issuerRef.name -}}
+{{- end -}}
+{{ $ingressOpts | include "helm-toolkit.manifests.ingress" }}
+{{- end }}
