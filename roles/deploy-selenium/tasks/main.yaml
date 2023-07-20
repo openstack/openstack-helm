@@ -25,6 +25,7 @@
       - unzip
       - wget
       - xvfb
+      - jq
 
 - name: Install selenium
   pip:
@@ -55,8 +56,8 @@
   shell: |-
     set -ex
     CHROME_VERSION=$(dpkg -s google-chrome-stable | grep -Po '(?<=^Version: ).*' | awk -F'.' '{print $1"."$2"."$3}')
-    DRIVER_PATH=$(wget -qO- https://chromedriver.storage.googleapis.com | grep -Po "(?<=<Key>)${CHROME_VERSION}[^<]*?chromedriver_linux64\.zip(?=</Key>)" | tail -1)
-    wget -O /tmp/chromedriver.zip "https://chromedriver.storage.googleapis.com/${DRIVER_PATH}"
+    DRIVER_URL=$(wget -qO- https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions-with-downloads.json | jq -r --arg chrome_version "$CHROME_VERSION" '.channels.Stable.downloads.chrome[] | select(.platform=="linux64" and (.url | test($chrome_version))).url')
+    wget -O /tmp/chromedriver.zip ${DRIVER_URL}
   args:
     executable: /bin/bash
 
