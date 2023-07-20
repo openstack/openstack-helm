@@ -37,6 +37,68 @@
     nodeset: openstack-helm-single-node
 
 - job:
+    name: openstack-helm-deploy-multinode
+    abstract: true
+    roles:
+      - zuul: openstack/openstack-helm-infra
+      - zuul: zuul/zuul-jobs
+    required-projects:
+      - openstack/openstack-helm
+      - openstack/openstack-helm-infra
+    irrelevant-files:
+      - ^.*\.rst$
+      - ^doc/.*$
+      - ^releasenotes/.*$
+    timeout: 7200
+    pre-run:
+      - tools/gate/playbooks/prepare-hosts.yaml
+    post-run: tools/gate/playbooks/osh-infra-collect-logs.yaml
+    run:
+      - tools/gate/playbooks/deploy-prerequisites.yaml
+      # zuul-jobs/roles/ensure-docker role installs containerd.io with the config that
+      # is not compatible with Kubernetes due to unimplemented CRI v1 runtime API
+      - tools/gate/playbooks/deploy-docker.yaml
+      - tools/gate/playbooks/deploy-k8s.yaml
+      - tools/gate/playbooks/run-scripts.yaml
+    # multinode nodeset
+    nodeset: openstack-helm-ubuntu
+    vars:
+      # the k8s package versions are available here
+      # https://packages.cloud.google.com/apt/dists/kubernetes-xenial/main/binary-amd64/Packages
+      kube_version: "1.26.3-00"
+      calico_version: "v3.25"
+      helm_version: "v3.6.3"
+      yq_version: "v4.6.0"
+      zuul_osh_infra_relative_path: ../openstack-helm-infra
+      gate_scripts_relative_path: ../openstack-helm
+
+- job:
+    name: openstack-helm-compute-kit-multinode
+    parent: openstack-helm-deploy-multinode
+    vars:
+      run_helm_tests: "no"
+      gate_scripts:
+        - ./tools/deployment/common/prepare-k8s.sh
+        - ./tools/deployment/common/setup-client.sh
+        - ./tools/deployment/component/common/ingress.sh
+        - - ./tools/deployment/component/common/rabbitmq.sh
+          - ./tools/deployment/component/common/mariadb.sh
+          - ./tools/deployment/component/common/memcached.sh
+        - ./tools/deployment/component/keystone/keystone.sh
+        - - ./tools/deployment/component/heat/heat.sh
+          - export GLANCE_BACKEND=memory; ./tools/deployment/component/glance/glance.sh
+          - ./tools/deployment/component/compute-kit/openvswitch.sh
+        - ./tools/deployment/component/compute-kit/libvirt.sh
+        - export MULTINODE=yes; ./tools/deployment/component/compute-kit/compute-kit.sh
+        - export OSH_TEST_TIMEOUT=1200;./tools/deployment/common/run-helm-tests.sh neutron
+        - ./tools/deployment/common/run-helm-tests.sh nova
+        - ./tools/deployment/common/run-helm-tests.sh glance
+        - ./tools/deployment/common/run-helm-tests.sh keystone
+        - ./tools/deployment/developer/common/170-setup-gateway.sh
+        - ./tools/deployment/developer/common/900-use-it.sh
+        - ./tools/deployment/common/force-cronjob-run.sh
+
+- job:
     name: openstack-helm-bandit
     parent: openstack-helm-chart-deploy
     run: tools/gate/playbooks/osh-bandit.yaml
@@ -271,8 +333,7 @@
 
 - job:
     name: openstack-helm-compute-kit-zed-ubuntu_focal
-    parent: openstack-helm-compute-kit
-    nodeset: openstack-helm-single-32GB-focal-tmp
+    parent: openstack-helm-compute-kit-multinode
     vars:
       osh_params:
         openstack_release: zed
@@ -302,8 +363,7 @@
 
 - job:
     name: openstack-helm-compute-kit-2023-1-ubuntu_focal
-    parent: openstack-helm-compute-kit
-    nodeset: openstack-helm-single-32GB-focal-tmp
+    parent: openstack-helm-compute-kit-multinode
     vars:
       osh_params:
         openstack_release: "2023.1"

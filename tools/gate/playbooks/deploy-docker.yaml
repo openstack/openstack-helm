@@ -1,0 +1,72 @@
+- hosts: all
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Remove old docker packages
+      apt:
+        pkg:
+          - docker.io
+          - docker-doc
+          - docker-compose
+          - podman-docker
+          - containerd
+          - runc
+        state: absent
+
+    - name: Ensure dependencies are installed
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - gnupg2
+        state: present
+
+    - name: Add Docker apt repository key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        keyring: /etc/apt/trusted.gpg.d/docker.gpg
+        state: present
+
+    - name: Get dpkg arch
+      command: dpkg --print-architecture
+      register: dpkg_architecture
+
+    - name: Add Docker apt repository
+      apt_repository:
+        repo: deb [arch="{{ dpkg_architecture.stdout }}" signed-by=/etc/apt/trusted.gpg.d/docker.gpg] https://download.docker.com/linux/ubuntu "{{ ansible_distribution_release }}" stable
+        state: present
+        filename: docker.list
+
+    - name: Install docker packages
+      apt:
+        pkg:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-buildx-plugin
+          - docker-compose-plugin
+        state: present
+        update_cache: true
+
+    - name: Configure Docker daemon
+      copy:
+        src: files/daemon.json
+        dest: /etc/docker/daemon.json
+
+    - name: Remove /etc/containerd/config.toml
+      file:
+        path: /etc/containerd/config.toml
+        state: absent
+      ignore_errors: true
+
+    - name: Restart containerd
+      service:
+        name: containerd
+        daemon_reload: yes
+        state: restarted
+
+    - name: Restart docker
+      service:
+        name: docker
+        daemon_reload: yes
+        state: restarted
