@@ -20,8 +20,8 @@ release_group: null
 
 images:
   tags:
-    ovn_nb_db: docker.io/openstackhelm/ovn:latest-ubuntu_focal
-    ovn_sb_db: docker.io/openstackhelm/ovn:latest-ubuntu_focal
+    ovn_ovsdb_nb: docker.io/openstackhelm/ovn:latest-ubuntu_focal
+    ovn_ovsdb_sb: docker.io/openstackhelm/ovn:latest-ubuntu_focal
     ovn_northd: docker.io/openstackhelm/ovn:latest-ubuntu_focal
     ovn_controller: docker.io/openstackhelm/ovn:latest-ubuntu_focal
     dep_check: quay.io/airshipit/kubernetes-entrypoint:v1.0.0
@@ -34,10 +34,10 @@ images:
       - image_repo_sync
 
 labels:
-  ovn_nb_db:
+  ovn_ovsdb_nb:
     node_selector_key: openstack-network-node
     node_selector_value: enabled
-  ovn_sb_db:
+  ovn_ovsdb_sb:
     node_selector_key: openstack-network-node
     node_selector_value: enabled
   ovn_northd:
@@ -48,30 +48,28 @@ labels:
     node_selector_value: enabled
 
 volume:
-  ovn_nb_db:
-    use_local_path:
-      enabled: false
-      host_path: /var/lib/rabbitmq
-    chown_on_start: true
+  ovn_ovsdb_nb:
     enabled: true
     class_name: general
     size: 5Gi
-  ovn_sb_db:
-    use_local_path:
-      enabled: false
-      host_path: /var/lib/rabbitmq
-    chown_on_start: true
+  ovn_ovsdb_sb:
     enabled: true
     class_name: general
     size: 5Gi
 
+network:
+  interface:
+    # Tunnel interface will be used for VXLAN tunneling.
+    tunnel: null
+    # If tunnel is null there is a fallback mechanism to search
+    # for interface with routing using tunnel network cidr.
+    tunnel_network_cidr: "0/0"
+
 conf:
   ovn_cms_options: "enable-chassis-as-gw,availability-zones=nova"
-  ovn_remote: tcp:ovn-sb-db.openstack.svc.cluster.local:6640
   ovn_encap_type: geneve
   ovn_bridge: br-int
-  # ovn_bridge_mappings: "physnet-public:br-public,physnet-private:br-private"
-  ovn_bridge_mappings: ""
+  ovn_bridge_mappings: external:br-ex
 
   # auto_bridge_add:
   #   br-private: eth0
@@ -83,10 +81,23 @@ conf:
     compute: true
 
 pod:
+  security_context:
+    ovn_northd:
+      container:
+        northd:
+          capabilities:
+            add:
+              - SYS_NICE
+    ovn_controller:
+      container:
+        controller:
+          capabilities:
+            add:
+              - SYS_NICE
   tolerations:
-    ovn_nb_db:
+    ovn_ovsdb_nb:
       enabled: false
-    ovn_sb_db:
+    ovn_ovsdb_sb:
       enabled: false
     ovn_northd:
       enabled: false
@@ -102,17 +113,32 @@ pod:
         default: 10
 
   probes:
-    # TODO: Add healthchecks
+    ovn_northd:
+      northd:
+        readiness:
+          enabled: true
+          params:
+            initialDelaySeconds: 5
+            timeoutSeconds: 10
+        liveness:
+          enabled: true
+          params:
+            initialDelaySeconds: 5
+            timeoutSeconds: 10
   dns_policy: "ClusterFirstWithHostNet"
+  replicas:
+    ovn_ovsdb_nb: 1
+    ovn_ovsdb_sb: 1
+    ovn_northd: 1
   lifecycle:
     upgrades:
       daemonsets:
         pod_replacement_strategy: RollingUpdate
-        ovn_nb_db:
+        ovn_ovsdb_nb:
           enabled: true
           min_ready_seconds: 0
           max_unavailable: 1
-        ovn_sb_db:
+        ovn_ovsdb_sb:
           enabled: true
           min_ready_seconds: 0
           max_unavailable: 1
@@ -127,14 +153,14 @@ pod:
   resources:
     enabled: false
     ovs:
-      ovn_nb_db:
+      ovn_ovsdb_nb:
         requests:
           memory: "128Mi"
           cpu: "100m"
         limits:
           memory: "1024Mi"
           cpu: "2000m"
-      ovn_sb_db:
+      ovn_ovsdb_sb:
         requests:
           memory: "128Mi"
           cpu: "100m"
@@ -166,8 +192,8 @@ pod:
 
 secrets:
   oci_image_registry:
-    ovn_nb_db: ovn-nb-db-oci-image-registry-key
-    ovn_sb_db: ovn-sb-db-oci-image-registry-key
+    ovn_ovsdb_nb: ovn-ovsdb-nb-oci-image-registry-key
+    ovn_ovsdb_sb: ovn-ovsdb-sb-oci-image-registry-key
     ovn_northd: ovn-northd-oci-image-registry-key
     ovn_controller: ovn-controller-oci-image-registry-key
 
@@ -201,34 +227,38 @@ endpoints:
     port:
       registry:
         default: null
-  ovn_nb_db:
-    name: ovn-nb-db
+  ovn_ovsdb_nb:
+    name: ovn-ovsdb-nb
     namespace: null
     hosts:
-      default: ovn-nb-db
+      default: ovn-ovsdb-nb
     host_fqdn_override:
       default: null
     port:
-      db:
-        default: 6640
-  ovn_sb_db:
-    name: ovn-sb-db
+      ovsdb:
+        default: 6641
+      raft:
+        default: 6643
+  ovn_ovsdb_sb:
+    name: ovn-ovsdb-sb
     namespace: null
     hosts:
-      default: ovn-sb-db
+      default: ovn-ovsdb-sb
     host_fqdn_override:
       default: null
     port:
-      db:
-        default: 6640
+      ovsdb:
+        default: 6642
+      raft:
+        default: 6644
 
 network_policy:
-  ovn_nb_db:
+  ovn_ovsdb_nb:
     ingress:
       - {}
     egress:
       - {}
-  ovn_sb_db:
+  ovn_ovsdb_sb:
     ingress:
       - {}
     egress:
@@ -254,18 +284,18 @@ dependencies:
           - endpoint: node
             service: local_image_registry
   static:
-    ovn_nb_db: null
-    ovn_sb_db: null
+    ovn_ovsdb_nb: null
+    ovn_ovsdb_sb: null
     ovn_northd:
       services:
         - endpoint: internal
-          service: ovn-nb-db
+          service: ovn-ovsdb-nb
         - endpoint: internal
-          service: ovn-sb-db
+          service: ovn-ovsdb-sb
     ovn_controller:
       services:
         - endpoint: internal
-          service: ovn-sb-db
+          service: ovn-ovsdb-sb
       pod:
         - requireSameNode: true
           labels:
@@ -281,10 +311,10 @@ manifests:
   configmap_etc: true
   deployment_northd: true
   daemonset_controller: true
-  service_ovn_nb_db: true
-  service_ovn_sb_db: true
-  statefulset_ovn_nb_db: true
-  statefulset_ovn_sb_db: true
+  service_ovn_ovsdb_nb: true
+  service_ovn_ovsdb_sb: true
+  statefulset_ovn_ovsdb_nb: true
+  statefulset_ovn_ovsdb_sb: true
   deployment_ovn_northd: true
   daemonset_ovn_controller: true
   job_image_repo_sync: true

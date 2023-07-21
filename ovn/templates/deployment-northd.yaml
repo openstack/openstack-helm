@@ -12,6 +12,20 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- define "livenessProbeTemplate" }}
+exec:
+  command:
+    - /tmp/ovn-northd.sh
+    - liveness
+{{- end }}
+
+{{- define "readinessProbeTemplate" }}
+exec:
+  command:
+    - /tmp/ovn-northd.sh
+    - readiness
+{{- end }}
+
 {{- if .Values.manifests.deployment_northd }}
 {{- $envAll := . }}
 
@@ -24,13 +38,10 @@ metadata:
   name: ovn-northd
   annotations:
     {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
-    configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
   labels:
 {{ tuple $envAll "ovn" "ovn-northd" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 spec:
-  replicas: 1
-  strategy:
-    type: Recreate
+  replicas: {{ .Values.pod.replicas.ovn_northd }}
   selector:
     matchLabels:
 {{ tuple $envAll "ovn" "ovn-northd" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
@@ -40,6 +51,7 @@ spec:
 {{ tuple $envAll "ovn" "ovn-northd" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
       annotations:
 {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
     spec:
       serviceAccountName: {{ $serviceAccountName }}
       nodeSelector:
@@ -47,16 +59,25 @@ spec:
       initContainers:
 {{- tuple $envAll "ovn_northd" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
-        - name: ovn-northd
+        - name: northd
 {{ tuple $envAll "ovn_northd" | include "helm-toolkit.snippets.image" | indent 10 }}
-          command:
-            - /tmp/start.sh
-            - run-ovn-northd
 {{ tuple $envAll $envAll.Values.pod.resources.server | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "ovn_northd" "container" "northd" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+{{ dict "envAll" . "component" "ovn_northd" "container" "northd" "type" "liveness" "probeTemplate" (include "livenessProbeTemplate" . | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+{{ dict "envAll" . "component" "ovn_northd" "container" "northd" "type" "readiness" "probeTemplate" (include "readinessProbeTemplate" . | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+          command:
+            - /tmp/ovn-northd.sh
+            - start
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /tmp/ovn-northd.sh
+                  - stop
           volumeMounts:
             - name: ovn-bin
-              mountPath: /tmp/start.sh
-              subPath: ovn.sh
+              mountPath: /tmp/ovn-northd.sh
+              subPath: ovn-northd.sh
               readOnly: true
       volumes:
         - name: ovn-bin

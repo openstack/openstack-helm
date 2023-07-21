@@ -38,20 +38,22 @@ spec:
 {{ tuple $envAll "ovn" "ovn-controller" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
       annotations:
 {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
+        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
     spec:
       serviceAccountName: {{ $serviceAccountName }}
       nodeSelector:
         {{ .Values.labels.ovn_controller.node_selector_key }}: {{ .Values.labels.ovn_controller.node_selector_value }}
       initContainers:
 {{- tuple $envAll "ovn_controller" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
-        - name: ovn-setup-bridge
+        - name: controller-init
 {{ tuple $envAll "ovn_controller" | include "helm-toolkit.snippets.image" | indent 10 }}
           command:
-            - /tmp/ovn-setup-bridges-init.sh
+            - /tmp/ovn-controller-init.sh
           volumeMounts:
             - name: ovn-bin
-              mountPath: /tmp/ovn-setup-bridges-init.sh
-              subPath: ovn-setup-bridges-init.sh
+              mountPath: /tmp/ovn-controller-init.sh
+              subPath: ovn-controller-init.sh
               readOnly: true
             - name: run-openvswitch
               mountPath: /run/openvswitch
@@ -60,25 +62,23 @@ spec:
               subPath: auto_bridge_add
               readOnly: true
       containers:
-        - name: ovn-controller
+        - name: controller
 {{ tuple $envAll "ovn_controller" | include "helm-toolkit.snippets.image" | indent 10 }}
-          command:
-            - /tmp/start.sh
-            - ovn-controller
 {{ tuple $envAll $envAll.Values.pod.resources.server | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-          env:
-            - name: K8S_NODE
-              valueFrom:
-                fieldRef:
-                  fieldPath: spec.nodeName
-            - name: OVN_ENCAP_IP
-              valueFrom:
-                fieldRef:
-                  fieldPath: status.hostIP
+{{ dict "envAll" $envAll "application" "ovn_controller" "container" "controller" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          command:
+            - /tmp/ovn-controller.sh
+            - start
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /tmp/ovn-controller.sh
+                  - stop
           volumeMounts:
             - name: ovn-bin
-              mountPath: /tmp/start.sh
-              subPath: ovn.sh
+              mountPath: /tmp/ovn-controller.sh
+              subPath: ovn-controller.sh
               readOnly: true
             - name: run-openvswitch
               mountPath: /run/openvswitch
