@@ -16,19 +16,11 @@ limitations under the License.
 
 set -x
 
-cp /etc/neutron/ovn_metadata_agent.ini /tmp/ovn_metadata_agent.ini
-
-# This is because neutron doesn't support DNS names for ovsdb-nb-connection and ovsdb-sb-connection!
-sed -i -e "s|__OVN_NB_DB_SERVICE_HOST__|$OVN_NB_DB_SERVICE_HOST|g" /tmp/ovn_metadata_agent.ini
-sed -i -e "s|__OVN_NB_DB_SERVICE_PORT__|$OVN_NB_DB_SERVICE_PORT|g" /tmp/ovn_metadata_agent.ini
-sed -i -e "s|__OVN_SB_DB_SERVICE_HOST__|$OVN_SB_DB_SERVICE_HOST|g" /tmp/ovn_metadata_agent.ini
-sed -i -e "s|__OVN_SB_DB_SERVICE_PORT__|$OVN_SB_DB_SERVICE_PORT|g" /tmp/ovn_metadata_agent.ini
-sed -i -e "s|__NOVA_METADATA_SERVICE_HOST__|$NOVA_METADATA_SERVICE_HOST|g" /tmp/ovn_metadata_agent.ini
-
 exec neutron-ovn-metadata-agent \
       --config-file /etc/neutron/neutron.conf \
+      --config-file /etc/neutron/ovn_metadata_agent.ini \
 {{- if and ( empty .Values.conf.neutron.DEFAULT.host ) ( .Values.pod.use_fqdn.neutron_agent ) }}
   --config-file /tmp/pod-shared/neutron-agent.ini \
 {{- end }}
-      --config-file /tmp/ovn_metadata_agent.ini
+      --config-file /tmp/pod-shared/ovn.ini
 

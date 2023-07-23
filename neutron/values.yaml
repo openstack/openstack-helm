@@ -286,17 +286,13 @@ dependencies:
         - endpoint: public
           service: compute_metadata
     ovn_metadata:
-      pod: null
-      jobs:
-        - neutron-rabbit-init
+      pod:
+        - requireSameNode: true
+          labels:
+            application: ovn
+            component: ovn-controller
       services:
         - endpoint: internal
-          service: oslo_messaging
-        - endpoint: internal
-          service: network
-        - endpoint: internal
-          service: compute
-        - endpoint: public
           service: compute_metadata
     ovs_agent:
       jobs:
@@ -1803,6 +1799,9 @@ conf:
       enable_proxy_headers_parsing: true
     oslo_policy:
       policy_file: /etc/neutron/policy.yaml
+    ovn:
+      enable_distributed_floating_ip: true
+      ovn_metadata_enabled: true
     nova:
       auth_type: password
       auth_version: v3
@@ -1912,6 +1911,9 @@ conf:
       # using ml2_type_vlan.network_vlan_ranges:
       # ml2_type_vlan:
       #   network_vlan_ranges: "external:1100:1110"
+      ml2_type_geneve:
+        vni_ranges: 1:65536
+        max_header_size: 38
       agent:
         extensions: ""
     ml2_conf_sriov: null
@@ -1989,7 +1991,18 @@ conf:
       enabled: true
       backend: dogpile.cache.memcached
   bagpipe_bgp: {}
-  ovn_metadata_agent: {}
+  ovn_metadata_agent:
+    DEFAULT:
+      # we cannot change the proxy socket path as it is declared
+      # as a hostPath volume from agent daemonsets
+      metadata_proxy_socket: /var/lib/neutron/openstack-helm/metadata_proxy
+      metadata_proxy_shared_secret: "password"
+      metadata_workers: 2
+    cache:
+      enabled: true
+      backend: dogpile.cache.memcached
+    ovs:
+      ovsdb_connection: unix:/run/openvswitch/db.sock
 
   rabbitmq:
     # NOTE(rk760n): adding rmq policy to mirror messages from notification queues and set expiration time for the ones
