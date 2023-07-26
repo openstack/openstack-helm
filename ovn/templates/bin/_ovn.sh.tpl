@@ -970,8 +970,8 @@ ovn-master() {
 }
 
 add-external-id-configs() {
-  ovs-vsctl get open . external-ids:system-id
-  if [ $? -eq 1 ]; then
+  ovs-vsctl get open . external-ids:system-id 2>&1 | grep -q "no key"
+  if [ $? -eq 0 ]; then
     ovs-vsctl set open . external-ids:system-id="$(uuidgen)"
   fi
 
