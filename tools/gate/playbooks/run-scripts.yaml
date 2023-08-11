@@ -11,18 +11,48 @@
 # limitations under the License.
 
 ---
-- hosts: all
-  tasks:
-    - name: Override images
-      include_role:
-        name: override-images
-      when: buildset_registry is defined
-    - name: Use docker mirror
-      include_role:
-        name: use-docker-mirror
-
 - hosts: primary
   tasks:
+    - name: Override images
+      when: buildset_registry is defined
+      vars:
+        work_dir: "{{ zuul.project.src_dir }}"
+      block:
+        - name: Buildset registry alias
+          include_tasks:
+            file: buildset_registry_alias.yaml
+
+        - name: Print zuul
+          debug:
+            var: zuul
+
+        - name: Override proposed images from artifacts
+          shell: >
+            find {{ override_paths | join(" ") }} -type f -exec sed -Ei
+            "s#['\"]?docker\.io/({{ repo }}):({{ tag }})['\"]?\$#{{ buildset_registry_alias }}:{{ buildset_registry.port }}/\1:\2#g" {} +
+          loop: "{{ zuul.artifacts | default([]) }}"
+          args:
+            chdir: "{{ work_dir }}"
+          loop_control:
+            loop_var: zj_zuul_artifact
+          when: "'metadata' in zj_zuul_artifact and zj_zuul_artifact.metadata.type | default('') == 'container_image'"
+          vars:
+            tag: "{{ zj_zuul_artifact.metadata.tag }}"
+            repo: "{{ zj_zuul_artifact.metadata.repository }}"
+            override_paths:
+              - ../openstack-helm*/*/values*
+              - ../openstack-helm-infra/tools/deployment/
+
+        - name: Diff
+          shell: |
+              set -ex;
+              for dir in openstack-helm openstack-helm-infra; do
+                path="{{ work_dir }}/../${dir}/"
+                if [ ! -d "${path}" ]; then continue; fi
+                echo "${dir} diff"
+                cd "${path}"; git diff; cd -;
+              done
+
     - name: "creating directory for run artifacts"
       file:
         path: "/tmp/artifacts"

@@ -118,6 +118,7 @@
         executable: /bin/bash
 
 - hosts: all
+  become: true
   tasks:
     # We download Calico manifest on all nodes because we then want to download
     # Calico images BEFORE deploying it
@@ -132,7 +133,9 @@
     # for `k8s-app=kube-dns` isn't reached by slow download speeds
     - name: Download Calico images
       shell: |
-        awk '/image:/ { print $2 }' /tmp/calico.yaml | xargs -I{} sudo docker pull {}
+        export CONTAINER_RUNTIME_ENDPOINT=unix:///run/containerd/containerd.sock
+        export IMAGE_SERVICE_ENDPOINT=unix:///run/containerd/containerd.sock
+        awk '/image:/ { print $2 }' /tmp/calico.yaml | xargs -I{} crictl pull {}
       args:
         executable: /bin/bash
 
