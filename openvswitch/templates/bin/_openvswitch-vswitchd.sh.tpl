@@ -107,13 +107,37 @@ function stop () {
   ovs-appctl -T1 -t /run/openvswitch/ovs-vswitchd.${PID}.ctl exit
 }
 
+find_latest_ctl_file() {
+    latest_file=""
+    latest_file=$(ls -lt /run/openvswitch/*.ctl | awk 'NR==1 {if ($3 == "{{ .Values.conf.poststart.rootUser }}") print $NF}')
+
+    echo "$latest_file"
+}
+
 function poststart () {
   # This enables the usage of 'ovs-appctl' from neutron-ovs-agent pod.
+
+  # Wait for potential new ctl file before continuing
+  timeout={{ .Values.conf.poststart.timeout }}
+  start_time=$(date +%s)
+  while true; do
+      latest_ctl_file=$(find_latest_ctl_file)
+      if [ -n "$latest_ctl_file" ]; then
+          break
+      fi
+      current_time=$(date +%s)
+      if (( current_time - start_time >= timeout )); then
+          break
+      fi
+      sleep 1
+  done
+
   until [ -f $OVS_PID ]
   do
       echo "Waiting for file $OVS_PID"
       sleep 1
   done
+
   PID=$(cat $OVS_PID)
   OVS_CTL=/run/openvswitch/ovs-vswitchd.${PID}.ctl
 
