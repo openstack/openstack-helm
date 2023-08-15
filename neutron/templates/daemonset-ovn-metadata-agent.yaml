@@ -90,23 +90,21 @@ spec:
       {{- end }}
       initContainers:
 {{ tuple $envAll "pod_dependency" $mounts_neutron_ovn_metadata_agent_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
-        - name: neutron-ovn-metadata-agent-init
-{{ tuple $envAll "neutron_ovn_metadata" | include "helm-toolkit.snippets.image" | indent 10 }}
-{{ tuple $envAll $envAll.Values.pod.resources.agent.ovn_metadata | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-{{ dict "envAll" $envAll "application" "neutron_ovn_metadata_agent" "container" "neutron_ovn_metadata_agent_init" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+        - name: neutron-metadata-agent-init
+{{ tuple $envAll "neutron_metadata" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.agent.metadata | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "neutron_metadata_agent" "container" "neutron_metadata_agent_init" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           env:
             - name: NEUTRON_USER_UID
-              value: "{{ .Values.pod.security_context.neutron_ovn_metadata_agent.pod.runAsUser }}"
+              value: "{{ .Values.pod.security_context.neutron_metadata_agent.pod.runAsUser }}"
           command:
-            - /tmp/neutron-ovn-metadata-agent-init.sh
+            - /tmp/neutron-metadata-agent-init.sh
           volumeMounts:
-            - name: run
-              mountPath: /run
             - name: pod-tmp
               mountPath: /tmp
             - name: neutron-bin
-              mountPath: /tmp/neutron-ovn-metadata-agent-init.sh
-              subPath: neutron-ovn-metadata-agent-init.sh
+              mountPath: /tmp/neutron-metadata-agent-init.sh
+              subPath: neutron-metadata-agent-init.sh
               readOnly: true
             - name: neutron-etc
               mountPath: /etc/neutron/neutron.conf
@@ -114,6 +112,19 @@ spec:
               readOnly: true
             - name: socket
               mountPath: /var/lib/neutron/openstack-helm
+        - name: ovn-neutron-init
+{{ tuple $envAll "neutron_metadata" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.agent.metadata | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "neutron_metadata_agent" "container" "neutron_metadata_agent_init" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          command:
+            - /tmp/neutron-ovn-init.sh
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: neutron-bin
+              mountPath: /tmp/neutron-ovn-init.sh
+              subPath: neutron-ovn-init.sh
+              readOnly: true
       containers:
         - name: neutron-ovn-metadata-agent
 {{ tuple $envAll "neutron_metadata" | include "helm-toolkit.snippets.image" | indent 10 }}
@@ -234,7 +245,7 @@ spec:
 {{- $daemonset := "ovn-metadata-agent" }}
 {{- $configMapName := "neutron-etc" }}
 {{- $serviceAccountName := "neutron-ovn-metadata-agent" }}
-{{- $dependencyOpts := dict "envAll" $envAll "dependencyMixinParam" $envAll.Values.network.backend "dependencyKey" "ovn-metadata" -}}
+{{- $dependencyOpts := dict "envAll" $envAll "dependencyMixinParam" $envAll.Values.network.backend "dependencyKey" "ovn_metadata" -}}
 {{- $_ := include "helm-toolkit.utils.dependency_resolver" $dependencyOpts | toString | fromYaml }}
 {{ tuple $envAll "pod_dependency" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 {{- $daemonset_yaml := list $daemonset $configMapName $serviceAccountName . | include "neutron.ovn_metadata_agent.daemonset" | toString | fromYaml }}
