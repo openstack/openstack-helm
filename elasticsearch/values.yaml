@@ -19,16 +19,16 @@ images:
   tags:
     apache_proxy: docker.io/library/httpd:2.4
     memory_init: docker.io/openstackhelm/heat:wallaby-ubuntu_focal
-    elasticsearch: docker.io/openstackhelm/elasticsearch-s3:latest-7_6_2
+    elasticsearch: docker.io/openstackhelm/elasticsearch-s3:latest-8_9_0
     curator: docker.io/bobrik/curator:5.8.1
     ceph_key_placement: docker.io/openstackhelm/ceph-config-helper:ubuntu_focal_17.2.6-1-20230508
     s3_bucket: docker.io/openstackhelm/ceph-daemon:ubuntu_focal_17.2.6-1-20230508
     s3_user: docker.io/openstackhelm/ceph-config-helper:ubuntu_focal_17.2.6-1-20230508
-    helm_tests: docker.io/openstackhelm/elasticsearch-s3:latest-7_6_2
+    helm_tests: docker.io/openstackhelm/heat:wallaby-ubuntu_focal
     prometheus_elasticsearch_exporter: docker.io/justwatch/elasticsearch_exporter:1.1.0
     dep_check: quay.io/airshipit/kubernetes-entrypoint:v1.0.0
     snapshot_repository: docker.io/openstackhelm/ceph-config-helper:ubuntu_focal_17.2.6-1-20230508
-    elasticsearch_templates: docker.io/openstackhelm/elasticsearch-s3:latest-7_6_2
+    elasticsearch_templates: docker.io/openstackhelm/elasticsearch-s3:latest-8_9_0
     image_repo_sync: docker.io/library/docker:17.07.0
   pull_policy: "IfNotPresent"
   local_registry:
@@ -170,11 +170,8 @@ pod:
         apache_proxy:
           readOnlyRootFilesystem: false
         elasticsearch_client:
-          privileged: true
-          capabilities:
-            add:
-              - IPC_LOCK
-              - SYS_RESOURCE
+          runAsUser: 1000
+          runAsGroup: 1000
           readOnlyRootFilesystem: false
     master:
       pod:
@@ -186,11 +183,8 @@ pod:
         elasticsearch_perms:
           readOnlyRootFilesystem: true
         elasticsearch_master:
-          privileged: true
-          capabilities:
-            add:
-              - IPC_LOCK
-              - SYS_RESOURCE
+          runAsUser: 1000
+          runAsGroup: 1000
           readOnlyRootFilesystem: false
     snapshot_repository:
       pod:
@@ -214,11 +208,8 @@ pod:
         elasticsearch_perms:
           readOnlyRootFilesystem: true
         elasticsearch_data:
-          privileged: true
-          capabilities:
-            add:
-              - IPC_LOCK
-              - SYS_RESOURCE
+          runAsUser: 1000
+          runAsGroup: 1000
           # NOTE: This was changed from true to false to account for
           # recovery scenarios when the data pods are unexpectedly lost due to
           # node outages and shard/index recovery is required
@@ -233,11 +224,8 @@ pod:
         apache_proxy:
           readOnlyRootFilesystem: false
         elasticsearch_gateway:
-          privileged: true
-          capabilities:
-            add:
-              - IPC_LOCK
-              - SYS_RESOURCE
+          runAsUser: 1000
+          runAsGroup: 1000
           readOnlyRootFilesystem: false
     curator:
       pod:
@@ -300,7 +288,7 @@ pod:
         liveness:
           enabled: true
           params:
-            initialDelaySeconds: 30
+            initialDelaySeconds: 60
             periodSeconds: 10
   mounts:
     elasticsearch:
@@ -581,6 +569,10 @@ conf:
     -Dlog4j.shutdownHookEnabled=false
     -Dlog4j2.disable.jmx=true
     -Djava.io.tmpdir=${ES_TMPDIR}
+    {{- if .Values.manifests.certificates }}
+    -Djavax.net.ssl.trustStore=/usr/share/elasticsearch/config/elasticsearch-java-truststore
+    -Djavax.net.ssl.trustStorePassword={{ .Values.endpoints.elasticsearch.auth.admin.password }}
+    {{- end }}
     -XX:+HeapDumpOnOutOfMemoryError
     -XX:HeapDumpPath=data
     -XX:ErrorFile=logs/hs_err_pid%p.log
@@ -713,12 +705,15 @@ conf:
         blacklist: ['elasticsearch', 'urllib3']
   elasticsearch:
     config:
+      xpack:
+        security:
+          enabled: false
       bootstrap:
-        memory_lock: true
+        # As far as we run the pod as non-root, we can't make locking memory unlimited.
+        # configure the memory locking limits on host itself of disable swap completely.
+        memory_lock: false
       cluster:
         name: elasticsearch
-        remote:
-          connect: ${NODE_GATEWAY}
       discovery:
         # NOTE(srwilkers): This gets configured dynamically via endpoint lookups
         seed_hosts: null
@@ -726,12 +721,6 @@ conf:
         host: 0.0.0.0
       s3:
         client: {}
-      node:
-        ingest: ${NODE_INGEST}
-        master: ${NODE_MASTER}
-        data: ${NODE_DATA}
-        name: ${NODE_NAME}
-        max_local_storage_nodes: 3
       path:
         data: /data
         logs: /logs

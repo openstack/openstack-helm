@@ -45,7 +45,7 @@ conf:
     slm_policy:
       endpoint: _slm/policy/snapshots
       body:
-        schedule: "0 */3 * * * ?"
+        schedule: "0 */15 * * * ?"
         name: "<snapshot-{now/d}>"
         repository: ceph-rgw
         config:
