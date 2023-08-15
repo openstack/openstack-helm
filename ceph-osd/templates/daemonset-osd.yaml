@@ -12,6 +12,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- define "osdLivenessProbeTemplate" -}}
+exec:
+  command:
+    - /tmp/osd-check.sh
+{{- end -}}
+
+{{- define "osdReadinessProbeTemplate" -}}
+exec:
+  command:
+    - /tmp/osd-check.sh
+{{- end -}}
+
 {{- if .Values.manifests.daemonset_osd }}
 {{- $envAll := . }}
 
@@ -352,20 +364,8 @@ spec:
               exec:
                 command:
                   - /tmp/osd-stop.sh
-          livenessProbe:
-            exec:
-              command:
-                - /tmp/osd-check.sh
-                - liveness
-            initialDelaySeconds: 120
-            periodSeconds: 60
-          readinessProbe:
-            exec:
-              command:
-                - /tmp/osd-check.sh
-                - readiness
-            initialDelaySeconds: 60
-            periodSeconds: 60
+{{ dict "envAll" . "component" "ceph-osd" "container" "ceph-osd" "type" "liveness" "probeTemplate" (include "osdLivenessProbeTemplate" . | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | trim | indent 10 }}
+{{ dict "envAll" . "component" "ceph-osd" "container" "ceph-osd" "type" "readiness" "probeTemplate" (include "osdReadinessProbeTemplate" . | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | trim | indent 10 }}
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp

@@ -12,6 +12,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- define "mgrLivenessProbeTemplate" -}}
+exec:
+  command:
+    - /tmp/mgr-check.sh
+{{- end }}
+
+{{- define "mgrReadinessProbeTemplate" -}}
+exec:
+  command:
+    - /tmp/mgr-check.sh
+{{- end }}
+
 {{- if and .Values.manifests.deployment_mgr (and .Values.deployment.ceph .Values.conf.features.mgr ) }}
 {{- $envAll := . }}
 
@@ -126,20 +138,6 @@ spec:
             - name: metrics
               containerPort: {{ tuple "ceph_mgr" "internal" "metrics" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
           {{ end -}}
-          livenessProbe:
-            exec:
-              command:
-                - /tmp/mgr-check.sh
-                - liveness
-            initialDelaySeconds: 30
-            timeoutSeconds: 5
-          readinessProbe:
-            exec:
-              command:
-                - /tmp/mgr-check.sh
-                - readiness
-            initialDelaySeconds: 30
-            timeoutSeconds: 5
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
@@ -177,6 +175,8 @@ spec:
               mountPath: /tmp/utils-checkPGs.py
               subPath: utils-checkPGs.py
               readOnly: true
+{{ dict "envAll" . "component" "ceph" "container" "ceph-mgr" "type" "liveness" "probeTemplate" (include "mgrLivenessProbeTemplate" . | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | trim | indent 10 }}
+{{ dict "envAll" . "component" "ceph" "container" "ceph-mgr" "type" "readiness" "probeTemplate" (include "mgrReadinessProbeTemplate" . | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | trim | indent 10 }}
       volumes:
         - name: pod-tmp
           emptyDir: {}

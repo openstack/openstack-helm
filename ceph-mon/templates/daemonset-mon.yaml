@@ -12,6 +12,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- define "monLivenessProbeTemplate" -}}
+exec:
+  command:
+    - /tmp/mon-check.sh
+{{- end -}}
+
+{{- define "monReadinessProbeTemplate" -}}
+exec:
+  command:
+    - /tmp/mon-check.sh
+{{- end -}}
+
 {{- if and .Values.manifests.daemonset_mon .Values.deployment.ceph }}
 {{- $envAll := . }}
 
@@ -175,20 +187,8 @@ spec:
           ports:
             - containerPort: {{ tuple "ceph_mon" "internal" "mon" $envAll | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
             - containerPort: {{ tuple "ceph_mon" "internal" "mon_msgr2" $envAll | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-          livenessProbe:
-            exec:
-              command:
-                - /tmp/mon-check.sh
-                - liveness
-            initialDelaySeconds: 360
-            periodSeconds: 180
-          readinessProbe:
-            exec:
-              command:
-                - /tmp/mon-check.sh
-                - readiness
-            initialDelaySeconds: 60
-            periodSeconds: 60
+{{ dict "envAll" . "component" "ceph" "container" "ceph-mon" "type" "liveness" "probeTemplate" (include "monLivenessProbeTemplate" . | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | trim | indent 10 }}
+{{ dict "envAll" . "component" "ceph" "container" "ceph-mon" "type" "readiness" "probeTemplate" (include "monReadinessProbeTemplate" . | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | trim | indent 10 }}
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp

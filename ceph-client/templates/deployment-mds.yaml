@@ -12,6 +12,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- define "livenessProbeTemplate" }}
+tcpSocket:
+  port: 6800
+{{- end }}
+
+{{- define "readinessProbeTemplate" }}
+tcpSocket:
+  port: 6800
+{{- end }}
+
 {{- if and .Values.manifests.deployment_mds ( and .Values.deployment.ceph .Values.conf.features.mds) }}
 {{- $envAll := . }}
 
@@ -100,15 +110,8 @@ spec:
               value: {{ tuple "ceph_mon" "internal" "mon_msgr2" $envAll | include "helm-toolkit.endpoints.endpoint_port_lookup" | quote }}
           ports:
             - containerPort: 6800
-          livenessProbe:
-            tcpSocket:
-              port: 6800
-            initialDelaySeconds: 60
-            timeoutSeconds: 5
-          readinessProbe:
-            tcpSocket:
-              port: 6800
-            timeoutSeconds: 5
+{{ dict "envAll" . "component" "ceph" "container" "ceph-mds" "type" "liveness" "probeTemplate" (include "livenessProbeTemplate" . | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | trim | indent 10 }}
+{{ dict "envAll" . "component" "ceph" "container" "ceph-mds" "type" "readiness" "probeTemplate" (include "readinessProbeTemplate" . | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | trim | indent 10 }}
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
