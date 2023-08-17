@@ -67,10 +67,10 @@ examples:
       metadata:
         name: barbican
         annotations:
-          kubernetes.io/ingress.class: "nginx"
           nginx.ingress.kubernetes.io/rewrite-target: /
 
       spec:
+        ingressClassName: "nginx"
         rules:
           - host: barbican
             http:
@@ -108,10 +108,10 @@ examples:
       metadata:
         name: barbican-namespace-fqdn
         annotations:
-          kubernetes.io/ingress.class: "nginx"
           nginx.ingress.kubernetes.io/rewrite-target: /
 
       spec:
+        ingressClassName: "nginx"
         tls:
           - secretName: barbican-tls-public
             hosts:
@@ -133,10 +133,10 @@ examples:
       metadata:
         name: barbican-cluster-fqdn
         annotations:
-          kubernetes.io/ingress.class: "nginx-cluster"
           nginx.ingress.kubernetes.io/rewrite-target: /
 
       spec:
+        ingressClassName: "nginx-cluster"
         tls:
           - secretName: barbican-tls-public
             hosts:
@@ -202,10 +202,10 @@ examples:
       metadata:
         name: barbican
         annotations:
-          kubernetes.io/ingress.class: "nginx"
           nginx.ingress.kubernetes.io/rewrite-target: /
 
       spec:
+        ingressClassName: "nginx"
         tls:
           - secretName: barbican-tls-public
             hosts:
@@ -302,12 +302,12 @@ examples:
       metadata:
         name: barbican
         annotations:
-          kubernetes.io/ingress.class: "nginx"
           cert-manager.io/issuer: ca-issuer
           certmanager.k8s.io/issuer: ca-issuer
           nginx.ingress.kubernetes.io/backend-protocol: https
           nginx.ingress.kubernetes.io/secure-backends: "true"
       spec:
+        ingressClassName: "nginx"
         tls:
           - secretName: barbican-tls-public-certmanager
             hosts:
@@ -404,12 +404,12 @@ examples:
       metadata:
         name: barbican
         annotations:
-          kubernetes.io/ingress.class: "nginx"
           cert-manager.io/cluster-issuer: ca-issuer
           certmanager.k8s.io/cluster-issuer: ca-issuer
           nginx.ingress.kubernetes.io/backend-protocol: https
           nginx.ingress.kubernetes.io/secure-backends: "true"
       spec:
+        ingressClassName: "nginx"
         tls:
           - secretName: barbican-tls-public-certmanager
             hosts:
@@ -488,10 +488,10 @@ examples:
       metadata:
         name: grafana
         annotations:
-          kubernetes.io/ingress.class: "nginx"
           nginx.ingress.kubernetes.io/rewrite-target: /
 
       spec:
+        ingressClassName: "nginx"
         rules:
           - host: grafana
             http:
@@ -529,10 +529,10 @@ examples:
       metadata:
         name: grafana-namespace-fqdn
         annotations:
-          kubernetes.io/ingress.class: "nginx"
           nginx.ingress.kubernetes.io/rewrite-target: /
 
       spec:
+        ingressClassName: "nginx"
         tls:
           - secretName: grafana-tls-public
             hosts:
@@ -565,10 +565,10 @@ examples:
       metadata:
         name: grafana-cluster-fqdn
         annotations:
-          kubernetes.io/ingress.class: "nginx-cluster"
           nginx.ingress.kubernetes.io/rewrite-target: /
 
       spec:
+        ingressClassName: "nginx-cluster"
         tls:
           - secretName: grafana-tls-public
             hosts:
@@ -639,7 +639,6 @@ kind: Ingress
 metadata:
   name: {{ $ingressName }}
   annotations:
-    kubernetes.io/ingress.class: {{ index $envAll.Values.network $backendService "ingress" "classes" "namespace" | quote }}
 {{- if $certIssuer }}
     cert-manager.io/{{ $certIssuerType }}: {{ $certIssuer }}
     certmanager.k8s.io/{{ $certIssuerType }}: {{ $certIssuer }}
@@ -650,6 +649,7 @@ metadata:
 {{- end }}
 {{ toYaml (index $envAll.Values.network $backendService "ingress" "annotations") | indent 4 }}
 spec:
+  ingressClassName: {{ index $envAll.Values.network $backendService "ingress" "classes" "namespace" | quote }}
 {{- $host := index $envAll.Values.endpoints ( $backendServiceType | replace "-" "_" ) "hosts" }}
 {{- if $certIssuer }}
 {{- $secretName := index $envAll.Values.secrets "tls" ( $backendServiceType | replace "-" "_" ) $backendService $endpoint }}
@@ -695,9 +695,9 @@ kind: Ingress
 metadata:
   name: {{ printf "%s-%s-%s" $ingressName $ingressController "fqdn" }}
   annotations:
-    kubernetes.io/ingress.class: {{ index $envAll.Values.network $backendService "ingress" "classes" $ingressController | quote }}
 {{ toYaml (index $envAll.Values.network $backendService "ingress" "annotations") | indent 4 }}
 spec:
+  ingressClassName: {{ index $envAll.Values.network $backendService "ingress" "classes" $ingressController | quote }}
 {{- $host := index $envAll.Values.endpoints ( $backendServiceType | replace "-" "_" ) "host_fqdn_override" }}
 {{- if hasKey $host $endpoint }}
 {{- $endpointHost := index $host $endpoint }}

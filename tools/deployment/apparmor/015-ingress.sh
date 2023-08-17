@@ -24,8 +24,8 @@ make ingress
 #NOTE: Deploy command
 : ${OSH_INFRA_EXTRA_HELM_ARGS:=""}
 
-#NOTE: Deploy global ingress
-tee /tmp/ingress-kube-system.yaml << EOF
+#NOTE: Deploy global ingress with IngressClass nginx-cluster
+tee /tmp/ingress-kube-system.yaml <<EOF
 deployment:
   mode: cluster
   type: DaemonSet
@@ -42,16 +42,20 @@ helm upgrade --install ingress-kube-system ./ingress \
 ./tools/deployment/common/wait-for-pods.sh kube-system
 
 #NOTE: Deploy namespace ingress
+# NOTE: In namespace osh-infra with IngressClass nginx-osh-infra
 helm upgrade --install ingress-osh-infra ./ingress \
   --namespace=osh-infra \
+  --set deployment.cluster.class=nginx-osh-infra \
   ${OSH_INFRA_EXTRA_HELM_ARGS} \
   ${OSH_INFRA_EXTRA_HELM_ARGS_INGRESS_OPENSTACK}
 
 #NOTE: Wait for deploy
 ./tools/deployment/common/wait-for-pods.sh osh-infra
 
+# NOTE: In namespace ceph with IngressClass nginx-ceph
 helm upgrade --install ingress-ceph ./ingress \
   --namespace=ceph \
+  --set deployment.cluster.class=nginx-ceph \
   ${OSH_INFRA_EXTRA_HELM_ARGS} \
   ${OSH_INFRA_EXTRA_HELM_ARGS_INGRESS_CEPH}
 

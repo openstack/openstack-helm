@@ -95,7 +95,11 @@ storage:
         client: backup
         options: # list of extra options for s3cmd
           - --region="default:backup"
-
+network:
+  elasticsearch:
+    ingress:
+      classes:
+        namespace: nginx-osh-infra
 EOF
 
 : ${OSH_INFRA_EXTRA_HELM_ARGS_ELASTICSEARCH:="$(./tools/deployment/common/get-values-overrides.sh elasticsearch)"}

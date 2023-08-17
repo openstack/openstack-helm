@@ -27,6 +27,10 @@ endpoints:
 network:
   public: 172.17.0.1/16
   cluster: 172.17.0.1/16
+  api:
+    ingress:
+      classes:
+        namespace: nginx-osh-infra
 deployment:
   storage_secrets: false
   ceph: true

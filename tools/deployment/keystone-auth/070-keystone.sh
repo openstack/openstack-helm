@@ -35,6 +35,7 @@ cd -
 helm upgrade --install keystone ${OSH_PATH}/keystone \
     --namespace=openstack \
     --values=${OSH_PATH}/keystone/values_overrides/ldap.yaml \
+    --set network.api.ingress.classes.namespace=nginx-openstack \
     ${OSH_EXTRA_HELM_ARGS} \
     ${OSH_EXTRA_HELM_ARGS_KEYSTONE}
 

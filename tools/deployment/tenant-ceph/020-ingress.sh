@@ -17,8 +17,8 @@ set -xe
 #NOTE: Lint and package chart
 make ingress
 
-#NOTE: Deploy global ingress
-tee /tmp/ingress-kube-system.yaml << EOF
+#NOTE: Deploy global ingress with IngressClass nginx-cluster
+tee /tmp/ingress-kube-system.yaml <<EOF
 deployment:
   mode: cluster
   type: DaemonSet
@@ -38,7 +38,8 @@ helm upgrade --install ingress-kube-system ./ingress \
 for NAMESPACE in osh-infra ceph tenant-ceph; do
   #NOTE: Deploy namespace ingress
   helm upgrade --install ingress-${NAMESPACE} ./ingress \
-    --namespace=${NAMESPACE}
+    --namespace=${NAMESPACE} \
+    --set deployment.cluster.class=nginx-${NAMESPACE}
 
   #NOTE: Wait for deploy
   ./tools/deployment/common/wait-for-pods.sh ${NAMESPACE}

@@ -17,8 +17,8 @@ set -xe
 #NOTE: Lint and package chart
 make ingress
 
-#NOTE: Deploy global ingress
-tee /tmp/ingress-kube-system.yaml << EOF
+#NOTE: Deploy global ingress with IngressClass nginx-cluster
+tee /tmp/ingress-kube-system.yaml <<EOF
 pod:
   replicas:
     error_page: 2
@@ -40,7 +40,7 @@ helm upgrade --install ingress-kube-system ./ingress \
 #NOTE: Deploy namespaced ingress controllers
 for NAMESPACE in osh-infra ceph; do
   #NOTE: Deploy namespace ingress
-  tee /tmp/ingress-${NAMESPACE}.yaml << EOF
+  tee /tmp/ingress-${NAMESPACE}.yaml <<EOF
 pod:
   replicas:
     ingress: 2
@@ -48,6 +48,7 @@ pod:
 EOF
   helm upgrade --install ingress-${NAMESPACE} ./ingress \
     --namespace=${NAMESPACE} \
+    --set deployment.cluster.class=nginx-${NAMESPACE} \
     --values=/tmp/ingress-${NAMESPACE}.yaml
 
   #NOTE: Wait for deploy

@@ -15,8 +15,8 @@ limitations under the License.
 {{- if .Values.manifests.ingress }}
 {{- $envAll := . }}
 {{- if eq .Values.deployment.mode "namespace" }}
-{{- if empty (index .Values.network.ingress.annotations "kubernetes.io/ingress.class") -}}
-{{- $_ := set .Values.network.ingress.annotations "kubernetes.io/ingress.class" .Values.deployment.cluster.class -}}
+{{- if empty (index .Values.network.ingress.spec "ingressClassName") -}}
+{{- $_ := set .Values.network.ingress.spec "ingressClassName" .Values.deployment.cluster.class -}}
 {{- end -}}
 {{- $serviceName := tuple "ingress" "internal" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" -}}
 {{- $servicePort := tuple "ingress" "internal" "http" . | include "helm-toolkit.endpoints.endpoint_port_lookup" -}}
@@ -25,9 +25,8 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: {{ .Release.Namespace }}-{{ .Release.Name }}
-  annotations:
-{{ toYaml .Values.network.ingress.annotations | indent 4 }}
 spec:
+{{ toYaml .Values.network.ingress.spec | indent 2 }}
   rules:
   - host: {{ printf "%s.%s.svc.%s" "*" .Release.Namespace .Values.endpoints.cluster_domain_suffix | quote }}
     http:

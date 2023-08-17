@@ -31,6 +31,10 @@ endpoints:
 network:
   public: 172.17.0.1/16
   cluster: 172.17.0.1/16
+  api:
+    ingress:
+      classes:
+        namespace: nginx-openstack
 deployment:
   ceph: true
   rgw_keystone_user_and_endpoints: true
