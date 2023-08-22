@@ -12,6 +12,28 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- define "readinessProbeTemplate" }}
+{{- $object_store_name := "object_store" }}
+{{- if .Values.conf.rgw_s3.enabled }}
+{{ $object_store_name = "ceph_object_store" }}
+{{- end }}
+httpGet:
+  path: /
+  port: {{ tuple $object_store_name "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+  scheme: {{ tuple $object_store_name "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_scheme_lookup" | upper }}
+{{- end }}
+
+{{- define "livenessProbeTemplate" }}
+{{- $object_store_name := "object_store" }}
+{{- if .Values.conf.rgw_s3.enabled }}
+{{ $object_store_name = "ceph_object_store" }}
+{{- end }}
+httpGet:
+  path: /
+  port: {{ tuple $object_store_name "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+  scheme: {{ tuple $object_store_name "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_scheme_lookup" | upper }}
+{{- end }}
+
 {{- if and .Values.manifests.deployment_rgw ( and .Values.deployment.ceph .Values.conf.features.rgw ) }}
 {{- $envAll := . }}
 
@@ -195,19 +217,8 @@ spec:
             - /tmp/rgw-start.sh
           ports:
             - containerPort: {{ tuple $object_store_name "internal" "api" $envAll | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-          livenessProbe:
-              httpGet:
-                path: /
-                port: {{ tuple $object_store_name "internal" "api" $envAll | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-                scheme: {{ tuple $object_store_name "internal" "api" $envAll | include "helm-toolkit.endpoints.keystone_endpoint_scheme_lookup" | upper }}
-              initialDelaySeconds: 120
-              timeoutSeconds: 5
-          readinessProbe:
-              httpGet:
-                path: /
-                port: {{ tuple $object_store_name "internal" "api" $envAll | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-                scheme: {{ tuple $object_store_name "internal" "api" $envAll | include "helm-toolkit.endpoints.keystone_endpoint_scheme_lookup" | upper }}
-              timeoutSeconds: 5
+{{ dict "envAll" . "component" "api" "container" "ceph-rgw" "type" "liveness" "probeTemplate" (include "livenessProbeTemplate" . | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | trim | indent 10 }}
+{{ dict "envAll" . "component" "api" "container" "ceph-rgw" "type" "readiness" "probeTemplate" (include "readinessProbeTemplate" . | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | trim | indent 10 }}
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
