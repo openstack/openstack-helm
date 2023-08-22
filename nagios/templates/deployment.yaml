@@ -12,6 +12,17 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- define "apacheProxyReadinessProbeTemplate" }}
+tcpSocket:
+  port: {{ tuple "nagios" "internal" "http" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+{{- end }}
+
+{{- define "nagiosReadinessProbeTemplate" }}
+exec:
+  command:
+    - /tmp/nagios-readiness.sh
+{{- end }}
+
 {{- if .Values.manifests.deployment }}
 {{- $envAll := . }}
 
@@ -19,6 +30,7 @@ limitations under the License.
 
 {{- $serviceAccountName := "nagios" }}
 {{ tuple $envAll "nagios" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -120,17 +132,13 @@ spec:
 {{ tuple $envAll "apache_proxy" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.apache_proxy | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
 {{ dict "envAll" $envAll "application" "monitoring" "container" "apache_proxy" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+{{ dict "envAll" $envAll "component" "monitoring" "container" "apache_proxy" "type" "readiness" "probeTemplate" (include "apacheProxyReadinessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
           command:
             - /tmp/apache.sh
             - start
           ports:
             - name: http
               containerPort: {{ tuple "nagios" "internal" "http" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-          readinessProbe:
-            tcpSocket:
-              port: {{ tuple "nagios" "internal" "http" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-            initialDelaySeconds: 20
-            periodSeconds: 10
           env:
             - name: NAGIOSADMIN_USER
               valueFrom:
@@ -157,15 +165,10 @@ spec:
 {{ tuple $envAll "nagios" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.nagios | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
 {{ dict "envAll" $envAll "application" "monitoring" "container" "nagios" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+{{ dict "envAll" $envAll "component" "monitoring" "container" "nagios" "type" "readiness" "probeTemplate" (include "nagiosReadinessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
           ports:
             - name: nagios
               containerPort: {{ tuple "nagios" "internal" "nagios" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-          readinessProbe:
-            exec:
-              command:
-                - /tmp/nagios-readiness.sh
-            initialDelaySeconds: 60
-            periodSeconds: 30
           env:
 {{- if .Values.pod.env }}
 {{ include "helm-toolkit.utils.to_k8s_env_vars" .Values.pod.env | indent 12 }}
