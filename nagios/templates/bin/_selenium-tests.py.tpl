@@ -22,7 +22,9 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.options import Options
+{{- if .Values.selenium_v4 }}
 from selenium.webdriver.chrome.service import Service
+{{- end }}
 from selenium.common.exceptions import TimeoutException
 from selenium.common.exceptions import NoSuchElementException
 from selenium.common.exceptions import ScreenshotException
@@ -51,7 +53,11 @@ def get_variable(env_var):
 def click_link_by_name(link_name):
     try:
         logger.info("Clicking '{}' link".format(link_name))
+{{- if .Values.selenium_v4 }}
         link = browser.find_element(By.LINK_TEXT, link_name)
+{{- else }}
+        link = browser.find_element_by_text_link(link_name)
+{{- end }}
         link.click()
     except NoSuchElementException:
         logger.error("Failed clicking '{}' link".format(link_name))
@@ -80,8 +86,12 @@ options.add_argument('--headless')
 options.add_argument('--no-sandbox')
 options.add_argument('--window-size=1920x1080')
 
+{{- if .Values.selenium_v4 }}
 service = Service(executable_path=chrome_driver)
 browser = webdriver.Chrome(service=service, options=options)
+{{- else }}
+browser = webdriver.Chrome(chrome_driver, chrome_options=options)
+{{- end }}
 
 try:
     logger.info('Attempting to connect to Nagios')
