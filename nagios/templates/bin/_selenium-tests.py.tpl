@@ -56,7 +56,7 @@ def click_link_by_name(link_name):
 {{- if .Values.selenium_v4 }}
         link = browser.find_element(By.LINK_TEXT, link_name)
 {{- else }}
-        link = browser.find_element_by_text_link(link_name)
+        link = browser.find_element_by_link_text(link_name)
 {{- end }}
         link.click()
     except NoSuchElementException:
