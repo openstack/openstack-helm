@@ -20,7 +20,6 @@ export NOVA_USERNAME=$(id -u ${NOVA_USER_UID} -n)
 export NOVA_USER_HOME=$(eval echo ~${NOVA_USERNAME})
 
 mkdir -p ${NOVA_USER_HOME}/.ssh
-chown -R ${NOVA_USERNAME}:${NOVA_USERNAME} ${NOVA_USER_HOME}/.ssh
 
 cat > ${NOVA_USER_HOME}/.ssh/config <<EOF
 Host *
@@ -32,3 +31,4 @@ EOF
 
 cp /tmp/nova-ssh/* ${NOVA_USER_HOME}/.ssh/
 chmod 600 ${NOVA_USER_HOME}/.ssh/id_rsa
+chown -R ${NOVA_USERNAME}:${NOVA_USERNAME} ${NOVA_USER_HOME}/.ssh
