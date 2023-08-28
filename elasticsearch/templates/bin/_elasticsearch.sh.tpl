@@ -19,26 +19,26 @@ set -e
 COMMAND="${@:-start}"
 
 function initiate_keystore () {
-  bin/elasticsearch-keystore create
-
+  elasticsearch-keystore create
   {{- if .Values.conf.elasticsearch.snapshots.enabled }}
   {{- range $client, $settings := .Values.storage.s3.clients -}}
   {{- $access_key := printf "%s_S3_ACCESS_KEY" ( $client | replace "-" "_" | upper) }}
   {{- $secret_key := printf "%s_S3_SECRET_KEY" ( $client | replace "-" "_" | upper) }}
-  echo ${{$access_key}} | /usr/share/elasticsearch/bin/elasticsearch-keystore add -xf s3.client.{{ $client }}.access_key
-  echo ${{$secret_key}} | /usr/share/elasticsearch/bin/elasticsearch-keystore add -xf s3.client.{{ $client }}.secret_key
+  echo ${{$access_key}} | elasticsearch-keystore add -xf s3.client.{{ $client }}.access_key
+  echo ${{$secret_key}} | elasticsearch-keystore add -xf s3.client.{{ $client }}.secret_key
   {{- end }}
   {{- end }}
 
   {{- if .Values.manifests.certificates }}
   {{- $alias := .Values.secrets.tls.elasticsearch.elasticsearch.internal }}
-  /usr/share/elasticsearch/jdk/bin/keytool -storepasswd -cacerts -new ${ELASTICSEARCH_PASSWORD} -storepass changeit
-  /usr/share/elasticsearch/jdk/bin/keytool -importcert -alias {{$alias}} -cacerts -trustcacerts -noprompt -file ${JAVA_KEYSTORE_CERT_PATH} -storepass ${ELASTICSEARCH_PASSWORD}
+  JAVA_KEYTOOL_PATH=/usr/share/elasticsearch/jdk/bin/keytool
+  TRUSTSTORE_PATH=/usr/share/elasticsearch/config/elasticsearch-java-truststore
+  ${JAVA_KEYTOOL_PATH} -importcert -alias {{$alias}} -keystore ${TRUSTSTORE_PATH} -trustcacerts -noprompt -file ${JAVA_KEYSTORE_CERT_PATH} -storepass ${ELASTICSEARCH_PASSWORD}
+  ${JAVA_KEYTOOL_PATH} -storepasswd -keystore ${TRUSTSTORE_PATH} -new ${ELASTICSEARCH_PASSWORD} -storepass ${ELASTICSEARCH_PASSWORD}
   {{- end }}
 }
 
 function start () {
-  ulimit -l unlimited
   initiate_keystore
   exec /usr/local/bin/docker-entrypoint.sh elasticsearch
 }
@@ -76,7 +76,6 @@ function allocate_data_node () {
 }
 
 function start_master_node () {
-  ulimit -l unlimited
   initiate_keystore
   if [ ! -f {{ $envAll.Values.conf.elasticsearch.config.path.data }}/cluster-bootstrap.txt ];
   then
@@ -97,7 +96,6 @@ function start_master_node () {
 }
 
 function start_data_node () {
-  ulimit -l unlimited
   initiate_keystore
   allocate_data_node &
   /usr/local/bin/docker-entrypoint.sh elasticsearch &
