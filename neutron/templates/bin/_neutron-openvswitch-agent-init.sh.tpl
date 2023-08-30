@@ -65,7 +65,7 @@ function get_name_by_pci_id {
 
 function get_ip_address_from_interface {
   local interface=$1
-  local ip=$(ip -4 -o addr s "${interface}" | awk '{ print $4; exit }' | awk -F '/' '{print $1}')
+  local ip=$(ip -4 -o addr s "${interface}" | awk '{ print $4; exit }' | awk -F '/' 'NR==1 {print $1}')
   if [ -z "${ip}" ] ; then
     exit 1
   fi
@@ -74,7 +74,7 @@ function get_ip_address_from_interface {
 
 function get_ip_prefix_from_interface {
   local interface=$1
-  local prefix=$(ip -4 -o addr s "${interface}" | awk '{ print $4; exit }' | awk -F '/' '{print $2}')
+  local prefix=$(ip -4 -o addr s "${interface}" | awk '{ print $4; exit }' | awk -F '/' 'NR==1 {print $2}')
   if [ -z "${prefix}" ] ; then
     exit 1
   fi
