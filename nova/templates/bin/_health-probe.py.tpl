@@ -34,6 +34,7 @@ Usage example for Nova Compute:
 import json
 import os
 import psutil
+import re
 import signal
 import socket
 import sys
@@ -142,7 +143,7 @@ def configured_port_in_conf():
     try:
         with open(sys.argv[2]) as conf_file:
             for line in conf_file:
-                if "connection =" in line:
+                if re.match(r'^\s*connection\s*=', line):
                     service = line.split(':', 3)[3].split('/')[1].rstrip('\n')
                     if service == "nova":
                         database_ports.add(
