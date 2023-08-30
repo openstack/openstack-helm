@@ -22,7 +22,9 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.options import Options
+{{- if .Values.selenium_v4 }}
 from selenium.webdriver.chrome.service import Service
+{{- end }}
 from selenium.common.exceptions import TimeoutException
 from selenium.common.exceptions import NoSuchElementException
 
@@ -57,8 +59,12 @@ options.add_argument('--headless')
 options.add_argument('--no-sandbox')
 options.add_argument('--window-size=1920x1080')
 
+{{- if .Values.selenium_v4 }}
 service = Service(executable_path=chrome_driver)
 browser = webdriver.Chrome(service=service, options=options)
+{{- else }}
+browser = webdriver.Chrome(chrome_driver, chrome_options=options)
+{{- end }}
 
 logger.info("Attempting to open Grafana dashboard")
 try:
@@ -74,9 +80,15 @@ except TimeoutException:
 
 logger.info("Attempting to log into Grafana dashboard")
 try:
+{{- if .Values.selenium_v4 }}
     browser.find_element(By.NAME, 'user').send_keys(username)
     browser.find_element(By.NAME, 'password').send_keys(password)
     browser.find_element(By.CSS_SELECTOR, '[aria-label="Login button"]').click()
+{{- else }}
+    browser.find_element_by_name('user').send_keys(username)
+    browser.find_element_by_name('password').send_keys(password)
+    browser.find_element_by_css_selector('[aria-label="Login button"]').click()
+{{- end }}
     logger.info("Successfully logged in to Grafana")
 except NoSuchElementException:
     logger.error("Failed to log in to Grafana")
