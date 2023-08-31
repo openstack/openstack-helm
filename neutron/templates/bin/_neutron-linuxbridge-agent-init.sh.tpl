@@ -46,7 +46,7 @@ if [ -z "${tunnel_interface}" ] ; then
 fi
 
 # determine local-ip dynamically based on interface provided but only if tunnel_types is not null
-LOCAL_IP=$(ip a s $tunnel_interface | grep 'inet ' | awk '{print $2}' | awk -F "/" '{print $1}')
+LOCAL_IP=$(ip a s $tunnel_interface | grep 'inet ' | awk '{print $2}' | awk -F "/" 'NR==1 {print $1}')
 if [ -z "${LOCAL_IP}" ] ; then
   echo "Var LOCAL_IP is empty"
   exit 1
