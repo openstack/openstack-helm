@@ -84,8 +84,9 @@ function determine_what_needs_zapping {
           CEPH_LVM_PREPARE=0
         elif [[ ${OSD_FORCE_REPAIR} -eq 1 ]]; then
           echo "OSD initialized for this cluster, but OSD ID not found in the cluster, reinitializing"
+          ZAP_DEVICE=1
         else
-          echo "OSD initialized for this cluster, but OSD ID not found in the cluster"
+          echo "OSD initialized for this cluster, but OSD ID not found in the cluster, repair manually"
         fi
       fi
     else
