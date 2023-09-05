@@ -1,0 +1,61 @@
+---
+- name: Add Ceph apt repository key
+  apt_key:
+    url: https://download.ceph.com/keys/release.asc
+    state: present
+
+- name: Add Ceph apt repository
+  apt_repository:
+    repo: deb https://download.ceph.com/debian-reef/ "{{ ansible_distribution_release }}" main
+    state: present
+    filename: ceph.list
+
+- name: Install necessary packages
+  apt:
+    pkg:
+      - socat
+      - jq
+      - util-linux
+      - bridge-utils
+      - iptables
+      - conntrack
+      - libffi-dev
+      - ipvsadm
+      - make
+      - bc
+      - git-review
+      - notary
+      - ceph-common
+      - rbd-nbd
+      - nfs-common
+      - ethtool
+      - python3-dev
+      - ca-certificates
+      - git
+      - nmap
+      - curl
+      - uuid-runtime
+      - net-tools
+      - less
+      - telnet
+      - tcpdump
+      - vim
+      - lvm2
+
+- name: Deploy Helm
+  when: inventory_hostname == 'primary'
+  block:
+    - name: Install Helm
+      shell: |
+        TMP_DIR=$(mktemp -d)
+        curl -sSL https://get.helm.sh/helm-{{ helm_version }}-linux-amd64.tar.gz | tar -zxv --strip-components=1 -C ${TMP_DIR}
+        mv "${TMP_DIR}"/helm /usr/local/bin/helm
+        rm -rf "${TMP_DIR}"
+      args:
+        executable: /bin/bash
+
+    # This is to improve build time
+    - name: Remove stable Helm repo
+      command: helm repo remove stable
+      ignore_errors: true
+...
