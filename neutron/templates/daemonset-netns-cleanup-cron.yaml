@@ -68,14 +68,7 @@ spec:
 {{ tuple $envAll $envAll.Values.pod.resources.netns_cleanup_cron | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
 {{ dict "envAll" $envAll "application" "neutron_netns_cleanup_cron" "container" "neutron_netns_cleanup_cron" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
-            - python
-            - /tmp/neutron-netns-cleanup-cron.py
-            - --config-file
-            -  /etc/neutron/neutron.conf
-            - --config-file
-            - /etc/neutron/dhcp_agent.ini
-            - --config-file
-            - /etc/neutron/l3_agent.ini
+            - /tmp/neutron-netns-cleanup-cron.sh
           env:
 {{- with $env := dict "ksUserSecret" $envAll.Values.secrets.identity.admin "useCA" false }}
 {{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 12 }}
@@ -84,8 +77,8 @@ spec:
             - name: pod-tmp
               mountPath: /tmp
             - name: neutron-bin
-              mountPath: /tmp/neutron-netns-cleanup-cron.py
-              subPath: neutron-netns-cleanup-cron.py
+              mountPath: /tmp/neutron-netns-cleanup-cron.sh
+              subPath: neutron-netns-cleanup-cron.sh
               readOnly: true
             - name: neutron-etc
               mountPath: /etc/neutron/neutron.conf
