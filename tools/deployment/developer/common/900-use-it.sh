@@ -94,7 +94,11 @@ function wait_for_ssh_port {
 wait_for_ssh_port $FLOATING_IP
 
 # accept diffie-hellman-group1-sha1 algo for SSH (cirros image should probably be updated to replace this)
-echo "    KexAlgorithms +diffie-hellman-group1-sha1" | sudo tee -a /etc/ssh/ssh_config
+sudo tee -a /etc/ssh/ssh_config <<EOF
+    KexAlgorithms +diffie-hellman-group1-sha1
+    HostKeyAlgorithms +ssh-rsa
+    PubkeyAcceptedKeyTypes +ssh-rsa
+EOF
 
 # SSH into the VM and check it can reach the outside world
 # note: ssh-keyscan should be re-enabled to prevent skip host key checking
