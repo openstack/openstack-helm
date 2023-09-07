@@ -1,0 +1,39 @@
+---
+- name: Include prerequisites tasks
+  include_tasks:
+    file: prerequisites.yaml
+
+- name: Include common tasks
+  include_tasks:
+    file: containerd.yaml
+
+- name: Include common tasks
+  include_tasks:
+    file: common_k8s.yaml
+
+- name: Include control-plane tasks
+  include_tasks:
+    file: control-plane.yaml
+  when: inventory_hostname == 'primary'
+
+- name: Join workload nodes to cluster
+  command: "{{ hostvars['primary']['join_command'].stdout_lines[0] }}"
+  when: inventory_hostname in (groups['nodes'] | default([]))
+
+- name: Wait for cluster is ready
+  become: false
+  block:
+    - name: Wait for Calico pods ready
+      command: kubectl -n kube-system wait --timeout=240s --for=condition=Ready pods -l k8s-app=calico-node
+
+    - name: Wait for Coredns pods ready
+      command: kubectl -n kube-system wait --timeout=240s --for=condition=Ready pods -l k8s-app=kube-dns
+  when: inventory_hostname == 'primary'
+
+- name: Add coredns to /etc/resolv.conf
+  lineinfile:
+    line: nameserver 10.96.0.10
+    path: /etc/resolv.conf
+    state: present
+    insertbefore: "BOF"
+...

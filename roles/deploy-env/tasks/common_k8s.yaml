@@ -1,0 +1,106 @@
+---
+- name: Load necessary modules
+  modprobe:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - overlay
+    - br_netfilter
+
+- name: Configure sysctl
+  sysctl:
+    name: "{{ item }}"
+    value: "1"
+    state: present
+  loop:
+    - net.ipv6.conf.default.disable_ipv6
+    - net.ipv6.conf.all.disable_ipv6
+    - net.ipv6.conf.lo.disable_ipv6
+    - net.bridge.bridge-nf-call-iptables
+    - net.bridge.bridge-nf-call-ip6tables
+    - net.ipv4.ip_forward
+  ignore_errors: true
+
+- name: Remove swapfile from /etc/fstab
+  mount:
+    name: "{{ item }}"
+    fstype: swap
+    state: absent
+  with_items:
+    - swap
+    - none
+
+- name: Disable swap
+  command: swapoff -a
+  when: ansible_swaptotal_mb > 0
+
+- name: Ensure dependencies are installed
+  apt:
+    name:
+      - apt-transport-https
+      - ca-certificates
+      - gnupg2
+      - ipvsadm
+      - jq
+    state: present
+
+- name: Add Kubernetes apt repository key
+  apt_key:
+    url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+    state: present
+
+- name: Add Kubernetes apt repository
+  apt_repository:
+    repo: deb https://apt.kubernetes.io/ kubernetes-xenial main
+    state: present
+    filename: kubernetes.list
+
+- name: Install Kubernetes binaries
+  apt:
+    state: present
+    update_cache: true
+    allow_downgrade: true
+    pkg:
+      - "kubelet={{ kube_version }}"
+      - "kubeadm={{ kube_version }}"
+      - "kubectl={{ kube_version }}"
+
+- name: Restart kubelet
+  service:
+    name: kubelet
+    daemon_reload: yes
+    state: restarted
+
+- name: Disable systemd-resolved
+  service:
+    name: systemd-resolved
+    enabled: false
+    state: stopped
+
+- name: Configure resolv.conf
+  copy:
+    src: files/resolv.conf
+    dest: "{{ item }}"
+  loop:
+    - /etc/resolv.conf
+    - /run/systemd/resolve/resolv.conf
+
+# We download Calico manifest on all nodes because we then want to download
+# Calico images BEFORE deploying it
+- name: Download Calico manifest
+  shell: |
+    curl -LSs https://docs.projectcalico.org/archive/{{ calico_version }}/manifests/calico.yaml -o /tmp/calico.yaml
+    sed -i -e 's#docker.io/calico/#quay.io/calico/#g' /tmp/calico.yaml
+  args:
+    executable: /bin/bash
+
+# Download images needed for calico before applying manifests, so that `kubectl wait` timeout
+# for `k8s-app=kube-dns` isn't reached by slow download speeds
+- name: Download Calico images
+  shell: |
+    export CONTAINER_RUNTIME_ENDPOINT=unix:///run/containerd/containerd.sock
+    export IMAGE_SERVICE_ENDPOINT=unix:///run/containerd/containerd.sock
+    awk '/image:/ { print $2 }' /tmp/calico.yaml | xargs -I{} crictl pull {}
+  args:
+    executable: /bin/bash
+...
