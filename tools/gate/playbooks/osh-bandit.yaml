@@ -1,13 +1,15 @@
-- hosts: all
-  name: openstack-helm-bandit
+- hosts: primary
+  roles:
+    - ensure-python
+    - ensure-pip
   tasks:
-
-    - name: Install Required Packages and Setup Host
+    - name: Install Helm
       shell: |
-        set -xe;
-        ./tools/deployment/common/install-packages.sh
-        ./tools/gate/deploy-k8s.sh
-        sudo -H pip3 install --upgrade yq bandit==1.7.1 setuptools
+        TMP_DIR=$(mktemp -d)
+        curl -sSL https://get.helm.sh/helm-{{ helm_version }}-linux-amd64.tar.gz | tar -zxv --strip-components=1 -C ${TMP_DIR}
+        mv "${TMP_DIR}"/helm /usr/local/bin/helm
+        rm -rf "${TMP_DIR}"
+        sudo -H pip3 install --upgrade yq bandit=={{ bandit_version }} setuptools
       environment:
         zuul_site_mirror_fqdn: "{{ zuul_site_mirror_fqdn }}"
       args:
