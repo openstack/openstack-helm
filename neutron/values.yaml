@@ -42,6 +42,7 @@ images:
     neutron_sriov_agent: docker.io/openstackhelm/neutron:stein-18.04-sriov
     neutron_sriov_agent_init: docker.io/openstackhelm/neutron:stein-18.04-sriov
     neutron_bagpipe_bgp: docker.io/openstackhelm/neutron:stein-ubuntu_bionic
+    neutron_bgp_dragent: docker.io/openstackhelm/neutron:stein-ubuntu_bionic
     neutron_ironic_agent: docker.io/openstackhelm/neutron:stein-ubuntu_bionic
     neutron_netns_cleanup_cron: docker.io/openstackhelm/neutron:stein-ubuntu_bionic
     dep_check: quay.io/airshipit/kubernetes-entrypoint:v1.0.0
@@ -84,6 +85,9 @@ labels:
     node_selector_key: sriov
     node_selector_value: enabled
   bagpipe_bgp:
+    node_selector_key: openstack-compute-node
+    node_selector_value: enabled
+  bgp_dragent:
     node_selector_key: openstack-compute-node
     node_selector_value: enabled
   server:
@@ -159,6 +163,7 @@ dependencies:
       l2gateway: {}
       bagpipe_bgp: {}
       ovn: {}
+      bgp_dragent: {}
       openvswitch:
         dhcp:
           pod:
@@ -440,6 +445,15 @@ pod:
           enabled: true
           params:
             initialDelaySeconds: 60
+    bgp_dragent:
+      bgp_dragent:
+        readiness:
+          enabled: false
+          params:
+        liveness:
+          enabled: true
+          params:
+            initialDelaySeconds: 60
     l2gw_agent:
       l2gw_agent:
         readiness:
@@ -487,6 +501,13 @@ pod:
         runAsUser: 42424
       container:
         neutron_bagpipe_bgp:
+          readOnlyRootFilesystem: true
+          privileged: true
+    neutron_bgp_dragent:
+      pod:
+        runAsUser: 42424
+      container:
+        neutron_bgp_dragent:
           readOnlyRootFilesystem: true
           privileged: true
     neutron_l3_agent:
@@ -654,6 +675,11 @@ pod:
       bagpipe_bgp:
         volumeMounts:
         volumes:
+    bgp_dragent:
+      init_container: null
+      bgp_dragent:
+        volumeMounts:
+        volumes:
     neutron_ironic_agent:
       init_container: null
       neutron_ironic_agent:
@@ -795,6 +821,13 @@ pod:
           memory: "1024Mi"
           cpu: "2000m"
       bagpipe_bgp:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      bgp_dragent:
         requests:
           memory: "128Mi"
           cpu: "100m"
@@ -2000,6 +2033,7 @@ conf:
       backend: dogpile.cache.memcached
     ovs:
       ovsdb_connection: unix:/run/openvswitch/db.sock
+  bgp_dragent: {}
 
   rabbitmq:
     # NOTE(rk760n): adding rmq policy to mirror messages from notification queues and set expiration time for the ones
@@ -2481,6 +2515,7 @@ manifests:
   daemonset_sriov_agent: true
   daemonset_l2gw_agent: false
   daemonset_bagpipe_bgp: false
+  daemonset_bgp_dragent: false
   daemonset_netns_cleanup_cron: true
   deployment_ironic_agent: false
   deployment_server: true

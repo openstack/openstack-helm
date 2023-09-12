@@ -1,0 +1,167 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- define "bgp_dragentLivenessProbeTemplate" }}
+exec:
+  command:
+    - bash
+    - -c
+    - pidof -x /var/lib/openstack/bin/neutron-bgp-dragent
+{{- end }}
+
+
+{{- define "neutron.bgp_dragent.daemonset" }}
+{{- $daemonset := index . 0 }}
+{{- $configMapName := index . 1 }}
+{{- $serviceAccountName := index . 2 }}
+{{- $envAll := index . 3 }}
+{{- with $envAll }}
+
+{{- $mounts_neutron_bgp_dragent := .Values.pod.mounts.bgp_dragent.bgp_dragent }}
+{{- $mounts_neutron_bgp_dragent_init := .Values.pod.mounts.bgp_dragent.init_container }}
+
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: bgp-dragent
+  annotations:
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+  labels:
+{{ tuple $envAll "neutron" "bgp-dragent" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  selector:
+    matchLabels:
+{{ tuple $envAll "neutron" "bgp-dragent" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
+{{ tuple $envAll "bgp_dragent" | include "helm-toolkit.snippets.kubernetes_upgrades_daemonset" | indent 2 }}
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "neutron" "bgp-dragent" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+{{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
+        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
+    spec:
+{{ dict "envAll" $envAll "application" "neutron_bgp_dragent" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
+      serviceAccountName: {{ $serviceAccountName }}
+{{ if $envAll.Values.pod.tolerations.neutron.enabled }}
+{{ tuple $envAll "neutron" | include "helm-toolkit.snippets.kubernetes_tolerations" | indent 6 }}
+{{ end }}
+      nodeSelector:
+        {{ .Values.labels.bgp_dragent.node_selector_key }}: {{ .Values.labels.bgp_dragent.node_selector_value }}
+      dnsPolicy: ClusterFirstWithHostNet
+      hostNetwork: true
+      {{- if or ( gt .Capabilities.KubeVersion.Major "1" ) ( ge .Capabilities.KubeVersion.Minor "10" ) }}
+      shareProcessNamespace: true
+      {{- else }}
+      hostPID: true
+      {{- end }}
+      containers:
+        - name: neutron-bgp-dragent
+{{ tuple $envAll "neutron_bgp_dragent" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.agent.bgp_dragent | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "neutron_bgp_dragent" "container" "neutron_bgp_dragent" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+{{ dict "envAll" $envAll "component" "bgp_dragent" "container" "bgp_dragent" "type" "liveness" "probeTemplate" (include "bgp_dragentLivenessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+          command:
+            - /tmp/neutron-bgp-dragent.sh
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: pod-var-neutron
+              mountPath: {{ .Values.conf.neutron.DEFAULT.state_path }}
+            - name: neutron-bin
+              mountPath: /tmp/neutron-bgp-dragent.sh
+              subPath: neutron-bgp-dragent.sh
+              readOnly: true
+            - name: neutron-bin
+              mountPath: /tmp/health-probe.py
+              subPath: health-probe.py
+              readOnly: true
+            - name: neutron-etc
+              mountPath: /etc/neutron/neutron.conf
+              subPath: neutron.conf
+              readOnly: true
+            {{- if .Values.conf.neutron.DEFAULT.log_config_append }}
+            - name: neutron-etc
+              mountPath: {{ .Values.conf.neutron.DEFAULT.log_config_append }}
+              subPath: {{ base .Values.conf.neutron.DEFAULT.log_config_append }}
+              readOnly: true
+            {{- end }}
+            - name: neutron-etc
+              mountPath: /etc/neutron/bgp_dragent.ini
+              subPath: bgp_dragent.ini
+              readOnly: true
+            - name: neutron-etc
+              # NOTE (Portdirect): We mount here to override Kollas
+              # custom sudoers file when using Kolla images, this
+              # location will also work fine for other images.
+              mountPath: /etc/sudoers.d/kolla_neutron_sudoers
+              subPath: neutron_sudoers
+              readOnly: true
+            - name: neutron-etc
+              mountPath: /etc/neutron/rootwrap.conf
+              subPath: rootwrap.conf
+              readOnly: true
+            {{- range $key, $value := $envAll.Values.conf.rootwrap_filters }}
+            {{- if ( has "bgp_dragent" $value.pods ) }}
+            {{- $filePrefix := replace "_" "-"  $key }}
+            {{- $rootwrapFile := printf "/etc/neutron/rootwrap.d/%s.filters" $filePrefix }}
+            - name: neutron-etc
+              mountPath: {{ $rootwrapFile }}
+              subPath: {{ base $rootwrapFile }}
+              readOnly: true
+            {{- end }}
+            {{- end }}
+            - name: libmodules
+              mountPath: /lib/modules
+              readOnly: true
+            - name: run
+              mountPath: /run
+{{ if $mounts_neutron_bgp_dragent.volumeMounts }}{{ toYaml $mounts_neutron_bgp_dragent.volumeMounts | indent 12 }}{{ end }}
+      volumes:
+        - name: pod-tmp
+          emptyDir: {}
+        - name: pod-var-neutron
+          emptyDir: {}
+        - name: neutron-bin
+          configMap:
+            name: neutron-bin
+            defaultMode: 0555
+        - name: neutron-etc
+          secret:
+            secretName: {{ $configMapName }}
+            defaultMode: 0444
+        - name: libmodules
+          hostPath:
+            path: /lib/modules
+        - name: run
+          hostPath:
+            path: /run
+{{ if $mounts_neutron_bgp_dragent.volumes }}{{ toYaml $mounts_neutron_bgp_dragent.volumes | indent 8 }}{{ end }}
+{{- end }}
+{{- end }}
+
+{{- if .Values.manifests.daemonset_bgp_dragent }}
+{{- $envAll := . }}
+{{- $daemonset := "bgp-dragent" }}
+{{- $configMapName := "neutron-etc" }}
+{{- $serviceAccountName := "neutron-bgp-dragent" }}
+{{- $dependencyOpts := dict "envAll" $envAll "dependencyMixinParam" $envAll.Values.network.backend "dependencyKey" "bgp_dragent" -}}
+{{- $_ := include "helm-toolkit.utils.dependency_resolver" $dependencyOpts | toString | fromYaml }}
+{{ tuple $envAll "pod_dependency" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{- $daemonset_yaml := list $daemonset $configMapName $serviceAccountName . | include "neutron.bgp_dragent.daemonset" | toString | fromYaml }}
+{{- $configmap_yaml := "neutron.configmap.etc" }}
+{{- list $daemonset $daemonset_yaml $configmap_yaml $configMapName . | include "helm-toolkit.utils.daemonset_overrides" }}
+{{- end }}
