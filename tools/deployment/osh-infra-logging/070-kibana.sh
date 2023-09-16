@@ -22,6 +22,7 @@ make kibana
 #NOTE: Deploy command
 helm upgrade --install kibana ./kibana \
   --namespace=osh-infra \
+  --set network.kibana.ingress.classes.namespace=nginx-osh-infra \
   ${OSH_INFRA_EXTRA_HELM_ARGS} \
   ${OSH_INFRA_EXTRA_HELM_ARGS_KIBANA}
 

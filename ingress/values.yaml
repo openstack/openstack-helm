@@ -21,6 +21,7 @@ deployment:
   type: Deployment
   cluster:
     class: "nginx-cluster"
+    controllerClass: "k8s.io/nginx-ingress"
 
 images:
   tags:
@@ -154,7 +155,12 @@ network:
     # Use .network.vip.addr as an external IP for the service
     # Useful if the CNI or provider can set up routes, etc.
     assign_as_external_ip: false
+  ingressClass:
+    spec:
+      controller: null
   ingress:
+    spec:
+      ingressClassName: null
     node_port:
       enabled: false
       http_port: 30080
@@ -162,7 +168,6 @@ network:
     annotations:
       # NOTE(portdirect): if left blank this is populated from
       # .deployment.cluster.class
-      kubernetes.io/ingress.class: null
       nginx.ingress.kubernetes.io/proxy-body-size: "0"
       nginx.ingress.kubernetes.io/configuration-snippet: |
         more_set_headers "X-Content-Type-Options: nosniff";
@@ -308,6 +313,10 @@ conf:
     # .deployment.cluster.class in cluster mode, or set to
     # "nginx" in namespace mode
     INGRESS_CLASS: null
+    # NOTE(portdirect): if left blank this is populated from
+    # .deployment.cluster.controllerClass in cluster mode, or set to
+    # "k8s.io/nginx-ingress" in namespace mode
+    CONTROLLER_CLASS: null
   ingress:
     enable-underscores-in-headers: "true"
     # NOTE(portdirect): if left blank this is populated from
@@ -348,6 +357,7 @@ manifests:
   deployment_ingress: true
   endpoints_ingress: true
   ingress: true
+  ingressClass: true
   secret_ingress_tls: false
   secret_dhparam: false
   service_error: true

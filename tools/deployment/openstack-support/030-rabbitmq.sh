@@ -25,6 +25,7 @@ helm upgrade --install rabbitmq ./rabbitmq \
     --namespace=openstack \
     --recreate-pods \
     --force \
+    --set network.management.ingress.classes.namespace=nginx-openstack \
     ${OSH_INFRA_EXTRA_HELM_ARGS} \
     ${OSH_INFRA_EXTRA_HELM_ARGS_RABBITMQ}
 

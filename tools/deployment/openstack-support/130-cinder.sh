@@ -46,6 +46,7 @@ EOF
 helm upgrade --install cinder ${OSH_PATH}/cinder \
   --namespace=openstack \
   --values=/tmp/cinder.yaml \
+  --set network.api.ingress.classes.namespace=nginx-openstack \
   ${OSH_EXTRA_HELM_ARGS} \
   ${OSH_EXTRA_HELM_ARGS_CINDER}
 
