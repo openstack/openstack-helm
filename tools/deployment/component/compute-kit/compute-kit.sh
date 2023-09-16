@@ -13,7 +13,6 @@
 #    under the License.
 set -xe
 
-: ${MULTINODE:="no"}
 : ${RUN_HELM_TESTS:="yes"}
 
 export OS_CLOUD=openstack_helm
@@ -91,17 +90,12 @@ conf:
     linuxbridge_agent:
       linux_bridge:
         bridge_mappings: public:br-ex
-EOF
-
-if [[ $MULTINODE == "yes" ]]; then
-    tee -a /tmp/neutron.yaml << EOF
 labels:
   agent:
     l3:
       node_selector_key: l3-agent
       node_selector_value: enabled
 EOF
-fi
 
 helm upgrade --install neutron ./neutron \
     --namespace=openstack \
