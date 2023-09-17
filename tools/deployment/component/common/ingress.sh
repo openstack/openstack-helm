@@ -62,6 +62,7 @@ helm upgrade --install ingress-kube-system ${HELM_CHART_ROOT_PATH}/ingress \
 helm upgrade --install ingress-openstack ${HELM_CHART_ROOT_PATH}/ingress \
   --namespace=openstack \
   --values=/tmp/ingress-component.yaml \
+  --set deployment.cluster.class=nginx \
   ${OSH_EXTRA_HELM_ARGS} \
   ${OSH_EXTRA_HELM_ARGS_INGRESS} \
   ${OSH_EXTRA_HELM_ARGS_INGRESS_OPENSTACK}
@@ -72,6 +73,7 @@ helm upgrade --install ingress-openstack ${HELM_CHART_ROOT_PATH}/ingress \
 helm upgrade --install ingress-ceph ${HELM_CHART_ROOT_PATH}/ingress \
   --namespace=ceph \
   --values=/tmp/ingress-component.yaml \
+  --set deployment.cluster.class=nginx-ceph \
   ${OSH_EXTRA_HELM_ARGS} \
   ${OSH_EXTRA_HELM_ARGS_INGRESS} \
   ${OSH_EXTRA_HELM_ARGS_INGRESS_CEPH}

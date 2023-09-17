@@ -50,6 +50,7 @@ helm upgrade --install ingress-kube-system ${HELM_CHART_ROOT_PATH}/ingress \
 #NOTE: Deploy namespace ingress
 helm upgrade --install ingress-osh-infra ${HELM_CHART_ROOT_PATH}/ingress \
   --namespace=osh-infra \
+  --set deployment.cluster.class=nginx-osh-infra \
   ${OSH_INFRA_EXTRA_HELM_ARGS} \
   ${OSH_INFRA_EXTRA_HELM_ARGS_INGRESS_OPENSTACK}
 
@@ -58,6 +59,7 @@ helm upgrade --install ingress-osh-infra ${HELM_CHART_ROOT_PATH}/ingress \
 
 helm upgrade --install ingress-ceph ${HELM_CHART_ROOT_PATH}/ingress \
   --namespace=ceph \
+  --set deployment.cluster.class=nginx-ceph \
   ${OSH_INFRA_EXTRA_HELM_ARGS} \
   ${OSH_INFRA_EXTRA_HELM_ARGS_INGRESS_CEPH}
 
