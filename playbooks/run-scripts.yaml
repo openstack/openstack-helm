@@ -1,0 +1,96 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+- hosts: all
+  become: true
+  tasks:
+    - name: Configure /etc/hosts for buildset_registry to workaround docker not understanding ipv6 addresses
+      lineinfile:
+        path: /etc/hosts
+        state: present
+        regex: "^{{ buildset_registry.host }}\tzuul-jobs.buildset-registry$"
+        line: "{{ buildset_registry.host }}\tzuul-jobs.buildset-registry"
+        insertafter: EOF
+      when:
+        - buildset_registry is defined
+        - buildset_registry.host | ipaddr
+
+- hosts: primary
+  tasks:
+    - name: Override images
+      when: buildset_registry is defined
+      vars:
+        work_dir: "{{ zuul.project.src_dir }}"
+      block:
+        - name: Set buildset_registry alias variable when using ip
+          set_fact:
+            buildset_registry_alias: zuul-jobs.buildset-registry
+          when:
+            - buildset_registry.host | ipaddr
+
+        - name: Set buildset_registry alias variable when using name
+          set_fact:
+            buildset_registry_alias: "{{ buildset_registry.host }}"
+          when:
+            - not ( buildset_registry.host | ipaddr )
+
+        - name: Print zuul
+          debug:
+            var: zuul
+
+        - name: Override proposed images from artifacts
+          shell: >
+            find {{ override_paths | join(" ") }} -type f -exec sed -Ei
+            "s#['\"]?docker\.io/({{ repo }}):({{ tag }})['\"]?\$#{{ buildset_registry_alias }}:{{ buildset_registry.port }}/\1:\2#g" {} +
+          loop: "{{ zuul.artifacts | default([]) }}"
+          args:
+            chdir: "{{ work_dir }}"
+          loop_control:
+            loop_var: zj_zuul_artifact
+          when: "'metadata' in zj_zuul_artifact and zj_zuul_artifact.metadata.type | default('') == 'container_image'"
+          vars:
+            tag: "{{ zj_zuul_artifact.metadata.tag }}"
+            repo: "{{ zj_zuul_artifact.metadata.repository }}"
+            override_paths:
+              - ../openstack-helm*/*/values*
+              - ../openstack-helm-infra/tools/deployment/
+
+        - name: Diff
+          shell: |
+              set -ex;
+              for dir in openstack-helm openstack-helm-infra; do
+                path="{{ work_dir }}/../${dir}/"
+                if [ ! -d "${path}" ]; then continue; fi
+                echo "${dir} diff"
+                cd "${path}"; git diff; cd -;
+              done
+
+    - name: "creating directory for run artifacts"
+      file:
+        path: "/tmp/artifacts"
+        state: directory
+
+    - name: Run gate scripts
+      include_role:
+        name: "{{ ([item] | flatten | length == 1) | ternary('osh-run-script', 'osh-run-script-set') }}"
+      vars:
+        workload: "{{ [item] | flatten }}"
+      loop: "{{ gate_scripts }}"
+
+    - name: "Downloads artifacts to executor"
+      synchronize:
+        src: "/tmp/artifacts"
+        dest: "{{ zuul.executor.log_root }}/{{ inventory_hostname }}"
+        mode: pull
+      ignore_errors: True
+...
