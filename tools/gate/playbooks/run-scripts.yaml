@@ -11,6 +11,20 @@
 # limitations under the License.
 
 ---
+- hosts: all
+  become: true
+  tasks:
+    - name: Configure /etc/hosts for buildset_registry to workaround docker not understanding ipv6 addresses
+      lineinfile:
+        path: /etc/hosts
+        state: present
+        regex: "^{{ buildset_registry.host }}\tzuul-jobs.buildset-registry$"
+        line: "{{ buildset_registry.host }}\tzuul-jobs.buildset-registry"
+        insertafter: EOF
+      when:
+        - buildset_registry is defined
+        - buildset_registry.host | ipaddr
+
 - hosts: primary
   tasks:
     - name: Override images
@@ -18,9 +32,17 @@
       vars:
         work_dir: "{{ zuul.project.src_dir }}"
       block:
-        - name: Buildset registry alias
-          include_tasks:
-            file: buildset_registry_alias.yaml
+        - name: Set buildset_registry alias variable when using ip
+          set_fact:
+            buildset_registry_alias: zuul-jobs.buildset-registry
+          when:
+            - buildset_registry.host | ipaddr
+
+        - name: Set buildset_registry alias variable when using name
+          set_fact:
+            buildset_registry_alias: "{{ buildset_registry.host }}"
+          when:
+            - not ( buildset_registry.host | ipaddr )
 
         - name: Print zuul
           debug:
