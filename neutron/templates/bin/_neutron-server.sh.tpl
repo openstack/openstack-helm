@@ -23,13 +23,13 @@ function start () {
 {{- if ( has "ovn" .Values.network.backend ) }}
         --config-file /tmp/pod-shared/ovn.ini \
 {{- end }}
-{{- if .Values.conf.plugins.taas.taas.enabled }} \
+{{- if .Values.conf.plugins.taas.taas.enabled }}
         --config-file /etc/neutron/taas_plugin.ini \
 {{- end }}
-{{- if ( has "sriov" .Values.network.backend ) }} \
+{{- if ( has "sriov" .Values.network.backend ) }}
         --config-file /etc/neutron/plugins/ml2/sriov_agent.ini \
 {{- end }}
-{{- if .Values.conf.plugins.l2gateway }} \
+{{- if .Values.conf.plugins.l2gateway }}
         --config-file /etc/neutron/l2gw_plugin.ini \
 {{- end }}
 {{- if ( has "tungstenfabric" .Values.network.backend ) }}
