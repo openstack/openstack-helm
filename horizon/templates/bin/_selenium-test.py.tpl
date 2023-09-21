@@ -23,6 +23,9 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.options import Options
+{{- if .Values.selenium_v4 }}
+from selenium.webdriver.chrome.service import Service
+{{- end }}
 from selenium.common.exceptions import TimeoutException
 from selenium.common.exceptions import NoSuchElementException
 
@@ -58,7 +61,12 @@ options = Options()
 options.add_argument('--headless')
 options.add_argument('--no-sandbox')
 chrome_driver = '/etc/selenium/chromedriver'
+{{- if .Values.selenium_v4 }}
+service = Service(executable_path=chrome_driver)
+browser = webdriver.Chrome(service=service, options=options)
+{{- else }}
 browser = webdriver.Chrome(chrome_driver, chrome_options=options)
+{{- end }}
 
 try:
     logger.info('Attempting to connect to Horizon')
@@ -74,10 +82,17 @@ except TimeoutException:
 
 try:
     logger.info('Attempting to log into Horizon')
+{{- if .Values.selenium_v4 }}
+    browser.find_element(By.NAME, 'domain').send_keys(user_domain_name)
+    browser.find_element(By.NAME, 'username').send_keys(keystone_user)
+    browser.find_element(By.NAME, 'password').send_keys(keystone_password)
+    browser.find_element(By.ID, 'loginBtn').click()
+{{- else }}
     browser.find_element_by_name('domain').send_keys(user_domain_name)
     browser.find_element_by_name('username').send_keys(keystone_user)
     browser.find_element_by_name('password').send_keys(keystone_password)
     browser.find_element_by_id('loginBtn').click()
+{{- end }}
     WebDriverWait(browser, 15).until(
         EC.presence_of_element_located((By.ID, 'navbar-collapse'))
     )
