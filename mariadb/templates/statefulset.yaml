@@ -17,6 +17,11 @@ exec:
   command:
     - /tmp/readiness.sh
 {{- end }}
+{{- define "mariadbLivenessProbe" }}
+exec:
+  command:
+    - /tmp/liveness.sh
+{{- end }}
 
 {{- if (.Values.global).subchart_release_name }}
 {{- $_ := set . "deployment_name" .Chart.Name }}
@@ -200,7 +205,7 @@ spec:
                 command:
                   - /tmp/stop.sh
 {{ dict "envAll" . "component" "server" "container" "mariadb" "type" "readiness" "probeTemplate" (include "mariadbReadinessProbe" . | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
-{{ dict "envAll" . "component" "server" "container" "mariadb" "type" "liveness" "probeTemplate" (include "mariadbReadinessProbe" . | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+{{ dict "envAll" . "component" "server" "container" "mariadb" "type" "liveness" "probeTemplate" (include "mariadbLivenessProbe" . | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
@@ -219,6 +224,10 @@ spec:
             - name: mariadb-bin
               mountPath: /tmp/readiness.sh
               subPath: readiness.sh
+              readOnly: true
+            - name: mariadb-bin
+              mountPath: /tmp/liveness.sh
+              subPath: liveness.sh
               readOnly: true
             - name: mariadb-etc
               mountPath: /etc/mysql/my.cnf
