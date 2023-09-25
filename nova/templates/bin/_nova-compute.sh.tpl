@@ -18,9 +18,15 @@ set -ex
 
 exec nova-compute \
       --config-file /etc/nova/nova.conf \
+{{- if .Values.console.address_search_enabled }}
       --config-file /tmp/pod-shared/nova-console.conf \
+{{- end }}
+{{- if .Values.conf.libvirt.address_search_enabled }}
       --config-file /tmp/pod-shared/nova-libvirt.conf \
+{{- end }}
 {{- if and ( empty .Values.conf.nova.DEFAULT.host ) ( .Values.pod.use_fqdn.compute ) }}
       --config-file /tmp/pod-shared/nova-compute-fqdn.conf \
 {{- end }}
+{{- if .Values.conf.hypervisor.address_search_enabled }}
       --config-file /tmp/pod-shared/nova-hypervisor.conf
+{{- end }}
