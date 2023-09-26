@@ -4,11 +4,14 @@ Installation
 Contents:
 
 .. toctree::
-   :maxdepth: 2
+    :maxdepth: 2
 
-   common-requirements
-   developer/index
-   multinode
-   kubernetes-gate
-   ext-dns-fqdn
-   plugins/index
+    before_deployment
+    deploy_kubernetes
+    prepare_kubernetes
+    deploy_ceph
+    setup_openstack_client
+    deploy_ingress_controller
+    deploy_openstack_backend
+    deploy_openstack
+

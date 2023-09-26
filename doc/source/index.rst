@@ -4,16 +4,14 @@ Welcome to OpenStack-Helm's documentation!
 Contents:
 
 .. toctree::
-   :maxdepth: 2
+    :maxdepth: 2
 
-   contributor/contributing
-   devref/index
-   gates
-   install/index
-   readme
-   specs/index
-   testing/index
-   troubleshooting/index
+    readme
+    install/index
+    devref/index
+    testing/index
+    troubleshooting/index
+    specs/index
 
 Indices and Tables
 ==================
