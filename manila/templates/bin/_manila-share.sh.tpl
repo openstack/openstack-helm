@@ -16,4 +16,7 @@ limitations under the License.
 
 set -ex
 exec manila-share \
-     --config-file /etc/manila/manila.conf
+     --config-file /etc/manila/manila.conf \
+{{- if and ( empty .Values.conf.manila.generic.service_network_host ) ( .Values.pod.use_fqdn.share ) }}
+     --config-file /tmp/pod-shared/manila-share-fqdn.conf
+{{- end }}

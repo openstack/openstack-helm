@@ -43,7 +43,7 @@ spec:
 {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
-{{ dict "envAll" $envAll "podName" "manila-share" "containerNames" (list "init" "manila-share") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
+{{ dict "envAll" $envAll "podName" "manila-share" "containerNames" (list "init" "manila-share" "manila-share-init") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
     spec:
 {{ dict "envAll" $envAll "application" "manila" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
       serviceAccountName: {{ $serviceAccountName }}
@@ -58,6 +58,22 @@ spec:
       hostNetwork: true
       initContainers:
 {{ tuple $envAll "share" $mounts_manila_share_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+        - name: manila-share-init
+{{ tuple $envAll "manila_share" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ dict "envAll" $envAll "application" "manila" "container" "manila_share" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          env: []
+          command:
+            - /tmp/manila-share-init.sh
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: manila-bin
+              mountPath: /tmp/manila-share-init.sh
+              subPath: manila-share-init.sh
+              readOnly: true
+            - name: pod-shared
+              mountPath: /tmp/pod-shared
+{{ if $mounts_manila_share.volumeMounts }}{{ toYaml $mounts_manila_share.volumeMounts | indent 12 }}{{ end }}
       containers:
         - name: manila-share
 {{ tuple $envAll "manila_share" | include "helm-toolkit.snippets.image" | indent 10 }}
@@ -73,6 +89,8 @@ spec:
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
+            - name: pod-shared
+              mountPath: /tmp/pod-shared
             - name: etcmanila
               mountPath: /etc/manila
             - name: state-tmp
@@ -126,6 +144,8 @@ spec:
 {{ if $mounts_manila_share.volumeMounts }}{{ toYaml $mounts_manila_share.volumeMounts | indent 12 }}{{ end }}
       volumes:
         - name: pod-tmp
+          emptyDir: {}
+        - name: pod-shared
           emptyDir: {}
         - name: state-tmp
           emptyDir: {}
