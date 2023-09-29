@@ -15,22 +15,6 @@ limitations under the License.
 {{- if .Values.manifests.deployment_ingress }}
 {{- $envAll := . }}
 
-# Evaluate if we are deploying in cluster mode
-{{- if eq .Values.deployment.mode "cluster" }}
-# Check INGRESS_CLASS empty
-{{- if empty .Values.conf.controller.INGRESS_CLASS -}}
-{{- $_ := set .Values.conf.controller "INGRESS_CLASS" .Values.deployment.cluster.class -}}
-{{- end }}
-# Check CONTROLLER_CLASS empty
-{{- if empty .Values.conf.controller.CONTROLLER_CLASS -}}
-{{- $_ := set .Values.conf.controller "CONTROLLER_CLASS" .Values.deployment.cluster.controllerClass -}}
-{{- end }}
-# Set default values for INGRESS_CLASS & CONTROLLER_CLASS if deploying in namespace mode
-{{- else if eq .Values.deployment.mode "namespace" }}
-{{- $_ := set .Values.conf.controller "INGRESS_CLASS" "nginx" -}}
-{{- $_ := set .Values.conf.controller "CONTROLLER_CLASS" "k8s.io/nginx-ingress" -}}
-{{- end }}
-
 {{- $serviceAccountName := printf "%s-%s" .Release.Name "ingress" }}
 {{ tuple $envAll "ingress" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
@@ -322,7 +306,14 @@ spec:
               value: {{ .Release.Name | quote }}
             - name: ERROR_PAGE_SERVICE
               value: {{ tuple "ingress" "error_pages" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" | quote }}
-{{ include "helm-toolkit.utils.to_k8s_env_vars" .Values.conf.controller | indent 12 }}
+            - name: INGRESS_CLASS
+              value: "{{ .Values.deployment.cluster.class }}"
+              {{- if .Values.deployment.cluster.ingressClassByName }}
+            - name: INGRESS_CLASS_BY_NAME
+              value: "{{ .Values.deployment.cluster.ingressClassByName }}"
+              {{- end }}
+            - name: CONTROLLER_CLASS
+              value: "{{ .Values.deployment.cluster.controllerClass }}"
           ports:
             - containerPort: {{ tuple "ingress" "internal" "http" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
             {{- if .Values.network.host_namespace }}

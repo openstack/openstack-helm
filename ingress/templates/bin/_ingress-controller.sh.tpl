@@ -46,7 +46,9 @@ function start () {
       --election-id=${RELEASE_NAME} \
       --controller-class=${CONTROLLER_CLASS} \
       --ingress-class=${INGRESS_CLASS} \
+      {{- if .Values.deployment.cluster.ingressClassByName }}
       --ingress-class-by-name=${INGRESS_CLASS_BY_NAME} \
+        {{- end }}
       --default-backend-service=${POD_NAMESPACE}/${ERROR_PAGE_SERVICE} \
       {{- if .Values.conf.default_ssl_certificate.enabled }}
       {{- $ns := .Values.conf.default_ssl_certificate.namespace | default .Release.Namespace }}
