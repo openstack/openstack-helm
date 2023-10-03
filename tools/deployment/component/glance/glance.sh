@@ -28,6 +28,13 @@ tee /tmp/glance.yaml <<EOF
 storage: ${GLANCE_BACKEND}
 volume:
   class_name: standard
+bootstrap:
+  structured:
+    images:
+      cirros:
+        name: "Cirros 0.6.2 64-bit"
+        source_url: "http://download.cirros-cloud.net/0.6.2/"
+        image_file: "cirros-0.6.2-x86_64-disk.img"
 EOF
 helm upgrade --install glance ./glance \
   --namespace=openstack \
