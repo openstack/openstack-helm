@@ -15,7 +15,7 @@
 set -xe
 
 # Specify the Rook release tag to use for the Rook operator here
-ROOK_RELEASE=v1.12.4
+ROOK_RELEASE=v1.12.5
 
 # setup loopback devices for ceph
 free_loop_devices=( $(ls -1 /dev/loop[0-7] | while read loopdev; do losetup | grep -q $loopdev || echo $loopdev; done) )
@@ -352,6 +352,7 @@ enableOBCWatchOperatorNamespace: true
 admissionController:
 monitoring:
   enabled: false
+  metricsDisabled: true
 EOF
 
 helm repo add rook-release https://charts.rook.io/release
@@ -392,7 +393,7 @@ monitoring:
 pspEnable: false
 cephClusterSpec:
   cephVersion:
-    image: quay.io/ceph/ceph:v17.2.6
+    image: quay.io/ceph/ceph:v18.2.0
     allowUnsupported: false
   dataDirHostPath: /var/lib/rook
   skipUpgradeChecks: false
