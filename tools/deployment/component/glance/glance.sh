@@ -42,7 +42,7 @@ export OS_CLOUD=openstack_helm
 openstack service list
 sleep 30 #NOTE(portdirect): Wait for ingress controller to update rules and restart Nginx
 openstack image list
-openstack image show 'Cirros 0.3.5 64-bit'
+openstack image show 'Cirros 0.6.2 64-bit'
 
 if [ "x${RUN_HELM_TESTS}" == "xno" ]; then
     exit 0
