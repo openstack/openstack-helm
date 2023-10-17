@@ -1,0 +1,329 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Default values for mariadb.
+# This is a YAML-formatted file.
+# Declare name/value pairs to be passed into your templates.
+# name: value
+
+---
+release_group: null
+
+images:
+  tags:
+    prometheus_create_mysql_user: docker.io/library/mariadb:10.5.9-focal
+    prometheus_mysql_exporter: docker.io/prom/mysqld-exporter:v0.12.1
+    prometheus_mysql_exporter_helm_tests: docker.io/openstackhelm/heat:wallaby-ubuntu_focal
+    dep_check: quay.io/airshipit/kubernetes-entrypoint:v1.0.0
+    image_repo_sync: docker.io/library/docker:17.07.0
+  pull_policy: "IfNotPresent"
+  local_registry:
+    active: false
+    exclude:
+      - dep_check
+      - image_repo_sync
+
+labels:
+  prometheus_mysql_exporter:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  job:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+
+pod:
+  security_context:
+    prometheus_mysql_exporter:
+      pod:
+        runAsUser: 99
+      container:
+        exporter:
+          runAsUser: 99
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+    prometheus_create_mysql_user:
+      pod:
+        runAsUser: 0
+      container:
+        main:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+  affinity:
+    anti:
+      type:
+        default: preferredDuringSchedulingIgnoredDuringExecution
+      topologyKey:
+        default: kubernetes.io/hostname
+      weight:
+        default: 10
+  replicas:
+    prometheus_mysql_exporter: 1
+  lifecycle:
+    upgrades:
+      deployments:
+        revision_history: 3
+        pod_replacement_strategy: RollingUpdate
+        rolling_update:
+          max_unavailable: 1
+          max_surge: 3
+    termination_grace_period:
+      prometheus_mysql_exporter:
+        timeout: 30
+  resources:
+    enabled: false
+    prometheus_mysql_exporter:
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+      requests:
+        memory: "128Mi"
+        cpu: "500m"
+    jobs:
+      prometheus_create_mysql_user:
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+      image_repo_sync:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+
+dependencies:
+  dynamic:
+    common:
+      local_image_registry:
+        jobs:
+          - mysql-exporter-image-repo-sync
+        services:
+          - endpoint: node
+            service: local_image_registry
+  static:
+    prometheus_create_mysql_user:
+      services:
+        - endpoint: internal
+          service: oslo_db
+    prometheus_mysql_exporter:
+      jobs:
+        - exporter-create-sql-user
+      services:
+        - endpoint: internal
+          service: oslo_db
+    prometheus_mysql_exporter_tests:
+      services:
+        - endpoint: internal
+          service: prometheus_mysql_exporter
+        - endpoint: internal
+          service: monitoring
+    image_repo_sync:
+      services:
+        - endpoint: internal
+          service: local_image_registry
+
+jobs:
+  exporter_create_sql_user:
+    backoffLimit: 87600
+    activeDeadlineSeconds: 3600
+
+monitoring:
+  prometheus:
+    enabled: false
+    mysqld_exporter:
+      scrape: true
+
+secrets:
+  identity:
+    admin: keystone-admin-user
+  oci_image_registry:
+    mariadb: mariadb-oci-image-registry-key
+  tls:
+    oslo_db:
+      server:
+        public: mariadb-tls-server
+        internal: mariadb-tls-direct
+
+# typically overridden by environmental
+# values, but should include all endpoints
+# required by this chart
+endpoints:
+  cluster_domain_suffix: cluster.local
+  local_image_registry:
+    name: docker-registry
+    namespace: docker-registry
+    hosts:
+      default: localhost
+      internal: docker-registry
+      node: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        node: 5000
+  oci_image_registry:
+    name: oci-image-registry
+    namespace: oci-image-registry
+    auth:
+      enabled: false
+      mariadb:
+        username: mariadb
+        password: password
+    hosts:
+      default: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        default: null
+  monitoring:
+    name: prometheus
+    namespace: null
+    hosts:
+      default: prom-metrics
+      public: prometheus
+    host_fqdn_override:
+      default: null
+    path:
+      default: null
+    scheme:
+      default: 'http'
+    port:
+      api:
+        default: 9090
+        public: 80
+  prometheus_mysql_exporter:
+    namespace: null
+    hosts:
+      default: mysql-exporter
+    host_fqdn_override:
+      default: null
+    path:
+      default: /metrics
+    scheme:
+      default: 'http'
+    port:
+      metrics:
+        default: 9104
+  oslo_db:
+    namespace: null
+    auth:
+      admin:
+        username: root
+        password: password
+      sst:
+        username: sst
+        password: password
+      audit:
+        username: audit
+        password: password
+      exporter:
+        username: exporter
+        password: password
+    hosts:
+      default: mariadb-server-primary
+      direct: mariadb-server-internal
+      discovery: mariadb-discovery
+      server: mariadb-server
+    host_fqdn_override:
+      default: null
+    path: null
+    scheme: mysql+pymysql
+    port:
+      mysql:
+        default: 3306
+      wsrep:
+        default: 4567
+  kube_dns:
+    namespace: kube-system
+    name: kubernetes-dns
+    hosts:
+      default: kube-dns
+    host_fqdn_override:
+      default: null
+    path:
+      default: null
+    scheme: http
+    port:
+      dns_tcp:
+        default: 53
+      dns:
+        default: 53
+        protocol: UDP
+  identity:
+    name: backup-storage-auth
+    namespace: openstack
+    auth:
+      admin:
+        # Auth URL of null indicates local authentication
+        # HTK will form the URL unless specified here
+        auth_url: null
+        region_name: RegionOne
+        username: admin
+        password: password
+        project_name: admin
+        user_domain_name: default
+        project_domain_name: default
+      mariadb-server:
+        # Auth URL of null indicates local authentication
+        # HTK will form the URL unless specified here
+        auth_url: null
+        role: admin
+        region_name: RegionOne
+        username: mariadb-backup-user
+        password: password
+        project_name: service
+        user_domain_name: service
+        project_domain_name: service
+    hosts:
+      default: keystone
+      internal: keystone-api
+    host_fqdn_override:
+      default: null
+    path:
+      default: /v3
+    scheme:
+      default: 'http'
+    port:
+      api:
+        default: 80
+        internal: 5000
+
+network_policy:
+  prometheus-mysql-exporter:
+    ingress:
+      - {}
+    egress:
+      - {}
+
+# Helm hook breaks for helm2.
+# Set helm3_hook: false in case helm2 is used.
+helm3_hook: true
+
+manifests:
+  certificates: false
+  job_image_repo_sync: true
+  monitoring:
+    prometheus:
+      configmap_bin: false
+      deployment_exporter: false
+      job_user_create: false
+      secret_etc: false
+      service_exporter: false
+      network_policy_exporter: false
+  network_policy: false
+  secret_etc: true
+  secret_registry: true
+...

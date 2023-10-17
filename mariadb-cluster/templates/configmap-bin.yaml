@@ -1,0 +1,41 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.configmap_bin }}
+{{- $envAll := . }}
+{{ if eq .Values.endpoints.oslo_db.auth.admin.username .Values.endpoints.oslo_db.auth.sst.username }}
+{{ fail "the DB admin username should not match the sst user username" }}
+{{ end }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mariadb-bin
+data:
+{{- if .Values.images.local_registry.active }}
+  image-repo-sync.sh: |
+{{- include "helm-toolkit.scripts.image_repo_sync" . | indent 4 }}
+{{- end }}
+{{- include "helm-toolkit.snippets.values_template_renderer" (dict "envAll" $envAll "template" ( index $envAll.Values.conf.database "init_script" ) "key" "init.sh" ) | indent 2 }}
+  readiness.sh: |
+{{ tuple "bin/_readiness.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
+  liveness.sh: |
+{{ tuple "bin/_liveness.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
+  test.sh: |
+{{ tuple "bin/_test.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
+{{- if .Values.manifests.job_ks_user }}
+  ks-user.sh: |
+{{ include "helm-toolkit.scripts.keystone_user" . | indent 4 }}
+{{- end }}
+{{- end }}

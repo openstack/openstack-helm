@@ -1,0 +1,105 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.mariadb }}
+{{- $envAll := . }}
+
+{{- $serviceAccountName := "mariadb-cluster-refresh-statefulset" }}
+{{ tuple $envAll "mariadb_cluster_refresh_statefulset" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ $serviceAccountName }}
+  namespace: {{ $envAll.Release.Namespace }}
+rules:
+  - apiGroups:
+      - ""
+      - extensions
+      - batch
+      - apps
+    resources:
+      - statefulsets
+    verbs:
+      - get
+      - list
+      - delete
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ $serviceAccountName }}
+  namespace: {{ $envAll.Release.Namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ $serviceAccountName }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ $serviceAccountName }}
+    namespace: {{ $envAll.Release.Namespace }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: mariadb-cluster-refresh-statefulset
+  labels:
+{{ tuple $envAll "mariadb-cluster" "refresh-statefulset" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+{{- if .Values.helm3_hook }}
+  annotations:
+    "helm.sh/hook": "post-upgrade"
+    "helm.sh/hook-weight": "5"
+    "helm.sh/hook-delete-policy": "before-hook-creation"
+{{- end }}
+spec:
+  backoffLimit: {{ .Values.jobs.mariadb_cluster_refresh_statefulset.backoffLimit }}
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "mariadb-cluster" "refresh-statefulset" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+{{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
+{{ dict "envAll" $envAll "podName" "" "containerNames" (list "init" "exporter-create-sql-user") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
+    spec:
+      shareProcessNamespace: true
+      serviceAccountName: {{ $serviceAccountName }}
+{{ dict "envAll" $envAll "application" "job" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
+      activeDeadlineSeconds: {{ .Values.jobs.mariadb_cluster_refresh_statefulset.activeDeadlineSeconds }}
+      restartPolicy: OnFailure
+      nodeSelector:
+        {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
+      initContainers:
+{{ tuple $envAll "mariadb_cluster_refresh_statefulset" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+      containers:
+        - name: refresh-statefulset
+{{ tuple $envAll "mariadb_cluster_refresh_statefulset" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ dict "envAll" $envAll "application" "mariadb_cluster_refresh_statefulset" "container" "main" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.jobs.mariadb_cluster_refresh_statefulset | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          command: ["/bin/sh", "-c"]
+          args: ["kubectl delete statefulset ${STATEFULSET_NAME} --namespace=${NAMESPACE}"]
+          env:
+            - name: STATEFULSET_NAME
+              value: {{ tuple "oslo_db" "server" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.namespace
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+      volumes:
+        - name: pod-tmp
+          emptyDir: {}
+{{- end }}

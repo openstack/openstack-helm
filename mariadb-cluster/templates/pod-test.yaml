@@ -1,0 +1,86 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if (.Values.global).subchart_release_name }}
+{{- $_ := set . "deployment_name" .Chart.Name }}
+{{- else }}
+{{- $_ := set . "deployment_name" .Release.Name }}
+{{- end }}
+
+{{- if .Values.manifests.pod_test }}
+{{- $envAll := . }}
+{{- $dependencies := .Values.dependencies.static.tests }}
+
+{{- $serviceAccountName := print .deployment_name "-test" }}
+{{ tuple $envAll "tests" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{.deployment_name}}-test"
+  labels:
+{{ tuple $envAll "mariadb" "test" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+  annotations:
+    "helm.sh/hook": test-success
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+{{ dict "envAll" $envAll "podName" "mariadb-test" "containerNames" (list "init" "mariadb-test") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 4 }}
+spec:
+  shareProcessNamespace: true
+  serviceAccountName: {{ $serviceAccountName }}
+{{ dict "envAll" $envAll "application" "tests" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 2 }}
+{{ if $envAll.Values.pod.tolerations.mariadb.enabled }}
+{{ tuple $envAll "mariadb" | include "helm-toolkit.snippets.kubernetes_tolerations" | indent 2 }}
+{{ end }}
+  nodeSelector:
+    {{ .Values.labels.test.node_selector_key }}: {{ .Values.labels.test.node_selector_value }}
+  restartPolicy: Never
+  initContainers:
+{{ tuple $envAll "tests" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 4 }}
+  containers:
+    - name: mariadb-test
+{{ dict "envAll" $envAll "application" "tests" "container" "test" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 6 }}
+{{ tuple $envAll "scripted_test" | include "helm-toolkit.snippets.image" | indent 6 }}
+      command:
+        - /tmp/test.sh
+      volumeMounts:
+        - name: pod-tmp
+          mountPath: /tmp
+        - name: mariadb-bin
+          mountPath: /tmp/test.sh
+          subPath: test.sh
+          readOnly: true
+        - name: mariadb-secrets
+          mountPath: /etc/mysql/test-params.cnf
+          {{ if eq $envAll.Values.conf.tests.endpoint "internal" }}
+          subPath: admin_user_internal.cnf
+          {{ else if eq $envAll.Values.conf.tests.endpoint "direct" }}
+          subPath: admin_user.cnf
+          {{ else }}
+          {{ fail "Either 'direct' or 'internal' should be specified for .Values.conf.tests.endpoint" }}
+          {{ end }}
+          readOnly: true
+{{ dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.secrets.tls.oslo_db.server.internal "path" "/etc/mysql/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 8 }}
+  volumes:
+    - name: pod-tmp
+      emptyDir: {}
+    - name: mariadb-bin
+      configMap:
+        name: mariadb-bin
+        defaultMode: 0555
+    - name: mariadb-secrets
+      secret:
+        secretName: mariadb-secrets
+        defaultMode: 0444
+{{ dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.secrets.tls.oslo_db.server.internal | include "helm-toolkit.snippets.tls_volume" | indent 4 }}
+{{- end }}

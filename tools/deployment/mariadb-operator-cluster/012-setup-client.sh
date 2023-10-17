@@ -1,0 +1,1 @@
+../common/setup-client.sh
