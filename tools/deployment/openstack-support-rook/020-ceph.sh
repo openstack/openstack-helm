@@ -15,7 +15,7 @@
 set -xe
 
 # Specify the Rook release tag to use for the Rook operator here
-ROOK_RELEASE=v1.12.5
+ROOK_RELEASE=v1.12.4
 
 # setup loopback devices for ceph
 free_loop_devices=( $(ls -1 /dev/loop[0-7] | while read loopdev; do losetup | grep -q $loopdev || echo $loopdev; done) )
@@ -350,9 +350,6 @@ discoverDaemonUdev:
 imagePullSecrets:
 enableOBCWatchOperatorNamespace: true
 admissionController:
-monitoring:
-  enabled: false
-  metricsDisabled: true
 EOF
 
 helm repo add rook-release https://charts.rook.io/release
@@ -385,6 +382,7 @@ toolbox:
   priorityClassName:
 monitoring:
   enabled: false
+  metricsDisabled: true
   createPrometheusRules: false
   rulesNamespaceOverride:
   prometheusRule:
