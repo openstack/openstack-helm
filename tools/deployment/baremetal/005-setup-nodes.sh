@@ -52,7 +52,7 @@ for LIBVIRT_POD in ${LIBVIRT_PODS}; do
   kubectl exec -n libvirt "${LIBVIRT_POD}" -- rm -f /var/lib/libvirt/images/vm-1.qcow2 || true
   kubectl exec -n libvirt "${LIBVIRT_POD}" -- qemu-img create -f qcow2 /var/lib/libvirt/images/vm-1.qcow2 5G
   kubectl exec -n libvirt "${LIBVIRT_POD}" -- chown -R qemu: /var/lib/libvirt/images/vm-1.qcow2
-  VM_DEF="$(sed "s|${TEMPLATE_MAC_ADDR}|${MAC_ADDR}|g" ./tools/gate/files/fake-baremetal-1.xml | base64 -w0)"
+  VM_DEF="$(sed "s|${TEMPLATE_MAC_ADDR}|${MAC_ADDR}|g" ./tools/deployment/baremetal/fake-baremetal-1.xml | base64 -w0)"
   kubectl exec -n libvirt "${LIBVIRT_POD}" -- sh -c "echo ${VM_DEF} | base64 -d > /tmp/fake-baremetal-1.xml"
   kubectl exec -n libvirt "${LIBVIRT_POD}" -- sh -c "virsh undefine fake-baremetal-1 || true"
   kubectl exec -n libvirt "${LIBVIRT_POD}" -- virsh define /tmp/fake-baremetal-1.xml

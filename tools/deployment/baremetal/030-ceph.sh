@@ -1,1 +1,1 @@
-../developer/ceph/040-ceph.sh
+../component/ceph/ceph.sh

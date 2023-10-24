@@ -1,1 +1,0 @@
-../common/090-heat.sh

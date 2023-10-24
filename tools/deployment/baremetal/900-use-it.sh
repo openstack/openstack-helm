@@ -25,7 +25,7 @@ chmod 600 ${HOME}/.ssh/osh_key
 
 # Deploy heat stack to provision node
 openstack stack create --wait --timeout 15 \
-    -t ./tools/gate/files/heat-basic-bm-deployment.yaml \
+    -t ./tools/deployment/baremetal/heat-basic-bm-deployment.yaml \
     heat-basic-bm-deployment
 
 FLOATING_IP=$(openstack stack output show \

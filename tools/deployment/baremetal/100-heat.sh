@@ -1,1 +1,1 @@
-../developer/common/090-heat.sh
+../component/heat/heat.sh

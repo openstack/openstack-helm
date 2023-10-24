@@ -1,1 +1,0 @@
-../common/060-rabbitmq.sh

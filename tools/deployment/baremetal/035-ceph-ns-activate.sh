@@ -1,1 +1,1 @@
-../developer/ceph/045-ceph-ns-activate.sh
+../component/ceph/ceph-ns-activate.sh

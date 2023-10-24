@@ -80,8 +80,8 @@
         - ./tools/deployment/common/run-helm-tests.sh nova
         - ./tools/deployment/common/run-helm-tests.sh glance
         - ./tools/deployment/common/run-helm-tests.sh keystone
-        - ./tools/deployment/developer/common/170-setup-gateway.sh
-        - ./tools/deployment/developer/common/900-use-it.sh
+        - ./tools/deployment/common/setup-gateway.sh
+        - ./tools/deployment/common/use-it.sh
         - ./tools/deployment/common/force-cronjob-run.sh
 
 - job:
@@ -95,7 +95,7 @@
       gate_scripts:
         - ./tools/deployment/common/prepare-k8s.sh
         - ./tools/deployment/common/setup-client.sh
-        - ./tools/scripts/tls/cert-manager.sh
+        - ./tools/deployment/common/cert-manager.sh
         - ./tools/deployment/component/common/ingress.sh
         - ./tools/deployment/component/common/mariadb.sh
         - ./tools/deployment/component/common/memcached.sh
@@ -142,10 +142,10 @@
       - ^tools/deployment/common/setup-client.sh$
       - ^tools/deployment/component/common/ingress.sh$
       - ^tools/deployment/component/common/openstack.sh$
-      - ^tools/deployment/developer/common/170-setup-gateway.sh$
-      - ^tools/deployment/developer/common/900-use-it.sh$
-      - ^tools/gate/tests/validate-umbrella-upgrade-no-side-effects.sh$
-      - ^tools/gate/tests/validate-umbrella-upgrade-config-changes-do-not-update-other-components.sh$
+      - ^tools/deployment/common/setup-gateway.sh$
+      - ^tools/deployment/common/use-it.sh$
+      - ^tools/deployment/common/validate-umbrella-upgrade-no-side-effects.sh$
+      - ^tools/deployment/common/validate-umbrella-upgrade-config-changes-do-not-update-other-components.sh$
       - ^zuul\.d/.*$
     vars:
       run_helm_tests: "yes"
@@ -154,11 +154,11 @@
         - ./tools/deployment/common/setup-client.sh
         - ./tools/deployment/component/common/ingress.sh
         - export GLANCE_BACKEND=memory; ./tools/deployment/component/common/openstack.sh
-        - ./tools/deployment/developer/common/170-setup-gateway.sh
-        - - ./tools/deployment/developer/common/900-use-it.sh
+        - ./tools/deployment/common/setup-gateway.sh
+        - - ./tools/deployment/common/use-it.sh
           - ./tools/deployment/common/force-cronjob-run.sh
-        - ./tools/gate/tests/validate-umbrella-upgrade-no-side-effects.sh
-        - ./tools/gate/tests/validate-umbrella-upgrade-config-changes-do-not-update-other-components.sh
+        - ./tools/deployment/common/validate-umbrella-upgrade-no-side-effects.sh
+        - ./tools/deployment/common/validate-umbrella-upgrade-config-changes-do-not-update-other-components.sh
 
 - job:
     name: openstack-helm-horizon
@@ -187,7 +187,7 @@
       gate_scripts:
         - ./tools/deployment/common/prepare-k8s.sh
         - ./tools/deployment/common/setup-client.sh
-        - ./tools/scripts/tls/cert-manager.sh
+        - ./tools/deployment/common/cert-manager.sh
         - ./tools/deployment/component/ceph/ceph.sh
         - ./tools/deployment/component/ceph/ceph-ns-activate.sh
         - ./tools/deployment/component/common/ingress.sh
@@ -206,51 +206,9 @@
             ./tools/deployment/common/run-helm-tests.sh glance;
             ./tools/deployment/common/run-helm-tests.sh keystone;
             ./tools/deployment/common/run-helm-tests.sh cinder;
-        - ./tools/deployment/developer/common/170-setup-gateway.sh
-        - - ./tools/deployment/developer/common/900-use-it.sh
+        - ./tools/deployment/common/setup-gateway.sh
+        - - ./tools/deployment/common/use-it.sh
           - ./tools/deployment/common/force-cronjob-run.sh
-
-- job:
-    name: openstack-helm-apparmor-compute-kit
-    parent: openstack-helm-deploy
-    abstract: true
-    timeout: 9600
-    vars:
-      gate_scripts:
-        - ./tools/deployment/common/prepare-k8s.sh
-        - ./tools/deployment/common/setup-client.sh
-        - ./tools/deployment/apparmor/015-ingress.sh
-        - ./tools/deployment/component/common/mariadb.sh
-        - ./tools/deployment/component/common/memcached.sh
-        - ./tools/deployment/component/common/rabbitmq.sh
-        - ./tools/deployment/component/keystone/keystone.sh
-        - ./tools/deployment/component/horizon/horizon.sh
-        - ./tools/deployment/component/heat/heat.sh
-        - export GLANCE_BACKEND=memory; ./tools/deployment/component/glance/glance.sh
-        - ./tools/deployment/component/compute-kit/openvswitch.sh
-        - ./tools/deployment/component/compute-kit/libvirt.sh
-        - ./tools/deployment/developer/nfs/160-compute-kit.sh
-        - ./tools/deployment/component/barbican/barbican.sh
-        - ./tools/deployment/developer/common/170-setup-gateway.sh
-        - ./tools/deployment/developer/common/900-use-it.sh
-
-- job:
-    name: openstack-helm-apparmor-cinder
-    parent: openstack-helm-deploy
-    abstract: true
-    timeout: 9600
-    vars:
-      gate_scripts:
-        - ./tools/deployment/common/prepare-k8s.sh
-        - ./tools/deployment/common/setup-client.sh
-        - ./tools/deployment/component/ceph/ceph.sh
-        - ./tools/deployment/component/ceph/ceph-ns-activate.sh
-        - ./tools/deployment/apparmor/015-ingress.sh
-        - ./tools/deployment/component/common/mariadb.sh
-        - ./tools/deployment/component/common/memcached.sh
-        - ./tools/deployment/component/common/rabbitmq.sh
-        - ./tools/deployment/component/keystone/keystone.sh
-        - ./tools/deployment/component/cinder/cinder.sh
 
 - job:
     name: openstack-helm-tungsten-fabric
@@ -300,10 +258,10 @@
         - ./tools/deployment/component/compute-kit/openvswitch.sh
         - ./tools/deployment/component/compute-kit/libvirt.sh
         - ./tools/deployment/component/compute-kit/compute-kit.sh
-        - ./tools/deployment/developer/common/170-setup-gateway.sh
+        - ./tools/deployment/common/setup-gateway.sh
         - ./tools/deployment/component/horizon/horizon.sh
         - ./tools/deployment/common/openstack-exporter.sh
-        - ./tools/deployment/developer/common/900-use-it.sh
+        - ./tools/deployment/common/use-it.sh
         - ./tools/deployment/common/test-networkpolicy.sh
 
 - job:
@@ -340,10 +298,9 @@
     timeout: 7200
     vars:
       gate_scripts:
-        - ./tools/deployment/common/install-packages.sh
-        - ./tools/deployment/common/deploy-k8s.sh
-        - - ./tools/deployment/common/setup-client.sh
-          - ./tools/deployment/component/common/ingress.sh
+        - ./tools/deployment/common/prepare-k8s.sh
+        - ./tools/deployment/common/setup-client.sh
+        - ./tools/deployment/component/common/ingress.sh
         - - ./tools/deployment/component/common/rabbitmq.sh
           - ./tools/deployment/component/common/mariadb.sh
           - ./tools/deployment/component/common/memcached.sh

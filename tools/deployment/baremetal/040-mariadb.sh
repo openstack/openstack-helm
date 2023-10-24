@@ -1,1 +1,1 @@
-../developer/common/050-mariadb.sh
+../component/common/mariadb.sh

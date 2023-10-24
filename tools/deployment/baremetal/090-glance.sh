@@ -1,1 +1,1 @@
-../developer/ceph/120-glance.sh
+../component/glance/glance.sh

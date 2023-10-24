@@ -1,1 +1,1 @@
-../developer/common/060-rabbitmq.sh
+../component/common/rabbitmq.sh

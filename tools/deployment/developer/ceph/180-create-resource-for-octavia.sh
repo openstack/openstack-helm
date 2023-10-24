@@ -1,1 +1,0 @@
-../common/180-create-resource-for-octavia.sh

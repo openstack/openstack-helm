@@ -1,1 +1,1 @@
-../developer/common/080-keystone.sh
+../component/keystone/keystone.sh
