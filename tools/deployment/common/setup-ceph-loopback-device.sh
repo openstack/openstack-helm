@@ -2,13 +2,15 @@
 
 set -ex
 
+: ${CEPH_LOOPBACK_PATH:="/var/lib/openstack-helm"}
+
 function setup_loopback_devices() {
   osd_data_device="$1"
   osd_wal_db_device="$2"
   namespace=${CEPH_NAMESPACE}
-  sudo mkdir -p /var/lib/openstack-helm/$namespace
-  sudo truncate -s 10G /var/lib/openstack-helm/$namespace/ceph-osd-data-loopbackfile.img
-  sudo truncate -s 8G /var/lib/openstack-helm/$namespace/ceph-osd-db-wal-loopbackfile.img
+  sudo mkdir -p ${CEPH_LOOPBACK_PATH}/$namespace
+  sudo truncate -s 10G ${CEPH_LOOPBACK_PATH}/$namespace/ceph-osd-data-loopbackfile.img
+  sudo truncate -s 8G ${CEPH_LOOPBACK_PATH}/$namespace/ceph-osd-db-wal-loopbackfile.img
   sudo -E bash -c "cat <<EOF > /etc/systemd/system/loops-setup.service
 [Unit]
 Description=Setup loop devices
@@ -20,8 +22,8 @@ Requires=systemd-udevd.service
 
 [Service]
 Type=oneshot
-ExecStart=/sbin/losetup $osd_data_device '/var/lib/openstack-helm/$namespace/ceph-osd-data-loopbackfile.img'
-ExecStart=/sbin/losetup $osd_wal_db_device '/var/lib/openstack-helm/$namespace/ceph-osd-db-wal-loopbackfile.img'
+ExecStart=/sbin/losetup $osd_data_device '${CEPH_LOOPBACK_PATH}/$namespace/ceph-osd-data-loopbackfile.img'
+ExecStart=/sbin/losetup $osd_wal_db_device '${CEPH_LOOPBACK_PATH}/$namespace/ceph-osd-db-wal-loopbackfile.img'
 ExecStop=/sbin/losetup -d $osd_data_device
 ExecStop=/sbin/losetup -d $osd_wal_db_device
 TimeoutSec=60
