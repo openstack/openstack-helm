@@ -18,7 +18,7 @@ all:
           ansible_port: 22
           ansible_host: 10.10.10.10
           ansible_user: ubuntu
-          ansible_ssh_private_key_file: /home/ubuntu/.ssh/id_rsa.pub
+          ansible_ssh_private_key_file: /home/ubuntu/.ssh/id_rsa
           ansible_ssh_extra_args: -o StrictHostKeyChecking=no
     nodes:
       hosts:
@@ -26,12 +26,12 @@ all:
           ansible_port: 22
           ansible_host: 10.10.10.11
           ansible_user: ubuntu
-          ansible_ssh_private_key_file: /home/ubuntu/.ssh/id_rsa.pub
+          ansible_ssh_private_key_file: /home/ubuntu/.ssh/id_rsa
           ansible_ssh_extra_args: -o StrictHostKeyChecking=no
         node-2:
           ansible_port: 22
           ansible_host: 10.10.10.12
           ansible_user: ubuntu
-          ansible_ssh_private_key_file: /home/ubuntu/.ssh/id_rsa.pub
+          ansible_ssh_private_key_file: /home/ubuntu/.ssh/id_rsa
           ansible_ssh_extra_args: -o StrictHostKeyChecking=no
 ```
