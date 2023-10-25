@@ -27,6 +27,7 @@ images:
     ceph_bootstrap: 'docker.io/openstackhelm/ceph-daemon:ubuntu_focal_18.2.0-1-20231013'
     ceph_config_helper: 'docker.io/openstackhelm/ceph-config-helper:ubuntu_focal_18.2.0-1-20231013'
     ceph_rgw: 'docker.io/openstackhelm/ceph-daemon:ubuntu_focal_18.2.0-1-20231013'
+    ceph_rgw_pool: 'docker.io/openstackhelm/ceph-config-helper:ubuntu_focal_18.2.0-1-20231013'
     dep_check: 'quay.io/airshipit/kubernetes-entrypoint:v1.0.0'
     image_repo_sync: 'docker.io/library/docker:17.07.0'
     rgw_s3_admin: 'docker.io/openstackhelm/ceph-config-helper:ubuntu_focal_18.2.0-1-20231013'
@@ -123,6 +124,13 @@ pod:
         bootstrap:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
+    rgw_pool:
+      pod:
+        runAsUser: 65534
+      container:
+        rgw_pool:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
   dns_policy: "ClusterFirstWithHostNet"
   replicas:
     rgw: 2
@@ -215,6 +223,13 @@ pod:
         requests:
           memory: "128Mi"
           cpu: "500m"
+      rgw_pool:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
     tests:
       requests:
         memory: "128Mi"
@@ -533,6 +548,9 @@ dependencies:
       services:
         - endpoint: internal
           service: ceph_object_store
+    rgw_pool:
+      jobs:
+        - ceph-rgw-storage-init
     tests:
       services:
         - endpoint: internal
@@ -692,6 +710,10 @@ endpoints:
         default: 53
         protocol: UDP
 
+jobs:
+  rgw_pool:
+    restartPolicy: OnFailure
+
 manifests:
   certificates: false
   configmap_ceph_templates: true
@@ -710,6 +732,7 @@ manifests:
   job_ks_user: true
   job_s3_admin: true
   job_rgw_placement_targets: false
+  job_rgw_pool: true
   secret_s3_rgw: true
   secret_keystone_rgw: true
   secret_ingress_tls: true
