@@ -87,6 +87,17 @@
       include_tasks:
         file: buildset_registry_alias.yaml
 
+    - name: Configure /etc/hosts for buildset_registry to workaround docker not understanding ipv6 addresses
+      lineinfile:
+        path: /etc/hosts
+        state: present
+        regex: "^{{ buildset_registry.host }}\tzuul-jobs.buildset-registry$"
+        line: "{{ buildset_registry.host }}\tzuul-jobs.buildset-registry"
+        insertafter: EOF
+      when:
+        - buildset_registry is defined
+        - buildset_registry.host | ipaddr
+
     - name: Write buildset registry TLS certificate
       copy:
         content: "{{ buildset_registry.cert }}"
