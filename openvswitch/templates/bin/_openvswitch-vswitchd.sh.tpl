@@ -77,19 +77,38 @@ function start () {
 
   # No need to create the cgroup if lcore_mask or pmd_cpu_mask is not set.
   if [[ -n ${PMD_CPU_MASK} || -n ${LCORE_MASK} ]]; then
-      # Setup Cgroups to use when breaking out of Kubernetes defined groups
-      mkdir -p /sys/fs/cgroup/cpuset/osh-openvswitch
-      target_mems="/sys/fs/cgroup/cpuset/osh-openvswitch/cpuset.mems"
-      target_cpus="/sys/fs/cgroup/cpuset/osh-openvswitch/cpuset.cpus"
+      if [ "$(stat -fc %T /sys/fs/cgroup/)" = "cgroup2fs" ]; then
+          # Setup Cgroups to use when breaking out of Kubernetes defined groups
+          mkdir -p /sys/fs/cgroup/osh-openvswitch
+          target_mems="/sys/fs/cgroup/osh-openvswitch/cpuset.mems"
+          target_cpus="/sys/fs/cgroup/osh-openvswitch/cpuset.cpus"
+          touch $target_mems
+          touch $target_cpus
 
-      # Ensure the write target for the for cpuset.mem for the pod exists
-      if [[ -f "$target_mems" && -f "$target_cpus" ]]; then
-        # Write cpuset.mem and cpuset.cpus for new cgroup and add current task to new cgroup
-        cat /sys/fs/cgroup/cpuset/cpuset.mems > "$target_mems"
-        cat /sys/fs/cgroup/cpuset/cpuset.cpus > "$target_cpus"
-        echo $$ > /sys/fs/cgroup/cpuset/osh-openvswitch/tasks
+          # Ensure the write target for the for cpuset.mem for the pod exists
+          if [[ -f "$target_mems" && -f "$target_cpus" ]]; then
+            # Write cpuset.mem and cpuset.cpus for new cgroup and add current task to new cgroup
+            cat /sys/fs/cgroup/cpuset.mems.effective > "$target_mems"
+            cat /sys/fs/cgroup/cpuset.cpus.effective > "$target_cpus"
+            echo $$ > /sys/fs/cgroup/osh-openvswitch/cgroup.procs
+          else
+            echo "ERROR: Could not find write target for either cpuset.mems: $target_mems or cpuset.cpus: $target_cpus"
+          fi
       else
-        echo "ERROR: Could not find write target for either cpuset.mems: $target_mems or cpuset.cpus: $target_cpus"
+          # Setup Cgroups to use when breaking out of Kubernetes defined groups
+          mkdir -p /sys/fs/cgroup/cpuset/osh-openvswitch
+          target_mems="/sys/fs/cgroup/cpuset/osh-openvswitch/cpuset.mems"
+          target_cpus="/sys/fs/cgroup/cpuset/osh-openvswitch/cpuset.cpus"
+
+          # Ensure the write target for the for cpuset.mem for the pod exists
+          if [[ -f "$target_mems" && -f "$target_cpus" ]]; then
+            # Write cpuset.mem and cpuset.cpus for new cgroup and add current task to new cgroup
+            cat /sys/fs/cgroup/cpuset/cpuset.mems > "$target_mems"
+            cat /sys/fs/cgroup/cpuset/cpuset.cpus > "$target_cpus"
+            echo $$ > /sys/fs/cgroup/cpuset/osh-openvswitch/tasks
+          else
+            echo "ERROR: Could not find write target for either cpuset.mems: $target_mems or cpuset.cpus: $target_cpus"
+          fi
       fi
   fi
 {{- end }}
