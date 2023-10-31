@@ -38,7 +38,7 @@ ovs-vsctl list-br | grep -q br-int
       bond={{ .name }}
       ovs-appctl -t ${OVS_CTL} bond/list | grep -q  ${bond}
       {{- range .nics }}
-        ovs-appctl -t ${OVS_CTL} bond/show ${bond} | grep -q "slave {{ .name }}"
+        ovs-appctl -t ${OVS_CTL} bond/show ${bond} | grep -q "slave {{ .name }}\|member {{ .name }}"
       {{- end }}
     {{- end }}
   {{- end }}
