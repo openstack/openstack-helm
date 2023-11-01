@@ -49,8 +49,7 @@ function start () {
   # Starts Apache2
   exec {{ .Values.conf.software.apache2.binary }} {{ .Values.conf.software.apache2.start_parameters }}
 {{- else }}
-  exec nova-api-os-compute \
-        --config-file /etc/nova/nova.conf
+  exec uwsgi --ini /etc/nova/nova-api-uwsgi.ini
 {{- end }}
 }
 
