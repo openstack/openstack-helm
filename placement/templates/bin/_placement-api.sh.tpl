@@ -20,9 +20,8 @@ set -ex
 COMMAND="${@:-start}"
 
 function start () {
-
+{{- if .Values.manifests.certificates }}
   cp -a $(type -p placement-api) /var/www/cgi-bin/placement/
-
   if [ -f /etc/apache2/envvars ]; then
     # Loading Apache2 ENV variables
     source /etc/apache2/envvars
@@ -46,13 +45,20 @@ function start () {
     {{- end }}
   {{- end }}
   exec {{ .Values.conf.software.apache2.binary }} {{ .Values.conf.software.apache2.start_parameters }}
+{{- else }}
+  exec uwsgi --ini /etc/placement/placement-api-uwsgi.ini
+{{- end }}
 }
 
 function stop () {
+{{- if .Values.manifests.certificates }}
   if [ -f /etc/apache2/envvars ]; then
     source /etc/apache2/envvars
   fi
   {{ .Values.conf.software.apache2.binary }} -k graceful-stop
+{{- else }}
+  kill -TERM 1
+{{- end }}
 }
 
 $COMMAND

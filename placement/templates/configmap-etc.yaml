@@ -57,6 +57,12 @@ limitations under the License.
 {{- if empty .Values.conf.placement.keystone_authtoken.memcache_secret_key -}}
 {{- $_ := set .Values.conf.placement.keystone_authtoken "memcache_secret_key" ( default ( randAlphaNum 64 ) .Values.endpoints.oslo_cache.auth.memcache_secret_key ) -}}
 {{- end -}}
+
+{{- if empty (index .Values.conf.placement_api_uwsgi.uwsgi "http-socket") -}}
+{{- $http_socket_port := tuple "placement" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | toString }}
+{{- $http_socket := printf "0.0.0.0:%s" $http_socket_port }}
+{{- $_ := set .Values.conf.placement_api_uwsgi.uwsgi "http-socket" $http_socket -}}
+{{- end -}}
 ---
 apiVersion: v1
 kind: Secret
@@ -66,6 +72,9 @@ type: Opaque
 data:
   policy.yaml: {{ toYaml .Values.conf.policy | b64enc }}
   placement.conf: {{ include "helm-toolkit.utils.to_oslo_conf" .Values.conf.placement | b64enc }}
-  logging.conf: {{ include "helm-toolkit.utils.to_oslo_conf" .Values.conf.logging | b64enc }}
+  placement-api-uwsgi.ini: {{ include "helm-toolkit.utils.to_oslo_conf" .Values.conf.placement_api_uwsgi | b64enc }}
+{{- if .Values.manifests.certificates }}
 {{- include "helm-toolkit.snippets.values_template_renderer" (dict "envAll" $envAll "template" .Values.conf.wsgi_placement "key" "wsgi-placement.conf" "format" "Secret" ) | indent 2 }}
+{{- end }}
+  logging.conf: {{ include "helm-toolkit.utils.to_oslo_conf" .Values.conf.logging | b64enc }}
 {{- end }}

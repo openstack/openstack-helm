@@ -61,18 +61,6 @@ network:
       port: 30778
 
 conf:
-  software:
-    apache2:
-      binary: apache2
-      start_parameters: -DFOREGROUND
-      # Enable/Disable modules
-      # a2enmod:
-      #   - headers
-      #   - rewrite
-      # a2dismod:
-      #   - status
-      a2enmod: null
-      a2dismod: null
   policy: {}
   placement:
     DEFAULT:
@@ -148,36 +136,23 @@ conf:
     formatter_default:
       format: "%(message)s"
       datefmt: "%Y-%m-%d %H:%M:%S"
-  wsgi_placement: |
-    Listen 0.0.0.0:{{ tuple "placement" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-    LogFormat "%h %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\"" combined
-    LogFormat "%{X-Forwarded-For}i %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\"" proxy
-    SetEnvIf X-Forwarded-For "^.*\..*\..*\..*" forwarded
-    CustomLog /dev/stdout combined env=!forwarded
-    CustomLog /dev/stdout proxy env=forwarded
-    <VirtualHost *:{{ tuple "placement" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}>
-        WSGIDaemonProcess placement-api processes=4 threads=1 user=placement group=placement display-name=%{GROUP}
-        WSGIProcessGroup placement-api
-        WSGIScriptAlias / /var/www/cgi-bin/placement/placement-api
-        WSGIApplicationGroup %{GLOBAL}
-        WSGIPassAuthorization On
-        <IfVersion >= 2.4>
-          ErrorLogFormat "%{cu}t %M"
-        </IfVersion>
-        ErrorLog /dev/stdout
-        SetEnvIf X-Forwarded-For "^.*\..*\..*\..*" forwarded
-        CustomLog /dev/stdout combined env=!forwarded
-        CustomLog /dev/stdout proxy env=forwarded
-    </VirtualHost>
-    Alias /placement /var/www/cgi-bin/placement/placement-api
-    <Location /placement>
-        SetHandler wsgi-script
-        Options +ExecCGI
-        WSGIProcessGroup placement-api
-        WSGIApplicationGroup %{GLOBAL}
-        WSGIPassAuthorization On
-    </Location>
-
+  placement_api_uwsgi:
+    uwsgi:
+      processes: 1
+      add-header: "Connection: close"
+      buffer-size: 65535
+      die-on-term: true
+      enable-threads: true
+      exit-on-reload: false
+      hook-master-start: unix_signal:15 gracefully_kill_them_all
+      lazy-apps: true
+      log-x-forwarded-for: true
+      master: true
+      procname-prefix-spaced: "placement-api:"
+      route-user-agent: '^kube-probe.* donotlog:'
+      thunder-lock: true
+      worker-reload-mercy: 80
+      wsgi-file: /var/lib/openstack/bin/placement-api
 endpoints:
   cluster_domain_suffix: cluster.local
   local_image_registry:

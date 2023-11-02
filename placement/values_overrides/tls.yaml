@@ -7,21 +7,23 @@ network:
 conf:
   software:
     apache2:
+      binary: apache2
+      start_parameters: -DFOREGROUND
+      site_dir: /etc/apache2/sites-enabled
+      conf_dir: /etc/apache2/conf-enabled
+      mods_dir: /etc/apache2/mods-available
       a2enmod:
         - ssl
+      a2dismod: null
   placement:
     keystone_authtoken:
       cafile: /etc/placement/certs/ca.crt
   wsgi_placement: |
-    Listen 0.0.0.0:{{ tuple "placement" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-    LogFormat "%h %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\"" combined
-    LogFormat "%{X-Forwarded-For}i %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\"" proxy
-    SetEnvIf X-Forwarded-For "^.*\..*\..*\..*" forwarded
-    CustomLog /dev/stdout combined env=!forwarded
-    CustomLog /dev/stdout proxy env=forwarded
-    <VirtualHost *:{{ tuple "placement" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}>
+    {{- $portInt := tuple "placement" "service" "api" $ | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+    Listen {{ $portInt }}
+    <VirtualHost *:{{ $portInt }}>
       ServerName {{ printf "%s.%s.svc.%s" "placement-api" .Release.Namespace .Values.endpoints.cluster_domain_suffix }}
-      WSGIDaemonProcess placement-api processes=4 threads=1 user=placement group=placement display-name=%{GROUP}
+      WSGIDaemonProcess placement-api processes=1 threads=1 user=placement group=placement display-name=%{GROUP}
       WSGIProcessGroup placement-api
       WSGIScriptAlias / /var/www/cgi-bin/placement/placement-api
       WSGIApplicationGroup %{GLOBAL}
@@ -29,11 +31,10 @@ conf:
       <IfVersion >= 2.4>
         ErrorLogFormat "%{cu}t %M"
       </IfVersion>
-      ErrorLog /dev/stdout
       SetEnvIf X-Forwarded-For "^.*\..*\..*\..*" forwarded
+      ErrorLog /dev/stdout
       CustomLog /dev/stdout combined env=!forwarded
       CustomLog /dev/stdout proxy env=forwarded
-
       SSLEngine on
       SSLCertificateFile      /etc/placement/certs/tls.crt
       SSLCertificateKeyFile   /etc/placement/certs/tls.key
@@ -41,14 +42,6 @@ conf:
       SSLCipherSuite          ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256
       SSLHonorCipherOrder     on
     </VirtualHost>
-    Alias /placement /var/www/cgi-bin/placement/placement-api
-    <Location /placement>
-      SetHandler wsgi-script
-      Options +ExecCGI
-      WSGIProcessGroup placement-api
-      WSGIApplicationGroup %{GLOBAL}
-      WSGIPassAuthorization On
-    </Location>
 endpoints:
   identity:
     auth:

@@ -120,7 +120,8 @@ helm upgrade --install $release ${OSH_HELM_REPO}/openstack \
   --set nova.conf.ceph.enabled=${CEPH_ENABLED} \
   --values=/tmp/neutron.yaml \
   --values=/tmp/glance.yaml \
-  --namespace=$namespace
+  --namespace=$namespace \
+  --timeout=1200s
 
 # If compute kit installed using Tungsten Fubric, it will be alive when Tunsten Fabric become active.
 if [[ "$FEATURE_GATES" =~ (,|^)tf(,|$) ]]; then
