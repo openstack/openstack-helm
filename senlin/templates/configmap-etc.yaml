@@ -81,6 +81,15 @@ limitations under the License.
 {{- $_ := set .Values.conf.senlin.authentication "service_username" .Values.endpoints.identity.auth.senlin.username -}}
 {{- end -}}
 
+{{- if empty .Values.conf.senlin_api_uwsgi.uwsgi.processes -}}
+{{- $_ := set .Values.conf.senlin_api_uwsgi.uwsgi "processes" .Values.conf.senlin.senlin_api.workers -}}
+{{- end -}}
+{{- if empty (index .Values.conf.senlin_api_uwsgi.uwsgi "http-socket") -}}
+{{- $http_socket_port := tuple "clustering" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | toString }}
+{{- $http_socket := printf "0.0.0.0:%s" $http_socket_port }}
+{{- $_ := set .Values.conf.senlin_api_uwsgi.uwsgi "http-socket" $http_socket -}}
+{{- end -}}
+
 {{- if and (empty .Values.conf.logging.handler_fluent) (has "fluent" .Values.conf.logging.handlers.keys) -}}
 {{- $fluentd_host := tuple "fluentd" "internal" $envAll | include "helm-toolkit.endpoints.hostname_namespaced_endpoint_lookup" }}
 {{- $fluentd_port := tuple "fluentd" "internal" "service" $envAll | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
@@ -102,6 +111,7 @@ type: Opaque
 data:
   rally_tests.yaml: {{ toYaml .Values.conf.rally_tests.tests | b64enc }}
   senlin.conf: {{ include "helm-toolkit.utils.to_oslo_conf" .Values.conf.senlin | b64enc }}
+  senlin-api-uwsgi.ini: {{ include "helm-toolkit.utils.to_oslo_conf" .Values.conf.senlin_api_uwsgi | b64enc }}
   logging.conf: {{ include "helm-toolkit.utils.to_oslo_conf" .Values.conf.logging | b64enc }}
   api-paste.ini: {{ include "helm-toolkit.utils.to_ini" .Values.conf.paste | b64enc }}
   policy.yaml: {{ toYaml .Values.conf.policy | b64enc }}

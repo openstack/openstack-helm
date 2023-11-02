@@ -18,8 +18,7 @@ set -ex
 COMMAND="${@:-start}"
 
 function start () {
-  exec senlin-api \
-        --config-file /etc/senlin/senlin.conf
+  exec uwsgi --ini /etc/senlin/senlin-api-uwsgi.ini
 }
 
 function stop () {
