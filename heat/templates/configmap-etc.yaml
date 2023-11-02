@@ -123,6 +123,24 @@ limitations under the License.
 {{- $_ := tuple "cloudformation" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | set .Values.conf.heat.heat_api_cfn "bind_port" -}}
 {{- end -}}
 
+{{- if empty .Values.conf.heat_api_uwsgi.uwsgi.processes -}}
+{{- $_ := set .Values.conf.heat_api_uwsgi.uwsgi "processes" .Values.conf.heat.heat_api.workers -}}
+{{- end -}}
+{{- if empty (index .Values.conf.heat_api_uwsgi.uwsgi "http-socket") -}}
+{{- $http_socket_port := tuple "orchestration" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | toString }}
+{{- $http_socket := printf "0.0.0.0:%s" $http_socket_port }}
+{{- $_ := set .Values.conf.heat_api_uwsgi.uwsgi "http-socket" $http_socket -}}
+{{- end -}}
+
+{{- if empty .Values.conf.heat_api_cfn_uwsgi.uwsgi.processes -}}
+{{- $_ := set .Values.conf.heat_api_cfn_uwsgi.uwsgi "processes" .Values.conf.heat.heat_api_cfn.workers -}}
+{{- end -}}
+{{- if empty (index .Values.conf.heat_api_cfn_uwsgi.uwsgi "http-socket") -}}
+{{- $http_socket_port := tuple "cloudformation" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | toString }}
+{{- $http_socket := printf "0.0.0.0:%s" $http_socket_port }}
+{{- $_ := set .Values.conf.heat_api_cfn_uwsgi.uwsgi "http-socket" $http_socket -}}
+{{- end -}}
+
 {{- if and (empty .Values.conf.logging.handler_fluent) (has "fluent" .Values.conf.logging.handlers.keys) -}}
 {{- $fluentd_host := tuple "fluentd" "internal" $envAll | include "helm-toolkit.endpoints.hostname_namespaced_endpoint_lookup" }}
 {{- $fluentd_port := tuple "fluentd" "internal" "service" $envAll | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
@@ -144,6 +162,8 @@ type: Opaque
 data:
   rally_tests.yaml: {{ toYaml .Values.conf.rally_tests.tests | b64enc }}
   heat.conf: {{ include "helm-toolkit.utils.to_oslo_conf" .Values.conf.heat | b64enc }}
+  heat-api-uwsgi.ini: {{ include "helm-toolkit.utils.to_oslo_conf" .Values.conf.heat_api_uwsgi | b64enc }}
+  heat-api-cfn-uwsgi.ini: {{ include "helm-toolkit.utils.to_oslo_conf" .Values.conf.heat_api_cfn_uwsgi | b64enc }}
   logging.conf: {{ include "helm-toolkit.utils.to_oslo_conf" .Values.conf.logging | b64enc }}
   api-paste.ini: {{ include "helm-toolkit.utils.to_ini" .Values.conf.paste | b64enc }}
   policy.yaml: {{ toYaml .Values.conf.policy | b64enc }}
