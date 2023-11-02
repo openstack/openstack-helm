@@ -88,6 +88,12 @@ limitations under the License.
 {{- $_ := tuple "oslo_messaging" "internal" "octavia" "amqp" . | include "helm-toolkit.endpoints.authenticated_transport_endpoint_uri_lookup" | set .Values.conf.octavia.DEFAULT "transport_url" -}}
 {{- end -}}
 
+{{- if empty (index .Values.conf.octavia_api_uwsgi.uwsgi "http-socket") -}}
+{{- $http_socket_port := tuple "load_balancer" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | toString }}
+{{- $http_socket := printf "0.0.0.0:%s" $http_socket_port }}
+{{- $_ := set .Values.conf.octavia_api_uwsgi.uwsgi "http-socket" $http_socket -}}
+{{- end -}}
+
 {{- if and (empty .Values.conf.logging.handler_fluent) (has "fluent" .Values.conf.logging.handlers.keys) -}}
 {{- $fluentd_host := tuple "fluentd" "internal" $envAll | include "helm-toolkit.endpoints.hostname_namespaced_endpoint_lookup" }}
 {{- $fluentd_port := tuple "fluentd" "internal" "service" $envAll | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
@@ -108,6 +114,7 @@ metadata:
 type: Opaque
 data:
   octavia.conf: {{ include "helm-toolkit.utils.to_oslo_conf" .Values.conf.octavia | b64enc }}
+  octavia-api-uwsgi.ini: {{ include "helm-toolkit.utils.to_oslo_conf" .Values.conf.octavia_api_uwsgi | b64enc }}
   logging.conf: {{ include "helm-toolkit.utils.to_oslo_conf" .Values.conf.logging | b64enc }}
 {{- end }}
 {{- end }}

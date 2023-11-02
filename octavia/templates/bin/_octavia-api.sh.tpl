@@ -20,8 +20,7 @@ set -ex
 COMMAND="${@:-start}"
 
 function start () {
-  exec octavia-api \
-        --config-file /etc/octavia/octavia.conf
+  exec uwsgi --ini /etc/octavia/octavia-api-uwsgi.ini
 }
 
 function stop () {
