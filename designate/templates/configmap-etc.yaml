@@ -65,6 +65,15 @@
 {{- if empty (index .Values.conf.designate "service:api").api_base_uri -}}
 {{- $_ := tuple "dns" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" | set (index .Values.conf.designate "service:api") "api_base_uri" -}}
 {{- end -}}
+
+{{- if empty .Values.conf.designate_api_uwsgi.uwsgi.processes -}}
+{{- $_ := set .Values.conf.designate_api_uwsgi.uwsgi "processes" (index .Values.conf.designate "service:api").workers -}}
+{{- end -}}
+{{- if empty (index .Values.conf.designate_api_uwsgi.uwsgi "http-socket") -}}
+{{- $http_socket_port := tuple "dns" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | toString }}
+{{- $http_socket := printf "0.0.0.0:%s" $http_socket_port }}
+{{- $_ := set .Values.conf.designate_api_uwsgi.uwsgi "http-socket" $http_socket -}}
+{{- end -}}
 ---
 apiVersion: v1
 kind: Secret
@@ -73,6 +82,7 @@ metadata:
 type: Opaque
 data:
   designate.conf: {{ include "helm-toolkit.utils.to_oslo_conf" .Values.conf.designate | b64enc }}
+  designate-api-uwsgi.ini: {{ include "helm-toolkit.utils.to_oslo_conf" .Values.conf.designate_api_uwsgi | b64enc }}
   api-paste.ini: {{ include "helm-toolkit.utils.to_ini" .Values.conf.paste | b64enc }}
   policy.yaml: {{ toYaml .Values.conf.policy | b64enc }}
   logging.conf: {{ include "helm-toolkit.utils.to_oslo_conf" .Values.conf.logging | b64enc }}

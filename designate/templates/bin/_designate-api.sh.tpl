@@ -16,8 +16,7 @@ set -ex
 COMMAND="${@:-start}"
 
 function start () {
-  exec designate-api \
-      --config-file /etc/designate/designate.conf
+  exec uwsgi --ini /etc/designate/designate-api-uwsgi.ini
 }
 
 function stop () {
