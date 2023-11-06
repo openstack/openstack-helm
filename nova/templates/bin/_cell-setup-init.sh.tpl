@@ -69,3 +69,7 @@ until openstack compute service list --service nova-compute -f value -c State | 
   echo "Waiting for Nova Compute processes to register"
   sleep 10
 done
+
+{{- if .Values.jobs.cell_setup.extra_command }}
+{{ .Values.jobs.cell_setup.extra_command }}
+{{- end }}
