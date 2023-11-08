@@ -30,3 +30,7 @@ for NOVA_SERVICE in ${NOVA_SERVICES_TO_CLEAN}; do
     openstack compute service delete "${SERVICE_ID}"
   done
 done
+
+{{- if .Values.jobs.service_cleaner.extra_command }}
+{{ .Values.jobs.service_cleaner.extra_command }}
+{{- end }}
