@@ -1,1 +1,0 @@
-../osh-infra-logging/020-ceph.sh

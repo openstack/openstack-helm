@@ -92,8 +92,13 @@
         root_path: "/opt/ext_vol/docker"
       containerd:
         root_path: "/opt/ext_vol/containerd"
-      ceph:
-        loopback_path: "/opt/ext_vol/openstack-helm"
+      kubeadm:
+        pod_network_cidr: "10.244.0.0/24"
+        service_cidr: "10.96.0.0/16"
+      loopback_setup: true
+      loopback_device: /dev/loop100
+      loopback_image: "/opt/ext_vol/openstack-helm/ceph-loop.img"
+      ceph_osd_data_device: /dev/loop100
       # the k8s package versions are available here
       # https://packages.cloud.google.com/apt/dists/kubernetes-xenial/main/binary-amd64/Packages
       kube_version: "1.26.3-00"
@@ -108,7 +113,7 @@
 - job:
     name: openstack-helm-infra-logging
     parent: openstack-helm-infra-deploy
-    nodeset: openstack-helm-1node-ubuntu_focal
+    nodeset: openstack-helm-3nodes-ubuntu_focal
     vars:
       osh_params:
         openstack_release: "2023.1"
@@ -117,7 +122,7 @@
       gate_scripts:
         - ./tools/deployment/osh-infra-logging/000-prepare-k8s.sh
         - ./tools/deployment/osh-infra-logging/010-ingress.sh
-        - ./tools/deployment/osh-infra-logging/020-ceph.sh
+        - ./tools/deployment/ceph/ceph.sh
         - ./tools/deployment/osh-infra-logging/025-ceph-ns-activate.sh
         - ./tools/deployment/osh-infra-logging/030-radosgw-osh-infra.sh
         - ./tools/deployment/osh-infra-logging/040-ldap.sh
@@ -194,7 +199,7 @@
         - ./tools/deployment/openstack-support/000-prepare-k8s.sh
         - ./tools/deployment/openstack-support/007-namespace-config.sh
         - ./tools/deployment/openstack-support/010-ingress.sh
-        - ./tools/deployment/openstack-support/020-ceph.sh
+        - ./tools/deployment/ceph/ceph.sh
         - ./tools/deployment/openstack-support/025-ceph-ns-activate.sh
         - ./tools/deployment/openstack-support/030-rabbitmq.sh
         - ./tools/deployment/openstack-support/070-mariadb.sh
@@ -250,7 +255,7 @@
         - ./tools/deployment/openstack-support/000-prepare-k8s.sh
         - ./tools/deployment/openstack-support/007-namespace-config.sh
         - ./tools/deployment/openstack-support/010-ingress.sh
-        - ./tools/deployment/openstack-support/020-ceph.sh
+        - ./tools/deployment/ceph/ceph.sh
         - ./tools/deployment/openstack-support/025-ceph-ns-activate.sh
         - ./tools/deployment/openstack-support/030-rabbitmq.sh
         - ./tools/deployment/openstack-support/070-mariadb.sh

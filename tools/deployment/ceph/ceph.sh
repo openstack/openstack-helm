@@ -14,16 +14,15 @@
 
 set -xe
 
-# setup loopback devices for ceph
-free_loop_devices=( $(ls -1 /dev/loop[0-7] | while read loopdev; do losetup | grep -q $loopdev || echo $loopdev; done) )
-./tools/deployment/common/setup-ceph-loopback-device.sh \
-    --ceph-osd-data ${CEPH_OSD_DATA_DEVICE:=${free_loop_devices[0]}} \
-    --ceph-osd-dbwal ${CEPH_OSD_DB_WAL_DEVICE:=${free_loop_devices[1]}}
+: ${CEPH_OSD_DATA_DEVICE:="/dev/loop100"}
+: ${POD_NETWORK_CIDR:="10.244.0.0/24"}
 
 #NOTE: Lint and package chart
 for CHART in ceph-mon ceph-osd ceph-client ceph-provisioners; do
   make "${CHART}"
 done
+
+NUMBER_OF_OSDS="$(kubectl get nodes -l ceph-osd=enabled --no-headers | wc -l)"
 
 #NOTE: Deploy command
 : ${OSH_EXTRA_HELM_ARGS:=""}
@@ -54,8 +53,8 @@ endpoints:
       metrics:
         default: 9283
 network:
-  public: 172.17.0.1/16
-  cluster: 172.17.0.1/16
+  public: "${POD_NETWORK_CIDR}"
+  cluster: "${POD_NETWORK_CIDR}"
   port:
     mon: 6789
     rgw: 8088
@@ -83,8 +82,8 @@ conf:
     crush:
       tunables: ${CRUSH_TUNABLES}
     target:
-      osd: 1
-      final_osd: 1
+      osd: ${NUMBER_OF_OSDS}
+      final_osd: ${NUMBER_OF_OSDS}
       pg_per_osd: 100
     default:
       crush_rule: same_host
@@ -174,12 +173,12 @@ conf:
       - data:
           type: bluestore
           location: ${CEPH_OSD_DATA_DEVICE}
-        block_db:
-          location: ${CEPH_OSD_DB_WAL_DEVICE}
-          size: "5GB"
-        block_wal:
-          location: ${CEPH_OSD_DB_WAL_DEVICE}
-          size: "2GB"
+        # block_db:
+        #   location: ${CEPH_OSD_DB_WAL_DEVICE}
+        #   size: "5GB"
+        # block_wal:
+        #   location: ${CEPH_OSD_DB_WAL_DEVICE}
+        #   size: "2GB"
 
 pod:
   replicas:

@@ -17,11 +17,7 @@ set -xe
 # Specify the Rook release tag to use for the Rook operator here
 ROOK_RELEASE=v1.12.4
 
-# setup loopback devices for ceph
-free_loop_devices=( $(ls -1 /dev/loop[0-7] | while read loopdev; do losetup | grep -q $loopdev || echo $loopdev; done) )
-./tools/deployment/common/setup-ceph-loopback-device.sh \
-    --ceph-osd-data ${CEPH_OSD_DATA_DEVICE:=${free_loop_devices[0]}} \
-    --ceph-osd-dbwal ${CEPH_OSD_DB_WAL_DEVICE:=${free_loop_devices[1]}}
+: ${CEPH_OSD_DATA_DEVICE:="/dev/loop100"}
 
 #NOTE: Deploy command
 : ${OSH_EXTRA_HELM_ARGS:=""}
@@ -499,7 +495,6 @@ cephClusterSpec:
     devices:
       - name: "${CEPH_OSD_DATA_DEVICE}"
         config:
-          metadataDevice: "${CEPH_OSD_DB_WAL_DEVICE}"
           databaseSizeMB: "5120"
           walSizeMB: "2048"
   disruptionManagement:
