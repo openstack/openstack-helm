@@ -430,6 +430,9 @@ cephClusterSpec:
       dataSource: zero
       iteration: 1
     allowUninstallWithVolumes: false
+  monitoring:
+    enabled: false
+    metricsDisabled: true
   resources:
     mgr:
       limits:
