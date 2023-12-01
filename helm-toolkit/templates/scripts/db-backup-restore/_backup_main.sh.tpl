@@ -243,7 +243,7 @@ send_to_remote_server() {
       log ERROR "${DB_NAME}_backup" "Mismatch between the local backup & remote backup MD5 hash values"
       return 2
   fi
-  rm -rf ${REMOTE_FILE}
+  rm -f ${REMOTE_FILE}
 
   log INFO "${DB_NAME}_backup" "Created file $FILE in container $CONTAINER_NAME successfully."
   return 0

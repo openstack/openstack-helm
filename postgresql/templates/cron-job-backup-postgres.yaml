@@ -52,6 +52,12 @@ spec:
 {{ dict "envAll" $envAll "application" "postgresql_backup" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 10 }}
           serviceAccountName: {{ $serviceAccountName }}
           restartPolicy: OnFailure
+{{- if $envAll.Values.pod.affinity }}
+{{- if $envAll.Values.pod.affinity.postgresql_backup }}
+          affinity:
+{{  index $envAll.Values.pod.affinity "postgresql_backup"  | toYaml | indent 12}}
+{{- end }}
+{{- end }}
           nodeSelector:
             {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
           initContainers:
@@ -137,9 +143,6 @@ spec:
                   mountPath: /etc/postgresql/admin_user.conf
                   subPath: admin_user.conf
                   readOnly: true
-          restartPolicy: OnFailure
-          serviceAccount: {{ $serviceAccountName }}
-          serviceAccountName: {{ $serviceAccountName }}
           volumes:
             - name: pod-tmp
               emptyDir: {}
