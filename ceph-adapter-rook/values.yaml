@@ -1,0 +1,119 @@
+---
+images:
+  pull_policy: IfNotPresent
+  tags:
+    ceph_config_helper: 'docker.io/openstackhelm/ceph-config-helper:ubuntu_focal_18.2.0-1-20231013'
+    dep_check: 'quay.io/airshipit/kubernetes-entrypoint:v1.0.0'
+    image_repo_sync: 'docker.io/library/docker:17.07.0'
+  local_registry:
+    active: false
+    exclude:
+      - dep_check
+      - image_repo_sync
+
+labels:
+  job:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+
+pod:
+  security_context:
+    storage_keys_generator:
+      pod:
+        runAsUser: 65534
+      container:
+        ceph_storage_keys_generator:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+    client_key_generator:
+      pod:
+        runAsUser: 99
+      container:
+        ceph_storage_keys_generator:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+  dns_policy: "ClusterFirstWithHostNet"
+  affinity:
+    anti:
+      type:
+        default: preferredDuringSchedulingIgnoredDuringExecution
+      topologyKey:
+        default: kubernetes.io/hostname
+      weight:
+        default: 10
+  resources:
+    enabled: false
+    jobs:
+      secret_provisioning:
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+        requests:
+          memory: "128Mi"
+          cpu: "500m"
+
+secrets:
+  keyrings:
+    admin: ceph-client-admin-keyring
+  keys:
+    admin: pvc-ceph-conf-combined-storageclass
+    user: pvc-ceph-client-key
+
+admin_secret_namespace: ceph
+ceph_configmap_name: ceph-etc
+
+conf:
+  templates:
+    keyring:
+      admin: |
+        [client.admin]
+          key = {{ key }}
+          auid = 0
+          caps mds = "allow"
+          caps mon = "allow *"
+          caps osd = "allow *"
+          caps mgr = "allow *"
+  ceph:
+    global:
+      # auth
+      cephx: true
+      cephx_require_signatures: false
+      cephx_cluster_require_signatures: true
+      cephx_service_require_signatures: false
+      objecter_inflight_op_bytes: "1073741824"
+      objecter_inflight_ops: 10240
+      debug_ms: "0/0"
+      log_file: /dev/stdout
+      mon_cluster_log_file: /dev/stdout
+      # TODO: Get mon host from rook-ceph-mon-endpoints configmap
+      mon_host: "will be discovered"
+
+endpoints:
+  cluster_domain_suffix: cluster.local
+  ceph_mon:
+    namespace: ceph
+    hosts:
+      default: ceph-mon
+      discovery: ceph-mon-discovery
+    host_fqdn_override:
+      default: null
+    port:
+      mon:
+        default: 6789
+      mon_msgr2:
+        default: 3300
+
+dependencies:
+  static:
+    storage_keys_generator:
+      jobs: null
+
+manifests:
+  configmap_bin: true
+  configmap_templates: true
+  configmap_etc: true
+  job_storage_admin_keys: true
+  job_namespace_client_key: true
+  job_namespace_client_ceph_config: true
+  service_mon_discovery: true
+...

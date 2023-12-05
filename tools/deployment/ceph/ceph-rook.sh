@@ -632,20 +632,6 @@ cephObjectStores:
       volumeBindingMode: "Immediate"
       parameters:
         region: us-east-1
-storageclass:
-  rbd:
-    parameters:
-      adminSecretName: pvc-ceph-conf-combined-storageclass
-  cephfs:
-    provision_storage_class: true
-    provisioner: ceph.com/cephfs
-    metadata:
-      name: cephfs
-    parameters:
-      adminId: admin
-      userSecretName: pvc-ceph-cephfs-client-key
-      adminSecretName: pvc-ceph-conf-combined-storageclass
-      adminSecretNamespace: ceph
 EOF
 
 helm upgrade --install --create-namespace --namespace ceph rook-ceph-cluster --set operatorNamespace=rook-ceph rook-release/rook-ceph-cluster --version ${ROOK_RELEASE} -f /tmp/ceph.yaml
@@ -671,67 +657,3 @@ TOOLS_POD=$(kubectl get pods \
   --selector="app=rook-ceph-tools" \
   --no-headers | awk '{ print $1; exit }')
 kubectl exec -n ceph ${TOOLS_POD} -- ceph -s
-
-tee /tmp/ceph-supplemental.yaml <<EOF
-endpoints:
-  ceph_mon:
-    namespace: null
-    hosts:
-      default: rook-ceph-mon-a
-      discovery: ceph-mon-discovery
-    port:
-      mon:
-        default: 6789
-      mon_msgr2:
-        default: 3300
-
-deployment:
-  storage_secrets: true
-  ceph: true
-  csi_rbd_provisioner: false
-  client_secrets: false
-  rgw_keystone_user_and_endpoints: false
-
-bootstrap:
-  enabled: false
-
-manifests:
-  daemonset_mon: false
-  daemonset_osd: false
-  deployment_mds: false
-  deployment_mgr: false
-  deployment_mgr_sa: false
-  deployment_moncheck: false
-  helm_tests: false
-  job_bootstrap: false
-  service_mgr: false
-  service_mon: false
-  service_mon_discovery: true
-  job_storage_admin_keys: true
-  job_keyring: true
-EOF
-
-helm upgrade --install ceph-mon ./ceph-mon --namespace=ceph --values=/tmp/ceph-supplemental.yaml
-./tools/deployment/common/wait-for-pods.sh ceph
-
-# credentials for this object store user will be placed
-# to the rook-ceph-object-user-default-s3-admin secret
-# AccessKey is the secret field where the access key is stored
-# SecretKey is the secret field where the secret key is stored
-# cat > /tmp/s3_admin.yaml <<EOF
-# apiVersion: ceph.rook.io/v1
-# kind: CephObjectStoreUser
-# metadata:
-#   name: s3-admin
-#   namespace: osh-infra
-# spec:
-#   store: default
-#   clusterNamespace: ceph
-#   # this is what is passed to radosgw-admin as uid argument
-#   displayName: s3_admin
-#   capabilities:
-#     user: "*"
-#     bucket: "*"
-# EOF
-
-# kubectl apply -f /tmp/s3_admin.yaml
