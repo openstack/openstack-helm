@@ -15,4 +15,4 @@ limitations under the License.
 
 set -ex
 
-exec /usr/bin/curator --config /etc/config/config.yml /etc/config/action_file.yml
+exec {{ .Values.conf.curator.executable }} --config /etc/config/config.yml /etc/config/action_file.yml
