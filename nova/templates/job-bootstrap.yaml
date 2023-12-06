@@ -20,7 +20,6 @@ limitations under the License.
 {{- $configMapBin := printf "%s-%s" $serviceName "bin" -}}
 {{- $configMapEtc := printf "%s-%s" $serviceName "etc" -}}
 {{- $configFile := printf "/etc/%s/%s.conf" $serviceName $serviceName -}}
-{{- $logConfigFile := $envAll.Values.conf.nova.DEFAULT.log_config_append -}}
 {{- $nodeSelector := index . "nodeSelector" | default ( dict $envAll.Values.labels.job.node_selector_key $envAll.Values.labels.job.node_selector_value ) -}}
 {{- $serviceAccountName := printf "%s-%s" $serviceName "bootstrap" -}}
 {{ tuple $envAll "bootstrap" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
@@ -97,10 +96,12 @@ spec:
               mountPath: {{ $configFile | quote }}
               subPath: {{ base $configFile | quote }}
               readOnly: true
+            {{- if .Values.conf.nova.DEFAULT.log_config_append }}
             - name: bootstrap-conf
-              mountPath: {{ $logConfigFile | quote }}
-              subPath: {{ base $logConfigFile | quote }}
+              mountPath: {{ .Values.conf.nova.DEFAULT.log_config_append | quote }}
+              subPath: {{ base .Values.conf.nova.DEFAULT.log_config_append | quote }}
               readOnly: true
+            {{- end }}
 {{- dict "enabled" (or .Values.manifests.certificates .Values.tls.identity) "name" .Values.secrets.tls.compute.osapi.internal | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
       volumes:
         - name: pod-tmp
