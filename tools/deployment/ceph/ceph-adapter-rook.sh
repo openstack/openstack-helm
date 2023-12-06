@@ -15,7 +15,7 @@
 
 set -xe
 
-make ceph-adapter
+make ceph-adapter-rook
 
 tee > /tmp/ceph-adapter-rook-ceph.yaml <<EOF
 manifests:
