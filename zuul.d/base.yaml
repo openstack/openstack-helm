@@ -47,6 +47,13 @@
       - tools/gate/playbooks/deploy-env.yaml
       - tools/gate/playbooks/run-scripts.yaml
     vars:
+      kubeadm:
+        pod_network_cidr: "10.244.0.0/24"
+        service_cidr: "10.96.0.0/16"
+      loopback_setup: true
+      loopback_device: /dev/loop100
+      loopback_image: "/var/lib/openstack-helm/ceph-loop.img"
+      ceph_osd_data_device: /dev/loop100
       # the k8s package versions are available here
       # https://packages.cloud.google.com/apt/dists/kubernetes-xenial/main/binary-amd64/Packages
       kube_version: "1.26.3-00"
@@ -117,6 +124,28 @@
         - ./tools/deployment/common/setup-client.sh
         - ./tools/deployment/component/ceph/ceph.sh
         - ./tools/deployment/component/ceph/ceph-ns-activate.sh
+        - ./tools/deployment/component/common/ingress.sh
+        - - ./tools/deployment/component/common/mariadb.sh
+          - ./tools/deployment/component/common/memcached.sh
+          - ./tools/deployment/component/common/rabbitmq.sh
+        - ./tools/deployment/component/keystone/keystone.sh
+        - ./tools/deployment/component/cinder/cinder.sh
+        - ./tools/deployment/common/force-cronjob-run.sh
+
+- job:
+    name: openstack-helm-cinder-rook
+    parent: openstack-helm-deploy
+    abstract: true
+    files:
+      - ^cinder/.*$
+      - ^zuul\.d/.*$
+      - ^tools/deployment/component/cinder/.
+    vars:
+      gate_scripts:
+        - ./tools/deployment/common/prepare-k8s.sh
+        - ./tools/deployment/common/setup-client.sh
+        - ./tools/deployment/component/ceph/ceph-rook.sh
+        - ./tools/deployment/component/ceph/ceph-adapter-rook.sh
         - ./tools/deployment/component/common/ingress.sh
         - - ./tools/deployment/component/common/mariadb.sh
           - ./tools/deployment/component/common/memcached.sh

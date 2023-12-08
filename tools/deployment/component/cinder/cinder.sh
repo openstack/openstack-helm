@@ -27,19 +27,19 @@ conf:
     pools:
       backup:
         replication: 1
-        crush_rule: same_host
+        crush_rule: replicated_rule
         chunk_size: 8
         app_name: cinder-backup
       # default pool used by rbd1 backend
       cinder.volumes:
         replication: 1
-        crush_rule: same_host
+        crush_rule: replicated_rule
         chunk_size: 8
         app_name: cinder-volume
       # secondary pool used by rbd2 backend
       cinder.volumes.gold:
         replication: 1
-        crush_rule: same_host
+        crush_rule: replicated_rule
         chunk_size: 8
         app_name: cinder-volume
   backends:

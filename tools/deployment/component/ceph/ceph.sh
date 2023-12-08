@@ -16,16 +16,16 @@ set -xe
 
 export CEPH_ENABLED=true
 
-if [ "${CREATE_LOOPBACK_DEVICES_FOR_CEPH:=true}" == "true" ]; then
-  ./tools/deployment/common/setup-ceph-loopback-device.sh --ceph-osd-data ${CEPH_OSD_DATA_DEVICE:=/dev/loop0} \
-  --ceph-osd-dbwal ${CEPH_OSD_DB_WAL_DEVICE:=/dev/loop1}
-fi
+: ${CEPH_OSD_DATA_DEVICE:="/dev/loop100"}
+: ${POD_NETWORK_CIDR:="10.244.0.0/24"}
 
 #NOTE: Lint and package chart
 export HELM_CHART_ROOT_PATH="${HELM_CHART_ROOT_PATH:="${OSH_INFRA_PATH:="../openstack-helm-infra"}"}"
 for CHART in ceph-mon ceph-osd ceph-client ceph-provisioners; do
   make -C ${HELM_CHART_ROOT_PATH} "${CHART}"
 done
+
+NUMBER_OF_OSDS="$(kubectl get nodes -l ceph-osd=enabled --no-headers | wc -l)"
 
 #NOTE: Deploy command
 [ -s /tmp/ceph-fs-uuid.txt ] || uuidgen > /tmp/ceph-fs-uuid.txt
@@ -47,8 +47,8 @@ endpoints:
   ceph_mgr:
     namespace: ceph
 network:
-  public: 172.17.0.1/16
-  cluster: 172.17.0.1/16
+  public: "${POD_NETWORK_CIDR}"
+  cluster: "${POD_NETWORK_CIDR}"
 deployment:
   storage_secrets: true
   ceph: true
@@ -75,8 +75,8 @@ conf:
     crush:
       tunables: ${CRUSH_TUNABLES}
     target:
-      osd: 1
-      final_osd: 1
+      osd: ${NUMBER_OF_OSDS}
+      final_osd: ${NUMBER_OF_OSDS}
       pg_per_osd: 100
     default:
       crush_rule: same_host
@@ -166,13 +166,12 @@ conf:
       - data:
           type: bluestore
           location: ${CEPH_OSD_DATA_DEVICE}
-        block_db:
-          location: ${CEPH_OSD_DB_WAL_DEVICE}
-          size: "5GB"
-        block_wal:
-          location: ${CEPH_OSD_DB_WAL_DEVICE}
-          size: "2GB"
-
+        # block_db:
+        #   location: ${CEPH_OSD_DB_WAL_DEVICE}
+        #   size: "5GB"
+        # block_wal:
+        #   location: ${CEPH_OSD_DB_WAL_DEVICE}
+        #   size: "2GB"
 pod:
   replicas:
     mds: 1
