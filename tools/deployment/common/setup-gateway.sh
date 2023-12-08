@@ -34,6 +34,10 @@ sudo iptables -P FORWARD ACCEPT
 DEFAULT_ROUTE_DEV=$(route -n | awk '/^0.0.0.0/ { print $5 " " $NF }' | sort | awk '{ print $NF; exit }')
 sudo iptables -t nat -A POSTROUTING -o ${DEFAULT_ROUTE_DEV} -s ${OSH_EXT_SUBNET} -j MASQUERADE
 
+# Increase the number of inotify user instances
+# otherwise we get the error "failed to create inotify: Too many open files"
+# when trying to start the dnsmasq
+sudo sysctl fs.inotify.max_user_instances=256
 
 container_id="$(sudo docker ps -f name=br-ex-dns-server -q -a)"
 # NOTE(portdirect): Setup DNS for public endpoints
@@ -54,5 +58,5 @@ if [ -z $container_id ]; then
 else
   echo "external bridge for dns already exists"
 fi
-sleep 1
+sleep 3
 sudo docker top br-ex-dns-server
