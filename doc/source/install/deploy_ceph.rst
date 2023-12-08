@@ -32,14 +32,14 @@ managing Ceph clusters via Kuberntes custom objects. For details please
 refer to the `Rook`_ documentation.
 
 To deploy the Rook Ceph operator and a Ceph cluster you can use the script
-`ceph.sh`_. Then to generate the client secrets to interface with the Ceph
-RBD API use this script `ceph_secrets.sh`
+`ceph-rook.sh`_. Then to generate the client secrets to interface with the Ceph
+RBD API use this script `ceph-adapter-rook.sh`_
 
 .. code-block:: bash
 
     cd ~/osh/openstack-helm-infra
-    ./tools/deployment/openstack-support-rook/020-ceph.sh
-    ./tools/deployment/openstack-support-rook/025-ceph-ns-activate.sh
+    ./tools/deployment/ceph/ceph-rook.sh
+    ./tools/deployment/ceph/ceph-adapter-rook.sh
 
 .. note::
     Please keep in mind that these are the deployment scripts that we
@@ -48,5 +48,5 @@ RBD API use this script `ceph_secrets.sh`
 
 
 .. _Rook: https://rook.io/
-.. _ceph.sh: https://opendev.org/openstack/openstack-helm-infra/src/branch/master/tools/deployment/openstack-support-rook/020-ceph.sh
-.. _ceph-ns-activate.sh: https://opendev.org/openstack/openstack-helm-infra/src/branch/master/tools/deployment/openstack-support-rook/025-ceph-ns-activate.sh
+.. _ceph-rook.sh: https://opendev.org/openstack/openstack-helm-infra/src/branch/master/tools/deployment/ceph/ceph-rook.sh
+.. _ceph-adapter-rook.sh: https://opendev.org/openstack/openstack-helm-infra/src/branch/master/tools/deployment/ceph/ceph-adapter-rook.sh
