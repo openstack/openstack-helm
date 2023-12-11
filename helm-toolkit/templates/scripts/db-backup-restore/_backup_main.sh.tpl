@@ -49,6 +49,13 @@
 #                                          A random number between min and max delay is generated
 #                                          to set the delay.
 #
+#         RGW backup throttle limits variables:
+#           export THROTTLE_BACKUPS_ENABLED   Boolean variableto control backup functionality
+#           export THROTTLE_LIMIT             Number of simultaneous RGW upload sessions
+#           export THROTTLE_LOCK_EXPIRE_AFTER Time in seconds to expire flag file is orphaned
+#           export THROTTLE_RETRY_AFTER       Time in seconds to wait before retry
+#           export THROTTLE_CONTAINER_NAME    Name of RGW container to place flag falies into
+#
 # The database-specific functions that need to be implemented are:
 #   dump_databases_to_directory <directory> <err_logfile> [scope]
 #       where:
@@ -84,8 +91,10 @@
 #      specified by the "LOCAL_DAYS_TO_KEEP" variable.
 #   4) Removing remote backup tarballs (from the remote gateway) which are older
 #      than the number of days specified by the "REMOTE_DAYS_TO_KEEP" variable.
+#   5) Controlling remote storage gateway load from client side and throttling it
+#      by using a dedicated RGW container to store flag files defining upload session
+#      in progress
 #
-
 # Note: not using set -e in this script because more elaborate error handling
 # is needed.
 
@@ -218,6 +227,113 @@ send_to_remote_server() {
   echo "Sleeping for ${DELAY} seconds to spread the load in time..."
   sleep ${DELAY}
 
+  #---------------------------------------------------------------------------
+  # Remote backup throttling
+  export THROTTLE_BACKUPS_ENABLED=$(echo $THROTTLE_BACKUPS_ENABLED | sed 's/"//g')
+  if $THROTTLE_BACKUPS_ENABLED; then
+    # Remove Quotes from the constants which were added due to reading
+    # from secret.
+    export THROTTLE_LIMIT=$(echo $THROTTLE_LIMIT | sed 's/"//g')
+    export THROTTLE_LOCK_EXPIRE_AFTER=$(echo $THROTTLE_LOCK_EXPIRE_AFTER | sed 's/"//g')
+    export THROTTLE_RETRY_AFTER=$(echo $THROTTLE_RETRY_AFTER | sed 's/"//g')
+    export THROTTLE_CONTAINER_NAME=$(echo $THROTTLE_CONTAINER_NAME | sed 's/"//g')
+
+    # load balance delay
+    RESULT=$(openstack container list 2>&1)
+
+    if [[ $? -eq 0 ]]; then
+      echo $RESULT | grep $THROTTLE_CONTAINER_NAME
+      if [[ $? -ne 0 ]]; then
+        # Find the swift URL from the keystone endpoint list
+        SWIFT_URL=$(openstack catalog show object-store -c endpoints | grep public | awk '{print $4}')
+        if [[ $? -ne 0 ]]; then
+          log WARN "${DB_NAME}_backup" "Unable to get object-store enpoints from keystone catalog."
+          return 2
+        fi
+
+        # Get a token from keystone
+        TOKEN=$(openstack token issue -f value -c id)
+        if [[ $? -ne 0 ]]; then
+          log WARN "${DB_NAME}_backup" "Unable to get  keystone token."
+          return 2
+        fi
+
+        # Create the container
+        RES_FILE=$(mktemp -p /tmp)
+        curl -g -i -X PUT ${SWIFT_URL}/${THROTTLE_CONTAINER_NAME} \
+            -H "X-Auth-Token: ${TOKEN}" \
+            -H "X-Storage-Policy: ${STORAGE_POLICY}" 2>&1 > $RES_FILE
+
+        if [[ $? -ne 0 || $(grep "HTTP" $RES_FILE | awk '{print $2}') -ge 400 ]]; then
+          log WARN "${DB_NAME}_backup" "Unable to create container ${THROTTLE_CONTAINER_NAME}"
+          cat $RES_FILE
+          rm -f $RES_FILE
+          return 2
+        fi
+        rm -f $RES_FILE
+
+        swift stat $THROTTLE_CONTAINER_NAME
+        if [[ $? -ne 0 ]]; then
+          log WARN "${DB_NAME}_backup" "Unable to retrieve container ${THROTTLE_CONTAINER_NAME} details after creation."
+          return 2
+        fi
+      fi
+    else
+      echo $RESULT | grep -E "HTTP 401|HTTP 403"
+      if [[ $? -eq 0 ]]; then
+        log ERROR "${DB_NAME}_backup" "Access denied by keystone: ${RESULT}"
+        return 1
+      else
+        echo $RESULT | grep -E "ConnectionError|Failed to discover available identity versions|Service Unavailable|HTTP 50"
+        if [[ $? -eq 0 ]]; then
+          log WARN "${DB_NAME}_backup" "Could not reach the RGW: ${RESULT}"
+          # In this case, keystone or the site/node may be temporarily down.
+          # Return slightly different error code so the calling code can retry
+          return 2
+        else
+          log ERROR "${DB_NAME}_backup" "Could not get container list: ${RESULT}"
+          return 1
+        fi
+      fi
+    fi
+
+    NUMBER_OF_SESSIONS=$(openstack object list $THROTTLE_CONTAINER_NAME -f value | wc -l)
+    log INFO  "${DB_NAME}_backup"  "There are ${NUMBER_OF_SESSIONS} remote sessions right now."
+    while [[ ${NUMBER_OF_SESSIONS} -ge ${THROTTLE_LIMIT} ]]
+    do
+      log INFO "${DB_NAME}_backup" "Current number of active uploads is ${NUMBER_OF_SESSIONS}>=${THROTTLE_LIMIT}!"
+      log INFO "${DB_NAME}_backup" "Retrying in ${THROTTLE_RETRY_AFTER} seconds...."
+      sleep ${THROTTLE_RETRY_AFTER}
+      NUMBER_OF_SESSIONS=$(openstack object list $THROTTLE_CONTAINER_NAME -f value | wc -l)
+      log INFO  "${DB_NAME}_backup"  "There are ${NUMBER_OF_SESSIONS} remote sessions right now."
+    done
+
+    # Create a lock file in THROTTLE_CONTAINER
+    THROTTLE_FILEPATH=$(mktemp -d)
+    THROTTLE_FILE=${CONTAINER_NAME}.lock
+    date +%s > $THROTTLE_FILEPATH/$THROTTLE_FILE
+
+    # Create an object to store the file
+    openstack object create --name $THROTTLE_FILE $THROTTLE_CONTAINER_NAME $THROTTLE_FILEPATH/$THROTTLE_FILE
+    if [[ $? -ne 0 ]]; then
+      log WARN "${DB_NAME}_backup" "Cannot create throttle container object ${THROTTLE_FILE}!"
+      return 2
+    fi
+
+    swift post  $THROTTLE_CONTAINER_NAME $THROTTLE_FILE -H "X-Delete-After:${THROTTLE_LOCK_EXPIRE_AFTER}"
+    if [[ $? -ne 0 ]]; then
+      log WARN "${DB_NAME}_backup" "Cannot set throttle container object ${THROTTLE_FILE} expiration header!"
+      return 2
+    fi
+    openstack object show $THROTTLE_CONTAINER_NAME $THROTTLE_FILE
+    if [[ $? -ne 0 ]]; then
+      log WARN "${DB_NAME}_backup" "Unable to retrieve throttle container object $THROTTLE_FILE after creation."
+      return 2
+    fi
+  fi
+
+  #---------------------------------------------------------------------------
+
   # Create an object to store the file
   openstack object create --name $FILE $CONTAINER_NAME $FILEPATH/$FILE
   if [[ $? -ne 0 ]]; then
@@ -244,6 +360,24 @@ send_to_remote_server() {
       return 2
   fi
   rm -f ${REMOTE_FILE}
+
+  #---------------------------------------------------------------------------
+  # Remote backup throttling
+  export THROTTLE_BACKUPS_ENABLED=$(echo $THROTTLE_BACKUPS_ENABLED | sed 's/"//g')
+  if $THROTTLE_BACKUPS_ENABLED; then
+    # Remove flag file
+    # Delete an object to remove the flag file
+    openstack object delete $THROTTLE_CONTAINER_NAME $THROTTLE_FILE
+    if [[ $? -ne 0 ]]; then
+      log WARN "${DB_NAME}_backup" "Cannot delete throttle container object ${THROTTLE_FILE}"
+      return 0
+    else
+      log INFO "${DB_NAME}_backup" "The throttle container object ${THROTTLE_FILE} has been successfully removed."
+    fi
+    rm -f ${THROTTLE_FILEPATH}/${THROTTLE_FILE}
+  fi
+
+  #---------------------------------------------------------------------------
 
   log INFO "${DB_NAME}_backup" "Created file $FILE in container $CONTAINER_NAME successfully."
   return 0
