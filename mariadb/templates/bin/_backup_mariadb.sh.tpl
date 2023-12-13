@@ -441,8 +441,8 @@ verify_databases_backup_archives() {
   export ARCHIVE_DIR=${MARIADB_BACKUP_BASE_DIR}/db/${MARIADB_POD_NAMESPACE}/${DB_NAME}/archive
   export BAD_ARCHIVE_DIR=${ARCHIVE_DIR}/quarantine
   export MYSQL_OPTS="--silent --skip-column-names"
-  export MYSQL_LIVE="mysql --defaults-file=/etc/mysql/admin_user.cnf ${MYSQL_OPTS}"
-  export MYSQL_LOCAL_OPTS="--user=root --host=127.0.0.1"
+  export MYSQL_LIVE="mysql ${MYSQL_OPTS}"
+  export MYSQL_LOCAL_OPTS=""
   export MYSQL_LOCAL_SHORT="mysql ${MYSQL_LOCAL_OPTS} --connect-timeout 2"
   export MYSQL_LOCAL_SHORT_SILENT="${MYSQL_LOCAL_SHORT} ${MYSQL_OPTS}"
   export MYSQL_LOCAL="mysql ${MYSQL_LOCAL_OPTS} --connect-timeout 10"

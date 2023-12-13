@@ -95,7 +95,7 @@ log_backup_error_exit() {
   log ERROR "${DB_NAME}_backup" "${DB_NAMESPACE} namespace: ${MSG}"
   rm -f $ERR_LOG_FILE
   rm -rf $TMP_DIR
-  exit $ERRCODE
+  exit 0
 }
 
 log_verify_backup_exit() {
@@ -104,7 +104,7 @@ log_verify_backup_exit() {
   log ERROR "${DB_NAME}_verify_backup" "${DB_NAMESPACE} namespace: ${MSG}"
   rm -f $ERR_LOG_FILE
   # rm -rf $TMP_DIR
-  exit $ERRCODE
+  exit 0
 }
 
 

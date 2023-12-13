@@ -50,12 +50,12 @@ spec:
 {{ tuple $envAll "mariadb-backup" "backup" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 12 }}
         spec:
 {{ dict "envAll" $envAll "application" "mariadb_backup" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 10 }}
-          restartPolicy: OnFailure
           serviceAccountName: {{ $serviceAccountName }}
+          restartPolicy: OnFailure
           shareProcessNamespace: true
-{{ if $envAll.Values.pod.tolerations.mariadb.enabled }}
+{{- if $envAll.Values.pod.tolerations.mariadb.enabled }}
 {{ tuple $envAll "mariadb" | include "helm-toolkit.snippets.kubernetes_tolerations" | indent 10 }}
-{{ end }}
+{{- end }}
 {{- if $envAll.Values.pod.affinity }}
 {{- if $envAll.Values.pod.affinity.mariadb_backup }}
           affinity:
@@ -104,8 +104,8 @@ spec:
               args:
                 - -c
                 - >-
-                    /tmp/backup_mariadb.sh;
-                    /usr/bin/pkill mysqld
+                    ( /tmp/start_verification_server.sh ) &
+                    /tmp/backup_mariadb.sh
               env:
                 - name: MARIADB_BACKUP_BASE_DIR
                   value: {{ .Values.conf.backup.base_path | quote }}
@@ -156,47 +156,15 @@ spec:
                   mountPath: /etc/mysql/admin_user.cnf
                   subPath: admin_user.cnf
                   readOnly: true
-{{ dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.secrets.tls.oslo_db.server.internal "path" "/etc/mysql/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 16 }}
-            - name: mariadb-verify-server
-{{ tuple $envAll "mariadb" | include "helm-toolkit.snippets.image" | indent 14 }}
-{{ dict "envAll" $envAll "application" "mariadb_backup" "container" "mariadb_verify_server" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 14 }}
-{{ tuple $envAll $envAll.Values.pod.resources.server | include "helm-toolkit.snippets.kubernetes_resources" | indent 14 }}
-              env:
-                {{- if $envAll.Values.manifests.certificates }}
-                - name: MARIADB_X509
-                  value: "REQUIRE X509"
-                {{- end }}
-                - name: MYSQL_HISTFILE
-                  value: /dev/null
-                - name: MARIADB_BACKUP_BASE_DIR
-                  value: {{ .Values.conf.backup.base_path | quote }}
-              ports:
-                - name: mysql
-                  protocol: TCP
-                  containerPort: {{ tuple "oslo_db" "direct" "mysql" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-              command:
-                - /tmp/start_verification_server.sh
-              volumeMounts:
-                - name: pod-tmp
-                  mountPath: /tmp
-                - name: var-run
-                  mountPath: /var/run/mysqld
-                - name: mycnfd
-                  mountPath: /etc/mysql/conf.d
-                - name: mariadb-backup-etc
-                  mountPath: /etc/mysql/my.cnf
-                  subPath: my.cnf
-                  readOnly: true
-                - name: mariadb-backup-secrets
-                  mountPath: /etc/mysql/admin_user.cnf
-                  subPath: admin_user.cnf
-                  readOnly: true
-                - name: mysql-data
-                  mountPath: /var/lib/mysql
                 - name: mariadb-backup-bin
                   mountPath: /tmp/start_verification_server.sh
                   readOnly: true
                   subPath: start_verification_server.sh
+                - name: mysql-data
+                  mountPath: /var/lib/mysql
+                - name: var-run
+                  mountPath: /run/mysqld
+{{ dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.secrets.tls.oslo_db.server.internal "path" "/etc/mysql/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 16 }}
           volumes:
             - name: pod-tmp
               emptyDir: {}
