@@ -59,6 +59,19 @@ spec:
       terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.api.timeout | default "30" }}
       initContainers:
 {{ tuple $envAll "api" $mounts_placement_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+        {{- if .Values.conf.placement.DEFAULT.log_dir }}
+        - name: placement-api-init-log
+{{ tuple $envAll "placement" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ dict "envAll" $envAll "application" "placement" "container" "placement_api" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          command:
+            - chown
+            - -R
+            - "placement:"
+            - {{ .Values.conf.placement.DEFAULT.log_dir }}
+          volumeMounts:
+            - name: log
+              mountPath: {{ .Values.conf.placement.DEFAULT.log_dir }}
+        {{- end }}
       containers:
         - name: placement-api
 {{ tuple $envAll "placement" | include "helm-toolkit.snippets.image" | indent 10 }}
@@ -122,6 +135,10 @@ spec:
               mountPath: /etc/apache2/conf-enabled/wsgi-placement.conf
               subPath: wsgi-placement.conf
               readOnly: true
+            {{- if .Values.conf.placement.DEFAULT.log_dir }}
+            - name: log
+              mountPath: {{ .Values.conf.placement.DEFAULT.log_dir }}
+            {{- end }}
 {{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.oslo_db.auth.admin.secret.tls.internal "path" "/etc/mysql/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
 {{- dict "enabled" (or .Values.manifests.certificates .Values.tls.identity) "name" .Values.secrets.tls.placement.api.internal "path" "/etc/placement/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
 {{ if $mounts_placement.volumeMounts }}{{ toYaml $mounts_placement.volumeMounts | indent 12 }}{{ end }}
@@ -138,6 +155,12 @@ spec:
           secret:
             secretName: placement-etc
             defaultMode: 0444
+        {{- if .Values.conf.placement.DEFAULT.log_dir }}
+        - name: log
+          hostPath:
+            path: {{ .Values.conf.placement.DEFAULT.log_dir }}
+            type: DirectoryOrCreate
+        {{- end }}
 {{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.oslo_db.auth.admin.secret.tls.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 {{- dict "enabled" (or .Values.manifests.certificates .Values.tls.identity) "name" .Values.secrets.tls.placement.api.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 {{ if $mounts_placement.volumes }}{{ toYaml $mounts_placement.volumes | indent 8 }}{{ end }}
