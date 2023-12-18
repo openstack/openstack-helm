@@ -49,7 +49,7 @@ set -e
 {{- if empty .Values.conf.ovn_remote -}}
 {{- $sb_svc_name := "ovn-ovsdb-sb" -}}
 {{- $sb_svc := (tuple $sb_svc_name "internal" . | include "helm-toolkit.endpoints.hostname_fqdn_endpoint_lookup") -}}
-{{- $sb_port := (tuple "ovn-ovsdb-sb" "internal" "raft" . | include "helm-toolkit.endpoints.endpoint_port_lookup") -}}
+{{- $sb_port := (tuple "ovn-ovsdb-sb" "internal" "ovsdb" . | include "helm-toolkit.endpoints.endpoint_port_lookup") -}}
 {{- $sb_service_list := list -}}
 {{- range $i := until (.Values.pod.replicas.ovn_ovsdb_sb | int) -}}
   {{- $sb_service_list = printf "tcp:%s-%d.%s:%s" $sb_svc_name $i $sb_svc $sb_port | append $sb_service_list -}}
