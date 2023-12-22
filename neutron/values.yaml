@@ -36,6 +36,7 @@ images:
     neutron_dhcp: docker.io/openstackhelm/neutron:2024.1-ubuntu_jammy
     neutron_metadata: docker.io/openstackhelm/neutron:2024.1-ubuntu_jammy
     neutron_ovn_metadata: docker.io/openstackhelm/neutron:2024.1-ubuntu_jammy
+    neutron_ovn_vpn: docker.io/openstackhelm/neutron:2024.1-ubuntu_jammy
     neutron_l3: docker.io/openstackhelm/neutron:2024.1-ubuntu_jammy
     neutron_l2gw: docker.io/openstackhelm/neutron:2024.1-ubuntu_jammy
     neutron_openvswitch_agent: docker.io/openstackhelm/neutron:2024.1-ubuntu_jammy
@@ -304,6 +305,17 @@ dependencies:
           service: compute_metadata
         - endpoint: internal
           service: network
+    ovn_vpn_agent:
+      pod:
+        - requireSameNode: true
+          labels:
+            application: ovn
+            component: ovn-controller
+      services:
+        - endpoint: internal
+          service: oslo_messaging
+        - endpoint: internal
+          service: network
     ovs_agent:
       jobs:
         - neutron-rabbit-init
@@ -411,6 +423,20 @@ pod:
           enabled: true
     metadata_agent:
       metadata_agent:
+        readiness:
+          enabled: true
+          params:
+            initialDelaySeconds: 30
+            periodSeconds: 190
+            timeoutSeconds: 185
+        liveness:
+          enabled: true
+          params:
+            initialDelaySeconds: 120
+            periodSeconds: 600
+            timeoutSeconds: 580
+    ovn_vpn_agent:
+      ovn_vpn_agent:
         readiness:
           enabled: true
           params:
@@ -583,6 +609,13 @@ pod:
         neutron_ovn_metadata_agent_init:
           runAsUser: 0
           readOnlyRootFilesystem: true
+    ovn_vpn_agent:
+      pod:
+        runAsUser: 42424
+      container:
+        ovn_vpn_agent_init:
+          runAsUser: 0
+          readOnlyRootFilesystem: true
     neutron_ovs_agent:
       pod:
         runAsUser: 42424
@@ -701,6 +734,11 @@ pod:
       neutron_ovn_metadata_agent:
         volumeMounts:
         volumes:
+    ovn_vpn_agent:
+      init_container: null
+      ovn_vpn_agent:
+        volumeMounts:
+        volumes:
     neutron_ovs_agent:
       init_container: null
       neutron_ovs_agent:
@@ -788,6 +826,10 @@ pod:
           enabled: true
           min_ready_seconds: 0
           max_unavailable: 1
+        ovn_vpn_agent:
+          enabled: true
+          min_ready_seconds: 0
+          max_unavailable: 1
         ovs_agent:
           enabled: true
           min_ready_seconds: 0
@@ -842,6 +884,13 @@ pod:
           memory: "1024Mi"
           cpu: "2000m"
       ovn_metadata:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      ovn_vpn:
         requests:
           memory: "128Mi"
           cpu: "100m"
@@ -1393,6 +1442,7 @@ conf:
         - lb_agent
         - metadata_agent
         - ovn_metadata_agent
+        - ovn_vpn_agent
         - ovs_agent
         - sriov_agent
       content: |
@@ -1421,6 +1471,7 @@ conf:
         - lb_agent
         - metadata_agent
         - ovn_metadata_agent
+        - ovn_vpn_agent
         - ovs_agent
         - sriov_agent
       content: |
@@ -1447,6 +1498,7 @@ conf:
         - lb_agent
         - metadata_agent
         - ovn_metadata_agent
+        - ovn_vpn_agent
         - ovs_agent
         - sriov_agent
       content: |
@@ -1469,6 +1521,7 @@ conf:
         - lb_agent
         - metadata_agent
         - ovn_metadata_agent
+        - ovn_vpn_agent
         - ovs_agent
         - sriov_agent
       content: |
@@ -1560,6 +1613,7 @@ conf:
         - lb_agent
         - metadata_agent
         - ovn_metadata_agent
+        - ovn_vpn_agent
         - ovs_agent
         - sriov_agent
         - netns_cleanup_cron
@@ -1583,6 +1637,7 @@ conf:
         - lb_agent
         - metadata_agent
         - ovn_metadata_agent
+        - ovn_vpn_agent
         - ovs_agent
         - sriov_agent
         - netns_cleanup_cron
@@ -1633,6 +1688,7 @@ conf:
         - lb_agent
         - metadata_agent
         - ovn_metadata_agent
+        - ovn_vpn_agent
         - ovs_agent
         - sriov_agent
       content: |
@@ -1654,6 +1710,7 @@ conf:
         - lb_agent
         - metadata_agent
         - ovn_metadata_agent
+        - ovn_vpn_agent
         - ovs_agent
         - sriov_agent
       content: |
@@ -1691,6 +1748,7 @@ conf:
         - lb_agent
         - metadata_agent
         - ovn_metadata_agent
+        - ovn_vpn_agent
         - ovs_agent
         - sriov_agent
       content: |
@@ -1729,6 +1787,7 @@ conf:
         - lb_agent
         - metadata_agent
         - ovn_metadata_agent
+        - ovn_vpn_agent
         - ovs_agent
         - sriov_agent
       content: |
@@ -1767,6 +1826,7 @@ conf:
         - lb_agent
         - metadata_agent
         - ovn_metadata_agent
+        - ovn_vpn_agent
         - ovs_agent
         - sriov_agent
         - netns_cleanup_cron
@@ -2068,6 +2128,14 @@ conf:
       #dhcp-option=3,10.10.10.1
       #dhcp-option-force=26,1450
 
+  neutron_vpnaas: null
+  ovn_vpn_agent:
+    DEFAULT:
+      interface_driver: openvswitch
+    vpnagent:
+      vpn_device_driver: neutron_vpnaas.services.vpn.device_drivers.ovn_ipsec.OvnStrongSwanDriver
+    ovs:
+      ovsdb_connection: unix:/run/openvswitch/db.sock
   l3_agent:
     DEFAULT:
       # (NOTE)portdirect: if unset this is populated dyanmicly from the value in

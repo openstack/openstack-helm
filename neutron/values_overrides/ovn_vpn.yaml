@@ -1,0 +1,34 @@
+---
+network:
+  backend:
+    - openvswitch
+    - ovn
+
+conf:
+  neutron:
+    DEFAULT:
+      router_distributed: true
+      service_plugins: ovn-router,ovn-vpnaas
+      l3_ha_network_type: geneve
+  ovn_vpn_agent:
+    service_providers:
+      service_provider: VPN:strongswan:neutron_vpnaas.services.vpn.service_drivers.ovn_ipsec.IPsecOvnVPNDriver:default
+  plugins:
+    ml2_conf:
+      ml2:
+        extension_drivers: port_security
+        type_drivers: flat,vxlan,geneve
+        tenant_network_types: geneve
+      ovn:
+        ovn_l3_scheduler: leastloaded
+        dns_servers: 8.8.8.8,1.1.1.1
+        neutron_sync_mode: repair
+
+manifests:
+  daemonset_dhcp_agent: false
+  daemonset_l3_agent: false
+  daemonset_metadata_agent: false
+  daemonset_ovs_agent: false
+
+  daemonset_ovn_metadata_agent: true
+  daemonset_ovn_vpn_agent: true
