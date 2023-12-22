@@ -41,6 +41,21 @@ exec:
     {{- end }}
 {{- end }}
 
+{{- define "novaComputeStartupProbeTemplate" }}
+exec:
+  command:
+    - python
+    - /tmp/health-probe.py
+    - --config-file
+    - /etc/nova/nova.conf
+    - --service-queue-name
+    - compute
+    - --liveness-probe
+    {{- if .Values.pod.use_fqdn.compute }}
+    - --use-fqdn
+    {{- end }}
+{{- end }}
+
 {{- define "nova.compute.daemonset" }}
 {{- $daemonset := index . 0 }}
 {{- $configMapName := index . 1 }}
@@ -282,6 +297,7 @@ spec:
 {{- end }}
 {{ dict "envAll" $envAll "component" "compute" "container" "default" "type" "liveness" "probeTemplate" (include "novaComputeLivenessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
 {{ dict "envAll" $envAll "component" "compute" "container" "default" "type" "readiness" "probeTemplate" (include "novaComputeReadinessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+{{ dict "envAll" $envAll "component" "compute" "container" "default" "type" "startup" "probeTemplate" (include "novaComputeStartupProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
           command:
             - /tmp/nova-compute.sh
           terminationMessagePath: /var/log/termination-log
