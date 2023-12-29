@@ -26,7 +26,15 @@ done
 IFS=''
 
 subnet_address="{{- .Values.network.ssh.from_subnet -}}"
+
+if [ -z "${subnet_address}" ] ; then
+    subnet_address="0.0.0.0/0"
+fi
+listen_interface=$(ip -4 route list ${subnet_address} | awk -F 'dev' '{ print $2; exit }' | awk '{ print $1 }') || exit 1
+listen_address=$(ip a s $listen_interface | grep 'inet ' | awk '{print $2}' | awk -F "/" '{print $1}' | head -1)
+
 cat > /tmp/sshd_config_extend <<EOF
+ListenAddress $listen_address
 PasswordAuthentication no
 Match Address $subnet_address
     PermitRootLogin without-password

@@ -21,25 +21,25 @@ console_kind="{{- .Values.console.console_kind -}}"
 if [ "${console_kind}" == "novnc" ] ; then
     client_address="{{- .Values.conf.nova.vnc.server_proxyclient_address -}}"
     client_interface="{{- .Values.console.novnc.compute.vncserver_proxyclient_interface -}}"
+    client_network_cidr="{{- .Values.console.novnc.compute.vncserver_proxyclient_network_cidr -}}"
     listen_ip="{{- .Values.conf.nova.vnc.server_listen -}}"
 elif [ "${console_kind}" == "spice" ] ; then
     client_address="{{- .Values.conf.nova.spice.server_proxyclient_address -}}"
     client_interface="{{- .Values.console.spice.compute.server_proxyclient_interface -}}"
+    client_network_cidr="{{- .Values.console.spice.compute.server_proxyclient_network_cidr -}}"
     listen_ip="{{- .Values.conf.nova.spice.server_listen -}}"
 fi
 
 if [ -z "${client_address}" ] ; then
     if [ -z "${client_interface}" ] ; then
-        if  [ -x "$(command -v route)" ] ; then
-            # search for interface with default routing, if multiple default routes exist then select the one with the lowest metric.
-            client_interface=$(route -n | awk '/^0.0.0.0/ { print $5 " " $NF }' | sort | awk '{ print $NF; exit }')
-        else
-            client_interface=$(ip r | grep default | awk '{print $5}')
+        if [ -z "${client_network_cidr}" ] ; then
+            client_network_cidr="0/0"
         fi
+        client_interface=$(ip -4 route list ${client_network_cidr} | awk -F 'dev' '{ print $2; exit }' | awk '{ print $1 }') || exit 1
     fi
 
     # determine client ip dynamically based on interface provided
-    client_address=$(ip a s $client_interface | grep 'inet ' | awk '{print $2}' | awk -F "/" '{print $1}' | head -n 1)
+    client_address=$(ip a s $client_interface | grep 'inet ' | awk '{print $2}' | awk -F "/" '{print $1}' | head -1)
 fi
 
 if [ -z "${listen_ip}" ] ; then
