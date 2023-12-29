@@ -74,6 +74,7 @@ images:
     nova_novncproxy: docker.io/openstackhelm/nova:wallaby-ubuntu_focal
     nova_novncproxy_assets: 'docker.io/kolla/ubuntu-source-nova-novncproxy:wallaby'
     nova_scheduler: docker.io/openstackhelm/nova:wallaby-ubuntu_focal
+    nova_storage_init: 'docker.io/openstackhelm/ceph-config-helper:latest-ubuntu_focal'
     # NOTE(portdirect): we simply use the ceph config helper here,
     # as it has both oscli and jq.
     nova_service_cleaner: 'docker.io/openstackhelm/ceph-config-helper:latest-ubuntu_focal'
@@ -518,6 +519,12 @@ console:
 ceph_client:
   configmap: ceph-etc
   user_secret_name: pvc-ceph-client-key
+
+rbd_pool:
+  app_name: nova-vms
+  replication: 3
+  crush_rule: replicated_rule
+  chunk_size: 8
 
 conf:
   security: |
@@ -2387,6 +2394,13 @@ pod:
         limits:
           memory: "1024Mi"
           cpu: "2000m"
+      storage_init:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
       db_init:
         requests:
           memory: "128Mi"
@@ -2511,6 +2525,7 @@ manifests:
   ingress_novncproxy: true
   ingress_osapi: true
   job_bootstrap: true
+  job_storage_init: true
   job_db_init: true
   job_db_sync: true
   job_db_drop: false
