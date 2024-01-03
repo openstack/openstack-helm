@@ -13,6 +13,21 @@
 #    under the License.
 set -xe
 
+# By default we set enable-chassis-as-gw on all OVN controllers which means
+# all nodes are connected to the provider network, but for test environment this is not
+# the case.
+if [[ "$FEATURE_GATES" =~ (,|^)ovn(,|$) ]]; then
+HOSTNAME=$(hostname -f)
+kubectl -n openstack get po --selector application=ovn,component=ovn-controller -o name | while read po; do
+  kubectl -n openstack exec $po -c controller -- bash -c "if [[ \$(hostname -f) != ${HOSTNAME} ]]; then ovs-vsctl set open . external-ids:ovn-cms-options=availability-zones=nova; fi"
+done
+fi
+
+sleep 10
+export OS_CLOUD=openstack_helm
+openstack network agent list
+openstack availability zone list --network
+
 # Assign IP address to br-ex
 : ${OSH_EXT_SUBNET:="172.24.4.0/24"}
 : ${OSH_BR_EX_ADDR:="172.24.4.1/24"}
