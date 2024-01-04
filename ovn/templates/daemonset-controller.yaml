@@ -42,11 +42,16 @@ spec:
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
     spec:
       serviceAccountName: {{ $serviceAccountName }}
+      hostNetwork: true
+      hostPID: true
+      hostIPC: true
+      dnsPolicy: ClusterFirstWithHostNet
       nodeSelector:
         {{ .Values.labels.ovn_controller.node_selector_key }}: {{ .Values.labels.ovn_controller.node_selector_value }}
       initContainers:
 {{- tuple $envAll "ovn_controller" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
         - name: controller-init
+{{ dict "envAll" $envAll "application" "ovn_controller" "container" "controller_init" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
 {{ tuple $envAll "ovn_controller" | include "helm-toolkit.snippets.image" | indent 10 }}
           command:
             - /tmp/ovn-controller-init.sh
@@ -82,6 +87,10 @@ spec:
               readOnly: true
             - name: run-openvswitch
               mountPath: /run/openvswitch
+            - name: logs
+              mountPath: /var/log/ovn
+            - name: run-ovn
+              mountPath: /run/ovn
       volumes:
         - name: ovn-bin
           configMap:
@@ -95,4 +104,12 @@ spec:
           secret:
             secretName: {{ $configMapName }}
             defaultMode: 0444
+        - name: logs
+          hostPath:
+            path: /var/log/ovn
+            type: DirectoryOrCreate
+        - name: run-ovn
+          hostPath:
+            path: /run/ovn
+            type: DirectoryOrCreate
 {{- end }}

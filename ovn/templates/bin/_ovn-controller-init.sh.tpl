@@ -68,7 +68,7 @@ ovs-vsctl set open . external-ids:ovn-bridge-mappings="{{ .Values.conf.ovn_bridg
 ovs-vsctl set open . external-ids:ovn-cms-options="{{ .Values.conf.ovn_cms_options }}"
 
 # Configure hostname
-{{- if .Values.conf.use_fqdn.compute }}
+{{- if .Values.pod.use_fqdn.compute }}
   ovs-vsctl set open . external-ids:hostname="$(hostname -f)"
 {{- else }}
   ovs-vsctl set open . external-ids:hostname="$(hostname)"
