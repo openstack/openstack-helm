@@ -176,9 +176,16 @@ spec:
           key: MYSQL_DBADMIN_PASSWORD
     - name: MYSQL_HISTFILE
       value: {{ .Values.conf.database.mysql_histfile }}
-
+{{ if  .Values.conf.database.auto_upgrade.enabled }}
+    - name: MARIADB_AUTO_UPGRADE
+      value: {{ .Values.conf.database.auto_upgrade.enabled | quote }}
+    - name: MARIADB_DISABLE_UPGRADE_BACKUP
+      value: {{ .Values.conf.database.auto_upgrade.disable_upgrade_backup | quote }}
+{{ end }}
 
   volumeMounts:
+    - name: pod-tmp
+      mountPath: /tmp
     - name: mariadb-secrets
       mountPath: /etc/mysql/admin_user.cnf
       subPath: admin_user.cnf
@@ -197,6 +204,8 @@ spec:
 {{ dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.secrets.tls.oslo_db.server.internal "path" "/etc/mysql/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 4 }}
 
   volumes:
+    - name: pod-tmp
+      emptyDir: {}
     - name: mariadb-bin
       configMap:
         name: mariadb-bin
@@ -209,8 +218,6 @@ spec:
       secret:
         secretName: mariadb-secrets
         defaultMode: 0444
-    - name: pod-tmp
-      emptyDir: {}
 {{ dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.secrets.tls.oslo_db.server.internal | include "helm-toolkit.snippets.tls_volume" | indent 4 }}
 
   # storage volume templates
