@@ -22,10 +22,26 @@ export HELM_CHART_ROOT_PATH="${HELM_CHART_ROOT_PATH:="${OSH_INFRA_PATH:="../open
 #NOTE: Lint and package chart
 make -C ${HELM_CHART_ROOT_PATH} ovn
 
+tee /tmp/ovn.yaml << EOF
+volume:
+  ovn_ovsdb_nb:
+    enabled: false
+  ovn_ovsdb_sb:
+    enabled: false
+network:
+  interface:
+    tunnel: null
+conf:
+  ovn_bridge_mappings: public:br-ex
+  auto_bridge_add:
+    br-ex: null
+EOF
+
 #NOTE: Deploy command
 : ${OSH_EXTRA_HELM_ARGS:=""}
 helm upgrade --install ovn ${HELM_CHART_ROOT_PATH}/ovn \
   --namespace=openstack \
+  --values=/tmp/ovn.yaml \
   ${OSH_EXTRA_HELM_ARGS} \
   ${OSH_EXTRA_HELM_ARGS_OVN}
 
