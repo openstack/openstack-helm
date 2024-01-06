@@ -151,29 +151,6 @@ spec:
 {{ end }}
 
   env:
-    - name: POD_NAMESPACE
-      valueFrom:
-        fieldRef:
-          fieldPath: metadata.namespace
-    {{- if $envAll.Values.manifests.certificates }}
-    - name: MARIADB_X509
-      value: "REQUIRE X509"
-    {{- end }}
-    - name: MARIADB_REPLICAS
-      value: {{ .Values.pod.replicas.server | quote }}
-    - name: POD_NAME_PREFIX
-      value: {{ tuple "oslo_db" "server" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
-    - name: DISCOVERY_DOMAIN
-      value: {{ tuple "oslo_db" "discovery" . | include "helm-toolkit.endpoints.hostname_fqdn_endpoint_lookup" }}
-    - name: DIRECT_SVC_NAME
-      value: {{ tuple "oslo_db" "direct" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
-    - name: MYSQL_DBADMIN_USERNAME
-      value: {{ .Values.endpoints.oslo_db.auth.admin.username }}
-    - name: MYSQL_DBADMIN_PASSWORD
-      valueFrom:
-        secretKeyRef:
-          name: mariadb-dbadmin-password
-          key: MYSQL_DBADMIN_PASSWORD
     - name: MYSQL_HISTFILE
       value: {{ .Values.conf.database.mysql_histfile }}
 {{ if  .Values.conf.database.auto_upgrade.enabled }}
@@ -189,6 +166,10 @@ spec:
     - name: mariadb-secrets
       mountPath: /etc/mysql/admin_user.cnf
       subPath: admin_user.cnf
+      readOnly: true
+    - name: mariadb-secrets
+      mountPath: /docker-entrypoint-initdb.d/privileges.sql
+      subPath: privileges.sql
       readOnly: true
     - name: mariadb-bin
       mountPath: /tmp/init.sh
