@@ -23,42 +23,30 @@ that are tested and proved to work.
      - Host OS
      - Image OS
      - Kubernetes version
-   * - Victoria
-     - Ubuntu Focal
-     - Ubuntu Focal
-     - >=1.24,<=1.26
-   * - Wallaby
-     - Ubuntu Focal
-     - Ubuntu Focal
-     - >=1.24,<=1.26
-   * - Xena
-     - Ubuntu Focal
-     - Ubuntu Focal
-     - >=1.24,<=1.26
    * - Yoga
      - Ubuntu Focal
      - Ubuntu Focal
-     - >=1.24,<=1.26
+     - >=1.26,<=1.28
    * - Zed
      - Ubuntu Focal
      - Ubuntu Focal
-     - >=1.24,<=1.26
+     - >=1.26,<=1.28
    * - Zed
      - Ubuntu Jammy
      - Ubuntu Jammy
-     - >=1.24,<=1.26
+     - >=1.26,<=1.28
    * - 2023.1 (Antelope)
      - Ubuntu Focal
      - Ubuntu Focal
-     - >=1.24,<=1.26
+     - >=1.26,<=1.28
    * - 2023.1 (Antelope)
      - Ubuntu Jammy
      - Ubuntu Jammy
-     - >=1.24,<=1.26
+     - >=1.26,<=1.28
    * - 2023.2 (Bobcat)
      - Ubuntu Jammy
      - Ubuntu Jammy
-     - >=1.24,<=1.26
+     - >=1.26,<=1.28
 
 Communication
 -------------
