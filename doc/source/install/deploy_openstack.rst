@@ -107,6 +107,19 @@ To deploy the OpenStack Cinder service use the script `cinder.sh`_
     cd ~/osh/openstack-helm
     ./tools/deployment/component/cinder/cinder.sh
 
+Horizon
+-------
+
+OpenStack Horizon is the web application that is intended to provide a graphic
+user interface to Openstack services.
+
+To deploy the OpenStack Horizon use the following script `horizon.sh`_
+
+.. code-block:: bash
+
+    cd ~/osh/openstack-helm
+    ./tools/deployment/component/horizon/horizon.sh
+
 .. _keystone.sh: https://opendev.org/openstack/openstack-helm/src/branch/master/tools/deployment/component/keystone/keystone.sh
 .. _heat.sh: https://opendev.org/openstack/openstack-helm/src/branch/master/tools/deployment/component/heat/heat.sh
 .. _glance.sh: https://opendev.org/openstack/openstack-helm/src/branch/master/tools/deployment/component/glance/glance.sh
@@ -114,3 +127,4 @@ To deploy the OpenStack Cinder service use the script `cinder.sh`_
 .. _openvswitch.sh: https://opendev.org/openstack/openstack-helm/src/branch/master/tools/deployment/component/compute-kit/openvswitch.sh
 .. _compute-kit.sh: https://opendev.org/openstack/openstack-helm/src/branch/master/tools/deployment/component/compute-kit/compute-kit.sh
 .. _cinder.sh: https://opendev.org/openstack/openstack-helm/src/branch/master/tools/deployment/component/cinder/cinder.sh
+.. _horizon.sh: https://opendev.org/openstack/openstack-helm/src/branch/master/tools/deployment/component/horizon/horizon.sh
