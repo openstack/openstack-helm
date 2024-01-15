@@ -15,6 +15,19 @@ set -xe
 
 export OS_CLOUD=openstack_helm
 
+: ${HEAT_DIR:="$(readlink -f ./tools/deployment/common)"}
+: ${SSH_DIR:="${HOME}/.ssh"}
+
+if [[ -n ${HEAT_DIR} ]]; then
+  OPENSTACK_CLIENT_CONTAINER_EXTRA_ARGS="${OPENSTACK_CLIENT_CONTAINER_EXTRA_ARGS} -v ${HEAT_DIR}:${HEAT_DIR}"
+fi
+
+if [[ -n ${SSH_DIR} ]]; then
+  OPENSTACK_CLIENT_CONTAINER_EXTRA_ARGS="${OPENSTACK_CLIENT_CONTAINER_EXTRA_ARGS} -v ${SSH_DIR}:${SSH_DIR}"
+fi
+
+export OPENSTACK_CLIENT_CONTAINER_EXTRA_ARGS
+
 : ${OSH_EXT_NET_NAME:="public"}
 : ${OSH_EXT_SUBNET_NAME:="public-subnet"}
 : ${OSH_EXT_SUBNET:="172.24.4.0/24"}
@@ -26,7 +39,7 @@ openstack stack show "heat-public-net-deployment" || \
     --parameter subnet_name=${OSH_EXT_SUBNET_NAME} \
     --parameter subnet_cidr=${OSH_EXT_SUBNET} \
     --parameter subnet_gateway=${OSH_BR_EX_ADDR%/*} \
-    -t ./tools/deployment/common/heat-public-net-deployment.yaml \
+    -t ${HEAT_DIR}/heat-public-net-deployment.yaml \
     heat-public-net-deployment
 
 : ${OSH_PRIVATE_SUBNET_POOL:="10.0.0.0/8"}
@@ -37,7 +50,7 @@ openstack stack show "heat-subnet-pool-deployment" || \
     --parameter subnet_pool_name=${OSH_PRIVATE_SUBNET_POOL_NAME} \
     --parameter subnet_pool_prefixes=${OSH_PRIVATE_SUBNET_POOL} \
     --parameter subnet_pool_default_prefix_length=${OSH_PRIVATE_SUBNET_POOL_DEF_PREFIX} \
-    -t ./tools/deployment/common/heat-subnet-pool-deployment.yaml \
+    -t ${HEAT_DIR}/heat-subnet-pool-deployment.yaml \
     heat-subnet-pool-deployment
 
 : ${OSH_EXT_NET_NAME:="public"}
@@ -50,12 +63,12 @@ IMAGE_NAME=$(openstack image show -f value -c name \
     grep "^\"Cirros" | head -1 | awk -F ',' '{ print $2 }' | tr -d '"'))
 
 # Setup SSH Keypair in Nova
-mkdir -p ${HOME}/.ssh
-
+mkdir -p ${SSH_DIR}
 
 openstack keypair show "${OSH_VM_KEY_STACK}" || \
-  openstack keypair create --private-key ${HOME}/.ssh/osh_key ${OSH_VM_KEY_STACK}
-chmod 600 ${HOME}/.ssh/osh_key
+  openstack keypair create --private-key ${SSH_DIR}/osh_key ${OSH_VM_KEY_STACK}
+sudo chown $(id -un) ${SSH_DIR}/osh_key
+chmod 600 ${SSH_DIR}/osh_key
 
 openstack stack show "heat-basic-vm-deployment" || \
   openstack stack create --wait \
@@ -64,7 +77,7 @@ openstack stack show "heat-basic-vm-deployment" || \
       --parameter ssh_key=${OSH_VM_KEY_STACK} \
       --parameter cidr=${OSH_PRIVATE_SUBNET} \
       --parameter dns_nameserver=${OSH_BR_EX_ADDR%/*} \
-      -t ./tools/deployment/common/heat-basic-vm-deployment.yaml \
+      -t ${HEAT_DIR}/heat-basic-vm-deployment.yaml \
       heat-basic-vm-deployment
 
 FLOATING_IP=$(openstack stack output show \
@@ -104,13 +117,13 @@ EOF
 # note: ssh-keyscan should be re-enabled to prevent skip host key checking
 #   ssh-keyscan does not use ssh_config so ignore host key checking for now
 #ssh-keyscan "$FLOATING_IP" >> ~/.ssh/known_hosts
-ssh -o "StrictHostKeyChecking no" -i ${HOME}/.ssh/osh_key cirros@${FLOATING_IP} ping -q -c 1 -W 2 ${OSH_BR_EX_ADDR%/*}
+ssh -o "StrictHostKeyChecking no" -i ${SSH_DIR}/osh_key cirros@${FLOATING_IP} ping -q -c 1 -W 2 ${OSH_BR_EX_ADDR%/*}
 
 # Check the VM can reach the metadata server
-ssh -i ${HOME}/.ssh/osh_key cirros@${FLOATING_IP} curl --verbose --connect-timeout 5 169.254.169.254
+ssh -i ${SSH_DIR}/osh_key cirros@${FLOATING_IP} curl --verbose --connect-timeout 5 169.254.169.254
 
 # Check the VM can reach the keystone server
-ssh -i ${HOME}/.ssh/osh_key cirros@${FLOATING_IP} curl --verbose --connect-timeout 5 keystone.openstack.svc.cluster.local
+ssh -i ${SSH_DIR}/osh_key cirros@${FLOATING_IP} curl --verbose --connect-timeout 5 keystone.openstack.svc.cluster.local
 
 # Check to see if cinder has been deployed, if it has then perform a volume attach.
 if openstack service list -f value -c Type | grep -q "^volume"; then
@@ -121,18 +134,18 @@ if openstack service list -f value -c Type | grep -q "^volume"; then
 
   # Get the devices that are present on the instance
   DEVS_PRE_ATTACH=$(mktemp)
-  ssh -i ${HOME}/.ssh/osh_key cirros@${FLOATING_IP} lsblk > ${DEVS_PRE_ATTACH}
+  ssh -i ${SSH_DIR}/osh_key cirros@${FLOATING_IP} lsblk > ${DEVS_PRE_ATTACH}
 
   openstack stack list show "heat-vm-volume-attach" || \
   # Create and attach a block device to the instance
     openstack stack create --wait \
       --parameter instance_uuid=${INSTANCE_ID} \
-      -t ./tools/deployment/common/heat-vm-volume-attach.yaml \
+      -t ${HEAT_DIR}/heat-vm-volume-attach.yaml \
       heat-vm-volume-attach
 
   # Get the devices that are present on the instance
   DEVS_POST_ATTACH=$(mktemp)
-  ssh -i ${HOME}/.ssh/osh_key cirros@${FLOATING_IP} lsblk > ${DEVS_POST_ATTACH}
+  ssh -i ${SSH_DIR}/osh_key cirros@${FLOATING_IP} lsblk > ${DEVS_POST_ATTACH}
 
   # Check that we have the expected number of extra devices on the instance post attach
   if ! [ "$(comm -13 ${DEVS_PRE_ATTACH} ${DEVS_POST_ATTACH} | wc -l)" -eq "1" ]; then
