@@ -59,7 +59,7 @@ examples:
               default: 9311
               public: 80
     usage: |
-      {{- include "helm-toolkit.manifests.ingress" ( dict "envAll" . "backendServiceType" "key-manager" "backendPort" "b-api" "endpoint" "public" ) -}}
+      {{- include "helm-toolkit.manifests.ingress" ( dict "envAll" . "backendServiceType" "key-manager" "backendPort" "b-api" "endpoint" "public" "pathType" "Prefix" ) -}}
     return: |
       ---
       apiVersion: networking.k8s.io/v1
@@ -76,7 +76,7 @@ examples:
             http:
               paths:
                 - path: /
-                  pathType: ImplementationSpecific
+                  pathType: Prefix
                   backend:
                     service:
                       name: barbican-api
@@ -86,7 +86,7 @@ examples:
             http:
               paths:
                 - path: /
-                  pathType: ImplementationSpecific
+                  pathType: Prefix
                   backend:
                     service:
                       name: barbican-api
@@ -96,7 +96,7 @@ examples:
             http:
               paths:
                 - path: /
-                  pathType: ImplementationSpecific
+                  pathType: Prefix
                   backend:
                     service:
                       name: barbican-api
@@ -121,7 +121,7 @@ examples:
             http:
               paths:
                 - path: /
-                  pathType: ImplementationSpecific
+                  pathType: Prefix
                   backend:
                     service:
                       name: barbican-api
@@ -146,7 +146,7 @@ examples:
             http:
               paths:
                 - path: /
-                  pathType: ImplementationSpecific
+                  pathType: Prefix
                   backend:
                     service:
                       name: barbican-api
@@ -194,7 +194,7 @@ examples:
               default: 9311
               public: 80
     usage: |
-      {{- include "helm-toolkit.manifests.ingress" ( dict "envAll" . "backendServiceType" "key-manager" "backendPort" "b-api" "endpoint" "public" ) -}}
+      {{- include "helm-toolkit.manifests.ingress" ( dict "envAll" . "backendServiceType" "key-manager" "backendPort" "b-api" "endpoint" "public" "pathType" "Prefix" ) -}}
     return: |
       ---
       apiVersion: networking.k8s.io/v1
@@ -217,7 +217,7 @@ examples:
             http:
               paths:
                 - path: /
-                  pathType: ImplementationSpecific
+                  pathType: Prefix
                   backend:
                     service:
                       name: barbican-api
@@ -227,7 +227,7 @@ examples:
             http:
               paths:
                 - path: /
-                  pathType: ImplementationSpecific
+                  pathType: Prefix
                   backend:
                     service:
                       name: barbican-api
@@ -237,7 +237,7 @@ examples:
             http:
               paths:
                 - path: /
-                  pathType: ImplementationSpecific
+                  pathType: Prefix
                   backend:
                     service:
                       name: barbican-api
@@ -294,7 +294,7 @@ examples:
                 name: ca-issuer
                 kind: Issuer
     usage: |
-      {{- include "helm-toolkit.manifests.ingress" ( dict "envAll" . "backendServiceType" "key-manager" "backendPort" "b-api" "endpoint" "public" "certIssuer" "ca-issuer" ) -}}
+      {{- include "helm-toolkit.manifests.ingress" ( dict "envAll" . "backendServiceType" "key-manager" "backendPort" "b-api" "endpoint" "public" "certIssuer" "ca-issuer" "pathType" "Prefix" ) -}}
     return: |
       ---
       apiVersion: networking.k8s.io/v1
@@ -319,7 +319,7 @@ examples:
             http:
               paths:
                 - path: /
-                  pathType: ImplementationSpecific
+                  pathType: Prefix
                   backend:
                     service:
                       name: barbican-api
@@ -329,7 +329,7 @@ examples:
             http:
               paths:
                 - path: /
-                  pathType: ImplementationSpecific
+                  pathType: Prefix
                   backend:
                     service:
                       name: barbican-api
@@ -339,7 +339,7 @@ examples:
             http:
               paths:
                 - path: /
-                  pathType: ImplementationSpecific
+                  pathType: Prefix
                   backend:
                     service:
                       name: barbican-api
@@ -396,7 +396,7 @@ examples:
                 name: ca-issuer
                 kind: ClusterIssuer
     usage: |
-      {{- include "helm-toolkit.manifests.ingress" ( dict "envAll" . "backendServiceType" "key-manager" "backendPort" "b-api" "endpoint" "public" "certIssuer" "ca-issuer") -}}
+      {{- include "helm-toolkit.manifests.ingress" ( dict "envAll" . "backendServiceType" "key-manager" "backendPort" "b-api" "endpoint" "public" "certIssuer" "ca-issuer" "pathType" "Prefix" ) -}}
     return: |
       ---
       apiVersion: networking.k8s.io/v1
@@ -421,7 +421,7 @@ examples:
             http:
               paths:
                 - path: /
-                  pathType: ImplementationSpecific
+                  pathType: Prefix
                   backend:
                     service:
                       name: barbican-api
@@ -431,7 +431,7 @@ examples:
             http:
               paths:
                 - path: /
-                  pathType: ImplementationSpecific
+                  pathType: Prefix
                   backend:
                     service:
                       name: barbican-api
@@ -441,7 +441,7 @@ examples:
             http:
               paths:
                 - path: /
-                  pathType: ImplementationSpecific
+                  pathType: Prefix
                   backend:
                     service:
                       name: barbican-api
@@ -479,7 +479,7 @@ examples:
             grafana:
               public: grafana-tls-public
     usage: |
-      {{- $ingressOpts := dict "envAll" . "backendService" "grafana" "backendServiceType" "grafana" "backendPort" "dashboard" -}}
+      {{- $ingressOpts := dict "envAll" . "backendService" "grafana" "backendServiceType" "grafana" "backendPort" "dashboard" "pathType" "Prefix" -}}
       {{ $ingressOpts | include "helm-toolkit.manifests.ingress" }}
     return: |
       ---
@@ -497,7 +497,7 @@ examples:
             http:
               paths:
                 - path: /
-                  pathType: ImplementationSpecific
+                  pathType: Prefix
                   backend:
                     service:
                       name: grafana-dashboard
@@ -507,7 +507,7 @@ examples:
             http:
               paths:
                 - path: /
-                  pathType: ImplementationSpecific
+                  pathType: Prefix
                   backend:
                     service:
                       name: grafana-dashboard
@@ -517,7 +517,7 @@ examples:
             http:
               paths:
                 - path: /
-                  pathType: ImplementationSpecific
+                  pathType: Prefix
                   backend:
                     service:
                       name: grafana-dashboard
@@ -543,7 +543,7 @@ examples:
             http:
               paths:
                 - path: /
-                  pathType: ImplementationSpecific
+                  pathType: Prefix
                   backend:
                     service:
                       name: grafana-dashboard
@@ -553,7 +553,7 @@ examples:
             http:
               paths:
                 - path: /
-                  pathType: ImplementationSpecific
+                  pathType: Prefix
                   backend:
                     service:
                       name: grafana-dashboard
@@ -579,7 +579,7 @@ examples:
             http:
               paths:
                 - path: /
-                  pathType: ImplementationSpecific
+                  pathType: Prefix
                   backend:
                     service:
                       name: grafana-dashboard
@@ -589,7 +589,7 @@ examples:
             http:
               paths:
                 - path: /
-                  pathType: ImplementationSpecific
+                  pathType: Prefix
                   backend:
                     service:
                       name: grafana-dashboard
@@ -602,11 +602,12 @@ examples:
 {{- $vHost := index . "vHost" -}}
 {{- $backendName := index . "backendName" -}}
 {{- $backendPort := index . "backendPort" -}}
+{{- $pathType := index . "pathType" -}}
 - host: {{ $vHost }}
   http:
     paths:
       - path: /
-        pathType: ImplementationSpecific
+        pathType: {{ $pathType }}
         backend:
           service:
             name: {{ $backendName }}
@@ -624,6 +625,7 @@ examples:
 {{- $backendServiceType := index . "backendServiceType" -}}
 {{- $backendPort := index . "backendPort" -}}
 {{- $endpoint := index . "endpoint" | default "public" -}}
+{{- $pathType := index . "pathType" | default "Prefix" -}}
 {{- $certIssuer := index . "certIssuer" | default "" -}}
 {{- $ingressName := tuple $backendServiceType $endpoint $envAll | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
 {{- $backendName := tuple $backendServiceType "internal" $envAll | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
@@ -681,7 +683,7 @@ spec:
 {{- end }}
   rules:
 {{- range $key1, $vHost := tuple $hostName (printf "%s.%s" $hostName $envAll.Release.Namespace) (printf "%s.%s.svc.%s" $hostName $envAll.Release.Namespace $envAll.Values.endpoints.cluster_domain_suffix) }}
-{{- $hostRules := dict "vHost" $vHost "backendName" $backendName "backendPort" $backendPort }}
+{{- $hostRules := dict "vHost" $vHost "backendName" $backendName "backendPort" $backendPort "pathType" $pathType }}
 {{ $hostRules | include "helm-toolkit.manifests.ingress._host_rules" | indent 4 }}
 {{- end }}
 {{- if not ( hasSuffix ( printf ".%s.svc.%s" $envAll.Release.Namespace $envAll.Values.endpoints.cluster_domain_suffix) $hostNameFull) }}
@@ -719,7 +721,7 @@ spec:
 {{- end }}
   rules:
 {{- range $vHost := $vHosts }}
-{{- $hostNameFullRules := dict "vHost" $vHost "backendName" $backendName "backendPort" $backendPort }}
+{{- $hostNameFullRules := dict "vHost" $vHost "backendName" $backendName "backendPort" $backendPort "pathType" $pathType }}
 {{ $hostNameFullRules | include "helm-toolkit.manifests.ingress._host_rules" | indent 4 }}
 {{- end }}
 {{- end }}
