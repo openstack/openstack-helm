@@ -172,7 +172,7 @@ The configuration keys configure the following behaviors:
 More information about the Elasticsearch exporter can be found on the exporter's
 GitHub_ page.
 
-.. _GitHub: https://github.com/justwatchcom/elasticsearch_exporter
+.. _GitHub: https://github.com/prometheus-community/elasticsearch_exporter
 
 
 Snapshot Repositories

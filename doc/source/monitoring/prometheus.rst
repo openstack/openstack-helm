@@ -253,7 +253,7 @@ chart's values.yaml file.  The charts containing exporters include:
 - Fluentd_
 - Postgres_
 
-.. _Elasticsearch: https://github.com/justwatchcom/elasticsearch_exporter
+.. _Elasticsearch: https://github.com/prometheus-community/elasticsearch_exporter
 .. _RabbitMQ: https://github.com/kbudde/rabbitmq_exporter
 .. _MariaDB: https://github.com/prometheus/mysqld_exporter
 .. _Memcached: https://github.com/prometheus/memcached_exporter
