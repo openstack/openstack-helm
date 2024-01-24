@@ -50,10 +50,10 @@ clean:
 	rm -rf */charts */tmpcharts
 
 pull-all-images:
-	@./tools/pull-images.sh
+	@./tools/deployment/common/pull-images.sh
 
 pull-images:
-	@./tools/pull-images.sh $(filter-out $@,$(MAKECMDGOALS))
+	@./tools/deployment/common/pull-images.sh $(filter-out $@,$(MAKECMDGOALS))
 
 dev-deploy:
 	@./tools/gate/devel/start.sh $(filter-out $@,$(MAKECMDGOALS))
