@@ -15,7 +15,7 @@
 set -xe
 
 # Specify the Rook release tag to use for the Rook operator here
-ROOK_RELEASE=v1.12.4
+ROOK_RELEASE=v1.13.3
 
 : ${CEPH_OSD_DATA_DEVICE:="/dev/loop100"}
 
@@ -444,10 +444,10 @@ cephClusterSpec:
     mon:
       limits:
         cpu: "250m"
-        memory: "100Mi"
+        memory: "256Mi"
       requests:
         cpu: "250m"
-        memory: "50Mi"
+        memory: "128Mi"
     osd:
       limits:
         cpu: "500m"
