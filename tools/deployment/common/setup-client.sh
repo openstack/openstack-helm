@@ -14,13 +14,6 @@
 
 set -xe
 
-sudo -H -E pip3 install --upgrade pip
-sudo -H -E pip3 install \
-  -c${UPPER_CONSTRAINTS_FILE:=https://releases.openstack.org/constraints/upper/${OPENSTACK_RELEASE:-xena}} \
-  cmd2 python-openstackclient python-heatclient --ignore-installed
-
-export HELM_CHART_ROOT_PATH="${HELM_CHART_ROOT_PATH:="${OSH_INFRA_PATH:="../openstack-helm-infra"}"}"
-
 sudo -H mkdir -p /etc/openstack
 sudo -H chown -R $(id -un): /etc/openstack
 FEATURE_GATE="tls"; if [[ ${FEATURE_GATES//,/ } =~ (^|[[:space:]])${FEATURE_GATE}($|[[:space:]]) ]]; then
@@ -54,5 +47,18 @@ else
 EOF
 fi
 
-#NOTE: Build helm-toolkit, most charts depend on helm-toolkit
-make -C ${HELM_CHART_ROOT_PATH} helm-toolkit
+sudo tee /usr/local/bin/openstack << EOF
+#!/bin/bash
+args=("\$@")
+
+sudo docker run \\
+    --rm \\
+    --network host \\
+    -w / \\
+    -v /etc/openstack/clouds.yaml:/etc/openstack/clouds.yaml \\
+    -v /etc/openstack-helm:/etc/openstack-helm \\
+    -e OS_CLOUD=\${OS_CLOUD} \\
+    \${OPENSTACK_CLIENT_CONTAINER_EXTRA_ARGS} \\
+    docker.io/openstackhelm/openstack-client:\${OPENSTACK_RELEASE:-2023.2} openstack "\${args[@]}"
+EOF
+sudo chmod +x /usr/local/bin/openstack
