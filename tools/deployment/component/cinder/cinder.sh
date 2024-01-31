@@ -61,6 +61,7 @@ EOF
 helm upgrade --install cinder ./cinder \
   --namespace=openstack \
   --values=/tmp/cinder.yaml \
+  --timeout=600s \
   ${OSH_EXTRA_HELM_ARGS:=} \
   ${OSH_EXTRA_HELM_ARGS_CINDER}
 
