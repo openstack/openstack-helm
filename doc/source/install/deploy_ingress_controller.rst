@@ -5,48 +5,47 @@ Deploying an ingress controller when deploying OpenStack on Kubernetes
 is essential to ensure proper external access and SSL termination
 for your OpenStack services.
 
-In the OpenStack-Helm project, we utilize multiple ingress controllers
-to optimize traffic routing. Specifically, we deploy three independent
-instances of the Nginx ingress controller for distinct purposes:
+In the OpenStack-Helm project, we usually deploy multiple `ingress-nginx`_
+controller instances to optimize traffic routing:
 
-External Traffic Routing
-~~~~~~~~~~~~~~~~~~~~~~~~
+* In the `kube-system` namespace, we deploy an ingress controller that
+  monitors ingress objects across all namespaces, primarily focusing on
+  routing external traffic into the OpenStack environment.
 
-* ``Namespace``: kube-system
-* ``Functionality``: This instance monitors ingress objects across all
-  namespaces, primarily focusing on routing external traffic into the
-  OpenStack environment.
+* In the `openstack` namespace, we deploy an ingress controller that
+  handles traffic exclusively within the OpenStack namespace. This instance
+  plays a crucial role in SSL termination for enhanced security between
+  OpenStack services.
 
-Internal Traffic Routing within OpenStack
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+* In the `ceph` namespace, we deploy an ingress controller that is dedicated
+  to routing traffic specifically to the Ceph Rados Gateway service, ensuring
+  efficient communication with Ceph storage resources.
 
-* ``Namespace``: openstack
-* ``Functionality``: Designed to handle traffic exclusively within the
-  OpenStack namespace, this instance plays a crucial role in SSL
-  termination for enhanced security among OpenStack services.
+You can utilize any other ingress controller implementation that suits your
+needs best. See for example the list of available `ingress controllers`_.
+Ensure that the ingress controller pods are deployed with the `app: ingress-api`
+label which is used by the OpenStack-Helm as a selector for the Kubernetes
+services that are exposed as OpenStack endpoints.
 
-Traffic Routing to Ceph Rados Gateway Service
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+For example, the OpenStack-Helm `keystone` chart by default deploys a service
+that routes traffic to the ingress controller pods selected using the
+`app: ingress-api` label. Then it also deploys an ingress object that references
+the **IngressClass** named `nginx`. This ingress object corresponds to the HTTP
+virtual host routing the traffic to the Keystone API service which works as an
+endpoint for Keystone pods.
 
-* ``Namespace``: ceph
-* ``Functionality``: Dedicated to routing traffic specifically to the
-  Ceph Rados Gateway service, ensuring efficient communication with
-  Ceph storage resources.
+.. image:: deploy_ingress_controller.jpg
+    :width: 100%
+    :align: center
+    :alt: deploy-ingress-controller
 
-By deploying these three distinct ingress controller instances in their
-respective namespaces, we optimize traffic management and security within
-the OpenStack-Helm environment.
-
-To deploy these three ingress controller instances use the script `ingress.sh`_
+To deploy these three ingress controller instances you can use the script `ingress.sh`_
 
 .. code-block:: bash
 
     cd ~/osh/openstack-helm
-    ./tools/deployment/component/common/ingress.sh
+    ./tools/deployment/common/ingress.sh
 
-.. note::
-    These script uses Helm chart from the `openstack-helm-infra`_ repository. We assume
-    this repo is cloned to the `~/osh` directory. See this :doc:`section </install/before_deployment>`.
-
-.. _ingress.sh: https://opendev.org/openstack/openstack-helm/src/branch/master/tools/deployment/component/common/ingress.sh
-.. _openstack-helm-infra: https://opendev.org/openstack/openstack-helm-infra.git
+.. _ingress.sh: https://opendev.org/openstack/openstack-helm/src/branch/master/tools/deployment/common/ingress.sh
+.. _ingress-nginx: https://github.com/kubernetes/ingress-nginx/blob/main/charts/ingress-nginx/README.md
+.. _ingress controllers: https://kubernetes.io/docs/concepts/services-networking/ingress-controllers/
