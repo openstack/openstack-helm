@@ -46,7 +46,7 @@ EOF
 helm upgrade --install radosgw-openstack ${OSH_INFRA_PATH}/ceph-rgw \
   --namespace=openstack \
   --values=/tmp/radosgw-openstack.yaml \
-  --set network.api.ingress.classes.namespace=nginx-openstack \
+  --set network.api.ingress.classes.namespace=nginx \
   ${OSH_EXTRA_HELM_ARGS} \
   ${OSH_EXTRA_HELM_ARGS_CEPH_RGW}
 

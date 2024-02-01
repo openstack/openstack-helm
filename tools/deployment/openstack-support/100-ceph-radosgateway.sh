@@ -34,7 +34,7 @@ network:
   api:
     ingress:
       classes:
-        namespace: nginx-openstack
+        namespace: nginx
 deployment:
   ceph: true
   rgw_keystone_user_and_endpoints: true
