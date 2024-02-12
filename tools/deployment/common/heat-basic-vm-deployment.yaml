@@ -22,6 +22,17 @@ parameters:
     description: address of a dns nameserver reachable in your environment
     default: 8.8.8.8
 
+  dpdk:
+    type: string
+    default: disabled
+    constraints:
+      - allowed_values:
+          - enabled
+          - disabled
+
+conditions:
+  dpdk_enable: {equals: [{get_param: dpdk}, "enabled"]}
+
 resources:
   flavor:
     type: OS::Nova::Flavor
@@ -30,13 +41,21 @@ resources:
       ram: 128
       vcpus: 1
 
+  flavor_dpdk:
+    type: OS::Nova::Flavor
+    properties:
+      disk: 1
+      ram: 2048
+      vcpus: 1
+      extra_specs:
+        "hw:mem_page_size": "2MB"
+
   server:
     type: OS::Nova::Server
     properties:
       image:
         get_param: image
-      flavor:
-        get_resource: flavor
+      flavor: {if: ["dpdk_enable", {get_resource: flavor_dpdk}, {get_resource: flavor}]}
       key_name:
         get_param: ssh_key
       networks:

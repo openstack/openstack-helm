@@ -13,6 +13,11 @@
 #    under the License.
 set -xe
 
+DPDK_ENABLED=disabled
+if [[ ${FEATURE_GATES//,/ } =~ (^|[[:space:]])dpdk($|[[:space:]]) ]]; then
+    DPDK_ENABLED=enabled
+fi
+
 export OS_CLOUD=openstack_helm
 
 : ${HEAT_DIR:="$(readlink -f ./tools/deployment/common)"}
@@ -77,6 +82,7 @@ openstack stack show "heat-basic-vm-deployment" || \
       --parameter ssh_key=${OSH_VM_KEY_STACK} \
       --parameter cidr=${OSH_PRIVATE_SUBNET} \
       --parameter dns_nameserver=${OSH_BR_EX_ADDR%/*} \
+      --parameter dpdk=${DPDK_ENABLED} \
       -t ${HEAT_DIR}/heat-basic-vm-deployment.yaml \
       heat-basic-vm-deployment
 
@@ -84,6 +90,13 @@ FLOATING_IP=$(openstack stack output show \
     heat-basic-vm-deployment \
     floating_ip \
     -f value -c output_value)
+
+INSTANCE_ID=$(openstack stack output show \
+    heat-basic-vm-deployment \
+    instance_uuid \
+    -f value -c output_value)
+
+openstack server show ${INSTANCE_ID}
 
 function wait_for_ssh_port {
   # Default wait timeout is 300 seconds
@@ -127,11 +140,6 @@ ssh -i ${SSH_DIR}/osh_key cirros@${FLOATING_IP} curl --verbose --connect-timeout
 
 # Check to see if cinder has been deployed, if it has then perform a volume attach.
 if openstack service list -f value -c Type | grep -q "^volume"; then
-  INSTANCE_ID=$(openstack stack output show \
-      heat-basic-vm-deployment \
-      instance_uuid \
-      -f value -c output_value)
-
   # Get the devices that are present on the instance
   DEVS_PRE_ATTACH=$(mktemp)
   ssh -i ${SSH_DIR}/osh_key cirros@${FLOATING_IP} lsblk > ${DEVS_PRE_ATTACH}

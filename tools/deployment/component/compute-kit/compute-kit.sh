@@ -40,7 +40,7 @@ make nova
 
 #NOTE: Deploy nova
 : ${OSH_EXTRA_HELM_ARGS:=""}
-if [ "x$(systemd-detect-virt)" == "xnone" ]; then
+if [ "x$(systemd-detect-virt)" == "xnone" ] || [ "x$(systemd-detect-virt)" == "xkvm" ]; then
   echo 'OSH is not being deployed in virtualized environment'
   helm upgrade --install nova ./nova \
       --namespace=openstack \
