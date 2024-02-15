@@ -174,6 +174,21 @@ function bind_dpdk_nic {
   fi
 }
 
+function ensure_vf_state {
+  iface=${1}
+  vf_string=${2}
+  check_string=${3}
+  expected=${4}
+
+  # wait for the vf really get the needed state
+  for i in 0 1 2 4 8 16 32; do
+    sleep ${i};
+    if [ "$(ip link show ${iface} | grep "${vf_string} " | grep -Eo "${check_string}")" == "${expected}" ]; then
+      break;
+    fi;
+  done
+}
+
 function process_dpdk_nics {
   target_driver=$(get_dpdk_config_value ${DPDK_CONFIG} '.driver')
   # loop over all nics
@@ -195,11 +210,14 @@ function process_dpdk_nics {
       if [ -n "${vf_index}" ]; then
         vf_string="vf ${vf_index}"
         ip link set ${iface} ${vf_string} trust on
+        ensure_vf_state "${iface}" "${vf_string}" "trust o(n|ff)" "trust on"
 
         # NOTE: To ensure proper toggle of spoofchk,
         # turn it on then off.
         ip link set ${iface} ${vf_string} spoofchk on
+        ensure_vf_state "${iface}" "${vf_string}" "spoof checking o(n|ff)" "spoof checking on"
         ip link set ${iface} ${vf_string} spoofchk off
+        ensure_vf_state "${iface}" "${vf_string}" "spoof checking o(n|ff)" "spoof checking off"
       fi
     fi
 
@@ -291,11 +309,14 @@ function process_dpdk_bonds {
         if [ -n "${vf_index}" ]; then
           vf_string="vf ${vf_index}"
           ip link set ${iface} ${vf_string} trust on
+          ensure_vf_state "${iface}" "${vf_string}" "trust o(n|ff)" "trust on"
 
           # NOTE: To ensure proper toggle of spoofchk,
           # turn it on then off.
           ip link set ${iface} ${vf_string} spoofchk on
+          ensure_vf_state "${iface}" "${vf_string}" "spoof checking o(n|ff)" "spoof checking on"
           ip link set ${iface} ${vf_string} spoofchk off
+          ensure_vf_state "${iface}" "${vf_string}" "spoof checking o(n|ff)" "spoof checking off"
         fi
       fi
 
