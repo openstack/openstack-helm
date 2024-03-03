@@ -37,14 +37,14 @@ if USERINFO=$(ceph auth get client.${RBD_POOL_USER}); then
   echo "Cephx user client.${RBD_POOL_USER} already exist."
   echo "Update its cephx caps"
   ceph auth caps client.${RBD_POOL_USER} \
-    mon "profile r" \
-    osd "profile rwx pool=${RBD_POOL_NAME}" \
+    mon "profile rbd" \
+    osd "profile rbd pool=${RBD_POOL_NAME}" \
     mgr "allow r"
   ceph auth get client.${RBD_POOL_USER} -o ${KEYRING}
 else
   ceph auth get-or-create client.${RBD_POOL_USER} \
-    mon "profile r" \
-    osd "profile rwx pool=${RBD_POOL_NAME}" \
+    mon "profile rbd" \
+    osd "profile rbd pool=${RBD_POOL_NAME}" \
     mgr "allow r" \
     -o ${KEYRING}
 fi
