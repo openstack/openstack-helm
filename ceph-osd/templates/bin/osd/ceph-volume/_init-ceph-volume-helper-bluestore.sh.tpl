@@ -123,7 +123,7 @@ function prep_device {
   fi
   udev_settle
 
-  create_lv_if_needed "${block_device}" "${vg}" "-L ${block_device_size}" "${lv_name}"
+  create_lv_if_needed "${block_device}" "${vg}" "--yes -L ${block_device_size}" "${lv_name}"
   if [[ "${device_type}" == "db" ]]; then
     BLOCK_DB=${RESULTING_LV}
   elif [[ "${device_type}" == "wal" ]]; then
