@@ -17,7 +17,7 @@ set -xe
 : ${OSH_PATH:="../openstack-helm"}
 : ${OSH_INFRA_EXTRA_HELM_ARGS:=""}
 : ${OSH_EXTRA_HELM_ARGS:=""}
-: ${OSH_EXTRA_HELM_ARGS_KEYSTONE:="$(./tools/deployment/common/get-values-overrides.sh keystone)"}
+: ${OSH_EXTRA_HELM_ARGS_KEYSTONE:="$(HELM_CHART_ROOT_PATH=${OSH_PATH} ./tools/deployment/common/get-values-overrides.sh keystone)"}
 
 # Install LDAP
 make ldap

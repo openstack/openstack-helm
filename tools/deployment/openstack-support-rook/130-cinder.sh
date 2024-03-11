@@ -18,7 +18,7 @@ set -xe
 : ${OSH_INFRA_EXTRA_HELM_ARGS:=""}
 : ${OSH_EXTRA_HELM_ARGS:=""}
 #NOTE: Get the over-rides to use
-: ${OSH_EXTRA_HELM_ARGS_CINDER:="$(./tools/deployment/common/get-values-overrides.sh cinder)"}
+: ${OSH_EXTRA_HELM_ARGS_CINDER:="$(HELM_CHART_ROOT_PATH=${OSH_PATH} ./tools/deployment/common/get-values-overrides.sh cinder)"}
 
 #NOTE: Lint and package chart
 cd ${OSH_PATH}
