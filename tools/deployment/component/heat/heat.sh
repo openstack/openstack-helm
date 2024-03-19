@@ -35,7 +35,7 @@ openstack service list
 openstack endpoint list
 sleep 30 #NOTE(portdirect): Wait for ingress controller to update rules and restart Nginx
 
-openstack --os-interface internal orchestration service list
+openstack orchestration service list
 
 FEATURE_GATE="tls"; if [[ ${FEATURE_GATES//,/ } =~ (^|[[:space:]])${FEATURE_GATE}($|[[:space:]]) ]]; then
   curl --cacert /etc/openstack-helm/certs/ca/ca.pem -L https://heat.openstack.svc.cluster.local

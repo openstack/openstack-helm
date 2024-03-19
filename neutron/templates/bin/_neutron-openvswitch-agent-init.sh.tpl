@@ -428,7 +428,7 @@ do
   bridge=${bmap%:*}
   iface=${bmap#*:}
   ovs-vsctl --no-wait --may-exist add-br $bridge
-  if [ -n "$iface" ] && [ "$iface" != "null" ]
+  if [ -n "$iface" ] && [ "$iface" != "null" ] && ( ip link show $iface 1>/dev/null 2>&1 );
   then
     ovs-vsctl --no-wait --may-exist add-port $bridge $iface
     migrate_ip_from_nic $iface $bridge

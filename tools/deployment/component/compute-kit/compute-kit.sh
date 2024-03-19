@@ -78,6 +78,10 @@ conf:
       max_l3_agents_per_router: 1
       l3_ha_network_type: vxlan
       dhcp_agents_per_network: 1
+  # provider1 is a tap interface used by default in the test env
+  # we create this interface while setting up the test env
+  auto_bridge_add:
+    br-ex: provider1
   plugins:
     ml2_conf:
       ml2_type_flat:
