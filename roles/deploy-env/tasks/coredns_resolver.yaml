@@ -14,16 +14,41 @@
 - name: Enable recursive queries for coredns
   become: false
   shell: |
-    PATCH=$(mktemp)
-    kubectl get configmap coredns -n kube-system -o json | jq -r "{data: .data}"  | sed 's/ready\\n/header \{\\n        response set ra\\n    \}\\n    ready\\n/g' > "${PATCH}"
-    kubectl patch configmap coredns -n kube-system --patch-file "${PATCH}"
-    kubectl set image deployment coredns -n kube-system "coredns=registry.k8s.io/coredns/coredns:v1.9.4"
+    tee > /tmp/coredns_configmap.yaml <<EOF
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: coredns
+      namespace: kube-system
+    data:
+      Corefile: |
+        .:53 {
+            errors
+            health {
+              lameduck 5s
+            }
+            header {
+                response set ra
+            }
+            ready
+            kubernetes cluster.local in-addr.arpa ip6.arpa {
+              pods insecure
+              fallthrough in-addr.arpa ip6.arpa
+              ttl 30
+            }
+            prometheus :9153
+            forward . 8.8.8.8 {
+              max_concurrent 1000
+            }
+            cache 30
+            loop
+            reload
+            loadbalance
+        }
+    EOF
+    kubectl apply -f /tmp/coredns_configmap.yaml
     kubectl rollout restart -n kube-system deployment/coredns
-    sleep 30
-    kubectl -n kube-system wait --timeout=240s --for=condition=Ready pods -l k8s-app=kube-dns
-    rm -f "${PATCH}"
-  args:
-    executable: /bin/bash
+    kubectl rollout status -n kube-system deployment/coredns
   when: inventory_hostname in (groups['primary'] | default([]))
 
 - name: Use coredns as default DNS resolver
