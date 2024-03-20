@@ -30,7 +30,7 @@ metadata:
   name: ${NAMESPACE}
 EOF
 
-kubectl create -f /tmp/${NAMESPACE}-ns.yaml
+kubectl apply -f /tmp/${NAMESPACE}-ns.yaml
 done
 
 #NOTE: Deploy nfs for the docker registry
