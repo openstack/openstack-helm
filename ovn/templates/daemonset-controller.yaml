@@ -17,7 +17,33 @@ limitations under the License.
 
 {{- $configMapName := "ovn-etc" }}
 {{- $serviceAccountName := "ovn-controller" }}
+{{- $serviceAccountNamespace := $envAll.Release.Namespace }}
 {{ tuple $envAll "ovn_controller" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: ovn-controller-list-nodes-role-{{ $serviceAccountNamespace }}
+rules:
+- apiGroups: [""]
+  resources: ["nodes"]
+  verbs: ["list", "get"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: ovn-controller-list-nodes-rolebinding-{{ $serviceAccountNamespace }}
+subjects:
+- kind: ServiceAccount
+  name: {{ $serviceAccountName }}
+  namespace: {{ $serviceAccountNamespace }}
+roleRef:
+  kind: ClusterRole
+  name: ovn-controller-list-nodes-role-{{ $serviceAccountNamespace }}
+  apiGroup: rbac.authorization.k8s.io
+
 ---
 kind: DaemonSet
 apiVersion: apps/v1
@@ -50,6 +76,22 @@ spec:
         {{ .Values.labels.ovn_controller.node_selector_key }}: {{ .Values.labels.ovn_controller.node_selector_value }}
       initContainers:
 {{- tuple $envAll "ovn_controller" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+        - name: get-gw-enabled
+{{ tuple $envAll "ovn_controller_kubectl" | include "helm-toolkit.snippets.image" | indent 10 }}
+          command:
+            - /bin/bash
+            - -c
+            - |
+              kubectl get node ${NODENAME} -o jsonpath='{.metadata.labels.l3-agent}' > /tmp/gw-enabled/gw-enabled
+          env:
+            - name: NODENAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          volumeMounts:
+            - name: gw-enabled
+              mountPath: /tmp/gw-enabled
+              readOnly: false
         - name: controller-init
 {{ dict "envAll" $envAll "application" "ovn_controller" "container" "controller_init" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
 {{ tuple $envAll "ovn_controller" | include "helm-toolkit.snippets.image" | indent 10 }}
@@ -65,6 +107,9 @@ spec:
             - name: ovn-etc
               mountPath: /tmp/auto_bridge_add
               subPath: auto_bridge_add
+              readOnly: true
+            - name: gw-enabled
+              mountPath: /tmp/gw-enabled
               readOnly: true
       containers:
         - name: controller
@@ -112,4 +157,6 @@ spec:
           hostPath:
             path: /run/ovn
             type: DirectoryOrCreate
+        - name: gw-enabled
+          emptyDir: {}
 {{- end }}
