@@ -1,0 +1,64 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+- name: Deploy MetalLB
+  become: false
+  when: inventory_hostname in (groups['primary'] | default([]))
+  block:
+    - name: Add MetalLB chart repo
+      kubernetes.core.helm_repository:
+        name: metallb
+        repo_url: "https://metallb.github.io/metallb"
+
+    - name: Install MetalLB
+      kubernetes.core.helm:
+        name: metallb
+        chart_ref: metallb/metallb
+        namespace: metallb-system
+        create_namespace: true
+
+    - name: Sleep before trying to check MetalLB pods
+      pause:
+        seconds: 30
+
+    - name: Wait for MetalLB pods ready
+      command: kubectl -n metallb-system wait --timeout=240s --for=condition=Ready pods -l 'app.kubernetes.io/name=metallb'
+
+    - name: Create MetalLB address pool
+      shell: |
+        tee > /tmp/metallb_ipaddresspool.yaml <<EOF
+        ---
+        apiVersion: metallb.io/v1beta1
+        kind: IPAddressPool
+        metadata:
+          name: public
+          namespace: metallb-system
+        spec:
+          addresses:
+            - "{{ metallb_pool_cidr }}"
+        EOF
+        kubectl apply -f /tmp/metallb_ipaddresspool.yaml
+
+        tee > /tmp/metallb_l2advertisement.yaml <<EOF
+        ---
+        apiVersion: metallb.io/v1beta1
+        kind: L2Advertisement
+        metadata:
+          name: public
+          namespace: metallb-system
+        spec:
+          ipAddressPools:
+            - public
+        EOF
+        kubectl apply -f /tmp/metallb_l2advertisement.yaml
+...

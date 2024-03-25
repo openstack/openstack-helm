@@ -1,0 +1,77 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+- name: Create openstack ingress service
+  become: false
+  shell: |
+    tee > /tmp/openstack_endpoint_service.yaml <<EOF
+    ---
+    apiVersion: v1
+    kind: Namespace
+    metadata:
+      labels:
+        kubernetes.io/metadata.name: openstack
+        name: openstack
+      name: openstack
+    ---
+    kind: Service
+    apiVersion: v1
+    metadata:
+      name: public-openstack
+      namespace: openstack
+      annotations:
+        metallb.universe.tf/loadBalancerIPs: "{{ metallb_openstack_endpoint_cidr | ipaddr('address') }}"
+    spec:
+      externalTrafficPolicy: Cluster
+      type: LoadBalancer
+      selector:
+        app: ingress-api
+      ports:
+        - name: http
+          port: 80
+        - name: https
+          port: 443
+    EOF
+    kubectl apply -f /tmp/openstack_endpoint_service.yaml
+
+- name: Set dnsmasq listen ip
+  set_fact:
+    nameserver_ip: "{{ (groups['primary'] | map('extract', hostvars, ['ansible_default_ipv4', 'address']))[0] }}"
+
+- name: Start dnsmasq
+  docker_container:
+    name: endpoint_dnsmasq
+    image: docker.io/openstackhelm/neutron:2023.2-ubuntu_jammy
+    network_mode: host
+    capabilities:
+      - NET_ADMIN
+    entrypoint: dnsmasq
+    command: |
+      --keep-in-foreground
+      --no-hosts
+      --bind-interfaces
+      --address="/openstack.svc.cluster.local/{{ metallb_openstack_endpoint_cidr | ipaddr('address') }}"
+      --listen-address="{{ nameserver_ip }}"
+      --no-resolv
+      --server=8.8.8.8
+    state: started
+    recreate: yes
+
+- name: Configure /etc/resolv.conf
+  template:
+    src: files/resolv.conf
+    dest: /etc/resolv.conf
+    owner: root
+    group: root
+    mode: 0644
+...

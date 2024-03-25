@@ -22,14 +22,6 @@
       - runc
     state: absent
 
-- name: Ensure dependencies are installed
-  apt:
-    name:
-      - apt-transport-https
-      - ca-certificates
-      - gnupg2
-    state: present
-
 - name: Add Docker apt repository key
   apt_key:
     url: https://download.docker.com/linux/ubuntu/gpg
@@ -57,14 +49,6 @@
     state: present
     update_cache: true
 
-- name: Install Crictl
-  shell: |
-    wget https://github.com/kubernetes-sigs/cri-tools/releases/download/{{crictl_version}}/crictl-{{crictl_version}}-linux-amd64.tar.gz
-    sudo tar zxvf crictl-{{crictl_version}}-linux-amd64.tar.gz -C /usr/local/bin
-    rm -f crictl-{{crictl_version}}-linux-amd64.tar.gz
-  args:
-    executable: /bin/bash
-
 - name: Configure Docker daemon
   template:
     src: files/daemon.json
@@ -82,6 +66,14 @@
 
 - name: Reset ssh connection to apply user changes.
   meta: reset_connection
+
+- name: Install Crictl
+  shell: |
+    wget https://github.com/kubernetes-sigs/cri-tools/releases/download/{{crictl_version}}/crictl-{{crictl_version}}-linux-amd64.tar.gz
+    sudo tar zxvf crictl-{{crictl_version}}-linux-amd64.tar.gz -C /usr/local/bin
+    rm -f crictl-{{crictl_version}}-linux-amd64.tar.gz
+  args:
+    executable: /bin/bash
 
 - name: Set mirror_fqdn fact
   when:
