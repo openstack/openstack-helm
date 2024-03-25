@@ -43,6 +43,16 @@
     state: present
   ignore_errors: true
 
+- name: Configure number of inotify instances
+  sysctl:
+    name: "{{ item }}"
+    value: "0"
+    state: present
+  loop:
+    - net.ipv4.conf.all.rp_filter
+    - net.ipv4.conf.default.rp_filter
+  ignore_errors: true
+
 - name: Remove swapfile from /etc/fstab
   mount:
     name: "{{ item }}"
@@ -55,27 +65,6 @@
 - name: Disable swap
   command: swapoff -a
   when: ansible_swaptotal_mb > 0
-
-- name: Ensure dependencies are installed
-  apt:
-    name:
-      - apt-transport-https
-      - ca-certificates
-      - gnupg2
-      - ipvsadm
-      - jq
-    state: present
-
-- name: Add Kubernetes apt repository key
-  apt_key:
-    url: "https://pkgs.k8s.io/core:/stable:/{{ kube_version_repo }}/deb/Release.key"
-    state: present
-
-- name: Add Kubernetes apt repository
-  apt_repository:
-    repo: "deb https://pkgs.k8s.io/core:/stable:/{{ kube_version_repo }}/deb/ /"
-    state: present
-    filename: kubernetes.list
 
 - name: Install Kubernetes binaries
   apt:
@@ -93,36 +82,27 @@
     daemon_reload: yes
     state: restarted
 
+- name: Configure resolv.conf
+  template:
+    src: files/resolv.conf
+    dest: /etc/resolv.conf
+    owner: root
+    group: root
+    mode: 0644
+  vars:
+    nameserver_ip: "8.8.8.8"
+
 - name: Disable systemd-resolved
   service:
     name: systemd-resolved
     enabled: false
     state: stopped
+  ignore_errors: true
 
-- name: Configure resolv.conf
-  copy:
-    src: files/resolv.conf
-    dest: "{{ item }}"
-  loop:
-    - /etc/resolv.conf
-    - /run/systemd/resolve/resolv.conf
-
-# We download Calico manifest on all nodes because we then want to download
-# Calico images BEFORE deploying it
-- name: Download Calico manifest
-  shell: |
-    curl -LSs {{ calico_manifest_url }} -o /tmp/calico.yaml
-    sed -i -e 's#docker.io/calico/#quay.io/calico/#g' /tmp/calico.yaml
-  args:
-    executable: /bin/bash
-
-# Download images needed for calico before applying manifests, so that `kubectl wait` timeout
-# for `k8s-app=kube-dns` isn't reached by slow download speeds
-- name: Download Calico images
-  shell: |
-    export CONTAINER_RUNTIME_ENDPOINT=unix:///run/containerd/containerd.sock
-    export IMAGE_SERVICE_ENDPOINT=unix:///run/containerd/containerd.sock
-    awk '/image:/ { print $2 }' /tmp/calico.yaml | xargs -I{} crictl pull {}
-  args:
-    executable: /bin/bash
+- name: Disable unbound
+  service:
+    name: unbound
+    enabled: false
+    state: stopped
+  ignore_errors: true
 ...

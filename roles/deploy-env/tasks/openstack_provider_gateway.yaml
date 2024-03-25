@@ -1,0 +1,78 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+- name: Set cluster device
+  set_fact:
+    # cluster_default_dev: "{{ (groups['k8s_control_plane'] | map('extract', hostvars, ['ansible_default_ipv4', 'interface']))[0] }}"
+    cluster_default_dev: "{{ hostvars[inventory_hostname]['ansible_default_ipv4']['interface'] }}"
+
+- name: Set up TAP interface on cluster control-plane node
+  shell: |
+    ip tuntap add name provider1 mode tap
+    ip link set provider1 up
+    ip addr add {{ openstack_provider_gateway_cidr }} dev provider1
+
+- name: Set up SNAT for packets going outside the cluster
+  shell: |
+    iptables -t nat -A POSTROUTING -o {{ cluster_default_dev }} -s {{ openstack_provider_network_cidr }} -j MASQUERADE
+
+# We use tcp proxy to forward traffic to make it possible to connect
+# to the Openstack public endpoint (managed by Metallb) from VMs.
+- name: Setup TCP proxy
+  when: metallb_setup
+  block:
+    - name: Prepare nginx tcp proxy config
+      template:
+        src: files/nginx_tcp_proxy.conf
+        dest: /tmp/nginx_tcp_proxy.conf
+        owner: root
+        group: root
+        mode: 0644
+
+    - name: Start provider network tcp proxy
+      docker_container:
+        name: nginx_tcp_proxy
+        image: docker.io/nginx:alpine3.18
+        network_mode: host
+        capabilities:
+          - NET_ADMIN
+          - NET_RAW
+        mounts:
+          - source: /tmp/nginx_tcp_proxy.conf
+            target: /etc/nginx/nginx.conf
+            type: bind
+        entrypoint: nginx
+        command: |
+          -g 'daemon off;'
+        state: started
+        recreate: yes
+
+- name: Start provider network dnsmasq
+  docker_container:
+    name: provider_dnsmasq
+    image: docker.io/openstackhelm/neutron:2023.2-ubuntu_jammy
+    network_mode: host
+    capabilities:
+      - NET_ADMIN
+    entrypoint: dnsmasq
+    command: |
+      --keep-in-foreground
+      --no-hosts
+      --bind-interfaces
+      --address="/openstack.svc.cluster.local/{{ openstack_provider_gateway_cidr | ipaddr('address') }}"
+      --listen-address="{{ openstack_provider_gateway_cidr | ipaddr('address') }}"
+      --no-resolv
+      --server=8.8.8.8
+    state: started
+    recreate: yes
+...

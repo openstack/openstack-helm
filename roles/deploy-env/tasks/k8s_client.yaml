@@ -1,0 +1,54 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+- name: Install Kubectl
+  apt:
+    state: present
+    update_cache: true
+    allow_downgrade: true
+    pkg:
+      - "kubectl={{ kube_version }}"
+
+- name: "Setup kubeconfig directory for {{ kubectl.user }} user"
+  shell: |
+    mkdir -p /home/{{ kubectl.user }}/.kube
+
+- name: "Copy kube_config file for {{ kubectl.user }} user"
+  synchronize:
+    src: /tmp/kube_config
+    dest: /home/{{ kubectl.user }}/.kube/config
+
+- name: "Set kubconfig file ownership for {{ kubectl.user }} user"
+  shell: |
+    chown -R {{ kubectl.user }}:{{ kubectl.group }} /home/{{ kubectl.user }}/.kube
+
+- name: Deploy Helm
+  block:
+    - name: Install Helm
+      shell: |
+        TMP_DIR=$(mktemp -d)
+        curl -sSL https://get.helm.sh/helm-{{ helm_version }}-linux-amd64.tar.gz | tar -zxv --strip-components=1 -C ${TMP_DIR}
+        mv "${TMP_DIR}"/helm /usr/local/bin/helm
+        rm -rf "${TMP_DIR}"
+      args:
+        executable: /bin/bash
+
+    # This is to improve build time
+    - name: Remove stable Helm repo
+      command: helm repo remove stable
+      ignore_errors: true
+
+- name: Untaint Kubernetes control plane node
+  become: false
+  command: kubectl taint nodes -l 'node-role.kubernetes.io/control-plane' node-role.kubernetes.io/control-plane-
+...
