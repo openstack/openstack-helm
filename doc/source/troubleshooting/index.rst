@@ -12,6 +12,7 @@ issues with the following:
    persistent-storage
    ubuntu-hwe-kernel
    ceph
+   migrate-ceph-to-rook
 
 Getting help
 ============
