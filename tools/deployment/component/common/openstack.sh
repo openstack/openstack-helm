@@ -36,7 +36,7 @@ neutron:
   enabled: true
   network:
     interface:
-      tunnel: docker0
+      tunnel: null
   conf:
     neutron:
       DEFAULT:
@@ -44,6 +44,10 @@ neutron:
         max_l3_agents_per_router: 1
         l3_ha_network_type: vxlan
         dhcp_agents_per_network: 1
+    # provider1 is a tap interface used by default in the test env
+    # we create this interface while setting up the test env
+    auto_bridge_add:
+      br-ex: provider1
     plugins:
       ml2_conf:
         ml2_type_flat:
@@ -56,6 +60,11 @@ neutron:
       linuxbridge_agent:
         linux_bridge:
           bridge_mappings: public:br-ex
+  labels:
+    agent:
+      l3:
+        node_selector_key: l3-agent
+        node_selector_value: enabled
 EOF
 ## includes second argument 'subchart' to indicate a different path
 export HELM_CHART_ROOT_PATH="../openstack-helm/openstack"
