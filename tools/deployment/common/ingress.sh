@@ -18,28 +18,31 @@ set -xe
 
 helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
 
-#NOTE: Deploy cluster ingress
-helm upgrade --install ingress-nginx-cluster ingress-nginx/ingress-nginx \
-  --version ${HELM_INGRESS_NGINX_VERSION} \
-  --namespace=kube-system \
-  --set controller.admissionWebhooks.enabled="false" \
-  --set controller.kind=DaemonSet \
-  --set controller.service.type=ClusterIP \
-  --set controller.scope.enabled="false" \
-  --set controller.hostNetwork="true" \
-  --set controller.ingressClassResource.name=nginx-cluster \
-  --set controller.ingressClassResource.controllerValue="k8s.io/ingress-nginx-cluster" \
-  --set controller.ingressClassResource.default="true" \
-  --set controller.ingressClass=nginx-cluster \
-  --set controller.labels.app=ingress-api
+if ! [[ ${FEATURE_GATES//,/ } =~ (^|[[:space:]])metallb($|[[:space:]]) ]]; then
+    #NOTE: Deploy cluster ingress
+    helm upgrade --install ingress-nginx-cluster ingress-nginx/ingress-nginx \
+    --version ${HELM_INGRESS_NGINX_VERSION} \
+    --namespace=kube-system \
+    --set controller.admissionWebhooks.enabled="false" \
+    --set controller.kind=DaemonSet \
+    --set controller.service.type=ClusterIP \
+    --set controller.scope.enabled="false" \
+    --set controller.hostNetwork="true" \
+    --set controller.ingressClassResource.name=nginx-cluster \
+    --set controller.ingressClassResource.controllerValue="k8s.io/ingress-nginx-cluster" \
+    --set controller.ingressClassResource.default="true" \
+    --set controller.ingressClass=nginx-cluster \
+    --set controller.labels.app=ingress-api
 
-#NOTE: Wait for deploy
-./tools/deployment/common/wait-for-pods.sh kube-system
+    #NOTE: Wait for deploy
+    ./tools/deployment/common/wait-for-pods.sh kube-system
+fi
 
 #NOTE: Deploy namespace ingress
 helm upgrade --install ingress-nginx-openstack ingress-nginx/ingress-nginx \
   --version ${HELM_INGRESS_NGINX_VERSION} \
   --namespace=openstack \
+  --set controller.kind=DaemonSet \
   --set controller.admissionWebhooks.enabled="false" \
   --set controller.scope.enabled="true" \
   --set controller.service.enabled="false" \
@@ -54,6 +57,7 @@ helm upgrade --install ingress-nginx-openstack ingress-nginx/ingress-nginx \
 helm upgrade --install ingress-nginx-ceph ingress-nginx/ingress-nginx \
   --version ${HELM_INGRESS_NGINX_VERSION} \
   --namespace=ceph \
+  --set controller.kind=DaemonSet \
   --set controller.admissionWebhooks.enabled="false" \
   --set controller.scope.enabled="true" \
   --set controller.service.enabled="false" \
