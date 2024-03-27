@@ -37,6 +37,8 @@ export OPENSTACK_CLIENT_CONTAINER_EXTRA_ARGS
 : ${OSH_EXT_SUBNET_NAME:="public-subnet"}
 : ${OSH_EXT_SUBNET:="172.24.4.0/24"}
 : ${OSH_BR_EX_ADDR:="172.24.4.1/24"}
+: ${OSH_ALLOCATION_POOL_START:="172.24.4.10"}
+: ${OSH_ALLOCATION_POOL_END:="172.24.4.254"}
 openstack stack show "heat-public-net-deployment" || \
   openstack stack create --wait \
     --parameter network_name=${OSH_EXT_NET_NAME} \
@@ -44,6 +46,8 @@ openstack stack show "heat-public-net-deployment" || \
     --parameter subnet_name=${OSH_EXT_SUBNET_NAME} \
     --parameter subnet_cidr=${OSH_EXT_SUBNET} \
     --parameter subnet_gateway=${OSH_BR_EX_ADDR%/*} \
+    --parameter allocation_pool_start=${OSH_ALLOCATION_POOL_START} \
+    --parameter allocation_pool_end=${OSH_ALLOCATION_POOL_END} \
     -t ${HEAT_DIR}/heat-public-net-deployment.yaml \
     heat-public-net-deployment
 

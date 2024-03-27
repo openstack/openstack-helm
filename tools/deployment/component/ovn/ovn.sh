@@ -34,7 +34,7 @@ network:
 conf:
   ovn_bridge_mappings: public:br-ex
   auto_bridge_add:
-    br-ex: null
+    br-ex: provider1
 EOF
 
 #NOTE: Deploy command
