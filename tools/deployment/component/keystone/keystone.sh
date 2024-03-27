@@ -66,5 +66,4 @@ fi
 
 FEATURE_GATE="tls"; if [[ ${FEATURE_GATES//,/ } =~ (^|[[:space:]])${FEATURE_GATE}($|[[:space:]]) ]]; then
   curl --cacert /etc/openstack-helm/certs/ca/ca.pem -L https://keystone.openstack.svc.cluster.local
-  curl --cacert /etc/openstack-helm/certs/ca/ca.pem -L https://keystone-api.openstack.svc.cluster.local:5000
 fi

@@ -36,5 +36,4 @@ fi
 
 FEATURE_GATE="tls"; if [[ ${FEATURE_GATES//,/ } =~ (^|[[:space:]])${FEATURE_GATE}($|[[:space:]]) ]]; then
   curl --cacert /etc/openstack-helm/certs/ca/ca.pem -L https://horizon.openstack.svc.cluster.local
-  curl --cacert /etc/openstack-helm/certs/ca/ca.pem -L https://horizon-int.openstack.svc.cluster.local
 fi

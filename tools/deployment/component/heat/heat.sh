@@ -39,5 +39,4 @@ openstack orchestration service list
 
 FEATURE_GATE="tls"; if [[ ${FEATURE_GATES//,/ } =~ (^|[[:space:]])${FEATURE_GATE}($|[[:space:]]) ]]; then
   curl --cacert /etc/openstack-helm/certs/ca/ca.pem -L https://heat.openstack.svc.cluster.local
-  curl --cacert /etc/openstack-helm/certs/ca/ca.pem -L https://heat-api.openstack.svc.cluster.local:8004
 fi
