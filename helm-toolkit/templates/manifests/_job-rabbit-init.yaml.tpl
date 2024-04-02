@@ -42,6 +42,7 @@ metadata:
 {{ toYaml $jobLabels | indent 4 }}
 {{- end }}
   annotations:
+{{ tuple $serviceAccountName $envAll | include "helm-toolkit.snippets.custom_job_annotations" | indent 4 -}}
 {{- if $jobAnnotations }}
 {{ toYaml $jobAnnotations | indent 4 }}
 {{- end }}
