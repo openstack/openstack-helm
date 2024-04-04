@@ -684,20 +684,28 @@ def get_nodes_with_highest_seqno():
     """Find out which node(s) has the highest sequence number and return
     them in an array."""
     logger.info("Getting the node(s) with highest seqno from configmap.")
-    state_configmap = k8s_api_instance.read_namespaced_config_map(
-        name=state_configmap_name, namespace=pod_namespace)
-    state_configmap_dict = state_configmap.to_dict()
-    seqnos = dict()
-    for key, value in list(state_configmap_dict['data'].items()):
-        keyitems = key.split('.')
-        key = keyitems[0]
-        node = keyitems[1]
-        if key == 'seqno':
-            #Explicit casting to integer to have resulting list of integers for correct comparison
-            seqnos[node] = int(value)
-    max_seqno = max(seqnos.values())
-    max_seqno_nodes = sorted([k for k, v in list(seqnos.items()) if v == max_seqno])
-    return max_seqno_nodes
+    # We can proceed only when we get seqno from all nodes, and if seqno is
+    # -1 it means we didn't get it correctly, the shutdown was not clean and we need
+    # to wait for a value taken by wsrep recover.
+    while True:
+        state_configmap = k8s_api_instance.read_namespaced_config_map(
+            name=state_configmap_name, namespace=pod_namespace)
+        state_configmap_dict = state_configmap.to_dict()
+        seqnos = dict()
+        for key, value in list(state_configmap_dict['data'].items()):
+            keyitems = key.split('.')
+            key = keyitems[0]
+            node = keyitems[1]
+            if key == 'seqno':
+                #Explicit casting to integer to have resulting list of integers for correct comparison
+                seqnos[node] = int(value)
+        max_seqno = max(seqnos.values())
+        max_seqno_nodes = sorted([k for k, v in list(seqnos.items()) if v == max_seqno])
+        if [x for x in seqnos.values() if x < 0 ]:
+            logger.info("Thq seqno for some nodes is < 0, can't make a decision about leader. Node seqnums: %s", seqnos)
+            time.sleep(state_configmap_update_period)
+            continue
+        return max_seqno_nodes
 
 
 def resolve_leader_node(nodename_array):
@@ -727,7 +735,7 @@ def check_if_i_lead():
     # reliably checking in following full restart of cluster.
     count = cluster_leader_ttl / state_configmap_update_period
     counter = 0
-    while counter <= count:
+    while counter < count:
         if check_if_cluster_data_is_fresh():
             counter += 1
         else:
