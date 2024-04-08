@@ -17,6 +17,11 @@ abstract: |
   Creates a manifest for a authenticating a registry with a secret
 examples:
   - values: |
+      annotations:
+        secret:
+          oci_image_registry:
+            {{ $serviceName }}:
+              custom.tld/key: "value"
       secrets:
         oci_image_registry:
           {{ $serviceName }}: {{ $keyName }}
@@ -36,30 +41,8 @@ examples:
     kind: Secret
     metadata:
       name: {{ $secretName }}
-    type: kubernetes.io/dockerconfigjson
-    data:
-      dockerconfigjson: {{ $dockerAuth }}
-
-  - values: |
-      secrets:
-        oci_image_registry:
-          {{ $serviceName }}: {{ $keyName }}
-      endpoints:
-        oci_image_registry:
-          name: oci-image-registry
-          auth:
-            enabled: true
-             {{ $serviceName }}:
-                name: {{ $userName }}
-                password: {{ $password }}
-  usage: |
-    {{- include "helm-toolkit.manifests.secret_registry" ( dict "envAll" . "registryUser" .Chart.Name ) -}}
-  return: |
-    ---
-    apiVersion: v1
-    kind: Secret
-    metadata:
-      name: {{ $secretName }}
+      annotations:
+        custom.tld/key: "value"
     type: kubernetes.io/dockerconfigjson
     data:
       dockerconfigjson: {{ $dockerAuth }}
@@ -87,6 +70,8 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: {{ $secretName }}
+  annotations:
+{{ tuple "oci_image_registry" $registryUser $envAll | include "helm-toolkit.snippets.custom_secret_annotations" | indent 4 }}
 type: kubernetes.io/dockerconfigjson
 data:
   .dockerconfigjson: {{ $dockerAuth }}
