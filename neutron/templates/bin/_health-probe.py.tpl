@@ -315,16 +315,20 @@ if __name__ == "__main__":
     data = {}
     if os.path.isfile(pidfile):
         with open(pidfile,'r') as f:
-            data = json.load(f)
-        if check_pid_running(data['pid']):
-            if data['exit_count'] > 1:
-                # Third time in, kill the previous process
-                os.kill(int(data['pid']), signal.SIGTERM)
-            else:
-                data['exit_count'] = data['exit_count'] + 1
-                with open(pidfile, 'w') as f:
-                    json.dump(data, f)
-                sys.exit(0)
+            file_content = f.read().strip()
+            if file_content:
+                data = json.loads(file_content)
+
+    if 'pid' in data and check_pid_running(data['pid']):
+        if 'exit_count' in data and data['exit_count'] > 1:
+            # Third time in, kill the previous process
+            os.kill(int(data['pid']), signal.SIGTERM)
+        else:
+            data['exit_count'] = data.get('exit_count', 0) + 1
+            with open(pidfile, 'w') as f:
+                json.dump(data, f)
+            sys.exit(0)
+
     data['pid'] = os.getpid()
     data['exit_count'] = 0
     with open(pidfile, 'w') as f:
