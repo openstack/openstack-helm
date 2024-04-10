@@ -427,12 +427,16 @@ for bmap in `sed 's/[{}"]//g' /tmp/auto_bridge_add | tr "," "\n"`
 do
   bridge=${bmap%:*}
   iface=${bmap#*:}
-  ovs-vsctl --no-wait --may-exist add-br $bridge
+  if [[ "${DPDK_ENABLED}" == "true" ]]; then
+    ovs-vsctl --db=unix:${OVS_SOCKET} --may-exist add-br $bridge -- set bridge $bridge datapath_type=netdev
+  else
+    ovs-vsctl --db=unix:${OVS_SOCKET} --may-exist add-br $bridge
+  fi
   if [ -n "$iface" ] && [ "$iface" != "null" ] && ( ip link show $iface 1>/dev/null 2>&1 );
   then
-    ovs-vsctl --no-wait --may-exist add-port $bridge $iface
+    ovs-vsctl --db=unix:${OVS_SOCKET} --may-exist add-port $bridge $iface
     migrate_ip_from_nic $iface $bridge
-    if [[ $(get_dpdk_config_value ${DPDK_CONFIG} '.enabled') != "true" ]]; then
+    if [[ "${DPDK_ENABLED}" != "true" ]]; then
       ip link set dev $iface up
     fi
   fi
