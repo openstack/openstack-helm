@@ -16,7 +16,7 @@ limitations under the License.
 
 set -ex
 
-mongod --auth &
+mongod --config /etc/mongodb.conf --auth &
 
 t=0
 until mongo --eval "db.adminCommand('ping')"; do
