@@ -16,7 +16,7 @@
 - job:
     name: openstack-helm-lint
     run: playbooks/lint.yml
-    nodeset: ubuntu-focal
+    nodeset: openstack-helm-1node-ubuntu_jammy
     # NOTE(aostapenko) Required if job is run against another project
     required-projects:
       - openstack/openstack-helm-infra
@@ -173,90 +173,7 @@
         - ./tools/deployment/common/daemonjob-controller.sh
 
 - job:
-    name: openstack-helm-infra-openstack-support
-    parent: openstack-helm-infra-deploy
-    nodeset: openstack-helm-1node-ubuntu_focal
-    vars:
-      osh_params:
-        openstack_release: "2023.1"
-        container_distro_name: ubuntu
-        container_distro_version: focal
-      gate_scripts:
-        - ./tools/deployment/openstack-support/000-prepare-k8s.sh
-        - ./tools/deployment/openstack-support/007-namespace-config.sh
-        - ./tools/deployment/common/ingress.sh
-        - ./tools/deployment/ceph/ceph.sh
-        - ./tools/deployment/openstack-support/025-ceph-ns-activate.sh
-        - ./tools/deployment/openstack-support/030-rabbitmq.sh
-        - ./tools/deployment/openstack-support/070-mariadb.sh
-        - ./tools/deployment/openstack-support/040-memcached.sh
-        - ./tools/deployment/openstack-support/050-libvirt.sh
-        - ./tools/deployment/openstack-support/060-openvswitch.sh
-        - ./tools/deployment/common/setup-client.sh
-        - ./tools/deployment/openstack-support/090-keystone.sh
-        - ./tools/deployment/openstack-support/100-ceph-radosgateway.sh
-        - ./tools/deployment/openstack-support/110-openstack-exporter.sh
-        - ./tools/deployment/openstack-support/120-powerdns.sh
-        - ./tools/deployment/openstack-support/130-cinder.sh
-
-- job:
-    name: openstack-helm-infra-openstack-support-rook
-    parent: openstack-helm-infra-deploy
-    nodeset: openstack-helm-3nodes-ubuntu_focal
-    vars:
-      osh_params:
-        openstack_release: "2023.1"
-        container_distro_name: ubuntu
-        container_distro_version: focal
-      gate_scripts:
-        - ./tools/deployment/openstack-support-rook/000-prepare-k8s.sh
-        - ./tools/deployment/openstack-support-rook/007-namespace-config.sh
-        - ./tools/deployment/common/ingress.sh
-        - ./tools/deployment/ceph/ceph-rook.sh
-        - ./tools/deployment/ceph/ceph-adapter-rook.sh
-        - ./tools/deployment/openstack-support-rook/030-rabbitmq.sh
-        - ./tools/deployment/openstack-support-rook/070-mariadb.sh
-        - ./tools/deployment/openstack-support-rook/040-memcached.sh
-        - ./tools/deployment/openstack-support-rook/050-libvirt.sh
-        - ./tools/deployment/openstack-support-rook/060-openvswitch.sh
-        - ./tools/deployment/common/setup-client.sh
-        - ./tools/deployment/openstack-support-rook/090-keystone.sh
-        - ./tools/deployment/openstack-support-rook/100-ceph-radosgateway.sh
-        - ./tools/deployment/openstack-support-rook/110-openstack-exporter.sh
-        - ./tools/deployment/openstack-support-rook/120-powerdns.sh
-        - ./tools/deployment/openstack-support-rook/130-cinder.sh
-
-# Use libvirt ssl
-- job:
-    name: openstack-helm-infra-openstack-support-ssl
-    parent: openstack-helm-infra-deploy
-    nodeset: openstack-helm-1node-ubuntu_focal
-    vars:
-      osh_params:
-        openstack_release: "2023.1"
-        container_distro_name: ubuntu
-        container_distro_version: focal
-        feature_gates: ssl
-      gate_scripts:
-        - ./tools/deployment/openstack-support/000-prepare-k8s.sh
-        - ./tools/deployment/openstack-support/007-namespace-config.sh
-        - ./tools/deployment/common/ingress.sh
-        - ./tools/deployment/ceph/ceph.sh
-        - ./tools/deployment/openstack-support/025-ceph-ns-activate.sh
-        - ./tools/deployment/openstack-support/030-rabbitmq.sh
-        - ./tools/deployment/openstack-support/070-mariadb.sh
-        - ./tools/deployment/openstack-support/040-memcached.sh
-        - ./tools/deployment/openstack-support/051-libvirt-ssl.sh
-        - ./tools/deployment/openstack-support/060-openvswitch.sh
-        - ./tools/deployment/common/setup-client.sh
-        - ./tools/deployment/openstack-support/090-keystone.sh
-        - ./tools/deployment/openstack-support/100-ceph-radosgateway.sh
-        - ./tools/deployment/openstack-support/110-openstack-exporter.sh
-        - ./tools/deployment/openstack-support/120-powerdns.sh
-        - ./tools/deployment/openstack-support/130-cinder.sh
-
-- job:
-    name: openstack-helm-infra-mariadb-operator
+    name: openstack-helm-infra-mariadb-operator-2023-1-ubuntu_focal
     parent: openstack-helm-infra-deploy
     nodeset: openstack-helm-3nodes-ubuntu_focal
     vars:
@@ -278,9 +195,12 @@
         - ./tools/deployment/mariadb-operator-cluster/070-keystone.sh
         - ./tools/deployment/mariadb-operator-cluster/090-mariadb-backup-test.sh
         - ./tools/deployment/mariadb-operator-cluster/095-mariadb-prometheus-mysql-exporter.sh
+    files:
+      - ^roles/.*
+      - ^mariadb-cluster/.*
 
 - job:
-    name: openstack-helm-infra-compute-kit-dpdk-2023.2-ubuntu_jammy
+    name: openstack-helm-infra-compute-kit-dpdk-2023-2-ubuntu_jammy
     description: |
       Run the openstack-helm compute-kit job with DPDK enabled.
       We use single node environment to run this job which means
@@ -303,45 +223,67 @@
         container_distro_version: jammy
         feature_gates: dpdk
     files:
+      - ^roles/.*
       - ^openvswitch/.*
-      - ^roles/deploy-env.*
 
 - job:
     name: openstack-helm-infra-compute-kit-ovn-2023-2-ubuntu_jammy
     parent: openstack-helm-compute-kit-ovn-2023-2-ubuntu_jammy
     files:
+      - ^helm-toolkit/.*
+      - ^roles/.*
+      - ^rabbitmq/.*
+      - ^mariadb/.*
+      - ^libvirt/.*
       - ^ovn/.*
-      - ^roles/deploy-env.*
 
 - job:
     name: openstack-helm-infra-compute-kit-2023-2-ubuntu_jammy
     parent: openstack-helm-compute-kit-2023-2-ubuntu_jammy
     files:
-      - ^roles/deploy-env.*
+      - ^helm-toolkit/.*
+      - ^roles/.*
       - ^rabbitmq/.*
       - ^mariadb/.*
+      - ^libvirt/.*
+      - ^memcached/.*
       - ^openvswitch/.*
-      - ^roles/deploy-env.*
-      - ^helm-toolkit/.*
 
 - job:
-    name: openstack-helm-infra-cinder-2023-2-ubuntu_jammy
-    parent: openstack-helm-cinder-2023-2-ubuntu_jammy
+    name: openstack-helm-infra-cinder-2023-1-ubuntu_focal
+    description: |
+      This job uses OSH Ceph charts for managing Ceph cluster.
+      The job is run on 3 nodes.
+    parent: openstack-helm-cinder-2023-1-ubuntu_focal
     files:
-      - ^roles/deploy-env.*
-      - ^rabbitmq/.*
-      - ^mariadb/.*
-      - ^roles/deploy-env.*
       - ^helm-toolkit/.*
+      - ^roles/.*
+      - ^ceph.*
+
+- job:
+    name: openstack-helm-infra-cinder-2024-1-ubuntu_jammy
+    description: |
+      This job uses Rook for managing Ceph cluster.
+      The job is run on 3 nodes.
+    parent: openstack-helm-cinder-2024-1-ubuntu_jammy
+    files:
+      - ^helm-toolkit/.*
+      - ^roles/.*
+      - ^tools/deployment/ceph-rook\.sh$
+      - ^tools/deployment/ceph-adapter-rook\.sh$
 
 - job:
     name: openstack-helm-infra-tls-2023-1-ubuntu_focal
+    description: |
+      This job uses OSH Ceph charts for managing Ceph cluster.
+      The job is run on 1 32GB node.
     parent: openstack-helm-tls-2023-1-ubuntu_focal
     files:
-      - ^roles/deploy-env.*
+      - ^helm-toolkit/.*
+      - ^roles/.*
       - ^rabbitmq/.*
       - ^mariadb/.*
+      - ^memcached/.*
+      - ^libvrit/.*
       - ^openvswitch/.*
-      - ^roles/deploy-env.*
-      - ^helm-toolkit/.*
 ...
