@@ -63,7 +63,7 @@ examples:
 
 {{- define "helm-toolkit.snippets.custom_secret_annotations" -}}
 {{- $secretType := index . 0 -}}
-{{- $userClass := index . 1 -}}
+{{- $userClass := index . 1 | replace "-" "_" -}}
 {{- $envAll := index . 2 -}}
 {{- if (hasKey $envAll.Values "annotations") -}}
 {{- if (hasKey $envAll.Values.annotations "secret") -}}

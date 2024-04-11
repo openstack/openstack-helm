@@ -17,6 +17,11 @@ abstract: |
   Creates a manifest for a services public tls secret
 examples:
   - values: |
+      annotations:
+        secret:
+          tls:
+            key_manager_api_public:
+              custom.tld/key: "value"
       secrets:
         tls:
           key_manager:
@@ -41,6 +46,8 @@ examples:
     kind: Secret
     metadata:
       name: barbican-tls-public
+      annotations:
+        custom.tld/key: "value"
     type: kubernetes.io/tls
     data:
       tls.key: Rk9PLUtFWQo=
@@ -88,11 +95,15 @@ examples:
 {{- if kindIs "map" $endpointHost }}
 {{- if hasKey $endpointHost "tls" }}
 {{- if and $endpointHost.tls.key $endpointHost.tls.crt }}
+
+{{- $customAnnotationKey := printf "%s_%s_%s" ( $backendServiceType | replace "-" "_" ) $backendService $endpoint }}
 ---
 apiVersion: v1
 kind: Secret
 metadata:
   name: {{ index $envAll.Values.secrets.tls ( $backendServiceType | replace "-" "_" ) $backendService $endpoint }}
+  annotations:
+{{ tuple "tls" $customAnnotationKey $envAll | include "helm-toolkit.snippets.custom_secret_annotations" | indent 4 }}
 type: kubernetes.io/tls
 data:
   tls.key: {{ $endpointHost.tls.key | b64enc }}
