@@ -16,10 +16,7 @@ set -xe
 
 #NOTE: Get the over-rides to use
 export HELM_CHART_ROOT_PATH="${HELM_CHART_ROOT_PATH:="${OSH_INFRA_PATH:="../openstack-helm-infra"}"}"
-: ${OSH_EXTRA_HELM_ARGS_CEPH_NS_ACTIVATE:="$(./tools/deployment/common/get-values-overrides.sh ceph-provisioners)"}
-
-#NOTE: Lint and package chart
-make -C ${HELM_CHART_ROOT_PATH} ceph-provisioners
+: ${OSH_EXTRA_HELM_ARGS_CEPH_NS_ACTIVATE:="$(helm osh get-values-overrides -p ${HELM_CHART_ROOT_PATH} -c ceph-provisioners ${FEATURES})"}
 
 #NOTE: Deploy command
 tee /tmp/ceph-openstack-config.yaml <<EOF
@@ -50,7 +47,7 @@ helm upgrade --install ceph-openstack-config ${HELM_CHART_ROOT_PATH}/ceph-provis
   ${OSH_EXTRA_HELM_ARGS_CEPH_NS_ACTIVATE}
 
 #NOTE: Wait for deploy
-./tools/deployment/common/wait-for-pods.sh openstack
+helm osh wait-for-pods openstack
 
 #NOTE: Validate Deployment info
 kubectl get -n openstack jobs

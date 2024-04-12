@@ -13,9 +13,6 @@
 #    under the License.
 set -xe
 
-#NOTE: Lint and package chart
-make senlin
-
 #NOTE: Deploy command
 helm upgrade --install senlin ./senlin \
   --namespace=openstack \
@@ -25,7 +22,7 @@ helm upgrade --install senlin ./senlin \
   ${OSH_EXTRA_HELM_ARGS_SENLIN}
 
 #NOTE: Wait for deploy
-./tools/deployment/common/wait-for-pods.sh openstack
+helm osh wait-for-pods openstack
 
 #NOTE: Validate Deployment info
 export OS_CLOUD=openstack_helm

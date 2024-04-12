@@ -15,11 +15,8 @@
 set -xe
 
 #NOTE: Get the over-rides to use
-: ${OSH_EXTRA_HELM_ARGS_HORIZON:="$(./tools/deployment/common/get-values-overrides.sh horizon)"}
+: ${OSH_EXTRA_HELM_ARGS_HORIZON:="$(helm osh get-values-overrides -c horizon ${FEATURES})"}
 : ${RUN_HELM_TESTS:="yes"}
-
-#NOTE: Lint and package chart
-make horizon
 
 #NOTE: Deploy command
 helm upgrade --install horizon ./horizon \
@@ -28,7 +25,7 @@ helm upgrade --install horizon ./horizon \
     ${OSH_EXTRA_HELM_ARGS_HORIZON}
 
 #NOTE: Wait for deploy
-./tools/deployment/common/wait-for-pods.sh openstack
+helm osh wait-for-pods openstack
 
 if [ "x${RUN_HELM_TESTS}" != "xno" ]; then
     ./tools/deployment/common/run-helm-tests.sh horizon

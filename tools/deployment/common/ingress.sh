@@ -35,7 +35,7 @@ if ! [[ ${FEATURE_GATES//,/ } =~ (^|[[:space:]])metallb($|[[:space:]]) ]]; then
     --set controller.labels.app=ingress-api
 
     #NOTE: Wait for deploy
-    ./tools/deployment/common/wait-for-pods.sh kube-system
+    helm osh wait-for-pods kube-system
 fi
 
 #NOTE: Deploy namespace ingress
@@ -52,7 +52,7 @@ helm upgrade --install ingress-nginx-openstack ingress-nginx/ingress-nginx \
   --set controller.labels.app=ingress-api
 
 #NOTE: Wait for deploy
-./tools/deployment/common/wait-for-pods.sh openstack
+helm osh wait-for-pods openstack
 
 helm upgrade --install ingress-nginx-ceph ingress-nginx/ingress-nginx \
   --version ${HELM_INGRESS_NGINX_VERSION} \
@@ -67,4 +67,4 @@ helm upgrade --install ingress-nginx-ceph ingress-nginx/ingress-nginx \
   --set controller.labels.app=ingress-api
 
 #NOTE: Wait for deploy
-./tools/deployment/common/wait-for-pods.sh ceph
+helm osh wait-for-pods ceph

@@ -15,9 +15,6 @@ set -xe
 
 : ${RUN_HELM_TESTS:="yes"}
 
-#NOTE: Lint and package chart
-make mistral
-
 #NOTE: Deploy command
 helm upgrade --install mistral ./mistral \
   --namespace=openstack \
@@ -29,7 +26,7 @@ helm upgrade --install mistral ./mistral \
   ${OSH_EXTRA_HELM_ARGS_MISTRAL}
 
 #NOTE: Wait for deploy
-./tools/deployment/common/wait-for-pods.sh openstack
+helm osh wait-for-pods openstack
 
 #NOTE: Validate Deployment
 export OS_CLOUD=openstack_helm

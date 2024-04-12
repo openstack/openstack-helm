@@ -15,11 +15,8 @@
 set -xe
 
 #NOTE: Get the over-rides to use
-: ${OSH_EXTRA_HELM_ARGS_MANILA:="$(./tools/deployment/common/get-values-overrides.sh manila)"}
+: ${OSH_EXTRA_HELM_ARGS_MANILA:="$(helm osh get-values-overrides -c manila ${FEATURES})"}
 : ${RUN_HELM_TESTS:="no"}
-
-#NOTE: Lint and package chart
-make manila
 
 #NOTE: Deploy command
 helm upgrade --install --debug manila ./manila \
@@ -28,4 +25,4 @@ helm upgrade --install --debug manila ./manila \
     ${OSH_EXTRA_HELM_ARGS_MANILA:=}
 
 #NOTE: Wait for deploy
-./tools/deployment/common/wait-for-pods.sh openstack 1800
+helm osh wait-for-pods openstack 1800

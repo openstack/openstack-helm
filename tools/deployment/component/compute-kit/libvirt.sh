@@ -22,10 +22,7 @@ fi
 
 #NOTE: Get the over-rides to use
 export HELM_CHART_ROOT_PATH="${HELM_CHART_ROOT_PATH:="${OSH_INFRA_PATH:="../openstack-helm-infra"}"}"
-: ${OSH_EXTRA_HELM_ARGS_LIBVIRT:="$(./tools/deployment/common/get-values-overrides.sh libvirt)"}
-
-#NOTE: Lint and package chart
-make -C ${HELM_CHART_ROOT_PATH} libvirt
+: ${OSH_EXTRA_HELM_ARGS_LIBVIRT:="$(helm osh get-values-overrides -p ${HELM_CHART_ROOT_PATH} -c libvirt ${FEATURES})"}
 
 #NOTE: Deploy command
 : ${OSH_EXTRA_HELM_ARGS:=""}
@@ -34,3 +31,6 @@ helm upgrade --install libvirt ${HELM_CHART_ROOT_PATH}/libvirt \
   --set conf.ceph.enabled=${CEPH_ENABLED} \
   ${OSH_EXTRA_HELM_ARGS:=} \
   ${OSH_EXTRA_HELM_ARGS_LIBVIRT}
+
+#NOTE: DO NOT wait for pods are ready, because libvirt depends
+# on neutron ovs agent pods or ovn controller pods

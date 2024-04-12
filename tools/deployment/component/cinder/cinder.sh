@@ -14,11 +14,8 @@
 set -xe
 
 #NOTE: Get the over-rides to use
-: ${OSH_EXTRA_HELM_ARGS_CINDER:="$(./tools/deployment/common/get-values-overrides.sh cinder)"}
+: ${OSH_EXTRA_HELM_ARGS_CINDER:="$(helm osh get-values-overrides -c cinder ${FEATURES})"}
 : ${RUN_HELM_TESTS:="yes"}
-
-#NOTE: Lint and package chart
-make cinder
 
 #NOTE: Deploy command
 tee /tmp/cinder.yaml <<EOF
@@ -66,7 +63,7 @@ helm upgrade --install cinder ./cinder \
   ${OSH_EXTRA_HELM_ARGS_CINDER}
 
 #NOTE: Wait for deploy
-./tools/deployment/common/wait-for-pods.sh openstack
+helm osh wait-for-pods openstack
 
 #NOTE: Validate Deployment info
 export OS_CLOUD=openstack_helm
