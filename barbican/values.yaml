@@ -356,18 +356,23 @@ conf:
     service_endpoints:
       # map endpoint type defined in service catalog to CADF typeURI
       key-manager: service/security/keymanager
-  barbican_api:
+  barbican_api_uwsgi:
     uwsgi:
-      socket: null
-      protocol: http
-      processes: 1
-      lazy: true
-      vacuum: true
-      no-default-app: true
-      memory-report: true
-      plugins: python
-      paste: "config:/etc/barbican/barbican-api-paste.ini"
       add-header: "Connection: close"
+      buffer-size: 65535
+      die-on-term: true
+      enable-threads: true
+      exit-on-reload: false
+      hook-master-start: unix_signal:15 gracefully_kill_them_all
+      lazy-apps: true
+      log-x-forwarded-for: true
+      master: true
+      procname-prefix-spaced: "barbiacan-api:"
+      route-user-agent: '^kube-probe.* donotlog:'
+      thunder-lock: true
+      worker-reload-mercy: 80
+      wsgi-file: /var/lib/openstack/bin/barbican-wsgi-api
+      processes: 1
   barbican:
     DEFAULT:
       transport_url: null

@@ -18,7 +18,7 @@ set -ex
 COMMAND="${@:-start}"
 
 function start () {
-  exec uwsgi --die-on-term --master --emperor /etc/barbican/vassals
+  exec uwsgi --ini /etc/barbican/barbican-api-uwsgi.ini
 }
 
 function stop () {
