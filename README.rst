@@ -23,10 +23,6 @@ that are tested and proved to work.
      - Host OS
      - Image OS
      - Kubernetes version
-   * - Yoga
-     - Ubuntu Focal
-     - Ubuntu Focal
-     - >=1.26,<=1.28
    * - Zed
      - Ubuntu Focal
      - Ubuntu Focal
@@ -44,6 +40,10 @@ that are tested and proved to work.
      - Ubuntu Jammy
      - >=1.26,<=1.28
    * - 2023.2 (Bobcat)
+     - Ubuntu Jammy
+     - Ubuntu Jammy
+     - >=1.26,<=1.28
+   * - 2024.1 (Caracal)
      - Ubuntu Jammy
      - Ubuntu Jammy
      - >=1.26,<=1.28
