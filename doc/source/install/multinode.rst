@@ -18,7 +18,7 @@ Alternatively, this step can be performed by running the script directly:
 Deploy Cluster and Namespace Ingress Controllers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. literalinclude:: ../../../tools/deployment/multinode/020-ingress.sh
+.. literalinclude:: ../../../tools/deployment/common/ingress.sh
     :language: shell
     :lines: 1,17-
 

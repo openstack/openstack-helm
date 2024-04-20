@@ -1,1 +1,0 @@
-../osh-infra-monitoring/020-ingress.sh
