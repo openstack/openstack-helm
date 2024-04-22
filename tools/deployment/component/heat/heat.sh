@@ -14,10 +14,7 @@
 set -xe
 
 #NOTE: Get the over-rides to use
-: ${OSH_EXTRA_HELM_ARGS_HEAT:="$(./tools/deployment/common/get-values-overrides.sh heat)"}
-
-#NOTE: Lint and package chart
-make heat
+: ${OSH_EXTRA_HELM_ARGS_HEAT:="$(helm osh get-values-overrides -c heat ${FEATURES})"}
 
 #NOTE: Deploy command
 : ${OSH_EXTRA_HELM_ARGS:=""}
@@ -27,7 +24,7 @@ helm upgrade --install heat ./heat \
   ${OSH_EXTRA_HELM_ARGS_HEAT}
 
 #NOTE: Wait for deploy
-./tools/deployment/common/wait-for-pods.sh openstack
+helm osh wait-for-pods openstack
 
 #NOTE: Validate Deployment info
 export OS_CLOUD=openstack_helm

@@ -15,11 +15,8 @@
 set -xe
 
 #NOTE: Get the over-rides to use
-: ${OSH_EXTRA_HELM_ARGS_GLANCE:="$(./tools/deployment/common/get-values-overrides.sh glance)"}
+: ${OSH_EXTRA_HELM_ARGS_GLANCE:="$(helm osh get-values-overrides -c glance ${FEATURES})"}
 : ${RUN_HELM_TESTS:="yes"}
-
-#NOTE: Lint and package chart
-make glance
 
 #NOTE: Deploy command
 : ${OSH_EXTRA_HELM_ARGS:=""}
@@ -43,7 +40,7 @@ helm upgrade --install glance ./glance \
   ${OSH_EXTRA_HELM_ARGS_GLANCE}
 
 #NOTE: Wait for deploy
-./tools/deployment/common/wait-for-pods.sh openstack
+helm osh wait-for-pods openstack
 
 export OS_CLOUD=openstack_helm
 openstack service list

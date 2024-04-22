@@ -18,7 +18,7 @@ export FEATURE_GATES="ovn"
 : ${RUN_HELM_TESTS:="yes"}
 
 #NOTE: Get the over-rides to use
-: ${OSH_EXTRA_HELM_ARGS_NOVA:="$(./tools/deployment/common/get-values-overrides.sh nova)"}
+: ${OSH_EXTRA_HELM_ARGS_NOVA:="$(helm osh get-values-overrides -c nova ${FEATURES})"}
 
 tee /tmp/pvc-ceph-client-key.yaml << EOF
 AQAk//BhgQMXDxAAPwH86gbDjEEpmXC4s2ontw==
@@ -26,20 +26,13 @@ EOF
 kubectl -n openstack create secret generic pvc-ceph-client-key --from-file=key=/tmp/pvc-ceph-client-key.yaml || true
 rm -f /tmp/pvc-ceph-client-key.yaml
 
-
-#NOTE: Lint and package chart
-make nova
-
 helm upgrade --install nova ./nova \
     --namespace=openstack \
     ${OSH_EXTRA_HELM_ARGS:=} \
     ${OSH_EXTRA_HELM_ARGS_NOVA}
 
 # Get overrides
-: ${OSH_EXTRA_HELM_ARGS_PLACEMENT:="$(./tools/deployment/common/get-values-overrides.sh placement)"}
-
-# Lint and package
-make placement
+: ${OSH_EXTRA_HELM_ARGS_PLACEMENT:="$(helm osh get-values-overrides -c placement ${FEATURES})"}
 
 # Deploy
 helm upgrade --install placement ./placement \
@@ -48,10 +41,7 @@ helm upgrade --install placement ./placement \
     ${OSH_EXTRA_HELM_ARGS_PLACEMENT}
 
 #NOTE: Get the over-rides to use
-: ${OSH_EXTRA_HELM_ARGS_NEUTRON:="$(./tools/deployment/common/get-values-overrides.sh neutron)"}
-
-#NOTE: Lint and package chart
-make neutron
+: ${OSH_EXTRA_HELM_ARGS_NEUTRON:="$(helm osh get-values-overrides -c neutron ${FEATURES})"}
 
 helm upgrade --install neutron ./neutron \
     --namespace=openstack \
@@ -60,7 +50,7 @@ helm upgrade --install neutron ./neutron \
     ${OSH_EXTRA_HELM_ARGS_NEUTRON}
 
 #NOTE: Wait for deploy
-./tools/deployment/common/wait-for-pods.sh openstack
+helm osh wait-for-pods openstack
 
 ./tools/deployment/common/run-helm-tests.sh nova
 ./tools/deployment/common/run-helm-tests.sh neutron

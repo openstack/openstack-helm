@@ -16,8 +16,6 @@
 
 set -xe
 
-#NOTE: Lint and package chart
-make octavia
 export OS_CLOUD=openstack_helm
 
 : ${OSH_LB_AMPHORA_IMAGE_NAME:="amphora-x64-haproxy"}
@@ -115,7 +113,7 @@ helm upgrade --install octavia ./octavia \
   ${OSH_EXTRA_HELM_ARGS_OCTAVIA}
 
 #NOTE: Wait for deploy
-./tools/deployment/common/wait-for-pods.sh openstack
+helm osh wait-for-pods openstack
 
 #NOTE: Validate Deployment info
 export OS_CLOUD=openstack_helm

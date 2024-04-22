@@ -23,20 +23,14 @@ if openstack service list -f value -c Type | grep -q "^volume" && \
 fi
 
 # Get overrides
-: ${OSH_EXTRA_HELM_ARGS_PLACEMENT:="$(./tools/deployment/common/get-values-overrides.sh placement)"}
-
-# Lint and package
-make placement
+: ${OSH_EXTRA_HELM_ARGS_PLACEMENT:="$(helm osh get-values-overrides -c placement ${FEATURES})"}
 
 # Deploy placement
 helm upgrade --install placement ./placement --namespace=openstack \
     ${OSH_EXTRA_HELM_ARGS:=} ${OSH_EXTRA_HELM_ARGS_PLACEMENT}
 
 #NOTE: Get the over-rides to use
-: ${OSH_EXTRA_HELM_ARGS_NOVA:="$(./tools/deployment/common/get-values-overrides.sh nova)"}
-
-#NOTE: Lint and package chart
-make nova
+: ${OSH_EXTRA_HELM_ARGS_NOVA:="$(helm osh get-values-overrides -c nova ${FEATURES})"}
 
 #NOTE: Deploy nova
 : ${OSH_EXTRA_HELM_ARGS:=""}
@@ -61,10 +55,7 @@ else
 fi
 
 #NOTE: Get the over-rides to use
-: ${OSH_EXTRA_HELM_ARGS_NEUTRON:="$(./tools/deployment/common/get-values-overrides.sh neutron)"}
-
-#NOTE: Lint and package chart
-make neutron
+: ${OSH_EXTRA_HELM_ARGS_NEUTRON:="$(helm osh get-values-overrides -c neutron ${FEATURES})"}
 
 #NOTE: Deploy neutron
 tee /tmp/neutron.yaml << EOF
@@ -114,7 +105,7 @@ if [[ "$FEATURE_GATES" =~ (,|^)tf(,|$) ]]; then
   exit 0
 fi
 #NOTE: Wait for deploy
-./tools/deployment/common/wait-for-pods.sh openstack
+helm osh wait-for-pods openstack
 
 #NOTE: Validate Deployment info
 export OS_CLOUD=openstack_helm

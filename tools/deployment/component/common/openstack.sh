@@ -68,21 +68,18 @@ neutron:
 EOF
 ## includes second argument 'subchart' to indicate a different path
 export HELM_CHART_ROOT_PATH="../openstack-helm/openstack"
-: ${OSH_EXTRA_HELM_ARGS_MARIADB:="$(./tools/deployment/common/get-values-overrides.sh mariadb subchart)"}
-: ${OSH_EXTRA_HELM_ARGS_RABBITMQ:="$(./tools/deployment/common/get-values-overrides.sh rabbitmq subchart)"}
-: ${OSH_EXTRA_HELM_ARGS_MEMCACHED:="$(./tools/deployment/common/get-values-overrides.sh memcached subchart)"}
-: ${OSH_EXTRA_HELM_ARGS_KEYSTONE:="$(./tools/deployment/common/get-values-overrides.sh keystone subchart)"}
-: ${OSH_EXTRA_HELM_ARGS_HEAT:="$(./tools/deployment/common/get-values-overrides.sh heat subchart)"}
-: ${OSH_EXTRA_HELM_ARGS_GLANCE:="$(./tools/deployment/common/get-values-overrides.sh glance subchart)"}
-: ${OSH_EXTRA_HELM_ARGS_OPENVSWITCH:="$(./tools/deployment/common/get-values-overrides.sh openvswitch subchart)"}
-: ${OSH_EXTRA_HELM_ARGS_LIBVIRT:="$(./tools/deployment/common/get-values-overrides.sh libvirt subchart)"}
-: ${OSH_EXTRA_HELM_ARGS_NOVA:="$(./tools/deployment/common/get-values-overrides.sh nova subchart)"}
-: ${OSH_EXTRA_HELM_ARGS_PLACEMENT:="$(./tools/deployment/common/get-values-overrides.sh placement subchart)"}
-: ${OSH_EXTRA_HELM_ARGS_NEUTRON:="$(./tools/deployment/common/get-values-overrides.sh neutron subchart)"}
-: ${OSH_EXTRA_HELM_ARGS_HORIZON:="$(./tools/deployment/common/get-values-overrides.sh horizon subchart)"}
-
-#NOTE: Lint and package chart
-make -C ${HELM_CHART_ROOT_PATH} .
+: ${OSH_EXTRA_HELM_ARGS_MARIADB:="$(helm osh get-values-overrides -c openstack -s mariadb ${FEATURES})"}
+: ${OSH_EXTRA_HELM_ARGS_RABBITMQ:="$(helm osh get-values-overrides -c openstack -s rabbitmq ${FEATURES})"}
+: ${OSH_EXTRA_HELM_ARGS_MEMCACHED:="$(helm osh get-values-overrides -c openstack -s memcached ${FEATURES})"}
+: ${OSH_EXTRA_HELM_ARGS_KEYSTONE:="$(helm osh get-values-overrides -c openstack -s keystone ${FEATURES})"}
+: ${OSH_EXTRA_HELM_ARGS_HEAT:="$(helm osh get-values-overrides -c openstack -s heat ${FEATURES})"}
+: ${OSH_EXTRA_HELM_ARGS_GLANCE:="$(helm osh get-values-overrides -c openstack -s glance ${FEATURES})"}
+: ${OSH_EXTRA_HELM_ARGS_OPENVSWITCH:="$(helm osh get-values-overrides -c openstack -s openvswitch ${FEATURES})"}
+: ${OSH_EXTRA_HELM_ARGS_LIBVIRT:="$(helm osh get-values-overrides -c openstack -s libvirt ${FEATURES})"}
+: ${OSH_EXTRA_HELM_ARGS_NOVA:="$(helm osh get-values-overrides -c openstack -s nova ${FEATURES})"}
+: ${OSH_EXTRA_HELM_ARGS_PLACEMENT:="$(helm osh get-values-overrides -c openstack -s placement ${FEATURES})"}
+: ${OSH_EXTRA_HELM_ARGS_NEUTRON:="$(helm osh get-values-overrides -c openstack -s neutron ${FEATURES})"}
+: ${OSH_EXTRA_HELM_ARGS_HORIZON:="$(helm osh get-values-overrides -c openstack -s horizon ${FEATURES})"}
 
 if [ "x$(systemd-detect-virt)" != "xnone" ]; then
   echo 'OSH is being deployed in virtualized environment, using qemu for nova'
@@ -129,7 +126,7 @@ if [[ "$FEATURE_GATES" =~ (,|^)tf(,|$) ]]; then
 fi
 
 #NOTE: Wait for deploy
-./tools/deployment/common/wait-for-pods.sh $namespace 1800
+helm osh wait-for-pods $namespace 1800
 
 # list pods and services
 echo "------------------ List kube-system pods and servics ------------"

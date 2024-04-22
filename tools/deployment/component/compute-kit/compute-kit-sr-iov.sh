@@ -125,7 +125,7 @@ helm upgrade --install neutron ./neutron \
     ${OSH_EXTRA_HELM_ARGS}
 
 #NOTE: Wait for deploy
-./tools/deployment/common/wait-for-pods.sh openstack
+helm osh wait-for-pods openstack
 
 #NOTE: Validate Deployment info
 export OS_CLOUD=openstack_helm

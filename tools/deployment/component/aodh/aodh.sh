@@ -13,9 +13,6 @@
 #    under the License.
 set -xe
 
-#NOTE: Lint and package chart
-make aodh
-
 #NOTE: Wait for deploy
 helm upgrade --install aodh ./aodh \
   --namespace=openstack \
@@ -27,7 +24,7 @@ helm upgrade --install aodh ./aodh \
   ${OSH_EXTRA_HELM_ARGS_AODH}
 
 #NOTE: Wait for deploy
-./tools/deployment/common/wait-for-pods.sh openstack
+helm osh wait-for-pods openstack
 
 #NOTE: Validate Deployment info
 export OS_CLOUD=openstack_helm

@@ -14,11 +14,8 @@
 set -xe
 
 #NOTE: Get the over-rides to use
-: ${OSH_EXTRA_HELM_ARGS_TACKER:="$(./tools/deployment/common/get-values-overrides.sh tacker)"}
+: ${OSH_EXTRA_HELM_ARGS_TACKER:="$(helm osh get-values-overrides -c tacker ${FEATURES})"}
 : ${RUN_HELM_TESTS:="no"}
-
-#NOTE: Lint and package chart
-make tacker
 
 #NOTE: Deploy command
 helm upgrade --install tacker ./tacker \
@@ -27,4 +24,4 @@ helm upgrade --install tacker ./tacker \
     ${OSH_EXTRA_HELM_ARGS_TACKER}
 
 #NOTE: Wait for deploy
-./tools/deployment/common/wait-for-pods.sh openstack
+helm osh wait-for-pods openstack
