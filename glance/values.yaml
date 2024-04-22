@@ -389,6 +389,22 @@ conf:
         priority: 0
         apply-to: all
         pattern: '^(?!(amq\.|reply_)).*'
+  glance_api_uwsgi:
+    uwsgi:
+      add-header: "Connection: close"
+      buffer-size: 65535
+      die-on-term: true
+      enable-threads: true
+      exit-on-reload: false
+      hook-master-start: unix_signal:15 gracefully_kill_them_all
+      lazy-apps: true
+      log-x-forwarded-for: true
+      master: true
+      procname-prefix-spaced: "glance-api:"
+      route-user-agent: '^kube-probe.* donotlog:'
+      thunder-lock: true
+      worker-reload-mercy: 80
+      wsgi-file: /var/lib/openstack/bin/glance-wsgi-api
 
 network:
   api:
@@ -883,14 +899,14 @@ pod:
         readiness:
           enabled: true
           params:
-            periodSeconds: 15
-            timeoutSeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
         liveness:
           enabled: true
           params:
-            initialDelaySeconds: 30
-            periodSeconds: 15
-            timeoutSeconds: 10
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
   resources:
     enabled: false
     api:
