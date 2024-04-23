@@ -1,1 +1,0 @@
-../multinode/030-ceph.sh

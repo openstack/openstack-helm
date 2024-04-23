@@ -44,5 +44,3 @@ EOF
 
 kubectl apply -f /tmp/${NAMESPACE}-ns.yaml
 done
-
-make all

@@ -1,1 +1,0 @@
-../keystone-auth/070-keystone.sh

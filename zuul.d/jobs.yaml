@@ -119,15 +119,16 @@
         container_distro_name: ubuntu
         container_distro_version: focal
       gate_scripts:
-        - ./tools/deployment/osh-infra-logging/000-prepare-k8s.sh
+        - ./tools/deployment/common/prepare-k8s.sh
+        - ./tools/deployment/common/prepare-charts.sh
         - ./tools/deployment/common/ingress.sh
         - ./tools/deployment/ceph/ceph-rook.sh
         - ./tools/deployment/ceph/ceph-adapter-rook.sh
-        - ./tools/deployment/osh-infra-logging/040-ldap.sh
-        - ./tools/deployment/osh-infra-logging/050-elasticsearch.sh
-        - ./tools/deployment/osh-infra-logging/060-fluentd.sh
-        - ./tools/deployment/osh-infra-logging/070-kibana.sh
-        - ./tools/deployment/osh-infra-logging/600-kibana-selenium.sh || true
+        - ./tools/deployment/common/ldap.sh
+        - ./tools/deployment/logging/elasticsearch.sh
+        - ./tools/deployment/logging/fluentd.sh
+        - ./tools/deployment/logging/kibana.sh
+        - ./tools/gate/selenium/kibana-selenium.sh || true
 
 - job:
     name: openstack-helm-infra-monitoring
@@ -139,26 +140,27 @@
         container_distro_name: ubuntu
         container_distro_version: focal
       gate_scripts:
-        - ./tools/deployment/osh-infra-monitoring/000-prepare-k8s.sh
-        - ./tools/deployment/osh-infra-monitoring/010-deploy-docker-registry.sh
+        - ./tools/deployment/common/prepare-k8s.sh
+        - ./tools/deployment/common/prepare-charts.sh
+        - ./tools/deployment/common/deploy-docker-registry.sh
         - ./tools/deployment/common/ingress.sh
-        - ./tools/deployment/osh-infra-monitoring/030-nfs-provisioner.sh
-        - ./tools/deployment/osh-infra-monitoring/040-ldap.sh
-        - ./tools/deployment/osh-infra-monitoring/045-mariadb.sh
-        - ./tools/deployment/osh-infra-monitoring/050-prometheus.sh
-        - ./tools/deployment/osh-infra-monitoring/060-alertmanager.sh
-        - ./tools/deployment/osh-infra-monitoring/070-kube-state-metrics.sh
-        - ./tools/deployment/osh-infra-monitoring/075-node-problem-detector.sh
-        - ./tools/deployment/osh-infra-monitoring/080-node-exporter.sh
-        - ./tools/deployment/osh-infra-monitoring/090-process-exporter.sh
-        - ./tools/deployment/osh-infra-monitoring/100-openstack-exporter.sh
-        - ./tools/deployment/osh-infra-monitoring/105-blackbox-exporter.sh
-        - ./tools/deployment/osh-infra-monitoring/110-grafana.sh
-        - ./tools/deployment/osh-infra-monitoring/120-nagios.sh
-        - ./tools/deployment/osh-infra-monitoring/170-postgresql.sh
-        - ./tools/deployment/osh-infra-monitoring/600-grafana-selenium.sh || true
-        - ./tools/deployment/osh-infra-monitoring/610-prometheus-selenium.sh || true
-        - ./tools/deployment/osh-infra-monitoring/620-nagios-selenium.sh || true
+        - ./tools/deployment/common/nfs-provisioner.sh
+        - ./tools/deployment/common/ldap.sh
+        - ./tools/deployment/db/mariadb.sh
+        - ./tools/deployment/db/postgresql.sh
+        - ./tools/deployment/monitoring/prometheus.sh
+        - ./tools/deployment/monitoring/alertmanager.sh
+        - ./tools/deployment/monitoring/kube-state-metrics.sh
+        - ./tools/deployment/monitoring/node-problem-detector.sh
+        - ./tools/deployment/monitoring/node-exporter.sh
+        - ./tools/deployment/monitoring/process-exporter.sh
+        - ./tools/deployment/monitoring/openstack-exporter.sh
+        - ./tools/deployment/monitoring/blackbox-exporter.sh
+        - ./tools/deployment/monitoring/grafana.sh
+        - ./tools/deployment/monitoring/nagios.sh
+        - ./tools/gate/selenium/grafana-selenium.sh || true
+        - ./tools/gate/selenium/prometheus-selenium.sh || true
+        - ./tools/gate/selenium/nagios-selenium.sh || true
 
 - job:
     name: openstack-helm-infra-metacontroller
@@ -171,6 +173,7 @@
         feature_gates: apparmor
       gate_scripts:
         - ./tools/deployment/common/prepare-k8s.sh
+        - ./tools/deployment/common/prepare-charts.sh
         - ./tools/deployment/common/metacontroller.sh
         - ./tools/deployment/common/daemonjob-controller.sh
 
@@ -178,28 +181,36 @@
     name: openstack-helm-infra-mariadb-operator-2023-1-ubuntu_focal
     parent: openstack-helm-infra-deploy
     nodeset: openstack-helm-3nodes-ubuntu_focal
+    pre-run:
+      - playbooks/prepare-hosts.yaml
+      - playbooks/mount-volumes.yaml
     vars:
       osh_params:
         openstack_release: "2023.1"
         container_distro_name: ubuntu
         container_distro_version: focal
-        feature_gates: "prometheus,backups"
+        feature_gates: "ldap,prometheus,backups"
       gate_scripts:
-        - ./tools/deployment/openstack-support/000-prepare-k8s.sh
-        - ./tools/deployment/openstack-support/007-namespace-config.sh
+        - ./tools/deployment/common/prepare-k8s.sh
+        - ./tools/deployment/common/prepare-charts.sh
+        - ./tools/deployment/common/namespace-config.sh
         - ./tools/deployment/common/ingress.sh
         - ./tools/deployment/ceph/ceph.sh
-        - ./tools/deployment/openstack-support/025-ceph-ns-activate.sh
+        - ./tools/deployment/ceph/ceph-ns-activate.sh
         - ./tools/deployment/common/setup-client.sh
-        - ./tools/deployment/mariadb-operator-cluster/040-rabbitmq.sh
-        - ./tools/deployment/mariadb-operator-cluster/050-memcached.sh
-        - ./tools/deployment/mariadb-operator-cluster/045-mariadb-operator-cluster.sh
-        - ./tools/deployment/mariadb-operator-cluster/070-keystone.sh
-        - ./tools/deployment/mariadb-operator-cluster/090-mariadb-backup-test.sh
-        - ./tools/deployment/mariadb-operator-cluster/095-mariadb-prometheus-mysql-exporter.sh
+        - ./tools/deployment/common/rabbitmq.sh
+        - ./tools/deployment/common/memcached.sh
+        - ./tools/deployment/db/mariadb-operator-cluster.sh
+        - export NAMESPACE=openstack; ./tools/deployment/common/ldap.sh
+        - |
+          export OSH_EXTRA_HELM_ARGS="--set endpoints.oslo_db.hosts.default=mariadb-server-primary ${OSH_EXTRA_HELM_ARGS}"
+          ./tools/deployment/openstack/keystone.sh
+        - ./tools/deployment/db/mariadb-backup.sh
+        - ./tools/deployment/monitoring/mysql-exporter.sh
     files:
       - ^roles/.*
       - ^mariadb-cluster/.*
+      - ^tools/.*
 
 - job:
     name: openstack-helm-infra-compute-kit-dpdk-2023-2-ubuntu_jammy

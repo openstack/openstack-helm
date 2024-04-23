@@ -1,1 +1,0 @@
-../common/node-problem-detector.sh

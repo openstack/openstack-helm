@@ -34,7 +34,7 @@ helm upgrade --install ingress-nginx-cluster ingress-nginx/ingress-nginx \
   --set controller.labels.app=ingress-api
 
 #NOTE: Wait for deploy
-./tools/deployment/common/wait-for-pods.sh kube-system
+helm osh wait-for-pods kube-system
 
 #NOTE: Deploy namespace ingress
 helm upgrade --install ingress-nginx-openstack ingress-nginx/ingress-nginx \
@@ -49,7 +49,7 @@ helm upgrade --install ingress-nginx-openstack ingress-nginx/ingress-nginx \
   --set controller.labels.app=ingress-api
 
 #NOTE: Wait for deploy
-./tools/deployment/common/wait-for-pods.sh openstack
+helm osh wait-for-pods openstack
 
 helm upgrade --install ingress-nginx-ceph ingress-nginx/ingress-nginx \
   --version ${HELM_INGRESS_NGINX_VERSION} \
@@ -63,7 +63,7 @@ helm upgrade --install ingress-nginx-ceph ingress-nginx/ingress-nginx \
   --set controller.labels.app=ingress-api
 
 #NOTE: Wait for deploy
-./tools/deployment/common/wait-for-pods.sh ceph
+helm osh wait-for-pods ceph
 
 helm upgrade --install ingress-nginx-osh-infra ingress-nginx/ingress-nginx \
   --version ${HELM_INGRESS_NGINX_VERSION} \
@@ -77,4 +77,4 @@ helm upgrade --install ingress-nginx-osh-infra ingress-nginx/ingress-nginx \
   --set controller.labels.app=ingress-api
 
 #NOTE: Wait for deploy
-./tools/deployment/common/wait-for-pods.sh osh-infra
+helm osh wait-for-pods osh-infra

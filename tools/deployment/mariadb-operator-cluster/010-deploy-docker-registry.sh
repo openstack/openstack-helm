@@ -1,1 +1,0 @@
-../osh-infra-monitoring/010-deploy-docker-registry.sh

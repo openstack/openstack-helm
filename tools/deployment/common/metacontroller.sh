@@ -14,10 +14,7 @@
 set -xe
 
 namespace="metacontroller"
-: ${HELM_ARGS_METACONTROLLER:="$(./tools/deployment/common/get-values-overrides.sh metacontroller)"}
-
-#NOTE: Lint and package chart
-make metacontroller
+: ${HELM_ARGS_METACONTROLLER:="$(helm osh get-values-overrides -c metacontroller ${FEATURES})"}
 
 #NOTE: Check no crd exists of APIGroup metacontroller.k8s.io
 crds=$(kubectl get crd | awk '/metacontroller.k8s.io/{print $1}')
@@ -45,7 +42,7 @@ helm upgrade --install metacontroller ./metacontroller \
     ${HELM_ARGS_METACONTROLLER}
 
 #NOTE: Wait for deploy
-./tools/deployment/common/wait-for-pods.sh metacontroller
+helm osh wait-for-pods metacontroller
 
 #NOTE: Check crds of APIGroup metacontroller.k8s.io successfully created
 crds=$(kubectl get crd | awk '/metacontroller.k8s.io/{print $1}')

@@ -1,1 +1,0 @@
-../osh-infra-monitoring/120-nagios.sh

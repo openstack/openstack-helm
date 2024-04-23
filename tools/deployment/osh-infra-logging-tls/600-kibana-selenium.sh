@@ -1,1 +1,0 @@
-../common/kibana-selenium.sh

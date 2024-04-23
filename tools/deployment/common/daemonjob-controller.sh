@@ -14,10 +14,7 @@
 set -xe
 
 namespace="metacontroller"
-: ${HELM_ARGS_DAEMONJOB_CONTROLLER:="$(./tools/deployment/common/get-values-overrides.sh daemonjob-controller)"}
-
-#NOTE: Lint and package chart
-make daemonjob-controller
+: ${HELM_ARGS_DAEMONJOB_CONTROLLER:="$(helm osh get-values-overrides -c daemonjob-controller ${FEATURES})"}
 
 #NOTE: Deploy command
 helm upgrade --install daemonjob-controller ./daemonjob-controller \
@@ -26,7 +23,7 @@ helm upgrade --install daemonjob-controller ./daemonjob-controller \
     ${HELM_ARGS_DAEMONJOB_CONTROLLER}
 
 #NOTE: Wait for deploy
-./tools/deployment/common/wait-for-pods.sh daemonjob-controller
+helm osh wait-for-pods daemonjob-controller
 
 #NOTE: CompositeController succesfully deployed
 composite_controller_cr=$(kubectl get compositecontrollers | awk '{print $1}')

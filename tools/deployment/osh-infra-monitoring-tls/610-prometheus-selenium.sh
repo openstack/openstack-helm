@@ -1,1 +1,0 @@
-../common/prometheus-selenium.sh

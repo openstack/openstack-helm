@@ -1,1 +1,0 @@
-../openstack-support/040-memcached.sh

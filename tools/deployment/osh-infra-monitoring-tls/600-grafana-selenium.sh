@@ -1,1 +1,0 @@
-../common/grafana-selenium.sh

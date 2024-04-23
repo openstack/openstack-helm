@@ -1,1 +1,0 @@
-../keystone-auth/040-rabbitmq.sh

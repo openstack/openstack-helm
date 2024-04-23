@@ -1,1 +1,0 @@
-../osh-infra-monitoring/090-process-exporter.sh

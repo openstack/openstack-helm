@@ -1,1 +1,0 @@
-../multinode/115-radosgw-osh-infra.sh

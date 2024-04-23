@@ -1,1 +1,0 @@
-../keystone-auth/010-setup-client.sh

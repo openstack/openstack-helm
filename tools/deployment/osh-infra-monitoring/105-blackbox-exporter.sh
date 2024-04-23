@@ -1,1 +1,0 @@
-../common/blackbox-exporter.sh
