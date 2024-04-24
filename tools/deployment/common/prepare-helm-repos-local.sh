@@ -13,11 +13,19 @@
 
 set -ex
 
-# Build all OSH Infra charts (necessary for Openstack deployment)
+: ${OSH_INFRA_PATH:="../openstack-helm-infra"}
 (
-    cd ${OSH_INFRA_PATH:-"../openstack-helm-infra"} &&
-    make all
+    cd ${OSH_INFRA_PATH} &&
+    helm repo index ./
 )
 
-# Build all OSH charts
-make all
+helm repo index ./
+
+docker run -d --name nginx_charts \
+    -v $(pwd):/usr/share/nginx/html/openstack-helm:ro \
+    -v $(readlink -f ${OSH_INFRA_PATH}):/usr/share/nginx/html/openstack-helm-infra:ro \
+    -p 80:80 \
+    nginx
+
+helm repo add ${OSH_HELM_REPO:-"openstack-helm"} http://localhost/openstack-helm
+helm repo add ${OSH_INFRA_HELM_REPO:-"openstack-helm-infra"} http://localhost/openstack-helm-infra

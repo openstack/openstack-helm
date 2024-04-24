@@ -14,9 +14,10 @@
 
 set -xe
 
-#NOTE: Get the over-rides to use
-export HELM_CHART_ROOT_PATH="${HELM_CHART_ROOT_PATH:="${OSH_INFRA_PATH:="../openstack-helm-infra"}"}"
-: ${OSH_EXTRA_HELM_ARGS_CEPH_NS_ACTIVATE:="$(helm osh get-values-overrides -p ${HELM_CHART_ROOT_PATH} -c ceph-provisioners ${FEATURES})"}
+#NOTE: Define variables
+: ${OSH_INFRA_HELM_REPO:="../openstack-helm-infra"}
+: ${OSH_INFRA_PATH:="../openstack-helm-infra"}
+: ${OSH_EXTRA_HELM_ARGS_CEPH_NS_ACTIVATE:="$(helm osh get-values-overrides ${DOWLOAD_OVERRIDES:-} -p ${OSH_INFRA_PATH} -c ceph-provisioners ${FEATURES})"}
 
 #NOTE: Deploy command
 tee /tmp/ceph-openstack-config.yaml <<EOF
@@ -40,11 +41,11 @@ conf:
       mon_host: ceph-mon-discovery.ceph.svc.cluster.local:6789
       mon_allow_pool_size_one: true
 EOF
-helm upgrade --install ceph-openstack-config ${HELM_CHART_ROOT_PATH}/ceph-provisioners \
-  --namespace=openstack \
-  --values=/tmp/ceph-openstack-config.yaml \
-  ${OSH_EXTRA_HELM_ARGS:=} \
-  ${OSH_EXTRA_HELM_ARGS_CEPH_NS_ACTIVATE}
+helm upgrade --install ceph-openstack-config ${OSH_INFRA_HELM_REPO}/ceph-provisioners \
+    --namespace=openstack \
+    --values=/tmp/ceph-openstack-config.yaml \
+    ${OSH_EXTRA_HELM_ARGS:=} \
+    ${OSH_EXTRA_HELM_ARGS_CEPH_NS_ACTIVATE}
 
 #NOTE: Wait for deploy
 helm osh wait-for-pods openstack

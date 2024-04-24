@@ -20,13 +20,13 @@ if openstack service list -f value -c Type | grep -q "^volume" && \
   CEPH_ENABLED=true
 fi
 
-#NOTE: Get the over-rides to use
-export HELM_CHART_ROOT_PATH="${HELM_CHART_ROOT_PATH:="${OSH_INFRA_PATH:="../openstack-helm-infra"}"}"
-: ${OSH_EXTRA_HELM_ARGS_LIBVIRT:="$(helm osh get-values-overrides -p ${HELM_CHART_ROOT_PATH} -c libvirt ${FEATURES})"}
+#NOTE: Define variables
+: ${OSH_INFRA_HELM_REPO:="../openstack-helm-infra"}
+: ${OSH_INFRA_PATH:="../openstack-helm-infra"}
+: ${OSH_EXTRA_HELM_ARGS_LIBVIRT:="$(helm osh get-values-overrides ${DOWLOAD_OVERRIDES:-} -p ${OSH_INFRA_PATH} -c libvirt ${FEATURES})"}
 
 #NOTE: Deploy command
-: ${OSH_EXTRA_HELM_ARGS:=""}
-helm upgrade --install libvirt ${HELM_CHART_ROOT_PATH}/libvirt \
+helm upgrade --install libvirt ${OSH_INFRA_HELM_REPO}/libvirt \
   --namespace=openstack \
   --set conf.ceph.enabled=${CEPH_ENABLED} \
   ${OSH_EXTRA_HELM_ARGS:=} \

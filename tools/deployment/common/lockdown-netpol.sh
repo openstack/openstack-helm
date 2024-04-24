@@ -13,19 +13,16 @@
 #    under the License.
 set -xe
 
-#NOTE: Get the over-rides to use
-export HELM_CHART_ROOT_PATH="${HELM_CHART_ROOT_PATH:="${OSH_INFRA_PATH:="../openstack-helm-infra"}"}"
-: ${OSH_EXTRA_HELM_ARGS_LOCKDOWN:="$(./tools/deployment/common/get-values-overrides.sh lockdown)"}
-
-#NOTE: Lint and package chart
-make -C ${HELM_CHART_ROOT_PATH} lockdown
+#NOTE: Define variables
+: ${OSH_INFRA_HELM_REPO:="../openstack-helm-infra"}
+: ${OSH_INFRA_PATH:="../openstack-helm-infra"}
+: ${OSH_EXTRA_HELM_ARGS_LOCKDOWN:="$(helm osh get-values-overrides ${DOWLOAD_OVERRIDES:-} -p ${OSH_INFRA_PATH} -c lockdown ${FEATURES})"}
 
 #NOTE: Deploy command
-: ${OSH_EXTRA_HELM_ARGS:=""}
-helm upgrade --install lockdown ${HELM_CHART_ROOT_PATH}/lockdown \
+helm upgrade --install lockdown ${OSH_INFRA_HELM_REPO}/lockdown \
     --namespace=openstack \
-    ${OSH_EXTRA_HELM_ARGS} \
+    ${OSH_EXTRA_HELM_ARGS:=} \
     ${OSH_EXTRA_HELM_ARGS_LOCKDOWN}
 
 #NOTE: Wait for deploy
-./tools/deployment/common/wait-for-pods.sh openstack
+helm osh wait-for-pods openstack

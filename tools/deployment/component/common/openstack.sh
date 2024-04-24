@@ -14,6 +14,9 @@
 
 set -xe
 
+#NOTE: Define variables
+: ${OSH_HELM_REPO:="../openstack-helm"}
+: ${OSH_PATH:="../openstack-helm"}
 export OSH_TEST_TIMEOUT=1200
 export OS_CLOUD=openstack_helm
 : "${RUN_HELM_TESTS:="no"}"
@@ -67,19 +70,18 @@ neutron:
         node_selector_value: enabled
 EOF
 ## includes second argument 'subchart' to indicate a different path
-export HELM_CHART_ROOT_PATH="../openstack-helm/openstack"
-: ${OSH_EXTRA_HELM_ARGS_MARIADB:="$(helm osh get-values-overrides -c openstack -s mariadb ${FEATURES})"}
-: ${OSH_EXTRA_HELM_ARGS_RABBITMQ:="$(helm osh get-values-overrides -c openstack -s rabbitmq ${FEATURES})"}
-: ${OSH_EXTRA_HELM_ARGS_MEMCACHED:="$(helm osh get-values-overrides -c openstack -s memcached ${FEATURES})"}
-: ${OSH_EXTRA_HELM_ARGS_KEYSTONE:="$(helm osh get-values-overrides -c openstack -s keystone ${FEATURES})"}
-: ${OSH_EXTRA_HELM_ARGS_HEAT:="$(helm osh get-values-overrides -c openstack -s heat ${FEATURES})"}
-: ${OSH_EXTRA_HELM_ARGS_GLANCE:="$(helm osh get-values-overrides -c openstack -s glance ${FEATURES})"}
-: ${OSH_EXTRA_HELM_ARGS_OPENVSWITCH:="$(helm osh get-values-overrides -c openstack -s openvswitch ${FEATURES})"}
-: ${OSH_EXTRA_HELM_ARGS_LIBVIRT:="$(helm osh get-values-overrides -c openstack -s libvirt ${FEATURES})"}
-: ${OSH_EXTRA_HELM_ARGS_NOVA:="$(helm osh get-values-overrides -c openstack -s nova ${FEATURES})"}
-: ${OSH_EXTRA_HELM_ARGS_PLACEMENT:="$(helm osh get-values-overrides -c openstack -s placement ${FEATURES})"}
-: ${OSH_EXTRA_HELM_ARGS_NEUTRON:="$(helm osh get-values-overrides -c openstack -s neutron ${FEATURES})"}
-: ${OSH_EXTRA_HELM_ARGS_HORIZON:="$(helm osh get-values-overrides -c openstack -s horizon ${FEATURES})"}
+: ${OSH_EXTRA_HELM_ARGS_MARIADB:="$(helm osh get-values-overrides ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} -p ${OSH_PATH} -c openstack -s mariadb ${FEATURES})"}
+: ${OSH_EXTRA_HELM_ARGS_RABBITMQ:="$(helm osh get-values-overrides ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} -p ${OSH_PATH} -c openstack -s rabbitmq ${FEATURES})"}
+: ${OSH_EXTRA_HELM_ARGS_MEMCACHED:="$(helm osh get-values-overrides ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} -p ${OSH_PATH} -c openstack -s memcached ${FEATURES})"}
+: ${OSH_EXTRA_HELM_ARGS_KEYSTONE:="$(helm osh get-values-overrides ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} -p ${OSH_PATH} -c openstack -s keystone ${FEATURES})"}
+: ${OSH_EXTRA_HELM_ARGS_HEAT:="$(helm osh get-values-overrides ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} -p ${OSH_PATH} -c openstack -s heat ${FEATURES})"}
+: ${OSH_EXTRA_HELM_ARGS_GLANCE:="$(helm osh get-values-overrides ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} -p ${OSH_PATH} -c openstack -s glance ${FEATURES})"}
+: ${OSH_EXTRA_HELM_ARGS_OPENVSWITCH:="$(helm osh get-values-overrides ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} -p ${OSH_PATH} -c openstack -s openvswitch ${FEATURES})"}
+: ${OSH_EXTRA_HELM_ARGS_LIBVIRT:="$(helm osh get-values-overrides ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} -p ${OSH_PATH} -c openstack -s libvirt ${FEATURES})"}
+: ${OSH_EXTRA_HELM_ARGS_NOVA:="$(helm osh get-values-overrides ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} -p ${OSH_PATH} -c openstack -s nova ${FEATURES})"}
+: ${OSH_EXTRA_HELM_ARGS_PLACEMENT:="$(helm osh get-values-overrides ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} -p ${OSH_PATH} -c openstack -s placement ${FEATURES})"}
+: ${OSH_EXTRA_HELM_ARGS_NEUTRON:="$(helm osh get-values-overrides ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} -p ${OSH_PATH} -c openstack -s neutron ${FEATURES})"}
+: ${OSH_EXTRA_HELM_ARGS_HORIZON:="$(helm osh get-values-overrides ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} -p ${OSH_PATH} -c openstack -s horizon ${FEATURES})"}
 
 if [ "x$(systemd-detect-virt)" != "xnone" ]; then
   echo 'OSH is being deployed in virtualized environment, using qemu for nova'
@@ -96,7 +98,7 @@ fi
 helm dependency update openstack
 
 echo "helm installing openstack..."
-helm upgrade --install $release openstack/ \
+helm upgrade --install $release ${OSH_HELM_REPO}/openstack \
   ${OSH_EXTRA_HELM_ARGS_MARIADB} \
   ${OSH_EXTRA_HELM_ARGS_RABBITMQ} \
   ${OSH_EXTRA_HELM_ARGS_MEMCACHED} \

@@ -14,12 +14,14 @@
 
 set -xe
 
-#NOTE: Get the over-rides to use
-: ${OSH_EXTRA_HELM_ARGS_HORIZON:="$(helm osh get-values-overrides -c horizon ${FEATURES})"}
+#NOTE: Define variables
+: ${OSH_HELM_REPO:="../openstack-helm"}
+: ${OSH_PATH:="../openstack-helm"}
+: ${OSH_EXTRA_HELM_ARGS_HORIZON:="$(helm osh get-values-overrides ${DOWLOAD_OVERRIDES:-} -p ${OSH_PATH} -c horizon ${FEATURES})"}
 : ${RUN_HELM_TESTS:="yes"}
 
 #NOTE: Deploy command
-helm upgrade --install horizon ./horizon \
+helm upgrade --install horizon ${OSH_HELM_REPO}/horizon \
     --namespace=openstack \
     ${OSH_EXTRA_HELM_ARGS:=} \
     ${OSH_EXTRA_HELM_ARGS_HORIZON}

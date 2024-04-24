@@ -14,18 +14,16 @@
 
 set -xe
 
-#NOTE: Get the over-rides to use
-export HELM_CHART_ROOT_PATH="${HELM_CHART_ROOT_PATH:="${OSH_INFRA_PATH:="../openstack-helm-infra"}"}"
-: ${OSH_EXTRA_HELM_ARGS_OSEXPORTER:="$(./tools/deployment/common/get-values-overrides.sh prometheus-openstack-exporter)"}
+#NOTE: Define variables
+: ${OSH_INFRA_HELM_REPO:="../openstack-helm-infra"}
+: ${OSH_INFRA_PATH:="../openstack-helm-infra"}
+: ${OSH_EXTRA_HELM_ARGS_OSEXPORTER:="$(helm osh get-values-overrides ${DOWLOAD_OVERRIDES:-} -p ${OSH_INFRA_PATH} -c prometheus-openstack-exporter ${FEATURES})"}
 
-#NOTE: Lint and package chart
-make -C ${HELM_CHART_ROOT_PATH} prometheus-openstack-exporter
-
-: ${OSH_EXTRA_HELM_ARGS:=""}
-helm upgrade --install prometheus-openstack-exporter ${HELM_CHART_ROOT_PATH}/prometheus-openstack-exporter \
+#NOTE: Deploy command
+helm upgrade --install prometheus-openstack-exporter ${OSH_INFRA_HELM_REPO}/prometheus-openstack-exporter \
     --namespace=openstack \
-    ${OSH_EXTRA_HELM_ARGS} \
+    ${OSH_EXTRA_HELM_ARGS:=} \
     ${OSH_EXTRA_HELM_ARGS_OSEXPORTER}
 
 #NOTE: Wait for deploy
-./tools/deployment/common/wait-for-pods.sh openstack
+helm osh wait-for-pods openstack

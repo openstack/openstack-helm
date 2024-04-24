@@ -13,12 +13,13 @@
 #    under the License.
 set -xe
 
-#NOTE: Get the over-rides to use
-: ${OSH_EXTRA_HELM_ARGS_HEAT:="$(helm osh get-values-overrides -c heat ${FEATURES})"}
+#NOTE: Define variables
+: ${OSH_HELM_REPO:="../openstack-helm"}
+: ${OSH_PATH:="../openstack-helm"}
+: ${OSH_EXTRA_HELM_ARGS_HEAT:="$(helm osh get-values-overrides ${DOWLOAD_OVERRIDES:-} -p ${OSH_PATH} -c heat ${FEATURES})"}
 
 #NOTE: Deploy command
-: ${OSH_EXTRA_HELM_ARGS:=""}
-helm upgrade --install heat ./heat \
+helm upgrade --install heat ${OSH_HELM_REPO}/heat \
   --namespace=openstack \
   ${OSH_EXTRA_HELM_ARGS:=} \
   ${OSH_EXTRA_HELM_ARGS_HEAT}

@@ -14,13 +14,14 @@
 
 set -xe
 
-#NOTE: Get the over-rides to use
-: ${OSH_EXTRA_HELM_ARGS_GLANCE:="$(helm osh get-values-overrides -c glance ${FEATURES})"}
+#NOTE: Define variables
+: ${OSH_HELM_REPO:="../openstack-helm"}
+: ${OSH_PATH:="../openstack-helm"}
+: ${OSH_EXTRA_HELM_ARGS_GLANCE:="$(helm osh get-values-overrides ${DOWLOAD_OVERRIDES:-} -p ${OSH_PATH} -c glance ${FEATURES})"}
 : ${RUN_HELM_TESTS:="yes"}
+: ${GLANCE_BACKEND:="pvc"}
 
 #NOTE: Deploy command
-: ${OSH_EXTRA_HELM_ARGS:=""}
-: ${GLANCE_BACKEND:="pvc"}
 tee /tmp/glance.yaml <<EOF
 storage: ${GLANCE_BACKEND}
 volume:
@@ -33,7 +34,8 @@ bootstrap:
         source_url: "http://download.cirros-cloud.net/0.6.2/"
         image_file: "cirros-0.6.2-x86_64-disk.img"
 EOF
-helm upgrade --install glance ./glance \
+
+helm upgrade --install glance ${OSH_HELM_REPO}/glance \
   --namespace=openstack \
   --values=/tmp/glance.yaml \
   ${OSH_EXTRA_HELM_ARGS:=} \
