@@ -14,15 +14,17 @@
 
 set -xe
 
-#NOTE: Get the over-rides to use
-: ${OSH_EXTRA_HELM_ARGS_KEYSTONE:="$(helm osh get-values-overrides -c keystone ${FEATURES})"}
-: ${RUN_HELM_TESTS:="yes"}
+#NOTE: Define variables
+: ${OSH_HELM_REPO:="../openstack-helm"}
+: ${OSH_PATH:="../openstack-helm"}
+: ${OSH_EXTRA_HELM_ARGS_KEYSTONE:="$(helm osh get-values-overrides ${DOWLOAD_OVERRIDES:-} -p ${OSH_PATH} -c keystone ${FEATURES})"}
+: ${RUN_HELM_TESTS:="no"}
 
 #NOTE: Deploy command
-helm upgrade --install keystone ./keystone \
+helm upgrade --install keystone ${OSH_HELM_REPO}/keystone \
     --namespace=openstack \
     ${OSH_EXTRA_HELM_ARGS:=} \
-    ${OSH_EXTRA_HELM_ARGS_KEYSTONE:=}
+    ${OSH_EXTRA_HELM_ARGS_KEYSTONE}
 
 #NOTE: Wait for deploy
 helm osh wait-for-pods openstack

@@ -131,7 +131,7 @@ helm upgrade --install nova ./nova \
     ${OSH_EXTRA_HELM_ARGS_NOVA}
 
 #NOTE: Wait for deploy
-./tools/deployment/common/wait-for-pods.sh openstack
+helm osh wait-for-pods openstack
 
 #NOTE: Validate Deployment info
 export OS_CLOUD=openstack_helm

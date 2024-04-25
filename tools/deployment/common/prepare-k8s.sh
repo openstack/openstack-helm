@@ -46,10 +46,3 @@ EOF
 
 kubectl apply -f /tmp/${NAMESPACE}-ns.yaml
 done
-
-#NOTE: Build helm-toolkit, most charts depend on helm-toolkit
-export HELM_CHART_ROOT_PATH="${HELM_CHART_ROOT_PATH:="${OSH_INFRA_PATH:="../openstack-helm-infra"}"}"
-make -C ${HELM_CHART_ROOT_PATH} helm-toolkit
-
-# Build all charts
-make all

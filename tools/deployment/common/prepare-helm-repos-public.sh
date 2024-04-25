@@ -13,11 +13,5 @@
 
 set -ex
 
-# Build all OSH Infra charts (necessary for Openstack deployment)
-(
-    cd ${OSH_INFRA_PATH:-"../openstack-helm-infra"} &&
-    make all
-)
-
-# Build all OSH charts
-make all
+helm repo add ${OSH_HELM_REPO:-"openstack-helm"} https://tarballs.opendev.org/openstack/openstack-helm
+helm repo add ${OSH_INFRA_HELM_REPO:-"openstack-helm-infra"} https://tarballs.opendev.org/openstack/openstack-helm-infra

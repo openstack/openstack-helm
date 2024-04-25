@@ -216,14 +216,14 @@ EOF
   kubectl label nodes --all opencontrail.org/controller=enabled
 
   # wait for tf pods
-  ./tools/deployment/common/wait-for-pods.sh tungsten-fabric
+  helm osh wait-for-pods tungsten-fabric
   echo "INFO: Tungsten Fabric info"
   # Display contrail state
   sudo contrail-status
   kubectl get pods -n tungsten-fabric
 
   # wait for openstack pods
-  ./tools/deployment/common/wait-for-pods.sh openstack
+  helm osh wait-for-pods openstack
 
   # run couple of openstack commands and nova tests
   openstack compute service list

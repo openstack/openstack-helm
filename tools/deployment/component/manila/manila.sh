@@ -15,7 +15,7 @@
 set -xe
 
 #NOTE: Get the over-rides to use
-: ${OSH_EXTRA_HELM_ARGS_MANILA:="$(helm osh get-values-overrides -c manila ${FEATURES})"}
+: ${OSH_EXTRA_HELM_ARGS_MANILA:="$(helm osh get-values-overrides ${DOWLOAD_OVERRIDES:-} -c manila ${FEATURES})"}
 : ${RUN_HELM_TESTS:="no"}
 
 #NOTE: Deploy command

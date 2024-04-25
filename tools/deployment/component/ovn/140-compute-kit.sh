@@ -18,7 +18,7 @@ export FEATURE_GATES="ovn"
 : ${RUN_HELM_TESTS:="yes"}
 
 #NOTE: Get the over-rides to use
-: ${OSH_EXTRA_HELM_ARGS_NOVA:="$(helm osh get-values-overrides -c nova ${FEATURES})"}
+: ${OSH_EXTRA_HELM_ARGS_NOVA:="$(helm osh get-values-overrides ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} -c nova ${FEATURES})"}
 
 tee /tmp/pvc-ceph-client-key.yaml << EOF
 AQAk//BhgQMXDxAAPwH86gbDjEEpmXC4s2ontw==
@@ -32,7 +32,7 @@ helm upgrade --install nova ./nova \
     ${OSH_EXTRA_HELM_ARGS_NOVA}
 
 # Get overrides
-: ${OSH_EXTRA_HELM_ARGS_PLACEMENT:="$(helm osh get-values-overrides -c placement ${FEATURES})"}
+: ${OSH_EXTRA_HELM_ARGS_PLACEMENT:="$(helm osh get-values-overrides ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} -c placement ${FEATURES})"}
 
 # Deploy
 helm upgrade --install placement ./placement \
@@ -41,7 +41,7 @@ helm upgrade --install placement ./placement \
     ${OSH_EXTRA_HELM_ARGS_PLACEMENT}
 
 #NOTE: Get the over-rides to use
-: ${OSH_EXTRA_HELM_ARGS_NEUTRON:="$(helm osh get-values-overrides -c neutron ${FEATURES})"}
+: ${OSH_EXTRA_HELM_ARGS_NEUTRON:="$(helm osh get-values-overrides ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} ${DOWLOAD_OVERRIDES:-} -c neutron ${FEATURES})"}
 
 helm upgrade --install neutron ./neutron \
     --namespace=openstack \

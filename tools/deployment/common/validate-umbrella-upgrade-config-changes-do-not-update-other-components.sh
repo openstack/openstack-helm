@@ -37,7 +37,7 @@ validate_only_expected_application_changes () {
     ${config_change} \
     --wait
 
-  ./tools/deployment/common/wait-for-pods.sh openstack
+  helm osh wait-for-pods openstack
 
   kubectl get daemonsets,deployments,statefulsets \
     --namespace openstack \

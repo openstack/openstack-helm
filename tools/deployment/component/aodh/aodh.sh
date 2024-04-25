@@ -13,15 +13,20 @@
 #    under the License.
 set -xe
 
+#NOTE: Define variables
+: ${OSH_HELM_REPO:="../openstack-helm"}
+: ${OSH_PATH:="../openstack-helm"}
+: ${OSH_EXTRA_HELM_ARGS_AODH:="$(helm osh get-values-overrides ${DOWLOAD_OVERRIDES:-} -p ${OSH_PATH} -c aodh ${FEATURES})"}
+
 #NOTE: Wait for deploy
-helm upgrade --install aodh ./aodh \
-  --namespace=openstack \
-  --set pod.replicas.api=2 \
-  --set pod.replicas.evaluator=2 \
-  --set pod.replicas.listener=2 \
-  --set pod.replicas.notifier=2 \
-  ${OSH_EXTRA_HELM_ARGS} \
-  ${OSH_EXTRA_HELM_ARGS_AODH}
+helm upgrade --install aodh ${OSH_HELM_REPO}/aodh \
+    --namespace=openstack \
+    --set pod.replicas.api=2 \
+    --set pod.replicas.evaluator=2 \
+    --set pod.replicas.listener=2 \
+    --set pod.replicas.notifier=2 \
+    ${OSH_EXTRA_HELM_ARGS:=} \
+    ${OSH_EXTRA_HELM_ARGS_AODH}
 
 #NOTE: Wait for deploy
 helm osh wait-for-pods openstack

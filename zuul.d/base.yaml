@@ -96,6 +96,65 @@
         - ./tools/deployment/common/force-cronjob-run.sh
 
 - job:
+    name: openstack-helm-compute-kit-helm-repo-local
+    parent: openstack-helm-deploy
+    abstract: true
+    vars:
+      osh_helm_repo: openstack-helm
+      osh_infra_helm_repo: openstack-helm-infra
+      gate_scripts:
+        - ./tools/deployment/common/prepare-k8s.sh
+        - ./tools/deployment/common/prepare-charts.sh
+        - ./tools/deployment/common/prepare-helm-repos-local.sh
+        - ./tools/deployment/common/setup-client.sh
+        - ./tools/deployment/common/ingress.sh
+        - - ./tools/deployment/component/common/rabbitmq.sh
+          - ./tools/deployment/component/common/mariadb.sh
+          - ./tools/deployment/component/common/memcached.sh
+        - ./tools/deployment/component/keystone/keystone.sh
+        - - ./tools/deployment/component/heat/heat.sh
+          - export GLANCE_BACKEND=memory; ./tools/deployment/component/glance/glance.sh
+          - ./tools/deployment/component/compute-kit/openvswitch.sh
+        - ./tools/deployment/component/compute-kit/libvirt.sh
+        - ./tools/deployment/component/compute-kit/compute-kit.sh
+        - export OSH_TEST_TIMEOUT=1200;./tools/deployment/common/run-helm-tests.sh neutron
+        - ./tools/deployment/common/run-helm-tests.sh nova
+        - ./tools/deployment/common/run-helm-tests.sh glance
+        - ./tools/deployment/common/run-helm-tests.sh keystone
+        - ./tools/deployment/common/use-it.sh
+        - ./tools/deployment/common/force-cronjob-run.sh
+
+- job:
+    name: openstack-helm-compute-kit-helm-repo-public
+    parent: openstack-helm-deploy
+    abstract: true
+    vars:
+      osh_helm_repo: openstack-helm
+      osh_infra_helm_repo: openstack-helm-infra
+      download_overrides: "-d"
+      gate_scripts:
+        - ./tools/deployment/common/prepare-k8s.sh
+        - ./tools/deployment/common/prepare-charts.sh
+        - ./tools/deployment/common/prepare-helm-repos-public.sh
+        - ./tools/deployment/common/setup-client.sh
+        - ./tools/deployment/common/ingress.sh
+        - - ./tools/deployment/component/common/rabbitmq.sh
+          - ./tools/deployment/component/common/mariadb.sh
+          - ./tools/deployment/component/common/memcached.sh
+        - ./tools/deployment/component/keystone/keystone.sh
+        - - ./tools/deployment/component/heat/heat.sh
+          - export GLANCE_BACKEND=memory; ./tools/deployment/component/glance/glance.sh
+          - ./tools/deployment/component/compute-kit/openvswitch.sh
+        - ./tools/deployment/component/compute-kit/libvirt.sh
+        - ./tools/deployment/component/compute-kit/compute-kit.sh
+        - export OSH_TEST_TIMEOUT=1200;./tools/deployment/common/run-helm-tests.sh neutron
+        - ./tools/deployment/common/run-helm-tests.sh nova
+        - ./tools/deployment/common/run-helm-tests.sh glance
+        - ./tools/deployment/common/run-helm-tests.sh keystone
+        - ./tools/deployment/common/use-it.sh
+        - ./tools/deployment/common/force-cronjob-run.sh
+
+- job:
     name: openstack-helm-compute-kit-ovn
     parent: openstack-helm-deploy
     abstract: true

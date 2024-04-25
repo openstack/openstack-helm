@@ -36,7 +36,7 @@ helm install ${OSH_INFRA_PATH}/libvirt \
 
 #NOTE: Wait for deploy
 sleep 5 #NOTE(portdirect): work around k8s not immedately assigning pods to nodes
-./tools/deployment/common/wait-for-pods.sh libvirt
+helm osh wait-for-pods libvirt
 
 #NOTE: Create domains and start vbmc for ironic to manage as baremetal nodes
 LIBVIRT_PODS=$(kubectl get --namespace libvirt pods \
@@ -73,7 +73,7 @@ helm install ${OSH_INFRA_PATH}/openvswitch \
   --name=openvswitch
 
 #NOTE: Wait for deploy
-./tools/deployment/common/wait-for-pods.sh openstack
+helm osh wait-for-pods openstack
 
 #NOTE: Setup GRE tunnels between deployment node and libvirt hosts
 OSH_IRONIC_PXE_DEV="${OSH_IRONIC_PXE_DEV:="ironic-pxe"}"

@@ -14,12 +14,10 @@
 
 set -xe
 
-#NOTE: Get the over-rides to use
-export HELM_CHART_ROOT_PATH="${HELM_CHART_ROOT_PATH:="${OSH_INFRA_PATH:="../openstack-helm-infra"}"}"
-: ${OSH_EXTRA_HELM_ARGS_LDAP:="$(./tools/deployment/common/get-values-overrides.sh ldap)"}
-
-#NOTE: Lint and package chart
-make -C ${HELM_CHART_ROOT_PATH} ldap
+#NOTE: Define variables
+: ${OSH_INFRA_HELM_REPO:="../openstack-helm-infra"}
+: ${OSH_INFRA_PATH:="../openstack-helm-infra"}
+: ${OSH_EXTRA_HELM_ARGS_LDAP:="$(helm osh get-values-overrides ${DOWLOAD_OVERRIDES:-} -p ${OSH_INFRA_PATH} -c ldap ${FEATURES})"}
 
 #NOTE: Deploy command
 tee /tmp/ldap.yaml <<EOF
@@ -32,11 +30,11 @@ storage:
   pvc:
     enabled: false
 EOF
-helm upgrade --install ldap ${HELM_CHART_ROOT_PATH}/ldap \
+helm upgrade --install ldap ${OSH_INFRA_HELM_REPO}/ldap \
     --namespace=openstack \
     --values=/tmp/ldap.yaml \
     ${OSH_EXTRA_HELM_ARGS:=} \
     ${OSH_EXTRA_HELM_ARGS_LDAP}
 
 #NOTE: Wait for deploy
-./tools/deployment/common/wait-for-pods.sh openstack
+helm osh wait-for-pods openstack

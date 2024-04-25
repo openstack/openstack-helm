@@ -14,12 +14,14 @@
 
 set -xe
 
-#NOTE: Get the over-rides to use
-: ${OSH_EXTRA_HELM_ARGS_BARBICAN:="$(helm osh get-values-overrides -c barbican ${FEATURES})"}
+#NOTE: Define variables
+: ${OSH_HELM_REPO:="../openstack-helm"}
+: ${OSH_PATH:="../openstack-helm"}
+: ${OSH_EXTRA_HELM_ARGS_BARBICAN:="$(helm osh get-values-overrides ${DOWLOAD_OVERRIDES:-} -p ${OSH_PATH} -c barbican ${FEATURES})"}
 : ${RUN_HELM_TESTS:="yes"}
 
 #NOTE: Deploy command
-helm upgrade --install barbican ./barbican \
+helm upgrade --install barbican ${OSH_HELM_REPO}/barbican \
     --namespace=openstack \
     ${OSH_EXTRA_HELM_ARGS:=} \
     ${OSH_EXTRA_HELM_ARGS_BARBICAN}

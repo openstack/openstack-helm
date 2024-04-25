@@ -13,12 +13,14 @@
 #    under the License.
 set -xe
 
-#NOTE: Get the over-rides to use
-: ${OSH_EXTRA_HELM_ARGS_TACKER:="$(helm osh get-values-overrides -c tacker ${FEATURES})"}
+#NOTE: Define variables
+: ${OSH_HELM_REPO:="../openstack-helm"}
+: ${OSH_PATH:="../openstack-helm"}
+: ${OSH_EXTRA_HELM_ARGS_TACKER:="$(helm osh get-values-overrides ${DOWLOAD_OVERRIDES:-} -p ${OSH_PATH} -c tacker ${FEATURES})"}
 : ${RUN_HELM_TESTS:="no"}
 
 #NOTE: Deploy command
-helm upgrade --install tacker ./tacker \
+helm upgrade --install tacker ${OSH_HELM_REPO}/tacker \
     --namespace=openstack \
     ${OSH_EXTRA_HELM_ARGS:=} \
     ${OSH_EXTRA_HELM_ARGS_TACKER}
