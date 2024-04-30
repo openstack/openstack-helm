@@ -16,7 +16,7 @@ set -xe
 #NOTE: Define variables
 : ${OSH_INFRA_HELM_REPO:="../openstack-helm-infra"}
 : ${OSH_INFRA_PATH:="../openstack-helm-infra"}
-: ${OSH_EXTRA_HELM_ARGS_LOCKDOWN:="$(helm osh get-values-overrides ${DOWLOAD_OVERRIDES:-} -p ${OSH_INFRA_PATH} -c lockdown ${FEATURES})"}
+: ${OSH_EXTRA_HELM_ARGS_LOCKDOWN:="$(helm osh get-values-overrides ${DOWNLOAD_OVERRIDES:-} -p ${OSH_INFRA_PATH} -c lockdown ${FEATURES})"}
 
 #NOTE: Deploy command
 helm upgrade --install lockdown ${OSH_INFRA_HELM_REPO}/lockdown \

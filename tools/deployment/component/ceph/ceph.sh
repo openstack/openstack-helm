@@ -181,7 +181,7 @@ for CHART in ceph-mon ceph-osd ceph-client ceph-provisioners; do
     --namespace=ceph \
     --values=/tmp/ceph.yaml \
     ${OSH_EXTRA_HELM_ARGS:=} \
-    ${OSH_EXTRA_HELM_ARGS_CEPH:-$(helm osh get-values-overrides ${DOWLOAD_OVERRIDES:-} -p ${OSH_INFRA_PATH} -c ${CHART} ${FEATURES})}
+    ${OSH_EXTRA_HELM_ARGS_CEPH:-$(helm osh get-values-overrides ${DOWNLOAD_OVERRIDES:-} -p ${OSH_INFRA_PATH} -c ${CHART} ${FEATURES})}
 
   #NOTE: Wait for deploy
   helm osh wait-for-pods ceph

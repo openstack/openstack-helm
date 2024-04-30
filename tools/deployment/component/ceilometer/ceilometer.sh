@@ -16,7 +16,7 @@ set -xe
 #NOTE: Define variables
 : ${OSH_HELM_REPO:="../openstack-helm"}
 : ${OSH_PATH:="../openstack-helm"}
-: ${OSH_EXTRA_HELM_ARGS_CEILOMETER:="$(helm osh get-values-overrides ${DOWLOAD_OVERRIDES:-} -p ${OSH_PATH} -c ceilometer ${FEATURES})"}
+: ${OSH_EXTRA_HELM_ARGS_CEILOMETER:="$(helm osh get-values-overrides ${DOWNLOAD_OVERRIDES:-} -p ${OSH_PATH} -c ceilometer ${FEATURES})"}
 
 #NOTE: Wait for deploy
 helm upgrade --install ceilometer ${OSH_HELM_REPO}/ceilometer \
