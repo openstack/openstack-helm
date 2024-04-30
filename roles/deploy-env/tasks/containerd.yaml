@@ -49,20 +49,10 @@
     state: present
     update_cache: true
 
-- name: Configure Docker daemon
-  template:
-    src: files/daemon.json
-    dest: /etc/docker/daemon.json
 
 - name: Add users to docker group
   command: "adduser {{ item }} docker"
   loop: "{{ docker_users }}"
-
-- name: Restart docker
-  service:
-    name: docker
-    daemon_reload: yes
-    state: restarted
 
 - name: Reset ssh connection to apply user changes.
   meta: reset_connection
@@ -75,14 +65,21 @@
   args:
     executable: /bin/bash
 
-- name: Set mirror_fqdn fact
+- name: Set registry_mirror fact
   when:
     - registry_mirror is not defined
     - zuul_site_mirror_fqdn is defined
   set_fact:
     registry_mirror: "http://{{ zuul_site_mirror_fqdn }}:8082"
 
-- name: Set regitstry namespaces
+- name: Set insecure_registries fact for Docker
+  when:
+    - insecure_registries is not defined
+    - zuul_site_mirror_fqdn is defined
+  set_fact:
+    insecure_registries: "{{ zuul_site_mirror_fqdn }}:8082"
+
+- name: Set registry_namespaces fact
   set_fact:
     registry_namespaces:
       - namespace: "_default"
@@ -154,6 +151,17 @@
 - name: Restart containerd
   service:
     name: containerd
+    daemon_reload: yes
+    state: restarted
+
+- name: Configure Docker daemon
+  template:
+    src: files/daemon.json
+    dest: /etc/docker/daemon.json
+
+- name: Restart docker
+  service:
+    name: docker
     daemon_reload: yes
     state: restarted
 ...
