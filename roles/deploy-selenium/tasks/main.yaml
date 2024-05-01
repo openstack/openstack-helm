@@ -55,8 +55,8 @@
 - name: Get selenium chromedriver archive
   shell: |-
     set -ex
-    CHROME_VERSION=$(dpkg -s google-chrome-stable | sed -n 's/^Version: \(.*\)-.*$/\1/p')
-    DRIVER_URL=$(wget -qO- https://googlechromelabs.github.io/chrome-for-testing/known-good-versions-with-downloads.json | jq -r --arg chrome_version "$CHROME_VERSION" '.versions[] | select(.version == $chrome_version) | .downloads.chromedriver[] | select(.platform=="linux64").url')
+    CHROME_VERSION=$(dpkg -s google-chrome-stable | grep -Po '(?<=^Version: ).*' | awk -F'.' '{print $1"."$2"."$3}')
+    DRIVER_URL=$(wget -qO- https://googlechromelabs.github.io/chrome-for-testing/known-good-versions-with-downloads.json | jq -r --arg chrome_version "$CHROME_VERSION" '.versions[] | select(.version | test($chrome_version)) | .downloads.chromedriver[] | select(.platform=="linux64").url' | tail -1)
     wget -O /tmp/chromedriver.zip ${DRIVER_URL}
   args:
     executable: /bin/bash
