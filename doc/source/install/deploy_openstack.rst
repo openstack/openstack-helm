@@ -58,6 +58,21 @@ The Glance deployment script is here `glance.sh`_.
     cd ~/osh/openstack-helm
     ./tools/deployment/component/glance/glance.sh
 
+Cinder
+------
+
+OpenStack Cinder is the block storage service component of the
+OpenStack cloud computing platform. It manages and provides persistent
+block storage to virtual machines, enabling users to attach and detach
+persistent storage volumes to their VMs as needed.
+
+To deploy the OpenStack Cinder service use the script `cinder.sh`_
+
+.. code-block:: bash
+
+    cd ~/osh/openstack-helm
+    ./tools/deployment/component/cinder/cinder.sh
+
 Placement, Nova, Neutron
 ------------------------
 
@@ -91,21 +106,6 @@ Placement, Nova and Neutron is here: `compute-kit.sh`_.
     ./tools/deployment/component/compute-kit/openvswitch.sh
     ./tools/deployment/component/compute-kit/libvirt.sh
     ./tools/deployment/component/compute-kit/compute-kit.sh
-
-Cinder
-------
-
-OpenStack Cinder is the block storage service component of the
-OpenStack cloud computing platform. It manages and provides persistent
-block storage to virtual machines, enabling users to attach and detach
-persistent storage volumes to their VMs as needed.
-
-To deploy the OpenStack Cinder service use the script `cinder.sh`_
-
-.. code-block:: bash
-
-    cd ~/osh/openstack-helm
-    ./tools/deployment/component/cinder/cinder.sh
 
 Horizon
 -------

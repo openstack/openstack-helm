@@ -34,9 +34,8 @@ for deployment. For doing this export the following environment variables
 
 .. code-block:: bash
 
-    export OPENSTACK_RELEASE=2023.2
-    export CONTAINER_DISTRO_NAME=ubuntu
-    export CONTAINER_DISTRO_VERSION=jammy
+    export OPENSTACK_RELEASE=2024.1
+    export FEATURES="${OPENSTACK_RELEASE} ubuntu_jammy"
 
 .. note::
     The list of supported versions can be found :doc:`here </readme>`.
