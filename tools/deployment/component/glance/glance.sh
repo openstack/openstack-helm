@@ -17,7 +17,7 @@ set -xe
 #NOTE: Define variables
 : ${OSH_HELM_REPO:="../openstack-helm"}
 : ${OSH_PATH:="../openstack-helm"}
-: ${OSH_EXTRA_HELM_ARGS_GLANCE:="$(helm osh get-values-overrides ${DOWLOAD_OVERRIDES:-} -p ${OSH_PATH} -c glance ${FEATURES})"}
+: ${OSH_EXTRA_HELM_ARGS_GLANCE:="$(helm osh get-values-overrides ${DOWNLOAD_OVERRIDES:-} -p ${OSH_PATH} -c glance ${FEATURES})"}
 : ${RUN_HELM_TESTS:="yes"}
 : ${GLANCE_BACKEND:="pvc"}
 

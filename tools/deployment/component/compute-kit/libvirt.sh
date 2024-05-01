@@ -23,7 +23,7 @@ fi
 #NOTE: Define variables
 : ${OSH_INFRA_HELM_REPO:="../openstack-helm-infra"}
 : ${OSH_INFRA_PATH:="../openstack-helm-infra"}
-: ${OSH_EXTRA_HELM_ARGS_LIBVIRT:="$(helm osh get-values-overrides ${DOWLOAD_OVERRIDES:-} -p ${OSH_INFRA_PATH} -c libvirt ${FEATURES})"}
+: ${OSH_EXTRA_HELM_ARGS_LIBVIRT:="$(helm osh get-values-overrides ${DOWNLOAD_OVERRIDES:-} -p ${OSH_INFRA_PATH} -c libvirt ${FEATURES})"}
 
 #NOTE: Deploy command
 helm upgrade --install libvirt ${OSH_INFRA_HELM_REPO}/libvirt \

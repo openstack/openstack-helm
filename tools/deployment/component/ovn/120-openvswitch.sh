@@ -17,7 +17,7 @@ export FEATURE_GATES="ovn"
 
 #NOTE: Get the over-rides to use
 export HELM_CHART_ROOT_PATH="${HELM_CHART_ROOT_PATH:="${OSH_INFRA_PATH:="../openstack-helm-infra"}"}"
-: ${OSH_EXTRA_HELM_ARGS_OPENVSWITCH:="$(helm osh get-values-overrides ${DOWLOAD_OVERRIDES:-} -p ${HELM_CHART_ROOT_PATH} -c openvswitch ${FEATURES})"}
+: ${OSH_EXTRA_HELM_ARGS_OPENVSWITCH:="$(helm osh get-values-overrides ${DOWNLOAD_OVERRIDES:-} -p ${HELM_CHART_ROOT_PATH} -c openvswitch ${FEATURES})"}
 
 #NOTE: Deploy command
 : ${OSH_EXTRA_HELM_ARGS:=""}

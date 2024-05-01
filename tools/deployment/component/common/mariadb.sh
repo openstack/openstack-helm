@@ -17,7 +17,7 @@ set -xe
 #NOTE: Define variables
 : ${OSH_INFRA_HELM_REPO:="../openstack-helm-infra"}
 : ${OSH_INFRA_PATH:="../openstack-helm-infra"}
-: ${OSH_EXTRA_HELM_ARGS_MARIADB:="$(helm osh get-values-overrides ${DOWLOAD_OVERRIDES:-} -p ${OSH_INFRA_PATH} -c mariadb ${FEATURES})"}
+: ${OSH_EXTRA_HELM_ARGS_MARIADB:="$(helm osh get-values-overrides ${DOWNLOAD_OVERRIDES:-} -p ${OSH_INFRA_PATH} -c mariadb ${FEATURES})"}
 
 #NOTE: Deploy command
 helm upgrade --install mariadb ${OSH_INFRA_HELM_REPO}/mariadb \
