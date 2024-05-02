@@ -18,6 +18,17 @@ limitations under the License.
 {{- $_ := set . "deployment_name" .Release.Name }}
 {{- end }}
 
+{{- define "rabbitmqReadinessProbeTemplate" }}
+exec:
+  command:
+    - /tmp/rabbitmq-readiness.sh
+{{- end }}
+{{- define "rabbitmqLivenessProbeTemplate" }}
+exec:
+  command:
+    - /tmp/rabbitmq-liveness.sh
+{{- end }}
+
 {{/*
 (aostapenko) rounds cpu limit in any permissible format to integer value (min 1)
 "100m"   -> 1
@@ -237,18 +248,8 @@ spec:
             - name: RABBITMQ_FEATURE_FLAGS
               value: "{{ .Values.conf.feature_flags }}"
 {{- end }}
-          readinessProbe:
-            initialDelaySeconds: 10
-            timeoutSeconds: 10
-            exec:
-              command:
-              - /tmp/rabbitmq-readiness.sh
-          livenessProbe:
-            initialDelaySeconds: 60
-            timeoutSeconds: 10
-            exec:
-              command:
-              - /tmp/rabbitmq-liveness.sh
+{{ dict "envAll" $envAll "component" "rabbitmq" "container" "rabbitmq" "type" "readiness" "probeTemplate" (include "rabbitmqReadinessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | trim | indent 10 }}
+{{ dict "envAll" $envAll "component" "rabbitmq" "container" "rabbitmq" "type" "liveness" "probeTemplate" (include "rabbitmqLivenessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | trim | indent 10 }}
           lifecycle:
             preStop:
               exec:
