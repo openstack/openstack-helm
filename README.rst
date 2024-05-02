@@ -89,6 +89,7 @@ Our repositories:
 
 * OpenStack charts `openstack-helm <https://opendev.org/openstack/openstack-helm.git>`_
 * Infra charts `openstack-helm-infra <https://opendev.org/openstack/openstack-helm-infra.git>`_
+* OpenStack-Helm plugin `openstack-helm-plugin <https://opendev.org/openstack/openstack-helm-plugin.git>`_
 * Building images `openstack-helm-images <https://opendev.org/openstack/openstack-helm-images.git>`_
 * Building Openstack images framework `loci <https://opendev.org/openstack/loci.git>`_
 
