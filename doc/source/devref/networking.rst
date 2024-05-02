@@ -36,6 +36,22 @@ Typical networking API request is an operation of create/update/delete:
  * subnet
  * port
 
+Neutron-server service is scheduled on nodes with
+`openstack-control-plane=enabled` label.
+
+neutron-rpc-server
+~~~~~~~~~~~~~~~~~~
+neutron-rpc-server is serving the networking PRC backend for neutron API
+services. The internals of Neutron are highly flexible,
+providing plugin mechanisms for all networking services exposed. The
+consistent API is exposed to the user, but the internal implementation
+is up to the chosen SDN.
+
+Typical networking API request is an operation of create/update/delete:
+ * network
+ * subnet
+ * port
+
 To use other Neutron reference architecture types of SDN, these options
 should be configured in :code:`neutron.conf`:
 
@@ -102,7 +118,7 @@ The above configuration options are handled by `neutron/values.yaml`:
             type_drivers: flat,vlan,vxlan
 
 
-Neutron-server service is scheduled on nodes with
+Neutron-rpc-server service is scheduled on nodes with
 `openstack-control-plane=enabled` label.
 
 neutron-dhcp-agent
@@ -220,6 +236,7 @@ Kubernetes resources should be deployed:
       daemonset_ovs_agent: true
       daemonset_sriov_agent: true
       deployment_server: true
+      deployment_rpc_server: true
       ingress_server: true
       job_bootstrap: true
       job_db_init: true

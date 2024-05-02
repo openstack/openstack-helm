@@ -18,18 +18,7 @@ set -ex
 COMMAND="${@:-start}"
 
 function start () {
-# (ricolin): Currently ovn have issue with uWSGI,
-# let's keep using non-uWSGI way until this bug fixed:
-# https://bugs.launchpad.net/neutron/+bug/1912359
-{{- if ( has "ovn" .Values.network.backend ) }}
-  start_ovn
-{{- else }}
-  exec uwsgi --ini /etc/neutron/neutron-api-uwsgi.ini
-{{- end }}
-}
-
-function start_ovn () {
-  exec neutron-server \
+  exec neutron-rpc-server \
         --config-file /etc/neutron/neutron.conf \
 {{- if ( has "ovn" .Values.network.backend ) }}
         --config-file /tmp/pod-shared/ovn.ini \
