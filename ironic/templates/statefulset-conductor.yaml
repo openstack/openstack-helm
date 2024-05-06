@@ -59,6 +59,7 @@ spec:
       dnsPolicy: ClusterFirstWithHostNet
       initContainers:
 {{ tuple $envAll "conductor" $mounts_ironic_conductor_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{- if $envAll.Values.conductor.pxe.enabled }}
         - name: ironic-conductor-pxe-init
 {{ tuple $envAll "ironic_pxe_init" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.conductor | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
@@ -73,6 +74,7 @@ spec:
               readOnly: true
             - name: pod-data
               mountPath: /var/lib/openstack-helm
+{{- end }}
         - name: ironic-conductor-init
 {{ tuple $envAll "ironic_conductor" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.conductor | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
@@ -90,6 +92,7 @@ spec:
               readOnly: true
             - name: pod-shared
               mountPath: /tmp/pod-shared
+{{- if $envAll.Values.conductor.http.enabled }}
         - name: ironic-conductor-http-init
 {{ tuple $envAll "ironic_conductor" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.conductor | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
@@ -111,6 +114,7 @@ spec:
               readOnly: true
             - name: pod-shared
               mountPath: /tmp/pod-shared
+{{- end }}
 {{- if and (.Values.bootstrap.object_store.enabled) (.Values.bootstrap.object_store.openstack.enabled) }}
         - name: ironic-retrive-swift-config
 {{ tuple $envAll "ironic_retrive_swift_config" | include "helm-toolkit.snippets.image" | indent 10 }}
@@ -198,6 +202,7 @@ spec:
             - name: pod-data
               mountPath: /var/lib/openstack-helm
 {{ if $mounts_ironic_conductor.volumeMounts }}{{ toYaml $mounts_ironic_conductor.volumeMounts | indent 12 }}{{ end }}
+{{- if $envAll.Values.conductor.pxe.enabled }}
         - name: ironic-conductor-pxe
 {{ tuple $envAll "ironic_pxe" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.conductor | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
@@ -221,6 +226,8 @@ spec:
               readOnly: true
             - name: pod-data
               mountPath: /var/lib/openstack-helm
+{{- end }}
+{{- if $envAll.Values.conductor.http.enabled }}
         - name: ironic-conductor-http
 {{ tuple $envAll "ironic_pxe_http" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.conductor | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
@@ -239,6 +246,7 @@ spec:
             - name: pod-data
               mountPath: /var/lib/openstack-helm
 {{ if $mounts_ironic_conductor.volumeMounts }}{{ toYaml $mounts_ironic_conductor.volumeMounts | indent 12 }}{{ end }}
+{{- end }}
       volumes:
         - name: pod-tmp
           emptyDir: {}

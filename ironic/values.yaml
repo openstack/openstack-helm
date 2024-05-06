@@ -201,6 +201,79 @@ conf:
       format: "%(message)s"
       datefmt: "%Y-%m-%d %H:%M:%S"
 
+conductor:
+  http:
+    enabled: true
+    init_script: |
+      #!/bin/bash
+      set -ex
+      if [ "x" == "x${PROVISIONER_INTERFACE}" ]; then
+        echo "Provisioner interface is not set"
+        exit 1
+      fi
+
+      function net_pxe_addr {
+       ip addr | awk "/inet / && /${PROVISIONER_INTERFACE}/{print \$2; exit }"
+      }
+      function net_pxe_ip {
+       echo $(net_pxe_addr) | awk -F '/' '{ print $1; exit }'
+      }
+      PXE_IP=$(net_pxe_ip)
+
+      if [ "x" == "x${PXE_IP}" ]; then
+        echo "Could not find IP for pxe to bind to"
+        exit 1
+      fi
+
+      sed "s|OSH_PXE_IP|${PXE_IP}|g" /etc/nginx/nginx.conf > /tmp/pod-shared/nginx.conf
+    script: |
+      #!/bin/bash
+      set -ex
+      mkdir -p /var/lib/openstack-helm/httpboot
+      cp -v /tmp/pod-shared/nginx.conf /etc/nginx/nginx.conf
+      exec nginx -g 'daemon off;'
+  pxe:
+    enabled: true
+    init_script: |
+      #!/bin/bash
+      set -ex
+      # default to Ubuntu path
+      FILEPATH=${FILEPATH:-/usr/lib/ipxe}
+
+      mkdir -p /var/lib/openstack-helm/tftpboot
+      mkdir -p /var/lib/openstack-helm/tftpboot/master_images
+
+      for FILE in undionly.kpxe ipxe.efi pxelinux.0 snponly.efi; do
+        # copy in default file
+        if [ -f $FILEPATH/$FILE ]; then
+          cp -v $FILEPATH/$FILE /var/lib/openstack-helm/tftpboot
+        fi
+
+      done
+    script: |
+      #!/bin/bash
+      set -ex
+      function net_pxe_addr {
+       ip addr | awk "/inet / && /${PROVISIONER_INTERFACE}/{print \$2; exit }"
+      }
+      function net_pxe_ip {
+       echo $(net_pxe_addr) | awk -F '/' '{ print $1; exit }'
+      }
+      PXE_IP=$(net_pxe_ip)
+
+      if [ "x" == "x${PXE_IP}" ]; then
+        echo "Could not find IP for pxe to bind to"
+        exit 1
+      fi
+
+      ln -s /var/lib/openstack-helm/tftpboot /tftpboot
+      exec /usr/sbin/in.tftpd \
+        --verbose \
+        --foreground \
+        --user root \
+        --address ${PXE_IP}:69 \
+        --map-file /tftp-map-file /tftpboot
+
 network:
   pxe:
     device: ironic-pxe
