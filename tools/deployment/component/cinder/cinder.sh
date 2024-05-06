@@ -14,7 +14,7 @@
 set -xe
 
 #NOTE: Get the over-rides to use
-: ${OSH_EXTRA_HELM_ARGS_CINDER:="$(helm osh get-values-overrides ${DOWNLOAD_OVERRIDES:-} -c cinder ${FEATURES})"}
+: ${OSH_EXTRA_HELM_ARGS_CINDER:="$(helm osh get-values-overrides ${DOWNLOAD_OVERRIDES:-} cinder ${FEATURES})"}
 : ${RUN_HELM_TESTS:="yes"}
 
 #NOTE: Deploy command

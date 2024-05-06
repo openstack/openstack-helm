@@ -16,7 +16,7 @@ set -xe
 #NOTE: Define variables
 : ${OSH_HELM_REPO:="../openstack-helm"}
 : ${OSH_PATH:="../openstack-helm"}
-: ${OSH_EXTRA_HELM_ARGS_HEAT:="$(helm osh get-values-overrides ${DOWNLOAD_OVERRIDES:-} -p ${OSH_PATH} -c heat ${FEATURES})"}
+: ${OSH_EXTRA_HELM_ARGS_HEAT:="$(helm osh get-values-overrides ${DOWNLOAD_OVERRIDES:-} -p ${OSH_PATH} heat ${FEATURES})"}
 
 #NOTE: Deploy command
 helm upgrade --install heat ${OSH_HELM_REPO}/heat \

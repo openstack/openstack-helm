@@ -16,9 +16,9 @@ set -xe
 #NOTE: Define variables
 : ${OSH_HELM_REPO:="../openstack-helm"}
 : ${OSH_PATH:="../openstack-helm"}
-: ${OSH_EXTRA_HELM_ARGS_PLACEMENT:="$(helm osh get-values-overrides ${DOWNLOAD_OVERRIDES:-} -p ${OSH_PATH} -c placement ${FEATURES})"}
-: ${OSH_EXTRA_HELM_ARGS_NOVA:="$(helm osh get-values-overrides ${DOWNLOAD_OVERRIDES:-} -p ${OSH_PATH} -c nova ${FEATURES})"}
-: ${OSH_EXTRA_HELM_ARGS_NEUTRON:="$(helm osh get-values-overrides ${DOWNLOAD_OVERRIDES:-} -p ${OSH_PATH} -c neutron ${FEATURES})"}
+: ${OSH_EXTRA_HELM_ARGS_PLACEMENT:="$(helm osh get-values-overrides ${DOWNLOAD_OVERRIDES:-} -p ${OSH_PATH} placement ${FEATURES})"}
+: ${OSH_EXTRA_HELM_ARGS_NOVA:="$(helm osh get-values-overrides ${DOWNLOAD_OVERRIDES:-} -p ${OSH_PATH} nova ${FEATURES})"}
+: ${OSH_EXTRA_HELM_ARGS_NEUTRON:="$(helm osh get-values-overrides ${DOWNLOAD_OVERRIDES:-} -p ${OSH_PATH} neutron ${FEATURES})"}
 : ${RUN_HELM_TESTS:="yes"}
 
 export OS_CLOUD=openstack_helm
