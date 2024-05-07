@@ -15,6 +15,10 @@ limitations under the License.
 */}}
 
 {{- if .Values.manifests.job_db_drop }}
-{{- $dbDropJob := dict "envAll" . "serviceName" "octavia" -}}
+{{- $serviceName := "octavia" -}}
+{{- $dbSvc := dict "adminSecret" .Values.secrets.oslo_db.admin "configFile" (printf "/etc/%s/%s.conf" $serviceName $serviceName ) "logConfigFile" (printf "/etc/%s/logging.conf" $serviceName ) "configDbSection" "database" "configDbKey" "connection" -}}
+{{- $dbPersist := dict "adminSecret" .Values.secrets.oslo_db.admin "configFile" (printf "/etc/%s/%s.conf" $serviceName $serviceName ) "logConfigFile" (printf "/etc/%s/logging.conf" $serviceName ) "configDbSection" "task_flow" "configDbKey" "persistence_connection" -}}
+{{- $dbsToDrop := list $dbSvc $dbPersist }}
+{{- $dbDropJob := dict "envAll" . "serviceName" $serviceName "dbsToDrop" $dbsToDrop -}}
 {{ $dbDropJob | include "helm-toolkit.manifests.job_db_drop_mysql" }}
 {{- end }}
