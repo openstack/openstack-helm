@@ -68,6 +68,7 @@ enabled:
       daemonset_ovs_db: true
       daemonset_ovs_vswitchd: true
       deployment_server: true
+      deployment_rpc_server: true
       ingress_server: true
       job_db_init: true
       job_db_sync: true
@@ -129,6 +130,7 @@ should be enabled for below components:
       configmap_bin: true
       configmap_etc: true
       deployment_server: true
+      deployment_rpc_server: true
       ingress_server: true
       job_db_init: true
       job_db_sync: true
