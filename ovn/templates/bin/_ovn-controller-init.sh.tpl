@@ -120,7 +120,7 @@ ovs-vsctl set open . external-ids:ovn-bridge-mappings="{{ .Values.conf.ovn_bridg
 
 GW_ENABLED=$(cat /tmp/gw-enabled/gw-enabled)
 if [[ ${GW_ENABLED} == enabled ]]; then
-  ovs-vsctl set open . external-ids:ovn-cms-options={{ .Values.conf.onv_cms_options_gw_enabled }}
+  ovs-vsctl set open . external-ids:ovn-cms-options={{ .Values.conf.ovn_cms_options_gw_enabled }}
 else
   ovs-vsctl set open . external-ids:ovn-cms-options={{ .Values.conf.ovn_cms_options }}
 fi
