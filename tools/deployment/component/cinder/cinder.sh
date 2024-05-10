@@ -13,8 +13,10 @@
 #    under the License.
 set -xe
 
-#NOTE: Get the over-rides to use
-: ${OSH_EXTRA_HELM_ARGS_CINDER:="$(helm osh get-values-overrides ${DOWNLOAD_OVERRIDES:-} -c cinder ${FEATURES})"}
+#NOTE: Define variables
+: ${OSH_HELM_REPO:="../openstack-helm"}
+: ${OSH_PATH:="../openstack-helm"}
+: ${OSH_EXTRA_HELM_ARGS_CINDER:="$(helm osh get-values-overrides ${DOWNLOAD_OVERRIDES:-} -p ${OSH_PATH} -c cinder ${FEATURES})"}
 : ${RUN_HELM_TESTS:="yes"}
 
 #NOTE: Deploy command
@@ -55,7 +57,7 @@ conf:
       rbd_user: cinder
       rbd_secret_uuid: 457eb676-33da-42ec-9a8c-9293d545c337
 EOF
-helm upgrade --install cinder ./cinder \
+helm upgrade --install cinder ${OSH_HELM_REPO}/cinder \
   --namespace=openstack \
   --values=/tmp/cinder.yaml \
   --timeout=600s \
