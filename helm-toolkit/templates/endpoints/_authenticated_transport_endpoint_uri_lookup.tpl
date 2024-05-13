@@ -100,7 +100,7 @@ examples:
 {{-   $ssMap := index $context.Values.endpoints ( $type | replace "-" "_" ) "statefulset" | default false}}
 {{-   $hostFqdnOverride := index $context.Values.endpoints ( $type | replace "-" "_" ) "host_fqdn_override" }}
 {{-   $endpointUser := index $userMap "username" }}
-{{-   $endpointPass := index $userMap "password" }}
+{{-   $endpointPass := index $userMap "password" | urlquery }}
 {{-   $endpointHostSuffix := tuple $type $endpoint $context | include "helm-toolkit.endpoints.endpoint_host_lookup" }}
 {{-   $endpointPort := tuple $type $endpoint $port $context | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
 {{-   $local := dict "endpointCredsAndHosts" list -}}
