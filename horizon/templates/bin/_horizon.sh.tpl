@@ -90,9 +90,15 @@ function start () {
 
   # Copy custom logo images
   {{- if .Values.manifests.configmap_logo }}
-  cp /tmp/favicon.ico ${SITE_PACKAGES_ROOT}/openstack_dashboard/static/dashboard/img/favicon.ico
-  cp /tmp/logo.svg ${SITE_PACKAGES_ROOT}/openstack_dashboard/static/dashboard/img/logo.svg
-  cp /tmp/logo-splash.svg ${SITE_PACKAGES_ROOT}/openstack_dashboard/static/dashboard/img/logo-splash.svg
+  if [[ -f /tmp/favicon.ico ]]; then
+    cp /tmp/favicon.ico ${SITE_PACKAGES_ROOT}/openstack_dashboard/static/dashboard/img/favicon.ico
+  fi
+  if [[ -f /tmp/logo.svg ]]; then
+    cp /tmp/logo.svg ${SITE_PACKAGES_ROOT}/openstack_dashboard/static/dashboard/img/logo.svg
+  fi
+  if [[ -f /tmp/logo-splash.svg ]]; then
+    cp /tmp/logo-splash.svg ${SITE_PACKAGES_ROOT}/openstack_dashboard/static/dashboard/img/logo-splash.svg
+  fi
   {{- end }}
 
   # Compress Horizon's assets.
