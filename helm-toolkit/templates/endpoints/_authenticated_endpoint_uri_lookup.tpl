@@ -50,7 +50,7 @@ return: |
 {{- $endpointScheme := tuple $type $endpoint $port $context | include "helm-toolkit.endpoints.keystone_endpoint_scheme_lookup" }}
 {{- $userMap := index $context.Values.endpoints ( $type | replace "-" "_" ) "auth" $userclass }}
 {{- $endpointUser := index $userMap "username" }}
-{{- $endpointPass := index $userMap "password" }}
+{{- $endpointPass := index $userMap "password" | urlquery }}
 {{- $endpointHost := tuple $type $endpoint $context | include "helm-toolkit.endpoints.endpoint_host_lookup" }}
 {{- $endpointPort := tuple $type $endpoint $port $context | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
 {{- $endpointPath := tuple $type $endpoint $port $context | include "helm-toolkit.endpoints.keystone_endpoint_path_lookup" }}
