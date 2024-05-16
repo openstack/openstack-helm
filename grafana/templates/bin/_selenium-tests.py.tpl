@@ -83,11 +83,11 @@ try:
 {{- if .Values.selenium_v4 }}
     browser.find_element(By.NAME, 'user').send_keys(username)
     browser.find_element(By.NAME, 'password').send_keys(password)
-    browser.find_element(By.CSS_SELECTOR, '[aria-label="Login button"]').click()
+    browser.find_element(By.CSS_SELECTOR, '[type="submit"]').click()
 {{- else }}
     browser.find_element_by_name('user').send_keys(username)
     browser.find_element_by_name('password').send_keys(password)
-    browser.find_element_by_css_selector('[aria-label="Login button"]').click()
+    browser.find_element_by_css_selector('[type="submit"]').click()
 {{- end }}
     logger.info("Successfully logged in to Grafana")
 except NoSuchElementException:
