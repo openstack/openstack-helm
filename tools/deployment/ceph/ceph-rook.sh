@@ -350,7 +350,7 @@ EOF
 
 helm repo add rook-release https://charts.rook.io/release
 helm install --create-namespace --namespace rook-ceph rook-ceph rook-release/rook-ceph --version ${ROOK_RELEASE} -f /tmp/rook.yaml
-./tools/deployment/common/wait-for-pods.sh rook-ceph
+helm osh wait-for-pods rook-ceph
 
 tee /tmp/ceph.yaml <<EOF
 operatorNamespace: rook-ceph
@@ -649,7 +649,7 @@ do
     --selector="app=rook-ceph-rgw" \
     --no-headers | awk '{print $1; exit}')
 done
-./tools/deployment/common/wait-for-pods.sh ceph
+helm osh wait-for-pods ceph
 
 #NOTE: Validate deploy
 TOOLS_POD=$(kubectl get pods \

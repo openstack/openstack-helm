@@ -14,22 +14,21 @@
 
 set -xe
 
-: ${OSH_INFRA_EXTRA_HELM_ARGS_RABBITMQ:="$(./tools/deployment/common/get-values-overrides.sh rabbitmq)"}
-
-#NOTE: Lint and package chart
-make rabbitmq
+#NOTE: Define variables
+: ${OSH_INFRA_HELM_REPO:="../openstack-helm-infra"}
+: ${OSH_INFRA_PATH:="../openstack-helm-infra"}
+: ${OSH_INFRA_EXTRA_HELM_ARGS_RABBITMQ:="$(helm osh get-values-overrides ${DOWNLOAD_OVERRIDES:-} -p ${OSH_INFRA_PATH} -c rabbitmq ${FEATURES})"}
 
 #NOTE: Deploy command
-: ${OSH_EXTRA_HELM_ARGS:=""}
-helm upgrade --install rabbitmq ./rabbitmq \
+helm upgrade --install rabbitmq ${OSH_INFRA_HELM_REPO}/rabbitmq \
     --namespace=openstack \
-    --recreate-pods \
-    --force \
-    --set network.management.ingress.classes.namespace=nginx \
+    --set volume.enabled=false \
+    --set pod.replicas.server=1 \
+    --timeout=600s \
     ${OSH_INFRA_EXTRA_HELM_ARGS} \
     ${OSH_INFRA_EXTRA_HELM_ARGS_RABBITMQ}
 
 #NOTE: Wait for deploy
-./tools/deployment/common/wait-for-pods.sh openstack
+helm osh wait-for-pods openstack
 
 helm test rabbitmq --namespace openstack

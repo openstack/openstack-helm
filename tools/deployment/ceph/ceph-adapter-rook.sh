@@ -33,7 +33,7 @@ helm upgrade --install ceph-adapter-rook ./ceph-adapter-rook \
   --values=/tmp/ceph-adapter-rook-ceph.yaml
 
 #NOTE: Wait for deploy
-./tools/deployment/common/wait-for-pods.sh ceph
+helm osh wait-for-pods ceph
 
 tee > /tmp/ceph-adapter-rook-openstack.yaml <<EOF
 manifests:
@@ -51,4 +51,4 @@ helm upgrade --install ceph-adapter-rook ./ceph-adapter-rook \
   --values=/tmp/ceph-adapter-rook-openstack.yaml
 
 #NOTE: Wait for deploy
-./tools/deployment/common/wait-for-pods.sh openstack
+helm osh wait-for-pods openstack
