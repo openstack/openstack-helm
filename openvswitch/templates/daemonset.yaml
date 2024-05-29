@@ -168,9 +168,19 @@ It should be handled through lcore and pmd core masks. */}}
           # successfully before its marked as ready
 {{ dict "envAll" $envAll "component" "ovs" "container" "ovs_vswitch" "type" "liveness" "probeTemplate" (include "ovsvswitchlivenessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
 {{ dict "envAll" $envAll "component" "ovs" "container" "ovs_vswitch" "type" "readiness" "probeTemplate" (include "ovsvswitchreadinessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+{{- if .Values.pod.tini.enabled }}
+          command:
+            - /tini
+            - -s
+            - --
+          args:
+            - /tmp/openvswitch-vswitchd.sh
+            - start
+{{- else }}
           command:
             - /tmp/openvswitch-vswitchd.sh
             - start
+{{- end }}
           lifecycle:
             postStart:
               exec:
