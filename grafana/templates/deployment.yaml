@@ -51,6 +51,18 @@ spec:
         {{ .Values.labels.grafana.node_selector_key }}: {{ .Values.labels.grafana.node_selector_value | quote }}
       initContainers:
 {{ tuple $envAll "grafana" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container"  | indent 8 }}
+{{- if .Values.conf.grafana.image_rendering_sidecar.enabled }}
+        - name: grafana-image-renderer
+{{ tuple $envAll "grafana_image_renderer" | include "helm-toolkit.snippets.image" | indent 10 }}
+          restartPolicy: Always
+          ports:
+            - containerPort: {{ tuple "grafana" "image_rendering" "grafana" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+          readinessProbe:
+            tcpSocket:
+              port: {{ tuple "grafana" "image_rendering" "grafana" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+            initialDelaySeconds: 15
+            periodSeconds: 10
+{{- end }}
       containers:
         - name: grafana
 {{ tuple $envAll "grafana" | include "helm-toolkit.snippets.image" | indent 10 }}
@@ -87,6 +99,12 @@ spec:
                 secretKeyRef:
                   key: ca.crt
                   name: prometheus-tls-api
+{{- end }}
+{{- if .Values.conf.grafana.image_rendering_sidecar.enabled }}
+            - name: GF_RENDERING_SERVER_URL
+              value: "http://localhost:{{ tuple "grafana" "image_rendering" "grafana" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}/render"
+            - name: GF_RENDERING_CALLBACK_URL
+              value: "http://localhost:{{ tuple "grafana" "internal" "grafana" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}"
 {{- end }}
 {{- if .Values.pod.env.grafana }}
 {{ include "helm-toolkit.utils.to_k8s_env_vars" .Values.pod.env.grafana | indent 12 }}
