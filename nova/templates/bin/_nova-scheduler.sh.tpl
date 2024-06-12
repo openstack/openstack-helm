@@ -15,6 +15,7 @@ limitations under the License.
 */}}
 
 set -xe
-
+pip install opentelemetry.sdk
+pip install opentelemetry.exporter.otlp
 exec nova-scheduler \
       --config-file /etc/nova/nova.conf

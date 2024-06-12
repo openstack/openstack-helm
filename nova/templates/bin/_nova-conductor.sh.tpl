@@ -15,5 +15,7 @@ limitations under the License.
 */}}
 
 set -x
+pip install opentelemetry.sdk
+pip install opentelemetry.exporter.otlp
 exec nova-conductor \
       --config-file /etc/nova/nova.conf

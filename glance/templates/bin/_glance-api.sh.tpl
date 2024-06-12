@@ -18,6 +18,8 @@ set -ex
 COMMAND="${@:-start}"
 
 function start () {
+  pip install opentelemetry.sdk
+  pip install opentelemetry.exporter.otlp
   exec uwsgi --ini /etc/glance/glance-api-uwsgi.ini
 }
 

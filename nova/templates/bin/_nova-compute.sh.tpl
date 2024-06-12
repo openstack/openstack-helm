@@ -15,7 +15,8 @@ limitations under the License.
 */}}
 
 set -ex
-
+pip install opentelemetry.sdk
+pip install opentelemetry.exporter.otlp
 exec nova-compute \
       --config-file /etc/nova/nova.conf \
 {{- if .Values.console.address_search_enabled }}

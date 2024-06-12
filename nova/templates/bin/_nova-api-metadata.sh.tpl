@@ -18,6 +18,8 @@ set -ex
 COMMAND="${@:-start}"
 
 function start () {
+pip install opentelemetry.sdk
+pip install opentelemetry.exporter.otlp
 {{- if .Values.manifests.certificates }}
   for WSGI_SCRIPT in nova-metadata-wsgi; do
     cp -a $(type -p ${WSGI_SCRIPT}) /var/www/cgi-bin/nova/

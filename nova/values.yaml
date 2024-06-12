@@ -843,12 +843,12 @@ conf:
       /v2.1: openstack_compute_api_v21
     composite:openstack_compute_api_v21:
       use: call:nova.api.auth:pipeline_factory_v21
-      noauth2: cors http_proxy_to_wsgi compute_req_id faultwrap sizelimit noauth2 osapi_compute_app_v21
-      keystone: cors http_proxy_to_wsgi compute_req_id faultwrap sizelimit authtoken audit keystonecontext osapi_compute_app_v21
+      noauth2: cors http_proxy_to_wsgi compute_req_id faultwrap sizelimit osprofiler noauth2 osapi_compute_app_v21
+      keystone: cors http_proxy_to_wsgi compute_req_id faultwrap sizelimit osprofiler authtoken audit keystonecontext osapi_compute_app_v21
     composite:openstack_compute_api_v21_legacy_v2_compatible:
       use: call:nova.api.auth:pipeline_factory_v21
-      noauth2: cors http_proxy_to_wsgi compute_req_id faultwrap sizelimit noauth2 legacy_v2_compatible osapi_compute_app_v21
-      keystone: cors http_proxy_to_wsgi compute_req_id faultwrap sizelimit authtoken audit keystonecontext legacy_v2_compatible osapi_compute_app_v21
+      noauth2: cors http_proxy_to_wsgi compute_req_id faultwrap sizelimit osprofiler noauth2 legacy_v2_compatible osapi_compute_app_v21
+      keystone: cors http_proxy_to_wsgi compute_req_id faultwrap sizelimit osprofiler authtoken audit keystonecontext legacy_v2_compatible osapi_compute_app_v21
     filter:request_id:
       paste.filter_factory: oslo_middleware:RequestId.factory
     filter:compute_req_id:
@@ -879,6 +879,10 @@ conf:
     filter:audit:
       paste.filter_factory: keystonemiddleware.audit:filter_factory
       audit_map_file: /etc/nova/api_audit_map.conf
+    filter:osprofiler:
+      paste.filter_factory: osprofiler.web:WsgiMiddleware.factory
+      hmac_keys: SECRET_KEY  # DEPRECATED
+      enabled: yes  # DEPRECATED
   policy: {}
   nova_sudoers: |
     # This sudoers file supports rootwrap for both Kolla and LOCI Images.
@@ -1473,6 +1477,11 @@ conf:
     placement:
       auth_type: password
       auth_version: v3
+    profiler:
+      enabled: true
+      hmac_keys: cnct-obv
+      trace_sqlalchemy: true
+      connection_string: otlp://123.37.5.175:4318
   logging:
     loggers:
       keys:
@@ -2145,7 +2154,7 @@ pod:
         runAsUser: 42424
       container:
         nova_compute_init:
-          readOnlyRootFilesystem: true
+          readOnlyRootFilesystem: false
           runAsUser: 0
         tungstenfabric_compute_init:
           readOnlyRootFilesystem: true
@@ -2160,7 +2169,7 @@ pod:
           readOnlyRootFilesystem: true
           allowPrivilegeEscalation: false
         nova_compute:
-          readOnlyRootFilesystem: true
+          readOnlyRootFilesystem: false
           privileged: true
         nova_compute_ssh:
           privileged: true
@@ -2168,16 +2177,16 @@ pod:
         nova_compute_ssh_init:
           runAsUser: 0
         nova_api_metadata_init:
-          readOnlyRootFilesystem: true
+          readOnlyRootFilesystem: false
           allowPrivilegeEscalation: false
         nova_api:
-          readOnlyRootFilesystem: true
+          readOnlyRootFilesystem: false
           allowPrivilegeEscalation: false
         nova_osapi:
-          readOnlyRootFilesystem: true
+          readOnlyRootFilesystem: false
           allowPrivilegeEscalation: false
         nova_conductor:
-          readOnlyRootFilesystem: true
+          readOnlyRootFilesystem: false
           allowPrivilegeEscalation: false
         nova_novncproxy_init:
           readOnlyRootFilesystem: true
@@ -2189,7 +2198,7 @@ pod:
           readOnlyRootFilesystem: true
           allowPrivilegeEscalation: false
         nova_scheduler:
-          readOnlyRootFilesystem: true
+          readOnlyRootFilesystem: false
           allowPrivilegeEscalation: false
         nova_spiceproxy_init:
           readOnlyRootFilesystem: true
