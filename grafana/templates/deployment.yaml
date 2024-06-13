@@ -51,7 +51,7 @@ spec:
         {{ .Values.labels.grafana.node_selector_key }}: {{ .Values.labels.grafana.node_selector_value | quote }}
       initContainers:
 {{ tuple $envAll "grafana" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container"  | indent 8 }}
-{{- if .Values.conf.grafana.image_rendering_sidecar.enabled }}
+{{- if and .Values.conf.grafana.image_rendering_sidecar.enabled .Values.conf.grafana.image_rendering_sidecar.k8s_sidecar_feature_enabled }}
         - name: grafana-image-renderer
 {{ tuple $envAll "grafana_image_renderer" | include "helm-toolkit.snippets.image" | indent 10 }}
           restartPolicy: Always
@@ -64,6 +64,17 @@ spec:
             periodSeconds: 10
 {{- end }}
       containers:
+{{- if and .Values.conf.grafana.image_rendering_sidecar.enabled (not .Values.conf.grafana.image_rendering_sidecar.k8s_sidecar_feature_enabled) }}
+        - name: grafana-image-renderer
+{{ tuple $envAll "grafana_image_renderer" | include "helm-toolkit.snippets.image" | indent 10 }}
+          ports:
+            - containerPort: {{ tuple "grafana" "image_rendering" "grafana" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+          readinessProbe:
+            tcpSocket:
+              port: {{ tuple "grafana" "image_rendering" "grafana" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+            initialDelaySeconds: 15
+            periodSeconds: 10
+{{- end }}
         - name: grafana
 {{ tuple $envAll "grafana" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.grafana | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
