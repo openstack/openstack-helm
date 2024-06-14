@@ -27,12 +27,12 @@ images:
   tags:
     bootstrap: docker.io/xrally/xrally-openstack:2.0.0
     dep_check: quay.io/airshipit/kubernetes-entrypoint:v1.0.0
-    db_init: docker.io/xrally/xrally-openstack:2.0.0
+    db_init: docker.io/openstackhelm/glance:wallaby-ubuntu_focal
     rally_db_sync: docker.io/xrally/xrally-openstack:2.0.0
     run_task: docker.io/xrally/xrally-openstack:2.0.0
-    ks_user: docker.io/openstackhelm/heat:2024.1-ubuntu_jammy
-    ks_service: docker.io/openstackhelm/heat:2024.1-ubuntu_jammy
-    ks_endpoints: docker.io/openstackhelm/heat:2024.1-ubuntu_jammy
+    ks_user: docker.io/openstackhelm/heat:wallaby-ubuntu_focal
+    ks_service: docker.io/openstackhelm/heat:wallaby-ubuntu_focal
+    ks_endpoints: docker.io/openstackhelm/heat:wallaby-ubuntu_focal
     image_repo_sync: docker.io/docker:17.07.0
   pull_policy: "IfNotPresent"
   local_registry:
@@ -46,13 +46,10 @@ enabled_tasks:
   # - ceilometerNOTE(alraddarla): not enabled
   - cinder
   - glance
-  - heat
   - keystone
-  - magnum
   # NOTE(alraddarla): need a network setup in the gate to fully test
-  # - neutron
+  - neutron
   - nova
-  - senlin
   # NOTE(alraddarla): not enabled
   # - swift
 
@@ -142,6 +139,12 @@ bootstrap:
     openstack token issue
 
 jobs:
+  rally_task:
+    cron: "*/59 * * * *"
+    starting_deadline: 600
+    history:
+      success: 3
+      failed: 1
   run_tasks:
     backoffLimit: 6
     restartPolicy: OnFailure
@@ -801,18 +804,6 @@ conf:
             concurrency: 5
             times: 10
             type: constant
-      Authenticate.validate_heat:
-        -
-          args:
-            repetitions: 2
-          context:
-            users:
-              tenants: 3
-              users_per_tenant: 5
-          runner:
-            concurrency: 5
-            times: 10
-            type: constant
       Authenticate.validate_neutron:
         -
           args:
@@ -837,541 +828,6 @@ conf:
             concurrency: 5
             times: 10
             type: constant
-    ceilometer_task:
-      CeilometerAlarms.create_alarm:
-        -
-          args:
-            alarm_actions:
-              - "http://localhost:8776/alarm"
-            insufficient_data_actions:
-              - "http://localhost:8776/notok"
-            meter_name: ram_util
-            ok_actions:
-              - "http://localhost:8776/ok"
-            statistic: avg
-            threshold: 10.0
-            type: threshold
-          context:
-            users:
-              tenants: 2
-              users_per_tenant: 2
-          runner:
-            concurrency: 1
-            times: 10
-            type: constant
-      CeilometerAlarms.create_alarm_and_get_history:
-        -
-          args:
-            alarm_actions:
-              - "http://localhost:8776/alarm"
-            insufficient_data_actions:
-              - "http://localhost:8776/notok"
-            meter_name: ram_util
-            ok_actions:
-              - "http://localhost:8776/ok"
-            state: ok
-            statistic: avg
-            threshold: 10.0
-            type: threshold
-          context:
-            users:
-              tenants: 2
-              users_per_tenant: 2
-          runner:
-            concurrency: 5
-            times: 10
-            type: constant
-      CeilometerAlarms.create_and_delete_alarm:
-        -
-          args:
-            alarm_actions:
-              - "http://localhost:8776/alarm"
-            insufficient_data_actions:
-              - "http://localhost:8776/notok"
-            meter_name: ram_util
-            ok_actions:
-              - "http://localhost:8776/ok"
-            statistic: avg
-            threshold: 10.0
-            type: threshold
-          context:
-            users:
-              tenants: 2
-              users_per_tenant: 2
-          runner:
-            concurrency: 1
-            times: 10
-            type: constant
-      CeilometerAlarms.create_and_get_alarm:
-        -
-          args:
-            alarm_actions:
-              - "http://localhost:8776/alarm"
-            insufficient_data_actions:
-              - "http://localhost:8776/notok"
-            meter_name: ram_util
-            ok_actions:
-              - "http://localhost:8776/ok"
-            statistic: avg
-            threshold: 10.0
-            type: threshold
-          context:
-            users:
-              tenants: 2
-              users_per_tenant: 2
-          runner:
-            concurrency: 2
-            times: 10
-            type: constant
-          sla:
-            failure_rate:
-              max: 0
-      CeilometerAlarms.create_and_list_alarm:
-        -
-          args:
-            alarm_actions:
-              - "http://localhost:8776/alarm"
-            insufficient_data_actions:
-              - "http://localhost:8776/notok"
-            meter_name: ram_util
-            ok_actions:
-              - "http://localhost:8776/ok"
-            statistic: avg
-            threshold: 10.0
-            type: threshold
-          context:
-            users:
-              tenants: 2
-              users_per_tenant: 2
-          runner:
-            concurrency: 1
-            times: 10
-            type: constant
-      CeilometerAlarms.create_and_update_alarm:
-        -
-          args:
-            alarm_actions:
-              - "http://localhost:8776/alarm"
-            insufficient_data_actions:
-              - "http://localhost:8776/notok"
-            meter_name: ram_util
-            ok_actions:
-              - "http://localhost:8776/ok"
-            statistic: avg
-            threshold: 10.0
-            type: threshold
-          context:
-            users:
-              tenants: 2
-              users_per_tenant: 2
-          runner:
-            concurrency: 1
-            times: 10
-            type: constant
-      CeilometerAlarms.list_alarms:
-        -
-          context:
-            users:
-              tenants: 2
-              users_per_tenant: 2
-          runner:
-            concurrency: 1
-            times: 10
-            type: constant
-      CeilometerEvents.create_user_and_get_event:
-        -
-          context:
-            users:
-              tenants: 2
-              users_per_tenant: 2
-          runner:
-            concurrency: 10
-            times: 10
-            type: constant
-      CeilometerEvents.create_user_and_list_event_types:
-        -
-          context:
-            users:
-              tenants: 2
-              users_per_tenant: 2
-          runner:
-            concurrency: 10
-            times: 10
-            type: constant
-      CeilometerEvents.create_user_and_list_events:
-        -
-          context:
-            users:
-              tenants: 2
-              users_per_tenant: 2
-          runner:
-            concurrency: 10
-            times: 10
-            type: constant
-      CeilometerMeters.list_matched_meters:
-        -
-          args:
-            filter_by_project_id: true
-            filter_by_resource_id: true
-            filter_by_user_id: true
-            limit: 50
-            metadata_query:
-              status: terminated
-          context:
-            ceilometer:
-              counter_name: benchmark_meter
-              counter_type: gauge
-              counter_unit: "%"
-              counter_volume: 100
-              metadata_list:
-                -
-                  deleted: "false"
-                  name: "rally benchmark on"
-                  status: active
-                -
-                  deleted: "true"
-                  name: "rally benchmark off"
-                  status: terminated
-              resources_per_tenant: 100
-              samples_per_resource: 100
-              timestamp_interval: 10
-            users:
-              tenants: 2
-              users_per_tenant: 2
-          runner:
-            concurrency: 1
-            times: 10
-            type: constant
-      CeilometerMeters.list_meters:
-        -
-          args:
-            limit: 50
-            metadata_query:
-              status: terminated
-          context:
-            ceilometer:
-              counter_name: benchmark_meter
-              counter_type: gauge
-              counter_unit: "%"
-              counter_volume: 100
-              metadata_list:
-                -
-                  deleted: "false"
-                  name: "rally benchmark on"
-                  status: active
-                -
-                  deleted: "true"
-                  name: "rally benchmark off"
-                  status: terminated
-              resources_per_tenant: 100
-              samples_per_resource: 100
-              timestamp_interval: 10
-            users:
-              tenants: 2
-              users_per_tenant: 2
-          runner:
-            concurrency: 1
-            times: 10
-            type: constant
-      CeilometerQueries.create_and_query_alarm_history:
-        -
-          args:
-            alarm_actions:
-              - "http://localhost:8776/alarm"
-            insufficient_data_actions:
-              - "http://localhost:8776/notok"
-            limit: ~
-            meter_name: ram_util
-            ok_actions:
-              - "http://localhost:8776/ok"
-            orderby: ~
-            statistic: avg
-            threshold: 10.0
-            type: threshold
-          context:
-            users:
-              tenants: 2
-              users_per_tenant: 2
-          runner:
-            concurrency: 10
-            times: 100
-            type: constant
-      CeilometerQueries.create_and_query_alarms:
-        -
-          args:
-            alarm_actions:
-              - "http://localhost:8776/alarm"
-            filter:
-              and:
-                -
-                  ? "!="
-                  :
-                    state: dummy_state
-                -
-                  ? "="
-                  :
-                    type: threshold
-            insufficient_data_actions:
-              - "http://localhost:8776/notok"
-            limit: 10
-            meter_name: ram_util
-            ok_actions:
-              - "http://localhost:8776/ok"
-            orderby: ~
-            statistic: avg
-            threshold: 10.0
-            type: threshold
-          context:
-            users:
-              tenants: 2
-              users_per_tenant: 2
-          runner:
-            concurrency: 10
-            times: 100
-            type: constant
-      CeilometerQueries.create_and_query_samples:
-        -
-          args:
-            counter_name: cpu_util
-            counter_type: gauge
-            counter_unit: instance
-            counter_volume: 1.0
-            filter:
-              ? "="
-              :
-                counter_unit: instance
-            limit: 10
-            orderby: ~
-            resource_id: resource_id
-          context:
-            users:
-              tenants: 2
-              users_per_tenant: 2
-          runner:
-            concurrency: 10
-            times: 100
-            type: constant
-      CeilometerResource.get_tenant_resources:
-        -
-          context:
-            ceilometer:
-              counter_name: cpu_util
-              counter_type: gauge
-              counter_unit: instance
-              counter_volume: 1.0
-            users:
-              tenants: 2
-              users_per_tenant: 2
-          runner:
-            concurrency: 5
-            times: 10
-            type: constant
-      CeilometerResource.list_matched_resources:
-        -
-          args:
-            filter_by_project_id: true
-            filter_by_user_id: true
-            limit: 50
-            metadata_query:
-              status: terminated
-          context:
-            ceilometer:
-              counter_name: benchmark_meter
-              counter_type: gauge
-              counter_unit: "%"
-              counter_volume: 100
-              metadata_list:
-                -
-                  deleted: "false"
-                  name: "rally benchmark on"
-                  status: active
-                -
-                  deleted: "true"
-                  name: "rally benchmark off"
-                  status: terminated
-              resources_per_tenant: 100
-              samples_per_resource: 100
-              timestamp_interval: 10
-            users:
-              tenants: 2
-              users_per_tenant: 2
-          runner:
-            concurrency: 1
-            times: 10
-            type: constant
-      CeilometerResource.list_resources:
-        -
-          args:
-            limit: 50
-            metadata_query:
-              status: terminated
-          context:
-            ceilometer:
-              counter_name: benchmark_meter
-              counter_type: gauge
-              counter_unit: "%"
-              counter_volume: 100
-              metadata_list:
-                -
-                  deleted: "false"
-                  name: "rally benchmark on"
-                  status: active
-                -
-                  deleted: "true"
-                  name: "rally benchmark off"
-                  status: terminated
-              resources_per_tenant: 100
-              samples_per_resource: 100
-              timestamp_interval: 10
-            users:
-              tenants: 2
-              users_per_tenant: 2
-          runner:
-            concurrency: 1
-            times: 10
-            type: constant
-      CeilometerSamples.list_matched_samples:
-        -
-          args:
-            filter_by_project_id: true
-            filter_by_resource_id: true
-            filter_by_user_id: true
-            limit: 50
-            metadata_query:
-              status: not_active
-          context:
-            ceilometer:
-              counter_name: cpu_util
-              counter_type: gauge
-              counter_unit: instance
-              counter_volume: 1.0
-              metadata_list:
-                -
-                  created_at: "2015-09-04T12:34:19.000000"
-                  deleted: "False"
-                  name: fake_resource
-                  status: active
-                -
-                  created_at: "2015-09-10T06:55:12.000000"
-                  deleted: "False"
-                  name: fake_resource_1
-                  status: not_active
-              resources_per_tenant: 100
-              samples_per_resource: 100
-              timestamp_interval: 60
-            users:
-              tenants: 2
-              users_per_tenant: 2
-          runner:
-            concurrency: 2
-            times: 10
-            type: constant
-      CeilometerSamples.list_samples:
-        -
-          args:
-            limit: 50
-            metadata_query:
-              status: not_active
-          context:
-            ceilometer:
-              batch_size: 5
-              counter_name: cpu_util
-              counter_type: gauge
-              counter_unit: instance
-              counter_volume: 1.0
-              metadata_list:
-                -
-                  created_at: "2015-09-04T12:34:19.000000"
-                  deleted: "False"
-                  name: fake_resource
-                  status: active
-                -
-                  created_at: "2015-09-10T06:55:12.000000"
-                  deleted: "False"
-                  name: fake_resource_1
-                  status: not_active
-              resources_per_tenant: 100
-              samples_per_resource: 100
-              timestamp_interval: 60
-            users:
-              tenants: 2
-              users_per_tenant: 2
-          runner:
-            concurrency: 2
-            times: 10
-            type: constant
-      CeilometerStats.create_meter_and_get_stats:
-        -
-          args:
-            counter_type: cumulative
-            counter_unit: ""
-            counter_volume: 1.0
-            resource_id: resource-id
-            user_id: user-id
-          context:
-            users:
-              tenants: 2
-              users_per_tenant: 2
-          runner:
-            concurrency: 5
-            times: 200
-            type: constant
-      CeilometerStats.get_stats:
-        -
-          args:
-            filter_by_project_id: true
-            filter_by_resource_id: true
-            filter_by_user_id: true
-            groupby: resource_id
-            metadata_query:
-              status: terminated
-            meter_name: benchmark_meter
-            period: 300
-          context:
-            ceilometer:
-              counter_name: benchmark_meter
-              counter_type: gauge
-              counter_unit: "%"
-              counter_volume: 100
-              metadata_list:
-                -
-                  deleted: "false"
-                  name: "rally benchmark on"
-                  status: active
-                -
-                  deleted: "true"
-                  name: "rally benchmark off"
-                  status: terminated
-              resources_per_tenant: 100
-              samples_per_resource: 100
-              timestamp_interval: 10
-            users:
-              tenants: 2
-              users_per_tenant: 2
-          runner:
-            concurrency: 1
-            times: 10
-            type: constant
-      CeilometerTraits.create_user_and_list_trait_descriptions:
-        -
-          context:
-            users:
-              tenants: 2
-              users_per_tenant: 2
-          runner:
-            concurrency: 10
-            times: 10
-            type: constant
-      CeilometerTraits.create_user_and_list_traits:
-        -
-          context:
-            users:
-              tenants: 2
-              users_per_tenant: 2
-          runner:
-            concurrency: 10
-            times: 10
-            type: constant
     cinder_task:
       CinderVolumeTypes.create_and_delete_volume_type:
         -
@@ -1387,612 +843,7 @@ conf:
           sla:
             failure_rate:
               max: 0
-      CinderVolumeTypes.create_and_list_encryption_type:
-        -
-          args:
-            specs:
-              cipher: aes-xts-plain64
-              control_location: front-end
-              key_size: 512
-              provider: LuksEncryptor
-          context:
-            users:
-              tenants: 2
-              users_per_tenant: 2
-          runner:
-            concurrency: 2
-            times: 4
-            type: constant
-          sla:
-            failure_rate:
-              max: 0
-      CinderVolumeTypes.create_volume_type_and_encryption_type:
-        -
-          args:
-            specs:
-              cipher: aes-xts-plain64
-              control_location: front-end
-              key_size: 512
-              provider: LuksEncryptor
-          context:
-            users:
-              tenants: 2
-              users_per_tenant: 2
-          runner:
-            concurrency: 2
-            times: 5
-            type: constant
-          sla:
-            failure_rate:
-              max: 0
-      CinderVolumes.create_and_accept_transfer:
-        -
-          args:
-            size: 1
-          context:
-            users:
-              tenants: 2
-              users_per_tenant: 2
-          runner:
-            concurrency: 2
-            times: 3
-            type: constant
-          sla:
-            failure_rate:
-              max: 0
-      CinderVolumes.create_and_attach_volume:
-        -
-          args:
-            create_volume_params:
-              availability_zone: nova
-            flavor:
-              name: m1.tiny
-            image:
-              name: cirros-0.6.2-x86_64-disk.img
-            size: 10
-          context:
-            users:
-              tenants: 2
-              users_per_tenant: 2
-            images:
-              image_url: "http://download.cirros-cloud.net/0.6.2/cirros-0.6.2-x86_64-disk.img"
-              image_name: cirros-0.6.2-x86_64-disk.img
-              image_type: qcow2
-              image_container: bare
-              images_per_tenant: 1
-          runner:
-            concurrency: 1
-            times: 5
-            type: constant
-        -
-          args:
-            create_volume_params:
-              availability_zone: nova
-            flavor:
-              name: m1.tiny
-            image:
-              name: cirros-0.6.2-x86_64-disk.img
-            size:
-              max: 5
-              min: 1
-          context:
-            users:
-              tenants: 2
-              users_per_tenant: 2
-            images:
-              image_url: "http://download.cirros-cloud.net/0.6.2/cirros-0.6.2-x86_64-disk.img"
-              image_name: cirros-0.6.2-x86_64-disk.img
-              image_type: qcow2
-              image_container: bare
-              images_per_tenant: 1
-          runner:
-            concurrency: 1
-            times: 5
-            type: constant
-      CinderVolumes.create_and_delete_snapshot:
-        -
-          args:
-            force: false
-          context:
-            users:
-              tenants: 2
-              users_per_tenant: 2
-            volumes:
-              size: 1
-          runner:
-            concurrency: 2
-            times: 3
-            type: constant
-      CinderVolumes.create_and_delete_volume:
-        -
-          args:
-            image:
-              name: cirros-0.6.2-x86_64-disk.img
-            size: 1
-          context:
-            users:
-              tenants: 2
-              users_per_tenant: 2
-            images:
-              image_url: "http://download.cirros-cloud.net/0.6.2/cirros-0.6.2-x86_64-disk.img"
-              image_name: cirros-0.6.2-x86_64-disk.img
-              image_type: qcow2
-              image_container: bare
-              images_per_tenant: 1
-          runner:
-            concurrency: 2
-            times: 2
-            type: constant
-      CinderVolumes.create_and_extend_volume:
-        -
-          args:
-            new_size: 2
-            size: 1
-          context:
-            users:
-              tenants: 1
-              users_per_tenant: 1
-          runner:
-            concurrency: 2
-            times: 2
-            type: constant
-        -
-          args:
-            new_size:
-              max: 10
-              min: 6
-            size:
-              max: 5
-              min: 1
-          context:
-            users:
-              tenants: 1
-              users_per_tenant: 1
-          runner:
-            concurrency: 2
-            times: 2
-            type: constant
-      CinderVolumes.create_and_get_volume:
-        -
-          args:
-            size: 1
-          context:
-            users:
-              tenants: 2
-              users_per_tenant: 2
-          runner:
-            concurrency: 2
-            times: 5
-            type: constant
-          sla:
-            failure_rate:
-              max: 0
-        -
-          args:
-            size:
-              max: 5
-              min: 1
-          context:
-            users:
-              tenants: 2
-              users_per_tenant: 2
-          runner:
-            concurrency: 2
-            times: 5
-            type: constant
-          sla:
-            failure_rate:
-              max: 0
-      CinderVolumes.create_and_list_snapshots:
-        -
-          args:
-            detailed: true
-            force: false
-          context:
-            users:
-              tenants: 1
-              users_per_tenant: 1
-            volumes:
-              size: 1
-          runner:
-            concurrency: 2
-            times: 2
-            type: constant
-      CinderVolumes.create_and_list_volume:
-        -
-          args:
-            detailed: true
-            size: 1
-          context:
-            users:
-              tenants: 1
-              users_per_tenant: 1
-          runner:
-            concurrency: 1
-            times: 3
-            type: constant
-        -
-          args:
-            detailed: true
-            size:
-              max: 5
-              min: 1
-          context:
-            users:
-              tenants: 1
-              users_per_tenant: 1
-          runner:
-            concurrency: 1
-            times: 3
-            type: constant
-      CinderVolumes.create_and_list_volume_backups:
-        -
-          args:
-            create_backup_kwargs: {}
-            create_volume_kwargs: {}
-            detailed: true
-            do_delete: true
-            size: 1
-          context:
-            roles:
-              - member
-            users:
-              tenants: 1
-              users_per_tenant: 1
-          runner:
-            concurrency: 2
-            times: 2
-            type: constant
-      CinderVolumes.create_and_restore_volume_backup:
-        -
-          args:
-            create_backup_kwargs: {}
-            create_volume_kwargs: {}
-            do_delete: true
-            size: 1
-          context:
-            roles:
-              - member
-            users:
-              tenants: 1
-              users_per_tenant: 1
-          runner:
-            concurrency: 1
-            times: 2
-            type: constant
-      CinderVolumes.create_and_upload_volume_to_image:
-        -
-          args:
-            container_format: bare
-            disk_format: raw
-            do_delete: true
-            force: false
-            image:
-              name: cirros-0.6.2-x86_64-disk.img
-            size: 1
-          context:
-            users:
-              tenants: 2
-              users_per_tenant: 2
-          runner:
-            concurrency: 2
-            times: 3
-            type: constant
-        -
-          args:
-            container_format: bare
-            disk_format: raw
-            do_delete: true
-            force: false
-            image:
-              name: cirros-0.6.2-x86_64-disk.img
-            size:
-              max: 5
-              min: 1
-          context:
-            users:
-              tenants: 2
-              users_per_tenant: 2
-            images:
-              image_url: "http://download.cirros-cloud.net/0.6.2/cirros-0.6.2-x86_64-disk.img"
-              image_name: cirros-0.6.2-x86_64-disk.img
-              image_type: qcow2
-              image_container: bare
-              images_per_tenant: 1
-          runner:
-            concurrency: 2
-            times: 3
-            type: constant
-      CinderVolumes.create_from_volume_and_delete_volume:
-        -
-          args:
-            size: 1
-          context:
-            users:
-              tenants: 1
-              users_per_tenant: 1
-            volumes:
-              size: 1
-          runner:
-            concurrency: 2
-            times: 2
-            type: constant
-        -
-          args:
-            size:
-              max: 5
-              min: 1
-          context:
-            users:
-              tenants: 1
-              users_per_tenant: 1
-            volumes:
-              size: 1
-          runner:
-            concurrency: 2
-            times: 2
-            type: constant
-      CinderVolumes.create_nested_snapshots_and_attach_volume:
-        -
-          args:
-            nested_level: 5
-            size:
-              max: 5
-              min: 1
-          context:
-            servers:
-              flavor:
-                name: m1.tiny
-              image:
-                name: cirros-0.6.2-x86_64-disk.img
-              servers_per_tenant: 2
-            users:
-              tenants: 2
-              users_per_tenant: 1
-            images:
-              image_url: "http://download.cirros-cloud.net/0.6.2/cirros-0.6.2-x86_64-disk.img"
-              image_name: cirros-0.6.2-x86_64-disk.img
-              image_type: qcow2
-              image_container: bare
-              images_per_tenant: 1
-          runner:
-            concurrency: 1
-            times: 1
-            type: constant
-      CinderVolumes.create_snapshot_and_attach_volume:
-        -
-          args:
-            size:
-              max: 5
-              min: 1
-            volume_type: false
-          context:
-            servers:
-              flavor:
-                name: m1.tiny
-              image:
-                name: cirros-0.6.2-x86_64-disk.img
-              servers_per_tenant: 2
-            users:
-              tenants: 2
-              users_per_tenant: 1
-            images:
-              image_url: "http://download.cirros-cloud.net/0.6.2/cirros-0.6.2-x86_64-disk.img"
-              image_name: cirros-0.6.2-x86_64-disk.img
-              image_type: qcow2
-              image_container: bare
-              images_per_tenant: 1
-          runner:
-            concurrency: 2
-            times: 4
-            type: constant
-        -
-          args:
-            size:
-              max: 5
-              min: 1
-            volume_type: true
-          context:
-            servers:
-              flavor:
-                name: m1.tiny
-              image:
-                name: cirros-0.6.2-x86_64-disk.img
-              servers_per_tenant: 2
-            users:
-              tenants: 2
-              users_per_tenant: 1
-            images:
-              image_url: "http://download.cirros-cloud.net/0.6.2/cirros-0.6.2-x86_64-disk.img"
-              image_name: cirros-0.6.2-x86_64-disk.img
-              image_type: qcow2
-              image_container: bare
-              images_per_tenant: 1
-          runner:
-            concurrency: 2
-            times: 4
-            type: constant
-      CinderVolumes.create_volume_and_clone:
-        -
-          args:
-            size: 1
-          context:
-            users:
-              tenants: 2
-              users_per_tenant: 2
-          runner:
-            concurrency: 2
-            times: 3
-            type: constant
-        -
-          args:
-            nested_level: 3
-            size:
-              max: 5
-              min: 1
-          context:
-            users:
-              tenants: 2
-              users_per_tenant: 2
-          runner:
-            concurrency: 2
-            times: 3
-            type: constant
-      CinderVolumes.create_volume_backup:
-        -
-          args:
-            create_backup_kwargs: {}
-            create_volume_kwargs: {}
-            do_delete: true
-            size: 1
-          context:
-            roles:
-              - member
-            users:
-              tenants: 1
-              users_per_tenant: 1
-          runner:
-            concurrency: 1
-            times: 2
-            type: constant
-      CinderVolumes.create_volume_from_snapshot:
-        -
-          args:
-            do_delete: true
-          context:
-            users:
-              tenants: 2
-              users_per_tenant: 2
-            volumes:
-              size: 1
-          runner:
-            concurrency: 2
-            times: 3
-            type: constant
-      CinderVolumes.list_transfers:
-        -
-          args:
-            detailed: true
-          context:
-            users:
-              tenants: 3
-              users_per_tenant: 2
-          runner:
-            concurrency: 2
-            times: 3
-            type: constant
-          sla:
-            failure_rate:
-              max: 0
-      CinderVolumes.list_volumes:
-        -
-          args:
-            detailed: true
-          context:
-            users:
-              tenants: 1
-              users_per_tenant: 1
-            volumes:
-              size: 1
-              volumes_per_tenant: 4
-          runner:
-            concurrency: 1
-            times: 100
-            type: constant
-      CinderVolumes.modify_volume_metadata:
-        -
-          args: {}
-          context:
-            users:
-              tenants: 2
-              users_per_tenant: 2
-            volumes:
-              size: 1
-          runner:
-            concurrency: 2
-            times: 10
-            type: constant
-      CinderVolumeBackups.create_incremental_volume_backup:
-        -
-          args:
-            create_backup_kwargs: {}
-            create_volume_kwargs: {}
-            size: 1
-          context:
-            roles:
-              - admin
-            users:
-              tenants: 2
-              users_per_tenant: 2
-          runner:
-            concurrency: 2
-            times: 5
-            type: constant
-          sla:
-            failure_rate:
-              max: 0
-      CinderVolumes.create_and_update_volume:
-        -
-          args:
-            create_volume_kwargs: {}
-            size: 1
-            update_volume_kwargs:
-              display_description: desc_updated
-              display_name: name_updated
-          context:
-            users:
-              tenants: 1
-              users_per_tenant: 1
-          runner:
-            concurrency: 1
-            times: 3
-            type: constant
-      CinderVolumes.create_volume_and_update_readonly_flag:
-        -
-          args:
-            read_only: true
-            size: 1
-          context:
-            users:
-              tenants: 2
-              users_per_tenant: 2
-          runner:
-            concurrency: 2
-            times: 3
-            type: constant
-          sla:
-            failure_rate:
-              max: 0
-      CinderVolumes.list_types:
-        -
-          args:
-            is_public: true
-          context:
-            users:
-              tenants: 2
-              users_per_tenant: 3
-          runner:
-            concurrency: 2
-            times: 10
-            type: constant
-          sla:
-            failure_rate:
-              max: 0
     glance_task:
-      GlanceImages.create_and_delete_image:
-        -
-          args:
-            container_format: bare
-            disk_format: qcow2
-            image_location: "http://download.cirros-cloud.net/0.3.4/cirros-0.3.4-x86_64-disk.img"
-          context:
-            users:
-              tenants: 2
-              users_per_tenant: 3
-          runner:
-            concurrency: 2
-            times: 10
-            type: constant
       GlanceImages.create_and_list_image:
         -
           args:
@@ -2007,570 +858,205 @@ conf:
             concurrency: 1
             times: 10
             type: constant
-      GlanceImages.create_image_and_boot_instances:
-        -
-          args:
-            container_format: bare
-            disk_format: qcow2
-            flavor:
-              name: m1.tiny
-            image_location: "http://download.cirros-cloud.net/0.3.4/cirros-0.3.4-x86_64-disk.img"
-            number_instances: 2
-          context:
-            users:
-              tenants: 3
-              users_per_tenant: 5
-          runner:
-            concurrency: 2
-            times: 10
-            type: constant
-      GlanceImages.list_images:
-        -
-          context:
-            images:
-              image_container: bare
-              image_type: qcow2
-              image_url: "http://download.cirros-cloud.net/0.3.4/cirros-0.3.4-x86_64-disk.img"
-              images_per_tenant: 4
-            users:
-              tenants: 2
-              users_per_tenant: 2
-          runner:
-            concurrency: 1
-            times: 10
-            type: constant
-    heat_task:
-      HeatStacks.create_and_delete_stack:
-        -
-          args:
-            template_path: /tmp/tasks/test-templates/server-with-ports.yaml
-          context:
-            users:
-              tenants: 2
-              users_per_tenant: 3
-          runner:
-            concurrency: 2
-            times: 10
-            type: constant
-      HeatStacks.create_and_list_stack:
-        -
-          args:
-            template_path: /tmp/tasks/test-templates/default.yaml
-          context:
-            users:
-              tenants: 1
-              users_per_tenant: 1
-          runner:
-            concurrency: 1
-            times: 10
-            type: constant
-      HeatStacks.create_check_delete_stack:
-        -
-          args:
-            template_path: /tmp/tasks/test-templates/random-strings.yaml
-          context:
-            users:
-              tenants: 2
-              users_per_tenant: 3
-          runner:
-            concurrency: 2
-            times: 10
-            type: constant
-      HeatStacks.create_snapshot_restore_delete_stack:
-        -
-          args:
-            template_path: /tmp/tasks/test-templates/random-strings.yaml
-          context:
-            users:
-              tenants: 3
-              users_per_tenant: 2
-          runner:
-            concurrency: 2
-            times: 10
-            type: constant
-      HeatStacks.create_stack_and_list_output:
-        -
-          args:
-            template_path: /tmp/tasks/test-templates/resource-group-with-outputs.yaml
-          context:
-            users:
-              tenants: 2
-              users_per_tenant: 2
-          runner:
-            concurrency: 2
-            times: 5
-            type: constant
-      HeatStacks.create_stack_and_list_output_via_API:
-        -
-          args:
-            template_path: /tmp/tasks/test-templates/resource-group-with-outputs.yaml
-          context:
-            users:
-              tenants: 2
-              users_per_tenant: 2
-          runner:
-            concurrency: 2
-            times: 5
-            type: constant
-      HeatStacks.create_stack_and_scale:
-        -
-          args:
-            delta: 1
-            output_key: scaling_url
-            template_path: /tmp/tasks/test-templates/autoscaling-group.yaml
-          context:
-            users:
-              tenants: 2
-              users_per_tenant: 1
-          runner:
-            concurrency: 2
-            times: 3
-            type: constant
-      HeatStacks.create_stack_and_show_output:
-        -
-          args:
-            output_key: val1
-            template_path: /tmp/tasks/test-templates/resource-group-with-outputs.yaml
-          context:
-            users:
-              tenants: 2
-              users_per_tenant: 2
-          runner:
-            concurrency: 2
-            times: 5
-            type: constant
-      HeatStacks.create_stack_and_show_output_via_API:
-        -
-          args:
-            output_key: val1
-            template_path: /tmp/tasks/test-templates/resource-group-with-outputs.yaml
-          context:
-            users:
-              tenants: 2
-              users_per_tenant: 2
-          runner:
-            concurrency: 1
-            times: 5
-            type: constant
-      HeatStacks.create_suspend_resume_delete_stack:
-        -
-          args:
-            template_path: /tmp/tasks/test-templates/random-strings.yaml
-          context:
-            users:
-              tenants: 3
-              users_per_tenant: 2
-          runner:
-            concurrency: 2
-            times: 10
-            type: constant
-      HeatStacks.create_update_delete_stack:
-        -
-          args:
-            template_path: /tmp/tasks/test-templates/resource-group.yaml
-            updated_template_path: /tmp/tasks/test-templates/updated-resource-group-reduce.yaml
-          context:
-            users:
-              tenants: 2
-              users_per_tenant: 3
-          runner:
-            concurrency: 2
-            times: 10
-            type: constant
-      HeatStacks.list_stacks_and_events:
-        -
-          context:
-            stacks:
-              resources_per_stack: 10
-              stacks_per_tenant: 2
-            users:
-              tenants: 1
-              users_per_tenant: 1
-          runner:
-            concurrency: 1
-            times: 10
-            type: constant
-      HeatStacks.list_stacks_and_resources:
-        -
-          context:
-            stacks:
-              resources_per_stack: 10
-              stacks_per_tenant: 2
-            users:
-              tenants: 1
-              users_per_tenant: 1
-          runner:
-            concurrency: 1
-            times: 10
-            type: constant
     keystone_task:
       KeystoneBasic.add_and_remove_user_role:
-        -
-          context:
-            users:
-              tenants: 3
-              users_per_tenant: 2
-          runner:
-            concurrency: 10
-            times: 100
+        - runner:
+            concurrency: 1
+            times: 1
             type: constant
+          sla:
+            failure_rate:
+              max: 0
       KeystoneBasic.authenticate_user_and_validate_token:
-        -
-          args: {}
+        - args: {}
           runner:
-            concurrency: 5
-            times: 20
+            concurrency: 1
+            times: 1
             type: constant
           sla:
             failure_rate:
               max: 0
       KeystoneBasic.create_add_and_list_user_roles:
-        -
-          context:
-            users:
-              tenants: 3
-              users_per_tenant: 2
-          runner:
-            concurrency: 10
-            times: 100
-            type: constant
-      KeystoneBasic.create_and_delete_ec2credential:
-        -
-          context:
-            users:
-              tenants: 2
-              users_per_tenant: 2
-          runner:
-            concurrency: 5
-            times: 10
-            type: constant
-      KeystoneBasic.create_and_delete_role:
-        -
-          runner:
-            concurrency: 10
-            times: 100
-            type: constant
-      KeystoneBasic.create_and_delete_service:
-        -
-          args:
-            description: test_description
-            service_type: Rally_test_type
-          runner:
-            concurrency: 10
-            times: 100
-            type: constant
-      KeystoneBasic.create_and_get_role:
-        -
-          args: {}
-          context:
-            users:
-              tenants: 3
-              users_per_tenant: 2
-          runner:
-            concurrency: 2
-            times: 10
+        - runner:
+            concurrency: 1
+            times: 1
             type: constant
           sla:
             failure_rate:
               max: 0
-      KeystoneBasic.create_and_list_ec2credentials:
-        -
-          context:
-            users:
-              tenants: 2
-              users_per_tenant: 2
-          runner:
-            concurrency: 5
-            times: 10
+      KeystoneBasic.create_and_delete_ec2credential:
+        - runner:
+            concurrency: 1
+            times: 1
             type: constant
-      KeystoneBasic.create_and_list_services:
-        -
-          args:
+          sla:
+            failure_rate:
+              max: 0
+
+      KeystoneBasic.create_and_list_ec2credentials:
+        - runner:
+            concurrency: 1
+            times: 1
+            type: constant
+          sla:
+            failure_rate:
+              max: 0
+      KeystoneBasic.create_and_delete_role:
+        - runner:
+            concurrency: 1
+            times: 1
+            type: constant
+          sla:
+            failure_rate:
+              max: 0
+      KeystoneBasic.create_and_delete_service:
+        - args:
             description: test_description
             service_type: Rally_test_type
           runner:
-            concurrency: 10
-            times: 100
+            concurrency: 1
+            times: 1
             type: constant
-      KeystoneBasic.create_and_list_tenants:
-        -
-          args: {}
+          sla:
+            failure_rate:
+              max: 0
+      KeystoneBasic.create_and_get_role:
+        - args: {}
           runner:
             concurrency: 1
-            times: 10
+            times: 1
             type: constant
+          sla:
+            failure_rate:
+              max: 0
+      KeystoneBasic.create_and_list_services:
+        - args:
+            description: test_description
+            service_type: Rally_test_type
+          runner:
+            concurrency: 1
+            times: 1
+            type: constant
+          sla:
+            failure_rate:
+              max: 0
+      KeystoneBasic.create_and_list_tenants:
+        - args: {}
+          runner:
+            concurrency: 1
+            times: 1
+            type: constant
+          sla:
+            failure_rate:
+              max: 0
       KeystoneBasic.create_and_list_users:
-        -
-          args: {}
+        - args: {}
           runner:
-            concurrency: 10
-            times: 100
+            concurrency: 1
+            times: 1
             type: constant
+          sla:
+            failure_rate:
+              max: 0
       KeystoneBasic.create_delete_user:
-        -
-          args: {}
+        - args: {}
           runner:
-            concurrency: 10
-            times: 100
+            concurrency: 1
+            times: 1
             type: constant
+          sla:
+            failure_rate:
+              max: 0
       KeystoneBasic.create_tenant:
-        -
-          args: {}
+        - args: {}
           runner:
-            concurrency: 10
-            times: 100
+            concurrency: 1
+            times: 1
             type: constant
+          sla:
+            failure_rate:
+              max: 0
       KeystoneBasic.create_tenant_with_users:
-        -
-          args:
-            users_per_tenant: 10
+        - args:
+            users_per_tenant: 1
           runner:
-            concurrency: 10
-            times: 10
+            concurrency: 1
+            times: 1
             type: constant
+          sla:
+            failure_rate:
+              max: 0
       KeystoneBasic.create_update_and_delete_tenant:
-        -
-          args: {}
+        - args: {}
           runner:
-            concurrency: 10
-            times: 100
+            concurrency: 1
+            times: 1
             type: constant
+          sla:
+            failure_rate:
+              max: 0
       KeystoneBasic.create_user:
-        -
-          args: {}
+        - args: {}
           runner:
-            concurrency: 10
-            times: 100
+            concurrency: 1
+            times: 1
             type: constant
+          sla:
+            failure_rate:
+              max: 0
       KeystoneBasic.create_user_set_enabled_and_delete:
-        -
-          args:
+        - args:
             enabled: true
           runner:
-            concurrency: 10
-            times: 100
+            concurrency: 1
+            times: 1
             type: constant
-        -
-          args:
+          sla:
+            failure_rate:
+              max: 0
+        - args:
             enabled: false
           runner:
-            concurrency: 10
-            times: 100
+            concurrency: 1
+            times: 1
             type: constant
+          sla:
+            failure_rate:
+              max: 0
       KeystoneBasic.create_user_update_password:
-        -
-          args: {}
+        - args: {}
           runner:
-            concurrency: 10
-            times: 100
+            concurrency: 1
+            times: 1
             type: constant
+          sla:
+            failure_rate:
+              max: 0
       KeystoneBasic.get_entities:
-        -
-          runner:
-            concurrency: 10
-            times: 100
-            type: constant
-    magnum_task:
-      MagnumClusterTemplates.list_cluster_templates:
-        -
-          context:
-            cluster_templates:
-              coe: kubernetes
-              dns_nameserver: "8.8.8.8"
-              docker_volume_size: 5
-              external_network_id: public
-              flavor_id: m1.small
-              image_id: fedora-atomic-latest
-              network_driver: flannel
-            users:
-              tenants: 1
-              users_per_tenant: 1
-          runner:
+        - runner:
             concurrency: 1
             times: 1
             type: constant
-        -
-          context:
-            cluster_templates:
-              coe: swarm
-              dns_nameserver: "8.8.8.8"
-              docker_volume_size: 5
-              external_network_id: public
-              flavor_id: m1.small
-              image_id: fedora-atomic-latest
-              network_driver: docker
-            users:
-              tenants: 1
-              users_per_tenant: 1
-          runner:
-            concurrency: 1
-            times: 1
-            type: constant
-        -
-          context:
-            cluster_templates:
-              coe: mesos
-              dns_nameserver: "8.8.8.8"
-              external_network_id: public
-              flavor_id: m1.small
-              image_id: ubuntu-mesos
-              network_driver: docker
-            users:
-              tenants: 1
-              users_per_tenant: 1
-          runner:
-            concurrency: 1
-            times: 1
-            type: constant
-      MagnumClusters.create_and_list_clusters:
-        -
-          args:
-            node_count: 1
-          context:
-            cluster_templates:
-              coe: kubernetes
-              dns_nameserver: "8.8.8.8"
-              docker_volume_size: 5
-              external_network_id: public
-              flavor_id: m1.small
-              image_id: fedora-atomic-latest
-              network_driver: flannel
-            users:
-              tenants: 1
-              users_per_tenant: 1
-          runner:
-            concurrency: 1
-            times: 1
-            type: constant
-        -
-          args:
-            node_count: 1
-          context:
-            cluster_templates:
-              coe: swarm
-              dns_nameserver: "8.8.8.8"
-              docker_volume_size: 5
-              external_network_id: public
-              flavor_id: m1.small
-              image_id: fedora-atomic-latest
-              network_driver: docker
-            users:
-              tenants: 1
-              users_per_tenant: 1
-          runner:
-            concurrency: 1
-            times: 1
-            type: constant
-        -
-          args:
-            node_count: 1
-          context:
-            cluster_templates:
-              coe: mesos
-              dns_nameserver: "8.8.8.8"
-              external_network_id: public
-              flavor_id: m1.small
-              image_id: ubuntu-mesos
-              network_driver: docker
-            users:
-              tenants: 1
-              users_per_tenant: 1
-          runner:
-            concurrency: 1
-            times: 1
-            type: constant
-      MagnumClusters.list_clusters:
-        -
-          context:
-            cluster_templates:
-              coe: kubernetes
-              dns_nameserver: "8.8.8.8"
-              docker_volume_size: 5
-              external_network_id: public
-              flavor_id: m1.small
-              image_id: fedora-atomic-latest
-              network_driver: flannel
-            clusters:
-              node_count: 2
-            users:
-              tenants: 1
-              users_per_tenant: 1
-          runner:
-            concurrency: 1
-            times: 1
-            type: constant
-        -
-          context:
-            cluster_templates:
-              coe: swarm
-              dns_nameserver: "8.8.8.8"
-              docker_volume_size: 5
-              external_network_id: public
-              flavor_id: m1.small
-              image_id: fedora-atomic-latest
-              network_driver: docker
-            clusters:
-              node_count: 2
-            users:
-              tenants: 1
-              users_per_tenant: 1
-          runner:
-            concurrency: 1
-            times: 1
-            type: constant
-        -
-          context:
-            cluster_templates:
-              coe: mesos
-              dns_nameserver: "8.8.8.8"
-              external_network_id: public
-              flavor_id: m1.small
-              image_id: ubuntu-mesos
-              network_driver: docker
-            clusters:
-              node_count: 2
-            users:
-              tenants: 1
-              users_per_tenant: 1
-          runner:
-            concurrency: 1
-            times: 1
-            type: constant
+          sla:
+            failure_rate:
+              max: 0
     neutron_task:
-      NeutronNetworks.create_and_delete_floating_ips:
-        -
-          args:
-            floating_ip_args: {}
-            floating_network: public
-          context:
-            quotas:
-              neutron:
-                floatingip: -1
-            users:
-              tenants: 2
-              users_per_tenant: 3
-          runner:
-            concurrency: 5
-            times: 10
-            type: constant
       NeutronNetworks.create_and_delete_networks:
-        -
-          args:
+        - args:
             network_create_args: {}
           context:
             quotas:
               neutron:
                 network: -1
-            users:
-              tenants: 3
-              users_per_tenant: 3
           runner:
-            concurrency: 10
-            times: 100
+            concurrency: 1
+            times: 1
             type: constant
+          sla:
+            failure_rate:
+              max: 0
       NeutronNetworks.create_and_delete_ports:
-        -
-          args:
+        - args:
             network_create_args: {}
             port_create_args: {}
             ports_per_network: 10
@@ -2580,16 +1066,15 @@ conf:
               neutron:
                 network: -1
                 port: -1
-            users:
-              tenants: 3
-              users_per_tenant: 3
           runner:
-            concurrency: 10
-            times: 100
+            concurrency: 1
+            times: 1
             type: constant
+          sla:
+            failure_rate:
+              max: 0
       NeutronNetworks.create_and_delete_routers:
-        -
-          args:
+        - args:
             network_create_args: {}
             router_create_args: {}
             subnet_cidr_start: 1.1.0.0/30
@@ -2602,16 +1087,15 @@ conf:
                 network: -1
                 router: -1
                 subnet: -1
-            users:
-              tenants: 3
-              users_per_tenant: 3
           runner:
-            concurrency: 10
-            times: 30
+            concurrency: 1
+            times: 1
             type: constant
+          sla:
+            failure_rate:
+              max: 0
       NeutronNetworks.create_and_delete_subnets:
-        -
-          args:
+        - args:
             network_create_args: {}
             subnet_cidr_start: 1.1.0.0/30
             subnet_create_args: {}
@@ -2622,90 +1106,15 @@ conf:
               neutron:
                 network: -1
                 subnet: -1
-            users:
-              tenants: 3
-              users_per_tenant: 3
           runner:
-            concurrency: 10
-            times: 100
-            type: constant
-      NeutronNetworks.create_and_list_floating_ips:
-        -
-          args:
-            floating_ip_args: {}
-            floating_network: public
-          context:
-            quotas:
-              neutron:
-                floatingip: -1
-            users:
-              tenants: 2
-              users_per_tenant: 3
-          runner:
-            concurrency: 5
-            times: 10
-            type: constant
-      NeutronNetworks.create_and_list_networks:
-        -
-          args:
-            network_create_args: {}
-          context:
-            quotas:
-              neutron:
-                network: -1
-            users:
-              tenants: 3
-              users_per_tenant: 3
-          runner:
-            concurrency: 10
-            times: 100
+            concurrency: 1
+            times: 1
             type: constant
           sla:
             failure_rate:
               max: 0
-        -
-          args:
-            network_create_args:
-              ? "provider:network_type"
-              : vxlan
-          context:
-            quotas:
-              neutron:
-                network: -1
-            roles:
-              - admin
-            users:
-              tenants: 3
-              users_per_tenant: 3
-          runner:
-            concurrency: 10
-            times: 100
-            type: constant
-          sla:
-            failure_rate:
-              max: 0
-      NeutronNetworks.create_and_list_ports:
-        -
-          args:
-            network_create_args: {}
-            port_create_args: {}
-            ports_per_network: 10
-          context:
-            network: {}
-            quotas:
-              neutron:
-                network: -1
-                port: -1
-            users:
-              tenants: 3
-              users_per_tenant: 3
-          runner:
-            concurrency: 10
-            times: 100
-            type: constant
       NeutronNetworks.create_and_list_routers:
-        -
-          args:
+        - args:
             network_create_args: {}
             router_create_args: {}
             subnet_cidr_start: 1.1.0.0/30
@@ -2718,16 +1127,15 @@ conf:
                 network: -1
                 router: -1
                 subnet: -1
-            users:
-              tenants: 3
-              users_per_tenant: 3
           runner:
-            concurrency: 10
-            times: 100
+            concurrency: 1
+            times: 1
             type: constant
+          sla:
+            failure_rate:
+              max: 0
       NeutronNetworks.create_and_list_subnets:
-        -
-          args:
+        - args:
             network_create_args: {}
             subnet_cidr_start: 1.1.0.0/30
             subnet_create_args: {}
@@ -2738,59 +1146,51 @@ conf:
               neutron:
                 network: -1
                 subnet: -1
-            users:
-              tenants: 2
-              users_per_tenant: 3
           runner:
-            concurrency: 5
-            times: 10
+            concurrency: 1
+            times: 1
             type: constant
+          sla:
+            failure_rate:
+              max: 0
       NeutronNetworks.create_and_show_network:
-        -
-          args:
+        - args:
             network_create_args: {}
           context:
             quotas:
               neutron:
                 network: -1
-            users:
-              tenants: 3
-              users_per_tenant: 3
           runner:
-            concurrency: 2
-            times: 10
+            concurrency: 1
+            times: 1
             type: constant
           sla:
             failure_rate:
               max: 0
       NeutronNetworks.create_and_update_networks:
-        -
-          args:
+        - args:
             network_create_args: {}
             network_update_args:
               admin_state_up: false
-              name: _updated
           context:
             quotas:
               neutron:
                 network: -1
-            users:
-              tenants: 2
-              users_per_tenant: 3
           runner:
-            concurrency: 5
-            times: 10
+            concurrency: 1
+            times: 1
             type: constant
+          sla:
+            failure_rate:
+              max: 0
       NeutronNetworks.create_and_update_ports:
-        -
-          args:
+        - args:
             network_create_args: {}
             port_create_args: {}
             port_update_args:
               admin_state_up: false
               device_id: dummy_id
               device_owner: dummy_owner
-              name: _port_updated
             ports_per_network: 5
           context:
             network: {}
@@ -2798,21 +1198,19 @@ conf:
               neutron:
                 network: -1
                 port: -1
-            users:
-              tenants: 2
-              users_per_tenant: 3
           runner:
-            concurrency: 5
-            times: 10
+            concurrency: 1
+            times: 1
             type: constant
+          sla:
+            failure_rate:
+              max: 0
       NeutronNetworks.create_and_update_routers:
-        -
-          args:
+        - args:
             network_create_args: {}
             router_create_args: {}
             router_update_args:
               admin_state_up: false
-              name: _router_updated
             subnet_cidr_start: 1.1.0.0/30
             subnet_create_args: {}
             subnets_per_network: 2
@@ -2823,22 +1221,20 @@ conf:
                 network: -1
                 router: -1
                 subnet: -1
-            users:
-              tenants: 2
-              users_per_tenant: 3
           runner:
-            concurrency: 5
-            times: 10
+            concurrency: 1
+            times: 1
             type: constant
+          sla:
+            failure_rate:
+              max: 0
       NeutronNetworks.create_and_update_subnets:
-        -
-          args:
+        - args:
             network_create_args: {}
             subnet_cidr_start: 1.4.0.0/16
             subnet_create_args: {}
             subnet_update_args:
               enable_dhcp: false
-              name: _subnet_updated
             subnets_per_network: 2
           context:
             network: {}
@@ -2846,1182 +1242,249 @@ conf:
               neutron:
                 network: -1
                 subnet: -1
-            users:
-              tenants: 2
-              users_per_tenant: 3
           runner:
-            concurrency: 5
-            times: 10
-            type: constant
-      NeutronNetworks.list_agents:
-        -
-          args:
-            agent_args: {}
-          context:
-            users:
-              tenants: 2
-              users_per_tenant: 3
-          runner:
-            concurrency: 2
-            times: 10
+            concurrency: 1
+            times: 1
             type: constant
           sla:
             failure_rate:
               max: 0
-      NeutronSecurityGroup.create_and_delete_security_groups:
-        -
-          args:
-            security_group_create_args: {}
-          context:
-            quotas:
-              neutron:
-                security_group: -1
-            users:
-              tenants: 3
-              users_per_tenant: 3
+      NeutronNetworks.list_agents:
+        - args:
+            agent_args: {}
           runner:
-            concurrency: 10
-            times: 100
+            concurrency: 1
+            times: 1
             type: constant
+          sla:
+            failure_rate:
+              max: 0
       NeutronSecurityGroup.create_and_list_security_groups:
-        -
-          args:
+        - args:
             security_group_create_args: {}
           context:
             quotas:
               neutron:
                 security_group: -1
-            users:
-              tenants: 3
-              users_per_tenant: 3
           runner:
-            concurrency: 10
-            times: 100
+            concurrency: 1
+            times: 1
             type: constant
+          sla:
+            failure_rate:
+              max: 0
       NeutronSecurityGroup.create_and_update_security_groups:
-        -
-          args:
+        - args:
             security_group_create_args: {}
             security_group_update_args: {}
           context:
             quotas:
               neutron:
                 security_group: -1
-            users:
-              tenants: 3
-              users_per_tenant: 3
           runner:
-            concurrency: 10
-            times: 100
+            concurrency: 1
+            times: 1
             type: constant
+          sla:
+            failure_rate:
+              max: 0
     nova_task:
-      NovaAgents.list_agents:
-        -
-          runner:
-            concurrency: 2
-            times: 10
-            type: constant
-      NovaAggregates.create_aggregate_add_and_remove_host:
-        -
-          args:
-            availability_zone: nova
-          context:
-            users:
-              tenants: 3
-              users_per_tenant: 2
-          runner:
-            concurrency: 2
-            times: 10
-            type: constant
-          sla:
-            failure_rate:
-              max: 0
-      NovaAggregates.create_aggregate_add_host_and_boot_server:
-        -
-          args:
-            availability_zone: nova
-            boot_server_kwargs: {}
-            disk: 1
-            image:
-              name: cirros-0.6.2-x86_64-disk.img
-            metadata:
-              test_metadata: "true"
-            ram: 512
-            vcpus: 1
-          context:
-            users:
-              tenants: 3
-              users_per_tenant: 2
-            images:
-              image_url: "http://download.cirros-cloud.net/0.6.2/cirros-0.6.2-x86_64-disk.img"
-              image_name: cirros-0.6.2-x86_64-disk.img
-              image_type: qcow2
-              image_container: bare
-              images_per_tenant: 1
-          runner:
-            concurrency: 2
-            times: 10
-            type: constant
-          sla:
-            failure_rate:
-              max: 0
-      NovaAggregates.create_and_delete_aggregate:
-        -
-          args:
-            availability_zone: nova
-          context:
-            users:
-              tenants: 3
-              users_per_tenant: 2
-          runner:
-            concurrency: 2
-            times: 10
-            type: constant
-          sla:
-            failure_rate:
-              max: 0
       NovaAggregates.create_and_get_aggregate_details:
-        -
-          args:
+        - args:
             availability_zone: nova
-          context:
-            users:
-              tenants: 3
-              users_per_tenant: 2
           runner:
-            concurrency: 2
-            times: 10
-            type: constant
-          sla:
-            failure_rate:
-              max: 0
-      NovaAggregates.create_and_list_aggregates:
-        -
-          args:
-            availability_zone: nova
-          context:
-            users:
-              tenants: 3
-              users_per_tenant: 2
-          runner:
-            concurrency: 2
-            times: 10
+            concurrency: 1
+            times: 1
             type: constant
           sla:
             failure_rate:
               max: 0
       NovaAggregates.create_and_update_aggregate:
-        -
-          args:
+        - args:
             availability_zone: nova
-          context:
-            users:
-              tenants: 3
-              users_per_tenant: 2
           runner:
-            concurrency: 2
-            times: 10
+            concurrency: 1
+            times: 1
             type: constant
           sla:
             failure_rate:
               max: 0
       NovaAggregates.list_aggregates:
-        -
-          runner:
-            concurrency: 2
-            times: 10
-            type: constant
-      NovaAvailabilityZones.list_availability_zones:
-        -
-          args:
-            detailed: true
-          runner:
-            concurrency: 2
-            times: 10
-            type: constant
-      NovaFlavors.create_and_delete_flavor:
-        -
-          args:
-            disk: 1
-            ram: 500
-            vcpus: 1
-          context:
-            users:
-              tenants: 2
-              users_per_tenant: 2
-          runner:
-            concurrency: 2
-            times: 10
+        - runner:
+            concurrency: 1
+            times: 1
             type: constant
           sla:
             failure_rate:
               max: 0
-      NovaFlavors.create_and_get_flavor:
-        -
-          args:
+      NovaAvailabilityZones.list_availability_zones:
+        - args:
+            detailed: true
+          runner:
+            concurrency: 1
+            times: 1
+            type: constant
+          sla:
+            failure_rate:
+              max: 0
+      NovaFlavors.create_and_delete_flavor:
+        - args:
             disk: 1
             ram: 500
             vcpus: 1
-          context:
-            users:
-              tenants: 1
-              users_per_tenant: 1
           runner:
-            concurrency: 2
-            times: 10
+            concurrency: 1
+            times: 1
             type: constant
           sla:
             failure_rate:
               max: 0
       NovaFlavors.create_and_list_flavor_access:
-        -
-          args:
+        - args:
             disk: 1
             ram: 500
             vcpus: 1
           runner:
-            concurrency: 2
-            times: 10
+            concurrency: 1
+            times: 1
             type: constant
+          sla:
+            failure_rate:
+              max: 0
       NovaFlavors.create_flavor:
-        -
-          args:
+        - args:
             disk: 1
             ram: 500
             vcpus: 1
           runner:
-            concurrency: 2
-            times: 10
+            concurrency: 1
+            times: 1
             type: constant
+          sla:
+            failure_rate:
+              max: 0
       NovaFlavors.create_flavor_and_add_tenant_access:
-        -
-          args:
+        - args:
             disk: 1
             ram: 500
             vcpus: 1
-          context:
-            users:
-              tenants: 2
-              users_per_tenant: 2
           runner:
-            concurrency: 2
-            times: 10
+            concurrency: 1
+            times: 1
             type: constant
           sla:
             failure_rate:
               max: 0
       NovaFlavors.create_flavor_and_set_keys:
-        -
-          args:
+        - args:
             disk: 1
             extra_specs:
-              ? "quota:disk_read_bytes_sec"
-              : 10240
+              'quota:disk_read_bytes_sec': 10240
             ram: 500
             vcpus: 1
-          context:
-            users:
-              tenants: 3
-              users_per_tenant: 2
           runner:
-            concurrency: 2
-            times: 10
+            concurrency: 1
+            times: 1
             type: constant
           sla:
             failure_rate:
               max: 0
       NovaFlavors.list_flavors:
-        -
-          args:
+        - args:
             detailed: true
-          context:
-            users:
-              tenants: 3
-              users_per_tenant: 2
           runner:
-            concurrency: 2
-            times: 10
+            concurrency: 1
+            times: 1
             type: constant
+          sla:
+            failure_rate:
+              max: 0
       NovaHypervisors.list_and_get_hypervisors:
-        -
-          args:
+        - args:
             detailed: true
-          context:
-            users:
-              tenants: 3
-              users_per_tenant: 2
           runner:
-            concurrency: 2
-            times: 2
+            concurrency: 1
+            times: 1
             type: constant
           sla:
             failure_rate:
               max: 0
       NovaHypervisors.list_and_get_uptime_hypervisors:
-        -
-          args:
+        - args:
             detailed: true
-          context:
-            users:
-              tenants: 3
-              users_per_tenant: 2
           runner:
-            concurrency: 2
-            times: 2
+            concurrency: 1
+            times: 1
             type: constant
           sla:
             failure_rate:
               max: 0
       NovaHypervisors.list_and_search_hypervisors:
-        -
-          args:
+        - args:
             detailed: true
-          context:
-            users:
-              tenants: 3
-              users_per_tenant: 2
           runner:
-            concurrency: 2
-            times: 2
+            concurrency: 1
+            times: 1
             type: constant
           sla:
             failure_rate:
               max: 0
       NovaHypervisors.list_hypervisors:
-        -
-          args:
+        - args:
             detailed: true
           runner:
-            concurrency: 2
-            times: 10
+            concurrency: 1
+            times: 1
             type: constant
+          sla:
+            failure_rate:
+              max: 0
       NovaHypervisors.statistics_hypervisors:
-        -
-          args: {}
-          context:
-            users:
-              tenants: 3
-              users_per_tenant: 2
+        - args: {}
           runner:
-            concurrency: 2
-            times: 2
+            concurrency: 1
+            times: 1
             type: constant
           sla:
             failure_rate:
               max: 0
-      NovaKeypair.boot_and_delete_server_with_keypair:
-        -
-          args:
-            boot_server_kwargs: {}
-            flavor:
-              name: m1.tiny
-            image:
-              name: cirros-0.6.2-x86_64-disk.img
-          context:
-            network:
-              start_cidr: 100.1.0.0/26
-            users:
-              tenants: 2
-              users_per_tenant: 1
-            images:
-              image_url: "http://download.cirros-cloud.net/0.6.2/cirros-0.6.2-x86_64-disk.img"
-              image_name: cirros-0.6.2-x86_64-disk.img
-              image_type: qcow2
-              image_container: bare
-              images_per_tenant: 1
-          runner:
-            concurrency: 2
-            times: 5
-            type: constant
       NovaKeypair.create_and_delete_keypair:
-        -
-          context:
-            users:
-              tenants: 3
-              users_per_tenant: 2
-          runner:
-            concurrency: 2
-            times: 10
-            type: constant
-      NovaKeypair.create_and_list_keypairs:
-        -
-          context:
-            users:
-              tenants: 3
-              users_per_tenant: 2
-          runner:
-            concurrency: 2
-            times: 10
-            type: constant
-      NovaServers.boot_and_associate_floating_ip:
-        -
-          args:
-            flavor:
-              name: m1.tiny
-            image:
-              name: cirros-0.6.2-x86_64-disk.img
-          context:
-            network: {}
-            users:
-              tenants: 1
-              users_per_tenant: 1
-            images:
-              image_url: "http://download.cirros-cloud.net/0.6.2/cirros-0.6.2-x86_64-disk.img"
-              image_name: cirros-0.6.2-x86_64-disk.img
-              image_type: qcow2
-              image_container: bare
-              images_per_tenant: 1
-          runner:
+        - runner:
             concurrency: 1
             times: 1
-            type: constant
-      NovaServers.boot_and_bounce_server:
-        -
-          args:
-            actions:
-              -
-                hard_reboot: 1
-              -
-                soft_reboot: 1
-              -
-                stop_start: 1
-              -
-                rescue_unrescue: 1
-            flavor:
-              name: m1.tiny
-            force_delete: false
-            image:
-              name: cirros-0.6.2-x86_64-disk.img
-          context:
-            users:
-              tenants: 3
-              users_per_tenant: 2
-            images:
-              image_url: "http://download.cirros-cloud.net/0.6.2/cirros-0.6.2-x86_64-disk.img"
-              image_name: cirros-0.6.2-x86_64-disk.img
-              image_type: qcow2
-              image_container: bare
-              images_per_tenant: 1
-          runner:
-            concurrency: 2
-            times: 10
-            type: constant
-      NovaServers.boot_and_delete_multiple_servers:
-        -
-          args:
-            count: 5
-            flavor:
-              name: m1.tiny
-            image:
-              name: cirros-0.6.2-x86_64-disk.img
-          context:
-            users:
-              tenants: 1
-              users_per_tenant: 1
-            images:
-              image_url: "http://download.cirros-cloud.net/0.6.2/cirros-0.6.2-x86_64-disk.img"
-              image_name: cirros-0.6.2-x86_64-disk.img
-              image_type: qcow2
-              image_container: bare
-              images_per_tenant: 1
-          runner:
-            concurrency: 1
-            times: 1
-            type: constant
-      NovaServers.boot_and_delete_server:
-        -
-          args:
-            flavor:
-              name: m1.tiny
-            force_delete: false
-            image:
-              name: cirros-0.6.2-x86_64-disk.img
-          context:
-            users:
-              tenants: 3
-              users_per_tenant: 2
-            images:
-              image_url: "http://download.cirros-cloud.net/0.6.2/cirros-0.6.2-x86_64-disk.img"
-              image_name: cirros-0.6.2-x86_64-disk.img
-              image_type: qcow2
-              image_container: bare
-              images_per_tenant: 1
-          runner:
-            concurrency: 2
-            times: 10
-            type: constant
-        -
-          args:
-            auto_assign_nic: true
-            flavor:
-              name: m1.tiny
-            image:
-              name: cirros-0.6.2-x86_64-disk.img
-          context:
-            network:
-              networks_per_tenant: 2
-              start_cidr: 10.2.0.0/24
-            users:
-              tenants: 3
-              users_per_tenant: 2
-            images:
-              image_url: "http://download.cirros-cloud.net/0.6.2/cirros-0.6.2-x86_64-disk.img"
-              image_name: cirros-0.6.2-x86_64-disk.img
-              image_type: qcow2
-              image_container: bare
-              images_per_tenant: 1
-          runner:
-            concurrency: 2
-            times: 10
-            type: constant
-      NovaServers.boot_and_get_console_output:
-        -
-          args:
-            flavor:
-              name: m1.tiny
-            image:
-              name: cirros-0.6.2-x86_64-disk.img
-          context:
-            users:
-              tenants: 1
-              users_per_tenant: 1
-            images:
-              image_url: "http://download.cirros-cloud.net/0.6.2/cirros-0.6.2-x86_64-disk.img"
-              image_name: cirros-0.6.2-x86_64-disk.img
-              image_type: qcow2
-              image_container: bare
-              images_per_tenant: 1
-          runner:
-            concurrency: 1
-            times: 1
-            type: constant
-      NovaServers.boot_and_list_server:
-        -
-          args:
-            detailed: true
-            flavor:
-              name: m1.tiny
-            image:
-              name: cirros-0.6.2-x86_64-disk.img
-          context:
-            users:
-              tenants: 1
-              users_per_tenant: 1
-            images:
-              image_url: "http://download.cirros-cloud.net/0.6.2/cirros-0.6.2-x86_64-disk.img"
-              image_name: cirros-0.6.2-x86_64-disk.img
-              image_type: qcow2
-              image_container: bare
-              images_per_tenant: 1
-          runner:
-            concurrency: 1
-            times: 1
-            type: constant
-      NovaServers.boot_and_live_migrate_server:
-        -
-          args:
-            block_migration: false
-            flavor:
-              name: m1.tiny
-            image:
-              name: cirros-0.6.2-x86_64-disk.img
-          context:
-            users:
-              tenants: 1
-              users_per_tenant: 1
-            images:
-              image_url: "http://download.cirros-cloud.net/0.6.2/cirros-0.6.2-x86_64-disk.img"
-              image_name: cirros-0.6.2-x86_64-disk.img
-              image_type: qcow2
-              image_container: bare
-              images_per_tenant: 1
-          runner:
-            concurrency: 2
-            times: 10
-            type: constant
-      NovaServers.boot_and_migrate_server:
-        -
-          args:
-            flavor:
-              name: m1.tiny
-            image:
-              name: cirros-0.6.2-x86_64-disk.img
-          context:
-            users:
-              tenants: 1
-              users_per_tenant: 1
-            images:
-              image_url: "http://download.cirros-cloud.net/0.6.2/cirros-0.6.2-x86_64-disk.img"
-              image_name: cirros-0.6.2-x86_64-disk.img
-              image_type: qcow2
-              image_container: bare
-              images_per_tenant: 1
-          runner:
-            concurrency: 2
-            times: 10
-            type: constant
-      NovaServers.boot_and_rebuild_server:
-        -
-          args:
-            flavor:
-              name: m1.tiny
-            from_image:
-              name: cirros-0.6.2-x86_64-disk.img
-            to_image:
-              name: cirros-0.6.2-x86_64-disk.img
-          context:
-            users:
-              tenants: 1
-              users_per_tenant: 1
-            images:
-              image_url: "http://download.cirros-cloud.net/0.6.2/cirros-0.6.2-x86_64-disk.img"
-              image_name: cirros-0.6.2-x86_64-disk.img
-              image_type: qcow2
-              image_container: bare
-              images_per_tenant: 1
-          runner:
-            concurrency: 2
-            times: 5
-            type: constant
-      NovaServers.boot_and_show_server:
-        -
-          args:
-            flavor:
-              name: m1.tiny
-            image:
-              name: cirros-0.6.2-x86_64-disk.img
-          context:
-            users:
-              tenants: 1
-              users_per_tenant: 1
-            images:
-              image_url: "http://download.cirros-cloud.net/0.6.2/cirros-0.6.2-x86_64-disk.img"
-              image_name: cirros-0.6.2-x86_64-disk.img
-              image_type: qcow2
-              image_container: bare
-              images_per_tenant: 1
-          runner:
-            concurrency: 1
-            times: 1
-            type: constant
-      NovaServers.boot_and_update_server:
-        -
-          args:
-            flavor:
-              name: m1.tiny
-            image:
-              name: cirros-0.6.2-x86_64-disk.img
-          context:
-            users:
-              tenants: 3
-              users_per_tenant: 2
-            images:
-              image_url: "http://download.cirros-cloud.net/0.6.2/cirros-0.6.2-x86_64-disk.img"
-              image_name: cirros-0.6.2-x86_64-disk.img
-              image_type: qcow2
-              image_container: bare
-              images_per_tenant: 1
-          runner:
-            concurrency: 2
-            times: 10
-            type: constant
-      NovaServers.boot_lock_unlock_and_delete:
-        -
-          args:
-            flavor:
-              name: m1.tiny
-            image:
-              name: cirros-0.6.2-x86_64-disk.img
-          context:
-            users:
-              tenants: 1
-              users_per_tenant: 1
-            images:
-              image_url: "http://download.cirros-cloud.net/0.6.2/cirros-0.6.2-x86_64-disk.img"
-              image_name: cirros-0.6.2-x86_64-disk.img
-              image_type: qcow2
-              image_container: bare
-              images_per_tenant: 1
-          runner:
-            concurrency: 2
-            times: 10
-            type: constant
-      NovaServers.boot_server:
-        -
-          args:
-            flavor:
-              name: m1.tiny
-            image:
-              name: cirros-0.6.2-x86_64-disk.img
-          context:
-            users:
-              tenants: 3
-              users_per_tenant: 2
-            images:
-              image_url: "http://download.cirros-cloud.net/0.6.2/cirros-0.6.2-x86_64-disk.img"
-              image_name: cirros-0.6.2-x86_64-disk.img
-              image_type: qcow2
-              image_container: bare
-              images_per_tenant: 1
-          runner:
-            concurrency: 2
-            times: 10
-            type: constant
-      NovaServers.boot_server_associate_and_dissociate_floating_ip:
-        -
-          args:
-            flavor:
-              name: m1.tiny
-            image:
-              name: cirros-0.6.2-x86_64-disk.img
-          context:
-            network: {}
-            users:
-              tenants: 3
-              users_per_tenant: 2
-            images:
-              image_url: "http://download.cirros-cloud.net/0.6.2/cirros-0.6.2-x86_64-disk.img"
-              image_name: cirros-0.6.2-x86_64-disk.img
-              image_type: qcow2
-              image_container: bare
-              images_per_tenant: 1
-          runner:
-            concurrency: 2
-            times: 5
             type: constant
           sla:
             failure_rate:
               max: 0
-      NovaServers.boot_server_attach_created_volume_and_live_migrate:
-        -
-          args:
-            block_migration: false
-            boot_server_kwargs: {}
-            create_volume_kwargs: {}
-            flavor:
-              name: m1.tiny
-            image:
-              name: cirros-0.6.2-x86_64-disk.img
-            size: 10
-          context:
-            users:
-              tenants: 2
-              users_per_tenant: 2
-            images:
-              image_url: "http://download.cirros-cloud.net/0.6.2/cirros-0.6.2-x86_64-disk.img"
-              image_name: cirros-0.6.2-x86_64-disk.img
-              image_type: qcow2
-              image_container: bare
-              images_per_tenant: 1
-          runner:
+      NovaKeypair.create_and_list_keypairs:
+        - runner:
             concurrency: 1
-            times: 5
+            times: 1
             type: constant
-      NovaServers.boot_server_attach_created_volume_and_resize:
-        -
-          args:
-            boot_server_kwargs: {}
-            confirm: true
-            create_volume_kwargs: {}
-            do_delete: true
-            flavor:
-              name: m1.tiny
-            force_delete: false
-            image:
-              name: cirros-0.6.2-x86_64-disk.img
-            to_flavor:
-              name: m1.small
-            volume_size: 1
-          context:
-            users:
-              tenants: 3
-              users_per_tenant: 2
-            images:
-              image_url: "http://download.cirros-cloud.net/0.6.2/cirros-0.6.2-x86_64-disk.img"
-              image_name: cirros-0.6.2-x86_64-disk.img
-              image_type: qcow2
-              image_container: bare
-              images_per_tenant: 1
-          runner:
-            concurrency: 2
-            times: 10
-            type: constant
-      NovaServers.boot_server_from_volume:
-        -
-          args:
-            flavor:
-              name: m1.tiny
-            image:
-              name: cirros-0.6.2-x86_64-disk.img
-            volume_size: 10
-            volume_type: ""
-          context:
-            users:
-              tenants: 3
-              users_per_tenant: 2
-            images:
-              image_url: "http://download.cirros-cloud.net/0.6.2/cirros-0.6.2-x86_64-disk.img"
-              image_name: cirros-0.6.2-x86_64-disk.img
-              image_type: qcow2
-              image_container: bare
-              images_per_tenant: 1
-          runner:
-            concurrency: 2
-            times: 10
-            type: constant
-      NovaServers.boot_server_from_volume_and_delete:
-        -
-          args:
-            flavor:
-              name: m1.tiny
-            force_delete: false
-            image:
-              name: cirros-0.6.2-x86_64-disk.img
-            volume_size: 10
-            volume_type: ""
-          context:
-            users:
-              tenants: 3
-              users_per_tenant: 2
-            images:
-              image_url: "http://download.cirros-cloud.net/0.6.2/cirros-0.6.2-x86_64-disk.img"
-              image_name: cirros-0.6.2-x86_64-disk.img
-              image_type: qcow2
-              image_container: bare
-              images_per_tenant: 1
-          runner:
-            concurrency: 2
-            times: 10
-            type: constant
-      NovaServers.boot_server_from_volume_and_live_migrate:
-        -
-          args:
-            block_migration: false
-            flavor:
-              name: m1.tiny
-            force_delete: false
-            image:
-              name: cirros-0.6.2-x86_64-disk.img
-            volume_size: 10
-            volume_type: ""
-          context:
-            users:
-              tenants: 1
-              users_per_tenant: 1
-            images:
-              image_url: "http://download.cirros-cloud.net/0.6.2/cirros-0.6.2-x86_64-disk.img"
-              image_name: cirros-0.6.2-x86_64-disk.img
-              image_type: qcow2
-              image_container: bare
-              images_per_tenant: 1
-          runner:
-            concurrency: 2
-            times: 10
-            type: constant
-      NovaServers.boot_server_from_volume_and_resize:
-        -
-          args:
-            boot_server_kwargs: {}
-            confirm: true
-            create_volume_kwargs: {}
-            do_delete: true
-            flavor:
-              name: m1.tiny
-            force_delete: false
-            image:
-              name: cirros-0.6.2-x86_64-disk.img
-            to_flavor:
-              name: m1.small
-            volume_size: 1
-          context:
-            users:
-              tenants: 3
-              users_per_tenant: 2
-            images:
-              image_url: "http://download.cirros-cloud.net/0.6.2/cirros-0.6.2-x86_64-disk.img"
-              image_name: cirros-0.6.2-x86_64-disk.img
-              image_type: qcow2
-              image_container: bare
-              images_per_tenant: 1
-          runner:
-            concurrency: 2
-            times: 10
-            type: constant
-      NovaServers.boot_server_from_volume_snapshot:
-        -
-          args:
-            flavor:
-              name: m1.tiny
-            image:
-              name: cirros-0.6.2-x86_64-disk.img
-            volume_size: 10
-            volume_type: ""
-          context:
-            users:
-              tenants: 3
-              users_per_tenant: 2
-            images:
-              image_url: "http://download.cirros-cloud.net/0.6.2/cirros-0.6.2-x86_64-disk.img"
-              image_name: cirros-0.6.2-x86_64-disk.img
-              image_type: qcow2
-              image_container: bare
-              images_per_tenant: 1
-          runner:
-            concurrency: 2
-            times: 10
-            type: constant
-      NovaServers.list_servers:
-        -
-          args:
-            detailed: true
-          context:
-            servers:
-              flavor:
-                name: m1.tiny
-              image:
-                name: cirros-0.6.2-x86_64-disk.img
-              servers_per_tenant: 2
-            users:
-              tenants: 1
-              users_per_tenant: 1
-            images:
-              image_url: "http://download.cirros-cloud.net/0.6.2/cirros-0.6.2-x86_64-disk.img"
-              image_name: cirros-0.6.2-x86_64-disk.img
-              image_type: qcow2
-              image_container: bare
-              images_per_tenant: 1
+          sla:
+            failure_rate:
+              max: 0
+      NovaServerGroups.create_and_list_server_groups:
+        - args:
+            all_projects: false
+            kwargs:
+              policies:
+                - affinity
           runner:
             concurrency: 1
             times: 1
             type: constant
-      NovaServers.pause_and_unpause_server:
-        -
-          args:
-            flavor:
-              name: m1.tiny
-            force_delete: false
-            image:
-              name: cirros-0.6.2-x86_64-disk.img
-          context:
-            users:
-              tenants: 3
-              users_per_tenant: 2
-            images:
-              image_url: "http://download.cirros-cloud.net/0.6.2/cirros-0.6.2-x86_64-disk.img"
-              image_name: cirros-0.6.2-x86_64-disk.img
-              image_type: qcow2
-              image_container: bare
-              images_per_tenant: 1
-          runner:
-            concurrency: 2
-            times: 10
-            type: constant
-      NovaServers.resize_server:
-        -
-          args:
-            confirm: true
-            flavor:
-              name: m1.tiny
-            force_delete: false
-            image:
-              name: cirros-0.6.2-x86_64-disk.img
-            to_flavor:
-              name: m1.small
-          context:
-            users:
-              tenants: 1
-              users_per_tenant: 1
-            images:
-              image_url: "http://download.cirros-cloud.net/0.6.2/cirros-0.6.2-x86_64-disk.img"
-              image_name: cirros-0.6.2-x86_64-disk.img
-              image_type: qcow2
-              image_container: bare
-              images_per_tenant: 1
-          runner:
-            concurrency: 5
-            times: 10
-            type: constant
-      NovaServers.shelve_and_unshelve_server:
-        -
-          args:
-            flavor:
-              name: m1.tiny
-            force_delete: false
-            image:
-              name: cirros-0.6.2-x86_64-disk.img
-          context:
-            users:
-              tenants: 3
-              users_per_tenant: 2
-            images:
-              image_url: "http://download.cirros-cloud.net/0.6.2/cirros-0.6.2-x86_64-disk.img"
-              image_name: cirros-0.6.2-x86_64-disk.img
-              image_type: qcow2
-              image_container: bare
-              images_per_tenant: 1
-          runner:
-            concurrency: 2
-            times: 10
-            type: constant
-      NovaServers.snapshot_server:
-        -
-          args:
-            flavor:
-              name: m1.tiny
-            force_delete: false
-            image:
-              name: cirros-0.6.2-x86_64-disk.img
-          context:
-            users:
-              tenants: 3
-              users_per_tenant: 2
-            images:
-              image_url: "http://download.cirros-cloud.net/0.6.2/cirros-0.6.2-x86_64-disk.img"
-              image_name: cirros-0.6.2-x86_64-disk.img
-              image_type: qcow2
-              image_container: bare
-              images_per_tenant: 1
-          runner:
-            concurrency: 2
-            times: 10
-            type: constant
-      NovaServers.suspend_and_resume_server:
-        -
-          args:
-            flavor:
-              name: m1.tiny
-            force_delete: false
-            image:
-              name: cirros-0.6.2-x86_64-disk.img
-          context:
-            users:
-              tenants: 3
-              users_per_tenant: 2
-            images:
-              image_url: "http://download.cirros-cloud.net/0.6.2/cirros-0.6.2-x86_64-disk.img"
-              image_name: cirros-0.6.2-x86_64-disk.img
-              image_type: qcow2
-              image_container: bare
-              images_per_tenant: 1
-          runner:
-            concurrency: 2
-            times: 10
-            type: constant
+          sla:
+            failure_rate:
+              max: 0
       NovaServices.list_services:
-        -
-          runner:
-            concurrency: 2
-            times: 10
-            type: constant
-    senlin_task:
-      SenlinClusters.create_and_delete_cluster:
-        -
-          args:
-            desired_capacity: 3
-            max_size: 5
-            min_size: 0
-          context:
-            profiles:
-              properties:
-                flavor: 1
-                image: cirros-0.3.4-x86_64-uec
-                name: cirros_server
-                networks:
-                  -
-                    network: private
-              type: os.nova.server
-              version: "1.0"
-            users:
-              tenants: 1
-              users_per_tenant: 1
-            images:
-              image_url: "http://download.cirros-cloud.net/0.6.2/cirros-0.6.2-x86_64-disk.img"
-              image_name: cirros-0.6.2-x86_64-disk.img
-              image_type: qcow2
-              image_container: bare
-              images_per_tenant: 1
-          runner:
+        - runner:
             concurrency: 1
-            times: 3
+            times: 1
             type: constant
-    swift_task:
-      SwiftObjects.create_container_and_object_then_delete_all:
-        -
-          args:
-            object_size: 102400
-            objects_per_container: 5
-          context:
-            roles:
-              - admin
-            users:
-              tenants: 1
-              users_per_tenant: 1
-          runner:
-            concurrency: 2
-            times: 4
-            type: constant
-      SwiftObjects.create_container_and_object_then_download_object:
-        -
-          args:
-            object_size: 1024
-            objects_per_container: 5
-          context:
-            roles:
-              - admin
-            users:
-              tenants: 1
-              users_per_tenant: 1
-          runner:
-            concurrency: 3
-            times: 6
-            type: constant
-      SwiftObjects.create_container_and_object_then_list_objects:
-        -
-          args:
-            object_size: 5120
-            objects_per_container: 2
-          context:
-            roles:
-              - admin
-            users:
-              tenants: 1
-              users_per_tenant: 1
-          runner:
-            concurrency: 2
-            times: 2
-            type: constant
-      SwiftObjects.list_and_download_objects_in_containers:
-        -
-          context:
-            roles:
-              - admin
-            swift_objects:
-              containers_per_tenant: 2
-              object_size: 10240
-              objects_per_container: 5
-            users:
-              tenants: 1
-              users_per_tenant: 1
-          runner:
-            concurrency: 2
-            times: 2
-            type: constant
-      SwiftObjects.list_objects_in_containers:
-        -
-          context:
-            roles:
-              - admin
-            swift_objects:
-              containers_per_tenant: 1
-              object_size: 1024
-              objects_per_container: 10
-            users:
-              tenants: 1
-              users_per_tenant: 1
-          runner:
-            concurrency: 3
-            times: 6
-            type: constant
+          sla:
+            failure_rate:
+              max: 0
 
 # NOTE(helm_hook): helm_hook might break for helm2 binary.
 # set helm3_hook: false when using the helm2 binary.

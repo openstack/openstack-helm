@@ -19,7 +19,7 @@ limitations under the License.
 {{ tuple $envAll "run_task" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: batch/v1
-kind: Job
+kind: CronJob
 metadata:
   name: rally-run-task
   annotations:
@@ -29,94 +29,105 @@ metadata:
     helm.sh/hook-weight: "3"
 {{- end }}
 spec:
-  backoffLimit: {{ .Values.jobs.run_tasks.backoffLimit }}
-  template:
+  schedule: {{ .Values.jobs.rally_task.cron | quote }}
+  successfulJobsHistoryLimit: {{ .Values.jobs.rally_task.history.success }}
+  failedJobsHistoryLimit: {{ .Values.jobs.rally_task.history.failed }}
+  {{- if .Values.jobs.rally_task.starting_deadline }}
+  startingDeadlineSeconds: {{ .Values.jobs.rally_task.starting_deadline }}
+  {{- end }}
+  concurrencyPolicy: Forbid
+  jobTemplate:
     metadata:
       labels:
-{{ tuple $envAll "rally" "run-task" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+{{ tuple $envAll "rally" "rally_task" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 12 }}
     spec:
-      serviceAccountName: {{ $serviceAccountName }}
-      restartPolicy: {{ .Values.jobs.run_tasks.restartPolicy }}
-      nodeSelector:
-        {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
-      initContainers:
-{{ tuple $envAll "run_task" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
-        - name: rally-run-task-init
-{{ tuple $envAll "run_task" | include "helm-toolkit.snippets.image" | indent 10 }}
-      {{ tuple $envAll $envAll.Values.pod.resources.jobs.run_task | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-          securityContext:
-            runAsUser: 0
-          command:
-            - chown
-            - -R
-            - "rally:"
-            - /var/lib/rally/data
-          volumeMounts:
-            - name: pod-tmp
-              mountPath: /tmp
-            - name: rally-reports
-              mountPath: /var/lib/rally/data
-      containers:
-        - name: rally-run-task
-{{ tuple $envAll "run_task" | include "helm-toolkit.snippets.image" | indent 10 }}
-{{ tuple $envAll $envAll.Values.pod.resources.jobs.run_task | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-          command:
-            - /tmp/run-task.sh
-          env:
+      template:
+        metadata:
+          labels:
+{{ tuple $envAll "rally" "run-task" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 12 }}
+        spec:
+          serviceAccountName: {{ $serviceAccountName }}
+          restartPolicy: {{ .Values.jobs.run_tasks.restartPolicy }}
+          nodeSelector:
+            {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
+          initContainers:
+{{ tuple $envAll "run_task" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 12 }}
+            - name: rally-run-task-init
+{{ tuple $envAll "run_task" | include "helm-toolkit.snippets.image" | indent 14 }}
+{{ tuple $envAll $envAll.Values.pod.resources.jobs.run_task | include "helm-toolkit.snippets.kubernetes_resources" | indent 14}}
+              securityContext:
+                runAsUser: 0
+              command:
+                - chown
+                - -R
+                - "rally:"
+                - /var/lib/rally/data
+              volumeMounts:
+                - name: pod-tmp
+                  mountPath: /tmp
+                - name: rally-reports
+                  mountPath: /var/lib/rally/data
+          containers:
+            - name: rally-run-task
+{{ tuple $envAll "run_task" | include "helm-toolkit.snippets.image" | indent 14 }}
+{{ tuple $envAll $envAll.Values.pod.resources.jobs.run_task | include "helm-toolkit.snippets.kubernetes_resources" | indent 14 }}
+              command:
+                - /tmp/run-task.sh
+              env:
 {{- with $env := dict "ksUserSecret" .Values.secrets.identity.admin }}
-{{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 12 }}
+{{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 16 }}
 {{- end }}
-
+    
 {{- if or .Values.manifests.certificates .Values.tls.identity }}
-            - name: REQUESTS_CA_BUNDLE
-              value: "/etc/rally/certs/ca.crt"
+                - name: REQUESTS_CA_BUNDLE
+                  value: "/etc/rally/certs/ca.crt"
 {{- end }}
-            - name: ENABLED_TESTS
-              value: {{ include "helm-toolkit.utils.joinListWithComma" .Values.enabled_tasks }}
-          volumeMounts:
+                - name: ENABLED_TESTS
+                  value: {{ include "helm-toolkit.utils.joinListWithComma" .Values.enabled_tasks }}
+              volumeMounts:
+                - name: pod-tmp
+                  mountPath: /tmp
+                - name: rally-bin
+                  mountPath: /tmp/run-task.sh
+                  subPath: run-task.sh
+                  readOnly: true
+                - name: etcrally
+                  mountPath: /etc/rally
+                - name: rally-etc
+                  mountPath: /etc/rally/rally.conf
+                  subPath: rally.conf
+                  readOnly: true
+                - name: rally-tasks
+                  mountPath: /tasks/rally
+                  readOnly: true
+                - name: heat-tasks-test-templates
+                  mountPath: /tmp/tasks/test-templates
+                  readOnly: true
+                - name: rally-reports
+                  mountPath: /var/lib/rally/data
+{{- dict "enabled" (or .Values.manifests.certificates .Values.tls.identity) "name" .Values.secrets.tls.identity.api.internal "path" "/etc/rally/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 16 }}
+          volumes:
             - name: pod-tmp
-              mountPath: /tmp
-            - name: rally-bin
-              mountPath: /tmp/run-task.sh
-              subPath: run-task.sh
-              readOnly: true
+              emptyDir: {}
             - name: etcrally
-              mountPath: /etc/rally
+              emptyDir: {}
             - name: rally-etc
-              mountPath: /etc/rally/rally.conf
-              subPath: rally.conf
-              readOnly: true
+              secret:
+                secretName: rally-etc
+                defaultMode: 0444
             - name: rally-tasks
-              mountPath: /tasks/rally
-              readOnly: true
+              configMap:
+                name: rally-tasks
+                defaultMode: 0444
+            - name: rally-bin
+              configMap:
+                name: rally-bin
+                defaultMode: 0555
             - name: heat-tasks-test-templates
-              mountPath: /tmp/tasks/test-templates
-              readOnly: true
+              configMap:
+                name: heat-tasks-test-templates
             - name: rally-reports
-              mountPath: /var/lib/rally/data
-{{- dict "enabled" (or .Values.manifests.certificates .Values.tls.identity) "name" .Values.secrets.tls.identity.api.internal "path" "/etc/rally/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
-      volumes:
-        - name: pod-tmp
-          emptyDir: {}
-        - name: etcrally
-          emptyDir: {}
-        - name: rally-etc
-          secret:
-            secretName: rally-etc
-            defaultMode: 0444
-        - name: rally-tasks
-          configMap:
-            name: rally-tasks
-            defaultMode: 0444
-        - name: rally-bin
-          configMap:
-            name: rally-bin
-            defaultMode: 0555
-        - name: heat-tasks-test-templates
-          configMap:
-            name: heat-tasks-test-templates
-        - name: rally-reports
-          persistentVolumeClaim:
-            claimName: {{ .Values.pvc.name }}
-{{- dict "enabled" (or .Values.manifests.certificates .Values.tls.identity) "name" .Values.secrets.tls.identity.api.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
+              persistentVolumeClaim:
+                claimName: {{ .Values.pvc.name }}
+{{- dict "enabled" (or .Values.manifests.certificates .Values.tls.identity) "name" .Values.secrets.tls.identity.api.internal | include "helm-toolkit.snippets.tls_volume" | indent 12 }}
 {{- end }}
