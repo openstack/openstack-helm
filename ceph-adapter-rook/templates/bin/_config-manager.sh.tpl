@@ -17,20 +17,10 @@ limitations under the License.
 set -ex
 {{- $envAll := . }}
 
-{{ include "helm-toolkit.snippets.mon_host_from_k8s_ep" . }}
-
-# TODO: Get endpoint from rook-ceph-mon-endpoints configmap
-ENDPOINT=$(mon_host_from_k8s_ep ${PVC_CEPH_RBD_STORAGECLASS_DEPLOYED_NAMESPACE} ceph-mon-discovery)
-
-if [ -z "$ENDPOINT" ]; then
-  echo "Ceph Mon endpoint is empty"
-  exit 1
-else
-  echo $ENDPOINT
-fi
+ENDPOINTS=$(kubectl --namespace ${CEPH_CLUSTER_NAMESPACE} get configmap rook-ceph-mon-endpoints -o jsonpath='{.data.data}' | sed 's/.=//g')
 
 kubectl get cm ${CEPH_CONF_ETC} -n  ${DEPLOYMENT_NAMESPACE}  -o yaml | \
-  sed "s#mon_host.*#mon_host = ${ENDPOINT}#g" | \
+  sed "s#mon_host.*#mon_host = ${ENDPOINTS}#g" | \
   kubectl apply -f -
 
 kubectl get cm ${CEPH_CONF_ETC} -n  ${DEPLOYMENT_NAMESPACE}  -o yaml

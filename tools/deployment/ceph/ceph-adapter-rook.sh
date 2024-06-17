@@ -15,40 +15,12 @@
 
 set -xe
 
-make ceph-adapter-rook
+#NOTE: Define variables
+: ${OSH_INFRA_HELM_REPO:="../openstack-helm-infra"}
+: ${OSH_INFRA_PATH:="../openstack-helm-infra"}
 
-tee > /tmp/ceph-adapter-rook-ceph.yaml <<EOF
-manifests:
-  configmap_bin: true
-  configmap_templates: true
-  configmap_etc: false
-  job_storage_admin_keys: true
-  job_namespace_client_key: false
-  job_namespace_client_ceph_config: false
-  service_mon_discovery: true
-EOF
-
-helm upgrade --install ceph-adapter-rook ./ceph-adapter-rook \
-  --namespace=ceph \
-  --values=/tmp/ceph-adapter-rook-ceph.yaml
-
-#NOTE: Wait for deploy
-helm osh wait-for-pods ceph
-
-tee > /tmp/ceph-adapter-rook-openstack.yaml <<EOF
-manifests:
-  configmap_bin: true
-  configmap_templates: false
-  configmap_etc: true
-  job_storage_admin_keys: false
-  job_namespace_client_key: true
-  job_namespace_client_ceph_config: true
-  service_mon_discovery: false
-EOF
-
-helm upgrade --install ceph-adapter-rook ./ceph-adapter-rook \
-  --namespace=openstack \
-  --values=/tmp/ceph-adapter-rook-openstack.yaml
+helm upgrade --install ceph-adapter-rook ${OSH_INFRA_HELM_REPO}/ceph-adapter-rook \
+  --namespace=openstack
 
 #NOTE: Wait for deploy
 helm osh wait-for-pods openstack
