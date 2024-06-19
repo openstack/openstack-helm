@@ -31,27 +31,29 @@ all:
     ansible_user: ubuntu
     ansible_ssh_private_key_file: /home/ubuntu/.ssh/id_rsa
     ansible_ssh_extra_args: -o StrictHostKeyChecking=no
+  hosts:
+    primary:
+      ansible_host: 10.10.10.10
+    node-1:
+      ansible_host: 10.10.10.11
+    node-2:
+      ansible_host: 10.10.10.12
+    node-3:
+      ansible_host: 10.10.10.13
   children:
     primary:
       hosts:
         primary:
-          ansible_host: 10.10.10.10
     k8s_cluster:
       hosts:
         node-1:
-          ansible_host: 10.10.10.11
         node-2:
-          ansible_host: 10.10.10.12
         node-3:
-          ansible_host: 10.10.10.13
     k8s_control_plane:
       hosts:
         node-1:
-          ansible_host: 10.10.10.11
     k8s_nodes:
       hosts:
         node-2:
-          ansible_host: 10.10.10.12
         node-3:
-          ansible_host: 10.10.10.13
 ```

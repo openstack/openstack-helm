@@ -19,14 +19,24 @@
     pkg:
       - "kubectl={{ kube_version }}"
 
+- name: Set user home directory
+  set_fact:
+    user_home_directory: /home/{{ kubectl.user }}
+  when: kubectl.user != "root"
+
+- name: Set root home directory
+  set_fact:
+    user_home_directory: /root
+  when: kubectl.user == "root"
+
 - name: "Setup kubeconfig directory for {{ kubectl.user }} user"
   shell: |
-    mkdir -p /home/{{ kubectl.user }}/.kube
+    mkdir -p {{ user_home_directory }}/.kube
 
 - name: "Copy kube_config file for {{ kubectl.user }} user"
   synchronize:
     src: /tmp/kube_config
-    dest: /home/{{ kubectl.user }}/.kube/config
+    dest: "{{ user_home_directory }}/.kube/config"
 
 - name: "Set kubconfig file ownership for {{ kubectl.user }} user"
   shell: |
