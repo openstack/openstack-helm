@@ -339,4 +339,50 @@
       - ^memcached/.*
       - ^libvrit/.*
       - ^openvswitch/.*
+
+- job:
+    name: openstack-helm-infra-ceph-migrate
+    description: |
+      This job is for testing the migration procedure from
+      a Ceph cluster managed by legacy OSH ceph* charts
+      to a Ceph cluster managed by Rook-Ceph operator.
+    parent: openstack-helm-infra-deploy
+    nodeset: openstack-helm-3nodes-ubuntu_jammy
+    timeout: 10800
+    pre-run:
+      - playbooks/prepare-hosts.yaml
+      - playbooks/mount-volumes.yaml
+      - playbooks/inject-keys.yaml
+    files:
+      - ^helm-toolkit/.*
+      - ^roles/.*
+      - ^ceph.*
+      - ^tools/deployment/ceph/.*
+    vars:
+      osh_params:
+        openstack_release: "2024.1"
+        container_distro_name: ubuntu
+        container_distro_version: jammy
+      gate_scripts:
+        - ./tools/deployment/common/prepare-k8s.sh
+        - ./tools/deployment/common/prepare-charts.sh
+        - ./tools/deployment/common/ingress.sh
+        # Deploy Ceph cluster using legacy OSH charts
+        - ./tools/deployment/ceph/ceph_legacy.sh
+        # Deploy stateful applications
+        - |
+          export NAMESPACE=openstack
+          export MONITORING_HELM_ARGS=" "
+          export OSH_INFRA_EXTRA_HELM_ARGS="--set pod.replicas.server=1 ${OSH_INFRA_EXTRA_HELM_ARGS}"
+          export RUN_HELM_TESTS=no
+          ./tools/deployment/db/mariadb.sh
+        - |
+          export NAMESPACE=openstack
+          export VOLUME_HELM_ARGS=" "
+          ./tools/deployment/common/rabbitmq.sh
+        # Migrate legacy Ceph to Rook
+        - ./tools/deployment/ceph/migrate-before.sh
+        - ./tools/deployment/ceph/migrate-values.sh
+        - ./tools/deployment/ceph/migrate-to-rook-ceph.sh
+        - ./tools/deployment/ceph/migrate-after.sh
 ...

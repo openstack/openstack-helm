@@ -25,8 +25,8 @@ ROOK_RELEASE=${ROOK_RELEASE:-1.13.7}
 CEPH_RELEASE=${CEPH_RELEASE:-18.2.2}
 ROOK_CEPH_NAMESPACE=${ROOK_CEPH_NAMESPACE:-rook-ceph}
 CEPH_NAMESPACE=${CEPH_NAMESPCE:-ceph}
-ROOK_OPERATOR_YAML=${ROOK_OPERATOR_YAML:-rook-operator.yaml}
-ROOK_CEPH_YAML=${ROOK_CEPH_YAML:-rook-ceph.yaml}
+ROOK_OPERATOR_YAML=${ROOK_OPERATOR_YAML:-/tmp/rook-operator.yaml}
+ROOK_CEPH_YAML=${ROOK_CEPH_YAML:-/tmp/rook-ceph.yaml}
 
 # Return a list of unique status strings for pods for a specified application
 # (Pods with the same status will return a single status)
@@ -39,14 +39,18 @@ function wait_for_initial_rook_deployment() {
   set +x
   echo "Waiting for initial Rook Ceph cluster deployment..."
 
+  # Here in the while clause we have to check this
+  # if monitoring is enabled
+  # $(app_status rook-ceph-exporter)" != "Running"
+
   # The initial deployment can't deploy OSDs or RGW
   while [[ "$(app_status rook-ceph-mon)" != "Running" || \
            "$(app_status rook-ceph-mgr)" != "Running" || \
            "$(app_status rook-ceph-mds)" != "Running" || \
            "$(app_status rook-ceph-tools)" != "Running" || \
-           "$(app_status rook-ceph-exporter)" != "Running" || \
            "$(app_status rook-ceph-osd-prepare)" != "Succeeded" ]]
   do
+    echo "Waiting for INITIAL Rook Ceph deployment ..."
     sleep 5
   done
   set -x
@@ -57,16 +61,20 @@ function wait_for_full_rook_deployment() {
   set +x
   echo "Waiting for full Rook Ceph cluster deployment..."
 
+  # Here in the while clause we have to check this
+  # if monitoring is enabled
+  # $(app_status rook-ceph-exporter)" != "Running"
+
   # Look for everything from the initial deployment plus OSDs and RGW
   while [[ "$(app_status rook-ceph-mon)" != "Running" || \
            "$(app_status rook-ceph-mgr)" != "Running" || \
            "$(app_status rook-ceph-mds)" != "Running" || \
            "$(app_status rook-ceph-tools)" != "Running" || \
-           "$(app_status rook-ceph-exporter)" != "Running" || \
            "$(app_status rook-ceph-osd-prepare)" != "Succeeded" || \
            "$(app_status rook-ceph-osd)" != "Running" || \
            "$(app_status rook-ceph-rgw)" != "Running" ]]
   do
+    echo "Waiting for FULL Rook Ceph deployment ..."
     sleep 5
   done
   set -x
@@ -178,7 +186,8 @@ export MON_HOST_IP=$(kubectl get nodes -o json | jq -r '.items[] | select(.metad
 # Shut down the Rook operator, delete the rook-ceph deployments, and get the new rook-ceph-mon IP address
 kubectl -n ${ROOK_CEPH_NAMESPACE} scale deploy rook-ceph-operator --replicas=0
 kubectl -n ${CEPH_NAMESPACE} get deploy -o json | jq -r '.items[] | select(.metadata.name != "rook-ceph-tools") | .metadata.name' | xargs kubectl -n ${CEPH_NAMESPACE} delete deploy
-MON_IP=$(kubectl -n ${CEPH_NAMESPACE} get service rook-ceph-mon-a -o json | jq -r '.spec.clusterIP')
+#MON_IP=$(kubectl -n ${CEPH_NAMESPACE} get service rook-ceph-mon-a -o json | jq -r '.spec.clusterIP')
+MON_IP=$(kubectl -n ${CEPH_NAMESPACE} get cm rook-ceph-mon-endpoints -o jsonpath='{.data.data}' | sed 's/.=//g' | awk -F: '{print $1}')
 wait_for_terminate
 
 # Download the old mon store and update its key to the new one

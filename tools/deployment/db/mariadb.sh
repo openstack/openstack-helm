@@ -23,12 +23,12 @@ set -xe
 #NOTE: Deploy command
 helm upgrade --install mariadb ./mariadb \
     --namespace=${NAMESPACE} \
-    --set monitoring.prometheus.enabled=true \
-    ${OSH_INFRA_EXTRA_HELM_ARGS} \
+    ${MONITORING_HELM_ARGS:="--set monitoring.prometheus.enabled=true"} \
+    ${OSH_INFRA_EXTRA_HELM_ARGS:=} \
     ${OSH_INFRA_EXTRA_HELM_ARGS_MARIADB}
 
 #NOTE: Wait for deploy
-helm osh wait-for-pods osh-infra
+helm osh wait-for-pods ${NAMESPACE}
 
 if [ "x${RUN_HELM_TESTS}" != "xno" ]; then
     # Delete the test pod if it still exists

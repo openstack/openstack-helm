@@ -14,22 +14,21 @@
 
 set -xe
 
-#NOTE: Define variables
-: ${OSH_INFRA_HELM_REPO:="../openstack-helm-infra"}
-: ${OSH_INFRA_PATH:="../openstack-helm-infra"}
-: ${OSH_INFRA_EXTRA_HELM_ARGS_RABBITMQ:="$(helm osh get-values-overrides ${DOWNLOAD_OVERRIDES:-} -p ${OSH_INFRA_PATH} -c rabbitmq ${FEATURES})"}
 : ${NAMESPACE:=openstack}
 
-#NOTE: Deploy command
-helm upgrade --install rabbitmq ${OSH_INFRA_HELM_REPO}/rabbitmq \
-    --namespace=${NAMESPACE} \
-    --set pod.replicas.server=1 \
-    --timeout=600s \
-    ${VOLUME_HELM_ARGS:="--set volume.enabled=false"} \
-    ${OSH_INFRA_EXTRA_HELM_ARGS:=} \
-    ${OSH_INFRA_EXTRA_HELM_ARGS_RABBITMQ}
+# Before migration we have to scale down all the stateful applications
+# so PVs provisioned by Ceph are not attached to any pods
+kubectl -n ${NAMESPACE} scale statefulset mariadb-server --replicas=0
+kubectl -n ${NAMESPACE} scale statefulset rabbitmq-rabbitmq --replicas=0
 
-#NOTE: Wait for deploy
+sleep 30
 helm osh wait-for-pods ${NAMESPACE}
 
-helm test rabbitmq --namespace openstack
+kubectl -n ${NAMESPACE} get po
+kubectl -n ${NAMESPACE} get pvc
+kubectl get pv -o yaml
+
+# Delete CSI secrets so Rook can deploy them from scratch
+kubectl -n ceph delete secret rook-csi-rbd-provisioner
+kubectl -n ceph delete secret rook-csi-rbd-node
+kubectl -n ceph get secret

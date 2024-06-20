@@ -91,6 +91,7 @@ EOF
 }
 #create_kube_storage_key <ceph_key> <kube_secret_name>
 create_kube_storage_key ${CEPH_CLIENT_KEY} ${CEPH_STORAGECLASS_ADMIN_SECRET_NAME}
+create_kube_storage_key ${CEPH_CLIENT_KEY} ${CEPH_STORAGECLASS_ADMIN_SECRET_NAME_NODE}
 
 {{ else }}
 

@@ -14,22 +14,16 @@
 
 set -xe
 
-#NOTE: Define variables
-: ${OSH_INFRA_HELM_REPO:="../openstack-helm-infra"}
-: ${OSH_INFRA_PATH:="../openstack-helm-infra"}
-: ${OSH_INFRA_EXTRA_HELM_ARGS_RABBITMQ:="$(helm osh get-values-overrides ${DOWNLOAD_OVERRIDES:-} -p ${OSH_INFRA_PATH} -c rabbitmq ${FEATURES})"}
 : ${NAMESPACE:=openstack}
 
-#NOTE: Deploy command
-helm upgrade --install rabbitmq ${OSH_INFRA_HELM_REPO}/rabbitmq \
-    --namespace=${NAMESPACE} \
-    --set pod.replicas.server=1 \
-    --timeout=600s \
-    ${VOLUME_HELM_ARGS:="--set volume.enabled=false"} \
-    ${OSH_INFRA_EXTRA_HELM_ARGS:=} \
-    ${OSH_INFRA_EXTRA_HELM_ARGS_RABBITMQ}
+# Now we have are ready to scale up stateful applications
+# and use same PVs provisioned earlier by legacy Ceph
+kubectl -n ${NAMESPACE} scale statefulset mariadb-server --replicas=1
+kubectl -n ${NAMESPACE} scale statefulset rabbitmq-rabbitmq --replicas=1
 
-#NOTE: Wait for deploy
+sleep 30
 helm osh wait-for-pods ${NAMESPACE}
 
-helm test rabbitmq --namespace openstack
+kubectl -n ${NAMESPACE} get po
+kubectl -n ${NAMESPACE} get pvc
+kubectl get pv -o yaml

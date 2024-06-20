@@ -34,6 +34,27 @@ if [ "x${ID}" == "xcentos" ] || \
 else
   CRUSH_TUNABLES=null
 fi
+
+# Most of PV fields are immutable and in case of CSI RBD plugin they refer
+# to secrets which were used for RBD provisioner and RBD attacher. These fields
+# can not be updated later.
+# So for testing purposes we assume legacy Ceph cluster is deployed with
+# the following secret names for the CSI plugin
+# - rook-csi-rbd-provisioner
+# - rook-csi-rbd-node
+# These exact secret names are used by Rook by default for CSI plugin and
+# and after migration PVs will be adopted by the new Rook Ceph cluster.
+#
+# Alternatively if we deploy legacy Ceph cluster with the default values
+# then we could later force Rook to use same CSI secret names as used for
+# legacy cluster. For example pvc-ceph-conf-combined-storageclass secret
+# name is used by default in legacy charts.
+#
+# Same is for CSI provisioner drivername option. For testing we deploy
+# legacy cluster with the drivername set to rook-ceph.rbd.csi.ceph.com
+# while default value is ceph.rbd.csi.ceph.com.
+# This is also for the sake of smooth adoption of PVs.
+
 tee /tmp/ceph.yaml <<EOF
 endpoints:
   ceph_mon:
@@ -94,76 +115,6 @@ conf:
         application: rbd
         replication: 1
         percent_total_data: 40
-      # CephFS pools
-      - name: cephfs_metadata
-        application: cephfs
-        replication: 1
-        percent_total_data: 5
-      - name: cephfs_data
-        application: cephfs
-        replication: 1
-        percent_total_data: 10
-      # RadosGW pools
-      - name: .rgw.root
-        application: rgw
-        replication: 1
-        percent_total_data: 0.1
-      - name: default.rgw.control
-        application: rgw
-        replication: 1
-        percent_total_data: 0.1
-      - name: default.rgw.data.root
-        application: rgw
-        replication: 1
-        percent_total_data: 0.1
-      - name: default.rgw.gc
-        application: rgw
-        replication: 1
-        percent_total_data: 0.1
-      - name: default.rgw.log
-        application: rgw
-        replication: 1
-        percent_total_data: 0.1
-      - name: default.rgw.intent-log
-        application: rgw
-        replication: 1
-        percent_total_data: 0.1
-      - name: default.rgw.meta
-        application: rgw
-        replication: 1
-        percent_total_data: 0.1
-      - name: default.rgw.usage
-        application: rgw
-        replication: 1
-        percent_total_data: 0.1
-      - name: default.rgw.users.keys
-        application: rgw
-        replication: 1
-        percent_total_data: 0.1
-      - name: default.rgw.users.email
-        application: rgw
-        replication: 1
-        percent_total_data: 0.1
-      - name: default.rgw.users.swift
-        application: rgw
-        replication: 1
-        percent_total_data: 0.1
-      - name: default.rgw.users.uid
-        application: rgw
-        replication: 1
-        percent_total_data: 0.1
-      - name: default.rgw.buckets.extra
-        application: rgw
-        replication: 1
-        percent_total_data: 0.1
-      - name: default.rgw.buckets.index
-        application: rgw
-        replication: 1
-        percent_total_data: 3
-      - name: default.rgw.buckets.data
-        application: rgw
-        replication: 1
-        percent_total_data: 29
   storage:
     osd:
       - data:
@@ -176,11 +127,40 @@ conf:
         #   location: ${CEPH_OSD_DB_WAL_DEVICE}
         #   size: "2GB"
 
+storageclass:
+  rbd:
+    parameters:
+      adminSecretName: rook-csi-rbd-provisioner
+      adminSecretNameNode: rook-csi-rbd-node
+  csi_rbd:
+    provisioner: rook-ceph.rbd.csi.ceph.com
+    parameters:
+      clusterID: ceph
+      csi.storage.k8s.io/controller-expand-secret-name: rook-csi-rbd-provisioner
+      csi.storage.k8s.io/controller-expand-secret-namespace: ceph
+      csi.storage.k8s.io/fstype: ext4
+      csi.storage.k8s.io/node-stage-secret-name: rook-csi-rbd-node
+      csi.storage.k8s.io/node-stage-secret-namespace: ceph
+      csi.storage.k8s.io/provisioner-secret-name: rook-csi-rbd-provisioner
+      csi.storage.k8s.io/provisioner-secret-namespace: ceph
+      pool: rbd
+      imageFeatures: layering
+      imageFormat: "2"
+      adminId: null
+      adminSecretName: rook-csi-rbd-provisioner
+      adminSecretNamespace: ceph
+      userId: null
+      userSecretName: null
+
 pod:
   replicas:
     mds: 1
     mgr: 1
     rgw: 1
+    cephfs_provisioner: 1
+    rbd_provisioner: 1
+    csi_rbd_provisioner: 1
+
 jobs:
   ceph_defragosds:
     # Execute every 15 minutes for gates
@@ -199,7 +179,7 @@ manifests:
 EOF
 
 for CHART in ceph-mon ceph-osd ceph-client ceph-provisioners; do
-  helm upgrade --install ${CHART} ${OSH_INFRA_HELM_REPO}/${CHART} \
+  helm upgrade --install --create-namespace ${CHART} ${OSH_INFRA_HELM_REPO}/${CHART} \
     --namespace=ceph \
     --values=/tmp/ceph.yaml \
     ${OSH_INFRA_EXTRA_HELM_ARGS} \
@@ -216,10 +196,3 @@ for CHART in ceph-mon ceph-osd ceph-client ceph-provisioners; do
     --no-headers | awk '{ print $1; exit }')
   kubectl exec -n ceph ${MON_POD} -- ceph -s
 done
-
-# Delete the test pod if it still exists
-kubectl delete pods -l application=ceph-osd,release_group=ceph-osd,component=test --namespace=ceph --ignore-not-found
-helm test ceph-osd --namespace ceph --timeout 900s
-# Delete the test pod if it still exists
-kubectl delete pods -l application=ceph-client,release_group=ceph-client,component=test --namespace=ceph --ignore-not-found
-helm test ceph-client --namespace ceph --timeout 900s
