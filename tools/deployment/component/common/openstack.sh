@@ -30,7 +30,7 @@ tee /tmp/glance.yaml <<EOF
 glance:
   storage: ${GLANCE_BACKEND}
   volume:
-    class_name: standard
+    class_name: general
 EOF
 #NOTE: Deploy neutron
 tee /tmp/neutron.yaml << EOF
