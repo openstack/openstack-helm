@@ -17,16 +17,9 @@ limitations under the License.
 set -ex
 {{- $envAll := . }}
 
-CEPH_RBD_KEY=$(kubectl get secret ${PVC_CEPH_RBD_STORAGECLASS_ADMIN_SECRET_NAME} \
-    --namespace=${PVC_CEPH_RBD_STORAGECLASS_DEPLOYED_NAMESPACE} \
-    -o json )
-
-# CONNECT_TO_ROOK_CEPH_CLUSTER is unset by default
-if [[ ${CONNECT_TO_ROOK_CEPH_CLUSTER} == "true" ]] ; then
-  CEPH_CLUSTER_KEY=$(echo "${CEPH_RBD_KEY}" | jq -r '.data["ceph-secret"]')
-else
-  CEPH_CLUSTER_KEY=$(echo "${CEPH_RBD_KEY}" | jq -r '.data.key')
-fi
+# We expect rook-ceph-tools pod to be up and running
+ROOK_CEPH_TOOLS_POD=$(kubectl -n ${CEPH_CLUSTER_NAMESPACE} get pods --no-headers | awk '/rook-ceph-tools/{print $1}')
+CEPH_ADMIN_KEY=$(kubectl -n ${CEPH_CLUSTER_NAMESPACE} exec ${ROOK_CEPH_TOOLS_POD} -- ceph auth ls | grep -A1 "client.admin" | awk '/key:/{print $2}')
 
 ceph_activate_namespace() {
   kube_namespace=$1
@@ -43,9 +36,9 @@ metadata:
 {{ tuple $envAll "ceph" "rbd" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 type: "${secret_type}"
 data:
-  key: $( echo ${ceph_key} )
+  key: $( echo ${ceph_key} | base64 | tr -d '\n' )
 EOF
   } | kubectl apply --namespace ${kube_namespace} -f -
 }
 
-ceph_activate_namespace ${DEPLOYMENT_NAMESPACE} "kubernetes.io/rbd" ${PVC_CEPH_RBD_STORAGECLASS_USER_SECRET_NAME} "${CEPH_CLUSTER_KEY}"
+ceph_activate_namespace ${DEPLOYMENT_NAMESPACE} "kubernetes.io/rbd" ${SECRET_NAME} "${CEPH_ADMIN_KEY}"
