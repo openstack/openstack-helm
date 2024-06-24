@@ -310,8 +310,8 @@ for their virtual machines and other services.
     conf:
       neutron:
         DEFAULT:
-        l3_ha: False
-        max_l3_agents_per_router: 1
+          l3_ha: False
+          max_l3_agents_per_router: 1
       # <provider_interface_name> will be attached to the br-ex bridge.
       # The IP assigned to the interface will be moved to the bridge.
       auto_bridge_add:
@@ -341,7 +341,7 @@ Let's deploy it:
 
 .. code-block:: bash
 
-    helm upgrade --install neutron openstack-helm/neutron \
+    helm upgrade --install horizon openstack-helm/horizon \
         --namespace=openstack \
         $(helm osh get-values-overrides -p ${OVERRIDES_DIR} -c horizon ${FEATURES})
 
