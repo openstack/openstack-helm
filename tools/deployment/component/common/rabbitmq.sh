@@ -22,9 +22,9 @@ set -xe
 #NOTE: Deploy command
 helm upgrade --install rabbitmq ${OSH_INFRA_HELM_REPO}/rabbitmq \
     --namespace=openstack \
-    --set volume.enabled=false \
     --set pod.replicas.server=1 \
     --timeout=600s \
+    ${VOLUME_HELM_ARGS:="--set volume.enabled=false"} \
     ${OSH_EXTRA_HELM_ARGS:=} \
     ${OSH_EXTRA_HELM_ARGS_RABBITMQ}
 

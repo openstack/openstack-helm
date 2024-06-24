@@ -25,7 +25,7 @@ set -xe
 tee /tmp/glance.yaml <<EOF
 storage: ${GLANCE_BACKEND}
 volume:
-  class_name: standard
+  class_name: general
 bootstrap:
   structured:
     images:
