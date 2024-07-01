@@ -14,19 +14,25 @@
 
 set -xe
 
-: ${OSH_INFRA_EXTRA_HELM_ARGS_MARIADB:="$(helm osh get-values-overrides -c mariadb ${FEATURES})"}
+: ${OSH_INFRA_HELM_REPO:="../openstack-helm-infra"}
+: ${OSH_INFRA_PATH:="../openstack-helm-infra"}
+: ${OSH_INFRA_EXTRA_HELM_ARGS_MARIADB:="$(helm osh get-values-overrides ${DOWNLOAD_OVERRIDES:-} -p ${OSH_INFRA_PATH} -c mariadb ${FEATURES})"}
+: ${NAMESPACE:="osh-infra"}
+: ${RUN_HELM_TESTS:="yes"}
 
 #NOTE: Deploy command
 helm upgrade --install mariadb ./mariadb \
-    --namespace=osh-infra \
+    --namespace=${NAMESPACE} \
     --set monitoring.prometheus.enabled=true \
-    ${OSH_INFRA_EXTRA_HELM_ARGS:=} \
+    ${OSH_INFRA_EXTRA_HELM_ARGS} \
     ${OSH_INFRA_EXTRA_HELM_ARGS_MARIADB}
 
 #NOTE: Wait for deploy
 helm osh wait-for-pods osh-infra
 
-# Delete the test pod if it still exists
-kubectl delete pods -l application=mariadb,release_group=mariadb,component=test --namespace=osh-infra --ignore-not-found
-#NOTE: Validate the deployment
-helm test mariadb --namespace osh-infra
+if [ "x${RUN_HELM_TESTS}" != "xno" ]; then
+    # Delete the test pod if it still exists
+    kubectl delete pods -l application=mariadb,release_group=mariadb,component=test --namespace=${NAMESPACE} --ignore-not-found
+    #NOTE: Validate the deployment
+    helm test mariadb --namespace ${NAMESPACE}
+fi
