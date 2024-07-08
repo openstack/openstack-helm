@@ -161,47 +161,12 @@ Openstack API pods.
 
 By default, the ``Ingress`` objects will only contain rules for the
 ``openstack.svc.cluster.local`` DNS domain. This is the internal Kubernetes domain
-and it is not supposed to be used outside the cluster. However, we can use
-the Dnsmasq to resolve the ``*.openstack.svc.cluster.local`` names to the
-``LoadBalancer`` service IP address.
+and it is not supposed to be used outside the cluster.
 
-The following command will start the Dnsmasq container with the necessary configuration:
-
-.. code-block:: bash
-
-    docker run -d --name dnsmasq --restart always \
-        --cap-add=NET_ADMIN \
-        --network=host \
-        --entrypoint dnsmasq \
-        docker.io/openstackhelm/neutron:2024.1-ubuntu_jammy \
-        --keep-in-foreground \
-        --no-hosts \
-        --bind-interfaces \
-        --address="/openstack.svc.cluster.local/172.24.128.100" \
-        --listen-address="172.17.0.1" \
-        --no-resolv \
-        --server=8.8.8.8
-
-The ``--network=host`` option is used to start the Dnsmasq container in the
-host network namespace and the ``--listen-address`` option is used to bind the
-Dnsmasq to a specific IP. Please use the configuration that suits your environment.
-
-Now we can add the Dnsmasq IP to the ``/etc/resolv.conf`` file
-
-.. code-block:: bash
-
-    echo "nameserver 172.17.0.1" > /etc/resolv.conf
-
-or alternatively the ``resolvectl`` command can be used to configure the systemd-resolved.
-
-.. note::
-    In production environments you probably choose to use a different DNS
-    domain for public Openstack endpoints. This is easy to achieve by setting
-    the necessary chart values. All Openstack-Helm charts values have the
-    ``endpoints`` section where you can specify the ``host_fqdn_override``.
-    In this case a chart will create additional ``Ingress`` resources to
-    handle the external domain name and also the Keystone endpoint catalog
-    will be updated.
+You can use the ``host_fqdn_override`` for the endpoints to set an alternate
+hostname using a service like `sslip.io`_. Assuming your services are exposed
+at ``172.24.128.100`` as is referenced in the Service above, you could use
+``<service>.172-24-128-100.sslip.io``
 
 Here is an example of how to set the ``host_fqdn_override`` for the Keystone chart:
 
@@ -210,7 +175,19 @@ Here is an example of how to set the ``host_fqdn_override`` for the Keystone cha
     endpoints:
       identity:
         host_fqdn_override:
-          public: "keystone.example.com"
+          public:
+            host: "keystone.172-24-128-100.sslip.io"
+
+.. note::
+    In production environments you probably choose to use a different DNS
+    domain for public OpenStack endpoints. This is easy to achieve by setting
+    the necessary chart values. All Openstack-Helm charts values have the
+    ``endpoints`` section where you can specify the ``host_fqdn_override``.
+    In this case a chart will create additional ``Ingress`` resources to
+    handle the external domain name and also the Keystone endpoint catalog
+    will be updated.
+
+.. _sslip.io: https://sslip.io/
 
 Ceph
 ----
