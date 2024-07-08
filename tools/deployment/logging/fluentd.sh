@@ -53,20 +53,36 @@ conf:
         </source>
 
         <source>
-          <parse>
-            time_format %Y-%m-%dT%H:%M:%S.%NZ
-            @type json
-          </parse>
-          path /var/log/containers/*.log
-          read_from_head true
-          tag kubernetes.*
           @type tail
+          @id in_tail_container_logs
+          path "/var/log/containers/*.log"
+          pos_file "/var/log/fluentd-containers.log.pos"
+          tag kubernetes.*
+          read_from_head true
+          emit_unmatched_lines true
+          <parse>
+            @type "multi_format"
+            <pattern>
+              format json
+              time_key "time"
+              time_type string
+              time_format "%Y-%m-%dT%H:%M:%S.%NZ"
+              keep_time_key false
+            </pattern>
+            <pattern>
+              format regexp
+              expression /^(?<time>.+) (?<stream>stdout|stderr)( (.))? (?<log>.*)$/
+              time_format "%Y-%m-%dT%H:%M:%S.%NZ"
+              keep_time_key false
+            </pattern>
+          </parse>
         </source>
 
         <source>
           @type tail
           tag libvirt.*
           path /var/log/libvirt/**.log
+          pos_file "/var/log/fluentd-libvirt.log.pos"
           read_from_head true
           <parse>
             @type none
@@ -79,6 +95,11 @@ conf:
           path /var/log/journal
           matches [{ "SYSLOG_FACILITY":"10" }]
           read_from_head true
+
+          <storage>
+            @type local
+            path /var/log/fluentd-systemd-auth.json
+          </storage>
 
           <entry>
             fields_strip_underscores true
@@ -93,6 +114,11 @@ conf:
           matches [{ "_SYSTEMD_UNIT": "docker.service" }]
           read_from_head true
 
+          <storage>
+            @type local
+            path /var/log/fluentd-systemd-docker.json
+          </storage>
+
           <entry>
             fields_strip_underscores true
             fields_lowercase true
@@ -105,6 +131,11 @@ conf:
           path /var/log/journal
           matches [{ "_SYSTEMD_UNIT": "kubelet.service" }]
           read_from_head true
+
+          <storage>
+            @type local
+            path /var/log/fluentd-systemd-kubelet.json
+          </storage>
 
           <entry>
             fields_strip_underscores true
@@ -119,6 +150,11 @@ conf:
           matches [{ "_TRANSPORT": "kernel" }]
           read_from_head true
 
+          <storage>
+            @type local
+            path /var/log/fluentd-systemd-kernel.json
+          </storage>
+
           <entry>
             fields_strip_underscores true
             fields_lowercase true
@@ -131,7 +167,19 @@ conf:
         </match>
 
       filter: |
+        <label @FLUENT_LOG>
+          <match **>
+            @type null
+            @id ignore_fluent_logs
+          </match>
+        </label>
+
         <label @filter>
+          <match kubernetes.var.log.containers.fluentd**>
+            @type relabel
+            @label @FLUENT_LOG
+          </match>
+
           <filter kubernetes.**>
             @type kubernetes_metadata
           </filter>
@@ -156,7 +204,7 @@ conf:
 
           <match **>
             <buffer>
-              chunk_limit_size 512K
+              chunk_limit_size 2M
               flush_interval 5s
               flush_thread_count 8
               queue_limit_length 32
