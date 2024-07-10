@@ -128,7 +128,12 @@ except:
 
 try:
     cmd = "DELETE FROM credential"
-    user_engine.execute(cmd)
+    with user_engine.connect() as connection:
+        connection.execute(cmd)
+        try:
+            connection.commit()
+        except AttributeError:
+            pass
     logger.info('Deleted all entries in credential table')
 except:
     logger.critical('Failed to clean up credential table in keystone db')
