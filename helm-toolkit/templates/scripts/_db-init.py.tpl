@@ -124,7 +124,12 @@ except:
 
 # Create DB
 try:
-    root_engine.execute("CREATE DATABASE IF NOT EXISTS {0}".format(database))
+    with root_engine.connect() as connection:
+        connection.execute("CREATE DATABASE IF NOT EXISTS {0}".format(database))
+        try:
+            connection.commit()
+        except AttributeError:
+            pass
     logger.info("Created database {0}".format(database))
 except:
     logger.critical("Could not create database {0}".format(database))
@@ -132,11 +137,16 @@ except:
 
 # Create DB User
 try:
-    root_engine.execute(
-        "CREATE USER IF NOT EXISTS \'{0}\'@\'%%\' IDENTIFIED BY \'{1}\' {2}".format(
-            user, password, mysql_x509))
-    root_engine.execute(
-        "GRANT ALL ON `{0}`.* TO \'{1}\'@\'%%\'".format(database, user))
+    with root_engine.connect() as connection:
+        connection.execute(
+            "CREATE USER IF NOT EXISTS \'{0}\'@\'%%\' IDENTIFIED BY \'{1}\' {2}".format(
+                user, password, mysql_x509))
+        connection.execute(
+            "GRANT ALL ON `{0}`.* TO \'{1}\'@\'%%\'".format(database, user))
+        try:
+            connection.commit()
+        except AttributeError:
+            pass
     logger.info("Created user {0} for {1}".format(user, database))
 except:
     logger.critical("Could not create user {0} for {1}".format(user, database))
