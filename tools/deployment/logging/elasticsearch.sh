@@ -162,6 +162,15 @@ manifests:
   job_s3_user: false
   job_s3_bucket: false
   object_bucket_claim: true
+
+# FIXME: The kubernetes-entrypoint image used by default
+# quay.io/airshipit/kubernetes-entrypoint:latest-ubuntu_focal
+# can not lookup for global (w/o namespace) custom resources
+# but ObjectBucket CRs are global and we have them as dependencies
+# for two elasticsearch jobs.
+images:
+  tags:
+    dep_check: quay.io/airshipit/kubernetes-entrypoint:v1.0.0
 EOF
 
 : ${OSH_INFRA_EXTRA_HELM_ARGS_ELASTICSEARCH:="$(helm osh get-values-overrides -c elasticsearch ${FEATURES})"}

@@ -19,7 +19,7 @@ abstract: |
 values: |
   images:
     tags:
-      dep_check: quay.io/airshipit/kubernetes-entrypoint:v1.0.0
+      dep_check: quay.io/airshipit/kubernetes-entrypoint:latest-ubuntu_focal
     pull_policy: IfNotPresent
     local_registry:
       active: true
@@ -76,7 +76,7 @@ usage: |
   {{ tuple . "calico_node" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" }}
 return: |
   - name: init
-    image: "quay.io/airshipit/kubernetes-entrypoint:v1.0.0"
+    image: "quay.io/airshipit/kubernetes-entrypoint:latest-ubuntu_focal"
     imagePullPolicy: IfNotPresent
     securityContext:
       allowPrivilegeEscalation: false
