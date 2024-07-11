@@ -70,7 +70,7 @@ chart:
         cfn: docker.io/kolla/ubuntu-source-heat-api:ocata
         cloudwatch: docker.io/kolla/ubuntu-source-heat-api:ocata
         engine: docker.io/openstackhelm/heat:ocata
-        dep_check: quay.io/airshipit/kubernetes-entrypoint:v1.0.0
+        dep_check: quay.io/airshipit/kubernetes-entrypoint:latest-ubuntu_focal
       pull_policy: "IfNotPresent"
 
 The OpenStack-Helm project today uses a mix of Docker images from
