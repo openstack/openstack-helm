@@ -93,7 +93,7 @@
       containerd:
         root_path: "/opt/ext_vol/containerd"
       kubeadm:
-        pod_network_cidr: "10.244.0.0/24"
+        pod_network_cidr: "10.244.0.0/16"
         service_cidr: "10.96.0.0/16"
       osh_plugin_repo: "{{ zuul.project.src_dir }}/../openstack-helm-plugin"
       loopback_setup: true
@@ -283,6 +283,39 @@
         container_distro_version: jammy
       calico_setup: false
       cilium_setup: true
+      gate_scripts:
+        - ./tools/deployment/common/prepare-k8s.sh
+        - ./tools/deployment/common/prepare-charts.sh
+        - ./tools/deployment/common/ingress.sh
+        - ./tools/deployment/ceph/ceph-rook.sh
+        - ./tools/deployment/ceph/ceph-adapter-rook.sh
+        - ./tools/deployment/common/setup-client.sh
+        - |
+          export NAMESPACE=openstack
+          export OSH_INFRA_EXTRA_HELM_ARGS="--set pod.replicas.server=1 ${OSH_INFRA_EXTRA_HELM_ARGS}"
+          export RUN_HELM_TESTS=no
+          ./tools/deployment/db/mariadb.sh
+        - ./tools/deployment/common/rabbitmq.sh
+        - ./tools/deployment/common/memcached.sh
+        - ./tools/deployment/openstack/keystone.sh
+
+- job:
+    name: openstack-helm-infra-keystone-flannel-2024-1-ubuntu_jammy
+    parent: openstack-helm-infra-deploy
+    nodeset: openstack-helm-3nodes-ubuntu_jammy
+    files:
+      - ^helm-toolkit/.*
+      - ^roles/.*
+      - ^rabbitmq/.*
+      - ^mariadb/.*
+      - ^memcached/.*
+    vars:
+      osh_params:
+        openstack_release: "2024.1"
+        container_distro_name: ubuntu
+        container_distro_version: jammy
+      calico_setup: false
+      flannel_setup: true
       gate_scripts:
         - ./tools/deployment/common/prepare-k8s.sh
         - ./tools/deployment/common/prepare-charts.sh

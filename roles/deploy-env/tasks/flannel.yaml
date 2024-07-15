@@ -1,0 +1,20 @@
+---
+- name: Add Flannel Helm repo
+  become: false
+  when: inventory_hostname in (groups['primary'] | default([]))
+  block:
+    - name: Add Flannel chart repo
+      kubernetes.core.helm_repository:
+        name: flannel
+        repo_url: "https://flannel-io.github.io/flannel/"
+
+    - name: Install Flannel
+      kubernetes.core.helm:
+        name: flannel
+        chart_ref: flannel/flannel
+        namespace: kube-flannel
+        create_namespace: true
+        chart_version: "{{ flannel_version }}"
+        release_values:
+          podCidr: "{{ kubeadm.pod_network_cidr }}"
+...

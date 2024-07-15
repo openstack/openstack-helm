@@ -15,7 +15,7 @@
 set -xe
 
 : ${CEPH_OSD_DATA_DEVICE:="/dev/loop100"}
-: ${POD_NETWORK_CIDR:="10.244.0.0/24"}
+: ${POD_NETWORK_CIDR:="10.244.0.0/16"}
 : ${OSH_INFRA_HELM_REPO:="../openstack-helm-infra"}
 : ${OSH_INFRA_PATH:="../openstack-helm-infra"}
 
