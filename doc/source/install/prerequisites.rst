@@ -153,6 +153,8 @@ IP using annotations):
           port: 443
     EOF
 
+    kubectl apply -f /tmp/openstack_endpoint_service.yaml
+
 This service will redirect the traffic to the ingress controller pods
 (see the ``app: ingress-api`` selector). OpenStack-Helm charts create
 ``Ingress`` resources which are used by the ingress controller to configure the
@@ -236,42 +238,10 @@ that are later used to interface with the Ceph cluster.
 
 Here we assume the Ceph cluster is deployed in the ``ceph`` namespace.
 
-The procedure consists of two steps: 1) gather necessary entities from the Ceph cluster
-2) copy them to the ``openstack`` namespace:
-
 .. code-block:: bash
 
-    tee > /tmp/ceph-adapter-rook-ceph.yaml <<EOF
-    manifests:
-      configmap_bin: true
-      configmap_templates: true
-      configmap_etc: false
-      job_storage_admin_keys: true
-      job_namespace_client_key: false
-      job_namespace_client_ceph_config: false
-      service_mon_discovery: true
-    EOF
-
     helm upgrade --install ceph-adapter-rook openstack-helm-infra/ceph-adapter-rook \
-      --namespace=ceph \
-      --values=/tmp/ceph-adapter-rook-ceph.yaml
-
-    helm osh wait-for-pods ceph
-
-    tee > /tmp/ceph-adapter-rook-openstack.yaml <<EOF
-    manifests:
-      configmap_bin: true
-      configmap_templates: false
-      configmap_etc: true
-      job_storage_admin_keys: false
-      job_namespace_client_key: true
-      job_namespace_client_ceph_config: true
-      service_mon_discovery: false
-    EOF
-
-    helm upgrade --install ceph-adapter-rook openstack-helm-infra/ceph-adapter-rook \
-      --namespace=openstack \
-      --values=/tmp/ceph-adapter-rook-openstack.yaml
+        --namespace=openstack
 
     helm osh wait-for-pods openstack
 
