@@ -19,7 +19,7 @@
   set_fact:
     client_default_ip: "{{ (groups['primary'] | map('extract', hostvars, ['ansible_default_ipv4', 'address']))[0] }}"
 
-- name: Setup wireguard tunnel between primary and cluster control-plane node
+- name: Setup wireguard keys
   when: (groups['primary'] | difference(groups['k8s_control_plane']) | length > 0)
   block:
     - name: Generate wireguard key pair
@@ -33,6 +33,9 @@
       register: wg_public_key
       when: (inventory_hostname in (groups['primary'] | default([]))) or (inventory_hostname in (groups['k8s_control_plane'] | default([])))
 
+- name: Setup wireguard tunnel between primary and cluster control-plane node
+  when: (groups['primary'] | difference(groups['k8s_control_plane']) | length > 0)
+  block:
     - name: Set primary wireguard public key
       set_fact:
         client_wg_public_key: "{{ (groups['primary'] | map('extract', hostvars, ['wg_public_key', 'stdout']))[0] }}"

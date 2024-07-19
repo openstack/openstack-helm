@@ -11,28 +11,28 @@
 # limitations under the License.
 
 ---
-- name: Setup passwordless ssh from primary and cluster nodes
+- name: Set client user home directory
+  set_fact:
+    client_user_home_directory: /home/{{ client_ssh_user }}
+  when: client_ssh_user != "root"
+
+- name: Set client user home directory
+  set_fact:
+    client_user_home_directory: /root
+  when: client_ssh_user == "root"
+
+- name: Set cluster user home directory
+  set_fact:
+    cluster_user_home_directory: /home/{{ cluster_ssh_user }}
+  when: cluster_ssh_user != "root"
+
+- name: Set cluster user home directory
+  set_fact:
+    cluster_user_home_directory: /root
+  when: cluster_ssh_user == "root"
+
+- name: Setup ssh keys
   block:
-    - name: Set client user home directory
-      set_fact:
-        client_user_home_directory: /home/{{ client_ssh_user }}
-      when: client_ssh_user != "root"
-
-    - name: Set client user home directory
-      set_fact:
-        client_user_home_directory: /root
-      when: client_ssh_user == "root"
-
-    - name: Set cluster user home directory
-      set_fact:
-        cluster_user_home_directory: /home/{{ cluster_ssh_user }}
-      when: cluster_ssh_user != "root"
-
-    - name: Set cluster user home directory
-      set_fact:
-        cluster_user_home_directory: /root
-      when: cluster_ssh_user == "root"
-
     - name: Generate ssh key pair
       shell: |
         ssh-keygen -t ed25519 -q -N "" -f {{ client_user_home_directory }}/.ssh/id_ed25519
@@ -45,6 +45,8 @@
       register: ssh_public_key
       when: (inventory_hostname in (groups['primary'] | default([])))
 
+- name: Setup passwordless ssh from primary and cluster nodes
+  block:
     - name: Set primary ssh public key
       set_fact:
         client_ssh_public_key: "{{ (groups['primary'] | map('extract', hostvars, ['ssh_public_key', 'stdout']))[0] }}"
