@@ -14,8 +14,9 @@
 
 set -xe
 
-#NOTE: Deploy command
-: ${OSH_INFRA_EXTRA_HELM_ARGS_OS_EXPORTER:="$(helm osh get-values-overrides -c prometheus-openstack-exporter ${FEATURES})"}
+: ${OSH_INFRA_HELM_REPO:="../openstack-helm-infra"}
+: ${OSH_INFRA_PATH:="../openstack-helm-infra"}
+: ${OSH_INFRA_EXTRA_HELM_ARGS_OS_EXPORTER:="$(helm osh get-values-overrides -p ${OSH_INFRA_PATH} -c prometheus-openstack-exporter ${FEATURES})"}
 
 tee /tmp/prometheus-openstack-exporter.yaml << EOF
 manifests:
@@ -27,8 +28,9 @@ dependencies:
       services: null
 EOF
 
+#NOTE: Deploy command
 helm upgrade --install prometheus-openstack-exporter \
-    ./prometheus-openstack-exporter \
+    ${OSH_INFRA_HELM_REPO}/prometheus-openstack-exporter \
     --namespace=openstack \
     --values=/tmp/prometheus-openstack-exporter.yaml \
     ${OSH_INFRA_EXTRA_HELM_ARGS_OS_EXPORTER}

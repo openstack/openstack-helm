@@ -14,10 +14,12 @@
 
 set -xe
 
-: ${OSH_INFRA_EXTRA_HELM_ARGS_MARIADB_MYSQL_EXPORTER:="$(helm osh get-values-overrides -c prometheus-mysql-exporter ${FEATURES})"}
+: ${OSH_INFRA_HELM_REPO:="../openstack-helm-infra"}
+: ${OSH_INFRA_PATH:="../openstack-helm-infra"}
+: ${OSH_INFRA_EXTRA_HELM_ARGS_MARIADB_MYSQL_EXPORTER:="$(helm osh get-values-overrides -p ${OSH_INFRA_PATH} -c prometheus-mysql-exporter ${FEATURES})"}
 
 #NOTE: Deploy command
-helm upgrade --install prometheus-mysql-exporter ./prometheus-mysql-exporter \
+helm upgrade --install prometheus-mysql-exporter ${OSH_INFRA_HELM_REPO}/prometheus-mysql-exporter \
     --namespace=openstack \
     --wait \
     --timeout 900s \

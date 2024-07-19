@@ -14,7 +14,9 @@
 set -xe
 
 namespace="metacontroller"
-: ${HELM_ARGS_METACONTROLLER:="$(helm osh get-values-overrides -c metacontroller ${FEATURES})"}
+: ${OSH_INFRA_HELM_REPO:="../openstack-helm-infra"}
+: ${OSH_INFRA_PATH:="../openstack-helm-infra"}
+: ${HELM_ARGS_METACONTROLLER:="$(helm osh get-values-overrides -p ${OSH_INFRA_PATH} -c metacontroller ${FEATURES})"}
 
 #NOTE: Check no crd exists of APIGroup metacontroller.k8s.io
 crds=$(kubectl get crd | awk '/metacontroller.k8s.io/{print $1}')
@@ -36,7 +38,7 @@ EOF
 kubectl create -f /tmp/${namespace}-ns.yaml
 
 #NOTE: Deploy command
-helm upgrade --install metacontroller ./metacontroller \
+helm upgrade --install metacontroller ${OSH_INFRA_HELM_REPO}/metacontroller \
     --namespace=$namespace \
     --set pod.replicas.metacontroller=3 \
     ${HELM_ARGS_METACONTROLLER}

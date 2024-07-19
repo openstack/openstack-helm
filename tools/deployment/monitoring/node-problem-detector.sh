@@ -13,6 +13,8 @@
 
 set -xe
 
+: ${OSH_INFRA_HELM_REPO:="../openstack-helm-infra"}
+
 #NOTE: Deploy command
 tee /tmp/kubernetes-node-problem-detector.yaml << EOF
 monitoring:
@@ -25,7 +27,7 @@ manifests:
   service: true
 EOF
 helm upgrade --install kubernetes-node-problem-detector \
-    ./kubernetes-node-problem-detector --namespace=kube-system \
+    ${OSH_INFRA_HELM_REPO}/kubernetes-node-problem-detector --namespace=kube-system \
     --values=/tmp/kubernetes-node-problem-detector.yaml
 
 #NOTE: Wait for deploy

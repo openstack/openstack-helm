@@ -14,11 +14,13 @@
 
 set -xe
 
+: ${OSH_INFRA_HELM_REPO:="../openstack-helm-infra"}
+: ${OSH_INFRA_PATH:="../openstack-helm-infra"}
 FEATURE_GATES="calico ceph containers coredns elasticsearch kubernetes nginx nodes openstack prometheus home_dashboard persistentvolume apparmor"
-: ${OSH_INFRA_EXTRA_HELM_ARGS_GRAFANA:=$(helm osh get-values-overrides -c grafana ${FEATURE_GATES} ${FEATURES} 2>/dev/null)}
+: ${OSH_INFRA_EXTRA_HELM_ARGS_GRAFANA:=$(helm osh get-values-overrides -p ${OSH_INFRA_PATH} -c grafana ${FEATURE_GATES} ${FEATURES} 2>/dev/null)}
 
 #NOTE: Deploy command
-helm upgrade --install grafana ./grafana \
+helm upgrade --install grafana ${OSH_INFRA_HELM_REPO}/grafana \
   --namespace=osh-infra \
   ${OSH_INFRA_EXTRA_HELM_ARGS:=} \
   ${OSH_INFRA_EXTRA_HELM_ARGS_GRAFANA}

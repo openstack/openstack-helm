@@ -14,11 +14,13 @@
 
 set -xe
 
-#NOTE: Deploy command
-: ${OSH_INFRA_EXTRA_HELM_ARGS_PROCESS_EXPORTER:="$(helm osh get-values-overrides -c prometheus-process-exporter ${FEATURES})"}
+: ${OSH_INFRA_HELM_REPO:="../openstack-helm-infra"}
+: ${OSH_INFRA_PATH:="../openstack-helm-infra"}
+: ${OSH_INFRA_EXTRA_HELM_ARGS_PROCESS_EXPORTER:="$(helm osh get-values-overrides -p ${OSH_INFRA_PATH} -c prometheus-process-exporter ${FEATURES})"}
 
+#NOTE: Deploy command
 helm upgrade --install prometheus-process-exporter \
-    ./prometheus-process-exporter --namespace=kube-system \
+    ${OSH_INFRA_HELM_REPO}/prometheus-process-exporter --namespace=kube-system \
     ${OSH_INFRA_EXTRA_HELM_ARGS_PROCESS_EXPORTER}
 
 #NOTE: Wait for deploy

@@ -14,10 +14,12 @@
 set -xe
 
 namespace="metacontroller"
-: ${HELM_ARGS_DAEMONJOB_CONTROLLER:="$(helm osh get-values-overrides -c daemonjob-controller ${FEATURES})"}
+: ${OSH_INFRA_HELM_REPO:="../openstack-helm-infra"}
+: ${OSH_INFRA_PATH:="../openstack-helm-infra"}
+: ${HELM_ARGS_DAEMONJOB_CONTROLLER:="$(helm osh get-values-overrides -p ${OSH_INFRA_PATH} -c daemonjob-controller ${FEATURES})"}
 
 #NOTE: Deploy command
-helm upgrade --install daemonjob-controller ./daemonjob-controller \
+helm upgrade --install daemonjob-controller ${OSH_INFRA_HELM_REPO}/daemonjob-controller \
     --namespace=$namespace \
     --set pod.replicas.daemonjob_controller=4 \
     ${HELM_ARGS_DAEMONJOB_CONTROLLER}

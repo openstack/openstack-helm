@@ -14,8 +14,10 @@
 
 set -xe
 
+: ${OSH_INFRA_HELM_REPO:="../openstack-helm-infra"}
+
 #NOTE: Deploy namespace configs
 for NAMESPACE in kube-system ceph openstack; do
-  helm upgrade --install ${NAMESPACE}-namespace-config ./namespace-config \
+  helm upgrade --install ${NAMESPACE}-namespace-config ${OSH_INFRA_HELM_REPO}/namespace-config \
     --namespace=${NAMESPACE}
 done

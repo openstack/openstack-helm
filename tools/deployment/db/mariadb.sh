@@ -21,7 +21,7 @@ set -xe
 : ${RUN_HELM_TESTS:="yes"}
 
 #NOTE: Deploy command
-helm upgrade --install mariadb ./mariadb \
+helm upgrade --install mariadb ${OSH_INFRA_HELM_REPO}/mariadb \
     --namespace=${NAMESPACE} \
     ${MONITORING_HELM_ARGS:="--set monitoring.prometheus.enabled=true"} \
     ${OSH_INFRA_EXTRA_HELM_ARGS:=} \

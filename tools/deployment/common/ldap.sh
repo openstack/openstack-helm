@@ -14,11 +14,13 @@
 
 set -xe
 
-: ${OSH_INFRA_EXTRA_HELM_ARGS_LDAP:="$(helm osh get-values-overrides -c ldap ${FEATURES})"}
+: ${OSH_INFRA_HELM_REPO:="../openstack-helm-infra"}
+: ${OSH_INFRA_PATH:="../openstack-helm-infra"}
+: ${OSH_INFRA_EXTRA_HELM_ARGS_LDAP:="$(helm osh get-values-overrides -p ${OSH_INFRA_PATH} -c ldap ${FEATURES})"}
 : ${NAMESPACE:="osh-infra"}
 
 #NOTE: Deploy command
-helm upgrade --install ldap ./ldap \
+helm upgrade --install ldap ${OSH_INFRA_HELM_REPO}/ldap \
     --namespace=${NAMESPACE} \
     --set bootstrap.enabled=true \
     ${OSH_INFRA_EXTRA_HELM_ARGS:=} \

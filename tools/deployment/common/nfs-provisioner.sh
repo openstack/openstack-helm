@@ -14,6 +14,8 @@
 
 set -xe
 
+: ${OSH_INFRA_HELM_REPO:="../openstack-helm-infra"}
+
 tee /tmp/nfs-ns.yaml << EOF
 apiVersion: v1
 kind: Namespace
@@ -35,7 +37,7 @@ storageclass:
   name: general
 EOF
 helm upgrade --install nfs-provisioner \
-    ./nfs-provisioner --namespace=nfs \
+    ${OSH_INFRA_HELM_REPO}/nfs-provisioner --namespace=nfs \
     --values=/tmp/nfs-provisioner.yaml
 
 #NOTE: Wait for deployment

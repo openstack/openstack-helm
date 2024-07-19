@@ -14,7 +14,9 @@
 
 set -xe
 
-: ${OSH_INFRA_EXTRA_HELM_ARGS_FLUENTD:="$(helm osh get-values-overrides -c fluentd ${FEATURES})"}
+: ${OSH_INFRA_HELM_REPO:="../openstack-helm-infra"}
+: ${OSH_INFRA_PATH:="../openstack-helm-infra"}
+: ${OSH_INFRA_EXTRA_HELM_ARGS_FLUENTD:="$(helm osh get-values-overrides -p ${OSH_INFRA_PATH} -c fluentd ${FEATURES})"}
 
 tee /tmp/fluentd.yaml << EOF
 pod:
@@ -224,7 +226,7 @@ conf:
           </match>
         </label>
 EOF
-helm upgrade --install fluentd ./fluentd \
+helm upgrade --install fluentd ${OSH_INFRA_HELM_REPO}/fluentd \
     --namespace=osh-infra \
     --values=/tmp/fluentd.yaml \
   ${OSH_INFRA_EXTRA_HELM_ARGS} \
