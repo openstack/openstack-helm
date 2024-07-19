@@ -24,6 +24,7 @@ set -xe
 helm upgrade --install mariadb ${OSH_INFRA_HELM_REPO}/mariadb \
     --namespace=${NAMESPACE} \
     ${MONITORING_HELM_ARGS:="--set monitoring.prometheus.enabled=true"} \
+    --timeout=600s \
     ${OSH_INFRA_EXTRA_HELM_ARGS:=} \
     ${OSH_INFRA_EXTRA_HELM_ARGS_MARIADB}
 
