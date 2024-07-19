@@ -14,11 +14,13 @@
 
 set -xe
 
+: ${OSH_INFRA_HELM_REPO:="../openstack-helm-infra"}
+: ${OSH_INFRA_PATH:="../openstack-helm-infra"}
 FEATURE_GATES="alertmanager ceph elasticsearch kubernetes nodes openstack postgresql apparmor"
-: ${OSH_INFRA_EXTRA_HELM_ARGS_PROMETHEUS:="$(helm osh get-values-overrides -c prometheus ${FEATURE_GATES} ${FEATURES})"}
+: ${OSH_INFRA_EXTRA_HELM_ARGS_PROMETHEUS:="$(helm osh get-values-overrides -p ${OSH_INFRA_PATH} -c prometheus ${FEATURE_GATES} ${FEATURES})"}
 
 #NOTE: Deploy command
-helm upgrade --install prometheus ./prometheus \
+helm upgrade --install prometheus ${OSH_INFRA_HELM_REPO}/prometheus \
     --namespace=osh-infra \
     ${OSH_INFRA_EXTRA_HELM_ARGS:=} \
     ${OSH_INFRA_EXTRA_HELM_ARGS_PROMETHEUS}

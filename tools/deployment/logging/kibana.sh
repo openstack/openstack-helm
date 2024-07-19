@@ -14,10 +14,12 @@
 
 set -xe
 
-: ${OSH_INFRA_EXTRA_HELM_ARGS_KIBANA:="$(helm osh get-values-overrides -c kibana ${FEATURES})"}
+: ${OSH_INFRA_HELM_REPO:="../openstack-helm-infra"}
+: ${OSH_INFRA_PATH:="../openstack-helm-infra"}
+: ${OSH_INFRA_EXTRA_HELM_ARGS_KIBANA:="$(helm osh get-values-overrides -p ${OSH_INFRA_PATH} -c kibana ${FEATURES})"}
 
 #NOTE: Deploy command
-helm upgrade --install kibana ./kibana \
+helm upgrade --install kibana ${OSH_INFRA_HELM_REPO}/kibana \
   --namespace=osh-infra \
   --set network.kibana.ingress.classes.namespace=nginx-osh-infra \
   ${OSH_INFRA_EXTRA_HELM_ARGS} \

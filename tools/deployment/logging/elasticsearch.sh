@@ -173,9 +173,11 @@ images:
     dep_check: quay.io/airshipit/kubernetes-entrypoint:v1.0.0
 EOF
 
-: ${OSH_INFRA_EXTRA_HELM_ARGS_ELASTICSEARCH:="$(helm osh get-values-overrides -c elasticsearch ${FEATURES})"}
+: ${OSH_INFRA_HELM_REPO:="../openstack-helm-infra"}
+: ${OSH_INFRA_PATH:="../openstack-helm-infra"}
+: ${OSH_INFRA_EXTRA_HELM_ARGS_ELASTICSEARCH:="$(helm osh get-values-overrides -p ${OSH_INFRA_PATH} -c elasticsearch ${FEATURES})"}
 
-helm upgrade --install elasticsearch ./elasticsearch \
+helm upgrade --install elasticsearch ${OSH_INFRA_HELM_REPO}/elasticsearch \
   --namespace=osh-infra \
   --values=/tmp/elasticsearch.yaml\
   ${OSH_INFRA_EXTRA_HELM_ARGS} \
