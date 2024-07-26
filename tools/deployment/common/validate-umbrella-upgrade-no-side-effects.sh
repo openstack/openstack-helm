@@ -1,6 +1,8 @@
 #!/bin/bash
 set -ex
 
+: ${OSH_HELM_REPO:="../openstack-helm"}
+
 # This test confirms that upgrading a OpenStack Umbrella Helm release using
 # --reuse-values does not result in any unexpected pods from being recreated.
 # Ideally, no pods would be created if the upgrade has no configuration change.
@@ -24,7 +26,7 @@ kubectl get daemonsets,deployments,statefulsets \
   --output custom-columns=Kind:.kind,Name:.metadata.name,Generation:.status.observedGeneration \
   > "$before_apps_list"
 
-helm upgrade openstack ./openstack \
+helm upgrade openstack ${OSH_HELM_REPO}/openstack \
   --namespace openstack \
   --reuse-values \
   --wait

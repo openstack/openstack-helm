@@ -126,7 +126,8 @@ helm repo update
 helm install cert-manager jetstack/cert-manager --namespace cert-manager \
    --version ${CERT_MANAGER_VERSION} \
    --set installCRDs=true \
-   --set extraArgs[0]="--enable-certificate-owner-ref=true"
+   --set extraArgs[0]="--enable-certificate-owner-ref=true" \
+   --timeout=600s
 
 helm repo remove jetstack
 

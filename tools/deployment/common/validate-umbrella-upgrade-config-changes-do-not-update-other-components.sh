@@ -2,6 +2,8 @@
 set -ex
 set -o pipefail
 
+: ${OSH_HELM_REPO:="../openstack-helm"}
+
 # This test case aims to prove that updating a subhcart's configuration for
 # the OpenStack Umbrella Helm chart results in no other subcharts' components
 # being updated.
@@ -31,10 +33,11 @@ validate_only_expected_application_changes () {
     -l "application=$app_name" \
     --wait
 
-  helm upgrade openstack ./openstack \
+  helm upgrade openstack ${OSH_HELM_REPO}/openstack \
     --namespace openstack \
     --reuse-values \
     ${config_change} \
+    --timeout=600s \
     --wait
 
   helm osh wait-for-pods openstack
