@@ -14,7 +14,7 @@
 
 set -xe
 
-: ${HELM_INGRESS_NGINX_VERSION:="4.8.3"}
+: ${HELM_INGRESS_NGINX_VERSION:="4.11.1"}
 
 helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
 
