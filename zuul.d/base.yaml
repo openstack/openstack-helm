@@ -44,25 +44,25 @@
     timeout: 7200
     pre-run:
       - tools/gate/playbooks/prepare-hosts.yaml
+      - tools/gate/playbooks/inject-keys.yaml
     post-run: tools/gate/playbooks/osh-infra-collect-logs.yaml
     run:
       - tools/gate/playbooks/deploy-env.yaml
       - tools/gate/playbooks/run-scripts.yaml
     vars:
       kubeadm:
-        pod_network_cidr: "10.244.0.0/24"
+        pod_network_cidr: "10.244.0.0/16"
         service_cidr: "10.96.0.0/16"
       osh_plugin_repo: "{{ zuul.project.src_dir }}/../openstack-helm-plugin"
       loopback_setup: true
       loopback_device: /dev/loop100
       loopback_image: "/var/lib/openstack-helm/ceph-loop.img"
       ceph_osd_data_device: /dev/loop100
-      kube_version_repo: "v1.29"
-      kube_version: "1.29.5-1.1"
-      calico_version: "v3.27.0"
-      helm_version: "v3.6.3"
-      yq_version: "v4.6.0"
-      crictl_version: "v1.26.1"
+      kube_version_repo: "v1.30"
+      kube_version: "1.30.3-1.1"
+      calico_version: "v3.27.4"
+      helm_version: "v3.14.0"
+      crictl_version: "v1.30.1"
       zuul_osh_relative_path: ../openstack-helm
       zuul_osh_infra_relative_path: ../openstack-helm-infra
       gate_scripts_relative_path: ../openstack-helm
@@ -357,89 +357,6 @@
         - ./tools/deployment/common/run-helm-tests.sh cinder
         - ./tools/deployment/common/use-it.sh
         - ./tools/deployment/common/force-cronjob-run.sh
-
-- job:
-    name: openstack-helm-tungsten-fabric
-    parent: openstack-helm-deploy
-    abstract: true
-    timeout: 9600
-    vars:
-      gate_scripts:
-        - ./tools/deployment/common/prepare-k8s.sh
-        - ./tools/deployment/common/prepare-charts.sh
-        - ./tools/deployment/common/setup-client.sh
-        - ./tools/deployment/common/ingress.sh
-        - - ./tools/deployment/component/common/mariadb.sh
-          - ./tools/deployment/component/common/memcached.sh
-          - ./tools/deployment/component/common/rabbitmq.sh
-        - - ./tools/deployment/component/compute-kit/tungsten-fabric.sh checkdns
-          - ./tools/deployment/component/compute-kit/tungsten-fabric.sh setupdns
-          - ./tools/deployment/component/keystone/keystone.sh
-        - - ./tools/deployment/component/heat/heat.sh
-          - export GLANCE_BACKEND=memory; ./tools/deployment/component/glance/glance.sh
-          - ./tools/deployment/component/compute-kit/tungsten-fabric.sh prepare
-          - ./tools/deployment/component/compute-kit/libvirt.sh
-        - ./tools/deployment/component/compute-kit/compute-kit.sh
-        - ./tools/deployment/component/compute-kit/tungsten-fabric.sh deploy
-
-- job:
-    name: openstack-helm-netpol-compute-kit
-    parent: openstack-helm-deploy
-    abstract: true
-    timeout: 7200
-    vars:
-      osh_params:
-        openstack_release: "2023.1"
-        container_distro_name: ubuntu
-        container_distro_version: focal
-        feature_gates: netpol
-      gate_scripts:
-        - ./tools/deployment/common/prepare-k8s.sh
-        - ./tools/deployment/common/prepare-charts.sh
-        - ./tools/deployment/common/setup-client.sh
-        - ./tools/deployment/common/ingress.sh
-        - ./tools/deployment/common/lockdown-netpol.sh
-        - ./tools/deployment/component/common/mariadb.sh
-        - ./tools/deployment/component/common/memcached.sh
-        - ./tools/deployment/component/common/rabbitmq.sh
-        - ./tools/deployment/component/keystone/keystone.sh
-        - ./tools/deployment/component/heat/heat.sh
-        - export GLANCE_BACKEND=memory; ./tools/deployment/component/glance/glance.sh
-        - ./tools/deployment/component/compute-kit/openvswitch.sh
-        - ./tools/deployment/component/compute-kit/libvirt.sh
-        - ./tools/deployment/component/compute-kit/compute-kit.sh
-        - ./tools/deployment/component/horizon/horizon.sh
-        - ./tools/deployment/common/openstack-exporter.sh
-        - ./tools/deployment/common/use-it.sh
-        - ./tools/deployment/common/test-networkpolicy.sh
-
-- job:
-    name: openstack-helm-netpol-cinder
-    parent: openstack-helm-deploy
-    abstract: true
-    timeout: 7200
-    vars:
-      osh_params:
-        openstack_release: "2023.1"
-        container_distro_name: ubuntu
-        container_distro_version: focal
-        feature_gates: netpol
-      gate_scripts:
-        - ./tools/deployment/common/prepare-k8s.sh
-        - ./tools/deployment/common/prepare-charts.sh
-        - ./tools/deployment/common/setup-client.sh
-        - ./tools/deployment/component/ceph/ceph.sh
-        - ./tools/deployment/component/ceph/ceph-ns-activate.sh
-        - ./tools/deployment/common/lockdown-netpol.sh
-        - ./tools/deployment/common/ingress.sh
-        - ./tools/deployment/component/common/mariadb.sh
-        - ./tools/deployment/component/common/memcached.sh
-        - ./tools/deployment/component/common/rabbitmq.sh
-        - ./tools/deployment/component/keystone/keystone.sh
-        - ./tools/deployment/component/cinder/cinder.sh
-        - ./tools/deployment/component/horizon/horizon.sh
-        - ./tools/deployment/common/openstack-exporter.sh
-        - ./tools/deployment/common/test-networkpolicy.sh
 
 - job:
     name: openstack-helm-tacker

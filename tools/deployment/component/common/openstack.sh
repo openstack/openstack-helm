@@ -123,11 +123,6 @@ helm upgrade --install $release ${OSH_HELM_REPO}/openstack \
   --namespace=$namespace \
   --timeout=1200s
 
-# If compute kit installed using Tungsten Fubric, it will be alive when Tunsten Fabric become active.
-if [[ "$FEATURE_GATES" =~ (,|^)tf(,|$) ]]; then
-  exit 0
-fi
-
 #NOTE: Wait for deploy
 helm osh wait-for-pods $namespace 1800
 

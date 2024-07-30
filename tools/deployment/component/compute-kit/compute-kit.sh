@@ -96,10 +96,6 @@ helm upgrade --install neutron ${OSH_HELM_REPO}/neutron \
     ${OSH_EXTRA_HELM_ARGS:=} \
     ${OSH_EXTRA_HELM_ARGS_NEUTRON}
 
-# If compute kit installed using Tungsten Fubric, it will be alive when Tunsten Fabric become active.
-if [[ "$FEATURE_GATES" =~ (,|^)tf(,|$) ]]; then
-  exit 0
-fi
 #NOTE: Wait for deploy
 helm osh wait-for-pods openstack
 
