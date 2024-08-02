@@ -35,25 +35,14 @@ helm upgrade --install placement ${OSH_HELM_REPO}/placement --namespace=openstac
 
 #NOTE: Deploy nova
 : ${OSH_EXTRA_HELM_ARGS:=""}
-if [ "x$(systemd-detect-virt)" == "xnone" ] || [ "x$(systemd-detect-virt)" == "xkvm" ]; then
-  echo 'OSH is not being deployed in virtualized environment'
-  helm upgrade --install nova ${OSH_HELM_REPO}/nova \
-      --namespace=openstack \
-      --set bootstrap.wait_for_computes.enabled=true \
-      --set conf.ceph.enabled=${CEPH_ENABLED} \
-      ${OSH_EXTRA_HELM_ARGS:=} \
-      ${OSH_EXTRA_HELM_ARGS_NOVA}
-else
-  echo 'OSH is being deployed in virtualized environment, using qemu for nova'
-  helm upgrade --install nova ${OSH_HELM_REPO}/nova \
-      --namespace=openstack \
-      --set bootstrap.wait_for_computes.enabled=true \
-      --set conf.ceph.enabled=${CEPH_ENABLED} \
-      --set conf.nova.libvirt.virt_type=qemu \
-      --set conf.nova.libvirt.cpu_mode=none \
-      ${OSH_EXTRA_HELM_ARGS:=} \
-      ${OSH_EXTRA_HELM_ARGS_NOVA}
-fi
+helm upgrade --install nova ${OSH_HELM_REPO}/nova \
+    --namespace=openstack \
+    --set bootstrap.wait_for_computes.enabled=true \
+    --set conf.ceph.enabled=${CEPH_ENABLED} \
+    --set conf.nova.libvirt.virt_type=qemu \
+    --set conf.nova.libvirt.cpu_mode=none \
+    ${OSH_EXTRA_HELM_ARGS:=} \
+    ${OSH_EXTRA_HELM_ARGS_NOVA}
 
 #NOTE: Deploy neutron
 tee /tmp/neutron.yaml << EOF

@@ -24,20 +24,23 @@ set -xe
 #NOTE: Deploy command
 tee /tmp/glance.yaml <<EOF
 storage: ${GLANCE_BACKEND}
-volume:
-  class_name: general
 bootstrap:
   structured:
     images:
-      cirros:
-        name: "Cirros 0.6.2 64-bit"
-        source_url: "http://download.cirros-cloud.net/0.6.2/"
-        image_file: "cirros-0.6.2-x86_64-disk.img"
+      ubuntu_miniaml:
+        name: "Ubuntu Jammy Minimal"
+        source_url: "https://cloud-images.ubuntu.com/minimal/releases/jammy/release/"
+        image_file: "ubuntu-22.04-minimal-cloudimg-amd64.img"
+        id: null
+        min_disk: 3
+        image_type: qcow2
+        container_format: bare
 EOF
 
 helm upgrade --install glance ${OSH_HELM_REPO}/glance \
   --namespace=openstack \
   --values=/tmp/glance.yaml \
+  --timeout=800s \
   ${OSH_EXTRA_HELM_ARGS:=} \
   ${OSH_EXTRA_HELM_ARGS_GLANCE}
 
@@ -48,7 +51,9 @@ export OS_CLOUD=openstack_helm
 openstack service list
 sleep 30 #NOTE(portdirect): Wait for ingress controller to update rules and restart Nginx
 openstack image list
-openstack image show 'Cirros 0.6.2 64-bit'
+for image_id in $(openstack image list -f value -c ID); do
+  openstack image show ${image_id}
+done
 
 if [ "x${RUN_HELM_TESTS}" == "xno" ]; then
     exit 0

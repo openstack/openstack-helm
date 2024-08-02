@@ -1,4 +1,4 @@
-heat_template_version: '2016-10-14'
+heat_template_version: '2021-04-16'
 
 parameters:
   public_net:
@@ -15,10 +15,10 @@ parameters:
 
   cidr:
     type: string
-    default: 10.11.11.0/24
+    default: 192.168.128.0/24
 
   dns_nameserver:
-    type: comma_delimited_list
+    type: string
     description: address of a dns nameserver reachable in your environment
     default: 8.8.8.8
 
@@ -30,25 +30,55 @@ parameters:
           - enabled
           - disabled
 
+  is_ubuntu:
+    type: string
+    default: "false"
+    constraints:
+      - allowed_values:
+          - "true"
+          - "false"
+
 conditions:
   dpdk_enable: {equals: [{get_param: dpdk}, "enabled"]}
+  is_ubuntu: {equals: [{get_param: is_ubuntu}, "true"]}
 
 resources:
   flavor:
     type: OS::Nova::Flavor
     properties:
-      disk: 1
-      ram: 128
-      vcpus: 1
+      disk: 3
+      ram: 1024
+      vcpus: 2
 
   flavor_dpdk:
     type: OS::Nova::Flavor
     properties:
-      disk: 1
+      disk: 3
       ram: 2048
-      vcpus: 1
+      vcpus: 2
       extra_specs:
         "hw:mem_page_size": "2MB"
+
+  ubuntu_cloud_config:
+    type: OS::Heat::CloudConfig
+    properties:
+      cloud_config:
+        package_update: true
+        packages:
+          - iputils-ping
+        write_files:
+          - path: /etc/resolv.conf
+            content:
+              str_replace:
+                template: |
+                  nameserver $nameserver
+                params:
+                  $nameserver: {get_param: dns_nameserver}
+            owner: root:root
+            permissions: '0644'
+        runcmd:
+          - systemctl stop systemd-resolved
+          - systemctl disable systemd-resolved
 
   server:
     type: OS::Nova::Server
@@ -62,6 +92,7 @@ resources:
         - port:
             get_resource: server_port
       user_data_format: RAW
+      user_data: {if: [is_ubuntu, {get_resource: ubuntu_cloud_config}, ""]}
 
   router:
     type: OS::Neutron::Router
@@ -89,7 +120,7 @@ resources:
       cidr:
         get_param: cidr
       dns_nameservers:
-        get_param: dns_nameserver
+        - {get_param: dns_nameserver}
 
   port_security_group:
     type: OS::Neutron::SecurityGroup
