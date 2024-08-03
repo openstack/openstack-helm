@@ -14,30 +14,65 @@ limitations under the License.
 */}}
 set -ex
 
+create_data_view() {
+  local index_name=$1
+  curl -u "${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
+    --max-time 30 \
+    -X POST "${KIBANA_ENDPOINT}/api/data_views/data_view" \
+    -H "kbn-xsrf: true" \
+    -H "Content-Type: application/json" \
+    -d "{
+      \"data_view\": {
+        \"title\": \"${index_name}-*\",
+        \"timeFieldName\": \"@timestamp\"
+      }
+    }"
+}
+
+data_view_exists() {
+  local index_name=$1
+  local response=$(curl -s -u "${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
+    --max-time 30 \
+    -X GET "${KIBANA_ENDPOINT}/api/data_views" \
+    -H "kbn-xsrf: true" \
+    -H "Content-Type: application/json")
+
+  if echo "$response" | grep -q "\"title\":\"${index_name}-[*]\""; then
+    return 0
+  fi
+  return 1
+}
+
+set_default_data_view() {
+  local index_name=$1
+  curl -u "${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
+    --max-time 30 \
+    -X POST "${KIBANA_ENDPOINT}/api/data_views/default" \
+    -H "kbn-xsrf: true" \
+    -H "Content-Type: application/json" \
+    -d "{
+      \"value\": \"${index_name}-*\"
+    }"
+}
+
+# Create data views
 {{- range $objectType, $indices := .Values.conf.create_kibana_indexes.indexes }}
 {{- range $indices }}
-curl -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
-  -XPOST "${KIBANA_ENDPOINT}/api/saved_objects/index-pattern/{{ . }}*" -H 'kbn-xsrf: true' \
-  -H 'Content-Type: application/json' -d \
-  '{"attributes":{"title":"{{ . }}-*","timeFieldName":"@timestamp"}}'
-while true
-do
-if [[ $(curl -s -o /dev/null -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
-  -w "%{http_code}" -XGET "${KIBANA_ENDPOINT}/api/saved_objects/index-pattern/{{ . }}*") == '200' ]]
-then
-break
+if ! data_view_exists "{{ . }}"; then
+  create_data_view "{{ . }}"
+  echo "Data view '{{ . }}' created successfully."
 else
-curl -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
-  -XPOST "${KIBANA_ENDPOINT}/api/saved_objects/index-pattern/{{ . }}*" -H 'kbn-xsrf: true' \
-  -H 'Content-Type: application/json' -d \
-  '{"attributes":{"title":"{{ . }}-*","timeFieldName":"@timestamp"}}'
-sleep 30
+  echo "Data view '{{ . }}' already exists."
 fi
-done
 {{- end }}
 {{- end }}
 
-curl -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
-  -XPOST "${KIBANA_ENDPOINT}/api/kibana/settings/defaultIndex" -H 'kbn-xsrf: true' \
-  -H 'Content-Type: application/json' -d \
-  '{"value" : "{{ .Values.conf.create_kibana_indexes.default_index }}*"}'
+# Ensure default data view exists and set it
+default_index="{{ .Values.conf.create_kibana_indexes.default_index }}"
+if ! data_view_exists "$default_index"; then
+  create_data_view "$default_index"
+  echo "Default data view '${default_index}' created successfully."
+fi
+
+set_default_data_view "$default_index"
+echo "Default data view set to '${default_index}'."
