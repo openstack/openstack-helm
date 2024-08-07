@@ -24,12 +24,20 @@ labels:
   job:
     node_selector_key: openstack-control-plane
     node_selector_value: enabled
+  test:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+
+# NOTE(philsphicas): the pre-install hook breaks upgrade for helm2
+# Set to false to upgrade using helm2
+helm3_hook: true
 
 images:
   pull_policy: IfNotPresent
   tags:
     tacker_server: docker.io/openstackhelm/tacker:2024.1-ubuntu_jammy
     tacker_conductor: docker.io/openstackhelm/tacker:2024.1-ubuntu_jammy
+    scripted_test: docker.io/openstackhelm/openstack-client:2024.1
     db_init: docker.io/openstackhelm/heat:2024.1-ubuntu_jammy
     db_drop: docker.io/openstackhelm/heat:2024.1-ubuntu_jammy
     tacker_db_sync: docker.io/openstackhelm/tacker:2024.1-ubuntu_jammy
@@ -72,6 +80,10 @@ dependencies:
           service: identity
         - endpoint: internal
           service: key_manager
+    tests:
+      services:
+        - endpoint: internal
+          service: identity
     db_drop:
       services:
         - endpoint: internal
@@ -105,12 +117,20 @@ pod:
   security_context:
     server:
       pod:
-        runAsUser: 42424
-        runAsNonRoot: true
+        runAsUser: 0
+        runAsNonRoot: false
     conductor:
       pod:
-        runAsUser: 42424
-        runAsNonRoot: true
+        runAsUser: 0
+        runAsNonRoot: false
+    test:
+      pod:
+        runAsUser: 0
+        runAsNonRoot: false
+      container:
+        tacker_test:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
   lifecycle:
     termination_grace_period:
       server:
@@ -175,9 +195,21 @@ pod:
         limits:
           memory: "1024Mi"
           cpu: "2000m"
+      tests:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
   mounts:
     tacker_db_sync:
       tacker_db_sync:
+        volumeMounts:
+        volumes:
+    tacker_tests:
+      init_container: null
+      tacker_tests:
         volumeMounts:
         volumes:
 
@@ -458,7 +490,7 @@ conf:
     composite:tackerapi_v1_0:
       use: call:tacker.auth:pipeline_factory
       noauth: cors request_id catch_errors extensions tackerapiapp_v1_0
-      keystone: cors request_id catch_errors alarm_receiver authtoken keystonecontext extensions tackerapiapp_v1_0
+      keystone: cors request_id catch_errors authtoken keystonecontext extensions tackerapiapp_v1_0
     composite:vnfpkgmapi_v1:
       use: call:tacker.auth:pipeline_factory
       noauth: cors request_id catch_errors vnfpkgmapp_v1
@@ -490,8 +522,6 @@ conf:
       paste.filter_factory: oslo_middleware:RequestId.factory
     filter:catch_errors:
       paste.filter_factory: oslo_middleware:CatchErrors.factory
-    filter:alarm_receiver:
-      paste.filter_factory: tacker.alarm_receiver:AlarmReceiver.factory
     filter:keystonecontext:
       paste.filter_factory: tacker.auth:TackerKeystoneContext.factory
     filter:authtoken:
@@ -515,13 +545,13 @@ conf:
     app:vnffmaapp_v1:
       paste.app_factory: tacker.sol_refactored.api.router:VnffmAPIRouterV1.factory
     app:prometheus_auto_scaling:
-      paste.app_factory: tacker.sol_refactored.api.prometheus_plugin_router:AutoScalingRouter.factory
+      paste.app_factory: tacker.sol_refactored.api.router:AutoScalingRouter.factory
     app:prometheus_fm:
-      paste.app_factory: tacker.sol_refactored.api.prometheus_plugin_router:FmAlertRouter.factory
+      paste.app_factory: tacker.sol_refactored.api.router:FmAlertRouter.factory
     app:prometheus_pm:
-      paste.app_factory: tacker.sol_refactored.api.prometheus_plugin_router:PmEventRouter.factory
+      paste.app_factory: tacker.sol_refactored.api.router:PmEventRouter.factory
     app:server_notification:
-      paste.app_factory: tacker.sol_refactored.api.server_notification_router:ServerNotificationRouter.factory
+      paste.app_factory: tacker.sol_refactored.api.router:ServerNotificationRouter.factory
   logging:
     loggers:
       keys:
@@ -601,6 +631,7 @@ manifests:
   job_ks_service: true
   job_ks_user: true
   job_rabbit_init: true
+  pod_test: true
   pvc: true
   secret_db: true
   secret_keystone: true
