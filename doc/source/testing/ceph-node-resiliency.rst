@@ -247,8 +247,6 @@ Step 1: Initial Ceph and OpenStack deployment
 
   ubuntu@mnode1:/opt/openstack-helm$ kubectl get pods -n ceph --show-all=false -o wide
   NAME                                       READY     STATUS    RESTARTS   AGE       IP               NODE
-  ceph-cephfs-provisioner-784c6f9d59-ndsgn   1/1       Running   0          1h        192.168.4.15     mnode2
-  ceph-cephfs-provisioner-784c6f9d59-vgzzx   1/1       Running   0          1h        192.168.3.17     mnode3
   ceph-mds-6f66956547-5x4ng                  1/1       Running   0          1h        192.168.4.14     mnode2
   ceph-mds-6f66956547-c25cx                  1/1       Running   0          1h        192.168.3.14     mnode3
   ceph-mgr-5746dd89db-9dbmv                  1/1       Running   0          1h        192.168.10.248   mnode3
@@ -314,7 +312,6 @@ In this test env, let's shutdown ``mnode3`` node.
 
 .. code-block:: console
 
-  ceph                       ceph-cephfs-provisioner-784c6f9d59-vgzzx    0 (0%)        0 (0%)      0 (0%)           0 (0%)
   ceph                       ceph-mds-6f66956547-c25cx                   0 (0%)        0 (0%)      0 (0%)           0 (0%)
   ceph                       ceph-mgr-5746dd89db-9dbmv                   0 (0%)        0 (0%)      0 (0%)           0 (0%)
   ceph                       ceph-mon-5qn68                              0 (0%)        0 (0%)      0 (0%)           0 (0%)
@@ -546,9 +543,6 @@ In this test env, let's shutdown ``mnode3`` node.
 
   ubuntu@mnode1:/opt/openstack-helm$ kubectl get pods -n ceph --show-all=false -o wide
   NAME                                       READY     STATUS     RESTARTS   AGE       IP               NODE
-  ceph-cephfs-provisioner-784c6f9d59-n92dx   1/1       Running    0          1m        192.168.0.206    mnode1
-  ceph-cephfs-provisioner-784c6f9d59-ndsgn   1/1       Running    0          1h        192.168.4.15     mnode2
-  ceph-cephfs-provisioner-784c6f9d59-vgzzx   1/1       Unknown    0          1h        192.168.3.17     mnode3
   ceph-mds-6f66956547-57tf9                  1/1       Running    0          1m        192.168.0.207    mnode1
   ceph-mds-6f66956547-5x4ng                  1/1       Running    0          1h        192.168.4.14     mnode2
   ceph-mds-6f66956547-c25cx                  1/1       Unknown    0          1h        192.168.3.14     mnode3
@@ -835,9 +829,6 @@ After applying labels, let's check status
   ubuntu@mnode1:~$ kubectl get pods -n ceph --show-all=false -o wide
   Flag --show-all has been deprecated, will be removed in an upcoming release
   NAME                                       READY     STATUS     RESTARTS   AGE       IP               NODE
-  ceph-cephfs-provisioner-784c6f9d59-n92dx   1/1       Running    0          10m       192.168.0.206    mnode1
-  ceph-cephfs-provisioner-784c6f9d59-ndsgn   1/1       Running    0          1h        192.168.4.15     mnode2
-  ceph-cephfs-provisioner-784c6f9d59-vgzzx   1/1       Unknown    0          1h        192.168.3.17     mnode3
   ceph-mds-6f66956547-57tf9                  1/1       Running    0          10m       192.168.0.207    mnode1
   ceph-mds-6f66956547-5x4ng                  1/1       Running    0          1h        192.168.4.14     mnode2
   ceph-mds-6f66956547-c25cx                  1/1       Unknown    0          1h        192.168.3.14     mnode3
@@ -1163,9 +1154,6 @@ Above output shows Ceph cluster in HEALTH_OK with all OSDs and MONs up and runni
   ubuntu@mnode1:~$ kubectl get pods -n ceph --show-all=false -o wide
   Flag --show-all has been deprecated, will be removed in an upcoming release
   NAME                                       READY     STATUS     RESTARTS   AGE       IP               NODE
-  ceph-cephfs-provisioner-784c6f9d59-n92dx   1/1       Running    0          25m       192.168.0.206    mnode1
-  ceph-cephfs-provisioner-784c6f9d59-ndsgn   1/1       Running    0          1h        192.168.4.15     mnode2
-  ceph-cephfs-provisioner-784c6f9d59-vgzzx   1/1       Unknown    0          1h        192.168.3.17     mnode3
   ceph-mds-6f66956547-57tf9                  1/1       Running    0          25m       192.168.0.207    mnode1
   ceph-mds-6f66956547-5x4ng                  1/1       Running    0          1h        192.168.4.14     mnode2
   ceph-mds-6f66956547-c25cx                  1/1       Unknown    0          1h        192.168.3.14     mnode3
