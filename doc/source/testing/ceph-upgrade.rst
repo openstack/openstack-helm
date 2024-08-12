@@ -135,8 +135,6 @@ Steps:
   NAME                                       READY     STATUS      RESTARTS   AGE
   ceph-bootstrap-s4jkx                       0/1       Completed   0          10m
   ceph-cephfs-client-key-generator-6bmzz     0/1       Completed   0          3m
-  ceph-cephfs-provisioner-784c6f9d59-2z6ww   1/1       Running     0          3m
-  ceph-cephfs-provisioner-784c6f9d59-sg8wv   1/1       Running     0          3m
   ceph-mds-745576757f-4vdn4                  1/1       Running     0          6m
   ceph-mds-745576757f-bxdcs                  1/1       Running     0          6m
   ceph-mds-keyring-generator-f5lxf           0/1       Completed   0          10m
@@ -192,15 +190,6 @@ Steps:
 
 .. code-block:: console
 
-  ubuntu@mnode1:~$ kubectl describe pod -n ceph ceph-cephfs-provisioner-784c6f9d59-2z6ww
-
-  Containers:
-    ceph-cephfs-provisioner:
-      Container ID:  docker://98ed65617f6c4b60fe60d94b8707e52e0dd4c87791e7d72789a0cb603fa80e2c
-      Image:         quay.io/external_storage/cephfs-provisioner:v0.1.1
-
-.. code-block:: console
-
   ubuntu@mnode1:~$ kubectl describe pod -n ceph ceph-rbd-provisioner-84665cb84f-6s55r
 
   Containers:
@@ -229,8 +218,6 @@ Continue with OSH multinode guide to install other Openstack charts.
   NAME                                       READY     STATUS      RESTARTS   AGE
   ceph-bootstrap-s4jkx                       0/1       Completed   0          2h
   ceph-cephfs-client-key-generator-6bmzz     0/1       Completed   0          2h
-  ceph-cephfs-provisioner-784c6f9d59-2z6ww   1/1       Running     0          2h
-  ceph-cephfs-provisioner-784c6f9d59-sg8wv   1/1       Running     0          2h
   ceph-mds-745576757f-4vdn4                  1/1       Running     0          2h
   ceph-mds-745576757f-bxdcs                  1/1       Running     0          2h
   ceph-mds-keyring-generator-f5lxf           0/1       Completed   0          2h
@@ -425,16 +412,12 @@ No interruption to OSH pods.
 
 .. code-block:: console
 
-  ceph-cephfs-provisioner-784c6f9d59-2z6ww   0/1       Terminating   0          2h
-  ceph-cephfs-provisioner-784c6f9d59-sg8wv   0/1       Terminating   0          2h
   ceph-rbd-provisioner-84665cb84f-6s55r      0/1       Terminating   0          2h
   ceph-rbd-provisioner-84665cb84f-chwhd      0/1       Terminating   0          2h
 
 
 .. code-block:: console
 
-  ceph-cephfs-provisioner-65ffbd47c4-cl4hj   1/1       Running     0          1m
-  ceph-cephfs-provisioner-65ffbd47c4-qrtg2   1/1       Running     0          1m
   ceph-rbd-provisioner-5bfb577ffd-b7tkx      1/1       Running     0          1m
   ceph-rbd-provisioner-5bfb577ffd-m6gg6      1/1       Running     0          1m
 
@@ -447,8 +430,6 @@ pods are running. No interruption to OSH pods.
 
   ceph-bootstrap-s4jkx                       0/1       Completed   0          2h
   ceph-cephfs-client-key-generator-6bmzz     0/1       Completed   0          2h
-  ceph-cephfs-provisioner-65ffbd47c4-cl4hj   1/1       Running     0          2m
-  ceph-cephfs-provisioner-65ffbd47c4-qrtg2   1/1       Running     0          2m
   ceph-mds-5fdcb5c64c-c52xq                  1/1       Running     0          8m
   ceph-mds-5fdcb5c64c-t9nmb                  1/1       Running     0          8m
   ceph-mds-keyring-generator-f5lxf           0/1       Completed   0          2h
@@ -548,15 +529,6 @@ pods are running. No interruption to OSH pods.
   ceph version 12.2.5 (cad919881333ac92274171586c827e01f554a70a) luminous (stable)
 
 17) Check which images Provisionors and Mon-Check PODs are using
-
-.. code-block:: console
-
-  ubuntu@mnode1:/opt/openstack-helm$ kubectl describe pod -n ceph ceph-cephfs-provisioner-65ffbd47c4-cl4hj
-
-  Containers:
-    ceph-cephfs-provisioner:
-      Container ID:  docker://079f148c1fb9ba13ed6caa0ca9d1e63b455373020a565a212b5bd261cbaedb43
-      Image:         quay.io/external_storage/cephfs-provisioner:v0.1.2
 
 .. code-block:: console
 
