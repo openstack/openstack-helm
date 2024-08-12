@@ -125,7 +125,6 @@ To list all the pods in all the namespaces, execute this **kubectl** command.
   NAMESPACE     NAME                                       READY     STATUS      RESTARTS   AGE
   ceph          ceph-bootstrap-rpzld                       0/1       Completed   0          10d
   ceph          ceph-cephfs-client-key-generator-pvzs6     0/1       Completed   0          10d
-  ceph          ceph-cephfs-provisioner-796668cd7-bn6mn    1/1       Running     0          10d
 
 
 Execute Commands in Pods

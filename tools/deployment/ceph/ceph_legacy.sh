@@ -157,8 +157,6 @@ pod:
     mds: 1
     mgr: 1
     rgw: 1
-    cephfs_provisioner: 1
-    rbd_provisioner: 1
     csi_rbd_provisioner: 1
 
 jobs:
