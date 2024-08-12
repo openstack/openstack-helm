@@ -413,3 +413,55 @@ Openstack client in a Docker container. See for example `setup-client.sh`_.
 
 .. _setup-client.sh: https://opendev.org/openstack/openstack-helm/src/branch/master/tools/deployment/common/setup-client.sh
 .. _openstackhelm/openstack-client: https://hub.docker.com/r/openstackhelm/openstack-client/tags?page=&page_size=&ordering=&name=
+
+
+Other Openstack components (optional)
+-------------------------------------
+
+Barbican
+~~~~~~~~
+
+OpenStack Barbican is a component within the OpenStack ecosystem that
+provides secure storage, provisioning, and management of secrets,
+such as encryption keys, certificates, and passwords.
+
+If you want other OpenStack services to use Barbican for secret management,
+you'll need to reconfigure those services to integrate with Barbican.
+Each OpenStack service has its own configuration settings
+that need to be updated.
+
+.. code-block:: bash
+
+    helm upgrade --install barbican openstack-helm/barbican \
+        --namespace=openstack \
+        $(helm osh get-values-overrides -p ${OVERRIDES_DIR} -c barbican ${FEATURES})
+
+    helm osh wait-for-pods openstack
+
+Tacker
+~~~~~~
+
+Tacker is an OpenStack service for NFV Orchestration with a general
+purpose VNF Manager to deploy and operate Virtual Network Functions
+(VNFs) and Network Services on an NFV Platform. It is based on ETSI MANO
+Architectural Framework and provides OpenStack's NFV Orchestration API.
+
+.. note::
+
+    Barbican must be installed before Tacker, as it is a necessary component for
+    Tacker's installation.
+
+To deploy the OpenStack Tacker, use the following:
+
+.. code-block:: bash
+
+    helm upgrade --install tacker openstack-helm/tacker \
+        --namespace=openstack \
+        $(helm osh get-values-overrides -p ${OVERRIDES_DIR} -c tacker ${FEATURES})
+
+    helm osh wait-for-pods openstack
+
+For comprehensive instructions on installing Tacker using Openstack Helm,
+please refer `Install Tacker via Openstack Helm`_.
+
+.. _Install Tacker via Openstack Helm: https://docs.openstack.org/tacker/latest/install/openstack_helm.html
