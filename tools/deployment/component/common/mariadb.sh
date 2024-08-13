@@ -23,7 +23,7 @@ set -xe
 helm upgrade --install mariadb ${OSH_INFRA_HELM_REPO}/mariadb \
     --namespace=openstack \
     --set pod.replicas.server=1 \
-    ${VOLUME_HELM_ARGS:="--set volume.use_local_path_for_single_pod_cluster.enabled=true --set volume.enabled=false"} \
+    ${VOLUME_HELM_ARGS:="--set volume.enabled=false --set volume.use_local_path_for_single_pod_cluster.enabled=true"} \
     ${OSH_EXTRA_HELM_ARGS:=} \
     ${OSH_EXTRA_HELM_ARGS_MARIADB}
 

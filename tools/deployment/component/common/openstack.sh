@@ -17,7 +17,6 @@ set -xe
 #NOTE: Define variables
 : ${OSH_HELM_REPO:="../openstack-helm"}
 : ${OSH_PATH:="../openstack-helm"}
-export OSH_TEST_TIMEOUT=1200
 export OS_CLOUD=openstack_helm
 : "${RUN_HELM_TESTS:="no"}"
 : "${CEPH_ENABLED:="false"}"
@@ -25,13 +24,9 @@ export OS_CLOUD=openstack_helm
 release=openstack
 namespace=$release
 
+
 : ${GLANCE_BACKEND:="pvc"}
-tee /tmp/glance.yaml <<EOF
-glance:
-  storage: ${GLANCE_BACKEND}
-  volume:
-    class_name: general
-EOF
+
 #NOTE: Deploy neutron
 tee /tmp/neutron.yaml << EOF
 neutron:
@@ -115,11 +110,17 @@ helm upgrade --install $release ${OSH_HELM_REPO}/openstack \
   ${OSH_EXTRA_HELM_VIRT_ARGS} \
   ${OSH_EXTRA_HELM_ARGS} \
   --set glance.conf.glance.keystone_authtoken.memcache_secret_key="$(openssl rand -hex 64)" \
+  --set glance.storage=${GLANCE_BACKEND} \
   --set nova.bootstrap.wait_for_computes.enabled=true \
   --set libvirt.conf.ceph.enabled=${CEPH_ENABLED} \
   --set nova.conf.ceph.enabled=${CEPH_ENABLED} \
   --values=/tmp/neutron.yaml \
-  --values=/tmp/glance.yaml \
+  --set mariadb.pod.replicas.server=1 \
+  --set mariadb.volume.enabled=false \
+  --set mariadb.volume.use_local_path_for_single_pod_cluster.enabled=true \
+  --set rabbitmq.pod.replicas.server=1 \
+  --set rabbitmq.volume.enabled=false \
+  --set rabbitmq.volume.use_local_path.enabled=true \
   --namespace=$namespace \
   --timeout=1200s
 
@@ -142,9 +143,3 @@ sleep 30 #NOTE(portdirect): Wait for ingress controller to update rules and rest
 openstack compute service list
 openstack network agent list
 openstack hypervisor list
-
-if [ "${RUN_HELM_TESTS}" == "no" ]; then
-    exit 0
-fi
-
-./tools/deployment/common/run-helm-tests.sh $chart $release
