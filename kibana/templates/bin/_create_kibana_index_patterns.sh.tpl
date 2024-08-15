@@ -13,6 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 set -ex
+set -o noglob
 
 create_data_view() {
   local index_name=$1
@@ -37,42 +38,72 @@ data_view_exists() {
     -H "kbn-xsrf: true" \
     -H "Content-Type: application/json")
 
-  if echo "$response" | grep -q "\"title\":\"${index_name}-[*]\""; then
+  if echo "$response" | grep -Fq "\"title\":\"${index_name}-*\""; then
     return 0
   fi
   return 1
 }
 
 set_default_data_view() {
-  local index_name=$1
+  local view_id=$1
   curl -u "${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
     --max-time 30 \
     -X POST "${KIBANA_ENDPOINT}/api/data_views/default" \
     -H "kbn-xsrf: true" \
     -H "Content-Type: application/json" \
     -d "{
-      \"value\": \"${index_name}-*\"
+      \"data_view_id\": \"${view_id}\",
+      \"force\": true
     }"
+}
+
+find_and_set_python() {
+  pythons="python3 python python2"
+  for p in ${pythons[@]}; do
+    python=$(which ${p})
+    if [[ $? -eq 0 ]]; then
+      echo found python: ${python}
+      break
+    fi
+  done
+}
+
+get_view_id() {
+  local index_name=$1
+  local response=$(curl -s -u "${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
+    --max-time 30 \
+    -X GET "${KIBANA_ENDPOINT}/api/data_views" \
+    -H "kbn-xsrf: true" \
+    -H "Content-Type: application/json" |
+    $python -c "import sys,json; j=json.load(sys.stdin); t=[x['id'] for x in j['data_view'] if x['title'] == '${index_name}-*']; print(t[0] if len(t) else '')"
+    )
+  echo $response
 }
 
 # Create data views
 {{- range $objectType, $indices := .Values.conf.create_kibana_indexes.indexes }}
 {{- range $indices }}
-if ! data_view_exists "{{ . }}"; then
+while true; do
   create_data_view "{{ . }}"
-  echo "Data view '{{ . }}' created successfully."
-else
-  echo "Data view '{{ . }}' already exists."
-fi
+  if data_view_exists "{{ . }}"; then
+    echo "Data view '{{ . }}-*' exists"
+    break
+  else
+    echo "Retrying creation of data view '{{ . }}-*' ..."
+    create_data_view "{{ . }}"
+    sleep 30
+  fi
+done
+
 {{- end }}
 {{- end }}
 
-# Ensure default data view exists and set it
+# Lookup default view id.  The new Kibana view API requires the id
+# instead of simply the name like the previous index API did.
+find_and_set_python
+
 default_index="{{ .Values.conf.create_kibana_indexes.default_index }}"
-if ! data_view_exists "$default_index"; then
-  create_data_view "$default_index"
-  echo "Default data view '${default_index}' created successfully."
-fi
+default_index_id=$(get_view_id $default_index)
 
-set_default_data_view "$default_index"
+set_default_data_view "$default_index_id"
 echo "Default data view set to '${default_index}'."
