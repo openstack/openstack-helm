@@ -34,13 +34,22 @@ helm upgrade --install placement ${OSH_HELM_REPO}/placement --namespace=openstac
     ${OSH_EXTRA_HELM_ARGS_PLACEMENT}
 
 #NOTE: Deploy nova
+tee /tmp/nova.yaml << EOF
+conf:
+  nova:
+    libvirt:
+      virt_type: qemu
+      cpu_mode: none
+  ceph:
+    enabled: ${CEPH_ENABLED}
+bootstrap:
+  wait_for_computes:
+    enabled: true
+EOF
 : ${OSH_EXTRA_HELM_ARGS:=""}
 helm upgrade --install nova ${OSH_HELM_REPO}/nova \
     --namespace=openstack \
-    --set bootstrap.wait_for_computes.enabled=true \
-    --set conf.ceph.enabled=${CEPH_ENABLED} \
-    --set conf.nova.libvirt.virt_type=qemu \
-    --set conf.nova.libvirt.cpu_mode=none \
+    --values=/tmp/nova.yaml \
     ${OSH_EXTRA_HELM_ARGS:=} \
     ${OSH_EXTRA_HELM_ARGS_NOVA}
 
