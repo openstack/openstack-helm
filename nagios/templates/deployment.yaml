@@ -239,6 +239,14 @@ spec:
 {{- end }}
             - name: pod-var-log
               mountPath: /opt/nagios/var/log
+{{- if not (empty .Values.conf.nagios.additionalPlugins) }}
+{{-   range .Values.conf.nagios.additionalPlugins }}
+            - name: additional-plugins
+              mountPath: /usr/lib/nagios/plugins/{{ .name }}
+              subPath: {{ .name }}
+              readOnly: true
+{{-   end }}
+{{- end }}
 {{- dict "enabled" .Values.manifests.certificates "name" $envAll.Values.endpoints.monitoring.auth.admin.secret.tls.internal "path" "/etc/ssl/certs" "certs" tuple "ca.crt" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
       volumes:
         - name: pod-tmp
@@ -255,5 +263,9 @@ spec:
           configMap:
             name: nagios-bin
             defaultMode: 0555
+        - name: additional-plugins
+          secret:
+            secretName: nagios-additional-plugins
+            defaultMode: 0755
 {{- dict "enabled" .Values.manifests.certificates "name" $envAll.Values.endpoints.monitoring.auth.admin.secret.tls.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 {{- end }}
