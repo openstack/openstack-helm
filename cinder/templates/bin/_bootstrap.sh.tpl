@@ -38,6 +38,11 @@ export HOME=/tmp
       openstack volume type show {{ $name }} || \
       openstack volume type create \
         --{{ $access_type }} \
+      {{- range $key, $value := $properties }}
+      {{- if or (eq $key "encryption-provider") (eq $key "encryption-cipher") (eq $key "encryption-key-size") (eq $key "encryption-control-location") }}
+        --{{ $key }} {{ $value}} \
+      {{- end }}
+      {{- end }}
       {{ $name }}
       {{/*
         We will try to set or update volume type properties.
@@ -64,7 +69,7 @@ export HOME=/tmp
         {{- end }}
 
         {{- range $key, $value := $properties }}
-        {{- if and (ne $key "access_type") (ne $key "grant_access") $value }}
+        {{- if and (ne $key "access_type") (ne $key "grant_access") (ne $key "encryption-provider") (ne $key "encryption-cipher") (ne $key "encryption-key-size") (ne $key "encryption-control-location") $value }}
         openstack volume type set --property {{ $key }}={{ $value }} {{ $name }}
         {{- end }}
         {{- end }}
