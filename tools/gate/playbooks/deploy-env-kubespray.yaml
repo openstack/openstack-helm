@@ -1,0 +1,144 @@
+- hosts: all
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Install prerequisites
+      include_role:
+        name: deploy-env
+        tasks_from: prerequisites
+
+    - name: Create loopback devices
+      include_role:
+        name: deploy-env
+        tasks_from: loopback_devices
+      when:
+        - loopback_setup
+        - inventory_hostname in (groups['k8s_cluster'] | default([]))
+
+- hosts: primary
+  become: false
+  gather_facts: true
+  vars:
+    home_dir: /home/zuul
+    ansible_user: zuul
+  tasks:
+    - name: Clone Kubespray repo
+      shell: |
+        set -x
+        git clone https://github.com/kubernetes-sigs/kubespray.git
+        cd kubespray
+        git checkout -b release-2.25
+        git reset --hard v2.25.0
+      args:
+        chdir: "{{ home_dir }}"
+
+    - name: Install Kubespray Python dependencies
+      become: true
+      pip:
+        chdir: "{{ home_dir }}/kubespray"
+        requirements: requirements.txt
+
+    - name: Prepare Kubespray inventory (not Zuul job inventory)
+      shell: |
+        #!/bin/bash
+        set -x
+        python3 contrib/inventory_builder/inventory.py {{ groups['k8s_cluster'] | map('extract', hostvars, ['ansible_default_ipv4', 'address']) | join(' ') }}
+      args:
+        chdir: "{{ home_dir }}/kubespray"
+      environment:
+        KUBE_MASTERS: "1"
+
+    - name: Prepare Kubespray variables
+      shell: |
+        #!/bin/bash
+        set -x
+        tee inventory/sample/group_vars/all/xxx.yaml <<EOF
+        ansible_user: {{ ansible_user }}
+        ansible_ssh_private_key_file: {{ home_dir }}/.ssh/id_rsa
+        ansible_ssh_extra_args: -o StrictHostKeyChecking=no
+        upstream_dns_servers:
+          - 8.8.8.8
+        override_system_hostname: false
+        EOF
+
+        tee inventory/sample/group_vars/k8s_cluster/xxx.yaml << EOF
+        kube_version: "{{ kube_version_kubespray }}"
+        kube_network_plugin: flannel
+        kube_service_addresses: "{{ kubeadm.service_cidr }}"
+        kube_pods_subnet: "{{ kubeadm.pod_network_cidr }}"
+
+        kubeconfig_localhost: true
+        kubeconfig_localhost_ansible_host: true
+
+        enable_nodelocaldns: false
+        resolvconf_mode: none
+
+        kube_override_hostname: >-
+          {% raw %}{{ ansible_hostname }}{% endraw %}
+
+        EOF
+      args:
+        chdir: "{{ home_dir }}/kubespray"
+
+    - name: Deploy Kubernetes
+      shell: |
+        #!/bin/bash
+        set -x
+        ansible-playbook -i inventory/sample/hosts.yaml --become --become-user=root cluster.yml
+      args:
+        chdir: /home/zuul/kubespray
+
+    - name: Copy kubectl config to localhost (will be used in the following tasks)
+      synchronize:
+        mode: pull
+        src: /home/zuul/kubespray/inventory/sample/artifacts/admin.conf
+        dest: /tmp/kube_config
+
+- hosts: primary
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Install Docker
+      include_role:
+        name: deploy-env
+        tasks_from: containerd
+
+    - name: Install and configure Kubectl and Helm
+      include_role:
+        name: deploy-env
+        tasks_from: k8s_client
+
+    - name: Deploy Metallb on K8s
+      include_role:
+        name: deploy-env
+        tasks_from: metallb
+
+    - name: Create Openstack Metallb endpoint
+      include_role:
+        name: deploy-env
+        tasks_from: openstack_metallb_endpoint
+
+- hosts: all
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Create client-to-cluster wireguard tunnel
+      include_role:
+        name: deploy-env
+        tasks_from: client_cluster_tunnel
+
+    - name: Install Docker
+      include_role:
+        name: deploy-env
+        tasks_from: containerd
+      when:
+        - openstack_provider_gateway_setup
+        - inventory_hostname in (groups['k8s_control_plane'] | default([]))
+
+    - name: Deploy Openstack provider gateway
+      include_role:
+        name: deploy-env
+        tasks_from: openstack_provider_gateway
+      when:
+        - openstack_provider_gateway_setup
+        - inventory_hostname in (groups['k8s_control_plane'] | default([]))

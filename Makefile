@@ -15,7 +15,7 @@ SHELL := /bin/bash
 HELM  := helm
 TASK  := build
 
-EXCLUDES := helm-toolkit doc tests tools logs tmp zuul.d releasenotes
+EXCLUDES := helm-toolkit doc tests tools logs tmp zuul.d releasenotes roles
 CHARTS := helm-toolkit $(filter-out $(EXCLUDES), $(patsubst %/.,%,$(wildcard */.)))
 
 .PHONY: $(EXCLUDES) $(CHARTS)

@@ -70,6 +70,17 @@
       openstack_provider_gateway_setup: true
 
 - job:
+    name: openstack-helm-deploy-kubespray
+    parent: openstack-helm-deploy
+    abstract: true
+    run:
+      - tools/gate/playbooks/deploy-env-kubespray.yaml
+      - tools/gate/playbooks/run-scripts.yaml
+    vars:
+      metallb_setup: true
+      kube_version_kubespray: "v1.29.5"
+
+- job:
     name: openstack-helm-compute-kit
     parent: openstack-helm-deploy
     abstract: true
@@ -79,7 +90,33 @@
         - ./tools/deployment/common/prepare-charts.sh
         - ./tools/deployment/common/setup-client.sh
         - ./tools/deployment/common/ingress.sh
-        - ./tools/deployment/component/common/rabbitmq.sh
+        - export VOLUME_HELM_ARGS="--set volume.enabled=false"; ./tools/deployment/component/common/rabbitmq.sh
+        - ./tools/deployment/component/common/mariadb.sh
+        - ./tools/deployment/component/common/memcached.sh
+        - ./tools/deployment/component/keystone/keystone.sh
+        - ./tools/deployment/component/heat/heat.sh
+        - export GLANCE_BACKEND=local; ./tools/deployment/component/glance/glance.sh
+        - ./tools/deployment/component/compute-kit/openvswitch.sh
+        - ./tools/deployment/component/compute-kit/libvirt.sh
+        - ./tools/deployment/component/compute-kit/compute-kit.sh
+        - export OSH_TEST_TIMEOUT=1200;./tools/deployment/common/run-helm-tests.sh neutron
+        - ./tools/deployment/common/run-helm-tests.sh nova
+        - ./tools/deployment/common/run-helm-tests.sh glance
+        - ./tools/deployment/common/run-helm-tests.sh keystone
+        - ./tools/deployment/common/use-it.sh
+        - ./tools/deployment/common/force-cronjob-run.sh
+
+- job:
+    name: openstack-helm-compute-kit-kubespray
+    parent: openstack-helm-deploy-kubespray
+    abstract: true
+    vars:
+      gate_scripts:
+        - ./tools/deployment/common/prepare-k8s.sh
+        - ./tools/deployment/common/prepare-charts.sh
+        - ./tools/deployment/common/setup-client.sh
+        - ./tools/deployment/common/ingress.sh
+        - export VOLUME_HELM_ARGS="--set volume.enabled=false"; ./tools/deployment/component/common/rabbitmq.sh
         - ./tools/deployment/component/common/mariadb.sh
         - ./tools/deployment/component/common/memcached.sh
         - ./tools/deployment/component/keystone/keystone.sh
