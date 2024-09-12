@@ -21,7 +21,7 @@ PODS=$(kubectl get pods --namespace=${NAMESPACE} \
   '--output=jsonpath={range .items[*]}{.metadata.name}{"\n"}{end}')
 
 for POD in ${PODS}; do
-  kubectl exec -t ${POD} --namespace=${NAMESPACE} -- \
+  kubectl exec -t ${POD} -c ceph-osd-default --namespace=${NAMESPACE} -- \
   sh -c -e "/tmp/utils-defragOSDs.sh"
 done
 
