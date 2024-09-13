@@ -146,6 +146,17 @@ spec:
                   key: RABBITMQ_ADMIN_PASSWORD
             - name: RABBITMQ_DEFINITION_FILE
               value: "{{ index $envAll.Values.conf.rabbitmq "management.load_definitions" }}"
+{{- if .Values.conf.users }}
+            - name: RABBITMQ_USERS
+              valueFrom:
+                secretKeyRef:
+                  name: {{ printf "%s-%s" $envAll.deployment_name "users-credentials" | quote }}
+                  key: RABBITMQ_USERS
+{{- end }}
+{{- if .Values.conf.aux_conf }}
+            - name: RABBITMQ_AUXILIARY_CONFIGURATION
+              value: {{ toJson $envAll.Values.conf.aux_conf | quote }}
+{{- end }}
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
