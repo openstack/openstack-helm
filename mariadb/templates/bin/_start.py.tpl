@@ -80,10 +80,6 @@ if check_env_var("STATE_CONFIGMAP"):
     state_configmap_name = os.environ['STATE_CONFIGMAP']
     logger.info("Will use \"{0}\" configmap for cluster state info".format(
         state_configmap_name))
-if check_env_var("PRIMARY_SERVICE_NAME"):
-    primary_service_name = os.environ['PRIMARY_SERVICE_NAME']
-    logger.info("Will use \"{0}\" service as primary".format(
-        primary_service_name))
 if check_env_var("POD_NAMESPACE"):
     pod_namespace = os.environ['POD_NAMESPACE']
 if check_env_var("DIRECT_SVC_NAME"):
@@ -96,8 +92,6 @@ if check_env_var("DISCOVERY_DOMAIN"):
     discovery_domain = os.environ['DISCOVERY_DOMAIN']
 if check_env_var("WSREP_PORT"):
     wsrep_port = os.environ['WSREP_PORT']
-if check_env_var("MARIADB_PORT"):
-    mariadb_port = int(os.environ['MARIADB_PORT'])
 if check_env_var("MYSQL_DBADMIN_USERNAME"):
     mysql_dbadmin_username = os.environ['MYSQL_DBADMIN_USERNAME']
 if check_env_var("MYSQL_DBADMIN_PASSWORD"):
@@ -121,8 +115,7 @@ if mysql_dbadmin_username == mysql_dbsst_username:
     sys.exit(1)
 
 # Set some variables for tuneables
-if check_env_var("CLUSTER_LEADER_TTL"):
-    cluster_leader_ttl = int(os.environ['CLUSTER_LEADER_TTL'])
+cluster_leader_ttl = int(os.environ['CLUSTER_LEADER_TTL'])
 state_configmap_update_period = 10
 default_sleep = 20
 
@@ -144,25 +137,6 @@ def ensure_state_configmap(pod_namespace, configmap_name, configmap_body):
             namespace=pod_namespace, body=configmap_body)
 
         return False
-
-def ensure_primary_service(pod_namespace, service_name, service_body):
-    """Ensure the primary service exists.
-
-    Keyword arguments:
-    pod_namespace -- the namespace to house the service
-    service_name -- the service name
-    service_body -- the service body
-    """
-    try:
-        k8s_api_instance.read_namespaced_service(
-            name=service_name, namespace=pod_namespace)
-        return True
-    except:
-        k8s_api_instance.create_namespaced_service(
-            namespace=pod_namespace, body=service_body)
-
-        return False
-
 
 
 def run_cmd_with_logging(popenargs,
@@ -414,60 +388,6 @@ def set_configmap_data(key, value):
     return safe_update_configmap(
         configmap_dict=configmap_dict, configmap_patch=configmap_patch)
 
-def safe_update_service(service_dict, service_patch):
-    """Update a service with locking.
-
-    Keyword arguments:
-    service_dict -- a dict representing the service to be patched
-    service_patch -- a dict containign the patch
-    """
-    logger.debug("Safe Patching service")
-    # NOTE(portdirect): Explictly set the resource version we are patching to
-    # ensure nothing else has modified the service since we read it.
-    service_patch['metadata']['resourceVersion'] = service_dict[
-        'metadata']['resource_version']
-
-    # Retry up to 8 times in case of 409 only.  Each retry has a ~1 second
-    # sleep in between so do not want to exceed the roughly 10 second
-    # write interval per cm update.
-    for i in range(8):
-        try:
-            api_response = k8s_api_instance.patch_namespaced_service(
-                name=primary_service_name,
-                namespace=pod_namespace,
-                body=service_patch)
-            return True
-        except kubernetes.client.rest.ApiException as error:
-            if error.status == 409:
-                # This status code indicates a collision trying to write to the
-                # service while another instance is also trying the same.
-                logger.warning("Collision writing service: {0}".format(error))
-                # This often happens when the replicas were started at the same
-                # time, and tends to be persistent. Sleep with some random
-                # jitter value briefly to break the synchronization.
-                naptime = secretsGen.uniform(0.8,1.2)
-                time.sleep(naptime)
-            else:
-                logger.error("Failed to set service: {0}".format(error))
-                return error
-        logger.info("Retry writing service attempt={0} sleep={1}".format(
-            i+1, naptime))
-    return True
-
-def set_primary_service_spec(key, value):
-    """Update a service's endpoint via patching.
-
-    Keyword arguments:
-    key -- the key to be patched
-    value -- the value to give the key
-    """
-    logger.debug("Setting service spec.selector key={0} to value={1}".format(key, value))
-    service_dict = k8s_api_instance.read_namespaced_service(
-        name=primary_service_name, namespace=pod_namespace).to_dict()
-    service_patch = {'spec': {'selector': {}}, 'metadata': {}}
-    service_patch['spec']['selector'][key] = value
-    return safe_update_service(
-        service_dict=service_dict, service_patch=service_patch)
 
 def get_configmap_value(key, type='data'):
     """Get a configmap's key's value.
@@ -549,35 +469,6 @@ def get_cluster_state():
                 pod_namespace=pod_namespace,
                 configmap_name=state_configmap_name,
                 configmap_body=initial_configmap_body)
-
-
-            initial_primary_service_body = {
-                "apiVersion": "v1",
-                "kind": "Service",
-                "metadata": {
-                    "name": primary_service_name,
-                },
-                "spec": {
-                    "ports": [
-                        {
-                            "name": "mysql",
-                            "port": mariadb_port
-                        }
-                    ],
-                    "selector": {
-                        "application": "mariadb",
-                        "component": "server",
-                        "statefulset.kubernetes.io/pod-name": leader
-                    }
-                }
-            }
-            if ensure_primary_service(
-                    pod_namespace=pod_namespace,
-                    service_name=primary_service_name,
-                    service_body=initial_primary_service_body):
-                logger.info("Service {0} already exists".format(primary_service_name))
-            else:
-                logger.info("Service {0} has been successfully created".format(primary_service_name))
     return state
 
 
@@ -589,38 +480,6 @@ def declare_myself_cluster_leader():
     leader_expiry = "{0}Z".format(leader_expiry_raw.isoformat("T"))
     set_configmap_annotation(
         key='openstackhelm.openstack.org/leader.node', value=local_hostname)
-    logger.info("Setting primary_service's spec.selector to {0}".format(local_hostname))
-    try:
-        set_primary_service_spec(
-            key='statefulset.kubernetes.io/pod-name', value=local_hostname)
-    except:
-        initial_primary_service_body = {
-            "apiVersion": "v1",
-            "kind": "Service",
-            "metadata": {
-                "name": primary_service_name,
-            },
-            "spec": {
-                "ports": [
-                    {
-                        "name": "mysql",
-                        "port": mariadb_port
-                    }
-                ],
-                "selector": {
-                    "application": "mariadb",
-                    "component": "server",
-                    "statefulset.kubernetes.io/pod-name": local_hostname
-                }
-            }
-        }
-        if ensure_primary_service(
-                pod_namespace=pod_namespace,
-                service_name=primary_service_name,
-                service_body=initial_primary_service_body):
-            logger.info("Service {0} already exists".format(primary_service_name))
-        else:
-            logger.info("Service {0} has been successfully created".format(primary_service_name))
     set_configmap_annotation(
         key='openstackhelm.openstack.org/leader.expiry', value=leader_expiry)
 
