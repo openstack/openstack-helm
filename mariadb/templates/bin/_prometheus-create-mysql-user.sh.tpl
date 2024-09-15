@@ -33,7 +33,7 @@ set -e
     # In case MariaDB version is 10.2.x-10.4.x - we use old privileges definitions
     if ! mysql --defaults-file=/etc/mysql/admin_user.cnf -e \
       "CREATE OR REPLACE USER '${EXPORTER_USER}'@'%' IDENTIFIED BY '${EXPORTER_PASSWORD}'; \
-      GRANT PROCESS, BINLOG MONITOR, SLAVE MONITOR, SELECT ON *.* TO '${EXPORTER_USER}'@'%' ${MARIADB_X509}; \
+      GRANT SLAVE MONITOR, PROCESS, BINLOG MONITOR, SLAVE MONITOR, SELECT ON *.* TO '${EXPORTER_USER}'@'%' ${MARIADB_X509}; \
       FLUSH PRIVILEGES;" ; then
       echo "ERROR: Could not create user: ${EXPORTER_USER}"
       exit 1
@@ -42,7 +42,7 @@ set -e
     # here we use new MariaDB privileges definitions defines since version 10.5
     if ! mysql --defaults-file=/etc/mysql/admin_user.cnf -e \
       "CREATE OR REPLACE USER '${EXPORTER_USER}'@'%' IDENTIFIED BY '${EXPORTER_PASSWORD}'; \
-      GRANT PROCESS, REPLICATION CLIENT, SELECT ON *.* TO '${EXPORTER_USER}'@'%' ${MARIADB_X509}; \
+      GRANT SLAVE MONITOR, PROCESS, REPLICATION CLIENT, SELECT ON *.* TO '${EXPORTER_USER}'@'%' ${MARIADB_X509}; \
       FLUSH PRIVILEGES;" ; then
       echo "ERROR: Could not create user: ${EXPORTER_USER}"
       exit 1

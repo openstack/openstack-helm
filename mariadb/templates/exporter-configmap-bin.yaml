@@ -12,7 +12,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if and .Values.manifests.monitoring.prometheus.network_policy_exporter .Values.monitoring.prometheus.enabled -}}
-{{- $netpol_opts := dict "envAll" . "name" "application" "label" "prometheus-mysql-exporter" -}}
-{{ $netpol_opts | include "helm-toolkit.manifests.kubernetes_network_policy" }}
-{{- end -}}
+{{- if and .Values.manifests.monitoring.prometheus.configmap_bin .Values.monitoring.prometheus.enabled }}
+{{- $envAll := . }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mysql-exporter-bin
+data:
+  create-mysql-user.sh: |
+{{ tuple "bin/_prometheus-create-mysql-user.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
+  mysqld-exporter.sh: |
+{{ tuple "bin/_prometheus-mysqld-exporter.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
+{{- end }}

@@ -15,21 +15,15 @@ limitations under the License.
 {{- if and .Values.manifests.monitoring.prometheus.job_user_create .Values.monitoring.prometheus.enabled }}
 {{- $envAll := . }}
 
-{{- $serviceAccountName := "exporter-create-sql-user" }}
+{{- $serviceAccountName := "mariadb-exporter-create-sql-user" }}
 {{ tuple $envAll "prometheus_create_mysql_user" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: exporter-create-sql-user
+  name: mariadb-exporter-create-sql-user
   labels:
 {{ tuple $envAll "prometheus-mysql-exporter" "create-sql-user" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
-{{- if .Values.helm3_hook }}
-  annotations:
-    "helm.sh/hook": "post-install,post-upgrade"
-    "helm.sh/hook-weight": "5"
-    "helm.sh/hook-delete-policy": "before-hook-creation"
-{{- end }}
 spec:
   backoffLimit: {{ .Values.jobs.exporter_create_sql_user.backoffLimit }}
   template:
