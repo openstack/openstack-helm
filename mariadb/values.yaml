@@ -21,8 +21,6 @@ release_group: null
 images:
   tags:
     mariadb: docker.io/openstackhelm/mariadb:latest-ubuntu_focal
-    ingress: registry.k8s.io/ingress-nginx/controller:v1.11.2
-    error_pages: k8s.gcr.io/defaultbackend-amd64:1.5
     prometheus_create_mysql_user: docker.io/library/mariadb:10.5.9-focal
     prometheus_mysql_exporter: docker.io/prom/mysqld-exporter:v0.12.1
     prometheus_mysql_exporter_helm_tests: docker.io/openstackhelm/heat:wallaby-ubuntu_focal
@@ -43,13 +41,7 @@ labels:
   server:
     node_selector_key: openstack-control-plane
     node_selector_value: enabled
-  ingress:
-    node_selector_key: openstack-control-plane
-    node_selector_value: enabled
   prometheus_mysql_exporter:
-    node_selector_key: openstack-control-plane
-    node_selector_value: enabled
-  error_server:
     node_selector_key: openstack-control-plane
     node_selector_value: enabled
   job:
@@ -93,20 +85,6 @@ pod:
           readOnlyRootFilesystem: true
         mariadb:
           runAsUser: 999
-          allowPrivilegeEscalation: false
-          readOnlyRootFilesystem: true
-    ingress:
-      pod:
-        runAsUser: 65534
-      container:
-        server:
-          runAsUser: 0
-          readOnlyRootFilesystem: false
-    error_pages:
-      pod:
-        runAsUser: 65534
-      container:
-        server:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
     prometheus_mysql_exporter:
@@ -172,8 +150,6 @@ pod:
         effect: NoSchedule
   replicas:
     server: 3
-    ingress: 2
-    error_page: 1
     controller: 1
   lifecycle:
     upgrades:
@@ -183,22 +159,12 @@ pod:
         rolling_update:
           max_unavailable: 1
           max_surge: 3
-    termination_grace_period:
-      error_pages:
-        timeout: 10
     disruption_budget:
       mariadb:
         min_available: 0
   resources:
     enabled: false
     server:
-      requests:
-        memory: "128Mi"
-        cpu: "100m"
-      limits:
-        memory: "1024Mi"
-        cpu: "2000m"
-    ingress:
       requests:
         memory: "128Mi"
         cpu: "100m"
@@ -252,13 +218,6 @@ dependencies:
           - endpoint: node
             service: local_image_registry
   static:
-    error_pages:
-      jobs: null
-    ingress:
-      jobs: null
-      services:
-        - endpoint: error_pages
-          service: oslo_db
     mariadb_backup:
       jobs:
         - mariadb-ks-user
@@ -314,7 +273,6 @@ jobs:
 conf:
   tests:
     # This may either be:
-    # * internal: which will hit the endpoint exposed by the ingress controller
     # * direct: which will hit the backends directly via a k8s service ip
     # Note, deadlocks and failure are to be expected with concurrency if
     # hitting the `direct` endpoint.
@@ -326,10 +284,6 @@ conf:
       - --number-of-queries=1000
       - --number-char-cols=1
       - --number-int-cols=1
-  ingress: null
-  ingress_conf:
-    worker-processes: "auto"
-    log-format-stream: "\"$remote_addr [$time_local] $protocol $status $bytes_received $bytes_sent $upstream_addr $upstream_connect_time $upstream_first_byte_time $upstream_session_time $session_time\""
   mariadb_server:
     setup_wait:
       iteration: 30
@@ -600,7 +554,6 @@ endpoints:
       default: mariadb
       direct: mariadb-server
       discovery: mariadb-discovery
-      error_pages: mariadb-ingress-error-pages
     host_fqdn_override:
       default: null
     path: null
@@ -672,8 +625,6 @@ endpoints:
 network:
   mariadb: {}
   mariadb_discovery: {}
-  mariadb_ingress: {}
-  mariadb_ingress_error_pages: {}
   mariadb_master: {}
 
 network_policy:
@@ -696,11 +647,7 @@ manifests:
   certificates: false
   configmap_bin: true
   configmap_etc: true
-  configmap_ingress_conf: false
-  configmap_ingress_etc: false
   configmap_services_tcp: true
-  deployment_error: false
-  deployment_ingress: false
   job_image_repo_sync: true
   cron_job_mariadb_backup: false
   job_ks_user: false
@@ -720,7 +667,6 @@ manifests:
   secret_etc: true
   secret_registry: true
   service_discovery: true
-  service_ingress: false
   service_error: false
   service: true
   statefulset: true
