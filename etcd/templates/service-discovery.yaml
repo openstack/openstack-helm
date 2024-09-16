@@ -10,15 +10,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-{{- if .Values.manifests.service }}
+{{- if .Values.manifests.service_discovery }}
 {{- $envAll := . }}
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ tuple "etcd" "internal" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
+  name: {{ tuple "etcd" "discovery" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
 spec:
-  sessionAffinity: ClientIP
   ports:
     - name: client
       port: {{ tuple "etcd" "internal" "client" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
@@ -28,6 +27,8 @@ spec:
       port: {{ tuple "etcd_discovery" "internal" "client" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
       protocol: TCP
       targetPort: peer
+  publishNotReadyAddresses: true
+  clusterIP: None
   selector:
 {{ tuple $envAll "etcd" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 {{- end }}

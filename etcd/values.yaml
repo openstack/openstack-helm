@@ -51,6 +51,10 @@ dependencies:
       jobs: null
 
 pod:
+  env:
+    etcd:
+      ETCD_DATA_DIR: /var/lib/etcd
+      ETCD_INITIAL_CLUSTER_TOKEN: etcd-cluster-1
   security_context:
     etcd:
       pod:
@@ -64,6 +68,21 @@ pod:
     etcd:
       init: runtime/default
       etcd: runtime/default
+  probes:
+    etcd:
+      etcd:
+        readiness:
+          enabled: True
+          params:
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 1
+        liveness:
+          enabled: True
+          params:
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 1
   affinity:
     anti:
       type:
@@ -129,6 +148,7 @@ endpoints:
     name: etcd
     hosts:
       default: etcd
+      discovery: etcd-discovery
     host_fqdn_override:
       default: null
     path:
@@ -138,11 +158,30 @@ endpoints:
     port:
       client:
         default: 2379
+  etcd_discovery:
+    name: etcd-discovery
+    hosts:
+      default: etcd-discovery
+    host_fqdn_override:
+      default: null
+    path:
+      default: null
+    scheme:
+      default: 'http'
+    port:
+      client:
+        default: 2380
+
+volume:
+  enabled: false
+  class_name: general
+  size: 5Gi
 
 manifests:
   configmap_bin: true
-  deployment: true
+  statefulset: true
   job_image_repo_sync: true
   secret_registry: true
   service: true
+  service_discovery: true
 ...

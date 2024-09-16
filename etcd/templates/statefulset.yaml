@@ -10,7 +10,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-{{- if .Values.manifests.deployment }}
+{{- define "etcdProbeTemplate" }}
+exec:
+  command:
+    - /tmp/etcd-healthcheck.sh
+{{- end }}
+
+{{- if .Values.manifests.statefulset }}
 {{- $envAll := . }}
 
 {{- $rcControllerName := printf "%s-%s" $envAll.Release.Name "etcd"  }}
@@ -19,7 +25,7 @@
 {{ tuple $envAll "etcd" $rcControllerName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: {{ $rcControllerName | quote }}
   annotations:
@@ -27,11 +33,12 @@ metadata:
   labels:
 {{ tuple $envAll "etcd" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 spec:
+  podManagementPolicy: "Parallel"
+  serviceName: "{{ tuple "etcd" "discovery" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}"
   replicas: {{ .Values.pod.replicas.etcd }}
   selector:
     matchLabels:
 {{ tuple $envAll "etcd" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
-{{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_deployment" | indent 2 }}
   template:
     metadata:
       labels:
@@ -41,8 +48,8 @@ spec:
 {{ dict "envAll" $envAll "podName" "etcd" "containerNames" (list "init" "etcd") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
     spec:
-{{ dict "envAll" $envAll "application" "etcd" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
       serviceAccountName: {{ $rcControllerName | quote }}
+{{ dict "envAll" $envAll "application" "etcd" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
       affinity:
 {{ tuple $envAll "etcd" "server" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
       nodeSelector:
@@ -53,19 +60,36 @@ spec:
         - name: etcd
 {{ tuple $envAll "etcd" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ dict "envAll" $envAll "application" "etcd" "container" "etcd" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+{{ dict "envAll" . "component" "etcd" "container" "etcd" "type" "readiness" "probeTemplate" (include "etcdProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+{{ dict "envAll" . "component" "etcd" "container" "etcd" "type" "liveness" "probeTemplate" (include "etcdProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+          env:
+{{ include "helm-toolkit.utils.to_k8s_env_vars" .Values.pod.env.etcd | indent 12 }}
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.name
           command:
             - /tmp/etcd.sh
           ports:
             - containerPort: {{ tuple "etcd" "internal" "client" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-          readinessProbe:
-            tcpSocket:
-              port: {{ tuple "etcd" "internal" "client" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+              name: client
+              protocol: TCP
+            - containerPort: {{ tuple "etcd_discovery" "internal" "client" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+              name: peer
+              protocol: TCP
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
             - name: etcd-bin
               mountPath: /tmp/etcd.sh
               subPath: etcd.sh
+              readOnly: true
+            - name: etcd-data
+              mountPath: /var/lib/etcd
+            - name: etcd-bin
+              mountPath: /tmp/etcd-healthcheck.sh
+              subPath: etcd-healthcheck.sh
               readOnly: true
       volumes:
         - name: pod-tmp
@@ -74,4 +98,21 @@ spec:
           configMap:
             name: {{ $configMapBinName | quote }}
             defaultMode: 0555
+        {{- if not .Values.volume.enabled }}
+        - name: etcd-data
+          emptyDir: {}
+        {{- end }}
+{{- end }}
+{{- if .Values.volume.enabled }}
+  volumeClaimTemplates:
+  - metadata:
+      name: etcd-data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: {{ .Values.volume.size }}
+      {{- if ne .Values.volume.class_name "default" }}
+      storageClassName: {{ .Values.volume.class_name }}
+      {{- end }}
 {{- end }}
