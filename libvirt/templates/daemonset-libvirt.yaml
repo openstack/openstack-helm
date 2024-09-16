@@ -79,6 +79,27 @@ spec:
       initContainers:
 {{ tuple $envAll "pod_dependency" $mounts_libvirt_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
 {{ dict "envAll" $envAll | include "helm-toolkit.snippets.kubernetes_apparmor_loader_init_container" | indent 8 }}
+{{- if .Values.conf.init_modules.enabled }}
+        - name: libvirt-init-modules
+{{ tuple $envAll "libvirt" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ dict "envAll" $envAll "application" "libvirt" "container" "libvirt_init_modules" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          terminationMessagePath: /var/log/termination-log
+          command:
+            - /tmp/libvirt-init-modules.sh
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: etc-modprobe-d
+              mountPath: /etc/modprobe.d_host
+            - name: host-rootfs
+              mountPath: /mnt/host-rootfs
+              mountPropagation: HostToContainer
+              readOnly: true
+            - name: libvirt-bin
+              mountPath: /tmp/libvirt-init-modules.sh
+              subPath: libvirt-init-modules.sh
+              readOnly: true
+{{- end }}
 {{- if eq .Values.conf.qemu.vnc_tls "1" }}
         - name: cert-init-vnc
 {{ tuple $envAll "kubectl" | include "helm-toolkit.snippets.image" | indent 10 }}
@@ -353,6 +374,13 @@ spec:
         - name: etc-libvirt-qemu
           hostPath:
             path: /etc/libvirt/qemu
+        - name: etc-modprobe-d
+          hostPath:
+            path: /etc/modprobe.d
+        - name: host-rootfs
+          hostPath:
+            path: /
+            type: Directory
 {{ dict "envAll" $envAll "component" "libvirt" "requireSys" true | include "helm-toolkit.snippets.kubernetes_apparmor_volumes" | indent 8 }}
 {{ if $mounts_libvirt.volumes }}{{ toYaml $mounts_libvirt.volumes | indent 8 }}{{ end }}
 {{- end }}
