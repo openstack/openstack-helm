@@ -21,6 +21,7 @@ images:
     etcd: 'registry.k8s.io/etcd-amd64:3.4.3'
     dep_check: quay.io/airshipit/kubernetes-entrypoint:latest-ubuntu_focal
     image_repo_sync: docker.io/library/docker:17.07.0
+    etcd_db_compact: 'registry.k8s.io/etcd-amd64:3.4.3'
   pull_policy: "IfNotPresent"
   local_registry:
     active: false
@@ -30,6 +31,9 @@ images:
 
 labels:
   server:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  job:
     node_selector_key: openstack-control-plane
     node_selector_value: enabled
 
@@ -49,6 +53,10 @@ dependencies:
           service: local_image_registry
     etcd:
       jobs: null
+    db_compact:
+      services:
+        - endpoint: internal
+          service: etcd
 
 pod:
   env:
@@ -63,6 +71,17 @@ pod:
         etcd:
           runAsUser: 0
           readOnlyRootFilesystem: false
+    etcd_db_compact:
+      pod:
+        runAsUser: 65534
+        runAsNonRoot: true
+        allowPrivilegeEscalation: false
+      container:
+        etcd_db_compact:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+              - ALL
   mandatory_access_control:
     type: apparmor
     etcd:
@@ -110,6 +129,10 @@ pod:
         limits:
           memory: "1024Mi"
           cpu: "2000m"
+      db_compact:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
 
 secrets:
   oci_image_registry:
@@ -177,6 +200,17 @@ volume:
   class_name: general
   size: 5Gi
 
+jobs:
+  db_compact:
+    cron: "1 */2 * * *"
+    starting_deadline: 600
+    # Timeout have to be set the same format
+    # as it is for etcdctl 120s, 1m etc.
+    command_timeout: 120s
+    history:
+      success: 3
+      failed: 1
+
 manifests:
   configmap_bin: true
   statefulset: true
@@ -184,4 +218,5 @@ manifests:
   secret_registry: true
   service: true
   service_discovery: true
+  cron_job_db_compact: false
 ...

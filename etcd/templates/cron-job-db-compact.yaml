@@ -1,0 +1,75 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.cron_job_db_compact }}
+{{- $envAll := . }}
+
+{{- $configMapBinName := printf "%s-%s" $envAll.Release.Name "etcd-bin"  }}
+
+{{- $serviceAccountName := "etcd-db-compact" }}
+{{ tuple $envAll "db_compact" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: etcd-db-compaction
+  annotations:
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+spec:
+  schedule: {{ .Values.jobs.db_compact.cron | quote }}
+  successfulJobsHistoryLimit: {{ .Values.jobs.db_compact.history.success }}
+  failedJobsHistoryLimit: {{ .Values.jobs.db_compact.history.failed }}
+  {{- if .Values.jobs.db_compact.starting_deadline }}
+  startingDeadlineSeconds: {{ .Values.jobs.db_compact.starting_deadline }}
+  {{- end }}
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    metadata:
+      labels:
+{{ tuple $envAll "etcd" "db-compact" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+    spec:
+      template:
+        metadata:
+          labels:
+{{ tuple $envAll "etcd" "db-compact" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 12 }}
+        spec:
+{{ dict "envAll" $envAll "application" "etcd_db_compact" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 10 }}
+          serviceAccountName: {{ $serviceAccountName }}
+          restartPolicy: OnFailure
+          nodeSelector:
+            {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
+          initContainers:
+{{ tuple $envAll "db_compact" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 12 }}
+          containers:
+            - name: etcd-db-compact
+{{ tuple $envAll "etcd_db_compact" | include "helm-toolkit.snippets.image" | indent 14 }}
+{{ tuple $envAll $envAll.Values.pod.resources.jobs.db_compact | include "helm-toolkit.snippets.kubernetes_resources" | indent 14 }}
+{{ dict "envAll" $envAll "application" "etcd_db_compact" "container" "etcd_db_compact" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 14 }}
+              command:
+                - /tmp/etcd-db-compact.sh
+              volumeMounts:
+                - name: pod-tmp
+                  mountPath: /tmp
+                - name: etcd-bin
+                  mountPath: /tmp/etcd-db-compact.sh
+                  subPath: etcd-db-compact.sh
+                  readOnly: true
+          volumes:
+            - name: pod-tmp
+              emptyDir: {}
+            - name: etcd-bin
+              configMap:
+                name: {{ $configMapBinName | quote }}
+                defaultMode: 0555
+{{- end }}
