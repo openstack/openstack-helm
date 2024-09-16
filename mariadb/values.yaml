@@ -130,6 +130,16 @@ pod:
         controller:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
+    cluster_wait:
+      pod:
+        runAsUser: 65534
+        runAsNonRoot: true
+      container:
+        mariadb_cluster_wait:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+              - ALL
   affinity:
     anti:
       type:
@@ -238,6 +248,10 @@ dependencies:
           service: oslo_db
     controller:
       services: null
+    cluster_wait:
+      services:
+        - endpoint: internal
+          service: oslo_db
 volume:
   # this value is used for single pod deployments of mariadb to prevent losing all data
   # if the pod is restarted
@@ -254,6 +268,11 @@ volume:
     size: 5Gi
 
 jobs:
+  cluster_wait:
+    clusterCheckWait: 30
+    clusterCheckRetries: 30
+    clusterStabilityCount: 30
+    clusterStabilityWait: 4
   exporter_create_sql_user:
     backoffLimit: 87600
     activeDeadlineSeconds: 3600
@@ -672,4 +691,5 @@ manifests:
   statefulset: true
   deployment_controller: true
   service_master: true
+  job_cluster_wait: false
 ...
