@@ -53,16 +53,14 @@ if [[ -c /dev/kvm ]]; then
     chown root:kvm /dev/kvm
 fi
 
-if [ $CGROUP_VERSION != "v2" ]; then
-  #Setup Cgroups to use when breaking out of Kubernetes defined groups
-  CGROUPS=""
-  for CGROUP in cpu rdma hugetlb; do
-    if [ -d /sys/fs/cgroup/${CGROUP} ]; then
-      CGROUPS+="${CGROUP},"
-    fi
-  done
-  cgcreate -g ${CGROUPS%,}:/osh-libvirt
-fi
+#Setup Cgroups to use when breaking out of Kubernetes defined groups
+CGROUPS=""
+for CGROUP in {{ .Values.conf.kubernetes.cgroup_controllers | include "helm-toolkit.utils.joinListWithSpace"  }}; do
+  if [ -d /sys/fs/cgroup/${CGROUP} ] || grep -w $CGROUP /sys/fs/cgroup/cgroup.controllers; then
+    CGROUPS+="${CGROUP},"
+  fi
+done
+cgcreate -g ${CGROUPS%,}:/osh-libvirt
 
 # We assume that if hugepage count > 0, then hugepages should be exposed to libvirt/qemu
 hp_count="$(cat /proc/meminfo | grep HugePages_Total | tr -cd '[:digit:]')"
@@ -122,12 +120,8 @@ if [ 0"$hp_count" -gt 0 ]; then
 fi
 
 if [ -n "${LIBVIRT_CEPH_CINDER_SECRET_UUID}" ] || [ -n "${LIBVIRT_EXTERNAL_CEPH_CINDER_SECRET_UUID}" ] ; then
-  if [ $CGROUP_VERSION != "v2" ]; then
-    #NOTE(portdirect): run libvirtd as a transient unit on the host with the osh-libvirt cgroups applied.
-    cgexec -g ${CGROUPS%,}:/osh-libvirt systemd-run --scope --slice=system libvirtd --listen &
-  else
-    systemd-run --scope --slice=system libvirtd --listen &
-  fi
+
+  cgexec -g ${CGROUPS%,}:/osh-libvirt systemd-run --scope --slice=system libvirtd --listen &
 
   tmpsecret=$(mktemp --suffix .xml)
   if [ -n "${LIBVIRT_EXTERNAL_CEPH_CINDER_SECRET_UUID}" ] ; then
@@ -203,9 +197,5 @@ EOF
 
 fi
 
-if [ $CGROUP_VERSION != "v2" ]; then
-  #NOTE(portdirect): run libvirtd as a transient unit on the host with the osh-libvirt cgroups applied.
-  cgexec -g ${CGROUPS%,}:/osh-libvirt systemd-run --scope --slice=system libvirtd --listen
-else
-  systemd-run --scope --slice=system libvirtd --listen
-fi
+# NOTE(vsaienko): changing CGROUP is required as restart of the pod will cause domains restarts
+cgexec -g ${CGROUPS%,}:/osh-libvirt systemd-run --scope --slice=system libvirtd --listen
