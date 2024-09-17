@@ -12,19 +12,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- define "libvirtReadinessProbeTemplate" }}
+{{- define "libvirtProbeTemplate" }}
 exec:
   command:
     - bash
     - -c
-    - /usr/bin/virsh list
-{{- end }}
-{{- define "libvirtLivenessProbeTemplate" }}
-exec:
-  command:
-    - bash
-    - -c
-    - /usr/bin/virsh list
+    - /usr/bin/virsh connect
 {{- end }}
 
 {{- define "libvirt.daemonset" }}
@@ -225,8 +218,8 @@ spec:
             - name: LIBVIRT_EXTERNAL_CEPH_CINDER_SECRET_UUID
               value: "{{ .Values.conf.ceph.cinder.external_ceph.secret_uuid }}"
             {{ end }}
-{{ dict "envAll" . "component" "libvirt" "container" "libvirt" "type" "readiness" "probeTemplate" (include "libvirtReadinessProbeTemplate" . | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
-{{ dict "envAll" . "component" "libvirt" "container" "libvirt" "type" "liveness" "probeTemplate" (include "libvirtLivenessProbeTemplate" . | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+{{ dict "envAll" . "component" "libvirt" "container" "libvirt" "type" "readiness" "probeTemplate" (include "libvirtProbeTemplate" . | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+{{ dict "envAll" . "component" "libvirt" "container" "libvirt" "type" "liveness" "probeTemplate" (include "libvirtProbeTemplate" . | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
           command:
             - /tmp/libvirt.sh
           lifecycle:
