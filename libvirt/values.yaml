@@ -137,6 +137,34 @@ conf:
       - rdma
       - misc
       - pids
+  init_modules:
+    enabled: false
+    script: |
+      #!/bin/bash
+
+      set -ex
+      export HOME=/tmp
+      KVM_QEMU_CONF_HOST="/etc/modprobe.d_host/qemu-system-x86.conf"
+
+      if [[ ! -f "${KVM_QEMU_CONF_HOST}" ]]; then
+        if grep vmx /proc/cpuinfo; then
+          cat << EOF > ${KVM_QEMU_CONF_HOST}
+      options kvm_intel nested=1
+      options kvm_intel enable_apicv=1
+      options kvm_intel ept=1
+      EOF
+          modprobe -r kvm_intel || true
+          modprobe kvm_intel nested=1
+        elif grep svm /proc/cpuinfo; then
+          cat << EOF > ${KVM_QEMU_CONF_HOST}
+      options kvm_amd nested=1
+      EOF
+          modprobe -r kvm_amd || true
+          modprobe kvm_amd nested=1
+        else
+          echo "Nested virtualization is not supported"
+        fi
+      fi
   vencrypt:
     # Issuer to use for the vencrypt certs.
     issuer:
@@ -220,6 +248,12 @@ pod:
           readOnlyRootFilesystem: false
         libvirt_exporter:
           privileged: true
+        libvirt_init_modules:
+          readOnlyRootFilesystem: true
+          privileged: true
+          capabilities:
+            drop:
+              - ALL
   sidecars:
     libvirt_exporter: false
 
