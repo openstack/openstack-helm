@@ -31,6 +31,7 @@ images:
     mariadb_backup: quay.io/airshipit/porthole-mysqlclient-utility:latest-ubuntu_focal
     ks_user: docker.io/openstackhelm/heat:wallaby-ubuntu_focal
     scripted_test: docker.io/openstackhelm/mariadb:ubuntu_focal-20210415
+    mariadb_controller: docker.io/openstackhelm/mariadb:latest-ubuntu_focal
   pull_policy: "IfNotPresent"
   local_registry:
     active: false
@@ -57,8 +58,16 @@ labels:
   test:
     node_selector_key: openstack-control-plane
     node_selector_value: enabled
+  controller:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
 
 pod:
+  env:
+    mariadb_controller:
+      MARIADB_CONTROLLER_DEBUG: 0
+      MARIADB_CONTROLLER_CHECK_PODS_DELAY: 10
+      MARIADB_CONTROLLER_PYKUBE_REQUEST_TIMEOUT: 60
   probes:
     server:
       mariadb:
@@ -136,6 +145,13 @@ pod:
         test:
           runAsUser: 999
           readOnlyRootFilesystem: true
+    controller:
+      pod:
+        runAsUser: 65534
+      container:
+        controller:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
   affinity:
     anti:
       type:
@@ -159,6 +175,7 @@ pod:
     ingress: 2
     error_page: 1
     prometheus_mysql_exporter: 1
+    controller: 1
   lifecycle:
     upgrades:
       deployments:
@@ -282,7 +299,8 @@ dependencies:
       services:
         - endpoint: internal
           service: oslo_db
-
+    controller:
+      services: null
 volume:
   # this value is used for single pod deployments of mariadb to prevent losing all data
   # if the pod is restarted
@@ -615,6 +633,10 @@ endpoints:
         default: 3306
       wsrep:
         default: 4567
+      ist:
+        default: 4568
+      sst:
+        default: 4444
   kube_dns:
     namespace: kube-system
     name: kubernetes-dns
@@ -670,6 +692,13 @@ endpoints:
         default: 80
         internal: 5000
 
+network:
+  mariadb: {}
+  mariadb_discovery: {}
+  mariadb_ingress: {}
+  mariadb_ingress_error_pages: {}
+  mariadb_master: {}
+
 network_policy:
   mariadb:
     ingress:
@@ -721,4 +750,6 @@ manifests:
   service_error: false
   service: true
   statefulset: true
+  deployment_controller: false
+  service_master: false
 ...
