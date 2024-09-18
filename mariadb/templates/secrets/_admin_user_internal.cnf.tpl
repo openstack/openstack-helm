@@ -15,7 +15,7 @@ limitations under the License.
 [client]
 user = {{ .Values.endpoints.oslo_db.auth.admin.username }}
 password = {{ .Values.endpoints.oslo_db.auth.admin.password }}
-host = {{ tuple "oslo_db" "internal" . | include "helm-toolkit.endpoints.hostname_fqdn_endpoint_lookup" }}
+host = {{ tuple "oslo_db" "internal" . | include "helm-toolkit.endpoints.hostname_namespaced_endpoint_lookup" }}
 port = {{ tuple "oslo_db" "internal" "mysql" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
 {{- if .Values.manifests.certificates }}
 ssl-ca = /etc/mysql/certs/ca.crt
