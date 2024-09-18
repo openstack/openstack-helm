@@ -14,7 +14,8 @@ limitations under the License.
 
 {{/*
 abstract: |
-  Resolves 'hostname:port' for an endpoint
+  Resolves 'hostname:port' for an endpoint, or several hostname:port pairs for statefulset e.g
+  'hostname1:port1,hostname2:port2,hostname3:port3',
 examples:
   - values: |
       endpoints:
@@ -46,6 +47,23 @@ examples:
       {{ tuple "oslo_db" "internal" "mysql" . | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" }}
     return: |
       127.0.0.1:3306
+  - values: |
+      endpoints:
+        oslo_cache:
+          hosts:
+            default: memcached
+          host_fqdn_override:
+            default: null
+          statefulset:
+            name: openstack-memcached-memcached
+            replicas: 3
+          port:
+            memcache:
+              default: 11211
+    usage: |
+      {{ tuple "oslo_cache" "internal" "memcache" . | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" }}
+    return: |
+      openstack-memcached-memcached-0:11211,openstack-memcached-memcached-1:11211,openstack-memcached-memcached-2:11211
 */}}
 
 {{- define "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" -}}
@@ -53,7 +71,19 @@ examples:
 {{- $endpoint := index . 1 -}}
 {{- $port := index . 2 -}}
 {{- $context := index . 3 -}}
-{{- $endpointPort := tuple $type $endpoint $port $context | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-{{- $endpointHostname := tuple $type $endpoint $context | include "helm-toolkit.endpoints.endpoint_host_lookup" }}
-{{- printf "%s:%s" $endpointHostname $endpointPort -}}
+{{- $ssMap := index $context.Values.endpoints ( $type | replace "-" "_" ) "statefulset" | default false -}}
+{{- $local := dict "endpointHosts" list -}}
+{{- $endpointPort := tuple $type $endpoint $port $context | include "helm-toolkit.endpoints.endpoint_port_lookup" -}}
+{{- if $ssMap -}}
+{{-   $endpointHostPrefix := $ssMap.name -}}
+{{-   $endpointHostSuffix := tuple $type $endpoint $context | include "helm-toolkit.endpoints.endpoint_host_lookup" }}
+{{-   range $podInt := until ( atoi (print $ssMap.replicas ) ) -}}
+{{-     $endpointHostname := printf "%s-%d.%s:%s" $endpointHostPrefix $podInt $endpointHostSuffix $endpointPort -}}
+{{-     $_ := set $local "endpointHosts" ( append $local.endpointHosts $endpointHostname ) -}}
+{{-   end -}}
+{{- else -}}
+{{-   $endpointHostname := tuple $type $endpoint $context | include "helm-toolkit.endpoints.endpoint_host_lookup" -}}
+{{-   $_ := set $local "endpointHosts" ( append $local.endpointHosts (printf "%s:%s" $endpointHostname $endpointPort) ) -}}
+{{- end -}}
+{{ include "helm-toolkit.utils.joinListWithComma" $local.endpointHosts }}
 {{- end -}}
