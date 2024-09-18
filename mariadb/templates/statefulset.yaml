@@ -113,6 +113,7 @@ metadata:
     configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
     mariadb-dbadmin-password-hash: {{ tuple "secret-dbadmin-password.yaml" . | include "helm-toolkit.utils.hash" }}
     mariadb-sst-password-hash: {{ tuple "secret-dbadmin-password.yaml" . | include "helm-toolkit.utils.hash" }}
+    configmap-bin-exporter-hash: {{ tuple "exporter-configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
   labels:
 {{ tuple $envAll "mariadb" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 spec:
@@ -289,6 +290,52 @@ spec:
             - name: mysql-data
               mountPath: /var/lib/mysql
 {{ dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.secrets.tls.oslo_db.server.internal "path" "/etc/mysql/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
+{{- if .Values.monitoring.prometheus.enabled }}
+        - name: mysql-exporter
+{{ tuple $envAll "prometheus_mysql_exporter" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ dict "envAll" $envAll "application" "server" "container" "exporter" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.prometheus_mysql_exporter | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          command:
+            - /tmp/mysqld-exporter.sh
+          ports:
+            - name: metrics
+              containerPort: {{ tuple "prometheus_mysql_exporter" "internal" "metrics" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+          env:
+            - name: EXPORTER_USER
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-exporter-secrets
+                  key: EXPORTER_USER
+            - name: EXPORTER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-exporter-secrets
+                  key: EXPORTER_PASSWORD
+            - name: DATA_SOURCE_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-exporter-secrets
+                  key: DATA_SOURCE_NAME
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: LISTEN_PORT
+              value: {{ tuple "prometheus_mysql_exporter" "internal" "metrics" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | quote }}
+            - name: TELEMETRY_PATH
+              value: {{ tuple "prometheus_mysql_exporter" "internal" "metrics" . | include "helm-toolkit.endpoints.keystone_endpoint_path_lookup" | quote }}
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: mysql-exporter-secrets
+              mountPath: /etc/mysql/mysql_user.cnf
+              subPath: mysql_user.cnf
+              readOnly: true
+            - name: mysql-exporter-bin
+              mountPath: /tmp/mysqld-exporter.sh
+              subPath: mysqld-exporter.sh
+              readOnly: true
+{{- end }}
       volumes:
         - name: pod-tmp
           emptyDir: {}
@@ -319,6 +366,16 @@ spec:
           emptyDir: {}
         {{- end }}
         {{- end }}
+{{- if .Values.monitoring.prometheus.enabled }}
+        - name: mysql-exporter-secrets
+          secret:
+            secretName: mysql-exporter-secrets
+            defaultMode: 0444
+        - name: mysql-exporter-bin
+          configMap:
+            name: mysql-exporter-bin
+            defaultMode: 0555
+{{- end }}
 {{- if .Values.volume.enabled }}
   volumeClaimTemplates:
   - metadata:
