@@ -49,29 +49,6 @@ rules:
       - create
   - apiGroups:
       - ""
-    resources:
-      - services
-    verbs:
-      - create
-  - apiGroups:
-      - ""
-    resourceNames:
-      - {{ tuple "oslo_db" "primary" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
-    resources:
-      - services
-    verbs:
-      - get
-      - patch
-  - apiGroups:
-      - ""
-    resourceNames:
-      - {{ tuple "oslo_db" "primary" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
-    resources:
-      - endpoints
-    verbs:
-      - get
-  - apiGroups:
-      - ""
     resourceNames:
       - {{ printf "%s-%s" .deployment_name "mariadb-state" | quote }}
     resources:
@@ -189,12 +166,6 @@ spec:
               value: {{ tuple "oslo_db" "direct" "wsrep" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | quote }}
             - name: STATE_CONFIGMAP
               value: {{ printf "%s-%s" .deployment_name "mariadb-state" | quote }}
-            - name: PRIMARY_SERVICE_NAME
-              value: {{ tuple "oslo_db" "primary" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
-            - name: CLUSTER_LEADER_TTL
-              value: {{ .Values.conf.galera.cluster_leader_ttl | quote }}
-            - name: MARIADB_PORT
-              value: {{ tuple "oslo_db" "direct" "mysql" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | quote }}
             - name: MYSQL_DBADMIN_USERNAME
               value: {{ .Values.endpoints.oslo_db.auth.admin.username }}
             - name: MYSQL_DBADMIN_PASSWORD
@@ -220,6 +191,8 @@ spec:
             {{- end }}
             - name: MYSQL_HISTFILE
               value: {{ .Values.conf.database.mysql_histfile }}
+            - name: CLUSTER_LEADER_TTL
+              value: {{ .Values.conf.galera.cluster_leader_ttl | quote }}
           ports:
             - name: mysql
               protocol: TCP
