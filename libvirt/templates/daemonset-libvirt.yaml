@@ -100,6 +100,21 @@ spec:
               subPath: libvirt-init-modules.sh
               readOnly: true
 {{- end }}
+        - name: init-dynamic-options
+{{ tuple $envAll "libvirt" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ dict "envAll" $envAll "application" "libvirt" "container" "init_dynamic_options" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          terminationMessagePath: /var/log/termination-log
+          command:
+            - /tmp/init-dynamic-options.sh
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: pod-shared
+              mountPath: /tmp/pod-shared
+            - name: libvirt-bin
+              mountPath: /tmp/init-dynamic-options.sh
+              subPath: init-dynamic-options.sh
+              readOnly: true
 {{- if eq .Values.conf.qemu.vnc_tls "1" }}
         - name: cert-init-vnc
 {{ tuple $envAll "kubectl" | include "helm-toolkit.snippets.image" | indent 10 }}
@@ -233,7 +248,7 @@ spec:
               mountPath: /tmp/libvirt.sh
               subPath: libvirt.sh
               readOnly: true
-            - name: libvirt-etc
+            - name: pod-shared
               mountPath: /etc/libvirt/libvirtd.conf
               subPath: libvirtd.conf
               readOnly: true
@@ -381,6 +396,8 @@ spec:
           hostPath:
             path: /
             type: Directory
+        - name: pod-shared
+          emptyDir: {}
 {{ dict "envAll" $envAll "component" "libvirt" "requireSys" true | include "helm-toolkit.snippets.kubernetes_apparmor_volumes" | indent 8 }}
 {{ if $mounts_libvirt.volumes }}{{ toYaml $mounts_libvirt.volumes | indent 8 }}{{ end }}
 {{- end }}

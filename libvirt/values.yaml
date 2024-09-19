@@ -112,9 +112,37 @@ conf:
     cert_file: "/etc/pki/libvirt/servercert.pem"
     key_file: "/etc/pki/libvirt/private/serverkey.pem"
     auth_unix_rw: "none"
-    listen_addr: 127.0.0.1
+    listen_addr: "${LISTEN_IP_ADDRESS}"
     log_level: "3"
     log_outputs: "1:file:/var/log/libvirt/libvirtd.log"
+  # Modifies the config in which value is specified as the name of a variable
+  # that is computed in the script.
+  dynamic_options:
+    libvirt:
+      listen_interface: null
+      listen_address: 127.0.0.1
+    script: |
+      #!/bin/bash
+      set -ex
+
+      LIBVIRT_CONF_PATH=/tmp/pod-shared/libvirtd.conf
+
+      {{- if .Values.conf.dynamic_options.libvirt.listen_interface }}
+
+      LISTEN_INTERFACE="{{ .Values.conf.dynamic_options.libvirt.listen_interface }}"
+      LISTEN_IP_ADDRESS=$(ip address show $LISTEN_INTERFACE | grep 'inet ' | awk '{print $2}' | awk -F "/" '{print $1}')
+      {{- else if .Values.conf.dynamic_options.libvirt.listen_address }}
+      LISTEN_IP_ADDRESS={{ .Values.conf.dynamic_options.libvirt.listen_address }}
+      {{- end }}
+
+      if [[ -z $LISTEN_IP_ADDRESS ]]; then
+          echo "LISTEN_IP_ADDRESS is not set."
+          exit 1
+      fi
+
+      tee > ${LIBVIRT_CONF_PATH} << EOF
+      {{ include "libvirt.utils.to_libvirt_conf" .Values.conf.libvirt }}
+      EOF
   qemu:
     vnc_tls: "0"
     vnc_tls_x509_verify: "0"
@@ -251,6 +279,14 @@ pod:
         libvirt_init_modules:
           readOnlyRootFilesystem: true
           privileged: true
+          capabilities:
+            drop:
+              - ALL
+        init_dynamic_options:
+          runAsUser: 65534
+          runAsNonRoot: true
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
           capabilities:
             drop:
               - ALL
