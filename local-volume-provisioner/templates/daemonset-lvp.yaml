@@ -1,0 +1,212 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- define "lvp.daemonset" }}
+{{- $daemonset := index . 0 }}
+{{- $configMapName := index . 1 }}
+{{- $serviceAccountName := index . 2 }}
+{{- $envAll := index . 3 }}
+
+{{- with $envAll }}
+
+{{- $mounts_lvp := $envAll.Values.pod.mounts.local_volume_provisioner.lvp }}
+{{- $mounts_lvp_init := $envAll.Values.pod.mounts.local_volume_provisioner.init_container }}
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: local-volume-provisioner
+  annotations:
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+  labels:
+{{ tuple $envAll .Chart.Name $daemonset | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  selector:
+    matchLabels:
+{{ tuple $envAll .Chart.Name $daemonset | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
+{{ tuple $envAll $daemonset | include "helm-toolkit.snippets.kubernetes_upgrades_daemonset" | indent 2 }}
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll .Chart.Name $daemonset | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+{{- dict "envAll" $envAll "podName" "local-volume-provisioner" "containerNames" (list "lvp") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
+{{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
+        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
+    spec:
+{{ dict "envAll" $envAll "application" "local-volume-provisioner" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
+      serviceAccountName: {{ $serviceAccountName }}
+      nodeSelector:
+        {{ $envAll.Values.labels.local_volume_provisioner.node_selector_key }}: {{ $envAll.Values.labels.local_volume_provisioner.node_selector_value }}
+      initContainers:
+        - name: init-mounts
+{{ tuple $envAll "local_volume_provisioner_mounts" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ dict "envAll" $envAll "application" "local_volume_provisioner" "container" "init_mounts" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          terminationMessagePath: /var/log/termination-log
+          env:
+          - name: POD_NAME
+            valueFrom:
+              fieldRef:
+                apiVersion: v1
+                fieldPath: metadata.name
+          - name: NAMESPACE
+            valueFrom:
+              fieldRef:
+                apiVersion: v1
+                fieldPath: metadata.namespace
+          - name: PATH
+            value: /var/lib/openstack/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/
+          command:
+            - /tmp/fakemount.py
+            - --config-file
+            - /etc/provisioner/fake_mounts.conf
+          volumeMounts:
+            - name: fstab
+              mountPath: /mnt/host/fstab
+            - name: local-volume-provisioner-etc
+              mountPath: /etc/provisioner/fake_mounts.conf
+              subPath: fake_mounts.conf
+              readOnly: true
+            - name: local-volume-provisioner-bin
+              mountPath: /tmp/fakemount.py
+              subPath: fakemount.py
+              readOnly: true
+            {{- range $classConfig := $envAll.Values.conf.fake_mounts.classes }}
+              {{- range $bindMount := $classConfig.bindMounts }}
+            - mountPath: {{ $bindMount.srcRoot }}
+              mountPropagation: Bidirectional
+              name: {{ replace "/" ""  $bindMount.srcRoot }}
+              {{- end }}
+            - mountPath: {{ if $classConfig.mountDir }} {{- $classConfig.mountDir -}} {{ else }} {{- $classConfig.hostDir -}} {{ end }}
+              mountPropagation: Bidirectional
+              name: {{ $classConfig.name }}
+            {{- end }}
+            - mountPath: /run
+              name: run
+      containers:
+        - name: lvp
+{{ tuple $envAll "local_volume_provisioner" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.local_volume_provisioner | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "local_volume_provisioner" "container" "lvp" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          env:
+          - name: MY_NODE_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: spec.nodeName
+          - name: NAMESPACE
+            valueFrom:
+              fieldRef:
+                apiVersion: v1
+                fieldPath: metadata.namespace
+          command:
+            - /local-provisioner
+          volumeMounts:
+            - name: local-volume-provisioner-bin
+              mountPath: /etc/provisioner/config/storageClassMap
+              subPath: storageClassMap
+              readOnly: true
+            - name: dev
+              mountPath: /dev
+            {{- range $classConfig := $envAll.Values.conf.fake_mounts.classes }}
+            - name: {{ $classConfig.name }}
+              mountPath: {{ $classConfig.mountDir | default $classConfig.hostDir }}
+              mountPropagation: HostToContainer
+            {{- end }}
+      volumes:
+        - name: fstab
+          hostPath:
+            type: File
+            path: /etc/fstab
+        - name: local-volume-provisioner-bin
+          configMap:
+            name: local-volume-provisioner-bin
+            defaultMode: 0555
+        - name: local-volume-provisioner-etc
+          secret:
+            secretName: {{ $configMapName }}
+            defaultMode: 0444
+        - name: run
+          hostPath:
+            path: /run
+        - name: dev
+          hostPath:
+            path: /dev
+          {{- range $classConfig := $envAll.Values.conf.fake_mounts.classes }}
+            {{- range $bindMount := $classConfig.bindMounts }}
+        - name: {{ replace "/" ""  $bindMount.srcRoot }}
+          hostPath:
+            path: {{ $bindMount.srcRoot }}
+            type: ""
+            {{- end }}
+          {{- end }}
+        {{- range $classConfig := $envAll.Values.conf.fake_mounts.classes }}
+        - name: {{ $classConfig.name }}
+          hostPath:
+            path: {{ $classConfig.hostDir }}
+        {{- end }}
+{{ if $mounts_lvp.volumes }}{{ toYaml $mounts_lvp.volumes | indent 8 }}{{ end }}
+{{- end }}
+{{- end }}
+
+{{- if .Values.manifests.daemonset_local_volume_provisioner }}
+
+{{- $envAll := . }}
+{{- $daemonset := "local_volume_provisioner" }}
+{{- $configMapName := "local_volume_provisioner-etc" }}
+{{- $serviceAccountName := "local-volume-provisioner" }}
+
+{{ tuple $envAll "lvp" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ $serviceAccountName }}-nodes
+rules:
+- apiGroups: [""]
+  resources: ["nodes"]
+  verbs: ["get"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ $serviceAccountName }}-nodes
+subjects:
+- kind: ServiceAccount
+  name: {{ $serviceAccountName }}
+  namespace: {{ .Release.Namespace }}
+roleRef:
+  kind: ClusterRole
+  name: {{ $serviceAccountName }}-nodes
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ $serviceAccountName }}-cluter-admin
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+- kind: ServiceAccount
+  name: {{ $serviceAccountName }}
+  namespace: {{ .Release.Namespace }}
+
+{{- $daemonset_yaml := list $daemonset $configMapName $serviceAccountName . | include "lvp.daemonset" | toString | fromYaml }}
+{{- $configmap_yaml := "lvp.configmap.etc" }}
+{{- list $daemonset $daemonset_yaml $configmap_yaml $configMapName . | include "helm-toolkit.utils.daemonset_overrides" }}
+
+{{- end }}

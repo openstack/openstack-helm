@@ -1,0 +1,153 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Default values for local-volume-provisioner.
+# This is a YAML-formatted file.
+# Declare name/value pairs to be passed into your templates.
+# name: value
+
+---
+release_group: null
+
+labels:
+  local_volume_provisioner:
+    node_selector_key: openstack-compute-node
+    node_selector_value: enabled
+
+images:
+  tags:
+    local_volume_provisioner: mirantis.azurecr.io/bm/external/local-volume-provisioner:v2.4.0
+    dep_check: quay.io/airshipit/kubernetes-entrypoint:latest-ubuntu_focal
+    image_repo_sync: docker.io/library/docker:17.07.0
+    local_volume_provisioner_mounts: mirantis.azurecr.io/openstack/openstack-controller:0.1.1
+  pull_policy: "IfNotPresent"
+  local_registry:
+    active: false
+    exclude:
+      - dep_check
+      - image_repo_sync
+
+dependencies:
+  static: {}
+  dynamic: {}
+
+endpoints:
+  cluster_domain_suffix: cluster.local
+  local_image_registry:
+    name: docker-registry
+    namespace: docker-registry
+    hosts:
+      default: localhost
+      internal: docker-registry
+      node: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        node: 5000
+  oci_image_registry:
+    name: oci-image-registry
+    namespace: oci-image-registry
+    auth:
+      enabled: false
+      local_volume_provisioner:
+        username: local_volume_provisioner
+        password: password
+    hosts:
+      default: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        default: null
+
+conf:
+  fake_mounts:
+    classes:
+      - bindMounts:
+        - mounts:
+          - vol1
+          - vol2
+          - vol3
+          - vol4
+          - vol5
+          - vol6
+          - vol7
+          - vol8
+          - vol9
+          - vol10
+          - vol11
+          - vol12
+          - vol13
+          - vol14
+          - vol15
+          srcRoot: /var/lib/local-volume-provisioner
+        hostDir: /mnt/local-volume-provisioner
+        mountDir: /mnt/local-volume-provisioner
+        name: lvp-fake-root
+        storageClass: true
+        volumeMode: Filesystem
+pod:
+  security_context:
+    local_volume_provisioner:
+      pod:
+        runAsUser: 0
+      container:
+        lvp:
+          privileged: true
+          readOnlyRootFilesystem: true
+        init_mounts:
+          privileged: true
+          readOnlyRootFilesystem: true
+  dns_policy: "ClusterFirstWithHostNet"
+  mounts:
+    local_volume_provisioner:
+      init_container: null
+      lvp: null
+  lifecycle:
+    upgrades:
+      daemonsets:
+        pod_replacement_strategy: RollingUpdate
+        local_volume_provisioner:
+          enabled: true
+          min_ready_seconds: 0
+          max_unavailable: 1
+  resources:
+    enabled: false
+    local_volume_provisioner:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+    jobs:
+      image_repo_sync:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+
+manifests:
+  configmap_bin: true
+  configmap_etc: true
+  daemonset_local_volume_provisioner: true
+  job_image_repo_sync: true
+  secret_registry: true
+  storageclass: true
+
+secrets:
+  oci_image_registry:
+    local_volume_provisioner: local-volume-provisioner-oci-image-registry-key
+...
