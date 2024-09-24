@@ -20,6 +20,10 @@ ifdef VERSION
 	PKG_ARGS += --version $(VERSION)
 endif
 
+ifdef PACKAGE_DIR
+	PKG_ARGS += --destination $(PACKAGE_DIR)
+endif
+
 EXCLUDES := helm-toolkit doc tests tools logs tmp roles playbooks releasenotes zuul.d
 CHARTS := helm-toolkit $(filter-out $(EXCLUDES), $(patsubst %/.,%,$(wildcard */.)))
 
