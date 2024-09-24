@@ -12,9 +12,13 @@
 
 # It's necessary to set this because some environments don't link sh -> bash.
 SHELL := /bin/bash
-
 HELM := helm
 TASK := build
+
+PKG_ARGS =
+ifdef VERSION
+	PKG_ARGS += --version $(VERSION)
+endif
 
 EXCLUDES := helm-toolkit doc tests tools logs tmp roles playbooks releasenotes zuul.d
 CHARTS := helm-toolkit $(filter-out $(EXCLUDES), $(patsubst %/.,%,$(wildcard */.)))
@@ -36,7 +40,7 @@ lint-%: init-%
 	if [ -d $* ]; then $(HELM) lint $*; fi
 
 build-%: lint-%
-	if [ -d $* ]; then $(HELM) package $*; fi
+	if [ -d $* ]; then $(HELM) package $* $(PKG_ARGS); fi
 
 clean:
 	@echo "Removed .b64, _partials.tpl, and _globals.tpl files"
