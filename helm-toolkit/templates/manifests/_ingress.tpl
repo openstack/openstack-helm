@@ -708,6 +708,10 @@ spec:
 {{- range $v := without (index $endpointHost.tls "dnsNames" | default list) $hostNameFull }}
 {{- $vHosts = append $vHosts $v }}
 {{- end }}
+{{- if hasKey $envAll.Values.endpoints "alias_fqdn" }}
+{{- $alias_host := $envAll.Values.endpoints.alias_fqdn }}
+{{- $vHosts = append $vHosts $alias_host }}
+{{- end }}
 {{- $secretName := index $envAll.Values.secrets "tls" ( $backendServiceType | replace "-" "_" ) $backendService $endpoint }}
 {{- $_ := required "You need to specify a secret in your values for the endpoint" $secretName }}
   tls:
