@@ -82,7 +82,7 @@ if ! [ "${POD_INCREMENT}" -eq "0" ] && ! [ -d "/var/lib/rabbitmq/mnesia" ] ; the
   # Wait for server to join cluster, reset if it does not
   POD_INCREMENT=$(echo "${MY_POD_NAME}" | awk -F '-' '{print $NF}')
   END=$(($(date +%s) + 180))
-  while ! rabbitmqctl --node $(get_node_name 0) -q cluster_status | grep -q "$(get_node_name ${POD_INCREMENT})"; do
+  while ! rabbitmqctl -l --node $(get_node_name 0) -q cluster_status | grep -q "$(get_node_name ${POD_INCREMENT})"; do
     sleep 5
     NOW=$(date +%s)
     [ $NOW -gt $END ] && reset_rabbit
