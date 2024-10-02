@@ -18,6 +18,7 @@ limitations under the License.
 {{- $envAll := . }}
 
 {{- $mounts_octavia_api := .Values.pod.mounts.octavia_api.octavia_api }}
+{{- $mounts_octavia_driver_agent := .Values.pod.mounts.octavia_api.octavia_driver_agent }}
 {{- $mounts_octavia_api_init := .Values.pod.mounts.octavia_api.init_container }}
 
 {{- $serviceAccountName := "octavia-api" }}
@@ -58,8 +59,7 @@ spec:
         - name: octavia-api
 {{ tuple $envAll "octavia_api" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.api | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-          securityContext:
-            runAsUser: {{ .Values.pod.user.octavia.uid }}
+{{ dict "envAll" $envAll "application" "octavia_api" "container" "octavia_api" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
             - /tmp/octavia-api.sh
             - start
@@ -78,6 +78,8 @@ spec:
               path: /
               port: {{ tuple "load_balancer" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
           volumeMounts:
+            - name: run-openvswitch
+              mountPath: /var/run/ovn
             - name: pod-etc-octavia
               mountPath: /etc/octavia
             - name: octavia-bin
@@ -98,9 +100,53 @@ spec:
               subPath: {{ base .Values.conf.octavia.DEFAULT.log_config_append }}
               readOnly: true
             {{- end }}
+            - name: octavia-driver-agents
+              mountPath: /var/run/octavia
 {{ if $mounts_octavia_api.volumeMounts }}{{ toYaml $mounts_octavia_api.volumeMounts | indent 12 }}{{ end }}
+        - name: octavia-driver-agent
+{{ tuple $envAll "octavia_driver_agent" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.driver_agent | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "octavia_api" "container" "octavia_driver_agent" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          command:
+            - /tmp/octavia-driver-agent.sh
+            - start
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /tmp/octavia-driver-agent.sh
+                  - stop
+          volumeMounts:
+            - name: pod-etc-octavia
+              mountPath: /etc/octavia
+              readOnly: true
+            - name: octavia-bin
+              mountPath: /tmp/octavia-driver-agent.sh
+              subPath: octavia-driver-agent.sh
+              readOnly: true
+            - name: octavia-etc
+              mountPath: /etc/octavia/octavia.conf
+              subPath: octavia.conf
+              readOnly: true
+            {{- if .Values.conf.octavia.DEFAULT.log_config_append }}
+            - name: octavia-etc
+              mountPath: {{ .Values.conf.octavia.DEFAULT.log_config_append }}
+              subPath: {{ base .Values.conf.octavia.DEFAULT.log_config_append }}
+              readOnly: true
+            {{- end }}
+            - name: octavia-driver-agents
+              mountPath: /var/run/octavia
+            - name: run-openvswitch
+              mountPath: /var/run/ovn
+{{ if $mounts_octavia_driver_agent.volumeMounts }}{{ toYaml $mounts_octavia_driver_agent.volumeMounts | indent 12 }}{{ end }}
       volumes:
         - name: pod-etc-octavia
+          emptyDir: {}
+        - name: run-openvswitch
+          hostPath:
+            path: /run/openvswitch
+            type: DirectoryOrCreate
+        - name: octavia-driver-agents
           emptyDir: {}
         - name: octavia-bin
           configMap:

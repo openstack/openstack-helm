@@ -51,6 +51,7 @@ images:
     dep_check: quay.io/airshipit/kubernetes-entrypoint:latest-ubuntu_focal
     image_repo_sync: docker.io/docker:17.07.0
     octavia_api: docker.io/loci/octavia:master-ubuntu
+    octavia_driver_agent: docker.io/loci/octavia:master-ubuntu
     octavia_worker: docker.io/loci/octavia:master-ubuntu
     octavia_housekeeping: docker.io/loci/octavia:master-ubuntu
     octavia_health_manager: docker.io/loci/octavia:master-ubuntu
@@ -208,6 +209,9 @@ conf:
   octavia:
     DEFAULT:
       log_config_append: /etc/octavia/logging.conf
+    ovn:
+      ovn_nb_connection: unix:/run/ovn/ovnnb_db.sock
+      ovn_sb_connection: unix:/run/ovn/ovnsb_db.sock
     api_settings:
       api_handler: queue_producer
       bind_host: 0.0.0.0
@@ -521,9 +525,25 @@ endpoints:
         public: 80
 
 pod:
-  user:
-    octavia:
-      uid: 42424
+  security_context:
+    octavia_api:
+      container:
+        octavia_api:
+          capabilities:
+            add:
+              - SYS_NICE
+        octavia_driver_agent:
+          capabilities:
+            add:
+              - SYS_NICE
+    octavia_worker:
+      container:
+        octavia_worker:
+          runAsUser: 42424
+    octavia_housekeeping:
+      container:
+        octavia_housekeeping:
+          runAsUser: 42424
   affinity:
     anti:
       type:
@@ -534,6 +554,9 @@ pod:
     octavia_api:
       init_container: null
       octavia_api:
+        volumeMounts:
+        volumes:
+      octavia_driver_agent:
         volumeMounts:
         volumes:
     octavia_worker:
@@ -583,6 +606,13 @@ pod:
   resources:
     enabled: false
     api:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+    driver_agent:
       requests:
         memory: "128Mi"
         cpu: "100m"
