@@ -40,6 +40,9 @@ return: |
 release_group: {{ $envAll.Values.release_group | default $envAll.Release.Name }}
 application: {{ $application }}
 component: {{ $component }}
+app.kubernetes.io/name: {{ $application }}
+app.kubernetes.io/component: {{ $component }}
+app.kubernetes.io/instance: {{ $envAll.Values.release_group | default $envAll.Release.Name }}
 {{- if ($envAll.Values.pod).labels }}
 {{- if hasKey $envAll.Values.pod.labels $component }}
 {{ index $envAll.Values.pod "labels" $component | toYaml }}
