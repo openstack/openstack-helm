@@ -4,6 +4,7 @@ import logging
 import sys
 
 from sqlalchemy import create_engine
+from sqlalchemy import text
 
 try:
     import ConfigParser
@@ -69,12 +70,12 @@ except:
 try:
     endpoint_url = os.environ['OS_BOOTSTRAP_INTERNAL_URL']
     region_id = os.environ['OS_REGION_NAME']
-    cmd = ("update endpoint set url = %s where interface ='internal' and "
-           "service_id = (select id from service where "
-           "service.type = 'identity') and "
-           "region_id = %s")
+    cmd = text("update endpoint set url = :endpoint_url where interface ='internal' and "
+               "service_id = (select id from service where "
+               "service.type = 'identity') and "
+               "region_id = :region_id")
     with user_engine.connect() as connection:
-        connection.execute(cmd, (endpoint_url,region_id))
+        connection.execute(cmd, {"endpoint_url": endpoint_url, "region_id": region_id})
         try:
             connection.commit()
         except AttributeError:
@@ -87,12 +88,12 @@ except:
 try:
     endpoint_url = os.environ['OS_BOOTSTRAP_ADMIN_URL']
     region_id = os.environ['OS_REGION_NAME']
-    cmd = ("update endpoint set url = %s where interface ='admin' "
-           "and service_id = (select id from service where "
-           "service.type = 'identity') "
-           "and region_id = %s")
+    cmd = text("update endpoint set url = :endpoint_url where interface ='admin' "
+               "and service_id = (select id from service where "
+               "service.type = 'identity') "
+               "and region_id = :region_id")
     with user_engine.connect() as connection:
-        connection.execute(cmd, (endpoint_url,region_id))
+        connection.execute(cmd, {"endpoint_url": endpoint_url, "region_id": region_id})
         try:
             connection.commit()
         except AttributeError:
@@ -105,12 +106,12 @@ except:
 try:
     endpoint_url = os.environ['OS_BOOTSTRAP_PUBLIC_URL']
     region_id = os.environ['OS_REGION_NAME']
-    cmd = ("update endpoint set url = %s where interface ='public' "
-           "and service_id = (select id from service where "
-           "service.type = 'identity') "
-           "and region_id = %s")
+    cmd = text("update endpoint set url = :endpoint_url where interface ='public' "
+               "and service_id = (select id from service where "
+               "service.type = 'identity') "
+               "and region_id = :region_id")
     with user_engine.connect() as connection:
-        connection.execute(cmd, (endpoint_url,region_id))
+        connection.execute(cmd, {"endpoint_url": endpoint_url, "region_id": region_id})
         try:
             connection.commit()
         except AttributeError:
@@ -123,8 +124,8 @@ except:
 try:
     with user_engine.connect() as connection:
         endpoints = connection.execute(
-            ("select interface, url from endpoint where service_id = "
-            "(select id from service where service.type = 'identity')")
+            text("select interface, url from endpoint where service_id = "
+                 "(select id from service where service.type = 'identity')")
         ).fetchall()
     for row in endpoints:
         logger.info("endpoint ({0}): {1}".format(row[0], row[1]))

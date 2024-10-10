@@ -30,6 +30,7 @@ except ImportError:
     PARSER_OPTS = {"strict": False}
 import logging
 from sqlalchemy import create_engine
+from sqlalchemy import text
 
 # Create logger, console handler and formatter
 logger = logging.getLogger('OpenStack-Helm DB Drop')
@@ -127,7 +128,7 @@ except:
 # Delete all entries from credential table
 
 try:
-    cmd = "DELETE FROM credential"
+    cmd = text("DELETE FROM credential")
     with user_engine.connect() as connection:
         connection.execute(cmd)
         try:
