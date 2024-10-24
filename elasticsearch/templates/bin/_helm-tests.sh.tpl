@@ -15,11 +15,6 @@ limitations under the License.
 
 set -ex
 
-python='python'
-if [[ $(which python3) ]]; then
-    python='python3'
-fi
-
 function create_test_index () {
   index_result=$(curl ${CACERT_OPTION} -K- <<< "--user ${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
   -XPUT "${ELASTICSEARCH_ENDPOINT}/test_index?pretty" -H 'Content-Type: application/json' -d'
@@ -31,9 +26,9 @@ function create_test_index () {
       }
     }
   }
-  ' | $python -c "import sys, json; print(json.load(sys.stdin)['acknowledged'])")
-  if [ "$index_result" == "True" ];
-  then
+  ' | grep -o '"acknowledged" *: *true')
+
+  if [ -n "$index_result" ]; then
     echo "PASS: Test index created!";
   else
     echo "FAIL: Test index not created!";
