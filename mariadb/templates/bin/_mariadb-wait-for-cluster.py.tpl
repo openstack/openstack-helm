@@ -162,7 +162,7 @@ def is_mariadb_stabe():
             LOG.info("The wspep is ready")
             return True
     except Exception as e:
-        LOG.error(f"Got exception while checking state. {e}")
+        LOG.exception(f"Got exception while checking state. {e}")
     return False
 
 
