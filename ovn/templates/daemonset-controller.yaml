@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if .Values.manifests.daemonset_controller }}
+{{- if .Values.manifests.daemonset_ovn_controller }}
 {{- $envAll := . }}
 
 {{- $configMapName := "ovn-etc" }}
@@ -71,7 +71,7 @@ spec:
       hostNetwork: true
       hostPID: true
       hostIPC: true
-      dnsPolicy: ClusterFirstWithHostNet
+      dnsPolicy: {{ .Values.pod.dns_policy }}
       nodeSelector:
         {{ .Values.labels.ovn_controller.node_selector_key }}: {{ .Values.labels.ovn_controller.node_selector_value }}
       initContainers:
@@ -82,7 +82,7 @@ spec:
             - /bin/bash
             - -c
             - |
-              kubectl get node ${NODENAME} -o jsonpath='{.metadata.labels.l3-agent}' > /tmp/gw-enabled/gw-enabled
+              kubectl get node ${NODENAME} -o jsonpath='{.metadata.labels.{{ .Values.labels.ovn_controller_gw.node_selector_key }}}' > /tmp/gw-enabled/gw-enabled
           env:
             - name: NODENAME
               valueFrom:
