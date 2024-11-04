@@ -11,6 +11,7 @@ Here is a list of the current specs:
    :maxdepth: 1
    :glob:
 
+   2025.1/*
    *
 
 Specifications Purpose
