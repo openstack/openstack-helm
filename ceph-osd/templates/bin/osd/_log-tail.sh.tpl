@@ -18,14 +18,20 @@ wait_for_file "${osd_id_file}" "${WAIT_FOR_OSD_ID_TIMEOUT}"
 log_file="/var/log/ceph/${DAEMON_NAME}.$(cat "${osd_id_file}").log"
 wait_for_file "${log_file}" "${WAIT_FOR_OSD_ID_TIMEOUT}"
 
+trap "exit" SIGTERM SIGINT
+keep_running=true
+
 function tail_file () {
-  while true; do
-    tail --retry -f "${log_file}"
+  while $keep_running; do
+    tail --retry -f "${log_file}" &
+    tail_pid=$!
+    wait $tail_pid
+    sleep 1
   done
 }
 
 function truncate_log () {
-  while true; do
+  while $keep_running; do
     sleep ${TRUNCATE_PERIOD}
     if [[ -f ${log_file} ]] ; then
       truncate -s "${TRUNCATE_SIZE}" "${log_file}"
@@ -37,3 +43,5 @@ tail_file &
 truncate_log &
 
 wait -n
+keep_running=false
+wait
