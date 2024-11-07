@@ -51,7 +51,7 @@
         - name: Override proposed images from artifacts
           shell: >
             find {{ override_paths | join(" ") }} -type f -exec sed -Ei
-            "s#['\"]?docker\.io/({{ repo }}):({{ tag }})['\"]?\$#{{ buildset_registry_alias }}:{{ buildset_registry.port }}/\1:\2#g" {} +
+            "s#['\"]?docker\.io/(openstackhelm|loci)/({{ repo }}):({{ tag }})['\"]?\$#{{ buildset_registry_alias }}:{{ buildset_registry.port }}/{{ repo_org }}/{{ repo }}:\3#g" {} +
           loop: "{{ zuul.artifacts | default([]) }}"
           args:
             chdir: "{{ work_dir }}"
@@ -60,7 +60,8 @@
           when: "'metadata' in zj_zuul_artifact and zj_zuul_artifact.metadata.type | default('') == 'container_image'"
           vars:
             tag: "{{ zj_zuul_artifact.metadata.tag }}"
-            repo: "{{ zj_zuul_artifact.metadata.repository }}"
+            repo_org: "{{ zj_zuul_artifact.metadata.repository | dirname }}"
+            repo: "{{ zj_zuul_artifact.metadata.repository | basename }}"
             override_paths:
               - ../openstack-helm*/*/values*
               - ../openstack-helm-infra/tools/deployment/
