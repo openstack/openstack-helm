@@ -119,6 +119,9 @@ cluster_leader_ttl = int(os.environ['CLUSTER_LEADER_TTL'])
 state_configmap_update_period = 10
 default_sleep = 20
 
+# set one name for all commands, avoid "magic names"
+MYSQL_BINARY_NAME='mysqld'
+
 
 def ensure_state_configmap(pod_namespace, configmap_name, configmap_body):
     """Ensure the state configmap exists.
@@ -179,7 +182,7 @@ def stop_mysqld():
     def is_pid_mysqld(pid):
         with open('/proc/{0}/comm'.format(pid), "r") as mysqld_pidfile:
             comm = mysqld_pidfile.readlines()[0].rstrip('\n')
-        if comm.startswith('mysqld'):
+        if comm.startswith(MYSQL_BINARY_NAME):
             return True
         else:
             return False
@@ -306,7 +309,7 @@ def mysqld_bootstrap():
             f.write(template)
             f.close()
         run_cmd_with_logging([
-            'mysqld', '--user=mysql', '--bind-address=127.0.0.1',
+            MYSQL_BINARY_NAME, '--user=mysql', '--bind-address=127.0.0.1',
             '--wsrep_cluster_address=gcomm://',
             "--init-file={0}".format(bootstrap_sql_file)
         ], logger)
@@ -577,7 +580,7 @@ def update_grastate_on_restart():
                 """Extract recovered wsrep position from uncleanly exited node."""
                 wsrep_recover = subprocess.Popen(  # nosec
                     [
-                        'mysqld', '--bind-address=127.0.0.1',
+                        MYSQL_BINARY_NAME, '--bind-address=127.0.0.1',
                         '--wsrep_cluster_address=gcomm://', '--wsrep-recover'
                     ],
                     stdout=subprocess.PIPE,
@@ -808,7 +811,7 @@ def run_mysqld(cluster='existing'):
     mysqld_write_cluster_conf(mode='run')
     launch_leader_election()
     launch_cluster_monitor()
-    mysqld_cmd = ['mysqld', '--user=mysql']
+    mysqld_cmd = [MYSQL_BINARY_NAME, '--user=mysql']
     if cluster == 'new':
         mysqld_cmd.append('--wsrep-new-cluster')
 
@@ -844,7 +847,7 @@ def run_mysqld(cluster='existing'):
             f.write(template)
             f.close()
         run_cmd_with_logging([
-            'mysqld', '--bind-address=127.0.0.1', '--wsrep-on=false',
+            MYSQL_BINARY_NAME, '--bind-address=127.0.0.1', '--wsrep-on=false',
             "--init-file={0}".format(bootstrap_sql_file)
         ], logger)
         os.remove(bootstrap_sql_file)
