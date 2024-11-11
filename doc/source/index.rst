@@ -8,6 +8,7 @@ Contents:
 
     readme
     install/index
+    chart/index
     devref/index
     testing/index
     troubleshooting/index
