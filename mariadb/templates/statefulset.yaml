@@ -1,7 +1,7 @@
 {{/*
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
+Y may obtain a copy of the License at
 
    http://www.apache.org/licenses/LICENSE-2.0
 
@@ -15,12 +15,18 @@ limitations under the License.
 {{- define "mariadbReadinessProbe" }}
 exec:
   command:
-    - /tmp/readiness.sh
+    - /tmp/health.sh
+    - -t
+    - readiness
+    - -d
+    - {{ .Values.pod.probes.server.mariadb.readiness.disk_usage_percent | quote }}
 {{- end }}
 {{- define "mariadbLivenessProbe" }}
 exec:
   command:
-    - /tmp/liveness.sh
+    - /tmp/health.sh
+    - -t
+    - liveness
 {{- end }}
 
 {{- if (.Values.global).subchart_release_name }}
@@ -226,12 +232,8 @@ spec:
               subPath: stop.sh
               readOnly: true
             - name: mariadb-bin
-              mountPath: /tmp/readiness.sh
-              subPath: readiness.sh
-              readOnly: true
-            - name: mariadb-bin
-              mountPath: /tmp/liveness.sh
-              subPath: liveness.sh
+              mountPath: /tmp/health.sh
+              subPath: health.sh
               readOnly: true
             - name: mariadb-etc
               mountPath: /etc/mysql/my.cnf
