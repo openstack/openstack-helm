@@ -159,7 +159,7 @@ def run_cmd_with_logging(popenargs,
         ready_to_read = select.select([child.stdout, child.stderr], [], [],
                                       1000)[0]
         for io in ready_to_read:
-            line = io.readline()
+            line = io.readline().decode()
             logger.log(log_level[io], line[:-1])
 
     while child.poll(
