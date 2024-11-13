@@ -1,3 +1,5 @@
+#!/bin/bash
+
 {{/*
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -12,19 +14,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: ovn-controller
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: ovn-controller
-subjects:
-- kind: ServiceAccount
-  name: ovn-controller
-  namespace: {{ .Release.Namespace }}
-- kind: ServiceAccount
-  name: ovn-controller-gw
-  namespace: {{ .Release.Namespace }}
+set -ex
+COMMAND="${@:-start}"
+
+function start () {
+  exec uwsgi --ini /etc/neutron/neutron-ovn-network-logging-parser-uwsgi.ini
+}
+
+function stop () {
+  kill -TERM 1
+}
+
+$COMMAND

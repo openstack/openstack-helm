@@ -17,6 +17,12 @@ limitations under the License.
 {{- $envAll := index . 1 }}
 {{- with $envAll }}
 
+{{- if empty (index .Values.conf.ovn_network_logging_parser_uwsgi.uwsgi "http-socket") -}}
+{{- $http_socket_port := tuple "ovn_logging_parser" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | toString }}
+{{- $http_socket := printf "0.0.0.0:%s" $http_socket_port }}
+{{- $_ := set .Values.conf.ovn_network_logging_parser_uwsgi.uwsgi "http-socket" $http_socket -}}
+{{- end -}}
+
 ---
 apiVersion: v1
 kind: Secret
@@ -25,7 +31,7 @@ metadata:
 type: Opaque
 data:
   auto_bridge_add: {{ toJson $envAll.Values.conf.auto_bridge_add | b64enc }}
-
+  neutron-ovn-network-logging-parser-uwsgi.ini: {{ include "helm-toolkit.utils.to_oslo_conf" .Values.conf.ovn_network_logging_parser_uwsgi | b64enc }}
 {{- end }}
 {{- end }}
 
