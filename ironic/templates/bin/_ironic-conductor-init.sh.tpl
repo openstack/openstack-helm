@@ -35,7 +35,7 @@ if [ "x" == "x${PXE_IP}" ]; then
 fi
 
 # ensure the tempdir exists, read it from the config
-ironictmpdir=$(python -c 'from configparser import ConfigParser;cfg = ConfigParser();cfg.read("ironic.conf");print(cfg.get("DEFAULT", "tempdir", fallback=""))')
+ironictmpdir=$(python -c 'from configparser import ConfigParser;cfg = ConfigParser();cfg.read("/etc/ironic/ironic.conf");print(cfg.get("DEFAULT", "tempdir", fallback=""))')
 if [ -n "${ironictmpdir}" -a ! -d "${ironictmpdir}" ]; then
   mkdir -p "${ironictmpdir}"
   chmod 1777 "${ironictmpdir}"
