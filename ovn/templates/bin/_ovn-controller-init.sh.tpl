@@ -14,6 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+ANNOTATION_KEY="openstack-helm-infra/ovn-system-id"
+
 function get_ip_address_from_interface {
   local interface=$1
   local ip=$(ip -4 -o addr s "${interface}" | awk '{ print $4; exit }' | awk -F '/' 'NR==1 {print $1}')
@@ -75,6 +77,19 @@ function migrate_ip_from_nic {
   set -e
 }
 
+function get_current_system_id {
+  ovs-vsctl --if-exists get Open_vSwitch . external_ids:system-id | tr -d '"'
+}
+
+function get_stored_system_id {
+  kubectl get node "$NODE_NAME" -o "jsonpath={.metadata.annotations.openstack-helm-infra/ovn-system-id}"
+}
+
+function store_system_id() {
+  local system_id=$1
+  kubectl annotate node "$NODE_NAME" "$ANNOTATION_KEY=$system_id"
+}
+
 # Detect tunnel interface
 tunnel_interface="{{- .Values.network.interface.tunnel -}}"
 if [ -z "${tunnel_interface}" ] ; then
@@ -89,13 +104,25 @@ if [ -z "${tunnel_interface}" ] ; then
 fi
 ovs-vsctl set open . external_ids:ovn-encap-ip="$(get_ip_address_from_interface ${tunnel_interface})"
 
-# Configure system ID
-set +e
-ovs-vsctl get open . external-ids:system-id
-if [ $? -eq 1 ]; then
-  ovs-vsctl set open . external-ids:system-id="$(uuidgen)"
+# Get the stored system-id from the Kubernetes node annotation
+stored_system_id=$(get_stored_system_id)
+
+# Get the current system-id set in OVS
+current_system_id=$(get_current_system_id)
+
+if [ -n "$stored_system_id" ] && [ "$stored_system_id" != "$current_system_id" ]; then
+  # If the annotation exists and does not match the current system-id, set the system-id to the stored one
+  ovs-vsctl set Open_vSwitch . external_ids:system-id="$stored_system_id"
+elif [ -z "$current_system_id" ]; then
+  # If no current system-id is set, generate a new one
+  current_system_id=$(uuidgen)
+  ovs-vsctl set Open_vSwitch . external_ids:system-id="$current_system_id"
+  # Store the new system-id in the Kubernetes node annotation
+  store_system_id "$current_system_id"
+elif [ -z "$stored_system_id" ]; then
+  # If there is no stored system-id, store the current one
+  store_system_id "$current_system_id"
 fi
-set -e
 
 # Configure OVN remote
 {{- if empty .Values.conf.ovn_remote -}}
@@ -124,6 +151,10 @@ if [[ ${GW_ENABLED} == {{ .Values.labels.ovn_controller_gw.node_selector_value }
 else
   ovs-vsctl set open . external-ids:ovn-cms-options={{ .Values.conf.ovn_cms_options }}
 fi
+
+{{ if .Values.conf.ovn_bridge_datapath_type -}}
+ovs-vsctl set open . external-ids:ovn-bridge-datapath-type="{{ .Values.conf.ovn_bridge_datapath_type }}"
+{{- end }}
 
 # Configure hostname
 {{- if .Values.pod.use_fqdn.compute }}
