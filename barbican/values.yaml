@@ -295,6 +295,7 @@ conf:
       use: egg:Paste#urlmap
       /: barbican_version
       /v1: barbican-api-keystone
+      /healthcheck: healthcheck
     pipeline:barbican_version:
       pipeline: cors http_proxy_to_wsgi versionapp
     pipeline:barbican_api:
@@ -309,6 +310,10 @@ conf:
       paste.app_factory: barbican.api.app:create_main_app
     app:versionapp:
       paste.app_factory: barbican.api.app:create_version_app
+    app:healthcheck:
+      paste.app_factory: oslo_middleware:Healthcheck.app_factory
+      backends: disable_by_file
+      disable_by_file_path: /etc/barbican/healthcheck_disable
     filter:simple:
       paste.filter_factory: barbican.api.middleware.simple:SimpleFilter.factory
     filter:unauthenticated-context:
