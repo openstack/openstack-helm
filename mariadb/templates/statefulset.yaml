@@ -28,6 +28,11 @@ exec:
     - -t
     - liveness
 {{- end }}
+{{- define "exporterProbeTemplate" }}
+httpGet:
+    path: /metrics
+    port: {{ tuple "prometheus_mysql_exporter" "internal" "metrics" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+{{- end }}
 
 {{- if (.Values.global).subchart_release_name }}
 {{- $_ := set . "deployment_name" .Chart.Name }}
@@ -266,6 +271,8 @@ spec:
 {{ tuple $envAll "prometheus_mysql_exporter" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ dict "envAll" $envAll "application" "server" "container" "exporter" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.prometheus_mysql_exporter | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" . "component" "server" "container" "mariadb_exporter" "type" "readiness" "probeTemplate" (include "exporterProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+{{ dict "envAll" . "component" "server" "container" "mariadb_exporter" "type" "liveness" "probeTemplate" (include "exporterProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
           command:
             - /tmp/mysqld-exporter.sh
           ports:
