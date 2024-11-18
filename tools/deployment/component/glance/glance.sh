@@ -24,17 +24,6 @@ set -xe
 #NOTE: Deploy command
 tee /tmp/glance.yaml <<EOF
 storage: ${GLANCE_BACKEND}
-bootstrap:
-  structured:
-    images:
-      ubuntu_miniaml:
-        name: "Ubuntu Jammy Minimal"
-        source_url: "https://cloud-images.ubuntu.com/minimal/releases/jammy/release/"
-        image_file: "ubuntu-22.04-minimal-cloudimg-amd64.img"
-        id: null
-        min_disk: 3
-        image_type: qcow2
-        container_format: bare
 EOF
 
 helm upgrade --install glance ${OSH_HELM_REPO}/glance \
