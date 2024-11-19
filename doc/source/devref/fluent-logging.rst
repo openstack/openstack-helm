@@ -32,14 +32,6 @@ Elasticsearch indexes the logs in a logstash-* index by default. Kafka stores
 the logs in a ``logs`` topic by default. Any external tool can then consume the
 ``logs`` topic.
 
-.. blockdiag::
-
-   diagram {
-     fluent-bit [stacked];
-     fluent-bit -> fluentd -> elasticsearch -> kibana;
-          fluentd -> kafka -> external_tool;
-   }
-
 The resulting logs can then be queried directly through Elasticsearch, or they
 can be viewed via Kibana. Kibana offers a dashboard that can create custom views
 on logged events, and Kibana integrates well with Elasticsearch by default.
