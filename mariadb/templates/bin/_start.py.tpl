@@ -108,6 +108,10 @@ if check_env_var("MYSQL_DBAUDIT_PASSWORD"):
     mysql_dbaudit_password = os.environ['MYSQL_DBAUDIT_PASSWORD']
 
 mysql_x509 = os.getenv('MARIADB_X509', "")
+MYSQL_SSL_CMD_OPTS=["--ssl-verify-server-cert=false",
+                    "--ssl-ca=/etc/mysql/certs/ca.crt",
+                    "--ssl-key=/etc/mysql/certs/tls.key",
+                    "--ssl-cert=/etc/mysql/certs/tls.crt"]
 
 if mysql_dbadmin_username == mysql_dbsst_username:
     logger.critical(
@@ -169,6 +173,28 @@ def run_cmd_with_logging(popenargs,
     return child.wait()
 
 
+def wait_mysql_status(delay=30):
+    logger.info("Start checking mariadb status")
+    i = 0
+    res = 1
+    while True:
+        logger.info("Checking mysql status {0}".format(i))
+        cmd = ['mysql',
+            "--defaults-file=/etc/mysql/admin_user.cnf",
+            "--host=localhost"]
+        if mysql_x509:
+          cmd.extend(MYSQL_SSL_CMD_OPTS)
+        cmd.extend(["--execute=status"])
+        res = run_cmd_with_logging(cmd, logger)
+        if res == 0:
+            logger.info("mariadb status check passed")
+            break
+        else:
+            logger.info("mariadb status check failed")
+        i += 1
+        time.sleep(delay)
+
+
 def stop_mysqld():
     """Stop mysqld, assuming pid file in default location."""
     logger.info("Shutting down any mysqld instance if required")
@@ -190,14 +216,19 @@ def stop_mysqld():
     if not os.path.isfile(mysqld_pidfile_path):
         logger.debug("No previous pid file found for mysqld")
         return
-    logger.info("Previous pid file found for mysqld, attempting to shut it down")
+
     if os.stat(mysqld_pidfile_path).st_size == 0:
         logger.info(
             "{0} file is empty, removing it".format(mysqld_pidfile_path))
         os.remove(mysqld_pidfile_path)
         return
+
+    logger.info(
+        "Previous pid file found for mysqld, attempting to shut it down")
+
     with open(mysqld_pidfile_path, "r") as mysqld_pidfile:
         mysqld_pid = int(mysqld_pidfile.readlines()[0].rstrip('\n'))
+
     if not is_pid_running(mysqld_pid):
         logger.info(
             "Mysqld was not running with pid {0}, going to remove stale "
@@ -834,15 +865,14 @@ def run_mysqld(cluster='existing'):
     mysql_data_dir = '/var/lib/mysql'
     db_test_dir = "{0}/mysql".format(mysql_data_dir)
     if os.path.isdir(db_test_dir):
-        logger.info("Setting the admin passwords to the current value")
+        logger.info("Setting the admin passwords to the current value and upgrade mysql if needed")
         if not mysql_dbaudit_username:
             template = (
                 "CREATE OR REPLACE USER '{0}'@'%' IDENTIFIED BY \'{1}\' ;\n"
                 "GRANT ALL ON *.* TO '{0}'@'%' {4} WITH GRANT OPTION ;\n"
                 "CREATE OR REPLACE USER '{2}'@'127.0.0.1' IDENTIFIED BY '{3}' ;\n"
                 "GRANT PROCESS, RELOAD, LOCK TABLES, REPLICATION CLIENT ON *.* TO '{2}'@'127.0.0.1' ;\n"
-                "FLUSH PRIVILEGES ;\n"
-                "SHUTDOWN ;".format(mysql_dbadmin_username, mysql_dbadmin_password,
+                "FLUSH PRIVILEGES ;".format(mysql_dbadmin_username, mysql_dbadmin_password,
                                     mysql_dbsst_username, mysql_dbsst_password,
                                     mysql_x509))
         else:
@@ -853,8 +883,7 @@ def run_mysqld(cluster='existing'):
                 "GRANT PROCESS, RELOAD, LOCK TABLES, REPLICATION CLIENT ON *.* TO '{2}'@'127.0.0.1' ;\n"
                 "CREATE OR REPLACE USER '{4}'@'%' IDENTIFIED BY '{5}' ;\n"
                 "GRANT SELECT ON *.* TO '{4}'@'%' {6};\n"
-                "FLUSH PRIVILEGES ;\n"
-                "SHUTDOWN ;".format(mysql_dbadmin_username, mysql_dbadmin_password,
+                "FLUSH PRIVILEGES ;".format(mysql_dbadmin_username, mysql_dbadmin_password,
                                     mysql_dbsst_username, mysql_dbsst_password,
                                     mysql_dbaudit_username, mysql_dbaudit_password,
                                     mysql_x509))
@@ -862,14 +891,26 @@ def run_mysqld(cluster='existing'):
         with open(bootstrap_sql_file, 'w') as f:
             f.write(template)
             f.close()
-        run_cmd_with_logging([
+        run_cmd_with_logging_thread = threading.Thread(target=run_cmd_with_logging, args=([
             MYSQL_BINARY_NAME, '--bind-address=127.0.0.1', '--wsrep-on=false',
             "--init-file={0}".format(bootstrap_sql_file)
-        ], logger)
+        ], logger))
+        run_cmd_with_logging_thread.start()
+        wait_mysql_status()
+        logger.info("Upgrading local mysql instance")
+        upgrade_cmd=['mysql_upgrade', '--skip-write-binlog',
+                     "--user={0}".format(mysql_dbadmin_username),
+                     "--password={0}".format(mysql_dbadmin_password)]
+        if mysql_x509:
+            upgrade_cmd.extend(MYSQL_SSL_CMD_OPTS)
+        upgrade_res = run_cmd_with_logging(upgrade_cmd, logger)
+        if upgrade_res != 0:
+            raise Exception('Mysql upgrade failed, cannot proceed')
+        stop_mysqld()
         os.remove(bootstrap_sql_file)
     else:
         logger.info(
-            "This is a fresh node joining the cluster for the 1st time, not attempting to set admin passwords"
+            "This is a fresh node joining the cluster for the 1st time, not attempting to set admin passwords or upgrading"
         )
 
     # Node ready to start MariaDB, update cluster state to live and remove
