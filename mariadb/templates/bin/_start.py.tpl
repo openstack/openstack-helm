@@ -784,7 +784,7 @@ monitor_cluster_thread.daemon = True
 
 def launch_cluster_monitor():
     """Launch grastate configmap updating thread"""
-    if not monitor_cluster_thread.isAlive():
+    if not monitor_cluster_thread.is_alive():
         monitor_cluster_thread.start()
 
 
@@ -808,7 +808,7 @@ leader_election_thread.daemon = True
 
 def launch_leader_election():
     """Launch leader election thread"""
-    if not leader_election_thread.isAlive():
+    if not leader_election_thread.is_alive():
         leader_election_thread.start()
 
 
