@@ -49,6 +49,10 @@ logger.addHandler(ch)
 local_hostname = socket.gethostname()
 logger.info("This instance hostname: {0}".format(local_hostname))
 
+# Get local node IP address
+local_ip = socket.gethostbyname(local_hostname)
+logger.info("This instance IP address: {0}".format(local_ip))
+
 # Get the instance number
 instance_number = local_hostname.split("-")[-1]
 logger.info("This instance number: {0}".format(instance_number))
@@ -270,18 +274,14 @@ def mysqld_write_cluster_conf(mode='run'):
     for node in range(int(mariadb_replicas)):
         node_hostname = "{0}-{1}".format(pod_name_prefix, node)
         if local_hostname == node_hostname:
-            wsrep_node_address = "{0}.{1}:{2}".format(
-                node_hostname, discovery_domain, wsrep_port)
-            cluster_config_params['wsrep_node_address'] = wsrep_node_address
+            cluster_config_params['wsrep_node_address'] = local_ip
             wsrep_node_name = "{0}.{1}".format(node_hostname, discovery_domain)
             cluster_config_params['wsrep_node_name'] = wsrep_node_name
-        else:
-            addr = "{0}.{1}:{2}".format(node_hostname, discovery_domain,
-                                        wsrep_port)
-            wsrep_cluster_members.append(addr)
-    if wsrep_cluster_members and mode == 'run':
-        cluster_config_params['wsrep_cluster_address'] = "gcomm://{0}".format(
-            ",".join(wsrep_cluster_members))
+
+    if mode == 'run':
+        cluster_config_params['wsrep_cluster_address'] = "gcomm://{0}:{1}".format(
+            discovery_domain, wsrep_port)
+
     else:
         cluster_config_params['wsrep_cluster_address'] = "gcomm://"
     cluster_config_file = '/etc/mysql/conf.d/10-cluster-config.cnf'
@@ -913,14 +913,6 @@ def run_mysqld(cluster='existing'):
             "This is a fresh node joining the cluster for the 1st time, not attempting to set admin passwords or upgrading"
         )
 
-    # Node ready to start MariaDB, update cluster state to live and remove
-    # reboot node info, if set previously.
-    if cluster == 'new':
-        set_configmap_annotation(
-            key='openstackhelm.openstack.org/cluster.state', value='live')
-        set_configmap_annotation(
-            key='openstackhelm.openstack.org/reboot.node', value='')
-
     logger.info("Launching MariaDB")
     run_cmd_with_logging(mysqld_cmd, logger)
 
@@ -1003,6 +995,8 @@ elif get_cluster_state() == 'live':
                     "it")
                 while not check_for_active_nodes():
                     time.sleep(default_sleep)
+                set_configmap_annotation(
+                    key='openstackhelm.openstack.org/cluster.state', value='live')
                 run_mysqld()
 elif get_cluster_state() == 'reboot':
     reboot_node = get_configmap_value(
