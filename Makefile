@@ -14,6 +14,9 @@
 SHELL := /bin/bash
 HELM  := helm
 TASK  := build
+HELM_DOCS := tools/helm-docs
+UNAME_OS := $(shell uname -s)
+UNAME_ARCH := $(shell uname -m)
 
 PKG_ARGS =
 ifdef VERSION
@@ -24,10 +27,10 @@ ifdef PACKAGE_DIR
 	PKG_ARGS += --destination $(PACKAGE_DIR)
 endif
 
-EXCLUDES := helm-toolkit doc tests tools logs tmp zuul.d releasenotes roles
-CHARTS := helm-toolkit $(filter-out $(EXCLUDES), $(patsubst %/.,%,$(wildcard */.)))
+CHART_DIRS := $(subst /,,$(dir $(wildcard */Chart.yaml)))
+CHARTS := $(sort helm-toolkit $(CHART_DIRS))
 
-.PHONY: $(EXCLUDES) $(CHARTS)
+.PHONY: $(CHARTS)
 
 all: $(CHARTS)
 
@@ -37,6 +40,17 @@ $(CHARTS):
 		echo "===== Processing [$@] chart ====="; \
 		make $(TASK)-$@; \
 	fi
+
+HELM_DOCS_VERSION ?= 1.14.2
+.PHONY: helm-docs ## Download helm-docs locally if necessary
+helm-docs: $(HELM_DOCS)
+$(HELM_DOCS):
+	{ \
+		curl -fsSL -o tools/helm-docs.tar.gz https://github.com/norwoodj/helm-docs/releases/download/v$(HELM_DOCS_VERSION)/helm-docs_$(HELM_DOCS_VERSION)_$(UNAME_OS)_$(UNAME_ARCH).tar.gz && \
+		tar -zxf tools/helm-docs.tar.gz -C tools helm-docs && \
+		rm -f tools/helm-docs.tar.gz && \
+		chmod +x tools/helm-docs; \
+	}
 
 init-%:
 	if [ -f $*/Makefile ]; then make -C $*; fi

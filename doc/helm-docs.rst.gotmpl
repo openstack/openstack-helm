@@ -1,0 +1,41 @@
+{{- define "chart.valueDefaultColumnRender" }}
+{{- $defaultValue := (default .Default .AutoDefault)  -}}
+{{- $notationType := .NotationType }}
+{{- if (and (hasPrefix "```" $defaultValue) (hasSuffix "```" $defaultValue) ) -}}
+{{- $defaultValue = (toPrettyJson (fromJson (trimAll "```" (default .Default .AutoDefault) ) ) ) -}}
+{{- $notationType = "json" }}
+{{- end -}}
+{{- if contains "\\n" $defaultValue }}
+{{- $notationType = "default" }}
+{{- end }}
+{{- if eq $notationType "" -}}
+{{ $defaultValue }}
+{{- else -}}
+.. code-block:: {{ $notationType }}
+
+{{ (trimAll "`" $defaultValue | trimAll "\"" | replace "\\n" "\n") | indent 10 }}
+{{- end }}
+{{- end }}
+
+{{ title .Name }}
+{{ repeat (len .Name) "=" }}
+
+There are various customizations you can do to tailor the deployment of
+OpenStack {{ title .Name }}. You can find those below.
+
+==================
+General Parameters
+==================
+
+   {{- define "chart.generalParamsvaluesTable" }}
+     {{- range .Values }}
+   * {{ .Key }}
+
+     * Type: {{ .Type }}
+     * Description: {{ if .Description }}{{ .Description }}{{ else }}{{ .AutoDescription }}{{ end }}
+     * {{ template "chart.valueDefaultColumnRender" . }}
+
+     {{- end }}
+   {{- end }}
+
+   {{ template "chart.generalParamsvaluesTable" . }}
