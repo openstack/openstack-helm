@@ -17,5 +17,5 @@ limitations under the License.
 set -ex
 
 exec nova-compute \
-      --config-file /etc/nova/nova.conf \
+      --config-file /etc/nova/nova-compute.conf \
       --config-file /etc/nova/nova-ironic.conf
