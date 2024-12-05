@@ -23,30 +23,18 @@ that are tested and proved to work.
      - Host OS
      - Image OS
      - Kubernetes version
-   * - Zed
-     - Ubuntu Focal
-     - Ubuntu Focal
-     - >=1.26,<=1.28
-   * - Zed
-     - Ubuntu Jammy
-     - Ubuntu Jammy
-     - >=1.26,<=1.28
-   * - 2023.1 (Antelope)
-     - Ubuntu Focal
-     - Ubuntu Focal
-     - >=1.26,<=1.28
-   * - 2023.1 (Antelope)
-     - Ubuntu Jammy
-     - Ubuntu Jammy
-     - >=1.26,<=1.28
    * - 2023.2 (Bobcat)
      - Ubuntu Jammy
      - Ubuntu Jammy
-     - >=1.26,<=1.28
+     - >=1.29,<=1.31
    * - 2024.1 (Caracal)
      - Ubuntu Jammy
      - Ubuntu Jammy
-     - >=1.26,<=1.28
+     - >=1.29,<=1.31
+   * - 2024.2 (Dalmatian)
+     - Ubuntu Jammy
+     - Ubuntu Jammy
+     - >=1.29,<=1.31
 
 Communication
 -------------
