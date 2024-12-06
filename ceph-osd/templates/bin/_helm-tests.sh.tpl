@@ -16,6 +16,17 @@ limitations under the License.
 
 set -ex
 
+function wait_for_degraded_objects () {
+  echo "#### Start: Checking for degraded objects ####"
+
+  # Loop until no degraded objects
+    while [[ ! -z "`ceph --cluster ${CLUSTER} -s | grep 'degraded'`" ]]
+    do
+      sleep 30
+      ceph -s
+    done
+}
+
 function check_osd_count() {
   echo "#### Start: Checking OSD count ####"
   noup_flag=$(ceph osd stat | awk '/noup/ {print $2}')
@@ -38,20 +49,26 @@ function check_osd_count() {
       fi
     done
     echo "Caution: noup flag is set. ${count} OSDs in up/new state. Required number of OSDs: ${MIN_OSDS}."
-    if [ $MIN_OSDS -gt $count ]; then
-      exit 1
-    fi
+    exit 0
   else
     if [ "${num_osd}" -eq 0 ]; then
       echo "There are no osds in the cluster"
-      exit 1
     elif [ "${num_in_osds}" -ge "${MIN_OSDS}" ] && [ "${num_up_osds}" -ge "${MIN_OSDS}"  ]; then
       echo "Required number of OSDs (${MIN_OSDS}) are UP and IN status"
+      exit 0
     else
       echo "Required number of OSDs (${MIN_OSDS}) are NOT UP and IN status. Cluster shows OSD count=${num_osd}, UP=${num_up_osds}, IN=${num_in_osds}"
-      exit 1
     fi
   fi
 }
 
-check_osd_count
+# in case the chart has been re-installed in order to make changes to daemonset
+# we do not need rack_by_rack restarts
+# but we need to wait until all re-installed ceph-osd pods are healthy
+# and there is degraded objects
+while true; do
+  check_osd_count
+  sleep 10
+done
+wait_for_degraded_objects
+ceph -s

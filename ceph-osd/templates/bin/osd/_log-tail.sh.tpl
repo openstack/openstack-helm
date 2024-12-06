@@ -25,8 +25,9 @@ function tail_file () {
   while $keep_running; do
     tail --retry -f "${log_file}" &
     tail_pid=$!
+    echo $tail_pid > /tmp/ceph-log-runner.pid
     wait $tail_pid
-    sleep 1
+    sleep 10
   done
 }
 

@@ -111,7 +111,7 @@ function wait_for_pgs () {
     else
       (( pgs_ready+=1 ))
     fi
-    sleep 3
+    sleep 30
   done
 }
 
@@ -121,7 +121,7 @@ function wait_for_degraded_objects () {
   # Loop until no degraded objects
     while [[ ! -z "`ceph --cluster ${CLUSTER} -s | grep 'degraded'`" ]]
     do
-      sleep 3
+      sleep 30
       ceph -s
     done
 }
@@ -132,7 +132,7 @@ function wait_for_degraded_and_misplaced_objects () {
   # Loop until no degraded or misplaced objects
     while [[ ! -z "`ceph --cluster ${CLUSTER} -s | grep 'degraded\|misplaced'`" ]]
     do
-      sleep 3
+      sleep 30
       ceph -s
     done
 }
@@ -148,14 +148,17 @@ function restart_by_rack() {
      echo "hosts count under $rack are: ${#hosts_in_rack[@]}"
      for host in ${hosts_in_rack[@]}
      do
-       echo "host is : $host"
-       if [[ ! -z "$host" ]]; then
-         pods_on_host=`kubectl get po -n $CEPH_NAMESPACE -l component=osd -o wide |grep $host|awk '{print $1}'`
-         echo "Restartig  the pods under host $host"
-         kubectl delete  po -n $CEPH_NAMESPACE $pods_on_host
-       fi
+      echo "host is : $host"
+      if [[ ! -z "$host" ]]; then
+        pods_on_host=$(kubectl get po -n "$CEPH_NAMESPACE" -l component=osd -o wide |grep "$host"|awk '{print $1}' | tr '\n' ' '|sed 's/ *$//g')
+        echo "Restarting  the pods under host $host"
+        for pod in ${pods_on_host}
+        do
+          kubectl delete  pod -n "$CEPH_NAMESPACE" "${pod}" || true
+        done
+      fi
      done
-     echo "waiting for the pods under rack $rack from restart"
+     echo "waiting for the pods under host $host from restart"
      # The pods will not be ready in first 60 seconds. Thus we can reduce
      # amount of queries to kubernetes.
      sleep 60
