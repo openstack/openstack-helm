@@ -13,11 +13,10 @@
 #    under the License.
 set -xe
 
-export FEATURE_GATES="ovn"
-
-#NOTE: Get the over-rides to use
-export HELM_CHART_ROOT_PATH="${HELM_CHART_ROOT_PATH:="${OSH_INFRA_PATH:="../openstack-helm-infra"}"}"
-: ${OSH_EXTRA_HELM_ARGS_OVN:="$(helm osh get-values-overrides ${DOWNLOAD_OVERRIDES:-} -p ${HELM_CHART_ROOT_PATH} -c ovn ${FEATURES})"}
+#NOTE: Define variables
+: ${OSH_INFRA_HELM_REPO:="../openstack-helm-infra"}
+: ${OSH_INFRA_VALUES_OVERRIDES_PATH:="../openstack-helm-infra/values_overrides"}
+: ${OSH_EXTRA_HELM_ARGS_OVN:="$(helm osh get-values-overrides ${DOWNLOAD_OVERRIDES:-} -p ${OSH_INFRA_VALUES_OVERRIDES_PATH} -c ovn ${FEATURES})"}
 
 tee /tmp/ovn.yaml << EOF
 volume:
@@ -36,7 +35,7 @@ EOF
 
 #NOTE: Deploy command
 : ${OSH_EXTRA_HELM_ARGS:=""}
-helm upgrade --install ovn ${HELM_CHART_ROOT_PATH}/ovn \
+helm upgrade --install ovn ${OSH_INFRA_HELM_REPO}/ovn \
   --namespace=openstack \
   --values=/tmp/ovn.yaml \
   ${OSH_EXTRA_HELM_ARGS} \

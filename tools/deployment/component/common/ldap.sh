@@ -16,8 +16,8 @@ set -xe
 
 #NOTE: Define variables
 : ${OSH_INFRA_HELM_REPO:="../openstack-helm-infra"}
-: ${OSH_INFRA_PATH:="../openstack-helm-infra"}
-: ${OSH_EXTRA_HELM_ARGS_LDAP:="$(helm osh get-values-overrides ${DOWNLOAD_OVERRIDES:-} -p ${OSH_INFRA_PATH} -c ldap ${FEATURES})"}
+: ${OSH_INFRA_VALUES_OVERRIDES_PATH:="../openstack-helm-infra/values_overrides"}
+: ${OSH_EXTRA_HELM_ARGS_LDAP:="$(helm osh get-values-overrides ${DOWNLOAD_OVERRIDES:-} -p ${OSH_INFRA_VALUES_OVERRIDES_PATH} -c ldap ${FEATURES})"}
 
 #NOTE: Deploy command
 tee /tmp/ldap.yaml <<EOF

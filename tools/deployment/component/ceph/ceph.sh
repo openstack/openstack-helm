@@ -19,7 +19,7 @@ export CEPH_ENABLED=true
 : ${CEPH_OSD_DATA_DEVICE:="/dev/loop100"}
 : ${POD_NETWORK_CIDR:="10.244.0.0/24"}
 : ${OSH_INFRA_HELM_REPO:="../openstack-helm-infra"}
-: ${OSH_INFRA_PATH:="../openstack-helm-infra"}
+: ${OSH_INFRA_VALUES_OVERRIDES_PATH:="../openstack-helm-infra/values_overrides"}
 
 NUMBER_OF_OSDS="$(kubectl get nodes -l ceph-osd=enabled --no-headers | wc -l)"
 
@@ -181,7 +181,7 @@ for CHART in ceph-mon ceph-osd ceph-client ceph-provisioners; do
     --namespace=ceph \
     --values=/tmp/ceph.yaml \
     ${OSH_EXTRA_HELM_ARGS:=} \
-    ${OSH_EXTRA_HELM_ARGS_CEPH:-$(helm osh get-values-overrides ${DOWNLOAD_OVERRIDES:-} -p ${OSH_INFRA_PATH} -c ${CHART} ${FEATURES})}
+    ${OSH_EXTRA_HELM_ARGS_CEPH:-$(helm osh get-values-overrides ${DOWNLOAD_OVERRIDES:-} -p ${OSH_INFRA_VALUES_OVERRIDES_PATH} -c ${CHART} ${FEATURES})}
 
   #NOTE: Wait for deploy
   helm osh wait-for-pods ceph

@@ -85,7 +85,7 @@ implemented.
 Values overrides
 ~~~~~~~~~~~~~~~~
 Move values_overrides from all charts to a separate directory `values`
-with the hierarchy `values/<chart-name>/values_overrides/<feature1>_<feature2>.yaml`.
+with the hierarchy `values_overrides/<chart-name>/<feature1>_<feature2>.yaml`.
 The Openstack-Helm plugin is able to lookup the overrides in an arbitrary directory,
 but the directory structure must be as described above.
 
