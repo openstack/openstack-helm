@@ -17,7 +17,7 @@ set -xe
 
 #NOTE: Define variables
 : ${OSH_INFRA_HELM_REPO:="../openstack-helm-infra"}
-: ${OSH_INFRA_PATH:="../openstack-helm-infra"}
+: ${OSH_INFRA_VALUES_OVERRIDES_PATH:="../openstack-helm-infra/values_overrides"}
 
 helm upgrade --install ceph-adapter-rook ${OSH_INFRA_HELM_REPO}/ceph-adapter-rook \
   --namespace=openstack

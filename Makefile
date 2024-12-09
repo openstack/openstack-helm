@@ -24,10 +24,16 @@ ifdef PACKAGE_DIR
 	PKG_ARGS += --destination $(PACKAGE_DIR)
 endif
 
-EXCLUDES := helm-toolkit doc tests tools logs tmp roles playbooks releasenotes zuul.d
-CHARTS := helm-toolkit $(filter-out $(EXCLUDES), $(patsubst %/.,%,$(wildcard */.)))
+CHART_DIRS := $(subst /,,$(dir $(wildcard */Chart.yaml)))
+CHARTS := $(sort helm-toolkit $(CHART_DIRS))
 
-.PHONY: $(EXCLUDES) $(CHARTS)
+test:
+	echo > /tmp/charts
+	for c in $(CHARTS); do echo $$c >> /tmp/charts; done
+	echo > /tmp/chart_dirs
+	for c in $(CHART_DIRS); do echo $$c >> /tmp/chart_dirs; done
+
+.PHONY: $(CHARTS)
 
 all: $(CHARTS)
 

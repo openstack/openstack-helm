@@ -15,8 +15,8 @@
 set -xe
 
 : ${OSH_INFRA_HELM_REPO:="../openstack-helm-infra"}
-: ${OSH_INFRA_PATH:="../openstack-helm-infra"}
-: ${OSH_INFRA_EXTRA_HELM_ARGS_NAGIOS:="$(helm osh get-values-overrides -p ${OSH_INFRA_PATH} -c nagios ${FEATURES})"}
+: ${OSH_INFRA_VALUES_OVERRIDES_PATH:="../openstack-helm-infra/values_overrides"}
+: ${OSH_INFRA_EXTRA_HELM_ARGS_NAGIOS:="$(helm osh get-values-overrides -p ${OSH_INFRA_VALUES_OVERRIDES_PATH} -c nagios ${FEATURES})"}
 
 #NOTE: Deploy command
 helm upgrade --install nagios ${OSH_INFRA_HELM_REPO}/nagios \

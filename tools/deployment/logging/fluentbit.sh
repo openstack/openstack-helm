@@ -15,8 +15,8 @@
 set -xe
 
 : ${OSH_INFRA_HELM_REPO:="../openstack-helm-infra"}
-: ${OSH_INFRA_PATH:="../openstack-helm-infra"}
-: ${OSH_INFRA_EXTRA_HELM_ARGS_FLUENTBIT:="$(helm osh get-values-overrides -p ${OSH_INFRA_PATH} -c fluentbit ${FEATURES})"}
+: ${OSH_INFRA_VALUES_OVERRIDES_PATH:="../openstack-helm-infra/values_overrides"}
+: ${OSH_INFRA_EXTRA_HELM_ARGS_FLUENTBIT:="$(helm osh get-values-overrides -p ${OSH_INFRA_VALUES_OVERRIDES_PATH} -c fluentbit ${FEATURES})"}
 
 helm upgrade --install fluentbit ${OSH_INFRA_HELM_REPO}/fluentbit \
   --namespace=osh-infra \

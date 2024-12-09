@@ -15,8 +15,8 @@
 set -xe
 
 : ${OSH_INFRA_HELM_REPO:="../openstack-helm-infra"}
-: ${OSH_INFRA_PATH:="../openstack-helm-infra"}
-: ${OSH_EXTRA_HELM_ARGS_CEPH_RGW:="$(helm osh get-values-overrides -p ${OSH_INFRA_PATH} -c ceph-rgw ${FEATURES})"}
+: ${OSH_INFRA_VALUES_OVERRIDES_PATH:="../openstack-helm-infra/values_overrides"}
+: ${OSH_EXTRA_HELM_ARGS_CEPH_RGW:="$(helm osh get-values-overrides -p ${OSH_INFRA_VALUES_OVERRIDES_PATH} -c ceph-rgw ${FEATURES})"}
 
 #NOTE: Deploy command
 tee /tmp/radosgw-osh-infra.yaml <<EOF

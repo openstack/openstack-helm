@@ -15,7 +15,7 @@
 set -xe
 
 : ${OSH_INFRA_HELM_REPO:="../openstack-helm-infra"}
-: ${OSH_INFRA_PATH:="../openstack-helm-infra"}
+: ${OSH_INFRA_VALUES_OVERRIDES_PATH:="../openstack-helm-infra/values_overrides"}
 : ${OSH_INFRA_EXTRA_HELM_ARGS_MARIADB_BACKUP:="$(helm osh get-values-overrides -c mariadb-backup ${FEATURES})"}
 
 #NOTE: Deploy command

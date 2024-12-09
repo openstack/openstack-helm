@@ -15,8 +15,8 @@
 set -xe
 
 : ${OSH_INFRA_HELM_REPO:="../openstack-helm-infra"}
-: ${OSH_INFRA_PATH:="../openstack-helm-infra"}
-: ${OSH_INFRA_EXTRA_HELM_ARGS_LDAP:="$(helm osh get-values-overrides -p ${OSH_INFRA_PATH} -c ldap ${FEATURES})"}
+: ${OSH_INFRA_VALUES_OVERRIDES_PATH:="../openstack-helm-infra/values_overrides"}
+: ${OSH_INFRA_EXTRA_HELM_ARGS_LDAP:="$(helm osh get-values-overrides -p ${OSH_INFRA_VALUES_OVERRIDES_PATH} -c ldap ${FEATURES})"}
 : ${NAMESPACE:="osh-infra"}
 
 #NOTE: Deploy command

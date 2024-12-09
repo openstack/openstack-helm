@@ -15,7 +15,7 @@
 set -xe
 
 : ${OSH_INFRA_HELM_REPO:="../openstack-helm-infra"}
-: ${OSH_INFRA_PATH:="../openstack-helm-infra"}
+: ${OSH_INFRA_VALUES_OVERRIDES_PATH:="../openstack-helm-infra/values_overrides"}
 
 #NOTE: Deploy command
 tee /tmp/ceph-openstack-config.yaml <<EOF
@@ -38,7 +38,7 @@ conf:
     enabled: false
 EOF
 
-: ${OSH_INFRA_EXTRA_HELM_ARGS_CEPH_NS_ACTIVATE:="$(helm osh get-values-overrides ${DOWNLOAD_OVERRIDES:-} -p ${OSH_INFRA_PATH} -c ceph-provisioners ${FEATURES})"}
+: ${OSH_INFRA_EXTRA_HELM_ARGS_CEPH_NS_ACTIVATE:="$(helm osh get-values-overrides ${DOWNLOAD_OVERRIDES:-} -p ${OSH_INFRA_VALUES_OVERRIDES_PATH} -c ceph-provisioners ${FEATURES})"}
 
 helm upgrade --install ceph-openstack-config ${OSH_INFRA_HELM_REPO}/ceph-provisioners \
   --namespace=openstack \

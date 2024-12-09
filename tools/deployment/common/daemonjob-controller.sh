@@ -15,8 +15,8 @@ set -xe
 
 namespace="metacontroller"
 : ${OSH_INFRA_HELM_REPO:="../openstack-helm-infra"}
-: ${OSH_INFRA_PATH:="../openstack-helm-infra"}
-: ${HELM_ARGS_DAEMONJOB_CONTROLLER:="$(helm osh get-values-overrides -p ${OSH_INFRA_PATH} -c daemonjob-controller ${FEATURES})"}
+: ${OSH_INFRA_VALUES_OVERRIDES_PATH:="../openstack-helm-infra/values_overrides"}
+: ${HELM_ARGS_DAEMONJOB_CONTROLLER:="$(helm osh get-values-overrides -p ${OSH_INFRA_VALUES_OVERRIDES_PATH} -c daemonjob-controller ${FEATURES})"}
 
 #NOTE: Deploy command
 helm upgrade --install daemonjob-controller ${OSH_INFRA_HELM_REPO}/daemonjob-controller \
