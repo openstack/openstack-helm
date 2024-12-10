@@ -20,7 +20,7 @@ exec nova-manage db archive_deleted_rows \
 {{- if .Values.conf.archive_deleted_rows.until_completion }}
    --until-complete \
 {{- end}}
-{{- if .Values.conf.archive_deleted_rows.purge_delete_rows }}
+{{- if .Values.conf.archive_deleted_rows.purge_deleted_rows }}
    --purge \
 {{- end }}
 {{- if .Values.conf.archive_deleted_rows.all_cells }}
