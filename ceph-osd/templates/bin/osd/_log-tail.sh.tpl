@@ -27,7 +27,10 @@ function tail_file () {
     tail_pid=$!
     echo $tail_pid > /tmp/ceph-log-runner.pid
     wait $tail_pid
-    sleep 10
+    if [ -f /tmp/ceph-log-runner.stop ]; then
+      keep_running=false
+    fi
+    sleep 30
   done
 }
 

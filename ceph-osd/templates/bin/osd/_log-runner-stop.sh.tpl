@@ -18,6 +18,8 @@ set -ex
 
 source /tmp/utils-resolveLocations.sh
 
+touch /tmp/ceph-log-runner.stop
+
 TAIL_PID="$(cat /tmp/ceph-log-runner.pid)"
 while kill -0 ${TAIL_PID} >/dev/null 2>&1;
 do

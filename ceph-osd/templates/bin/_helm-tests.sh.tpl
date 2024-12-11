@@ -49,12 +49,18 @@ function check_osd_count() {
       fi
     done
     echo "Caution: noup flag is set. ${count} OSDs in up/new state. Required number of OSDs: ${MIN_OSDS}."
+    wait_for_degraded_objects
+    echo "There is  no degraded objects found"
+    ceph -s
     exit 0
   else
     if [ "${num_osd}" -eq 0 ]; then
       echo "There are no osds in the cluster"
     elif [ "${num_in_osds}" -ge "${MIN_OSDS}" ] && [ "${num_up_osds}" -ge "${MIN_OSDS}"  ]; then
       echo "Required number of OSDs (${MIN_OSDS}) are UP and IN status"
+      wait_for_degraded_objects
+      echo "There is  no degraded objects found"
+      ceph -s
       exit 0
     else
       echo "Required number of OSDs (${MIN_OSDS}) are NOT UP and IN status. Cluster shows OSD count=${num_osd}, UP=${num_up_osds}, IN=${num_in_osds}"
@@ -70,5 +76,4 @@ while true; do
   check_osd_count
   sleep 10
 done
-wait_for_degraded_objects
-ceph -s
+
