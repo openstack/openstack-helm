@@ -25,7 +25,7 @@ function tail_file () {
   while $keep_running; do
     tail --retry -f "${log_file}" &
     tail_pid=$!
-    echo $tail_pid > /tmp/ceph-log-runner.pid
+    echo $tail_pid > /tmp/ceph-log-runner-tail.pid
     wait $tail_pid
     if [ -f /tmp/ceph-log-runner.stop ]; then
       keep_running=false
@@ -37,6 +37,8 @@ function tail_file () {
 function truncate_log () {
   while $keep_running; do
     sleep ${TRUNCATE_PERIOD}
+    sleep_pid=$!
+    echo $sleep_pid > /tmp/ceph-log-runner-sleep.pid
     if [[ -f ${log_file} ]] ; then
       truncate -s "${TRUNCATE_SIZE}" "${log_file}"
     fi

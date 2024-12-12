@@ -26,3 +26,10 @@ do
   kill -9 ${TAIL_PID};
   sleep 1;
 done
+
+SLEEP_PID="$(cat /tmp/ceph-log-runner-sleep.pid)"
+while kill -0 ${SLEEP_PID} >/dev/null 2>&1;
+do
+  kill -9 ${SLEEP_PID};
+  sleep 1;
+done
