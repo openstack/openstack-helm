@@ -13,8 +13,14 @@
 #    under the License.
 set -xe
 
+#NOTE: Define variables
+: ${OSH_HELM_REPO:="../openstack-helm"}
+: ${OSH_VALUES_OVERRIDES_PATH:="../openstack-helm/values"}
+: ${OSH_EXTRA_HELM_ARGS_SENLIN:="$(helm osh get-values-overrides ${DOWNLOAD_OVERRIDES:-} -p ${OSH_VALUES_OVERRIDES_PATH} -c senlin ${FEATURES})"}
+: ${RUN_HELM_TESTS:="yes"}
+
 #NOTE: Deploy command
-helm upgrade --install senlin ./senlin \
+helm upgrade --install senlin ${OSH_HELM_REPO}/senlin \
   --namespace=openstack \
   --set pod.replicas.api=2 \
   --set pod.replicas.engine=2 \

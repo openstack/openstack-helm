@@ -13,10 +13,14 @@
 #    under the License.
 set -xe
 
+#NOTE: Define variables
+: ${OSH_HELM_REPO:="../openstack-helm"}
+: ${OSH_VALUES_OVERRIDES_PATH:="../openstack-helm/values"}
+: ${OSH_EXTRA_HELM_ARGS_MISTRAL:="$(helm osh get-values-overrides ${DOWNLOAD_OVERRIDES:-} -p ${OSH_VALUES_OVERRIDES_PATH} -c mistral ${FEATURES})"}
 : ${RUN_HELM_TESTS:="yes"}
 
 #NOTE: Deploy command
-helm upgrade --install mistral ./mistral \
+helm upgrade --install mistral ${OSH_HELM_REPO}/mistral \
   --namespace=openstack \
   --set pod.replicas.api=2 \
   --set pod.replicas.engine=2 \

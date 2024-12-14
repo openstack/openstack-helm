@@ -14,12 +14,14 @@
 
 set -xe
 
-#NOTE: Get the over-rides to use
-: ${OSH_EXTRA_HELM_ARGS_MANILA:="$(helm osh get-values-overrides ${DOWNLOAD_OVERRIDES:-} -c manila ${FEATURES})"}
+#NOTE: Define variables
+: ${OSH_HELM_REPO:="../openstack-helm"}
+: ${OSH_VALUES_OVERRIDES_PATH:="../openstack-helm/values"}
+: ${OSH_EXTRA_HELM_ARGS_MANILA:="$(helm osh get-values-overrides ${DOWNLOAD_OVERRIDES:-}  -p ${OSH_VALUES_OVERRIDES_PATH} -c manila ${FEATURES})"}
 : ${RUN_HELM_TESTS:="no"}
 
 #NOTE: Deploy command
-helm upgrade --install --debug manila ./manila \
+helm upgrade --install --debug manila ${OSH_HELM_REPO}/manila \
     --namespace=openstack \
     ${OSH_EXTRA_HELM_ARGS:=} \
     ${OSH_EXTRA_HELM_ARGS_MANILA:=}

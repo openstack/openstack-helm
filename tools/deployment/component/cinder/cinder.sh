@@ -15,8 +15,8 @@ set -xe
 
 #NOTE: Define variables
 : ${OSH_HELM_REPO:="../openstack-helm"}
-: ${OSH_PATH:="../openstack-helm"}
-: ${OSH_EXTRA_HELM_ARGS_CINDER:="$(helm osh get-values-overrides ${DOWNLOAD_OVERRIDES:-} -p ${OSH_PATH} -c cinder ${FEATURES})"}
+: ${OSH_VALUES_OVERRIDES_PATH:="../openstack-helm/values"}
+: ${OSH_EXTRA_HELM_ARGS_CINDER:="$(helm osh get-values-overrides ${DOWNLOAD_OVERRIDES:-} -p ${OSH_VALUES_OVERRIDES_PATH} -c cinder ${FEATURES})"}
 : ${RUN_HELM_TESTS:="yes"}
 
 #NOTE: Deploy command
