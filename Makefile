@@ -27,12 +27,6 @@ endif
 CHART_DIRS := $(subst /,,$(dir $(wildcard */Chart.yaml)))
 CHARTS := $(sort helm-toolkit $(CHART_DIRS))
 
-test:
-	echo > /tmp/charts
-	for c in $(CHARTS); do echo $$c >> /tmp/charts; done
-	echo > /tmp/chart_dirs
-	for c in $(CHART_DIRS); do echo $$c >> /tmp/chart_dirs; done
-
 .PHONY: $(CHARTS)
 
 all: $(CHARTS)
