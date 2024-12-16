@@ -54,7 +54,7 @@ $(HELM_DOCS):
 
 init-%:
 	if [ -f $*/Makefile ]; then make -C $*; fi
-	if [ -f $*/requirements.yaml ]; then $(HELM) dep up $*; fi
+	if grep -qE "^dependencies:" $*/Chart.yaml; then $(HELM) dep up $*; fi
 
 lint-%: init-%
 	if [ -d $* ]; then $(HELM) lint $*; fi
