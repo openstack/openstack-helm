@@ -12,6 +12,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- define "probeTemplate" }}
+{{- $health_path := tuple "key_manager" "healthcheck" "internal" . | include "helm-toolkit.endpoints.keystone_endpoint_path_lookup" }}
+httpGet:
+  scheme: {{ tuple "key_manager" "service" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_scheme_lookup" | upper }}
+  path: {{ $health_path }}
+  port: {{ tuple "key_manager" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+{{- end }}
+
 {{- if .Values.manifests.deployment_api }}
 {{- $envAll := . }}
 
@@ -62,6 +70,8 @@ spec:
 {{ tuple $envAll "barbican_api" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.api | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
 {{ dict "envAll" $envAll "application" "barbican" "container" "barbican_api" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+{{ dict "envAll" $envAll "component" "api" "container" "barbican-api" "type" "readiness" "probeTemplate" (include "probeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+{{ dict "envAll" $envAll "component" "api" "container" "barbican-api" "type" "liveness" "probeTemplate" (include "probeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
           command:
             - /tmp/barbican.sh
             - start
@@ -79,16 +89,6 @@ spec:
           ports:
             - name: b-api
               containerPort: {{ tuple "key_manager" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-          livenessProbe:
-            httpGet:
-              scheme: HTTP
-              path: /healthcheck
-              port: {{ tuple "key_manager" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-          readinessProbe:
-            httpGet:
-              scheme: HTTP
-              path: /healthcheck
-              port: {{ tuple "key_manager" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp

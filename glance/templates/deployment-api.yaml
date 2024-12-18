@@ -12,33 +12,20 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- define "readinessProbeTemplate" }}
+{{- define "probeTemplate" }}
+{{- $health_path := tuple "image" "healthcheck" "internal" . | include "helm-toolkit.endpoints.keystone_endpoint_path_lookup" }}
+{{- $health_port := tuple "image" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
 {{- if .Values.manifests.certificates }}
 exec:
-  command:
+    command:
     - python
     - -c
-    - "import requests; requests.get('http://127.0.0.1:{{ tuple "image" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}')"
+    - "import requests; requests.get('http://127.0.0.1:{{ $health_port }}{{ $health_path }}')"
 {{- else }}
 httpGet:
+  path: {{ $health_path }}
   scheme: {{ tuple "image" "service" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_scheme_lookup" | upper }}
-  path: /healthcheck
-  port: {{ tuple "image" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-{{- end }}
-{{- end }}
-
-{{- define "livenessProbeTemplate" }}
-{{- if .Values.manifests.certificates }}
-exec:
-  command:
-    - python
-    - -c
-    - "import requests; requests.get('http://127.0.0.1:{{ tuple "image" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}')"
-{{- else }}
-httpGet:
-  scheme: {{ tuple "image" "service" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_scheme_lookup" | upper }}
-  path: /healthcheck
-  port: {{ tuple "image" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+  port: {{ $health_port }}
 {{- end }}
 {{- end }}
 
@@ -178,8 +165,8 @@ spec:
 {{ tuple $envAll "glance_api" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.api | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
 {{ dict "envAll" $envAll "application" "glance" "container" "glance_api" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
-{{ dict "envAll" $envAll "component" "api" "container" "glance-api" "type" "readiness" "probeTemplate" (include "readinessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
-{{ dict "envAll" $envAll "component" "api" "container" "glance-api" "type" "liveness" "probeTemplate" (include "livenessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+{{ dict "envAll" $envAll "component" "api" "container" "glance-api" "type" "readiness" "probeTemplate" (include "probeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+{{ dict "envAll" $envAll "component" "api" "container" "glance-api" "type" "liveness" "probeTemplate" (include "probeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
           command:
             - /tmp/glance-api.sh
             - start
