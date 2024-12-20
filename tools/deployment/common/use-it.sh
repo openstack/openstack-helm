@@ -153,7 +153,7 @@ if openstack service list -f value -c Type | grep -q "^volume"; then
   DEVS_PRE_ATTACH=$(mktemp)
   ssh -i ${SSH_DIR}/osh_key ${IMAGE_USER}@${FLOATING_IP} lsblk > ${DEVS_PRE_ATTACH}
 
-  openstack stack list show "heat-vm-volume-attach" || \
+  openstack stack show "heat-vm-volume-attach" || \
   # Create and attach a block device to the instance
     openstack stack create --wait \
       --parameter instance_uuid=${INSTANCE_ID} \
