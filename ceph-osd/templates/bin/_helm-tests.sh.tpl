@@ -16,17 +16,6 @@ limitations under the License.
 
 set -ex
 
-function wait_for_degraded_objects () {
-  echo "#### Start: Checking for degraded objects ####"
-
-  # Loop until no degraded objects
-    while [[ ! -z "`ceph --cluster ${CLUSTER} -s | grep 'degraded'`" ]]
-    do
-      sleep 30
-      ceph -s
-    done
-}
-
 function check_osd_count() {
   echo "#### Start: Checking OSD count ####"
   noup_flag=$(ceph osd stat | awk '/noup/ {print $2}')
@@ -49,8 +38,6 @@ function check_osd_count() {
       fi
     done
     echo "Caution: noup flag is set. ${count} OSDs in up/new state. Required number of OSDs: ${MIN_OSDS}."
-    wait_for_degraded_objects
-    echo "There is  no degraded objects found"
     ceph -s
     exit 0
   else
@@ -58,8 +45,6 @@ function check_osd_count() {
       echo "There are no osds in the cluster"
     elif [ "${num_in_osds}" -ge "${MIN_OSDS}" ] && [ "${num_up_osds}" -ge "${MIN_OSDS}"  ]; then
       echo "Required number of OSDs (${MIN_OSDS}) are UP and IN status"
-      wait_for_degraded_objects
-      echo "There is  no degraded objects found"
       ceph -s
       exit 0
     else
@@ -74,6 +59,6 @@ function check_osd_count() {
 # and there is degraded objects
 while true; do
   check_osd_count
-  sleep 10
+  sleep 60
 done
 
