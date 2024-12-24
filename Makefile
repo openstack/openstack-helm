@@ -24,6 +24,8 @@ ifdef PACKAGE_DIR
 	PKG_ARGS += --destination $(PACKAGE_DIR)
 endif
 
+BASE_VERSION ?= 2024.2.0
+
 CHART_DIRS := $(subst /,,$(dir $(wildcard */Chart.yaml)))
 CHARTS := $(sort helm-toolkit $(CHART_DIRS))
 
@@ -44,7 +46,9 @@ lint-%: init-%
 	if [ -d $* ]; then $(HELM) lint $*; fi
 
 build-%: lint-%
-	if [ -d $* ]; then $(HELM) package $* $(PKG_ARGS); fi
+	if [ -d $* ]; then \
+		$(HELM) package $* --version $$(tools/chart_version.sh $* $(BASE_VERSION)) $(PKG_ARGS); \
+	fi
 
 clean:
 	@echo "Removed .b64, _partials.tpl, and _globals.tpl files"
