@@ -18,7 +18,7 @@ set -ex
 COMMAND="${@:-start}"
 
 function start () {
-  exec /bin/memcached_exporter
+  exec /bin/memcached_exporter --memcached.address "$MEMCACHED_HOST:$MEMCACHED_PORT"
 }
 
 function stop () {
