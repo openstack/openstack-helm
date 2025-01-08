@@ -33,7 +33,7 @@ class KekRewrap(object):
 
     def __init__(self, conf, old_kek):
         self.dry_run = False
-        self.db_engine = session.create_engine(conf.sql_connection)
+        self.db_engine = session.create_engine(conf.database.connection or conf.sql_connection)
         self._session_creator = scoping.scoped_session(
             orm.sessionmaker(
                 bind=self.db_engine,
