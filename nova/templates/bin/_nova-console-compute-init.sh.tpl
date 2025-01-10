@@ -28,6 +28,10 @@ elif [ "${console_kind}" == "spice" ] ; then
     client_interface="{{- .Values.console.spice.compute.server_proxyclient_interface -}}"
     client_network_cidr="{{- .Values.console.spice.compute.server_proxyclient_network_cidr -}}"
     listen_ip="{{- .Values.conf.nova.spice.server_listen -}}"
+elif [ "${console_kind}" == "serial" ] ; then
+    client_address="{{- .Values.conf.nova.serial_console.proxyclient_address -}}"
+    client_interface="{{- .Values.console.serial.compute.server_proxyclient_interface -}}"
+    client_network_cidr="{{- .Values.console.serial.compute.server_proxyclient_network_cidr -}}"
 fi
 
 if [ -z "${client_address}" ] ; then
@@ -60,5 +64,10 @@ elif [ "${console_kind}" == "spice" ] ; then
 [spice]
 server_proxyclient_address = $client_address
 server_listen = $listen_ip
+EOF
+elif [ "${console_kind}" == "serial" ] ; then
+  cat > /tmp/pod-shared/nova-console.conf <<EOF
+[serial_console]
+proxyclient_address = $client_address
 EOF
 fi

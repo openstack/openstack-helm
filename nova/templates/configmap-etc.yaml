@@ -211,6 +211,18 @@ limitations under the License.
 {{- end -}}
 {{- end -}}
 
+{{- if eq .Values.console.console_kind "serial"}}
+{{- $_ := "false" | set .Values.conf.nova.vnc "enabled" -}}
+{{- $_ := "false" | set .Values.conf.nova.spice "enabled" -}}
+{{- $_ := "true" | set .Values.conf.nova.serial_console "enabled" -}}
+{{- if empty .Values.conf.nova.serial_console.base_url -}}
+{{- $_ := tuple "compute_serial_proxy" "public" "serial_proxy" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" | set .Values.conf.nova.serial_console "base_url" -}}
+{{- end -}}
+{{- if empty .Values.conf.nova.serial_console.serialproxy_port -}}
+{{- $_ := tuple "compute_serial_proxy" "internal" "serial_proxy" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | set .Values.conf.nova.serial_console "serialproxy_port" -}}
+{{- end -}}
+{{- end -}}
+
 {{- if empty .Values.conf.nova.ironic.api_endpoint -}}
 {{- $_ := tuple "baremetal" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" | set .Values.conf.nova.ironic "api_endpoint" -}}
 {{- end -}}

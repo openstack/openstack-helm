@@ -231,6 +231,25 @@ spec:
               mountPath: /tmp/pod-shared
 {{ if $mounts_nova_compute.volumeMounts }}{{ toYaml $mounts_nova_compute.volumeMounts | indent 12 }}{{ end }}
         {{ end }}
+        {{- if eq .Values.console.console_kind "serial"}}
+        - name: nova-compute-serial-init
+{{ tuple $envAll "nova_compute" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.compute | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "nova" "container" "nova_compute_serial_init" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          command:
+            - /tmp/nova-console-compute-init.sh
+          terminationMessagePath: /var/log/termination-log
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: nova-bin
+              mountPath: /tmp/nova-console-compute-init.sh
+              subPath: nova-console-compute-init.sh
+              readOnly: true
+            - name: pod-shared
+              mountPath: /tmp/pod-shared
+{{ if $mounts_nova_compute.volumeMounts }}{{ toYaml $mounts_nova_compute.volumeMounts | indent 12 }}{{ end }}
+        {{ end }}
         {{- if ( has "tungstenfabric" .Values.network.backend ) }}
         - name: tungstenfabric-compute-init
           image: {{ .Values.images.tags.tf_compute_init }}

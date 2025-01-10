@@ -25,4 +25,8 @@ elif [ "${console_kind}" == "spice" ] ; then
     exec nova-spicehtml5proxy\
         --config-file /etc/nova/nova.conf \
         --config-file /tmp/pod-shared/nova-spice.ini
+elif [ "${console_kind}" == "serial" ] ; then
+    exec nova-serialproxy\
+        --config-file /etc/nova/nova.conf \
+        --config-file /tmp/pod-shared/nova-serial.ini
 fi
