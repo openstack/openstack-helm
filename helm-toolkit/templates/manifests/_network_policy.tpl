@@ -135,11 +135,53 @@ return: |
           port: 53
 */}}
 
+{{/*
+abstract: |
+  Creates a network policy manifest for services.
+values: |
+  network_policy:
+    myLabel:
+      spec:
+        <RAW SPEC>
+usage: |
+  {{ dict "envAll" . "name" "application" "label" "myLabel" | include "helm-toolkit.manifests.kubernetes_network_policy" }}
+
+return: |
+  ---
+  apiVersion: networking.k8s.io/v1
+  kind: NetworkPolicy
+  metadata:
+    name: RELEASE-NAME-myLabel-netpol
+    namespace: NAMESPACE
+  spec:
+    <RAW SPEC>
+*/}}
+
 {{- define "helm-toolkit.manifests.kubernetes_network_policy" -}}
 {{- $envAll := index . "envAll" -}}
 {{- $name := index . "name" -}}
 {{- $labels := index . "labels" | default nil -}}
 {{- $label := index . "key" | default (index . "label") -}}
+
+{{- $spec_labels := list  -}}
+{{- range $label, $value := $envAll.Values.network_policy }}
+{{- if hasKey $value "spec" }}
+{{- $spec_labels = append $spec_labels $label }}
+{{- end }}
+{{- end }}
+{{- if $spec_labels }}
+{{- range $label := $spec_labels }}
+{{- $raw_spec := (index $envAll.Values.network_policy $label "spec") }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $envAll.Release.Name }}-{{ $label | replace "_" "-" }}-netpol
+  namespace: {{ $envAll.Release.Namespace }}
+spec:
+{{ $raw_spec | toYaml | indent 2 }}
+{{- end }}
+{{- else }}
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -233,6 +275,7 @@ spec:
 {{- if index $envAll.Values.network_policy $label "ingress" }}
   ingress:
 {{ index $envAll.Values.network_policy $label "ingress" | toYaml | indent 4 }}
+{{- end }}
 {{- end }}
 {{- end }}
 {{- end }}
