@@ -12,13 +12,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if .Values.manifests.configmap_bin }}
-{{- $envAll := . }}
+{{- define "ovn.configmap.bin" }}
+{{- $configMapName := index . 0 }}
+{{- $envAll := index . 1 }}
+{{- with $envAll }}
 ---
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: ovn-bin
+  name: {{ $configMapName }}
 data:
 {{- if .Values.images.local_registry.active }}
   image-repo-sync.sh: |
@@ -26,4 +28,9 @@ data:
 {{- end }}
   ovn-controller-init.sh: |
 {{ tuple "bin/_ovn-controller-init.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
+{{- end }}
+{{- end }}
+
+{{- if .Values.manifests.configmap_bin }}
+{{- list "ovn-bin" . | include "ovn.configmap.bin" }}
 {{- end }}

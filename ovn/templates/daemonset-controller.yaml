@@ -21,12 +21,12 @@ exec:
     - ovn-controller
 {{- end }}
 
-{{- if .Values.manifests.daemonset_ovn_controller }}
-{{- $envAll := . }}
-
-{{- $configMapName := "ovn-etc" }}
-{{- $serviceAccountName := "ovn-controller" }}
-{{ tuple $envAll "ovn_controller" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{- define "ovn.daemonset" }}
+{{- $daemonset := index . 0 }}
+{{- $configMapName := index . 1 }}
+{{- $serviceAccountName := index . 2 }}
+{{- $envAll := index . 3 }}
+{{- with $envAll }}
 
 ---
 kind: DaemonSet
@@ -155,3 +155,45 @@ spec:
         - name: gw-enabled
           emptyDir: {}
 {{- end }}
+{{- end }}
+
+
+{{- if .Values.manifests.daemonset_ovn_controller }}
+{{- $envAll := . }}
+{{- $daemonset := "controller" }}
+{{- $configMapName := "ovn-etc" }}
+{{- $serviceAccountName := "ovn-controller" }}
+
+{{ tuple $envAll "ovn_controller" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{- $configmap_yaml := "ovn.configmap.etc" }}
+
+{{/* Preffer using .Values.overrides rather than .Values.conf.overrides */}}
+{{- list $daemonset "ovn.daemonset" $serviceAccountName $configmap_yaml $configMapName "ovn.configmap.bin" "ovn-bin" . | include "helm-toolkit.utils.daemonset_overrides_root" }}
+
+{{- $serviceAccountNamespace := $envAll.Release.Namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: ovn-controller-list-nodes-role-{{ $serviceAccountNamespace }}
+rules:
+- apiGroups: [""]
+  resources: ["nodes"]
+  verbs: ["list", "get"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: ovn-controller-list-nodes-rolebinding-{{ $serviceAccountNamespace }}
+subjects:
+- kind: ServiceAccount
+  name: {{ $serviceAccountName }}
+  namespace: {{ $serviceAccountNamespace }}
+roleRef:
+  kind: ClusterRole
+  name: ovn-controller-list-nodes-role-{{ $serviceAccountNamespace }}
+  apiGroup: rbac.authorization.k8s.io
+
+{{- end }}
+
