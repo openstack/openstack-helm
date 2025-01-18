@@ -119,7 +119,8 @@ function start () {
           -vconsole:err \
           -vconsole:info \
           --pidfile=${OVS_PID} \
-          --mlockall
+          --mlockall \
+          --user="{{ .Values.conf.ovs_user_name }}"
 }
 
 function stop () {
