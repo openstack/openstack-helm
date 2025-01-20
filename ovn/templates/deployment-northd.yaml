@@ -12,18 +12,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- define "livenessProbeTemplate" }}
+{{- define "northdReadinessProbeTemplate" }}
 exec:
   command:
-    - /tmp/ovn-northd.sh
-    - liveness
-{{- end }}
-
-{{- define "readinessProbeTemplate" }}
-exec:
-  command:
-    - /tmp/ovn-northd.sh
-    - readiness
+    - /usr/bin/ovn-kube-util
+    - readiness-probe
+    - -t
+    - ovn-northd
 {{- end }}
 
 {{- if .Values.manifests.deployment_northd }}
@@ -60,28 +55,27 @@ spec:
 {{- tuple $envAll "ovn_northd" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
         - name: northd
+          command:
+            - /root/ovnkube.sh
+            - run-ovn-northd
 {{ tuple $envAll "ovn_northd" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.ovn_northd | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
 {{ dict "envAll" $envAll "application" "ovn_northd" "container" "northd" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
-{{ dict "envAll" . "component" "ovn_northd" "container" "northd" "type" "liveness" "probeTemplate" (include "livenessProbeTemplate" . | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
-{{ dict "envAll" . "component" "ovn_northd" "container" "northd" "type" "readiness" "probeTemplate" (include "readinessProbeTemplate" . | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
-          command:
-            - /tmp/ovn-northd.sh
-            - start
-          lifecycle:
-            preStop:
-              exec:
-                command:
-                  - /tmp/ovn-northd.sh
-                  - stop
-          volumeMounts:
-            - name: ovn-bin
-              mountPath: /tmp/ovn-northd.sh
-              subPath: ovn-northd.sh
-              readOnly: true
-      volumes:
-        - name: ovn-bin
-          configMap:
-            name: ovn-bin
-            defaultMode: 0555
+{{ dict "envAll" . "component" "ovn_northd" "container" "northd" "type" "readiness" "probeTemplate" (include "northdReadinessProbeTemplate" . | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+{{ dict "envAll" . "component" "ovn_northd" "container" "northd" "type" "liveness" "probeTemplate" (include "northdReadinessProbeTemplate" . | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+          env:
+            - name: OVN_DAEMONSET_VERSION
+              value: "3"
+            - name: OVN_LOGLEVEL_NORTHD
+              value: "-vconsole:info -vfile:info"
+            - name: OVN_KUBERNETES_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: OVN_KUBERNETES_NB_STATEFULSET
+              value: ovn-ovsdb-nb
+            - name: OVN_KUBERNETES_SB_STATEFULSET
+              value: ovn-ovsdb-sb
+            - name: OVN_SSL_ENABLE
+              value: "no"
 {{- end }}

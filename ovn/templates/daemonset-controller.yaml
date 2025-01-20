@@ -12,37 +12,21 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- define "controllerReadinessProbeTemplate" }}
+exec:
+  command:
+    - /usr/bin/ovn-kube-util
+    - readiness-probe
+    - -t
+    - ovn-controller
+{{- end }}
+
 {{- if .Values.manifests.daemonset_ovn_controller }}
 {{- $envAll := . }}
 
 {{- $configMapName := "ovn-etc" }}
 {{- $serviceAccountName := "ovn-controller" }}
-{{- $serviceAccountNamespace := $envAll.Release.Namespace }}
 {{ tuple $envAll "ovn_controller" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
-
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: ovn-controller-list-nodes-role-{{ $serviceAccountNamespace }}
-rules:
-- apiGroups: [""]
-  resources: ["nodes"]
-  verbs: ["list", "get"]
-
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: ovn-controller-list-nodes-rolebinding-{{ $serviceAccountNamespace }}
-subjects:
-- kind: ServiceAccount
-  name: {{ $serviceAccountName }}
-  namespace: {{ $serviceAccountNamespace }}
-roleRef:
-  kind: ClusterRole
-  name: ovn-controller-list-nodes-role-{{ $serviceAccountNamespace }}
-  apiGroup: rbac.authorization.k8s.io
 
 ---
 kind: DaemonSet
@@ -97,6 +81,11 @@ spec:
 {{ tuple $envAll "ovn_controller" | include "helm-toolkit.snippets.image" | indent 10 }}
           command:
             - /tmp/ovn-controller-init.sh
+          env:
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
           volumeMounts:
             - name: ovn-bin
               mountPath: /tmp/ovn-controller-init.sh
@@ -117,24 +106,30 @@ spec:
 {{ tuple $envAll $envAll.Values.pod.resources.ovn_controller | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
 {{ dict "envAll" $envAll "application" "ovn_controller" "container" "controller" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
-            - /tmp/ovn-controller.sh
-            - start
-          lifecycle:
-            preStop:
-              exec:
-                command:
-                  - /tmp/ovn-controller.sh
-                  - stop
+            - /root/ovnkube.sh
+            - ovn-controller
+{{ dict "envAll" . "component" "ovn_controller" "container" "controller" "type" "readiness" "probeTemplate" (include "controllerReadinessProbeTemplate" . | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+          env:
+            - name: OVN_DAEMONSET_VERSION
+              value: "3"
+            - name: OVN_LOGLEVEL_CONTROLLER
+              value: "-vconsole:info -vfile:info"
+            - name: OVN_KUBERNETES_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: OVN_KUBERNETES_NB_STATEFULSET
+              value: ovn-ovsdb-nb
+            - name: OVN_KUBERNETES_SB_STATEFULSET
+              value: ovn-ovsdb-sb
+            - name: OVN_SSL_ENABLE
+              value: "no"
           volumeMounts:
-            - name: ovn-bin
-              mountPath: /tmp/ovn-controller.sh
-              subPath: ovn-controller.sh
-              readOnly: true
             - name: run-openvswitch
               mountPath: /run/openvswitch
             - name: logs
               mountPath: /var/log/ovn
-            - name: run-ovn
+            - name: run-openvswitch
               mountPath: /run/ovn
       volumes:
         - name: ovn-bin

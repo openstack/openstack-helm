@@ -53,12 +53,10 @@ labels:
 
 volume:
   ovn_ovsdb_nb:
-    path: /var/lib/ovn
     enabled: true
     class_name: general
     size: 5Gi
   ovn_ovsdb_sb:
-    path: /var/lib/ovn
     enabled: true
     class_name: general
     size: 5Gi
@@ -77,6 +75,8 @@ conf:
   ovn_encap_type: geneve
   ovn_bridge: br-int
   ovn_bridge_mappings: external:br-ex
+  # For DPDK enabled environments, enable netdev datapath type for br-int
+  # ovn_bridge_datapath_type: netdev
 
   # auto_bridge_add:
   #   br-private: eth0
@@ -126,13 +126,41 @@ pod:
         readiness:
           enabled: true
           params:
-            initialDelaySeconds: 5
-            timeoutSeconds: 10
-        liveness:
+            initialDelaySeconds: 30
+            timeoutSeconds: 30
+            periodSeconds: 60
+    ovn_ovsdb_nb:
+      ovsdb:
+        readiness:
           enabled: true
           params:
-            initialDelaySeconds: 5
-            timeoutSeconds: 10
+            initialDelaySeconds: 30
+            timeoutSeconds: 30
+            periodSeconds: 60
+    ovn_ovsdb_sb:
+      ovsdb:
+        readiness:
+          enabled: true
+          params:
+            initialDelaySeconds: 30
+            timeoutSeconds: 30
+            periodSeconds: 60
+    ovn_controller:
+      controller:
+        readiness:
+          enabled: true
+          params:
+            initialDelaySeconds: 30
+            timeoutSeconds: 30
+            periodSeconds: 60
+    ovn_controller_gw:
+      controller:
+        readiness:
+          enabled: true
+          params:
+            initialDelaySeconds: 30
+            timeoutSeconds: 30
+            periodSeconds: 60
   dns_policy: "ClusterFirstWithHostNet"
   replicas:
     ovn_ovsdb_nb: 1
@@ -162,18 +190,18 @@ pod:
     enabled: false
     ovn_ovsdb_nb:
       requests:
-        memory: "128Mi"
+        memory: "384Mi"
         cpu: "100m"
       limits:
         memory: "1024Mi"
-        cpu: "2000m"
+        cpu: "1000m"
     ovn_ovsdb_sb:
       requests:
-        memory: "128Mi"
+        memory: "384Mi"
         cpu: "100m"
       limits:
         memory: "1024Mi"
-        cpu: "2000m"
+        cpu: "1000m"
     ovn_northd:
       requests:
         memory: "128Mi"
