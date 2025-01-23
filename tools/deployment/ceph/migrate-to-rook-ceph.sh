@@ -21,8 +21,8 @@ set -x
 # The default values deploy the Rook operator in the rook-ceph namespace and
 # the Ceph cluster in the ceph namespace using rook-operator.yaml and
 # rook-ceph.yaml in the current directory.
-ROOK_RELEASE=${ROOK_RELEASE:-1.13.7}
-CEPH_RELEASE=${CEPH_RELEASE:-18.2.2}
+ROOK_RELEASE=${ROOK_RELEASE:-1.16.3}
+CEPH_RELEASE=${CEPH_RELEASE:-19.2.1}
 ROOK_CEPH_NAMESPACE=${ROOK_CEPH_NAMESPACE:-rook-ceph}
 CEPH_NAMESPACE=${CEPH_NAMESPCE:-ceph}
 ROOK_OPERATOR_YAML=${ROOK_OPERATOR_YAML:-/tmp/rook-operator.yaml}
@@ -51,6 +51,7 @@ function wait_for_initial_rook_deployment() {
            "$(app_status rook-ceph-osd-prepare)" != "Succeeded" ]]
   do
     echo "Waiting for INITIAL Rook Ceph deployment ..."
+    kubectl -n ${CEPH_NAMESPACE} get pods
     sleep 5
   done
   set -x
@@ -75,6 +76,7 @@ function wait_for_full_rook_deployment() {
            "$(app_status rook-ceph-rgw)" != "Running" ]]
   do
     echo "Waiting for FULL Rook Ceph deployment ..."
+    kubectl -n ${CEPH_NAMESPACE} get pods
     sleep 5
   done
   set -x
