@@ -82,3 +82,28 @@ Our repositories:
 * Building Openstack images framework `loci <https://opendev.org/openstack/loci.git>`_
 
 We welcome contributions in any form: code review, code changes, usage feedback, updating documentation.
+
+Release notes
+-------------
+
+We use `reno <https://opendev.org/openstack/reno.git>`_ for managing release notes. If you update
+a chart, please add a release note using the following command:
+
+.. code-block:: bash
+
+    reno new <chart_name>
+
+This will create a new release note file ``releasenotes/notes/<chart_name>-<sha>.yaml``. Fill in the
+necessary information and commit the release note file.
+
+If you update multiple charts in a single commit use the following command:
+
+.. code-block:: bash
+
+    reno new common
+
+This will create a new release note file ``releasenotes/notes/common-<sha>.yaml``. In this case you
+can add multiple chart specific sections in this release note file.
+
+When building tarballы, we will use the ``reno`` features to combine release notes from all files and
+generate  ``<chart_name>/CHANGELOG.md`` files.

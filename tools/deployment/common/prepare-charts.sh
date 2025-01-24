@@ -16,8 +16,8 @@ set -ex
 # Build all OSH Infra charts (necessary for Openstack deployment)
 (
     cd ${OSH_INFRA_PATH:-"../openstack-helm-infra"} &&
-    make all
+    make all SKIP_CHANGELOG=1
 )
 
 # Build all OSH charts
-make all
+make all SKIP_CHANGELOG=1
