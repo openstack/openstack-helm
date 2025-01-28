@@ -140,10 +140,10 @@ except:
 try:
     with root_engine.connect() as connection:
         connection.execute(
-            text("CREATE USER IF NOT EXISTS \'{0}\'@\'%%\' IDENTIFIED BY \'{1}\' {2}".format(
+            text("CREATE USER IF NOT EXISTS \'{0}\'@\'%\' IDENTIFIED BY \'{1}\' {2}".format(
                 user, password, mysql_x509)))
         connection.execute(
-            text("GRANT ALL ON `{0}`.* TO \'{1}\'@\'%%\'".format(database, user)))
+            text("GRANT ALL ON `{0}`.* TO \'{1}\'@\'%\'".format(database, user)))
         try:
             connection.commit()
         except AttributeError:
