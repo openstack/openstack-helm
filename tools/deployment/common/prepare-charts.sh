@@ -14,10 +14,10 @@
 set -ex
 
 # Build all OSH charts
-make all
+make all SKIP_CHANGELOG=1
 
 # Build all OSH charts (necessary for Openstack deployment)
 (
     cd ${OSH_PATH:-"../openstack-helm"} &&
-    make all
+    make all  SKIP_CHANGELOG=1
 )

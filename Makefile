@@ -14,6 +14,12 @@
 SHELL := /bin/bash
 HELM := helm
 TASK := build
+PYTHON := python3
+# We generate CHANGELOG.md files by default which
+# requires reno>=4.1.0 installed.
+# To skip generating it use the following:
+# make all SKIP_CHANGELOG=1
+SKIP_CHANGELOG ?= 0
 
 PKG_ARGS =
 ifdef VERSION
@@ -45,7 +51,11 @@ init-%:
 lint-%: init-%
 	if [ -d $* ]; then $(HELM) lint $*; fi
 
-build-%: lint-%
+# reno required for changelog generation
+%/CHANGELOG.md:
+	if [ -d $* ]; then $(PYTHON) tools/changelog.py --charts $*; fi
+
+build-%: lint-% $(if $(filter-out 1,$(SKIP_CHANGELOG)),%/CHANGELOG.md)
 	if [ -d $* ]; then \
 		$(HELM) package $* --version $$(tools/chart_version.sh $* $(BASE_VERSION)) $(PKG_ARGS); \
 	fi
