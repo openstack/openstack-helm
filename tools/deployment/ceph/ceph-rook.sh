@@ -394,10 +394,10 @@ cephClusterSpec:
   continueUpgradeAfterChecksEvenIfNotHealthy: false
   waitTimeoutForHealthyOSDInMinutes: 10
   mon:
-    count: 1
+    count: 3
     allowMultiplePerNode: false
   mgr:
-    count: 1
+    count: 3
     allowMultiplePerNode: false
     modules:
       - name: pg_autoscaler
@@ -636,6 +636,28 @@ EOF
 
 helm upgrade --install --create-namespace --namespace ceph rook-ceph-cluster --set operatorNamespace=rook-ceph rook-release/rook-ceph-cluster --version ${ROOK_RELEASE} -f /tmp/ceph.yaml
 
+TOOLS_POD=$(kubectl get pods \
+  --namespace=ceph \
+  --selector="app=rook-ceph-tools" \
+  --no-headers | awk '{ print $1; exit }')
+
+helm osh wait-for-pods rook-ceph
+
+kubectl wait --namespace=ceph --for=condition=ready pod --selector=app=rook-ceph-tools --timeout=600s
+
+# Wait for all monitor pods to be ready
+MON_PODS=$(kubectl get pods --namespace=ceph --selector=app=rook-ceph-mon --no-headers | awk '{ print $1 }')
+for MON_POD in $MON_PODS; do
+  if kubectl get pod --namespace=ceph "$MON_POD" > /dev/null 2>&1; then
+    kubectl wait --namespace=ceph --for=condition=ready "pod/$MON_POD" --timeout=600s
+  else
+    echo "Pod $MON_POD not found, skipping..."
+  fi
+done
+
+echo "=========== CEPH K8S PODS LIST ============"
+kubectl get pods -n rook-ceph -o wide
+kubectl get pods -n ceph -o wide
 #NOTE: Wait for deploy
 RGW_POD=$(kubectl get pods \
   --namespace=ceph \
@@ -644,6 +666,12 @@ RGW_POD=$(kubectl get pods \
 while [[ -z "${RGW_POD}" ]]
 do
   sleep 5
+  echo "=========== CEPH STATUS ============"
+  kubectl exec -n ceph ${TOOLS_POD} -- ceph -s
+  echo "=========== CEPH OSD POOL LIST ============"
+  kubectl exec -n ceph ${TOOLS_POD} -- ceph osd pool ls
+  echo "=========== CEPH K8S PODS LIST ============"
+  kubectl get pods -n ceph -o wide
   RGW_POD=$(kubectl get pods \
     --namespace=ceph \
     --selector="app=rook-ceph-rgw" \
@@ -652,8 +680,4 @@ done
 helm osh wait-for-pods ceph
 
 #NOTE: Validate deploy
-TOOLS_POD=$(kubectl get pods \
-  --namespace=ceph \
-  --selector="app=rook-ceph-tools" \
-  --no-headers | awk '{ print $1; exit }')
 kubectl exec -n ceph ${TOOLS_POD} -- ceph -s
