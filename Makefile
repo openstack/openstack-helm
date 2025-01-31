@@ -12,11 +12,17 @@
 
 # It's necessary to set this because some environments don't link sh -> bash.
 SHELL := /bin/bash
-HELM  := helm
+HELM := helm
+PYTHON := python3
 TASK  := build
 HELM_DOCS := tools/helm-docs
 UNAME_OS := $(shell uname -s)
 UNAME_ARCH := $(shell uname -m)
+# We generate CHANGELOG.md files by default which
+# requires reno>=4.1.0 installed.
+# To skip generating it use the following:
+# make all SKIP_CHANGELOG=1
+SKIP_CHANGELOG ?= 0
 
 PKG_ARGS =
 ifdef VERSION
@@ -35,6 +41,9 @@ CHARTS := $(sort helm-toolkit $(CHART_DIRS))
 .PHONY: $(CHARTS)
 
 all: $(CHARTS)
+
+charts:
+	@echo $(CHART_DIRS)
 
 $(CHARTS):
 	@if [ -d $@ ]; then \
@@ -61,7 +70,11 @@ init-%:
 lint-%: init-%
 	if [ -d $* ]; then $(HELM) lint $*; fi
 
-build-%: lint-%
+# reno required for changelog generation
+%/CHANGELOG.md:
+	if [ -d $* ]; then $(PYTHON) tools/changelog.py --charts $*; fi
+
+build-%: lint-% $(if $(filter-out 1,$(SKIP_CHANGELOG)),%/CHANGELOG.md)
 	if [ -d $* ]; then \
 		$(HELM) package $* --version $$(tools/chart_version.sh $* $(BASE_VERSION)) $(PKG_ARGS); \
 	fi
