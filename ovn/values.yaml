@@ -27,6 +27,8 @@ images:
     ovn_controller_kubectl: docker.io/openstackhelm/ceph-config-helper:latest-ubuntu_jammy
     dep_check: quay.io/airshipit/kubernetes-entrypoint:latest-ubuntu_focal
     image_repo_sync: docker.io/library/docker:17.07.0
+    vector: docker.io/timberio/vector:0.39.0-debian
+    ovn_logging_parser: docker.io/openstackhelm/neutron:2024.1-ubuntu_jammy
   pull_policy: "IfNotPresent"
   local_registry:
     active: false
@@ -83,6 +85,55 @@ conf:
   #   br-public: eth1
   auto_bridge_add: {}
   ovs_user_name: openvswitch
+  ovn_network_logging_parser_uwsgi:
+    uwsgi:
+      add-header: "Connection: close"
+      buffer-size: 65535
+      die-on-term: true
+      enable-threads: true
+      exit-on-reload: false
+      hook-master-start: unix_signal:15 gracefully_kill_them_all
+      lazy-apps: true
+      log-x-forwarded-for: true
+      master: true
+      processes: 1
+      procname-prefix-spaced: "neutron-ovn-network-logging-parser:"
+      route-user-agent: '^kube-probe.* donotlog:'
+      thunder-lock: true
+      worker-reload-mercy: 80
+      wsgi-file: /var/lib/openstack/bin/neutron-ovn-network-logging-parser-wsgi
+  vector: |
+    [sources.file_logs]
+    type = "file"
+    include = [ "/logs/ovn-controller.log" ]
+
+    [sinks.ovn_log_parser_in]
+    type = "http"
+    inputs = ["file_logs"]
+    uri = "{{ tuple "ovn_logging_parser" "default" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" }}"
+    encoding.codec = "json"
+    method = "post"
+
+    [sources.ovn_log_parser_out]
+    type = "http_server"
+    address = "0.0.0.0:5001"
+    encoding = "json"
+
+    [transforms.parse_log_message]
+    type = "remap"
+    inputs = ["ovn_log_parser_out"]
+    source = '''
+      del(.source_type)
+      del(.path)
+    '''
+
+    [sinks.loki_sink]
+    type = "loki"
+    labels.event_source = "network_logs"
+    inputs = ["parse_log_message"]
+    endpoint = "http://loki.monitoring:3100"
+    encoding.codec = "json"
+    tenant_id = "{{`{{ project_id }}`}}"
 
 pod:
   # NOTE: should be same as nova.pod.use_fqdn.compute
@@ -103,6 +154,12 @@ pod:
         controller:
           readOnlyRootFilesystem: true
           privileged: true
+        ovn_logging_parser:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+        vector:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
   tolerations:
     ovn_ovsdb_nb:
       enabled: false
@@ -217,6 +274,20 @@ pod:
       limits:
         memory: "1024Mi"
         cpu: "2000m"
+    ovn_logging_parser:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "256Mi"
+        cpu: "500m"
+    vector:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "256Mi"
+        cpu: "500m"
     jobs:
       image_repo_sync:
         requests:
@@ -225,6 +296,10 @@ pod:
         limits:
           memory: "1024Mi"
           cpu: "2000m"
+
+  sidecars:
+    ovn_logging_parser: false
+    vector: false
 
 secrets:
   oci_image_registry:
@@ -284,6 +359,22 @@ endpoints:
         default: 6642
       raft:
         default: 6644
+  ovn_logging_parser:
+    name: ovn-logging-parser
+    namespace: null
+    hosts:
+      default: localhost
+    host_fqdn_override:
+      default: localhost
+    scheme:
+      default: 'http'
+      service: 'http'
+    path:
+      default: "/logs"
+    port:
+      api:
+        default: 9697
+        service: 9697
 
 network_policy:
   ovn_ovsdb_nb:

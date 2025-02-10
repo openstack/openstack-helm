@@ -133,6 +133,52 @@ spec:
               mountPath: /var/log/ovn
             - name: run-openvswitch
               mountPath: /run/ovn
+        {{- if .Values.pod.sidecars.vector }}
+        - name: vector
+{{ tuple $envAll "vector" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.vector | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "ovn_controller" "container" "vector" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          command:
+            - vector
+            - --config
+            - /etc/vector/vector.toml
+          volumeMounts:
+            - name: vector-config
+              mountPath: /etc/vector
+            - name: logs
+              mountPath: /logs
+            - name: vector-data
+              mountPath: /var/lib/vector
+        {{- end }}
+        {{- if .Values.pod.sidecars.ovn_logging_parser }}
+        - name: log-parser
+{{ tuple $envAll "ovn_logging_parser" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.ovn_logging_parser | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "ovn_controller" "container" "ovn_logging_parser" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          command:
+            - /tmp/ovn-network-logging-parser.sh
+            - start
+          env:
+            - name: VECTOR_HTTP_ENDPOINT
+              value: http://localhost:5001
+          ports:
+            - name: http
+              containerPort: {{ tuple "ovn_logging_parser" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+              protocol: TCP
+          volumeMounts:
+            - name: neutron-etc
+              mountPath: /etc/neutron/neutron.conf
+              subPath: neutron.conf
+              readOnly: true
+            - name: ovn-bin
+              mountPath: /tmp/ovn-network-logging-parser.sh
+              subPath: ovn-network-logging-parser.sh
+              readOnly: true
+            - name: ovn-etc
+              mountPath: /etc/neutron/neutron-ovn-network-logging-parser-uwsgi.ini
+              subPath: neutron-ovn-network-logging-parser-uwsgi.ini
+              readOnly: true
+        {{- end }}
       volumes:
         - name: ovn-bin
           configMap:
@@ -156,6 +202,19 @@ spec:
             type: DirectoryOrCreate
         - name: gw-enabled
           emptyDir: {}
+        {{- if .Values.pod.sidecars.vector }}
+        - name: vector-config
+          secret:
+            secretName: ovn-vector-config
+        - name: vector-data
+          emptyDir: {}
+        {{- end }}
+        {{- if .Values.pod.sidecars.ovn_logging_parser }}
+        - name: neutron-etc
+          secret:
+            secretName: neutron-etc
+            defaultMode: 0444
+        {{- end }}
 {{- end }}
 {{- end }}
 
