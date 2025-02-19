@@ -20,14 +20,16 @@ limitations under the License.
 {{- define "helm-toolkit.manifests.job_db_sync" -}}
 {{- $envAll := index . "envAll" -}}
 {{- $serviceName := index . "serviceName" -}}
+{{- $jobNameRef := printf "%s_%s" $serviceName "db_sync" -}}
 {{- $jobAnnotations := index . "jobAnnotations" -}}
 {{- $jobLabels := index . "jobLabels" -}}
 {{- $nodeSelector := index . "nodeSelector" | default ( dict $envAll.Values.labels.job.node_selector_key $envAll.Values.labels.job.node_selector_value ) -}}
 {{- $tolerationsEnabled := index . "tolerationsEnabled" | default false -}}
 {{- $configMapBin := index . "configMapBin" | default (printf "%s-%s" $serviceName "bin" ) -}}
 {{- $configMapEtc := index . "configMapEtc" | default (printf "%s-%s" $serviceName "etc" ) -}}
-{{- $podVolMounts := index . "podVolMounts" | default false -}}
-{{- $podVols := index . "podVols" | default false -}}
+{{- $podMount := index (index $envAll.Values.pod.mounts $jobNameRef | default dict) $jobNameRef | default dict -}}
+{{- $podVolMounts := (concat ((index $podMount "volumeMounts" | default list)) ((index . "podVolMounts") | default (list))) | uniq -}}
+{{- $podVols := (concat ((index $podMount "volumes" | default list)) ((index . "podVols") | default (list))) | uniq -}}
 {{- $podEnvVars := index . "podEnvVars" | default false -}}
 {{- $dbToSync := index . "dbToSync" | default ( dict "configFile" (printf "/etc/%s/%s.conf" $serviceName $serviceName ) "logConfigFile" (printf "/etc/%s/logging.conf" $serviceName ) "image" ( index $envAll.Values.images.tags ( printf "%s_db_sync" $serviceName )) ) -}}
 {{- $secretBin := index . "secretBin" -}}
