@@ -15,7 +15,7 @@ set -xe
 
 #NOTE: Define variables
 : ${OSH_HELM_REPO:="../openstack-helm"}
-: ${OSH_VALUES_OVERRIDES_PATH:="../openstack-helm/values"}
+: ${OSH_VALUES_OVERRIDES_PATH:="../openstack-helm/values_overrides"}
 : ${OSH_EXTRA_HELM_ARGS_AODH:="$(helm osh get-values-overrides ${DOWNLOAD_OVERRIDES:-} -p ${OSH_VALUES_OVERRIDES_PATH} -c aodh ${FEATURES})"}
 
 #NOTE: Wait for deploy
