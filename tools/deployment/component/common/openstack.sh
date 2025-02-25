@@ -16,7 +16,7 @@ set -xe
 
 #NOTE: Define variables
 : ${OSH_HELM_REPO:="../openstack-helm"}
-: ${OSH_VALUES_OVERRIDES_PATH:="../openstack-helm/values"}
+: ${OSH_VALUES_OVERRIDES_PATH:="../openstack-helm/values_overrides"}
 export OS_CLOUD=openstack_helm
 : "${RUN_HELM_TESTS:="no"}"
 : "${CEPH_ENABLED:="false"}"

@@ -16,7 +16,7 @@ set -xe
 
 #NOTE: Define variables
 : ${OSH_HELM_REPO:="../openstack-helm"}
-: ${OSH_VALUES_OVERRIDES_PATH:="../openstack-helm/values"}
+: ${OSH_VALUES_OVERRIDES_PATH:="../openstack-helm/values_overrides"}
 : ${OSH_EXTRA_HELM_ARGS_HORIZON:="$(helm osh get-values-overrides ${DOWNLOAD_OVERRIDES:-} -p ${OSH_VALUES_OVERRIDES_PATH} -c horizon ${FEATURES})"}
 : ${RUN_HELM_TESTS:="yes"}
 
