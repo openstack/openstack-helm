@@ -16,7 +16,7 @@ set -xe
 
 sudo -H mkdir -p /etc/openstack
 sudo -H chown -R $(id -un): /etc/openstack
-FEATURE_GATE="tls"; if [[ ${FEATURE_GATES//,/ } =~ (^|[[:space:]])${FEATURE_GATE}($|[[:space:]]) ]]; then
+if [[ ${FEATURES//,/ } =~ (^|[[:space:]])tls($|[[:space:]]) ]]; then
   tee /etc/openstack/clouds.yaml << EOF
   clouds:
     openstack_helm:

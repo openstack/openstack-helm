@@ -35,6 +35,6 @@ sleep 30 #NOTE(portdirect): Wait for ingress controller to update rules and rest
 
 openstack orchestration service list
 
-FEATURE_GATE="tls"; if [[ ${FEATURE_GATES//,/ } =~ (^|[[:space:]])${FEATURE_GATE}($|[[:space:]]) ]]; then
+if [[ ${FEATURES//,/ } =~ (^|[[:space:]])tls($|[[:space:]]) ]]; then
   curl --cacert /etc/openstack-helm/certs/ca/ca.pem -L https://heat.openstack.svc.cluster.local
 fi

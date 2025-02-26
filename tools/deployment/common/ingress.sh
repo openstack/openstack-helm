@@ -18,7 +18,7 @@ set -xe
 
 helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
 
-if ! [[ ${FEATURE_GATES//,/ } =~ (^|[[:space:]])metallb($|[[:space:]]) ]]; then
+if ! [[ ${FEATURES//,/ } =~ (^|[[:space:]])metallb($|[[:space:]]) ]]; then
     #NOTE: Deploy cluster ingress
     helm upgrade --install ingress-nginx-cluster ingress-nginx/ingress-nginx \
     --version ${HELM_INGRESS_NGINX_VERSION} \
