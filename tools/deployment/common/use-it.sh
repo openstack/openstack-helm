@@ -14,7 +14,7 @@
 set -xe
 
 DPDK_ENABLED=disabled
-if [[ ${FEATURE_GATES//,/ } =~ (^|[[:space:]])dpdk($|[[:space:]]) ]]; then
+if [[ ${FEATURES//,/ } =~ (^|[[:space:]])dpdk($|[[:space:]]) ]]; then
     DPDK_ENABLED=enabled
 fi
 

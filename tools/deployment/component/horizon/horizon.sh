@@ -33,6 +33,6 @@ if [ "x${RUN_HELM_TESTS}" != "xno" ]; then
     ./tools/deployment/common/run-helm-tests.sh horizon
 fi
 
-FEATURE_GATE="tls"; if [[ ${FEATURE_GATES//,/ } =~ (^|[[:space:]])${FEATURE_GATE}($|[[:space:]]) ]]; then
+if [[ ${FEATURES//,/ } =~ (^|[[:space:]])tls($|[[:space:]]) ]]; then
   curl --cacert /etc/openstack-helm/certs/ca/ca.pem -L https://horizon.openstack.svc.cluster.local
 fi

@@ -34,7 +34,7 @@ sleep 30 #NOTE(portdirect): Wait for ingress controller to update rules and rest
 openstack endpoint list
 
 #NOTE: Validate feature gate options if required
-FEATURE_GATE="ldap"; if [[ ${FEATURE_GATES//,/ } =~ (^|[[:space:]])${FEATURE_GATE}($|[[:space:]]) ]]; then
+if [[ ${FEATURES//,/ } =~ (^|[[:space:]])ldap($|[[:space:]]) ]]; then
   #NOTE: Do some additional queries here for LDAP
   openstack domain list
   openstack user list
@@ -63,6 +63,6 @@ if [ "x${RUN_HELM_TESTS}" != "xno" ]; then
     ./tools/deployment/common/run-helm-tests.sh keystone
 fi
 
-FEATURE_GATE="tls"; if [[ ${FEATURE_GATES//,/ } =~ (^|[[:space:]])${FEATURE_GATE}($|[[:space:]]) ]]; then
+if [[ ${FEATURES//,/ } =~ (^|[[:space:]])tls($|[[:space:]]) ]]; then
   curl --cacert /etc/openstack-helm/certs/ca/ca.pem -L https://keystone.openstack.svc.cluster.local
 fi

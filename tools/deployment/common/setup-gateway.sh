@@ -16,7 +16,7 @@ set -xe
 # By default we set enable-chassis-as-gw on all OVN controllers which means
 # all nodes are connected to the provider network, but for test environment this is not
 # the case.
-if [[ "$FEATURE_GATES" =~ (,|^)ovn(,|$) ]]; then
+if [[ "$FEATURES" =~ (,|^)ovn(,|$) ]]; then
 HOSTNAME=$(hostname -f)
 kubectl -n openstack get po --selector application=ovn,component=ovn-controller -o name | while read po; do
   kubectl -n openstack exec $po -c controller -- bash -c "if [[ \$(hostname -f) != ${HOSTNAME} ]]; then ovs-vsctl set open . external-ids:ovn-cms-options=availability-zones=nova; fi"
