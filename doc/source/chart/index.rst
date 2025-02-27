@@ -28,6 +28,5 @@ Here are the charts with their documented values.yaml's for OpenStack Helm:
     openstack
     placement
     rally
-    senlin
     tacker
     tempest
