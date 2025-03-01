@@ -15,7 +15,7 @@
 set -xe
 
 # Specify the Rook release tag to use for the Rook operator here
-ROOK_RELEASE=v1.16.3
+ROOK_RELEASE=v1.16.4
 
 : ${CEPH_OSD_DATA_DEVICE:="/dev/loop100"}
 
@@ -40,13 +40,6 @@ image:
   pullPolicy: IfNotPresent
 crds:
   enabled: true
-resources:
-  limits:
-    cpu: 200m
-    memory: 256Mi
-  requests:
-    cpu: 100m
-    memory: 128Mi
 nodeSelector: {}
 tolerations: []
 unreachableNodeTolerationSeconds: 5
@@ -89,204 +82,6 @@ csi:
   csiRBDPluginVolumeMount:
   csiCephFSPluginVolume:
   csiCephFSPluginVolumeMount:
-  csiRBDProvisionerResource: |
-    - name : csi-provisioner
-      resource:
-        requests:
-          memory: 128Mi
-          cpu: 100m
-        limits:
-          memory: 128Mi
-          cpu: 100m
-    - name : csi-resizer
-      resource:
-        requests:
-          memory: 128Mi
-          cpu: 100m
-        limits:
-          memory: 128Mi
-          cpu: 100m
-    - name : csi-attacher
-      resource:
-        requests:
-          memory: 128Mi
-          cpu: 100m
-        limits:
-          memory: 128Mi
-          cpu: 100m
-    - name : csi-snapshotter
-      resource:
-        requests:
-          memory: 128Mi
-          cpu: 100m
-        limits:
-          memory: 128Mi
-          cpu: 100m
-    - name : csi-rbdplugin
-      resource:
-        requests:
-          memory: 128Mi
-          cpu: 250m
-        limits:
-          memory: 128Mi
-          cpu: 250m
-    - name : csi-omap-generator
-      resource:
-        requests:
-          memory: 128Mi
-          cpu: 250m
-        limits:
-          memory: 128Mi
-          cpu: 250m
-    - name : liveness-prometheus
-      resource:
-        requests:
-          memory: 128Mi
-          cpu: 50m
-        limits:
-          memory: 128Mi
-          cpu: 100m
-  csiRBDPluginResource: |
-    - name : driver-registrar
-      resource:
-        requests:
-          memory: 128Mi
-          cpu: 50m
-        limits:
-          memory: 128Mi
-          cpu: 100m
-    - name : csi-rbdplugin
-      resource:
-        requests:
-          memory: 128Mi
-          cpu: 250m
-        limits:
-          memory: 128Mi
-          cpu: 250m
-    - name : liveness-prometheus
-      resource:
-        requests:
-          memory: 128Mi
-          cpu: 50m
-        limits:
-          memory: 256Mi
-          cpu: 100m
-  csiCephFSProvisionerResource: |
-    - name : csi-provisioner
-      resource:
-        requests:
-          memory: 128Mi
-          cpu: 100m
-        limits:
-          memory: 128Mi
-          cpu: 200m
-    - name : csi-resizer
-      resource:
-        requests:
-          memory: 128Mi
-          cpu: 100m
-        limits:
-          memory: 128Mi
-          cpu: 200m
-    - name : csi-attacher
-      resource:
-        requests:
-          memory: 128Mi
-          cpu: 100m
-        limits:
-          memory: 128Mi
-          cpu: 200m
-    - name : csi-snapshotter
-      resource:
-        requests:
-          memory: 128Mi
-          cpu: 100m
-        limits:
-          memory: 128Mi
-          cpu: 200m
-    - name : csi-cephfsplugin
-      resource:
-        requests:
-          memory: 128Mi
-          cpu: 250m
-        limits:
-          memory: 128Mi
-          cpu: 250m
-    - name : liveness-prometheus
-      resource:
-        requests:
-          memory: 128Mi
-          cpu: 50m
-        limits:
-          memory: 128Mi
-          cpu: 100m
-  csiCephFSPluginResource: |
-    - name : driver-registrar
-      resource:
-        requests:
-          memory: 128Mi
-          cpu: 50m
-        limits:
-          memory: 128Mi
-          cpu: 100m
-    - name : csi-cephfsplugin
-      resource:
-        requests:
-          memory: 128Mi
-          cpu: 250m
-        limits:
-          memory: 128Mi
-          cpu: 250m
-    - name : liveness-prometheus
-      resource:
-        requests:
-          memory: 128Mi
-          cpu: 50m
-        limits:
-          memory: 128Mi
-          cpu: 100m
-  csiNFSProvisionerResource: |
-    - name : csi-provisioner
-      resource:
-        requests:
-          memory: 128Mi
-          cpu: 100m
-        limits:
-          memory: 128Mi
-          cpu: 200m
-    - name : csi-nfsplugin
-      resource:
-        requests:
-          memory: 128Mi
-          cpu: 250m
-        limits:
-          memory: 128Mi
-          cpu: 250m
-    - name : csi-attacher
-      resource:
-        requests:
-          memory: 128Mi
-          cpu: 250m
-        limits:
-          memory: 128Mi
-          cpu: 250m
-  csiNFSPluginResource: |
-    - name : driver-registrar
-      resource:
-        requests:
-          memory: 128Mi
-          cpu: 50m
-        limits:
-          memory: 128Mi
-          cpu: 100m
-    - name : csi-nfsplugin
-      resource:
-        requests:
-          memory: 128Mi
-          cpu: 250m
-        limits:
-          memory: 128Mi
-          cpu: 250m
   provisionerTolerations:
   provisionerNodeAffinity: #key1=value1,value2; key2=value3
   pluginTolerations:
@@ -433,60 +228,7 @@ cephClusterSpec:
   monitoring:
     enabled: false
     metricsDisabled: true
-  resources:
-    mgr:
-      limits:
-        cpu: "250m"
-        memory: "512Mi"
-      requests:
-        cpu: "250m"
-        memory: "5Mi"
-    mon:
-      limits:
-        cpu: "250m"
-        memory: "256Mi"
-      requests:
-        cpu: "250m"
-        memory: "128Mi"
-    osd:
-      limits:
-        cpu: "500m"
-        memory: "2Gi"
-      requests:
-        cpu: "500m"
-        memory: "1Gi"
-    prepareosd:
-      requests:
-        cpu: "500m"
-        memory: "50Mi"
-    mgr-sidecar:
-      limits:
-        cpu: "200m"
-        memory: "50Mi"
-      requests:
-        cpu: "100m"
-        memory: "5Mi"
-    crashcollector:
-      limits:
-        cpu: "200m"
-        memory: "60Mi"
-      requests:
-        cpu: "100m"
-        memory: "60Mi"
-    logcollector:
-      limits:
-        cpu: "200m"
-        memory: "1Gi"
-      requests:
-        cpu: "100m"
-        memory: "100Mi"
-    cleanup:
-      limits:
-        cpu: "250m"
-        memory: "1Gi"
-      requests:
-        cpu: "250m"
-        memory: "100Mi"
+
   removeOSDsIfOutAndSafeToRemove: false
   priorityClassNames:
     mon: system-node-critical
@@ -566,13 +308,6 @@ cephFileSystems:
       metadataServer:
         activeCount: 1
         activeStandby: false
-        resources:
-          limits:
-            cpu: "250m"
-            memory: "50Mi"
-          requests:
-            cpu: "250m"
-            memory: "10Mi"
         priorityClassName: system-cluster-critical
     storageClass:
       enabled: true
@@ -616,13 +351,6 @@ cephObjectStores:
       preservePoolsOnDelete: true
       gateway:
         port: 8080
-        resources:
-          limits:
-            cpu: "500m"
-            memory: "128Mi"
-          requests:
-            cpu: "500m"
-            memory: "32Mi"
         instances: 1
         priorityClassName: system-cluster-critical
     storageClass:
