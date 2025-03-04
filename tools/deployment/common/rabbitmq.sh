@@ -25,7 +25,7 @@ helm upgrade --install rabbitmq ${OSH_INFRA_HELM_REPO}/rabbitmq \
     --namespace=${NAMESPACE} \
     --set pod.replicas.server=1 \
     --timeout=600s \
-    ${VOLUME_HELM_ARGS:="--set volume.enabled=false"} \
+    ${VOLUME_HELM_ARGS:="--set volume.enabled=false --set volume.use_local_path.enabled=true"} \
     ${OSH_INFRA_EXTRA_HELM_ARGS:=} \
     ${OSH_INFRA_EXTRA_HELM_ARGS_RABBITMQ}
 
