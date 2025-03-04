@@ -1,0 +1,83 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+- name: Add ingress-nginx helm repo
+  become_user: "{{ kubectl.user }}"
+  shell: |
+    helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+
+- name: Deploy cluster ingress in kube-system namespace if not using metallb
+  become_user: "{{ kubectl.user }}"
+  when: not metallb_setup
+  shell: |
+    helm upgrade --install ingress-nginx-cluster ingress-nginx/ingress-nginx \
+      --version {{ ingress_nginx_version }} \
+      --namespace=kube-system \
+      --set controller.admissionWebhooks.enabled="false" \
+      --set controller.kind=DaemonSet \
+      --set controller.service.type=ClusterIP \
+      --set controller.scope.enabled="false" \
+      --set controller.hostNetwork="true" \
+      --set controller.ingressClassResource.name=nginx-cluster \
+      --set controller.ingressClassResource.controllerValue="k8s.io/ingress-nginx-cluster" \
+      --set controller.ingressClassResource.default="true" \
+      --set controller.ingressClass=nginx-cluster \
+      --set controller.labels.app=ingress-api
+
+- name: Deploy ingress in openstack namespace
+  become_user: "{{ kubectl.user }}"
+  when: ingress_openstack_setup
+  shell: |
+    helm upgrade --install --create-namespace ingress-nginx-openstack ingress-nginx/ingress-nginx \
+      --version {{ ingress_nginx_version }} \
+      --namespace=openstack \
+      --set controller.kind=DaemonSet \
+      --set controller.admissionWebhooks.enabled="false" \
+      --set controller.scope.enabled="true" \
+      --set controller.service.enabled="false" \
+      --set controller.ingressClassResource.name=nginx \
+      --set controller.ingressClassResource.controllerValue="k8s.io/ingress-nginx-openstack" \
+      --set controller.ingressClass=nginx \
+      --set controller.labels.app=ingress-api
+
+- name: Deploy ingress in ceph namespace
+  become_user: "{{ kubectl.user }}"
+  when: ingress_ceph_setup
+  shell: |
+    helm upgrade --install --create-namespace ingress-nginx-ceph ingress-nginx/ingress-nginx \
+      --version {{ ingress_nginx_version }} \
+      --namespace=ceph \
+      --set controller.kind=DaemonSet \
+      --set controller.admissionWebhooks.enabled="false" \
+      --set controller.scope.enabled="true" \
+      --set controller.service.enabled="false" \
+      --set controller.ingressClassResource.name=nginx-ceph \
+      --set controller.ingressClassResource.controllerValue="k8s.io/ingress-nginx-ceph" \
+      --set controller.ingressClass=nginx-ceph \
+      --set controller.labels.app=ingress-api
+
+- name: Deploy ingress in osh_infra namespace
+  become_user: "{{ kubectl.user }}"
+  when: ingress_osh_infra_setup
+  shell: |
+    helm upgrade --install --create-namespace ingress-nginx-osh-infra ingress-nginx/ingress-nginx \
+      --version {{ ingress_nginx_version }} \
+      --namespace=osh-infra \
+      --set controller.admissionWebhooks.enabled="false" \
+      --set controller.scope.enabled="true" \
+      --set controller.service.enabled="false" \
+      --set controller.ingressClassResource.name=nginx-osh-infra \
+      --set controller.ingressClassResource.controllerValue="k8s.io/ingress-nginx-osh-infra" \
+      --set controller.ingressClass=nginx-osh-infra \
+      --set controller.labels.app=ingress-api
+...
