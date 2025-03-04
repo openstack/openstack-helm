@@ -364,11 +364,6 @@ EOF
 
 helm upgrade --install --create-namespace --namespace ceph rook-ceph-cluster --set operatorNamespace=rook-ceph rook-release/rook-ceph-cluster --version ${ROOK_RELEASE} -f /tmp/ceph.yaml
 
-TOOLS_POD=$(kubectl get pods \
-  --namespace=ceph \
-  --selector="app=rook-ceph-tools" \
-  --no-headers | awk '{ print $1; exit }')
-
 helm osh wait-for-pods rook-ceph
 
 kubectl wait --namespace=ceph --for=condition=ready pod --selector=app=rook-ceph-tools --timeout=600s
@@ -393,7 +388,11 @@ RGW_POD=$(kubectl get pods \
   --no-headers | awk '{print $1; exit}')
 while [[ -z "${RGW_POD}" ]]
 do
-  sleep 5
+  sleep 10
+  TOOLS_POD=$(kubectl get pods \
+    --namespace=ceph \
+    --selector="app=rook-ceph-tools" \
+    --no-headers | grep Running | awk '{ print $1; exit }')
   echo "=========== CEPH STATUS ============"
   kubectl exec -n ceph ${TOOLS_POD} -- ceph -s
   echo "=========== CEPH OSD POOL LIST ============"
