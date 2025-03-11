@@ -19,5 +19,5 @@ make all SKIP_CHANGELOG=1
 # Build all OSH charts (necessary for Openstack deployment)
 (
     cd ${OSH_PATH:-"../openstack-helm"} &&
-    make all  SKIP_CHANGELOG=1
+    make all SKIP_CHANGELOG=1
 )
