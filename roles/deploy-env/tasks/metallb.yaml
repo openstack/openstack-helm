@@ -16,17 +16,17 @@
   when: inventory_hostname in (groups['primary'] | default([]))
   block:
     - name: Add MetalLB chart repo
-      kubernetes.core.helm_repository:
-        name: metallb
-        repo_url: "https://metallb.github.io/metallb"
+      become_user: "{{ kubectl.user }}"
+      shell: |
+        helm repo add metallb https://metallb.github.io/metallb
 
     - name: Install MetalLB
-      kubernetes.core.helm:
-        name: metallb
-        chart_ref: metallb/metallb
-        chart_version: "{{ metallb_version }}"
-        namespace: metallb-system
-        create_namespace: true
+      become_user: "{{ kubectl.user }}"
+      shell: |
+        helm upgrade --install metallb metallb/metallb \
+          --version {{ metallb_version }} \
+          --namespace metallb-system \
+          --create-namespace
 
     - name: Sleep before trying to check MetalLB pods
       pause:
