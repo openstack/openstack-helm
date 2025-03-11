@@ -389,10 +389,15 @@ RGW_POD=$(kubectl get pods \
 while [[ -z "${RGW_POD}" ]]
 do
   sleep 10
+  date +'%Y-%m-%d %H:%M:%S'
   TOOLS_POD=$(kubectl get pods \
     --namespace=ceph \
     --selector="app=rook-ceph-tools" \
     --no-headers | grep Running | awk '{ print $1; exit }')
+  if [[ -z "${TOOLS_POD}" ]]; then
+    echo "No running rook-ceph-tools pod found. Waiting..."
+    continue
+  fi
   echo "=========== CEPH STATUS ============"
   kubectl exec -n ceph ${TOOLS_POD} -- ceph -s
   echo "=========== CEPH OSD POOL LIST ============"
@@ -407,4 +412,8 @@ done
 helm osh wait-for-pods ceph
 
 #NOTE: Validate deploy
+TOOLS_POD=$(kubectl get pods \
+    --namespace=ceph \
+    --selector="app=rook-ceph-tools" \
+    --no-headers | grep Running | awk '{ print $1; exit }')
 kubectl exec -n ceph ${TOOLS_POD} -- ceph -s
