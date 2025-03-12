@@ -103,6 +103,10 @@ def check_service_status(transport):
                          " service")
         sys.exit(0)
 
+    finally:
+        if transport:
+            transport.cleanup()
+
 
 def tcp_socket_status(process, ports):
     """Check the tcp socket status on a process"""

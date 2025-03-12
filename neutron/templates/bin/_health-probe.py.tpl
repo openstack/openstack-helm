@@ -104,6 +104,10 @@ def check_agent_status(transport):
                          " agent")
         sys.exit(0)
 
+    finally:
+        if transport:
+            transport.cleanup()
+
 
 def sriov_readiness_check():
     """Checks the sriov configuration on the sriov nic's"""
