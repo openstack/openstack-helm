@@ -11,6 +11,9 @@ Contents:
     chart/index
     devref/index
     testing/index
+    monitoring/index
+    logging/index
+    upgrade/index
     troubleshooting/index
     specs/index
 
