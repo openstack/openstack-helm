@@ -59,6 +59,6 @@ sudo docker run \\
     -v /etc/openstack-helm:/etc/openstack-helm \\
     -e OS_CLOUD=\${OS_CLOUD} \\
     \${OPENSTACK_CLIENT_CONTAINER_EXTRA_ARGS} \\
-    docker.io/openstackhelm/openstack-client:\${OPENSTACK_RELEASE:-2023.2} openstack "\${args[@]}"
+    quay.io/airshipit/openstack-client:\${OPENSTACK_RELEASE:-2024.2} openstack "\${args[@]}"
 EOF
 sudo chmod +x /usr/local/bin/openstack

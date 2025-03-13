@@ -20,6 +20,13 @@ else
     # if there is no tag $BASE_VERSION, then we count the number of commits since the beginning
     PATCH=$(git log --oneline $CHART_DIR | wc -l)
 fi
-OSH_INFRA_COMMIT_SHA=$(git rev-parse --short HEAD);
 
-echo "${MAJOR}.${MINOR}.${PATCH}+${OSH_INFRA_COMMIT_SHA}"
+COMMIT_SHA=$(git rev-parse --short HEAD);
+OSH_INFRA_COMMIT_SHA=$(cd ../openstack-helm-infra; git rev-parse --short HEAD);
+if [[ ${COMMIT_SHA} = ${OSH_INFRA_COMMIT_SHA} ]]; then
+    BUILD_META=${COMMIT_SHA}
+else
+    BUILD_META=${COMMIT_SHA}-${OSH_INFRA_COMMIT_SHA}
+fi
+
+echo "${MAJOR}.${MINOR}.${PATCH}+${BUILD_META}"

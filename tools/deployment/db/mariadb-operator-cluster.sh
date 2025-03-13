@@ -19,7 +19,7 @@ set -xe
 
 # install mariadb-operator
 helm repo add mariadb-operator https://mariadb-operator.github.io/mariadb-operator
-helm upgrade --install mariadb-operator mariadb-operator/mariadb-operator --version ${MARIADB_OPERATOR_RELEASE} -n mariadb-operator
+helm upgrade --install --create-namespace mariadb-operator mariadb-operator/mariadb-operator --version ${MARIADB_OPERATOR_RELEASE} -n mariadb-operator
 
 #NOTE: Wait for deploy
 helm osh wait-for-pods mariadb-operator

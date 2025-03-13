@@ -13,8 +13,11 @@
 # It's necessary to set this because some environments don't link sh -> bash.
 SHELL := /bin/bash
 HELM := helm
-TASK := build
 PYTHON := python3
+TASK  := build
+HELM_DOCS := tools/helm-docs
+UNAME_OS := $(shell uname -s)
+UNAME_ARCH := $(shell uname -m)
 # We generate CHANGELOG.md files by default which
 # requires reno>=4.1.0 installed.
 # To skip generating it use the following:
@@ -39,10 +42,26 @@ CHARTS := $(sort helm-toolkit $(CHART_DIRS))
 
 all: $(CHARTS)
 
+charts:
+	@echo $(CHART_DIRS)
+
 $(CHARTS):
-	@echo
-	@echo "===== Processing [$@] chart ====="
-	@make $(TASK)-$@
+	@if [ -d $@ ]; then \
+		echo; \
+		echo "===== Processing [$@] chart ====="; \
+		make $(TASK)-$@; \
+	fi
+
+HELM_DOCS_VERSION ?= 1.14.2
+.PHONY: helm-docs ## Download helm-docs locally if necessary
+helm-docs: $(HELM_DOCS)
+$(HELM_DOCS):
+	{ \
+		curl -fsSL -o tools/helm-docs.tar.gz https://github.com/norwoodj/helm-docs/releases/download/v$(HELM_DOCS_VERSION)/helm-docs_$(HELM_DOCS_VERSION)_$(UNAME_OS)_$(UNAME_ARCH).tar.gz && \
+		tar -zxf tools/helm-docs.tar.gz -C tools helm-docs && \
+		rm -f tools/helm-docs.tar.gz && \
+		chmod +x tools/helm-docs; \
+	}
 
 init-%:
 	if [ -f $*/Makefile ]; then make -C $*; fi
@@ -60,20 +79,24 @@ build-%: lint-% $(if $(filter-out 1,$(SKIP_CHANGELOG)),%/CHANGELOG.md)
 		$(HELM) package $* --version $$(tools/chart_version.sh $* $(BASE_VERSION)) $(PKG_ARGS); \
 	fi
 
+# This is used exclusively with helm3 building in the gate to publish
+package-%: init-%
+	if [ -d $* ]; then $(HELM) package $* $(PKG_ARGS); fi
+
 clean:
-	@echo "Removed .b64, _partials.tpl, and _globals.tpl files"
-	rm -f helm-toolkit/secrets/*.b64
-	rm -f */templates/_partials.tpl
-	rm -f */templates/_globals.tpl
-	rm -f *tgz */charts/*tgz
-	rm -f */requirements.lock
-	-rm -rf */charts */tmpcharts
+	@echo "Clean all build artifacts"
+	rm -f */templates/_partials.tpl */templates/_globals.tpl
+	rm -f *tgz */charts/*tgz */requirements.lock
+	rm -rf */charts */tmpcharts
 
 pull-all-images:
-	@./tools/pull-images.sh
+	@./tools/deployment/common/pull-images.sh
 
 pull-images:
-	@./tools/pull-images.sh $(filter-out $@,$(MAKECMDGOALS))
+	@./tools/deployment/common/pull-images.sh $(filter-out $@,$(MAKECMDGOALS))
+
+dev-deploy:
+	@./tools/gate/devel/start.sh $(filter-out $@,$(MAKECMDGOALS))
 
 %:
 	@:

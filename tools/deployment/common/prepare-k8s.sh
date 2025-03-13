@@ -31,7 +31,9 @@ kubectl label --overwrite nodes --all ceph-mgr=enabled
 # and we don't need L2 overlay (will be implemented later).
 kubectl label --overwrite nodes -l "node-role.kubernetes.io/control-plane" l3-agent=enabled
 
-for NAMESPACE in ceph mariadb-operator openstack osh-infra; do
+kubectl label --overwrite nodes -l "node-role.kubernetes.io/control-plane" openstack-network-node=enabled
+
+for NAMESPACE in ceph openstack osh-infra; do
 tee /tmp/${NAMESPACE}-ns.yaml << EOF
 apiVersion: v1
 kind: Namespace
