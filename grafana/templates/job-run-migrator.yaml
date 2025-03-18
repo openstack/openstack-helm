@@ -1,0 +1,210 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.job_run_migrator }}
+{{- $envAll := . }}
+
+{{- $mounts_grafana := .Values.pod.mounts.grafana.grafana }}
+
+{{- $serviceAccountName := "grafana-run-migrator" }}
+{{ tuple $envAll "run_migrator" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prepare-grafana-migrator
+  annotations:
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+data:
+  prepare-grafana-migrator.sh: |
+    #!/bin/bash
+    set -xe
+    cp -av /usr/share/grafana/* /usr/share/grafana-prepare/
+    exit 0
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: grafana-run-migrator
+  annotations:
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+  labels:
+{{ tuple $envAll "grafana" "run-migrator" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "grafana" "run-migrator" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
+        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
+{{ dict "envAll" $envAll "podName" "grafana-run-migrator" "containerNames" (list "prepare-grafana-migrator" "grafana-run-migrator" "init") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
+    spec:
+{{ dict "envAll" $envAll "application" "run_migrator" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
+      serviceAccountName: {{ $serviceAccountName }}
+      restartPolicy: OnFailure
+      nodeSelector:
+        {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value | quote }}
+      initContainers:
+{{ tuple $envAll "run_migrator" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container"  | indent 8 }}
+        - name: prepare-grafana-migrator
+{{ tuple $envAll "grafana" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ dict "envAll" $envAll "application" "run_migrator" "container" "prepare_grafana_migrator" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          command:
+            - /tmp/prepare-grafana-migrator.sh
+          resources: {}
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: grafana-binary-image
+              mountPath: /usr/share/grafana-prepare
+            - name: prepare-grafana-migrator
+              mountPath: /tmp/prepare-grafana-migrator.sh
+              readOnly: true
+              subPath: prepare-grafana-migrator.sh
+      containers:
+        - name: grafana-run-migrator
+{{ tuple $envAll "mariadb" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.run_migrator | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "run_migrator" "container" "grafana_run_migrator" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          command:
+            - /tmp/grafana.sh
+            - run_migrator
+          ports:
+            - name: dashboard
+              containerPort: {{ tuple "grafana" "internal" "grafana" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+          # readinessProbe:
+          #   httpGet:
+          #     path: /login
+          #     port: {{ tuple "grafana" "internal" "grafana" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+          #   initialDelaySeconds: 30
+          #   timeoutSeconds: 30
+          env:
+            - name: GF_SECURITY_ADMIN_USER
+              valueFrom:
+                secretKeyRef:
+                  name: grafana-admin-creds
+                  key: GRAFANA_ADMIN_USERNAME
+            - name: GF_SECURITY_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: grafana-admin-creds
+                  key: GRAFANA_ADMIN_PASSWORD
+            - name: PROMETHEUS_URL
+              value: {{ tuple "monitoring" "internal" "api" $envAll | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" }}
+{{- if .Values.manifests.certificates }}
+            - name: CACERT
+              valueFrom:
+                secretKeyRef:
+                  key: ca.crt
+                  name: prometheus-tls-api
+{{- end }}
+{{- if .Values.pod.env.grafana }}
+{{ include "helm-toolkit.utils.to_k8s_env_vars" .Values.pod.env.grafana | indent 12 }}
+{{- end }}
+{{- if .Values.pod.env.grafana_run_migrator }}
+{{ include "helm-toolkit.utils.to_k8s_env_vars" .Values.pod.env.grafana_run_migrator | indent 12 }}
+{{- end }}
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: pod-etc-grafana
+              mountPath: /etc/grafana
+            - name: pod-screenshots-grafana
+              mountPath: /var/lib/grafana/png
+            - name: pod-dashboards-grafana
+              mountPath: /etc/grafana/dashboards
+            - name: pod-provisioning-grafana
+              mountPath: {{ .Values.conf.grafana.paths.provisioning }}
+            - name: pod-alerting-grafana
+              mountPath: {{ .Values.conf.grafana.paths.alerting }}
+            - name: pod-csv-grafana
+              mountPath: {{ .Values.conf.grafana.paths.csv }}
+            - name: grafana-binary-image
+              mountPath: /usr/share/grafana
+            - name: grafana-bin
+              mountPath: /tmp/grafana.sh
+              subPath: grafana.sh
+              readOnly: true
+            - name: grafana-etc
+              mountPath: {{ .Values.conf.grafana.paths.provisioning }}/dashboards/dashboards.yaml
+              subPath: dashboards.yaml
+            - name: grafana-etc
+              mountPath: {{ .Values.conf.grafana.paths.provisioning }}/datasources/datasources.yaml
+              subPath: datasources.yaml
+            - name: grafana-etc
+              mountPath: /etc/grafana/grafana.ini
+              subPath: grafana.ini
+            - name: grafana-etc
+              mountPath: /etc/grafana/ldap.toml
+              subPath: ldap.toml
+            - name: grafana-db
+              mountPath: /tmp/my.cnf
+              subPath: my.cnf
+            - name: data
+              mountPath: /var/lib/grafana/data
+            {{- range $group, $dashboards := .Values.conf.dashboards }}
+            {{- range $key, $value := $dashboards }}
+            - name: grafana-dashboards-{{$group}}
+              mountPath: /etc/grafana/dashboards/{{$key}}.json
+              subPath: {{$key}}.json
+            {{- end }}
+            {{- end }}
+
+{{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.oslo_db.auth.admin.secret.tls.internal "path" "/etc/mysql/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
+{{ if $mounts_grafana.volumeMounts }}{{ toYaml $mounts_grafana.volumeMounts | indent 12 }}{{ end }}
+      volumes:
+        - name: pod-tmp
+          emptyDir: {}
+        - name: pod-etc-grafana
+          emptyDir: {}
+        - name: pod-screenshots-grafana
+          emptyDir: {}
+        - name: pod-dashboards-grafana
+          emptyDir: {}
+        - name: pod-provisioning-grafana
+          emptyDir: {}
+        - name: pod-alerting-grafana
+          emptyDir: {}
+        - name: pod-csv-grafana
+          emptyDir: {}
+        - name: grafana-binary-image
+          emptyDir: {}
+        - name: grafana-bin
+          configMap:
+            name: grafana-bin
+            defaultMode: 0555
+        - name: grafana-etc
+          secret:
+            secretName: grafana-etc
+            defaultMode: 0444
+        - name: grafana-db
+          secret:
+            secretName: grafana-db
+            defaultMode: 0444
+        {{- range $group, $dashboards := .Values.conf.dashboards }}
+        - name: grafana-dashboards-{{$group}}
+          configMap:
+            name: grafana-dashboards-{{$group}}
+            defaultMode: 0555
+        {{- end }}
+        - name: data
+          emptyDir: {}
+        - name: prepare-grafana-migrator
+          configMap:
+            defaultMode: 0555
+            name: prepare-grafana-migrator
+{{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.oslo_db.auth.admin.secret.tls.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
+{{ if $mounts_grafana.volumes }}{{ toYaml $mounts_grafana.volumes | indent 8 }}{{ end }}
+{{- end }}

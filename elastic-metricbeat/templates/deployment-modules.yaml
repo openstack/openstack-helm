@@ -1,0 +1,158 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.deployment }}
+{{- $envAll := . }}
+
+{{- $esUserSecret := .Values.secrets.elasticsearch.user }}
+
+{{- $serviceAccountName := printf "%s-%s" .Release.Name "metricbeat-deployments" }}
+{{ tuple $envAll "metricbeat" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ $serviceAccountName }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ $serviceAccountName }}
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  kind: ClusterRole
+  name: {{ $serviceAccountName }}
+  apiGroup: rbac.authorization.k8s.io
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: {{ $serviceAccountName }}
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - namespaces
+      - nodes
+      - pods
+      - services
+      - endpoints
+      - replicationcontrollers
+      - limitranges
+      - events
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - apps
+    resources:
+      - statefulsets
+      - daemonsets
+      - deployments
+      - replicasets
+    verbs:
+      - get
+      - list
+      - watch
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: metricbeat-deployment-modules
+  labels:
+{{ tuple $envAll "metricbeat" "deployment-modules" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  replicas: {{ .Values.pod.replicas.metricbeat }}
+  selector:
+    matchLabels:
+{{ tuple $envAll "metricbeat" "deployment-modules" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
+{{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_deployment" | indent 2 }}
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "metricbeat" "deployment-modules" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+{{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
+        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
+    spec:
+      serviceAccountName: {{ $serviceAccountName }}
+      affinity:
+{{ tuple $envAll "metricbeat" "deployment-modules" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
+      nodeSelector:
+        {{ .Values.labels.metricbeat.node_selector_key }}: {{ .Values.labels.metricbeat.node_selector_value }}
+      initContainers:
+{{ tuple $envAll "metricbeat" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+      containers:
+        - name: metricbeat
+          securityContext:
+            runAsUser: 0
+{{ tuple $envAll "metricbeat" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.metricbeat | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          args:
+            - "-c"
+            - "/usr/share/metricbeat/metricbeat.yml"
+            - "-e"
+          env:
+            - name: ELASTICSEARCH_HOST
+              value: {{ tuple "elasticsearch" "internal" . | include "helm-toolkit.endpoints.hostname_namespaced_endpoint_lookup" | quote }}
+            - name: ELASTICSEARCH_PORT
+              value: {{ tuple "elasticsearch" "internal" "http" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | quote }}
+            - name: KUBE_STATE_METRICS_HOST
+              value: {{ tuple "kube_state_metrics" "internal" . | include "helm-toolkit.endpoints.hostname_namespaced_endpoint_lookup" | quote }}
+            - name: KUBE_STATE_METRICS_PORT
+              value: {{ tuple "kube_state_metrics" "internal" "metrics" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | quote }}
+            - name: KIBANA_HOST
+              value: {{ tuple "kibana" "internal" . | include "helm-toolkit.endpoints.hostname_namespaced_endpoint_lookup" | quote }}
+            - name: KIBANA_PORT
+              value: {{ tuple "kibana" "internal" "http" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | quote }}
+            - name: ELASTICSEARCH_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $esUserSecret }}
+                  key: ELASTICSEARCH_USERNAME
+            - name: ELASTICSEARCH_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $esUserSecret }}
+                  key: ELASTICSEARCH_PASSWORD
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: metricbeat-etc
+              mountPath: /usr/share/metricbeat/metricbeat.yml
+              subPath: metricbeat.yml
+              readOnly: true
+            - name: metricbeat-etc
+              mountPath: /usr/share/metricbeat/modules.d/kubernetes.yml
+              subPath: deployment_kubernetes.yml
+              readOnly: true
+            - name: metricbeat-etc
+              mountPath: /usr/share/metricbeat/modules.d/mysql.yml
+              subPath: mysql.yml
+              readOnly: true
+            - name: metricbeat-etc
+              mountPath: /usr/share/metricbeat/modules.d/rabbitmq.yml
+              subPath: rabbitmq.yml
+              readOnly: true
+      volumes:
+        - name: pod-tmp
+          emptyDir: {}
+        - name: metricbeat-etc
+          configMap:
+            name: metricbeat-etc
+            defaultMode: 0444
+{{- end }}

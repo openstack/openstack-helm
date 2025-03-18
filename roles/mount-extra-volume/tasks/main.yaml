@@ -1,0 +1,36 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+- name: Mount additional {{ extra_volume.size }} volume if available
+  when:
+    - ansible_distribution == 'Ubuntu'
+    - (ansible_mounts|selectattr("mount", "equalto", "/")|list)[0].size_available < 50000000000
+  block:
+    - name: Mount additional {{ extra_volume.size }} volume if available
+      shell: |
+        set -ex
+        sudo fdisk --list
+        df -h
+        sudo mkdir -p ${EXTRA_VOLUME_MOUNT_POINT}
+        BIG_VOLUME=$(sudo fdisk -l 2>&1 | grep  -E ${EXTRA_VOLUME_SIZE} | grep ${EXTRA_VOLUME_TYPE} | awk '{print $1}')
+        if ! mount | grep "${BIG_VOLUME}"
+        then
+          sudo mkfs.ext4 "${BIG_VOLUME}"
+          sudo mount "${BIG_VOLUME}" ${EXTRA_VOLUME_MOUNT_POINT}
+          df -h
+        fi
+      environment:
+        EXTRA_VOLUME_MOUNT_POINT: "{{ extra_volume.mount_point }}"
+        EXTRA_VOLUME_SIZE: "{{ extra_volume.size }}"
+        EXTRA_VOLUME_TYPE: "{{ extra_volume.type }}"
+...

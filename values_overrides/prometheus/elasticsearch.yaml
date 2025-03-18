@@ -1,0 +1,101 @@
+---
+conf:
+  prometheus:
+    rules:
+      elasticsearch:
+        groups:
+        - name: elasticsearch.alerting_rules
+          rules:
+          - alert: prom_exporter_elasticsearch_unavailable
+            expr: avg_over_time(up{job="elasticsearch-exporter"}[5m]) == 0
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              description: Elasticsearch exporter is not collecting metrics or is not available for past 10 minutes
+              title: Elasticsearch exporter is not collecting metrics or is not available
+          - alert: es_high_process_open_files_count
+            expr: sum(elasticsearch_process_open_files_count) by (host) > 64000
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              description: 'Elasticsearch at {{ $labels.host }} has more than 64000 process open file count.'
+              summary: 'Elasticsearch has a very high process open file count.'
+          - alert: es_high_process_cpu_percent
+            expr: elasticsearch_process_cpu_percent > 95
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              description: 'Elasticsearch at {{ $labels.instance }} has high process cpu percent of {{ $value }}.'
+              summary: 'Elasticsearch process cpu usage is more than 95 percent.'
+          - alert: es_fs_usage_high
+            expr: (100 * (elasticsearch_filesystem_data_size_bytes - elasticsearch_filesystem_data_free_bytes) / elasticsearch_filesystem_data_size_bytes) > 80
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              description: 'Elasticsearch at {{ $labels.instance }} has filesystem usage of {{ $value }}.'
+              summary: 'Elasticsearch filesystem usage is high.'
+          - alert: es_unassigned_shards
+            expr: elasticsearch_cluster_health_unassigned_shards > 0
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              description: 'Elasticsearch has {{ $value }} unassigned shards.'
+              summary: 'Elasticsearch has unassigned shards and hence a unhealthy cluster state.'
+          - alert: es_cluster_health_timed_out
+            expr: elasticsearch_cluster_health_timed_out > 0
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              description: 'Elasticsearch cluster health status call timedout {{ $value }} times.'
+              summary: 'Elasticsearch cluster health status calls are timing out.'
+          - alert: es_cluster_health_status_alert
+            expr: (sum(elasticsearch_cluster_health_status{color="green"})*2)+sum(elasticsearch_cluster_health_status{color="yellow"}) < 2
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              description: 'Elasticsearch cluster health status is {{ $value }}, not 2 (green). One or more shards or replicas are unallocated.'
+              summary: 'Elasticsearch cluster health status is not green.'
+          - alert: es_cluster_health_too_few_nodes_running
+            expr: elasticsearch_cluster_health_number_of_nodes < 3
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              description: 'There are only {{$value}} < 3 ElasticSearch nodes running'
+              summary: 'ElasticSearch running on less than 3 nodes'
+          - alert: es_cluster_health_too_few_data_nodes_running
+            expr: elasticsearch_cluster_health_number_of_data_nodes < 3
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              description: 'There are only {{$value}} < 3 ElasticSearch data nodes running'
+              summary: 'ElasticSearch running on less than 3 data nodes'
+          - alert: es_cluster_health_too_few_data_nodes_running
+            expr: elasticsearch_cluster_health_number_of_data_nodes < 3
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              description: 'There are only {{$value}} < 3 ElasticSearch data nodes running'
+              summary: 'ElasticSearch running on less than 3 data nodes'
+      fluentd:
+        groups:
+        - name: fluentd.alerting_rules
+          rules:
+          - alert: prom_exporter_fluentd_unavailable
+            expr: avg_over_time(up{job="fluentd-daemonset-exporter"}[5m]) == 0
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              description: Fluentd exporter is not collecting metrics or is not available for past 10 minutes
+              title: Fluentd exporter is not collecting metrics or is not available
+...

@@ -1,0 +1,56 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- define "powerdns.configmap.etc" -}}
+{{- range $key, $value :=  . }}
+{{ $key | replace "_" "-" }} = {{ $value }}
+{{- end }}
+{{- end -}}
+
+{{- if .Values.manifests.configmap_etc }}
+{{- $mysql := .Values.conf.mysql.client }}
+
+{{- if empty $mysql.host -}}
+{{- $_ :=  tuple "oslo_db" "internal" . | include "helm-toolkit.endpoints.endpoint_host_lookup" | set $mysql "host" -}}
+{{- $_ :=  $mysql.host | set .Values.conf.powerdns "gmysql_host" -}}
+{{- end -}}
+
+{{- if empty $mysql.port -}}
+{{- $_ :=  tuple "oslo_db" "internal" "mysql" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | set $mysql "port" -}}
+{{- $_ :=  $mysql.port | set .Values.conf.powerdns "gmysql_port" -}}
+{{- end -}}
+
+{{- if empty $mysql.user -}}
+{{- $_ :=  .Values.endpoints.oslo_db.auth.powerdns.username | set $mysql "user" -}}
+{{- $_ :=  $mysql.user | set .Values.conf.powerdns "gmysql_user" -}}
+{{- end -}}
+
+{{- if empty $mysql.password -}}
+{{- $_ :=  .Values.endpoints.oslo_db.auth.powerdns.password | set $mysql "password" -}}
+{{- $_ :=  $mysql.password | set .Values.conf.powerdns "gmysql_password" -}}
+{{- end -}}
+
+{{- if empty .Values.conf.powerdns.api_key -}}
+{{- $_ :=  tuple "powerdns" "service" . | include "helm-toolkit.endpoints.endpoint_token_lookup" | set .Values.conf.powerdns "api_key" -}}
+{{- end -}}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: powerdns-etc
+type: Opaque
+data:
+  pdns.conf: {{ include "powerdns.configmap.etc" .Values.conf.powerdns | b64enc }}
+  my.cnf: {{ include "helm-toolkit.utils.to_ini" .Values.conf.mysql | b64enc }}
+{{- end }}

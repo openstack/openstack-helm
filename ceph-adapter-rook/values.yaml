@@ -1,0 +1,71 @@
+---
+images:
+  pull_policy: IfNotPresent
+  tags:
+    ceph_config_helper: 'docker.io/openstackhelm/ceph-config-helper:ubuntu_jammy_19.2.1-1-20250207'
+    dep_check: 'quay.io/airshipit/kubernetes-entrypoint:latest-ubuntu_focal'
+    image_repo_sync: 'docker.io/library/docker:17.07.0'
+  local_registry:
+    active: false
+    exclude:
+      - dep_check
+      - image_repo_sync
+
+labels:
+  job:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+
+pod:
+  security_context:
+    namespace_client_key:
+      pod:
+        runAsUser: 99
+      container:
+        namespace_client_key:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+  dns_policy: "ClusterFirstWithHostNet"
+  resources:
+    enabled: false
+    jobs:
+      namespace_client_key:
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+        requests:
+          memory: "128Mi"
+          cpu: "500m"
+      namespace_client_ceph_config:
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+        requests:
+          memory: "128Mi"
+          cpu: "500m"
+
+
+ceph_cluster_namespace: ceph
+
+secret_name: pvc-ceph-client-key
+configmap_name: ceph-etc
+
+conf:
+  ceph:
+    global:
+      # TODO: Get mon host from rook-ceph-mon-endpoints configmap
+      mon_host: "will be discovered"
+
+dependencies:
+  static:
+    namespace_client_key:
+      jobs: null
+    namespace_client_ceph_config:
+      jobs: null
+
+manifests:
+  configmap_bin: true
+  configmap_etc_client: true
+  job_namespace_client_ceph_config: true
+  job_namespace_client_key: true
+...

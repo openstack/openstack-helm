@@ -1,0 +1,157 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if and .Values.manifests.job_namespace_client_key .Values.deployment.client_secrets }}
+{{- $envAll := . }}
+
+{{- $randStringSuffix := randAlphaNum 5 | lower }}
+
+{{- $serviceAccountName := print $envAll.Release.Name "-ceph-ns-key-generator" }}
+{{ tuple $envAll "namespace_client_key_generator" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ $serviceAccountName }}
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+    verbs:
+      - get
+      - create
+      - update
+      - patch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ $serviceAccountName }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ $serviceAccountName }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ $serviceAccountName }}
+    namespace: {{ $envAll.Release.Namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ printf "%s-%s" $serviceAccountName $randStringSuffix }}
+{{- if eq .Values.storageclass.csi_rbd.provision_storage_class true }}
+  namespace: {{ .Values.storageclass.csi_rbd.parameters.adminSecretNamespace }}
+{{- else }}
+  namespace: {{ .Values.storageclass.rbd.parameters.adminSecretNamespace }}
+{{- end }}
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+    verbs:
+      - get
+      - list
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ printf "%s-%s" $serviceAccountName $randStringSuffix }}
+{{- if eq .Values.storageclass.csi_rbd.provision_storage_class true }}
+  namespace: {{ .Values.storageclass.csi_rbd.parameters.adminSecretNamespace }}
+{{- else }}
+  namespace: {{ .Values.storageclass.rbd.parameters.adminSecretNamespace }}
+{{- end }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ printf "%s-%s" $serviceAccountName $randStringSuffix }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ $serviceAccountName }}
+    namespace: {{ $envAll.Release.Namespace }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ $serviceAccountName }}
+  labels:
+{{ tuple $envAll "ceph" "client-key-generator" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "ceph" "client-key-generator" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+{{ dict "envAll" $envAll "podName" $serviceAccountName "containerNames" (list "ceph-storage-keys-generator" "init") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
+    spec:
+{{ dict "envAll" $envAll "application" "client_key_generator" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
+      serviceAccountName: {{ $serviceAccountName }}
+      restartPolicy: OnFailure
+      nodeSelector:
+        {{ $envAll.Values.labels.job.node_selector_key }}: {{ $envAll.Values.labels.job.node_selector_value }}
+      initContainers:
+{{ tuple $envAll "namespace_client_key_generator" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+      containers:
+        - name:  ceph-storage-keys-generator
+{{ tuple $envAll "ceph_config_helper" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.jobs.secret_provisioning | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "client_key_generator" "container" "ceph_storage_keys_generator" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          env:
+            - name: DEPLOYMENT_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+{{- if eq .Values.ext_ceph_cluster.rook_ceph.connect true }}
+            - name: CONNECT_TO_ROOK_CEPH_CLUSTER
+              value: "true"
+{{- end }}
+{{- if eq .Values.storageclass.csi_rbd.provision_storage_class true }}
+            - name: PVC_CEPH_RBD_STORAGECLASS_USER_SECRET_NAME
+              value: {{ .Values.storageclass.csi_rbd.parameters.userSecretName }}
+            - name: PVC_CEPH_RBD_STORAGECLASS_ADMIN_SECRET_NAME
+              value: {{ .Values.storageclass.csi_rbd.parameters.adminSecretName }}
+            - name: PVC_CEPH_RBD_STORAGECLASS_DEPLOYED_NAMESPACE
+              value: {{ .Values.storageclass.csi_rbd.parameters.adminSecretNamespace }}
+{{- else }}
+            - name: PVC_CEPH_RBD_STORAGECLASS_USER_SECRET_NAME
+              value: {{ .Values.storageclass.rbd.parameters.userSecretName }}
+            - name: PVC_CEPH_RBD_STORAGECLASS_ADMIN_SECRET_NAME
+              value: {{ .Values.storageclass.rbd.parameters.adminSecretName }}
+            - name: PVC_CEPH_RBD_STORAGECLASS_DEPLOYED_NAMESPACE
+              value: {{ .Values.storageclass.rbd.parameters.adminSecretNamespace }}
+{{- end }}
+          command:
+            - /tmp/provisioner-rbd-namespace-client-key-manager.sh
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: pod-etc-ceph
+              mountPath: /etc/ceph
+            - name: ceph-provisioners-bin-clients
+              mountPath: /tmp/provisioner-rbd-namespace-client-key-manager.sh
+              subPath: provisioner-rbd-namespace-client-key-manager.sh
+              readOnly: true
+      volumes:
+        - name: pod-tmp
+          emptyDir: {}
+        - name: pod-etc-ceph
+          emptyDir: {}
+        - name: ceph-provisioners-bin-clients
+          configMap:
+            name: {{ printf "%s-%s" $envAll.Release.Name "ceph-prov-bin-clients" | quote }}
+            defaultMode: 0555
+{{- end }}

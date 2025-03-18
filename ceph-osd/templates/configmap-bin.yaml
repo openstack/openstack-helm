@@ -1,0 +1,71 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.configmap_bin }}
+{{- $envAll := . }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ printf "%s-%s" $envAll.Release.Name "bin" | quote }}
+data:
+{{- if .Values.images.local_registry.active }}
+  image-repo-sync.sh: |
+{{- include "helm-toolkit.scripts.image_repo_sync" . | indent 4 }}
+{{- end }}
+{{- if .Values.bootstrap.enabled }}
+  bootstrap.sh: |
+{{ tuple "bin/_bootstrap.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
+{{- end }}
+  post-apply.sh: |
+{{ tuple "bin/_post-apply.sh.tpl" . | include  "helm-toolkit.utils.template" | indent 4 }}
+  osd-start.sh: |
+{{ tuple "bin/osd/_start.sh.tpl" . | include  "helm-toolkit.utils.template" | indent 4 }}
+  log-tail.sh: |
+{{ tuple "bin/osd/_log-tail.sh.tpl" . | include  "helm-toolkit.utils.template" | indent 4 }}
+  osd-directory-ceph-volume.sh: |
+{{ tuple "bin/osd/_directory.sh.tpl" . | include  "helm-toolkit.utils.template" | indent 4 }}
+  osd-block-ceph-volume.sh: |
+{{ tuple "bin/osd/ceph-volume/_block.sh.tpl" . | include  "helm-toolkit.utils.template" | indent 4 }}
+  osd-bluestore-ceph-volume.sh: |
+{{ tuple "bin/osd/ceph-volume/_bluestore.sh.tpl" . | include  "helm-toolkit.utils.template" | indent 4 }}
+  osd-init-ceph-volume-helper-bluestore.sh: |
+{{ tuple "bin/osd/ceph-volume/_init-ceph-volume-helper-bluestore.sh.tpl" . | include  "helm-toolkit.utils.template" | indent 4 }}
+  osd-init-ceph-volume-helper-directory.sh: |
+{{ tuple "bin/osd/ceph-volume/_init-ceph-volume-helper-directory.sh.tpl" . | include  "helm-toolkit.utils.template" | indent 4 }}
+  osd-init-ceph-volume-helper-block-logical.sh: |
+{{ tuple "bin/osd/ceph-volume/_init-ceph-volume-helper-block-logical.sh.tpl" . | include  "helm-toolkit.utils.template" | indent 4 }}
+  osd-init-ceph-volume.sh: |
+{{ tuple "bin/osd/ceph-volume/_init-with-ceph-volume.sh.tpl" . | include  "helm-toolkit.utils.template" | indent 4 }}
+  osd-common-ceph-volume.sh: |
+{{ tuple "bin/osd/ceph-volume/_common.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
+  osd-init.sh: |
+{{ tuple "bin/osd/_init.sh.tpl" . | include  "helm-toolkit.utils.template" | indent 4 }}
+  osd-check.sh: |
+{{ tuple "bin/osd/_check.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
+  osd-stop.sh: |
+{{ tuple "bin/osd/_stop.sh.tpl" . | include  "helm-toolkit.utils.template" | indent 4 }}
+  log-runner-stop.sh: |
+{{ tuple "bin/osd/_log-runner-stop.sh.tpl" . | include  "helm-toolkit.utils.template" | indent 4 }}
+  init-dirs.sh: |
+{{ tuple "bin/_init-dirs.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
+  helm-tests.sh: |
+{{ tuple "bin/_helm-tests.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
+  utils-checkDNS.sh: |
+{{ tuple "bin/utils/_checkDNS.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
+  utils-defragOSDs.sh: |
+{{ tuple "bin/utils/_defragOSDs.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
+  utils-resolveLocations.sh: |
+{{ tuple "bin/utils/_resolveLocations.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
+{{- end }}

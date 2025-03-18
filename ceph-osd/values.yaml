@@ -1,0 +1,431 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Default values for ceph-osd.
+# This is a YAML-formatted file.
+# Declare name/value pairs to be passed into your templates.
+# name: value
+
+---
+images:
+  pull_policy: IfNotPresent
+  tags:
+    ceph_osd: 'docker.io/openstackhelm/ceph-daemon:ubuntu_jammy_19.2.1-1-20250207'
+    ceph_bootstrap: 'docker.io/openstackhelm/ceph-daemon:ubuntu_jammy_19.2.1-1-20250207'
+    ceph_config_helper: 'docker.io/openstackhelm/ceph-config-helper:ubuntu_jammy_19.2.1-1-20250207'
+    dep_check: 'quay.io/airshipit/kubernetes-entrypoint:latest-ubuntu_focal'
+    image_repo_sync: 'docker.io/library/docker:17.07.0'
+  local_registry:
+    active: false
+    exclude:
+      - dep_check
+      - image_repo_sync
+
+labels:
+  job:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  test:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  osd:
+    node_selector_key: ceph-osd
+    node_selector_value: enabled
+
+# The default deploy tool is ceph-volume. "ceph-disk" was finally removed as it
+# had been deprecated from Nautilus and was not being used.
+deploy:
+  tool: "ceph-volume"
+# NOTE: set this to 1 if osd disk needs wiping in case of reusing from previous deployment
+  osd_force_repair: 1
+
+pod:
+  security_context:
+    osd:
+      pod:
+        runAsUser: 65534
+      container:
+        ceph_init_dirs:
+          runAsUser: 0
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+        ceph_log_ownership:
+          runAsUser: 0
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+        osd_init:
+          runAsUser: 0
+          privileged: true
+          readOnlyRootFilesystem: true
+        osd_pod:
+          runAsUser: 0
+          privileged: true
+          readOnlyRootFilesystem: true
+        log_runner:
+          # run as "ceph" user
+          runAsUser: 64045
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+    bootstrap:
+      pod:
+        runAsUser: 65534
+      container:
+        ceph_osd_bootstrap:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+    post_apply:
+      pod:
+        runAsUser: 65534
+      container:
+        ceph_osd_post_apply:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+    test:
+      pod:
+        runAsUser: 65534
+      container:
+        ceph_cluster_helm_test:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+  dns_policy: "ClusterFirstWithHostNet"
+  lifecycle:
+    upgrades:
+      daemonsets:
+        pod_replacement_strategy: RollingUpdate
+        osd:
+          enabled: true
+          min_ready_seconds: 0
+          max_unavailable: 1
+  affinity:
+    anti:
+      type:
+        default: preferredDuringSchedulingIgnoredDuringExecution
+      topologyKey:
+        default: kubernetes.io/hostname
+      weight:
+        default: 10
+  resources:
+    enabled: false
+    osd:
+      requests:
+        memory: "2Gi"
+        cpu: "1000m"
+      limits:
+        memory: "5Gi"
+        cpu: "2000m"
+    tests:
+      requests:
+        memory: "10Mi"
+        cpu: "250m"
+      limits:
+        memory: "50Mi"
+        cpu: "500m"
+    jobs:
+      image_repo_sync:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+  probes:
+    ceph-osd:
+      ceph-osd:
+        readiness:
+          enabled: true
+          params:
+            initialDelaySeconds: 60
+            periodSeconds: 60
+            timeoutSeconds: 5
+        liveness:
+          enabled: true
+          params:
+            initialDelaySeconds: 120
+            periodSeconds: 60
+            timeoutSeconds: 5
+
+secrets:
+  keyrings:
+    osd: ceph-bootstrap-osd-keyring
+    admin: ceph-client-admin-keyring
+  oci_image_registry:
+    ceph-osd: ceph-osh-oci-image-registry-key
+
+network:
+  public: 192.168.0.0/16
+  cluster: 192.168.0.0/16
+
+jobs:
+  ceph_defragosds:
+    # Execute the 1st of each month
+    cron: "0 0 1 * *"
+    history:
+      # Number of successful job to keep
+      successJob: 1
+      # Number of failed job to keep
+      failJob: 1
+    concurrency:
+      # Skip new job if previous job still active
+      execPolicy: Forbid
+    startingDeadlineSecs: 60
+
+conf:
+  ceph:
+    global:
+      # auth
+      cephx: true
+      cephx_require_signatures: false
+      cephx_cluster_require_signatures: true
+      cephx_service_require_signatures: false
+      objecter_inflight_op_bytes: "1073741824"
+      objecter_inflight_ops: 10240
+      debug_ms: "0/0"
+      mon_osd_down_out_interval: 1800
+      mon_osd_down_out_subtree_limit: root
+      mon_osd_min_in_ratio: 0
+      mon_osd_min_up_ratio: 0
+    osd:
+      osd_mkfs_type: xfs
+      osd_mkfs_options_xfs: -f -i size=2048
+      osd_max_object_name_len: 256
+      ms_bind_port_min: 6800
+      ms_bind_port_max: 7100
+      osd_snap_trim_priority: 1
+      osd_snap_trim_sleep: 0.1
+      osd_pg_max_concurrent_snap_trims: 1
+      filestore_merge_threshold: -10
+      filestore_split_multiple: 12
+      filestore_max_sync_interval: 10
+      osd_scrub_begin_hour: 22
+      osd_scrub_end_hour: 4
+      osd_scrub_during_recovery: false
+      osd_scrub_sleep: 0.1
+      osd_scrub_chunk_min: 1
+      osd_scrub_chunk_max: 4
+      osd_scrub_load_threshold: 10.0
+      osd_deep_scrub_stride: "1048576"
+      osd_scrub_priority: 1
+      osd_recovery_op_priority: 1
+      osd_recovery_max_active: 1
+      osd_mount_options_xfs: "rw,noatime,largeio,inode64,swalloc,logbufs=8,logbsize=256k,allocsize=4M"
+      osd_journal_size: 10240
+      osd_crush_update_on_start: false
+    target:
+      # This is just for helm tests to proceed the deployment if we have mentioned % of
+      # osds are up and running.
+      required_percent_of_osds: 75
+
+  storage:
+    # NOTE(supamatt): By default use host based buckets for failure domains. Any `failure_domain` defined must
+    # match the failure domain used on your CRUSH rules for pools. For example with a crush rule of
+    # rack_replicated_rule you would specify "rack" as the `failure_domain` to use.
+    # `failure_domain`: Set the CRUSH bucket type for your OSD to reside in. See the supported CRUSH configuration
+    #  as listed here: Supported CRUSH configuration is listed here: http://docs.ceph.com/docs/nautilus/rados/operations/crush-map/
+    #  if failure domain is rack then it will check for node label "rack" and get the value from it to create the rack, if there
+    #  is no label rack then it will use following options.
+    # `failure_domain_by_hostname`: Specify the portion of the hostname to use for your failure domain bucket name.
+    # `failure_domain_by_hostname_map`: Explicit mapping of hostname to failure domain, as a simpler alternative to overrides.
+    # `failure_domain_name`: Manually name the failure domain bucket name. This configuration option should only be used
+    #  when using host based overrides.
+    failure_domain: "host"
+    failure_domain_by_hostname: "false"
+    failure_domain_by_hostname_map: {}
+    # Example:
+    #   failure_domain_map_hostname_map:
+    #     hostfoo: rack1
+    #     hostbar: rack1
+    #     hostbaz: rack2
+    #     hostqux: rack2
+    failure_domain_name: "false"
+
+    # Note: You can override the device class by adding the value (e.g., hdd, ssd or nvme).
+    # Leave it empty if you don't need to modify the device class.
+    device_class: ""
+
+    # NOTE(portdirect): for homogeneous clusters the `osd` key can be used to
+    # define OSD pods that will be deployed across the cluster.
+    # when specifing whole disk (/dev/sdf) for journals, ceph-osd chart will create
+    # needed partitions for each OSDs.
+    osd:
+    # Below is the current configuration default, which is Bluestore with co-located metadata
+    # - data:
+    #     type: bluestore
+    #     location: /dev/sdb   # Use a valid device here
+
+    # Separate block devices may be used for block.db and/or block.wal
+    # Specify the location and size in Gb. It is recommended that the
+    # block_db size isn't smaller than 4% of block. For example, if the
+    # block size is 1TB, then block_db shouldn't be less than 40GB.
+    # A size suffix of K for kilobytes, M for megabytes, G for gigabytes,
+    # T for terabytes, P for petabytes or E for exabytes is optional.
+    # Default unit is megabytes.
+    #   block_db:
+    #     location: /dev/sdc
+    #     size: "96GB"
+    #   block_wal:
+    #     location: /dev/sdc
+    #     size: "2GB"
+
+    # Block-based Filestore OSDs with separate journal block devices
+    # - data:
+    #     type: block-logical
+    #     location: /dev/sdd
+    #   journal:
+    #     type: block-logical
+    #     location: /dev/sdf1
+    # - data:
+    #     type: block-logical
+    #     location: /dev/sde
+    #   journal:
+    #     type: block-logical
+    #     location: /dev/sdf2
+
+    # Block-based Filestore OSDs with directory-based journals
+    # - data:
+    #     type: block-logical
+    #     location: /dev/sdg
+    #   journal:
+    #     type: directory
+    #     location: /var/lib/openstack-helm/ceph/osd/journal-sdg
+
+    # Directory-based Filestore OSD
+    # - data:
+    #     type: directory
+    #     location: /var/lib/openstack-helm/ceph/osd/osd-one
+    #   journal:
+    #     type: directory
+    #     location: /var/lib/openstack-helm/ceph/osd/journal-one
+
+    # The post-apply job will restart OSDs without disruption by default. Set
+    # this value to "true" to restart all OSDs at once. This will accomplish
+    # OSD restarts more quickly with disruption.
+    disruptive_osd_restart: "false"
+
+    # The post-apply job will try to determine if OSDs need to be restarted and
+    # only restart them if necessary. Set this value to "true" to restart OSDs
+    # unconditionally.
+    unconditional_osd_restart: "false"
+
+# NOTE(portdirect): for heterogeneous clusters the overrides section can be used to define
+# OSD pods that will be deployed upon specifc nodes.
+# overrides:
+#   ceph_osd:
+#     hosts:
+#       - name: host1.fqdn
+#         conf:
+#           storage:
+#             failure_domain_name: "rack1"
+#             osd:
+#               - data:
+#                   type: directory
+#                   location: /var/lib/openstack-helm/ceph/osd/data-three
+#                 journal:
+#                   type: directory
+#                   location: /var/lib/openstack-helm/ceph/osd/journal-three
+
+daemonset:
+  prefix_name: "osd"
+
+dependencies:
+  dynamic:
+    common:
+      local_image_registry:
+        jobs:
+          - ceph-osd-image-repo-sync
+        services:
+          - endpoint: node
+            service: local_image_registry
+  static:
+    osd:
+      jobs:
+        - ceph-storage-keys-generator
+        - ceph-osd-keyring-generator
+      services:
+        - endpoint: internal
+          service: ceph_mon
+    image_repo_sync:
+      services:
+        - endpoint: internal
+          service: local_image_registry
+    tests:
+      jobs:
+        - ceph-storage-keys-generator
+        - ceph-osd-keyring-generator
+      services:
+        - endpoint: internal
+          service: ceph_mon
+
+logging:
+  truncate:
+    size: 0
+    period: 3600
+  osd_id:
+    timeout: 300
+
+bootstrap:
+  enabled: true
+  script: |
+    ceph -s
+
+endpoints:
+  cluster_domain_suffix: cluster.local
+  local_image_registry:
+    name: docker-registry
+    namespace: docker-registry
+    hosts:
+      default: localhost
+      internal: docker-registry
+      node: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        node: 5000
+  oci_image_registry:
+    name: oci-image-registry
+    namespace: oci-image-registry
+    auth:
+      enabled: false
+      ceph-osd:
+        username: ceph-osd
+        password: password
+    hosts:
+      default: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        default: null
+  ceph_mon:
+    namespace: null
+    hosts:
+      default: ceph-mon
+      discovery: ceph-mon-discovery
+    host_fqdn_override:
+      default: null
+    port:
+      mon:
+        default: 6789
+      mon_msgr2:
+        default: 3300
+
+manifests:
+  configmap_bin: true
+  configmap_etc: true
+  configmap_test_bin: true
+  daemonset_osd: true
+  job_bootstrap: false
+  job_post_apply: true
+  job_image_repo_sync: true
+  helm_tests: true
+  secret_registry: true
+...

@@ -1,0 +1,41 @@
+---
+conf:
+  prometheus:
+    rules:
+      postgresql:
+        groups:
+        - name: postgresql.rules
+          rules:
+          - alert: prom_exporter_postgresql_unavailable
+            expr: avg_over_time(up{job="postgresql-exporter"}[5m]) == 0
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              description: postgresql exporter is not collecting metrics or is not available for past 10 minutes
+              title: postgresql exporter is not collecting metrics or is not available
+          - alert: pg_replication_fallen_behind
+            expr: (pg_replication_lag > 120) and ON(instance) (pg_replication_is_replica ==  1)
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              description: Replication lag on server {{$labels.instance}} is currently {{$value | humanizeDuration }}
+              title: Postgres Replication lag is over 2 minutes
+          - alert: pg_connections_too_high
+            expr: sum(pg_stat_activity_count) BY (environment, fqdn) > ON(fqdn) pg_settings_max_connections * 0.95
+            for: 5m
+            labels:
+              severity: warn
+              channel: database
+            annotations:
+              title: Postgresql has {{$value}} connections on {{$labels.fqdn}} which is close to the maximum
+          - alert: pg_deadlocks_detected
+            expr: sum by(datname) (rate(pg_stat_database_deadlocks[1m])) > 0
+            for: 5m
+            labels:
+              severity: warn
+            annotations:
+              description: postgresql at {{$labels.instance}} is showing {{$value}} rate of deadlocks for database {{$labels.datname}}
+              title: Postgres server is experiencing deadlocks
+...

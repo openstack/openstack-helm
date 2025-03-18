@@ -1,0 +1,274 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- define "readinessProbeTemplate" }}
+{{- $object_store_name := "object_store" }}
+{{- if .Values.conf.rgw_s3.enabled }}
+{{ $object_store_name = "ceph_object_store" }}
+{{- end }}
+httpGet:
+  path: /
+  port: {{ tuple $object_store_name "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+  scheme: {{ tuple $object_store_name "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_scheme_lookup" | upper }}
+{{- end }}
+
+{{- define "livenessProbeTemplate" }}
+{{- $object_store_name := "object_store" }}
+{{- if .Values.conf.rgw_s3.enabled }}
+{{ $object_store_name = "ceph_object_store" }}
+{{- end }}
+httpGet:
+  path: /
+  port: {{ tuple $object_store_name "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+  scheme: {{ tuple $object_store_name "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_scheme_lookup" | upper }}
+{{- end }}
+
+{{- if and .Values.manifests.deployment_rgw ( and .Values.deployment.ceph .Values.conf.features.rgw ) }}
+{{- $envAll := . }}
+
+{{ $object_store_name := "object_store" }}
+{{ $tls_secret := .Values.secrets.tls.object_store.api.internal | quote }}
+{{- if .Values.conf.rgw_s3.enabled }}
+{{ $object_store_name = "ceph_object_store" }}
+{{ $tls_secret = .Values.secrets.tls.ceph_object_store.api.internal | quote }}
+{{- end }}
+
+{{- $serviceAccountName := "ceph-rgw" }}
+{{- $checkDnsServiceAccountName := "ceph-checkdns" }}
+
+{{- $_ := set $envAll.Values "__depParams" ( list ) }}
+{{- if .Values.conf.rgw_ks.enabled -}}
+{{- $__updateDepParams := append $envAll.Values.__depParams "keystone" -}}
+{{- $_ := set $envAll.Values "__depParams" $__updateDepParams -}}
+{{- end -}}
+{{- if .Values.conf.rgw_s3.enabled -}}
+{{- $__updateDepParams := append $envAll.Values.__depParams "s3" -}}
+{{- $_ := set $envAll.Values "__depParams" $__updateDepParams -}}
+{{- end -}}
+{{- $dependencyOpts := dict "envAll" $envAll "dependencyMixinParam" $envAll.Values.__depParams "dependencyKey" "rgw" -}}
+{{- $_ := include "helm-toolkit.utils.dependency_resolver" $dependencyOpts | toString | fromYaml }}
+{{ tuple $envAll "pod_dependency" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ printf "%s-%s" $serviceAccountName $envAll.Release.Namespace }}
+  namespace: {{ .Values.endpoints.ceph_mon.namespace }}
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - endpoints
+    verbs:
+      - get
+      - list
+      - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ printf "%s-%s" $serviceAccountName $envAll.Release.Namespace }}
+  namespace: {{ .Values.endpoints.ceph_mon.namespace }}
+roleRef:
+  kind: Role
+  name: {{ printf "%s-%s" $serviceAccountName $envAll.Release.Namespace }}
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+  - kind: ServiceAccount
+    name: {{ $serviceAccountName }}
+    namespace: {{ $envAll.Release.Namespace }}
+---
+# This role bindig refers to the ClusterRole for
+# check-dns deployment.
+# See: openstack-helm-infra/ceph-client/deployment-checkdns.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ printf "%s-from-%s-to-%s" $checkDnsServiceAccountName $envAll.Values.endpoints.ceph_mon.namespace $envAll.Release.Namespace }}
+  namespace: {{ $envAll.Release.Namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: clusterrole-checkdns
+subjects:
+  - kind: ServiceAccount
+    name: {{ $checkDnsServiceAccountName }}
+    namespace:  {{ .Values.endpoints.ceph_mon.namespace }}
+---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: ceph-rgw
+  annotations:
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+  labels:
+{{ tuple $envAll "ceph" "rgw" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  replicas: {{ .Values.pod.replicas.rgw }}
+  selector:
+    matchLabels:
+{{ tuple $envAll "ceph" "rgw" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
+{{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_deployment" | indent 2 }}
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "ceph" "rgw" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
+        configmap-etc-client-hash: {{ tuple "configmap-etc-client.yaml" . | include "helm-toolkit.utils.hash" }}
+        secret-keystone-rgw-hash: {{ tuple "secret-keystone-rgw.yaml" . | include "helm-toolkit.utils.hash" }}
+{{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
+{{ dict "envAll" $envAll "podName" "ceph-rgw" "containerNames" (list "init" "ceph-rgw" "ceph-init-dirs" "ceph-rgw-init") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
+    spec:
+{{ dict "envAll" $envAll "application" "rgw" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
+      serviceAccountName: {{ $serviceAccountName }}
+      affinity:
+{{ tuple $envAll "ceph" "rgw" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
+{{ tuple $envAll "rgw" | include "helm-toolkit.snippets.kubernetes_tolerations" | indent 6 }}
+      nodeSelector:
+        {{ .Values.labels.rgw.node_selector_key }}: {{ .Values.labels.rgw.node_selector_value }}
+      initContainers:
+{{ tuple $envAll "pod_dependency" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+        - name: ceph-init-dirs
+{{ tuple $envAll "ceph_rgw" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ dict "envAll" $envAll "application" "rgw" "container" "init_dirs" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          command:
+            - /tmp/init-dirs.sh
+          env:
+            - name: CLUSTER
+              value: "ceph"
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: pod-run
+              mountPath: /run
+            - name: pod-etc-ceph
+              mountPath: /etc/ceph
+            - name: ceph-rgw-bin
+              mountPath: /tmp/init-dirs.sh
+              subPath: init-dirs.sh
+              readOnly: true
+            - name: pod-var-lib-ceph
+              mountPath: /var/lib/ceph
+              readOnly: false
+        - name: ceph-rgw-init
+{{ tuple $envAll "ceph_rgw" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.rgw | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "rgw" "container" "rgw_init" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          env:
+            - name: CLUSTER
+              value: "ceph"
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.name
+{{ if .Values.conf.rgw_ks.enabled }}
+{{- with $env := dict "ksUserSecret" .Values.secrets.identity.user_rgw "useCA" .Values.manifests.certificates }}
+{{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 12 }}
+{{- end }}
+            - name: KEYSTONE_URL
+              value: {{ tuple "identity" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" | trimSuffix .Values.endpoints.identity.path.default | quote }}
+{{ end }}
+            - name: RGW_FRONTEND_PORT
+              value: "{{ tuple $object_store_name "internal" "api" $envAll | include "helm-toolkit.endpoints.endpoint_port_lookup" }}"
+          command:
+            - /tmp/rgw-init.sh
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: pod-run
+              mountPath: /run
+            - name: pod-etc-ceph
+              mountPath: /etc/ceph
+            - name: ceph-rgw-bin
+              mountPath: /tmp/rgw-init.sh
+              subPath: rgw-init.sh
+              readOnly: true
+            - name: ceph-rgw-etc
+              mountPath: /etc/ceph/ceph.conf.template
+              subPath: ceph.conf
+              readOnly: true
+{{- if .Values.conf.rgw_ks.enabled }}
+{{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.object_store.api.keystone | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
+{{- end }}
+      containers:
+        - name: ceph-rgw
+{{ tuple $envAll "ceph_rgw" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.rgw | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "rgw" "container" "rgw" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          env:
+            - name: CLUSTER
+              value: "ceph"
+            - name: RGW_FRONTEND_PORT
+              value: "{{ tuple $object_store_name "internal" "api" $envAll | include "helm-toolkit.endpoints.endpoint_port_lookup" }}"
+          command:
+            - /tmp/rgw-start.sh
+          ports:
+            - containerPort: {{ tuple $object_store_name "internal" "api" $envAll | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+{{ dict "envAll" . "component" "api" "container" "ceph-rgw" "type" "liveness" "probeTemplate" (include "livenessProbeTemplate" . | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | trim | indent 10 }}
+{{ dict "envAll" . "component" "api" "container" "ceph-rgw" "type" "readiness" "probeTemplate" (include "readinessProbeTemplate" . | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | trim | indent 10 }}
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: pod-run
+              mountPath: /run
+            - name: pod-etc-ceph
+              mountPath: /etc/ceph
+            - name: ceph-rgw-bin
+              mountPath: /tmp/rgw-start.sh
+              subPath: rgw-start.sh
+              readOnly: true
+            - name: ceph-rgw-bin
+              mountPath: /tmp/utils-checkDNS.sh
+              subPath: utils-checkDNS.sh
+              readOnly: true
+            - name: ceph-rgw-etc
+              mountPath: /etc/ceph/ceph.conf.template
+              subPath: ceph.conf
+              readOnly: true
+            - name: ceph-bootstrap-rgw-keyring
+              mountPath: /var/lib/ceph/bootstrap-rgw/ceph.keyring
+              subPath: ceph.keyring
+              readOnly: false
+            - name: pod-var-lib-ceph
+              mountPath: /var/lib/ceph
+              readOnly: false
+{{- dict "enabled" .Values.manifests.certificates "name" $tls_secret "path" "/etc/tls" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
+      volumes:
+        - name: pod-tmp
+          emptyDir: {}
+        - name: pod-run
+          emptyDir:
+            medium: "Memory"
+        - name: pod-etc-ceph
+          emptyDir: {}
+        - name: ceph-rgw-bin
+          configMap:
+            name: ceph-rgw-bin
+            defaultMode: 0555
+        - name: ceph-rgw-etc
+          configMap:
+            name: ceph-rgw-etc
+            defaultMode: 0444
+        - name: pod-var-lib-ceph
+          emptyDir: {}
+        - name: ceph-bootstrap-rgw-keyring
+          secret:
+            secretName: {{ .Values.secrets.keyrings.rgw }}
+{{- dict "enabled" .Values.manifests.certificates "name" $tls_secret | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
+{{- if .Values.conf.rgw_ks.enabled }}
+{{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.object_store.api.keystone | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
+{{- end }}
+{{- end }}

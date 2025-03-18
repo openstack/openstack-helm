@@ -1,0 +1,234 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- define "readinessProbeTemplate" }}
+{{- $probePort := tuple "elasticsearch" "internal" "http" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+{{- $probeUser := .Values.endpoints.elasticsearch.auth.admin.username }}
+{{- $probePass := .Values.endpoints.elasticsearch.auth.admin.password }}
+{{- $authHeader := printf "%s:%s" $probeUser $probePass | b64enc }}
+httpGet:
+  path: /_cluster/health
+  scheme: {{ tuple "elasticsearch" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_scheme_lookup" | upper }}
+  port: {{ $probePort }}
+  httpHeaders:
+    - name: Authorization
+      value: Basic {{ $authHeader }}
+{{- end }}
+{{- define "livenessProbeTemplate" }}
+{{- $probePort := tuple "elasticsearch" "internal" "discovery" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+tcpSocket:
+  port: {{ $probePort }}
+{{- end }}
+
+{{- if .Values.manifests.deployment_client }}
+{{- $envAll := . }}
+
+{{- $esUserSecret := .Values.secrets.elasticsearch.user }}
+{{- $s3UserSecret := .Values.secrets.rgw.elasticsearch }}
+
+{{- $mounts_elasticsearch := .Values.pod.mounts.elasticsearch.elasticsearch }}
+
+{{- $serviceAccountName := printf "%s-%s" .Release.Name "elasticsearch-client" }}
+{{ tuple $envAll "elasticsearch_client" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: elasticsearch-client
+  annotations:
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+  labels:
+{{ tuple $envAll "elasticsearch" "client" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  replicas: {{ .Values.pod.replicas.client }}
+  selector:
+    matchLabels:
+{{ tuple $envAll "elasticsearch" "client" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
+{{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_deployment" | indent 2 }}
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "elasticsearch" "client" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+{{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
+        configmap-bin-hash: {{ tuple "configmap-bin-elasticsearch.yaml" . | include "helm-toolkit.utils.hash" }}
+        configmap-etc-hash: {{ tuple "configmap-etc-elasticsearch.yaml" . | include "helm-toolkit.utils.hash" }}
+{{ dict "envAll" $envAll "podName" "elasticsearch-client" "containerNames" (list "elasticsearch-client" "init" "memory-map-increase" "apache-proxy") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
+    spec:
+{{ dict "envAll" $envAll "application" "client" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
+      serviceAccountName: {{ $serviceAccountName }}
+      affinity:
+{{ tuple $envAll "elasticsearch" "client" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
+      nodeSelector:
+        {{ .Values.labels.client.node_selector_key }}: {{ .Values.labels.client.node_selector_value | quote }}
+      terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.client.timeout | default "600" }}
+      initContainers:
+{{ tuple $envAll "elasticsearch_client" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container"  | indent 8 }}
+        - name: memory-map-increase
+{{ tuple $envAll "memory_init" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.client | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "client" "container" "memory_map_increase" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          command:
+          - sysctl
+          - -w
+          - vm.max_map_count={{ .Values.conf.init.max_map_count }}
+      containers:
+        - name: apache-proxy
+{{ tuple $envAll "apache_proxy" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.apache_proxy | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "client" "container" "apache_proxy" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          command:
+            - /tmp/apache.sh
+            - start
+          ports:
+            - name: {{ tuple "elasticsearch" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_scheme_lookup" }}
+              containerPort: {{ tuple "elasticsearch" "internal" "http" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+          readinessProbe:
+            tcpSocket:
+              port: {{ tuple "elasticsearch" "internal" "http" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          env:
+            - name: ELASTICSEARCH_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $esUserSecret }}
+                  key: ELASTICSEARCH_USERNAME
+            - name: ELASTICSEARCH_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $esUserSecret }}
+                  key: ELASTICSEARCH_PASSWORD
+            - name: ELASTICSEARCH_LOGGING_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $esUserSecret }}
+                  key: ELASTICSEARCH_LOGGING_USERNAME
+            - name: ELASTICSEARCH_LOGGING_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $esUserSecret }}
+                  key: ELASTICSEARCH_LOGGING_PASSWORD
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: elasticsearch-bin
+              mountPath: /tmp/apache.sh
+              subPath: apache.sh
+              readOnly: true
+            - name: elasticsearch-etc
+              mountPath: /usr/local/apache2/conf/httpd.conf
+              subPath: httpd.conf
+              readOnly: true
+{{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.elasticsearch.elasticsearch.internal "path" "/etc/elasticsearch/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
+        - name: elasticsearch-client
+{{ tuple $envAll "elasticsearch" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.client | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "client" "container" "elasticsearch_client" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          command:
+            - /tmp/elasticsearch.sh
+            - start
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /tmp/elasticsearch.sh
+                  - stop
+          ports:
+            - name: transport
+              containerPort: {{ tuple "elasticsearch" "internal" "discovery" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+{{ dict "envAll" . "component" "elasticsearch" "container" "elasticsearch-client" "type" "liveness" "probeTemplate" (include "livenessProbeTemplate" . | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+{{ dict "envAll" . "component" "elasticsearch" "container" "elasticsearch-client" "type" "readiness" "probeTemplate" (include "readinessProbeTemplate" . | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+          env:
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: node.roles
+              value: "[ingest]"
+            - name: HTTP_ENABLE
+              value: "true"
+            - name: DISCOVERY_SERVICE
+              value: {{ tuple "elasticsearch" "discovery" $envAll | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
+            - name: ES_JAVA_OPTS
+              value: "{{ .Values.conf.elasticsearch.env.java_opts.client }}"
+{{- if .Values.manifests.certificates }}
+            - name: JAVA_KEYSTORE_CERT_PATH
+              value: "/usr/share/elasticsearch/config/ca.crt"
+            - name: ELASTICSEARCH_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $esUserSecret }}
+                  key: ELASTICSEARCH_PASSWORD
+{{- end }}
+{{- if .Values.conf.elasticsearch.snapshots.enabled }}
+{{- if .Values.manifests.object_bucket_claim }}
+{{- include "helm-toolkit.snippets.rgw_s3_bucket_user_env_vars_rook" . | indent 12 }}
+{{- else }}
+{{- include "helm-toolkit.snippets.rgw_s3_user_env_vars" . | indent 12 }}
+{{- end }}
+{{- end }}
+{{- if .Values.pod.env.client }}
+{{ include "helm-toolkit.utils.to_k8s_env_vars" .Values.pod.env.client | indent 12 }}
+{{- end }}
+{{- if .Values.pod.env.secrets }}
+{{ tuple $envAll .Values.pod.env.secrets | include "helm-toolkit.utils.to_k8s_env_secret_vars" | indent 12 }}
+{{- end }}
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: elasticsearch-logs
+              mountPath: {{ .Values.conf.elasticsearch.config.path.logs }}
+            - name: elasticsearch-bin
+              mountPath: /tmp/elasticsearch.sh
+              subPath: elasticsearch.sh
+              readOnly: true
+            - name: elasticsearch-etc
+              mountPath: /usr/share/elasticsearch/config/elasticsearch.yml
+              subPath: elasticsearch.yml
+              readOnly: true
+            - name: elasticsearch-etc
+              mountPath: /usr/share/elasticsearch/config/log4j2.properties
+              subPath: log4j2.properties
+              readOnly: true
+            - name: elasticsearch-etc
+              mountPath: /usr/share/elasticsearch/config/jvm.options
+              subPath: jvm.options
+              readOnly: true
+            - name: storage
+              mountPath: {{ .Values.conf.elasticsearch.config.path.data }}
+{{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.elasticsearch.elasticsearch.internal "path" "/usr/share/elasticsearch/config" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
+{{ if $mounts_elasticsearch.volumeMounts }}{{ toYaml $mounts_elasticsearch.volumeMounts | indent 12 }}{{ end }}
+      volumes:
+        - name: pod-tmp
+          emptyDir: {}
+        - name: elasticsearch-logs
+          emptyDir: {}
+        - name: elasticsearch-bin
+          configMap:
+            name: elasticsearch-bin
+            defaultMode: 0555
+        - name: elasticsearch-etc
+          secret:
+            secretName: elasticsearch-etc
+            defaultMode: 0444
+        - name: storage
+          emptyDir: {}
+{{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.elasticsearch.elasticsearch.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
+{{ if $mounts_elasticsearch.volumes }}{{ toYaml $mounts_elasticsearch.volumes | indent 8 }}{{ end }}
+{{- end }}

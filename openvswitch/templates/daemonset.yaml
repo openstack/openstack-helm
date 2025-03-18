@@ -1,0 +1,274 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- define "ovsdblivenessProbeTemplate" }}
+exec:
+  command:
+    - /usr/bin/ovs-vsctl
+    - show
+{{- end }}
+
+{{- define "ovsdbreadinessProbeTemplate" }}
+exec:
+  command:
+    - /usr/bin/ovs-vsctl
+    - list
+    - Open_Vswitch
+{{- end }}
+
+{{- define "ovsvswitchlivenessProbeTemplate" }}
+exec:
+  command:
+{{- if .Values.pod.probes.ovs.ovs_vswitch.liveness.exec }}
+{{ .Values.pod.probes.ovs.ovs_vswitch.liveness.exec | toYaml | indent 4 }}
+{{- else }}
+    - /usr/bin/ovs-appctl
+    - bond/list
+{{- end }}
+{{- end }}
+
+{{- define "ovsvswitchreadinessProbeTemplate" }}
+exec:
+  command:
+{{- if .Values.pod.probes.ovs.ovs_vswitch.readiness.exec }}
+{{ .Values.pod.probes.ovs.ovs_vswitch.readiness.exec | toYaml | indent 4 }}
+{{- else if not .Values.conf.ovs_dpdk.enabled }}
+    - /bin/bash
+    - -c
+    - '/usr/bin/ovs-vsctl show'
+{{- else }}
+    - /bin/bash
+    - -c
+    - '/usr/bin/ovs-vsctl show && ! /usr/bin/ovs-vsctl list Open_vSwitch | grep -q dpdk_initialized.*false'
+{{- end }}
+{{- end }}
+
+{{- if .Values.manifests.daemonset }}
+{{- $envAll := . }}
+
+{{- $serviceAccountName := "openvswitch-server" }}
+{{ tuple $envAll "ovs" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: openvswitch
+  annotations:
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+  labels:
+{{ tuple $envAll "openvswitch" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  selector:
+    matchLabels:
+{{ tuple $envAll "openvswitch" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
+{{ tuple $envAll "ovs" | include "helm-toolkit.snippets.kubernetes_upgrades_daemonset" | indent 2 }}
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "openvswitch" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+{{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
+{{ dict "envAll" $envAll "podName" "openvswitch" "containerNames" (list "openvswitch-db" "openvswitch-db-perms" "openvswitch-vswitchd" "openvswitch-vswitchd-modules" "init") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
+    spec:
+      shareProcessNamespace: true
+      serviceAccountName: {{ $serviceAccountName }}
+{{ dict "envAll" $envAll "application" "ovs" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
+      nodeSelector:
+        {{ .Values.labels.ovs.node_selector_key }}: {{ .Values.labels.ovs.node_selector_value }}
+{{ if $envAll.Values.pod.tolerations.openvswitch.enabled }}
+{{ tuple $envAll "openvswitch" | include "helm-toolkit.snippets.kubernetes_tolerations" | indent 6 }}
+{{ end }}
+      dnsPolicy: {{ .Values.pod.dns_policy }}
+      hostNetwork: true
+      initContainers:
+{{ tuple $envAll "ovs" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+        - name: openvswitch-db-perms
+{{ tuple $envAll "openvswitch_db_server" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ dict "envAll" $envAll "application" "ovs" "container" "perms" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.ovs.db | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          command:
+            - chown
+            - -R
+            - {{ $envAll.Values.pod.security_context.ovs.container.server.runAsUser | quote }}
+            - /run/openvswitch
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: run-openvswitch
+              mountPath: /run/openvswitch
+        - name: openvswitch-vswitchd-modules
+{{ tuple $envAll "openvswitch_vswitchd" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ dict "envAll" $envAll "application" "ovs" "container" "modules" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          command:
+            - /tmp/openvswitch-vswitchd-init-modules.sh
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: openvswitch-bin
+              mountPath: /tmp/openvswitch-vswitchd-init-modules.sh
+              subPath: openvswitch-vswitchd-init-modules.sh
+              readOnly: true
+            - name: host-rootfs
+              mountPath: /mnt/host-rootfs
+              mountPropagation: HostToContainer
+              readOnly: true
+      containers:
+        - name: openvswitch-db
+{{ tuple $envAll "openvswitch_db_server" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ dict "envAll" $envAll "application" "ovs" "container" "server" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.ovs.db | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "component" "ovs" "container" "ovs_db" "type" "liveness" "probeTemplate" (include "ovsdblivenessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+{{ dict "envAll" $envAll "component" "ovs" "container" "ovs_db" "type" "readiness" "probeTemplate" (include "ovsdbreadinessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+          command:
+            - /tmp/openvswitch-db-server.sh
+            - start
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /tmp/openvswitch-db-server.sh
+                  - stop
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: openvswitch-bin
+              mountPath: /tmp/openvswitch-db-server.sh
+              subPath: openvswitch-db-server.sh
+              readOnly: true
+            - name: run
+              mountPath: /run
+        - name: openvswitch-vswitchd
+{{/* Run the container in priviledged mode due to the need for root
+permissions when we specify --user to run in non-root. */}}
+{{- $_ := set $envAll.Values.pod.security_context.ovs.container.vswitchd "privileged" true -}}
+{{- if .Values.conf.ovs_dpdk.enabled }}
+{{/* Limiting CPU cores would severely affect packet throughput
+It should be handled through lcore and pmd core masks. */}}
+{{- if .Values.pod.resources.enabled }}
+{{ $_ := unset $envAll.Values.pod.resources.ovs.vswitchd.requests "cpu" }}
+{{ $_ := unset $envAll.Values.pod.resources.ovs.vswitchd.limits "cpu" }}
+{{- end }}
+{{- end }}
+{{ tuple $envAll "openvswitch_vswitchd" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ dict "envAll" $envAll "application" "ovs" "container" "vswitchd" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.ovs.vswitchd | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          # ensures this container can speak to the ovs database
+          # successfully before its marked as ready
+{{ dict "envAll" $envAll "component" "ovs" "container" "ovs_vswitch" "type" "liveness" "probeTemplate" (include "ovsvswitchlivenessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+{{ dict "envAll" $envAll "component" "ovs" "container" "ovs_vswitch" "type" "readiness" "probeTemplate" (include "ovsvswitchreadinessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+{{- if .Values.pod.tini.enabled }}
+          command:
+            - /tini
+            - -s
+            - --
+          args:
+            - /tmp/openvswitch-vswitchd.sh
+            - start
+{{- else }}
+          command:
+            - /tmp/openvswitch-vswitchd.sh
+            - start
+{{- end }}
+          lifecycle:
+            postStart:
+              exec:
+                command:
+                  - /tmp/openvswitch-vswitchd.sh
+                  - poststart
+            preStop:
+              exec:
+                command:
+                  - /tmp/openvswitch-vswitchd.sh
+                  - stop
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: openvswitch-bin
+              mountPath: /tmp/openvswitch-vswitchd.sh
+              subPath: openvswitch-vswitchd.sh
+              readOnly: true
+            - name: run
+              mountPath: /run
+{{- if .Values.conf.ovs_dpdk.enabled }}
+            - name: hugepages
+              mountPath: {{ .Values.conf.ovs_dpdk.hugepages_mountpath | quote }}
+            - name: pci-devices
+              mountPath: /sys/bus/pci/devices
+            - name: huge-pages-kernel
+              mountPath: /sys/kernel/mm/hugepages
+            - name: node-devices
+              mountPath: /sys/devices/system/node
+            - name: modules
+              mountPath: /lib/modules
+            - name: devs
+              mountPath: /dev
+            - name: pci-drivers
+              mountPath: /sys/bus/pci/drivers
+            - name: cgroup
+              mountPath: /sys/fs/cgroup
+{{- end }}
+      volumes:
+        - name: pod-tmp
+          emptyDir: {}
+        - name: openvswitch-bin
+          configMap:
+            name: openvswitch-bin
+            defaultMode: 0555
+        - name: run
+          hostPath:
+            path: /run
+            type: Directory
+        - name: run-openvswitch
+          hostPath:
+            path: /run/openvswitch
+            type: DirectoryOrCreate
+        - name: host-rootfs
+          hostPath:
+            path: /
+            type: Directory
+{{- if .Values.conf.ovs_dpdk.enabled }}
+        - name: devs
+          hostPath:
+            path: /dev
+            type: Directory
+        - name: pci-devices
+          hostPath:
+            path: /sys/bus/pci/devices
+            type: Directory
+        - name: huge-pages-kernel
+          hostPath:
+            path: /sys/kernel/mm/hugepages
+            type: Directory
+        - name: node-devices
+          hostPath:
+            path: /sys/devices/system/node
+            type: Directory
+        - name: modules
+          hostPath:
+            path: /lib/modules
+            type: Directory
+        - name: pci-drivers
+          hostPath:
+            path: /sys/bus/pci/drivers
+            type: Directory
+        - name: hugepages
+          hostPath:
+            path: {{ .Values.conf.ovs_dpdk.hugepages_mountpath | quote }}
+            type: Directory
+        - name: cgroup
+          hostPath:
+            path: /sys/fs/cgroup
+{{- end }}
+{{- end }}

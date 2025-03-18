@@ -1,0 +1,47 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if (.Values.global).subchart_release_name }}
+{{- $_ := set . "deployment_name" .Chart.Name }}
+{{- else }}
+{{- $_ := set . "deployment_name" .Release.Name }}
+{{- end }}
+
+{{- if .Values.manifests.configmap_bin }}
+{{- $envAll := . }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ printf "%s-%s" .deployment_name "rabbitmq-bin" | quote }}
+data:
+{{- if .Values.images.local_registry.active }}
+  image-repo-sync.sh: |
+{{- include "helm-toolkit.scripts.image_repo_sync" . | indent 4 }}
+{{- end }}
+  rabbitmq-test.sh: |
+{{ tuple "bin/_rabbitmq-test.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
+  rabbitmq-liveness.sh: |
+{{ tuple "bin/_rabbitmq-liveness.sh.tpl" . | include  "helm-toolkit.utils.template" | indent 4 }}
+  rabbitmq-readiness.sh: |
+{{ tuple "bin/_rabbitmq-readiness.sh.tpl" . | include  "helm-toolkit.utils.template" | indent 4 }}
+  rabbitmq-start.sh: |
+{{ tuple "bin/_rabbitmq-start.sh.tpl" . | include  "helm-toolkit.utils.template" | indent 4 }}
+  rabbitmq-cookie.sh: |
+{{ tuple "bin/_rabbitmq-cookie.sh.tpl" . | include  "helm-toolkit.utils.template" | indent 4 }}
+  rabbitmq-password-hash.py: |
+{{ tuple "bin/_rabbitmq-password-hash.py.tpl" . | include  "helm-toolkit.utils.template" | indent 4 }}
+  rabbitmq-wait-for-cluster.sh: |
+{{ tuple "bin/_rabbitmq-wait-for-cluster.sh.tpl" . | include  "helm-toolkit.utils.template" | indent 4 }}
+{{ end }}

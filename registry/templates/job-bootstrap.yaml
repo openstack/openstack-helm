@@ -1,0 +1,73 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.job_bootstrap }}
+{{- $envAll := . }}
+{{- if .Values.bootstrap.enabled }}
+
+{{- $serviceAccountName := "docker-bootstrap" }}
+{{ tuple $envAll "bootstrap" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: docker-bootstrap
+  labels:
+{{ tuple $envAll "docker" "bootstrap" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+  annotations:
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+spec:
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "docker" "bootstrap" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+    spec:
+      serviceAccountName: {{ $serviceAccountName }}
+      restartPolicy: OnFailure
+      nodeSelector:
+        {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value | quote }}
+      initContainers:
+{{ tuple $envAll "bootstrap" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container"  | indent 8 }}
+      containers:
+        - name: docker-bootstrap
+{{ tuple $envAll "bootstrap" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.jobs.bootstrap | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          env:
+            - name: LOCAL_REPO
+              value: "localhost:{{ tuple "docker_registry" "public" "registry" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}"
+            - name: PRELOAD_IMAGES
+              value: "{{  include "helm-toolkit.utils.joinListWithComma" .Values.bootstrap.preload_images }}"
+          command:
+            - /tmp/bootstrap.sh
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: registry-bin
+              mountPath: /tmp/bootstrap.sh
+              subPath: bootstrap.sh
+              readOnly: true
+            - name: docker-socket
+              mountPath: /var/run/docker.sock
+      volumes:
+        - name: pod-tmp
+          emptyDir: {}
+        - name: registry-bin
+          configMap:
+            name: registry-bin
+            defaultMode: 0555
+        - name: docker-socket
+          hostPath:
+            path: /var/run/docker.sock
+{{- end }}
+{{- end }}

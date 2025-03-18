@@ -1,0 +1,76 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+- name: Set cluster IP
+  set_fact:
+    cluster_default_ip: "{{ (groups['k8s_control_plane'] | map('extract', hostvars, ['ansible_default_ipv4', 'address']))[0] }}"
+
+- name: Set client IP
+  set_fact:
+    client_default_ip: "{{ (groups['primary'] | map('extract', hostvars, ['ansible_default_ipv4', 'address']))[0] }}"
+
+- name: Setup wireguard keys
+  when: (groups['primary'] | difference(groups['k8s_control_plane']) | length > 0)
+  block:
+    - name: Generate wireguard key pair
+      shell: |
+        wg genkey | tee /root/wg-private-key | wg pubkey > /root/wg-public-key
+        chmod 600 /root/wg-private-key
+      when: (inventory_hostname in (groups['primary'] | default([]))) or (inventory_hostname in (groups['k8s_control_plane'] | default([])))
+
+    - name: Register public wireguard key variable
+      command: cat /root/wg-public-key
+      register: wg_public_key
+      when: (inventory_hostname in (groups['primary'] | default([]))) or (inventory_hostname in (groups['k8s_control_plane'] | default([])))
+
+- name: Setup wireguard tunnel between primary and cluster control-plane node
+  when: (groups['primary'] | difference(groups['k8s_control_plane']) | length > 0)
+  block:
+    - name: Set primary wireguard public key
+      set_fact:
+        client_wg_public_key: "{{ (groups['primary'] | map('extract', hostvars, ['wg_public_key', 'stdout']))[0] }}"
+      when: inventory_hostname in (groups['k8s_control_plane'] | default([]))
+
+    - name: Set cluster wireguard public key
+      set_fact:
+        cluster_wg_public_key: "{{ (groups['k8s_control_plane'] | map('extract', hostvars, ['wg_public_key', 'stdout']))[0] }}"
+      when: inventory_hostname in (groups['primary'] | default([]))
+
+    - name: Set up wireguard tunnel on cluster control-plane node
+      shell: |
+        cat > /tmp/configure_cluster_tunnel.sh <<EOF
+        ip link add client-wg type wireguard
+        ip addr add {{ tunnel_cluster_cidr }} dev client-wg
+        wg set client-wg listen-port 51820 private-key /root/wg-private-key peer {{ client_wg_public_key }} allowed-ips {{ tunnel_network_cidr }} endpoint {{ client_default_ip }}:51820
+        ip link set client-wg up
+        iptables -t filter -P FORWARD ACCEPT
+        iptables -t filter -I FORWARD -o client-wg -j ACCEPT
+        EOF
+        chmod +x /tmp/configure_cluster_tunnel.sh
+        /tmp/configure_cluster_tunnel.sh
+      when: inventory_hostname in (groups['k8s_control_plane'] | default([]))
+
+    - name: Set up wireguard tunnel on primary node
+      shell: |
+        cat > /tmp/configure_client_tunnel.sh <<EOF
+        ip link add client-wg type wireguard
+        ip addr add {{ tunnel_client_cidr }} dev client-wg
+        wg set client-wg listen-port 51820 private-key /root/wg-private-key peer {{ cluster_wg_public_key }} allowed-ips {{ tunnel_network_cidr }},{{ openstack_provider_network_cidr }},{{ metallb_pool_cidr }} endpoint {{ cluster_default_ip }}:51820
+        ip link set client-wg up
+        ip route add {{ metallb_pool_cidr }} via {{ tunnel_cluster_cidr | ipaddr('address') }} dev client-wg
+        ip route add {{ openstack_provider_network_cidr }} via {{ tunnel_cluster_cidr | ipaddr('address') }} dev client-wg
+        EOF
+        chmod +x /tmp/configure_client_tunnel.sh
+        /tmp/configure_client_tunnel.sh
+      when: inventory_hostname in (groups['primary'] | default([]))
+...

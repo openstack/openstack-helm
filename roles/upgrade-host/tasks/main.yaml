@@ -1,0 +1,44 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+- name: Upgrade to HWE kernel on Ubuntu Hosts
+  when:
+    - ansible_distribution == 'Ubuntu'
+    - ubuntu_kernel_hwe == true
+  block:
+    - name: Deploy HWE kernel on Ubuntu Hosts
+      include_role:
+        name: deploy-package
+        tasks_from: dist
+      vars:
+        packages:
+          deb:
+            - linux-generic-hwe-16.04
+    - name: Reboot Host following kernel upgrade
+      shell: sleep 2 && reboot
+      become: yes
+      async: 30
+      poll: 0
+      ignore_errors: true
+      args:
+        executable: /bin/bash
+    - name: Wait for hosts to come up following reboot
+      wait_for:
+        host: '{{ hostvars[item].ansible_host }}'
+        port: 22
+        state: started
+        delay: 60
+        timeout: 240
+      with_items: '{{ play_hosts }}'
+      connection: local
+...

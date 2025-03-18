@@ -1,0 +1,476 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Default values for ceph-client.
+# This is a YAML-formatted file.
+# Declare name/value pairs to be passed into your templates.
+# name: value
+
+---
+deployment:
+  ceph: true
+  client_secrets: false
+  csi_rbd_provisioner: true
+  # Original rbd_provisioner and cephfs_provisioner are now DEPRECATED. They
+  # will be removed in the next release; CSI provisioners should be used
+  # instead.
+
+release_group: null
+
+images:
+  pull_policy: IfNotPresent
+  tags:
+    ceph_bootstrap: 'docker.io/openstackhelm/ceph-daemon:ubuntu_jammy_19.2.1-1-20250207'
+    ceph_config_helper: 'docker.io/openstackhelm/ceph-config-helper:ubuntu_jammy_19.2.1-1-20250207'
+    csi_provisioner: 'registry.k8s.io/sig-storage/csi-provisioner:v4.0.1'
+    csi_snapshotter: 'registry.k8s.io/sig-storage/csi-snapshotter:v7.0.2'
+    csi_attacher: 'registry.k8s.io/sig-storage/csi-attacher:v4.5.1'
+    csi_resizer: 'registry.k8s.io/sig-storage/csi-resizer:v1.10.1'
+    csi_registrar: 'registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.10.1'
+    cephcsi: 'quay.io/cephcsi/cephcsi:v3.11.0'
+    dep_check: 'quay.io/airshipit/kubernetes-entrypoint:latest-ubuntu_focal'
+    image_repo_sync: 'docker.io/library/docker:17.07.0'
+  local_registry:
+    active: false
+    exclude:
+      - dep_check
+      - image_repo_sync
+
+labels:
+  job:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  test:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  provisioner:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  csi_rbd_plugin:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+
+pod:
+  test_pod:
+    wait_timeout: 600
+    rbd:
+      name: rbd-prov-test-pod
+      pvc_name: rbd-prov-test-pvc
+    csi_rbd:
+      name: csi-rbd-prov-test-pod
+      pvc_name: csi-rbd-prov-test-pvc
+    cephfs:
+      name: cephfs-prov-test-pod
+      pvc_name: cephfs-prov-test-pvc
+  security_context:
+    provisioner:
+      pod:
+        runAsUser: 0
+      container:
+        ceph_cephfs_provisioner:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+        ceph_rbd_provisioner:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+        ceph_rbd_snapshotter:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+        ceph_rbd_attacher:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+        ceph_rbd_resizer:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+        ceph_rbd_cephcsi:
+          privileged: true
+          capabilities:
+            add: ["SYS_ADMIN"]
+    plugin:
+      pod:
+        runAsUser: 0
+      container:
+        ceph_rbd_registrar:
+          privileged: true
+          capabilities:
+            add: ["SYS_ADMIN"]
+        ceph_csi_rbd_plugin:
+          privileged: true
+          capabilities:
+            add: ["SYS_ADMIN"]
+          allowPrivilegeEscalation: true
+    bootstrap:
+      pod:
+        runAsUser: 99
+      container:
+        ceph_client_bootstrap:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+    cephfs_client_key_generator:
+      pod:
+        runAsUser: 99
+      container:
+        ceph_storage_keys_generator:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+    client_key_cleaner:
+      pod:
+        runAsUser: 99
+      container:
+        ceph_namespace_client_keys_cleaner:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+    client_key_generator:
+      pod:
+        runAsUser: 99
+      container:
+        ceph_storage_keys_generator:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+    test:
+      pod:
+        runAsUser: 0
+      container:
+        test:
+          readOnlyRootFilesystem: true
+  dns_policy: "ClusterFirstWithHostNet"
+  replicas:
+    csi_rbd_provisioner: 2
+  lifecycle:
+    upgrades:
+      deployments:
+        pod_replacement_strategy: Recreate
+      daemonsets:
+        pod_replacement_strategy: RollingUpdate
+        plugin:
+          enabled: true
+          min_ready_seconds: 0
+          max_unavailable: 1
+  affinity:
+    anti:
+      type:
+        default: preferredDuringSchedulingIgnoredDuringExecution
+      topologyKey:
+        default: kubernetes.io/hostname
+      weight:
+        default: 10
+  resources:
+    enabled: false
+    rbd_provisioner:
+      requests:
+        memory: "5Mi"
+        cpu: "250m"
+      limits:
+        memory: "50Mi"
+        cpu: "500m"
+    csi_rbd_provisioner:
+      requests:
+        memory: "5Mi"
+        cpu: "250m"
+      limits:
+        memory: "50Mi"
+        cpu: "500m"
+    cephfs_provisioner:
+      requests:
+        memory: "5Mi"
+        cpu: "250m"
+      limits:
+        memory: "50Mi"
+        cpu: "500m"
+    rbd_attacher:
+      requests:
+        memory: "5Mi"
+        cpu: "250m"
+      limits:
+        memory: "50Mi"
+        cpu: "500m"
+    rbd_registrar:
+      requests:
+        memory: "5Mi"
+        cpu: "250m"
+      limits:
+        memory: "50Mi"
+        cpu: "500m"
+    rbd_resizer:
+      requests:
+        memory: "5Mi"
+        cpu: "250m"
+      limits:
+        memory: "50Mi"
+        cpu: "500m"
+    rbd_snapshotter:
+      requests:
+        memory: "5Mi"
+        cpu: "250m"
+      limits:
+        memory: "50Mi"
+        cpu: "500m"
+    rbd_cephcsi:
+      requests:
+        memory: "5Mi"
+        cpu: "250m"
+      limits:
+        memory: "50Mi"
+        cpu: "500m"
+    jobs:
+      bootstrap:
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+        requests:
+          memory: "128Mi"
+          cpu: "500m"
+      image_repo_sync:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+  tolerations:
+    rbd_provisioner:
+      tolerations:
+      - effect: NoExecute
+        key: node.kubernetes.io/not-ready
+        operator: Exists
+        tolerationSeconds: 60
+      - effect: NoExecute
+        key: node.kubernetes.io/unreachable
+        operator: Exists
+        tolerationSeconds: 60
+    csi_rbd_provisioner:
+      tolerations:
+      - effect: NoExecute
+        key: node.kubernetes.io/not-ready
+        operator: Exists
+        tolerationSeconds: 60
+      - effect: NoExecute
+        key: node.kubernetes.io/unreachable
+        operator: Exists
+        tolerationSeconds: 60
+    cephfs_provisioner:
+      tolerations:
+      - effect: NoExecute
+        key: node.kubernetes.io/not-ready
+        operator: Exists
+        tolerationSeconds: 60
+      - effect: NoExecute
+        key: node.kubernetes.io/unreachable
+        operator: Exists
+        tolerationSeconds: 60
+
+secrets:
+  keyrings:
+    admin: ceph-client-admin-keyring
+    prov_adminSecretName: pvc-ceph-conf-combined-storageclass
+  oci_image_registry:
+    ceph-provisioners: ceph-provisioners-oci-image-registry-key
+
+network:
+  public: 192.168.0.0/16
+  cluster: 192.168.0.0/16
+
+conf:
+  ceph:
+    global:
+      # auth
+      cephx: true
+      cephx_require_signatures: false
+      cephx_cluster_require_signatures: true
+      cephx_service_require_signatures: false
+      objecter_inflight_op_bytes: "1073741824"
+      objecter_inflight_ops: 10240
+      debug_ms: "0/0"
+      log_file: /dev/stdout
+      mon_cluster_log_file: /dev/stdout
+    osd:
+      osd_mkfs_type: xfs
+      osd_mkfs_options_xfs: -f -i size=2048
+      osd_max_object_name_len: 256
+      ms_bind_port_min: 6800
+      ms_bind_port_max: 7100
+
+ext_ceph_cluster:
+  rook_ceph:
+    connect: false
+
+dependencies:
+  dynamic:
+    common:
+      local_image_registry:
+        jobs:
+          - ceph-provisioners-image-repo-sync
+        services:
+          - endpoint: node
+            service: local_image_registry
+  static:
+    bootstrap:
+      jobs: null
+      services:
+        - endpoint: internal
+          service: ceph_mon
+    cephfs_client_key_generator:
+      jobs: null
+    cephfs_provisioner:
+      jobs:
+        - ceph-rbd-pool
+      services:
+        - endpoint: internal
+          service: ceph_mon
+    namespace_client_key_cleaner:
+      jobs: null
+    namespace_client_key_generator:
+      jobs: null
+    rbd_provisioner:
+      jobs:
+        - ceph-rbd-pool
+      services:
+        - endpoint: internal
+          service: ceph_mon
+    csi_rbd_provisioner:
+      jobs:
+        - ceph-rbd-pool
+      services:
+        - endpoint: internal
+          service: ceph_mon
+    image_repo_sync:
+      services:
+        - endpoint: internal
+          service: local_image_registry
+
+bootstrap:
+  enabled: false
+  script: |
+    ceph -s
+    function ensure_pool () {
+      ceph osd pool stats $1 || ceph osd pool create $1 $2
+      if [[ $(ceph mon versions | awk '/version/{print $3}' | cut -d. -f1) -ge 12 ]]; then
+        ceph osd pool application enable $1 $3
+      fi
+    }
+    #ensure_pool volumes 8 cinder
+
+# if you change provision_storage_class to false
+# it is presumed you manage your own storage
+# class definition externally
+# NOTE(kranthikirang) We iterate over each storageclass parameters
+# and derive the manifest.
+storageclass:
+  rbd:
+    provision_storage_class: false
+    provisioner: ceph.com/rbd
+    ceph_configmap_name: ceph-etc
+    metadata:
+      name: general-rbd
+    parameters:
+      pool: rbd
+      adminId: admin
+      adminSecretName: pvc-ceph-conf-combined-storageclass
+      adminSecretNamespace: ceph
+      userId: admin
+      userSecretName: pvc-ceph-client-key
+      imageFormat: "2"
+      imageFeatures: layering
+  csi_rbd:
+    provision_storage_class: true
+    provisioner: ceph.rbd.csi.ceph.com
+    ceph_configmap_name: ceph-etc
+    metadata:
+      default_storage_class: true
+      name: general
+    parameters:
+      clusterID: ceph
+      csi.storage.k8s.io/controller-expand-secret-name: pvc-ceph-conf-combined-storageclass
+      csi.storage.k8s.io/controller-expand-secret-namespace: ceph
+      csi.storage.k8s.io/fstype: ext4
+      csi.storage.k8s.io/node-stage-secret-name: pvc-ceph-conf-combined-storageclass
+      csi.storage.k8s.io/node-stage-secret-namespace: ceph
+      csi.storage.k8s.io/provisioner-secret-name: pvc-ceph-conf-combined-storageclass
+      csi.storage.k8s.io/provisioner-secret-namespace: ceph
+      imageFeatures: layering
+      imageFormat: "2"
+      pool: rbd
+      adminId: admin
+      adminSecretName: pvc-ceph-conf-combined-storageclass
+      adminSecretNamespace: ceph
+      userId: admin
+      userSecretName: pvc-ceph-client-key
+  cephfs:
+    provision_storage_class: false
+    provisioner: ceph.com/cephfs
+    metadata:
+      name: cephfs
+    parameters:
+      adminId: admin
+      adminSecretName: pvc-ceph-cephfs-client-key
+      adminSecretNamespace: ceph
+
+endpoints:
+  cluster_domain_suffix: cluster.local
+  local_image_registry:
+    name: docker-registry
+    namespace: docker-registry
+    hosts:
+      default: localhost
+      internal: docker-registry
+      node: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        node: 5000
+  oci_image_registry:
+    name: oci-image-registry
+    namespace: oci-image-registry
+    auth:
+      enabled: false
+      ceph-provisioners:
+        username: ceph-provisioners
+        password: password
+    hosts:
+      default: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        default: null
+  ceph_mon:
+    namespace: null
+    hosts:
+      default: ceph-mon
+      discovery: ceph-mon-discovery
+    host_fqdn_override:
+      default: null
+    port:
+      mon:
+        default: 6789
+      mon_msgr2:
+        default: 3300
+
+
+manifests:
+  configmap_bin: true
+  configmap_bin_common: true
+  configmap_etc: true
+  # Original rbd_provisioner is now DEPRECATED. It will be removed in the
+  # next release; CSI RBD provisioner should be used instead.
+  deployment_csi_rbd_provisioner: true
+  job_bootstrap: false
+  job_cephfs_client_key: true
+  job_image_repo_sync: true
+  job_namespace_client_key_cleaner: true
+  job_namespace_client_key: true
+  job_namespace_client_ceph_config: true
+  storageclass: true
+  helm_tests: true
+  secret_registry: true
+...

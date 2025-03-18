@@ -1,0 +1,63 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.deployment }}
+{{- $envAll := . }}
+
+{{- $serviceAccountName := "daemonjob-controller-serviceaccount" }}
+{{ tuple $envAll "daemonjob_controller" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: daemonjob-controller
+  annotations:
+{{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 4 }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+{{ tuple $envAll "daemonjob-controller" "controller" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  replicas: {{ .Values.pod.replicas.daemonjob_controller }}
+  selector:
+    matchLabels:
+{{ tuple $envAll "daemonjob-controller" "controller" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
+  template:
+    metadata:
+      annotations:
+{{ dict "envAll" $envAll "podName" "daemonjob-controller" "containerNames" (list "controller") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
+      labels:
+{{ tuple $envAll "daemonjob-controller" "controller" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+    spec:
+      serviceAccountName: {{ $serviceAccountName }}
+      nodeSelector:
+        {{ .Values.labels.daemonjob_controller.node_selector_key }}: {{ .Values.labels.daemonjob_controller.node_selector_value | quote }}
+      containers:
+      - name: controller
+{{ tuple $envAll "python" | include "helm-toolkit.snippets.image" | indent 8 }}
+{{ tuple $envAll $envAll.Values.pod.resources.daemonjob_controller | include "helm-toolkit.snippets.kubernetes_resources" | indent 8 }}
+{{ dict "envAll" $envAll "application" "daemonjob_controller" "container" "controller" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 8 }}
+        command:
+        - python
+        - /hooks/sync.py
+        volumeMounts:
+        - name: hooks
+          mountPath: /hooks
+          readOnly: true
+      volumes:
+      - name: hooks
+        configMap:
+          name: daemonjob-controller-bin
+          defaultMode: 0555
+{{- end }}

@@ -1,0 +1,745 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Default values for ceph-client.
+# This is a YAML-formatted file.
+# Declare name/value pairs to be passed into your templates.
+# name: value
+
+---
+deployment:
+  ceph: false
+
+release_group: null
+
+images:
+  pull_policy: IfNotPresent
+  tags:
+    ceph_bootstrap: 'docker.io/openstackhelm/ceph-daemon:ubuntu_jammy_19.2.1-1-20250207'
+    ceph_config_helper: 'docker.io/openstackhelm/ceph-config-helper:ubuntu_jammy_19.2.1-1-20250207'
+    ceph_rgw: 'docker.io/openstackhelm/ceph-daemon:ubuntu_jammy_19.2.1-1-20250207'
+    ceph_rgw_pool: 'docker.io/openstackhelm/ceph-config-helper:ubuntu_jammy_19.2.1-1-20250207'
+    dep_check: 'quay.io/airshipit/kubernetes-entrypoint:latest-ubuntu_focal'
+    image_repo_sync: 'docker.io/library/docker:17.07.0'
+    rgw_s3_admin: 'docker.io/openstackhelm/ceph-config-helper:ubuntu_jammy_19.2.1-1-20250207'
+    rgw_placement_targets: 'docker.io/openstackhelm/ceph-config-helper:ubuntu_jammy_19.2.1-1-20250207'
+    ks_endpoints: 'docker.io/openstackhelm/heat:2024.1-ubuntu_jammy'
+    ks_service: 'docker.io/openstackhelm/heat:2024.1-ubuntu_jammy'
+    ks_user: 'docker.io/openstackhelm/heat:2024.1-ubuntu_jammy'
+  local_registry:
+    active: false
+    exclude:
+      - dep_check
+      - image_repo_sync
+
+labels:
+  job:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  test:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  rgw:
+    node_selector_key: ceph-rgw
+    node_selector_value: enabled
+
+pod:
+  security_context:
+    rgw:
+      pod:
+        runAsUser: 64045
+      container:
+        init_dirs:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+        rgw_init:
+          runAsUser: 0
+          readOnlyRootFilesystem: true
+        rgw:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+    rgw_storage_init:
+      pod:
+        runAsUser: 64045
+      container:
+        keyring_placement:
+          runAsUser: 0
+          readOnlyRootFilesystem: true
+        rgw_storage_init:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+    rgw_restart:
+      pod:
+        runAsUser: 65534
+      container:
+        ceph-rgw-restart:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+    rgw_s3_admin:
+      pod:
+        runAsUser: 64045
+      container:
+        keyring_placement:
+          runAsUser: 0
+          readOnlyRootFilesystem: true
+        create_s3_admin:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+    rgw_placement_targets:
+      pod:
+        runAsUser: 64045
+      container:
+        keyring_placement:
+          runAsUser: 0
+          readOnlyRootFilesystem: true
+        create_rgw_placement_targets:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+    rgw_test:
+      pod:
+        runAsUser: 64045
+      rgw_test:
+        ceph_rgw_ks_validation:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+        ceph_rgw_s3_validation:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+    bootstrap:
+      pod:
+        runAsUser: 65534
+      container:
+        keyring_placement:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+        bootstrap:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+    rgw_pool:
+      pod:
+        runAsUser: 65534
+      container:
+        rgw_pool:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+  dns_policy: "ClusterFirstWithHostNet"
+  replicas:
+    rgw: 2
+  lifecycle:
+    upgrades:
+      deployments:
+        pod_replacement_strategy: RollingUpdate
+        revision_history: 3
+        rolling_update:
+          max_surge: 50%
+          max_unavailable: 50%
+  affinity:
+    anti:
+      type:
+        default: preferredDuringSchedulingIgnoredDuringExecution
+      topologyKey:
+        default: kubernetes.io/hostname
+      weight:
+        default: 10
+  resources:
+    enabled: false
+    rgw:
+      requests:
+        memory: "128Mi"
+        cpu: "250m"
+      limits:
+        memory: "512Mi"
+        cpu: "1000m"
+    jobs:
+      bootstrap:
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+        requests:
+          memory: "128Mi"
+          cpu: "500m"
+      ceph-rgw-storage-init:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      image_repo_sync:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      ks-endpoints:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      ks_service:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      ks_user:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      rgw_s3_admin:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      rgw_placement_targets:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      rgw_restart:
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+        requests:
+          memory: "128Mi"
+          cpu: "500m"
+      rgw_pool:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+    tests:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+  tolerations:
+    rgw:
+      tolerations:
+      - effect: NoExecute
+        key: node.kubernetes.io/not-ready
+        operator: Exists
+        tolerationSeconds: 60
+      - effect: NoExecute
+        key: node.kubernetes.io/unreachable
+        operator: Exists
+        tolerationSeconds: 60
+      - key: node-role.kubernetes.io/master
+        operator: Exists
+        effect: NoSchedule
+      - key: node-role.kubernetes.io/control-plane
+        operator: Exists
+        effect: NoSchedule
+  probes:
+    api:
+      ceph-rgw:
+        readiness:
+          enabled: true
+          params:
+            timeoutSeconds: 5
+        liveness:
+          enabled: true
+          params:
+            initialDelaySeconds: 120
+            timeoutSeconds: 5
+
+network_policy:
+  rgw:
+    ingress:
+      - {}
+    egress:
+      - {}
+
+ceph_client:
+  configmap: ceph-etc
+
+secrets:
+  keyrings:
+    mon: ceph-mon-keyring
+    mds: ceph-bootstrap-mds-keyring
+    osd: ceph-bootstrap-osd-keyring
+    rgw: os-ceph-bootstrap-rgw-keyring
+    mgr: ceph-bootstrap-mgr-keyring
+    admin: pvc-ceph-client-key
+  identity:
+    admin: ceph-keystone-admin
+    swift: ceph-keystone-user
+    user_rgw: ceph-keystone-user-rgw
+  oci_image_registry:
+    ceph-rgw: ceph-rgw-oci-image-registry-key
+  rgw_s3:
+    admin: radosgw-s3-admin-creds
+  tls:
+    object_store:
+      api:
+        public: ceph-tls-public
+        internal: ceph-rgw-ks-tls-api
+        keystone: keystone-tls-api
+    ceph_object_store:
+      api:
+        public: ceph-rgw-s3-tls-public
+        internal: ceph-rgw-s3-tls-api
+
+network:
+  api:
+    ingress:
+      public: true
+      classes:
+        namespace: "nginx"
+        cluster: "nginx-cluster"
+      annotations:
+        nginx.ingress.kubernetes.io/rewrite-target: /
+        nginx.ingress.kubernetes.io/proxy-body-size: "0"
+        nginx.ingress.kubernetes.io/proxy-max-temp-file-size: "0"
+    external_policy_local: false
+    node_port:
+      enabled: false
+      port: 30004
+  public: 192.168.0.0/16
+  cluster: 192.168.0.0/16
+
+conf:
+  templates:
+    keyring:
+      admin: |
+        [client.admin]
+          key = {{ key }}
+          auid = 0
+          caps mds = "allow"
+          caps mon = "allow *"
+          caps osd = "allow *"
+          caps mgr = "allow *"
+      bootstrap:
+        rgw: |
+          [client.bootstrap-rgw]
+            key = {{ key }}
+            caps mgr = "allow profile bootstrap-rgw"
+  features:
+    rgw: true
+  pool:
+    # NOTE(portdirect): this drives a simple approximation of
+    # https://ceph.com/pgcalc/, the `target.osd` key should be set to match the
+    # expected number of osds in a cluster, and the `target.pg_per_osd` should be
+    # set to match the desired number of placement groups on each OSD.
+    crush:
+      # NOTE(portdirect): to use RBD devices with Ubuntu 16.04's 4.4.x series
+      # kernel this should be set to `hammer`
+      tunables: null
+    target:
+      # NOTE(portdirect): arbitrarily we set the default number of expected OSD's to 5
+      # to match the number of nodes in the OSH gate.
+      osd: 5
+      pg_per_osd: 100
+    default:
+      # NOTE(portdirect): this should be 'same_host' for a single node
+      # cluster to be in a healthy state
+      crush_rule: replicated_rule
+    # NOTE(portdirect): this section describes the pools that will be managed by
+    # the ceph pool management job, as it tunes the pgs and crush rule, based on
+    # the above.
+    spec:
+      # RBD pool
+      - name: rbd
+        application: rbd
+        replication: 3
+        percent_total_data: 40
+      # CephFS pools
+      - name: cephfs_metadata
+        application: cephfs
+        replication: 3
+        percent_total_data: 5
+      - name: cephfs_data
+        application: cephfs
+        replication: 3
+        percent_total_data: 10
+      # RadosGW pools
+      - name: .rgw.root
+        application: rgw
+        replication: 3
+        percent_total_data: 0.1
+      - name: default.rgw.control
+        application: rgw
+        replication: 3
+        percent_total_data: 0.1
+      - name: default.rgw.data.root
+        application: rgw
+        replication: 3
+        percent_total_data: 0.1
+      - name: default.rgw.gc
+        application: rgw
+        replication: 3
+        percent_total_data: 0.1
+      - name: default.rgw.log
+        application: rgw
+        replication: 3
+        percent_total_data: 0.1
+      - name: default.rgw.intent-log
+        application: rgw
+        replication: 3
+        percent_total_data: 0.1
+      - name: default.rgw.meta
+        application: rgw
+        replication: 3
+        percent_total_data: 0.1
+      - name: default.rgw.usage
+        application: rgw
+        replication: 3
+        percent_total_data: 0.1
+      - name: default.rgw.users.keys
+        application: rgw
+        replication: 3
+        percent_total_data: 0.1
+      - name: default.rgw.users.email
+        application: rgw
+        replication: 3
+        percent_total_data: 0.1
+      - name: default.rgw.users.swift
+        application: rgw
+        replication: 3
+        percent_total_data: 0.1
+      - name: default.rgw.users.uid
+        application: rgw
+        replication: 3
+        percent_total_data: 0.1
+      - name: default.rgw.buckets.extra
+        application: rgw
+        replication: 3
+        percent_total_data: 0.1
+      - name: default.rgw.buckets.index
+        application: rgw
+        replication: 3
+        percent_total_data: 3
+      - name: default.rgw.buckets.data
+        application: rgw
+        replication: 3
+        percent_total_data: 34.8
+  rgw_placement_targets:
+    - name: default-placement
+      data_pool: default.rgw.buckets.data
+      # Set 'delete' to true to delete an existing placement target. A
+      # non-existent placement target will be created and deleted in a single
+      # step.
+      # delete: true
+  rgw:
+    config:
+      # NOTE (portdirect): See http://tracker.ceph.com/issues/21226
+      rgw_keystone_token_cache_size: 0
+      # NOTE (JCL): See http://tracker.ceph.com/issues/7073
+      rgw_gc_max_objs: 997
+      # NOTE (JCL): See http://tracker.ceph.com/issues/24937
+      # NOTE (JCL): See https://tracker.ceph.com/issues/24551
+      rgw_dynamic_resharding: false
+      rgw_num_rados_handles: 4
+      rgw_override_bucket_index_max_shards: 8
+  rgw_restart:
+    timeout: 600
+  rgw_ks:
+    enabled: false
+    config:
+      rgw_keystone_api_version: 3
+      rgw_keystone_accepted_roles: "admin, member"
+      rgw_keystone_implicit_tenants: true
+      rgw_keystone_make_new_tenants: true
+      rgw_s3_auth_use_keystone: true
+      rgw_s3_auth_order: "local, external, sts"
+      rgw_swift_account_in_url: true
+      rgw_swift_url: null
+  rgw_s3:
+    enabled: false
+    admin_caps: "users=*;buckets=*;zone=*"
+    config:
+      # NOTE (supamatt): Unfortunately we do not conform to S3 compliant names with some of our charts
+      rgw_relaxed_s3_bucket_names: true
+  ceph:
+    global:
+      # auth
+      cephx: true
+      cephx_require_signatures: false
+      cephx_cluster_require_signatures: true
+      cephx_service_require_signatures: false
+      objecter_inflight_op_bytes: "1073741824"
+      debug_ms: "0/0"
+      log_file: /dev/stdout
+      mon_cluster_log_file: /dev/stdout
+      # CNTT certification required fields
+      rgw_max_attr_name_len: 64
+      rgw_max_attrs_num_in_req: 32
+      rgw_max_attr_size: 1024
+      rgw_swift_versioning_enabled: true
+    osd:
+      osd_mkfs_type: xfs
+      osd_mkfs_options_xfs: -f -i size=2048
+      osd_max_object_name_len: 256
+      ms_bind_port_min: 6800
+      ms_bind_port_max: 7100
+
+dependencies:
+  dynamic:
+    common:
+      local_image_registry:
+        jobs:
+          - ceph-rgw-image-repo-sync
+        services:
+          - endpoint: node
+            service: local_image_registry
+    targeted:
+      keystone:
+        rgw:
+          services:
+            - endpoint: internal
+              service: identity
+      s3:
+        rgw: {}
+  static:
+    rgw:
+      jobs:
+        - ceph-rgw-storage-init
+    rgw_restart:
+      services:
+        - endpoint: internal
+          service: ceph_object_store
+    image_repo_sync:
+      services:
+        - endpoint: internal
+          service: local_image_registry
+    ks_endpoints:
+      jobs:
+        - ceph-ks-service
+      services:
+        - endpoint: internal
+          service: identity
+    ks_service:
+      services:
+        - endpoint: internal
+          service: identity
+    ks_user:
+      services:
+        - endpoint: internal
+          service: identity
+    rgw_s3_admin:
+      services:
+        - endpoint: internal
+          service: ceph_object_store
+    rgw_placement_targets:
+      services:
+        - endpoint: internal
+          service: ceph_object_store
+    rgw_pool:
+      jobs:
+        - ceph-rgw-storage-init
+    tests:
+      services:
+        - endpoint: internal
+          service: ceph_object_store
+
+bootstrap:
+  enabled: false
+  script: |
+    ceph -s
+    function ensure_pool () {
+      ceph osd pool stats $1 || ceph osd pool create $1 $2
+      if [[ $(ceph mon versions | awk '/version/{print $3}' | cut -d. -f1) -ge 12 ]]; then
+        ceph osd pool application enable $1 $3
+      fi
+    }
+    #ensure_pool volumes 8 cinder
+
+
+endpoints:
+  cluster_domain_suffix: cluster.local
+  local_image_registry:
+    name: docker-registry
+    namespace: docker-registry
+    hosts:
+      default: localhost
+      internal: docker-registry
+      node: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        node: 5000
+  oci_image_registry:
+    name: oci-image-registry
+    namespace: oci-image-registry
+    auth:
+      enabled: false
+      ceph-rgw:
+        username: ceph-rgw
+        password: password
+    hosts:
+      default: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        default: null
+  identity:
+    name: keystone
+    namespace: null
+    auth:
+      admin:
+        region_name: RegionOne
+        username: admin
+        password: password
+        project_name: admin
+        user_domain_name: default
+        project_domain_name: default
+        os_auth_type: password
+        os_tenant_name: admin
+      swift:
+        role: admin
+        region_name: RegionOne
+        username: swift
+        password: password
+        project_name: service
+        user_domain_name: service
+        project_domain_name: service
+        os_auth_type: password
+        os_tenant_name: admin
+    hosts:
+      default: keystone
+      internal: keystone-api
+    host_fqdn_override:
+      default: null
+    path:
+      default: /v3
+    scheme:
+      default: http
+    port:
+      api:
+        default: 80
+        internal: 5000
+  object_store:
+    name: swift
+    namespace: null
+    hosts:
+      default: ceph-rgw
+      public: radosgw
+    host_fqdn_override:
+      default: null
+      # NOTE(portdirect): this chart supports TLS for fqdn over-ridden public
+      # endpoints using the following format:
+      # public:
+      #   host: null
+      #   tls:
+      #     crt: null
+      #     key: null
+    path:
+      default: /swift/v1/KEY_$(tenant_id)s
+    scheme:
+      default: http
+    port:
+      api:
+        default: 8088
+        public: 80
+  ceph_object_store:
+    name: radosgw
+    namespace: null
+    auth:
+      admin:
+        # NOTE(srwilkers): These defaults should be used for testing only, and
+        # should be changed before deploying to production
+        username: s3_admin
+        access_key: "admin_access_key"
+        secret_key: "admin_secret_key"
+    hosts:
+      default: ceph-rgw
+      public: radosgw
+    host_fqdn_override:
+      default: null
+    path:
+      default: null
+    scheme:
+      default: http
+    port:
+      api:
+        default: 8088
+        public: 80
+  ceph_mon:
+    namespace: null
+    hosts:
+      default: ceph-mon
+      discovery: ceph-mon-discovery
+    host_fqdn_override:
+      default: null
+    port:
+      mon:
+        default: 6789
+      mon_msgr2:
+        default: 3300
+
+  kube_dns:
+    namespace: kube-system
+    name: kubernetes-dns
+    hosts:
+      default: kube-dns
+    host_fqdn_override:
+      default: null
+    path:
+      default: null
+    scheme: http
+    port:
+      dns_tcp:
+        default: 53
+      dns:
+        default: 53
+        protocol: UDP
+
+jobs:
+  rgw_pool:
+    restartPolicy: OnFailure
+
+manifests:
+  certificates: false
+  configmap_ceph_templates: true
+  configmap_bin: true
+  configmap_bin_ks: true
+  configmap_test_bin: true
+  configmap_etc: true
+  deployment_rgw: true
+  ingress_rgw: true
+  job_bootstrap: false
+  job_rgw_restart: false
+  job_ceph_rgw_storage_init: true
+  job_image_repo_sync: true
+  job_ks_endpoints: true
+  job_ks_service: true
+  job_ks_user: true
+  job_s3_admin: true
+  job_rgw_placement_targets: false
+  job_rgw_pool: true
+  secret_s3_rgw: true
+  secret_keystone_rgw: true
+  secret_ingress_tls: true
+  secret_keystone: true
+  secret_registry: true
+  service_ingress_rgw: true
+  service_rgw: true
+  helm_tests: true
+  network_policy: false
+...

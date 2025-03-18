@@ -1,0 +1,71 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+- name: Create selenium configuration directory
+  file:
+    path: /etc/selenium
+    state: directory
+
+- name: Install selenium dependencies
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+  apt:
+    name: "{{ packages }}"
+  vars:
+    packages:
+      - unzip
+      - wget
+      - xvfb
+      - jq
+
+- name: Install selenium
+  pip:
+    name: selenium
+    state: latest
+    executable: pip3
+
+- name: Add google chrome signing key
+  get_url:
+    url: https://dl-ssl.google.com/linux/linux_signing_key.pub
+    dest: /etc/apt/trusted.gpg.d/google-chrome.asc
+
+- name: Add google chrome repository
+  apt_repository:
+    repo: "deb [arch=amd64 signed-by=/etc/apt/trusted.gpg.d/google-chrome.asc] http://dl.google.com/linux/chrome/deb/ stable main"
+    filename: google-chrome
+    state: present
+
+- name: Install google chrome
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+  apt:
+    name: google-chrome-stable
+    update_cache: yes
+    install_recommends: false
+
+# We need to install ChromeDriver compatible with Google Chrome version
+- name: Get selenium chromedriver archive
+  shell: |-
+    set -ex
+    CHROME_VERSION=$(dpkg -s google-chrome-stable | grep -Po '(?<=^Version: ).*' | awk -F'.' '{print $1"."$2"."$3}')
+    DRIVER_URL=$(wget -qO- https://googlechromelabs.github.io/chrome-for-testing/known-good-versions-with-downloads.json | jq -r --arg chrome_version "$CHROME_VERSION" '.versions[] | select(.version | test($chrome_version)) | .downloads.chromedriver[] | select(.platform=="linux64").url' | tail -1)
+    wget -O /tmp/chromedriver.zip ${DRIVER_URL}
+  args:
+    executable: /bin/bash
+
+- name: Unarchive selenium chromedriver
+  unarchive:
+    src: /tmp/chromedriver.zip
+    dest: /etc/selenium
+    extra_opts: ["-j"]
+    include: ["*/chromedriver"]
+    remote_src: yes
+...

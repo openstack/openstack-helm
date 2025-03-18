@@ -1,0 +1,333 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.crds }}
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: compositecontrollers.metacontroller.k8s.io
+  annotations:
+    "api-approved.kubernetes.io": "https://github.com/kubernetes/kubernetes/pull/78458"
+spec:
+  group: metacontroller.k8s.io
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      subresources:
+        status: {}
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            apiVersion:
+              description: 'APIVersion defines the versioned schema of this representation
+                of an object. Servers should convert recognized schemas to the latest
+                internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+              type: string
+            kind:
+              description: 'Kind is a string value representing the REST resource this
+                object represents. Servers may infer this from the endpoint the client
+                submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+              type: string
+            metadata:
+              type: object
+            spec:
+              type: object
+              properties:
+                generateSelector:
+                  type: boolean
+                resyncPeriodSeconds:
+                  format: int32
+                  type: integer
+                parentResource:
+                  properties:
+                    apiVersion:
+                      description: APIVersion is the combination of group & version of
+                        the resource
+                      type: string
+                    resource:
+                      description: Resource is the name of the resource. Its also the
+                        plural of Kind
+                      type: string
+                    revisionHistory:
+                      properties:
+                        fieldPaths:
+                          items:
+                            type: string
+                          type: array
+                      type: object
+                  required:
+                  - apiVersion
+                  - resource
+                  type: object
+                childResources:
+                  items:
+                    properties:
+                      apiVersion:
+                        description: APIVersion is the combination of group & version
+                          of the resource
+                        type: string
+                      resource:
+                        description: Resource is the name of the resource. Its also the
+                          plural of Kind
+                        type: string
+                      updateStrategy:
+                        properties:
+                          method:
+                            description: ChildUpdateMethod represents a typed constant
+                              to determine the update strategy of a child resource
+                            type: string
+                          statusChecks:
+                            properties:
+                              conditions:
+                                items:
+                                  properties:
+                                    reason:
+                                      type: string
+                                    status:
+                                      type: string
+                                    type:
+                                      type: string
+                                  required:
+                                  - type
+                                  type: object
+                                type: array
+                            type: object
+                        type: object
+                    required:
+                    - apiVersion
+                    - resource
+                    type: object
+                  type: array
+                hooks:
+                  properties:
+                    finalize:
+                      description: Hook refers to the logic that builds the desired state
+                        of resources
+                      properties:
+                        inline:
+                          description: Inline invocation to arrive at desired state
+                          properties:
+                            funcName:
+                              type: string
+                          type: object
+                        webhook:
+                          description: Webhook invocation to arrive at desired state
+                          properties:
+                            path:
+                              type: string
+                            service:
+                              properties:
+                                name:
+                                  type: string
+                                namespace:
+                                  type: string
+                                port:
+                                  format: int32
+                                  type: integer
+                                protocol:
+                                  type: string
+                              required:
+                              - name
+                              - namespace
+                              type: object
+                            timeout:
+                              type: string
+                            url:
+                              type: string
+                          type: object
+                      type: object
+                    postUpdateChild:
+                      description: Hook refers to the logic that builds the desired state
+                        of resources
+                      properties:
+                        inline:
+                          description: Inline invocation to arrive at desired state
+                          properties:
+                            funcName:
+                              type: string
+                          type: object
+                        webhook:
+                          description: Webhook invocation to arrive at desired state
+                          properties:
+                            path:
+                              type: string
+                            service:
+                              properties:
+                                name:
+                                  type: string
+                                namespace:
+                                  type: string
+                                port:
+                                  format: int32
+                                  type: integer
+                                protocol:
+                                  type: string
+                              required:
+                              - name
+                              - namespace
+                              type: object
+                            timeout:
+                              type: string
+                            url:
+                              type: string
+                          type: object
+                      type: object
+                    preUpdateChild:
+                      description: Hook refers to the logic that builds the desired state
+                        of resources
+                      properties:
+                        inline:
+                          description: Inline invocation to arrive at desired state
+                          properties:
+                            funcName:
+                              type: string
+                          type: object
+                        webhook:
+                          description: Webhook invocation to arrive at desired state
+                          properties:
+                            path:
+                              type: string
+                            service:
+                              properties:
+                                name:
+                                  type: string
+                                namespace:
+                                  type: string
+                                port:
+                                  format: int32
+                                  type: integer
+                                protocol:
+                                  type: string
+                              required:
+                              - name
+                              - namespace
+                              type: object
+                            timeout:
+                              type: string
+                            url:
+                              type: string
+                          type: object
+                      type: object
+                    sync:
+                      description: Hook refers to the logic that builds the desired state
+                        of resources
+                      properties:
+                        inline:
+                          description: Inline invocation to arrive at desired state
+                          properties:
+                            funcName:
+                              type: string
+                          type: object
+                        webhook:
+                          description: Webhook invocation to arrive at desired state
+                          properties:
+                            path:
+                              type: string
+                            service:
+                              properties:
+                                name:
+                                  type: string
+                                namespace:
+                                  type: string
+                                port:
+                                  format: int32
+                                  type: integer
+                                protocol:
+                                  type: string
+                              required:
+                              - name
+                              - namespace
+                              type: object
+                            timeout:
+                              type: string
+                            url:
+                              type: string
+                          type: object
+                      type: object
+                  type: object
+              required:
+              - parentResource
+            status:
+              type: object
+          required:
+          - metadata
+          - spec
+  scope: Cluster
+  names:
+    plural: compositecontrollers
+    singular: compositecontroller
+    kind: CompositeController
+    shortNames:
+    - cc
+    - cctl
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: decoratorcontrollers.metacontroller.k8s.io
+  annotations:
+    "api-approved.kubernetes.io": "https://github.com/kubernetes/kubernetes/pull/78458"
+spec:
+  group: metacontroller.k8s.io
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+  scope: Cluster
+  names:
+    plural: decoratorcontrollers
+    singular: decoratorcontroller
+    kind: DecoratorController
+    shortNames:
+    - dec
+    - decorators
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: controllerrevisions.metacontroller.k8s.io
+  annotations:
+    "api-approved.kubernetes.io": "https://github.com/kubernetes/kubernetes/pull/78458"
+spec:
+  group: metacontroller.k8s.io
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+  scope: Namespaced
+  names:
+    plural: controllerrevisions
+    singular: controllerrevision
+    kind: ControllerRevision
+{{- end }}

@@ -1,0 +1,94 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if (.Values.global).subchart_release_name }}
+{{- $_ := set . "deployment_name" .Chart.Name }}
+{{- else }}
+{{- $_ := set . "deployment_name" .Release.Name }}
+{{- end }}
+
+{{/*
+(aostapenko) rounds cpu limit in any permissible format to integer value (min 1)
+"100m"   -> 1
+"1100m"  -> 1
+"10900m" -> 10
+0.3      -> 1
+5.4      -> 5
+*/}}
+{{- define "get_erlvm_scheduler_num" -}}
+{{- $val := . | toString -}}
+{{- if regexMatch "^[0-9]*m$" $val -}}
+{{- $val = div (float64 (trimSuffix "m" $val)) 1000 -}}
+{{- end -}}
+{{/* NOTE(aostapenko) String with floating number does not convert well to int*/}}
+{{- $val | float64 | int | default 1 -}}
+{{- end -}}
+
+{{- if .Values.manifests.configmap_etc }}
+{{- $envAll := . }}
+
+{{- if empty $envAll.Values.conf.rabbitmq.cluster_formation.k8s.host -}}
+{{- $_ := print "kubernetes.default.svc." $envAll.Values.endpoints.cluster_domain_suffix | set $envAll.Values.conf.rabbitmq.cluster_formation.k8s "host" -}}
+{{- end -}}
+
+{{- if .Values.manifests.certificates }}
+{{- $_ := print "none" | set $envAll.Values.conf.rabbitmq.listeners "tcp" -}}
+{{- $_ := tuple "oslo_messaging" "internal" "amqp" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | set $envAll.Values.conf.rabbitmq.listeners "ssl.1" -}}
+{{- $_ := tuple "oslo_messaging" "internal" "https" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | set $envAll.Values.conf.rabbitmq "management.ssl.port" -}}
+{{- else }}
+{{- $_ := print $envAll.Values.conf.bind_address ":" ( tuple "oslo_messaging" "internal" "amqp" . | include "helm-toolkit.endpoints.endpoint_port_lookup") | set $envAll.Values.conf.rabbitmq.listeners.tcp "1" -}}
+{{- $_ := tuple "oslo_messaging" "internal" "http" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | set $envAll.Values.conf.rabbit_additonal_conf "management.listener.port" -}}
+{{- end }}
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ printf "%s-%s" $envAll.deployment_name "rabbitmq-etc" | quote }}
+data:
+  enabled_plugins: |
+{{ tuple "etc/_enabled_plugins.tpl" . | include  "helm-toolkit.utils.template" | indent 4 }}
+  rabbitmq.conf: |
+{{ include "rabbitmq.utils.to_rabbit_config" $envAll.Values.conf.rabbitmq | indent 4 }}
+{{- if not .Values.manifests.certificates }}
+{{ include "rabbitmq.utils.to_rabbit_config" $envAll.Values.conf.rabbit_additonal_conf | indent 4 }}
+{{- end }}
+
+{{- if .Values.conf.rabbit_advanced_config.enabled }}
+  advanced.config: |
+    [
+    {rabbit, [
+          {default_consumer_prefetch, {false,{{ .Values.conf.rabbit_advanced_config.default_consumer_prefetch }}}}
+        ]
+    }
+    ].
+{{- end }}
+
+{{- $erlvm_scheduler_num := include "get_erlvm_scheduler_num" .Values.pod.resources.server.limits.cpu }}
+{{- $erlvm_scheduler_conf := printf "+S %s:%s" $erlvm_scheduler_num $erlvm_scheduler_num }}
+{{- if .Values.manifests.config_ipv6 }}
+  rabbitmq-env.conf: |
+    SERVER_ADDITIONAL_ERL_ARGS={{ printf "+A 128 -kernel inetrc '/etc/rabbitmq/erl_inetrc' -proto_dist inet6_tcp %s" $erlvm_scheduler_conf | quote }}
+    CTL_ERL_ARGS="-proto_dist inet6_tcp"
+  erl_inetrc: |
+    {inet6, true}.
+{{- else }}
+  rabbitmq-env.conf: |
+    SERVER_ADDITIONAL_ERL_ARGS={{ $erlvm_scheduler_conf | quote }}
+{{- end }}
+{{ if not .Values.conf.prometheus_exporter.rabbitmq_mgmt_metrics_collector_disabled }}
+  management_agent.disable_metrics_collector.conf: |
+    management_agent.disable_metrics_collector = false
+{{- end }}
+{{ end }}

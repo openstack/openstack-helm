@@ -1,0 +1,126 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+{{- if and .Values.manifests.helm_tests .Values.deployment.ceph }}
+{{- $envAll := . }}
+
+{{- $serviceAccountName := printf "%s-%s" $envAll.Release.Name "test" }}
+{{ tuple $envAll "tests" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{ $serviceAccountName }}
+  labels:
+{{ tuple $envAll "ceph" "rgw-test" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+  annotations:
+    "helm.sh/hook": test-success
+{{ dict "envAll" $envAll "podName" "ceph-rgw-test" "containerNames" (list "ceph-rgw-ks-validation" "ceph-rgw-s3-validation") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 4 }}
+spec:
+{{ dict "envAll" $envAll "application" "rgw_test" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 2 }}
+  restartPolicy: Never
+  serviceAccountName: {{ $serviceAccountName }}
+  nodeSelector:
+    {{ .Values.labels.test.node_selector_key }}: {{ .Values.labels.test.node_selector_value }}
+  containers:
+{{ if .Values.conf.rgw_ks.enabled }}
+    - name: ceph-rgw-ks-validation
+{{ tuple $envAll "ceph_config_helper" | include "helm-toolkit.snippets.image" | indent 6 }}
+{{ tuple $envAll $envAll.Values.pod.resources.tests | include "helm-toolkit.snippets.kubernetes_resources" | indent 6 }}
+{{ dict "envAll" $envAll "application" "rgw_test" "container" "ceph_rgw_ks_validation" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 6 }}
+      env:
+{{- with $env := dict "ksUserSecret" .Values.secrets.identity.user_rgw "useCA" .Values.manifests.certificates }}
+{{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 8 }}
+        - name: OS_AUTH_TYPE
+          valueFrom:
+            secretKeyRef:
+              name: {{ $.Values.secrets.identity.user_rgw }}
+              key: OS_AUTH_TYPE
+        - name: OS_TENANT_NAME
+          valueFrom:
+            secretKeyRef:
+              name: {{ $.Values.secrets.identity.user_rgw }}
+              key: OS_TENANT_NAME
+{{- end }}
+        - name: "RGW_TEST_TYPE"
+          value: "RGW_KS"
+      command:
+        - /tmp/helm-tests.sh
+      volumeMounts:
+        - name: pod-tmp
+          mountPath: /tmp
+        - name: pod-etc-ceph
+          mountPath: /etc/ceph
+        - name: ceph-rgw-bin
+          mountPath: /tmp/helm-tests.sh
+          subPath: helm-tests.sh
+          readOnly: true
+        - name: ceph-keyring
+          mountPath: /tmp/client-keyring
+          subPath: key
+          readOnly: true
+        - name: ceph-rgw-etc
+          mountPath: /etc/ceph/ceph.conf
+          subPath: ceph.conf
+          readOnly: true
+{{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.object_store.api.internal | include "helm-toolkit.snippets.tls_volume_mount" | indent 8 }}
+{{- end }}
+{{ if .Values.conf.rgw_s3.enabled }}
+    - name: ceph-rgw-s3-validation
+{{ tuple $envAll "ceph_rgw" | include "helm-toolkit.snippets.image" | indent 6 }}
+{{ tuple $envAll $envAll.Values.pod.resources.tests | include "helm-toolkit.snippets.kubernetes_resources" | indent 6 }}
+{{ dict "envAll" $envAll "application" "rgw_test" "container" "ceph_rgw_s3_validation" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 6 }}
+      env:
+{{- with $env := dict "s3AdminSecret" $envAll.Values.secrets.rgw_s3.admin }}
+{{- include "helm-toolkit.snippets.rgw_s3_admin_env_vars" $env | indent 8 }}
+{{- end }}
+        - name: RGW_HOST
+          value: {{ tuple "ceph_object_store" "internal" "api" $envAll | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" }}
+        - name: "RGW_TEST_TYPE"
+          value: "RGW_S3"
+      command:
+        - /tmp/helm-tests.sh
+      volumeMounts:
+        - name: pod-tmp
+          mountPath: /tmp
+        - name: pod-etc-ceph
+          mountPath: /etc/ceph
+        - name: ceph-rgw-bin
+          mountPath: /tmp/helm-tests.sh
+          subPath: helm-tests.sh
+          readOnly: true
+{{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.ceph_object_store.api.internal "path" "/etc/tls" | include "helm-toolkit.snippets.tls_volume_mount" | indent 8 }}
+{{- end }}
+  volumes:
+    - name: pod-tmp
+      emptyDir: {}
+    - name: pod-etc-ceph
+      emptyDir: {}
+    - name: ceph-rgw-bin
+      configMap:
+        name: ceph-rgw-bin
+        defaultMode: 0555
+    - name: ceph-keyring
+      secret:
+        secretName: {{ .Values.secrets.keyrings.admin | quote }}
+    - name: ceph-rgw-etc
+      configMap:
+        name: ceph-rgw-etc
+        defaultMode: 0444
+{{- if .Values.conf.rgw_ks.enabled }}
+{{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.object_store.api.internal | include "helm-toolkit.snippets.tls_volume" | indent 4 }}
+{{- end }}
+{{- if .Values.conf.rgw_s3.enabled }}
+{{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.ceph_object_store.api.internal | include "helm-toolkit.snippets.tls_volume" | indent 4 }}
+{{- end }}
+{{- end }}

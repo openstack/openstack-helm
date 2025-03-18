@@ -1,0 +1,250 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Default values for memcached.
+# This is a YAML-formatted file.
+# Declare name/value pairs to be passed into your templates.
+# name: value
+
+---
+conf:
+  memcached:
+    max_connections: 8192
+    # NOTE(pordirect): this should match the value in
+    # `pod.resources.memcached.memory`
+    memory: 1024
+    stats_cachedump:
+      enabled: true
+
+dependencies:
+  dynamic:
+    common:
+      local_image_registry:
+        jobs:
+          - memcached-image-repo-sync
+        services:
+          - endpoint: node
+            service: local_image_registry
+  static:
+    memcached:
+      jobs: null
+    image_repo_sync:
+      services:
+        - endpoint: internal
+          service: local_image_registry
+
+secrets:
+  oci_image_registry:
+    memcached: memcached-oci-image-registry-key
+
+endpoints:
+  cluster_domain_suffix: cluster.local
+  local_image_registry:
+    name: docker-registry
+    namespace: docker-registry
+    hosts:
+      default: localhost
+      internal: docker-registry
+      node: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        node: 5000
+  oci_image_registry:
+    name: oci-image-registry
+    namespace: oci-image-registry
+    auth:
+      enabled: false
+      memcached:
+        username: memcached
+        password: password
+    hosts:
+      default: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        default: null
+  oslo_cache:
+    namespace: null
+    host_fqdn_override:
+      default: null
+    hosts:
+      default: memcached
+    port:
+      memcache:
+        default: 11211
+      metrics:
+        default: 9150
+  kube_dns:
+    namespace: kube-system
+    name: kubernetes-dns
+    hosts:
+      default: kube-dns
+    host_fqdn_override:
+      default: null
+    path:
+      default: null
+    scheme: http
+    port:
+      dns_tcp:
+        default: 53
+      dns:
+        default: 53
+        protocol: UDP
+
+network:
+  memcached: {}
+
+network_policy:
+  memcached:
+    ingress:
+      - {}
+    egress:
+      - {}
+
+monitoring:
+  prometheus:
+    enabled: false
+    memcached_exporter:
+      scrape: true
+
+images:
+  pull_policy: IfNotPresent
+  tags:
+    dep_check: 'quay.io/airshipit/kubernetes-entrypoint:latest-ubuntu_focal'
+    memcached: 'docker.io/library/memcached:1.5.5'
+    prometheus_memcached_exporter: docker.io/prom/memcached-exporter:v0.4.1
+    image_repo_sync: docker.io/library/docker:17.07.0
+  local_registry:
+    active: false
+    exclude:
+      - dep_check
+      - image_repo_sync
+
+labels:
+  server:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+
+manifests:
+  configmap_bin: true
+  statefulset: true
+  job_image_repo_sync: true
+  network_policy: false
+  service: true
+  secret_registry: true
+
+pod:
+  security_context:
+    server:
+      pod:
+        runAsUser: 65534
+        runAsNonRoot: true
+        fsGroup: 65534
+      container:
+        memcached:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+              - ALL
+        memcached_exporter:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+              - ALL
+  probes:
+    memcached:
+      memcached:
+        readiness:
+          enabled: True
+          params:
+            initialDelaySeconds: 0
+            periodSeconds: 10
+            timeoutSeconds: 5
+        liveness:
+          enabled: True
+          params:
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            timeoutSeconds: 10
+      memcached_exporter:
+        liveness:
+          enabled: True
+          params:
+            initialDelaySeconds: 15
+            periodSeconds: 60
+            timeoutSeconds: 10
+        readiness:
+          enabled: True
+          params:
+            initialDelaySeconds: 5
+            periodSeconds: 60
+            timeoutSeconds: 10
+  affinity:
+    anti:
+      topologyKey:
+        default: kubernetes.io/hostname
+      type:
+        default: requiredDuringSchedulingIgnoredDuringExecution
+      weight:
+        default: 10
+  tolerations:
+    memcached:
+      enabled: false
+      tolerations:
+      - key: node-role.kubernetes.io/master
+        operator: Exists
+        effect: NoSchedule
+      - key: node-role.kubernetes.io/control-plane
+        operator: Exists
+        effect: NoSchedule
+  lifecycle:
+    upgrades:
+      deployments:
+        pod_replacement_strategy: RollingUpdate
+        revision_history: 3
+        rolling_update:
+          max_unavailable: 1
+    termination_grace_period:
+      memcached:
+        timeout: 30
+  replicas:
+    server: 1
+  resources:
+    enabled: false
+    memcached:
+      limits:
+        cpu: "2000m"
+        memory: "1024Mi"
+      requests:
+        cpu: "500m"
+        memory: "128Mi"
+    prometheus_memcached_exporter:
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+      requests:
+        cpu: 500m
+        memory: 128Mi
+    jobs:
+      image_repo_sync:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+...

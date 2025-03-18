@@ -1,0 +1,325 @@
+---
+conf:
+  prometheus:
+    rules:
+      openstack:
+        groups:
+        - name: mariadb.rules
+          rules:
+          - alert: prom_exporter_mariadb_openstack_unavailable
+            expr: avg_over_time(up{job="mysql-exporter",kubernetes_namespace="openstack"}[5m]) == 0
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              description: MariaDB exporter in  {{ $labels.kubernetes_namespace }} is not collecting metrics or is not available for past 10 minutes
+              title: MariaDB exporter is not collecting metrics or is not available
+          - alert: prom_exporter_mariadb_osh_infra_unavailable
+            expr: avg_over_time(up{job="mysql-exporter",kubernetes_namespace="osh-infra"}[5m]) == 0
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              description: MariaDB exporter in  {{ $labels.kubernetes_namespace }} is not collecting metrics or is not available for past 10 minutes
+              title: MariaDB exporter is not collecting metrics or is not available
+          - alert: mariadb_table_lock_wait_high
+            expr: 100 * mysql_global_status_table_locks_waited/(mysql_global_status_table_locks_waited + mysql_global_status_table_locks_immediate) > 30
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              description: 'Mariadb has high table lock waits of {{ $value }} percentage'
+              summary: 'Mariadb table lock waits are high'
+          - alert: mariadb_node_not_ready
+            expr: mysql_global_status_wsrep_ready != 1
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              description: '{{$labels.job}} on {{$labels.instance}} is not ready.'
+              summary: 'Galera cluster node not ready'
+          - alert: mariadb_galera_node_out_of_sync
+            expr: mysql_global_status_wsrep_local_state != 4 AND mysql_global_variables_wsrep_desync == 0
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              description: '{{$labels.job}} on {{$labels.instance}} is not in sync ({{$value}} != 4)'
+              summary: 'Galera cluster node out of sync'
+          - alert: mariadb_innodb_replication_fallen_behind
+            expr: (mysql_global_variables_innodb_replication_delay > 30) AND on (instance) (predict_linear(mysql_global_variables_innodb_replication_delay[5m], 60*2) > 0)
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              description: 'The mysql innodb replication has fallen behind and is not recovering'
+              summary: 'MySQL innodb replication is lagging'
+        - name: openstack.rules
+          rules:
+          - alert: prom_exporter_openstack_unavailable
+            expr: avg_over_time(up{job="openstack-metrics"}[5m]) == 0
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              description: Openstack exporter is not collecting metrics or is not available for past 10 minutes
+              title: Openstack exporter is not collecting metrics or is not available
+          - alert: os_glance_api_availability
+            expr: openstack_check_glance_api != 1
+            for: 5m
+            labels:
+              severity: page
+            annotations:
+              description: 'Glance API is not available at {{$labels.url}} for more than 5 minutes'
+              summary: 'Glance API is not available at {{$labels.url}}'
+          - alert: os_nova_api_availability
+            expr: openstack_check_nova_api != 1
+            for: 5m
+            labels:
+              severity: page
+            annotations:
+              description: 'Nova API is not available at {{$labels.url}} for more than 5 minutes'
+              summary: 'Nova API is not available at {{$labels.url}}'
+          - alert: os_keystone_api_availability
+            expr: openstack_check_keystone_api != 1
+            for: 5m
+            labels:
+              severity: page
+            annotations:
+              description: 'Keystone API is not available at {{$labels.url}} for more than 5 minutes'
+              summary: 'Keystone API is not available at {{$labels.url}}'
+          - alert: os_neutron_api_availability
+            expr: openstack_check_neutron_api != 1
+            for: 5m
+            labels:
+              severity: page
+            annotations:
+              description: 'Neutron API is not available at {{$labels.url}} for more than 5 minutes'
+              summary: 'Neutron API is not available at {{$labels.url}}'
+          - alert: os_neutron_metadata_agent_availability
+            expr: openstack_services_neutron_metadata_agent_down_total > 0
+            for: 5m
+            labels:
+              severity: page
+            annotations:
+              description: 'One or more neutron metadata_agents are not available for more than 5 minutes'
+              summary: 'One or more neutron metadata_agents are not available'
+          - alert: os_neutron_openvswitch_agent_availability
+            expr: openstack_services_neutron_openvswitch_agent_down_total > 0
+            for: 5m
+            labels:
+              severity: page
+            annotations:
+              description: 'One or more neutron openvswitch agents are not available for more than 5 minutes'
+              summary: 'One or more neutron openvswitch agents are not available'
+          - alert: os_neutron_dhcp_agent_availability
+            expr: openstack_services_neutron_dhcp_agent_down_total > 0
+            for: 5m
+            labels:
+              severity: page
+            annotations:
+              description: 'One or more neutron dhcp agents are not available for more than 5 minutes'
+              summary: 'One or more neutron dhcp agents are not available'
+          - alert: os_neutron_l3_agent_availability
+            expr: openstack_services_neutron_l3_agent_down_total > 0
+            for: 5m
+            labels:
+              severity: page
+            annotations:
+              description: 'One or more neutron L3 agents are not available for more than 5 minutes'
+              summary: 'One or more neutron L3 agents are not available'
+          - alert: os_swift_api_availability
+            expr: openstack_check_swift_api != 1
+            for: 5m
+            labels:
+              severity: page
+            annotations:
+              description: 'Swift API is not available at {{$labels.url}} for more than 5 minutes'
+              summary: 'Swift API is not available at {{$labels.url}}'
+          - alert: os_cinder_api_availability
+            expr: openstack_check_cinder_api != 1
+            for: 5m
+            labels:
+              severity: page
+            annotations:
+              description: 'Cinder API is not available at {{$labels.url}} for more than 5 minutes'
+              summary: 'Cinder API is not available at {{$labels.url}}'
+          - alert: os_cinder_scheduler_availability
+            expr: openstack_services_cinder_cinder_scheduler != 1
+            for: 5m
+            labels:
+              severity: page
+            annotations:
+              description: 'Cinder scheduler is not available for more than 5 minutes'
+              summary: 'Cinder scheduler is not available'
+          - alert: os_heat_api_availability
+            expr: openstack_check_heat_api != 1
+            for: 5m
+            labels:
+              severity: page
+            annotations:
+              description: 'Heat API is not available at {{$labels.url}} for more than 5 minutes'
+              summary: 'Heat API is not available at {{$labels.url}}'
+          - alert: os_nova_compute_disabled
+            expr: openstack_services_nova_compute_disabled_total > 0
+            for: 5m
+            labels:
+              severity: page
+            annotations:
+              description: 'nova-compute is disabled on certain hosts for more than 5 minutes'
+              summary: 'Openstack compute service nova-compute is disabled on some hosts'
+          - alert: os_nova_conductor_disabled
+            expr: openstack_services_nova_conductor_disabled_total > 0
+            for: 5m
+            labels:
+              severity: page
+            annotations:
+              description: 'nova-conductor is disabled on certain hosts for more than 5 minutes'
+              summary: 'Openstack compute service nova-conductor is disabled on some hosts'
+          - alert: os_nova_consoleauth_disabled
+            expr: openstack_services_nova_consoleauth_disabled_total > 0
+            for: 5m
+            labels:
+              severity: page
+            annotations:
+              description: 'nova-consoleauth is disabled on certain hosts for more than 5 minutes'
+              summary: 'Openstack compute service nova-consoleauth is disabled on some hosts'
+          - alert: os_nova_scheduler_disabled
+            expr: openstack_services_nova_scheduler_disabled_total > 0
+            for: 5m
+            labels:
+              severity: page
+            annotations:
+              description: 'nova-scheduler is disabled on certain hosts for more than 5 minutes'
+              summary: 'Openstack compute service nova-scheduler is disabled on some hosts'
+          - alert: os_nova_compute_down
+            expr: openstack_services_nova_compute_down_total > 0
+            for: 5m
+            labels:
+              severity: page
+            annotations:
+              description: 'nova-compute is down on certain hosts for more than 5 minutes'
+              summary: 'Openstack compute service nova-compute is down on some hosts'
+          - alert: os_nova_conductor_down
+            expr: openstack_services_nova_conductor_down_total > 0
+            for: 5m
+            labels:
+              severity: page
+            annotations:
+              description: 'nova-conductor is down on certain hosts for more than 5 minutes'
+              summary: 'Openstack compute service nova-conductor is down on some hosts'
+          - alert: os_nova_consoleauth_down
+            expr: openstack_services_nova_consoleauth_down_total > 0
+            for: 5m
+            labels:
+              severity: page
+            annotations:
+              description: 'nova-consoleauth is down on certain hosts for more than 5 minutes'
+              summary: 'Openstack compute service nova-consoleauth is down on some hosts'
+          - alert: os_nova_scheduler_down
+            expr: openstack_services_nova_scheduler_down_total > 0
+            for: 5m
+            labels:
+              severity: page
+            annotations:
+              description: 'nova-scheduler is down on certain hosts for more than 5 minutes'
+              summary: 'Openstack compute service nova-scheduler is down on some hosts'
+          - alert: os_vm_vcpu_usage_high
+            expr: openstack_total_used_vcpus * 100/(openstack_total_used_vcpus + openstack_total_free_vcpus) > 80
+            for: 5m
+            labels:
+              severity: page
+            annotations:
+              description: 'Openstack VM vcpu usage is hight at {{$value}} percent'
+              summary: 'Openstack VM vcpu usage is high'
+          - alert: os_vm_ram_usage_high
+            expr: openstack_total_used_ram_MB * 100/(openstack_total_used_ram_MB + openstack_total_free_ram_MB) > 80
+            for: 5m
+            labels:
+              severity: page
+            annotations:
+              description: 'Openstack VM RAM usage is hight at {{$value}} percent'
+              summary: 'Openstack VM RAM usage is high'
+          - alert: os_vm_disk_usage_high
+            expr: openstack_total_used_disk_GB * 100/ ( openstack_total_used_disk_GB + openstack_total_free_disk_GB ) > 80
+            for: 5m
+            labels:
+              severity: page
+            annotations:
+              description: 'Openstack VM Disk usage is hight at {{$value}} percent'
+              summary: 'Openstack VM Disk usage is high'
+        - name: rabbitmq.rules
+          rules:
+          - alert: rabbitmq_network_pratitions_detected
+            expr: min(partitions) by(instance) > 0
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              description: 'RabbitMQ at {{ $labels.instance }} has {{ $value }} partitions'
+              summary: 'RabbitMQ Network partitions detected'
+          - alert: rabbitmq_down
+            expr: min(rabbitmq_up) by(instance) != 1
+            for: 10m
+            labels:
+              severity: page
+            annotations:
+              description: 'RabbitMQ Server instance {{ $labels.instance }} is down'
+              summary: 'The RabbitMQ Server instance at {{ $labels.instance }} has been down the last 10 mins'
+          - alert: rabbitmq_file_descriptor_usage_high
+            expr: fd_used * 100 /fd_total > 80
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              description: 'RabbitMQ Server instance {{ $labels.instance }} has high file descriptor usage of {{ $value }} percent.'
+              summary: 'RabbitMQ file descriptors usage is high for last 10 mins'
+          - alert: rabbitmq_node_disk_free_alarm
+            expr: node_disk_free_alarm > 0
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              description: 'RabbitMQ Server instance {{ $labels.instance }} has low disk free space available.'
+              summary: 'RabbitMQ disk space usage is high'
+          - alert: rabbitmq_node_memory_alarm
+            expr: node_mem_alarm > 0
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              description: 'RabbitMQ Server instance {{ $labels.instance }} has low free memory.'
+              summary: 'RabbitMQ memory usage is high'
+          - alert: rabbitmq_less_than_3_nodes
+            expr: running < 3
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              description: 'RabbitMQ Server has less than 3 nodes running.'
+              summary: 'RabbitMQ server is at risk of loosing data'
+          - alert: rabbitmq_queue_messages_returned_high
+            expr: queue_messages_returned_total/queue_messages_published_total * 100 > 50
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              description: 'RabbitMQ Server is returing more than 50 percent of messages received.'
+              summary: 'RabbitMQ server is returning more than 50 percent of messages received.'
+          - alert: rabbitmq_consumers_low_utilization
+            expr: queue_consumer_utilisation < .4
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              description: 'RabbitMQ consumers message consumption speed is low'
+              summary: 'RabbitMQ consumers message consumption speed is low'
+          - alert: rabbitmq_high_message_load
+            expr: queue_messages_total > 17000 or increase(queue_messages_total[5m]) > 4000
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              description: 'RabbitMQ has high message load. Total Queue depth > 17000 or growth more than 4000 messages.'
+              summary: 'RabbitMQ has high message load'
+...

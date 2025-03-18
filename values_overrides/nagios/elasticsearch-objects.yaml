@@ -1,0 +1,95 @@
+---
+conf:
+  nagios:
+    objects:
+      fluent:
+        template: |
+          define service {
+            check_command check_prom_alert!fluentd_not_running!CRITICAL- fluentd is not running on {instance}!OK- Flunetd is working on all nodes
+            check_interval 60
+            hostgroup_name prometheus-hosts
+            service_description Fluentd_status
+            use notifying_service
+          }
+
+          define service {
+            check_command check_prom_alert!prom_exporter_fluentd_unavailable!CRITICAL- Fluentd exporter is not collecting metrics for alerting!OK- Fluentd exporter metrics are available.
+            hostgroup_name prometheus-hosts
+            service_description Prometheus-exporter_Fluentd
+            use generic-service
+          }
+      elasticsearch:
+        template: |
+          define command {
+            command_line $USER1$/query_elasticsearch.py $USER9$ '$ARG1$' '$ARG2$' '$ARG3$' '$ARG4$' '$ARG5$' --simple_query '$ARG6$' --simple_query_fields '$ARG7$' --match '$ARG8$' --range '$ARG9$'
+            command_name check_es_query
+          }
+
+          define command {
+            command_line $USER1$/query_elasticsearch.py $USER9$ '$ARG1$' '$ARG2$' '$ARG3$' '$ARG4$' '$ARG5$' --simple_query '$ARG6$' --simple_query_fields '$ARG7$' --query_file '/opt/nagios/etc/objects/query_es_clauses.json' --query_clause '$ARG8$' --match '$ARG9$' --range '$ARG10$'
+            command_name check_es_query_w_file
+          }
+
+          define service {
+            check_command check_prom_alert!prom_exporter_elasticsearch_unavailable!CRITICAL- Elasticsearch exporter is not collecting metrics for alerting!OK- Elasticsearch exporter metrics are available.
+            hostgroup_name prometheus-hosts
+            service_description Prometheus-exporter_Elasticsearch
+            use generic-service
+          }
+
+          define service {
+            check_command check_prom_alert!es_high_process_open_files_count!CRITICAL- Elasticsearch {host} has high process open file count!OK- Elasticsearch process open file count is normal.
+            hostgroup_name prometheus-hosts
+            service_description ES_high-process-open-file-count
+            use generic-service
+          }
+
+          define service {
+            check_command check_prom_alert!es_high_process_cpu_percent!CRITICAL- Elasticsearch {instance} has high process CPU percent!OK- Elasticsearch process cpu usage is normal.
+            hostgroup_name prometheus-hosts
+            service_description ES_high-process-cpu-percent
+            use generic-service
+          }
+
+          define service {
+            check_command check_prom_alert!es_fs_usage_high!CRITICAL- Elasticsearch {instance} has high filesystem usage!OK- Elasticsearch filesystem usage is normal.
+            hostgroup_name prometheus-hosts
+            service_description ES_high-filesystem-usage
+            use generic-service
+          }
+
+          define service {
+            check_command check_prom_alert!es_unassigned_shards!CRITICAL- Elasticsearch has unassinged shards!OK- Elasticsearch has no unassigned shards.
+            hostgroup_name prometheus-hosts
+            service_description ES_unassigned-shards
+            use generic-service
+          }
+
+          define service {
+            check_command check_prom_alert!es_cluster_health_timed_out!CRITICAL- Elasticsearch Cluster health status call timedout!OK- Elasticsearch cluster health is retrievable.
+            hostgroup_name prometheus-hosts
+            service_description ES_cluster-health-timedout
+            use generic-service
+          }
+
+          define service {
+            check_command check_prom_alert!es_cluster_health_status_alert!CRITICAL- Elasticsearch cluster health status is not green. One or more shards or replicas are unallocated!OK- Elasticsearch cluster health is green.
+            hostgroup_name prometheus-hosts
+            service_description ES_cluster-health-status
+            use generic-service
+          }
+
+          define service {
+            check_command check_prom_alert!es_cluster_health_too_few_nodes_running!CRITICAL- Elasticsearch Cluster has < 3 nodes running!OK- Elasticsearch cluster has 3 or more nodes running.
+            hostgroup_name prometheus-hosts
+            service_description ES_cluster-running-node-count
+            use generic-service
+          }
+
+          define service {
+            check_command check_prom_alert!es_cluster_health_too_few_data_nodes_running!CRITICAL- Elasticsearch Cluster has < 3 data nodes running!OK- Elasticsearch cluster has 3 or more data nodes running.
+            hostgroup_name prometheus-hosts
+            service_description ES_cluster-running-data-node-count
+            use generic-service
+          }
+...

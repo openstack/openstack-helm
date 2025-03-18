@@ -1,0 +1,119 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if (.Values.global).subchart_release_name }}
+{{- $_ := set . "deployment_name" .Chart.Name }}
+{{- else }}
+{{- $_ := set . "deployment_name" .Release.Name }}
+{{- end }}
+
+{{- if .Values.manifests.job_cluster_wait }}
+{{- $envAll := . }}
+
+{{- $serviceAccountName := print .deployment_name "-cluster-wait" }}
+{{ tuple $envAll "cluster_wait" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+
+{{- $protocol := "http" }}
+{{- if $envAll.Values.manifests.certificates }}
+{{- $protocol = "https" }}
+{{- end }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "{{.deployment_name}}-cluster-wait"
+  labels:
+{{ tuple $envAll "rabbitmq" "cluster-wait" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+  annotations:
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+{{- if .Values.helm3_hook }}
+    "helm.sh/hook": "post-install,post-upgrade"
+    "helm.sh/hook-weight": "5"
+    "helm.sh/hook-delete-policy": before-hook-creation
+{{- end }}
+spec:
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "rabbitmq" "cluster-wait" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+{{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
+        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
+{{ dict "envAll" $envAll "podName" "rabbitmq-cluster-wait" "containerNames" (list "init" "rabbitmq-cookie" "rabbitmq-rabbitmq-cluster-wait" ) | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
+    spec:
+{{ dict "envAll" $envAll "application" "cluster_wait" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
+      serviceAccountName: {{ $serviceAccountName }}
+      restartPolicy: OnFailure
+{{ if $envAll.Values.pod.tolerations.rabbitmq.enabled }}
+{{ tuple $envAll "rabbitmq" | include "helm-toolkit.snippets.kubernetes_tolerations" | indent 6 }}
+{{ end }}
+      nodeSelector:
+        {{ $envAll.Values.labels.jobs.node_selector_key }}: {{ $envAll.Values.labels.test.node_selector_value | quote }}
+      initContainers:
+{{ tuple $envAll "cluster_wait" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+        - name: rabbitmq-cookie
+{{ tuple $envAll "scripted_test" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ dict "envAll" $envAll "application" "cluster_wait" "container" "rabbitmq_cookie" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          command:
+            - /tmp/rabbitmq-cookie.sh
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: rabbitmq-bin
+              mountPath: /tmp/rabbitmq-cookie.sh
+              subPath: rabbitmq-cookie.sh
+              readOnly: true
+            - name: rabbitmq-data
+              mountPath: /var/lib/rabbitmq
+            - name: rabbitmq-erlang-cookie
+              mountPath: /var/run/lib/rabbitmq/.erlang.cookie
+              subPath: erlang_cookie
+              readOnly: true
+      containers:
+        - name: rabbitmq-rabbitmq-cluster-wait
+{{ tuple $envAll "scripted_test" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ dict "envAll" $envAll "application" "cluster_wait" "container" "rabbitmq_cluster_wait" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          env:
+            - name: RABBITMQ_ADMIN_CONNECTION
+              value: {{ tuple "oslo_messaging" "internal" "user" $protocol $envAll | include "helm-toolkit.endpoints.authenticated_endpoint_uri_lookup" | quote }}
+            - name: RABBIT_REPLICA_COUNT
+              value: {{ $envAll.Values.pod.replicas.server | quote }}
+          command:
+            - /tmp/rabbitmq-wait-for-cluster.sh
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: rabbitmq-bin
+              mountPath: /tmp/rabbitmq-wait-for-cluster.sh
+              subPath: rabbitmq-wait-for-cluster.sh
+              readOnly: true
+            - name: rabbitmq-data
+              mountPath: /var/lib/rabbitmq
+{{ dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.secrets.tls.oslo_messaging.server.internal "path" "/etc/rabbitmq/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
+      volumes:
+        - name: pod-tmp
+          emptyDir: {}
+        - name: rabbitmq-data
+          emptyDir: {}
+        - name: rabbitmq-bin
+          configMap:
+            name: {{ printf "%s-%s" $envAll.deployment_name "rabbitmq-bin" | quote }}
+            defaultMode: 0555
+        - name: rabbitmq-erlang-cookie
+          secret:
+            secretName: {{ printf "%s-%s" $envAll.deployment_name "erlang-cookie" | quote }}
+            defaultMode: 0444
+{{ dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.secrets.tls.oslo_messaging.server.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
+{{- end }}

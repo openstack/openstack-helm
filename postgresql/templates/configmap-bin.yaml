@@ -1,0 +1,42 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.configmap_bin }}
+{{- $envAll := . }}
+{{- $configMapBinName := printf "%s-%s" $envAll.Release.Name "etcd-bin"  }}
+---
+apiVersion: v1
+{{/* Note: this is a secret because credentials must be rendered into the password script. */}}
+kind: Secret
+metadata:
+  name: postgresql-bin
+type: Opaque
+data:
+{{- if .Values.images.local_registry.active }}
+  image-repo-sync.sh: {{- include "helm-toolkit.scripts.image_repo_sync" . | b64enc }}
+{{- end }}
+  start.sh: {{ tuple "bin/_start.sh.tpl" . | include "helm-toolkit.utils.template" | b64enc }}
+  readiness.sh: {{ tuple "bin/_readiness.sh.tpl" . | include "helm-toolkit.utils.template" | b64enc }}
+  archive_cleanup.sh: {{ tuple "bin/_postgresql_archive_cleanup.sh.tpl" . | include "helm-toolkit.utils.template" | b64enc }}
+  db_test.sh: {{ tuple "bin/_db_test.sh.tpl" . | include "helm-toolkit.utils.template" | b64enc }}
+{{- if .Values.conf.backup.enabled }}
+  backup_postgresql.sh: {{ tuple "bin/_backup_postgresql.sh.tpl" . | include "helm-toolkit.utils.template" | b64enc }}
+  restore_postgresql.sh: {{ tuple "bin/_restore_postgresql.sh.tpl" . | include "helm-toolkit.utils.template" | b64enc }}
+  backup_main.sh: {{ include "helm-toolkit.scripts.db-backup-restore.backup_main" . | b64enc }}
+  restore_main.sh: {{ include "helm-toolkit.scripts.db-backup-restore.restore_main" . | b64enc }}
+{{- end }}
+{{- if .Values.manifests.job_ks_user }}
+  ks-user.sh: {{ include "helm-toolkit.scripts.keystone_user" . | b64enc }}
+{{- end }}
+{{- end }}

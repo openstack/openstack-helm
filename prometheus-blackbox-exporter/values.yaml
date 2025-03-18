@@ -1,0 +1,143 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Default values for kube-state-metrics.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+---
+
+images:
+  tags:
+    blackbox_exporter: docker.io/prom/blackbox-exporter:v0.16.0
+  pull_policy: IfNotPresent
+  local_registry:
+    active: false
+labels:
+  blackbox_exporter:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+
+service:
+  annotations: {}
+  port: 9115
+
+secrets:
+  oci_image_registry:
+    prometheus-blackbox-exporter: prometheus-blackbox-exporter-oci-image-registry-key
+
+endpoints:
+  cluster_domain_suffix: cluster.local
+  oci_image_registry:
+    name: oci-image-registry
+    namespace: oci-image-registry
+    auth:
+      enabled: false
+      prometheus-blackbox-exporter:
+        username: prometheus-blackbox-exporter
+        password: password
+    hosts:
+      default: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        default: null
+  prometheus_blackbox_exporter:
+    namespace: null
+    hosts:
+      default: prometheus-blackbox-exporter
+    host_fqdn_override:
+      default: null
+    path:
+      default: null
+    scheme:
+      default: 'http'
+    port:
+      metrics:
+        default: 9115
+
+pod:
+  security_context:
+    prometheus_blackbox_exporter:
+      pod:
+        runAsUser: 65534
+      container:
+        blackbox_exporter:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+  replicas:
+    prometheus_blackbox_exporter: 1
+  annotations:
+    prometheus.io/scrape: 'true'
+    prometheus.io/port: "9115"
+  affinity:
+    anti:
+      type:
+        default: preferredDuringSchedulingIgnoredDuringExecution
+      topologyKey:
+        default: kubernetes.io/hostname
+
+  lifecycle:
+    upgrades:
+      deployments:
+        revision_history: 3
+        pod_replacement_strategy: RollingUpdate
+        rolling_update:
+          max_unavailable: 1
+          max_surge: 3
+    termination_grace_period:
+      prometheus_blackbox_exporter:
+        timeout: 30
+  resources:
+    enabled: true
+    prometheus_blackbox_exporter:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+dependencies:
+  dynamic:
+    common:
+      local_image_registry:
+        jobs:
+          - prometheus-openstack-exporter-image-repo-sync
+        services:
+          - endpoint: node
+            service: local_image_registry
+  static:
+    image_repo_sync:
+      services:
+        - endpoint: internal
+          service: local_image_registry
+    prometheus_blackbox_exporter:
+      jobs:
+        - prometheus-openstack-exporter-ks-user
+      services:
+        - endpoint: internal
+          service: identity
+
+config:
+  blackbox:
+    modules:
+      http_2xx:
+        prober: http
+        timeout: 10s
+        http:
+          valid_http_versions: ["HTTP/1.1", "HTTP/2.0"]
+          no_follow_redirects: false
+          preferred_ip_protocol: "ip4"
+
+manifests:
+  secret_registry: true
+...

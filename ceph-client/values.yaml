@@ -1,0 +1,603 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Default values for ceph-client.
+# This is a YAML-formatted file.
+# Declare name/value pairs to be passed into your templates.
+# name: value
+
+---
+deployment:
+  ceph: true
+
+release_group: null
+
+images:
+  pull_policy: IfNotPresent
+  tags:
+    ceph_bootstrap: 'docker.io/openstackhelm/ceph-daemon:ubuntu_jammy_19.2.1-1-20250207'
+    ceph_config_helper: 'docker.io/openstackhelm/ceph-config-helper:ubuntu_jammy_19.2.1-1-20250207'
+    ceph_mds: 'docker.io/openstackhelm/ceph-daemon:ubuntu_jammy_19.2.1-1-20250207'
+    ceph_rbd_pool: 'docker.io/openstackhelm/ceph-config-helper:ubuntu_jammy_19.2.1-1-20250207'
+    dep_check: 'quay.io/airshipit/kubernetes-entrypoint:latest-ubuntu_focal'
+    image_repo_sync: 'docker.io/library/docker:17.07.0'
+  local_registry:
+    active: false
+    exclude:
+      - dep_check
+      - image_repo_sync
+
+labels:
+  job:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  test:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  mgr:
+    node_selector_key: ceph-mgr
+    node_selector_value: enabled
+  mds:
+    node_selector_key: ceph-mds
+    node_selector_value: enabled
+  checkdns:
+    node_selector_key: ceph-mon
+    node_selector_value: enabled
+
+pod:
+  security_context:
+    checkdns:
+      pod:
+        runAsUser: 65534
+      container:
+        checkdns:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+    mds:
+      pod:
+        runAsUser: 65534
+      container:
+        init_dirs:
+          runAsUser: 0
+          readOnlyRootFilesystem: true
+        mds:
+          runAsUser: 64045
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
+    bootstrap:
+      pod:
+        runAsUser: 65534
+      container:
+        bootstrap:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+    rbd_pool:
+      pod:
+        runAsUser: 65534
+      container:
+        rbd_pool:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+    test:
+      pod:
+        runAsUser: 65534
+      container:
+        test:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+  dns_policy: "ClusterFirstWithHostNet"
+  replicas:
+    mds: 2
+  lifecycle:
+    upgrades:
+      deployments:
+        pod_replacement_strategy: RollingUpdate
+        revision_history: 3
+        rolling_update:
+          max_surge: 25%
+          max_unavailable: 25%
+  affinity:
+    anti:
+      type:
+        default: preferredDuringSchedulingIgnoredDuringExecution
+      topologyKey:
+        default: kubernetes.io/hostname
+      weight:
+        default: 10
+  resources:
+    enabled: false
+    mds:
+      requests:
+        memory: "10Mi"
+        cpu: "250m"
+      limits:
+        memory: "50Mi"
+        cpu: "500m"
+    checkdns:
+      requests:
+        memory: "5Mi"
+        cpu: "250m"
+      limits:
+        memory: "50Mi"
+        cpu: "500m"
+    jobs:
+      bootstrap:
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+        requests:
+          memory: "128Mi"
+          cpu: "500m"
+      image_repo_sync:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      rbd_pool:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      tests:
+        requests:
+          memory: "10Mi"
+          cpu: "250m"
+        limits:
+          memory: "50Mi"
+          cpu: "500m"
+  tolerations:
+    checkdns:
+      tolerations:
+      - effect: NoExecute
+        key: node.kubernetes.io/not-ready
+        operator: Exists
+        tolerationSeconds: 60
+      - effect: NoExecute
+        key: node.kubernetes.io/unreachable
+        operator: Exists
+        tolerationSeconds: 60
+    mds:
+      tolerations:
+      - effect: NoExecute
+        key: node.kubernetes.io/not-ready
+        operator: Exists
+        tolerationSeconds: 60
+      - effect: NoExecute
+        key: node.kubernetes.io/unreachable
+        operator: Exists
+        tolerationSeconds: 60
+  probes:
+    ceph:
+      ceph-mds:
+        readiness:
+          enabled: true
+          params:
+            timeoutSeconds: 5
+        liveness:
+          enabled: true
+          params:
+            initialDelaySeconds: 60
+            timeoutSeconds: 5
+
+secrets:
+  keyrings:
+    mon: ceph-mon-keyring
+    mds: ceph-bootstrap-mds-keyring
+    osd: ceph-bootstrap-osd-keyring
+    rgw: ceph-bootstrap-rgw-keyring
+    mgr: ceph-bootstrap-mgr-keyring
+    admin: ceph-client-admin-keyring
+  oci_image_registry:
+    ceph-client: ceph-client-oci-image-registry
+
+network:
+  public: 192.168.0.0/16
+  cluster: 192.168.0.0/16
+
+jobs:
+  ceph_defragosds:
+    # Execute the 1st of each month
+    cron: "0 0 1 * *"
+    history:
+      # Number of successful job to keep
+      successJob: 1
+      # Number of failed job to keep
+      failJob: 1
+    concurrency:
+      # Skip new job if previous job still active
+      execPolicy: Forbid
+    startingDeadlineSecs: 60
+  pool_checkPGs:
+    # Execute every 15 minutes
+    cron: "*/15 * * * *"
+    history:
+      # Number of successful job to keep
+      successJob: 1
+      # Number of failed job to keep
+      failJob: 1
+    concurrency:
+      # Skip new job if previous job still active
+      execPolicy: Forbid
+    startingDeadlineSecs: 60
+  rbd_pool:
+    restartPolicy: OnFailure
+
+conf:
+  features:
+    mds: true
+    pg_autoscaler: true
+    cluster_flags:
+      # List of flags to set or unset separated by spaces
+      set: ""
+      unset: ""
+    cluster_commands:
+      # Add additional commands to run against the Ceph cluster here
+      # NOTE: Beginning with Pacific, mon_allow_pool_size_one must be
+      #       configured here to allow gate scripts to use 1x replication.
+      #       Adding it to /etc/ceph/ceph.conf doesn't seem to be effective.
+      - config set global mon_allow_pool_size_one true
+      - osd require-osd-release squid
+      - status
+  pool:
+  # NOTE(portdirect): this drives a simple approximation of
+  # https://ceph.com/pgcalc/, the `target.osd` key should be set to match the
+  # expected number of osds in a cluster, and the `target.pg_per_osd` should be
+  # set to match the desired number of placement groups on each OSD.
+    crush:
+      # NOTE(portdirect): to use RBD devices with Ubuntu 16.04's 4.4.x series
+      # kernel this should be set to `hammer`
+      tunables: null
+    target:
+      # NOTE(portdirect): arbitrarily we set the default number of expected OSD's to 5
+      # to match the number of nodes in the OSH gate.
+      osd: 5
+      # This the number of OSDs expected in the final state. This is to allow the above
+      # target to be smaller initially in the event of a partial deployment. This way
+      # helm tests can still pass at deployment time and pool quotas can be set based on
+      # the expected final state (actual target quota = final_osd / osd * quota).
+      final_osd: 5
+      # This is  just for helm tests to proceed the deployment if  we have mentioned % of
+      # osds are up and running.
+      required_percent_of_osds: 75
+      pg_per_osd: 100
+      # NOTE(bw6938): When pools are created with the autoscaler enabled, a pg_num_min
+      # value specifies the minimum value of pg_num that the autoscaler will target.
+      # That default was recently changed from 8 to 32 which severely limits the number
+      # of pools in a small cluster per https://github.com/rook/rook/issues/5091. This change
+      # overrides the default pg_num_min value of 32 with a value of 8, matching the default
+      # pg_num value of 8.
+      pg_num_min: 8
+      protected: true
+      # NOTE(st053q): target quota should be set to the overall cluster full percentage
+      # to be tolerated as a quota (percent full to allow in order to tolerate some
+      # level of failure)
+      # Set target quota to "0" (must be quoted) to remove quotas for all pools
+      quota: 100
+    default:
+      # NOTE(supamatt): Accepted values are taken from `crush_rules` list.
+      crush_rule: replicated_rule
+    crush_rules:
+      # NOTE(supamatt): Device classes must remain undefined if all OSDs are the
+      # same device type of backing disks (ie, all HDD or all SDD).
+      - name: same_host
+        crush_rule: create-simple
+        failure_domain: osd
+        device_class:
+      - name: replicated_rule
+        crush_rule: create-simple
+        failure_domain: host
+        device_class:
+      - name: rack_replicated_rule
+        crush_rule: create-simple
+        failure_domain: rack
+        device_class:
+      # - name: replicated_rule-ssd
+      #   crush_rule: create-replicated
+      #   failure_domain: host
+      #   device_class: sdd
+      # - name: replicated_rule-hdd
+      #   crush_rule: create-replicated
+      #   failure_domain: host
+      #   device_class: hdd
+      # - name: rack_replicated_rule-ssd
+      #   crush_rule: create-replicated
+      #   failure_domain: rack
+      #   device_class: ssd
+      # - name: rack_replicated_rule-hdd
+      #   crush_rule: create-replicated
+      #   failure_domain: rack
+      #   device_class: hdd
+      # - name: row_replicated_rule
+      #   crush_rule: create-simple
+      #   failure_domain: row
+      #   device_class:
+
+    # NOTE(portdirect): this section describes the pools that will be managed by
+    # the ceph pool management job, as it tunes the pgs and crush rule, based on
+    # the above.
+    spec:
+      # Health metrics pool
+      - name: .mgr
+        application: mgr_devicehealth
+        replication: 1
+        percent_total_data: 5
+      # RBD pool
+      - name: rbd
+        # An optional "rename" value may be used to change the name of an existing pool.
+        # If the pool doesn't exist, it will be created and renamed. If the pool exists with
+        # the original name, it will be renamed. If the pool exists and has already been
+        # renamed, the name will not be changed. If two pools exist with the two names, the
+        # pool matching the renamed value will be configured and the other left alone.
+        # rename: rbd-new
+        # Optional "delete" and "delete_all_pool_data" values may be used to delete an
+        # existing pool. Both must exist and must be set to true in order to delete a pool.
+        # NOTE: Deleting a pool deletes all of its data and is unrecoverable. This is why
+        #       both values are required in order to delete a pool. Neither value does
+        #       anything by itself.
+        # delete: false
+        # delete_all_pool_data: false
+        application: rbd
+        replication: 3
+        percent_total_data: 40
+        # Example of 100 GiB pool_quota for rbd pool (no pool quota if absent)
+        # May be specified in TiB, TB, GiB, GB, MiB, MB, KiB, KB, or bytes
+        # NOTE: This should always be a string value to avoid Helm issues with large integers
+        # pool_quota: "100GiB"
+        # Example of an overridden pg_num_min value for a single pool
+        # pg_num_min: 32
+      # NOTE(supamatt): By default the crush rules used to create each pool will be
+      # taken from the pool default `crush_rule` unless a pool specific `crush_rule`
+      # is specified. The rule MUST exist for it to be defined here.
+      #  crush_rule: replicated_rule
+      # CephFS pools
+      - name: cephfs_metadata
+        application: cephfs
+        replication: 3
+        percent_total_data: 5
+      - name: cephfs_data
+        application: cephfs
+        replication: 3
+        percent_total_data: 10
+      # RadosGW pools
+      - name: .rgw.root
+        application: rgw
+        replication: 3
+        percent_total_data: 0.1
+      - name: default.rgw.control
+        application: rgw
+        replication: 3
+        percent_total_data: 0.1
+      - name: default.rgw.data.root
+        application: rgw
+        replication: 3
+        percent_total_data: 0.1
+      - name: default.rgw.gc
+        application: rgw
+        replication: 3
+        percent_total_data: 0.1
+      - name: default.rgw.log
+        application: rgw
+        replication: 3
+        percent_total_data: 0.1
+      - name: default.rgw.intent-log
+        application: rgw
+        replication: 3
+        percent_total_data: 0.1
+      - name: default.rgw.meta
+        application: rgw
+        replication: 3
+        percent_total_data: 0.1
+      - name: default.rgw.usage
+        application: rgw
+        replication: 3
+        percent_total_data: 0.1
+      - name: default.rgw.users.keys
+        application: rgw
+        replication: 3
+        percent_total_data: 0.1
+      - name: default.rgw.users.email
+        application: rgw
+        replication: 3
+        percent_total_data: 0.1
+      - name: default.rgw.users.swift
+        application: rgw
+        replication: 3
+        percent_total_data: 0.1
+      - name: default.rgw.users.uid
+        application: rgw
+        replication: 3
+        percent_total_data: 0.1
+      - name: default.rgw.buckets.extra
+        application: rgw
+        replication: 3
+        percent_total_data: 0.1
+      - name: default.rgw.buckets.index
+        application: rgw
+        replication: 3
+        percent_total_data: 3
+      - name: default.rgw.buckets.data
+        application: rgw
+        replication: 3
+        percent_total_data: 29
+
+  ceph:
+    global:
+      # auth
+      cephx: true
+      cephx_require_signatures: false
+      cephx_cluster_require_signatures: true
+      cephx_service_require_signatures: false
+      objecter_inflight_op_bytes: "1073741824"
+      objecter_inflight_ops: 10240
+      debug_ms: "0/0"
+      log_file: /dev/stdout
+      mon_cluster_log_file: /dev/stdout
+    osd:
+      osd_mkfs_type: xfs
+      osd_mkfs_options_xfs: -f -i size=2048
+      osd_max_object_name_len: 256
+      ms_bind_port_min: 6800
+      ms_bind_port_max: 7100
+
+dependencies:
+  dynamic:
+    common:
+      local_image_registry:
+        jobs:
+          - ceph-client-image-repo-sync
+        services:
+          - endpoint: node
+            service: local_image_registry
+  static:
+    bootstrap:
+      jobs: null
+      services:
+        - endpoint: internal
+          service: ceph_mon
+    cephfs_client_key_generator:
+      jobs: null
+    mds:
+      jobs:
+        - ceph-storage-keys-generator
+        - ceph-mds-keyring-generator
+        - ceph-rbd-pool
+      services:
+        - endpoint: internal
+          service: ceph_mon
+    pool_checkpgs:
+      jobs:
+        - ceph-rbd-pool
+      services:
+        - endpoint: internal
+          service: ceph_mgr
+    checkdns:
+      services:
+        - endpoint: internal
+          service: ceph_mon
+    namespace_client_key_cleaner:
+      jobs: null
+    namespace_client_key_generator:
+      jobs: null
+    rbd_pool:
+      services:
+        - endpoint: internal
+          service: ceph_mon
+        - endpoint: internal
+          service: ceph_mgr
+    image_repo_sync:
+      services:
+        - endpoint: internal
+          service: local_image_registry
+    tests:
+      jobs:
+        - ceph-rbd-pool
+        - ceph-mgr-keyring-generator
+      services:
+        - endpoint: internal
+          service: ceph_mon
+        - endpoint: internal
+          service: ceph_mgr
+
+bootstrap:
+  enabled: false
+  script: |
+    ceph -s
+    function ensure_pool () {
+      ceph osd pool stats $1 || ceph osd pool create $1 $2
+      if [[ $(ceph mon versions | awk '/version/{print $3}' | cut -d. -f1) -ge 12 ]]; then
+        ceph osd pool application enable $1 $3
+      fi
+    }
+    #ensure_pool volumes 8 cinder
+
+endpoints:
+  cluster_domain_suffix: cluster.local
+  local_image_registry:
+    name: docker-registry
+    namespace: docker-registry
+    hosts:
+      default: localhost
+      internal: docker-registry
+      node: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        node: 5000
+  oci_image_registry:
+    name: oci-image-registry
+    namespace: oci-image-registry
+    auth:
+      enabled: false
+      ceph-client:
+        username: ceph-client
+        password: password
+    hosts:
+      default: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        default: null
+  ceph_mon:
+    namespace: null
+    hosts:
+      default: ceph-mon
+      discovery: ceph-mon-discovery
+    host_fqdn_override:
+      default: null
+    port:
+      mon:
+        default: 6789
+      mon_msgr2:
+        default: 3300
+  ceph_mgr:
+    namespace: null
+    hosts:
+      default: ceph-mgr
+    host_fqdn_override:
+      default: null
+    port:
+      mgr:
+        default: 7000
+      metrics:
+        default: 9283
+    scheme:
+      default: http
+  ceph_object_store:
+    endpoint_namespaces:
+    - openstack
+    - ceph
+    # hosts:
+    #   default: ceph-rgw
+    # host_fqdn_override:
+    #   default: null
+
+manifests:
+  configmap_bin: true
+  configmap_test_bin: true
+  configmap_etc: true
+  deployment_mds: true
+  deployment_checkdns: true
+  job_bootstrap: false
+  job_cephfs_client_key: true
+  job_image_repo_sync: true
+  job_rbd_pool: true
+  helm_tests: true
+  cronjob_checkPGs: true
+  cronjob_defragosds: true
+  secret_registry: true
+...

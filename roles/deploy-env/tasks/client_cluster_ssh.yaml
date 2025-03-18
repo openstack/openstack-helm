@@ -1,0 +1,72 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+- name: Set client user home directory
+  set_fact:
+    client_user_home_directory: /home/{{ client_ssh_user }}
+  when: client_ssh_user != "root"
+
+- name: Set client user home directory
+  set_fact:
+    client_user_home_directory: /root
+  when: client_ssh_user == "root"
+
+- name: Set cluster user home directory
+  set_fact:
+    cluster_user_home_directory: /home/{{ cluster_ssh_user }}
+  when: cluster_ssh_user != "root"
+
+- name: Set cluster user home directory
+  set_fact:
+    cluster_user_home_directory: /root
+  when: cluster_ssh_user == "root"
+
+- name: Setup ssh keys
+  become_user: "{{ client_ssh_user }}"
+  block:
+    - name: Generate ssh key pair
+      shell: |
+        ssh-keygen -t ed25519 -q -N "" -f {{ client_user_home_directory }}/.ssh/id_ed25519
+      args:
+        creates: "{{ client_user_home_directory }}/.ssh/id_ed25519.pub"
+      when: (inventory_hostname in (groups['primary'] | default([])))
+
+    - name: Read ssh public key
+      command: cat "{{ client_user_home_directory }}/.ssh/id_ed25519.pub"
+      register: ssh_public_key
+      when: (inventory_hostname in (groups['primary'] | default([])))
+
+- name: Setup passwordless ssh from primary and cluster nodes
+  become_user: "{{ cluster_ssh_user }}"
+  block:
+    - name: Set primary ssh public key
+      set_fact:
+        client_ssh_public_key: "{{ (groups['primary'] | map('extract', hostvars, ['ssh_public_key', 'stdout']))[0] }}"
+      when: inventory_hostname in (groups['k8s_cluster'] | default([]))
+
+    - name: Put keys to .ssh/authorized_keys
+      lineinfile:
+        path: "{{ cluster_user_home_directory }}/.ssh/authorized_keys"
+        state: present
+        line: "{{ client_ssh_public_key }}"
+      when: inventory_hostname in (groups['k8s_cluster'] | default([]))
+
+    - name: Disable strict host key checking
+      template:
+        src: "files/ssh_config"
+        dest: "{{ client_user_home_directory }}/.ssh/config"
+        owner: "{{ client_ssh_user }}"
+        mode: 0644
+        backup: true
+      when: (inventory_hostname in (groups['primary'] | default([])))
+...

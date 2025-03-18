@@ -1,0 +1,176 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- define "livenessProbeTemplate" }}
+tcpSocket:
+  port: 6800
+{{- end }}
+
+{{- define "readinessProbeTemplate" }}
+tcpSocket:
+  port: 6800
+{{- end }}
+
+{{- if and .Values.manifests.deployment_mds ( and .Values.deployment.ceph .Values.conf.features.mds) }}
+{{- $envAll := . }}
+
+{{- $serviceAccountName := "ceph-mds" }}
+{{ tuple $envAll "mds" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: ceph-mds
+  annotations:
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+  labels:
+{{ tuple $envAll "ceph" "mds" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  replicas: {{ .Values.pod.replicas.mds }}
+  selector:
+    matchLabels:
+{{ tuple $envAll "ceph" "mds" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
+{{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_deployment" | indent 2 }}
+  template:
+    metadata:
+      name: ceph-mds
+      labels:
+{{ tuple $envAll "ceph" "mds" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+{{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
+        configmap-etc-client-hash: {{ tuple "configmap-etc-client.yaml" . | include "helm-toolkit.utils.hash" }}
+{{ dict "envAll" $envAll "podName" "ceph-mds" "containerNames" (list "ceph-mds" "ceph-init-dirs") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
+    spec:
+{{ dict "envAll" $envAll "application" "mds" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
+      serviceAccountName: {{ $serviceAccountName }}
+      affinity:
+{{ tuple $envAll "ceph" "mds" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
+{{ tuple $envAll "mds" | include "helm-toolkit.snippets.kubernetes_tolerations" | indent 6 }}
+      nodeSelector:
+        {{ .Values.labels.mds.node_selector_key }}: {{ .Values.labels.mds.node_selector_value }}
+      initContainers:
+{{ tuple $envAll "mds" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+        - name: ceph-init-dirs
+{{ tuple $envAll "ceph_mds" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ dict "envAll" $envAll "application" "mds" "container" "init_dirs" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          command:
+            - /tmp/init-dirs.sh
+          env:
+            - name: CLUSTER
+              value: "ceph"
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: pod-run
+              mountPath: /run
+            - name: pod-etc-ceph
+              mountPath: /etc/ceph
+            - name: ceph-client-bin
+              mountPath: /tmp/init-dirs.sh
+              subPath: init-dirs.sh
+              readOnly: true
+            - name: pod-var-lib-ceph
+              mountPath: /var/lib/ceph
+              readOnly: false
+            - name: pod-var-lib-ceph-crash
+              mountPath: /var/lib/ceph/crash
+              readOnly: false
+      containers:
+        - name: ceph-mds
+{{ tuple $envAll "ceph_mds" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.mds | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "mds" "container" "mds" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          command:
+            - /tmp/mds-start.sh
+          env:
+            - name: CLUSTER
+              value: "ceph"
+            - name: CEPHFS_CREATE
+              value: "1"
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.namespace
+            - name: MON_PORT
+              value: {{ tuple "ceph_mon" "internal" "mon" $envAll | include "helm-toolkit.endpoints.endpoint_port_lookup" | quote }}
+            - name: MON_PORT_V2
+              value: {{ tuple "ceph_mon" "internal" "mon_msgr2" $envAll | include "helm-toolkit.endpoints.endpoint_port_lookup" | quote }}
+          ports:
+            - containerPort: 6800
+{{ dict "envAll" . "component" "ceph" "container" "ceph-mds" "type" "liveness" "probeTemplate" (include "livenessProbeTemplate" . | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | trim | indent 10 }}
+{{ dict "envAll" . "component" "ceph" "container" "ceph-mds" "type" "readiness" "probeTemplate" (include "readinessProbeTemplate" . | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | trim | indent 10 }}
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: pod-run
+              mountPath: /run
+            - name: pod-etc-ceph
+              mountPath: /etc/ceph
+            - name: ceph-client-bin
+              mountPath: /tmp/mds-start.sh
+              subPath: mds-start.sh
+              readOnly: true
+            - name: ceph-client-bin
+              mountPath: /tmp/utils-checkDNS.sh
+              subPath: utils-checkDNS.sh
+              readOnly: true
+            - name: ceph-client-etc
+              mountPath: /etc/ceph/ceph.conf.template
+              subPath: ceph.conf
+              readOnly: true
+            - name: ceph-client-admin-keyring
+              mountPath: /etc/ceph/ceph.client.admin.keyring
+              subPath: ceph.client.admin.keyring
+              readOnly: true
+            - name: ceph-bootstrap-mds-keyring
+              mountPath: /var/lib/ceph/bootstrap-mds/ceph.keyring
+              subPath: ceph.keyring
+              readOnly: false
+            - name: pod-var-lib-ceph
+              mountPath: /var/lib/ceph
+              readOnly: false
+            - name: pod-var-lib-ceph-crash
+              mountPath: /var/lib/ceph/crash
+              readOnly: false
+      volumes:
+        - name: pod-tmp
+          emptyDir: {}
+        - name: pod-run
+          emptyDir:
+            medium: "Memory"
+        - name: pod-etc-ceph
+          emptyDir: {}
+        - name: ceph-client-etc
+          configMap:
+            name: ceph-client-etc
+            defaultMode: 0444
+        - name: ceph-client-bin
+          configMap:
+            name: ceph-client-bin
+            defaultMode: 0555
+        - name: pod-var-lib-ceph
+          emptyDir: {}
+        - name: pod-var-lib-ceph-crash
+          hostPath:
+            path: /var/lib/openstack-helm/ceph/crash
+            type: DirectoryOrCreate
+        - name: ceph-client-admin-keyring
+          secret:
+            secretName: {{ .Values.secrets.keyrings.admin }}
+        - name: ceph-bootstrap-mds-keyring
+          secret:
+            secretName: {{ .Values.secrets.keyrings.mds }}
+{{- end }}

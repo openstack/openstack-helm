@@ -1,0 +1,77 @@
+{{/*
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+*/}}
+
+{{- if .Values.manifests.test_basic }}
+{{- $dependencies := .Values.dependencies.static.tests }}
+{{- $serviceAccountName := print .Release.Name "-test" }}
+{{ tuple . $dependencies $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ .Release.Name }}-db-test"
+  annotations:
+    "helm.sh/hook": "test-success"
+spec:
+  restartPolicy: Never
+  serviceAccountName: {{ $serviceAccountName }}
+  nodeSelector:
+    {{ .Values.labels.test.node_selector_key }}: {{ .Values.labels.test.node_selector_value }}
+  initContainers:
+{{ tuple . $dependencies list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 4 }}
+  containers:
+    - name: "{{ .Release.Name }}-db-test"
+      env:
+        - name: DB_FQDN
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.secrets.postgresql.admin }}
+              key: DATABASE_HOST
+        - name: DB_PORT
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.secrets.postgresql.admin }}
+              key: DATABASE_PORT
+        - name: DB_ADMIN_USER
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.secrets.postgresql.admin }}
+              key: POSTGRES_USER
+        - name: ADMIN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.secrets.postgresql.admin }}
+              key: POSTGRES_PASSWORD
+      image: {{ .Values.images.tags.postgresql }}
+      imagePullPolicy: {{ .Values.images.pull_policy }}
+{{ tuple . .Values.pod.resources.test | include "helm-toolkit.snippets.kubernetes_resources" | indent 6 }}
+      command:
+        - /tmp/db_test.sh
+      volumeMounts:
+        - name: pod-tmp
+          mountPath: /tmp
+        - name: postgresql-bin
+          mountPath: /tmp/db_test.sh
+          subPath: db_test.sh
+          readOnly: true
+  volumes:
+    - name: pod-tmp
+      emptyDir: {}
+    - name: postgresql-bin
+      secret:
+        secretName: postgresql-bin
+        defaultMode: 0555
+...
+{{- end }}

@@ -1,0 +1,117 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if and .Values.manifests.job_rbd_pool .Values.deployment.ceph }}
+{{- $envAll := . }}
+
+{{- $serviceAccountName := "ceph-rbd-pool" }}
+{{ tuple $envAll "rbd_pool" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: ceph-rbd-pool
+  labels:
+{{ tuple $envAll "ceph" "rbd-pool" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+  annotations:
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+spec:
+  template:
+    metadata:
+      name: ceph-rbd-pool
+      labels:
+{{ tuple $envAll "ceph" "rbd-pool" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+{{ dict "envAll" $envAll "podName" "ceph-rbd-pool" "containerNames" (list "ceph-rbd-pool" "init") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
+    spec:
+{{ dict "envAll" $envAll "application" "rbd_pool" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
+      serviceAccountName: {{ $serviceAccountName }}
+      restartPolicy: {{ $envAll.Values.jobs.rbd_pool.restartPolicy | quote }}
+      affinity:
+{{ tuple $envAll "ceph" "rbd-pool" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
+      nodeSelector:
+        {{ $envAll.Values.labels.job.node_selector_key }}: {{ $envAll.Values.labels.job.node_selector_value }}
+      initContainers:
+{{ tuple $envAll "rbd_pool" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+      containers:
+        - name: ceph-rbd-pool
+{{ tuple $envAll "ceph_rbd_pool" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.jobs.rbd_pool | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "rbd_pool" "container" "rbd_pool" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          env:
+            - name: CLUSTER
+              value: "ceph"
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.namespace
+            - name: ENABLE_AUTOSCALER
+              value: {{ .Values.conf.features.pg_autoscaler | quote }}
+            - name: CLUSTER_SET_FLAGS
+              value: {{ .Values.conf.features.cluster_flags.set | quote }}
+            - name: CLUSTER_UNSET_FLAGS
+              value: {{ .Values.conf.features.cluster_flags.unset | quote }}
+          command:
+            - /tmp/pool-init.sh
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: ceph-client-bin
+              mountPath: /tmp/pool-init.sh
+              subPath: pool-init.sh
+              readOnly: true
+            - name: ceph-client-bin
+              mountPath: /tmp/pool-calc.py
+              subPath: pool-calc.py
+              readOnly: true
+            - name: pod-etc-ceph
+              mountPath: /etc/ceph
+              readOnly: false
+            - name: ceph-client-etc
+              mountPath: /etc/ceph/ceph.conf.template
+              subPath: ceph.conf
+              readOnly: true
+            - name: ceph-client-admin-keyring
+              mountPath: /etc/ceph/ceph.client.admin.keyring
+              subPath: ceph.client.admin.keyring
+              readOnly: true
+            - name: pod-var-lib-ceph
+              mountPath: /var/lib/ceph
+              readOnly: false
+            - name: pod-run
+              mountPath: /run
+              readOnly: false
+      volumes:
+        - name: pod-tmp
+          emptyDir: {}
+        - name: pod-etc-ceph
+          emptyDir: {}
+        - name: ceph-client-etc
+          configMap:
+            name: ceph-client-etc
+            defaultMode: 0444
+        - name: ceph-client-bin
+          configMap:
+            name: ceph-client-bin
+            defaultMode: 0555
+        - name: pod-var-lib-ceph
+          emptyDir: {}
+        - name: pod-run
+          emptyDir:
+            medium: "Memory"
+        - name: ceph-client-admin-keyring
+          secret:
+            secretName: {{ .Values.secrets.keyrings.admin }}
+{{- end }}

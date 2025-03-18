@@ -1,0 +1,484 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Default values for node-exporter.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+---
+images:
+  tags:
+    node_problem_detector: docker.io/openstackhelm/node-problem-detector:latest-ubuntu_jammy
+    dep_check: quay.io/airshipit/kubernetes-entrypoint:latest-ubuntu_focal
+    image_repo_sync: docker.io/library/docker:17.07.0
+  pull_policy: IfNotPresent
+  local_registry:
+    active: false
+    exclude:
+      - dep_check
+      - image_repo_sync
+
+labels:
+  node_problem_detector:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  job:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+
+secrets:
+  oci_image_registry:
+    kubernetes-node-problem-detector: kubernetes-node-problem-detector-oci-image-registry-key
+
+pod:
+  security_context:
+    node_problem_detector:
+      pod:
+        runAsUser: 0
+      container:
+        node_problem_detector:
+          readOnlyRootFilesystem: true
+          privileged: true
+  affinity:
+    anti:
+      type:
+        default: preferredDuringSchedulingIgnoredDuringExecution
+      topologyKey:
+        default: kubernetes.io/hostname
+  mounts:
+    node_problem_detector:
+      node_problem_detector:
+      init_container: null
+  lifecycle:
+    upgrades:
+      daemonsets:
+        pod_replacement_strategy: RollingUpdate
+        node_problem_detector:
+          enabled: true
+          min_ready_seconds: 0
+      revision_history: 3
+      pod_replacement_strategy: RollingUpdate
+      rolling_update:
+        max_unavailable: 1
+        max_surge: 3
+    termination_grace_period:
+      node_problem_detector:
+        timeout: 30
+  resources:
+    enabled: false
+    node_problem_detector:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+    jobs:
+      image_repo_sync:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+  tolerations:
+    node_problem_detector:
+      enabled: false
+      tolerations:
+      - key: node-role.kubernetes.io/master
+        operator: Exists
+      - key: node-role.kubernetes.io/control-plane
+        operator: Exists
+      - key: node-role.kubernetes.io/node
+        operator: Exists
+dependencies:
+  dynamic:
+    common:
+      local_image_registry:
+        jobs:
+          - node-exporter-image-repo-sync
+        services:
+          - endpoint: node
+            service: local_image_registry
+  static:
+    image_repo_sync:
+      services:
+        - endpoint: internal
+          service: local_image_registry
+    node_problem_detector:
+      services: null
+
+monitoring:
+  prometheus:
+    pod:
+      enabled: true
+    service:
+      enabled: false
+    node_problem_detector:
+      scrape: true
+      port: 20257
+
+endpoints:
+  cluster_domain_suffix: cluster.local
+  local_image_registry:
+    name: docker-registry
+    namespace: docker-registry
+    hosts:
+      default: localhost
+      internal: docker-registry
+      node: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        node: 5000
+  oci_image_registry:
+    name: oci-image-registry
+    namespace: oci-image-registry
+    auth:
+      enabled: false
+      kubernetes-node-problem-detector:
+        username: kubernetes-node-problem-detector
+        password: password
+    hosts:
+      default: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        default: null
+  node_problem_detector:
+    name: node-problem-detector
+    namespace: null
+    hosts:
+      default: node-problem-detector
+    host_fqdn_override:
+      default: null
+    path:
+      default: null
+    port:
+      metrics:
+        default: 20257
+
+manifests:
+  configmap_bin: true
+  configmap_etc: true
+  daemonset: true
+  job_image_repo_sync: true
+  secret_registry: true
+  service: false
+
+conf:
+  monitors:
+    system-log-monitor:
+      enabled:
+        - /config/kernel-monitor.json
+        - /config/docker-monitor.json
+        - /config/systemd-monitor.json
+      scripts:
+        enabled: null
+        source: null
+      config:
+        kernel-monitor:
+          plugin: kmsg
+          logPath: "/dev/kmsg"
+          lookback: 5m
+          bufferSize: 10
+          source: kernel-monitor
+          conditions:
+          - type: KernelDeadlock
+            reason: KernelHasNoDeadlock
+            message: kernel has no deadlock
+          - type: ReadonlyFilesystem
+            reason: FilesystemIsNotReadOnly
+            message: Filesystem is not read-only
+          rules:
+          - type: temporary
+            reason: OOMKilling
+            pattern: Kill process \d+ (.+) score \d+ or sacrifice child\nKilled process \d+
+              (.+) total-vm:\d+kB, anon-rss:\d+kB, file-rss:\d+kB.*
+          - type: temporary
+            reason: TaskHung
+            pattern: task \S+:\w+ blocked for more than \w+ seconds\.
+          - type: temporary
+            reason: UnregisterNetDevice
+            pattern: 'unregister_netdevice: waiting for \w+ to become free. Usage count = \d+'
+          - type: temporary
+            reason: KernelOops
+            pattern: 'BUG: unable to handle kernel NULL pointer dereference at .*'
+          - type: temporary
+            reason: KernelOops
+            pattern: 'divide error: 0000 \[#\d+\] SMP'
+          - type: permanent
+            condition: KernelDeadlock
+            reason: AUFSUmountHung
+            pattern: task umount\.aufs:\w+ blocked for more than \w+ seconds\.
+          - type: permanent
+            condition: KernelDeadlock
+            reason: DockerHung
+            pattern: task docker:\w+ blocked for more than \w+ seconds\.
+          - type: permanent
+            condition: ReadonlyFilesystem
+            reason: FilesystemIsReadOnly
+            pattern: Remounting filesystem read-only
+        kernel-monitor-filelog:
+          plugin: filelog
+          pluginConfig:
+            timestamp: "^.{15}"
+            message: 'kernel: \[.*\] (.*)'
+            timestampFormat: Jan _2 15:04:05
+          logPath: "/var/log/kern.log"
+          lookback: 5m
+          bufferSize: 10
+          source: kernel-monitor
+          conditions:
+          - type: KernelDeadlock
+            reason: KernelHasNoDeadlock
+            message: kernel has no deadlock
+          rules:
+          - type: temporary
+            reason: OOMKilling
+            pattern: Kill process \d+ (.+) score \d+ or sacrifice child\nKilled process \d+
+              (.+) total-vm:\d+kB, anon-rss:\d+kB, file-rss:\d+kB.*
+          - type: temporary
+            reason: TaskHung
+            pattern: task \S+:\w+ blocked for more than \w+ seconds\.
+          - type: temporary
+            reason: UnregisterNetDevice
+            pattern: 'unregister_netdevice: waiting for \w+ to become free. Usage count = \d+'
+          - type: temporary
+            reason: KernelOops
+            pattern: 'BUG: unable to handle kernel NULL pointer dereference at .*'
+          - type: temporary
+            reason: KernelOops
+            pattern: 'divide error: 0000 \[#\d+\] SMP'
+          - type: permanent
+            condition: KernelDeadlock
+            reason: AUFSUmountHung
+            pattern: task umount\.aufs:\w+ blocked for more than \w+ seconds\.
+          - type: permanent
+            condition: KernelDeadlock
+            reason: DockerHung
+            pattern: task docker:\w+ blocked for more than \w+ seconds\.
+        kernel-monitor-counter:
+          plugin: custom
+          pluginConfig:
+            invoke_interval: 5m
+            timeout: 1m
+            max_output_length: 80
+            concurrency: 1
+          source: kernel-monitor
+          conditions:
+          - type: FrequentUnregisterNetDevice
+            reason: NoFrequentUnregisterNetDevice
+            message: node is functioning properly
+          rules:
+          - type: permanent
+            condition: FrequentUnregisterNetDevice
+            reason: UnregisterNetDevice
+            path: "/home/kubernetes/bin/log-counter"
+            args:
+            - "--journald-source=kernel"
+            - "--log-path=/var/log/journal"
+            - "--lookback=20m"
+            - "--count=3"
+            - "--pattern=unregister_netdevice: waiting for \\w+ to become free. Usage count
+              = \\d+"
+            timeout: 1m
+        docker-monitor:
+          plugin: journald
+          pluginConfig:
+            source: dockerd
+          logPath: "/var/log/journal"
+          lookback: 5m
+          bufferSize: 10
+          source: docker-monitor
+          conditions: []
+          rules:
+          - type: temporary
+            reason: CorruptDockerImage
+            pattern: 'Error trying v2 registry: failed to register layer: rename /var/lib/docker/image/(.+)
+              /var/lib/docker/image/(.+): directory not empty.*'
+        docker-monitor-filelog:
+          plugin: filelog
+          pluginConfig:
+            timestamp: ^time="(\S*)"
+            message: |-
+              msg="([^
+              ]*)"
+            timestampFormat: '2006-01-02T15:04:05.999999999-07:00'
+          logPath: "/var/log/docker.log"
+          lookback: 5m
+          bufferSize: 10
+          source: docker-monitor
+          conditions: []
+          rules:
+          - type: temporary
+            reason: CorruptDockerImage
+            pattern: 'Error trying v2 registry: failed to register layer: rename /var/lib/docker/image/(.+)
+              /var/lib/docker/image/(.+): directory not empty.*'
+        docker-monitor-counter:
+          plugin: custom
+          pluginConfig:
+            invoke_interval: 5m
+            timeout: 1m
+            max_output_length: 80
+            concurrency: 1
+          source: docker-monitor
+          conditions:
+          - type: CorruptDockerOverlay2
+            reason: NoCorruptDockerOverlay2
+            message: docker overlay2 is functioning properly
+          rules:
+          - type: permanent
+            condition: CorruptDockerOverlay2
+            reason: CorruptDockerOverlay2
+            path: "/home/kubernetes/bin/log-counter"
+            args:
+            - "--journald-source=dockerd"
+            - "--log-path=/var/log/journal"
+            - "--lookback=5m"
+            - "--count=10"
+            - "--pattern=returned error: readlink /var/lib/docker/overlay2.*: invalid argument.*"
+            timeout: 1m
+        systemd-monitor:
+          plugin: journald
+          pluginConfig:
+            source: systemd
+          logPath: "/var/log/journal"
+          lookback: 5m
+          bufferSize: 10
+          source: systemd-monitor
+          conditions: []
+          rules:
+          - type: temporary
+            reason: KubeletStart
+            pattern: Started Kubernetes kubelet.
+          - type: temporary
+            reason: DockerStart
+            pattern: Starting Docker Application Container Engine...
+          - type: temporary
+            reason: ContainerdStart
+            pattern: Starting containerd container runtime...
+        systemd-monitor-counter:
+          plugin: custom
+          pluginConfig:
+            invoke_interval: 5m
+            timeout: 1m
+            max_output_length: 80
+            concurrency: 1
+          source: systemd-monitor
+          conditions:
+          - type: FrequentKubeletRestart
+            reason: NoFrequentKubeletRestart
+            message: kubelet is functioning properly
+          - type: FrequentDockerRestart
+            reason: NoFrequentDockerRestart
+            message: docker is functioning properly
+          - type: FrequentContainerdRestart
+            reason: NoFrequentContainerdRestart
+            message: containerd is functioning properly
+          rules:
+          - type: permanent
+            condition: FrequentKubeletRestart
+            reason: FrequentKubeletRestart
+            path: "/home/kubernetes/bin/log-counter"
+            args:
+            - "--journald-source=systemd"
+            - "--log-path=/var/log/journal"
+            - "--lookback=20m"
+            - "--delay=5m"
+            - "--count=5"
+            - "--pattern=Started Kubernetes kubelet."
+            timeout: 1m
+          - type: permanent
+            condition: FrequentDockerRestart
+            reason: FrequentDockerRestart
+            path: "/home/kubernetes/bin/log-counter"
+            args:
+            - "--journald-source=systemd"
+            - "--log-path=/var/log/journal"
+            - "--lookback=20m"
+            - "--count=5"
+            - "--pattern=Starting Docker Application Container Engine..."
+            timeout: 1m
+          - type: permanent
+            condition: FrequentContainerdRestart
+            reason: FrequentContainerdRestart
+            path: "/home/kubernetes/bin/log-counter"
+            args:
+            - "--journald-source=systemd"
+            - "--log-path=/var/log/journal"
+            - "--lookback=20m"
+            - "--count=5"
+            - "--pattern=Starting containerd container runtime..."
+            timeout: 1m
+    custom-plugin-monitor:
+      enabled:
+        - /config/network-problem-monitor.json
+      scripts:
+        enabled:
+          - network_problem.sh
+        source:
+          network_problem.sh: |
+            #!/bin/bash
+
+            # This plugin checks for common network issues. Currently, it only checks
+            # if the conntrack table is 50% full.
+            set -eu
+            set -o pipefail
+
+            conntrack_threshold=$(($(cat /proc/sys/net/netfilter/nf_conntrack_max)/2 ))
+            conntrack_count=$(cat /proc/sys/net/netfilter/nf_conntrack_count)
+
+            if [ "$conntrack_count" -ge "$conntrack_threshold" ]; then
+              echo "Conntrack table approaching full"
+              exit 1
+            fi
+
+            exit 0
+      config:
+        network-problem-monitor:
+          plugin: custom
+          pluginConfig:
+            invoke_interval: 30s
+            timeout: 5s
+            max_output_length: 80
+            concurrency: 3
+          source: network-custom-plugin-monitor
+          conditions: []
+          rules:
+          - type: temporary
+            reason: ConntrackFull
+            path: "./config/plugin/network_problem.sh"
+            timeout: 3s
+    system-stats-monitor:
+      enabled:
+        - /config/system-stats-monitor.json
+      scripts:
+        enabled: null
+        source: null
+      config:
+        system-stats-monitor:
+          disk:
+            metricsConfigs:
+              disk/io_time:
+                displayName: disk/io_time
+              disk/weighted_io:
+                displayName: disk/weighted_io
+              disk/avg_queue_len:
+                displayName: disk/avg_queue_len
+            includeRootBlk: true
+            includeAllAttachedBlk: true
+            lsblkTimeout: 5s
+          invokeInterval: 60s
+...

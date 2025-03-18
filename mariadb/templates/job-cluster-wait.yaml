@@ -1,0 +1,125 @@
+{{/*
+Copyright 2019 Mirantis inc.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.job_cluster_wait }}
+{{- $envAll := . }}
+
+{{- $serviceAccountName := print .Release.Name "-cluster-wait" }}
+{{ tuple $envAll "cluster_wait" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ $envAll.Release.Name }}-{{ $serviceAccountName }}-pod
+  namespace: {{ $envAll.Release.Namespace }}
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+    verbs:
+      - update
+      - patch
+      - get
+      - list
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ $envAll.Release.Name }}-{{ $serviceAccountName }}-pod
+  namespace: {{ $envAll.Release.Namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ $envAll.Release.Name }}-{{ $serviceAccountName }}-pod
+subjects:
+  - kind: ServiceAccount
+    name: {{ $serviceAccountName }}
+    namespace: {{ $envAll.Release.Namespace }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "{{.Release.Name}}-cluster-wait"
+  labels:
+{{ tuple $envAll "mariadb" "cluster-wait" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+  annotations:
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+spec:
+  backoffLimit: {{ .Values.jobs.cluster_wait.clusterCheckRetries }}
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "mariadb" "cluster-wait" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+    spec:
+{{ dict "envAll" $envAll "application" "cluster_wait" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
+      serviceAccountName: {{ $serviceAccountName }}
+      restartPolicy: OnFailure
+      nodeSelector:
+        {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
+      initContainers:
+{{ tuple $envAll "cluster_wait" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+      containers:
+        - name: {{.Release.Name}}-mariadb-cluster-wait
+{{ tuple $envAll "mariadb_scripted_test" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ dict "envAll" $envAll "application" "cluster_wait" "container" "mariadb_cluster_wait" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          env:
+            - name: MARIADB_HOST
+              value: {{ tuple "oslo_db" "internal" $envAll | include "helm-toolkit.endpoints.endpoint_host_lookup" }}
+            - name: MARIADB_REPLICAS
+              value: {{ .Values.pod.replicas.server | quote }}
+            - name: MARIADB_CLUSTER_CHECK_WAIT
+              value: {{ .Values.jobs.cluster_wait.clusterCheckWait | quote }}
+            - name: MARIADB_CLUSTER_STABILITY_COUNT
+              value: {{ .Values.jobs.cluster_wait.clusterStabilityCount | quote }}
+            - name: MARIADB_CLUSTER_STABILITY_WAIT
+              value: {{ .Values.jobs.cluster_wait.clusterStabilityWait | quote }}
+            - name: MARIADB_CLUSTER_STATE_CONFIGMAP
+              value: {{ printf "%s-%s" .Release.Name "mariadb-state" | quote }}
+            - name: MARIADB_CLUSTER_STATE_CONFIGMAP_NAMESPACE
+              value: {{ $envAll.Release.Namespace }}
+            - name: MARIADB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mariadb-dbadmin-password
+                  key: MYSQL_DBADMIN_PASSWORD
+          command:
+            - /tmp/mariadb-wait-for-cluster.py
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: mariadb-bin
+              mountPath: /tmp/mariadb-wait-for-cluster.py
+              subPath: mariadb-wait-for-cluster.py
+              readOnly: true
+            - name: mariadb-secrets
+              mountPath: /etc/mysql/admin_user.cnf
+              subPath: admin_user.cnf
+              readOnly: true
+{{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.secrets.tls.oslo_db.server.internal "path" "/etc/mysql/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
+      volumes:
+        - name: pod-tmp
+          emptyDir: {}
+        - name: mariadb-bin
+          configMap:
+            name: mariadb-bin
+            defaultMode: 0555
+        - name: mariadb-secrets
+          secret:
+            secretName: mariadb-secrets
+            defaultMode: 0444
+{{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.secrets.tls.oslo_db.server.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
+{{- end }}

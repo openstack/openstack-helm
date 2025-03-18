@@ -1,0 +1,49 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+- name: "creating directory for system status"
+  file:
+    path: "{{ logs_dir }}/system"
+    state: directory
+
+- name: "Get logs for each host"
+  become: yes
+  shell: |-
+          set -x
+          systemd-cgls --full --all --no-pager > {{ logs_dir }}/system/systemd-cgls.txt
+          ip addr > {{ logs_dir }}/system/ip-addr.txt
+          ip route > {{ logs_dir }}/system/ip-route.txt
+          lsblk > {{ logs_dir }}/system/lsblk.txt
+          mount > {{ logs_dir }}/system/mount.txt
+          docker images > {{ logs_dir }}/system/docker-images.txt
+          brctl show > {{ logs_dir }}/system/brctl-show.txt
+          ps aux --sort=-%mem > {{ logs_dir }}/system/ps.txt
+          dpkg -l > {{ logs_dir }}/system/packages.txt
+          CONTAINERS=($(docker ps -a --format {% raw %}'{{ .Names }}'{% endraw %} --filter label=zuul))
+          if [ ! -z "$CONTAINERS" ]; then
+            mkdir -p "{{ logs_dir }}/system/containers"
+            for CONTAINER in ${CONTAINERS}; do
+              docker logs "${CONTAINER}" > "{{ logs_dir }}/system/containers/${CONTAINER}.txt"
+            done
+          fi
+  args:
+    executable: /bin/bash
+  ignore_errors: True
+
+- name: "Downloads logs to executor"
+  synchronize:
+    src: "{{ logs_dir }}/system"
+    dest: "{{ zuul.executor.log_root }}/{{ inventory_hostname }}"
+    mode: pull
+  ignore_errors: True
+...

@@ -1,0 +1,993 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Default values for elasticsearch
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+---
+images:
+  tags:
+    apache_proxy: docker.io/library/httpd:2.4
+    memory_init: docker.io/openstackhelm/heat:wallaby-ubuntu_focal
+    elasticsearch: docker.io/openstackhelm/elasticsearch-s3:latest-8_9_0
+    curator: docker.io/untergeek/curator:8.0.10
+    ceph_key_placement: docker.io/openstackhelm/ceph-config-helper:ubuntu_jammy_19.2.1-1-20250207
+    s3_bucket: docker.io/openstackhelm/ceph-daemon:ubuntu_jammy_19.2.1-1-20250207
+    s3_user: docker.io/openstackhelm/ceph-config-helper:ubuntu_jammy_19.2.1-1-20250207
+    helm_tests: docker.io/openstackhelm/heat:wallaby-ubuntu_focal
+    prometheus_elasticsearch_exporter: quay.io/prometheuscommunity/elasticsearch-exporter:v1.7.0
+    dep_check: quay.io/airshipit/kubernetes-entrypoint:latest-ubuntu_focal
+    snapshot_repository: docker.io/openstackhelm/ceph-config-helper:ubuntu_jammy_19.2.1-1-20250207
+    elasticsearch_templates: docker.io/openstackhelm/elasticsearch-s3:latest-8_9_0
+    image_repo_sync: docker.io/library/docker:17.07.0
+  pull_policy: "IfNotPresent"
+  local_registry:
+    active: false
+    exclude:
+      - dep_check
+      - image_repo_sync
+
+labels:
+  client:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  data:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  exporter:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  master:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  job:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  test:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  gateway:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+
+dependencies:
+  dynamic:
+    common:
+      local_image_registry:
+        jobs:
+          - elasticsearch-image-repo-sync
+        services:
+          - endpoint: node
+            service: local_image_registry
+  static:
+    curator:
+      services:
+        - endpoint: internal
+          service: elasticsearch
+        - endpoint: data
+          service: elasticsearch
+        - endpoint: discovery
+          service: elasticsearch
+      jobs:
+        - elasticsearch-register-snapshot-repository
+    elasticsearch_client:
+      services:
+        - endpoint: discovery
+          service: elasticsearch
+      jobs: null
+    elasticsearch_gateway:
+      services:
+        - endpoint: discovery
+          service: elasticsearch
+    elasticsearch_data:
+      services:
+        - endpoint: internal
+          service: elasticsearch
+        - endpoint: discovery
+          service: elasticsearch
+      jobs: null
+    elasticsearch_master:
+      services: null
+      jobs: null
+    elasticsearch_templates:
+      services:
+        - endpoint: internal
+          service: elasticsearch
+      jobs:
+        - elasticsearch-s3-bucket
+    image_repo_sync:
+      services:
+        - endpoint: internal
+          service: local_image_registry
+    prometheus_elasticsearch_exporter:
+      services:
+        - endpoint: internal
+          service: elasticsearch
+    snapshot_repository:
+      services:
+        - endpoint: internal
+          service: elasticsearch
+      jobs:
+        - elasticsearch-s3-bucket
+    verify_repositories:
+      services: null
+      jobs:
+        - create-elasticsearch-templates
+    s3_user:
+      services:
+        - endpoint: internal
+          service: ceph_object_store
+    s3_bucket:
+      jobs:
+        - elasticsearch-s3-user
+    tests:
+      services: null
+      jobs:
+        - create-elasticsearch-templates
+
+pod:
+  env:
+    client: null
+    data: null
+    master: null
+    gateway: null
+    secrets: null
+  mandatory_access_control:
+    type: apparmor
+    elasticsearch-master:
+      elasticsearch-master: runtime/default
+    elasticsearch-data:
+      elasticsearch-data: runtime/default
+    elasticsearch-client:
+      elasticsearch-client: runtime/default
+    elasticsearch-gateway:
+      elasticsearch-gateway: runtime/default
+  security_context:
+    exporter:
+      pod:
+        runAsUser: 99
+      container:
+        elasticsearch_exporter:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+    client:
+      pod:
+        runAsUser: 0
+      container:
+        memory_map_increase:
+          privileged: true
+          readOnlyRootFilesystem: true
+        apache_proxy:
+          readOnlyRootFilesystem: false
+        elasticsearch_client:
+          runAsUser: 1000
+          runAsGroup: 1000
+          readOnlyRootFilesystem: false
+    master:
+      pod:
+        runAsUser: 0
+      container:
+        memory_map_increase:
+          privileged: true
+          readOnlyRootFilesystem: true
+        elasticsearch_perms:
+          readOnlyRootFilesystem: true
+        elasticsearch_master:
+          runAsUser: 1000
+          runAsGroup: 1000
+          readOnlyRootFilesystem: false
+    snapshot_repository:
+      pod:
+        runAsUser: 0
+      container:
+        register_snapshot_repository:
+          readOnlyRootFilesystem: true
+    test:
+      pod:
+        runAsUser: 0
+      container:
+        helm_test:
+          readOnlyRootFilesystem: true
+    data:
+      pod:
+        runAsUser: 0
+      container:
+        memory_map_increase:
+          privileged: true
+          readOnlyRootFilesystem: true
+        elasticsearch_perms:
+          readOnlyRootFilesystem: true
+        elasticsearch_data:
+          runAsUser: 1000
+          runAsGroup: 1000
+          # NOTE: This was changed from true to false to account for
+          # recovery scenarios when the data pods are unexpectedly lost due to
+          # node outages and shard/index recovery is required
+          readOnlyRootFilesystem: false
+    gateway:
+      pod:
+        runAsUser: 0
+      container:
+        memory_map_increase:
+          privileged: true
+          readOnlyRootFilesystem: true
+        apache_proxy:
+          readOnlyRootFilesystem: false
+        elasticsearch_gateway:
+          runAsUser: 1000
+          runAsGroup: 1000
+          readOnlyRootFilesystem: false
+    curator:
+      pod:
+        runAsUser: 0
+      container:
+        curator:
+          readOnlyRootFilesystem: true
+    verify_repositories:
+      pod:
+        runAsUser: 0
+      container:
+        elasticsearch_verify_repositories:
+          readOnlyRootFilesystem: true
+    create_template:
+      pod:
+        runAsUser: 0
+      container:
+        create_elasticsearch_template:
+          readOnlyRootFilesystem: true
+  affinity:
+    anti:
+      type:
+        default: preferredDuringSchedulingIgnoredDuringExecution
+      topologyKey:
+        default: kubernetes.io/hostname
+      weight:
+        default: 10
+  replicas:
+    master: 3
+    data: 3
+    client: 3
+    gateway: 3
+  lifecycle:
+    upgrades:
+      statefulsets:
+        pod_replacement_strategy: RollingUpdate
+      deployments:
+        revision_history: 3
+        pod_replacement_strategy: RollingUpdate
+        rolling_update:
+          max_unavailable: 1
+          max_surge: 3
+    termination_grace_period:
+      master:
+        timeout: 600
+      data:
+        timeout: 1200
+      client:
+        timeout: 600
+      prometheus_elasticsearch_exporter:
+        timeout: 600
+  probes:
+    elasticsearch:
+      elasticsearch-client:
+        readiness:
+          enabled: true
+          params:
+            initialDelaySeconds: 30
+            timeoutSeconds: 30
+        liveness:
+          enabled: true
+          params:
+            initialDelaySeconds: 60
+            periodSeconds: 10
+  mounts:
+    elasticsearch:
+      elasticsearch:
+    elasticsearch_templates:
+      elasticsearch_templates:
+  resources:
+    enabled: false
+    apache_proxy:
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+    client:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+    master:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+    data:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+    prometheus_elasticsearch_exporter:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+    gateway:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+    jobs:
+      curator:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      elasticsearch_templates:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      image_repo_sync:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      snapshot_repository:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      storage_init:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      s3_bucket:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      s3_user:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      tests:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+
+network_policy:
+  elasticsearch:
+    ingress:
+      - {}
+    egress:
+      - {}
+  prometheus-elasticsearch-exporter:
+    ingress:
+      - {}
+    egress:
+      - {}
+
+secrets:
+  rgw:
+    admin: radosgw-s3-admin-creds
+    elasticsearch: elasticsearch-s3-user-creds
+  elasticsearch:
+    user: elasticsearch-user-secrets
+  oci_image_registry:
+    elasticsearch: elasticsearch-oci-image-registry-key
+  tls:
+    elasticsearch:
+      elasticsearch:
+        public: elasticsearch-tls-public
+        internal: elasticsearch-tls-api
+
+jobs:
+  curator:
+    cron: "* */6 * * *"
+    history:
+      success: 3
+      failed: 1
+  verify_repositories:
+    cron: "*/30 * * * *"
+    history:
+      success: 3
+      failed: 1
+  create_elasticsearch_templates:
+    backoffLimit: 6
+
+conf:
+  httpd: |
+    ServerRoot "/usr/local/apache2"
+
+    Listen 80
+
+    LoadModule allowmethods_module modules/mod_allowmethods.so
+    LoadModule mpm_event_module modules/mod_mpm_event.so
+    LoadModule authn_file_module modules/mod_authn_file.so
+    LoadModule authn_core_module modules/mod_authn_core.so
+    LoadModule authz_host_module modules/mod_authz_host.so
+    LoadModule authz_groupfile_module modules/mod_authz_groupfile.so
+    LoadModule authz_user_module modules/mod_authz_user.so
+    LoadModule authz_core_module modules/mod_authz_core.so
+    LoadModule access_compat_module modules/mod_access_compat.so
+    LoadModule auth_basic_module modules/mod_auth_basic.so
+    LoadModule ldap_module modules/mod_ldap.so
+    LoadModule authnz_ldap_module modules/mod_authnz_ldap.so
+    LoadModule reqtimeout_module modules/mod_reqtimeout.so
+    LoadModule filter_module modules/mod_filter.so
+    LoadModule proxy_html_module modules/mod_proxy_html.so
+    LoadModule log_config_module modules/mod_log_config.so
+    LoadModule env_module modules/mod_env.so
+    LoadModule headers_module modules/mod_headers.so
+    LoadModule setenvif_module modules/mod_setenvif.so
+    LoadModule version_module modules/mod_version.so
+    LoadModule proxy_module modules/mod_proxy.so
+    LoadModule proxy_connect_module modules/mod_proxy_connect.so
+    LoadModule proxy_http_module modules/mod_proxy_http.so
+    LoadModule proxy_balancer_module modules/mod_proxy_balancer.so
+    LoadModule slotmem_shm_module modules/mod_slotmem_shm.so
+    LoadModule slotmem_plain_module modules/mod_slotmem_plain.so
+    LoadModule unixd_module modules/mod_unixd.so
+    LoadModule status_module modules/mod_status.so
+    LoadModule autoindex_module modules/mod_autoindex.so
+    LoadModule rewrite_module modules/mod_rewrite.so
+
+    <IfModule unixd_module>
+    User daemon
+    Group daemon
+    </IfModule>
+
+    <Directory />
+        AllowOverride none
+        Require all denied
+    </Directory>
+
+    <Files ".ht*">
+        Require all denied
+    </Files>
+
+    ErrorLog /dev/stderr
+
+    LogLevel warn
+
+    <IfModule log_config_module>
+        LogFormat "%a %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\"" combined
+        LogFormat "%{X-Forwarded-For}i %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\"" proxy
+        LogFormat "%h %l %u %t \"%r\" %>s %b" common
+
+        <IfModule logio_module>
+          LogFormat "%a %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\" %I %O" combinedio
+        </IfModule>
+
+        SetEnvIf X-Forwarded-For "^.*\..*\..*\..*" forwarded
+        CustomLog /dev/stdout common
+        CustomLog /dev/stdout combined
+        CustomLog /dev/stdout proxy env=forwarded
+    </IfModule>
+
+    <Directory "/usr/local/apache2/cgi-bin">
+        AllowOverride None
+        Options None
+        Require all granted
+    </Directory>
+
+    <IfModule headers_module>
+        RequestHeader unset Proxy early
+    </IfModule>
+
+    <IfModule proxy_html_module>
+    Include conf/extra/proxy-html.conf
+    </IfModule>
+
+    <VirtualHost *:80>
+      <Location />
+          ProxyPass http://localhost:{{ tuple "elasticsearch" "internal" "client" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}/
+          ProxyPassReverse http://localhost:{{ tuple "elasticsearch" "internal" "client" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}/
+          AuthName "Elasticsearch"
+          AuthType Basic
+          AuthBasicProvider file ldap
+          AuthUserFile /usr/local/apache2/conf/.htpasswd
+          AuthLDAPBindDN {{ .Values.endpoints.ldap.auth.admin.bind }}
+          AuthLDAPBindPassword {{ .Values.endpoints.ldap.auth.admin.password }}
+          AuthLDAPURL {{ tuple "ldap" "default" "ldap" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" | quote }}
+          Require valid-user
+      </Location>
+
+      # Restrict access to the Elasticsearch Update By Query API Endpoint to prevent modification of indexed documents
+      <Location /*/_update_by_query*>
+          Require all denied
+      </Location>
+      # Restrict access to the Elasticsearch Delete By Query API Endpoint to prevent deletion of indexed documents
+      <Location /*/_delete_by_query*>
+          Require all denied
+      </Location>
+    </VirtualHost>
+  log4j2: |
+    status = error
+    appender.console.type = Console
+    appender.console.name = console
+    appender.console.layout.type = PatternLayout
+    appender.console.layout.pattern = [%d{ISO8601}][%-5p][%-25c{1.}] [%node_name]%marker%m%n
+    rootLogger.level = info
+    rootLogger.appenderRef.console.ref = console
+  jvm_options: |
+    -Xms1g
+    -Xmx1g
+    -Des.networkaddress.cache.ttl=60
+    -Des.networkaddress.cache.negative.ttl=10
+    -XX:+AlwaysPreTouch
+    -Xss1m
+    -Djava.awt.headless=true
+    -Dfile.encoding=UTF-8
+    -Djna.nosys=true
+    -XX:-OmitStackTraceInFastThrow
+    -Dio.netty.noUnsafe=true
+    -Dio.netty.noKeySetOptimization=true
+    -Dio.netty.recycler.maxCapacityPerThread=0
+    -Dlog4j.shutdownHookEnabled=false
+    -Dlog4j2.disable.jmx=true
+    -Djava.io.tmpdir=${ES_TMPDIR}
+    {{- if .Values.manifests.certificates }}
+    -Djavax.net.ssl.trustStore=/usr/share/elasticsearch/config/elasticsearch-java-truststore
+    -Djavax.net.ssl.trustStorePassword={{ .Values.endpoints.elasticsearch.auth.admin.password }}
+    {{- end }}
+    -XX:+HeapDumpOnOutOfMemoryError
+    -XX:HeapDumpPath=data
+    -XX:ErrorFile=logs/hs_err_pid%p.log
+    8:-XX:+PrintGCDetails
+    8:-XX:+PrintGCDateStamps
+    8:-XX:+PrintTenuringDistribution
+    8:-XX:+PrintGCApplicationStoppedTime
+    8:-Xloggc:logs/gc.log
+    8:-XX:+UseGCLogFileRotation
+    8:-XX:NumberOfGCLogFiles=32
+    8:-XX:GCLogFileSize=64m
+    8-13:-XX:+UseConcMarkSweepGC
+    8-13:-XX:CMSInitiatingOccupancyFraction=75
+    8-13:-XX:+UseCMSInitiatingOccupancyOnly
+    9-:-Xlog:gc*,gc+age=trace,safepoint:file=logs/gc.log:utctime,pid,tags:filecount=32,filesize=64m
+    9-:-Djava.locale.providers=COMPAT
+    10-:-XX:UseAVX=2
+  init:
+    max_map_count: 262144
+  ceph:
+    admin_keyring: null
+  curator:
+    executable: /curator/curator
+    action_file: {}
+      # Remember, leave a key empty if there is no value.  None will be a string,
+      # not a Python "NoneType"
+      #
+      # Also remember that all examples have 'disable_action' set to True.  If you
+      # want to use this action as a template, be sure to set this to False after
+      # copying it.
+      #
+      # NOTE(srwilkers): The list of actions below is kept empty, and should be
+      # driven purely by overrides.  As these items are injected as pure YAML,
+      # the desired configuration should include all fields as to avoid unwanted
+      # merges with a set of dummy default values. The supplied values can be
+      # used as an example
+      # actions:
+        # 1:
+        #   action: delete_indices
+        #   description: >-
+        #     "Delete indices older than 7 days"
+        #   options:
+        #     timeout_override:
+        #     continue_if_exception: False
+        #     ignore_empty_list: True
+        #     disable_action: True
+        #   filters:
+        #   - filtertype: pattern
+        #     kind: prefix
+        #     value: logstash-
+        #   - filtertype: age
+        #     source: name
+        #     direction: older
+        #     timestring: '%Y.%m.%d'
+        #     unit: days
+        #     unit_count: 7
+        # 2:
+        #   action: delete_indices
+        #   description: >-
+        #     "Delete indices by age if available disk space is
+        #      less than 80% total disk"
+        #   options:
+        #     timeout_override: 600
+        #     continue_if_exception: False
+        #     ignore_empty_list: True
+        #     disable_action: True
+        #   filters:
+        #   - filtertype: pattern
+        #     kind: prefix
+        #     value: logstash-
+        #   - filtertype: space
+        #     source: creation_date
+        #     use_age: True
+        #     # This space assumes the default PVC size of 5Gi times three data
+        #     # replicas. This must be adjusted if changed due to Curator being
+        #     # unable to calculate percentages of total disk space
+        #     disk_space: 12
+        # 3:
+        #   action: snapshot
+        #   description: >-
+        #     "Snapshot indices older than one day"
+        #   options:
+        #     repository: logstash_snapshots
+        #     # Leaving this blank results in the default name format
+        #     name:
+        #     wait_for_completion: True
+        #     max_wait: 3600
+        #     wait_interval: 10
+        #     timeout_override: 600
+        #     ignore_empty_list: True
+        #     continue_if_exception: False
+        #     disable_action: True
+        #   filters:
+        #   - filtertype: age
+        #     source: name
+        #     direction: older
+        #     timestring: '%Y.%m.%d'
+        #     unit: days
+        #     unit_count: 1
+        # 4:
+        #   action: delete_snapshots
+        #   description: >-
+        #     "Delete snapshots older than 30 days"
+        #   options:
+        #     repository: logstash_snapshots
+        #     disable_action: True
+        #     timeout_override: 600
+        #     ignore_empty_list: True
+        #   filters:
+        #   - filtertype: pattern
+        #     kind: prefix
+        #     value: curator-
+        #     exclude:
+        #   - filtertype: age
+        #     source: creation_date
+        #     direction: older
+        #     unit: days
+        #     unit_count: 30
+    config:
+      # Remember, leave a key empty if there is no value.  None will be a string,
+      # not a Python "NoneType"
+      elasticsearch:
+        client:
+          hosts: ${ELASTICSEARCH_URL}
+          request_timeout: 60
+        other_settings:
+          username: ${ELASTICSEARCH_USERNAME}
+          password: ${ELASTICSEARCH_PASSWORD}
+
+      logging:
+        loglevel: INFO
+        logformat: json
+        blacklist: ['elastic_transport', 'urllib3']
+  elasticsearch:
+    config:
+      xpack:
+        security:
+          enabled: false
+      bootstrap:
+        # As far as we run the pod as non-root, we can't make locking memory unlimited.
+        # configure the memory locking limits on host itself of disable swap completely.
+        memory_lock: false
+      cluster:
+        name: elasticsearch
+      discovery:
+        # NOTE(srwilkers): This gets configured dynamically via endpoint lookups
+        seed_hosts: null
+      network:
+        host: 0.0.0.0
+      s3:
+        client: {}
+      path:
+        data: /data
+        logs: /logs
+    snapshots:
+      enabled: false
+    env:
+      java_opts:
+        client: "-Xms256m -Xmx256m"
+        data: "-Xms256m -Xmx256m"
+        master: "-Xms256m -Xmx256m"
+  prometheus_elasticsearch_exporter:
+    es:
+      timeout: 30s
+      all: true
+      indices: true
+      indices_settings: true
+      indices_mappings: true
+      aliases: false
+      shards: true
+      snapshots: true
+      cluster_settings: true
+      slm: true
+      data_stream: false
+    log:
+      format: logfmt
+      level: info
+
+  api_objects: {}
+    # Fill this map with API objects to create once Elasticsearch is deployed
+    # name: # This name can be completely arbitrary
+    #   method: # Defaults to PUT
+    #   endpoint: # Path for the request
+    #   body: # Body of the request in yaml (Converted to Json in Template)
+    # Example: ILM Policy
+    # ilm_policy:
+    #   endpoint: _ilm/policy/delete_all_indexes
+    #   body:
+    #     policy:
+    #       phases:
+    #         delete:
+    #           min_age: 14d
+    #           actions:
+    #             delete: {}
+
+endpoints:
+  cluster_domain_suffix: cluster.local
+  local_image_registry:
+    name: docker-registry
+    namespace: docker-registry
+    hosts:
+      default: localhost
+      internal: docker-registry
+      node: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        node: 5000
+  oci_image_registry:
+    name: oci-image-registry
+    namespace: oci-image-registry
+    auth:
+      enabled: false
+      elasticsearch:
+        username: elasticsearch
+        password: password
+    hosts:
+      default: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        default: null
+  elasticsearch:
+    name: elasticsearch
+    namespace: null
+    auth:
+      admin:
+        username: admin
+        password: changeme
+      logging:
+        username: remote
+        password: changeme
+    hosts:
+      data: elasticsearch-data
+      default: elasticsearch-logging
+      discovery: elasticsearch-discovery
+      gateway: elasticsaerch-gateway
+      public: elasticsearch
+    host_fqdn_override:
+      default: null
+    path:
+      default: null
+    scheme:
+      default: http
+      gateway: tcp
+    port:
+      client:
+        default: 9200
+      http:
+        default: 80
+      discovery:
+        default: 9300
+  prometheus_elasticsearch_exporter:
+    namespace: null
+    hosts:
+      default: elasticsearch-exporter
+    host_fqdn_override:
+      default: null
+    path:
+      default: /metrics
+    scheme:
+      default: 'http'
+    port:
+      metrics:
+        default: 9108
+  ldap:
+    hosts:
+      default: ldap
+    auth:
+      admin:
+        bind: "cn=admin,dc=cluster,dc=local"
+        password: password
+    host_fqdn_override:
+      default: null
+    path:
+      default: "/ou=People,dc=cluster,dc=local"
+    scheme:
+      default: ldap
+    port:
+      ldap:
+        default: 389
+  ceph_object_store:
+    name: radosgw
+    namespace: null
+    hosts:
+      default: ceph-rgw
+      public: radosgw
+    host_fqdn_override:
+      default: null
+    path:
+      default: null
+    scheme:
+      default: http
+    port:
+      api:
+        default: 8088
+        public: 80
+
+monitoring:
+  prometheus:
+    enabled: false
+    elasticsearch_exporter:
+      scrape: true
+
+network:
+  elasticsearch:
+    ingress:
+      public: true
+      classes:
+        namespace: "nginx"
+        cluster: "nginx-cluster"
+      annotations:
+        nginx.ingress.kubernetes.io/rewrite-target: /
+    node_port:
+      enabled: false
+      port: 30920
+  remote_clustering:
+    enabled: false
+    node_port:
+      port: 30930
+
+storage:
+  data:
+    enabled: true
+    pvc:
+      name: pvc-elastic
+      access_mode: ["ReadWriteOnce"]
+    requests:
+      storage: 5Gi
+    storage_class: general
+  master:
+    enabled: true
+    pvc:
+      name: pvc-elastic
+      access_mode: ["ReadWriteOnce"]
+    requests:
+      storage: 1Gi
+    storage_class: general
+  s3:
+    clients: {}
+    # These values configure the s3 clients section of elasticsearch.yml
+    # See: https://www.elastic.co/guide/en/elasticsearch/plugins/current/repository-s3-client.html
+    #   default:
+    #     auth:
+    #       # Values under auth are written to the Secret $client-s3-user-secret
+    #       # and the access & secret keys are added to the elasticsearch keystore
+    #       username: elasticsearch
+    #       access_key: "elastic_access_key"
+    #       secret_key: "elastic_secret_key"
+    #     settings:
+    #       # Configure Client Settings here (https://www.elastic.co/guide/en/elasticsearch/plugins/current/repository-s3-client.html)
+    #       # endpoint: Defaults to the ceph-rgw endpoint
+    #       # protocol: Defaults to http
+    #       path_style_access: true # Required for ceph-rgw S3 API
+    #     create_user: true # Attempt to create the user at the ceph_object_store endpoint, authenticating using the secret named at .Values.secrets.rgw.admin
+    #   backup:
+    #     auth:
+    #       username: elasticsearch
+    #       access_key: "backup_access_key"
+    #       secret_key: "backup_secret_key"
+    #     settings:
+    #       endpoint: s3.example.com # Specify your own s3 endpoint (defaults to the ceph_object_store endpoint)
+    #       path_style_access: false
+    #     create_user: false
+    buckets: {}
+    # List of buckets to create (if required).
+    # (The client field references one of the clients defined above)
+    #   - name: elasticsearch-bucket
+    #     client: default
+    #     options: # list of extra options for s3cmd
+    #       - --region="default:osh-infra"
+    #     # SSL connection option for s3cmd
+    #     ssl_connecton_option: --ca-certs={path to mounted ca.crt}
+    #   - name: backup-bucket
+    #     client: backup
+    #     options: # list of extra options for s3cmd
+    #       - --region="default:backup"
+    #     # SSL connection option for s3cmd
+    #     ssl_connecton_option: --ca-certs={path to mounted ca.crt}
+
+manifests:
+  certificates: false
+  configmap_bin_curator: false
+  configmap_bin_elasticsearch: true
+  configmap_etc_curator: false
+  configmap_etc_elasticsearch: true
+  configmap_etc_templates: true
+  cron_curator: false
+  cron_verify_repositories: true
+  deployment_client: true
+  ingress: true
+  job_elasticsearch_templates: true
+  job_image_repo_sync: true
+  job_snapshot_repository: true
+  job_s3_user: true
+  job_s3_bucket: true
+  helm_tests: true
+  secret_elasticsearch: true
+  secret_s3: true
+  monitoring:
+    prometheus:
+      configmap_bin_exporter: true
+      deployment_exporter: true
+      network_policy_exporter: false
+      service_exporter: true
+  network_policy: false
+  secret_ingress_tls: true
+  secret_registry: true
+  service_data: true
+  service_discovery: true
+  service_ingress: true
+  service_logging: true
+  statefulset_data: true
+  statefulset_master: true
+  object_bucket_claim: false
+...

@@ -1,0 +1,495 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Default values for rabbitmq.
+# This is a YAML-formatted file.
+# Declare name/value pairs to be passed into your templates.
+# name: value
+
+---
+labels:
+  server:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  prometheus_rabbitmq_exporter:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  test:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  jobs:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+
+images:
+  tags:
+    prometheus_rabbitmq_exporter: docker.io/kbudde/rabbitmq-exporter:v1.0.0-RC7.1
+    prometheus_rabbitmq_exporter_helm_tests: docker.io/openstackhelm/heat:2023.2-ubuntu_jammy
+    rabbitmq_init: docker.io/openstackhelm/heat:2023.2-ubuntu_jammy
+    rabbitmq: docker.io/library/rabbitmq:3.13.0
+    dep_check: quay.io/airshipit/kubernetes-entrypoint:latest-ubuntu_focal
+    scripted_test: docker.io/library/rabbitmq:3.13.0-management
+    image_repo_sync: docker.io/library/docker:17.07.0
+  pull_policy: "IfNotPresent"
+  local_registry:
+    active: false
+    exclude:
+      - dep_check
+      - image_repo_sync
+
+# forceBoot: executes 'rabbitmqctl force_boot' to force boot on
+# cluster shut down unexpectedly in an unknown order.
+# ref: https://www.rabbitmq.com/rabbitmqctl.8.html#force_boot
+forceBoot:
+  enabled: false
+
+pod:
+  probes:
+    prometheus_rabbitmq_exporter:
+      rabbitmq_exporter:
+        readiness:
+          enabled: true
+          params:
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 5
+        liveness:
+          enabled: true
+          params:
+            initialDelaySeconds: 120
+            periodSeconds: 90
+            timeoutSeconds: 5
+    rabbitmq:
+      rabbitmq:
+        readiness:
+          enabled: true
+          params:
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 10
+            successThreshold: 1
+            failureThreshold: 3
+        liveness:
+          enabled: true
+          params:
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            timeoutSeconds: 10
+            successThreshold: 1
+            failureThreshold: 5
+  security_context:
+    exporter:
+      pod:
+        runAsUser: 65534
+      container:
+        rabbitmq_exporter:
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
+    server:
+      pod:
+        runAsUser: 999
+      container:
+        rabbitmq_password:
+          runAsUser: 0
+          readOnlyRootFilesystem: true
+        rabbitmq_cookie:
+          runAsUser: 0
+          readOnlyRootFilesystem: true
+        rabbitmq_perms:
+          runAsUser: 0
+          readOnlyRootFilesystem: true
+        rabbitmq:
+          allowPrivilegeEscalation: false
+          runAsUser: 999
+          readOnlyRootFilesystem: false
+    cluster_wait:
+      pod:
+        runAsUser: 999
+      container:
+        rabbitmq_cluster_wait:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+        rabbitmq_cookie:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+    test:
+      pod:
+        runAsUser: 999
+      container:
+        rabbitmq_test:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+  affinity:
+    anti:
+      type:
+        default: preferredDuringSchedulingIgnoredDuringExecution
+      topologyKey:
+        default: kubernetes.io/hostname
+      weight:
+        default: 10
+  tolerations:
+    rabbitmq:
+      enabled: false
+      tolerations:
+      - key: node-role.kubernetes.io/master
+        operator: Exists
+        effect: NoSchedule
+      - key: node-role.kubernetes.io/control-plane
+        operator: Exists
+        effect: NoSchedule
+  replicas:
+    server: 2
+    prometheus_rabbitmq_exporter: 1
+  lifecycle:
+    upgrades:
+      deployments:
+        revision_history: 3
+        pod_replacement_strategy: RollingUpdate
+        rolling_update:
+          max_unavailable: 1
+          max_surge: 3
+    termination_grace_period:
+      prometheus_rabbitmq_exporter:
+        timeout: 30
+    disruption_budget:
+      mariadb:
+        min_available: 0
+  resources:
+    enabled: false
+    prometheus_rabbitmq_exporter:
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+      requests:
+        memory: "128Mi"
+        cpu: "500m"
+    server:
+      limits:
+        memory: "128Mi"
+        cpu: "500m"
+      requests:
+        memory: "128Mi"
+        cpu: "500m"
+    jobs:
+      tests:
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+      image_repo_sync:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+
+conf:
+  enabled_plugins:
+    - rabbitmq_management
+    - rabbitmq_peer_discovery_k8s
+  prometheus_exporter:
+    capabilities:
+      - no_sort
+    log_level: info
+    skipverify: 1
+    skip_queues: "^$"
+    include_queues: ".*"
+    rabbit_exporters: "overview,exchange,node,queue"
+    rabbitmq_mgmt_metrics_collector_disabled: false
+  # This IP could be IPv4/IPv6 and the tcp port will be appended to it and eventually it is set to rabbitmq.listeners.tcp.1
+  bind_address: "::"
+  rabbitmq:
+    listeners:
+      tcp:
+        # NOTE(portdirect): This is always defined via the endpoints section.
+        1: null
+    cluster_formation:
+      peer_discovery_backend: rabbit_peer_discovery_k8s
+      k8s:
+        address_type: hostname
+      node_cleanup:
+        interval: "10"
+        only_log_warning: "true"
+    cluster_partition_handling: autoheal
+    queue_master_locator: min-masters
+    loopback_users.guest: "false"
+    management.load_definitions: "/var/lib/rabbitmq/definitions.json"
+  rabbit_additonal_conf:
+    # This confinguration is used for non TLS deployments
+    management.listener.ip: "::"
+    management.listener.port: null
+  rabbit_advanced_config:
+    enabled: false
+    default_consumer_prefetch: 250
+  rabbitmq_exporter:
+    rabbit_timeout: 30
+  # Feature Flags is introduced in RabbitMQ 3.8.0
+  # To deploy with standard list of feature, leave as default
+  # To deploy with specific feature, separate each feature with comma
+  # To deploy with all features disabled, leave blank or empty
+  feature_flags: default
+  users: {}
+  # define users in the section below which have to be
+  # created by rabbitmq at start up stage through definitions.json
+  # file and enable job_users_create manifest.
+  #  users:
+  #    keystone_service:
+  #      auth:
+  #        keystone_username:
+  #          username: keystone
+  #          password: password
+  #      path: /keystone
+  aux_conf: {}
+  # aux_conf can be used to pass additional options to definitions.json, allowed keys are:
+  #           - policies
+  #           - bindings
+  #           - parameters
+  #           - queues
+  #           - exchanges
+  #          vhosts,users and permissions are created in users section of values.
+  #  aux_conf:
+  #    policies:
+  #      - vhost: "keystone"
+  #        name: "ha_ttl_keystone"
+  #        definition:
+  #          #mirror messges to other nodes in rmq cluster
+  #          ha-mode: "all"
+  #          ha-sync-mode: "automatic"
+  #          #70s
+  #          message-ttl: 70000
+  #        priority: 0
+  #        apply-to: all
+  #        pattern: '^(?!amq\.).*'
+dependencies:
+  dynamic:
+    common:
+      local_image_registry:
+        jobs:
+          - rabbitmq-image-repo-sync
+        services:
+          - endpoint: node
+            service: local_image_registry
+  static:
+    prometheus_rabbitmq_exporter:
+      services:
+        - endpoint: internal
+          service: oslo_messaging
+    prometheus_rabbitmq_exporter_tests:
+      services:
+        - endpoint: internal
+          service: prometheus_rabbitmq_exporter
+        - endpoint: internal
+          service: monitoring
+    rabbitmq:
+      jobs: null
+    tests:
+      services:
+        - endpoint: internal
+          service: oslo_messaging
+      # NOTE (portdirect): this key is somewhat special, if set to the string
+      # `cluster_wait` then the job dep will be populated with a single value
+      # containing the generated name for the `cluster_wait` job name.
+      jobs: cluster_wait
+    cluster_wait:
+      services:
+        - endpoint: internal
+          service: oslo_messaging
+    image_repo_sync:
+      services:
+        - endpoint: internal
+          service: local_image_registry
+
+monitoring:
+  prometheus:
+    enabled: false
+    rabbitmq_exporter:
+      scrape: true
+
+network:
+  host_namespace: false
+  management:
+    ingress:
+      public: true
+      classes:
+        namespace: "nginx"
+        cluster: "nginx-cluster"
+      annotations:
+        nginx.ingress.kubernetes.io/rewrite-target: /
+
+secrets:
+  oci_image_registry:
+    rabbitmq: rabbitmq-oci-image-registry-key
+  tls:
+    oslo_messaging:
+      server:
+        internal: rabbitmq-tls-direct
+
+# typically overridden by environmental
+# values, but should include all endpoints
+# required by this chart
+endpoints:
+  cluster_domain_suffix: cluster.local
+  local_image_registry:
+    name: docker-registry
+    namespace: docker-registry
+    hosts:
+      default: localhost
+      internal: docker-registry
+      node: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        node: 5000
+  oci_image_registry:
+    name: oci-image-registry
+    namespace: oci-image-registry
+    auth:
+      enabled: false
+      rabbitmq:
+        username: rabbitmq
+        password: password
+    hosts:
+      default: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        default: null
+  monitoring:
+    name: prometheus
+    namespace: null
+    hosts:
+      default: prom-metrics
+      public: prometheus
+    host_fqdn_override:
+      default: null
+    path:
+      default: null
+    scheme:
+      default: 'http'
+    port:
+      api:
+        default: 9090
+        public: 80
+  oslo_messaging:
+    auth:
+      erlang_cookie: openstack-cookie
+      user:
+        username: rabbitmq
+        password: password
+      guest:
+        password: password
+    hosts:
+      default: rabbitmq
+      # NOTE(portdirect): the public host is only used to the management WUI
+      # If left empty, the release name sha suffixed with mgr, will be used to
+      # produce an unique hostname.
+      public: null
+    host_fqdn_override:
+      default: null
+    path: /
+    scheme: rabbit
+    port:
+      clustering:
+        # NOTE(portdirect): the value for this port is driven by amqp+20000
+        # it should not be set manually.
+        default: null
+      amqp:
+        default: 5672
+      http:
+        default: 15672
+        public: 80
+      metrics:
+        default: 15692
+  prometheus_rabbitmq_exporter:
+    namespace: null
+    hosts:
+      default: rabbitmq-exporter
+    host_fqdn_override:
+      default: null
+    path:
+      default: /metrics
+    scheme:
+      default: 'http'
+    port:
+      metrics:
+        default: 9095
+  kube_dns:
+    namespace: kube-system
+    name: kubernetes-dns
+    hosts:
+      default: kube-dns
+    host_fqdn_override:
+      default: null
+    path:
+      default: null
+    scheme: http
+    port:
+      dns_tcp:
+        default: 53
+      dns:
+        default: 53
+        protocol: UDP
+
+network_policy:
+  prometheus_rabbitmq_exporter:
+    ingress:
+      - {}
+    egress:
+      - {}
+  rabbitmq:
+    ingress:
+      - {}
+    egress:
+      - {}
+
+volume:
+  use_local_path:
+    enabled: false
+    host_path: /var/lib/rabbitmq
+  chown_on_start: true
+  enabled: true
+  class_name: general
+  size: 768Mi
+
+# Hook break for helm2.
+# Set helm3_hook to false while using helm2
+helm3_hook: true
+
+manifests:
+  certificates: false
+  configmap_bin: true
+  configmap_etc: true
+  config_ipv6: false
+  ingress_management: true
+  job_cluster_wait: true
+  job_image_repo_sync: true
+  monitoring:
+    prometheus:
+      configmap_bin: false
+      deployment_exporter: false
+      service_exporter: false
+      network_policy_exporter: false
+  network_policy: false
+  pod_test: true
+  secret_admin_user: true
+  secret_erlang_cookie: true
+  secret_registry: true
+  service_discovery: true
+  service_ingress_management: true
+  service: true
+  statefulset: true
+...

@@ -1,0 +1,95 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if and (.Values.manifests.cron_verify_repositories) (.Values.conf.elasticsearch.snapshots.enabled) }}
+{{- $envAll := . }}
+
+{{- $esUserSecret := .Values.secrets.elasticsearch.user }}
+
+{{- $serviceAccountName := "verify-repositories" }}
+{{ tuple $envAll "verify_repositories" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: elasticsearch-verify-repositories
+  annotations:
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+  labels:
+{{ tuple $envAll "elasticsearch" "verify-repositories" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  schedule: {{ .Values.jobs.verify_repositories.cron | quote }}
+  successfulJobsHistoryLimit: {{ .Values.jobs.verify_repositories.history.success }}
+  failedJobsHistoryLimit: {{ .Values.jobs.verify_repositories.history.failed }}
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    metadata:
+      labels:
+{{ tuple $envAll "elasticsearch" "verify-repositories" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+{{ dict "envAll" $envAll "podName" "elasticsearch-verify-repositories" "containerNames" (list "elasticsearch-verify-repositories" "init") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
+    spec:
+      template:
+        metadata:
+          labels:
+{{ tuple $envAll "elasticsearch" "verify-repositories" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 12 }}
+        spec:
+{{ dict "envAll" $envAll "application" "verify_repositories" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 10 }}
+          nodeSelector:
+            {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value | quote }}
+          serviceAccountName: {{ $serviceAccountName }}
+          restartPolicy: OnFailure
+          initContainers:
+{{ tuple $envAll "verify_repositories" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container"  | indent 12 }}
+          containers:
+            - name: elasticsearch-verify-repositories
+{{ tuple $envAll "snapshot_repository" | include "helm-toolkit.snippets.image" | indent 14 }}
+{{ tuple $envAll $envAll.Values.pod.resources.jobs.snapshot_repository | include "helm-toolkit.snippets.kubernetes_resources" | indent 14 }}
+{{ dict "envAll" $envAll "application" "verify_repositories" "container" "elasticsearch_verify_repositories" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 14 }}
+              command:
+                - /tmp/verify-repositories.sh
+              env:
+                - name: ELASTICSEARCH_USERNAME
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ $esUserSecret }}
+                      key: ELASTICSEARCH_USERNAME
+                - name: ELASTICSEARCH_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ $esUserSecret }}
+                      key: ELASTICSEARCH_PASSWORD
+                - name: ELASTICSEARCH_ENDPOINT
+                  value: {{ printf "%s://%s" (tuple "elasticsearch" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_scheme_lookup") (tuple "elasticsearch" "internal" . | include "helm-toolkit.endpoints.hostname_fqdn_endpoint_lookup") }}
+{{- if .Values.manifests.certificates }}
+                - name: CACERT_OPTION
+                  value: "--cacert /etc/elasticsearch/certs/ca.crt"
+{{- end }}
+              volumeMounts:
+                - name: pod-tmp
+                  mountPath: /tmp
+                - name: elasticsearch-bin
+                  mountPath: /tmp/verify-repositories.sh
+                  subPath: verify-repositories.sh
+                  readOnly: true
+{{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.elasticsearch.elasticsearch.internal "path" "/etc/elasticsearch/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 16 }}
+          volumes:
+            - name: pod-tmp
+              emptyDir: {}
+            - name: elasticsearch-bin
+              configMap:
+                name: elasticsearch-bin
+                defaultMode: 0555
+{{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.elasticsearch.elasticsearch.internal | include "helm-toolkit.snippets.tls_volume" | indent 12 }}
+{{- end }}

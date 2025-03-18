@@ -1,0 +1,55 @@
+---
+# We download Calico manifest on all nodes because we then want to download
+# Calico images BEFORE deploying it, so that `kubectl wait` timeout
+# for `k8s-app=kube-dns` isn't reached by slow download speeds
+- name: Download Calico manifest
+  when: inventory_hostname in (groups['k8s_cluster'] | default([]))
+  shell: |
+    curl -LSs {{ calico_manifest_url }} -o /tmp/calico.yaml
+    sed -i -e 's#docker.io/calico/#quay.io/calico/#g' /tmp/calico.yaml
+    export CONTAINER_RUNTIME_ENDPOINT=unix:///run/containerd/containerd.sock
+    export IMAGE_SERVICE_ENDPOINT=unix:///run/containerd/containerd.sock
+    awk '/image:/ { print $2 }' /tmp/calico.yaml | xargs -I{} crictl pull {}
+  args:
+    executable: /bin/bash
+
+- name: Deploy Calico
+  become: false
+  when: inventory_hostname in (groups['primary'] | default([]))
+  block:
+    - name: Download Calico manifest
+      shell: |
+        if [[ ! -f /tmp/calico.yaml ]]; then
+          curl -LSs {{ calico_manifest_url }} -o /tmp/calico.yaml
+          sed -i -e 's#docker.io/calico/#quay.io/calico/#g' /tmp/calico.yaml
+        fi
+      args:
+        executable: /bin/bash
+
+    - name: Deploy Calico
+      command: kubectl apply -f /tmp/calico.yaml
+
+    - name: Sleep before trying to check Calico pods
+      pause:
+        seconds: 30
+
+    - name: Wait for Calico pods ready
+      command: kubectl -n kube-system wait --timeout=20s --for=condition=Ready pods -l k8s-app=calico-node
+      register: calico_pods_wait
+      until: calico_pods_wait is succeeded
+      retries: 10
+
+    - name: Prepare Calico patch
+      copy:
+        src: files/calico_patch.yaml
+        dest: /tmp/calico_patch.yaml
+
+    - name: Patch Calico
+      command: kubectl -n kube-system patch daemonset calico-node --patch-file /tmp/calico_patch.yaml
+
+    - name: Wait for Calico pods ready (after patch)
+      command: kubectl -n kube-system wait --timeout=20s --for=condition=Ready pods -l k8s-app=calico-node
+      register: calico_pods_wait
+      until: calico_pods_wait is succeeded
+      retries: 10
+...

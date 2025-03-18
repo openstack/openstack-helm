@@ -1,0 +1,222 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Default values for etcd.
+# This is a YAML-formatted file.
+# Declare name/value pairs to be passed into your templates.
+# name: value
+
+---
+images:
+  tags:
+    etcd: 'registry.k8s.io/etcd-amd64:3.4.3'
+    dep_check: quay.io/airshipit/kubernetes-entrypoint:latest-ubuntu_focal
+    image_repo_sync: docker.io/library/docker:17.07.0
+    etcd_db_compact: 'registry.k8s.io/etcd-amd64:3.4.3'
+  pull_policy: "IfNotPresent"
+  local_registry:
+    active: false
+    exclude:
+      - dep_check
+      - image_repo_sync
+
+labels:
+  server:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  job:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+
+dependencies:
+  dynamic:
+    common:
+      local_image_registry:
+        jobs:
+          - etcd-image-repo-sync
+        services:
+          - endpoint: node
+            service: local_image_registry
+  static:
+    image_repo_sync:
+      services:
+        - endpoint: internal
+          service: local_image_registry
+    etcd:
+      jobs: null
+    db_compact:
+      services:
+        - endpoint: internal
+          service: etcd
+
+pod:
+  env:
+    etcd:
+      ETCD_DATA_DIR: /var/lib/etcd
+      ETCD_INITIAL_CLUSTER_TOKEN: etcd-cluster-1
+  security_context:
+    etcd:
+      pod:
+        runAsUser: 65534
+      container:
+        etcd:
+          runAsUser: 0
+          readOnlyRootFilesystem: false
+    etcd_db_compact:
+      pod:
+        runAsUser: 65534
+        runAsNonRoot: true
+        allowPrivilegeEscalation: false
+      container:
+        etcd_db_compact:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+              - ALL
+  mandatory_access_control:
+    type: apparmor
+    etcd:
+      init: runtime/default
+      etcd: runtime/default
+  probes:
+    etcd:
+      etcd:
+        readiness:
+          enabled: True
+          params:
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 1
+        liveness:
+          enabled: True
+          params:
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 1
+  affinity:
+    anti:
+      type:
+        default: preferredDuringSchedulingIgnoredDuringExecution
+      topologyKey:
+        default: kubernetes.io/hostname
+      weight:
+        default: 10
+  replicas:
+    etcd: 1
+  lifecycle:
+    upgrades:
+      deployments:
+        pod_replacement_strategy: RollingUpdate
+        revision_history: 3
+        rolling_update:
+          max_surge: 3
+          max_unavailable: 1
+  resources:
+    jobs:
+      image_repo_sync:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      db_compact:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+
+secrets:
+  oci_image_registry:
+    etcd: etcd-oci-image-registry-key
+
+endpoints:
+  cluster_domain_suffix: cluster.local
+  local_image_registry:
+    name: docker-registry
+    namespace: docker-registry
+    hosts:
+      default: localhost
+      internal: docker-registry
+      node: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        node: 5000
+  oci_image_registry:
+    name: oci-image-registry
+    namespace: oci-image-registry
+    auth:
+      enabled: false
+      etcd:
+        username: etcd
+        password: password
+    hosts:
+      default: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        default: null
+  etcd:
+    name: etcd
+    hosts:
+      default: etcd
+      discovery: etcd-discovery
+    host_fqdn_override:
+      default: null
+    path:
+      default: null
+    scheme:
+      default: 'http'
+    port:
+      client:
+        default: 2379
+  etcd_discovery:
+    name: etcd-discovery
+    hosts:
+      default: etcd-discovery
+    host_fqdn_override:
+      default: null
+    path:
+      default: null
+    scheme:
+      default: 'http'
+    port:
+      client:
+        default: 2380
+
+volume:
+  enabled: false
+  class_name: general
+  size: 5Gi
+
+jobs:
+  db_compact:
+    cron: "1 */2 * * *"
+    starting_deadline: 600
+    # Timeout have to be set the same format
+    # as it is for etcdctl 120s, 1m etc.
+    command_timeout: 120s
+    history:
+      success: 3
+      failed: 1
+
+manifests:
+  configmap_bin: true
+  statefulset: true
+  job_image_repo_sync: true
+  secret_registry: true
+  service: true
+  service_discovery: true
+  cron_job_db_compact: false
+...

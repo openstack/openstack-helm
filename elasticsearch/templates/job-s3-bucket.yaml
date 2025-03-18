@@ -1,0 +1,23 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if and (.Values.manifests.job_s3_bucket) (.Values.conf.elasticsearch.snapshots.enabled) }}
+{{- $esBucket := .Values.conf.elasticsearch.snapshots.bucket }}
+{{- $s3BucketJob := dict "envAll" . "serviceName" "elasticsearch" "s3Bucket" $esBucket -}}
+{{- if .Values.manifests.certificates }}
+{{- $_ := set $s3BucketJob "tlsCertificateSecret" .Values.secrets.tls.elasticsearch.elasticsearch.internal -}}
+{{- $_ := set $s3BucketJob "tlsCertificatePath" "/etc/elasticsearch/certs/ca.crt" -}}
+{{- end }}
+{{ $s3BucketJob | include "helm-toolkit.manifests.job_s3_bucket" }}
+{{- end -}}

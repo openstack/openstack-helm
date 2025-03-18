@@ -1,0 +1,215 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- define "mariadbReadinessProbe" }}
+exec:
+  command:
+    - /tmp/readiness.sh
+{{- end }}
+{{- define "mariadbLivenessProbe" }}
+exec:
+  command:
+    - /tmp/liveness.sh
+{{- end }}
+
+{{- if (.Values.global).subchart_release_name }}
+{{- $_ := set . "deployment_name" .Chart.Name }}
+{{- else }}
+{{- $_ := set . "deployment_name" .Release.Name }}
+{{- end }}
+
+{{- if .Values.manifests.mariadb }}
+{{- $envAll := . }}
+
+---
+apiVersion: mariadb.mmontes.io/v1alpha1
+kind: MariaDB
+metadata:
+  # NOTE(portdirect): the statefulset name must match the POD_NAME_PREFIX env var for discovery to work
+  name: {{ tuple "oslo_db" "server" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
+  annotations:
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+    mariadb-dbadmin-password-hash: {{ tuple "secret-dbadmin-password.yaml" . | include "helm-toolkit.utils.hash" }}
+  labels:
+{{ tuple $envAll "mariadb" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  rootPasswordSecretKeyRef:
+    name: mariadb-dbadmin-password
+    key: MYSQL_DBADMIN_PASSWORD
+
+{{ tuple $envAll "mariadb" | include "helm-toolkit.snippets.image" | indent 2 }}
+
+  initContainers:
+    - command:
+      - /tmp/init.sh
+{{ tuple $envAll "mariadb" | include "helm-toolkit.snippets.image" | indent 6 }}
+{{ dict "envAll" $envAll "application" "server" "container" "perms" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 6 }}
+{{ tuple $envAll $envAll.Values.pod.resources.server | include "helm-toolkit.snippets.kubernetes_resources" | indent 6 }}
+
+{{ if $envAll.Values.conf.galera.enabled }}
+  galera:
+    enabled: true
+    primary:
+      podIndex: {{ .Values.conf.galera.primary.podIndex }}
+      automaticFailover: {{ .Values.conf.galera.primary.automaticFailover }}
+    sst: {{ .Values.conf.galera.sst }}
+    replicaThreads: {{ .Values.conf.galera.replicaThreads }}
+    agent:
+{{ tuple $envAll "agent" | include "helm-toolkit.snippets.image" | indent 6 }}
+{{- dict "envAll" $envAll "application" "server" "container" "agent" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 6 }}
+      args:
+        - '--graceful-shutdown-timeout=5s'
+        - '--recovery-timeout=5m0s'
+        - '-log-dev'
+        - '-log-level=debug'
+      port: {{ .Values.conf.galera.agent.port }}
+      {{- if $envAll.Values.conf.galera.agent.kubernetesAuth.enabled }}
+      kubernetesAuth:
+        enabled: true
+      {{- end }}
+      gracefulShutdownTimeout: {{ .Values.conf.galera.agent.gracefulShutdownTimeout }}
+    {{- if $envAll.Values.conf.galera.recovery.enabled }}
+    recovery:
+      enabled: true
+      clusterHealthyTimeout: {{ .Values.conf.galera.recovery.clusterHealthyTimeout }}
+      clusterBootstrapTimeout: {{ .Values.conf.galera.recovery.clusterBootstrapTimeout }}
+      podRecoveryTimeout: {{ .Values.conf.galera.recovery.podRecoveryTimeout }}
+      podSyncTimeout: {{ .Values.conf.galera.recovery.podSyncTimeout }}
+    {{- end }}
+    initContainer:
+{{ tuple $envAll "initContainer" | include "helm-toolkit.snippets.image" | indent 6 }}
+{{- dict "envAll" $envAll "application" "server" "container" "init" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 6 }}
+      args:
+        - '-log-dev'
+        - '-log-level=debug'
+    # galera volume templates
+    volumeClaimTemplate:
+      resources:
+        requests:
+          storage: {{ .Values.volume.galera.size }}
+      accessModes:
+        - ReadWriteOnce
+      storageClassName: {{ .Values.volume.galera.class_name }}
+{{ end }}
+
+{{ include "helm-toolkit.snippets.values_template_renderer" (dict "envAll" $envAll "template" ( index $envAll.Values.conf.database "galera" ) "key" "myCnf" ) | indent 2 }}
+
+  replicas: {{ .Values.pod.replicas.server }}
+
+  affinity:
+{{- tuple $envAll "mariadb" "server" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 4 }}
+
+{{ if $envAll.Values.pod.tolerations.mariadb.enabled }}
+{{- tuple $envAll "mariadb" | include "helm-toolkit.snippets.kubernetes_tolerations" | indent 2 }}
+{{- end }}
+
+  updateStrategy:
+    type: {{ .Values.pod.lifecycle.upgrades.deployments.pod_replacement_strategy }}
+
+{{ tuple $envAll $envAll.Values.pod.resources.server | include "helm-toolkit.snippets.kubernetes_resources" | indent 2 }}
+{{ dict "envAll" $envAll "application" "server" "container" "mariadb" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 2 }}
+
+  nodeSelector:
+    {{ .Values.labels.server.node_selector_key }}: {{ .Values.labels.server.node_selector_value }}
+
+  podAnnotations:
+{{- dict "envAll" $envAll "podName" "mariadb-server" "containerNames" (list "init-0" "init" "agent" "mariadb") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 4 }}
+
+  podDisruptionBudget:
+    minAvailable: {{ .Values.pod.lifecycle.disruption_budget.mariadb.min_available }}
+
+{{ dict "envAll" . "component" "server" "container" "mariadb" "type" "readiness" "probeTemplate" (include "mariadbReadinessProbe" . | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 2 }}
+
+{{ dict "envAll" . "component" "server" "container" "mariadb" "type" "liveness" "probeTemplate" (include "mariadbLivenessProbe" . | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 2 }}
+
+{{ if  .Values.monitoring.prometheus.enabled }}
+  metrics:
+    exporter:
+{{ tuple $envAll "prometheus_mysql_exporter" | include "helm-toolkit.snippets.image" | indent 6 }}
+{{ dict "envAll" $envAll "application" "prometheus_mysql_exporter" "container" "exporter" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 6 }}
+{{ tuple $envAll $envAll.Values.pod.resources.prometheus_mysql_exporter | include "helm-toolkit.snippets.kubernetes_resources" | indent 6 }}
+      port: {{ tuple "prometheus_mysql_exporter" "internal" "metrics" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+{{- if $envAll.Values.manifests.certificates }}
+      volumeMounts:
+{{ dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.secrets.tls.oslo_db.server.internal "path" "/etc/mysql/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 8 }}
+{{- end }}
+    serviceMonitor:
+      prometheusRelease: prometheus-mysql-exporter
+      interval: 10s
+      scrapeTimeout: 10s
+{{ end }}
+
+  env:
+    - name: MYSQL_HISTFILE
+      value: {{ .Values.conf.database.mysql_histfile }}
+{{ if  .Values.conf.database.auto_upgrade.enabled }}
+    - name: MARIADB_AUTO_UPGRADE
+      value: {{ .Values.conf.database.auto_upgrade.enabled | quote }}
+    - name: MARIADB_DISABLE_UPGRADE_BACKUP
+      value: {{ .Values.conf.database.auto_upgrade.disable_upgrade_backup | quote }}
+{{ end }}
+
+  volumeMounts:
+    - name: pod-tmp
+      mountPath: /tmp
+    - name: mariadb-secrets
+      mountPath: /etc/mysql/admin_user.cnf
+      subPath: admin_user.cnf
+      readOnly: true
+    - name: mariadb-secrets
+      mountPath: /docker-entrypoint-initdb.d/privileges.sql
+      subPath: privileges.sql
+      readOnly: true
+    - name: mariadb-bin
+      mountPath: /tmp/init.sh
+      subPath: init.sh
+    - name: mariadb-bin
+      mountPath: /tmp/readiness.sh
+      subPath: readiness.sh
+      readOnly: true
+    - name: mariadb-bin
+      mountPath: /tmp/liveness.sh
+      subPath: liveness.sh
+      readOnly: true
+{{ dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.secrets.tls.oslo_db.server.internal "path" "/etc/mysql/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 4 }}
+
+  volumes:
+    - name: pod-tmp
+      emptyDir: {}
+    - name: mariadb-bin
+      configMap:
+        name: mariadb-bin
+        defaultMode: 0555
+    - name: mariadb-etc
+      configMap:
+        name: mariadb-etc
+        defaultMode: 0444
+    - name: mariadb-secrets
+      secret:
+        secretName: mariadb-secrets
+        defaultMode: 0444
+{{ dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.secrets.tls.oslo_db.server.internal | include "helm-toolkit.snippets.tls_volume" | indent 4 }}
+
+  # storage volume templates
+  volumeClaimTemplate:
+    resources:
+      requests:
+        storage: {{ .Values.volume.size }}
+    accessModes:
+      - ReadWriteOnce
+    {{- if ne .Values.volume.class_name "default" }}
+    storageClassName: {{ .Values.volume.class_name }}
+    {{- end }}
+
+{{- end }}

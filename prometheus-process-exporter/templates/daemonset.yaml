@@ -1,0 +1,99 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.daemonset }}
+{{- $envAll := . }}
+
+{{- $serviceAccountName := printf "%s-%s" .Release.Name "process-exporter" }}
+{{ tuple $envAll "process_exporter" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: run-process-exporter
+subjects:
+  - kind: ServiceAccount
+    name: {{ $serviceAccountName }}
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  kind: ClusterRole
+  name: cluster-admin
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: process-exporter
+  annotations:
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+  labels:
+{{ tuple $envAll "process_exporter" "metrics" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  selector:
+    matchLabels:
+{{ tuple $envAll "process_exporter" "metrics" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
+{{ tuple $envAll "process_exporter" | include "helm-toolkit.snippets.kubernetes_upgrades_daemonset" | indent 2 }}
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "process_exporter" "metrics" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+{{ dict "envAll" $envAll "podName" "process-exporter" "containerNames" (list "process-exporter" "init") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
+{{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
+    spec:
+{{ dict "envAll" $envAll "application" "metrics" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
+      serviceAccountName: {{ $serviceAccountName }}
+{{ if .Values.pod.tolerations.process_exporter.enabled }}
+{{ tuple $envAll "process_exporter" | include "helm-toolkit.snippets.kubernetes_tolerations" | indent 6 }}
+{{ else }}
+      nodeSelector:
+        {{ .Values.labels.process_exporter.node_selector_key }}: {{ .Values.labels.process_exporter.node_selector_value }}
+{{ end }}
+      hostNetwork: true
+      hostPID: true
+      initContainers:
+{{ tuple $envAll "process_exporter" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+      containers:
+        - name: process-exporter
+{{ tuple $envAll "process_exporter" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.process_exporter | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "metrics" "container" "process_exporter" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          args:
+{{- if hasKey .Values.conf "children" }}
+            - -children={{ .Values.conf.children }}
+{{- end }}
+            - -procnames
+            - {{ .Values.conf.processes }}
+          ports:
+            - name: metrics
+              containerPort: {{ tuple "process_exporter_metrics" "internal" "metrics" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+              hostPort: {{ tuple "process_exporter_metrics" "internal" "metrics" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+          readinessProbe:
+            tcpSocket:
+              port: {{ tuple "process_exporter_metrics" "internal" "metrics" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: proc
+              mountPath: /host/proc
+              readOnly: true
+      volumes:
+        - name: pod-tmp
+          emptyDir: {}
+        - name: proc
+          hostPath:
+            path: /proc
+{{- end }}

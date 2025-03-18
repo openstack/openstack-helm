@@ -1,0 +1,77 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+- name: "creating directory for helm release descriptions"
+  file:
+    path: "{{ logs_dir }}/prometheus"
+    state: directory
+
+- name: "Get metrics from exporter services in all namespaces"
+  shell: |-
+          set -e
+          NAMESPACES=$(kubectl get namespaces -o json | jq -r '.items[].metadata.name')
+          for NS in $NAMESPACES; do
+            SERVICES=$(kubectl get svc -n $NS -o json | jq -r '.items[] | select(.spec.ports[].name=="metrics") | .metadata.name')
+            for SVC in $SERVICES; do
+              PORT=$(kubectl get svc $SVC -n $NS -o json | jq -r '.spec.ports[] | select(.name=="metrics") | .port')
+              echo "Scraping $SVC.$NS:$PORT/metrics:"
+              curl "$SVC.$NS:$PORT/metrics" >> "{{ logs_dir }}"/prometheus/$NS-$SVC.txt || true
+            done
+          done
+  args:
+    executable: /bin/bash
+  ignore_errors: True
+
+- name: "Get ceph metrics from ceph-mgr"
+  shell: |-
+          set -e
+          mgr_endpoints=$(kubectl get endpoints -n ceph -l component=manager -o json | jq -r '.items[].subsets[].addresses[].ip')
+          echo "ceph-mgr endpoints: $mgr_endpoints"
+          for endpoint in $mgr_endpoints; do
+            echo "checking ceph-mgr at $endpoint"
+            metrics_curl="curl $endpoint:9283/metrics"
+            op=$(eval "$metrics_curl")
+            if [[ -n $op ]]; then
+              curl $endpoint:9283/metrics >> "{{ logs_dir }}"/prometheus/ceph-ceph-mgr.txt
+              break
+            else
+              echo "$endpoint is a standby ceph-mgr. Trying next endpoint"
+            fi
+          done
+  args:
+    executable: /bin/bash
+  ignore_errors: True
+
+- name: "Get metrics from fluentd pods"
+  shell: |-
+          set -e
+          NAMESPACE="osh-infra"
+          APP_LABEL="fluentd"
+          PODS=$(kubectl get pods -n $NAMESPACE -l application=$APP_LABEL -o json | jq -r '.items[].metadata.name')
+          for POD in $PODS; do
+            IP=$(kubectl get pod -n $NAMESPACE $POD -o json | jq -r '.status.podIP')
+            PORT=$(kubectl get pod -n $NAMESPACE $POD -o json |  jq -r '.spec.containers[0].ports[] | select(.name=="metrics") | .containerPort')
+            echo "Scraping $POD at $IP:$PORT/metrics"
+            curl "$IP:$PORT/metrics" >> "{{ logs_dir }}"/prometheus/$POD.txt || true
+          done
+  args:
+    executable: /bin/bash
+  ignore_errors: True
+
+- name: "Downloads logs to executor"
+  synchronize:
+    src: "{{ logs_dir }}/prometheus"
+    dest: "{{ zuul.executor.log_root }}/{{ inventory_hostname }}"
+    mode: pull
+  ignore_errors: True
+...

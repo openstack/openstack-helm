@@ -1,0 +1,46 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.configmap_etc_elasticsearch }}
+{{- $envAll := . }}
+
+{{- if .Values.conf.elasticsearch.snapshots.enabled }}
+{{- range $client, $config := $envAll.Values.storage.s3.clients }}
+{{- $settings := $config.settings }}
+{{- $endpoint := $settings.endpoint | default (tuple "ceph_object_store" "internal" "api" $envAll | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup") }}
+{{- $_ := set $settings "endpoint" $endpoint }}
+{{- $protocol := $settings.protocol | default (tuple "ceph_object_store" "internal" "api" $envAll | include "helm-toolkit.endpoints.keystone_endpoint_scheme_lookup") }}
+{{- $_ := set $settings "protocol" $protocol }}
+{{- $_:= set $envAll.Values.conf.elasticsearch.config.s3.client $client $settings }}
+{{- end -}}
+{{- end -}}
+
+{{- if empty .Values.conf.elasticsearch.config.discovery.seed_hosts -}}
+{{- $discovery_svc := tuple "elasticsearch" "discovery" . | include "helm-toolkit.endpoints.hostname_fqdn_endpoint_lookup" -}}
+{{- $_:= set .Values.conf.elasticsearch.config.discovery "seed_hosts" $discovery_svc -}}
+{{- end -}}
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: elasticsearch-etc
+type: Opaque
+data:
+  elasticsearch.yml: {{ toYaml .Values.conf.elasticsearch.config | b64enc }}
+  # NOTE(portdirect): this must be last, to work round helm ~2.7 bug.
+{{- include "helm-toolkit.snippets.values_template_renderer" (dict "envAll" $envAll "template" .Values.conf.httpd "key" "httpd.conf" "format" "Secret") | indent 2 }}
+{{- include "helm-toolkit.snippets.values_template_renderer" (dict "envAll" $envAll "template" .Values.conf.log4j2 "key" "log4j2.properties" "format" "Secret") | indent 2 }}
+{{- include "helm-toolkit.snippets.values_template_renderer" (dict "envAll" $envAll "template" .Values.conf.jvm_options "key" "jvm.options" "format" "Secret") | indent 2 }}
+{{- end }}

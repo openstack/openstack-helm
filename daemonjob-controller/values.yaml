@@ -1,0 +1,135 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Default values for elasticsearch
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+---
+release_group: null
+
+images:
+  tags:
+    python: docker.io/library/python:3.7-slim
+    pause: registry.k8s.io/pause:latest
+    image_repo_sync: docker.io/library/docker:17.07.0
+  pullPolicy: IfNotPresent
+  local_registry:
+    active: false
+    exclude:
+      - dep_check
+      - image_repo_sync
+
+labels:
+  daemonjob_controller:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+
+crds:
+  group_name: ctl.example.com
+  group_version: v1
+
+pod:
+  lifecycle:
+    upgrades:
+      deployments:
+        pod_replacement_strategy: RollingUpdate
+        revision_history: 3
+        rolling_update:
+          max_surge: 3
+          max_unavailable: 1
+  resources:
+    enabled: false
+    daemonjob_controller:
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+      requests:
+        memory: "128Mi"
+        cpu: "500m"
+  replicas:
+    daemonjob_controller: 1
+  security_context:
+    daemonjob_controller:
+      pod:
+        runAsUser: 34356
+        runAsNonRoot: true
+      container:
+        controller:
+          runAsUser: 0
+          readOnlyRootFilesystem: true
+secrets:
+  oci_image_registry:
+    daemonjob-controller: daemonjob-controller-oci-image-registry-key
+endpoints:
+  cluster_domain_suffix: cluster.local
+  local_image_registry:
+    name: docker-registry
+    namespace: docker-registry
+    hosts:
+      default: localhost
+      internal: docker-registry
+      node: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        node: 5000
+  oci_image_registry:
+    name: oci-image-registry
+    namespace: oci-image-registry
+    auth:
+      enabled: false
+      daemonjob-controller:
+        username: daemonjob-controller
+        password: password
+    hosts:
+      default: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        default: null
+  daemonjob_controller:
+    hosts:
+      default: daemonjob-controller
+    host_fqdn_override:
+      default: null
+    port:
+      http:
+        default: 80
+
+dependencies:
+  dynamic:
+    common:
+      local_image_registry:
+        jobs:
+          - daemonjob-controller-image-repo-sync
+        services:
+          - endpoint: node
+            service: local_image_registry
+  static:
+    image_repo_sync:
+      services:
+        - endpoint: internal
+          service: local_image_registry
+    daemonjob_controller:
+      services: null
+
+manifests:
+  deployment: true
+  crds_create: true
+  job_image_repo_sync: true
+  configmap_bin: true
+  secret_registry: true
+  service: true
+...

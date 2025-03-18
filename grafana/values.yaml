@@ -1,0 +1,554 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Default values for grafana
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+---
+images:
+  tags:
+    grafana: docker.io/grafana/grafana:9.2.10
+    mariadb: docker.io/openstackhelm/mariadb:latest-ubuntu_focal
+    dep_check: quay.io/airshipit/kubernetes-entrypoint:latest-ubuntu_focal
+    db_init: docker.io/openstackhelm/heat:2024.1-ubuntu_jammy
+    grafana_db_session_sync: docker.io/openstackhelm/heat:2024.1-ubuntu_jammy
+    selenium_tests: docker.io/openstackhelm/osh-selenium:latest-ubuntu_jammy
+    image_repo_sync: docker.io/library/docker:17.07.0
+    grafana_image_renderer: docker.io/grafana/grafana-image-renderer:3.10.5
+  pull_policy: IfNotPresent
+  local_registry:
+    active: false
+    exclude:
+      - dep_check
+      - image_repo_sync
+
+# Use selenium v4 syntax
+selenium_v4: true
+
+labels:
+  grafana:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  job:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  test:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+
+pod:
+  env:
+    grafana: null
+    grafana_run_migrator:
+      GF_DEFAULT_FORCE_MIGRATION: false
+  security_context:
+    dashboard:
+      pod:
+        runAsUser: 472
+      container:
+        grafana:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+    db_init:
+      pod:
+        runAsUser: 472
+      container:
+        grafana_db_init_session:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+        grafana_db_init:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+    db_session_sync:
+      pod:
+        runAsUser: 472
+      container:
+        grafana_db_session_sync:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+    set_admin_user:
+      pod:
+        runAsUser: 472
+      container:
+        grafana_set_admin_password:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+    run_migrator:
+      pod:
+        runAsUser: 472
+      container:
+        prepare_grafana_migrator:
+          runAsUser: 0
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+        grafana_run_migrator:
+          runAsUser: 65534
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+        grafana_set_admin_password:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+    test:
+      pod:
+        runAsUser: 0
+      container:
+        helm_tests:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+  affinity:
+    anti:
+      type:
+        default: preferredDuringSchedulingIgnoredDuringExecution
+      topologyKey:
+        default: kubernetes.io/hostname
+      weight:
+        default: 10
+  mounts:
+    grafana:
+      init_container: null
+      grafana:
+  replicas:
+    grafana: 1
+  lifecycle:
+    upgrades:
+      deployments:
+        revision_history: 3
+        pod_replacement_strategy: RollingUpdate
+        rolling_update:
+          max_unavailable: 1
+          max_surge: 3
+    termination_grace_period:
+      grafana:
+        timeout: 600
+  resources:
+    enabled: false
+    jobs:
+      image_repo_sync:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      bootstrap:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      db_init:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      db_init_session:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      grafana_db_session_sync:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      set_admin_user:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      run_migrator:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      tests:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+    grafana:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+
+endpoints:
+  cluster_domain_suffix: cluster.local
+  local_image_registry:
+    name: docker-registry
+    namespace: docker-registry
+    hosts:
+      default: localhost
+      internal: docker-registry
+      node: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        node: 5000
+  oci_image_registry:
+    name: oci-image-registry
+    namespace: oci-image-registry
+    auth:
+      enabled: false
+      grafana:
+        username: grafana
+        password: password
+    hosts:
+      default: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        default: null
+  oslo_db:
+    namespace: null
+    auth:
+      admin:
+        username: root
+        password: password
+        secret:
+          tls:
+            internal: mariadb-tls-direct
+      user:
+        username: grafana
+        password: password
+    hosts:
+      default: mariadb
+    host_fqdn_override:
+      default: null
+    path: /grafana
+    scheme: mysql+pymysql
+    port:
+      mysql:
+        default: 3306
+  oslo_db_session:
+    namespace: null
+    auth:
+      admin:
+        username: root
+        password: password
+        secret:
+          tls:
+            internal: mariadb-tls-direct
+      user:
+        username: grafana_session
+        password: password
+    hosts:
+      default: mariadb
+    host_fqdn_override:
+      default: null
+    path: /grafana_session
+    scheme: mysql+pymysql
+    port:
+      mysql:
+        default: 3306
+  grafana:
+    name: grafana
+    namespace: null
+    auth:
+      admin:
+        username: admin
+        password: password
+    hosts:
+      default: grafana-dashboard
+      public: grafana
+    host_fqdn_override:
+      default: null
+    path:
+      default: null
+    scheme:
+      default: http
+    port:
+      grafana:
+        default: 3000
+        public: 80
+        image_rendering: 8081
+  monitoring:
+    name: prometheus
+    namespace: null
+    auth:
+      user:
+        username: admin
+        password: changeme
+    hosts:
+      default: prom-metrics
+      public: prometheus
+    host_fqdn_override:
+      default: null
+    path:
+      default: null
+    scheme:
+      default: http
+    port:
+      api:
+        default: 80
+        public: 80
+  ldap:
+    hosts:
+      default: ldap
+    auth:
+      admin:
+        bind_dn: "cn=admin,dc=cluster,dc=local"
+        password: password
+    host_fqdn_override:
+      default: null
+    path:
+      default: "ou=People,dc=cluster,dc=local"
+    scheme:
+      default: ldap
+    port:
+      ldap:
+        default: 389
+
+dependencies:
+  dynamic:
+    common:
+      local_image_registry:
+        jobs:
+          - grafana-image-repo-sync
+        services:
+          - endpoint: node
+            service: local_image_registry
+  static:
+    db_init:
+      services:
+        - endpoint: internal
+          service: oslo_db
+    db_init_session:
+      services:
+        - endpoint: internal
+          service: oslo_db
+    db_session_sync:
+      jobs:
+        - grafana-db-init-session
+      services:
+        - endpoint: internal
+          service: oslo_db
+    grafana:
+      jobs:
+        - grafana-db-init
+        - grafana-db-session-sync
+        - grafana-set-admin-user
+        - grafana-run-migrator
+      services:
+        - endpoint: internal
+          service: oslo_db
+    image_repo_sync:
+      services:
+        - endpoint: internal
+          service: local_image_registry
+    set_admin_user:
+      jobs:
+        - grafana-db-init
+      services:
+        - endpoint: internal
+          service: oslo_db
+    run_migrator:
+      jobs:
+        - grafana-set-admin-user
+      services:
+        - endpoint: internal
+          service: oslo_db
+    tests:
+      services:
+        - endpoint: internal
+          service: grafana
+
+network:
+  grafana:
+    node_port:
+      enabled: false
+      port: 30902
+    ingress:
+      public: true
+      classes:
+        namespace: "nginx"
+        cluster: "nginx-cluster"
+      annotations:
+        nginx.ingress.kubernetes.io/rewrite-target: /
+
+network_policy:
+  grafana:
+    ingress:
+      - {}
+    egress:
+      - {}
+
+secrets:
+  oci_image_registry:
+    grafana: grafana-oci-image-registry-key
+  oslo_db:
+    admin: grafana-db-admin
+    user: grafana-db-user
+  oslo_db_session:
+    admin: grafana-session-db-admin
+    user: grafana-session-db-user
+  tls:
+    grafana:
+      grafana:
+        public: grafana-tls-public
+  prometheus:
+    user: prometheus-user-creds
+
+manifests:
+  certificates: false
+  configmap_bin: true
+  configmap_etc: true
+  configmap_dashboards: true
+  deployment: true
+  ingress: true
+  helm_tests: true
+  job_db_init: true
+  job_db_init_session: true
+  job_db_session_sync: true
+  job_image_repo_sync: true
+  job_set_admin_user: true
+  job_run_migrator: true
+  network_policy: false
+  secret_db: true
+  secret_db_session: true
+  secret_admin_creds: true
+  secret_ingress_tls: true
+  secret_prom_creds: true
+  secret_registry: true
+  service: true
+  service_ingress: true
+
+conf:
+  ldap:
+    config:
+      base_dns:
+        search: "dc=cluster,dc=local"
+        group_search: "ou=Groups,dc=cluster,dc=local"
+      filters:
+        search: "(uid=%s)"
+        group_search: "(&(objectclass=posixGroup)(memberUID=uid=%s,ou=People,dc=cluster,dc=local))"
+    template: |
+      verbose_logging = false
+      [[servers]]
+      host = "{{ tuple "ldap" "internal" . | include "helm-toolkit.endpoints.hostname_fqdn_endpoint_lookup" }}"
+      port = {{ tuple "ldap" "internal" "ldap" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+      use_ssl = false
+      start_tls = false
+      ssl_skip_verify = false
+      bind_dn = "{{ .Values.endpoints.ldap.auth.admin.bind_dn }}"
+      bind_password = '{{ .Values.endpoints.ldap.auth.admin.password }}'
+      search_filter = "{{ .Values.conf.ldap.config.filters.search }}"
+      search_base_dns = ["{{ .Values.conf.ldap.config.base_dns.search }}"]
+      group_search_filter = "{{ .Values.conf.ldap.config.filters.group_search }}"
+      group_search_base_dns = ["{{ .Values.conf.ldap.config.base_dns.group_search }}"]
+      [servers.attributes]
+      username = "uid"
+      surname = "sn"
+      member_of = "cn"
+      email = "mail"
+      [[servers.group_mappings]]
+      group_dn = "{{.Values.endpoints.ldap.auth.admin.bind_dn }}"
+      org_role = "Admin"
+      [[servers.group_mappings]]
+      group_dn = "*"
+      org_role = "Viewer"
+  provisioning:
+    dashboards:
+      apiVersion: 1
+      providers:
+      - name: 'osh-infra-dashboards'
+        orgId: 1
+        folder: ''
+        type: file
+        disableDeletion: false
+        editable: false
+        options:
+          path: /etc/grafana/dashboards
+    datasources:
+      template: |
+        apiVersion: 1
+        datasources:
+        - name: prometheus
+          type: prometheus
+          access: proxy
+          orgId: 1
+          editable: true
+          basicAuth: true
+          basicAuthUser: {{ .Values.endpoints.monitoring.auth.user.username }}
+          secureJsonData:
+            basicAuthPassword: {{ .Values.endpoints.monitoring.auth.user.password }}
+          url: {{ tuple "monitoring" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" }}
+  grafana:
+    alerting:
+      enabled: false
+    unified_alerting:
+      enabled: true
+    image_rendering_sidecar:
+      enabled: false
+      # https://kubernetes.io/docs/concepts/workloads/pods/sidecar-containers/
+      k8s_sidecar_feature_enabled: true
+    analytics:
+      reporting_enabled: false
+      check_for_updates: false
+    auth.ldap:
+      enabled: true
+      config_file: /etc/grafana/ldap.toml
+    paths:
+      data: /var/lib/grafana/data
+      plugins: /var/lib/grafana/plugins
+      alerting: /var/lib/grafana/alerting
+      csv: /var/lib/grafana/csv
+      provisioning: /etc/grafana/provisioning
+    server:
+      protocol: http
+      http_port: 3000
+    database:
+      type: mysql
+    session:
+      provider: mysql
+      provider_config: null
+      cookie_name: grafana_sess
+      cookie_secure: false
+      session_life_time: 86400
+    security:
+      admin_user: ${GF_SECURITY_ADMIN_USER}
+      admin_password: ${GF_SECURITY_ADMIN_PASSWORD}
+      cookie_username: grafana_user
+      cookie_remember_name: grafana_remember
+      login_remember_days: 7
+    dashboards:
+      default_home_dashboard_path: /etc/grafana/dashboards/home_dashboard.json
+    users:
+      allow_sign_up: false
+      allow_org_create: false
+      auto_assign_org: true
+      default_theme: dark
+    log:
+      mode: console
+      level: info
+    grafana_net:
+      url: https://grafana.net
+  dashboards: {}
+...

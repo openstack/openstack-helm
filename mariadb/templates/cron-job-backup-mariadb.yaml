@@ -1,0 +1,210 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.cron_job_mariadb_backup }}
+{{- $envAll := . }}
+
+{{- $serviceAccountName := "mariadb-backup" }}
+{{ tuple $envAll "mariadb_backup" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: mariadb-backup
+  annotations:
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+  labels:
+{{ tuple $envAll "mariadb-backup" "backup" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  schedule: {{ .Values.jobs.mariadb_backup.cron | quote }}
+  successfulJobsHistoryLimit: {{ .Values.jobs.mariadb_backup.history.success }}
+  failedJobsHistoryLimit: {{ .Values.jobs.mariadb_backup.history.failed }}
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    metadata:
+      labels:
+{{ tuple $envAll "mariadb-backup" "backup" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+{{ dict "envAll" $envAll "podName" "mariadb-backup" "containerNames" (list "init" "backup-perms" "mariadb-backup") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
+    spec:
+{{- if .Values.jobs.mariadb_backup.backoffLimit }}
+      backoffLimit: {{ .Values.jobs.mariadb_backup.backoffLimit }}
+{{- end }}
+{{- if .Values.jobs.mariadb_backup.activeDeadlineSeconds }}
+      activeDeadlineSeconds: {{ .Values.jobs.mariadb_backup.activeDeadlineSeconds }}
+{{- end }}
+      template:
+        metadata:
+          labels:
+{{ tuple $envAll "mariadb-backup" "backup" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 12 }}
+        spec:
+{{ dict "envAll" $envAll "application" "mariadb_backup" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 10 }}
+          serviceAccountName: {{ $serviceAccountName }}
+          restartPolicy: OnFailure
+          shareProcessNamespace: true
+{{- if $envAll.Values.pod.tolerations.mariadb.enabled }}
+{{ tuple $envAll "mariadb" | include "helm-toolkit.snippets.kubernetes_tolerations" | indent 10 }}
+{{- end }}
+{{- if $envAll.Values.pod.affinity }}
+{{- if $envAll.Values.pod.affinity.mariadb_backup }}
+          affinity:
+{{  index $envAll.Values.pod.affinity "mariadb_backup"  | toYaml | indent 12}}
+{{- end }}
+{{- end }}
+          nodeSelector:
+            {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
+          initContainers:
+{{ tuple $envAll "mariadb_backup" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 12 }}
+            - name: backup-perms
+{{ tuple $envAll "mariadb_backup" | include "helm-toolkit.snippets.image" | indent 14 }}
+{{ tuple $envAll $envAll.Values.pod.resources.jobs.mariadb_backup | include "helm-toolkit.snippets.kubernetes_resources" | indent 14 }}
+{{ dict "envAll" $envAll "application" "mariadb_backup" "container" "backup_perms" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 14 }}
+              command:
+                - chown
+                - -R
+                - "65534:65534"
+                - $(MARIADB_BACKUP_BASE_DIR)
+              env:
+                - name: MARIADB_BACKUP_BASE_DIR
+                  value: {{ .Values.conf.backup.base_path | quote }}
+              volumeMounts:
+                - mountPath: /tmp
+                  name: pod-tmp
+                - mountPath: {{ .Values.conf.backup.base_path }}
+                  name: mariadb-backup-dir
+            - name: verify-perms
+{{ tuple $envAll "mariadb_backup" | include "helm-toolkit.snippets.image" | indent 14 }}
+{{ tuple $envAll $envAll.Values.pod.resources.jobs.mariadb_backup | include "helm-toolkit.snippets.kubernetes_resources" | indent 14 }}
+{{ dict "envAll" $envAll "application" "mariadb_backup" "container" "verify_perms" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 14 }}
+              command:
+                - chown
+                - -R
+                - "65534:65534"
+                - /var/lib/mysql
+              volumeMounts:
+                - mountPath: /tmp
+                  name: pod-tmp
+                - mountPath: /var/lib/mysql
+                  name: mysql-data
+          containers:
+            - name: mariadb-backup
+              command:
+                - /bin/sh
+              args:
+                - -c
+                - >-
+                    ( /tmp/start_verification_server.sh ) &
+                    /tmp/backup_mariadb.sh
+              env:
+                - name: MARIADB_BACKUP_BASE_DIR
+                  value: {{ .Values.conf.backup.base_path | quote }}
+                - name: MYSQL_BACKUP_MYSQLDUMP_OPTIONS
+                  value: {{ .Values.conf.backup.mysqldump_options | quote }}
+                - name: MARIADB_LOCAL_BACKUP_DAYS_TO_KEEP
+                  value: {{ .Values.conf.backup.days_to_keep | quote }}
+                - name: MARIADB_POD_NAMESPACE
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.namespace
+                - name: REMOTE_BACKUP_ENABLED
+                  value: "{{ .Values.conf.backup.remote_backup.enabled }}"
+{{- if .Values.conf.backup.remote_backup.enabled }}
+                - name: MARIADB_REMOTE_BACKUP_DAYS_TO_KEEP
+                  value: {{ .Values.conf.backup.remote_backup.days_to_keep | quote }}
+                - name: CONTAINER_NAME
+                  value: {{ .Values.conf.backup.remote_backup.container_name | quote }}
+                - name: STORAGE_POLICY
+                  value: "{{ .Values.conf.backup.remote_backup.storage_policy }}"
+                - name: NUMBER_OF_RETRIES_SEND_BACKUP_TO_REMOTE
+                  value: {{ .Values.conf.backup.remote_backup.number_of_retries | quote }}
+                - name: MIN_DELAY_SEND_BACKUP_TO_REMOTE
+                  value: {{ .Values.conf.backup.remote_backup.delay_range.min | quote }}
+                - name: MAX_DELAY_SEND_BACKUP_TO_REMOTE
+                  value: {{ .Values.conf.backup.remote_backup.delay_range.max | quote }}
+                - name: THROTTLE_BACKUPS_ENABLED
+                  value: "{{ .Values.conf.backup.remote_backup.throttle_backups.enabled }}"
+                - name: THROTTLE_LIMIT
+                  value: {{ .Values.conf.backup.remote_backup.throttle_backups.sessions_limit | quote }}
+                - name: THROTTLE_LOCK_EXPIRE_AFTER
+                  value: {{ .Values.conf.backup.remote_backup.throttle_backups.lock_expire_after | quote }}
+                - name: THROTTLE_RETRY_AFTER
+                  value: {{ .Values.conf.backup.remote_backup.throttle_backups.retry_after | quote }}
+                - name: THROTTLE_CONTAINER_NAME
+                  value: {{ .Values.conf.backup.remote_backup.throttle_backups.container_name | quote }}
+{{- with $env := dict "ksUserSecret" $envAll.Values.secrets.identity.mariadb }}
+{{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 16 }}
+{{- end }}
+{{- end }}
+{{ tuple $envAll "mariadb_backup" | include "helm-toolkit.snippets.image" | indent 14 }}
+{{ tuple $envAll $envAll.Values.pod.resources.jobs.mariadb_backup | include "helm-toolkit.snippets.kubernetes_resources" | indent 14 }}
+{{ dict "envAll" $envAll "application" "mariadb_backup" "container" "mariadb_backup" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 14 }}
+              volumeMounts:
+                - name: pod-tmp
+                  mountPath: /tmp
+                - mountPath: /tmp/backup_mariadb.sh
+                  name: mariadb-bin
+                  readOnly: true
+                  subPath: backup_mariadb.sh
+                - mountPath: /tmp/backup_main.sh
+                  name: mariadb-bin
+                  readOnly: true
+                  subPath: backup_main.sh
+                - mountPath: {{ .Values.conf.backup.base_path }}
+                  name: mariadb-backup-dir
+                - name: mariadb-secrets
+                  mountPath: /etc/mysql/admin_user.cnf
+                  subPath: admin_user.cnf
+                  readOnly: true
+{{ dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.secrets.tls.oslo_db.server.internal "path" "/etc/mysql/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 16 }}
+                - name: mariadb-bin
+                  mountPath: /tmp/start_verification_server.sh
+                  readOnly: true
+                  subPath: start_verification_server.sh
+                - name: mysql-data
+                  mountPath: /var/lib/mysql
+                - name: var-run
+                  mountPath: /run/mysqld
+          volumes:
+            - name: pod-tmp
+              emptyDir: {}
+            - name: mycnfd
+              emptyDir: {}
+            - name: var-run
+              emptyDir: {}
+            - name: mariadb-etc
+              configMap:
+                name: mariadb-etc
+                defaultMode: 0444
+            - name: mysql-data
+              emptyDir: {}
+            - name: mariadb-secrets
+              secret:
+                secretName: mariadb-secrets
+                defaultMode: 420
+            - configMap:
+                defaultMode: 365
+                name: mariadb-bin
+              name: mariadb-bin
+            {{- if and .Values.volume.backup.enabled  .Values.manifests.pvc_backup }}
+            - name: mariadb-backup-dir
+              persistentVolumeClaim:
+                claimName: mariadb-backup-data
+            {{- else }}
+            - hostPath:
+                path: {{ .Values.conf.backup.base_path }}
+                type: DirectoryOrCreate
+              name: mariadb-backup-dir
+            {{- end }}
+{{ dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.secrets.tls.oslo_db.server.internal | include "helm-toolkit.snippets.tls_volume" | indent 12 }}
+{{- end }}

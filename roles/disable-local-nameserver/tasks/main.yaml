@@ -1,0 +1,59 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# NOTE(portdirect): We disable the local nameserver as it interferes with the
+# k8s dns-service and other local resolvers used for development use.
+# See the following for the original config:
+# * https://github.com/openstack/project-config/blob/0332c33dd134033e0620645c252f82b77e4c16f5/nodepool/elements/nodepool-base/finalise.d/89-unbound
+
+---
+- name: Disable local nameserver and systemd-resolved service
+  when: ansible_distribution == 'Ubuntu'
+  block:
+    - name: update rc.local
+      blockinfile:
+        path: /etc/rc.local
+        mode: 365
+        block: |
+          #!/bin/bash
+          set -o xtrace
+          # Some providers inject dynamic network config statically. Work around this
+          # for DNS nameservers. This is expected to fail on some nodes so remove -e.
+          set +e
+          sed -i -e 's/^\(DNS[0-9]*=[.0-9]\+\)/#\1/g' /etc/sysconfig/network-scripts/ifcfg-*
+          sed -i -e 's/^NETCONFIG_DNS_POLICY=.*/NETCONFIG_DNS_POLICY=""/g' /etc/sysconfig/network/config
+          set -e
+          echo 'nameserver 208.67.222.222' > /etc/resolv.conf
+          echo 'nameserver 8.8.8.8' >> /etc/resolv.conf
+          exit 0
+    - name: write resolv.conf
+      blockinfile:
+        path: /etc/resolv.conf
+        mode: 644
+        block: |
+          nameserver 208.67.222.222
+          nameserver 8.8.8.8
+    - name: stop unbound service
+      systemd:
+        state: stopped
+        enabled: no
+        masked: yes
+        daemon_reload: yes
+        name: unbound
+    - name: stop systemd-resolved service
+      systemd:
+        state: stopped
+        enabled: no
+        masked: yes
+        daemon_reload: yes
+        name: systemd-resolved
+...

@@ -1,0 +1,131 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- define "ovnsbReadinessProbeTemplate" }}
+exec:
+  command:
+    - /usr/bin/ovn-kube-util
+    - readiness-probe
+    - -t
+{{- if gt (int .Values.pod.replicas.ovn_ovsdb_sb) 1 }}
+    - ovnsb-db-raft
+{{- else }}
+    - ovnsb-db
+{{- end }}
+{{- end }}
+
+{{- if .Values.manifests.statefulset_ovn_ovsdb_sb }}
+{{- $envAll := . }}
+
+{{- $serviceAccountName := "ovn-ovsdb-sb" }}
+{{ tuple $envAll "ovn_ovsdb_sb" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: ovn-ovsdb-sb
+  annotations:
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+  labels:
+{{ tuple $envAll "ovn" "ovn-ovsdb-sb" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  serviceName: {{ tuple "ovn-ovsdb-sb" "direct" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
+  podManagementPolicy: Parallel
+  replicas: {{ .Values.pod.replicas.ovn_ovsdb_sb }}
+  selector:
+    matchLabels:
+{{ tuple $envAll "ovn" "ovn-ovsdb-sb" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "ovn" "ovn-ovsdb-sb" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+{{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
+    spec:
+      serviceAccountName: {{ $serviceAccountName }}
+      affinity:
+{{- tuple $envAll "ovn" "ovn-ovsdb-sb" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
+      nodeSelector:
+        {{ .Values.labels.ovn_ovsdb_sb.node_selector_key }}: {{ .Values.labels.ovn_ovsdb_sb.node_selector_value }}
+      initContainers:
+{{- tuple $envAll "ovn_ovsdb_sb" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+      containers:
+        - name: ovsdb
+          command:
+            - /root/ovnkube.sh
+{{- if gt (int .Values.pod.replicas.ovn_ovsdb_sb) 1 }}
+            - sb-ovsdb-raft
+{{- else }}
+            - sb-ovsdb
+{{- end }}
+{{ tuple $envAll "ovn_ovsdb_sb" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.ovn_ovsdb_sb | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" . "component" "ovn_ovsdb_sb" "container" "ovsdb" "type" "readiness" "probeTemplate" (include "ovnsbReadinessProbeTemplate" . | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+          ports:
+            - containerPort: {{ tuple "ovn-ovsdb-sb" "internal" "ovsdb" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+            - containerPort: {{ tuple "ovn-ovsdb-sb" "internal" "raft" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+          env:
+            - name: OVN_DAEMONSET_VERSION
+              value: "3"
+            - name: OVN_LOGLEVEL_SB
+              value: "-vconsole:info -vfile:info"
+            - name: OVN_KUBERNETES_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: OVN_KUBERNETES_STATEFULSET
+              value: ovn-ovsdb-sb
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: OVN_SSL_ENABLE
+              value: "no"
+            - name: ENABLE_IPSEC
+              value: "false"
+            - name: OVN_SB_RAFT_ELECTION_TIMER
+              value: "1000"
+            - name: OVN_SB_PORT
+              value: {{ tuple "ovn-ovsdb-sb" "internal" "ovsdb" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | quote }}
+            - name: OVN_SB_RAFT_PORT
+              value: {{ tuple "ovn-ovsdb-sb" "internal" "raft" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | quote }}
+          volumeMounts:
+            - name: run-openvswitch
+              mountPath: /var/run/openvswitch
+            - name: run-openvswitch
+              mountPath: /var/run/ovn
+            - name: data
+              mountPath: /etc/ovn
+      volumes:
+        - name: run-openvswitch
+          hostPath:
+            path: /run/openvswitch
+            type: DirectoryOrCreate
+{{- if not .Values.volume.ovn_ovsdb_sb.enabled }}
+        - name: data
+          emptyDir: {}
+{{- else }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: {{ $envAll.Values.volume.ovn_ovsdb_sb.class_name }}
+        resources:
+          requests:
+            storage: {{ $envAll.Values.volume.ovn_ovsdb_sb.size }}
+{{- end }}
+
+{{- end }}

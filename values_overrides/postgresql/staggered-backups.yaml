@@ -1,0 +1,38 @@
+---
+conf:
+  backup:
+    enabled: true
+    remote_backup:
+      enabled: false
+pod:
+  labels:
+    backup:
+      staggered_backups: enabled
+  affinity:
+    postgresql_backup:
+      podAntiAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+                - key: status.phase
+                  operator: NotIn
+                  values:
+                    - Running
+                - key: staggered-backups
+                  operator: In
+                  values:
+                    - enabled
+            namespaces:
+              - openstack
+              - osh-infra
+              - ucp
+            topologyKey: kubernetes.io/os
+volume:
+  backup:
+    enabled: true
+manifests:
+  pvc_backup: true
+  job_ks_user: false
+  cron_job_postgresql_backup: true
+  secret_backup_restore: true
+...

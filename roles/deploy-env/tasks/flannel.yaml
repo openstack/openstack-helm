@@ -1,0 +1,17 @@
+---
+- name: Add Flannel Helm repo
+  become_user: "{{ kubectl.user }}"
+  when: inventory_hostname in (groups['primary'] | default([]))
+  block:
+    - name: Add Flannel chart repo
+      shell: |
+        helm repo add flannel https://flannel-io.github.io/flannel/
+
+    - name: Install Flannel
+      shell: |
+        helm upgrade --install flannel flannel/flannel \
+          --version {{ flannel_version }} \
+          --namespace kube-flannel \
+          --create-namespace \
+          --set podCidr="{{ kubeadm.pod_network_cidr }}"
+...

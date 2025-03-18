@@ -1,0 +1,167 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+- name: Remove old docker packages
+  apt:
+    pkg:
+      - docker.io
+      - docker-doc
+      - docker-compose
+      - podman-docker
+      - containerd
+      - runc
+    state: absent
+
+- name: Add Docker apt repository key
+  apt_key:
+    url: https://download.docker.com/linux/ubuntu/gpg
+    keyring: /etc/apt/trusted.gpg.d/docker.gpg
+    state: present
+
+- name: Get dpkg arch
+  command: dpkg --print-architecture
+  register: dpkg_architecture
+
+- name: Add Docker apt repository
+  apt_repository:
+    repo: deb [arch="{{ dpkg_architecture.stdout }}" signed-by=/etc/apt/trusted.gpg.d/docker.gpg] https://download.docker.com/linux/ubuntu "{{ ansible_distribution_release }}" stable
+    state: present
+    filename: docker
+
+- name: Install docker packages
+  apt:
+    pkg:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-buildx-plugin
+      - docker-compose-plugin
+    state: present
+    update_cache: true
+
+
+- name: Add users to docker group
+  command: "adduser {{ item }} docker"
+  loop: "{{ docker_users }}"
+
+- name: Reset ssh connection to apply user changes.
+  meta: reset_connection
+
+- name: Install Crictl
+  shell: |
+    wget https://github.com/kubernetes-sigs/cri-tools/releases/download/{{crictl_version}}/crictl-{{crictl_version}}-linux-amd64.tar.gz
+    sudo tar zxvf crictl-{{crictl_version}}-linux-amd64.tar.gz -C /usr/local/bin
+    rm -f crictl-{{crictl_version}}-linux-amd64.tar.gz
+  args:
+    executable: /bin/bash
+
+- name: Set registry_mirror fact
+  when:
+    - registry_mirror is not defined
+    - zuul_site_mirror_fqdn is defined
+  set_fact:
+    registry_mirror: "http://{{ zuul_site_mirror_fqdn }}:8082"
+
+- name: Set insecure_registries fact for Docker
+  when:
+    - insecure_registries is not defined
+    - zuul_site_mirror_fqdn is defined
+  set_fact:
+    insecure_registries: "{{ zuul_site_mirror_fqdn }}:8082"
+
+- name: Set registry_namespaces fact
+  set_fact:
+    registry_namespaces:
+      - namespace: "_default"
+        mirror: "{{ registry_mirror }}"
+        skip_server: true
+        skip_verify: true
+  when: registry_mirror is defined
+
+- name: Init registry_namespaces if not defined
+  set_fact:
+    registry_namespaces: "[]"
+  when: not registry_namespaces is defined
+
+- name: Buildset registry namespace
+  when: buildset_registry is defined
+  block:
+    - name: Buildset registry alias
+      include_tasks:
+        file: buildset_registry_alias.yaml
+
+    - name: Write buildset registry TLS certificate
+      copy:
+        content: "{{ buildset_registry.cert }}"
+        dest: "/usr/local/share/ca-certificates/{{ buildset_registry_alias }}.crt"
+        mode: 0644
+      register: buildset_registry_tls_ca
+
+    - name: Update CA certs
+      command: "update-ca-certificates"
+      when: buildset_registry_tls_ca is changed
+
+    - name: Set buildset registry namespace
+      set_fact:
+        buildset_registry_namespace:
+          namespace: '{{ buildset_registry_alias }}:{{ buildset_registry.port }}'
+          mirror: 'https://{{ buildset_registry_alias }}:{{ buildset_registry.port }}'
+          ca: "/usr/local/share/ca-certificates/{{ buildset_registry_alias }}.crt"
+          auth: "{{ (buildset_registry.username + ':' + buildset_registry.password) | b64encode }}"
+
+    - name: Append buildset_registry to registry namespaces
+      when:
+        - buildset_registry_namespace is defined
+        - registry_namespaces is defined
+      set_fact:
+        registry_namespaces: "{{ registry_namespaces + [ buildset_registry_namespace ] }}"
+
+- name: Configure containerd
+  template:
+    src: files/containerd_config.toml
+    dest: /etc/containerd/config.toml
+
+- name: Create containerd config directory hierarchy
+  file:
+    state: directory
+    path: /etc/containerd/certs.d
+
+- name: Create host namespace directory
+  file:
+    state: directory
+    path: "/etc/containerd/certs.d/{{ item.namespace }}"
+  loop: "{{ registry_namespaces }}"
+
+- name: Create hosts.toml file
+  template:
+    src: files/hosts.toml
+    dest: "/etc/containerd/certs.d/{{ item.namespace }}/hosts.toml"
+  loop: "{{ registry_namespaces }}"
+
+- name: Restart containerd
+  service:
+    name: containerd
+    daemon_reload: yes
+    state: restarted
+
+- name: Configure Docker daemon
+  template:
+    src: files/daemon.json
+    dest: /etc/docker/daemon.json
+
+- name: Restart docker
+  service:
+    name: docker
+    daemon_reload: yes
+    state: restarted
+...

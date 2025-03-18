@@ -1,0 +1,186 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Default values for node-exporter.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+---
+images:
+  tags:
+    node_exporter: docker.io/prom/node-exporter:v0.18.1
+    dep_check: quay.io/airshipit/kubernetes-entrypoint:latest-ubuntu_focal
+    image_repo_sync: docker.io/library/docker:17.07.0
+  pull_policy: IfNotPresent
+  local_registry:
+    active: false
+    exclude:
+      - dep_check
+      - image_repo_sync
+
+labels:
+  node_exporter:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  job:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+
+pod:
+  security_context:
+    metrics:
+      pod:
+        runAsUser: 65534
+      container:
+        node_exporter:
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
+  affinity:
+    anti:
+      type:
+        default: preferredDuringSchedulingIgnoredDuringExecution
+      topologyKey:
+        default: kubernetes.io/hostname
+  mounts:
+    node_exporter:
+      node_exporter:
+      init_container: null
+  lifecycle:
+    upgrades:
+      daemonsets:
+        pod_replacement_strategy: RollingUpdate
+        node_exporter:
+          enabled: true
+          min_ready_seconds: 0
+          max_unavailable: 1
+    termination_grace_period:
+      node_exporter:
+        timeout: 30
+  resources:
+    enabled: false
+    node_exporter:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+    jobs:
+      image_repo_sync:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+  tolerations:
+    node_exporter:
+      enabled: false
+      tolerations:
+      - key: node-role.kubernetes.io/master
+        operator: Exists
+      - key: node-role.kubernetes.io/control-plane
+        operator: Exists
+      - key: node-role.kubernetes.io/node
+        operator: Exists
+dependencies:
+  dynamic:
+    common:
+      local_image_registry:
+        jobs:
+          - node-exporter-image-repo-sync
+        services:
+          - endpoint: node
+            service: local_image_registry
+  static:
+    image_repo_sync:
+      services:
+        - endpoint: internal
+          service: local_image_registry
+    node_exporter:
+      services: null
+
+monitoring:
+  prometheus:
+    enabled: true
+    node_exporter:
+      scrape: true
+
+secrets:
+  oci_image_registry:
+    prometheus-node-exporter: prometheus-node-exporter-oci-image-registry-key
+
+endpoints:
+  cluster_domain_suffix: cluster.local
+  local_image_registry:
+    name: docker-registry
+    namespace: docker-registry
+    hosts:
+      default: localhost
+      internal: docker-registry
+      node: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        node: 5000
+  oci_image_registry:
+    name: oci-image-registry
+    namespace: oci-image-registry
+    auth:
+      enabled: false
+      prometheus-node-exporter:
+        username: prometheus-node-exporter
+        password: password
+    hosts:
+      default: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        default: null
+  node_metrics:
+    namespace: null
+    hosts:
+      default: node-exporter
+    host_fqdn_override:
+      default: null
+    path:
+      default: null
+    scheme:
+      default: 'http'
+    port:
+      metrics:
+        default: 9100
+
+manifests:
+  configmap_bin: true
+  daemonset: true
+  job_image_repo_sync: true
+  secret_registry: true
+  service: true
+
+conf:
+  ntp_server_ip: 127.0.0.1
+  collectors:
+    enable:
+      - ntp
+      - meminfo_numa
+      - bonding
+      - mountstats
+    disable:
+    textfile:
+      directory: /var/log/node-exporter-vfstats
+    filesystem:
+      ignored_mount_points:
+      rootfs_mount_point:
+...

@@ -1,0 +1,39 @@
+---
+conf:
+  grafana:
+    database:
+      ssl_mode: true
+      ca_cert_path: /etc/mysql/certs/ca.crt
+      client_key_path: /etc/mysql/certs/tls.key
+      client_cert_path: /etc/mysql/certs/tls.crt
+  provisioning:
+    datasources:
+      template: |
+        {{ $prom_host := tuple "monitoring" "internal" . | include "helm-toolkit.endpoints.hostname_fqdn_endpoint_lookup" }}
+        {{ $prom_uri := printf "https://%s" $prom_host }}
+        apiVersion: 1
+        datasources:
+        - name: prometheus
+          type: prometheus
+          access: proxy
+          orgId: 1
+          editable: true
+          basicAuth: true
+          basicAuthUser: {{ .Values.endpoints.monitoring.auth.user.username }}
+          jsonData:
+            tlsAuthWithCACert: true
+          secureJsonData:
+            basicAuthPassword: {{ .Values.endpoints.monitoring.auth.user.password }}
+            tlsCACert: $CACERT
+          url: {{ $prom_uri }}
+endpoints:
+  grafana:
+    host_fqdn_override:
+      default:
+        tls:
+          issuerRef:
+            name: ca-issuer
+            kind: ClusterIssuer
+manifests:
+  certificates: true
+...

@@ -1,0 +1,55 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+- name: check if pip installed
+  command: pip3 --version
+  register: pip_version_output
+  ignore_errors: yes
+  changed_when: false
+
+- name: ensuring python pip package is present for ubuntu
+  when: ( pip_version_output is failed ) and ( ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu' )
+  apt:
+    name: python3-pip
+    state: present
+
+- name: ensuring python pip package is present for centos
+  when: ( pip_version_output is failed ) and ( ansible_distribution == 'CentOS' or ansible_distribution == 'Red Hat Enterprise Linux' )
+  block:
+    - name: ensuring epel-release package is present for centos as python3-pip is in the epel repo
+      yum:
+        name: epel-release
+        state: present
+    - name: ensuring python pip package is present for centos
+      yum:
+        name: python3-pip
+        state: present
+
+- name: ensuring python pip package is present for fedora via the python3-pip rpm
+  when: ( pip_version_output is failed ) and ( ansible_distribution == 'Fedora' )
+  dnf:
+    name: python3-pip
+    state: present
+
+- name: ensuring pip is the latest version
+  become: true
+  become_user: root
+  environment:
+    http_proxy: "{{ proxy.http }}"
+    https_proxy: "{{ proxy.https }}"
+    no_proxy: "{{ proxy.noproxy }}"
+  pip:
+    name: pip
+    state: latest
+    executable: pip3
+...

@@ -1,0 +1,434 @@
+---
+# Copyright 2018 SUSE LINUX GmbH.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+- job:
+    name: openstack-helm-lint
+    run: playbooks/lint.yml
+    nodeset: openstack-helm-1node-ubuntu_jammy
+    # NOTE(aostapenko) Required if job is run against another project
+    required-projects:
+      - openstack/openstack-helm-infra
+    irrelevant-files:
+      - ^.*\.rst$
+      - ^releasenotes/.*$
+
+- job:
+    name: openstack-helm-lint-osh
+    parent: openstack-helm-lint
+    required-projects:
+      - openstack/openstack-helm
+    files:
+      - ^helm-toolkit/.*$
+    vars:
+      lint_osh: true
+
+- job:
+    name: openstack-helm-infra-bandit
+    roles:
+      - zuul: openstack/openstack-helm-infra
+      - zuul: zuul/zuul-jobs
+    required-projects:
+      - openstack/openstack-helm
+      - openstack/openstack-helm-infra
+    files:
+      - ^.*\.py\.tpl$
+      - ^.*\.py$
+      - ^playbooks/osh-infra-bandit.yaml$
+    pre-run: playbooks/prepare-hosts.yaml
+    post-run: playbooks/osh-infra-collect-logs.yaml
+    run: playbooks/osh-infra-bandit.yaml
+    vars:
+      helm_version: "v3.6.3"
+      bandit_version: "1.7.1"
+
+- job:
+    name: publish-openstack-helm-charts
+    parent: publish-openstack-artifacts
+    run: playbooks/build-chart.yaml
+    required-projects:
+      - openstack/openstack-helm-infra
+    post-run: playbooks/publish/post.yaml
+
+- job:
+    name: openstack-helm-infra-deploy
+    abstract: true
+    roles:
+      - zuul: openstack/openstack-helm-infra
+      - zuul: zuul/zuul-jobs
+    required-projects:
+      - openstack/openstack-helm
+      - openstack/openstack-helm-infra
+      - openstack/openstack-helm-plugin
+    irrelevant-files:
+      - ^.*\.rst$
+      - ^doc/.*$
+      - ^releasenotes/.*$
+    timeout: 10800
+    pre-run:
+      - playbooks/prepare-hosts.yaml
+      - playbooks/mount-volumes.yaml
+      - playbooks/inject-keys.yaml
+    post-run: playbooks/osh-infra-collect-logs.yaml
+    run:
+      - playbooks/deploy-env.yaml
+      - playbooks/run-scripts.yaml
+    vars:
+      extra_volume:
+        size: 80G
+        type: Linux
+        mount_point: /opt/ext_vol
+      docker:
+        root_path: "/opt/ext_vol/docker"
+      containerd:
+        root_path: "/opt/ext_vol/containerd"
+      kubeadm:
+        pod_network_cidr: "10.244.0.0/16"
+        service_cidr: "10.96.0.0/16"
+      osh_plugin_repo: "{{ zuul.project.src_dir }}/../openstack-helm-plugin"
+      loopback_setup: true
+      loopback_device: /dev/loop100
+      loopback_image: "/opt/ext_vol/openstack-helm/ceph-loop.img"
+      ceph_osd_data_device: /dev/loop100
+      kube_version_repo: "v1.31"
+      kube_version: "1.31.3-1.1"
+      calico_setup: true
+      calico_version: "v3.27.4"
+      cilium_setup: false
+      cilium_version: "1.16.0"
+      flannel_setup: false
+      flannel_version: v0.25.4
+      metallb_setup: false
+      metallb_version: "0.13.12"
+      ingress_setup: true
+      helm_version: "v3.14.0"
+      crictl_version: "v1.30.1"
+      zuul_osh_infra_relative_path: ../openstack-helm-infra
+      gate_scripts_relative_path: ../openstack-helm-infra
+      run_helm_tests: "no"
+
+- job:
+    name: openstack-helm-infra-logging
+    parent: openstack-helm-infra-deploy
+    nodeset: openstack-helm-5nodes-ubuntu_jammy
+    vars:
+      osh_params:
+        openstack_release: "2024.1"
+        container_distro_name: ubuntu
+        container_distro_version: jammy
+      gate_scripts:
+        - ./tools/deployment/common/prepare-k8s.sh
+        - ./tools/deployment/common/infra-prepare-charts.sh
+        - ./tools/deployment/ceph/ceph-rook.sh
+        - ./tools/deployment/ceph/ceph-adapter-rook.sh
+        - ./tools/deployment/common/ldap.sh
+        - ./tools/deployment/logging/elasticsearch.sh
+        - ./tools/deployment/logging/fluentd.sh
+        - ./tools/deployment/logging/kibana.sh
+        - ./tools/gate/selenium/kibana-selenium.sh || true
+
+- job:
+    name: openstack-helm-infra-monitoring
+    parent: openstack-helm-infra-deploy
+    nodeset: openstack-helm-1node-ubuntu_jammy
+    vars:
+      osh_params:
+        openstack_release: "2024.1"
+        container_distro_name: ubuntu
+        container_distro_version: jammy
+      gate_scripts:
+        - ./tools/deployment/common/prepare-k8s.sh
+        - ./tools/deployment/common/infra-prepare-charts.sh
+        - ./tools/deployment/common/deploy-docker-registry.sh
+        - ./tools/deployment/common/nfs-provisioner.sh
+        - ./tools/deployment/common/ldap.sh
+        - ./tools/deployment/db/mariadb.sh
+        - ./tools/deployment/db/postgresql.sh
+        - ./tools/deployment/monitoring/prometheus.sh
+        - ./tools/deployment/monitoring/alertmanager.sh
+        - ./tools/deployment/monitoring/kube-state-metrics.sh
+        - ./tools/deployment/monitoring/node-problem-detector.sh
+        - ./tools/deployment/monitoring/node-exporter.sh
+        - ./tools/deployment/monitoring/process-exporter.sh
+        - ./tools/deployment/monitoring/openstack-exporter.sh
+        - ./tools/deployment/monitoring/blackbox-exporter.sh
+        - ./tools/deployment/monitoring/grafana.sh
+        - ./tools/deployment/monitoring/nagios.sh
+        - ./tools/gate/selenium/grafana-selenium.sh || true
+        - ./tools/gate/selenium/prometheus-selenium.sh || true
+        - ./tools/gate/selenium/nagios-selenium.sh || true
+
+- job:
+    name: openstack-helm-infra-metacontroller
+    parent: openstack-helm-infra-deploy
+    nodeset: openstack-helm-1node-ubuntu_jammy
+    vars:
+      osh_params:
+        container_distro_name: ubuntu
+        container_distro_version: jammy
+        feature_gates: apparmor
+      ingress_setup: false
+      gate_scripts:
+        - ./tools/deployment/common/prepare-k8s.sh
+        - ./tools/deployment/common/infra-prepare-charts.sh
+        - ./tools/deployment/common/metacontroller.sh
+        - ./tools/deployment/common/daemonjob-controller.sh
+
+- job:
+    name: openstack-helm-infra-mariadb-operator-2024-1-ubuntu_jammy
+    parent: openstack-helm-infra-deploy
+    nodeset: openstack-helm-3nodes-ubuntu_jammy
+    pre-run:
+      - playbooks/prepare-hosts.yaml
+      - playbooks/mount-volumes.yaml
+    vars:
+      osh_params:
+        openstack_release: "2024.1"
+        container_distro_name: ubuntu
+        container_distro_version: jammy
+        feature_gates: "ldap,prometheus,backups"
+      gate_scripts:
+        - ./tools/deployment/common/prepare-k8s.sh
+        - ./tools/deployment/common/infra-prepare-charts.sh
+        - ./tools/deployment/common/namespace-config.sh
+        - ./tools/deployment/ceph/ceph.sh
+        - ./tools/deployment/ceph/ceph-ns-activate.sh
+        - ./tools/deployment/common/setup-client.sh
+        - ./tools/deployment/common/rabbitmq.sh
+        - ./tools/deployment/common/memcached.sh
+        - ./tools/deployment/db/mariadb-operator-cluster.sh
+        - export NAMESPACE=openstack; ./tools/deployment/common/ldap.sh
+        - |
+          export OSH_EXTRA_HELM_ARGS="--set endpoints.oslo_db.hosts.default=mariadb-server-primary ${OSH_EXTRA_HELM_ARGS}"
+          ./tools/deployment/openstack/keystone.sh
+        - ./tools/deployment/db/mariadb-backup.sh
+        - ./tools/deployment/monitoring/mysql-exporter.sh
+    files:
+      - ^roles/.*
+      - ^mariadb-cluster/.*
+      - ^tools/.*
+
+- job:
+    name: openstack-helm-infra-compute-kit-dpdk-2024-1-ubuntu_jammy
+    description: |
+      Run the openstack-helm compute-kit job with DPDK enabled.
+      We use single node environment to run this job which means
+      that the job only tests that QEMU and OVS-DPDK are working
+      together. The job does not assume having specific DPDK hardware.
+    parent: openstack-helm-compute-kit
+    pre-run:
+      - playbooks/enable-hugepages.yaml
+      - playbooks/prepare-hosts.yaml
+    nodeset: openstack-helm-1node-32GB-ubuntu_jammy
+    vars:
+      gate_scripts_relative_path: ../openstack-helm
+      hugepages:
+        enabled: true
+        size: "2M"
+        number: 2048
+      osh_params:
+        openstack_release: "2024.1"
+        container_distro_name: ubuntu
+        container_distro_version: jammy
+        feature_gates: dpdk
+    files:
+      - ^roles/.*
+      - ^openvswitch/.*
+
+- job:
+    name: openstack-helm-infra-compute-kit-ovn-2024-1-ubuntu_jammy
+    parent: openstack-helm-compute-kit-ovn-2024-1-ubuntu_jammy
+    files:
+      - ^helm-toolkit/.*
+      - ^roles/.*
+      - ^rabbitmq/.*
+      - ^mariadb/.*
+      - ^libvirt/.*
+      - ^ovn/.*
+
+- job:
+    name: openstack-helm-infra-compute-kit-2024-1-ubuntu_jammy
+    parent: openstack-helm-compute-kit-2024-1-ubuntu_jammy
+    files:
+      - ^helm-toolkit/.*
+      - ^roles/.*
+      - ^rabbitmq/.*
+      - ^mariadb/.*
+      - ^libvirt/.*
+      - ^memcached/.*
+      - ^openvswitch/.*
+
+- job:
+    name: openstack-helm-infra-compute-kit-2024-2-ubuntu_jammy
+    parent: openstack-helm-compute-kit-2024-2-ubuntu_jammy
+    files:
+      - ^helm-toolkit/.*
+      - ^roles/.*
+      - ^rabbitmq/.*
+      - ^mariadb/.*
+      - ^libvirt/.*
+      - ^memcached/.*
+      - ^openvswitch/.*
+
+- job:
+    name: openstack-helm-infra-keystone-cilium-2024-1-ubuntu_jammy
+    parent: openstack-helm-infra-deploy
+    nodeset: openstack-helm-3nodes-ubuntu_jammy
+    files:
+      - ^helm-toolkit/.*
+      - ^roles/.*
+      - ^rabbitmq/.*
+      - ^mariadb/.*
+      - ^memcached/.*
+    vars:
+      osh_params:
+        openstack_release: "2024.1"
+        container_distro_name: ubuntu
+        container_distro_version: jammy
+      calico_setup: false
+      cilium_setup: true
+      gate_scripts:
+        - ./tools/deployment/common/prepare-k8s.sh
+        - ./tools/deployment/common/infra-prepare-charts.sh
+        - ./tools/deployment/common/setup-client.sh
+        - |
+          export NAMESPACE=openstack
+          export OSH_INFRA_EXTRA_HELM_ARGS="--set pod.replicas.server=1 --set volume.enabled=false --set volume.use_local_path_for_single_pod_cluster.enabled=true ${OSH_INFRA_EXTRA_HELM_ARGS}"
+          export RUN_HELM_TESTS=no
+          ./tools/deployment/db/mariadb.sh
+        - ./tools/deployment/common/rabbitmq.sh
+        - ./tools/deployment/common/memcached.sh
+        - ./tools/deployment/openstack/keystone.sh
+
+- job:
+    name: openstack-helm-infra-keystone-flannel-2024-1-ubuntu_jammy
+    parent: openstack-helm-infra-deploy
+    nodeset: openstack-helm-3nodes-ubuntu_jammy
+    files:
+      - ^helm-toolkit/.*
+      - ^roles/.*
+      - ^rabbitmq/.*
+      - ^mariadb/.*
+      - ^memcached/.*
+    vars:
+      osh_params:
+        openstack_release: "2024.1"
+        container_distro_name: ubuntu
+        container_distro_version: jammy
+      calico_setup: false
+      flannel_setup: true
+      gate_scripts:
+        - ./tools/deployment/common/prepare-k8s.sh
+        - ./tools/deployment/common/infra-prepare-charts.sh
+        - ./tools/deployment/common/setup-client.sh
+        - |
+          export NAMESPACE=openstack
+          export OSH_INFRA_EXTRA_HELM_ARGS="--set pod.replicas.server=1 --set volume.enabled=false --set volume.use_local_path_for_single_pod_cluster.enabled=true ${OSH_INFRA_EXTRA_HELM_ARGS}"
+          export RUN_HELM_TESTS=no
+          ./tools/deployment/db/mariadb.sh
+        - ./tools/deployment/common/rabbitmq.sh
+        - ./tools/deployment/common/memcached.sh
+        - ./tools/deployment/openstack/keystone.sh
+
+- job:
+    name: openstack-helm-infra-cinder-2024-1-ubuntu_jammy
+    description: |
+      This job uses Rook for managing Ceph cluster.
+      The job is run on 5 nodes.
+    parent: openstack-helm-cinder-2024-1-ubuntu_jammy
+    nodeset: openstack-helm-5nodes-ubuntu_jammy
+    files:
+      - ^helm-toolkit/.*
+      - ^roles/.*
+      - ^ceph.*
+      - ^tools/deployment/ceph/ceph-rook\.sh$
+      - ^tools/deployment/ceph/ceph-adapter-rook\.sh$
+
+- job:
+    name: openstack-helm-infra-tls-2024-1-ubuntu_jammy
+    description: |
+      This job uses Rook for managing Ceph cluster.
+    parent: openstack-helm-tls-2024-1-ubuntu_jammy
+    # NOTE(kozhukalov): The job is not stable. We make it non-voting for now
+    # to unblock the gate.
+    voting: false
+    files:
+      - ^helm-toolkit/.*
+      - ^roles/.*
+      - ^rabbitmq/.*
+      - ^mariadb/.*
+      - ^memcached/.*
+      - ^libvrit/.*
+      - ^openvswitch/.*
+
+- job:
+    name: openstack-helm-infra-mariadb-ingress-2024-1-ubuntu_jammy
+    parent: openstack-helm-compute-kit-2024-1-ubuntu_jammy
+    vars:
+      osh_params:
+        feature_gates: "ingress-service"
+    files:
+      - ^helm-toolkit/.*
+      - ^roles/.*
+      - ^rabbitmq/.*
+      - ^mariadb/.*
+      - ^memcached/.*
+      - ^libvrit/.*
+      - ^openvswitch/.*
+
+- job:
+    name: openstack-helm-infra-ceph-migrate
+    description: |
+      This job is for testing the migration procedure from
+      a Ceph cluster managed by legacy OSH ceph* charts
+      to a Ceph cluster managed by Rook-Ceph operator.
+    parent: openstack-helm-infra-deploy
+    nodeset: openstack-helm-5nodes-ubuntu_jammy
+    timeout: 10800
+    pre-run:
+      - playbooks/prepare-hosts.yaml
+      - playbooks/mount-volumes.yaml
+      - playbooks/inject-keys.yaml
+    files:
+      - ^helm-toolkit/.*
+      - ^roles/.*
+      - ^ceph.*
+      - ^tools/deployment/ceph/.*
+    vars:
+      osh_params:
+        openstack_release: "2024.1"
+        container_distro_name: ubuntu
+        container_distro_version: jammy
+      gate_scripts:
+        - ./tools/deployment/common/prepare-k8s.sh
+        - ./tools/deployment/common/infra-prepare-charts.sh
+        # Deploy Ceph cluster using legacy OSH charts
+        - ./tools/deployment/ceph/ceph_legacy.sh
+        # Deploy stateful applications
+        - |
+          export NAMESPACE=openstack
+          export MONITORING_HELM_ARGS=" "
+          export OSH_INFRA_EXTRA_HELM_ARGS="--set pod.replicas.server=1 ${OSH_INFRA_EXTRA_HELM_ARGS}"
+          export RUN_HELM_TESTS=no
+          ./tools/deployment/db/mariadb.sh
+        - |
+          export NAMESPACE=openstack
+          export VOLUME_HELM_ARGS=" "
+          ./tools/deployment/common/rabbitmq.sh
+        # Migrate legacy Ceph to Rook
+        - ./tools/deployment/ceph/migrate-before.sh
+        - ./tools/deployment/ceph/migrate-values.sh
+        - ./tools/deployment/ceph/migrate-to-rook-ceph.sh
+        - ./tools/deployment/ceph/migrate-after.sh
+...

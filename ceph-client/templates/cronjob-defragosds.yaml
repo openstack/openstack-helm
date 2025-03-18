@@ -1,0 +1,110 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.cronjob_defragosds }}
+{{- $envAll := . }}
+
+{{- $serviceAccountName := "ceph-defragosds" }}
+{{ tuple $envAll "ceph_defragosds" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ $serviceAccountName }}
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - pods
+      - pods/exec
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ $serviceAccountName }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ $serviceAccountName }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ $serviceAccountName }}
+    namespace: {{ $envAll.Release.Namespace }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ $serviceAccountName }}
+  annotations:
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+  labels:
+{{ tuple $envAll "ceph" "ceph-defragosds" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  schedule: {{ .Values.jobs.ceph_defragosds.cron | quote }}
+  successfulJobsHistoryLimit: {{ .Values.jobs.ceph_defragosds.history.successJob }}
+  failedJobsHistoryLimit: {{ .Values.jobs.ceph_defragosds.history.failJob }}
+  concurrencyPolicy: {{ .Values.jobs.ceph_defragosds.concurrency.execPolicy }}
+  startingDeadlineSeconds: {{ .Values.jobs.ceph_defragosds.startingDeadlineSecs }}
+  jobTemplate:
+    metadata:
+      labels:
+{{ tuple $envAll "ceph" "ceph-defragosds" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+    spec:
+      template:
+        metadata:
+          labels:
+{{ tuple $envAll "ceph" "ceph-defragosds" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 12 }}
+        spec:
+          serviceAccountName: {{ $serviceAccountName }}
+          nodeSelector:
+            {{ .Values.labels.mgr.node_selector_key }}: {{ .Values.labels.mgr.node_selector_value }}
+          containers:
+          - name: {{ $serviceAccountName }}
+{{ tuple $envAll "ceph_config_helper" | include "helm-toolkit.snippets.image" | indent 12 }}
+            env:
+              - name: NAMESPACE
+                valueFrom:
+                  fieldRef:
+                    fieldPath: metadata.namespace
+              - name: KUBECTL_PARAM
+                value: {{ tuple $envAll "ceph" "ceph-defragosd" | include "helm-toolkit.snippets.kubernetes_kubectl_params" }}
+            command:
+              - /tmp/utils-defragOSDs.sh
+              - cron
+            volumeMounts:
+              - name: pod-tmp
+                mountPath: /tmp
+              - name: pod-etc-ceph
+                mountPath: /etc/ceph
+              - name: ceph-client-bin
+                mountPath: /tmp/utils-defragOSDs.sh
+                subPath: utils-defragOSDs.sh
+                readOnly: true
+          restartPolicy: Never
+          hostNetwork: true
+          volumes:
+            - name: pod-tmp
+              emptyDir: {}
+            - name: pod-etc-ceph
+              emptyDir: {}
+            - name: ceph-client-bin
+              configMap:
+                name: ceph-client-bin
+                defaultMode: 0555
+{{- end }}

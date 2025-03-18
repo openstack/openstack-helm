@@ -1,0 +1,1230 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Default values for nagios.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+---
+images:
+  tags:
+    apache_proxy: docker.io/library/httpd:2.4
+    nagios: docker.io/openstackhelm/nagios:latest-ubuntu_jammy
+    dep_check: quay.io/stackanetes/kubernetes-entrypoint:v0.2.1
+    selenium_tests: docker.io/openstackhelm/osh-selenium:latest-ubuntu_jammy
+    image_repo_sync: docker.io/library/docker:17.07.0
+  pull_policy: IfNotPresent
+  local_registry:
+    active: false
+    exclude:
+      - dep_check
+      - image_repo_sync
+
+# Use selenium v4 syntax
+selenium_v4: true
+
+labels:
+  nagios:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  job:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  test:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+
+dependencies:
+  dynamic:
+    common:
+      jobs:
+        - nagios-image-repo-sync
+      services:
+        - service: local_image_registry
+          endpoint: node
+  static:
+    image_repo_sync:
+      services:
+        - service: local_image_registry
+          endpoint: internal
+    nagios:
+      services: null
+    tests:
+      services:
+        - service: nagios
+          endpoint: internal
+
+secrets:
+  nagios:
+    admin: nagios-admin-creds
+  oci_image_registry:
+    nagios: nagios-oci-image-registry-key
+  tls:
+    nagios:
+      nagios:
+        public: nagios-tls-public
+
+endpoints:
+  cluster_domain_suffix: cluster.local
+  local_image_registry:
+    name: docker-registry
+    namespace: docker-registry
+    hosts:
+      default: localhost
+      internal: docker-registry
+      node: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        node: 5000
+  oci_image_registry:
+    name: oci-image-registry
+    namespace: oci-image-registry
+    auth:
+      enabled: false
+      nagios:
+        username: nagios
+        password: password
+    hosts:
+      default: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        default: null
+  monitoring:
+    name: prometheus
+    auth:
+      admin:
+        username: admin
+        password: changeme
+        secret:
+          tls:
+            internal: prometheus-tls-api
+    hosts:
+      default: prom-metrics
+      public: prometheus
+    host_fqdn_override:
+      default: null
+    path:
+      default: null
+    scheme:
+      default: http
+    port:
+      http:
+        default: 80
+  nagios:
+    name: nagios
+    namespace: null
+    auth:
+      admin:
+        username: nagiosadmin
+        password: password
+    hosts:
+      default: nagios-metrics
+      public: nagios
+    host_fqdn_override:
+      default: null
+      # NOTE(srwilkers): this chart supports TLS for fqdn over-ridden public
+      # endpoints using the following format:
+      # public:
+      #   host: null
+      #   tls:
+      #     crt: null
+      #     key: null
+    path:
+      default: null
+    scheme:
+      default: http
+    port:
+      nagios:
+        default: 8000
+      http:
+        default: 80
+  ldap:
+    hosts:
+      default: ldap
+    auth:
+      admin:
+        bind: "cn=admin,dc=cluster,dc=local"
+        password: password
+    host_fqdn_override:
+      default: null
+    path:
+      default: "/ou=People,dc=cluster,dc=local"
+    scheme:
+      default: ldap
+    port:
+      ldap:
+        default: 389
+  elasticsearch:
+    name: elasticsearch
+    namespace: null
+    auth:
+      admin:
+        username: admin
+        password: changeme
+    hosts:
+      default: elasticsearch-logging
+    host_fqdn_override:
+      default: null
+    path:
+      default: /
+    scheme:
+      default: http
+    port:
+      http:
+        default: 80
+  ceph_mgr:
+    namespace: null
+    hosts:
+      default: ceph-mgr
+    host_fqdn_override:
+      default: null
+    port:
+      mgr:
+        default: 7000
+      metrics:
+        default: 9283
+    scheme:
+      default: http
+
+network:
+  nagios:
+    ingress:
+      public: true
+      classes:
+        namespace: "nginx"
+        cluster: "nginx-cluster"
+      annotations:
+        nginx.ingress.kubernetes.io/rewrite-target: /
+        nginx.ingress.kubernetes.io/affinity: cookie
+        nginx.ingress.kubernetes.io/session-cookie-name: kube-ingress-session-nagios
+        nginx.ingress.kubernetes.io/session-cookie-hash: sha1
+        nginx.ingress.kubernetes.io/session-cookie-expires: "600"
+        nginx.ingress.kubernetes.io/session-cookie-max-age: "600"
+        nginx.ingress.kubernetes.io/configuration-snippet: |
+          more_set_headers "X-Content-Type-Options: 'nosniff'";
+          more_set_headers "X-Frame-Options: SAMEORIGIN";
+          more_set_headers "Content-Security-Policy: script-src 'self'";
+          more_set_headers "X-XSS-Protection: 1; mode=block";
+    node_port:
+      enabled: false
+      port: 30925
+
+network_policy:
+  nagios:
+    ingress:
+      - {}
+    egress:
+      - {}
+
+pod:
+  security_context:
+    monitoring:
+      pod:
+        runAsUser: 0
+      container:
+        define_nagios_hosts:
+          readOnlyRootFilesystem: false
+        apache_proxy:
+          readOnlyRootFilesystem: false
+        nagios:
+          readOnlyRootFilesystem: false
+        helm_tests:
+          readOnlyRootFilesystem: true
+  affinity:
+    anti:
+      type:
+        default: preferredDuringSchedulingIgnoredDuringExecution
+      topologyKey:
+        default: kubernetes.io/hostname
+      weight:
+        default: 10
+  lifecycle:
+    upgrades:
+      deployments:
+        revision_history: 3
+        pod_replacement_strategy: RollingUpdate
+        rolling_update:
+          max_unavailable: 1
+          max_surge: 3
+    termination_grace_period:
+      nagios:
+        timeout: 30
+  # env:
+  #
+  # NOTE(megheisler): This value can be used to hold
+  # the domain name. Functionality has been added in
+  # plugins to append the domain to the host name in
+  # the nagios dashboard
+  #
+  #  NODE_DOMAIN:
+  replicas:
+    nagios: 1
+  probes:
+    monitoring:
+      nagios:
+        readiness:
+          enabled: true
+          params:
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 10
+      apache_proxy:
+        readiness:
+          enabled: true
+          params:
+            initialDelaySeconds: 20
+            periodSeconds: 10
+  resources:
+    enabled: false
+    nagios:
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+    apache_proxy:
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+    jobs:
+      image_repo_sync:
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+      tests:
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+
+manifests:
+  certificates: false
+  configmap_additional_plugins: false
+  configmap_bin: true
+  configmap_etc: true
+  deployment: true
+  ingress: true
+  job_image_repo_sync: true
+  network_policy: false
+  pod_helm_test: true
+  secret_nagios: true
+  secret_ingress_tls: true
+  secret_registry: true
+  service: true
+  service_ingress: true
+
+conf:
+  httpd: |
+    ServerRoot "/usr/local/apache2"
+
+    Listen 80
+
+    LoadModule mpm_event_module modules/mod_mpm_event.so
+    LoadModule authn_file_module modules/mod_authn_file.so
+    LoadModule authn_core_module modules/mod_authn_core.so
+    LoadModule authz_host_module modules/mod_authz_host.so
+    LoadModule authz_groupfile_module modules/mod_authz_groupfile.so
+    LoadModule authz_user_module modules/mod_authz_user.so
+    LoadModule authz_core_module modules/mod_authz_core.so
+    LoadModule access_compat_module modules/mod_access_compat.so
+    LoadModule auth_basic_module modules/mod_auth_basic.so
+    LoadModule ldap_module modules/mod_ldap.so
+    LoadModule authnz_ldap_module modules/mod_authnz_ldap.so
+    LoadModule reqtimeout_module modules/mod_reqtimeout.so
+    LoadModule filter_module modules/mod_filter.so
+    LoadModule proxy_html_module modules/mod_proxy_html.so
+    LoadModule log_config_module modules/mod_log_config.so
+    LoadModule env_module modules/mod_env.so
+    LoadModule headers_module modules/mod_headers.so
+    LoadModule setenvif_module modules/mod_setenvif.so
+    LoadModule version_module modules/mod_version.so
+    LoadModule proxy_module modules/mod_proxy.so
+    LoadModule proxy_connect_module modules/mod_proxy_connect.so
+    LoadModule proxy_http_module modules/mod_proxy_http.so
+    LoadModule proxy_balancer_module modules/mod_proxy_balancer.so
+    LoadModule slotmem_shm_module modules/mod_slotmem_shm.so
+    LoadModule slotmem_plain_module modules/mod_slotmem_plain.so
+    LoadModule unixd_module modules/mod_unixd.so
+    LoadModule status_module modules/mod_status.so
+    LoadModule autoindex_module modules/mod_autoindex.so
+
+    <IfModule unixd_module>
+    User daemon
+    Group daemon
+    </IfModule>
+
+    <Directory />
+        AllowOverride none
+        Require all denied
+    </Directory>
+
+    <Files ".ht*">
+        Require all denied
+    </Files>
+
+    ErrorLog /dev/stderr
+
+    LogLevel warn
+
+    <IfModule log_config_module>
+        LogFormat "%a %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\"" combined
+        LogFormat "%{X-Forwarded-For}i %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\"" proxy
+        LogFormat "%h %l %u %t \"%r\" %>s %b" common
+
+        <IfModule logio_module>
+          LogFormat "%a %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\" %I %O" combinedio
+        </IfModule>
+
+        SetEnvIf X-Forwarded-For "^.*\..*\..*\..*" forwarded
+        CustomLog /dev/stdout common
+        CustomLog /dev/stdout combined
+        CustomLog /dev/stdout proxy env=forwarded
+    </IfModule>
+
+    <Directory "/usr/local/apache2/cgi-bin">
+        AllowOverride None
+        Options None
+        Require all granted
+    </Directory>
+
+    <IfModule headers_module>
+        RequestHeader unset Proxy early
+    </IfModule>
+
+    <IfModule proxy_html_module>
+    Include conf/extra/proxy-html.conf
+    </IfModule>
+
+    <VirtualHost *:80>
+      <Location />
+          ProxyPass http://localhost:{{ tuple "nagios" "internal" "nagios" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}/
+          ProxyPassReverse http://localhost:{{ tuple "nagios" "internal" "nagios" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}/
+      </Location>
+      <Proxy *>
+          AuthName "Nagios"
+          AuthType Basic
+          AuthBasicProvider file ldap
+          AuthUserFile /usr/local/apache2/conf/.htpasswd
+          AuthLDAPBindDN {{ .Values.endpoints.ldap.auth.admin.bind }}
+          AuthLDAPBindPassword {{ .Values.endpoints.ldap.auth.admin.password }}
+          AuthLDAPURL {{ tuple "ldap" "default" "ldap" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" | quote }}
+          Require valid-user
+      </Proxy>
+    </VirtualHost>
+  nagios:
+    notification:
+      snmp:
+        primary_target: 127.0.0.1:15162
+        secondary_target: 127.0.0.1:15162
+      http:
+        primary_target: 127.0.0.1:3904/events
+        secondary_target: 127.0.0.1:3904/events
+    objects:
+      base:
+        template: |
+          define host {
+            address 127.0.0.1
+            alias Prometheus Monitoring
+            check_command check-prometheus-host-alive
+            host_name {{ tuple "monitoring" "public" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
+            hostgroups prometheus-hosts
+            use linux-server
+          }
+
+          define contact {
+            alias notifying contact
+            contact_name notifying_contact
+            host_notification_options d,u,r,f,s
+            host_notification_period 24x7
+            name notifying_contact
+            register 0
+            service_notification_options w,u,c,r,f,s
+            service_notification_period 24x7
+          }
+
+          define contact {
+            alias snmp contact
+            contact_name snmp_notifying_contact
+            host_notification_commands send_host_snmp_trap
+            name snmp_notifying_contact
+            service_notification_commands send_service_snmp_trap
+            use notifying_contact
+          }
+
+          define contact {
+            alias HTTP contact
+            contact_name http_notifying_contact
+            host_notification_commands send_host_http_post
+            name http_notifying_contact
+            service_notification_commands send_service_http_post
+            use notifying_contact
+          }
+
+          define contactgroup {
+            alias SNMP and HTTP notifying group
+            contactgroup_name snmp_and_http_notifying_contact_group
+            members snmp_notifying_contact,http_notifying_contact
+          }
+
+          define hostgroup {
+            alias Prometheus Virtual Host
+            hostgroup_name prometheus-hosts
+          }
+
+          define hostgroup {
+            alias all
+            hostgroup_name all
+          }
+
+          define hostgroup {
+            alias base-os
+            hostgroup_name base-os
+          }
+
+          define command {
+            command_line $USER1$/send_service_trap.sh '$USER8$' '$HOSTNAME$' '$SERVICEDESC$' $SERVICESTATEID$ '$SERVICEOUTPUT$' '$USER4$' '$USER5$'
+            command_name send_service_snmp_trap
+          }
+
+          define command {
+            command_line $USER1$/send_host_trap.sh '$USER8$' '$HOSTNAME$' $HOSTSTATEID$ '$HOSTOUTPUT$' '$USER4$' '$USER5$'
+            command_name send_host_snmp_trap
+          }
+
+          define command {
+            command_line $USER1$/send_http_post_event.py --type service --hostname '$HOSTNAME$' --servicedesc '$SERVICEDESC$' --state_id $SERVICESTATEID$ --output '$SERVICEOUTPUT$' --monitoring_hostname '$HOSTNAME$' --primary_url '$USER6$' --secondary_url '$USER7$'
+            command_name send_service_http_post
+          }
+
+          define command {
+            command_line $USER1$/send_http_post_event.py --type host --hostname '$HOSTNAME$' --state_id $HOSTSTATEID$ --output '$HOSTOUTPUT$' --monitoring_hostname '$HOSTNAME$' --primary_url '$USER6$' --secondary_url '$USER7$'
+            command_name send_host_http_post
+          }
+
+          define command {
+            command_line $USER1$/check_rest_get_api.py --url $USER2$ --warning_response_seconds 5 --critical_response_seconds 10
+            command_name check-prometheus-host-alive
+          }
+
+          define command {
+            command_line $USER1$/query_prometheus_alerts.py --prometheus_api $USER2$ --alertname '$ARG1$' --labels_csv '$ARG2$' --msg_format '$ARG3$' --ok_message '$ARG4$'
+            command_name check_prom_alert_with_labels
+          }
+
+          define command {
+            command_line $USER1$/query_prometheus_alerts.py --prometheus_api $USER2$ --alertname '$ARG1$' --msg_format '$ARG2$' --ok_message '$ARG3$'
+            command_name check_prom_alert
+          }
+
+          define service {
+            check_interval 60
+            contact_groups snmp_and_http_notifying_contact_group
+            flap_detection_enabled 0
+            name notifying_service
+            notification_interval 120
+            process_perf_data 0
+            register 0
+            retry_interval 30
+            use generic-service
+          }
+      kubernetes:
+        template: |
+          define service {
+            check_command check_prom_alert!prom_exporter_calico_unavailable!CRITICAL- Calico exporter is not collecting metrics for alerting!OK- Calico exporter metrics are available.
+            hostgroup_name prometheus-hosts
+            service_description Prometheus-exporter_Calico
+            use generic-service
+          }
+
+          define service {
+            check_command check_prom_alert!prom_exporter_kube_state_metrics_unavailable!CRITICAL- kube-state-metrics exporter is not collecting metrics for alerting!OK- kube-state-metrics exporter metrics are available.
+            hostgroup_name prometheus-hosts
+            service_description Prometheus-exporter_Kube-state-metrics
+            use generic-service
+          }
+
+          define service {
+            check_command check_prom_alert!K8SNodesNotReady!CRITICAL- One or more nodes are not ready.
+            check_interval 60
+            hostgroup_name prometheus-hosts
+            service_description Nodes_health
+            use generic-service
+          }
+
+          define service {
+            check_command check_prom_alert_with_labels!kube_statefulset_replicas_unavailable!statefulset="prometheus"!statefulset {statefulset} has lesser than configured replicas
+            check_interval 60
+            hostgroup_name prometheus-hosts
+            service_description Prometheus_replica-count
+            use notifying_service
+          }
+
+          define service {
+            check_command check_prom_alert_with_labels!kube_statefulset_replicas_unavailable!statefulset="alertmanager"!statefulset {statefulset} has lesser than configured replicas
+            check_interval 60
+            hostgroup_name prometheus-hosts
+            service_description PrometheusAlertmanager_replica-count
+            use notifying_service
+          }
+
+          define service {
+            check_command check_prom_alert!kube_statefulset_replicas_unavailable!CRITICAL- statefulset {statefulset} has lesser than configured replicas!OK- All statefulsets have configured amount of replicas
+            check_interval 60
+            hostgroup_name prometheus-hosts
+            service_description Statefulset_replica-count
+            use notifying_service
+          }
+
+          define service {
+            check_command check_prom_alert!daemonsets_misscheduled!CRITICAL- Daemonset {daemonset} is incorrectly scheudled!OK- No daemonset misscheduling detected
+            check_interval 60
+            hostgroup_name prometheus-hosts
+            service_description Daemonset_misscheduled
+            use notifying_service
+          }
+
+          define service {
+            check_command check_prom_alert!daemonsets_not_scheduled!CRITICAL- Daemonset {daemonset} is missing to be scheduled in some nodes!OK- All daemonset scheduling is as desired
+            check_interval 60
+            hostgroup_name prometheus-hosts
+            service_description Daemonset_not-scheduled
+            use notifying_service
+          }
+
+          define service {
+            check_command check_prom_alert!daemonset_pods_unavailable!CRITICAL- Daemonset {daemonset} has pods unavailable!OK- All daemonset pods available
+            check_interval 60
+            hostgroup_name prometheus-hosts
+            service_description Daemonset_pods-unavailable
+            use notifying_service
+          }
+
+          define service {
+            check_command check_prom_alert!deployment_replicas_unavailable!CRITICAL- Deployment {deployment} has less than desired replicas!OK- All deployments have desired replicas
+            check_interval 60
+            hostgroup_name prometheus-hosts
+            service_description Deployment_replicas-unavailable
+            use notifying_service
+          }
+
+          define service {
+            check_command check_prom_alert!volume_claim_capacity_high_utilization!CRITICAL- Volume claim {persistentvolumeclaim} has exceed 80% utilization!OK- All volume claims less than 80% utilization
+            check_interval 60
+            hostgroup_name prometheus-hosts
+            service_description Volume_claim_high_utilization
+            use notifying_service
+          }
+
+          define service {
+            check_command check_prom_alert!rollingupdate_deployment_replica_less_than_spec_max_unavailable!CRITICAL- Deployment {deployment} has less than desired replicas during a rolling update!OK- All deployments have desired replicas
+            check_interval 60
+            hostgroup_name prometheus-hosts
+            service_description RollingUpdate_Deployment-replicas-unavailable
+            use notifying_service
+          }
+
+          define service {
+            check_command check_prom_alert!job_status_failed!CRITICAL- Job {exported_job} has failed!OK- No Job failures
+            check_interval 60
+            hostgroup_name prometheus-hosts
+            service_description Job_status-failed
+            use notifying_service
+          }
+
+          define service {
+            check_command check_prom_alert!pod_status_pending!CRITICAL- Pod {pod} in namespace {namespace} has been in pending status for more than 10 minutes!OK- No pods in pending status
+            check_interval 60
+            hostgroup_name prometheus-hosts
+            service_description Pod_status-pending
+            use notifying_service
+          }
+
+          define service {
+            check_command check_prom_alert!pod_status_error_image_pull!CRITICAL- Pod {pod} in namespace {namespace} has been in errpr status of ErrImagePull for more than 10 minutes!OK- No pods in error status
+            check_interval 60
+            hostgroup_name prometheus-hosts
+            service_description Pod_status-error-image-pull
+            use notifying_service
+          }
+
+          define service {
+            check_command check_prom_alert! pod_status_error_image_pull_backoff!CRITICAL- Pod {pod} in namespace {namespace} has been in errpr status of ImagePullBackOff for more than 10 minutes!OK- No pods in error status
+            check_interval 60
+            hostgroup_name prometheus-hosts
+            service_description Pod_status-error-image-pull
+            use notifying_service
+          }
+
+          define service {
+            check_command check_prom_alert! pod_error_config_error!CRITICAL- Pod {pod} in namespace {namespace} has been in errpr status of CreateContainerConfigError for more than 10 minutes!OK- No pods in error status
+            check_interval 60
+            hostgroup_name prometheus-hosts
+            service_description Pod_status-error-image-pull
+            use notifying_service
+          }
+
+          define service {
+            check_command check_prom_alert!pod_error_crash_loop_back_off!CRITICAL- Pod {pod} in namespace {namespace} has been in error status of CrashLoopBackOff for more than 10 minutes!OK- No pods in crashLoopBackOff status
+            check_interval 60
+            hostgroup_name prometheus-hosts
+            service_description Pod_status-crashLoopBackOff
+            use notifying_service
+          }
+
+          define service {
+            check_command check_prom_alert!replicaset_missing_replicas!CRITICAL- Replicaset {replicaset} is missing replicas!OK- No replicas missing from replicaset
+            check_interval 60
+            hostgroup_name prometheus-hosts
+            service_description Replicaset_missing-replicas
+            use notifying_service
+          }
+
+          define service {
+            check_command check_prom_alert!pod_container_terminated!CRITICAL- pod {pod} in namespace {namespace} has a container in terminated state!OK- pod container status looks good
+            check_interval 60
+            hostgroup_name prometheus-hosts
+            service_description Pod_status-container-terminated
+            use notifying_service
+          }
+
+          define service {
+            check_command check_prom_alert_with_labels!etcd_HighNumberOfFailedHTTPRequests!method="DELETE"!CRITICAL- ETCD {instance} has a high HTTP DELETE operations failure!OK- ETCD at {instance} has low or no failures for HTTP DELETE
+            check_interval 60
+            hostgroup_name prometheus-hosts
+            service_description ETCD_high-http-delete-failures
+            use notifying_service
+          }
+
+          define service {
+            check_command check_prom_alert_with_labels!etcd_HighNumberOfFailedHTTPRequests!method=~"GET|QGET"!CRITICAL- ETCD {instance} has a high HTTP GET operations failure!OK- ETCD at {instance} has low or no failures for HTTP GET
+            check_interval 60
+            hostgroup_name prometheus-hosts
+            service_description ETCD_high-http-get-failures
+            use notifying_service
+          }
+
+          define service {
+            check_command check_prom_alert_with_labels!etcd_HighNumberOfFailedHTTPRequests!method="PUT"!CRITICAL- ETCD {instance} has a high HTTP PUT operations failure!OK- ETCD at {instance} has low or no failures for HTTP PUT
+            check_interval 60
+            hostgroup_name prometheus-hosts
+            service_description ETCD_high-http-update-failures
+            use notifying_service
+          }
+
+          define service {
+            check_command check_prom_alert!calico_iptable_save_errors_high_1h!CRITICAL- Felix instance {instance} has seen high iptable save errors within the last hour!OK- iptables save errors are none or low
+            hostgroup_name prometheus-hosts
+            service_description Calico_iptables-save-errors
+            use notifying_service
+          }
+
+          define service {
+            check_command check_prom_alert!calico_ipset_errors_high_1h!CRITICAL- Felix instance {instance} has seen high ipset errors within the last hour!OK- ipset errors are none or low
+            hostgroup_name prometheus-hosts
+            service_description Calico_ipset-errors
+            use notifying_service
+          }
+
+          define service {
+            check_command check_prom_alert!calico_datapane_iface_msg_batch_size_high_5m!CRITICAL- Felix instance {instance} has seen a high value of dataplane interface message batch size!OK- dataplane interface message batch size are low
+            hostgroup_name prometheus-hosts
+            service_description Calico_interface-message-batch-size
+            use notifying_service
+          }
+
+          define service {
+            check_command check_prom_alert!calico_datapane_address_msg_batch_size_high_5m!CRITICAL- Felix instance {instance} has seen a high value of dataplane address message batch size!OK- dataplane address message batch size are low
+            hostgroup_name prometheus-hosts
+            service_description Calico_address-message-batch-size
+            use notifying_service
+          }
+
+          define service {
+            check_command check_prom_alert!calico_datapane_failures_high_1h!CRITICAL- Felix instance {instance} has seen high dataplane failures within the last hour!OK- datapane failures are none or low
+            hostgroup_name prometheus-hosts
+            service_description Calico_datapane_failures_high
+            use notifying_service
+          }
+      node:
+        template: |
+          define service {
+            check_command check_prom_alert!prom_exporter_node_unavailable!CRITICAL- Node exporter is not collecting metrics for alerting!OK- Node exporter metrics are available.
+            hostgroup_name prometheus-hosts
+            service_description Prometheus-exporter_Node
+            use generic-service
+          }
+
+          define command {
+            command_line $USER1$/query_prometheus_alerts.py --prometheus_api $USER2$ --alertname 'node_filesystem_full_in_4h' --labels_csv 'instance=~"$HOSTADDRESS$.*"' --msg_format 'CRITICAL- Mountpoint {mountpoint} will be full in four hours' --ok_message 'OK- All mountpoints usage rate is normal'
+            command_name check_filespace_mounts-usage-rate-fullin4hrs
+          }
+
+          define command {
+            command_line $USER1$/query_prometheus_alerts.py --prometheus_api $USER2$ --alertname 'node_filesystem_full_80percent' --labels_csv 'instance=~"$HOSTADDRESS$.*"' --msg_format 'CRITICAL- Mountpoint {mountpoint} is more than 80 pecent full' --ok_message 'OK- All mountpoints usage is normal'
+            command_name check_filespace_mounts-usage
+          }
+
+          define command {
+            command_line $USER1$/query_prometheus_alerts.py --prometheus_api $USER2$ --alertname 'node_load1_90percent' --labels_csv 'instance=~"$HOSTADDRESS$.*"' --msg_format 'CRITICAL- Node load average has been more than 90% for the pash hour' --ok_message 'OK- Node load average is normal'
+            command_name check_node_loadavg
+          }
+
+          define command {
+            command_line $USER1$/query_prometheus_alerts.py --prometheus_api $USER2$ --alertname 'node_cpu_util_90percent' --labels_csv 'instance=~"$HOSTADDRESS$.*"' --msg_format 'CRITICAL- Node CPU utilization has been more than 90% for the pash hour' --ok_message 'OK- Node cpu utilization is normal'
+            command_name check_node_cpu_util
+          }
+
+          define command {
+            command_line $USER1$/query_prometheus_alerts.py --prometheus_api $USER2$ --alertname 'node_network_conntrack_usage_80percent' --labels_csv 'instance=~"$HOSTADDRESS$.*"' --msg_format 'CRITICAL- Node network connections are more than 90% in use' --ok_message 'OK- Network connection utilization is normal'
+            command_name check_network_connections
+          }
+
+          define command {
+            command_line $USER1$/query_prometheus_alerts.py --prometheus_api $USER2$ --alertname 'node_high_memory_load' --labels_csv 'instance=~"$HOSTADDRESS$.*"' --msg_format 'CRITICAL- Node memory usage is more than 85%' --ok_message 'OK- Node memory usage is less than 85%'
+            command_name check_memory_usage
+          }
+
+          define command {
+            command_line $USER1$/query_prometheus_alerts.py --prometheus_api $USER2$ --alertname 'node_disk_write_latency' --labels_csv 'instance=~"$HOSTADDRESS$.*"' --msg_format 'CRITICAL- Disk write latency is high' --ok_message 'OK- Node disk write latency is normal'
+            command_name check_disk_write_latency
+          }
+
+          define command {
+            command_line $USER1$/query_prometheus_alerts.py --prometheus_api $USER2$ --alertname 'node_disk_read_latency' --labels_csv 'instance=~"$HOSTADDRESS$.*"' --msg_format 'CRITICAL- Disk read latency is high' --ok_message 'OK- Node disk read latency is normal'
+            command_name check_disk_read_latency
+          }
+
+          define command {
+            command_line $USER1$/query_prometheus_alerts.py --prometheus_api $USER2$ --alertname 'node_entropy_available_low' --labels_csv 'instance=~"$HOSTADDRESS$.*"' --msg_format 'CRITICAL- System has low entropy availability' --ok_message 'OK- System entropy availability is sufficient'
+            command_name check_entropy_availability
+          }
+
+          define command {
+            command_line $USER1$/query_prometheus_alerts.py --prometheus_api $USER2$ --alertname 'node_filedescriptors_full_in_3h' --labels_csv 'instance=~"$HOSTADDRESS$.*"' --msg_format 'CRITICAL- at current consumption rate no free file descriptors will be available in 3hrs.' --ok_message 'OK- System file descriptor consumption is ok.'
+            command_name check_filedescriptor_usage_rate
+          }
+
+          define command {
+            command_line $USER1$/query_prometheus_alerts.py --prometheus_api $USER2$ --alertname 'node_hwmon_high_cpu_temp' --labels_csv 'instance=~"$HOSTADDRESS$.*"' --msg_format 'CRITICAL- CPU temperature is 90 percent of critical temperature.' --ok_message 'OK- CPU temperatures are normal.'
+            command_name check_hwmon_high_cpu_temp
+          }
+
+          define command {
+            command_line $USER1$/query_prometheus_alerts.py --prometheus_api $USER2$ --alertname 'node_high_network_drop_rcv' --labels_csv 'instance=~"$HOSTADDRESS$.*"' --msg_format 'CRITICAL- Host system has an unusally high drop in network reception.' --ok_message 'OK- network packet receive drops not high.'
+            command_name check_network_receive_drop_high
+          }
+
+          define command {
+            command_line $USER1$/query_prometheus_alerts.py --prometheus_api $USER2$ --alertname 'node_high_network_drop_send' --labels_csv 'instance=~"$HOSTADDRESS$.*"' --msg_format 'CRITICAL- Host system has an unusally high drop in network transmission.' --ok_message 'OK- network packet tramsmit drops not high.'
+            command_name check_network_transmit_drop_high
+          }
+
+          define command {
+            command_line $USER1$/query_prometheus_alerts.py --prometheus_api $USER2$ --alertname 'node_high_network_errs_rcv' --labels_csv 'instance=~"$HOSTADDRESS$.*"' --msg_format 'CRITICAL- Host system has an unusally high error rate in network reception.' --ok_message 'OK- network reception errors not high.'
+            command_name check_network_receive_errors_high
+          }
+
+          define command {
+            command_line $USER1$/query_prometheus_alerts.py --prometheus_api $USER2$ --alertname 'node_high_network_errs_send' --labels_csv 'instance=~"$HOSTADDRESS$.*"' --msg_format 'CRITICAL- Host system has an unusally high error rate in network transmission.' --ok_message 'OK- network transmission errors not high.'
+            command_name check_network_transmit_errors_high
+          }
+
+          define command {
+            command_line $USER1$/query_prometheus_alerts.py --prometheus_api $USER2$ --alertname 'node_vmstat_paging_rate_high' --labels_csv 'instance=~"$HOSTADDRESS$.*"' --msg_format 'CRITICAL- Memory paging rate over 5 minutes is high.' --ok_message 'OK- Memory paging rate over 5 minutes is ok.'
+            command_name check_vmstat_paging_rate
+          }
+
+          define command {
+            command_line $USER1$/query_prometheus_alerts.py --prometheus_api $USER2$ --alertname 'node_xfs_block_allocation_high' --labels_csv 'instance=~"$HOSTADDRESS$.*"' --msg_format 'CRITICAL- XFS block allocation is more than 80 percent of available.' --ok_message 'OK- XFS block allocation is less than 80 percent of available.'
+            command_name check_xfs_block_allocation
+          }
+
+          define command {
+            command_line $USER1$/query_prometheus_alerts.py --prometheus_api $USER2$ --alertname 'node_network_bond_slaves_down' --labels_csv 'instance=~"$HOSTADDRESS$.*"' --msg_format 'CRITICAL- {master} is missing slave interfaces.' --ok_message 'OK- Network bonds have slave interfaces functional.'
+            command_name check_network_bond_status
+          }
+
+          define command {
+            command_line $USER1$/query_prometheus_alerts.py --prometheus_api $USER2$ --alertname 'node_numa_memory_used' --labels_csv 'instance=~"$HOSTADDRESS$.*"' --msg_format 'CRITICAL- NUMA memory usage is more than 80 percent of available.' --ok_message 'OK- NUMA memory usage is normal.'
+            command_name check_numa_memory_usage
+          }
+
+          define command {
+            command_line $USER1$/query_prometheus_alerts.py --prometheus_api $USER2$ --alertname 'node_ntp_clock_skew_high' --labels_csv 'instance=~"$HOSTADDRESS$.*"' --msg_format 'CRITICAL- NTP clock skew is more than 2 seconds.' --ok_message 'OK- NTP clock skew is less than 2 seconds.'
+            command_name check_ntp_sync
+          }
+
+          define service {
+            check_command check_filespace_mounts-usage-rate-fullin4hrs
+            check_interval 60
+            hostgroup_name base-os
+            service_description Filespace_mounts-usage-rate-fullin4hrs
+            use notifying_service
+          }
+
+          define service {
+            check_command check_filespace_mounts-usage
+            check_interval 60
+            hostgroup_name base-os
+            service_description Filespace_mounts-usage
+            use notifying_service
+          }
+
+          define service {
+            check_command check_node_loadavg
+            hostgroup_name base-os
+            service_description CPU_Load-average
+            use notifying_service
+          }
+
+          define service {
+            check_command check_node_cpu_util
+            hostgroup_name base-os
+            service_description CPU_utilization
+            use notifying_service
+          }
+
+          define service {
+            check_command check_network_connections
+            hostgroup_name base-os
+            service_description Network_connections
+            use notifying_service
+          }
+
+          define service {
+            check_command check_memory_usage
+            hostgroup_name base-os
+            service_description Memory_usage
+            use notifying_service
+          }
+
+          define service {
+            check_command check_disk_write_latency
+            hostgroup_name base-os
+            service_description Disk_write-latency
+            use notifying_service
+          }
+
+          define service {
+            check_command check_disk_read_latency
+            hostgroup_name base-os
+            service_description Disk_read-latency
+            use notifying_service
+          }
+
+          define service {
+            check_command check_entropy_availability
+            hostgroup_name base-os
+            service_description Entropy_availability
+            use notifying_service
+          }
+
+          define service {
+            check_command check_filedescriptor_usage_rate
+            hostgroup_name base-os
+            service_description FileDescriptors_usage-rate-high
+            use notifying_service
+          }
+
+          define service {
+            check_command check_hwmon_high_cpu_temp
+            hostgroup_name base-os
+            service_description HW_cpu-temp-high
+            use notifying_service
+          }
+
+          define service {
+            check_command check_network_receive_drop_high
+            hostgroup_name base-os
+            service_description Network_receive-drop-high
+            use notifying_service
+          }
+
+          define service {
+            check_command check_network_transmit_drop_high
+            hostgroup_name base-os
+            service_description Network_transmit-drop-high
+            use notifying_service
+          }
+
+          define service {
+            check_command check_network_receive_errors_high
+            hostgroup_name base-os
+            service_description Network_receive-errors-high
+            use notifying_service
+          }
+
+          define service {
+            check_command check_network_transmit_errors_high
+            hostgroup_name base-os
+            service_description Network_transmit-errors-high
+            use notifying_service
+          }
+
+          define service {
+            check_command check_vmstat_paging_rate
+            hostgroup_name base-os
+            service_description Memory_vmstat-paging-rate
+            use notifying_service
+          }
+
+          define service {
+            check_command check_xfs_block_allocation
+            hostgroup_name base-os
+            service_description XFS_block-allocation
+            use notifying_service
+          }
+
+          define service {
+            check_command check_network_bond_status
+            hostgroup_name base-os
+            service_description Network_bondstatus
+            use notifying_service
+          }
+
+          define service {
+            check_command check_numa_memory_usage
+            hostgroup_name base-os
+            service_description Memory_NUMA-usage
+            use notifying_service
+          }
+
+          define service {
+            check_command check_ntp_sync
+            hostgroup_name base-os
+            service_description NTP_sync
+            use notifying_service
+          }
+      ceph:
+        template: |
+          define service {
+            check_command check_prom_alert!prom_exporter_ceph_unavailable!CRITICAL- CEPH exporter is not collecting metrics for alerting!OK- CEPH exporter metrics are available.
+            hostgroup_name prometheus-hosts
+            service_description Prometheus-exporter_CEPH
+            use generic-service
+          }
+
+          define command {
+            command_line $USER1$/check_exporter_health_metric.py --exporter_api $USER10$ --health_metric ceph_health_status --critical 2 --warning 1
+            command_name check_ceph_health
+          }
+
+          define service {
+            check_command check_ceph_health
+            check_interval 300
+            hostgroup_name base-os
+            service_description CEPH_health
+            use notifying_service
+          }
+
+          define service {
+            check_command check_prom_alert!ceph_monitor_quorum_low!CRITICAL- ceph monitor quorum does not exist!OK- ceph monitor quorum exists
+            check_interval 60
+            hostgroup_name prometheus-hosts
+            service_description CEPH_quorum
+            use notifying_service
+          }
+
+          define service {
+            check_command check_prom_alert!ceph_monitor_quorum_absent!CRITICAL- ceph monitor quorum does not exist!OK- ceph monitor quorum exists
+            check_interval 60
+            hostgroup_name prometheus-hosts
+            service_description CEPH_quorum
+            use notifying_service
+          }
+
+          define service {
+            check_command check_prom_alert!ceph_cluster_usage_high!CRITICAL- ceph cluster storage is more than 80 percent!OK- ceph storage is less than 80 percent
+            check_interval 60
+            hostgroup_name prometheus-hosts
+            service_description CEPH_storage-usage
+            use notifying_service
+          }
+
+          define service {
+            check_command check_prom_alert!ceph_placement_group_degrade_pct_high!CRITICAL- ceph cluster PGs down are more than 80 percent!OK- ceph PG degradation is less than 80 percent
+            check_interval 60
+            hostgroup_name prometheus-hosts
+            service_description CEPH_PGs-degradation
+            use notifying_service
+          }
+
+          define service {
+            check_command check_prom_alert!ceph_osd_down!CRITICAL- One or more CEPH OSDs are down for more than 5 minutes!OK- All the CEPH OSDs are up
+            check_interval 60
+            hostgroup_name prometheus-hosts
+            service_description CEPH_OSDs-down
+            use notifying_service
+          }
+
+          define service {
+            check_command check_prom_alert_with_labels!node_ntp_clock_skew_high!ceph-mon="enabled"!CRITICAL- CEPH clock skew is more than 2 seconds!OK- CEPH clock skew is less than 2 seconds
+            check_interval 60
+            hostgroup_name prometheus-hosts
+            service_description CEPH_Clock-skew
+            use notifying_service
+          }
+    nagios:
+      template: |
+        accept_passive_host_checks=1
+        accept_passive_service_checks=1
+        additional_freshness_latency=15
+        allow_empty_hostgroup_assignment=1
+        auto_reschedule_checks=0
+        auto_rescheduling_interval=30
+        auto_rescheduling_window=180
+        bare_update_check=0
+        cached_host_check_horizon=15
+        cached_service_check_horizon=15
+        {{- $objectKeys := keys .Values.conf.nagios.objects -}}
+        {{- range $object := $objectKeys }}
+        cfg_file=/opt/nagios/etc/{{$object}}.cfg
+        {{- end }}
+        cfg_file=/opt/nagios/etc/objects/commands.cfg
+        cfg_file=/opt/nagios/etc/objects/contacts.cfg
+        cfg_file=/opt/nagios/etc/objects/timeperiods.cfg
+        cfg_file=/opt/nagios/etc/objects/templates.cfg
+        cfg_file=/opt/nagios/etc/conf.d/nagios-hosts.cfg
+
+        check_external_commands=1
+        check_for_orphaned_hosts=1
+        check_for_orphaned_services=1
+        check_for_updates=1
+        check_host_freshness=0
+        check_result_path=/opt/nagios/var/spool/checkresults
+        check_result_reaper_frequency=10
+        check_service_freshness=1
+        check_workers=4
+        command_file=/opt/nagios/var/rw/nagios.cmd
+        daemon_dumps_core=0
+        date_format=us
+        debug_file=/opt/nagios/var/nagios.debug
+        debug_level=0
+        debug_verbosity=1
+        enable_environment_macros=0
+        enable_event_handlers=1
+        enable_flap_detection=1
+        enable_notifications=1
+        enable_predictive_host_dependency_checks=1
+        enable_predictive_service_dependency_checks=1
+        event_broker_options=-1
+        event_handler_timeout=60
+        execute_host_checks=1
+        execute_service_checks=1
+        high_host_flap_threshold=20
+        high_service_flap_threshold=20
+        host_check_timeout=60
+        host_freshness_check_interval=60
+        host_inter_check_delay_method=s
+        illegal_macro_output_chars=`~$&|'<>"
+        interval_length=1
+        lock_file=/var/run/nagios.lock
+        log_archive_path=/opt/nagios/var/log/archives
+        log_current_states=1
+        log_event_handlers=1
+        log_external_commands=1
+        log_file=/opt/nagios/var/log/nagios.log
+        log_host_retries=1
+        log_initial_states=0
+        log_notifications=0
+        log_passive_checks=1
+        log_rotation_method=d
+        log_service_retries=1
+        low_host_flap_threshold=5
+        low_service_flap_threshold=5
+        max_check_result_file_age=3600
+        max_check_result_reaper_time=30
+        max_concurrent_checks=10
+        max_debug_file_size=1e+06
+        max_host_check_spread=30
+        max_service_check_spread=30
+        nagios_group=nagios
+        nagios_user=nagios
+        notification_timeout=60
+        object_cache_file=/opt/nagios/var/objects.cache
+        obsess_over_hosts=0
+        obsess_over_services=0
+        ocsp_timeout=5
+        passive_host_checks_are_soft=0
+        perfdata_timeout=5
+        precached_object_file=/opt/nagios/var/objects.precache
+        process_performance_data=0
+        resource_file=/opt/nagios/etc/resource.cfg
+        retain_state_information=1
+        retained_contact_host_attribute_mask=0
+        retained_contact_service_attribute_mask=0
+        retained_host_attribute_mask=0
+        retained_process_host_attribute_mask=0
+        retained_process_service_attribute_mask=0
+        retained_service_attribute_mask=0
+        retention_update_interval=60
+        service_check_timeout=60
+        service_freshness_check_interval=60
+        service_inter_check_delay_method=s
+        service_interleave_factor=s
+        soft_state_dependencies=0
+        state_retention_file=/opt/nagios/var/retention.dat
+        status_file=/opt/nagios/var/status.dat
+        status_update_interval=10
+        temp_file=/opt/nagios/var/nagios.tmp
+        temp_path=/tmp
+        translate_passive_host_checks=0
+        use_aggressive_host_checking=0
+        use_large_installation_tweaks=0
+        use_regexp_matching=1
+        use_retained_program_state=1
+        use_retained_scheduling_info=1
+        use_syslog=0
+        use_true_regexp_matching=0
+    cgi:
+      template: |
+        action_url_target=_blank
+        authorized_for_all_host_commands=*
+        authorized_for_all_hosts=*
+        authorized_for_all_service_commands=*
+        authorized_for_all_services=*
+        authorized_for_configuration_information=*
+        authorized_for_system_commands=nagiosadmin
+        authorized_for_system_information=*
+        default_statuswrl_layout=4
+        enable_page_tour=0
+        escape_html_tags=1
+        lock_author_names=1
+        main_config_file=/opt/nagios/etc/nagios.cfg
+        navbar_search_for_addresses=1
+        navbar_search_for_aliases=1
+        notes_url_target=_blank
+        physical_html_path=/opt/nagios/share
+        ping_syntax=/bin/ping -n -U -c 5 $HOSTADDRESS$
+        refresh_rate=90
+        result_limit=100
+        show_context_help=0
+        url_html_path=/nagios
+        use_authentication=0
+        use_pending_states=1
+        use_ssl_authentication=0
+    query_es_clauses: null
+    additionalPlugins: []
+...

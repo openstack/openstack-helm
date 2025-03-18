@@ -1,0 +1,91 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+- block:
+    - name: check if correct version of helm client already installed
+      shell: "set -e; [ \"x$($(type -p helm) version --client --short | awk '{ print $NF }' | awk -F '+' '{ print $1 }')\" == \"x${HELM_VERSION}\" ] || exit 1"
+      environment:
+        HELM_VERSION: "{{ version.helm }}"
+      args:
+        executable: /bin/bash
+      register: need_helm
+      ignore_errors: True
+    - name: install helm client
+      when: need_helm is failed
+      become_user: root
+      shell: |
+              TMP_DIR=$(mktemp -d)
+              curl -sSL ${HELM_REPO_URL}/helm-${HELM_VERSION}-linux-amd64.tar.gz | tar -zxv --strip-components=1 -C ${TMP_DIR}
+              sudo mv ${TMP_DIR}/helm /usr/bin/helm
+              rm -rf ${TMP_DIR}
+      environment:
+        HELM_VERSION: "{{ version.helm }}"
+        HELM_REPO_URL: "{{ url.helm_repo }}"
+      args:
+        executable: /bin/bash
+    - name: setting up helm client
+      command: helm init --client-only --skip-refresh --stable-repo-url "https://charts.helm.sh/stable"
+
+- block:
+    - name: checking if local helm server is running
+      shell: curl -s 127.0.0.1:8879 | grep -q 'Helm Repository'
+      args:
+        executable: /bin/bash
+      register: helm_server_running
+      ignore_errors: True
+    - name: getting current host user name
+      when: helm_server_running is failed
+      shell: id -un
+      args:
+        executable: /bin/bash
+      register: helm_server_user
+    - name: moving systemd unit into place for helm server
+      when: helm_server_running is failed
+      become: yes
+      become_user: root
+      template:
+        src: helm-serve.service.j2
+        dest: /etc/systemd/system/helm-serve.service
+        mode: 416
+    - name: starting helm serve service
+      when: helm_server_running is failed
+      become: yes
+      become_user: root
+      systemd:
+        state: restarted
+        daemon_reload: yes
+        name: helm-serve
+        enabled: yes
+    - name: wait for helm server to be ready
+      shell: curl -s 127.0.0.1:8879 | grep -q 'Helm Repository'
+      args:
+        executable: /bin/bash
+      register: wait_for_helm_server
+      until: wait_for_helm_server.rc == 0
+      retries: 120
+      delay: 5
+
+- block:
+    - name: checking if helm 'stable' repo is present
+      shell: helm repo list | grep -q "^stable"
+      args:
+        executable: /bin/bash
+      register: helm_stable_repo_present
+      ignore_errors: True
+    - name: remove helm 'stable' repo when exists
+      when: helm_stable_repo_present is succeeded
+      command: helm repo remove stable
+
+- name: adding helm local repo
+  command: helm repo add local http://localhost:8879/charts
+...

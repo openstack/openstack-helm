@@ -1,0 +1,199 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.statefulset_data }}
+{{- $envAll := . }}
+
+{{- $esUserSecret := .Values.secrets.elasticsearch.user }}
+{{- $s3UserSecret := .Values.secrets.rgw.elasticsearch }}
+
+{{- $mounts_elasticsearch := .Values.pod.mounts.elasticsearch.elasticsearch }}
+
+{{- $serviceAccountName := printf "%s-%s" .Release.Name "elasticsearch-data" }}
+{{ tuple $envAll "elasticsearch_data" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: elasticsearch-data
+  annotations:
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+  labels:
+{{ tuple $envAll "elasticsearch" "data" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+{{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_statefulset" | indent 2 }}
+  serviceName: {{ tuple "elasticsearch" "data" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
+  podManagementPolicy: "Parallel"
+  replicas: {{ .Values.pod.replicas.data }}
+  selector:
+    matchLabels:
+{{ tuple $envAll "elasticsearch" "data" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "elasticsearch" "data" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+{{ dict "envAll" $envAll "podName" "elasticsearch-data" "containerNames" (list "elasticsearch-data" "init" "memory-map-increase") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
+{{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
+        configmap-bin-hash: {{ tuple "configmap-bin-elasticsearch.yaml" . | include "helm-toolkit.utils.hash" }}
+        configmap-etc-hash: {{ tuple "configmap-etc-elasticsearch.yaml" . | include "helm-toolkit.utils.hash" }}
+{{- if and .Values.manifests.secret_s3 .Values.conf.elasticsearch.snapshots.enabled }}
+        secret-s3-user-hash: {{ tuple "secret-s3-user.yaml" . | include "helm-toolkit.utils.hash" }}
+{{- end }}
+    spec:
+{{ dict "envAll" $envAll "application" "data" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
+      serviceAccountName: {{ $serviceAccountName }}
+      affinity:
+{{ tuple $envAll "elasticsearch" "data" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
+      nodeSelector:
+        {{ .Values.labels.data.node_selector_key }}: {{ .Values.labels.data.node_selector_value | quote }}
+      terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.data.timeout | default "600" }}
+      initContainers:
+{{ tuple $envAll "elasticsearch_data" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container"  | indent 8 }}
+        - name: memory-map-increase
+{{ tuple $envAll "memory_init" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.data | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "data" "container" "memory_map_increase" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          command:
+            - sysctl
+            - -w
+            - vm.max_map_count={{ .Values.conf.init.max_map_count }}
+        - name: elasticsearch-perms
+{{ tuple $envAll "elasticsearch" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.prometheus | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "data" "container" "elasticsearch_perms" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          command:
+            - chown
+            - -R
+            - "1000:1000"
+            - {{ .Values.conf.elasticsearch.config.path.data }}
+          volumeMounts:
+            - name: storage
+              mountPath: {{ .Values.conf.elasticsearch.config.path.data }}
+      containers:
+        - name: elasticsearch-data
+{{ tuple $envAll "elasticsearch" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.data | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "data" "container" "elasticsearch_data" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          command:
+            - /tmp/elasticsearch.sh
+            - start_data_node
+          ports:
+            - name: transport
+              containerPort: {{ tuple "elasticsearch" "internal" "discovery" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+          readinessProbe:
+            tcpSocket:
+              port: {{ tuple "elasticsearch" "internal" "discovery" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          env:
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: ELASTICSEARCH_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $esUserSecret }}
+                  key: ELASTICSEARCH_USERNAME
+            - name: ELASTICSEARCH_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $esUserSecret }}
+                  key: ELASTICSEARCH_PASSWORD
+            - name: ELASTICSEARCH_ENDPOINT
+              value: {{ printf "%s://%s" (tuple "elasticsearch" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_scheme_lookup") (tuple "elasticsearch" "internal" . | include "helm-toolkit.endpoints.hostname_fqdn_endpoint_lookup") }}
+{{- if .Values.manifests.certificates }}
+            - name: CACERT_OPTION
+              value: "--cacert /usr/share/elasticsearch/config/ca.crt"
+            - name: JAVA_KEYSTORE_CERT_PATH
+              value: "/usr/share/elasticsearch/config/ca.crt"
+{{- end }}
+            - name: node.roles
+              value: "[data]"
+            - name: HTTP_ENABLE
+              value: "false"
+            - name: ES_JAVA_OPTS
+              value: "{{ .Values.conf.elasticsearch.env.java_opts.data }}"
+            - name: DISCOVERY_SERVICE
+              value: {{ tuple "elasticsearch" "discovery" $envAll | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
+{{- if .Values.conf.elasticsearch.snapshots.enabled }}
+{{- if .Values.manifests.object_bucket_claim }}
+{{- include "helm-toolkit.snippets.rgw_s3_bucket_user_env_vars_rook" . | indent 12 }}
+{{- else }}
+{{- include "helm-toolkit.snippets.rgw_s3_user_env_vars" . | indent 12 }}
+{{- end }}
+{{- end }}
+{{- if .Values.pod.env.data }}
+{{ include "helm-toolkit.utils.to_k8s_env_vars" .Values.pod.env.data | indent 12 }}
+{{- end }}
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: elasticsearch-logs
+              mountPath: {{ .Values.conf.elasticsearch.config.path.logs }}
+            - name: elasticsearch-bin
+              mountPath: /tmp/elasticsearch.sh
+              subPath: elasticsearch.sh
+              readOnly: true
+            - name: elasticsearch-etc
+              mountPath: /usr/share/elasticsearch/config/elasticsearch.yml
+              subPath: elasticsearch.yml
+              readOnly: true
+            - name: elasticsearch-etc
+              mountPath: /usr/share/elasticsearch/config/log4j2.properties
+              subPath: log4j2.properties
+              readOnly: true
+            - name: elasticsearch-etc
+              mountPath: /usr/share/elasticsearch/config/jvm.options
+              subPath: jvm.options
+              readOnly: true
+            - name: storage
+              mountPath: {{ .Values.conf.elasticsearch.config.path.data }}
+{{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.elasticsearch.elasticsearch.internal "path" "/usr/share/elasticsearch/config" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
+{{ if $mounts_elasticsearch.volumeMounts }}{{ toYaml $mounts_elasticsearch.volumeMounts | indent 12 }}{{ end }}
+      volumes:
+        - name: pod-tmp
+          emptyDir: {}
+        - name: elasticsearch-logs
+          emptyDir: {}
+        - name: elasticsearch-bin
+          configMap:
+            name: elasticsearch-bin
+            defaultMode: 0555
+        - name: elasticsearch-etc
+          secret:
+            secretName: elasticsearch-etc
+            defaultMode: 0444
+{{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.elasticsearch.elasticsearch.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
+{{ if $mounts_elasticsearch.volumes }}{{ toYaml $mounts_elasticsearch.volumes | indent 8 }}{{ end }}
+{{- if not .Values.storage.data.enabled }}
+        - name: storage
+          emptyDir: {}
+{{- else }}
+  volumeClaimTemplates:
+    - metadata:
+        name: storage
+      spec:
+        accessModes: {{ .Values.storage.data.pvc.access_mode }}
+        resources:
+          requests:
+            storage: {{ .Values.storage.data.requests.storage  }}
+        storageClassName: {{ .Values.storage.data.storage_class }}
+{{- end }}
+{{- end }}

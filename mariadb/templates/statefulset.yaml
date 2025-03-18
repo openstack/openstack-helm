@@ -1,0 +1,370 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- define "mariadbReadinessProbe" }}
+exec:
+  command:
+    - /tmp/health.sh
+    - -t
+    - readiness
+    - -d
+    - {{ .Values.pod.probes.server.mariadb.readiness.disk_usage_percent | quote }}
+{{- end }}
+{{- define "mariadbLivenessProbe" }}
+exec:
+  command:
+    - /tmp/health.sh
+    - -t
+    - liveness
+{{- end }}
+{{- define "exporterProbeTemplate" }}
+httpGet:
+    path: /metrics
+    port: {{ tuple "prometheus_mysql_exporter" "internal" "metrics" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+{{- end }}
+
+{{- if (.Values.global).subchart_release_name }}
+{{- $_ := set . "deployment_name" .Chart.Name }}
+{{- else }}
+{{- $_ := set . "deployment_name" .Release.Name }}
+{{- end }}
+
+{{- if .Values.manifests.statefulset }}
+{{- $envAll := . }}
+
+{{- $serviceAccountName := printf "%s-%s" .deployment_name "mariadb" }}
+{{ tuple $envAll "mariadb" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ $serviceAccountName }}
+  namespace: {{ $envAll.Release.Namespace }}
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+    verbs:
+      - create
+  - apiGroups:
+      - ""
+    resourceNames:
+      - {{ printf "%s-%s" .deployment_name "mariadb-state" | quote }}
+    resources:
+      - configmaps
+    verbs:
+      - get
+      - patch
+  - apiGroups:
+      - ""
+    resourceNames:
+      - {{ tuple "oslo_db" "direct" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
+    resources:
+      - endpoints
+    verbs:
+      - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ $serviceAccountName }}
+  namespace: {{ $envAll.Release.Namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ $serviceAccountName }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ $serviceAccountName }}
+    namespace: {{ $envAll.Release.Namespace }}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  # NOTE(portdirect): the statefulset name must match the POD_NAME_PREFIX env var for discovery to work
+  name: {{ tuple "oslo_db" "direct" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
+  annotations:
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+    configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
+    configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
+    mariadb-dbadmin-password-hash: {{ tuple "secret-dbadmin-password.yaml" . | include "helm-toolkit.utils.hash" }}
+    mariadb-sst-password-hash: {{ tuple "secret-dbadmin-password.yaml" . | include "helm-toolkit.utils.hash" }}
+    configmap-bin-exporter-hash: {{ tuple "exporter-configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
+  labels:
+{{ tuple $envAll "mariadb" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  serviceName: "{{ tuple "oslo_db" "discovery" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}"
+  podManagementPolicy: "Parallel"
+  replicas: {{ .Values.pod.replicas.server }}
+  selector:
+    matchLabels:
+{{ tuple $envAll "mariadb" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "mariadb" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+{{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
+        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
+        mariadb-dbadmin-password-hash: {{ tuple "secret-dbadmin-password.yaml" . | include "helm-toolkit.utils.hash" }}
+        mariadb-sst-password-hash: {{ tuple "secret-dbadmin-password.yaml" . | include "helm-toolkit.utils.hash" }}
+{{ dict "envAll" $envAll "podName" "mariadb-server" "containerNames" (list "init" "mariadb-perms" "mariadb") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
+    spec:
+      shareProcessNamespace: true
+      serviceAccountName: {{ $serviceAccountName }}
+{{ dict "envAll" $envAll "application" "server" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
+      affinity:
+{{ tuple $envAll "mariadb" "server" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
+{{ if $envAll.Values.pod.tolerations.mariadb.enabled }}
+{{ tuple $envAll "mariadb" | include "helm-toolkit.snippets.kubernetes_tolerations" | indent 6 }}
+{{ end }}
+      terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.server.timeout }}
+      nodeSelector:
+        {{ .Values.labels.server.node_selector_key }}: {{ .Values.labels.server.node_selector_value }}
+      initContainers:
+{{ tuple $envAll "mariadb" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{- if .Values.volume.chown_on_start }}
+        - name: mariadb-perms
+{{ tuple $envAll "mariadb" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ dict "envAll" $envAll "application" "server" "container" "perms" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.server | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          command: ["/bin/sh", "-c"]
+          args:
+            - set -xe;
+              /bin/chown -R "mysql:mysql" /var/lib/mysql;
+              /bin/chmod 700 /var/lib/mysql;
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: mysql-data
+              mountPath: /var/lib/mysql
+{{- end }}
+      containers:
+        - name: mariadb
+{{ tuple $envAll "mariadb" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ dict "envAll" $envAll "application" "server" "container" "mariadb" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.server | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            {{- if $envAll.Values.manifests.certificates }}
+            - name: MARIADB_X509
+              value: "REQUIRE X509"
+            {{- end }}
+            - name: MARIADB_REPLICAS
+              value: {{ .Values.pod.replicas.server | quote }}
+            - name: POD_NAME_PREFIX
+              value: {{ tuple "oslo_db" "direct" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
+            - name: DISCOVERY_DOMAIN
+              value: {{ tuple "oslo_db" "discovery" . | include "helm-toolkit.endpoints.hostname_namespaced_endpoint_lookup" }}
+            - name: DIRECT_SVC_NAME
+              value: {{ tuple "oslo_db" "direct" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
+            - name: WSREP_PORT
+              value: {{ tuple "oslo_db" "direct" "wsrep" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | quote }}
+            - name: STATE_CONFIGMAP
+              value: {{ printf "%s-%s" .deployment_name "mariadb-state" | quote }}
+            - name: MYSQL_DBADMIN_USERNAME
+              value: {{ .Values.endpoints.oslo_db.auth.admin.username }}
+            - name: MYSQL_DBADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mariadb-dbadmin-password
+                  key: MYSQL_DBADMIN_PASSWORD
+            - name: MYSQL_DBSST_USERNAME
+              value: {{ .Values.endpoints.oslo_db.auth.sst.username }}
+            - name: MYSQL_DBSST_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mariadb-dbsst-password
+                  key: MYSQL_DBSST_PASSWORD
+            {{- if .Values.manifests.secret_dbaudit_password }}
+            - name: MYSQL_DBAUDIT_USERNAME
+              value: {{ .Values.endpoints.oslo_db.auth.audit.username }}
+            - name: MYSQL_DBAUDIT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mariadb-dbaudit-password
+                  key: MYSQL_DBAUDIT_PASSWORD
+            {{- end }}
+            - name: MYSQL_HISTFILE
+              value: {{ .Values.conf.database.mysql_histfile }}
+            - name: CLUSTER_LEADER_TTL
+              value: {{ .Values.conf.galera.cluster_leader_ttl | quote }}
+          ports:
+            - name: mysql
+              protocol: TCP
+              containerPort: {{ tuple "oslo_db" "direct" "mysql" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+            - name: wsrep
+              protocol: TCP
+              containerPort: {{ tuple "oslo_db" "direct" "wsrep" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+            - name: ist
+              protocol: TCP
+              containerPort: {{ tuple "oslo_db" "direct" "ist" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+            - name: sst
+              protocol: TCP
+              containerPort: {{ tuple "oslo_db" "direct" "sst" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+          command:
+            - /tmp/start.py
+{{ dict "envAll" . "component" "server" "container" "mariadb" "type" "readiness" "probeTemplate" (include "mariadbReadinessProbe" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+{{ dict "envAll" . "component" "server" "container" "mariadb" "type" "liveness" "probeTemplate" (include "mariadbLivenessProbe" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: var-run
+              mountPath: /var/run/mysqld
+            - name: mycnfd
+              mountPath: /etc/mysql/conf.d
+            - name: mariadb-bin
+              mountPath: /tmp/start.py
+              subPath: start.py
+              readOnly: true
+            - name: mariadb-bin
+              mountPath: /tmp/stop.sh
+              subPath: stop.sh
+              readOnly: true
+            - name: mariadb-bin
+              mountPath: /tmp/health.sh
+              subPath: health.sh
+              readOnly: true
+            - name: mariadb-etc
+              mountPath: /etc/mysql/my.cnf
+              subPath: my.cnf
+              readOnly: true
+            - name: mariadb-etc
+              mountPath: /etc/mysql/conf.d/00-base.cnf
+              subPath: 00-base.cnf
+              readOnly: true
+            {{- if .Values.conf.database.config_override }}
+            - name: mariadb-etc
+              mountPath: /etc/mysql/conf.d/20-override.cnf
+              subPath: 20-override.cnf
+              readOnly: true
+            {{- end }}
+            - name: mariadb-etc
+              mountPath: /etc/mysql/conf.d/99-force.cnf
+              subPath: 99-force.cnf
+              readOnly: true
+            - name: mariadb-secrets
+              mountPath: /etc/mysql/admin_user.cnf
+              subPath: admin_user.cnf
+              readOnly: true
+            - name: mysql-data
+              mountPath: /var/lib/mysql
+{{ dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.secrets.tls.oslo_db.server.internal "path" "/etc/mysql/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
+{{- if .Values.monitoring.prometheus.enabled }}
+        - name: mysql-exporter
+{{ tuple $envAll "prometheus_mysql_exporter" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ dict "envAll" $envAll "application" "server" "container" "exporter" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.prometheus_mysql_exporter | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" . "component" "server" "container" "mariadb_exporter" "type" "readiness" "probeTemplate" (include "exporterProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+{{ dict "envAll" . "component" "server" "container" "mariadb_exporter" "type" "liveness" "probeTemplate" (include "exporterProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+          command:
+            - /tmp/mysqld-exporter.sh
+          ports:
+            - name: metrics
+              containerPort: {{ tuple "prometheus_mysql_exporter" "internal" "metrics" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+          env:
+            - name: EXPORTER_USER
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-exporter-secrets
+                  key: EXPORTER_USER
+            - name: EXPORTER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-exporter-secrets
+                  key: EXPORTER_PASSWORD
+            - name: DATA_SOURCE_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-exporter-secrets
+                  key: DATA_SOURCE_NAME
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: LISTEN_PORT
+              value: {{ tuple "prometheus_mysql_exporter" "internal" "metrics" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | quote }}
+            - name: TELEMETRY_PATH
+              value: {{ tuple "prometheus_mysql_exporter" "internal" "metrics" . | include "helm-toolkit.endpoints.keystone_endpoint_path_lookup" | quote }}
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: mysql-exporter-secrets
+              mountPath: /etc/mysql/mysql_user.cnf
+              subPath: mysql_user.cnf
+              readOnly: true
+            - name: mysql-exporter-bin
+              mountPath: /tmp/mysqld-exporter.sh
+              subPath: mysqld-exporter.sh
+              readOnly: true
+{{- end }}
+      volumes:
+        - name: pod-tmp
+          emptyDir: {}
+        - name: mycnfd
+          emptyDir: {}
+        - name: var-run
+          emptyDir: {}
+        - name: mariadb-bin
+          configMap:
+            name: mariadb-bin
+            defaultMode: 0555
+        - name: mariadb-etc
+          configMap:
+            name: mariadb-etc
+            defaultMode: 0444
+        - name: mariadb-secrets
+          secret:
+            secretName: mariadb-secrets
+            defaultMode: 0444
+{{ dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.secrets.tls.oslo_db.server.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
+        {{- if not .Values.volume.enabled }}
+        - name: mysql-data
+        {{- if .Values.volume.use_local_path_for_single_pod_cluster.enabled }}
+          hostPath:
+            path: {{ .Values.volume.use_local_path_for_single_pod_cluster.host_path }}
+            type: DirectoryOrCreate
+        {{- else }}
+          emptyDir: {}
+        {{- end }}
+        {{- end }}
+{{- if .Values.monitoring.prometheus.enabled }}
+        - name: mysql-exporter-secrets
+          secret:
+            secretName: mysql-exporter-secrets
+            defaultMode: 0444
+        - name: mysql-exporter-bin
+          configMap:
+            name: mysql-exporter-bin
+            defaultMode: 0555
+{{- end }}
+{{- if .Values.volume.enabled }}
+  volumeClaimTemplates:
+  - metadata:
+      name: mysql-data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: {{ .Values.volume.size }}
+      {{- if ne .Values.volume.class_name "default" }}
+      storageClassName: {{ .Values.volume.class_name }}
+      {{- end }}
+{{- end }}
+{{- end }}

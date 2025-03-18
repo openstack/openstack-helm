@@ -1,0 +1,80 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.helm_tests }}
+{{- $dashboardCount := len .Values.conf.dashboards }}
+{{- $envAll := . }}
+
+{{- $serviceAccountName := print .Release.Name "-test" }}
+{{ tuple $envAll "tests" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{.Release.Name}}-test"
+  labels:
+{{ tuple $envAll "grafana" "test" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+  annotations:
+    "helm.sh/hook": test-success
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+{{ dict "envAll" $envAll "podName" "grafana-test" "containerNames" (list "init" "grafana-selenium-tests") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 4 }}
+spec:
+{{ dict "envAll" $envAll "application" "test" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 2 }}
+  serviceAccountName: {{ $serviceAccountName }}
+  nodeSelector:
+    {{ .Values.labels.test.node_selector_key }}: {{ .Values.labels.test.node_selector_value }}
+  restartPolicy: Never
+  initContainers:
+{{ tuple $envAll "tests" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 4 }}
+  containers:
+    - name: grafana-selenium-tests
+{{ tuple $envAll "selenium_tests" | include "helm-toolkit.snippets.image" | indent 6 }}
+{{ tuple $envAll $envAll.Values.pod.resources.jobs.tests | include "helm-toolkit.snippets.kubernetes_resources" | indent 6 }}
+{{ dict "envAll" $envAll "application" "test" "container" "helm_tests" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 6 }}
+      command:
+        - /tmp/selenium-tests.py
+      env:
+        - name: GRAFANA_USER
+          valueFrom:
+            secretKeyRef:
+              name: grafana-admin-creds
+              key: GRAFANA_ADMIN_USERNAME
+        - name: GRAFANA_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: grafana-admin-creds
+              key: GRAFANA_ADMIN_PASSWORD
+        - name: GRAFANA_URI
+          value: {{ tuple "grafana" "internal" "grafana" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" }}
+        - name: CHROME_CONFIG_HOME
+          value: /tmp/google-chrome
+        - name: XDG_CONFIG_HOME
+          value: /tmp/google-chrome
+        - name: XDG_CACHE_HOME
+          value: /tmp/google-chrome
+      volumeMounts:
+        - name: pod-tmp
+          mountPath: /tmp
+        - name: grafana-bin
+          mountPath: /tmp/selenium-tests.py
+          subPath: selenium-tests.py
+          readOnly: true
+  volumes:
+    - name: pod-tmp
+      emptyDir: {}
+    - name: grafana-bin
+      configMap:
+        name: grafana-bin
+        defaultMode: 0555
+{{- end }}

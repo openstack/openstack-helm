@@ -1,0 +1,133 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if and .Values.manifests.job_keyring .Values.deployment.storage_secrets }}
+{{- $envAll := . }}
+{{- range $key1, $cephBootstrapKey := tuple "mds" "osd" "mon" "mgr" }}
+{{- $component := print $cephBootstrapKey "-keyring-generator" }}
+{{- $jobName := print "ceph-" $component }}
+
+{{- $serviceAccountName := $jobName }}
+{{ tuple $envAll "job_keyring_generator" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ $serviceAccountName }}
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+    verbs:
+      - get
+      - create
+      - patch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ $serviceAccountName }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ $serviceAccountName }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ $serviceAccountName }}
+    namespace: {{ $envAll.Release.Namespace }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ $jobName }}
+  labels:
+{{ tuple $envAll "ceph" $jobName | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+  annotations:
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+spec:
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "ceph" $jobName | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+{{ dict "envAll" $envAll "podName" $jobName "containerNames" (list $jobName "init") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
+    spec:
+{{ dict "envAll" $envAll "application" "ceph" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
+      serviceAccountName: {{ $serviceAccountName }}
+      restartPolicy: OnFailure
+      nodeSelector:
+        {{ $envAll.Values.labels.job.node_selector_key }}: {{ $envAll.Values.labels.job.node_selector_value }}
+      initContainers:
+{{ tuple $envAll "job_keyring_generator" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+      containers:
+        - name: {{ $jobName }}
+{{ tuple $envAll "ceph_config_helper" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.jobs.secret_provisioning | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "ceph" "container" $jobName | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          env:
+            - name: DEPLOYMENT_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: CEPH_GEN_DIR
+              value: /tmp
+            - name: CEPH_TEMPLATES_DIR
+              value: /tmp/templates
+            {{- if eq $cephBootstrapKey "mon" }}
+            - name: CEPH_KEYRING_NAME
+              value: ceph.mon.keyring
+            - name: CEPH_KEYRING_TEMPLATE
+              value: mon.keyring
+            {{- else }}
+            - name: CEPH_KEYRING_NAME
+              value: ceph.keyring
+            - name: CEPH_KEYRING_TEMPLATE
+              value: bootstrap.keyring.{{ $cephBootstrapKey }}
+            {{- end }}
+            - name: KUBE_SECRET_NAME
+              value: {{  index $envAll.Values.secrets.keyrings $cephBootstrapKey }}
+          command:
+            - /tmp/keys-bootstrap-keyring-manager.sh
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: pod-etc-ceph
+              mountPath: /etc/ceph
+            - name: ceph-mon-bin
+              mountPath: /tmp/keys-bootstrap-keyring-manager.sh
+              subPath: keys-bootstrap-keyring-manager.sh
+              readOnly: true
+            - name: ceph-mon-bin
+              mountPath: /tmp/keys-bootstrap-keyring-generator.py
+              subPath: keys-bootstrap-keyring-generator.py
+              readOnly: true
+            - name: ceph-templates
+              mountPath: /tmp/templates
+              readOnly: true
+      volumes:
+        - name: pod-tmp
+          emptyDir: {}
+        - name: pod-etc-ceph
+          emptyDir: {}
+        - name: ceph-mon-bin
+          configMap:
+            name: {{ printf "%s-%s" $envAll.Release.Name "bin" | quote }}
+            defaultMode: 0555
+        - name: ceph-templates
+          configMap:
+            name: {{ printf "%s-%s" $envAll.Release.Name "templates" | quote }}
+            defaultMode: 0444
+{{- end }}
+{{- end }}

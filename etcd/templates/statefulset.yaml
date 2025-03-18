@@ -1,0 +1,118 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+{{- define "etcdProbeTemplate" }}
+exec:
+  command:
+    - /tmp/etcd-healthcheck.sh
+{{- end }}
+
+{{- if .Values.manifests.statefulset }}
+{{- $envAll := . }}
+
+{{- $rcControllerName := printf "%s-%s" $envAll.Release.Name "etcd"  }}
+{{- $configMapBinName := printf "%s-%s" $envAll.Release.Name "etcd-bin"  }}
+
+{{ tuple $envAll "etcd" $rcControllerName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ $rcControllerName | quote }}
+  annotations:
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+  labels:
+{{ tuple $envAll "etcd" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  podManagementPolicy: "Parallel"
+  serviceName: "{{ tuple "etcd" "discovery" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}"
+  replicas: {{ .Values.pod.replicas.etcd }}
+  selector:
+    matchLabels:
+{{ tuple $envAll "etcd" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "etcd" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+{{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
+{{ dict "envAll" $envAll "podName" "etcd" "containerNames" (list "init" "etcd") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
+    spec:
+      serviceAccountName: {{ $rcControllerName | quote }}
+{{ dict "envAll" $envAll "application" "etcd" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
+      affinity:
+{{ tuple $envAll "etcd" "server" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
+      nodeSelector:
+        {{ .Values.labels.server.node_selector_key }}: {{ .Values.labels.server.node_selector_value }}
+      initContainers:
+{{ tuple $envAll "etcd" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+      containers:
+        - name: etcd
+{{ tuple $envAll "etcd" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ dict "envAll" $envAll "application" "etcd" "container" "etcd" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+{{ dict "envAll" . "component" "etcd" "container" "etcd" "type" "readiness" "probeTemplate" (include "etcdProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+{{ dict "envAll" . "component" "etcd" "container" "etcd" "type" "liveness" "probeTemplate" (include "etcdProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+          env:
+{{ include "helm-toolkit.utils.to_k8s_env_vars" .Values.pod.env.etcd | indent 12 }}
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.name
+          command:
+            - /tmp/etcd.sh
+          ports:
+            - containerPort: {{ tuple "etcd" "internal" "client" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+              name: client
+              protocol: TCP
+            - containerPort: {{ tuple "etcd_discovery" "internal" "client" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+              name: peer
+              protocol: TCP
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: etcd-bin
+              mountPath: /tmp/etcd.sh
+              subPath: etcd.sh
+              readOnly: true
+            - name: etcd-data
+              mountPath: /var/lib/etcd
+            - name: etcd-bin
+              mountPath: /tmp/etcd-healthcheck.sh
+              subPath: etcd-healthcheck.sh
+              readOnly: true
+      volumes:
+        - name: pod-tmp
+          emptyDir: {}
+        - name: etcd-bin
+          configMap:
+            name: {{ $configMapBinName | quote }}
+            defaultMode: 0555
+        {{- if not .Values.volume.enabled }}
+        - name: etcd-data
+          emptyDir: {}
+        {{- end }}
+{{- end }}
+{{- if .Values.volume.enabled }}
+  volumeClaimTemplates:
+  - metadata:
+      name: etcd-data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: {{ .Values.volume.size }}
+      {{- if ne .Values.volume.class_name "default" }}
+      storageClassName: {{ .Values.volume.class_name }}
+      {{- end }}
+{{- end }}

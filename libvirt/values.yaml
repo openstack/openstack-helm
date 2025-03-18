@@ -1,0 +1,413 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Default values for libvirt.
+# This is a YAML-formatted file.
+# Declare name/value pairs to be passed into your templates.
+# name: value
+
+---
+release_group: null
+
+labels:
+  agent:
+    libvirt:
+      node_selector_key: openstack-compute-node
+      node_selector_value: enabled
+
+images:
+  tags:
+    libvirt: docker.io/openstackhelm/libvirt:latest-ubuntu_focal
+    libvirt_exporter: vexxhost/libvirtd-exporter:latest
+    ceph_config_helper: 'docker.io/openstackhelm/ceph-config-helper:ubuntu_jammy_19.2.1-1-20250207'
+    dep_check: quay.io/airshipit/kubernetes-entrypoint:latest-ubuntu_focal
+    image_repo_sync: docker.io/library/docker:17.07.0
+    kubectl: docker.io/bitnami/kubectl:latest
+  pull_policy: "IfNotPresent"
+  local_registry:
+    active: false
+    exclude:
+      - dep_check
+      - image_repo_sync
+
+network:
+  # provide what type of network wiring will be used
+  # possible options: openvswitch, linuxbridge, sriov
+  backend:
+    - openvswitch
+
+endpoints:
+  cluster_domain_suffix: cluster.local
+  local_image_registry:
+    name: docker-registry
+    namespace: docker-registry
+    hosts:
+      default: localhost
+      internal: docker-registry
+      node: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        node: 5000
+  oci_image_registry:
+    name: oci-image-registry
+    namespace: oci-image-registry
+    auth:
+      enabled: false
+      libvirt:
+        username: libvirt
+        password: password
+    hosts:
+      default: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        default: null
+  libvirt_exporter:
+    port:
+      metrics:
+        default: 9474
+
+network_policy:
+  libvirt:
+    ingress:
+      - {}
+    egress:
+      - {}
+
+ceph_client:
+  configmap: ceph-etc
+  user_secret_name: pvc-ceph-client-key
+
+conf:
+  ceph:
+    enabled: true
+    admin_keyring: null
+    cinder:
+      user: "cinder"
+      keyring: null
+      secret_uuid: 457eb676-33da-42ec-9a8c-9293d545c337
+      # Cinder Ceph backend that is not configured by the k8s cluter
+      external_ceph:
+        enabled: false
+        user: null
+        secret_uuid: null
+        user_secret_name: null
+  libvirt:
+    listen_tcp: "1"
+    listen_tls: "0"
+    auth_tcp: "none"
+    ca_file: "/etc/pki/CA/cacert.pem"
+    cert_file: "/etc/pki/libvirt/servercert.pem"
+    key_file: "/etc/pki/libvirt/private/serverkey.pem"
+    auth_unix_rw: "none"
+    listen_addr: "${LISTEN_IP_ADDRESS}"
+    log_level: "3"
+    log_outputs: "1:file:/var/log/libvirt/libvirtd.log"
+  # Modifies the config in which value is specified as the name of a variable
+  # that is computed in the script.
+  dynamic_options:
+    libvirt:
+      listen_interface: null
+      listen_address: 127.0.0.1
+    script: |
+      #!/bin/bash
+      set -ex
+
+      LIBVIRT_CONF_PATH=/tmp/pod-shared/libvirtd.conf
+
+      {{- if .Values.conf.dynamic_options.libvirt.listen_interface }}
+
+      LISTEN_INTERFACE="{{ .Values.conf.dynamic_options.libvirt.listen_interface }}"
+      LISTEN_IP_ADDRESS=$(ip address show $LISTEN_INTERFACE | grep 'inet ' | awk '{print $2}' | awk -F "/" '{print $1}')
+      {{- else if .Values.conf.dynamic_options.libvirt.listen_address }}
+      LISTEN_IP_ADDRESS={{ .Values.conf.dynamic_options.libvirt.listen_address }}
+      {{- end }}
+
+      if [[ -z $LISTEN_IP_ADDRESS ]]; then
+          echo "LISTEN_IP_ADDRESS is not set."
+          exit 1
+      fi
+
+      tee > ${LIBVIRT_CONF_PATH} << EOF
+      {{ include "libvirt.utils.to_libvirt_conf" .Values.conf.libvirt }}
+      EOF
+  qemu:
+    vnc_tls: "0"
+    vnc_tls_x509_verify: "0"
+    stdio_handler: "file"
+    user: "nova"
+    group: "kvm"
+  kubernetes:
+    cgroup: "kubepods.slice"
+    # List of cgroup controller we want to use when breaking out of
+    # Kubernetes defined groups
+    cgroup_controllers:
+      - blkio
+      - cpu
+      - devices
+      - freezer
+      - hugetlb
+      - memory
+      - net_cls
+      - perf_event
+      - rdma
+      - misc
+      - pids
+  init_modules:
+    enabled: false
+    script: |
+      #!/bin/bash
+
+      set -ex
+      export HOME=/tmp
+      KVM_QEMU_CONF_HOST="/etc/modprobe.d_host/qemu-system-x86.conf"
+
+      if [[ ! -f "${KVM_QEMU_CONF_HOST}" ]]; then
+        if grep vmx /proc/cpuinfo; then
+          cat << EOF > ${KVM_QEMU_CONF_HOST}
+      options kvm_intel nested=1
+      options kvm_intel enable_apicv=1
+      options kvm_intel ept=1
+      EOF
+          modprobe -r kvm_intel || true
+          modprobe kvm_intel nested=1
+        elif grep svm /proc/cpuinfo; then
+          cat << EOF > ${KVM_QEMU_CONF_HOST}
+      options kvm_amd nested=1
+      EOF
+          modprobe -r kvm_amd || true
+          modprobe kvm_amd nested=1
+        else
+          echo "Nested virtualization is not supported"
+        fi
+      fi
+  vencrypt:
+    # Issuer to use for the vencrypt certs.
+    issuer:
+      kind: ClusterIssuer
+      name: ca-clusterissuer
+    # Script is included here (vs in bin/) to allow overriding, in the case that
+    # communication happens over an IP other than the pod IP for some reason.
+    cert_init_sh: |
+      #!/bin/bash
+      set -x
+
+      HOSTNAME_FQDN=$(hostname --fqdn)
+
+      # Script to create certs for each libvirt pod based on pod IP (by default).
+      cat <<EOF | kubectl apply -f -
+      apiVersion: cert-manager.io/v1
+      kind: Certificate
+      metadata:
+        name: ${POD_NAME}-${TYPE}
+        namespace: ${POD_NAMESPACE}
+        ownerReferences:
+          - apiVersion: v1
+            kind: Pod
+            name: ${POD_NAME}
+            uid: ${POD_UID}
+      spec:
+        secretName: ${POD_NAME}-${TYPE}
+        commonName: ${POD_IP}
+        usages:
+        - client auth
+        - server auth
+        dnsNames:
+        - ${HOSTNAME}
+        - ${HOSTNAME_FQDN}
+        ipAddresses:
+        - ${POD_IP}
+        issuerRef:
+          kind: ${ISSUER_KIND}
+          name: ${ISSUER_NAME}
+      EOF
+
+      kubectl -n ${POD_NAMESPACE} wait --for=condition=Ready --timeout=300s \
+        certificate/${POD_NAME}-${TYPE}
+
+      # NOTE(mnaser): cert-manager does not clean-up the secrets when the certificate
+      #               is deleted, so we should add an owner reference to the secret
+      #               to ensure that it is cleaned up when the pod is deleted.
+      kubectl -n ${POD_NAMESPACE} patch secret ${POD_NAME}-${TYPE} \
+        --type=json -p='[{"op": "add", "path": "/metadata/ownerReferences", "value": [{"apiVersion": "v1", "kind": "Pod", "name": "'${POD_NAME}'", "uid": "'${POD_UID}'"}]}]'
+
+      kubectl -n ${POD_NAMESPACE} get secret ${POD_NAME}-${TYPE} -o jsonpath='{.data.tls\.crt}' | base64 -d > /tmp/${TYPE}.crt
+      kubectl -n ${POD_NAMESPACE} get secret ${POD_NAME}-${TYPE} -o jsonpath='{.data.tls\.key}' | base64 -d > /tmp/${TYPE}.key
+      kubectl -n ${POD_NAMESPACE} get secret ${POD_NAME}-${TYPE} -o jsonpath='{.data.ca\.crt}' | base64 -d > /tmp/${TYPE}-ca.crt
+pod:
+  probes:
+    libvirt:
+      libvirt:
+        liveness:
+          enabled: true
+          params:
+            initialDelaySeconds: 30
+            periodSeconds: 60
+            timeoutSeconds: 5
+        readiness:
+          enabled: true
+          params:
+            initialDelaySeconds: 15
+            periodSeconds: 60
+            timeoutSeconds: 5
+  security_context:
+    libvirt:
+      pod:
+        runAsUser: 0
+      container:
+        ceph_admin_keyring_placement:
+          readOnlyRootFilesystem: false
+        ceph_keyring_placement:
+          readOnlyRootFilesystem: false
+        libvirt:
+          privileged: true
+          readOnlyRootFilesystem: false
+        libvirt_exporter:
+          privileged: true
+        libvirt_init_modules:
+          readOnlyRootFilesystem: true
+          privileged: true
+          capabilities:
+            drop:
+              - ALL
+        init_dynamic_options:
+          runAsUser: 65534
+          runAsNonRoot: true
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+              - ALL
+  sidecars:
+    libvirt_exporter: false
+
+  affinity:
+    anti:
+      type:
+        default: preferredDuringSchedulingIgnoredDuringExecution
+      topologyKey:
+        default: kubernetes.io/hostname
+      weight:
+        default: 10
+  tolerations:
+    libvirt:
+      enabled: false
+      tolerations:
+      - key: node-role.kubernetes.io/master
+        operator: Exists
+        effect: NoSchedule
+      - key: node-role.kubernetes.io/control-plane
+        operator: Exists
+        effect: NoSchedule
+  dns_policy: "ClusterFirstWithHostNet"
+  mounts:
+    libvirt:
+      init_container: null
+      libvirt:
+  lifecycle:
+    upgrades:
+      daemonsets:
+        pod_replacement_strategy: RollingUpdate
+        libvirt:
+          enabled: true
+          min_ready_seconds: 0
+          max_unavailable: 1
+  resources:
+    enabled: false
+    libvirt:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+    jobs:
+      image_repo_sync:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+    libvirt_exporter:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "256Mi"
+        cpu: "500m"
+
+dependencies:
+  dynamic:
+    common:
+      local_image_registry:
+        jobs:
+          - libvirt-image-repo-sync
+        services:
+          - endpoint: node
+            service: local_image_registry
+    targeted:
+      ovn:
+        libvirt:
+          pod:
+            - requireSameNode: true
+              labels:
+                application: ovn
+                component: ovn-controller
+      openvswitch:
+        libvirt:
+          pod:
+            - requireSameNode: true
+              labels:
+                application: neutron
+                component: neutron-ovs-agent
+      linuxbridge:
+        libvirt:
+          pod:
+            - requireSameNode: true
+              labels:
+                application: neutron
+                component: neutron-lb-agent
+      sriov:
+        libvirt:
+          pod:
+            - requireSameNode: true
+              labels:
+                application: neutron
+                component: neutron-sriov-agent
+  static:
+    libvirt:
+      services: null
+    image_repo_sync:
+      services:
+        - endpoint: internal
+          service: local_image_registry
+
+manifests:
+  configmap_bin: true
+  configmap_etc: true
+  daemonset_libvirt: true
+  job_image_repo_sync: true
+  network_policy: false
+  role_cert_manager: false
+  secret_registry: true
+
+secrets:
+  oci_image_registry:
+    libvirt: libvirt-oci-image-registry-key
+  tls:
+    server: libvirt-tls-server
+    client: libvirt-tls-client
+...

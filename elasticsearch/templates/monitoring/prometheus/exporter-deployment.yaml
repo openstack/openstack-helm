@@ -1,0 +1,120 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if and .Values.manifests.monitoring.prometheus.deployment_exporter .Values.monitoring.prometheus.enabled }}
+{{- $envAll := . }}
+
+{{- $esUserSecret := .Values.secrets.elasticsearch.user }}
+
+{{- $serviceAccountName := "prometheus-elasticsearch-exporter" }}
+{{ tuple $envAll "prometheus_elasticsearch_exporter" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus-elasticsearch-exporter
+  labels:
+{{ tuple $envAll "prometheus-elasticsearch-exporter" "exporter" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  replicas: {{ .Values.pod.replicas.prometheus_elasticsearch_exporter }}
+  selector:
+    matchLabels:
+{{ tuple $envAll "prometheus-elasticsearch-exporter" "exporter" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
+{{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_deployment" | indent 2 }}
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "prometheus-elasticsearch-exporter" "exporter" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+{{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
+{{ dict "envAll" $envAll "podName" "prometheus-elasticsearch-exporter" "containerNames" (list "elasticsearch-exporter" "init" ) | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
+    spec:
+{{ dict "envAll" $envAll "application" "exporter" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
+      serviceAccountName: {{ $serviceAccountName }}
+      nodeSelector:
+        {{ .Values.labels.exporter.node_selector_key }}: {{ .Values.labels.exporter.node_selector_value | quote }}
+      terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.prometheus_elasticsearch_exporter.timeout | default "30" }}
+      initContainers:
+{{ tuple $envAll "prometheus_elasticsearch_exporter" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container"  | indent 8 }}
+      containers:
+        - name: elasticsearch-exporter
+{{ tuple $envAll "prometheus_elasticsearch_exporter" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.exporter | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "exporter" "container" "elasticsearch_exporter" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          command:
+            - "elasticsearch_exporter"
+            - '--es.uri=$(ELASTICSEARCH_URI)'
+            - '--web.telemetry-path={{ .Values.endpoints.prometheus_elasticsearch_exporter.path.default }}'
+            - '--web.listen-address=:{{ .Values.endpoints.prometheus_elasticsearch_exporter.port.metrics.default }}'
+            - '--es.timeout={{ .Values.conf.prometheus_elasticsearch_exporter.es.timeout }}'
+            - '--log.format={{ .Values.conf.prometheus_elasticsearch_exporter.log.format }}'
+            - '--log.level={{ .Values.conf.prometheus_elasticsearch_exporter.log.level }}'
+            {{- if .Values.conf.prometheus_elasticsearch_exporter.es.all }}
+            - '--es.all'
+            {{- end }}
+            {{- if .Values.conf.prometheus_elasticsearch_exporter.es.indices }}
+            - '--es.indices'
+            {{- end }}
+            {{- if .Values.conf.prometheus_elasticsearch_exporter.es.indices_settings }}
+            - '--es.indices_settings'
+            {{- end }}
+            {{- if .Values.conf.prometheus_elasticsearch_exporter.es.indices_mappings }}
+            - '--es.indices_mappings'
+            {{- end }}
+            {{- if .Values.conf.prometheus_elasticsearch_exporter.es.aliases }}
+            - '--es.aliases'
+            {{- end }}
+            {{- if .Values.conf.prometheus_elasticsearch_exporter.es.shards }}
+            - '--es.shards'
+            {{- end }}
+            {{- if .Values.conf.prometheus_elasticsearch_exporter.es.snapshots }}
+            - '--collector.snapshots'
+            {{- end }}
+            {{- if .Values.conf.prometheus_elasticsearch_exporter.es.cluster_settings }}
+            - '--collector.clustersettings'
+            {{- end }}
+            {{- if .Values.conf.prometheus_elasticsearch_exporter.es.slm }}
+            - '--es.slm'
+            {{- end }}
+            {{- if .Values.conf.prometheus_elasticsearch_exporter.es.data_stream }}
+            - '--es.data_stream'
+            {{- end }}
+            {{- if .Values.manifests.certificates }}
+            - '--es.ca=/tmp/elasticsearch/certs/ca.crt'
+            {{- else }}
+            - '--es.ssl-skip-verify'
+            {{- end }}
+          env:
+            - name: ELASTICSEARCH_URI
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $esUserSecret }}
+                  key: ELASTICSEARCH_URI
+          ports:
+            - name: metrics
+              containerPort: {{ tuple "prometheus_elasticsearch_exporter" "internal" "metrics" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+          readinessProbe:
+            tcpSocket:
+              port: {{ tuple "prometheus_elasticsearch_exporter" "internal" "metrics" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+{{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.elasticsearch.elasticsearch.internal "path" "/tmp/elasticsearch/certs" "certs" tuple "ca.crt" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
+      volumes:
+        - name: pod-tmp
+          emptyDir: {}
+{{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.elasticsearch.elasticsearch.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
+{{- end }}

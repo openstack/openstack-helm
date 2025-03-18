@@ -1,0 +1,120 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.cron_job_cert_rotate}}
+{{- $envAll := . }}
+
+{{- $serviceAccountName := "cert-rotate-cron" }}
+{{ tuple $envAll "cert_rotate" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ $serviceAccountName }}
+rules:
+  - apiGroups:
+    - cert-manager.io
+    resources:
+      - certificates
+    verbs:
+      - get
+      - list
+      - update
+      - patch
+  - apiGroups:
+    - "*"
+    resources:
+      - pods
+      - secrets
+      - jobs
+      - statefulsets
+      - daemonsets
+      - deployments
+    verbs:
+      - get
+      - list
+      - update
+      - patch
+      - delete
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ $serviceAccountName }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ $serviceAccountName }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ $serviceAccountName }}
+    namespace: {{ $envAll.Release.Namespace }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: cert-rotate
+  annotations:
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+  labels:
+{{ tuple $envAll "cert-manager" "cert-rotate-cron" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  suspend: {{ .Values.jobs.rotate.suspend }}
+  schedule: {{ .Values.jobs.rotate.cron | quote }}
+  successfulJobsHistoryLimit: {{ .Values.jobs.rotate.history.success }}
+  failedJobsHistoryLimit: {{ .Values.jobs.rotate.history.failed }}
+{{- if .Values.jobs.rotate.starting_deadline }}
+  startingDeadlineSeconds: {{ .Values.jobs.rotate.starting_deadline }}
+{{- end }}
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    metadata:
+      labels:
+{{ tuple $envAll "cert-manager" "cert-rotate" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+    spec:
+      template:
+        metadata:
+          labels:
+{{ tuple $envAll "cert-manager" "cert-rotate" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 12 }}
+        spec:
+          serviceAccountName: {{ $serviceAccountName }}
+{{ dict "envAll" $envAll "application" "cert_rotate" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 10 }}
+          restartPolicy: OnFailure
+          nodeSelector:
+            {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
+          initContainers:
+{{ tuple $envAll "cert_rotate" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 12 }}
+          containers:
+            - name: cert-rotate
+{{ tuple $envAll "cert_rotation" | include "helm-toolkit.snippets.image" | indent 14 }}
+{{ tuple $envAll $envAll.Values.pod.resources.jobs.cert_rotate | include "helm-toolkit.snippets.kubernetes_resources" | indent 14 }}
+{{ dict "envAll" $envAll "application" "cert_rotate" "container" "cert_rotate" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 14 }}
+              command:
+                - /tmp/rotate-certs.sh
+                - rotate_cron
+              volumeMounts:
+                - name: pod-tmp
+                  mountPath: /tmp
+                - name: cert-rotate-bin
+                  mountPath: /tmp/rotate-certs.sh
+                  subPath: rotate-certs.sh
+                  readOnly: true
+          volumes:
+            - name: pod-tmp
+              emptyDir: {}
+            - name: cert-rotate-bin
+              configMap:
+                name: cert-rotate-bin
+                defaultMode: 0555
+{{- end }}

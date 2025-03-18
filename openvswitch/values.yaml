@@ -1,0 +1,250 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Default values for openvswitch.
+# This is a YAML-formatted file.
+# Declare name/value pairs to be passed into your templates.
+# name: value
+
+---
+release_group: null
+
+images:
+  tags:
+    openvswitch_db_server: docker.io/openstackhelm/openvswitch:latest-ubuntu_focal
+    openvswitch_vswitchd: docker.io/openstackhelm/openvswitch:latest-ubuntu_focal
+    dep_check: quay.io/airshipit/kubernetes-entrypoint:latest-ubuntu_focal
+    image_repo_sync: docker.io/library/docker:17.07.0
+  pull_policy: "IfNotPresent"
+  local_registry:
+    active: false
+    exclude:
+      - dep_check
+      - image_repo_sync
+
+labels:
+  ovs:
+    node_selector_key: openvswitch
+    node_selector_value: enabled
+
+pod:
+  tini:
+    enabled: true
+  tolerations:
+    openvswitch:
+      enabled: false
+      tolerations:
+      - key: node-role.kubernetes.io/master
+        operator: Exists
+        effect: NoSchedule
+      - key: node-role.kubernetes.io/control-plane
+        operator: Exists
+        effect: NoSchedule
+  probes:
+    ovs:
+      ovs_db:
+        liveness:
+          enabled: true
+          params:
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 5
+        readiness:
+          enabled: true
+          params:
+            initialDelaySeconds: 90
+            periodSeconds: 30
+            timeoutSeconds: 5
+      ovs_vswitch:
+        liveness:
+          enabled: true
+          params:
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 5
+        readiness:
+          enabled: true
+          params:
+            failureThreshold: 3
+            periodSeconds: 10
+            timeoutSeconds: 1
+  security_context:
+    ovs:
+      pod:
+        runAsUser: 42424
+      container:
+        perms:
+          runAsUser: 0
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+        server:
+          runAsUser: 42424
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+        modules:
+          runAsUser: 0
+          capabilities:
+            add:
+              - SYS_MODULE
+              - SYS_CHROOT
+          readOnlyRootFilesystem: true
+        vswitchd:
+          runAsUser: 0
+          capabilities:
+            add:
+              - NET_ADMIN
+          readOnlyRootFilesystem: true
+  dns_policy: "ClusterFirstWithHostNet"
+  lifecycle:
+    upgrades:
+      daemonsets:
+        pod_replacement_strategy: RollingUpdate
+        ovs:
+          enabled: true
+          min_ready_seconds: 0
+          max_unavailable: 1
+  resources:
+    enabled: false
+    ovs:
+      db:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      vswitchd:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+          # set resources to enabled and specify one of the following when using dpdk
+          # hugepages-1Gi: "1Gi"
+          # hugepages-2Mi: "512Mi"
+    jobs:
+      image_repo_sync:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+  user:
+    nova:
+      uid: 42424
+
+secrets:
+  oci_image_registry:
+    openvswitch: openvswitch-oci-image-registry-key
+
+endpoints:
+  cluster_domain_suffix: cluster.local
+  local_image_registry:
+    name: docker-registry
+    namespace: docker-registry
+    hosts:
+      default: localhost
+      internal: docker-registry
+      node: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        node: 5000
+  oci_image_registry:
+    name: oci-image-registry
+    namespace: oci-image-registry
+    auth:
+      enabled: false
+      openvswitch:
+        username: openvswitch
+        password: password
+    hosts:
+      default: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        default: null
+
+network_policy:
+  openvswitch:
+    ingress:
+      - {}
+    egress:
+      - {}
+
+dependencies:
+  dynamic:
+    common:
+      local_image_registry:
+        jobs:
+          - openvswitch-image-repo-sync
+        services:
+          - endpoint: node
+            service: local_image_registry
+  static:
+    ovs: null
+    image_repo_sync:
+      services:
+        - endpoint: internal
+          service: local_image_registry
+
+manifests:
+  configmap_bin: true
+  daemonset: true
+  daemonset_ovs_vswitchd: true
+  job_image_repo_sync: true
+  network_policy: false
+  secret_registry: true
+
+conf:
+  poststart:
+    timeout: 5
+    rootUser: "root"
+    extraCommand: null
+  openvswitch_db_server:
+    ptcp_port: null
+  ovs_other_config:
+    handler_threads: null
+    revalidator_threads: null
+  ovs_hw_offload:
+    enabled: false
+  ovs_dpdk:
+    enabled: false
+    ## Mandatory parameters. Please uncomment when enabling DPDK
+    # socket_memory: 1024
+    # hugepages_mountpath: /dev/hugepages
+    # vhostuser_socket_dir: vhostuser
+    #
+    ## Optional hardware specific parameters: modify to match NUMA topology
+    # mem_channels: 4
+    # lcore_mask: 0x1
+    # pmd_cpu_mask: 0x4
+    #
+    ## Optional driver to use. Driver name should be the same as the one
+    ## specified in the ovs_dpdk section in the Neutron values and vice versa
+    # driver: vfio-pci
+    #
+    ## Optional security feature
+    #     vHost IOMMU feature restricts the vhost memory that a virtio device
+    #     access, available with DPDK v17.11
+    # vhost_iommu_support: true
+  ## OVS supports run in non-root for both OVS and OVS DPDK mode, the user
+  # for OVS need to be added to container image with user id 42424.
+  # useradd -u 42424 openvswitch; groupmod -g 42424 openvswitch
+  #
+  # Leave empty to run as user that invokes the command (default: root)
+  ovs_user_name: "openvswitch:openvswitch"
+...

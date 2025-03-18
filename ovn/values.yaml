@@ -1,0 +1,444 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Default values for openvswitch.
+# This is a YAML-formatted file.
+# Declare name/value pairs to be passed into your templates.
+# name: value
+
+---
+release_group: null
+
+images:
+  tags:
+    ovn_ovsdb_nb: docker.io/openstackhelm/ovn:ubuntu_focal
+    ovn_ovsdb_sb: docker.io/openstackhelm/ovn:ubuntu_focal
+    ovn_northd: docker.io/openstackhelm/ovn:ubuntu_focal
+    ovn_controller: docker.io/openstackhelm/ovn:ubuntu_focal
+    ovn_controller_kubectl: docker.io/openstackhelm/ceph-config-helper:latest-ubuntu_jammy
+    dep_check: quay.io/airshipit/kubernetes-entrypoint:latest-ubuntu_focal
+    image_repo_sync: docker.io/library/docker:17.07.0
+    vector: docker.io/timberio/vector:0.39.0-debian
+    ovn_logging_parser: docker.io/openstackhelm/neutron:2024.1-ubuntu_jammy
+  pull_policy: "IfNotPresent"
+  local_registry:
+    active: false
+    exclude:
+      - dep_check
+      - image_repo_sync
+
+labels:
+  ovn_ovsdb_nb:
+    node_selector_key: openstack-network-node
+    node_selector_value: enabled
+  ovn_ovsdb_sb:
+    node_selector_key: openstack-network-node
+    node_selector_value: enabled
+  ovn_northd:
+    node_selector_key: openstack-network-node
+    node_selector_value: enabled
+  ovn_controller:
+    node_selector_key: openvswitch
+    node_selector_value: enabled
+  ovn_controller_gw:
+    node_selector_key: l3-agent
+    node_selector_value: enabled
+
+volume:
+  ovn_ovsdb_nb:
+    enabled: true
+    class_name: general
+    size: 5Gi
+  ovn_ovsdb_sb:
+    enabled: true
+    class_name: general
+    size: 5Gi
+
+network:
+  interface:
+    # Tunnel interface will be used for VXLAN tunneling.
+    tunnel: null
+    # If tunnel is null there is a fallback mechanism to search
+    # for interface with routing using tunnel network cidr.
+    tunnel_network_cidr: "0/0"
+
+conf:
+  ovn_cms_options: "availability-zones=nova"
+  ovn_cms_options_gw_enabled: "enable-chassis-as-gw,availability-zones=nova"
+  ovn_encap_type: geneve
+  ovn_bridge: br-int
+  ovn_bridge_mappings: external:br-ex
+  # For DPDK enabled environments, enable netdev datapath type for br-int
+  # ovn_bridge_datapath_type: netdev
+
+  # auto_bridge_add:
+  #   br-private: eth0
+  #   br-public: eth1
+  auto_bridge_add: {}
+  ovs_user_name: openvswitch
+  ovn_network_logging_parser_uwsgi:
+    uwsgi:
+      add-header: "Connection: close"
+      buffer-size: 65535
+      die-on-term: true
+      enable-threads: true
+      exit-on-reload: false
+      hook-master-start: unix_signal:15 gracefully_kill_them_all
+      lazy-apps: true
+      log-x-forwarded-for: true
+      master: true
+      processes: 1
+      procname-prefix-spaced: "neutron-ovn-network-logging-parser:"
+      route-user-agent: '^kube-probe.* donotlog:'
+      thunder-lock: true
+      worker-reload-mercy: 80
+      wsgi-file: /var/lib/openstack/bin/neutron-ovn-network-logging-parser-wsgi
+  vector: |
+    [sources.file_logs]
+    type = "file"
+    include = [ "/logs/ovn-controller.log" ]
+
+    [sinks.ovn_log_parser_in]
+    type = "http"
+    inputs = ["file_logs"]
+    uri = "{{ tuple "ovn_logging_parser" "default" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" }}"
+    encoding.codec = "json"
+    method = "post"
+
+    [sources.ovn_log_parser_out]
+    type = "http_server"
+    address = "0.0.0.0:5001"
+    encoding = "json"
+
+    [transforms.parse_log_message]
+    type = "remap"
+    inputs = ["ovn_log_parser_out"]
+    source = '''
+      del(.source_type)
+      del(.path)
+    '''
+
+    [sinks.loki_sink]
+    type = "loki"
+    labels.event_source = "network_logs"
+    inputs = ["parse_log_message"]
+    endpoint = "http://loki.monitoring:3100"
+    encoding.codec = "json"
+    tenant_id = "{{`{{ project_id }}`}}"
+
+pod:
+  # NOTE: should be same as nova.pod.use_fqdn.compute
+  use_fqdn:
+    compute: true
+  security_context:
+    ovn_northd:
+      container:
+        northd:
+          capabilities:
+            add:
+              - SYS_NICE
+    ovn_controller:
+      container:
+        controller_init:
+          readOnlyRootFilesystem: true
+          privileged: true
+        controller:
+          readOnlyRootFilesystem: true
+          privileged: true
+        ovn_logging_parser:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+        vector:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+  tolerations:
+    ovn_ovsdb_nb:
+      enabled: false
+    ovn_ovsdb_sb:
+      enabled: false
+    ovn_northd:
+      enabled: false
+    ovn_controller:
+      enabled: false
+  affinity:
+    anti:
+      type:
+        default: preferredDuringSchedulingIgnoredDuringExecution
+      topologyKey:
+        default: kubernetes.io/hostname
+      weight:
+        default: 10
+
+  probes:
+    ovn_northd:
+      northd:
+        readiness:
+          enabled: true
+          params:
+            initialDelaySeconds: 30
+            timeoutSeconds: 30
+            periodSeconds: 60
+    ovn_ovsdb_nb:
+      ovsdb:
+        readiness:
+          enabled: true
+          params:
+            initialDelaySeconds: 30
+            timeoutSeconds: 30
+            periodSeconds: 60
+    ovn_ovsdb_sb:
+      ovsdb:
+        readiness:
+          enabled: true
+          params:
+            initialDelaySeconds: 30
+            timeoutSeconds: 30
+            periodSeconds: 60
+    ovn_controller:
+      controller:
+        readiness:
+          enabled: true
+          params:
+            initialDelaySeconds: 30
+            timeoutSeconds: 30
+            periodSeconds: 60
+    ovn_controller_gw:
+      controller:
+        readiness:
+          enabled: true
+          params:
+            initialDelaySeconds: 30
+            timeoutSeconds: 30
+            periodSeconds: 60
+  dns_policy: "ClusterFirstWithHostNet"
+  replicas:
+    ovn_ovsdb_nb: 1
+    ovn_ovsdb_sb: 1
+    ovn_northd: 1
+  lifecycle:
+    upgrades:
+      daemonsets:
+        pod_replacement_strategy: RollingUpdate
+        ovn_ovsdb_nb:
+          enabled: true
+          min_ready_seconds: 0
+          max_unavailable: 1
+        ovn_ovsdb_sb:
+          enabled: true
+          min_ready_seconds: 0
+          max_unavailable: 1
+        ovn_northd:
+          enabled: true
+          min_ready_seconds: 0
+          max_unavailable: 1
+        ovn_controller:
+          enabled: true
+          min_ready_seconds: 0
+          max_unavailable: 1
+  resources:
+    enabled: false
+    ovn_ovsdb_nb:
+      requests:
+        memory: "384Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "1000m"
+    ovn_ovsdb_sb:
+      requests:
+        memory: "384Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "1000m"
+    ovn_northd:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+    ovn_controller:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+    ovn_logging_parser:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "256Mi"
+        cpu: "500m"
+    vector:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "256Mi"
+        cpu: "500m"
+    jobs:
+      image_repo_sync:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+
+  sidecars:
+    ovn_logging_parser: false
+    vector: false
+
+secrets:
+  oci_image_registry:
+    ovn: ovn-oci-image-registry-key
+
+# TODO: Check these endpoints?!
+endpoints:
+  cluster_domain_suffix: cluster.local
+  local_image_registry:
+    name: docker-registry
+    namespace: docker-registry
+    hosts:
+      default: localhost
+      internal: docker-registry
+      node: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        node: 5000
+  oci_image_registry:
+    name: oci-image-registry
+    namespace: oci-image-registry
+    auth:
+      enabled: false
+      openvswitch:
+        username: openvswitch
+        password: password
+    hosts:
+      default: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        default: null
+  ovn_ovsdb_nb:
+    name: ovn-ovsdb-nb
+    namespace: null
+    hosts:
+      default: ovn-ovsdb-nb
+    host_fqdn_override:
+      default: null
+    port:
+      ovsdb:
+        default: 6641
+      raft:
+        default: 6643
+  ovn_ovsdb_sb:
+    name: ovn-ovsdb-sb
+    namespace: null
+    hosts:
+      default: ovn-ovsdb-sb
+    host_fqdn_override:
+      default: null
+    port:
+      ovsdb:
+        default: 6642
+      raft:
+        default: 6644
+  ovn_logging_parser:
+    name: ovn-logging-parser
+    namespace: null
+    hosts:
+      default: localhost
+    host_fqdn_override:
+      default: localhost
+    scheme:
+      default: 'http'
+      service: 'http'
+    path:
+      default: "/logs"
+    port:
+      api:
+        default: 9697
+        service: 9697
+
+network_policy:
+  ovn_ovsdb_nb:
+    ingress:
+      - {}
+    egress:
+      - {}
+  ovn_ovsdb_sb:
+    ingress:
+      - {}
+    egress:
+      - {}
+  ovn_northd:
+    ingress:
+      - {}
+    egress:
+      - {}
+  ovn_controller:
+    ingress:
+      - {}
+    egress:
+      - {}
+
+dependencies:
+  dynamic:
+    common:
+      local_image_registry:
+        jobs:
+          - openvswitch-image-repo-sync
+        services:
+          - endpoint: node
+            service: local_image_registry
+  static:
+    ovn_ovsdb_nb: null
+    ovn_ovsdb_sb: null
+    ovn_northd:
+      services:
+        - endpoint: internal
+          service: ovn-ovsdb-nb
+        - endpoint: internal
+          service: ovn-ovsdb-sb
+    ovn_controller:
+      services:
+        - endpoint: internal
+          service: ovn-ovsdb-sb
+      pod:
+        - requireSameNode: true
+          labels:
+            application: openvswitch
+            component: server
+    image_repo_sync:
+      services:
+        - endpoint: internal
+          service: local_image_registry
+
+manifests:
+  configmap_bin: true
+  configmap_etc: true
+  deployment_northd: true
+  service_ovn_ovsdb_nb: true
+  service_ovn_ovsdb_sb: true
+  statefulset_ovn_ovsdb_nb: true
+  statefulset_ovn_ovsdb_sb: true
+  deployment_ovn_northd: true
+  daemonset_ovn_controller: true
+  job_image_repo_sync: true
+...

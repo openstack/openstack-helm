@@ -1,0 +1,154 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.daemonset_fluentbit }}
+{{- $envAll := . }}
+
+{{- $mounts_fluentbit := .Values.pod.mounts.fluentbit.fluentbit }}
+
+{{- $serviceAccountName := printf "%s-%s" .Release.Name "fluentbit" }}
+{{ tuple $envAll "fluentbit" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ $serviceAccountName }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ $serviceAccountName }}
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  kind: ClusterRole
+  name: {{ $serviceAccountName }}
+  apiGroup: rbac.authorization.k8s.io
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: {{ $serviceAccountName }}
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - namespaces
+      - nodes
+      - pods
+      - services
+      - replicationcontrollers
+      - limitranges
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - apps
+    resources:
+      - statefulsets
+      - daemonsets
+      - deployments
+      - replicasets
+    verbs:
+      - get
+      - list
+      - watch
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: fluentbit
+  annotations:
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+  labels:
+{{ tuple $envAll "fluentbit" "daemon" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  selector:
+    matchLabels:
+{{ tuple $envAll "fluentbit" "daemon" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
+{{ tuple $envAll "fluentbit" | include "helm-toolkit.snippets.kubernetes_upgrades_daemonset" | indent 2 }}
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "fluentbit" "daemon" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+{{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
+        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
+{{ dict "envAll" $envAll "podName" "fluentbit" "containerNames" (list "fluentbit") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
+    spec:
+{{ dict "envAll" $envAll "application" "fluentbit" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
+      serviceAccountName: {{ $serviceAccountName }}
+{{ if $envAll.Values.pod.tolerations.fluentbit.enabled }}
+{{ tuple $envAll "fluentbit" | include "helm-toolkit.snippets.kubernetes_tolerations" | indent 6 }}
+{{ else }}
+      nodeSelector:
+        {{ .Values.labels.fluentbit.node_selector_key }}: {{ .Values.labels.fluentbit.node_selector_value | quote }}
+{{ end }}
+      hostNetwork: true
+      hostPID: true
+      dnsPolicy: {{ .Values.pod.dns_policy }}
+      initContainers:
+{{ tuple $envAll "fluentbit" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+      containers:
+        - name: fluentbit
+{{ tuple $envAll "fluentbit" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.fluentbit | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "fluentbit" "container" "fluentbit" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          command:
+            - /tmp/fluent-bit.sh
+          env:
+            - name: FLUENTD_HOST
+              value: {{ tuple "fluentd" "internal" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" | quote }}
+            - name: FLUENTD_PORT
+              value: {{ tuple "fluentd" "internal" "service" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | quote }}
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: fluentbit-bin
+              mountPath: /tmp/fluent-bit.sh
+              subPath: fluent-bit.sh
+              readOnly: true
+            - name: varlog
+              mountPath: /var/log
+              readOnly: true
+            - name: varlibdockercontainers
+              mountPath: /var/lib/docker/containers
+              readOnly: true
+            - name: fluentbit-etc
+              mountPath: /fluent-bit/etc/fluent-bit.conf
+              subPath: fluent-bit.conf
+              readOnly: true
+            - name: fluentbit-etc
+              mountPath: /fluent-bit/etc/parsers.conf
+              subPath: parsers.conf
+              readOnly: true
+{{ if $mounts_fluentbit.volumeMounts }}{{ toYaml $mounts_fluentbit.volumeMounts | indent 12 }}{{ end }}
+      volumes:
+        - name: pod-tmp
+          emptyDir: {}
+        - name: varlog
+          hostPath:
+            path: /var/log
+        - name: varlibdockercontainers
+          hostPath:
+            path: /var/lib/docker/containers
+        - name: fluentbit-bin
+          configMap:
+            name: fluentbit-bin
+            defaultMode: 0555
+        - name: fluentbit-etc
+          secret:
+            secretName: fluentbit-etc
+            defaultMode: 0444
+{{ if $mounts_fluentbit.volumes }}{{ toYaml $mounts_fluentbit.volumes | indent 8 }}{{ end }}
+{{- end }}

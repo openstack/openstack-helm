@@ -1,0 +1,92 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.helm_tests }}
+{{- $envAll := . }}
+{{- $serviceAccountName := printf "%s-%s" $envAll.Release.Name "test" }}
+{{ tuple $envAll "tests" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{ $serviceAccountName }}
+  labels:
+{{ tuple $envAll "ceph-client" "test" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+  annotations:
+    "helm.sh/hook": test-success
+{{ dict "envAll" $envAll "podName" "ceph-client-test" "containerNames" (list "init" "ceph-cluster-helm-test") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 4 }}
+spec:
+{{ dict "envAll" $envAll "application" "test" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 2 }}
+  restartPolicy: Never
+  serviceAccountName: {{ $serviceAccountName }}
+  nodeSelector:
+    {{ .Values.labels.test.node_selector_key }}: {{ .Values.labels.test.node_selector_value }}
+  initContainers:
+{{ tuple $envAll "tests" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 4 }}
+  containers:
+    - name: ceph-cluster-helm-test
+{{ tuple $envAll "ceph_config_helper" | include "helm-toolkit.snippets.image" | indent 6 }}
+{{ tuple $envAll $envAll.Values.pod.resources.jobs.tests | include "helm-toolkit.snippets.kubernetes_resources" | indent 6 }}
+{{ dict "envAll" $envAll "application" "test" "container" "test" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 6 }}
+      env:
+        - name: CLUSTER
+          value: "ceph"
+        - name: CEPH_DEPLOYMENT_NAMESPACE
+          value: {{ .Release.Namespace }}
+        - name: REQUIRED_PERCENT_OF_OSDS
+          value: {{ .Values.conf.pool.target.required_percent_of_osds | ceil | quote }}
+        - name: EXPECTED_CRUSHRULE
+          value: {{ .Values.conf.pool.default.crush_rule | default "replicated_rule" | quote }}
+        - name: MGR_COUNT
+          value: {{ .Values.pod.replicas.mgr | default "1" | quote }}
+        - name: ENABLE_AUTOSCALER
+          value: {{ .Values.conf.features.pg_autoscaler | quote }}
+        {{- range $pool := .Values.conf.pool.spec -}}
+        {{- with $pool }}
+        - name: {{ .name | upper | replace "." "_" }}
+          value: {{ .replication | quote }}
+        {{- end }}
+        {{- end }}
+      command:
+        - /tmp/helm-tests.sh
+      volumeMounts:
+        - name: pod-tmp
+          mountPath: /tmp
+        - name: ceph-client-bin
+          mountPath: /tmp/helm-tests.sh
+          subPath: helm-tests.sh
+          readOnly: true
+        - name: ceph-client-admin-keyring
+          mountPath: /etc/ceph/ceph.client.admin.keyring
+          subPath: ceph.client.admin.keyring
+          readOnly: true
+        - name: ceph-client-etc
+          mountPath: /etc/ceph/ceph.conf
+          subPath: ceph.conf
+          readOnly: true
+  volumes:
+    - name: pod-tmp
+      emptyDir: {}
+    - name: ceph-client-bin
+      configMap:
+        name: ceph-client-bin
+        defaultMode: 0555
+    - name: ceph-client-admin-keyring
+      secret:
+        secretName: {{ .Values.secrets.keyrings.admin }}
+    - name: ceph-client-etc
+      configMap:
+        name: ceph-client-etc
+        defaultMode: 0444
+{{- end }}

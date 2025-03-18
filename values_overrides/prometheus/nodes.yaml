@@ -1,0 +1,245 @@
+---
+conf:
+  prometheus:
+    rules:
+      nodes:
+        groups:
+        - name: node.recording_rules
+          rules:
+          - record: node_filesystem_free_percent
+            expr: 100 * {fstype =~ "xfs|ext[34]"} / node_filesystem_size{fstype =~ "xfs|ext[34]"}
+          - record: node_ram_usage_percent
+            expr: 100 * (node_memory_MemFree + node_memory_Buffers + node_memory_Cached) / node_memory_MemTotal
+          - record: node_swap_usage_percent
+            expr: 100 * (node_memory_SwapFree + node_memory_SwapCached) / node_memory_SwapTotal
+        - name: nodes.alerting_rules
+          rules:
+          - alert: prom_exporter_node_unavailable
+            expr: avg_over_time(up{job="node-exporter"}[5m]) == 0
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              description: node exporter is not collecting metrics or is not available for past 10 minutes
+              title: node exporter is not collecting metrics or is not available
+          - alert: node_filesystem_full_80percent
+            expr: avg_over_time(node_filesystem_free_percent[2m]) > 80
+            for: 5m
+            labels:
+              severity: page
+            annotations:
+              description: '{{$labels.alias}} device {{$labels.device}} on {{$labels.mountpoint}}
+                has less than 20% free space left.'
+              summary: '{{$labels.alias}}: Filesystem is running out of space soon.'
+          - alert: node_filesystem_full_in_4h
+            expr: predict_linear(node_filesystem_free{fstype =~ "xfs|ext[34]"}[1h], 4 * 3600) <= 0
+            for: 5m
+            labels:
+              severity: page
+            annotations:
+              description: '{{$labels.alias}} device {{$labels.device}} on {{$labels.mountpoint}}
+                is running out of space of in approx. 4 hours'
+              summary: '{{$labels.alias}}: Filesystem is running out of space in 4 hours.'
+          - alert: node_filedescriptors_full_in_3h
+            expr: predict_linear(node_filefd_allocated[1h], 3 * 3600) >= node_filefd_maximum
+            for: 20m
+            labels:
+              severity: page
+            annotations:
+              description: '{{$labels.alias}} is running out of available file descriptors
+                in approx. 3 hours'
+              summary: '{{$labels.alias}} is running out of available file descriptors in
+                3 hours.'
+          - alert: node_load1_90percent
+            expr: node_load1 / ON(alias) count(node_cpu{mode="system"}) BY (alias) >= 0.9
+            for: 1h
+            labels:
+              severity: page
+            annotations:
+              description: '{{$labels.alias}} is running with > 90% total load for at least
+                1h.'
+              summary: '{{$labels.alias}}: Running on high load.'
+          - alert: node_cpu_util_90percent
+            expr: 100 - (avg(irate(node_cpu{mode="idle"}[5m])) BY (alias) * 100) >= 90
+            for: 1h
+            labels:
+              severity: page
+            annotations:
+              description: '{{$labels.alias}} has total CPU utilization over 90% for at least
+                1h.'
+              summary: '{{$labels.alias}}: High CPU utilization.'
+          - alert: node_ram_using_90percent
+            expr: avg_over_time(node_ram_usage_percent[2m]) > 90
+            for: 30m
+            labels:
+              severity: page
+            annotations:
+              description: '{{$labels.alias}} is using at least 90% of its RAM for at least
+                30 minutes now.'
+              summary: '{{$labels.alias}}: Using lots of RAM.'
+          - alert: node_swap_using_80percent
+            expr: avg_over_time(node_swap_usage_percent[2m]) > 80
+            for: 10m
+            labels:
+              severity: page
+            annotations:
+              description: '{{$labels.alias}} is using 80% of its swap space for at least
+                10 minutes now.'
+              summary: '{{$labels.alias}}: Running out of swap soon.'
+          - alert: node_high_cpu_load
+            expr: node_load15 / on(alias) count(node_cpu{mode="system"}) by (alias) >= 0
+            for: 1m
+            labels:
+              severity: warning
+            annotations:
+              description: '{{$labels.alias}} is running with load15 > 1 for at least 5 minutes: {{$value}}'
+              summary: '{{$labels.alias}}: Running on high load: {{$value}}'
+          - alert: node_high_memory_load
+            expr: avg_over_time(node_ram_usage_percent[2m]) > 85
+            for: 1m
+            labels:
+              severity: warning
+            annotations:
+              description: Host memory usage is {{ humanize $value }}%. Reported by
+                instance {{ $labels.instance }} of job {{ $labels.job }}.
+              summary: Server memory is almost full
+          - alert: node_high_storage_load
+            expr: avg_over_time(node_storage_usage_percent{mountpoint="/"}[2m]) > 85
+            for: 30s
+            labels:
+              severity: warning
+            annotations:
+              description: Host storage usage is {{ humanize $value }}%. Reported by
+                instance {{ $labels.instance }} of job {{ $labels.job }}.
+              summary: Server storage is almost full
+          - alert: node_high_swap
+            expr: (node_memory_SwapTotal - node_memory_SwapFree) < (node_memory_SwapTotal
+              * 0.4)
+            for: 1m
+            labels:
+              severity: warning
+            annotations:
+              description: Host system has a high swap usage of {{ humanize $value }}. Reported
+                by instance {{ $labels.instance }} of job {{ $labels.job }}.
+              summary: Server has a high swap usage
+          - alert: node_high_network_drop_rcv
+            expr: node_network_receive_drop{device!="lo"} > 3000
+            for: 30s
+            labels:
+              severity: warning
+            annotations:
+              description: Host system has an unusally high drop in network reception ({{
+                humanize $value }}). Reported by instance {{ $labels.instance }} of job {{
+                $labels.job }}
+              summary: Server has a high receive drop
+          - alert: node_high_network_drop_send
+            expr: node_network_transmit_drop{device!="lo"} > 3000
+            for: 30s
+            labels:
+              severity: warning
+            annotations:
+              description: Host system has an unusally high drop in network transmission ({{
+                humanize $value }}). Reported by instance {{ $labels.instance }} of job {{
+                $labels.job }}
+              summary: Server has a high transmit drop
+          - alert: node_high_network_errs_rcv
+            expr: node_network_receive_errs{device!="lo"} > 3000
+            for: 30s
+            labels:
+              severity: warning
+            annotations:
+              description: Host system has an unusally high error rate in network reception
+                ({{ humanize $value }}). Reported by instance {{ $labels.instance }} of job
+                {{ $labels.job }}
+              summary: Server has unusual high reception errors
+          - alert: node_high_network_errs_send
+            expr: node_network_transmit_errs{device!="lo"} > 3000
+            for: 30s
+            labels:
+              severity: warning
+            annotations:
+              description: Host system has an unusally high error rate in network transmission
+                ({{ humanize $value }}). Reported by instance {{ $labels.instance }} of job
+                {{ $labels.job }}
+              summary: Server has unusual high transmission errors
+          - alert: node_network_conntrack_usage_80percent
+            expr: sort(node_nf_conntrack_entries{job="node-exporter"} > node_nf_conntrack_entries_limit{job="node-exporter"}  * 0.8)
+            for: 5m
+            labels:
+              severity: page
+            annotations:
+              description: '{{$labels.instance}} has network conntrack entries of {{ $value }} which is more than 80% of maximum limit'
+              summary: '{{$labels.instance}}: available network conntrack entries are low.'
+          - alert: node_entropy_available_low
+            expr: node_entropy_available_bits < 300
+            for: 5m
+            labels:
+              severity: page
+            annotations:
+              description: '{{$labels.instance}} has available entropy bits of {{ $value }} which is less than required of 300'
+              summary: '{{$labels.instance}}: is low on entropy bits.'
+          - alert: node_hwmon_high_cpu_temp
+            expr: node_hwmon_temp_crit_celsius*0.9 - node_hwmon_temp_celsius < 0 OR node_hwmon_temp_max_celsius*0.95 - node_hwmon_temp_celsius < 0
+            for: 5m
+            labels:
+              severity: page
+            annotations:
+              description: '{{$labels.alias}} reports hwmon sensor {{$labels.sensor}}/{{$labels.chip}} temperature value is nearly critical: {{$value}}'
+              summary: '{{$labels.alias}}: Sensor {{$labels.sensor}}/{{$labels.chip}} temp is high: {{$value}}'
+          - alert: node_vmstat_paging_rate_high
+            expr: irate(node_vmstat_pgpgin[5m]) > 80
+            for: 5m
+            labels:
+              severity: page
+            annotations:
+              description: '{{$labels.alias}} has a memory paging rate of change higher than 80%: {{$value}}'
+              summary: '{{$labels.alias}}: memory paging rate is high: {{$value}}'
+          - alert: node_xfs_block_allocation_high
+            expr: 100*(node_xfs_extent_allocation_blocks_allocated_total{job="node-exporter", instance=~"172.17.0.1.*"} / (node_xfs_extent_allocation_blocks_freed_total{job="node-exporter", instance=~"172.17.0.1.*"} + node_xfs_extent_allocation_blocks_allocated_total{job="node-exporter", instance=~"172.17.0.1.*"})) > 80
+            for: 5m
+            labels:
+              severity: page
+            annotations:
+              description: '{{$labels.alias}} has xfs allocation blocks higher than 80%: {{$value}}'
+              summary: '{{$labels.alias}}: xfs block allocation high: {{$value}}'
+          - alert: node_network_bond_slaves_down
+            expr: node_net_bonding_slaves - node_net_bonding_slaves_active > 0
+            for: 5m
+            labels:
+              severity: page
+            annotations:
+              description: '{{ $labels.master }} is missing {{ $value }} slave interface(s).'
+              summary: 'Instance {{ $labels.instance }}: {{ $labels.master }} missing {{ $value }} slave interface(s)'
+          - alert: node_numa_memory_used
+            expr: 100*node_memory_numa_MemUsed / node_memory_numa_MemTotal > 80
+            for: 5m
+            labels:
+              severity: page
+            annotations:
+              description: '{{$labels.alias}} has more than 80% NUMA memory usage: {{ $value }}'
+              summary: '{{$labels.alias}}: has high NUMA memory usage: {{$value}}'
+          - alert: node_ntp_clock_skew_high
+            expr: abs(node_ntp_drift_seconds) > 2
+            for: 5m
+            labels:
+              severity: page
+            annotations:
+              description: '{{$labels.alias}} has time difference of more than 2 seconds compared to NTP server: {{ $value }}'
+              summary: '{{$labels.alias}}: time is skewed by : {{$value}} seconds'
+          - alert: node_disk_read_latency
+            expr: (rate(node_disk_read_time_ms[5m]) / rate(node_disk_reads_completed[5m])) > 40
+            for: 5m
+            labels:
+              severity: page
+            annotations:
+              description: '{{$labels.device}} has a high read latency of {{ $value }}'
+              summary: 'High read latency observed for device {{ $labels.device }}'
+          - alert: node_disk_write_latency
+            expr: (rate(node_disk_write_time_ms[5m]) / rate(node_disk_writes_completed[5m])) > 40
+            for: 5m
+            labels:
+              severity: page
+            annotations:
+              description: '{{$labels.device}} has a high write latency of {{ $value }}'
+              summary: 'High write latency observed for device {{ $labels.device }}'
+...

@@ -1,0 +1,55 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if and .Values.manifests.configmap_bin .Values.deployment.ceph }}
+{{- $envAll := . }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ceph-rgw-bin
+data:
+{{- if .Values.images.local_registry.active }}
+  image-repo-sync.sh: |
+{{- include "helm-toolkit.scripts.image_repo_sync" . | indent 4 }}
+{{- end }}
+
+{{- if .Values.bootstrap.enabled }}
+  bootstrap.sh: |
+{{ tuple "bin/_bootstrap.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
+{{- end }}
+  rgw-restart.sh: |
+{{ tuple "bin/_rgw-restart.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
+  init-dirs.sh: |
+{{ tuple "bin/_init-dirs.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
+
+  rgw-start.sh: |
+{{ tuple "bin/rgw/_start.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
+  rgw-init.sh: |
+{{ tuple "bin/rgw/_init.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
+  rerun-pool-job.sh: |
+{{ tuple "bin/rgw/_rerun-pool-job.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
+  storage-init.sh: |
+{{ tuple "bin/_ceph-rgw-storage-init.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
+  ceph-admin-keyring.sh: |
+{{ tuple "bin/_ceph-admin-keyring.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
+  rgw-s3-admin.sh: |
+{{- include "helm-toolkit.scripts.create_s3_user" . | indent 4 }}
+  create-rgw-placement-targets.sh: |
+{{ tuple "bin/_create-rgw-placement-targets.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
+  helm-tests.sh: |
+{{ tuple "bin/_helm-tests.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
+  utils-checkDNS.sh: |
+{{ tuple "bin/utils/_checkDNS.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
+{{- end }}

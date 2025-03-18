@@ -1,0 +1,480 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Default values for alertmanager.
+# This is a YAML-formatted file.
+# Declare name/value pairs to be passed into your templates.
+# name: value
+
+---
+images:
+  tags:
+    apache_proxy: docker.io/library/httpd:2.4
+    prometheus-alertmanager: docker.io/prom/alertmanager:v0.20.0
+    dep_check: quay.io/airshipit/kubernetes-entrypoint:latest-ubuntu_focal
+    image_repo_sync: docker.io/library/docker:17.07.0
+  pull_policy: IfNotPresent
+  local_registry:
+    active: false
+    exclude:
+      - dep_check
+      - image_repo_sync
+
+labels:
+  alertmanager:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  job:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+
+pod:
+  security_context:
+    server:
+      pod:
+        runAsUser: 65534
+      container:
+        prometheus_alertmanager_perms:
+          runAsUser: 0
+          readOnlyRootFilesystem: true
+        apache_proxy:
+          runAsUser: 0
+          readOnlyRootFilesystem: false
+        prometheus_alertmanager:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+  affinity:
+    anti:
+      type:
+        default: preferredDuringSchedulingIgnoredDuringExecution
+      topologyKey:
+        default: kubernetes.io/hostname
+      weight:
+        default: 10
+  mounts:
+    alertmanager:
+      alertmanager:
+      init_container: null
+  replicas:
+    alertmanager: 1
+  lifecycle:
+    upgrades:
+      deployment:
+        pod_replacement_strategy: RollingUpdate
+      statefulsets:
+        pod_replacement_strategy: RollingUpdate
+    termination_grace_period:
+      alertmanager:
+        timeout: 30
+  resources:
+    enabled: false
+    apache_proxy:
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+    alertmanager:
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+      requests:
+        memory: "128Mi"
+        cpu: "500m"
+    jobs:
+      image_repo_sync:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+
+endpoints:
+  cluster_domain_suffix: cluster.local
+  local_image_registry:
+    name: docker-registry
+    namespace: docker-registry
+    hosts:
+      default: localhost
+      internal: docker-registry
+      node: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        node: 5000
+  oci_image_registry:
+    name: oci-image-registry
+    namespace: oci-image-registry
+    auth:
+      enabled: false
+      prometheus-alertmanager:
+        username: prometheus-alertmanager
+        password: password
+    hosts:
+      default: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        default: null
+  alertmanager:
+    name: prometheus-alertmanager
+    namespace: null
+    auth:
+      admin:
+        username: admin
+        password: changeme
+    hosts:
+      default: alerts-engine
+      public: prometheus-alertmanager
+      discovery: prometheus-alertmanager-discovery
+    host_fqdn_override:
+      default: null
+      # NOTE(srwilkers): this chart supports TLS for fqdn over-ridden public
+      # endpoints using the following format:
+      # public:
+      #   host: null
+      #   tls:
+      #     crt: null
+      #     key: null
+    path:
+      default: null
+    scheme:
+      default: 'http'
+    port:
+      api:
+        default: 9093
+        public: 80
+      mesh:
+        default: 9094
+      http:
+        default: 80
+  ldap:
+    hosts:
+      default: ldap
+    auth:
+      admin:
+        bind: "cn=admin,dc=cluster,dc=local"
+        password: password
+    host_fqdn_override:
+      default: null
+    path:
+      default: "/ou=People,dc=cluster,dc=local"
+    scheme:
+      default: ldap
+    port:
+      ldap:
+        default: 389
+
+dependencies:
+  dynamic:
+    common:
+      local_image_registry:
+        jobs:
+          - alertmanager-image-repo-sync
+        services:
+          - endpoint: node
+            service: local_image_registry
+  static:
+    alertmanager:
+      services: null
+    image_repo_sync:
+      services:
+        - endpoint: internal
+          service: local_image_registry
+
+network:
+  alertmanager:
+    ingress:
+      public: true
+      classes:
+        namespace: "nginx"
+        cluster: "nginx-cluster"
+      annotations:
+        nginx.ingress.kubernetes.io/rewrite-target: /
+    node_port:
+      enabled: false
+      port: 30903
+
+secrets:
+  oci_image_registry:
+    prometheus-alertmanager: prometheus-alertmanager-oci-image-registry-key
+  tls:
+    alertmanager:
+      alertmanager:
+        public: alerts-tls-public
+
+storage:
+  alertmanager:
+    enabled: true
+    pvc:
+      access_mode: ["ReadWriteOnce"]
+    requests:
+      storage: 5Gi
+    storage_class: general
+
+manifests:
+  clusterrolebinding: true
+  configmap_bin: true
+  configmap_etc: true
+  ingress: true
+  job_image_repo_sync: true
+  network_policy: false
+  secret_admin_user: true
+  secret_ingress_tls: true
+  secret_registry: true
+  service: true
+  service_discovery: true
+  service_ingress: true
+  statefulset: true
+
+network_policy:
+  alertmanager:
+    ingress:
+      - {}
+    egress:
+      - {}
+
+monitoring:
+  prometheus:
+    enabled: true
+    prometheus:
+      scrape: true
+
+conf:
+  httpd: |
+    ServerRoot "/usr/local/apache2"
+
+    Listen 80
+
+    LoadModule mpm_event_module modules/mod_mpm_event.so
+    LoadModule authn_file_module modules/mod_authn_file.so
+    LoadModule authn_core_module modules/mod_authn_core.so
+    LoadModule authz_host_module modules/mod_authz_host.so
+    LoadModule authz_groupfile_module modules/mod_authz_groupfile.so
+    LoadModule authz_user_module modules/mod_authz_user.so
+    LoadModule authz_core_module modules/mod_authz_core.so
+    LoadModule access_compat_module modules/mod_access_compat.so
+    LoadModule auth_basic_module modules/mod_auth_basic.so
+    LoadModule ldap_module modules/mod_ldap.so
+    LoadModule authnz_ldap_module modules/mod_authnz_ldap.so
+    LoadModule reqtimeout_module modules/mod_reqtimeout.so
+    LoadModule filter_module modules/mod_filter.so
+    LoadModule proxy_html_module modules/mod_proxy_html.so
+    LoadModule log_config_module modules/mod_log_config.so
+    LoadModule env_module modules/mod_env.so
+    LoadModule headers_module modules/mod_headers.so
+    LoadModule setenvif_module modules/mod_setenvif.so
+    LoadModule version_module modules/mod_version.so
+    LoadModule proxy_module modules/mod_proxy.so
+    LoadModule proxy_connect_module modules/mod_proxy_connect.so
+    LoadModule proxy_http_module modules/mod_proxy_http.so
+    LoadModule proxy_balancer_module modules/mod_proxy_balancer.so
+    LoadModule remoteip_module modules/mod_remoteip.so
+    LoadModule slotmem_shm_module modules/mod_slotmem_shm.so
+    LoadModule slotmem_plain_module modules/mod_slotmem_plain.so
+    LoadModule unixd_module modules/mod_unixd.so
+    LoadModule status_module modules/mod_status.so
+    LoadModule autoindex_module modules/mod_autoindex.so
+
+    <IfModule unixd_module>
+    User daemon
+    Group daemon
+    </IfModule>
+
+    <Directory />
+        AllowOverride none
+        Require all denied
+    </Directory>
+
+    <Files ".ht*">
+        Require all denied
+    </Files>
+
+    ErrorLog /dev/stderr
+
+    LogLevel warn
+
+    <IfModule log_config_module>
+        LogFormat "%a %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\"" combined
+        LogFormat "%{X-Forwarded-For}i %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\"" proxy
+        LogFormat "%h %l %u %t \"%r\" %>s %b" common
+
+        <IfModule logio_module>
+          LogFormat "%a %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\" %I %O" combinedio
+        </IfModule>
+
+        SetEnvIf X-Forwarded-For "^.*\..*\..*\..*" forwarded
+        CustomLog /dev/stdout common
+        CustomLog /dev/stdout combined
+        CustomLog /dev/stdout proxy env=forwarded
+    </IfModule>
+
+    <Directory "/usr/local/apache2/cgi-bin">
+        AllowOverride None
+        Options None
+        Require all granted
+    </Directory>
+
+    <IfModule headers_module>
+        RequestHeader unset Proxy early
+    </IfModule>
+
+    <IfModule proxy_html_module>
+    Include conf/extra/proxy-html.conf
+    </IfModule>
+
+    <VirtualHost *:80>
+      RemoteIPHeader X-Original-Forwarded-For
+      <Location />
+          ProxyPass http://localhost:{{ tuple "alertmanager" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}/
+          ProxyPassReverse http://localhost:{{ tuple "alertmanager" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}/
+      </Location>
+      <Proxy *>
+          AuthName "Alertmanager"
+          AuthType Basic
+          AuthBasicProvider file ldap
+          AuthUserFile /usr/local/apache2/conf/.htpasswd
+          AuthLDAPBindDN {{ .Values.endpoints.ldap.auth.admin.bind }}
+          AuthLDAPBindPassword {{ .Values.endpoints.ldap.auth.admin.password }}
+          AuthLDAPURL {{ tuple "ldap" "default" "ldap" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" | quote }}
+          Require valid-user
+      </Proxy>
+    </VirtualHost>
+  command_flags:
+    alertmanager:
+      storage.path: /var/lib/alertmanager/data
+      cluster.listen_address: "0.0.0.0:9094"
+  alertmanager: |
+    global:
+      # The smarthost and SMTP sender used for mail notifications.
+      smtp_smarthost: 'localhost:25'
+      smtp_from: 'alertmanager@example.org'
+      smtp_auth_username: 'alertmanager'
+      smtp_auth_password: 'password'
+      # The auth token for Hipchat.
+      hipchat_auth_token: '1234556789'
+      # Alternative host for Hipchat.
+      hipchat_api_url: 'https://hipchat.foobar.org/'
+    # The directory from which notification templates are read.
+    templates:
+      - '/etc/alertmanager/template/*.tmpl'
+    # The root route on which each incoming alert enters.
+    route:
+      # The labels by which incoming alerts are grouped together. For example,
+      # multiple alerts coming in for cluster=A and alertname=LatencyHigh would
+      # be batched into a single group.
+      group_by:
+        - alertname
+        - cluster
+        - service
+      # When a new group of alerts is created by an incoming alert, wait at
+      # least 'group_wait' to send the initial notification.
+      # This way ensures that you get multiple alerts for the same group that start
+      # firing shortly after another are batched together on the first
+      # notification.
+      group_wait: 30s
+      # When the first notification was sent, wait 'group_interval' to send a batch
+      # of new alerts that started firing for that group.
+      group_interval: 5m
+      # If an alert has successfully been sent, wait 'repeat_interval' to
+      # resend them.
+      repeat_interval: 3h
+      # A default receiver
+      # receiver: team-X-mails
+      receiver: 'team-X-mails'
+      # All the above attributes are inherited by all child routes and can
+      # overwritten on each.
+      # The child route trees.
+      routes:
+        # This routes performs a regular expression match on alert
+        # labels to catch alerts that are related to a list of
+        # services.
+        - receiver: 'team-X-mails'
+          continue: true
+        - match_re:
+            service: ^(foo1|foo2|baz)$
+          receiver: team-X-mails
+          # The service has a sub-route for critical alerts, any alerts
+          # that do not match, i.e. severity != critical, fall-back to the
+          # parent node and are sent to 'team-X-mails'
+          routes:
+            - match:
+                severity: critical
+              receiver: team-X-pager
+        - match:
+            service: files
+          receiver: team-Y-mails
+          routes:
+            - match:
+                severity: critical
+              receiver: team-Y-pager
+        # This route handles all alerts coming from a database service. If there's
+        # no team to handle it, it defaults to the DB team.
+        - match:
+            service: database
+          receiver: team-DB-pager
+          # Also group alerts by affected database.
+          group_by:
+            - alertname
+            - cluster
+            - database
+          routes:
+            - match:
+                owner: team-X
+              receiver: team-X-pager
+            - match:
+                owner: team-Y
+              receiver: team-Y-pager
+    # Inhibition rules allow to mute a set of alerts given that another alert is
+    # firing.
+    # We use this to mute any warning-level notifications if the same alert is
+    # already critical.
+    inhibit_rules:
+      - source_match:
+          severity: 'critical'
+        target_match:
+          severity: 'warning'
+        # Apply inhibition if the alertname is the same.
+        equal:
+          - alertname
+          - cluster
+          - service
+    receivers:
+      - name: 'team-X-mails'
+        email_configs:
+          - to: 'team-X+alerts@example.org'
+      - name: 'team-X-pager'
+        email_configs:
+          - to: 'team-X+alerts-critical@example.org'
+        pagerduty_configs:
+          - service_key: <team-X-key>
+      - name: 'team-Y-mails'
+        email_configs:
+          - to: 'team-Y+alerts@example.org'
+      - name: 'team-Y-pager'
+        pagerduty_configs:
+          - service_key: <team-Y-key>
+      - name: 'team-DB-pager'
+        pagerduty_configs:
+          - service_key: <team-DB-key>
+      - name: 'team-X-hipchat'
+        hipchat_configs:
+          - auth_token: <auth_token>
+            room_id: 85
+            message_format: html
+            notify: false
+  alert_templates: null
+...

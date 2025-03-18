@@ -1,0 +1,208 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.deployment }}
+{{- $envAll := . }}
+
+{{- $serviceAccountName := printf "%s-%s" .Release.Name "nfs-provisioner" }}
+{{ tuple $envAll "nfs" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: {{ $serviceAccountName }}
+rules:
+  - apiGroups:
+      - ''
+    resources:
+      - persistentvolumes
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+  - apiGroups:
+      - ''
+    resources:
+      - persistentvolumeclaims
+    verbs:
+      - get
+      - list
+      - watch
+      - update
+  - apiGroups:
+      - storage.k8s.io
+    resources:
+      - storageclasses
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ''
+    resources:
+      - events
+    verbs:
+      - list
+      - watch
+      - create
+      - update
+      - patch
+  - apiGroups:
+      - ''
+    resources:
+      - services
+    verbs:
+      - get
+  - apiGroups:
+      - ''
+    resources:
+      - endpoints
+    verbs:
+      - get
+      - create
+      - update
+      - patch
+  - apiGroups:
+      - policy
+    resources:
+      - podsecuritypolicies
+    resourceNames:
+      - nfs-provisioner
+    verbs:
+      - use
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ $serviceAccountName }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ $serviceAccountName }}
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  kind: ClusterRole
+  name: {{ $serviceAccountName }}
+  apiGroup: rbac.authorization.k8s.io
+---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: nfs-provisioner
+  annotations:
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+  labels:
+{{ tuple $envAll "nfs" "provisioner" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  replicas: {{ .Values.pod.replicas.server }}
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+{{ tuple $envAll "nfs" "provisioner" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "nfs" "provisioner" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+{{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
+    spec:
+      serviceAccountName: {{ $serviceAccountName }}
+      affinity:
+{{ tuple $envAll "nfs" "provisioner" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
+      nodeSelector:
+        {{ .Values.labels.nfs.node_selector_key }}: {{ .Values.labels.nfs.node_selector_value | quote }}
+      initContainers:
+{{ tuple $envAll "nfs" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+      containers:
+        - name: nfs-provisioner
+{{ tuple $envAll "nfs_provisioner" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.server | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          securityContext:
+            capabilities:
+              add:
+                - DAC_READ_SEARCH
+                - SYS_RESOURCE
+          ports:
+            - name: nfs
+              containerPort: 2049
+            - name: nfs-udp
+              containerPort: 2049
+              protocol: UDP
+            - name: mountd
+              containerPort: 20048
+            - name: mountd-udp
+              containerPort: 20048
+              protocol: UDP
+            - name: rpcbind
+              containerPort: 111
+            - name: rpcbind-udp
+              containerPort: 111
+              protocol: UDP
+            - name: port-662
+              containerPort: 662
+            - name: port-662-udp
+              containerPort: 662
+              protocol: UDP
+            - name: port-875
+              containerPort: 875
+            - name: port-875-udp
+              containerPort: 875
+              protocol: UDP
+            - name: port-32803
+              containerPort: 32803
+            - name: port-32803-udp
+              containerPort: 32803
+              protocol: UDP
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: SERVICE_NAME
+              value: {{ tuple "nfs" "internal" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          args:
+            {{ if empty .Values.storageclass.provisioner -}}
+            - "-provisioner=nfs/{{ .Release.Name }}"
+            {{- else -}}
+            - "-provisioner={{ .Values.storageclass.provisioner }}"
+            {{- end }}
+            - "-grace-period=10"
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: export-volume
+              mountPath: /export
+      volumes:
+        - name: pod-tmp
+          emptyDir: {}
+        - name: export-volume
+          {{- if eq .Values.storage.type "persistentVolumeClaim" }}
+          persistentVolumeClaim:
+            {{ if empty .Values.storage.persistentVolumeClaim.name -}}
+            claimName: {{ .Release.Name }}
+            {{- else -}}
+            claimName: {{ .Values.storage.persistentVolumeClaim.name }}
+            {{- end }}
+          {{- else if eq .Values.storage.type "hostPath" }}
+          hostPath:
+            path: {{ .Values.storage.hostPath.path }}
+          {{- end }}
+{{- end }}

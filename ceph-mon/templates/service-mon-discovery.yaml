@@ -1,0 +1,41 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if and .Values.manifests.service_mon_discovery .Values.deployment.ceph }}
+{{- $envAll := . }}
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: {{ tuple "ceph_mon" "discovery" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
+spec:
+  ports:
+  - name: mon
+    port: {{ tuple "ceph_mon" "discovery" "mon" $envAll | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+    protocol: TCP
+    targetPort: {{ tuple "ceph_mon" "discovery" "mon" $envAll | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+  - name: mon-msgr2
+    port: {{ tuple "ceph_mon" "discovery" "mon_msgr2" $envAll | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+    protocol: TCP
+    targetPort: {{ tuple "ceph_mon" "discovery" "mon_msgr2" $envAll | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+  selector:
+{{- if .Values.manifests.daemonset_mon }}
+{{ tuple $envAll "ceph" "mon" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+{{- else }}
+    app: rook-ceph-mon
+    ceph_daemon_type: mon
+{{- end }}
+  clusterIP: None
+  publishNotReadyAddresses: true
+{{- end }}

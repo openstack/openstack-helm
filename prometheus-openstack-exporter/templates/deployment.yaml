@@ -1,0 +1,108 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.deployment }}
+{{- $envAll := . }}
+{{- $ksUserSecret := .Values.secrets.identity.user }}
+
+{{- $serviceAccountName := "prometheus-openstack-exporter" }}
+{{ tuple $envAll "prometheus_openstack_exporter" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus-openstack-exporter
+  annotations:
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+  labels:
+{{ tuple $envAll "prometheus-openstack-exporter" "exporter" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  replicas: {{ .Values.pod.replicas.prometheus_openstack_exporter }}
+  selector:
+    matchLabels:
+{{ tuple $envAll "prometheus-openstack-exporter" "exporter" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
+{{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_deployment" | indent 2 }}
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "prometheus-openstack-exporter" "exporter" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
+        secret-keystone-hash: {{ tuple "secret-keystone.yaml" . | include "helm-toolkit.utils.hash" }}
+        secret-registry-hash: {{ tuple "secret-registry.yaml" . | include "helm-toolkit.utils.hash" }}
+{{ dict "envAll" $envAll "podName" "prometheus-openstack-exporter" "containerNames" (list "openstack-metrics-exporter" "init") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
+{{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
+    spec:
+{{ dict "envAll" $envAll "application" "exporter" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
+      serviceAccountName: {{ $serviceAccountName }}
+      affinity:
+{{ tuple $envAll "prometheus-openstack-exporter" "exporter" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
+      nodeSelector:
+        {{ .Values.labels.openstack_exporter.node_selector_key }}: {{ .Values.labels.openstack_exporter.node_selector_value | quote }}
+      terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.prometheus_openstack_exporter.timeout | default "30" }}
+      initContainers:
+{{ tuple $envAll "prometheus_openstack_exporter" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+      containers:
+        - name: openstack-metrics-exporter
+{{ tuple $envAll "prometheus_openstack_exporter" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.prometheus_openstack_exporter | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "exporter" "container" "openstack_metrics_exporter" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          command:
+            - /tmp/prometheus-openstack-exporter.sh
+            - start
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /tmp/prometheus-openstack-exporter.sh
+                  - stop
+          ports:
+            - name: metrics
+              containerPort: {{ tuple "prometheus_openstack_exporter" "internal" "exporter" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+          livenessProbe:
+            httpGet:
+              path: /metrics
+              port: {{ tuple "prometheus_openstack_exporter" "internal" "exporter" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+            initialDelaySeconds: 180
+            periodSeconds: 60
+          readinessProbe:
+            httpGet:
+              path: /metrics
+              port: {{ tuple "prometheus_openstack_exporter" "internal" "exporter" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+            initialDelaySeconds: 20
+            periodSeconds: 30
+          env:
+            - name: LISTEN_PORT
+              value: {{ tuple "prometheus_openstack_exporter" "internal" "exporter" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | quote }}
+{{ include "helm-toolkit.utils.to_k8s_env_vars" .Values.conf.prometheus_openstack_exporter | indent 12 }}
+{{- with $env := dict "ksUserSecret" $ksUserSecret "useCA" .Values.manifests.certificates }}
+{{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 12 }}
+{{- end }}
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: prometheus-openstack-exporter-bin
+              mountPath: /tmp/prometheus-openstack-exporter.sh
+              subPath: prometheus-openstack-exporter.sh
+              readOnly: true
+{{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.identity.api.internal | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
+      volumes:
+        - name: pod-tmp
+          emptyDir: {}
+        - name: prometheus-openstack-exporter-bin
+          configMap:
+            name: prometheus-openstack-exporter-bin
+            defaultMode: 0555
+{{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.identity.api.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
+{{- end }}

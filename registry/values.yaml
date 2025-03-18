@@ -1,0 +1,231 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Default values for docker registry.
+# This is a YAML-formatted file.
+# Declare name/value pairs to be passed into your templates.
+# name: value
+
+---
+labels:
+  registry:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  job:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+
+release_group: null
+
+images:
+  tags:
+    registry: docker.io/library/registry:2
+    registry_proxy: registry.k8s.io/kube-registry-proxy:0.4
+    bootstrap: docker.io/library/docker:17.07.0
+    dep_check: quay.io/airshipit/kubernetes-entrypoint:latest-ubuntu_focal
+  pull_policy: "IfNotPresent"
+  local_registry:
+    active: false
+    exclude:
+      - dep_check
+
+volume:
+  class_name: general
+  size: 2Gi
+
+network:
+  registry:
+    ingress:
+      public: false
+    node_port:
+      enabled: false
+      port: 5000
+
+conf:
+  registry:
+    version: 0.1
+    log:
+      fields:
+        service: registry
+    storage:
+      cache:
+        blobdescriptor: redis
+      filesystem:
+        rootdirectory: /var/lib/registry
+    http:
+      secret: not-so-secret-secret
+      headers:
+        X-Content-Type-Options: [nosniff]
+    health:
+      storagedriver:
+        enabled: true
+        interval: 10s
+        threshold: 3
+    redis:
+      addr: null
+
+pod:
+  security_context:
+    registry_proxy:
+      pod:
+        runAsUser: 65534
+      container:
+        registry_proxy:
+          runAsUser: 0
+          readOnlyRootFilesystem: false
+    registry:
+      pod:
+        runAsUser: 65534
+      container:
+        registry:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+  affinity:
+    anti:
+      type:
+        default: preferredDuringSchedulingIgnoredDuringExecution
+      topologyKey:
+        default: kubernetes.io/hostname
+      weight:
+        default: 10
+  dns_policy: "ClusterFirstWithHostNet"
+  replicas:
+    registry: 1
+  lifecycle:
+    upgrades:
+      deployments:
+        revision_history: 3
+        pod_replacement_strategy: RollingUpdate
+        rolling_update:
+          max_unavailable: 1
+          max_surge: 3
+  resources:
+    enabled: false
+    registry:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+    registry_proxy:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+    jobs:
+      bootstrap:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+
+bootstrap:
+  enabled: true
+  script:
+    docker info
+  preload_images:
+    - quay.io/kozhukalov/kubernetes-entrypoint:v1.0.0
+
+dependencies:
+  static:
+    bootstrap:
+      pod:
+        # NOTE(srwilkers): As the daemonset dependency is currently broken for
+        # kubernetes 1.16, use the pod dependency and require the same node
+        # instead for the same result
+        - requireSameNode: true
+          labels:
+            application: docker
+            component: registry-proxy
+      services:
+        - endpoint: internal
+          service: docker_registry
+    registry:
+      services:
+        - endpoint: internal
+          service: redis
+    registry_proxy:
+      services:
+        - endpoint: internal
+          service: docker_registry
+
+secrets:
+  oci_image_registry:
+    registry: registry-oci-image-registry-key
+
+endpoints:
+  cluster_domain_suffix: cluster.local
+  local_image_registry:
+    name: docker-registry
+    namespace: docker-registry
+    hosts:
+      default: localhost
+      internal: docker-registry
+      node: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        default: 5000
+  oci_image_registry:
+    name: oci-image-registry
+    namespace: oci-image-registry
+    auth:
+      enabled: false
+      registry:
+        username: registry
+        password: password
+    hosts:
+      default: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        default: null
+  docker_registry:
+    name: docker-registry
+    namespace: docker-registry
+    hosts:
+      default: localhost
+      internal: docker-registry
+      node: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        default: 5000
+  redis:
+    namespace: null
+    hosts:
+      default: redis
+    host_fqdn_override:
+      default: null
+    port:
+      redis:
+        default: 6379
+
+manifests:
+  configmap_bin: true
+  configmap_etc: true
+  daemonset_registry_proxy: true
+  deployment_registry: true
+  job_bootstrap: true
+  job_image_repo_sync: true
+  pvc_images: true
+  secret_registry: true
+  service_registry: true
+...

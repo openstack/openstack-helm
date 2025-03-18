@@ -1,0 +1,124 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.daemonset }}
+{{- $envAll := . }}
+
+{{- $mounts_node_exporter := .Values.pod.mounts.node_exporter.node_exporter}}
+
+{{- $serviceAccountName := printf "%s-%s" .Release.Name "node-exporter" }}
+{{ tuple $envAll "node_exporter" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: run-node-exporter
+subjects:
+  - kind: ServiceAccount
+    name: {{ $serviceAccountName }}
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  kind: ClusterRole
+  name: cluster-admin
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: node-exporter
+  annotations:
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+  labels:
+{{ tuple $envAll "node_exporter" "metrics" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  selector:
+    matchLabels:
+{{ tuple $envAll "node_exporter" "metrics" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
+{{ tuple $envAll "node_exporter" | include "helm-toolkit.snippets.kubernetes_upgrades_daemonset" | indent 2 }}
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "node_exporter" "metrics" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+{{ dict "envAll" $envAll "podName" "node-exporter" "containerNames" (list "node-exporter" "init") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
+{{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
+    spec:
+{{ dict "envAll" $envAll "application" "metrics" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
+      serviceAccountName: {{ $serviceAccountName }}
+{{ if .Values.pod.tolerations.node_exporter.enabled }}
+{{ tuple $envAll "node_exporter" | include "helm-toolkit.snippets.kubernetes_tolerations" | indent 6 }}
+{{ else }}
+      nodeSelector:
+        {{ .Values.labels.node_exporter.node_selector_key }}: {{ .Values.labels.node_exporter.node_selector_value | quote }}
+{{ end }}
+      hostNetwork: true
+      hostPID: true
+      initContainers:
+{{ tuple $envAll "node_exporter" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+      containers:
+        - name: node-exporter
+{{ tuple $envAll "node_exporter" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.node_exporter | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "metrics" "container" "node_exporter" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          command:
+            - /tmp/node-exporter.sh
+          ports:
+            - name: metrics
+              containerPort: {{ tuple "node_metrics" "internal" "metrics" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+              hostPort: {{ tuple "node_metrics" "internal" "metrics" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+          readinessProbe:
+            httpGet:
+              port: {{ tuple "node_metrics" "internal" "metrics" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: proc
+              mountPath: /host/proc
+              readOnly: true
+            - name: sys
+              mountPath: /host/sys
+              readOnly: true
+{{ if .Values.conf.collectors.textfile.directory }}
+            - name: stats-out
+              mountPath: {{.Values.conf.collectors.textfile.directory }}
+              readOnly: true
+{{ end }}
+            - name: node-exporter-bin
+              mountPath: /tmp/node-exporter.sh
+              subPath: node-exporter.sh
+              readOnly: true
+{{ if $mounts_node_exporter.volumeMounts }}{{ toYaml $mounts_node_exporter.volumeMounts | indent 12 }}{{ end }}
+      volumes:
+        - name: pod-tmp
+          emptyDir: {}
+        - name: proc
+          hostPath:
+            path: /proc
+        - name: sys
+          hostPath:
+            path: /sys
+{{ if .Values.conf.collectors.textfile.directory }}
+        - name: stats-out
+          hostPath:
+            path: {{.Values.conf.collectors.textfile.directory }}
+{{ end }}
+        - name: node-exporter-bin
+          configMap:
+            name: node-exporter-bin
+            defaultMode: 0555
+{{ if $mounts_node_exporter.volumes }}{{ toYaml $mounts_node_exporter.volumes | indent 8 }}{{ end }}
+{{- end }}

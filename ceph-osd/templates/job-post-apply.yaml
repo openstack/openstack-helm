@@ -1,0 +1,149 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+ http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if eq .Values.pod.lifecycle.upgrades.daemonsets.pod_replacement_strategy "OnDelete" }}
+{{- if and .Values.manifests.job_post_apply }}
+{{- $envAll := . }}
+
+{{- $serviceAccountName := printf "%s-%s" .Release.Name "post-apply" }}
+{{ tuple $envAll "post-apply" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: {{ $serviceAccountName }}
+rules:
+  - apiGroups:
+      - ''
+    resources:
+      - pods
+      - events
+      - jobs
+      - pods/exec
+    verbs:
+      - create
+      - get
+      - delete
+      - list
+  - apiGroups:
+      - 'apps'
+    resources:
+      - daemonsets
+    verbs:
+      - get
+      - list
+  - apiGroups:
+      - 'batch'
+    resources:
+      - jobs
+    verbs:
+      - get
+      - list
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ $serviceAccountName }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ $serviceAccountName }}
+    namespace: {{ $envAll.Release.Namespace }}
+roleRef:
+  kind: ClusterRole
+  name: {{ $serviceAccountName }}
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ $serviceAccountName }}
+  labels:
+{{ tuple $envAll "ceph-upgrade" "post-apply" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+  annotations:
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+spec:
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "ceph-upgrade" "post-apply" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
+{{ dict "envAll" $envAll "podName" "ceph-osd-post-apply" "containerNames" (list "ceph-osd-post-apply" "init" ) | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
+    spec:
+{{ dict "envAll" $envAll "application" "post_apply" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
+      serviceAccountName: {{ $serviceAccountName }}
+      restartPolicy: OnFailure
+      nodeSelector:
+        {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
+      initContainers:
+{{ tuple $envAll "post-apply" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container"  | indent 8 }}
+      containers:
+        - name: ceph-osd-post-apply
+{{ tuple $envAll "ceph_config_helper" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.jobs.bootstrap | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "post_apply" "container" "ceph_osd_post_apply" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          env:
+            - name: CLUSTER
+              value: "ceph"
+            - name: CEPH_NAMESPACE
+              value: {{ .Release.Namespace }}
+            - name: RELEASE_GROUP_NAME
+              value: {{ .Release.Name }}
+            - name: REQUIRED_PERCENT_OF_OSDS
+              value: {{ .Values.conf.ceph.target.required_percent_of_osds | ceil | quote }}
+            - name: DISRUPTIVE_OSD_RESTART
+              value: {{ .Values.conf.storage.disruptive_osd_restart | quote }}
+            - name: UNCONDITIONAL_OSD_RESTART
+              value: {{ .Values.conf.storage.unconditional_osd_restart | quote }}
+          command:
+            - /tmp/post-apply.sh
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: pod-etc-ceph
+              mountPath: /etc/ceph
+            - name: ceph-osd-bin
+              mountPath: /tmp/post-apply.sh
+              subPath: post-apply.sh
+              readOnly: true
+            - name: ceph-osd-bin
+              mountPath: /tmp/wait-for-pods.sh
+              subPath: wait-for-pods.sh
+              readOnly: true
+            - name: ceph-osd-etc
+              mountPath: /etc/ceph/ceph.conf
+              subPath: ceph.conf
+              readOnly: true
+            - name: ceph-osd-admin-keyring
+              mountPath: /etc/ceph/ceph.client.admin.keyring
+              subPath: ceph.client.admin.keyring
+              readOnly: true
+      volumes:
+        - name: pod-tmp
+          emptyDir: {}
+        - name: pod-etc-ceph
+          emptyDir: {}
+        - name: ceph-osd-bin
+          configMap:
+            name: {{ printf "%s-%s" $envAll.Release.Name "bin" | quote }}
+            defaultMode: 0555
+        - name: ceph-osd-etc
+          configMap:
+            name: {{ printf "%s-%s" $envAll.Release.Name "etc" | quote }}
+            defaultMode: 0444
+        - name: ceph-osd-admin-keyring
+          secret:
+            secretName: {{ .Values.secrets.keyrings.admin }}
+{{- end }}
+{{- end }}

@@ -1,0 +1,530 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Default values for ceph-mon.
+# This is a YAML-formatted file.
+# Declare name/value pairs to be passed into your templates.
+# name: value
+
+---
+deployment:
+  ceph: true
+  storage_secrets: true
+
+images:
+  pull_policy: IfNotPresent
+  tags:
+    ceph_bootstrap: 'docker.io/openstackhelm/ceph-daemon:ubuntu_jammy_19.2.1-1-20250207'
+    ceph_config_helper: 'docker.io/openstackhelm/ceph-config-helper:ubuntu_jammy_19.2.1-1-20250207'
+    ceph_mon: 'docker.io/openstackhelm/ceph-daemon:ubuntu_jammy_19.2.1-1-20250207'
+    ceph_mgr: 'docker.io/openstackhelm/ceph-daemon:ubuntu_jammy_19.2.1-1-20250207'
+    ceph_mon_check: 'docker.io/openstackhelm/ceph-config-helper:ubuntu_jammy_19.2.1-1-20250207'
+    dep_check: 'quay.io/airshipit/kubernetes-entrypoint:latest-ubuntu_focal'
+    image_repo_sync: 'docker.io/library/docker:17.07.0'
+  local_registry:
+    active: false
+    exclude:
+      - dep_check
+      - image_repo_sync
+
+labels:
+  job:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  mon:
+    node_selector_key: ceph-mon
+    node_selector_value: enabled
+  mgr:
+    node_selector_key: ceph-mgr
+    node_selector_value: enabled
+
+pod:
+  security_context:
+    mon:
+      pod:
+        runAsUser: 65534
+      container:
+        ceph_init_dirs:
+          runAsUser: 0
+          readOnlyRootFilesystem: true
+        ceph_log_ownership:
+          runAsUser: 0
+          readOnlyRootFilesystem: true
+        ceph_mon:
+          runAsUser: 64045
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
+    mgr:
+      pod:
+        runAsUser: 65534
+      container:
+        init_dirs:
+          runAsUser: 0
+          readOnlyRootFilesystem: true
+        mgr:
+          runAsUser: 64045
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
+    moncheck:
+      pod:
+        runAsUser: 65534
+      container:
+        ceph_mon:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+    bootstrap:
+      pod:
+        runAsUser: 65534
+      container:
+        ceph_bootstrap:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+    storage_keys_generator:
+      pod:
+        runAsUser: 65534
+      container:
+        ceph_storage_keys_generator:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+    ceph:
+      pod:
+        runAsUser: 65534
+      container:
+        ceph-mds-keyring-generator:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+        ceph-mgr-keyring-generator:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+        ceph-mon-keyring-generator:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+        ceph-osd-keyring-generator:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+    post_apply:
+      pod:
+        runAsUser: 65534
+      container:
+        ceph_mon_post_apply:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+  dns_policy: "ClusterFirstWithHostNet"
+  replicas:
+    mgr: 2
+    mon_check: 1
+  lifecycle:
+    upgrades:
+      daemonsets:
+        pod_replacement_strategy: RollingUpdate
+        mon:
+          enabled: true
+          min_ready_seconds: 0
+          max_unavailable: 1
+  updateStrategy:
+    mgr:
+      type: Recreate
+  affinity:
+    anti:
+      type:
+        default: preferredDuringSchedulingIgnoredDuringExecution
+      topologyKey:
+        default: kubernetes.io/hostname
+      weight:
+        default: 10
+  resources:
+    enabled: false
+    mon:
+      requests:
+        memory: "50Mi"
+        cpu: "250m"
+      limits:
+        memory: "100Mi"
+        cpu: "500m"
+    mgr:
+      requests:
+        memory: "5Mi"
+        cpu: "250m"
+      limits:
+        memory: "50Mi"
+        cpu: "500m"
+    mon_check:
+      requests:
+        memory: "5Mi"
+        cpu: "250m"
+      limits:
+        memory: "50Mi"
+        cpu: "500m"
+    jobs:
+      bootstrap:
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+        requests:
+          memory: "128Mi"
+          cpu: "500m"
+      secret_provisioning:
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+        requests:
+          memory: "128Mi"
+          cpu: "500m"
+      image_repo_sync:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+  tolerations:
+    mgr:
+      tolerations:
+      - effect: NoExecute
+        key: node.kubernetes.io/not-ready
+        operator: Exists
+        tolerationSeconds: 60
+      - effect: NoExecute
+        key: node.kubernetes.io/unreachable
+        operator: Exists
+        tolerationSeconds: 60
+    mon_check:
+      tolerations:
+      - effect: NoExecute
+        key: node.kubernetes.io/not-ready
+        operator: Exists
+        tolerationSeconds: 60
+      - effect: NoExecute
+        key: node.kubernetes.io/unreachable
+        operator: Exists
+        tolerationSeconds: 60
+  probes:
+    ceph:
+      ceph-mon:
+        readiness:
+          enabled: true
+          params:
+            initialDelaySeconds: 60
+            periodSeconds: 60
+            timeoutSeconds: 5
+        liveness:
+          enabled: true
+          params:
+            initialDelaySeconds: 360
+            periodSeconds: 180
+            timeoutSeconds: 5
+      ceph-mgr:
+        readiness:
+          enabled: true
+          params:
+            initialDelaySeconds: 30
+            timeoutSeconds: 5
+        liveness:
+          enabled: true
+          params:
+            initialDelaySeconds: 30
+            timeoutSeconds: 5
+
+secrets:
+  keyrings:
+    mon: ceph-mon-keyring
+    mds: ceph-bootstrap-mds-keyring
+    osd: ceph-bootstrap-osd-keyring
+    mgr: ceph-bootstrap-mgr-keyring
+    admin: ceph-client-admin-keyring
+  oci_image_registry:
+    ceph-mon: ceph-mon-oci-image-registry-key
+
+network:
+  public: 192.168.0.0/16
+  cluster: 192.168.0.0/16
+
+conf:
+  features:
+    mgr: true
+  templates:
+    keyring:
+      admin: |
+        [client.admin]
+          key = {{ key }}
+          auid = 0
+          caps mds = "allow"
+          caps mon = "allow *"
+          caps osd = "allow *"
+          caps mgr = "allow *"
+      mon: |
+        [mon.]
+          key = {{ key }}
+          caps mon = "allow *"
+      bootstrap:
+        mds: |
+          [client.bootstrap-mds]
+            key = {{ key }}
+            caps mon = "allow profile bootstrap-mds"
+        mgr: |
+          [client.bootstrap-mgr]
+            key = {{ key }}
+            caps mgr = "allow profile bootstrap-mgr"
+        osd: |
+          [client.bootstrap-osd]
+            key = {{ key }}
+            caps mon = "allow profile bootstrap-osd"
+  ceph:
+    global:
+      # auth
+      cephx: true
+      cephx_require_signatures: false
+      cephx_cluster_require_signatures: true
+      cephx_service_require_signatures: false
+      objecter_inflight_op_bytes: "1073741824"
+      objecter_inflight_ops: 10240
+      debug_ms: "0/0"
+      mon_osd_down_out_interval: 1800
+      mon_osd_down_out_subtree_limit: root
+      mon_osd_min_in_ratio: 0
+      mon_osd_min_up_ratio: 0
+      mon_data_avail_warn: 15
+      log_file: /dev/stdout
+      mon_cluster_log_file: /dev/stdout
+      # Beginning with the Pacific release, this config setting is necessary
+      # to allow pools to use 1x replication, which is disabled by default. The
+      # openstack-helm gate scripts use 1x replication for automated testing,
+      # so this is required. It doesn't seem to be sufficient to add this to
+      # /etc/ceph/ceph.conf, however. It must also be set explicitly via the
+      # 'ceph config' command, so this must also be added to the
+      # cluster_commands value in the ceph-client chart so it will be set
+      # before pools are created and configured there.
+      mon_allow_pool_size_one: true
+    osd:
+      osd_mkfs_type: xfs
+      osd_mkfs_options_xfs: -f -i size=2048
+      osd_max_object_name_len: 256
+      ms_bind_port_min: 6800
+      ms_bind_port_max: 7100
+      osd_snap_trim_priority: 1
+      osd_snap_trim_sleep: 0.1
+      osd_pg_max_concurrent_snap_trims: 1
+      filestore_merge_threshold: -10
+      filestore_split_multiple: 12
+      filestore_max_sync_interval: 10
+      osd_scrub_begin_hour: 22
+      osd_scrub_end_hour: 4
+      osd_scrub_during_recovery: false
+      osd_scrub_sleep: 0.1
+      osd_scrub_chunk_min: 1
+      osd_scrub_chunk_max: 4
+      osd_scrub_load_threshold: 10.0
+      osd_deep_scrub_stride: "1048576"
+      osd_scrub_priority: 1
+      osd_recovery_op_priority: 1
+      osd_recovery_max_active: 1
+      osd_mount_options_xfs: "rw,noatime,largeio,inode64,swalloc,logbufs=8,logbsize=256k,allocsize=4M"
+      osd_journal_size: 10240
+  storage:
+    mon:
+      directory: /var/lib/openstack-helm/ceph/mon
+
+    # The post-apply job will try to determine if mons need to be restarted
+    # and only restart them if necessary. Set this value to "true" to restart
+    # mons unconditionally.
+    unconditional_mon_restart: "false"
+
+daemonset:
+  prefix_name: "mon"
+
+dependencies:
+  dynamic:
+    common:
+      local_image_registry:
+        jobs:
+          - ceph-mon-image-repo-sync
+        services:
+          - endpoint: node
+            service: local_image_registry
+  static:
+    bootstrap:
+      jobs: null
+      services:
+        - endpoint: internal
+          service: ceph_mon
+    job_keyring_generator:
+      jobs: null
+    mon:
+      jobs:
+        - ceph-storage-keys-generator
+        - ceph-mon-keyring-generator
+    mgr:
+      jobs:
+        - ceph-storage-keys-generator
+        - ceph-mgr-keyring-generator
+      services:
+        - endpoint: internal
+          service: ceph_mon
+    moncheck:
+      jobs:
+        - ceph-storage-keys-generator
+        - ceph-mon-keyring-generator
+      services:
+        - endpoint: discovery
+          service: ceph_mon
+    storage_keys_generator:
+      jobs: null
+    image_repo_sync:
+      services:
+        - endpoint: internal
+          service: local_image_registry
+
+bootstrap:
+  enabled: false
+  script: |
+    ceph -s
+    function ensure_pool () {
+      ceph osd pool stats $1 || ceph osd pool create $1 $2
+      if [[ $(ceph mon versions | awk '/version/{print $3}' | cut -d. -f1) -ge 12 ]]; then
+        ceph osd pool application enable $1 $3
+      fi
+    }
+    #ensure_pool volumes 8 cinder
+
+# Uncomment below to enable mgr modules
+# For a list of available modules:
+#  http://docs.ceph.com/docs/master/mgr/
+# This overrides mgr_initial_modules (default: restful, status)
+# Any module not listed here will be disabled
+ceph_mgr_enabled_modules:
+  - restful
+  - status
+  - prometheus
+  - balancer
+  - iostat
+  - pg_autoscaler
+
+# You can configure your mgr modules
+# below. Each module has its own set
+# of key/value. Refer to the doc
+# above for more info. For example:
+ceph_mgr_modules_config:
+#  balancer:
+#    active: 1
+#  prometheus:
+    # server_port: 9283
+#    server_addr: 0.0.0.0
+#  dashboard:
+#    port: 7000
+#  localpool:
+#    failure_domain: host
+#    subtree: rack
+#    pg_num: "128"
+#    num_rep: "3"
+#    min_size: "2"
+
+# if you change provision_storage_class to false
+# it is presumed you manage your own storage
+# class definition externally
+# We iterate over each storageclass parameters
+# and derive the manifest.
+storageclass:
+  rbd:
+    parameters:
+      adminSecretName: pvc-ceph-conf-combined-storageclass
+      adminSecretNameNode: pvc-ceph-conf-combined-storageclass
+  cephfs:
+    provision_storage_class: true
+    provisioner: ceph.com/cephfs
+    metadata:
+      name: cephfs
+    parameters:
+      adminId: admin
+      userSecretName: pvc-ceph-cephfs-client-key
+      adminSecretName: pvc-ceph-conf-combined-storageclass
+      adminSecretNamespace: ceph
+
+endpoints:
+  cluster_domain_suffix: cluster.local
+  local_image_registry:
+    name: docker-registry
+    namespace: docker-registry
+    hosts:
+      default: localhost
+      internal: docker-registry
+      node: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        node: 5000
+  oci_image_registry:
+    name: oci-image-registry
+    namespace: oci-image-registry
+    auth:
+      enabled: false
+      ceph-mon:
+        username: ceph-mon
+        password: password
+    hosts:
+      default: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        default: null
+  ceph_mon:
+    namespace: null
+    hosts:
+      default: ceph-mon
+      discovery: ceph-mon-discovery
+    host_fqdn_override:
+      default: null
+    port:
+      mon:
+        default: 6789
+      mon_msgr2:
+        default: 3300
+  ceph_mgr:
+    namespace: null
+    hosts:
+      default: ceph-mgr
+    host_fqdn_override:
+      default: null
+    port:
+      mgr:
+        default: 7000
+      metrics:
+        default: 9283
+    scheme:
+      default: http
+
+monitoring:
+  prometheus:
+    enabled: true
+    ceph_mgr:
+      scrape: true
+      port: 9283
+
+manifests:
+  configmap_bin: true
+  configmap_etc: true
+  configmap_templates: true
+  daemonset_mon: true
+  deployment_mgr: true
+  deployment_mgr_sa: true
+  deployment_moncheck: true
+  job_image_repo_sync: true
+  job_bootstrap: true
+  job_keyring: true
+  job_post_apply: true
+  service_mon: true
+  service_mgr: true
+  service_mon_discovery: true
+  job_storage_admin_keys: true
+  secret_registry: true
+...

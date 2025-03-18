@@ -1,0 +1,575 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+labels:
+  api:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  test:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+
+images:
+  tags:
+    kubernetes_keystone_webhook: docker.io/k8scloudprovider/k8s-keystone-auth:v1.19.0
+    scripted_test: docker.io/openstackhelm/heat:wallaby-ubuntu_focal
+    dep_check: quay.io/airshipit/kubernetes-entrypoint:latest-ubuntu_focal
+    image_repo_sync: docker.io/library/docker:17.07.0
+  pull_policy: IfNotPresent
+  local_registry:
+    active: false
+    exclude:
+      - dep_check
+      - image_repo_sync
+
+network:
+  api:
+    ingress:
+      public: true
+      classes:
+        namespace: "nginx"
+        cluster: "nginx-cluster"
+      annotations:
+        nginx.ingress.kubernetes.io/rewrite-target: /
+        nginx.ingress.kubernetes.io/secure-backends: "true"
+    external_policy_local: false
+    node_port:
+      enabled: false
+      port: 30601
+
+pod:
+  security_context:
+    kubernetes_keystone_webhook:
+      pod:
+        runAsUser: 65534
+      container:
+        kubernetes_keystone_webhook:
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
+  mandatory_access_control:
+    type: apparmor
+    kubernetes-keystone-webhook:
+      kubernetes-keystone-webhook: runtime/default
+  affinity:
+    anti:
+      type:
+        default: preferredDuringSchedulingIgnoredDuringExecution
+      topologyKey:
+        default: kubernetes.io/hostname
+      weight:
+        default: 10
+  replicas:
+    api: 1
+  resources:
+    enabled: false
+    api:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "256Mi"
+        cpu: "200m"
+    jobs:
+      tests:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "256Mi"
+          cpu: "200m"
+  mounts:
+    kubernetes_keystone_webhook_api:
+      init_container: null
+      kubernetes_keystone_webhook_api: null
+    kubernetes_keystone_webhook_tests:
+      init_container: null
+      kubernetes_keystone_webhook_tests: null
+
+release_group: null
+
+conf:
+  policy:
+    - resource:
+        verbs:
+          - "*"
+        resources:
+          - "*"
+        namespace: "*"
+        version: "*"
+      match:
+        - type: role
+          values:
+            - admin
+    - resource:
+        verbs:
+          - "*"
+        resources:
+          - "*"
+        namespace: "kube-system"
+        version: "*"
+      match:
+        - type: role
+          values:
+            - kube-system-admin
+    - resource:
+        verbs:
+          - get
+          - list
+          - watch
+        resources:
+          - "*"
+        namespace: "kube-system"
+        version: "*"
+      match:
+        - type: role
+          values:
+            - kube-system-viewer
+    - resource:
+        verbs:
+          - "*"
+        resources:
+          - "*"
+        namespace: "openstack"
+        version: "*"
+      match:
+        - type: project
+          values:
+            - openstack-system
+    - resource:
+        verbs:
+          - "*"
+        resources:
+          - "*"
+        namespace: "*"
+        version: "*"
+      match:
+        - type: role
+          values:
+            - admin_k8cluster
+    - nonresource:
+        verbs:
+          - "*"
+        path: "*"
+      match:
+        - type: role
+          values:
+            - admin_k8cluster
+    - resource:
+        resources:
+          - pods
+          - pods/attach
+          - pods/exec
+          - pods/portforward
+          - pods/proxy
+          - configmaps
+          - endpoints
+          - persistentvolumeclaims
+          - replicationcontrollers
+          - replicationcontrollers/scale
+          - secrets
+          - serviceaccounts
+          - services
+          - services/proxy
+        verbs:
+          - create
+          - delete
+          - deletecollection
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        namespace: "*"
+        version: ""
+      match:
+        - type: role
+          values:
+            - admin_k8cluster_editor
+    - resource:
+        resources:
+          - bindings
+          - events
+          - limitranges
+          - namespaces/status
+          - pods/log
+          - pods/status
+          - replicationcontrollers/status
+          - resourcequotas
+          - resourcequotas/status
+          - namespaces
+        verbs:
+          - get
+          - list
+          - watch
+        namespace: "*"
+        version: ""
+      match:
+        - type: role
+          values:
+            - admin_k8cluster_editor
+    - resource:
+        resources:
+          - serviceaccounts
+        verbs:
+          - impersonate
+        namespace: "*"
+        version: ""
+      match:
+        - type: role
+          values:
+            - admin_k8cluster_editor
+    - resource:
+        resources:
+          - daemonsets
+          - deployments
+          - deployments/rollback
+          - deployments/scale
+          - replicasets
+          - replicasets/scale
+          - statefulsets
+        verbs:
+          - create
+          - delete
+          - deletecollection
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        namespace: "*"
+        version: "apps"
+      match:
+        - type: role
+          values:
+            - admin_k8cluster_editor
+    - resource:
+        resources:
+          - horizontalpodautoscalers
+        verbs:
+          - create
+          - delete
+          - deletecollection
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        namespace: "*"
+        version: "autoscaling"
+      match:
+        - type: role
+          values:
+            - admin_k8cluster_editor
+    - resource:
+        resources:
+          - cronjobs
+          - jobs
+        verbs:
+          - create
+          - delete
+          - deletecollection
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        namespace: "*"
+        version: "batch"
+      match:
+        - type: role
+          values:
+            - admin_k8cluster_editor
+    - resource:
+        resources:
+          - daemonsets
+          - deployments
+          - deployments/rollback
+          - deployments/scale
+          - ingresses
+          - networkpolicies
+          - replicasets
+          - replicasets/scale
+          - replicationcontrollers/scale
+        verbs:
+          - create
+          - delete
+          - deletecollection
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        namespace: "*"
+        version: "extensions"
+      match:
+        - type: role
+          values:
+            - admin_k8cluster_editor
+    - resource:
+        resources:
+          - poddisruptionbudgets
+        verbs:
+          - create
+          - delete
+          - deletecollection
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        namespace: "*"
+        version: "policy"
+      match:
+        - type: role
+          values:
+            - admin_k8cluster_editor
+    - resource:
+        resources:
+          - networkpolicies
+        verbs:
+          - create
+          - delete
+          - deletecollection
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        namespace: "*"
+        version: "networking.k8s.io"
+      match:
+        - type: role
+          values:
+            - admin_k8cluster_editor
+    - resource:
+        resources:
+          - configmaps
+          - endpoints
+          - persistentvolumeclaims
+          - pods
+          - replicationcontrollers
+          - replicationcontrollers/scale
+          - serviceaccounts
+          - services
+          - bindings
+          - events
+          - limitranges
+          - namespaces/status
+          - pods/log
+          - pods/status
+          - replicationcontrollers/status
+          - resourcequotas
+          - resourcequotas/status
+          - namespaces
+        verbs:
+          - get
+          - list
+          - watch
+        namespace: "*"
+        version: ""
+      match:
+        - type: role
+          values:
+            - admin_k8cluster_viewer
+    - resource:
+        resources:
+          - daemonsets
+          - deployments
+          - deployments/scale
+          - replicasets
+          - replicasets/scale
+          - statefulsets
+        verbs:
+          - get
+          - list
+          - watch
+        namespace: "*"
+        version: "apps"
+      match:
+        - type: role
+          values:
+            - admin_k8cluster_viewer
+    - resource:
+        resources:
+          - horizontalpodautoscalers
+        verbs:
+          - get
+          - list
+          - watch
+        namespace: "*"
+        version: "autoscaling"
+      match:
+        - type: role
+          values:
+            - admin_k8cluster_viewer
+    - resource:
+        resources:
+          - cronjobs
+          - jobs
+        verbs:
+          - get
+          - list
+          - watch
+        namespace: "*"
+        version: "batch"
+      match:
+        - type: role
+          values:
+            - admin_k8cluster_viewer
+    - resource:
+        resources:
+          - daemonsets
+          - deployments
+          - deployments/scale
+          - ingresses
+          - networkpolicies
+          - replicasets
+          - replicasets/scale
+          - replicationcontrollers/scale
+        verbs:
+          - get
+          - list
+          - watch
+        namespace: "*"
+        version: "extensions"
+      match:
+        - type: role
+          values:
+            - admin_k8cluster_viewer
+    - resource:
+        resources:
+          - poddisruptionbudgets
+        verbs:
+          - get
+          - list
+          - watch
+        namespace: "*"
+        version: "policy"
+      match:
+        - type: role
+          values:
+            - admin_k8cluster_viewer
+    - resource:
+        resources:
+          - networkpolicies
+        verbs:
+          - get
+          - list
+          - watch
+        namespace: "*"
+        version: "networking.k8s.io"
+      match:
+        - type: role
+          values:
+            - admin_k8cluster_viewer
+
+secrets:
+  identity:
+    admin: kubernetes-keystone-webhook-admin
+  certificates:
+    api: kubernetes-keystone-webhook-certs
+  oci_image_registry:
+    kubernetes-keystone-webhook: kubernetes-keystone-webhook-oci-image-registry-key
+
+endpoints:
+  cluster_domain_suffix: cluster.local
+  oci_image_registry:
+    name: oci-image-registry
+    namespace: oci-image-registry
+    auth:
+      enabled: false
+      kubernetes-keystone-webhook:
+        username: kubernetes-keystone-webhook
+        password: password
+    hosts:
+      default: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        default: null
+  kubernetes:
+    auth:
+      api:
+        tls:
+          crt: null
+          key: null
+  identity:
+    name: keystone
+    namespace: null
+    auth:
+      admin:
+        region_name: RegionOne
+        username: admin
+        password: password
+        project_name: admin
+        user_domain_name: default
+        project_domain_name: default
+    hosts:
+      default: keystone
+      internal: keystone-api
+    host_fqdn_override:
+      default: null
+    path:
+      default: /v3
+    scheme:
+      default: http
+    port:
+      api:
+        default: 80
+        internal: 5000
+  kubernetes_keystone_webhook:
+    namespace: null
+    name: k8sksauth
+    hosts:
+      default: k8sksauth-api
+      public: k8sksauth
+    host_fqdn_override:
+      default: null
+    path:
+      default: /webhook
+    scheme:
+      default: https
+    port:
+      api:
+        default: 8443
+        public: 443
+
+
+dependencies:
+  dynamic:
+    common:
+      local_image_registry:
+        jobs:
+          - k8sksauth-image-repo-sync
+        services:
+          - endpoint: node
+            service: local_image_registry
+  static:
+    api:
+      jobs: null
+      services: null
+
+manifests:
+  api_secret: true
+  configmap_etc: true
+  configmap_bin: true
+  deployment: true
+  ingress_webhook: true
+  pod_test: true
+  secret_certificates: true
+  secret_keystone: true
+  secret_registry: true
+  service_ingress_api: true
+  service: true
+...

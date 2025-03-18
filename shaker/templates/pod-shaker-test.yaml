@@ -1,0 +1,141 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.pod_shaker_test }}
+{{- $envAll := . }}
+
+{{- $mounts_tests := .Values.pod.mounts.shaker_tests.shaker_tests }}
+{{- $mounts_tests_init := .Values.pod.mounts.shaker_tests.init_container }}
+
+{{- $serviceAccountName := print $envAll.Release.Name "-test" }}
+{{ tuple $envAll "run_tests" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{ print $envAll.Release.Name "-run-tests" }}
+  labels:
+{{ tuple $envAll "shaker" "run-tests" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+  annotations:
+    "helm.sh/hook": test-success
+spec:
+  nodeSelector:
+    {{ .Values.labels.pod.node_selector_key }}: {{ .Values.labels.pod.node_selector_value }}
+  serviceAccountName: {{ $serviceAccountName }}
+  restartPolicy: OnFailure
+  initContainers:
+{{ tuple $envAll "run_tests" $mounts_tests_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 4 }}
+    - name: {{ .Release.Name }}-test-ks-user
+{{ tuple $envAll "ks_user" | include "helm-toolkit.snippets.image" | indent 6 }}
+{{ tuple $envAll $envAll.Values.pod.resources.jobs.ks_user | include "helm-toolkit.snippets.kubernetes_resources" | indent 6 }}
+      command:
+        - /tmp/ks-user.sh
+      volumeMounts:
+        - name: shaker-bin
+          mountPath: /tmp/ks-user.sh
+          subPath: ks-user.sh
+          readOnly: true
+      env:
+{{- with $env := dict "ksUserSecret" .Values.secrets.identity.admin }}
+{{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 8 }}
+{{- end }}
+        - name: SERVICE_OS_SERVICE_NAME
+          value: "shaker"
+{{- with $env := dict "ksUserSecret" .Values.secrets.identity.shaker }}
+{{- include "helm-toolkit.snippets.keystone_user_create_env_vars" $env | indent 8 }}
+{{- end }}
+        - name: SERVICE_OS_ROLE
+          value: {{ .Values.endpoints.identity.auth.shaker.role | quote }}
+    - name: {{ .Release.Name }}-perms
+{{ tuple $envAll "shaker_run_tests" | include "helm-toolkit.snippets.image" | indent 6 }}
+      securityContext:
+        runAsUser: 0
+        privileged: true
+{{ tuple $envAll $envAll.Values.pod.resources.jobs.run_tests | include "helm-toolkit.snippets.kubernetes_resources" | indent 6 }}
+      command: ["/bin/sh", "-c"]
+      args:
+        - set -xe;
+          chmod 0777 /opt/shaker/data/;
+          chmod 0777 /opt/shaker-data/;
+      volumeMounts:
+        - name: shaker-reports
+          mountPath: /opt/shaker/data/
+        - name: shaker-data-host
+          mountPath: /opt/shaker-data/
+  containers:
+    - name: {{ .Release.Name }}-run-tests
+{{ tuple $envAll "shaker_run_tests" | include "helm-toolkit.snippets.image" | indent 6 }}
+{{ tuple $envAll $envAll.Values.pod.resources.jobs.run_tests | include "helm-toolkit.snippets.kubernetes_resources" | indent 6 }}
+      securityContext:
+        runAsUser: {{ .Values.pod.user.shaker.uid }}
+        privileged: false
+      env:
+{{- with $env := dict "ksUserSecret" .Values.secrets.identity.admin }}
+{{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 8 }}
+{{- end }}
+{{- with $env := dict "ksUserSecret" .Values.secrets.identity.shaker }}
+{{- include "helm-toolkit.snippets.keystone_user_create_env_vars" $env | indent 8 }}
+{{- end }}
+        - name: SHAKER_ENV_NAME
+          value: {{.Release.Name}}
+        - name: SHAKER_SCENARIO
+          value: {{ .Values.conf.shaker.shaker.DEFAULT.scenario }}
+        - name: SHAKER_SERVER_ENDPOINT
+          value: {{ .Values.conf.shaker.shaker.DEFAULT.server_endpoint }}
+      command:
+        - /tmp/run-tests.sh
+      volumeMounts:
+        - name: shaker-etc
+          mountPath: /etc/shaker/shaker_tests.yaml
+          subPath: shaker_tests.yaml
+          readOnly: true
+        - name: shaker-bin
+          mountPath: /tmp/run-tests.sh
+          subPath: run-tests.sh
+          readOnly: true
+        - name: shaker-db
+          mountPath: /opt/shaker/db/
+        - name: shaker-reports
+          mountPath: /opt/shaker/data/
+        - name: shaker-data-host
+          mountPath: /opt/shaker-data/
+        - name: shaker-etc
+          mountPath: /opt/shaker/shaker.conf
+          subPath: shaker.conf
+          readOnly: true
+{{ if $mounts_tests.volumeMounts }}{{ toYaml $mounts_tests.volumeMounts | indent 8 }}{{ end }}
+  volumes:
+    - name: shaker-etc
+      secret:
+        secretName: shaker-etc
+        defaultMode: 0444
+    - name: shaker-bin
+      configMap:
+        name: shaker-bin
+        defaultMode: 0555
+    - name: shaker-db
+      emptyDir: {}
+    - name: shaker-reports
+    {{- if not .Values.pvc.enabled }}
+      emptyDir: {}
+    {{- else }}
+      persistentVolumeClaim:
+        claimName: {{ .Values.pvc.name }}
+    {{- end }}
+    - name: shaker-data-host
+      hostPath:
+        path: /tmp/shaker-data
+{{ if $mounts_tests.volumes }}{{ toYaml $mounts_tests.volumes | indent 4 }}{{ end }}
+{{- end }}
+...

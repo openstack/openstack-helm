@@ -1,0 +1,135 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.daemonset }}
+{{- $envAll := . }}
+
+{{- $serviceAccountName := printf "%s-%s" .Release.Name "node-problem-detector" }}
+{{ tuple $envAll "node_problem_detector" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: run-node-problem-detector
+subjects:
+  - kind: ServiceAccount
+    name: {{ $serviceAccountName }}
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  kind: ClusterRole
+  name: cluster-admin
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: node-problem-detector
+  annotations:
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+  labels:
+{{ tuple $envAll "node_problem_detector" "metrics" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  selector:
+    matchLabels:
+{{ tuple $envAll "node_problem_detector" "metrics" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
+{{ tuple $envAll "node_problem_detector" | include "helm-toolkit.snippets.kubernetes_upgrades_daemonset" | indent 2 }}
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "node_problem_detector" "metrics" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+{{- if .Values.monitoring.prometheus.pod.enabled }}
+{{- $prometheus_annotations := $envAll.Values.monitoring.prometheus.node_problem_detector }}
+{{ tuple $prometheus_annotations | include "helm-toolkit.snippets.prometheus_pod_annotations" | indent 8 }}
+{{- end }}
+{{ dict "envAll" $envAll "podName" "node-problem-detector" "containerNames" (list "node-problem-detector") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
+{{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
+    spec:
+{{ dict "envAll" $envAll "application" "node_problem_detector" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
+      serviceAccountName: {{ $serviceAccountName }}
+{{ if .Values.pod.tolerations.node_problem_detector.enabled }}
+{{ tuple $envAll "node_exporter" | include "helm-toolkit.snippets.kubernetes_tolerations" | indent 6 }}
+{{ else }}
+      nodeSelector:
+        {{ .Values.labels.node_problem_detector.node_selector_key }}: {{ .Values.labels.node_problem_detector.node_selector_value | quote }}
+{{ end }}
+      containers:
+        - name: node-problem-detector
+{{ tuple $envAll "node_problem_detector" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.node_problem_detector | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "node_problem_detector" "container" "node_problem_detector" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          command:
+            - /tmp/node-problem-detector.sh
+          ports:
+            - name: metrics
+              containerPort: {{ tuple "node_problem_detector" "internal" "metrics" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+          env:
+          - name: NODE_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: spec.nodeName
+          volumeMounts:
+            - name: log
+              mountPath: /var/log
+              readOnly: true
+            - name: kmsg
+              mountPath: /dev/kmsg
+              readOnly: true
+            - name: localtime
+              mountPath: /etc/localtime
+              readOnly: true
+            - name: node-problem-detector-bin
+              mountPath: /tmp/node-problem-detector.sh
+              subPath: node-problem-detector.sh
+              readOnly: true
+            {{- range $monitor, $monitorConfig := $envAll.Values.conf.monitors }}
+            {{- $scripts := $monitorConfig.scripts }}
+            {{- range $script, $scriptSource := $scripts.source }}
+            {{- if has $script $scripts.enabled }}
+            - name: node-problem-detector-bin
+              mountPath: /config/plugin/{{$script}}
+              subPath: {{$script}}
+            {{- end }}
+            {{- end }}
+            {{- end }}
+            {{- range $monitor, $monitorConfig := $envAll.Values.conf.monitors }}
+            {{- $plugins := $monitorConfig.config }}
+            {{- range $plugin, $config := $plugins }}
+            - name: node-problem-detector-etc
+              mountPath: /config/{{$plugin}}.json
+              subPath: {{$plugin}}.json
+            {{- end }}
+            {{- end }}
+      volumes:
+        - name: pod-tmp
+          emptyDir: {}
+        - name: log
+          hostPath:
+            path: /var/log
+        - name: kmsg
+          hostPath:
+            path: /dev/kmsg
+        - name: localtime
+          hostPath:
+            path: /etc/localtime
+        - name: node-problem-detector-etc
+          secret:
+            secretName: node-problem-detector-etc
+            defaultMode: 292
+        - name: node-problem-detector-bin
+          configMap:
+            name: node-problem-detector-bin
+            defaultMode: 365
+{{- end }}

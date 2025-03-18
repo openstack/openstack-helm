@@ -1,0 +1,115 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+# This job is required for Reef and later because Ceph now disallows the
+# creation of internal pools (pools names beginning with a ".") and the
+# ceph-rbd-pool job therefore can't configure them if they don't yet exist.
+# This job simply deletes and re-creates the ceph-rbd-pool job after deploying
+# ceph-rgw so it can apply the correct configuration to the .rgw.root pool.
+
+{{- if and .Values.manifests.job_rgw_pool .Values.deployment.ceph }}
+{{- $envAll := . }}
+
+{{- $serviceAccountName := "ceph-rgw-pool" }}
+{{ tuple $envAll "rgw_pool" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: {{ $serviceAccountName }}-{{ $envAll.Release.Namespace }}
+rules:
+  - apiGroups:
+      - ''
+    resources:
+      - pods
+      - jobs
+    verbs:
+      - create
+      - get
+      - delete
+      - list
+  - apiGroups:
+      - 'batch'
+    resources:
+      - jobs
+    verbs:
+      - create
+      - get
+      - delete
+      - list
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ $serviceAccountName }}-{{ $envAll.Release.Namespace }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ $serviceAccountName }}
+    namespace: {{ $envAll.Release.Namespace }}
+roleRef:
+  kind: ClusterRole
+  name: {{ $serviceAccountName }}-{{ $envAll.Release.Namespace }}
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: ceph-rgw-pool
+  labels:
+{{ tuple $envAll "ceph" "rbd-pool" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+  annotations:
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+spec:
+  template:
+    metadata:
+      name: ceph-rgw-pool
+      labels:
+{{ tuple $envAll "ceph" "rbd-pool" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+{{ dict "envAll" $envAll "podName" "ceph-rgw-pool" "containerNames" (list "ceph-rgw-pool" "init") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
+    spec:
+{{ dict "envAll" $envAll "application" "rgw_pool" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
+      serviceAccountName: {{ $serviceAccountName }}
+      restartPolicy: {{ $envAll.Values.jobs.rgw_pool.restartPolicy | quote }}
+      affinity:
+{{ tuple $envAll "ceph" "rbd-pool" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
+      nodeSelector:
+        {{ $envAll.Values.labels.job.node_selector_key }}: {{ $envAll.Values.labels.job.node_selector_value }}
+      initContainers:
+{{ tuple $envAll "rgw_pool" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+      containers:
+        - name: ceph-rgw-pool
+{{ tuple $envAll "ceph_rgw_pool" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.jobs.rgw_pool | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "rgw_pool" "container" "rgw_pool" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          command:
+            - /tmp/rerun-pool-job.sh
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: ceph-rgw-bin
+              mountPath: /tmp/rerun-pool-job.sh
+              subPath: rerun-pool-job.sh
+              readOnly: true
+      volumes:
+        - name: pod-tmp
+          emptyDir: {}
+        - name: ceph-rgw-bin
+          configMap:
+            name: ceph-rgw-bin
+            defaultMode: 0555
+        - name: pod-run
+          emptyDir:
+            medium: "Memory"
+{{- end }}

@@ -1,0 +1,64 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.job_db_sync }}
+{{- $envAll := . }}
+
+
+{{- $serviceAccountName := "powerdns-db-sync" }}
+{{ tuple $envAll "db_sync" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ $serviceAccountName }}
+  labels:
+{{ tuple $envAll "powerdns" "db-sync" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "powerdns" "db-sync" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+    spec:
+      serviceAccountName: {{ $serviceAccountName }}
+      restartPolicy: OnFailure
+      nodeSelector:
+        {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
+      initContainers:
+{{ tuple $envAll "db_sync" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+      containers:
+        - name: powerdns-db-sync
+{{ tuple $envAll "db_sync" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.jobs.db_sync | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          command:
+            - /tmp/powerdns-mysql-sync.sh
+          volumeMounts:
+            - name: powerdns-bin
+              mountPath: /tmp/powerdns-mysql-sync.sh
+              subPath: powerdns-mysql-sync.sh
+              readOnly: true
+            - name: powerdns-etc
+              mountPath: /etc/mysql/my.cnf
+              subPath: my.cnf
+              readOnly: true
+      volumes:
+        - name: powerdns-bin
+          configMap:
+            name: powerdns-bin
+            defaultMode: 0555
+        - name: powerdns-etc
+          secret:
+            secretName: powerdns-etc
+            defaultMode: 0444
+{{- end }}

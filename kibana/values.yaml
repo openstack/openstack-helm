@@ -1,0 +1,436 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+labels:
+  kibana:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  job:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+
+images:
+  tags:
+    apache_proxy: docker.io/library/httpd:2.4
+    kibana: docker.elastic.co/kibana/kibana:8.9.0
+    dep_check: quay.io/airshipit/kubernetes-entrypoint:latest-ubuntu_focal
+    image_repo_sync: docker.io/library/docker:17.07.0
+    register_kibana_indexes: docker.io/openstackhelm/heat:wallaby-ubuntu_focal
+    flush_kibana_metadata: docker.io/openstackhelm/heat:wallaby-ubuntu_focal
+  pull_policy: IfNotPresent
+  local_registry:
+    active: false
+    exclude:
+      - dep_check
+      - image_repo_sync
+
+pod:
+  security_context:
+    dashboard:
+      pod:
+        runAsUser: 1000
+      container:
+        apache_proxy:
+          runAsUser: 0
+          readOnlyRootFilesystem: false
+        kibana:
+          runAsNonRoot: true
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: false
+    register_kibana_indexes:
+      pod:
+        runAsUser: 1000
+      container:
+        register_kibana_indexes:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+    flush_kibana_metadata:
+      pod:
+        runAsUser: 1000
+      container:
+        flush_kibana_metadata:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+  affinity:
+    anti:
+      type:
+        default: preferredDuringSchedulingIgnoredDuringExecution
+      topologyKey:
+        default: kubernetes.io/hostname
+      weight:
+        default: 10
+  lifecycle:
+    upgrades:
+      deployments:
+        pod_replacement_strategy: RollingUpdate
+        revision_history: 3
+        rolling_update:
+          max_surge: 3
+          max_unavailable: 1
+  replicas:
+    kibana: 1
+  resources:
+    enabled: false
+    apache_proxy:
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+    kibana:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+    jobs:
+      image_repo_sync:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      register_kibana_indexes:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      flush_kibana_metadata:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+  probes:
+    kibana:
+      kibana:
+        liveness:
+          enabled: true
+          params:
+            initialDelaySeconds: 180
+            periodSeconds: 60
+        readiness:
+          enabled: true
+          params:
+            initialDelaySeconds: 20
+            periodSeconds: 30
+network_policy:
+  kibana:
+    ingress:
+      - {}
+    egress:
+      - {}
+
+secrets:
+  elasticsearch:
+    user: kibana-elasticsearch-user
+  oci_image_registry:
+    kibana: kibana-oci-image-registry-key
+  tls:
+    kibana:
+      kibana:
+        public: kibana-tls-public
+
+dependencies:
+  dynamic:
+    common:
+      local_image_registry:
+        jobs:
+          - kibana-image-repo-sync
+        services:
+          - endpoint: node
+            service: local_image_registry
+  static:
+    image_repo_sync:
+      services:
+        - endpoint: internal
+          service: local_image_registry
+    kibana:
+      jobs:
+        - flush-kibana-metadata
+      services:
+        - endpoint: internal
+          service: elasticsearch
+    register_kibana_indexes:
+      jobs:
+        - flush-kibana-metadata
+      services:
+        - endpoint: internal
+          service: kibana
+    flush_kibana_metadata:
+      services:
+        - endpoint: internal
+          service: elasticsearch
+
+jobs:
+  flush_kibana_metadata:
+    backoffLimit: 6
+    activeDeadlineSeconds: 600
+
+conf:
+  httpd: |
+    ServerRoot "/usr/local/apache2"
+
+    Listen 80
+
+    LoadModule mpm_event_module modules/mod_mpm_event.so
+    LoadModule authn_file_module modules/mod_authn_file.so
+    LoadModule authn_core_module modules/mod_authn_core.so
+    LoadModule authz_host_module modules/mod_authz_host.so
+    LoadModule authz_groupfile_module modules/mod_authz_groupfile.so
+    LoadModule authz_user_module modules/mod_authz_user.so
+    LoadModule authz_core_module modules/mod_authz_core.so
+    LoadModule access_compat_module modules/mod_access_compat.so
+    LoadModule auth_basic_module modules/mod_auth_basic.so
+    LoadModule ldap_module modules/mod_ldap.so
+    LoadModule authnz_ldap_module modules/mod_authnz_ldap.so
+    LoadModule reqtimeout_module modules/mod_reqtimeout.so
+    LoadModule filter_module modules/mod_filter.so
+    LoadModule proxy_html_module modules/mod_proxy_html.so
+    LoadModule log_config_module modules/mod_log_config.so
+    LoadModule env_module modules/mod_env.so
+    LoadModule headers_module modules/mod_headers.so
+    LoadModule setenvif_module modules/mod_setenvif.so
+    LoadModule version_module modules/mod_version.so
+    LoadModule proxy_module modules/mod_proxy.so
+    LoadModule proxy_connect_module modules/mod_proxy_connect.so
+    LoadModule proxy_http_module modules/mod_proxy_http.so
+    LoadModule proxy_balancer_module modules/mod_proxy_balancer.so
+    LoadModule remoteip_module modules/mod_remoteip.so
+    LoadModule slotmem_shm_module modules/mod_slotmem_shm.so
+    LoadModule slotmem_plain_module modules/mod_slotmem_plain.so
+    LoadModule unixd_module modules/mod_unixd.so
+    LoadModule status_module modules/mod_status.so
+    LoadModule autoindex_module modules/mod_autoindex.so
+
+    <IfModule unixd_module>
+    User daemon
+    Group daemon
+    </IfModule>
+
+    <Directory />
+        AllowOverride none
+        Require all denied
+    </Directory>
+
+    <Files ".ht*">
+        Require all denied
+    </Files>
+
+    ErrorLog /dev/stderr
+
+    LogLevel warn
+
+    <IfModule log_config_module>
+        LogFormat "%a %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\"" combined
+        LogFormat "%{X-Forwarded-For}i %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\"" proxy
+        LogFormat "%h %l %u %t \"%r\" %>s %b" common
+
+        <IfModule logio_module>
+          LogFormat "%a %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\" %I %O" combinedio
+        </IfModule>
+
+        SetEnvIf X-Forwarded-For "^.*\..*\..*\..*" forwarded
+        CustomLog /dev/stdout common
+        CustomLog /dev/stdout combined
+        CustomLog /dev/stdout proxy env=forwarded
+    </IfModule>
+
+    <Directory "/usr/local/apache2/cgi-bin">
+        AllowOverride None
+        Options None
+        Require all granted
+    </Directory>
+
+    <IfModule headers_module>
+        RequestHeader unset Proxy early
+    </IfModule>
+
+    <IfModule proxy_html_module>
+    Include conf/extra/proxy-html.conf
+    </IfModule>
+
+    <VirtualHost *:80>
+      RemoteIPHeader X-Original-Forwarded-For
+      <Location />
+          ProxyPass http://localhost:{{ tuple "kibana" "internal" "kibana" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}/
+          ProxyPassReverse http://localhost:{{ tuple "kibana" "internal" "kibana" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}/
+      </Location>
+      <Proxy *>
+          AuthName "Kibana"
+          AuthType Basic
+          AuthBasicProvider file ldap
+          AuthUserFile /usr/local/apache2/conf/.htpasswd
+          AuthLDAPBindDN {{ .Values.endpoints.ldap.auth.admin.bind }}
+          AuthLDAPBindPassword {{ .Values.endpoints.ldap.auth.admin.password }}
+          AuthLDAPURL {{ tuple "ldap" "default" "ldap" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" | quote }}
+          Require valid-user
+      </Proxy>
+    </VirtualHost>
+  kibana:
+    elasticsearch:
+      pingTimeout: 1500
+      requestTimeout: 30000
+      shardTimeout: 0
+    ops:
+      interval: 5000
+    server:
+      rewriteBasePath: false
+      host: localhost
+      name: kibana
+      maxPayload: 1048576
+      port: 5601
+      ssl:
+        enabled: false
+  create_kibana_indexes:
+    indexes:
+      base:
+        - logstash
+        - journal
+        - kernel
+      application:
+        - openstack
+    default_index: logstash
+
+endpoints:
+  cluster_domain_suffix: cluster.local
+  local_image_registry:
+    name: docker-registry
+    namespace: docker-registry
+    hosts:
+      default: localhost
+      internal: docker-registry
+      node: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        node: 5000
+  oci_image_registry:
+    name: oci-image-registry
+    namespace: oci-image-registry
+    auth:
+      enabled: false
+      kibana:
+        username: kibana
+        password: password
+    hosts:
+      default: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        default: null
+  elasticsearch:
+    name: elasticsearch
+    namespace: null
+    auth:
+      admin:
+        username: admin
+        password: changeme
+        secret:
+          tls:
+            internal: elasticsearch-tls-api
+    hosts:
+      default: elasticsearch-logging
+      public: elasticsearch
+    host_fqdn_override:
+      default: null
+    path:
+      default: null
+    scheme:
+      default: http
+    port:
+      client:
+        default: 80
+  kibana:
+    name: kibana
+    namespace: null
+    hosts:
+      default: kibana-dash
+      public: kibana
+    host_fqdn_override:
+      default: null
+      # NOTE(srwilkers): this chart supports TLS for fqdn over-ridden public
+      # endpoints using the following format:
+      # public:
+      #   host: null
+      #   tls:
+      #     crt: null
+      #     key: null
+    path:
+      default: null
+    scheme:
+      default: http
+    port:
+      kibana:
+        default: 5601
+      http:
+        default: 80
+  ldap:
+    hosts:
+      default: ldap
+    auth:
+      admin:
+        bind: "cn=admin,dc=cluster,dc=local"
+        password: password
+    host_fqdn_override:
+      default: null
+    path:
+      default: "/ou=People,dc=cluster,dc=local"
+    scheme:
+      default: ldap
+    port:
+      ldap:
+        default: 389
+
+network:
+  kibana:
+    ingress:
+      public: true
+      classes:
+        namespace: "nginx"
+        cluster: "nginx-cluster"
+      annotations:
+        nginx.ingress.kubernetes.io/rewrite-target: /
+        nginx.ingress.kubernetes.io/affinity: cookie
+        nginx.ingress.kubernetes.io/session-cookie-name: kube-ingress-session-kibana
+        nginx.ingress.kubernetes.io/session-cookie-hash: sha1
+        nginx.ingress.kubernetes.io/session-cookie-expires: "600"
+        nginx.ingress.kubernetes.io/session-cookie-max-age: "600"
+    node_port:
+      enabled: false
+      port: 30905
+    port: 5601
+
+manifests:
+  configmap_bin: true
+  configmap_etc: true
+  deployment: true
+  ingress: true
+  job_image_repo_sync: true
+  network_policy: false
+  secret_elasticsearch: true
+  secret_ingress_tls: true
+  secret_registry: true
+  service: true
+  service_ingress: true
+  job_register_kibana_indexes: true
+  job_flush_kibana_metadata: true
+...

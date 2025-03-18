@@ -1,0 +1,108 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{/*
+This hook is enabled for post-delete and pre-upgrade triggers.
+The indices deleted by this hook are Kibana's meta indices
+  - .kibana
+  - .kibana_1
+  - .kibana_2
+  etc
+
+This is done to get around https://github.com/elastic/kibana/issues/58388
+which sometimes prevents Kibana deployments from upgrading successfully.
+*/}}
+
+{{- if .Values.manifests.job_flush_kibana_metadata }}
+{{- $envAll := . }}
+{{- $esUserSecret := .Values.secrets.elasticsearch.user }}
+{{- $serviceAccountName := "flush-kibana-metadata" }}
+{{ tuple $envAll "flush_kibana_metadata" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: flush-kibana-metadata
+  labels:
+{{ tuple $envAll "kibana" "flush_kibana_metadata" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  backoffLimit: {{ .Values.jobs.flush_kibana_metadata.backoffLimit }}
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "kibana" "flush_kibana_metadata" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+        "helm.sh/hook": pre-install, post-delete, pre-upgrade
+        "helm.sh/hook-delete-policy": hook-succeeded
+{{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
+        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
+{{ dict "envAll" $envAll "podName" "flush-kibana-metadata" "containerNames" (list "flush-kibana-metadata" "init")  | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
+    spec:
+{{ dict "envAll" $envAll "application" "flush_kibana_metadata" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
+      serviceAccountName: {{ $serviceAccountName }}
+      activeDeadlineSeconds: {{ .Values.jobs.flush_kibana_metadata.activeDeadlineSeconds }}
+      restartPolicy: OnFailure
+      nodeSelector:
+        {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
+      initContainers:
+{{ tuple $envAll "flush_kibana_metadata" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container"  | indent 8 }}
+      containers:
+        - name: flush-kibana-metadata
+{{ tuple $envAll "flush_kibana_metadata" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.jobs.flush_kibana_metadata | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "flush_kibana_metadata" "container" "flush_kibana_metadata" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          env:
+            - name: ELASTICSEARCH_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $esUserSecret }}
+                  key: ELASTICSEARCH_USERNAME
+            - name: ELASTICSEARCH_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $esUserSecret }}
+                  key: ELASTICSEARCH_PASSWORD
+            - name: KIBANA_ENDPOINT
+              value: {{ tuple "kibana" "internal" "http" . | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" }}
+            - name: ELASTICSEARCH_ENDPOINT
+              value: {{ printf "%s://%s" (tuple "elasticsearch" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_scheme_lookup") (tuple "elasticsearch" "internal" . | include "helm-toolkit.endpoints.hostname_fqdn_endpoint_lookup") }}
+{{- if .Values.manifests.certificates }}
+            - name: CACERT_OPTION
+              value: "--cacert /etc/elasticsearch/certs/ca.crt"
+{{- end }}
+          command:
+            - /tmp/flush_kibana_metadata.sh
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: pod-run
+              mountPath: /run
+            - name: kibana-bin
+              mountPath: /tmp/flush_kibana_metadata.sh
+              subPath: flush_kibana_metadata.sh
+              readOnly: false
+{{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.elasticsearch.auth.admin.secret.tls.internal "path" "/etc/elasticsearch/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
+      volumes:
+        - name: pod-tmp
+          emptyDir: {}
+        - name: pod-run
+          emptyDir:
+            medium: "Memory"
+        - name: kibana-bin
+          configMap:
+            name: kibana-bin
+            defaultMode: 0755
+{{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.elasticsearch.auth.admin.secret.tls.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
+{{- end }}

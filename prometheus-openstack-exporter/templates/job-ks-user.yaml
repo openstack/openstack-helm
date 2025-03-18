@@ -1,0 +1,76 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.job_ks_user }}
+{{- $envAll := . }}
+
+{{- $serviceAccountName := "prometheus-openstack-exporter-ks-user" }}
+{{ tuple $envAll "ks_user" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: prometheus-openstack-exporter-ks-user
+  labels:
+{{ tuple $envAll "prometheus-openstack-exporter" "ks-user" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "prometheus-openstack-exporter" "ks-user" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+{{ dict "envAll" $envAll "podName" "prometheus-openstack-exporter-ks-user" "containerNames" (list "prometheus-openstack-exporter-ks-user" "init") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
+    spec:
+{{ dict "envAll" $envAll "application" "ks_user" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
+      serviceAccountName: {{ $serviceAccountName }}
+      restartPolicy: OnFailure
+      nodeSelector:
+        {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value | quote }}
+      initContainers:
+{{ tuple $envAll "ks_user" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+      containers:
+        - name: prometheus-openstack-exporter-ks-user
+{{ tuple $envAll "ks_user" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ dict "envAll" $envAll "application" "ks_user" "container" "prometheus_openstack_exporter_ks_user" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          command:
+            - /tmp/ks-user.sh
+{{ tuple $envAll $envAll.Values.pod.resources.jobs.ks_user | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: ks-user-sh
+              mountPath: /tmp/ks-user.sh
+              subPath: ks-user.sh
+              readOnly: true
+{{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.identity.api.internal | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
+          env:
+{{- with $env := dict "ksUserSecret" .Values.secrets.identity.admin "useCA" .Values.manifests.certificates }}
+{{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 12 }}
+{{- end }}
+            - name: SERVICE_OS_SERVICE_NAME
+              value: "prometheus-openstack-exporter"
+{{- with $env := dict "ksUserSecret" .Values.secrets.identity.user }}
+{{- include "helm-toolkit.snippets.keystone_user_create_env_vars" $env | indent 12 }}
+{{- end }}
+            - name: SERVICE_OS_ROLE
+              value: {{ .Values.endpoints.identity.auth.user.role | quote }}
+      volumes:
+        - name: pod-tmp
+          emptyDir: {}
+        - name: ks-user-sh
+          configMap:
+            name: prometheus-openstack-exporter-bin
+            defaultMode: 0555
+{{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.identity.api.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
+{{- end }}

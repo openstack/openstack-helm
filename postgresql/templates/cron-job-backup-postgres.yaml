@@ -1,0 +1,177 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.cron_job_postgresql_backup }}
+{{- $envAll := . }}
+
+{{- $serviceAccountName := "postgresql-backup" }}
+{{ tuple $envAll "postgresql_backup" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: postgresql-backup
+  annotations:
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+  labels:
+{{ tuple $envAll "postgresql-backup" "backup" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  schedule: {{ .Values.jobs.postgresql_backup.cron | quote }}
+  successfulJobsHistoryLimit: {{ .Values.jobs.postgresql_backup.history.success }}
+  failedJobsHistoryLimit: {{ .Values.jobs.postgresql_backup.history.failed }}
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    metadata:
+      labels:
+{{ tuple $envAll "postgresql-backup" "backup" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+{{ dict "envAll" $envAll "podName" "postgresql-backup" "containerNames" (list "init" "backup-perms" "postgresql-backup") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
+    spec:
+{{- if .Values.jobs.postgresql_backup.backoffLimit }}
+      backoffLimit: {{ .Values.jobs.postgresql_backup.backoffLimit }}
+{{- end }}
+{{- if .Values.jobs.postgresql_backup.activeDeadlineSeconds }}
+      activeDeadlineSeconds: {{ .Values.jobs.postgresql_backup.activeDeadlineSeconds }}
+{{- end }}
+      template:
+        metadata:
+          labels:
+{{ tuple $envAll "postgresql-backup" "backup" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 12 }}
+        spec:
+{{ dict "envAll" $envAll "application" "postgresql_backup" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 10 }}
+          serviceAccountName: {{ $serviceAccountName }}
+          restartPolicy: OnFailure
+{{- if $envAll.Values.pod.affinity }}
+{{- if $envAll.Values.pod.affinity.postgresql_backup }}
+          affinity:
+{{  index $envAll.Values.pod.affinity "postgresql_backup"  | toYaml | indent 12}}
+{{- end }}
+{{- end }}
+          nodeSelector:
+            {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
+          initContainers:
+{{ tuple $envAll "postgresql_backup" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 12 }}
+            - name: backup-perms
+{{ tuple $envAll "postgresql_backup" | include "helm-toolkit.snippets.image" | indent 14 }}
+{{ tuple $envAll $envAll.Values.pod.resources.jobs.postgresql_backup | include "helm-toolkit.snippets.kubernetes_resources" | indent 14 }}
+{{ dict "envAll" $envAll "application" "postgresql_backup" "container" "backup_perms" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 14 }}
+              command:
+                - chown
+                - -R
+                - "65534:65534"
+                - $(POSTGRESQL_BACKUP_BASE_DIR)
+              env:
+                - name: POSTGRESQL_BACKUP_BASE_DIR
+                  value: {{ .Values.conf.backup.base_path }}
+              volumeMounts:
+                - mountPath: /tmp
+                  name: pod-tmp
+                - mountPath: {{ .Values.conf.backup.base_path }}
+                  name: postgresql-backup-dir
+          containers:
+            - name: postgresql-backup
+{{ tuple $envAll "postgresql_backup" | include "helm-toolkit.snippets.image" | indent 14 }}
+{{ tuple $envAll $envAll.Values.pod.resources.jobs.postgresql_backup | include "helm-toolkit.snippets.kubernetes_resources" | indent 14 }}
+{{ dict "envAll" $envAll "application" "postgresql_backup" "container" "postgresql_backup" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 14 }}
+              command:
+                - /tmp/backup_postgresql.sh
+              env:
+                - name: POSTGRESQL_ADMIN_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      key: POSTGRES_PASSWORD
+                      name: postgresql-admin
+                - name: POSTGRESQL_ADMIN_USER
+                  valueFrom:
+                    secretKeyRef:
+                      key: POSTGRES_USER
+                      name: postgresql-admin
+                - name: POSTGRESQL_BACKUP_BASE_DIR
+                  value: {{ .Values.conf.backup.base_path }}
+                - name: POSTGRESQL_BACKUP_PG_DUMPALL_OPTIONS
+                  value: {{ .Values.conf.backup.pg_dumpall_options }}
+                - name: POSTGRESQL_LOCAL_BACKUP_DAYS_TO_KEEP
+                  value: "{{ .Values.conf.backup.days_to_keep }}"
+                - name: POSTGRESQL_POD_NAMESPACE
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.namespace
+                - name: REMOTE_BACKUP_ENABLED
+                  value: "{{ .Values.conf.backup.remote_backup.enabled }}"
+{{- if .Values.conf.backup.remote_backup.enabled }}
+                - name: POSTGRESQL_REMOTE_BACKUP_DAYS_TO_KEEP
+                  value: "{{ .Values.conf.backup.remote_backup.days_to_keep }}"
+                - name: CONTAINER_NAME
+                  value: "{{ .Values.conf.backup.remote_backup.container_name }}"
+                - name: STORAGE_POLICY
+                  value: "{{ .Values.conf.backup.remote_backup.storage_policy }}"
+                - name: NUMBER_OF_RETRIES_SEND_BACKUP_TO_REMOTE
+                  value: {{ .Values.conf.backup.remote_backup.number_of_retries | quote }}
+                - name: MIN_DELAY_SEND_BACKUP_TO_REMOTE
+                  value: {{ .Values.conf.backup.remote_backup.delay_range.min | quote }}
+                - name: MAX_DELAY_SEND_BACKUP_TO_REMOTE
+                  value: {{ .Values.conf.backup.remote_backup.delay_range.max | quote }}
+                - name: THROTTLE_BACKUPS_ENABLED
+                  value: "{{ .Values.conf.backup.remote_backup.throttle_backups.enabled }}"
+                - name: THROTTLE_LIMIT
+                  value: {{ .Values.conf.backup.remote_backup.throttle_backups.sessions_limit | quote }}
+                - name: THROTTLE_LOCK_EXPIRE_AFTER
+                  value: {{ .Values.conf.backup.remote_backup.throttle_backups.lock_expire_after | quote }}
+                - name: THROTTLE_RETRY_AFTER
+                  value: {{ .Values.conf.backup.remote_backup.throttle_backups.retry_after | quote }}
+                - name: THROTTLE_CONTAINER_NAME
+                  value: {{ .Values.conf.backup.remote_backup.throttle_backups.container_name | quote }}
+{{- with $env := dict "ksUserSecret" $envAll.Values.secrets.identity.postgresql }}
+{{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 16 }}
+{{- end }}
+{{- end }}
+              volumeMounts:
+                - name: pod-tmp
+                  mountPath: /tmp
+                - mountPath: /tmp/backup_postgresql.sh
+                  name: postgresql-bin
+                  readOnly: true
+                  subPath: backup_postgresql.sh
+                - mountPath: /tmp/backup_main.sh
+                  name: postgresql-bin
+                  readOnly: true
+                  subPath: backup_main.sh
+                - mountPath: {{ .Values.conf.backup.base_path }}
+                  name: postgresql-backup-dir
+                - name: postgresql-secrets
+                  mountPath: /etc/postgresql/admin_user.conf
+                  subPath: admin_user.conf
+                  readOnly: true
+          volumes:
+            - name: pod-tmp
+              emptyDir: {}
+            - name: postgresql-secrets
+              secret:
+                secretName: postgresql-secrets
+                defaultMode: 292
+            - name: postgresql-bin
+              secret:
+                secretName: postgresql-bin
+                defaultMode: 365
+            {{- if and .Values.volume.backup.enabled  .Values.manifests.pvc_backup }}
+            - name: postgresql-backup-dir
+              persistentVolumeClaim:
+                claimName: postgresql-backup-data
+            {{- else }}
+            - hostPath:
+                path: {{ .Values.conf.backup.base_path }}
+                type: DirectoryOrCreate
+              name: postgresql-backup-dir
+            {{- end }}
+{{- end }}

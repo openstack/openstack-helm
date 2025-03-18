@@ -1,0 +1,105 @@
+---
+network_policy:
+  rabbitmq:
+    ingress:
+      - from:
+        - podSelector:
+            matchLabels:
+              application: keystone
+        - podSelector:
+            matchLabels:
+              application: heat
+        - podSelector:
+            matchLabels:
+              application: glance
+        - podSelector:
+            matchLabels:
+              application: cinder
+        - podSelector:
+            matchLabels:
+              application: aodh
+        - podSelector:
+            matchLabels:
+              application: barbican
+        - podSelector:
+            matchLabels:
+              application: ceilometer
+        - podSelector:
+            matchLabels:
+              application: designate
+        - podSelector:
+            matchLabels:
+              application: ironic
+        - podSelector:
+            matchLabels:
+              application: magnum
+        - podSelector:
+            matchLabels:
+              application: mistral
+        - podSelector:
+            matchLabels:
+              application: nova
+        - podSelector:
+            matchLabels:
+              application: neutron
+        - podSelector:
+            matchLabels:
+              application: senlin
+        - podSelector:
+            matchLabels:
+              application: placement
+        - podSelector:
+            matchLabels:
+              application: rabbitmq
+        - podSelector:
+            matchLabels:
+              application: prometheus_rabbitmq_exporter
+        ports:
+          # AMQP port
+          - protocol: TCP
+            port: 5672
+          # HTTP API ports
+          - protocol: TCP
+            port: 15672
+          - protocol: TCP
+            port: 80
+      - from:
+        - podSelector:
+            matchLabels:
+              application: rabbitmq
+        ports:
+          # Clustering port AMQP + 20000
+          - protocol: TCP
+            port: 25672
+          # Erlang Port Mapper Daemon (epmd)
+          - protocol: TCP
+            port: 4369
+    egress:
+      - to:
+        - podSelector:
+            matchLabels:
+              application: rabbitmq
+        ports:
+          # Erlang port mapper daemon (epmd)
+          - protocol: TCP
+            port: 4369
+          # Rabbit clustering port AMQP + 20000
+          - protocol: TCP
+            port: 25672
+          # NOTE(lamt): Set by inet_dist_listen_{min/max}. Firewalls must
+          # permit traffic in this range to pass between clustered nodes.
+          # - protocol: TCP
+          #  port: 35197
+      - to:
+        - ipBlock:
+            cidr: %%%REPLACE_API_ADDR%%%/32
+        ports:
+          - protocol: TCP
+            port: %%%REPLACE_API_PORT%%%
+
+manifests:
+  monitoring:
+    prometheus:
+      network_policy_exporter: true
+  network_policy: true
+...

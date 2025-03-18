@@ -1,0 +1,308 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- define "livenessProbeTemplate" -}}
+exec:
+  command:
+    - /tmp/readiness.sh
+{{- end -}}
+
+{{- define "readinessProbeTemplate" -}}
+exec:
+  command:
+    - /tmp/readiness.sh
+{{- end -}}
+
+{{- if .Values.manifests.statefulset }}
+{{- $envAll := . }}
+
+{{- $serviceAccountName := "postgresql" }}
+{{ tuple $envAll "postgresql" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ $serviceAccountName }}
+  namespace: {{ $envAll.Release.Namespace }}
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+    verbs:
+      - create
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - endpoints
+    verbs:
+      - get
+      - patch
+      - update
+      # the following three privileges are necessary only when using endpoints
+      - create
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - pods
+    verbs:
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  # The following privilege is only necessary for creation of headless service
+  # for postgresql-config endpoint, in order to prevent cleaning it up by the
+  # k8s master.
+  - apiGroups:
+      - ""
+    resources:
+      - services
+    verbs:
+      - create
+      - get
+      - list
+      - patch
+      - update
+      - watch
+      - delete
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ $serviceAccountName }}
+  namespace: {{ $envAll.Release.Namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ $serviceAccountName }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ $serviceAccountName }}
+    namespace: {{ $envAll.Release.Namespace }}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgresql
+  annotations:
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+  labels:
+{{ tuple $envAll "postgresql" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+    cluster-name: {{ tuple "postgresql" "internal" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
+spec:
+  serviceName: {{ tuple "postgresql" "internal" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
+  podManagementPolicy: "Parallel"
+{{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_statefulset" | indent 2 }}
+  replicas: {{ .Values.pod.replicas.server }}
+  selector:
+    matchLabels:
+{{ tuple $envAll "postgresql" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
+      cluster-name: {{ tuple "postgresql" "internal" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "postgresql" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+        cluster-name: {{ tuple "postgresql" "internal" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
+      annotations:
+{{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
+        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
+{{ dict "envAll" $envAll "podName" "postgresql" "containerNames" (list "postgresql" "set-volume-perms" "init") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
+        configmap-admin-hash: {{ tuple "secret-admin.yaml" . | include "helm-toolkit.utils.hash" }}
+        configmap-secrets-etc-hash: {{ tuple "secrets-etc.yaml" . | include "helm-toolkit.utils.hash" }}
+    spec:
+      serviceAccountName: {{ $serviceAccountName }}
+{{ dict "envAll" $envAll "application" "server" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
+      affinity:
+{{ tuple $envAll "postgresql" "server" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
+      nodeSelector:
+        {{ .Values.labels.server.node_selector_key }}: {{ .Values.labels.server.node_selector_value }}
+
+      terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.server.timeout | default "180" }}
+      initContainers:
+{{ tuple $envAll "postgresql" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+        - name: set-volume-perms
+{{ tuple $envAll "postgresql" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.server | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          command: ["/bin/sh", "-c"]
+          args:
+            - set -xe;
+              /bin/chown {{ .Values.pod.security_context.server.pod.runAsUser }} {{ .Values.storage.mount.path }};
+              /bin/chmod 700 {{ .Values.storage.mount.path }};
+              /bin/chmod 700 {{ .Values.storage.mount.path }}/*;
+{{- if .Values.manifests.certificates }}
+              /bin/cp /server_certs_temp/* /server_certs/.;
+              /bin/chown {{ .Values.pod.security_context.server.pod.runAsUser }} /server_certs;
+              /bin/chown {{ .Values.pod.security_context.server.pod.runAsUser }} /server_certs/*;
+              /bin/chmod 700 /server_certs;
+              /bin/chmod 600 /server_certs/*;
+{{- end }}
+{{ dict "envAll" $envAll "application" "server" "container" "set_volume_perms" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: postgresql-data
+              mountPath: {{ .Values.storage.mount.path }}
+              subPath: {{ .Values.storage.mount.subpath }}
+{{- if .Values.manifests.certificates }}
+            - name: server-certs
+              mountPath: /server_certs
+              # server-cert-temp mountpoint is temp storage for secrets. We copy the
+              # secrets to server-certs folder and set owner and permissions.
+              # This is needed because the secrets are always created readonly.
+{{ dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.secrets.postgresql.tls.server.internal "path" "/server_certs_temp" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
+{{- end }}
+      containers:
+        - name: postgresql
+{{ tuple $envAll "postgresql" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.server | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "server" "container" "postgresql" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          ports:
+            - containerPort: {{ tuple "postgresql-restapi" "internal" "restapi" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+              protocol: TCP
+            - containerPort: {{ tuple "postgresql" "internal" "postgresql" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+              protocol: TCP
+          env:
+            - name: PGDATA
+              value: "{{ .Values.storage.mount.path }}/pgdata"
+            - name: ARCHIVE_LIMIT
+              value: "{{ .Values.storage.archive.archive_limit }}"
+            - name: ARCHIVE_PATH
+              value: "{{ .Values.storage.archive.mount_path }}"
+            - name: KUBERNETES_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: 'POSTGRES_PASSWORD'
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.postgresql.admin }}
+                  key: 'POSTGRES_PASSWORD'
+            - name: 'POSTGRES_USER'
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.postgresql.admin }}
+                  key: 'POSTGRES_USER'
+          command:
+            - /tmp/start.sh
+{{ dict "envAll" . "component" "server" "container" "postgresql" "type" "liveness" "probeTemplate" (include "livenessProbeTemplate" . | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | trim | indent 10 }}
+{{ dict "envAll" . "component" "server" "container" "postgresql" "type" "readiness" "probeTemplate" (include "readinessProbeTemplate" . | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | trim | indent 10 }}
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - bash
+                  - -c
+                  - kill -INT 1
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: pg-run
+              mountPath: /var/run/postgresql
+            - name: postgresql-bin
+              mountPath: /tmp/start.sh
+              subPath: start.sh
+              readOnly: true
+            - name: postgresql-bin
+              mountPath: /tmp/readiness.sh
+              subPath: readiness.sh
+              readOnly: true
+            - name: postgresql-etc
+              mountPath: /tmp/pg_hba.conf
+              subPath: pg_hba.conf
+              readOnly: true
+            - name: postgresql-etc
+              mountPath: /tmp/postgresql.conf
+              subPath: postgresql.conf
+              readOnly: true
+            - name: postgresql-data
+              mountPath: {{ .Values.storage.mount.path }}
+              subPath: {{ .Values.storage.mount.subpath }}
+{{- if  eq .Values.conf.postgresql.archive_mode "on" }}
+            - name: postgresql-archive
+              mountPath: {{ .Values.storage.archive.mount_path }}
+              subPath: {{ .Values.storage.mount.subpath }}
+            - name: postgresql-bin
+              mountPath: /tmp/archive_cleanup.sh
+              subPath: archive_cleanup.sh
+              readOnly: true
+{{- end }}
+{{- if .Values.manifests.certificates }}
+            - name: server-certs
+              mountPath: /server_certs
+{{- end }}
+      volumes:
+        - name: pod-tmp
+          emptyDir: {}
+        - name: postgres-home-config
+          emptyDir: {}
+        - name: pg-run
+          emptyDir:
+            medium: "Memory"
+        - name: postgresql-bin
+          secret:
+            secretName: postgresql-bin
+            defaultMode: 0555
+{{- if .Values.manifests.certificates }}
+        - name: server-certs
+          emptyDir: {}
+{{ dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.secrets.postgresql.tls.server.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
+{{- end }}
+        - name: postgresql-etc
+          configMap:
+            name: postgresql-etc
+            defaultMode: 0444
+{{- if not .Values.storage.pvc.enabled }}
+        - name: postgresql-data
+          hostPath:
+            path: {{ .Values.storage.host.host_path }}
+{{- end }}
+{{- if or (eq .Values.conf.postgresql.archive_mode "on" )  (eq .Values.storage.pvc.enabled true) }}
+  volumeClaimTemplates:
+{{- if  .Values.storage.pvc.enabled }}
+    - metadata:
+        name: postgresql-data
+        annotations:
+          {{ .Values.storage.pvc.class_path }}: {{ .Values.storage.pvc.class_name }}
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: {{ .Values.storage.pvc.size }}
+{{- end }}
+{{- if  eq .Values.conf.postgresql.archive_mode "on" }}
+    - metadata:
+        name: postgresql-archive
+        annotations:
+          {{ .Values.storage.archive_pvc.class_path }}: {{ .Values.storage.archive_pvc.class_name }}
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: {{ .Values.storage.archive_pvc.size }}
+{{- end }}
+{{- end }}
+{{- end }}

@@ -1,0 +1,94 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.statefulset }}
+{{- $envAll := . }}
+
+{{- $serviceAccountName := "metacontroller-serviceaccount" }}
+{{ tuple $envAll "metacontroller" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+
+{{ $controllerName := printf "%s-%s" .Release.Namespace $serviceAccountName }}
+---
+{{- if .Values.manifests.rbac }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ $controllerName }}
+rules:
+- apiGroups:
+  - "*"
+  resources:
+  - "*"
+  verbs:
+  - "*"
+{{- end }}
+---
+{{- if .Values.manifests.rbac }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ $controllerName }}
+subjects:
+- kind: ServiceAccount
+  name: {{ $serviceAccountName }}
+  namespace: {{ .Release.Namespace }}
+roleRef:
+  kind: ClusterRole
+  name: {{ $controllerName }}
+  apiGroup: rbac.authorization.k8s.io
+{{- end }}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: metacontroller
+  annotations:
+{{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 4 }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+{{ tuple $envAll "metacontroller" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  selector:
+    matchLabels:
+{{ tuple $envAll "metacontroller" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
+  serviceName: {{ tuple "metacontroller" "internal" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
+  podManagementPolicy: "Parallel"
+  replicas: {{ .Values.pod.replicas.metacontroller }}
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "metacontroller" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+{{ dict "envAll" $envAll "podName" "metacontroller" "containerNames" (list "metacontroller") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
+    spec:
+{{ dict "envAll" . "application" "metacontroller" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
+      serviceAccountName: {{ $serviceAccountName }}
+      terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.server.timeout | default "30" }}
+      nodeSelector:
+        {{ .Values.labels.server.node_selector_key }}: {{ .Values.labels.server.node_selector_value | quote }}
+      containers:
+      - name: metacontroller
+{{ tuple $envAll "metacontroller" | include "helm-toolkit.snippets.image" | indent 8 }}
+{{ tuple $envAll $envAll.Values.pod.resources.metacontroller | include "helm-toolkit.snippets.kubernetes_resources" | indent 8 }}
+{{ dict "envAll" $envAll "application" "metacontroller" "container" "metacontroller" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 8 }}
+        ports:
+          - name: metacontroller
+            containerPort: {{ tuple "metacontroller" "internal" "metacontroller" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+        command:
+        - /usr/bin/metacontroller
+        args:
+        - --logtostderr
+        - -v=6
+        - --discovery-interval=20s
+{{- end }}

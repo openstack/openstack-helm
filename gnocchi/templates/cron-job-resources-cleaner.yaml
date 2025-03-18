@@ -1,0 +1,106 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.cron_job_resources_cleaner }}
+{{- $envAll := . }}
+
+{{- $mounts_gnocchi_resources_cleaner := .Values.pod.mounts.gnocchi_resources_cleaner.gnocchi_resources_cleaner }}
+{{- $mounts_gnocchi_resources_cleaner_init := .Values.pod.mounts.gnocchi_resources_cleaner.init_container }}
+
+{{- $serviceAccountName := "gnocchi-resources-cleaner" }}
+{{ tuple $envAll "resources_cleaner" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: gnocchi-resources-cleaner
+  annotations:
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+  labels:
+{{ tuple $envAll "gnocchi" "resources-cleaner" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  schedule: {{ .Values.jobs.resources_cleaner.cron | quote }}
+  successfulJobsHistoryLimit: {{ .Values.jobs.resources_cleaner.history.success }}
+  failedJobsHistoryLimit: {{ .Values.jobs.resources_cleaner.history.failed }}
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    metadata:
+      labels:
+{{ tuple $envAll "gnocchi" "resources-cleaner" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+    spec:
+      template:
+        metadata:
+          labels:
+{{ tuple $envAll "gnocchi" "resources-cleaner" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 12 }}
+        spec:
+          serviceAccountName: {{ $serviceAccountName }}
+          restartPolicy: OnFailure
+          nodeSelector:
+            {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
+{{ if $envAll.Values.pod.tolerations.gnocchi.enabled }}
+{{ tuple $envAll "gnocchi" | include "helm-toolkit.snippets.kubernetes_tolerations" | indent 10 }}
+{{ end }}
+          initContainers:
+{{ tuple $envAll "resources_cleaner" $mounts_gnocchi_resources_cleaner_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 12 }}
+          containers:
+            - name: gnocchi-resources-cleaner
+{{ tuple $envAll "gnocchi_resources_cleaner" | include "helm-toolkit.snippets.image" | indent 14 }}
+{{ tuple $envAll $envAll.Values.pod.resources.jobs.resources_cleaner | include "helm-toolkit.snippets.kubernetes_resources" | indent 14 }}
+              env:
+{{- with $env := dict "ksUserSecret" .Values.secrets.identity.admin }}
+{{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 16 }}
+{{- end }}
+                - name: OS_AUTH_TYPE
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ $.Values.secrets.identity.admin }}
+                      key: OS_AUTH_TYPE
+                - name: OS_TENANT_NAME
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ $.Values.secrets.identity.admin }}
+                      key: OS_TENANT_NAME
+                - name: DELETED_RESOURCES_TTL
+                  value: {{ .Values.jobs.resources_cleaner.deleted_resources_ttl | quote }}
+              command:
+                - /tmp/gnocchi-resources-cleaner.sh
+              volumeMounts:
+                - name: pod-tmp
+                  mountPath: /tmp
+                - name: gnocchi-bin
+                  mountPath: /tmp/gnocchi-resources-cleaner.sh
+                  subPath: gnocchi-resources-cleaner.sh
+                  readOnly: true
+                - name: pod-etc-gnocchi
+                  mountPath: /etc/gnocchi
+                - name: gnocchi-etc
+                  mountPath: /etc/gnocchi/gnocchi.conf
+                  subPath: gnocchi.conf
+                  readOnly: true
+{{ if $mounts_gnocchi_resources_cleaner.volumeMounts }}{{ toYaml $mounts_gnocchi_resources_cleaner.volumeMounts | indent 16 }}{{ end }}
+          volumes:
+            - name: pod-tmp
+              emptyDir: {}
+            - name: pod-etc-gnocchi
+              emptyDir: {}
+            - name: gnocchi-etc
+              secret:
+                secretName: gnocchi-etc
+                defaultMode: 0444
+            - name: gnocchi-bin
+              configMap:
+                name: gnocchi-bin
+                defaultMode: 0555
+{{ if $mounts_gnocchi_resources_cleaner.volumes }}{{ toYaml $mounts_gnocchi_resources_cleaner.volumes | indent 12 }}{{ end }}
+{{- end }}

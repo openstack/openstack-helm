@@ -1,0 +1,167 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.daemonset }}
+{{- $envAll := . }}
+{{- $esUserSecret := .Values.secrets.elasticsearch.user }}
+
+{{- $mounts_filebeat := .Values.pod.mounts.filebeat.filebeat }}
+
+{{- $serviceAccountName := printf "%s-%s" .Release.Name "filebeat" }}
+{{ tuple $envAll "filebeat" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ $serviceAccountName }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ $serviceAccountName }}
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  kind: ClusterRole
+  name: {{ $serviceAccountName }}
+  apiGroup: rbac.authorization.k8s.io
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: {{ $serviceAccountName }}
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - namespaces
+      - nodes
+      - pods
+      - services
+      - endpoints
+      - replicationcontrollers
+      - limitranges
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - apps
+    resources:
+      - statefulsets
+      - daemonsets
+      - deployments
+      - replicasets
+    verbs:
+      - get
+      - list
+      - watch
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: filebeat
+spec:
+  selector:
+    matchLabels:
+{{ tuple $envAll "filebeat" "daemon" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
+{{ tuple $envAll "filebeat" | include "helm-toolkit.snippets.kubernetes_upgrades_daemonset" | indent 2 }}
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "filebeat" "daemon" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+{{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
+        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
+{{ dict "envAll" $envAll "podName" "filebeat" "containerNames" (list "filebeat" "init") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
+    spec:
+      serviceAccountName: {{ $serviceAccountName }}
+{{ if $envAll.Values.pod.tolerations.filebeat.enabled }}
+{{ tuple $envAll "filebeat" | include "helm-toolkit.snippets.kubernetes_tolerations" | indent 6 }}
+{{ else }}
+      nodeSelector:
+        {{ .Values.labels.filebeat.node_selector_key }}: {{ .Values.labels.filebeat.node_selector_value | quote }}
+{{ end }}
+      initContainers:
+{{ tuple $envAll "filebeat" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+      containers:
+        - name: filebeat
+          image: {{ .Values.images.tags.filebeat }}
+          imagePullPolicy: {{ .Values.images.pull_policy }}
+          securityContext:
+            runAsUser: 0
+{{ tuple $envAll $envAll.Values.pod.resources.filebeat | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          args:
+            - "-e"
+          ports:
+            - name: filebeat
+              containerPort: {{ tuple "filebeat" "internal" "service" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+          env:
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: ELASTICSEARCH_HOST
+              value: {{ tuple "elasticsearch" "internal" . | include "helm-toolkit.endpoints.hostname_namespaced_endpoint_lookup" | quote }}
+            - name: ELASTICSEARCH_PORT
+              value: {{ tuple "elasticsearch" "internal" "http" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | quote }}
+            - name: KIBANA_HOST
+              value: {{ tuple "kibana" "internal" . | include "helm-toolkit.endpoints.hostname_namespaced_endpoint_lookup" | quote }}
+            - name: KIBANA_PORT
+              value: {{ tuple "kibana" "internal" "http" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | quote }}
+            - name: ELASTICSEARCH_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $esUserSecret }}
+                  key: ELASTICSEARCH_USERNAME
+            - name: ELASTICSEARCH_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $esUserSecret }}
+                  key: ELASTICSEARCH_PASSWORD
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: data
+              mountPath: /usr/share/filebeat/data
+            - name: varlog
+              mountPath: /var/log
+            - name: varlibdockercontainers
+              mountPath: /var/lib/docker/containers
+              readOnly: true
+            - name: filebeat-etc
+              mountPath: /usr/share/filebeat/filebeat.yml
+              readOnly: true
+              subPath: filebeat.yml
+            - name: filebeat-etc
+              mountPath: /usr/share/filebeat/modules.d/system.yml
+              subPath: system.yml
+              readOnly: true
+{{ if $mounts_filebeat.volumeMounts }}{{ toYaml $mounts_filebeat.volumeMounts | indent 8 }}{{ end }}
+      volumes:
+        - name: pod-tmp
+          emptyDir: {}
+        - name: varlog
+          hostPath:
+            path: /var/log
+        - name: varlibdockercontainers
+          hostPath:
+            path: /var/lib/docker/containers
+        - name: filebeat-etc
+          configMap:
+            name: filebeat-etc
+            defaultMode: 0444
+        - name: data
+          hostPath:
+            path: /var/lib/filebeat
+            type: DirectoryOrCreate
+{{ if $mounts_filebeat.volumes }}{{ toYaml $mounts_filebeat.volumes | indent 8 }}{{ end }}
+{{- end }}

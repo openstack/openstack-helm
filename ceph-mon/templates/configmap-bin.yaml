@@ -1,0 +1,69 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if and .Values.manifests.configmap_bin .Values.deployment.ceph }}
+{{- $envAll := . }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ printf "%s-%s" $envAll.Release.Name "bin" | quote }}
+data:
+{{- if .Values.images.local_registry.active }}
+  image-repo-sync.sh: |
+{{- include "helm-toolkit.scripts.image_repo_sync" . | indent 4 }}
+{{- end }}
+
+{{- if .Values.bootstrap.enabled }}
+  bootstrap.sh: |
+{{ tuple "bin/_bootstrap.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
+{{- end }}
+  post-apply.sh: |
+{{ tuple "bin/_post-apply.sh.tpl" . | include  "helm-toolkit.utils.template" | indent 4 }}
+
+  init-dirs.sh: |
+{{ tuple "bin/_init-dirs.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
+
+  keys-bootstrap-keyring-generator.py: |
+{{ tuple "bin/keys/_bootstrap-keyring-generator.py.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
+  keys-bootstrap-keyring-manager.sh: |
+{{ tuple "bin/keys/_bootstrap-keyring-manager.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
+  keys-storage-keyring-manager.sh: |
+{{ tuple "bin/keys/_storage-keyring-manager.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
+
+  mon-start.sh: |
+{{ tuple "bin/mon/_start.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
+  mon-stop.sh: |
+{{ tuple "bin/mon/_stop.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
+  mon-check.sh: |
+{{ tuple "bin/mon/_check.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
+
+  mgr-start.sh: |
+{{ tuple "bin/mgr/_start.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
+  mgr-check.sh: |
+{{ tuple "bin/mgr/_check.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
+
+  moncheck-start.sh: |
+{{ tuple "bin/moncheck/_start.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
+  moncheck-reap-zombies.py: |
+{{ tuple "bin/moncheck/_reap-zombies.py.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
+
+  utils-checkObjectReplication.py: |
+{{ tuple "bin/utils/_checkObjectReplication.py.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
+  utils-checkDNS.sh: |
+{{ tuple "bin/utils/_checkDNS.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
+{{- end }}
+
+  utils-checkPGs.py: |
+{{ tuple "bin/utils/_checkPGs.py.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}

@@ -1,0 +1,103 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if and .Values.manifests.monitoring.prometheus.deployment_exporter .Values.monitoring.prometheus.enabled }}
+{{- $envAll := . }}
+
+{{- $serviceAccountName := "prometheus-mysql-exporter" }}
+{{ tuple $envAll "prometheus_mysql_exporter" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus-mysql-exporter
+  labels:
+{{ tuple $envAll "prometheus-mysql-exporter" "exporter" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  replicas: {{ .Values.pod.replicas.prometheus_mysql_exporter }}
+  selector:
+    matchLabels:
+{{ tuple $envAll "prometheus-mysql-exporter" "exporter" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
+{{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_deployment" | indent 2 }}
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "prometheus-mysql-exporter" "exporter" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      namespace: {{ .Values.endpoints.prometheus_mysql_exporter.namespace }}
+      annotations:
+{{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
+{{ dict "envAll" $envAll "podName" "prometheus-mysql-exporter" "containerNames" (list "init" "mysql-exporter") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
+    spec:
+      shareProcessNamespace: true
+      serviceAccountName: {{ $serviceAccountName }}
+{{ dict "envAll" $envAll "application" "prometheus_mysql_exporter" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
+      nodeSelector:
+        {{ .Values.labels.prometheus_mysql_exporter.node_selector_key }}: {{ .Values.labels.prometheus_mysql_exporter.node_selector_value }}
+      terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.prometheus_mysql_exporter.timeout | default "30" }}
+      initContainers:
+{{ tuple $envAll "prometheus_mysql_exporter" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+      containers:
+        - name: mysql-exporter
+{{ tuple $envAll "prometheus_mysql_exporter" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ dict "envAll" $envAll "application" "prometheus_mysql_exporter" "container" "exporter" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.prometheus_mysql_exporter | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          command:
+            - /tmp/mysqld-exporter.sh
+          ports:
+            - name: metrics
+              containerPort: {{ tuple "prometheus_mysql_exporter" "internal" "metrics" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+          env:
+            - name: EXPORTER_USER
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-exporter-secrets
+                  key: EXPORTER_USER
+            - name: EXPORTER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-exporter-secrets
+                  key: EXPORTER_PASSWORD
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: LISTEN_PORT
+              value: {{ tuple "prometheus_mysql_exporter" "internal" "metrics" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | quote }}
+            - name: TELEMETRY_PATH
+              value: {{ tuple "prometheus_mysql_exporter" "internal" "metrics" . | include "helm-toolkit.endpoints.keystone_endpoint_path_lookup" | quote }}
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: mysql-exporter-secrets
+              mountPath: /etc/mysql/mysql_user.cnf
+              subPath: mysql_user.cnf
+              readOnly: true
+            - name: mysql-exporter-bin
+              mountPath: /tmp/mysqld-exporter.sh
+              subPath: mysqld-exporter.sh
+              readOnly: true
+{{ dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.secrets.tls.oslo_db.server.internal "path" "/etc/mysql/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
+      volumes:
+        - name: pod-tmp
+          emptyDir: {}
+        - name: mysql-exporter-secrets
+          secret:
+            secretName: mysql-exporter-secrets
+            defaultMode: 0444
+        - name: mysql-exporter-bin
+          configMap:
+            name: mysql-exporter-bin
+            defaultMode: 0555
+{{ dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.secrets.tls.oslo_db.server.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
+{{- end }}

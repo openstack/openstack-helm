@@ -1,0 +1,269 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Default values for shaker.
+# This is a YAML-formatted file.
+# Declare name/value pairs to be passed into your templates.
+# name: value
+
+---
+labels:
+  job:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  pod:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+
+images:
+  tags:
+    dep_check: quay.io/airshipit/kubernetes-entrypoint:latest-ubuntu_focal
+    shaker_run_tests: docker.io/performa/shaker:latest
+    ks_user: docker.io/openstackhelm/heat:wallaby-ubuntu_focal
+    image_repo_sync: docker.io/library/docker:17.07.0
+  pull_policy: "IfNotPresent"
+  local_registry:
+    active: false
+    exclude:
+      - dep_check
+      - image_repo_sync
+
+pod:
+  user:
+    shaker:
+      uid: 1000
+  resources:
+    enabled: false
+    jobs:
+      ks_user:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      run_tests:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      image_repo_sync:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+  mounts:
+    shaker_tests:
+      init_container: null
+      shaker_tests:
+
+shaker:
+  controller:
+    ingress:
+      public: true
+      classes:
+        namespace: "nginx"
+        cluster: "nginx-cluster"
+      annotations:
+        nginx.ingress.kubernetes.io/rewrite-target: /
+    external_policy_local: false
+    node_port:
+      enabled: true
+      port: 31999
+    external_ip: 9.9.9.9
+
+dependencies:
+  dynamic:
+    common:
+      local_image_registry:
+        jobs:
+          - shaker-image-repo-sync
+        services:
+          - endpoint: node
+            service: local_image_registry
+  static:
+    ks_user:
+      services:
+      - service: identity
+        endpoint: internal
+    run_tests:
+      jobs:
+      - shaker-ks-user
+      services:
+      - service: identity
+        endpoint: internal
+    image_repo_sync:
+      services:
+        - endpoint: internal
+          service: local_image_registry
+
+conf:
+  script: |
+    sed -i -E "s/(accommodation\: \[.+)(.+\])/accommodation\: \[pair, compute_nodes: 1\]/" /opt/shaker/shaker/scenarios/openstack/full_l2.yaml
+    export server_endpoint=\`ip a | grep "global eth0" | cut -f6 -d' ' | cut -f1 -d'/'\`
+
+    echo ==========  SHAKER CONF PARAMETERS  =================
+    cat /opt/shaker/shaker.conf
+    echo =====================================================
+
+    env -i HOME="$HOME" bash -l -c "printenv; shaker --server-endpoint \$server_endpoint:31999 --config-file /opt/shaker/shaker.conf"
+
+  shaker:
+    auth:
+      use_dynamic_credentials: true
+      admin_domain_scope: true
+      shaker_roles: admin, member
+      min_compute_nodes: 1
+    identity:
+      auth_version: v3
+    identity-feature-enabled:
+      api_v2: false
+      api_v3: true
+    shaker:
+      DEFAULT:
+        debug: true
+        cleanup_on_error: true
+        scenario_compute_nodes: 1
+        report: /opt/shaker/data/shaker-result.html
+        output: /opt/shaker/data/shaker-result.json
+        scenario: /opt/shaker/shaker/scenarios/openstack/full_l2.yaml
+        flavor_name: m1.small
+        external_net: public
+        image_name: shaker-image
+        scenario_availability_zone: nova
+        os_username: admin
+        os_password: password
+        os_auth_url: "http://keystone.openstack.svc.cluster.local/v3"
+        os_project_name: admin
+        os_region_name: RegionOne
+        os_identity_api_version: 3
+        os_interface: public
+    validation:
+      connect_method: floating
+    volume:
+      disk_formats: raw
+      backend_name: rbd1
+      storage_protocol: rbd
+    volume-feature-enabled:
+      api_v1: False
+      api_v3: True
+
+pvc:
+  enabled: true
+  name: pvc-shaker
+  requests:
+    storage: 2Gi
+  storage_class: general
+
+secrets:
+  identity:
+    admin: shaker-keystone-admin
+    shaker: shaker-keystone-user
+  oci_image_registry:
+    shaker: shaker-oci-image-registry-key
+
+endpoints:
+  cluster_domain_suffix: cluster.local
+  local_image_registry:
+    name: docker-registry
+    namespace: docker-registry
+    hosts:
+      default: localhost
+      internal: docker-registry
+      node: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        node: 5000
+  oci_image_registry:
+    name: oci-image-registry
+    namespace: oci-image-registry
+    auth:
+      enabled: false
+      shaker:
+        username: shaker
+        password: password
+    hosts:
+      default: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        default: null
+  identity:
+    name: keystone
+    auth:
+      admin:
+        region_name: RegionOne
+        username: admin
+        password: password
+        project_name: admin
+        user_domain_name: default
+        project_domain_name: default
+      shaker:
+        role: admin
+        region_name: RegionOne
+        username: shaker
+        password: password
+        project_name: service
+        user_domain_name: service
+        project_domain_name: service
+    hosts:
+      default: keystone
+      internal: keystone-api
+    host_fqdn_override:
+      default: null
+    path:
+      default: /v3
+    scheme:
+      default: http
+    port:
+      api:
+        default: 80
+        internal: 5000
+  shaker:
+    name: shaker
+    hosts:
+      default: shaker
+      public: shaker
+    host_fqdn_override:
+      default: null
+      # NOTE(portdirect): this chart supports TLS for fqdn over-ridden public
+      # endpoints using the following format:
+      # public:
+      #   host: null
+      #   tls:
+      #     crt: null
+      #     key: null
+    path:
+      default: null
+    scheme:
+      default: 'http'
+    port:
+      api:
+        default: 31999
+        public: 80
+manifests:
+  configmap_bin: true
+  configmap_etc: true
+  job_image_repo_sync: true
+  job_ks_user: true
+  pod_shaker_test: true
+  service_shaker: true
+  secret_keystone: true
+  secret_registry: true
+...

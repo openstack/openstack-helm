@@ -1,0 +1,34 @@
+[Unit]
+Description=Docker Application Container Engine
+Documentation=http://docs.docker.com
+After=network.target docker-containerd.service
+Requires=docker-containerd.service
+
+[Service]
+Type=notify
+Environment=GOTRACEBACK=crash
+ExecStart=/usr/bin/dockerd-current \
+          --add-runtime oci=/usr/libexec/docker/docker-runc-current \
+          --default-runtime=oci \
+          --containerd /run/containerd.sock \
+          --exec-opt native.cgroupdriver=systemd \
+          --userland-proxy-path=/usr/libexec/docker/docker-proxy-current \
+          --init-path=/usr/libexec/docker/docker-init-current \
+          --seccomp-profile=/etc/docker/seccomp.json \
+          --graph=/var/lib/docker \
+          --storage-driver=overlay2 \
+          --log-driver=json-file \
+          --iptables=false
+# NOTE(portdirect): fix mount propagation for Fedora, this is done post start,
+# as docker seems to reset this.
+ExecStartPost=/usr/bin/mount --make-rshared /
+ExecReload=/bin/kill -s HUP $MAINPID
+TasksMax=8192
+LimitNOFILE=1048576
+LimitNPROC=1048576
+LimitCORE=infinity
+TimeoutStartSec=0
+Restart=on-abnormal
+
+[Install]
+WantedBy=multi-user.target

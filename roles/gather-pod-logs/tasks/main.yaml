@@ -1,0 +1,63 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+- name: "creating directory for pod logs"
+  file:
+    path: "{{ logs_dir }}/pod-logs"
+    state: directory
+
+- name: "creating directory for failed pod logs"
+  file:
+    path: "{{ logs_dir }}/pod-logs/failed-pods"
+    state: directory
+
+- name: "retrieve all kubernetes logs, current and previous (if they exist)"
+  shell: |-
+          set -e
+          PARALLELISM_FACTOR=2
+          function get_namespaces () {
+            kubectl get namespaces -o name | awk -F '/' '{ print $NF }'
+          }
+          function get_pods () {
+            NAMESPACE=$1
+            kubectl get pods -n ${NAMESPACE} -o name | awk -F '/' '{ print $NF }' | xargs -L1 -P 1 -I {} echo ${NAMESPACE} {}
+          }
+          export -f get_pods
+          function get_pod_logs () {
+            NAMESPACE=${1% *}
+            POD=${1#* }
+            INIT_CONTAINERS=$(kubectl get pod $POD -n ${NAMESPACE} -o json | jq -r '.spec.initContainers[]?.name')
+            CONTAINERS=$(kubectl get pod $POD -n ${NAMESPACE} -o json | jq -r '.spec.containers[].name')
+            for CONTAINER in ${INIT_CONTAINERS} ${CONTAINERS}; do
+              echo "${NAMESPACE}/${POD}/${CONTAINER}"
+              mkdir -p "{{ logs_dir }}/pod-logs/${NAMESPACE}/${POD}"
+              mkdir -p "{{ logs_dir }}/pod-logs/failed-pods/${NAMESPACE}/${POD}"
+              kubectl logs ${POD} -n ${NAMESPACE} -c ${CONTAINER} > "{{ logs_dir }}/pod-logs/${NAMESPACE}/${POD}/${CONTAINER}.txt"
+              kubectl logs --previous ${POD} -n ${NAMESPACE} -c ${CONTAINER} > "{{ logs_dir }}/pod-logs/failed-pods/${NAMESPACE}/${POD}/${CONTAINER}.txt"
+            done
+          }
+          export -f get_pod_logs
+          get_namespaces | \
+            xargs -r -n 1 -P ${PARALLELISM_FACTOR} -I {} bash -c 'get_pods "$@"' _ {} | \
+            xargs -r -n 2 -P ${PARALLELISM_FACTOR} -I {} bash -c 'get_pod_logs "$@"' _ {}
+  args:
+    executable: /bin/bash
+  ignore_errors: True
+
+- name: "Downloads pod logs to executor"
+  synchronize:
+    src: "{{ logs_dir }}/pod-logs"
+    dest: "{{ zuul.executor.log_root }}/{{ inventory_hostname }}"
+    mode: pull
+  ignore_errors: True
+...

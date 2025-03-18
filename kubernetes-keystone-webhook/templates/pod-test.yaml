@@ -1,0 +1,65 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.pod_test }}
+{{- $envAll := . }}
+
+{{- $mounts_kubernetes_keystone_webhook_tests := $envAll.Values.pod.mounts.kubernetes_keystone_webhook_tests.kubernetes_keystone_webhook_tests }}
+{{- $mounts_kubernetes_keystone_webhook_tests_init := $envAll.Values.pod.mounts.kubernetes_keystone_webhook_tests.init_container }}
+
+{{- $serviceAccountName := print $envAll.Release.Name "-test" }}
+{{ tuple $envAll "tests" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ $envAll.Release.Name }}-test"
+  annotations:
+    "helm.sh/hook": test-success
+spec:
+  serviceAccountName: {{ $serviceAccountName }}
+  nodeSelector:
+    {{ $envAll.Values.labels.test.node_selector_key }}: {{ $envAll.Values.labels.test.node_selector_value | quote }}
+  restartPolicy: Never
+  initContainers:
+{{ tuple $envAll "tests" $mounts_kubernetes_keystone_webhook_tests_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 4 }}
+  containers:
+    - name: {{ $envAll.Release.Name }}-kubernetes-keystone-webhook-test
+{{ tuple $envAll "scripted_test" | include "helm-toolkit.snippets.image" | indent 6 }}
+{{ tuple $envAll $envAll.Values.pod.resources.jobs.tests | include "helm-toolkit.snippets.kubernetes_resources" | indent 6 }}
+      env:
+        - name: WEBHOOK_URL
+          value: {{ tuple "kubernetes_keystone_webhook" "internal" "api" $envAll | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" | quote }}
+{{- with $env := dict "ksUserSecret" .Values.secrets.identity.admin }}
+{{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 8 }}
+{{- end }}
+      command:
+        - /tmp/kubernetes-keystone-webhook-test.sh
+      volumeMounts:
+        - name: pod-tmp
+          mountPath: /tmp
+        - name: kubernetes-keystone-webhook-bin
+          mountPath: /tmp/kubernetes-keystone-webhook-test.sh
+          subPath: kubernetes-keystone-webhook-test.sh
+          readOnly: true
+{{ if $mounts_kubernetes_keystone_webhook_tests.volumeMounts }}{{ toYaml $mounts_kubernetes_keystone_webhook_tests.volumeMounts | indent 8 }}{{ end }}
+  volumes:
+    - name: pod-tmp
+      emptyDir: {}
+    - name: kubernetes-keystone-webhook-bin
+      configMap:
+        name: kubernetes-keystone-webhook-bin
+        defaultMode: 0555
+{{ if $mounts_kubernetes_keystone_webhook_tests.volumes }}{{ toYaml $mounts_kubernetes_keystone_webhook_tests.volumes | indent 4 }}{{ end }}
+{{- end }}

@@ -1,0 +1,177 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- define "kibanaProbeTemplate" }}
+{{- $kibanaPort := tuple "kibana" "internal" "http" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+{{- $esUser := .Values.endpoints.elasticsearch.auth.admin.username }}
+{{- $esPass := .Values.endpoints.elasticsearch.auth.admin.password }}
+{{- $authHeader := printf "%s:%s" $esUser $esPass | b64enc }}
+httpGet:
+  path: /status
+  port: {{ $kibanaPort }}
+  httpHeaders:
+    - name: Authorization
+      value: Basic {{ $authHeader }}
+{{- end }}
+
+{{- if .Values.manifests.deployment }}
+{{- $envAll := . }}
+
+{{- $esUserSecret := .Values.secrets.elasticsearch.user }}
+{{- $esUser := .Values.endpoints.elasticsearch.auth.admin.username }}
+{{- $esPass := .Values.endpoints.elasticsearch.auth.admin.password }}
+{{- $authHeader := printf "%s:%s" $esUser $esPass | b64enc }}
+
+{{- $esScheme := tuple "elasticsearch" "internal" "http" . | include "helm-toolkit.endpoints.keystone_endpoint_scheme_lookup" }}
+{{- $esSvc := tuple "elasticsearch" "default" . | include "helm-toolkit.endpoints.hostname_fqdn_endpoint_lookup" }}
+{{- $esHosts := printf "%s://%s" $esScheme $esSvc }}
+
+{{- $serviceAccountName := "kibana" }}
+{{ tuple $envAll "kibana" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+
+{{- $kibanaPort := tuple "kibana" "internal" "http" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kibana
+  annotations:
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+  labels:
+{{ tuple $envAll "kibana" "dashboard" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  replicas: {{ .Values.pod.replicas.kibana }}
+  selector:
+    matchLabels:
+{{ tuple $envAll "kibana" "dashboard" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
+{{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_deployment" | indent 2 }}
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "kibana" "dashboard" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+{{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
+        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
+{{ dict "envAll" $envAll "podName" "kibana" "containerNames" (list "apache-proxy" "kibana" "init")  | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
+    spec:
+{{ dict "envAll" $envAll "application" "dashboard" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
+      serviceAccountName: {{ $serviceAccountName }}
+      affinity:
+{{ tuple $envAll "kibana" "dashboard" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
+      nodeSelector:
+        {{ .Values.labels.kibana.node_selector_key }}: {{ .Values.labels.kibana.node_selector_value | quote }}
+      initContainers:
+{{ tuple $envAll "kibana" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+      containers:
+        - name: apache-proxy
+{{ tuple $envAll "apache_proxy" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.apache_proxy | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "dashboard" "container" "apache_proxy" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          command:
+            - /tmp/apache.sh
+            - start
+          ports:
+            - name: http
+              containerPort: {{ $kibanaPort }}
+          readinessProbe:
+            tcpSocket:
+              port: {{ $kibanaPort }}
+            initialDelaySeconds: 20
+            periodSeconds: 30
+          env:
+            - name: ELASTICSEARCH_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $esUserSecret }}
+                  key: ELASTICSEARCH_USERNAME
+            - name: ELASTICSEARCH_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $esUserSecret }}
+                  key: ELASTICSEARCH_PASSWORD
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: kibana-bin
+              mountPath: /tmp/apache.sh
+              subPath: apache.sh
+              readOnly: true
+            - name: kibana-etc
+              mountPath: /usr/local/apache2/conf/httpd.conf
+              subPath: httpd.conf
+              readOnly: true
+        - name: kibana
+{{ tuple $envAll "kibana" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.kibana | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "dashboard" "container" "kibana" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          command:
+            - /tmp/kibana.sh
+            - start
+          ports:
+            - name: kibana
+              containerPort: {{ tuple "kibana" "internal" "kibana" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+{{ dict "envAll" . "component" "kibana" "container" "kibana" "type" "liveness" "probeTemplate" (include "kibanaProbeTemplate" . | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+{{ dict "envAll" . "component" "kibana" "container" "kibana" "type" "readiness" "probeTemplate" (include "kibanaProbeTemplate" . | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+          env:
+            - name: ELASTICSEARCH_HOSTS
+              value: {{ $esHosts }}
+            - name: ELASTICSEARCH_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $esUserSecret }}
+                  key: ELASTICSEARCH_USERNAME
+            - name: ELASTICSEARCH_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $esUserSecret }}
+                  key: ELASTICSEARCH_PASSWORD
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: pod-run
+              mountPath: /run
+            - name: kibana-bin
+              mountPath: /tmp/kibana.sh
+              subPath: kibana.sh
+              readOnly: true
+            - name: pod-etc-kibana
+              mountPath: /usr/share/kibana/config
+            - name: pod-optimize-kibana
+              mountPath: /usr/share/kibana/optimize
+            - name: kibana-etc
+              mountPath: /usr/share/kibana/config/kibana.yml
+              subPath: kibana.yml
+              readOnly: true
+{{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.elasticsearch.auth.admin.secret.tls.internal "path" "/etc/elasticsearch/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
+      volumes:
+        - name: pod-tmp
+          emptyDir: {}
+        - name: pod-run
+          emptyDir:
+            medium: "Memory"
+        - name: pod-etc-kibana
+          emptyDir: {}
+        - name: pod-optimize-kibana
+          emptyDir: {}
+        - name: kibana-bin
+          configMap:
+            name: kibana-bin
+            defaultMode: 0555
+        - name: kibana-etc
+          secret:
+            secretName: kibana-etc
+            defaultMode: 0444
+{{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.elasticsearch.auth.admin.secret.tls.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
+{{- end }}

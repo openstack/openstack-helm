@@ -1,0 +1,108 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.cron_curator }}
+{{- $envAll := . }}
+
+{{- $esUserSecret := .Values.secrets.elasticsearch.user }}
+
+{{- $serviceAccountName := "elastic-curator" }}
+{{ tuple $envAll "curator" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: elastic-curator
+  annotations:
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+  labels:
+{{ tuple $envAll "elasticsearch" "curator" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  schedule: {{ .Values.jobs.curator.cron | quote }}
+  successfulJobsHistoryLimit: {{ .Values.jobs.curator.history.success }}
+  failedJobsHistoryLimit: {{ .Values.jobs.curator.history.failed }}
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    metadata:
+      labels:
+{{ tuple $envAll "elasticsearch" "curator" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+    spec:
+      template:
+        metadata:
+          labels:
+{{ tuple $envAll "elasticsearch" "curator" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 12 }}
+        spec:
+{{ dict "envAll" $envAll "application" "curator" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 10 }}
+          nodeSelector:
+            {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value | quote }}
+          serviceAccountName: {{ $serviceAccountName }}
+          restartPolicy: OnFailure
+          initContainers:
+{{ tuple $envAll "curator" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container"  | indent 12 }}
+          containers:
+            - name: curator
+{{ tuple $envAll "curator" | include "helm-toolkit.snippets.image" | indent 14 }}
+{{ tuple $envAll $envAll.Values.pod.resources.jobs.curator | include "helm-toolkit.snippets.kubernetes_resources" | indent 14 }}
+{{ dict "envAll" $envAll "application" "curator" "container" "curator" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 14 }}
+              command:
+                - /tmp/curator.sh
+              env:
+                - name: ELASTICSEARCH_USERNAME
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ $esUserSecret }}
+                      key: ELASTICSEARCH_USERNAME
+                - name: ELASTICSEARCH_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ $esUserSecret }}
+                      key: ELASTICSEARCH_PASSWORD
+                - name: ELASTICSEARCH_URL
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ $esUserSecret }}
+                      key: ELASTICSEARCH_URL
+              volumeMounts:
+                - name: pod-tmp
+                  mountPath: /tmp
+                - name: pod-etc-curator
+                  mountPath: /etc/config
+                - name: elastic-curator-bin
+                  mountPath: /tmp/curator.sh
+                  subPath: curator.sh
+                  readOnly: true
+                - name: elastic-curator-etc
+                  mountPath: /etc/config/config.yml
+                  subPath: config.yml
+                  readOnly: true
+                - name: elastic-curator-etc
+                  mountPath: /etc/config/action_file.yml
+                  subPath: action_file.yml
+                  readOnly: true
+{{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.elasticsearch.elasticsearch.internal "path" "/etc/elasticsearch/certs" "certs" tuple "ca.crt" | include "helm-toolkit.snippets.tls_volume_mount" | indent 16 }}
+          volumes:
+            - name: pod-tmp
+              emptyDir: {}
+            - name: pod-etc-curator
+              emptyDir: {}
+            - name: elastic-curator-bin
+              configMap:
+                name: elastic-curator-bin
+                defaultMode: 0555
+            - name: elastic-curator-etc
+              secret:
+                secretName: elastic-curator-etc
+                defaultMode: 0444
+{{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.elasticsearch.elasticsearch.internal | include "helm-toolkit.snippets.tls_volume" | indent 12 }}
+{{- end }}

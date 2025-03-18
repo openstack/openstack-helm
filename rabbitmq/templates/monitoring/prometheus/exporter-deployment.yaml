@@ -1,0 +1,119 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if (.Values.global).subchart_release_name }}
+{{- $_ := set . "deployment_name" .Chart.Name }}
+{{- else }}
+{{- $_ := set . "deployment_name" .Release.Name }}
+{{- end }}
+
+{{- define "exporterProbeTemplate" }}
+httpGet:
+  scheme: HTTP
+  path: /
+  port: {{ tuple "prometheus_rabbitmq_exporter" "internal" "metrics" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+{{- end }}
+
+{{- if and .Values.manifests.monitoring.prometheus.deployment_exporter .Values.monitoring.prometheus.enabled }}
+{{- $envAll := . }}
+
+{{- $rcControllerName := printf "%s-%s" $envAll.deployment_name "rabbitmq-exporter"  }}
+{{ tuple $envAll "prometheus_rabbitmq_exporter" $rcControllerName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+
+{{- $protocol := "http" }}
+{{- if $envAll.Values.manifests.certificates }}
+{{- $protocol = "https" }}
+{{- end }}
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $rcControllerName | quote }}
+  labels:
+{{ tuple $envAll "prometheus_rabbitmq_exporter" "exporter" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  replicas: {{ $envAll.Values.pod.replicas.prometheus_rabbitmq_exporter }}
+  selector:
+    matchLabels:
+{{ tuple $envAll "prometheus_rabbitmq_exporter" "exporter" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
+{{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_deployment" | indent 2 }}
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "prometheus_rabbitmq_exporter" "exporter" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      namespace: {{ $envAll.Values.endpoints.prometheus_rabbitmq_exporter.namespace }}
+      annotations:
+{{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
+{{ dict "envAll" $envAll "podName" "prometheus-rabbitmq-exporter" "containerNames" (list "init" "rabbitmq-exporter") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
+    spec:
+{{ dict "envAll" $envAll "application" "exporter" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
+      serviceAccountName: {{ $rcControllerName | quote }}
+      nodeSelector:
+        {{ $envAll.Values.labels.prometheus_rabbitmq_exporter.node_selector_key }}: {{ $envAll.Values.labels.prometheus_rabbitmq_exporter.node_selector_value | quote }}
+      terminationGracePeriodSeconds: {{ $envAll.Values.pod.lifecycle.termination_grace_period.prometheus_rabbitmq_exporter.timeout | default "30" }}
+      initContainers:
+{{ tuple $envAll "prometheus_rabbitmq_exporter" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+      containers:
+        - name: rabbitmq-exporter
+{{ tuple $envAll "prometheus_rabbitmq_exporter" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.prometheus_rabbitmq_exporter | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "exporter" "container" "rabbitmq_exporter" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+{{ dict "envAll" $envAll "component" "prometheus_rabbitmq_exporter" "container" "rabbitmq_exporter" "type" "readiness" "probeTemplate" (include "exporterProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | trim | indent 10 }}
+{{ dict "envAll" $envAll "component" "prometheus_rabbitmq_exporter" "container" "rabbitmq_exporter" "type" "liveness" "probeTemplate" (include "exporterProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | trim | indent 10 }}
+          ports:
+            - name: metrics
+              containerPort: {{ tuple "prometheus_rabbitmq_exporter" "internal" "metrics" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+          env:
+          - name: RABBIT_TIMEOUT
+            value: "{{ .Values.conf.rabbitmq_exporter.rabbit_timeout }}"
+          - name: RABBIT_URL
+            value: {{  printf "%s" $protocol }}://{{ tuple "oslo_messaging" "internal" . | include "helm-toolkit.endpoints.hostname_fqdn_endpoint_lookup" }}:{{ tuple "oslo_messaging" "internal" $protocol . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+          - name: RABBIT_USER
+            valueFrom:
+              secretKeyRef:
+                name: {{ printf "%s-%s" $envAll.deployment_name "admin-user" | quote }}
+                key: RABBITMQ_ADMIN_USERNAME
+          - name: RABBIT_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: {{ printf "%s-%s" $envAll.deployment_name "admin-user" | quote }}
+                key: RABBITMQ_ADMIN_PASSWORD
+          - name: RABBIT_CAPABILITIES
+            value: {{ include "helm-toolkit.utils.joinListWithComma" $envAll.Values.conf.prometheus_exporter.capabilities | quote }}
+          - name: PUBLISH_PORT
+            value: {{ tuple "prometheus_rabbitmq_exporter" "internal" "metrics" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | quote }}
+          - name: LOG_LEVEL
+            value: {{ $envAll.Values.conf.prometheus_exporter.log_level | quote }}
+          - name: SKIPVERIFY
+            value: {{ $envAll.Values.conf.prometheus_exporter.skipverify | quote }}
+          - name: SKIP_QUEUES
+            value: {{ $envAll.Values.conf.prometheus_exporter.skip_queues | default "^$" | quote }}
+          - name: INCLUDE_QUEUES
+            value: {{ $envAll.Values.conf.prometheus_exporter.include_queues | default ".*" | quote }}
+          - name: RABBIT_EXPORTERS
+            value: {{ $envAll.Values.conf.prometheus_exporter.rabbit_exporters | default "overview,exchange,node,queue" | quote }}
+{{- if $envAll.Values.manifests.certificates }}
+          - name: CAFILE
+            value: "/etc/rabbitmq/certs/ca.crt"
+          - name: CERTFILE
+            value: "/etc/rabbitmq/certs/tls.crt"
+          - name: KEYFILE
+            value: "/etc/rabbitmq/certs/tls.key"
+          volumeMounts:
+{{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.oslo_messaging.server.internal "path" "/etc/rabbitmq/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
+      volumes:
+{{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.oslo_messaging.server.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
+{{- end }}
+{{- end }}

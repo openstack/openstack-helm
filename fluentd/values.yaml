@@ -1,0 +1,280 @@
+# Licensed under the Apache License, Version 2.0 (the 'License');
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an 'AS IS' BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Default values for fluentd.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+---
+release_group: null
+
+labels:
+  fluentd:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+
+images:
+  tags:
+    fluentd: docker.io/openstackhelm/fluentd:latest-debian
+    dep_check: quay.io/airshipit/kubernetes-entrypoint:latest-ubuntu_focal
+    helm_tests: docker.io/openstackhelm/heat:wallaby-ubuntu_focal
+    image_repo_sync: docker.io/library/docker:17.07.0
+  pull_policy: IfNotPresent
+  local_registry:
+    active: false
+    exclude:
+      - dep_check
+      - image_repo_sync
+
+dependencies:
+  dynamic:
+    common:
+      local_image_registry:
+        jobs:
+          - fluentd-image-repo-sync
+        services:
+          - endpoint: node
+            service: local_image_registry
+  static:
+    fluentd:
+      services: null
+    image_repo_sync:
+      services:
+        - endpoint: internal
+          service: local_image_registry
+
+conf:
+  fluentd:
+    path: /fluentd/etc
+    conf:
+      input: |
+        <source>
+          bind 0.0.0.0
+          port "#{ENV['FLUENTD_PORT']}"
+          @type forward
+        </source>
+        <source>
+          <parse>
+            time_format %Y-%m-%dT%H:%M:%S.%NZ
+            @type json
+          </parse>
+          path /var/log/containers/*.log
+          read_from_head true
+          tag kubernetes.*
+          @type tail
+        </source>
+        <match **>
+          @type relabel
+          @label @output
+        </match>
+      output: |
+        <label @output>
+          <match **>
+            <buffer>
+              chunk_limit_size 512K
+              flush_interval 5s
+              flush_thread_count 8
+              queue_limit_length 32
+              retry_forever false
+              retry_max_interval 30
+            </buffer>
+            host "#{ENV['ELASTICSEARCH_HOST']}"
+            reload_connections false
+            reconnect_on_error true
+            reload_on_failure true
+            include_tag_key true
+            logstash_format true
+            password "#{ENV['ELASTICSEARCH_PASSWORD']}"
+            port "#{ENV['ELASTICSEARCH_PORT']}"
+            @type elasticsearch
+            user "#{ENV['ELASTICSEARCH_USERNAME']}"
+          </match>
+        </label>
+
+secrets:
+  oci_image_registry:
+    fluentd: fluentd-oci-image-registry-key
+
+endpoints:
+  cluster_domain_suffix: cluster.local
+  local_image_registry:
+    name: docker-registry
+    namespace: docker-registry
+    hosts:
+      default: localhost
+      internal: docker-registry
+      node: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        node: 5000
+  oci_image_registry:
+    name: oci-image-registry
+    namespace: oci-image-registry
+    auth:
+      enabled: false
+      fluentd:
+        username: fluentd
+        password: password
+    hosts:
+      default: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        default: null
+  elasticsearch:
+    namespace: null
+    name: elasticsearch
+    auth:
+      admin:
+        username: admin
+        password: changeme
+        secret:
+          tls:
+            internal: elasticsearch-tls-api
+    hosts:
+      data: elasticsearch-data
+      default: elasticsearch-logging
+      discovery: elasticsearch-discovery
+      public: elasticsearch
+    host_fqdn_override:
+      default: null
+    path:
+      default: null
+    scheme:
+      default: http
+    port:
+      http:
+        default: 80
+  fluentd:
+    namespace: null
+    name: fluentd
+    hosts:
+      default: fluentd-logging
+    host_fqdn_override:
+      default: null
+    path:
+      default: null
+    scheme:
+      default: http
+    port:
+      service:
+        default: 24224
+      metrics:
+        default: 24231
+  kafka:
+    namespace: null
+    name: kafka
+    auth:
+      admin:
+        username: admin
+        password: changeme
+    hosts:
+      default: kafka-broker
+      public: kafka
+    host_fqdn_override:
+      default: null
+    path:
+      default: null
+    scheme:
+      default: kafka
+    port:
+      broker:
+        default: 9092
+        public: 80
+
+monitoring:
+  prometheus:
+    enabled: true
+    fluentd:
+      scrape: true
+      port: 24231
+
+network:
+  fluentd:
+    node_port:
+      enabled: false
+      port: 32329
+
+network_policy:
+  fluentd:
+    ingress:
+      - {}
+    egress:
+      - {}
+
+pod:
+  env:
+    fluentd:
+      vars: null
+      secrets: null
+  tolerations:
+    fluentd:
+      enabled: false
+  security_context:
+    fluentd:
+      pod:
+        runAsUser: 0
+      container:
+        fluentd:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+  lifecycle:
+    upgrades:
+      daemonsets:
+        pod_replacement_strategy: RollingUpdate
+        fluentd:
+          enabled: true
+          min_ready_seconds: 0
+          max_unavailable: 1
+    termination_grace_period:
+      fluentd:
+        timeout: 30
+  resources:
+    enabled: false
+    fluentd:
+      limits:
+        memory: '1024Mi'
+        cpu: '2000m'
+      requests:
+        memory: '128Mi'
+        cpu: '500m'
+  mounts:
+    fluentd:
+      fluentd:
+  probes:
+    fluentd:
+      fluentd:
+        readiness:
+          enabled: true
+          params:
+            initialDelaySeconds: 90
+            timeoutSeconds: 30
+        liveness:
+          enabled: true
+          params:
+            initialDelaySeconds: 180
+            timeoutSeconds: 30
+manifests:
+  configmap_bin: true
+  configmap_etc: true
+  daemonset: true
+  job_image_repo_sync: true
+  network_policy: false
+  secret_elasticsearch: true
+  secret_fluentd_env: true
+  secret_kafka: false
+  secret_registry: true
+  service_fluentd: true
+...

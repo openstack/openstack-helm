@@ -1,0 +1,50 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+- name: Install Helm
+  shell: |
+    TMP_DIR=$(mktemp -d)
+    curl -sSL https://get.helm.sh/helm-{{ helm_version }}-linux-amd64.tar.gz | tar -zxv --strip-components=1 -C ${TMP_DIR}
+    mv "${TMP_DIR}"/helm /usr/local/bin/helm
+    rm -rf "${TMP_DIR}"
+    sudo -H pip3 install --upgrade yq bandit=={{ bandit_version }} setuptools
+  args:
+    chdir: "{{ work_dir }}"
+
+- name: Template out python files
+  shell: |
+    set -xe;
+    make all
+    mkdir -p python-files
+    EXCLUDES="helm-toolkit doc tests tools logs tmp roles playbooks releasenotes zuul.d python-files"
+    DIRS=`ls -d */ | cut -f1 -d'/'`
+
+    for EX in $EXCLUDES; do
+      DIRS=`echo $DIRS | sed "s/\b$EX\b//g"`
+    done
+
+    for DIR in $DIRS; do
+      PYFILES=$(helm template $DIR | yq 'select(.data != null) | .data | to_entries | map(select(.key | test(".*\\.py"))) | select(length > 0) | values[] | {(.key) : (.value)}' | jq -s add)
+      PYKEYS=$(echo "$PYFILES" | jq -r 'select(. != null) | keys[]')
+      for KEY in $PYKEYS; do
+        echo "$PYFILES" | jq -r --arg KEY "$KEY" '.[$KEY]' > ./python-files/"$DIR-$KEY"
+      done
+    done
+  args:
+    chdir: "{{ work_dir }}"
+
+- name: Run bandit against python files
+  shell: bandit -r ./python-files
+  args:
+    chdir: "{{ work_dir }}"
+...

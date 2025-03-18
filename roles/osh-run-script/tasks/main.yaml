@@ -1,0 +1,40 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+- name: "Run script {{ workload[0] }}"
+  shell: |
+    set -xe;
+    env
+    {{ gate_script_path }}
+  vars:
+    gate_script_path: "{{ workload[0] }}"
+  args:
+    chdir: "{{ zuul.project.src_dir }}/{{ gate_scripts_relative_path }}"
+  environment:
+    CEPH_OSD_DATA_DEVICE: "{{ ceph_osd_data_device }}"
+    POD_NETWORK_CIDR: "{{ kubeadm.pod_network_cidr }}"
+    zuul_site_mirror_fqdn: "{{ zuul_site_mirror_fqdn }}"
+    OSH_EXTRA_HELM_ARGS: "{{ zuul_osh_extra_helm_args_relative_path | default('') }}"
+    OSH_HELM_REPO: "{{ osh_helm_repo | default('../openstack-helm') }}"
+    OSH_INFRA_HELM_REPO: "{{ osh_infra_helm_repo | default('../openstack-helm-infra') }}"
+    DOWNLOAD_OVERRIDES: "{{ download_overrides | default('') }}"
+    OSH_PATH: "{{ zuul_osh_relative_path | default('../openstack-helm/') }}"
+    OSH_INFRA_PATH: "{{ zuul_osh_infra_relative_path | default('../openstack-helm-infra/') }}"
+    OSH_VALUES_OVERRIDES_PATH: "{{ osh_values_overrides_path }}"
+    OSH_INFRA_VALUES_OVERRIDES_PATH: "{{ osh_infra_values_overrides_path }}"
+    OPENSTACK_RELEASE: "{{ osh_params.openstack_release | default('') }}"
+    CONTAINER_DISTRO_NAME: "{{ osh_params.container_distro_name | default('') }}"
+    CONTAINER_DISTRO_VERSION: "{{ osh_params.container_distro_version | default('') }}"
+    FEATURES: "{{ osh_params.feature_gates | default('') | regex_replace(',', ' ')  }} {{ osh_params.openstack_release | default('') }} {{ osh_params.container_distro_name | default('') }}_{{ osh_params.container_distro_version | default('') }} {{ osh_params.container_distro_name | default('') }}"
+    RUN_HELM_TESTS: "{{ run_helm_tests | default('yes') }}"
+...

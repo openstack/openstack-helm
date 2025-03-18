@@ -1,0 +1,80 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+- name: setting default limit memlock
+  shell: |
+    set -xe;
+    echo "DefaultLimitMEMLOCK=16777216" | sudo tee -a /etc/systemd/system.conf
+    sudo systemctl daemon-reexec
+    sudo systemctl daemon-reload
+
+- name: check if docker deploy is needed
+  raw: which docker
+  register: need_docker
+  ignore_errors: True
+
+- name: centos | moving systemd unit into place
+  when: ( ansible_distribution == 'CentOS' or ansible_distribution == 'Red Hat Enterprise Linux' ) and ( need_docker is failed )
+  template:
+    src: centos-docker.service.j2
+    dest: /etc/systemd/system/docker.service
+    mode: 416
+
+- name: fedora | moving systemd unit into place
+  when: ( ansible_distribution == 'Fedora' ) and ( need_docker is failed )
+  template:
+    src: fedora-docker.service.j2
+    dest: /etc/systemd/system/docker.service
+    mode: 416
+
+- name: ubuntu | moving systemd unit into place
+  when: ( ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu' ) and ( need_docker is failed )
+  template:
+    src: ubuntu-docker.service.j2
+    dest: /etc/systemd/system/docker.service
+    mode: 416
+
+# NOTE: (lamt) Setting up the proxy before installing docker
+- name: ensure docker.service.d directory exists
+  when: proxy.http
+  file:
+    path: /etc/systemd/system/docker.service.d
+    state: directory
+
+- name: proxy | moving proxy systemd unit into place
+  when: proxy.http
+  template:
+    src: http-proxy.conf.j2
+    dest: /etc/systemd/system/docker.service.d/http-proxy.conf
+    mode: 416
+
+- name: deploy docker packages
+  when: need_docker is failed
+  include_role:
+    name: deploy-package
+    tasks_from: dist
+  vars:
+    packages:
+      deb:
+        - docker.io
+      rpm:
+        - docker
+
+- name: restarting docker
+  systemd:
+    state: restarted
+    daemon_reload: yes
+    name: docker
+
+- include: deploy-ansible-docker-support.yaml
+...

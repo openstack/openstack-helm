@@ -1,0 +1,106 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+- name: Include prerequisites tasks
+  include_tasks:
+    file: prerequisites.yaml
+
+- name: Configure /etc/hosts
+  template:
+    src: files/hosts
+    dest: /etc/hosts
+
+- name: Loop devices
+  include_tasks:
+    file: loopback_devices.yaml
+  when: loopback_setup and inventory_hostname in (groups['k8s_cluster'] | default([]))
+
+- name: Deploy Containerd
+  include_tasks:
+    file: containerd.yaml
+
+- name: Include K8s common tasks
+  include_tasks:
+    file: k8s_common.yaml
+  when: inventory_hostname in (groups['k8s_cluster'] | default([]))
+
+- name: Include K8s control-plane tasks
+  include_tasks:
+    file: k8s_control_plane.yaml
+  when: inventory_hostname in (groups['k8s_control_plane'] | default([]))
+
+- name: Join workload nodes to cluster
+  command: "{{ (groups['k8s_control_plane'] | map('extract', hostvars, ['join_command', 'stdout_lines', 0]))[0] }}"
+  when: inventory_hostname in (groups['k8s_nodes'] | default([]))
+
+- name: Include K8s client tasks
+  include_tasks:
+    file: k8s_client.yaml
+  when: inventory_hostname in (groups['primary'] | default([]))
+
+- name: Include Calico tasks
+  include_tasks:
+    file: calico.yaml
+  when: calico_setup
+
+- name: Include Cilium tasks
+  include_tasks:
+    file: cilium.yaml
+  when: cilium_setup
+
+- name: Include Flannel tasks
+  include_tasks:
+    file: flannel.yaml
+  when: flannel_setup
+
+- name: Include coredns resolver tasks
+  include_tasks:
+    file: coredns_resolver.yaml
+  when: coredns_resolver_setup
+
+- name: Include Openstack provider gateway tasks
+  include_tasks:
+    file: openstack_provider_gateway.yaml
+  when:
+    - openstack_provider_gateway_setup
+    - inventory_hostname in (groups['k8s_control_plane'] | default([]))
+
+- name: Include Metallb tasks
+  include_tasks:
+    file: metallb.yaml
+  when: metallb_setup
+
+- name: Include Openstack Metallb endpoint tasks
+  include_tasks:
+    file: openstack_metallb_endpoint.yaml
+  when:
+    - metallb_setup
+    - inventory_hostname in (groups['primary'] | default([]))
+
+- name: Include client-to-cluster tunnel tasks
+  include_tasks:
+    file: client_cluster_tunnel.yaml
+  when: (groups['primary'] | difference(groups['k8s_control_plane']) | length > 0)
+
+- name: Include client-to-cluster ssh key tasks
+  include_tasks:
+    file: client_cluster_ssh.yaml
+  when: client_cluster_ssh_setup
+
+- name: Include ingress tasks
+  include_tasks:
+    file: ingress.yaml
+  when:
+    - ingress_setup
+    - inventory_hostname in (groups['primary'] | default([]))
+...

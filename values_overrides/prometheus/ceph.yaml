@@ -1,0 +1,84 @@
+---
+conf:
+  prometheus:
+    rules:
+      ceph:
+        groups:
+        - name: ceph.recording_rules
+          rules:
+          - record: ceph_cluster_usage_percent
+            expr: 100 * (ceph_cluster_total_used_bytes / ceph_cluster_total_bytes)
+          - record: ceph_placement_group_degrade_percent
+            expr: 100 * (ceph_pg_degraded / ceph_pg_total)
+          - record: ceph_osd_down_percent
+            expr: 100 * (count(ceph_osd_up == 0) / count(ceph_osd_metadata))
+          - record: ceph_osd_out_percent
+            expr: 100 * (count(ceph_osd_in == 0) / count(ceph_osd_metadata))
+        - name: ceph.alerting_rules
+          rules:
+          - alert: prom_exporter_ceph_unavailable
+            expr: absent(ceph_health_status)
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              description: Ceph exporter is not collecting metrics or is not available for past 10 minutes
+              title: Ceph exporter is not collecting metrics or is not available
+          - alert: no_active_ceph_mgr
+            expr: avg_over_time(up{job="ceph-mgr"}[5m]) == 0
+            labels:
+              severity: warning
+            annotations:
+              description: 'no ceph active mgr is present or all ceph mgr are down'
+              summary: 'no ceph active mgt is present'
+          - alert: ceph_monitor_quorum_low
+            expr: ceph_mon_quorum_count < 3
+            for: 5m
+            labels:
+              severity: page
+            annotations:
+              description: 'ceph monitor quorum has been less than 3 for more than 5 minutes'
+              summary: 'ceph high availability is at risk'
+          - alert: ceph_monitor_quorum_absent
+            expr: absent(avg_over_time(ceph_mon_quorum_status[5m]))
+            labels:
+              severity: page
+            annotations:
+              description: 'ceph monitor quorum has been gone for more than 5 minutes'
+              summary: 'ceph high availability is at risk'
+          - alert: ceph_cluster_usage_high
+            expr: avg_over_time(ceph_cluster_usage_percent[5m]) > 80
+            labels:
+              severity: page
+            annotations:
+              description: 'ceph cluster capacity usage more than 80 percent'
+              summary: 'ceph cluster usage is more than 80 percent'
+          - alert: ceph_placement_group_degrade_pct_high
+            expr: avg_over_time(ceph_placement_group_degrade_percent[5m]) > 80
+            labels:
+              severity: critical
+            annotations:
+              description: 'ceph placement group degradation is more than 80 percent'
+              summary: 'ceph placement groups degraded'
+          - alert: ceph_osd_down_pct_high
+            expr: avg_over_time(ceph_osd_down_percent[5m]) > 80
+            labels:
+              severity: critical
+            annotations:
+              description: 'ceph OSDs down percent is more than 80 percent'
+              summary: 'ceph OSDs down percent is high'
+          - alert: ceph_osd_down
+            expr: avg_over_time(ceph_osd_up[5m]) == 0
+            labels:
+              severity: critical
+            annotations:
+              description: 'ceph OSD {{ $labels.ceph_daemon }} is down in instance {{ $labels.instance }}.'
+              summary: 'ceph OSD {{ $labels.ceph_daemon }} is down in instance {{ $labels.instance }}.'
+          - alert: ceph_osd_out
+            expr: avg_over_time(ceph_osd_in[5m]) == 0
+            labels:
+              severity: page
+            annotations:
+              description: 'ceph OSD {{ $labels.ceph_daemon }} is out in instance {{ $labels.instance }}.'
+              summary: 'ceph OSD {{ $labels.ceph_daemon }} is out in instance {{ $labels.instance }}.'
+...

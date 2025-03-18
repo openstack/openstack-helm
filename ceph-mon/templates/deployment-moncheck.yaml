@@ -1,0 +1,130 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if and .Values.manifests.deployment_moncheck .Values.deployment.ceph }}
+{{- $envAll := . }}
+
+{{- $serviceAccountName := "ceph-mon-check" }}
+{{ tuple $envAll "moncheck" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: ceph-mon-check
+  annotations:
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+  labels:
+{{ tuple $envAll "ceph" "moncheck" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  replicas: {{ .Values.pod.replicas.mon_check }}
+  selector:
+    matchLabels:
+{{ tuple $envAll "ceph" "moncheck" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "ceph" "moncheck" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+{{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
+{{ dict "envAll" $envAll "podName" "ceph-mon-check" "containerNames" (list "ceph-mon" "init") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
+    spec:
+{{ dict "envAll" $envAll "application" "moncheck" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
+      serviceAccountName: {{ $serviceAccountName }}
+      affinity:
+{{ tuple $envAll "ceph" "moncheck" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
+{{ tuple $envAll "mon_check" | include "helm-toolkit.snippets.kubernetes_tolerations" | indent 6 }}
+      nodeSelector:
+        {{ .Values.labels.mon.node_selector_key }}: {{ .Values.labels.mon.node_selector_value }}
+      initContainers:
+{{ tuple $envAll "moncheck" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+      containers:
+        - name: ceph-mon
+{{ tuple $envAll "ceph_mon_check" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.moncheck | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "moncheck" "container" "ceph_mon" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          env:
+            - name: CLUSTER
+              value: "ceph"
+            - name: K8S_HOST_NETWORK
+              value: "1"
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.namespace
+            - name: MON_PORT
+              value: {{ tuple "ceph_mon" "internal" "mon" $envAll | include "helm-toolkit.endpoints.endpoint_port_lookup" | quote }}
+            - name: MON_PORT_V2
+              value: {{ tuple "ceph_mon" "internal" "mon_msgr2" $envAll | include "helm-toolkit.endpoints.endpoint_port_lookup" | quote }}
+          command:
+            - /tmp/moncheck-start.sh
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: pod-run
+              mountPath: /run
+            - name: pod-etc-ceph
+              mountPath: /etc/ceph
+            - name: ceph-mon-bin
+              mountPath: /tmp/moncheck-start.sh
+              subPath: moncheck-start.sh
+              readOnly: true
+            - name: ceph-mon-bin
+              mountPath: /tmp/moncheck-reap-zombies.py
+              subPath: moncheck-reap-zombies.py
+              readOnly: true
+            - name: ceph-mon-bin
+              mountPath: /tmp/utils-checkDNS.sh
+              subPath: utils-checkDNS.sh
+              readOnly: true
+            - name: ceph-mon-etc
+              mountPath: /etc/ceph/ceph.conf.template
+              subPath: ceph.conf
+              readOnly: true
+            - name: ceph-client-admin-keyring
+              mountPath: /etc/ceph/ceph.client.admin.keyring
+              subPath: ceph.client.admin.keyring
+              readOnly: true
+            - name: ceph-mon-keyring
+              mountPath: /etc/ceph/ceph.mon.keyring
+              subPath: ceph.mon.keyring
+              readOnly: true
+            - name: pod-var-lib-ceph
+              mountPath: /var/lib/ceph
+              readOnly: false
+      volumes:
+        - name: pod-tmp
+          emptyDir: {}
+        - name: pod-run
+          emptyDir:
+            medium: "Memory"
+        - name: pod-etc-ceph
+          emptyDir: {}
+        - name: ceph-mon-etc
+          configMap:
+            name: {{ printf "%s-%s" $envAll.Release.Name "etc" | quote }}
+            defaultMode: 0444
+        - name: ceph-mon-bin
+          configMap:
+            name: {{ printf "%s-%s" $envAll.Release.Name "bin" | quote }}
+            defaultMode: 0555
+        - name: pod-var-lib-ceph
+          emptyDir: {}
+        - name: ceph-client-admin-keyring
+          secret:
+            secretName: {{ .Values.secrets.keyrings.admin }}
+        - name: ceph-mon-keyring
+          secret:
+            secretName: {{ .Values.secrets.keyrings.mon }}
+{{- end }}
