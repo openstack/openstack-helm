@@ -1,0 +1,63 @@
+Infra charts options
+--------------------
+
+.. toctree::
+    :maxdepth: 2
+
+    ca-clusterissuer
+    ca-issuer
+    ceph-adapter-rook
+    ceph-client
+    ceph-mon
+    ceph-osd
+    ceph-provisioners
+    ceph-rgw
+    cert-rotation
+    daemonjob-controller
+    elastic-apm-server
+    elastic-filebeat
+    elastic-metricbeat
+    elastic-packetbeat
+    elasticsearch
+    etcd
+    falco
+    flannel
+    fluentbit
+    fluentd
+    gnocchi
+    grafana
+    helm-toolkit
+    kibana
+    kube-dns
+    kubernetes-keystone-webhook
+    kubernetes-node-problem-detector
+    ldap
+    libvirt
+    local-storage
+    local-volume-provisioner
+    lockdown
+    mariadb
+    mariadb-backup
+    mariadb-cluster
+    memcached
+    metacontroller
+    mongodb
+    nagios
+    namespace-config
+    nfs-provisioner
+    openvswitch
+    ovn
+    postgresql
+    powerdns
+    prometheus
+    prometheus-alertmanager
+    prometheus-blackbox-exporter
+    prometheus-kube-state-metrics
+    prometheus-mysql-exporter
+    prometheus-node-exporter
+    prometheus-openstack-exporter
+    prometheus-process-exporter
+    rabbitmq
+    redis
+    registry
+    shaker
