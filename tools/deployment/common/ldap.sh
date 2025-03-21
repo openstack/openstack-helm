@@ -14,17 +14,17 @@
 
 set -xe
 
-: ${OSH_INFRA_HELM_REPO:="../openstack-helm-infra"}
-: ${OSH_INFRA_VALUES_OVERRIDES_PATH:="../openstack-helm-infra/values_overrides"}
-: ${OSH_INFRA_EXTRA_HELM_ARGS_LDAP:="$(helm osh get-values-overrides -p ${OSH_INFRA_VALUES_OVERRIDES_PATH} -c ldap ${FEATURES})"}
+: ${OSH_HELM_REPO:="../openstack-helm"}
+: ${OSH_VALUES_OVERRIDES_PATH:="../openstack-helm/values_overrides"}
+: ${OSH_EXTRA_HELM_ARGS_LDAP:="$(helm osh get-values-overrides -p ${OSH_VALUES_OVERRIDES_PATH} -c ldap ${FEATURES})"}
 : ${NAMESPACE:="osh-infra"}
 
 #NOTE: Deploy command
-helm upgrade --install ldap ${OSH_INFRA_HELM_REPO}/ldap \
+helm upgrade --install ldap ${OSH_HELM_REPO}/ldap \
     --namespace=${NAMESPACE} \
     --set bootstrap.enabled=true \
-    ${OSH_INFRA_EXTRA_HELM_ARGS:=} \
-    ${OSH_INFRA_EXTRA_HELM_ARGS_LDAP}
+    ${OSH_EXTRA_HELM_ARGS:=} \
+    ${OSH_EXTRA_HELM_ARGS_LDAP}
 
 #NOTE: Wait for deploy
 helm osh wait-for-pods ${NAMESPACE}

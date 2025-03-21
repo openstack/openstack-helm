@@ -1,0 +1,83 @@
+---
+# Copyright 2018 SUSE LINUX GmbH.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+- hosts: all
+  roles:
+    - ensure-python
+    - ensure-pip
+    - name: ensure-helm
+      helm_version: "3.16.4"
+    - name: ensure-chart-testing
+      chart_testing_version: "3.11.0"
+    - name: chart-testing
+      chart_testing_options: "--target-branch=master --chart-dirs=. --validate-maintainers=false --check-version-increment=false"
+      zuul_work_dir: "{{ work_dir }}"
+  vars:
+    work_dir: "{{ zuul.project.src_dir }}"
+
+  tasks:
+    - name: Install reno
+      pip:
+        name: reno>=4.1.0
+        extra_args: "--ignore-installed"
+      become: yes
+
+    # - name: make all
+    #   make:
+    #     chdir: "{{ work_dir }}"
+    #     target: all
+
+    - name: Prevent trailing whitespaces
+      shell: find . \! \( -path "*/\.*" -o -path "*/doc/build/*" -o -name "*.tgz" -o -name "*.png" -o -name "*.jpg" \) -type f -exec grep -El " +$" {} \;
+      register: _found_whitespaces
+      failed_when: _found_whitespaces.stdout != ""
+      args:
+        chdir: "{{ work_dir }}"
+
+    - name: Install yamllint
+      shell: pip3 install -U yq yamllint
+      become: yes
+
+    - name: Run yamllint
+      shell: |
+        cat > /tmp/yamllint.sh <<EOF
+        #!/bin/bash
+        set -xe
+        rm -rf */charts/helm-toolkit
+        mkdir .yamllint
+        cp -r * .yamllint
+        rm -rf .yamllint/*/templates
+
+        for i in */; do
+            # avoid helm-toolkit to symlink on itself
+            [ -d "\$i/templates" -a "\$i" != "helm-toolkit/" ] || continue
+            mkdir -p \$i/charts
+            ln -s ../../helm-toolkit \$i/charts/helm-toolkit
+            helm template \$i --output-dir .yamllint 2>&1 > /dev/null
+        done
+        find .yamllint -type f -exec sed -i 's/%%%.*/XXX/g' {} +
+
+        shopt -s globstar extglob
+        # Lint all yaml files except templates
+        yamllint -c yamllint.conf .yamllint/*{,/!(templates)/**}/*.y*ml yamllint*.conf
+        # Lint templates
+        yamllint -c yamllint-templates.conf .yamllint/*/templates/*.yaml
+        EOF
+        chmod +x /tmp/yamllint.sh
+        /tmp/yamllint.sh
+      args:
+        chdir: "{{ work_dir }}"
+        executable: /bin/bash
+...

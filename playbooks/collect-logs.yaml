@@ -11,16 +11,21 @@
 # limitations under the License.
 
 ---
-- hosts: primary
-  vars_files:
-    - vars.yaml
+- hosts: all
   vars:
-    work_dir: "{{ zuul.project.src_dir }}/{{ zuul_osh_infra_relative_path | default('') }}"
-  gather_facts: True
-  become: yes
+    work_dir: "{{ zuul.project.src_dir }}"
+    logs_dir: "/tmp/logs"
   roles:
-    - ensure-pip
-    - deploy-selenium
-  tags:
-    - deploy-selenium
+    - gather-host-logs
+
+- hosts: primary
+  vars:
+    work_dir: "{{ zuul.project.src_dir }}"
+    logs_dir: "/tmp/logs"
+  roles:
+    - helm-release-status
+    - describe-kubernetes-objects
+    - gather-pod-logs
+    - gather-prom-metrics
+    - gather-selenium-data
 ...

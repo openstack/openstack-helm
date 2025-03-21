@@ -173,15 +173,15 @@ images:
     dep_check: quay.io/airshipit/kubernetes-entrypoint:v1.0.0
 EOF
 
-: ${OSH_INFRA_HELM_REPO:="../openstack-helm-infra"}
-: ${OSH_INFRA_VALUES_OVERRIDES_PATH:="../openstack-helm-infra/values_overrides"}
-: ${OSH_INFRA_EXTRA_HELM_ARGS_ELASTICSEARCH:="$(helm osh get-values-overrides -p ${OSH_INFRA_VALUES_OVERRIDES_PATH} -c elasticsearch ${FEATURES})"}
+: ${OSH_HELM_REPO:="../openstack-helm"}
+: ${OSH_VALUES_OVERRIDES_PATH:="../openstack-helm/values_overrides"}
+: ${OSH_EXTRA_HELM_ARGS_ELASTICSEARCH:="$(helm osh get-values-overrides -p ${OSH_VALUES_OVERRIDES_PATH} -c elasticsearch ${FEATURES})"}
 
-helm upgrade --install elasticsearch ${OSH_INFRA_HELM_REPO}/elasticsearch \
+helm upgrade --install elasticsearch ${OSH_HELM_REPO}/elasticsearch \
   --namespace=osh-infra \
   --values=/tmp/elasticsearch.yaml\
-  ${OSH_INFRA_EXTRA_HELM_ARGS} \
-  ${OSH_INFRA_EXTRA_HELM_ARGS_ELASTICSEARCH}
+  ${OSH_EXTRA_HELM_ARGS} \
+  ${OSH_EXTRA_HELM_ARGS_ELASTICSEARCH}
 
 #NOTE: Wait for deploy
 helm osh wait-for-pods osh-infra

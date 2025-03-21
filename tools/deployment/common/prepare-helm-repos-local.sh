@@ -13,19 +13,11 @@
 
 set -ex
 
-: ${OSH_INFRA_PATH:="../openstack-helm-infra"}
-(
-    cd ${OSH_INFRA_PATH} &&
-    helm repo index ./
-)
-
 helm repo index ./
 
-docker run -d --name nginx_charts \
+docker run -d --name serve_charts \
     -v $(pwd):/usr/share/nginx/html/openstack-helm:ro \
-    -v $(readlink -f ${OSH_INFRA_PATH}):/usr/share/nginx/html/openstack-helm-infra:ro \
     -p 80:80 \
     nginx
 
 helm repo add ${OSH_HELM_REPO:-"openstack-helm"} http://localhost/openstack-helm
-helm repo add ${OSH_INFRA_HELM_REPO:-"openstack-helm-infra"} http://localhost/openstack-helm-infra

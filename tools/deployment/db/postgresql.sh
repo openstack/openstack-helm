@@ -15,19 +15,19 @@
 set -xe
 
 #NOTE: Deploy command
-: ${OSH_INFRA_HELM_REPO:="../openstack-helm-infra"}
-: ${OSH_INFRA_VALUES_OVERRIDES_PATH:="../openstack-helm-infra/values_overrides"}
-: ${OSH_INFRA_EXTRA_HELM_ARGS:=""}
-: ${OSH_INFRA_EXTRA_HELM_ARGS_POSTGRESQL:="$(helm osh get-values-overrides -p ${OSH_INFRA_VALUES_OVERRIDES_PATH} -c postgresql ${FEATURES})"}
+: ${OSH_HELM_REPO:="../openstack-helm"}
+: ${OSH_VALUES_OVERRIDES_PATH:="../openstack-helm/values_overrides"}
+: ${OSH_EXTRA_HELM_ARGS:=""}
+: ${OSH_EXTRA_HELM_ARGS_POSTGRESQL:="$(helm osh get-values-overrides -p ${OSH_VALUES_OVERRIDES_PATH} -c postgresql ${FEATURES})"}
 
-helm upgrade --install postgresql ${OSH_INFRA_HELM_REPO}/postgresql \
+helm upgrade --install postgresql ${OSH_HELM_REPO}/postgresql \
     --namespace=osh-infra \
     --set monitoring.prometheus.enabled=true \
     --set storage.pvc.size=1Gi \
     --set storage.pvc.enabled=true \
     --set pod.replicas.server=1 \
-    ${OSH_INFRA_EXTRA_HELM_ARGS} \
-    ${OSH_INFRA_EXTRA_HELM_ARGS_POSTGRESQL}
+    ${OSH_EXTRA_HELM_ARGS} \
+    ${OSH_EXTRA_HELM_ARGS_POSTGRESQL}
 
 #NOTE: Wait for deploy
 helm osh wait-for-pods osh-infra

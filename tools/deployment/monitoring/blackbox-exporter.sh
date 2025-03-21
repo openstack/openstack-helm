@@ -14,11 +14,11 @@
 
 set -xe
 
-: ${OSH_INFRA_HELM_REPO:="../openstack-helm-infra"}
+: ${OSH_HELM_REPO:="../openstack-helm"}
 
 #NOTE: Deploy command
 helm upgrade --install prometheus-blackbox-exporter \
-    ${OSH_INFRA_HELM_REPO}/prometheus-blackbox-exporter --namespace=osh-infra
+    ${OSH_HELM_REPO}/prometheus-blackbox-exporter --namespace=osh-infra
 
 #NOTE: Wait for deploy
 helm osh wait-for-pods osh-infra

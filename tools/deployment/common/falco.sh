@@ -14,10 +14,10 @@
 
 set -xe
 
-: ${OSH_INFRA_HELM_REPO:="../openstack-helm-infra"}
+: ${OSH_HELM_REPO:="../openstack-helm"}
 
 #NOTE: Deploy command
-helm upgrade --install falco ${OSH_INFRA_HELM_REPO}/falco \
+helm upgrade --install falco ${OSH_HELM_REPO}/falco \
     --namespace=kube-system
 
 #NOTE: Wait for deploy

@@ -14,12 +14,12 @@
 set -xe
 
 #NOTE: Define variables
-: ${OSH_INFRA_HELM_REPO:="../openstack-helm-infra"}
-: ${OSH_INFRA_VALUES_OVERRIDES_PATH:="../openstack-helm-infra/values_overrides"}
-: ${OSH_EXTRA_HELM_ARGS_OPENVSWITCH:="$(helm osh get-values-overrides ${DOWNLOAD_OVERRIDES:-} -p ${OSH_INFRA_VALUES_OVERRIDES_PATH} -c openvswitch ${FEATURES})"}
+: ${OSH_HELM_REPO:="../openstack-helm"}
+: ${OSH_VALUES_OVERRIDES_PATH:="../openstack-helm/values_overrides"}
+: ${OSH_EXTRA_HELM_ARGS_OPENVSWITCH:="$(helm osh get-values-overrides ${DOWNLOAD_OVERRIDES:-} -p ${OSH_VALUES_OVERRIDES_PATH} -c openvswitch ${FEATURES})"}
 
 #NOTE: Deploy command
-helm upgrade --install openvswitch ${OSH_INFRA_HELM_REPO}/openvswitch \
+helm upgrade --install openvswitch ${OSH_HELM_REPO}/openvswitch \
   --namespace=openstack \
   ${OSH_EXTRA_HELM_ARGS:=} \
   ${OSH_EXTRA_HELM_ARGS_OPENVSWITCH}

@@ -14,10 +14,10 @@
 
 set -xe
 
-: ${OSH_INFRA_HELM_REPO:="../openstack-helm-infra"}
+: ${OSH_HELM_REPO:="../openstack-helm"}
 
 #NOTE: Deploy command
-helm upgrade --install prometheus-alertmanager ${OSH_INFRA_HELM_REPO}/prometheus-alertmanager \
+helm upgrade --install prometheus-alertmanager ${OSH_HELM_REPO}/prometheus-alertmanager \
     --namespace=osh-infra \
     --set pod.replicas.alertmanager=1
 

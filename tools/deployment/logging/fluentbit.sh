@@ -14,14 +14,14 @@
 
 set -xe
 
-: ${OSH_INFRA_HELM_REPO:="../openstack-helm-infra"}
-: ${OSH_INFRA_VALUES_OVERRIDES_PATH:="../openstack-helm-infra/values_overrides"}
-: ${OSH_INFRA_EXTRA_HELM_ARGS_FLUENTBIT:="$(helm osh get-values-overrides -p ${OSH_INFRA_VALUES_OVERRIDES_PATH} -c fluentbit ${FEATURES})"}
+: ${OSH_HELM_REPO:="../openstack-helm"}
+: ${OSH_VALUES_OVERRIDES_PATH:="../openstack-helm/values_overrides"}
+: ${OSH_EXTRA_HELM_ARGS_FLUENTBIT:="$(helm osh get-values-overrides -p ${OSH_VALUES_OVERRIDES_PATH} -c fluentbit ${FEATURES})"}
 
-helm upgrade --install fluentbit ${OSH_INFRA_HELM_REPO}/fluentbit \
+helm upgrade --install fluentbit ${OSH_HELM_REPO}/fluentbit \
   --namespace=osh-infra \
-  ${OSH_INFRA_EXTRA_HELM_ARGS:=} \
-  ${OSH_INFRA_EXTRA_HELM_ARGS_FLUENTBIT}
+  ${OSH_EXTRA_HELM_ARGS:=} \
+  ${OSH_EXTRA_HELM_ARGS_FLUENTBIT}
 
 #NOTE: Wait for deploy
 helm osh wait-for-pods osh-infra

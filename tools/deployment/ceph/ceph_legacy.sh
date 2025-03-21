@@ -16,8 +16,8 @@ set -xe
 
 : ${CEPH_OSD_DATA_DEVICE:="/dev/loop100"}
 : ${POD_NETWORK_CIDR:="10.244.0.0/16"}
-: ${OSH_INFRA_HELM_REPO:="../openstack-helm-infra"}
-: ${OSH_INFRA_VALUES_OVERRIDES_PATH:="../openstack-helm-infra/values_overrides"}
+: ${OSH_HELM_REPO:="../openstack-helm"}
+: ${OSH_VALUES_OVERRIDES_PATH:="../openstack-helm/values_overrides"}
 
 NUMBER_OF_OSDS="$(kubectl get nodes -l ceph-osd=enabled --no-headers | wc -l)"
 
@@ -177,11 +177,11 @@ manifests:
 EOF
 
 for CHART in ceph-mon ceph-osd ceph-client ceph-provisioners; do
-  helm upgrade --install --create-namespace ${CHART} ${OSH_INFRA_HELM_REPO}/${CHART} \
+  helm upgrade --install --create-namespace ${CHART} ${OSH_HELM_REPO}/${CHART} \
     --namespace=ceph \
     --values=/tmp/ceph.yaml \
-    ${OSH_INFRA_EXTRA_HELM_ARGS} \
-    ${OSH_INFRA_EXTRA_HELM_ARGS_CEPH_DEPLOY:-$(helm osh get-values-overrides ${DOWNLOAD_OVERRIDES:-} -p ${OSH_INFRA_VALUES_OVERRIDES_PATH} -c ${CHART} ${FEATURES})}
+    ${OSH_EXTRA_HELM_ARGS} \
+    ${OSH_EXTRA_HELM_ARGS_CEPH_DEPLOY:-$(helm osh get-values-overrides ${DOWNLOAD_OVERRIDES:-} -p ${OSH_VALUES_OVERRIDES_PATH} -c ${CHART} ${FEATURES})}
 
   #NOTE: Wait for deploy
   helm osh wait-for-pods ceph

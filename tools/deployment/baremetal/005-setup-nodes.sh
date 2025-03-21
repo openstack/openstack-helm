@@ -25,9 +25,9 @@ done
 make all
 
 #NOTE: Deploy libvirt with vbmc then define domains to use as baremetal nodes
-: "${OSH_INFRA_PATH:="../openstack-helm-infra"}"
-make -C ${OSH_INFRA_PATH} libvirt
-helm install ${OSH_INFRA_PATH}/libvirt \
+: "${OSH_PATH:="../openstack-helm"}"
+make -C ${OSH_PATH} libvirt
+helm install ${OSH_PATH}/libvirt \
   --namespace=libvirt \
   --name=libvirt \
   --set network.backend=null \
@@ -65,10 +65,10 @@ for LIBVIRT_POD in ${LIBVIRT_PODS}; do
 done
 
 #NOTE: Deploy OvS to connect nodes to the deployment host
-: ${OSH_INFRA_PATH:="../openstack-helm-infra"}
-make -C ${OSH_INFRA_PATH} openvswitch
+: ${OSH_PATH:="../openstack-helm"}
+make -C ${OSH_PATH} openvswitch
 
-helm install ${OSH_INFRA_PATH}/openvswitch \
+helm install ${OSH_PATH}/openvswitch \
   --namespace=openstack \
   --name=openvswitch
 

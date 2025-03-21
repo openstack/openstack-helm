@@ -14,9 +14,9 @@
 set -xe
 
 #NOTE: Define variables
-: ${OSH_INFRA_HELM_REPO:="../openstack-helm-infra"}
-: ${OSH_INFRA_VALUES_OVERRIDES_PATH:="../openstack-helm-infra/values_overrides"}
-: ${OSH_EXTRA_HELM_ARGS_OVN:="$(helm osh get-values-overrides ${DOWNLOAD_OVERRIDES:-} -p ${OSH_INFRA_VALUES_OVERRIDES_PATH} -c ovn ${FEATURES})"}
+: ${OSH_HELM_REPO:="../openstack-helm"}
+: ${OSH_VALUES_OVERRIDES_PATH:="../openstack-helm/values_overrides"}
+: ${OSH_EXTRA_HELM_ARGS_OVN:="$(helm osh get-values-overrides ${DOWNLOAD_OVERRIDES:-} -p ${OSH_VALUES_OVERRIDES_PATH} -c ovn ${FEATURES})"}
 
 tee /tmp/ovn.yaml << EOF
 volume:
@@ -35,7 +35,7 @@ EOF
 
 #NOTE: Deploy command
 : ${OSH_EXTRA_HELM_ARGS:=""}
-helm upgrade --install ovn ${OSH_INFRA_HELM_REPO}/ovn \
+helm upgrade --install ovn ${OSH_HELM_REPO}/ovn \
   --namespace=openstack \
   --values=/tmp/ovn.yaml \
   ${OSH_EXTRA_HELM_ARGS} \

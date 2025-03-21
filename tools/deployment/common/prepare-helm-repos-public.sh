@@ -14,4 +14,3 @@
 set -ex
 
 helm repo add ${OSH_HELM_REPO:-"openstack-helm"} https://tarballs.opendev.org/openstack/openstack-helm
-helm repo add ${OSH_INFRA_HELM_REPO:-"openstack-helm-infra"} https://tarballs.opendev.org/openstack/openstack-helm-infra

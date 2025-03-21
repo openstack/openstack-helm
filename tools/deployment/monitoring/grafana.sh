@@ -14,16 +14,16 @@
 
 set -xe
 
-: ${OSH_INFRA_HELM_REPO:="../openstack-helm-infra"}
-: ${OSH_INFRA_VALUES_OVERRIDES_PATH:="../openstack-helm-infra/values_overrides"}
+: ${OSH_HELM_REPO:="../openstack-helm"}
+: ${OSH_VALUES_OVERRIDES_PATH:="../openstack-helm/values_overrides"}
 FEATURES="calico ceph containers coredns elasticsearch kubernetes nginx nodes openstack prometheus home_dashboard persistentvolume apparmor ${FEATURES}"
-: ${OSH_INFRA_EXTRA_HELM_ARGS_GRAFANA:=$(helm osh get-values-overrides -p ${OSH_INFRA_VALUES_OVERRIDES_PATH} -c grafana ${FEATURES} 2>/dev/null)}
+: ${OSH_EXTRA_HELM_ARGS_GRAFANA:=$(helm osh get-values-overrides -p ${OSH_VALUES_OVERRIDES_PATH} -c grafana ${FEATURES} 2>/dev/null)}
 
 #NOTE: Deploy command
-helm upgrade --install grafana ${OSH_INFRA_HELM_REPO}/grafana \
+helm upgrade --install grafana ${OSH_HELM_REPO}/grafana \
   --namespace=osh-infra \
-  ${OSH_INFRA_EXTRA_HELM_ARGS:=} \
-  ${OSH_INFRA_EXTRA_HELM_ARGS_GRAFANA}
+  ${OSH_EXTRA_HELM_ARGS:=} \
+  ${OSH_EXTRA_HELM_ARGS_GRAFANA}
 
 #NOTE: Wait for deploy
 helm osh wait-for-pods osh-infra

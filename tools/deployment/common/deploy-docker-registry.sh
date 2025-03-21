@@ -14,7 +14,7 @@
 
 set -xe
 
-: ${OSH_INFRA_HELM_REPO:="../openstack-helm-infra"}
+: ${OSH_HELM_REPO:="../openstack-helm"}
 
 for NAMESPACE in docker-nfs docker-registry; do
 tee /tmp/${NAMESPACE}-ns.yaml << EOF
@@ -39,11 +39,11 @@ storageclass:
   name: openstack-helm-bootstrap
 EOF
 helm upgrade --install docker-registry-nfs-provisioner \
-    ${OSH_INFRA_HELM_REPO}/nfs-provisioner --namespace=docker-nfs \
+    ${OSH_HELM_REPO}/nfs-provisioner --namespace=docker-nfs \
     --values=/tmp/docker-registry-nfs-provisioner.yaml
 
 #NOTE: Deploy redis for the docker registry
-helm upgrade --install docker-registry-redis ${OSH_INFRA_HELM_REPO}/redis \
+helm upgrade --install docker-registry-redis ${OSH_HELM_REPO}/redis \
     --namespace=docker-registry \
     --set labels.node_selector_key=openstack-helm-node-class \
     --set labels.node_selector_value=primary
@@ -56,7 +56,7 @@ labels:
 volume:
   class_name: openstack-helm-bootstrap
 EOF
-helm upgrade --install docker-registry ${OSH_INFRA_HELM_REPO}/registry \
+helm upgrade --install docker-registry ${OSH_HELM_REPO}/registry \
     --namespace=docker-registry \
     --values=/tmp/docker-registry.yaml
 

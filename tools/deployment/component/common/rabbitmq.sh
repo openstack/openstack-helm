@@ -15,12 +15,12 @@
 set -xe
 
 #NOTE: Define variables
-: ${OSH_INFRA_HELM_REPO:="../openstack-helm-infra"}
-: ${OSH_INFRA_VALUES_OVERRIDES_PATH:="../openstack-helm-infra/values_overrides"}
-: ${OSH_EXTRA_HELM_ARGS_RABBITMQ:="$(helm osh get-values-overrides ${DOWNLOAD_OVERRIDES:-} -p ${OSH_INFRA_VALUES_OVERRIDES_PATH} -c rabbitmq ${FEATURES})"}
+: ${OSH_HELM_REPO:="../openstack-helm"}
+: ${OSH_VALUES_OVERRIDES_PATH:="../openstack-helm/values_overrides"}
+: ${OSH_EXTRA_HELM_ARGS_RABBITMQ:="$(helm osh get-values-overrides ${DOWNLOAD_OVERRIDES:-} -p ${OSH_VALUES_OVERRIDES_PATH} -c rabbitmq ${FEATURES})"}
 
 #NOTE: Deploy command
-helm upgrade --install rabbitmq ${OSH_INFRA_HELM_REPO}/rabbitmq \
+helm upgrade --install rabbitmq ${OSH_HELM_REPO}/rabbitmq \
     --namespace=openstack \
     --set pod.replicas.server=1 \
     --timeout=600s \

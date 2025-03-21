@@ -15,12 +15,12 @@
 set -xe
 
 #NOTE: Define variables
-: ${OSH_INFRA_HELM_REPO:="../openstack-helm-infra"}
-: ${OSH_INFRA_VALUES_OVERRIDES_PATH:="../openstack-helm-infra/values_overrides"}
-: ${OSH_EXTRA_HELM_ARGS_MEMCACHED:="$(helm osh get-values-overrides ${DOWNLOAD_OVERRIDES:-} -p ${OSH_INFRA_VALUES_OVERRIDES_PATH} -c memcached ${FEATURES})"}
+: ${OSH_HELM_REPO:="../openstack-helm"}
+: ${OSH_VALUES_OVERRIDES_PATH:="../openstack-helm/values_overrides"}
+: ${OSH_EXTRA_HELM_ARGS_MEMCACHED:="$(helm osh get-values-overrides ${DOWNLOAD_OVERRIDES:-} -p ${OSH_VALUES_OVERRIDES_PATH} -c memcached ${FEATURES})"}
 
 #NOTE: Deploy command
-helm upgrade --install memcached ${OSH_INFRA_HELM_REPO}/memcached \
+helm upgrade --install memcached ${OSH_HELM_REPO}/memcached \
     --namespace=openstack \
     ${OSH_EXTRA_HELM_ARGS:=} \
     ${OSH_EXTRA_HELM_ARGS_MEMCACHED}

@@ -12,6 +12,18 @@
 # limitations under the License.
 
 - job:
+    name: openstack-helm-linter
+    run: playbooks/lint.yaml
+    nodeset: openstack-helm-1node-ubuntu_jammy
+    required-projects:
+      - openstack/openstack-helm
+    irrelevant-files:
+      - ^.*\.rst$
+      - ^releasenotes/.*$
+    pre-run:
+      - playbooks/inject-keys.yaml
+
+- job:
     name: openstack-helm-bandit
     roles:
       - zuul: openstack/openstack-helm
@@ -21,13 +33,21 @@
     files:
       - ^.*\.py\.tpl$
       - ^.*\.py$
-      - ^tools/gate/playbooks/osh-bandit.yaml$
-    pre-run: tools/gate/playbooks/prepare-hosts.yaml
-    post-run: tools/gate/playbooks/osh-infra-collect-logs.yaml
-    run: tools/gate/playbooks/osh-bandit.yaml
+      - ^playbooks/osh-bandit.yaml$
+    pre-run: playbooks/prepare-hosts.yaml
+    post-run: playbooks/collect-logs.yaml
+    run: playbooks/osh-bandit.yaml
     vars:
       helm_version: "v3.6.3"
       bandit_version: "1.7.1"
+
+- job:
+    name: openstack-helm-publish-charts
+    parent: publish-openstack-artifacts
+    run: playbooks/build-chart.yaml
+    required-projects:
+      - openstack/openstack-helm
+    post-run: playbooks/publish/post.yaml
 
 - job:
     name: openstack-helm-deploy
@@ -48,7 +68,7 @@
       - playbooks/prepare-hosts.yaml
       - playbooks/mount-volumes.yaml
       - playbooks/inject-keys.yaml
-    post-run: playbooks/osh-infra-collect-logs.yaml
+    post-run: playbooks/collect-logs.yaml
     run:
       - playbooks/deploy-env.yaml
       - playbooks/run-scripts.yaml
@@ -82,9 +102,6 @@
       ingress_setup: true
       helm_version: "v3.14.0"
       crictl_version: "v1.30.1"
-      zuul_osh_relative_path: ../openstack-helm
-      zuul_osh_infra_relative_path: ../openstack-helm
-      gate_scripts_relative_path: ../openstack-helm
       run_helm_tests: "no"
       openstack_provider_gateway_setup: true
 
@@ -96,8 +113,8 @@
     # due to image pull rate limits on Docker Hub.
     voting: false
     run:
-      - tools/gate/playbooks/deploy-env-kubespray.yaml
-      - tools/gate/playbooks/run-scripts.yaml
+      - playbooks/deploy-env-kubespray.yaml
+      - playbooks/run-scripts.yaml
     vars:
       metallb_setup: true
       kube_version_kubespray: "v1.29.5"
@@ -162,8 +179,8 @@
         - ./tools/deployment/common/prepare-k8s.sh
         - ./tools/deployment/common/prepare-charts.sh
         - ./tools/deployment/common/setup-client.sh
-        - ./tools/deployment/component/ceph/ceph-rook.sh
-        - ./tools/deployment/component/ceph/ceph-adapter-rook.sh
+        - ./tools/deployment/ceph/ceph-rook.sh
+        - ./tools/deployment/ceph/ceph-adapter-rook.sh
         - export VOLUME_HELM_ARGS=" "; ./tools/deployment/component/common/rabbitmq.sh
         - export VOLUME_HELM_ARGS=" "; ./tools/deployment/component/common/mariadb.sh
         - ./tools/deployment/component/common/memcached.sh
@@ -189,13 +206,13 @@
         - ./tools/deployment/common/prepare-charts.sh
         - ./tools/deployment/common/prepare-helm-repos-local.sh
         - ./tools/deployment/common/setup-client.sh
-        - - ./tools/deployment/component/common/rabbitmq.sh
-          - ./tools/deployment/component/common/mariadb.sh
-          - ./tools/deployment/component/common/memcached.sh
+        - ./tools/deployment/component/common/rabbitmq.sh
+        - ./tools/deployment/component/common/mariadb.sh
+        - ./tools/deployment/component/common/memcached.sh
         - ./tools/deployment/component/keystone/keystone.sh
-        - - ./tools/deployment/component/heat/heat.sh
-          - export GLANCE_BACKEND=local; ./tools/deployment/component/glance/glance.sh
-          - ./tools/deployment/component/compute-kit/openvswitch.sh
+        - ./tools/deployment/component/heat/heat.sh
+        - export GLANCE_BACKEND=local; ./tools/deployment/component/glance/glance.sh
+        - ./tools/deployment/component/compute-kit/openvswitch.sh
         - ./tools/deployment/component/compute-kit/libvirt.sh
         - ./tools/deployment/component/compute-kit/compute-kit.sh
         - export OSH_TEST_TIMEOUT=1200;./tools/deployment/common/run-helm-tests.sh neutron
@@ -218,13 +235,13 @@
         - ./tools/deployment/common/prepare-charts.sh
         - ./tools/deployment/common/prepare-helm-repos-public.sh
         - ./tools/deployment/common/setup-client.sh
-        - - ./tools/deployment/component/common/rabbitmq.sh
-          - ./tools/deployment/component/common/mariadb.sh
-          - ./tools/deployment/component/common/memcached.sh
+        - ./tools/deployment/component/common/rabbitmq.sh
+        - ./tools/deployment/component/common/mariadb.sh
+        - ./tools/deployment/component/common/memcached.sh
         - ./tools/deployment/component/keystone/keystone.sh
-        - - ./tools/deployment/component/heat/heat.sh
-          - export GLANCE_BACKEND=local; ./tools/deployment/component/glance/glance.sh
-          - ./tools/deployment/component/compute-kit/openvswitch.sh
+        - ./tools/deployment/component/heat/heat.sh
+        - export GLANCE_BACKEND=local; ./tools/deployment/component/glance/glance.sh
+        - ./tools/deployment/component/compute-kit/openvswitch.sh
         - ./tools/deployment/component/compute-kit/libvirt.sh
         - ./tools/deployment/component/compute-kit/compute-kit.sh
         - export OSH_TEST_TIMEOUT=1200;./tools/deployment/common/run-helm-tests.sh neutron
@@ -243,12 +260,12 @@
         - ./tools/deployment/common/prepare-k8s.sh
         - ./tools/deployment/common/prepare-charts.sh
         - ./tools/deployment/common/setup-client.sh
-        - - ./tools/deployment/component/common/rabbitmq.sh
-          - ./tools/deployment/component/common/mariadb.sh
-          - ./tools/deployment/component/common/memcached.sh
+        - ./tools/deployment/component/common/rabbitmq.sh
+        - ./tools/deployment/component/common/mariadb.sh
+        - ./tools/deployment/component/common/memcached.sh
         - ./tools/deployment/component/keystone/keystone.sh
-        - - ./tools/deployment/component/heat/heat.sh
-          - export GLANCE_BACKEND=local; ./tools/deployment/component/glance/glance.sh
+        - ./tools/deployment/component/heat/heat.sh
+        - export GLANCE_BACKEND=local; ./tools/deployment/component/glance/glance.sh
         - ./tools/deployment/component/compute-kit/openvswitch.sh
         - ./tools/deployment/component/compute-kit/libvirt.sh
         - ./tools/deployment/component/ovn/ovn.sh
@@ -292,11 +309,11 @@
         - ./tools/deployment/common/prepare-k8s.sh
         - ./tools/deployment/common/prepare-charts.sh
         - ./tools/deployment/common/setup-client.sh
-        - ./tools/deployment/component/ceph/ceph.sh
-        - ./tools/deployment/component/ceph/ceph-ns-activate.sh
-        - - ./tools/deployment/component/common/mariadb.sh
-          - ./tools/deployment/component/common/memcached.sh
-          - ./tools/deployment/component/common/rabbitmq.sh
+        - ./tools/deployment/ceph/ceph.sh
+        - ./tools/deployment/ceph/ceph-ns-activate.sh
+        - ./tools/deployment/component/common/mariadb.sh
+        - ./tools/deployment/component/common/memcached.sh
+        - ./tools/deployment/component/common/rabbitmq.sh
         - ./tools/deployment/component/keystone/keystone.sh
         - ./tools/deployment/component/cinder/cinder.sh
         - ./tools/deployment/common/force-cronjob-run.sh
@@ -315,11 +332,11 @@
         - ./tools/deployment/common/prepare-k8s.sh
         - ./tools/deployment/common/prepare-charts.sh
         - ./tools/deployment/common/setup-client.sh
-        - ./tools/deployment/component/ceph/ceph-rook.sh
-        - ./tools/deployment/component/ceph/ceph-adapter-rook.sh
-        - - ./tools/deployment/component/common/mariadb.sh
-          - ./tools/deployment/component/common/memcached.sh
-          - ./tools/deployment/component/common/rabbitmq.sh
+        - ./tools/deployment/ceph/ceph-rook.sh
+        - ./tools/deployment/ceph/ceph-adapter-rook.sh
+        - ./tools/deployment/component/common/mariadb.sh
+        - ./tools/deployment/component/common/memcached.sh
+        - ./tools/deployment/component/common/rabbitmq.sh
         - ./tools/deployment/component/keystone/keystone.sh
         - ./tools/deployment/component/cinder/cinder.sh
         - ./tools/deployment/common/force-cronjob-run.sh
@@ -390,8 +407,8 @@
         - ./tools/deployment/common/prepare-charts.sh
         - ./tools/deployment/common/setup-client.sh
         - ./tools/deployment/common/cert-manager.sh
-        - ./tools/deployment/component/ceph/ceph-rook.sh
-        - ./tools/deployment/component/ceph/ceph-adapter-rook.sh
+        - ./tools/deployment/ceph/ceph-rook.sh
+        - ./tools/deployment/ceph/ceph-adapter-rook.sh
         - ./tools/deployment/component/common/mariadb.sh
         - ./tools/deployment/component/common/memcached.sh
         - ./tools/deployment/component/common/rabbitmq.sh
@@ -420,13 +437,13 @@
         - ./tools/deployment/common/prepare-k8s.sh
         - ./tools/deployment/common/prepare-charts.sh
         - ./tools/deployment/common/setup-client.sh
-        - - ./tools/deployment/component/common/rabbitmq.sh
-          - ./tools/deployment/component/common/mariadb.sh
-          - ./tools/deployment/component/common/memcached.sh
+        - ./tools/deployment/component/common/rabbitmq.sh
+        - ./tools/deployment/component/common/mariadb.sh
+        - ./tools/deployment/component/common/memcached.sh
         - ./tools/deployment/component/keystone/keystone.sh
-        - - ./tools/deployment/component/heat/heat.sh
-          - export GLANCE_BACKEND=local; ./tools/deployment/component/glance/glance.sh
-          - ./tools/deployment/component/compute-kit/openvswitch.sh
+        - ./tools/deployment/component/heat/heat.sh
+        - export GLANCE_BACKEND=local; ./tools/deployment/component/glance/glance.sh
+        - ./tools/deployment/component/compute-kit/openvswitch.sh
         - ./tools/deployment/component/compute-kit/libvirt.sh
         - ./tools/deployment/component/compute-kit/compute-kit.sh
         - ./tools/deployment/component/barbican/barbican.sh

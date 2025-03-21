@@ -15,19 +15,19 @@
 set -xe
 
 #NOTE: Define variables
-: ${OSH_INFRA_HELM_REPO:="../openstack-helm-infra"}
-: ${OSH_INFRA_VALUES_OVERRIDES_PATH:="../openstack-helm-infra/values_overrides"}
-: ${OSH_INFRA_EXTRA_HELM_ARGS_RABBITMQ:="$(helm osh get-values-overrides ${DOWNLOAD_OVERRIDES:-} -p ${OSH_INFRA_VALUES_OVERRIDES_PATH} -c rabbitmq ${FEATURES})"}
+: ${OSH_HELM_REPO:="../openstack-helm"}
+: ${OSH_VALUES_OVERRIDES_PATH:="../openstack-helm/values_overrides"}
+: ${OSH_EXTRA_HELM_ARGS_RABBITMQ:="$(helm osh get-values-overrides ${DOWNLOAD_OVERRIDES:-} -p ${OSH_VALUES_OVERRIDES_PATH} -c rabbitmq ${FEATURES})"}
 : ${NAMESPACE:=openstack}
 
 #NOTE: Deploy command
-helm upgrade --install rabbitmq ${OSH_INFRA_HELM_REPO}/rabbitmq \
+helm upgrade --install rabbitmq ${OSH_HELM_REPO}/rabbitmq \
     --namespace=${NAMESPACE} \
     --set pod.replicas.server=1 \
     --timeout=600s \
     ${VOLUME_HELM_ARGS:="--set volume.enabled=false --set volume.use_local_path.enabled=true"} \
-    ${OSH_INFRA_EXTRA_HELM_ARGS:=} \
-    ${OSH_INFRA_EXTRA_HELM_ARGS_RABBITMQ}
+    ${OSH_EXTRA_HELM_ARGS:=} \
+    ${OSH_EXTRA_HELM_ARGS_RABBITMQ}
 
 #NOTE: Wait for deploy
 helm osh wait-for-pods ${NAMESPACE}

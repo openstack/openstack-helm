@@ -14,16 +14,16 @@
 
 set -xe
 
-: ${OSH_INFRA_HELM_REPO:="../openstack-helm-infra"}
-: ${OSH_INFRA_VALUES_OVERRIDES_PATH:="../openstack-helm-infra/values_overrides"}
-: ${OSH_INFRA_EXTRA_HELM_ARGS_KIBANA:="$(helm osh get-values-overrides -p ${OSH_INFRA_VALUES_OVERRIDES_PATH} -c kibana ${FEATURES})"}
+: ${OSH_HELM_REPO:="../openstack-helm"}
+: ${OSH_VALUES_OVERRIDES_PATH:="../openstack-helm/values_overrides"}
+: ${OSH_EXTRA_HELM_ARGS_KIBANA:="$(helm osh get-values-overrides -p ${OSH_VALUES_OVERRIDES_PATH} -c kibana ${FEATURES})"}
 
 #NOTE: Deploy command
-helm upgrade --install kibana ${OSH_INFRA_HELM_REPO}/kibana \
+helm upgrade --install kibana ${OSH_HELM_REPO}/kibana \
   --namespace=osh-infra \
   --set network.kibana.ingress.classes.namespace=nginx-osh-infra \
-  ${OSH_INFRA_EXTRA_HELM_ARGS} \
-  ${OSH_INFRA_EXTRA_HELM_ARGS_KIBANA}
+  ${OSH_EXTRA_HELM_ARGS} \
+  ${OSH_EXTRA_HELM_ARGS_KIBANA}
 
 #NOTE: Wait for deploy
 helm osh wait-for-pods osh-infra

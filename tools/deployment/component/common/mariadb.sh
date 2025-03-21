@@ -15,12 +15,12 @@
 set -xe
 
 #NOTE: Define variables
-: ${OSH_INFRA_HELM_REPO:="../openstack-helm-infra"}
-: ${OSH_INFRA_VALUES_OVERRIDES_PATH:="../openstack-helm-infra/values_overrides"}
-: ${OSH_EXTRA_HELM_ARGS_MARIADB:="$(helm osh get-values-overrides ${DOWNLOAD_OVERRIDES:-} -p ${OSH_INFRA_VALUES_OVERRIDES_PATH} -c mariadb ${FEATURES})"}
+: ${OSH_HELM_REPO:="../openstack-helm"}
+: ${OSH_VALUES_OVERRIDES_PATH:="../openstack-helm/values_overrides"}
+: ${OSH_EXTRA_HELM_ARGS_MARIADB:="$(helm osh get-values-overrides ${DOWNLOAD_OVERRIDES:-} -p ${OSH_VALUES_OVERRIDES_PATH} -c mariadb ${FEATURES})"}
 
 #NOTE: Deploy command
-helm upgrade --install mariadb ${OSH_INFRA_HELM_REPO}/mariadb \
+helm upgrade --install mariadb ${OSH_HELM_REPO}/mariadb \
     --namespace=openstack \
     --set pod.replicas.server=1 \
     ${VOLUME_HELM_ARGS:="--set volume.enabled=false --set volume.use_local_path_for_single_pod_cluster.enabled=true"} \

@@ -24,20 +24,20 @@ helm upgrade --install --create-namespace mariadb-operator mariadb-operator/mari
 #NOTE: Wait for deploy
 helm osh wait-for-pods mariadb-operator
 
-: ${OSH_INFRA_HELM_REPO:="../openstack-helm-infra"}
-: ${OSH_INFRA_VALUES_OVERRIDES_PATH:="../openstack-helm-infra/values_overrides"}
-: ${OSH_INFRA_EXTRA_HELM_ARGS_MARIADB_CLUSTER:="$(helm osh get-values-overrides -p ${OSH_INFRA_VALUES_OVERRIDES_PATH} -c mariadb-cluster ${FEATURES})"}
+: ${OSH_HELM_REPO:="../openstack-helm"}
+: ${OSH_VALUES_OVERRIDES_PATH:="../openstack-helm/values_overrides"}
+: ${OSH_EXTRA_HELM_ARGS_MARIADB_CLUSTER:="$(helm osh get-values-overrides -p ${OSH_VALUES_OVERRIDES_PATH} -c mariadb-cluster ${FEATURES})"}
 
 #NOTE: Deploy command
 # Deploying downscaled cluster
-: ${OSH_INFRA_EXTRA_HELM_ARGS:=""}
-helm upgrade --install mariadb-cluster ${OSH_INFRA_HELM_REPO}/mariadb-cluster \
+: ${OSH_EXTRA_HELM_ARGS:=""}
+helm upgrade --install mariadb-cluster ${OSH_HELM_REPO}/mariadb-cluster \
     --namespace=openstack \
     --wait \
     --timeout 900s \
     --values values_overrides/mariadb-cluster/downscaled.yaml \
-    ${OSH_INFRA_EXTRA_HELM_ARGS} \
-    ${OSH_INFRA_EXTRA_HELM_ARGS_MARIADB_CLUSTER}
+    ${OSH_EXTRA_HELM_ARGS} \
+    ${OSH_EXTRA_HELM_ARGS_MARIADB_CLUSTER}
 
 sleep 30
 
@@ -56,8 +56,8 @@ helm upgrade --install mariadb-cluster ./mariadb-cluster \
     --wait \
     --timeout 900s \
     --values values_overrides/mariadb-cluster/upscaled.yaml \
-    ${OSH_INFRA_EXTRA_HELM_ARGS} \
-    ${OSH_INFRA_EXTRA_HELM_ARGS_MARIADB_CLUSTER}
+    ${OSH_EXTRA_HELM_ARGS} \
+    ${OSH_EXTRA_HELM_ARGS_MARIADB_CLUSTER}
 
 #NOTE: Wait for deploy
 helm osh wait-for-pods openstack
