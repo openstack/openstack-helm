@@ -15,10 +15,10 @@ MINOR=$(echo $BASE_VERSION | cut -d. -f2);
 
 if git show-ref --tags $BASE_VERSION --quiet; then
     # if there is tag $BASE_VERSION, then we count the number of commits since the tag
-    PATCH=$(git log --oneline ${BASE_VERSION}.. $CHART_DIR | wc -l)
+    PATCH=$(git log --oneline ${BASE_VERSION}.. $CHART_DIR | wc -l | xargs)
 else
     # if there is no tag $BASE_VERSION, then we count the number of commits since the beginning
-    PATCH=$(git log --oneline $CHART_DIR | wc -l)
+    PATCH=$(git log --oneline $CHART_DIR | wc -l | xargs)
 fi
 
 COMMIT_SHA=$(git rev-parse --short HEAD);
