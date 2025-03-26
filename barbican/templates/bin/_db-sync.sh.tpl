@@ -23,5 +23,5 @@ barbican-db-manage upgrade
 {{- if and (not (empty $old_kek)) (not (empty $kek)) }}
 set +x
 echo "Ensuring that project KEKs are wrapped with the target global KEK"
-/tmp/simple_crypto_kek_rewrap.py --old-kek="$(cat /tmp/old_kek)"
+/tmp/simple_crypto_kek_rewrap.py --old-keks="$(cat /tmp/old_keks)"
 {{- end }}
