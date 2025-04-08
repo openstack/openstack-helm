@@ -20,12 +20,13 @@ limitations under the License.
 {{- define "helm-toolkit.manifests.job_bootstrap" -}}
 {{- $envAll := index . "envAll" -}}
 {{- $serviceName := index . "serviceName" -}}
+{{- $jobNameRef := printf "%s_%s" $serviceName "bootstrap" -}}
 {{- $jobAnnotations := index . "jobAnnotations" -}}
 {{- $jobLabels := index . "jobLabels" -}}
 {{- $nodeSelector := index . "nodeSelector" | default ( dict $envAll.Values.labels.job.node_selector_key $envAll.Values.labels.job.node_selector_value ) -}}
 {{- $tolerationsEnabled := index . "tolerationsEnabled" | default false -}}
-{{- $podVolMounts := index . "podVolMounts" | default false -}}
-{{- $podVols := index . "podVols" | default false -}}
+{{- $podVolMounts := index . "podVolMounts" | default (dig $jobNameRef $jobNameRef "volumeMounts" false $envAll.Values.pod.mounts) -}}
+{{- $podVols := index . "podVols" | default (dig $jobNameRef $jobNameRef "volumes" false $envAll.Values.pod.mounts) -}}
 {{- $configMapBin := index . "configMapBin" | default (printf "%s-%s" $serviceName "bin" ) -}}
 {{- $configMapEtc := index . "configMapEtc" | default (printf "%s-%s" $serviceName "etc" ) -}}
 {{- $configFile := index . "configFile" | default (printf "/etc/%s/%s.conf" $serviceName $serviceName ) -}}
