@@ -14,7 +14,7 @@
 
 set -xe
 
-ROOK_RELEASE=v1.16.3
+ROOK_RELEASE=v1.16.6
 
 : ${CEPH_OSD_DATA_DEVICE:="/dev/loop100"}
 
@@ -368,7 +368,7 @@ monitoring:
 pspEnable: false
 cephClusterSpec:
   cephVersion:
-    image: quay.io/ceph/ceph:v19.2.1
+    image: quay.io/ceph/ceph:v19.2.2
     allowUnsupported: false
   dataDirHostPath: /var/lib/rook
   skipUpgradeChecks: false
