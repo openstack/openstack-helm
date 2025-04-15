@@ -30,7 +30,7 @@ imperative that you clone the git repositories containing the required Ansible r
 
     mkdir ~/osh
     cd ~/osh
-    git clone https://opendev.org/openstack/openstack-helm-infra.git
+    git clone https://opendev.org/openstack/openstack-helm.git
     git clone https://opendev.org/zuul/zuul-jobs.git
 
 Install Ansible
@@ -48,7 +48,7 @@ where Ansible will lookup roles
 
 .. code-block:: bash
 
-    export ANSIBLE_ROLES_PATH=~/osh/openstack-helm-infra/roles:~/osh/zuul-jobs/roles
+    export ANSIBLE_ROLES_PATH=~/osh/openstack-helm/roles:~/osh/zuul-jobs/roles
 
 To avoid setting it every time when you start a new terminal instance you can define this
 in the Ansible configuration file. Please see the Ansible documentation.
@@ -177,10 +177,10 @@ details please refer to the role `deploy-env`_ and other roles (`ensure-python`_
    Processes running on the cluster nodes will be able to resolve internal
    Kubernetes domain names ``*.svc.cluster.local``.
 
-.. _deploy-env: https://opendev.org/openstack/openstack-helm-infra/src/branch/master/roles/deploy-env
-.. _deploy-env/defaults/main.yaml: https://opendev.org/openstack/openstack-helm-infra/src/branch/master/roles/deploy-env/defaults/main.yaml
+.. _deploy-env: https://opendev.org/openstack/openstack-helm/src/branch/master/roles/deploy-env
+.. _deploy-env/defaults/main.yaml: https://opendev.org/openstack/openstack-helm/src/branch/master/roles/deploy-env/defaults/main.yaml
 .. _zuul-jobs: https://opendev.org/zuul/zuul-jobs.git
 .. _ensure-python: https://opendev.org/zuul/zuul-jobs/src/branch/master/roles/ensure-python
 .. _ensure-pip: https://opendev.org/zuul/zuul-jobs/src/branch/master/roles/ensure-pip
 .. _clear-firewall: https://opendev.org/zuul/zuul-jobs/src/branch/master/roles/clear-firewall
-.. _openstack-helm-infra: https://opendev.org/openstack/openstack-helm-infra.git
+.. _openstack-helm: https://opendev.org/openstack/openstack-helm.git

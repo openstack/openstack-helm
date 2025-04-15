@@ -29,9 +29,9 @@ First let's set environment variables that are later used in the subsequent sect
 
 .. code-block:: bash
 
-    export OPENSTACK_RELEASE=2024.1
+    export OPENSTACK_RELEASE=2025.1
     # Features enabled for the deployment. This is used to look up values overrides.
-    export FEATURES="${OPENSTACK_RELEASE} ubuntu_jammy"
+    export FEATURES="${OPENSTACK_RELEASE} ubuntu_noble"
     # Directory where values overrides are looked up or downloaded to.
     export OVERRIDES_DIR=$(pwd)/overrides
 
@@ -40,7 +40,7 @@ Get values overrides
 
 OpenStack-Helm provides values overrides for predefined feature sets and various
 OpenStack/platform versions. The overrides are stored in the OpenStack-Helm
-git repositories and OpenStack-Helm plugin provides a command to look them up
+git repository and OpenStack-Helm plugin provides a command to look them up
 locally and download (optional) if not found.
 
 Please read the help:
@@ -49,26 +49,21 @@ Please read the help:
 
     helm osh get-values-overrides --help
 
-For example, if you pass the feature set ``2024.1 ubuntu_jammy`` it will try to
+For example, if you pass the feature set ``2025.1 ubuntu_noble`` it will try to
 look up the following files:
 
 .. code-block:: bash
 
-    2024.1.yaml
-    ubuntu_jammy.yaml
-    2024.1-ubuntu_jammy.yaml
+    2025.1.yaml
+    ubuntu_noble.yaml
+    2025.1-ubuntu_noble.yaml
 
 Let's download the values overrides for the feature set defined above:
 
 .. code-block:: bash
 
-    INFRA_OVERRIDES_URL=https://opendev.org/openstack/openstack-helm-infra/raw/branch/master/values_overrides
-    for chart in rabbitmq mariadb memcached openvswitch libvirt; do
-        helm osh get-values-overrides -d -u ${INFRA_OVERRIDES_URL} -p ${OVERRIDES_DIR} -c ${chart} ${FEATURES}
-    done
-
     OVERRIDES_URL=https://opendev.org/openstack/openstack-helm/raw/branch/master/values_overrides
-    for chart in keystone heat glance cinder placement nova neutron horizon; do
+    for chart in rabbitmq mariadb memcached openvswitch libvirt keystone heat glance cinder placement nova neutron horizon; do
         helm osh get-values-overrides -d -u ${OVERRIDES_URL} -p ${OVERRIDES_DIR} -c ${chart} ${FEATURES}
     done
 
@@ -96,7 +91,7 @@ Use the following script to deploy RabbitMQ service:
 
 .. code-block:: bash
 
-    helm upgrade --install rabbitmq openstack-helm-infra/rabbitmq \
+    helm upgrade --install rabbitmq openstack-helm/rabbitmq \
         --namespace=openstack \
         --set pod.replicas.server=1 \
         --timeout=600s \
@@ -114,7 +109,7 @@ Cinder rely on MariaDB for data storage.
 
 .. code-block:: bash
 
-    helm upgrade --install mariadb openstack-helm-infra/mariadb \
+    helm upgrade --install mariadb openstack-helm/mariadb \
         --namespace=openstack \
         --set pod.replicas.server=1 \
         $(helm osh get-values-overrides -p ${OVERRIDES_DIR} -c mariadb ${FEATURES})
@@ -130,7 +125,7 @@ data retrieval and reduces the load on the database backend.
 
 .. code-block:: bash
 
-    helm upgrade --install memcached openstack-helm-infra/memcached \
+    helm upgrade --install memcached openstack-helm/memcached \
         --namespace=openstack \
         $(helm osh get-values-overrides -p ${OVERRIDES_DIR} -c memcached ${FEATURES})
 
@@ -249,7 +244,7 @@ To deploy the OpenvSwitch service use the following:
 
 .. code-block:: bash
 
-    helm upgrade --install openvswitch openstack-helm-infra/openvswitch \
+    helm upgrade --install openvswitch openstack-helm/openvswitch \
         --namespace=openstack \
         $(helm osh get-values-overrides -p ${OVERRIDES_DIR} -c openvswitch ${FEATURES})
 
@@ -263,7 +258,7 @@ Let's deploy the Libvirt service using the following command:
 
 .. code-block:: bash
 
-    helm upgrade --install libvirt openstack-helm-infra/libvirt \
+    helm upgrade --install libvirt openstack-helm/libvirt \
         --namespace=openstack \
         --set conf.ceph.enabled=true \
         $(helm osh get-values-overrides -p ${OVERRIDES_DIR} -c libvirt ${FEATURES})
@@ -388,7 +383,7 @@ That is it! Now you can use the OpenStack client. Try to run this:
 
     In some cases it is more convenient to use the OpenStack client
     inside a Docker container. OpenStack-Helm provides the
-    `openstackhelm/openstack-client`_ image. The below is an example
+    `quay.io/airshipit/openstack-client`_ image. The below is an example
     of how to use it.
 
 
@@ -397,7 +392,7 @@ That is it! Now you can use the OpenStack client. Try to run this:
     docker run -it --rm --network host \
         -v ~/.config/openstack/clouds.yaml:/etc/openstack/clouds.yaml \
         -e OS_CLOUD=openstack_helm \
-        docker.io/openstackhelm/openstack-client:${OPENSTACK_RELEASE} \
+        quay.io/airshipit/openstack-client:${OPENSTACK_RELEASE}-ubuntu_jammy \
         openstack endpoint list
 
 Remember that the container file system is ephemeral and is destroyed
@@ -412,7 +407,7 @@ For convenience, you can create an executable entry point that runs the
 Openstack client in a Docker container. See for example `setup-client.sh`_.
 
 .. _setup-client.sh: https://opendev.org/openstack/openstack-helm/src/branch/master/tools/deployment/common/setup-client.sh
-.. _openstackhelm/openstack-client: https://hub.docker.com/r/openstackhelm/openstack-client/tags?page=&page_size=&ordering=&name=
+.. _quay.io/airshipit/openstack-client: https://quay.io/repository/airshipit/openstack-client?tab=tags&tag=latest
 
 
 Other Openstack components (optional)

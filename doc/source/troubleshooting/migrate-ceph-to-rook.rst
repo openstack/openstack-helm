@@ -2,7 +2,7 @@ Migrating Ceph to Rook
 ^^^^^^^^^^^^^^^^^^^^^^
 
 It may be necessary or desired to migrate an existing `Ceph`_ cluster that was
-originally deployed using the Ceph charts in `openstack-helm-infra`_ to be
+originally deployed using the Ceph charts in `openstack-helm`_ to be
 managed by the Rook operator moving forward. This operation is not a supported
 `Rook`_ feature, but it is possible to achieve.
 
@@ -24,7 +24,7 @@ are based on the Rook `Troubleshooting`_ documentation and are outlined below.
    pools are not named as expected. Pools must be named
    "<filesystem name>-metadata" and "<filesystem name>-data" in order for Rook to
    use existing CephFS pools.
-#. Delete Ceph resources deployed via the openstack-helm-infra charts,
+#. Delete Ceph resources deployed via the openstack-helm charts,
    uninstall the charts, and remove Ceph node labels.
 #. Add the Rook Helm repository and deploy the Rook operator and a minimal Ceph
    cluster using the Rook Helm charts. The cluster will have a new FSID and will
@@ -93,7 +93,7 @@ require a lot of testing prior to being implemented in production. This is a
 risky operation even with testing and should be performed very carefully.
 
 .. _Ceph: https://ceph.io
-.. _openstack-helm-infra: https://opendev.org/openstack/openstack-helm-infra
+.. _openstack-helm: https://opendev.org/openstack/openstack-helm
 .. _Rook: https://rook.io
 .. _Troubleshooting: https://rook.io/docs/rook/latest-release/Troubleshooting/disaster-recovery/#adopt-an-existing-rook-ceph-cluster-into-a-new-kubernetes-cluster
-.. _script: https://opendev.org/openstack/openstack-helm-infra/src/tools/deployment/ceph/migrate-to-rook-ceph.sh
+.. _script: https://opendev.org/openstack/openstack-helm/src/tools/deployment/ceph/migrate-to-rook-ceph.sh

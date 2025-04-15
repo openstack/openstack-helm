@@ -240,14 +240,14 @@ Here we assume the Ceph cluster is deployed in the ``ceph`` namespace.
 
 .. code-block:: bash
 
-    helm upgrade --install ceph-adapter-rook openstack-helm-infra/ceph-adapter-rook \
+    helm upgrade --install ceph-adapter-rook openstack-helm/ceph-adapter-rook \
         --namespace=openstack
 
     helm osh wait-for-pods openstack
 
 .. _Rook: https://rook.io/
 .. _charts: https://rook.io/docs/rook/latest-release/Helm-Charts/helm-charts/
-.. _ceph-rook.sh: https://opendev.org/openstack/openstack-helm-infra/src/branch/master/tools/deployment/ceph/ceph-rook.sh
+.. _ceph-rook.sh: https://opendev.org/openstack/openstack-helm/src/branch/master/tools/deployment/ceph/ceph-rook.sh
 
 Node labels
 -----------
