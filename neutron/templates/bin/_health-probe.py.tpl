@@ -221,10 +221,6 @@ def test_socket_liveness():
                                           required=False))
     cfg.CONF(sys.argv[1:])
 
-    if "ovn_metadata_agent.ini" not in ','.join(sys.argv):
-        agentq = "metadata_agent"
-        tcp_socket_state_check(agentq)
-
     try:
         metadata_proxy_socket = cfg.CONF.metadata_proxy_socket
     except cfg.NoSuchOptError:
@@ -248,8 +244,8 @@ def test_socket_liveness():
               "Neutron Metadata agent: "
         if se.strerror:
             sys.stderr.write(msg + se.strerror)
-        elif getattr(se, "message", False):
-            sys.stderr.write(msg + se.message)
+        else:
+            sys.stderr.write(msg + getattr(se, "message"))
         sys.exit(1)  # return failure
     except Exception as ex:
         message = getattr(ex, "message", str(ex))
