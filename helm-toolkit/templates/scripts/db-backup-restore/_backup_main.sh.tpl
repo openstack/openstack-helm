@@ -167,7 +167,7 @@ send_to_remote_server() {
   RESULT=$(openstack container list 2>&1)
 
   if [[ $? -eq 0 ]]; then
-    echo $RESULT | grep $CONTAINER_NAME
+    printf "%s\n" "$RESULT" | grep "$CONTAINER_NAME"
     if [[ $? -ne 0 ]]; then
       # Find the swift URL from the keystone endpoint list
       SWIFT_URL=$(openstack catalog show object-store -c endpoints | grep public | awk '{print $4}')
@@ -207,7 +207,7 @@ send_to_remote_server() {
     echo $RESULT | grep -E "HTTP 401|HTTP 403"
     if [[ $? -eq 0 ]]; then
       log ERROR "${DB_NAME}_backup" "Access denied by keystone: ${RESULT}"
-      return 1
+      return 2
     else
       echo $RESULT | grep -E "ConnectionError|Failed to discover available identity versions|Service Unavailable|HTTP 50"
       if [[ $? -eq 0 ]]; then
@@ -217,7 +217,7 @@ send_to_remote_server() {
         return 2
       else
         log ERROR "${DB_NAME}_backup" "Could not get container list: ${RESULT}"
-        return 1
+        return 2
       fi
     fi
   fi
@@ -242,7 +242,7 @@ send_to_remote_server() {
     RESULT=$(openstack container list 2>&1)
 
     if [[ $? -eq 0 ]]; then
-      echo $RESULT | grep $THROTTLE_CONTAINER_NAME
+      printf "%s\n" "$RESULT" | grep "$THROTTLE_CONTAINER_NAME"
       if [[ $? -ne 0 ]]; then
         # Find the swift URL from the keystone endpoint list
         SWIFT_URL=$(openstack catalog show object-store -c endpoints | grep public | awk '{print $4}')
@@ -282,7 +282,7 @@ send_to_remote_server() {
       echo $RESULT | grep -E "HTTP 401|HTTP 403"
       if [[ $? -eq 0 ]]; then
         log ERROR "${DB_NAME}_backup" "Access denied by keystone: ${RESULT}"
-        return 1
+        return 2
       else
         echo $RESULT | grep -E "ConnectionError|Failed to discover available identity versions|Service Unavailable|HTTP 50"
         if [[ $? -eq 0 ]]; then
@@ -292,7 +292,7 @@ send_to_remote_server() {
           return 2
         else
           log ERROR "${DB_NAME}_backup" "Could not get container list: ${RESULT}"
-          return 1
+          return 2
         fi
       fi
     fi
@@ -387,12 +387,12 @@ send_to_remote_server() {
 # with built-in logic to handle error cases like:
 #   1) Network connectivity issues - retries for a specific amount of time
 #   2) Authorization errors - immediately logs an ERROR and returns
-store_backup_remotely() {
-  FILEPATH=$1
-  FILE=$2
+function store_backup_remotely() {
+  local FILEPATH=$1
+  local FILE=$2
+  local count=0
 
-  count=1
-  while [[ ${count} -le ${REMOTE_BACKUP_RETRIES} ]]; do
+  while [[ ${count} -lt ${REMOTE_BACKUP_RETRIES} ]]; do
     # Store the new archive to the remote backup storage facility.
     send_to_remote_server $FILEPATH $FILE
     SEND_RESULT="$?"
@@ -422,9 +422,65 @@ store_backup_remotely() {
     count=$((count+1))
   done
 
+  log INFO "${DB_NAME}_backup" "Switching to failover RGW..."
+
+  # If initial attempts failed and failover variables are defined, retry with failover environment variables
+  if [[ $SEND_RESULT -ne 0 ]] && \
+    [[ -n "${OS_AUTH_URL_FAILOVER}" ]] && \
+    [[ -n "${OS_REGION_NAME_FAILOVER}" ]] && \
+    [[ -n "${OS_INTERFACE_FAILOVER}" ]] && \
+    [[ -n "${OS_PROJECT_DOMAIN_NAME_FAILOVER}" ]] && \
+    [[ -n "${OS_PROJECT_NAME_FAILOVER}" ]] && \
+    [[ -n "${OS_USER_DOMAIN_NAME_FAILOVER}" ]] && \
+    [[ -n "${OS_USERNAME_FAILOVER}" ]] && \
+    [[ -n "${OS_PASSWORD_FAILOVER}" ]]; then
+    log INFO "${DB_NAME}_backup" "Initial attempts failed. Retrying with failover environment variables..."
+
+    # Redefine OS_* variables with OS_*_FAILOVER ones
+    export OS_AUTH_URL=${OS_AUTH_URL_FAILOVER}
+    export OS_REGION_NAME=${OS_REGION_NAME_FAILOVER}
+    export OS_INTERFACE=${OS_INTERFACE_FAILOVER}
+    export OS_PROJECT_DOMAIN_NAME=${OS_PROJECT_DOMAIN_NAME_FAILOVER}
+    export OS_PROJECT_NAME=${OS_PROJECT_NAME_FAILOVER}
+    export OS_USER_DOMAIN_NAME=${OS_USER_DOMAIN_NAME_FAILOVER}
+    export OS_USERNAME=${OS_USERNAME_FAILOVER}
+    export OS_PASSWORD=${OS_PASSWORD_FAILOVER}
+    export OS_DEFAULT_DOMAIN=${OS_DEFAULT_DOMAIN_FAILOVER}
+
+    count=0
+    while [[ ${count} -lt ${REMOTE_BACKUP_RETRIES} ]]; do
+      # Store the new archive to the remote backup storage facility.
+      send_to_remote_server $FILEPATH $FILE
+      SEND_RESULT="$?"
+
+      # Check if successful
+      if [[ $SEND_RESULT -eq 0 ]]; then
+        log INFO "${DB_NAME}_backup" "Backup file ${FILE} successfully sent to failover RGW."
+        return 0
+      elif [[ $SEND_RESULT -eq 2 ]]; then
+        if [[ ${count} -ge ${REMOTE_BACKUP_RETRIES} ]]; then
+          log ERROR "${DB_NAME}_backup" "Backup file ${FILE} could not be sent to the failover RGW in " \
+          "${REMOTE_BACKUP_RETRIES} retries. Errors encountered. Exiting."
+          break
+        fi
+        # Temporary failure occurred. We need to retry
+        log WARN "${DB_NAME}_backup" "Backup file ${FILE} could not be sent to failover RGW due to connection issue."
+        sleep_time=$(random_number)
+        log INFO "${DB_NAME}_backup" "Sleeping ${sleep_time} seconds waiting for failover RGW to become available..."
+        sleep ${sleep_time}
+        log INFO "${DB_NAME}_backup" "Retrying..."
+      else
+        log ERROR "${DB_NAME}_backup" "Backup file ${FILE} could not be sent to the failover RGW. Errors encountered. Exiting."
+        break
+      fi
+
+      # Increment the counter
+      count=$((count+1))
+    done
+  fi
+
   return 1
 }
-
 
 function get_archive_date(){
 # get_archive_date function returns correct archive date

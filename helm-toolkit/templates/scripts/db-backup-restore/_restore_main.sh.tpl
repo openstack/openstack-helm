@@ -147,6 +147,25 @@ usage() {
   clean_and_exit $ret_val ""
 }
 
+log() {
+  #Log message to a file or stdout
+  #TODO: This can be convert into mail alert of alert send to a monitoring system
+  #Params: $1 log level
+  #Params: $2 service
+  #Params: $3 message
+  #Params: $4 Destination
+  LEVEL=$1
+  SERVICE=$2
+  MSG=$3
+  DEST=$4
+  DATE=$(date +"%m-%d-%y %H:%M:%S")
+  if [[ -z "$DEST" ]]; then
+    echo "${DATE} ${LEVEL}: $(hostname) ${SERVICE}: ${MSG}"
+  else
+    echo "${DATE} ${LEVEL}: $(hostname) ${SERVICE}: ${MSG}" >>$DEST
+  fi
+}
+
 #Exit cleanly with some message and return code
 clean_and_exit() {
   RETCODE=$1
@@ -167,29 +186,29 @@ determine_resulting_error_code() {
 
   echo ${RESULT} | grep "HTTP 404"
   if [[ $? -eq 0 ]]; then
-    echo "Could not find the archive: ${RESULT}"
+    log ERROR "${DB_NAME}_restore" "Could not find the archive: ${RESULT}"
     return 1
   else
     echo ${RESULT} | grep "HTTP 401"
     if [[ $? -eq 0 ]]; then
-      echo "Could not access the archive: ${RESULT}"
+      log ERROR "${DB_NAME}_restore" "Could not access the archive: ${RESULT}"
       return 1
     else
       echo ${RESULT} | grep "HTTP 503"
       if [[ $? -eq 0 ]]; then
-        echo "RGW service is unavailable. ${RESULT}"
+        log WARN "${DB_NAME}_restore" "RGW service is unavailable. ${RESULT}"
         # In this case, the RGW may be temporarily down.
         # Return slightly different error code so the calling code can retry
         return 2
       else
         echo ${RESULT} | grep "ConnectionError"
         if [[ $? -eq 0 ]]; then
-          echo "Could not reach the RGW: ${RESULT}"
+          log WARN "${DB_NAME}_restore" "Could not reach the RGW: ${RESULT}"
           # In this case, keystone or the site/node may be temporarily down.
           # Return slightly different error code so the calling code can retry
           return 2
         else
-          echo "Archive ${ARCHIVE} could not be retrieved: ${RESULT}"
+          log ERROR "${DB_NAME}_restore" "Archive ${ARCHIVE} could not be retrieved: ${RESULT}"
           return 1
         fi
       fi
@@ -199,51 +218,249 @@ determine_resulting_error_code() {
 }
 
 # Retrieve a list of archives from the RGW.
-retrieve_remote_listing() {
-  RESULT=$(openstack container show $CONTAINER_NAME 2>&1)
-  if [[ $? -eq 0 ]]; then
-    # Get the list, ensureing that we only pick up the right kind of backups from the
-    # requested namespace
-    openstack object list $CONTAINER_NAME | grep $DB_NAME | grep $DB_NAMESPACE | awk '{print $2}' > $TMP_DIR/archive_list
-    if [[ $? -ne 0 ]]; then
-      echo "Container object listing could not be obtained."
-      return 1
+function retrieve_remote_listing() {
+  # List archives from PRIMARY RGW
+  log INFO "${DB_NAME}_restore" "Listing archives from PRIMARY RGW..."
+  list_archives_from_rgw "PRIMARY"
+  local primary_result=$?
+
+  # Check if failover environment variables are defined
+  if [[ -n "${OS_AUTH_URL_FAILOVER}" ]] && \
+    [[ -n "${OS_REGION_NAME_FAILOVER}" ]] && \
+    [[ -n "${OS_INTERFACE_FAILOVER}" ]] && \
+    [[ -n "${OS_PROJECT_DOMAIN_NAME_FAILOVER}" ]] && \
+    [[ -n "${OS_PROJECT_NAME_FAILOVER}" ]] && \
+    [[ -n "${OS_USER_DOMAIN_NAME_FAILOVER}" ]] && \
+    [[ -n "${OS_USERNAME_FAILOVER}" ]] && \
+    [[ -n "${OS_PASSWORD_FAILOVER}" ]]; then
+    # Redefine OS_* variables with OS_*_FAILOVER ones
+    log INFO "${DB_NAME}_restore" "Listing archives from FAILOVER RGW..."
+
+    # Saving original OS_* variables as OS_*_PRIMARY
+    export OS_AUTH_URL_PRIMARY=${OS_AUTH_URL}
+    export OS_REGION_NAME_PRIMARY=${OS_REGION_NAME}
+    export OS_INTERFACE_PRIMARY=${OS_INTERFACE}
+    export OS_PROJECT_DOMAIN_NAME_PRIMARY=${OS_PROJECT_DOMAIN_NAME}
+    export OS_PROJECT_NAME_PRIMARY=${OS_PROJECT_NAME}
+    export OS_USER_DOMAIN_NAME_PRIMARY=${OS_USER_DOMAIN_NAME}
+    export OS_USERNAME_PRIMARY=${OS_USERNAME}
+    export OS_PASSWORD_PRIMARY=${OS_PASSWORD}
+    export OS_DEFAULT_DOMAIN_PRIMARY=${OS_DEFAULT_DOMAIN}
+
+    export OS_AUTH_URL=${OS_AUTH_URL_FAILOVER}
+    export OS_REGION_NAME=${OS_REGION_NAME_FAILOVER}
+    export OS_INTERFACE=${OS_INTERFACE_FAILOVER}
+    export OS_PROJECT_DOMAIN_NAME=${OS_PROJECT_DOMAIN_NAME_FAILOVER}
+    export OS_PROJECT_NAME=${OS_PROJECT_NAME_FAILOVER}
+    export OS_USER_DOMAIN_NAME=${OS_USER_DOMAIN_NAME_FAILOVER}
+    export OS_USERNAME=${OS_USERNAME_FAILOVER}
+    export OS_PASSWORD=${OS_PASSWORD_FAILOVER}
+    export OS_DEFAULT_DOMAIN=${OS_DEFAULT_DOMAIN_FAILOVER}
+
+    list_archives_from_rgw "FAILOVER"
+    local failover_result=$?
+
+    # Restore original OS_* variables from OS_*_PRIMARY
+    export OS_AUTH_URL=${OS_AUTH_URL_PRIMARY}
+    export OS_REGION_NAME=${OS_REGION_NAME_PRIMARY}
+    export OS_INTERFACE=${OS_INTERFACE_PRIMARY}
+    export OS_PROJECT_DOMAIN_NAME=${OS_PROJECT_DOMAIN_NAME_PRIMARY}
+    export OS_PROJECT_NAME=${OS_PROJECT_NAME_PRIMARY}
+    export OS_USER_DOMAIN_NAME=${OS_USER_DOMAIN_NAME_PRIMARY}
+    export OS_USERNAME=${OS_USERNAME_PRIMARY}
+    export OS_PASSWORD=${OS_PASSWORD_PRIMARY}
+    export OS_DEFAULT_DOMAIN=${OS_DEFAULT_DOMAIN_PRIMARY}
+
+    # Return success if either primary or failover listing was successful
+    if [[ $primary_result -eq 0 || $failover_result -eq 0 ]]; then
+      return 0
     else
-      echo "Archive listing successfully retrieved."
+      return 1
     fi
   else
-    determine_resulting_error_code "${RESULT}"
-    return $?
+    # Return the result of the primary listing if failover variables are not defined
+    return $primary_result
   fi
+}
+
+function list_archives_from_rgw() {
+  local prefix=$1
+  local RESULT
+
+  log INFO "${DB_NAME}_restore" "Obtaining list of archives from ${prefix} RGW..."
+  RESULT=$(openstack container show $CONTAINER_NAME 2>&1)
+  if [[ $? -eq 0 ]]; then
+    openstack object list $CONTAINER_NAME | grep $DB_NAME | grep $DB_NAMESPACE | awk -v prefix="$prefix" '{print prefix ":" $2}' >> $TMP_DIR/archive_list
+    if [[ $? -ne 0 ]]; then
+      log ERROR "${DB_NAME}_restore" "Container object listing could not be obtained from ${prefix} RGW."
+      return 1
+    else
+      log INFO "${DB_NAME}_restore" "Archive listing successfully retrieved from ${prefix} RGW."
+    fi
+  else
+    log ERROR "${DB_NAME}_restore" "Failed to obtain container show from ${prefix} RGW: ${RESULT}"
+    return 1
+  fi
+
   return 0
 }
 
 # Retrieve a single archive from the RGW.
 retrieve_remote_archive() {
-  ARCHIVE=$1
+  local archive=$1
+  local prefix=$(echo $archive | awk -F: '{print $1}')
+  local filename
 
-  RESULT=$(openstack object save --file $TMP_DIR/$ARCHIVE $CONTAINER_NAME $ARCHIVE 2>&1)
-  if [[ $? -ne 0 ]]; then
+  if [[ $prefix == "PRIMARY" || $prefix == "FAILOVER" ]]; then
+    filename=$(echo $archive | awk -F: '{print $2":"$3":"$4}')
+  else
+    filename=$archive
+  fi
+
+  if [[ $prefix == "PRIMARY" ]]; then
+    log INFO "${DB_NAME}_restore" "Retrieving archive ${filename} from PRIMARY RGW..."
+    retrieve_archive_from_rgw $filename
+    return $?
+  elif [[ $prefix == "FAILOVER" ]]; then
+    log INFO "${DB_NAME}_restore" "Retrieving archive ${filename} from FAILOVER RGW..."
+
+    # Saving original OS_* variables as OS_*_PRIMARY
+    export OS_AUTH_URL_PRIMARY=${OS_AUTH_URL}
+    export OS_REGION_NAME_PRIMARY=${OS_REGION_NAME}
+    export OS_INTERFACE_PRIMARY=${OS_INTERFACE}
+    export OS_PROJECT_DOMAIN_NAME_PRIMARY=${OS_PROJECT_DOMAIN_NAME}
+    export OS_PROJECT_NAME_PRIMARY=${OS_PROJECT_NAME}
+    export OS_USER_DOMAIN_NAME_PRIMARY=${OS_USER_DOMAIN_NAME}
+    export OS_USERNAME_PRIMARY=${OS_USERNAME}
+    export OS_PASSWORD_PRIMARY=${OS_PASSWORD}
+    export OS_DEFAULT_DOMAIN_PRIMARY=${OS_DEFAULT_DOMAIN}
+
+    # Redefine OS_* variables with OS_*_FAILOVER ones
+    export OS_AUTH_URL=${OS_AUTH_URL_FAILOVER}
+    export OS_REGION_NAME=${OS_REGION_NAME_FAILOVER}
+    export OS_INTERFACE=${OS_INTERFACE_FAILOVER}
+    export OS_PROJECT_DOMAIN_NAME=${OS_PROJECT_DOMAIN_NAME_FAILOVER}
+    export OS_PROJECT_NAME=${OS_PROJECT_NAME_FAILOVER}
+    export OS_USER_DOMAIN_NAME=${OS_USER_DOMAIN_NAME_FAILOVER}
+    export OS_USERNAME=${OS_USERNAME_FAILOVER}
+    export OS_PASSWORD=${OS_PASSWORD_FAILOVER}
+    export OS_DEFAULT_DOMAIN=${OS_DEFAULT_DOMAIN_FAILOVER}
+
+    retrieve_archive_from_rgw $filename
+    local result=$?
+
+    # Restore original OS_* variables from OS_*_PRIMARY
+    export OS_AUTH_URL=${OS_AUTH_URL_PRIMARY}
+    export OS_REGION_NAME=${OS_REGION_NAME_PRIMARY}
+    export OS_INTERFACE=${OS_INTERFACE_PRIMARY}
+    export OS_PROJECT_DOMAIN_NAME=${OS_PROJECT_DOMAIN_NAME_PRIMARY}
+    export OS_PROJECT_NAME=${OS_PROJECT_NAME_PRIMARY}
+    export OS_USER_DOMAIN_NAME=${OS_USER_DOMAIN_NAME_PRIMARY}
+    export OS_USERNAME=${OS_USERNAME_PRIMARY}
+    export OS_PASSWORD=${OS_PASSWORD_PRIMARY}
+    export OS_DEFAULT_DOMAIN=${OS_DEFAULT_DOMAIN_PRIMARY}
+
+    return $result
+  else
+    log ERROR "${DB_NAME}_restore" "Invalid prefix ${prefix} for archive ${archive}."
+    return 1
+  fi
+}
+
+# Function to retrieve an archive from RGW
+retrieve_archive_from_rgw() {
+  local filename=$1
+  local RESULT
+
+  log INFO "${DB_NAME}_restore" "Obtaining archive ${filename} from RGW..."
+  RESULT=$(openstack object save --file $TMP_DIR/${filename} $CONTAINER_NAME ${filename}  2>&1)
+  if [[ $? -eq 0 ]]; then
+    log INFO "${DB_NAME}_restore" "Archive ${filename} successfully retrieved."
+    return 0
+  else
+    log ERROR "${DB_NAME}_restore" "Failed to retrieve archive ${filename}."
     determine_resulting_error_code "${RESULT}"
     return $?
-  else
-    echo "Archive $ARCHIVE successfully retrieved."
   fi
-  return 0
 }
 
 # Delete an archive from the RGW.
+# Delete a single archive from the RGW.
 delete_remote_archive() {
-  ARCHIVE=$1
+  local archive=$1
+  local prefix=$(echo $archive | awk -F: '{print $1}')
+  local filename
 
-  RESULT=$(openstack object delete ${CONTAINER_NAME} ${ARCHIVE} 2>&1)
-  if [[ $? -ne 0 ]]; then
+  if [[ $prefix == "PRIMARY" || $prefix == "FAILOVER" ]]; then
+    filename=$(echo $archive | awk -F: '{print $2":"$3":"$4}')
+  else
+    filename=$archive
+  fi
+
+  if [[ $prefix == "PRIMARY" ]]; then
+    log INFO "${DB_NAME}_restore" "Deleting archive ${filename} from PRIMARY RGW..."
+    delete_archive_from_rgw $filename
+    return $?
+  elif [[ $prefix == "FAILOVER" ]]; then
+    log INFO "${DB_NAME}_restore" "Deleting archive ${filename} from FAILOVER RGW..."
+
+    # Saving original OS_* variables as OS_*_PRIMARY
+    export OS_AUTH_URL_PRIMARY=${OS_AUTH_URL}
+    export OS_REGION_NAME_PRIMARY=${OS_REGION_NAME}
+    export OS_INTERFACE_PRIMARY=${OS_INTERFACE}
+    export OS_PROJECT_DOMAIN_NAME_PRIMARY=${OS_PROJECT_DOMAIN_NAME}
+    export OS_PROJECT_NAME_PRIMARY=${OS_PROJECT_NAME}
+    export OS_USER_DOMAIN_NAME_PRIMARY=${OS_USER_DOMAIN_NAME}
+    export OS_USERNAME_PRIMARY=${OS_USERNAME}
+    export OS_PASSWORD_PRIMARY=${OS_PASSWORD}
+    export OS_DEFAULT_DOMAIN_PRIMARY=${OS_DEFAULT_DOMAIN}
+
+    # Redefine OS_* variables with OS_*_FAILOVER ones
+    export OS_AUTH_URL=${OS_AUTH_URL_FAILOVER}
+    export OS_REGION_NAME=${OS_REGION_NAME_FAILOVER}
+    export OS_INTERFACE=${OS_INTERFACE_FAILOVER}
+    export OS_PROJECT_DOMAIN_NAME=${OS_PROJECT_DOMAIN_NAME_FAILOVER}
+    export OS_PROJECT_NAME=${OS_PROJECT_NAME_FAILOVER}
+    export OS_USER_DOMAIN_NAME=${OS_USER_DOMAIN_NAME_FAILOVER}
+    export OS_USERNAME=${OS_USERNAME_FAILOVER}
+    export OS_PASSWORD=${OS_PASSWORD_FAILOVER}
+    export OS_DEFAULT_DOMAIN=${OS_DEFAULT_DOMAIN_FAILOVER}
+
+    delete_archive_from_rgw $filename
+    local result=$?
+
+    # Restore original OS_* variables from OS_*_PRIMARY
+    export OS_AUTH_URL=${OS_AUTH_URL_PRIMARY}
+    export OS_REGION_NAME=${OS_REGION_NAME_PRIMARY}
+    export OS_INTERFACE=${OS_INTERFACE_PRIMARY}
+    export OS_PROJECT_DOMAIN_NAME=${OS_PROJECT_DOMAIN_NAME_PRIMARY}
+    export OS_PROJECT_NAME=${OS_PROJECT_NAME_PRIMARY}
+    export OS_USER_DOMAIN_NAME=${OS_USER_DOMAIN_NAME_PRIMARY}
+    export OS_USERNAME=${OS_USERNAME_PRIMARY}
+    export OS_PASSWORD=${OS_PASSWORD_PRIMARY}
+    export OS_DEFAULT_DOMAIN=${OS_DEFAULT_DOMAIN_PRIMARY}
+
+    return $result
+  else
+    log ERROR "${DB_NAME}_restore" "Invalid prefix ${prefix} for archive ${archive}."
+    return 1
+  fi
+}
+
+# Function to delete an archive from RGW
+delete_archive_from_rgw() {
+  local filename=$1
+  local RESULT
+
+  RESULT=$(openstack object delete $CONTAINER_NAME $filename 2>&1)
+  if [[ $? -eq 0 ]]; then
+    log INFO "${DB_NAME}_restore" "Archive ${filename} successfully deleted."
+    return 0
+  else
+    log ERROR "${DB_NAME}_restore" "Failed to delete archive ${filename}."
     determine_resulting_error_code "${RESULT}"
     return $?
-  else
-    echo "Archive ${ARCHIVE} successfully deleted."
   fi
-  return 0
 }
 
 # Display all archives
@@ -283,18 +500,26 @@ list_archives() {
 # Retrieve the archive from the desired location and decompress it into
 # the restore directory
 get_archive() {
-  ARCHIVE_FILE=$1
+  local archive=$1
+  local prefix=$(echo $archive | awk -F: '{print $1}')
+  local filename
+
+  if [[ $prefix == "PRIMARY" || $prefix == "FAILOVER" ]]; then
+    filename=$(echo $archive | awk -F: '{print $2":"$3":"$4}')
+  else
+    filename=$archive
+  fi
   REMOTE=$2
 
   if [[ "x$REMOTE" == "xremote" ]]; then
-    echo "Retrieving archive ${ARCHIVE_FILE} from the remote RGW..."
-    retrieve_remote_archive $ARCHIVE_FILE
+    log INFO "${DB_NAME}_restore" "Retrieving archive ${prefix}:${filename} from the remote RGW..."
+    retrieve_remote_archive ${prefix}:${filename}
     if [[ $? -ne 0 ]]; then
-      clean_and_exit 1 "ERROR: Could not retrieve remote archive: $ARCHIVE_FILE"
+      clean_and_exit 1 "ERROR: Could not retrieve remote archive: ${prefix}:${filename}"
     fi
   elif [[ "x$REMOTE" == "x" ]]; then
-    if [[ -e $ARCHIVE_DIR/$ARCHIVE_FILE ]]; then
-      cp $ARCHIVE_DIR/$ARCHIVE_FILE $TMP_DIR/$ARCHIVE_FILE
+    if [[ -e $ARCHIVE_DIR/$filename ]]; then
+      cp $ARCHIVE_DIR/$filename $TMP_DIR/$filename
       if [[ $? -ne 0 ]]; then
         clean_and_exit 1 "ERROR: Could not copy local archive to restore directory."
       fi
@@ -305,9 +530,10 @@ get_archive() {
     usage 1
   fi
 
-  echo "Decompressing archive $ARCHIVE_FILE..."
+  log INFO "${DB_NAME}_restore" "Decompressing archive $filename..."
+
   cd $TMP_DIR
-  tar zxvf - < $TMP_DIR/$ARCHIVE_FILE 1>/dev/null
+  tar zxvf - < $TMP_DIR/$filename 1>/dev/null
   if [[ $? -ne 0 ]]; then
     clean_and_exit 1 "ERROR: Archive decompression failed."
   fi
@@ -464,7 +690,7 @@ delete_archive() {
     fi
   fi
 
-  echo "Successfully deleted archive ${ARCHIVE_FILE} from ${WHERE} storage."
+  log INFO "${DB_NAME}_restore" "Successfully deleted archive ${ARCHIVE_FILE} from ${WHERE} storage."
 }
 
 
@@ -578,19 +804,19 @@ cli_main() {
           fi
         fi
 
-        echo "Restoring Database $DB_SPEC And Grants"
+        log INFO "${DB_NAME}_restore" "Restoring Database $DB_SPEC And Grants"
         restore_single_db $DB_SPEC $TMP_DIR
         if [[ "$?" -eq 0 ]]; then
-          echo "Single database restored successfully."
+          log INFO "${DB_NAME}_restore" "Single database restored successfully."
         else
           clean_and_exit 1 "ERROR: Single database restore failed."
         fi
         clean_and_exit 0 ""
       else
-        echo "Restoring All The Databases. This could take a few minutes..."
+        log INFO "${DB_NAME}_restore" "Restoring All The Databases. This could take a few minutes..."
         restore_all_dbs $TMP_DIR
         if [[ "$?" -eq 0 ]]; then
-          echo "All databases restored successfully."
+          log INFO "${DB_NAME}_restore" "All databases restored successfully."
         else
           clean_and_exit 1 "ERROR: Database restore failed."
         fi

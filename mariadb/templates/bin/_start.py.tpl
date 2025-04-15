@@ -258,7 +258,6 @@ def stop_mysqld():
     logger.info("Mysqld stopped: pid = {0}, "
                 "exit status = {1}".format(pid, status))
 
-
 def mysqld_write_cluster_conf(mode='run'):
     """Write out dynamic cluster config.
 
