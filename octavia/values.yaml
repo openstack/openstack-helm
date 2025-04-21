@@ -108,6 +108,8 @@ dependencies:
         - endpoint: internal
           service: oslo_db
         - endpoint: internal
+          service: oslo_db_persistence
+        - endpoint: internal
           service: identity
         - endpoint: internal
           service: oslo_messaging
@@ -124,6 +126,8 @@ dependencies:
       services:
         - endpoint: internal
           service: oslo_db
+        - endpoint: internal
+          service: oslo_db_persistence
         - endpoint: internal
           service: identity
         - endpoint: internal
@@ -144,6 +148,8 @@ dependencies:
         - endpoint: internal
           service: oslo_db
         - endpoint: internal
+          service: oslo_db_persistence
+        - endpoint: internal
           service: identity
         - endpoint: internal
           service: oslo_messaging
@@ -163,6 +169,8 @@ dependencies:
         - endpoint: internal
           service: oslo_db
         - endpoint: internal
+          service: oslo_db_persistence
+        - endpoint: internal
           service: identity
         - endpoint: internal
           service: oslo_messaging
@@ -176,12 +184,16 @@ dependencies:
       services:
         - endpoint: internal
           service: oslo_db
+        - endpoint: internal
+          service: oslo_db_persistence
     db_sync:
       jobs:
         - octavia-db-init
       services:
         - endpoint: internal
           service: oslo_db
+        - endpoint: internal
+          service: oslo_db_persistence
     ks_endpoints:
       jobs:
         - octavia-ks-service
@@ -263,6 +275,8 @@ conf:
       cafile: ""
       auth_version: v3
       memcache_security_strategy: ENCRYPT
+    task_flow:
+      jobboard_enabled: true
   logging:
     loggers:
       keys:
@@ -361,6 +375,9 @@ secrets:
   oslo_db:
     admin: octavia-db-admin
     octavia: octavia-db-user
+  oslo_db_persistence:
+    admin: octavia-persistence-db-admin
+    octavia: octavia-persistence-db-user
   oslo_messaging:
     admin: octavia-rabbitmq-admin
     octavia: octavia-rabbitmq-user
@@ -471,6 +488,23 @@ endpoints:
     port:
       mysql:
         default: 3306
+  oslo_db_persistence:
+    auth:
+      admin:
+        username: root
+        password: password
+      octavia:
+        username: octavia
+        password: password
+    hosts:
+      default: mariadb
+    host_fqdn_override:
+      default: null
+    path: /octavia_persistence
+    scheme: mysql+pymysql
+    port:
+      mysql:
+        default: 3306
   oslo_cache:
     auth:
       # NOTE(portdirect): this is used to define the value for keystone
@@ -523,6 +557,18 @@ endpoints:
       api:
         default: 9696
         public: 80
+  valkey:
+    name: valkey
+    hosts:
+      default: valkey
+    # NOTE(rlin): we should only provide password when not using CA cert.
+    password: null
+    host_fqdn_override:
+      default: null
+    port:
+      server:
+        default: 6379
+        sentinel: 26379
 
 pod:
   security_context:
@@ -739,6 +785,7 @@ manifests:
   network_policy: false
   secret_credential_keys: true
   secret_db: true
+  secret_db_persistence: true
   secret_ingress_tls: true
   secret_keystone: true
   secret_rabbitmq: true

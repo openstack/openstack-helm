@@ -19,3 +19,5 @@ limitations under the License.
 set -ex
 
 octavia-db-manage upgrade head
+
+octavia-db-manage upgrade_persistence
