@@ -54,7 +54,10 @@ class KekRewrap(object):
         )
 
     def rewrap_kek(self, project, kek):
-        with self.db_session.begin():
+        db_begin_fn = self.db_session.begin_nested if (
+            self.db_session.in_transaction()) else self.db_session.begin
+        with db_begin_fn():
+
             plugin_meta = kek.plugin_meta
 
             # try to unwrap with the target kek, and if successful, skip
@@ -90,7 +93,9 @@ class KekRewrap(object):
 
     def get_keks_for_project(self, project):
         keks = []
-        with self.db_session.begin() as transaction:
+        db_begin_fn = self.db_session.begin_nested if (
+            self.db_session.in_transaction()) else self.db_session.begin
+        with db_begin_fn() as transaction:
             print('Retrieving KEKs for Project {}'.format(project.external_id))
             query = transaction.session.query(models.KEKDatum)
             query = query.filter_by(project_id=project.id)
@@ -104,7 +109,9 @@ class KekRewrap(object):
         print('Retrieving all available projects')
 
         projects = []
-        with self.db_session.begin() as transaction:
+        db_begin_fn = self.db_session.begin_nested if (
+            self.db_session.in_transaction()) else self.db_session.begin
+        with db_begin_fn() as transaction:
             projects = transaction.session.query(models.Project).all()
 
         return projects
