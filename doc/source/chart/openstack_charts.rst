@@ -26,5 +26,6 @@ OpenStack charts options
     openstack
     placement
     rally
+    skyline
     tacker
     tempest

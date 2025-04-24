@@ -1,0 +1,93 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- define "metadata.annotations.job.db_sync" }}
+helm.sh/hook: post-install,post-upgrade
+helm.sh/hook-weight: "-4"
+{{- end }}
+
+{{- define "skyline.templates.job_db_sync" -}}
+{{- $envAll := index . 0 }}
+{{- with $envAll }}
+{{- $serviceName := "skyline" -}}
+{{- $nodeSelector := dict .Values.labels.job.node_selector_key .Values.labels.job.node_selector_value -}}
+{{- $configMapEtc := (printf "%s-%s" $serviceName "etc" ) -}}
+{{- $dbAdminTlsSecret := .Values.endpoints.oslo_db.auth.admin.secret.tls.internal -}}
+{{- $serviceAccountName := printf "%s-%s" $serviceName "db-sync" }}
+{{ tuple . "db_sync" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: skyline-db-sync
+  labels:
+{{ tuple . $serviceName "db-sync" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+  annotations:
+{{ tuple $serviceAccountName . | include "helm-toolkit.snippets.custom_job_annotations" | indent 4 -}}
+{{- if .Values.helm3_hook }}
+{{ include "metadata.annotations.job.db_sync" . | indent 4 }}
+{{- end }}
+spec:
+  backoffLimit: 1000
+  template:
+    metadata:
+      labels:
+{{ tuple . $serviceName "db-sync" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+{{ tuple . | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
+    spec:
+      serviceAccountName: {{ $serviceAccountName }}
+      restartPolicy: OnFailure
+      {{ tuple . "db_sync" | include "helm-toolkit.snippets.kubernetes_image_pull_secrets" | indent 6 }}
+      nodeSelector:
+{{ toYaml $nodeSelector | indent 8 }}
+{{- if .Values.pod.tolerations.skyline.enabled }}
+{{ tuple . $serviceName | include "helm-toolkit.snippets.kubernetes_tolerations" | indent 6 }}
+{{- end}}
+      initContainers:
+{{ tuple . "db_sync" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+      containers:
+        - name: skyline-db-sync
+          image: {{ .Values.images.tags.db_sync | quote }}
+          imagePullPolicy: {{ .Values.images.pull_policy | quote }}
+{{ tuple . .Values.pod.resources.jobs.db_sync | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          env:
+            - name: KOLLA_BOOTSTRAP
+              value: ""
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: etc-service
+              mountPath: /etc/skyline
+            - name: db-sync-conf
+              mountPath: /etc/skyline/skyline.yaml
+              subPath: skyline.yaml
+              readOnly: true
+{{- dict "enabled" .Values.manifests.certificates "name" $dbAdminTlsSecret "path" "/etc/mysql/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
+      volumes:
+        - name: pod-tmp
+          emptyDir: {}
+        - name: etc-service
+          emptyDir: {}
+        - name: db-sync-conf
+          secret:
+            secretName: {{ $configMapEtc | quote }}
+            defaultMode: 0444
+{{- dict "enabled" $envAll.Values.manifests.certificates "name" $dbAdminTlsSecret | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
+{{- end }}
+{{- end }}
+
+{{- if .Values.manifests.job_db_sync }}
+{{- tuple . | include "skyline.templates.job_db_sync" }}
+{{- end }}
