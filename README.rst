@@ -23,10 +23,6 @@ that are tested and proved to work.
      - Host OS
      - Image OS
      - Kubernetes version
-   * - 2023.2 (Bobcat)
-     - Ubuntu Jammy
-     - Ubuntu Jammy
-     - >=1.29,<=1.31
    * - 2024.1 (Caracal)
      - Ubuntu Jammy
      - Ubuntu Jammy
@@ -34,6 +30,14 @@ that are tested and proved to work.
    * - 2024.2 (Dalmatian)
      - Ubuntu Jammy
      - Ubuntu Jammy
+     - >=1.29,<=1.31
+   * - 2025.1 (Epoxy)
+     - Ubuntu Jammy
+     - Ubuntu Jammy
+     - >=1.29,<=1.31
+   * - 2025.1 (Epoxy)
+     - Ubuntu Noble
+     - Ubuntu Noble
      - >=1.29,<=1.31
 
 Communication

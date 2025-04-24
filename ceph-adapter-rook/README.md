@@ -11,6 +11,7 @@ have to provision a minimal set of assets like Ceph admin key and
 Ceph client config.
 
 # Usage
+```
 helm upgrade --install ceph-adapter-rook ./ceph-adapter-rook \
   --namespace=openstack
 ```
