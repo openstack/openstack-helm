@@ -85,5 +85,7 @@ podAntiAffinity:
       matchExpressions:
 {{ $matchExpressions | indent 8 }}
     topologyKey: {{ $antiAffinityKey }}
+{{- else }}
+  {}
 {{- end -}}
 {{- end -}}
