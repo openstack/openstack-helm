@@ -18,41 +18,27 @@ limitations under the License.
 # { $ksUserJob | include "helm-toolkit.manifests.job_ks_user" }
 
 {{/*
-  # To enable PodSecuritycontext (PodSecurityContext/v1) define the below in values.yaml:
-  # example:
-  #  values: |
-  #    pod:
-  #      security_context:
-  #        ks_user:
-  #          pod:
-  #            runAsUser: 65534
-  # To enable Container SecurityContext(SecurityContext/v1) for ks-user container define the values:
-  # example:
-  #   values: |
-  #     pod:
-  #       security_context:
-  #         ks_user:
-  #           container:
-  #             ks-user:
-  #               runAsUser: 65534
-  #               readOnlyRootFilesystem: true
-  #               allowPrivilegeEscalation: false
+# This function creates a manifest for keystone user management.
+# It can be used in charts as follows:
+# {{- $ksUserJob := dict "envAll" . "serviceName" "heat" "serviceUsers" ( tuple "heat" "heat_trustee" ) -}}
+# {{ $ksUserJob | include "helm-toolkit.manifests.job_ks_user" }}
 */}}
 
 {{- define "helm-toolkit.manifests.job_ks_user" -}}
 {{- $envAll := index . "envAll" -}}
 {{- $serviceName := index . "serviceName" -}}
+{{- $serviceNamePretty := $serviceName | replace "_" "-" -}}
 {{- $jobAnnotations := index . "jobAnnotations" -}}
 {{- $jobLabels := index . "jobLabels" -}}
 {{- $nodeSelector := index . "nodeSelector" | default ( dict $envAll.Values.labels.job.node_selector_key $envAll.Values.labels.job.node_selector_value ) -}}
 {{- $tolerationsEnabled := index . "tolerationsEnabled" | default false -}}
 {{- $configMapBin := index . "configMapBin" | default (printf "%s-%s" $serviceName "bin" ) -}}
-{{- $serviceUser := index . "serviceUser" | default $serviceName -}}
+{{- $singleServiceUser := index . "serviceUser" | default $serviceName -}}
+{{- $serviceUsers := index . "serviceUsers" | default (tuple $singleServiceUser) -}}
 {{- $secretBin := index . "secretBin" -}}
 {{- $tlsSecret := index . "tlsSecret" | default "" -}}
 {{- $backoffLimit := index . "backoffLimit" | default "1000" -}}
 {{- $activeDeadlineSeconds := index . "activeDeadlineSeconds" -}}
-{{- $serviceUserPretty := $serviceUser | replace "_" "-" -}}
 {{- $restartPolicy_ := "OnFailure" -}}
 {{- if hasKey $envAll.Values "jobs" -}}
 {{- if hasKey $envAll.Values.jobs "ks_user" -}}
@@ -61,13 +47,13 @@ limitations under the License.
 {{- end }}
 {{- $restartPolicy := index . "restartPolicy" | default $restartPolicy_ -}}
 
-{{- $serviceAccountName := printf "%s-%s" $serviceUserPretty "ks-user" }}
+{{- $serviceAccountName := printf "%s-ks-user" $serviceNamePretty }}
 {{ tuple $envAll "ks_user" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: {{ printf "%s-%s" $serviceUserPretty "ks-user" | quote }}
+  name: {{ printf "%s-ks-user" $serviceNamePretty | quote }}
   labels:
 {{ tuple $envAll $serviceName "ks-user" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 {{- if $jobLabels }}
@@ -105,7 +91,8 @@ spec:
       initContainers:
 {{ tuple $envAll "ks_user" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
-        - name: ks-user
+{{- range $serviceUser := $serviceUsers }}
+        - name: {{ printf "%s-ks-user" $serviceUser | replace "_" "-" | quote }}
           image: {{ $envAll.Values.images.tags.ks_user }}
           imagePullPolicy: {{ $envAll.Values.images.pull_policy }}
 {{ tuple $envAll $envAll.Values.pod.resources.jobs.ks_user | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
@@ -138,6 +125,7 @@ spec:
             {{- else }}
               value: {{ $serviceOsRoles | quote }}
             {{- end }}
+{{- end }}
       volumes:
         - name: pod-tmp
           emptyDir: {}
