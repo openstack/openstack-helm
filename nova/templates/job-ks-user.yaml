@@ -18,7 +18,11 @@ helm.sh/hook-weight: "-1"
 {{- end }}
 
 {{- if .Values.manifests.job_ks_user }}
-{{- $ksUserJob := dict "envAll" . "serviceName" "nova" -}}
+{{- $serviceUsers := (tuple "nova" "neutron" "placement" "ironic" "cinder") -}}
+{{- if .Values.conf.nova.service_user.send_service_user_token }}
+{{- $serviceUsers = append $serviceUsers "service" -}}
+{{- end }}
+{{- $ksUserJob := dict "envAll" . "serviceName" "nova" "serviceUsers" $serviceUsers -}}
 {{- if or .Values.manifests.certificates .Values.tls.identity -}}
 {{- $_ := set $ksUserJob "tlsSecret" .Values.secrets.tls.compute.osapi.internal -}}
 {{- end -}}

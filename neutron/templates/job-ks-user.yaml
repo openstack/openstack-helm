@@ -18,7 +18,14 @@ helm.sh/hook-weight: "-1"
 {{- end }}
 
 {{- if .Values.manifests.job_ks_user }}
-{{- $ksUserJob := dict "envAll" . "serviceName" "neutron" -}}
+{{- $serviceUsers := (tuple "neutron" "nova" "placement") -}}
+{{- if eq (.Values.conf.neutron.DEFAULT.external_dns_driver | default "") "designate" -}}
+{{- $serviceUsers = append $serviceUsers "designate" -}}
+{{- end -}}
+{{- if (has "baremetal" .Values.network.backend) -}}
+{{- $serviceUsers = append $serviceUsers "ironic" -}}
+{{- end -}}
+{{- $ksUserJob := dict "envAll" . "serviceName" "neutron" "serviceUsers" $serviceUsers -}}
 {{- if or .Values.manifests.certificates .Values.tls.identity -}}
 {{- $_ := set $ksUserJob "tlsSecret" .Values.secrets.tls.network.server.internal -}}
 {{- end -}}
