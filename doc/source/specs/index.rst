@@ -12,6 +12,7 @@ Here is a list of the current specs:
    :glob:
 
    2025.1/*
+   2025.2/*
    *
 
 Specifications Purpose
