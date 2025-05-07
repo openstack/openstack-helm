@@ -1,0 +1,184 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.cron_job_ovn_db_sync }}
+{{- $envAll := . }}
+
+{{- $mounts_neutron_ovn_db_sync := .Values.pod.mounts.neutron_ovn_db_sync.neutron_ovn_db_sync }}
+{{- $mounts_neutron_ovn_db_sync_init := .Values.pod.mounts.neutron_ovn_db_sync.init_container }}
+
+{{- $serviceAccountName := "neutron-ovn-db-sync" }}
+{{ tuple $envAll "pod_dependency" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: neutron-ovn-db-sync
+  annotations:
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+spec:
+  schedule: {{ .Values.jobs.ovn_db_sync.cron | quote }}
+  successfulJobsHistoryLimit: {{ .Values.jobs.ovn_db_sync.history.success }}
+  failedJobsHistoryLimit: {{ .Values.jobs.ovn_db_sync.history.failed }}
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    metadata:
+      labels:
+{{ tuple $envAll "neutron" "ovn-db-sync" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+{{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
+        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
+{{ dict "envAll" $envAll "podName" "neutron-ovn-db-sync" "containerNames" (list "init" "neutron-ovn-db-sync" ) | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
+    spec:
+      template:
+        metadata:
+          labels:
+{{ tuple $envAll "neutron" "ovn-db-sync" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 12 }}
+          annotations:
+{{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 12 }}
+{{ dict "envAll" $envAll "podName" "neutron-ovn-db-sync" "containerNames" (list "init" "neutron-ovn-db-sync" ) | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
+        spec:
+{{ with .Values.pod.priorityClassName.neutron_ovn_db_sync }}
+          priorityClassName: {{ . }}
+{{ end }}
+{{ with .Values.pod.runtimeClassName.neutron_ovn_db_sync }}
+          runtimeClassName: {{ . }}
+{{ end }}
+          serviceAccountName: {{ $serviceAccountName }}
+          restartPolicy: OnFailure
+{{ if $envAll.Values.pod.tolerations.neutron.enabled }}
+{{ tuple $envAll "neutron" | include "helm-toolkit.snippets.kubernetes_tolerations" | indent 10 }}
+{{ end }}
+          nodeSelector:
+            {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
+          initContainers:
+{{ tuple $envAll "ovn_db_sync" $mounts_neutron_ovn_db_sync_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 12 }}
+            - name: ovn-neutron-init
+{{ tuple $envAll "neutron_ovn_db_sync" | include "helm-toolkit.snippets.image" | indent 14 }}
+              command:
+                - /tmp/neutron-ovn-init.sh
+              volumeMounts:
+                - name: pod-shared
+                  mountPath: /tmp/pod-shared
+                - name: neutron-bin
+                  mountPath: /tmp/neutron-ovn-init.sh
+                  subPath: neutron-ovn-init.sh
+                  readOnly: true
+          containers:
+            - name: neutron-ovn-db-sync
+{{ tuple $envAll "neutron_ovn_db_sync" | include "helm-toolkit.snippets.image" | indent 14 }}
+{{ tuple $envAll $envAll.Values.pod.resources.jobs.ovn_db_sync | include "helm-toolkit.snippets.kubernetes_resources" | indent 14 }}
+{{- if or .Values.manifests.certificates .Values.tls.identity }}
+              env:
+                - name: REQUESTS_CA_BUNDLE
+                  value: "/etc/neutron/certs/ca.crt"
+{{- end }}
+              command:
+                - /tmp/neutron-ovn-db-sync.sh
+                - {{ quote .Values.jobs.ovn_db_sync.sync_mode }}
+              volumeMounts:
+                - name: neutron-bin
+                  mountPath: /tmp/neutron-ovn-db-sync.sh
+                  subPath: neutron-ovn-db-sync.sh
+                  readOnly: true
+                - name: pod-tmp
+                  mountPath: /tmp
+                - name: pod-shared
+                  mountPath: /tmp/pod-shared
+                - name: pod-var-neutron
+                  mountPath: {{ .Values.conf.neutron.DEFAULT.state_path }}
+                - name: neutron-etc
+                  mountPath: /etc/neutron/neutron.conf
+                  subPath: neutron.conf
+                  readOnly: true
+                {{- if( has "tungstenfabric" .Values.network.backend ) }}
+                - name: neutron-etc
+                  mountPath: /etc/neutron/plugins/tungstenfabric/tf_plugin.ini
+                  subPath: tf_plugin.ini
+                  readOnly: true
+                - name: neutron-etc
+                  mountPath: /etc/contrail/vnc_api_lib.ini
+                  subPath: vnc_api_lib.ini
+                  readOnly: true
+                - name: neutron-plugin-shared
+                  mountPath: /opt/plugin
+                - name: neutron-bin
+                  mountPath: /usr/local/lib/python2.7/site-packages/tf-plugin.pth
+                  subPath: tf-plugin.pth
+                  readOnly: true
+                - name: neutron-bin
+                  mountPath: /var/lib/openstack/lib/python2.7/site-packages/tf-plugin.pth
+                  subPath: tf-plugin.pth
+                  readOnly: true
+                - name: neutron-bin
+                  mountPath: /var/lib/openstack/lib/python3.6/site-packages/tf-plugin.pth
+                  subPath: tf-plugin.pth
+                  readOnly: true
+                {{- else }}
+                - name: neutron-etc
+                  mountPath: /etc/neutron/plugins/ml2/ml2_conf.ini
+                  subPath: ml2_conf.ini
+                  readOnly: true
+                {{- end }}
+                {{ if ( has "sriov" .Values.network.backend ) }}
+                - name: neutron-etc
+                  mountPath: /etc/neutron/plugins/ml2/sriov_agent.ini
+                  subPath: sriov_agent.ini
+                  readOnly: true
+                {{ end }}
+                {{- if .Values.conf.plugins.taas.taas.enabled }}
+                - name: neutron-etc
+                  mountPath: /etc/neutron/taas_plugin.ini
+                  subPath: taas_plugin.ini
+                  readOnly: true
+                {{ end }}
+                {{- if .Values.conf.plugins.l2gateway }}
+                - name: neutron-etc
+                  mountPath: /etc/neutron/l2gw_plugin.ini
+                  subPath: l2gw_plugin.ini
+                  readOnly: true
+                {{ end }}
+{{- dict "enabled" .Values.manifests.certificates "name" .Values.endpoints.oslo_db.auth.admin.secret.tls.internal "path" "/etc/mysql/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 16 }}
+{{- dict "enabled" (or .Values.manifests.certificates .Values.tls.identity) "name" .Values.secrets.tls.network.server.internal "path" "/etc/neutron/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 16 }}
+{{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.oslo_messaging.auth.admin.secret.tls.internal "path" "/etc/rabbitmq/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 16 }}
+{{ if $mounts_neutron_ovn_db_sync.volumeMounts }}{{ toYaml $mounts_neutron_ovn_db_sync.volumeMounts | indent 14 }}{{ end }}
+          volumes:
+            - name: pod-tmp
+              emptyDir: {}
+            - name: pod-shared
+              emptyDir: {}
+            {{- if .Values.manifests.certificates }}
+            - name: wsgi-neutron
+              emptyDir: {}
+            {{- end }}
+            - name: pod-var-neutron
+              emptyDir: {}
+            - name: neutron-bin
+              configMap:
+                name: neutron-bin
+                defaultMode: 0555
+            - name: neutron-etc
+              secret:
+                secretName: neutron-etc
+                defaultMode: 0444
+            {{- if ( has "tungstenfabric" .Values.network.backend ) }}
+            - name: neutron-plugin-shared
+              emptyDir: {}
+            {{- end }}
+{{- dict "enabled" .Values.manifests.certificates "name" .Values.endpoints.oslo_db.auth.admin.secret.tls.internal | include "helm-toolkit.snippets.tls_volume" | indent 12 }}
+{{- dict "enabled" (or .Values.manifests.certificates .Values.tls.identity) "name" .Values.secrets.tls.network.server.internal | include "helm-toolkit.snippets.tls_volume" | indent 12 }}
+{{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.oslo_messaging.auth.admin.secret.tls.internal | include "helm-toolkit.snippets.tls_volume" | indent 12 }}
+{{ if $mounts_neutron_ovn_db_sync.volumes }}{{ toYaml $mounts_neutron_ovn_db_sync.volumes | indent 12 }}{{ end }}
+{{- end }}

@@ -36,6 +36,7 @@ images:
     neutron_dhcp: quay.io/airshipit/neutron:2024.1-ubuntu_jammy
     neutron_metadata: quay.io/airshipit/neutron:2024.1-ubuntu_jammy
     neutron_ovn_metadata: quay.io/airshipit/neutron:2024.1-ubuntu_jammy
+    neutron_ovn_db_sync: docker.io/openstackhelm/neutron:2024.1-ubuntu_jammy
     neutron_ovn_vpn: quay.io/airshipit/neutron:2024.1-ubuntu_jammy
     neutron_l3: quay.io/airshipit/neutron:2024.1-ubuntu_jammy
     neutron_l2gw: quay.io/airshipit/neutron:2024.1-ubuntu_jammy
@@ -736,6 +737,11 @@ pod:
       neutron_metadata_agent:
         volumeMounts:
         volumes:
+    neutron_ovn_db_sync:
+      init_container: null
+      neutron_ovn_db_sync:
+        volumeMounts:
+        volumes:
     neutron_ovn_metadata_agent:
       init_container: null
       neutron_ovn_metadata_agent:
@@ -1011,6 +1017,13 @@ pod:
           memory: "1024Mi"
           cpu: "2000m"
       ks_user:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      ovn_db_sync:
         requests:
           memory: "128Mi"
           cpu: "100m"
@@ -2641,6 +2654,14 @@ health_probe:
   logging:
     level: ERROR
 
+jobs:
+  ovn_db_sync:
+    cron: "*/5 * * * *"
+    sync_mode: log
+    history:
+      success: 3
+      failed: 1
+
 tls:
   identity: false
   oslo_messaging: false
@@ -2648,6 +2669,7 @@ tls:
 
 manifests:
   certificates: false
+  cron_job_ovn_db_sync: false
   configmap_bin: true
   configmap_etc: true
   daemonset_dhcp_agent: true
