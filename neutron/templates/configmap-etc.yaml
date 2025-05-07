@@ -155,7 +155,7 @@ limitations under the License.
 
 {{- if empty $envAll.Values.conf.dhcp_agent.DEFAULT.interface_driver -}}
 {{- $_ := set $envAll.Values "__interface_driver" ( list ) }}
-{{- if ( has "openvswitch" $envAll.Values.network.backend ) -}}
+{{- if or ( has "openvswitch" $envAll.Values.network.backend ) ( has "ovn" $envAll.Values.network.backend ) -}}
 {{ $__interface_driver := append $envAll.Values.__interface_driver "openvswitch" }}
 {{- $_ := set $envAll.Values "__interface_driver" $__interface_driver }}
 {{- end -}}
@@ -164,6 +164,9 @@ limitations under the License.
 {{- $_ := set $envAll.Values "__interface_driver" $__interface_driver }}
 {{- end -}}
 {{- $_ := set $envAll.Values.conf.dhcp_agent.DEFAULT "interface_driver" $envAll.Values.__interface_driver -}}
+{{- end -}}
+{{- if and (has "ovn" $envAll.Values.network.backend) (empty $envAll.Values.conf.dhcp_agent.ovs.ovsdb_connection) -}}
+{{- $_ := set $envAll.Values.conf.dhcp_agent.ovs "ovsdb_connection" "unix:/run/openvswitch/db.sock" -}}
 {{- end -}}
 
 {{- if empty $envAll.Values.conf.l3_agent.DEFAULT.interface_driver -}}
