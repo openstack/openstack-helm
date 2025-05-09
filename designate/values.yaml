@@ -37,6 +37,9 @@ labels:
   mdns:
     node_selector_key: openstack-control-plane
     node_selector_value: enabled
+  service_cleaner:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
   sink:
     node_selector_key: openstack-control-plane
     node_selector_value: enabled
@@ -58,6 +61,7 @@ images:
     designate_worker: quay.io/airshipit/designate:2024.1-ubuntu_jammy
     designate_producer: quay.io/airshipit/designate:2024.1-ubuntu_jammy
     designate_sink: quay.io/airshipit/designate:2024.1-ubuntu_jammy
+    designate_service_cleaner: quay.io/airshipit/designate:2024.1-ubuntu_jammy
   pull_policy: "IfNotPresent"
   local_registry:
     active: false
@@ -96,6 +100,11 @@ pod:
     designate_producer:
       init_container: null
       designate_producer:
+        volumeMounts:
+        volumes:
+    designate_service_cleaner:
+      init_container: null
+      designate_service_cleaner:
         volumeMounts:
         volumes:
     designate_sink:
@@ -194,6 +203,13 @@ pod:
           memory: "1024Mi"
           cpu: "2000m"
       rabbit_init:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      service_cleaner:
         requests:
           memory: "128Mi"
           cpu: "100m"
@@ -729,9 +745,17 @@ endpoints:
       powerdns:
         default: 53
 
+jobs:
+  service_cleaner:
+    cron: "*/10 * * * *"
+    history:
+      success: 3
+      failed: 1
+
 manifests:
   configmap_bin: true
   configmap_etc: true
+  cron_job_service_cleaner: true
   deployment_api: true
   deployment_central: true
   deployment_worker: true

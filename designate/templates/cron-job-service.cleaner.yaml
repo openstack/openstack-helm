@@ -1,0 +1,98 @@
+# Copyright (c) 2025 VEXXHOST, Inc.
+# SPDX-License-Identifier: Apache-2.0
+
+{{- if .Values.manifests.cron_job_service_cleaner }}
+{{- $envAll := . }}
+
+{{- $mounts_designate_service_cleaner := .Values.pod.mounts.designate_service_cleaner.designate_service_cleaner }}
+{{- $mounts_designate_service_cleaner_init := .Values.pod.mounts.designate_service_cleaner.init_container }}
+
+{{- $serviceAccountName := "designate-service-cleaner" }}
+{{ tuple $envAll "service_cleaner" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: designate-service-cleaner
+  annotations:
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+spec:
+  schedule: {{ .Values.jobs.service_cleaner.cron | quote }}
+  successfulJobsHistoryLimit: {{ .Values.jobs.service_cleaner.history.success }}
+  failedJobsHistoryLimit: {{ .Values.jobs.service_cleaner.history.failed }}
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    metadata:
+      labels:
+{{ tuple $envAll "designate" "service-cleaner" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+{{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
+        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
+{{ dict "envAll" $envAll "podName" "designate-service-cleaner" "containerNames" (list "init" "designate-service-cleaner" ) | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
+    spec:
+      template:
+        metadata:
+          labels:
+{{ tuple $envAll "designate" "service-cleaner" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 12 }}
+          annotations:
+{{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 12 }}
+{{ dict "envAll" $envAll "podName" "designate-service-cleaner" "containerNames" (list "init" "designate-service-cleaner" ) | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
+        spec:
+{{ tuple "designate_service_cleaner" . | include "helm-toolkit.snippets.kubernetes_pod_priority_class" | indent 6 }}
+{{ tuple "designate_service_cleaner" . | include "helm-toolkit.snippets.kubernetes_pod_runtime_class" | indent 6 }}
+          serviceAccountName: {{ $serviceAccountName }}
+          restartPolicy: OnFailure
+          nodeSelector:
+            {{ .Values.labels.service_cleaner.node_selector_key }}: {{ .Values.labels.service_cleaner.node_selector_value }}
+          initContainers:
+{{ tuple $envAll "service_cleaner" $mounts_designate_service_cleaner_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 12 }}
+          containers:
+            - name: designate-service-cleaner
+{{ tuple $envAll "designate_service_cleaner" | include "helm-toolkit.snippets.image" | indent 14 }}
+{{ tuple $envAll $envAll.Values.pod.resources.jobs.service_cleaner | include "helm-toolkit.snippets.kubernetes_resources" | indent 14 }}
+              command:
+                - /tmp/designate-service-cleaner.sh
+              volumeMounts:
+                - name: designate-bin
+                  mountPath: /tmp/designate-service-cleaner.sh
+                  subPath: designate-service-cleaner.sh
+                  readOnly: true
+                - name: pod-etc-designate
+                  mountPath: /etc/designate
+                - name: pod-var-cache-designate
+                  mountPath: /var/cache/designate
+                - name: designate-etc
+                  mountPath: /etc/designate/designate.conf
+                  subPath: designate.conf
+                  readOnly: true
+                - name: designate-etc
+                  mountPath: /etc/designate/api-paste.ini
+                  subPath: api-paste.ini
+                  readOnly: true
+                - name: designate-etc
+                  mountPath: /etc/designate/policy.yaml
+                  subPath: policy.yaml
+                  readOnly: true
+                {{- if .Values.conf.designate.DEFAULT.log_config_append }}
+                - name: designate-etc
+                  mountPath: {{ .Values.conf.designate.DEFAULT.log_config_append }}
+                  subPath: {{ base .Values.conf.designate.DEFAULT.log_config_append }}
+                  readOnly: true
+                {{- end }}
+{{ if $mounts_designate_service_cleaner.volumeMounts }}{{ toYaml $mounts_designate_service_cleaner.volumeMounts | indent 16 }}{{ end }}
+          volumes:
+            - name: pod-etc-designate
+              emptyDir: {}
+            - name: pod-var-cache-designate
+              emptyDir: {}
+            - name: designate-bin
+              configMap:
+                name: designate-bin
+                defaultMode: 0555
+            - name: designate-etc
+              secret:
+                secretName: designate-etc
+                defaultMode: 0444
+{{ if $mounts_designate_service_cleaner.volumes }}{{ toYaml $mounts_designate_service_cleaner.volumes | indent 12 }}{{ end }}
+{{- end }}
