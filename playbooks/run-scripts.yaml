@@ -50,8 +50,9 @@
 
         - name: Override proposed images from artifacts
           shell: >
+            set -ex;
             find {{ override_paths | join(" ") }} -type f -exec sed -Ei
-            "s#['\"]?docker\.io/(openstackhelm|loci)/({{ repo }}):({{ tag }})['\"]?\$#{{ buildset_registry_alias }}:{{ buildset_registry.port }}/{{ repo_org }}/{{ repo }}:\3#g" {} +
+            "s#['\"]?(docker|quay)\.io/(openstackhelm|loci|airshipit)/({{ repo }}):({{ tag }})['\"]?\$#{{ buildset_registry_alias }}:{{ buildset_registry.port }}/{{ repo_org }}/{{ repo }}:\4#g" {} +
           loop: "{{ zuul.artifacts | default([]) }}"
           args:
             chdir: "{{ work_dir }}"
@@ -63,19 +64,15 @@
             repo_org: "{{ zj_zuul_artifact.metadata.repository | dirname }}"
             repo: "{{ zj_zuul_artifact.metadata.repository | basename }}"
             override_paths:
-              - ../openstack-helm*/values_overrides
-              - ../openstack-helm*/*/values*
+              - ../openstack-helm/values_overrides
+              - ../openstack-helm/*/values*
               - ../openstack-helm/tools/deployment/
 
         - name: Diff
           shell: |
-              set -ex;
-              for dir in openstack-helm; do
-                path="{{ work_dir }}/../${dir}/"
-                if [ ! -d "${path}" ]; then continue; fi
-                echo "${dir} diff"
-                cd "${path}"; git diff; cd -;
-              done
+              set -ex
+              cd "{{ work_dir }}/../openstack-helm"
+              git diff
 
     - name: "creating directory for run artifacts"
       file:
