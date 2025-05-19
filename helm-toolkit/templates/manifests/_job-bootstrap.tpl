@@ -71,6 +71,8 @@ spec:
       annotations:
 {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
     spec:
+{{ tuple "bootstrap" $envAll | include "helm-toolkit.snippets.kubernetes_pod_priority_class" | indent 6 }}
+{{ tuple "bootstrap" $envAll | include "helm-toolkit.snippets.kubernetes_pod_runtime_class" | indent 6 }}
       serviceAccountName: {{ $serviceAccountName }}
       restartPolicy: OnFailure
       {{ tuple $envAll "bootstrap" | include "helm-toolkit.snippets.kubernetes_image_pull_secrets" | indent 6 }}
