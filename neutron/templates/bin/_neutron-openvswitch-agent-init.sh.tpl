@@ -196,14 +196,18 @@ function process_dpdk_nics {
   while IFS= read -r nic; do
     local port_name=$(get_dpdk_config_value ${nic} '.name')
     local pci_id=$(get_dpdk_config_value ${nic} '.pci_id')
+    local iface=$(get_dpdk_config_value ${nic} '.iface')
+    if [ -n ${iface} ] && [ -z ${pci_id} ]; then
+      local pci_id=$(get_address_by_nicname ${iface})
+    else
+      iface=$(get_name_by_pci_id "${pci_id}")
+    fi
     local bridge=$(get_dpdk_config_value ${nic} '.bridge')
     local vf_index=$(get_dpdk_config_value ${nic} '.vf_index')
 
     if [[ $(get_dpdk_config_value ${nic} '.migrate_ip') == true ]] ; then
       migrate_ip "${pci_id}" "${bridge}"
     fi
-
-    iface=$(get_name_by_pci_id "${pci_id}")
 
     if [ -n "${iface}" ]; then
       ip link set ${iface} promisc on
@@ -292,6 +296,12 @@ function process_dpdk_bonds {
     echo $bond | jq -r -c '.nics[]' > /tmp/nics_array
     while IFS= read -r nic; do
       local pci_id=$(get_dpdk_config_value ${nic} '.pci_id')
+      local iface=$(get_dpdk_config_value ${nic} '.iface')
+      if [ -n ${iface} ] && [ -z ${pci_id} ]; then
+        local pci_id=$(get_address_by_nicname ${iface})
+      else
+        iface=$(get_name_by_pci_id "${pci_id}")
+      fi
       local nic_name=$(get_dpdk_config_value ${nic} '.name')
       local pmd_rxq_affinity=$(get_dpdk_config_value ${nic} '.pmd_rxq_affinity')
       local vf_index=$(get_dpdk_config_value ${nic} '.vf_index')
@@ -301,8 +311,6 @@ function process_dpdk_bonds {
         migrate_ip "${pci_id}" "${dpdk_bridge}"
         ip_migrated=true
       fi
-
-      iface=$(get_name_by_pci_id "${pci_id}")
 
       if [ -n "${iface}" ]; then
         ip link set ${iface} promisc on
@@ -404,6 +412,19 @@ function set_dpdk_module_log_level {
 function get_driver_by_address {
   if [[ -e /sys/bus/pci/devices/$1/driver ]]; then
     echo $(ls /sys/bus/pci/devices/$1/driver -al | awk '{n=split($NF,a,"/"); print a[n]}')
+  fi
+}
+
+function get_address_by_nicname {
+  if [[ -e /sys/class/net/$1 ]]; then
+    local pci_address=$(readlink -f /sys/class/net/$1/device | xargs basename)
+    if [[ -e /sys/bus/pci/devices/${pci_address} ]]; then
+      echo ${pci_address}
+    else
+      echo "PCI id for interface $1 cannot be found" >&2
+    fi
+  else
+    echo "Interface name $1 cannot be found" >&2
   fi
 }
 
