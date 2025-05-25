@@ -76,6 +76,21 @@ jobs:
       failed: 1
 
 pod:
+  probes:
+    api:
+      cinder-api:
+        liveness:
+          enabled: True
+          params:
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 1
+            failureThreshold: 3
+            successThreshold: 1
+        readiness:
+          enabled: True
+          params:
+            initialDelaySeconds: 30
   security_context:
     volume_usage_audit:
       pod:
@@ -437,6 +452,7 @@ conf:
     composite:osapi_volume:
       use: call:cinder.api:root_app_factory
       /: apiversions
+      /healthcheck: healthcheck
       /v1: openstack_volume_api_v1
       /v2: openstack_volume_api_v2
       /v3: openstack_volume_api_v3
@@ -476,6 +492,10 @@ conf:
       paste.app_factory: cinder.api.v2.router:APIRouter.factory
     app:apiv3:
       paste.app_factory: cinder.api.v3.router:APIRouter.factory
+    app:healthcheck:
+      paste.app_factory: oslo_middleware:Healthcheck.app_factory
+      backends: disable_by_file
+      disable_by_file_path: /etc/cinder/healthcheck_disable
     pipeline:apiversions:
       pipeline: cors http_proxy_to_wsgi faultwrap osvolumeversionapp
     app:osvolumeversionapp:
@@ -1304,6 +1324,7 @@ endpoints:
       #     key: null
     path:
       default: '/v1/%(tenant_id)s'
+      healthcheck: /healthcheck
     scheme:
       default: 'http'
     port:
@@ -1326,6 +1347,7 @@ endpoints:
       #     key: null
     path:
       default: '/v2/%(tenant_id)s'
+      healthcheck: /healthcheck
     scheme:
       default: 'http'
     port:
@@ -1348,6 +1370,7 @@ endpoints:
       #     key: null
     path:
       default: '/v3/%(tenant_id)s'
+      healthcheck: /healthcheck
     scheme:
       default: 'http'
     port:

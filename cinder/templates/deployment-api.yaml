@@ -12,6 +12,20 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- define "cinderApiLivenessProbeTemplate" }}
+httpGet:
+  scheme: {{ tuple "volume" "service" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_scheme_lookup" | upper }}
+  path: {{ tuple "volume" "healthcheck" "internal" . | include "helm-toolkit.endpoints.keystone_endpoint_path_lookup" }}
+  port: {{ tuple "volume" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+{{- end }}
+
+{{- define "cinderApiReadinessProbeTemplate" }}
+httpGet:
+  scheme: {{ tuple "volume" "service" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_scheme_lookup" | upper }}
+  path: {{ tuple "volume" "healthcheck" "internal" . | include "helm-toolkit.endpoints.keystone_endpoint_path_lookup" }}
+  port: {{ tuple "volume" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+{{- end }}
+
 {{- if .Values.manifests.deployment_api }}
 {{- $envAll := . }}
 
@@ -97,22 +111,8 @@ spec:
           ports:
             - name: c-api
               containerPort: {{ tuple "volume" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-          readinessProbe:
-            httpGet:
-              scheme: {{ tuple "volume" "service" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_scheme_lookup" | upper }}
-              path: /
-              port: {{ tuple "volume" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-            initialDelaySeconds: 30
-          livenessProbe:
-            httpGet:
-              scheme: {{ tuple "volume" "service" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_scheme_lookup" | upper }}
-              path: /
-              port: {{ tuple "volume" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-            initialDelaySeconds: 5
-            failureThreshold: 3
-            periodSeconds: 10
-            successThreshold: 1
-            timeoutSeconds: 1
+{{ dict "envAll" $envAll "component" "api" "container" "cinder-api" "type" "readiness" "probeTemplate" (include "cinderApiReadinessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+{{ dict "envAll" $envAll "component" "api" "container" "cinder-api" "type" "liveness" "probeTemplate" (include "cinderApiLivenessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
