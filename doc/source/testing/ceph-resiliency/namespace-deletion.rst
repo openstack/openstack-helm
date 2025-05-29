@@ -89,7 +89,7 @@ This document captures steps to bring Ceph back up after deleting it's associate
 
 .. code-block:: console
 
-   cd /opt/openstack-helm-infra/
+   cd /opt/openstack-helm/
    ./tools/deployment/multinode/030-ceph.sh
 
 3.5  Disable CephX authentication
@@ -199,7 +199,7 @@ This document captures steps to bring Ceph back up after deleting it's associate
 
 .. code-block:: console
 
-   cd /opt/openstack-helm-infra/
+   cd /opt/openstack-helm/
    ./tools/deployment/multinode/030-ceph.sh
    ./tools/deployment/multinode/040-ceph-ns-activate.sh
 

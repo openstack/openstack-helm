@@ -83,12 +83,12 @@ step 1: setup
 - create multiple ceph osd charts as per requirement
 
 .. note::
-  copy ceph-osd folder to multiple ceph osd charts  in openstack-helm-infra folder
+  copy ceph-osd folder to multiple ceph osd charts  in openstack-helm folder
 
 .. code-block:: console
 
-  ubuntu@k8smaster:/opt/openstack-helm-infra$  cp -r ceph-osd ceph-osd-vdb
-  ubuntu@k8smaster:/opt/openstack-helm-infra$  cp -r ceph-osd ceph-osd-vdc
+  ubuntu@k8smaster:/opt/openstack-helm$  cp -r ceph-osd ceph-osd-vdb
+  ubuntu@k8smaster:/opt/openstack-helm$  cp -r ceph-osd ceph-osd-vdc
 
 .. note::
   make sure  to correct chart name in each osd chart folder created above, need to
@@ -112,7 +112,7 @@ step 1: setup
   and also have correct overrides as shown below.
 
   example1: for CHART in ceph-osd-vdb; do
-  helm upgrade --install ${CHART} ${OSH_INFRA_PATH}/${CHART} \
+  helm upgrade --install ${CHART} ${OSH_PATH}/${CHART} \
   --namespace=ceph \
   --values=/tmp/ceph.yaml \
   ${OSH_EXTRA_HELM_ARGS} \
@@ -127,7 +127,7 @@ step 1: setup
         location:  /dev/vda1
 
   example2: for CHART in ceph-osd-vdc; do
-  helm upgrade --install ${CHART} ${OSH_INFRA_PATH}/${CHART} \
+  helm upgrade --install ${CHART} ${OSH_PATH}/${CHART} \
   --namespace=ceph \
   --values=/tmp/ceph.yaml \
   ${OSH_EXTRA_HELM_ARGS} \

@@ -1,7 +1,7 @@
 Nagios
 ======
 
-The Nagios chart in openstack-helm-infra can be used to provide an alarming
+The Nagios chart in openstack-helm can be used to provide an alarming
 service that's tightly coupled to an OpenStack-Helm deployment.  The Nagios
 chart uses a custom Nagios core image that includes plugins developed to query
 Prometheus directly for scraped metrics and triggered alarms, query the Ceph

@@ -802,9 +802,9 @@ The charts can be updated with these overrides pre or post deployment. If this i
 ::
 
   cd /opt/openstack-helm
-  helm upgrade --install ceph-osd ../openstack-helm-infra/ceph-osd --namespace=ceph --values=/tmp/ceph.yaml
+  helm upgrade --install ceph-osd ../openstack-helm/ceph-osd --namespace=ceph --values=/tmp/ceph.yaml
   kubectl delete jobs/ceph-rbd-pool -n ceph
-  helm upgrade --install ceph-client ../openstack-helm-infra/ceph-client --namespace=ceph --values=/tmp/ceph.yaml
+  helm upgrade --install ceph-client ../openstack-helm/ceph-client --namespace=ceph --values=/tmp/ceph.yaml
   helm delete cinder --purge
   helm upgrade --install cinder ./cinder --namespace=openstack --values=/tmp/cinder.yaml
 

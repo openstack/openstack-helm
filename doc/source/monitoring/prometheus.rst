@@ -1,7 +1,7 @@
 Prometheus
 ==========
 
-The Prometheus chart in openstack-helm-infra provides a time series database and
+The Prometheus chart in openstack-helm provides a time series database and
 a strong querying language for monitoring various components of OpenStack-Helm.
 Prometheus gathers metrics by scraping defined service endpoints or pods at
 specified intervals and indexing them in the underlying time series database.
@@ -56,7 +56,7 @@ configuration components of the Prometheus deployment at runtime.
 Kubernetes Endpoint Configuration
 ---------------------------------
 
-The Prometheus chart in openstack-helm-infra uses the built-in service discovery
+The Prometheus chart in openstack-helm uses the built-in service discovery
 mechanisms for Kubernetes endpoints and pods to automatically configure scrape
 targets.  Functions added to helm-toolkit allows configuration of these targets
 via annotations that can be applied to any service or pod that exposes metrics
@@ -180,7 +180,7 @@ Extending Prometheus
 
 Prometheus can target various exporters to gather metrics related to specific
 applications to extend visibility into an OpenStack-Helm deployment.  Currently,
-openstack-helm-infra contains charts for:
+openstack-helm contains charts for:
 
 - prometheus-kube-state-metrics: Provides additional Kubernetes metrics
 - prometheus-node-exporter: Provides metrics for nodes and linux kernels
@@ -292,7 +292,7 @@ Rules Configuration
 
 Prometheus provides a querying language that can operate on defined rules which
 allow for the generation of alerts on specific metrics.  The Prometheus chart in
-openstack-helm-infra defines these rules via the values.yaml file.  By defining
+openstack-helm defines these rules via the values.yaml file.  By defining
 these in the values file, it allows operators flexibility to provide specific
 rules via overrides at installation.  The following rules keys are provided:
 
@@ -324,7 +324,7 @@ Prometheus recording_ and alert_ rules documentation.
 
 Note: Prometheus releases prior to 2.0 used gotpl to define rules.  Prometheus
 2.0 changed the rules format to YAML, making them much easier to read.  The
-Prometheus chart in openstack-helm-infra uses Prometheus 2.0 by default to take
+Prometheus chart in openstack-helm uses Prometheus 2.0 by default to take
 advantage of changes to the underlying storage layer and the handling of stale
 data.  The chart will not support overrides for Prometheus versions below 2.0,
 as the command line flags for the service changed between versions.
