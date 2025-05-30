@@ -1,0 +1,114 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.cron_db_purge }}
+{{- $envAll := . }}
+
+{{- $mounts_cinder_db_purge := .Values.pod.mounts.cinder_db_purge.cinder_db_purge }}
+{{- $mounts_cinder_db_purge_init := .Values.pod.mounts.cinder_db_purge.init_container }}
+
+{{- $serviceAccountName := "cinder-db-purge" }}
+{{ tuple $envAll "db_purge" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: cinder-db-purge
+  labels:
+{{ tuple $envAll "cinder" "cinder-db-purge" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+  annotations:
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+spec:
+  schedule: {{ .Values.jobs.db_purge.cron | quote }}
+  successfulJobsHistoryLimit: {{ .Values.jobs.db_purge.history.success }}
+  failedJobsHistoryLimit: {{ .Values.jobs.db_purge.history.failed }}
+  {{- if .Values.jobs.db_purge.starting_deadline }}
+  startingDeadlineSeconds: {{ .Values.jobs.db_purge.starting_deadline }}
+  {{- end }}
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    metadata:
+      labels:
+{{ tuple $envAll "cinder" "db-purge" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+    spec:
+      template:
+        metadata:
+          labels:
+{{ tuple $envAll "cinder" "db-purge" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 12 }}
+          annotations:
+{{ dict "envAll" $envAll "podName" $serviceAccountName "containerNames" (list "db-purge" "init") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 12 }}
+        spec:
+{{ dict "envAll" $envAll "application" "db_purge" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 10 }}
+          serviceAccountName: {{ $serviceAccountName }}
+          restartPolicy: OnFailure
+{{ if $envAll.Values.pod.tolerations.cinder.enabled }}
+{{ tuple $envAll "cinder" | include "helm-toolkit.snippets.kubernetes_tolerations" | indent 10 }}
+{{ end }}
+          nodeSelector:
+            {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
+          initContainers:
+{{ tuple $envAll "db_purge" $mounts_cinder_db_purge_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 12 }}
+          containers:
+            - name: db-purge
+{{ tuple $envAll "cinder_db_purge" | include "helm-toolkit.snippets.image" | indent 14 }}
+{{ tuple $envAll $envAll.Values.pod.resources.jobs.db_purge | include "helm-toolkit.snippets.kubernetes_resources" | indent 14 }}
+{{ dict "envAll" $envAll "application" "db_purge" "container" "cinder_db_purge" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 14 }}
+{{- if or .Values.manifests.certificates .Values.tls.identity }}
+              env:
+                - name: REQUESTS_CA_BUNDLE
+                  value: "/etc/cinder/certs/ca.crt"
+{{- end }}
+              command:
+                - /tmp/db-purge.sh
+              volumeMounts:
+                - name: pod-tmp
+                  mountPath: /tmp
+                - name: etccinder
+                  mountPath: /etc/cinder
+                - name: cinder-etc
+                  mountPath: /etc/cinder/cinder.conf
+                  subPath: cinder.conf
+                  readOnly: true
+                {{- if .Values.conf.cinder.DEFAULT.log_config_append }}
+                - name: cinder-etc
+                  mountPath: {{ .Values.conf.cinder.DEFAULT.log_config_append }}
+                  subPath: {{ base .Values.conf.cinder.DEFAULT.log_config_append }}
+                  readOnly: true
+                {{- end }}
+                - name: cinder-bin
+                  mountPath: /tmp/db-purge.sh
+                  subPath: db-purge.sh
+                  readOnly: true
+{{- dict "enabled" (or .Values.manifests.certificates .Values.tls.identity) "name" .Values.secrets.tls.volumev3.api.internal "path" "/etc/cinder/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 16 }}
+{{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.oslo_db.auth.admin.secret.tls.internal "path" "/etc/mysql/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 16 }}
+{{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.oslo_messaging.auth.admin.secret.tls.internal "path" "/etc/rabbitmq/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 16 }}
+{{ if $mounts_cinder_db_purge.volumeMounts }}{{ toYaml $mounts_cinder_db_purge.volumeMounts | indent 16 }}{{ end }}
+          volumes:
+            - name: pod-tmp
+              emptyDir: {}
+            - name: etccinder
+              emptyDir: {}
+            - name: cinder-etc
+              secret:
+                secretName: cinder-etc
+                defaultMode: 0444
+            - name: cinder-bin
+              configMap:
+                name: cinder-bin
+                defaultMode: 0555
+{{- dict "enabled" (or .Values.manifests.certificates .Values.tls.identity) "name" .Values.secrets.tls.volumev3.api.internal | include "helm-toolkit.snippets.tls_volume" | indent 12 }}
+{{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.oslo_db.auth.admin.secret.tls.internal | include "helm-toolkit.snippets.tls_volume" | indent 12 }}
+{{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.oslo_messaging.auth.admin.secret.tls.internal | include "helm-toolkit.snippets.tls_volume" | indent 12 }}
+{{ if $mounts_cinder_db_purge.volumes }}{{ toYaml $mounts_cinder_db_purge.volumes | indent 12 }}{{ end }}
+{{- end }}
