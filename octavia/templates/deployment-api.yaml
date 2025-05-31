@@ -14,6 +14,21 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+
+{{- define "octaviaApiLivenessProbeTemplate" }}
+httpGet:
+  scheme: {{ tuple "load_balancer" "service" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_scheme_lookup" | upper }}
+  path: {{ tuple "load_balancer" "healthcheck" "internal" . | include "helm-toolkit.endpoints.keystone_endpoint_path_lookup" }}
+  port: {{ tuple "load_balancer" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+{{- end }}
+
+{{- define "octaviaApiReadinessProbeTemplate" }}
+httpGet:
+  scheme: {{ tuple "load_balancer" "service" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_scheme_lookup" | upper }}
+  path: {{ tuple "load_balancer" "healthcheck" "internal" . | include "helm-toolkit.endpoints.keystone_endpoint_path_lookup" }}
+  port: {{ tuple "load_balancer" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+{{- end }}
+
 {{- if .Values.manifests.deployment_api }}
 {{- $envAll := . }}
 
@@ -74,11 +89,8 @@ spec:
           ports:
             - name: o-api
               containerPort: {{ tuple "load_balancer" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-          readinessProbe:
-            httpGet:
-              scheme: {{ tuple "load_balancer" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_scheme_lookup" | upper }}
-              path: /
-              port: {{ tuple "load_balancer" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+{{ dict "envAll" $envAll "component" "api" "container" "octavia-api" "type" "readiness" "probeTemplate" (include "octaviaApiReadinessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+{{ dict "envAll" $envAll "component" "api" "container" "octavia-api" "type" "liveness" "probeTemplate" (include "octaviaApiLivenessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
           volumeMounts:
             - name: run-openvswitch
               mountPath: /var/run/ovn
