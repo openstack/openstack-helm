@@ -42,7 +42,7 @@ fi
 pgsql_superuser_cmd () {
   DB_COMMAND="$1"
   if [[ ! -z $2 ]]; then
-      EXPORT PGDATABASE=$2
+      export PGDATABASE=$2
   fi
   /usr/bin/psql \
   -h ${DB_HOST} \
@@ -66,4 +66,7 @@ pgsql_superuser_cmd "GRANT ALL PRIVILEGES ON DATABASE $USER_DB_NAME to $USER_DB_
 
 #revoke all privileges from PUBLIC role
 pgsql_superuser_cmd "REVOKE ALL ON DATABASE $USER_DB_NAME FROM PUBLIC;"
+
+#Critical for PG15+: allow user to create in public schema
+pgsql_superuser_cmd "GRANT USAGE, CREATE ON SCHEMA public TO $USER_DB_USER;" "$USER_DB_NAME"
 {{- end }}
