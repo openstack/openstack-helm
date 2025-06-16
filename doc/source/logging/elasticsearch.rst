@@ -1,7 +1,7 @@
 Elasticsearch
 =============
 
-The Elasticsearch chart in openstack-helm-infra provides a distributed data
+The Elasticsearch chart in openstack-helm provides a distributed data
 store to index and analyze logs generated from the OpenStack-Helm services.
 The chart contains templates for:
 
