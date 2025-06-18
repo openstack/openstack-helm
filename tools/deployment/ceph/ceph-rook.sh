@@ -15,7 +15,7 @@
 set -xe
 
 # Specify the Rook release tag to use for the Rook operator here
-ROOK_RELEASE=v1.16.6
+ROOK_RELEASE=v1.17.3
 
 : ${CEPH_OSD_DATA_DEVICE:="/dev/loop100"}
 
@@ -293,39 +293,41 @@ cephBlockPools:
         csi.storage.k8s.io/node-stage-secret-name: rook-csi-rbd-node
         csi.storage.k8s.io/node-stage-secret-namespace: "{{ .Release.Namespace }}"
         csi.storage.k8s.io/fstype: ext4
-cephFileSystems:
-  - name: cephfs
-    namespace: ceph
-    spec:
-      metadataPool:
-        replicated:
-          size: 1
-      dataPools:
-        - failureDomain: host
-          replicated:
-            size: 1
-          name: data
-      metadataServer:
-        activeCount: 1
-        activeStandby: false
-        priorityClassName: system-cluster-critical
-    storageClass:
-      enabled: true
-      isDefault: false
-      name: ceph-filesystem
-      pool: data0
-      reclaimPolicy: Delete
-      allowVolumeExpansion: true
-      volumeBindingMode: "Immediate"
-      mountOptions: []
-      parameters:
-        csi.storage.k8s.io/provisioner-secret-name: rook-csi-cephfs-provisioner
-        csi.storage.k8s.io/provisioner-secret-namespace: "{{ .Release.Namespace }}"
-        csi.storage.k8s.io/controller-expand-secret-name: rook-csi-cephfs-provisioner
-        csi.storage.k8s.io/controller-expand-secret-namespace: "{{ .Release.Namespace }}"
-        csi.storage.k8s.io/node-stage-secret-name: rook-csi-cephfs-node
-        csi.storage.k8s.io/node-stage-secret-namespace: "{{ .Release.Namespace }}"
-        csi.storage.k8s.io/fstype: ext4
+cephFileSystems: []
+# Not needed in general for openstack-helm. Uncomment if needed.
+# cephFileSystems:
+#   - name: cephfs
+#     namespace: ceph
+#     spec:
+#       metadataPool:
+#         replicated:
+#           size: 1
+#       dataPools:
+#         - failureDomain: host
+#           replicated:
+#             size: 1
+#           name: data
+#       metadataServer:
+#         activeCount: 1
+#         activeStandby: false
+#         priorityClassName: system-cluster-critical
+#     storageClass:
+#       enabled: true
+#       isDefault: false
+#       name: ceph-filesystem
+#       pool: data0
+#       reclaimPolicy: Delete
+#       allowVolumeExpansion: true
+#       volumeBindingMode: "Immediate"
+#       mountOptions: []
+#       parameters:
+#         csi.storage.k8s.io/provisioner-secret-name: rook-csi-cephfs-provisioner
+#         csi.storage.k8s.io/provisioner-secret-namespace: "{{ .Release.Namespace }}"
+#         csi.storage.k8s.io/controller-expand-secret-name: rook-csi-cephfs-provisioner
+#         csi.storage.k8s.io/controller-expand-secret-namespace: "{{ .Release.Namespace }}"
+#         csi.storage.k8s.io/node-stage-secret-name: rook-csi-cephfs-node
+#         csi.storage.k8s.io/node-stage-secret-namespace: "{{ .Release.Namespace }}"
+#         csi.storage.k8s.io/fstype: ext4
 cephBlockPoolsVolumeSnapshotClass:
   enabled: false
   name: general
