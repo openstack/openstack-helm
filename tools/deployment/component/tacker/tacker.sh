@@ -18,10 +18,12 @@ set -xe
 : ${OSH_VALUES_OVERRIDES_PATH:="../openstack-helm/values_overrides"}
 : ${OSH_EXTRA_HELM_ARGS_TACKER:="$(helm osh get-values-overrides ${DOWNLOAD_OVERRIDES:-} -p ${OSH_VALUES_OVERRIDES_PATH} -c tacker ${FEATURES})"}
 : ${RUN_HELM_TESTS:="no"}
+: ${STORAGE_CLASS:="nfs-provisioner"}
 
 #NOTE: Deploy command
 helm upgrade --install tacker ${OSH_HELM_REPO}/tacker \
     --namespace=openstack \
+    --set storage.storageClass=${STORAGE_CLASS} \
     ${OSH_EXTRA_HELM_ARGS:=} \
     ${OSH_EXTRA_HELM_ARGS_TACKER}
 

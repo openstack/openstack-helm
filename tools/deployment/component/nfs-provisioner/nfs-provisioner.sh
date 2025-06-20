@@ -18,24 +18,14 @@ set -xe
 : ${OSH_HELM_REPO:="../openstack-helm"}
 : ${OSH_VALUES_OVERRIDES_PATH:="../openstack-helm/values_overrides"}
 : ${OSH_EXTRA_HELM_ARGS_NFS_PROVISIONER:="$(helm osh get-values-overrides ${DOWNLOAD_OVERRIDES:-} -p ${OSH_VALUES_OVERRIDES_PATH} -c nfs-provisioner ${FEATURES})"}
-
-tee /tmp/nfs-ns.yaml << EOF
-apiVersion: v1
-kind: Namespace
-metadata:
-  labels:
-    kubernetes.io/metadata.name: nfs
-    name: nfs
-  name: nfs
-EOF
-
-kubectl create -f /tmp/nfs-ns.yaml
+: ${STORAGE_CLASS:="nfs-provisioner"}
+: ${NAMESPACE:=nfs}
 
 #NOTE: Deploy command
-helm upgrade --install nfs-provisioner ${OSH_HELM_REPO}/nfs-provisioner \
-    --namespace=nfs \
-    --set storageclass.name=general \
+helm upgrade --install --create-namespace nfs-provisioner ${OSH_HELM_REPO}/nfs-provisioner \
+    --namespace=${NAMESPACE} \
+    --set storageclass.name="${STORAGE_CLASS}" \
     ${OSH_EXTRA_HELM_ARGS_NFS_PROVISIONER}
 
 #NOTE: Wait for deploy
-helm osh wait-for-pods nfs
+helm osh wait-for-pods ${NAMESPACE}

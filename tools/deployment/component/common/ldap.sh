@@ -18,6 +18,7 @@ set -xe
 : ${OSH_HELM_REPO:="../openstack-helm"}
 : ${OSH_VALUES_OVERRIDES_PATH:="../openstack-helm/values_overrides"}
 : ${OSH_EXTRA_HELM_ARGS_LDAP:="$(helm osh get-values-overrides ${DOWNLOAD_OVERRIDES:-} -p ${OSH_VALUES_OVERRIDES_PATH} -c ldap ${FEATURES})"}
+: ${NAMESPACE:=openstack}
 
 #NOTE: Deploy command
 tee /tmp/ldap.yaml <<EOF
@@ -31,10 +32,10 @@ storage:
     enabled: false
 EOF
 helm upgrade --install ldap ${OSH_HELM_REPO}/ldap \
-    --namespace=openstack \
+    --namespace=${NAMESPACE} \
     --values=/tmp/ldap.yaml \
     ${OSH_EXTRA_HELM_ARGS:=} \
     ${OSH_EXTRA_HELM_ARGS_LDAP}
 
 #NOTE: Wait for deploy
-helm osh wait-for-pods openstack
+helm osh wait-for-pods ${NAMESPACE}

@@ -14,16 +14,19 @@
 
 set -xe
 
+#NOTE: Define variables
 : ${OSH_HELM_REPO:="../openstack-helm"}
 : ${OSH_VALUES_OVERRIDES_PATH:="../openstack-helm/values_overrides"}
 : ${OSH_EXTRA_HELM_ARGS_MARIADB:="$(helm osh get-values-overrides ${DOWNLOAD_OVERRIDES:-} -p ${OSH_VALUES_OVERRIDES_PATH} -c mariadb ${FEATURES})"}
-: ${NAMESPACE:="osh-infra"}
-: ${RUN_HELM_TESTS:="yes"}
+: ${NAMESPACE:="openstack"}
+: ${RUN_HELM_TESTS:="no"}
 
 #NOTE: Deploy command
 helm upgrade --install mariadb ${OSH_HELM_REPO}/mariadb \
     --namespace=${NAMESPACE} \
     ${MONITORING_HELM_ARGS:="--set monitoring.prometheus.enabled=true"} \
+    --set pod.replicas.server=1 \
+    ${VOLUME_HELM_ARGS:="--set volume.enabled=false --set volume.use_local_path_for_single_pod_cluster.enabled=true"} \
     --timeout=600s \
     ${OSH_EXTRA_HELM_ARGS:=} \
     ${OSH_EXTRA_HELM_ARGS_MARIADB}
