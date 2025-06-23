@@ -279,10 +279,15 @@ spec:
         - name: postgresql-data
           hostPath:
             path: {{ .Values.storage.host.host_path }}
+            type: DirectoryOrCreate
+{{- if  eq .Values.conf.postgresql.archive_mode "on" }}
+        - name: postgresql-archive
+          hostPath:
+            path: {{ .Values.storage.host.archive_host_path }}
+            type: DirectoryOrCreate
 {{- end }}
-{{- if or (eq .Values.conf.postgresql.archive_mode "on" )  (eq .Values.storage.pvc.enabled true) }}
+{{- else }}
   volumeClaimTemplates:
-{{- if  .Values.storage.pvc.enabled }}
     - metadata:
         name: postgresql-data
         annotations:
@@ -292,7 +297,6 @@ spec:
         resources:
           requests:
             storage: {{ .Values.storage.pvc.size }}
-{{- end }}
 {{- if  eq .Values.conf.postgresql.archive_mode "on" }}
     - metadata:
         name: postgresql-archive
