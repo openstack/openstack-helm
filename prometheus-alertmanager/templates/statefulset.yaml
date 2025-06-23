@@ -170,8 +170,15 @@ spec:
             defaultMode: 0555
 {{ if $mounts_alertmanager.volumes }}{{ toYaml $mounts_alertmanager.volumes | indent 8 }}{{ end }}
 {{- if not .Values.storage.alertmanager.enabled }}
+{{- if .Values.storage.alertmanager.use_local_path.enabled }}
+        - name: alertmanager-data
+          hostPath:
+            path: {{ .Values.storage.alertmanager.use_local_path.host_path }}
+            type: DirectoryOrCreate
+{{- else }}
         - name: alertmanager-data
           emptyDir: {}
+{{- end }}
 {{- else }}
   volumeClaimTemplates:
     - metadata:
