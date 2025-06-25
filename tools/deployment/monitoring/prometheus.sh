@@ -19,9 +19,11 @@ set -xe
 FEATURES="alertmanager ceph elasticsearch kubernetes nodes openstack postgresql apparmor ${FEATURES}"
 : ${OSH_EXTRA_HELM_ARGS_PROMETHEUS:="$(helm osh get-values-overrides -p ${OSH_VALUES_OVERRIDES_PATH} -c prometheus ${FEATURES})"}
 
+
 #NOTE: Deploy command
 helm upgrade --install prometheus ${OSH_HELM_REPO}/prometheus \
     --namespace=osh-infra \
+    ${VOLUME_HELM_ARGS:="--set storage.enabled=false --set storage.use_local_path.enabled=true"} \
     ${OSH_EXTRA_HELM_ARGS:=} \
     ${OSH_EXTRA_HELM_ARGS_PROMETHEUS}
 
