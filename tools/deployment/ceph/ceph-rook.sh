@@ -388,9 +388,10 @@ RGW_POD=$(kubectl get pods \
   --namespace=ceph \
   --selector="app=rook-ceph-rgw" \
   --no-headers | awk '{print $1; exit}')
-while [[ -z "${RGW_POD}" ]]
+wait_start_time=$(date +%s)
+while [[ -z "${RGW_POD}" && $(($(date +%s) - $wait_start_time)) -lt 1800 ]]
 do
-  sleep 10
+  sleep 30
   date +'%Y-%m-%d %H:%M:%S'
   TOOLS_POD=$(kubectl get pods \
     --namespace=ceph \
@@ -401,9 +402,9 @@ do
     continue
   fi
   echo "=========== CEPH STATUS ============"
-  kubectl exec -n ceph ${TOOLS_POD} -- ceph -s
+  kubectl exec -n ceph ${TOOLS_POD} -- ceph -s || echo "Could not get cluster status. Might be a temporary network issue."
   echo "=========== CEPH OSD POOL LIST ============"
-  kubectl exec -n ceph ${TOOLS_POD} -- ceph osd pool ls
+  kubectl exec -n ceph ${TOOLS_POD} -- ceph osd pool ls || echo "Could not get list of pools. Might be a temporary network issue."
   echo "=========== CEPH K8S PODS LIST ============"
   kubectl get pods -n ceph -o wide
   RGW_POD=$(kubectl get pods \
