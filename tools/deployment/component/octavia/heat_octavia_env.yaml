@@ -1,0 +1,358 @@
+---
+heat_template_version: 2021-04-16
+
+parameters:
+  public_network_name:
+    type: string
+    default: public
+
+  public_physical_network_name:
+    type: string
+    default: public
+
+  public_subnet_name:
+    type: string
+    default: public
+
+  public_subnet_cidr:
+    type: string
+    default: 172.24.4.0/24
+
+  public_subnet_gateway:
+    type: string
+    default: 172.24.4.1
+
+  public_allocation_pool_start:
+    type: string
+    default: 172.24.4.10
+
+  public_allocation_pool_end:
+    type: string
+    default: 172.24.4.254
+
+  private_subnet_cidr:
+    type: string
+    default: 192.168.128.0/24
+
+  dns_nameserver:
+    type: string
+    default: 172.24.4.1
+
+  image_name:
+    type: string
+    default: Ubuntu Jammy
+
+  image_url:
+    type: string
+    default: "https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img"
+
+  ssh_key:
+    type: string
+    default: octavia-key
+
+  compute_flavor_id:
+    type: string
+
+  az_1:
+    type: string
+
+  az_2:
+    type: string
+
+resources:
+  public_net:
+    type: OS::Neutron::ProviderNet
+    properties:
+      name:
+        get_param: public_network_name
+      router_external: true
+      physical_network:
+        get_param: public_physical_network_name
+      network_type: flat
+
+  public_subnet:
+    type: OS::Neutron::Subnet
+    properties:
+      name:
+        get_param: public_subnet_name
+      network:
+        get_resource: public_net
+      cidr:
+        get_param: public_subnet_cidr
+      gateway_ip:
+        get_param: public_subnet_gateway
+      enable_dhcp: false
+      dns_nameservers:
+        - get_param: public_subnet_gateway
+      allocation_pools:
+        - start: {get_param: public_allocation_pool_start}
+          end: {get_param: public_allocation_pool_end}
+
+  private_net:
+    type: OS::Neutron::Net
+
+  private_subnet:
+    type: OS::Neutron::Subnet
+    properties:
+      network:
+        get_resource: private_net
+      cidr:
+        get_param: private_subnet_cidr
+      dns_nameservers:
+        - get_param: dns_nameserver
+
+  image:
+    type: OS::Glance::WebImage
+    properties:
+      name:
+        get_param: image_name
+      location:
+        get_param: image_url
+      container_format: bare
+      disk_format: qcow2
+      min_disk: 3
+      visibility: public
+
+  flavor_vm:
+    type: OS::Nova::Flavor
+    properties:
+      name: m1.test
+      disk: 3
+      ram: 1024
+      vcpus: 2
+
+  wait_handle_1:
+    type: OS::Heat::WaitConditionHandle
+
+  wait_handle_2:
+    type: OS::Heat::WaitConditionHandle
+
+  server_1:
+    type: OS::Nova::Server
+    properties:
+      image:
+        get_resource: image
+      flavor:
+        get_resource: flavor_vm
+      key_name:
+        get_param: ssh_key
+      networks:
+        - port:
+            get_resource: server_port_1
+      user_data_format: RAW
+      user_data:
+        str_replace:
+          template: |
+            #!/bin/bash
+            echo "nameserver $nameserver" > /etc/resolv.conf
+            echo "127.0.0.1 $(hostname)" >> /etc/hosts
+            systemctl stop systemd-resolved
+            systemctl disable systemd-resolved
+            mkdir -p /var/www/html/
+            echo "Hello from server_1: $(hostname)" > /var/www/html/index.html
+            nohup python3 -m http.server 8000 --directory /var/www/html > /dev/null 2>&1 &
+            $wc_notify --data-binary '{ "status": "SUCCESS" }'
+          params:
+            $nameserver: {get_param: dns_nameserver}
+            $wc_notify: {get_attr: ['wait_handle_1', 'curl_cli']}
+      availability_zone: {get_param: az_1}
+
+  wait_server_1:
+    type: OS::Heat::WaitCondition
+    properties:
+      handle: {get_resource: wait_handle_1}
+      timeout: 1200
+
+  server_2:
+    type: OS::Nova::Server
+    properties:
+      image:
+        get_resource: image
+      flavor:
+        get_resource: flavor_vm
+      key_name:
+        get_param: ssh_key
+      networks:
+        - port:
+            get_resource: server_port_2
+      user_data_format: RAW
+      user_data:
+        str_replace:
+          template: |
+            #!/bin/bash
+            echo "nameserver $nameserver" > /etc/resolv.conf
+            echo "127.0.0.1 $(hostname)" >> /etc/hosts
+            systemctl stop systemd-resolved
+            systemctl disable systemd-resolved
+            mkdir -p /var/www/html/
+            echo "Hello from server_2: $(hostname)" > /var/www/html/index.html
+            nohup python3 -m http.server 8000 --directory /var/www/html > /dev/null 2>&1 &
+            $wc_notify --data-binary '{ "status": "SUCCESS" }'
+          params:
+            $nameserver: {get_param: dns_nameserver}
+            $wc_notify: {get_attr: ['wait_handle_2', 'curl_cli']}
+      availability_zone: {get_param: az_2}
+
+  wait_server_2:
+    type: OS::Heat::WaitCondition
+    properties:
+      handle: {get_resource: wait_handle_2}
+      timeout: 1200
+
+  security_group:
+    type: OS::Neutron::SecurityGroup
+    properties:
+      name: default_port_security_group
+      rules:
+        - remote_ip_prefix: 0.0.0.0/0
+          protocol: tcp
+          port_range_min: 22
+          port_range_max: 22
+        - remote_ip_prefix: 0.0.0.0/0
+          protocol: tcp
+          port_range_min: 8000
+          port_range_max: 8000
+        - remote_ip_prefix: 0.0.0.0/0
+          protocol: icmp
+
+  server_port_1:
+    type: OS::Neutron::Port
+    properties:
+      network:
+        get_resource: private_net
+      fixed_ips:
+        - subnet:
+            get_resource: private_subnet
+      security_groups:
+        - get_resource: security_group
+
+  server_floating_ip_1:
+    type: OS::Neutron::FloatingIP
+    properties:
+      floating_network:
+        get_resource: public_net
+      port_id:
+        get_resource: server_port_1
+
+  server_port_2:
+    type: OS::Neutron::Port
+    properties:
+      network:
+        get_resource: private_net
+      fixed_ips:
+        - subnet:
+            get_resource: private_subnet
+      security_groups:
+        - get_resource: security_group
+
+  server_floating_ip_2:
+    type: OS::Neutron::FloatingIP
+    properties:
+      floating_network:
+        get_resource: public_net
+      port_id:
+        get_resource: server_port_2
+
+  router:
+    type: OS::Neutron::Router
+    properties:
+      external_gateway_info:
+        network:
+          get_resource: public_net
+
+  router_interface:
+    type: OS::Neutron::RouterInterface
+    properties:
+      router_id:
+        get_resource: router
+      subnet_id:
+        get_resource: private_subnet
+
+  flavor_profile:
+    type: "OS::Octavia::FlavorProfile"
+    properties:
+      provider_name: amphora
+      flavor_data:
+        str_replace:
+          template: |
+            {
+              "loadbalancer_topology": "SINGLE",
+              "compute_flavor": "%compute_flavor%"
+            }
+          params:
+            "%compute_flavor%": {get_param: compute_flavor_id}
+
+  flavor:
+    type: "OS::Octavia::Flavor"
+    properties:
+      flavor_profile:
+        get_resource: flavor_profile
+
+  loadbalancer:
+    type: "OS::Octavia::LoadBalancer"
+    properties:
+      name: osh
+      provider: amphora
+      vip_subnet:
+        get_resource: private_subnet
+      flavor:
+        get_resource: flavor
+
+  floating_ip:
+    type: OS::Neutron::FloatingIP
+    properties:
+      floating_network: {get_resource: public_net}
+      port_id: {get_attr: [loadbalancer, vip_port_id]}
+
+  listener:
+    type: "OS::Octavia::Listener"
+    properties:
+      protocol_port: 80
+      protocol: "HTTP"
+      loadbalancer:
+        get_resource: loadbalancer
+
+  pool:
+    type: "OS::Octavia::Pool"
+    properties:
+      lb_algorithm: "ROUND_ROBIN"
+      listener:
+        get_resource: listener
+      protocol: "HTTP"
+
+  monitor:
+    type: "OS::Octavia::HealthMonitor"
+    properties:
+      delay: 3
+      max_retries: 9
+      timeout: 3
+      type: "PING"
+      pool:
+        get_resource: pool
+
+  pool_member_1:
+    type: "OS::Octavia::PoolMember"
+    properties:
+      subnet:
+        get_resource: private_subnet
+      protocol_port: 8000
+      pool:
+        get_resource: pool
+      address:
+        get_attr:
+          - "server_1"
+          - "first_address"
+
+  pool_member_2:
+    type: "OS::Octavia::PoolMember"
+    properties:
+      subnet:
+        get_resource: private_subnet
+      protocol_port: 8000
+      pool:
+        get_resource: pool
+      address:
+        get_attr:
+          - "server_2"
+          - "first_address"
+...
