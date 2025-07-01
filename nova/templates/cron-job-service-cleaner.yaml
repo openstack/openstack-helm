@@ -74,6 +74,9 @@ spec:
                   readOnly: true
                 - name: etcnova
                   mountPath: /etc/nova
+                - name: nova-etc-snippets
+                  mountPath: /etc/nova/nova.conf.d/
+                  readOnly: true
 {{- dict "enabled" (or .Values.manifests.certificates .Values.tls.identity) "name" .Values.secrets.tls.compute.osapi.internal | include "helm-toolkit.snippets.tls_volume_mount" | indent 16 }}
           volumes:
             - name: pod-tmp
@@ -88,5 +91,10 @@ spec:
               configMap:
                 name: nova-bin
                 defaultMode: 0555
+            - name: nova-etc-snippets
+              projected:
+                sources:
+                  - secret:
+                      name: nova-ks-etc
 {{- dict "enabled" (or .Values.manifests.certificates .Values.tls.identity) "name" .Values.secrets.tls.compute.osapi.internal | include "helm-toolkit.snippets.tls_volume" | indent 12 }}
 {{- end }}
