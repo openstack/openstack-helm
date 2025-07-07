@@ -7,6 +7,7 @@
   shell: |
     curl -LSs {{ calico_manifest_url }} -o /tmp/calico.yaml
     sed -i -e 's#docker.io/calico/#quay.io/calico/#g' /tmp/calico.yaml
+    sed -i '/CALICO_IPV4POOL_IPIP/{n;s/Always/Never/}' /tmp/calico.yaml
     export CONTAINER_RUNTIME_ENDPOINT=unix:///run/containerd/containerd.sock
     export IMAGE_SERVICE_ENDPOINT=unix:///run/containerd/containerd.sock
     awk '/image:/ { print $2 }' /tmp/calico.yaml | xargs -I{} crictl pull {}
@@ -22,6 +23,7 @@
         if [[ ! -f /tmp/calico.yaml ]]; then
           curl -LSs {{ calico_manifest_url }} -o /tmp/calico.yaml
           sed -i -e 's#docker.io/calico/#quay.io/calico/#g' /tmp/calico.yaml
+          sed -i '/CALICO_IPV4POOL_IPIP/{n;s/Always/Never/}' /tmp/calico.yaml
         fi
       args:
         executable: /bin/bash
@@ -46,6 +48,9 @@
 
     - name: Patch Calico
       command: kubectl -n kube-system patch daemonset calico-node --patch-file /tmp/calico_patch.yaml
+
+    - name: Delete Calico pods (for hard restart)
+      command: kubectl -n kube-system delete pods -l k8s-app=calico-node
 
     - name: Wait for Calico pods ready (after patch)
       command: kubectl -n kube-system wait --timeout=20s --for=condition=Ready pods -l k8s-app=calico-node

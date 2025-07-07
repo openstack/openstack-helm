@@ -1,0 +1,38 @@
+---
+apiVersion: kubeproxy.config.k8s.io/v1alpha1
+kind: KubeProxyConfiguration
+mode: ipvs
+ipvs:
+  strictARP: true
+...
+---
+apiVersion: kubeadm.k8s.io/v1beta4
+kind: ClusterConfiguration
+networking:
+  serviceSubnet: "{{ kubeadm.service_cidr }}"  # --service-cidr
+  podSubnet: "{{ kubeadm.pod_network_cidr }}"  # --pod-network-cidr
+  dnsDomain: "cluster.local"
+...
+---
+apiVersion: kubeadm.k8s.io/v1beta4
+kind: InitConfiguration
+nodeRegistration:
+  criSocket: unix:///run/containerd/containerd.sock
+  taints: []
+  ignorePreflightErrors:
+    - NumCPU
+localAPIEndpoint:
+{% if overlay_network_setup %}
+  advertiseAddress: "{{ overlay_network_prefix }}{{ (groups['all'] | sort).index(groups['k8s_control_plane'][0]) + 1 }}"
+{% endif %}
+  bindPort: 6443
+...
+---
+apiVersion: kubeadm.k8s.io/v1beta4
+kind: JoinConfiguration
+nodeRegistration:
+  criSocket: unix:///run/containerd/containerd.sock
+  taints: []
+  ignorePreflightErrors:
+    - NumCPU
+...

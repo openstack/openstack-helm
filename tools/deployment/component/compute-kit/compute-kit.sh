@@ -57,7 +57,9 @@ helm upgrade --install nova ${OSH_HELM_REPO}/nova \
 tee /tmp/neutron.yaml << EOF
 network:
   interface:
-    tunnel: null
+    # the CI env overlay interface is used by default
+    # for internal cluster communication
+    tunnel: brvxlan
 conf:
   neutron:
     DEFAULT:

@@ -1,0 +1,42 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+- name: Create vxlan bridge
+  shell: |
+    ip link add name {{ overlay_network_bridge_name }} type bridge
+    ip link set dev {{ overlay_network_bridge_name }} up
+    ip addr add {{ overlay_network_bridge_ip }}/24 dev {{ overlay_network_bridge_name }}
+  args:
+    creates: "/sys/class/net/{{ overlay_network_bridge_name }}"
+
+- name: Create vxlan interface
+  shell: |
+    ip link add {{ overlay_network_vxlan_iface }} \
+      type vxlan \
+      id {{ overlay_network_vxlan_id }} \
+      dev {{ overlay_network_underlay_dev }} \
+      dstport {{ overlay_network_vxlan_port }} \
+      local {{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] }}
+    ip link set {{ overlay_network_vxlan_iface }} up
+    ip link set {{ overlay_network_vxlan_iface }} master {{ overlay_network_bridge_name }}
+  args:
+    creates: "/sys/class/net/{{ overlay_network_vxlan_iface }}"
+
+- name: Populate FDB
+  shell: |
+    bridge fdb append 00:00:00:00:00:00 \
+      dev {{ overlay_network_vxlan_iface }} \
+      dst {{ hostvars[item]['ansible_host'] }}
+  loop: "{{ groups['all'] | sort }}"
+  when: item != inventory_hostname
+...
