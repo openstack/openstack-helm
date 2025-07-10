@@ -371,13 +371,25 @@ helm osh wait-for-pods rook-ceph
 kubectl wait --namespace=ceph --for=condition=ready pod --selector=app=rook-ceph-tools --timeout=600s
 
 # Wait for all monitor pods to be ready
-MON_PODS=$(kubectl get pods --namespace=ceph --selector=app=rook-ceph-mon --no-headers | awk '{ print $1 }')
-for MON_POD in $MON_PODS; do
-  if kubectl get pod --namespace=ceph "$MON_POD" > /dev/null 2>&1; then
-    kubectl wait --namespace=ceph --for=condition=ready "pod/$MON_POD" --timeout=600s
-  else
-    echo "Pod $MON_POD not found, skipping..."
-  fi
+wait_start_time=$(date +%s)
+while [[ $(($(date +%s) - $wait_start_time)) -lt 1800 ]]; do
+    sleep 30
+    MON_PODS=$(kubectl get pods --namespace=ceph --selector=app=rook-ceph-mon --no-headers | awk '{ print $1 }')
+    MON_PODS_NUM=$(echo $MON_PODS | wc -w)
+    MON_PODS_READY=0
+    for MON_POD in $MON_PODS; do
+        if kubectl get pod --namespace=ceph "$MON_POD" > /dev/null 2>&1; then
+            kubectl wait --namespace=ceph --for=condition=ready "pod/$MON_POD" --timeout=60s && \
+                { MON_PODS_READY=$(($MON_PODS_READY+1)); } || \
+                echo "Pod $MON_POD not ready, skipping..."
+        else
+            echo "Pod $MON_POD not found, skipping..."
+        fi
+    done
+    if [[ ${MON_PODS_READY} == ${MON_PODS_NUM} ]]; then
+        echo "Monitor pods are ready. Moving on."
+        break;
+    fi
 done
 
 echo "=========== CEPH K8S PODS LIST ============"
