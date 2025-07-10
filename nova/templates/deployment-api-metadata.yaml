@@ -91,6 +91,9 @@ spec:
               mountPath: /etc/nova/nova.conf
               subPath: nova.conf
               readOnly: true
+            - name: nova-etc-snippets
+              mountPath: /etc/nova/nova.conf.d/
+              readOnly: true
             - name: pod-shared
               mountPath: /tmp/pod-shared
       containers:
@@ -142,6 +145,9 @@ spec:
             - name: nova-etc
               mountPath: /etc/nova/nova.conf
               subPath: nova.conf
+              readOnly: true
+            - name: nova-etc-snippets
+              mountPath: /etc/nova/nova.conf.d/
               readOnly: true
             {{- if .Values.conf.nova.DEFAULT.log_config_append }}
             - name: nova-etc
@@ -215,6 +221,11 @@ spec:
           secret:
             secretName: nova-etc
             defaultMode: 0444
+        - name: nova-etc-snippets
+          projected:
+            sources:
+              - secret:
+                  name: nova-ks-etc
         - name: pod-shared
           emptyDir: {}
 {{- dict "enabled" .Values.manifests.certificates "name" .Values.endpoints.oslo_db.auth.admin.secret.tls.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
