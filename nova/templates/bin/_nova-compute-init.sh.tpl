@@ -16,6 +16,16 @@ limitations under the License.
 
 set -ex
 
+{{- if and .Values.hosts_uuids (not .Values.manifests.compute_uuid_self_provisioning) }}
+# Extract Host's uuid from helm chart and save it to the compute_id file
+  {{- range $host := .Values.hosts_uuids }}
+hostname="{{- $host.name}}"
+if [ "$hostname" == $HOSTNAME ]; then
+  echo "{{ $host.uuid }}" > {{ $.Values.conf.nova.DEFAULT.state_path }}/compute_id
+fi
+  {{- end }}
+{{- end }}
+
 # Make the Nova Instances Dir as this is not autocreated.
 mkdir -p /var/lib/nova/instances
 
