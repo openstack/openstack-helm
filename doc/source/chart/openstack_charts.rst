@@ -12,6 +12,7 @@ OpenStack charts options
     cyborg
     cloudkitty
     designate
+    freezer
     glance
     heat
     horizon

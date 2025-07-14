@@ -1,0 +1,523 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+release_uuid: null
+
+labels:
+  api:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  job:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+
+images:
+  pull_policy: IfNotPresent
+  tags:
+    test: docker.io/xrally/xrally-openstack:2.0.0
+    bootstrap: quay.io/airshipit/heat:2025.1-ubuntu_jammy
+    db_init: quay.io/airshipit/heat:2025.1-ubuntu_jammy
+    db_drop: quay.io/airshipit/heat:2025.1-ubuntu_jammy
+    ks_user: quay.io/airshipit/heat:2025.1-ubuntu_jammy
+    ks_service: quay.io/airshipit/heat:2025.1-ubuntu_jammy
+    ks_endpoints: quay.io/airshipit/heat:2025.1-ubuntu_jammy
+    freezer_db_sync: quay.io/airshipit/freezer-api:2025.1-ubuntu_jammy
+    freezer_api: quay.io/airshipit/freezer-api:2025.1-ubuntu_jammy
+    dep_check: quay.io/airshipit/kubernetes-entrypoint:latest-ubuntu_jammy
+    image_repo_sync: docker.io/docker:17.07.0
+  local_registry:
+    active: false
+    exclude:
+      - dep_check
+      - image_repo_sync
+
+endpoints:
+  cluster_domain_suffix: cluster.local
+  local_image_registry:
+    name: docker-registry
+    namespace: docker-registry
+    hosts:
+      default: localhost
+      internal: docker-registry
+      node: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        node: 5000
+  identity:
+    name: keystone
+    auth:
+      admin:
+        region_name: RegionOne
+        username: admin
+        password: password
+        project_name: admin
+        user_domain_name: default
+        project_domain_name: default
+        interface: internal
+      freezer:
+        role: admin,service
+        region_name: RegionOne
+        username: freezer
+        password: password
+        project_name: service
+        user_domain_name: service
+        project_domain_name: service
+    hosts:
+      default: keystone
+      internal: keystone-api
+    host_fqdn_override:
+      default: null
+    path:
+      default: /v3
+    scheme:
+      default: http
+    port:
+      api:
+        default: 80
+        internal: 5000
+  backup:
+    name: freezer
+    hosts:
+      default: freezer-api
+      internal: freezer-api
+      public: freezer
+    host_fqdn_override:
+      default: null
+    path:
+      default: /
+      healthcheck: /healthcheck
+    scheme:
+      default: http
+    port:
+      api:
+        default: 9090
+        public: 80
+  oslo_db:
+    auth:
+      admin:
+        username: root
+        password: password
+        secret:
+          tls:
+            internal: mariadb-tls-direct
+        secretNamespace: openstack
+      freezer:
+        username: freezer
+        password: password
+        secret: freezer-db-password
+        secretNamespace: openstack
+    hosts:
+      default: mariadb
+    host_fqdn_override:
+      default: null
+    path: /freezer
+    scheme: mysql+pymysql
+    port:
+      mysql:
+        default: 3306
+  oslo_cache:
+    auth:
+      # NOTE(portdirect): this is used to define the value for keystone
+      # authtoken cache encryption key, will be set to a random value
+      # if not specified.
+      memcache_secret_key: null
+    hosts:
+      default: memcached
+    host_fqdn_override:
+      default: null
+    port:
+      memcache:
+        default: 11211
+
+secrets:
+  identity:
+    admin: freezer-keystone-admin
+    freezer: freezer-keystone-user
+  oslo_db:
+    admin: freezer-db-admin
+    freezer: freezer-db-user
+  tls:
+    backup:
+      api:
+        public: freezer-tls-public
+        internal: freezer-tls-internal
+        nginx: freezer-tls-nginx
+        nginx_cluster: freezer-tls-nginx-cluster
+
+bootstrap:
+  enabled: false
+  ks_user: freezer
+  script: ""
+
+network:
+  api:
+    ingress:
+      public: true
+      classes:
+        namespace: "nginx"
+        cluster: "nginx-cluster"
+      annotations:
+        nginx.ingress.kubernetes.io/rewrite-target: /
+    external_policy_local: false
+    node_port:
+      enabled: false
+      port: 30090
+
+dependencies:
+  dynamic:
+    common:
+      local_image_registry:
+        jobs:
+          - freezer-image-repo-sync
+        services:
+          - endpoint: node
+            service: local_image_registry
+  static:
+    api:
+      jobs:
+        - freezer-db-sync
+        - freezer-ks-user
+        - freezer-ks-endpoints
+      services:
+        - endpoint: internal
+          service: oslo_db
+        - endpoint: internal
+          service: identity
+    bootstrap:
+      services:
+        - endpoint: internal
+          service: identity
+        - endpoint: internal
+          service: backup
+    db_init:
+      services:
+        - endpoint: internal
+          service: oslo_db
+    db_sync:
+      jobs:
+        - freezer-db-init
+      services:
+        - endpoint: internal
+          service: oslo_db
+    db_drop:
+      services:
+        - endpoint: internal
+          service: oslo_db
+    ks_user:
+      services:
+        - endpoint: internal
+          service: identity
+    ks_service:
+      services:
+        - endpoint: internal
+          service: identity
+    ks_endpoints:
+      jobs:
+        - freezer-ks-service
+      services:
+        - endpoint: internal
+          service: identity
+
+pod:
+  probes:
+    rpc_timeout: 60
+    rpc_retries: 2
+    api:
+      freezer_api:
+        liveness:
+          enabled: True
+          params:
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            timeoutSeconds: 5
+        readiness:
+          enabled: True
+          params:
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            timeoutSeconds: 5
+  security_context:
+    freezer:
+      pod:
+        runAsUser: 42424
+      container:
+        freezer_api:
+          runAsUser: 0
+  affinity:
+    anti:
+      type:
+        default: preferredDuringSchedulingIgnoredDuringExecution
+      topologyKey:
+        default: kubernetes.io/hostname
+      weight:
+        default: 10
+  tolerations:
+    freezer:
+      enabled: false
+      tolerations:
+        - key: node-role.kubernetes.io/master
+          operator: Exists
+          effect: NoSchedule
+        - key: node-role.kubernetes.io/control-plane
+          operator: Exists
+          effect: NoSchedule
+  disruption_budget:
+    api:
+      min_available: 0
+  replicas:
+    api: 1
+  lifecycle:
+    upgrades:
+      deployments:
+        revision_history: 3
+        pod_replacement_strategy: RollingUpdate
+        rolling_update:
+          max_unavailable: 1
+          max_surge: 3
+    disruption_budget:
+      api:
+        min_available: 0
+        max_unavailable: 0
+    termination_grace_period:
+      api:
+        timeout: 30
+  resources:
+    enabled: false
+    api:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+    jobs:
+      bootstrap:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      db_init:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      db_sync:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      db_drop:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      ks_endpoints:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      ks_service:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      ks_user:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      image_repo_sync:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+  mounts:
+    freezer_api:
+      init_container: null
+      freezer_api:
+        volumeMounts:
+        volumes:
+    freezer_bootstrap:
+      init_container: null
+      freezer_bootstrap:
+        volumeMounts:
+        volumes:
+    freezer_db_sync:
+      init_container: null
+      freezer_db_sync:
+        volumeMounts:
+        volumes:
+
+conf:
+  freezer:
+    DEFAULT:
+      debug: true
+      log_config_append: /etc/freezer/logging.conf
+      bind_host: 0.0.0.0
+      bind_port: 9090
+    paste_deploy:
+      config_file: api-paste.ini
+    database:
+      max_retries: -1
+    oslo_policy:
+      policy_file: /etc/freezer/policy.yaml
+    storage:
+      backend: sqlalchemy
+      driver: sqlalchemy
+    keystone_authtoken:
+      auth_version: v3
+      auth_type: password
+      # region_name: RegionOne
+      # project_domain_name: service
+      # project_name: service
+      # user_domain_name: service
+      # username: freezer
+      # password: password
+      # auth_url: http://keystone-api.openstack.svc.cluster.local:5000/v3
+      # auth_uri: http://keystone-api.openstack.svc.cluster.local:5000/v3
+
+  logging:
+    loggers:
+      keys:
+        - root
+        - freezer
+    handlers:
+      keys:
+        - stdout
+        - stderr
+        - "null"
+    formatters:
+      keys:
+        - context
+        - default
+    logger_root:
+      level: WARNING
+      handlers: "null"
+    logger_freezer:
+      level: INFO
+      handlers:
+        - stdout
+      qualname: freezer
+    logger_amqp:
+      level: WARNING
+      handlers: stderr
+      qualname: amqp
+    logger_amqplib:
+      level: WARNING
+      handlers: stderr
+      qualname: amqplib
+    logger_eventletwsgi:
+      level: WARNING
+      handlers: stderr
+      qualname: eventlet.wsgi.server
+    logger_sqlalchemy:
+      level: WARNING
+      handlers: stderr
+      qualname: sqlalchemy
+    logger_boto:
+      level: WARNING
+      handlers: stderr
+      qualname: boto
+    handler_null:
+      class: logging.NullHandler
+      formatter: default
+      args: ()
+    handler_stdout:
+      class: StreamHandler
+      args: (sys.stdout,)
+      formatter: context
+    handler_stderr:
+      class: StreamHandler
+      args: (sys.stderr,)
+      formatter: context
+    formatter_context:
+      class: oslo_log.formatters.ContextFormatter
+      datefmt: "%Y-%m-%d %H:%M:%S"
+    formatter_default:
+      format: "%(message)s"
+      datefmt: "%Y-%m-%d %H:%M:%S"
+  paste:
+    app:api_versions:
+      paste.app_factory: freezer_api.api.versions:api_versions
+    app:appv1:
+      paste.app_factory: freezer_api.service:freezer_appv1_factory
+    app:appv2:
+      paste.app_factory: freezer_api.service:freezer_appv2_factory
+    filter:authtoken:
+      paste.filter_factory: keystonemiddleware.auth_token:filter_factory
+    filter:healthcheck:
+      paste.filter_factory: oslo_middleware:Healthcheck.factory
+      backends: disable_by_file
+      disable_by_file_path: /etc/freezer/healthcheck_disable
+    filter:context:
+      paste.filter_factory: freezer_api.api.common.middleware:ContextMiddleware.factory
+    filter:versionsNegotiator:
+      paste.filter_factory: freezer_api.api.versions:VersionNegotiator.factory
+    filter:http_proxy_to_wsgi:
+      paste.filter_factory: oslo_middleware:HTTPProxyToWSGI.factory
+    pipeline:main:
+      pipeline: healthcheck http_proxy_to_wsgi versionsNegotiator authtoken context backupapp
+    pipeline:unauthenticated_freezer_api:
+      pipeline: http_proxy_to_wsgi healthcheck freezer_app
+    composite:backupapp:
+      paste.composite_factory: freezer_api.service:root_app_factory
+      /: api_versions
+      /v1: appv1
+      /v2: appv2
+
+tls:
+  identity: false
+  oslo_db: false
+
+# NOTE(helm_hook): helm_hook might break for helm2 binary.
+# set helm3_hook: false when using the helm2 binary.
+helm3_hook: true
+
+manifests:
+  certificates: false
+  configmap_bin: true
+  configmap_etc: true
+  deployment_api: true
+  ingress_api: true
+  job_bootstrap: true
+  job_db_init: true
+  job_db_sync: true
+  job_db_drop: false
+  job_image_repo_sync: true
+  job_ks_endpoints: true
+  job_ks_service: true
+  job_ks_user: true
+  pdb_api: true
+  secret_db: true
+  secret_keystone: true
+  service_api: true
+  service_ingress_api: true
+...
