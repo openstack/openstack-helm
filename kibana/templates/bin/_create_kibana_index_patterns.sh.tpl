@@ -83,17 +83,24 @@ get_view_id() {
 # Create data views
 {{- range $objectType, $indices := .Values.conf.create_kibana_indexes.indexes }}
 {{- range $indices }}
-while true; do
+if ! data_view_exists "{{ . }}"; then
   create_data_view "{{ . }}"
-  if data_view_exists "{{ . }}"; then
-    echo "Data view '{{ . }}-*' exists"
-    break
-  else
+  for t in 30 60 120 180; do
+    if data_view_exists "{{ . }}"; then
+      echo "Data view '{{ . }}-*' exists"
+      break
+    fi
+    sleep $t
     echo "Retrying creation of data view '{{ . }}-*' ..."
     create_data_view "{{ . }}"
-    sleep 30
+  done
+  if ! data_view_exists "{{ . }}"; then
+    echo "Giving up"
+    return 1
   fi
-done
+else
+  echo "Data view '{{ . }}-*' exists"
+fi
 
 {{- end }}
 {{- end }}
