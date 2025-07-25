@@ -32,8 +32,8 @@ set -e
   if [[ ! -z ${mariadb_version} && -z $(grep -E '10.2|10.3|10.4' <<< ${mariadb_version}) ]]; then
     # In case MariaDB version is 10.2.x-10.4.x - we use old privileges definitions
     if ! mysql --defaults-file=/etc/mysql/admin_user.cnf -e \
-      "CREATE OR REPLACE USER '${EXPORTER_USER}'@'%' IDENTIFIED BY '${EXPORTER_PASSWORD}'; \
-      GRANT SLAVE MONITOR, PROCESS, BINLOG MONITOR, SLAVE MONITOR, SELECT ON *.* TO '${EXPORTER_USER}'@'%' ${MARIADB_X509}; \
+      "CREATE OR REPLACE USER '${EXPORTER_USER}'@'127.0.0.1' IDENTIFIED BY '${EXPORTER_PASSWORD}'; \
+      GRANT SLAVE MONITOR, PROCESS, BINLOG MONITOR, SLAVE MONITOR, SELECT ON *.* TO '${EXPORTER_USER}'@'127.0.0.1'; \
       FLUSH PRIVILEGES;" ; then
       echo "ERROR: Could not create user: ${EXPORTER_USER}"
       exit 1
