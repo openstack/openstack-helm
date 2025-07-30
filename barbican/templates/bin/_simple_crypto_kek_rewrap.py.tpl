@@ -36,8 +36,7 @@ class KekRewrap(object):
         self.db_engine = session.create_engine(conf.database.connection or conf.sql_connection)
         self._session_creator = scoping.scoped_session(
             orm.sessionmaker(
-                bind=self.db_engine,
-                autocommit=True
+                bind=self.db_engine
             )
         )
         self.crypto_plugin = simple_crypto.SimpleCryptoPlugin(conf)
