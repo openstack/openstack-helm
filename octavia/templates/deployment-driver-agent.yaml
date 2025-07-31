@@ -1,0 +1,117 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+
+{{- define "octaviaDriverAgentLivenessProbeTemplate" }}
+{{- end }}
+
+{{- define "octaviaDriverAgentReadinessProbeTemplate" }}
+{{- end }}
+
+{{- if .Values.manifests.deployment_driver_agent }}
+{{- $envAll := . }}
+
+{{- $mounts_octavia_driver_agent := .Values.pod.mounts.octavia_driver_agent.octavia_driver_agent }}
+{{- $mounts_octavia_dirver_agent_init := .Values.pod.mounts.octavia_driver_agent.init_container }}
+
+{{- $serviceAccountName := "octavia-driver-agent" }}
+{{ tuple $envAll "driver_agent" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: octavia-driver-agent
+  annotations:
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+  labels:
+{{ tuple $envAll "octavia" "driver_agent" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  replicas: {{ .Values.pod.replicas.driver_agent }}
+  selector:
+    matchLabels:
+{{ tuple $envAll "octavia" "driver_agent" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
+{{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_deployment" | indent 2 }}
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "octavia" "driver_agent" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
+        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
+{{ tuple "octavia_driver_agent" . | include "helm-toolkit.snippets.custom_pod_annotations" | indent 8 }}
+    spec:
+{{ tuple "octavia_driver_agent" . | include "helm-toolkit.snippets.kubernetes_pod_priority_class" | indent 6 }}
+{{ tuple "octavia_driver_agent" . | include "helm-toolkit.snippets.kubernetes_pod_runtime_class" | indent 6 }}
+      serviceAccountName: {{ $serviceAccountName }}
+      affinity:
+{{ tuple $envAll "octavia" "driver_agent" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
+      nodeSelector:
+        {{ .Values.labels.driver_agent.node_selector_key }}: {{ .Values.labels.driver_agent.node_selector_value }}
+      initContainers:
+{{ tuple $envAll "driver_agent" $mounts_octavia_dirver_agent_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+      containers:
+        - name: octavia-driver-agent
+{{ tuple $envAll "octavia_driver_agent" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.driver_agent | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "octavia_driver_agent" "container" "octavia_driver_agent" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          command:
+            - /tmp/octavia-driver-agent.sh
+            - start
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /tmp/octavia-driver-agent.sh
+                  - stop
+          volumeMounts:
+            - name: pod-etc-octavia
+              mountPath: /etc/octavia
+            - name: octavia-bin
+              mountPath: /tmp/octavia-driver-agent.sh
+              subPath: octavia-driver-agent.sh
+              readOnly: true
+            - name: octavia-etc
+              mountPath: /etc/octavia/octavia.conf
+              subPath: octavia.conf
+              readOnly: true
+            {{- if .Values.conf.octavia.DEFAULT.log_config_append }}
+            - name: octavia-etc
+              mountPath: {{ .Values.conf.octavia.DEFAULT.log_config_append }}
+              subPath: {{ base .Values.conf.octavia.DEFAULT.log_config_append }}
+              readOnly: true
+            {{- end }}
+            - name: octavia-driver-agents
+              mountPath: /var/run/octavia
+            - name: run-openvswitch
+              mountPath: /var/run/ovn
+{{ if $mounts_octavia_driver_agent.volumeMounts }}{{ toYaml $mounts_octavia_driver_agent.volumeMounts | indent 12 }}{{ end }}
+      volumes:
+        - name: pod-etc-octavia
+          emptyDir: {}
+        - name: run-openvswitch
+          hostPath:
+            path: /run/openvswitch
+            type: DirectoryOrCreate
+        - name: octavia-driver-agents
+          emptyDir: {}
+        - name: octavia-bin
+          configMap:
+            name: octavia-bin
+            defaultMode: 0555
+        - name: octavia-etc
+          secret:
+            secretName: octavia-etc
+            defaultMode: 0444
+{{ if $mounts_octavia_driver_agent.volumes }}{{ toYaml $mounts_octavia_driver_agent.volumes | indent 8 }}{{ end }}
+{{- end }}

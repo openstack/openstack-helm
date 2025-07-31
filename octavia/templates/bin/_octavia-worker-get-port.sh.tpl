@@ -1,8 +1,6 @@
 #!/bin/bash
 
 {{/*
-Copyright 2019 Samsung Electronics Co., Ltd.
-
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -17,22 +15,12 @@ limitations under the License.
 */}}
 
 set -ex
-COMMAND="${@:-start}"
 
-function start () {
-  cat > /tmp/dhclient.conf <<EOF
-request subnet-mask,broadcast-address,interface-mtu;
-do-forward-updates false;
-EOF
+HOSTNAME=$(hostname -s)
+PORTNAME=octavia-worker-port-$HOSTNAME
 
-  dhclient -v o-w0 -cf /tmp/dhclient.conf
+HM_PORT_ID=$(openstack port show $PORTNAME -c id -f value)
+HM_PORT_MAC=$(openstack port show $PORTNAME -c mac_address -f value)
 
-  exec octavia-worker \
-        --config-file /etc/octavia/octavia.conf
-}
-
-function stop () {
-  kill -TERM 1
-}
-
-$COMMAND
+echo $HM_PORT_ID > /tmp/pod-shared/HM_PORT_ID
+echo $HM_PORT_MAC > /tmp/pod-shared/HM_PORT_MAC

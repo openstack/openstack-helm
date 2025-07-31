@@ -1,8 +1,6 @@
 #!/bin/bash
 
 {{/*
-Copyright 2019 Samsung Electronics Co., Ltd.
-
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -17,22 +15,17 @@ limitations under the License.
 */}}
 
 set -ex
-COMMAND="${@:-start}"
 
-function start () {
-  cat > /tmp/dhclient.conf <<EOF
-request subnet-mask,broadcast-address,interface-mtu;
-do-forward-updates false;
-EOF
+HM_PORT_ID=$(cat /tmp/pod-shared/HM_PORT_ID)
+HM_PORT_MAC=$(cat /tmp/pod-shared/HM_PORT_MAC)
 
-  dhclient -v o-w0 -cf /tmp/dhclient.conf
+ovs-vsctl --no-wait show
 
-  exec octavia-worker \
-        --config-file /etc/octavia/octavia.conf
-}
+ovs-vsctl --may-exist add-port br-int o-w0 \
+        -- set Interface o-w0 type=internal \
+        -- set Interface o-w0 external-ids:iface-status=active \
+        -- set Interface o-w0 external-ids:attached-mac=$HM_PORT_MAC \
+        -- set Interface o-w0 external-ids:iface-id=$HM_PORT_ID \
+        -- set Interface o-w0 external-ids:skip_cleanup=true
 
-function stop () {
-  kill -TERM 1
-}
-
-$COMMAND
+ip link set dev o-w0 address $HM_PORT_MAC

@@ -130,6 +130,7 @@
     abstract: true
     vars:
       gate_scripts:
+        - ./tools/deployment/common/prepare-bashrc.sh
         - ./tools/deployment/common/prepare-k8s.sh
         - ./tools/deployment/common/prepare-charts.sh
         - ./tools/deployment/common/setup-client.sh
@@ -155,6 +156,7 @@
     abstract: true
     vars:
       gate_scripts:
+        - ./tools/deployment/common/prepare-bashrc.sh
         - ./tools/deployment/common/prepare-k8s.sh
         - ./tools/deployment/common/prepare-charts.sh
         - ./tools/deployment/common/setup-client.sh
@@ -181,6 +183,7 @@
     abstract: true
     vars:
       gate_scripts:
+        - ./tools/deployment/common/prepare-bashrc.sh
         - ./tools/deployment/common/prepare-k8s.sh
         - ./tools/deployment/common/prepare-charts.sh
         - ./tools/deployment/common/setup-client.sh
@@ -206,6 +209,7 @@
     vars:
       osh_helm_repo: openstack-helm
       gate_scripts:
+        - ./tools/deployment/common/prepare-bashrc.sh
         - ./tools/deployment/common/prepare-k8s.sh
         - ./tools/deployment/common/prepare-charts.sh
         - ./tools/deployment/common/prepare-helm-repos-local.sh
@@ -234,6 +238,7 @@
       osh_helm_repo: openstack-helm
       download_overrides: "-d"
       gate_scripts:
+        - ./tools/deployment/common/prepare-bashrc.sh
         - ./tools/deployment/common/prepare-k8s.sh
         - ./tools/deployment/common/prepare-charts.sh
         - ./tools/deployment/common/prepare-helm-repos-public.sh
@@ -260,6 +265,7 @@
     abstract: true
     vars:
       gate_scripts:
+        - ./tools/deployment/common/prepare-bashrc.sh
         - ./tools/deployment/common/prepare-k8s.sh
         - ./tools/deployment/common/prepare-charts.sh
         - ./tools/deployment/common/setup-client.sh
@@ -289,6 +295,7 @@
       - ^zuul\.d/.*$
     vars:
       gate_scripts:
+        - ./tools/deployment/common/prepare-bashrc.sh
         - ./tools/deployment/common/prepare-k8s.sh
         - ./tools/deployment/common/prepare-charts.sh
         - ./tools/deployment/common/setup-client.sh
@@ -309,6 +316,7 @@
       - ^tools/deployment/component/cinder/.*$
     vars:
       gate_scripts:
+        - ./tools/deployment/common/prepare-bashrc.sh
         - ./tools/deployment/common/prepare-k8s.sh
         - ./tools/deployment/common/prepare-charts.sh
         - ./tools/deployment/common/setup-client.sh
@@ -333,6 +341,7 @@
       - ^tools/deployment/ceph/.*$
     vars:
       gate_scripts:
+        - ./tools/deployment/common/prepare-bashrc.sh
         - ./tools/deployment/common/prepare-k8s.sh
         - ./tools/deployment/common/prepare-charts.sh
         - ./tools/deployment/common/setup-client.sh
@@ -368,6 +377,7 @@
     vars:
       run_helm_tests: "yes"
       gate_scripts:
+        - ./tools/deployment/common/prepare-bashrc.sh
         - ./tools/deployment/common/prepare-k8s.sh
         - ./tools/deployment/common/prepare-charts.sh
         - ./tools/deployment/common/setup-client.sh
@@ -388,6 +398,7 @@
       - ^tools/deployment/component/horizon/.*$
     vars:
       gate_scripts:
+        - ./tools/deployment/common/prepare-bashrc.sh
         - ./tools/deployment/common/prepare-k8s.sh
         - ./tools/deployment/common/prepare-charts.sh
         - ./tools/deployment/common/setup-client.sh
@@ -407,6 +418,7 @@
     voting: false
     vars:
       gate_scripts:
+        - ./tools/deployment/common/prepare-bashrc.sh
         - ./tools/deployment/common/prepare-k8s.sh
         - ./tools/deployment/common/prepare-charts.sh
         - ./tools/deployment/common/setup-client.sh
@@ -438,6 +450,7 @@
     timeout: 7200
     vars:
       gate_scripts:
+        - ./tools/deployment/common/prepare-bashrc.sh
         - ./tools/deployment/common/prepare-k8s.sh
         - ./tools/deployment/common/prepare-charts.sh
         - ./tools/deployment/common/setup-client.sh
@@ -457,10 +470,11 @@
 
 - job:
     name: openstack-helm-skyline
-    parent: openstack-helm-compute-kit
+    parent: openstack-helm-deploy
     timeout: 10800
     vars:
       gate_scripts:
+        - ./tools/deployment/common/prepare-bashrc.sh
         - ./tools/deployment/common/prepare-k8s.sh
         - ./tools/deployment/common/prepare-charts.sh
         - ./tools/deployment/common/setup-client.sh
@@ -475,4 +489,29 @@
         - ./tools/deployment/component/compute-kit/compute-kit.sh
         - ./tools/deployment/component/skyline/skyline.sh
         - ./tools/gate/selenium/skyline-selenium.sh
+
+- job:
+    name: openstack-helm-octavia
+    parent: openstack-helm-deploy
+    timeout: 10800
+    vars:
+      gate_scripts:
+        - ./tools/deployment/common/prepare-bashrc.sh
+        - ./tools/deployment/common/prepare-k8s.sh
+        - ./tools/deployment/common/prepare-charts.sh
+        - ./tools/deployment/common/setup-client.sh
+        - export VOLUME_HELM_ARGS="--set volume.enabled=false"; ./tools/deployment/component/common/rabbitmq.sh
+        - ./tools/deployment/db/mariadb.sh
+        - ./tools/deployment/component/common/memcached.sh
+        - ./tools/deployment/component/keystone/keystone.sh
+        - ./tools/deployment/component/heat/heat.sh
+        - export GLANCE_BACKEND=local; ./tools/deployment/component/glance/glance.sh
+        - ./tools/deployment/component/compute-kit/openvswitch.sh
+        - ./tools/deployment/component/compute-kit/libvirt.sh
+        - ./tools/deployment/component/compute-kit/compute-kit.sh
+        - ./tools/deployment/component/barbican/barbican.sh
+        - ./tools/deployment/component/octavia/octavia_resources.sh
+        - ./tools/deployment/component/octavia/octavia_certs.sh
+        - ./tools/deployment/component/octavia/octavia.sh
+        - ./tools/deployment/component/octavia/octavia_test.sh
 ...

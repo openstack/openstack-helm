@@ -31,18 +31,17 @@ metadata:
   name: octavia-certs
 type: Opaque
 data:
-   ca_01.pem: $(trim_data /tmp/octavia_certs/ca_01.pem)
-   cakey.pem: $(trim_data /tmp/octavia_certs/private/cakey.pem)
-   client.pem: $(trim_data /tmp/octavia_certs/client.pem)
+  server_ca.cert.pem: $(trim_data dual_ca/etc/octavia/certs/server_ca.cert.pem)
+  server_ca-chain.cert.pem: $(trim_data dual_ca/etc/octavia/certs/server_ca-chain.cert.pem)
+  server_ca.key.pem: $(trim_data dual_ca/etc/octavia/certs/server_ca.key.pem)
+  client_ca.cert.pem: $(trim_data dual_ca/etc/octavia/certs/client_ca.cert.pem)
+  client.cert-and-key.pem: $(trim_data dual_ca/etc/octavia/certs/client.cert-and-key.pem)
 EOF
   }| kubectl apply --namespace openstack -f -
 }
 
-rm -rf /tmp/octavia
-git clone -b stable/stein https://github.com/openstack/octavia.git /tmp/octavia
-cd /tmp/octavia/bin
-
-rm -rf /tmp/octavia_certs
-./create_certificates.sh /tmp/octavia_certs /tmp/octavia/etc/certificates/openssl.cnf
-
-create_secret
+(
+    cd "$(dirname "$0")";
+    ./create_dual_intermediate_CA.sh
+    create_secret
+)

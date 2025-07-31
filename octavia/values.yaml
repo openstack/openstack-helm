@@ -24,8 +24,11 @@ labels:
   api:
     node_selector_key: openstack-control-plane
     node_selector_value: enabled
+  driver_agent:
+    node_selector_key: openstack-network-node
+    node_selector_value: enabled
   worker:
-    node_selector_key: openstack-control-plane
+    node_selector_key: openstack-network-node
     node_selector_value: enabled
   housekeeping:
     node_selector_key: openstack-control-plane
@@ -40,23 +43,24 @@ labels:
 images:
   tags:
     test: docker.io/xrally/xrally-openstack:2.0.0
-    bootstrap: quay.io/airshipit/heat:2024.1-ubuntu_jammy
-    db_init: quay.io/airshipit/heat:2024.1-ubuntu_jammy
-    octavia_db_sync: quay.io/airshipit/octavia:master-ubuntu
-    db_drop: quay.io/airshipit/heat:2024.1-ubuntu_jammy
+    bootstrap: quay.io/airshipit/heat:2025.1-ubuntu_jammy
+    db_init: quay.io/airshipit/heat:2025.1-ubuntu_jammy
+    octavia_db_sync: quay.io/airshipit/octavia:2025.1-ubuntu_jammy
+    db_drop: quay.io/airshipit/heat:2025.1-ubuntu_jammy
     rabbit_init: docker.io/rabbitmq:3.13-management
-    ks_user: quay.io/airshipit/heat:2024.1-ubuntu_jammy
-    ks_service: quay.io/airshipit/heat:2024.1-ubuntu_jammy
-    ks_endpoints: quay.io/airshipit/heat:2024.1-ubuntu_jammy
+    ks_user: quay.io/airshipit/heat:2025.1-ubuntu_jammy
+    ks_service: quay.io/airshipit/heat:2025.1-ubuntu_jammy
+    ks_endpoints: quay.io/airshipit/heat:2025.1-ubuntu_jammy
     dep_check: quay.io/airshipit/kubernetes-entrypoint:latest-ubuntu_focal
     image_repo_sync: docker.io/docker:17.07.0
-    octavia_api: quay.io/airshipit/octavia:2024.1-ubuntu_jammy
-    octavia_driver_agent: quay.io/airshipit/octavia:2024.1-ubuntu_jammy
-    octavia_worker: quay.io/airshipit/octavia:2024.1-ubuntu_jammy
-    octavia_housekeeping: quay.io/airshipit/octavia:2024.1-ubuntu_jammy
-    octavia_health_manager: quay.io/airshipit/octavia:2024.1-ubuntu_jammy
-    octavia_health_manager_init: quay.io/airshipit/openstack-client:2024.1-ubuntu_jammy
-    openvswitch_vswitchd: docker.io/openstackhelm/openvswitch:latest-ubuntu_focal
+    octavia_api: quay.io/airshipit/octavia:2025.1-ubuntu_jammy
+    octavia_driver_agent: quay.io/airshipit/octavia:2025.1-ubuntu_jammy
+    octavia_worker: quay.io/airshipit/octavia:2025.1-ubuntu_jammy
+    octavia_worker_init: quay.io/airshipit/openstack-client:2025.1-ubuntu_jammy
+    octavia_housekeeping: quay.io/airshipit/octavia:2025.1-ubuntu_jammy
+    octavia_health_manager: quay.io/airshipit/octavia:2025.1-ubuntu_jammy
+    octavia_health_manager_init: quay.io/airshipit/openstack-client:2025.1-ubuntu_jammy
+    openvswitch_vswitchd: docker.io/openstackhelm/openvswitch:latest-ubuntu_jammy
   pull_policy: "IfNotPresent"
   local_registry:
     active: false
@@ -117,6 +121,27 @@ dependencies:
           service: oslo_cache
         - endpoint: internal
           service: network
+    driver_agent:
+      jobs:
+        - octavia-db-sync
+        - octavia-ks-user
+        - octavia-ks-endpoints
+        - octavia-rabbit-init
+      services:
+        - endpoint: internal
+          service: oslo_db
+        - endpoint: internal
+          service: oslo_db_persistence
+        - endpoint: internal
+          service: identity
+        - endpoint: internal
+          service: oslo_messaging
+        - endpoint: internal
+          service: oslo_cache
+        - endpoint: internal
+          service: network
+        - endpoint: internal
+          service: load_balancer
     worker:
       jobs:
         - octavia-db-sync
@@ -222,8 +247,8 @@ conf:
     DEFAULT:
       log_config_append: /etc/octavia/logging.conf
     ovn:
-      ovn_nb_connection: unix:/run/ovn/ovnnb_db.sock
-      ovn_sb_connection: unix:/run/ovn/ovnsb_db.sock
+      ovn_nb_connection: unix:/var/run/ovn/ovnnb_db.sock
+      ovn_sb_connection: unix:/var/run/ovn/ovnsb_db.sock
     api_settings:
       api_handler: queue_producer
       bind_host: 0.0.0.0
@@ -233,7 +258,7 @@ conf:
     health_manager:
       bind_port: 5555
       bind_ip: 0.0.0.0
-      controller_ip_port_list: 0.0.0.0:5555
+      controller_ip_port_list: null
       heartbeat_key: insecure
     keystone_authtoken:
       auth_type: password
@@ -241,12 +266,12 @@ conf:
       memcache_security_strategy: ENCRYPT
       service_type: load-balancer
     certificates:
-      ca_private_key_passphrase: foobar
-      ca_private_key: /etc/octavia/certs/private/cakey.pem
-      ca_certificate: /etc/octavia/certs/ca_01.pem
+      ca_private_key_passphrase: not-secure-passphrase
+      ca_private_key: /etc/octavia/certs/private/server_ca.key.pem
+      ca_certificate: /etc/octavia/certs/server_ca.cert.pem
     haproxy_amphora:
-      server_ca: /etc/octavia/certs/ca_01.pem
-      client_cert: /etc/octavia/certs/client.pem
+      server_ca: /etc/octavia/certs/server_ca-chain.cert.pem
+      client_cert: /etc/octavia/certs/private/client.cert-and-key.pem
       base_path: /var/lib/octavia
       base_cert_dir: /var/lib/octavia/certs
     controller_worker:
@@ -263,6 +288,7 @@ conf:
       amp_active_retries: 100
       amp_active_wait_sec: 2
       loadbalancer_topology: SINGLE
+      client_ca: /etc/octavia/certs/client_ca.cert.pem
     oslo_messaging:
       topic: octavia_prov
       rpc_thread_pool_size: 2
@@ -293,10 +319,10 @@ conf:
         - context
         - default
     logger_root:
-      level: WARNING
-      handlers: 'null'
+      level: INFO
+      handlers: stdout
     logger_octavia:
-      level: WARNING
+      level: INFO
       handlers:
         - stdout
       qualname: octavia
@@ -589,14 +615,27 @@ pod:
           capabilities:
             add:
               - SYS_NICE
+    octavia_driver_agent:
+      container:
         octavia_driver_agent:
           capabilities:
             add:
               - SYS_NICE
+          runAsUser: 42424
     octavia_worker:
       container:
+        octavia_worker_nic_init:
+          runAsUser: 0
+          capabilities:
+            add:
+              - NET_ADMIN
+              - NET_RAW
+              - NET_BIND_SERVICE
         octavia_worker:
-          runAsUser: 42424
+          runAsUser: 0
+          capabilities:
+            add:
+              - NET_ADMIN
     octavia_housekeeping:
       container:
         octavia_housekeeping:
@@ -627,6 +666,8 @@ pod:
       octavia_api:
         volumeMounts:
         volumes:
+    octavia_driver_agent:
+      init_container: null
       octavia_driver_agent:
         volumeMounts:
         volumes:
@@ -652,7 +693,7 @@ pod:
         volumes:
   replicas:
     api: 1
-    worker: 1
+    driver_agent: 1
     housekeeping: 1
   lifecycle:
     upgrades:
@@ -792,8 +833,9 @@ manifests:
   configmap_bin: true
   configmap_etc: true
   daemonset_health_manager: true
+  daemonset_worker: true
   deployment_api: true
-  deployment_worker: true
+  deployment_driver_agent: true
   deployment_housekeeping: true
   ingress_api: true
   job_bootstrap: true
