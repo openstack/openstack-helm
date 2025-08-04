@@ -68,7 +68,6 @@ chart:
         ks_endpoints: docker.io/openstackhelm/heat:ocata
         api: docker.io/kolla/ubuntu-source-heat-api:ocata
         cfn: docker.io/kolla/ubuntu-source-heat-api:ocata
-        cloudwatch: docker.io/kolla/ubuntu-source-heat-api:ocata
         engine: docker.io/openstackhelm/heat:ocata
         dep_check: quay.io/airshipit/kubernetes-entrypoint:latest-ubuntu_focal
       pull_policy: "IfNotPresent"
