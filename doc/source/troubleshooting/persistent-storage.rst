@@ -40,7 +40,7 @@ can be done with the following Ceph command:
     admin@kubenode01:~$
 
 Use one of your Ceph Monitors to check the status of the cluster. A
-couple of things to note above; our health is `HEALTH\_OK`, we have 3
+couple of things to note above; our health is ``HEALTH_OK``, we have 3
 mons, we've established a quorum, and we can see that all of our OSDs
 are up and in the OSD map.
 

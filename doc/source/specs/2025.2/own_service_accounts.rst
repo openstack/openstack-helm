@@ -8,9 +8,9 @@ Problem Description
 Currently when an OpenStack-Helm chart deploys a OpenStack service,
 it creates a service account that is used by other Openstack services
 to interact with the service's API. For example, the Nova
-chart creates a service account called `nova` and other charts
+chart creates a service account called ``nova`` and other charts
 like Cinder and Neutron configure Cinder and Neutron services
-to use the `nova` service account to interact with the Nova API.
+to use the ``nova`` service account to interact with the Nova API.
 
 However, there might be scenarios where multiple Nova accounts
 are necessary. For instance, if Neutron requires more permissive
@@ -39,13 +39,13 @@ E.g. the Neutron chart will create the following service accounts:
 * neutron (used by Neutron to communicate with the Keystone API to check auth tokens
   and other services can use it to get access to the Neutron API)
 * neutron_nova (used by Neutron to get access to the Nova API instead
-  of using `nova` service account created by the Nova chart)
+  of using ``nova`` service account created by the Nova chart)
 * neutron_placement (used by Neutron to get access to the Placement API
-  instead of using `placement` service account managed by the Placement chart)
+  instead of using ``placement`` service account managed by the Placement chart)
 
 The proposed change is going to be backward compatible because the Neutron
-chart will still be able to use the `neutron` and `placement` service accounts
-managed by the Nova and Placement charts. Also the `neutron` service account
+chart will still be able to use the ``neutron`` and ``placement`` service accounts
+managed by the Nova and Placement charts. Also the ``neutron`` service account
 can still be used by other charts to communicate with the Neutron API.
 
 Implementation
@@ -60,15 +60,15 @@ Primary assignee:
 Values
 ------
 
-Service accounts credentials are defined in the `values.yaml` files
-in the `.Values.endpoints.identity.auth` section. The section contains
+Service accounts credentials are defined in the ``values.yaml`` files
+in the ``.Values.endpoints.identity.auth`` section. The section contains
 a bunch of dicts defining credentials for every service account.
 
 Currently those dicts which correspond to service accounts managed by other charts
 must be aligned with those charts values. For example, the Neutron values must
-define the `nova` service account the same way as the Nova chart does.
+define the ``nova`` service account the same way as the Nova chart does.
 
-The following is the example of how the `.Values.endpoints.identity.auth`
+The following is the example of how the ``.Values.endpoints.identity.auth``
 section of a chart must be modified. The example is given for the Neutron chart:
 
 .. code-block:: yaml
@@ -103,7 +103,7 @@ section of a chart must be modified. The example is given for the Neutron chart:
           # Service account with the following username/password
           # will be created by the Keystone user job
           # and will be used for Neutron configuration. Also the
-          # `role` field must be added to assign necessary roles
+          # ``role`` field must be added to assign necessary roles
           # to the service account.
           nova:
             role: admin,service
@@ -116,7 +116,7 @@ section of a chart must be modified. The example is given for the Neutron chart:
           # Service account with the following username/password
           # will be created by the Keystone user job
           # and will be used for Neutron configuration. Also the
-          # `role` field must be added to assign necessary roles
+          # ``role`` field must be added to assign necessary roles
           # to the service account.
           placement:
             role: admin,service
@@ -135,23 +135,23 @@ used by the `Keystone user manifest`_ to create the service accounts.
 
 So the the template that deploys those secrets must be updated to
 create the secrets for all service accounts defined in the
-`.Values.endpoints.identity.auth` section.
+``.Values.endpoints.identity.auth`` section.
 
-Also the `.Values.secrets.identity` section must be updated and
+Also the ``.Values.secrets.identity`` section must be updated and
 secret names must be added for all service accounts defined in the
-`.Values.endpoints.identity.auth` section.
+``.Values.endpoints.identity.auth`` section.
 
 Keystone user manifest
 ----------------------
 
-The Helm-toolkit chart defines the `Keystone user manifest`_
+The Helm-toolkit chart defines the ``Keystone user manifest``_
 which is used by all Openstack charts to create service accounts.
-The manifest must be updated to be able to accept `serviceUsers` parameter
+The manifest must be updated to be able to accept ``serviceUsers`` parameter
 which will be the list of service accounts to be created by the job.
 
-For backward compatibility if the `serviceUsers` parameter is not given
-then the manifest will use the `serviceUser` parameter or `serviceName` parameter
-to define the `serviceUsers` as a list with a single element.
+For backward compatibility if the ``serviceUsers`` parameter is not given
+then the manifest will use the ``serviceUser`` parameter or ``serviceName`` parameter
+to define the ``serviceUsers`` as a list with a single element.
 
 .. code-block::
 

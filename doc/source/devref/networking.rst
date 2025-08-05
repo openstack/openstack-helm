@@ -37,7 +37,7 @@ Typical networking API request is an operation of create/update/delete:
  * port
 
 Neutron-server service is scheduled on nodes with
-`openstack-control-plane=enabled` label.
+``openstack-control-plane=enabled`` label.
 
 neutron-rpc-server
 ~~~~~~~~~~~~~~~~~~
@@ -77,7 +77,7 @@ implementing the interface. You can see the endpoints to class mapping in
 `setup.cfg <https://github.com/openstack/neutron/blob/412c49b3930ce8aecb0a07aec50a9607058e5bc7/setup.cfg#L69>`_.
 
 If the SDN of your choice is using the ML2 core plugin, then the extra
-options in `neutron/ml2/plugins/ml2_conf.ini` should be configured:
+options in ``neutron/ml2/plugins/ml2_conf.ini`` should be configured:
 
 .. code-block:: ini
 
@@ -92,10 +92,10 @@ options in `neutron/ml2/plugins/ml2_conf.ini` should be configured:
     mech_drivers = openvswitch, l2population
 
 SDNs implementing ML2 driver can add extra/plugin-specific configuration
-options in `neutron/ml2/plugins/ml2_conf.ini`. Or define its own `ml2_conf_<name>.ini`
+options in ``neutron/ml2/plugins/ml2_conf.ini``. Or define its own ``ml2_conf_<name>.ini``
 file where configs specific to the SDN would be placed.
 
-The above configuration options are handled by `neutron/values.yaml`:
+The above configuration options are handled by ``neutron/values.yaml``:
 
 .. code-block:: yaml
 
@@ -119,7 +119,7 @@ The above configuration options are handled by `neutron/values.yaml`:
 
 
 Neutron-rpc-server service is scheduled on nodes with
-`openstack-control-plane=enabled` label.
+``openstack-control-plane=enabled`` label.
 
 neutron-dhcp-agent
 ~~~~~~~~~~~~~~~~~~
@@ -127,7 +127,7 @@ DHCP agent is running dnsmasq process which is serving the IP assignment and
 DNS info. DHCP agent is dependent on the L2 agent wiring the interface.
 So one should be aware that when changing the L2 agent, it also needs to be
 changed in the DHCP agent. The configuration of the DHCP agent includes
-option `interface_driver`, which will instruct how the tap interface created
+option ``interface_driver``, which will instruct how the tap interface created
 for serving the request should be wired.
 
 .. code-block:: yaml
@@ -170,14 +170,14 @@ There is also a need for DHCP agent to pass ovs agent config file
           --config-file /etc/neutron/plugins/ml2/openvswitch_agent.ini
     {{- end }}
 
-This requirement is OVS specific, the `ovsdb_connection` string is defined
-in `openvswitch_agent.ini` file, specifying how DHCP agent can connect to ovs.
+This requirement is OVS specific, the ``ovsdb_connection`` string is defined
+in ``openvswitch_agent.ini`` file, specifying how DHCP agent can connect to ovs.
 When using other SDNs, running the DHCP agent may not be required. When the
 SDN solution is addressing the IP assignments in another way, neutron's
 DHCP agent should be disabled.
 
 neutron-dhcp-agent service is scheduled to run on nodes with the label
-`openstack-control-plane=enabled`.
+``openstack-control-plane=enabled``.
 
 neutron-l3-agent
 ~~~~~~~~~~~~~~~~
@@ -190,7 +190,7 @@ If the SDN implements its own version of L3 networking, neutron-l3-agent
 should not be started.
 
 neutron-l3-agent service is scheduled to run on nodes with the label
-`openstack-control-plane=enabled`.
+``openstack-control-plane=enabled``.
 
 neutron-metadata-agent
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -201,7 +201,7 @@ and L3 agents. Other SDNs may require to force the config driver in nova,
 since the metadata service is not exposed by it.
 
 neutron-metadata-agent service is scheduled to run on nodes with the label
-`openstack-control-plane=enabled`.
+``openstack-control-plane=enabled``.
 
 
 Configuring network plugin
@@ -220,7 +220,7 @@ a new configuration option is added:
 This option will allow to configure the Neutron services in proper way, by
 checking what is the actual backed set in :code:`neutron/values.yaml`.
 
-In order to meet modularity criteria of Neutron chart, section `manifests` in
+In order to meet modularity criteria of Neutron chart, section ``manifests`` in
 :code:`neutron/values.yaml` contains boolean values describing which Neutron's
 Kubernetes resources should be deployed:
 
@@ -266,7 +266,7 @@ networking functionality that SDN is providing.
 OpenVSwitch
 ~~~~~~~~~~~
 The ovs set of daemonsets are running on the node labeled
-`openvswitch=enabled`. This includes the compute and controller/network nodes.
+``openvswitch=enabled``. This includes the compute and controller/network nodes.
 For more flexibility, OpenVSwitch as a tool was split out of Neutron chart, and
 put in separate chart dedicated OpenVSwitch. Neutron OVS agent remains in
 Neutron chart. Splitting out the OpenVSwitch creates possibilities to use it
@@ -277,8 +277,8 @@ neutron-ovs-agent
 As part of Neutron chart, this daemonset is running Neutron OVS agent.
 It is dependent on having :code:`openvswitch-db` and :code:`openvswitch-vswitchd`
 deployed and ready. Since its the default choice of the networking backend,
-all configuration is in place in `neutron/values.yaml`. :code:`neutron-ovs-agent`
-should not be deployed when another SDN is used in `network.backend`.
+all configuration is in place in ``neutron/values.yaml``. :code:`neutron-ovs-agent`
+should not be deployed when another SDN is used in ``network.backend``.
 
 Script in :code:`neutron/templates/bin/_neutron-openvswitch-agent-init.sh.tpl`
 is responsible for determining the tunnel interface and its IP for later usage
@@ -287,7 +287,7 @@ init container and main container with :code:`neutron-ovs-agent` via file
 :code:`/tmp/pod-shared/ml2-local-ip.ini`.
 
 Configuration of OVS bridges can be done via
-`neutron/templates/bin/_neutron-openvswitch-agent-init.sh.tpl`. The
+``neutron/templates/bin/_neutron-openvswitch-agent-init.sh.tpl``. The
 script is configuring the external network bridge and sets up any
 bridge mappings defined in :code:`conf.auto_bridge_add`.  These
 values should align with
@@ -314,7 +314,7 @@ than the default loopback mechanism.
 Linuxbridge
 ~~~~~~~~~~~
 Linuxbridge is the second type of Neutron reference architecture L2 agent.
-It is running on nodes labeled `linuxbridge=enabled`. As mentioned before,
+It is running on nodes labeled ``linuxbridge=enabled``. As mentioned before,
 all nodes that are requiring the L2 services need to be labeled with linuxbridge.
 This includes both the compute and controller/network nodes. It is not possible
 to label the same node with both openvswitch and linuxbridge (or any other
@@ -333,8 +333,8 @@ using file :code:`/tmp/pod-shared/ml2-local-ip.ini` with main linuxbridge
 container.
 
 In order to use linuxbridge in your OpenStack-Helm deployment, you need to
-label the compute and controller/network nodes with `linuxbridge=enabled`
-and use this `neutron/values.yaml` override:
+label the compute and controller/network nodes with ``linuxbridge=enabled``
+and use this ``neutron/values.yaml`` override:
 
 .. code-block:: yaml
 

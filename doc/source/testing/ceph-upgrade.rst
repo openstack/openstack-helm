@@ -68,9 +68,9 @@ Steps:
 
     tee /tmp/ceph.yaml << EOF
       ...
-    	network:
-    	  public: ${CEPH_PUBLIC_NETWORK}
-    	  cluster: ${CEPH_CLUSTER_NETWORK}
+      network:
+        public: ${CEPH_PUBLIC_NETWORK}
+        cluster: ${CEPH_CLUSTER_NETWORK}
       images:
         tags:
           ceph_bootstrap: 'docker.io/ceph/daemon:master-0351083-luminous-ubuntu-16.04-x86_64'
@@ -84,19 +84,19 @@ Steps:
           ceph_rgw: 'docker.io/ceph/daemon:master-0351083-luminous-ubuntu-16.04-x86_64'
           ceph_cephfs_provisioner: 'quay.io/external_storage/cephfs-provisioner:v0.1.1'
           ceph_rbd_provisioner: 'quay.io/external_storage/rbd-provisioner:v0.1.0'
-    	conf:
-    	  ceph:
-    	    global:
-    	      fsid: ${CEPH_FS_ID}
-    	  rgw_ks:
-    	    enabled: true
-    	  pool:
-    	    crush:
-    	      tunables: ${CRUSH_TUNABLES}
-    	    target:
+      conf:
+        ceph:
+          global:
+            fsid: ${CEPH_FS_ID}
+        rgw_ks:
+          enabled: true
+        pool:
+          crush:
+            tunables: ${CRUSH_TUNABLES}
+          target:
             # NOTE(portdirect): 5 nodes, with one osd per node
-    	      osd: 5
-    	      pg_per_osd: 100
+            osd: 5
+            pg_per_osd: 100
       ...
     EOF
 
