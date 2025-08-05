@@ -1,0 +1,609 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Default values for watcher
+# This is a YAML-formatted file.
+# Declare name/value pairs to be passed into your templates.
+# name: value
+
+---
+labels:
+  api:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  decision_engine:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  applier:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  job:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  test:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+
+release_group: null
+
+images:
+  tags:
+    test: docker.io/xrally/xrally-openstack:2.0.0
+    bootstrap: quay.io/airshipit/heat:2024.1-ubuntu_jammy
+    dep_check: quay.io/airshipit/kubernetes-entrypoint:latest-ubuntu_focal
+    db_init: quay.io/airshipit/heat:2024.1-ubuntu_jammy
+    watcher_db_sync: quay.io/airshipit/watcher:2024.1-ubuntu_jammy
+    db_drop: quay.io/airshipit/heat:2024.1-ubuntu_jammy
+    rabbit_init: docker.io/rabbitmq:3.13-management
+    ks_user: quay.io/airshipit/heat:2024.1-ubuntu_jammy
+    ks_service: quay.io/airshipit/heat:2024.1-ubuntu_jammy
+    ks_endpoints: quay.io/airshipit/heat:2024.1-ubuntu_jammy
+    watcher_api: quay.io/airshipit/watcher:2024.1-ubuntu_jammy
+    watcher_decision_engine: quay.io/airshipit/watcher:2024.1-ubuntu_jammy
+    watcher_applier: quay.io/airshipit/watcher:2024.1-ubuntu_jammy
+    image_repo_sync: docker.io/docker:17.07.0
+  pull_policy: "IfNotPresent"
+  local_registry:
+    active: false
+    exclude:
+      - dep_check
+      - image_repo_sync
+
+network:
+  api:
+    ingress:
+      public: true
+      classes:
+        namespace: "nginx"
+        cluster: "nginx-cluster"
+      annotations:
+        nginx.ingress.kubernetes.io/rewrite-target: /
+    node_port:
+      enabled: false
+      port: 31233
+
+bootstrap:
+  enabled: false
+  ks_user: watcher
+  script: |
+    openstack token issue
+
+dependencies:
+  dynamic:
+    common:
+      local_image_registry:
+        jobs:
+          - watcher-image-repo-sync
+        services:
+          - endpoint: node
+            service: local_image_registry
+  static:
+    api:
+      jobs:
+        - watcher-db-sync
+        - watcher-ks-user
+        - watcher-ks-endpoints
+        - watcher-rabbit-init
+      services:
+        - endpoint: internal
+          service: oslo_db
+        - endpoint: internal
+          service: identity
+    db_drop:
+      services:
+        - endpoint: internal
+          service: oslo_db
+    db_init:
+      services:
+        - endpoint: internal
+          service: oslo_db
+    db_sync:
+      jobs:
+        - watcher-db-init
+      services:
+        - endpoint: internal
+          service: oslo_db
+    decision_engine:
+      jobs:
+        - watcher-db-sync
+        - watcher-ks-user
+        - watcher-ks-endpoints
+        - watcher-rabbit-init
+      services:
+        - endpoint: internal
+          service: oslo_db
+        - endpoint: internal
+          service: identity
+    applier:
+      jobs:
+        - watcher-db-sync
+        - watcher-ks-user
+        - watcher-ks-endpoints
+        - watcher-rabbit-init
+      services:
+        - endpoint: internal
+          service: oslo_db
+        - endpoint: internal
+          service: identity
+    ks_endpoints:
+      jobs:
+        - watcher-ks-service
+      services:
+        - endpoint: internal
+          service: identity
+    ks_service:
+      services:
+        - endpoint: internal
+          service: identity
+    ks_user:
+      services:
+        - endpoint: internal
+          service: identity
+    rabbit_init:
+      services:
+        - service: oslo_messaging
+          endpoint: internal
+    tests:
+      services:
+        - endpoint: internal
+          service: identity
+        - endpoint: internal
+          service: infra-optim
+    image_repo_sync:
+      services:
+        - endpoint: internal
+          service: local_image_registry
+
+# Names of secrets used by bootstrap and environmental checks
+secrets:
+  identity:
+    admin: watcher-keystone-admin
+    watcher: watcher-keystone-user
+    test: watcher-keystone-test
+  oslo_db:
+    admin: watcher-db-admin
+    watcher: watcher-db-user
+  oslo_messaging:
+    admin: watcher-rabbitmq-admin
+    watcher: watcher-rabbitmq-user
+  oci_image_registry:
+    watcher: watcher-oci-image-registry
+
+# typically overridden by environmental
+# values, but should include all endpoints
+# required by this chart
+endpoints:
+  cluster_domain_suffix: cluster.local
+  local_image_registry:
+    name: docker-registry
+    namespace: docker-registry
+    hosts:
+      default: localhost
+      internal: docker-registry
+      node: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        node: 5000
+  oci_image_registry:
+    name: oci-image-registry
+    namespace: oci-image-registry
+    auth:
+      enabled: false
+      watcher:
+        username: watcher
+        password: password
+    hosts:
+      default: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        default: null
+  identity:
+    name: keystone
+    auth:
+      admin:
+        region_name: RegionOne
+        username: admin
+        password: password
+        project_name: admin
+        user_domain_name: default
+        project_domain_name: default
+      watcher:
+        role: admin
+        region_name: RegionOne
+        username: watcher
+        password: password
+        project_name: service
+        user_domain_name: service
+        project_domain_name: service
+      test:
+        role: admin
+        region_name: RegionOne
+        username: test
+        password: password
+        project_name: test
+        user_domain_name: service
+        project_domain_name: service
+    hosts:
+      default: keystone
+      internal: keystone-api
+    host_fqdn_override:
+      default: null
+    path:
+      default: /v3
+    scheme:
+      default: http
+    port:
+      api:
+        default: 80
+        internal: 5000
+  infra_optim:
+    name: watcher
+    hosts:
+      default: watcher-api
+      public: watcher
+    host_fqdn_override:
+      default: null
+    path:
+      default: /
+    scheme:
+      default: 'http'
+    port:
+      api:
+        default: 9322
+        public: 80
+  oslo_db:
+    auth:
+      admin:
+        username: root
+        password: password
+      watcher:
+        username: watcher
+        password: password
+    hosts:
+      default: mariadb
+    host_fqdn_override:
+      default: null
+    path: /watcher
+    scheme: mysql+pymysql
+    port:
+      mysql:
+        default: 3306
+  oslo_messaging:
+    auth:
+      admin:
+        username: rabbitmq
+        password: password
+      watcher:
+        username: watcher
+        password: password
+    hosts:
+      default: rabbitmq
+    host_fqdn_override:
+      default: null
+    path: /watcher
+    scheme: rabbit
+    port:
+      amqp:
+        default: 5672
+      http:
+        default: 15672
+  oslo_cache:
+    auth:
+      # NOTE(portdirect): this is used to define the value for keystone
+      # authtoken cache encryption key, if not set it will be populated
+      # automatically with a random value, but to take advantage of
+      # this feature all services should be set to use the same key,
+      # and memcache service.
+      memcache_secret_key: null
+    hosts:
+      default: memcached
+    host_fqdn_override:
+      default: null
+    port:
+      memcache:
+        default: 11211
+  fluentd:
+    namespace: null
+    name: fluentd
+    hosts:
+      default: fluentd-logging
+    host_fqdn_override:
+      default: null
+    path:
+      default: null
+    scheme: 'http'
+    port:
+      service:
+        default: 24224
+      metrics:
+        default: 24220
+
+conf:
+  rally_tests:
+    run_tempest: false
+    tests: {}
+    templates: []
+  policy: {}
+  watcher:
+    DEFAULT:
+      log_config_append: /etc/watcher/logging.conf
+      transport_url: null
+    api:
+      host: '0.0.0.0'
+    database:
+      max_retries: -1
+    keystone_authtoken:
+      auth_type: password
+      auth_version: v3
+      memcache_security_strategy: ENCRYPT
+    watcher_clients_auth:
+      cafile: null
+      certfile: null
+      keyfile: null
+      insecure: false
+  logging:
+    loggers:
+      keys:
+        - root
+        - watcher
+    handlers:
+      keys:
+        - stdout
+        - stderr
+        - "null"
+    formatters:
+      keys:
+        - context
+        - default
+    logger_root:
+      level: WARNING
+      handlers: 'null'
+    logger_watcher:
+      level: INFO
+      handlers:
+        - stdout
+      qualname: watcher
+    logger_amqp:
+      level: WARNING
+      handlers: stderr
+      qualname: amqp
+    logger_amqplib:
+      level: WARNING
+      handlers: stderr
+      qualname: amqplib
+    logger_eventletwsgi:
+      level: WARNING
+      handlers: stderr
+      qualname: eventlet.wsgi.server
+    logger_sqlalchemy:
+      level: WARNING
+      handlers: stderr
+      qualname: sqlalchemy
+    logger_boto:
+      level: WARNING
+      handlers: stderr
+      qualname: boto
+    handler_null:
+      class: logging.NullHandler
+      formatter: default
+      args: ()
+    handler_stdout:
+      class: StreamHandler
+      args: (sys.stdout,)
+      formatter: context
+    handler_stderr:
+      class: StreamHandler
+      args: (sys.stderr,)
+      formatter: context
+    formatter_context:
+      class: oslo_log.formatters.ContextFormatter
+      datefmt: "%Y-%m-%d %H:%M:%S"
+    formatter_default:
+      format: "%(message)s"
+      datefmt: "%Y-%m-%d %H:%M:%S"
+
+pod:
+  user:
+    watcher:
+      uid: 1000
+  affinity:
+    anti:
+      type:
+        default: preferredDuringSchedulingIgnoredDuringExecution
+      topologyKey:
+        default: kubernetes.io/hostname
+  mounts:
+    watcher_api:
+      init_container: null
+      watcher_api:
+        volumeMounts:
+        volumes:
+    watcher_decision_engine:
+      init_container: null
+      watcher_decision_engine:
+        volumeMounts:
+        volumes:
+    watcher_applier:
+      init_container: null
+      watcher_applier:
+        volumeMounts:
+        volumes:
+    watcher_tests:
+      init_container: null
+      watcher_tests:
+        volumeMounts:
+        volumes:
+  replicas:
+    api: 1
+    decision_engine: 1
+    applier: 1
+  lifecycle:
+    upgrades:
+      deployments:
+        revision_history: 3
+        pod_replacement_strategy: RollingUpdate
+        rolling_update:
+          max_unavailable: 1
+          max_surge: 3
+    disruption_budget:
+      api:
+        min_available: 0
+    termination_grace_period:
+      api:
+        timeout: 30
+  resources:
+    enabled: false
+    api:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+    decision_engine:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+    applier:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+    jobs:
+      bootstrap:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      db_init:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      db_sync:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      db_drop:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      ks_endpoints:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      ks_service:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      ks_user:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      rabbit_init:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      tests:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      image_repo_sync:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+
+network_policy:
+  watcher:
+    ingress:
+      - from:
+        - podSelector:
+            matchLabels:
+              application: watcher
+        - podSelector:
+            matchLabels:
+              application: horizon
+        - podSelector:
+            matchLabels:
+              application: ingress
+        - podSelector:
+            matchLabels:
+              application: heat
+        ports:
+        - protocol: TCP
+          port: 80
+        - protocol: TCP
+          port: 9322
+
+manifests:
+  configmap_bin: true
+  configmap_etc: true
+  deployment_api: true
+  deployment_applier: true
+  ingress_api: true
+  job_bootstrap: true
+  job_db_init: true
+  job_db_sync: true
+  job_db_drop: false
+  job_image_repo_sync: true
+  job_ks_endpoints: true
+  job_ks_service: true
+  job_ks_user: true
+  job_rabbit_init: true
+  pdb_api: true
+  pod_rally_test: true
+  network_policy: false
+  secret_db: true
+  secret_keystone: true
+  secret_rabbitmq: true
+  secret_registry: true
+  service_ingress_api: true
+  service_api: true
+  statefulset_decision_engine: true
+...

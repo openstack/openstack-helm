@@ -1,0 +1,88 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.statefulset_decision_engine }}
+{{- $envAll := . }}
+
+{{- $mounts_watcher_decision_engine := .Values.pod.mounts.watcher_decision_engine.watcher_decision_engine }}
+{{- $mounts_watcher_decision_engine_init := .Values.pod.mounts.watcher_decision_engine.init_container }}
+
+{{- $serviceAccountName := "watcher-decision-engine" }}
+{{ tuple $envAll "decision_engine" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: watcher-decision-engine
+  annotations:
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+  labels:
+{{ tuple $envAll "watcher" "decision-engine" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  serviceName: watcher-decision-engine
+  replicas: {{ .Values.pod.replicas.engine }}
+  selector:
+    matchLabels:
+{{ tuple $envAll "watcher" "decision-engine" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "watcher" "decision-engine" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+{{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
+    spec:
+      serviceAccountName: {{ $serviceAccountName }}
+      affinity:
+{{ tuple $envAll "watcher" "decision-engine" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
+      nodeSelector:
+        {{ .Values.labels.decision_engine.node_selector_key }}: {{ .Values.labels.decision_engine.node_selector_value }}
+      initContainers:
+{{ tuple $envAll "decision-engine" $mounts_watcher_decision_engine_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+      containers:
+        - name: watcher-decision-engine
+{{ tuple $envAll "watcher_decision_engine" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.decision_engine | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          securityContext:
+            runAsUser: {{ .Values.pod.user.watcher.uid }}
+          command:
+            - /tmp/watcher-decision-engine.sh
+          volumeMounts:
+            - name: pod-etc-watcher
+              mountPath: /etc/watcher
+            - name: watcher-bin
+              mountPath: /tmp/watcher-decision-engine.sh
+              subPath: watcher-decision-engine.sh
+              readOnly: true
+            - name: watcher-etc
+              mountPath: /etc/watcher/watcher.conf
+              subPath: watcher.conf
+              readOnly: true
+            - name: watcher-etc
+              mountPath: {{ .Values.conf.watcher.DEFAULT.log_config_append }}
+              subPath: {{ base .Values.conf.watcher.DEFAULT.log_config_append }}
+              readOnly: true
+{{ if $mounts_watcher_decision_engine.volumeMounts }}{{ toYaml $mounts_watcher_decision_engine.volumeMounts | indent 12 }}{{ end }}
+      volumes:
+        - name: pod-etc-watcher
+          emptyDir: {}
+        - name: watcher-bin
+          configMap:
+            name: watcher-bin
+            defaultMode: 0555
+        - name: watcher-etc
+          secret:
+            secretName: watcher-etc
+            defaultMode: 0444
+{{ if $mounts_watcher_decision_engine.volumes }}{{ toYaml $mounts_watcher_decision_engine.volumes | indent 8 }}{{ end }}
+{{- end }}
