@@ -6,6 +6,7 @@ OpenStack charts options
 
     aodh
     barbican
+    blazar
     ceilometer
     cinder
     cyborg

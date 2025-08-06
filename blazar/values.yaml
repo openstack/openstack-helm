@@ -1,0 +1,791 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+release_group: null
+
+labels:
+  api:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  manager:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  job:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  test:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+
+images:
+  tags:
+    test: docker.io/xrally/xrally-openstack:2.0.0
+    bootstrap: quay.io/airshipit/heat:2025.1-ubuntu_jammy
+    db_init: quay.io/airshipit/heat:2025.1-ubuntu_jammy
+    db_drop: quay.io/airshipit/heat:2025.1-ubuntu_jammy
+    ks_user: quay.io/airshipit/heat:2025.1-ubuntu_jammy
+    ks_service: quay.io/airshipit/heat:2025.1-ubuntu_jammy
+    ks_endpoints: quay.io/airshipit/heat:2025.1-ubuntu_jammy
+    rabbit_init: docker.io/rabbitmq:3.13-management
+    blazar_db_sync: quay.io/airshipit/blazar:2025.1-ubuntu_jammy
+    blazar_api: quay.io/airshipit/blazar:2025.1-ubuntu_jammy
+    blazar_manager: quay.io/airshipit/blazar:2025.1-ubuntu_jammy
+    dep_check: quay.io/airshipit/kubernetes-entrypoint:latest-ubuntu_jammy
+    image_repo_sync: docker.io/docker:17.07.0
+
+  pull_policy: "IfNotPresent"
+  local_registry:
+    active: false
+    exclude:
+      - dep_check
+      - image_repo_sync
+
+network:
+  api:
+    ingress:
+      public: true
+      classes:
+        namespace: "nginx"
+        cluster: "nginx-cluster"
+      annotations:
+        nginx.ingress.kubernetes.io/rewrite-target: /
+    external_policy_local: false
+    node_port:
+      enabled: true
+      port: 30778
+  manager:
+    ingress:
+      public: true
+      classes:
+        namespace: "nginx"
+        cluster: "nginx-cluster"
+      annotations:
+        nginx.ingress.kubernetes.io/rewrite-target: /
+    external_policy_local: false
+    node_port:
+      enabled: true
+      port: 30779
+
+dependencies:
+  dynamic:
+    common:
+      local_image_registry:
+        jobs:
+          - blazar-image-repo-sync
+        services:
+          - endpoint: node
+            service: local_image_registry
+  static:
+    api:
+      jobs:
+        - blazar-db-sync
+        - blazar-ks-user
+        - blazar-ks-endpoints
+        - blazar-rabbit-init
+      services:
+        - endpoint: internal
+          service: oslo_db
+        - endpoint: internal
+          service: identity
+        - endpoint: internal
+          service: oslo_messaging
+    manager:
+      jobs:
+        - blazar-db-sync
+        - blazar-ks-user
+        - blazar-ks-endpoints
+        - blazar-rabbit-init
+      services:
+        - endpoint: internal
+          service: oslo_db
+        - endpoint: internal
+          service: identity
+        - endpoint: internal
+          service: oslo_messaging
+    bootstrap:
+      services:
+        - endpoint: internal
+          service: identity
+        - endpoint: internal
+          service: reservation
+    db_init:
+      services:
+        - endpoint: internal
+          service: oslo_db
+    db_drop:
+      services:
+        - endpoint: internal
+          service: oslo_db
+    db_sync:
+      jobs:
+        - blazar-db-init
+      services:
+        - endpoint: internal
+          service: oslo_db
+    ks_endpoints:
+      jobs:
+        - blazar-ks-service
+      services:
+        - endpoint: internal
+          service: identity
+    ks_service:
+      services:
+        - endpoint: internal
+          service: identity
+    ks_user:
+      services:
+        - endpoint: internal
+          service: identity
+    rabbit_init:
+      services:
+        - endpoint: internal
+          service: oslo_messaging
+    tests:
+      jobs:
+        - blazar-db-sync
+      services:
+        - endpoint: internal
+          service: oslo_db
+        - endpoint: internal
+          service: identity
+        - endpoint: internal
+          service: reservation
+        - endpoint: internal
+          service: compute
+    image_repo_sync:
+      services:
+        - endpoint: internal
+          service: local_image_registry
+
+secrets:
+  identity:
+    admin: blazar-keystone-admin
+    blazar: blazar-keystone-user
+    service: blazar-keystone-service
+    test: blazar-keystone-test
+  oslo_db:
+    admin: blazar-db-admin
+    blazar: blazar-db-user
+  oslo_messaging:
+    admin: blazar-rabbitmq-admin
+    blazar: blazar-rabbitmq-user
+  tls:
+    reservation:
+      api:
+        public: blazar-tls-public
+        internal: blazar-tls-internal
+        nginx: blazar-tls-nginx
+        nginx_cluster: blazar-tls-nginx-cluster
+
+endpoints:
+  cluster_domain_suffix: cluster.local
+  local_image_registry:
+    name: docker-registry
+    namespace: docker-registry
+    hosts:
+      default: localhost
+      internal: docker-registry
+      node: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        node: 5000
+  identity:
+    name: keystone
+    auth:
+      admin:
+        region_name: RegionOne
+        username: admin
+        password: password
+        project_name: admin
+        user_domain_name: default
+        project_domain_name: default
+      blazar:
+        role: admin,service
+        region_name: RegionOne
+        username: blazar
+        password: password
+        project_name: service
+        user_domain_name: service
+        project_domain_name: service
+      service:
+        role: admin,service
+        region_name: RegionOne
+        username: blazar_service_user
+        password: password
+        project_name: service
+        user_domain_name: service
+        project_domain_name: service
+      test:
+        role: admin
+        region_name: RegionOne
+        username: blazar-test
+        password: password
+        project_name: test
+        user_domain_name: service
+        project_domain_name: service
+    hosts:
+      default: keystone
+      internal: keystone-api
+    host_fqdn_override:
+      default: null
+    path:
+      default: /v3
+    scheme:
+      default: http
+    port:
+      api:
+        default: 80
+        internal: 5000
+  reservation:
+    name: blazar
+    hosts:
+      default: blazar-api
+      public: blazar
+    host_fqdn_override:
+      default: null
+    path:
+      default: /v1
+    scheme:
+      default: 'http'
+      service: 'http'
+    port:
+      api:
+        default: 1234
+        public: 80
+        service: 1234
+  oslo_db:
+    auth:
+      admin:
+        username: root
+        password: password
+        secret:
+          tls:
+            internal: mariadb-tls-direct
+      blazar:
+        username: blazar
+        password: password
+    hosts:
+      default: mariadb
+    host_fqdn_override:
+      default: null
+    path: /blazar
+    scheme: mysql+pymysql
+    port:
+      mysql:
+        default: 3306
+  oslo_messaging:
+    auth:
+      admin:
+        username: rabbitmq
+        password: password
+        secret:
+          tls:
+            internal: rabbitmq-tls-direct
+      blazar:
+        username: blazar
+        password: password
+    statefulset:
+      replicas: 2
+      name: rabbitmq-rabbitmq
+    hosts:
+      default: rabbitmq
+    host_fqdn_override:
+      default: null
+    path: /blazar
+    scheme: rabbit
+    port:
+      amqp:
+        default: 5672
+      http:
+        default: 15672
+  oslo_cache:
+    auth:
+      memcache_secret_key: null
+    hosts:
+      default: memcached
+    host_fqdn_override:
+      default: null
+    port:
+      memcache:
+        default: 11211
+  fluentd:
+    namespace: null
+    name: fluentd
+    hosts:
+      default: fluentd-logging
+    host_fqdn_override:
+      default: null
+    path:
+      default: null
+    scheme: 'http'
+    port:
+      service:
+        default: 24224
+      metrics:
+        default: 24220
+  compute:
+    name: nova
+    hosts:
+      default: nova-api
+      internal: nova-api
+    host_fqdn_override:
+      default: null
+    path:
+      default: "/v2.1"
+    scheme:
+      default: http
+    port:
+      api:
+        default: 80
+        internal: 8774
+        public: 80
+  network:
+    public_network_id: "public"
+    floating_network_id: "public"
+
+pod:
+  probes:
+    rpc_timeout: 60
+    rpc_retries: 2
+    api:
+      default:
+        liveness:
+          enabled: True
+          params:
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            timeoutSeconds: 5
+        readiness:
+          enabled: True
+          params:
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            timeoutSeconds: 5
+  security_context:
+    blazar:
+      pod:
+        runAsUser: 42424
+      container:
+        blazar_api:
+          runAsUser: 0
+        blazar_manager:
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
+    test:
+      pod:
+        runAsUser: 42424
+      container:
+        blazar_test_ks_user:
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
+        blazar_test:
+          runAsUser: 65500
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
+  affinity:
+    anti:
+      type:
+        default: preferredDuringSchedulingIgnoredDuringExecution
+      topologyKey:
+        default: kubernetes.io/hostname
+      weight:
+        default: 10
+  tolerations:
+    blazar:
+      enabled: false
+      tolerations:
+        - key: node-role.kubernetes.io/master
+          operator: Exists
+          effect: NoSchedule
+        - key: node-role.kubernetes.io/control-plane
+          operator: Exists
+          effect: NoSchedule
+  mounts:
+    blazar_api:
+      init_container: null
+      blazar_api:
+        volumeMounts:
+        volumes:
+    blazar_manager:
+      init_container: null
+      blazar_manager:
+        volumeMounts:
+        volumes:
+    blazar_bootstrap:
+      init_container: null
+      blazar_bootstrap:
+        volumeMounts:
+        volumes:
+    blazar_db_sync:
+      blazar_db_sync:
+        volumeMounts:
+        volumes:
+    blazar_tests:
+      init_container: null
+      blazar_tests:
+        volumeMounts:
+        volumes:
+  replicas:
+    api: 1
+    manager: 1
+  lifecycle:
+    upgrades:
+      deployments:
+        revision_history: 3
+        pod_replacement_strategy: RollingUpdate
+        rolling_update:
+          max_unavailable: 1
+          max_surge: 3
+    disruption_budget:
+      api:
+        min_available: 0
+      manager:
+        min_available: 0
+    termination_grace_period:
+      api:
+        timeout: 30
+      manager:
+        timeout: 30
+  resources:
+    enabled: false
+    api:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+    manager:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+    jobs:
+      bootstrap:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      db_init:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      db_sync:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      db_drop:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      ks_endpoints:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      ks_service:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      ks_user:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      rabbit_init:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      tests:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      image_repo_sync:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+
+jobs:
+  bootstrap:
+    backoffLimit: 5
+    activeDeadlineSeconds: 600
+  db_init:
+    backoffLimit: 5
+    activeDeadlineSeconds: 600
+  db_drop:
+    backoffLimit: 5
+    activeDeadlineSeconds: 600
+  db_sync:
+    backoffLimit: 5
+    activeDeadlineSeconds: 600
+  ks_endpoints:
+    backoffLimit: 5
+    activeDeadlineSeconds: 600
+  ks_service:
+    backoffLimit: 5
+    activeDeadlineSeconds: 600
+  ks_user:
+    backoffLimit: 5
+    activeDeadlineSeconds: 600
+  rabbit_init:
+    backoffLimit: 5
+    activeDeadlineSeconds: 600
+
+conf:
+  blazar:
+    DEFAULT:
+      debug: false
+      log_config_append: /etc/blazar/logging.conf
+      api_paste_config: /etc/blazar/api-paste.ini
+      os_auth_protocol:
+      os_auth_host:
+      os_auth_port:
+      os_region_name:
+      os_admin_username:
+      os_admin_password:
+      os_admin_project_name:
+      os_admin_user_domain_name:
+      os_admin_project_domain_name:
+    database:
+      max_retries: -1
+    keystone_authtoken:
+      service_token_roles: service
+      service_token_roles_required: true
+      auth_type: password
+      auth_version: v3
+      memcache_security_strategy: ENCRYPT
+      service_type: reservation
+    oslo_messaging_notifications:
+      driver: messagingv2
+    oslo_messaging_rabbit:
+      rabbit_ha_queues: true
+    manager:
+      plugins: physical.host.plugin,virtual.instance.plugin,virtual.floatingip.plugin
+    enforcement:
+      enabled_filters:
+        - MaxLeaseDurationFilter
+      max_lease_duration: 86400
+    physical_host_plugin:
+      aggregate_freepool_name: freepool
+      blazar_username: blazar
+      blazar_password: password
+      blazar_project_name: service
+      blazar_user_domain_name: service
+      blazar_project_domain_name: service
+      nova_client_timeout: 30
+      enable_host_reservation: true
+
+  logging:
+    loggers:
+      keys:
+        - root
+        - blazar
+    handlers:
+      keys:
+        - stdout
+        - stderr
+        - "null"
+    formatters:
+      keys:
+        - context
+        - default
+    logger_root:
+      level: WARNING
+      handlers: "null"
+    logger_blazar:
+      level: INFO
+      handlers:
+        - stdout
+      qualname: blazar
+    logger_amqp:
+      level: WARNING
+      handlers: stderr
+      qualname: amqp
+    logger_amqplib:
+      level: WARNING
+      handlers: stderr
+      qualname: amqplib
+    logger_eventletwsgi:
+      level: WARNING
+      handlers: stderr
+      qualname: eventlet.wsgi.server
+    logger_sqlalchemy:
+      level: WARNING
+      handlers: stderr
+      qualname: sqlalchemy
+    logger_boto:
+      level: WARNING
+      handlers: stderr
+      qualname: boto
+    handler_null:
+      class: logging.NullHandler
+      formatter: default
+      args: ()
+    handler_stdout:
+      class: StreamHandler
+      args: (sys.stdout,)
+      formatter: context
+    handler_stderr:
+      class: StreamHandler
+      args: (sys.stderr,)
+      formatter: context
+    formatter_context:
+      class: oslo_log.formatters.ContextFormatter
+      datefmt: "%Y-%m-%d %H:%M:%S"
+    formatter_default:
+      format: "%(message)s"
+      datefmt: "%Y-%m-%d %H:%M:%S"
+  api_paste:
+    composite:reservation:
+      use: "egg:Paste#urlmap"
+      "/": blazarversions
+      "/v1": blazarapi_v1
+      "/v2": blazarapi_v2
+    composite:blazarapi_v1:
+      use: "call:blazar.api.middleware:pipeline_factory"
+      noauth: "request_id faultwrap sizelimit noauth blazarapi_v1"
+      keystone: "request_id faultwrap sizelimit authtoken keystonecontext blazarapi_v1"
+    composite:blazarapi_v2:
+      use: "call:blazar.api.middleware:pipeline_factory"
+      noauth: "request_id faultwrap sizelimit noauth blazarapi_v2"
+      keystone: "request_id faultwrap sizelimit authtoken keystonecontext blazarapi_v2"
+    app:blazarversions:
+      paste.app_factory: "blazar.api.versions:Versions.factory"
+    app:blazarapi_v1:
+      paste.app_factory: "blazar.api.v1.app:make_app"
+    app:blazarapi_v2:
+      paste.app_factory: "blazar.api.v2.app:make_app"
+    filter:request_id:
+      paste.filter_factory: "oslo_middleware:RequestId.factory"
+    filter:faultwrap:
+      paste.filter_factory: "blazar.api.middleware:FaultWrapper.factory"
+    filter:noauth:
+      paste.filter_factory: "blazar.api.middleware:NoAuthMiddleware.factory"
+    filter:sizelimit:
+      paste.filter_factory: "oslo_middleware:RequestBodySizeLimiter.factory"
+    filter:authtoken:
+      paste.filter_factory: "keystonemiddleware.auth_token:filter_factory"
+    filter:keystonecontext:
+      paste.filter_factory: "blazar.api.middleware:KeystoneContextMiddleware.factory"
+  policy: {}
+  rabbitmq:
+    policies:
+      - vhost: "blazar"
+        name: "ha_ttl_blazar"
+        pattern: '^(?!(amq\.|reply_)).*'
+        definition:
+          ha-mode: "all"
+          ha-sync-mode: "automatic"
+          message-ttl: 70000
+        priority: 0
+        apply-to: all
+
+  rally_tests:
+    run_tempest: false
+    tests:
+      # NOTE:This is a dummy test added as a placeholder and currently, Rally does not support Blazar scenarios.
+      Dummy.dummy:
+        -
+          args:
+            sleep: 5
+          runner:
+            type: "constant"
+            times: 20
+            concurrency: 5
+          sla:
+            failure_rate:
+              max: 0
+    templates: []
+
+bootstrap:
+  enabled: false
+  ks_user: blazar
+  script: |
+    openstack token issue
+
+# NOTE(helm_hook): helm_hook might break for helm2 binary.
+# set helm3_hook: false when using the helm2 binary.
+helm3_hook: true
+
+manifests:
+  certificates: false
+  configmap_bin: true
+  configmap_etc: true
+  deployment_api: true
+  deployment_manager: true
+  ingress_api: true
+  job_bootstrap: true
+  job_db_init: true
+  job_db_drop: false
+  job_db_sync: true
+  job_image_repo_sync: true
+  job_ks_endpoints: true
+  job_ks_service: true
+  job_ks_user: true
+  job_rabbit_init: true
+  pdb_api: true
+  pdb_manager: true
+  pod_rally_test: true
+  secret_db: true
+  secret_keystone: true
+  secret_ks_etc: true
+  secret_rabbitmq: true
+  service_api: true
+  service_ingress_api: true
+
+network_policy:
+  blazar:
+    ingress:
+      - {}
+    egress:
+      - {}
+
+tls:
+  identity: false
+  oslo_messaging: false
+  oslo_db: false
+  reservation:
+    api:
+      public: false
+...

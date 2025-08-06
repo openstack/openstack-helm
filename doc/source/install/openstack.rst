@@ -460,3 +460,19 @@ For comprehensive instructions on installing Tacker using Openstack Helm,
 please refer `Install Tacker via Openstack Helm`_.
 
 .. _Install Tacker via Openstack Helm: https://docs.openstack.org/tacker/latest/install/openstack_helm.html
+
+Blazar
+~~~~~~
+
+Blazar is the resource reservation service for OpenStack. It provides a way to reserve
+resources such as compute hosts, servers and floating IPs for future use.
+
+To deploy the Blazar service run the following:
+
+.. code-block:: bash
+
+    helm upgrade --install blazar openstack-helm/blazar \
+      --namespace=openstack
+      $(helm osh get-values-overrides -p ${OVERRIDES_DIR} -c blazar ${FEATURES})
+
+    helm osh wait-for-pods openstack
