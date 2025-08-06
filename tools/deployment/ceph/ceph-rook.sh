@@ -15,7 +15,7 @@
 set -xe
 
 # Specify the Rook release tag to use for the Rook operator here
-ROOK_RELEASE=v1.17.3
+ROOK_RELEASE=v1.17.7
 
 : ${CEPH_OSD_DATA_DEVICE:="/dev/loop100"}
 
@@ -182,7 +182,7 @@ monitoring:
 pspEnable: false
 cephClusterSpec:
   cephVersion:
-    image: quay.io/ceph/ceph:v19.2.2
+    image: quay.io/ceph/ceph:v19.2.3
     allowUnsupported: false
   dataDirHostPath: /var/lib/rook
   skipUpgradeChecks: false
