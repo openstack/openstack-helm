@@ -22,7 +22,7 @@ COMMAND="${@:-liveness}"
 function heath_check () {
    ASOK=$(ls /var/run/ceph/${CLUSTER}-mgr*)
    MGR_NAME=$(basename ${ASOK} | sed -e 's/.asok//' | cut -f 1 -d '.' --complement)
-   MGR_STATE=$(ceph --cluster ${CLUSTER} --connect-timeout 1 daemon mgr.${MGR_NAME} status|grep "osd_epoch")
+   MGR_STATE=$(ceph --cluster ${CLUSTER} --connect-timeout 1 daemon mgr.${MGR_NAME} status)
    if [ $? = 0 ]; then
      exit 0
    else
