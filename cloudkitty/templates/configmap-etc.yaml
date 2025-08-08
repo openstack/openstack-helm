@@ -1,0 +1,96 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- define "cloudkitty.configmap.etc" }}
+{{- $configMapName := index . 0 }}
+{{- $envAll := index . 1 }}
+{{- with $envAll }}
+
+{{- if empty .Values.conf.cloudkitty.keystone_authtoken.auth_url -}}
+{{- $_ := tuple "identity" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" | set .Values.conf.cloudkitty.keystone_authtoken "auth_url" -}}
+{{- end -}}
+
+{{- if empty .Values.conf.cloudkitty.keystone_authtoken.auth_url -}}
+{{- $_ := tuple "identity" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup"| set .Values.conf.cloudkitty.keystone_authtoken "auth_url" -}}
+{{- end -}}
+
+{{- if empty .Values.conf.cloudkitty.keystone_authtoken.memcached_servers -}}
+{{- $_ := tuple "oslo_cache" "internal" "memcache" . | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" | set .Values.conf.cloudkitty.keystone_authtoken "memcached_servers" -}}
+{{- end -}}
+{{- if empty .Values.conf.cloudkitty.keystone_authtoken.memcache_secret_key -}}
+{{- $_ := set .Values.conf.cloudkitty.keystone_authtoken "memcache_secret_key" ( default ( randAlphaNum 64 ) .Values.endpoints.oslo_cache.auth.memcache_secret_key ) -}}
+{{- end -}}
+
+{{- if empty .Values.conf.cloudkitty.database.connection -}}
+{{- $connection := tuple "oslo_db" "internal" "cloudkitty" "mysql" . | include "helm-toolkit.endpoints.authenticated_endpoint_uri_lookup" -}}
+{{- if .Values.manifests.certificates -}}
+{{- $_ := (printf "%s?charset=utf8&ssl_ca=/etc/mysql/certs/ca.crt&ssl_key=/etc/mysql/certs/tls.key&ssl_cert=/etc/mysql/certs/tls.crt&ssl_verify_cert" $connection ) | set .Values.conf.cloudkitty.database "connection" -}}
+{{- else -}}
+{{- $_ := set .Values.conf.cloudkitty.database "connection" $connection -}}
+{{- end -}}
+{{- end -}}
+
+{{- if empty .Values.conf.cloudkitty.DEFAULT.transport_url -}}
+{{- $_ := tuple "oslo_messaging" "internal" "cloudkitty" "amqp" . | include "helm-toolkit.endpoints.authenticated_transport_endpoint_uri_lookup" | set .Values.conf.cloudkitty.DEFAULT "transport_url" -}}
+{{- end -}}
+
+{{- if empty .Values.conf.cloudkitty.DEFAULT.os_privileged_user_name -}}
+{{- $_ := set .Values.conf.cloudkitty.DEFAULT "os_privileged_user_name" .Values.endpoints.identity.auth.cloudkitty.username }}
+{{- end -}}
+{{- if empty .Values.conf.cloudkitty.DEFAULT.os_privileged_user_password -}}
+{{- $_ := set .Values.conf.cloudkitty.DEFAULT "os_privileged_user_password" .Values.endpoints.identity.auth.cloudkitty.password }}
+{{- end -}}
+{{- if empty .Values.conf.cloudkitty.DEFAULT.os_privileged_user_auth_url -}}
+{{- $_ := tuple "identity" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" | set .Values.conf.cloudkitty.DEFAULT "os_privileged_user_auth_url" }}
+{{- end -}}
+{{- if empty .Values.conf.cloudkitty.DEFAULT.os_privileged_user_tenant -}}
+{{- $_ := set .Values.conf.cloudkitty.DEFAULT "os_privileged_user_tenant" .Values.endpoints.identity.auth.cloudkitty.project_name }}
+{{- end -}}
+
+{{- if empty .Values.conf.cloudkitty.DEFAULT.os_region_name -}}
+{{- $_ := set .Values.conf.cloudkitty.DEFAULT "os_region_name" .Values.endpoints.identity.auth.cloudkitty.region_name }}
+{{- end -}}
+
+{{- if empty .Values.conf.cloudkitty.DEFAULT.os_user_domain_name -}}
+{{- $_ := set .Values.conf.cloudkitty.DEFAULT "os_user_domain_name" .Values.endpoints.identity.auth.cloudkitty.user_domain_name }}
+{{- end -}}
+
+{{- if empty .Values.conf.cloudkitty.DEFAULT.os_project_domain_name -}}
+{{- $_ := set .Values.conf.cloudkitty.DEFAULT "os_project_domain_name" .Values.endpoints.identity.auth.cloudkitty.user_domain_name }}
+{{- end -}}
+
+{{- if empty (index .Values.conf.cloudkitty_api_uwsgi.uwsgi "http-socket") -}}
+{{- $http_socket_port := tuple "rating" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | toString }}
+{{- $http_socket := printf "0.0.0.0:%s" $http_socket_port }}
+{{- $_ := set .Values.conf.cloudkitty_api_uwsgi.uwsgi "http-socket" $http_socket -}}
+{{- end -}}
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ $configMapName }}
+type: Opaque
+data:
+  cloudkitty.conf: {{ include "helm-toolkit.utils.to_oslo_conf" .Values.conf.cloudkitty | b64enc }}
+  logging.conf: {{ include "helm-toolkit.utils.to_oslo_conf" .Values.conf.logging | b64enc }}
+  api-paste.ini: {{ include "helm-toolkit.utils.to_oslo_conf" .Values.conf.paste | b64enc }}
+  metrics.yml: {{ $envAll.Values.conf.processor_metrics | b64enc }}
+  cloudkitty_sudoers: {{ $envAll.Values.conf.cloudkitty_sudoers | b64enc }}
+  cloudkitty-api-uwsgi.ini: {{ include "helm-toolkit.utils.to_ini" .Values.conf.cloudkitty_api_uwsgi | b64enc }}
+{{- end }}
+{{- end }}
+{{- if .Values.manifests.configmap_etc }}
+{{- list "cloudkitty-etc" . | include "cloudkitty.configmap.etc" }}
+{{- end }}

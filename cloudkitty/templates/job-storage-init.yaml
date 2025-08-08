@@ -1,0 +1,79 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.job_storage_init }}
+{{- $envAll := . }}
+
+{{- $serviceAccountName := "cloudkitty-storage-init" }}
+{{ tuple $envAll "storage_init" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: cloudkitty-storage-init
+  annotations:
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+{{- if .Values.helm3_hook }}
+    "helm.sh/hook": "post-install,post-upgrade"
+    "helm.sh/hook-weight": "-4"
+{{- end }}
+spec:
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "cloudkitty" "db-migrate" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+{{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
+    spec:
+      serviceAccountName: {{ $serviceAccountName }}
+      restartPolicy: OnFailure
+      nodeSelector:
+        {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
+      initContainers:
+{{ tuple $envAll "storage_init" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+      containers:
+        - name: cloudkitty-storage-init
+{{ tuple $envAll "cloudkitty_storage_init" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.jobs.storage_init | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "cloudkitty" "container" "cloudkitty_storage_init" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          command:
+            - /tmp/storage-init.sh
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: cloudkitty-bin
+              mountPath: /tmp/storage-init.sh
+              subPath: storage-init.sh
+            - name: etccloudkitty
+              mountPath: /etc/cloudkitty
+            - name: cloudkitty-etc
+              mountPath: /etc/cloudkitty/cloudkitty.conf
+              subPath: cloudkitty.conf
+            - name: cloudkitty-etc
+              mountPath: /etc/cloudkitty/logging.conf
+              subPath: logging.conf
+      volumes:
+        - name: pod-tmp
+          emptyDir: {}
+        - name: etccloudkitty
+          emptyDir: {}
+        - name: cloudkitty-etc
+          secret:
+            secretName: cloudkitty-etc
+            defaultMode: 0444
+        - name: cloudkitty-bin
+          configMap:
+            name: cloudkitty-bin
+            defaultMode: 0555
+{{- end }}

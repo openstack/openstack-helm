@@ -1,0 +1,113 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.deployment_processor }}
+{{- $envAll := . }}
+
+{{- $mounts_cloudkitty_processor := .Values.pod.mounts.cloudkitty_processor.cloudkitty_processor }}
+{{- $mounts_cloudkitty_processor_init := .Values.pod.mounts.cloudkitty_processor.init_container }}
+
+{{- $serviceAccountName := "cloudkitty-processor" }}
+{{- tuple $envAll "cloudkitty_processor" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloudkitty-processor
+  annotations:
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+  labels:
+{{ tuple $envAll "cloudkitty" "processor" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  replicas: {{ .Values.pod.replicas.cloudkitty_processor }}
+  selector:
+    matchLabels:
+{{ tuple $envAll "cloudkitty" "processor" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
+{{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_deployment" | indent 2 }}
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "cloudkitty" "processor" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+{{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
+        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
+{{ tuple "cloudkitty_processor" . | include "helm-toolkit.snippets.custom_pod_annotations" | indent 8 }}
+{{ dict "envAll" $envAll "podName" "cloudkitty-processor" "containerNames" (list "cloudkitty-processor-init" "cloudkitty-processor" "init") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
+    spec:
+      serviceAccountName: {{ $serviceAccountName }}
+{{ dict "envAll" $envAll "application" "cloudkitty-processor" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
+      affinity:
+{{ tuple $envAll "cloudkitty" "processor" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
+      nodeSelector:
+        {{ .Values.labels.cloudkitty.node_selector_key }}: {{ .Values.labels.cloudkitty.node_selector_value }}
+      terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.cloudkitty_processor.timeout | default "30" }}
+      initContainers:
+{{ tuple $envAll "cloudkitty_processor" $mounts_cloudkitty_processor_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+      containers:
+        - name: cloudkitty-processor
+{{ tuple $envAll "cloudkitty_processor" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.cloudkitty_processor | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "cloudkitty" "container" "cloudkitty_processor" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          command:
+            - /tmp/cloudkitty-processor.sh
+            - start
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /tmp/cloudkitty-processor.sh
+                  - stop
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: cloudkitty-bin
+              mountPath: /tmp/cloudkitty-processor.sh
+              subPath: cloudkitty-processor.sh
+              readOnly: true
+            - name: etccloudkitty
+              mountPath: /etc/cloudkitty
+            - name: cloudkitty-etc
+              mountPath: /etc/cloudkitty/cloudkitty.conf
+              subPath: cloudkitty.conf
+            - name: cloudkitty-etc
+              mountPath: /etc/cloudkitty/logging.conf
+              subPath: logging.conf
+            - name: cloudkitty-etc
+              mountPath: /etc/cloudkitty/metrics.yml
+              subPath: metrics.yml
+            - name: cloudkitty-etc-snippets
+              mountPath: /etc/cloudkitty/cloudkitty.conf.d/
+              readOnly: true
+{{ if $mounts_cloudkitty_processor.volumeMounts }}{{ toYaml $mounts_cloudkitty_processor.volumeMounts | indent 12 }}{{ end }}
+      volumes:
+        - name: pod-tmp
+          emptyDir: {}
+        - name: etccloudkitty
+          emptyDir: {}
+        - name: cloudkitty-bin
+          configMap:
+            name: cloudkitty-bin
+            defaultMode: 0555
+        - name: cloudkitty-etc
+          secret:
+            secretName: cloudkitty-etc
+            defaultMode: 0444
+        - name: cloudkitty-etc-snippets
+          projected:
+            sources:
+              - secret:
+                  name: cloudkitty-ks-etc
+{{ if $mounts_cloudkitty_processor.volumes}}{{ toYaml $mounts_cloudkitty_processor.volumes | indent 8 }}{{ end }}
+{{- end }}
