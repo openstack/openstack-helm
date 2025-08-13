@@ -295,13 +295,19 @@ spec:
               readOnly: true
             {{- end }}
 {{ if $mounts_libvirt.volumeMounts }}{{ toYaml $mounts_libvirt.volumeMounts | indent 12 }}{{ end }}
-        {{- if .Values.pod.sidecars.libvirt_exporter }}
+        {{- if .Values.pod.sidecars.libvirt_exporter.enabled }}
         - name: libvirt-exporter
 {{ tuple $envAll "libvirt_exporter" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.libvirt_exporter | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
 {{ dict "envAll" $envAll "application" "libvirt" "container" "libvirt_exporter" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          {{- with .Values.pod.sidecars.libvirt_exporter }}
+            {{- if and (hasKey . "args") (gt (len .args) 0) }}
           args:
-            - "--libvirt.nova"
+              {{- range .args }}
+            - {{ . | quote }}
+              {{- end }}
+            {{- end }}
+          {{- end }}
           ports:
             - name: metrics
               protocol: TCP
@@ -310,10 +316,12 @@ spec:
             httpGet:
               path: /
               port: metrics
+              timeoutSeconds: 5
           readinessProbe:
             httpGet:
               path: /
               port: metrics
+              timeoutSeconds: 5
           volumeMounts:
             - name: run
               mountPath: /run
