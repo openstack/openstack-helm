@@ -113,9 +113,9 @@ in Helm-Toolkit.  The following manifests have yet to be combined:
 **Standardization of values**
 
 OpenStack-Helm has developed a number of conventions around the format and
-ordering of charts' `values.yaml` file, in support of both reusable Helm-Toolkit
+ordering of charts' ``values.yaml`` file, in support of both reusable Helm-Toolkit
 functions and ease of developer ramp-up.  For 1.0 readiness, OpenStack-Helm must
-cement these conventions within a spec, as well as the ordering of `values.yaml`
+cement these conventions within a spec, as well as the ordering of ``values.yaml``
 keys. These conventions must then be gated to guarantee conformity.
 The spec in progress can be found here [1]_.
 
@@ -137,9 +137,9 @@ in-place upgradability.
 In order to maximize flexibility for operators, and to help facilitate
 upgrades to newer versions of containerized software without editing
 the chart itself, all configuration files will be specified dynamically
-based on `values.yaml` and overrides.  In most cases the config files
+based on ``values.yaml`` and overrides.  In most cases the config files
 will be generated based on the YAML values tree itself, and in some
-cases the config file content will be specified in `values.yaml` as a
+cases the config file content will be specified in ``values.yaml`` as a
 string literal.
 
 Documentation
@@ -184,7 +184,7 @@ Release notes for the 1.0 release must be prepared, following OpenStack
 best practices.  The criteria for future changes that should be included
 in release notes in an ongoing fashion must be defined / documented as well.
 
-- `values.yaml` changes
+- ``values.yaml`` changes
 - New charts
 - Any other changes to the external interface of OpenStack-Helm
 
@@ -236,7 +236,7 @@ Primary assignee:
 
 - mattmceuen (Matt McEuen <matt.mceuen@att.com>) for coordination
 - powerds (DaeSeong Kim <daeseong.kim@sk.com>) for the
-  `values.yaml` ordering spec [1]_
+  ``values.yaml`` ordering spec [1]_
 - portdirect (Pete Birley <pete@port.direct>) for the
   release management spec [2]_
 - randeep.jalli (Randeep Jalli <rj2083@att.com>) and

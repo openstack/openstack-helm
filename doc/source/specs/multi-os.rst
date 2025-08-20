@@ -194,10 +194,10 @@ No change in testing is required, *per se*.
 It is expected the new software configuration would be tested with the
 current practices.
 
-On top of that, the newly provided `example_values/` must
+On top of that, the newly provided ``example_values/`` must
 aim for being tested **as soon as possible upon delivery**. Without tests,
 those examples will decrepit. The changes in CI pipelines for making use
-of `example_values` is outside the scope of this spec.
+of ``example_values`` is outside the scope of this spec.
 
 Documentation Impact
 ====================

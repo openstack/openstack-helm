@@ -21,7 +21,7 @@ log aggregator and processor.
 
 Fluent-bit, Fluentd meet OpenStack-Helm's logging requirements for gathering,
 aggregating, and delivering of logged events. Fluent-bit runs as a daemonset on
-each node and mounts the `/var/lib/docker/containers` directory. The Docker
+each node and mounts the ``/var/lib/docker/containers`` directory. The Docker
 container runtime engine directs events posted to stdout and stderr to this
 directory on the host. Fluent-bit then forward the contents of that directory to
 Fluentd. Fluentd runs as deployment at the designated nodes and expose service
