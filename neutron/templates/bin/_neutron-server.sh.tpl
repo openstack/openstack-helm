@@ -34,6 +34,12 @@ function start_ovn () {
 {{- if ( has "ovn" .Values.network.backend ) }}
         --config-file /tmp/pod-shared/ovn.ini \
 {{- end }}
+{{- if contains "vpnaas" .Values.conf.neutron.DEFAULT.service_plugins }}
+        --config-file /etc/neutron/neutron_vpnaas.conf \
+{{- end }}
+{{- if contains "ovn-vpnaas" .Values.conf.neutron.DEFAULT.service_plugins }}
+        --config-file /etc/neutron/neutron_ovn_vpn_agent.ini \
+{{- end }}
 {{- if .Values.conf.plugins.taas.taas.enabled }}
         --config-file /etc/neutron/taas_plugin.ini \
 {{- end }}
