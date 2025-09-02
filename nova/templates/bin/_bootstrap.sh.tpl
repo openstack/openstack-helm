@@ -18,20 +18,30 @@ set -ex
 export HOME=/tmp
 
 {{ if .Values.bootstrap.structured.flavors.enabled }}
-{{ range .Values.bootstrap.structured.flavors.options }}
-# NOTE(aostapenko) Since Wallaby with switch of osc to sdk '--id auto' is no
-# longer treated specially. Though the same behavior can be achieved w/o specifying
-#--id flag.
-# https://review.opendev.org/c/openstack/python-openstackclient/+/750151
+{{- range $i, $params := .Values.bootstrap.structured.flavors.options }}
 {
-  openstack flavor show {{ .name }} || \
-   openstack flavor create {{ .name }} \
-{{ if .id }} \
-   --id {{ .id }} \
-{{ end }} \
-   --ram {{ .ram }} \
-   --disk {{ .disk }} \
-   --vcpus {{ .vcpus }}
+openstack flavor show {{ $params.name }} || \
+  openstack flavor create \
+  {{- range $key, $val := $params }}
+    {{- if ne $key "name" }}
+      {{- if eq $key "extra_specs" }}
+        {{- if kindIs "slice" $val }}
+          {{- range $idx, $spec := $val }}
+  --property {{ $spec }} \
+          {{- end }}
+        {{- end }}
+      {{- else if eq $key "is_public" }}
+        {{- if $val }}
+  --public \
+        {{- else if not $val }}
+  --private \
+        {{- end }}
+      {{- else }}
+  --{{ $key }} {{ $val }} \
+      {{- end }}
+    {{- end }}
+  {{- end }}
+  {{ $params.name }}
 } &
 {{ end }}
 wait
