@@ -1,0 +1,106 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.pod_test }}
+{{- $envAll := . }}
+{{- $dependencies := .Values.dependencies.static.tests }}
+
+{{- $mounts_zaqar_tests := .Values.pod.mounts.zaqar_tests.zaqar_tests }}
+{{- $mounts_zaqar_tests_init := .Values.pod.mounts.zaqar_tests.init_container }}
+
+{{- $serviceAccountName := print .Release.Name "-test" }}
+{{ tuple $envAll "tests" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ .Release.Name }}-test"
+  labels:
+{{ tuple $envAll "zaqar" "test" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+  annotations:
+    "helm.sh/hook": test-success
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+{{ dict "envAll" $envAll "podName" "zaqar-test" "containerNames" (list "init" "zaqar-test") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 4 }}
+spec:
+{{ tuple "zaqar_tests" . | include "helm-toolkit.snippets.kubernetes_pod_priority_class" | indent 2 }}
+{{ tuple "zaqar_tests" . | include "helm-toolkit.snippets.kubernetes_pod_runtime_class" | indent 2 }}
+  serviceAccountName: {{ $serviceAccountName }}
+{{ dict "envAll" $envAll "application" "test" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 2 }}
+  nodeSelector:
+    {{ .Values.labels.test.node_selector_key }}: {{ .Values.labels.test.node_selector_value }}
+{{ if $envAll.Values.pod.tolerations.zaqar.enabled }}
+{{ tuple $envAll "zaqar" | include "helm-toolkit.snippets.kubernetes_tolerations" | indent 2 }}
+{{ end }}
+  restartPolicy: Never
+  initContainers:
+{{ tuple $envAll "tests" $mounts_zaqar_tests_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 4 }}
+    - name: zaqar-test-ks-user
+{{ tuple $envAll "ks_user" | include "helm-toolkit.snippets.image" | indent 6 }}
+{{ tuple $envAll $envAll.Values.pod.resources.jobs.ks_user | include "helm-toolkit.snippets.kubernetes_resources" | indent 6 }}
+      command:
+        - /tmp/ks-user.sh
+      volumeMounts:
+        - name: pod-tmp
+          mountPath: /tmp
+        - name: zaqar-bin
+          mountPath: /tmp/ks-user.sh
+          subPath: ks-user.sh
+          readOnly: true
+{{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.network.server.internal | include "helm-toolkit.snippets.tls_volume_mount" | indent 8 }}
+      env:
+{{- with $env := dict "ksUserSecret" .Values.secrets.identity.admin "useCA" .Values.manifests.certificates }}
+{{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 8 }}
+{{- end }}
+        - name: SERVICE_OS_SERVICE_NAME
+          value: "test"
+{{- with $env := dict "ksUserSecret" .Values.secrets.identity.test }}
+{{- include "helm-toolkit.snippets.keystone_user_create_env_vars" $env | indent 8 }}
+{{- end }}
+        - name: SERVICE_OS_ROLE
+          value: {{ .Values.endpoints.identity.auth.test.role | quote }}
+  containers:
+    - name: zaqar-test
+{{ tuple $envAll "scripted_test" | include "helm-toolkit.snippets.image" | indent 6 }}
+{{ dict "envAll" $envAll "application" "test" "container" "zaqar_test" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 6 }}
+      env:
+{{- with $env := dict "ksUserSecret" .Values.secrets.identity.admin }}
+{{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 8 }}
+{{- end }}
+      command:
+        - /tmp/rally-test.sh
+      volumeMounts:
+        - name: pod-tmp
+          mountPath: /tmp
+        - name: zaqar-etc
+          mountPath: /etc/rally/rally_tests.yaml
+          subPath: rally_tests.yaml
+          readOnly: true
+        - name: zaqar-bin
+          mountPath: /tmp/rally-test.sh
+          subPath: rally-test.sh
+          readOnly: true
+{{ if $mounts_zaqar_tests.volumeMounts }}{{ toYaml $mounts_zaqar_tests.volumeMounts | indent 8 }}{{ end }}
+  volumes:
+    - name: pod-tmp
+      emptyDir: {}
+    - name: zaqar-etc
+      secret:
+        secretName: zaqar-etc
+        defaultMode: 0444
+    - name: zaqar-bin
+      configMap:
+        name: zaqar-bin
+        defaultMode: 0555
+{{ if $mounts_zaqar_tests.volumes }}{{ toYaml $mounts_zaqar_tests.volumes | indent 4 }}{{ end }}
+{{- end }}
