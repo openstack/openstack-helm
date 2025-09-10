@@ -11,7 +11,7 @@
 import os
 import sys
 import logging
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 
 # Create logger, console handler and formatter
 logger = logging.getLogger('OpenStack-Helm DB Init')
@@ -58,13 +58,18 @@ except:
 
 # Create Table
 try:
-    user_engine.execute('''CREATE TABLE IF NOT EXISTS `session` (
-                        `key`CHAR(16) NOT NULL,
-                        `data` BLOB,
-                        `expiry` INT(11) UNSIGNED NOT NULL,
-                        PRIMARY KEY (`key`)
-                        ) ENGINE=MyISAM DEFAULT CHARSET=utf8;''')
+    with user_engine.connect() as conn:
+        conn.execute(text('''CREATE TABLE IF NOT EXISTS `session` (
+                            `key` CHAR(16) NOT NULL,
+                            `data` BLOB,
+                            `expiry` INT(11) UNSIGNED NOT NULL,
+                            PRIMARY KEY (`key`)
+                            ) ENGINE=MyISAM DEFAULT CHARSET=utf8;'''))
+        try:
+            conn.commit()
+        except AttributeError:
+            pass
     logger.info('Created table for session cache')
-except:
-    logger.critical('Could not create table for session cache')
+except Exception as e:
+    logger.critical(f'Could not create table for session cache: {e}')
     raise
