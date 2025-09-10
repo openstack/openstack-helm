@@ -18,42 +18,32 @@ set -ex
 COMMAND="${@:-start}"
 
 function start () {
-# (ricolin): Currently ovn have issue with uWSGI,
-# let's keep using non-uWSGI way until this bug fixed:
-# https://bugs.launchpad.net/neutron/+bug/1912359
+  confs="--config-file /etc/neutron/neutron.conf"
 {{- if ( has "ovn" .Values.network.backend ) }}
-  start_ovn
-{{- else }}
-  exec uwsgi --ini /etc/neutron/neutron-api-uwsgi.ini
-{{- end }}
-}
-
-function start_ovn () {
-  exec neutron-server \
-        --config-file /etc/neutron/neutron.conf \
-{{- if ( has "ovn" .Values.network.backend ) }}
-        --config-file /tmp/pod-shared/ovn.ini \
+  confs+=" --config-file /tmp/pod-shared/ovn.ini"
 {{- end }}
 {{- if contains "vpnaas" .Values.conf.neutron.DEFAULT.service_plugins }}
-        --config-file /etc/neutron/neutron_vpnaas.conf \
+  confs+=" --config-file /etc/neutron/neutron_vpnaas.conf"
 {{- end }}
 {{- if contains "ovn-vpnaas" .Values.conf.neutron.DEFAULT.service_plugins }}
-        --config-file /etc/neutron/neutron_ovn_vpn_agent.ini \
+  confs+=" --config-file /etc/neutron/neutron_ovn_vpn_agent.ini"
 {{- end }}
 {{- if .Values.conf.plugins.taas.taas.enabled }}
-        --config-file /etc/neutron/taas_plugin.ini \
+  confs+=" --config-file /etc/neutron/taas_plugin.ini"
 {{- end }}
 {{- if ( has "sriov" .Values.network.backend ) }}
-        --config-file /etc/neutron/plugins/ml2/sriov_agent.ini \
+  confs+=" --config-file /etc/neutron/plugins/ml2/sriov_agent.ini"
 {{- end }}
 {{- if .Values.conf.plugins.l2gateway }}
-        --config-file /etc/neutron/l2gw_plugin.ini \
+  confs+=" --config-file /etc/neutron/l2gw_plugin.ini"
 {{- end }}
 {{- if ( has "tungstenfabric" .Values.network.backend ) }}
-        --config-file /etc/neutron/plugins/tungstenfabric/tf_plugin.ini
+  confs+=" --config-file /etc/neutron/plugins/tungstenfabric/tf_plugin.ini"
 {{- else }}
-        --config-file /etc/neutron/plugins/ml2/ml2_conf.ini
+  confs+=" --config-file /etc/neutron/plugins/ml2/ml2_conf.ini"
 {{- end }}
+
+  exec uwsgi --ini /etc/neutron/neutron-api-uwsgi.ini --pyargv " $confs "
 }
 
 function stop () {
