@@ -39,7 +39,7 @@ then
 else
   # Manage project domain
   PROJECT_DOMAIN_ID=$(openstack domain create --or-show --enable -f value -c id \
-    --description="Domain for ${SERVICE_OS_REGION_NAME}/${SERVICE_OS_PROJECT_DOMAIN_NAME}" \
+    --description="Domain for ${SERVICE_OS_PROJECT_DOMAIN_NAME}" \
     "${SERVICE_OS_PROJECT_DOMAIN_NAME}")
 fi
 
@@ -49,14 +49,14 @@ then
 else
   # Manage user domain
   USER_DOMAIN_ID=$(openstack domain create --or-show --enable -f value -c id \
-    --description="Domain for ${SERVICE_OS_REGION_NAME}/${SERVICE_OS_USER_DOMAIN_NAME}" \
+    --description="Domain for ${SERVICE_OS_USER_DOMAIN_NAME}" \
     "${SERVICE_OS_USER_DOMAIN_NAME}")
 fi
 
 shopt -u nocasematch
 
 # Manage user project
-USER_PROJECT_DESC="Service Project for ${SERVICE_OS_REGION_NAME}/${SERVICE_OS_PROJECT_DOMAIN_NAME}"
+USER_PROJECT_DESC="Service Project for ${SERVICE_OS_PROJECT_DOMAIN_NAME}"
 USER_PROJECT_ID=$(openstack project create --or-show --enable -f value -c id \
     --domain="${PROJECT_DOMAIN_ID}" \
     --description="${USER_PROJECT_DESC}" \

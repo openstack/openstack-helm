@@ -33,7 +33,7 @@ set -ex
 
 # Manage domain
 SERVICE_OS_DOMAIN_ID=$(openstack domain create --or-show --enable -f value -c id \
-    --description="Service Domain for ${SERVICE_OS_REGION_NAME}/${SERVICE_OS_DOMAIN_NAME}" \
+    --description="Service Domain for ${SERVICE_OS_DOMAIN_NAME}" \
     "${SERVICE_OS_DOMAIN_NAME}")
 
 # Display domain
