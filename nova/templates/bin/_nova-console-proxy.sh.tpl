@@ -20,13 +20,16 @@ console_kind="{{- .Values.console.console_kind -}}"
 if [ "${console_kind}" == "novnc" ] ; then
     exec nova-novncproxy \
         --config-file /etc/nova/nova.conf \
-        --config-file /tmp/pod-shared/nova-vnc.ini
+        --config-file /tmp/pod-shared/nova-vnc.ini \
+        --config-dir /etc/nova/nova.conf.d
 elif [ "${console_kind}" == "spice" ] ; then
     exec nova-spicehtml5proxy\
         --config-file /etc/nova/nova.conf \
-        --config-file /tmp/pod-shared/nova-spice.ini
+        --config-file /tmp/pod-shared/nova-spice.ini \
+        --config-dir /etc/nova/nova.conf.d
 elif [ "${console_kind}" == "serial" ] ; then
     exec nova-serialproxy\
         --config-file /etc/nova/nova.conf \
-        --config-file /tmp/pod-shared/nova-serial.ini
+        --config-file /tmp/pod-shared/nova-serial.ini \
+        --config-dir /etc/nova/nova.conf.d
 fi

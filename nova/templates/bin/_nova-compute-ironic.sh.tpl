@@ -18,4 +18,5 @@ set -ex
 
 exec nova-compute \
       --config-file /etc/nova/nova-compute.conf \
-      --config-file /etc/nova/nova-ironic.conf
+      --config-file /etc/nova/nova-ironic.conf \
+      --config-dir /etc/nova/nova.conf.d

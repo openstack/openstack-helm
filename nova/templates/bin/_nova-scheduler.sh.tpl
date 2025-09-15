@@ -17,4 +17,5 @@ limitations under the License.
 set -xe
 
 exec nova-scheduler \
-      --config-file /etc/nova/nova.conf
+      --config-file /etc/nova/nova.conf \
+      --config-dir /etc/nova/nova.conf.d
