@@ -20,6 +20,13 @@ exec:
     - /usr/bin/virsh connect
 {{- end }}
 
+{{- define "libvirtExporterProbeTemplate" }}
+httpGet:
+  path: /
+  port: metrics
+  scheme: HTTP
+{{- end }}
+
 {{- define "libvirt.daemonset" }}
 {{- $daemonset := index . 0 }}
 {{- $configMapName := index . 1 }}
@@ -312,16 +319,8 @@ spec:
             - name: metrics
               protocol: TCP
               containerPort: {{ tuple "libvirt_exporter" "direct" "metrics" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-          livenessProbe:
-            httpGet:
-              path: /
-              port: metrics
-              timeoutSeconds: 5
-          readinessProbe:
-            httpGet:
-              path: /
-              port: metrics
-              timeoutSeconds: 5
+{{ dict "envAll" . "component" "libvirt" "container" "libvirt_exporter" "type" "readiness" "probeTemplate" (include "libvirtExporterProbeTemplate" . | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+{{ dict "envAll" . "component" "libvirt" "container" "libvirt_exporter" "type" "liveness" "probeTemplate" (include "libvirtExporterProbeTemplate" . | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
           volumeMounts:
             - name: run
               mountPath: /run
