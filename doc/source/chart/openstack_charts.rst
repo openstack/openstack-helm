@@ -33,3 +33,4 @@ OpenStack charts options
     tacker
     tempest
     watcher
+    zaqar

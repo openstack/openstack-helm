@@ -1,0 +1,151 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- define "zaqarApiLivenessProbeTemplate" }}
+tcpSocket:
+  port: {{ tuple "messaging" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+{{- end }}
+
+{{- define "zaqarApiReadinessProbeTemplate" }}
+tcpSocket:
+  port: {{ tuple "messaging" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+{{- end }}
+
+{{- if .Values.manifests.deployment_api }}
+{{- $envAll := . }}
+
+{{- $mounts_zaqar_api := .Values.pod.mounts.zaqar_api.zaqar_api }}
+{{- $mounts_zaqar_api_init := .Values.pod.mounts.zaqar_api.init_container }}
+
+{{- $serviceAccountName := "zaqar-api" }}
+{{ tuple $envAll "api" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zaqar-api
+  annotations:
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+  labels:
+{{ tuple $envAll "zaqar" "api" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  replicas: {{ .Values.pod.replicas.api }}
+  selector:
+    matchLabels:
+{{ tuple $envAll "zaqar" "api" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
+{{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_deployment" | indent 2 }}
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "zaqar" "api" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+{{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
+        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
+{{ tuple "zaqar_api" . | include "helm-toolkit.snippets.custom_pod_annotations" | indent 8 }}
+{{ dict "envAll" $envAll "podName" "zaqar-api" "containerNames" (list "zaqar-api" "init") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
+    spec:
+{{ tuple "zaqar_api" . | include "helm-toolkit.snippets.kubernetes_pod_priority_class" | indent 6 }}
+{{ tuple "zaqar_api" . | include "helm-toolkit.snippets.kubernetes_pod_runtime_class" | indent 6 }}
+      serviceAccountName: {{ $serviceAccountName }}
+{{ dict "envAll" $envAll "application" "zaqar" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
+      affinity:
+{{ tuple $envAll "zaqar" "api" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
+      nodeSelector:
+        {{ .Values.labels.api.node_selector_key }}: {{ .Values.labels.api.node_selector_value }}
+{{ if $envAll.Values.pod.tolerations.zaqar.enabled }}
+{{ tuple $envAll "zaqar" | include "helm-toolkit.snippets.kubernetes_tolerations" | indent 6 }}
+{{ end }}
+      terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.api.timeout | default "30" }}
+      initContainers:
+{{ tuple $envAll "api" $mounts_zaqar_api_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+      containers:
+        - name: zaqar-api
+{{ tuple $envAll "zaqar_api" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.api | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "zaqar" "container" "zaqar_api" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+{{- if or .Values.manifests.certificates .Values.tls.identity }}
+          env:
+            - name: REQUESTS_CA_BUNDLE
+              value: "/etc/zaqar/certs/ca.crt"
+{{- end }}
+          command:
+            - /tmp/zaqar-api.sh
+            - start
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /tmp/zaqar-api.sh
+                  - stop
+          ports:
+            - name: z-api
+              containerPort: {{ tuple "messaging" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+{{ dict "envAll" $envAll "component" "api" "container" "default" "type" "liveness" "probeTemplate" (include "zaqarApiLivenessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+{{ dict "envAll" $envAll "component" "api" "container" "default" "type" "readiness" "probeTemplate" (include "zaqarApiReadinessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: pod-etc-zaqar
+              mountPath: /etc/zaqar
+            - name: zaqar-bin
+              mountPath: /tmp/zaqar-api.sh
+              subPath: zaqar-api.sh
+              readOnly: true
+            - name: zaqar-etc
+              mountPath: /etc/zaqar/zaqar.conf
+              subPath: zaqar.conf
+              readOnly: true
+            - name: zaqar-etc-snippets
+              mountPath: /etc/zaqar/zaqar.conf.d/
+              readOnly: true
+            {{- if .Values.conf.zaqar.DEFAULT.log_config_append }}
+            - name: zaqar-etc
+              mountPath: {{ .Values.conf.zaqar.DEFAULT.log_config_append }}
+              subPath: {{ base .Values.conf.zaqar.DEFAULT.log_config_append }}
+              readOnly: true
+            {{- end }}
+            - name: zaqar-etc
+              mountPath: /etc/zaqar/api-paste.ini
+              subPath: api-paste.ini
+              readOnly: true
+            - name: zaqar-etc
+              mountPath: /etc/zaqar/policy.yaml
+              subPath: policy.yaml
+              readOnly: true
+{{- dict "enabled" .Values.manifests.certificates "name" .Values.endpoints.oslo_db.auth.admin.secret.tls.internal "path" "/etc/mysql/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
+{{- dict "enabled" (or .Values.manifests.certificates .Values.tls.identity) "name" .Values.secrets.tls.messaging.api.internal "path" "/etc/zaqar/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
+{{ if $mounts_zaqar_api.volumeMounts }}{{ toYaml $mounts_zaqar_api.volumeMounts | indent 12 }}{{ end }}
+      volumes:
+        - name: pod-tmp
+          emptyDir: {}
+        - name: pod-etc-zaqar
+          emptyDir: {}
+        - name: zaqar-bin
+          configMap:
+            name: zaqar-bin
+            defaultMode: 0555
+        - name: zaqar-etc
+          secret:
+            secretName: zaqar-etc
+            defaultMode: 0444
+        - name: zaqar-etc-snippets
+          projected:
+            sources:
+              - secret:
+                  name: zaqar-ks-etc
+{{- dict "enabled" .Values.manifests.certificates "name" .Values.endpoints.oslo_db.auth.admin.secret.tls.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
+{{- dict "enabled" (or .Values.manifests.certificates .Values.tls.identity) "name" .Values.secrets.tls.messaging.api.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
+{{ if $mounts_zaqar_api.volumes }}{{ toYaml $mounts_zaqar_api.volumes | indent 8 }}{{ end }}
+{{- end }}

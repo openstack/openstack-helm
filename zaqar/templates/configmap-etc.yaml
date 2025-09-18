@@ -1,0 +1,56 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.configmap_etc }}
+{{- $envAll := . }}
+
+{{- if empty .Values.conf.zaqar.keystone_authtoken.identity_uri -}}
+{{- $_ := tuple "identity" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup"| set .Values.conf.zaqar.keystone_authtoken "identity_uri" -}}
+{{- end -}}
+{{- if empty .Values.conf.zaqar.keystone_authtoken.memcached_servers -}}
+{{- $_ := tuple "oslo_cache" "internal" "memcache" . | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" | set .Values.conf.zaqar.keystone_authtoken "memcached_servers" -}}
+{{- end -}}
+{{- if empty .Values.conf.zaqar.keystone_authtoken.memcache_secret_key -}}
+{{- $_ := set .Values.conf.zaqar.keystone_authtoken "memcache_secret_key" ( default ( randAlphaNum 64 ) .Values.endpoints.oslo_cache.auth.memcache_secret_key ) -}}
+{{- end -}}
+
+{{- if empty (index .Values.conf.zaqar "drivers:management_store:sqlalchemy").uri -}}
+{{- $_ := tuple "oslo_db" "internal" "zaqar" "mysql" . | include "helm-toolkit.endpoints.authenticated_endpoint_uri_lookup"| set (index .Values.conf.zaqar "drivers:management_store:sqlalchemy") "uri" -}}
+{{- end -}}
+
+{{- if and (empty .Values.conf.logging.handler_fluent) (has "fluent" .Values.conf.logging.handlers.keys) -}}
+{{- $fluentd_host := tuple "fluentd" "internal" $envAll | include "helm-toolkit.endpoints.hostname_namespaced_endpoint_lookup" }}
+{{- $fluentd_port := tuple "fluentd" "internal" "service" $envAll | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+{{- $fluent_args := printf "('%s.%s', '%s', %s)" .Release.Namespace .Release.Name $fluentd_host $fluentd_port }}
+{{- $handler_fluent := dict "class" "fluent.handler.FluentHandler" "formatter" "fluent" "args" $fluent_args -}}
+{{- $_ := set .Values.conf.logging "handler_fluent" $handler_fluent -}}
+{{- end -}}
+
+{{- if and (empty .Values.conf.logging.formatter_fluent) (has "fluent" .Values.conf.logging.formatters.keys) -}}
+{{- $formatter_fluent := dict "class" "oslo_log.formatters.FluentFormatter" -}}
+{{- $_ := set .Values.conf.logging "formatter_fluent" $formatter_fluent -}}
+{{- end -}}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: zaqar-etc
+type: Opaque
+data:
+  rally_tests.yaml: {{ toYaml .Values.conf.rally_tests.tests | b64enc }}
+  zaqar.conf: {{ include "helm-toolkit.utils.to_oslo_conf" .Values.conf.zaqar | b64enc }}
+  logging.conf: {{ include "helm-toolkit.utils.to_oslo_conf" .Values.conf.logging | b64enc }}
+  api-paste.ini: {{ include "helm-toolkit.utils.to_ini" .Values.conf.api_paste | b64enc }}
+  policy.yaml: {{ toYaml .Values.conf.policy | b64enc }}
+{{- end }}
