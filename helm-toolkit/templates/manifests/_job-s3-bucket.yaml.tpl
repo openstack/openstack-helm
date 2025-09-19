@@ -86,9 +86,6 @@ spec:
             - -c
             - /tmp/create-s3-bucket.sh
           env:
-{{- with $env := dict "s3AdminSecret" $envAll.Values.secrets.rgw.admin }}
-{{- include "helm-toolkit.snippets.rgw_s3_admin_env_vars" $env | indent 12 }}
-{{- end }}
 {{- include "helm-toolkit.snippets.rgw_s3_user_env_vars" $envAll | indent 12 }}
           volumeMounts:
             - name: pod-tmp

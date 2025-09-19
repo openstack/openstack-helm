@@ -31,8 +31,6 @@ function modify_bucket_acl () {
   s3cmd $CONNECTION_ARGS $USER_AUTH_ARGS setacl s3://$S3_BUCKET --acl-grant=read:$S3_USERNAME --acl-grant=write:$S3_USERNAME
 }
 
-ADMIN_AUTH_ARGS=" --access_key=$S3_ADMIN_ACCESS_KEY --secret_key=$S3_ADMIN_SECRET_KEY"
-
 {{- $envAll := . }}
 {{- range $bucket := .Values.storage.s3.buckets }}
 
