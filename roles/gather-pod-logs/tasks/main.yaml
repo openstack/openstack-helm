@@ -24,13 +24,12 @@
 - name: "retrieve all kubernetes logs, current and previous (if they exist)"
   shell: |-
           set -e
-          PARALLELISM_FACTOR=2
           function get_namespaces () {
             kubectl get namespaces -o name | awk -F '/' '{ print $NF }'
           }
           function get_pods () {
             NAMESPACE=$1
-            kubectl get pods -n ${NAMESPACE} -o name | awk -F '/' '{ print $NF }' | xargs -L1 -P 1 -I {} echo ${NAMESPACE} {}
+            kubectl get pods -n ${NAMESPACE} -o name | awk -F '/' '{ print $NF }' | xargs -I {} echo ${NAMESPACE} {}
           }
           export -f get_pods
           function get_pod_logs () {
@@ -48,8 +47,8 @@
           }
           export -f get_pod_logs
           get_namespaces | \
-            xargs -r -n 1 -P ${PARALLELISM_FACTOR} -I {} bash -c 'get_pods "$@"' _ {} | \
-            xargs -r -n 2 -P ${PARALLELISM_FACTOR} -I {} bash -c 'get_pod_logs "$@"' _ {}
+            xargs -r -I {} bash -c 'get_pods "$@"' _ {} | \
+            xargs -r -I {} bash -c 'get_pod_logs "$@"' _ {}
   args:
     executable: /bin/bash
   ignore_errors: True
