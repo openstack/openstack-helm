@@ -76,7 +76,7 @@ must have passwordless sudo on the nodes.
           group: ubuntu
         # The user and group that will be used to run Docker commands.
         docker_users:
-          - ununtu
+          - ubuntu
         # By default the deploy-env role sets up ssh key to make it possible
         # to connect to the k8s master node via ssh without a password.
         client_ssh_user: ubuntu
