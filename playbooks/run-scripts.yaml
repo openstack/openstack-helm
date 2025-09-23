@@ -79,11 +79,32 @@
         path: "/tmp/artifacts"
         state: directory
 
-    - name: Run gate scripts
-      include_role:
-        name: "{{ ([item] | flatten | length == 1) | ternary('osh-run-script', 'osh-run-script-set') }}"
-      vars:
-        workload: "{{ [item] | flatten }}"
+    # NOTE: After switching to Ansible 2.11 then xtrace stopped working
+    #       for shell tasks in included roles. So instead of using
+    #       osh-run-script-* roles we directly run the scripts in the
+    #       playbook.
+    - name: "Run script {{ item }}"
+      shell: |
+        set -xe
+        env
+        {{ item }}
+      args:
+        chdir: "{{ zuul.project.src_dir }}/{{ gate_scripts_relative_path }}"
+        executable: /bin/bash
+      environment:
+        CEPH_OSD_DATA_DEVICE: "{{ ceph_osd_data_device }}"
+        POD_NETWORK_CIDR: "{{ kubeadm.pod_network_cidr }}"
+        zuul_site_mirror_fqdn: "{{ zuul_site_mirror_fqdn }}"
+        OSH_EXTRA_HELM_ARGS: "{{ zuul_osh_extra_helm_args | default('') }}"
+        OSH_HELM_REPO: "{{ osh_helm_repo | default('../openstack-helm') }}"
+        DOWNLOAD_OVERRIDES: "{{ download_overrides | default('') }}"
+        OSH_PATH: "{{ zuul_osh_relative_path | default('../openstack-helm/') }}"
+        OSH_VALUES_OVERRIDES_PATH: "{{ osh_values_overrides_path }}"
+        OPENSTACK_RELEASE: "{{ osh_params.openstack_release | default('') }}"
+        CONTAINER_DISTRO_NAME: "{{ osh_params.container_distro_name | default('') }}"
+        CONTAINER_DISTRO_VERSION: "{{ osh_params.container_distro_version | default('') }}"
+        FEATURES: "{{ osh_params.feature_gates | default('') | regex_replace(',', ' ')  }} {{ osh_params.openstack_release | default('') }} {{ osh_params.container_distro_name | default('') }}_{{ osh_params.container_distro_version | default('') }} {{ osh_params.container_distro_name | default('') }}"
+        RUN_HELM_TESTS: "{{ run_helm_tests | default('yes') }}"
       loop: "{{ gate_scripts }}"
 
     - name: "Downloads artifacts to executor"
