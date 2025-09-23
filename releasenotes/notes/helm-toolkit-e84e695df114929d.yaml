@@ -1,0 +1,15 @@
+---
+helm-toolkit:
+  - |
+    Corrected helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount to
+    cover the case when service account must have access to endpoint in
+    different namespace. In that case Role/Binding are getting created
+    in that endpoint namespace, but now rolebinding will be point to
+    the service account in the original namespace, which is $.Release.Namespace.
+    This was tested with elasticsearch chart where
+    s3.clients.local-rgw-elasticsearch.settings.endpoint was pointing to
+    another namespace. With whose changes job-s3-user was able to detect
+    availability of that enpoint. Before changes init container had this error in the logs:
+    Resolving dependency Service rook-ceph-rgw-default in namespace ceph failed: endpoints "rook-ceph-rgw-default" is forbidden: User
+    "system:serviceaccount:osh-infra:elasticsearch-s3-user" cannot get resource "endpoints" in API group "" in the namespace "ceph"
+...

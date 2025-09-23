@@ -70,6 +70,6 @@ imagePullSecrets:
 {{- $_ := unset $allNamespace $randomKey }}
 {{- range $ns, $vv := $allNamespace }}
 {{- $resourceList := (splitList "," (trimSuffix "," $vv)) }}
-{{- tuple $envAll $resourceList $saName $ns | include "helm-toolkit.snippets.kubernetes_pod_rbac_roles" }}
+{{- tuple $envAll $resourceList $ns $saName $saNamespace | include "helm-toolkit.snippets.kubernetes_pod_rbac_roles" }}
 {{- end -}}
 {{- end -}}

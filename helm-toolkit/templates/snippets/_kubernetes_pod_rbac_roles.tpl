@@ -15,15 +15,16 @@ limitations under the License.
 {{- define "helm-toolkit.snippets.kubernetes_pod_rbac_roles" -}}
 {{- $envAll := index . 0 -}}
 {{- $deps := index . 1 -}}
-{{- $saName := index . 2 | replace "_" "-" }}
-{{- $saNamespace := index . 3 -}}
+{{- $namespace := index . 2 -}}
+{{- $saName := index . 3 | replace "_" "-" }}
+{{- $saNamespace := index . 4 -}}
 {{- $releaseName := $envAll.Release.Name }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: {{ $releaseName }}-{{ $saName }}
-  namespace: {{ $saNamespace }}
+  name: {{ $releaseName }}-{{ $saNamespace }}-{{ $saName }}
+  namespace: {{ $namespace }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
@@ -37,7 +38,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: {{ $releaseName }}-{{ $saNamespace }}-{{ $saName }}
-  namespace: {{ $saNamespace }}
+  namespace: {{ $namespace }}
 rules:
   - apiGroups:
       - ""
