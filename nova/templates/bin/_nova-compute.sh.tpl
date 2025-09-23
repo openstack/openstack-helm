@@ -28,5 +28,6 @@ exec nova-compute \
       --config-file /tmp/pod-shared/nova-compute-fqdn.conf \
 {{- end }}
 {{- if .Values.conf.hypervisor.address_search_enabled }}
-      --config-file /tmp/pod-shared/nova-hypervisor.conf
+      --config-file /tmp/pod-shared/nova-hypervisor.conf \
 {{- end }}
+      --config-dir /etc/nova/nova.conf.d

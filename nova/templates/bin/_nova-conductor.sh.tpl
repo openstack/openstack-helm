@@ -16,4 +16,5 @@ limitations under the License.
 
 set -x
 exec nova-conductor \
-      --config-file /etc/nova/nova.conf
+      --config-file /etc/nova/nova.conf \
+      --config-dir /etc/nova/nova.conf.d

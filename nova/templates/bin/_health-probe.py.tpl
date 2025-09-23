@@ -26,7 +26,9 @@ Script returns failure to Kubernetes only when
 sys.stderr.write() writes to pod's events on failures.
 
 Usage example for Nova Compute:
-# python health-probe.py --config-file /etc/nova/nova.conf \
+# python health-probe.py \
+#  --config-file /etc/nova/nova.conf \
+#  --config-dir /etc/nova/nova.conf.d \
 #  --service-queue-name compute
 
 """
@@ -204,7 +206,7 @@ def test_rpc_liveness():
     cfg.CONF.register_cli_opt(cfg.BoolOpt('use-fqdn', default=False,
                                           required=False))
 
-    cfg.CONF(sys.argv[1:])
+    cfg.CONF(sys.argv[1:], project='nova')
 
     log.logging.basicConfig(level=log.{{ .Values.health_probe.logging.level }})
 
