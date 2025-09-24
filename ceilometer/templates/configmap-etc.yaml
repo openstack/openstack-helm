@@ -15,35 +15,8 @@ limitations under the License.
 {{- if .Values.manifests.configmap_etc }}
 {{- $envAll := . }}
 
-{{- if empty .Values.conf.ceilometer.keystone_authtoken.auth_uri -}}
-{{- $_ := tuple "identity" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup"| set .Values.conf.ceilometer.keystone_authtoken "auth_uri" -}}
-{{- end -}}
-
-{{- if empty .Values.conf.ceilometer.keystone_authtoken.auth_url -}}
-{{- $_ := tuple "identity" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup"| set .Values.conf.ceilometer.keystone_authtoken "auth_url" -}}
-{{- end -}}
-
-{{- if empty .Values.conf.ceilometer.keystone_authtoken.memcached_servers -}}
-{{- $_ := tuple "oslo_cache" "internal" "memcache" . | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" | set .Values.conf.ceilometer.keystone_authtoken "memcached_servers" -}}
-{{- end -}}
-{{- if empty .Values.conf.ceilometer.keystone_authtoken.memcache_secret_key -}}
-{{- $_ := set .Values.conf.ceilometer.keystone_authtoken "memcache_secret_key" ( default ( randAlphaNum 64 ) .Values.endpoints.oslo_cache.auth.memcache_secret_key ) -}}
-{{- end -}}
-
 {{- if empty .Values.conf.ceilometer.cache.memcache_servers -}}
 {{- $_ := tuple "oslo_cache" "internal" "memcache" . | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" | set .Values.conf.ceilometer.cache "memcache_servers" -}}
-{{- end -}}
-
-{{- if empty .Values.conf.ceilometer.database.connection -}}
-{{- $_ := tuple "oslo_db" "internal" "ceilometer" "mysql" . | include "helm-toolkit.endpoints.authenticated_endpoint_uri_lookup"| set .Values.conf.ceilometer.database "connection" -}}
-{{- end -}}
-
-{{- if empty .Values.conf.ceilometer.database.event_connection -}}
-{{- $_ := tuple "mongodb" "internal" "ceilometer" "mongodb" . | include "helm-toolkit.endpoints.authenticated_endpoint_uri_lookup"| set .Values.conf.ceilometer.database "event_connection" -}}
-{{- end -}}
-
-{{- if empty .Values.conf.ceilometer.database.metering_connection -}}
-{{- $_ := tuple "mongodb" "internal" "ceilometer" "mongodb" . | include "helm-toolkit.endpoints.authenticated_endpoint_uri_lookup"| set .Values.conf.ceilometer.database "metering_connection" -}}
 {{- end -}}
 
 {{- if empty .Values.conf.ceilometer.DEFAULT.transport_url -}}
@@ -56,25 +29,6 @@ limitations under the License.
 
 {{- if empty .Values.conf.ceilometer.notification.messaging_urls -}}
 {{- $_ := tuple "oslo_messaging" "internal" "ceilometer" "amqp" . | include "helm-toolkit.endpoints.authenticated_transport_endpoint_uri_lookup" | set .Values.conf.ceilometer.notification "messaging_urls" -}}
-{{- end -}}
-
-{{- if empty .Values.conf.ceilometer.keystone_authtoken.region_name -}}
-{{- $_ := set .Values.conf.ceilometer.keystone_authtoken "region_name" .Values.endpoints.identity.auth.ceilometer.region_name -}}
-{{- end -}}
-{{- if empty .Values.conf.ceilometer.keystone_authtoken.project_name -}}
-{{- $_ := set .Values.conf.ceilometer.keystone_authtoken "project_name" .Values.endpoints.identity.auth.ceilometer.project_name -}}
-{{- end -}}
-{{- if empty .Values.conf.ceilometer.keystone_authtoken.project_domain_name -}}
-{{- $_ := set .Values.conf.ceilometer.keystone_authtoken "project_domain_name" .Values.endpoints.identity.auth.ceilometer.project_domain_name -}}
-{{- end -}}
-{{- if empty .Values.conf.ceilometer.keystone_authtoken.user_domain_name -}}
-{{- $_ := set .Values.conf.ceilometer.keystone_authtoken "user_domain_name" .Values.endpoints.identity.auth.ceilometer.user_domain_name -}}
-{{- end -}}
-{{- if empty .Values.conf.ceilometer.keystone_authtoken.username -}}
-{{- $_ := set .Values.conf.ceilometer.keystone_authtoken "username" .Values.endpoints.identity.auth.ceilometer.username -}}
-{{- end -}}
-{{- if empty .Values.conf.ceilometer.keystone_authtoken.password -}}
-{{- $_ := set .Values.conf.ceilometer.keystone_authtoken "password" .Values.endpoints.identity.auth.ceilometer.password -}}
 {{- end -}}
 
 {{- if empty .Values.conf.ceilometer.service_credentials.auth_url -}}
@@ -103,10 +57,6 @@ limitations under the License.
 {{- $_ := tuple "metric" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup"| set .Values.conf.ceilometer.dispatcher_gnocchi "url" -}}
 {{- end -}}
 
-{{- if empty .Values.conf.ceilometer.api.aodh_url -}}
-{{- $_ := tuple "alarming" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup"| set .Values.conf.ceilometer.api "aodh_url" -}}
-{{- end -}}
-
 ---
 apiVersion: v1
 kind: Secret
@@ -116,9 +66,6 @@ type: Opaque
 data:
   rally_tests.yaml: {{ toYaml .Values.conf.rally_tests | b64enc }}
   ceilometer.conf: {{ include "helm-toolkit.utils.to_oslo_conf" .Values.conf.ceilometer | b64enc }}
-  api_paste.ini: {{ include "helm-toolkit.utils.to_ini" .Values.conf.paste | b64enc }}
-  policy.yaml: {{ toYaml .Values.conf.policy | b64enc }}
-  api_audit_map.conf: {{ include "helm-toolkit.utils.to_oslo_conf" .Values.conf.api_audit_map | b64enc }}
   event_pipeline.yaml: {{ toYaml .Values.conf.event_pipeline | b64enc }}
   pipeline.yaml: {{ toYaml .Values.conf.pipeline | b64enc }}
   event_definitions.yaml: {{ toYaml .Values.conf.event_definitions | b64enc }}
