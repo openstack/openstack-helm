@@ -23,7 +23,6 @@ helm upgrade --install ceilometer ${OSH_HELM_REPO}/ceilometer \
   --namespace=openstack \
   --set pod.replicas.api=2 \
   --set pod.replicas.central=2 \
-  --set pod.replicas.collector=2 \
   --set pod.replicas.notification=2 \
   ${OSH_EXTRA_HELM_ARGS:=} \
   ${OSH_EXTRA_HELM_ARGS_CEILOMETER}

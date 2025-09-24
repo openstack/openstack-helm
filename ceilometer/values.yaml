@@ -31,9 +31,6 @@ labels:
   ipmi:
     node_selector_key: openstack-node
     node_selector_value: enabled
-  collector:
-    node_selector_key: openstack-control-plane
-    node_selector_value: enabled
   notification:
     node_selector_key: openstack-control-plane
     node_selector_value: enabled
@@ -56,7 +53,6 @@ images:
     ks_endpoints: quay.io/airshipit/heat:2024.1-ubuntu_jammy
     ceilometer_api: docker.io/kolla/ubuntu-source-ceilometer-api:wallaby
     ceilometer_central: docker.io/kolla/ubuntu-source-ceilometer-central:wallaby
-    ceilometer_collector: docker.io/kolla/ubuntu-source-ceilometer-collector:wallaby
     ceilometer_compute: docker.io/kolla/ubuntu-source-ceilometer-compute:wallaby
     ceilometer_ipmi: docker.io/kolla/ubuntu-source-ceilometer-base:wallaby
     ceilometer_notification: docker.io/kolla/ubuntu-source-ceilometer-notification:wallaby
@@ -1606,22 +1602,6 @@ dependencies:
           service: mongodb
         - endpoint: internal
           service: metric
-    collector:
-      jobs:
-        - ceilometer-db-init-mongodb
-        - ceilometer-db-sync
-        - ceilometer-rabbit-init
-        - ceilometer-ks-user
-        - ceilometer-ks-endpoints
-      services:
-        - endpoint: internal
-          service: identity
-        - endpoint: internal
-          service: oslo_db
-        - endpoint: internal
-          service: mongodb
-        - endpoint: internal
-          service: metric
     compute:
       jobs:
         - ceilometer-db-init-mongodb
@@ -1959,11 +1939,6 @@ pod:
       ceilometer_ipmi:
         volumeMounts:
         volumes:
-    ceilometer_collector:
-      init_container: null
-      ceilometer_collector:
-        volumeMounts:
-        volumes:
     ceilometer_notification:
       init_container: null
       ceilometer_notification:
@@ -1976,7 +1951,6 @@ pod:
   replicas:
     api: 1
     central: 1
-    collector: 1
     notification: 1
   lifecycle:
     upgrades:
@@ -2008,13 +1982,6 @@ pod:
         memory: "1024Mi"
         cpu: "2000m"
     compute:
-      requests:
-        memory: "128Mi"
-        cpu: "100m"
-      limits:
-        memory: "1024Mi"
-        cpu: "2000m"
-    collector:
       requests:
         memory: "128Mi"
         cpu: "100m"
@@ -2119,7 +2086,6 @@ manifests:
   configmap_etc: true
   deployment_api: true
   deployment_central: true
-  deployment_collector: true
   daemonset_compute: true
   daemonset_ipmi: false
   deployment_notification: true
