@@ -71,6 +71,10 @@ exec:
 
 {{- $mounts_nova_compute := .Values.pod.mounts.nova_compute.nova_compute }}
 {{- $mounts_nova_compute_init := .Values.pod.mounts.nova_compute.init_container }}
+{{- $etcSources := .Values.pod.etcSources.nova_compute }}
+{{- if eq .Values.manifests.secret_ks_etc true }}
+{{- $etcSources = append $etcSources (dict "secret" (dict "name" "nova-ks-etc")) }}
+{{- end }}
 
 ---
 apiVersion: apps/v1
@@ -521,11 +525,12 @@ spec:
           secret:
             secretName: {{ $configMapName }}
             defaultMode: 0444
+{{- if $etcSources }}
         - name: nova-etc-snippets
           projected:
             sources:
-              - secret:
-                  name: nova-ks-etc
+{{ toYaml $etcSources | indent 14 }}
+{{ end }}
         {{- if .Values.network.ssh.enabled }}
         - name: nova-ssh
           secret:

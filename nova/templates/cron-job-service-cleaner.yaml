@@ -17,6 +17,10 @@ limitations under the License.
 
 {{- $serviceAccountName := "nova-service-cleaner" }}
 {{ tuple $envAll "service_cleaner" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{- $etcSources := .Values.pod.etcSources.nova_service_cleaner }}
+{{- if eq .Values.manifests.secret_ks_etc true }}
+{{- $etcSources = append $etcSources (dict "secret" (dict "name" "nova-ks-etc")) }}
+{{- end }}
 ---
 apiVersion: batch/v1
 kind: CronJob
@@ -91,10 +95,11 @@ spec:
               configMap:
                 name: nova-bin
                 defaultMode: 0555
+{{- if $etcSources }}
             - name: nova-etc-snippets
               projected:
                 sources:
-                  - secret:
-                      name: nova-ks-etc
+{{ toYaml $etcSources | indent 18 }}
+{{ end }}
 {{- dict "enabled" (or .Values.manifests.certificates .Values.tls.identity) "name" .Values.secrets.tls.compute.osapi.internal | include "helm-toolkit.snippets.tls_volume" | indent 12 }}
 {{- end }}
