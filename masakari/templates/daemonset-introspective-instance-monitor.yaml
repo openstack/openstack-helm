@@ -1,0 +1,141 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.introspective_instance_monitor }}
+{{- $envAll := . }}
+{{- $daemonset := "masakari-introspective-instance-monitor" }}
+
+{{- $mounts_masakari_introspective_instance_monitor := .Values.pod.mounts.masakari_introspective_instance_monitor.masakari_introspective_instance_monitor }}
+{{- $mounts_masakari_introspective_instance_monitor_init := .Values.pod.mounts.masakari_introspective_instance_monitor.init_container }}
+
+{{- $serviceAccountName := "masakari-introspective-instance-monitor" }}
+{{- tuple $envAll "masakari_introspective_instance_monitor" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: masakari-introspective-instance-monitor
+  annotations:
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+  labels:
+{{ tuple $envAll .Chart.Name $daemonset | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  selector:
+    matchLabels:
+{{ tuple $envAll .Chart.Name $daemonset | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
+{{ tuple $envAll $daemonset | include "helm-toolkit.snippets.kubernetes_upgrades_daemonset" | indent 2 }}
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll .Chart.Name $daemonset | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+{{- dict "envAll" $envAll "podName" "masakari-introspective-instance-monitor" "containerNames" (list "masakari-monitor") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
+{{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
+        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
+{{ tuple "masakari_introspective_instance_monitor" . | include "helm-toolkit.snippets.custom_pod_annotations" | indent 8 }}
+    spec:
+{{ dict "envAll" $envAll "application" "masakari-introspective-instance-monitor" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
+      serviceAccountName: {{ $serviceAccountName }}
+      nodeSelector:
+        {{ .Values.labels.monitors.node_selector_key }}: {{ .Values.labels.monitors.node_selector_value }}
+      initContainers:
+{{ tuple $envAll "masakari_introspective_instance_monitor" $mounts_masakari_introspective_instance_monitor_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+        - name: introspective-instance-monitor-init
+{{ tuple $envAll "masakari_introspective_instance_monitor" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.masakari_introspective_instance_monitor | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "masakari" "container" "masakari_introspective_instance_monitor" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          command:
+            - /tmp/masakari-monitors-init.sh
+          env:
+            - name: COMPUTE_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: pod-shared
+              mountPath: /tmp/pod-shared
+            - name: masakari-bin
+              mountPath: /tmp/masakari-monitors-init.sh
+              subPath: masakari-monitors-init.sh
+              readOnly: true
+      hostNetwork: true
+      containers:
+        - name: masakari-introspective-instance-monitor
+{{ tuple $envAll "masakari_introspective_instance_monitor" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.masakari_introspective_instance_monitor | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "masakari" "container" "masakari_introspective_instance_monitor" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          command:
+            - /tmp/masakari-introspective-instance-monitor.sh
+            - start
+          env:
+            - name: COMPUTE_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /tmp/masakari-introspective-instance-monitor.sh
+                  - stop
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: pod-shared
+              mountPath: /tmp/pod-shared
+            - name: masakari-bin
+              mountPath: /tmp/masakari-introspective-instance-monitor.sh
+              subPath: masakari-introspective-instance-monitor.sh
+            - name: masakari-etc
+              mountPath: /etc/masakari/masakarimonitors.conf
+              subPath: masakarimonitors.conf
+            - name: masakari-etc
+              mountPath: /etc/sudoers.d/masakari_sudoers
+              subPath: masakari_sudoers
+            - name: masakarietc
+              mountPath: /etc/masakari
+            - name: varrun
+              mountPath: /var/run
+            - name: run
+              mountPath: /run
+            - name: shm
+              mountPath: /dev/shm
+      volumes:
+        - name: pod-tmp
+          emptyDir: {}
+        - name: pod-shared
+          emptyDir: {}
+        - name: masakarietc
+          emptyDir: {}
+        - name: shm
+          hostPath:
+            path: /dev/shm
+        - name: varrun
+          hostPath:
+            path: /var/run
+        - name: run
+          hostPath:
+            path: /run
+        - name: masakari-bin
+          configMap:
+            name: masakari-bin
+            defaultMode: 0555
+        - name: masakari-etc
+          secret:
+            secretName: masakari-etc
+            defaultMode: 0444
+{{- end }}
