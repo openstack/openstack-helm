@@ -27,6 +27,10 @@ tcpSocket:
 
 {{- $mounts_nova_novncproxy := .Values.pod.mounts.nova_novncproxy.nova_novncproxy }}
 {{- $mounts_nova_novncproxy_init := .Values.pod.mounts.nova_novncproxy.init_novncproxy }}
+{{- $etcSources := .Values.pod.etcSources.nova_novncproxy }}
+{{- if eq .Values.manifests.secret_ks_etc true }}
+{{- $etcSources = append $etcSources (dict "secret" (dict "name" "nova-ks-etc")) }}
+{{- end }}
 
 {{- $vencrypt_enabled := (contains "vencrypt" .Values.conf.nova.vnc.auth_schemes) }}
 
@@ -174,11 +178,12 @@ spec:
           secret:
             secretName: nova-etc
             defaultMode: 0444
+{{- if $etcSources }}
         - name: nova-etc-snippets
           projected:
             sources:
-              - secret:
-                  name: nova-ks-etc
+{{ toYaml $etcSources | indent 14 }}
+{{ end }}
         - name: pod-usr-share-novnc
           emptyDir: {}
         - name: pod-shared

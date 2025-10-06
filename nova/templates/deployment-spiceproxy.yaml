@@ -27,6 +27,10 @@ tcpSocket:
 
 {{- $mounts_nova_spiceproxy := .Values.pod.mounts.nova_spiceproxy.nova_spiceproxy }}
 {{- $mounts_nova_spiceproxy_init := .Values.pod.mounts.nova_spiceproxy.init_spiceproxy }}
+{{- $etcSources := .Values.pod.etcSources.nova_spiceproxy }}
+{{- if eq .Values.manifests.secret_ks_etc true }}
+{{- $etcSources = append $etcSources (dict "secret" (dict "name" "nova-ks-etc")) }}
+{{- end }}
 
 {{- $serviceAccountName := "nova-spiceproxy" }}
 {{ tuple $envAll "spiceproxy" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
@@ -160,11 +164,12 @@ spec:
           secret:
             secretName: nova-etc
             defaultMode: 0444
+{{- if $etcSources }}
         - name: nova-etc-snippets
           projected:
             sources:
-              - secret:
-                  name: nova-ks-etc
+{{ toYaml $etcSources | indent 14 }}
+{{ end }}
         - name: pod-usr-share-spice-html5
           emptyDir: {}
         - name: pod-shared

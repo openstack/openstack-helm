@@ -17,6 +17,10 @@ limitations under the License.
 
 {{- $serviceAccountName := "nova-cell-setup" }}
 {{ tuple $envAll "cell_setup" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{- $etcSources := .Values.pod.etcSources.nova_cell_setup }}
+{{- if eq .Values.manifests.secret_ks_etc true }}
+{{- $etcSources = append $etcSources (dict "secret" (dict "name" "nova-ks-etc")) }}
+{{- end }}
 ---
 apiVersion: batch/v1
 kind: Job
@@ -127,11 +131,12 @@ spec:
           secret:
             secretName: nova-etc
             defaultMode: 0444
+{{- if $etcSources }}
         - name: nova-etc-snippets
           projected:
             sources:
-              - secret:
-                  name: nova-ks-etc
+{{ toYaml $etcSources | indent 14 }}
+{{ end }}
         - name: nova-bin
           configMap:
             name: nova-bin

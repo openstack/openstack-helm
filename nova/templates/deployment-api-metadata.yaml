@@ -31,6 +31,10 @@ httpGet:
 
 {{- $mounts_nova_api_metadata := .Values.pod.mounts.nova_api_metadata.nova_api_metadata }}
 {{- $mounts_nova_api_metadata_init := .Values.pod.mounts.nova_api_metadata.init_container }}
+{{- $etcSources := .Values.pod.etcSources.nova_api_metadata }}
+{{- if eq .Values.manifests.secret_ks_etc true }}
+{{- $etcSources = append $etcSources (dict "secret" (dict "name" "nova-ks-etc")) }}
+{{- end }}
 
 {{- $serviceAccountName := "nova-api-metadata" }}
 {{ tuple $envAll "api_metadata" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
@@ -221,11 +225,12 @@ spec:
           secret:
             secretName: nova-etc
             defaultMode: 0444
+{{- if $etcSources }}
         - name: nova-etc-snippets
           projected:
             sources:
-              - secret:
-                  name: nova-ks-etc
+{{ toYaml $etcSources | indent 14 }}
+{{ end }}
         - name: pod-shared
           emptyDir: {}
 {{- dict "enabled" .Values.manifests.certificates "name" .Values.endpoints.oslo_db.auth.admin.secret.tls.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}

@@ -27,6 +27,10 @@ tcpSocket:
 
 {{- $mounts_nova_serialproxy := .Values.pod.mounts.nova_serialproxy.nova_serialproxy }}
 {{- $mounts_nova_serialproxy_init := .Values.pod.mounts.nova_serialproxy.init_serialproxy }}
+{{- $etcSources := .Values.pod.etcSources.nova_serialproxy }}
+{{- if eq .Values.manifests.secret_ks_etc true }}
+{{- $etcSources = append $etcSources (dict "secret" (dict "name" "nova-ks-etc")) }}
+{{- end }}
 
 {{- $serviceAccountName := "nova-serialproxy" }}
 {{ tuple $envAll "serialproxy" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
@@ -152,11 +156,12 @@ spec:
           secret:
             secretName: nova-etc
             defaultMode: 0444
+{{- if $etcSources }}
         - name: nova-etc-snippets
           projected:
             sources:
-              - secret:
-                  name: nova-ks-etc
+{{ toYaml $etcSources | indent 14 }}
+{{ end }}
         - name: pod-usr-share-serial
           emptyDir: {}
         - name: pod-shared

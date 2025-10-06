@@ -17,6 +17,10 @@ limitations under the License.
 
 {{- $mounts_nova_compute_ironic := .Values.pod.mounts.nova_compute_ironic.nova_compute_ironic }}
 {{- $mounts_nova_compute_ironic_init := .Values.pod.mounts.nova_compute_ironic.init_container }}
+{{- $etcSources := .Values.pod.etcSources.nova_compute_ironic }}
+{{- if eq .Values.manifests.secret_ks_etc true }}
+{{- $etcSources = append $etcSources (dict "secret" (dict "name" "nova-ks-etc")) }}
+{{- end }}
 
 {{- $serviceAccountName := "nova-compute-ironic" }}
 {{ tuple $envAll "compute_ironic" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
@@ -109,11 +113,12 @@ spec:
           secret:
             secretName: nova-etc
             defaultMode: 0444
+{{- if $etcSources }}
         - name: nova-etc-snippets
           projected:
             sources:
-              - secret:
-                  name: nova-ks-etc
+{{ toYaml $etcSources | indent 14 }}
+{{ end }}
         - name: varlibironic
           hostPath:
             path: /var/lib/ironic

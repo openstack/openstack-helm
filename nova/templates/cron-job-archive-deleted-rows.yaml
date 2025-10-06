@@ -17,6 +17,10 @@ limitations under the License.
 
 {{- $serviceAccountName := "nova-archive-deleted-rows-cron" }}
 {{ tuple $envAll "archive_deleted_rows" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{- $etcSources := .Values.pod.etcSources.nova_archive_deleted_rows }}
+{{- if eq .Values.manifests.secret_ks_etc true }}
+{{- $etcSources = append $etcSources (dict "secret" (dict "name" "nova-ks-etc")) }}
+{{- end }}
 ---
 apiVersion: batch/v1
 kind: CronJob
@@ -96,11 +100,12 @@ spec:
             - name: archive-deleted-rows-conf
               secret:
                 secretName: nova-etc
+{{- if $etcSources }}
             - name: nova-etc-snippets
               projected:
                 sources:
-                  - secret:
-                      name: nova-ks-etc
+{{ toYaml $etcSources | indent 18 }}
+{{ end }}
 {{- dict "enabled" (or .Values.manifests.certificates .Values.tls.identity) "name" .Values.secrets.tls.compute.osapi.internal | include "helm-toolkit.snippets.tls_volume" | indent 12 }}
 {{- dict "enabled" .Values.manifests.certificates "name" .Values.endpoints.oslo_db.auth.admin.secret.tls.internal | include "helm-toolkit.snippets.tls_volume" | indent 12 }}
 {{- end }}
