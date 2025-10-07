@@ -776,9 +776,10 @@ conf:
       MaxRequestsPerChild 128
       ThreadLimit         720
     </IfModule>
+  wsgi_script_name: wsgi.py
   wsgi_keystone: |
     {{- $portInt := tuple "identity" "service" "api" $ | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-
+    {{- $wsgiScript := .Values.conf.wsgi_script_name }}
     Listen 0.0.0.0:{{ $portInt }}
 
     LogFormat "%h %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\"" combined
@@ -791,7 +792,7 @@ conf:
     <VirtualHost *:{{ $portInt }}>
         WSGIDaemonProcess keystone-public processes=1 threads=1 user=keystone group=keystone display-name=%{GROUP}
         WSGIProcessGroup keystone-public
-        WSGIScriptAlias / /var/www/cgi-bin/keystone/keystone-wsgi-public
+        WSGIScriptAlias / /var/www/cgi-bin/keystone/{{ $wsgiScript }}
         WSGIApplicationGroup %{GLOBAL}
         WSGIPassAuthorization On
         ErrorLogFormat "%{cu}t %M"
