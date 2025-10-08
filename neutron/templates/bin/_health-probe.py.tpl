@@ -156,7 +156,6 @@ def get_rabbitmq_ports():
 def tcp_socket_state_check(agentq):
     """Check if the tcp socket to rabbitmq is in Established state"""
     rabbit_sock_count = 0
-    parentId = 0
     if agentq == "l3_agent":
         proc = "neutron-l3-agen"
     elif agentq == "dhcp_agent":
@@ -172,12 +171,7 @@ def tcp_socket_state_check(agentq):
         try:
             with p.oneshot():
                 if proc in " ".join(p.cmdline()):
-                    if parentId == 0:
-                        parentId = p.pid
-                    else:
-                        if p.ppid() == parentId:
-                            continue
-                    pcon = p.connections()
+                    pcon = getattr(p, "net_connections", p.connections)()
                     for con in pcon:
                         try:
                             port = con.raddr[1]
