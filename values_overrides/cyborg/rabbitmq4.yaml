@@ -1,0 +1,34 @@
+---
+# Upgrading from rabbitmq 3.x to 4.x requires:
+# 1: upgrading to the latest rabbitmq 3.x release and enabling all feature flags
+# 2: removing all rabbitmq 3.x openstack vhost ha policies
+# 3: setting rabbit_ha_queues to false in all openstack component configs
+# 4: wiping the rabbitmq database if rabbit_ha_queues and/or vhost ha policies were used with 3.x
+conf:
+  cyborg:
+    oslo_messaging_rabbit:
+      rabbit_ha_queues: false
+
+# Note: rabbit_ha_queues is true by default for all openstack components in openstack-helm
+
+# Steps to wipe rabbitmq database:
+# 1: rabbitmqctl stop_app
+# 2: rabbitmqctl force_reset
+# 3: rabbitmqctl start_app
+# 4: rerun all openstack component rabbit-init jobs to recreate rabbitmq vhosts and users
+
+# Note: rabbitmq classic v2 vs quorum queues
+# With rabbitmq 4.x classic queues have been replaced with classic v2 queues. Classic v2 queues
+# do not support high availability. For HA, quorum queues must be used. Quorum queues are HA by default.
+# Classic v2 queues are the default in Rabbitmq 4.x.
+#
+# To enable quorum queues with rabbitmq 4.x you can use:
+#
+# conf:
+#   cyborg:
+#     oslo_messaging_rabbit:
+#       rabbit_ha_queues: false
+#       rabbit_quorum_queues: true
+#       rabbit_transient_quorum_queue: true
+#       use_queue_manager: true
+...
