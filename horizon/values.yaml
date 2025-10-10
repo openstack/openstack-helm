@@ -208,6 +208,10 @@ conf:
         use_ssl: "False"
         endpoint_type: "internalURL"
         keystone_multidomain_support: "True"
+        keystone_multidomain_dropdown: "False"
+        keystone_domains:
+          Default: "Default"
+          example_domain: "example"
         keystone_default_domain: Default
         disable_password_reveal: "True"
         show_openrc_file: "True"
@@ -334,6 +338,15 @@ conf:
         # Set this to True if running on multi-domain model. When this is enabled, it
         # will require user to enter the Domain name in addition to username for login.
         OPENSTACK_KEYSTONE_MULTIDOMAIN_SUPPORT = {{ .Values.conf.horizon.local_settings.config.keystone_multidomain_support }}
+        OPENSTACK_KEYSTONE_DOMAIN_DROPDOWN = {{ .Values.conf.horizon.local_settings.config.keystone_multidomain_dropdown }}
+        {{- $multiDomainDropdown := eq (lower .Values.conf.horizon.local_settings.config.keystone_multidomain_dropdown) "true" }}
+        {{- if $multiDomainDropdown }}
+        OPENSTACK_KEYSTONE_DOMAIN_CHOICES = (
+        {{- range $key, $label := .Values.conf.horizon.local_settings.config.keystone_domains }}
+            ('{{ $key }}', _('{{ $label }}')),
+        {{- end }}
+        )
+        {{- end }}
 
         # Overrides the default domain used when running on single-domain model
         # with Keystone V3. All entities will be created in the default domain.
