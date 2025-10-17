@@ -60,22 +60,7 @@ ipmi_device: /dev/ipmi0
 conf:
   ceilometer:
     DEFAULT:
-      event_dispatchers:
-        type: multistring
-        values:
-          - database
-      meter_dispatchers:
-        type: multistring
-        values:
-          - database
-          - gnocchi
-    dispatcher_gnocchi:
-      filter_service_activity: false
-      archive_policy: low
-      resources_definition_file: /etc/ceilometer/gnocchi_resources.yaml
-    dispatcher:
-      archive_policy: low
-      filter_project: service
+      transport_url: null
     service_credentials:
       auth_type: password
       interface: internal
@@ -687,7 +672,7 @@ conf:
       - name: event_sink
         publishers:
           - notifier://
-        transformers: null
+          - gnocchi://
     sources:
       - events:
           - '*'
@@ -695,9 +680,17 @@ conf:
         sinks:
           - event_sink
   gnocchi_resources:
+    archive_policy_default: ceilometer-low
+    archive_policies:
+      - name: ceilometer-low
+        aggregation_methods:
+          - mean
+        back_window: 0
+        definition:
+          - granularity: 5 minutes
+            timespan: 30 days
     resources:
-      - archive_policy: low
-        metrics:
+      - metrics:
           - identity.authenticate.success
           - identity.authenticate.pending
           - identity.authenticate.failure
@@ -1224,94 +1217,17 @@ conf:
         meters:
           - "*"
   pipeline:
-    sources:
-      - name: meter_source
-        meters:
-          - "*"
-        sinks:
-          - meter_sink
-      - name: cpu_source
-        meters:
-          - "cpu"
-        sinks:
-          - cpu_sink
-          - cpu_delta_sink
-      - name: disk_source
-        meters:
-          - "disk.read.bytes"
-          - "disk.read.requests"
-          - "disk.write.bytes"
-          - "disk.write.requests"
-          - "disk.device.read.bytes"
-          - "disk.device.read.requests"
-          - "disk.device.write.bytes"
-          - "disk.device.write.requests"
-        sinks:
-          - disk_sink
-      - name: network_source
-        meters:
-          - "network.incoming.bytes"
-          - "network.incoming.packets"
-          - "network.outgoing.bytes"
-          - "network.outgoing.packets"
-        sinks:
-          - network_sink
     sinks:
       - name: meter_sink
-        transformers:
         publishers:
           - notifier://
-      - name: cpu_sink
-        transformers:
-          - name: "rate_of_change"
-            parameters:
-              target:
-                name: "cpu_util"
-                unit: "%"
-                type: "gauge"
-                max: 100
-                scale: "100.0 / (10**9 * (resource_metadata.cpu_number or 1))"
-        publishers:
-          - notifier://
-      - name: cpu_delta_sink
-        transformers:
-          - name: "delta"
-            parameters:
-              target:
-                name: "cpu.delta"
-              growth_only: true
-        publishers:
-          - notifier://
-      - name: disk_sink
-        transformers:
-          - name: "rate_of_change"
-            parameters:
-              source:
-                map_from:
-                  name: "(disk\\.device|disk)\\.(read|write)\\.(bytes|requests)"
-                  unit: "(B|request)"
-              target:
-                map_to:
-                  name: "\\1.\\2.\\3.rate"
-                  unit: "\\1/s"
-                type: "gauge"
-        publishers:
-          - notifier://
-      - name: network_sink
-        transformers:
-          - name: "rate_of_change"
-            parameters:
-              source:
-                map_from:
-                  name: "network\\.(incoming|outgoing)\\.(bytes|packets)"
-                  unit: "(B|packet)"
-              target:
-                map_to:
-                  name: "network.\\1.\\2.rate"
-                  unit: "\\1/s"
-                type: "gauge"
-        publishers:
-          - notifier://
+          - gnocchi://
+    sources:
+      - meters:
+          - "*"
+        name: meter_source
+        sinks:
+          - meter_sink
 
 dependencies:
   dynamic:
