@@ -33,7 +33,7 @@ ifdef PACKAGE_DIR
 	PKG_ARGS += --destination $(PACKAGE_DIR)
 endif
 
-BASE_VERSION ?= 2025.1.0
+BASE_VERSION ?= 2025.2.0
 
 CHART_DIRS := $(subst /,,$(dir $(wildcard */Chart.yaml)))
 CHARTS := $(sort helm-toolkit $(CHART_DIRS))
