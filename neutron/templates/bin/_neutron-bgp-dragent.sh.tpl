@@ -18,4 +18,5 @@ set -x
 exec neutron-bgp-dragent \
       --config-file /etc/neutron/neutron.conf \
       --config-file /etc/neutron/bgp_dragent.ini \
+      --config-dir /etc/neutron/neutron.conf.d \
       --debug

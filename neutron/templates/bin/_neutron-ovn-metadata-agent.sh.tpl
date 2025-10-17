@@ -22,5 +22,6 @@ exec neutron-ovn-metadata-agent \
 {{- if and ( empty .Values.conf.neutron.DEFAULT.host ) ( .Values.pod.use_fqdn.neutron_agent ) }}
   --config-file /tmp/pod-shared/neutron-agent.ini \
 {{- end }}
-      --config-file /tmp/pod-shared/ovn.ini
+      --config-file /tmp/pod-shared/ovn.ini \
+      --config-dir /etc/neutron/neutron.conf.d
 

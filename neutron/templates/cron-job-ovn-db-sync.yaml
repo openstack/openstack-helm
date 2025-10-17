@@ -17,6 +17,10 @@ limitations under the License.
 
 {{- $mounts_neutron_ovn_db_sync := .Values.pod.mounts.neutron_ovn_db_sync.neutron_ovn_db_sync }}
 {{- $mounts_neutron_ovn_db_sync_init := .Values.pod.mounts.neutron_ovn_db_sync.init_container }}
+{{- $etcSources := .Values.pod.etcSources.neutron_ovn_db_sync }}
+{{- if .Values.manifests.secret_ks_etc }}
+{{- $etcSources = append $etcSources (dict "secret" (dict "name" "neutron-ks-etc")) }}
+{{- end }}
 
 {{- $serviceAccountName := "neutron-ovn-db-sync" }}
 {{ tuple $envAll "pod_dependency" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
@@ -172,11 +176,12 @@ spec:
               secret:
                 secretName: neutron-etc
                 defaultMode: 0444
+{{- if $etcSources }}
             - name: neutron-etc-snippets
               projected:
                 sources:
-                  - secret:
-                      name: neutron-ks-etc
+{{ toYaml $etcSources | indent 18 }}
+{{ end }}
             {{- if ( has "tungstenfabric" .Values.network.backend ) }}
             - name: neutron-plugin-shared
               emptyDir: {}

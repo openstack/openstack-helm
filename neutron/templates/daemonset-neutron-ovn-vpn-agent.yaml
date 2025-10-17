@@ -53,6 +53,10 @@ exec:
 
 {{- $mounts_ovn_vpn_agent := .Values.pod.mounts.ovn_vpn_agent.ovn_vpn_agent }}
 {{- $mounts_ovn_vpn_agent_init := .Values.pod.mounts.ovn_vpn_agent.init_container }}
+{{- $etcSources := .Values.pod.etcSources.ovn_vpn_agent }}
+{{- if .Values.manifests.secret_ks_etc }}
+{{- $etcSources = append $etcSources (dict "secret" (dict "name" "neutron-ks-etc")) }}
+{{- end }}
 
 ---
 apiVersion: apps/v1
@@ -241,11 +245,12 @@ spec:
           secret:
             secretName: {{ $configMapName }}
             defaultMode: 0444
+{{- if $etcSources }}
         - name: neutron-etc-snippets
           projected:
             sources:
-              - secret:
-                  name: neutron-ks-etc
+{{ toYaml $etcSources | indent 14 }}
+{{ end }}
         - name: socket
           hostPath:
             path: /var/lib/neutron/openstack-helm

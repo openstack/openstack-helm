@@ -42,6 +42,7 @@ function start () {
 {{- else }}
   confs+=" --config-file /etc/neutron/plugins/ml2/ml2_conf.ini"
 {{- end }}
+  confs+=" --config-dir /etc/neutron/neutron.conf.d"
 
   exec uwsgi --ini /etc/neutron/neutron-api-uwsgi.ini --pyargv " $confs "
 }

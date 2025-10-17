@@ -25,4 +25,5 @@ exec neutron-sriov-nic-agent \
 {{- if .Values.conf.plugins.taas.taas.enabled }}
   --config-file /etc/neutron/plugins/ml2/taas.ini \
 {{- end }}
-  --config-file /etc/neutron/plugins/ml2/sriov_agent.ini
+  --config-file /etc/neutron/plugins/ml2/sriov_agent.ini \
+  --config-dir /etc/neutron/neutron.conf.d

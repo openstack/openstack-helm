@@ -21,5 +21,6 @@ while sleep 300; do
     neutron-netns-cleanup \
         --config-file /etc/neutron/neutron.conf \
         --config-file /etc/neutron/dhcp_agent.ini \
-        --config-file /etc/neutron/l3_agent.ini
+        --config-file /etc/neutron/l3_agent.ini \
+        --config-dir /etc/neutron/neutron.conf.d
 done

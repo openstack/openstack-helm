@@ -26,4 +26,5 @@ exec neutron-dhcp-agent \
 {{- if ( has "openvswitch" .Values.network.backend ) }}
   --config-file /etc/neutron/plugins/ml2/openvswitch_agent.ini \
 {{- end }}
-  --config-file /etc/neutron/dhcp_agent.ini
+  --config-file /etc/neutron/dhcp_agent.ini \
+  --config-dir /etc/neutron/neutron.conf.d

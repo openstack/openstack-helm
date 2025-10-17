@@ -23,7 +23,8 @@ function start () {
 {{- if and ( empty .Values.conf.neutron.DEFAULT.host ) ( .Values.pod.use_fqdn.neutron_agent ) }}
   --config-file /tmp/pod-shared/neutron-agent.ini \
 {{- end }}
-        --config-file /etc/neutron/plugins/ml2/ml2_conf.ini
+        --config-file /etc/neutron/plugins/ml2/ml2_conf.ini \
+        --config-dir /etc/neutron/neutron.conf.d
 }
 
 function stop () {

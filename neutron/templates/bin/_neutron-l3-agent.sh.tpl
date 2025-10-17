@@ -21,4 +21,5 @@ exec neutron-l3-agent \
 {{- if and ( empty .Values.conf.neutron.DEFAULT.host ) ( .Values.pod.use_fqdn.neutron_agent ) }}
   --config-file /tmp/pod-shared/neutron-agent.ini \
 {{- end }}
-      --config-file /etc/neutron/l3_agent.ini
+      --config-file /etc/neutron/l3_agent.ini \
+      --config-dir /etc/neutron/neutron.conf.d

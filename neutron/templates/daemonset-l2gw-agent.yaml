@@ -54,6 +54,10 @@ exec:
 
 {{- $mounts_neutron_l2gw_agent := .Values.pod.mounts.neutron_l2gw_agent.neutron_l2gw_agent }}
 {{- $mounts_neutron_l2gw_agent_init := .Values.pod.mounts.neutron_l2gw_agent.init_container }}
+{{- $etcSources := .Values.pod.etcSources.neutron_l2gw_agent }}
+{{- if .Values.manifests.secret_ks_etc }}
+{{- $etcSources = append $etcSources (dict "secret" (dict "name" "neutron-ks-etc")) }}
+{{- end }}
 
 ---
 apiVersion: apps/v1
@@ -156,11 +160,12 @@ spec:
           secret:
             secretName: {{ $configMapName }}
             defaultMode: 0444
+{{- if $etcSources }}
         - name: neutron-etc-snippets
           projected:
             sources:
-              - secret:
-                  name: neutron-ks-etc
+{{ toYaml $etcSources | indent 14 }}
+{{ end }}
 {{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.oslo_messaging.auth.admin.secret.tls.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 {{ if $mounts_neutron_l2gw_agent.volumes }}{{ toYaml $mounts_neutron_l2gw_agent.volumes | indent 8 }}{{ end }}
 {{- end }}
