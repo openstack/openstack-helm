@@ -20,6 +20,6 @@ set -ex
 mkdir -p /tmp/pod-shared
 tee > /tmp/pod-shared/ovn.ini << EOF
 [ovn]
-ovn_nb_connection=tcp:$OVN_OVSDB_NB_SERVICE_HOST:$OVN_OVSDB_NB_SERVICE_PORT_OVSDB
-ovn_sb_connection=tcp:$OVN_OVSDB_SB_SERVICE_HOST:$OVN_OVSDB_SB_SERVICE_PORT_OVSDB
+ovn_nb_connection={{ coalesce .Values.conf.plugins.ml2_conf.ovn.ovn_nb_connection "tcp:$OVN_OVSDB_NB_SERVICE_HOST:$OVN_OVSDB_NB_SERVICE_PORT_OVSDB" }}
+ovn_sb_connection={{ coalesce .Values.conf.plugins.ml2_conf.ovn.ovn_sb_connection "tcp:$OVN_OVSDB_SB_SERVICE_HOST:$OVN_OVSDB_SB_SERVICE_PORT_OVSDB" }}
 EOF
