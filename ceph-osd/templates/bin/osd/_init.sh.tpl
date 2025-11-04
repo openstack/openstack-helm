@@ -14,7 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-set -ex
+set -x
+
+echo "Configuring Ceph from Helm values"
+/tmp/osd-config.sh
+
+set -e
 
 echo "Initializing the osd with ${DEPLOY_TOOL}"
 exec "/tmp/init-${DEPLOY_TOOL}.sh"
