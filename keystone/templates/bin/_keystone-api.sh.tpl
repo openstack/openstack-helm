@@ -22,14 +22,12 @@ function start () {
 
   for KEYSTONE_WSGI_SCRIPT in keystone-wsgi-public; do
     script_path="$(type -p ${KEYSTONE_WSGI_SCRIPT} || true)"
-    if [[ -n "$script_path" ]]; then
-        cp -a "$script_path" /var/www/cgi-bin/keystone/
+    if [[ -z "$script_path" ]]; then
+        # In 2025.2 the keystone-wsgi-public script was removed.
+        script_path=$(python3 -c "import sysconfig; print(sysconfig.get_paths()['purelib'])")/keystone/wsgi/api.py
     fi
+    cp -a "$script_path" /var/www/cgi-bin/keystone/wsgi.py
   done
-
-  # In 2025.2 the keystone-wsgi-public script was removed.
-  # We have to use the wsgi module directly.
-  cp -a /tmp/wsgi.py /var/www/cgi-bin/keystone/
 
   {{- if .Values.conf.software.apache2.a2enmod }}
     {{- range .Values.conf.software.apache2.a2enmod }}
