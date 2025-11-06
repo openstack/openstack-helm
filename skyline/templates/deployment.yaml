@@ -50,13 +50,50 @@ spec:
         {{ .Values.labels.skyline.node_selector_key }}: {{ .Values.labels.skyline.node_selector_value }}
       initContainers:
 {{ tuple $envAll "skyline" $mounts_skyline_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
-      containers:
-        - name: skyline
+        - name: api-init
 {{ tuple $envAll "skyline" | include "helm-toolkit.snippets.image" | indent 10 }}
-{{ dict "envAll" $envAll "application" "skyline" "container" "skyline" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          command:
+            - /bin/sh
+            - -c
+            - /tmp/skyline-apiserver-init.sh
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: skyline-bin
+              mountPath: /tmp/skyline-apiserver-init.sh
+              subPath: skyline-apiserver-init.sh
+              readOnly: true
+            - name: skyline-etc
+              mountPath: /etc/skyline/skyline.yaml
+              subPath: skyline.yaml
+              readOnly: true
+            - name: skyline-etc
+              mountPath: /etc/skyline/gunicorn.py
+              subPath: gunicorn.py
+              readOnly: true
+            - name: nginx-etc
+              mountPath: /etc/nginx
+{{ if $mounts_skyline_init.volumeMounts }}{{ toYaml $mounts_skyline_init.volumeMounts | indent 12 }}{{ end }}
+      containers:
+        - name: nginx
+          command:
+            - /bin/sh
+            - -c
+            - cp /etc/nginx/.skyline/nginx.conf /etc/nginx/nginx.conf && nginx -g 'daemon off;'
+{{ tuple $envAll "skyline_nginx" | include "helm-toolkit.snippets.image" | indent 10 }}
           ports:
             - name: api
               containerPort: {{ tuple "skyline" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: nginx-etc
+              mountPath: /etc/nginx/.skyline
+        - name: skyline
+{{ tuple $envAll "skyline" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ dict "envAll" $envAll "application" "skyline" "container" "skyline" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          command:
+            - /tmp/skyline-apiserver.sh
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
@@ -70,12 +107,22 @@ spec:
               mountPath: /etc/skyline/gunicorn.py
               subPath: gunicorn.py
               readOnly: true
+            - name: skyline-bin
+              mountPath: /tmp/skyline-apiserver.sh
+              subPath: skyline-apiserver.sh
+              readOnly: true
 {{ if $mounts_skyline.volumeMounts }}{{ toYaml $mounts_skyline.volumeMounts | indent 12 }}{{ end }}
       volumes:
         - name: pod-tmp
           emptyDir: {}
+        - name: nginx-etc
+          emptyDir: {}
         - name: skyline-var-lib
           emptyDir: {}
+        - name: skyline-bin
+          configMap:
+            name: skyline-bin
+            defaultMode: 0555
         - name: skyline-etc
           secret:
             secretName: skyline-etc

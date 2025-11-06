@@ -62,10 +62,16 @@ spec:
           image: {{ .Values.images.tags.skyline_db_sync | quote }}
           imagePullPolicy: {{ .Values.images.pull_policy | quote }}
 {{ tuple . .Values.pod.resources.jobs.db_sync | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-          env:
-            - name: KOLLA_BOOTSTRAP
-              value: ""
+{{ dict "envAll" . "application" "skyline" "container" "db_sync" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          command:
+            - /bin/sh
+            - -c
+            - /tmp/db-sync.sh
           volumeMounts:
+            - name: skyline-bin
+              mountPath: /tmp/db-sync.sh
+              subPath: db-sync.sh
+              readOnly: true
             - name: pod-tmp
               mountPath: /tmp
             - name: etc-service
@@ -80,6 +86,10 @@ spec:
           emptyDir: {}
         - name: etc-service
           emptyDir: {}
+        - name: skyline-bin
+          configMap:
+            name: skyline-bin
+            defaultMode: 0555
         - name: db-sync-conf
           secret:
             secretName: {{ $configMapEtc | quote }}
