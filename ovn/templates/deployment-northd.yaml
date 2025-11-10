@@ -26,6 +26,9 @@ exec:
 
 {{- $serviceAccountName := "ovn-northd" }}
 {{ tuple $envAll "ovn_northd" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+
+{{- $env_ovn := .Values.pod.envs }}
+
 ---
 kind: Deployment
 apiVersion: apps/v1
@@ -64,18 +67,6 @@ spec:
 {{ dict "envAll" . "component" "ovn_northd" "container" "northd" "type" "readiness" "probeTemplate" (include "northdReadinessProbeTemplate" . | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
 {{ dict "envAll" . "component" "ovn_northd" "container" "northd" "type" "liveness" "probeTemplate" (include "northdReadinessProbeTemplate" . | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
           env:
-            - name: OVN_DAEMONSET_VERSION
-              value: "3"
-            - name: OVN_LOGLEVEL_NORTHD
-              value: "-vconsole:info -vfile:info"
-            - name: OVN_KUBERNETES_NAMESPACE
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.namespace
-            - name: OVN_KUBERNETES_NB_STATEFULSET
-              value: ovn-ovsdb-nb
-            - name: OVN_KUBERNETES_SB_STATEFULSET
-              value: ovn-ovsdb-sb
-            - name: OVN_SSL_ENABLE
-              value: "no"
+{{ if $env_ovn.common }}{{ toYaml $env_ovn.common | indent 12 }}{{ end }}
+{{ if $env_ovn.northd }}{{ toYaml $env_ovn.northd | indent 12 }}{{ end }}
 {{- end }}

@@ -28,6 +28,8 @@ exec:
 {{- $envAll := index . 3 }}
 {{- with $envAll }}
 
+{{- $env_ovn := .Values.pod.envs }}
+
 ---
 kind: DaemonSet
 apiVersion: apps/v1
@@ -112,20 +114,8 @@ spec:
           env:
             - name: OVS_USER_ID
               value: {{ .Values.conf.ovs_user_name }}
-            - name: OVN_DAEMONSET_VERSION
-              value: "3"
-            - name: OVN_LOGLEVEL_CONTROLLER
-              value: "-vconsole:info -vfile:info"
-            - name: OVN_KUBERNETES_NAMESPACE
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.namespace
-            - name: OVN_KUBERNETES_NB_STATEFULSET
-              value: ovn-ovsdb-nb
-            - name: OVN_KUBERNETES_SB_STATEFULSET
-              value: ovn-ovsdb-sb
-            - name: OVN_SSL_ENABLE
-              value: "no"
+{{ if $env_ovn.common }}{{ toYaml $env_ovn.common | indent 12 }}{{ end }}
+{{ if $env_ovn.controller }}{{ toYaml $env_ovn.controller | indent 12 }}{{ end }}
           volumeMounts:
             - name: run-openvswitch
               mountPath: /run/openvswitch
