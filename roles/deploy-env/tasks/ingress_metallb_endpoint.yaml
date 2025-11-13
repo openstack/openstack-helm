@@ -44,6 +44,40 @@
     EOF
     kubectl apply -f /tmp/openstack_endpoint_service.yaml
 
+- name: Create openstack ingress service
+  when: ingress_osh_infra_setup
+  become: false
+  shell: |
+    tee > /tmp/osh_infra_endpoint_service.yaml <<EOF
+    ---
+    apiVersion: v1
+    kind: Namespace
+    metadata:
+      labels:
+        kubernetes.io/metadata.name: osh-infra
+        name: osh-infra
+      name: osh-infra
+    ---
+    kind: Service
+    apiVersion: v1
+    metadata:
+      name: public-osh-infra
+      namespace: osh-infra
+      annotations:
+        metallb.universe.tf/loadBalancerIPs: "{{ metallb_osh_infra_endpoint_cidr | ipaddr('address') }}"
+    spec:
+      externalTrafficPolicy: Cluster
+      type: LoadBalancer
+      selector:
+        app: ingress-api
+      ports:
+        - name: http
+          port: 80
+        - name: https
+          port: 443
+    EOF
+    kubectl apply -f /tmp/osh_infra_endpoint_service.yaml
+
 - name: Set dnsmasq listen ip
   set_fact:
     nameserver_ip: "{{ (groups['primary'] | map('extract', hostvars, ['ansible_default_ipv4', 'address']))[0] }}"
@@ -61,6 +95,7 @@
       --no-hosts
       --bind-interfaces
       --address="/openstack.svc.cluster.local/{{ metallb_openstack_endpoint_cidr | ipaddr('address') }}"
+      --address="/osh-infra.svc.cluster.local/{{ metallb_osh_infra_endpoint_cidr | ipaddr('address') }}"
       --listen-address="{{ nameserver_ip }}"
       --no-resolv
       --server=8.8.8.8
