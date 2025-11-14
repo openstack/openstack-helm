@@ -14,8 +14,7 @@ limitations under the License.
 
 {{/*
 abstract: |
-  Returns a container definition for use with the kubernetes-entrypoint image
-  from stackanetes.
+  Returns a container definition for use with the kubernetes-entrypoint image.
 values: |
   images:
     tags:
