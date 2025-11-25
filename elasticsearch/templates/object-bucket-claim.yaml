@@ -17,7 +17,7 @@ limitations under the License.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: elasticsearch-dependencies-objectbucket
+  name: "elasticsearch-dependencies-objectbucket"
   namespace: {{ .Release.Namespace }}
 rules:
   - apiGroups:
@@ -31,12 +31,12 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: elasticsearch-dependencies-objectbucket
+  name: "elasticsearch-dependencies-objectbucket"
   namespace: {{ .Release.Namespace }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: elasticsearch-dependencies-objectbucket
+  name: "elasticsearch-dependencies-objectbucket"
 subjects:
   - kind: ServiceAccount
     name: create-elasticsearch-templates
@@ -44,6 +44,35 @@ subjects:
   - kind: ServiceAccount
     name: verify-repositories
     namespace: {{ .Release.Namespace }}
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: "cluster-elasticsearch-dependencies-objectbucket"
+rules:
+  - apiGroups:
+      - 'objectbucket.io'
+    resources:
+      - objectbuckets
+    verbs:
+      - get
+      - list
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: "cluster-elasticsearch-dependencies-objectbucket"
+subjects:
+  - kind: ServiceAccount
+    name: create-elasticsearch-templates
+    namespace: {{ .Release.Namespace }}
+  - kind: ServiceAccount
+    name: verify-repositories
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  kind: ClusterRole
+  name: "cluster-elasticsearch-dependencies-objectbucket"
+  apiGroup: rbac.authorization.k8s.io
 
 {{- range $bucket := .Values.storage.s3.buckets }}
 # When using this Rook CRD, not only bucket will be created,
