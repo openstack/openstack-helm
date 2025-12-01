@@ -55,6 +55,10 @@ httpGet:
 
 {{- $mounts_neutron_server := .Values.pod.mounts.neutron_server.neutron_server }}
 {{- $mounts_neutron_server_init := .Values.pod.mounts.neutron_server.init_container }}
+{{- $etcSources := .Values.pod.etcSources.neutron_server }}
+{{- if .Values.manifests.secret_ks_etc }}
+{{- $etcSources = append $etcSources (dict "secret" (dict "name" "neutron-ks-etc")) }}
+{{- end }}
 
 {{- $serviceAccountName := "neutron-server" }}
 {{ tuple $envAll "pod_dependency" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
@@ -317,11 +321,12 @@ spec:
           secret:
             secretName: neutron-etc
             defaultMode: 0444
+{{- if $etcSources }}
         - name: neutron-etc-snippets
           projected:
             sources:
-              - secret:
-                  name: neutron-ks-etc
+{{ toYaml $etcSources | indent 14 }}
+{{ end }}
         {{- if ( has "tungstenfabric" .Values.network.backend ) }}
         - name: neutron-plugin-shared
           emptyDir: {}

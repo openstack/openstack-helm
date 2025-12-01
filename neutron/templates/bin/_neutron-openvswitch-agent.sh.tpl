@@ -28,4 +28,5 @@ exec neutron-openvswitch-agent \
   --config-file /etc/neutron/plugins/ml2/taas.ini \
 {{- end }}
   --config-file /etc/neutron/plugins/ml2/openvswitch_agent.ini \
-  --config-file /etc/neutron/plugins/ml2/ml2_conf.ini
+  --config-file /etc/neutron/plugins/ml2/ml2_conf.ini \
+  --config-dir /etc/neutron/neutron.conf.d

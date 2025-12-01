@@ -20,6 +20,10 @@ limitations under the License.
 
 {{- $mounts_neutron_ironic_agent := .Values.pod.mounts.neutron_ironic_agent.neutron_ironic_agent }}
 {{- $mounts_neutron_ironic_agent_init := .Values.pod.mounts.neutron_ironic_agent.init_container }}
+{{- $etcSources := .Values.pod.etcSources.neutron_ironic_agent }}
+{{- if .Values.manifests.secret_ks_etc }}
+{{- $etcSources = append $etcSources (dict "secret" (dict "name" "neutron-ks-etc")) }}
+{{- end }}
 
 {{- $serviceAccountName := "neutron-ironic-agent" }}
 {{ tuple $envAll "pod_dependency" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
@@ -134,11 +138,12 @@ spec:
           secret:
             secretName: neutron-etc
             defaultMode: 0444
+{{- if $etcSources }}
         - name: neutron-etc-snippets
           projected:
             sources:
-              - secret:
-                  name: neutron-ks-etc
+{{ toYaml $etcSources | indent 14 }}
+{{ end }}
 {{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.oslo_messaging.auth.admin.secret.tls.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 {{ if $mounts_neutron_ironic_agent.volumes }}{{ toYaml $mounts_neutron_ironic_agent.volumes | indent 8 }}{{ end }}
 {{- end }}
