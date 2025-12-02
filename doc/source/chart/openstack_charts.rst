@@ -26,7 +26,6 @@ OpenStack charts options
     neutron
     nova
     octavia
-    openstack
     placement
     rally
     skyline
