@@ -233,6 +233,7 @@ To deploy the OpenStack Cinder use the following
 
     helm osh wait-for-pods openstack
 
+
 Compute kit backend: Openvswitch and Libvirt
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -460,6 +461,27 @@ For comprehensive instructions on installing Tacker using Openstack Helm,
 please refer `Install Tacker via Openstack Helm`_.
 
 .. _Install Tacker via Openstack Helm: https://docs.openstack.org/tacker/latest/install/openstack_helm.html
+
+Trove
+~~~~~
+
+OpenStack Trove is the Database as a Service (DBaaS) component of the
+OpenStack cloud computing platform. It provides scalable and reliable
+cloud database services, allowing users to provision and manage database
+instances without the complexity of handling database administration tasks.
+Trove supports multiple database engines including MySQL, PostgreSQL,
+MongoDB, and others.
+
+To deploy the OpenStack Trove use the following
+
+.. code-block:: bash
+
+    helm upgrade --install trove openstack-helm/trove \
+        --namespace=openstack \
+        --timeout=600s \
+        $(helm osh get-values-overrides -p ${OVERRIDES_DIR} -c trove ${FEATURES})
+
+    helm osh wait-for-pods openstack
 
 Blazar
 ~~~~~~
