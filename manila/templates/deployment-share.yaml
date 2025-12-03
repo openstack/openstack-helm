@@ -20,6 +20,9 @@ limitations under the License.
 
 {{- $serviceAccountName := "manila-share" }}
 {{ tuple $envAll "share" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+
+{{- $enabledBackends := default "" .Values.conf.manila.DEFAULT.enabled_share_backends }}
+{{- $isCephfsEnabled := (contains "cephfs" $enabledBackends) }}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -77,6 +80,26 @@ spec:
             - name: pod-shared
               mountPath: /tmp/pod-shared
 {{ if $mounts_manila_share.volumeMounts }}{{ toYaml $mounts_manila_share.volumeMounts | indent 12 }}{{ end }}
+        {{ if $isCephfsEnabled }}
+        - name: ceph-keyring-placement
+{{ tuple $envAll "manila_share" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ dict "envAll" $envAll "application" "manila" "container" "ceph_keyring_placement" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          command:
+            - /tmp/ceph-keyring.sh
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: etcceph
+              mountPath: /etc/ceph
+            - name: manila-bin
+              mountPath: /tmp/ceph-keyring.sh
+              subPath: ceph-keyring.sh
+              readOnly: true
+            - name: ceph-keyring
+              mountPath: /tmp/client-keyring
+              subPath: key
+              readOnly: true
+        {{ end }}
       containers:
         - name: manila-share
 {{ tuple $envAll "manila_share" | include "helm-toolkit.snippets.image" | indent 10 }}
@@ -140,6 +163,18 @@ spec:
               mountPath: /tmp/manila-share.sh
               subPath: manila-share.sh
               readOnly: true
+{{- if $isCephfsEnabled }}
+            - name: etcceph
+              mountPath: /etc/ceph
+            - name: ceph-etc
+              mountPath: /etc/ceph/ceph.conf
+              subPath: ceph.conf
+              readOnly: true
+            - name: ceph-keyring
+              mountPath: /tmp/client-keyring
+              subPath: key
+              readOnly: true
+{{- end }}
 {{- dict "enabled" .Values.manifests.certificates "name" .Values.endpoints.oslo_db.auth.admin.secret.tls.internal "path" "/etc/mysql/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
 {{- dict "enabled" (or .Values.manifests.certificates .Values.tls.identity) "name" .Values.secrets.tls.share.api.internal "path" "/etc/manila/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
 {{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.oslo_messaging.auth.admin.secret.tls.internal "path" "/etc/rabbitmq/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
@@ -166,6 +201,17 @@ spec:
           configMap:
             name: manila-bin
             defaultMode: 0555
+{{- if $isCephfsEnabled }}
+        - name: etcceph
+          emptyDir: {}
+        - name: ceph-etc
+          configMap:
+            name: ceph-etc
+            defaultMode: 0444
+        - name: ceph-keyring
+          secret:
+            secretName: manila-keyring
+{{- end }}
 {{- dict "enabled" .Values.manifests.certificates "name" .Values.endpoints.oslo_db.auth.admin.secret.tls.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 {{- dict "enabled" (or .Values.manifests.certificates .Values.tls.identity) "name" .Values.secrets.tls.share.api.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 {{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.oslo_messaging.auth.admin.secret.tls.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
