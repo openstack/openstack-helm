@@ -18,7 +18,7 @@
 
 set -e
 
-MYSQL="mysql \
+MYSQL="mariadb \
   --defaults-file=/etc/mysql/admin_user.cnf \
   --host=localhost \
 {{- if .Values.manifests.certificates }}
@@ -92,12 +92,12 @@ check_readiness () {
 }
 
 check_liveness () {
-  if pidof mysql_upgrade > /dev/null 2>&1 ; then
-    echo "The process mysql_upgrade is active. Skip rest checks"
+  if pidof mariadb-upgrade > /dev/null 2>&1 ; then
+    echo "The process mariadb-upgrade is active. Skip rest checks"
     exit 0
   fi
-  if ! pidof mysqld > /dev/null 2>&1 ; then
-    echo "The mysqld pid not found"
+  if ! pidof mariadbd > /dev/null 2>&1 ; then
+    echo "The mariadbd pid not found"
     exit 1
   fi
   # NOTE(mkarpin): SST process may take significant time in case of large databases,

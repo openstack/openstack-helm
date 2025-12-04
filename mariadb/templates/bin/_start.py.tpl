@@ -128,7 +128,7 @@ state_configmap_update_period = 10
 default_sleep = 20
 
 # set one name for all commands, avoid "magic names"
-MYSQL_BINARY_NAME='mysqld'
+MYSQL_BINARY_NAME='mariadbd'
 
 
 def ensure_state_configmap(pod_namespace, configmap_name, configmap_body):
@@ -183,7 +183,7 @@ def wait_mysql_status(delay=30):
     res = 1
     while True:
         logger.info("Checking mysql status {0}".format(i))
-        cmd = ['mysql',
+        cmd = ['mariadb',
             "--defaults-file=/etc/mysql/admin_user.cnf",
             "--host=localhost"]
         if mysql_x509:
@@ -300,7 +300,7 @@ def mysqld_bootstrap():
         stop_mysqld()
         mysqld_write_cluster_conf(mode='bootstrap')
         run_cmd_with_logging([
-            'mysql_install_db', '--user=mysql',
+            'mariadb-install-db', '--user=mysql',
             "--datadir={0}".format(mysql_data_dir)
         ], logger)
         if not mysql_dbaudit_username:
@@ -897,7 +897,7 @@ def run_mysqld(cluster='existing'):
         run_cmd_with_logging_thread.start()
         wait_mysql_status()
         logger.info("Upgrading local mysql instance")
-        upgrade_cmd=['mysql_upgrade', '--skip-write-binlog',
+        upgrade_cmd=['mariadb-upgrade', '--skip-write-binlog',
                      "--user={0}".format(mysql_dbadmin_username),
                      "--password={0}".format(mysql_dbadmin_password)]
         if mysql_x509:

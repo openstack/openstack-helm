@@ -17,7 +17,7 @@ set -ex
 
 rm -f /tmp/test-success
 
-mysqlslap \
+mariadb-slap \
   --defaults-file=/etc/mysql/test-params.cnf \
   {{ include "helm-toolkit.utils.joinListWithSpace" $.Values.conf.tests.params }} -vv \
   --post-system="touch /tmp/test-success"
