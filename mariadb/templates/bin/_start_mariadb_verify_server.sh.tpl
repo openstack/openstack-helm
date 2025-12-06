@@ -25,5 +25,5 @@ log () {
 }
 
 log "Starting Mariadb server for backup verification..."
-mysql_install_db --user=nobody --ldata=/var/lib/mysql >/dev/null 2>&1
-MYSQL_ALLOW_EMPTY_PASSWORD=1 mysqld --user=nobody --verbose >/dev/null 2>&1
+mariadb-install-db --user=nobody --ldata=/var/lib/mysql >/dev/null 2>&1
+MYSQL_ALLOW_EMPTY_PASSWORD=1 mariadbd --user=nobody --verbose >/dev/null 2>&1
