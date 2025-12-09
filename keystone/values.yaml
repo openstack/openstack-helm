@@ -776,10 +776,20 @@ conf:
       MaxRequestsPerChild 128
       ThreadLimit         720
     </IfModule>
-  wsgi_script_name: wsgi.py
+  # -- WSGIScriptAlias for apache2. Copied from keystone/wsgi/api.py
+  ## apache cannot load a module and the path can change depending on python version
+  wsgi_script: |
+    import threading
+
+    from keystone.server import wsgi
+
+    application = None
+    lock = threading.Lock()
+    with lock:
+        if application is None:
+            application = wsgi.initialize_public_application()
   wsgi_keystone: |
     {{- $portInt := tuple "identity" "service" "api" $ | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-    {{- $wsgiScript := .Values.conf.wsgi_script_name }}
     Listen 0.0.0.0:{{ $portInt }}
 
     LogFormat "%h %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\"" combined
@@ -794,7 +804,7 @@ conf:
     <VirtualHost *:{{ $portInt }}>
         WSGIDaemonProcess keystone-public processes=1 threads=1 user=keystone group=keystone display-name=%{GROUP}
         WSGIProcessGroup keystone-public
-        WSGIScriptAlias / /var/www/cgi-bin/keystone/{{ $wsgiScript }}
+        WSGIScriptAlias / /var/www/cgi-bin/keystone/wsgi.py
         WSGIApplicationGroup %{GLOBAL}
         WSGIPassAuthorization On
         ErrorLogFormat "%{cu}t %M"
