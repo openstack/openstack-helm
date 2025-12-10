@@ -89,8 +89,16 @@ function start () {
           # Ensure the write target for the for cpuset.mem for the pod exists
           if [[ -f "$target_mems" && -f "$target_cpus" ]]; then
             # Write cpuset.mem and cpuset.cpus for new cgroup and add current task to new cgroup
+{{- if hasKey .Values.conf.ovs_dpdk "cgroup_cpuset_mems" }}
+            echo "{{ .Values.conf.ovs_dpdk.cgroup_cpuset_mems }}" > "$target_mems"
+{{- else }}
             cat /sys/fs/cgroup/cpuset.mems.effective > "$target_mems"
+{{- end }}
+{{- if hasKey .Values.conf.ovs_dpdk "cgroup_cpuset_cpus" }}
+            echo "{{ .Values.conf.ovs_dpdk.cgroup_cpuset_cpus }}" > "$target_cpus"
+{{- else }}
             cat /sys/fs/cgroup/cpuset.cpus.effective > "$target_cpus"
+{{- end }}
             echo $$ > /sys/fs/cgroup/osh-openvswitch/cgroup.procs
           else
             echo "ERROR: Could not find write target for either cpuset.mems: $target_mems or cpuset.cpus: $target_cpus"
@@ -104,8 +112,16 @@ function start () {
           # Ensure the write target for the for cpuset.mem for the pod exists
           if [[ -f "$target_mems" && -f "$target_cpus" ]]; then
             # Write cpuset.mem and cpuset.cpus for new cgroup and add current task to new cgroup
+{{- if hasKey .Values.conf.ovs_dpdk "cgroup_cpuset_mems" }}
+            echo "{{ .Values.conf.ovs_dpdk.cgroup_cpuset_mems }}" > "$target_mems"
+{{- else }}
             cat /sys/fs/cgroup/cpuset/cpuset.mems > "$target_mems"
+{{- end }}
+{{- if hasKey .Values.conf.ovs_dpdk "cgroup_cpuset_cpus" }}
+            echo "{{ .Values.conf.ovs_dpdk.cgroup_cpuset_cpus }}" > "$target_cpus"
+{{- else }}
             cat /sys/fs/cgroup/cpuset/cpuset.cpus > "$target_cpus"
+{{- end }}
             echo $$ > /sys/fs/cgroup/cpuset/osh-openvswitch/tasks
           else
             echo "ERROR: Could not find write target for either cpuset.mems: $target_mems or cpuset.cpus: $target_cpus"
