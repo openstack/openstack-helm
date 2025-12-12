@@ -144,6 +144,7 @@ ovs-vsctl set open . external-ids:rundir="/var/run/openvswitch"
 ovs-vsctl set open . external-ids:ovn-encap-type="{{ .Values.conf.ovn_encap_type }}"
 ovs-vsctl set open . external-ids:ovn-bridge="{{ .Values.conf.ovn_bridge }}"
 ovs-vsctl set open . external-ids:ovn-bridge-mappings="{{ .Values.conf.ovn_bridge_mappings }}"
+ovs-vsctl set open . external-ids:ovn-monitor-all="{{ .Values.conf.ovn_monitor_all }}"
 
 GW_ENABLED=$(cat /tmp/gw-enabled/gw-enabled)
 if [[ ${GW_ENABLED} == {{ .Values.labels.ovn_controller_gw.node_selector_value }} ]]; then
