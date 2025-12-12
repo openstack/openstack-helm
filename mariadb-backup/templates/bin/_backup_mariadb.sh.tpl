@@ -35,11 +35,11 @@ dump_databases_to_directory() {
   SCOPE=${3:-"all"}
 
 
-  MYSQL="mysql \
+  MYSQL="mariadb \
      --defaults-file=/etc/mysql/admin_user.cnf \
      --connect-timeout 10"
 
-  MYSQLDUMP="mysqldump \
+  MYSQLDUMP="mariadb-dump \
      --defaults-file=/etc/mysql/admin_user.cnf"
 
   if [[ "${SCOPE}" == "all" ]]; then
@@ -441,11 +441,11 @@ verify_databases_backup_archives() {
   export ARCHIVE_DIR=${MARIADB_BACKUP_BASE_DIR}/db/${MARIADB_POD_NAMESPACE}/${DB_NAME}/archive
   export BAD_ARCHIVE_DIR=${ARCHIVE_DIR}/quarantine
   export MYSQL_OPTS="--silent --skip-column-names"
-  export MYSQL_LIVE="mysql ${MYSQL_OPTS}"
+  export MYSQL_LIVE="mariadb ${MYSQL_OPTS}"
   export MYSQL_LOCAL_OPTS=""
-  export MYSQL_LOCAL_SHORT="mysql ${MYSQL_LOCAL_OPTS} --connect-timeout 2"
+  export MYSQL_LOCAL_SHORT="mariadb ${MYSQL_LOCAL_OPTS} --connect-timeout 2"
   export MYSQL_LOCAL_SHORT_SILENT="${MYSQL_LOCAL_SHORT} ${MYSQL_OPTS}"
-  export MYSQL_LOCAL="mysql ${MYSQL_LOCAL_OPTS} --connect-timeout 10"
+  export MYSQL_LOCAL="mariadb ${MYSQL_LOCAL_OPTS} --connect-timeout 10"
 
   max_wait={{ .Values.conf.mariadb_server.setup_wait.iteration }}
   duration={{ .Values.conf.mariadb_server.setup_wait.duration }}
@@ -513,7 +513,7 @@ verify_databases_backup_archives() {
   # Before insert the tuple mentioned above, we should make sure that the MariaDB version is 10.4.+
   mariadb_version=$($MYSQL_LOCAL_SHORT -e "status" | grep -E '^Server\s+version:')
   log "Current database ${mariadb_version}"
-  if [[ ! -z ${mariadb_version} && -z $(grep '10.2' <<< ${mariadb_version}}) ]]; then
+  if [[ ! -z ${mariadb_version} && -z $(grep '10.2' <<< ${mariadb_version}) ]]; then
     if [[ -z $(grep 'mariadb.sys' <<< $($MYSQL_LOCAL_SHORT mysql  -e "select * from global_priv where user='mariadb.sys'")) ]]; then
       $MYSQL_LOCAL_SHORT -e "insert into mysql.global_priv values ('localhost','mariadb.sys',\
     '{\"access\":0,\"plugin\":\"mysql_native_password\",\"authentication_string\":\"\",\"account_locked\":true,\"password_last_changed\":0}');"

@@ -514,7 +514,7 @@ verify_databases_backup_archives() {
   mariadb_version=$($MYSQL_LOCAL_SHORT -e "status" | grep -E '^Server\s+version:')
   log "Current database ${mariadb_version}"
   if [[ ! -z ${mariadb_version} && -z $(grep '10.2' <<< ${mariadb_version}) ]]; then
-    if [[ -z $(grep 'mariadb.sys' <<< $($MYSQL_LOCAL_SHORT mariadb  -e "select * from global_priv where user='mariadb.sys'")) ]]; then
+    if [[ -z $(grep 'mariadb.sys' <<< $($MYSQL_LOCAL_SHORT mysql  -e "select * from global_priv where user='mariadb.sys'")) ]]; then
       $MYSQL_LOCAL_SHORT -e "insert into mysql.global_priv values ('localhost','mariadb.sys',\
     '{\"access\":0,\"plugin\":\"mysql_native_password\",\"authentication_string\":\"\",\"account_locked\":true,\"password_last_changed\":0}');"
       $MYSQL_LOCAL_SHORT -e 'flush privileges;'

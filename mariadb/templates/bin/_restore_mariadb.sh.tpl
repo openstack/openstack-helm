@@ -37,7 +37,6 @@ rm -f $RESTORE_LOG
 # This is for commands which require admin access
 MYSQL="mariadb \
        --defaults-file=/etc/mysql/admin_user.cnf \
-       --host=$MARIADB_SERVER_SERVICE_HOST \
        --connect-timeout 10"
 
 # This is for commands which we want the temporary "restore" user
@@ -45,7 +44,8 @@ MYSQL="mariadb \
 RESTORE_CMD="mariadb \
              --user=${RESTORE_USER} \
              --password=${RESTORE_PW} \
-             --host=$MARIADB_SERVER_SERVICE_HOST \
+             --host={{ tuple "oslo_db" "direct" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }} \
+             --port={{ tuple "oslo_db" "direct" "mysql" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }} \
 {{- if .Values.manifests.certificates }}
              --ssl-ca=/etc/mysql/certs/ca.crt \
              --ssl-key=/etc/mysql/certs/tls.key \
