@@ -20,9 +20,6 @@ labels:
   server:
     node_selector_key: openstack-control-plane
     node_selector_value: enabled
-  prometheus_rabbitmq_exporter:
-    node_selector_key: openstack-control-plane
-    node_selector_value: enabled
   test:
     node_selector_key: openstack-control-plane
     node_selector_value: enabled
@@ -32,8 +29,6 @@ labels:
 
 images:
   tags:
-    prometheus_rabbitmq_exporter: docker.io/kbudde/rabbitmq-exporter:v1.0.0-RC7.1
-    prometheus_rabbitmq_exporter_helm_tests: quay.io/airshipit/openstack-client:2025.1-ubuntu_noble
     rabbitmq_init: quay.io/airshipit/openstack-client:2025.1-ubuntu_noble
     rabbitmq: quay.io/airshipit/rabbitmq:3.10.18
     dep_check: quay.io/airshipit/kubernetes-entrypoint:latest-ubuntu_jammy
@@ -54,20 +49,6 @@ forceBoot:
 
 pod:
   probes:
-    prometheus_rabbitmq_exporter:
-      rabbitmq_exporter:
-        readiness:
-          enabled: true
-          params:
-            initialDelaySeconds: 30
-            periodSeconds: 30
-            timeoutSeconds: 5
-        liveness:
-          enabled: true
-          params:
-            initialDelaySeconds: 120
-            periodSeconds: 90
-            timeoutSeconds: 5
     rabbitmq:
       rabbitmq:
         readiness:
@@ -87,13 +68,6 @@ pod:
             successThreshold: 1
             failureThreshold: 5
   security_context:
-    exporter:
-      pod:
-        runAsUser: 65534
-      container:
-        rabbitmq_exporter:
-          readOnlyRootFilesystem: true
-          allowPrivilegeEscalation: false
     server:
       pod:
         runAsUser: 999
@@ -148,7 +122,6 @@ pod:
         effect: NoSchedule
   replicas:
     server: 2
-    prometheus_rabbitmq_exporter: 1
   lifecycle:
     upgrades:
       deployments:
@@ -157,21 +130,11 @@ pod:
         rolling_update:
           max_unavailable: 1
           max_surge: 3
-    termination_grace_period:
-      prometheus_rabbitmq_exporter:
-        timeout: 30
     disruption_budget:
       mariadb:
         min_available: 0
   resources:
     enabled: false
-    prometheus_rabbitmq_exporter:
-      limits:
-        memory: "1024Mi"
-        cpu: "2000m"
-      requests:
-        memory: "128Mi"
-        cpu: "500m"
     server:
       limits:
         memory: "128Mi"
@@ -199,15 +162,7 @@ conf:
   enabled_plugins:
     - rabbitmq_management
     - rabbitmq_peer_discovery_k8s
-  prometheus_exporter:
-    capabilities:
-      - no_sort
-    log_level: info
-    skipverify: 1
-    skip_queues: "^$"
-    include_queues: ".*"
-    rabbit_exporters: "overview,exchange,node,queue"
-    rabbitmq_mgmt_metrics_collector_disabled: false
+    - rabbitmq_prometheus
   # This IP could be IPv4/IPv6 and the tcp port will be appended to it and eventually it is set to rabbitmq.listeners.tcp.1
   bind_address: "::"
   rabbitmq:
@@ -233,8 +188,6 @@ conf:
   rabbit_advanced_config:
     enabled: false
     default_consumer_prefetch: 250
-  rabbitmq_exporter:
-    rabbit_timeout: 30
   # Feature Flags is introduced in RabbitMQ 3.8.0
   # To deploy with standard list of feature, leave as default
   # To deploy with specific feature, separate each feature with comma
@@ -282,16 +235,6 @@ dependencies:
           - endpoint: node
             service: local_image_registry
   static:
-    prometheus_rabbitmq_exporter:
-      services:
-        - endpoint: internal
-          service: oslo_messaging
-    prometheus_rabbitmq_exporter_tests:
-      services:
-        - endpoint: internal
-          service: prometheus_rabbitmq_exporter
-        - endpoint: internal
-          service: monitoring
     rabbitmq:
       jobs: null
     tests:
@@ -313,8 +256,8 @@ dependencies:
 
 monitoring:
   prometheus:
-    enabled: false
-    rabbitmq_exporter:
+    enabled: true
+    rabbitmq:
       scrape: true
 
 network:
@@ -415,19 +358,6 @@ endpoints:
         public: 80
       metrics:
         default: 15692
-  prometheus_rabbitmq_exporter:
-    namespace: null
-    hosts:
-      default: rabbitmq-exporter
-    host_fqdn_override:
-      default: null
-    path:
-      default: /metrics
-    scheme:
-      default: 'http'
-    port:
-      metrics:
-        default: 9095
   kube_dns:
     namespace: kube-system
     name: kubernetes-dns
@@ -446,11 +376,6 @@ endpoints:
         protocol: UDP
 
 network_policy:
-  prometheus_rabbitmq_exporter:
-    ingress:
-      - {}
-    egress:
-      - {}
   rabbitmq:
     ingress:
       - {}
@@ -481,9 +406,6 @@ manifests:
   monitoring:
     prometheus:
       configmap_bin: false
-      deployment_exporter: false
-      service_exporter: false
-      network_policy_exporter: false
   network_policy: false
   pod_test: true
   secret_admin_user: true
