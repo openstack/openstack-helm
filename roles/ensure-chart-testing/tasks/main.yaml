@@ -1,0 +1,38 @@
+---
+- name: Install pip
+  include_role:
+    name: ensure-pip
+
+- name: Install Python dependencies
+  become: false
+  pip:
+    name:
+    - yamale
+    - yamllint
+    virtualenv: "{{ virtualenv }}"
+    virtualenv_command: python3 -m venv
+
+- name: Install chart-testing
+  become: true
+  unarchive:
+    remote_src: true
+    src: "{{ ensure_chart_testing_repo_name_helm_chart }}/v{{ chart_testing_version }}/chart-testing_{{ chart_testing_version }}_linux_amd64.tar.gz"
+    dest: /usr/local/bin
+
+- name: Setup /etc/ct
+  become: true
+  file:
+    path: /etc/ct
+    state: directory
+    mode: 0755
+
+- name: Install configuration files
+  become: true
+  get_url:
+    url: "{{ ensure_chart_testing_repo_name_config }}/v{{ chart_testing_version }}/etc/{{ zj_item }}"
+    dest: "/etc/ct/{{ zj_item }}"
+  loop:
+  - chart_schema.yaml
+  - lintconf.yaml
+  loop_control:
+    loop_var: zj_item

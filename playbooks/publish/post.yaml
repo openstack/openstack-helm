@@ -15,6 +15,21 @@
 
 - hosts: all
   tasks:
+    - name: Get list of changed charts
+      shell: "ct list-changed --target-branch master --since {{ zuul.oldrev | default('HEAD~1') }} --chart-dirs . 2>/dev/null"
+      args:
+        chdir: "{{ zuul.project.src_dir }}"
+      register: changed_charts_output
+      changed_when: false
+
+    - name: Parse changed charts
+      set_fact:
+        changed_charts: "{{ changed_charts_output.stdout_lines }}"
+
+    - name: Display changed charts
+      debug:
+        msg: "Changed charts to publish: {{ changed_charts }}"
+
     - name: Download current index
       register: _get_url
       failed_when: _get_url.status_code not in (200, 404)
@@ -30,26 +45,62 @@
       when: _get_url.status_code == 200
       shell: helm repo index {{ zuul.project.src_dir }} --merge {{ zuul.project.src_dir }}/index.yaml --url https://tarballs.opendev.org/{{ zuul.project.name }}
 
+    - name: Cat updated index
+      shell: cat {{ zuul.project.src_dir }}/index.yaml
+      register: index_content
+      changed_when: false
+
+    - name: Display updated index
+      debug:
+        msg: "{{ index_content.stdout }}"
+
     - name: Ensure artifact directory exists
       file:
         path: "{{ zuul.executor.work_root }}/artifacts/"
         state: directory
       delegate_to: localhost
 
-    - name: Gather the artifacts
+    - name: Ensure chart subdirectories exist in artifacts
+      file:
+        path: "{{ zuul.executor.work_root }}/artifacts/{{ item }}"
+        state: directory
+      delegate_to: localhost
+      loop: "{{ changed_charts }}"
+      when: changed_charts | length > 0
+
+    - name: Gather packaged charts from changed chart directories
       find:
         file_type: file
         paths: "{{ zuul.project.src_dir }}"
-        patterns: "*.tar.gz,*.tgz,index.yaml"
-      register: result
+        patterns: "{{ item }}-*.tgz"
+        recurse: true
+      register: chart_packages
+      loop: "{{ changed_charts }}"
+      when: changed_charts | length > 0
 
-    - name: Update Helm repository
+    - name: Display chart tarballs to be published
+      debug:
+        msg: "src: {{ item.1.path }} dest: {{ zuul.executor.work_root }}/artifacts/{{ item.0.item }}/"
+      loop: "{{ chart_packages.results | subelements('files', skip_missing=True) }}"
+      when: changed_charts | length > 0
+
+    - name: Copy packaged charts to artifacts preserving directory structure
       synchronize:
         mode: pull
-        src: "{{ item.path }}"
+        src: "{{ item.1.path }}"
+        dest: "{{ zuul.executor.work_root }}/artifacts/{{ item.0.item }}/"
+        verify_host: true
+        owner: no
+        group: no
+      loop: "{{ chart_packages.results | subelements('files', skip_missing=True) }}"
+      when: changed_charts | length > 0
+
+    - name: Copy index.yaml to artifacts
+      synchronize:
+        mode: pull
+        src: "{{ zuul.project.src_dir }}/index.yaml"
         dest: "{{ zuul.executor.work_root }}/artifacts/"
         verify_host: true
         owner: no
         group: no
-      with_items: "{{ result.files }}"
 ...
