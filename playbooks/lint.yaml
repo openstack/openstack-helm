@@ -26,29 +26,25 @@
     work_dir: "{{ zuul.project.src_dir }}"
 
   tasks:
-    - name: Install reno
-      pip:
-        name: reno>=4.1.0
-        extra_args: "--ignore-installed"
-      become: yes
-
-    # - name: make all
-    #   make:
-    #     chdir: "{{ work_dir }}"
-    #     target: all
-
     - name: Install yamllint
-      shell: pip3 install -U yq yamllint
-      become: yes
+      pip:
+        name:
+          - yq
+          - yamllint
+        virtualenv: "{{ virtualenv }}"
+        virtualenv_command: python3 -m venv
 
     - name: Run yamllint
       shell: |
         cat > /tmp/yamllint.sh <<EOF
         #!/bin/bash
         set -xe
+        source "{{ virtualenv }}/bin/activate"
+        pip freeze
         rm -rf */charts/helm-toolkit
         mkdir .yamllint
         cp -r * .yamllint
+        rm -rf .yamllint/roles
         rm -rf .yamllint/*/templates
 
         for i in */; do

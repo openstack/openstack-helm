@@ -13,19 +13,45 @@
 
 - hosts: all
   roles:
-    - ensure-python
-    - ensure-pip
     - ensure-helm
+    - ensure-chart-testing
 
   tasks:
     - name: Install reno
       pip:
         name: reno>=4.1.0
-        extra_args: "--ignore-installed"
-      become: yes
+        virtualenv: "{{ virtualenv }}"
+        virtualenv_command: python3 -m venv
 
-    - name: make all
+    - name: Get list of changed charts
+      shell: "ct list-changed --target-branch master --since {{ zuul.oldrev | default('HEAD~1') }} --chart-dirs . 2>/dev/null"
+      args:
+        chdir: "{{ zuul.project.src_dir }}"
+      register: changed_charts_output
+      changed_when: false
+
+    - name: Parse changed charts
+      set_fact:
+        changed_charts: "{{ changed_charts_output.stdout_lines }}"
+
+    - name: Display changed charts
+      debug:
+        msg: "Changed charts: {{ changed_charts }}"
+
+    - name: Build each changed chart
       make:
         chdir: "{{ zuul.project.src_dir }}"
-        target: all
+        target: "{{ item }}"
+        params:
+          PYTHON: "{{ virtualenv }}/bin/python"
+          BASE_VERSION: "{{ base_version }}"
+      loop: "{{ changed_charts }}"
+      when: changed_charts | length > 0
+
+    - name: Move chart packages to subdirectories
+      shell: |
+        mkdir -p {{ zuul.project.src_dir }}/{{ item }}
+        mv {{ zuul.project.src_dir }}/{{ item }}-*.tgz {{ zuul.project.src_dir }}/{{ item }}/
+      loop: "{{ changed_charts }}"
+      when: changed_charts | length > 0
 ...

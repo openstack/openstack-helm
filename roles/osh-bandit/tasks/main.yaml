@@ -15,16 +15,29 @@
   include_role:
     name: ensure-helm
 
+- name: Install binary packages
+  become: true
+  apt:
+    name:
+      - jq
+    state: present
+    update_cache: yes
+
 - name: Install yq bandit
-  shell: |
-    sudo -H pip3 install --upgrade yq bandit=={{ bandit_version }} setuptools
-  args:
-    chdir: "{{ work_dir }}"
+  pip:
+    name:
+      - yq
+      - bandit=={{ bandit_version }}
+      - setuptools
+      - pbr
+    virtualenv: "{{ virtualenv }}"
+    virtualenv_command: python3 -m venv
 
 - name: Template out python files
   shell: |
     set -xe;
-    make all
+    source "{{ virtualenv }}/bin/activate"
+    make all SKIP_CHANGELOG=1
     mkdir -p python-files
     EXCLUDES="helm-toolkit doc tests tools logs tmp roles playbooks releasenotes zuul.d python-files"
     DIRS=`ls -d */ | cut -f1 -d'/'`
@@ -42,9 +55,13 @@
     done
   args:
     chdir: "{{ work_dir }}"
+    executable: /bin/bash
 
 - name: Run bandit against python files
-  shell: bandit -r ./python-files
+  shell: |
+    source "{{ virtualenv }}/bin/activate"
+    bandit -r ./python-files -s B404,B603
   args:
     chdir: "{{ work_dir }}"
+    executable: /bin/bash
 ...
