@@ -188,8 +188,8 @@ limitations under the License.
 {{- $_ := set .Values.conf.ironic.swift "password" .Values.endpoints.identity.auth.ironic.password -}}
 {{- end -}}
 
-{{- if empty .Values.conf.ironic.conductor.api_url -}}
-{{- $_ := tuple "baremetal" "public" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup"| set .Values.conf.ironic.conductor "api_url" -}}
+{{- if empty .Values.conf.ironic.neutron.cleaning_network -}}
+{{- $_ := set .Values.conf.ironic.neutron "cleaning_network" (default "" .Values.network.pxe.neutron_network_name) -}}
 {{- end -}}
 
 {{- if empty .Values.conf.ironic.api.public_endpoint -}}
@@ -219,6 +219,10 @@ limitations under the License.
 {{- if and (empty .Values.conf.logging.formatter_fluent) (has "fluent" .Values.conf.logging.formatters.keys) -}}
 {{- $formatter_fluent := dict "class" "oslo_log.formatters.FluentFormatter" -}}
 {{- $_ := set .Values.conf.logging "formatter_fluent" $formatter_fluent -}}
+{{- end -}}
+
+{{- if empty .Values.conf.ironic.keystone_authtoken.auth_uri -}}
+{{- $_ := tuple "identity" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup"| set .Values.conf.ironic.keystone_authtoken "auth_uri" -}}
 {{- end -}}
 ---
 apiVersion: v1
