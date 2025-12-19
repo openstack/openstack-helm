@@ -14,7 +14,7 @@
 
 set -xe
 
-ROOK_RELEASE=v1.17.7
+ROOK_RELEASE=v1.18.8
 
 : ${CEPH_OSD_DATA_DEVICE:="/dev/loop100"}
 

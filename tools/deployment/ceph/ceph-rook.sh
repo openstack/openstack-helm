@@ -15,7 +15,7 @@
 set -xe
 
 # Specify the Rook release tag to use for the Rook operator here
-ROOK_RELEASE=v1.17.7
+ROOK_RELEASE=v1.18.8
 
 : ${CEPH_OSD_DATA_DEVICE:="/dev/loop100"}
 
