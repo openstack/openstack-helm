@@ -31,5 +31,6 @@ OpenStack charts options
     skyline
     tacker
     tempest
+    trove
     watcher
     zaqar

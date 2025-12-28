@@ -1,0 +1,77 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.pod_rally_test }}
+{{- $envAll := . }}
+
+{{- $mounts_trove_tests := .Values.pod.mounts.trove_tests.trove_tests }}
+{{- $mounts_trove_tests_init := .Values.pod.mounts.trove_tests.init_container }}
+
+{{- $serviceAccountName := "trove-tests" }}
+{{ tuple $envAll "tests" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "trove-tests"
+  labels:
+{{ tuple $envAll "trove" "test" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+  annotations:
+    "helm.sh/hook": "test"
+    "helm.sh/hook-weight": "10"
+spec:
+{{ tuple "trove_tests" . | include "helm-toolkit.snippets.kubernetes_pod_priority_class" | indent 2 }}
+{{ tuple "trove_tests" . | include "helm-toolkit.snippets.kubernetes_pod_runtime_class" | indent 2 }}
+  restartPolicy: Never
+  serviceAccountName: {{ $serviceAccountName }}
+{{ if $envAll.Values.pod.tolerations.trove.enabled }}
+{{ tuple $envAll "trove" | include "helm-toolkit.snippets.kubernetes_tolerations" | indent 2 }}
+{{ end }}
+  nodeSelector:
+    {{ .Values.labels.test.node_selector_key }}: {{ .Values.labels.test.node_selector_value }}
+  initContainers:
+{{ tuple $envAll "tests" $mounts_trove_tests_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 4 }}
+  containers:
+    - name: trove-tests
+{{ tuple $envAll "test" | include "helm-toolkit.snippets.image" | indent 6 }}
+{{ tuple $envAll $envAll.Values.pod.resources.jobs.tests | include "helm-toolkit.snippets.kubernetes_resources" | indent 6 }}
+      env:
+{{- with $env := dict "ksUserSecret" .Values.secrets.identity.admin }}
+{{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 8 }}
+{{- end }}
+        - name: RALLY_ENV_NAME
+          value: {{.Release.Name | quote }}
+      command:
+        - /tmp/rally-test.sh
+      volumeMounts:
+        - name: pod-tmp
+          mountPath: /tmp
+        - name: trove-bin
+          mountPath: /tmp/rally-test.sh
+          subPath: rally-test.sh
+          readOnly: true
+        - name: rally-db
+          mountPath: /var/lib/rally
+{{ if $mounts_trove_tests.volumeMounts }}{{ toYaml $mounts_trove_tests.volumeMounts | indent 8 }}{{ end }}
+  volumes:
+    - name: pod-tmp
+      emptyDir: {}
+    - name: trove-bin
+      configMap:
+        name: trove-bin
+        defaultMode: 0555
+    - name: rally-db
+      emptyDir: {}
+{{ if $mounts_trove_tests.volumes }}{{ toYaml $mounts_trove_tests.volumes | indent 4 }}{{ end }}
+{{- end }}

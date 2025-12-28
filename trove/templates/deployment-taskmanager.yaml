@@ -1,0 +1,106 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.deployment_taskmanager }}
+{{- $envAll := . }}
+
+{{- $mounts_trove_taskmanager := .Values.pod.mounts.trove_taskmanager.trove_taskmanager }}
+{{- $mounts_trove_taskmanager_init := .Values.pod.mounts.trove_taskmanager.init_container }}
+
+{{- $serviceAccountName := "trove-taskmanager" }}
+{{ tuple $envAll "taskmanager" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: trove-taskmanager
+  annotations:
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+  labels:
+{{ tuple $envAll "trove" "taskmanager" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  replicas: {{ .Values.pod.replicas.taskmanager }}
+  selector:
+    matchLabels:
+{{ tuple $envAll "trove" "taskmanager" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
+{{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_deployment" | indent 2 }}
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "trove" "taskmanager" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+{{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
+        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
+{{ tuple "trove_taskmanager" . | include "helm-toolkit.snippets.custom_pod_annotations" | indent 8 }}
+{{ dict "envAll" $envAll "podName" "trove-taskmanager" "containerNames" (list "trove-taskmanager" "init") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
+    spec:
+{{ tuple "trove_taskmanager" . | include "helm-toolkit.snippets.kubernetes_pod_priority_class" | indent 6 }}
+{{ tuple "trove_taskmanager" . | include "helm-toolkit.snippets.kubernetes_pod_runtime_class" | indent 6 }}
+      serviceAccountName: {{ $serviceAccountName }}
+{{ dict "envAll" $envAll "application" "trove_taskmanager" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
+      affinity:
+{{ tuple $envAll "trove" "taskmanager" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
+{{ if $envAll.Values.pod.tolerations.trove.enabled }}
+{{ tuple $envAll "trove" | include "helm-toolkit.snippets.kubernetes_tolerations" | indent 6 }}
+{{ end }}
+      nodeSelector:
+        {{ .Values.labels.taskmanager.node_selector_key }}: {{ .Values.labels.taskmanager.node_selector_value }}
+      initContainers:
+{{ tuple $envAll "taskmanager" $mounts_trove_taskmanager_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+      containers:
+        - name: trove-taskmanager
+{{ tuple $envAll "trove_taskmanager" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.taskmanager | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "trove_taskmanager" "container" "trove_taskmanager" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          command:
+            - /tmp/trove-taskmanager.sh
+            - start
+          env:
+{{- with $env := dict "ksUserSecret" .Values.secrets.identity.trove }}
+{{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 12 }}
+{{- end }}
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: trove-bin
+              mountPath: /tmp/trove-taskmanager.sh
+              subPath: trove-taskmanager.sh
+              readOnly: true
+            - name: trove-etc
+              mountPath: /etc/trove/trove.conf
+              subPath: trove.conf
+              readOnly: true
+            - name: trove-etc
+              mountPath: {{ .Values.conf.trove.DEFAULT.log_config_append }}
+              subPath: {{ base .Values.conf.trove.DEFAULT.log_config_append }}
+              readOnly: true
+            - name: trove-etc
+              mountPath: /etc/trove/policy.yaml
+              subPath: policy.yaml
+              readOnly: true
+{{ if $mounts_trove_taskmanager.volumeMounts }}{{ toYaml $mounts_trove_taskmanager.volumeMounts | indent 12 }}{{ end }}
+      volumes:
+        - name: pod-tmp
+          emptyDir: {}
+        - name: trove-bin
+          configMap:
+            name: trove-bin
+            defaultMode: 0555
+        - name: trove-etc
+          secret:
+            secretName: trove-etc
+            defaultMode: 0444
+{{ if $mounts_trove_taskmanager.volumes }}{{ toYaml $mounts_trove_taskmanager.volumes | indent 8 }}{{ end }}
+{{- end }}

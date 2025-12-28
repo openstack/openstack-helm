@@ -1,0 +1,747 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Default values for trove.
+# This is a YAML-formatted file.
+# Declare name/value pairs to be passed into your templates.
+# name: value
+
+---
+labels:
+  api:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  conductor:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  taskmanager:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  job:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  test:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+
+release_group: null
+
+images:
+  tags:
+    test: docker.io/xrally/xrally-openstack:2.0.0
+    db_init: quay.io/airshipit/heat:2025.1-ubuntu_noble
+    trove_db_sync: quay.io/airshipit/trove:2025.1-ubuntu_noble
+    db_drop: quay.io/airshipit/heat:2025.1-ubuntu_noble
+    rabbit_init: docker.io/rabbitmq:3.13-management
+    ks_user: quay.io/airshipit/heat:2025.1-ubuntu_noble
+    ks_service: quay.io/airshipit/heat:2025.1-ubuntu_noble
+    ks_endpoints: quay.io/airshipit/heat:2025.1-ubuntu_noble
+    trove_api: quay.io/airshipit/trove:2025.1-ubuntu_noble
+    trove_conductor: quay.io/airshipit/trove:2025.1-ubuntu_noble
+    trove_taskmanager: quay.io/airshipit/trove:2025.1-ubuntu_noble
+    trove_db_purge: quay.io/airshipit/trove:2025.1-ubuntu_noble
+    dep_check: quay.io/airshipit/kubernetes-entrypoint:latest-ubuntu_jammy
+    image_repo_sync: docker.io/docker:17.07.0
+  pull_policy: "IfNotPresent"
+  local_registry:
+    active: false
+    exclude:
+      - dep_check
+      - image_repo_sync
+
+jobs:
+  db_purge:
+    cron: "0 0 * * *"
+    starting_deadline: 600
+    history:
+      success: 3
+      failed: 1
+
+pod:
+  probes:
+    api:
+      trove-api:
+        liveness:
+          enabled: true
+          params:
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 1
+            failureThreshold: 3
+            successThreshold: 1
+        readiness:
+          enabled: true
+          params:
+            initialDelaySeconds: 30
+  security_context:
+    db_purge:
+      pod:
+        runAsUser: 42424
+      container:
+        trove_db_purge:
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
+    trove_api:
+      pod:
+        runAsUser: 42424
+      container:
+        trove_api:
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
+    trove_conductor:
+      pod:
+        runAsUser: 42424
+      container:
+        trove_conductor:
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
+    trove_taskmanager:
+      pod:
+        runAsUser: 42424
+      container:
+        trove_taskmanager:
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
+  affinity:
+    anti:
+      type:
+        default: preferredDuringSchedulingIgnoredDuringExecution
+      topologyKey:
+        default: kubernetes.io/hostname
+      weight:
+        default: 10
+  tolerations:
+    trove:
+      enabled: false
+      tolerations:
+      - key: node-role.kubernetes.io/master
+        operator: Exists
+        effect: NoSchedule
+      - key: node-role.kubernetes.io/control-plane
+        operator: Exists
+        effect: NoSchedule
+  mounts:
+    trove_api:
+      init_container: null
+      trove_api:
+        volumeMounts:
+        volumes:
+    trove_conductor:
+      init_container: null
+      trove_conductor:
+        volumeMounts:
+        volumes:
+    trove_taskmanager:
+      init_container: null
+      trove_taskmanager:
+        volumeMounts:
+        volumes:
+    trove_db_purge:
+      init_container: null
+      trove_db_purge:
+        volumeMounts:
+        volumes:
+    trove_tests:
+      init_container: null
+      trove_tests:
+        volumeMounts:
+        volumes:
+    trove_db_sync:
+      trove_db_sync:
+        volumeMounts:
+        volumes:
+  replicas:
+    api: 1
+    conductor: 1
+    taskmanager: 1
+  lifecycle:
+    upgrades:
+      deployments:
+        revision_history: 3
+        pod_replacement_strategy: RollingUpdate
+        rolling_update:
+          max_unavailable: 1
+          max_surge: 3
+    disruption_budget:
+      api:
+        min_available: 0
+    termination_grace_period:
+      api:
+        timeout: 30
+  resources:
+    enabled: false
+    api:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+    conductor:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+    taskmanager:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+    jobs:
+      bootstrap:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      rabbit_init:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      db_init:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      db_sync:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      db_drop:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      db_purge:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      ks_endpoints:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      ks_service:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      ks_user:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      tests:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      image_repo_sync:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+
+network:
+  api:
+    ingress:
+      public: true
+      classes:
+        namespace: "nginx"
+        cluster: "nginx-cluster"
+      annotations:
+        nginx.ingress.kubernetes.io/rewrite-target: /
+    external_policy_local: false
+    node_port:
+      enabled: false
+      port: 30878
+
+conf:
+  paste:
+    composite:trove:
+      use: call:trove.common.wsgi:versioned_urlmap
+      /: versions
+      /v1.0: troveapi
+    app:versions:
+      paste.app_factory: trove.versions:app_factory
+    pipeline:troveapi:
+      pipeline: http_proxy_to_wsgi faultwrapper authtoken authorization contextwrapper ratelimit extensions troveapp
+    filter:extensions:
+      paste.filter_factory: trove.common.extensions:factory
+    filter:authtoken:
+      paste.filter_factory: keystonemiddleware.auth_token:filter_factory
+    filter:authorization:
+      paste.filter_factory: trove.common.auth:AuthorizationMiddleware.factory
+    filter:contextwrapper:
+      paste.filter_factory: trove.common.wsgi:ContextMiddleware.factory
+    filter:faultwrapper:
+      paste.filter_factory: trove.common.wsgi:FaultWrapper.factory
+    filter:ratelimit:
+      paste.filter_factory: trove.common.limits:RateLimitingMiddleware.factory
+    filter:http_proxy_to_wsgi:
+      paste.filter_factory: oslo_middleware.http_proxy_to_wsgi:HTTPProxyToWSGI.factory
+    app:troveapp:
+      paste.app_factory: trove.common.api:app_factory
+  policy: {}
+  trove:
+    DEFAULT:
+      log_config_append: /etc/trove/logging.conf
+      trove_api_workers: 4
+      transport_url: null
+      # control_exchange: trove
+      # ip_regex: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$
+      # black_list_regex: ^10\.0\.0\.[0-9]+$
+      default_datastore: mysql
+      datastore_registry_ext: mysql:trove.guestagent.datastore.mysql.manager.Manager
+      trove_conductor_workers: 1
+      notification_service_id: mysql:2f3ff068-2bfb-4f70-9a9d-a6bb65bc084b
+      os_region_name: RegionOne
+      # nova_compute_url: ""
+      # cinder_url: ""
+      # swift_url: ""
+      # neutron_url: ""
+      # heat_url: ""
+      trove_volume_support: true
+      network_isolation: false
+    database:
+      connection: null
+    keystone_authtoken:
+      auth_type: password
+      auth_version: v3
+      memcache_security_strategy: ENCRYPT
+    service_credentials:
+      auth_url: null
+      region_name: RegionOne
+      interface: internal
+      auth_type: password
+    oslo_messaging_notifications:
+      driver: messagingv2
+    oslo_messaging_rabbit:
+      rabbit_ha_queues: true
+    oslo_concurrency:
+      lock_path: /var/lib/trove/tmp
+    oslo_policy:
+      policy_file: /etc/trove/policy.yaml
+
+  logging:
+    loggers:
+      keys:
+        - root
+        - trove
+    handlers:
+      keys:
+        - stdout
+        - stderr
+        - "null"
+    formatters:
+      keys:
+        - context
+        - default
+    logger_root:
+      level: DEBUG
+      handlers:
+        - stdout
+    logger_trove:
+      level: DEBUG
+      handlers:
+        - stdout
+      qualname: trove
+    logger_amqp:
+      level: WARNING
+      handlers: stderr
+      qualname: amqp
+    logger_amqplib:
+      level: WARNING
+      handlers: stderr
+      qualname: amqplib
+    logger_eventletwsgi:
+      level: WARNING
+      handlers: stderr
+      qualname: eventlet.wsgi.server
+    logger_sqlalchemy:
+      level: WARNING
+      handlers: stderr
+      qualname: sqlalchemy
+    logger_boto:
+      level: WARNING
+      handlers: stderr
+      qualname: boto
+    handler_null:
+      class: logging.NullHandler
+      formatter: default
+      args: ()
+    handler_stdout:
+      class: StreamHandler
+      args: (sys.stdout,)
+      formatter: context
+    handler_stderr:
+      class: StreamHandler
+      args: (sys.stderr,)
+      formatter: context
+    formatter_context:
+      class: oslo_log.formatters.ContextFormatter
+      datefmt: "%Y-%m-%d %H:%M:%S"
+    formatter_default:
+      format: "%(message)s"
+      datefmt: "%Y-%m-%d %H:%M:%S"
+  rally_tests:
+    run_tempest: false
+    tests:
+      TroveInstances.create_and_delete_instance:
+        - runner:
+            type: constant
+            times: 1
+            concurrency: 1
+          context:
+            users:
+              tenants: 1
+              users_per_tenant: 1
+          args:
+            flavor_name: "m1.tiny"
+            volume_size: 1
+            databases:
+              - name: "testdb"
+            users:
+              - name: "testuser"
+                password: "testpass"
+                databases:
+                  - "testdb"
+
+dependencies:
+  dynamic:
+    common:
+      local_image_registry:
+        jobs:
+          - trove-image-repo-sync
+        services:
+          - endpoint: node
+            service: local_image_registry
+  static:
+    api:
+      jobs:
+        - trove-db-sync
+        - trove-ks-user
+        - trove-ks-endpoints
+        - trove-rabbit-init
+      services:
+        - endpoint: internal
+          service: oslo_db
+        - endpoint: internal
+          service: identity
+        - endpoint: internal
+          service: oslo_messaging
+    conductor:
+      jobs:
+        - trove-db-sync
+        - trove-ks-user
+        - trove-rabbit-init
+      services:
+        - endpoint: internal
+          service: oslo_db
+        - endpoint: internal
+          service: identity
+        - endpoint: internal
+          service: oslo_messaging
+    taskmanager:
+      jobs:
+        - trove-db-sync
+        - trove-ks-user
+        - trove-rabbit-init
+      services:
+        - endpoint: internal
+          service: oslo_db
+        - endpoint: internal
+          service: identity
+        - endpoint: internal
+          service: oslo_messaging
+    db_drop:
+      services:
+        - endpoint: internal
+          service: oslo_db
+    db_init:
+      services:
+        - endpoint: internal
+          service: oslo_db
+    db_sync:
+      jobs:
+        - trove-db-init
+      services:
+        - endpoint: internal
+          service: oslo_db
+    ks_user:
+      services:
+        - endpoint: internal
+          service: identity
+    ks_service:
+      services:
+        - endpoint: internal
+          service: identity
+    ks_endpoints:
+      jobs:
+        - trove-ks-service
+      services:
+        - endpoint: internal
+          service: identity
+    rabbit_init:
+      services:
+        - endpoint: internal
+          service: oslo_messaging
+    image_repo_sync:
+      services:
+        - endpoint: internal
+          service: local_image_registry
+    tests:
+      services:
+        - endpoint: internal
+          service: identity
+        - endpoint: internal
+          service: database
+
+# Names of secrets used by bootstrap and environmental checks
+secrets:
+  identity:
+    admin: trove-keystone-admin
+    trove: trove-keystone-user
+  oslo_db:
+    admin: trove-db-admin
+    trove: trove-db-user
+  oslo_messaging:
+    admin: trove-rabbitmq-admin
+    trove: trove-rabbitmq-user
+  tls:
+    database:
+      api:
+        public: trove-tls-public
+        internal: trove-tls-api
+  oci_image_registry:
+    trove: trove-oci-image-registry-key
+
+# typically overridden by environmental
+# values, but should include all endpoints
+# required by this chart
+endpoints:
+  cluster_domain_suffix: cluster.local
+  local_image_registry:
+    name: docker-registry
+    namespace: docker-registry
+    hosts:
+      default: localhost
+      internal: docker-registry
+      node: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        node: 5000
+  oci_image_registry:
+    name: oci-image-registry
+    namespace: oci-image-registry
+    auth:
+      enabled: false
+      trove:
+        username: trove
+        password: password
+    hosts:
+      default: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        default: null
+  identity:
+    name: keystone
+    auth:
+      admin:
+        region_name: RegionOne
+        username: admin
+        password: password
+        project_name: admin
+        user_domain_name: default
+        project_domain_name: default
+      trove:
+        role: admin
+        region_name: RegionOne
+        username: trove
+        password: password
+        project_name: service
+        user_domain_name: service
+        project_domain_name: service
+    hosts:
+      default: keystone
+      internal: keystone-api
+    host_fqdn_override:
+      default: null
+    path:
+      default: /v3
+    scheme:
+      default: http
+    port:
+      api:
+        default: 80
+        internal: 5000
+  database:
+    name: trove
+    hosts:
+      default: trove-api
+      public: trove
+    host_fqdn_override:
+      default: null
+      # NOTE: this chart supports TLS for fqdn over-ridden public
+      # endpoints using the following format:
+      # public:
+      #   host: null
+      #   tls:
+      #     crt: null
+      #     key: null
+    path:
+      default: /v1.0/%(tenant_id)s
+    scheme:
+      default: http
+    port:
+      api:
+        default: 8779
+        public: 80
+  oslo_db:
+    auth:
+      admin:
+        username: root
+        password: password
+        secret:
+          tls:
+            internal: mariadb-tls-direct
+      trove:
+        username: trove
+        password: password
+    hosts:
+      default: mariadb
+    host_fqdn_override:
+      default: null
+    path: /trove
+    scheme: mysql+pymysql
+    port:
+      mysql:
+        default: 3306
+  oslo_messaging:
+    auth:
+      admin:
+        username: rabbitmq
+        password: password
+        secret:
+          tls:
+            internal: rabbitmq-tls-direct
+      trove:
+        username: trove
+        password: password
+    statefulset:
+      replicas: 2
+      name: rabbitmq-rabbitmq
+    hosts:
+      default: rabbitmq
+    host_fqdn_override:
+      default: null
+    path: /trove
+    scheme: rabbit
+    port:
+      amqp:
+        default: 5672
+      http:
+        default: 15672
+  oslo_cache:
+    auth:
+      # NOTE: this is used to define the value for keystone
+      # authtoken cache encryption key, if not set it will be populated
+      # automatically with a random value, but to take advantage of
+      # this feature all services should be set to use the same key,
+      # and memcache service.
+      memcache_secret_key: null
+    hosts:
+      default: memcached
+    host_fqdn_override:
+      default: null
+    port:
+      memcache:
+        default: 11211
+  fluentd:
+    namespace: null
+    name: fluentd
+    hosts:
+      default: fluentd-logging
+    host_fqdn_override:
+      default: null
+    path:
+      default: null
+    scheme: 'http'
+    port:
+      service:
+        default: 24224
+      metrics:
+        default: 24220
+
+manifests:
+  certificates: false
+  configmap_bin: true
+  configmap_etc: true
+  cron_job_db_purge: true
+  deployment_api: true
+  deployment_conductor: true
+  deployment_taskmanager: true
+  ingress_api: true
+  job_bootstrap: false
+  job_db_init: true
+  job_db_sync: true
+  job_db_drop: false
+  job_image_repo_sync: true
+  job_ks_endpoints: true
+  job_ks_service: true
+  job_ks_user: true
+  job_rabbit_init: true
+  network_policy: false
+  pdb_api: true
+  pod_rally_test: true
+  secret_db: true
+  secret_ingress_tls: true
+  secret_keystone: true
+  secret_rabbitmq: true
+  secret_registry: true
+  service_api: true
+  service_ingress_api: true
+
+helm3_hook: true
+...

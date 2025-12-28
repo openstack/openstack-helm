@@ -1,0 +1,49 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.network_policy -}}
+{{- $envAll := . }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: trove-default
+spec:
+  podSelector:
+    matchLabels:
+{{ tuple $envAll "trove" "api" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+      - podSelector:
+          matchLabels:
+{{ tuple $envAll "trove" "api" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 12 }}
+      ports:
+{{ tuple "database" "service" "api" . | include "helm-toolkit.manifests.network_policy_list" | indent 8 }}
+  egress:
+    - to:
+      - namespaceSelector:
+          matchLabels:
+            name: kube-system
+    - to:
+      - namespaceSelector:
+          matchLabels:
+            name: {{ .Release.Namespace }}
+      ports:
+{{ tuple "oslo_db" "internal" "mysql" . | include "helm-toolkit.manifests.network_policy_list" | indent 8 }}
+{{ tuple "oslo_messaging" "internal" "amqp" . | include "helm-toolkit.manifests.network_policy_list" | indent 8 }}
+{{ tuple "identity" "internal" "api" . | include "helm-toolkit.manifests.network_policy_list" | indent 8 }}
+{{- end }}
