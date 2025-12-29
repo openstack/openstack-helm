@@ -119,7 +119,7 @@ network:
   elasticsearch:
     ingress:
       classes:
-        namespace: nginx-osh-infra
+        namespace: ingress-osh-infra
 dependencies:
   static:
     elasticsearch_templates:

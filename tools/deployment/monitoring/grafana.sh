@@ -22,7 +22,7 @@ FEATURES="calico ceph containers coredns elasticsearch kubernetes nginx nodes op
 #NOTE: Deploy command
 helm upgrade --install grafana ${OSH_HELM_REPO}/grafana \
   --namespace=osh-infra \
-  --set network.grafana.ingress.classes.namespace="nginx-osh-infra" \
+  --set network.grafana.ingress.classes.namespace="ingress-osh-infra" \
   ${OSH_EXTRA_HELM_ARGS:=} \
   ${OSH_EXTRA_HELM_ARGS_GRAFANA}
 

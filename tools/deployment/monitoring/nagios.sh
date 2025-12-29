@@ -21,7 +21,7 @@ set -xe
 #NOTE: Deploy command
 helm upgrade --install nagios ${OSH_HELM_REPO}/nagios \
   --namespace=osh-infra \
-  --set network.nagios.ingress.classes.namespace=nginx-osh-infra \
+  --set network.nagios.ingress.classes.namespace=ingress-osh-infra \
   ${OSH_EXTRA_HELM_ARGS:=} \
   ${OSH_EXTRA_HELM_ARGS_NAGIOS}
 

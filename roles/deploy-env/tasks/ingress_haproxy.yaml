@@ -1,0 +1,54 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+- name: Add haproxy-ingress helm repo
+  become_user: "{{ kubectl.user }}"
+  shell: |
+    helm repo add haproxy-ingress https://haproxy-ingress.github.io/charts
+
+- name: Deploy HAProxy ingress in openstack namespace
+  become_user: "{{ kubectl.user }}"
+  when: ingress_openstack_setup
+  shell: |
+    helm upgrade --install --create-namespace haproxy-ingress-openstack haproxy-ingress/haproxy-ingress \
+      --version {{ ingress_haproxy_version }} \
+      --namespace=openstack \
+      --set controller.kind=Deployment \
+      --set controller.ingressClassResource.enabled="true" \
+      --set controller.ingressClass=ingress-openstack \
+      --set controller.podLabels.app=ingress-api
+
+- name: Deploy HAProxy ingress in ceph namespace
+  become_user: "{{ kubectl.user }}"
+  when: ingress_ceph_setup
+  shell: |
+    helm upgrade --install --create-namespace haproxy-ingress-ceph haproxy-ingress/haproxy-ingress \
+      --version {{ ingress_haproxy_version }} \
+      --namespace=ceph \
+      --set controller.kind=Deployment \
+      --set controller.ingressClassResource.enabled="true" \
+      --set controller.ingressClass=ingress-ceph \
+      --set controller.podLabels.app=ingress-api
+
+- name: Deploy HAProxy ingress in osh-infra namespace
+  become_user: "{{ kubectl.user }}"
+  when: ingress_osh_infra_setup
+  shell: |
+    helm upgrade --install --create-namespace haproxy-ingress-osh-infra haproxy-ingress/haproxy-ingress \
+      --version {{ ingress_haproxy_version }} \
+      --namespace=osh-infra \
+      --set controller.kind=Deployment \
+      --set controller.ingressClassResource.enabled="true" \
+      --set controller.ingressClass=ingress-osh-infra \
+      --set controller.podLabels.app=ingress-api
+...
