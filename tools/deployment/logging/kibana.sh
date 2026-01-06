@@ -21,7 +21,7 @@ set -xe
 #NOTE: Deploy command
 helm upgrade --install kibana ${OSH_HELM_REPO}/kibana \
   --namespace=osh-infra \
-  --set network.kibana.ingress.classes.namespace=nginx-osh-infra \
+  --set network.kibana.ingress.classes.namespace=ingress-osh-infra \
   ${OSH_EXTRA_HELM_ARGS} \
   ${OSH_EXTRA_HELM_ARGS_KIBANA}
 

@@ -7,8 +7,8 @@ Ingress controller
 Ingress controller when deploying OpenStack on Kubernetes
 is essential to ensure proper external access for the OpenStack services.
 
-We recommend using the `ingress-nginx`_ because it is simple and provides
-all necessary features. It utilizes Nginx as a reverse proxy backend.
+We recommend using the `haproxy-ingress`_ because it is simple and provides
+all necessary features. It utilizes HAProxy as a reverse proxy backend.
 Here is how to deploy it.
 
 First, let's create a namespace for the OpenStack workloads. The ingress
@@ -30,19 +30,14 @@ Next, deploy the ingress controller in the ``openstack`` namespace:
 
 .. code-block:: bash
 
-    helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
-    helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx \
-        --version="4.8.3" \
-        --namespace=openstack \
-        --set controller.kind=Deployment \
-        --set controller.admissionWebhooks.enabled="false" \
-        --set controller.scope.enabled="true" \
-        --set controller.service.enabled="false" \
-        --set controller.ingressClassResource.name=nginx \
-        --set controller.ingressClassResource.controllerValue="k8s.io/ingress-nginx" \
-        --set controller.ingressClassResource.default="false" \
-        --set controller.ingressClass=nginx \
-        --set controller.labels.app=ingress-api
+    helm repo add haproxy-ingress https://haproxy-ingress.github.io/charts
+    helm upgrade --install haproxy-ingress haproxy-ingress/haproxy-ingress \
+      --version 0.15.0 \
+      --namespace=openstack \
+      --set controller.kind=Deployment \
+      --set controller.ingressClassResource.enabled="true" \
+      --set controller.ingressClass=ingress-openstack \
+      --set controller.podLabels.app=ingress-api
 
 You can deploy any other ingress controller that suits your needs best.
 See for example the list of available `ingress controllers`_.
@@ -54,7 +49,7 @@ For example, the OpenStack-Helm ``keystone`` chart by default creates a service
 that redirects traffic to the ingress controller pods selected using the
 ``app: ingress-api`` label. Then it also creates an ``Ingress`` resource which
 the ingress controller then uses to configure its reverse proxy
-backend (Nginx) which eventually routes the traffic to the Keystone API
+backend (HAProxy) which eventually routes the traffic to the Keystone API
 service which works as an endpoint for Keystone API pods.
 
 .. image:: ingress.jpg
@@ -67,7 +62,7 @@ service which works as an endpoint for Keystone API pods.
     service of type ``LoadBalancer`` or ``NodePort`` with the selector pointing to
     the ingress controller pods.
 
-.. _ingress-nginx: https://github.com/kubernetes/ingress-nginx/blob/main/charts/ingress-nginx/README.md
+.. _haproxy-ingress: https://haproxy-ingress.github.io/
 .. _ingress controllers: https://kubernetes.io/docs/concepts/services-networking/ingress-controllers/
 
 MetalLB
