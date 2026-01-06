@@ -193,7 +193,7 @@ The Glance deployment commands are as follows:
 
 .. code-block:: bash
 
-    tee ${OVERRIDES_DIR}/glance/values_overrides/glance_pvc_storage.yaml <<EOF
+    tee ${OVERRIDES_DIR}/glance/glance_pvc_storage.yaml <<EOF
     storage: pvc
     volume:
       class_name: general
@@ -210,7 +210,7 @@ The Glance deployment commands are as follows:
 
     In the above we prepare a values override file for ``glance`` chart which
     makes it use a Persistent Volume Claim (PVC) for storing images. We put
-    the values in the ``${OVERRIDES_DIR}/glance/values_overrides/glance_pvc_storage.yaml``
+    the values in the ``${OVERRIDES_DIR}/glance/glance_pvc_storage.yaml``
     so the OpenStack-Helm plugin can pick it up if we pass the feature
     ``glance_pvc_storage`` to it.
 
@@ -302,7 +302,7 @@ for their virtual machines and other services.
 .. code-block:: bash
 
     PROVIDER_INTERFACE=<provider_interface_name>
-    tee ${OVERRIDES_DIR}/neutron/values_overrides/neutron_simple.yaml << EOF
+    tee ${OVERRIDES_DIR}/neutron/neutron_simple.yaml << EOF
     conf:
       neutron:
         DEFAULT:
