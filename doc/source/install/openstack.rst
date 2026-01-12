@@ -63,7 +63,7 @@ Let's download the values overrides for the feature set defined above:
 .. code-block:: bash
 
     OVERRIDES_URL=https://opendev.org/openstack/openstack-helm/raw/branch/master/values_overrides
-    for chart in rabbitmq mariadb memcached openvswitch libvirt keystone heat glance cinder placement nova neutron horizon; do
+    for chart in rabbitmq mariadb memcached openvswitch libvirt keystone heat glance cinder trove placement nova neutron horizon; do
         helm osh get-values-overrides -d -u ${OVERRIDES_URL} -p ${OVERRIDES_DIR} -c ${chart} ${FEATURES}
     done
 
@@ -232,7 +232,6 @@ To deploy the OpenStack Cinder use the following
         $(helm osh get-values-overrides -p ${OVERRIDES_DIR} -c cinder ${FEATURES})
 
     helm osh wait-for-pods openstack
-
 
 Compute kit backend: Openvswitch and Libvirt
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
