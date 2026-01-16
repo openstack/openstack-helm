@@ -41,14 +41,14 @@ function run_migrator () {
   STOP_FLAG=$(mktemp)
   echo "Making sure the database is reachable...."
   set +e
-  until mysql ${MYSQL_PARAMS} grafana -e "select 1;"
+  until mariadb ${MYSQL_PARAMS} grafana -e "select 1;"
   do
     echo \"Database ${DB_HOST} is not reachable. Sleeping for 10 seconds...\"
     sleep 10
   done
   set -e
   echo "Preparing initial database backup..."
-  mysqldump ${MYSQL_PARAMS} --add-drop-table --quote-names grafana > "${BACKUP_FILE}"
+  mariadb-dump ${MYSQL_PARAMS} --add-drop-table --quote-names grafana > "${BACKUP_FILE}"
   echo "Backup SQL file ${BACKUP_FILE}"
   ls -lh "${BACKUP_FILE}"
   {
@@ -87,7 +87,7 @@ function run_migrator () {
       set -e
       echo "Making sure the database is reachable...."
       set +e
-      until mysql ${MYSQL_PARAMS} grafana -e "select 1;"
+      until mariadb ${MYSQL_PARAMS} grafana -e "select 1;"
       do
         echo \"Database ${DB_HOST} is not reachable. Sleeping for 10 seconds...\"
         sleep 10
@@ -95,15 +95,15 @@ function run_migrator () {
       set -e
       echo "Cleaning the database..."
       TABLES=$(
-        mysql ${MYSQL_PARAMS} grafana -e "show tables\G;" | grep Tables | cut -d " " -f 2
+        mariadb ${MYSQL_PARAMS} grafana -e "show tables\G;" | grep Tables | cut -d " " -f 2
       )
       for TABLE in ${TABLES}
       do
         echo ${TABLE}
-        mysql ${MYSQL_PARAMS} grafana -e "drop table ${TABLE};"
+        mariadb ${MYSQL_PARAMS} grafana -e "drop table ${TABLE};"
       done
       echo "Restoring the database backup..."
-      mysql ${MYSQL_PARAMS} grafana < "${BACKUP_FILE}"
+      mariadb ${MYSQL_PARAMS} grafana < "${BACKUP_FILE}"
       echo "Removing lock file ${STOP_FLAG} ..."
       rm -f "${STOP_FLAG}"
       echo "${STOP_FLAG} has been removed"
