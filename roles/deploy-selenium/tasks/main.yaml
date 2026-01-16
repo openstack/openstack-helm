@@ -32,12 +32,27 @@
   get_url:
     url: https://dl-ssl.google.com/linux/linux_signing_key.pub
     dest: /etc/apt/trusted.gpg.d/google-chrome.asc
+    timeout: 120
+  retries: 10
+  delay: 5
 
 - name: Add google chrome repository
   apt_repository:
     repo: "deb [arch=amd64 signed-by=/etc/apt/trusted.gpg.d/google-chrome.asc] http://dl.google.com/linux/chrome/deb/ stable main"
     filename: google-chrome
     state: present
+
+- name: Update apt acquire config
+  shell: |
+    tee /etc/apt/apt.conf.d/99retries-timeouts <<EOF
+    Acquire::Retries "10";
+    Acquire::https::Timeout "120";
+    Acquire::http::Timeout "120";
+    Acquire::ForceIPv4 "true";
+    EOF
+  args:
+    creates: /etc/apt/apt.conf.d/99retries-timeouts
+    executable: /bin/bash
 
 - name: Install google chrome
   when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
