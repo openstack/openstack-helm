@@ -22,7 +22,6 @@ OpenStack charts options
     manila
     masakari
     mistral
-    monasca
     neutron
     nova
     octavia
