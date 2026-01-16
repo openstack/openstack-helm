@@ -21,8 +21,8 @@ set -x
 # The default values deploy the Rook operator in the rook-ceph namespace and
 # the Ceph cluster in the ceph namespace using rook-operator.yaml and
 # rook-ceph.yaml in the current directory.
-ROOK_RELEASE=${ROOK_RELEASE:-1.18.8}
-CEPH_RELEASE=${CEPH_RELEASE:-19.2.3}
+ROOK_RELEASE=${ROOK_RELEASE:-1.18.9}
+CEPH_RELEASE=${CEPH_RELEASE:-20.2.0}
 ROOK_CEPH_NAMESPACE=${ROOK_CEPH_NAMESPACE:-rook-ceph}
 CEPH_NAMESPACE=${CEPH_NAMESPCE:-ceph}
 ROOK_OPERATOR_YAML=${ROOK_OPERATOR_YAML:-/tmp/rook-operator.yaml}
