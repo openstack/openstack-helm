@@ -73,41 +73,6 @@ spec:
 {{- end }}
         - name: SERVICE_OS_ROLE
           value: {{ .Values.endpoints.identity.auth.test.role | quote }}
-{{ if $envAll.Values.conf.rally_tests.force_project_purge }}
-    - name: {{ .deployment_name }}-reset
-{{ tuple $envAll "purge_test" | include "helm-toolkit.snippets.image" | indent 6 }}
-      env:
-{{- with $env := dict "ksUserSecret" .Values.secrets.identity.admin "useCA" .Values.manifests.certificates }}
-{{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 8 }}
-{{- end }}
-{{- with $env := dict "ksUserSecret" .Values.secrets.identity.test }}
-{{- include "helm-toolkit.snippets.keystone_user_create_env_vars" $env | indent 8 }}
-{{- end }}
-        - name: OS_TEST_PROJECT_NAME
-          value: {{ .Values.endpoints.identity.auth.test.project_name }}
-        - name: OS_TEST_PROJECT_DOMAIN_NAME
-          value: {{ .Values.endpoints.identity.auth.test.domain_name }}
-        - name: NETWORK_QUOTA
-          value: {{ (first (index .Values.conf.rally_tests.tests "NeutronNetworks.create_and_delete_networks")).context.quotas.neutron.network | quote }}
-        - name: PORT_QUOTA
-          value: {{ (first (index .Values.conf.rally_tests.tests "NeutronNetworks.create_and_delete_ports")).context.quotas.neutron.port | quote }}
-        - name: ROUTER_QUOTA
-          value: {{ (first (index .Values.conf.rally_tests.tests "NeutronNetworks.create_and_delete_routers")).context.quotas.neutron.router | quote }}
-        - name: SUBNET_QUOTA
-          value: {{ (first (index .Values.conf.rally_tests.tests "NeutronNetworks.create_and_delete_subnets")).context.quotas.neutron.subnet | quote }}
-        - name: SEC_GROUP_QUOTA
-          value: {{ (first (index .Values.conf.rally_tests.tests "NeutronSecurityGroup.create_and_list_security_groups")).context.quotas.neutron.security_group | quote }}
-      command:
-        - /tmp/neutron-test-force-cleanup.sh
-      volumeMounts:
-        - name: neutron-bin
-          mountPath: /tmp/neutron-test-force-cleanup.sh
-          subPath: neutron-test-force-cleanup.sh
-          readOnly: true
-        - name: pod-tmp
-          mountPath: /tmp/pod-tmp
-{{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.network.server.internal | include "helm-toolkit.snippets.tls_volume_mount" | indent 8 }}
-{{ end }}
   containers:
     - name: neutron-test
 {{ tuple $envAll "test" | include "helm-toolkit.snippets.image" | indent 6 }}
