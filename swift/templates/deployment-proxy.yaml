@@ -1,0 +1,138 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.deployment_proxy }}
+{{- $envAll := . }}
+
+{{- $mounts_swift_proxy := .Values.pod.mounts.swift_proxy.swift_proxy }}
+{{- $mounts_swift_proxy_init := .Values.pod.mounts.swift_proxy.init_container }}
+
+{{- $serviceAccountName := "swift-proxy" }}
+{{ tuple $envAll "proxy" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: swift-proxy
+  annotations:
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+  labels:
+{{ tuple $envAll "swift" "proxy" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  replicas: {{ .Values.pod.replicas.proxy }}
+  selector:
+    matchLabels:
+{{ tuple $envAll "swift" "proxy" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
+{{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_deployment" | indent 2 }}
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "swift" "proxy" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+{{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
+        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
+{{ dict "envAll" $envAll "podName" "swift-proxy" "containerNames" (list "swift-proxy" "init") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
+    spec:
+{{ dict "envAll" $envAll "application" "swift" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
+      serviceAccountName: {{ $serviceAccountName }}
+      dnsPolicy: ClusterFirst
+      dnsConfig:
+        options:
+          - name: ndots
+            value: "2"
+          - name: single-request-reopen
+      affinity:
+{{ tuple $envAll "swift" "proxy" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
+      nodeSelector:
+        {{ .Values.labels.api.node_selector_key }}: {{ .Values.labels.api.node_selector_value }}
+{{- if .Values.pod.tolerations.swift.enabled }}
+{{ tuple $envAll "swift" | include "helm-toolkit.snippets.kubernetes_tolerations" | indent 6 }}
+{{- end }}
+      terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.proxy.timeout | default 30 }}
+      initContainers:
+{{ tuple $envAll "proxy" $mounts_swift_proxy_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+      containers:
+        - name: swift-proxy
+{{ tuple $envAll "swift_proxy" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.proxy | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "swift" "container" "swift_proxy" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          command:
+            - /bin/bash
+            - -c
+            - /tmp/proxy-start.sh
+          ports:
+            - name: swift-api
+              containerPort: {{ .Values.conf.proxy_server.DEFAULT.bind_port }}
+          readinessProbe:
+            httpGet:
+              path: /healthcheck
+              port: {{ .Values.conf.proxy_server.DEFAULT.bind_port }}
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthcheck
+              port: {{ .Values.conf.proxy_server.DEFAULT.bind_port }}
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: swift-bin
+              mountPath: /tmp/proxy-start.sh
+              subPath: proxy-start.sh
+              readOnly: true
+            - name: swift-etc
+              mountPath: /etc/swift/swift.conf
+              subPath: swift.conf
+              readOnly: true
+            - name: swift-etc
+              mountPath: /etc/swift/proxy-server.conf
+              subPath: proxy-server.conf
+              readOnly: true
+            - name: swift-etc
+              mountPath: /etc/swift/container-sync-realms.conf
+              subPath: container-sync-realms.conf
+              readOnly: true
+            - name: swift-rings
+              mountPath: /etc/swift/account.ring.gz
+              subPath: account.ring.gz
+              readOnly: true
+            - name: swift-rings
+              mountPath: /etc/swift/container.ring.gz
+              subPath: container.ring.gz
+              readOnly: true
+            - name: swift-rings
+              mountPath: /etc/swift/object.ring.gz
+              subPath: object.ring.gz
+              readOnly: true
+{{- if $mounts_swift_proxy.volumeMounts }}{{ toYaml $mounts_swift_proxy.volumeMounts | indent 12 }}{{ end }}
+      volumes:
+        - name: pod-tmp
+          emptyDir: {}
+        - name: swift-bin
+          configMap:
+            name: swift-bin
+            defaultMode: 0555
+        - name: swift-etc
+          configMap:
+            name: swift-etc
+            defaultMode: 0444
+        - name: swift-rings
+          hostPath:
+            path: /etc/swift
+            type: DirectoryOrCreate
+{{- if $mounts_swift_proxy.volumes }}{{ toYaml $mounts_swift_proxy.volumes | indent 8 }}{{ end }}
+{{- end }}

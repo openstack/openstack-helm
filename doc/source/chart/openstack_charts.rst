@@ -28,6 +28,7 @@ OpenStack charts options
     placement
     rally
     skyline
+    swift
     tacker
     tempest
     trove

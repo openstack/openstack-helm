@@ -1,0 +1,55 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+*/}}
+
+{{- if .Values.manifests.pod_test }}
+{{- $envAll := . }}
+
+{{- $serviceAccountName := "swift-test" }}
+{{ tuple $envAll "test" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ .Release.Name }}-test"
+  annotations:
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+    "helm.sh/hook": test-success
+  labels:
+{{ tuple $envAll "swift" "test" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  serviceAccountName: {{ $serviceAccountName }}
+  nodeSelector:
+    {{ .Values.labels.test.node_selector_key }}: {{ .Values.labels.test.node_selector_value }}
+  restartPolicy: Never
+  initContainers:
+{{ tuple $envAll "test" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 4 }}
+  containers:
+    - name: swift-test
+      image: {{ .Values.images.tags.test }}
+      imagePullPolicy: {{ .Values.images.pull_policy }}
+      command:
+        - /bin/bash
+        - -c
+        - /tmp/swift-test.sh
+      volumeMounts:
+        - name: pod-tmp
+          mountPath: /tmp
+        - name: swift-bin
+          mountPath: /tmp/swift-test.sh
+          subPath: swift-test.sh
+          readOnly: true
+      env:
+{{- with $env := dict "ksUserSecret" "swift-keystone-user" "useCA" .Values.manifests.certificates }}
+{{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 8 }}
+{{- end }}
+        - name: SWIFT_TEST_CONTAINER
+          value: "test-container-{{ randAlphaNum 8 | lower }}"
+  volumes:
+    - name: pod-tmp
+      emptyDir: {}
+    - name: swift-bin
+      configMap:
+        name: swift-bin
+        defaultMode: 0555
+{{- end }}

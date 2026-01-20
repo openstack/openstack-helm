@@ -1,0 +1,32 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if and .Values.manifests.ingress_proxy .Values.network.proxy.ingress.public }}
+{{- $envAll := . }}
+{{- $ingressOpts := dict "envAll" $envAll "backendService" "proxy" "backendServiceType" "object_store" "backendPort" "swift-api" -}}
+{{- $secretName := $envAll.Values.secrets.tls.object_store.api.public -}}
+{{- if and .Values.manifests.certificates $secretName -}}
+{{- $fqdnOverride := index .Values.endpoints.object_store.host_fqdn_override "default" | default dict -}}
+{{- if and $fqdnOverride (hasKey $fqdnOverride "tls") -}}
+{{- $tlsConfig := index $fqdnOverride "tls" | default dict -}}
+{{- if and $tlsConfig (hasKey $tlsConfig "issuerRef") -}}
+{{- $issuerRef := index $tlsConfig "issuerRef" | default dict -}}
+{{- if and $issuerRef (hasKey $issuerRef "name") -}}
+{{- $_ := set $ingressOpts "certIssuer" $issuerRef.name -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+{{ $ingressOpts | include "helm-toolkit.manifests.ingress" }}
+{{- end }}

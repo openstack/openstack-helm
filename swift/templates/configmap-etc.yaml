@@ -1,0 +1,116 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- define "swift.configmap.etc" }}
+{{- $envAll := . }}
+
+{{- if empty .Values.conf.proxy_server.DEFAULT.swift_dir -}}
+{{- $_ := set .Values.conf.proxy_server.DEFAULT "swift_dir" "/etc/swift" -}}
+{{- end -}}
+
+{{- if empty (index .Values.conf.proxy_server "filter:authtoken" "www_authenticate_uri") -}}
+{{- $_ := tuple "identity" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" | set (index .Values.conf.proxy_server "filter:authtoken") "www_authenticate_uri" -}}
+{{- end -}}
+
+{{- if empty (index .Values.conf.proxy_server "filter:authtoken" "auth_url") -}}
+{{- $_ := tuple "identity" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" | set (index .Values.conf.proxy_server "filter:authtoken") "auth_url" -}}
+{{- end -}}
+
+{{- if empty (index .Values.conf.proxy_server "filter:authtoken" "memcached_servers") -}}
+{{- $_ := tuple "oslo_cache" "internal" "memcache" . | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" | set (index .Values.conf.proxy_server "filter:authtoken") "memcached_servers" -}}
+{{- end -}}
+
+{{- if empty (index .Values.conf.proxy_server "filter:cache" "memcache_servers") -}}
+{{- $_ := tuple "oslo_cache" "internal" "memcache" . | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" | set (index .Values.conf.proxy_server "filter:cache") "memcache_servers" -}}
+{{- end -}}
+
+{{- if empty (index .Values.conf.proxy_server "filter:authtoken" "password") -}}
+{{- $_ := .Values.endpoints.identity.auth.swift.password | set (index .Values.conf.proxy_server "filter:authtoken") "password" -}}
+{{- end -}}
+
+{{- if empty (index .Values.conf.proxy_server "filter:authtoken" "memcache_secret_key") -}}
+{{- $_ := (default (randAlphaNum 64) .Values.endpoints.oslo_cache.auth.memcache_secret_key) | set (index .Values.conf.proxy_server "filter:authtoken") "memcache_secret_key" -}}
+{{- end -}}
+
+{{- if empty (index .Values.conf.proxy_server "filter:authtoken" "memcache_servers") -}}
+{{- $_ := tuple "oslo_cache" "internal" "memcache" . | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" | set (index .Values.conf.proxy_server "filter:authtoken") "memcache_servers" -}}
+{{- end -}}
+
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: swift-etc
+  labels:
+{{ tuple $envAll "swift" "etc" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+data:
+  swift.conf: |
+    [swift-hash]
+    swift_hash_path_suffix = {{ .Values.conf.swift.swift_hash_path_suffix }}
+    swift_hash_path_prefix = {{ .Values.conf.swift.swift_hash_path_prefix }}
+{{- range $policy := .Values.conf.swift.storage_policies }}
+    [storage-policy:{{ $policy.index }}]
+    name = {{ $policy.name }}
+{{- if $policy.default }}
+    default = {{ $policy.default }}
+{{- end }}
+{{- if $policy.deprecated }}
+    deprecated = {{ $policy.deprecated }}
+{{- end }}
+{{- end }}
+
+  proxy-server.conf: |
+{{ include "helm-toolkit.utils.to_ini" .Values.conf.proxy_server | indent 4 }}
+
+  account-server.conf: |
+{{ include "helm-toolkit.utils.to_ini" .Values.conf.account_server | indent 4 }}
+
+  container-server.conf: |
+{{ include "helm-toolkit.utils.to_ini" .Values.conf.container_server | indent 4 }}
+
+  object-server.conf: |
+{{ include "helm-toolkit.utils.to_ini" .Values.conf.object_server | indent 4 }}
+
+  rsyncd.conf: |
+    uid = {{ .Values.conf.rsyncd.uid }}
+    gid = {{ .Values.conf.rsyncd.gid }}
+    log file = {{ .Values.conf.rsyncd.log_file }}
+    pid file = {{ .Values.conf.rsyncd.pid_file }}
+    address = {{ .Values.conf.rsyncd.address }}
+
+    [account]
+    max connections = {{ .Values.conf.rsyncd.account.max_connections }}
+    path = {{ .Values.conf.rsyncd.account.path }}
+    read only = {{ .Values.conf.rsyncd.account.read_only }}
+    lock file = {{ .Values.conf.rsyncd.account.lock_file }}
+
+    [container]
+    max connections = {{ .Values.conf.rsyncd.container.max_connections }}
+    path = {{ .Values.conf.rsyncd.container.path }}
+    read only = {{ .Values.conf.rsyncd.container.read_only }}
+    lock file = {{ .Values.conf.rsyncd.container.lock_file }}
+
+    [object]
+    max connections = {{ .Values.conf.rsyncd.object.max_connections }}
+    path = {{ .Values.conf.rsyncd.object.path }}
+    read only = {{ .Values.conf.rsyncd.object.read_only }}
+    lock file = {{ .Values.conf.rsyncd.object.lock_file }}
+
+  container-sync-realms.conf: |
+{{ include "helm-toolkit.utils.to_ini" .Values.conf.swift.container_sync_realms | indent 4 }}
+{{- end }}
+
+
+{{- if .Values.manifests.configmap_etc }}
+{{- include "swift.configmap.etc" . }}
+{{- end }}

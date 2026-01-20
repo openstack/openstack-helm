@@ -1,0 +1,70 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- define "swift.configmap.bin" }}
+{{- $envAll := . }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: swift-bin
+  labels:
+{{ tuple $envAll "swift" "bin" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+data:
+  storage-init.sh: |
+{{ include "swift.bin.storage_init" . | indent 4 }}
+
+  ring-builder.sh: |
+{{ include "swift.bin.ring_builder" . | indent 4 }}
+
+  ring-copy.sh: |
+{{ include "swift.bin.ring_copy" . | indent 4 }}
+
+  proxy-start.sh: |
+{{ include "swift.bin.proxy_start" . | indent 4 }}
+
+  storage-start.sh: |
+{{ include "swift.bin.storage_start" . | indent 4 }}
+
+  account-start.sh: |
+{{ include "swift.bin.account_start" . | indent 4 }}
+
+  container-start.sh: |
+{{ include "swift.bin.container_start" . | indent 4 }}
+
+  object-start.sh: |
+{{ include "swift.bin.object_start" . | indent 4 }}
+
+  bootstrap.sh: |
+{{ include "swift.bin.bootstrap" . | indent 4 }}
+
+  ks-service.sh: |
+{{ tuple "bin/_ks-service.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
+
+  ks-endpoints.sh: |
+{{ tuple "bin/_ks-endpoints.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
+
+  ks-user.sh: |
+{{ tuple "bin/_ks-user.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
+
+  swift-test.sh: |
+{{ include "swift.bin.swift_test" . | indent 4 }}
+
+{{- if .Values.images.local_registry.active }}
+  image-repo-sync.sh: |
+{{- include "helm-toolkit.scripts.image_repo_sync" . | indent 4 }}
+{{- end }}
+{{- end }}
+
+{{- if .Values.manifests.configmap_bin }}
+{{- include "swift.configmap.bin" . }}
+{{- end }}

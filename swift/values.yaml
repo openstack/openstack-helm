@@ -1,0 +1,735 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+release_group: null
+
+# Helm3 hook for job ordering
+helm3_hook: true
+
+labels:
+  api:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  storage:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  job:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+  test:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
+
+images:
+  tags:
+    bootstrap: quay.io/airshipit/swift:2025.2-ubuntu_noble
+    test: quay.io/airshipit/swift:2025.2-ubuntu_noble
+    dep_check: quay.io/airshipit/kubernetes-entrypoint:latest-ubuntu_jammy
+    swift_proxy: quay.io/airshipit/swift:2025.2-ubuntu_noble
+    swift_account: quay.io/airshipit/swift:2025.2-ubuntu_noble
+    swift_container: quay.io/airshipit/swift:2025.2-ubuntu_noble
+    swift_object: quay.io/airshipit/swift:2025.2-ubuntu_noble
+    swift_storage: quay.io/airshipit/swift:2025.2-ubuntu_noble
+    swift_storage_init: quay.io/airshipit/swift:2025.2-ubuntu_noble
+    swift_ring_builder: quay.io/airshipit/swift:2025.2-ubuntu_noble
+    ks_user: quay.io/airshipit/heat:2025.2-ubuntu_noble
+    ks_service: quay.io/airshipit/heat:2025.2-ubuntu_noble
+    ks_endpoints: quay.io/airshipit/heat:2025.2-ubuntu_noble
+    image_repo_sync: docker.io/docker:17.07.0
+  pull_policy: Always
+  local_registry:
+    active: false
+    exclude:
+      - dep_check
+      - image_repo_sync
+
+pod:
+  security_context:
+    swift:
+      pod:
+        runAsUser: 0
+      container:
+        swift_proxy:
+          readOnlyRootFilesystem: false
+          allowPrivilegeEscalation: true
+          privileged: true
+        swift_account:
+          readOnlyRootFilesystem: false
+          allowPrivilegeEscalation: true
+          privileged: true
+        swift_container:
+          readOnlyRootFilesystem: false
+          allowPrivilegeEscalation: true
+          privileged: true
+        swift_object:
+          readOnlyRootFilesystem: false
+          allowPrivilegeEscalation: true
+          privileged: true
+        swift_storage_init:
+          readOnlyRootFilesystem: false
+          allowPrivilegeEscalation: true
+          privileged: true
+        swift_ring_builder:
+          readOnlyRootFilesystem: false
+          allowPrivilegeEscalation: true
+          privileged: true
+        swift_ring_copy:
+          readOnlyRootFilesystem: false
+          allowPrivilegeEscalation: true
+          privileged: true
+        bootstrap:
+          readOnlyRootFilesystem: false
+          allowPrivilegeEscalation: false
+  affinity:
+    anti:
+      type:
+        default: preferredDuringSchedulingIgnoredDuringExecution
+      topologyKey:
+        default: kubernetes.io/hostname
+  replicas:
+    # Number of proxy replicas (Deployment)
+    proxy: 3
+    # Note: storage uses DaemonSet, so this is not used.
+    # Storage pods run on all nodes matching the storage node selector.
+  lifecycle:
+    upgrades:
+      deployments:
+        revision_history: 3
+        pod_replacement_strategy: RollingUpdate
+        rolling_update:
+          max_unavailable: 1
+          max_surge: 3
+      daemonsets:
+        storage:
+          enabled: true
+          min_ready_seconds: 0
+          max_unavailable: 1
+    termination_grace_period:
+      proxy:
+        timeout: 30
+      storage:
+        timeout: 30
+  resources:
+    enabled: true
+    proxy:
+      requests:
+        memory: "256Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+    storage:
+      requests:
+        memory: "256Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+    jobs:
+      bootstrap:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      ring_builder:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+
+      ks_user:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      ks_service:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      ks_endpoints:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      tests:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      image_repo_sync:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+  tolerations:
+    swift:
+      enabled: false
+      tolerations:
+        - key: node-role.kubernetes.io/master
+          operator: Exists
+          effect: NoSchedule
+  mounts:
+    swift_proxy:
+      init_container: null
+      swift_proxy:
+        volumeMounts:
+        volumes:
+    swift_storage:
+      init_container: null
+      swift_storage:
+        volumeMounts:
+        volumes:
+  pdb:
+    proxy:
+      minAvailable: 1
+    storage:
+      minAvailable: 1
+
+network_policy:
+  swift:
+    ingress:
+      - {}
+    egress:
+      - {}
+
+network:
+  proxy:
+    ingress:
+      public: true
+      classes:
+        namespace: "ingress-openstack"
+        cluster: "ingress-cluster"
+      annotations:
+        nginx.ingress.kubernetes.io/rewrite-target: /
+        nginx.ingress.kubernetes.io/proxy-body-size: "0"
+    external_policy_local: false
+    node_port:
+      enabled: false
+      port: 30808
+
+bootstrap:
+  enabled: false
+  script: null
+
+# Ring Configuration
+# partition_power: 2^N partitions (10=1024, 14=16384)
+# replicas: number of data copies (production=3, minimum for HA)
+# min_part_hours: minimum hours between partition moves (production=24)
+# devices: list of storage devices used by Swift
+#   - name: device name (must match mountpoint under /srv/node/)
+#   - weight: relative capacity weight (100 = standard, higher = more data)
+#
+# IMPORTANT: Devices must be pre-mounted before deploying Swift.
+# For production: mount real block devices (e.g., /dev/sdb1 -> /srv/node/sdb1)
+# For development: use loop devices or directories
+#
+# Example production config:
+#   devices:
+#     - name: sdb1
+#       weight: 100
+#     - name: sdc1
+#       weight: 100
+#
+ring:
+  partition_power: 10
+  replicas: 3
+  min_part_hours: 24
+  devices: []
+  # Example:
+  # devices:
+  #   - name: sdb1
+  #     weight: 100
+  #   - name: sdb2
+  #     weight: 100
+  shared_storage:
+    name: swift-shared-storage
+    storageClassName: nfs-provisioner
+    size: 1Gi
+    mount_path: "/etc/swift-rings"
+
+conf:
+  swift:
+    swift_hash_path_suffix: CHANGE_ME_SUFFIX
+    swift_hash_path_prefix: CHANGE_ME_PREFIX
+    storage_policies:
+      - name: Policy-0
+        index: 0
+        default: "yes"
+
+    container_sync_realms:
+      DEFAULT:
+        mtime_check_interval: 300
+
+  proxy_server:
+    DEFAULT:
+      bind_ip: 0.0.0.0
+      bind_port: 8080
+      workers: 2
+      user: swift
+      swift_dir: /etc/swift
+      log_level: INFO
+      log_name: proxy-server
+      log_facility:
+      log_address:
+    loggers:
+      keys: root,swift
+    handlers:
+      keys: console
+    formatters:
+      keys: simple
+    logger_root:
+      level: INFO
+      handlers: console
+    logger_swift:
+      level: INFO
+      handlers: console
+      qualname: swift
+      propagate: 0
+    handler_console:
+      class: StreamHandler
+      level: INFO
+      formatter: simple
+      args: (sys.stdout,)
+    formatter_simple:
+      format: "%%(asctime)s %%(levelname)s [%%(process)d] %%(name)s: %%(message)s"
+      datefmt: "%Y-%m-%d %H:%M:%S"
+    "pipeline:main":
+      pipeline: catch_errors gatekeeper healthcheck proxy-logging cache listing_formats container_sync bulk ratelimit authtoken keystoneauth copy container-quotas account-quotas slo dlo versioned_writes symlink proxy-logging proxy-server
+    "app:proxy-server":
+      use: egg:swift#proxy
+      account_autocreate: "true"
+      allow_account_management: "true"
+    "filter:authtoken":
+      paste.filter_factory: keystonemiddleware.auth_token:filter_factory
+      delay_auth_decision: "True"
+      www_authenticate_uri: null
+      auth_url: null
+      auth_type: password
+      memcached_servers: null
+      memcache_security_strategy: ENCRYPT
+      memcache_secret_key: null
+      username: swift
+      password: null
+      project_name: service
+      user_domain_name: default
+      project_domain_name: default
+      service_token_roles_required: "true"
+    "filter:keystoneauth":
+      use: egg:swift#keystoneauth
+      operator_roles: admin,member,swiftoperator
+      reseller_prefix: AUTH_
+      reseller_admin_role: ResellerAdmin
+    "filter:healthcheck":
+      use: egg:swift#healthcheck
+    "filter:cache":
+      use: egg:swift#memcache
+      memcache_servers: null
+    "filter:account-quotas":
+      use: egg:swift#account_quotas
+    "filter:container-quotas":
+      use: egg:swift#container_quotas
+    "filter:proxy-logging":
+      use: egg:swift#proxy_logging
+    "filter:bulk":
+      use: egg:swift#bulk
+    "filter:slo":
+      use: egg:swift#slo
+    "filter:dlo":
+      use: egg:swift#dlo
+    "filter:versioned_writes":
+      use: egg:swift#versioned_writes
+      allow_versioned_writes: "true"
+    "filter:copy":
+      use: egg:swift#copy
+    "filter:container_sync":
+      use: egg:swift#container_sync
+    "filter:ratelimit":
+      use: egg:swift#ratelimit
+    "filter:catch_errors":
+      use: egg:swift#catch_errors
+    "filter:gatekeeper":
+      use: egg:swift#gatekeeper
+    "filter:listing_formats":
+      use: egg:swift#listing_formats
+    "filter:symlink":
+      use: egg:swift#symlink
+
+  account_server:
+    DEFAULT:
+      bind_ip: 0.0.0.0
+      bind_port: 6202
+      workers: 2
+      user: swift
+      swift_dir: /etc/swift
+      devices: /srv/node
+      mount_check: "true"
+      log_level: INFO
+      log_name: account-server
+      log_facility:
+      log_address:
+    loggers:
+      keys: root,swift
+    handlers:
+      keys: console
+    formatters:
+      keys: simple
+    logger_root:
+      level: INFO
+      handlers: console
+    logger_swift:
+      level: INFO
+      handlers: console
+      qualname: swift
+      propagate: 0
+    handler_console:
+      class: StreamHandler
+      level: INFO
+      formatter: simple
+      args: (sys.stdout,)
+    formatter_simple:
+      format: "%%(asctime)s %%(levelname)s [%%(process)d] %%(name)s: %%(message)s"
+      datefmt: "%Y-%m-%d %H:%M:%S"
+    "pipeline:main":
+      pipeline: healthcheck recon account-server
+    "app:account-server":
+      use: egg:swift#account
+    "filter:healthcheck":
+      use: egg:swift#healthcheck
+    "filter:recon":
+      use: egg:swift#recon
+      recon_cache_path: /var/cache/swift
+    "account-replicator":
+      concurrency: 2
+    "account-auditor": {}
+    "account-reaper": {}
+
+  container_server:
+    DEFAULT:
+      bind_ip: 0.0.0.0
+      bind_port: 6201
+      workers: 2
+      user: swift
+      swift_dir: /etc/swift
+      devices: /srv/node
+      mount_check: "true"
+      log_level: INFO
+      log_name: container-server
+      log_facility:
+      log_address:
+    loggers:
+      keys: root,swift
+    handlers:
+      keys: console
+    formatters:
+      keys: simple
+    logger_root:
+      level: INFO
+      handlers: console
+    logger_swift:
+      level: INFO
+      handlers: console
+      qualname: swift
+      propagate: 0
+    handler_console:
+      class: StreamHandler
+      level: INFO
+      formatter: simple
+      args: (sys.stdout,)
+    formatter_simple:
+      format: "%%(asctime)s %%(levelname)s [%%(process)d] %%(name)s: %%(message)s"
+      datefmt: "%Y-%m-%d %H:%M:%S"
+    "pipeline:main":
+      pipeline: healthcheck recon container-server
+    "app:container-server":
+      use: egg:swift#container
+    "filter:healthcheck":
+      use: egg:swift#healthcheck
+    "filter:recon":
+      use: egg:swift#recon
+      recon_cache_path: /var/cache/swift
+    "container-replicator":
+      concurrency: 2
+    "container-updater":
+      concurrency: 2
+    "container-auditor": {}
+    "container-sync": {}
+
+  object_server:
+    DEFAULT:
+      bind_ip: 0.0.0.0
+      bind_port: 6200
+      workers: 2
+      user: swift
+      swift_dir: /etc/swift
+      devices: /srv/node
+      mount_check: "true"
+      log_level: INFO
+      log_name: object-server
+      log_facility:
+      log_address:
+    loggers:
+      keys: root,swift
+    handlers:
+      keys: console
+    formatters:
+      keys: simple
+    logger_root:
+      level: INFO
+      handlers: console
+    logger_swift:
+      level: INFO
+      handlers: console
+      qualname: swift
+      propagate: 0
+    handler_console:
+      class: StreamHandler
+      level: INFO
+      formatter: simple
+      args: (sys.stdout,)
+    formatter_simple:
+      format: "%%(asctime)s %%(levelname)s [%%(process)d] %%(name)s: %%(message)s"
+      datefmt: "%Y-%m-%d %H:%M:%S"
+    "pipeline:main":
+      pipeline: healthcheck recon object-server
+    "app:object-server":
+      use: egg:swift#object
+    "filter:healthcheck":
+      use: egg:swift#healthcheck
+    "filter:recon":
+      use: egg:swift#recon
+      recon_cache_path: /var/cache/swift
+      recon_lock_path: /var/lock
+    "object-replicator":
+      concurrency: 2
+    "object-updater":
+      concurrency: 2
+    "object-auditor": {}
+
+  rsyncd:
+    uid: swift
+    gid: swift
+    log_file: /var/log/rsyncd.log
+    pid_file: /var/run/rsyncd.pid
+    address: 0.0.0.0
+    account:
+      max_connections: 4
+      path: /srv/node/
+      read_only: "False"
+      lock_file: /var/lock/account.lock
+    container:
+      max_connections: 4
+      path: /srv/node/
+      read_only: "False"
+      lock_file: /var/lock/container.lock
+    object:
+      max_connections: 4
+      path: /srv/node/
+      read_only: "False"
+      lock_file: /var/lock/object.lock
+
+secrets:
+  identity:
+    admin: swift-keystone-admin
+    swift: swift-keystone-user
+  tls:
+    object_store:
+      api:
+        public: swift-tls-public
+
+dependencies:
+  dynamic:
+    common:
+      local_image_registry:
+        jobs:
+          - swift-image-repo-sync
+        services:
+          - endpoint: node
+            service: local_image_registry
+  static:
+    ring_builder:
+      jobs: null
+      services: null
+    # storage_init:
+    #   jobs:
+    #     - swift-ring-builder
+    #   services: null
+    storage:
+      # jobs:
+      #   - swift-storage-init
+      services: null
+    proxy:
+      daemonset:
+        - swift-storage
+      # jobs:
+      #   - swift-storage-init
+      services:
+        - endpoint: internal
+          service: identity
+        - endpoint: internal
+          service: oslo_cache
+    ks_endpoints:
+      jobs:
+        - swift-ks-service
+      services:
+        - endpoint: internal
+          service: identity
+    ks_service:
+      services:
+        - endpoint: internal
+          service: identity
+    ks_user:
+      services:
+        - endpoint: internal
+          service: identity
+    bootstrap:
+      jobs:
+        - swift-ks-user
+        - swift-ks-endpoints
+      services:
+        - endpoint: internal
+          service: identity
+        - endpoint: internal
+          service: object_store
+    tests:
+      services:
+        - endpoint: internal
+          service: identity
+        - endpoint: internal
+          service: object_store
+
+endpoints:
+  cluster_domain_suffix: cluster.local
+  local_image_registry:
+    name: docker-registry
+    namespace: docker-registry
+    hosts:
+      default: localhost
+      internal: docker-registry
+      node: localhost
+    host_fqdn_override:
+      default: null
+    port:
+      registry:
+        node: 5000
+  identity:
+    name: keystone
+    auth:
+      admin:
+        region_name: RegionOne
+        username: admin
+        password: password
+        project_name: admin
+        user_domain_name: default
+        project_domain_name: default
+      swift:
+        role: admin
+        region_name: RegionOne
+        username: swift
+        password: password
+        project_name: service
+        user_domain_name: default
+        project_domain_name: default
+    hosts:
+      default: keystone
+      internal: keystone-api
+    host_fqdn_override:
+      default: null
+    path:
+      default: /v3
+    scheme:
+      default: http
+    port:
+      api:
+        default: 80
+        internal: 5000
+  object_store:
+    name: swift
+    hosts:
+      default: swift-proxy
+      public: swift
+    host_fqdn_override:
+      default: null
+      # NOTE: This chart supports TLS for FQDN over-ridden public
+      # endpoints using the following format:
+      # public:
+      #   host: swift.example.com
+      #   tls:
+      #     crt: |
+      #       <certificate content>
+      #     key: |
+      #       <key content>
+      #     ca: |
+      #       <ca certificate content>
+    path:
+      default: /v1/AUTH_%(tenant_id)s
+    scheme:
+      default: http
+      # Set to 'https' when TLS is enabled
+      # public: https
+    port:
+      api:
+        default: 8080
+        public: 80
+  oslo_cache:
+    auth:
+      # NOTE(portdirect): this is used to define the value for keystone
+      # authtoken cache encryption key, if not set it will be populated
+      # automatically with a random value, but to take advantage of
+      # this feature all services should be set to use the same key,
+      # and memcache service.
+      memcache_secret_key: null
+    hosts:
+      default: memcached
+    host_fqdn_override:
+      default: null
+    port:
+      memcache:
+        default: 11211
+
+manifests:
+  configmap_bin: true
+  configmap_etc: true
+  deployment_proxy: true
+  daemonset_storage: true
+  job_bootstrap: false
+  job_image_repo_sync: true
+  job_ks_endpoints: true
+  job_ks_service: true
+  job_ks_user: true
+  job_ring_builder: true
+  pdb_proxy: true
+  pdb_storage: true
+  secret_keystone: true
+  ingress_proxy: true
+  service_ingress_proxy: true
+  service_proxy: true
+  network_policy: false
+  pod_test: false
+  certificates: false
+  pvc: true
+...

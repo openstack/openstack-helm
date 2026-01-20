@@ -1,0 +1,295 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.daemonset_storage }}
+{{- $envAll := . }}
+
+{{- $mounts_swift_storage := .Values.pod.mounts.swift_storage.swift_storage }}
+{{- $mounts_swift_storage_init := .Values.pod.mounts.swift_storage.init_container }}
+
+{{- $serviceAccountName := "swift-storage" }}
+{{ tuple $envAll "storage" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: swift-storage
+  annotations:
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+  labels:
+{{ tuple $envAll "swift" "storage" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  selector:
+    matchLabels:
+{{ tuple $envAll "swift" "storage" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
+{{ tuple $envAll "storage" | include "helm-toolkit.snippets.kubernetes_upgrades_daemonset" | indent 2 }}
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "swift" "storage" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+{{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
+        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
+{{ dict "envAll" $envAll "podName" "swift-storage" "containerNames" (list "swift-account" "swift-container" "swift-object" "init") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
+    spec:
+{{ dict "envAll" $envAll "application" "swift" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
+      serviceAccountName: {{ $serviceAccountName }}
+      hostNetwork: true
+      hostPID: true
+      dnsPolicy: ClusterFirstWithHostNet
+      nodeSelector:
+        {{ .Values.labels.storage.node_selector_key }}: {{ .Values.labels.storage.node_selector_value }}
+{{- if .Values.pod.tolerations.swift.enabled }}
+{{ tuple $envAll "swift" | include "helm-toolkit.snippets.kubernetes_tolerations" | indent 6 }}
+{{- end }}
+      terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.storage.timeout | default 30 }}
+      initContainers:
+{{ tuple $envAll "storage" $mounts_swift_storage_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+        - name: storage-init
+{{ tuple $envAll "swift_storage_init" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.storage | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "swift" "container" "swift_storage_init" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          command:
+            - /bin/bash
+            - -c
+            - /tmp/storage-init.sh
+          terminationMessagePath: /tmp/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: swift-bin
+              mountPath: /tmp/storage-init.sh
+              subPath: storage-init.sh
+              readOnly: true
+            - name: srv-node
+              mountPath: /srv/node
+            - name: swift-data
+              mountPath: /var/lib/swift
+{{- if .Values.manifests.pvc }}
+        - name: ring-copy
+{{ tuple $envAll "swift_storage_init" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.storage | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "swift" "container" "swift_ring_copy" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          command:
+            - /bin/bash
+            - -c
+            - /tmp/ring-copy.sh
+          terminationMessagePath: /tmp/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: swift-bin
+              mountPath: /tmp/ring-copy.sh
+              subPath: ring-copy.sh
+              readOnly: true
+            - name: srv-node
+              mountPath: /srv/node
+            - name: swift-data
+              mountPath: /var/lib/swift
+            - name: swift-rings-host
+              mountPath: /etc/swift
+            - name: swift-rings
+              mountPath: {{ .Values.ring.shared_storage.mount_path }}
+{{- end }}
+      containers:
+        - name: swift-account
+{{ tuple $envAll "swift_account" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.storage | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "swift" "container" "swift_account" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          command:
+            - /bin/bash
+            - -c
+            - /tmp/account-start.sh
+          ports:
+            - name: account
+              containerPort: {{ .Values.conf.account_server.DEFAULT.bind_port }}
+              hostPort: {{ .Values.conf.account_server.DEFAULT.bind_port }}
+          readinessProbe:
+            exec:
+              command:
+                - /bin/bash
+                - -c
+                - "pgrep -f swift-account-server"
+            initialDelaySeconds: 30
+            periodSeconds: 15
+          livenessProbe:
+            exec:
+              command:
+                - /bin/bash
+                - -c
+                - "pgrep -f swift-account-server"
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: swift-bin
+              mountPath: /tmp/account-start.sh
+              subPath: account-start.sh
+              readOnly: true
+            - name: swift-etc
+              mountPath: /etc/swift/swift.conf
+              subPath: swift.conf
+              readOnly: true
+            - name: swift-etc
+              mountPath: /etc/swift/account-server.conf
+              subPath: account-server.conf
+              readOnly: true
+            - name: srv-node
+              mountPath: /srv/node
+            - name: swift-rings-host
+              mountPath: /etc/swift/account.ring.gz
+              subPath: account.ring.gz
+              readOnly: true
+{{- if $mounts_swift_storage.volumeMounts }}{{ toYaml $mounts_swift_storage.volumeMounts | indent 12 }}{{ end }}
+        - name: swift-container
+{{ tuple $envAll "swift_container" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.storage | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "swift" "container" "swift_container" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          command:
+            - /bin/bash
+            - -c
+            - /tmp/container-start.sh
+          ports:
+            - name: container
+              containerPort: {{ .Values.conf.container_server.DEFAULT.bind_port }}
+              hostPort: {{ .Values.conf.container_server.DEFAULT.bind_port }}
+          readinessProbe:
+            exec:
+              command:
+                - /bin/bash
+                - -c
+                - "pgrep -f swift-container-server"
+            initialDelaySeconds: 30
+            periodSeconds: 15
+          livenessProbe:
+            exec:
+              command:
+                - /bin/bash
+                - -c
+                - "pgrep -f swift-container-server"
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: swift-bin
+              mountPath: /tmp/container-start.sh
+              subPath: container-start.sh
+              readOnly: true
+            - name: swift-etc
+              mountPath: /etc/swift/swift.conf
+              subPath: swift.conf
+              readOnly: true
+            - name: swift-etc
+              mountPath: /etc/swift/container-server.conf
+              subPath: container-server.conf
+              readOnly: true
+            - name: srv-node
+              mountPath: /srv/node
+            - name: swift-rings-host
+              mountPath: /etc/swift/container.ring.gz
+              subPath: container.ring.gz
+              readOnly: true
+{{- if $mounts_swift_storage.volumeMounts }}{{ toYaml $mounts_swift_storage.volumeMounts | indent 12 }}{{ end }}
+        - name: swift-object
+{{ tuple $envAll "swift_object" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.storage | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "swift" "container" "swift_object" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          command:
+            - /bin/bash
+            - -c
+            - /tmp/object-start.sh
+          ports:
+            - name: object
+              containerPort: {{ .Values.conf.object_server.DEFAULT.bind_port }}
+              hostPort: {{ .Values.conf.object_server.DEFAULT.bind_port }}
+            - name: rsync
+              containerPort: 873
+              hostPort: 873
+          readinessProbe:
+            exec:
+              command:
+                - /bin/bash
+                - -c
+                - "pgrep -f swift-object-server"
+            initialDelaySeconds: 30
+            periodSeconds: 15
+          livenessProbe:
+            exec:
+              command:
+                - /bin/bash
+                - -c
+                - "pgrep -f swift-object-server && pgrep -f rsync"
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: swift-bin
+              mountPath: /tmp/object-start.sh
+              subPath: object-start.sh
+              readOnly: true
+            - name: swift-etc
+              mountPath: /etc/swift/swift.conf
+              subPath: swift.conf
+              readOnly: true
+            - name: swift-etc
+              mountPath: /etc/swift/object-server.conf
+              subPath: object-server.conf
+              readOnly: true
+            - name: swift-etc
+              mountPath: /etc/swift/rsyncd.conf
+              subPath: rsyncd.conf
+              readOnly: true
+            - name: srv-node
+              mountPath: /srv/node
+            - name: swift-rings-host
+              mountPath: /etc/swift/object.ring.gz
+              subPath: object.ring.gz
+              readOnly: true
+{{- if $mounts_swift_storage.volumeMounts }}{{ toYaml $mounts_swift_storage.volumeMounts | indent 12 }}{{ end }}
+      volumes:
+        - name: pod-tmp
+          emptyDir: {}
+        - name: swift-bin
+          configMap:
+            name: swift-bin
+            defaultMode: 0555
+        - name: swift-etc
+          configMap:
+            name: swift-etc
+            defaultMode: 0444
+        - name: srv-node
+          hostPath:
+            path: /srv/node
+            type: DirectoryOrCreate
+        - name: swift-data
+          hostPath:
+            path: /var/lib/swift
+            type: DirectoryOrCreate
+        - name: swift-rings-host
+          hostPath:
+            path: /etc/swift
+            type: DirectoryOrCreate
+{{- if .Values.manifests.pvc }}
+        - name: swift-rings
+          persistentVolumeClaim:
+            claimName: {{ .Values.ring.shared_storage.name }}
+{{- end }}
+{{- if $mounts_swift_storage.volumes }}{{ toYaml $mounts_swift_storage.volumes | indent 8 }}{{ end }}
+{{- end }}
