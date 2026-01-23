@@ -52,21 +52,94 @@ spec:
         {{ .Values.labels.openstack_exporter.node_selector_key }}: {{ .Values.labels.openstack_exporter.node_selector_value | quote }}
       terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.prometheus_openstack_exporter.timeout | default "30" }}
       initContainers:
-{{ tuple $envAll "prometheus_openstack_exporter" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+        {{ tuple $envAll "prometheus_openstack_exporter" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 | trim }}
+        - name: clouds-yaml-gen
+          {{ tuple $envAll "dep_check" | include "helm-toolkit.snippets.image" | nindent 10 }}
+          {{ tuple $envAll $envAll.Values.pod.resources.clouds_yaml_gen | include "helm-toolkit.snippets.kubernetes_resources" | nindent 10 }}
+          {{ dict "envAll" $envAll "application" "clouds_yaml_gen" "container" "clouds_yaml_gen" | include "helm-toolkit.snippets.kubernetes_container_security_context" | nindent 10 }}
+          command:
+            - /bin/sh
+            - -c
+            - |
+              cat <<EOF > /etc/openstack/clouds.yaml
+              clouds:
+                default:
+                  auth:
+                    auth_url: "$OS_AUTH_URL"
+                    username: "$OS_USERNAME"
+                    password: "$OS_PASSWORD"
+                    project_name: "$OS_PROJECT_NAME"
+                    user_domain_name: "$OS_USER_DOMAIN_NAME"
+                    project_domain_name: "$OS_PROJECT_DOMAIN_NAME"
+                  region_name: "$OS_REGION_NAME"
+                  interface: "$OS_INTERFACE"
+                  identity_api_version: "$OS_IDENTITY_API_VERSION"
+                  {{- if .Values.manifests.certificates }}
+                  cacert: "/etc/ssl/certs/openstack-helm.crt"
+                  {{- end }}
+              EOF
+          env:
+            - name: OS_AUTH_URL
+              valueFrom:
+                secretKeyRef:
+                  key: OS_AUTH_URL
+                  name: {{ .Values.secrets.identity.user | quote }}
+            - name: OS_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  key: OS_USERNAME
+                  name: {{ .Values.secrets.identity.user | quote }}
+            - name: OS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: OS_PASSWORD
+                  name: {{ .Values.secrets.identity.user | quote }}
+            - name: OS_PROJECT_NAME
+              valueFrom:
+                secretKeyRef:
+                  key: OS_PROJECT_NAME
+                  name: {{ .Values.secrets.identity.user | quote }}
+            - name: OS_USER_DOMAIN_NAME
+              valueFrom:
+                secretKeyRef:
+                  key: OS_USER_DOMAIN_NAME
+                  name: {{ .Values.secrets.identity.user | quote }}
+            - name: OS_PROJECT_DOMAIN_NAME
+              valueFrom:
+                secretKeyRef:
+                  key: OS_PROJECT_DOMAIN_NAME
+                  name: {{ .Values.secrets.identity.user | quote }}
+            - name: OS_REGION_NAME
+              valueFrom:
+                secretKeyRef:
+                  key: OS_REGION_NAME
+                  name: {{ .Values.secrets.identity.user | quote }}
+            - name: OS_INTERFACE
+              valueFrom:
+                secretKeyRef:
+                  key: OS_INTERFACE
+                  name: {{ .Values.secrets.identity.user | quote }}
+            - name: OS_IDENTITY_API_VERSION
+              value: "3"
+          volumeMounts:
+            - name: clouds-yaml
+              mountPath: /etc/openstack
+{{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.identity.api.internal | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            runAsUser: 65534
       containers:
         - name: openstack-metrics-exporter
 {{ tuple $envAll "prometheus_openstack_exporter" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.prometheus_openstack_exporter | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
 {{ dict "envAll" $envAll "application" "exporter" "container" "openstack_metrics_exporter" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
-            - /tmp/prometheus-openstack-exporter.sh
-            - start
-          lifecycle:
-            preStop:
-              exec:
-                command:
-                  - /tmp/prometheus-openstack-exporter.sh
-                  - stop
+            - /bin/openstack-exporter
+          args:
+            - --web.listen-address=:{{ tuple "prometheus_openstack_exporter" "internal" "exporter" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+            - --os-client-config=/etc/openstack/clouds.yaml
+            - default
           ports:
             - name: metrics
               containerPort: {{ tuple "prometheus_openstack_exporter" "internal" "exporter" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
@@ -76,33 +149,37 @@ spec:
               port: {{ tuple "prometheus_openstack_exporter" "internal" "exporter" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
             initialDelaySeconds: 180
             periodSeconds: 60
+            timeoutSeconds: 30
           readinessProbe:
             httpGet:
               path: /metrics
               port: {{ tuple "prometheus_openstack_exporter" "internal" "exporter" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-            initialDelaySeconds: 20
+            initialDelaySeconds: 30
             periodSeconds: 30
+            timeoutSeconds: 30
           env:
             - name: LISTEN_PORT
               value: {{ tuple "prometheus_openstack_exporter" "internal" "exporter" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | quote }}
-{{ include "helm-toolkit.utils.to_k8s_env_vars" .Values.conf.prometheus_openstack_exporter | indent 12 }}
-{{- with $env := dict "ksUserSecret" $ksUserSecret "useCA" .Values.manifests.certificates }}
-{{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 12 }}
-{{- end }}
+            - name: OS_POLLING_INTERVAL
+              value: {{ .Values.conf.prometheus_openstack_exporter.OS_POLLING_INTERVAL | quote }}
+            - name: OS_RETRIES
+              value: {{ .Values.conf.prometheus_openstack_exporter.OS_RETRIES | quote }}
+            - name: TIMEOUT_SECONDS
+              value: {{ .Values.conf.prometheus_openstack_exporter.TIMEOUT_SECONDS | quote }}
+            - name: OS_IDENTITY_API_VERSION
+              value: "3"
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
-            - name: prometheus-openstack-exporter-bin
-              mountPath: /tmp/prometheus-openstack-exporter.sh
-              subPath: prometheus-openstack-exporter.sh
+            - name: clouds-yaml
+              mountPath: /etc/openstack
               readOnly: true
 {{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.identity.api.internal | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
+          workingDir: /tmp
       volumes:
         - name: pod-tmp
           emptyDir: {}
-        - name: prometheus-openstack-exporter-bin
-          configMap:
-            name: prometheus-openstack-exporter-bin
-            defaultMode: 0555
+        - name: clouds-yaml
+          emptyDir: {}
 {{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.identity.api.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 {{- end }}
