@@ -16,6 +16,7 @@ limitations under the License.
 {{- $envAll := . }}
 
 {{- $serviceAccountName := "postgresql-backup" }}
+{{- $failoverUserClass := .Values.conf.backup.remote_backup.failover_user_class }}
 {{ tuple $envAll "postgresql_backup" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: batch/v1
@@ -134,6 +135,10 @@ spec:
                   value: {{ .Values.conf.backup.remote_backup.throttle_backups.container_name | quote }}
 {{- with $env := dict "ksUserSecret" $envAll.Values.secrets.identity.postgresql }}
 {{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 16 }}
+{{- $failoverIdentityClass := index $envAll.Values.endpoints.identity.auth $failoverUserClass }}
+{{- if $failoverIdentityClass }}
+{{- include "helm-toolkit.snippets.keystone_openrc_failover_env_vars" $env | indent 16 }}
+{{- end }}
 {{- end }}
 {{- end }}
               volumeMounts:
