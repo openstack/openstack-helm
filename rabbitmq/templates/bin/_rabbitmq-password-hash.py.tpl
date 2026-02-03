@@ -17,7 +17,6 @@ See here for explanation:
 http://lists.rabbitmq.com/pipermail/rabbitmq-discuss/2011-May/012765.html
 */}}
 
-from __future__ import print_function
 import base64
 import json
 import os
