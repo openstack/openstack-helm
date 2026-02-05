@@ -16,4 +16,9 @@ limitations under the License.
 
 set -ex
 
+# https://docs.openstack.org/ironic/latest/admin/upgrade-guide.html
 ironic-dbsync upgrade
+
+ironic-dbsync online_data_migrations
+
+echo 'Finished DB migrations'
