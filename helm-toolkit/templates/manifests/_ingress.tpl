@@ -595,6 +595,218 @@ examples:
                       name: grafana-dashboard
                       port:
                         name: dashboard
+  # Sample usage for custom ingressPaths (multiple paths)
+  - values: |
+      network:
+        api:
+          ingress:
+            public: true
+            classes:
+              namespace: "nginx"
+              cluster: "nginx-cluster"
+            annotations:
+              nginx.ingress.kubernetes.io/rewrite-target: /
+      secrets:
+        tls:
+          identity:
+            api:
+              public: keystone-tls-public
+      endpoints:
+        cluster_domain_suffix: cluster.local
+        identity:
+          name: keystone
+          hosts:
+            default: keystone-api
+            public: keystone
+          host_fqdn_override:
+            default: null
+          path:
+            default: /v3
+          scheme:
+            default: http
+            public: https
+          port:
+            api:
+              default: 5000
+              public: 80
+    usage: |
+      {{- include "helm-toolkit.manifests.ingress" ( dict "envAll" . "backendServiceType" "identity" "backendPort" "ks-pub" "endpoint" "public" "ingressPaths" (list "/v3" "/v2.0") "pathType" "Prefix" ) -}}
+    return: |
+      ---
+      apiVersion: networking.k8s.io/v1
+      kind: Ingress
+      metadata:
+        name: keystone
+        annotations:
+          nginx.ingress.kubernetes.io/rewrite-target: /
+
+      spec:
+        ingressClassName: "nginx"
+        rules:
+          - host: keystone
+            http:
+              paths:
+                - path: /v3
+                  pathType: Prefix
+                  backend:
+                    service:
+                      name: keystone-api
+                      port:
+                        name: ks-pub
+                - path: /v2.0
+                  pathType: Prefix
+                  backend:
+                    service:
+                      name: keystone-api
+                      port:
+                        name: ks-pub
+          - host: keystone.default
+            http:
+              paths:
+                - path: /v3
+                  pathType: Prefix
+                  backend:
+                    service:
+                      name: keystone-api
+                      port:
+                        name: ks-pub
+                - path: /v2.0
+                  pathType: Prefix
+                  backend:
+                    service:
+                      name: keystone-api
+                      port:
+                        name: ks-pub
+          - host: keystone.default.svc.cluster.local
+            http:
+              paths:
+                - path: /v3
+                  pathType: Prefix
+                  backend:
+                    service:
+                      name: keystone-api
+                      port:
+                        name: ks-pub
+                - path: /v2.0
+                  pathType: Prefix
+                  backend:
+                    service:
+                      name: keystone-api
+                      port:
+                        name: ks-pub
+  # Sample usage for additionalBackends (multiple backends with different paths)
+  - values: |
+      network:
+        api:
+          ingress:
+            public: true
+            classes:
+              namespace: "nginx"
+              cluster: "nginx-cluster"
+            annotations:
+              nginx.ingress.kubernetes.io/rewrite-target: /
+      secrets:
+        tls:
+          shipyard:
+            api:
+              public: shipyard-tls-public
+      endpoints:
+        cluster_domain_suffix: cluster.local
+        shipyard:
+          name: shipyard
+          hosts:
+            default: shipyard-int
+            public: shipyard
+          host_fqdn_override:
+            default: null
+          path:
+            default: /api/v1.0
+          scheme:
+            default: http
+            public: https
+          port:
+            api:
+              default: 9000
+              public: 80
+        airflow_web:
+          name: airflow-web
+          hosts:
+            default: airflow-web-int
+            public: airflow-web
+          host_fqdn_override:
+            default: null
+          path:
+            default: /airflow
+          scheme:
+            default: http
+          port:
+            api:
+              default: 8080
+    usage: |
+      {{- include "helm-toolkit.manifests.ingress" ( dict "envAll" . "backendServiceType" "shipyard" "backendPort" "api" "endpoint" "public" "pathType" "Prefix" "additionalBackends" (list (dict "backendServiceType" "airflow-web" "backendPort" "api")) ) -}}
+    return: |
+      ---
+      apiVersion: networking.k8s.io/v1
+      kind: Ingress
+      metadata:
+        name: shipyard
+        annotations:
+          nginx.ingress.kubernetes.io/rewrite-target: /
+
+      spec:
+        ingressClassName: "nginx"
+        rules:
+          - host: shipyard
+            http:
+              paths:
+                - path: /api/v1.0
+                  pathType: Prefix
+                  backend:
+                    service:
+                      name: shipyard-int
+                      port:
+                        name: api
+                - path: /airflow
+                  pathType: Prefix
+                  backend:
+                    service:
+                      name: airflow-web-int
+                      port:
+                        name: api
+          - host: shipyard.default
+            http:
+              paths:
+                - path: /api/v1.0
+                  pathType: Prefix
+                  backend:
+                    service:
+                      name: shipyard-int
+                      port:
+                        name: api
+                - path: /airflow
+                  pathType: Prefix
+                  backend:
+                    service:
+                      name: airflow-web-int
+                      port:
+                        name: api
+          - host: shipyard.default.svc.cluster.local
+            http:
+              paths:
+                - path: /api/v1.0
+                  pathType: Prefix
+                  backend:
+                    service:
+                      name: shipyard-int
+                      port:
+                        name: api
+                - path: /airflow
+                  pathType: Prefix
+                  backend:
+                    service:
+                      name: airflow-web-int
+                      port:
+                        name: api
 
 */}}
 
@@ -603,11 +815,22 @@ examples:
 {{- $backendName := index . "backendName" -}}
 {{- $backendPort := index . "backendPort" -}}
 {{- $pathType := index . "pathType" -}}
+{{- $ingressPaths := index . "ingressPaths" | default "/" -}}
+{{- if kindIs "string" $ingressPaths -}}
+{{-   $ingressPaths = list $ingressPaths -}}
+{{- end -}}
+{{- $additionalBackends := index . "additionalBackends" | default list -}}
 - host: {{ $vHost }}
   http:
     paths:
-      - path: /
+{{- range $p := $ingressPaths }}
+{{- if kindIs "map" $p }}
+      - path: {{ $p.path }}
+        pathType: {{ $p.pathType | default $pathType }}
+{{- else }}
+      - path: {{ $p }}
         pathType: {{ $pathType }}
+{{- end }}
         backend:
           service:
             name: {{ $backendName }}
@@ -616,6 +839,31 @@ examples:
               number: {{ $backendPort | int }}
 {{- else }}
               name: {{ $backendPort | quote }}
+{{- end }}
+{{- end }}
+{{- range $ab := $additionalBackends }}
+{{- $abPaths := $ab.ingressPaths | default "/" -}}
+{{- if kindIs "string" $abPaths -}}
+{{-   $abPaths = list $abPaths -}}
+{{- end -}}
+{{- range $p := $abPaths }}
+{{- if kindIs "map" $p }}
+      - path: {{ $p.path }}
+        pathType: {{ $p.pathType | default $pathType }}
+{{- else }}
+      - path: {{ $p }}
+        pathType: {{ $pathType }}
+{{- end }}
+        backend:
+          service:
+            name: {{ $ab.backendName }}
+            port:
+{{- if or (kindIs "int" $ab.backendPort) (regexMatch "^[0-9]{1,5}$" $ab.backendPort) }}
+              number: {{ $ab.backendPort | int }}
+{{- else }}
+              name: {{ $ab.backendPort | quote }}
+{{- end }}
+{{- end }}
 {{- end }}
 {{- end }}
 
@@ -627,6 +875,29 @@ examples:
 {{- $endpoint := index . "endpoint" | default "public" -}}
 {{- $pathType := index . "pathType" | default "Prefix" -}}
 {{- $certIssuer := index . "certIssuer" | default "" -}}
+{{- $ingressPaths := index . "ingressPaths" | default "/" -}}
+{{- $additionalBackendsInput := index . "additionalBackends" | default list -}}
+{{- $additionalBackends := list -}}
+{{- range $ab := $additionalBackendsInput -}}
+{{-   $abServiceType := $ab.backendServiceType -}}
+{{-   $abBackendName := tuple $abServiceType "internal" $envAll | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" -}}
+{{-   $abBackendPort := $ab.backendPort -}}
+{{-   $abPaths := "" -}}
+{{-   $abEndpointMap := index $envAll.Values.endpoints ( $abServiceType | replace "-" "_" ) -}}
+{{-   if hasKey $abEndpointMap "path" -}}
+{{-     if kindIs "string" $abEndpointMap.path -}}
+{{-       $abPaths = $abEndpointMap.path -}}
+{{-     else if kindIs "map" $abEndpointMap.path -}}
+{{-       if hasKey $abEndpointMap.path "default" -}}
+{{-         $abPaths = index $abEndpointMap.path "default" -}}
+{{-       end -}}
+{{-     end -}}
+{{-   end -}}
+{{-   if not $abPaths -}}
+{{-     $abPaths = "/" -}}
+{{-   end -}}
+{{-   $additionalBackends = append $additionalBackends (dict "backendName" $abBackendName "backendPort" $abBackendPort "ingressPaths" $abPaths) -}}
+{{- end -}}
 {{- $ingressName := tuple $backendServiceType $endpoint $envAll | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
 {{- $backendName := tuple $backendServiceType "internal" $envAll | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
 {{- $hostName := tuple $backendServiceType $endpoint $envAll | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
@@ -683,7 +954,7 @@ spec:
 {{- end }}
   rules:
 {{- range $key1, $vHost := tuple $hostName (printf "%s.%s" $hostName $envAll.Release.Namespace) (printf "%s.%s.svc.%s" $hostName $envAll.Release.Namespace $envAll.Values.endpoints.cluster_domain_suffix) }}
-{{- $hostRules := dict "vHost" $vHost "backendName" $backendName "backendPort" $backendPort "pathType" $pathType }}
+{{- $hostRules := dict "vHost" $vHost "backendName" $backendName "backendPort" $backendPort "pathType" $pathType "ingressPaths" $ingressPaths "additionalBackends" $additionalBackends }}
 {{ $hostRules | include "helm-toolkit.manifests.ingress._host_rules" | indent 4 }}
 {{- end }}
 {{- if not ( hasSuffix ( printf ".%s.svc.%s" $envAll.Release.Namespace $envAll.Values.endpoints.cluster_domain_suffix) $hostNameFull) }}
@@ -725,7 +996,7 @@ spec:
 {{- end }}
   rules:
 {{- range $vHost := $vHosts }}
-{{- $hostNameFullRules := dict "vHost" $vHost "backendName" $backendName "backendPort" $backendPort "pathType" $pathType }}
+{{- $hostNameFullRules := dict "vHost" $vHost "backendName" $backendName "backendPort" $backendPort "pathType" $pathType "ingressPaths" $ingressPaths "additionalBackends" $additionalBackends }}
 {{ $hostNameFullRules | include "helm-toolkit.manifests.ingress._host_rules" | indent 4 }}
 {{- end }}
 {{- end }}
