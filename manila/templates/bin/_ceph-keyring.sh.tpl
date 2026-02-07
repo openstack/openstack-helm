@@ -17,7 +17,7 @@ limitations under the License.
 set -ex
 export HOME=/tmp
 
-cat > /etc/ceph/ceph.client.manila.keyring <<EOF
-[client.manila]
+cat > /etc/ceph/ceph.client.${CEPHFS_AUTH_ID}.keyring <<EOF
+[client.${CEPHFS_AUTH_ID}]
     key = $(cat /tmp/client-keyring)
 EOF
