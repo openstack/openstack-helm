@@ -117,15 +117,15 @@ function migrate_ip_from_nic {
   if [[ -n "${ip}" && -n "${prefix}" ]]; then
     ip addr flush dev ${src_nic}
     if [ $? -ne 0 ] ; then
-      ip addr add ${ip}/${prefix} dev ${src_nic}
+      ip addr replace ${ip}/${prefix} dev ${src_nic}
       echo "Error while flushing IP from ${src_nic}."
       exit 1
     fi
 
-    ip addr add ${ip}/${prefix} dev "${bridge_name}"
+    ip addr replace ${ip}/${prefix} dev "${bridge_name}"
     if [ $? -ne 0 ] ; then
       echo "Error assigning IP to bridge "${bridge_name}"."
-      ip addr add ${ip}/${prefix} dev ${src_nic}
+      ip addr replace ${ip}/${prefix} dev ${src_nic}
       exit 1
     fi
   elif [[ -n "${bridge_ip}" && -n "${bridge_prefix}" ]]; then
