@@ -64,16 +64,18 @@ spec:
 {{ tuple $envAll "trove_conductor" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.conductor | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
 {{ dict "envAll" $envAll "application" "trove_conductor" "container" "trove_conductor" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
-          command:
-            - /tmp/trove-conductor.sh
-            - start
           env:
 {{- with $env := dict "ksUserSecret" .Values.secrets.identity.trove }}
 {{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 12 }}
 {{- end }}
+          command:
+            - /tmp/trove-conductor.sh
+            - start
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
+            - name: oslo-lock-path
+              mountPath: {{ .Values.conf.trove.oslo_concurrency.lock_path }}
             - name: trove-bin
               mountPath: /tmp/trove-conductor.sh
               subPath: trove-conductor.sh
@@ -93,6 +95,8 @@ spec:
 {{ if $mounts_trove_conductor.volumeMounts }}{{ toYaml $mounts_trove_conductor.volumeMounts | indent 12 }}{{ end }}
       volumes:
         - name: pod-tmp
+          emptyDir: {}
+        - name: oslo-lock-path
           emptyDir: {}
         - name: trove-bin
           configMap:

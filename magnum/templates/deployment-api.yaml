@@ -83,6 +83,8 @@ spec:
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
+            - name: oslo-lock-path
+              mountPath: {{ .Values.conf.magnum.oslo_concurrency.lock_path }}
             - name: magnum-bin
               mountPath: /tmp/magnum-api.sh
               subPath: magnum-api.sh
@@ -119,11 +121,11 @@ spec:
               subPath: kubeconfig.conf
               readOnly: true
             {{- end }}
-            - name: magnum-lock-path
-              mountPath: {{ .Values.conf.magnum.oslo_concurrency.lock_path }}
 {{ if $mounts_magnum_api.volumeMounts }}{{ toYaml $mounts_magnum_api.volumeMounts | indent 12 }}{{ end }}
       volumes:
         - name: pod-tmp
+          emptyDir: {}
+        - name: oslo-lock-path
           emptyDir: {}
         - name: pod-etc-magnum
           emptyDir: {}
@@ -137,7 +139,5 @@ spec:
           secret:
             secretName: magnum-etc
             defaultMode: 0444
-        - name: magnum-lock-path
-          emptyDir: {}
 {{ if $mounts_magnum_api.volumes }}{{ toYaml $mounts_magnum_api.volumes | indent 8 }}{{ end }}
 {{- end }}
