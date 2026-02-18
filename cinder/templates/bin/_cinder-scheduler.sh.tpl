@@ -16,4 +16,5 @@ limitations under the License.
 
 set -ex
 exec cinder-scheduler \
-      --config-file /etc/cinder/cinder.conf
+     --config-file /etc/cinder/cinder.conf \
+     --config-dir /etc/cinder/cinder.conf.d

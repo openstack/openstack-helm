@@ -20,6 +20,8 @@ limitations under the License.
 
 {{- $serviceAccountName := "cinder-scheduler" }}
 {{ tuple $envAll "scheduler" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+
+{{- $etcSources := .Values.pod.etcSources.cinder_scheduler }}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -94,6 +96,9 @@ spec:
               mountPath: /etc/cinder/cinder.conf
               subPath: cinder.conf
               readOnly: true
+            - name: cinder-etc-snippets
+              mountPath: /etc/cinder/cinder.conf.d/
+              readOnly: true
             {{- if .Values.conf.cinder.DEFAULT.log_config_append }}
             - name: cinder-etc
               mountPath: {{ .Values.conf.cinder.DEFAULT.log_config_append }}
@@ -129,6 +134,14 @@ spec:
           secret:
             secretName: cinder-etc
             defaultMode: 0444
+        - name: cinder-etc-snippets
+{{- if $etcSources }}
+          projected:
+            sources:
+{{ toYaml $etcSources | indent 14 }}
+{{- else }}
+          emptyDir: {}
+{{ end }}
         {{- if eq ( split "://" .Values.conf.cinder.coordination.backend_url )._0 "file" }}
         # NOTE (portdirect): this will need to be set to a shared mount amongst all cinder
         # pods for the coordination backend to be fully functional.
