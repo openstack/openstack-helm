@@ -22,6 +22,8 @@ limitations under the License.
 
 {{- $serviceAccountName := "octavia-housekeeping" }}
 {{ tuple $envAll "housekeeping" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+
+{{- $etcSources := .Values.pod.etcSources.octavia_housekeeping }}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -82,6 +84,9 @@ spec:
               mountPath: /etc/octavia/octavia.conf
               subPath: octavia.conf
               readOnly: true
+            - name: octavia-etc-snippets
+              mountPath: /etc/octavia/octavia.conf.d/
+              readOnly: true
             {{- if .Values.conf.octavia.DEFAULT.log_config_append }}
             - name: octavia-etc
               mountPath: {{ .Values.conf.octavia.DEFAULT.log_config_append }}
@@ -100,5 +105,13 @@ spec:
           secret:
             secretName: octavia-etc
             defaultMode: 0444
+        - name: octavia-etc-snippets
+{{- if $etcSources }}
+          projected:
+            sources:
+{{ toYaml $etcSources | indent 14 }}
+{{- else }}
+          emptyDir: {}
+{{ end }}
 {{ if $mounts_octavia_housekeeping.volumes }}{{ toYaml $mounts_octavia_housekeeping.volumes | indent 8 }}{{ end }}
 {{- end }}
