@@ -37,6 +37,8 @@ httpGet:
 
 {{- $serviceAccountName := "glance-api" }}
 {{ tuple $envAll "api" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+
+{{- $etcSources := .Values.pod.etcSources.glance_api }}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -203,6 +205,9 @@ spec:
               mountPath: /etc/glance/glance-api.conf
               subPath: glance-api.conf
               readOnly: true
+            - name: glance-etc-snippets
+              mountPath: /etc/glance/glance.conf.d/
+              readOnly: true
             - name: glance-etc
               mountPath: /etc/glance/glance-api-uwsgi.ini
               subPath: glance-api-uwsgi.ini
@@ -323,6 +328,14 @@ spec:
           secret:
             secretName: glance-etc
             defaultMode: 0444
+        - name: glance-etc-snippets
+{{- if $etcSources }}
+          projected:
+            sources:
+{{ toYaml $etcSources | indent 14 }}
+{{- else }}
+          emptyDir: {}
+{{ end }}
 {{- if eq .Values.storage "pvc" }}
         - name: glance-images
           persistentVolumeClaim:
