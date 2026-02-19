@@ -20,6 +20,8 @@ limitations under the License.
 
 {{- $serviceAccountName := "ceilometer-compute" }}
 {{ tuple $envAll "compute" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+
+{{- $etcSources := .Values.pod.etcSources.ceilometer_compute }}
 ---
 apiVersion: apps/v1
 kind: DaemonSet
@@ -71,6 +73,9 @@ spec:
             - name: ceilometer-etc
               mountPath: /etc/ceilometer/ceilometer.conf
               subPath: ceilometer.conf
+              readOnly: true
+            - name: ceilometer-etc-snippets
+              mountPath: /etc/ceilometer/ceilometer.conf.d/
               readOnly: true
             - name: ceilometer-etc
               mountPath: /etc/ceilometer/api_paste.ini
@@ -125,6 +130,14 @@ spec:
           secret:
             secretName: ceilometer-etc
             defaultMode: 0444
+        - name: ceilometer-etc-snippets
+{{- if $etcSources }}
+          projected:
+            sources:
+{{ toYaml $etcSources | indent 14 }}
+{{- else }}
+          emptyDir: {}
+{{ end }}
         - name: ceilometer-bin
           configMap:
             name: ceilometer-bin
