@@ -20,6 +20,8 @@ limitations under the License.
 
 {{- $serviceAccountName := "heat-api" }}
 {{ tuple $envAll "api" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+
+{{- $etcSources := .Values.pod.etcSources.heat_api }}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -113,6 +115,9 @@ spec:
               mountPath: /etc/heat/heat.conf
               subPath: heat.conf
               readOnly: true
+            - name: heat-etc-snippets
+              mountPath: /etc/heat/heat.conf.d/
+              readOnly: true
             - name: heat-etc
               mountPath: /etc/heat/heat-api-uwsgi.ini
               subPath: heat-api-uwsgi.ini
@@ -163,6 +168,14 @@ spec:
           secret:
             secretName: heat-etc
             defaultMode: 0444
+        - name: heat-etc-snippets
+{{- if $etcSources }}
+          projected:
+            sources:
+{{ toYaml $etcSources | indent 14 }}
+{{- else }}
+          emptyDir: {}
+{{ end }}
 {{- dict "enabled" (or .Values.manifests.certificates .Values.tls.identity) "name" .Values.secrets.tls.orchestration.api.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 {{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.oslo_messaging.auth.admin.secret.tls.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 {{ if $mounts_heat_api.volumes }}{{ toYaml $mounts_heat_api.volumes | indent 8 }}{{ end }}
