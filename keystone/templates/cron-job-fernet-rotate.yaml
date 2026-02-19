@@ -21,6 +21,8 @@ limitations under the License.
 
 {{- $serviceAccountName := "keystone-fernet-rotate" }}
 {{ tuple $envAll "fernet_rotate" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+
+{{- $etcSources := .Values.pod.etcSources.keystone_fernet_rotate }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -110,6 +112,9 @@ spec:
                   mountPath: /etc/keystone/keystone.conf
                   subPath: keystone.conf
                   readOnly: true
+                - name: keystone-etc-snippets
+                  mountPath: /etc/keystone/keystone.conf.d/
+                  readOnly: true
                 {{- if .Values.conf.keystone.DEFAULT.log_config_append }}
                 - name: keystone-etc
                   mountPath: {{ .Values.conf.keystone.DEFAULT.log_config_append }}
@@ -130,6 +135,14 @@ spec:
               secret:
                 secretName: keystone-etc
                 defaultMode: 0444
+            - name: keystone-etc-snippets
+{{- if $etcSources }}
+              projected:
+                sources:
+{{ toYaml $etcSources | indent 18 }}
+{{- else }}
+              emptyDir: {}
+{{ end }}
             - name: keystone-bin
               configMap:
                 name: keystone-bin
