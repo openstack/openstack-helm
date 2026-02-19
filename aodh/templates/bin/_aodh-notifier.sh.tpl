@@ -18,4 +18,6 @@ limitations under the License.
 
 set -ex
 
-exec aodh-notifier --config-file=/etc/aodh/aodh.conf
+exec aodh-notifier \
+     --config-file=/etc/aodh/aodh.conf \
+     --config-dir=/etc/aodh/aodh.conf.d
