@@ -22,6 +22,8 @@ limitations under the License.
 
 {{- $serviceAccountName := "cinder-volume" }}
 {{ tuple $envAll "volume" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+
+{{- $etcSources := .Values.pod.etcSources.cinder_volume }}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -176,6 +178,9 @@ spec:
               mountPath: /etc/cinder/cinder.conf
               subPath: cinder.conf
               readOnly: true
+            - name: cinder-etc-snippets
+              mountPath: /etc/cinder/cinder.conf.d/
+              readOnly: true
             {{- if .Values.conf.cinder.DEFAULT.log_config_append }}
             - name: cinder-etc
               mountPath: {{ .Values.conf.cinder.DEFAULT.log_config_append }}
@@ -305,6 +310,14 @@ spec:
           secret:
             secretName: cinder-etc
             defaultMode: 0444
+        - name: cinder-etc-snippets
+{{- if $etcSources }}
+          projected:
+            sources:
+{{ toYaml $etcSources | indent 14 }}
+{{- else }}
+          emptyDir: {}
+{{ end }}
         - name: pod-shared
           emptyDir: {}
         - name: cinder-conversion

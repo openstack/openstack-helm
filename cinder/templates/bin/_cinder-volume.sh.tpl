@@ -18,4 +18,5 @@ set -ex
 exec cinder-volume \
      --config-file /etc/cinder/cinder.conf \
      --config-file /etc/cinder/conf/backends.conf \
-     --config-file /tmp/pod-shared/internal_tenant.conf
+     --config-file /tmp/pod-shared/internal_tenant.conf \
+     --config-dir /etc/cinder/cinder.conf.d

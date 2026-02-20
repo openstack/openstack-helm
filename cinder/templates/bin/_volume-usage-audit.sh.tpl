@@ -16,4 +16,7 @@ limitations under the License.
 
 set -ex
 
-exec cinder-volume-usage-audit --send_actions
+exec cinder-volume-usage-audit \
+     --config-file /etc/cinder/cinder.conf \
+     --config-dir /etc/cinder/cinder.conf.d \
+     --send_actions
