@@ -22,6 +22,8 @@ limitations under the License.
 
 {{- $serviceAccountName := "placement-api" }}
 {{ tuple $envAll "api" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+
+{{- $etcSources := .Values.pod.etcSources.placement }}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -128,6 +130,9 @@ spec:
               mountPath: /etc/placement/placement.conf
               subPath: placement.conf
               readOnly: true
+            - name: placement-etc-snippets
+              mountPath: /etc/placement/placement.conf.d/
+              readOnly: true
             - name: placement-etc
               mountPath: /etc/placement/placement-api-uwsgi.ini
               subPath: placement-api-uwsgi.ini
@@ -166,6 +171,14 @@ spec:
           secret:
             secretName: placement-etc
             defaultMode: 0444
+        - name: placement-etc-snippets
+{{- if $etcSources }}
+          projected:
+            sources:
+{{ toYaml $etcSources | indent 14 }}
+{{- else }}
+          emptyDir: {}
+{{ end }}
         {{- if .Values.conf.placement.DEFAULT.log_dir }}
         - name: log
           hostPath:
