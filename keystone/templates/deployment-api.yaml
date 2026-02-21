@@ -27,6 +27,8 @@ httpGet:
 
 {{- $serviceAccountName := "keystone-api" }}
 {{ tuple $envAll "api" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+
+{{- $etcSources := .Values.pod.etcSources.keystone_api }}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -103,6 +105,9 @@ spec:
               mountPath: /etc/keystone/keystone.conf
               subPath: keystone.conf
               readOnly: true
+            - name: keystone-etc-snippets
+              mountPath: /etc/keystone/keystone.conf.d/
+              readOnly: true
             - name: keystone-etc
               mountPath: /etc/apache2/ports.conf
               subPath: ports.conf
@@ -173,6 +178,14 @@ spec:
           secret:
             secretName: keystone-etc
             defaultMode: 0444
+        - name: keystone-etc-snippets
+{{- if $etcSources }}
+          projected:
+            sources:
+{{ toYaml $etcSources | indent 14 }}
+{{- else }}
+          emptyDir: {}
+{{ end }}
         - name: keystone-bin
           configMap:
             name: keystone-bin
