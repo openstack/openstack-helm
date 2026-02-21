@@ -19,7 +19,8 @@ COMMAND="${@:-start}"
 
 function start () {
     exec heat-engine \
-          --config-file /etc/heat/heat.conf
+          --config-file /etc/heat/heat.conf \
+          --config-dir /etc/heat/heat.conf.d
 }
 
 function stop () {
