@@ -18,4 +18,5 @@ set -ex
 
 exec ceilometer-polling \
   --polling-namespaces central \
-  --config-file /etc/ceilometer/ceilometer.conf
+  --config-file /etc/ceilometer/ceilometer.conf \
+  --config-dir /etc/ceilometer/ceilometer.conf.d
