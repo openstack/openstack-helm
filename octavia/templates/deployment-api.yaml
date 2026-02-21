@@ -37,6 +37,8 @@ httpGet:
 
 {{- $serviceAccountName := "octavia-api" }}
 {{ tuple $envAll "api" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+
+{{- $etcSources := .Values.pod.etcSources.octavia_api }}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -101,6 +103,9 @@ spec:
               mountPath: /etc/octavia/octavia.conf
               subPath: octavia.conf
               readOnly: true
+            - name: octavia-etc-snippets
+              mountPath: /etc/octavia/octavia.conf.d/
+              readOnly: true
             - name: octavia-etc
               mountPath: /etc/octavia/octavia-api-uwsgi.ini
               subPath: octavia-api-uwsgi.ini
@@ -127,5 +132,13 @@ spec:
           secret:
             secretName: octavia-etc
             defaultMode: 0444
+        - name: octavia-etc-snippets
+{{- if $etcSources }}
+          projected:
+            sources:
+{{ toYaml $etcSources | indent 14 }}
+{{- else }}
+          emptyDir: {}
+{{ end }}
 {{ if $mounts_octavia_api.volumes }}{{ toYaml $mounts_octavia_api.volumes | indent 8 }}{{ end }}
 {{- end }}

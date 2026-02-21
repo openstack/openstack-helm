@@ -28,7 +28,8 @@ EOF
   dhclient -v o-w0 -cf /tmp/dhclient.conf
 
   exec octavia-worker \
-        --config-file /etc/octavia/octavia.conf
+        --config-file /etc/octavia/octavia.conf \
+        --config-dir /etc/octavia/octavia.conf.d
 }
 
 function stop () {

@@ -21,7 +21,8 @@ COMMAND="${@:-start}"
 
 function start () {
   exec octavia-driver-agent \
-        --config-file /etc/octavia/octavia.conf
+        --config-file /etc/octavia/octavia.conf \
+        --config-dir /etc/octavia/octavia.conf.d
 }
 
 function stop () {
