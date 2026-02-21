@@ -12,7 +12,42 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+
 set -xe
+
+# Check if Keystone API DNS and HTTP endpoint are available; skip deployment if not
+KEYSTONE_HOST="keystone-api.openstack.svc.cluster.local"
+KEYSTONE_PORT=5000
+KEYSTONE_URL="http://$KEYSTONE_HOST:$KEYSTONE_PORT/v3"
+TIMEOUT=${TIMEOUT:-60}
+INTERVAL=2
+start_time=$(date +%s)
+
+# DNS check
+while ! getent hosts "$KEYSTONE_HOST" >/dev/null; do
+    now=$(date +%s)
+    elapsed=$((now - start_time))
+    if [ $elapsed -ge $TIMEOUT ]; then
+        echo "[INFO] Keystone API DNS not found after $TIMEOUT seconds, skipping prometheus-openstack-exporter deployment."
+        exit 0
+    fi
+    echo "[INFO] Waiting for Keystone DNS... ($elapsed/$TIMEOUT)"
+    sleep $INTERVAL
+done
+
+# HTTP check
+while ! curl -sf "$KEYSTONE_URL" >/dev/null; do
+    now=$(date +%s)
+    elapsed=$((now - start_time))
+    if [ $elapsed -ge $TIMEOUT ]; then
+        echo "[INFO] Keystone API not responding after $TIMEOUT seconds, skipping prometheus-openstack-exporter deployment."
+        exit 0
+    fi
+    echo "[INFO] Waiting for Keystone API... ($elapsed/$TIMEOUT)"
+    sleep $INTERVAL
+done
+
+echo "[INFO] Keystone API is available. Proceeding with exporter deployment."
 
 #NOTE: Define variables
 : ${OSH_HELM_REPO:="../openstack-helm"}
