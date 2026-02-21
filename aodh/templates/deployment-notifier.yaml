@@ -22,6 +22,8 @@ limitations under the License.
 
 {{- $serviceAccountName := "aodh-notifier" }}
 {{ tuple $envAll "notifier" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+
+{{- $etcSources := .Values.pod.etcSources.aodh_notifier }}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -81,6 +83,9 @@ spec:
               mountPath: /etc/aodh/aodh.conf
               subPath: aodh.conf
               readOnly: true
+            - name: aodh-etc-snippets
+              mountPath: /etc/aodh/aodh.conf.d/
+              readOnly: true
             {{- if .Values.conf.aodh.DEFAULT.log_config_append }}
             - name: aodh-etc
               mountPath: {{ .Values.conf.aodh.DEFAULT.log_config_append }}
@@ -105,6 +110,14 @@ spec:
           secret:
             secretName: aodh-etc
             defaultMode: 0444
+        - name: aodh-etc-snippets
+{{- if $etcSources }}
+          projected:
+            sources:
+{{ toYaml $etcSources | indent 14 }}
+{{- else }}
+          emptyDir: {}
+{{ end }}
         - name: aodh-bin
           configMap:
             name: aodh-bin

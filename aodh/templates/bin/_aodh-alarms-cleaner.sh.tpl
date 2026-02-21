@@ -16,4 +16,6 @@ limitations under the License.
 
 set -ex
 
-exec aodh-expirer
+exec aodh-expirer \
+     --config-file=/etc/aodh/aodh.conf \
+     --config-dir=/etc/aodh/aodh.conf.d

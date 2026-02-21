@@ -18,4 +18,6 @@ limitations under the License.
 
 set -ex
 
-exec aodh-listener --config-file=/etc/aodh/aodh.conf
+exec aodh-listener \
+     --config-file=/etc/aodh/aodh.conf \
+     --config-dir=/etc/aodh/aodh.conf.d
