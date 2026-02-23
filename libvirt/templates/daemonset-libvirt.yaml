@@ -20,13 +20,6 @@ exec:
     - /usr/bin/virsh connect
 {{- end }}
 
-{{- define "libvirtExporterProbeTemplate" }}
-httpGet:
-  path: /
-  port: metrics
-  scheme: HTTP
-{{- end }}
-
 {{- define "libvirt.daemonset" }}
 {{- $daemonset := index . 0 }}
 {{- $configMapName := index . 1 }}
@@ -310,31 +303,8 @@ spec:
             {{- end }}
             {{- end }}
 {{ if $mounts_libvirt.volumeMounts }}{{ toYaml $mounts_libvirt.volumeMounts | indent 12 }}{{ end }}
-        {{- if .Values.pod.sidecars.libvirt_exporter.enabled }}
-        - name: libvirt-exporter
-{{ tuple $envAll "libvirt_exporter" | include "helm-toolkit.snippets.image" | indent 10 }}
-{{ tuple $envAll $envAll.Values.pod.resources.libvirt_exporter | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-{{ dict "envAll" $envAll "application" "libvirt" "container" "libvirt_exporter" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
-          {{- with .Values.pod.sidecars.libvirt_exporter }}
-            {{- if and (hasKey . "args") (gt (len .args) 0) }}
-          args:
-              {{- range .args }}
-            - {{ . | quote }}
-              {{- end }}
-            {{- end }}
-          {{- end }}
-          ports:
-            - name: metrics
-              protocol: TCP
-              containerPort: {{ tuple "libvirt_exporter" "direct" "metrics" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-{{ dict "envAll" . "component" "libvirt" "container" "libvirt_exporter" "type" "readiness" "probeTemplate" (include "libvirtExporterProbeTemplate" . | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
-{{ dict "envAll" . "component" "libvirt" "container" "libvirt_exporter" "type" "liveness" "probeTemplate" (include "libvirtExporterProbeTemplate" . | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
-          volumeMounts:
-            - name: run
-              mountPath: /run
-              {{- if or ( gt .Capabilities.KubeVersion.Major "1" ) ( ge .Capabilities.KubeVersion.Minor "10" ) }}
-              mountPropagation: Bidirectional
-              {{- end }}
+        {{- with .Values.libvirt.extraContainers }}
+        {{- tpl (toYaml .) $envAll | nindent 8 }}
         {{- end }}
       volumes:
         {{ dict "enabled" $ssl_enabled "secretName" $envAll.Values.secrets.tls.client "name" "ssl-client" "path" "/etc/pki/libvirt" "certs" (tuple "clientcert.pem" "clientkey.pem" ) | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
