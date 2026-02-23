@@ -1,0 +1,46 @@
+---
+memcached:
+  extraServicePorts:
+    - name: metrics
+      port: 9150
+      targetPort: 9150
+      protocol: TCP
+  extraContainers:
+    - name: memcached-exporter
+      image: docker.io/prom/memcached-exporter:v0.15.5
+      imagePullPolicy: IfNotPresent
+      command:
+        - /bin/memcached_exporter
+      args:
+        - --memcached.address=127.0.0.1:11211
+      ports:
+        - name: metrics
+          containerPort: 9150
+      livenessProbe:
+        httpGet:
+          path: /metrics
+          port: 9150
+        initialDelaySeconds: 15
+        periodSeconds: 60
+        timeoutSeconds: 10
+      readinessProbe:
+        httpGet:
+          path: /metrics
+          port: 9150
+        initialDelaySeconds: 5
+        periodSeconds: 60
+        timeoutSeconds: 10
+      securityContext:
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        capabilities:
+          drop:
+            - ALL
+      resources:
+        requests:
+          memory: "128Mi"
+          cpu: "500m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+...

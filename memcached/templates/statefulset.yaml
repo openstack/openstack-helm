@@ -23,12 +23,6 @@ tcpSocket:
   port: {{ tuple "oslo_cache" "internal" "memcache" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
 {{- end }}
 
-{{- define "exporterProbeTemplate" }}
-httpGet:
-  path: /metrics
-  port: {{ tuple "oslo_cache" "internal" "metrics" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-{{- end }}
-
 {{- if .Values.manifests.statefulset }}
 {{- $envAll := . }}
 
@@ -100,32 +94,9 @@ spec:
               mountPath: /tmp/memcached.sh
               subPath: memcached.sh
               readOnly: true
-{{- if .Values.monitoring.prometheus.enabled }}
-        - name: memcached-exporter
-          env:
-          - name: MEMCACHED_HOST
-            value: 127.0.0.1
-          - name: MEMCACHED_PORT
-            value: {{ tuple "oslo_cache" "internal" "memcache" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | quote }}
-{{ tuple $envAll "prometheus_memcached_exporter" | include "helm-toolkit.snippets.image" | indent 10 }}
-{{ tuple $envAll $envAll.Values.pod.resources.prometheus_memcached_exporter | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-{{ dict "envAll" $envAll "application" "server" "container" "memcached_exporter" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
-          command:
-            - /tmp/memcached-exporter.sh
-            - start
-          ports:
-            - name: metrics
-              containerPort: {{ tuple "oslo_cache" "internal" "metrics" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-{{ dict "envAll" $envAll "component" "memcached" "container" "memcached_exporter" "type" "readiness" "probeTemplate" (include "exporterProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
-{{ dict "envAll" $envAll "component" "memcached" "container" "memcached_exporter" "type" "liveness" "probeTemplate" (include "exporterProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
-          volumeMounts:
-            - name: pod-tmp
-              mountPath: /tmp
-            - name: memcached-bin
-              mountPath: /tmp/memcached-exporter.sh
-              subPath: memcached-exporter.sh
-              readOnly: true
-{{- end }}
+        {{- with .Values.memcached.extraContainers }}
+          {{- tpl (toYaml .) $ | nindent 8 }}
+        {{- end }}
       volumes:
         - name: pod-tmp
           emptyDir: {}

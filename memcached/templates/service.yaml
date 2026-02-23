@@ -24,14 +24,9 @@ spec:
   ports:
     - name: memcache
       port: {{ tuple "oslo_cache" "internal" "memcache" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-{{/*
-Keep exporter port here to be able to scrape over endpoints.
-https://prometheus.io/docs/prometheus/latest/configuration/configuration/#endpoints
-*/}}
-{{- if .Values.monitoring.prometheus.enabled }}
-    - name: metrics
-      port: {{ tuple "oslo_cache" "internal" "metrics" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-{{- end }}
+    {{- with .Values.memcached.extraServicePorts }}
+      {{- tpl (toYaml .) $ | nindent 4 }}
+    {{- end }}
   selector:
 {{ tuple $envAll "memcached" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 {{ .Values.network.memcached | include "helm-toolkit.snippets.service_params" | indent 2 }}
