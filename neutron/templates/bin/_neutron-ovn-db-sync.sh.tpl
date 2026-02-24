@@ -30,9 +30,5 @@ neutron-ovn-db-sync-util \
 {{- if .Values.conf.plugins.l2gateway }}
         --config-file /etc/neutron/l2gw_plugin.ini \
 {{- end }}
-{{- if ( has "tungstenfabric" .Values.network.backend ) }}
-        --config-file /etc/neutron/plugins/tungstenfabric/tf_plugin.ini \
-{{- else }}
         --config-file /etc/neutron/plugins/ml2/ml2_conf.ini \
-{{- end }}
         --ovn-neutron_sync_mode "$1"

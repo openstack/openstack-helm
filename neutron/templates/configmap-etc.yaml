@@ -180,30 +180,6 @@ limitations under the License.
 {{- end }}
 {{- end -}}
 
-{{- if ( has "tungstenfabric" .Values.network.backend ) -}}
-{{- if empty .Values.conf.plugins.tungstenfabric.KEYSTONE.auth_url -}}
-{{- $_ := tuple "identity" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" | set .Values.conf.plugins.tungstenfabric.KEYSTONE "auth_url" -}}
-{{- end -}}
-{{- if empty .Values.conf.plugins.tungstenfabric.KEYSTONE.admin_user -}}
-{{- $_ := set .Values.conf.plugins.tungstenfabric.KEYSTONE "admin_user" .Values.endpoints.identity.auth.admin.username -}}
-{{- end -}}
-{{- if empty .Values.conf.plugins.tungstenfabric.KEYSTONE.admin_password -}}
-{{- $_ := set .Values.conf.plugins.tungstenfabric.KEYSTONE "admin_password" .Values.endpoints.identity.auth.admin.password -}}
-{{- end -}}
-{{- if empty .Values.conf.plugins.tungstenfabric.KEYSTONE.admin_tenant_name -}}
-{{- $_ := set .Values.conf.plugins.tungstenfabric.KEYSTONE "admin_tenant_name" .Values.endpoints.identity.auth.admin.project_name -}}
-{{- end -}}
-{{- if empty .Values.conf.plugins.tf_vnc_api_lib.auth.AUTHN_SERVER -}}
-{{- $_ := tuple "identity" . | include "helm-toolkit.endpoints.keystone_endpoint_name_lookup" | set .Values.conf.plugins.tf_vnc_api_lib.auth "AUTHN_SERVER" -}}
-{{- end -}}
-{{- if empty .Values.conf.plugins.tf_vnc_api_lib.auth.AUTHN_PORT -}}
-{{- $_ := tuple "identity" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | set .Values.conf.plugins.tf_vnc_api_lib.auth "AUTHN_PORT" -}}
-{{- end -}}
-{{- if empty .Values.conf.plugins.tf_vnc_api_lib.auth.AUTHN_DOMAIN -}}
-{{- $_ := set .Values.conf.plugins.tf_vnc_api_lib.auth "AUTHN_DOMAIN" .Values.endpoints.identity.auth.neutron.project_domain_name -}}
-{{- end -}}
-{{- end -}}
-
 ---
 apiVersion: v1
 kind: Secret
@@ -233,8 +209,6 @@ data:
   l2gw_agent.ini: {{ default "\"\"" (include "helm-toolkit.utils.to_oslo_conf" .Values.conf.l2gateway_agent | b64enc) }}
   bagpipe_bgp.conf: {{ default "\"\"" (include "helm-toolkit.utils.to_oslo_conf" .Values.conf.bagpipe_bgp | b64enc) }}
   bgp_dragent.ini: {{ default "\"\"" (include "helm-toolkit.utils.to_oslo_conf" .Values.conf.bgp_dragent | b64enc) }}
-  tf_plugin.ini: {{ default "\"\"" (include "helm-toolkit.utils.to_oslo_conf" $envAll.Values.conf.plugins.tungstenfabric | b64enc) }}
-  vnc_api_lib.ini: {{ default "\"\"" (include "helm-toolkit.utils.to_oslo_conf" $envAll.Values.conf.plugins.tf_vnc_api_lib | b64enc) }}
   dnsmasq.conf: "{{ $envAll.Values.conf.dnsmasq | b64enc }}"
   neutron_sudoers: {{ $envAll.Values.conf.neutron_sudoers | b64enc }}
   rootwrap.conf: {{ $envAll.Values.conf.rootwrap | b64enc }}

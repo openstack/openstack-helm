@@ -79,20 +79,6 @@ spec:
               subPath: neutron-ovn-init.sh
               readOnly: true
         {{- end }}
-        {{- if ( has "tungstenfabric" .Values.network.backend ) }}
-        - name: tungstenfabric-neutron-init
-          image: {{ .Values.images.tags.tf_neutron_init }}
-          imagePullPolicy: {{ .Values.images.pull_policy }}
-{{ tuple $envAll $envAll.Values.pod.resources.rpc_server | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-          securityContext:
-            runAsUser: {{ .Values.pod.security_context.neutron_rpc_server.pod.runAsUser }}
-          env:
-            - name: OPENSTACK_VERSION
-              value: "{{ .Values.conf.openstack_version }}"
-          volumeMounts:
-            - name: neutron-plugin-shared
-              mountPath: /opt/plugin
-        {{- end }}
       containers:
         - name: neutron-rpc-server
 {{ tuple $envAll "neutron_rpc_server" | include "helm-toolkit.snippets.image" | indent 10 }}
@@ -149,35 +135,10 @@ spec:
               mountPath: /etc/neutron/api_audit_map.conf
               subPath: api_audit_map.conf
               readOnly: true
-            {{- if( has "tungstenfabric" .Values.network.backend ) }}
-            - name: neutron-etc
-              mountPath: /etc/neutron/plugins/tungstenfabric/tf_plugin.ini
-              subPath: tf_plugin.ini
-              readOnly: true
-            - name: neutron-etc
-              mountPath: /etc/contrail/vnc_api_lib.ini
-              subPath: vnc_api_lib.ini
-              readOnly: true
-            - name: neutron-plugin-shared
-              mountPath: /opt/plugin
-            - name: neutron-bin
-              mountPath: /usr/local/lib/python2.7/site-packages/tf-plugin.pth
-              subPath: tf-plugin.pth
-              readOnly: true
-            - name: neutron-bin
-              mountPath: /var/lib/openstack/lib/python2.7/site-packages/tf-plugin.pth
-              subPath: tf-plugin.pth
-              readOnly: true
-            - name: neutron-bin
-              mountPath: /var/lib/openstack/lib/python3.6/site-packages/tf-plugin.pth
-              subPath: tf-plugin.pth
-              readOnly: true
-            {{- else }}
             - name: neutron-etc
               mountPath: /etc/neutron/plugins/ml2/ml2_conf.ini
               subPath: ml2_conf.ini
               readOnly: true
-            {{- end }}
             {{ if ( has "sriov" .Values.network.backend ) }}
             - name: neutron-etc
               mountPath: /etc/neutron/plugins/ml2/sriov_agent.ini
@@ -237,10 +198,6 @@ spec:
 {{- else }}
           emptyDir: {}
 {{ end }}
-        {{- if ( has "tungstenfabric" .Values.network.backend ) }}
-        - name: neutron-plugin-shared
-          emptyDir: {}
-        {{- end }}
 {{- dict "enabled" .Values.manifests.certificates "name" .Values.endpoints.oslo_db.auth.admin.secret.tls.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 {{- dict "enabled" (or .Values.manifests.certificates .Values.tls.identity) "name" .Values.secrets.tls.network.server.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 {{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.oslo_messaging.auth.admin.secret.tls.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
