@@ -84,8 +84,6 @@ endpoints:
     port:
       memcache:
         default: 11211
-      metrics:
-        default: 9150
   kube_dns:
     namespace: kube-system
     name: kubernetes-dns
@@ -113,18 +111,11 @@ network_policy:
     egress:
       - {}
 
-monitoring:
-  prometheus:
-    enabled: false
-    memcached_exporter:
-      scrape: true
-
 images:
   pull_policy: IfNotPresent
   tags:
     dep_check: 'quay.io/airshipit/kubernetes-entrypoint:latest-ubuntu_jammy'
     memcached: 'quay.io/airshipit/memcached:1.6.32'
-    prometheus_memcached_exporter: docker.io/prom/memcached-exporter:v0.4.1
     image_repo_sync: quay.io/airshipit/docker:27.5.0
   local_registry:
     active: false
@@ -145,6 +136,10 @@ manifests:
   service: true
   secret_registry: true
 
+memcached:
+  extraContainers: []
+  extraServicePorts: []
+
 pod:
   security_context:
     server:
@@ -159,12 +154,7 @@ pod:
           capabilities:
             drop:
               - ALL
-        memcached_exporter:
-          allowPrivilegeEscalation: false
-          readOnlyRootFilesystem: true
-          capabilities:
-            drop:
-              - ALL
+
   probes:
     memcached:
       memcached:
@@ -180,19 +170,7 @@ pod:
             initialDelaySeconds: 10
             periodSeconds: 15
             timeoutSeconds: 10
-      memcached_exporter:
-        liveness:
-          enabled: True
-          params:
-            initialDelaySeconds: 15
-            periodSeconds: 60
-            timeoutSeconds: 10
-        readiness:
-          enabled: True
-          params:
-            initialDelaySeconds: 5
-            periodSeconds: 60
-            timeoutSeconds: 10
+
   affinity:
     anti:
       topologyKey:
@@ -232,13 +210,6 @@ pod:
       requests:
         cpu: "500m"
         memory: "128Mi"
-    prometheus_memcached_exporter:
-      limits:
-        memory: "1024Mi"
-        cpu: "2000m"
-      requests:
-        cpu: 500m
-        memory: 128Mi
     jobs:
       image_repo_sync:
         requests:
