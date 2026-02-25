@@ -84,6 +84,9 @@ spec:
         - name: ceph-keyring-placement
 {{ tuple $envAll "manila_share" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ dict "envAll" $envAll "application" "manila" "container" "ceph_keyring_placement" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          env:
+            - name: CEPHFS_AUTH_ID
+              value: {{ .Values.conf.manila.DEFAULT.cephfs_auth_id | quote }}
           command:
             - /tmp/ceph-keyring.sh
           volumeMounts:
@@ -210,11 +213,11 @@ spec:
           emptyDir: {}
         - name: ceph-etc
           configMap:
-            name: ceph-etc
+            name: {{ .Values.ceph_client.configmap }}
             defaultMode: 0444
         - name: ceph-keyring
           secret:
-            secretName: manila-keyring
+            secretName: {{ .Values.secrets.rbd | quote }}
 {{- end }}
 {{- dict "enabled" .Values.manifests.certificates "name" .Values.endpoints.oslo_db.auth.admin.secret.tls.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 {{- dict "enabled" (or .Values.manifests.certificates .Values.tls.identity) "name" .Values.secrets.tls.share.api.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
