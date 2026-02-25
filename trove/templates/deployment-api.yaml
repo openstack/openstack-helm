@@ -79,13 +79,13 @@ spec:
 {{ tuple $envAll "trove_api" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.api | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
 {{ dict "envAll" $envAll "application" "trove_api" "container" "trove_api" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
-          command:
-            - /tmp/trove-api.sh
-            - start
           env:
 {{- with $env := dict "ksUserSecret" .Values.secrets.identity.trove }}
 {{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 12 }}
 {{- end }}
+          command:
+            - /tmp/trove-api.sh
+            - start
           ports:
             - name: t-api
               containerPort: {{ tuple "database" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
@@ -94,6 +94,8 @@ spec:
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
+            - name: oslo-lock-path
+              mountPath: {{ .Values.conf.trove.oslo_concurrency.lock_path }}
             - name: trove-bin
               mountPath: /tmp/trove-api.sh
               subPath: trove-api.sh
@@ -117,6 +119,8 @@ spec:
 {{ if $mounts_trove_api.volumeMounts }}{{ toYaml $mounts_trove_api.volumeMounts | indent 12 }}{{ end }}
       volumes:
         - name: pod-tmp
+          emptyDir: {}
+        - name: oslo-lock-path
           emptyDir: {}
         - name: trove-bin
           configMap:

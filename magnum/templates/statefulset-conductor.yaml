@@ -86,6 +86,8 @@ spec:
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
+            - name: oslo-lock-path
+              mountPath: {{ .Values.conf.magnum.oslo_concurrency.lock_path }}
             - name: magnum-bin
               mountPath: /tmp/magnum-conductor.sh
               subPath: magnum-conductor.sh
@@ -114,13 +116,13 @@ spec:
               readOnly: true
             - name: pod-shared
               mountPath: /tmp/pod-shared
-            - name: magnum-lock-path
-              mountPath: {{ .Values.conf.magnum.oslo_concurrency.lock_path }}
             - name: magnum-certificate-cache
               mountPath: {{ .Values.conf.magnum.cluster.temp_cache_dir }}
 {{ if $mounts_magnum_conductor.volumeMounts }}{{ toYaml $mounts_magnum_conductor.volumeMounts | indent 12 }}{{ end }}
       volumes:
         - name: pod-tmp
+          emptyDir: {}
+        - name: oslo-lock-path
           emptyDir: {}
         - name: pod-etc-magnum
           emptyDir: {}
@@ -134,8 +136,6 @@ spec:
           secret:
             secretName: magnum-etc
             defaultMode: 0444
-        - name: magnum-lock-path
-          emptyDir: {}
         - name: magnum-certificate-cache
           emptyDir: {}
 {{ if $mounts_magnum_conductor.volumes }}{{ toYaml $mounts_magnum_conductor.volumes | indent 8 }}{{ end }}
