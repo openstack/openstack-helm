@@ -27,7 +27,6 @@ labels:
 images:
   tags:
     libvirt: quay.io/airshipit/libvirt:2025.1-ubuntu_noble
-    libvirt_exporter: vexxhost/libvirtd-exporter:latest
     ceph_config_helper: 'quay.io/airshipit/ceph-config-helper:ubuntu_jammy_20.2.0-1-20260116'
     dep_check: quay.io/airshipit/kubernetes-entrypoint:latest-ubuntu_jammy
     image_repo_sync: quay.io/airshipit/docker:27.5.0
@@ -74,10 +73,6 @@ endpoints:
     port:
       registry:
         default: null
-  libvirt_exporter:
-    port:
-      metrics:
-        default: 9474
 
 network_policy:
   libvirt:
@@ -273,19 +268,6 @@ pod:
             initialDelaySeconds: 15
             periodSeconds: 60
             timeoutSeconds: 5
-      libvirt_exporter:
-        liveness:
-          enabled: true
-          params:
-            initialDelaySeconds: 30
-            periodSeconds: 60
-            timeoutSeconds: 5
-        readiness:
-          enabled: true
-          params:
-            initialDelaySeconds: 15
-            periodSeconds: 60
-            timeoutSeconds: 5
   security_context:
     libvirt:
       pod:
@@ -298,8 +280,6 @@ pod:
         libvirt:
           privileged: true
           readOnlyRootFilesystem: false
-        libvirt_exporter:
-          privileged: true
         libvirt_init_modules:
           readOnlyRootFilesystem: true
           privileged: true
@@ -314,12 +294,6 @@ pod:
           capabilities:
             drop:
               - ALL
-  sidecars:
-    libvirt_exporter:
-      enabled: false
-      args:
-        - "--libvirt.nova"
-
   affinity:
     anti:
       type:
@@ -368,13 +342,6 @@ pod:
         limits:
           memory: "1024Mi"
           cpu: "2000m"
-    libvirt_exporter:
-      requests:
-        memory: "128Mi"
-        cpu: "100m"
-      limits:
-        memory: "256Mi"
-        cpu: "500m"
 
 dependencies:
   dynamic:
@@ -422,6 +389,10 @@ dependencies:
         - endpoint: internal
           service: local_image_registry
 
+libvirt:
+  extraContainers: []
+
+
 manifests:
   configmap_bin: true
   configmap_etc: true
@@ -430,7 +401,6 @@ manifests:
   network_policy: false
   role_cert_manager: false
   secret_registry: true
-  podmonitor: false
 
 secrets:
   oci_image_registry:
