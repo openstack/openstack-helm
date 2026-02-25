@@ -31,7 +31,8 @@ limitations under the License.
 {{- $podVolMounts := (concat ((index $podMount "volumeMounts" | default list)) ((index . "podVolMounts") | default (list))) | uniq -}}
 {{- $podVols := (concat ((index $podMount "volumes" | default list)) ((index . "podVols") | default (list))) | uniq -}}
 {{- $podEnvVars := index . "podEnvVars" | default false -}}
-{{- $dbToSync := index . "dbToSync" | default ( dict "configFile" (printf "/etc/%s/%s.conf" $serviceName $serviceName ) "logConfigFile" (printf "/etc/%s/logging.conf" $serviceName ) "image" ( index $envAll.Values.images.tags ( printf "%s_db_sync" $serviceName )) ) -}}
+{{- $dbToSync := index . "dbToSync" | default ( dict "configFile" (printf "/etc/%s/%s.conf" $serviceName $serviceName ) "configDir" (printf "/etc/%s/%s.conf.d" $serviceName $serviceName ) "logConfigFile" (printf "/etc/%s/logging.conf" $serviceName ) "image" ( index $envAll.Values.images.tags ( printf "%s_db_sync" $serviceName )) ) -}}
+{{- $etcSources := index (index $envAll.Values.pod "etcSources" | default dict) $jobNameRef | default list -}}
 {{- $secretBin := index . "secretBin" -}}
 {{- $backoffLimit := index . "backoffLimit" | default "1000" -}}
 {{- $activeDeadlineSeconds := index . "activeDeadlineSeconds" -}}
@@ -108,6 +109,9 @@ spec:
               mountPath: {{ $dbToSync.configFile | quote }}
               subPath: {{ base $dbToSync.configFile | quote }}
               readOnly: true
+            - name: db-sync-conf-dir
+              mountPath: {{ $dbToSync.configDir | quote }}
+              readOnly: true
             - name: db-sync-conf
               mountPath: {{ $dbToSync.logConfigFile | quote }}
               subPath: {{ base $dbToSync.logConfigFile | quote }}
@@ -135,6 +139,14 @@ spec:
           secret:
             secretName: {{ $configMapEtc | quote }}
             defaultMode: 0444
+        - name: db-sync-conf-dir
+{{- if $etcSources }}
+          projected:
+            sources:
+{{ toYaml $etcSources | indent 14 }}
+{{- else }}
+          emptyDir: {}
+{{ end }}
 {{- dict "enabled" $envAll.Values.manifests.certificates "name" $dbAdminTlsSecret | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 {{- if $podVols }}
 {{ $podVols | toYaml | indent 8 }}
