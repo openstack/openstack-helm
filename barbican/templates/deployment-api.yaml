@@ -25,6 +25,7 @@ httpGet:
 
 {{- $mounts_barbican_api := .Values.pod.mounts.barbican_api.barbican_api }}
 {{- $mounts_barbican_api_init := .Values.pod.mounts.barbican_api.init_container }}
+{{- $etcSources := .Values.pod.etcSources.barbican_api }}
 
 {{- $serviceAccountName := "barbican-api" }}
 {{ tuple $envAll "api" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
@@ -106,6 +107,9 @@ spec:
               mountPath: /etc/barbican/barbican.conf
               subPath: barbican.conf
               readOnly: true
+            - name: barbican-etc-snippets
+              mountPath: /etc/barbican/barbican.conf.d/
+              readOnly: true
             {{- if .Values.conf.barbican.DEFAULT.log_config_append }}
             - name: barbican-etc
               mountPath: {{ .Values.conf.barbican.DEFAULT.log_config_append }}
@@ -144,6 +148,14 @@ spec:
           secret:
             secretName: barbican-etc
             defaultMode: 0444
+        - name: barbican-etc-snippets
+{{- if $etcSources }}
+          projected:
+            sources:
+{{ toYaml $etcSources | indent 14 }}
+{{- else }}
+          emptyDir: {}
+{{ end }}
         - name: barbican-bin
           configMap:
             name: barbican-bin
