@@ -16,4 +16,5 @@ limitations under the License.
 
 set -ex
 exec manila-data \
-     --config-file /etc/manila/manila.conf
+     --config-file /etc/manila/manila.conf \
+     --config-dir /etc/manila/manila.conf.d

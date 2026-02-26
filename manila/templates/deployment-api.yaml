@@ -17,6 +17,7 @@ limitations under the License.
 
 {{- $mounts_manila_api := .Values.pod.mounts.manila_api.manila_api }}
 {{- $mounts_manila_api_init := .Values.pod.mounts.manila_api.init_container }}
+{{- $etcSources := .Values.pod.etcSources.manila_api }}
 
 {{- $serviceAccountName := "manila-api" }}
 {{ tuple $envAll "api" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
@@ -99,6 +100,9 @@ spec:
               mountPath: /etc/manila/manila.conf
               subPath: manila.conf
               readOnly: true
+            - name: manila-etc-snippets
+              mountPath: /etc/manila/manila.conf.d/
+              readOnly: true
             - name: manila-etc
               mountPath: /etc/manila/manila-api-uwsgi.ini
               subPath: manila-api-uwsgi.ini
@@ -139,6 +143,14 @@ spec:
           secret:
             secretName: manila-etc
             defaultMode: 0444
+        - name: manila-etc-snippets
+{{- if $etcSources }}
+          projected:
+            sources:
+{{ toYaml $etcSources | indent 14 }}
+{{- else }}
+          emptyDir: {}
+{{ end }}
         - name: manila-bin
           configMap:
             name: manila-bin
