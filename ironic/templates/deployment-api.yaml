@@ -17,6 +17,7 @@ limitations under the License.
 
 {{- $mounts_ironic_api := .Values.pod.mounts.ironic_api.ironic_api }}
 {{- $mounts_ironic_api_init := .Values.pod.mounts.ironic_api.init_container }}
+{{- $etcSources := .Values.pod.etcSources.ironic_api }}
 
 {{- $serviceAccountName := "ironic-api" }}
 {{ tuple $envAll "api" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
@@ -113,6 +114,9 @@ spec:
               mountPath: /etc/ironic/ironic.conf
               subPath: ironic.conf
               readOnly: true
+            - name: ironic-etc-snippets
+              mountPath: /etc/ironic/ironic.conf.d/
+              readOnly: true
             {{- if .Values.conf.ironic.DEFAULT.log_config_append }}
             - name: ironic-etc
               mountPath: {{ .Values.conf.ironic.DEFAULT.log_config_append }}
@@ -139,6 +143,14 @@ spec:
           secret:
             secretName: ironic-etc
             defaultMode: 0444
+        - name: ironic-etc-snippets
+{{- if $etcSources }}
+          projected:
+            sources:
+{{ toYaml $etcSources | indent 14 }}
+{{- else }}
+          emptyDir: {}
+{{ end }}
         - name: pod-shared
           emptyDir: {}
 {{ if $mounts_ironic_api.volumes }}{{ toYaml $mounts_ironic_api.volumes | indent 8 }}{{ end }}
