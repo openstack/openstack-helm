@@ -16,7 +16,8 @@ COMMAND="${@:-start}"
 
 function start () {
   designate-worker \
-      --config-file /etc/designate/designate.conf
+      --config-file /etc/designate/designate.conf \
+      --config-dir /etc/designate/designate.conf.d
 }
 
 function stop () {

@@ -15,7 +15,9 @@ set -ex
 COMMAND="${@:-start}"
 
 function start () {
-  designate-producer --config-file /etc/designate/designate.conf
+  designate-producer \
+      --config-file /etc/designate/designate.conf \
+      --config-dir /etc/designate/designate.conf.d
 }
 
 function stop () {

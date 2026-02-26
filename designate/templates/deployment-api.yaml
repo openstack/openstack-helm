@@ -14,6 +14,7 @@
 {{- $envAll := . }}
 {{- $mounts_designate_api := .Values.pod.mounts.designate_api.designate_api }}
 {{- $mounts_designate_api_init := .Values.pod.mounts.designate_api.init_container }}
+{{- $etcSources := .Values.pod.etcSources.designate_api }}
 
 {{- $serviceAccountName := "designate-api" }}
 {{ tuple $envAll "api" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
@@ -89,6 +90,9 @@ spec:
               mountPath: /etc/designate/designate.conf
               subPath: designate.conf
               readOnly: true
+            - name: designate-etc-snippets
+              mountPath: /etc/designate/designate.conf.d/
+              readOnly: true
             - name: designate-etc
               mountPath: /etc/designate/api-paste.ini
               subPath: api-paste.ini
@@ -123,5 +127,13 @@ spec:
           secret:
             secretName: designate-etc
             defaultMode: 0444
+        - name: designate-etc-snippets
+{{- if $etcSources }}
+          projected:
+            sources:
+{{ toYaml $etcSources | indent 14 }}
+{{- else }}
+          emptyDir: {}
+{{ end }}
 {{ if $mounts_designate_api.volumes }}{{ toYaml $mounts_designate_api.volumes | indent 8 }}{{ end }}
 {{- end }}

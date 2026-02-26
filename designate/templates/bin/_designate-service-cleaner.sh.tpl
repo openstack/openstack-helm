@@ -6,4 +6,5 @@ set -ex
 
 designate-manage \
   --config-file /etc/designate/designate.conf \
+  --config-dir /etc/designate/designate.conf.d \
   service clean
