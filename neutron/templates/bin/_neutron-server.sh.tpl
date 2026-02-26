@@ -37,11 +37,7 @@ function start () {
 {{- if .Values.conf.plugins.l2gateway }}
   confs+=" --config-file /etc/neutron/l2gw_plugin.ini"
 {{- end }}
-{{- if ( has "tungstenfabric" .Values.network.backend ) }}
-  confs+=" --config-file /etc/neutron/plugins/tungstenfabric/tf_plugin.ini"
-{{- else }}
   confs+=" --config-file /etc/neutron/plugins/ml2/ml2_conf.ini"
-{{- end }}
   confs+=" --config-dir /etc/neutron/neutron.conf.d"
 
   exec uwsgi --ini /etc/neutron/neutron-api-uwsgi.ini --pyargv " $confs "

@@ -262,19 +262,6 @@ spec:
               mountPath: /tmp/pod-shared
 {{ if $mounts_nova_compute.volumeMounts }}{{ toYaml $mounts_nova_compute.volumeMounts | indent 12 }}{{ end }}
         {{ end }}
-        {{- if ( has "tungstenfabric" .Values.network.backend ) }}
-        - name: tungstenfabric-compute-init
-          image: {{ .Values.images.tags.tf_compute_init }}
-          imagePullPolicy: {{ .Values.images.pull_policy }}
-{{ tuple $envAll $envAll.Values.pod.resources.compute | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-{{ dict "envAll" $envAll "application" "nova" "container" "tungstenfabric_compute_init" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
-          volumeMounts:
-            - name: tf-plugin-shared
-              mountPath: /opt/plugin
-            - name: tf-plugin-bin
-              mountPath: /opt/plugin/bin
-{{ if $mounts_nova_compute.volumeMounts }}{{ toYaml $mounts_nova_compute.volumeMounts | indent 12 }}{{ end }}
-        {{- end }}
         {{- if .Values.network.ssh.enabled }}
         - name: nova-compute-ssh-init
 {{ tuple $envAll "nova_compute_ssh" | include "helm-toolkit.snippets.image" | indent 10 }}
@@ -464,26 +451,6 @@ spec:
               mountPropagation: HostToContainer
               {{- end }}
             {{- end }}
-            {{- if ( has "tungstenfabric" .Values.network.backend ) }}
-            - name: tf-plugin-shared
-              mountPath: /opt/plugin
-              readOnly: true
-            - name: tf-plugin-bin
-              mountPath: /usr/sbin
-              readOnly: true
-            - name: nova-bin
-              mountPath: /usr/local/lib/python2.7/site-packages/tf-plugin.pth
-              subPath: tf-plugin.pth
-              readOnly: true
-            - name: nova-bin
-              mountPath: /var/lib/openstack/lib/python2.7/site-packages/tf-plugin.pth
-              subPath: tf-plugin.pth
-              readOnly: true
-            - name: nova-bin
-              mountPath: /var/lib/openstack/lib/python3.6/site-packages/tf-plugin.pth
-              subPath: tf-plugin.pth
-              readOnly: true
-            {{- end }}
 {{- dict "enabled" (or .Values.manifests.certificates .Values.tls.identity) "name" .Values.secrets.tls.compute.osapi.internal "path" "/etc/nova/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
 {{- dict "enabled" .Values.manifests.certificates "name" .Values.endpoints.oslo_messaging.auth.admin.secret.tls.internal "path" "/etc/rabbitmq/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
 {{ if $mounts_nova_compute.volumeMounts }}{{ toYaml $mounts_nova_compute.volumeMounts | indent 12 }}{{ end }}
@@ -602,12 +569,6 @@ spec:
           hostPath:
             path: /sys/block
 
-        {{- end }}
-        {{- if ( has "tungstenfabric" .Values.network.backend ) }}
-        - name: tf-plugin-shared
-          emptyDir: {}
-        - name: tf-plugin-bin
-          emptyDir: {}
         {{- end }}
 {{- dict "enabled" (or .Values.manifests.certificates .Values.tls.identity) "name" .Values.secrets.tls.compute.osapi.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 {{- dict "enabled" .Values.manifests.certificates "name" .Values.endpoints.oslo_messaging.auth.admin.secret.tls.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}

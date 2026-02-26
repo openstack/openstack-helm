@@ -105,15 +105,14 @@ The above configuration options are handled by ``neutron/values.yaml``:
             ...
           # core_plugin can be: ml2, calico
           core_plugin: ml2
-          # service_plugin can be: router, odl-router, empty for calico,
+          # service_plugin can be: router, empty for calico,
           # networking_ovn.l3.l3_ovn.OVNL3RouterPlugin for OVN
           service_plugins: router
 
       plugins:
         ml2_conf:
           ml2:
-            # mechnism_drivers can be: openvswitch, linuxbridge,
-            # opendaylight, ovn
+            # mechnism_drivers can be: openvswitch, linuxbridge, ovn
             mechanism_drivers: openvswitch,l2population
             type_drivers: flat,vlan,vxlan
 
@@ -297,7 +296,7 @@ openvswitch-db and openvswitch-vswitchd
 +++++++++++++++++++++++++++++++++++++++
 This runs the OVS tool and database. OpenVSwitch chart is not Neutron specific,
 it may be used with other technologies that are leveraging the OVS technology,
-such as OVN or ODL.
+such as OVN.
 
 A detail worth mentioning is that ovs is configured to use sockets, rather
 than the default loopback mechanism.
