@@ -145,7 +145,7 @@ ssh -o "StrictHostKeyChecking no" -i ${SSH_DIR}/osh_key ${IMAGE_USER}@${FLOATING
 ssh -i ${SSH_DIR}/osh_key ${IMAGE_USER}@${FLOATING_IP} curl --verbose --connect-timeout 5 169.254.169.254
 
 # Check the VM can reach the keystone server
-ssh -i ${SSH_DIR}/osh_key ${IMAGE_USER}@${FLOATING_IP} curl --verbose --connect-timeout 5 keystone.openstack.svc.cluster.local
+ssh -i ${SSH_DIR}/osh_key ${IMAGE_USER}@${FLOATING_IP} curl --verbose --connect-timeout 5 keystone.openstack-helm.org
 
 # Check to see if cinder has been deployed, if it has then perform a volume attach.
 if openstack service list -f value -c Type | grep -q "^volume"; then

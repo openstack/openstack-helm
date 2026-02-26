@@ -1,0 +1,40 @@
+# Gateway API overrides for Keystone.
+#
+# Public endpoints use *.openstack-helm.org FQDNs which are resolved by
+# dnsmasq to the MetalLB Gateway VIP. In-cluster pods reach the Gateway
+# through this DNS path so no ExternalName services are needed.
+---
+endpoints:
+  identity:
+    host_fqdn_override:
+      public:
+        host: keystone.openstack-helm.org
+
+manifests:
+  ingress_api: false
+  service_ingress_api: false
+
+extraObjects:
+  - apiVersion: gateway.networking.k8s.io/v1
+    kind: HTTPRoute
+    metadata:
+      name: keystone-route
+      namespace: openstack
+    spec:
+      parentRefs:
+      - name: gateway-default
+        namespace: envoy-gateway-system
+      hostnames:
+      - "keystone"
+      - "keystone.openstack"
+      - "keystone.openstack.svc.cluster.local"
+      - "keystone.openstack-helm.org"
+      rules:
+      - matches:
+        - path:
+            type: PathPrefix
+            value: /
+        backendRefs:
+        - name: keystone-api
+          port: 5000
+...

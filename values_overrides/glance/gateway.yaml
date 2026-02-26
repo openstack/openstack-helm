@@ -1,0 +1,40 @@
+# Gateway API overrides for Glance.
+#
+# Public endpoints use *.openstack-helm.org FQDNs which are resolved by
+# dnsmasq to the MetalLB Gateway VIP. In-cluster pods reach the Gateway
+# through this DNS path so no ExternalName services are needed.
+---
+endpoints:
+  image:
+    host_fqdn_override:
+      public:
+        host: glance.openstack-helm.org
+
+manifests:
+  ingress_api: false
+  service_ingress_api: false
+
+extraObjects:
+  - apiVersion: gateway.networking.k8s.io/v1
+    kind: HTTPRoute
+    metadata:
+      name: glance-route
+      namespace: openstack
+    spec:
+      hostnames:
+        - "glance"
+        - "glance.openstack"
+        - "glance.openstack.svc.cluster.local"
+        - "glance.openstack-helm.org"
+      parentRefs:
+        - name: gateway-default
+          namespace: envoy-gateway-system
+      rules:
+        - matches:
+            - path:
+                type: PathPrefix
+                value: /
+          backendRefs:
+            - name: glance-api
+              port: 9292
+...

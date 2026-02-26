@@ -26,14 +26,11 @@
         helm upgrade --install metallb metallb/metallb \
           --version {{ metallb_version }} \
           --namespace metallb-system \
-          --create-namespace
+          --create-namespace \
+          --wait --timeout 5m
 
-    - name: Sleep before trying to check MetalLB pods
-      pause:
-        seconds: 30
-
-    - name: Wait for MetalLB pods ready
-      command: kubectl -n metallb-system wait --timeout=240s --for=condition=Ready pods -l 'app.kubernetes.io/name=metallb'
+    - name: Wait for MetalLB webhook to become ready
+      command: kubectl -n metallb-system wait --timeout=120s --for=condition=Ready pods -l 'app.kubernetes.io/component=controller'
 
     - name: Create MetalLB address pool
       shell: |
@@ -62,4 +59,8 @@
             - public
         EOF
         kubectl apply -f /tmp/metallb_l2advertisement.yaml
+      retries: 6
+      delay: 10
+      register: metallb_pool_result
+      until: metallb_pool_result.rc == 0
 ...

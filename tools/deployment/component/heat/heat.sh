@@ -21,6 +21,7 @@ set -xe
 #NOTE: Deploy command
 helm upgrade --install heat ${OSH_HELM_REPO}/heat \
   --namespace=openstack \
+  --values=${OSH_VALUES_OVERRIDES_PATH}/heat/gateway.yaml \
   ${OSH_EXTRA_HELM_ARGS:=} \
   ${OSH_EXTRA_HELM_ARGS_HEAT}
 
@@ -36,5 +37,5 @@ sleep 30 #NOTE(portdirect): Wait for ingress controller to update rules and rest
 openstack orchestration service list
 
 if [[ ${FEATURES//,/ } =~ (^|[[:space:]])tls($|[[:space:]]) ]]; then
-  curl --cacert /etc/openstack-helm/certs/ca/ca.pem -L https://heat.openstack.svc.cluster.local
+  curl --cacert /etc/openstack-helm/certs/ca/ca.pem -L https://heat.openstack-helm.org
 fi

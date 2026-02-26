@@ -84,24 +84,17 @@
     file: coredns_resolver.yaml
   when: coredns_resolver_setup
 
-- name: Include Openstack provider gateway tasks
+- name: Include floating network tasks
   include_tasks:
-    file: openstack_provider_gateway.yaml
+    file: floating_network.yaml
   when:
-    - openstack_provider_gateway_setup
+    - floating_network_setup
     - inventory_hostname in (groups['k8s_control_plane'] | default([]))
 
 - name: Include Metallb tasks
   include_tasks:
     file: metallb.yaml
   when: metallb_setup
-
-- name: Include Ingress Metallb endpoint tasks
-  include_tasks:
-    file: ingress_metallb_endpoint.yaml
-  when:
-    - metallb_setup
-    - inventory_hostname in (groups['primary'] | default([]))
 
 - name: Include client-to-cluster tunnel tasks
   include_tasks:
@@ -128,6 +121,21 @@
     - ingress_setup
     - ingress_implementation == "haproxy"
     - inventory_hostname in (groups['primary'] | default([]))
+
+- name: Include Envoy Gateway tasks
+  include_tasks:
+    file: gatewayapi_envoy.yaml
+  when:
+    - gatewayapi_setup
+    - gatewayapi_implementation == "envoy"
+    - inventory_hostname in (groups['primary'] | default([]))
+
+- name: Include public endpoints tasks
+  include_tasks:
+    file: public_endpoints.yaml
+  when:
+    - ingress_setup or gatewayapi_setup
+    - metallb_setup
 
 - name: Include env inventory tasks
   include_tasks:

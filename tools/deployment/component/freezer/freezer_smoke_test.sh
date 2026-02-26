@@ -24,7 +24,7 @@ set -ex
 )
 
 unset OS_DOMAIN_NAME
-export OS_AUTH_URL=http://keystone.openstack.svc.cluster.local/v3
+export OS_AUTH_URL=http://keystone.openstack-helm.org/v3
 export OS_PROJECT_NAME=admin
 export OS_USERNAME=admin
 export OS_PASSWORD=password

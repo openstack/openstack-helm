@@ -12,11 +12,31 @@ At this point we assume all the prerequisites listed below are met:
 - The OpenStack-Helm repositories are enabled, OpenStack-Helm
   plugin is installed and necessary environment variables are set.
 - The ``openstack`` namespace is created.
-- Ingress controller is deployed in the ``openstack`` namespace.
-- MetalLB is deployed and configured. The service of type
-  ``LoadBalancer`` is created and DNS is configured to resolve the
-  Openstack endpoint names to the IP address of the service.
+- MetalLB is deployed. A Gateway API controller is installed and a
+  ``Gateway`` resource is created. The controller will provision a
+  ``LoadBalancer`` service automatically. DNS is configured to resolve
+  the OpenStack endpoint names to the external IP of that service.
+  We recommend `Envoy Gateway`_ as the Gateway API implementation.
 - Ceph is deployed and enabled for using by OpenStack-Helm.
+
+.. _Envoy Gateway: https://gateway.envoyproxy.io/
+
+.. note::
+
+    The recommended way to expose OpenStack services externally is through
+    the `Kubernetes Gateway API`_. The gateway controller (e.g. Envoy Gateway)
+    is deployed in its own namespace (``envoy-gateway-system`` for Envoy Gateway)
+    and creates a ``LoadBalancer`` service backed by MetalLB. Traffic is routed
+    to backend services via ``HTTPRoute`` resources.
+
+    How exactly users expose their workloads may vary. ``HTTPRoute`` objects
+    and additional ``Service`` resources can be added to any chart via the
+    ``.Values.extraObjects`` field available in all OpenStack-Helm charts.
+    For an example see ``values_overrides/nova/gateway.yaml``.
+
+    Legacy ``Ingress`` resources are still supported.
+
+.. _Kubernetes Gateway API: https://gateway-api.sigs.k8s.io/
 
 .. _kubectl: https://kubernetes.io/docs/tasks/tools/install-kubectl/
 .. _helm: https://helm.sh/docs/intro/install/

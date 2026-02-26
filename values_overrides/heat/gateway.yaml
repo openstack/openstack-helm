@@ -1,0 +1,68 @@
+# Gateway API overrides for Heat.
+#
+# Public endpoints use *.openstack-helm.org FQDNs which are resolved by
+# dnsmasq to the MetalLB Gateway VIP. In-cluster pods reach the Gateway
+# through this DNS path so no ExternalName services are needed.
+---
+endpoints:
+  orchestration:
+    host_fqdn_override:
+      public:
+        host: heat.openstack-helm.org
+  cloudformation:
+    host_fqdn_override:
+      public:
+        host: cloudformation.openstack-helm.org
+
+manifests:
+  ingress_api: false
+  ingress_cfn: false
+  service_ingress_api: false
+  service_ingress_cfn: false
+
+extraObjects:
+  - apiVersion: gateway.networking.k8s.io/v1
+    kind: HTTPRoute
+    metadata:
+      name: heat-api-route
+      namespace: openstack
+    spec:
+      hostnames:
+        - "heat"
+        - "heat.openstack"
+        - "heat.openstack.svc.cluster.local"
+        - "heat.openstack-helm.org"
+      parentRefs:
+        - name: gateway-default
+          namespace: envoy-gateway-system
+      rules:
+        - matches:
+            - path:
+                type: PathPrefix
+                value: /
+          backendRefs:
+            - name: heat-api
+              port: 8004
+  - apiVersion: gateway.networking.k8s.io/v1
+    kind: HTTPRoute
+    metadata:
+      name: heat-cfn-route
+      namespace: openstack
+    spec:
+      hostnames:
+        - "heat-cfn"
+        - "heat-cfn.openstack"
+        - "heat-cfn.openstack.svc.cluster.local"
+        - "cloudformation.openstack-helm.org"
+      parentRefs:
+        - name: gateway-default
+          namespace: envoy-gateway-system
+      rules:
+        - matches:
+            - path:
+                type: PathPrefix
+                value: /
+          backendRefs:
+            - name: heat-cfn
+              port: 8000
+...
