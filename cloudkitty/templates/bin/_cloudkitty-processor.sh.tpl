@@ -19,11 +19,13 @@ set -ex
 COMMAND="${@:-start}"
 
 function start () {
-   exec cloudkitty-processor --config-file /etc/cloudkitty/cloudkitty.conf
+    exec cloudkitty-processor \
+        --config-file /etc/cloudkitty/cloudkitty.conf \
+        --config-dir /etc/cloudkitty/cloudkitty.conf.d
 }
 
 function stop () {
-   kill -TERM 1
+    kill -TERM 1
 }
 
 $COMMAND
