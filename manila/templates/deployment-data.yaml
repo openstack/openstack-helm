@@ -17,6 +17,7 @@ limitations under the License.
 
 {{- $mounts_manila_data := .Values.pod.mounts.manila_data.manila_data }}
 {{- $mounts_manila_data_init := .Values.pod.mounts.manila_data.init_container }}
+{{- $etcSources := .Values.pod.etcSources.manila_data }}
 
 {{- $serviceAccountName := "manila-data" }}
 {{ tuple $envAll "data" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
@@ -84,6 +85,9 @@ spec:
               mountPath: /etc/manila/manila.conf
               subPath: manila.conf
               readOnly: true
+            - name: manila-etc-snippets
+              mountPath: /etc/manila/manila.conf.d/
+              readOnly: true
             {{- if .Values.conf.manila.DEFAULT.log_config_append }}
             - name: manila-etc
               mountPath: {{ .Values.conf.manila.DEFAULT.log_config_append }}
@@ -116,6 +120,14 @@ spec:
           secret:
             secretName: manila-etc
             defaultMode: 0444
+        - name: manila-etc-snippets
+{{- if $etcSources }}
+          projected:
+            sources:
+{{ toYaml $etcSources | indent 14 }}
+{{- else }}
+          emptyDir: {}
+{{ end }}
         - name: manila-bin
           configMap:
             name: manila-bin
