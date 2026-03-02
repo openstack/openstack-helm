@@ -17,6 +17,10 @@ limitations under the License.
 
 {{- $mounts_cloudkitty_processor := .Values.pod.mounts.cloudkitty_processor.cloudkitty_processor }}
 {{- $mounts_cloudkitty_processor_init := .Values.pod.mounts.cloudkitty_processor.init_container }}
+{{- $etcSources := .Values.pod.etcSources.cloudkitty_processor }}
+{{- if .Values.manifests.secret_ks_etc }}
+{{- $etcSources = append $etcSources (dict "secret" (dict "name" "cloudkitty-ks-etc")) }}
+{{- end }}
 
 {{- $serviceAccountName := "cloudkitty-processor" }}
 {{- tuple $envAll "cloudkitty_processor" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
@@ -109,9 +113,12 @@ spec:
             secretName: cloudkitty-etc
             defaultMode: 0444
         - name: cloudkitty-etc-snippets
+{{- if $etcSources }}
           projected:
             sources:
-              - secret:
-                  name: cloudkitty-ks-etc
+{{ toYaml $etcSources | indent 14 }}
+{{- else }}
+          emptyDir: {}
+{{ end }}
 {{ if $mounts_cloudkitty_processor.volumes}}{{ toYaml $mounts_cloudkitty_processor.volumes | indent 8 }}{{ end }}
 {{- end }}
