@@ -23,7 +23,8 @@ OPTIONS=" --config-file /tmp/pod-shared/swift.conf"
 function start () {
   exec ironic-api \
         --config-file /etc/ironic/ironic.conf \
-        ${OPTIONS}
+        ${OPTIONS} \
+        --config-dir /etc/ironic/ironic.conf.d
 }
 
 function stop () {

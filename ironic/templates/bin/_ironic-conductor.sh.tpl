@@ -26,4 +26,5 @@ OPTIONS=" --config-file /tmp/pod-shared/swift.conf"
 exec ironic-conductor \
       --config-file /etc/ironic/ironic.conf \
       --config-file /tmp/pod-shared/conductor-local-ip.conf \
-      ${OPTIONS}
+      ${OPTIONS} \
+      --config-dir /etc/ironic/ironic.conf.d

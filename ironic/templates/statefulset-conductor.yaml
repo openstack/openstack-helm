@@ -17,6 +17,7 @@ limitations under the License.
 
 {{- $mounts_ironic_conductor := .Values.pod.mounts.ironic_conductor.ironic_conductor }}
 {{- $mounts_ironic_conductor_init := .Values.pod.mounts.ironic_conductor.init_container }}
+{{- $etcSources := .Values.pod.etcSources.ironic_conductor }}
 
 {{- $serviceAccountName := "ironic-conductor" }}
 {{ tuple $envAll "conductor" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
@@ -171,6 +172,9 @@ spec:
               mountPath: /etc/ironic/ironic.conf
               subPath: ironic.conf
               readOnly: true
+            - name: ironic-etc-snippets
+              mountPath: /etc/ironic/ironic.conf.d/
+              readOnly: true
             {{- if .Values.conf.ironic.DEFAULT.log_config_append }}
             - name: ironic-etc
               mountPath: {{ .Values.conf.ironic.DEFAULT.log_config_append }}
@@ -251,6 +255,14 @@ spec:
           secret:
             secretName: ironic-etc
             defaultMode: 0444
+        - name: ironic-etc-snippets
+{{- if $etcSources }}
+          projected:
+            sources:
+{{ toYaml $etcSources | indent 14 }}
+{{- else }}
+          emptyDir: {}
+{{ end }}
         - name: host-var-lib-ironic
           hostPath:
             path: /var/lib/ironic
