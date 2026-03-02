@@ -6,6 +6,7 @@
 
 {{- $mounts_designate_service_cleaner := .Values.pod.mounts.designate_service_cleaner.designate_service_cleaner }}
 {{- $mounts_designate_service_cleaner_init := .Values.pod.mounts.designate_service_cleaner.init_container }}
+{{- $etcSources := .Values.pod.etcSources.designate_service_cleaner }}
 
 {{- $serviceAccountName := "designate-service-cleaner" }}
 {{ tuple $envAll "service_cleaner" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
@@ -66,6 +67,9 @@ spec:
                   mountPath: /etc/designate/designate.conf
                   subPath: designate.conf
                   readOnly: true
+                - name: designate-etc-snippets
+                  mountPath: /etc/designate/designate.conf.d/
+                  readOnly: true
                 - name: designate-etc
                   mountPath: /etc/designate/api-paste.ini
                   subPath: api-paste.ini
@@ -94,5 +98,13 @@ spec:
               secret:
                 secretName: designate-etc
                 defaultMode: 0444
+            - name: service-etc-snippets
+{{- if $etcSources }}
+              projected:
+                sources:
+{{ toYaml $etcSources | indent 18 }}
+{{- else }}
+              emptyDir: {}
+{{ end }}
 {{ if $mounts_designate_service_cleaner.volumes }}{{ toYaml $mounts_designate_service_cleaner.volumes | indent 12 }}{{ end }}
 {{- end }}

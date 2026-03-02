@@ -15,7 +15,8 @@
 set -ex
 COMMAND="${@:-start}"
   exec designate-sink \
-      --config-file /etc/designate/designate.conf
+      --config-file /etc/designate/designate.conf \
+      --config-dir /etc/designate/designate.conf.d
 }
 
 function stop () {
