@@ -53,6 +53,9 @@ tcp_established = "ESTABLISHED"
 
 
 def _get_hostname(topic, use_fqdn):
+    configured_host = cfg.CONF.host
+    if configured_host:
+        return configured_host
     if use_fqdn and topic == "compute":
         return socket.getfqdn()
     return socket.gethostname()
