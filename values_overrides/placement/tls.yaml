@@ -21,11 +21,14 @@ conf:
   wsgi_placement: |
     {{- $portInt := tuple "placement" "service" "api" $ | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
     Listen {{ $portInt }}
+    <Directory /var/lib/openstack/bin>
+        Require all granted
+    </Directory>
     <VirtualHost *:{{ $portInt }}>
       ServerName {{ printf "%s.%s.svc.%s" "placement-api" .Release.Namespace .Values.endpoints.cluster_domain_suffix }}
       WSGIDaemonProcess placement-api processes=1 threads=1 user=placement group=placement display-name=%{GROUP}
       WSGIProcessGroup placement-api
-      WSGIScriptAlias / /var/www/cgi-bin/placement/placement-api
+      WSGIScriptAlias / /var/lib/openstack/bin/placement-api
       WSGIApplicationGroup %{GLOBAL}
       WSGIPassAuthorization On
       ErrorLogFormat "%{cu}t %M"
