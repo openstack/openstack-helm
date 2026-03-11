@@ -23,11 +23,14 @@ conf:
   wsgi_heat: |
     {{- $portInt := tuple "orchestration" "internal" "api" $ | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
     Listen {{ $portInt }}
+    <Directory /var/lib/openstack/bin>
+        Require all granted
+    </Directory>
     <VirtualHost *:{{ $portInt }}>
       ServerName {{ printf "%s.%s.svc.%s" "heat-api" .Release.Namespace .Values.endpoints.cluster_domain_suffix }}
       WSGIDaemonProcess heat-api processes=1 threads=1 user=heat display-name=%{GROUP}
       WSGIProcessGroup heat-api
-      WSGIScriptAlias /  /var/www/cgi-bin/heat/heat-wsgi-api
+      WSGIScriptAlias /  /var/lib/openstack/bin/heat-wsgi-api
       WSGIApplicationGroup %{GLOBAL}
       WSGIPassAuthorization On
       AllowEncodedSlashes On
@@ -48,11 +51,14 @@ conf:
   wsgi_cfn: |
     {{- $portInt := tuple "cloudformation" "internal" "api" $ | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
     Listen {{ $portInt }}
+    <Directory /var/lib/openstack/bin>
+        Require all granted
+    </Directory>
     <VirtualHost *:{{ $portInt }}>
       ServerName {{ printf "%s.%s.svc.%s" "heat-api-cfn" .Release.Namespace .Values.endpoints.cluster_domain_suffix }}
       WSGIDaemonProcess heat-api-cfn processes=1 threads=1 user=heat display-name=%{GROUP}
       WSGIProcessGroup heat-api-cfn
-      WSGIScriptAlias / /var/www/cgi-bin/heat/heat-wsgi-api-cfn
+      WSGIScriptAlias / /var/lib/openstack/bin/heat-wsgi-api-cfn
       WSGIApplicationGroup %{GLOBAL}
       WSGIPassAuthorization On
       AllowEncodedSlashes On

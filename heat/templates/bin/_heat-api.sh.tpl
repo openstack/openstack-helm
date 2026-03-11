@@ -20,10 +20,6 @@ COMMAND="${@:-start}"
 function start () {
 
 {{- if .Values.manifests.certificates }}
-  for WSGI_SCRIPT in heat-wsgi-api; do
-    cp -a $(type -p ${WSGI_SCRIPT}) /var/www/cgi-bin/heat/
-  done
-
   if [ -f /etc/apache2/envvars ]; then
     # Loading Apache2 ENV variables
     source /etc/apache2/envvars
