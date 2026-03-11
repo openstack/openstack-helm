@@ -35,11 +35,14 @@ conf:
   wsgi_cinder: |
     {{- $portInt := tuple "volume" "internal" "api" $ | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
     Listen {{ $portInt }}
+    <Directory /var/lib/openstack/bin>
+        Require all granted
+    </Directory>
     <VirtualHost *:{{ $portInt }}>
       ServerName {{ printf "%s.%s.svc.%s" "cinder-api" .Release.Namespace .Values.endpoints.cluster_domain_suffix }}
       WSGIDaemonProcess cinder-api processes=1 threads=1 user=cinder display-name=%{GROUP}
       WSGIProcessGroup cinder-api
-      WSGIScriptAlias /  /var/www/cgi-bin/cinder/cinder-wsgi
+      WSGIScriptAlias /  /var/lib/openstack/bin/cinder-wsgi
       WSGIApplicationGroup %{GLOBAL}
       WSGIPassAuthorization On
       AllowEncodedSlashes On
