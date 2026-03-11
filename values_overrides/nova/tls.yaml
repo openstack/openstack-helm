@@ -26,11 +26,14 @@ conf:
   wsgi_nova_api: |
     {{- $portInt := tuple "compute" "service" "api" $ | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
     Listen {{ $portInt }}
+    <Directory /var/lib/openstack/bin>
+        Require all granted
+    </Directory>
     <VirtualHost *:{{ $portInt }}>
       ServerName {{ printf "%s.%s.svc.%s" "nova-api" .Release.Namespace .Values.endpoints.cluster_domain_suffix }}
       WSGIDaemonProcess nova-api processes=1 threads=1 user=nova display-name=%{GROUP}
       WSGIProcessGroup nova-api
-      WSGIScriptAlias /  /var/www/cgi-bin/nova/nova-api-wsgi
+      WSGIScriptAlias /  /var/lib/openstack/bin/nova-api-wsgi
       WSGIApplicationGroup %{GLOBAL}
       WSGIPassAuthorization On
       AllowEncodedSlashes On
@@ -50,11 +53,14 @@ conf:
   wsgi_nova_metadata: |
     {{- $portInt := tuple "compute_metadata" "service" "metadata" $ | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
     Listen {{ $portInt }}
+    <Directory /var/lib/openstack/bin>
+        Require all granted
+    </Directory>
     <VirtualHost *:{{ $portInt }}>
       ServerName {{ printf "%s.%s.svc.%s" "nova-metadata" .Release.Namespace .Values.endpoints.cluster_domain_suffix }}
       WSGIDaemonProcess nova-metadata processes=1 threads=1 user=nova display-name=%{GROUP}
       WSGIProcessGroup nova-metadata
-      WSGIScriptAlias /  /var/www/cgi-bin/nova/nova-metadata-wsgi
+      WSGIScriptAlias /  /var/lib/openstack/bin/nova-metadata-wsgi
       WSGIApplicationGroup %{GLOBAL}
       WSGIPassAuthorization On
       AllowEncodedSlashes On
