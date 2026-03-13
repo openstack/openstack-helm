@@ -36,12 +36,14 @@ conf:
     SetEnvIf X-Forwarded-For "^.*\..*\..*\..*" forwarded
     CustomLog /dev/stdout combined env=!forwarded
     CustomLog /dev/stdout proxy env=forwarded
+    ErrorLogFormat "%{cu}t %M"
+    ErrorLog /dev/stdout
 
-    <VirtualHost *:{{ tuple "identity" "service" "api" $ | include "helm-toolkit.endpoints.endpoint_port_lookup" }}>
+    <VirtualHost *:{{ $portInt }}>
       ServerName {{ printf "%s.%s.svc.%s" "keystone-api" .Release.Namespace .Values.endpoints.cluster_domain_suffix }}
       WSGIDaemonProcess keystone-public processes=1 threads=1 user=keystone group=keystone display-name=%{GROUP}
       WSGIProcessGroup keystone-public
-      WSGIScriptAlias / /var/www/cgi-bin/keystone/keystone-wsgi-public
+      WSGIScriptAlias / /var/www/cgi-bin/keystone/wsgi.py
       WSGIApplicationGroup %{GLOBAL}
       WSGIPassAuthorization On
       ErrorLogFormat "%{cu}t %M"
