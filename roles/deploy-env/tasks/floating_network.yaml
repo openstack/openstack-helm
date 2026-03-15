@@ -20,15 +20,23 @@
   shell: |
     ip tuntap add name provider1 mode tap
     ip link set provider1 up
-    ip addr add {{ openstack_provider_gateway_cidr }} dev provider1
+    ip addr add {{ floating_network_gateway_cidr }} dev provider1
 
 - name: Set up SNAT for packets going outside the cluster
   shell: |
-    iptables -t nat -A POSTROUTING -o {{ cluster_default_dev }} -s {{ openstack_provider_network_cidr }} -j MASQUERADE
+    iptables -t nat -A POSTROUTING -o {{ cluster_default_dev }} -s {{ floating_network_cidr }} -j MASQUERADE
 
 - name: Set up FORWARD for packets going from VMs
   shell: |
-    iptables -t filter -I FORWARD -s {{ openstack_provider_network_cidr }} -j ACCEPT
+    iptables -t filter -I FORWARD -s {{ floating_network_cidr }} -j ACCEPT
+
+
+- name: Set up tcp proxy TAP interfaces on cluster control-plane node
+  shell: |
+    ip tuntap add name tcpproxy1 mode tap
+    ip link set tcpproxy1 up
+    ip addr add {{ tcpproxy_gatewayapi_cidr }} dev tcpproxy1
+    ip addr add {{ tcpproxy_ingress_openstack_cidr }} dev tcpproxy1
 
 # We use tcp proxy to forward traffic to make it possible to connect
 # to the Openstack public endpoint (managed by Metallb) from VMs.
@@ -73,8 +81,19 @@
       --keep-in-foreground
       --no-hosts
       --bind-interfaces
-      --address="/openstack.svc.cluster.local/{{ openstack_provider_gateway_cidr | ipaddr('address') }}"
-      --listen-address="{{ openstack_provider_gateway_cidr | ipaddr('address') }}"
+      --address="/keystone.openstack-helm.org/{{ tcpproxy_gatewayapi_cidr | ipaddr('address') }}"
+      --address="/placement.openstack-helm.org/{{ tcpproxy_gatewayapi_cidr | ipaddr('address') }}"
+      --address="/glance.openstack-helm.org/{{ tcpproxy_gatewayapi_cidr | ipaddr('address') }}"
+      --address="/nova.openstack-helm.org/{{ tcpproxy_gatewayapi_cidr | ipaddr('address') }}"
+      --address="/metadata.openstack-helm.org/{{ tcpproxy_gatewayapi_cidr | ipaddr('address') }}"
+      --address="/novncproxy.openstack-helm.org/{{ tcpproxy_gatewayapi_cidr | ipaddr('address') }}"
+      --address="/serialproxy.openstack-helm.org/{{ tcpproxy_gatewayapi_cidr | ipaddr('address') }}"
+      --address="/spiceproxy.openstack-helm.org/{{ tcpproxy_gatewayapi_cidr | ipaddr('address') }}"
+      --address="/neutron.openstack-helm.org/{{ tcpproxy_gatewayapi_cidr | ipaddr('address') }}"
+      --address="/heat.openstack-helm.org/{{ tcpproxy_gatewayapi_cidr | ipaddr('address') }}"
+      --address="/cloudformation.openstack-helm.org/{{ tcpproxy_gatewayapi_cidr | ipaddr('address') }}"
+      --address="/openstack.svc.cluster.local/{{ tcpproxy_ingress_openstack_cidr | ipaddr('address') }}"
+      --listen-address="{{ floating_network_gateway_cidr | ipaddr('address') }}"
       --no-resolv
       --server={{ dnsmasq_dns_server }}
       {{ dnsmasq_extra_args | default('') }}

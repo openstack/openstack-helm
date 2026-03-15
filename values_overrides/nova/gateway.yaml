@@ -1,0 +1,156 @@
+# Gateway API overrides for Nova.
+#
+# Public endpoints use *.openstack-helm.org FQDNs which are resolved by
+# dnsmasq to the MetalLB Gateway VIP. In-cluster pods reach the Gateway
+# through this DNS path so no ExternalName services are needed.
+---
+endpoints:
+  compute:
+    host_fqdn_override:
+      public:
+        host: nova.openstack-helm.org
+  compute_metadata:
+    host_fqdn_override:
+      public:
+        host: metadata.openstack-helm.org
+  compute_novnc_proxy:
+    host_fqdn_override:
+      public:
+        host: novncproxy.openstack-helm.org
+  compute_serial_proxy:
+    host_fqdn_override:
+      public:
+        host: serialproxy.openstack-helm.org
+  compute_spice_proxy:
+    host_fqdn_override:
+      public:
+        host: spiceproxy.openstack-helm.org
+
+manifests:
+  ingress_metadata: false
+  ingress_novncproxy: false
+  ingress_serialproxy: false
+  ingress_spiceproxy: false
+  ingress_osapi: false
+  service_ingress_metadata: false
+  service_ingress_novncproxy: false
+  service_ingress_serialproxy: false
+  service_ingress_spiceproxy: false
+  service_ingress_osapi: false
+
+extraObjects:
+  - apiVersion: gateway.networking.k8s.io/v1
+    kind: HTTPRoute
+    metadata:
+      name: nova-route-osapi
+      namespace: openstack
+    spec:
+      hostnames:
+        - "nova"
+        - "nova.openstack"
+        - "nova.openstack.svc.cluster.local"
+        - "nova.openstack-helm.org"
+      parentRefs:
+        - name: gateway-default
+          namespace: envoy-gateway-system
+      rules:
+        - matches:
+            - path:
+                type: PathPrefix
+                value: /
+          backendRefs:
+            - name: nova-api
+              port: 8774
+
+  - apiVersion: gateway.networking.k8s.io/v1
+    kind: HTTPRoute
+    metadata:
+      name: nova-route-metadata
+      namespace: openstack
+    spec:
+      hostnames:
+        - "metadata"
+        - "metadata.openstack"
+        - "metadata.openstack.svc.cluster.local"
+        - "metadata.openstack-helm.org"
+      parentRefs:
+        - name: gateway-default
+          namespace: envoy-gateway-system
+      rules:
+        - matches:
+            - path:
+                type: PathPrefix
+                value: /
+          backendRefs:
+            - name: nova-metadata
+              port: 8775
+
+  - apiVersion: gateway.networking.k8s.io/v1
+    kind: HTTPRoute
+    metadata:
+      name: nova-route-novncproxy
+      namespace: openstack
+    spec:
+      hostnames:
+        - "novncproxy"
+        - "novncproxy.openstack"
+        - "novncproxy.openstack.svc.cluster.local"
+        - "novncproxy.openstack-helm.org"
+      parentRefs:
+        - name: gateway-default
+          namespace: envoy-gateway-system
+      rules:
+        - matches:
+            - path:
+                type: PathPrefix
+                value: /
+          backendRefs:
+            - name: nova-novncproxy
+              port: 6080
+
+  - apiVersion: gateway.networking.k8s.io/v1
+    kind: HTTPRoute
+    metadata:
+      name: nova-route-serialproxy
+      namespace: openstack
+    spec:
+      hostnames:
+        - "serialproxy"
+        - "serialproxy.openstack"
+        - "serialproxy.openstack.svc.cluster.local"
+        - "serialproxy.openstack-helm.org"
+      parentRefs:
+        - name: gateway-default
+          namespace: envoy-gateway-system
+      rules:
+        - matches:
+            - path:
+                type: PathPrefix
+                value: /
+          backendRefs:
+            - name: nova-serialproxy
+              port: 6083
+
+  - apiVersion: gateway.networking.k8s.io/v1
+    kind: HTTPRoute
+    metadata:
+      name: nova-route-spiceproxy
+      namespace: openstack
+    spec:
+      hostnames:
+        - "spiceproxy"
+        - "spiceproxy.openstack"
+        - "spiceproxy.openstack.svc.cluster.local"
+        - "spiceproxy.openstack-helm.org"
+      parentRefs:
+        - name: gateway-default
+          namespace: envoy-gateway-system
+      rules:
+        - matches:
+            - path:
+                type: PathPrefix
+                value: /
+          backendRefs:
+            - name: nova-spiceproxy
+              port: 6082
+...

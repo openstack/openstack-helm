@@ -30,6 +30,7 @@ fi
 
 #NOTE: Deploy placement
 helm upgrade --install placement ${OSH_HELM_REPO}/placement --namespace=openstack \
+    --values=${OSH_VALUES_OVERRIDES_PATH}/placement/gateway.yaml \
     ${OSH_EXTRA_HELM_ARGS:=} \
     ${OSH_EXTRA_HELM_ARGS_PLACEMENT}
 
@@ -50,6 +51,7 @@ EOF
 helm upgrade --install nova ${OSH_HELM_REPO}/nova \
     --namespace=openstack \
     --values=/tmp/nova.yaml \
+    --values=${OSH_VALUES_OVERRIDES_PATH}/nova/gateway.yaml \
     ${OSH_EXTRA_HELM_ARGS:=} \
     ${OSH_EXTRA_HELM_ARGS_NOVA}
 
@@ -93,6 +95,7 @@ EOF
 helm upgrade --install neutron ${OSH_HELM_REPO}/neutron \
     --namespace=openstack \
     --values=/tmp/neutron.yaml \
+    --values=${OSH_VALUES_OVERRIDES_PATH}/neutron/gateway.yaml \
     ${OSH_EXTRA_HELM_ARGS:=} \
     ${OSH_EXTRA_HELM_ARGS_NEUTRON}
 

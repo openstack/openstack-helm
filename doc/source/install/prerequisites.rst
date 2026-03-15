@@ -1,69 +1,106 @@
 Kubernetes prerequisites
 ========================
 
-Ingress controller
-------------------
+Gateway API
+-----------
 
-Ingress controller when deploying OpenStack on Kubernetes
-is essential to ensure proper external access for the OpenStack services.
+The `Kubernetes Gateway API`_ is the recommended way to expose OpenStack
+services externally. It provides an expressive and extensible routing model.
+We recommend using `Envoy Gateway`_ as the Gateway API implementation.
 
-We recommend using the `haproxy-ingress`_ because it is simple and provides
-all necessary features. It utilizes HAProxy as a reverse proxy backend.
-Here is how to deploy it.
+Below we describe how we deploy the Gateway API and Envoy Gateway in the cluster on
+test clusters.
 
-First, let's create a namespace for the OpenStack workloads. The ingress
-controller must be deployed in the same namespace because OpenStack-Helm charts
-create service resources pointing to the ingress controller pods which
-in turn redirect traffic to particular Openstack API pods.
+First, install the Gateway API CRDs and `Envoy Gateway`_:
 
 .. code-block:: bash
 
-    tee > /tmp/openstack_namespace.yaml <<EOF
-    apiVersion: v1
-    kind: Namespace
+    helm install eg oci://docker.io/envoyproxy/gateway-helm \
+      --version v1.7.0 \
+      --namespace envoy-gateway-system \
+      --create-namespace
+
+Next, create the ``EnvoyProxy`` custom resource, the ``Gateway``.
+The ``EnvoyProxy`` tells Envoy Gateway
+how to configure the data-plane pods and the ``LoadBalancer`` service
+(backed by MetalLB, see below). The ``Gateway`` defines the listener that
+accepts traffic. The gateway controller will automatically create a
+``LoadBalancer`` service.
+
+.. code-block:: bash
+
+    GATEWAY_IP=<metallb_ip_for_gateway>
+
+    tee > /tmp/gatewayapi_envoy_default.yaml <<EOF
+    ---
+    apiVersion: gateway.envoyproxy.io/v1alpha1
+    kind: EnvoyProxy
     metadata:
-      name: openstack
+      name: gateway-proxy-default
+      namespace: envoy-gateway-system
+    spec:
+      provider:
+        type: Kubernetes
+        kubernetes:
+          envoyService:
+            type: LoadBalancer
+            externalTrafficPolicy: Cluster
+            annotations:
+              metallb.universe.tf/loadBalancerIPs: "${GATEWAY_IP}"
+            patch:
+              type: StrategicMerge
+              value:
+                spec:
+                  externalTrafficPolicy: Cluster
+    ---
+    apiVersion: gateway.networking.k8s.io/v1
+    kind: Gateway
+    metadata:
+      name: gateway-default
+      namespace: envoy-gateway-system
+    spec:
+      gatewayClassName: default
+      infrastructure:
+        parametersRef:
+          group: gateway.envoyproxy.io
+          kind: EnvoyProxy
+          name: gateway-proxy-default
+      listeners:
+        - name: http
+          protocol: HTTP
+          port: 80
+          allowedRoutes:
+            namespaces:
+              from: All
     EOF
-    kubectl apply -f /tmp/openstack_namespace.yaml
+    kubectl apply -f /tmp/gatewayapi_envoy_default.yaml
 
-Next, deploy the ingress controller in the ``openstack`` namespace:
+Kubernetes workloads that need to reach public OpenStack endpoints
+(e.g. Octavia workers calling the Nova API) send requests to the cluster
+Coredns service which by default forwards requests to the DNS server
+configured in the /etc/resolv.conf file on the cluster nodes. We configure
+the cluster nodes to use the Dnsmasq running on the control plane node
+as the default nameserver. The Dnsmasq is configured to resolve
+the Openstack public names to the LB IP.
 
-.. code-block:: bash
+How exactly users expose their workloads may vary. ``HTTPRoute`` objects
+can be added to any OpenStack-Helm chart via
+the ``.Values.extraObjects`` field. For a complete example see
+``values_overrides/nova/gateway.yaml``.
 
-    helm repo add haproxy-ingress https://haproxy-ingress.github.io/charts
-    helm upgrade --install haproxy-ingress haproxy-ingress/haproxy-ingress \
-      --version 0.15.0 \
-      --namespace=openstack \
-      --set controller.kind=Deployment \
-      --set controller.ingressClassResource.enabled="true" \
-      --set controller.ingressClass=ingress-openstack \
-      --set controller.podLabels.app=ingress-api
+.. _Kubernetes Gateway API: https://gateway-api.sigs.k8s.io/
+.. _Envoy Gateway: https://gateway.envoyproxy.io/
 
-You can deploy any other ingress controller that suits your needs best.
-See for example the list of available `ingress controllers`_.
-Ensure that the ingress controller pods are deployed with the ``app: ingress-api``
-label which is used by the OpenStack-Helm as a selector for the Kubernetes
-service resources.
-
-For example, the OpenStack-Helm ``keystone`` chart by default creates a service
-that redirects traffic to the ingress controller pods selected using the
-``app: ingress-api`` label. Then it also creates an ``Ingress`` resource which
-the ingress controller then uses to configure its reverse proxy
-backend (HAProxy) which eventually routes the traffic to the Keystone API
-service which works as an endpoint for Keystone API pods.
-
-.. image:: ingress.jpg
+.. image:: OSH_GatewayAPI.svg
     :width: 100%
     :align: center
-    :alt: ingress scheme
+    :alt: Gateway API traffic flow
 
 .. note::
-    For exposing the OpenStack services to the external world, we can a create
-    service of type ``LoadBalancer`` or ``NodePort`` with the selector pointing to
-    the ingress controller pods.
+    Legacy ``Ingress`` resources are still supported. If you prefer to use an
+    ingress controller instead of the Gateway API, deploy one in the
+    ``openstack`` namespace with pods labeled ``app: ingress-api``.
 
-.. _haproxy-ingress: https://haproxy-ingress.github.io/
-.. _ingress controllers: https://kubernetes.io/docs/concepts/services-networking/ingress-controllers/
 
 MetalLB
 -------
