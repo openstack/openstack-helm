@@ -23,7 +23,6 @@ set -xe
 #NOTE: Deploy command
 helm upgrade --install keystone ${OSH_HELM_REPO}/keystone \
     --namespace=openstack \
-    --values=${OSH_VALUES_OVERRIDES_PATH}/keystone/gateway.yaml \
     ${OSH_EXTRA_HELM_ARGS:=} \
     ${OSH_EXTRA_HELM_ARGS_KEYSTONE}
 

@@ -21,7 +21,6 @@ set -xe
 #NOTE: Deploy command
 helm upgrade --install heat ${OSH_HELM_REPO}/heat \
   --namespace=openstack \
-  --values=${OSH_VALUES_OVERRIDES_PATH}/heat/gateway.yaml \
   ${OSH_EXTRA_HELM_ARGS:=} \
   ${OSH_EXTRA_HELM_ARGS_HEAT}
 
