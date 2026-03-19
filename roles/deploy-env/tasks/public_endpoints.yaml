@@ -139,7 +139,14 @@
 
 - name: Set dnsmasq listen ip
   set_fact:
-    nameserver_ip: "{{ overlay_network_prefix }}{{ (groups['all'] | sort).index(groups['primary'][0]) + 1 }}"
+    nameserver_ip: >-
+      {{
+        overlay_network_prefix ~ ((groups['all'] | sort).index(groups['primary'][0]) + 1) if overlay_network_setup | bool
+        else (groups['primary'] | map('extract', hostvars, ['ansible_default_ipv4', 'address']) | first)
+      }}
+
+- debug:
+    msg: "nameserver_ip = {{ nameserver_ip }}"
 
 - name: Start dnsmasq
   when:
