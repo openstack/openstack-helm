@@ -39,7 +39,7 @@ exec:
     - scheduler
 {{- end }}
 
-{{- if and .Values.manifests.deployment_scheduler (not .Values.manifests.statefulset_scheduler) }}
+{{- if .Values.manifests.statefulset_scheduler }}
 {{- $envAll := . }}
 
 {{- $mounts_nova_scheduler := .Values.pod.mounts.nova_scheduler.nova_scheduler }}
@@ -53,7 +53,7 @@ exec:
 {{ tuple $envAll "scheduler" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: nova-scheduler
   annotations:
@@ -61,11 +61,13 @@ metadata:
   labels:
 {{ tuple $envAll "nova" "scheduler" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 spec:
+  serviceName: nova-scheduler
   replicas: {{ .Values.pod.replicas.scheduler }}
   selector:
     matchLabels:
 {{ tuple $envAll "nova" "scheduler" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
-{{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_deployment" | indent 2 }}
+  podManagementPolicy: Parallel
+{{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_statefulset" | indent 2 }}
   template:
     metadata:
       labels:
@@ -102,12 +104,29 @@ spec:
               value: "{{ .Values.pod.probes.rpc_timeout }}"
             - name: RPC_PROBE_RETRIES
               value: "{{ .Values.pod.probes.rpc_retries }}"
+            - name: HOSTNAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
 {{- if or .Values.manifests.certificates .Values.tls.identity }}
             - name: REQUESTS_CA_BUNDLE
               value: "/etc/nova/certs/ca.crt"
 {{- end }}
           command:
-            - /tmp/nova-scheduler.sh
+            - /bin/bash
+            - -c
+            - |
+              set -xe
+{{- if empty .Values.conf.nova.DEFAULT.host }}
+              # When using StatefulSet, use the pod hostname for stable service names
+              cat > /tmp/nova-scheduler-host.conf << EOF
+              [DEFAULT]
+              host = ${HOSTNAME}
+              EOF
+              exec nova-scheduler --config-file /etc/nova/nova.conf --config-file /tmp/nova-scheduler-host.conf --config-dir /etc/nova/nova.conf.d
+{{- else }}
+              exec /tmp/nova-scheduler.sh
+{{- end }}
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp

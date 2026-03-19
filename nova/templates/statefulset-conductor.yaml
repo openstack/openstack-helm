@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- define "novaSchedulerLivenessProbeTemplate" }}
+{{- define "novaConductorLivenessProbeTemplate" }}
 exec:
   command:
     - python
@@ -22,11 +22,11 @@ exec:
     - --config-dir
     - /etc/nova/nova.conf.d
     - --service-queue-name
-    - scheduler
+    - conductor
     - --liveness-probe
 {{- end }}
 
-{{- define "novaSchedulerReadinessProbeTemplate" }}
+{{- define "novaConductorReadinessProbeTemplate" }}
 exec:
   command:
     - python
@@ -36,86 +36,105 @@ exec:
     - --config-dir
     - /etc/nova/nova.conf.d
     - --service-queue-name
-    - scheduler
+    - conductor
 {{- end }}
 
-{{- if and .Values.manifests.deployment_scheduler (not .Values.manifests.statefulset_scheduler) }}
+{{- if .Values.manifests.statefulset_conductor }}
 {{- $envAll := . }}
 
-{{- $mounts_nova_scheduler := .Values.pod.mounts.nova_scheduler.nova_scheduler }}
-{{- $mounts_nova_scheduler_init := .Values.pod.mounts.nova_scheduler.init_container }}
-{{- $etcSources := .Values.pod.etcSources.nova_scheduler }}
+{{- $mounts_nova_conductor := .Values.pod.mounts.nova_conductor.nova_conductor }}
+{{- $mounts_nova_conductor_init := .Values.pod.mounts.nova_conductor.init_container }}
+{{- $etcSources := .Values.pod.etcSources.nova_conductor }}
 {{- if eq .Values.manifests.secret_ks_etc true }}
 {{- $etcSources = append $etcSources (dict "secret" (dict "name" "nova-ks-etc")) }}
 {{- end }}
 
-{{- $serviceAccountName := "nova-scheduler" }}
-{{ tuple $envAll "scheduler" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{- $serviceAccountName := "nova-conductor" }}
+{{ tuple $envAll "conductor" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
-  name: nova-scheduler
+  name: nova-conductor
   annotations:
     {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
   labels:
-{{ tuple $envAll "nova" "scheduler" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+{{ tuple $envAll "nova" "conductor" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 spec:
-  replicas: {{ .Values.pod.replicas.scheduler }}
+  serviceName: nova-conductor
+  replicas: {{ .Values.pod.replicas.conductor }}
   selector:
     matchLabels:
-{{ tuple $envAll "nova" "scheduler" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
-{{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_deployment" | indent 2 }}
+{{ tuple $envAll "nova" "conductor" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
+  podManagementPolicy: Parallel
+{{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_statefulset" | indent 2 }}
   template:
     metadata:
       labels:
-{{ tuple $envAll "nova" "scheduler" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+{{ tuple $envAll "nova" "conductor" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
       annotations:
 {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
-{{ tuple "nova_scheduler" . | include "helm-toolkit.snippets.custom_pod_annotations" | indent 8 }}
-{{ dict "envAll" $envAll "podName" "nova-scheduler" "containerNames" (list "nova-scheduler" "init") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
+{{ tuple "nova_conductor" . | include "helm-toolkit.snippets.custom_pod_annotations" | indent 8 }}
+{{ dict "envAll" $envAll "podName" "nova-conductor" "containerNames" (list "nova-conductor" "init") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
     spec:
-{{ tuple "nova_scheduler" . | include "helm-toolkit.snippets.kubernetes_pod_priority_class" | indent 6 }}
-{{ tuple "nova_scheduler" . | include "helm-toolkit.snippets.kubernetes_pod_runtime_class" | indent 6 }}
+{{ tuple "nova_conductor" . | include "helm-toolkit.snippets.kubernetes_pod_priority_class" | indent 6 }}
+{{ tuple "nova_conductor" . | include "helm-toolkit.snippets.kubernetes_pod_runtime_class" | indent 6 }}
       serviceAccountName: {{ $serviceAccountName }}
 {{ dict "envAll" $envAll "application" "nova" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
       affinity:
-{{ tuple $envAll "nova" "scheduler" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
+{{ tuple $envAll "nova" "conductor" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
       nodeSelector:
-        {{ .Values.labels.scheduler.node_selector_key }}: {{ .Values.labels.scheduler.node_selector_value }}
+        {{ .Values.labels.conductor.node_selector_key }}: {{ .Values.labels.conductor.node_selector_value }}
 {{ if $envAll.Values.pod.tolerations.nova.enabled }}
 {{ tuple $envAll "nova" | include "helm-toolkit.snippets.kubernetes_tolerations" | indent 6 }}
 {{ end }}
       initContainers:
-{{ tuple $envAll "scheduler" $mounts_nova_scheduler_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll "conductor" $mounts_nova_conductor_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
-        - name: nova-scheduler
-{{ tuple $envAll "nova_scheduler" | include "helm-toolkit.snippets.image" | indent 10 }}
-{{ tuple $envAll $envAll.Values.pod.resources.scheduler | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-{{ dict "envAll" $envAll "application" "nova" "container" "nova_scheduler" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
-{{ dict "envAll" $envAll "component" "scheduler" "container" "default" "type" "liveness" "probeTemplate" (include "novaSchedulerLivenessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
-{{ dict "envAll" $envAll "component" "scheduler" "container" "default" "type" "readiness" "probeTemplate" (include "novaSchedulerReadinessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+        - name: nova-conductor
+{{ tuple $envAll "nova_conductor" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.conductor | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "nova" "container" "nova_conductor" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+{{ dict "envAll" $envAll "component" "conductor" "container" "default" "type" "liveness" "probeTemplate" (include "novaConductorLivenessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+{{ dict "envAll" $envAll "component" "conductor" "container" "default" "type" "readiness" "probeTemplate" (include "novaConductorReadinessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
           env:
             - name: RPC_PROBE_TIMEOUT
               value: "{{ .Values.pod.probes.rpc_timeout }}"
             - name: RPC_PROBE_RETRIES
               value: "{{ .Values.pod.probes.rpc_retries }}"
+            - name: HOSTNAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
 {{- if or .Values.manifests.certificates .Values.tls.identity }}
             - name: REQUESTS_CA_BUNDLE
               value: "/etc/nova/certs/ca.crt"
 {{- end }}
           command:
-            - /tmp/nova-scheduler.sh
+            - /bin/bash
+            - -c
+            - |
+              set -x
+{{- if empty .Values.conf.nova.DEFAULT.host }}
+              # When using StatefulSet, use the pod hostname for stable service names
+              cat > /tmp/nova-conductor-host.conf << EOF
+              [DEFAULT]
+              host = ${HOSTNAME}
+              EOF
+              exec nova-conductor --config-file /etc/nova/nova.conf --config-file /tmp/nova-conductor-host.conf --config-dir /etc/nova/nova.conf.d
+{{- else }}
+              exec /tmp/nova-conductor.sh
+{{- end }}
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
             - name: oslo-lock-path
               mountPath: {{ .Values.conf.nova.oslo_concurrency.lock_path }}
             - name: nova-bin
-              mountPath: /tmp/nova-scheduler.sh
-              subPath: nova-scheduler.sh
+              mountPath: /tmp/nova-conductor.sh
+              subPath: nova-conductor.sh
               readOnly: true
             - name: nova-bin
               mountPath: /tmp/health-probe.py
@@ -138,10 +157,10 @@ spec:
               mountPath: /etc/nova/policy.yaml
               subPath: policy.yaml
               readOnly: true
-{{- dict "enabled" .Values.manifests.certificates "name" .Values.endpoints.oslo_db.auth.admin.secret.tls.internal "path" "/etc/mysql/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
-{{- dict "enabled" (or .Values.manifests.certificates .Values.tls.identity) "name" .Values.secrets.tls.compute.osapi.internal "path" "/etc/nova/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
+{{- dict "enabled" (or .Values.manifests.certificates .Values.tls.identity) "name" .Values.secrets.tls.compute.osapi.internal "path" "/etc/nova/certs" "certs" (tuple "ca.crt") | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
+{{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.oslo_db.auth.admin.secret.tls.internal "path" "/etc/mysql/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
 {{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.oslo_messaging.auth.admin.secret.tls.internal "path" "/etc/rabbitmq/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
-{{ if $mounts_nova_scheduler.volumeMounts }}{{ toYaml $mounts_nova_scheduler.volumeMounts | indent 12 }}{{ end }}
+{{ if $mounts_nova_conductor.volumeMounts }}{{ toYaml $mounts_nova_conductor.volumeMounts | indent 12 }}{{ end }}
       volumes:
         - name: pod-tmp
           emptyDir: {}
@@ -163,8 +182,8 @@ spec:
 {{- else }}
           emptyDir: {}
 {{ end }}
-{{- dict "enabled" .Values.manifests.certificates "name" .Values.endpoints.oslo_db.auth.admin.secret.tls.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 {{- dict "enabled" (or .Values.manifests.certificates .Values.tls.identity) "name" .Values.secrets.tls.compute.osapi.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
+{{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.oslo_db.auth.admin.secret.tls.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 {{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.oslo_messaging.auth.admin.secret.tls.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
-{{ if $mounts_nova_scheduler.volumes }}{{ toYaml $mounts_nova_scheduler.volumes | indent 8 }}{{ end }}
+{{ if $mounts_nova_conductor.volumes }}{{ toYaml $mounts_nova_conductor.volumes | indent 8 }}{{ end }}
 {{- end }}
