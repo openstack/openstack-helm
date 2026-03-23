@@ -17,8 +17,8 @@
 set -xe
 
 # Check if Keystone API DNS and HTTP endpoint are available; skip deployment if not
-KEYSTONE_HOST="keystone-api.openstack.svc.cluster.local"
-KEYSTONE_PORT=5000
+KEYSTONE_HOST="keystone.openstack-helm.org"
+KEYSTONE_PORT=80
 KEYSTONE_URL="http://$KEYSTONE_HOST:$KEYSTONE_PORT/v3"
 TIMEOUT=${TIMEOUT:-60}
 INTERVAL=2
@@ -54,21 +54,10 @@ echo "[INFO] Keystone API is available. Proceeding with exporter deployment."
 : ${OSH_VALUES_OVERRIDES_PATH:="../openstack-helm/values_overrides"}
 : ${OSH_EXTRA_HELM_ARGS_OS_EXPORTER:="$(helm osh get-values-overrides -p ${OSH_VALUES_OVERRIDES_PATH} -c prometheus-openstack-exporter ${FEATURES})"}
 
-tee /tmp/prometheus-openstack-exporter.yaml << EOF
-manifests:
-  job_ks_user: false
-dependencies:
-  static:
-    prometheus_openstack_exporter:
-      jobs: null
-      services: null
-EOF
-
 #NOTE: Deploy command
 helm upgrade --install prometheus-openstack-exporter \
     ${OSH_HELM_REPO}/prometheus-openstack-exporter \
     --namespace=openstack \
-    --values=/tmp/prometheus-openstack-exporter.yaml \
     ${OSH_EXTRA_HELM_ARGS_OS_EXPORTER}
 
 #NOTE: Wait for deploy
