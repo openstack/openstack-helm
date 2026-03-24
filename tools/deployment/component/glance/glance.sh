@@ -29,7 +29,6 @@ EOF
 helm upgrade --install glance ${OSH_HELM_REPO}/glance \
   --namespace=openstack \
   --values=/tmp/glance.yaml \
-  --values=${OSH_VALUES_OVERRIDES_PATH}/glance/gateway.yaml \
   --timeout=800s \
   ${OSH_EXTRA_HELM_ARGS:=} \
   ${OSH_EXTRA_HELM_ARGS_GLANCE}
