@@ -1,0 +1,84 @@
+---
+conf:
+  trove:
+    database:
+      connection: null
+
+manifests:
+  job_db_init: false
+
+etcSources:
+  trove_api:
+    - trove-db-conn
+  trove_db_sync:
+    - trove-db-conn
+
+extraObjects:
+  - apiVersion: k8s.mariadb.com/v1alpha1
+    kind: Database
+    metadata:
+      name: trove
+      namespace: openstack
+    spec:
+      mariaDbRef:
+        name: mariadb  # name of the MariaDB kind
+        waitForIt: true
+      characterSet: utf8
+      collate: utf8_general_ci
+      retryInterval: 5s
+  - apiVersion: k8s.mariadb.com/v1alpha1
+    kind: User
+    metadata:
+      name: trove
+      namespace: openstack
+    spec:
+      mariaDbRef:
+        name: mariadb  # name of the MariaDB kind
+        waitForIt: true
+      passwordSecretKeyRef:
+        name: trove-db-password
+        key: password
+      # This field is immutable and defaults to 10, 0 means unlimited.
+      maxUserConnections: 0
+      host: "%"
+      retryInterval: 5s
+  - apiVersion: k8s.mariadb.com/v1alpha1
+    kind: Grant
+    metadata:
+      name: trove-grant
+      namespace: openstack
+    spec:
+      mariaDbRef:
+        name: mariadb  # name of the MariaDB kind
+        waitForIt: true
+      privileges:
+        - "ALL"
+      database: "trove"
+      table: "*"
+      username: trove
+      grantOption: false
+      host: "%"
+      retryInterval: 5s
+  - apiVersion: k8s.mariadb.com/v1alpha1
+    kind: Connection
+    metadata:
+      name: trove-db-conn
+    spec:
+      mariaDbRef:
+        name: mariadb
+      username: trove
+      passwordSecretKeyRef:
+        name: trove-db-password
+        key: password
+      database: trove
+      secretName: trove-db-conn
+      secretTemplate:
+        key: db_conn.conf
+        format: |
+          [database]
+          connection = mysql+pymysql://{{ .Username }}:{{ .Password }}@{{ .Host }}:{{ .Port }}/{{ .Database }}{{ .Params }}
+      healthCheck:
+        interval: 30s
+        retryInterval: 3s
+      serviceName: mariadb
+...

@@ -1,0 +1,86 @@
+---
+conf:
+  masakari:
+    database:
+      connection: null
+    taskflow:
+      connection: null
+
+manifests:
+  job_db_init: false
+
+etcSources:
+  masakari_api:
+    - masakari-db-conn
+  masakari_db_sync:
+    - masakari-db-conn
+
+extraObjects:
+  - apiVersion: k8s.mariadb.com/v1alpha1
+    kind: Database
+    metadata:
+      name: masakari
+      namespace: openstack
+    spec:
+      mariaDbRef:
+        name: mariadb  # name of the MariaDB kind
+        waitForIt: true
+      characterSet: utf8
+      collate: utf8_general_ci
+      retryInterval: 5s
+  - apiVersion: k8s.mariadb.com/v1alpha1
+    kind: User
+    metadata:
+      name: masakari
+      namespace: openstack
+    spec:
+      mariaDbRef:
+        name: mariadb  # name of the MariaDB kind
+        waitForIt: true
+      passwordSecretKeyRef:
+        name: masakari-db-password
+        key: password
+      # This field is immutable and defaults to 10, 0 means unlimited.
+      maxUserConnections: 0
+      host: "%"
+      retryInterval: 5s
+  - apiVersion: k8s.mariadb.com/v1alpha1
+    kind: Grant
+    metadata:
+      name: masakari-grant
+      namespace: openstack
+    spec:
+      mariaDbRef:
+        name: mariadb  # name of the MariaDB kind
+        waitForIt: true
+      privileges:
+        - "ALL"
+      database: "masakari"
+      table: "*"
+      username: masakari
+      grantOption: false
+      host: "%"
+      retryInterval: 5s
+  - apiVersion: k8s.mariadb.com/v1alpha1
+    kind: Connection
+    metadata:
+      name: masakari-db-conn
+    spec:
+      mariaDbRef:
+        name: mariadb
+      username: masakari
+      passwordSecretKeyRef:
+        name: masakari-db-password
+        key: password
+      database: masakari
+      secretName: masakari-db-conn
+      secretTemplate:
+        key: db_conn.conf
+        format: |
+          [database]
+          connection = mysql+pymysql://{{ .Username }}:{{ .Password }}@{{ .Host }}:{{ .Port }}/{{ .Database }}{{ .Params }}
+      healthCheck:
+        interval: 30s
+        retryInterval: 3s
+      serviceName: mariadb
+...
