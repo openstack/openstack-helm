@@ -36,5 +36,6 @@ limitations under the License.
 {{- else -}}
 {{- $_ := set $envAll.Values "pod_dependency" ( index $envAll.Values.dependencies.static $dependencyKey ) -}}
 {{- end -}}
+{{- $_ := include "helm-toolkit.utils.dependency_jobs_filter" (dict "envAll" $envAll "deps" $envAll.Values.pod_dependency) | toString | fromYaml -}}
 {{ $envAll.Values.pod_dependency | toYaml }}
 {{- end }}

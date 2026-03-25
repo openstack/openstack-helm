@@ -157,6 +157,7 @@ Values:
 {{- end -}}
 {{- end -}}
 {{- end -}}
+{{- $_ := include "helm-toolkit.utils.dependency_jobs_filter" (dict "envAll" $envAll "deps" $envAll.Values.__kubernetes_entrypoint_init_container.deps) | toString | fromYaml -}}
 
 {{- $deps := $envAll.Values.__kubernetes_entrypoint_init_container.deps }}
 {{- range $deps.custom_resources }}
