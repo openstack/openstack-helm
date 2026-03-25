@@ -251,6 +251,15 @@ limitations under the License.
 {{- $_ := set .Values.conf.ironic.api "port" (tuple "baremetal" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup") -}}
 {{- end -}}
 
+{{- if empty .Values.conf.ironic_api_uwsgi.uwsgi.processes -}}
+{{- $_ := set .Values.conf.ironic_api_uwsgi.uwsgi "processes" .Values.conf.ironic.api.workers -}}
+{{- end -}}
+{{- if empty (index .Values.conf.ironic_api_uwsgi.uwsgi "http-socket") -}}
+{{- $http_socket_port := tuple "baremetal" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | toString }}
+{{- $http_socket := printf "0.0.0.0:%s" $http_socket_port }}
+{{- $_ := set .Values.conf.ironic_api_uwsgi.uwsgi "http-socket" $http_socket -}}
+{{- end -}}
+
 {{- if and (empty .Values.conf.logging.handler_fluent) (has "fluent" .Values.conf.logging.handlers.keys) -}}
 {{- $fluentd_host := tuple "fluentd" "internal" $envAll | include "helm-toolkit.endpoints.hostname_namespaced_endpoint_lookup" }}
 {{- $fluentd_port := tuple "fluentd" "internal" "service" $envAll | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
@@ -275,6 +284,7 @@ metadata:
 type: Opaque
 data:
   ironic.conf: {{ include "helm-toolkit.utils.to_oslo_conf" .Values.conf.ironic | b64enc }}
+  ironic-api-uwsgi.ini: {{ include "helm-toolkit.utils.to_oslo_conf" .Values.conf.ironic_api_uwsgi | b64enc }}
   logging.conf: {{ include "helm-toolkit.utils.to_oslo_conf" .Values.conf.logging | b64enc }}
   policy.yaml: {{ toYaml .Values.conf.policy | b64enc }}
 {{- include "helm-toolkit.snippets.values_template_renderer" (dict "envAll" $envAll "template" .Values.conf.tftp_map_file "key" "tftp-map-file" "format" "Secret" ) | indent 2 }}

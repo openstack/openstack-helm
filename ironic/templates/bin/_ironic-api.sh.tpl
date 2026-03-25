@@ -16,15 +16,9 @@ limitations under the License.
 
 set -ex
 COMMAND="${@:-start}"
-{{- if and (.Values.bootstrap.object_store.enabled) (.Values.bootstrap.object_store.openstack.enabled) }}
-OPTIONS=" --config-file /tmp/pod-shared/swift.conf"
-{{- end }}
 
 function start () {
-  exec ironic-api \
-        --config-file /etc/ironic/ironic.conf \
-        ${OPTIONS} \
-        --config-dir /etc/ironic/ironic.conf.d
+  exec uwsgi --ini /etc/ironic/ironic-api-uwsgi.ini
 }
 
 function stop () {
