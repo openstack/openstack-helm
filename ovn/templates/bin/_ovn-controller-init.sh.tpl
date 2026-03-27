@@ -135,7 +135,7 @@ fi
 {{- end }}
 
 ovs-vsctl set open . external-ids:ovn-remote="{{ include "helm-toolkit.utils.joinListWithComma" $sb_service_list }}"
-{{- else -}}
+{{- else }}
 ovs-vsctl set open . external-ids:ovn-remote="{{ .Values.conf.ovn_remote }}"
 {{- end }}
 
