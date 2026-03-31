@@ -1,0 +1,54 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Create /etc/openstack directory
+  become: true
+  file:
+    path: /etc/openstack
+    state: directory
+    owner: "{{ ansible_user }}"
+    mode: "0755"
+
+- name: Create clouds.yaml
+  copy:
+    dest: /etc/openstack/clouds.yaml
+    content: |
+      clouds:
+        openstack_helm:
+          region_name: RegionOne
+          identity_api_version: 3
+          auth:
+            username: 'admin'
+            password: 'password'
+            project_name: 'admin'
+            project_domain_name: 'default'
+            user_domain_name: 'default'
+            auth_url: 'http://keystone.openstack-helm.org/v3'
+
+- name: Create openstack CLI wrapper
+  become: true
+  copy:
+    dest: /usr/local/bin/openstack
+    mode: "0755"
+    content: |
+      #!/bin/bash
+      set -x
+      args=("$@")
+      sudo docker run \
+          --rm \
+          --network host \
+          -w / \
+          -v /etc/openstack/clouds.yaml:/etc/openstack/clouds.yaml \
+          -v /etc/openstack-helm:/etc/openstack-helm \
+          -e OS_CLOUD=${OS_CLOUD} \
+          ${OPENSTACK_CLIENT_CONTAINER_EXTRA_ARGS} \
+          quay.io/airshipit/openstack-client:${OPENSTACK_CLIENT_IMAGE_TAG:-{{ osh_openstack_client_image_tag }}} openstack "${args[@]}"

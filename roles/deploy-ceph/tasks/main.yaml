@@ -1,0 +1,122 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Deploys Ceph via Rook operator.
+#
+# This replaces the shell script tools/deployment/ceph/ceph-rook.sh
+# with native Ansible tasks. It installs the Rook operator, deploys
+# a CephCluster, and waits for the cluster to become healthy.
+---
+- name: Render Rook operator values
+  template:
+    src: rook-operator-values.yaml.j2
+    dest: /tmp/rook-operator-values.yaml
+    mode: "0644"
+
+- name: Render Rook cluster values
+  template:
+    src: rook-cluster-values.yaml.j2
+    dest: /tmp/rook-cluster-values.yaml
+    mode: "0644"
+
+- name: Add Rook Helm repo
+  command: helm repo add rook-release https://charts.rook.io/release
+  changed_when: true
+
+- name: Deploy Rook operator
+  shell: |
+    set -x
+    cat /tmp/rook-operator-values.yaml
+    helm upgrade --install --create-namespace --namespace {{ ceph_rook_namespace }} \
+      rook-ceph rook-release/rook-ceph \
+      --version {{ ceph_rook_release }} \
+      -f /tmp/rook-operator-values.yaml
+  args:
+    executable: /bin/bash
+  changed_when: true
+
+- name: Wait for Rook operator to be ready
+  command: >
+    kubectl wait deployment rook-ceph-operator
+    --namespace={{ ceph_rook_namespace }}
+    --for=condition=Available
+    --timeout={{ ceph_wait_timeout }}s
+  changed_when: false
+  retries: 5
+  delay: 30
+
+- name: Deploy Rook Ceph cluster
+  shell: |
+    set -x
+    cat /tmp/rook-cluster-values.yaml
+    helm upgrade --install --create-namespace --namespace {{ ceph_cluster_namespace }} \
+      rook-ceph-cluster \
+      rook-release/rook-ceph-cluster \
+      --set operatorNamespace={{ ceph_rook_namespace }} \
+      --version {{ ceph_rook_release }} \
+      --force-conflicts \
+      -f /tmp/rook-cluster-values.yaml
+  args:
+    executable: /bin/bash
+  changed_when: true
+
+
+- name: Wait for Ceph mon pods to be Ready
+  shell: |
+    set -xe
+    kubectl wait pod \
+      --namespace={{ ceph_cluster_namespace }} \
+      --selector=app=rook-ceph-mon \
+      --for=condition=Ready \
+      --timeout={{ ceph_wait_timeout }}s
+  changed_when: false
+  retries: 10
+  delay: 30
+
+- name: Wait for Ceph tools pod to be Ready
+  shell: |
+    set -xe
+    kubectl wait pod \
+      --namespace={{ ceph_cluster_namespace }} \
+      --selector=app=rook-ceph-tools \
+      --for=condition=Ready \
+      --timeout={{ ceph_wait_timeout }}s
+  changed_when: false
+  retries: 10
+  delay: 30
+
+- name: Wait for Ceph RGW pod to be Ready
+  shell: |
+    set -xe
+    kubectl wait pod \
+      --namespace={{ ceph_cluster_namespace }} \
+      --selector=app=rook-ceph-rgw \
+      --for=condition=Ready \
+      --timeout={{ ceph_wait_timeout }}s
+  changed_when: false
+  retries: 10
+  delay: 30
+
+- name: Validate Ceph cluster health
+  shell: |
+    set -xe
+    TOOLS_POD=$(kubectl get pods \
+      --namespace={{ ceph_cluster_namespace }} \
+      --selector="app=rook-ceph-tools" \
+      --no-headers | grep Running | awk '{ print $1; exit }')
+    kubectl -n {{ ceph_cluster_namespace }} exec ${TOOLS_POD} -- ceph -s
+  args:
+    executable: /bin/bash
+  changed_when: false
+  retries: 20
+  delay: 30
+

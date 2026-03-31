@@ -1,0 +1,72 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Octavia integration test using a Heat stack that creates two web-server
+# VMs behind an Octavia load balancer, then verifies round-robin via curl.
+---
+- name: Get compute flavor ID
+  shell: openstack flavor show -f value -c id m1.amphora 2>/dev/null
+  environment:
+    OS_CLOUD: openstack_helm
+  register: _octavia_test_flavor
+  changed_when: false
+
+# Test nodes are quite small (usually 8Gb RAM) and for testing Octavia
+# we need two worker VM instances and one amphora VM instance.
+# We are going to run them all on different K8s nodes.
+# The /tmp/inventory_k8s_nodes.txt file is created by the deploy-env role and contains the list
+# of all K8s nodes. Amphora instance is run on the first K8s node from the list.
+- name: Get target hosts for worker VMs
+  shell: |
+    sed -n '2p' /tmp/inventory_k8s_nodes.txt
+    sed -n '3p' /tmp/inventory_k8s_nodes.txt
+  register: _octavia_test_hosts
+  changed_when: false
+
+- name: Create Octavia test Heat stack
+  shell: |
+    set -xe
+    HEAT_DIR="$(readlink -f {{ ansible_user_dir }}/{{ zuul.project.src_dir }}/../openstack-helm/tools/deployment/component/octavia)"
+    TARGET_HOST_1="{{ _octavia_test_hosts.stdout_lines[0] }}"
+    TARGET_HOST_2="{{ _octavia_test_hosts.stdout_lines[1] }}"
+    export OS_CLOUD=openstack_helm
+    export OPENSTACK_CLIENT_CONTAINER_EXTRA_ARGS=" -v ${HEAT_DIR}:/heat"
+    openstack stack show "octavia-env" 2>/dev/null || \
+      openstack stack create --wait \
+        --parameter compute_flavor_id={{ _octavia_test_flavor.stdout | trim }} \
+        --parameter az_1="nova:${TARGET_HOST_1}" \
+        --parameter az_2="nova:${TARGET_HOST_2}" \
+        -t /heat/heat_octavia_env.yaml \
+        octavia-env
+  args:
+    executable: /bin/bash
+  changed_when: true
+
+- name: Wait for load balancer to settle
+  pause:
+    seconds: 30
+
+- name: Verify Octavia load balancer round-robin
+  shell: |
+    set -xe
+    export OS_CLOUD=openstack_helm
+    LB_FLOATING_IP=$(openstack floating ip list \
+      --port $(openstack loadbalancer show osh -c vip_port_id -f value) \
+      -f value -c "Floating IP Address" | head -n1)
+    echo -n > /tmp/curl.txt
+    curl http://${LB_FLOATING_IP} >> /tmp/curl.txt
+    curl http://${LB_FLOATING_IP} >> /tmp/curl.txt
+    grep "Hello from server_1" /tmp/curl.txt
+    grep "Hello from server_2" /tmp/curl.txt
+  args:
+    executable: /bin/bash
+  changed_when: false

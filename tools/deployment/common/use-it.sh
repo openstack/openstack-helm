@@ -13,10 +13,7 @@
 #    under the License.
 set -xe
 
-DPDK_ENABLED=disabled
-if [[ ${FEATURES//,/ } =~ (^|[[:space:]])dpdk($|[[:space:]]) ]]; then
-    DPDK_ENABLED=enabled
-fi
+: ${DPDK_ENABLED:="disabled"}
 
 export OS_CLOUD=openstack_helm
 

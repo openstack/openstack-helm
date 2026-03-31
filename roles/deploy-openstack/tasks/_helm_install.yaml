@@ -1,0 +1,87 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Shared task to install a Helm chart with value overrides.
+#
+# Required variables:
+#   osh_chart            - chart name (e.g. keystone)
+#
+# Optional variables:
+#   osh_release          - release name (default: osh_chart)
+#   osh_namespace        - namespace (default: from role defaults)
+#   osh_values_overrides          - list of override filenames to check
+#   osh_values_overrides_<chart>   - per-chart override filenames (merged with osh_values_overrides)
+#   osh_set_values       - dict of --set key=value pairs
+#   osh_helm_timeout     - helm --timeout value (e.g. 600)
+#   osh_create_namespace - add --create-namespace flag (default: false)
+#   osh_wait             - wait for pods after deploy (default: true)
+#   osh_wait_timeout     - timeout for waiting for pods (seconds)
+#   osh_extra_helm_args  - additional helm arguments string
+---
+- name: "Check override files for {{ osh_chart }}"
+  stat:
+    path: "{{ item if item.startswith('/') else osh_values_overrides_path ~ '/' ~ osh_chart ~ '/' ~ item }}"
+  loop: "{{ (osh_values_overrides | default([])) + (vars['osh_values_overrides_' ~ osh_chart] | default([])) }}"
+  register: _osh_override_stats
+
+# - name: "Print override file stats for {{ osh_chart }}"
+#   debug:
+#     var: _osh_override_stats
+
+- name: "Build override file list for {{ osh_chart }}"
+  set_fact:
+    _osh_overrides: >-
+      {{ _osh_override_stats.results
+         | selectattr('stat.exists')
+         | map(attribute='item')
+         | map('regex_replace', '^(?!/)(.*)$', osh_values_overrides_path ~ '/' ~ osh_chart ~ '/\1')
+         | list }}
+
+- name: "Print override files for {{ osh_chart }}"
+  debug:
+    msg: "{{ item }}"
+  loop: "{{ _osh_overrides }}"
+
+- name: "Prepare Helm command for {{ osh_chart }}"
+  set_fact:
+    _osh_helm_command: >-
+      helm upgrade --install
+      {{ osh_release | default(osh_chart) }}
+      {{ osh_helm_repo }}/{{ osh_chart }}
+      --namespace={{ osh_namespace | default('openstack') }}
+      {% if osh_create_namespace %}--create-namespace{% endif %}
+      --timeout={{ osh_helm_timeout }}s
+      {% for f in _osh_overrides %} --values={{ f }}{% endfor %}
+      {% for key, val in (osh_set_values | default({})).items() %} --set {{ key }}={{ val }}{% endfor %}
+      {{ osh_extra_helm_args | default('') }}
+
+- name: "Helm command for {{ osh_chart }}"
+  debug:
+    msg: "{{ _osh_helm_command }}"
+
+- name: "Run helm command for {{ osh_chart }}"
+  shell: |
+    set -xe
+    {{ _osh_helm_command }}
+  args:
+    chdir: "{{ zuul.project.src_dir }}"
+  changed_when: true
+
+- name: "Wait for {{ osh_chart }} pods in {{ osh_namespace | default('openstack') }}"
+  command: >-
+    helm osh wait-for-pods
+    {{ osh_namespace | default('openstack') }}
+    {{ osh_wait_timeout | default('') }}
+  args:
+    chdir: "{{ zuul.project.src_dir }}"
+  changed_when: false
+  when: osh_wait | default(true)
