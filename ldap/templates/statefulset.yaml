@@ -46,26 +46,50 @@ spec:
 {{ tuple $envAll "ldap" "server" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
       nodeSelector:
         {{ .Values.labels.server.node_selector_key }}: {{ .Values.labels.server.node_selector_value | quote }}
+      securityContext:
+        fsGroup: 1001
       initContainers:
 {{ tuple $envAll "ldap" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 6 }}
+      - name: ldap-perms
+{{ tuple $envAll "ldap" | include "helm-toolkit.snippets.image" | indent 8 }}
+        securityContext:
+          runAsUser: 0
+        command:
+          - chown
+          - -R
+          - "1001:1001"
+          - /openldap/data
+          - /openldap/slapd.d
+        volumeMounts:
+          - name: ldap-data
+            mountPath: /openldap/data
+          - name: ldap-config
+            mountPath: /openldap/slapd.d
       containers:
         - name: ldap
 {{ tuple $envAll "ldap" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.server | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           env:
-            - name: LDAP_DOMAIN
-              value: {{ .Values.openldap.domain }}
+            - name: LDAP_ROOT
+              value: {{ tuple .Values.openldap.domain . | include "splitdomain" }}
             - name: LDAP_ADMIN_PASSWORD
               value: {{ .Values.openldap.password }}
+            - name: LDAP_SKIP_DEFAULT_TREE
+              value: "yes"
           ports:
             - containerPort: {{ tuple "ldap" "internal" "ldap" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+          readinessProbe:
+            tcpSocket:
+              port: {{ tuple "ldap" "internal" "ldap" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+            initialDelaySeconds: 5
+            periodSeconds: 10
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
             - name: ldap-data
-              mountPath: /var/lib/ldap
+              mountPath: /openldap/data
             - name: ldap-config
-              mountPath: /etc/ldap/slapd.d
+              mountPath: /openldap/slapd.d
       volumes:
         - name: pod-tmp
           emptyDir: {}

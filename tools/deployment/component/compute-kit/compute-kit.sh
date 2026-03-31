@@ -45,6 +45,10 @@ conf:
 bootstrap:
   wait_for_computes:
     enabled: true
+jobs:
+  cell_setup:
+    extended_wait:
+      enabled: true
 EOF
 : ${OSH_EXTRA_HELM_ARGS:=""}
 helm upgrade --install nova ${OSH_HELM_REPO}/nova \
