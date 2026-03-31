@@ -1,0 +1,84 @@
+---
+conf:
+  cyborg:
+    database:
+      connection: null
+
+manifests:
+  job_db_init: false
+
+etcSources:
+  cyborg_api:
+    - cyborg-db-conn
+  cyborg_db_sync:
+    - cyborg-db-conn
+
+extraObjects:
+  - apiVersion: k8s.mariadb.com/v1alpha1
+    kind: Database
+    metadata:
+      name: cyborg
+      namespace: openstack
+    spec:
+      mariaDbRef:
+        name: mariadb  # name of the MariaDB kind
+        waitForIt: true
+      characterSet: utf8
+      collate: utf8_general_ci
+      retryInterval: 5s
+  - apiVersion: k8s.mariadb.com/v1alpha1
+    kind: User
+    metadata:
+      name: cyborg
+      namespace: openstack
+    spec:
+      mariaDbRef:
+        name: mariadb  # name of the MariaDB kind
+        waitForIt: true
+      passwordSecretKeyRef:
+        name: cyborg-db-password
+        key: password
+      # This field is immutable and defaults to 10, 0 means unlimited.
+      maxUserConnections: 0
+      host: "%"
+      retryInterval: 5s
+  - apiVersion: k8s.mariadb.com/v1alpha1
+    kind: Grant
+    metadata:
+      name: cyborg-grant
+      namespace: openstack
+    spec:
+      mariaDbRef:
+        name: mariadb  # name of the MariaDB kind
+        waitForIt: true
+      privileges:
+        - "ALL"
+      database: "cyborg"
+      table: "*"
+      username: cyborg
+      grantOption: false
+      host: "%"
+      retryInterval: 5s
+  - apiVersion: k8s.mariadb.com/v1alpha1
+    kind: Connection
+    metadata:
+      name: cyborg-db-conn
+    spec:
+      mariaDbRef:
+        name: mariadb
+      username: cyborg
+      passwordSecretKeyRef:
+        name: cyborg-db-password
+        key: password
+      database: cyborg
+      secretName: cyborg-db-conn
+      secretTemplate:
+        key: db_conn.conf
+        format: |
+          [database]
+          connection = mysql+pymysql://{{ .Username }}:{{ .Password }}@{{ .Host }}:{{ .Port }}/{{ .Database }}{{ .Params }}
+      healthCheck:
+        interval: 30s
+        retryInterval: 3s
+      serviceName: mariadb
+...

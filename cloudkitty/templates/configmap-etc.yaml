@@ -32,7 +32,7 @@ limitations under the License.
 {{- $_ := set .Values.conf.cloudkitty.keystone_authtoken "memcache_secret_key" ( default ( randAlphaNum 64 ) .Values.endpoints.oslo_cache.auth.memcache_secret_key ) -}}
 {{- end -}}
 
-{{- if empty .Values.conf.cloudkitty.database.connection -}}
+{{- if and (not (kindIs "invalid" .Values.conf.cloudkitty.database.connection)) (empty .Values.conf.cloudkitty.database.connection) -}}
 {{- $connection := tuple "oslo_db" "internal" "cloudkitty" "mysql" . | include "helm-toolkit.endpoints.authenticated_endpoint_uri_lookup" -}}
 {{- if .Values.manifests.certificates -}}
 {{- $_ := (printf "%s?charset=utf8&ssl_ca=/etc/mysql/certs/ca.crt&ssl_key=/etc/mysql/certs/tls.key&ssl_cert=/etc/mysql/certs/tls.crt&ssl_verify_cert" $connection ) | set .Values.conf.cloudkitty.database "connection" -}}
