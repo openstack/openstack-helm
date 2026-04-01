@@ -15,6 +15,8 @@ limitations under the License.
 {{- if .Values.manifests.job_metadefs_load }}
 {{- $envAll := . }}
 
+{{- $etcSources := .Values.pod.etcSources.glance_metadefs_load }}
+
 {{- $serviceAccountName := "glance-metadefs-load" }}
 {{ tuple $envAll "metadefs_load" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
@@ -72,6 +74,9 @@ spec:
               mountPath: /etc/glance/glance-api.conf
               subPath: glance-api.conf
               readOnly: true
+            - name: glance-etc-snippets
+              mountPath: /etc/glance/glance.conf.d/
+              readOnly: true
             {{- if .Values.conf.glance.DEFAULT.log_config_append }}
             - name: glance-etc
               mountPath: {{ .Values.conf.glance.DEFAULT.log_config_append }}
@@ -92,5 +97,13 @@ spec:
           secret:
             secretName: glance-etc
             defaultMode: 0444
+        - name: glance-etc-snippets
+{{- if $etcSources }}
+          projected:
+            sources:
+{{ toYaml $etcSources | indent 14 }}
+{{- else }}
+          emptyDir: {}
+{{ end }}
 {{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.oslo_db.auth.admin.secret.tls.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 {{- end }}
