@@ -36,13 +36,14 @@ Usage example for Nova Compute:
 import json
 import os
 import psutil
-import re
 import signal
 import socket
 import sys
 
 from oslo_config import cfg
 from oslo_context import context
+from oslo_db import options as oslo_db_options
+from oslo_db.sqlalchemy import utils as oslo_db_utils
 from oslo_log import log
 import oslo_messaging
 
@@ -119,7 +120,7 @@ def tcp_socket_status(process, ports):
         try:
             with p.oneshot():
                 if process in " ".join(p.cmdline()):
-                    pcon = p.connections()
+                    pcon = p.net_connections()
                     for con in pcon:
                         try:
                             rport = con.raddr[1]
@@ -142,7 +143,7 @@ def configured_port_in_conf():
     try:
         transport_url = oslo_messaging.TransportURL.parse(cfg.CONF)
         for host in transport_url.hosts:
-            rabbit_ports.add(host.port)
+            rabbit_ports.add(host.port or 5672)
     except Exception as ex:
         message = getattr(ex, "message", str(ex))
         sys.stderr.write("Health probe caught exception reading "
@@ -150,16 +151,18 @@ def configured_port_in_conf():
         sys.exit(0)  # return success
 
     try:
-        with open(sys.argv[2]) as conf_file:
-            for line in conf_file:
-                if re.match(r'^\s*connection\s*=', line):
-                    service = line.split(':', 3)[3].split('/')[1].rstrip('\n')
-                    if service == "nova":
-                        database_ports.add(
-                            int(line.split(':', 3)[3].split('/')[0]))
-    except IOError:
-        sys.stderr.write("Nova Config file not present")
-        sys.exit(1)
+        for section in ['database', 'api_database', 'cell0_database']:
+            group = getattr(cfg.CONF, section)
+            if not group.connection:
+                continue
+            connection = oslo_db_utils.make_url(group.connection)
+            if connection.port:
+                database_ports.add(int(connection.port))
+    except Exception as ex:
+        message = getattr(ex, "message", str(ex))
+        sys.stderr.write("Health probe caught exception reading "
+                         "database ports: %s" % message)
+        sys.exit(0)  # return success
 
     return rabbit_ports, database_ports
 
@@ -209,6 +212,14 @@ def test_rpc_liveness():
     cfg.CONF.register_cli_opt(cfg.BoolOpt('use-fqdn', default=False,
                                           required=False))
 
+    # Opts need to be registered to be accessible by this script.
+    cfg.CONF.register_opt(cfg.StrOpt('host'))
+    cfg.CONF.register_opts(oslo_db_options.database_opts, 'database')
+    cfg.CONF.register_opts(oslo_db_options.database_opts, 'api_database')
+    # cell0_database is an OSH specific section used by db-init and db-drop Job.
+    # It is not an official Nova configuration section.
+    cfg.CONF.register_opts(oslo_db_options.database_opts, 'cell0_database')
+
     cfg.CONF(sys.argv[1:], project='nova')
 
     log.logging.basicConfig(level=log.{{ .Values.health_probe.logging.level }})
@@ -240,9 +251,9 @@ def test_rpc_liveness():
 
 def check_pid_running(pid):
     if psutil.pid_exists(int(pid)):
-       return True
+        return True
     else:
-       return False
+        return False
 
 if __name__ == "__main__":
 
