@@ -31,4 +31,5 @@ neutron-ovn-db-sync-util \
         --config-file /etc/neutron/l2gw_plugin.ini \
 {{- end }}
         --config-file /etc/neutron/plugins/ml2/ml2_conf.ini \
+        --config-dir /etc/neutron/neutron.conf.d \
         --ovn-neutron_sync_mode "$1"
