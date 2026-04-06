@@ -22,11 +22,17 @@
       - runc
     state: absent
 
+- name: Ensure APT keyrings directory exists
+  file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: "0755"
+
 - name: Add Docker apt repository key
-  apt_key:
+  get_url:
     url: https://download.docker.com/linux/ubuntu/gpg
-    keyring: /etc/apt/trusted.gpg.d/docker.gpg
-    state: present
+    dest: /etc/apt/keyrings/docker.asc
+    mode: "0644"
 
 - name: Get dpkg arch
   command: dpkg --print-architecture
@@ -34,7 +40,7 @@
 
 - name: Add Docker apt repository
   apt_repository:
-    repo: deb [arch="{{ dpkg_architecture.stdout }}" signed-by=/etc/apt/trusted.gpg.d/docker.gpg] https://download.docker.com/linux/ubuntu "{{ ansible_distribution_release }}" stable
+    repo: "deb [arch={{ dpkg_architecture.stdout }} signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
     state: present
     filename: docker
 
