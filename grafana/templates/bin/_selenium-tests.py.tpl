@@ -66,15 +66,19 @@ browser = webdriver.Chrome(service=service, options=options)
 browser = webdriver.Chrome(chrome_driver, chrome_options=options)
 {{- end }}
 
-logger.info("Attempting to open Grafana dashboard")
+login_url = grafana_uri.rstrip('/') + '/login'
+logger.info("Attempting to open Grafana login page at {}".format(login_url))
 try:
-    browser.get(grafana_uri)
-    el = WebDriverWait(browser, 15).until(
-    EC.title_contains('Grafana')
+    browser.get(login_url)
+    WebDriverWait(browser, 30).until(
+        EC.presence_of_element_located((By.NAME, 'user'))
     )
-    logger.info('Connected to Grafana')
+    WebDriverWait(browser, 30).until(
+        EC.presence_of_element_located((By.NAME, 'password'))
+    )
+    logger.info('Grafana login form is ready')
 except TimeoutException:
-    logger.critical('Timed out waiting for Grafana')
+    logger.critical('Timed out waiting for Grafana login form')
     browser.quit()
     sys.exit(1)
 

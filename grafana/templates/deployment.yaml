@@ -127,6 +127,8 @@ spec:
               mountPath: /etc/grafana
             - name: pod-screenshots-grafana
               mountPath: /var/lib/grafana/png
+            - name: pod-pdf-grafana
+              mountPath: /var/lib/grafana/pdf
             - name: pod-dashboards-grafana
               mountPath: /etc/grafana/dashboards
             - name: pod-provisioning-grafana
@@ -153,6 +155,8 @@ spec:
               subPath: ldap.toml
             - name: data
               mountPath: /var/lib/grafana/data
+            - name: unified-storage
+              mountPath: {{ .Values.conf.grafana.unified_storage.index_path }}
             {{- range $group, $dashboards := .Values.conf.dashboards }}
             {{- range $key, $value := $dashboards }}
             - name: grafana-dashboards-{{$group}}
@@ -178,6 +182,8 @@ spec:
           emptyDir: {}
         - name: pod-csv-grafana
           emptyDir: {}
+        - name: pod-pdf-grafana
+          emptyDir: {}
         - name: grafana-bin
           configMap:
             name: grafana-bin
@@ -193,6 +199,8 @@ spec:
             defaultMode: 0555
         {{- end }}
         - name: data
+          emptyDir: {}
+        - name: unified-storage
           emptyDir: {}
 {{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.oslo_db.auth.admin.secret.tls.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 {{ if $mounts_grafana.volumes }}{{ toYaml $mounts_grafana.volumes | indent 8 }}{{ end }}

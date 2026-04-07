@@ -32,7 +32,7 @@ MYSQL_PARAMS=" \
   "
 
 function start () {
-  exec /usr/share/grafana/bin/grafana-server -homepath=/usr/share/grafana -config=/etc/grafana/grafana.ini --pidfile="$PIDFILE"
+  exec /usr/share/grafana/bin/grafana server -homepath=/usr/share/grafana -config=/etc/grafana/grafana.ini --pidfile="$PIDFILE"
 }
 
 function run_migrator () {
@@ -52,14 +52,14 @@ function run_migrator () {
   echo "Backup SQL file ${BACKUP_FILE}"
   ls -lh "${BACKUP_FILE}"
   {
-    # this is the background process that re-starts grafana-server
-    # in prder to process grafana database migration
+    # this is the background process that re-starts Grafana server
+    # in order to process grafana database migration
     set +e
     while true
     do
       start 2>&1 | tee "$LOG_FILE"
       sleep 10
-      echo "Restarting the grafana-server..."
+      echo "Restarting Grafana server..."
       stop
       echo "Emptying log file..."
       echo > "$LOG_FILE"
@@ -81,7 +81,7 @@ function run_migrator () {
     then
       echo "Locking server restart by placing a flag file ${STOP_FLAG} .."
       touch "${STOP_FLAG}"
-      echo "Migration failure has been detected. Stopping the grafana-server..."
+      echo "Migration failure has been detected. Stopping Grafana server..."
       set +e
       stop
       set -e
@@ -116,7 +116,7 @@ function run_migrator () {
 
 function stop () {
   if [ -f "$PIDFILE" ]; then
-    echo -e "Found pidfile, killing running grafana-server"
+    echo -e "Found pidfile, killing running Grafana server"
     kill -9 `cat $PIDFILE`
     rm $PIDFILE
   else

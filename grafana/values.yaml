@@ -17,14 +17,14 @@
 ---
 images:
   tags:
-    grafana: docker.io/grafana/grafana:9.2.10
+    grafana: docker.io/grafana/grafana:12.4.2
     mariadb: quay.io/airshipit/mariadb:latest-ubuntu_noble
     dep_check: quay.io/airshipit/kubernetes-entrypoint:latest-ubuntu_jammy
     db_init: quay.io/airshipit/openstack-client:2025.1-ubuntu_noble
     grafana_db_session_sync: quay.io/airshipit/openstack-client:2025.1-ubuntu_noble
     selenium_tests: quay.io/airshipit/osh-selenium:latest-ubuntu_noble
     image_repo_sync: quay.io/airshipit/docker:27.5.0
-    grafana_image_renderer: docker.io/grafana/grafana-image-renderer:3.10.5
+    grafana_image_renderer: docker.io/grafana/grafana-image-renderer:5.7.3
   pull_policy: IfNotPresent
   local_registry:
     active: false
@@ -513,6 +513,11 @@ conf:
     analytics:
       reporting_enabled: false
       check_for_updates: false
+    remote_cache:
+      type: database
+    auth:
+      login_cookie_name: grafana_sess
+      login_maximum_lifetime_duration: 24h
     auth.ldap:
       enabled: true
       config_file: /etc/grafana/ldap.toml
@@ -522,6 +527,8 @@ conf:
       alerting: /var/lib/grafana/alerting
       csv: /var/lib/grafana/csv
       provisioning: /etc/grafana/provisioning
+    unified_storage:
+      index_path: /var/lib/grafana/unified-search/bleve
     server:
       protocol: http
       http_port: 3000
@@ -530,15 +537,10 @@ conf:
       # -- Database connection URL. When empty the URL is auto-generated
       ## from endpoints.oslo_db. Set to null to disable auto-generation.
       url: ""
-    session:
-      provider: mysql
-      provider_config: null
-      cookie_name: grafana_sess
-      cookie_secure: false
-      session_life_time: 86400
     security:
       admin_user: ${GF_SECURITY_ADMIN_USER}
       admin_password: ${GF_SECURITY_ADMIN_PASSWORD}
+      cookie_secure: false
       cookie_username: grafana_user
       cookie_remember_name: grafana_remember
       login_remember_days: 7
