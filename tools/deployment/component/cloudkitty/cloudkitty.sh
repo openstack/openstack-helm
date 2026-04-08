@@ -33,4 +33,6 @@ helm osh wait-for-pods openstack 1800
 export OS_CLOUD=openstack_helm
 openstack service list
 
-openstack rating module list
+# TODO: Switch to v2 storage with a proper backend (influxdb, elasticsearch, opensearch, or loki)
+#       so that the v2 API is enabled and OS_RATING_API_VERSION=1 override is no longer needed.
+OPENSTACK_CLIENT_CONTAINER_EXTRA_ARGS="-e OS_RATING_API_VERSION=1" openstack rating module list

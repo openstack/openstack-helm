@@ -18,3 +18,11 @@ set -ex
 
 GENERATOR_ARGS="--output-file /etc/nginx/nginx.conf"
 skyline-nginx-generator ${GENERATOR_ARGS}
+
+{{- if .Values.conf.nginx.default_language }}
+# Set default language via cookie so the SPA doesn't fall back to Chinese.
+# The skyline-console JS checks: localStorage -> URL -> cookie -> navigator.language,
+# and defaults to zh-cn if none match exactly. Chrome's navigator.language returns
+# "en-US" which doesn't match the expected "en", so we set a cookie as a fallback.
+sed -i '/add_header Cache-Control "public";/a\            add_header Set-Cookie "lang={{ .Values.conf.nginx.default_language }}; Path=/; SameSite=Lax";' /etc/nginx/nginx.conf
+{{- end }}

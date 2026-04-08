@@ -481,8 +481,8 @@ conf:
       paste.app_factory: freezer_api.service:freezer_appv2_factory
     filter:authtoken:
       paste.filter_factory: keystonemiddleware.auth_token:filter_factory
-    filter:healthcheck:
-      paste.filter_factory: oslo_middleware:Healthcheck.factory
+    app:healthcheck:
+      paste.app_factory: oslo_middleware:Healthcheck.app_factory
       backends: disable_by_file
       disable_by_file_path: /etc/freezer/healthcheck_disable
     filter:context:
@@ -491,11 +491,13 @@ conf:
       paste.filter_factory: freezer_api.api.versions:VersionNegotiator.factory
     filter:http_proxy_to_wsgi:
       paste.filter_factory: oslo_middleware:HTTPProxyToWSGI.factory
-    pipeline:main:
-      pipeline: healthcheck http_proxy_to_wsgi versionsNegotiator authtoken context backupapp
-    pipeline:unauthenticated_freezer_api:
-      pipeline: http_proxy_to_wsgi healthcheck freezer_app
-    composite:backupapp:
+    composite:main:
+      use: egg:Paste#urlmap
+      /: backupapp
+      /healthcheck: healthcheck
+    pipeline:backupapp:
+      pipeline: http_proxy_to_wsgi versionsNegotiator authtoken context rootapp
+    composite:rootapp:
       paste.composite_factory: freezer_api.service:root_app_factory
       /: api_versions
       /v1: appv1

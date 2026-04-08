@@ -128,35 +128,48 @@ conf:
     override:
     append:
   paste:
-    pipeline:glance-api:
-      pipeline: cors healthcheck http_proxy_to_wsgi versionnegotiation osprofiler unauthenticated-context rootapp
-    pipeline:glance-api-caching:
-      pipeline: cors healthcheck http_proxy_to_wsgi versionnegotiation osprofiler unauthenticated-context cache rootapp
-    pipeline:glance-api-cachemanagement:
-      pipeline: cors healthcheck http_proxy_to_wsgi versionnegotiation osprofiler unauthenticated-context cache cachemanage rootapp
-    pipeline:glance-api-keystone:
-      pipeline: cors healthcheck http_proxy_to_wsgi versionnegotiation osprofiler authtoken audit context  rootapp
-    pipeline:glance-api-keystone+caching:
-      pipeline: cors healthcheck http_proxy_to_wsgi versionnegotiation osprofiler authtoken audit context cache rootapp
-    pipeline:glance-api-keystone+cachemanagement:
-      pipeline: cors healthcheck http_proxy_to_wsgi versionnegotiation osprofiler authtoken audit context cache cachemanage rootapp
-    pipeline:glance-api-trusted-auth:
-      pipeline: cors healthcheck http_proxy_to_wsgi versionnegotiation osprofiler context rootapp
-    pipeline:glance-api-trusted-auth+cachemanagement:
-      pipeline: cors healthcheck http_proxy_to_wsgi versionnegotiation osprofiler context cache cachemanage rootapp
+    composite:glance-api:
+      paste.composite_factory: glance.api:root_app_factory
+      /: api
+      /healthcheck: healthcheck
+    composite:glance-api-caching:
+      paste.composite_factory: glance.api:root_app_factory
+      /: api
+      /healthcheck: healthcheck
+    composite:glance-api-cachemanagement:
+      paste.composite_factory: glance.api:root_app_factory
+      /: api
+      /healthcheck: healthcheck
+    composite:glance-api-keystone:
+      paste.composite_factory: glance.api:root_app_factory
+      /: api
+      /healthcheck: healthcheck
+    composite:glance-api-keystone+caching:
+      paste.composite_factory: glance.api:root_app_factory
+      /: api
+      /healthcheck: healthcheck
+    composite:glance-api-keystone+cachemanagement:
+      paste.composite_factory: glance.api:root_app_factory
+      /: api
+      /healthcheck: healthcheck
+    composite:api:
+      paste.composite_factory: glance.api:pipeline_factory
+      default: cors http_proxy_to_wsgi versionnegotiation osprofiler unauthenticated-context rootapp
+      caching: cors http_proxy_to_wsgi versionnegotiation osprofiler unauthenticated-context cache rootapp
+      cachemanagement: cors http_proxy_to_wsgi versionnegotiation osprofiler unauthenticated-context cache cachemanage rootapp
+      keystone: cors http_proxy_to_wsgi versionnegotiation osprofiler authtoken context rootapp
+      keystone+caching: cors http_proxy_to_wsgi versionnegotiation osprofiler authtoken context cache rootapp
+      keystone+cachemanagement: cors http_proxy_to_wsgi versionnegotiation osprofiler authtoken context cache cachemanage rootapp
     composite:rootapp:
       paste.composite_factory: glance.api:root_app_factory
       /: apiversions
-      /v1: apiv1app
       /v2: apiv2app
     app:apiversions:
       paste.app_factory: glance.api.versions:create_resource
-    app:apiv1app:
-      paste.app_factory: glance.api.v1.router:API.factory
     app:apiv2app:
       paste.app_factory: glance.api.v2.router:API.factory
-    filter:healthcheck:
-      paste.filter_factory: oslo_middleware:Healthcheck.factory
+    app:healthcheck:
+      paste.app_factory: oslo_middleware:Healthcheck.app_factory
       backends: disable_by_file
       disable_by_file_path: /etc/glance/healthcheck_disable
     filter:versionnegotiation:
@@ -172,15 +185,10 @@ conf:
     filter:authtoken:
       paste.filter_factory: keystonemiddleware.auth_token:filter_factory
       delay_auth_decision: true
-    filter:audit:
-      paste.filter_factory: keystonemiddleware.audit:filter_factory
-      audit_map_file: /etc/glance/api_audit_map.conf
     filter:gzip:
       paste.filter_factory: glance.api.middleware.gzip:GzipMiddleware.factory
     filter:osprofiler:
       paste.filter_factory: osprofiler.web:WsgiMiddleware.factory
-      hmac_keys: SECRET_KEY  # DEPRECATED
-      enabled: yes  # DEPRECATED
     filter:cors:
       paste.filter_factory: oslo_middleware.cors:filter_factory
       oslo_config_project: glance
@@ -434,7 +442,7 @@ conf:
       route-user-agent: '^kube-probe.* donotlog:'
       thunder-lock: true
       worker-reload-mercy: 80
-      wsgi-file: /var/lib/openstack/bin/glance-wsgi-api
+      module: glance.wsgi.api:application
       stats: 0.0.0.0:1717
       stats-http: true
 

@@ -13,15 +13,18 @@
 
 set -ex
 
-#NOTE: Install freezer client and check if it works
-(
-    cd ${HOME}
-    rm -rf freezer
-    git clone https://opendev.org/openstack/freezer.git -b stable/${OPENSTACK_RELEASE}
-    cd freezer
-    sudo pip install -r requirements.txt
-    sudo python3 setup.py install
-)
+#NOTE: Install freezer client in a virtual environment and check if it works
+VENV_DIR=${HOME}/freezer-venv
+rm -rf "${VENV_DIR}" ${HOME}/freezer
+
+python3 -m venv "${VENV_DIR}"
+source "${VENV_DIR}/bin/activate"
+
+cd ${HOME}
+git clone https://opendev.org/openstack/freezer.git -b stable/${OPENSTACK_RELEASE}
+cd freezer
+pip install -r requirements.txt
+pip install .
 
 unset OS_DOMAIN_NAME
 export OS_AUTH_URL=http://keystone.openstack-helm.org/v3

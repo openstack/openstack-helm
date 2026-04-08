@@ -524,22 +524,30 @@ pod:
           cpu: "2000m"
 conf:
   paste:
-    pipeline:cloudkitty+noauth:
-      pipeline: cors healthcheck http_proxy_to_wsgi request_id ck_api
-    pipeline:cloudkitty+keystone:
-      pipeline: cors healthcheck http_proxy_to_wsgi request_id authtoken ck_api
+    composite:cloudkitty+noauth:
+      use: "egg:Paste#urlmap"
+      /: api+noauth
+      /healthcheck: healthcheck
+    composite:cloudkitty+keystone:
+      use: "egg:Paste#urlmap"
+      /: api+keystone
+      /healthcheck: healthcheck
+    pipeline:api+noauth:
+      pipeline: cors http_proxy_to_wsgi request_id ck_api
+    pipeline:api+keystone:
+      pipeline: cors http_proxy_to_wsgi request_id authtoken ck_api
     app:ck_api:
       paste.app_factory: cloudkitty.api.app:app_factory
     filter:authtoken:
-      acl_public_routes: /, /v1, /v2, /healthcheck
+      acl_public_routes: /, /v1, /v2
       paste.filter_factory: cloudkitty.api.middleware:AuthTokenMiddleware.factory
     filter:request_id:
       paste.filter_factory: oslo_middleware:RequestId.factory
     filter:cors:
       paste.filter_factory: oslo_middleware.cors:filter_factory
       oslo_config_project: cloudkitty
-    filter:healthcheck:
-      paste.filter_factory: oslo_middleware:Healthcheck.factory
+    app:healthcheck:
+      paste.app_factory: oslo_middleware:Healthcheck.app_factory
       backends: disable_by_file
       disable_by_file_path: /etc/cloudkitty/healthcheck_disable
     filter:http_proxy_to_wsgi:
@@ -560,7 +568,7 @@ conf:
       route-user-agent: '^kube-probe.* donotlog:'
       thunder-lock: true
       worker-reload-mercy: 80
-      wsgi-file: /var/lib/openstack/bin/cloudkitty-api
+      module: cloudkitty.wsgi.api:application
       processes: 1
       stats: 0.0.0.0:1717
       stats-http: true
