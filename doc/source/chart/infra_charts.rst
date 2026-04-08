@@ -56,4 +56,3 @@ Infra charts options
     rabbitmq
     redis
     registry
-    shaker
