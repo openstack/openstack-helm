@@ -19,7 +19,6 @@ Infra charts options
     elastic-packetbeat
     elasticsearch
     etcd
-    flannel
     fluentbit
     fluentd
     gnocchi
