@@ -37,7 +37,6 @@ Infra charts options
     mariadb-backup
     mariadb-cluster
     memcached
-    mongodb
     nagios
     namespace-config
     nfs-provisioner
