@@ -38,6 +38,14 @@ labels:
 
 release_group: null
 
+jobs:
+  db_purge:
+    cron: "0 0 * * *"
+    starting_deadline: 600
+    history:
+      success: 3
+      failed: 1
+
 images:
   tags:
     bootstrap: quay.io/airshipit/openstack-client:2025.1-ubuntu_noble
@@ -52,6 +60,7 @@ images:
     manila_data: quay.io/airshipit/manila:2025.1-ubuntu_noble
     manila_scheduler: quay.io/airshipit/manila:2025.1-ubuntu_noble
     manila_share: quay.io/airshipit/manila:2025.1-ubuntu_noble
+    manila_db_purge: quay.io/airshipit/manila:2025.1-ubuntu_noble
     rabbit_init: docker.io/rabbitmq:3.13-management
     image_repo_sync: docker.io/docker:17.07.0
   pull_policy: "IfNotPresent"
@@ -79,6 +88,13 @@ pod:
         manila_share:
           readOnlyRootFilesystem: true
           privileged: true
+    db_purge:
+      pod:
+        runAsUser: 42424
+      container:
+        manila_db_purge:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
     test:
       pod:
         runAsUser: 42424
@@ -142,6 +158,11 @@ pod:
       manila_db_sync:
         volumeMounts:
         volumes:
+    manila_db_purge:
+      init_container: null
+      manila_db_purge:
+        volumeMounts:
+        volumes:
   # -- This allows users to add Kubernetes Projected Volumes to be mounted at /etc/manila/manila.conf.d/
   ## This is a list of projected volume source objects for each deployment/statefulset/daemonset/cronjob
   ## https://kubernetes.io/docs/concepts/storage/projected-volumes/
@@ -151,6 +172,7 @@ pod:
     manila_data: []
     manila_share: []
     manila_db_sync: []
+    manila_db_purge: []
   replicas:
     api: 1
     data: 1
@@ -217,6 +239,13 @@ pod:
           memory: "1024Mi"
           cpu: "2000m"
       db_sync:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+      db_purge:
         requests:
           memory: "128Mi"
           cpu: "100m"
@@ -396,6 +425,18 @@ dependencies:
       services:
         - endpoint: internal
           service: oslo_db
+    db_purge:
+      jobs:
+        - manila-db-sync
+        - manila-db-init
+        - manila-ks-user
+        - manila-ks-endpoints
+        - manila-rabbit-init
+      services:
+        - endpoint: internal
+          service: oslo_db
+        - endpoint: internal
+          service: identity
     image_repo_sync:
       services:
         - endpoint: internal
@@ -746,6 +787,8 @@ conf:
       ## e.g. when using an operator such as mariadb-operator that supplies
       ## the connection string via a mounted configuration snippet.
       connection: ""
+    db_purge:
+      before: 30
     generic:
       share_backend_name: GENERIC
       share_driver: manila.share.drivers.generic.GenericShareDriver
@@ -1100,6 +1143,7 @@ manifests:
   certificates: false
   configmap_bin: true
   configmap_etc: true
+  cron_db_purge: false
   deployment_api: true
   deployment_scheduler: true
   deployment_data: true
