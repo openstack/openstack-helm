@@ -165,7 +165,7 @@ manifests:
 
 images:
   tags:
-    dep_check: quay.io/airshipit/kubernetes-entrypoint:latest-ubuntu_jammy
+    dep_check: quay.io/airshipit/kubernetes-entrypoint:latest-ubuntu_noble
 
 EOF
 
