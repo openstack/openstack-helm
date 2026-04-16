@@ -17,7 +17,7 @@ limitations under the License.
 set -ex
 
 chown ${NEUTRON_USER_UID} /var/lib/neutron/openstack-helm
-{{- if (has "ovn" .Values.network.backend) }}
+{{- if and (has "ovn" .Values.network.backend) (.Values.conf.ovn_metadata_agent_init.chown_ovsdb_sock) }}
 chown ${NEUTRON_USER_UID} /run/openvswitch/db.sock
 {{- end }}
 
