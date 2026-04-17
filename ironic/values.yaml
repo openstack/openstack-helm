@@ -25,6 +25,9 @@ labels:
   conductor:
     node_selector_key: openstack-control-plane
     node_selector_value: enabled
+  novncproxy:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
   job:
     node_selector_key: openstack-control-plane
     node_selector_value: enabled
@@ -44,6 +47,7 @@ images:
     rabbit_init: docker.io/rabbitmq:3.13-management
     ironic_api: quay.io/airshipit/ironic:2025.1-ubuntu_noble
     ironic_conductor: quay.io/airshipit/ironic:2025.1-ubuntu_noble
+    ironic_novncproxy: quay.io/airshipit/ironic:2025.1-ubuntu_noble
     ironic_pxe: quay.io/airshipit/ironic:2025.1-ubuntu_noble
     ironic_pxe_init: quay.io/airshipit/ironic:2025.1-ubuntu_noble
     ironic_pxe_http: docker.io/nginx:1.29.8
@@ -335,6 +339,18 @@ network:
     node_port:
       enabled: false
       port: 30511
+  novncproxy:
+    ingress:
+      public: true
+      classes:
+        namespace: "ingress-openstack"
+        cluster: "ingress-cluster"
+      annotations:
+        nginx.ingress.kubernetes.io/rewrite-target: /
+        haproxy.org/path-rewrite: /
+    node_port:
+      enabled: false
+      port: 30690
 
 bootstrap:
   image:
@@ -405,6 +421,19 @@ dependencies:
           service: identity
         - endpoint: internal
           service: baremetal
+        - endpoint: internal
+          service: oslo_messaging
+    novncproxy:
+      jobs:
+        - ironic-db-sync
+        - ironic-ks-user
+        - ironic-ks-endpoints
+        - ironic-rabbit-init
+      services:
+        - endpoint: internal
+          service: oslo_db
+        - endpoint: internal
+          service: identity
         - endpoint: internal
           service: oslo_messaging
     db_drop:
@@ -556,6 +585,21 @@ endpoints:
         public: 80
       pxe_http:
         default: 8080
+  baremetal_vnc_proxy:
+    name: ironic-novncproxy
+    hosts:
+      default: ironic-novncproxy
+      public: ironic-novncproxy
+    host_fqdn_override:
+      default: null
+    path:
+      default: /vnc_auto.html
+    scheme:
+      default: http
+    port:
+      novncproxy:
+        default: 6090
+        public: 80
   volumev3:
     name: cinderv3
     hosts:
@@ -745,6 +789,11 @@ pod:
       ironic_db_sync:
         volumeMounts:
         volumes:
+    ironic_novncproxy:
+      init_container: null
+      ironic_novncproxy:
+        volumeMounts:
+        volumes:
   # -- This allows users to add Kubernetes Projected Volumes to be mounted at /etc/ironic/ironic.conf.d/
   ## This is a list of projected volume source objects for each deployment/statefulset/daemonset/cronjob
   ## https://kubernetes.io/docs/concepts/storage/projected-volumes/
@@ -752,9 +801,11 @@ pod:
     ironic_api: []
     ironic_conductor: []
     ironic_db_sync: []
+    ironic_novncproxy: []
   replicas:
     api: 1
     conductor: 1
+    novncproxy: 1
   lifecycle:
     upgrades:
       deployments:
@@ -766,8 +817,12 @@ pod:
     disruption_budget:
       api:
         min_available: 0
+      novncproxy:
+        min_available: 0
     termination_grace_period:
       api:
+        timeout: 30
+      novncproxy:
         timeout: 30
   resources:
     enabled: false
@@ -779,6 +834,13 @@ pod:
         memory: "1024Mi"
         cpu: "2000m"
     conductor:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+    novncproxy:
       requests:
         memory: "128Mi"
         cpu: "100m"
@@ -858,6 +920,7 @@ pod:
           cpu: "2000m"
   useHostNetwork:
     conductor: true
+    novncproxy: false
   useHostIPC:
     conductor: false
 
@@ -872,6 +935,7 @@ manifests:
   configmap_bin: true
   configmap_etc: true
   deployment_api: true
+  deployment_novncproxy: false
   ingress_api: true
   job_bootstrap: true
   job_db_drop: false
@@ -883,14 +947,17 @@ manifests:
   job_ks_user: true
   job_manage_cleaning_network: true
   job_rabbit_init: true
-  pdb_api: true
   network_policy: false
+  pdb_api: true
+  role_console_pods: false
+  rolebinding_console_pods: false
   secret_db: true
   secret_keystone: true
   secret_rabbitmq: true
   secret_registry: true
   service_api: true
   service_ingress_api: true
+  service_novncproxy: false
   statefulset_conductor: true
 
 # -- Array of extra K8s manifests to deploy
