@@ -7,7 +7,7 @@ modular architecture of Neutron chart was developed. OpenStack-Helm can support
 every SDN solution that has Neutron plugin, either core_plugin or mechanism_driver.
 
 The Neutron reference architecture provides mechanism_drivers :code:`OpenVSwitch`
-(OVS) and :code:`linuxbridge` (LB) with ML2 :code:`core_plugin` framework.
+(OVS) with ML2 :code:`core_plugin` framework.
 
 Other networking services provided by Neutron are:
 
@@ -112,7 +112,7 @@ The above configuration options are handled by ``neutron/values.yaml``:
       plugins:
         ml2_conf:
           ml2:
-            # mechnism_drivers can be: openvswitch, linuxbridge, ovn
+            # mechnism_drivers can be: openvswitch, ovn
             mechanism_drivers: openvswitch,l2population
             type_drivers: flat,vlan,vxlan
 
@@ -135,7 +135,7 @@ for serving the request should be wired.
       dhcp_agent:
         DEFAULT:
           # we can define here, which driver we are using:
-          # openvswitch or linuxbridge
+          # openvswitch
           interface_driver: openvswitch
 
 Another place where the DHCP agent is dependent on L2 agent is the dependency
@@ -212,7 +212,7 @@ a new configuration option is added:
 
     network:
       # provide what type of network wiring will be used
-      # possible options: openvswitch, linuxbridge, sriov
+      # possible options: openvswitch, sriov
       backend:
         - openvswitch
 
@@ -230,7 +230,6 @@ Kubernetes resources should be deployed:
       configmap_etc: true
       daemonset_dhcp_agent: true
       daemonset_l3_agent: true
-      daemonset_lb_agent: false
       daemonset_metadata_agent: true
       daemonset_ovs_agent: true
       daemonset_sriov_agent: true
@@ -309,71 +308,6 @@ than the default loopback mechanism.
             -vconsole:info \
             --pidfile=${OVS_PID} \
             --mlockall
-
-Linuxbridge
-~~~~~~~~~~~
-Linuxbridge is the second type of Neutron reference architecture L2 agent.
-It is running on nodes labeled ``linuxbridge=enabled``. As mentioned before,
-all nodes that are requiring the L2 services need to be labeled with linuxbridge.
-This includes both the compute and controller/network nodes. It is not possible
-to label the same node with both openvswitch and linuxbridge (or any other
-network virtualization technology) at the same time.
-
-neutron-lb-agent
-++++++++++++++++
-This daemonset includes the linuxbridge Neutron agent with bridge-utils and
-ebtables utilities installed. This is all that is needed, since linuxbridge
-uses native kernel libraries.
-
-:code:`neutron/templates/bin/_neutron-linuxbridge-agent-init.sh.tpl` is
-configuring the tunnel IP, external bridge and all bridge mappings defined
-in config. It is done in init container, and the IP for tunneling is shared
-using file :code:`/tmp/pod-shared/ml2-local-ip.ini` with main linuxbridge
-container.
-
-In order to use linuxbridge in your OpenStack-Helm deployment, you need to
-label the compute and controller/network nodes with ``linuxbridge=enabled``
-and use this ``neutron/values.yaml`` override:
-
-.. code-block:: yaml
-
-    network:
-      backend: linuxbridge
-    dependencies:
-      dynamic:
-        targeted:
-          linuxbridge:
-            dhcp:
-              pod:
-                - requireSameNode: true
-                  labels:
-                    application: neutron
-                    component: neutron-lb-agent
-            l3:
-              pod:
-                - requireSameNode: true
-                  labels:
-                    application: neutron
-                    component: neutron-lb-agent
-            metadata:
-              pod:
-                - requireSameNode: true
-                  labels:
-                    application: neutron
-                    component: neutron-lb-agent
-            lb_agent:
-              pod: null
-    conf:
-      neutron:
-        DEFAULT
-          interface_driver: linuxbridge
-      dhcp_agent:
-        DEFAULT:
-          interface_driver: linuxbridge
-      l3_agent:
-        DEFAULT:
-          interface_driver: linuxbridge
-
 
 Other SDNs
 ~~~~~~~~~~

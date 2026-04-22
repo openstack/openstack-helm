@@ -20,7 +20,6 @@ kubectl label --overwrite namespace kube-public name=kube-public
 kubectl label --overwrite nodes --all openstack-control-plane=enabled
 kubectl label --overwrite nodes --all openstack-compute-node=enabled
 kubectl label --overwrite nodes --all openvswitch=enabled
-kubectl label --overwrite nodes --all linuxbridge=enabled
 kubectl label --overwrite nodes --all ceph-mon=enabled
 kubectl label --overwrite nodes --all ceph-osd=enabled
 kubectl label --overwrite nodes --all ceph-mds=enabled

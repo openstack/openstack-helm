@@ -84,9 +84,6 @@ conf:
         tunnel_types: vxlan
       ovs:
         bridge_mappings: public:br-ex
-    linuxbridge_agent:
-      linux_bridge:
-        bridge_mappings: public:br-ex
 labels:
   agent:
     l3:

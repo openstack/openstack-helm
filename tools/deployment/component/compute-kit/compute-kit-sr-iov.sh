@@ -108,9 +108,6 @@ conf:
         tunnel_types: vxlan
       ovs:
         bridge_mappings: "public:br-ex,physnet3:br-physnet3"
-    linuxbridge_agent:
-      linux_bridge:
-        bridge_mappings: "public:br-ex,physnet1:br-physnet1"
     sriov_agent:
       sriov_nic:
         physical_device_mappings: physnet1:${SRIOV_DEV1},physnet2:${SRIOV_DEV2}

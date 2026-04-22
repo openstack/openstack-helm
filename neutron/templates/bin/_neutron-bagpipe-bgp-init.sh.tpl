@@ -30,9 +30,5 @@ for bmap in `sed 's/[{}"]//g' /tmp/auto_bridge_add | tr "," "\n"`; do
     ovs-vsctl --no-wait --may-exist add-port $bridge $iface
     ip link set dev $iface up
   fi
-{{- else if (has "linuxbridge" .Values.network.backend) }}
-  set +e; ip link add name $bridge type bridge; set -e
-  ip link set dev $bridge up
-  [ -n "$iface" -a "$iface" != "null" ] && ip link set dev $iface master $bridge
 {{- end }}
 done

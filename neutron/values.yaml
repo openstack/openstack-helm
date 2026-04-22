@@ -40,7 +40,6 @@ images:
     neutron_l3: quay.io/airshipit/neutron:2025.1-ubuntu_noble
     neutron_l2gw: quay.io/airshipit/neutron:2025.1-ubuntu_noble
     neutron_openvswitch_agent: quay.io/airshipit/neutron:2025.1-ubuntu_noble
-    neutron_linuxbridge_agent: quay.io/airshipit/neutron:2025.1-ubuntu_noble
     neutron_sriov_agent: quay.io/airshipit/neutron:stein-18.04-sriov
     neutron_sriov_agent_init: quay.io/airshipit/neutron:stein-18.04-sriov
     neutron_bagpipe_bgp: quay.io/airshipit/neutron:2025.1-ubuntu_noble
@@ -76,9 +75,6 @@ labels:
       node_selector_value: enabled
   job:
     node_selector_key: openstack-control-plane
-    node_selector_value: enabled
-  lb:
-    node_selector_key: linuxbridge
     node_selector_value: enabled
   # openvswitch is a special case, requiring a special
   # label that can apply to both control hosts
@@ -195,27 +191,6 @@ dependencies:
               labels:
                 application: neutron
                 component: neutron-ovs-agent
-      linuxbridge:
-        dhcp:
-          pod:
-            - requireSameNode: true
-              labels:
-                application: neutron
-                component: neutron-lb-agent
-        l3:
-          pod:
-            - requireSameNode: true
-              labels:
-                application: neutron
-                component: neutron-lb-agent
-        metadata:
-          pod:
-            - requireSameNode: true
-              labels:
-                application: neutron
-                component: neutron-lb-agent
-        lb_agent:
-          pod: null
   static:
     bootstrap:
       services:
@@ -277,15 +252,6 @@ dependencies:
           service: network
         - endpoint: internal
           service: compute
-    lb_agent:
-      pod: null
-      jobs:
-        - neutron-rabbit-init
-      services:
-        - endpoint: internal
-          service: oslo_messaging
-        - endpoint: internal
-          service: network
     metadata:
       pod: null
       jobs:
@@ -422,10 +388,6 @@ pod:
             initialDelaySeconds: 120
             periodSeconds: 600
             timeoutSeconds: 580
-    lb_agent:
-      lb_agent:
-        readiness:
-          enabled: true
     metadata_agent:
       metadata_agent:
         readiness:
@@ -583,24 +545,6 @@ pod:
         neutron_l3_agent:
           readOnlyRootFilesystem: true
           privileged: true
-    neutron_lb_agent:
-      pod:
-        runAsUser: 42424
-      container:
-        neutron_lb_agent_kernel_modules:
-          capabilities:
-            add:
-              - SYS_MODULE
-              - SYS_CHROOT
-          runAsUser: 0
-          readOnlyRootFilesystem: true
-        neutron_lb_agent_init:
-          privileged: true
-          runAsUser: 0
-          readOnlyRootFilesystem: true
-        neutron_lb_agent:
-          readOnlyRootFilesystem: true
-          privileged: true
     neutron_metadata_agent:
       pod:
         runAsUser: 42424
@@ -728,11 +672,6 @@ pod:
       neutron_l3_agent:
         volumeMounts:
         volumes:
-    neutron_lb_agent:
-      init_container: null
-      neutron_lb_agent:
-        volumeMounts:
-        volumes:
     neutron_metadata_agent:
       init_container: null
       neutron_metadata_agent:
@@ -814,7 +753,6 @@ pod:
     neutron_rpc_server: []
     neutron_dhcp_agent: []
     neutron_l3_agent: []
-    neutron_lb_agent: []
     neutron_metadata_agent: []
     neutron_ovn_db_sync: []
     neutron_ovn_metadata_agent: []
@@ -848,10 +786,6 @@ pod:
           min_ready_seconds: 0
           max_unavailable: 1
         l3_agent:
-          enabled: true
-          min_ready_seconds: 0
-          max_unavailable: 1
-        lb_agent:
           enabled: true
           min_ready_seconds: 0
           max_unavailable: 1
@@ -900,13 +834,6 @@ pod:
           memory: "1024Mi"
           cpu: "2000m"
       l3:
-        requests:
-          memory: "128Mi"
-          cpu: "100m"
-        limits:
-          memory: "1024Mi"
-          cpu: "2000m"
-      lb:
         requests:
           memory: "128Mi"
           cpu: "100m"
@@ -1427,7 +1354,6 @@ conf:
       floatingips: ip
       healthmonitors: healthmonitor
       health_monitors: health_monitor
-      lb: None
       members: member
       metering-labels: label
       metering-label-rules: rule
@@ -1481,7 +1407,6 @@ conf:
       pods:
         - dhcp_agent
         - l3_agent
-        - lb_agent
         - metadata_agent
         - ovn_metadata_agent
         - ovn_vpn_agent
@@ -1510,7 +1435,6 @@ conf:
       pods:
         - dhcp_agent
         - l3_agent
-        - lb_agent
         - metadata_agent
         - ovn_metadata_agent
         - ovn_vpn_agent
@@ -1537,7 +1461,6 @@ conf:
       pods:
         - dhcp_agent
         - l3_agent
-        - lb_agent
         - metadata_agent
         - ovn_metadata_agent
         - ovn_vpn_agent
@@ -1560,7 +1483,6 @@ conf:
       pods:
         - dhcp_agent
         - l3_agent
-        - lb_agent
         - metadata_agent
         - ovn_metadata_agent
         - ovn_vpn_agent
@@ -1652,7 +1574,6 @@ conf:
       pods:
         - dhcp_agent
         - l3_agent
-        - lb_agent
         - metadata_agent
         - ovn_metadata_agent
         - ovn_vpn_agent
@@ -1676,7 +1597,6 @@ conf:
       pods:
         - dhcp_agent
         - l3_agent
-        - lb_agent
         - metadata_agent
         - ovn_metadata_agent
         - ovn_vpn_agent
@@ -1727,7 +1647,6 @@ conf:
       pods:
         - dhcp_agent
         - l3_agent
-        - lb_agent
         - metadata_agent
         - ovn_metadata_agent
         - ovn_vpn_agent
@@ -1749,7 +1668,6 @@ conf:
       pods:
         - dhcp_agent
         - l3_agent
-        - lb_agent
         - metadata_agent
         - ovn_metadata_agent
         - ovn_vpn_agent
@@ -1783,50 +1701,10 @@ conf:
 
         # neutron/agent/linux/ip_conntrack.py
         conntrack: CommandFilter, conntrack, root
-    linuxbridge_plugin:
-      pods:
-        - dhcp_agent
-        - l3_agent
-        - lb_agent
-        - metadata_agent
-        - ovn_metadata_agent
-        - ovn_vpn_agent
-        - ovs_agent
-        - sriov_agent
-      content: |
-        # neutron-rootwrap command filters for nodes on which neutron is
-        # expected to control network
-        #
-        # This file should be owned by (and only-writeable by) the root user
-
-        # format seems to be
-        # cmd-name: filter-name, raw-command, user, args
-
-        [Filters]
-
-        # linuxbridge-agent
-        # unclear whether both variants are necessary, but I'm transliterating
-        # from the old mechanism
-        brctl: CommandFilter, brctl, root
-        bridge: CommandFilter, bridge, root
-
-        # ip_lib
-        ip: IpFilter, ip, root
-        find: RegExpFilter, find, root, find, /sys/class/net, -maxdepth, 1, -type, l, -printf, %.*
-        ip_exec: IpNetnsExecFilter, ip, root
-
-        # tc commands needed for QoS support
-        tc_replace_tbf: RegExpFilter, tc, root, tc, qdisc, replace, dev, .+, root, tbf, rate, .+, latency, .+, burst, .+
-        tc_add_ingress: RegExpFilter, tc, root, tc, qdisc, add, dev, .+, ingress, handle, .+
-        tc_delete: RegExpFilter, tc, root, tc, qdisc, del, dev, .+, .+
-        tc_show_qdisc: RegExpFilter, tc, root, tc, qdisc, show, dev, .+
-        tc_show_filters: RegExpFilter, tc, root, tc, filter, show, dev, .+, parent, .+
-        tc_add_filter: RegExpFilter, tc, root, tc, filter, add, dev, .+, parent, .+, protocol, all, prio, .+, basic, police, rate, .+, burst, .+, mtu, .+, drop
     openvswitch_plugin:
       pods:
         - dhcp_agent
         - l3_agent
-        - lb_agent
         - metadata_agent
         - ovn_metadata_agent
         - ovn_vpn_agent
@@ -1865,7 +1743,6 @@ conf:
       pods:
         - dhcp_agent
         - l3_agent
-        - lb_agent
         - metadata_agent
         - ovn_metadata_agent
         - ovn_vpn_agent
@@ -2133,19 +2010,6 @@ conf:
         bridge_mappings: "external:br-ex"
       securitygroup:
         firewall_driver: neutron.agent.linux.iptables_firewall.OVSHybridIptablesFirewallDriver
-    linuxbridge_agent:
-      linux_bridge:
-        # To define Flat and VLAN connections, in LB we can assign
-        # specific interface to the flat/vlan network name using:
-        # physical_interface_mappings: "external:eth3"
-        # Or we can set the mapping between the network and bridge:
-        bridge_mappings: "external:br-ex"
-        # The two above options are exclusive, do not use both of them at once
-      securitygroup:
-        firewall_driver: iptables
-      vxlan:
-        l2_population: True
-        arp_responder: True
     macvtap_agent: null
     sriov_agent:
       securitygroup:
@@ -2709,7 +2573,6 @@ manifests:
   configmap_etc: true
   daemonset_dhcp_agent: true
   daemonset_l3_agent: true
-  daemonset_lb_agent: true
   daemonset_metadata_agent: true
   daemonset_ovs_agent: true
   daemonset_sriov_agent: true

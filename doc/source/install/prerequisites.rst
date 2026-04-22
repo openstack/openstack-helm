@@ -296,7 +296,6 @@ where you want to run OpenStack:
     kubectl label --overwrite nodes --all openstack-control-plane=enabled
     kubectl label --overwrite nodes --all openstack-compute-node=enabled
     kubectl label --overwrite nodes --all openvswitch=enabled
-    kubectl label --overwrite nodes --all linuxbridge=enabled
 
 .. note::
     The control plane nodes are tainted by default to prevent scheduling
