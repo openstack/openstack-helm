@@ -12,48 +12,62 @@
 # limitations under the License.
 
 - job:
-    name: openstack-helm-cinder-2026-1-ubuntu_noble
-    parent: openstack-helm-cinder-rook
-    nodeset: openstack-helm-5nodes-ubuntu_noble
+    name: openstack-helm-blazar-2026-1-ubuntu_noble
+    parent: openstack-helm-deploy
+    nodeset: openstack-helm-3nodes-ubuntu_noble
+    run:
+      - playbooks/deploy-env.yaml
+      - playbooks/deploy-blazar.yaml
     vars:
-      osh_params:
-        openstack_release: "2026.1"
-        container_distro_name: ubuntu
-        container_distro_version: noble
-        feature_gates: gateway
+      osh_openstack_client_image_tag: "2026.1-ubuntu_noble"
+      osh_values_overrides:
+        - "2026.1-ubuntu_noble.yaml"
+        - "gateway.yaml"
+    files:
+      - ^blazar/.*
+      - ^playbooks/deploy-blazar\.yaml
 
 - job:
-    name: openstack-helm-trove-2026-1-ubuntu_noble
-    parent: openstack-helm-trove
+    name: openstack-helm-cinder-2026-1-ubuntu_noble
+    parent: openstack-helm-deploy
     nodeset: openstack-helm-5nodes-ubuntu_noble
+    run:
+      - playbooks/deploy-env.yaml
+      - playbooks/deploy-cinder.yaml
     vars:
-      osh_params:
-        openstack_release: "2026.1"
-        container_distro_name: ubuntu
-        container_distro_version: noble
-        feature_gates: gateway
+      osh_openstack_client_image_tag: "2026.1-ubuntu_noble"
+      osh_values_overrides:
+        - "2026.1-ubuntu_noble.yaml"
+        - "gateway.yaml"
+
+- job:
+    name: openstack-helm-cloudkitty-2026-1-ubuntu_noble
+    parent: openstack-helm-deploy
+    nodeset: openstack-helm-3nodes-ubuntu_noble
+    run:
+      - playbooks/deploy-env.yaml
+      - playbooks/deploy-cloudkitty.yaml
+    vars:
+      osh_openstack_client_image_tag: "2026.1-ubuntu_noble"
+      osh_values_overrides:
+        - "2026.1-ubuntu_noble.yaml"
+        - "gateway.yaml"
+    files:
+      - ^cloudkitty/.*
+      - ^playbooks/deploy-cloudkitty\.yaml
 
 - job:
     name: openstack-helm-compute-kit-2026-1-ubuntu_noble
-    parent: openstack-helm-compute-kit
+    parent: openstack-helm-deploy
     nodeset: openstack-helm-3nodes-ubuntu_noble
+    run:
+      - playbooks/deploy-env.yaml
+      - playbooks/deploy-compute-kit.yaml
     vars:
-      osh_params:
-        openstack_release: "2026.1"
-        container_distro_name: ubuntu
-        container_distro_version: noble
-        feature_gates: gateway
-
-- job:
-    name: openstack-helm-compute-kit-ovn-2026-1-ubuntu_noble
-    parent: openstack-helm-compute-kit-ovn
-    nodeset: openstack-helm-3nodes-ubuntu_noble
-    vars:
-      osh_params:
-        openstack_release: "2026.1"
-        container_distro_name: ubuntu
-        container_distro_version: noble
-        feature_gates: ovn,gateway
+      osh_openstack_client_image_tag: "2026.1-ubuntu_noble"
+      osh_values_overrides:
+        - "2026.1-ubuntu_noble.yaml"
+        - "gateway.yaml"
 
 - job:
     name: openstack-helm-compute-kit-dpdk-2026-1-ubuntu_noble
@@ -62,21 +76,24 @@
       We use single node environment to run this job which means
       that the job only tests that QEMU and OVS-DPDK are working
       together. The job does not assume having specific DPDK hardware.
-    parent: openstack-helm-compute-kit
+    parent: openstack-helm-deploy
+    nodeset: openstack-helm-1node-32GB-ubuntu_noble
     pre-run:
       - playbooks/enable-hugepages.yaml
       - playbooks/prepare-hosts.yaml
-    nodeset: openstack-helm-1node-32GB-ubuntu_noble
+    run:
+      - playbooks/deploy-env.yaml
+      - playbooks/deploy-compute-kit.yaml
     vars:
       hugepages:
         enabled: true
         size: "2M"
         number: 2048
-      osh_params:
-        openstack_release: "2026.1"
-        container_distro_name: ubuntu
-        container_distro_version: noble
-        feature_gates: dpdk,gateway
+      osh_openstack_client_image_tag: "2026.1-ubuntu_noble"
+      osh_values_overrides:
+        - "2026.1-ubuntu_noble.yaml"
+        - "gateway.yaml"
+        - "dpdk.yaml"
     files:
       - ^roles/.*
       - ^openvswitch/.*
@@ -84,112 +101,166 @@
       - ^neutron/.*
 
 - job:
-    name: openstack-helm-horizon-2026-1-ubuntu_noble
-    parent: openstack-helm-horizon
-    nodeset: openstack-helm-1node-ubuntu_noble
-    vars:
-      osh_params:
-        openstack_release: "2026.1"
-        container_distro_name: ubuntu
-        container_distro_version: noble
-        feature_gates: logo,gateway
-
-- job:
-    name: openstack-helm-octavia-2026-1-ubuntu_noble
-    parent: openstack-helm-octavia
-    nodeset: openstack-helm-4nodes-ubuntu_noble
-    vars:
-      osh_params:
-        openstack_release: "2026.1"
-        container_distro_name: ubuntu
-        container_distro_version: noble
-        feature_gates: gateway
-
-- job:
-    name: openstack-helm-skyline-2026-1-ubuntu_noble
-    parent: openstack-helm-skyline
+    name: openstack-helm-compute-kit-ovn-2026-1-ubuntu_noble
+    parent: openstack-helm-deploy
     nodeset: openstack-helm-3nodes-ubuntu_noble
+    run:
+      - playbooks/deploy-env.yaml
+      - playbooks/deploy-compute-kit.yaml
     vars:
-      osh_params:
-        openstack_release: "2026.1"
-        container_distro_name: ubuntu
-        container_distro_version: noble
-        feature_gates: gateway
-
-- job:
-    name: openstack-helm-swift-2026-1-ubuntu_noble
-    parent: openstack-helm-swift
-    nodeset: openstack-helm-3nodes-ubuntu_noble
-    vars:
-      osh_params:
-        openstack_release: "2026.1"
-        container_distro_name: ubuntu
-        container_distro_version: noble
-        feature_gates: gateway
-
-- job:
-    name: openstack-helm-tacker-2026-1-ubuntu_noble
-    parent: openstack-helm-tacker
-    nodeset: openstack-helm-3nodes-ubuntu_noble
-    vars:
-      osh_params:
-        openstack_release: "2026.1"
-        container_distro_name: ubuntu
-        container_distro_version: noble
-        feature_gates: gateway
-
-- job:
-    name: openstack-helm-watcher-2026-1-ubuntu_noble
-    parent: openstack-helm-watcher
-    nodeset: openstack-helm-3nodes-ubuntu_noble
-    vars:
-      osh_params:
-        openstack_release: "2026.1"
-        container_distro_name: ubuntu
-        container_distro_version: noble
-        feature_gates: gateway
-
-- job:
-    name: openstack-helm-blazar-2026-1-ubuntu_noble
-    parent: openstack-helm-blazar
-    nodeset: openstack-helm-3nodes-ubuntu_noble
-    vars:
-      osh_params:
-        openstack_release: "2026.1"
-        container_distro_name: ubuntu
-        container_distro_version: noble
-        feature_gates: gateway
-
-- job:
-    name: openstack-helm-cloudkitty-2026-1-ubuntu_noble
-    parent: openstack-helm-cloudkitty
-    nodeset: openstack-helm-3nodes-ubuntu_noble
-    vars:
-      osh_params:
-        openstack_release: "2026.1"
-        container_distro_name: ubuntu
-        container_distro_version: noble
-        feature_gates: gateway
+      osh_openstack_client_image_tag: "2026.1-ubuntu_noble"
+      osh_values_overrides:
+        - "2026.1-ubuntu_noble.yaml"
+        - "gateway.yaml"
+        - "ovn.yaml"
+    files:
+      - ^ovn/.*
+      - ^openvswitch/.*
+      - ^playbooks/deploy-compute-kit\.yaml
 
 - job:
     name: openstack-helm-freezer-2026-1-ubuntu_noble
-    parent: openstack-helm-freezer
+    parent: openstack-helm-deploy
     nodeset: openstack-helm-3nodes-ubuntu_noble
+    run:
+      - playbooks/deploy-env.yaml
+      - playbooks/deploy-freezer.yaml
     vars:
-      osh_params:
-        openstack_release: "2026.1"
-        container_distro_name: ubuntu
-        container_distro_version: noble
-        feature_gates: gateway
+      osh_openstack_release: "2026.1"
+      osh_openstack_client_image_tag: "2026.1-ubuntu_noble"
+      osh_values_overrides:
+        - "2026.1-ubuntu_noble.yaml"
+        - "gateway.yaml"
+    files:
+      - ^freezer/.*
+      - ^playbooks/deploy-freezer\.yaml
+
+- job:
+    name: openstack-helm-horizon-2026-1-ubuntu_noble
+    parent: openstack-helm-deploy
+    nodeset: openstack-helm-1node-ubuntu_noble
+    run:
+      - playbooks/deploy-env.yaml
+      - playbooks/deploy-horizon.yaml
+    vars:
+      osh_openstack_client_image_tag: "2026.1-ubuntu_noble"
+      osh_values_overrides:
+        - "2026.1-ubuntu_noble.yaml"
+        - "gateway.yaml"
+      osh_values_overrides_horizon:
+        - "logo.yaml"
+    files:
+      - ^horizon/.*
+      - ^playbooks/deploy-horizon\.yaml
+
+- job:
+    name: openstack-helm-octavia-2026-1-ubuntu_noble
+    parent: openstack-helm-deploy
+    nodeset: openstack-helm-4nodes-ubuntu_noble
+    run:
+      - playbooks/deploy-env.yaml
+      - playbooks/deploy-octavia.yaml
+    vars:
+      osh_openstack_client_image_tag: "2026.1-ubuntu_noble"
+      osh_values_overrides:
+        - "2026.1-ubuntu_noble.yaml"
+        - "gateway.yaml"
+
+- job:
+    name: openstack-helm-skyline-2026-1-ubuntu_noble
+    parent: openstack-helm-deploy
+    nodeset: openstack-helm-3nodes-ubuntu_noble
+    run:
+      - playbooks/deploy-env.yaml
+      - playbooks/deploy-skyline.yaml
+    vars:
+      osh_openstack_client_image_tag: "2026.1-ubuntu_noble"
+      osh_values_overrides:
+        - "2026.1-ubuntu_noble.yaml"
+        - "gateway.yaml"
+    files:
+      - ^skyline/.*
+      - ^playbooks/deploy-skyline\.yaml
+
+- job:
+    name: openstack-helm-swift-2026-1-ubuntu_noble
+    parent: openstack-helm-deploy
+    nodeset: openstack-helm-3nodes-ubuntu_noble
+    run:
+      - playbooks/deploy-env.yaml
+      - playbooks/deploy-swift.yaml
+    vars:
+      loopback_format: true
+      loopback_format_fs_type: ext4
+      loopback_mount: true
+      loopback_mount_path: /srv/node/loop100
+      loopback_image: "/opt/ext_vol/openstack-helm/swift-loop.img"
+      osh_openstack_client_image_tag: "2026.1-ubuntu_noble"
+      osh_values_overrides:
+        - "2026.1-ubuntu_noble.yaml"
+        - "gateway.yaml"
+    files:
+      - ^swift/.*
+      - ^playbooks/deploy-swift\.yaml
+
+- job:
+    name: openstack-helm-tacker-2026-1-ubuntu_noble
+    parent: openstack-helm-deploy
+    nodeset: openstack-helm-3nodes-ubuntu_noble
+    run:
+      - playbooks/deploy-env.yaml
+      - playbooks/deploy-tacker.yaml
+    vars:
+      osh_openstack_client_image_tag: "2026.1-ubuntu_noble"
+      osh_values_overrides:
+        - "2026.1-ubuntu_noble.yaml"
+        - "gateway.yaml"
+    files:
+      - ^tacker/.*
+      - ^playbooks/deploy-tacker\.yaml
+
+- job:
+    name: openstack-helm-trove-2026-1-ubuntu_noble
+    parent: openstack-helm-deploy
+    nodeset: openstack-helm-5nodes-ubuntu_noble
+    run:
+      - playbooks/deploy-env.yaml
+      - playbooks/deploy-trove.yaml
+    vars:
+      osh_openstack_client_image_tag: "2026.1-ubuntu_noble"
+      osh_values_overrides:
+        - "2026.1-ubuntu_noble.yaml"
+        - "gateway.yaml"
+    files:
+      - ^trove/.*
+      - ^playbooks/deploy-trove\.yaml
+
+- job:
+    name: openstack-helm-watcher-2026-1-ubuntu_noble
+    parent: openstack-helm-deploy
+    nodeset: openstack-helm-3nodes-ubuntu_noble
+    run:
+      - playbooks/deploy-env.yaml
+      - playbooks/deploy-watcher.yaml
+    vars:
+      osh_openstack_client_image_tag: "2026.1-ubuntu_noble"
+      osh_values_overrides:
+        - "2026.1-ubuntu_noble.yaml"
+        - "gateway.yaml"
 
 - job:
     name: openstack-helm-zaqar-2026-1-ubuntu_noble
-    parent: openstack-helm-zaqar
+    parent: openstack-helm-deploy
     nodeset: openstack-helm-3nodes-ubuntu_noble
+    run:
+      - playbooks/deploy-env.yaml
+      - playbooks/deploy-zaqar.yaml
     vars:
-      osh_params:
-        openstack_release: "2026.1"
-        container_distro_name: ubuntu
-        container_distro_version: noble
-        feature_gates: gateway
+      osh_openstack_client_image_tag: "2026.1-ubuntu_noble"
+      osh_values_overrides:
+        - "2026.1-ubuntu_noble.yaml"
+        - "gateway.yaml"
+    files:
+      - ^zaqar/.*
+      - ^playbooks/deploy-zaqar\.yaml
 ...

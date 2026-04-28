@@ -1,0 +1,58 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Shared task to run Helm tests for a chart with retries.
+#
+# Required variables:
+#   osh_chart            - chart/application name (e.g. keystone)
+#
+# Optional variables:
+#   osh_release          - release/release_group name (default: osh_chart)
+#   osh_namespace        - namespace (default: openstack)
+#   osh_helm_tests_tries - number of test attempts (default: 2)
+#   osh_test_timeout     - test timeout in seconds (default: 900)
+---
+- name: "Delete stale test pods for {{ osh_chart }}"
+  shell: |
+    set -x
+    kubectl delete pods \
+    -l application={{ osh_chart }},release_group={{ osh_release | default(osh_chart) }},component=test \
+    --namespace={{ osh_namespace | default('openstack') }} \
+    --ignore-not-found
+  changed_when: true
+
+- name: "Run Helm tests for {{ osh_chart }}"
+  shell: |
+    set -x
+    helm test {{ osh_chart }} \
+    --timeout {{ osh_test_timeout }}s \
+    --namespace={{ osh_namespace | default('openstack') }}
+  register: _helm_test_result
+  retries: "{{ osh_helm_tests_tries }}"
+  delay: 0
+  until: _helm_test_result.rc == 0
+  ignore_errors: true
+
+- name: "Delete stale test pods for {{ osh_chart }} (retry cleanup)"
+  shell: |
+    set -x
+    kubectl delete pods \
+    -l application={{ osh_chart }},release_group={{ osh_release | default(osh_chart) }},component=test \
+    --namespace={{ osh_namespace | default('openstack') }} \
+    --ignore-not-found
+  changed_when: true
+  when: _helm_test_result is failed
+
+- name: "Fail if Helm tests for {{ osh_chart }} failed"
+  fail:
+    msg: "Helm tests for {{ osh_chart }} failed after {{ osh_helm_tests_tries }} attempts"
+  when: _helm_test_result is failed

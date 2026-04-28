@@ -17,7 +17,12 @@
     name: openstack-helm-logging
     parent: openstack-helm-deploy
     nodeset: openstack-helm-5nodes-ubuntu_noble
+    run:
+      - playbooks/deploy-env.yaml
+      - playbooks/run-scripts.yaml
     vars:
+      osh_values_overrides_path: "../openstack-helm/values_overrides"
+      gate_scripts_relative_path: "../openstack-helm"
       osh_params:
         openstack_release: "2026.1"
         container_distro_name: ubuntu
@@ -39,8 +44,13 @@
     parent: openstack-helm-deploy
     nodeset: openstack-helm-1node-ubuntu_noble
     timeout: 10800
+    run:
+      - playbooks/deploy-env.yaml
+      - playbooks/run-scripts.yaml
     vars:
       ingress_osh_infra_setup: true
+      osh_values_overrides_path: "../openstack-helm/values_overrides"
+      gate_scripts_relative_path: "../openstack-helm"
       osh_params:
         openstack_release: "2026.1"
         container_distro_name: ubuntu
@@ -65,96 +75,4 @@
         - ./tools/gate/selenium/grafana-selenium.sh || true
         - ./tools/gate/selenium/prometheus-selenium.sh || true
         - ./tools/gate/selenium/nagios-selenium.sh || true
-
-- job:
-    name: openstack-helm-mariadb-operator-2025-1-ubuntu_jammy
-    parent: openstack-helm-deploy
-    nodeset: openstack-helm-5nodes-ubuntu_jammy
-    vars:
-      osh_params:
-        openstack_release: "2025.1"
-        container_distro_name: ubuntu
-        container_distro_version: jammy
-        feature_gates: "ldap,prometheus,backups,gateway"
-      gate_scripts:
-        - ./tools/deployment/common/prepare-k8s.sh
-        - ./tools/deployment/common/prepare-charts.sh
-        - ./tools/deployment/common/setup-client.sh
-        - ./tools/deployment/common/namespace-config.sh
-        - ./tools/deployment/ceph/ceph-rook.sh
-        - ./tools/deployment/ceph/ceph-adapter-rook.sh
-        - ./tools/deployment/component/common/rabbitmq.sh
-        - ./tools/deployment/component/common/memcached.sh
-        - ./tools/deployment/db/mariadb-operator-cluster.sh
-        - ./tools/deployment/component/common/ldap.sh
-        - |
-          export OSH_EXTRA_HELM_ARGS="--set endpoints.oslo_db.hosts.default=mariadb-server-primary ${OSH_EXTRA_HELM_ARGS}"
-          ./tools/deployment/openstack/keystone.sh
-        - ./tools/deployment/db/mariadb-backup.sh
-        - ./tools/deployment/monitoring/mysql-exporter.sh
-    files:
-      - ^roles/.*
-      - ^mariadb-cluster/.*
-      - ^tools/.*
-
-- job:
-    name: openstack-helm-mariadb-ingress-2025-1-ubuntu_jammy
-    parent: openstack-helm-compute-kit-2025-1-ubuntu_jammy
-    vars:
-      osh_params:
-        feature_gates: "ingress-service,gateway"
-    files:
-      - ^helm-toolkit/.*
-      - ^roles/.*
-      - ^rabbitmq/.*
-      - ^mariadb/.*
-      - ^memcached/.*
-      - ^libvrit/.*
-      - ^openvswitch/.*
-
-- job:
-    name: openstack-helm-ceph-migrate
-    description: |
-      This job is for testing the migration procedure from
-      a Ceph cluster managed by legacy OSH ceph* charts
-      to a Ceph cluster managed by Rook-Ceph operator.
-    parent: openstack-helm-deploy
-    nodeset: openstack-helm-5nodes-ubuntu_jammy
-    timeout: 10800
-    pre-run:
-      - playbooks/prepare-hosts.yaml
-      - playbooks/mount-volumes.yaml
-      - playbooks/inject-keys.yaml
-    files:
-      - ^helm-toolkit/.*
-      - ^roles/.*
-      - ^ceph.*
-      - ^tools/deployment/ceph/.*
-    vars:
-      osh_params:
-        openstack_release: "2025.1"
-        container_distro_name: ubuntu
-        container_distro_version: jammy
-        feature_gates: gateway
-      gate_scripts:
-        - ./tools/deployment/common/prepare-k8s.sh
-        - ./tools/deployment/common/prepare-charts.sh
-        # Deploy Ceph cluster using legacy OSH charts
-        - ./tools/deployment/ceph/ceph_legacy.sh
-        # Deploy stateful applications
-        - |
-          export NAMESPACE=openstack
-          export MONITORING_HELM_ARGS=" "
-          export RUN_HELM_TESTS=no
-          export VOLUME_HELM_ARGS=" "
-          ./tools/deployment/db/mariadb.sh
-        - |
-          export NAMESPACE=openstack
-          export VOLUME_HELM_ARGS=" "
-          ./tools/deployment/component/common/rabbitmq.sh
-        # Migrate legacy Ceph to Rook
-        - ./tools/deployment/ceph/migrate-before.sh
-        - ./tools/deployment/ceph/migrate-values.sh
-        - ./tools/deployment/ceph/migrate-to-rook-ceph.sh
-        - ./tools/deployment/ceph/migrate-after.sh
 ...

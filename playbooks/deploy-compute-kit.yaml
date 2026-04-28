@@ -1,0 +1,134 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Playbook for compute-kit deployment and testing.
+#
+# Supports both OVS and OVN backends. To deploy with OVN, include
+# "ovn.yaml" in osh_values_overrides at the job level:
+#   vars:
+#     osh_values_overrides:
+#       - "2026.1-ubuntu_noble.yaml"
+#       - "gateway.yaml"
+#       - "ovn.yaml"
+#
+# The ovn.yaml override files exist per chart (openvswitch, libvirt,
+# nova, neutron) and are applied automatically when present.
+#
+# Usage in zuul.d job definition:
+#   run:
+#     - playbooks/deploy-env.yaml
+#     - playbooks/deploy-compute-kit.yaml
+---
+- hosts: primary
+  tasks:
+    - name: Prepare Kubernetes
+      include_role:
+        name: deploy-openstack
+        tasks_from: prepare-k8s
+
+    - name: Prepare charts
+      include_role:
+        name: deploy-openstack
+        tasks_from: prepare-charts
+
+    - name: Setup OpenStack client
+      include_role:
+        name: deploy-openstack
+        tasks_from: setup-client
+
+    - name: Deploy RabbitMQ
+      include_role:
+        name: deploy-openstack
+        tasks_from: rabbitmq
+
+    - name: Deploy MariaDB
+      include_role:
+        name: deploy-openstack
+        tasks_from: mariadb
+
+    - name: Deploy Memcached
+      include_role:
+        name: deploy-openstack
+        tasks_from: memcached
+
+    - name: Deploy Keystone
+      include_role:
+        name: deploy-openstack
+        tasks_from: keystone
+
+    - name: Deploy Heat
+      include_role:
+        name: deploy-openstack
+        tasks_from: heat
+
+    - name: Deploy Glance
+      include_role:
+        name: deploy-openstack
+        tasks_from: glance
+      vars:
+        osh_glance_backend: local
+
+    - name: Deploy Open vSwitch
+      include_role:
+        name: deploy-openstack
+        tasks_from: openvswitch
+
+    - name: Deploy Libvirt
+      include_role:
+        name: deploy-openstack
+        tasks_from: libvirt
+
+    - name: Deploy OVN
+      include_role:
+        name: deploy-openstack
+        tasks_from: ovn
+      when: "'ovn.yaml' in (osh_values_overrides | default([]))"
+
+    - name: Deploy Placement
+      include_role:
+        name: deploy-openstack
+        tasks_from: placement
+
+    - name: Deploy Nova
+      include_role:
+        name: deploy-openstack
+        tasks_from: nova
+
+    - name: Deploy Neutron
+      include_role:
+        name: deploy-openstack
+        tasks_from: neutron
+
+    - name: Run Helm tests
+      include_role:
+        name: deploy-openstack
+        tasks_from: _run_helm_tests
+      vars:
+        osh_chart: "{{ item }}"
+      loop:
+        - neutron
+        - nova
+        - glance
+        - keystone
+
+    - name: Run functional tests
+      shell: |
+        set -xe
+        {{ item }}
+      args:
+        chdir: "{{ zuul.project.src_dir }}"
+        executable: /bin/bash
+      environment:
+        DPDK_ENABLED: "{{ 'enabled' if 'dpdk.yaml' in (osh_values_overrides | default([])) else 'disabled' }}"
+      loop:
+        - ./tools/deployment/common/use-it.sh
+        - ./tools/deployment/common/force-cronjob-run.sh

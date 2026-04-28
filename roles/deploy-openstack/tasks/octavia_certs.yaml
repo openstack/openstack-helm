@@ -1,0 +1,45 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Generate dual intermediate CA certificates for Octavia and store
+# them as a Kubernetes secret in the openstack namespace.
+#
+# Uses the existing create_dual_intermediate_CA.sh script which requires
+# the openssl.cnf file in the same directory.
+---
+- name: Generate Octavia certificates and create K8s secret
+  shell: |
+    set -xe
+    ./create_dual_intermediate_CA.sh
+
+    trim_data() {
+      cat "$1" | base64 -w0 | tr -d '\n'
+    }
+
+    cat <<EOF | kubectl apply --namespace openstack -f -
+    ---
+    apiVersion: v1
+    kind: Secret
+    metadata:
+      name: octavia-certs
+    type: Opaque
+    data:
+      server_ca.cert.pem: $(trim_data dual_ca/etc/octavia/certs/server_ca.cert.pem)
+      server_ca-chain.cert.pem: $(trim_data dual_ca/etc/octavia/certs/server_ca-chain.cert.pem)
+      server_ca.key.pem: $(trim_data dual_ca/etc/octavia/certs/server_ca.key.pem)
+      client_ca.cert.pem: $(trim_data dual_ca/etc/octavia/certs/client_ca.cert.pem)
+      client.cert-and-key.pem: $(trim_data dual_ca/etc/octavia/certs/client.cert-and-key.pem)
+    EOF
+  args:
+    chdir: "{{ zuul.project.src_dir }}/../openstack-helm/tools/deployment/component/octavia"
+    executable: /bin/bash
+  changed_when: true

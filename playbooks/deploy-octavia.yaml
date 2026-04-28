@@ -1,0 +1,121 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Playbook for Octavia deployment and testing.
+#
+# Deploys a full compute-kit stack (through neutron), plus Barbican and
+# Octavia with all required resources (network, security groups, ports,
+# amphora image, certificates).  Then runs a Heat-based integration test.
+#
+# Usage in zuul.d job definition:
+#   run:
+#     - playbooks/deploy-env.yaml
+#     - playbooks/deploy-octavia.yaml
+---
+- hosts: primary
+  tasks:
+    - name: Prepare Kubernetes
+      include_role:
+        name: deploy-openstack
+        tasks_from: prepare-k8s
+
+    - name: Prepare charts
+      include_role:
+        name: deploy-openstack
+        tasks_from: prepare-charts
+
+    - name: Setup OpenStack client
+      include_role:
+        name: deploy-openstack
+        tasks_from: setup-client
+
+    - name: Deploy RabbitMQ
+      include_role:
+        name: deploy-openstack
+        tasks_from: rabbitmq
+
+    - name: Deploy MariaDB
+      include_role:
+        name: deploy-openstack
+        tasks_from: mariadb
+
+    - name: Deploy Memcached
+      include_role:
+        name: deploy-openstack
+        tasks_from: memcached
+
+    - name: Deploy Keystone
+      include_role:
+        name: deploy-openstack
+        tasks_from: keystone
+
+    - name: Deploy Heat
+      include_role:
+        name: deploy-openstack
+        tasks_from: heat
+
+    - name: Deploy Glance
+      include_role:
+        name: deploy-openstack
+        tasks_from: glance
+      vars:
+        osh_glance_backend: local
+
+    - name: Deploy Open vSwitch
+      include_role:
+        name: deploy-openstack
+        tasks_from: openvswitch
+
+    - name: Deploy Libvirt
+      include_role:
+        name: deploy-openstack
+        tasks_from: libvirt
+
+    - name: Deploy Placement
+      include_role:
+        name: deploy-openstack
+        tasks_from: placement
+
+    - name: Deploy Nova
+      include_role:
+        name: deploy-openstack
+        tasks_from: nova
+
+    - name: Deploy Neutron
+      include_role:
+        name: deploy-openstack
+        tasks_from: neutron
+
+    - name: Deploy Barbican
+      include_role:
+        name: deploy-openstack
+        tasks_from: barbican
+
+    - name: Create Octavia resources
+      include_role:
+        name: deploy-openstack
+        tasks_from: octavia_resources
+
+    - name: Generate Octavia certificates
+      include_role:
+        name: deploy-openstack
+        tasks_from: octavia_certs
+
+    - name: Deploy Octavia
+      include_role:
+        name: deploy-openstack
+        tasks_from: octavia
+
+    - name: Run Octavia integration test
+      include_role:
+        name: deploy-openstack
+        tasks_from: octavia_test

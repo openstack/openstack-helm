@@ -1,0 +1,95 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Deploy tempest and run scenario tests.
+#
+# The tempest chart runs tests as a post-install Helm hook Job.
+# This task file creates a values file that enables the services
+# deployed by the compute-kit playbook and runs a basic VM scenario,
+# then waits for the test Job to finish.
+#
+# Optional variables:
+#   osh_tempest_services  - dict of service_available overrides
+#                           (default: nova, neutron, glance, heat enabled)
+#   osh_tempest_script    - custom tempest run command
+#   osh_tempest_timeout   - timeout for the test Job in seconds (default: 900)
+---
+- name: Create tempest values file
+  copy:
+    dest: /tmp/tempest.yaml
+    content: |
+      conf:
+        script: |
+          {{ osh_tempest_script | default(_osh_tempest_default_script) }}
+        tempest:
+          service_available:
+            nova: {{ (osh_tempest_services | default({})).get('nova', true) | lower }}
+            neutron: {{ (osh_tempest_services | default({})).get('neutron', true) | lower }}
+            glance: {{ (osh_tempest_services | default({})).get('glance', true) | lower }}
+            heat: {{ (osh_tempest_services | default({})).get('heat', true) | lower }}
+            cinder: {{ (osh_tempest_services | default({})).get('cinder', false) | lower }}
+            swift: {{ (osh_tempest_services | default({})).get('swift', false) | lower }}
+          compute:
+            flavor_ref: 1
+            image_ref: auto
+            image_ref_alt: auto
+          validation:
+            connect_method: floating
+            run_validation: true
+          network:
+            floating_network_name: public
+      pvc:
+        enabled: false
+  vars:
+    _osh_tempest_default_script: >-
+      tempest run --config-file /etc/tempest/tempest.conf
+      --regex tempest.scenario.test_server_basic_ops
+
+- name: Deploy tempest
+  include_tasks: _helm_install.yaml
+  vars:
+    osh_chart: tempest
+    osh_values_overrides_tempest:
+      - /tmp/tempest.yaml
+    osh_helm_timeout: 900
+    # The post-install hook Job runs inside helm install, so we wait for
+    # the helm command itself to complete (which includes the test run).
+    # No need for wait-for-pods separately.
+    osh_wait: false
+
+- name: Wait for tempest test Job to complete
+  command: >-
+    kubectl wait --for=condition=complete
+    job/tempest-run-tests
+    --namespace={{ osh_namespace | default('openstack') }}
+    --timeout={{ osh_tempest_timeout | default(900) }}s
+  register: _tempest_wait
+  failed_when: false
+  changed_when: false
+
+- name: Get tempest test Job logs
+  shell: >-
+    kubectl logs
+    job/tempest-run-tests
+    --namespace={{ osh_namespace | default('openstack') }}
+    --tail=50
+  register: _tempest_logs
+  changed_when: false
+
+- name: Print tempest test results
+  debug:
+    var: _tempest_logs.stdout_lines
+
+- name: Fail if tempest tests did not pass
+  fail:
+    msg: "Tempest tests failed. Check logs above."
+  when: _tempest_wait.rc != 0

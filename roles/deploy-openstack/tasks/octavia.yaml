@@ -1,0 +1,68 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Gather Amphora image owner ID
+  shell: openstack image show "amphora-x64-haproxy-ubuntu-jammy" -f value -c owner 2>/dev/null
+  environment:
+    OS_CLOUD: openstack_helm
+  register: _octavia_image_owner
+  changed_when: false
+
+- name: Gather Amphora security group ID
+  shell: openstack security group list -f value -c ID -c Name 2>/dev/null | grep lb-mgmt-sec-grp | awk '{print $1}'
+  environment:
+    OS_CLOUD: openstack_helm
+  register: _octavia_secgroup
+  changed_when: false
+
+- name: Gather Amphora flavor ID
+  shell: openstack flavor show m1.amphora -f value -c id 2>/dev/null
+  environment:
+    OS_CLOUD: openstack_helm
+  register: _octavia_flavor
+  changed_when: false
+
+- name: Gather Amphora boot network ID
+  shell: openstack network list --name lb-mgmt-net -f value -c ID 2>/dev/null
+  environment:
+    OS_CLOUD: openstack_helm
+  register: _octavia_network
+  changed_when: false
+
+# Test nodes are quite small (usually 8Gb RAM) and for testing Octavia
+# we need two worker VM instances and one amphora VM instance.
+# We are going to run them all on different K8s nodes.
+# The /tmp/inventory_k8s_nodes.txt file is created by the deploy-env role and contains the list
+# of all K8s nodes. Amphora instance is run on the first K8s node from the list.
+- name: Get Amphora target hostname
+  command: sed -n '1p' /tmp/inventory_k8s_nodes.txt
+  register: _octavia_target_hostname
+  changed_when: false
+
+# The /tmp/octavia_hm_controller_ip_port_list file is created by the
+# octavia_resources task and contains the list of health manager controller IPs and ports.
+- name: Get health manager controller IP port list
+  command: cat /tmp/octavia_hm_controller_ip_port_list
+  register: _octavia_hm_ip_port
+  changed_when: false
+
+- name: Create Octavia values file
+  template:
+    src: octavia-values.yaml.j2
+    dest: /tmp/octavia.yaml
+
+- name: Deploy octavia
+  include_tasks: _helm_install.yaml
+  vars:
+    osh_chart: octavia
+    osh_values_overrides_octavia:
+      - /tmp/octavia.yaml

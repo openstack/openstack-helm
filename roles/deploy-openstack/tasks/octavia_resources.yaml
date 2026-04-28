@@ -1,0 +1,138 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Create OpenStack resources required by Octavia:
+#   - lb-mgmt-net/subnet, security groups, ports for health manager and worker
+#   - m1.amphora flavor, octavia-key keypair, amphora image
+#
+# Produces /tmp/octavia_hm_controller_ip_port_list consumed by the octavia
+# helm values template.
+---
+- name: Create Octavia management network
+  shell: |
+    set -xe
+    export OS_CLOUD=openstack_helm
+    openstack network show lb-mgmt-net || \
+        openstack network create lb-mgmt-net -f value -c id
+    openstack subnet show lb-mgmt-subnet || \
+        openstack subnet create \
+          --subnet-range {{ osh_octavia_lb_subnet }} \
+          --allocation-pool start={{ osh_octavia_lb_subnet_start }},end={{ osh_octavia_lb_subnet_end }} \
+          --network lb-mgmt-net lb-mgmt-subnet -f value -c id
+  args:
+    executable: /bin/bash
+  changed_when: false
+
+- name: Create Octavia security groups
+  shell: |
+    set -xe
+    export OS_CLOUD=openstack_helm
+    openstack security group show lb-mgmt-sec-grp || \
+        { openstack security group create lb-mgmt-sec-grp
+          openstack security group rule create --protocol icmp lb-mgmt-sec-grp
+          openstack security group rule create --protocol tcp --dst-port 22 lb-mgmt-sec-grp
+          openstack security group rule create --protocol tcp --dst-port 9443 lb-mgmt-sec-grp; }
+    openstack security group show lb-health-mgr-sec-grp || \
+        { openstack security group create lb-health-mgr-sec-grp
+          openstack security group rule create --protocol udp --dst-port 5555 lb-health-mgr-sec-grp; }
+    openstack security group show lb-worker-sec-grp || \
+        openstack security group create lb-worker-sec-grp
+  args:
+    executable: /bin/bash
+  changed_when: false
+
+- name: Create Octavia ports and build controller IP port list
+  shell: |
+    set -xe
+    export OS_CLOUD=openstack_helm
+    CONTROLLER_IP_PORT_LIST=''
+    CTRLS=$(kubectl get nodes -l openstack-network-node=enabled -o name | awk -F"/" '{print $2}')
+    for node in $CTRLS; do
+      PORTNAME=octavia-health-manager-port-$node
+      openstack port show $PORTNAME 2>/dev/null || \
+        openstack port create --security-group lb-health-mgr-sec-grp \
+          --device-owner Octavia:health-mgr --host=$node \
+          -c id -f value --network lb-mgmt-net $PORTNAME
+      IP=$(openstack port show $PORTNAME -f json | jq -r '.fixed_ips[0].ip_address')
+      if [ -z "$CONTROLLER_IP_PORT_LIST" ]; then
+        CONTROLLER_IP_PORT_LIST=$IP:5555
+      else
+        CONTROLLER_IP_PORT_LIST=$CONTROLLER_IP_PORT_LIST,$IP:5555
+      fi
+      WORKER_PORTNAME=octavia-worker-port-$node
+      openstack port show $WORKER_PORTNAME 2>/dev/null || \
+        openstack port create --security-group lb-worker-sec-grp \
+          --device-owner Octavia:worker --host=$node \
+          -c id -f value --network lb-mgmt-net $WORKER_PORTNAME
+      openstack port show $WORKER_PORTNAME -f json | jq -r  '.fixed_ips[0].ip_address'
+    done
+    echo "$CONTROLLER_IP_PORT_LIST" > /tmp/octavia_hm_controller_ip_port_list
+  args:
+    executable: /bin/bash
+  changed_when: false
+
+- name: Create Amphora flavor
+  shell: |
+    set -xe
+    export OS_CLOUD=openstack_helm
+    openstack flavor show m1.amphora 2>/dev/null || \
+        openstack flavor create --ram 1024 --disk 3 --vcpus 1 m1.amphora
+  args:
+    executable: /bin/bash
+  changed_when: false
+
+- name: Create Octavia keypair
+  shell: |
+    set -xe
+    SSH_DIR="${HOME}/.ssh"
+    mkdir -p "${SSH_DIR}"
+    export OS_CLOUD=openstack_helm
+    export OPENSTACK_CLIENT_CONTAINER_EXTRA_ARGS="-v ${SSH_DIR}:${SSH_DIR}"
+    openstack keypair show octavia-key 2>/dev/null || \
+      openstack keypair create --private-key "${SSH_DIR}/octavia_key" octavia-key
+    sudo chown $(id -un) ${SSH_DIR}/octavia_key
+    chmod 600 "${SSH_DIR}/octavia_key"
+  args:
+    executable: /bin/bash
+  changed_when: false
+
+- name: Configure SSH for Amphora compatibility
+  become: true
+  blockinfile:
+    path: /etc/ssh/ssh_config
+    block: |
+      KexAlgorithms +diffie-hellman-group1-sha1
+      HostKeyAlgorithms +ssh-rsa
+      PubkeyAcceptedKeyTypes +ssh-rsa
+    marker: "# {mark} ANSIBLE MANAGED - octavia amphora compatibility"
+
+- name: Download and create Amphora image
+  shell: |
+    set -xe
+    if [ ! -f "/tmp/{{ osh_octavia_amphora_image_file }}" ]; then
+      curl --fail -sSL {{ osh_octavia_amphora_image_url }} -o /tmp/{{ osh_octavia_amphora_image_file }}
+    fi
+    export OS_CLOUD=openstack_helm
+    export OPENSTACK_CLIENT_CONTAINER_EXTRA_ARGS="-v /tmp:/tmp"
+    openstack image show {{ osh_octavia_amphora_image_name }} 2>/dev/null || \
+        openstack image create -f value -c id \
+          --public \
+          --container-format=bare \
+          --disk-format qcow2 \
+          --min-disk 2 \
+          --file /tmp/{{ osh_octavia_amphora_image_file }} \
+          {{ osh_octavia_amphora_image_name }}
+    OSH_AMPHORA_IMAGE_ID=$(openstack image show {{ osh_octavia_amphora_image_name }} -f value -c id)
+    openstack image set --tag amphora ${OSH_AMPHORA_IMAGE_ID}
+  args:
+    executable: /bin/bash
+  changed_when: false

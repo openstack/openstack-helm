@@ -1,0 +1,37 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Check if volume service is available
+  shell: openstack service list -f value -c Type 2>/dev/null | grep -q '^volume'
+  environment:
+    OS_CLOUD: openstack_helm
+  register: _volume_service
+  failed_when: false
+  changed_when: false
+
+- name: Check if rbd volume type exists
+  shell: openstack volume type list -f value -c Name 2>/dev/null | grep -q 'rbd'
+  environment:
+    OS_CLOUD: openstack_helm
+  register: _rbd_type
+  failed_when: false
+  changed_when: false
+  when: _volume_service.rc == 0
+
+- name: Deploy libvirt
+  include_tasks: _helm_install.yaml
+  vars:
+    osh_chart: libvirt
+    osh_set_values:
+      conf.ceph.enabled: "{{ _volume_service.rc == 0 and (_rbd_type.rc | default(1)) == 0 }}"
+    # libvirt depends on neutron ovs agent or ovn controller pods
+    osh_wait: false
