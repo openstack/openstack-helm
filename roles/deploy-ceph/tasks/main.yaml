@@ -70,41 +70,38 @@
   changed_when: true
 
 
-- name: Wait for Ceph mon pods to be Ready
-  shell: |
-    set -xe
-    kubectl wait pod \
-      --namespace={{ ceph_cluster_namespace }} \
-      --selector=app=rook-ceph-mon \
-      --for=condition=Ready \
-      --timeout={{ ceph_wait_timeout }}s
+- name: Wait for CephCluster to reach Ready phase
+  command: >
+    kubectl wait cephcluster/{{ ceph_cluster_name }}
+    --namespace={{ ceph_cluster_namespace }}
+    --for=jsonpath={.status.phase}=Ready
+    --timeout={{ ceph_wait_timeout }}s
   changed_when: false
-  retries: 10
-  delay: 30
 
-- name: Wait for Ceph tools pod to be Ready
-  shell: |
-    set -xe
-    kubectl wait pod \
-      --namespace={{ ceph_cluster_namespace }} \
-      --selector=app=rook-ceph-tools \
-      --for=condition=Ready \
-      --timeout={{ ceph_wait_timeout }}s
+- name: Wait for CephObjectStore to reach Ready phase
+  command: >
+    kubectl wait cephobjectstore/default
+    --namespace={{ ceph_cluster_namespace }}
+    --for=jsonpath={.status.phase}=Ready
+    --timeout={{ ceph_wait_timeout }}s
   changed_when: false
-  retries: 10
-  delay: 30
 
-- name: Wait for Ceph RGW pod to be Ready
-  shell: |
-    set -xe
-    kubectl wait pod \
-      --namespace={{ ceph_cluster_namespace }} \
-      --selector=app=rook-ceph-rgw \
-      --for=condition=Ready \
-      --timeout={{ ceph_wait_timeout }}s
+# The toolbox pod is often scheduled before rook-ceph-mon-endpoints is
+# populated, so its mounted ceph.conf falls back to DNS SRV discovery
+# (_ceph-mon._tcp), which fails. Restarting after the cluster is Ready
+# forces the new pod to read the correct mon list.
+- name: Restart rook-ceph-tools to refresh mon endpoints
+  command: >
+    kubectl rollout restart deployment/rook-ceph-tools
+    --namespace={{ ceph_cluster_namespace }}
+  changed_when: true
+
+- name: Wait for rook-ceph-tools rollout to complete
+  command: >
+    kubectl rollout status deployment/rook-ceph-tools
+    --namespace={{ ceph_cluster_namespace }}
+    --timeout={{ ceph_wait_timeout }}s
   changed_when: false
-  retries: 10
-  delay: 30
 
 - name: Validate Ceph cluster health
   shell: |
@@ -117,6 +114,4 @@
   args:
     executable: /bin/bash
   changed_when: false
-  retries: 20
-  delay: 30
 
