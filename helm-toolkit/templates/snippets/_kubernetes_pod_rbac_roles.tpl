@@ -45,6 +45,7 @@ rules:
       - extensions
       - batch
       - apps
+      - discovery.k8s.io
     verbs:
       - get
       - list
@@ -62,6 +63,7 @@ rules:
       {{ if eq $v "services" }}
       - services
       - endpoints
+      - endpointslices
       {{- end -}}
       {{ if eq $v "secrets" }}
       - secrets
