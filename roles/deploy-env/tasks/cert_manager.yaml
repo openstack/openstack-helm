@@ -1,0 +1,116 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+- name: Deploy cert-manager
+  become: false
+  when: inventory_hostname in (groups['primary'] | default([]))
+  block:
+    - name: Add cert-manager chart repo
+      become_user: "{{ kubectl.user }}"
+      shell: |
+        helm repo add jetstack https://charts.jetstack.io
+        helm repo update
+
+    - name: Install cert-manager
+      become_user: "{{ kubectl.user }}"
+      shell: |
+        helm upgrade --install cert-manager jetstack/cert-manager \
+          --namespace cert-manager \
+          --create-namespace \
+          --version {{ cert_manager_version }} \
+          --set installCRDs=true \
+          --set extraArgs[0]="--enable-certificate-owner-ref=true" \
+          --wait --timeout 10m
+
+    - name: Remove jetstack repo
+      become_user: "{{ kubectl.user }}"
+      shell: helm repo remove jetstack
+
+    - name: Wait for cert-manager pods to be ready
+      become_user: "{{ kubectl.user }}"
+      command: kubectl -n cert-manager wait --for=condition=Ready pods --all --timeout=180s
+
+    - name: Wait for cert-manager webhook to stabilise
+      pause:
+        seconds: 45
+
+    - name: Deploy self-signed ClusterIssuer
+      become_user: "{{ kubectl.user }}"
+      shell: |
+        kubectl apply -f - <<EOF
+        ---
+        apiVersion: cert-manager.io/v1
+        kind: ClusterIssuer
+        metadata:
+          name: selfsigned-issuer
+        spec:
+          selfSigned: {}
+        ---
+        apiVersion: cert-manager.io/v1
+        kind: Certificate
+        metadata:
+          name: selfsigned-ca
+          namespace: cert-manager
+        spec:
+          isCA: true
+          commonName: openstack-helm-ca
+          secretName: selfsigned-ca-key-pair
+          privateKey:
+            algorithm: RSA
+            size: 4096
+          issuerRef:
+            name: selfsigned-issuer
+            kind: ClusterIssuer
+        ---
+        apiVersion: cert-manager.io/v1
+        kind: ClusterIssuer
+        metadata:
+          name: ca-issuer
+        spec:
+          ca:
+            secretName: selfsigned-ca-key-pair
+        EOF
+      retries: 6
+      delay: 10
+      register: cert_manager_issuer_result
+      until: cert_manager_issuer_result.rc == 0
+
+    - name: Wait for CA certificate to be ready
+      become_user: "{{ kubectl.user }}"
+      command: kubectl -n cert-manager wait --for=condition=Ready certificate/selfsigned-ca --timeout=120s
+
+    - name: Distribute CA certificate to envoy-gateway-system
+      when:
+        - gatewayapi_setup | bool
+        - gatewayapi_implementation == "envoy"
+      block:
+        - name: Read CA certificate from cert-manager Secret
+          become_user: "{{ kubectl.user }}"
+          command: kubectl -n cert-manager get secret selfsigned-ca-key-pair -o jsonpath={{ '{.data.ca\.crt}' }}
+          register: openstack_ca_b64
+          changed_when: false
+
+        - name: Ensure envoy-gateway-system namespace exists
+          become_user: "{{ kubectl.user }}"
+          shell: |
+            set -ex
+            kubectl create namespace envoy-gateway-system --dry-run=client -o yaml | kubectl apply -f -
+
+        - name: Create openstack-ca-bundle ConfigMap in envoy-gateway-system
+          become_user: "{{ kubectl.user }}"
+          shell: |
+            set -ex
+            kubectl create configmap openstack-ca-bundle \
+              -n envoy-gateway-system \
+              --from-literal=ca.crt="$(echo {{ openstack_ca_b64.stdout | quote }} | base64 -d)" \
+              --dry-run=client -o yaml | kubectl apply -f -

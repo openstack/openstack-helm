@@ -85,6 +85,26 @@
     EOF
     kubectl apply -f /tmp/ingress_osh_infra_endpoint_service.yaml
 
+- name: Set gateway https listener block
+  set_fact:
+    _gateway_https_listener: |
+      - name: https
+        protocol: HTTPS
+        port: 443
+        hostname: "*.openstack-helm.org"
+        tls:
+          mode: Terminate
+          certificateRefs:
+            - kind: Secret
+              name: gateway-tls
+        allowedRoutes:
+          namespaces:
+            from: All
+  when:
+    - gatewayapi_setup
+    - gatewayapi_implementation == "envoy"
+    - cert_manager_setup
+
 - name: Create Gateway for OpenStack services
   when:
     - gatewayapi_setup
@@ -134,6 +154,7 @@
           allowedRoutes:
             namespaces:
               from: All
+    {{ _gateway_https_listener | default('') | indent(4, True) }}
     ---
     apiVersion: gateway.envoyproxy.io/v1alpha1
     kind: BackendTrafficPolicy
@@ -150,6 +171,35 @@
           requestTimeout: "{{ gatewayapi_backend_request_timeout }}"
     EOF
     kubectl apply -f /tmp/gatewayapi_envoy_default.yaml
+
+- name: Create gateway TLS certificate
+  when:
+    - gatewayapi_setup
+    - gatewayapi_implementation == "envoy"
+    - cert_manager_setup
+    - inventory_hostname in (groups['primary'] | default([]))
+  become: false
+  shell: |
+    tee > /tmp/gatewayapi_envoy_gateway_tls.yaml <<EOF
+    ---
+    apiVersion: cert-manager.io/v1
+    kind: Certificate
+    metadata:
+      name: gateway-tls
+      namespace: envoy-gateway-system
+    spec:
+      secretName: gateway-tls
+      commonName: openstack-helm.org
+      dnsNames:
+        - openstack-helm.org
+        - "*.openstack-helm.org"
+      issuerRef:
+        name: ca-issuer
+        kind: ClusterIssuer
+      usages:
+        - server auth
+    EOF
+    kubectl apply -f /tmp/gatewayapi_envoy_gateway_tls.yaml
 
 - name: Set dnsmasq listen ip
   set_fact:

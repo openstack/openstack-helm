@@ -1,0 +1,43 @@
+# Gateway API + TLS overrides for Keystone.
+#
+# Same as gateway.yaml but registers the public endpoint as https://...
+# (port 443 is dropped from the URL by the endpoint URI helper). Pair this
+# override with cert_manager_setup=true and osh_openstack_client_tls=true so
+# the Gateway has an HTTPS listener and clients trust its certificate.
+---
+endpoints:
+  identity:
+    host_fqdn_override:
+      public:
+        host: keystone.openstack-helm.org
+    scheme:
+      public: https
+    port:
+      api:
+        public: 443
+
+manifests:
+  ingress_api: false
+  service_ingress_api: false
+
+extraObjects:
+  - apiVersion: gateway.networking.k8s.io/v1
+    kind: HTTPRoute
+    metadata:
+      name: keystone-route
+      namespace: openstack
+    spec:
+      parentRefs:
+      - name: gateway-default
+        namespace: envoy-gateway-system
+      hostnames:
+      - "{{ .Values.endpoints.identity.host_fqdn_override.public.host }}"
+      rules:
+      - matches:
+        - path:
+            type: PathPrefix
+            value: /
+        backendRefs:
+        - name: keystone-api
+          port: 5000
+...

@@ -1,0 +1,165 @@
+# Gateway API + TLS overrides for Nova.
+#
+# Same as gateway.yaml but registers the public endpoints as https://...
+# The serial proxy uses wss:// since the underlying protocol is WebSocket.
+---
+endpoints:
+  compute:
+    host_fqdn_override:
+      public:
+        host: nova.openstack-helm.org
+    scheme:
+      public: https
+    port:
+      api:
+        public: 443
+  compute_metadata:
+    host_fqdn_override:
+      public:
+        host: metadata.openstack-helm.org
+    scheme:
+      public: https
+    port:
+      metadata:
+        public: 443
+  compute_novnc_proxy:
+    host_fqdn_override:
+      public:
+        host: novncproxy.openstack-helm.org
+    scheme:
+      public: https
+    port:
+      novnc_proxy:
+        public: 443
+  compute_serial_proxy:
+    host_fqdn_override:
+      public:
+        host: serialproxy.openstack-helm.org
+    scheme:
+      public: wss
+    port:
+      serial_proxy:
+        public: 443
+  compute_spice_proxy:
+    host_fqdn_override:
+      public:
+        host: spiceproxy.openstack-helm.org
+    scheme:
+      public: https
+    port:
+      spice_proxy:
+        public: 443
+
+manifests:
+  ingress_metadata: false
+  ingress_novncproxy: false
+  ingress_serialproxy: false
+  ingress_spiceproxy: false
+  ingress_osapi: false
+  service_ingress_metadata: false
+  service_ingress_novncproxy: false
+  service_ingress_serialproxy: false
+  service_ingress_spiceproxy: false
+  service_ingress_osapi: false
+
+extraObjects:
+  - apiVersion: gateway.networking.k8s.io/v1
+    kind: HTTPRoute
+    metadata:
+      name: nova-route-osapi
+      namespace: openstack
+    spec:
+      hostnames:
+        - "{{ .Values.endpoints.compute.host_fqdn_override.public.host }}"
+      parentRefs:
+        - name: gateway-default
+          namespace: envoy-gateway-system
+      rules:
+        - matches:
+            - path:
+                type: PathPrefix
+                value: /
+          backendRefs:
+            - name: nova-api
+              port: 8774
+
+  - apiVersion: gateway.networking.k8s.io/v1
+    kind: HTTPRoute
+    metadata:
+      name: nova-route-metadata
+      namespace: openstack
+    spec:
+      hostnames:
+        - "{{ .Values.endpoints.compute_metadata.host_fqdn_override.public.host }}"
+      parentRefs:
+        - name: gateway-default
+          namespace: envoy-gateway-system
+      rules:
+        - matches:
+            - path:
+                type: PathPrefix
+                value: /
+          backendRefs:
+            - name: nova-metadata
+              port: 8775
+
+  - apiVersion: gateway.networking.k8s.io/v1
+    kind: HTTPRoute
+    metadata:
+      name: nova-route-novncproxy
+      namespace: openstack
+    spec:
+      hostnames:
+        - "{{ .Values.endpoints.compute_novnc_proxy.host_fqdn_override.public.host }}"
+      parentRefs:
+        - name: gateway-default
+          namespace: envoy-gateway-system
+      rules:
+        - matches:
+            - path:
+                type: PathPrefix
+                value: /
+          backendRefs:
+            - name: nova-novncproxy
+              port: 6080
+
+  - apiVersion: gateway.networking.k8s.io/v1
+    kind: HTTPRoute
+    metadata:
+      name: nova-route-serialproxy
+      namespace: openstack
+    spec:
+      hostnames:
+        - "{{ .Values.endpoints.compute_serial_proxy.host_fqdn_override.public.host }}"
+      parentRefs:
+        - name: gateway-default
+          namespace: envoy-gateway-system
+      rules:
+        - matches:
+            - path:
+                type: PathPrefix
+                value: /
+          backendRefs:
+            - name: nova-serialproxy
+              port: 6083
+
+  - apiVersion: gateway.networking.k8s.io/v1
+    kind: HTTPRoute
+    metadata:
+      name: nova-route-spiceproxy
+      namespace: openstack
+    spec:
+      hostnames:
+        - "{{ .Values.endpoints.compute_spice_proxy.host_fqdn_override.public.host }}"
+      parentRefs:
+        - name: gateway-default
+          namespace: envoy-gateway-system
+      rules:
+        - matches:
+            - path:
+                type: PathPrefix
+                value: /
+          backendRefs:
+            - name: nova-spiceproxy
+              port: 6082
+...

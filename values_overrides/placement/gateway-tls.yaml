@@ -1,0 +1,40 @@
+# Gateway API + TLS overrides for Placement.
+#
+# Same as gateway.yaml but registers the public endpoint as https://...
+---
+endpoints:
+  placement:
+    host_fqdn_override:
+      public:
+        host: placement.openstack-helm.org
+    scheme:
+      public: https
+    port:
+      api:
+        public: 443
+
+manifests:
+  ingress: false
+  service_ingress: false
+
+extraObjects:
+  - apiVersion: gateway.networking.k8s.io/v1
+    kind: HTTPRoute
+    metadata:
+      name: placement-route
+      namespace: openstack
+    spec:
+      hostnames:
+        - "{{ .Values.endpoints.placement.host_fqdn_override.public.host }}"
+      parentRefs:
+        - name: gateway-default
+          namespace: envoy-gateway-system
+      rules:
+        - matches:
+            - path:
+                type: PathPrefix
+                value: /
+          backendRefs:
+            - name: placement-api
+              port: 8778
+...

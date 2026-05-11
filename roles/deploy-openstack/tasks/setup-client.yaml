@@ -18,21 +18,56 @@
     owner: "{{ ansible_user }}"
     mode: "0755"
 
+- name: Fetch CA certificate from cert-manager and write it locally
+  when: osh_openstack_client_tls | bool
+  block:
+    - name: Read CA certificate from cert-manager Secret
+      command:
+        argv:
+          - kubectl
+          - -n
+          - "{{ osh_openstack_client_tls_ca_cert_secret_namespace }}"
+          - get
+          - secret
+          - "{{ osh_openstack_client_tls_ca_cert_secret_name }}"
+          - -o
+          - "jsonpath={.data.ca\\.crt}"
+      register: osh_openstack_client_tls_ca_cert_b64
+      changed_when: false
+
+    - name: Ensure CA certificate directory exists
+      become: true
+      file:
+        path: "{{ osh_openstack_client_tls_ca_cert_path | dirname }}"
+        state: directory
+        owner: "{{ ansible_user }}"
+        mode: "0755"
+
+    - name: Write CA certificate to local filesystem
+      become: true
+      copy:
+        dest: "{{ osh_openstack_client_tls_ca_cert_path }}"
+        content: "{{ osh_openstack_client_tls_ca_cert_b64.stdout | b64decode }}"
+        owner: "{{ ansible_user }}"
+        mode: "0644"
+
 - name: Create clouds.yaml
   copy:
     dest: /etc/openstack/clouds.yaml
+    mode: "0644"
     content: |
       clouds:
         openstack_helm:
           region_name: RegionOne
           identity_api_version: 3
-          auth:
+          {% if osh_openstack_client_tls | bool %}cacert: {{ osh_openstack_client_tls_ca_cert_path }}
+          {% endif %}auth:
             username: 'admin'
             password: 'password'
             project_name: 'admin'
             project_domain_name: 'default'
             user_domain_name: 'default'
-            auth_url: 'http://keystone.openstack-helm.org/v3'
+            auth_url: '{{ "https" if osh_openstack_client_tls | bool else "http" }}://keystone.openstack-helm.org/v3'
 
 - name: Create openstack CLI wrapper
   become: true
@@ -48,7 +83,8 @@
           --network host \
           -w / \
           -v /etc/openstack/clouds.yaml:/etc/openstack/clouds.yaml \
-          -v /etc/openstack-helm:/etc/openstack-helm \
+          {% if osh_openstack_client_tls | bool %}-v {{ osh_openstack_client_tls_ca_cert_path }}:{{ osh_openstack_client_tls_ca_cert_path }} \
+          {% endif %}-v /etc/openstack-helm:/etc/openstack-helm \
           -e OS_CLOUD=${OS_CLOUD} \
           ${OPENSTACK_CLIENT_CONTAINER_EXTRA_ARGS} \
           quay.io/airshipit/openstack-client:${OPENSTACK_CLIENT_IMAGE_TAG:-{{ osh_openstack_client_image_tag }}} openstack "${args[@]}"
