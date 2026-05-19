@@ -17,9 +17,24 @@ limitations under the License.
 set -ex
 {{- $envAll := . }}
 
-# We expect rook-ceph-tools pod to be up and running
-ROOK_CEPH_TOOLS_POD=$(kubectl -n ${CEPH_CLUSTER_NAMESPACE} get pods --no-headers | awk '/rook-ceph-tools/{print $1}')
-CEPH_ADMIN_KEY=$(kubectl -n ${CEPH_CLUSTER_NAMESPACE} exec ${ROOK_CEPH_TOOLS_POD} -- ceph auth ls | grep -A1 "client.admin" | awk '/key:/{print $2}')
+MAX_RETRIES=$((30*60/5))
+RETRY=0
+while true; do
+  # We expect rook-ceph-tools pod to be up and running
+  if ROOK_CEPH_TOOLS_POD=$(kubectl -n ${CEPH_CLUSTER_NAMESPACE} get pods --no-headers | awk '/rook-ceph-tools/{print $1}' | head -n 1) && [ -n "${ROOK_CEPH_TOOLS_POD}" ]; then
+    if CEPH_ADMIN_KEY=$(kubectl -n ${CEPH_CLUSTER_NAMESPACE} exec ${ROOK_CEPH_TOOLS_POD} -- ceph auth ls 2>/dev/null | grep -A1 "client.admin" | awk '/key:/{print $2}') && [ -n "${CEPH_ADMIN_KEY}" ]; then
+      break
+    fi
+  fi
+
+  RETRY=$((RETRY+1))
+  if [ "${RETRY}" -ge "${MAX_RETRIES}" ]; then
+    echo "Error: Ceph admin key not found after 30 minutes" >&2
+    exit 1
+  fi
+  echo "Waiting for Ceph admin key..." >&2
+  sleep 5
+done
 
 ceph_activate_namespace() {
   kube_namespace=$1
