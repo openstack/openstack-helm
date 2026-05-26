@@ -110,9 +110,17 @@ spec:
               readOnly: true
 {{ dict "enabled" true "name" $tlsSecret "ca" true | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
           env:
-{{- with $env := dict "ksUserSecret" $envAll.Values.secrets.identity.admin "useCA" (ne $tlsSecret "") }}
-{{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 12 }}
+{{- $identityOpenrc := dict }}
+{{- if hasKey $envAll.Values "identity" }}
+{{- if hasKey $envAll.Values.identity "openrc" }}
+{{- $identityOpenrc = $envAll.Values.identity.openrc }}
 {{- end }}
+{{- end }}
+{{- $env := dict "ksUserSecret" $envAll.Values.secrets.identity.admin -}}
+{{- $_ := set $env "useCA" (ne $tlsSecret "") -}}
+{{- $_ := set $env "excludeVars" ($identityOpenrc.exclude_vars | default list) -}}
+{{- $_ := set $env "extraVars" ($identityOpenrc.extra_vars | default list) -}}
+{{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 12 }}
             - name: SERVICE_OS_SERVICE_NAME
               value: {{ $serviceName | quote }}
 {{- with $env := dict "ksUserSecret" (index $envAll.Values.secrets.identity $serviceUser ) }}
