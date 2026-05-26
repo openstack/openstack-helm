@@ -23,6 +23,10 @@ limitations under the License.
 {{- $_ := set .Values.conf.ovn_network_logging_parser_uwsgi.uwsgi "http-socket" $http_socket -}}
 {{- end -}}
 
+{{- if .Values.manifests.daemonset_ovn_bgp_agent }}
+{{- $_ := required "conf.ovn_bgp_agent.DEFAULT.bgp_AS is mandatory when the ovn-bgp-agent daemonset is activated" .Values.conf.ovn_bgp_agent.DEFAULT.bgp_AS }}
+{{- end }}
+
 ---
 apiVersion: v1
 kind: Secret
@@ -32,6 +36,13 @@ type: Opaque
 data:
   auto_bridge_add: {{ toJson $envAll.Values.conf.auto_bridge_add | b64enc }}
   neutron-ovn-network-logging-parser-uwsgi.ini: {{ include "helm-toolkit.utils.to_oslo_conf" .Values.conf.ovn_network_logging_parser_uwsgi | b64enc }}
+{{- if .Values.manifests.daemonset_ovn_bgp_agent }}
+  bgp-agent.conf: {{ include "helm-toolkit.utils.to_oslo_conf" .Values.conf.ovn_bgp_agent | b64enc }}
+{{- if .Values.pod.sidecars.frr }}
+  frr-daemons: {{ .Values.conf.frr_daemons | b64enc }}
+  frr.conf: {{ tpl (index .Values.conf "frr.conf") . | b64enc }}
+{{- end }}
+{{- end }}
 {{- end }}
 {{- end }}
 

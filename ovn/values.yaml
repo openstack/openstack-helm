@@ -29,6 +29,8 @@ images:
     image_repo_sync: quay.io/airshipit/docker:27.5.0
     vector: docker.io/timberio/vector:0.51.1-debian
     ovn_logging_parser: quay.io/airshipit/neutron:2026.1-ubuntu_noble
+    ovn_bgp_agent: quay.io/airshipit/ovn-bgp-agent:2026.1-ubuntu_noble
+    frr: quay.io/airshipit/ovn-bgp-agent:2026.1-ubuntu_noble
   pull_policy: "IfNotPresent"
   local_registry:
     active: false
@@ -51,6 +53,9 @@ labels:
     node_selector_value: enabled
   ovn_controller_gw:
     node_selector_key: l3-agent
+    node_selector_value: enabled
+  ovn_bgp_agent:
+    node_selector_key: openvswitch
     node_selector_value: enabled
 
 volume:
@@ -145,6 +150,64 @@ conf:
     endpoint = "http://loki.monitoring:3100"
     encoding.codec = "json"
     tenant_id = "{{`{{ project_id }}`}}"
+  ovn_bgp_agent:
+    DEFAULT:
+      debug: true
+      reconcile_interval: 120
+      expose_tenant_networks: false
+      expose_ipv6_gua_tenant_networks: false
+      driver: ovn_bgp_driver
+      # bgp_router_id: 1.2.3.4
+      # bgp_AS: 64514
+      bgp_nic: bgp-nic
+      bgp_vrf: bgp-vrf
+      bgp_vrf_table_id: 10
+      ovsdb_connection: "unix:/run/openvswitch/db.sock"
+    agent:
+      root_helper: env
+    ovn:
+      # ovn_sb_connection: tcp:x.x.x.x:6642
+    local_ovn_cluster:
+      # provider_networks_pool_prefixes: x.x.x.x/24
+  frr_daemons: |
+    zebra=yes
+    bgpd=yes
+    ospfd=no
+    ospf6d=no
+    ripd=no
+    ripngd=no
+    isisd=no
+    pimd=no
+    ldpd=no
+    nhrpd=no
+    eigrpd=no
+    babeld=no
+    sharpd=no
+    pbrd=no
+    bfdd=no
+    fabricd=no
+    vrrpd=no
+    pathd=no
+    staticd=yes
+
+    vtysh_enable=yes
+    zebra_options="  -A 127.0.0.1 -s 90000000"
+    bgpd_options="   -A 127.0.0.1 -l 127.0.0.1 -p 0"
+    staticd_options="-A 127.0.0.1"
+  frr.conf: |
+    # Operators override this entirely. Sample left empty on purpose so a
+    # deployment without BGP peers does not advertise anything.
+    #
+    # ip prefix-list provider seq 10 permit x.x.x.x/24 le 32
+    # route-map provider permit 10
+    #   match ip address prefix-list provider
+    # exit
+    # router bgp {{ .Values.conf.ovn_bgp_agent.DEFAULT.bgp_AS }}
+    #   neighbor y.y.y.y remote-as 64512
+    #   address-family ipv4 unicast
+    #     neighbor y.y.y.y route-map provider out
+    #     neighbor y.y.y.y activate
+    #   exit-address-family
 
 pod:
   # NOTE: should be same as nova.pod.use_fqdn.compute
@@ -196,6 +259,7 @@ pod:
         value: "false"
       - name: OVN_SB_RAFT_ELECTION_TIMER
         value: "1000"
+    bgp_agent: []
   security_context:
     ovn_northd:
       container:
@@ -217,6 +281,18 @@ pod:
         vector:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
+    ovn_bgp_agent:
+      pod:
+        runAsUser: 0
+      container:
+        ovn_bgp_agent:
+          readOnlyRootFilesystem: false
+          runAsUser: 0
+          privileged: true
+        frr:
+          readOnlyRootFilesystem: true
+          runAsUser: 0
+          privileged: true
   tolerations:
     ovn_ovsdb_nb:
       enabled: false
@@ -226,6 +302,14 @@ pod:
       enabled: false
     ovn_controller:
       enabled: false
+    ovn_bgp_agent:
+      enabled: false
+  mounts:
+    ovn_bgp_agent:
+      init_container: null
+      ovn_bgp_agent:
+        volumeMounts:
+        volumes:
   affinity:
     anti:
       type:
@@ -301,6 +385,10 @@ pod:
           enabled: true
           min_ready_seconds: 0
           max_unavailable: 1
+        ovn_bgp_agent:
+          enabled: true
+          min_ready_seconds: 0
+          max_unavailable: 1
   resources:
     enabled: false
     ovn_ovsdb_nb:
@@ -345,6 +433,20 @@ pod:
       limits:
         memory: "256Mi"
         cpu: "500m"
+    ovn_bgp_agent:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "256Mi"
+        cpu: "500m"
+    frr:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "256Mi"
+        cpu: "500m"
     jobs:
       image_repo_sync:
         requests:
@@ -357,6 +459,7 @@ pod:
   sidecars:
     ovn_logging_parser: false
     vector: false
+    frr: false
 
 secrets:
   oci_image_registry:
@@ -481,6 +584,16 @@ dependencies:
           labels:
             application: openvswitch
             component: server
+    ovn_bgp_agent:
+      pod:
+        - requireSameNode: true
+          labels:
+            application: openvswitch
+            component: server
+        - requireSameNode: true
+          labels:
+            application: ovn
+            component: ovn-controller
     image_repo_sync:
       services:
         - endpoint: internal
@@ -498,6 +611,7 @@ manifests:
   daemonset_ovn_controller: true
   job_image_repo_sync: true
   secret_registry: true
+  daemonset_ovn_bgp_agent: false
 
 # -- Array of extra K8s manifests to deploy
 ## Note: Supports use of custom Helm templates

@@ -1,0 +1,172 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- define "ovn.bgp_agent.daemonset" }}
+{{- $configMapName := index . 1 }}
+{{- $serviceAccountName := index . 2 }}
+{{- $envAll := index . 3 }}
+{{- with $envAll }}
+
+{{- $env_ovn := .Values.pod.envs }}
+{{- $mounts_ovn_bgp_agent := .Values.pod.mounts.ovn_bgp_agent.ovn_bgp_agent }}
+{{- $mounts_ovn_bgp_agent_init := .Values.pod.mounts.ovn_bgp_agent.init_container }}
+
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: ovn-bgp-agent
+  annotations:
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+    configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
+  labels:
+{{ tuple $envAll "ovn" "ovn-bgp-agent" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  selector:
+    matchLabels:
+{{ tuple $envAll "ovn" "ovn-bgp-agent" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
+{{ tuple $envAll "ovn_bgp_agent" | include "helm-toolkit.snippets.kubernetes_upgrades_daemonset" | indent 2 }}
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "ovn" "ovn-bgp-agent" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+{{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
+        configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
+{{ tuple "ovn_bgp_agent" . | include "helm-toolkit.snippets.custom_pod_annotations" | indent 8 }}
+{{ dict "envAll" $envAll "podName" "ovn-bgp-agent" "containerNames" (list "ovn-bgp-agent" "init" "frr") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
+    spec:
+{{ dict "envAll" $envAll "application" "ovn_bgp_agent" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
+      serviceAccountName: {{ $serviceAccountName }}
+      hostNetwork: true
+      shareProcessNamespace: true
+      dnsPolicy: {{ .Values.pod.dns_policy }}
+{{ if $envAll.Values.pod.tolerations.ovn_bgp_agent.enabled }}
+{{ tuple $envAll "ovn_bgp_agent" | include "helm-toolkit.snippets.kubernetes_tolerations" | indent 6 }}
+{{ end }}
+      nodeSelector:
+        {{ .Values.labels.ovn_bgp_agent.node_selector_key }}: {{ .Values.labels.ovn_bgp_agent.node_selector_value }}
+      initContainers:
+{{ tuple $envAll "ovn_bgp_agent" $mounts_ovn_bgp_agent_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+      containers:
+        - name: ovn-bgp-agent
+{{ tuple $envAll "ovn_bgp_agent" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.ovn_bgp_agent | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "ovn_bgp_agent" "container" "ovn_bgp_agent" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          command:
+            - ovn-bgp-agent
+            - --config-file
+            - /etc/ovn-bgp-agent/bgp-agent.conf
+          env:
+{{ if $env_ovn.common }}{{ toYaml $env_ovn.common | indent 12 }}{{ end }}
+{{ if $env_ovn.bgp_agent }}{{ toYaml $env_ovn.bgp_agent | indent 12 }}{{ end }}
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: ovn-etc-bgp-agent
+              mountPath: /etc/ovn-bgp-agent/bgp-agent.conf
+              subPath: bgp-agent.conf
+              readOnly: true
+            - name: run-openvswitch
+              mountPath: /run/openvswitch
+            - name: run-ovn
+              mountPath: /run/ovn
+              {{- if .Values.pod.sidecars.frr }}
+            - name: run-frr
+              mountPath: /run/frr
+              {{- end }}
+{{ if $mounts_ovn_bgp_agent.volumeMounts }}{{ toYaml $mounts_ovn_bgp_agent.volumeMounts | indent 12 }}{{ end }}
+        {{- if .Values.pod.sidecars.frr }}
+        - name: frr
+{{ tuple $envAll "frr" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.frr | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "ovn_bgp_agent" "container" "frr" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          command:
+            - /tmp/frr.sh
+          volumeMounts:
+            - name: ovn-etc-frr-daemons
+              mountPath: /etc/frr/daemons
+              subPath: frr-daemons
+              readOnly: true
+            - name: ovn-bin
+              mountPath: /tmp/frr.sh
+              subPath: frr.sh
+              readOnly: true
+            - name: ovn-etc-frr-conf
+              mountPath: /etc/frr/frr.conf
+              subPath: frr.conf
+              readOnly: true
+            - name: run-frr
+              mountPath: /run/frr
+            - name: tmp-frr
+              mountPath: /var/tmp/frr
+       {{- end }}
+      volumes:
+        - name: pod-tmp
+          emptyDir: {}
+        - name: ovn-bin
+          configMap:
+            name: ovn-bin
+            defaultMode: 0555
+        - name: ovn-etc-bgp-agent
+          secret:
+            secretName: {{ $configMapName }}
+            defaultMode: 0444
+            items:
+              - key: bgp-agent.conf
+                path: bgp-agent.conf
+        - name: run-openvswitch
+          hostPath:
+            path: /run/openvswitch
+            type: DirectoryOrCreate
+        - name: run-ovn
+          hostPath:
+            path: /run/ovn
+            type: DirectoryOrCreate
+        {{- if .Values.pod.sidecars.frr }}
+        - name: run-frr
+          emptyDir: {}
+        - name: tmp-frr
+          emptyDir: {}
+        - name: ovn-etc-frr-daemons
+          secret:
+            secretName: {{ $configMapName }}
+            defaultMode: 0444
+            items:
+              - key: frr-daemons
+                path: frr-daemons
+        - name: ovn-etc-frr-conf
+          secret:
+            secretName: {{ $configMapName }}
+            defaultMode: 0444
+            items:
+              - key: frr.conf
+                path: frr.conf
+       {{- end }}
+{{ if $mounts_ovn_bgp_agent.volumes }}{{ toYaml $mounts_ovn_bgp_agent.volumes | indent 8 }}{{ end }}
+{{- end }}
+{{- end }}
+
+{{- if .Values.manifests.daemonset_ovn_bgp_agent }}
+{{- $envAll := . }}
+{{- $daemonset := "bgp-agent" }}
+{{- $configMapName := "ovn-etc" }}
+{{- $serviceAccountName := "ovn-bgp-agent" }}
+
+{{ tuple $envAll "ovn_bgp_agent" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{- $configmap_yaml := "ovn.configmap.etc" }}
+
+{{- list $daemonset "ovn.bgp_agent.daemonset" $serviceAccountName $configmap_yaml $configMapName "ovn.configmap.bin" "ovn-bin" . | include "helm-toolkit.utils.daemonset_overrides_root" }}
+{{- end }}
