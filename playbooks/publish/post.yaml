@@ -26,9 +26,30 @@
       set_fact:
         changed_charts: "{{ changed_charts_output.stdout_lines }}"
 
-    - name: Display changed charts
+    - name: Get charts that depend on helm-toolkit
+      shell: |
+        set -o pipefail
+        find . -mindepth 2 -maxdepth 2 -name Chart.yaml -print \
+          | while read -r chart_file; do
+              if grep -Eq 'name:[[:space:]]*helm-toolkit' "${chart_file}"; then
+                basename "$(dirname "${chart_file}")"
+              fi
+            done \
+          | sort -u
+      args:
+        chdir: "{{ zuul.project.src_dir }}"
+        executable: /bin/bash
+      register: helm_toolkit_dependents_output
+      changed_when: false
+      when: "'helm-toolkit' in changed_charts"
+
+    - name: Expand changed charts when helm-toolkit changes
+      set_fact:
+        changed_charts_to_publish: "{{ (changed_charts + (helm_toolkit_dependents_output.stdout_lines | default([]))) | unique }}"
+
+    - name: Display charts to publish
       debug:
-        msg: "Changed charts to publish: {{ changed_charts }}"
+        msg: "Charts to publish: {{ changed_charts_to_publish }}"
 
     - name: Download current index
       register: _get_url
@@ -65,24 +86,23 @@
         path: "{{ zuul.executor.work_root }}/artifacts/{{ item }}"
         state: directory
       delegate_to: localhost
-      loop: "{{ changed_charts }}"
-      when: changed_charts | length > 0
+      loop: "{{ changed_charts_to_publish }}"
+      when: changed_charts_to_publish | length > 0
 
     - name: Gather packaged charts from changed chart directories
       find:
         file_type: file
-        paths: "{{ zuul.project.src_dir }}"
-        patterns: "{{ item }}-*.tgz"
-        recurse: true
+        paths: "{{ zuul.project.src_dir }}/{{ item }}"
+        patterns: "{{ item }}-[0-9]*.tgz"
       register: chart_packages
-      loop: "{{ changed_charts }}"
-      when: changed_charts | length > 0
+      loop: "{{ changed_charts_to_publish }}"
+      when: changed_charts_to_publish | length > 0
 
     - name: Display chart tarballs to be published
       debug:
         msg: "src: {{ item.1.path }} dest: {{ zuul.executor.work_root }}/artifacts/{{ item.0.item }}/"
       loop: "{{ chart_packages.results | subelements('files', skip_missing=True) }}"
-      when: changed_charts | length > 0
+      when: changed_charts_to_publish | length > 0
 
     - name: Copy packaged charts to artifacts preserving directory structure
       synchronize:
@@ -93,7 +113,7 @@
         owner: no
         group: no
       loop: "{{ chart_packages.results | subelements('files', skip_missing=True) }}"
-      when: changed_charts | length > 0
+      when: changed_charts_to_publish | length > 0
 
     - name: Copy index.yaml to artifacts
       synchronize:
