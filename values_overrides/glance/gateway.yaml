@@ -19,7 +19,7 @@ extraObjects:
     kind: HTTPRoute
     metadata:
       name: glance-route
-      namespace: openstack
+      namespace: "{{ .Release.Namespace }}"
     spec:
       hostnames:
         - "{{ .Values.endpoints.image.host_fqdn_override.public.host }}"
@@ -31,6 +31,10 @@ extraObjects:
             - path:
                 type: PathPrefix
                 value: /
+          # Large image uploads (e.g. the amphora qcow2) can take minutes.
+          timeouts:
+            request: 600s
+            backendRequest: 600s
           backendRefs:
             - name: glance-api
               port: 9292

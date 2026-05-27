@@ -1,0 +1,160 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Create elasticsearch values file
+  copy:
+    dest: /tmp/elasticsearch.yaml
+    content: |
+      jobs:
+        verify_repositories:
+          cron: "*/3 * * * *"
+      monitoring:
+        prometheus:
+          enabled: true
+      pod:
+        replicas:
+          client: 1
+          data: 1
+          master: 2
+      conf:
+        elasticsearch:
+          snapshots:
+            enabled: true
+        api_objects:
+          snapshot_repo:
+            endpoint: _snapshot/ceph-rgw
+            body:
+              type: s3
+              settings:
+                client: default
+                bucket: elasticsearch-bucket
+          slm_policy:
+            endpoint: _slm/policy/snapshots
+            body:
+              schedule: "0 */15 * * * ?"
+              name: "<snapshot-{now/d}>"
+              repository: ceph-rgw
+              config:
+                indices:
+                  - "<*-{now/d}>"
+              retention:
+                expire_after: 30d
+          ilm_policy:
+            endpoint: _ilm/policy/cleanup
+            body:
+              policy:
+                phases:
+                  delete:
+                    min_age: 5d
+                    actions:
+                      delete: {}
+          test_empty: {}
+      storage:
+        s3:
+          clients:
+            default:
+              settings:
+                path_style_access: true
+              create_user: true
+            backup:
+              settings:
+                path_style_access: true
+              create_user: true
+          buckets:
+            - name: elasticsearch-bucket
+              client: default
+              storage_class: ceph-bucket
+            - name: backup-bucket
+              client: backup
+              storage_class: ceph-bucket
+      endpoints:
+        ceph_object_store:
+          name: radosgw
+          namespace: ceph
+          hosts:
+            default: rook-ceph-rgw-default
+            public: radosgw
+          host_fqdn_override:
+            default: null
+          path:
+            default: null
+          scheme:
+            default: http
+          port:
+            api:
+              default: 8080
+              public: 80
+      network:
+        elasticsearch:
+          ingress:
+            classes:
+              namespace: ingress-osh-infra
+      dependencies:
+        static:
+          elasticsearch_templates:
+            services:
+              - endpoint: internal
+                service: elasticsearch
+            jobs: null
+            custom_resources:
+              # Note: the object bucket resource names must match the Rook Ceph
+              # pattern for bucket claims (obc-<namespace>-<bucket-name>)
+              # to ensure the correct bucket is used by the chart.
+              - apiVersion: objectbucket.io/v1alpha1
+                kind: ObjectBucket
+                name: obc-osh-elasticsearch-bucket
+                fields:
+                  - key: "status.phase"
+                    value: "Bound"
+              - apiVersion: objectbucket.io/v1alpha1
+                kind: ObjectBucket
+                name: obc-osh-backup-bucket
+                fields:
+                  - key: "status.phase"
+                    value: "Bound"
+          snapshot_repository:
+            services:
+              - endpoint: internal
+                service: elasticsearch
+            jobs: null
+            custom_resources:
+              - apiVersion: objectbucket.io/v1alpha1
+                kind: ObjectBucket
+                name: obc-osh-elasticsearch-bucket
+                fields:
+                  - key: "status.phase"
+                    value: "Bound"
+              - apiVersion: objectbucket.io/v1alpha1
+                kind: ObjectBucket
+                name: obc-osh-backup-bucket
+                fields:
+                  - key: "status.phase"
+                    value: "Bound"
+      manifests:
+        job_s3_user: false
+        job_s3_bucket: false
+        object_bucket_claim: true
+      images:
+        tags:
+          dep_check: quay.io/airshipit/kubernetes-entrypoint:latest-ubuntu_noble
+
+- name: Deploy elasticsearch
+  include_tasks: _install.yaml
+  vars:
+    osh_chart: elasticsearch
+    osh_values_overrides_elasticsearch:
+      - /tmp/elasticsearch.yaml
+
+- name: Run elasticsearch Helm tests
+  include_tasks: _test.yaml
+  vars:
+    osh_chart: elasticsearch

@@ -1,0 +1,109 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Playbook for the monitoring stack (Prometheus, Grafana, Nagios, etc.).
+#
+# Deploys the prerequisite infrastructure (Docker registry, MariaDB,
+# PostgreSQL in osh-infra) and then the monitoring stack components
+# across osh-infra and kube-system namespaces.
+#
+# Usage in zuul.d job definition:
+#   run:
+#     - playbooks/deploy-env.yaml
+#     - playbooks/deploy-monitoring.yaml
+---
+- hosts: primary
+  tasks:
+    - name: Prepare Kubernetes
+      include_role:
+        name: deploy-charts
+        tasks_from: prepare-k8s
+
+    - name: Prepare charts
+      include_role:
+        name: deploy-charts
+        tasks_from: prepare-charts
+
+    - name: Deploy docker-registry stack
+      include_role:
+        name: deploy-charts
+        tasks_from: monitoring/docker-registry
+
+    - name: Deploy MariaDB
+      include_role:
+        name: deploy-charts
+        tasks_from: mariadb
+
+    - name: Deploy PostgreSQL
+      include_role:
+        name: deploy-charts
+        tasks_from: postgresql
+
+    - name: Deploy Prometheus
+      include_role:
+        name: deploy-charts
+        tasks_from: monitoring/prometheus
+
+    - name: Deploy Prometheus Alertmanager
+      include_role:
+        name: deploy-charts
+        tasks_from: monitoring/alertmanager
+
+    - name: Deploy Kube State Metrics
+      include_role:
+        name: deploy-charts
+        tasks_from: monitoring/kube-state-metrics
+
+    - name: Deploy Node Problem Detector
+      include_role:
+        name: deploy-charts
+        tasks_from: monitoring/node-problem-detector
+
+    - name: Deploy Node Exporter
+      include_role:
+        name: deploy-charts
+        tasks_from: monitoring/node-exporter
+
+    - name: Deploy Process Exporter
+      include_role:
+        name: deploy-charts
+        tasks_from: monitoring/process-exporter
+
+    - name: Deploy Blackbox Exporter
+      include_role:
+        name: deploy-charts
+        tasks_from: monitoring/blackbox-exporter
+
+    - name: Deploy Grafana
+      include_role:
+        name: deploy-charts
+        tasks_from: monitoring/grafana
+
+    - name: Deploy Nagios
+      include_role:
+        name: deploy-charts
+        tasks_from: monitoring/nagios
+
+    - name: Run Grafana Selenium test
+      include_role:
+        name: deploy-charts
+        tasks_from: monitoring/grafana-selenium
+
+    - name: Run Prometheus Selenium test
+      include_role:
+        name: deploy-charts
+        tasks_from: monitoring/prometheus-selenium
+
+    - name: Run Nagios Selenium test
+      include_role:
+        name: deploy-charts
+        tasks_from: monitoring/nagios-selenium

@@ -1,0 +1,82 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Create docker-registry namespaces
+  command: kubectl apply -f -
+  args:
+    stdin: |
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        labels:
+          kubernetes.io/metadata.name: {{ item }}
+          name: {{ item }}
+        name: {{ item }}
+  loop:
+    - docker-nfs
+    - docker-registry
+
+- name: Create docker-registry nfs-provisioner values file
+  copy:
+    dest: /tmp/docker-registry-nfs-provisioner.yaml
+    content: |
+      labels:
+        node_selector_key: openstack-helm-node-class
+        node_selector_value: primary
+      storageclass:
+        name: openstack-helm-bootstrap
+
+- name: Deploy docker-registry nfs-provisioner
+  include_tasks: _install.yaml
+  vars:
+    osh_chart: nfs-provisioner
+    osh_release: docker-registry-nfs-provisioner
+    osh_namespace: docker-nfs
+    osh_values_overrides:
+      - /tmp/docker-registry-nfs-provisioner.yaml
+
+- name: Deploy redis in docker-registry namespace
+  include_tasks: _install.yaml
+  vars:
+    osh_chart: redis
+    osh_release: docker-registry-redis
+    osh_namespace: docker-registry
+    osh_values_overrides: []
+    osh_set_values:
+      labels.node_selector_key: openstack-helm-node-class
+      labels.node_selector_value: primary
+
+- name: Create docker-registry values file
+  copy:
+    dest: /tmp/docker-registry.yaml
+    content: |
+      labels:
+        node_selector_key: openstack-helm-node-class
+        node_selector_value: primary
+      volume:
+        class_name: openstack-helm-bootstrap
+
+- name: Deploy docker-registry
+  include_tasks: _install.yaml
+  vars:
+    osh_chart: registry
+    osh_release: docker-registry
+    osh_namespace: docker-registry
+    osh_values_overrides:
+      - /tmp/docker-registry.yaml
+
+- name: Run redis Helm tests in docker-registry namespace
+  include_tasks: _test.yaml
+  vars:
+    osh_chart: redis
+    osh_release: docker-registry-redis
+    osh_namespace: docker-registry
