@@ -1,0 +1,37 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Rook-managed NFS-Ganesha cluster that exports CephFS over NFS.
+# Listens on the K8s node network so workloads outside the pod network
+# (e.g. Nova tenant VMs) can reach the export.
+---
+apiVersion: ceph.rook.io/v1
+kind: CephNFS
+metadata:
+  name: {{ ceph_nfs_cluster_id }}
+  namespace: {{ ceph_cluster_namespace }}
+spec:
+  server:
+    active: 1
+    priorityClassName: system-cluster-critical
+    hostNetwork: true
+    # Keep Ganesha off the control-plane node. The host nginx tcp proxy
+    # listens on tcpproxy_nfs_ganesha_cidr:2049 on the primary, and a
+    # Ganesha pod scheduled there would already bind 0.0.0.0:2049 via
+    # hostNetwork, causing the proxy to fail with "Address in use".
+    placement:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+            - matchExpressions:
+                - key: node-role.kubernetes.io/control-plane
+                  operator: DoesNotExist

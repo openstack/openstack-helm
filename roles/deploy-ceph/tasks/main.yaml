@@ -115,3 +115,129 @@
     executable: /bin/bash
   changed_when: false
 
+# --- Optional CephFS + NFS-Ganesha bring-up ---
+# The CephFilesystem itself is provisioned by the rook-ceph-cluster chart
+# via the cephFileSystems values key (rendered conditionally above).
+- name: Wait for CephFilesystem to reach Ready phase
+  command: >
+    kubectl wait cephfilesystem/{{ ceph_fs_name }}
+    --namespace={{ ceph_cluster_namespace }}
+    --for=jsonpath={.status.phase}=Ready
+    --timeout={{ ceph_wait_timeout }}s
+  changed_when: false
+  when: ceph_enable_cephfs | bool
+
+# Patch the mgr `nfs` module so manila's CephFS driver can call
+# `ceph nfs cluster info` successfully. The rook orchestrator returns
+# Host.addr as "<ip>/<hostname>", and the stock resolve_ip() does
+# socket.getaddrinfo() on the combined string and fails with
+# errno -22 / "Cannot resolve IP for host <ip>/<hostname>". The patch
+# strips the suffix.
+#
+# Patching in-pod doesn't persist (rook may restart mgr containers and
+# the writable layer is wiped), so we mount the patched file via a
+# ConfigMap subPath.
+- name: Render patched mgr nfs cluster.py
+  shell: |
+    set -e
+    MGR=$(kubectl -n {{ ceph_cluster_namespace }} get deploy \
+      -l app=rook-ceph-mgr -o jsonpath='{.items[0].metadata.name}')
+    kubectl -n {{ ceph_cluster_namespace }} exec deploy/${MGR} -- \
+      cat /usr/share/ceph/mgr/nfs/cluster.py > /tmp/mgr-nfs-cluster.py
+    python3 - <<'PY'
+    import sys
+    p = '/tmp/mgr-nfs-cluster.py'
+    s = open(p).read()
+    marker = 'hostname = hostname.split("/")[0]'
+    if marker in s:
+        print('already-patched'); sys.exit(0)
+    needle = 'def resolve_ip(hostname: str) -> str:\n    try:'
+    if needle not in s:
+        sys.stderr.write('resolve_ip pattern not found, cannot patch\n')
+        sys.exit(1)
+    s = s.replace(needle,
+        'def resolve_ip(hostname: str) -> str:\n'
+        '    # Strip "<ip>/<hostname>" suffix that the rook orchestrator\n'
+        '    # adds to Host.addr -- stock resolve_ip cannot handle it.\n'
+        '    hostname = hostname.split("/")[0]\n'
+        '    try:', 1)
+    open(p, 'w').write(s)
+    print('patched')
+    PY
+  args:
+    executable: /bin/bash
+  register: _mgr_nfs_patch
+  changed_when: _mgr_nfs_patch.stdout_lines | last == 'patched'
+  when: ceph_enable_cephfs | bool
+
+- name: Create mgr-nfs-patch ConfigMap
+  shell: |
+    kubectl -n {{ ceph_cluster_namespace }} create configmap mgr-nfs-patch \
+      --from-file=cluster.py=/tmp/mgr-nfs-cluster.py \
+      --dry-run=client -o yaml | kubectl apply -f -
+  args:
+    executable: /bin/bash
+  changed_when: true
+  when: ceph_enable_cephfs | bool
+
+- name: Mount patched cluster.py into mgr deployments
+  shell: |
+    set -e
+    for D in $(kubectl -n {{ ceph_cluster_namespace }} get deploy \
+        -l app=rook-ceph-mgr -o jsonpath='{.items[*].metadata.name}'); do
+      kubectl -n {{ ceph_cluster_namespace }} patch deploy "$D" --type=strategic -p \
+        '{"spec":{"template":{"spec":{"volumes":[{"name":"mgr-nfs-patch","configMap":{"name":"mgr-nfs-patch"}}],"containers":[{"name":"mgr","volumeMounts":[{"name":"mgr-nfs-patch","mountPath":"/usr/share/ceph/mgr/nfs/cluster.py","subPath":"cluster.py","readOnly":true}]}]}}}}'
+    done
+  args:
+    executable: /bin/bash
+  changed_when: true
+  when: ceph_enable_cephfs | bool
+
+- name: Wait for mgr deployments to roll out with patch
+  shell: |
+    set -e
+    for D in $(kubectl -n {{ ceph_cluster_namespace }} get deploy \
+        -l app=rook-ceph-mgr -o jsonpath='{.items[*].metadata.name}'); do
+      kubectl -n {{ ceph_cluster_namespace }} rollout status \
+        deploy/"$D" --timeout={{ ceph_wait_timeout }}s
+    done
+  args:
+    executable: /bin/bash
+  changed_when: false
+  when: ceph_enable_cephfs | bool
+
+# `ceph nfs cluster info` and related commands need the rook
+# orchestrator backend so the mgr can talk to the rook operator.
+- name: Enable rook orchestrator backend
+  shell: |
+    set -xe
+    kubectl -n {{ ceph_cluster_namespace }} exec deploy/rook-ceph-tools -- \
+      ceph mgr module enable rook
+    kubectl -n {{ ceph_cluster_namespace }} exec deploy/rook-ceph-tools -- \
+      ceph orch set backend rook
+  args:
+    executable: /bin/bash
+  changed_when: true
+  when: ceph_enable_cephfs | bool
+
+- name: Render CephNFS manifest
+  template:
+    src: cephnfs.yaml.j2
+    dest: /tmp/cephnfs.yaml
+    mode: "0644"
+  when: ceph_enable_cephfs | bool
+
+- name: Apply CephNFS manifest
+  command: kubectl apply -f /tmp/cephnfs.yaml
+  changed_when: true
+  when: ceph_enable_cephfs | bool
+
+- name: Wait for CephNFS to reach Ready phase
+  command: >
+    kubectl wait cephnfs/{{ ceph_nfs_cluster_id }}
+    --namespace={{ ceph_cluster_namespace }}
+    --for=jsonpath={.status.phase}=Ready
+    --timeout={{ ceph_wait_timeout }}s
+  changed_when: false
+  when: ceph_enable_cephfs | bool
+

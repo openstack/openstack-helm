@@ -24,8 +24,37 @@
   command: kubectl label --overwrite nodes --all {{ item }}
   loop:
     - openstack-control-plane=enabled
-    - openstack-compute-node=enabled
     - openvswitch=enabled
+
+# On multi-node nodesets, keep openstack-compute-node off the K8s
+# control-plane node so Nova does not schedule tenant VMs onto it
+# (without this, vm2 in a 2-VM anti-affinity set tends to land on the
+# control-plane and the combination of etcd/apiserver + rook-ceph mgr
+# + Ganesha + a tenant VM drives the node into sshd unresponsiveness).
+# On single-node nodesets the control-plane is the only node, so fall
+# back to labelling all nodes.
+- name: Count worker (non-control-plane) nodes
+  # `-o name` prints `node/<name>` per match and nothing on no-match,
+  # regardless of kubectl version. `--no-headers` was version-dependent:
+  # some kubectl builds emit "No resources found" to stdout, which
+  # silently makes stdout_lines | length == 1 and misroutes the
+  # single-node branch below into the multi-node one.
+  command: >-
+    kubectl get nodes -l '!node-role.kubernetes.io/control-plane'
+    -o name
+  register: _osh_worker_nodes
+  changed_when: false
+
+- name: Label worker nodes for Nova compute (multi-node)
+  command: >-
+    kubectl label --overwrite
+    nodes -l '!node-role.kubernetes.io/control-plane'
+    openstack-compute-node=enabled
+  when: _osh_worker_nodes.stdout_lines | length > 0
+
+- name: Label all nodes for Nova compute (single-node fallback)
+  command: kubectl label --overwrite nodes --all openstack-compute-node=enabled
+  when: _osh_worker_nodes.stdout_lines | length == 0
 
 - name: Label control-plane nodes
   command: kubectl label --overwrite nodes -l node-role.kubernetes.io/control-plane {{ item }}

@@ -61,7 +61,7 @@ cephClusterSpec:
       - name: dashboard
         enabled: false
       - name: nfs
-        enabled: false
+        enabled: {{ ceph_enable_cephfs | bool | string | lower }}
   dashboard:
     enabled: true
     ssl: true
@@ -153,7 +153,27 @@ cephBlockPools:
         csi.storage.k8s.io/node-stage-secret-name: rook-csi-rbd-node
         csi.storage.k8s.io/node-stage-secret-namespace: "{{ '{{' }} .Release.Namespace {{ '}}' }}"
         csi.storage.k8s.io/fstype: ext4
-cephFileSystems: []
+cephFileSystems:
+{% if ceph_enable_cephfs | bool %}
+  - name: {{ ceph_fs_name }}
+    namespace: {{ ceph_cluster_namespace }}
+    spec:
+      metadataPool:
+        replicated:
+          size: 1
+      dataPools:
+        - name: data
+          failureDomain: host
+          replicated:
+            size: 1
+      preserveFilesystemOnDelete: false
+      metadataServer:
+        activeCount: 1
+        activeStandby: true
+        priorityClassName: system-cluster-critical
+    storageClass:
+      enabled: false
+{% endif %}
 cephBlockPoolsVolumeSnapshotClass:
   enabled: false
   name: general

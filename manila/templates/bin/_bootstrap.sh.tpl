@@ -20,6 +20,7 @@ export HOME=/tmp
 cd $HOME
 
 {{ range .Values.bootstrap.structured.images }}
+{{- if . }}
 openstack image show {{ .name  | quote }} || \
   (curl --fail -sSL -O {{ .source_url }}{{ .image_file }}; \
   openstack image create {{ .name | quote }} \
@@ -33,9 +34,11 @@ openstack image show {{ .name  | quote }} || \
   {{- else -}}
   --public
   {{- end -}};)
+{{- end }}
 {{ end }}
 
 {{ range .Values.bootstrap.structured.flavors }}
+{{- if . }}
 openstack flavor show {{ .name  | quote }} || \
   openstack flavor create {{ .name | quote }} \
   {{ if .id -}} --id {{ .id }} {{ end -}} \
@@ -48,6 +51,7 @@ openstack flavor show {{ .name  | quote }} || \
   {{- else -}}
   --private
   {{- end -}};
+{{- end }}
 {{ end }}
 
 openstack share type show default || \

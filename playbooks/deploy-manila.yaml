@@ -1,0 +1,141 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Playbook for manila deployment and end-to-end testing.
+#
+# Deploys Ceph (via Rook) with CephFS + NFS-Ganesha enabled, the
+# OpenStack compute stack (Heat, Glance, Neutron, Nova), and Manila
+# configured with the cephfsnfs backend. The test task then uses
+# Heat to create an NFS share plus two Nova VMs that mount it, and
+# verifies cross-VM read/write through the share.
+#
+# Cinder is intentionally not deployed: the cephfsnfs driver
+# provisions shares as CephFS subvolumes exported via NFS-Ganesha,
+# and the test VMs only mount NFS. Nothing in this path needs block
+# storage.
+#
+# Usage in zuul.d job definition:
+#   run:
+#     - playbooks/deploy-env.yaml
+#     - playbooks/deploy-manila.yaml
+---
+- hosts: primary
+  tasks:
+    # NOTE: Tasks 1-13 below are commented out for the manila debug
+    # iteration -- the lab already has all the prerequisite charts
+    # deployed. Helm refuses to re-apply most of them because various
+    # field managers (kubectl-client-side-apply, pykube-ng, ...) own
+    # parts of the rendered objects. Uncomment them again when running
+    # the full pipeline from scratch.
+
+    - name: Prepare Kubernetes
+      include_role:
+        name: deploy-charts
+        tasks_from: prepare-k8s
+
+    - name: Prepare charts
+      include_role:
+        name: deploy-charts
+        tasks_from: prepare-charts
+
+    - name: Setup OpenStack client
+      include_role:
+        name: deploy-charts
+        tasks_from: setup-client
+
+    - name: Deploy Ceph Rook (with CephFS + NFS-Ganesha enabled)
+      include_role:
+        name: deploy-ceph
+      vars:
+        ceph_enable_cephfs: true
+
+    - name: Deploy Ceph adapter Rook
+      include_role:
+        name: deploy-charts
+        tasks_from: ceph-adapter-rook
+
+    # Configure the host nginx tcp proxy to forward NFS (port 2049) from
+    # tcpproxy_nfs_ganesha_cidr to the Ganesha pod's actual node IP.
+    # Required because tenant VMs cannot directly reach the K8s overlay IP
+    # that Ganesha listens on -- traffic from br-ex to brvxlan is blocked
+    # on the host.
+    - name: Configure NFS-Ganesha tcp proxy
+      include_role:
+        name: deploy-env
+        tasks_from: configure_ganesha_proxy
+
+    - name: Deploy MariaDB
+      include_role:
+        name: deploy-charts
+        tasks_from: mariadb
+
+    - name: Deploy Memcached
+      include_role:
+        name: deploy-charts
+        tasks_from: memcached
+
+    - name: Deploy RabbitMQ
+      include_role:
+        name: deploy-charts
+        tasks_from: rabbitmq
+
+    - name: Deploy Keystone
+      include_role:
+        name: deploy-charts
+        tasks_from: keystone
+
+    - name: Deploy Heat
+      include_role:
+        name: deploy-charts
+        tasks_from: heat
+
+    - name: Deploy Glance
+      include_role:
+        name: deploy-charts
+        tasks_from: glance
+      vars:
+        osh_glance_backend: local
+
+    - name: Deploy Open vSwitch
+      include_role:
+        name: deploy-charts
+        tasks_from: openvswitch
+
+    - name: Deploy Libvirt
+      include_role:
+        name: deploy-charts
+        tasks_from: libvirt
+
+    - name: Deploy Placement
+      include_role:
+        name: deploy-charts
+        tasks_from: placement
+
+    - name: Deploy Nova
+      include_role:
+        name: deploy-charts
+        tasks_from: nova
+
+    - name: Deploy Neutron
+      include_role:
+        name: deploy-charts
+        tasks_from: neutron
+
+    - name: Deploy Manila
+      include_role:
+        name: deploy-charts
+        tasks_from: manila
+
+    - name: Run Manila end-to-end test
+      include_role:
+        name: deploy-charts
+        tasks_from: manila_test
