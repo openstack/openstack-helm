@@ -20,8 +20,20 @@ values: |
   secrets:
     identity:
       admin: example-keystone-admin
+  identity:
+    openrc:
+      exclude_vars: []
+      extra_vars: []
 usage: |
   {{ include "helm-toolkit.snippets.keystone_openrc_env_vars" ( dict "ksUserSecret" .Values.secrets.identity.admin ) }}
+
+  To use an alternative auth plugin (e.g. v3oidcaccesstoken), exclude unneeded
+  vars and add plugin-specific ones:
+
+  {{ include "helm-toolkit.snippets.keystone_openrc_env_vars" ( dict "ksUserSecret" .Values.secrets.identity.admin "excludeVars" (list "OS_USERNAME" "OS_PASSWORD" "OS_USER_DOMAIN_NAME") "extraVars" (list (dict "name" "OS_AUTH_TYPE" "value" "v3oidcaccesstoken") (dict "name" "OS_ACCESS_TOKEN" "secretKeyRef" (dict "name" "my-oidc-secret" "key" "access-token")) (dict "name" "OS_IDENTITY_PROVIDER" "value" "myidp") (dict "name" "OS_PROTOCOL" "value" "mapped")) ) }}
+
+  See https://docs.openstack.org/keystoneauth/2026.1/plugin-options.html for
+  available auth plugins and their required environment variables.
 return: |
   - name: OS_IDENTITY_API_VERSION
     value: "3"
@@ -79,64 +91,104 @@ return: |
 
 {{- define "helm-toolkit.snippets.keystone_openrc_env_vars" }}
 {{- $useCA := .useCA -}}
-{{- $ksUserSecret := .ksUserSecret }}
+{{- $ksUserSecret := .ksUserSecret -}}
+{{- $excludeVars := .excludeVars | default list -}}
+{{- $extraVars := .extraVars | default list -}}
+{{- if not (has "OS_IDENTITY_API_VERSION" $excludeVars) }}
 - name: OS_IDENTITY_API_VERSION
   value: "3"
+{{- end }}
+{{- if not (has "OS_AUTH_URL" $excludeVars) }}
 - name: OS_AUTH_URL
   valueFrom:
     secretKeyRef:
       name: {{ $ksUserSecret }}
       key: OS_AUTH_URL
+{{- end }}
+{{- if not (has "OS_REGION_NAME" $excludeVars) }}
 - name: OS_REGION_NAME
   valueFrom:
     secretKeyRef:
       name: {{ $ksUserSecret }}
       key: OS_REGION_NAME
+{{- end }}
+{{- if not (has "OS_INTERFACE" $excludeVars) }}
 - name: OS_INTERFACE
   valueFrom:
     secretKeyRef:
       name: {{ $ksUserSecret }}
       key: OS_INTERFACE
+{{- end }}
+{{- if not (has "OS_ENDPOINT_TYPE" $excludeVars) }}
 - name: OS_ENDPOINT_TYPE
   valueFrom:
     secretKeyRef:
       name: {{ $ksUserSecret }}
       key: OS_INTERFACE
+{{- end }}
+{{- if not (has "OS_PROJECT_DOMAIN_NAME" $excludeVars) }}
 - name: OS_PROJECT_DOMAIN_NAME
   valueFrom:
     secretKeyRef:
       name: {{ $ksUserSecret }}
       key: OS_PROJECT_DOMAIN_NAME
+{{- end }}
+{{- if not (has "OS_PROJECT_NAME" $excludeVars) }}
 - name: OS_PROJECT_NAME
   valueFrom:
     secretKeyRef:
       name: {{ $ksUserSecret }}
       key: OS_PROJECT_NAME
+{{- end }}
+{{- if not (has "OS_USER_DOMAIN_NAME" $excludeVars) }}
 - name: OS_USER_DOMAIN_NAME
   valueFrom:
     secretKeyRef:
       name: {{ $ksUserSecret }}
       key: OS_USER_DOMAIN_NAME
+{{- end }}
+{{- if not (has "OS_USERNAME" $excludeVars) }}
 - name: OS_USERNAME
   valueFrom:
     secretKeyRef:
       name: {{ $ksUserSecret }}
       key: OS_USERNAME
+{{- end }}
+{{- if not (has "OS_PASSWORD" $excludeVars) }}
 - name: OS_PASSWORD
   valueFrom:
     secretKeyRef:
       name: {{ $ksUserSecret }}
       key: OS_PASSWORD
+{{- end }}
+{{- if not (has "OS_DEFAULT_DOMAIN" $excludeVars) }}
 - name: OS_DEFAULT_DOMAIN
   valueFrom:
     secretKeyRef:
       name: {{ $ksUserSecret }}
       key: OS_DEFAULT_DOMAIN
-{{- if $useCA }}
+{{- end }}
+{{- if and $useCA (not (has "OS_CACERT" $excludeVars)) }}
 - name: OS_CACERT
   valueFrom:
     secretKeyRef:
       name: {{ $ksUserSecret }}
       key: OS_CACERT
+{{- end }}
+{{- range $extraVars }}
+- name: {{ .name }}
+{{- if hasKey . "value" }}
+  value: {{ .value | quote }}
+{{- else if hasKey . "secretKeyRef" }}
+  valueFrom:
+    secretKeyRef:
+      name: {{ .secretKeyRef.name }}
+      key: {{ .secretKeyRef.key }}
+{{- else if hasKey . "configMapKeyRef" }}
+  valueFrom:
+    configMapKeyRef:
+      name: {{ .configMapKeyRef.name }}
+      key: {{ .configMapKeyRef.key }}
+{{- end }}
 {{- end }}
 {{- end }}

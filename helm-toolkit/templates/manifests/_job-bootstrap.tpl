@@ -90,9 +90,17 @@ spec:
 {{ tuple $envAll $envAll.Values.pod.resources.jobs.bootstrap | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
 {{- if eq $openrc "true" }}
           env:
-{{- with $env := dict "ksUserSecret" ( index $envAll.Values.secrets.identity $keystoneUser ) "useCA" (ne $tlsSecret "") }}
-{{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 12 }}
+{{- $identityOpenrc := dict }}
+{{- if hasKey $envAll.Values "identity" }}
+{{- if hasKey $envAll.Values.identity "openrc" }}
+{{- $identityOpenrc = $envAll.Values.identity.openrc }}
 {{- end }}
+{{- end }}
+{{- $env := dict "ksUserSecret" ( index $envAll.Values.secrets.identity $keystoneUser ) -}}
+{{- $_ := set $env "useCA" (ne $tlsSecret "") -}}
+{{- $_ := set $env "excludeVars" ($identityOpenrc.exclude_vars | default list) -}}
+{{- $_ := set $env "extraVars" ($identityOpenrc.extra_vars | default list) -}}
+{{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 12 }}
 {{- end }}
           command:
             - /bin/bash
