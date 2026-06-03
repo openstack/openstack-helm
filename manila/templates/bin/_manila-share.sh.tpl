@@ -15,8 +15,22 @@ limitations under the License.
 */}}
 
 set -ex
+
+{{- if empty .Values.conf.manila.DEFAULT.host }}
+# When no static host is configured, derive it from the pod hostname.
+# Combined with a StatefulSet this gives each replica a stable, unique
+# host value (manila-share-0, manila-share-1, ...).
+cat > /tmp/manila-share-host.conf << EOF
+[DEFAULT]
+host = ${HOSTNAME}
+EOF
+{{- end }}
+
 exec manila-share \
      --config-file /etc/manila/manila.conf \
+{{- if empty .Values.conf.manila.DEFAULT.host }}
+     --config-file /tmp/manila-share-host.conf \
+{{- end }}
      --config-dir /etc/manila/manila.conf.d \
 {{- if and ( empty .Values.conf.manila.generic.service_network_host ) ( .Values.pod.use_fqdn.share ) }}
      --config-file /tmp/pod-shared/manila-share-fqdn.conf

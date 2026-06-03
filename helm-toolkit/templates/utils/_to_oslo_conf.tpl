@@ -66,6 +66,11 @@ return: |
 {{ else if eq $value.type "csv" -}}
 {{ $key }} = {{ include "helm-toolkit.utils.joinListWithComma" $value.values }}
 {{ end -}}
+{{- else if kindIs "invalid" $value -}}
+{{/* nil value: skip this key so the service falls back to its built-in
+     default. Without this guard, Go templates render nil as the literal
+     string "<no value>" and oslo.config rejects it (e.g. HostnameOpt
+     fails with "is not a valid host address"). */}}
 {{- else -}}
 {{ $key }} = {{ $value }}
 {{ end -}}

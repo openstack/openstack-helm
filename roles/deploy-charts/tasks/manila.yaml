@@ -9,8 +9,166 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+# Manila chart deploy. Assumes deploy-ceph was invoked with
+# ceph_enable_cephfs: true so a CephFilesystem (default name "cephfs")
+# and a CephNFS cluster (default id "nfs") already exist.
 ---
+# Manila-specific Ceph prep: create the client.manila CephX user with
+# caps to manage subvolumes via the mgr volumes API and read/write the
+# filesystem pools, then export its key as the `manila-keyring` secret
+# in the openstack namespace (matches manila/values.yaml secrets.rbd).
+- name: Create client.manila CephX user and seed manila-keyring secret
+  shell: |
+    set -xeo pipefail
+    TOOLS_POD=$(kubectl get pods \
+      --namespace=ceph \
+      --selector="app=rook-ceph-tools" \
+      --no-headers | grep Running | awk '{ print $1; exit }')
+    kubectl -n ceph exec "${TOOLS_POD}" -- \
+      ceph auth get-or-create client.manila \
+        mon "allow r" \
+        mgr "allow rw" \
+        osd "allow rw tag cephfs metadata=cephfs, allow rw tag cephfs data=cephfs" \
+        mds "allow rw fsname=cephfs"
+    KEY=$(kubectl -n ceph exec "${TOOLS_POD}" -- \
+      ceph auth print-key client.manila)
+    # The secret must live in the namespace where the manila chart is
+    # installed, since manila-share mounts it as a Secret volume.
+    kubectl get namespace {{ osh_namespace | default('osh') }} \
+      || kubectl create namespace {{ osh_namespace | default('osh') }}
+    kubectl -n {{ osh_namespace | default('osh') }} create secret generic manila-keyring \
+      --from-literal=key="${KEY}" \
+      --dry-run=client -o yaml | kubectl apply -f -
+  args:
+    executable: /bin/bash
+  changed_when: true
+
+- name: Create Manila values file
+  copy:
+    dest: /tmp/manila.yaml
+    content: |
+      manifests:
+        # Run manila-share as a StatefulSet so each pod gets a stable,
+        # unique hostname (manila-share-0, ...) used as the [DEFAULT]
+        # host value. The chart automatically disables deployment_share
+        # when this is true.
+        statefulset_share: true
+      conf:
+        manila:
+          DEFAULT:
+            # Clearing host makes the manila-share.sh script write a
+            # per-pod host config (host = ${HOSTNAME}) at startup, so
+            # each StatefulSet replica registers under its own pod name.
+            host: null
+            # The cephfs branch in the chart's deployment-share.yaml is
+            # gated by `contains "cephfs" enabled_share_backends`, so
+            # "cephfsnfs" turns on the ceph-keyring init container and
+            # the /etc/ceph + ceph.conf + manila-keyring mounts.
+            enabled_share_backends: cephfsnfs
+            enabled_share_protocols: NFS
+            # cephfs_auth_id is already "manila" in the chart default;
+            # CEPHFS_AUTH_ID env var on the init container reads from
+            # DEFAULT, so leave that path untouched.
+            #
+            # Belt-and-suspenders: ensure uwsgi `processes` is non-empty
+            # (the chart templates it from this key) so manila-api spawns
+            # workers and serves requests. Without it uWSGI runs in
+            # no-workers mode and the readiness probe never passes.
+            osapi_share_workers: 1
+          cephfsnfs:
+            share_backend_name: CEPHFSNFS
+            share_driver: manila.share.drivers.cephfs.driver.CephFSDriver
+            # Manila does not provision per-tenant share networks; the
+            # NFS export is reached directly through the host network
+            # that Ganesha listens on.
+            driver_handles_share_servers: false
+            cephfs_conf_path: /etc/ceph/ceph.conf
+            cephfs_auth_id: manila
+            cephfs_cluster_name: ceph
+            cephfs_filesystem_name: cephfs
+            cephfs_protocol_helper_type: NFS
+            cephfs_nfs_cluster_id: nfs
+            # IP that Manila advertises to clients as the NFS export
+            # location. Set to the nginx tcp proxy address on the host's
+            # tcpproxy1 interface. Tenant VMs reach this IP via their
+            # default gateway; nginx (host network) then forwards to
+            # the actual Ganesha pod node IP. This bypasses the direct
+            # br-ex -> brvxlan path, which is blocked on the host.
+            #
+            # NOTE: this MUST match the host-side address of
+            # `tcpproxy_nfs_ganesha_cidr` in roles/deploy-env/defaults/main.yaml
+            # If you change one, change the other.
+            cephfs_ganesha_server_ip: 172.24.6.3
+            # Setting export_ips makes the driver skip the
+            # `ceph nfs cluster info` orchestrator query in
+            # _get_export_ips(); that call fails on rook because the
+            # rook orchestrator returns host.addr as "<ip>/<hostname>"
+            # and the mgr nfs module's resolve_ip() chokes on it.
+            cephfs_ganesha_export_ips: 172.24.6.3
+      # The chart's hardcoded `openstack share type create default true`
+      # bakes in driver_handles_share_servers=True, which mismatches our
+      # cephfsnfs backend (dhss=False) and would cause `no valid host` at
+      # schedule time. Append bootstrap commands that recreate the type
+      # with dhss=False and useful scheduler extra-specs.
+      #
+      # We also empty `structured.images` and `structured.flavors` so the
+      # bootstrap does not try to download manila-service-image or create
+      # the manila-service-flavor; both are generic-driver artifacts and
+      # the image download fails when the tarballs mirror is unreachable.
+      #
+      # The chart ships no `dependencies.static.bootstrap`, so its init
+      # container has no upstream wait. Helm runs the post-install hook
+      # without --wait for primary resources, so the bootstrap pod will
+      # race the manila-api Deployment and get `Connection refused` from
+      # manila-api.osh.svc.cluster.local:8786 every retry. Add an explicit
+      # service dep so kubernetes-entrypoint blocks until the manila API
+      # endpoint is reachable.
+      dependencies:
+        static:
+          bootstrap:
+            services:
+              - endpoint: internal
+                service: sharev2
+              - endpoint: internal
+                service: identity
+      bootstrap:
+        structured:
+          # Helm merges dicts deeply, so we have to null out each key
+          # individually instead of replacing the parent with {}.
+          images:
+            manila-service-image: null
+          flavors:
+            manila-service-flavor: null
+        script: |
+          # The chart's hardcoded `share type create default true` creates
+          # the type with dhss=true. To replace it with a dhss=false type
+          # for cephfsnfs, the share group type "default" (which the chart
+          # also creates and which references the share type) must be
+          # deleted first; otherwise share-type delete fails with
+          # "Target share type is still in use".
+          #
+          # Idempotent guard: only swap if the existing default share-type
+          # still has dhss=True. On re-runs (helm upgrade re-fires this
+          # post-install hook) the type is already correct and any in-use
+          # share would block the delete, so this is a no-op.
+          DHSS=$(openstack share type show default -c required_extra_specs -f value 2>/dev/null \
+                 | tr -d "{} '" | awk -F: '/driver_handles_share_servers/ {print $2}')
+          if [ "${DHSS}" = "True" ]; then
+            openstack share group type delete default || true
+            openstack share type delete default
+            openstack share type create default false --public True \
+              --extra-specs share_backend_name=CEPHFSNFS \
+                            storage_protocol=NFS \
+                            vendor_name=Ceph
+            openstack share group type create default default --public True
+          else
+            echo "default share type already has dhss=${DHSS:-unknown}; skipping recreate"
+          fi
+
 - name: Deploy manila
   include_tasks: _install.yaml
   vars:
     osh_chart: manila
+    osh_values_overrides_manila:
+      - /tmp/manila.yaml

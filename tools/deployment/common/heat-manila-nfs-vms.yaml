@@ -1,0 +1,213 @@
+---
+heat_template_version: '2021-04-16'
+
+description: >
+  Create a Manila NFS share and two Nova VMs that mount it via cloud-init.
+  Used by the manila CI job to verify cross-VM read/write through the
+  share. The VMs share a tenant network and each gets a Floating IP so
+  the CI runner can SSH in.
+
+parameters:
+  public_net:
+    type: string
+    default: public
+
+  image:
+    type: string
+    description: Glance image with NFS client support (Ubuntu cloud image).
+
+  ssh_key:
+    type: string
+    default: heat-vm-key
+
+  cidr:
+    type: string
+    default: 192.168.130.0/24
+
+  dns_nameserver:
+    type: string
+    default: 8.8.8.8
+
+  share_size:
+    type: number
+    default: 1
+
+  share_type:
+    type: string
+    default: default
+
+resources:
+
+  flavor:
+    type: OS::Nova::Flavor
+    properties:
+      disk: 5
+      ram: 2048
+      vcpus: 1
+
+  # Spread the two VMs across different compute nodes so the test really
+  # exercises NFS over the underlay between hosts (and to avoid OOM on a
+  # single compute under Ubuntu boot pressure).
+  server_group:
+    type: OS::Nova::ServerGroup
+    properties:
+      name: manila-nfs-vms
+      policies: [anti-affinity]
+
+  share:
+    type: OS::Manila::Share
+    properties:
+      name: ci-manila-nfs-share
+      share_protocol: NFS
+      size: {get_param: share_size}
+      share_type: {get_param: share_type}
+
+  # NOTE: OS::Manila::ShareAccessRule is not registered as a Heat resource
+  # type in this deployment (only Share/ShareNetwork/ShareType/SecurityService
+  # exist). Access rules are created out of band by the test script via
+  # `openstack share access create` once the stack outputs reveal the VM IPs.
+
+  private_net:
+    type: OS::Neutron::Net
+
+  private_subnet:
+    type: OS::Neutron::Subnet
+    properties:
+      network: {get_resource: private_net}
+      cidr: {get_param: cidr}
+      dns_nameservers:
+        - {get_param: dns_nameserver}
+
+  router:
+    type: OS::Neutron::Router
+    properties:
+      external_gateway_info:
+        network: {get_param: public_net}
+
+  router_interface:
+    type: OS::Neutron::RouterInterface
+    properties:
+      router_id: {get_resource: router}
+      subnet_id: {get_resource: private_subnet}
+
+  port_security_group:
+    type: OS::Neutron::SecurityGroup
+    properties:
+      name: manila-nfs-vm-sg
+      description: 'Allow SSH and NFS client traffic for the manila test VMs.'
+      rules:
+        - remote_ip_prefix: 0.0.0.0/0
+          protocol: tcp
+          port_range_min: 22
+          port_range_max: 22
+        - remote_ip_prefix: 0.0.0.0/0
+          protocol: icmp
+        # Egress is permissive by default; the rules above cover ingress
+        # to SSH. The NFS client connects outbound, so no additional
+        # ingress rule is required for NFS itself.
+
+  vm1_port:
+    type: OS::Neutron::Port
+    properties:
+      network: {get_resource: private_net}
+      fixed_ips:
+        - subnet: {get_resource: private_subnet}
+      security_groups:
+        - {get_resource: port_security_group}
+
+  vm2_port:
+    type: OS::Neutron::Port
+    properties:
+      network: {get_resource: private_net}
+      fixed_ips:
+        - subnet: {get_resource: private_subnet}
+      security_groups:
+        - {get_resource: port_security_group}
+
+  vm1_fip:
+    type: OS::Neutron::FloatingIP
+    properties:
+      floating_network: {get_param: public_net}
+      port_id: {get_resource: vm1_port}
+
+  vm2_fip:
+    type: OS::Neutron::FloatingIP
+    properties:
+      floating_network: {get_param: public_net}
+      port_id: {get_resource: vm2_port}
+
+  # Cloud-init mounts the share at /mnt/manila. The NFS client is
+  # already installed in the image (see
+  # quay.io/airshipit/osh-vm-images:ubuntu_noble_nfs), so we deliberately
+  # do NOT run `package_update` / `packages` here -- both used to be the
+  # slowest step in CI by far (~5 min per VM for apt-get update +
+  # nfs-common install with periodic mirror timeouts).
+  vm_cloud_config:
+    type: OS::Heat::CloudConfig
+    properties:
+      cloud_config:
+        runcmd:
+          - mkdir -p /mnt/manila
+          - str_replace:
+              # Manila reports two export_locations: the Ganesha pod's
+              # hostIP (preferred, index 0) and the configured proxy IP
+              # 172.24.6.3 (non-preferred). Tenant VMs cannot reach the
+              # pod hostIP, so we always mount the proxy IP and reuse
+              # the share path part from index 0.
+              template: |
+                full_export='$export'
+                share_path="${full_export#*:}"
+                until mount -t nfs -o nfsvers=4.1,proto=tcp 172.24.6.3:${share_path} /mnt/manila; do
+                  echo "waiting for NFS mount 172.24.6.3:${share_path}"
+                  sleep 5
+                done
+                chmod 0777 /mnt/manila
+              params:
+                $export: {get_attr: [share, export_locations, 0]}
+
+  vm1:
+    type: OS::Nova::Server
+    depends_on:
+      - router_interface
+    properties:
+      name: manila-nfs-vm1
+      image: {get_param: image}
+      flavor: {get_resource: flavor}
+      key_name: {get_param: ssh_key}
+      networks:
+        - port: {get_resource: vm1_port}
+      user_data_format: RAW
+      user_data: {get_resource: vm_cloud_config}
+      scheduler_hints:
+        group: {get_resource: server_group}
+
+  vm2:
+    type: OS::Nova::Server
+    depends_on:
+      - router_interface
+    properties:
+      name: manila-nfs-vm2
+      image: {get_param: image}
+      flavor: {get_resource: flavor}
+      key_name: {get_param: ssh_key}
+      networks:
+        - port: {get_resource: vm2_port}
+      user_data_format: RAW
+      user_data: {get_resource: vm_cloud_config}
+      scheduler_hints:
+        group: {get_resource: server_group}
+
+outputs:
+  share_id:
+    value: {get_resource: share}
+  share_export:
+    value: {get_attr: [share, export_locations, 0]}
+  vm1_floating_ip:
+    value: {get_attr: [vm1_fip, floating_ip_address]}
+  vm2_floating_ip:
+    value: {get_attr: [vm2_fip, floating_ip_address]}
+  vm1_port_ip:
+    value: {get_attr: [vm1_port, fixed_ips, 0, ip_address]}
+  vm2_port_ip:
+    value: {get_attr: [vm2_port, fixed_ips, 0, ip_address]}
+...

@@ -462,27 +462,22 @@ dependencies:
 
 conf:
   paste:
+    # NOTE: The legacy v1 share API (manila.api.v1) was removed upstream;
+    # leaving any references to it here (composite:openstack_share_api,
+    # app:api, filter:noauth) makes paste.deploy try to import the
+    # missing module and uWSGI fails with "no python application found".
     composite:osapi_share:
       use: call:manila.api:root_app_factory
       /: apiversions
       /healthcheck: healthcheck
-      /v1: openstack_share_api
       /v2: openstack_share_api_v2
-    composite:openstack_share_api:
-      use: call:manila.api.middleware.auth:pipeline_factory
-      noauth: cors faultwrap http_proxy_to_wsgi sizelimit osprofiler noauth api
-      keystone: cors faultwrap http_proxy_to_wsgi sizelimit osprofiler authtoken keystonecontext api
-      keystone_nolimit: cors faultwrap http_proxy_to_wsgi sizelimit osprofiler authtoken keystonecontext api
     composite:openstack_share_api_v2:
       use: call:manila.api.middleware.auth:pipeline_factory
-      noauth: cors faultwrap http_proxy_to_wsgi sizelimit osprofiler noauth apiv2
       noauthv2: cors faultwrap http_proxy_to_wsgi sizelimit osprofiler noauthv2 apiv2
       keystone: cors faultwrap http_proxy_to_wsgi sizelimit osprofiler authtoken keystonecontext apiv2
       keystone_nolimit: cors faultwrap http_proxy_to_wsgi sizelimit osprofiler authtoken keystonecontext apiv2
     filter:faultwrap:
       paste.filter_factory: manila.api.middleware.fault:FaultWrapper.factory
-    filter:noauth:
-      paste.filter_factory: manila.api.middleware.auth:NoAuthMiddleware.factory
     filter:noauthv2:
       paste.filter_factory: manila.api.middleware.auth:NoAuthMiddlewarev2_60.factory
     filter:sizelimit:
@@ -491,8 +486,6 @@ conf:
       paste.filter_factory: osprofiler.web:WsgiMiddleware.factory
     filter:http_proxy_to_wsgi:
       paste.filter_factory: oslo_middleware.http_proxy_to_wsgi:HTTPProxyToWSGI.factory
-    app:api:
-      paste.app_factory: manila.api.v1.router:APIRouter.factory
     app:apiv2:
       paste.app_factory: manila.api.v2.router:APIRouter.factory
     pipeline:apiversions:
@@ -754,6 +747,21 @@ conf:
       enabled_share_backends: generic
       enabled_share_protocols: NFS
       cephfs_auth_id: manila
+      # uWSGI `processes` is templated from this value. If unset, the
+      # rendered manila-api-uwsgi.ini gets `processes = <no value>` and
+      # uWSGI starts in no-workers mode (master only, no request workers),
+      # so the API socket binds but no request is ever served. Matches
+      # the default in cinder (osapi_volume_workers) and nova
+      # (osapi_compute_workers).
+      osapi_share_workers: 1
+      # NOTE: A static `host` value pins the manila-share service identity so
+      # it survives pod restarts. It is only safe with `pod.replicas.share: 1`,
+      # because every pod would register under the same host name and compete
+      # for the same RPC queue, periodic tasks, and (without a Tooz backend)
+      # uncoordinated locks. To scale `manila-share` beyond one replica, set
+      # this to null/empty and enable `manifests.statefulset_share: true`;
+      # the StatefulSet gives each pod a stable, unique hostname
+      # (manila-share-0, manila-share-1, ...) that is used as the host value.
       host: manila-share-worker
     keystone_authtoken:
       auth_type: password
@@ -1154,6 +1162,12 @@ manifests:
   deployment_scheduler: true
   deployment_data: true
   deployment_share: true
+  # NOTE: When `statefulset_share` is enabled, the `deployment_share` manifest
+  # is automatically disabled. The StatefulSet gives each pod a stable, unique
+  # hostname (manila-share-0, manila-share-1, ...) which is required to scale
+  # `manila-share` beyond one replica. Also set `conf.manila.DEFAULT.host` to
+  # null/empty so each pod uses its own pod name as the host value.
+  statefulset_share: false
   ingress_api: true
   job_bootstrap: true
   job_db_init: true

@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if and .Values.manifests.deployment_share (not .Values.manifests.statefulset_share) }}
+{{- if .Values.manifests.statefulset_share }}
 {{- $envAll := . }}
 
 {{- $mounts_manila_share := .Values.pod.mounts.manila_share.manila_share }}
@@ -26,7 +26,7 @@ limitations under the License.
 {{- $isCephfsEnabled := (contains "cephfs" $enabledBackends) }}
 ---
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: manila-share
   annotations:
@@ -34,11 +34,13 @@ metadata:
   labels:
 {{ tuple $envAll "manila" "share" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 spec:
+  serviceName: manila-share
   replicas: {{ .Values.pod.replicas.share }}
   selector:
     matchLabels:
 {{ tuple $envAll "manila" "share" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
-{{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_deployment" | indent 2 }}
+  podManagementPolicy: Parallel
+{{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_statefulset" | indent 2 }}
   template:
     metadata:
       labels:
@@ -112,6 +114,16 @@ spec:
           command:
             - /tmp/manila-share.sh
           env:
+            # The manila-share.sh script reads ${HOSTNAME} when no static
+            # `conf.manila.DEFAULT.host` is configured. Source it from
+            # metadata.name so it always matches the pod name (which the
+            # StatefulSet keeps stable as manila-share-0, ...), even though
+            # this pod also runs with hostNetwork: true (which would
+            # otherwise make bash's $HOSTNAME resolve to the node name).
+            - name: HOSTNAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
 {{- if or .Values.manifests.certificates .Values.tls.identity }}
             - name: REQUESTS_CA_BUNDLE
               value: "/etc/manila/certs/ca.crt"
