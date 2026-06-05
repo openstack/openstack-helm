@@ -111,7 +111,7 @@ spec:
                   name: {{ $dbToInit.userSecret | quote }}
                   key: DB_CONNECTION
 {{- end }}
-{{- if $envAll.Values.manifests.certificates }}
+{{- if ne $dbAdminTlsSecret "" }}
             - name: MARIADB_X509
               value: "REQUIRE X509"
 {{- end }}
@@ -136,8 +136,8 @@ spec:
               subPath: {{ base $dbToInit.logConfigFile | quote }}
               readOnly: true
 {{- end }}
-{{- if $envAll.Values.manifests.certificates }}
-{{- dict "enabled" $envAll.Values.manifests.certificates "name" $dbAdminTlsSecret "path" "/etc/mysql/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
+{{- if ne $dbAdminTlsSecret "" }}
+{{- dict "enabled" true "name" $dbAdminTlsSecret "path" "/etc/mysql/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
 {{- end }}
 {{- end }}
       volumes:
@@ -153,8 +153,8 @@ spec:
             name: {{ $configMapBin | quote }}
             defaultMode: 0555
 {{- end }}
-{{- if $envAll.Values.manifests.certificates }}
-{{- dict "enabled" $envAll.Values.manifests.certificates "name" $dbAdminTlsSecret | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
+{{- if ne $dbAdminTlsSecret "" }}
+{{- dict "enabled" true "name" $dbAdminTlsSecret | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 {{- end }}
 {{- $local := dict "configMapBinFirst" true -}}
 {{- range $key1, $dbToInit := $dbsToInit }}

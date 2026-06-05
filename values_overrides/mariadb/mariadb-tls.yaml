@@ -1,0 +1,29 @@
+# Enable server-side TLS for MariaDB.
+#
+# Renders the MariaDB server certificate (mariadb-tls-direct, signed by
+# ca-issuer) and makes the server require/serve TLS, so services that connect
+# with their dedicated client certificate (their own mariadb-tls.yaml override)
+# can complete the TLS handshake and satisfy REQUIRE X509.
+---
+pod:
+  security_context:
+    server:
+      container:
+        perms:
+          readOnlyRootFilesystem: false
+        mariadb:
+          runAsUser: 0
+          allowPrivilegeEscalation: true
+          readOnlyRootFilesystem: false
+endpoints:
+  oslo_db:
+    host_fqdn_override:
+      default:
+        tls:
+          secretName: mariadb-tls-direct
+          issuerRef:
+            name: ca-issuer
+            kind: ClusterIssuer
+manifests:
+  certificates: true
+...
