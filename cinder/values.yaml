@@ -837,6 +837,15 @@ conf:
       osapi_volume_workers: 1
       glance_api_version: 2
       os_region_name: RegionOne
+      # NOTE: A static `host` value pins the cinder-volume service identity so
+      # it survives pod restarts. It is only safe with `pod.replicas.volume: 1`,
+      # because every pod would register under the same host name and compete
+      # for the same RPC queue, periodic tasks, and (without a Tooz coordination
+      # backend plus `[DEFAULT] cluster`) uncoordinated locks. To scale
+      # `cinder-volume` beyond one replica, set this to null/empty and enable
+      # `manifests.statefulset_volume: true`; the StatefulSet gives each pod a
+      # stable, unique hostname (cinder-volume-0, cinder-volume-1, ...) that is
+      # used as the host value.
       host: cinder-volume-worker
       # NOTE(portdirect): the bind port should not be defined, and is manipulated
       # via the endpoints section.
@@ -1537,6 +1546,13 @@ manifests:
   deployment_backup: true
   deployment_scheduler: true
   deployment_volume: true
+  # NOTE: When `statefulset_volume` is enabled, the `deployment_volume`
+  # manifest is automatically disabled. The StatefulSet gives each pod a
+  # stable, unique hostname (cinder-volume-0, cinder-volume-1, ...) which is
+  # required to scale `cinder-volume` beyond one replica. Also set
+  # `conf.cinder.DEFAULT.host` to null/empty so each pod uses its own pod
+  # name as the host value.
+  statefulset_volume: false
   ingress_api: true
   job_backup_storage_init: true
   job_bootstrap: true

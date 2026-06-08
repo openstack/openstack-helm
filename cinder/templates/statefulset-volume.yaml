@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if and .Values.manifests.deployment_volume (not .Values.manifests.statefulset_volume) }}
+{{- if .Values.manifests.statefulset_volume }}
 {{- $envAll := . }}
 
 {{- $internal_ceph_backend := .Values.ceph_client.internal_ceph_backend }}
@@ -28,7 +28,7 @@ limitations under the License.
 {{ tuple $envAll "volume" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: cinder-volume
   annotations:
@@ -36,11 +36,13 @@ metadata:
   labels:
 {{ tuple $envAll "cinder" "volume" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 spec:
+  serviceName: cinder-volume
   replicas: {{ .Values.pod.replicas.volume }}
   selector:
     matchLabels:
 {{ tuple $envAll "cinder" "volume" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
-{{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_deployment" | indent 2 }}
+  podManagementPolicy: Parallel
+{{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_statefulset" | indent 2 }}
   template:
     metadata:
       labels:
@@ -158,6 +160,15 @@ spec:
           command:
             - /tmp/cinder-volume.sh
           env:
+            # The cinder-volume.sh script reads ${HOSTNAME} when no static
+            # `conf.cinder.DEFAULT.host` is configured. Source it from
+            # metadata.name so it always matches the pod name (which the
+            # StatefulSet keeps stable as cinder-volume-0, ...), even when
+            # `pod.useHostNetwork.volume` is true.
+            - name: HOSTNAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
 {{- if or .Values.manifests.certificates .Values.tls.identity }}
             - name: REQUESTS_CA_BUNDLE
               value: "/etc/cinder/certs/ca.crt"
