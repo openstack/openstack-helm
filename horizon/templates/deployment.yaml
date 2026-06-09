@@ -76,9 +76,9 @@ spec:
             valueFrom:
               fieldRef:
                 fieldPath: status.podIP
-{{- if or .Values.manifests.certificates .Values.tls.identity }}
+{{- if .Values.secrets.tls.ca }}
           - name: REQUESTS_CA_BUNDLE
-            value: "/etc/openstack-dashboard/certs/ca.crt"
+            value: "/etc/ssl/certs/openstack-helm.crt"
 {{- end }}
           lifecycle:
             preStop:
@@ -175,9 +175,12 @@ spec:
               mountPath: /tmp/favicon.ico
               subPath: favicon.ico
             {{- end }}
-{{- dict "enabled" (or $envAll.Values.manifests.certificates $envAll.Values.tls.identity) "name" $envAll.Values.secrets.tls.dashboard.dashboard.internal "path" "/etc/openstack-dashboard/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
+{{- dict "enabled" (not (empty .Values.secrets.tls.ca)) "name" .Values.secrets.tls.ca | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
 {{- dict "enabled" $envAll.Values.tls.oslo_db "name" "client-certs" "path" "/etc/mysql/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
 {{ if $mounts_horizon.volumeMounts }}{{ toYaml $mounts_horizon.volumeMounts | indent 12 }}{{ end }}
+{{- range $extraContainer := $envAll.Values.pod.extraContainers.horizon }}
+        - {{ $extraContainer | toYaml | indent 10 | trim }}
+{{- end }}
       volumes:
         - name: pod-tmp
           emptyDir: {}
@@ -199,6 +202,9 @@ spec:
             name: horizon-logo
         {{- end }}
 {{- dict "enabled" (or $envAll.Values.tls.oslo_db $envAll.Values.tls.oslo_messaging) "name" "client-certs" "secretName" $envAll.Values.secrets.tls.client.horizon | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
-{{- dict "enabled" (or $envAll.Values.manifests.certificates $envAll.Values.tls.identity) "name" $envAll.Values.secrets.tls.dashboard.dashboard.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
+{{- dict "enabled" (not (empty .Values.secrets.tls.ca)) "name" .Values.secrets.tls.ca | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 {{ if $mounts_horizon.volumes }}{{ toYaml $mounts_horizon.volumes | indent 8 }}{{ end }}
+{{- range $extraVolume := $envAll.Values.pod.extraVolumes.horizon }}
+        - {{ $extraVolume | toYaml | indent 10 | trim }}
+{{- end }}
 {{- end }}

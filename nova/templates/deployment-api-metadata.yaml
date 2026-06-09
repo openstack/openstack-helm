@@ -105,10 +105,10 @@ spec:
 {{ tuple $envAll "nova_api" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.api_metadata | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
 {{ dict "envAll" $envAll "application" "nova" "container" "nova_api" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
-{{- if or .Values.manifests.certificates .Values.tls.identity }}
+{{- if .Values.secrets.tls.ca }}
           env:
             - name: REQUESTS_CA_BUNDLE
-              value: "/etc/nova/certs/ca.crt"
+              value: "/etc/ssl/certs/openstack-helm.crt"
 {{- end }}
           command:
             - /tmp/nova-api-metadata.sh
@@ -120,7 +120,8 @@ spec:
                   - /tmp/nova-api-metadata.sh
                   - stop
           ports:
-            - containerPort: {{ .Values.network.metadata.port }}
+            - name: n-meta
+              containerPort: {{ .Values.network.metadata.port }}
 {{ dict "envAll" $envAll "component" "api-metadata" "container" "default" "type" "liveness" "probeTemplate" (include "novaApiMetadataLivenessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
 {{ dict "envAll" $envAll "component" "api-metadata" "container" "default" "type" "readiness" "probeTemplate" (include "novaApiMetadataReadinessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
           volumeMounts:
@@ -197,19 +198,12 @@ spec:
             - name: pod-shared
               mountPath: /tmp/pod-shared
               readOnly: true
-            {{- if .Values.manifests.certificates }}
-            - name: nova-etc
-              mountPath: {{ .Values.conf.software.apache2.conf_dir }}/wsgi-metadata.conf
-              subPath: wsgi-metadata.conf
-              readOnly: true
-            - name: nova-etc
-              mountPath: {{ .Values.conf.software.apache2.mods_dir }}/mpm_event.conf
-              subPath: mpm_event.conf
-              readOnly: true
-            {{- end }}
 {{- dict "enabled" .Values.tls.oslo_db "name" "client-certs" "path" "/etc/mysql/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
-{{- dict "enabled" (or .Values.manifests.certificates .Values.tls.identity) "name" .Values.secrets.tls.compute_metadata.metadata.internal "path" "/etc/nova/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
+{{- dict "enabled" (not (empty .Values.secrets.tls.ca)) "name" .Values.secrets.tls.ca | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
 {{ if $mounts_nova_api_metadata.volumeMounts }}{{ toYaml $mounts_nova_api_metadata.volumeMounts | indent 12 }}{{ end }}
+{{- range $extraContainer := $envAll.Values.pod.extraContainers.nova_metadata }}
+        - {{ $extraContainer | toYaml | indent 10 | trim }}
+{{- end }}
       volumes:
         - name: pod-tmp
           emptyDir: {}
@@ -234,6 +228,9 @@ spec:
         - name: pod-shared
           emptyDir: {}
 {{- dict "enabled" (or .Values.tls.oslo_db .Values.tls.oslo_messaging) "name" "client-certs" "secretName" .Values.secrets.tls.client.nova | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
-{{- dict "enabled" (or .Values.manifests.certificates .Values.tls.identity) "name" .Values.secrets.tls.compute_metadata.metadata.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
+{{- dict "enabled" (not (empty .Values.secrets.tls.ca)) "name" .Values.secrets.tls.ca | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 {{ if $mounts_nova_api_metadata.volumes }}{{ toYaml $mounts_nova_api_metadata.volumes | indent 8 }}{{ end }}
+{{- range $extraVolume := $envAll.Values.pod.extraVolumes.nova_metadata }}
+        - {{ $extraVolume | toYaml | indent 10 | trim }}
+{{- end }}
 {{- end }}

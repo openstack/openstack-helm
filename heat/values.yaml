@@ -517,11 +517,17 @@ conf:
 
 network:
   api:
+    # Pod port the Service routes to; null => Kubernetes uses the Service port.
+    # A deployment override sets this (e.g. 443) to point at a TLS sidecar.
+    target_port: null
     external_policy_local: false
     node_port:
       enabled: false
       port: 30004
   cfn:
+    # Pod port the Service routes to; null => Kubernetes uses the Service port.
+    # A deployment override sets this (e.g. 443) to point at a TLS sidecar.
+    target_port: null
     node_port:
       enabled: false
       port: 30800
@@ -690,14 +696,14 @@ secrets:
     # (MariaDB and RabbitMQ). Separate from the MariaDB and RabbitMQ server certs.
     client:
       heat: heat-client
-    orchestration:
-      api:
-        public: heat-tls-public
-        internal: heat-tls-api
-    cloudformation:
-      cfn:
-        public: cloudformation-tls-public
-        internal: heat-tls-cfn
+    # CA bundle this chart trusts for OUTBOUND TLS calls (keystone). Null by
+    # default -> no CA is mounted and REQUESTS_CA_BUNDLE is left unset. A
+    # deployment override points this at a cert-manager CA-only secret carrying
+    # just ca.crt (no private key); it is mounted at
+    # /etc/ssl/certs/openstack-helm.crt. Assumes every server cert is signed by
+    # this single CA. The chart stays TLS-agnostic -- server certs and the nginx
+    # TLS sidecar live in the override.
+    ca: null
   oci_image_registry:
     heat: heat-oci-image-registry
 
@@ -932,6 +938,15 @@ endpoints:
         protocol: UDP
 
 pod:
+  # Extra sidecar containers and volumes to inject into the heat-api and
+  # heat-cfn Deployments. Used e.g. by values_overrides/heat/api-tls.yaml to
+  # add nginx TLS-terminating sidecars. Keyed per component.
+  extraContainers:
+    heat_api: []
+    heat_cfn: []
+  extraVolumes:
+    heat_api: []
+    heat_cfn: []
   security_context:
     heat:
       pod:
@@ -1197,12 +1212,10 @@ network_policy:
       - {}
 
 tls:
-  identity: false
   oslo_messaging: false
   oslo_db: false
 
 manifests:
-  certificates: false
   configmap_bin: true
   configmap_etc: true
   cron_job_engine_cleaner: true

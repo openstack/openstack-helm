@@ -64,7 +64,7 @@ spec:
 {{ tuple $envAll $envAll.Values.pod.resources.jobs.service_cleaner | include "helm-toolkit.snippets.kubernetes_resources" | indent 14 }}
 {{ dict "envAll" $envAll "application" "service_cleaner" "container" "nova_service_cleaner" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 14 }}
               env:
-{{- with $env := dict "ksUserSecret" $envAll.Values.secrets.identity.nova "useCA" (or .Values.manifests.certificates .Values.tls.identity) "envAll" $envAll }}
+{{- with $env := dict "ksUserSecret" $envAll.Values.secrets.identity.nova "useCA" (not (empty .Values.secrets.tls.ca)) "envAll" $envAll }}
 {{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 14 }}
 {{- end }}
               command:
@@ -81,7 +81,7 @@ spec:
                 - name: nova-etc-snippets
                   mountPath: /etc/nova/nova.conf.d/
                   readOnly: true
-{{- dict "enabled" (or .Values.manifests.certificates .Values.tls.identity) "name" .Values.secrets.tls.compute.osapi.internal | include "helm-toolkit.snippets.tls_volume_mount" | indent 16 }}
+{{- dict "enabled" (not (empty .Values.secrets.tls.ca)) "name" .Values.secrets.tls.ca | include "helm-toolkit.snippets.tls_volume_mount" | indent 16 }}
           volumes:
             - name: pod-tmp
               emptyDir: {}
@@ -103,5 +103,5 @@ spec:
 {{- else }}
               emptyDir: {}
 {{ end }}
-{{- dict "enabled" (or .Values.manifests.certificates .Values.tls.identity) "name" .Values.secrets.tls.compute.osapi.internal | include "helm-toolkit.snippets.tls_volume" | indent 12 }}
+{{- dict "enabled" (not (empty .Values.secrets.tls.ca)) "name" .Values.secrets.tls.ca | include "helm-toolkit.snippets.tls_volume" | indent 12 }}
 {{- end }}

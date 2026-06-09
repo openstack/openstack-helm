@@ -84,10 +84,10 @@ spec:
 {{ tuple $envAll "placement" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.api | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
 {{ dict "envAll" $envAll "application" "placement" "container" "placement_api" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
-{{- if or .Values.manifests.certificates .Values.tls.identity }}
+{{- if .Values.secrets.tls.ca }}
           env:
             - name: REQUESTS_CA_BUNDLE
-              value: "/etc/placement/certs/ca.crt"
+              value: "/etc/ssl/certs/openstack-helm.crt"
 {{- end }}
           command:
             - /tmp/placement-api.sh
@@ -124,8 +124,6 @@ spec:
               mountPath: /tmp
             - name: oslo-lock-path
               mountPath: {{ .Values.conf.placement.oslo_concurrency.lock_path }}
-            - name: wsgi-placement
-              mountPath: /var/www/cgi-bin/placement
             - name: placement-bin
               mountPath: /tmp/placement-api.sh
               subPath: placement-api.sh
@@ -151,23 +149,20 @@ spec:
               mountPath: /etc/placement/policy.yaml
               subPath: policy.yaml
               readOnly: true
-            - name: placement-etc
-              mountPath: /etc/apache2/conf-enabled/wsgi-placement.conf
-              subPath: wsgi-placement.conf
-              readOnly: true
             {{- if .Values.conf.placement.DEFAULT.log_dir }}
             - name: log
               mountPath: {{ .Values.conf.placement.DEFAULT.log_dir }}
             {{- end }}
 {{- dict "enabled" $envAll.Values.tls.oslo_db "name" "client-certs" "path" "/etc/mysql/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
-{{- dict "enabled" (or .Values.manifests.certificates .Values.tls.identity) "name" .Values.secrets.tls.placement.api.internal "path" "/etc/placement/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
+{{- dict "enabled" (not (empty .Values.secrets.tls.ca)) "name" .Values.secrets.tls.ca | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
 {{ if $mounts_placement.volumeMounts }}{{ toYaml $mounts_placement.volumeMounts | indent 12 }}{{ end }}
+{{- range $extraContainer := $envAll.Values.pod.extraContainers.placement_api }}
+        - {{ $extraContainer | toYaml | indent 10 | trim }}
+{{- end }}
       volumes:
         - name: pod-tmp
           emptyDir: {}
         - name: oslo-lock-path
-          emptyDir: {}
-        - name: wsgi-placement
           emptyDir: {}
         - name: placement-bin
           configMap:
@@ -192,6 +187,9 @@ spec:
             type: DirectoryOrCreate
         {{- end }}
 {{- dict "enabled" (or $envAll.Values.tls.oslo_db $envAll.Values.tls.oslo_messaging) "name" "client-certs" "secretName" $envAll.Values.secrets.tls.client.placement | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
-{{- dict "enabled" (or .Values.manifests.certificates .Values.tls.identity) "name" .Values.secrets.tls.placement.api.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
+{{- dict "enabled" (not (empty .Values.secrets.tls.ca)) "name" .Values.secrets.tls.ca | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 {{ if $mounts_placement.volumes }}{{ toYaml $mounts_placement.volumes | indent 8 }}{{ end }}
+{{- range $extraVolume := $envAll.Values.pod.extraVolumes.placement_api }}
+        - {{ $extraVolume | toYaml | indent 10 | trim }}
+{{- end }}
 {{- end }}

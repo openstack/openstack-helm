@@ -1,0 +1,196 @@
+# Full TLS for Neutron: public endpoint TLS (terminated at the Envoy Gateway)
+# AND gateway<->pod TLS (an nginx sidecar terminates TLS in the neutron-server
+# pod; the gateway re-encrypts to it via a BackendTLSPolicy).
+#
+# This is the "secure everywhere" variant. For public-endpoint-only TLS (plain
+# HTTP between the gateway and the API pods) use gateway-tls.yaml instead.
+#
+# Requires cert_manager_setup=true (ca-issuer ClusterIssuer) and
+# osh_openstack_client_tls=true.
+#
+# The neutron-server container runs uwsgi in plain HTTP on the network "service"
+# port (9696); the nginx sidecar terminates TLS on 443 and proxies to
+# 127.0.0.1:9696. The Service keeps port 9696 but routes to 443 (targetPort).
+# The nginx sidecar, its config ConfigMap, the HTTPRoute and the BackendTLSPolicy
+# are all defined here (extraContainers + extraObjects) so the chart stays
+# independent of how the service is exposed outside the cluster.
+---
+# Route the API Service to the in-pod nginx TLS sidecar (port 443).
+network:
+  server:
+    target_port: 443
+secrets:
+  tls:
+    # Outbound trust: neutron calls keystone, nova and nova-metadata over TLS, so
+    # its pods and the ks-* jobs need the ca-issuer CA (REQUESTS_CA_BUNDLE /
+    # OS_CACERT / per-client cafile). This points at a CA-ONLY secret holding just
+    # ca.crt -- no server certificate and, crucially, no private key (neither a
+    # server key nor the CA key), so workload pods never gain access to signing
+    # material. Mounted at /etc/ssl/certs/openstack-helm.crt. Assumes every in-pod
+    # TLS server cert is signed by this one ca-issuer CA managed by cert-manager.
+    # The chart stays TLS-agnostic -- server certs and the nginx sidecar live here
+    # in the override; the Service targetPort comes from network.*.target_port.
+    ca: openstack-helm-ca
+
+endpoints:
+  network:
+    scheme:
+      public: https
+      default: https
+      internal: https
+    port:
+      api:
+        public: 443
+    host_fqdn_override:
+      public:
+        host: neutron.openstack-helm.org
+  # neutron sends notifications to nova, which now serves TLS.
+  compute:
+    scheme:
+      default: https
+      internal: https
+  compute_metadata:
+    scheme:
+      default: https
+      internal: https
+  # Consumer trust: neutron-server talks to keystone over TLS. The ca-issuer CA
+  # (secrets.tls.ca) is mounted at /etc/ssl/certs/openstack-helm.crt; reuse that
+  # path for the keystone_authtoken middleware.
+  identity:
+    auth:
+      admin:
+        cacert: /etc/ssl/certs/openstack-helm.crt
+    scheme:
+      default: https
+      internal: https
+
+conf:
+  neutron:
+    keystone_authtoken:
+      cafile: /etc/ssl/certs/openstack-helm.crt
+    nova:
+      cafile: /etc/ssl/certs/openstack-helm.crt
+  # The metadata agent proxies VM metadata requests to nova-metadata, which now
+  # terminates TLS. Talk to it over https and trust the ca-issuer CA. The CA is
+  # mounted (gated on secrets.tls.ca) at /etc/ssl/certs/openstack-helm.crt; the
+  # nova_metadata_host/port are auto-derived from endpoints.compute_metadata.
+  metadata_agent:
+    DEFAULT:
+      nova_metadata_protocol: https
+      auth_ca_cert: /etc/ssl/certs/openstack-helm.crt
+
+pod:
+  extraContainers:
+    neutron_server:
+      - name: nginx-tls
+        image: docker.io/nginx:1.27-alpine
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          runAsUser: 0
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: false
+        ports:
+          - name: https
+            containerPort: 443
+        volumeMounts:
+          - name: nginx-tls-certs
+            mountPath: /etc/nginx/certs
+            readOnly: true
+          - name: nginx-tls-conf
+            mountPath: /etc/nginx/conf.d
+            readOnly: true
+  extraVolumes:
+    neutron_server:
+      - name: nginx-tls-certs
+        secret:
+          secretName: neutron-tls-server
+      - name: nginx-tls-conf
+        configMap:
+          name: neutron-nginx-tls
+
+extraObjects:
+  # Server certificate for the nginx sidecar (issued by the ca-issuer). The
+  # chart no longer renders any API TLS certificate; it lives here next to the
+  # sidecar that consumes it. The SANs must include the in-cluster Service FQDN
+  # so the gateway's BackendTLSPolicy hostname validation succeeds.
+  - apiVersion: cert-manager.io/v1
+    kind: Certificate
+    metadata:
+      name: neutron-tls-server
+      namespace: "{{ .Release.Namespace }}"
+    spec:
+      secretName: neutron-tls-server
+      issuerRef:
+        name: ca-issuer
+        kind: ClusterIssuer
+      usages:
+        - server auth
+      dnsNames:
+        - neutron-server
+        - "neutron-server.{{ .Release.Namespace }}"
+        - "neutron-server.{{ .Release.Namespace }}.svc.{{ .Values.endpoints.cluster_domain_suffix }}"
+  # Public exposure via the Gateway API.
+  - apiVersion: gateway.networking.k8s.io/v1
+    kind: HTTPRoute
+    metadata:
+      name: neutron-route
+      namespace: "{{ .Release.Namespace }}"
+    spec:
+      hostnames:
+        - "{{ .Values.endpoints.network.host_fqdn_override.public.host }}"
+      parentRefs:
+        - name: gateway-default
+          namespace: envoy-gateway-system
+      rules:
+        - matches:
+            - path:
+                type: PathPrefix
+                value: /
+          backendRefs:
+            - name: neutron-server
+              port: 9696
+  # nginx sidecar server block (proxies TLS:443 -> uwsgi 127.0.0.1:9696). The
+  # $-prefixed tokens are nginx variables, escaped so the chart's tpl pass
+  # leaves them intact.
+  - apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: neutron-nginx-tls
+      namespace: "{{ .Release.Namespace }}"
+    data:
+      default.conf: |
+        server {
+            listen 443 ssl;
+            server_name _;
+
+            ssl_certificate     /etc/nginx/certs/tls.crt;
+            ssl_certificate_key /etc/nginx/certs/tls.key;
+            ssl_protocols       TLSv1.2 TLSv1.3;
+
+            location / {
+                proxy_pass http://127.0.0.1:9696;
+                proxy_set_header Host {{`$host`}};
+                proxy_set_header X-Forwarded-For {{`$proxy_add_x_forwarded_for`}};
+                proxy_set_header X-Forwarded-Proto https;
+            }
+        }
+  # Make the Envoy Gateway originate TLS to the nginx sidecar instead of plain
+  # HTTP, validating the ca-issuer cert from the api cert Secret's ca.crt.
+  - apiVersion: gateway.networking.k8s.io/v1
+    kind: BackendTLSPolicy
+    metadata:
+      name: neutron-server-backend-tls
+      namespace: "{{ .Release.Namespace }}"
+    spec:
+      targetRefs:
+        - group: ""
+          kind: Service
+          name: neutron-server
+          sectionName: q-api
+      validation:
+        caCertificateRefs:
+          - group: ""
+            kind: Secret
+            name: neutron-tls-server
+        hostname: "neutron-server.{{ .Release.Namespace }}.svc.{{ .Values.endpoints.cluster_domain_suffix }}"
+...

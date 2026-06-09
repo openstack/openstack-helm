@@ -26,12 +26,18 @@ spec:
       protocol: TCP
       nodePort: {{ .Values.network.node_port.port }}
       port: {{ tuple "dashboard" "internal" "web" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-      targetPort: {{ tuple "dashboard" "internal" "web" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+      # Pod port the Service forwards to; defaults to the web port. A deployment
+      # override sets network.dashboard.target_port (e.g. 443) to point at a
+      # TLS-terminating sidecar. The chart stays TLS-agnostic.
+      targetPort: {{ .Values.network.dashboard.target_port | default (tuple "dashboard" "internal" "web" . | include "helm-toolkit.endpoints.endpoint_port_lookup") }}
     {{ else }}
     - name: web
       protocol: TCP
       port: {{ tuple "dashboard" "internal" "web" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-      targetPort: {{ tuple "dashboard" "internal" "web" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+      # Pod port the Service forwards to; defaults to the web port. A deployment
+      # override sets network.dashboard.target_port (e.g. 443) to point at a
+      # TLS-terminating sidecar. The chart stays TLS-agnostic.
+      targetPort: {{ .Values.network.dashboard.target_port | default (tuple "dashboard" "internal" "web" . | include "helm-toolkit.endpoints.endpoint_port_lookup") }}
     {{ end }}
   selector:
 {{ tuple $envAll "horizon" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}

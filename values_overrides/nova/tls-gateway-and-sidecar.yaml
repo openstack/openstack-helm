@@ -1,0 +1,420 @@
+# Full TLS for Nova: public endpoint TLS (terminated at the Envoy Gateway) AND
+# gateway<->pod TLS for the two API components (osapi + metadata). An nginx
+# sidecar terminates TLS in each API pod; the gateway re-encrypts to it via a
+# BackendTLSPolicy.
+#
+# This is the "secure everywhere" variant. For public-endpoint-only TLS (plain
+# HTTP between the gateway and the API pods) use gateway-tls.yaml instead.
+#
+# Requires cert_manager_setup=true (ca-issuer ClusterIssuer) and
+# osh_openstack_client_tls=true.
+#
+# The nova-osapi / nova-metadata containers run uwsgi in plain HTTP on their
+# service ports (8774 / 8775); an nginx sidecar terminates TLS on 443 and
+# proxies to 127.0.0.1:<port>. The Services keep their original ports but route
+# to 443 (targetPort). The nginx sidecars, their config ConfigMaps, the
+# HTTPRoutes and the BackendTLSPolicies are all defined here (extraContainers +
+# extraObjects) so the chart stays independent of how the services are exposed
+# outside the cluster.
+#
+# The novnc / serial / spice proxies stay plain HTTP between the gateway and
+# the pods; only their public endpoints are exposed via HTTPRoutes (kept
+# verbatim from gateway-tls.yaml).
+---
+# Route the API Service to the in-pod nginx TLS sidecar (port 443).
+network:
+  osapi:
+    target_port: 443
+  metadata:
+    target_port: 443
+secrets:
+  tls:
+    # Outbound trust: nova calls keystone, placement and nova-metadata over TLS,
+    # so its pods and the ks-* jobs need the ca-issuer CA (REQUESTS_CA_BUNDLE /
+    # OS_CACERT / cafile). This points at a CA-ONLY secret holding just ca.crt --
+    # no server cert and no private key reaches workload pods. Mounted at
+    # /etc/ssl/certs/openstack-helm.crt. Assumes every in-pod TLS server cert is
+    # signed by this one ca-issuer CA. The chart stays TLS-agnostic -- server
+    # certs and the nginx sidecars live here; targetPort via network.*.target_port.
+    ca: openstack-helm-ca
+
+endpoints:
+  identity:
+    auth:
+      admin:
+        cacert: /etc/ssl/certs/openstack-helm.crt
+      nova:
+        cacert: /etc/ssl/certs/openstack-helm.crt
+      neutron:
+        cacert: /etc/ssl/certs/openstack-helm.crt
+      placement:
+        cacert: /etc/ssl/certs/openstack-helm.crt
+      test:
+        cacert: /etc/ssl/certs/openstack-helm.crt
+    scheme:
+      default: https
+      internal: https
+  # Client endpoints nova talks to (glance, neutron, placement) now serve TLS;
+  # nova must use https to reach them (cafiles set under conf.nova below).
+  image:
+    scheme:
+      default: https
+      internal: https
+  network:
+    scheme:
+      default: https
+      internal: https
+  placement:
+    scheme:
+      default: https
+      internal: https
+  compute:
+    host_fqdn_override:
+      public:
+        host: nova.openstack-helm.org
+    scheme:
+      public: https
+      default: https
+      internal: https
+    port:
+      api:
+        public: 443
+  compute_metadata:
+    host_fqdn_override:
+      public:
+        host: metadata.openstack-helm.org
+    scheme:
+      public: https
+      default: https
+      internal: https
+      # The uwsgi backend (and the readiness/liveness probe that targets the
+      # container directly, bypassing the nginx sidecar) stays plain HTTP.
+      service: http
+    port:
+      metadata:
+        public: 443
+  compute_novnc_proxy:
+    host_fqdn_override:
+      public:
+        host: novncproxy.openstack-helm.org
+    scheme:
+      public: https
+    port:
+      novnc_proxy:
+        public: 443
+  compute_serial_proxy:
+    host_fqdn_override:
+      public:
+        host: serialproxy.openstack-helm.org
+    scheme:
+      public: wss
+    port:
+      serial_proxy:
+        public: 443
+  compute_spice_proxy:
+    host_fqdn_override:
+      public:
+        host: spiceproxy.openstack-helm.org
+    scheme:
+      public: https
+    port:
+      spice_proxy:
+        public: 443
+
+conf:
+  nova:
+    glance:
+      cafile: /etc/ssl/certs/openstack-helm.crt
+    ironic:
+      cafile: /etc/ssl/certs/openstack-helm.crt
+    neutron:
+      cafile: /etc/ssl/certs/openstack-helm.crt
+    keystone_authtoken:
+      cafile: /etc/ssl/certs/openstack-helm.crt
+    cinder:
+      cafile: /etc/ssl/certs/openstack-helm.crt
+    placement:
+      cafile: /etc/ssl/certs/openstack-helm.crt
+    keystone:
+      cafile: /etc/ssl/certs/openstack-helm.crt
+
+pod:
+  extraContainers:
+    nova_osapi:
+      - name: nginx-tls
+        image: docker.io/nginx:1.27-alpine
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          runAsUser: 0
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: false
+        ports:
+          - name: https
+            containerPort: 443
+        volumeMounts:
+          - name: nginx-tls-certs
+            mountPath: /etc/nginx/certs
+            readOnly: true
+          - name: nginx-tls-conf
+            mountPath: /etc/nginx/conf.d
+            readOnly: true
+    nova_metadata:
+      - name: nginx-tls
+        image: docker.io/nginx:1.27-alpine
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          runAsUser: 0
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: false
+        ports:
+          - name: https
+            containerPort: 443
+        volumeMounts:
+          - name: nginx-tls-certs
+            mountPath: /etc/nginx/certs
+            readOnly: true
+          - name: nginx-tls-conf
+            mountPath: /etc/nginx/conf.d
+            readOnly: true
+  extraVolumes:
+    nova_osapi:
+      - name: nginx-tls-certs
+        secret:
+          secretName: nova-tls-api
+      - name: nginx-tls-conf
+        configMap:
+          name: nova-nginx-tls-api
+    nova_metadata:
+      - name: nginx-tls-certs
+        secret:
+          secretName: metadata-tls-metadata
+      - name: nginx-tls-conf
+        configMap:
+          name: nova-nginx-tls-metadata
+
+extraObjects:
+  # Server certificates for the osapi / metadata nginx sidecars (issued by the
+  # ca-issuer). The chart no longer renders any API TLS certificate; they live
+  # here next to the sidecars that consume them. The SANs must include the
+  # in-cluster Service FQDNs so the gateway's BackendTLSPolicy hostname
+  # validation succeeds. The novnc / serial / spice proxy certs (when enabled)
+  # stay in the chart.
+  - apiVersion: cert-manager.io/v1
+    kind: Certificate
+    metadata:
+      name: nova-tls-api
+      namespace: "{{ .Release.Namespace }}"
+    spec:
+      secretName: nova-tls-api
+      issuerRef:
+        name: ca-issuer
+        kind: ClusterIssuer
+      usages:
+        - server auth
+      dnsNames:
+        - nova-api
+        - "nova-api.{{ .Release.Namespace }}"
+        - "nova-api.{{ .Release.Namespace }}.svc.{{ .Values.endpoints.cluster_domain_suffix }}"
+  - apiVersion: cert-manager.io/v1
+    kind: Certificate
+    metadata:
+      name: metadata-tls-metadata
+      namespace: "{{ .Release.Namespace }}"
+    spec:
+      secretName: metadata-tls-metadata
+      issuerRef:
+        name: ca-issuer
+        kind: ClusterIssuer
+      usages:
+        - server auth
+      dnsNames:
+        - nova-metadata
+        - "nova-metadata.{{ .Release.Namespace }}"
+        - "nova-metadata.{{ .Release.Namespace }}.svc.{{ .Values.endpoints.cluster_domain_suffix }}"
+  # Public exposure via the Gateway API (kept verbatim from gateway-tls.yaml).
+  - apiVersion: gateway.networking.k8s.io/v1
+    kind: HTTPRoute
+    metadata:
+      name: nova-route-osapi
+      namespace: "{{ .Release.Namespace }}"
+    spec:
+      hostnames:
+        - "{{ .Values.endpoints.compute.host_fqdn_override.public.host }}"
+      parentRefs:
+        - name: gateway-default
+          namespace: envoy-gateway-system
+      rules:
+        - matches:
+            - path:
+                type: PathPrefix
+                value: /
+          backendRefs:
+            - name: nova-api
+              port: 8774
+
+  - apiVersion: gateway.networking.k8s.io/v1
+    kind: HTTPRoute
+    metadata:
+      name: nova-route-metadata
+      namespace: "{{ .Release.Namespace }}"
+    spec:
+      hostnames:
+        - "{{ .Values.endpoints.compute_metadata.host_fqdn_override.public.host }}"
+      parentRefs:
+        - name: gateway-default
+          namespace: envoy-gateway-system
+      rules:
+        - matches:
+            - path:
+                type: PathPrefix
+                value: /
+          backendRefs:
+            - name: nova-metadata
+              port: 8775
+
+  - apiVersion: gateway.networking.k8s.io/v1
+    kind: HTTPRoute
+    metadata:
+      name: nova-route-novncproxy
+      namespace: "{{ .Release.Namespace }}"
+    spec:
+      hostnames:
+        - "{{ .Values.endpoints.compute_novnc_proxy.host_fqdn_override.public.host }}"
+      parentRefs:
+        - name: gateway-default
+          namespace: envoy-gateway-system
+      rules:
+        - matches:
+            - path:
+                type: PathPrefix
+                value: /
+          backendRefs:
+            - name: nova-novncproxy
+              port: 6080
+
+  - apiVersion: gateway.networking.k8s.io/v1
+    kind: HTTPRoute
+    metadata:
+      name: nova-route-serialproxy
+      namespace: "{{ .Release.Namespace }}"
+    spec:
+      hostnames:
+        - "{{ .Values.endpoints.compute_serial_proxy.host_fqdn_override.public.host }}"
+      parentRefs:
+        - name: gateway-default
+          namespace: envoy-gateway-system
+      rules:
+        - matches:
+            - path:
+                type: PathPrefix
+                value: /
+          backendRefs:
+            - name: nova-serialproxy
+              port: 6083
+
+  - apiVersion: gateway.networking.k8s.io/v1
+    kind: HTTPRoute
+    metadata:
+      name: nova-route-spiceproxy
+      namespace: "{{ .Release.Namespace }}"
+    spec:
+      hostnames:
+        - "{{ .Values.endpoints.compute_spice_proxy.host_fqdn_override.public.host }}"
+      parentRefs:
+        - name: gateway-default
+          namespace: envoy-gateway-system
+      rules:
+        - matches:
+            - path:
+                type: PathPrefix
+                value: /
+          backendRefs:
+            - name: nova-spiceproxy
+              port: 6082
+
+  # nginx sidecar server block for osapi (proxies TLS:443 -> uwsgi
+  # 127.0.0.1:8774). The $-prefixed tokens are nginx variables, escaped so the
+  # chart's tpl pass leaves them intact.
+  - apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: nova-nginx-tls-api
+      namespace: "{{ .Release.Namespace }}"
+    data:
+      default.conf: |
+        server {
+            listen 443 ssl;
+            server_name _;
+
+            ssl_certificate     /etc/nginx/certs/tls.crt;
+            ssl_certificate_key /etc/nginx/certs/tls.key;
+            ssl_protocols       TLSv1.2 TLSv1.3;
+
+            location / {
+                proxy_pass http://127.0.0.1:8774;
+                proxy_set_header Host {{`$host`}};
+                proxy_set_header X-Forwarded-For {{`$proxy_add_x_forwarded_for`}};
+                proxy_set_header X-Forwarded-Proto https;
+            }
+        }
+  # nginx sidecar server block for metadata (proxies TLS:443 -> uwsgi
+  # 127.0.0.1:8775).
+  - apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: nova-nginx-tls-metadata
+      namespace: "{{ .Release.Namespace }}"
+    data:
+      default.conf: |
+        server {
+            listen 443 ssl;
+            server_name _;
+
+            ssl_certificate     /etc/nginx/certs/tls.crt;
+            ssl_certificate_key /etc/nginx/certs/tls.key;
+            ssl_protocols       TLSv1.2 TLSv1.3;
+
+            location / {
+                proxy_pass http://127.0.0.1:8775;
+                proxy_set_header Host {{`$host`}};
+                proxy_set_header X-Forwarded-For {{`$proxy_add_x_forwarded_for`}};
+                proxy_set_header X-Forwarded-Proto https;
+            }
+        }
+  # Make the Envoy Gateway originate TLS to the nginx sidecars instead of plain
+  # HTTP, validating the ca-issuer cert from each api cert Secret's ca.crt.
+  - apiVersion: gateway.networking.k8s.io/v1
+    kind: BackendTLSPolicy
+    metadata:
+      name: nova-api-backend-tls
+      namespace: "{{ .Release.Namespace }}"
+    spec:
+      targetRefs:
+        - group: ""
+          kind: Service
+          name: nova-api
+          sectionName: n-api
+      validation:
+        caCertificateRefs:
+          - group: ""
+            kind: Secret
+            name: nova-tls-api
+        hostname: "nova-api.{{ .Release.Namespace }}.svc.{{ .Values.endpoints.cluster_domain_suffix }}"
+  - apiVersion: gateway.networking.k8s.io/v1
+    kind: BackendTLSPolicy
+    metadata:
+      name: nova-metadata-backend-tls
+      namespace: "{{ .Release.Namespace }}"
+    spec:
+      targetRefs:
+        - group: ""
+          kind: Service
+          name: nova-metadata
+          sectionName: n-meta
+      validation:
+        caCertificateRefs:
+          - group: ""
+            kind: Secret
+            name: metadata-tls-metadata
+        hostname: "nova-metadata.{{ .Release.Namespace }}.svc.{{ .Values.endpoints.cluster_domain_suffix }}"
+...

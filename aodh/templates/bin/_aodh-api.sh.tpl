@@ -21,28 +21,11 @@ set -ex
 COMMAND="${@:-start}"
 
 function start () {
-
-  cp -a $(type -p aodh-api) /var/www/cgi-bin/aodh/
-
-  if [ -f /etc/apache2/envvars ]; then
-    # Loading Apache2 ENV variables
-    source /etc/apache2/envvars
-    # The directory below has to be created due to the fact that
-    # libapache2-mod-wsgi-py3 doesn't create it in contrary by libapache2-mod-wsgi
-    if [ ! -d ${APACHE_RUN_DIR} ]; then
-       mkdir -p ${APACHE_RUN_DIR}
-    fi
-  fi
-
-  # Get rid of stale pid file if present.
-  rm -f /var/run/apache2/*.pid
-
-  # Start Apache2
-  exec apache2 -DFOREGROUND
+  exec uwsgi --ini /etc/aodh/aodh-api-uwsgi.ini
 }
 
 function stop () {
-  apachectl -k graceful-stop
+  kill -TERM 1
 }
 
 $COMMAND

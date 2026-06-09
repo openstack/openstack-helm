@@ -13,38 +13,20 @@ limitations under the License.
 */}}
 
 {{- define "serverReadinessProbeTemplate" }}
-{{- if .Values.manifests.certificates }}
-exec:
-  command:
-    - python
-    - -c
-    - "import requests; r = requests.get('http://127.0.0.1:{{ tuple "network" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}'); r.raise_for_status()"
-initialDelaySeconds: 30
-{{- else }}
 httpGet:
-  scheme: {{ tuple "network" "service" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_scheme_lookup" | upper }}
+  scheme: HTTP
   path: /
   port: {{ tuple "network" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
 {{- end }}
-{{- end }}
 {{- define "serverLivenessProbeTemplate" }}
-{{- if .Values.manifests.certificates }}
-exec:
-  command:
-    - python
-    - -c
-    - "import requests; r = requests.get('http://127.0.0.1:{{ tuple "network" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}'); r.raise_for_status()"
-initialDelaySeconds: 30
-{{- else }}
 httpGet:
-  scheme: {{ tuple "network" "service" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_scheme_lookup" | upper }}
+  scheme: HTTP
   path: /
   {{- if .Values.pod.probes.server.server.liveness.port }}
   port: {{ .Values.pod.probes.server.server.liveness.port }}
   {{ else }}
   port: {{ tuple "network" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
   {{- end}}
-{{- end }}
 {{- end }}
 
 {{- if .Values.manifests.deployment_server }}
@@ -86,7 +68,7 @@ spec:
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
 {{ tuple "neutron_server" . | include "helm-toolkit.snippets.custom_pod_annotations" | indent 8 }}
-{{ dict "envAll" $envAll "podName" "neutron-server" "containerNames" (list "neutron-server" "init" "nginx") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
+{{ dict "envAll" $envAll "podName" "neutron-server" "containerNames" (list "neutron-server" "init") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
     spec:
 {{ dict "envAll" $envAll "application" "neutron_server" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
 {{ tuple "neutron_server" . | include "helm-toolkit.snippets.kubernetes_pod_priority_class" | indent 6 }}
@@ -116,52 +98,6 @@ spec:
               readOnly: true
         {{- end }}
       containers:
-        {{- if $envAll.Values.manifests.certificates }}
-        - name: nginx
-{{ tuple $envAll "nginx" | include "helm-toolkit.snippets.image" | indent 10 }}
-{{ tuple $envAll $envAll.Values.pod.resources.nginx | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-{{ dict "envAll" $envAll "application" "neutron_server" "container" "nginx" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
-          ports:
-            - name: q-api
-              containerPort: {{ tuple "network" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-          env:
-            - name: PORT
-              value: {{ tuple "network" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | quote }}
-            - name: POD_IP
-              valueFrom:
-                fieldRef:
-                  fieldPath: status.podIP
-            - name: SHORTNAME
-              value: {{ tuple "network" "internal" .  | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" | quote }}
-          readinessProbe:
-            httpGet:
-              scheme: HTTPS
-              path: /
-              port: {{ tuple "network" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-          command:
-            - /tmp/nginx.sh
-            - start
-          lifecycle:
-            preStop:
-              exec:
-                command:
-                  - /tmp/nginx.sh
-                  - stop
-          volumeMounts:
-            - name: pod-tmp
-              mountPath: /tmp
-            - name: oslo-lock-path
-              mountPath: {{ .Values.conf.neutron.oslo_concurrency.lock_path }}
-            - name: neutron-bin
-              mountPath: /tmp/nginx.sh
-              subPath: nginx.sh
-              readOnly: true
-            - name: neutron-etc
-              mountPath: /etc/nginx/nginx.conf
-              subPath: nginx.conf
-              readOnly: true
-{{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.network.server.internal "path" "/etc/nginx/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
-        {{- end }}
         - name: neutron-server
 {{ tuple $envAll "neutron_server" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.server | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
@@ -171,10 +107,10 @@ spec:
           command:
             - /tmp/neutron-server.sh
             - start
-{{- if or .Values.manifests.certificates .Values.tls.identity }}
+{{- if .Values.secrets.tls.ca }}
           env:
             - name: REQUESTS_CA_BUNDLE
-              value: "/etc/neutron/certs/ca.crt"
+              value: "/etc/ssl/certs/openstack-helm.crt"
 {{- end }}
           lifecycle:
             preStop:
@@ -182,11 +118,9 @@ spec:
                 command:
                   - /tmp/neutron-server.sh
                   - stop
-{{- if not $envAll.Values.manifests.certificates }}
           ports:
             - name: q-api
               containerPort: {{ tuple "network" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-{{- end }}
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
@@ -262,9 +196,12 @@ spec:
               readOnly: true
             {{- end }}
 {{- dict "enabled" .Values.tls.oslo_db "name" "client-certs" "path" "/etc/mysql/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
-{{- dict "enabled" (or .Values.manifests.certificates .Values.tls.identity) "name" .Values.secrets.tls.network.server.internal "path" "/etc/neutron/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
+{{- dict "enabled" (not (empty .Values.secrets.tls.ca)) "name" .Values.secrets.tls.ca | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
 {{- dict "enabled" $envAll.Values.tls.oslo_messaging "name" "client-certs" "path" "/etc/rabbitmq/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
 {{ if $mounts_neutron_server.volumeMounts }}{{ toYaml $mounts_neutron_server.volumeMounts | indent 12 }}{{ end }}
+{{- range $extraContainer := $envAll.Values.pod.extraContainers.neutron_server }}
+        - {{ $extraContainer | toYaml | indent 10 | trim }}
+{{- end }}
       volumes:
         - name: pod-tmp
           emptyDir: {}
@@ -272,10 +209,6 @@ spec:
           emptyDir: {}
         - name: pod-shared
           emptyDir: {}
-        {{- if .Values.manifests.certificates }}
-        - name: wsgi-neutron
-          emptyDir: {}
-        {{- end }}
         - name: pod-var-neutron
           emptyDir: {}
         - name: neutron-bin
@@ -295,6 +228,9 @@ spec:
           emptyDir: {}
 {{ end }}
 {{- dict "enabled" (or .Values.tls.oslo_db .Values.tls.oslo_messaging) "name" "client-certs" "secretName" .Values.secrets.tls.client.neutron | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
-{{- dict "enabled" (or .Values.manifests.certificates .Values.tls.identity) "name" .Values.secrets.tls.network.server.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
+{{- dict "enabled" (not (empty .Values.secrets.tls.ca)) "name" .Values.secrets.tls.ca | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 {{ if $mounts_neutron_server.volumes }}{{ toYaml $mounts_neutron_server.volumes | indent 8 }}{{ end }}
+{{- range $extraVolume := $envAll.Values.pod.extraVolumes.neutron_server }}
+        - {{ $extraVolume | toYaml | indent 10 | trim }}
+{{- end }}
 {{- end }}

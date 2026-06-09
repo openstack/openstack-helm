@@ -50,6 +50,9 @@ labels:
 
 network:
   dashboard:
+    # Pod port the Service routes to; null => Kubernetes uses the web port.
+    # A deployment override sets this (e.g. 443) to point at a TLS sidecar.
+    target_port: null
   external_policy_local: false
   node_port:
     enabled: false
@@ -410,7 +413,7 @@ conf:
                 'PASSWORD': '{{ .Values.endpoints.oslo_db.auth.horizon.password }}',
                 'HOST': '{{ tuple "oslo_db" "internal" . | include "helm-toolkit.endpoints.hostname_fqdn_endpoint_lookup" }}',
                 'default-character-set': 'utf8',
-                {{- if .Values.manifests.certificates }}
+                {{- if .Values.tls.oslo_db }}
                 'OPTIONS':{
                     'ssl': {
                         'ca': '/etc/mysql/certs/ca.crt',
@@ -484,9 +487,9 @@ conf:
         # Disable SSL certificate checks (useful for self-signed certificates):
         OPENSTACK_SSL_NO_VERIFY = {{ .Values.conf.horizon.local_settings.config.ssl_no_verify }}
 
-        {{- if .Values.manifests.certificates }}
+        {{- if .Values.secrets.tls.ca }}
         # The CA certificate to use to verify SSL connections
-        OPENSTACK_SSL_CACERT = '/etc/openstack-dashboard/certs/ca.crt'
+        OPENSTACK_SSL_CACERT = '/etc/ssl/certs/openstack-helm.crt'
         {{- end }}
 
         # The OPENSTACK_KEYSTONE_BACKEND settings can be used to identify the
@@ -1097,6 +1100,13 @@ dependencies:
           service: dashboard
 
 pod:
+  # -- Extra sidecar containers and volumes to inject into the horizon
+  ## Deployment. Used e.g. by values_overrides/horizon/tls-gateway-and-sidecar.yaml
+  ## to add an nginx TLS-terminating sidecar in front of the apache app server.
+  extraContainers:
+    horizon: []
+  extraVolumes:
+    horizon: []
   security_context:
     horizon:
       pod:
@@ -1234,16 +1244,19 @@ secrets:
     # Separate from the MariaDB server certificate.
     client:
       horizon: horizon-client
-    dashboard:
-      dashboard:
-        public: horizon-tls-public
-        internal: horizon-tls-web
+    # CA bundle this chart trusts for OUTBOUND TLS calls (keystone). Null by
+    # default -> no CA is mounted and REQUESTS_CA_BUNDLE is left unset. A
+    # deployment override points this at a cert-manager CA-only secret carrying
+    # just ca.crt (no private key); it is mounted at
+    # /etc/ssl/certs/openstack-helm.crt. Assumes every server cert is signed by
+    # this single CA. The chart stays TLS-agnostic -- apache keeps serving the
+    # dashboard over plain HTTP and the nginx TLS sidecar lives in the override.
+    ca: null
   oci_image_registry:
     horizon: horizon-oci-image-registry
 
 tls:
   oslo_db: false
-  identity: false
 
 # typically overridden by environmental
 identity:
@@ -1379,7 +1392,6 @@ network_policy:
       - {}
 
 manifests:
-  certificates: false
   configmap_bin: true
   configmap_etc: true
   configmap_logo: false

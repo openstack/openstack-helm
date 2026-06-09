@@ -138,9 +138,9 @@ spec:
               readOnly: true
             - name: pod-shared
               mountPath: /tmp/pod-shared
-{{- dict "enabled" (or .Values.manifests.certificates .Values.tls.identity) "name" .Values.secrets.tls.volumev3.api.internal | include "helm-toolkit.snippets.tls_volume_mount"  | indent 12 }}
+{{- dict "enabled" (not (empty .Values.secrets.tls.ca)) "name" .Values.secrets.tls.ca | include "helm-toolkit.snippets.tls_volume_mount"  | indent 12 }}
           env:
-{{- with $env := dict "ksUserSecret" .Values.secrets.identity.admin "useCA" (or .Values.manifests.certificates .Values.tls.identity) "envAll" $envAll }}
+{{- with $env := dict "ksUserSecret" .Values.secrets.identity.admin "useCA" (not (empty .Values.secrets.tls.ca)) "envAll" $envAll }}
 {{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 12 }}
 {{- end }}
             - name: INTERNAL_PROJECT_NAME
@@ -158,9 +158,9 @@ spec:
           command:
             - /tmp/cinder-volume.sh
           env:
-{{- if or .Values.manifests.certificates .Values.tls.identity }}
+{{- if .Values.secrets.tls.ca }}
             - name: REQUESTS_CA_BUNDLE
-              value: "/etc/cinder/certs/ca.crt"
+              value: "/etc/ssl/certs/openstack-helm.crt"
 {{- end }}
           terminationMessagePath: /var/log/termination-log
           volumeMounts:
@@ -287,7 +287,7 @@ spec:
               mountPath: /sys
               mountPropagation: HostToContainer
             {{- end }}
-{{- dict "enabled" (or .Values.manifests.certificates .Values.tls.identity) "name" .Values.secrets.tls.volumev3.api.internal "path" "/etc/cinder/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
+{{- dict "enabled" (not (empty .Values.secrets.tls.ca)) "name" .Values.secrets.tls.ca | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
 {{- dict "enabled" $envAll.Values.tls.oslo_db "name" "client-certs" "path" "/etc/mysql/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
 {{- dict "enabled" $envAll.Values.tls.oslo_messaging "name" "client-certs" "path" "/etc/rabbitmq/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
 {{ if $mounts_cinder_volume.volumeMounts }}{{ toYaml $mounts_cinder_volume.volumeMounts | indent 12 }}{{ end }}
@@ -384,6 +384,6 @@ spec:
             path: /sys
         {{- end }}
 {{- dict "enabled" (or $envAll.Values.tls.oslo_db $envAll.Values.tls.oslo_messaging) "name" "client-certs" "secretName" $envAll.Values.secrets.tls.client.cinder | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
-{{- dict "enabled" (or .Values.manifests.certificates .Values.tls.identity) "name" .Values.secrets.tls.volumev3.api.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
+{{- dict "enabled" (not (empty .Values.secrets.tls.ca)) "name" .Values.secrets.tls.ca | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 {{ if $mounts_cinder_volume.volumes }}{{ toYaml $mounts_cinder_volume.volumes | indent 8 }}{{ end }}
 {{- end }}

@@ -137,6 +137,9 @@ network:
   #       - num_queues: 16
   #         exclude_vf: 0,11,21
   server:
+    # Pod port the Service routes to; null => Kubernetes uses the Service port.
+    # A deployment override sets this (e.g. 443) to point at a TLS sidecar.
+    target_port: null
     external_policy_local: false
     node_port:
       enabled: false
@@ -359,6 +362,13 @@ dependencies:
           service: local_image_registry
 
 pod:
+  ## Extra containers and volumes to inject into the neutron-server
+  ## Deployment. Used e.g. by values_overrides/neutron/api-tls.yaml to add an
+  ## nginx TLS-terminating sidecar. Keyed per component.
+  extraContainers:
+    neutron_server: []
+  extraVolumes:
+    neutron_server: []
   use_fqdn:
     neutron_agent: true
   probes:
@@ -617,9 +627,6 @@ pod:
       pod:
         runAsUser: 42424
       container:
-        nginx:
-          runAsUser: 0
-          readOnlyRootFilesystem: false
         neutron_server:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
@@ -2294,13 +2301,13 @@ secrets:
     # (MariaDB and RabbitMQ). Separate from the MariaDB and RabbitMQ server certs.
     client:
       neutron: neutron-client
-    compute_metadata:
-      metadata:
-        internal: metadata-tls-metadata
-    network:
-      server:
-        public: neutron-tls-public
-        internal: neutron-tls-server
+    # CA bundle this chart trusts for OUTBOUND TLS calls (keystone, nova,
+    # nova-metadata). Null by default -> no CA is mounted and REQUESTS_CA_BUNDLE
+    # is left unset. A deployment override points this at a cert-manager secret
+    # carrying a ca.crt; it is mounted at /etc/ssl/certs/openstack-helm.crt.
+    # Assumes every server cert is signed by this single CA. The chart stays
+    # TLS-agnostic -- server certs and the nginx TLS sidecar live in the override.
+    ca: null
   oci_image_registry:
     neutron: neutron-oci-image-registry
 
@@ -2626,12 +2633,10 @@ jobs:
       failed: 1
 
 tls:
-  identity: false
   oslo_messaging: false
   oslo_db: false
 
 manifests:
-  certificates: false
   cron_job_ovn_db_sync: false
   configmap_bin: true
   configmap_etc: true

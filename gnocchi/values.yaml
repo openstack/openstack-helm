@@ -69,6 +69,9 @@ jobs:
 
 network:
   api:
+    # Pod port the Service routes to; null => Kubernetes uses the Service port.
+    # A deployment override sets this (e.g. 443) to point at a TLS sidecar.
+    target_port: null
     external_policy_local: false
     node_port:
       enabled: false
@@ -189,6 +192,13 @@ dependencies:
           service: local_image_registry
 
 pod:
+  # -- Extra sidecar containers and volumes to inject into the gnocchi-api
+  ## Deployment. Used e.g. by values_overrides/gnocchi/tls-gateway-and-sidecar.yaml
+  ## to add an nginx TLS-terminating sidecar. Keyed per component.
+  extraContainers:
+    gnocchi_api: []
+  extraVolumes:
+    gnocchi_api: []
   user:
     gnocchi:
       uid: 1000
@@ -341,28 +351,24 @@ pod:
           cpu: "2000m"
 
 conf:
-  apache: |
-    Listen 0.0.0.0:{{ tuple "metric" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-
-    SetEnvIf X-Forwarded-For "^.*\..*\..*\..*" forwarded
-    CustomLog /dev/stdout combined env=!forwarded
-    CustomLog /dev/stdout proxy env=forwarded
-
-    <VirtualHost *:{{ tuple "metric" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}>
-        WSGIDaemonProcess gnocchi processes=1 threads=2 user=gnocchi group=gnocchi display-name=%{GROUP}
-        WSGIProcessGroup gnocchi
-        WSGIScriptAlias / "/var/lib/kolla/venv/lib/python2.7/site-packages/gnocchi/rest/app.wsgi"
-        WSGIApplicationGroup %{GLOBAL}
-
-        ErrorLog /dev/stderr
-        SetEnvIf X-Forwarded-For "^.*\..*\..*\..*" forwarded
-        CustomLog /dev/stdout combined env=!forwarded
-        CustomLog /dev/stdout proxy env=forwarded
-
-        <Directory "/var/lib/kolla/venv/lib/python2.7/site-packages/gnocchi/rest">
-              Require all granted
-        </Directory>
-    </VirtualHost>
+  gnocchi_api_uwsgi:
+    uwsgi:
+      add-header: "Connection: close"
+      buffer-size: 65535
+      die-on-term: true
+      enable-threads: true
+      exit-on-reload: false
+      hook-master-start: unix_signal:15 gracefully_kill_them_all
+      lazy-apps: true
+      log-x-forwarded-for: true
+      master: true
+      procname-prefix-spaced: "gnocchi-api:"
+      route-user-agent: '^kube-probe.* donotlog:'
+      thunder-lock: true
+      worker-reload-mercy: 80
+      module: gnocchi.rest.wsgi:application
+      processes: 1
+      threads: 2
   ceph:
     monitors: []
     admin_keyring: null
@@ -487,9 +493,14 @@ secrets:
     gnocchi: gnocchi-db-indexer-user
   rbd: gnocchi-rbd-keyring
   tls:
-    metric:
-      api:
-        public: gnocchi-tls-public
+    # CA bundle this chart trusts for OUTBOUND TLS calls (keystone). Null by
+    # default -> no CA is mounted and REQUESTS_CA_BUNDLE is left unset. A
+    # deployment override points this at a cert-manager CA-only secret carrying
+    # just ca.crt (no private key); it is mounted at
+    # /etc/ssl/certs/openstack-helm.crt. Assumes every server cert is signed by
+    # this single CA. The chart stays TLS-agnostic -- server certs and the nginx
+    # TLS sidecar live in the override.
+    ca: null
 
 bootstrap:
   enabled: false

@@ -15,8 +15,17 @@
   vars:
     osh_chart: keystone
 
+# The public endpoint is served via the Gateway API. When pod-level TLS is
+# enabled, the Gateway must (re)program the route + BackendTLSPolicy and the
+# cert-manager secret must be issued before the endpoint is reachable; this is
+# eventually consistent, so retry rather than asserting it immediately.
 - name: "See Openstack endpoint list"
   shell:
     openstack endpoint list
   environment:
     OS_CLOUD: openstack_helm
+  register: _osh_endpoint_list
+  until: _osh_endpoint_list.rc == 0
+  retries: 30
+  delay: 10
+  changed_when: false
