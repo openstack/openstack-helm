@@ -63,7 +63,7 @@ spec:
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
 {{ tuple "glance_api" . | include "helm-toolkit.snippets.custom_pod_annotations" | indent 8 }}
-{{ dict "envAll" $envAll "podName" "glance-api" "containerNames" ( list "glance-perms" "glance-api" "init" "nginx" ) | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
+{{ dict "envAll" $envAll "podName" "glance-api" "containerNames" ( list "glance-perms" "glance-tmp-perms" "glance-api" "init" "nginx" ) | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
     spec:
 {{ tuple "glance_api" . | include "helm-toolkit.snippets.kubernetes_pod_priority_class" | indent 6 }}
 {{ tuple "glance_api" . | include "helm-toolkit.snippets.kubernetes_pod_runtime_class" | indent 6 }}
@@ -100,6 +100,20 @@ spec:
               mountPath: /tmp
             - name: glance-images
               mountPath: {{ .Values.conf.glance.file.filesystem_store_datadir }}
+        - name: glance-tmp-perms
+{{ tuple $envAll "glance_api" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.api | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "glance" "container" "glance_perms" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          command:
+            - chown
+            - -R
+            - "glance:"
+            - /var/lib/glance/tmp
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: glance-tmp
+              mountPath: /var/lib/glance/tmp
         {{ if eq .Values.storage "rbd" }}
         - name: ceph-keyring-placement
 {{ tuple $envAll "glance_api" | include "helm-toolkit.snippets.image" | indent 10 }}
@@ -310,8 +324,6 @@ spec:
           emptyDir: {}
         - name: oslo-lock-path
           emptyDir: {}
-        - name: glance-tmp
-          emptyDir: {}
         - name: etcglance
           emptyDir: {}
         - name: glance-bin
@@ -341,6 +353,14 @@ spec:
             type: DirectoryOrCreate
 {{- else }}
         - name: glance-images
+          emptyDir: {}
+{{- end }}
+{{- if and (eq .Values.storage "pvc") .Values.manifests.pvc_tmp }}
+        - name: glance-tmp
+          persistentVolumeClaim:
+            claimName: glance-tmp
+{{- else }}
+        - name: glance-tmp
           emptyDir: {}
 {{- end }}
 {{- if eq .Values.storage "rbd" }}
