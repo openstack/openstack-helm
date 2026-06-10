@@ -116,7 +116,7 @@ spec:
               mountPath: {{ $dbToSync.logConfigFile | quote }}
               subPath: {{ base $dbToSync.logConfigFile | quote }}
               readOnly: true
-{{- dict "enabled" $envAll.Values.manifests.certificates "name" $dbAdminTlsSecret "path" "/etc/mysql/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
+{{- dict "enabled" (ne $dbAdminTlsSecret "") "name" $dbAdminTlsSecret "path" "/etc/mysql/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
 {{- if $podVolMounts }}
 {{ $podVolMounts | toYaml | indent 12 }}
 {{- end }}
@@ -147,7 +147,7 @@ spec:
 {{- else }}
           emptyDir: {}
 {{ end }}
-{{- dict "enabled" $envAll.Values.manifests.certificates "name" $dbAdminTlsSecret | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
+{{- dict "enabled" (ne $dbAdminTlsSecret "") "name" $dbAdminTlsSecret | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 {{- if $podVols }}
 {{ $podVols | toYaml | indent 8 }}
 {{- end }}
