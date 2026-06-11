@@ -128,9 +128,9 @@ spec:
                   subPath: l2gw_plugin.ini
                   readOnly: true
                 {{ end }}
-{{- dict "enabled" .Values.tls.oslo_db "name" .Values.secrets.tls.oslo_db.neutron.internal "path" "/etc/mysql/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 16 }}
+{{- dict "enabled" .Values.tls.oslo_db "name" "client-certs" "path" "/etc/mysql/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 16 }}
 {{- dict "enabled" (or .Values.manifests.certificates .Values.tls.identity) "name" .Values.secrets.tls.network.server.internal "path" "/etc/neutron/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 16 }}
-{{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.oslo_messaging.auth.admin.secret.tls.internal "path" "/etc/rabbitmq/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 16 }}
+{{- dict "enabled" $envAll.Values.tls.oslo_messaging "name" "client-certs" "path" "/etc/rabbitmq/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 16 }}
 {{ if $mounts_neutron_ovn_db_sync.volumeMounts }}{{ toYaml $mounts_neutron_ovn_db_sync.volumeMounts | indent 14 }}{{ end }}
           volumes:
             - name: pod-tmp
@@ -159,8 +159,7 @@ spec:
 {{- else }}
               emptyDir: {}
 {{ end }}
-{{- dict "enabled" .Values.tls.oslo_db "name" .Values.secrets.tls.oslo_db.neutron.internal | include "helm-toolkit.snippets.tls_volume" | indent 12 }}
+{{- dict "enabled" (or .Values.tls.oslo_db .Values.tls.oslo_messaging) "name" "client-certs" "secretName" .Values.secrets.tls.client.neutron | include "helm-toolkit.snippets.tls_volume" | indent 12 }}
 {{- dict "enabled" (or .Values.manifests.certificates .Values.tls.identity) "name" .Values.secrets.tls.network.server.internal | include "helm-toolkit.snippets.tls_volume" | indent 12 }}
-{{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.oslo_messaging.auth.admin.secret.tls.internal | include "helm-toolkit.snippets.tls_volume" | indent 12 }}
 {{ if $mounts_neutron_ovn_db_sync.volumes }}{{ toYaml $mounts_neutron_ovn_db_sync.volumes | indent 12 }}{{ end }}
 {{- end }}

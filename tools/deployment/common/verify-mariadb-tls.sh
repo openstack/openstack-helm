@@ -20,8 +20,10 @@
 #   SERVICE    OpenStack service / db user name (default: keystone)
 #   NAMESPACE  Kubernetes namespace (default: osh)
 #
-# Override the auto-derived names with env vars if a chart deviates from the
-# <service>-db-user / <service>-db-admin / <service>-mariadb-client convention
+# The client certificate is the single per-chart client certificate shared by
+# the MariaDB and RabbitMQ connections (<service>-client). Override the
+# auto-derived names with env vars if a chart deviates from the
+# <service>-db-user / <service>-db-admin / <service>-client convention
 # (e.g. nova-db-api-user):
 #   USER_SECRET, ADMIN_SECRET, CLIENT_SECRET, MARIADB_SELECTOR
 #
@@ -29,7 +31,7 @@
 #   tools/deployment/common/verify-mariadb-tls.sh keystone
 #   tools/deployment/common/verify-mariadb-tls.sh glance
 #   USER_SECRET=nova-db-api-user ADMIN_SECRET=nova-db-api-admin \
-#     CLIENT_SECRET=nova-mariadb-client tools/deployment/common/verify-mariadb-tls.sh nova
+#     CLIENT_SECRET=nova-client tools/deployment/common/verify-mariadb-tls.sh nova
 
 set -uo pipefail
 
@@ -38,7 +40,7 @@ NAMESPACE="${2:-osh}"
 RELEASE="${RELEASE:-$SERVICE}"
 USER_SECRET="${USER_SECRET:-${SERVICE}-db-user}"
 ADMIN_SECRET="${ADMIN_SECRET:-${SERVICE}-db-admin}"
-CLIENT_SECRET="${CLIENT_SECRET:-${SERVICE}-mariadb-client}"
+CLIENT_SECRET="${CLIENT_SECRET:-${SERVICE}-client}"
 SERVER_SECRET="${SERVER_SECRET:-mariadb-tls-direct}"
 MARIADB_SELECTOR="${MARIADB_SELECTOR:-application=mariadb,component=server}"
 
@@ -112,7 +114,7 @@ fi
 mysql_in_pod() { # user pass extra-args... ; SQL on stdin
   local u="$1" p="$2"; shift 2
   kubectl -n "$NAMESPACE" exec -i "$MARIADB_POD" -c mariadb -- \
-    mysql -h "$DB_HOST" -P "$DB_PORT" -u "$u" -p"$p" "$@" 2>&1
+    mariadb -h "$DB_HOST" -P "$DB_PORT" -u "$u" -p"$p" "$@" 2>&1
 }
 
 ###############################################################################
@@ -164,7 +166,7 @@ kgsecret "$CLIENT_SECRET" 'tls\.crt' | push tls.crt
 kgsecret "$CLIENT_SECRET" 'tls\.key' | push tls.key
 
 cipher_out="$(kubectl -n "$NAMESPACE" exec -i "$MARIADB_POD" -c mariadb -- \
-  mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -p"$DB_PASS" \
+  mariadb -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -p"$DB_PASS" \
         --ssl-ca="$TMPD/ca.crt" --ssl-cert="$TMPD/tls.crt" --ssl-key="$TMPD/tls.key" \
         -N -e "SHOW SESSION STATUS LIKE 'Ssl_cipher';" 2>&1)"
 cipher="$(awk '{print $2}' <<<"$cipher_out" | tail -1)"
@@ -180,7 +182,7 @@ ADMIN_URI="$(kgsecret "$ADMIN_SECRET" DB_CONNECTION)"
 if [[ -n "$ADMIN_URI" ]]; then
   ADMIN_USER="$(uri_user "$ADMIN_URI")"; ADMIN_PASS="$(uri_pass "$ADMIN_URI")"
   grants="$(kubectl -n "$NAMESPACE" exec -i "$MARIADB_POD" -c mariadb -- \
-    mysql -h "$DB_HOST" -P "$DB_PORT" -u "$ADMIN_USER" -p"$ADMIN_PASS" \
+    mariadb -h "$DB_HOST" -P "$DB_PORT" -u "$ADMIN_USER" -p"$ADMIN_PASS" \
           --ssl-ca="$TMPD/ca.crt" --ssl-cert="$TMPD/tls.crt" --ssl-key="$TMPD/tls.key" \
           -N -e "SHOW GRANTS FOR '$DB_USER'@'%';" 2>&1)"
   if grep -qi "REQUIRE X509\|REQUIRE SSL" <<<"$grants"; then
@@ -195,7 +197,7 @@ fi
 ###############################################################################
 hdr "5. Negative test: a plaintext connection is rejected"
 plain="$(kubectl -n "$NAMESPACE" exec -i "$MARIADB_POD" -c mariadb -- \
-  mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -p"$DB_PASS" \
+  mariadb -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -p"$DB_PASS" \
         --skip-ssl -N -e "SELECT 1;" 2>&1)"
 if grep -qi "access denied\|ERROR\|required\|insecure" <<<"$plain"; then
   ok "Plaintext (--skip-ssl) connection refused as expected"

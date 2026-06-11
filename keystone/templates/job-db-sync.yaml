@@ -54,11 +54,11 @@ volumeMounts:
   - name: keystone-fernet-keys
     mountPath: {{ $envAll.Values.conf.keystone.fernet_tokens.key_repository }}
     readOnly: true
-{{- if and $envAll.Values.tls.oslo_db $envAll.Values.secrets.tls.oslo_db.keystone.internal }}
-{{- dict "enabled" $envAll.Values.tls.oslo_db "name" $envAll.Values.secrets.tls.oslo_db.keystone.internal "path" "/etc/mysql/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 2 }}
+{{- if and $envAll.Values.tls.oslo_db $envAll.Values.secrets.tls.client.keystone }}
+{{- dict "enabled" $envAll.Values.tls.oslo_db "name" "client-certs" "path" "/etc/mysql/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 2 }}
 {{- end }}
-{{- if and $envAll.Values.manifests.certificates $envAll.Values.endpoints.oslo_messaging.auth.admin.secret.tls.internal }}
-{{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.oslo_messaging.auth.admin.secret.tls.internal "path" "/etc/rabbitmq/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 2 }}
+{{- if and $envAll.Values.tls.oslo_messaging $envAll.Values.secrets.tls.client.keystone }}
+{{- dict "enabled" $envAll.Values.tls.oslo_messaging "name" "client-certs" "path" "/etc/rabbitmq/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 2 }}
 {{- end }}
 {{- end }}
 
@@ -68,11 +68,10 @@ volumes:
   - name: keystone-fernet-keys
     secret:
       secretName: keystone-fernet-keys
-{{- if and $envAll.Values.tls.oslo_db $envAll.Values.secrets.tls.oslo_db.keystone.internal }}
-{{- dict "enabled" $envAll.Values.tls.oslo_db "name" $envAll.Values.secrets.tls.oslo_db.keystone.internal | include "helm-toolkit.snippets.tls_volume" | indent 2 }}
+{{- if and $envAll.Values.tls.oslo_db $envAll.Values.secrets.tls.client.keystone }}
+{{- dict "enabled" (or $envAll.Values.tls.oslo_db $envAll.Values.tls.oslo_messaging) "name" "client-certs" "secretName" $envAll.Values.secrets.tls.client.keystone | include "helm-toolkit.snippets.tls_volume" | indent 2 }}
 {{- end }}
-{{- if and $envAll.Values.manifests.certificates $envAll.Values.endpoints.oslo_messaging.auth.admin.secret.tls.internal }}
-{{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.oslo_messaging.auth.admin.secret.tls.internal | include "helm-toolkit.snippets.tls_volume" | indent 2 }}
+{{- if and $envAll.Values.tls.oslo_messaging $envAll.Values.secrets.tls.client.keystone }}
 {{- end }}
 {{- end }}
 

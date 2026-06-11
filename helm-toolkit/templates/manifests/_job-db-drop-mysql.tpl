@@ -136,7 +136,7 @@ spec:
               readOnly: true
 {{- end }}
 {{- if ne $dbAdminTlsSecret "" }}
-{{- dict "enabled" true "name" $dbAdminTlsSecret "path" "/etc/mysql/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
+{{- dict "enabled" true "name" "client-certs" "path" "/etc/mysql/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
 {{- end }}
 {{- end }}
       volumes:
@@ -153,7 +153,7 @@ spec:
             defaultMode: 0555
 {{- end }}
 {{- if ne $dbAdminTlsSecret "" }}
-{{- dict "enabled" true "name" $dbAdminTlsSecret | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
+{{- dict "enabled" true "name" "client-certs" "secretName" $dbAdminTlsSecret | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 {{- end }}
 {{- $local := dict "configMapBinFirst" true -}}
 {{- range $key1, $dbToDrop := $dbsToDrop }}

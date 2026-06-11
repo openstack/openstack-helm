@@ -1,0 +1,34 @@
+# Enable mTLS for the neutron to RabbitMQ connection.
+#
+# Reuses the single per-chart client certificate (neutron-client, signed by
+# ca-issuer) that neutron presents for all mTLS backend connections. The same
+# certificate block is defined in mariadb-tls.yaml; it is rendered whenever
+# either tls.oslo_db or tls.oslo_messaging is enabled. Requires cert-manager
+# (cert_manager_setup) and RabbitMQ server-side TLS with mTLS enforced (see
+# values_overrides/rabbitmq/tls.yaml).
+---
+endpoints:
+  oslo_db:
+    host_fqdn_override:
+      default:
+        tls:
+          secretName: neutron-client
+          issuerRef:
+            name: ca-issuer
+            kind: ClusterIssuer
+          usages:
+            - client auth
+  oslo_messaging:
+    port:
+      https:
+        default: 15680
+conf:
+  neutron:
+    oslo_messaging_rabbit:
+      ssl: true
+      ssl_ca_file: /etc/rabbitmq/certs/ca.crt
+      ssl_cert_file: /etc/rabbitmq/certs/tls.crt
+      ssl_key_file: /etc/rabbitmq/certs/tls.key
+tls:
+  oslo_messaging: true
+...

@@ -87,8 +87,8 @@ spec:
               mountPath: /tmp/rabbit-init.sh
               subPath: rabbit-init.sh
               readOnly: true
-{{- if $envAll.Values.manifests.certificates }}
-{{- dict "enabled" $envAll.Values.manifests.certificates "name" $tlsSecret "path" $tlsPath | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
+{{- if ne $tlsSecret "" }}
+{{- dict "enabled" true "name" "client-certs" "path" $tlsPath | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
 {{- end }}
           env:
           - name: RABBITMQ_ADMIN_CONNECTION
@@ -105,7 +105,7 @@ spec:
           - name: RABBITMQ_AUXILIARY_CONFIGURATION
             value: {{ toJson $envAll.Values.conf.rabbitmq | quote }}
 {{- end }}
-{{- if and $envAll.Values.manifests.certificates (ne $tlsSecret "") }}
+{{- if ne $tlsSecret "" }}
           - name: RABBITMQ_X509
             value: "REQUIRE X509"
           - name: USER_CERT_PATH
@@ -124,7 +124,7 @@ spec:
             name: {{ $configMapBin | quote }}
             defaultMode: 0555
 {{- end }}
-{{- if $envAll.Values.manifests.certificates }}
-{{- dict "enabled" $envAll.Values.manifests.certificates "name" $tlsSecret | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
+{{- if ne $tlsSecret "" }}
+{{- dict "enabled" true "name" "client-certs" "secretName" $tlsSecret | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 {{- end }}
 {{- end -}}
