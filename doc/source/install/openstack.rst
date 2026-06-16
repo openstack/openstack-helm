@@ -29,12 +29,23 @@ At this point we assume all the prerequisites listed below are met:
     and creates a ``LoadBalancer`` service backed by MetalLB. Traffic is routed
     to backend services via ``HTTPRoute`` resources.
 
-    How exactly users expose their workloads may vary. ``HTTPRoute`` objects
-    and additional ``Service`` resources can be added to any chart via the
-    ``.Values.extraObjects`` field available in all OpenStack-Helm charts.
-    For an example see ``values_overrides/nova/gateway.yaml``.
+    OpenStack-Helm charts no longer ship ``Ingress`` templates nor the
+    auxiliary ``Service`` resources (and TLS secrets) that used to back them.
+    Charts now only deploy the applications themselves and their ClusterIP
+    ``Service`` objects. How exactly the services are exposed outside the
+    cluster is entirely up to the user, since it depends heavily on the
+    particular environment and use case.
 
-    Legacy ``Ingress`` resources are still supported.
+    The way to expose a service is to provide the necessary objects via the
+    ``.Values.extraObjects`` field available in all OpenStack-Helm charts.
+    This accepts an arbitrary list of manifests (rendered as Helm templates)
+    that are deployed together with the chart. Use it to add ``HTTPRoute``
+    and ``BackendTLSPolicy`` objects when exposing services through the
+    Gateway API, or, if you prefer the legacy approach, an ``Ingress`` object
+    and its accompanying ``Service``. For Gateway API examples see
+    ``values_overrides/<chart>/gateway.yaml`` (e.g.
+    ``values_overrides/nova/gateway.yaml`` and
+    ``values_overrides/keystone/gateway-tls.yaml``).
 
 .. _Kubernetes Gateway API: https://gateway-api.sigs.k8s.io/
 
