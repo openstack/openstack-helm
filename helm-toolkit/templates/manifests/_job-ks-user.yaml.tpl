@@ -123,9 +123,13 @@ spec:
 {{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 12 }}
             - name: SERVICE_OS_SERVICE_NAME
               value: {{ $serviceName | quote }}
-{{- with $env := dict "ksUserSecret" (index $envAll.Values.secrets.identity $serviceUser ) }}
-{{- include "helm-toolkit.snippets.keystone_user_create_env_vars" $env | indent 12 }}
-{{- end }}
+{{- /*
+  extraVars is forced empty to prevent duplicating vars already emitted by
+  keystone_openrc_env_vars above; both snippets share identity.openrc.extra_vars
+  but this container env spec is a single flat list.
+*/ -}}
+{{- $userEnv := dict "ksUserSecret" (index $envAll.Values.secrets.identity $serviceUser) "envAll" $envAll "extraVars" (list) -}}
+{{- include "helm-toolkit.snippets.keystone_user_create_env_vars" $userEnv | indent 12 }}
             - name: SERVICE_OS_ROLES
             {{- $serviceOsRoles := index $envAll.Values.endpoints.identity.auth $serviceUser "role" }}
             {{- if kindIs "slice" $serviceOsRoles }}
