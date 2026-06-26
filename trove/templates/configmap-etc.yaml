@@ -77,6 +77,10 @@ limitations under the License.
 {{- $_ := set .Values.conf.trove.keystone_authtoken "memcache_secret_key" ( default ( randAlphaNum 64 ) .Values.endpoints.oslo_cache.auth.memcache_secret_key ) -}}
 {{- end -}}
 
+{{- if and (hasKey .Values.conf.trove "cache") (kindIs "map" .Values.conf.trove.cache) (empty .Values.conf.trove.cache.memcache_servers) }}
+{{- $_ := tuple "oslo_cache" "internal" "memcache" . | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" | set .Values.conf.trove.cache "memcache_servers" -}}
+{{- end -}}
+
 {{- if empty .Values.conf.trove.service_credentials.auth_url }}
 {{- $_ := tuple "identity" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup"| set .Values.conf.trove.service_credentials "auth_url" -}}
 {{- end -}}

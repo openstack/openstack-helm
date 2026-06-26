@@ -25,6 +25,10 @@ limitations under the License.
 {{- $_ := set .Values.conf.zaqar.keystone_authtoken "memcache_secret_key" ( default ( randAlphaNum 64 ) .Values.endpoints.oslo_cache.auth.memcache_secret_key ) -}}
 {{- end -}}
 
+{{- if and (hasKey .Values.conf.zaqar "cache") (kindIs "map" .Values.conf.zaqar.cache) (empty .Values.conf.zaqar.cache.memcache_servers) }}
+{{- $_ := tuple "oslo_cache" "internal" "memcache" . | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" | set .Values.conf.zaqar.cache "memcache_servers" -}}
+{{- end -}}
+
 {{- if empty (index .Values.conf.zaqar "drivers:management_store:sqlalchemy").uri -}}
 {{- $_ := tuple "oslo_db" "internal" "zaqar" "mysql" . | include "helm-toolkit.endpoints.authenticated_endpoint_uri_lookup"| set (index .Values.conf.zaqar "drivers:management_store:sqlalchemy") "uri" -}}
 {{- end -}}
