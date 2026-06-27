@@ -1,0 +1,23 @@
+---
+features:
+  - |
+    The ``helm-toolkit.manifests.certificates`` template now accepts an
+    optional ``secretName`` parameter. When provided, it sets the name of the
+    rendered cert-manager ``Certificate`` (both ``metadata.name`` and
+    ``spec.secretName``) instead of deriving it from the endpoint's
+    ``host_fqdn_override.default.tls.secretName``.
+upgrade:
+  - |
+    The mTLS client certificate that each chart presents on outbound
+    connections to MariaDB and RabbitMQ is now named after the chart-local
+    value ``secrets.tls.client.<chart>`` rather than the shared
+    ``endpoints.oslo_db.host_fqdn_override.default.tls.secretName``. This
+    prevents a name collision for deployments whose values tooling renders
+    endpoints from a single shared endpoint catalog, where the ``oslo_db``
+    endpoint (and therefore its ``secretName``) is identical across every
+    chart. The pod ``client-certs`` volume already references the same
+    chart-local value, so the certificate and its mount remain in lockstep.
+    No action is required for existing deployments: the default
+    ``secrets.tls.client.<chart>`` value matches the previously rendered
+    certificate name.
+...

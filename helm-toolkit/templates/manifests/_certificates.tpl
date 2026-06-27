@@ -70,7 +70,14 @@ examples:
 {{- $envAll := index . "envAll" -}}
 {{- $service := index . "service" -}}
 {{- $type := index . "type" | default "" -}}
+{{- $secretName := index . "secretName" | default "" -}}
 {{- $slice := index $envAll.Values.endpoints $service "host_fqdn_override" "default" "tls" -}}
+{{/* Allow the caller to pass an explicit secret name. This decouples the certificate
+  name from the endpoint catalog so that charts sharing an endpoint (e.g. oslo_db) can
+  still render uniquely named client certificates. */}}
+{{- if ne $secretName "" -}}
+{{- $_ := set $slice "secretName" $secretName -}}
+{{- end -}}
 {{/* Put in some sensible default value if one is not provided by values.yaml */}}
 {{/* If a dnsNames list is not in the values.yaml, it can be overridden by a passed-in parameter.
   This allows user to use other HTK method to determine the URI and pass that into this method.*/}}
@@ -101,7 +108,7 @@ examples:
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: {{ index $envAll.Values.endpoints $service "host_fqdn_override" "default" "tls" "secretName" }}
+  name: {{ index $slice "secretName" }}
   namespace: {{ $envAll.Release.Namespace }}
 spec:
 {{ $slice | toYaml | indent 2 }}
