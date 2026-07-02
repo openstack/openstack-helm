@@ -92,8 +92,19 @@ return: |
 {{- define "helm-toolkit.snippets.keystone_openrc_env_vars" }}
 {{- $useCA := .useCA -}}
 {{- $ksUserSecret := .ksUserSecret -}}
-{{- $excludeVars := .excludeVars | default list -}}
-{{- $extraVars := .extraVars | default list -}}
+{{- $envAll := .envAll | default dict -}}
+{{- $identityOpenrc := dict -}}
+{{- if hasKey $envAll "Values" -}}
+{{- if hasKey $envAll.Values "identity" -}}
+{{- if hasKey $envAll.Values.identity "openrc" -}}
+{{- $identityOpenrc = $envAll.Values.identity.openrc -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- $excludeVars := ($identityOpenrc.exclude_vars | default list) -}}
+{{- if hasKey . "excludeVars" -}}{{- $excludeVars = .excludeVars -}}{{- end -}}
+{{- $extraVars := ($identityOpenrc.extra_vars | default list) -}}
+{{- if hasKey . "extraVars" -}}{{- $extraVars = .extraVars -}}{{- end -}}
 {{- if not (has "OS_IDENTITY_API_VERSION" $excludeVars) }}
 - name: OS_IDENTITY_API_VERSION
   value: "3"

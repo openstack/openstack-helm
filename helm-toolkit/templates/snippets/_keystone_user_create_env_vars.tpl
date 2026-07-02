@@ -57,34 +57,75 @@ return: |
 
 {{- define "helm-toolkit.snippets.keystone_user_create_env_vars" }}
 {{- $ksUserSecret := .ksUserSecret }}
+{{- $envAll := .envAll | default dict -}}
+{{- $identityOpenrc := dict -}}
+{{- if hasKey $envAll "Values" -}}
+{{- if hasKey $envAll.Values "identity" -}}
+{{- if hasKey $envAll.Values.identity "openrc" -}}
+{{- $identityOpenrc = $envAll.Values.identity.openrc -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- $excludeVars := ($identityOpenrc.exclude_vars | default list) -}}
+{{- if hasKey . "excludeVars" -}}{{- $excludeVars = .excludeVars -}}{{- end -}}
+{{- $extraVars := ($identityOpenrc.extra_vars | default list) -}}
+{{- if hasKey . "extraVars" -}}{{- $extraVars = .extraVars -}}{{- end -}}
+{{- if not (has "SERVICE_OS_REGION_NAME" $excludeVars) }}
 - name: SERVICE_OS_REGION_NAME
   valueFrom:
     secretKeyRef:
       name: {{ $ksUserSecret }}
       key: OS_REGION_NAME
+{{- end }}
+{{- if not (has "SERVICE_OS_PROJECT_DOMAIN_NAME" $excludeVars) }}
 - name: SERVICE_OS_PROJECT_DOMAIN_NAME
   valueFrom:
     secretKeyRef:
       name: {{ $ksUserSecret }}
       key: OS_PROJECT_DOMAIN_NAME
+{{- end }}
+{{- if not (has "SERVICE_OS_PROJECT_NAME" $excludeVars) }}
 - name: SERVICE_OS_PROJECT_NAME
   valueFrom:
     secretKeyRef:
       name: {{ $ksUserSecret }}
       key: OS_PROJECT_NAME
+{{- end }}
+{{- if not (has "SERVICE_OS_USER_DOMAIN_NAME" $excludeVars) }}
 - name: SERVICE_OS_USER_DOMAIN_NAME
   valueFrom:
     secretKeyRef:
       name: {{ $ksUserSecret }}
       key: OS_USER_DOMAIN_NAME
+{{- end }}
+{{- if not (has "SERVICE_OS_USERNAME" $excludeVars) }}
 - name: SERVICE_OS_USERNAME
   valueFrom:
     secretKeyRef:
       name: {{ $ksUserSecret }}
       key: OS_USERNAME
+{{- end }}
+{{- if not (has "SERVICE_OS_PASSWORD" $excludeVars) }}
 - name: SERVICE_OS_PASSWORD
   valueFrom:
     secretKeyRef:
       name: {{ $ksUserSecret }}
       key: OS_PASSWORD
+{{- end }}
+{{- range $extraVars }}
+- name: {{ .name }}
+{{- if hasKey . "value" }}
+  value: {{ .value | quote }}
+{{- else if hasKey . "secretKeyRef" }}
+  valueFrom:
+    secretKeyRef:
+      name: {{ .secretKeyRef.name }}
+      key: {{ .secretKeyRef.key }}
+{{- else if hasKey . "configMapKeyRef" }}
+  valueFrom:
+    configMapKeyRef:
+      name: {{ .configMapKeyRef.name }}
+      key: {{ .configMapKeyRef.key }}
+{{- end }}
+{{- end }}
 {{- end }}
