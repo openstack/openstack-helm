@@ -1,0 +1,173 @@
+# Full TLS for the Horizon dashboard: public endpoint TLS (terminated at the
+# Envoy Gateway) AND gateway<->pod TLS (an nginx sidecar terminates TLS in the
+# horizon pod; the gateway re-encrypts to it via a BackendTLSPolicy).
+#
+# Unlike the API charts, horizon keeps Apache httpd as the application server
+# (Django + static assets); the nginx sidecar only TERMINATES TLS on 443 and
+# reverse-proxies to apache on the plain-HTTP web port (80). Apache no longer
+# terminates TLS itself. Django trusts the sidecar's X-Forwarded-Proto header
+# (SECURE_PROXY_SSL_HEADER is already set in the chart's local_settings).
+#
+# Requires cert_manager_setup=true (ca-issuer ClusterIssuer) and
+# osh_openstack_client_tls=true.
+---
+# Route the web Service to the in-pod nginx TLS sidecar (port 443). Apache keeps
+# listening on the internal web port (80); only the public port becomes 443.
+network:
+  dashboard:
+    target_port: 443
+secrets:
+  tls:
+    # Outbound trust: horizon calls keystone over TLS. CA-ONLY secret (just
+    # ca.crt, no private key), mounted at /etc/ssl/certs/openstack-helm.crt.
+    # Assumes every in-pod TLS server cert is signed by this one ca-issuer CA.
+    ca: openstack-helm-ca
+
+endpoints:
+  identity:
+    auth:
+      admin:
+        cacert: /etc/ssl/certs/openstack-helm.crt
+    scheme:
+      default: https
+      internal: https
+  dashboard:
+    host_fqdn_override:
+      public:
+        host: horizon.openstack-helm.org
+    scheme:
+      # Only the PUBLIC endpoint is https (gateway -> sidecar). internal/default
+      # stay http: apache serves plain HTTP on the web port and the pod
+      # liveness/readiness probes hit that backend directly (not via the sidecar).
+      public: https
+    port:
+      web:
+        public: 443
+
+conf:
+  horizon:
+    local_settings:
+      config:
+        # Behind the TLS sidecar apache sees plain HTTP, so Django must trust the
+        # sidecar's X-Forwarded-Proto header to know the request is https; that
+        # enables SECURE_PROXY_SSL_HEADER in the chart's local_settings template.
+        secure_proxy_ssl_header: true
+        use_ssl: "True"
+        csrf_cookie_secure: "True"
+        session_cookie_secure: "True"
+
+pod:
+  extraContainers:
+    horizon:
+      - name: nginx-tls
+        image: docker.io/nginx:1.27-alpine
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          runAsUser: 0
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: false
+        ports:
+          - name: https
+            containerPort: 443
+        volumeMounts:
+          - name: nginx-tls-certs
+            mountPath: /etc/nginx/certs
+            readOnly: true
+          - name: nginx-tls-conf
+            mountPath: /etc/nginx/conf.d
+            readOnly: true
+  extraVolumes:
+    horizon:
+      - name: nginx-tls-certs
+        secret:
+          secretName: horizon-tls-web
+      - name: nginx-tls-conf
+        configMap:
+          name: horizon-nginx-tls
+
+extraObjects:
+  # Server certificate for the nginx sidecar (issued by the ca-issuer). SANs must
+  # include the in-cluster Service FQDN so the gateway's BackendTLSPolicy hostname
+  # validation succeeds. The chart no longer renders any dashboard TLS cert.
+  - apiVersion: cert-manager.io/v1
+    kind: Certificate
+    metadata:
+      name: horizon-tls-web
+      namespace: "{{ .Release.Namespace }}"
+    spec:
+      secretName: horizon-tls-web
+      issuerRef:
+        name: ca-issuer
+        kind: ClusterIssuer
+      usages:
+        - server auth
+      dnsNames:
+        - horizon-int
+        - "horizon-int.{{ .Release.Namespace }}"
+        - "horizon-int.{{ .Release.Namespace }}.svc.{{ .Values.endpoints.cluster_domain_suffix }}"
+  - apiVersion: gateway.networking.k8s.io/v1
+    kind: HTTPRoute
+    metadata:
+      name: horizon-route
+      namespace: "{{ .Release.Namespace }}"
+    spec:
+      hostnames:
+        - "{{ .Values.endpoints.dashboard.host_fqdn_override.public.host }}"
+      parentRefs:
+        - name: gateway-default
+          namespace: envoy-gateway-system
+      rules:
+        - matches:
+            - path:
+                type: PathPrefix
+                value: /
+          backendRefs:
+            - name: horizon-int
+              port: 80
+  # nginx sidecar server block (proxies TLS:443 -> apache 127.0.0.1:80). A larger
+  # client_max_body_size is set since the dashboard handles file uploads. The
+  # $-prefixed tokens are nginx variables, escaped so the chart's tpl pass leaves
+  # them intact.
+  - apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: horizon-nginx-tls
+      namespace: "{{ .Release.Namespace }}"
+    data:
+      default.conf: |
+        server {
+            listen 443 ssl;
+            server_name _;
+            client_max_body_size 0;
+
+            ssl_certificate     /etc/nginx/certs/tls.crt;
+            ssl_certificate_key /etc/nginx/certs/tls.key;
+            ssl_protocols       TLSv1.2 TLSv1.3;
+
+            location / {
+                proxy_pass http://127.0.0.1:80;
+                proxy_set_header Host {{`$host`}};
+                proxy_set_header X-Forwarded-For {{`$proxy_add_x_forwarded_for`}};
+                proxy_set_header X-Forwarded-Proto https;
+            }
+        }
+  # Make the Envoy Gateway originate TLS to the nginx sidecar instead of plain
+  # HTTP, validating the ca-issuer cert from the web cert Secret's ca.crt.
+  - apiVersion: gateway.networking.k8s.io/v1
+    kind: BackendTLSPolicy
+    metadata:
+      name: horizon-web-backend-tls
+      namespace: "{{ .Release.Namespace }}"
+    spec:
+      targetRefs:
+        - group: ""
+          kind: Service
+          name: horizon-int
+          sectionName: web
+      validation:
+        caCertificateRefs:
+          - group: ""
+            kind: Secret
+            name: horizon-tls-web
+        hostname: "horizon-int.{{ .Release.Namespace }}.svc.{{ .Values.endpoints.cluster_domain_suffix }}"
+...

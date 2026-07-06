@@ -83,6 +83,13 @@ jobs:
       failed: 1
 
 pod:
+  # -- Extra sidecar containers and volumes to inject into the cinder-api
+  ## Deployment. Used e.g. by values_overrides/cinder/tls-gateway-and-sidecar.yaml
+  ## to add an nginx TLS-terminating sidecar. Keyed per component.
+  extraContainers:
+    cinder_api: []
+  extraVolumes:
+    cinder_api: []
   probes:
     api:
       cinder-api:
@@ -452,6 +459,9 @@ bootstrap:
 
 network:
   api:
+    # Pod port the Service routes to; null => Kubernetes uses the Service port.
+    # A deployment override sets this (e.g. 443) to point at a TLS sidecar.
+    target_port: null
     external_policy_local: false
     node_port:
       enabled: false
@@ -1269,10 +1279,14 @@ secrets:
     # (MariaDB and RabbitMQ). Separate from the MariaDB and RabbitMQ server certs.
     client:
       cinder: cinder-client
-    volumev3:
-      api:
-        public: cinder-tls-public
-        internal: cinder-tls-api
+    # CA bundle this chart trusts for OUTBOUND TLS calls (keystone, glance). Null
+    # by default -> no CA is mounted and REQUESTS_CA_BUNDLE is left unset. A
+    # deployment override points this at a cert-manager CA-only secret carrying
+    # just ca.crt (no private key); it is mounted at
+    # /etc/ssl/certs/openstack-helm.crt. Assumes every server cert is signed by
+    # this single CA. The chart stays TLS-agnostic -- server certs and the nginx
+    # TLS sidecar live in the override.
+    ca: null
   oci_image_registry:
     cinder: cinder-oci-image-registry
 
@@ -1418,6 +1432,10 @@ endpoints:
       healthcheck: /healthcheck
     scheme:
       default: 'http'
+      # The cinder-api liveness/readiness probes hit the backend over the
+      # "service" scope; uwsgi serves plain HTTP there even when the override
+      # flips default/internal/public to https (TLS sidecar). Keep it http.
+      service: 'http'
     port:
       api:
         default: 8776
@@ -1520,12 +1538,10 @@ network_policy:
       - {}
 
 tls:
-  identity: false
   oslo_messaging: false
   oslo_db: false
 
 manifests:
-  certificates: false
   configmap_bin: true
   configmap_etc: true
   cron_volume_usage_audit: true

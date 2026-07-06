@@ -1,0 +1,301 @@
+# Full TLS for Heat: public endpoint TLS (terminated at the Envoy Gateway)
+# AND gateway<->pod TLS (an nginx sidecar terminates TLS in each heat API pod;
+# the gateway re-encrypts to it via a BackendTLSPolicy).
+#
+# This is the "secure everywhere" variant. For public-endpoint-only TLS (plain
+# HTTP between the gateway and the API pods) use gateway-tls.yaml instead.
+#
+# Requires cert_manager_setup=true (ca-issuer ClusterIssuer) and
+# osh_openstack_client_tls=true.
+#
+# heat has two API components: orchestration (heat-api) and cloudformation
+# (heat-cfn). Each app container runs uwsgi in plain HTTP on its service port
+# (8004 / 8000); the nginx sidecar terminates TLS on 443 and proxies to
+# 127.0.0.1:<service-port>. Each Service keeps its port but routes to 443
+# (targetPort). The nginx sidecars, their config ConfigMaps, the HTTPRoutes and
+# the BackendTLSPolicies are all defined here (extraContainers + extraObjects)
+# so the chart stays independent of how the services are exposed outside the
+# cluster.
+---
+# Route the API Service to the in-pod nginx TLS sidecar (port 443).
+network:
+  api:
+    target_port: 443
+  cfn:
+    target_port: 443
+secrets:
+  tls:
+    # Outbound trust: heat calls keystone over TLS, so its pods and the ks-* jobs
+    # need the ca-issuer CA (REQUESTS_CA_BUNDLE / OS_CACERT / cafile). This points
+    # at a CA-ONLY secret holding just ca.crt -- no server cert and no private key
+    # reaches workload pods. Mounted at /etc/ssl/certs/openstack-helm.crt. Assumes
+    # every in-pod TLS server cert is signed by this one ca-issuer CA. The chart
+    # stays TLS-agnostic -- server certs and the nginx sidecars live here;
+    # targetPort via network.*.target_port.
+    ca: openstack-helm-ca
+
+endpoints:
+  identity:
+    auth:
+      admin:
+        cacert: /etc/ssl/certs/openstack-helm.crt
+      heat:
+        cacert: /etc/ssl/certs/openstack-helm.crt
+      heat_trustee:
+        cacert: /etc/ssl/certs/openstack-helm.crt
+      heat_stack_user:
+        cacert: /etc/ssl/certs/openstack-helm.crt
+      test:
+        cacert: /etc/ssl/certs/openstack-helm.crt
+    scheme:
+      public: https
+      default: https
+      internal: https
+  orchestration:
+    scheme:
+      public: https
+      default: https
+      internal: https
+    port:
+      api:
+        public: 443
+    host_fqdn_override:
+      public:
+        host: heat.openstack-helm.org
+  cloudformation:
+    scheme:
+      public: https
+      default: https
+      internal: https
+    port:
+      api:
+        public: 443
+    host_fqdn_override:
+      public:
+        host: cloudformation.openstack-helm.org
+
+conf:
+  heat:
+    keystone_authtoken:
+      cafile: /etc/ssl/certs/openstack-helm.crt
+    trustee:
+      cafile: /etc/ssl/certs/openstack-helm.crt
+    clients_keystone:
+      ca_file: /etc/ssl/certs/openstack-helm.crt
+
+pod:
+  extraContainers:
+    heat_api:
+      - name: nginx-tls
+        image: docker.io/nginx:1.27-alpine
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          runAsUser: 0
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: false
+        ports:
+          - name: https
+            containerPort: 443
+        volumeMounts:
+          - name: nginx-tls-certs
+            mountPath: /etc/nginx/certs
+            readOnly: true
+          - name: nginx-tls-conf
+            mountPath: /etc/nginx/conf.d
+            readOnly: true
+    heat_cfn:
+      - name: nginx-tls
+        image: docker.io/nginx:1.27-alpine
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          runAsUser: 0
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: false
+        ports:
+          - name: https
+            containerPort: 443
+        volumeMounts:
+          - name: nginx-tls-certs
+            mountPath: /etc/nginx/certs
+            readOnly: true
+          - name: nginx-tls-conf
+            mountPath: /etc/nginx/conf.d
+            readOnly: true
+  extraVolumes:
+    heat_api:
+      - name: nginx-tls-certs
+        secret:
+          secretName: heat-tls-api
+      - name: nginx-tls-conf
+        configMap:
+          name: heat-nginx-tls-api
+    heat_cfn:
+      - name: nginx-tls-certs
+        secret:
+          secretName: heat-tls-cfn
+      - name: nginx-tls-conf
+        configMap:
+          name: heat-nginx-tls-cfn
+
+extraObjects:
+  # Server certificates for the nginx sidecars (issued by the ca-issuer). The
+  # chart no longer renders any API TLS certificate; they live here next to the
+  # sidecars that consume them. The SANs must include the in-cluster Service
+  # FQDNs so the gateway's BackendTLSPolicy hostname validation succeeds.
+  - apiVersion: cert-manager.io/v1
+    kind: Certificate
+    metadata:
+      name: heat-tls-api
+      namespace: "{{ .Release.Namespace }}"
+    spec:
+      secretName: heat-tls-api
+      issuerRef:
+        name: ca-issuer
+        kind: ClusterIssuer
+      usages:
+        - server auth
+      dnsNames:
+        - heat-api
+        - "heat-api.{{ .Release.Namespace }}"
+        - "heat-api.{{ .Release.Namespace }}.svc.{{ .Values.endpoints.cluster_domain_suffix }}"
+  - apiVersion: cert-manager.io/v1
+    kind: Certificate
+    metadata:
+      name: heat-tls-cfn
+      namespace: "{{ .Release.Namespace }}"
+    spec:
+      secretName: heat-tls-cfn
+      issuerRef:
+        name: ca-issuer
+        kind: ClusterIssuer
+      usages:
+        - server auth
+      dnsNames:
+        - heat-cfn
+        - "heat-cfn.{{ .Release.Namespace }}"
+        - "heat-cfn.{{ .Release.Namespace }}.svc.{{ .Values.endpoints.cluster_domain_suffix }}"
+  # Public exposure via the Gateway API.
+  - apiVersion: gateway.networking.k8s.io/v1
+    kind: HTTPRoute
+    metadata:
+      name: heat-api-route
+      namespace: "{{ .Release.Namespace }}"
+    spec:
+      hostnames:
+        - "{{ .Values.endpoints.orchestration.host_fqdn_override.public.host }}"
+      parentRefs:
+        - name: gateway-default
+          namespace: envoy-gateway-system
+      rules:
+        - matches:
+            - path:
+                type: PathPrefix
+                value: /
+          backendRefs:
+            - name: heat-api
+              port: 8004
+  - apiVersion: gateway.networking.k8s.io/v1
+    kind: HTTPRoute
+    metadata:
+      name: heat-cfn-route
+      namespace: "{{ .Release.Namespace }}"
+    spec:
+      hostnames:
+        - "{{ .Values.endpoints.cloudformation.host_fqdn_override.public.host }}"
+      parentRefs:
+        - name: gateway-default
+          namespace: envoy-gateway-system
+      rules:
+        - matches:
+            - path:
+                type: PathPrefix
+                value: /
+          backendRefs:
+            - name: heat-cfn
+              port: 8000
+  # nginx sidecar server block for orchestration (proxies TLS:443 -> uwsgi
+  # 127.0.0.1:8004). The $-prefixed tokens are nginx variables, escaped so the
+  # chart's tpl pass leaves them intact.
+  - apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: heat-nginx-tls-api
+      namespace: "{{ .Release.Namespace }}"
+    data:
+      default.conf: |
+        server {
+            listen 443 ssl;
+            server_name _;
+
+            ssl_certificate     /etc/nginx/certs/tls.crt;
+            ssl_certificate_key /etc/nginx/certs/tls.key;
+            ssl_protocols       TLSv1.2 TLSv1.3;
+
+            location / {
+                proxy_pass http://127.0.0.1:8004;
+                proxy_set_header Host {{`$host`}};
+                proxy_set_header X-Forwarded-For {{`$proxy_add_x_forwarded_for`}};
+                proxy_set_header X-Forwarded-Proto https;
+            }
+        }
+  # nginx sidecar server block for cloudformation (proxies TLS:443 -> uwsgi
+  # 127.0.0.1:8000).
+  - apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: heat-nginx-tls-cfn
+      namespace: "{{ .Release.Namespace }}"
+    data:
+      default.conf: |
+        server {
+            listen 443 ssl;
+            server_name _;
+
+            ssl_certificate     /etc/nginx/certs/tls.crt;
+            ssl_certificate_key /etc/nginx/certs/tls.key;
+            ssl_protocols       TLSv1.2 TLSv1.3;
+
+            location / {
+                proxy_pass http://127.0.0.1:8000;
+                proxy_set_header Host {{`$host`}};
+                proxy_set_header X-Forwarded-For {{`$proxy_add_x_forwarded_for`}};
+                proxy_set_header X-Forwarded-Proto https;
+            }
+        }
+  # Make the Envoy Gateway originate TLS to the nginx sidecars instead of plain
+  # HTTP, validating the ca-issuer cert from each api cert Secret's ca.crt.
+  - apiVersion: gateway.networking.k8s.io/v1
+    kind: BackendTLSPolicy
+    metadata:
+      name: heat-api-backend-tls
+      namespace: "{{ .Release.Namespace }}"
+    spec:
+      targetRefs:
+        - group: ""
+          kind: Service
+          name: heat-api
+          sectionName: h-api
+      validation:
+        caCertificateRefs:
+          - group: ""
+            kind: Secret
+            name: heat-tls-api
+        hostname: "heat-api.{{ .Release.Namespace }}.svc.{{ .Values.endpoints.cluster_domain_suffix }}"
+  - apiVersion: gateway.networking.k8s.io/v1
+    kind: BackendTLSPolicy
+    metadata:
+      name: heat-cfn-backend-tls
+      namespace: "{{ .Release.Namespace }}"
+    spec:
+      targetRefs:
+        - group: ""
+          kind: Service
+          name: heat-cfn
+          sectionName: h-cfn
+      validation:
+        caCertificateRefs:
+          - group: ""
+            kind: Secret
+            name: heat-tls-cfn
+        hostname: "heat-cfn.{{ .Release.Namespace }}.svc.{{ .Values.endpoints.cluster_domain_suffix }}"
+...

@@ -18,47 +18,11 @@ set -ex
 COMMAND="${@:-start}"
 
 function start () {
-{{- if .Values.manifests.certificates }}
-  if [ -f /etc/apache2/envvars ]; then
-    # Loading Apache2 ENV variables
-    source /etc/apache2/envvars
-    mkdir -p ${APACHE_RUN_DIR}
-  fi
-
-{{- if .Values.conf.software.apache2.a2enmod }}
-  {{- range .Values.conf.software.apache2.a2enmod }}
-  a2enmod {{ . }}
-  {{- end }}
-{{- end }}
-
-{{- if .Values.conf.software.apache2.a2dismod }}
-  {{- range .Values.conf.software.apache2.a2dismod }}
-  a2dismod {{ . }}
-  {{- end }}
-{{- end }}
-
-  if [ -f /var/run/apache2/apache2.pid ]; then
-    # Remove the stale pid for debian/ubuntu images
-    rm -f /var/run/apache2/apache2.pid
-  fi
-  # Starts Apache2
-  exec {{ .Values.conf.software.apache2.binary }} {{ .Values.conf.software.apache2.start_parameters }}
-{{- else }}
   exec uwsgi --ini /etc/cinder/cinder-api-uwsgi.ini
-{{- end }}
 }
 
 function stop () {
-{{- if .Values.manifests.certificates }}
-  if [ -f /etc/apache2/envvars ]; then
-    # Loading Apache2 ENV variables
-    source /etc/apache2/envvars
-    mkdir -p ${APACHE_RUN_DIR}
-  fi
-  {{ .Values.conf.software.apache2.binary }} -k graceful-stop
-{{- else }}
   kill -TERM 1
-{{- end }}
 }
 
 $COMMAND

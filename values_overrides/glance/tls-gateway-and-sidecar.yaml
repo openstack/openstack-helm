@@ -1,0 +1,178 @@
+# Full TLS for Glance: public endpoint TLS (terminated at the Envoy Gateway)
+# AND gateway<->pod TLS (an nginx sidecar terminates TLS in the glance-api
+# pod; the gateway re-encrypts to it via a BackendTLSPolicy).
+#
+# This is the "secure everywhere" variant. For public-endpoint-only TLS (plain
+# HTTP between the gateway and the API pods) use gateway-tls.yaml instead.
+#
+# Requires cert_manager_setup=true (ca-issuer ClusterIssuer) and
+# osh_openstack_client_tls=true.
+#
+# The glance-api container runs uwsgi in plain HTTP on the image "service"
+# port (9292); the nginx sidecar terminates TLS on 443 and proxies to
+# 127.0.0.1:9292. The Service keeps port 9292 but routes to 443 (targetPort).
+# The nginx sidecar, its config ConfigMap, the HTTPRoute and the BackendTLSPolicy
+# are all defined here (extraContainers + extraObjects) so the chart stays
+# independent of how the service is exposed outside the cluster.
+---
+# Route the API Service to the in-pod nginx TLS sidecar (port 443).
+network:
+  api:
+    target_port: 443
+secrets:
+  tls:
+    # Outbound trust: glance calls keystone over TLS, so its pods and the ks-*
+    # jobs need the ca-issuer CA (REQUESTS_CA_BUNDLE / OS_CACERT / cafile). This
+    # points at a CA-ONLY secret holding just ca.crt -- no server cert and no
+    # private key reaches workload pods. Mounted at
+    # /etc/ssl/certs/openstack-helm.crt. Assumes every in-pod TLS server cert is
+    # signed by this one ca-issuer CA. The chart stays TLS-agnostic -- server
+    # certs and the nginx sidecar live here; targetPort via network.*.target_port.
+    ca: openstack-helm-ca
+
+endpoints:
+  image:
+    scheme:
+      public: https
+      default: https
+      internal: https
+    port:
+      api:
+        public: 443
+    host_fqdn_override:
+      public:
+        host: glance.openstack-helm.org
+  # Consumer trust: glance talks to keystone over TLS and must trust the CA.
+  identity:
+    auth:
+      admin:
+        cacert: /etc/ssl/certs/openstack-helm.crt
+    scheme:
+      public: https
+      default: https
+      internal: https
+
+conf:
+  glance:
+    keystone_authtoken:
+      # CA used to validate the keystone endpoint certificate. The chart mounts
+      # the CA-only secret (secrets.tls.ca) at /etc/ssl/certs/openstack-helm.crt.
+      cafile: /etc/ssl/certs/openstack-helm.crt
+
+pod:
+  extraContainers:
+    glance_api:
+      - name: nginx-tls
+        image: docker.io/nginx:1.27-alpine
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          runAsUser: 0
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: false
+        ports:
+          - name: https
+            containerPort: 443
+        volumeMounts:
+          - name: nginx-tls-certs
+            mountPath: /etc/nginx/certs
+            readOnly: true
+          - name: nginx-tls-conf
+            mountPath: /etc/nginx/conf.d
+            readOnly: true
+  extraVolumes:
+    glance_api:
+      - name: nginx-tls-certs
+        secret:
+          secretName: glance-tls-api
+      - name: nginx-tls-conf
+        configMap:
+          name: glance-nginx-tls
+
+extraObjects:
+  # Server certificate for the nginx sidecar (issued by the ca-issuer). The
+  # chart no longer renders any API TLS certificate; it lives here next to the
+  # sidecar that consumes it. The SANs must include the in-cluster Service FQDN
+  # so the gateway's BackendTLSPolicy hostname validation succeeds.
+  - apiVersion: cert-manager.io/v1
+    kind: Certificate
+    metadata:
+      name: glance-tls-api
+      namespace: "{{ .Release.Namespace }}"
+    spec:
+      secretName: glance-tls-api
+      issuerRef:
+        name: ca-issuer
+        kind: ClusterIssuer
+      usages:
+        - server auth
+      dnsNames:
+        - glance-api
+        - "glance-api.{{ .Release.Namespace }}"
+        - "glance-api.{{ .Release.Namespace }}.svc.{{ .Values.endpoints.cluster_domain_suffix }}"
+  # Public exposure via the Gateway API.
+  - apiVersion: gateway.networking.k8s.io/v1
+    kind: HTTPRoute
+    metadata:
+      name: glance-route
+      namespace: "{{ .Release.Namespace }}"
+    spec:
+      hostnames:
+        - "{{ .Values.endpoints.image.host_fqdn_override.public.host }}"
+      parentRefs:
+        - name: gateway-default
+          namespace: envoy-gateway-system
+      rules:
+        - matches:
+            - path:
+                type: PathPrefix
+                value: /
+          backendRefs:
+            - name: glance-api
+              port: 9292
+  # nginx sidecar server block (proxies TLS:443 -> uwsgi 127.0.0.1:9292). The
+  # $-prefixed tokens are nginx variables, escaped so the chart's tpl pass
+  # leaves them intact.
+  - apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: glance-nginx-tls
+      namespace: "{{ .Release.Namespace }}"
+    data:
+      default.conf: |
+        server {
+            listen 443 ssl;
+            server_name _;
+
+            client_max_body_size 0;
+
+            ssl_certificate     /etc/nginx/certs/tls.crt;
+            ssl_certificate_key /etc/nginx/certs/tls.key;
+            ssl_protocols       TLSv1.2 TLSv1.3;
+
+            location / {
+                proxy_pass http://127.0.0.1:9292;
+                proxy_set_header Host {{`$host`}};
+                proxy_set_header X-Forwarded-For {{`$proxy_add_x_forwarded_for`}};
+                proxy_set_header X-Forwarded-Proto https;
+            }
+        }
+  # Make the Envoy Gateway originate TLS to the nginx sidecar instead of plain
+  # HTTP, validating the ca-issuer cert from the api cert Secret's ca.crt.
+  - apiVersion: gateway.networking.k8s.io/v1
+    kind: BackendTLSPolicy
+    metadata:
+      name: glance-api-backend-tls
+      namespace: "{{ .Release.Namespace }}"
+    spec:
+      targetRefs:
+        - group: ""
+          kind: Service
+          name: glance-api
+          sectionName: g-api
+      validation:
+        caCertificateRefs:
+          - group: ""
+            kind: Secret
+            name: glance-tls-api
+        hostname: "glance-api.{{ .Release.Namespace }}.svc.{{ .Values.endpoints.cluster_domain_suffix }}"
+...

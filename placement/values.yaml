@@ -47,6 +47,9 @@ images:
 
 network:
   api:
+    # Pod port the Service routes to; null => Kubernetes uses the Service port.
+    # A deployment override sets this (e.g. 443) to point at a TLS sidecar.
+    target_port: null
     port: 8778
     external_policy_local: false
     node_port:
@@ -280,6 +283,13 @@ endpoints:
         service: 8778
 
 pod:
+  # -- Extra sidecar containers and volumes to inject into the placement-api
+  ## Deployment. Used e.g. by values_overrides/placement/api-tls.yaml to add an
+  ## nginx TLS-terminating sidecar. Keyed per component.
+  extraContainers:
+    placement_api: []
+  extraVolumes:
+    placement_api: []
   security_context:
     placement:
       pod:
@@ -407,10 +417,14 @@ secrets:
     # Separate from the MariaDB server certificate.
     client:
       placement: placement-client
-    placement:
-      api:
-        public: placement-tls-public
-        internal: placement-tls-api
+    # CA bundle this chart trusts for OUTBOUND TLS calls (keystone). Null by
+    # default -> no CA is mounted and REQUESTS_CA_BUNDLE is left unset. A
+    # deployment override points this at a cert-manager CA-only secret carrying
+    # just ca.crt (no private key); it is mounted at
+    # /etc/ssl/certs/openstack-helm.crt. Assumes every server cert is signed by
+    # this single CA. The chart stays TLS-agnostic -- server certs and the nginx
+    # TLS sidecar live in the override.
+    ca: null
   oci_image_registry:
     placement: placement-oci-image-registry
 
@@ -461,12 +475,10 @@ dependencies:
           service: oslo_db
 
 tls:
-  identity: false
   oslo_messaging: false
   oslo_db: false
 
 manifests:
-  certificates: false
   configmap_bin: true
   configmap_etc: true
   deployment: true

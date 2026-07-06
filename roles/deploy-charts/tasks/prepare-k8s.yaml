@@ -61,3 +61,35 @@
   loop:
     - l3-agent=enabled
     - openstack-network-node=enabled
+
+# Provision a CA-ONLY trust secret (just ca.crt, no private key) into the
+# workload namespace so charts can validate outbound TLS via secrets.tls.ca
+# without ever mounting server/CA signing material. Charts assume every in-pod
+# TLS server cert is signed by this one ca-issuer CA managed by cert-manager.
+- name: Provision CA-only trust secret in the workload namespace
+  when: osh_openstack_client_tls | bool
+  block:
+    - name: Read CA certificate from cert-manager Secret
+      command:
+        argv:
+          - kubectl
+          - -n
+          - "{{ osh_openstack_client_tls_ca_cert_secret_namespace }}"
+          - get
+          - secret
+          - "{{ osh_openstack_client_tls_ca_cert_secret_name }}"
+          - -o
+          - "jsonpath={.data.ca\\.crt}"
+      register: _osh_ca_cert_b64
+      changed_when: false
+
+    - name: Create CA-only trust secret in {{ osh_namespace | default('osh') }}
+      shell: |
+        set -xe
+        kubectl create namespace {{ osh_namespace | default('osh') }} \
+          --dry-run=client -o yaml | kubectl apply -f -
+        kubectl -n {{ osh_namespace | default('osh') }} create secret generic \
+          {{ osh_openstack_client_tls_namespace_ca_secret_name }} \
+          --from-literal=ca.crt="$(echo '{{ _osh_ca_cert_b64.stdout }}' | base64 -d)" \
+          --dry-run=client -o yaml | kubectl apply -f -
+      changed_when: true

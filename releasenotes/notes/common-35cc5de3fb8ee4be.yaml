@@ -1,0 +1,80 @@
+---
+keystone:
+  - |
+    The keystone API keeps running under Apache httpd (mod_wsgi), now serving
+    plain HTTP on the identity ``service`` endpoint port (5000); TLS is no
+    longer terminated by Apache but by the nginx sidecar in front of it. Apache
+    is retained (rather than switching to uwsgi like the other API charts) so
+    that federated/external authentication modules
+    (``mod_auth_openidc``/``mod_auth_mellon``/``mod_auth_gssapi``) remain
+    available.
+heat:
+  - |
+    Run the heat-api and heat-cfn APIs under uwsgi only (remove the Apache
+    httpd frontend).
+nova:
+  - |
+    Run the nova-api (osapi) and nova-metadata APIs under uwsgi only (remove
+    the Apache httpd frontend).
+placement:
+  - |
+    Run the placement API under uwsgi only (remove the Apache httpd frontend).
+cinder:
+  - |
+    Run the cinder API under uwsgi only (remove the Apache httpd frontend).
+aodh:
+  - |
+    Run the aodh API under uwsgi only (remove the Apache httpd frontend).
+gnocchi:
+  - |
+    Run the gnocchi API under uwsgi only (remove the Apache httpd frontend).
+horizon:
+  - |
+    The horizon dashboard keeps running under Apache httpd (mod_wsgi), now
+    serving plain HTTP on the dashboard ``web`` port; TLS is no longer
+    terminated by Apache but by the nginx sidecar in front of it. Apache is
+    retained (rather than switching to uwsgi) because it also serves the
+    dashboard's static assets. Django trusts the sidecar's
+    ``X-Forwarded-Proto`` header via ``SECURE_PROXY_SSL_HEADER``.
+glance:
+  - |
+    Replace the chart-native nginx TLS sidecar with the shared
+    ``pod.extraContainers``/``pod.extraVolumes`` sidecar approach.
+neutron:
+  - |
+    Replace the chart-native nginx TLS sidecar with the shared
+    ``pod.extraContainers``/``pod.extraVolumes`` sidecar approach.
+other:
+  - |
+    Pod-level API TLS for the keystone, glance, heat, nova, neutron,
+    placement, cinder, aodh, gnocchi and horizon charts is now terminated by an
+    nginx sidecar injected via
+    ``pod.extraContainers.<component>`` (with ``pod.extraVolumes.<component>``),
+    configured by the per-chart ``values_overrides/<chart>/tls-gateway-and-sidecar.yaml``
+    overrides. The charts no longer render any API TLS artifacts: the server
+    ``Certificate``, the nginx config ``ConfigMap``, the ``HTTPRoute`` and the
+    Gateway API ``BackendTLSPolicy`` (so the Envoy Gateway re-encrypts to the
+    sidecar) are all defined as ``extraObjects`` in that override, keeping the
+    chart independent of how the service is exposed. The charts are now
+    TLS-agnostic for their own API: the per-service ``.Values.tls.<service>``
+    toggles (``tls.image``/``compute``/``compute_metadata``/``network``/
+    ``orchestration``/``cloudformation``) and the per-chart
+    ``.Values.manifests.certificates`` switch have been removed where they only
+    drove this in-pod API TLS. The Service now routes to the sidecar via a
+    plain ``.Values.network.<key>.target_port`` (set to ``443`` in the override;
+    unset by default, so Kubernetes falls back to the Service port), and the
+    TLS values the charts retain for the API path are client-trust toggles
+    (``tls.identity``, ``tls.oslo_db``, ``tls.oslo_messaging``) that gate
+    mounting the ca-issuer CA bundle for outbound calls. The backend keeps
+    serving plain HTTP on the ``service`` endpoint port for liveness/readiness
+    probes.
+
+    The nova console proxies (noVNC/SPICE/serial) never terminated TLS at the
+    pod level -- their public TLS was terminated by the Ingress (now removed)
+    and is exposed via the Gateway API from the overrides. The chart therefore
+    no longer renders or mounts any server certificate for those proxies, and
+    ``manifests.certificates`` is removed from the nova chart entirely. (The
+    separate ``vencrypt`` cert for proxy-to-compute VNC is unaffected.)
+    ``manifests.certificates`` now survives only in the neutron chart, where it
+    still gates the OVN-agent certs that are not yet migrated.
+...

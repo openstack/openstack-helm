@@ -70,13 +70,16 @@
         - "gateway.yaml"
 
 - job:
-    name: openstack-helm-compute-kit-tls-2026-1-ubuntu_noble
+    name: openstack-helm-tls-2026-1-ubuntu_noble
     description: |
-      Run the openstack-helm compute-kit job with TLS terminated at the
-      Envoy Gateway. Public endpoints are registered as https://... using
-      the gateway-tls.yaml per-chart override.
+      Run the openstack-helm compute-kit job with TLS terminated end to end:
+      at the Envoy Gateway for public endpoints and by per-pod nginx sidecars
+      for the in-cluster API services (tls-gateway-and-sidecar.yaml per-chart
+      override), plus mariadb and rabbitmq mTLS. In addition to the compute kit
+      this also deploys Ceph, cinder and horizon so their TLS sidecars are
+      exercised too (hence the 5-node rook nodeset).
     parent: openstack-helm-deploy
-    nodeset: openstack-helm-3nodes-ubuntu_noble
+    nodeset: openstack-helm-5nodes-ubuntu_noble
     run:
       - playbooks/deploy-env.yaml
       - playbooks/deploy-compute-kit.yaml
@@ -88,9 +91,13 @@
       cert_manager_setup: true
       osh_openstack_client_image_tag: "2026.1-ubuntu_noble"
       osh_openstack_client_tls: true
+      # Also deploy Ceph + cinder + horizon (gated tasks in deploy-compute-kit)
+      # so their nginx TLS sidecars are exercised by this job.
+      cinder_enabled: true
+      horizon_enabled: true
       osh_values_overrides:
         - "2026.1-ubuntu_noble.yaml"
-        - "gateway-tls.yaml"
+        - "tls-gateway-and-sidecar.yaml"
         - "mariadb-tls.yaml"
         - "messaging-tls.yaml"
 

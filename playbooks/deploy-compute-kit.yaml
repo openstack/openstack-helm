@@ -45,6 +45,19 @@
         name: deploy-charts
         tasks_from: setup-client
 
+    # Optional Ceph, enabled only by the TLS job (for cinder's RBD backend).
+    # Deployed before any OpenStack chart, matching the order in deploy-cinder.
+    - name: Deploy Ceph Rook
+      include_role:
+        name: deploy-ceph
+      when: cinder_enabled | default(false)
+
+    - name: Deploy Ceph adapter Rook
+      include_role:
+        name: deploy-charts
+        tasks_from: ceph-adapter-rook
+      when: cinder_enabled | default(false)
+
     - name: Deploy RabbitMQ
       include_role:
         name: deploy-charts
@@ -64,6 +77,15 @@
       include_role:
         name: deploy-charts
         tasks_from: keystone
+
+    # Optional cinder, enabled only by the TLS job so its nginx TLS sidecar is
+    # exercised. Deployed right after keystone, matching the order in
+    # deploy-cinder (ceph + keystone already up by this point).
+    - name: Deploy Cinder
+      include_role:
+        name: deploy-charts
+        tasks_from: cinder
+      when: cinder_enabled | default(false)
 
     - name: Deploy Heat
       include_role:
@@ -107,6 +129,14 @@
       include_role:
         name: deploy-charts
         tasks_from: neutron
+
+    # Optional horizon, enabled only by the TLS job so its nginx TLS sidecar is
+    # exercised. Deployed after the compute-kit charts (nova/neutron).
+    - name: Deploy Horizon
+      include_role:
+        name: deploy-charts
+        tasks_from: horizon
+      when: horizon_enabled | default(false)
 
     - name: Run Helm tests
       include_role:

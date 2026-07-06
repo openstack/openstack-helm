@@ -18,11 +18,7 @@ set -ex
 COMMAND="${@:-start}"
 
 function start () {
-  if [ -f /etc/apache2/envvars ]; then
-    # Loading Apache2 ENV variables
-    source /etc/apache2/envvars
-  fi
-  exec apache2 -DFOREGROUND
+  exec uwsgi --ini /etc/gnocchi/gnocchi-api-uwsgi.ini
 }
 
 function stop () {

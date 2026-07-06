@@ -74,6 +74,13 @@ jobs:
       failed: 1
 
 pod:
+  # -- Extra sidecar containers and volumes to inject into the aodh-api
+  ## Deployment. Used e.g. by values_overrides/aodh/tls-gateway-and-sidecar.yaml
+  ## to add an nginx TLS-terminating sidecar. Keyed per component.
+  extraContainers:
+    aodh_api: []
+  extraVolumes:
+    aodh_api: []
   security_context:
     aodh:
       pod:
@@ -288,6 +295,9 @@ pod:
 
 network:
   api:
+    # Pod port the Service routes to; null => Kubernetes uses the Service port.
+    # A deployment override sets this (e.g. 443) to point at a TLS sidecar.
+    target_port: null
     external_policy_local: false
     node_port:
       enabled: false
@@ -394,27 +404,24 @@ dependencies:
           service: alarming
 
 conf:
-  wsgi_aodh: |
-    Listen 0.0.0.0:{{ tuple "alarming" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-
-    LogFormat "%h %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\"" combined
-    LogFormat "%{X-Forwarded-For}i %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\"" proxy
-
-    SetEnvIf X-Forwarded-For "^.*\..*\..*\..*" forwarded
-    CustomLog /dev/stdout combined env=!forwarded
-    CustomLog /dev/stdout proxy env=forwarded
-
-    <VirtualHost *:{{ tuple "alarming" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}>
-        WSGIDaemonProcess aodh processes=2 threads=1 user=aodh group=aodh display-name=%{GROUP}
-        WSGIProcessGroup aodh
-        WSGIScriptAlias / /var/www/cgi-bin/aodh/aodh-api
-        WSGIApplicationGroup %{GLOBAL}
-        ErrorLogFormat "%{cu}t %M"
-        ErrorLog /dev/stdout
-        SetEnvIf X-Forwarded-For "^.*\..*\..*\..*" forwarded
-        CustomLog /dev/stdout combined env=!forwarded
-        CustomLog /dev/stdout proxy env=forwarded
-    </VirtualHost>
+  aodh_api_uwsgi:
+    uwsgi:
+      add-header: "Connection: close"
+      buffer-size: 65535
+      die-on-term: true
+      enable-threads: true
+      exit-on-reload: false
+      hook-master-start: unix_signal:15 gracefully_kill_them_all
+      lazy-apps: true
+      log-x-forwarded-for: true
+      master: true
+      procname-prefix-spaced: "aodh-api:"
+      route-user-agent: '^kube-probe.* donotlog:'
+      thunder-lock: true
+      worker-reload-mercy: 80
+      wsgi-file: /var/lib/openstack/bin/aodh-api
+      processes: 2
+      threads: 1
   paste:
     composite:aodh+noauth:
       use: egg:Paste#urlmap
@@ -550,9 +557,14 @@ secrets:
     admin: aodh-rabbitmq-admin
     aodh: aodh-rabbitmq-user
   tls:
-    alarming:
-      api:
-        public: aodh-tls-public
+    # CA bundle this chart trusts for OUTBOUND TLS calls (keystone). Null by
+    # default -> no CA is mounted and REQUESTS_CA_BUNDLE is left unset. A
+    # deployment override points this at a cert-manager CA-only secret carrying
+    # just ca.crt (no private key); it is mounted at
+    # /etc/ssl/certs/openstack-helm.crt. Assumes every server cert is signed by
+    # this single CA. The chart stays TLS-agnostic -- server certs and the nginx
+    # TLS sidecar live in the override.
+    ca: null
   oci_image_registry:
     aodh: aodh-oci-image-registry
 

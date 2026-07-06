@@ -1,0 +1,161 @@
+# Full TLS for Keystone: public endpoint TLS (terminated at the Envoy Gateway)
+# AND gateway<->pod TLS (an nginx sidecar terminates TLS in the keystone-api
+# pod; the gateway re-encrypts to it via a BackendTLSPolicy).
+#
+# This is the "secure everywhere" variant. For public-endpoint-only TLS (plain
+# HTTP between the gateway and the API pods) use gateway-tls.yaml instead.
+#
+# Requires cert_manager_setup=true (ca-issuer ClusterIssuer) and
+# osh_openstack_client_tls=true.
+#
+# The keystone-api container runs Apache httpd (mod_wsgi) in plain HTTP on the
+# identity "service" port (5000) -- kept on Apache so federated auth modules
+# (mod_auth_openidc/mellon/gssapi) remain available; the nginx sidecar
+# terminates TLS on 443 and proxies to 127.0.0.1:5000. The Service keeps port
+# 5000 but routes to 443 (targetPort).
+# The nginx sidecar, its config ConfigMap, the HTTPRoute and the BackendTLSPolicy
+# are all defined here (extraContainers + extraObjects) so the chart stays
+# independent of how the service is exposed outside the cluster.
+---
+# Route the API Service to the in-pod nginx TLS sidecar (port 443).
+network:
+  api:
+    target_port: 443
+tls:
+  # Toggles cert issuance, the https scheme, and the Service targetPort. The
+  # "service" scope stays http for the Apache backend and the probes.
+  identity: true
+
+endpoints:
+  identity:
+    auth:
+      admin:
+        cacert: /etc/ssl/certs/openstack-helm.crt
+      test:
+        cacert: /etc/ssl/certs/openstack-helm.crt
+    scheme:
+      public: https
+      default: https
+      internal: https
+    port:
+      api:
+        public: 443
+    host_fqdn_override:
+      public:
+        host: keystone.openstack-helm.org
+
+pod:
+  extraContainers:
+    keystone_api:
+      - name: nginx-tls
+        image: docker.io/nginx:1.27-alpine
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          runAsUser: 0
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: false
+        ports:
+          - name: https
+            containerPort: 443
+        volumeMounts:
+          - name: nginx-tls-certs
+            mountPath: /etc/nginx/certs
+            readOnly: true
+          - name: nginx-tls-conf
+            mountPath: /etc/nginx/conf.d
+            readOnly: true
+  extraVolumes:
+    keystone_api:
+      - name: nginx-tls-certs
+        secret:
+          secretName: keystone-tls-api
+      - name: nginx-tls-conf
+        configMap:
+          name: keystone-nginx-tls
+
+extraObjects:
+  # Server certificate for the nginx sidecar (issued by the ca-issuer). The
+  # chart no longer renders any API TLS certificate; it lives here next to the
+  # sidecar that consumes it. The SANs must include the in-cluster Service FQDN
+  # so the gateway's BackendTLSPolicy hostname validation succeeds.
+  - apiVersion: cert-manager.io/v1
+    kind: Certificate
+    metadata:
+      name: keystone-tls-api
+      namespace: "{{ .Release.Namespace }}"
+    spec:
+      secretName: keystone-tls-api
+      issuerRef:
+        name: ca-issuer
+        kind: ClusterIssuer
+      usages:
+        - server auth
+      dnsNames:
+        - keystone-api
+        - "keystone-api.{{ .Release.Namespace }}"
+        - "keystone-api.{{ .Release.Namespace }}.svc.{{ .Values.endpoints.cluster_domain_suffix }}"
+  # Public exposure via the Gateway API.
+  - apiVersion: gateway.networking.k8s.io/v1
+    kind: HTTPRoute
+    metadata:
+      name: keystone-route
+      namespace: "{{ .Release.Namespace }}"
+    spec:
+      parentRefs:
+        - name: gateway-default
+          namespace: envoy-gateway-system
+      hostnames:
+        - "{{ .Values.endpoints.identity.host_fqdn_override.public.host }}"
+      rules:
+        - matches:
+            - path:
+                type: PathPrefix
+                value: /
+          backendRefs:
+            - name: keystone-api
+              port: 5000
+  # nginx sidecar server block (proxies TLS:443 -> Apache 127.0.0.1:5000). The
+  # $-prefixed tokens are nginx variables, escaped so the chart's tpl pass
+  # leaves them intact.
+  - apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: keystone-nginx-tls
+      namespace: "{{ .Release.Namespace }}"
+    data:
+      default.conf: |
+        server {
+            listen 443 ssl;
+            server_name _;
+
+            ssl_certificate     /etc/nginx/certs/tls.crt;
+            ssl_certificate_key /etc/nginx/certs/tls.key;
+            ssl_protocols       TLSv1.2 TLSv1.3;
+
+            location / {
+                proxy_pass http://127.0.0.1:5000;
+                proxy_set_header Host {{`$host`}};
+                proxy_set_header X-Forwarded-For {{`$proxy_add_x_forwarded_for`}};
+                proxy_set_header X-Forwarded-Proto https;
+            }
+        }
+  # Make the Envoy Gateway originate TLS to the nginx sidecar instead of plain
+  # HTTP, validating the ca-issuer cert from the api cert Secret's ca.crt.
+  - apiVersion: gateway.networking.k8s.io/v1
+    kind: BackendTLSPolicy
+    metadata:
+      name: keystone-api-backend-tls
+      namespace: "{{ .Release.Namespace }}"
+    spec:
+      targetRefs:
+        - group: ""
+          kind: Service
+          name: keystone-api
+          sectionName: ks-pub
+      validation:
+        caCertificateRefs:
+          - group: ""
+            kind: Secret
+            name: keystone-tls-api
+        hostname: "keystone-api.{{ .Release.Namespace }}.svc.{{ .Values.endpoints.cluster_domain_suffix }}"
+...
