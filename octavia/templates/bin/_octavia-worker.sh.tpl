@@ -21,11 +21,19 @@ COMMAND="${@:-start}"
 
 function start () {
   cat > /tmp/dhclient.conf <<EOF
+{{- if .Values.network.worker.interface_mtu }}
+request subnet-mask,broadcast-address;
+supersede interface-mtu {{ .Values.network.worker.interface_mtu }};
+{{- else }}
 request subnet-mask,broadcast-address,interface-mtu;
+{{- end }}
 do-forward-updates false;
 EOF
 
   dhclient -v o-w0 -cf /tmp/dhclient.conf
+{{- if .Values.network.worker.interface_mtu }}
+  ip link set dev o-w0 mtu {{ .Values.network.worker.interface_mtu }}
+{{- end }}
 
   exec octavia-worker \
         --config-file /etc/octavia/octavia.conf \

@@ -26,6 +26,10 @@ ovs-vsctl --may-exist add-port br-int o-w0 \
         -- set Interface o-w0 external-ids:iface-status=active \
         -- set Interface o-w0 external-ids:attached-mac=$HM_PORT_MAC \
         -- set Interface o-w0 external-ids:iface-id=$HM_PORT_ID \
-        -- set Interface o-w0 external-ids:skip_cleanup=true
+        -- set Interface o-w0 external-ids:skip_cleanup=true{{- if .Values.network.worker.interface_mtu }} \
+        -- set Interface o-w0 mtu_request={{ .Values.network.worker.interface_mtu }}{{- end }}
 
 ip link set dev o-w0 address $HM_PORT_MAC
+{{- if .Values.network.worker.interface_mtu }}
+ip link set dev o-w0 mtu {{ .Values.network.worker.interface_mtu }}
+{{- end }}
