@@ -78,6 +78,10 @@ limitations under the License.
 {{- $_ := set .Values.conf.heat.keystone_authtoken "memcache_secret_key" ( default ( randAlphaNum 64 ) .Values.endpoints.oslo_cache.auth.memcache_secret_key ) -}}
 {{- end -}}
 
+{{- if and (hasKey .Values.conf.heat "cache") (kindIs "map" .Values.conf.heat.cache) (empty .Values.conf.heat.cache.memcache_servers) }}
+{{- $_ := tuple "oslo_cache" "internal" "memcache" . | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" | set .Values.conf.heat.cache "memcache_servers" -}}
+{{- end -}}
+
 {{- if and (not (kindIs "invalid" .Values.conf.heat.database.connection)) (empty .Values.conf.heat.database.connection) -}}
 {{- $connection := tuple "oslo_db" "internal" "heat" "mysql" . | include "helm-toolkit.endpoints.authenticated_endpoint_uri_lookup" -}}
 {{- if .Values.tls.oslo_db -}}
