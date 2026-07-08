@@ -89,12 +89,14 @@ function restart_mons() {
       echo "Restarting pod $pod"
       kubectl delete pod -n $CEPH_NAMESPACE $pod
     fi
-    echo "Waiting for the pod $pod to restart"
-    # The pod will not be ready in first 60 seconds. Thus we can reduce
-    # amount of queries to kubernetes.
-    sleep 60
-    wait_for_pods
-    ceph -s
+    if [[ "$DISRUPTIVE_MON_RESTART" != "true" ]]; then
+      echo "Waiting for the pod $pod to restart"
+      # The pod will not be ready in first 60 seconds. Thus we can reduce
+      # amount of queries to kubernetes.
+      sleep 60
+      wait_for_pods
+      ceph -s
+    fi
   done
 }
 
