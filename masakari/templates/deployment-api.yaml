@@ -14,16 +14,16 @@ limitations under the License.
 
 {{- define "masakariApiLivenessProbeTemplate" }}
 httpGet:
-  scheme: {{ tuple "instance_ha" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_scheme_lookup" | upper }}
+  scheme: {{ tuple "instance_ha" "service" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_scheme_lookup" | upper }}
   path: /
-  port: {{ tuple "instance_ha" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+  port: {{ tuple "instance_ha" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
 {{- end }}
 
 {{- define "masakariApiReadinessProbeTemplate" }}
 httpGet:
-  scheme: HTTP
+  scheme: {{ tuple "instance_ha" "service" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_scheme_lookup" | upper }}
   path: /
-  port: {{ tuple "instance_ha" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+  port: {{ tuple "instance_ha" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
 {{- end }}
 
 
@@ -86,7 +86,7 @@ spec:
                   - stop
           ports:
             - name: n-api
-              containerPort: {{ tuple "instance_ha" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+              containerPort: {{ tuple "instance_ha" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
 {{ dict "envAll" $envAll "component" "masakari" "container" "default" "type" "liveness" "probeTemplate" (include "masakariApiLivenessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
 {{ dict "envAll" $envAll "component" "masakari" "container" "default" "type" "readiness" "probeTemplate" (include "masakariApiReadinessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
           volumeMounts:
