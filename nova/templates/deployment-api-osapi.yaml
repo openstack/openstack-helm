@@ -89,14 +89,9 @@ spec:
               value: "/etc/ssl/certs/openstack-helm.crt"
 {{- end }}
           command:
-            - /tmp/nova-api.sh
-            - start
-          lifecycle:
-            preStop:
-              exec:
-                command:
-                  - /tmp/nova-api.sh
-                  - stop
+            - uwsgi
+            - --ini
+            - /etc/nova/nova-api-uwsgi.ini
           ports:
             - name: n-api
               containerPort: {{ tuple "compute" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
@@ -109,10 +104,6 @@ spec:
               mountPath: {{ .Values.conf.nova.oslo_concurrency.lock_path }}
             - name: pod-var-nova
               mountPath: /var/lib/nova
-            - name: nova-bin
-              mountPath: /tmp/nova-api.sh
-              subPath: nova-api.sh
-              readOnly: true
             - name: nova-etc
               mountPath: /etc/nova/nova.conf
               subPath: nova.conf

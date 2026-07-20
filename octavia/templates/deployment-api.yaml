@@ -80,14 +80,9 @@ spec:
 {{ tuple $envAll $envAll.Values.pod.resources.api | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
 {{ dict "envAll" $envAll "application" "octavia_api" "container" "octavia_api" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
-            - /tmp/octavia-api.sh
-            - start
-          lifecycle:
-            preStop:
-              exec:
-                command:
-                  - /tmp/octavia-api.sh
-                  - stop
+            - uwsgi
+            - --ini
+            - /etc/octavia/octavia-api-uwsgi.ini
           ports:
             - name: o-api
               containerPort: {{ (splitList ":" (index (index .Values.conf.octavia_api_uwsgi "uwsgi") "http-socket") | last) }}
@@ -98,10 +93,6 @@ spec:
               mountPath: {{ .Values.conf.octavia.oslo_concurrency.lock_path }}
             - name: pod-etc-octavia
               mountPath: /etc/octavia
-            - name: octavia-bin
-              mountPath: /tmp/octavia-api.sh
-              subPath: octavia-api.sh
-              readOnly: true
             - name: octavia-etc
               mountPath: /etc/octavia/octavia.conf
               subPath: octavia.conf

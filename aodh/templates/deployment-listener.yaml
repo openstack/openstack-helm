@@ -66,14 +66,9 @@ spec:
 {{ tuple $envAll $envAll.Values.pod.resources.listener | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
 {{ dict "envAll" $envAll "application" "aodh" "container" "aodh_listener" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
-            - /tmp/aodh-listener.sh
-            - start
-          lifecycle:
-            preStop:
-              exec:
-                command:
-                  - /tmp/aodh-listener.sh
-                  - stop
+            - aodh-listener
+            - --config-file=/etc/aodh/aodh.conf
+            - --config-dir=/etc/aodh/aodh.conf.d
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
@@ -97,10 +92,6 @@ spec:
             - name: aodh-etc
               mountPath: /etc/aodh/policy.yaml
               subPath: policy.yaml
-              readOnly: true
-            - name: aodh-bin
-              mountPath: /tmp/aodh-listener.sh
-              subPath: aodh-listener.sh
               readOnly: true
 {{ if $mounts_aodh_listener.volumeMounts }}{{ toYaml $mounts_aodh_listener.volumeMounts | indent 12 }}{{ end }}
       volumes:

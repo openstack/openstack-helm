@@ -78,7 +78,14 @@ spec:
 {{ dict "envAll" $envAll "application" "neutron_bgp_dragent" "container" "neutron_bgp_dragent" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
 {{ dict "envAll" $envAll "component" "bgp_dragent" "container" "bgp_dragent" "type" "liveness" "probeTemplate" (include "bgp_dragentLivenessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
           command:
-            - /tmp/neutron-bgp-dragent.sh
+            - neutron-bgp-dragent
+            - --config-file
+            - /etc/neutron/neutron.conf
+            - --config-file
+            - /etc/neutron/bgp_dragent.ini
+            - --config-dir
+            - /etc/neutron/neutron.conf.d
+            - --debug
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
@@ -86,10 +93,6 @@ spec:
               mountPath: {{ .Values.conf.neutron.oslo_concurrency.lock_path }}
             - name: pod-var-neutron
               mountPath: {{ .Values.conf.neutron.DEFAULT.state_path }}
-            - name: neutron-bin
-              mountPath: /tmp/neutron-bgp-dragent.sh
-              subPath: neutron-bgp-dragent.sh
-              readOnly: true
             - name: neutron-bin
               mountPath: /tmp/health-probe.py
               subPath: health-probe.py

@@ -74,29 +74,20 @@ spec:
 {{ dict "envAll" $envAll "component" "api" "container" "freezer_api" "type" "readiness" "probeTemplate" (include "probeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
 {{ dict "envAll" $envAll "component" "api" "container" "freezer_api" "type" "liveness" "probeTemplate" (include "probeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
           command:
-            - /tmp/freezer-api.sh
-            - start
+            - freezer-api
+            - --config-file
+            - /etc/freezer/freezer.conf
           env:
 {{- if or .Values.manifests.certificates .Values.tls.identity }}
             - name: REQUESTS_CA_BUNDLE
               value: "/etc/freezer/certs/ca.crt"
 {{- end }}
-          lifecycle:
-            preStop:
-              exec:
-                command:
-                  - /tmp/freezer-api.sh
-                  - stop
           ports:
             - name: freezer-api
               containerPort: {{ tuple "backup" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
           volumeMounts:
             - name: oslo-lock-path
               mountPath: {{ .Values.conf.freezer.oslo_concurrency.lock_path }}
-            - name: freezer-bin
-              mountPath: /tmp/freezer-api.sh
-              subPath: freezer-api.sh
-              readOnly: true
             - name: freezer-etc
               mountPath: /etc/freezer/freezer.conf
               subPath: freezer.conf

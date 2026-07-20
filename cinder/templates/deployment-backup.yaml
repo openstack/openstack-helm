@@ -167,7 +167,11 @@ spec:
 {{ tuple $envAll $envAll.Values.pod.resources.backup | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
 {{ dict "envAll" $envAll "application" "cinder_backup" "container" "cinder_backup" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
-            - /tmp/cinder-backup.sh
+            - cinder-backup
+            - --config-file
+            - /etc/cinder/cinder.conf
+            - --config-dir
+            - /etc/cinder/cinder.conf.d
           terminationMessagePath: /var/log/termination-log
           volumeMounts:
             - name: pod-tmp
@@ -176,10 +180,6 @@ spec:
               mountPath: {{ .Values.conf.cinder.oslo_concurrency.lock_path }}
             - name: cinder-tmp
               mountPath: /var/lib/cinder/tmp
-            - name: cinder-bin
-              mountPath: /tmp/cinder-backup.sh
-              subPath: cinder-backup.sh
-              readOnly: true
             - name: cinder-etc
               mountPath: /etc/cinder/cinder.conf
               subPath: cinder.conf

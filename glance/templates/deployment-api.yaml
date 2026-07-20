@@ -135,19 +135,14 @@ spec:
 {{ dict "envAll" $envAll "component" "api" "container" "glance-api" "type" "readiness" "probeTemplate" (include "probeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
 {{ dict "envAll" $envAll "component" "api" "container" "glance-api" "type" "liveness" "probeTemplate" (include "probeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
           command:
-            - /tmp/glance-api.sh
-            - start
+            - uwsgi
+            - --ini
+            - /etc/glance/glance-api-uwsgi.ini
 {{- if .Values.secrets.tls.ca }}
           env:
             - name: REQUESTS_CA_BUNDLE
               value: "/etc/ssl/certs/openstack-helm.crt"
 {{- end }}
-          lifecycle:
-            preStop:
-              exec:
-                command:
-                  - /tmp/glance-api.sh
-                  - stop
           ports:
             - name: g-api
               containerPort: {{ tuple "image" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
@@ -160,10 +155,6 @@ spec:
               mountPath: /var/lib/glance/tmp
             - name: etcglance
               mountPath: /etc/glance
-            - name: glance-bin
-              mountPath: /tmp/glance-api.sh
-              subPath: glance-api.sh
-              readOnly: true
             - name: glance-etc
               mountPath: /etc/glance/glance-api.conf
               subPath: glance-api.conf

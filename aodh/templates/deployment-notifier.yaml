@@ -66,14 +66,9 @@ spec:
 {{ tuple $envAll $envAll.Values.pod.resources.notifier | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
 {{ dict "envAll" $envAll "application" "aodh" "container" "aodh_notifier" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
-            - /tmp/aodh-notifier.sh
-            - start
-          lifecycle:
-            preStop:
-              exec:
-                command:
-                  - /tmp/aodh-notifier.sh
-                  - stop
+            - aodh-notifier
+            - --config-file=/etc/aodh/aodh.conf
+            - --config-dir=/etc/aodh/aodh.conf.d
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
@@ -97,10 +92,6 @@ spec:
             - name: aodh-etc
               mountPath: /etc/aodh/policy.yaml
               subPath: policy.yaml
-              readOnly: true
-            - name: aodh-bin
-              mountPath: /tmp/aodh-notifier.sh
-              subPath: aodh-notifier.sh
               readOnly: true
 {{ if $mounts_aodh_notifier.volumeMounts }}{{ toYaml $mounts_aodh_notifier.volumeMounts | indent 12 }}{{ end }}
       volumes:

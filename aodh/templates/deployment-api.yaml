@@ -67,19 +67,14 @@ spec:
 {{ tuple $envAll $envAll.Values.pod.resources.api | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
 {{ dict "envAll" $envAll "application" "aodh" "container" "aodh_api" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
-            - /tmp/aodh-api.sh
-            - start
+            - uwsgi
+            - --ini
+            - /etc/aodh/aodh-api-uwsgi.ini
 {{- if .Values.secrets.tls.ca }}
           env:
             - name: REQUESTS_CA_BUNDLE
               value: "/etc/ssl/certs/openstack-helm.crt"
 {{- end }}
-          lifecycle:
-            preStop:
-              exec:
-                command:
-                  - /tmp/aodh-api.sh
-                  - stop
           ports:
             - name: a-api
               containerPort: {{ tuple "alarming" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
@@ -117,10 +112,6 @@ spec:
             - name: aodh-etc
               mountPath: /etc/aodh/policy.yaml
               subPath: policy.yaml
-              readOnly: true
-            - name: aodh-bin
-              mountPath: /tmp/aodh-api.sh
-              subPath: aodh-api.sh
               readOnly: true
 {{- dict "enabled" (not (empty .Values.secrets.tls.ca)) "name" .Values.secrets.tls.ca | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
 {{ if $mounts_aodh_api.volumeMounts }}{{ toYaml $mounts_aodh_api.volumeMounts | indent 12 }}{{ end }}

@@ -80,14 +80,9 @@ spec:
 {{ tuple $envAll $envAll.Values.pod.resources.cloudkitty_api | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
 {{ dict "envAll" $envAll "application" "cloudkitty" "container" "cloudkitty_api" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
-            - /tmp/cloudkitty-api.sh
-            - start
-          lifecycle:
-            preStop:
-              exec:
-                command:
-                  - /tmp/cloudkitty-api.sh
-                  - stop
+            - uwsgi
+            - --ini
+            - /etc/cloudkitty/cloudkitty-api-uwsgi.ini
           ports:
             - name: c-api
               containerPort: {{ tuple "rating" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
@@ -98,9 +93,6 @@ spec:
               mountPath: /tmp
             - name: oslo-lock-path
               mountPath: {{ .Values.conf.cloudkitty.oslo_concurrency.lock_path }}
-            - name: cloudkitty-bin
-              mountPath: /tmp/cloudkitty-api.sh
-              subPath: cloudkitty-api.sh
             - name: etccloudkitty
               mountPath: /etc/cloudkitty
             - name: cloudkitty-etc

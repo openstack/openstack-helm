@@ -62,14 +62,9 @@ spec:
           securityContext:
             runAsUser: {{ .Values.pod.user.magnum.uid }}
           command:
-            - /tmp/magnum-api.sh
-            - start
-          lifecycle:
-            preStop:
-              exec:
-                command:
-                  - /tmp/magnum-api.sh
-                  - stop
+            - uwsgi
+            - --ini
+            - /etc/magnum/magnum-api-uwsgi.ini
           ports:
             - name: m-api
               containerPort: {{ tuple "container-infra" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
@@ -85,10 +80,6 @@ spec:
               mountPath: /tmp
             - name: oslo-lock-path
               mountPath: {{ .Values.conf.magnum.oslo_concurrency.lock_path }}
-            - name: magnum-bin
-              mountPath: /tmp/magnum-api.sh
-              subPath: magnum-api.sh
-              readOnly: true
             - name: pod-etc-magnum
               mountPath: /etc/magnum
             - name: pod-var-cache-magnum

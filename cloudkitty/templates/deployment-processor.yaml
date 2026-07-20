@@ -65,23 +65,16 @@ spec:
 {{ tuple $envAll $envAll.Values.pod.resources.cloudkitty_processor | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
 {{ dict "envAll" $envAll "application" "cloudkitty" "container" "cloudkitty_processor" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
-            - /tmp/cloudkitty-processor.sh
-            - start
-          lifecycle:
-            preStop:
-              exec:
-                command:
-                  - /tmp/cloudkitty-processor.sh
-                  - stop
+            - cloudkitty-processor
+            - --config-file
+            - /etc/cloudkitty/cloudkitty.conf
+            - --config-dir
+            - /etc/cloudkitty/cloudkitty.conf.d
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
             - name: oslo-lock-path
               mountPath: {{ .Values.conf.cloudkitty.oslo_concurrency.lock_path }}
-            - name: cloudkitty-bin
-              mountPath: /tmp/cloudkitty-processor.sh
-              subPath: cloudkitty-processor.sh
-              readOnly: true
             - name: etccloudkitty
               mountPath: /etc/cloudkitty
             - name: cloudkitty-etc

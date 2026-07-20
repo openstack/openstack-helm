@@ -61,23 +61,14 @@ spec:
 {{ tuple $envAll $envAll.Values.pod.resources.masakari_engine | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
 {{ dict "envAll" $envAll "application" "masakari" "container" "masakari_engine" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
-            - /tmp/masakari-engine.sh
-            - start
-          lifecycle:
-            preStop:
-              exec:
-                command:
-                  - /tmp/masakari-engine.sh
-                  - stop
+            - masakari-engine
+            - --config-file
+            - /etc/masakari/masakari.conf
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
             - name: oslo-lock-path
               mountPath: {{ .Values.conf.masakari.oslo_concurrency.lock_path }}
-            - name: masakari-bin
-              mountPath: /tmp/masakari-engine.sh
-              subPath: masakari-engine.sh
-              readOnly: true
             - name: etcmasakari
               mountPath: /etc/masakari
             - name: masakari-etc

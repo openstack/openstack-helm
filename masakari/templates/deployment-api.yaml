@@ -76,14 +76,9 @@ spec:
 {{ tuple $envAll $envAll.Values.pod.resources.masakari_api | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
 {{ dict "envAll" $envAll "application" "masakari" "container" "masakari_api" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
-            - /tmp/masakari-api.sh
-            - start
-          lifecycle:
-            preStop:
-              exec:
-                command:
-                  - /tmp/masakari-api.sh
-                  - stop
+            - masakari-api
+            - --config-file
+            - /etc/masakari/masakari.conf
           ports:
             - name: n-api
               containerPort: {{ tuple "instance_ha" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
@@ -94,9 +89,6 @@ spec:
               mountPath: /tmp
             - name: oslo-lock-path
               mountPath: {{ .Values.conf.masakari.oslo_concurrency.lock_path }}
-            - name: masakari-bin
-              mountPath: /tmp/masakari-api.sh
-              subPath: masakari-api.sh
             - name: etcmasakari
               mountPath: /etc/masakari
             - name: masakari-etc
