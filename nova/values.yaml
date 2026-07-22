@@ -1370,7 +1370,6 @@ conf:
   nova_compute_redactions:
     - database
     - api_database
-    - cell0_database
   nova:
     DEFAULT:
       log_config_append: /etc/nova/logging.conf
@@ -1438,13 +1437,6 @@ conf:
       ## the connection string via a mounted configuration snippet.
       connection: ""
     api_database:
-      max_retries: -1
-      # -- Database connection URI. When empty the URI is auto-generated
-      ## from endpoints.oslo_db. Set to null to disable auto-generation,
-      ## e.g. when using an operator such as mariadb-operator that supplies
-      ## the connection string via a mounted configuration snippet.
-      connection: ""
-    cell0_database:
       max_retries: -1
       # -- Database connection URI. When empty the URI is auto-generated
       ## from endpoints.oslo_db. Set to null to disable auto-generation,
@@ -1627,12 +1619,11 @@ secrets:
     test: nova-keystone-test
   oslo_db:
     admin: nova-db-admin
-    nova: nova-db-user
-  oslo_db_api:
-    admin: nova-db-api-admin
   oslo_db_cell0:
     admin: nova-db-cell0-admin
     nova: nova-db-cell0-user
+  oslo_db_cell1:
+    admin: nova-db-cell1-admin
   oslo_messaging:
     admin: nova-rabbitmq-admin
     nova: nova-rabbitmq-user
@@ -1720,23 +1711,6 @@ endpoints:
     port:
       mysql:
         default: 3306
-  oslo_db_api:
-    auth:
-      admin:
-        username: root
-        password: password
-      nova:
-        username: nova
-        password: password
-    hosts:
-      default: mariadb
-    host_fqdn_override:
-      default: null
-    path: /nova_api
-    scheme: mysql+pymysql
-    port:
-      mysql:
-        default: 3306
   oslo_db_cell0:
     auth:
       admin:
@@ -1750,6 +1724,26 @@ endpoints:
     host_fqdn_override:
       default: null
     path: /nova_cell0
+    scheme: mysql+pymysql
+    port:
+      mysql:
+        default: 3306
+  oslo_db_cell1:
+    auth:
+      admin:
+        username: root
+        password: password
+        secret:
+          tls:
+            internal: mariadb-tls-direct
+      nova:
+        username: nova
+        password: password
+    hosts:
+      default: mariadb
+    host_fqdn_override:
+      default: null
+    path: /nova_cell1
     scheme: mysql+pymysql
     port:
       mysql:
@@ -2701,9 +2695,9 @@ manifests:
   pdb_osapi: true
   pod_rally_test: true
   network_policy: false
-  secret_db_api: true
-  secret_db_cell0: true
   secret_db: true
+  secret_db_cell0: true
+  secret_db_cell1: true
   secret_keystone: true
   secret_ks_etc: true
   secret_rabbitmq: true

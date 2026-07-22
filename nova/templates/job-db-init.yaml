@@ -19,10 +19,14 @@ helm.sh/hook-weight: "-5"
 
 {{- if .Values.manifests.job_db_init }}
 {{- $serviceName := "nova" -}}
-{{- $dbSvc := dict "adminSecret" .Values.secrets.oslo_db.admin "configFile" (printf "/etc/%s/%s.conf" $serviceName $serviceName ) "logConfigFile" (printf "/etc/%s/logging.conf" $serviceName ) "configDbSection" "database" "configDbKey" "connection" -}}
-{{- $dbApi := dict "adminSecret" .Values.secrets.oslo_db.admin "configFile" (printf "/etc/%s/%s.conf" $serviceName $serviceName ) "logConfigFile" (printf "/etc/%s/logging.conf" $serviceName ) "configDbSection" "api_database" "configDbKey" "connection" -}}
-{{- $dbCell := dict "adminSecret" .Values.secrets.oslo_db.admin "configFile" (printf "/etc/%s/%s.conf" $serviceName $serviceName ) "logConfigFile" (printf "/etc/%s/logging.conf" $serviceName ) "configDbSection" "cell0_database" "configDbKey" "connection" -}}
-{{- $dbsToInit := list $dbSvc $dbApi $dbCell }}
+{{- $db := dict "adminSecret" .Values.secrets.oslo_db.admin "configFile" (printf "/etc/%s/%s.conf" $serviceName $serviceName ) "logConfigFile" (printf "/etc/%s/logging.conf" $serviceName ) "configDbSection" "api_database" "configDbKey" "connection" -}}
+{{/* cell0 uses the "secret" init type rather than "oslo". The cell0 database
+connection string is not materialized in any config file: it is stored as data
+in the API database. db-init therefore reads it from
+the nova-db-cell0-user secret instead of from an oslo config section. */}}
+{{- $dbCell0 := dict "inputType" "secret" "adminSecret" .Values.secrets.oslo_db.admin "userSecret" .Values.secrets.oslo_db_cell0.nova -}}
+{{- $dbCell1 := dict "adminSecret" .Values.secrets.oslo_db_cell1.admin "configFile" (printf "/etc/%s/%s.conf" $serviceName $serviceName ) "logConfigFile" (printf "/etc/%s/logging.conf" $serviceName ) "configDbSection" "database" "configDbKey" "connection" -}}
+{{- $dbsToInit := list $db $dbCell0 $dbCell1 }}
 {{- $dbInitJob := dict "envAll" . "serviceName" $serviceName "dbsToInit" $dbsToInit -}}
 {{- if .Values.tls.oslo_db -}}
 {{- $_ := set $dbInitJob "dbAdminTlsSecret" .Values.secrets.tls.client.nova -}}
