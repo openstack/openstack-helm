@@ -21,11 +21,19 @@ COMMAND="${@:-start}"
 
 function start () {
   cat > /tmp/dhclient.conf <<EOF
+{{- if .Values.network.health_manager.interface_mtu }}
+request subnet-mask,broadcast-address;
+supersede interface-mtu {{ .Values.network.health_manager.interface_mtu }};
+{{- else }}
 request subnet-mask,broadcast-address,interface-mtu;
+{{- end }}
 do-forward-updates false;
 EOF
 
   dhclient -v o-hm0 -cf /tmp/dhclient.conf
+{{- if .Values.network.health_manager.interface_mtu }}
+  ip link set dev o-hm0 mtu {{ .Values.network.health_manager.interface_mtu }}
+{{- end }}
 
   exec octavia-health-manager \
         --config-file /etc/octavia/octavia.conf \
