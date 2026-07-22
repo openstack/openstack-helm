@@ -24,6 +24,15 @@
             max_l3_agents_per_router: 1
             l3_ha_network_type: vxlan
             dhcp_agents_per_network: 1
+            # Tenant traffic is VXLAN-encapsulated by Neutron and then
+            # carried over the brvxlan node overlay (itself VXLAN, MTU
+            # 1450). With the default global_physnet_mtu=1500 Neutron
+            # sizes tenant networks at 1450, but the double
+            # encapsulation leaves only ~1400 usable, so large packets
+            # (e.g. SSH key exchange to test VMs) are silently dropped.
+            # Pin it to the overlay MTU so tenant networks come out at
+            # 1400 (1450 - 50 VXLAN overhead).
+            global_physnet_mtu: 1450
         auto_bridge_add:
           br-ex: provider1
         plugins:
