@@ -1337,6 +1337,7 @@ conf:
     composite:neutron:
       use: egg:Paste#urlmap
       /: neutronversions_composite
+      /healthcheck: healthcheck
       /v2.0: neutronapi_v2_0
     composite:neutronapi_v2_0:
       use: call:neutron.auth:pipeline_factory
@@ -1368,6 +1369,11 @@ conf:
       paste.app_factory: neutron.pecan_wsgi.app:versions_factory
     app:neutronapiapp_v2_0:
       paste.app_factory: neutron.api.v2.router:APIRouter.factory
+    app:healthcheck:
+      paste.app_factory: oslo_middleware:Healthcheck.app_factory
+      backends: disable_by_file
+      # state_path is writable; drain a pod by touching this file.
+      disable_by_file_path: /var/lib/neutron/healthcheck_disable
     filter:osprofiler:
       paste.filter_factory: osprofiler.web:WsgiMiddleware.factory
   neutron_api_uwsgi:
@@ -2527,6 +2533,7 @@ endpoints:
       #     key: null
     path:
       default: null
+      healthcheck: /healthcheck
     scheme:
       default: 'http'
       service: 'http'
