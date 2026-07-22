@@ -172,9 +172,32 @@ sudo tee -a /etc/ssh/ssh_config <<EOF
     PubkeyAcceptedKeyTypes +ssh-rsa
 EOF
 
-SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i ${SSH_DIR}/osh_key"
+SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=30 -o ServerAliveInterval=15 -o ServerAliveCountMax=4 -i ${SSH_DIR}/osh_key"
 # Default login user differs per cloud image: ubuntu/debian/cirros/alpine/...
 : ${IMAGE_USER:="ubuntu"}
+
+# Retry an SSH command to ride out transient connectivity blips to the test
+# VMs. The two VMs share heavily loaded gate nodes (rook-ceph + NFS-Ganesha +
+# nova), so a floating IP can briefly stop answering ("connect ... timed out")
+# even after the VM was reachable moments earlier. Retries up to ~10 minutes;
+# stdout is captured and re-emitted so callers can use the command output.
+retry_ssh() {
+  local deadline out rc
+  deadline=$(( $(date +%s) + 600 ))
+  while true; do
+    out=$(ssh ${SSH_OPTS} "$@")
+    rc=$?
+    if [ "${rc}" -eq 0 ]; then
+      printf '%s' "${out}"
+      return 0
+    fi
+    if [ "$(date +%s)" -ge "${deadline}" ]; then
+      echo "retry_ssh: giving up after 600s (rc=${rc}): ssh $*" >&2
+      return 1
+    fi
+    sleep 10
+  done
+}
 
 wait_for_cloud_init() {
   local fip="$1"
@@ -199,10 +222,10 @@ wait_for_cloud_init "${VM2_FIP}"
 
 # --- 5. Cross-VM read/write through the NFS share ---
 TEST_PAYLOAD="manila-cephfsnfs-ok-$(date +%s)-${RANDOM}"
-ssh ${SSH_OPTS} ${IMAGE_USER}@${VM1_FIP} \
+retry_ssh ${IMAGE_USER}@${VM1_FIP} \
   "echo '${TEST_PAYLOAD}' | sudo tee /mnt/manila/test.txt > /dev/null && sync"
 
-READ_BACK=$(ssh ${SSH_OPTS} ${IMAGE_USER}@${VM2_FIP} 'cat /mnt/manila/test.txt')
+READ_BACK=$(retry_ssh ${IMAGE_USER}@${VM2_FIP} 'cat /mnt/manila/test.txt')
 
 if [ "${READ_BACK}" != "${TEST_PAYLOAD}" ]; then
   echo "FAIL: content mismatch"
